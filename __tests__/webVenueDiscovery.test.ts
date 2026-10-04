@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ownSiteFor, parseTaskVenues, validateDiscoveryPack } from "../scripts/lib/parallelVenueDiscovery.mjs";
-import { rankSearchResults, readFailureIsDefinitive, webPageResult } from "../scripts/lib/webVenueDiscovery.mjs";
+import { ownSiteFor, parseTaskVenues, statesDrinking, validateDiscoveryPack } from "../scripts/lib/parallelVenueDiscovery.mjs";
+import { nonVenueSource, rankSearchResults, readFailureIsDefinitive, webPageResult } from "../scripts/lib/webVenueDiscovery.mjs";
 import { parseArgs } from "../scripts/discover_parallel_venues.mjs";
 
 const manchester = { id: "manchester", displayName: "Manchester", bbox: [53.38, -2.35, 53.55, -2.1] as [number, number, number, number] };
@@ -49,6 +49,42 @@ describe("Tavily venue discovery", () => {
     const host = name.toLowerCase().split(" ")[0];
     const text = `**${name}**\n\n${street}\n\nManchester\n\nM3 2BY\n\n${blurb}`;
     expect(read(`https://www.${host}.example/`, text, `${name} | Home`).candidates).toEqual([]);
+  });
+
+  it.each([
+    ["Merlin's Café Bar", "Merlins Café Bar\nopen DAYS : TIMES VARY\nLocation : BIRMINGHAM 2 Test Street B1 1AA"],
+    ["The Bath Distillery Gin Bar", "### **7. The Bath****Distillery Gin Bar**\n2-3 Queen Street BA1 1HE"],
+    ["The Cut & Craft", "THE CUT AND CRAFT 23 King Edward St LS1 6AX"],
+    ["Café Bar Nº1", "Cafe Bar No1, 1 High Street M1 1AA"],
+  ])("does not take %s's name for drinking evidence however the quote spells it", (name, quote) => {
+    expect(statesDrinking("bar", quote, name)).toBe(false);
+    expect(statesDrinking("bar", `${quote}\nCask ales and cocktails`, name)).toBe(true);
+  });
+
+  it("withdraws a stored Parallel row and refuses a parsed one whose only drinking word is a respelled name", () => {
+    const url = "https://merlinscafe.example/";
+    const excerpt = "Merlins Café Bar, 2 Test Street, Birmingham B1 1AA";
+    const birmingham = { id: "birmingham", displayName: "Birmingham", bbox: [52.42, -1.98, 52.55, -1.8] as [number, number, number, number] };
+    const row = { name: "Merlin's Café Bar", kind: "bar", address: "2 Test Street, Birmingham B1 1AA", website: url, lat: null, lng: null, evidence: [{ url, excerpt }] };
+    const result = { output: { type: "json", content: { venues: [row] }, basis: [{ field: "venues.0", confidence: "high", citations: [{ url, excerpts: [excerpt] }] }] } };
+    expect(parseTaskVenues(result, birmingham, observedAt).rejected).toEqual([{ name: "Merlin's Café Bar", reason: "missing-drinking-evidence" }]);
+    const stored = { ...row, postcode: "B1 1AA", locality: "Birmingham", sourceUrls: [url], observedAt, lat: 52.48, lng: -1.9, coordinatePrecision: "postcode-centroid", provider: "parallel" };
+    expect(() => validateDiscoveryPack({ city: "birmingham", venues: [stored] }, birmingham)).toThrow("Invalid Parallel venue evidence");
+  });
+
+  it.each([
+    ["https://democracy.manchester.gov.uk/documents/s1/report.pdf", "public body or academic site"],
+    ["https://www.leedsbeckett.ac.uk/events", "public body or academic site"],
+    ["https://www.postcodearea.co.uk/postaltowns/manchester/m54rp", "postcode or property lookup"],
+    ["https://www.carehome.co.uk/care_search_results.cfm/searchpostcode/B21", "care or childcare directory"],
+    ["https://www.simplyhired.co.uk/search?q=bartender&l=leeds", "job board"],
+    ["https://www.stagecoachbus.com/promos", "transport operator"],
+    ["https://uk.hotels.com/ho1/the-dark-horse", "travel aggregator"],
+    ["https://camra.org.uk/pubs/place/cowley", null],
+    ["https://www.visitliverpool.com/listing/salt-and-tar/62741101", null],
+    ["https://www.cricketersarmsoxford.co.uk/", null],
+  ])("filters %s as %s before reading", (url, reason) => {
+    expect(nonVenueSource(url)).toBe(reason);
   });
 
   it("reads drinking identity stated outside the name", () => {
@@ -101,6 +137,15 @@ describe("Tavily venue discovery", () => {
     ["Evening Post Inn", "https://www.yorkshireeveningpost.co.uk/whats-on/evening-post-inn", { displayName: "Leeds" }],
   ])("does not treat a news or directory host as %s's own site", (name, url, city) => {
     expect(ownSiteFor(name, url, city)).toBeNull();
+  });
+
+  it.each([
+    ["The Lamp Post", "https://www.thelamppost.co.uk/", { displayName: "Manchester" }],
+    ["New Street Tavern", "https://newstreettavern.co.uk/", { displayName: "Birmingham" }],
+    ["The Olive Tree", "https://theolive.co.uk/", { displayName: "Bath" }],
+    ["The Signpost", "https://thesignpost.pub/", { displayName: "Leeds" }],
+  ])("keeps %s's own site although its name holds a news word", (name, url, city) => {
+    expect(ownSiteFor(name, url, city)).toBe(url);
   });
 
   it("treats a host carrying a distinctive word of the name as the venue's own site", () => {

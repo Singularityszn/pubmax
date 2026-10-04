@@ -756,40 +756,6 @@
       "provider": "parallel"
     },
     {
-      "name": "Merlin's Café Bar",
-      "kind": "bar",
-      "address": "18-20 Martineau Place, Corporation Street, Birmingham B2 4UU",
-      "postcode": "B2 4UU",
-      "locality": "Birmingham",
-      "website": "https://merlinscafebar.com/",
-      "lat": 52.480371,
-      "lng": -1.895557,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://merlinscafebar.com/our-menus/cocktailmenu"
-      ],
-      "evidence": [
-        {
-          "url": "https://merlinscafebar.com/our-menus/cocktailmenu",
-          "excerpt": "Merlins Café Bar\nopen DAYS : TIMES VARY\nLocation : BIRMINGHAM"
-        },
-        {
-          "url": "https://merlinscafebar.com/our-menus/cocktailmenu",
-          "excerpt": "Location : 18-20 Martineau Place, Corporation Street, Birmingham, B2 4UU."
-        }
-      ],
-      "observedAt": "2026-10-04T11:22:48.609Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/B2%204UU",
-        "observedAt": "2026-10-04T11:22:48.695Z",
-        "postcode": "B2 4UU",
-        "quality": 1
-      },
-      "runId": "trun_ce5fd53e0016415fa58c759e57fe2acc",
-      "id": "venue-bhm-15zyxr4",
-      "provider": "parallel"
-    },
-    {
       "name": "Albert’s Schloss Birmingham",
       "kind": "bar",
       "address": "One Chamberlain Square, Birmingham B3 3AX",

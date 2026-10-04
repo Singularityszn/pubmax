@@ -2,41 +2,112 @@
   "city": "oxford",
   "districts": 4,
   "slices": 16,
-  "slicesComplete": 15,
-  "incompleteSlices": [
-    "OX3/bar: 1 pages not read yet (Tavily Extract: Error fetching content for https://pubmed.ncbi.nlm.nih.gov/24530702); rerun to resume"
-  ],
+  "slicesComplete": 16,
+  "incompleteSlices": [],
   "skippedSources": [
     {
       "district": "OX1",
       "category": "cocktail-bar",
       "url": "https://www.oxfordcompass.org/venues/oxo-bar-oxford",
       "host": "www.oxfordcompass.org",
+      "kind": "robots",
       "reason": "robots HTTP 429",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:12:56.836Z",
+          "at": "2026-10-04T14:31:25.108Z",
           "reason": "robots-unreadable",
           "evidence": "https://www.oxfordcompass.org/robots.txt answered 429, so no permission can be read."
         },
         {
-          "at": "2026-10-04T14:13:02.463Z",
+          "at": "2026-10-04T14:31:30.938Z",
           "reason": "robots-unreadable",
           "evidence": "https://www.oxfordcompass.org/robots.txt answered 429, so no permission can be read."
         },
         {
-          "at": "2026-10-04T14:13:08.544Z",
+          "at": "2026-10-04T14:31:36.012Z",
           "reason": "robots-unreadable",
           "evidence": "https://www.oxfordcompass.org/robots.txt answered 429, so no permission can be read."
         }
       ],
-      "checkedAt": "2026-10-04T14:13:08.544Z"
+      "checkedAt": "2026-10-04T14:31:36.012Z"
+    }
+  ],
+  "filteredSources": [
+    {
+      "district": "OX1",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/08780236",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "OX1",
+      "category": "cocktail-bar",
+      "url": "https://universityclub.ox.ac.uk/cafe-and-bar",
+      "host": "universityclub.ox.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "OX2",
+      "category": "cocktail-bar",
+      "url": "https://www.wolfson.ox.ac.uk/social-life-food-and-drink/the-wolfson-bar",
+      "host": "www.wolfson.ox.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "OX2",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-beer-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "OX3",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/13302154/persons-with-significant-control",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "OX3",
+      "category": "bar",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/24530702",
+      "host": "pubmed.ncbi.nlm.nih.gov",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "OX3",
+      "category": "cocktail-bar",
+      "url": "https://www.simplyhired.co.uk/en-GB/search?q=bartender&l=ox3+9du",
+      "host": "www.simplyhired.co.uk",
+      "reason": "job board"
+    },
+    {
+      "district": "OX4",
+      "category": "pub",
+      "url": "https://www.rightmove.co.uk/commercial-property-to-let/OX4/pubs.html",
+      "host": "www.rightmove.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "OX4",
+      "category": "pub",
+      "url": "https://mycouncil.oxford.gov.uk/mgIssueHistoryHome.aspx?IId=16169",
+      "host": "mycouncil.oxford.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "OX4",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-bar-l-oxford-ox4-7fn-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
     }
   ],
   "taskRuns": 0,
   "webSearches": 31,
-  "pagesRead": 140,
+  "pagesRead": 135,
   "researched": 20,
   "added": 0,
   "retained": [
@@ -201,16 +272,8 @@
       "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
-      "name": "https://www.wolfson.ox.ac.uk/social-life-food-and-drink/the-wolfson-bar",
-      "reason": "unreadable: robots refused (robots-unreadable)"
-    },
-    {
       "name": "https://www.yelp.com/search?cflt=beerbar&find_loc=Observtory+Street%2C+Oxford+OX2+6EP",
       "reason": "unreadable: robots refused (robots-disallowed)"
-    },
-    {
-      "name": "https://uk.indeed.com/q-beer-jobs.html",
-      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "Mason's Arms",
@@ -229,6 +292,14 @@
       "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
+      "name": "https://crystalroof.co.uk/report/postcode/OX30LE/overview",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://www.yelp.ca/search?cflt=bars&find_loc=Oxford+OX3+7LE",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
       "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=Oxford+OX3+9RZ%2C+United+Kingdom",
       "reason": "unreadable: robots refused (robots-disallowed)"
     },
@@ -238,10 +309,6 @@
     },
     {
       "name": "https://headington.cylex-uk.co.uk/bars-pubs",
-      "reason": "unreadable: robots refused (robots-unreadable)"
-    },
-    {
-      "name": "https://mycouncil.oxford.gov.uk/mgIssueHistoryHome.aspx?IId=16169",
       "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
@@ -259,10 +326,6 @@
     {
       "name": "https://www.thecapeofgoodhopeoxford.co.uk",
       "reason": "unreadable: robots refused (robots-unreadable)"
-    },
-    {
-      "name": "https://uk.indeed.com/q-bar-l-oxford-ox4-7fn-jobs.html",
-      "reason": "unreadable: source refused HTTP 403"
     }
   ],
   "outputPath": "data/cities/oxford/parallel_venues.json"

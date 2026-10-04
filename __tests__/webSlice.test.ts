@@ -82,18 +82,42 @@ describe("Tavily web slice", () => {
     expect(replay).toMatchObject({ complete: true, skips: [{ url: listing, reason: "robots unreachable" }] });
   });
 
-  it("keeps a cause-less Extract failure open until the page itself answers 404", async () => {
-    const searches = { "search-0": search([{ url: ownSite, title: "Cricketers Arms", content: "OX4 2EZ" }]) };
-    const failing = { failed_results: [{ url: ownSite, error: "Failed to fetch url" }], results: [] };
-    const open = harness({ state: { queries: [{ query: "q0", resultPath: "search-0", observedAt }] }, searches,
-      robots: vi.fn(async () => allowed), extract: vi.fn(async () => failing), probe: vi.fn(async () => ({ status: 200, landed: "permitted" })) });
-    await expect(webSlice(slice, { spend: true }, open.io)).rejects.toThrow("Failed to fetch url");
-    expect(open.stored.has(ownSite)).toBe(false);
-    const gone = harness({ state: { queries: [{ query: "q0", resultPath: "search-0", observedAt }] }, searches: { ...searches, "search-1": search([]) },
-      robots: vi.fn(async () => allowed), extract: vi.fn(async () => failing), probe: vi.fn(async () => ({ status: 404, landed: "permitted" })), search: vi.fn(async () => search([])) });
-    const outcome = await webSlice(slice, { spend: true }, gone.io);
+  it("skips a page Extract cannot read at basic or advanced depth, with both errors and the page's status, unless the page is gone", async () => {
+    const searches = { "search-0": search([{ url: ownSite, title: "Cricketers Arms", content: "OX4 2EZ" }]), "search-1": search([]) };
+    const extract = vi.fn(async (urls: string[], depth: string) => ({ results: [], failed_results: urls.map((url) => ({ url, error: depth === "basic" ? "Failed to fetch url" : "Error fetching content" })) }));
+    const reachable = harness({ state: { queries: [{ query: "q0", resultPath: "search-0", observedAt }] }, searches,
+      robots: vi.fn(async () => allowed), extract, probe: vi.fn(async () => ({ status: 200, landed: "permitted" })), search: vi.fn(async () => search([])) });
+    const outcome = await webSlice(slice, { spend: true }, reachable.io);
     expect(outcome.complete).toBe(true);
+    expect(outcome.found).toEqual([]);
+    expect(outcome.skips).toMatchObject([{ url: ownSite, kind: "extract", attempts: 2, reason: "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
+      evidence: { basic: "Failed to fetch url", advanced: "Error fetching content", probe: { status: 200 } } }]);
+    const replay = await webSlice(slice, { spend: false }, harness({ state: (reachable.io.saveState.mock.calls.at(-1) as unknown[])[0] as Record<string, unknown>, searches, pages: Object.fromEntries(reachable.stored) }).io);
+    expect(replay).toMatchObject({ complete: true, skips: [{ url: ownSite, kind: "extract" }] });
+    const gone = harness({ state: { queries: [{ query: "q0", resultPath: "search-0", observedAt }] }, searches,
+      robots: vi.fn(async () => allowed), extract, probe: vi.fn(async () => ({ status: 404, landed: "permitted" })), search: vi.fn(async () => search([])) });
+    const settledOutcome = await webSlice(slice, { spend: true }, gone.io);
+    expect(settledOutcome).toMatchObject({ complete: true, skips: [] });
     expect(gone.stored.get(ownSite)).toMatchObject({ unreadable: "page HTTP 404", settled: true });
+  });
+
+  it("filters pages from sites that cannot describe a venue before reading or paying for them", async () => {
+    const council = "https://democracy.manchester.gov.uk/documents/s1/licence.pdf";
+    const postcodes = "https://www.postcodearea.co.uk/postaltowns/oxford/ox42lf";
+    const searches = { "search-0": search([
+      { url: council, content: "Licence for 188 Oxford Road OX4 2LF" }, { url: postcodes, content: "OX4 2LF" },
+      { url: listing, title: "Pubs in Cowley", content: "OX4 2LF", raw_content: listingText },
+    ]), "search-1": search([]) };
+    const robots = vi.fn<(url: string) => Promise<typeof allowed>>(async () => allowed);
+    const { io } = harness({ state: { queries: [{ query: "q0", resultPath: "search-0", observedAt }] }, searches, robots, search: vi.fn(async () => search([])) });
+    const outcome = await webSlice(slice, { spend: true }, io);
+    expect(outcome.complete).toBe(true);
+    expect(outcome.filtered).toEqual([
+      { url: council, host: "democracy.manchester.gov.uk", reason: "public body or academic site" },
+      { url: postcodes, host: "www.postcodearea.co.uk", reason: "postcode or property lookup" },
+    ]);
+    expect(robots.mock.calls.map((call) => call[0])).toEqual([listing]);
+    expect(outcome.found.map((row: { name: string }) => row.name)).toEqual(["Original Swan"]);
   });
 
   it("asks Extract once more at advanced depth before probing a cause-less failure", async () => {
@@ -126,21 +150,45 @@ describe("Tavily web slice", () => {
 
 describe("robots gate", () => {
   const unreachable = { allowed: false, reason: "robots-unreachable", evidence: "https://x.example/robots.txt could not be fetched (fetch failed)." };
-  it("retries an unreachable robots file twice, then skips the host with the evidence of every attempt", async () => {
-    const check = vi.fn(async () => unreachable);
+  // Like lib/harvest/robots.ts: each checker fetches a host's robots once and
+  // keeps that answer, transient or not, for every later path on the host.
+  function cachingChecker(answers: Array<(path: string) => { allowed: boolean; reason: string; evidence?: string }>) {
+    let made = 0;
+    const fetched: string[] = [];
+    const make = () => {
+      const answer = answers[Math.min(made, answers.length - 1)];
+      made += 1;
+      const cache = new Map<string, boolean>();
+      return vi.fn(async (url: string) => {
+        const { origin, pathname } = new URL(url);
+        if (!cache.has(origin)) { cache.set(origin, true); fetched.push(origin); }
+        return answer(pathname);
+      });
+    };
+    return { make, fetched, made: () => made };
+  }
+
+  it("retries an unreachable robots file twice with fresh checkers, then skips the host with the evidence of every attempt", async () => {
+    const checkers = cachingChecker([() => unreachable]);
     const sleep = vi.fn(async () => {});
-    const gate = createRobotsGate(check, { sleep });
+    const gate = createRobotsGate(checkers.make, { sleep });
     const first = await gate("https://x.example/a");
-    expect(first).toMatchObject({ outcome: "skipped", reason: "robots unreachable", attempts: 3 });
+    expect(first).toMatchObject({ outcome: "skipped", kind: "robots", reason: "robots unreachable", attempts: 3 });
     expect(first.evidence).toHaveLength(3);
     expect(sleep).toHaveBeenCalledTimes(2);
-    expect(await gate("https://x.example/b")).toMatchObject({ outcome: "skipped" });
-    expect(check).toHaveBeenCalledTimes(3);
+    expect(await gate("https://x.example/b")).toMatchObject({ outcome: "skipped", attempts: 3 });
+    expect(checkers.made()).toBe(3);
   });
 
-  it("asks again after one transient answer and takes the source's real answer", async () => {
-    const check = vi.fn().mockResolvedValueOnce(unreachable).mockResolvedValue({ allowed: true, reason: "allowed" });
-    expect(await createRobotsGate(check, { sleep: async () => {} })("https://y.example/a")).toMatchObject({ outcome: "allowed" });
+  it("keeps the checker that reached a recovered host and judges each later path on its rules", async () => {
+    const rules = (path: string) => (path.startsWith("/private") ? { allowed: false, reason: "robots-disallowed", evidence: "Disallow: /private" } : { allowed: true, reason: "allowed" });
+    const checkers = cachingChecker([() => unreachable, rules]);
+    const gate = createRobotsGate(checkers.make, { sleep: async () => {} });
+    expect(await gate("https://y.example/menu")).toMatchObject({ outcome: "allowed" });
+    expect(await gate("https://y.example/private/rooms")).toMatchObject({ outcome: "refused", reason: "robots-disallowed" });
+    expect(await gate("https://y.example/bar")).toMatchObject({ outcome: "allowed" });
+    expect(checkers.made()).toBe(2);
+    expect(checkers.fetched).toEqual(["https://y.example", "https://y.example"]);
   });
 
   it.each([

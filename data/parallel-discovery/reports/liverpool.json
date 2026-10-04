@@ -2,387 +2,871 @@
   "city": "liverpool",
   "districts": 35,
   "slices": 140,
-  "slicesComplete": 131,
-  "incompleteSlices": [
-    "CH41/restaurant: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://theguideliverpool.com/the-ultimate-guide-to-the-wirral-food-drink-festival-2019); rerun to resume",
-    "L15/restaurant: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://mindtrip.ai/attraction/liverpool-merseyside/brookhouse/at-Sm6z6jDJ); rerun to resume",
-    "L19/cocktail-bar: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://www.merseyrail.org/journey-planning/stations/liverpool-south-parkway); rerun to resume",
-    "L20/pub: 1 pages not read yet (Tavily Extract: Error fetching content for https://www.civilservicejobs.service.gov.uk/csr/jobs.cgi?jcode=2007620); rerun to resume",
-    "L33/bar: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://popeyesuk.com/restaurants)wird); rerun to resume",
-    "L33/restaurant: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://theguideliverpool.com/directory_category/drink/page/14); rerun to resume",
-    "L34/pub: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://www.postcodearea.co.uk/postaltowns/liverpool/l340et); rerun to resume",
-    "L69/bar: 1 pages not read yet (Tavily Extract: Error fetching content for https://pubmed.ncbi.nlm.nih.gov/30293764); rerun to resume",
-    "L69/cocktail-bar: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://bishopsgate-inst.files.svdcdn.com/production/Pride-1991_compressed.pdf?dm=1656076637); rerun to resume"
-  ],
+  "slicesComplete": 140,
+  "incompleteSlices": [],
   "skippedSources": [
+    {
+      "district": "CH41",
+      "category": "restaurant",
+      "url": "https://theguideliverpool.com/the-ultimate-guide-to-the-wirral-food-drink-festival-2019",
+      "host": "theguideliverpool.com",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": {
+          "status": 200,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:30:40.196Z"
+        }
+      },
+      "checkedAt": "2026-10-04T14:30:39.869Z"
+    },
     {
       "district": "CH42",
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/2112/page/19/show_comments/5",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:11:47.545Z"
+      "checkedAt": "2026-10-04T14:30:38.865Z"
     },
     {
       "district": "CH43",
       "category": "bar",
       "url": "https://www.beerintheevening.com/pubs/results.shtml?tr=997&show_comments=5&page=18",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:11:47.139Z"
+      "checkedAt": "2026-10-04T14:30:40.601Z"
     },
     {
       "district": "CH43",
       "category": "cocktail-bar",
       "url": "https://www.beerintheevening.com/pubs/results.shtml?tr=997&show_comments=5&page=18",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:11:47.140Z"
+      "checkedAt": "2026-10-04T14:30:40.602Z"
     },
     {
       "district": "L5",
       "category": "pub",
       "url": "https://www.beersltd.co.uk",
       "host": "www.beersltd.co.uk",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:11:48.424Z",
+          "at": "2026-10-04T14:30:42.616Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beersltd.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:11:54.259Z",
+          "at": "2026-10-04T14:30:48.495Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beersltd.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:12:00.068Z",
+          "at": "2026-10-04T14:30:54.377Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beersltd.co.uk/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:12:00.068Z"
+      "checkedAt": "2026-10-04T14:30:54.388Z"
     },
     {
       "district": "L9",
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/results.shtml?tr=997&show_comments=5&page=18",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:11:48.058Z"
+      "checkedAt": "2026-10-04T14:30:42.386Z"
+    },
+    {
+      "district": "L15",
+      "category": "restaurant",
+      "url": "https://mindtrip.ai/attraction/liverpool-merseyside/brookhouse/at-Sm6z6jDJ",
+      "host": "mindtrip.ai",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": {
+          "status": 200,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:31:03.602Z"
+        }
+      },
+      "checkedAt": "2026-10-04T14:31:03.186Z"
     },
     {
       "district": "L17",
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/2080",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:11:49.741Z"
+      "checkedAt": "2026-10-04T14:30:44.589Z"
     },
     {
       "district": "L18",
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/2080",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:11:50.406Z"
+      "checkedAt": "2026-10-04T14:30:44.834Z"
     },
     {
       "district": "L19",
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/2080",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:11:50.331Z"
+      "checkedAt": "2026-10-04T14:30:45.015Z"
     },
     {
       "district": "L21",
       "category": "pub",
       "url": "https://www.speedquizzing.com/pub-quiz/netherton-liverpool-13264",
       "host": "www.speedquizzing.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:12:14.149Z",
+          "at": "2026-10-04T14:31:07.665Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.speedquizzing.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:12:40.463Z",
+          "at": "2026-10-04T14:31:34.147Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.speedquizzing.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:13:06.502Z",
+          "at": "2026-10-04T14:32:00.632Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.speedquizzing.com/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:13:06.502Z"
+      "checkedAt": "2026-10-04T14:32:00.632Z"
     },
     {
       "district": "L24",
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/2156/show_comments/5",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:12:00.214Z"
+      "checkedAt": "2026-10-04T14:30:48.633Z"
     },
     {
       "district": "L24",
       "category": "cocktail-bar",
       "url": "https://www.p4lcharity.co.uk/contact-us",
       "host": "www.p4lcharity.co.uk",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:12:01.133Z",
+          "at": "2026-10-04T14:30:49.644Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.p4lcharity.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:12:07.016Z",
+          "at": "2026-10-04T14:30:55.452Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.p4lcharity.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:12:12.826Z",
+          "at": "2026-10-04T14:31:01.275Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.p4lcharity.co.uk/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:12:12.826Z"
+      "checkedAt": "2026-10-04T14:31:01.275Z"
     },
     {
       "district": "L32",
       "category": "pub",
       "url": "https://shoplocator.williamhill/liverpool/adj-peacock-public-house/l33-6xn",
       "host": "shoplocator.williamhill",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:12:02.920Z",
+          "at": "2026-10-04T14:30:50.897Z",
           "reason": "robots-unreachable",
           "evidence": "https://shoplocator.williamhill/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:12:08.760Z",
+          "at": "2026-10-04T14:30:56.756Z",
           "reason": "robots-unreachable",
           "evidence": "https://shoplocator.williamhill/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:12:14.669Z",
+          "at": "2026-10-04T14:31:02.590Z",
           "reason": "robots-unreachable",
           "evidence": "https://shoplocator.williamhill/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:12:14.669Z"
+      "checkedAt": "2026-10-04T14:31:02.590Z"
     },
     {
       "district": "L32",
       "category": "pub",
       "url": "https://shoplocator.williamhill/liverpool/broad-lane/l32-6qd",
       "host": "shoplocator.williamhill",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:12:02.920Z",
+          "at": "2026-10-04T14:30:50.897Z",
           "reason": "robots-unreachable",
           "evidence": "https://shoplocator.williamhill/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:12:08.760Z",
+          "at": "2026-10-04T14:30:56.756Z",
           "reason": "robots-unreachable",
           "evidence": "https://shoplocator.williamhill/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:12:14.669Z",
+          "at": "2026-10-04T14:31:02.590Z",
           "reason": "robots-unreachable",
           "evidence": "https://shoplocator.williamhill/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:12:14.679Z"
+      "checkedAt": "2026-10-04T14:31:02.597Z"
+    },
+    {
+      "district": "L33",
+      "category": "bar",
+      "url": "https://popeyesuk.com/restaurants)wird",
+      "host": "popeyesuk.com",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": {
+          "status": 200,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:30:55.248Z"
+        }
+      },
+      "checkedAt": "2026-10-04T14:30:55.233Z"
+    },
+    {
+      "district": "L33",
+      "category": "restaurant",
+      "url": "https://theguideliverpool.com/directory_category/drink/page/14",
+      "host": "theguideliverpool.com",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": {
+          "status": 200,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:30:55.923Z"
+        }
+      },
+      "checkedAt": "2026-10-04T14:30:55.615Z"
     },
     {
       "district": "L36",
       "category": "cocktail-bar",
       "url": "https://www.datathistle.com/place/94314-table-table-the-derby-lodge-huyton-liverpool",
       "host": "www.datathistle.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:09.567Z",
+          "at": "2026-10-04T14:27:21.729Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:08:15.564Z",
+          "at": "2026-10-04T14:27:27.542Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:08:21.370Z",
+          "at": "2026-10-04T14:27:33.365Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:12:15.204Z"
+      "checkedAt": "2026-10-04T14:30:58.646Z"
+    },
+    {
+      "district": "L69",
+      "category": "cocktail-bar",
+      "url": "https://bishopsgate-inst.files.svdcdn.com/production/Pride-1991_compressed.pdf?dm=1656076637",
+      "host": "bishopsgate-inst.files.svdcdn.com",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": {
+          "status": 200,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:31:02.577Z"
+        }
+      },
+      "checkedAt": "2026-10-04T14:31:02.554Z"
+    }
+  ],
+  "filteredSources": [
+    {
+      "district": "CH44",
+      "category": "pub",
+      "url": "https://ratings.food.gov.uk/business/1093173/liverpool-victoria-rowing-club-boathouse-wirral",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "CH44",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/14822225",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "CH62",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-cocktail-bar-l-liverpool-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "L5",
+      "category": "pub",
+      "url": "https://ratings.food.gov.uk/business/496492/the-king-charles-liverpool/online-ratings",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L5",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/09461849/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L6",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/13206169/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L6",
+      "category": "bar",
+      "url": "https://www.simplyhired.co.uk/search?q=bar+staff&l=l6+6dq",
+      "host": "www.simplyhired.co.uk",
+      "reason": "job board"
+    },
+    {
+      "district": "L6",
+      "category": "cocktail-bar",
+      "url": "https://www.postcodearea.co.uk/postaltowns/liverpool/l64es/pubs",
+      "host": "www.postcodearea.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "L7",
+      "category": "bar",
+      "url": "https://www.liverpool.ac.uk/about/our-campus/facilities/food-and-drink/venues/bertie-and-bellas",
+      "host": "www.liverpool.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L7",
+      "category": "bar",
+      "url": "https://www.sae.edu/gbr/campuses/liverpool-campus",
+      "host": "www.sae.edu",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L7",
+      "category": "cocktail-bar",
+      "url": "https://licensing.liverpool.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search?page=358&Column=OPR_NAME&Direction=Ascending",
+      "host": "licensing.liverpool.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L9",
+      "category": "restaurant",
+      "url": "https://licensing.liverpool.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search/718/Detail?APP_ID=237630",
+      "host": "licensing.liverpool.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L11",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/07739656/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L12",
+      "category": "bar",
+      "url": "https://licensing.liverpool.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search?page=35&column=opr_name&direction=Descending",
+      "host": "licensing.liverpool.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L12",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/06650407/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L13",
+      "category": "bar",
+      "url": "https://ratings.food.gov.uk/business/1016347/mcgintys-irish-bar-liverpool",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L15",
+      "category": "restaurant",
+      "url": "https://licensing.liverpool.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search/1783/Detail?LIC_ID=17828",
+      "host": "licensing.liverpool.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L17",
+      "category": "pub",
+      "url": "https://licensing.liverpool.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search?page=181&Column=OPR_PREM_ADDRESS&Direction=Descending",
+      "host": "licensing.liverpool.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L17",
+      "category": "pub",
+      "url": "https://ratings.food.gov.uk/business/1317810/aigburth-arms",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L18",
+      "category": "bar",
+      "url": "https://licensing.liverpool.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search?page=228&Column=OPR_NAME&Direction=Descending",
+      "host": "licensing.liverpool.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L19",
+      "category": "pub",
+      "url": "https://ratings.food.gov.uk/business/521516",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L19",
+      "category": "cocktail-bar",
+      "url": "https://www.merseyrail.org/journey-planning/stations/liverpool-south-parkway",
+      "host": "www.merseyrail.org",
+      "reason": "transport operator"
+    },
+    {
+      "district": "L19",
+      "category": "cocktail-bar",
+      "url": "https://www.merseycare.nhs.uk/bloodtestliverpool",
+      "host": "www.merseycare.nhs.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L20",
+      "category": "pub",
+      "url": "https://www.doogal.co.uk/ShowMap?postcode=L20+4AH",
+      "host": "www.doogal.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "L20",
+      "category": "pub",
+      "url": "https://www.civilservicejobs.service.gov.uk/csr/jobs.cgi?jcode=2007620",
+      "host": "www.civilservicejobs.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L20",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/11593833/filing-history?page=2",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L20",
+      "category": "bar",
+      "url": "https://www.doogal.co.uk/ShowMap?postcode=L20+4AH",
+      "host": "www.doogal.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "L21",
+      "category": "pub",
+      "url": "https://www.rightmove.co.uk/properties/745673534909568",
+      "host": "www.rightmove.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "L22",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/12611138/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L22",
+      "category": "cocktail-bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/12383319/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L24",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/15589055/persons-with-significant-control",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L24",
+      "category": "bar",
+      "url": "https://licensing.liverpool.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search?Column=OPR_PREM_ADDRESS&Direction=Descending&page=338",
+      "host": "licensing.liverpool.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L24",
+      "category": "bar",
+      "url": "https://licensing.liverpool.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search?page=217&column=opr_name&direction=Ascending",
+      "host": "licensing.liverpool.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L24",
+      "category": "bar",
+      "url": "https://uk.indeed.com/q-bar-management-l-liverpool-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "L24",
+      "category": "cocktail-bar",
+      "url": "https://us.trip.com/travel-guide/attraction/liverpool/wag-n-waves-151510110",
+      "host": "us.trip.com",
+      "reason": "travel aggregator"
+    },
+    {
+      "district": "L25",
+      "category": "bar",
+      "url": "https://kz.trip.com/restaurant/united-kingdom/liverpool/detail/holdi-bar-restaurant-and-lounge-17634200",
+      "host": "kz.trip.com",
+      "reason": "travel aggregator"
+    },
+    {
+      "district": "L25",
+      "category": "bar",
+      "url": "https://licensing.liverpool.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search?page=2&Column=OPR_PREM_ADDRESS&Direction=Ascending",
+      "host": "licensing.liverpool.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L25",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/08764677/filing-history?page=2",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L25",
+      "category": "bar",
+      "url": "https://www.rightmove.co.uk/properties/92414622",
+      "host": "www.rightmove.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "L25",
+      "category": "cocktail-bar",
+      "url": "https://licensing.liverpool.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search?page=349&Column=OPR_PREM_ADDRESS&Direction=Descending",
+      "host": "licensing.liverpool.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L32",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/11175380/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L32",
+      "category": "bar",
+      "url": "https://us.trip.com/travel-guide/attraction/liverpool/st-chad-s-church-kirkby-143849803",
+      "host": "us.trip.com",
+      "reason": "travel aggregator"
+    },
+    {
+      "district": "L33",
+      "category": "pub",
+      "url": "https://www.doogal.co.uk/ShowMap?postcode=L33+7XB",
+      "host": "www.doogal.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "L33",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/10643401/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L33",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/06848939/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L33",
+      "category": "bar",
+      "url": "https://www.doogal.co.uk/ShowMap?postcode=L33+7SS",
+      "host": "www.doogal.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "L33",
+      "category": "bar",
+      "url": "https://us.trip.com/travel-guide/attraction/liverpool/charlotte-s-pagsy-136251588",
+      "host": "us.trip.com",
+      "reason": "travel aggregator"
+    },
+    {
+      "district": "L34",
+      "category": "pub",
+      "url": "https://www.postcodearea.co.uk/postaltowns/liverpool/l340et",
+      "host": "www.postcodearea.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "L34",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/16859733/persons-with-significant-control",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L36",
+      "category": "cocktail-bar",
+      "url": "https://us.trip.com/travel-guide/attraction/liverpool/huyton-park-conservative-club-146365124",
+      "host": "us.trip.com",
+      "reason": "travel aggregator"
+    },
+    {
+      "district": "L69",
+      "category": "bar",
+      "url": "https://www.liverpool.ac.uk/tsg-vmsg-bga/information/bars-and-eateries",
+      "host": "www.liverpool.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L69",
+      "category": "bar",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/30293764",
+      "host": "pubmed.ncbi.nlm.nih.gov",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L69",
+      "category": "bar",
+      "url": "https://www.law.ac.uk/locations/liverpool",
+      "host": "www.law.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "L69",
+      "category": "cocktail-bar",
+      "url": "https://www.law.ac.uk/locations/liverpool",
+      "host": "www.law.ac.uk",
+      "reason": "public body or academic site"
     }
   ],
   "taskRuns": 0,
   "webSearches": 247,
-  "pagesRead": 657,
+  "pagesRead": 607,
   "researched": 117,
   "added": 0,
   "retained": [
@@ -763,10 +1247,6 @@
       "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
-      "name": "https://uk.indeed.com/q-cocktail-bar-l-liverpool-jobs.html",
-      "reason": "unreadable: source refused HTTP 403"
-    },
-    {
       "name": "https://www.yelp.com/search?cflt=pubs&find_loc=Covent+Garden%2C+Liverpool+L2+8TZ",
       "reason": "unreadable: robots refused (robots-disallowed)"
     },
@@ -1143,10 +1623,6 @@
       "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
-      "name": "https://uk.indeed.com/q-bar-management-l-liverpool-jobs.html",
-      "reason": "unreadable: source refused HTTP 403"
-    },
-    {
       "name": "https://tap-brew-1.wheree.com",
       "reason": "unreadable: source refused HTTP 403"
     },
@@ -1164,7 +1640,7 @@
     },
     {
       "name": "https://www.liverpoolairport.com/parking/long-stay",
-      "reason": "unreadable: robots refused (robots-unreadable)"
+      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://tap-brew-1.wheree.com",
@@ -1172,10 +1648,6 @@
     },
     {
       "name": "https://www.opentable.com/r/wagamama-liverpool-speke-liverpool",
-      "reason": "unreadable: robots refused (robots-disallowed)"
-    },
-    {
-      "name": "https://kz.trip.com/restaurant/united-kingdom/liverpool/detail/holdi-bar-restaurant-and-lounge-17634200",
       "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
@@ -1259,6 +1731,10 @@
       "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
+      "name": "https://www.opentable.co.uk/r/pinion-prescot",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
       "name": "https://gb.kompass.com/c/rkwb-limited/gbcsc346016",
       "reason": "unreadable: source refused HTTP 403"
     },
@@ -1305,6 +1781,10 @@
     {
       "name": "https://huyton.cylex-uk.co.uk/bars-pubs",
       "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=Lost+%26+Stolen+Cards%2C+Liverpool+L69+8HF%2C+United+Kingdom",
+      "reason": "unreadable: robots refused (robots-disallowed)"
     }
   ],
   "outputPath": "data/cities/liverpool/parallel_venues.json"

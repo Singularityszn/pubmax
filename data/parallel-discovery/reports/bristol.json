@@ -2,123 +2,381 @@
   "city": "bristol",
   "districts": 14,
   "slices": 56,
-  "slicesComplete": 51,
-  "incompleteSlices": [
-    "BS5/pub: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://uk.hotels.com/ho1082180192/the-dark-horse-pub-bristol-united-kingdom); rerun to resume",
-    "BS6/pub: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://hmssbristol.com); rerun to resume",
-    "BS6/cocktail-bar: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://filthyxiii.com); rerun to resume",
-    "BS8/cocktail-bar: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://www.alteregobar.co.uk/contact-us); rerun to resume",
-    "BS10/cocktail-bar: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://www.myvue.com/cinema/bristol-cribbs-causeway/whats-on); rerun to resume"
-  ],
+  "slicesComplete": 56,
+  "incompleteSlices": [],
   "skippedSources": [
     {
-      "district": "BS2",
-      "category": "bar",
-      "url": "https://www.bristol.ac.uk/students/life-in-bristol/campus/cafes",
-      "host": "www.bristol.ac.uk",
-      "reason": "robots unreachable",
-      "attempts": 3,
-      "evidence": [
-        {
-          "at": "2026-10-04T14:12:39.961Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.bristol.ac.uk/robots.txt could not be fetched (fetch failed)."
-        },
-        {
-          "at": "2026-10-04T14:13:06.002Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.bristol.ac.uk/robots.txt could not be fetched (fetch failed)."
-        },
-        {
-          "at": "2026-10-04T14:13:32.040Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.bristol.ac.uk/robots.txt could not be fetched (fetch failed)."
+      "district": "BS6",
+      "category": "pub",
+      "url": "https://hmssbristol.com",
+      "host": "hmssbristol.com",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": {
+          "status": 200,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:31:11.655Z"
         }
-      ],
-      "checkedAt": "2026-10-04T14:13:32.040Z"
+      },
+      "checkedAt": "2026-10-04T14:31:11.326Z"
+    },
+    {
+      "district": "BS6",
+      "category": "cocktail-bar",
+      "url": "https://filthyxiii.com",
+      "host": "filthyxiii.com",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": {
+          "status": 200,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:31:08.428Z"
+        }
+      },
+      "checkedAt": "2026-10-04T14:31:08.320Z"
+    },
+    {
+      "district": "BS8",
+      "category": "cocktail-bar",
+      "url": "https://www.alteregobar.co.uk/contact-us",
+      "host": "www.alteregobar.co.uk",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page did not answer",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": null
+      },
+      "checkedAt": "2026-10-04T14:31:40.771Z"
+    },
+    {
+      "district": "BS8",
+      "category": "cocktail-bar",
+      "url": "https://hmssbristol.com",
+      "host": "hmssbristol.com",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": {
+          "status": 200,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:31:11.655Z"
+        }
+      },
+      "checkedAt": "2026-10-04T14:31:11.326Z"
     },
     {
       "district": "BS9",
       "category": "pub",
       "url": "https://bristol.u3asite.uk/u3a_venues/westbury-park-pub-kitchen",
       "host": "bristol.u3asite.uk",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:12:46.991Z",
+          "at": "2026-10-04T14:31:29.149Z",
           "reason": "robots-unreachable",
           "evidence": "https://bristol.u3asite.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:13:13.021Z",
+          "at": "2026-10-04T14:31:55.633Z",
           "reason": "robots-unreachable",
           "evidence": "https://bristol.u3asite.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:13:39.047Z",
+          "at": "2026-10-04T14:32:22.389Z",
           "reason": "robots-unreachable",
           "evidence": "https://bristol.u3asite.uk/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:13:39.047Z"
+      "checkedAt": "2026-10-04T14:32:22.390Z"
+    },
+    {
+      "district": "BS10",
+      "category": "cocktail-bar",
+      "url": "https://www.myvue.com/cinema/bristol-cribbs-causeway/whats-on",
+      "host": "www.myvue.com",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": {
+          "status": 200,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:31:15.588Z"
+        }
+      },
+      "checkedAt": "2026-10-04T14:31:15.324Z"
     },
     {
       "district": "BS16",
       "category": "cocktail-bar",
       "url": "https://www.beerintheevening.com/pubs/results.shtml?tr=1209&page=2&show_comments=5",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:12:33.281Z"
+      "checkedAt": "2026-10-04T14:31:13.617Z"
     },
     {
       "district": "BS41",
       "category": "bar",
       "url": "https://www.beerintheevening.com/pubs/results.shtml?tr=1096&page=22",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:12:33.420Z"
+      "checkedAt": "2026-10-04T14:31:13.561Z"
+    }
+  ],
+  "filteredSources": [
+    {
+      "district": "BS1",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/07960969",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "BS1",
+      "category": "bar",
+      "url": "https://www.cityofbristol.ac.uk/centres/facilities/restaurants",
+      "host": "www.cityofbristol.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "BS2",
+      "category": "bar",
+      "url": "https://www.bristol.ac.uk/students/life-in-bristol/campus/cafes",
+      "host": "www.bristol.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "BS4",
+      "category": "bar",
+      "url": "https://ratings.food.gov.uk/business/1112138/brislington-cricket-club-brislington",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "BS5",
+      "category": "pub",
+      "url": "https://uk.hotels.com/ho1082180192/the-dark-horse-pub-bristol-united-kingdom",
+      "host": "uk.hotels.com",
+      "reason": "travel aggregator"
+    },
+    {
+      "district": "BS5",
+      "category": "pub",
+      "url": "https://ratings.food.gov.uk/business/1396184/the-greenbank-pub-easton/online-ratings",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "BS5",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/13680682",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "BS5",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/07915238",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "BS6",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-independent-restaurant-&-cocktail-bar-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "BS8",
+      "category": "cocktail-bar",
+      "url": "https://ratings.food.gov.uk/business/1843034/jaded-dragon-cocktail-bar-clifton/online-ratings",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "BS8",
+      "category": "cocktail-bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/09055378/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "BS9",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/14429755/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "BS9",
+      "category": "bar",
+      "url": "https://ratings.food.gov.uk/business/312452/university-of-bristol-wills-hall-and-bar-stoke-bishop",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "BS9",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/09093853/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "BS10",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/13064329/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "BS15",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/12684095/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "BS15",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/04257976/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "BS15",
+      "category": "cocktail-bar",
+      "url": "https://us.trip.com/travel-guide/attraction/bristol/kingswood-park-147086599",
+      "host": "us.trip.com",
+      "reason": "travel aggregator"
+    },
+    {
+      "district": "BS16",
+      "category": "pub",
+      "url": "https://www.uwe.ac.uk/life/campus-and-facilities/frenchay-campus/cafes-bars-and-shops",
+      "host": "www.uwe.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "BS16",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/13694906/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "BS16",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/11963713/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "BS16",
+      "category": "bar",
+      "url": "https://www.simplyhired.co.uk/search?q=bar&l=bs16+7je",
+      "host": "www.simplyhired.co.uk",
+      "reason": "job board"
+    },
+    {
+      "district": "BS16",
+      "category": "bar",
+      "url": "https://www.uwe.ac.uk/life/campus-and-facilities/frenchay-campus",
+      "host": "www.uwe.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "BS16",
+      "category": "bar",
+      "url": "https://uk.indeed.com/q-part-time-bar-pub-l-bristol-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "BS16",
+      "category": "bar",
+      "url": "https://www.uwe.ac.uk/life/campus-and-facilities/frenchay-campus/cafes-bars-and-shops",
+      "host": "www.uwe.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "BS16",
+      "category": "cocktail-bar",
+      "url": "https://www.simplyhired.co.uk/search?q=pub&l=bs16+5eb",
+      "host": "www.simplyhired.co.uk",
+      "reason": "job board"
+    },
+    {
+      "district": "BS41",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/officers/c1MVO1sPA15uHbNEIefyy8YZSfg/appointments",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
     }
   ],
   "taskRuns": 0,
   "webSearches": 110,
-  "pagesRead": 417,
+  "pagesRead": 402,
   "researched": 31,
   "added": 0,
   "retained": [
@@ -306,6 +564,14 @@
     },
     {
       "name": "https://prestigestudentliving.com/blog/the-student-guide-10-best-cocktail-bars-in-bristol",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://365bristol.com/story/2014/02/17/be-at-one-bristol-new-cocktail-bar-opening-on-26-february-2014/208",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.myguidebristol.com/nightlife/clifton-cocktail-club",
       "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {

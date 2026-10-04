@@ -2,42 +2,98 @@
   "city": "bath",
   "districts": 2,
   "slices": 8,
-  "slicesComplete": 7,
-  "incompleteSlices": [
-    "BA1/bar: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://bills-website.co.uk/restaurants/bath); rerun to resume"
-  ],
+  "slicesComplete": 8,
+  "incompleteSlices": [],
   "skippedSources": [
     {
       "district": "BA1",
       "category": "pub",
       "url": "https://www.fairfieldarmsbath.co.uk",
       "host": "www.fairfieldarmsbath.co.uk",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:12:43.570Z",
+          "at": "2026-10-04T14:31:15.347Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.fairfieldarmsbath.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:12:49.428Z",
+          "at": "2026-10-04T14:31:21.311Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.fairfieldarmsbath.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:12:55.397Z",
+          "at": "2026-10-04T14:31:27.189Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.fairfieldarmsbath.co.uk/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:12:55.397Z"
+      "checkedAt": "2026-10-04T14:31:27.189Z"
+    },
+    {
+      "district": "BA1",
+      "category": "bar",
+      "url": "https://bills-website.co.uk/restaurants/bath",
+      "host": "bills-website.co.uk",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 307",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": {
+          "status": 307,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:31:20.255Z"
+        }
+      },
+      "checkedAt": "2026-10-04T14:31:20.239Z"
+    }
+  ],
+  "filteredSources": [
+    {
+      "district": "BA1",
+      "category": "bar",
+      "url": "https://www.bathnes.gov.uk/property/4445-milsom-street-bath-somerset-ba1-1dn",
+      "host": "www.bathnes.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "BA1",
+      "category": "bar",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8734375",
+      "host": "pmc.ncbi.nlm.nih.gov",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "BA1",
+      "category": "bar",
+      "url": "https://www.streetcheck.co.uk/postcode/ba12te",
+      "host": "www.streetcheck.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "BA2",
+      "category": "bar",
+      "url": "https://www.bath.ac.uk/locations/the-plug-and-the-tub",
+      "host": "www.bath.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "BA2",
+      "category": "cocktail-bar",
+      "url": "https://www.bath.ac.uk/locations/the-plug-and-the-tub",
+      "host": "www.bath.ac.uk",
+      "reason": "public body or academic site"
     }
   ],
   "taskRuns": 0,
   "webSearches": 18,
-  "pagesRead": 109,
-  "researched": 13,
+  "pagesRead": 104,
+  "researched": 12,
   "added": 0,
   "retained": [
     {
@@ -47,13 +103,9 @@
     {
       "name": "Saracens Head",
       "id": "venue-bat-1btwlmw"
-    },
-    {
-      "name": "The Bath Distillery Gin Bar",
-      "id": "venue-bat-1jcx5ox"
     }
   ],
-  "totalAccepted": 3,
+  "totalAccepted": 2,
   "repeats": 0,
   "duplicates": [
     {
@@ -107,7 +159,12 @@
       "matchedId": "way/398959637"
     }
   ],
-  "withdrawn": [],
+  "withdrawn": [
+    {
+      "name": "The Bath Distillery Gin Bar",
+      "id": "venue-bat-1jcx5ox"
+    }
+  ],
   "rejected": [
     {
       "name": "https://www.cntraveller.com/article/best-pubs-in-bath",
@@ -131,10 +188,6 @@
     },
     {
       "name": "https://crystalroof.co.uk/report/postcode/BA15QT/overview",
-      "reason": "unreadable: source refused HTTP 403"
-    },
-    {
-      "name": "https://www.streetcheck.co.uk/postcode/ba12te",
       "reason": "unreadable: source refused HTTP 403"
     },
     {

@@ -2,328 +2,742 @@
   "city": "birmingham",
   "districts": 42,
   "slices": 168,
-  "slicesComplete": 166,
-  "incompleteSlices": [
-    "B23/bar: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://www.carehome.co.uk/care_search_results.cfm/searchpostcode/B42/searchchtype/visual-impairment); rerun to resume",
-    "B70/bar: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://www.carehome.co.uk/care_search_results.cfm/searchpostcode/B21/searchchtype/old-age); rerun to resume"
-  ],
+  "slicesComplete": 168,
+  "incompleteSlices": [],
   "skippedSources": [
     {
       "district": "B2",
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/1/show_comments/5",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:09:44.864Z"
+      "checkedAt": "2026-10-04T14:28:58.259Z"
+    },
+    {
+      "district": "B2",
+      "category": "pub",
+      "url": "https://www.theheadofsteam.co.uk/bars/birmingham",
+      "host": "www.theheadofsteam.co.uk",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:27:38.295Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:05.069Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:31.822Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:28:58.485Z"
+    },
+    {
+      "district": "B2",
+      "category": "bar",
+      "url": "https://www.theheadofsteam.co.uk/bars/birmingham",
+      "host": "www.theheadofsteam.co.uk",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:27:38.295Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:05.069Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:31.822Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:28:31.822Z"
+    },
+    {
+      "district": "B2",
+      "category": "restaurant",
+      "url": "https://www.theheadofsteam.co.uk/bars/birmingham",
+      "host": "www.theheadofsteam.co.uk",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:27:38.295Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:05.069Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:31.822Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:28:31.822Z"
     },
     {
       "district": "B15",
       "category": "bar",
       "url": "https://www.datathistle.com/places/location:B15%202TT(52.4490,-1.9309)",
       "host": "www.datathistle.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:09.567Z",
+          "at": "2026-10-04T14:27:21.729Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:08:15.564Z",
+          "at": "2026-10-04T14:27:27.542Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:08:21.370Z",
+          "at": "2026-10-04T14:27:33.365Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:08:21.370Z"
+      "checkedAt": "2026-10-04T14:27:33.365Z"
     },
     {
       "district": "B17",
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/s/41/41644/Hillyfields/Harborne",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:09:44.865Z"
+      "checkedAt": "2026-10-04T14:28:58.260Z"
     },
     {
       "district": "B17",
       "category": "bar",
       "url": "https://www.beerintheevening.com/pubs/s/41/41644/Hillyfields/Harborne",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:09:44.867Z"
+      "checkedAt": "2026-10-04T14:28:58.262Z"
     },
     {
       "district": "B23",
       "category": "bar",
       "url": "https://www.beerintheevening.com/pubs/s/17/17398/Swan/Erdington",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:09:44.867Z"
+      "checkedAt": "2026-10-04T14:28:58.262Z"
     },
     {
       "district": "B70",
       "category": "cocktail-bar",
       "url": "https://www.thevine.co.uk",
       "host": "www.thevine.co.uk",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:19.273Z",
+          "at": "2026-10-04T14:27:34.826Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.thevine.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:08:25.122Z",
+          "at": "2026-10-04T14:27:40.668Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.thevine.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:08:31.033Z",
+          "at": "2026-10-04T14:27:46.508Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.thevine.co.uk/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:08:31.033Z"
+      "checkedAt": "2026-10-04T14:27:46.508Z"
     },
     {
       "district": "B70",
       "category": "restaurant",
       "url": "https://www.thevine.co.uk",
       "host": "www.thevine.co.uk",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:19.273Z",
+          "at": "2026-10-04T14:27:34.826Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.thevine.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:08:25.122Z",
+          "at": "2026-10-04T14:27:40.668Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.thevine.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:08:31.033Z",
+          "at": "2026-10-04T14:27:46.508Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.thevine.co.uk/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:08:31.033Z"
+      "checkedAt": "2026-10-04T14:27:46.508Z"
     },
     {
       "district": "B72",
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/s/32/3214/Bottle_of_Sack/Sutton_Coldfield",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:09:44.867Z"
+      "checkedAt": "2026-10-04T14:28:58.262Z"
     },
     {
       "district": "B73",
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/874/page/30/show_comments/5",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:09:44.867Z"
+      "checkedAt": "2026-10-04T14:28:58.262Z"
     },
     {
       "district": "B73",
       "category": "bar",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/874/page/30/show_comments/5",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:09:44.867Z"
+      "checkedAt": "2026-10-04T14:28:58.262Z"
     },
     {
       "district": "B73",
       "category": "cocktail-bar",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/874/page/30/show_comments/5",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:09:44.868Z"
+      "checkedAt": "2026-10-04T14:28:58.262Z"
     },
     {
       "district": "B76",
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/874/page/30/show_comments/5",
       "host": "www.beerintheevening.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:33.325Z",
+          "at": "2026-10-04T14:27:46.742Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:09.098Z",
+          "at": "2026-10-04T14:28:22.501Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:09:44.864Z",
+          "at": "2026-10-04T14:28:58.259Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:09:44.991Z"
+      "checkedAt": "2026-10-04T14:28:58.388Z"
+    }
+  ],
+  "filteredSources": [
+    {
+      "district": "B2",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/09506014/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "B2",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/08022243/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "B3",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/11136685/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "B3",
+      "category": "bar",
+      "url": "https://www.ucb.ac.uk/university/campuses/summer-row",
+      "host": "www.ucb.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "B3",
+      "category": "restaurant",
+      "url": "https://uk.indeed.com/m/jobs?q=Wine+Wine&l=Birmingham",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "B13",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/05043754/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "B14",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/07144419/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "B14",
+      "category": "pub",
+      "url": "https://www.birmingham.gov.uk/directory_record/138098/hare_and_hounds_kings_heath",
+      "host": "www.birmingham.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "B14",
+      "category": "pub",
+      "url": "https://uk.indeed.com/q-independent-music-venue-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "B14",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/10152974/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "B14",
+      "category": "bar",
+      "url": "https://www.doogal.co.uk/ShowMap?postcode=B14+7JZ",
+      "host": "www.doogal.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "B14",
+      "category": "bar",
+      "url": "https://www.doogal.co.uk/ShowMap?postcode=B14+7EG",
+      "host": "www.doogal.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "B15",
+      "category": "pub",
+      "url": "https://www.birmingham.ac.uk",
+      "host": "www.birmingham.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "B15",
+      "category": "bar",
+      "url": "https://www.doogal.co.uk/ShowMap?postcode=B15+3BE",
+      "host": "www.doogal.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "B15",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/17054459",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "B15",
+      "category": "bar",
+      "url": "https://www.birmingham.ac.uk/about/our-campus/services-facilities/food-fellows/outlets",
+      "host": "www.birmingham.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "B16",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/16145227/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "B16",
+      "category": "bar",
+      "url": "https://www.simplyhired.co.uk/search?q=bar+staff&l=b16+8nd",
+      "host": "www.simplyhired.co.uk",
+      "reason": "job board"
+    },
+    {
+      "district": "B17",
+      "category": "pub",
+      "url": "https://www.birmingham.gov.uk/directory_record/138079/the_junction_harborne",
+      "host": "www.birmingham.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "B17",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/10152974/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "B23",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/13636714/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "B23",
+      "category": "bar",
+      "url": "https://www.carehome.co.uk/care_search_results.cfm/searchpostcode/B42/searchchtype/visual-impairment",
+      "host": "www.carehome.co.uk",
+      "reason": "care or childcare directory"
+    },
+    {
+      "district": "B26",
+      "category": "pub",
+      "url": "https://ratings.food.gov.uk/business/600376",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "B26",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/15674710/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "B26",
+      "category": "bar",
+      "url": "https://ratings.food.gov.uk/business/1881431/sheldon-fish-bar-birmingham",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "B26",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/12555248/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "B29",
+      "category": "bar",
+      "url": "https://ratings.food.gov.uk/business/1150639/circo-bar-selly-oak",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "B29",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/14256233",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "B30",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/12644846/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "B36",
+      "category": "cocktail-bar",
+      "url": "https://www.birminghamsolihull.icb.nhs.uk/health-information/gp-practices/solihull/castle-practice",
+      "host": "www.birminghamsolihull.icb.nhs.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "B36",
+      "category": "cocktail-bar",
+      "url": "https://castlebromwichpc.gov.uk/weekly-events",
+      "host": "castlebromwichpc.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "B36",
+      "category": "cocktail-bar",
+      "url": "https://www.staffordbc.gov.uk/sites/default/files/cme/DocMan1/Committee-Agenda-26-27/Licensing-Sub/Licensing-Sub-Committee-23-September-2026-Agenda.pdf",
+      "host": "www.staffordbc.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "B70",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/11117831/filing-history?page=5",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "B70",
+      "category": "bar",
+      "url": "https://www.swbh.nhs.uk/services/health-visiting",
+      "host": "www.swbh.nhs.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "B70",
+      "category": "bar",
+      "url": "https://www.carehome.co.uk/care_search_results.cfm/searchpostcode/B21/searchchtype/old-age",
+      "host": "www.carehome.co.uk",
+      "reason": "care or childcare directory"
+    },
+    {
+      "district": "B72",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/06891851/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "B72",
+      "category": "bar",
+      "url": "https://ratings.food.gov.uk/business/1732394/bar-28-birmingham/online-ratings",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "B72",
+      "category": "bar",
+      "url": "https://www.doogal.co.uk/ShowMap?postcode=B72+1QQ",
+      "host": "www.doogal.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "B72",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-cocktail-bar-l-birmingham-b32-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "B72",
+      "category": "cocktail-bar",
+      "url": "https://uk.trip.com/travel-guide/attraction/sutton-coldfield/pl-studio-146357718",
+      "host": "uk.trip.com",
+      "reason": "travel aggregator"
+    },
+    {
+      "district": "B73",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/08542266/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "B73",
+      "category": "cocktail-bar",
+      "url": "https://us.trip.com/travel-guide/attraction/sutton-coldfield/rowtons-well-138100665",
+      "host": "us.trip.com",
+      "reason": "travel aggregator"
+    },
+    {
+      "district": "B76",
+      "category": "pub",
+      "url": "https://www.simplyhired.co.uk/search?q=pub&l=birmingham+b76+1qp",
+      "host": "www.simplyhired.co.uk",
+      "reason": "job board"
+    },
+    {
+      "district": "B76",
+      "category": "pub",
+      "url": "https://www.doogal.co.uk/ShowMap?postcode=B76+9BB",
+      "host": "www.doogal.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "B76",
+      "category": "pub",
+      "url": "https://www.rightmove.co.uk/properties/174675899",
+      "host": "www.rightmove.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "B92",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/10783167/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
     }
   ],
   "taskRuns": 675,
-  "webSearches": 155,
-  "pagesRead": 630,
+  "webSearches": 156,
+  "pagesRead": 584,
   "researched": 2070,
   "added": 0,
   "retained": [
@@ -394,10 +808,6 @@
     {
       "name": "San Carlo, Birmingham",
       "id": "venue-bhm-oyjobp"
-    },
-    {
-      "name": "Merlin's Café Bar",
-      "id": "venue-bhm-15zyxr4"
     },
     {
       "name": "Albert’s Schloss Birmingham",
@@ -848,7 +1258,7 @@
       "id": "venue-bhm-1gg3rw7"
     }
   ],
-  "totalAccepted": 130,
+  "totalAccepted": 129,
   "repeats": 58,
   "duplicates": [
     {
@@ -1017,7 +1427,12 @@
       "matchedId": "node/12688193702"
     }
   ],
-  "withdrawn": [],
+  "withdrawn": [
+    {
+      "name": "Merlin's Café Bar",
+      "id": "venue-bhm-15zyxr4"
+    }
+  ],
   "rejected": [
     {
       "name": "1000 Trades",
@@ -1656,10 +2071,6 @@
       "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
-      "name": "https://www.theheadofsteam.co.uk/bars/birmingham",
-      "reason": "unreadable: robots refused (robots-unreadable)"
-    },
-    {
       "name": "The Cocktail Club Birmingham",
       "reason": "missing-drinking-evidence"
     },
@@ -1740,10 +2151,6 @@
       "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
-      "name": "https://www.theheadofsteam.co.uk/bars/birmingham",
-      "reason": "unreadable: robots refused (robots-unreadable)"
-    },
-    {
       "name": "https://www.fullers.co.uk/blog/pubs-articles/managing-the-old-joint-stock",
       "reason": "unreadable: source refused HTTP 403"
     },
@@ -1806,6 +2213,10 @@
     {
       "name": "The Oyster Club",
       "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Merlin's Café Bar",
+      "reason": "missing-drinking-evidence"
     },
     {
       "name": "The Cocktail Club Birmingham",
@@ -1921,10 +2332,6 @@
     },
     {
       "name": "https://www.thetrocaderobirmingham.co.uk",
-      "reason": "unreadable: robots refused (robots-unreadable)"
-    },
-    {
-      "name": "https://www.theheadofsteam.co.uk/bars/birmingham",
       "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
@@ -2254,10 +2661,6 @@
     {
       "name": "White Lion Pub",
       "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "https://uk.indeed.com/m/jobs?q=Wine+Wine&l=Birmingham",
-      "reason": "unreadable: source refused HTTP 403"
     },
     {
       "name": "https://www.eatdrinkmeet.co.uk",
@@ -3488,14 +3891,6 @@
       "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
-      "name": "https://www.birmingham.gov.uk/directory_record/138098/hare_and_hounds_kings_heath",
-      "reason": "unreadable: robots refused (robots-unreadable)"
-    },
-    {
-      "name": "https://uk.indeed.com/q-independent-music-venue-jobs.html",
-      "reason": "unreadable: source refused HTTP 403"
-    },
-    {
       "name": "Byzantium",
       "reason": "citation-does-not-bind-name-and-address"
     },
@@ -4202,10 +4597,6 @@
     {
       "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=Metchley+Ln%2C+Birmingham+B17+0HT",
       "reason": "unreadable: robots refused (robots-disallowed)"
-    },
-    {
-      "name": "https://www.birmingham.gov.uk/directory_record/138079/the_junction_harborne",
-      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "Bell Harborne",
@@ -6600,10 +6991,6 @@
       "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
-      "name": "https://castlebromwichpc.gov.uk/weekly-events",
-      "reason": "unreadable: robots refused (robots-unreadable)"
-    },
-    {
       "name": "Hickory's Smokehouse Castle Bromwich",
       "reason": "citation-does-not-bind-name-and-address"
     },
@@ -8185,10 +8572,6 @@
     },
     {
       "name": "https://simpsons-bar.wheree.com",
-      "reason": "unreadable: source refused HTTP 403"
-    },
-    {
-      "name": "https://uk.indeed.com/q-cocktail-bar-l-birmingham-b32-jobs.html",
       "reason": "unreadable: source refused HTTP 403"
     },
     {

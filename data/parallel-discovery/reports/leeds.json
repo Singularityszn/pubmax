@@ -2,99 +2,387 @@
   "city": "leeds",
   "districts": 21,
   "slices": 84,
-  "slicesComplete": 83,
-  "incompleteSlices": [
-    "LS5/restaurant: 1 pages not read yet (Tavily Extract: Failed to fetch url for https://mindtrip.ai/restaurant/leeds-yorkshire/vesper-gate/re-Suu6nUAJ); rerun to resume"
-  ],
+  "slicesComplete": 84,
+  "incompleteSlices": [],
   "skippedSources": [
+    {
+      "district": "LS1",
+      "category": "restaurant",
+      "url": "https://www.theheadofsteam.co.uk/bars/leeds-park-row",
+      "host": "www.theheadofsteam.co.uk",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:27:38.295Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:05.069Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:31.822Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:28:59.206Z"
+    },
+    {
+      "district": "LS1",
+      "category": "restaurant",
+      "url": "https://www.theheadofsteam.co.uk/bars/leeds-city-centre",
+      "host": "www.theheadofsteam.co.uk",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:27:38.295Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:05.069Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:31.822Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:29:00.350Z"
+    },
     {
       "district": "LS2",
       "category": "pub",
       "url": "https://www.datathistle.com/place/107285-revolution-leeds",
       "host": "www.datathistle.com",
+      "kind": "robots",
       "reason": "robots unreachable",
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:08:09.567Z",
+          "at": "2026-10-04T14:27:21.729Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:08:15.564Z",
+          "at": "2026-10-04T14:27:27.542Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:08:21.370Z",
+          "at": "2026-10-04T14:27:33.365Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:09:46.288Z"
+      "checkedAt": "2026-10-04T14:28:59.463Z"
+    },
+    {
+      "district": "LS5",
+      "category": "restaurant",
+      "url": "https://mindtrip.ai/restaurant/leeds-yorkshire/vesper-gate/re-Suu6nUAJ",
+      "host": "mindtrip.ai",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
+      "attempts": 2,
+      "evidence": {
+        "basic": "Failed to fetch url",
+        "advanced": "Failed to fetch url",
+        "probe": {
+          "status": 200,
+          "landed": "permitted",
+          "checkedAt": "2026-10-04T14:29:18.455Z"
+        }
+      },
+      "checkedAt": "2026-10-04T14:29:18.099Z"
+    },
+    {
+      "district": "LS6",
+      "category": "bar",
+      "url": "https://www.theheadofsteam.co.uk/bars/headingley",
+      "host": "www.theheadofsteam.co.uk",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:27:38.295Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:05.069Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:31.822Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:29:00.699Z"
+    },
+    {
+      "district": "LS6",
+      "category": "cocktail-bar",
+      "url": "https://www.theheadofsteam.co.uk/bars/headingley",
+      "host": "www.theheadofsteam.co.uk",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-04T14:27:38.295Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:05.069Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-04T14:28:31.822Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-04T14:29:00.830Z"
+    }
+  ],
+  "filteredSources": [
+    {
+      "district": "LS2",
+      "category": "pub",
+      "url": "https://www.leedsconservatoire.ac.uk/student-life/facilities-resources/cafe-bar-rooftop-bar",
+      "host": "www.leedsconservatoire.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS6",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/07413062/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS6",
+      "category": "cocktail-bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/14838579/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
     },
     {
       "district": "LS6",
       "category": "cocktail-bar",
       "url": "https://www.leedsbeckett.ac.uk/student-experience/life-in-leeds/the-students-guide-to-hyde-park",
       "host": "www.leedsbeckett.ac.uk",
-      "reason": "robots unreachable",
-      "attempts": 3,
-      "evidence": [
-        {
-          "at": "2026-10-04T14:10:08.866Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.leedsbeckett.ac.uk/robots.txt could not be fetched (fetch failed)."
-        },
-        {
-          "at": "2026-10-04T14:10:35.392Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.leedsbeckett.ac.uk/robots.txt could not be fetched (fetch failed)."
-        },
-        {
-          "at": "2026-10-04T14:11:01.468Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.leedsbeckett.ac.uk/robots.txt could not be fetched (fetch failed)."
-        }
-      ],
-      "checkedAt": "2026-10-04T14:11:01.468Z"
+      "reason": "public body or academic site"
     },
     {
-      "district": "LS10",
-      "category": "bar",
-      "url": "https://www.mumtazleeds.co.uk/gallery",
-      "host": "www.mumtazleeds.co.uk",
-      "reason": "robots HTTP 500",
-      "attempts": 1,
-      "evidence": [
-        {
-          "at": "2026-10-04T14:09:55.699Z",
-          "reason": "robots-unreadable",
-          "evidence": "https://www.mumtazleeds.co.uk/robots.txt answered 500, so no permission can be read."
-        }
-      ],
-      "checkedAt": "2026-10-04T14:09:55.699Z"
+      "district": "LS8",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/09809532/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
     },
     {
-      "district": "LS10",
+      "district": "LS8",
       "category": "cocktail-bar",
-      "url": "https://www.mumtazleeds.co.uk/gallery",
-      "host": "www.mumtazleeds.co.uk",
-      "reason": "robots HTTP 500",
-      "attempts": 1,
-      "evidence": [
-        {
-          "at": "2026-10-04T14:09:55.699Z",
-          "reason": "robots-unreadable",
-          "evidence": "https://www.mumtazleeds.co.uk/robots.txt answered 500, so no permission can be read."
-        }
-      ],
-      "checkedAt": "2026-10-04T14:09:55.699Z"
+      "url": "https://www.simplyhired.co.uk/search?q=bar+staff&l=ls8+3jt&cursor=ABQAAf%2F%2FAAAAAAAAAAAAAAACXixomgAAAQ%3D%3D",
+      "host": "www.simplyhired.co.uk",
+      "reason": "job board"
+    },
+    {
+      "district": "LS9",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/00684800/filing-history?page=8",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS9",
+      "category": "pub",
+      "url": "https://www.rightmove.co.uk/properties/723055006176976",
+      "host": "www.rightmove.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "LS9",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-bar-staff-l-leeds-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "LS11",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/05239351/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS11",
+      "category": "bar",
+      "url": "https://www.rightmove.co.uk/properties/159842750",
+      "host": "www.rightmove.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "LS12",
+      "category": "pub",
+      "url": "https://ratings.food.gov.uk/business/467056",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS12",
+      "category": "bar",
+      "url": "https://ratings.food.gov.uk/business/1177705/the-grand-valley-bar-and-kitchen-leeds/online-ratings",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS12",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/13354400/persons-with-significant-control",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS12",
+      "category": "bar",
+      "url": "https://active.leeds.gov.uk/our-centres/armley-leisure-centre",
+      "host": "active.leeds.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS15",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/07451074/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS15",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-cocktail-bar-l-leeds-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "LS16",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/06853108/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS16",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/09180520/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS16",
+      "category": "pub",
+      "url": "https://uk.indeed.com/m/viewjob?jk=6e024e5db7061234&from=serp&tk=1jvm9a4bvh720801&xkcb=SoCI67M3g2anVC3zQZ0fbzkdCdPP",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "LS17",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/12113112/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS17",
+      "category": "cocktail-bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/officers/WwnjQeruGcIeBc3ITj2FaJ0_mtc/appointments",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS17",
+      "category": "cocktail-bar",
+      "url": "https://www.simplyhired.co.uk/search?q=bartender&l=leeds&from=expandedQueriesLink&cursor=ABQAAwA8AAAAAAAAAAAAAAACYTb2rgEBAQ4F8f2b6672D9wq%2BRGqu2hmuaHsX8EIlYnbWxzTdueBFg%3D%3D",
+      "host": "www.simplyhired.co.uk",
+      "reason": "job board"
+    },
+    {
+      "district": "LS18",
+      "category": "pub",
+      "url": "https://ratings.food.gov.uk/business/en-GB/1202679",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS18",
+      "category": "pub",
+      "url": "https://www.leedstrinity.ac.uk/student-life/leeds-and-horsforth/take-a-look-around-horsforth",
+      "host": "www.leedstrinity.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS26",
+      "category": "bar",
+      "url": "https://ratings.food.gov.uk/business/953885/tobias-bar-leeds",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS26",
+      "category": "bar",
+      "url": "https://active.leeds.gov.uk/our-centres/rothwell-leisure-centre",
+      "host": "active.leeds.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS26",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-cocktail-bar-l-leeds-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "WF3",
+      "category": "bar",
+      "url": "https://ratings.food.gov.uk/business/1582504/the-castle-inn-wakefield",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "WF3",
+      "category": "bar",
+      "url": "https://www.simplyhired.co.uk/search?q=bar+staff&l=leeds+wf3+3bh",
+      "host": "www.simplyhired.co.uk",
+      "reason": "job board"
+    },
+    {
+      "district": "WF3",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-bar-l-leeds-wf3-2as-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
     }
   ],
   "taskRuns": 110,
   "webSearches": 141,
-  "pagesRead": 531,
+  "pagesRead": 500,
   "researched": 506,
   "added": 0,
   "retained": [
@@ -518,20 +806,12 @@
       "reason": "missing-venue-specific-citation"
     },
     {
-      "name": "https://www.theheadofsteam.co.uk/bars/leeds-park-row",
-      "reason": "unreadable: robots refused (robots-unreadable)"
-    },
-    {
       "name": "https://www.yelp.ca/search?cflt=restaurants&find_loc=1+Whitehall+Quay%2C+Leeds+LS1+4HR%2C+United+Kingdom",
       "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://leeds-list.com/page/57?attachment_id=",
       "reason": "unreadable: page HTTP 410"
-    },
-    {
-      "name": "https://www.theheadofsteam.co.uk/bars/leeds-city-centre",
-      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "Salt Calls Landing",
@@ -746,10 +1026,6 @@
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
-      "name": "https://www.theheadofsteam.co.uk/bars/headingley",
-      "reason": "unreadable: robots refused (robots-unreadable)"
-    },
-    {
       "name": "https://www.theoriginaloakleeds.co.uk",
       "reason": "unreadable: robots refused (robots-unreadable)"
     },
@@ -811,10 +1087,6 @@
     },
     {
       "name": "https://www.theheadingleytapsleeds.co.uk",
-      "reason": "unreadable: robots refused (robots-unreadable)"
-    },
-    {
-      "name": "https://www.theheadofsteam.co.uk/bars/headingley",
       "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
@@ -1123,10 +1395,6 @@
     },
     {
       "name": "https://en.tripadvisor.com.hk/Restaurant_Review-g186411-d32750608-Reviews-Woodside_Neighbourhood_Bar_Eatery-Leeds_West_Yorkshire_England.html",
-      "reason": "unreadable: source refused HTTP 403"
-    },
-    {
-      "name": "https://uk.indeed.com/q-bar-staff-l-leeds-jobs.html",
       "reason": "unreadable: source refused HTTP 403"
     },
     {
@@ -1586,10 +1854,6 @@
       "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
-      "name": "https://uk.indeed.com/q-cocktail-bar-l-leeds-jobs.html",
-      "reason": "unreadable: source refused HTTP 403"
-    },
-    {
       "name": "https://www.yelp.com/search?cflt=bars&find_loc=39-41+Austhorpe+Rd%2C+Leeds+LS15+8BA",
       "reason": "unreadable: robots refused (robots-disallowed)"
     },
@@ -1688,10 +1952,6 @@
     {
       "name": "https://northleeds.mumbler.co.uk/family-friendly-cafes-pubs-with-outside-play-areas-or-beer-gardens-in-leeds",
       "reason": "unreadable: robots refused (robots-unreadable)"
-    },
-    {
-      "name": "https://uk.indeed.com/m/viewjob?jk=6e024e5db7061234&from=serp&tk=1jvm9a4bvh720801&xkcb=SoCI67M3g2anVC3zQZ0fbzkdCdPP",
-      "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "The Fox & Hounds, Bramhope",
@@ -2174,10 +2434,6 @@
       "reason": "unreadable: source refused HTTP 403"
     },
     {
-      "name": "https://uk.indeed.com/q-cocktail-bar-l-leeds-jobs.html",
-      "reason": "unreadable: source refused HTTP 403"
-    },
-    {
       "name": "https://northleeds.mumbler.co.uk/category/eating-out",
       "reason": "unreadable: robots refused (robots-unreadable)"
     },
@@ -2435,10 +2691,6 @@
     },
     {
       "name": "https://the-halfway-robin-hood.wheree.com",
-      "reason": "unreadable: source refused HTTP 403"
-    },
-    {
-      "name": "https://uk.indeed.com/q-bar-l-leeds-wf3-2as-jobs.html",
       "reason": "unreadable: source refused HTTP 403"
     },
     {

@@ -1,6 +1,6 @@
 import { harvestRedirectLanding } from "../../lib/harvest/sourcePolicy.ts";
 import { allowedEvidenceUrl, parseTaskVenues } from "./parallelVenueDiscovery.mjs";
-import { rankSearchResults, readFailureIsDefinitive, webPageResult, webQueries } from "./webVenueDiscovery.mjs";
+import { nonVenueSource, rankSearchResults, readFailureIsDefinitive, webPageResult, webQueries } from "./webVenueDiscovery.mjs";
 
 // A robots answer the source gave, or one the network kept from us. Only an
 // unreachable host, a timeout, a 429 or a 5xx is the network; a missing file
@@ -13,30 +13,32 @@ export function robotsOutcome(decision) {
   return { outcome: "refused", reason: decision.reason };
 }
 
-// Asks robots for a host, and again `retries` times when the network kept the
-// answer from us. A host still unreachable after that is skipped with its
-// evidence; robots is never assumed to allow.
-export function createRobotsGate(check, { retries = 2, delayMs = 5_000, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), now = () => new Date().toISOString() } = {}) {
-  const trials = new Map();
+// Asks robots for a host, and again `retries` times with a fresh checker when
+// the network kept the answer from us. A host that answers keeps the checker
+// that reached it, so each later URL is judged on that host's own rules. A host
+// still unreachable after the retries is skipped with its evidence; robots is
+// never assumed to allow.
+export function createRobotsGate(makeChecker, { retries = 2, delayMs = 5_000, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), now = () => new Date().toISOString() } = {}) {
+  const shared = makeChecker();
+  const hosts = new Map();
   async function trial(url) {
     const evidence = [];
+    let checker = shared;
     for (let attempt = 0; ; attempt += 1) {
-      const decision = await check(url, attempt);
+      const decision = await checker(url);
       const answer = robotsOutcome(decision);
       evidence.push({ at: now(), reason: decision.reason, evidence: decision.evidence ?? null });
-      if (answer.outcome !== "transient") return null;
-      if (attempt >= retries) return { outcome: "skipped", reason: answer.reason, attempts: attempt + 1, evidence };
+      if (answer.outcome !== "transient") return { checker };
+      if (attempt >= retries) return { skip: { outcome: "skipped", kind: "robots", reason: answer.reason, attempts: attempt + 1, evidence } };
       await sleep(delayMs);
+      checker = makeChecker();
     }
   }
   return async (url) => {
     const host = new URL(url).host;
-    if (!trials.has(host)) trials.set(host, trial(url));
-    const skipped = await trials.get(host);
-    if (skipped) return skipped;
-    const decision = await check(url, 0);
-    const answer = robotsOutcome(decision);
-    return answer.outcome === "transient" ? { outcome: "skipped", reason: answer.reason, attempts: 1, evidence: [{ at: now(), reason: decision.reason, evidence: decision.evidence ?? null }] } : answer;
+    if (!hosts.has(host)) hosts.set(host, trial(url));
+    const reached = await hosts.get(host);
+    return reached.skip ?? robotsOutcome(await reached.checker(url));
   };
 }
 
@@ -51,7 +53,45 @@ export function settleReadFailure(failure, probe) {
   return null;
 }
 
-const settled = (page) => page && (typeof page.text === "string" || page.settled === true);
+const settled = (page) => page && (typeof page.text === "string" || page.settled === true || Boolean(page.skip));
+
+const sameUrl = (left, right) => String(left).replace(/^https?:\/\/(?:www\.)?/, "").replace(/\/$/, "") === String(right).replace(/^https?:\/\/(?:www\.)?/, "").replace(/\/$/, "");
+const answeredIn = (response, url) => (response.results ?? []).find((row) => sameUrl(url, row.url));
+const failureIn = (response, url) => (response.failed_results ?? []).find((failure) => failure.url === url) ?? { url, error: "Extract returned nothing" };
+
+// One Extract batch at basic depth, and the pages it could not read once more
+// at advanced depth. What neither reads is settled by the page's own status
+// when that says gone or refused, and otherwise skipped with the evidence.
+async function readBatch(batch, search, io, pages, skips) {
+  const first = await io.extract(batch, "basic");
+  const retry = batch.filter((url) => !answeredIn(first, url) && !readFailureIsDefinitive(failureIn(first, url)));
+  const second = retry.length ? await io.extract(retry, "advanced") : {};
+  const observedAt = io.now();
+  for (const url of batch) {
+    const row = answeredIn(first, url) ?? answeredIn(second, url);
+    if (row) {
+      const landed = harvestRedirectLanding(url, row.url);
+      const page = landed.outcome === "refused" || !allowedEvidenceUrl(landed.url) ? { url, unreadable: "landed outside the source fence", settled: true, observedAt }
+        : { url, landedUrl: landed.url, observedAt, title: search.results.find((result) => result.url === url)?.title ?? null, text: row.raw_content ?? "" };
+      await io.storePage(url, page);
+      pages.set(url, page);
+      continue;
+    }
+    const failure = retry.includes(url) ? failureIn(second, url) : failureIn(first, url);
+    const probe = readFailureIsDefinitive(failure) ? null : await io.probe(url);
+    const reason = settleReadFailure(failure, probe);
+    const evidence = { basic: String(failureIn(first, url).error ?? "").slice(0, 120), advanced: retry.includes(url) ? String(failure.error ?? "").slice(0, 120) : null, probe };
+    if (reason) {
+      const page = { url, unreadable: reason, settled: true, observedAt, evidence };
+      await io.storePage(url, page);
+      pages.set(url, page);
+      continue;
+    }
+    const skip = { outcome: "skipped", kind: "extract", reason: `Tavily Extract failed at basic and advanced depth; ${probe ? `the page answered HTTP ${probe.status}` : "the page did not answer"}`, attempts: 2, evidence, checkedAt: observedAt };
+    await io.storePage(url, { url, skip });
+    skips.push({ url, host: new URL(url).host, ...skip });
+  }
+}
 
 async function readPages(urls, search, state, { spend, refresh }, io) {
   const pages = new Map();
@@ -66,49 +106,26 @@ async function readPages(urls, search, state, { spend, refresh }, io) {
       state.robots[url] = answer;
     }
     if (!answer) { transient.push(`robots not yet asked for ${host}`); continue; }
-    if (answer.outcome === "skipped") { skips.push({ url, host, reason: answer.reason, attempts: answer.attempts, evidence: answer.evidence, checkedAt: answer.checkedAt }); continue; }
+    if (answer.outcome === "skipped") { skips.push({ url, host, kind: "robots", reason: answer.reason, attempts: answer.attempts, evidence: answer.evidence, checkedAt: answer.checkedAt }); continue; }
     if (answer.outcome !== "allowed") { pages.set(url, { url, unreadable: `robots refused (${answer.reason})` }); continue; }
     const stored = refresh ? null : await io.storedPage(url);
     const result = search.results.find((row) => row.url === url);
-    if (settled(stored)) pages.set(url, stored);
+    if (stored?.skip) skips.push({ url, host, ...stored.skip });
+    else if (settled(stored)) pages.set(url, stored);
     else if (result?.raw_content) pages.set(url, { url, landedUrl: url, observedAt: search.observedAt, title: result.title ?? null, text: result.raw_content });
     else if (spend) extract.push(url);
     else transient.push(`page not yet read: ${url}`);
   }
-  for (let at = 0; at < extract.length; at += 20) {
-    const batch = extract.slice(at, at + 20);
-    const first = await io.extract(batch, "basic");
-    const retry = (first.failed_results ?? []).filter((failure) => !readFailureIsDefinitive(failure)).map((failure) => failure.url);
-    const second = retry.length ? await io.extract(retry, "advanced") : { results: [], failed_results: [] };
-    const response = { results: [...(first.results ?? []), ...(second.results ?? [])],
-      failed_results: [...(first.failed_results ?? []).filter((failure) => !retry.includes(failure.url)), ...(second.failed_results ?? [])] };
-    const observedAt = io.now();
-    const failures = [...response.failed_results];
-    for (const row of response.results) {
-      const same = (left, right) => String(left).replace(/^https?:\/\/(?:www\.)?/, "").replace(/\/$/, "") === String(right).replace(/^https?:\/\/(?:www\.)?/, "").replace(/\/$/, "");
-      const url = batch.find((asked) => same(asked, row.url));
-      if (!url) continue;
-      const landed = harvestRedirectLanding(url, row.url);
-      const page = landed.outcome === "refused" || !allowedEvidenceUrl(landed.url) ? { url, unreadable: "landed outside the source fence", settled: true, observedAt }
-        : { url, landedUrl: landed.url, observedAt, title: search.results.find((result) => result.url === url)?.title ?? null, text: row.raw_content ?? "" };
-      await io.storePage(url, page);
-      pages.set(url, page);
-    }
-    for (const url of batch) if (!pages.has(url) && !failures.some((failure) => failure.url === url)) failures.push({ url, error: "Extract returned nothing" });
-    for (const failure of failures) {
-      const probe = readFailureIsDefinitive(failure) ? null : await io.probe(failure.url);
-      const reason = settleReadFailure(failure, probe);
-      if (!reason) { transient.push(`Tavily Extract: ${String(failure.error).slice(0, 80)} for ${failure.url}`); continue; }
-      const page = { url: failure.url, unreadable: reason, settled: true, observedAt, evidence: { extract: String(failure.error ?? "").slice(0, 120), probe } };
-      await io.storePage(failure.url, page);
-      pages.set(failure.url, page);
-    }
-  }
+  for (let at = 0; at < extract.length; at += 20) await readBatch(extract.slice(at, at + 20), search, io, pages, skips);
   return { pages, transient, skips };
 }
 
 // Searches a slice with Tavily, one query variant at a time, until a variant
-// finds no page the slice has not read, then reads each page's own text.
+// finds no page the slice has not read, then reads each page's own text. A
+// page from a site that cannot describe a venue is filtered with its reason
+// before anything is read or paid for. A page Extract cannot read at basic or
+// advanced depth is skipped with the evidence of both reads and the page's own
+// status, unless that status settles it as gone or refused.
 // Without spend it replays the searches, page text and robots answers already
 // recorded, and stays incomplete only where a paid read is still missing.
 export async function webSlice({ city, district, category }, { spend, refresh = false }, io) {
@@ -117,9 +134,10 @@ export async function webSlice({ city, district, category }, { spend, refresh = 
   const found = [];
   const rejected = [];
   const skips = [];
+  const filtered = new Map();
   const read = new Set();
   let researched = 0;
-  const outcome = (complete) => ({ found, rejected, researched, taskRuns: 0, webSearches: state.queries.length, pagesRead: read.size, skips, complete });
+  const outcome = (complete) => ({ found, rejected, researched, taskRuns: 0, webSearches: state.queries.length, pagesRead: read.size, skips, filtered: [...filtered.values()], complete });
   try {
     for (const [index, query] of webQueries(city, district, category).entries()) {
       if (!state.queries[index]) {
@@ -129,7 +147,12 @@ export async function webSlice({ city, district, category }, { spend, refresh = 
         await io.saveState(state);
       }
       const search = { ...(await io.readSearch(state.queries[index].resultPath)), observedAt: state.queries[index].observedAt };
-      const urls = rankSearchResults(search.results, district).filter((url) => !read.has(url));
+      const urls = [];
+      for (const url of rankSearchResults(search.results, district).filter((candidate) => !read.has(candidate) && !filtered.has(candidate))) {
+        const reason = nonVenueSource(url);
+        if (reason) filtered.set(url, { url, host: new URL(url).host, reason });
+        else urls.push(url);
+      }
       if (!urls.length) break;
       urls.forEach((url) => read.add(url));
       const pages = await readPages(urls, search, state, { spend, refresh }, io);

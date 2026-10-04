@@ -65,35 +65,6 @@
       },
       "provider": "tavily",
       "id": "venue-bat-1btwlmw"
-    },
-    {
-      "name": "The Bath Distillery Gin Bar",
-      "kind": "bar",
-      "address": "2-3 Queen Street BA1 1HE",
-      "postcode": "BA1 1HE",
-      "locality": "Bath",
-      "website": null,
-      "lat": 51.382927,
-      "lng": -2.361857,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://www.designmynight.com/bath/blog/cocktail-bars-bath"
-      ],
-      "evidence": [
-        {
-          "url": "https://www.designmynight.com/bath/blog/cocktail-bars-bath",
-          "excerpt": "### **7. The Bath****Distillery Gin Bar**\n\n* ***Where: 2-3 Queen Street, BA1 1HE"
-        }
-      ],
-      "observedAt": "2026-10-04T12:52:46.901Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/BA1%201HE",
-        "observedAt": "2026-10-04T12:52:47.736Z",
-        "postcode": "BA1 1HE",
-        "quality": 1
-      },
-      "provider": "tavily",
-      "id": "venue-bat-1jcx5ox"
     }
   ]
 }
