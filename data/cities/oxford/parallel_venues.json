@@ -1,0 +1,157 @@
+{
+  "city": "oxford",
+  "source": "Parallel Task API; Tavily Search and Extract",
+  "observationMeaning": "Each row's observedAt is the date its Parallel research result, Tavily search page text or page read was retrieved; provider names the lane. Cached reruns retain that date. Not a claim that the venue is open tonight.",
+  "populationPriority": 162100,
+  "populationSources": [
+    "https://www.ons.gov.uk/peoplepopulationandcommunity/populationandmigration/populationestimates/bulletins/populationandhouseholdestimatesenglandandwales/census2021",
+    "https://www.scotlandscensus.gov.uk/2022-reports/scotlands-census-2022-rounded-population-estimates/"
+  ],
+  "venues": [
+    {
+      "name": "Hawkwell House Hotel",
+      "kind": "pub",
+      "address": "Church Way, Iffley, Oxford OX4 4DZ",
+      "postcode": "OX4 4DZ",
+      "locality": "Oxford",
+      "website": null,
+      "lat": 51.731814,
+      "lng": -1.23369,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/ox4-4rq-600635"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/ox4-4rq-600635",
+          "excerpt": "### Hawkwell House Hotel\n\nPub, in Oxford]\n\n**Cask Ale not available**\n\n**0.5** miles from you\n\nChurch Way, Iffley, Oxford, OX4 4DZ"
+        }
+      ],
+      "observedAt": "2026-10-04T12:53:04.945Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/OX4%204DZ",
+        "observedAt": "2026-10-04T13:11:38.936Z",
+        "postcode": "OX4 4DZ",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-oxf-t029tn"
+    },
+    {
+      "name": "Tree Hotel",
+      "kind": "pub",
+      "address": "63 Church Way, Iffley, Oxford OX4 4EY",
+      "postcode": "OX4 4EY",
+      "locality": "Oxford",
+      "website": null,
+      "lat": 51.730519,
+      "lng": -1.232293,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/ox4-4rq-600635"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/ox4-4rq-600635",
+          "excerpt": "### Tree Hotel\n\nPub, in Oxford]\n\n**Cask Ale not available**\n\n**0.5** miles from you\n\n63 Church Way, Iffley, Oxford, OX4 4EY"
+        }
+      ],
+      "observedAt": "2026-10-04T12:53:04.945Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/OX4%204EY",
+        "observedAt": "2026-10-04T13:11:39.031Z",
+        "postcode": "OX4 4EY",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-oxf-182lbc9"
+    },
+    {
+      "name": "Florence Park Community Centre",
+      "kind": "pub",
+      "address": "Cormwallis Road, Florence Park, Oxford OX4 3NH",
+      "postcode": "OX4 3NH",
+      "locality": "Oxford",
+      "website": null,
+      "lat": 51.734833,
+      "lng": -1.230569,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/ox4-4rq-600635"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/ox4-4rq-600635",
+          "excerpt": "### Florence Park Community Centre\n\nFlorence Park Community Association Social Committee Pub, in Oxford]\n\n**Cask Ale not available**\n\n**0.6** miles from you\n\nCormwallis Road, Florence Park, Oxford, OX4 3NH"
+        }
+      ],
+      "observedAt": "2026-10-04T12:53:04.945Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/OX4%203NH",
+        "observedAt": "2026-10-04T13:11:39.169Z",
+        "postcode": "OX4 3NH",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-oxf-20k0ia"
+    },
+    {
+      "name": "Original Swan",
+      "kind": "pub",
+      "address": "188 Oxford Road, Cowley, Oxford OX4 2LF",
+      "postcode": "OX4 2LF",
+      "locality": "Oxford",
+      "website": null,
+      "lat": 51.733611,
+      "lng": -1.211678,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/ox4-4rq-600635"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/ox4-4rq-600635",
+          "excerpt": "### Original Swan\n\nPub, in Oxford]\n\n**Cask Ale not available**\n\n**0.8** miles from you\n\n188 Oxford Road, Cowley, Oxford, OX4 2LF"
+        }
+      ],
+      "observedAt": "2026-10-04T12:53:04.945Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/OX4%202LF",
+        "observedAt": "2026-10-04T13:11:39.246Z",
+        "postcode": "OX4 2LF",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-oxf-bgoqjw"
+    },
+    {
+      "name": "Everest Nepalese",
+      "kind": "pub",
+      "address": "147-151 Howard Street, Oxford OX4 3AZ",
+      "postcode": "OX4 3AZ",
+      "locality": "Oxford",
+      "website": null,
+      "lat": 51.740986,
+      "lng": -1.231015,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/ox4-4rq-600635"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/ox4-4rq-600635",
+          "excerpt": "### Everest Nepalese\n\nIndependent Pub, in Oxford]\n\n**Cask Ale not available**\n\n**1.1** miles from you\n\n147-151 Howard Street, Oxford, OX4 3AZ"
+        }
+      ],
+      "observedAt": "2026-10-04T12:53:04.945Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/OX4%203AZ",
+        "observedAt": "2026-10-04T13:11:39.338Z",
+        "postcode": "OX4 3AZ",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-oxf-a7povx"
+    }
+  ]
+}
