@@ -311,8 +311,9 @@ describe("mobile chrome fit at 390px", () => {
 
     const chipCount = (arcChipsTsx.match(/\bkind:\s*"/g) ?? []).length;
     // Four, not five: the Clubs chip is gone (7 Sep 2026, walk finding B9).
-    // It was permanently aria-disabled and could never be enabled, because
-    // `curatedVenueKind` in lib/venueKindFilters.ts answers null for a club.
+    // It was permanently aria-disabled and could never be enabled. Clubs show
+    // with the Bars chip: `curatedVenueKind` in lib/venueKindFilters.ts files a
+    // club under the bars.
     expect(chipCount, "chips declared in TonightArcChips").toBe(4);
     expect(arcChipsCss, "chip labels are never truncated").not.toMatch(/text-overflow/);
     // Design judgement 2026-08-01 (finding 2.1): the selected chip carries a

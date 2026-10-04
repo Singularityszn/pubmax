@@ -123,9 +123,9 @@ for (const viewport of DESKTOP) {
       expect(boxes!.inputWidth).toBeGreaterThan(120);
 
       // A tap opens the panel with the same four chips in it. Four, not five:
-      // `Clubs` is deleted (walk finding B9), because `curatedVenueKind` in
-      // lib/venueKindFilters.ts answers null for a club, so it could never have
-      // been enabled.
+      // `Clubs` is deleted (walk finding B9), because it could never have been
+      // enabled. Clubs show with `Bars`: `curatedVenueKind` in
+      // lib/venueKindFilters.ts files a club under the bars.
       await expect(async () => {
         await filters.click();
         await expect(
