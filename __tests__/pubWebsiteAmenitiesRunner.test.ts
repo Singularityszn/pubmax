@@ -396,6 +396,64 @@ describe("pub website amenities CLI permission and page citations", () => {
 
 
 describe("pub website amenities CLI checkpoint publication", () => {
+  it.each([
+    { counter: "equal", publications: 5 },
+    { counter: "different", publications: 7 },
+  ])("refuses legacy counter-only pending publication beside existing evidence at $counter counters", ({ publications }) => {
+    const pages = pagesWithLinkedLanding();
+    pages[HOME].body = `<p>${WELCOME} ${FOOD_QUOTE}</p><a href="/sports">Sport</a>`;
+    const cli = createCli(pages, {
+      food: { value: true, evidence: FOOD_QUOTE },
+      liveSports: { value: true, evidence: SPORTS_QUOTE },
+    });
+    const unrelated = {
+      osmId: "node/unrelated", name: "Unrelated Synthetic Pub", venueId: "unrelated-venue",
+      sourceUrl: "https://unrelated.example/", verifiedAt: "2026-09-30", amenities: { food: FOOD_QUOTE },
+    };
+    const prior = {
+      version: 1, publications: 4, actualSpendUsd: 1.25, skipCounts: { ok: 3 }, rows: [unrelated],
+    };
+    cli.write(EVIDENCE, prior);
+    cli.write("fixture.json", {
+      ...cli.read("fixture.json"), failure: { operation: "rename", path: EVIDENCE },
+      usageMetadata: { promptTokenCount: 1000, candidatesTokenCount: 500 },
+    });
+    const interrupted = cli.run();
+    expect(interrupted.status, interrupted.stderr).toBe(1);
+    expect(interrupted.stderr).toContain("Synthetic publication interruption");
+    expect(cli.calls().filter((call) => call.kind === "model")).toHaveLength(1);
+    const pending = cli.read(CHECKPOINT);
+    expect(pending.pendingPublication).toEqual({
+      id: expect.stringMatching(UUID_V4), publications: 5, spentUsd: 0,
+    });
+    expect(pending.spentUsd).toBeCloseTo(0.0003, 8);
+    expect(pending.byOsmId["node/synthetic-1"]).toMatchObject({
+      publication: "pending", verifiedAt: OBSERVED_AT,
+      amenities: { food: FOOD_QUOTE, liveSports: SPORTS_QUOTE },
+    });
+    expect(cli.read(EVIDENCE)).toEqual(prior);
+
+    delete pending.pendingPublication.id;
+    cli.write(CHECKPOINT, pending);
+    expect(cli.read(CHECKPOINT).pendingPublication).toEqual({ publications: 5, spentUsd: 0 });
+    cli.write(EVIDENCE, {
+      ...prior, publications, publicationBatchId: "39da3e1e-31fa-4ca7-8a74-2844d1c65cbb",
+    });
+    cli.write("fixture.json", {
+      ...cli.read("fixture.json"), failure: null, pages: {}, now: "2026-10-04T12:00:00Z",
+    });
+    const before = {
+      checkpoint: cli.readText(CHECKPOINT), evidence: cli.readText(EVIDENCE), dataset: cli.readText(DATASET),
+    };
+    const refused = cli.run();
+    expect(refused.status, refused.stderr).toBe(1);
+    expect(refused.stderr).toContain("Cannot verify legacy pending publication against existing evidence; preserve checkpoint for operator recovery");
+    expect(cli.calls()).toEqual([]);
+    expect(cli.readText(CHECKPOINT)).toBe(before.checkpoint);
+    expect(cli.readText(EVIDENCE)).toBe(before.evidence);
+    expect(cli.readText(DATASET)).toBe(before.dataset);
+  });
+
   it("acknowledges an already published pending batch UUID without duplicate rows or spend", () => {
     const pages = pagesWithLinkedLanding();
     pages[HOME].body = `<p>${WELCOME} ${FOOD_QUOTE}</p><a href="/sports">Sport</a>`;
