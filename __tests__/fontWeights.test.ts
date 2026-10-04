@@ -17,7 +17,25 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+const localFontCalls = vi.hoisted(
+  () => [] as Array<{ variable?: string; src: Array<{ weight?: string }> }>,
+);
+
+vi.mock("server-only", () => ({}));
+vi.mock("next/font/google", () => {
+  const face = () => ({ className: "font-mock", variable: "--font-mock" });
+  return { Space_Grotesk: face, Inter: face };
+});
+vi.mock("next/font/local", () => ({
+  default: vi.fn((options: (typeof localFontCalls)[number]) => {
+    localFontCalls.push(options);
+    return { className: "font-mock", variable: "--font-mock" };
+  }),
+}));
+
+import "@/app/layout";
 
 const REPO_ROOT = join(__dirname, "..");
 const layout = readFileSync(join(REPO_ROOT, "app/layout.tsx"), "utf8");
@@ -66,10 +84,8 @@ function monoWeightTargets(): number[] {
 
 describe("the mono face carries only weights something asks for", () => {
   it("declares 400 and 700 and nothing between", () => {
-    const mono = layout.slice(layout.indexOf("const dataMono = localFont("));
-    const declared = [...mono.slice(0, mono.indexOf("});")).matchAll(/weight: "(\d{3})"/g)]
-      .map((match) => match[1]);
-    expect(declared).toEqual(["400", "700"]);
+    const mono = localFontCalls.find((options) => options.variable === "--font-data");
+    expect(mono?.src.map((face) => face.weight)).toEqual(["400", "700"]);
   });
 
   it("has no shipped rule that could resolve to 500", () => {
