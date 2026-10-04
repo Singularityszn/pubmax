@@ -813,51 +813,61 @@
   "duplicates": [
     {
       "name": "Big Slope",
+      "id": null,
       "matchedName": "Big Slope",
       "matchedId": "node/600576865"
     },
     {
       "name": "The Crescent",
+      "id": null,
       "matchedName": "The Crescent",
       "matchedId": "node/7618653992"
     },
     {
       "name": "226 Gallowgate",
+      "id": null,
       "matchedName": "226 Gallowgate",
       "matchedId": "way/725359463"
     },
     {
       "name": "Rosevale Tavern",
+      "id": null,
       "matchedName": "The Rosevale",
       "matchedId": "node/601719381"
     },
     {
       "name": "Ubiquitous Chip",
+      "id": null,
       "matchedName": "Ubiquitous Chip - The Pub",
       "matchedId": "node/600483163"
     },
     {
       "name": "Lea Rig",
+      "id": null,
       "matchedName": "Lea Rig",
       "matchedId": "node/11922516760"
     },
     {
       "name": "Bristol Bar",
+      "id": null,
       "matchedName": "Bristol Bar",
       "matchedId": "node/12900418866"
     },
     {
       "name": "Duke Bar",
+      "id": null,
       "matchedName": "The Duke Bar",
       "matchedId": "node/1600288392"
     },
     {
       "name": "Louden Tavern",
+      "id": null,
       "matchedName": "The Louden Tavern",
       "matchedId": "node/12900418878"
     },
     {
       "name": "Crown Creighton",
+      "id": null,
       "matchedName": "The Crown Creighton",
       "matchedId": "node/1600288387"
     }

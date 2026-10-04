@@ -13,7 +13,7 @@ node scripts/discover_parallel_venues.mjs --provider=tavily --cities=manchester,
 node scripts/discover_parallel_venues.mjs --check
 ```
 
-Every run replays and reports every city. `--cities` names the cities that may spend, and they run first; the others replay their checkpoints without a request. Parallel pages already paid for always count. With `--provider=tavily` no Parallel request is made, and a slice the Parallel pages left incomplete is finished by Tavily.
+Every run replays and reports every city. `--cities` names the cities that may spend, and they run first; the others replay their checkpoints without a request, under either provider. `--cities=` with no city replays every city without a request or a key. Parallel pages already paid for always count. A slice the Parallel pages left incomplete replays its cached Tavily lane, and with `--provider=tavily` a selected city finishes it with new Tavily reads; no Parallel request is made.
 
 There is no spend cap. Discovery covers every city in `scripts/fetch_city_osm_pubs.mjs`, the cities with a shipped map. A city without a map is refused: its rows would never reach the product.
 
@@ -39,7 +39,7 @@ Tavily returns text, not venues, so `pageVenues` reads entries from it without a
 
 Task input has a documented 25,000-character limit. `taskRequest` is the one place a request is fitted to it: it adds known venue names until the limit, and says `contextIsPartial` when some were left out. Dedupe still runs against every local venue afterward.
 
-Raw task results, Tavily searches and page reads, the earlier Firecrawl reads, per-slice checkpoints and postcode responses live under the ignored `data-harvest/parallel-venue-discovery/`. Failed runs retain checkpoints, and repeating the same command resumes. A city outside `--cities` replays its stored searches, page text and recorded robots answers and skips without any call; it stays incomplete only where a paid read is still missing. Replayed rows keep their observation dates. `--refresh` starts new research for the selected cities and reads their pages again.
+Raw task results, Tavily searches and page reads, the earlier Firecrawl reads, per-slice checkpoints and postcode responses live under the ignored `data-harvest/parallel-venue-discovery/`. Failed runs retain checkpoints, and repeating the same command resumes. A city outside `--cities` replays its stored searches, page text and recorded robots answers and skips without any call; it stays incomplete only where a paid read is still missing. Replayed rows keep their observation dates. `--refresh` starts new research for the selected cities only and reads their pages again; every other city replays.
 
 ## Acceptance and publication
 
@@ -53,9 +53,9 @@ Every accepted venue needs:
 
 Postcode geocoding is approximate. Rows say `coordinatePrecision: "postcode-centroid"` and keep the geocode URL, quality and observation date. Those coordinates are not building entrances.
 
-Dedupe reads the national OSM pub, drink, food and work packs, the city OSM packs, London data and other cities' discoveries. Name matching uses the shared venue identity matcher. Distance is at most 150 metres for source coordinates, 350 metres when a postcode centroid takes part. Different postcodes stay separate beyond 50 metres. Repeats across a city's slices collapse to the first. The city builder dedupes again against city OSM rows.
+Dedupe reads the national OSM pub, drink, food and work packs, the city OSM packs, London data and other cities' discoveries. Names must agree under the shared venue identity matcher. The same house number on the same street is one venue within a kilometre, whatever postcode each source gives. The same full postcode is one venue within 800 metres, a postcode centroid's spread. Otherwise, different numbers on one street or different streets stay separate beyond 100 metres with a postcode centroid (a corner pub can carry two addresses) or 50 metres without; and a match is at most 150 metres for source coordinates, 350 metres with a postcode centroid. Repeats across a city's slices collapse to the first. The city builder dedupes again against city OSM rows with the same rule.
 
-A city's own earlier discoveries are kept with their original observation, and a candidate matching one is reported as `retained`, not as a duplicate. A stored row that no longer passes validation is dropped and listed under `withdrawn`.
+A city's own earlier discoveries are kept with their original observation, and a candidate matching one is reported as `retained`, not as a duplicate. A stored row that no longer passes validation, or that an existing venue now matches, is dropped and listed under `withdrawn` with the reason and the venue it matched.
 
 Accepted observations live in `data/cities/<city>/parallel_venues.json`. Each names its `provider`: `parallel`, `tavily`, or `tavily-firecrawl` for the earlier Firecrawl reads. Rows from the first Parallel batch were stored before the field existed; the assembler names them `parallel`, which is the only lane that wrote them, and never invents the `runId` they lack. Later Parallel rows carry the `runId` that found them. OSM files stay separate and keep their own dates and attribution. The city builder merges the two sources, keeps bar and restaurant kinds and writes unpriced pins.
 

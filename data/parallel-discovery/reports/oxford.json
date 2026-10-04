@@ -112,14 +112,6 @@
   "added": 0,
   "retained": [
     {
-      "name": "Royal Standard",
-      "id": "venue-oxf-13e5hn1"
-    },
-    {
-      "name": "Britannia",
-      "id": "venue-oxf-pcmcoj"
-    },
-    {
       "name": "The Butcher's Arms",
       "id": "venue-oxf-1aku938"
     },
@@ -148,56 +140,92 @@
       "id": "venue-oxf-a7povx"
     }
   ],
-  "totalAccepted": 9,
+  "totalAccepted": 7,
   "repeats": 0,
   "duplicates": [
     {
       "name": "Tile Shop Ale House",
+      "id": null,
       "matchedName": "The Tile Shop Ale House",
       "matchedId": "way/135885545"
     },
     {
+      "name": "Royal Standard",
+      "id": null,
+      "matchedName": "The Royal Standard",
+      "matchedId": "way/132619800"
+    },
+    {
+      "name": "Britannia",
+      "id": null,
+      "matchedName": "The Britannia Inn",
+      "matchedId": "way/132647573"
+    },
+    {
       "name": "Black Boy",
+      "id": null,
       "matchedName": "The Black Boy",
       "matchedId": "way/133611152"
     },
     {
       "name": "Butchers Arms",
+      "id": null,
       "matchedName": "The Butchers Arms",
       "matchedId": "way/832383135"
     },
     {
       "name": "White Hart",
+      "id": null,
       "matchedName": "The White Hart",
       "matchedId": "way/125480508"
     },
     {
       "name": "Corner House",
+      "id": null,
       "matchedName": "Corner House",
       "matchedId": "way/98611410"
     },
     {
       "name": "Red Lion",
+      "id": null,
       "matchedName": "The Red Lion",
       "matchedId": "way/136094733"
     },
     {
       "name": "George Inn",
+      "id": null,
       "matchedName": "The George Inn",
       "matchedId": "way/961642705"
     },
     {
       "name": "Jolly Postboys",
+      "id": null,
       "matchedName": "The Jolly Postboys",
       "matchedId": "way/196110115"
     },
     {
       "name": "William Morris",
+      "id": null,
       "matchedName": "William Morris",
       "matchedId": "node/175707113"
     }
   ],
-  "withdrawn": [],
+  "withdrawn": [
+    {
+      "name": "Royal Standard",
+      "id": "venue-oxf-13e5hn1",
+      "matchedName": "The Royal Standard",
+      "matchedId": "way/132619800",
+      "reason": "duplicate of an existing venue"
+    },
+    {
+      "name": "Britannia",
+      "id": "venue-oxf-pcmcoj",
+      "matchedName": "The Britannia Inn",
+      "matchedId": "way/132647573",
+      "reason": "duplicate of an existing venue"
+    }
+  ],
   "rejected": [
     {
       "name": "https://www.fullers.co.uk/pubs/pub-finder/oxfordshire",

@@ -389,10 +389,6 @@
       "id": "venue-bri-2ej83h"
     },
     {
-      "name": "Pilgrim Inn",
-      "id": "venue-bri-tfvd28"
-    },
-    {
       "name": "The Kings Head",
       "id": "venue-bri-wx5olt"
     },
@@ -401,46 +397,67 @@
       "id": "venue-bri-xpufzk"
     }
   ],
-  "totalAccepted": 5,
+  "totalAccepted": 4,
   "repeats": 4,
   "duplicates": [
     {
       "name": "Sandringham",
+      "id": null,
       "matchedName": "The Sandringham",
       "matchedId": "way/405875173"
     },
     {
       "name": "Lodekka",
+      "id": null,
       "matchedName": "Lodekka",
       "matchedId": "way/675544668"
     },
     {
+      "name": "Pilgrim Inn",
+      "id": null,
+      "matchedName": "The Pilgrim Inn",
+      "matchedId": "way/1088206528"
+    },
+    {
       "name": "Beeses Bar & Tea Gardens",
+      "id": null,
       "matchedName": "Beeses Bar & Tea Gardens",
       "matchedId": "way/582526162"
     },
     {
       "name": "Bear & Rugged Staff",
+      "id": null,
       "matchedName": "Bear & Rugged Staff",
       "matchedId": "way/274701877"
     },
     {
       "name": "Rose & Crown",
+      "id": null,
       "matchedName": "Rose and Crown",
       "matchedId": "way/1011173159"
     },
     {
       "name": "Masons Arms",
+      "id": null,
       "matchedName": "Masons Arms",
       "matchedId": "way/398932880"
     },
     {
       "name": "Golden Lion",
+      "id": null,
       "matchedName": "Golden Lion",
       "matchedId": "way/398988642"
     }
   ],
-  "withdrawn": [],
+  "withdrawn": [
+    {
+      "name": "Pilgrim Inn",
+      "id": "venue-bri-tfvd28",
+      "matchedName": "The Pilgrim Inn",
+      "matchedId": "way/1088206528",
+      "reason": "duplicate of an existing venue"
+    }
+  ],
   "rejected": [
     {
       "name": "https://www.fullers.co.uk/pubs/pub-finder/pubs-with-food/bristol",

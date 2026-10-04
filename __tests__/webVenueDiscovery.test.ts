@@ -130,6 +130,8 @@ describe("Tavily venue discovery", () => {
     ["The Bar", "https://barsandpubs.example/the-bar", { displayName: "Manchester" }],
     ["Green Park Brasserie & Bar", "https://green-park-brasserie-and-bar.uk-rest.com/", { displayName: "Bath" }],
     ["Echo Bar", "https://www.liverpoolecho.co.uk/whats-on/echo-bar", { displayName: "Liverpool" }],
+    ["Trip Lounge", "https://uk.trip.com/restaurant/trip-lounge", { displayName: "Liverpool" }],
+    ["Echo Arms", "https://whatson.liverpoolecho.co.uk/echo-arms", { displayName: "Liverpool" }],
     ["Evening Star", "https://www.manchestereveningnews.co.uk/whats-on/evening-star", { displayName: "Manchester" }],
     ["Postal Bar", "https://www.bristolpost.co.uk/whats-on/postal-bar", { displayName: "Bristol" }],
     ["Mailbox Tap", "https://www.birminghammail.co.uk/whats-on/mailbox-tap", { displayName: "Birmingham" }],
@@ -144,6 +146,10 @@ describe("Tavily venue discovery", () => {
     ["New Street Tavern", "https://newstreettavern.co.uk/", { displayName: "Birmingham" }],
     ["The Olive Tree", "https://theolive.co.uk/", { displayName: "Bath" }],
     ["The Signpost", "https://thesignpost.pub/", { displayName: "Leeds" }],
+    ["The Lamp Post", "https://www.the-lamp-post.co.uk/", { displayName: "Manchester" }],
+    ["Royal Standard", "https://royal-standard-pub.co.uk/", { displayName: "Oxford" }],
+    ["Live Lounge Bar", "https://live-lounge-bar.com/", { displayName: "Bristol" }],
+    ["Trip Inn", "https://trip-inn.co.uk/", { displayName: "Bath" }],
   ])("keeps %s's own site although its name holds a news word", (name, url, city) => {
     expect(ownSiteFor(name, url, city)).toBe(url);
   });

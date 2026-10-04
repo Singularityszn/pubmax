@@ -35,7 +35,6 @@ function sourceBelongsToVenue(url, website) {
 }
 
 export const GENERIC_NAME_WORDS = new Set(["the", "and", "bar", "bars", "pub", "pubs", "inn", "restaurant", "restaurants", "kitchen", "club", "lounge", "tavern", "hotel", "cafe", "grill", "wine", "cocktail", "cocktails", "brewery", "taproom", "beer", "tap", "arms", "house", "great", "united", "kingdom", "england", "scotland", "wales"]);
-const NOT_OWN_SITE_HOST = /(?:^|[.-])(?:news|live|echo|post|times|herald|gazette|chronicle|mirror|guardian|evening|mail|express|telegraph|independent|observer|journal|argus|standard|bbc|tripadvisor|yelp|foursquare|timeout|trip|booking|expedia|wikipedia|reddit|tiktok)(?:[.-]|$)|247\./i;
 
 // News brands whose name runs a place into a news word. They are named
 // outright, so a venue called The Lamp Post or The Olive Tree keeps its site.
@@ -45,7 +44,7 @@ const NEWS_BRANDS = new Set([
   "examinerlive", "chroniclelive", "northernecho", "thenorthernecho", "durhamtimes", "walesonline", "dailypost", "northwaleslive",
   "oxfordmail", "oxfordshirelive", "cambridgenews", "cambridgeshirelive", "bathecho", "somersetlive", "liverpoolworld", "manchesterworld",
   "bristolworld", "nottinghampost", "leicestermercury", "lancashiretelegraph", "theguardian", "dailymail", "thesun", "mirror", "express",
-  "telegraph", "independent", "standard", "metro", "bbc", "inyourarea",
+  "telegraph", "independent", "standard", "metro", "bbc", "inyourarea", "trip",
 ]);
 const AGGREGATOR_LABEL = /tripadvisor|yelp|foursquare|timeout|expedia|booking|wikipedia|reddit|tiktok/;
 
@@ -53,10 +52,10 @@ export const words = (value) => normalizeVenueIdentityName(value).split(/\s+/).m
 
 // The page vouches for its own venue only when its registered domain carries
 // a distinctive word of the venue's name. City names, short and generic
-// words, news and aggregator hosts, and subdomains of other sites never count.
+// words, named news brands, aggregator hosts and subdomains of other sites
+// never count; a news word inside a venue's own domain does not refuse it.
 export function ownSiteFor(name, landedUrl, city) {
   const hostname = new URL(landedUrl).hostname.toLowerCase();
-  if (NOT_OWN_SITE_HOST.test(hostname)) return null;
   const labels = hostname.split(".");
   const registrable = labels.slice(/^(?:co|org|ac|gov|net|ltd|plc|me)\.uk$/.test(labels.slice(-2).join(".")) ? -3 : -2).join(".");
   const label = registrable.split(".")[0].replace(/[^a-z0-9]/g, "");
@@ -173,16 +172,49 @@ export function parseTaskVenues(result, city, observedAt, { local = false } = {}
   return { candidates, rejected };
 }
 
+const STREET_ABBREVIATIONS = { st: "street", rd: "road", ln: "lane", ave: "avenue", av: "avenue", dr: "drive", sq: "square", pl: "place", cres: "crescent", ter: "terrace", pde: "parade", ct: "court" };
+
+// A venue's street address as a house-number range and a normalised street
+// name, read from the first address part that has a street. OSM writes the
+// number as its own part ("78, London Road"), so a bare number joins the next.
+export function streetIdentity(address) {
+  const parts = text(address).split(",").map((part) => part.trim());
+  for (const [index, part] of parts.entries()) {
+    if (/^\d+[a-z]?(?:\s*-\s*\d+[a-z]?)?$/i.test(part) && parts[index + 1]) parts[index + 1] = `${part} ${parts[index + 1]}`;
+  }
+  for (const part of parts) {
+    const words = fold(part.replace(POSTCODE, " ")).replace(/[^a-z0-9\s-]/g, " ").trim().split(/\s+/).filter(Boolean);
+    const numbered = /^(\d+)[a-z]?(?:-(\d+)[a-z]?)?$/.exec(words[0] ?? "");
+    const street = (numbered ? words.slice(1) : words).map((word) => STREET_ABBREVIATIONS[word] ?? word).join(" ");
+    if (!/\b(?:street|road|lane|avenue|drive|square|place|crescent|terrace|parade|court|way|row|walk|hill|gate|green|close|broadway|quay|wharf|yard|gardens|kirkway|boulevard|mews)\b/.test(street)) continue;
+    return { street, from: numbered ? Number(numbered[1]) : null, to: numbered ? Number(numbered[2] ?? numbered[1]) : null };
+  }
+  return null;
+}
+
+// One venue, by compatible name and place. The same house number on the same
+// street is the same venue whatever postcode each source gives, and so is the
+// same full postcode within a postcode centroid's spread. Other differing
+// street addresses stay apart beyond a corner's width, so nearby branches of
+// one name are kept.
 export function sameVenue(a, b) {
   const aName = normalizeVenueIdentityName(a.name);
   const bName = normalizeVenueIdentityName(b.name);
   if (!aName || !bName || !namesLikelySamePub(aName, bName)) return false;
-  const radius = a.coordinatePrecision === "postcode-centroid" || b.coordinatePrecision === "postcode-centroid" ? 350 : 150;
   const distance = haversineMeters(a.lat, a.lng, b.lat, b.lng);
+  const centroid = a.coordinatePrecision === "postcode-centroid" || b.coordinatePrecision === "postcode-centroid";
+  const near = centroid ? 100 : 50;
+  const aStreet = streetIdentity(a.address);
+  const bStreet = streetIdentity(b.address);
+  const sameStreet = aStreet && bStreet && aStreet.street === bStreet.street;
+  const numbered = aStreet?.from != null && bStreet?.from != null;
+  if (sameStreet && numbered) return aStreet.from <= bStreet.to && bStreet.from <= aStreet.to ? distance <= 1000 : distance <= near;
   const aPostcode = postcodeIn(a.address);
   const bPostcode = postcodeIn(b.address);
-  if (aPostcode && bPostcode && aPostcode !== bPostcode && distance > 50) return false;
-  return distance <= radius;
+  if (aPostcode && aPostcode === bPostcode) return distance <= 800;
+  if (aStreet && bStreet && !sameStreet) return distance <= near;
+  if (!centroid && aPostcode && bPostcode && distance > 50) return false;
+  return distance <= (centroid ? 350 : 150);
 }
 
 export function dedupeVenues(candidates, existing) {
@@ -190,7 +222,7 @@ export function dedupeVenues(candidates, existing) {
   const duplicates = [];
   for (const candidate of candidates) {
     const match = [...existing, ...accepted].find((venue) => sameVenue(candidate, venue));
-    if (match) duplicates.push({ name: candidate.name, matchedName: match.name, matchedId: match.id ?? match.osmId ?? null });
+    if (match) duplicates.push({ name: candidate.name, id: candidate.id ?? null, matchedName: match.name, matchedId: match.id ?? match.osmId ?? null });
     else accepted.push(candidate);
   }
   return { accepted, duplicates };
@@ -216,13 +248,20 @@ export function validateDiscoveryPack(pack, city) {
 }
 
 // The city's own earlier discoveries are retained, never reported as
-// duplicates of themselves; only other sources can make a candidate a duplicate.
+// duplicates of themselves; only other sources can make a candidate a
+// duplicate. A stored row that fails validation, or that an existing venue
+// now matches, is withdrawn with the reason and the venue it matched.
 export function assembleCityDiscoveries({ found, previous, existing, city }) {
-  const kept = previous.filter((row) => {
+  const valid = previous.filter((row) => {
     try { validateDiscoveryPack({ city: city.id, venues: [row] }, city); return true; }
     catch { return false; }
   });
-  const withdrawn = previous.filter((row) => !kept.includes(row)).map((row) => ({ name: row.name, id: row.id ?? null }));
+  const stored = dedupeVenues(valid, existing);
+  const kept = stored.accepted;
+  const withdrawn = [
+    ...previous.filter((row) => !valid.includes(row)).map((row) => ({ name: row.name, id: row.id ?? null, reason: "fails validation" })),
+    ...stored.duplicates.map((row) => ({ ...row, reason: "duplicate of an existing venue" })),
+  ];
   const unique = dedupeVenues(found, []);
   const fresh = dedupeVenues(unique.accepted, kept);
   const { accepted, duplicates } = dedupeVenues(fresh.accepted, existing);

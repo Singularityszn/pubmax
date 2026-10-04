@@ -9,64 +9,6 @@
   ],
   "venues": [
     {
-      "name": "Royal Standard",
-      "kind": "pub",
-      "address": "78 London Road, Headington, Oxford OX3 9AA",
-      "postcode": "OX3 9AA",
-      "locality": "Oxford",
-      "website": null,
-      "lat": 51.759856,
-      "lng": -1.212887,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://camra.org.uk/pubs/place/headington-8112"
-      ],
-      "evidence": [
-        {
-          "url": "https://camra.org.uk/pubs/place/headington-8112",
-          "excerpt": "### Royal Standard\n\nNest (Greene King) Pub, in Oxford]\n\n3 Regular, 1 Changing Beers\n\n \n\n**0.1** miles from you\n\n78 London Road, Headington, Oxford, OX3 9AA"
-        }
-      ],
-      "observedAt": "2026-10-04T12:53:02.312Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/OX3%209AA",
-        "observedAt": "2026-10-04T13:06:59.424Z",
-        "postcode": "OX3 9AA",
-        "quality": 1
-      },
-      "provider": "tavily",
-      "id": "venue-oxf-13e5hn1"
-    },
-    {
-      "name": "Britannia",
-      "kind": "pub",
-      "address": "1 Lime Walk, Headington, Oxford OX3 7RD",
-      "postcode": "OX3 7RD",
-      "locality": "Oxford",
-      "website": null,
-      "lat": 51.759531,
-      "lng": -1.213994,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://camra.org.uk/pubs/place/headington-8112"
-      ],
-      "evidence": [
-        {
-          "url": "https://camra.org.uk/pubs/place/headington-8112",
-          "excerpt": "### Britannia\n\nEmber Inns (Mitchells & Butlers) Pub, in Oxford]\n\n1 Regular, 3 Changing Beers\n\n \n\n**0.1** miles from you\n\n1 Lime Walk, Headington, Oxford, OX3 7RD"
-        }
-      ],
-      "observedAt": "2026-10-04T12:53:02.312Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/OX3%207RD",
-        "observedAt": "2026-10-04T13:06:59.448Z",
-        "postcode": "OX3 7RD",
-        "quality": 1
-      },
-      "provider": "tavily",
-      "id": "venue-oxf-pcmcoj"
-    },
-    {
       "name": "The Butcher's Arms",
       "kind": "pub",
       "address": "Wilberforce Street, Headington, Oxford, Oxfordshire OX3 7AN",

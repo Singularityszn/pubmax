@@ -1118,7 +1118,7 @@
   "webSearches": 380,
   "pagesRead": 1050,
   "researched": 143,
-  "added": 2,
+  "added": 0,
   "retained": [
     {
       "name": "Vero Moderno",
@@ -1135,6 +1135,10 @@
     {
       "name": "Black Lion Hotel",
       "id": "venue-mcr-1utjiiq"
+    },
+    {
+      "name": "Shack",
+      "id": "venue-mcr-8xcpdj"
     },
     {
       "name": "Old Fire Station",
@@ -1177,14 +1181,6 @@
       "id": "venue-mcr-j30rtl"
     },
     {
-      "name": "Middleton Archer",
-      "id": "venue-mcr-1h4tkgb"
-    },
-    {
-      "name": "Lancashire Fold",
-      "id": "venue-mcr-gy4wdx"
-    },
-    {
       "name": "Nags Head",
       "id": "venue-mcr-1qfay4y"
     },
@@ -1211,10 +1207,6 @@
     {
       "name": "Queen Vic",
       "id": "venue-mcr-1l60r8o"
-    },
-    {
-      "name": "Jolly Hatters",
-      "id": "venue-mcr-5o34fl"
     },
     {
       "name": "Sun Inn",
@@ -1269,266 +1261,370 @@
       "id": "venue-mcr-18rfqdc"
     }
   ],
-  "totalAccepted": 39,
+  "totalAccepted": 35,
   "repeats": 28,
   "duplicates": [
     {
       "name": "Old Pint Pot",
+      "id": null,
       "matchedName": "The Old Pint Pot",
       "matchedId": "node/1982756226"
     },
     {
       "name": "New Oxford",
+      "id": null,
       "matchedName": "The New Oxford",
       "matchedId": "node/1359418285"
     },
     {
       "name": "Kings Arms",
+      "id": null,
       "matchedName": "Kings Arms",
       "matchedId": "node/331277232"
     },
     {
       "name": "Black Friar",
+      "id": null,
       "matchedName": "The Black Friar",
       "matchedId": "way/1052533886"
     },
     {
       "name": "Joule Mcr",
+      "id": null,
       "matchedName": "Joule MCR",
       "matchedId": "node/10174732605"
     },
     {
       "name": "Egerton Arms Hotel",
+      "id": null,
       "matchedName": "Egerton Arms",
       "matchedId": "way/944457450"
     },
     {
       "name": "Eagle Inn",
+      "id": null,
       "matchedName": "Eagle Inn",
       "matchedId": "node/2207129152"
     },
     {
+      "name": "High Street Tavern",
+      "id": null,
+      "matchedName": "High Street Tavern",
+      "matchedId": "node/5066958728"
+    },
+    {
       "name": "Abel Heywood",
+      "id": null,
       "matchedName": "Abel Heywood",
       "matchedId": "node/12000992656"
     },
     {
       "name": "Welcome Inn",
+      "id": null,
       "matchedName": "Welcome Inn",
       "matchedId": "way/781943957"
     },
     {
       "name": "Mary D's Beamish Bar",
+      "id": null,
       "matchedName": "Mary D's",
       "matchedId": "node/1634679820"
     },
     {
       "name": "Townley",
+      "id": null,
       "matchedName": "The Townley",
       "matchedId": "way/478975778"
     },
     {
       "name": "Grove Inn",
+      "id": null,
       "matchedName": "Grove Inn",
       "matchedId": "node/11649065956"
     },
     {
       "name": "Corner Shop",
+      "id": null,
       "matchedName": "The Corner Shop",
       "matchedId": "way/1126491825"
     },
     {
       "name": "Strawberry Duck",
+      "id": null,
       "matchedName": "Strawberry Duck",
       "matchedId": "way/624670042"
     },
     {
       "name": "Black Boy",
+      "id": null,
       "matchedName": "The Black Boy",
       "matchedId": "way/727920306"
     },
     {
       "name": "Red Rose Inn",
+      "id": null,
       "matchedName": "The Red Rose",
       "matchedId": "way/727918567"
     },
     {
       "name": "Albion Inn",
+      "id": null,
       "matchedName": "Albion Inn",
       "matchedId": "way/176677497"
     },
     {
+      "name": "Middleton Archer",
+      "id": null,
+      "matchedName": "Middleton Archer",
+      "matchedId": "way/176681506"
+    },
+    {
       "name": "Oddfellows Arms",
+      "id": null,
       "matchedName": "Oddfellows Arms",
       "matchedId": "node/1870710805"
     },
     {
+      "name": "Lancashire Fold",
+      "id": null,
+      "matchedName": "Lancashire Fold",
+      "matchedId": "way/258790679"
+    },
+    {
       "name": "Grapes",
+      "id": null,
       "matchedName": "The Grapes",
       "matchedId": "way/1115745088"
     },
     {
       "name": "Eccles Cross",
+      "id": null,
       "matchedName": "The Eccles Cross",
       "matchedId": "way/1115745073"
     },
     {
       "name": "Duke of York",
+      "id": null,
       "matchedName": "Duke Of York",
       "matchedId": "way/1115745096"
     },
     {
       "name": "Oddfellows Arms",
+      "id": null,
       "matchedName": "Oddfellows Arms",
       "matchedId": "way/185603701"
     },
     {
       "name": "Station Bar",
+      "id": null,
       "matchedName": "The Station Bar",
       "matchedId": "way/1115745095"
     },
     {
       "name": "Dog & Partridge",
+      "id": null,
       "matchedName": "The Dog & Partridge",
       "matchedId": "way/204127482"
     },
     {
       "name": "Malt Dog",
+      "id": null,
       "matchedName": "Malt Dog",
       "matchedId": "node/13276510917"
     },
     {
       "name": "Longford Tap",
+      "id": null,
       "matchedName": "The Longford Tap",
       "matchedId": "node/9275145236"
     },
     {
       "name": "Gorse Hill",
+      "id": null,
       "matchedName": "Gorse Hill",
       "matchedId": "node/1282184377"
     },
     {
       "name": "Quadrant",
+      "id": null,
       "matchedName": "The Quadrant",
       "matchedId": "node/748834700"
     },
     {
       "name": "Red Lion",
+      "id": null,
       "matchedName": "Red Lion",
       "matchedId": "node/266971368"
     },
     {
       "name": "Acres Inn",
+      "id": null,
       "matchedName": "The Acres Inn",
       "matchedId": "node/1289969049"
     },
     {
       "name": "Toll Point",
+      "id": null,
       "matchedName": "The Toll Point",
       "matchedId": "node/1290036987"
     },
     {
       "name": "Chapel House",
+      "id": null,
       "matchedName": "The Chapel House",
       "matchedId": "node/1289961238"
     },
     {
+      "name": "Jolly Hatters",
+      "id": null,
+      "matchedName": "The Jolly Hatters",
+      "matchedId": "way/688186625"
+    },
+    {
       "name": "Coach & Horses",
+      "id": null,
       "matchedName": "Coach and Horses",
       "matchedId": "way/588658201"
     },
     {
       "name": "Old Peg",
+      "id": null,
       "matchedName": "Old Peg",
       "matchedId": "way/587939960"
     },
     {
       "name": "Dane Bank",
+      "id": null,
       "matchedName": "The New Dane Bank Hotel",
       "matchedId": "node/1290053382"
     },
     {
       "name": "Bees Knees",
+      "id": null,
       "matchedName": "Bees Knees",
       "matchedId": "node/10276815603"
     },
     {
       "name": "Old Bank",
+      "id": null,
       "matchedName": "The Old Bank",
       "matchedId": "node/10040533696"
     },
     {
       "name": "Town Hall Tavern",
+      "id": null,
       "matchedName": "Town Hall Tavern",
       "matchedId": "node/10025046035"
     },
     {
       "name": "Fox & Pine",
+      "id": null,
       "matchedName": "Fox and Pine",
       "matchedId": "way/1093989828"
     },
     {
       "name": "Ashton Arms",
+      "id": null,
       "matchedName": "The Ashton Arms Freehouse",
       "matchedId": "node/286964235"
     },
     {
       "name": "Up Steps Inn",
+      "id": null,
       "matchedName": "The Up Steps Inn",
       "matchedId": "node/3084282734"
     },
     {
       "name": "George Tavern",
+      "id": null,
       "matchedName": "The George Tavern",
       "matchedId": "node/286964245"
     },
     {
       "name": "George & Dragon",
+      "id": null,
       "matchedName": "George & Dragon",
       "matchedId": "way/237962059"
     },
     {
       "name": "Ashlea",
+      "id": null,
       "matchedName": "Ashlea",
       "matchedId": "way/1136749722"
     },
     {
       "name": "White Hart Tavern",
+      "id": null,
       "matchedName": "White Hart",
       "matchedId": "way/1080317421"
     },
     {
       "name": "Red Lion",
+      "id": null,
       "matchedName": "Red Lion",
       "matchedId": "way/292496556"
     },
     {
       "name": "Horse & Farrier",
+      "id": null,
       "matchedName": "Horse & Farrier",
       "matchedId": "way/547647720"
     },
     {
       "name": "Moss Trooper",
+      "id": null,
       "matchedName": "Moss Trooper",
       "matchedId": "node/25475859"
     },
     {
       "name": "Quarry Bank Inn",
+      "id": null,
       "matchedName": "The Quarry Bank",
       "matchedId": "way/142265627"
     },
     {
       "name": "Stonemasons Arms",
+      "id": null,
       "matchedName": "The Stonemasons Arms",
       "matchedId": "way/142265629"
     },
     {
       "name": "Gardeners Arms",
+      "id": null,
       "matchedName": "Gardeners Arms",
       "matchedId": "node/59981073"
     }
   ],
-  "withdrawn": [],
+  "withdrawn": [
+    {
+      "name": "Middleton Archer",
+      "id": "venue-mcr-1h4tkgb",
+      "matchedName": "Middleton Archer",
+      "matchedId": "way/176681506",
+      "reason": "duplicate of an existing venue"
+    },
+    {
+      "name": "Lancashire Fold",
+      "id": "venue-mcr-gy4wdx",
+      "matchedName": "Lancashire Fold",
+      "matchedId": "way/258790679",
+      "reason": "duplicate of an existing venue"
+    },
+    {
+      "name": "Jolly Hatters",
+      "id": "venue-mcr-5o34fl",
+      "matchedName": "The Jolly Hatters",
+      "matchedId": "way/688186625",
+      "reason": "duplicate of an existing venue"
+    },
+    {
+      "name": "High Street Tavern",
+      "id": "venue-mcr-12ul6n7",
+      "matchedName": "High Street Tavern",
+      "matchedId": "node/5066958728",
+      "reason": "duplicate of an existing venue"
+    }
+  ],
   "rejected": [
     {
       "name": "https://m.yelp.com/search?cflt=pubs&find_loc=Gateway+House%2C+Manchester+M1+2GH%2C+United+Kingdom",

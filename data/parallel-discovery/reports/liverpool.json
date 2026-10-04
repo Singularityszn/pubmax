@@ -923,10 +923,6 @@
       "id": "venue-liv-1n6r4m3"
     },
     {
-      "name": "Allerton Hall",
-      "id": "venue-liv-mi6sfd"
-    },
-    {
       "name": "Hillfoot Hotel",
       "id": "venue-liv-1smrkir"
     },
@@ -959,224 +955,288 @@
       "id": "venue-liv-74pwgr"
     },
     {
-      "name": "Kingfisher",
-      "id": "venue-liv-6w32fl"
-    },
-    {
       "name": "Park Brow",
       "id": "venue-liv-wyxmb7"
     }
   ],
-  "totalAccepted": 24,
+  "totalAccepted": 22,
   "repeats": 42,
   "duplicates": [
     {
       "name": "Sir Walter Raleigh",
+      "id": null,
       "matchedName": "Sir Walter Raleigh",
       "matchedId": "way/1310957108"
     },
     {
       "name": "Sheil Park",
+      "id": null,
       "matchedName": "Sheil Park",
       "matchedId": "way/1314940634"
     },
     {
       "name": "Western Approaches",
+      "id": null,
       "matchedName": "The Western Approaches",
       "matchedId": "way/1002835393"
     },
     {
       "name": "Little Taproom on Aigburth Road",
+      "id": null,
       "matchedName": "The Little Taproom on Aigburth Road",
       "matchedId": "node/11190610518"
     },
     {
       "name": "Bookbinder",
+      "id": null,
       "matchedName": "Bookbinder",
       "matchedId": "node/4508516518"
     },
     {
       "name": "Blondies",
+      "id": null,
       "matchedName": "Blondies",
       "matchedId": "node/5214540884"
     },
     {
       "name": "Fulwood Arms",
+      "id": null,
       "matchedName": "The Fulwood Arms",
       "matchedId": "node/252407839"
     },
     {
       "name": "Masonic Arms",
+      "id": null,
       "matchedName": "The Masonic Arms",
       "matchedId": "node/2018647833"
     },
     {
       "name": "Green Man",
+      "id": null,
       "matchedName": "The Green Man",
       "matchedId": "node/8792415136"
     },
     {
       "name": "Love & Rockets",
+      "id": null,
       "matchedName": "Love and Rockets",
       "matchedId": "node/2018647893"
     },
     {
       "name": "Albert",
+      "id": null,
       "matchedName": "The Albert",
       "matchedId": "way/455075107"
     },
     {
       "name": "Old Bank Alehouse",
+      "id": null,
       "matchedName": "The Old Bank",
       "matchedId": "node/10218214934"
     },
     {
       "name": "Minna",
+      "id": null,
       "matchedName": "Minna",
       "matchedId": "node/2018648999"
     },
     {
       "name": "Aigburth Arms",
+      "id": null,
       "matchedName": "Aigburth Arms",
       "matchedId": "way/392866582"
     },
     {
       "name": "Penny Lane Wine Bar",
+      "id": null,
       "matchedName": "The Penny Lane",
       "matchedId": "way/990063832"
     },
     {
       "name": "Dovedale Towers",
+      "id": null,
       "matchedName": "Dovedale Towers",
       "matchedId": "way/235258450"
     },
     {
       "name": "Three Piggies",
+      "id": null,
       "matchedName": "Three Piggies",
       "matchedId": "node/10694401555"
     },
     {
       "name": "John Brodie",
+      "id": null,
       "matchedName": "The John Brodie",
       "matchedId": "node/10592129872"
     },
     {
       "name": "Dead Crafty Beer Company - Allerton",
+      "id": null,
       "matchedName": "The Dead Crafty Beer Company - Allerton",
       "matchedId": "node/13343435703"
     },
     {
       "name": "Black Cat Rose Lane",
+      "id": null,
       "matchedName": "Black Cat",
       "matchedId": "node/13070298392"
     },
     {
       "name": "Jubilee Inn",
+      "id": null,
       "matchedName": "Jubilee Inn",
       "matchedId": "way/953424533"
     },
     {
       "name": "Liver",
+      "id": null,
       "matchedName": "The Liver Hotel",
       "matchedId": "way/466922045"
     },
     {
       "name": "Trap & Hatch",
+      "id": null,
       "matchedName": "Trap & Hatch",
       "matchedId": "way/1075621142"
     },
     {
       "name": "Queen's Picture House",
+      "id": null,
       "matchedName": "The Queen's Picture House",
       "matchedId": "way/1076190829"
     },
     {
       "name": "Lion & Unicorn",
+      "id": null,
       "matchedName": "Lion & Unicorn",
       "matchedId": "node/107687251"
     },
     {
       "name": "Alexandra",
+      "id": null,
       "matchedName": "The Alexandra",
       "matchedId": "way/1075621086"
     },
     {
       "name": "Old Bank",
+      "id": null,
       "matchedName": "The Old Bank",
       "matchedId": "way/1076190827"
     },
     {
       "name": "Volunteer Canteen",
+      "id": null,
       "matchedName": "The Volunteer Canteen",
       "matchedId": "node/107851638"
     },
     {
       "name": "Victoria Hotel",
+      "id": null,
       "matchedName": "The Victoria",
       "matchedId": "node/107687169"
     },
     {
+      "name": "Allerton Hall",
+      "id": null,
+      "matchedName": "Allerton Hall",
+      "matchedId": "way/468770484"
+    },
+    {
       "name": "Derby Arms",
+      "id": null,
       "matchedName": "The Derby Arms",
       "matchedId": "way/844288031"
     },
     {
       "name": "Grapes Inn",
+      "id": null,
       "matchedName": "The Grapes",
       "matchedId": "way/844287577"
     },
     {
       "name": "Victoria",
+      "id": null,
       "matchedName": "The Victoria Pub",
       "matchedId": "way/844287869"
     },
     {
       "name": "Coffee House",
+      "id": null,
       "matchedName": "The Coffee House",
       "matchedId": "node/25314846"
     },
     {
       "name": "Grenadier",
+      "id": null,
       "matchedName": "The Grenadier",
       "matchedId": "node/26266643"
     },
     {
       "name": "White Horse",
+      "id": null,
       "matchedName": "The White Horse",
       "matchedId": "node/286374773"
     },
     {
       "name": "CookHouse",
+      "id": null,
       "matchedName": "CookHouse",
       "matchedId": "node/25699144"
     },
     {
       "name": "Gardeners Arms",
+      "id": null,
       "matchedName": "Gardeners Arms",
       "matchedId": "node/25316477"
     },
     {
       "name": "Brown Cow",
+      "id": null,
       "matchedName": "The Brown Cow",
       "matchedId": "way/1087797220"
     },
     {
       "name": "Fantail",
+      "id": null,
       "matchedName": "The Fantail",
       "matchedId": "way/752067333"
     },
     {
+      "name": "Kingfisher",
+      "id": null,
+      "matchedName": "Kingfisher",
+      "matchedId": "way/587781053"
+    },
+    {
       "name": "Derby Arms",
+      "id": null,
       "matchedName": "Derby Arms",
       "matchedId": "way/1085607991"
     },
     {
       "name": "Stanley Arms",
+      "id": null,
       "matchedName": "The Stanley Arms",
       "matchedId": "way/559723982"
     }
   ],
-  "withdrawn": [],
+  "withdrawn": [
+    {
+      "name": "Allerton Hall",
+      "id": "venue-liv-mi6sfd",
+      "matchedName": "Allerton Hall",
+      "matchedId": "way/468770484",
+      "reason": "duplicate of an existing venue"
+    },
+    {
+      "name": "Kingfisher",
+      "id": "venue-liv-6w32fl",
+      "matchedName": "Kingfisher",
+      "matchedId": "way/587781053",
+      "reason": "duplicate of an existing venue"
+    }
+  ],
   "rejected": [
     {
       "name": "https://www.yelp.com/search?cflt=bars&find_loc=Hamilton+Square%2C+Birkenhead+CH41+6AY",

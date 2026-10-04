@@ -127,6 +127,7 @@
   "duplicates": [
     {
       "name": "Stonebridge Inn",
+      "id": null,
       "matchedName": "Stonebridge Inn",
       "matchedId": "way/433169889"
     }

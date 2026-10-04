@@ -386,35 +386,6 @@
       "id": "venue-liv-1n6r4m3"
     },
     {
-      "name": "Allerton Hall",
-      "kind": "pub",
-      "address": "Springwood Avenue, Allerton, Liverpool L25 7UN",
-      "postcode": "L25 7UN",
-      "locality": "Liverpool",
-      "website": null,
-      "lat": 53.361897,
-      "lng": -2.871587,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://camra.org.uk/pubs/place/woolton-19330"
-      ],
-      "evidence": [
-        {
-          "url": "https://camra.org.uk/pubs/place/woolton-19330",
-          "excerpt": "### Allerton Hall\n\nFarmhouse Inns (Greene King) Pub, in Liverpool]\n\n2 Regular, 1 Changing Beers\n\n \n\n**0.4** miles from you\n\nSpringwood Avenue, Allerton, Liverpool, L25 7UN"
-        }
-      ],
-      "observedAt": "2026-10-04T12:52:11.391Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/L25%207UN",
-        "observedAt": "2026-10-04T13:05:47.681Z",
-        "postcode": "L25 7UN",
-        "quality": 1
-      },
-      "provider": "tavily",
-      "id": "venue-liv-mi6sfd"
-    },
-    {
       "name": "Hillfoot Hotel",
       "kind": "pub",
       "address": "Hillfoot Road, Hunts Cross, Liverpool L25 0NB",
@@ -645,35 +616,6 @@
       },
       "provider": "tavily",
       "id": "venue-liv-74pwgr"
-    },
-    {
-      "name": "Kingfisher",
-      "kind": "pub",
-      "address": "98 Bewley Drive, Kirkby, Liverpool L32 6QL",
-      "postcode": "L32 6QL",
-      "locality": "Liverpool",
-      "website": null,
-      "lat": 53.471722,
-      "lng": -2.881459,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://camra.org.uk/pubs/place/kirkby-9733"
-      ],
-      "evidence": [
-        {
-          "url": "https://camra.org.uk/pubs/place/kirkby-9733",
-          "excerpt": "[### Kingfisher\n\nPub, in Liverpool]\n\n**Cask Ale not available**\n\n**1.1** miles from you\n\n98 Bewley Drive, Kirkby, Liverpool, L32 6QL"
-        }
-      ],
-      "observedAt": "2026-10-04T12:51:59.505Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/L32%206QL",
-        "observedAt": "2026-10-04T13:05:32.107Z",
-        "postcode": "L32 6QL",
-        "quality": 1
-      },
-      "provider": "tavily",
-      "id": "venue-liv-6w32fl"
     },
     {
       "name": "Park Brow",

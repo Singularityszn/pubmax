@@ -51,7 +51,7 @@ export function parseArgs(argv) {
   const options = { cities: null, matches: 30, concurrency: 40, processor: "pro", provider: "parallel", list: false, refresh: false, help: false, check: false };
   for (const arg of argv) {
     if (["--list", "--refresh", "--help", "--check"].includes(arg)) options[arg.slice(2)] = true;
-    else if (arg.startsWith("--cities=")) options.cities = arg.slice(9).split(",");
+    else if (arg.startsWith("--cities=")) options.cities = arg.slice(9) ? arg.slice(9).split(",") : [];
     else if (arg.startsWith("--matches=")) options.matches = Number(arg.slice(10));
     else if (arg.startsWith("--concurrency=")) options.concurrency = Number(arg.slice(14));
     else if (arg.startsWith("--processor=")) options.processor = arg.slice(12);
@@ -297,13 +297,18 @@ function webIo({ city, district, category }) {
 
 // Parallel pages already paid for always count. A slice they leave
 // incomplete is finished by the Tavily lane when it may spend.
-async function runSlice(slice, options) {
+const LANES = { parallel: parallelSlice, web: (slice, options) => webSlice(slice, options, webIo(slice)) };
+
+// A city outside --cities never spends and never refreshes: both lanes replay
+// what is cached, so its reports keep their completion, skips and filters.
+export async function runSlice(slice, options, lanes = LANES) {
   const spend = !options.cities || options.cities.includes(slice.city.id);
-  const parallel = await parallelSlice(slice, options, spend && options.provider === "parallel");
-  if (parallel.complete || options.provider === "parallel") return parallel;
+  const refresh = options.refresh && spend;
+  const parallel = await lanes.parallel(slice, { ...options, refresh }, spend && options.provider === "parallel");
+  if (parallel.complete) return parallel;
   const merge = (web) => ({ ...web, found: [...parallel.found, ...web.found], rejected: [...parallel.rejected, ...web.rejected],
     researched: parallel.researched + web.researched, taskRuns: parallel.taskRuns });
-  try { return merge(await webSlice(slice, { spend, refresh: options.refresh }, webIo(slice))); }
+  try { return merge(await lanes.web(slice, { spend: spend && options.provider === "tavily", refresh })); }
   catch (error) { throw Object.assign(error, { partial: merge(error.partial ?? { found: [], rejected: [], researched: 0, complete: false }) }); }
 }
 
@@ -395,7 +400,7 @@ async function main() {
   if (process.argv.length === 3 && ["-v", "-V", "--version"].includes(process.argv[2])) { console.log("2.0.0"); return; }
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
-    console.log("usage: node scripts/discover_parallel_venues.mjs [--provider=<parallel|tavily>] [--cities=<id,id>] [--matches=<n>] [--concurrency=<n>] [--processor=<base|core|pro|ultra>] [--refresh] [--list] [--check]\ndefaults: every city map, one slice per postcode district and category, parallel provider, 30 candidates per Task page, 40 concurrent slices, pro processor, resume cached runs\n--cities: only these cities may spend, first; every city is still replayed and reported\ncredentials: PARALLEL_API_KEY or TAVILY_API_KEY from environment, required before any run; --check and --list are keyless\nexamples[3]:\n  node scripts/discover_parallel_venues.mjs --list\n  node scripts/discover_parallel_venues.mjs --provider=tavily --cities=manchester,liverpool\n  node scripts/discover_parallel_venues.mjs --check");
+    console.log("usage: node scripts/discover_parallel_venues.mjs [--provider=<parallel|tavily>] [--cities=<id,id>] [--matches=<n>] [--concurrency=<n>] [--processor=<base|core|pro|ultra>] [--refresh] [--list] [--check]\ndefaults: every city map, one slice per postcode district and category, parallel provider, 30 candidates per Task page, 40 concurrent slices, pro processor, resume cached runs\n--cities: only these cities may spend, first; every city is still replayed and reported. --cities= with no city replays every city without a request or a key\ncredentials: PARALLEL_API_KEY or TAVILY_API_KEY from environment, required before any run; --check and --list are keyless\nexamples[3]:\n  node scripts/discover_parallel_venues.mjs --list\n  node scripts/discover_parallel_venues.mjs --provider=tavily --cities=manchester,liverpool\n  node scripts/discover_parallel_venues.mjs --check");
     return;
   }
   if (options.check) { await checkPacks(); return; }
@@ -406,7 +411,7 @@ async function main() {
     return;
   }
   const key = ENDPOINTS[options.provider].key;
-  if (!process.env[key]) throw new Error(`${key} is missing; load it in the invoking shell. A keyless replay would record a credential failure as the run's outcome`);
+  if (options.cities?.length !== 0 && !process.env[key]) throw new Error(`${key} is missing; load it in the invoking shell. A keyless replay would record a credential failure as the run's outcome`);
   await mkdir(RAW, { recursive: true });
   await mkdir(OUT, { recursive: true });
   const base = await baseVenues();

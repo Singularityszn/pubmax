@@ -1,7 +1,7 @@
 {
   "source": "Parallel venue discovery",
   "oldestObservedAt": "2026-10-04T10:15:57.563Z",
-  "venues": 270,
+  "venues": 261,
   "cities": [
     {
       "city": "birmingham",
@@ -17,7 +17,7 @@
     },
     {
       "city": "manchester",
-      "venues": 39
+      "venues": 35
     },
     {
       "city": "durham",
@@ -25,11 +25,11 @@
     },
     {
       "city": "liverpool",
-      "venues": 24
+      "venues": 22
     },
     {
       "city": "bristol",
-      "venues": 5
+      "venues": 4
     },
     {
       "city": "bath",
@@ -37,7 +37,7 @@
     },
     {
       "city": "oxford",
-      "venues": 9
+      "venues": 7
     },
     {
       "city": "cambridge",

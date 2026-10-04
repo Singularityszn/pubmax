@@ -60,10 +60,26 @@ describe("Parallel venue discovery", () => {
     const different = { name: "Silver Rooms", lat: 52.48, lng: -1.90 };
     expect(dedupeVenues([nearby, far, different, { ...different }], existing).accepted).toEqual([far, different]);
   });
-  it("keeps nearby branches with different postcodes", () => {
-    const existing = [{ name: "Copper Rooms", lat: 52.48, lng: -1.90, address: "B1 1AA" }];
-    const branch = { name: "Copper Rooms", lat: 52.481, lng: -1.90, address: "B1 2BB", coordinatePrecision: "postcode-centroid" };
-    expect(dedupeVenues([branch], existing).accepted).toEqual([branch]);
+  it.each([
+    ["Kemp Street, Middleton M24 4AA", [53.549124, -2.204766], "Middleton Archer", "Kemp Street, M24 4UA", [53.5482778, -2.203582], "Middleton Archer"],
+    ["77 Kirkway, Middleton M24 1EP", [53.54189, -2.193338], "Lancashire Fold", "77, Kirkway, Manchester, M24 1FL", [53.5435209, -2.1928526], "Lancashire Fold"],
+    ["119 Town Lane, Denton M34 2DF", [53.449893, -2.11816], "Jolly Hatters", "Town Lane, M34 2DH", [53.4494406, -2.1198538], "The Jolly Hatters"],
+    ["60-62 High Street, City Centre, Manchester M4 1EA", [53.483842, -2.238327], "High Street Tavern", "5, Nicholas Croft, Manchester, M4 1EY", [53.4844707, -2.2384421], "High Street Tavern"],
+    ["Springwood Avenue, Allerton, Liverpool L25 7UN", [53.361897, -2.871587], "Allerton Hall", "Clarke's Gardens, Liverpool, L25 7UN", [53.3633959, -2.8792324], "Allerton Hall"],
+    ["98 Bewley Drive, Kirkby, Liverpool L32 6QL", [53.471722, -2.881459], "Kingfisher", "98, Bewley Drive, Liverpool, L32 6QJ", [53.4714449, -2.8828254], "Kingfisher"],
+    ["78 London Road, Headington, Oxford OX3 9AA", [51.759856, -1.212887], "Royal Standard", "78, London Road, OX3 9AJ", [51.7592403, -1.213449], "The Royal Standard"],
+    ["1 Lime Walk, Headington, Oxford OX3 7RD", [51.759531, -1.213994], "Britannia", "74, London Road, OX3 7AA", [51.7590452, -1.2139214], "The Britannia Inn"],
+    ["21-23 Hollywood Road, Brislington, Bristol BS4 4LD", [51.437534, -2.549317], "Pilgrim Inn", "21, Hollywood Road, Bristol, BS4 4LE", [51.4352354, -2.5482971], "The Pilgrim Inn"],
+  ])("matches the discovery at %s to the OSM pub already on the map", (address, [lat, lng], name, osmAddress, [osmLat, osmLng], osmName) => {
+    const discovery = { name, address, lat, lng, coordinatePrecision: "postcode-centroid" };
+    const osm = { name: osmName, address: osmAddress, lat: osmLat, lng: osmLng, osmId: "node/1" };
+    expect(dedupeVenues([discovery], [osm])).toMatchObject({ accepted: [], duplicates: [{ name, matchedName: osmName, matchedId: "node/1" }] });
+  });
+  it("keeps nearby branches of one name whose street addresses differ", () => {
+    const existing = [{ name: "Copper Rooms", lat: 52.48, lng: -1.90, address: "12 Test Street, B1 1AA" }];
+    const otherStreet = { name: "Copper Rooms", lat: 52.4815, lng: -1.90, address: "3 Other Road, Birmingham B1 2BB", coordinatePrecision: "postcode-centroid" };
+    const otherNumber = { name: "Copper Rooms", lat: 52.4788, lng: -1.90, address: "140 Test Street, Birmingham B1 3CC", coordinatePrecision: "postcode-centroid" };
+    expect(dedupeVenues([otherStreet, otherNumber], existing).accepted).toEqual([otherStreet, otherNumber]);
   });
   it("refuses malformed persisted discovery packs before publishing pins", () => {
     expect(() => validateDiscoveryPack({ city: city.id, venues: [{ ...venue, lat: 52.48, lng: -1.90 }] }, city)).toThrow("Invalid Parallel venue evidence");
@@ -127,11 +143,20 @@ describe("Parallel venue discovery", () => {
     ];
     expect(postcodeDistricts(rows, city)).toEqual(["B1", "B2", "B12"]);
   });
+  it("withdraws a stored discovery an existing venue now matches, naming that venue", () => {
+    const observation = { ...venue, address: "78 London Road, Headington, Oxford OX3 9AA", postcode: "OX3 9AA", locality: "Oxford", sourceUrls: [venue.website], observedAt: "2026-10-04T10:00:00Z", lat: 51.759856, lng: -1.212887, coordinatePrecision: "postcode-centroid", provider: "parallel", id: "venue-oxf-royal",
+      name: "Royal Standard", evidence: [{ url: venue.website, excerpt: "Royal Standard pub, 78 London Road, Headington, Oxford OX3 9AA." }] };
+    const oxford = { id: "oxford", displayName: "Oxford", bbox: [51.72, -1.3, 51.8, -1.2] as [number, number, number, number] };
+    const osm = { name: "The Royal Standard", address: "78, London Road, OX3 9AJ", lat: 51.7592403, lng: -1.213449, osmId: "node/7" };
+    const assembled = assembleCityDiscoveries({ found: [], previous: [observation], existing: [osm], city: oxford });
+    expect(assembled.venues).toEqual([]);
+    expect(assembled.withdrawn).toEqual([{ name: "Royal Standard", id: "venue-oxf-royal", reason: "duplicate of an existing venue", matchedName: "The Royal Standard", matchedId: "node/7" }]);
+  });
   it("reports a replayed city's own earlier discoveries as retained, not as duplicates of themselves", () => {
     const observation = { ...venue, postcode: "B1 1AA", locality: city.displayName, sourceUrls: [venue.website], observedAt: "2026-10-04T10:00:00Z", lat: 52.48, lng: -1.90, coordinatePrecision: "postcode-centroid" };
     const row: typeof observation & { id?: string } = { ...observation, id: "venue-bhm-copper" };
     const fresh: typeof row = { ...observation, name: "Brass Rooms", address: "14 Test Street, Birmingham, B1 1AA", lat: 52.47, evidence: [{ url: venue.website, excerpt: "Brass Rooms cocktail bar, 14 Test Street, Birmingham, B1 1AA." }] };
-    const osm = { name: "The Copper Rooms", lat: 52.4801, lng: -1.90, osmId: "node/1" };
+    const osm = { name: "The Copper Rooms", address: "200 Far Road, B5 7ZZ", lat: 52.45, lng: -1.90, osmId: "node/1" };
     const assembled = assembleCityDiscoveries({ found: [observation, fresh, { ...fresh }], previous: [row], existing: [osm], city });
     expect(assembled.retained).toEqual([{ name: "Copper Rooms", id: "venue-bhm-copper" }]);
     expect(assembled.duplicates).toEqual([]);

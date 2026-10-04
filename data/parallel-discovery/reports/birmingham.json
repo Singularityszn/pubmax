@@ -1263,176 +1263,204 @@
   "duplicates": [
     {
       "name": "52 Gas Street",
+      "id": null,
       "matchedName": "52 Gas Street",
       "matchedId": "node/338534318"
     },
     {
       "name": "The Button Factory",
+      "id": null,
       "matchedName": "The Button Factory",
       "matchedId": "way/295757751"
     },
     {
       "name": "COYOTE UGLY BIRMINGHAM",
+      "id": null,
       "matchedName": "Coyote Ugly",
       "matchedId": "node/338539706"
     },
     {
       "name": "The Cocktail Club Birmingham",
+      "id": null,
       "matchedName": "The Cocktail Club",
       "matchedId": "node/13089325867"
     },
     {
       "name": "White Lion Pub",
+      "id": null,
       "matchedName": "The White Lion",
       "matchedId": "node/13667276951"
     },
     {
       "name": "Madeleine",
+      "id": null,
       "matchedName": "Madeleine Bar",
       "matchedId": "node/14002269426"
     },
     {
       "name": "Fountain Inn",
+      "id": null,
       "matchedName": "The Fountain Inn",
       "matchedId": "node/8916950312"
     },
     {
       "name": "The Dragon Inn",
+      "id": null,
       "matchedName": "The Dragon Inn",
       "matchedId": "node/319266430"
     },
     {
       "name": "Manor Tavern",
+      "id": null,
       "matchedName": "The Manor Tavern",
       "matchedId": "way/87370893"
     },
     {
       "name": "Holte",
+      "id": null,
       "matchedName": "The Holte",
       "matchedId": "way/76128755"
     },
     {
       "name": "Heartlands Club",
+      "id": null,
       "matchedName": "The Heartlands Club",
       "matchedId": "node/1946864088"
     },
     {
       "name": "The Rainbow Pub",
+      "id": null,
       "matchedName": "The Rainbow",
       "matchedId": "way/125131145"
     },
     {
       "name": "White Swan",
+      "id": null,
       "matchedName": "The White Swan",
       "matchedId": "way/73028934"
     },
     {
       "name": "Grace & James",
+      "id": null,
       "matchedName": "Grace & James",
       "matchedId": "node/9684873455"
     },
     {
       "name": "Hop & Scotch",
+      "id": null,
       "matchedName": "Hop & Scotch",
       "matchedId": "node/6802549836"
     },
     {
       "name": "Copper Fox Grill",
+      "id": null,
       "matchedName": "Copper Fox Grill",
       "matchedId": "way/139903368"
     },
     {
       "name": "New Inn",
+      "id": null,
       "matchedName": "The New Inn",
       "matchedId": "way/120780839"
     },
     {
       "name": "Bell",
+      "id": null,
       "matchedName": "The Bell",
       "matchedId": "way/218900659"
     },
     {
       "name": "Junction",
+      "id": null,
       "matchedName": "The Junction",
       "matchedId": "way/85255914"
     },
     {
       "name": "Harborne Stores",
+      "id": null,
       "matchedName": "Harborne Stores",
       "matchedId": "way/85255898"
     },
     {
       "name": "White Horse",
+      "id": null,
       "matchedName": "The White Horse",
       "matchedId": "way/163929050"
     },
     {
       "name": "Old House At Home",
+      "id": null,
       "matchedName": "The Old House At Home",
       "matchedId": "way/132535080"
     },
     {
       "name": "Hop Garden",
+      "id": null,
       "matchedName": "The Hop Garden",
       "matchedId": "way/107192350"
     },
     {
       "name": "Green Man",
+      "id": null,
       "matchedName": "Green Man",
       "matchedId": "way/85255915"
     },
     {
       "name": "De La Vies",
+      "id": null,
       "matchedName": "De La Vies",
       "matchedId": "node/12771226415"
     },
     {
       "name": "Cross Guns",
+      "id": null,
       "matchedName": "The Cross Guns",
       "matchedId": "node/292616915"
     },
     {
       "name": "Clumsy Swan",
+      "id": null,
       "matchedName": "The Clumsy Swan",
       "matchedId": "way/147546389"
     },
     {
       "name": "Summer House Bar & Grill",
+      "id": null,
       "matchedName": "Summer House Bar & Grill",
       "matchedId": "way/60750452"
     },
     {
       "name": "Weoley Castle",
+      "id": null,
       "matchedName": "Weoley Castle",
       "matchedId": "way/152453592"
     },
     {
       "name": "The Bear & Staff",
+      "id": null,
       "matchedName": "The Bear and Staff",
       "matchedId": "way/120435580"
     },
     {
       "name": "Hazelwell",
+      "id": null,
       "matchedName": "The Hazelwell",
       "matchedId": "way/110038166"
     },
     {
       "name": "The British Oak",
+      "id": null,
       "matchedName": "The British Oak",
       "matchedId": "way/117318709"
     },
     {
       "name": "1000 Trades On The Park",
+      "id": null,
       "matchedName": "1000 Trades On The Park",
       "matchedId": "node/12688193702"
     }
   ],
-  "withdrawn": [
-    {
-      "name": "Merlin's Café Bar",
-      "id": "venue-bhm-15zyxr4"
-    }
-  ],
+  "withdrawn": [],
   "rejected": [
     {
       "name": "1000 Trades",

@@ -67,35 +67,6 @@
       "id": "venue-bri-2ej83h"
     },
     {
-      "name": "Pilgrim Inn",
-      "kind": "pub",
-      "address": "21-23 Hollywood Road, Brislington, Bristol BS4 4LD",
-      "postcode": "BS4 4LD",
-      "locality": "Bristol",
-      "website": null,
-      "lat": 51.437534,
-      "lng": -2.549317,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://camra.org.uk/pubs/postcode/bs4-3qb-1512279"
-      ],
-      "evidence": [
-        {
-          "url": "https://camra.org.uk/pubs/postcode/bs4-3qb-1512279",
-          "excerpt": "### Pilgrim Inn\n\nPub, in Bristol]\n\n**Cask Ale not available**\n\n**0.8** miles from you\n\n21-23 Hollywood Road, Brislington, Bristol, BS4 4LD"
-        }
-      ],
-      "observedAt": "2026-10-04T12:52:23.097Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/BS4%204LD",
-        "observedAt": "2026-10-04T13:06:03.240Z",
-        "postcode": "BS4 4LD",
-        "quality": 1
-      },
-      "provider": "tavily",
-      "id": "venue-bri-tfvd28"
-    },
-    {
       "name": "The Kings Head",
       "kind": "pub",
       "address": "Bridgwater Road, Bedminster Down, Bristol BS13 8AE",

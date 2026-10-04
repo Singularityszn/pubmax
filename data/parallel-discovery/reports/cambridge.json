@@ -284,16 +284,19 @@
   "duplicates": [
     {
       "name": "Bath House",
+      "id": null,
       "matchedName": "The Bath House",
       "matchedId": "way/149032883"
     },
     {
       "name": "Eagle",
+      "id": null,
       "matchedName": "The Eagle",
       "matchedId": "way/149032866"
     },
     {
       "name": "Revolution",
+      "id": null,
       "matchedName": "Revolution",
       "matchedId": "node/20963376"
     }

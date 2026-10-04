@@ -386,64 +386,6 @@
       "id": "venue-mcr-j30rtl"
     },
     {
-      "name": "Middleton Archer",
-      "kind": "pub",
-      "address": "Kemp Street, Middleton M24 4AA",
-      "postcode": "M24 4AA",
-      "locality": "Manchester",
-      "website": null,
-      "lat": 53.549124,
-      "lng": -2.204766,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://camra.org.uk/pubs/place/middleton-manchester-11913"
-      ],
-      "evidence": [
-        {
-          "url": "https://camra.org.uk/pubs/place/middleton-manchester-11913",
-          "excerpt": "### Middleton Archer\n\nAMK Taverns Limited Pub, in Middleton]\n\n**Cask Ale not available**\n\n**0.2** miles from you\n\nKemp Street, Middleton, M24 4AA"
-        }
-      ],
-      "observedAt": "2026-10-04T12:48:43.986Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/M24%204AA",
-        "observedAt": "2026-10-04T13:02:25.749Z",
-        "postcode": "M24 4AA",
-        "quality": 1
-      },
-      "provider": "tavily",
-      "id": "venue-mcr-1h4tkgb"
-    },
-    {
-      "name": "Lancashire Fold",
-      "kind": "pub",
-      "address": "77 Kirkway, Middleton M24 1EP",
-      "postcode": "M24 1EP",
-      "locality": "Manchester",
-      "website": null,
-      "lat": 53.54189,
-      "lng": -2.193338,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://camra.org.uk/pubs/place/middleton-manchester-11913"
-      ],
-      "evidence": [
-        {
-          "url": "https://camra.org.uk/pubs/place/middleton-manchester-11913",
-          "excerpt": "### Lancashire Fold\n\nPub, in Middleton]\n\n2 Regular, 1 Changing Beers\n\n \n\n**0.5** miles from you\n\n77 Kirkway, Middleton, M24 1EP"
-        }
-      ],
-      "observedAt": "2026-10-04T12:48:43.986Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/M24%201EP",
-        "observedAt": "2026-10-04T13:02:25.800Z",
-        "postcode": "M24 1EP",
-        "quality": 1
-      },
-      "provider": "tavily",
-      "id": "venue-mcr-gy4wdx"
-    },
-    {
       "name": "Nags Head",
       "kind": "pub",
       "address": "41 Church Street, Eccles M30 0BJ",
@@ -645,35 +587,6 @@
       },
       "provider": "tavily",
       "id": "venue-mcr-1l60r8o"
-    },
-    {
-      "name": "Jolly Hatters",
-      "kind": "pub",
-      "address": "119 Town Lane, Denton M34 2DF",
-      "postcode": "M34 2DF",
-      "locality": "Manchester",
-      "website": null,
-      "lat": 53.449893,
-      "lng": -2.11816,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://camra.org.uk/pubs/postcode/m34-3ng-826811"
-      ],
-      "evidence": [
-        {
-          "url": "https://camra.org.uk/pubs/postcode/m34-3ng-826811",
-          "excerpt": "### Jolly Hatters\n\nPub, in Denton]\n\n2 Changing Beers\n\n \n\n**0.7** miles from you\n\n119 Town Lane, Denton, M34 2DF"
-        }
-      ],
-      "observedAt": "2026-10-04T12:48:50.013Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/M34%202DF",
-        "observedAt": "2026-10-04T13:02:43.684Z",
-        "postcode": "M34 2DF",
-        "quality": 1
-      },
-      "provider": "tavily",
-      "id": "venue-mcr-5o34fl"
     },
     {
       "name": "Sun Inn",
@@ -1080,35 +993,6 @@
       },
       "provider": "tavily",
       "id": "venue-mcr-55die4"
-    },
-    {
-      "name": "High Street Tavern",
-      "kind": "pub",
-      "address": "60-62 High Street, City Centre, Manchester M4 1EA",
-      "postcode": "M4 1EA",
-      "locality": "Manchester",
-      "website": null,
-      "lat": 53.483842,
-      "lng": -2.238327,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://camra.org.uk/pubs/postcode/m4-1qb-825113"
-      ],
-      "evidence": [
-        {
-          "url": "https://camra.org.uk/pubs/postcode/m4-1qb-825113",
-          "excerpt": "### High Street Tavern\n\nPub, in Manchester]\n\n**Cask Ale not available**\n\n**0.1** miles from you\n\n60-62 High Street, City Centre, Manchester, M4 1EA"
-        }
-      ],
-      "observedAt": "2026-10-04T14:29:44.201Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/M4%201EA",
-        "observedAt": "2026-10-04T14:29:44.361Z",
-        "postcode": "M4 1EA",
-        "quality": 1
-      },
-      "provider": "tavily",
-      "id": "venue-mcr-12ul6n7"
     },
     {
       "name": "Shack",

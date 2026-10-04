@@ -484,21 +484,25 @@
   "duplicates": [
     {
       "name": "White Horse",
+      "id": null,
       "matchedName": "The White Horse",
       "matchedId": "way/670774978"
     },
     {
       "name": "Middleton Conservative Club",
+      "id": null,
       "matchedName": "Middleton Conservative Club",
       "matchedId": "node/391625173"
     },
     {
       "name": "The Canary",
+      "id": null,
       "matchedName": "The Canary",
       "matchedId": "way/992685555"
     },
     {
       "name": "Old Red Lion",
+      "id": null,
       "matchedName": "The Old Red Lion",
       "matchedId": "node/2141116425"
     }
