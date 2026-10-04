@@ -16,6 +16,7 @@ import { isVerifiedClosedCuratedVenue } from "@/lib/verifiedClosedPubs";
 import { applyHarvestWebsiteMenu } from "@/lib/harvestFold";
 import { harvestOverlayStore } from "@/lib/harvestOverlayStore";
 import { enrichVenueForDetail } from "@/lib/venueMenuEnrichment";
+import { enrichVenueWithRecordCopy } from "@/lib/venueRecordCopy.server";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import type { SlimVenue } from "@/lib/venuesSlim";
 
@@ -322,6 +323,8 @@ export async function lookupVenueDetail(requestedId: string): Promise<VenueDetai
     venue = slimVenueToPin(venueLookup.slimVenue);
   }
   if (!venue) return { status: "unavailable" };
+
+  venue = await enrichVenueWithRecordCopy(venue);
 
   try {
     const enriched = await enrichVenueForDetail(venue);
