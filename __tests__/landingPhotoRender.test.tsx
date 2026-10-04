@@ -72,6 +72,19 @@ describe("the home document ships the skyline preload", () => {
     expect(html.match(/rel="preload"/g)?.length ?? 0).toBe(1);
     expect(html).toContain("/landing/hero-thames-1024.avif 1024w");
     expect(html).toContain('fetchPriority="high"');
+    // Fail-soft: no answer card, so the skyline preload is not gated to desktop.
+    expect(html).not.toContain('media="(min-width: 960px)"');
+  });
+
+  it("gates the skyline preload to desktop only when an answer card will render", () => {
+    const preload = renderToStaticMarkup(
+      createElement(LandingSkylinePreload, { phoneAnswerOwnsLcp: true }),
+    );
+    expect(preload).toContain('media="(min-width: 960px)"');
+    const allWidths = renderToStaticMarkup(
+      createElement(LandingSkylinePreload, { phoneAnswerOwnsLcp: false }),
+    );
+    expect(allWidths).not.toContain('media="(min-width: 960px)"');
   });
 });
 
@@ -102,7 +115,9 @@ describe("the landing hero stands on a photograph", () => {
   });
 
   it("preloads the skyline on desktop only and keeps it the high-priority image element", () => {
-    const preload = renderToStaticMarkup(createElement(LandingSkylinePreload));
+    const preload = renderToStaticMarkup(
+      createElement(LandingSkylinePreload, { phoneAnswerOwnsLcp: true }),
+    );
     expect(preload.match(/rel="preload"/g)?.length ?? 0).toBe(1);
     expect(preload).toContain("/landing/hero-thames-1024.avif 1024w");
     expect(preload).toContain('media="(min-width: 960px)"');
