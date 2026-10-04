@@ -5275,12 +5275,14 @@ export default function PubMap({
   // as a stop, the sheet used to open on the "Describe the outing" form and
   // the picked pub sat a whole form below the fold, unnamed on the first
   // screen (verify-preview-4, J04); a crawl being built now leads the sheet.
+  const plannerDrinkSelection = experienceLens === "all" ? filters : undefined;
   function renderPhoneDescribeForm() {
     return mobileViewport && isLondon && suggestedPlanArea ? (
       <MobilePlanActivation
         cityId={cityId}
         initialNightArea={suggestedPlanArea.slug}
         venuesById={venuesById}
+        defaultDrinkSelection={plannerDrinkSelection}
         onGenerated={applyGeneratedMobilePlan}
       />
     ) : null;
@@ -5327,6 +5329,9 @@ export default function PubMap({
         altStyle={altStyle}
         onAltStyleChange={setAltStyle}
         route={route}
+        drinkSelection={plannerDrinkSelection}
+        drinkPrices={drinkLensPrices}
+        drinkPriceStatus={drinkIndexStatus}
         filteredVenues={filteredPubVenues}
         builtIds={builtIds}
         activeVenueId={selectedVenueIdOrUndefined}
