@@ -1,0 +1,264 @@
+{
+  "city": "leeds",
+  "source": "Parallel Search and Task API",
+  "observedAt": "2026-10-04T10:17:28.260Z",
+  "runId": "trun_ce5fd53e0016415f95a8f9235b91525e",
+  "observationMeaning": "Date Parallel research was retrieved. Cached reruns retain that date. Not a claim that every page was fetched live or that the venue is open tonight.",
+  "populationPriority": 812000,
+  "populationSources": [
+    "https://www.ons.gov.uk/peoplepopulationandcommunity/populationandmigration/populationestimates/bulletins/populationandhouseholdestimatesenglandandwales/census2021",
+    "https://www.scotlandscensus.gov.uk/2022-reports/scotlands-census-2022-rounded-population-estimates/",
+    "https://www.nisra.gov.uk/statistics/2021-census/population-and-household-estimates"
+  ],
+  "publishable": true,
+  "venues": [
+    {
+      "name": "SALT Calls Landing",
+      "kind": "bar",
+      "address": "36-38 The Calls, Leeds LS2 7EW",
+      "postcode": "LS2 7EW",
+      "locality": "Leeds",
+      "website": "https://taps.saltbeerfactory.co.uk/calls-landing/",
+      "lat": 53.794897,
+      "lng": -1.539021,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://taps.saltbeerfactory.co.uk/calls-landing/"
+      ],
+      "evidence": [
+        {
+          "url": "https://taps.saltbeerfactory.co.uk/calls-landing/",
+          "excerpt": "SALT Calls Landing 36-38 The Calls Leeds LS2 7EW"
+        },
+        {
+          "url": "https://taps.saltbeerfactory.co.uk/calls-landing/",
+          "excerpt": "There is a little something for everyone at SALT Calls Landing, from award-winning craft and cask beers by SALT and Ossett Brewery to 8 different cocktails"
+        }
+      ],
+      "observedAt": "2026-10-04T10:17:28.260Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS2%207EW",
+        "observedAt": "2026-10-04T10:17:28.334Z",
+        "postcode": "LS2 7EW",
+        "quality": 1
+      },
+      "id": "venue-lds-fk8iy"
+    },
+    {
+      "name": "The End",
+      "kind": "bar",
+      "address": "Hirst’s Yard, Leeds LS1 6NJ",
+      "postcode": "LS1 6NJ",
+      "locality": "Leeds",
+      "website": "https://theendleeds.co.uk/",
+      "lat": 53.795672,
+      "lng": -1.541942,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://theendleeds.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://theendleeds.co.uk/",
+          "excerpt": "Hidden away within the cobbles of Hirst’s Yard, The End is a lavish bar"
+        },
+        {
+          "url": "https://theendleeds.co.uk/",
+          "excerpt": "We’re situated in Hirst’s Yard, Leeds LS1 6NJ."
+        },
+        {
+          "url": "https://theendleeds.co.uk/",
+          "excerpt": "The End serves up an extensive drinks menu including fine wines, Champagne, spirits, cocktails and a huge selection of premium draught beers."
+        }
+      ],
+      "observedAt": "2026-10-04T10:17:28.260Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS1%206NJ",
+        "observedAt": "2026-10-04T10:17:28.365Z",
+        "postcode": "LS1 6NJ",
+        "quality": 1
+      },
+      "id": "venue-lds-1no9pxs"
+    },
+    {
+      "name": "The Cut & Craft Leeds",
+      "kind": "restaurant",
+      "address": "23 King Edward St, Leeds LS1 6AX",
+      "postcode": "LS1 6AX",
+      "locality": "Leeds",
+      "website": "https://www.thecutandcraft.co.uk/leeds/",
+      "lat": 53.797799,
+      "lng": -1.541221,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.thecutandcraft.co.uk/leeds/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.thecutandcraft.co.uk/leeds/",
+          "excerpt": "The Cut & Craft Leeds"
+        },
+        {
+          "url": "https://www.thecutandcraft.co.uk/leeds/",
+          "excerpt": "23 King Edward St, Leeds, LS1 6AX"
+        },
+        {
+          "url": "https://www.thecutandcraft.co.uk/leeds/",
+          "excerpt": "guests can enjoy world-class cocktails, premium spirits and Champagne"
+        }
+      ],
+      "observedAt": "2026-10-04T10:17:28.260Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS1%206AX",
+        "observedAt": "2026-10-04T10:17:28.390Z",
+        "postcode": "LS1 6AX",
+        "quality": 1
+      },
+      "id": "venue-lds-1dzk9eh"
+    },
+    {
+      "name": "The Banksia",
+      "kind": "restaurant",
+      "address": "2 Lower Briggate, Leeds LS1 4AE",
+      "postcode": "LS1 4AE",
+      "locality": "Leeds",
+      "website": "https://banksialeeds.co.uk/",
+      "lat": 53.794541,
+      "lng": -1.542516,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://banksialeeds.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://banksialeeds.co.uk/",
+          "excerpt": "The Banksia, found on the ground floor of Leeds’ famous Hotel Indigo, welcomes all."
+        },
+        {
+          "url": "https://banksialeeds.co.uk/",
+          "excerpt": "2 Lower Briggate, Leeds LS1 4AE"
+        },
+        {
+          "url": "https://banksialeeds.co.uk/",
+          "excerpt": "With speciality cocktails mixed by our resident bartenders, an elegant wine list and an impressive stock of whiskey and gin, we’ve got something for all tastes."
+        }
+      ],
+      "observedAt": "2026-10-04T10:17:28.260Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS1%204AE",
+        "observedAt": "2026-10-04T10:17:28.467Z",
+        "postcode": "LS1 4AE",
+        "quality": 1
+      },
+      "id": "venue-lds-teft4u"
+    },
+    {
+      "name": "Restaurant Bar & Grill Leeds",
+      "kind": "restaurant",
+      "address": "The Old Post Office, 3 City Square, Leeds LS1 2ES",
+      "postcode": "LS1 2ES",
+      "locality": "Leeds",
+      "website": "https://www.therestaurantbarandgrill.com/locations/leeds",
+      "lat": 53.797014,
+      "lng": -1.547408,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.therestaurantbarandgrill.com/locations/leeds"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.therestaurantbarandgrill.com/locations/leeds",
+          "excerpt": "Restaurant Bar & Grill Leeds"
+        },
+        {
+          "url": "https://www.therestaurantbarandgrill.com/locations/leeds",
+          "excerpt": "The Old Post Office, 3 City Square, Leeds LS1 2ES"
+        },
+        {
+          "url": "https://www.therestaurantbarandgrill.com/locations/leeds",
+          "excerpt": "From dinner around the grill to cocktails at the bar"
+        }
+      ],
+      "observedAt": "2026-10-04T10:17:28.260Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS1%202ES",
+        "observedAt": "2026-10-04T10:17:28.494Z",
+        "postcode": "LS1 2ES",
+        "quality": 1
+      },
+      "id": "venue-lds-111qh3y"
+    },
+    {
+      "name": "Rita's Leeds",
+      "kind": "bar",
+      "address": "43 Woodhouse Lane, Leeds, West Yorkshire LS1 3HQ",
+      "postcode": "LS1 3HQ",
+      "locality": "Leeds",
+      "website": "https://www.ritasbars.co.uk/",
+      "lat": 53.801969,
+      "lng": -1.545837,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.ritasbars.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.ritasbars.co.uk/",
+          "excerpt": "Rita's Leeds | Sports Bar & Live Music in Leeds"
+        },
+        {
+          "url": "https://www.ritasbars.co.uk/",
+          "excerpt": "43 Woodhouse Lane, Leeds, West Yorkshire, LS1 3HQ"
+        },
+        {
+          "url": "https://www.ritasbars.co.uk/",
+          "excerpt": "We’re Leeds’ beer hall for cocktail lovers"
+        }
+      ],
+      "observedAt": "2026-10-04T10:17:28.260Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS1%203HQ",
+        "observedAt": "2026-10-04T10:17:28.526Z",
+        "postcode": "LS1 3HQ",
+        "quality": 1
+      },
+      "id": "venue-lds-3f49ii"
+    },
+    {
+      "name": "Farrands",
+      "kind": "bar",
+      "address": "18 Swinegate, Leeds LS1 4AG",
+      "postcode": "LS1 4AG",
+      "locality": "Leeds",
+      "website": "https://www.farrandsbar.com/",
+      "lat": 53.794239,
+      "lng": -1.543461,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.farrandsbar.com/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.farrandsbar.com/",
+          "excerpt": "Farrands is an independent cocktail and wine bar"
+        },
+        {
+          "url": "https://www.farrandsbar.com/",
+          "excerpt": "18 Swinegate, Leeds LS1 4AG"
+        },
+        {
+          "url": "https://www.farrandsbar.com/",
+          "excerpt": "Offering a great selection of fine wines, beers and signature cocktails."
+        }
+      ],
+      "observedAt": "2026-10-04T10:17:28.260Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS1%204AG",
+        "observedAt": "2026-10-04T10:17:28.550Z",
+        "postcode": "LS1 4AG",
+        "quality": 1
+      },
+      "id": "venue-lds-uz9izu"
+    }
+  ]
+}

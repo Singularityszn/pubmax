@@ -1,0 +1,73 @@
+{
+  "city": "glasgow",
+  "runId": "trun_ce5fd53e0016415f90b54e5b929c63c9",
+  "observedAt": "2026-10-04T10:19:20.806Z",
+  "researched": 14,
+  "accepted": 0,
+  "totalAccepted": 3,
+  "rejected": [
+    {
+      "name": "Bar Dani",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Bar Tabacs",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The McMillan",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Anchor Line",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Citizen",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "The Skillet",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Clarence",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Bo’Vine Meats & Wines",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Eleven Fifty Five",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Kelvingrove Cafe",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "House of Gods Glasgow cocktail lounge",
+      "reason": "citation-does-not-bind-name-and-address"
+    }
+  ],
+  "duplicates": [
+    {
+      "name": "Bossa",
+      "matchedName": "Bossa",
+      "matchedId": "venue-glw-1w0v1yx"
+    },
+    {
+      "name": "Cuvée West End Bar",
+      "matchedName": "Cuvée West End Bar",
+      "matchedId": "venue-glw-1ig1iaz"
+    },
+    {
+      "name": "The Finnieston Bar & Restaurant",
+      "matchedName": "The Finnieston Bar & Restaurant",
+      "matchedId": "venue-glw-z557mg"
+    }
+  ],
+  "publishable": true,
+  "outputPath": "data/cities/glasgow/parallel_venues.json"
+}

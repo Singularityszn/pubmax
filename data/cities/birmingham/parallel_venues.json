@@ -1,0 +1,160 @@
+{
+  "city": "birmingham",
+  "source": "Parallel Search and Task API",
+  "observedAt": "2026-10-04T10:15:57.563Z",
+  "runId": "trun_ce5fd53e0016415f9d8260aac231afee",
+  "observationMeaning": "Date Parallel research was retrieved. Cached reruns retain that date. Not a claim that every page was fetched live or that the venue is open tonight.",
+  "populationPriority": 1144900,
+  "populationSources": [
+    "https://www.ons.gov.uk/peoplepopulationandcommunity/populationandmigration/populationestimates/bulletins/populationandhouseholdestimatesenglandandwales/census2021",
+    "https://www.scotlandscensus.gov.uk/2022-reports/scotlands-census-2022-rounded-population-estimates/",
+    "https://www.nisra.gov.uk/statistics/2021-census/population-and-household-estimates"
+  ],
+  "publishable": true,
+  "venues": [
+    {
+      "name": "Society Birmingham",
+      "kind": "bar",
+      "address": "One Colmore Square, Birmingham B4 6AA",
+      "postcode": "B4 6AA",
+      "locality": "Birmingham",
+      "website": "https://www.societybirmingham.com/",
+      "lat": 52.48262,
+      "lng": -1.89642,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.societybirmingham.com/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.societybirmingham.com/",
+          "excerpt": "society Birmingham"
+        },
+        {
+          "url": "https://www.societybirmingham.com/",
+          "excerpt": "ONE colmore square"
+        },
+        {
+          "url": "https://www.societybirmingham.com/",
+          "excerpt": "birmingham B4 6AA"
+        },
+        {
+          "url": "https://www.societybirmingham.com/",
+          "excerpt": "craft beer bar and cocktail bar."
+        }
+      ],
+      "observedAt": "2026-10-04T10:15:57.563Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B4%206AA",
+        "observedAt": "2026-10-04T10:15:57.629Z",
+        "postcode": "B4 6AA",
+        "quality": 1
+      },
+      "id": "venue-bhm-1erud0f"
+    },
+    {
+      "name": "Smoke + Ash Edgbaston Village",
+      "kind": "restaurant",
+      "address": "12 Greenfield Crescent, Edgbaston Village, Birmingham B15 3AU",
+      "postcode": "B15 3AU",
+      "locality": "Birmingham",
+      "website": "https://www.smokeandashpizza.co.uk/",
+      "lat": 52.469874,
+      "lng": -1.922181,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.smokeandashpizza.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.smokeandashpizza.co.uk/",
+          "excerpt": "Smoke + Ash Edgbaston Village"
+        },
+        {
+          "url": "https://www.smokeandashpizza.co.uk/",
+          "excerpt": "12 Greenfield Crescent, Edgbaston Village B15 3AU"
+        },
+        {
+          "url": "https://www.smokeandashpizza.co.uk/",
+          "excerpt": "quality wines + seasonal twists on classic cocktails."
+        }
+      ],
+      "observedAt": "2026-10-04T10:15:57.563Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B15%203AU",
+        "observedAt": "2026-10-04T10:15:57.651Z",
+        "postcode": "B15 3AU",
+        "quality": 1
+      },
+      "id": "venue-bhm-m8q2cy"
+    },
+    {
+      "name": "Byzantium Tapas Restaurant",
+      "kind": "restaurant",
+      "address": "11 York Road, Kings Heath, Birmingham B14 7SA",
+      "postcode": "B14 7SA",
+      "locality": "Birmingham",
+      "website": "https://www.byzantiumtapas.co.uk/",
+      "lat": 52.434395,
+      "lng": -1.893972,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.byzantiumtapas.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.byzantiumtapas.co.uk/",
+          "excerpt": "Byzantium Tapas Restaurant is easy to find."
+        },
+        {
+          "url": "https://www.byzantiumtapas.co.uk/",
+          "excerpt": "11 York Road, Kings Heath, Birmingham, England, B14 7SA"
+        },
+        {
+          "url": "https://www.byzantiumtapas.co.uk/",
+          "excerpt": "a fantastic selection of wines and cocktails to accompany your tapas"
+        }
+      ],
+      "observedAt": "2026-10-04T10:15:57.563Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B14%207SA",
+        "observedAt": "2026-10-04T10:15:57.676Z",
+        "postcode": "B14 7SA",
+        "quality": 1
+      },
+      "id": "venue-bhm-kj58hz"
+    },
+    {
+      "name": "Lulu Wild",
+      "kind": "restaurant",
+      "address": "Unit 7 & 8, The Waters Edge, Brindley Place, Birmingham B1 2HP",
+      "postcode": "B1 2HP",
+      "locality": "Birmingham",
+      "website": "https://luluwild.co.uk/",
+      "lat": 52.477741,
+      "lng": -1.911302,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://luluwild.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://luluwild.co.uk/",
+          "excerpt": "LULU WILD, UNIT 7 & 8 THE WATERS EDGE, BRINDLEY PLACE, BIRMINGHAM B1 2HP"
+        },
+        {
+          "url": "https://luluwild.co.uk/",
+          "excerpt": "Visit our Chinese bar Broad Street and try some of our tempting cocktails for yourself."
+        }
+      ],
+      "observedAt": "2026-10-04T10:15:57.563Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B1%202HP",
+        "observedAt": "2026-10-04T10:15:57.767Z",
+        "postcode": "B1 2HP",
+        "quality": 1
+      },
+      "id": "venue-bhm-kpiwyz"
+    }
+  ]
+}

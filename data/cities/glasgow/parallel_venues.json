@@ -1,0 +1,124 @@
+{
+  "city": "glasgow",
+  "source": "Parallel Search and Task API",
+  "observedAt": "2026-10-04T10:19:20.806Z",
+  "runId": "trun_ce5fd53e0016415f90b54e5b929c63c9",
+  "observationMeaning": "Date Parallel research was retrieved. Cached reruns retain that date. Not a claim that every page was fetched live or that the venue is open tonight.",
+  "populationPriority": 620700,
+  "populationSources": [
+    "https://www.ons.gov.uk/peoplepopulationandcommunity/populationandmigration/populationestimates/bulletins/populationandhouseholdestimatesenglandandwales/census2021",
+    "https://www.scotlandscensus.gov.uk/2022-reports/scotlands-census-2022-rounded-population-estimates/",
+    "https://www.nisra.gov.uk/statistics/2021-census/population-and-household-estimates"
+  ],
+  "publishable": true,
+  "venues": [
+    {
+      "name": "Bossa",
+      "kind": "bar",
+      "address": "69 Nithsdale Rd, Glasgow G41 2AJ",
+      "postcode": "G41 2AJ",
+      "locality": "Glasgow",
+      "website": "https://www.bossaglasgow.co.uk/",
+      "lat": 55.837109,
+      "lng": -4.272335,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.bossaglasgow.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.bossaglasgow.co.uk/",
+          "excerpt": "Bossa is not just a bar; it's an experience."
+        },
+        {
+          "url": "https://www.bossaglasgow.co.uk/",
+          "excerpt": "Beer | Cocktails | Artisan Pizza | Small Plates | Music"
+        },
+        {
+          "url": "https://www.bossaglasgow.co.uk/",
+          "excerpt": "69 Nithsdale Rd, Glasgow G41 2AJ,"
+        }
+      ],
+      "observedAt": "2026-10-04T10:19:20.806Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/G41%202AJ",
+        "observedAt": "2026-10-04T10:19:21.538Z",
+        "postcode": "G41 2AJ",
+        "quality": 1
+      },
+      "id": "venue-glw-1w0v1yx"
+    },
+    {
+      "name": "Cuvée West End Bar",
+      "kind": "bar",
+      "address": "Upstairs, 1 Lynedoch St, Glasgow G3 6EF",
+      "postcode": "G3 6EF",
+      "locality": "Glasgow",
+      "website": "https://cuveeglasgow.com/west-end/",
+      "lat": 55.868371,
+      "lng": -4.273618,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://cuveeglasgow.com/west-end/"
+      ],
+      "evidence": [
+        {
+          "url": "https://cuveeglasgow.com/west-end/",
+          "excerpt": "Cuvée West End Bar"
+        },
+        {
+          "url": "https://cuveeglasgow.com/west-end/",
+          "excerpt": "Cuvée West End Bar offers a warm, intimate space for Champagne, fine wine, cocktails, tapas and conversation inspired by the feel of a modern drawing room."
+        },
+        {
+          "url": "https://cuveeglasgow.com/west-end/",
+          "excerpt": "Upstairs, 1 Lynedoch St, Glasgow, G3 6EF"
+        }
+      ],
+      "observedAt": "2026-10-04T10:19:20.806Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/G3%206EF",
+        "observedAt": "2026-10-04T10:19:21.629Z",
+        "postcode": "G3 6EF",
+        "quality": 1
+      },
+      "id": "venue-glw-1ig1iaz"
+    },
+    {
+      "name": "The Finnieston Bar & Restaurant",
+      "kind": "bar",
+      "address": "1125 Argyle St, Glasgow G3 8ND",
+      "postcode": "G3 8ND",
+      "locality": "Glasgow",
+      "website": "https://www.thefinniestonbar.com/",
+      "lat": 55.864391,
+      "lng": -4.283725,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.thefinniestonbar.com/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.thefinniestonbar.com/",
+          "excerpt": "Celebrated & sustainable Scottish seafood restaurant & Glasgow's premier gin bar, located in the thriving heart of Finnieston."
+        },
+        {
+          "url": "https://www.thefinniestonbar.com/",
+          "excerpt": "Today, the building is home to The Finnieston Bar & Restaurant, serving up the very best in Scottish seafood and award winning cocktails, champagnes and beers."
+        },
+        {
+          "url": "https://www.thefinniestonbar.com/",
+          "excerpt": "1125 Argyle St, City Centre, Glasgow, G3 8ND"
+        }
+      ],
+      "observedAt": "2026-10-04T10:19:20.806Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/G3%208ND",
+        "observedAt": "2026-10-04T10:19:21.805Z",
+        "postcode": "G3 8ND",
+        "quality": 1
+      },
+      "id": "venue-glw-z557mg"
+    }
+  ]
+}
