@@ -141,7 +141,8 @@ const SPORT_VIEWING =
 const LIVE_TEAM_FIXTURE = /\bwatch\s+[a-z][a-z0-9 &'-]{0,60}\s+vs\s+[a-z][a-z0-9 &'-]{0,60}\s+live\b/i;
 const NO_SPORT_VIEWING = new RegExp(
   `\\b(?:no|without)\\s+(?:live\\s+|sky\\s+|tnt\\s+|bt\\s+)?(?:${SPORT_SHOWN.source}|\\b(?:screens?|screenings?|tvs?)\\b)|` +
-  `\\b(?:do\\s+not|don'?t|never)\\s+show\\s+(?:any\\s+)?(?:live\\s+)?(?:${SPORT_SHOWN.source})|` +
+  "\\b(?:do\\s+not|don'?t|never)\\s+(?:show(?:case)?|watch|broadcast|screen|catch|play)\\b|" +
+  "\\b(?:not|isn'?t|aren'?t)\\s+(?:being\\s+)?(?:shown|broadcast|screened|televised|used\\s+to\\s+(?:show|watch|broadcast|screen))\\b|" +
   "\\b(?:not|aren'?t|isn'?t)\\s+(?:a\\s+)?sports?\\s+(?:pub|bar)s?\\b",
   "i",
 );
@@ -181,7 +182,9 @@ const AMENITY_STATEMENTS: Partial<Record<PubWebsiteAmenityKey, (quote: string) =
   food: (quote) => !SITE_NAVIGATION.test(quote),
   liveSports: (quote) =>
     !NOT_SPORT_SHOWN.test(quote) && !EVENT_ELSEWHERE.test(quote) &&
-    quote.split(/[.,;!?]|\b(?:but|however|yet|although|while)\b/i).some((clause) =>
+    // A coordinated list inherits its denial. An explicit new denial starts
+    // its own clause, so "TNT Sports and no Sky Sports" keeps the TNT fact.
+    quote.split(/[.,;!?]|\b(?:but|however|yet|although|while)\b|\band\b(?=\s+(?:no|without)\b)/i).some((clause) =>
       (SPORT_SHOWN.test(clause) || LIVE_TEAM_FIXTURE.test(clause)) &&
       SPORT_VIEWING.test(clause) && !NO_SPORT_VIEWING.test(clause),
     ),

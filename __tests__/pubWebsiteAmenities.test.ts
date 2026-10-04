@@ -23,6 +23,79 @@ const PAGE = [
   "Cocktails are listed on the board behind the bar.",
 ].join(" ");
 
+function expectSportsPublication(quote: string, expected: boolean) {
+  const parsed = parsePubAmenityModelJson(JSON.stringify({
+    amenities: { liveSports: { value: true, evidence: quote } },
+  }));
+  expect(parsed.ok).toBe(true);
+  if (!parsed.ok) return;
+
+  const kept = keepEvidencedAmenities(parsed.amenities, quote);
+  const published = pubSpecificEvidence([
+    { sourceUrl: "https://synthetic-pub.example/sport", amenities: kept },
+  ]);
+  const stamped = stampAmenityColumns(
+    { live_sports: "", price_gbp: 5.75, price_observed_at: "2026-09-20" },
+    published[0]?.amenities ?? {},
+  );
+
+  expect(kept).toEqual(expected ? { liveSports: quote } : {});
+  expect(published).toEqual(expected ? [
+    { sourceUrl: "https://synthetic-pub.example/sport", amenities: { liveSports: quote } },
+  ] : []);
+  expect(stamped).toEqual({
+    row: {
+      live_sports: expected ? SITE_STAMP : "",
+      price_gbp: 5.75,
+      price_observed_at: "2026-09-20",
+    },
+    stamped: expected ? ["liveSports"] : [],
+  });
+}
+
+describe("sports evidence publication", () => {
+  it.each([
+    "We don't show Sky Sports.",
+    "We don't show Manchester United games.",
+    "Football isn't shown on our screens.",
+    "We do not broadcast live football.",
+    "Our screens are not used to show football.",
+    "We do not watch Liverpool vs Man City live",
+  ])("refuses a denied viewing statement throughout publication: %s", (quote) => {
+    expectSportsPublication(quote, false);
+  });
+
+  it("publishes a stated provider despite a coordinated denial of another provider", () => {
+    expectSportsPublication("We have TNT Sports and no Sky Sports.", true);
+  });
+
+  it.each([
+    "We don’t show Sky Sports.",
+    "We don't show Sky Sports and TNT Sports.",
+    "We don’t broadcast football or rugby.",
+    "We don't watch football or cricket on our TVs.",
+    "No Sky Sports and no TNT Sports.",
+    "No Sky Sports or TNT Sports.",
+    "Football and rugby aren't shown on our screens.",
+    "Cricket isn’t broadcast on our TVs.",
+    "Our screens aren’t used to show cricket.",
+  ])("keeps a denial over its coordinated objects: %s", (quote) => {
+    expectSportsPublication(quote, false);
+  });
+
+  it.each([
+    "We have Sky Sports and no TNT Sports.",
+    "We show BT Sport and no Sky Sports.",
+    "We show football and rugby on our TVs.",
+    "Cricket is shown on our screens.",
+    "Rugby is broadcast on our TVs.",
+    "Our screens are used to show football.",
+    "Sports pub",
+  ])("retains explicit affirmative viewing evidence: %s", (quote) => {
+    expectSportsPublication(quote, true);
+  });
+});
+
 describe("parsePubAmenityModelJson", () => {
   it("reads a fenced object and drops keys that are not amenities", () => {
     const raw = [
