@@ -15,8 +15,8 @@ import "server-only";
 // ─────────────────────────────────────────────────────────────────────────────
 //
 // The WRITE path (send) surfaces real failures to the route (a dropped message
-// must not silently vanish). The READ path (list/messages) is fail-soft: an
-// outage renders as an empty inbox / empty thread, never a 500.
+// must not silently vanish). Failed thread reads raise MessageReadUnavailableError;
+// healthy empty threads return []. Inbox failures carry a degraded status.
 
 import {
   isMessageAttachmentKind,
@@ -53,6 +53,7 @@ import {
 } from "@/lib/messages";
 import { normalizeHandle } from "@/lib/profiles";
 import { admin, errorMessage, missingTables, selectStore } from "@/lib/storeBackend";
+import { requiresSupabaseStore } from "@/lib/supabase";
 
 // Hard caps so one busy handle can't return an unbounded payload.
 const MAX_CONVERSATIONS = 100;
@@ -120,6 +121,13 @@ export type InboxRead = Readonly<{
   conversations: ConversationDTO[];
   status: InboxReadStatus;
 }>;
+
+export class MessageReadUnavailableError extends Error {
+  constructor() {
+    super("Messages are unavailable right now.");
+    this.name = "MessageReadUnavailableError";
+  }
+}
 
 export type MessagesStore = {
   /** Find-or-create the DIRECT conversation for an unordered pair. Returns the
@@ -194,8 +202,8 @@ export type MessagesStore = {
    *  that into a 404 so a thread never leaks. A READ and nothing else: marking
    *  what the viewer received as read is `markRead`, asked by the thread route
    *  alone, so a photo send or a report (which read the thread to prove
-   *  participation) cannot mark anything read. Never throws on a valid
-   *  participant read. */
+   *  participation) cannot mark anything read. Failed durable reads throw
+   *  MessageReadUnavailableError; a healthy empty thread returns []. */
   listMessages(conversationId: string, handle: string): Promise<MessageDTO[] | null>;
   /** Mark the viewer's RECEIVED unread messages read. Returns how many rows
    *  changed, so the route can tell the sender's thread only when something did.
@@ -1047,7 +1055,7 @@ export const supabaseMessagesStore: MessagesStore = {
       const polls: PollReadContext = { viewer: me, votesByMessage };
       return rows.map((r) => rowToMessageDTO(r, polls));
     } catch (err) {
-      if (isMissingMessagesSchema(err)) {
+      if (isMissingMessagesSchema(err) && !requiresSupabaseStore()) {
         warnMemoryFallback("listMessages", err);
         return memoryMessagesStore.listMessages(conversationId, me);
       }
@@ -1055,9 +1063,7 @@ export const supabaseMessagesStore: MessagesStore = {
         "[messages] listMessages failed:",
         err instanceof Error ? err.message : err,
       );
-      // A participant we already verified hitting a transient read error gets an
-      // empty thread, not a leak and not a 500.
-      return [];
+      throw new MessageReadUnavailableError();
     }
   },
 

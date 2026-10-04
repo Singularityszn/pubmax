@@ -56,8 +56,8 @@ import {
 } from "@/lib/messagePhotoMedia.server";
 import { messagePhotoRouteDeps } from "@/lib/messagePhotoRoute.server";
 import { attachMessageAttachmentCards } from "@/lib/messageAttachmentCards.server";
-import type { ConversationMembership } from "@/lib/messages";
-import { messagesStore } from "@/lib/messagesStore";
+import type { ConversationMembership, MessageDTO } from "@/lib/messages";
+import { MessageReadUnavailableError, messagesStore } from "@/lib/messagesStore";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { isLimited } from "@/lib/pintDrops";
 import { gateHandleAction } from "@/lib/profileOwnership";
@@ -125,6 +125,19 @@ function serverTiming(marks: Array<[string, number]>): string {
   return marks.map(([name, ms]) => `${name};dur=${Math.max(0, Math.round(ms))}`).join(", ");
 }
 
+async function readThread(
+  store: ReturnType<typeof messagesStore>,
+  id: string,
+  handle: string,
+): Promise<MessageDTO[] | null | Response> {
+  try {
+    return await store.listMessages(id, handle);
+  } catch (error) {
+    if (!(error instanceof MessageReadUnavailableError)) throw error;
+    return publicApiError(error.message, "UNAVAILABLE", 503, { retryable: true });
+  }
+}
+
 export async function GET(request: Request, { params }: Ctx): Promise<Response> {
   const started = performance.now();
   const { id } = await params;
@@ -157,9 +170,10 @@ export async function GET(request: Request, { params }: Ctx): Promise<Response> 
   // has no row to read a name off — which is why it used to fetch the WHOLE
   // inbox from the browser just to learn one handle.
   const [messages, membership] = await Promise.all([
-    store.listMessages(id, handle),
+    readThread(store, id, handle),
     store.membership(id),
   ]);
+  if (messages instanceof Response) return messages;
   if (messages === null) {
     return publicApiError("Conversation not found.", "NOT_FOUND", 404);
   }
@@ -244,7 +258,8 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
   if (!multipart && action === "report") {
     const messageId = readString(body.messageId);
     if (!messageId) return publicApiError("Missing message id.", "INVALID_REQUEST", 400);
-    const thread = await store.listMessages(id, handle);
+    const thread = await readThread(store, id, handle);
+    if (thread instanceof Response) return thread;
     if (thread === null) {
       return publicApiError("Conversation not found.", "NOT_FOUND", 404);
     }
@@ -467,7 +482,8 @@ async function sendPhoto(
   // Nothing is prepared, staged or scanned before the courtesy check has said
   // this is the sender's own conversation: a stranger must not be able to spend
   // a scan on an id they guessed.
-  const thread = await store.listMessages(conversationId, handle);
+  const thread = await readThread(store, conversationId, handle);
+  if (thread instanceof Response) return thread;
   if (thread === null) {
     return publicApiError("Conversation not found.", "NOT_FOUND", 404);
   }
