@@ -10,9 +10,9 @@ import {
   SIGNED_OUT_GENERATION_PREFIX,
   accessTokenSubject,
   accountResumeGeneration,
-  authResumeCookieFromHeader,
   newResumeGeneration,
   resumeGenerationAdmits,
+  resumeGenerationFromHeader,
 } from "@/lib/authSessionResume";
 import type { MagicLinkResult } from "@/lib/passwordlessAuth";
 
@@ -24,7 +24,7 @@ type FetchLike = typeof fetch;
 /** The resume generation this document can see now, or null. */
 export function readResumeGeneration(): string | null {
   if (typeof document === "undefined") return null;
-  return authResumeCookieFromHeader(document.cookie, AUTH_RESUME_GENERATION_COOKIE);
+  return resumeGenerationFromHeader(document.cookie);
 }
 
 function writeResumeGeneration(value: string | null): void {
@@ -254,11 +254,9 @@ export async function requestResumeLink(
 export async function clearPersistedSession(
   fetchImpl: FetchLike = fetch,
 ): Promise<void> {
-  const departing = readResumeGeneration();
   writeResumeGeneration(newResumeGeneration(SIGNED_OUT_GENERATION_PREFIX));
-  const target = departing ? `${ENDPOINT}?generation=${encodeURIComponent(departing)}` : ENDPOINT;
   try {
-    await fetchImpl(target, { method: "DELETE", signal: timeoutSignal() });
+    await fetchImpl(ENDPOINT, { method: "DELETE", signal: timeoutSignal() });
   } catch {
     // Best-effort: an orphaned cookie dies at its Max-Age.
   }

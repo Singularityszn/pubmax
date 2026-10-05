@@ -110,6 +110,7 @@ import {
 import {
   clearPersistedSession,
   persistSessionForResume,
+  readResumeGeneration,
   requestResumeLink,
   sessionAccountAdmitted,
   type ResumeHint,
@@ -418,6 +419,8 @@ export function AuthProvider({
     };
   }, [configured]);
   const capturedCallback = useRef<Promise<CapturedAuthCallback | null> | undefined>(undefined);
+  /** The generation a captured callback's sign-in began under, read before any await. */
+  const callbackBaseline = useRef<string | null>(null);
 
   useEffect(() => {
     const user = session?.user ?? null;
@@ -469,6 +472,7 @@ export function AuthProvider({
     // Capture callback inputs once across React Strict Mode's effect replay and
     // scrub the address bar synchronously, before any exchange/network await.
     if (capturedCallback.current === undefined) {
+      callbackBaseline.current = readResumeGeneration();
       capturedCallback.current = scrubAuthCallback(
         window.location.href,
         (cleanUrl) => window.history.replaceState(window.history.state, "", cleanUrl),
@@ -796,6 +800,7 @@ export function AuthProvider({
                     browserDeviceAccountSwitchDeps(),
                   ),
                 (accessToken) => fetchAuthCallbackUser(accessToken, browserDeviceAccountSwitchDeps()),
+                callbackBaseline.current,
               );
             }
             const prepared = await callbackSessionInFlight.current;
@@ -1033,6 +1038,9 @@ export function AuthProvider({
 
   const signOut = useCallback(
     async (scope: SignOutScope = "account"): Promise<void> => {
+      // The generation this sign-out leaves, read before any await: a sign-in
+      // the person asks for meanwhile commits a newer one and owns the device.
+      const departingGeneration = readResumeGeneration();
       const supabase = await ensureSupabaseBrowser();
       if (!supabase) return;
       const departing = sessionTransitions.current.currentUserId();
@@ -1044,15 +1052,16 @@ export function AuthProvider({
       // onAuthStateChange has fired SIGNED_OUT. Invalidate the departing owner
       // before the purge, so no late write of theirs can land after it.
       markProviderSignOut("supabase");
+      const superseded = readResumeGeneration() !== departingGeneration;
       // Explicit sign-out is the one place the durable resume cookie dies too —
       // a transient SIGNED_OUT (failed refresh) must keep it for silent restore.
       // Started first, because its signed-out generation is written before the
       // call yields, so the cookie stops counting before any cleanup awaits.
-      const resumeCleared = clearPersistedSession();
+      const resumeCleared = superseded ? null : clearPersistedSession();
       // The same set the account boundary clears, and the owner stamp with it.
       // Leaving the handle behind is what let the next account inherit it: the
-      // session went and its name stayed.
-      releaseDeviceAccountOwner(browserLocalStorage(), browserSessionStorage());
+      // session went and its name stayed. A newer sign-in binds its own.
+      if (!superseded) releaseDeviceAccountOwner(browserLocalStorage(), browserSessionStorage());
       if (departing) clearAccountPintDropDrafts(browserSessionStorage(), departing);
       // Moment drafts are keyed by account id and hold private photo blobs.
       if (departing) await deleteMomentDraft(departing);
@@ -1061,10 +1070,18 @@ export function AuthProvider({
       // "all accounts" takes the whole lane. Neither is a capability: they are
       // the same act at two scopes, and the second only exists because a device
       // can hold more than one account.
-      if (scope === "device") forgetAllDeviceAccounts(browserLocalStorage());
+      if (scope === "device" && !superseded) forgetAllDeviceAccounts(browserLocalStorage());
       else if (departing) forgetDeviceAccount(browserLocalStorage(), departing);
       emitDeviceAccountSessionsChanged();
       setWelcomeBack(null);
+      if (superseded) {
+        // The SDK's sign-out ends with SIGNED_OUT and can remove the newer
+        // sign-in's session with it. Read the device again: a session still
+        // in place is shown, and a removed one comes back from its cookie.
+        const restored = await bootstrapAuthSession(supabase.auth).catch(() => null);
+        if (restored?.status === "local") updateSession(restored.session);
+        return;
+      }
       // AWAITED, because an account sign-out may hand the device straight to the
       // next remembered account: a DELETE still in flight would land after that
       // account's persist and leave the device with no durable session at all.
@@ -1082,7 +1099,7 @@ export function AuthProvider({
       if (!next) return;
       await activateDeviceAccount(next.userId, browserDeviceAccountSwitchDeps());
     },
-    [],
+    [updateSession],
   );
 
   const switchAccount = useCallback(

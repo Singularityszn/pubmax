@@ -23,16 +23,14 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { AUTH_ACCOUNT_BANNED_MESSAGE } from "@/lib/authAccountBan";
 import { verifyCallerAuth } from "@/lib/authServer";
 import {
-  AUTH_RESUME_GENERATION_COOKIE,
   accessTokenSubject,
-  authResumeCookieFromHeader,
   authResumePayloadFromHeader,
   authResumeSetCookieHeaders,
   inheritedResumeEmail,
   isPlausibleRefreshToken,
-  isResumeGenerationValue,
   maskEmail,
   resumeGenerationAdmits,
+  resumeGenerationFromHeader,
   type AuthResumeCookiePayload,
 } from "@/lib/authSessionResume";
 import { requestMagicLink } from "@/lib/passwordlessAuth";
@@ -62,7 +60,12 @@ function cookiePayload(request: Request): AuthResumeCookiePayload | null {
   return authResumePayloadFromHeader(request.headers.get("cookie"));
 }
 
-const setCookieHeaders = authResumeSetCookieHeaders;
+function setCookieHeaders(
+  request: Request,
+  payload: Omit<AuthResumeCookiePayload, "generation"> | null,
+): Headers {
+  return authResumeSetCookieHeaders(request.headers.get("cookie"), payload);
+}
 
 async function limited(
   request: Request,
@@ -112,14 +115,10 @@ export async function DELETE(request: Request): Promise<Response> {
       retryable: true,
     });
   }
-  // The browser has already moved to a signed-out generation; this clears the
-  // cookie of the generation it left, which it names. A late answer can then
-  // never clear the cookie of a sign-in that happened after it.
-  const departing = new URL(request.url).searchParams.get("generation");
-  return jsonNoStore(
-    { ok: true },
-    { headers: setCookieHeaders(isResumeGenerationValue(departing) ? departing : null, null) },
-  );
+  // The browser has already moved to a signed-out generation; this clears every
+  // resume cookie the request carried, and only those, so a late answer never
+  // clears the cookie of a sign-in that happened after it.
+  return jsonNoStore({ ok: true }, { headers: setCookieHeaders(request, null) });
 }
 
 async function persist(
@@ -142,10 +141,7 @@ async function persist(
   // writes one: only the browser starts a generation, for the account a sign-in
   // the person asked for produced. After an explicit sign-out nothing is
   // remembered until then, and nobody else is remembered under it.
-  const generation = authResumeCookieFromHeader(
-    request.headers.get("cookie"),
-    AUTH_RESUME_GENERATION_COOKIE,
-  );
+  const generation = resumeGenerationFromHeader(request.headers.get("cookie"));
 
   // The bearer token proves who the refresh token is being stored FOR, and
   // supplies the verified email for the welcome-back hint. When verification
@@ -178,7 +174,7 @@ async function persist(
     verification.status === "verified" && verification.identity.email
       ? verification.identity.email
       : inheritedResumeEmail(existing, { userId, refreshToken });
-  const headers = setCookieHeaders(generation, {
+  const headers = setCookieHeaders(request, {
     refreshToken: refreshToken,
     email,
     userId,
@@ -245,7 +241,7 @@ async function redeem(request: Request): Promise<Response> {
       typeof session.user === "object" && session.user !== null
         ? (session.user as Record<string, unknown>).id
         : null;
-    const headers = setCookieHeaders(payload.generation ?? null, {
+    const headers = setCookieHeaders(request, {
       refreshToken: nextRefreshToken,
       email: typeof sessionEmail === "string" ? sessionEmail : payload.email,
       userId:
@@ -276,14 +272,14 @@ async function redeem(request: Request): Promise<Response> {
       banned = false;
     }
     if (banned) {
-      const headers = setCookieHeaders(payload.generation ?? null, null);
+      const headers = setCookieHeaders(request, null);
       return jsonNoStore({ status: "banned", message: AUTH_ACCOUNT_BANNED_MESSAGE }, { headers });
     }
     // The token is dead (rotated away, revoked, or the account is gone). Keep
     // the email so the sign-in page can offer one-tap resume instead of a
     // cold form.
     const headers = setCookieHeaders(
-      payload.generation ?? null,
+      request,
       payload.email
         ? {
             refreshToken: null,

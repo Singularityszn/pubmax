@@ -5,13 +5,6 @@
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import {
-  AUTH_RESUME_GENERATION_COOKIE,
-  accessTokenSubject,
-  authResumeCookieFromHeader,
-  authResumeSetCookieHeaders,
-  resumeGenerationAdmits,
-} from "@/lib/authSessionResume";
-import {
   HANDLE_PASSWORD_GENERIC_ERROR,
   MIN_PASSWORD_LENGTH,
 } from "@/lib/passwordPolicy";
@@ -29,17 +22,6 @@ assertServerEnv();
 
 const RATE_LIMIT = 12;
 const RATE_WINDOW_MS = 15 * 60 * 1000;
-
-/** Stamped with the request's generation, and only when that admits this account. */
-function setResumeCookie(
-  request: Request,
-  session: { access_token: string; refresh_token: string },
-  email: string | null,
-): Headers | undefined {
-  const generation = authResumeCookieFromHeader(request.headers.get("cookie"), AUTH_RESUME_GENERATION_COOKIE);
-  if (!resumeGenerationAdmits(generation, accessTokenSubject(session.access_token))) return undefined;
-  return authResumeSetCookieHeaders(generation, { refreshToken: session.refresh_token, email });
-}
 
 export async function POST(request: Request): Promise<Response> {
   if (isCrossSiteRequest(request)) {
@@ -102,17 +84,14 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError(HANDLE_PASSWORD_GENERIC_ERROR, "INVALID_CREDENTIALS", 401);
   }
 
-  return jsonNoStore(
-    {
-      status: "signed_in",
-      session: {
-        access_token: session.access_token,
-        refresh_token: session.refresh_token,
-        expires_in: session.expires_in,
-        expires_at: session.expires_at,
-        token_type: session.token_type,
-      },
+  return jsonNoStore({
+    status: "signed_in",
+    session: {
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+      expires_in: session.expires_in,
+      expires_at: session.expires_at,
+      token_type: session.token_type,
     },
-    { headers: setResumeCookie(request, session, email) },
-  );
+  });
 }

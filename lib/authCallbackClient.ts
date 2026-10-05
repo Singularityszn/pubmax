@@ -117,11 +117,12 @@ export async function prepareAuthCallbackSession<SessionValue>(
   localAttemptOwned: boolean,
   mintSession: (refreshToken: string) => Promise<MintOutcome>,
   getUser: AuthCallbackUserLookup,
+  baseline: string | null = readResumeGeneration(),
 ): Promise<PreparedAuthCallbackSession<SessionValue>> {
   if (localAttemptOwned) {
     return {
       status: "established",
-      result: await establishAuthCallbackSession(auth, tokens),
+      result: await establishAuthCallbackSession(auth, tokens, baseline),
     };
   }
 
@@ -160,14 +161,16 @@ export async function prepareAuthCallbackSession<SessionValue>(
 /**
  * Establish the session from implicit-flow callback tokens. Normalizes both
  * Supabase errors and network failures for the UI, exactly like the PKCE
- * exchange this replaced.
+ * exchange this replaced. `baseline` is the generation the sign-in began
+ * under: when the callback was captured, or now for an explicit confirmation.
  */
 export async function establishAuthCallbackSession<SessionValue>(
   auth: AuthSessionEstablishClient<SessionValue>,
   tokens: AuthCallbackTokens,
+  baseline: string | null = readResumeGeneration(),
 ): Promise<AuthCallbackSessionResult<SessionValue>> {
   // The person followed this link or provider return to sign in.
-  const commit = commitSignIn(readResumeGeneration(), tokens.accessToken);
+  const commit = commitSignIn(baseline, tokens.accessToken);
   if (!commit) return { session: null, failed: true, banned: false };
   try {
     const { data, error } = await auth.setSession({

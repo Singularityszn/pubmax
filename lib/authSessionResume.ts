@@ -168,20 +168,26 @@ export function authResumeCookieFromHeader(
   cookieHeader: string | null | undefined,
   name: string = AUTH_RESUME_COOKIE,
 ): string | null {
-  if (!cookieHeader) return null;
-  for (const part of cookieHeader.split(";")) {
-    const eq = part.indexOf("=");
-    if (eq === -1) continue;
-    if (part.slice(0, eq).trim() !== name) continue;
-    const value = part.slice(eq + 1).trim();
-    if (!value) return null;
-    try {
-      return decodeURIComponent(value);
-    } catch {
-      return null;
-    }
+  const value = rawCookieValue(cookieHeader, name);
+  if (!value) return null;
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return null;
   }
-  return null;
+}
+
+function cookieParts(cookieHeader: string | null | undefined): Array<[string, string]> {
+  const parts: Array<[string, string]> = [];
+  for (const part of (cookieHeader ?? "").split(";")) {
+    const eq = part.indexOf("=");
+    if (eq !== -1) parts.push([part.slice(0, eq).trim(), part.slice(eq + 1).trim()]);
+  }
+  return parts;
+}
+
+function rawCookieValue(cookieHeader: string | null | undefined, name: string): string | null {
+  return cookieParts(cookieHeader).find(([candidate]) => candidate === name)?.[1] ?? null;
 }
 
 /** Browsers cap a cookie's lifetime at 400 days; the fence should outlive any resume cookie. */
@@ -193,28 +199,60 @@ export const AUTH_RESUME_GENERATION_MAX_AGE_SECONDS = 400 * 24 * 60 * 60;
  * that generation's cookie, never a later sign-in's. The server never writes
  * the generation cookie itself; only the browser does, at the user's action.
  */
-export function authResumeCookieName(generation: string | null | undefined): string {
+export function authResumeCookieName(generation: string | null): string {
   return generation ? `${AUTH_RESUME_COOKIE}.${generation}` : AUTH_RESUME_COOKIE;
 }
 
-/** A generation value as it may appear in a cookie name. */
-export function isResumeGenerationValue(value: unknown): value is string {
-  return typeof value === "string" && /^[A-Za-z0-9._~-]{1,256}$/.test(value);
+const GENERATION_PATTERN = /^[A-Za-z0-9._~-]{1,256}$/;
+
+/**
+ * The generation a raw (undecoded) cookie value names. Only the browser writes
+ * it, and only in this alphabet, so anything else - an encoded separator, a
+ * line break, a value another subdomain set - is a fence nobody can name a
+ * cookie after and reads as signed out, never as no fence at all.
+ */
+export function resumeGeneration(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  return GENERATION_PATTERN.test(raw) ? raw : SIGNED_OUT_GENERATION_PREFIX;
 }
 
-/** Set-Cookie header for one generation's resume cookie; a null payload clears it. */
+/** The generation a Cookie header carries. Every server and browser reader goes through this. */
+export function resumeGenerationFromHeader(cookieHeader: string | null | undefined): string | null {
+  return resumeGeneration(rawCookieValue(cookieHeader, AUTH_RESUME_GENERATION_COOKIE));
+}
+
+function isResumeCookieName(name: string): boolean {
+  if (name === AUTH_RESUME_COOKIE) return true;
+  const prefix = `${AUTH_RESUME_COOKIE}.`;
+  return name.startsWith(prefix) && GENERATION_PATTERN.test(name.slice(prefix.length));
+}
+
+/**
+ * Set-Cookie headers answering one request: the cookie of the generation the
+ * request carries gets `payload` (null clears it), and every other resume
+ * cookie the request named - an earlier sign-in's, a legacy one - is cleared,
+ * so a device keeps one remembered credential. A request names only cookies
+ * that existed when it was sent, so a late answer can never clear the cookie of
+ * a sign-in that came after it.
+ */
 export function authResumeSetCookieHeaders(
-  generation: string | null,
+  cookieHeader: string | null | undefined,
   payload: Omit<AuthResumeCookiePayload, "generation"> | null,
 ): Headers {
+  const generation = resumeGenerationFromHeader(cookieHeader);
+  const current = authResumeCookieName(generation);
   const headers = new Headers();
   const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
-  const value = payload ? encodeURIComponent(encodeAuthResumeCookie({ ...payload, generation })) : "";
-  const maxAge = payload ? AUTH_RESUME_MAX_AGE_SECONDS : 0;
-  headers.append(
-    "Set-Cookie",
-    `${authResumeCookieName(generation)}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`,
-  );
+  const write = (name: string, value: string, maxAge: number) =>
+    headers.append("Set-Cookie", `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`);
+  const departed = new Set(cookieParts(cookieHeader).map(([name]) => name).filter(isResumeCookieName));
+  departed.delete(current);
+  for (const name of departed) write(name, "", 0);
+  if (payload) {
+    write(current, encodeURIComponent(encodeAuthResumeCookie({ ...payload, generation })), AUTH_RESUME_MAX_AGE_SECONDS);
+  } else {
+    write(current, "", 0);
+  }
   return headers;
 }
 
@@ -234,7 +272,7 @@ export function currentAuthResumePayload(
 export function authResumePayloadFromHeader(
   cookieHeader: string | null | undefined,
 ): AuthResumeCookiePayload | null {
-  const generation = authResumeCookieFromHeader(cookieHeader, AUTH_RESUME_GENERATION_COOKIE);
+  const generation = resumeGenerationFromHeader(cookieHeader);
   return currentAuthResumePayload(
     authResumeCookieFromHeader(cookieHeader, authResumeCookieName(generation)),
     generation,

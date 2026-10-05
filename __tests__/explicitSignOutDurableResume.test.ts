@@ -433,3 +433,102 @@ describe("explicit sign-out against the durable resume cookie", () => {
   });
 });
 
+
+describe("one remembered credential per device", () => {
+  const resumeCookies = () => [...httpOnlyCookies.keys()];
+  const current = () => [`pubmax_session_resume.${readResumeGeneration()}`];
+
+  it("keeps only the current sign-in's credential across repeated account switches, and none after signing out", async () => {
+    await signIn(A);
+    await signIn(B);
+    await signIn(A);
+    const client = await signIn(B);
+    expect(resumeCookies()).toEqual(current());
+
+    await explicitSignOut(client);
+    expect(resumeCookies()).toEqual([]);
+    sdkItems.clear();
+    expect((await reload()).outcome.status).toBe("none");
+    expect(tokenGrants).toEqual([]);
+  });
+
+  it("clears a legacy credential once a sign-in is remembered under a generation", async () => {
+    expect(await persistSessionForResume(sessionFor(A))).toBe("stored");
+    expect(resumeCookies()).toEqual(["pubmax_session_resume"]);
+    await signIn(B);
+    expect(resumeCookies()).toEqual(current());
+  });
+
+  it("clears a credential an offline sign-out left behind at the next sign-in", async () => {
+    const client = await signIn(A);
+    online = false;
+    await explicitSignOut(client);
+    online = true;
+    expect(resumeCookies()).toHaveLength(1);
+    await signIn(B);
+    expect(resumeCookies()).toEqual(current());
+  });
+
+  it("keeps a later sign-in's credential when an earlier persist's answer lands after it", async () => {
+    await signIn(A);
+    const late = await POST(sessionRequest({
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${sessionFor(A).access_token}` },
+      body: JSON.stringify({ action: "persist", refreshToken: sessionFor(A).refresh_token }),
+    }));
+    await signIn(B);
+    applySetCookies(late);
+
+    sdkItems.clear();
+    const { outcome } = await reload();
+    expect(outcome).toMatchObject({ status: "restored", session: { refresh_token: `synthetic-refresh-${B.id}` } });
+    expect(resumeCookies()).toEqual(current());
+  });
+
+  it("restores the remembered account when this browser's SDK storage still holds an older account", async () => {
+    await signIn(A);
+    const staleA = sdkItems.get(SDK_STORAGE_KEY)!;
+    await signIn(B);
+    sdkItems.set(SDK_STORAGE_KEY, staleA);
+
+    const { client, outcome } = await reload();
+    expect(outcome).toMatchObject({ status: "restored", session: { refresh_token: `synthetic-refresh-${B.id}` } });
+    expect((await client.auth.getSession()).data.session?.refresh_token).toBe(`synthetic-refresh-${B.id}`);
+  });
+});
+
+describe("a generation cookie unfit for a cookie name", () => {
+  const RESUME_NAME = /^pubmax_session_resume(\.[A-Za-z0-9._~-]+)?=[^;]*; Path=\/; HttpOnly; SameSite=Lax; Max-Age=\d+$/;
+
+  it.each([
+    ["an encoded attribute", "x%3B%20Domain%3Devil.example"],
+    ["an encoded line break", "x%0D%0ASet-Cookie%3A%20y%3D1"],
+    ["a malformed escape", "x%zz"],
+    ["a wrong-account binding with a separator", "g1~account-b%3B"],
+  ])("reads as signed out, never as an injected cookie or a 500, for %s", async (_label, raw) => {
+    expect(await persistSessionForResume(sessionFor(A))).toBe("stored");
+    document.cookie = `pubmax_resume_gen=${raw}; Path=/`;
+    expect(readResumeGeneration()).toMatch(/^out\./);
+
+    const persist = await POST(sessionRequest({
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${sessionFor(A).access_token}` },
+      body: JSON.stringify({ action: "persist", refreshToken: sessionFor(A).refresh_token }),
+    }));
+    expect(persist.status).toBe(409);
+    const redeem = await POST(sessionRequest({ method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "redeem" }) }));
+    expect(await redeem.json()).toEqual({ status: "none" });
+    expect(await (await GET(sessionRequest())).json()).toEqual({ hint: null });
+    const cleared = await DELETE(sessionRequest({ method: "DELETE" }));
+    expect(cleared.status).toBe(200);
+    for (const response of [persist, redeem, cleared]) {
+      for (const raw of response.headers.getSetCookie()) expect(raw).toMatch(RESUME_NAME);
+    }
+    expect((await cookieReader()).state).toBe("sign_in_required");
+    expect(tokenGrants).toEqual([]);
+
+    await signIn(B);
+    sdkItems.clear();
+    expect((await reload()).outcome).toMatchObject({ status: "restored", session: { refresh_token: `synthetic-refresh-${B.id}` } });
+  });
+});

@@ -4,6 +4,7 @@ import {
   fetchResumeHint,
   readResumeGeneration,
   redeemPersistedSession,
+  sessionAccountAdmitted,
   type RedeemResult,
   type ResumeHintReadOutcome,
 } from "@/lib/authSessionResumeClient";
@@ -69,7 +70,10 @@ export async function bootstrapAuthSession(
       .getSession()
       .then(({ data }) => {
         localSettled = true;
-        localSession = data.session ?? null;
+        // A stored session of an account the device's last sign-in did not
+        // produce is stale; the remembered sign-in is what this boot restores.
+        const stored = data.session ?? null;
+        localSession = stored && sessionAccountAdmitted(stored.user?.id ?? "") ? stored : null;
         return localSession;
       })
       .catch(() => {
