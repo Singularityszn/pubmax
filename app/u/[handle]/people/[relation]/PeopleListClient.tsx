@@ -17,12 +17,16 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useViewerSession } from "@/components/auth/useViewerSession";
+import { readProviderIdentityRevision } from "@/lib/authProviderRevision";
+import { waitUnlessAborted } from "@/lib/abortableDelay";
+import { discardBody } from "@/lib/responseBody";
 import { authedFetch } from "@/lib/authedFetch";
 import { followRelationHint, resolveFollowRelation } from "@/lib/followRelation";
 import { displayHandle } from "@/lib/handleDisplay";
 import { type FollowListEntry, parseFollowListEntry } from "@/lib/followList";
 import { normalizeHandle } from "@/lib/profiles";
-import { loadSurfaceJson } from "@/lib/surfaceDataCache";
+import { SURFACE_CACHE_RETRY_BACKOFF_MS } from "@/lib/surfaceDataCache";
 import { useReconnectRecovery } from "@/lib/useReconnectRecovery";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 import { SocialAccessBoundary } from "@/app/social/SocialPageClient";
@@ -43,21 +47,54 @@ const EMPTY: Record<PeopleRelation, string> = {
   following: "This handle follows nobody yet.",
 };
 
-const PEOPLE_SNAPSHOT_MAX_AGE_MS = 60_000;
 const OFFLINE_ERROR = "You look offline. We will retry when you are back.";
 
 type PeopleListResponse = Record<string, unknown>;
 type PeopleLotResponse = { lot?: unknown };
+type PeopleRead = {
+  key: string;
+  status: LoadState;
+  people: FollowListEntry[];
+  mutuals: Set<string>;
+};
+
+function emptyRead(key: string, status: LoadState = "loading"): PeopleRead {
+  return { key, status, people: [], mutuals: new Set() };
+}
 
 function initial(handle: string): string {
   const clean = normalizeHandle(handle);
   return clean ? clean.slice(0, 1).toUpperCase() : "?";
 }
 
-// A withdrawn handle's graph reads as empty to everyone but its owner, so the
-// read carries the viewer's bearer when there is one.
-const ownerAwareFetch: typeof fetch = (input, init) =>
-  authedFetch(input, init ?? {}, { requiresIdentity: true });
+// Owner-sensitive answers are never shared or held past this request.
+// Preserve the existing one transient retry and abortable backoff.
+async function readPeopleJson<T>(
+  url: string,
+  signal: AbortSignal,
+  requiresIdentity: boolean,
+  validate: (value: T) => boolean,
+): Promise<T | undefined> {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    if (signal.aborted) return undefined;
+    try {
+      const response = await authedFetch(url, { signal, cache: "no-store" }, { requiresIdentity });
+      if (!response.ok) {
+        const retryable = [408, 425, 429].includes(response.status) || response.status >= 500;
+        discardBody(response);
+        if (!retryable) return undefined;
+      } else {
+        const body = (await response.json()) as T;
+        if (signal.aborted) return undefined;
+        if (validate(body)) return body;
+      }
+    } catch {
+      if (signal.aborted) return undefined;
+    }
+    if (attempt === 0 && !await waitUnlessAborted(SURFACE_CACHE_RETRY_BACKOFF_MS, signal)) return undefined;
+  }
+  return undefined;
+}
 
 export default function PeopleListClient({
   handle,
@@ -68,69 +105,59 @@ export default function PeopleListClient({
 }) {
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const { accountRevision } = useAuth();
-  const [status, setStatus] = useState<LoadState>("loading");
-  const [people, setPeople] = useState<FollowListEntry[]>([]);
-  const [mutuals, setMutuals] = useState<Set<string>>(new Set());
+  const { phase } = useViewerSession();
   const [attempt, setAttempt] = useState(0);
+  const readKey = JSON.stringify([accountRevision, phase, handle, relation, attempt]);
+  const [storedRead, setStoredRead] = useState<PeopleRead | null>(null);
+  // Mask the previous viewer's answer in the first new-viewer render, before
+  // effect cleanup or a replacement response can run.
+  const { status, people, mutuals } = storedRead?.key === readKey
+    ? storedRead
+    : emptyRead(readKey);
 
   useEffect(() => {
     if (!socialFriendsLaunchEnabled) return;
     const controller = new AbortController();
-    // The answer may be the owner's own graph, so it belongs to one account:
-    // a sign-out or account switch drops it and asks again as the new viewer.
-    // The abort below keeps a late answer for the old account off the page.
-    void Promise.resolve().then(() => {
-      setStatus("loading");
-      setPeople([]);
-      setMutuals(new Set());
-    });
+    const isCurrent = () => !controller.signal.aborted && readProviderIdentityRevision() === accountRevision;
+    const requiresIdentity = phase === "signed-in";
     void (async () => {
       const listKey = `/api/profiles/${encodeURIComponent(handle)}/${relation}`;
       const lotKey = `/api/profiles/${encodeURIComponent(handle)}/lot`;
-      const listPromise = loadSurfaceJson<PeopleListResponse>(
-        listKey,
-        {
-          signal: controller.signal,
-          maxAgeMs: PEOPLE_SNAPSHOT_MAX_AGE_MS,
-          fetchImpl: ownerAwareFetch,
-          validate: (body) => Array.isArray(body?.[relation]),
-        },
-        (body) => {
-          const rows = body[relation];
-          if (!Array.isArray(rows)) return false;
-          setPeople(
-            rows
-              .map((row) => parseFollowListEntry(row))
-              .filter((row): row is FollowListEntry => row !== null),
-          );
-          setStatus("ready");
-          return true;
-        },
-      );
-      const lotPromise = loadSurfaceJson<PeopleLotResponse>(
-        lotKey,
-        {
-          signal: controller.signal,
-          maxAgeMs: PEOPLE_SNAPSHOT_MAX_AGE_MS,
-          fetchImpl: ownerAwareFetch,
-          validate: (body) => Boolean(body && typeof body === "object"),
-        },
-        (body) => {
-          if (Array.isArray(body.lot)) setMutuals(new Set(body.lot.filter((entry): entry is string => typeof entry === "string")));
-        },
-      );
-      const [listOutcome] = await Promise.all([listPromise, lotPromise]);
-      if (listOutcome === "failed" && !controller.signal.aborted) {
-        setPeople([]);
-        setStatus("error");
-      }
+      const listPromise = readPeopleJson<PeopleListResponse>(
+        listKey, controller.signal, requiresIdentity,
+        (body) => Array.isArray(body?.[relation]),
+      ).then((body) => {
+        if (!isCurrent()) return;
+        setStoredRead((current) => {
+          if (!isCurrent()) return current;
+          const owned = current?.key === readKey ? current : emptyRead(readKey);
+          if (!body) return { ...owned, status: "error", people: [] };
+          const rows = body[relation] as unknown[];
+          return {
+            ...owned,
+            status: "ready",
+            people: rows.map(parseFollowListEntry).filter((row): row is FollowListEntry => row !== null),
+          };
+        });
+      });
+      const lotPromise = readPeopleJson<PeopleLotResponse>(
+        lotKey, controller.signal, requiresIdentity,
+        (body) => Boolean(body && typeof body === "object"),
+      ).then((body) => {
+        if (!isCurrent() || !Array.isArray(body?.lot)) return;
+        const mutuals = new Set(body.lot.filter((entry): entry is string => typeof entry === "string"));
+        setStoredRead((current) => isCurrent() ? {
+          ...(current?.key === readKey ? current : emptyRead(readKey)),
+          mutuals,
+        } : current);
+      });
+      await Promise.all([listPromise, lotPromise]);
     })();
     return () => controller.abort();
-  }, [accountRevision, attempt, handle, relation, socialFriendsLaunchEnabled]);
+  }, [accountRevision, phase, readKey, handle, relation, socialFriendsLaunchEnabled]);
 
   const retry = useCallback(() => {
     if (!socialFriendsLaunchEnabled) return;
-    setStatus("loading");
     setAttempt((value) => value + 1);
   }, [socialFriendsLaunchEnabled]);
 

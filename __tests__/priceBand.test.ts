@@ -110,7 +110,7 @@ describe("the band a figure wears", () => {
     expect(priceBandFromBucket(-1)).toBeNull();
   });
 
-  it("names every band once, and prints the thresholds it was cut at", () => {
+  it("names every band once, and prints the thresholds it was cut at", async () => {
     expect(PRICE_BANDS.map(priceBandLabel)).toEqual(["Cheap", "Average", "Expensive"]);
     expect(PRICE_BANDS.map(priceBandClass)).toEqual([
       "priceBand-cheap",
@@ -120,7 +120,11 @@ describe("the band a figure wears", () => {
     expect(priceBandLegendLabel("cheap", LONDON)).toBe("£5.20 or less");
     expect(priceBandLegendLabel("average", LONDON)).toBe("Over £5.20, up to £6.15");
     expect(priceBandLegendLabel("expensive", LONDON)).toBe("Over £6.15");
-    expect(priceBandNote("expensive", LONDON)).toContain("dearest third of 950 priced pubs");
+    const londonPints = (await readCityPintPrices(ROOT)).get("london");
+    expect(londonPints).toBeDefined();
+    expect(priceBandNote("expensive", LONDON)).toContain(
+      `dearest third of ${londonPints?.length} priced pubs`,
+    );
   });
 });
 

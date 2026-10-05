@@ -70,7 +70,7 @@ function cli(root: string, name: string) {
   });
 }
 
-function withoutKindEvidence(row: Record<string, unknown>) {
+function withoutKindEvidence(row: VenuePrice): VenuePrice {
   const original = { ...row };
   delete original.venue_kind;
   delete original.venue_kind_osm_id;
@@ -89,7 +89,7 @@ describe("sourced venue kind through the real publication chain", () => {
     expect(bar).toMatchObject({
       venue_kind: "bar", venue_kind_osm_id: "node/9829140325", venue_kind_observed_at: seed.fetchedAt,
     });
-    expect(withoutKindEvidence(bar)).toEqual(abba);
+    expect(withoutKindEvidence(bar)).toEqual(withoutKindEvidence(abba));
     const published = readFileSync(path.join(root, "public/data/pint_prices_app_dataset.json"));
     expect(cli(root, "merge_outer_london_osm.mjs").status).toBe(0);
     expect(readFileSync(path.join(root, "public/data/pint_prices_app_dataset.json"))).toEqual(published);
@@ -123,8 +123,8 @@ describe("sourced venue kind through the real publication chain", () => {
     expect(cli(root, "merge_outer_london_osm.mjs").status).toBe(0);
     const merged: VenuePrice[] = json(path.join(root, "public/data/pint_prices_app_dataset.json"));
     const bar = merged.find((row) => row.app_price_id === abba.app_price_id)!;
-    const legacy = { ...abba, app_price_id: "legacy-price", price_gbp: 4, comment: "pub" };
-    const grouped = groupVenuePrices([legacy, bar, pub]);
+    const legacy = { ...withoutKindEvidence(abba), app_price_id: "legacy-price", price_gbp: 4, comment: "pub" };
+    const grouped = groupVenuePrices([legacy, bar, withoutKindEvidence(pub)]);
     expect(grouped.find((row) => row.id === "venue-16cduf6")).toMatchObject({ kind: "bar", cheapestPrice: 4 });
     expect(grouped.find((row) => row.name === "Jack and Jill")?.kind).toBeUndefined();
   });
@@ -171,10 +171,11 @@ describe("sourced venue kind through the real publication chain", () => {
   });
 
   it("does not infer a type from names, comments or an absent OSM amenity", () => {
-    const root = fixture([abba], seedRows.filter((row: { osmId: string }) => row.osmId === "node/9829140325").map((row: Record<string, unknown>) => ({ ...row, amenity: undefined })));
+    const unsourced = withoutKindEvidence(abba);
+    const root = fixture([unsourced], seedRows.filter((row: { osmId: string }) => row.osmId === "node/9829140325").map((row: Record<string, unknown>) => ({ ...row, amenity: undefined })));
     expect(cli(root, "merge_outer_london_osm.mjs").status).toBe(0);
-    expect(json(path.join(root, "public/data/pint_prices_app_dataset.json"))).toEqual([abba]);
-    expect(groupVenuePrices([abba])[0].kind).toBeUndefined();
+    expect(json(path.join(root, "public/data/pint_prices_app_dataset.json"))).toEqual([unsourced]);
+    expect(groupVenuePrices([unsourced])[0].kind).toBeUndefined();
   });
 
   it("keeps the sourced bar on the compact map and detail while both Out events remain unmatched", () => {
@@ -272,7 +273,7 @@ describe("sourced venue kind through the real publication chain", () => {
     const merged: VenuePrice[] = json(path.join(root, "public/data/pint_prices_app_dataset.json"));
     for (const original of pricedBars) {
       const published = merged.find((row) => row.app_price_id === original.app_price_id)!;
-      expect(JSON.stringify(withoutKindEvidence(published))).toBe(JSON.stringify(original));
+      expect(JSON.stringify(withoutKindEvidence(published))).toBe(JSON.stringify(withoutKindEvidence(original)));
     }
     expect(cli(root, "build_slim_index.mjs").status).toBe(0);
     const payload = json(path.join(root, "public/data/venues_slim.json"));
@@ -298,7 +299,8 @@ describe("sourced venue kind through the real publication chain", () => {
       expect(feature.properties).not.toHaveProperty("priceLabel");
       const detail = venueFromDetailArtifact(artifacts.find((row) => row.id === typed.id), typed.id)!;
       expect(detail).toMatchObject({ id: typed.id, kind: "bar", cheapestPrice: original.price_gbp });
-      expect(JSON.stringify(withoutKindEvidence(detail.prices[0]))).toBe(JSON.stringify(original));
+      expect(JSON.stringify(withoutKindEvidence(detail.prices[0]))).toBe(JSON.stringify(withoutKindEvidence(original)));
+      expect(detail.prices[0]).toEqual(original);
       expect(hoverCardCopy(pin, undefined, detail)).toMatchObject({ price: null, priceSuffix: "", provenance: "Tap for detail", detailLabel: "venue detail" });
     }
     const famous = compact.rows.find((row) => row.kind === "bar" && row.anchorLabel && typeof row.cheapestPrice === "number")!;

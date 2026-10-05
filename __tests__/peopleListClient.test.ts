@@ -221,7 +221,7 @@ describe("PeopleListClient recovery", () => {
       root?.render(createElement(PeopleListClient, { handle: "karan", relation: "followers" })),
     );
     await settle();
-    await vi.advanceTimersByTimeAsync(50);
+    await commit(async () => { await vi.advanceTimersByTimeAsync(50); });
     await settle();
 
     expect(container.textContent).toContain("Could not load this list. That is us, not you.");
@@ -230,7 +230,7 @@ describe("PeopleListClient recovery", () => {
     await commit(() => {
       browserWindow.dispatchEvent(new Event("online"));
     });
-    await vi.advanceTimersByTimeAsync(200);
+    await commit(async () => { await vi.advanceTimersByTimeAsync(200); });
     await settle();
 
     expect(container.textContent).toContain("@alice");
@@ -256,29 +256,32 @@ describe("PeopleListClient recovery", () => {
     expect(container.textContent).toContain("@alice");
   });
 
-  it("paints a cached public snapshot on remount before revalidation", async () => {
+  it("makes a fresh no-store read on public remount without replaying the old answer", async () => {
+    let releaseList!: (response: Response) => void;
+    const replacement = new Promise<Response>((resolve) => { releaseList = resolve; });
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(listResponse(["alice"]))
       .mockResolvedValueOnce(lotResponse())
-      .mockRejectedValue(new TypeError("offline"));
+      .mockReturnValueOnce(replacement)
+      .mockResolvedValueOnce(lotResponse());
 
-    await commit(() =>
-      root?.render(createElement(PeopleListClient, { handle: "karan", relation: "followers" })),
-    );
+    await commit(() => root?.render(createElement(PeopleListClient, { handle: "karan", relation: "followers" })));
     await settle();
     expect(container.textContent).toContain("@alice");
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-
     await commit(() => root?.unmount());
     root = createRoot(container as unknown as Element);
-    await commit(() =>
-      root?.render(createElement(PeopleListClient, { handle: "karan", relation: "followers" })),
-    );
+    await commit(() => root?.render(createElement(PeopleListClient, { handle: "karan", relation: "followers" })));
     await settle();
-
-    expect(container.textContent).toContain("@alice");
-    expect(container.textContent).not.toContain("Could not load this list");
+    try {
+      expect(fetchMock).toHaveBeenCalledTimes(4);
+      expect(container.textContent).not.toContain("@alice");
+      expect(fetchMock.mock.calls.every(([, init]) => init?.cache === "no-store")).toBe(true);
+    } finally {
+      await commit(async () => { releaseList(listResponse(["bob"])); });
+      await settle();
+    }
+    expect(container.textContent).toContain("@bob");
   });
 
   it("uses honest offline copy while keeping online fault copy", async () => {
@@ -289,7 +292,7 @@ describe("PeopleListClient recovery", () => {
       root?.render(createElement(PeopleListClient, { handle: "karan", relation: "followers" })),
     );
     await settle();
-    await vi.advanceTimersByTimeAsync(50);
+    await commit(async () => { await vi.advanceTimersByTimeAsync(50); });
     await settle();
     expect(container.textContent).toContain("You look offline. We will retry when you are back.");
 
@@ -300,7 +303,7 @@ describe("PeopleListClient recovery", () => {
       root?.render(createElement(PeopleListClient, { handle: "karan", relation: "followers" })),
     );
     await settle();
-    await vi.advanceTimersByTimeAsync(50);
+    await commit(async () => { await vi.advanceTimersByTimeAsync(50); });
     await settle();
     expect(container.textContent).toContain("Could not load this list. That is us, not you.");
   });

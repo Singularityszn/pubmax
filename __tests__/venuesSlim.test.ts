@@ -169,7 +169,7 @@ function makeFilters(overrides: Partial<Filters> = {}): Filters {
 
 function matchingIdsFromSlim(filters: Filters): string[] {
   return (slim as SlimVenue[])
-    .filter((venue) => venue.kind === undefined)
+    .filter((venue) => !famousIds.has(venue.id))
     .filter(
       (venue) => filterVenues([slimVenueToPin(venue)], filters).length > 0,
     )
@@ -391,7 +391,7 @@ describe("venues_slim.json", () => {
     for (const id of famousIds) canonicalIds.delete(id);
     // Famous venue seed rows have editorial ids; legacy pub rows retain the
     // canonical raw-dataset identity contract.
-    const rows = (slim as SlimVenue[]).filter((row) => row.kind === undefined);
+    const rows = (slim as SlimVenue[]).filter((row) => !famousIds.has(row.id));
     expect(canonicalIds.size).toBe(rows.length);
     const sampleIdx = new Set<number>([
       0,
@@ -417,7 +417,7 @@ describe("venues_slim.json", () => {
     vi.setSystemTime(lapsedAt);
     try {
       const famous = (slim as SlimVenue[]).filter(
-        (row) => row.kind === "bar" || row.kind === "food" || row.kind === "restaurant",
+        (row) => famousIds.has(row.id),
       );
       expect(famous).toHaveLength(expectedSlimFamousCounts().total);
       expect(expectedSlimFamousCounts(lapsedAt).total).toBe(0);

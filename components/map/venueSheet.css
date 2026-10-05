@@ -1312,6 +1312,8 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
     /* Wide enough for the two-column Pints layout below without feeling like
        a full takeover — still clearly a docked side panel, not the map. */
     width: var(--desktop-venue-drawer-width);
+    /* Native reveals must leave room for the sticky 44px controls and 10px inset. */
+    scroll-padding-top: calc(var(--control-height) + 10px);
   }
 
   /* The mobile bottom-sheet grab affordance has no meaning on a docked side
@@ -1363,6 +1365,8 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
 
   .mapDrawer.right .mapDrawerHead {
     padding-inline: 18px;
+    /* Scrolled form text must not show through the navigation row. */
+    background: var(--sheet-material-solid);
   }
 
   .venueInspector .venueTabPanel {
@@ -1376,6 +1380,16 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 20px;
     align-items: start;
+  }
+
+  /* Keep the venue context and sign-in note above the revealed price field. */
+  .mapDrawer.right .spillPriceStep {
+    scroll-margin-top: calc(var(--space-12) + var(--space-8));
+  }
+
+  /* An open composer owns the reading width. The drop list follows its form. */
+  .venuePintsCols:has(> form.spillComposer) {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .venuePintsCols .pintDrops {
