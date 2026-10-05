@@ -17,7 +17,8 @@
 // a slow Tonight load (5 Oct 2026). While the read runs it paints an invisible
 // panel of the same box, sized in lines to the width it has (tonightConditions.css),
 // and the answer fills it. A read that fails says there is no reading, the same
-// line a reading-less answer gets, so the held room is never left blank.
+// line a reading-less answer gets, inside the same held room, so the room is
+// never left blank and nothing below it moves.
 //
 // Server does all the data work (weather snapshot + venue index) behind
 // /api/tonight-conditions; this component only renders the strings it returns.
@@ -77,7 +78,10 @@ export default function TonightConditionsStrip({ origin, tonightMode = false }: 
 
   if (summary === undefined) {
     return (
-      <div className="tonightConditions tonightConditionsHold" aria-hidden="true">
+      <div
+        className="tonightConditions tonightConditionsRoom tonightConditionsHold"
+        aria-hidden="true"
+      >
         <CloudSun size={16} aria-hidden="true" className="tonightConditionsIcon" />
         <p className="tonightConditionsCopy" />
       </div>
@@ -86,7 +90,7 @@ export default function TonightConditionsStrip({ origin, tonightMode = false }: 
 
   if (summary === null) {
     return (
-      <div className="tonightConditions" data-testid="tonight-conditions">
+      <div className="tonightConditions tonightConditionsRoom" data-testid="tonight-conditions">
         <CloudSun size={16} aria-hidden="true" className="tonightConditionsIcon" />
         <p className="tonightConditionsCopy">{NO_WEATHER_READING_LINE}</p>
       </div>
