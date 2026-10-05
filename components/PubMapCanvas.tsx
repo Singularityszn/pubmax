@@ -27,6 +27,11 @@ import {
 
 import type { Landmark } from "@/lib/landmarks";
 import { coffeePilotToGeoJSON, type CoffeePilotCafe } from "@/lib/coffeePilot";
+import {
+  LONDON_RESTAURANT_MIN_ZOOM,
+  londonRestaurantsToGeoJSON,
+} from "@/lib/londonRestaurants";
+import type { LondonVenue } from "@/lib/londonVenueShards";
 import { bandMemberPubs } from "@/lib/storyBandVenueProximity";
 import type { StoryBand } from "@/lib/storyBands";
 import {
@@ -266,6 +271,7 @@ type PubMapCanvasProps = {
   onVisibleVenueIdsChange?: (membership: {
     curatedVenueIds: string[];
     ukBasePubIds: string[];
+    londonRestaurantIds: string[];
   }) => void;
   onRenderedStateChange?: (state: MapRenderedState) => void;
   /**
@@ -393,6 +399,8 @@ type PubMapCanvasProps = {
   onTonightOpportunityClick?: (op: ThingsToDoOpportunity) => void;
   /** Shoreditch coffee pilot cafes. Empty unless the coffee lane owns the map. */
   coffeePilotCafes?: readonly CoffeePilotCafe[];
+  /** London restaurants to draw. Empty unless their layer is shown (lib/londonRestaurants.ts). */
+  londonRestaurants: readonly LondonVenue[];
   /**
    * Borough browse arrival (`?q=`): fit the filtered venue set once after
    * style/load so outer-London places land framed, not on the city default.
@@ -505,6 +513,15 @@ const EMPTY_DATA_PACK: GeoJSON.FeatureCollection = {
 // The coffee pilot prop's resting value, one reference so the data effect
 // does not rerun on every render of a pint map.
 const NO_COFFEE_PILOT_CAFES: readonly CoffeePilotCafe[] = [];
+
+/** Whether a London venue-layer place on this map holds the id: a pilot cafe or a restaurant. */
+function londonPlaceDrawn(
+  id: string,
+  cafes: readonly CoffeePilotCafe[],
+  restaurants: readonly LondonVenue[],
+): boolean {
+  return cafes.some((cafe) => cafe.id === id) || restaurants.some((place) => place.id === id);
+}
 // Every pub-source layer, gated together through the basemap gate on desktop
 // and the stricter source-aware visible-frame handoff on phone.
 const PUB_PIN_LAYERS = [
@@ -572,6 +589,7 @@ export default function PubMapCanvas({
   tonightOverlayVisible = false,
   onTonightOpportunityClick,
   coffeePilotCafes = NO_COFFEE_PILOT_CAFES,
+  londonRestaurants,
   fitQueryOnArrival = false,
   searchFitToken = 0,
   userLocation = null,
@@ -977,10 +995,16 @@ export default function PubMapCanvas({
   const tonightDataRef = useRef<GeoJSON.FeatureCollection>(
     opportunitiesToGeoJSON([]),
   );
-  const coffeePilotDataRef = useRef<GeoJSON.FeatureCollection>(
-    coffeePilotToGeoJSON(coffeePilotCafes),
-  );
+  const coffeePilotDataRef = useRef<GeoJSON.FeatureCollection>({
+    type: "FeatureCollection",
+    features: [],
+  });
   const coffeePilotCafesRef = useRef(coffeePilotCafes);
+  const londonRestaurantDataRef = useRef<GeoJSON.FeatureCollection>({
+    type: "FeatureCollection",
+    features: [],
+  });
+  const londonRestaurantsRef = useRef(londonRestaurants);
   // Story-band corridor (a tinted line through the anchors); reseeded after a
   // theme setStyle wipes sources, same pattern as the other data refs.
   const bandCorridorRef = useRef<GeoJSON.FeatureCollection>({
@@ -2157,6 +2181,7 @@ export default function PubMapCanvas({
         tonightData: tonightDataRef.current,
         tonightVisible: tonightOverlayVisibleRef.current,
         coffeePilotData: coffeePilotDataRef.current,
+        londonRestaurantData: londonRestaurantDataRef.current,
         selectedId: selectedIdRef.current,
         selectionMuteStore: selectionMuteStoreRef.current,
       };
@@ -2237,6 +2262,7 @@ export default function PubMapCanvas({
               tonightData: tonightDataRef.current,
               tonightVisible: tonightOverlayVisibleRef.current,
               coffeePilotData: coffeePilotDataRef.current,
+              londonRestaurantData: londonRestaurantDataRef.current,
               selectedId: selectedIdRef.current,
               selectionMuteStore: selectionMuteStoreRef.current,
             });
@@ -3599,8 +3625,19 @@ export default function PubMapCanvas({
               viewport,
             )
           : [];
-      const membershipKey =
-        `${curatedVenueIds.join("\u0000")}\u0001${ukBasePubIds.join("\u0000")}`;
+      // The restaurants drawn from the same floor their layer draws from, so
+      // the list never names a restaurant the canvas is not showing.
+      const londonRestaurantIds =
+        map.getZoom() >= LONDON_RESTAURANT_MIN_ZOOM
+          ? projectedItemIdsInViewport(
+              londonRestaurants,
+              (restaurant) => map.project([restaurant.lng, restaurant.lat]),
+              viewport,
+            )
+          : [];
+      const membershipKey = [curatedVenueIds, ukBasePubIds, londonRestaurantIds]
+        .map((ids) => ids.join("\u0000"))
+        .join("\u0001");
       if (membershipKey === lastMembershipKey) return;
       lastMembershipKey = membershipKey;
 
@@ -3608,7 +3645,7 @@ export default function PubMapCanvas({
       onUkBasePubsChange?.(
         ukBase.pubs.filter((pub) => visibleBaseIds.has(pub.id)),
       );
-      onVisibleVenueIdsChange?.({ curatedVenueIds, ukBasePubIds });
+      onVisibleVenueIdsChange?.({ curatedVenueIds, ukBasePubIds, londonRestaurantIds });
     };
     const scheduleVisibleMembership = () => {
       if (frame !== null) return;
@@ -3624,6 +3661,7 @@ export default function PubMapCanvas({
       map.off("resize", scheduleVisibleMembership);
     };
   }, [
+    londonRestaurants,
     mapReady,
     onUkBasePubsChange,
     onVisibleVenueIdsChange,
@@ -3662,6 +3700,18 @@ export default function PubMapCanvas({
       );
     });
   }, [coffeePilotCafes, mapReady, applyToMap]);
+
+  // London restaurants → source data, on the same deal as the coffee pilot.
+  useEffect(() => {
+    londonRestaurantDataRef.current = londonRestaurantsToGeoJSON(londonRestaurants);
+    londonRestaurantsRef.current = londonRestaurants;
+    if (!mapReady) return;
+    applyToMap("london-restaurants:data", (map) => {
+      (map.getSource("london-restaurants") as maplibregl.GeoJSONSource | undefined)?.setData(
+        londonRestaurantDataRef.current,
+      );
+    });
+  }, [londonRestaurants, mapReady, applyToMap]);
 
   // POIs load once (client fetch) and feed the "pois" source.
   // Non-London cities pass poisPath=null → empty layer, no 404.
@@ -3752,6 +3802,10 @@ export default function PubMapCanvas({
       // So does a Shoreditch pilot cafe: its `venue-osm-` id matches no pub.
       if (map.getLayer("coffee-pilot-selected")) {
         map.setFilter("coffee-pilot-selected", selectedFilter);
+      }
+      // And a London restaurant, whose `venue-osm-` id matches no pub either.
+      if (map.getLayer("london-restaurant-selected")) {
+        map.setFilter("london-restaurant-selected", selectedFilter);
       }
       // M1 selection spotlight — dim every non-selected pub pin; the selected
       // pin stays fully opaque. Deselect restores the plain serves-based dim.
@@ -3922,7 +3976,7 @@ export default function PubMapCanvas({
     Boolean(selectedVenueId) &&
     (venues.some((item) => item.id === selectedVenueId) ||
       isUkBaseId(selectedVenueId) ||
-      coffeePilotCafes.some((cafe) => cafe.id === selectedVenueId));
+      londonPlaceDrawn(selectedVenueId, coffeePilotCafes, londonRestaurants));
 
   // There is no ambient camera here, and that is a decision (captain, 3 Sep
   // 2026). An idle orbit used to turn the map at 0.6 degrees a second once the
@@ -3964,7 +4018,12 @@ export default function PubMapCanvas({
             const cafe = coffeePilotCafesRef.current.find(
               (item) => item.id === selectedVenueId,
             );
-            return cafe ? ([cafe.lng, cafe.lat] as [number, number]) : null;
+            if (cafe) return [cafe.lng, cafe.lat] as [number, number];
+            // So is a London restaurant.
+            const restaurant = londonRestaurantsRef.current.find(
+              (item) => item.id === selectedVenueId,
+            );
+            return restaurant ? ([restaurant.lng, restaurant.lat] as [number, number]) : null;
           })();
     if (!center) return;
     const isPhone = window.matchMedia("(max-width: 640px)").matches;
@@ -4224,6 +4283,7 @@ export default function PubMapCanvas({
       data-route-stops={route.length}
       data-venue-count={venues.length}
       data-uk-base-count={ukBase.count}
+      data-london-restaurant-count={londonRestaurants.length}
       data-uk-base-status={ukBase.status}
     >
       {/* A finger or a cursor on the map, whatever it lands on. `pointerdown`

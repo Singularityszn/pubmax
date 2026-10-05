@@ -11,8 +11,10 @@ import {
   COFFEE_PILOT_ICON_KEY,
   iconId,
   UK_BASE_ICON_KEY,
+  venuePinIconKey,
   type IconTokens,
 } from "@/lib/mapIcons";
+import { LONDON_RESTAURANT_MIN_ZOOM } from "@/lib/londonRestaurants";
 import { USER_LOCATION_ACCURACY_RADIUS_PX } from "@/lib/mapReaderPosition";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import {
@@ -270,6 +272,8 @@ export type SceneCtx = {
   tonightVisible: boolean;
   /** Shoreditch coffee pilot cafes, empty unless the coffee lane owns the map — see buildCoffeePilot. */
   coffeePilotData: GeoJSON.FeatureCollection;
+  /** London restaurants, empty unless their layer is shown — see buildLondonRestaurants. */
+  londonRestaurantData: GeoJSON.FeatureCollection;
   selectedId: string;
   /** M2 — caller-owned store of pre-mute paint originals (layerId::prop → value)
    *  for the POI-at-initiation selection mute. Survives across builds via a ref;
@@ -950,6 +954,63 @@ export function buildUkBase(ctx: SceneCtx) {
 }
 
 /**
+ * London restaurants that serve alcohol (lib/londonRestaurants.ts). The source
+ * is empty unless their layer is shown, which needs London, restaurants on in
+ * the kind filter and no drink lane or view other than food owning the map.
+ *
+ * A restaurant wears the curated restaurant's own fork, in the unpriced fill,
+ * at the base layer's size and opacity: it is the same kind of place as a
+ * curated restaurant pin, and as unpriced as a base pub. It takes the deal
+ * every symbol on this map takes. The icon is in the collision index, so where
+ * two restaurants would stack the second is not placed. It is added BEFORE the
+ * base pubs, so a base pub, and every curated pin above both, wins the
+ * collision and a restaurant never hides a pub.
+ */
+export const LONDON_RESTAURANT_ICON = iconId("drink", venuePinIconKey("fork", 3));
+
+export function buildLondonRestaurants(ctx: SceneCtx) {
+  const { map, tokens, dark, addLayerOnce, londonRestaurantData, selectedId } = ctx;
+  if (!map.getSource("london-restaurants")) {
+    // The restaurant's position and name are OpenStreetMap's (lib/londonVenueShards.ts).
+    map.addSource("london-restaurants", {
+      type: "geojson",
+      data: londonRestaurantData,
+      attribution: OSM_ATTRIBUTION,
+    });
+  }
+  addLayerOnce({
+    id: "london-restaurant-selected",
+    type: "circle",
+    source: "london-restaurants",
+    minzoom: LONDON_RESTAURANT_MIN_ZOOM,
+    filter: ["==", ["get", "id"], selectedId],
+    paint: {
+      "circle-color": "rgba(0,0,0,0)",
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 8, 17, 13],
+      "circle-stroke-color": tokens.brass,
+      "circle-stroke-width": 2,
+      "circle-stroke-opacity": dark ? 0.85 : 0.8,
+    },
+  });
+  addLayerOnce({
+    id: "london-restaurant-point",
+    type: "symbol",
+    source: "london-restaurants",
+    minzoom: LONDON_RESTAURANT_MIN_ZOOM,
+    layout: {
+      "icon-image": LONDON_RESTAURANT_ICON,
+      "icon-size": UK_BASE_ICON_SIZE_EXPR,
+      "icon-allow-overlap": false,
+      "icon-ignore-placement": false,
+      "icon-padding": 3,
+    },
+    paint: {
+      "icon-opacity": UK_BASE_ICON_OPACITY,
+    },
+  });
+}
+
+/**
  * The Shoreditch coffee pilot's cafes (lib/coffeePilot.ts). The source is empty
  * unless the coffee lane owns the map, so a pint reader's map is untouched.
  *
@@ -1610,6 +1671,7 @@ export function assembleSceneCritical(ctx: SceneCtx) {
   registerSceneIcons(ctx);
   // BEFORE the pub layers on purpose — see buildUserLocation.
   buildUserLocation(ctx);
+  buildLondonRestaurants(ctx);
   buildUkBase(ctx);
   buildLandmarks(ctx);
   buildPois(ctx);

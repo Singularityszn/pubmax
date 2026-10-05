@@ -1,6 +1,7 @@
 import { formatGbp } from "@/lib/formatGbp";
 import { buildLogNearbyCandidates, type LogNearbyCandidate } from "@/lib/mapLogIntent";
 import { haversineKm } from "@/lib/haversine";
+import type { LondonVenue } from "@/lib/londonVenueShards";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import type { Venue } from "@/lib/venues";
 import {
@@ -313,5 +314,85 @@ export function buildUkBasePubListModel(
     total: pubs.length,
     shown: bounded.length,
     truncated: pubs.length > bounded.length,
+  };
+}
+
+type LondonRestaurantListRow = {
+  id: string;
+  name: string;
+  priceLabel: "Restaurant · no listed price";
+  distanceKm?: number;
+};
+
+/** The DOM parallel to the London restaurant pins (lib/londonRestaurants.ts). */
+export type LondonRestaurantListModel = {
+  rows: LondonRestaurantListRow[];
+  total: number;
+  shown: number;
+  truncated: boolean;
+};
+
+/**
+ * The restaurants the canvas has in view, nearest the viewport centre first,
+ * on the deal `buildUkBasePubListModel` takes: a real row for every restaurant
+ * pin, so a keyboard or screen-reader user can reach each one. A restaurant
+ * carries no price, so the row says so rather than borrowing one.
+ */
+export function buildLondonRestaurantListModel(
+  restaurants: readonly LondonVenue[],
+  viewportCenter: [number, number] | null,
+  limit: number = restaurants.length,
+): LondonRestaurantListModel {
+  const origin =
+    viewportCenter &&
+    Number.isFinite(viewportCenter[0]) &&
+    Number.isFinite(viewportCenter[1])
+      ? viewportCenter
+      : null;
+  const rows = restaurants.map<LondonRestaurantListRow>((restaurant) => ({
+    id: restaurant.id,
+    name: restaurant.name,
+    priceLabel: "Restaurant · no listed price",
+    ...(origin
+      ? { distanceKm: haversineKm(origin, [restaurant.lng, restaurant.lat]) }
+      : {}),
+  }));
+  if (origin) {
+    rows.sort(
+      (left, right) =>
+        (left.distanceKm ?? Number.POSITIVE_INFINITY) -
+          (right.distanceKm ?? Number.POSITIVE_INFINITY) ||
+        left.name.localeCompare(right.name) ||
+        left.id.localeCompare(right.id),
+    );
+  }
+  const bounded = rows.slice(0, Math.max(0, Math.floor(limit)));
+  return {
+    rows: bounded,
+    total: restaurants.length,
+    shown: bounded.length,
+    truncated: restaurants.length > bounded.length,
+  };
+}
+
+/**
+ * One answer for List view's groups (priced venues, base pubs, restaurants):
+ * the counts the header prints, and the first row, which takes focus when the
+ * list opens. Row ids are unique across groups, so the first row of the first
+ * non-empty group is the one.
+ */
+export function summarizeListGroups(
+  groups: readonly {
+    rows: readonly { id: string }[];
+    total: number;
+    shown: number;
+    truncated: boolean;
+  }[],
+): { total: number; shown: number; truncated: boolean; firstRowId: string | undefined } {
+  return {
+    total: groups.reduce((sum, group) => sum + group.total, 0),
+    shown: groups.reduce((sum, group) => sum + group.shown, 0),
+    truncated: groups.some((group) => group.truncated),
+    firstRowId: groups.find((group) => group.rows.length > 0)?.rows[0]?.id,
   };
 }

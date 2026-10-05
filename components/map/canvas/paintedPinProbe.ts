@@ -23,6 +23,10 @@ import { lngLatOf } from "@/lib/geo";
 //   3. nothing in the app chrome covers it, so the map canvas - not a topbar
 //      button - receives the tap.
 const PAINTED_MAP_PROBE_KEY = "__pubmaxPaintedMapTapPoints";
+// The same answer for the London venue-layer places (a pilot cafe, a
+// restaurant). They are not pubs, so they never join the pub answer above,
+// which every map spec reads as "a tap here opens a pub".
+const PAINTED_LONDON_PLACE_PROBE_KEY = "__pubmaxPaintedLondonPlaceTapPoints";
 
 /** A pub mark the map is painting, in viewport coordinates a tap can use. */
 export type PaintedMapTapPoint = {
@@ -39,6 +43,7 @@ export type PaintedMapTapPoint = {
 
 type ProbeWindow = Window & {
   [PAINTED_MAP_PROBE_KEY]?: () => PaintedMapTapPoint[];
+  [PAINTED_LONDON_PLACE_PROBE_KEY]?: () => PaintedMapTapPoint[];
 };
 
 // The click router treats a pub hit as the winner before every other layer, so
@@ -49,6 +54,7 @@ const PIN_LAYERS = [
   "uk-base-selected",
   "uk-base-point",
 ] as const;
+const LONDON_PLACE_LAYERS = ["coffee-pilot-point", "london-restaurant-point"] as const;
 const CLUSTER_LAYER = "clusters";
 const PIN_PROBE_OVERVIEW_ZOOM = 12;
 
@@ -85,9 +91,13 @@ function markId(
   return null;
 }
 
-export function paintedMapTapPoints(map: maplibregl.Map): PaintedMapTapPoint[] {
-  const pinLayers = PIN_LAYERS.filter((id) => Boolean(map.getLayer(id)));
-  const clusterLayers = [CLUSTER_LAYER].filter((id) => Boolean(map.getLayer(id)));
+export function paintedMapTapPoints(
+  map: maplibregl.Map,
+  pinLayerIds: readonly string[] = PIN_LAYERS,
+  clusterLayerIds: readonly string[] = [CLUSTER_LAYER],
+): PaintedMapTapPoint[] {
+  const pinLayers = pinLayerIds.filter((id) => Boolean(map.getLayer(id)));
+  const clusterLayers = clusterLayerIds.filter((id) => Boolean(map.getLayer(id)));
 
   const container = map.getContainer();
   const rect = container.getBoundingClientRect();
@@ -158,8 +168,14 @@ export function paintedMapTapPoints(map: maplibregl.Map): PaintedMapTapPoint[] {
   return points;
 }
 
+/** The painted London venue-layer places, on the deal the pub pins take. */
+export function paintedLondonPlaceTapPoints(map: maplibregl.Map): PaintedMapTapPoint[] {
+  return paintedMapTapPoints(map, LONDON_PLACE_LAYERS, []);
+}
+
 /**
- * Publishes {@link paintedMapTapPoints} for the browser suite. Unconditional,
+ * Publishes {@link paintedMapTapPoints} and {@link paintedLondonPlaceTapPoints}
+ * for the browser suite. Unconditional,
  * like the `pubmax:pin-reveal` event beside it: the e2e run exercises a
  * production build, so a development-only hook would not exist where the test
  * needs it. Returns its own removal.
@@ -167,7 +183,9 @@ export function paintedMapTapPoints(map: maplibregl.Map): PaintedMapTapPoint[] {
 export function installPaintedPinProbe(map: maplibregl.Map): () => void {
   const probeWindow = window as ProbeWindow;
   probeWindow[PAINTED_MAP_PROBE_KEY] = () => paintedMapTapPoints(map);
+  probeWindow[PAINTED_LONDON_PLACE_PROBE_KEY] = () => paintedLondonPlaceTapPoints(map);
   return () => {
     delete probeWindow[PAINTED_MAP_PROBE_KEY];
+    delete probeWindow[PAINTED_LONDON_PLACE_PROBE_KEY];
   };
 }
