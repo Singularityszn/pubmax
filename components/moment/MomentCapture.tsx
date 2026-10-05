@@ -169,6 +169,7 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
   const captionField = useRef<HTMLTextAreaElement | null>(null);
   const { user, loading: authLoading } = useAuth();
   const viewerSession = useViewerSession();
+  const hideAccountDraft = viewerSession.unresolved && ownerKey !== GUEST_OWNER;
   const isPhone = useSyncExternalStore(
     subscribeMobileViewport,
     getMobileViewportSnapshot,
@@ -621,7 +622,7 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
         primary={
           <button
             type="button"
-            disabled={(viewerSession.unresolved && ownerKey !== GUEST_OWNER) || saveState === "saving"}
+            disabled={hideAccountDraft || saveState === "saving"}
             onClick={() => {
               if (canSave) composerForm.current?.requestSubmit();
               else captionField.current?.focus();
@@ -658,7 +659,7 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
         <form
           ref={composerForm}
           className="momentComposer"
-          hidden={viewerSession.unresolved && ownerKey !== GUEST_OWNER}
+          hidden={hideAccountDraft}
           onSubmit={saveMoment}
           aria-label="Private Moment composer"
         >
@@ -795,7 +796,7 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
           )}
         </form>
 
-        {editingFile && !viewerSession.unresolved ? (
+        {editingFile && !hideAccountDraft ? (
           <MomentImageEditorBoundary onError={() => handlePhotoEditorError(editorSession)}>
             <MomentImageEditor
               file={editingFile}
@@ -811,7 +812,7 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
           </MomentImageEditorBoundary>
         ) : null}
 
-        {savedMemoryId && !viewerSession.unresolved ? (
+        {savedMemoryId && !hideAccountDraft ? (
           <section className="momentSaved" aria-labelledby="moment-saved-title">
             <h2 id="moment-saved-title">Saved. Still yours.</h2>
             <p>Add more Moments, choose which to include, and shape a Story when you are ready.</p>
