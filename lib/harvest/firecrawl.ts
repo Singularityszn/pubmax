@@ -91,6 +91,8 @@ export function createHarvestBudget(limit: number): HarvestBudget {
 type FirecrawlPage = {
   /** The URL asked for (provenance is the asked-for URL, not a redirect guess). */
   url: string;
+  /** Where Firecrawl landed after redirects, from its metadata, or null when it does not say. */
+  landedUrl: string | null;
   markdown: string;
   statusCode: number | null;
   /** Firecrawl's own report of whether this body came from its index. */
@@ -189,9 +191,10 @@ function readPage(url: string, body: unknown): Attempt<FirecrawlPage> {
   }
   const metadata = (envelope.data?.metadata ?? {}) as Record<string, unknown>;
   const statusCode = typeof metadata.statusCode === "number" ? metadata.statusCode : null;
+  const landedUrl = typeof metadata.url === "string" && metadata.url.trim() ? metadata.url.trim() : null;
   const cacheState = typeof metadata.cacheState === "string" ? metadata.cacheState : null;
   const cachedAt = typeof metadata.cachedAt === "string" ? metadata.cachedAt : null;
-  return { kind: "value", value: { url, markdown, statusCode, cacheState, cachedAt } };
+  return { kind: "value", value: { url, landedUrl, markdown, statusCode, cacheState, cachedAt } };
 }
 
 function readSearch(body: unknown): Attempt<FirecrawlSearchHit[]> {

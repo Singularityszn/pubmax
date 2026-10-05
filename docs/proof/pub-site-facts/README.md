@@ -13,9 +13,14 @@ generator and grounding judge.
 | No website | 787 thin pubs | Firecrawl search by name and postcode, or street when no postcode; kept only when the host carries a distinctive word of the name and the page states that postcode or street |
 | Firecrawl-first re-reads | 197 pubs without copy, then the 60 thinnest plain reads | Firecrawl before the plain read, PDFs excluded |
 
-478 page texts were cached. Robots, the source policy, the chain list and the
-landing fence apply to every read, exactly as in the plain harvest. 1,399 of the
-account's 1,400 Firecrawl credits were used; no call was sent past that.
+478 page texts were cached. Robots, the source policy and the chain list
+applied to every read. In this run the landing fence applied only to plain
+reads: a Firecrawl read was checked against the URL asked for, not the URL
+Firecrawl landed on. The harvest now fences the Firecrawl landing too, and a
+site that only the price dataset gives must state the pub's postcode or street,
+as a located site must. The committed rows were read before these two checks
+and are not yet rebuilt under them. 1,399 of the account's 1,400 Firecrawl credits were
+used; no call was sent past that.
 
 ## Outcome
 
@@ -33,10 +38,12 @@ Four earlier evidence rows no longer pass the gate. Three state chain
 boilerplate that new readers on the same chain site also state ("dart boards"
 and "Dartboard" on Craft Union and Greene King pages, "prepare and cook food" on
 J D Wetherspoon). The fourth, The Hat and Tun, is already refused by the gate on
-`origin/main`; its row was stale. Hours and dog policy are not extracted: the
-amenity vocabulary and the copy judge do not hold them. The cached page text
-stays under the ignored `data-harvest/pub-website-amenities/pages` for that
-follow-up.
+`origin/main`; its row was stale.
+
+Hours and dog policy are not extracted in this change: the amenity vocabulary
+and the copy judge do not hold them. They ship in the follow-up task
+`pubmax-dogs-hours-from-cache`, built from the cached page texts under the
+ignored `data-harvest/pub-website-amenities/pages`.
 
 ## Proof
 

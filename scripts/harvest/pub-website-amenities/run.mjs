@@ -14,7 +14,8 @@
 // insufficient stored facts, from the website OSM or the price dataset gives
 // them. --locate asks Firecrawl search for the own site of such a pub that has
 // none, and keeps a hit only when its host carries a distinctive word of the
-// pub's name and the page states the pub's postcode, or its street when the
+// pub's name. A located site, and a site only the price dataset gives, counts
+// only when the page states the pub's postcode, or its street when the
 // dataset address gives no postcode. With FIRECRAWL_API_KEY
 // set, a page the plain read could not get (timeout, failed connection, 429,
 // 5xx, or almost no text) is read once more through Firecrawl, after the same
@@ -35,8 +36,8 @@
 //
 // A page or quote proven chain-wide stays in
 // data/amenities/london_pub_website_chain_pages.json, with every pub that has
-// read each page, whatever came of the read, and every pub that has stated
-// each quote. The harvest reads it before fetching and skips a pub whose page
+// read each page, whatever came of the read unless the page did not state the
+// pub's address, and every pub that has stated each quote. The harvest reads it before fetching and skips a pub whose page
 // is on it, every stamp goes through it, and a harvest adds its readers and
 // what they prove. A pub that kept no amenity, failed, or read a chain-wide
 // page never reaches the evidence file, so without the list a later run that
@@ -71,8 +72,7 @@ import {
   locatedOwnSite,
   siteOfAnotherPub,
   withoutThinnerRereads,
-  pageStatesPostcode,
-  pageStatesStreet,
+  pageStatesAddress,
   postcodeOf,
   streetOf,
   liftSiteStamps,
@@ -400,7 +400,8 @@ function readCounts(work, byOsmId) {
  * holds no copy for follows: thin pubs whose site gave evidence, then pubs
  * whose drafts failed review. Each takes the website OSM gives it, else the
  * one the price dataset gives it, else none, and the postcode or street its
- * dataset address states. A pub with a website comes first.
+ * dataset address states. A site OSM does not give it must state that address.
+ * A pub with a website comes first.
  */
 function copySkippedPubs(dataset, anchors, londonSites, { unwritten = false } = {}) {
   const copy = JSON.parse(readFileSync(COPY_PATH, "utf8"));
@@ -433,6 +434,7 @@ function copySkippedPubs(dataset, anchors, londonSites, { unwritten = false } = 
         lat: anchor.lat,
         lng: anchor.lng,
         website: site?.website ?? listed ?? null,
+        needsAddress: !site,
         venueId: anchor.venueId,
         postcode: rows.map((row) => postcodeOf(String(row.address ?? ""))).find(Boolean) ?? null,
         street: rows.map((row) => streetOf(String(row.address ?? ""))).find(Boolean) ?? null,
@@ -640,10 +642,12 @@ async function main() {
     await paceFirecrawl();
     const scraped = await firecrawl.scrape(url, { onlyMainContent: false });
     if (!scraped.ok) return { ok: false, reason: `firecrawl-${scraped.failure.reason}` };
+    const landing = harvestRedirectLanding(url, scraped.page.landedUrl);
+    if (landing.outcome === "refused") return { ok: false, reason: "redirect-refused" };
     const status = scraped.page.statusCode;
     if (status !== null && status >= 400) return { ok: false, reason: `http-${status}` };
     const text = scraped.page.markdown.replace(/\s+/g, " ").trim().slice(0, MAX_BYTES);
-    return { ok: true, url, html: scraped.page.markdown, text, reader: "firecrawl" };
+    return { ok: true, url: landing.url, html: scraped.page.markdown, text, reader: "firecrawl" };
   }
 
   async function readPage(url) {
@@ -681,7 +685,7 @@ async function main() {
   const previousRows = readEvidence()?.rows ?? [];
   const otherReads = () => [
     ...previousRows,
-    ...Object.entries(byOsmId).map(([osmId, entry]) => ({ osmId, sourceUrl: entry.sourceUrl })),
+    ...Object.entries(byOsmId).map(([osmId, entry]) => ({ osmId, sourceUrl: entry.sourceUrl, status: entry.status })),
   ];
 
   const pagePath = (key) => path.join(PAGES_DIR, `${key.replace(/[^a-z0-9-]/gi, "_")}.json`);
@@ -700,7 +704,6 @@ async function main() {
     if (copySkipped && siteOfAnotherPub(home.url, pub.osmId, otherReads())) return { status: "site-of-another-pub" };
     const landedPermission = await robots(home.url);
     if (!landedPermission.allowed) return { status: landedPermission.reason ?? "robots-denied" };
-    if (!pub.website && !(pub.postcode ? pageStatesPostcode(home.text, pub.postcode) : pageStatesStreet(home.text, pub.street))) return { status: "located-site-unconfirmed", sourceUrl: home.url };
     let text = home.text;
     const extraLinks = sameHostLinks(home.html, home.url);
     for (const link of extraLinks.slice(0, 1)) {
@@ -726,7 +729,8 @@ async function main() {
       return;
     }
     let read;
-    if (byOsmId[pub.osmId]?.status === "read") {
+    const cached = byOsmId[pub.osmId]?.status === "read";
+    if (cached) {
       read = { ...byOsmId[pub.osmId], text: JSON.parse(readFileSync(pagePath(pub.osmId), "utf8")).text };
     } else {
       read = await readSite(pub);
@@ -735,6 +739,12 @@ async function main() {
         byOsmId[pub.osmId] = { status: read.status, venueId: pub.venueId, ...(read.sourceUrl ? { sourceUrl: read.sourceUrl } : {}) };
         return;
       }
+    }
+    if (pub.needsAddress && !pageStatesAddress(read.text, pub)) {
+      byOsmId[pub.osmId] = { status: pub.website ? "listed-site-unconfirmed" : "located-site-unconfirmed", venueId: pub.venueId, sourceUrl: read.sourceUrl };
+      return;
+    }
+    if (!cached) {
       mkdirSync(PAGES_DIR, { recursive: true });
       writeFileSync(pagePath(pub.osmId), JSON.stringify({ url: read.sourceUrl, reader: read.reader, readAt: new Date().toISOString(), text: read.text }));
       byOsmId[pub.osmId] = { status: "read", venueId: pub.venueId, name: pub.name, sourceUrl: read.sourceUrl, reader: read.reader, located: read.located };
