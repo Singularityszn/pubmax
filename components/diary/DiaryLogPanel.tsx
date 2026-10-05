@@ -7,6 +7,7 @@
 import { useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useViewerSession } from "@/components/auth/useViewerSession";
 import {
   useAccountScopedDraft,
   useContributionGate,
@@ -50,6 +51,7 @@ export default function DiaryLogPanel({ venueId, venueName }: DiaryLogPanelProps
 function VenueDiaryLog({ venueId, venueName }: DiaryLogPanelProps) {
   const latest = latestDiaryVisitedOn();
   const { user, session, rejectedContributionAuth } = useAuth();
+  const viewerSession = useViewerSession();
   const { requestContribution, contributionGateDialog } = useContributionGate();
   const [openAuth, setOpenAuth] = useState<AccountAuthSnapshot | null>(null);
   const [draft, setDraft, clearDraft] = useAccountScopedDraft<DiaryDraft>(
@@ -143,7 +145,11 @@ function VenueDiaryLog({ venueId, venueName }: DiaryLogPanelProps) {
               });
             }}
           >
-            {composerAuth ? "Log this visit" : "Sign in to log a visit"}
+            {/* A null user is not sign-out: the sign-in label waits for the
+                live session to answer (components/auth/useViewerSession.ts). */}
+            {composerAuth || viewerSession.unresolved
+              ? "Log this visit"
+              : "Sign in to log a visit"}
           </button>
         )}
       </div>
