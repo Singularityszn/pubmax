@@ -18,6 +18,7 @@ import {
   matchPubToVenue,
   mergeChainDenylists,
   mergeHarvestEvidence,
+  pageStatesAddress,
   pageStatesPostcode,
   pageStatesStreet,
   parseChainDenylist,
@@ -535,6 +536,26 @@ describe("chain denylist", () => {
     expect(freshOnly.rows.map((row) => row.osmId)).toEqual(["b", "e"]);
   });
 
+  it("does not count a read of a page that did not state the pub's address as a reader of it", () => {
+    const own: HarvestRead = {
+      status: "ok",
+      name: "The Two Brewers",
+      venueId: "venue-clapham",
+      sourceUrl: "https://www.the2brewers.com/london",
+      verifiedAt: "2026-10-05",
+      amenities: { liveMusic: "live music every Friday" },
+    };
+    const fresh = new Map<string, HarvestRead>([["node/1", own]]);
+    const checkpoint: Record<string, HarvestRead> = {
+      "node/1": own,
+      "venue/islington": { status: "listed-site-unconfirmed", venueId: "venue-islington", sourceUrl: "https://www.the2brewers.com/london" },
+      "venue/other": { status: "located-site-unconfirmed", venueId: "venue-other", sourceUrl: "https://www.the2brewers.com/" },
+    };
+    const merged = mergeHarvestEvidence({ previousRows: [], fresh, checkpoint, knownChainPages: EMPTY_CHAIN_DENYLIST });
+    expect(merged.chainPages.pages).toEqual([]);
+    expect(merged.rows.map((row) => row.osmId)).toEqual(["node/1"]);
+  });
+
   it("drops an extra page whose link is allowed but which lands on a proven chain page", async () => {
     const chainPages = { ...EMPTY_CHAIN_DENYLIST, pages: ["chain.example/food-drink"] };
     const fetched: string[] = [];
@@ -827,6 +848,14 @@ describe("street locators", () => {
     expect(pageStatesStreet("51 Bethnal Green Rd, E2", ["bethnal", "green", "road"])).toBe(true);
     expect(pageStatesStreet("Jameson Street", ["james", "street"])).toBe(false);
   });
+
+  it("confirms an address by its postcode when it has one, else its street, and never with neither", () => {
+    const clapham = "The Two Brewers, 114 Clapham High Street, London SW4 7UJ";
+    expect(pageStatesAddress(clapham, { postcode: "EC1Y 8JJ", street: ["whitecross", "street"] })).toBe(false);
+    expect(pageStatesAddress(clapham, { postcode: "SW4 7UJ", street: null })).toBe(true);
+    expect(pageStatesAddress(clapham, { postcode: null, street: ["clapham", "high", "street"] })).toBe(true);
+    expect(pageStatesAddress(clapham, { postcode: null, street: null })).toBe(false);
+  });
 });
 
 describe("scoped harvest guards", () => {
@@ -842,6 +871,16 @@ describe("scoped harvest guards", () => {
     expect(siteOfAnotherPub("https://www.chain.example/pubs/lion", "venue/a", reads)).toBe(false);
     expect(siteOfAnotherPub("https://www.theguardhouse.example/", "node/1", reads)).toBe(false);
     expect(siteOfAnotherPub("https://new.example/", "venue/a", reads)).toBe(false);
+  });
+
+  it("gives a page only to a pub whose read of it was kept", () => {
+    const located = { osmId: "venue/a", sourceUrl: "https://thecrownandanchor.example/" };
+    for (const status of ["located-site-unconfirmed", "listed-site-unconfirmed", "chain-page", "empty-page"]) {
+      expect(siteOfAnotherPub("https://thecrownandanchor.example/", "node/9", [{ ...located, status }])).toBe(false);
+    }
+    for (const status of ["ok", "read", undefined]) {
+      expect(siteOfAnotherPub("https://thecrownandanchor.example/", "node/9", [{ ...located, status }])).toBe(true);
+    }
   });
 
   it("keeps earlier evidence unless a re-read keeps more amenities", () => {

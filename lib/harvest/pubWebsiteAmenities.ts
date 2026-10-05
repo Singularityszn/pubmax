@@ -441,6 +441,8 @@ export type HarvestEvidenceRow = PubEvidenceRow & {
   verifiedAt?: string;
 };
 
+const UNCONFIRMED_SITE_STATUSES = new Set(["located-site-unconfirmed", "listed-site-unconfirmed"]);
+
 /**
  * The committed evidence with this run's pages laid over it, and the chain
  * list with every reader and what they prove. `fresh` is what this process
@@ -448,7 +450,8 @@ export type HarvestEvidenceRow = PubEvidenceRow & {
  * those of a run that stopped before it wrote the chain list, so a resumed
  * harvest still counts the pubs it will not read again. Every pub that read a
  * page is a reader, whatever came of the read, and its quotes count before
- * the chain rule drops any of them.
+ * the chain rule drops any of them. A page that did not state the pub's
+ * address was not that pub's, so its read proves nothing.
  */
 export function mergeHarvestEvidence(input: {
   previousRows: readonly HarvestEvidenceRow[];
@@ -475,7 +478,10 @@ export function mergeHarvestEvidence(input: {
     });
   }
   const reads = [...new Map([...Object.entries(input.checkpoint), ...input.fresh]).entries()].flatMap(
-    ([osmId, entry]) => (entry.sourceUrl ? [{ osmId, sourceUrl: entry.sourceUrl, amenities: entry.amenities ?? {} }] : []),
+    ([osmId, entry]) =>
+      entry.sourceUrl && !UNCONFIRMED_SITE_STATUSES.has(entry.status ?? "")
+        ? [{ osmId, sourceUrl: entry.sourceUrl, amenities: entry.amenities ?? {} }]
+        : [],
   );
   const chainPages = mergeChainDenylists(input.knownChainPages, provenChainEvidence([...candidates, ...reads]));
   const rows = pubSpecificEvidence(candidates, chainPages).sort((a, b) => a.osmId.localeCompare(b.osmId));
@@ -737,22 +743,38 @@ export function pageStatesStreet(text: string, street: readonly string[]): boole
 }
 
 /**
+ * Whether page text states this address: its postcode when it has one, else
+ * its street. An address with neither is never stated.
+ */
+export function pageStatesAddress(
+  text: string,
+  address: { postcode: string | null; street: readonly string[] | null },
+): boolean {
+  if (address.postcode) return pageStatesPostcode(text, address.postcode);
+  return address.street !== null && pageStatesStreet(text, address.street);
+}
+
+/**
  * Whether this page belongs to another pub. The price dataset can hold one pub
  * twice under two spellings, and a read by the duplicate would prove the page,
  * or a quote on it, chain-wide and withdraw the first pub's evidence. A page
  * another pub has read is that pub's, and so is any page on a host exactly one
  * other pub has read. A host two or more pubs read is a chain's, whose other
- * pages the chain list already judges.
+ * pages the chain list already judges. Only a read the pub kept owns a page: an
+ * evidence row, which has no status, or a checkpoint read that is "ok" or
+ * "read". A page that failed, proved chain-wide or did not state the pub's
+ * address is no pub's.
  */
 export function siteOfAnotherPub(
   url: string,
   osmId: string,
-  reads: readonly { osmId: string; sourceUrl?: string }[],
+  reads: readonly { osmId: string; sourceUrl?: string; status?: string }[],
 ): boolean {
   const target = sourcePage(url);
   if (!target) return false;
+  const owns = (status: string | undefined) => status === undefined || status === "ok" || status === "read";
   const others = reads.flatMap((read) => {
-    const source = read.osmId !== osmId && read.sourceUrl !== undefined ? sourcePage(read.sourceUrl) : null;
+    const source = read.osmId !== osmId && read.sourceUrl !== undefined && owns(read.status) ? sourcePage(read.sourceUrl) : null;
     return source ? [{ osmId: read.osmId, ...source }] : [];
   });
   if (others.some((read) => read.page === target.page)) return true;
