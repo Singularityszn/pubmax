@@ -17,10 +17,15 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
+import postcss from "postcss";
 import { describe, expect, it, vi } from "vitest";
 
 const localFontCalls = vi.hoisted(
-  () => [] as Array<{ variable?: string; src: Array<{ weight?: string }> }>,
+  () => [] as Array<{
+    variable?: string;
+    src: Array<{ weight?: string }>;
+    declarations?: Array<{ prop: string; value: string }>;
+  }>,
 );
 
 vi.mock("server-only", () => ({}));
@@ -86,6 +91,24 @@ describe("the mono face carries only weights something asks for", () => {
   it("declares 400 and 700 and nothing between", () => {
     const mono = localFontCalls.find((options) => options.variable === "--font-data");
     expect(mono?.src.map((face) => face.weight)).toEqual(["400", "700"]);
+  });
+
+  it("names its faces the family the --font-data token asks for", () => {
+    // next/font/local names a face after its const unless told otherwise, and
+    // the :root token wins the cascade over next/font's variable class. A name
+    // the token does not ask for leaves every numeral in the system monospace.
+    const root = postcss.parse(readFileSync(join(REPO_ROOT, "app/globals.css"), "utf8"));
+    let token = "";
+    root.walkRules(":root", (rule) => {
+      rule.walkDecls("--font-data", (decl) => {
+        token = decl.value;
+      });
+    });
+    const requested = token.split(",")[0].trim().replace(/^["']|["']$/g, "");
+    const mono = localFontCalls.find((options) => options.variable === "--font-data");
+    const family = mono?.declarations?.find((decl) => decl.prop === "font-family")?.value;
+    expect(requested).not.toBe("");
+    expect(family).toBe(requested);
   });
 
   it("has no shipped rule that could resolve to 500", () => {

@@ -113,6 +113,11 @@ const dataMono = localFont({
     { path: "./_fonts/JetBrainsMono-latin-wght-400-700.woff2", weight: "400", style: "normal" },
     { path: "./_fonts/JetBrainsMono-latin-wght-400-700.woff2", weight: "700", style: "normal" },
   ],
+  // next/font/local names its faces after this const ("dataMono") unless told
+  // otherwise, but the :root token in app/globals.css asks for "JetBrains Mono",
+  // the family next/font/google declared. Unnamed, no face matched and every
+  // numeral painted in the system monospace.
+  declarations: [{ prop: "font-family", value: "JetBrains Mono" }],
   variable: "--font-data",
   display: "swap",
   // NOT preloaded, unlike the display and body faces. next/font preloads every
