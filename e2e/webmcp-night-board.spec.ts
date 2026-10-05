@@ -64,9 +64,17 @@ test("person and agent share evidence, route revisions, and safe swaps", async (
   await page.goto("/webmcp");
   await expect(page.getByRole("status")).toContainText("Agent tools ready");
 
-  await invokeTool(page, "search_pubmaxx_venues", { query: "Falcon", limit: 4 });
+  const searched = page.waitForResponse(
+    (response) => new URL(response.url()).pathname === "/api/venue-search",
+  );
+  const limit = 4;
+  await invokeTool(page, "search_pubmaxx_venues", { query: "Falcon", limit });
+  const search = await (await searched).json() as { venues: { name: string }[] };
   await invokeTool(page, "read_london_night_context", {});
-  await expect(page.getByText("The Falcon")).toBeVisible();
+  expect(search.venues.length).toBeGreaterThan(0);
+  await expect(page.locator(".webmcpEvidenceList strong")).toHaveText(
+    search.venues.slice(0, limit).map((venue) => venue.name),
+  );
   await expect(page.getByText("Late comedy")).toBeVisible();
 
   const generated = page.waitForResponse(
@@ -77,10 +85,9 @@ test("person and agent share evidence, route revisions, and safe swaps", async (
     expectedRevision: 0,
   });
   const route = await (await generated).json() as { stops: GeneratedStop[] };
+  const stopHeadings = page.locator(".webmcpStops > li h3");
   await expect(page.getByText("Revision 1")).toBeVisible();
-  for (const stop of route.stops) {
-    await expect(page.getByRole("heading", { name: stop.venueName, exact: true })).toBeVisible();
-  }
+  await expect(stopHeadings).toHaveText(route.stops.map((stop) => stop.venueName));
 
   // The route's own alternatives drive the swap, so it uses real pack ids.
   const usedVenueIds = new Set(route.stops.map((stop) => stop.venueId));
@@ -93,8 +100,8 @@ test("person and agent share evidence, route revisions, and safe swaps", async (
   const swap = await invokeTool(page, "swap_crawl_stop", { position, expectedRevision: 1 });
   expect(swap).toMatchObject({ status: "ok", revision: 2, routeStale: true });
   await expect(page.getByText("Revision 2")).toBeVisible();
-  await expect(page.getByRole("heading", { name: replacement.venueName, exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: swappedStop.venueName, exact: true })).toHaveCount(0);
+  await expect(stopHeadings).toHaveText(route.stops.map((stop, index) =>
+    index === swappedIndex ? replacement.venueName : stop.venueName));
   await expect(page.getByText("Needs refresh")).toBeVisible();
 
   const fits = await page.locator(".webmcpShell").evaluate(
