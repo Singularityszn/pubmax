@@ -49,8 +49,8 @@ const eslint = new ESLint({ cwd: process.cwd() });
 
 /** The rule ids the repository lint config reports for `code` saved at `file`. */
 async function lintRules(file: string, code: string): Promise<string[]> {
-  const [result] = await eslint.lintText(code, { filePath: path.resolve(file) });
-  return result.messages.map((message) => message.ruleId ?? "fatal");
+  const results = await eslint.lintText(code, { filePath: path.resolve(file) });
+  return results.flatMap((result) => result.messages.map((message) => message.ruleId ?? "fatal"));
 }
 
 const COOKIE_PAGE = `import { cookies } from "next/headers";
