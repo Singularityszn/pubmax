@@ -38,8 +38,8 @@ function validAdminSession(value: string, token: string): boolean {
   const issuedAt = Number(match[2]);
   const now = Math.floor(Date.now() / 1000);
   if (issuedAt > now || now - issuedAt >= ADMIN_SESSION_MAX_AGE_SEC) return false;
-  const signature = createHmac("sha256", token).update(match[1]).digest("hex");
-  return safeTokenEqual(match[3], signature);
+  const signature = createHmac("sha256", token).update(match[1]!).digest("hex");
+  return safeTokenEqual(match[3]!, signature);
 }
 
 // The two credentials are read off a header list, never off a whole Request:
