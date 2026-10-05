@@ -81,6 +81,19 @@ export async function fetchAuthCallbackUser(
   };
 }
 
+/** Decoded, NOT verified, access token claims. Callers verify the token with GoTrue. */
+function accessTokenClaims(accessToken: string): Record<string, unknown> | null {
+  try {
+    const parts = accessToken.split(".");
+    const payload = parts[1];
+    if (parts.length !== 3 || payload === undefined) return null;
+    const claims: unknown = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+    return claims && typeof claims === "object" ? claims as Record<string, unknown> : null;
+  } catch {
+    return null;
+  }
+}
+
 function expiredCallbackSubject(error: unknown, accessToken: string): string | null {
   if (!error || typeof error !== "object") return null;
   const failure = error as { status?: unknown; code?: unknown; message?: unknown };
@@ -88,16 +101,29 @@ function expiredCallbackSubject(error: unknown, accessToken: string): string | n
     failure.status !== 403 || failure.code !== "bad_jwt" ||
     failure.message !== "invalid JWT: unable to parse or verify signature, token has invalid claims: token is expired"
   ) return null;
-  try {
-    const parts = accessToken.split(".");
-    const payload = parts[1];
-    if (parts.length !== 3 || payload === undefined) return null;
-    const claims = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
-    return typeof claims?.sub === "string" && claims.sub &&
-      typeof claims.exp === "number" && Number.isFinite(claims.exp) ? claims.sub : null;
-  } catch {
-    return null;
-  }
+  const claims = accessTokenClaims(accessToken);
+  return typeof claims?.sub === "string" && claims.sub &&
+    typeof claims.exp === "number" && Number.isFinite(claims.exp) ? claims.sub : null;
+}
+
+/**
+ * GoTrue `amr` methods of an emailed sign-in link. Only an emailed link can
+ * honestly land in a browser that never started the attempt. OAuth and a
+ * password always return to the browser that started them, so an unowned
+ * callback carrying one is somebody else's session handed over in a link.
+ */
+const EMAIL_LINK_AMR_METHODS = new Set(["otp", "magiclink", "email/signup"]);
+
+export function isEmailLinkSession(accessToken: string): boolean {
+  const amr = accessTokenClaims(accessToken)?.amr;
+  // GoTrue writes { method, timestamp } entries. A custom access token hook
+  // may write RFC 8176 strings instead.
+  return Array.isArray(amr) && amr.some((entry: unknown) => {
+    const method = typeof entry === "string"
+      ? entry
+      : entry && typeof entry === "object" ? (entry as { method?: unknown }).method : null;
+    return typeof method === "string" && EMAIL_LINK_AMR_METHODS.has(method);
+  });
 }
 
 export type PreparedAuthCallbackSession<SessionValue> =
@@ -138,6 +164,11 @@ export async function prepareAuthCallbackSession<SessionValue>(
     if (isGoTrueUserBannedError(refreshed.error)) return { status: "banned" };
     const userId = refreshed.data.user?.id;
     if (refreshed.error || !userId || originalUserId !== userId) {
+      return { status: "verification-failed" };
+    }
+    // GoTrue just verified this minted token for the same account, so its
+    // claims are its own. Refresh keeps the session's original amr.
+    if (!isEmailLinkSession(minted.session.access_token)) {
       return { status: "verification-failed" };
     }
     const label = authCallbackConfirmationLabel(refreshed.data.user ?? { id: userId });

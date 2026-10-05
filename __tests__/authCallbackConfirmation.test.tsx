@@ -3,6 +3,8 @@ import { act, createElement, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { accessTokenWithMethod } from "./helpers/authTokens";
+
 const harness = vi.hoisted(() => ({
   setSession: vi.fn(),
   bootstrap: vi.fn(),
@@ -129,7 +131,7 @@ beforeEach(() => {
   });
   harness.mintSession.mockResolvedValue({
     status: "minted",
-    session: { access_token: "synthetic-access", refresh_token: "synthetic-refresh" },
+    session: { access_token: accessTokenWithMethod("synthetic-access"), refresh_token: "synthetic-refresh" },
   });
   container = document.createElement("div");
   document.body.append(container);
