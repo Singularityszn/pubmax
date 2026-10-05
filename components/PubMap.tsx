@@ -4762,14 +4762,9 @@ export default function PubMap({
     changeExperienceLens("all");
     changeFavoritePint(null);
     setPersonaLensId(null);
-    setFilters((current) => ({
-      ...current,
-      drinkCategory: generated.context.zeroProof ? "alcohol-free" : generated.context.drinkCategory ?? "beer",
-      drinkBrand: "",
-      drinkSubtype: "",
-      topShelfOnly: false,
-      requireCocktails: false,
-    }));
+    const lane = generated.context.zeroProof ? "alcohol-free" : generated.context.drinkCategory ?? DEFAULT_DRINK_LANE;
+    setFilters((current) => applyDrinkLane(current, lane, { clearRefinements: true }));
+    if (lane === DEFAULT_DRINK_LANE) setAltStyle("pint");
     activateGeneratedPlan(generated.context.nightArea, ids);
     markPalRouteActivation();
     setActiveCrawl(null);

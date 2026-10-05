@@ -134,6 +134,23 @@ describe("applyDrinkLane", () => {
     expect(applyDrinkLane(wine, "wine")).toBe(wine);
   });
 
+  it("resets same-lane refinements only when a generated plan explicitly requests it", () => {
+    const held = filters({ drinkCategory: "gin", drinkBrand: "sipsmith", drinkSubtype: "gin-london-dry", topShelfOnly: true, query: "Soho", requireStepFree: true });
+    const next = applyDrinkLane(held, "gin", { clearRefinements: true });
+    expect(next).not.toBe(held);
+    expect(next).toMatchObject({ drinkCategory: "gin", drinkBrand: "", drinkSubtype: "", topShelfOnly: false, requireCocktails: false, query: "Soho", requireStepFree: true });
+  });
+
+  it("normalises an explicit same-lane Beer generation to resting pint filters", () => {
+    expect(applyDrinkLane(filters({ drinkCategory: "beer", drinkBrand: "guinness", requireCocktails: true }), "beer", { clearRefinements: true }))
+      .toMatchObject({ drinkCategory: "", drinkBrand: "", requireCocktails: false });
+  });
+
+  it("reapplies Cocktail policy when generation retains the current category", () => {
+    expect(applyDrinkLane(filters({ drinkCategory: "cocktail", requireCocktails: false, drinkSubtype: "cocktail-classic" }), "cocktail", { clearRefinements: true }))
+      .toMatchObject({ drinkCategory: "cocktail", requireCocktails: true, drinkSubtype: "" });
+  });
+
   it("leaves every filter that is not about the drink alone", () => {
     expect(
       applyDrinkLane(filters({ query: "Camden", maxPrice: 6, requireStepFree: true }), "wine"),
