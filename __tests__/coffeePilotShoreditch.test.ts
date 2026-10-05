@@ -1,6 +1,6 @@
 // The Shoreditch coffee file is a hand-checked list. A row is one named drink
-// a page stated. The map, the pint bundle and the freshness registry do not
-// read it.
+// a page stated. The map's coffee lane draws it (__tests__/coffeePilotLens.test.ts);
+// the pint bundle and the freshness registry do not read it.
 
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";

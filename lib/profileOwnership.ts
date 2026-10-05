@@ -246,3 +246,18 @@ export async function callerOwnedWithdrawnHandle(
     return undefined;
   }
 }
+
+/**
+ * True when moderation withdrew `handle` from public view and the request's
+ * verified bearer does not own it: the caller must get the answer an unknown
+ * handle gets. A live handle never pays the bearer check. Throws when the
+ * withdrawal read fails, so each caller keeps its own fail-soft answer.
+ */
+export async function handleWithdrawnFromCaller(
+  request: Request,
+  handle: string,
+): Promise<boolean> {
+  const key = normalizeHandle(handle);
+  if (!key || !(await withdrawnHandles([key])).has(key)) return false;
+  return !(await callerOwnedWithdrawnHandle(request, key));
+}

@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
 
+import { stubSocialAuthProviders } from "./helpers/authDoubles";
+
 const MOBILE_VIEWPORT = { width: 390, height: 844 };
 
 function stableVenueIdFromKey(key: string): string {
@@ -43,6 +45,7 @@ async function stubKeylessSupabase(page: Page): Promise<void> {
     "wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket**",
     () => {},
   );
+  await stubSocialAuthProviders(page);
 }
 
 async function prepareMobilePage(page: Page, theme: "light" | "dark" = "light"): Promise<void> {

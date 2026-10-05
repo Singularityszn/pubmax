@@ -23,6 +23,7 @@ import {
   ambientBannerLaneOpen,
   builtStopCountFor,
   coordinatedMapOverlay,
+  coffeePilotSelection,
   crawlJourneysWanted,
   drinkFiltersActiveFor,
   drinkIndexStatusFor,
@@ -30,6 +31,7 @@ import {
   mapArrivalFrame,
   mapDrinkLensSelection,
   mapPlaceContext,
+  isRecordlessMapSelection,
   mapSelectionFrame,
   mapShellClassName,
   mapSurfaceIdFor,
@@ -992,6 +994,33 @@ describe("mapSelectionFrame", () => {
     expect(answer.isPub).toBe(false);
   });
 
+  it("opens the SAME sheet for a Shoreditch pilot cafe once the cafes resolve it", () => {
+    const answer = mapSelectionFrame({
+      selectedVenueId: "venue-osm-w271641406",
+      selectedVenue: undefined,
+      selectedBasePub: null,
+      selectedCoffeeCafe: { id: "venue-osm-w271641406" },
+      venueById,
+      isPubVenue,
+    });
+    expect(answer.coffeeCafeOpen).toBe(true);
+    expect(answer.basePubOpen).toBe(false);
+    expect(answer.resolvable).toBe(false);
+    expect(answer.detailOpen).toBe(true);
+  });
+
+  it("retires a held cafe the moment it stops being the selection", () => {
+    const answer = mapSelectionFrame({
+      selectedVenueId: "v1",
+      selectedVenue: crown,
+      selectedBasePub: null,
+      selectedCoffeeCafe: { id: "venue-osm-w271641406" },
+      venueById,
+      isPubVenue,
+    });
+    expect(answer.coffeeCafeOpen).toBe(false);
+  });
+
   it("opens the detail sheet while a deep-linked sel waits on the slim index", () => {
     const answer = mapSelectionFrame({
       selectedVenueId: "v1",
@@ -1002,6 +1031,54 @@ describe("mapSelectionFrame", () => {
     });
     expect(answer.detailOpen).toBe(true);
     expect(answer.resolvable).toBe(false);
+  });
+});
+
+describe("coffeePilotSelection", () => {
+  const crosstown = { id: "venue-osm-w271641406" };
+  const byId = new Map([[crosstown.id, crosstown]]);
+
+  it("opens a pilot cafe while the coffee lens is on", () => {
+    expect(
+      coffeePilotSelection({ lensOn: true, selectedVenueId: crosstown.id, status: "ready", byId }),
+    ).toEqual({ cafe: crosstown, release: false });
+  });
+
+  it("closes the cafe sheet and lets the selection go when the reader leaves the coffee lens", () => {
+    expect(
+      coffeePilotSelection({ lensOn: false, selectedVenueId: crosstown.id, status: "ready", byId }),
+    ).toEqual({ cafe: null, release: true });
+  });
+
+  it("holds a cafe selection while the pilot is still being read", () => {
+    expect(
+      coffeePilotSelection({ lensOn: true, selectedVenueId: crosstown.id, status: "loading", byId: new Map() }),
+    ).toEqual({ cafe: null, release: false });
+  });
+
+  it("lets go of a cafe the settled read could not place", () => {
+    for (const status of ["ready", "failed"] as const) {
+      expect(
+        coffeePilotSelection({ lensOn: true, selectedVenueId: "venue-osm-n9", status, byId }),
+      ).toEqual({ cafe: null, release: true });
+    }
+  });
+
+  it("leaves every other selection alone", () => {
+    for (const selectedVenueId of ["", "v1", "venue-uk-9"]) {
+      expect(
+        coffeePilotSelection({ lensOn: false, selectedVenueId, status: "ready", byId }),
+      ).toEqual({ cafe: null, release: false });
+    }
+  });
+});
+
+describe("isRecordlessMapSelection", () => {
+  it("names the ids that have no /api/venue record", () => {
+    expect(isRecordlessMapSelection("venue-uk-9")).toBe(true);
+    expect(isRecordlessMapSelection("venue-osm-w271641406")).toBe(true);
+    expect(isRecordlessMapSelection("venue-1s7ucod")).toBe(false);
+    expect(isRecordlessMapSelection("bar-seed-library")).toBe(false);
   });
 });
 

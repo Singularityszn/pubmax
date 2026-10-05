@@ -265,6 +265,16 @@ const UnverifiedPubSheet = dynamic(
   () => import("@/components/map/UnverifiedPubSheet"),
   { ssr: false },
 );
+// Only ever mounted for a tapped Shoreditch coffee pilot cafe.
+const CoffeePilotSheet = dynamic(
+  () => import("@/components/map/CoffeePilotSheet"),
+  { ssr: false },
+);
+// Only ever mounted when the coffee lens could not read the pilot.
+const CoffeePilotLoadFailed = dynamic(
+  () => import("@/components/map/CoffeePilotLoadFailed"),
+  { ssr: false },
+);
 const MapToolbar = dynamic(() => import("@/components/map/MapToolbar"), {
   ssr: false,
 });
@@ -385,6 +395,11 @@ import {
 } from "@/lib/ukBasePubs";
 import { computeZonePintIndex } from "@/lib/zones";
 import { useCityStoryCatalog } from "@/components/map/useCityStoryCatalog";
+import {
+  useCoffeePilotCafes,
+  useReleaseCoffeeSelection,
+} from "@/components/map/useCoffeePilotCafes";
+import type { CoffeePilotCafe } from "@/lib/coffeePilot";
 import { mapSeedNeedsCuratedCrawlLookup } from "@/lib/mapSeedCrawlPolicy";
 import { completeNeighbourhoodCountSlugs } from "@/lib/mapAreaPicker";
 const ZonePicker = dynamic(() => import("@/components/map/ZonePicker"), { ssr: false });
@@ -593,8 +608,10 @@ import {
   drinkIndexStatusFor,
   firstIdOf,
   crawlJourneysWanted,
+  coffeePilotSelection,
   mapArrivalFrame,
   mapDrinkLensSelection,
+  isRecordlessMapSelection,
   mapSelectionFrame,
   mapPlaceContext,
   mapShellClassName,
@@ -818,6 +835,7 @@ const DESKTOP_RAIL_MEDIA_QUERY = "(min-width: 1024px)";
 const NO_LOCALITIES: Locality[] = [];
 /** A limited-coverage arrival searches no curated venues; UK places fill the gap. */
 const NO_SEARCH_VENUES: Venue[] = [];
+const NO_COFFEE_PILOT_CAFES: readonly CoffeePilotCafe[] = [];
 
 // Shard coverage is recomputed after every shard settles, so the held set is
 // replaced only when its membership really moved.
@@ -1883,6 +1901,19 @@ export default function PubMap({
       loadDrinkCategoryIndex(mapDrinkLensCategory);
     }
   }, [loadDrinkCategoryIndex, mapDrinkLensCategory]);
+  // The Shoreditch coffee pilot (lib/coffeePilot.ts) draws its cafes while the
+  // coffee lane owns a London map, and resolves a selected `venue-osm-` id to
+  // its cafe, so a reloaded ?sel= link under the coffee lane still opens that
+  // cafe's sheet.
+  const coffeePilotLensOn = isLondon && mapDrinkLensCategory === "coffee";
+  const coffeePilot = useCoffeePilotCafes(coffeePilotLensOn);
+  const coffeePilotPick = coffeePilotSelection({
+    lensOn: coffeePilotLensOn,
+    selectedVenueId,
+    status: coffeePilot.status,
+    byId: coffeePilot.byId,
+  });
+  const selectedCoffeeCafe = coffeePilotPick.cafe;
   // Whichever cross-venue index is answering the map right now reports its own
   // completeness, so the price key never claims a read it did not finish.
   const drinkIndexStatus: CategoryPriceIndexStatus = useMemo(
@@ -3163,10 +3194,11 @@ export default function PubMap({
         selectedVenueId,
         selectedVenue,
         selectedBasePub,
+        selectedCoffeeCafe,
         venueById,
         isPubVenue,
       }),
-    [selectedBasePub, selectedVenue, selectedVenueId, venueById],
+    [selectedBasePub, selectedCoffeeCafe, selectedVenue, selectedVenueId, venueById],
   );
   const selectedVenueResolvable = mapSelection.resolvable;
   const selectedVenueIsPub = mapSelection.isPub;
@@ -3298,7 +3330,7 @@ export default function PubMap({
         }
       }
       // Base pubs have no /api/venue record; prefetching one is a certain 404.
-      if (!isUkBaseId(id)) prefetchVenue(id);
+      if (!isRecordlessMapSelection(id)) prefetchVenue(id);
       setTonightLaneOpen(false);
       setMapOverlay("none");
       claimMapDrawer("venue");
@@ -3315,7 +3347,7 @@ export default function PubMap({
       setSheetDragY(null);
       if (reducedMotion) {
         setVenueRevealRequest(null);
-      } else if (!isUkBaseId(id)) {
+      } else if (!isRecordlessMapSelection(id)) {
         const priceView = venueDrinkPriceView(
           communityPrices.byVenueId.get(id),
           experienceLens,
@@ -3378,6 +3410,7 @@ export default function PubMap({
   // derivation rather than by a state-sync effect: the record only ever shows
   // while it IS the selection.
   const basePubOpen = mapSelection.basePubOpen;
+  const coffeeCafeOpen = mapSelection.coffeeCafeOpen;
   // The sel entry's `at=` companion: a base pub's coordinates ride in the URL
   // because the id alone could not say which shard cell a shared/reloaded
   // link should stream. Empty for curated selections, which clears the param.
@@ -4934,6 +4967,15 @@ export default function PubMap({
     rejectSelection: rejectMapSelection,
     resolveSelection: resolveMapSelection,
   } = mapSurfaceTrail;
+  // A `venue-osm-` id off the coffee lens, or one the pilot does not hold or
+  // could not be read to place, has no sheet to open: let it go rather than
+  // hold a skeleton.
+  useReleaseCoffeeSelection(
+    coffeePilotPick.release,
+    selectedVenueId,
+    rejectMapSelection,
+    setSelectedVenueId,
+  );
   useLayoutEffect(() => {
     surfaceBackRef.current = mapSurfaceTrail.back;
     surfaceOpenRef.current = mapSurfaceTrail.open;
@@ -4978,7 +5020,13 @@ export default function PubMap({
   const storyDrawerOpen = storyOpen && !planningOpen && !detailOpen;
 
   useEffect(() => {
-    if (!selectedVenueId || detailById.has(selectedVenueId) || isUkBaseId(selectedVenueId)) return;
+    if (
+      !selectedVenueId ||
+      detailById.has(selectedVenueId) ||
+      isRecordlessMapSelection(selectedVenueId)
+    ) {
+      return;
+    }
     const requestedVenueId = selectedVenueId;
     let cancelled = false;
     warmVenueDetail(requestedVenueId).then((result) => {
@@ -5025,7 +5073,7 @@ export default function PubMap({
       loaded,
       selectedVenueId,
       resolvable: selectedVenueResolvable,
-      ukBase: isUkBaseId(selectedVenueId),
+      ukBase: isRecordlessMapSelection(selectedVenueId),
       detailStatus: selectedDetailStatus,
     });
     if (!notice) return;
@@ -5590,7 +5638,11 @@ export default function PubMap({
     );
   }
 
-  const venuePanel = renderVenuePanel();
+  const venuePanel = selectedCoffeeCafe ? (
+    <CoffeePilotSheet cafe={selectedCoffeeCafe} />
+  ) : (
+    renderVenuePanel()
+  );
   const storyPanel = renderStoryPanel();
   const storyOnlyOpen = storyOpen && !detailOpen && !planningOpen;
 
@@ -6227,6 +6279,23 @@ export default function PubMap({
     ) : null;
   }
 
+  function renderCoffeePilotLoadFailed() {
+    const visible =
+      coffeePilotLensOn &&
+      coffeePilot.status === "failed" &&
+      trimmedMapQuery.length === 0 &&
+      !mapLoadingActive &&
+      !mapCanvasUnavailable &&
+      !showMapArrivalCard &&
+      mapOverlay !== "search" &&
+      !mapSoftRetryActive &&
+      !detailOpen &&
+      !planningOpen &&
+      !storyOpen &&
+      !mapListOpen;
+    return visible ? <CoffeePilotLoadFailed onRetry={coffeePilot.retry} /> : null;
+  }
+
   /* The map itself. Full-bleed base layer; every panel slides in over it.
 
      When the canvas cannot be shown at all - its module never loaded, or it
@@ -6317,6 +6386,7 @@ export default function PubMap({
         tonightOpportunities={tonightOpportunities}
         tonightOverlayVisible={isLondon && tonightOverlayVisible && !tonightDismissed}
         onTonightOpportunityClick={handleTonightOpportunityClick}
+        coffeePilotCafes={coffeePilotLensOn ? coffeePilot.cafes : NO_COFFEE_PILOT_CAFES}
         poiHidden={poiHidden}
         onPoiHiddenChange={setPoiHidden}
         hideLayersControl={mobileViewport}
@@ -6526,7 +6596,9 @@ export default function PubMap({
               detailOpen
                 ? basePubOpen
                   ? selectedBasePub?.name ?? "Pub detail"
-                  : selectedVenue?.name ?? selectedVenueLabels.detailLabel
+                  : coffeeCafeOpen
+                    ? selectedCoffeeCafe?.name ?? "Cafe"
+                    : selectedVenue?.name ?? selectedVenueLabels.detailLabel
                 : planningOpen
                   ? "Plan an outing"
                   : activeLandmark?.name ?? "Landmark"
@@ -6740,6 +6812,7 @@ export default function PubMap({
         {renderMapLoadingChrome()}
         {renderMapCanvas()}
         {renderMapSearchEmptyState()}
+        {renderCoffeePilotLoadFailed()}
         {renderDesktopToolbar()}
         {renderDesktopMapOverlays()}
 
