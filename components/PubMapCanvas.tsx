@@ -345,10 +345,9 @@ type PubMapCanvasProps = {
    */
   onMapErrored?: (errored: boolean) => void;
   /**
-   * Called once MapLibre has been built on this mount. From then on the canvas
-   * runs its own watchdogs (first frame, scene ready, pin reveal) and names its
-   * own failure, so the shell's readiness ceiling stands down
-   * (lib/mapCanvasAvailability.ts).
+   * Reports MapLibre construction, including canvas-owned reinitialisation.
+   * The canvas then owns its watchdogs and failure card. The shell's readiness
+   * ceiling stops at this handoff (lib/mapCanvasAvailability.ts).
    */
   onMapConstructed?: () => void;
   /**

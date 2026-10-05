@@ -24,8 +24,8 @@ type MapCameraReading = {
    * True while the app still owes the camera a move of its own: the opening
    * turn has not been decided yet, a scheduled move is waiting for its frame
    * or for the bottom sheet, the opening-location answer has not moved the
-   * camera yet, or a granted location has not been framed yet. `moving` is
-   * false in all of these, so a still camera is not yet a resting one
+   * camera yet, or a granted location has not been framed yet. `moving` can
+   * be false while `settling` is true. Camera rest requires both to be false
    * (lib/mapArrivalBearing.ts).
    */
   settling: boolean;

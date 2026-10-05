@@ -20,32 +20,21 @@
  * loading frame, or on an empty map slot the shell believes is fine, with no
  * sentence either way.
  *
- * Once MapLibre is built the canvas is no longer silent: it arms its own
- * first-frame watchdog, its scene-ready guard and its pin-reveal ceiling, and
- * each of those words its own card. The shell's clock stops there. Left
- * running, it started before the canvas's 18 s scene-ready guard and lapsed
- * first, so on a slow box the shell unmounted a map whose scene was already
- * built and queued for its next frame, and said "taking longer than it should"
- * over a canvas that was about to draw.
+ * MapLibre construction stops the shell's clock. The canvas then owns its
+ * first-frame, scene-ready and pin-reveal watchdogs. Keeping the shell's clock
+ * running would let it unmount a canvas before those watchdogs answer.
  *
  * So the SHELL owns two answers the canvas cannot give, and this module is the
  * whole of that policy: the reason vocabulary, the readiness ceiling, and every
  * word either state prints. It performs no I/O and touches no map, in the shape
  * of lib/mapTileFailure.ts and lib/mapDataPackFailure.ts, so the decision stays
  * testable without a renderer. `__tests__/mapCanvasAvailability.test.ts` pins
- * it, including the rule that the ceiling sits ABOVE the canvas's own two
- * watchdogs so a mounted canvas always gets to name its own failure first.
+ * the policy, including the construction handoff.
  */
 
 /**
- * How long the shell waits for a mounted canvas that has said nothing at all.
- *
- * This is a LAST answer, never a first one. A mounted canvas diagnoses itself
- * well inside this window: `PIN_READY_CEILING_MS` (12s) is its own handoff
- * ceiling and `FIRST_FRAME_TIMEOUT_MS` (10s) its first-painted-frame watchdog,
- * both in components/PubMapCanvas.tsx. Sitting above both is what keeps this
- * from stealing a failure the canvas was about to word better, and the fence
- * reads those two numbers out of that file rather than restating them.
+ * Maximum shell wait before a canvas reports construction, readiness or failure.
+ * Construction ends this wait even while the canvas is still preparing to draw.
  */
 export const MAP_CANVAS_READINESS_CEILING_MS = 18_000;
 

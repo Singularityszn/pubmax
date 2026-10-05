@@ -2450,8 +2450,8 @@ export default function PubMap({
   // The bounded readiness timeout. A canvas that never answers used to hold the
   // loading frame, and with it the whole phone shell, indefinitely: every other
   // watchdog is armed by the canvas itself, so a mount that never gets that far
-  // has nothing watching it. The clock runs only while the frame is genuinely
-  // held by a canvas that has said nothing, and it restarts with each attempt.
+  // has nothing watching it. mapCanvasCeilingArmed owns the construction
+  // handoff and stop conditions. Each attempt starts a fresh clock.
   useEffect(() => {
     if (!mapCanvasCeilingRunning) return;
     const attempt = mapCanvasAttempt;
