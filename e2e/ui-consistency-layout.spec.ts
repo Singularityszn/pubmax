@@ -8,6 +8,9 @@ import {
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import { expectLayoutSettled } from "./helpers/layoutSettled";
+import { expectStreamedPageSettled } from "./helpers/streamedPage";
+
 const EVIDENCE_PHASE = process.env.UI_EVIDENCE_PHASE ?? "verify";
 const CAPTURE_EVIDENCE =
   EVIDENCE_PHASE === "before" || EVIDENCE_PHASE === "after";
@@ -847,21 +850,18 @@ async function auditRoute(
       timeout: 120_000,
     }).catch(() => null);
   }
-  await page
-    .locator(".routeLoadingShell")
-    .waitFor({ state: "hidden", timeout: 45_000 })
-    .catch(() => undefined);
   const main = page.locator("main").first();
-  // The loading shell may not have mounted yet when the wait above runs, so a
-  // streamed route such as /map/london can still be painting its landmark.
-  // Wait for the route's own <main>; only a 404 page is allowed to have none.
-  const mainShown =
-    response?.status() === 404
-      ? await main.isVisible().catch(() => false)
-      : await main
-          .waitFor({ state: "visible", timeout: 45_000 })
-          .then(() => true)
-          .catch(() => false);
+  // A route with a loading.tsx streams its skeleton first and swaps the page
+  // in later, so the gutter is measured only once streaming has settled and
+  // the route's own <main> is at rest. Only a 404 page may have no <main>.
+  let mainShown = false;
+  if (response?.status() === 404) {
+    mainShown = await main.isVisible().catch(() => false);
+  } else {
+    await expectStreamedPageSettled(page);
+    await expectLayoutSettled(main);
+    mainShown = true;
+  }
   await settle(page);
   const box = mainShown ? await main.boundingBox().catch(() => null) : null;
   if (!box) {
