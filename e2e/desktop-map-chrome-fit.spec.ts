@@ -321,7 +321,9 @@ for (const width of DESKTOP_WIDTHS) {
 test("1440px planner hands ownership to venue and Back restores composed state", async ({
   page,
 }) => {
-  test.setTimeout(120_000);
+  // The venue list may take up to 90 s to finish counting on a slow runner,
+  // so the budget leaves room for that wait plus every step after it.
+  test.setTimeout(210_000);
   await prepareDesktopMap(page);
   await stubCityStatus(page);
 
@@ -338,6 +340,13 @@ test("1440px planner hands ownership to venue and Back restores composed state",
     .locator(".mapVenueListItem")
     .filter({ hasNotText: "Three Sheets Soho" })
     .first();
+  // The list says "Counting them up…" until its rows have loaded, and a slow
+  // runner can spend longer than the row wait below on that read alone.
+  await expect(page.locator(".mapVenueListCount")).toBeVisible();
+  await expect(page.locator(".mapVenueListCount")).not.toHaveText(
+    "Counting them up…",
+    { timeout: 90_000 },
+  );
   await expect(retargetVenue).toHaveCount(1, { timeout: 20_000 });
   await toolbar
     .getByRole("button", { name: "Plan an outing" })
@@ -380,6 +389,13 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   // crossing rather than sampling after the spring has finished. Under load the
   // spring can finish before the first sample, so mid-exchange geometry is
   // asserted only when a crossing frame is caught.
+  //
+  // A crossing frame is one where the planner has covered less than 80% of its
+  // exit. Both drawers share one spring response (SpringDrawer), but the venue
+  // enters underdamped (SHEET_ENTRANCE_OVERSHOOT_DAMPING) and reaches its rest
+  // edge when the critically damped planner has covered about 88%, then
+  // overshoots left of it by about 18px. A tail frame of the planner's exit
+  // therefore finds the venue at or left of 800 in a correct exchange.
   let caughtMidExchange = false;
   let plannerMid: Awaited<ReturnType<typeof renderedBox>> | null = null;
   let venueMid: Awaited<ReturnType<typeof renderedBox>> | null = null;
@@ -393,7 +409,8 @@ test("1440px planner hands ownership to venue and Back restores composed state",
             renderedBox(venue, "moving venue"),
             renderedBox(toolbar, "moving toolbar"),
           ]);
-          const crossing = plannerBox.x < -1 && plannerBox.x > -plannerBox.width;
+          const crossing =
+            plannerBox.x < -1 && plannerBox.x > -plannerBox.width * 0.8;
           if (crossing) {
             plannerMid = plannerBox;
             venueMid = venueBox;
@@ -413,7 +430,7 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   }
   if (caughtMidExchange && plannerMid && venueMid && toolbarMid) {
     expect(plannerMid.x).toBeLessThan(0);
-    expect(plannerMid.x).toBeGreaterThan(-plannerMid.width);
+    expect(plannerMid.x).toBeGreaterThan(-plannerMid.width * 0.8);
     expect(venueMid.x).toBeGreaterThan(800);
     expect(venueMid.x).toBeLessThan(DESKTOP.width);
     await captureDrawerExchange(page, "mid-exchange");

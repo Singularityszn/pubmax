@@ -252,12 +252,21 @@ test("normal London entry paints UK base pubs and takes a price", async ({
       )
       .first();
     if (!(await listButton.isVisible().catch(() => false))) {
+      // On a phone the list sits behind the Layers tab of the Map controls
+      // sheet, which opens on its Key tab. A sheet left open on the Key tab
+      // covers the map, so every later painted-pin read comes back empty.
       const more = page.getByRole("button", { name: "More map controls" });
       await expect(more).toBeVisible({ timeout: 10_000 });
       await more.click();
-      const listToggle = page.getByRole("button", { name: "List view" });
-      await expect(listToggle).toBeVisible({ timeout: 10_000 });
-      await listToggle.click();
+      const layersSheet = page.locator('.mobileSheetPortal[data-sheet-kind="layers"]:visible');
+      await expect(layersSheet).toBeVisible({ timeout: 10_000 });
+      await layersSheet.getByRole("tab", { name: "Layers" }).click();
+      const listShortcut = layersSheet.getByRole("button", {
+        name: "List view of venues on the map",
+      });
+      await expect(listShortcut).toBeVisible({ timeout: 10_000 });
+      await listShortcut.click();
+      await expect(page.locator(".mapVenueListPanel")).toBeVisible({ timeout: 10_000 });
       await expect(listButton).toBeVisible({ timeout: 15_000 });
     }
     await listButton.click();
