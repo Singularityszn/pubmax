@@ -30,6 +30,7 @@ Full rules: [`docs/rules/scripts-harvest-and-source-permission.md`](../docs/rule
 - [THE WETHERSPOON DIRECTORY IS THE PUBS THE CHAIN RUNS TODAY, AND IT IS NEVER EDITED BY HAND.](../docs/rules/scripts-harvest-and-source-permission.md#the-wetherspoon-directory-is-the-pubs-the-chain-runs-today-and-it-is-never-edite)
 - [The UK venue extraction is OSM-stated or it does not exist, save one London restaurant lane.](../docs/rules/scripts-harvest-and-source-permission.md#the-uk-venue-extraction-is-osm-stated-or-it-does-not-exist-save-one-london-resta)
 - [The nightly Tavily pass spends the plan and writes Listed evidence only.](../docs/rules/scripts-harvest-and-source-permission.md#the-nightly-tavily-pass-spends-the-plan-and-writes-listed-evidence-only)
+- [The London Tavily pass and the London promotion are capped in code, and every row keeps its evidence.](../docs/rules/scripts-harvest-and-source-permission.md#the-london-tavily-pass-and-the-london-promotion-are-capped-in-code)
 
 ## Builders and publishers
 

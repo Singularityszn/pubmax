@@ -1,6 +1,7 @@
 export type EnrichmentCliArgs = {
   city: string;
   maxQueries: number;
+  maxCredits: number;
   reset: boolean;
   dryRun: boolean;
 };

@@ -48,6 +48,28 @@ const MIN_SAMPLE = 3;
 const MIN_GBP = 2;
 const MAX_GBP = 12;
 
+// The non-beer drinks, each modelled from London borough medians only. The
+// source menus do not state a serving size, so the band IS the serving claim: a
+// wine line under 3 pounds is not a glass and one over 12 is a bottle, and a
+// cocktail line over 15 is a jug or a sharer. Lines outside the band are
+// dropped and counted, never rounded into a median.
+const DRINK_MODELS = [
+  {
+    category: "wine",
+    minGbp: 3,
+    maxGbp: 12,
+    servingNote:
+      "One glass. The source menus state no serving size, so lines outside this band are treated as bottles and dropped.",
+  },
+  {
+    category: "cocktail",
+    minGbp: 4,
+    maxGbp: 15,
+    servingNote:
+      "One cocktail. The source menus state no serving size, so lines outside this band are treated as jugs or sharers and dropped.",
+  },
+];
+
 // Hosts whose estate lib/harvest/sourcePolicy.ts refuses. Kept as a literal
 // list rather than imported because this is a plain-node CLI and that module is
 // TypeScript; __tests__/refusedEstateHosts.test.ts holds the two in step.
@@ -245,6 +267,82 @@ function buildPostcodeRegions(updates, allowedHosts, report) {
   return regions.sort((a, b) => a.code.localeCompare(b.code));
 }
 
+// A venue key is `name|address|lat|lng`; the point is the only thing taken from
+// it, and the borough is decided by the same point-in-polygon classifier the
+// beer regions use, never from the name or the address.
+function pointOfVenueKey(venueKey) {
+  const parts = String(venueKey ?? "").split("|");
+  const lat = Number(parts[parts.length - 2]);
+  const lng = Number(parts[parts.length - 1]);
+  return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+}
+
+// A non-beer drink's London borough rows. THE SAMPLE IS PUBS, NOT MENU LINES: a
+// pub that lists forty wines is one pub, so each venue contributes the median of
+// its own in-band lines and the borough median is taken over those. A borough
+// under MIN_SAMPLE pubs gets no row and is reported, not borrowed from a
+// neighbour. Only permitted first-party hosts feed it, so a demo fixture or a
+// refused estate never does.
+function buildDrinkBaselines(updates, allowedHosts, boundaries, model, report) {
+  const drops = {
+    droppedNoHost: 0,
+    droppedNotPermitted: 0,
+    droppedOutOfBand: 0,
+    droppedNoPoint: 0,
+    droppedOutsideBoroughs: 0,
+    boroughsUnderFloor: [],
+  };
+  const venues = new Map();
+  for (const row of updates) {
+    if (row?.category !== model.category) continue;
+    const host = hostOf(row?.source?.url ?? "");
+    if (!host) { drops.droppedNoHost += 1; continue; }
+    if (REFUSED_HOSTS.includes(host) || !allowedHosts.has(host)) { drops.droppedNotPermitted += 1; continue; }
+    if (!Number.isFinite(row.priceGbp) || row.priceGbp < model.minGbp || row.priceGbp > model.maxGbp) {
+      drops.droppedOutOfBand += 1;
+      continue;
+    }
+    const point = pointOfVenueKey(row.venueKey);
+    if (!point) { drops.droppedNoPoint += 1; continue; }
+    const borough = boroughNameForPoint(point.lat, point.lng, boundaries);
+    if (!borough) { drops.droppedOutsideBoroughs += 1; continue; }
+    const venue = venues.get(row.venueKey) ?? { borough, prices: [], sourceUrls: new Set() };
+    venue.prices.push(row.priceGbp);
+    venue.sourceUrls.add(row.source.url);
+    venues.set(row.venueKey, venue);
+  }
+  const byBorough = new Map();
+  for (const venue of venues.values()) {
+    const bucket = byBorough.get(venue.borough) ?? { name: venue.borough, medians: [], sourceUrls: new Set() };
+    bucket.medians.push(median(venue.prices));
+    for (const url of venue.sourceUrls) bucket.sourceUrls.add(url);
+    byBorough.set(venue.borough, bucket);
+  }
+  const regions = [];
+  for (const bucket of byBorough.values()) {
+    if (bucket.medians.length < MIN_SAMPLE) {
+      drops.boroughsUnderFloor.push({ code: boroughCode(bucket.name), sampleSize: bucket.medians.length });
+      continue;
+    }
+    regions.push({
+      kind: "london_borough",
+      code: boroughCode(bucket.name),
+      label: bucket.name,
+      medianGbp: median(bucket.medians),
+      sampleSize: bucket.medians.length,
+      provenance: `Median of each pub's own ${model.category} menu median, read from permitted first-party menus in ${bucket.name}.`,
+      sourceUrls: [...bucket.sourceUrls].sort().slice(0, 8),
+    });
+  }
+  report.drinks[model.category] = drops;
+  return {
+    minGbp: model.minGbp,
+    maxGbp: model.maxGbp,
+    servingNote: model.servingNote,
+    regions: regions.sort((a, b) => a.code.localeCompare(b.code)),
+  };
+}
+
 function main() {
   const report = {
     droppedNoHost: 0,
@@ -258,6 +356,7 @@ function main() {
     londonRowsBadAverage: 0,
     londonRowsOutsideBoroughs: 0,
     postcodeRowsNoArea: 0,
+    drinks: {},
   };
   const updates = read(DRINK_UPDATES).updates ?? [];
   const allowedHosts = permittedHosts();
@@ -267,13 +366,20 @@ function main() {
     ...buildPostcodeRegions(updates, allowedHosts, report),
   ];
 
+  const boundaries = read(BOUNDARIES);
+  const drinks = {};
+  for (const model of DRINK_MODELS) {
+    drinks[model.category] = buildDrinkBaselines(updates, allowedHosts, boundaries, model, report);
+  }
+
   const baselines = {
     version: 1,
     computedAt: new Date().toISOString(),
     method:
-      "Chain rows are the median published pint price per permitted first-party chain menu. London region rows are the median of the bundled dataset's own per-borough average, classified point-in-polygon. A basis under three prices is dropped rather than used.",
+      "Chain rows are the median published pint price per permitted first-party chain menu. London region rows are the median of the bundled dataset's own per-borough average, classified point-in-polygon. Wine and cocktail rows are London borough medians over pubs, each pub counted once at the median of its own in-band menu lines, from permitted first-party menus. A basis under three prices is dropped rather than used.",
     chains,
     regions,
+    drinks,
   };
 
   mkdirSync(OUT_DIR, { recursive: true });
@@ -286,6 +392,10 @@ function main() {
   console.log(`  chains: ${chains.length}`);
   for (const chain of chains) console.log(`    ${chain.id}: £${chain.medianGbp} from ${chain.sampleSize} prices`);
   console.log(`  regions: ${regions.length}`);
+  for (const model of DRINK_MODELS) {
+    const rows = drinks[model.category].regions;
+    console.log(`  ${model.category}: ${rows.length} London boroughs (band £${model.minGbp}-£${model.maxGbp})`);
+  }
   console.log(`  drops: ${JSON.stringify(report)}`);
 }
 

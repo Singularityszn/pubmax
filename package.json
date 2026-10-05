@@ -53,6 +53,7 @@
     "fetch:wetherspoons-pubs": "tsx scripts/fetch_wetherspoons_pubs.mjs",
     "fetch:london-pubs": "node scripts/fetch_city_osm_pubs.mjs --london",
     "merge:london-osm": "node scripts/merge_outer_london_osm.mjs",
+    "promote:london-osm": "node --import tsx scripts/promote_london_osm_pubs.mjs",
     "build:city-slim": "node scripts/build_city_slim_index.mjs",
     "build:pubmaxxing-seed": "node scripts/build_pubmaxxing_seed.mjs",
     "build:uk-base": "node scripts/build_uk_base_shards.mjs && node scripts/build_uk_place_index.mjs && node scripts/build_uk_pub_search_index.mjs",

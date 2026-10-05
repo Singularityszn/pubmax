@@ -76,12 +76,17 @@ export type VenueEnrichmentOutcome = {
   error?: string;
 };
 
+export const TAVILY_CREDITS_PER_SEARCH: number;
+export const MAX_TAVILY_CREDITS_PER_RUN: number;
+
 export function runCityEnrichment(options: {
   city: string;
   pubs: OsmPub[];
   apiKey?: string;
   searchProvider?: SearchProvider;
   maxQueries?: number;
+  /** Lowers the credit ceiling (400 per run); it can never raise it. */
+  maxCredits?: number;
   startIndex?: number;
   /** Explicit venues to walk, for re-attempting ones a previous run deferred.
    *  When given it replaces the sequential sweep and leaves the cursor alone. */
