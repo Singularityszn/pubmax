@@ -54,11 +54,13 @@ describe("the landing FAQ", () => {
     ]);
   });
 
-  it("states the photo rule the composer itself states", () => {
-    const answer = LANDING_FAQ.find((entry) => entry.id === "log-a-price")?.answer ?? "";
-    expect(answer).toContain("optional");
-    expect(answer).toContain("public");
-    expect(answer).toMatch(/photo of the bill or the pint/);
+  it("renders the bill requirement, optional pint photo and audience rules", () => {
+    const html = renderToStaticMarkup(createElement(LandingFaq));
+    expect(html).toContain("Add a photo of the bill before pressing Log it");
+    expect(html).toContain("even if you are confirming the same price");
+    expect(html).toContain("A photo of your pint is optional.");
+    expect(html).toContain("Pint Drop notes follow the audience you choose.");
+    expect(html).toContain("Photo links can be shared");
   });
 
   it("says prices are London's, because every listed price we hold is", () => {

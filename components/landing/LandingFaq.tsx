@@ -32,7 +32,7 @@ export const LANDING_FAQ: readonly Question[] = [
     id: "log-a-price",
     question: "How do I log a price?",
     answer:
-      "Open a pub on the map and press the price door. Type what you paid and which drink it was, then press Log it. A photo of the bill or the pint is optional. Photos and notes are public and can show people, so only add one you are happy to share.",
+      "Open a pub on the map and press the price door. Type what you paid and which drink it was. Add a photo of the bill before pressing Log it, even if you are confirming the same price. A photo of your pint is optional. Pint Drop notes follow the audience you choose. Photo links can be shared, so only add photos you are happy to share.",
   },
   {
     id: "today-tonight",
