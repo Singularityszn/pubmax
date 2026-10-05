@@ -1,0 +1,66 @@
+{
+  "head": "c7e135cc05fa97893744ea38e8c1333c700eac7d",
+  "old_faq_revision": "5e66c959588aa19a425cdbae13d00b0ed0d3a7b3",
+  "scope": [
+    "components/landing/LandingFaq.tsx",
+    "__tests__/landingFaq.test.ts"
+  ],
+  "assertion": "renders the bill requirement, optional pint photo and audience rules",
+  "sha256": {
+    "current_faq": "948b035eb1e7d40fc0a69599a6537ac2209ebcc8eb806488e5c44c3fb4005f7c",
+    "old_faq": "c30456718252008bb1d5d7416ecd923b86f366bc5e750c348054f03456b1a0fa",
+    "unchanged_test": "97490b38cffef6cf41254f13bb42398239c1f10bbcf1fc9c16ba16ec34ed1c69"
+  },
+  "checks": [
+    {
+      "label": "RED: old FAQ with current rendered-output assertion",
+      "command": [
+        "npm",
+        "test",
+        "--",
+        "__tests__/landingFaq.test.ts",
+        "--maxWorkers=1"
+      ],
+      "source_revision": "5e66c959588aa19a425cdbae13d00b0ed0d3a7b3",
+      "test_revision": "c7e135cc05fa97893744ea38e8c1333c700eac7d",
+      "started_at_utc": "2026-10-05T14:53:12.259719+00:00",
+      "finished_at_utc": "2026-10-05T14:53:12.842365+00:00",
+      "exit_code": 1,
+      "output": "npm notice run pubmaxxing@0.1.0 test\nnpm notice run node scripts/check_node_modules_fresh.mjs && vitest run __tests__/landingFaq.test.ts --maxWorkers=1\n\n RUN  v5.0.3 /Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M459E7XB74BXTD6FBMB0352K\n\n \u276f __tests__/landingFaq.test.ts (6 tests | 1 failed) 10ms\n   \u276f the landing FAQ (6)\n     \u00d7 renders the bill requirement, optional pint photo and audience rules 7ms\n\n\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af\n\n FAIL  __tests__/landingFaq.test.ts > the landing FAQ > renders the bill requirement, optional pint photo and audience rules\nAssertionError: expected '<section class=\"lpFaq\" id=\"faq\" aria-\u2026' to contain 'Add a photo of the bill before pressi\u2026'\n\nExpected: \"Add a photo of the bill before pressing Log it\"\nReceived: \"<section class=\"lpFaq\" id=\"faq\" aria-labelledby=\"lp-faq-title\"><h2 class=\"lpFaqTitle\" id=\"lp-faq-title\">Questions people ask</h2><dl class=\"lpFaqList\"><div class=\"lpFaqRow\"><dt class=\"lpFaqQuestion\">How does PUBMAXXING work?</dt><dd class=\"lpFaqAnswer\">Say where you are and we show what a pint costs at the pubs around you, cheapest first. Each figure carries the day it was collected, and names the publisher when the record has one. Nothing else sets the order, and no pub can pay to sit higher.</dd></div><div class=\"lpFaqRow\"><dt class=\"lpFaqQuestion\">Where do the prices come from?</dt><dd class=\"lpFaqAnswer\">Two places. A pub&#x27;s own published price list, which we name and link beside the figure. And drinkers, who log what they paid on the day they paid it. When no publisher is recorded for a price, the price says so. We would rather leave a gap than invent a figure.</dd></div><div class=\"lpFaqRow\"><dt class=\"lpFaqQuestion\">How do I log a price?</dt><dd class=\"lpFaqAnswer\">Open a pub on the map and press the price door. Type what you paid and which drink it was, then press Log it. A photo of the bill or the pint is optional. Photos and notes are public and can show people, so only add one you are happy to share.</dd></div><div class=\"lpFaqRow\"><dt class=\"lpFaqQuestion\">What is on today and tonight?</dt><dd class=\"lpFaqAnswer\">Today reads the London weather and says what sort of drinking day it is. Tonight lists what is on across the city through the evening, from published listings. Both cards near the top of this page stamp the day they speak for, so you can tell a fresh answer from a held one.</dd></div><div class=\"lpFaqRow\"><dt class=\"lpFaqQuestion\">Does it work outside London?</dt><dd class=\"lpFaqAnswer\">Not for prices yet. Every listed price we hold today is a London one. The map opens in eleven other UK cities, and a pub there stays without a price until somebody logs the first one.</dd></div><div class=\"lpFaqRow\"><dt class=\"lpFaqQuestion\">Is there an app?</dt><dd class=\"lpFaqAnswer\">This site installs to your home screen today. Open it in your phone browser and choose Add to Home Screen, and it opens full screen from then on. We are building the App Store and Play Store versions now.</dd></div></dl></section>\"\n\n \u276f __tests__/landingFaq.test.ts:59:18\n     57|   it(\"renders the bill requirement, optional pint photo and audience r\u2026\n     58|     const html = renderToStaticMarkup(createElement(LandingFaq));\n     59|     expect(html).toContain(\"Add a photo of the bill before pressing Lo\u2026\n       |                  ^\n     60|     expect(html).toContain(\"even if you are confirming the same price\"\u2026\n     61|     expect(html).toContain(\"A photo of your pint is optional.\");\n\n\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[1/1]\u23af\n\n\n Test Files  1 failed (1)\n      Tests  1 failed | 5 passed (6)\n   Start at  15:53:12\n   Duration  118ms (transform 40%, import 27%, tests 19%, setup 10%, worker 4%)\n\n"
+    },
+    {
+      "label": "GREEN: exact current FAQ with the same six tests",
+      "command": [
+        "npm",
+        "test",
+        "--",
+        "__tests__/landingFaq.test.ts",
+        "--maxWorkers=1"
+      ],
+      "source_revision": "c7e135cc05fa97893744ea38e8c1333c700eac7d",
+      "test_revision": "c7e135cc05fa97893744ea38e8c1333c700eac7d",
+      "started_at_utc": "2026-10-05T14:53:12.842644+00:00",
+      "finished_at_utc": "2026-10-05T14:53:13.306408+00:00",
+      "exit_code": 0,
+      "output": "npm notice run pubmaxxing@0.1.0 test\nnpm notice run node scripts/check_node_modules_fresh.mjs && vitest run __tests__/landingFaq.test.ts --maxWorkers=1\n\n RUN  v5.0.3 /Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M459E7XB74BXTD6FBMB0352K\n\n\n Test Files  1 passed (1)\n      Tests  6 passed (6)\n   Start at  15:53:13\n   Duration  89ms (transform 44%, import 26%, tests 14%, setup 11%, worker 4%)\n\n"
+    },
+    {
+      "label": "Scoped lint: FAQ source and existing test",
+      "command": [
+        "./node_modules/.bin/eslint",
+        "components/landing/LandingFaq.tsx",
+        "__tests__/landingFaq.test.ts"
+      ],
+      "source_revision": "c7e135cc05fa97893744ea38e8c1333c700eac7d",
+      "test_revision": "c7e135cc05fa97893744ea38e8c1333c700eac7d",
+      "started_at_utc": "2026-10-05T14:53:13.306462+00:00",
+      "finished_at_utc": "2026-10-05T14:53:14.785179+00:00",
+      "exit_code": 0,
+      "output": ""
+    }
+  ],
+  "proof_limit": "Rendered FAQ output and two-file lint only. No browser, broad test, release or coverage approval.",
+  "result": "pass",
+  "source_restored_exactly": true,
+  "test_unchanged_exactly": true
+}
