@@ -114,7 +114,7 @@ function expiredCallbackSubject(error: unknown, accessToken: string): string | n
  */
 const EMAIL_LINK_AMR_METHODS = new Set(["otp", "magiclink", "email/signup"]);
 
-export function isEmailLinkSession(accessToken: string): boolean {
+function isEmailLinkSession(accessToken: string): boolean {
   const amr = accessTokenClaims(accessToken)?.amr;
   // GoTrue writes { method, timestamp } entries. A custom access token hook
   // may write RFC 8176 strings instead.
