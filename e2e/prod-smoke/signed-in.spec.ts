@@ -168,14 +168,9 @@ test.describe("signed-in journeys", () => {
   });
 
   test("the owner's profile shows their save", async () => {
-    // KNOWN PRODUCT DEFECT, found by this suite on 5 Oct 2026 and fixed in a
-    // separate change. The save lands (the test before proves it), but a full
-    // load of the owner's own /u/<handle> shows "No saved venues yet.":
-    // loadSaved in app/u/[handle]/ProfilePageClient.tsx asks before the
-    // session has restored, gets null and never asks again. Remove this line
-    // when that fix lands; until then a pass here fails the run, which says it
-    // has landed.
-    test.fail(true, "Owner's profile hides their saves after a full load (ProfilePageClient loadSaved).");
+    // This suite found the owner's own /u/<handle> showing "No saved venues
+    // yet." after a full load, on 5 Oct 2026 (fixed in #2004). The test before
+    // proves the save landed, so this one holds the profile to showing it.
     await page.goto(`/u/${HANDLE}#saved-pubs`);
     await expect(savedRow(page)).toBeVisible();
   });
