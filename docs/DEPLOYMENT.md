@@ -34,6 +34,13 @@ Set these in the Vercel project (Settings → Environment Variables).
 | `SOCIAL_MODERATOR_STAFF_ROLE_ID` | Server-only UUID of the active `private_social_staff_roles` moderator bound to the existing admin token/session. Social moderation SQL validates that the role is active and not revoked before reads or writes. |
 | `RATE_LIMIT_SALT` | At least 32 random bytes for `sha256(salt:ip)` IP hashing (raw IPs never reach the DB or logs) and the fallback trusted Plan-signing key. Defaults are allowed only for non-trusted local helpers. **Required in production:** `assertServerEnv()` refuses to start if this is unset, short, or still the dev default. |
 
+Moderator cookies contain a versioned issuance time signed with `ADMIN_TOKEN`.
+The server refuses a cookie at 24 hours, even if a caller sends it after browser expiry.
+It also refuses future timestamps and changed signatures.
+Changing `ADMIN_TOKEN` invalidates existing sessions.
+The signed format replaces the old static token digest, so existing moderators must sign in again after this update.
+The `x-admin-token` header remains available for scripts.
+
 ### Optional — The Landlord (heritage Q&A)
 
 | Var | Purpose |
