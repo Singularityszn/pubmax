@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page, type Request, type Response } from "@playwright/test";
+import type { Locator, Page, Response } from "@playwright/test";
 
 /**
  * The describe-first field on /plan, addressed by role and name.
@@ -28,50 +28,29 @@ export function describeFirstSubmit(page: Page): Locator {
 }
 
 /**
- * Describe the outing and tap "Sort it" once the composer will keep both, and
- * hand back the planner's answer.
+ * Describe the outing, tap "Sort it", and hand back the planner's answer.
  *
- * /plan paints this field on the server, and PlanComposer remounts its form
- * under a fresh key the moment hydration lands. Text typed or a tap made
- * before that remount is thrown away, so a lone fill and click right after
- * `goto` sometimes asks for nothing and the spec waits out its whole budget
- * for a route nobody requested. Retry the fill and the tap until the planner
- * request has gone out, and never after, so a route is asked for once.
+ * /plan paints this field on the server, and PlanDescribeFirst keeps it
+ * read-only, with its controls aria-disabled, until the composer that owns it
+ * has hydrated. Playwright's fill waits for an editable field and its click
+ * for an enabled control, so one fill and one tap land on the composer that
+ * will keep them, and the route is asked for exactly once.
  */
 export async function sortDescribeFirst(
   page: Page,
   query: string,
   { stopCount }: { stopCount?: number } = {},
 ): Promise<Response> {
-  const asked: { generation?: Request } = {};
-  const onRequest = (request: Request) => {
-    if (
-      !asked.generation &&
-      request.method() === "POST" &&
-      new URL(request.url()).pathname === "/api/plans/generate"
-    ) {
-      asked.generation = request;
-    }
-  };
-  page.on("request", onRequest);
-  try {
-    await expect(async () => {
-      if (!asked.generation) {
-        await describeFirstQuery(page).fill(query);
-        if (stopCount !== undefined) {
-          const stopButton = page
-            .getByRole("group", { name: "Number of pub stops" })
-            .getByRole("button", { name: String(stopCount), exact: true });
-          if (await stopButton.getAttribute("aria-pressed") !== "true") await stopButton.click();
-        }
-        await describeFirstSubmit(page).click();
-      }
-      await expect.poll(() => asked.generation !== undefined, { timeout: 2_000 }).toBe(true);
-    }).toPass({ timeout: 20_000 });
-  } finally {
-    page.off("request", onRequest);
+  await describeFirstQuery(page).fill(query);
+  if (stopCount !== undefined) {
+    const stopButton = page
+      .getByRole("group", { name: "Number of pub stops" })
+      .getByRole("button", { name: String(stopCount), exact: true });
+    if (await stopButton.getAttribute("aria-pressed") !== "true") await stopButton.click();
   }
-  const response = await asked.generation?.response();
-  if (!response) throw new Error("The planner request went out but got no response.");
-  return response;
+  const generation = page.waitForResponse((response) =>
+    response.request().method() === "POST"
+    && new URL(response.url()).pathname === "/api/plans/generate");
+  await describeFirstSubmit(page).click();
+  return generation;
 }
