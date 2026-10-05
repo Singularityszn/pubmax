@@ -23,7 +23,7 @@
       }
     ],
     "sourceUrl": "https://www.thesavoylondon.com/restaurants-and-bars/american-bar",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Welcome to The Savoy",
@@ -44,57 +44,12 @@
       "lng": -0.12008
     },
     "sourceName": "thesavoylondon.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual",
     "placesNameAliases": [
       "american bar"
     ]
-  },
-  {
-    "id": "bar-beaufort-bar-savoy",
-    "name": "Beaufort Bar",
-    "address": "Strand, London WC2R 0EZ",
-    "borough": "Westminster",
-    "lat": 51.51038,
-    "lng": -0.12025,
-    "kind": "bar",
-    "hasStory": true,
-    "fameGates": [
-      {
-        "kind": "recognition",
-        "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Beaufort-Bar.html"
-      },
-      {
-        "kind": "distinct_experience",
-        "sourceUrl": "https://www.thesavoylondon.com/restaurants-and-bars/beaufort-bar"
-      }
-    ],
-    "sourceUrl": "https://www.thesavoylondon.com/restaurants-and-bars/beaufort-bar",
-    "observedAt": "2026-08-25",
-    "anchor": {
-      "kind": "house_cocktail",
-      "label": "Beaufort signature cocktail",
-      "price": 24,
-      "observedAt": "2026-07-26",
-      "sourceUrl": "https://www.thesavoylondon.com/restaurants-and-bars/beaufort-bar"
-    },
-    "story": {
-      "text": "A black-and-gold bar occupies the Savoy stage where George Gershwin and Noël Coward once performed.",
-      "sourceUrl": "https://www.thesavoylondon.com/restaurants-and-bars/beaufort-bar"
-    },
-    "category": "bar",
-    "job": "late_night_bar",
-    "description": "A black-and-gold bar occupies the Savoy stage where George Gershwin and Noël Coward once performed.",
-    "area": "Westminster",
-    "location": {
-      "lat": 51.51038,
-      "lng": -0.12025
-    },
-    "sourceName": "thesavoylondon.com",
-    "expiresAt": "2026-09-24",
-    "discoveredVia": "manual",
-    "extractedVia": "manual"
   },
   {
     "id": "bar-connaught",
@@ -116,7 +71,7 @@
       }
     ],
     "sourceUrl": "https://www.the-connaught.co.uk/restaurants-bars/connaught-bar",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Connaught signature cocktail",
@@ -137,7 +92,7 @@
       "lng": -0.1491
     },
     "sourceName": "the-connaught.co.uk",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -161,7 +116,7 @@
       }
     ],
     "sourceUrl": "https://www.the-connaught.co.uk/restaurants-bars/coburg-bar",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Coburg signature cocktail",
@@ -182,7 +137,7 @@
       "lng": -0.14916
     },
     "sourceName": "the-connaught.co.uk",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -210,7 +165,7 @@
       }
     ],
     "sourceUrl": "https://www.dukeshotel.com/dukesbar.html",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "DUKES Martini",
@@ -231,7 +186,7 @@
       "lng": -0.1399
     },
     "sourceName": "dukeshotel.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -255,7 +210,7 @@
       }
     ],
     "sourceUrl": "https://www.roccofortehotels.com/hotels-and-resorts/brown-s-hotel/dining/donovan-bar",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Donovan signature cocktail",
@@ -276,7 +231,7 @@
       "lng": -0.14265
     },
     "sourceName": "roccofortehotels.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -300,7 +255,7 @@
       }
     ],
     "sourceUrl": "https://www.rosewoodhotels.com/en/london/dining/scarfes-bar",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Scarfes signature cocktail",
@@ -321,7 +276,7 @@
       "lng": -0.11805
     },
     "sourceName": "rosewoodhotels.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -345,7 +300,7 @@
       }
     ],
     "sourceUrl": "https://www.langhamhotels.com/en/the-langham/london/dine/artesian",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Artesian signature cocktail",
@@ -366,7 +321,7 @@
       "lng": -0.14372
     },
     "sourceName": "langhamhotels.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -390,7 +345,7 @@
       }
     ],
     "sourceUrl": "https://www.seacontainerslondon.com/eat-drink/lyaness",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Lyaness ingredient-led cocktail",
@@ -411,7 +366,7 @@
       "lng": -0.10604
     },
     "sourceName": "seacontainerslondon.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -435,7 +390,7 @@
       }
     ],
     "sourceUrl": "https://www.barnightjar.com/",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Nightjar signature cocktail",
@@ -456,7 +411,7 @@
       "lng": -0.08782
     },
     "sourceName": "barnightjar.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual",
     "placesNameAliases": [
@@ -483,7 +438,7 @@
       }
     ],
     "sourceUrl": "https://www.threesheets-bar.com/soho",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Three Sheets seasonal cocktail",
@@ -504,7 +459,7 @@
       "lng": -0.13085
     },
     "sourceName": "threesheets-bar.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -528,7 +483,7 @@
       }
     ],
     "sourceUrl": "https://www.oriolebar.com/",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Oriole signature cocktail",
@@ -549,7 +504,7 @@
       "lng": -0.1267
     },
     "sourceName": "oriolebar.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -573,7 +528,7 @@
       }
     ],
     "sourceUrl": "https://www.barswift.com/soho",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Swift seasonal cocktail",
@@ -594,7 +549,7 @@
       "lng": -0.13184
     },
     "sourceName": "barswift.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -618,7 +573,7 @@
       }
     ],
     "sourceUrl": "https://www.barswift.com/borough",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Swift seasonal cocktail",
@@ -639,7 +594,7 @@
       "lng": -0.08985
     },
     "sourceName": "barswift.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -663,7 +618,7 @@
       }
     ],
     "sourceUrl": "https://www.bar-termini.com/",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "House Negroni",
@@ -684,7 +639,7 @@
       "lng": -0.13054
     },
     "sourceName": "bar-termini.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -708,7 +663,7 @@
       }
     ],
     "sourceUrl": "https://www.threesheets-bar.com/",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Three Sheets seasonal cocktail",
@@ -729,7 +684,7 @@
       "lng": -0.07558
     },
     "sourceName": "threesheets-bar.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -753,7 +708,7 @@
       }
     ],
     "sourceUrl": "https://www.happinessforgets.com/",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "House cocktail",
@@ -774,7 +729,7 @@
       "lng": -0.08195
     },
     "sourceName": "happinessforgets.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -798,7 +753,7 @@
       }
     ],
     "sourceUrl": "https://discountsuitcompany.co.uk/",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "House cocktail",
@@ -819,7 +774,7 @@
       "lng": -0.07454
     },
     "sourceName": "discountsuitcompany.co.uk",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -843,7 +798,7 @@
       }
     ],
     "sourceUrl": "https://satanswhiskers.com/",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Daily changing cocktail",
@@ -864,7 +819,7 @@
       "lng": -0.05806
     },
     "sourceName": "satanswhiskers.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -888,7 +843,7 @@
       }
     ],
     "sourceUrl": "https://www.seedlibraryshoreditch.com/",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Seed Library cocktail",
@@ -909,7 +864,7 @@
       "lng": -0.07704
     },
     "sourceName": "seedlibraryshoreditch.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -933,7 +888,7 @@
       }
     ],
     "sourceUrl": "https://www.equalpartslondon.com/",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Equal Parts cocktail",
@@ -954,7 +909,7 @@
       "lng": -0.06658
     },
     "sourceName": "equalpartslondon.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -978,7 +933,7 @@
       }
     ],
     "sourceUrl": "https://viajante87.com/",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Viajante87 cocktail",
@@ -999,7 +954,7 @@
       "lng": -0.19725
     },
     "sourceName": "viajante87.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -1023,7 +978,7 @@
       }
     ],
     "sourceUrl": "https://alchemybar.com/?alc-location=bar-with-shapes-for-a-name",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Shapes cocktail",
@@ -1044,7 +999,7 @@
       "lng": -0.07634
     },
     "sourceName": "alchemybar.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -1053,8 +1008,8 @@
     "name": "Kwānt",
     "address": "52 Stratton Street, London W1J 8LN",
     "borough": "Westminster",
-    "lat": 51.50735,
-    "lng": -0.14075,
+    "lat": 51.507185,
+    "lng": -0.143285,
     "kind": "bar",
     "hasStory": true,
     "fameGates": [
@@ -1068,7 +1023,7 @@
       }
     ],
     "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Kw%C4%81nt-Mayfair.html",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Cocktail (average)",
@@ -1085,13 +1040,16 @@
     "description": "Erik Lorincz reopened Kwānt on Stratton Street with vintage spirits, Polynesian decor and the same madcap cocktail craft that made the Heddon Street room famous.",
     "area": "Mayfair",
     "location": {
-      "lat": 51.50735,
-      "lng": -0.14075
+      "lat": 51.507185,
+      "lng": -0.143285
     },
     "sourceName": "theworlds50best.com",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "kwant mayfair"
+    ]
   },
   {
     "id": "bar-side-hustle",
@@ -1113,7 +1071,7 @@
       }
     ],
     "sourceUrl": "https://www.hilton.com/en/hotels/lonnmnd-nomad-london/dining/side-hustle",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Side Hustle agave cocktail",
@@ -1134,7 +1092,7 @@
       "lng": -0.12185
     },
     "sourceName": "hilton.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -1158,7 +1116,7 @@
       }
     ],
     "sourceUrl": "https://calloohcallaybar.com/",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Callooh Callay cocktail",
@@ -1179,7 +1137,7 @@
       "lng": -0.08052
     },
     "sourceName": "calloohcallaybar.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -1203,7 +1161,7 @@
       }
     ],
     "sourceUrl": "https://www.experimentalcocktailclub.com/london",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "ECC cocktail",
@@ -1224,9 +1182,12 @@
       "lng": -0.13116
     },
     "sourceName": "experimentalcocktailclub.com",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "experimental cocktail club chinatown"
+    ]
   },
   {
     "id": "bar-disrepute",
@@ -1248,7 +1209,7 @@
       }
     ],
     "sourceUrl": "https://www.disrepute.co.uk/",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Disrepute cocktail",
@@ -1269,7 +1230,7 @@
       "lng": -0.13896
     },
     "sourceName": "disrepute.co.uk",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -1293,7 +1254,7 @@
       }
     ],
     "sourceUrl": "https://www.cahoots-london.com/",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Cahoots cocktail",
@@ -1314,7 +1275,7 @@
       "lng": -0.13914
     },
     "sourceName": "cahoots-london.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -1338,7 +1299,7 @@
       }
     ],
     "sourceUrl": "https://www.mr-foggs.com/mr-foggs-residence",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Mr Fogg's cocktail",
@@ -1359,7 +1320,7 @@
       "lng": -0.14504
     },
     "sourceName": "mr-foggs.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -1383,7 +1344,7 @@
       }
     ],
     "sourceUrl": "https://milroys.co.uk/pages/the-vault",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Vault cocktail",
@@ -1404,7 +1365,7 @@
       "lng": -0.13037
     },
     "sourceName": "milroys.co.uk",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual",
     "placesNameAliases": [
@@ -1431,7 +1392,7 @@
       }
     ],
     "sourceUrl": "https://somasoho.com/",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "SOMA cocktail",
@@ -1452,7 +1413,7 @@
       "lng": -0.13429
     },
     "sourceName": "somasoho.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -1476,7 +1437,7 @@
       }
     ],
     "sourceUrl": "https://thecocktailtradingco.com/",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "CTC house cocktail",
@@ -1497,9 +1458,12 @@
       "lng": -0.07136
     },
     "sourceName": "thecocktailtradingco.com",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "cocktail trading co shoreditch"
+    ]
   },
   {
     "id": "bar-trailer-happiness",
@@ -1521,7 +1485,7 @@
       }
     ],
     "sourceUrl": "https://www.trailerh.com/",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Rum cocktail",
@@ -1542,17 +1506,17 @@
       "lng": -0.20434
     },
     "sourceName": "trailerh.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
   {
     "id": "bar-eve",
     "name": "Eve Bar",
-    "address": "34 Southampton Street, London WC2E 7HF",
+    "address": "34-35 Southampton Street, London WC2E 7HG",
     "borough": "Westminster",
-    "lat": 51.5116,
-    "lng": -0.12276,
+    "lat": 51.51067,
+    "lng": -0.121916,
     "kind": "bar",
     "hasStory": true,
     "fameGates": [
@@ -1566,7 +1530,7 @@
       }
     ],
     "sourceUrl": "https://www.evebar.co.uk/",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Eve cocktail",
@@ -1583,13 +1547,16 @@
     "description": "Adam Handling's subterranean bar turns kitchen offcuts into polished cocktails beneath Covent Garden.",
     "area": "Westminster",
     "location": {
-      "lat": 51.5116,
-      "lng": -0.12276
+      "lat": 51.51067,
+      "lng": -0.121916
     },
     "sourceName": "evebar.co.uk",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "eve bar covent garden"
+    ]
   },
   {
     "id": "bar-punch-room",
@@ -1611,7 +1578,7 @@
       }
     ],
     "sourceUrl": "https://www.editionhotels.com/london/restaurants-and-bars/punch-room",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "house_cocktail",
       "label": "Single-serve punch",
@@ -1632,7 +1599,7 @@
       "lng": -0.13618
     },
     "sourceName": "editionhotels.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -1660,7 +1627,7 @@
       }
     ],
     "sourceUrl": "https://www.gordonswinebar.com/",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "wine",
       "label": "175ml house wine",
@@ -1681,7 +1648,7 @@
       "lng": -0.12373
     },
     "sourceName": "gordonswinebar.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -1709,7 +1676,7 @@
       }
     ],
     "sourceUrl": "https://www.frenchhousesoho.com/",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "pint",
       "label": "Half pint house lager",
@@ -1730,7 +1697,7 @@
       "lng": -0.13196
     },
     "sourceName": "frenchhousesoho.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   }
