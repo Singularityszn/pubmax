@@ -11,12 +11,14 @@ import {
   LONDON_RESTAURANT_PACK_PATH,
   londonRestaurantLayerShown,
   londonRestaurantPackWanted,
+  londonRestaurantsPassingMapFilters,
   londonRestaurantsToGeoJSON,
   londonRestaurantsWithoutCuratedTwin,
   loadLondonRestaurants,
   parseLondonRestaurantPack,
 } from "@/lib/londonRestaurants";
 import { londonVenueIdFromFeature, type LondonVenue } from "@/lib/londonVenueShards";
+import { initialFilters, type Filters } from "@/lib/venues";
 
 const RULES_ROW = ["n101", "Rules", "35 Maiden Lane, London", 51.51083, -0.12319, "restaurant"];
 const FURNIVAL_ROW = [
@@ -180,6 +182,76 @@ describe("londonRestaurantLayerShown", () => {
     expect(
       londonRestaurantLayerShown({ ...base, experienceLens: "food", lensOwnsMap: true }),
     ).toBe(true);
+  });
+});
+
+describe("londonRestaurantsPassingMapFilters", () => {
+  const dishoom = restaurant({ id: "venue-osm-n1", name: "Dishoom", address: "12 Upper St Martin's Lane" });
+  const rules = restaurant({ id: "venue-osm-n2", name: "Rules", address: "35 Maiden Lane" });
+  const both = [dishoom, rules];
+  const base = { filters: initialFilters, savedOnly: false, nearMe: false, selectedVenueId: "" };
+  const pass = (overrides: Partial<typeof base>, filters: Partial<Filters> = {}) =>
+    londonRestaurantsPassingMapFilters(both, {
+      ...base,
+      ...overrides,
+      filters: { ...initialFilters, ...filters },
+    }).map((place) => place.id);
+
+  it("lets every restaurant through while no filter narrows the map", () => {
+    expect(pass({})).toEqual([dishoom.id, rules.id]);
+  });
+
+  it("matches the search against a name or an address", () => {
+    expect(pass({}, { query: "  DISHOOM " })).toEqual([dishoom.id]);
+    expect(pass({}, { query: "maiden" })).toEqual([rules.id]);
+    expect(pass({}, { query: "wolseley" })).toEqual([]);
+  });
+
+  it("lets the food filter through, because a restaurant serves food", () => {
+    expect(pass({}, { requireFood: true })).toEqual([dishoom.id, rules.id]);
+  });
+
+  it("hides every restaurant while Saved only or near me is on", () => {
+    expect(pass({ savedOnly: true })).toEqual([]);
+    expect(pass({ nearMe: true })).toEqual([]);
+  });
+
+  it("hides every restaurant while a filter asks what a row cannot answer", () => {
+    const unanswerable: Partial<Filters>[] = [
+      { maxPrice: 6 },
+      { openNow: true },
+      { zone: "1" },
+      { canonicalOnly: true },
+      { requirePintDrops: true },
+      { requireBeerGarden: true },
+      { requireNonAlcoholic: true },
+      { requireLiveSports: true },
+      { requireCocktails: true },
+      { requireWater: true },
+      { requireHeritage: true },
+      { requireStepFree: true },
+      { requireAccessibleToilet: true },
+      { requireSeatedService: true },
+      { drinkCategory: "gin" },
+      { drinkBrand: "guinness" },
+      { topShelfOnly: true },
+    ];
+    for (const filters of unanswerable) expect(pass({}, filters)).toEqual([]);
+  });
+
+  it("reads an uncapped price and every zone as no narrowing", () => {
+    expect(pass({}, { maxPrice: Number.POSITIVE_INFINITY, zone: "all" })).toEqual([
+      dishoom.id,
+      rules.id,
+    ]);
+  });
+
+  it("keeps the selected restaurant, as a selected curated pin is kept", () => {
+    expect(pass({ savedOnly: true, selectedVenueId: rules.id })).toEqual([rules.id]);
+    expect(pass({ selectedVenueId: rules.id }, { query: "dishoom" })).toEqual([
+      dishoom.id,
+      rules.id,
+    ]);
   });
 });
 

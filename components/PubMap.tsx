@@ -408,6 +408,7 @@ import { useLondonRestaurants } from "@/components/map/useLondonRestaurants";
 import {
   londonRestaurantLayerShown,
   londonRestaurantPackWanted,
+  londonRestaurantsPassingMapFilters,
   londonRestaurantsWithoutCuratedTwin,
 } from "@/lib/londonRestaurants";
 import type { LondonVenue } from "@/lib/londonVenueShards";
@@ -3019,13 +3020,30 @@ export default function PubMap({
   });
   const selectedCoffeeCafe = londonPlacePick.cafe;
   const selectedLondonRestaurant = londonPlacePick.restaurant;
-  // A curated venue owns its own place, so the OSM row beside it is not drawn.
+  // The map's filters narrow the layer as they narrow curated pins, and a
+  // drawn curated venue owns its own place, so the OSM row beside it is not drawn.
   const drawnLondonRestaurants = useMemo(
     () =>
       londonRestaurantsShown
-        ? londonRestaurantsWithoutCuratedTwin(londonRestaurantRead.restaurants, venues)
+        ? londonRestaurantsWithoutCuratedTwin(
+            londonRestaurantsPassingMapFilters(londonRestaurantRead.restaurants, {
+              filters: effectiveMapFilters,
+              savedOnly,
+              nearMe: nearbyMapResultForView !== null,
+              selectedVenueId,
+            }),
+            canvasVenues,
+          )
         : NO_LONDON_RESTAURANTS,
-    [londonRestaurantRead.restaurants, londonRestaurantsShown, venues],
+    [
+      canvasVenues,
+      effectiveMapFilters,
+      londonRestaurantRead.restaurants,
+      londonRestaurantsShown,
+      nearbyMapResultForView,
+      savedOnly,
+      selectedVenueId,
+    ],
   );
   const activeLensLabel = activeLensLabelFor(mapDrinkLensCategory, experienceLens);
   // The name a heading wears is not always the name a sentence wants: the

@@ -29,7 +29,7 @@ export default function LondonRestaurantSheet({ restaurant }: { restaurant: Lond
       </div>
 
       <p className="londonRestaurantLead">
-        A restaurant that serves alcohol. Nobody has logged a price here yet.
+        A restaurant that serves alcohol. We have no prices for it.
       </p>
 
       {/* ODbL requires attribution wherever these places are shown, and it is

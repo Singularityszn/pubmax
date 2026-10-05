@@ -107,7 +107,8 @@ it("opens a sheet that names the restaurant, says it serves alcohol and credits 
   expect(sheet?.querySelector("h2")?.textContent).toBe("26 Furnival Street");
   expect(sheet?.textContent).toContain("Restaurant");
   expect(sheet?.textContent).toContain("26, Furnival Street, London, EC4A 1JS");
-  expect(sheet?.textContent).toContain("A restaurant that serves alcohol.");
+  expect(sheet?.textContent).toContain("A restaurant that serves alcohol. We have no prices for it.");
+  expect(sheet?.textContent).not.toContain("logged");
   expect(sheet?.textContent).not.toMatch(/£\d/);
   const credit = sheet?.querySelector("a[href='https://www.openstreetmap.org/copyright']");
   expect(credit?.textContent).toBe("OpenStreetMap contributors");

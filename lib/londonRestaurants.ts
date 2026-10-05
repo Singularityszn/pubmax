@@ -20,6 +20,9 @@
 // 3. THE KIND FILTER AND THE VIEW DECIDE, as they do for a curated restaurant.
 //    Restaurants hidden in the filter, or a view that is not about restaurants,
 //    take this layer off the map.
+// 4. THE MAP'S FILTERS NARROW IT TOO. The search matches a name or address. A
+//    filter that asks what a row cannot answer (a price, Open now, Saved only,
+//    near me, an amenity, a drink, a zone) hides every restaurant while it is on.
 
 import { haversineMeters } from "@/lib/greatCircle.mjs";
 import {
@@ -28,6 +31,8 @@ import {
   type LondonVenue,
 } from "@/lib/londonVenueShards";
 import type { MapExperienceLens } from "@/lib/mapExperienceLens";
+import { NO_PINT_PRICE_CAP, type Filters } from "@/lib/venues";
+import { parseZoneParam } from "@/lib/zones";
 
 export const LONDON_RESTAURANT_PACK_PATH = "/data/london_restaurants/restaurants.json";
 const LONDON_RESTAURANT_PACK_VERSION = 1;
@@ -193,6 +198,57 @@ export function londonRestaurantLayerShown(input: {
 }): boolean {
   if (!input.isLondon || !input.restaurantKindVisible) return false;
   return input.experienceLens === "food" || !input.lensOwnsMap;
+}
+
+/**
+ * Whether a map filter asks a question a restaurant row cannot answer. A row
+ * holds a name, an address and a position, and a restaurant serves food, so
+ * only the search and the food filter can pass it.
+ */
+function filtersAskBeyondARestaurantRow(filters: Filters): boolean {
+  const zone = parseZoneParam(filters.zone);
+  return (
+    filters.maxPrice < NO_PINT_PRICE_CAP ||
+    (zone !== null && zone !== "all") ||
+    filters.openNow ||
+    filters.canonicalOnly ||
+    filters.requirePintDrops ||
+    filters.requireBeerGarden ||
+    filters.requireNonAlcoholic ||
+    filters.requireLiveSports ||
+    filters.requireCocktails ||
+    filters.requireWater ||
+    filters.requireHeritage ||
+    filters.requireStepFree ||
+    filters.requireAccessibleToilet ||
+    filters.requireSeatedService ||
+    filters.drinkCategory.trim() !== "" ||
+    filters.drinkBrand.trim() !== "" ||
+    filters.topShelfOnly
+  );
+}
+
+/**
+ * The restaurants the map's own filters let through, as curated pins are let
+ * through. Saved only and near me keep places a reader chose or stands beside,
+ * and no restaurant is either. The selected restaurant stays, as a selected
+ * curated pin does.
+ */
+export function londonRestaurantsPassingMapFilters(
+  restaurants: readonly LondonVenue[],
+  input: { filters: Filters; savedOnly: boolean; nearMe: boolean; selectedVenueId: string },
+): readonly LondonVenue[] {
+  const query = input.filters.query.trim().toLowerCase();
+  const nothingPasses =
+    input.savedOnly || input.nearMe || filtersAskBeyondARestaurantRow(input.filters);
+  if (!nothingPasses && !query) return restaurants;
+  return restaurants.filter(
+    (restaurant) =>
+      restaurant.id === input.selectedVenueId ||
+      (!nothingPasses &&
+        (restaurant.name.toLowerCase().includes(query) ||
+          restaurant.address.toLowerCase().includes(query))),
+  );
 }
 
 /** Restaurants as the map's `london-restaurants` source. Points only, no price. */
