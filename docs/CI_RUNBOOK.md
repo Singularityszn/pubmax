@@ -116,6 +116,9 @@ then `npm run test:rls`, so each PostgreSQL suite runs once. The suites
 `--without-postgres` excludes are the closed list in
 `scripts/rls/postgresSuites.mjs`.
 
+The Data validation job also runs on its own. It runs `npm run validate-data`,
+the same data gate `npm run verify` starts with.
+
 The lint-and-types job and the merge bar `npm run verify` both run
 [`npm run typecheck`](../package.json). It runs `next typegen` first, so the
 `typedRoutes` link types exist, then the TypeScript 7 native `tsc`. The

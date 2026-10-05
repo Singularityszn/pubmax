@@ -178,6 +178,13 @@ describe("clean-main CI release gate", () => {
     expect(needs["production-build"]).toEqual(["lint-and-types"]);
     expect(needs.coverage).toEqual(["unit-tests"]);
     expect(needs.freshness).toEqual([]);
+    expect(needs["validate-data"]).toEqual([]);
+  });
+
+  it("validates every bundled dataset in its own job", () => {
+    const validation = steps.filter((step) => step.job === "validate-data");
+    expect(validation.map((step) => step.run)).toContain("npm run validate-data");
+    expect(workflow).toMatch(/validate-data:\n {4}name: Data validation\n/);
   });
 
   it("starts the unit shards at once and in parallel", () => {

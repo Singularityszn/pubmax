@@ -14,10 +14,12 @@
  * `__tests__/helpers/postgres` or `scripts/rls/session-harness.mjs`.
  */
 export const POSTGRES_BACKED_SUITES = Object.freeze([
+  "__tests__/accountHasPasswordEffective.test.ts",
   "__tests__/accountRemovalMigrationEffective.test.ts",
   "__tests__/accountRetentionLedgerMigrationEffective.test.ts",
   "__tests__/accountVisibilityMigrationEffective.test.ts",
   "__tests__/browserRoleGrantFence.test.ts",
+  "__tests__/communityPriceReportEffective.test.ts",
   "__tests__/drinkWallRlsMigrationEffective.test.ts",
   "__tests__/foundingMembersMigration.test.ts",
   "__tests__/groupMessageThreadsMigrationEffective.test.ts",
@@ -50,10 +52,14 @@ export const POSTGRES_BACKED_SUITES = Object.freeze([
   "__tests__/postgresHarnessTimeouts.test.ts",
   "__tests__/postgresShmHarness.test.ts",
   "__tests__/priceTrustEventsMigrationEffective.test.ts",
+  "__tests__/pubPalVoiceMinutesEffective.test.ts",
   "__tests__/publicGrantSweepMigrationEffective.test.ts",
   "__tests__/publicWithdrawnProfilesMigrationEffective.test.ts",
   "__tests__/rateLimitExpiryMigration.test.ts",
+  "__tests__/referralRpcsEffective.test.ts",
+  "__tests__/renamePubmaxxHandleEffective.test.ts",
   "__tests__/rlsWave2Session.test.ts",
+  "__tests__/roundPriceLinesEffective.test.ts",
   "__tests__/socialComposerMigration.test.ts",
   "__tests__/socialCrewLegacyRoutesRls.test.ts",
   "__tests__/socialCrewMigration.test.ts",
