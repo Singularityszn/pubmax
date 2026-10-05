@@ -32,7 +32,7 @@ export default function RouteLoadingShell({ label }: RouteLoadingShellProps) {
         <span className="routeLoadingShellBar routeLoadingShellBar--short" aria-hidden="true" />
         <span className="routeLoadingShellCard" aria-hidden="true" />
         <span className="routeLoadingShellCard" aria-hidden="true" />
-        <PintLoader className="routeLoadingShellLabel" label={label} />
+        <PintLoader className="routeLoadingShellLabel" label={label} labelSize="quiet" />
       </div>
     </section>
   );

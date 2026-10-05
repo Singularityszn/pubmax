@@ -111,7 +111,7 @@ describe("the map's held loading frame", () => {
   // THE REGRESSION: the pill is a flex ROW, so the slow line shipped as a
   // third sibling of the eyebrow and the primary line and grew the pill a
   // third COLUMN at 390px instead of dropping under them. Every line the
-  // frame prints has to live in the one stack the pill holds beside its dot.
+  // frame prints has to live in the one stack the pill holds beside its glass.
   it("stacks every printed line inside one child of the pill", () => {
     vi.useFakeTimers();
     act(() => {
@@ -124,8 +124,10 @@ describe("the map's held loading frame", () => {
     });
 
     const pill = host.querySelector<HTMLElement>(".mapLoadingCopy");
+    const glass = host.querySelector<HTMLElement>(".pintLoader");
     const stack = host.querySelector<HTMLElement>(".mapLoadingLines");
-    expect(Array.from(pill?.children ?? [])).toEqual([stack]);
+    expect(Array.from(pill?.children ?? [])).toEqual([glass, stack]);
+    expect(glass?.textContent).toBe("");
     expect(
       Array.from(stack?.children ?? []).map((line) => line.textContent),
     ).toEqual(["London pub map", "Loading London pubs…", "Still loading pubs…"]);

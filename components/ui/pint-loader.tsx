@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 import "./pintLoader.css";
 
 /**
@@ -12,9 +14,11 @@ import "./pintLoader.css";
  *
  * The component paints no live region of its own. The caller owns the one
  * `role="status"` and the one accessible name, so a frame never announces
- * itself twice. `label` is the quiet visible line and is optional.
+ * itself twice. `label` is the visible line and is optional. `labelSize`
+ * "quiet" is the smaller line a route shell prints under its skeleton.
  */
 export type PintLoaderSize = "sm" | "md";
+export type PintLoaderLabelSize = "default" | "quiet";
 
 const BUBBLES: { x: number; r: number; delay: number; dur: number }[] = [
   { x: 25, r: 1.4, delay: 0.5, dur: 1.7 },
@@ -27,13 +31,25 @@ const BUBBLES: { x: number; r: number; delay: number; dur: number }[] = [
 export default function PintLoader({
   size = "md",
   label,
+  labelSize = "default",
   className,
 }: {
   size?: PintLoaderSize;
   label?: string;
+  labelSize?: PintLoaderLabelSize;
   className?: string;
 }) {
-  const classes = ["pintLoader", `pintLoader--${size}`, className].filter(Boolean).join(" ");
+  const id = useId();
+  const beerId = `${id}-beer`;
+  const insideId = `${id}-inside`;
+  const classes = [
+    "pintLoader",
+    `pintLoader--${size}`,
+    labelSize === "quiet" ? "pintLoader--quietLabel" : null,
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
   return (
     <span className={classes}>
       <svg
@@ -43,18 +59,18 @@ export default function PintLoader({
         focusable="false"
       >
         <defs>
-          <linearGradient id="pintLoaderBeer" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={beerId} x1="0" y1="0" x2="0" y2="1">
             <stop className="pintLoaderBeerTop" offset="0" />
             <stop className="pintLoaderBeerBottom" offset="1" />
           </linearGradient>
-          <clipPath id="pintLoaderInside">
+          <clipPath id={insideId}>
             <path d="M16 10 H64 L58 100 Q57.6 104 53 104 H27 Q22.4 104 22 100 Z" />
           </clipPath>
         </defs>
         <ellipse className="pintLoaderShadow" cx="40" cy="108" rx="24" ry="3" />
-        <g clipPath="url(#pintLoaderInside)">
+        <g clipPath={`url(#${insideId})`}>
           <g className="pintLoaderFill">
-            <rect x="10" y="10" width="60" height="100" fill="url(#pintLoaderBeer)" />
+            <rect x="10" y="10" width="60" height="100" fill={`url(#${beerId})`} />
             <path className="pintLoaderHead" d="M10 10 H70 V19 Q55 23 40 19 T10 19 Z" />
             {BUBBLES.map((bubble) => (
               <circle
