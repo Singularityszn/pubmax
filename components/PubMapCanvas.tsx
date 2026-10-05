@@ -164,6 +164,7 @@ import {
   PAINT_WATCHDOG_INTERVAL_MS,
   PAINT_WATCHDOG_MAX_RETRIES,
   shouldRecoverPaint,
+  sourceChangeOwesFrame,
 } from "@/lib/mapPaintWatchdog";
 import {
   DATA_PACK_RETRY_DELAY_MS,
@@ -3123,15 +3124,27 @@ export default function PubMapCanvas({
       lastRenderAt = performance.now();
     };
     map.on("render", stampRender);
-    // A resize (the container observer above, the window, a recovery) or a
-    // style load owes a fresh frame; a map at rest owes none, so plain idle
-    // never arms the stall check.
+    // A resize (the container observer above, the window, a recovery), a
+    // style load or new data in an app source owes a fresh frame; a map at
+    // rest owes none, so plain idle never arms the stall check.
     let paintDirtiedAt: number | null = null;
     const markPaintDirty = () => {
       paintDirtiedAt = performance.now();
     };
+    const onPaintSourceData = (event: unknown) => {
+      const dataEvent = event as { sourceDataType?: unknown; source?: { type?: unknown } };
+      if (
+        sourceChangeOwesFrame({
+          sourceDataType: dataEvent.sourceDataType,
+          sourceType: dataEvent.source?.type,
+        })
+      ) {
+        markPaintDirty();
+      }
+    };
     map.on("resize", markPaintDirty);
     map.on("style.load", markPaintDirty);
+    map.on("sourcedata", onPaintSourceData);
     let paintCapWarned = false;
     let paintWatchdogTimer: ReturnType<typeof setInterval> | undefined;
     const samplePaint = () => {
@@ -3369,6 +3382,7 @@ export default function PubMapCanvas({
       map.off("render", stampRender);
       map.off("resize", markPaintDirty);
       map.off("style.load", markPaintDirty);
+      map.off("sourcedata", onPaintSourceData);
       stopPaintWatchdog();
       document.removeEventListener("visibilitychange", onPaintVisibility);
       window.removeEventListener("pageshow", onPageShow);

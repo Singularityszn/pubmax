@@ -12,8 +12,9 @@
  * MapLibre renders on demand, so a healthy map at rest draws nothing for as long
  * as nothing changes. Render age alone cannot tell that rest from a parked
  * backbuffer, so the check is armed only by a dirtying event (a resize, a
- * return to a visible tab, a style load): a frame is owed from then on, and a
- * render after it disarms the check. Plain idle never spends the budget.
+ * return to a visible tab, a style load, new content in one of the app's own
+ * sources): a frame is owed from then on, and a render after it disarms the
+ * check. Plain idle never spends the budget.
  *
  * This module is ONLY the decision: given the last render timestamp, the clock,
  * whether the document is visible, whether the canvas is really on-screen with a
@@ -49,7 +50,8 @@ export type PaintWatchdogInput = {
   lastRenderAt: number | null;
   /**
    * Timestamp of the last dirtying event that owes a fresh frame (a resize, a
-   * return to a visible tab, a style load), or null if none has happened.
+   * return to a visible tab, a style load, an app source change), or null if
+   * none has happened.
    */
   dirtiedAt: number | null;
   /** document.visibilityState === "visible". Hidden tabs throttle rAF to ~0. */
@@ -103,4 +105,17 @@ export function shouldRecoverPaint(input: PaintWatchdogInput): boolean {
   if (dirtiedAt === null || lastRenderAt >= dirtiedAt) return false;
   if (retries >= maxRetries) return false;
   return now - dirtiedAt > stallThresholdMs;
+}
+
+/**
+ * True iff a MapLibre `sourcedata` event is an app source change that owes a
+ * frame: new content set on one of the app's own GeoJSON sources (pubs,
+ * route-line and the rest). A basemap tile arriving is not one; the basemap's
+ * vector and raster sources are the style's, not the app's.
+ */
+export function sourceChangeOwesFrame(event: {
+  sourceDataType?: unknown;
+  sourceType?: unknown;
+}): boolean {
+  return event.sourceDataType === "content" && event.sourceType === "geojson";
 }

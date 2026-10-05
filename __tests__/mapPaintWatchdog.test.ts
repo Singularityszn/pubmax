@@ -4,6 +4,7 @@ import {
   PAINT_WATCHDOG_INTERVAL_MS,
   PAINT_WATCHDOG_MAX_RETRIES,
   shouldRecoverPaint,
+  sourceChangeOwesFrame,
   type PaintWatchdogInput,
 } from "@/lib/mapPaintWatchdog";
 
@@ -118,5 +119,30 @@ describe("shouldRecoverPaint", () => {
     expect(
       shouldRecoverPaint({ ...parked, retries: 2, maxRetries: 2 }),
     ).toBe(false);
+  });
+});
+
+describe("sourceChangeOwesFrame", () => {
+  it("arms on new content set on an app GeoJSON source", () => {
+    expect(sourceChangeOwesFrame({ sourceDataType: "content", sourceType: "geojson" })).toBe(true);
+  });
+
+  it("ignores basemap sources and events that are not new content", () => {
+    expect(sourceChangeOwesFrame({ sourceDataType: "content", sourceType: "vector" })).toBe(false);
+    expect(sourceChangeOwesFrame({ sourceDataType: "metadata", sourceType: "geojson" })).toBe(false);
+    expect(sourceChangeOwesFrame({ sourceDataType: undefined, sourceType: "geojson" })).toBe(false);
+  });
+
+  it("re-arms a resting map so a setData whose frame never presents is recovered", () => {
+    const setDataAt = 20_000;
+    const owed = sourceChangeOwesFrame({ sourceDataType: "content", sourceType: "geojson" });
+    expect(
+      shouldRecoverPaint({
+        ...parked,
+        now: setDataAt + PAINT_STALL_THRESHOLD_MS + 1,
+        lastRenderAt: 5_000,
+        dirtiedAt: owed ? setDataAt : 1_000,
+      }),
+    ).toBe(true);
   });
 });
