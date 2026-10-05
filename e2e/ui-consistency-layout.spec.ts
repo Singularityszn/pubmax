@@ -240,18 +240,15 @@ async function preparePage(
 
   if (!options.signedIn) return;
   await page.route("https://pubmaxx-e2e.supabase.co/**", async (route) => {
-    const url = route.request().url();
-    const body = url.includes("/auth/v1/settings")
-      ? { external: {} }
-      : {
-          id: E2E_AUTH_USER_ID,
-          aud: "authenticated",
-          role: "authenticated",
-          email: "layout-captain@example.test",
-          app_metadata: {},
-          user_metadata: {},
-          created_at: "2026-07-30T00:00:00.000Z",
-        };
+    const body = {
+      id: E2E_AUTH_USER_ID,
+      aud: "authenticated",
+      role: "authenticated",
+      email: "layout-captain@example.test",
+      app_metadata: {},
+      user_metadata: {},
+      created_at: "2026-07-30T00:00:00.000Z",
+    };
     await route.fulfill({
       status: 200,
       contentType: "application/json",

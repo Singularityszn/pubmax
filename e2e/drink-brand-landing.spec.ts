@@ -57,9 +57,6 @@ async function setLandingState(page: Page): Promise<void> {
     }),
   );
   await stubSocialAuthProviders(page);
-  await page.route("**/_vercel/insights/script.js", (route) =>
-    route.fulfill({ status: 200, contentType: "application/javascript", body: "" }),
-  );
   await page.routeWebSocket("wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket**", () => {});
   await page.addInitScript(() => {
     if (!localStorage.getItem("pubmax-theme")) localStorage.setItem("pubmax-theme", "light");

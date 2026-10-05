@@ -25,9 +25,6 @@ const LANDMARK_NAME = "Covent Garden";
 
 async function preparePage(page: Page): Promise<void> {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.route("**/_vercel/insights/script.js", (route) =>
-    route.fulfill({ status: 200, contentType: "application/javascript", body: "" }),
-  );
   await page.route("https://pubmaxx-e2e.supabase.co/**", (route) =>
     route.fulfill({
       status: 200,

@@ -71,11 +71,7 @@ for (const viewport of VIEWPORTS) {
     await page.route("**/api/events", async (route) => {
       const raw = route.request().postData();
       if (raw) events.push(JSON.parse(raw) as CapturedEvent);
-      await route.fulfill({
-        status: 202,
-        contentType: "application/json",
-        body: JSON.stringify({ accepted: true }),
-      });
+      await route.fulfill({ status: 204, headers: { "cache-control": "no-store" } });
     });
 
     const search = await openMapSearch(page, viewport.width);

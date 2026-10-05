@@ -45,11 +45,6 @@ const BENIGN_PATTERNS: RegExp[] = [
   // Not the named production warning (`zoom` may only be top-level input /
   // pubs-point icon-size) which CRITICAL_PATTERNS still fail on.
   /^Expected value to be of type number, but found null instead\.?$/i,
-  // Vercel Web Analytics (app/layout.tsx <Analytics />, R3) requests
-  // /_vercel/insights/script.js, which only exists on Vercel — `next start`
-  // serves the 404 HTML page and Chromium logs a strict-MIME refusal. Pure
-  // local-serve noise, unrelated to the map scene this spec guards.
-  /_vercel\/insights/i,
   /was preloaded using link preload but not used/i,
   // The E2E build is given a deliberately fake Supabase host
   // (playwright.config.ts), so the browser auth graph stays enabled while the
