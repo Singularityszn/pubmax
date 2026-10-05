@@ -291,8 +291,29 @@ describe("the shipped London layer", () => {
       ),
     ) as { london: { total: number; byKind: Record<string, number> } };
 
-    expect(census).toEqual(counts.london.byKind);
-    expect(venues.length).toBe(counts.london.total);
+    // Restaurants whose own website states alcohol join the OSM census as
+    // restaurants, except where an OSM pack already ships that element.
+    const shipped = new Set<string>();
+    for (const group of ["drink", "food", "work"]) {
+      const pack = JSON.parse(
+        readFileSync(path.join(__dirname, "..", "data", "osm", "uk", `uk_osm_venues_${group}.json`), "utf8"),
+      ) as { venues: Array<{ osmId: string }> };
+      for (const venue of pack.venues) shipped.add(venue.osmId);
+    }
+    const evidence = JSON.parse(
+      readFileSync(path.join(__dirname, "..", "data", "london_restaurant_drinks", "evidence.json"), "utf8"),
+    ) as { rows: Array<{ osmId: string }> };
+    const evidenced = evidence.rows.filter((row) => !shipped.has(row.osmId)).length;
+    const manifest = JSON.parse(readFileSync(publishedManifestPath, "utf8")) as {
+      restaurantDrinkEvidence: { count: number };
+    };
+    expect(manifest.restaurantDrinkEvidence.count).toBe(evidenced);
+
+    expect(census).toEqual({
+      ...counts.london.byKind,
+      restaurant: (counts.london.byKind.restaurant ?? 0) + evidenced,
+    });
+    expect(venues.length).toBe(counts.london.total + evidenced);
     // Ids are unique across the whole layer: a cell id formatted to too few
     // decimals used to collapse cells onto one another and merge their rows.
     expect(new Set(venues.map((venue) => venue.id)).size).toBe(venues.length);
