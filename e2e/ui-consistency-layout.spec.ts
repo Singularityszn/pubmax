@@ -854,11 +854,19 @@ async function auditRoute(
     .locator(".routeLoadingShell")
     .waitFor({ state: "hidden", timeout: 45_000 })
     .catch(() => undefined);
-  await settle(page);
   const main = page.locator("main").first();
-  const box = (await main.isVisible().catch(() => false))
-    ? await main.boundingBox().catch(() => null)
-    : null;
+  // The loading shell may not have mounted yet when the wait above runs, so a
+  // streamed route such as /map/london can still be painting its landmark.
+  // Wait for the route's own <main>; only a 404 page is allowed to have none.
+  const mainShown =
+    response?.status() === 404
+      ? await main.isVisible().catch(() => false)
+      : await main
+          .waitFor({ state: "visible", timeout: 45_000 })
+          .then(() => true)
+          .catch(() => false);
+  await settle(page);
+  const box = mainShown ? await main.boundingBox().catch(() => null) : null;
   if (!box) {
     return {
       viewportWidth,
