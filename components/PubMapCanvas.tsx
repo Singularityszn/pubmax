@@ -1101,6 +1101,7 @@ export default function PubMapCanvas({
   // after this, then rests. Null until the first route, selection or camera
   // change.
   const ambientMotionWokeAtRef = useRef<number | null>(null);
+  const ambientMotionKeyRef = useRef<string | null>(null);
   const themeRef = useRef<"dark" | "light">("dark");
   const textFontRef = useRef<string[]>(["Noto Sans Bold"]);
   const hoverCapableRef = useRef(false);
@@ -1598,14 +1599,26 @@ export default function PubMapCanvas({
       map.on(`${name}start`, beginGesture(name));
       map.on(`${name}end`, endGesture(name));
     }
+    let ambientMotionCameraKey = "";
     map.on("moveend", () => {
       // Audit F5: every camera move (programmatic flys included) ends on a
       // fresh present. A repaint moves no camera, so this cannot re-fire
       // moveend; deliberately NOT hooked on `idle` (that would loop).
       map.triggerRepaint();
       // The reader is looking somewhere new: the route and the selected pin
-      // may say so again, for one window.
-      ambientMotionWokeAtRef.current = performance.now();
+      // may say so again, for one window. A resize (the paint watchdog's
+      // recovery among them) also ends in moveend without moving the camera,
+      // and must not restart motion on an idle map.
+      const cameraKey = [
+        map.getCenter().toArray().join(","),
+        map.getZoom(),
+        map.getBearing(),
+        map.getPitch(),
+      ].join("|");
+      if (cameraKey !== ambientMotionCameraKey) {
+        ambientMotionCameraKey = cameraKey;
+        ambientMotionWokeAtRef.current = performance.now();
+      }
       setMapBearing(map.getBearing());
       setMapPitch(map.getPitch());
       // A start whose end never came would hold the camera for the rest of the
@@ -3670,7 +3683,13 @@ export default function PubMapCanvas({
     routeLineRef.current = routeToLine(route);
     routeStopsRef.current = routeToStops(route);
     selectedIdRef.current = selectedVenueId;
-    ambientMotionWokeAtRef.current = performance.now();
+    // A parent re-render hands over a new `route` array for the same stops;
+    // only a real change of stops or selection is news worth moving for.
+    const motionKey = `${route.map((venue) => venue.id).join(",")}|${selectedVenueId}`;
+    if (motionKey !== ambientMotionKeyRef.current) {
+      ambientMotionKeyRef.current = motionKey;
+      ambientMotionWokeAtRef.current = performance.now();
+    }
     if (!mapReady) return;
     // Route source data via the permissive gate (see applyRouteData) so a
     // set-once plan route paints even while basemap tiles are still loading.
