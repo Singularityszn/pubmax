@@ -34,12 +34,13 @@ export function mintAdminSession(token: string): string {
 
 function validAdminSession(value: string, token: string): boolean {
   const match = /^(v1\.([0-9]{1,12}))\.([a-f0-9]{64})$/.exec(value);
-  if (!match) return false;
-  const issuedAt = Number(match[2]);
+  const [, payload, issued, provided] = match ?? [];
+  if (!payload || !issued || !provided) return false;
+  const issuedAt = Number(issued);
   const now = Math.floor(Date.now() / 1000);
   if (issuedAt > now || now - issuedAt >= ADMIN_SESSION_MAX_AGE_SEC) return false;
-  const signature = createHmac("sha256", token).update(match[1]).digest("hex");
-  return safeTokenEqual(match[3], signature);
+  const signature = createHmac("sha256", token).update(payload).digest("hex");
+  return safeTokenEqual(provided, signature);
 }
 
 // The two credentials are read off a header list, never off a whole Request:
