@@ -438,7 +438,17 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     savedRead?.handle === routeHandle && savedRead.accountRevision === accountRevision
       ? savedRead.groups
       : null;
-  const [followedLists, setFollowedLists] = useState<FollowedSavedListDTO[]>([]);
+  const [followedListsRead, setFollowedListsRead] = useState<{
+    handle: string;
+    accountRevision: number;
+    lists: FollowedSavedListDTO[];
+  } | null>(null);
+  const followedLists =
+    socialFriendsLaunchEnabled &&
+    followedListsRead?.handle === routeHandle &&
+    followedListsRead.accountRevision === accountRevision
+      ? followedListsRead.lists
+      : [];
   // The shared reader is the only place this surface may learn who is holding
   // the device. It returns null while identity is unresolved, so a cached
   // handle cannot name the previous account during session restore.
@@ -636,16 +646,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // read is identity-bound like the saved venues above, so it waits for the
   // session the same way.
   useEffect(() => {
-    let active = true;
-    if (!socialFriendsLaunchEnabled) {
-      void Promise.resolve().then(() => {
-        if (active) setFollowedLists([]);
-      });
-      return () => {
-        active = false;
-      };
-    }
-    if (sessionLoading) return;
+    if (!socialFriendsLaunchEnabled || sessionLoading) return;
     const controller = new AbortController();
     async function loadFollowedLists() {
       const lists = routeHandle
@@ -653,13 +654,10 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         : [];
       if (controller.signal.aborted) return;
       if (readProviderIdentityRevision() !== accountRevision) return;
-      setFollowedLists(lists);
+      setFollowedListsRead({ handle: routeHandle, accountRevision, lists });
     }
     void loadFollowedLists();
-    return () => {
-      active = false;
-      controller.abort();
-    };
+    return () => controller.abort();
   }, [accountRevision, routeHandle, sessionLoading, socialFriendsLaunchEnabled]);
 
   // This handle's public crawls and their total (story 35 authorship), from one
