@@ -38,6 +38,8 @@ export type IconTokens = {
    * `venuePinEdgeTokens` in components/map/canvas/tokens.ts.
    */
   pinRim?: string;
+  /** The coffee category hue (lib/categoryColors.ts) for the coffee pilot pin. */
+  coffee?: string;
   pinCasing?: string;
 };
 
@@ -1192,6 +1194,28 @@ export function drinkPinKindFromCategories(
 
 export const UK_BASE_ICON_KEY = "pub";
 
+/**
+ * The Shoreditch coffee pilot cafe (lib/coffeePilot.ts): a filled disc in the
+ * coffee hue with a paper edge. A SYMBOL rather than a circle layer, so its
+ * cafes join MapLibre's collision index and two cafes a few metres apart drop
+ * rather than stack.
+ */
+export const COFFEE_PILOT_ICON_KEY = "coffee";
+
+function drawCoffeePilot(ctx: CanvasRenderingContext2D, t: IconTokens): void {
+  const c = BOX / 2;
+  ctx.save();
+  ctx.fillStyle = t.pinCasing ?? t.paper;
+  ctx.beginPath();
+  ctx.arc(c, c, BOX * 0.27, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = t.coffee ?? t.brass;
+  ctx.beginPath();
+  ctx.arc(c, c, BOX * 0.21, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 // Sized against the drink silhouettes, not against nothing: a curated glass is
 // ~0.64 x BOX wide, so a 0.4 x BOX ring reads as clearly the lesser mark while
 // still being a mark. Anything smaller disappeared into the basemap on a 390px
@@ -1304,6 +1328,8 @@ export const MAP_ICON_SPECS: IconSpec[] = [
   ),
   // The unpriced UK base layer's single glyph.
   { key: UK_BASE_ICON_KEY, ns: "base", size: BOX, draw: drawBasePub },
+  // The coffee pilot cafe's single glyph.
+  { key: COFFEE_PILOT_ICON_KEY, ns: "base", size: BOX, draw: drawCoffeePilot },
 ];
 
 // Namespaced id used as the MapLibre image name: iconId("lm","clock-tower") →

@@ -1,6 +1,6 @@
 // The Shoreditch coffee file is a hand-checked list. A row is one named drink
-// a page stated. The map, the pint bundle and the freshness registry do not
-// read it.
+// a page stated. The map's coffee lane draws it (__tests__/coffeePilotLens.test.ts);
+// the pint bundle and the freshness registry do not read it.
 
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -83,6 +83,27 @@ describe("Shoreditch coffee pilot", () => {
       ...base,
       rows: [listedRow(defined(sampleId), { observedAt: "2026-10-03T18:00:00Z" })],
     }, venueIds, now).join("\n")).toContain("calendar day");
+  });
+
+  it("names the new id when OSM re-keys a cafe in the box", () => {
+    const now = Date.parse("2026-10-03T18:00:00Z");
+    const layer = new Map([
+      ["venue-osm-w373262267", "Gecko Coffeehouse"],
+      ["venue-osm-n4959842421", "Holy Shot"],
+    ]);
+    const ids = new Set(layer.keys());
+    const rekeyed = coffeePilotProblems({
+      ...file,
+      rows: [listedRow("venue-osm-n13684996801", { venueName: "Gecko Coffeehouse" })],
+    }, ids, now, layer);
+    expect(rekeyed).toEqual([
+      "rows[0] venueId is not a cafe in the Shoreditch box: Gecko Coffeehouse is now venue-osm-w373262267",
+    ]);
+    const gone = coffeePilotProblems({
+      ...file,
+      rows: [listedRow("venue-osm-n13684996801", { venueName: "Closed Cafe" })],
+    }, ids, now, layer);
+    expect(gone).toEqual(["rows[0] venueId is not a cafe in the Shoreditch box"]);
   });
 
   it("is not a freshness feed", () => {

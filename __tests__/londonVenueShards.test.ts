@@ -327,9 +327,10 @@ describe("the shipped London layer", () => {
       defaultVenueKindVisibility(),
     );
     const shownKinds = new Set(shown.map((venue) => venue.kind));
-    expect([...shownKinds].sort()).toEqual(["bar", "food", "pub", "restaurant"]);
-    // Every kind the OSM widening added stays out of the curated view, and
-    // nothing but a pub answers the pub predicate.
+    // A club shows and hides with the bars (`curatedVenueKind`). Every other
+    // kind the OSM widening added stays out of the curated view, and nothing
+    // but a pub answers the pub predicate.
+    expect([...shownKinds].sort()).toEqual(["bar", "club", "food", "pub", "restaurant"]);
     for (const venue of venues) {
       if (isPubVenueKind(venue.kind)) expect(venue.kind).toBe("pub");
     }

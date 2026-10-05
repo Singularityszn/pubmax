@@ -6,16 +6,9 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-export const COFFEE_PILOT_FILE = "data/coffee_pilot/shoreditch.json";
+import { COFFEE_PILOT_BOX, COFFEE_PILOT_DRINKS } from "./coffeePilotArea.mjs";
 
-export const COFFEE_PILOT_DRINKS = ["flat white", "latte", "matcha latte"];
-
-export const COFFEE_PILOT_BOX = {
-  latMin: 51.5215,
-  latMax: 51.5305,
-  lngMin: -0.0835,
-  lngMax: -0.0705,
-};
+export { COFFEE_PILOT_BOX, COFFEE_PILOT_DRINKS, COFFEE_PILOT_FILE } from "./coffeePilotArea.mjs";
 
 const FILE_KEYS = new Set(["version", "area", "checkedOn", "rows"]);
 const ROW_KEYS = new Set([
@@ -90,7 +83,14 @@ export function coffeePilotProblems(file, venueIds, now = Date.now(), venueNames
     if (typeof item.venueId !== "string" || !/^venue-osm-[nwr]\d+$/.test(item.venueId)) {
       problems.push(`${where} venueId must be a venue-osm- id`);
     } else if (!venueIds.has(item.venueId)) {
-      problems.push(`${where} venueId is not a cafe in the Shoreditch box`);
+      // `venueNames` holds only cafes inside the box, so a cafe of the same
+      // name there is the row's cafe under another OSM id (a node redrawn as a way).
+      const replacements = venueNames instanceof Map
+        ? [...venueNames].filter(([id, name]) => id !== item.venueId && name === item.venueName).map(([id]) => id)
+        : [];
+      problems.push(replacements.length > 0
+        ? `${where} venueId is not a cafe in the Shoreditch box: ${item.venueName} is now ${replacements.join(" or ")}`
+        : `${where} venueId is not a cafe in the Shoreditch box`);
     }
     if (typeof item.venueName !== "string" || item.venueName.trim().length === 0) {
       problems.push(`${where} venueName must name the cafe`);
