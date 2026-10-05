@@ -1151,11 +1151,17 @@ describe("map shell versus per-request map documents", () => {
     return records.get("pubmax-sw-shell-target")!.get(`${origin}/map`)?.response.text();
   }
 
-  it.each(MAP_DOCUMENT_QUERY_KEYS.flatMap((key) => [`/map?${key}=camden`, `/map?drink=wine&${key}=%20x%20`]))(
-    "keeps the shell when %s renders its own document",
-    async (path) => {
+  it.each(
+    MAP_DOCUMENT_QUERY_KEYS.flatMap((key) =>
+      [`/map?${key}=camden`, `/map?drink=wine&${key}=%20x%20`].flatMap((path) =>
+        [null, "public, max-age=0, must-revalidate", "private, no-store"].map((cacheControl) => [path, cacheControl] as const),
+      ),
+    ),
+  )(
+    "keeps the shell when %s renders its own document (Cache-Control %s)",
+    async (path, cacheControl) => {
       const twin = new Response("per-request map document", {
-        headers: { "cache-control": "private, no-store" },
+        headers: cacheControl ? { "cache-control": cacheControl } : {},
       });
       expect(await navigateOnline(path, twin)).toBe("prerendered map shell");
     },
