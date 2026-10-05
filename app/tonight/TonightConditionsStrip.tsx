@@ -7,10 +7,17 @@
 // near you with a pint under 6 quid." A stale reading prints its age instead of
 // the drink and venue sentences.
 //
-// Mirrors TonightGetHomeStrip's idiom exactly: fetch fires in an effect, state
-// only settles inside the async resolution/catch, an AbortController cancels on
-// unmount or origin change, and the strip renders NOTHING while loading, on
-// error, or when the server has nothing worth saying. No spinner, no empty card.
+// Mirrors TonightGetHomeStrip's idiom: fetch fires in an effect, state only
+// settles inside the async resolution, and an AbortController cancels on unmount
+// or origin change. No spinner, no empty card.
+//
+// THE STRIP HOLDS ITS OWN ROOM WHILE IT LOADS. It sits above Tonight's listings,
+// so a strip that rendered nothing and then arrived pushed the whole list down
+// by its own height: half of the 0.14 layout shift the browser suite measured on
+// a slow Tonight load (5 Oct 2026). While the read runs it paints an invisible
+// panel of the same box, sized in lines to the width it has (tonightConditions.css),
+// and the answer fills it. A read that fails says there is no reading, the same
+// line a reading-less answer gets, so the held room is never left blank.
 //
 // Server does all the data work (weather snapshot + venue index) behind
 // /api/tonight-conditions; this component only renders the strings it returns.
@@ -58,11 +65,24 @@ export default function TonightConditionsStrip({ origin, tonightMode = false }: 
         validate: (body) => Boolean(body && "summary" in body),
       },
       (body) => setSummary(body.summary ?? null),
-    );
+    ).then((applied) => {
+      // A failed first read has nothing to show, so it settles on the
+      // no-reading line. A failed refresh keeps the reading already shown.
+      if (applied === "failed" && !controller.signal.aborted) {
+        setSummary((held) => (held === undefined ? null : held));
+      }
+    });
     return () => controller.abort();
   }, [lat, lng]);
 
-  if (summary === undefined) return null;
+  if (summary === undefined) {
+    return (
+      <div className="tonightConditions tonightConditionsHold" aria-hidden="true">
+        <CloudSun size={16} aria-hidden="true" className="tonightConditionsIcon" />
+        <p className="tonightConditionsCopy" />
+      </div>
+    );
+  }
 
   if (summary === null) {
     return (
