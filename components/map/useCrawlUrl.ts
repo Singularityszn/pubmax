@@ -154,7 +154,17 @@ export function useCrawlUrlSync(
         ? { encodedAtMount: beerContext } : null;
     }
     if (beerShareHold.current !== null && beerShareHold.current.encodedAtMount !== beerContext) {
-      beerShareHold.current = null;
+      const original = new URLSearchParams(beerShareHold.current.encodedAtMount);
+      const hydrated = new URLSearchParams(beerContext);
+      original.delete("style");
+      hydrated.delete("style");
+      // The pending catalogue lookup may supply one curated style alongside
+      // its first resolved identity. Every other plan choice must still match.
+      const resolvedCuratedStyle = crawlHold.current != null
+        && !holdSeededCrawlParam && Boolean(state.crawlId)
+        && !new URLSearchParams(crawlHold.current.encodedAtMount).has("crawl")
+        && original.toString() === hydrated.toString();
+      beerShareHold.current = resolvedCuratedStyle ? { encodedAtMount: beerContext } : null;
     }
     const preserveBeerParam = beerShareHold.current !== null;
     if (hold.current === undefined) {
