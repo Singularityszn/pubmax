@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { defined } from "./helpers/defined";
+
 // Pin in-memory rate limiting regardless of CI Supabase env (Vercel presets
 // SUPABASE_*). Without this, isLimited hits the durable path and — when the
 // RPC is missing — used to degrade to Math.min(limit, 3), so the 10×403 then
@@ -30,7 +32,7 @@ async function loginCookie(): Promise<string> {
     body: JSON.stringify({ token: "test-admin-secret" }),
   }));
   expect(login.status).toBe(200);
-  return login.headers.get("set-cookie")!.split(";")[0];
+  return defined(login.headers.get("set-cookie")?.split(";")[0], "the session cookie");
 }
 
 async function expectRefusedCookie(cookie: string): Promise<void> {
