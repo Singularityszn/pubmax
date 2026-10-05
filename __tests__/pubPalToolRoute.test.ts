@@ -99,6 +99,45 @@ describe("POST /api/pub-pal/tools/[toolName]", () => {
     expect(runAskTool).not.toHaveBeenCalled();
   });
 
+  it("returns 401 for a wrong bearer or a wrong secret header", async () => {
+    const wrongCredentials: Array<Record<string, string>> = [
+      { authorization: "Bearer not-the-secret" },
+      { authorization: "", "x-elevenlabs-llm-secret": "not-the-secret" },
+    ];
+    for (const headers of wrongCredentials) {
+      const response = await POST(
+        request("search_venues", { parameters: { query: "Soho" } }, headers),
+        { params: Promise.resolve({ toolName: "search_venues" }) },
+      );
+      expect(response.status).toBe(401);
+    }
+    expect(runAskTool).not.toHaveBeenCalled();
+  });
+
+  it("accepts the secret in its dedicated header", async () => {
+    const response = await POST(
+      request(
+        "search_venues",
+        { parameters: { query: "quiet pubs" } },
+        { authorization: "", "x-elevenlabs-llm-secret": "test-llm-secret" },
+      ),
+      { params: Promise.resolve({ toolName: "search_venues" }) },
+    );
+    expect(response.status).toBe(200);
+    expect(runAskTool).toHaveBeenCalled();
+  });
+
+  it("fails closed when the shared secret is unset, even for a listed tool", async () => {
+    vi.stubEnv("ELEVENLABS_LLM_SHARED_SECRET", "");
+    for (const toolName of ["search_venues", "not_a_tool"]) {
+      const response = await POST(request(toolName, { parameters: { query: "Soho" } }), {
+        params: Promise.resolve({ toolName }),
+      });
+      expect(response.status).toBe(503);
+    }
+    expect(runAskTool).not.toHaveBeenCalled();
+  });
+
   it("returns 404 for a tool outside the allowlist", async () => {
     const response = await POST(
       request("not_a_tool", {}, { authorization: "Bearer test-llm-secret" }),
