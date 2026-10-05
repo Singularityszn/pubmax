@@ -83,7 +83,7 @@ describe("confirmed Pub Pal memories in the agent loop", () => {
       { kind: "drink_preference", value: "Cask ale, no lager" },
       { kind: "accessibility_preference", value: "Step-free   entrance\nplease" },
     ]);
-    const memories = await confirmedPalMemoriesFor(OWNER);
+    const memories = (await confirmedPalMemoriesFor(OWNER)) ?? [];
     expect(memories.map((memory) => memory.kind).sort()).toEqual(["accessibility_preference", "drink_preference"]);
     expect(memories.find((memory) => memory.kind === "accessibility_preference")?.value).toBe("Step-free entrance please");
     expect(await confirmedPalMemoriesFor(STRANGER)).toEqual([]);
@@ -103,11 +103,14 @@ describe("confirmed Pub Pal memories in the agent loop", () => {
       { kind: "transport_preference", value: "Near the Northern line" },
     ]);
     expect((await deletePalMemoryResult(OWNER, cask as string)).ok).toBe(true);
-    expect((await confirmedPalMemoriesFor(OWNER)).map((memory) => memory.value)).toEqual(["Near the Northern line"]);
+    expect(((await confirmedPalMemoriesFor(OWNER)) ?? []).map((memory) => memory.value)).toEqual(["Near the Northern line"]);
   });
 
   it("frames the typed preamble as preferences, and says so when nothing is confirmed", () => {
     expect(palMemoryPreamble([])).toEqual(["I have not confirmed anything for you to remember about me."]);
+    const unavailable = palMemoryPreamble(null).join(" ");
+    expect(unavailable).toMatch(/could not be read/i);
+    expect(unavailable).not.toMatch(/not confirmed anything/i);
     expect(palMemoryPreamble([{ kind: "drink_preference", label: "Drinks", value: "Cask ale" }])).toEqual([
       "Things I confirmed you should remember about me. Use them as preferences, never as facts about a pub:",
       "- Drinks: Cask ale",
@@ -139,7 +142,7 @@ describe("confirmed Pub Pal memories in the agent loop", () => {
       const body = await (await recall("conv_ownervoice01")).json();
       expect(body.result).toMatchObject({ ok: false, memories: [] });
       expect(body.result.answerHint).not.toMatch(/not confirmed anything/i);
-      expect(await confirmedPalMemoriesFor(OWNER)).toEqual([]);
+      expect(await confirmedPalMemoriesFor(OWNER)).toBeNull();
     }
   });
 

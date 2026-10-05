@@ -26,4 +26,13 @@ describe("pal chat mobile layout", () => {
     expect(scroll).toMatch(/flex:\s*0\s+1\s+auto/);
     expect(scroll).not.toMatch(/flex:\s*1\s+1\s+auto/);
   });
+
+  it("tells the person a saved memory goes to ElevenLabs before they confirm it", () => {
+    const note = palChatSource.match(
+      /proposals\.some\(\(proposal\) => proposal\.kind === "remember_memory"\)[\s\S]*?<\/p>/,
+    )?.[0] ?? "";
+    expect(note).toContain('className="palChatProposalNote"');
+    expect(note).toMatch(/goes with each Pub Pal chat to ElevenLabs/);
+    expect(palChatCss).toMatch(/\.palChatProposalNote\s*{/);
+  });
 });

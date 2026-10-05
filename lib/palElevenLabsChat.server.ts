@@ -63,7 +63,7 @@ async function priorOwnedSession(threadId: unknown, ownerId: string): Promise<Pr
 }
 
 /** The typed turn as the agent reads it: confirmed memories, the session summary, earlier asks, then the ask itself. */
-function userMessageText(query: string, prior: PriorSession, memories: PalRecalledMemory[]): string {
+function userMessageText(query: string, prior: PriorSession, memories: PalRecalledMemory[] | null): string {
   const priorAsks = prior.turns;
   return [
     ...palMemoryPreamble(memories),

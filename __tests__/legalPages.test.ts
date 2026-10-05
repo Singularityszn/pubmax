@@ -327,6 +327,15 @@ describe("legal content pages", () => {
     }
   });
 
+  it("says confirmed Pal memories go to the model provider with each Pub Pal chat", () => {
+    // lib/palElevenLabsChat.server.ts puts confirmed memories ahead of every
+    // typed ask, and the recall_memories webhook hands them to the voice agent.
+    // The AI features row must not still claim nothing else about you goes.
+    expect(read("lib/palElevenLabsChat.server.ts")).toContain("palMemoryPreamble(");
+    expect(read("app/api/pub-pal/tools/[toolName]/route.ts")).toContain("recallPalMemoriesForConversation");
+    expect(privacyText).toMatch(/memories you confirmed for your Pal[\s\S]*go with each chat or voice call/i);
+  });
+
   it("names the host of every observability egress the code carries", () => {
     // The WIDENING. The two blocks above are hand-written recipient tables, so
     // they only ever catch a vendor somebody remembered to add. This one reads

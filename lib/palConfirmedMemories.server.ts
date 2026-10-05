@@ -57,19 +57,23 @@ async function readConfirmedPalMemories(ownerId: string): Promise<PalRecalledMem
 }
 
 /**
- * The confirmed memories a typed turn carries. A store failure reads as no
- * memories, so a turn never fails because of recall.
+ * The confirmed memories a typed turn carries, or null when the store failed.
+ * The turn still answers on null, but it says recall was unavailable instead of
+ * claiming nothing is confirmed.
  */
-export async function confirmedPalMemoriesFor(ownerId: string): Promise<PalRecalledMemory[]> {
-  return (await readConfirmedPalMemories(ownerId)) ?? [];
+export async function confirmedPalMemoriesFor(ownerId: string): Promise<PalRecalledMemory[] | null> {
+  return readConfirmedPalMemories(ownerId);
 }
 
 /**
  * The lines a typed turn carries ahead of the ask. It always says what is
  * confirmed, even when nothing is, so the agent never spends a recall call to
- * learn what the server already knows.
+ * learn what the server already knows. A failed read says so, never "nothing".
  */
-export function palMemoryPreamble(memories: PalRecalledMemory[]): string[] {
+export function palMemoryPreamble(memories: PalRecalledMemory[] | null): string[] {
+  if (memories === null) {
+    return ["My saved memories could not be read just now. Do not assume I have none, and do not guess what they say."];
+  }
   if (memories.length === 0) return ["I have not confirmed anything for you to remember about me."];
   return [
     "Things I confirmed you should remember about me. Use them as preferences, never as facts about a pub:",

@@ -28,8 +28,8 @@ describe("which Pal memories may reach the model", () => {
     ]);
   });
 
-  it("reads as no memories when the store throws, so the turn still answers", async () => {
+  it("reads as unavailable, not as no memories, when the store throws", async () => {
     storeState.fail = true;
-    expect(await confirmedPalMemoriesFor("owner")).toEqual([]);
+    expect(await confirmedPalMemoriesFor("owner")).toBeNull();
   });
 });
