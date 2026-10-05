@@ -424,6 +424,90 @@ export function pubSpecificEvidence<T extends PubEvidenceRow>(
   return kept;
 }
 
+/** One pub's harvest outcome, as the checkpoint keeps it. */
+export type HarvestRead = {
+  status?: string;
+  name?: string;
+  venueId?: string | null;
+  sourceUrl?: string;
+  verifiedAt?: string;
+  amenities?: Partial<Record<PubWebsiteAmenityKey, string>>;
+};
+
+export type HarvestEvidenceRow = PubEvidenceRow & {
+  osmId: string;
+  name?: string;
+  venueId?: string | null;
+  verifiedAt?: string;
+};
+
+/**
+ * The committed evidence with this run's pages laid over it, and the chain
+ * list with every reader and what they prove. `fresh` is what this process
+ * read. `checkpoint` is every read the checkpoint holds, this process's and
+ * those of a run that stopped before it wrote the chain list, so a resumed
+ * harvest still counts the pubs it will not read again. Every pub that read a
+ * page is a reader, whatever came of the read, and its quotes count before
+ * the chain rule drops any of them.
+ */
+export function mergeHarvestEvidence(input: {
+  previousRows: readonly HarvestEvidenceRow[];
+  previousSkipCounts?: Record<string, number>;
+  fresh: ReadonlyMap<string, HarvestRead>;
+  checkpoint: Readonly<Record<string, HarvestRead>>;
+  knownChainPages: ChainDenylist;
+}): { rows: HarvestEvidenceRow[]; skipCounts: Record<string, number>; chainPages: ChainDenylist } {
+  const skipCounts = { ...(input.previousSkipCounts ?? {}) };
+  const candidates: HarvestEvidenceRow[] = input.previousRows.filter((row) => !input.fresh.has(row.osmId));
+  for (const [osmId, entry] of input.fresh) {
+    if (entry.status !== "ok") {
+      const status = entry.status ?? "unknown";
+      skipCounts[status] = (skipCounts[status] ?? 0) + 1;
+      continue;
+    }
+    candidates.push({
+      osmId,
+      name: entry.name,
+      venueId: entry.venueId,
+      sourceUrl: entry.sourceUrl,
+      verifiedAt: entry.verifiedAt,
+      amenities: entry.amenities ?? {},
+    });
+  }
+  const reads = [...new Map([...Object.entries(input.checkpoint), ...input.fresh]).entries()].flatMap(
+    ([osmId, entry]) => (entry.sourceUrl ? [{ osmId, sourceUrl: entry.sourceUrl, amenities: entry.amenities ?? {} }] : []),
+  );
+  const chainPages = mergeChainDenylists(input.knownChainPages, provenChainEvidence([...candidates, ...reads]));
+  const rows = pubSpecificEvidence(candidates, chainPages).sort((a, b) => a.osmId.localeCompare(b.osmId));
+  const unused = candidates.length - rows.length;
+  if (unused > 0) skipCounts.ok = (skipCounts.ok ?? 0) + unused;
+  return { rows, skipCounts, chainPages };
+}
+
+type PageRead = { ok: true; url: string; text: string } | { ok: false; reason: string };
+
+/**
+ * The text of one extra page from a pub's site, or null. A link is checked
+ * against the source policy and the chain list before it is fetched, and the
+ * page it lands on is checked against the chain list again, because a pub's
+ * own `/menu` can redirect to a chain-wide page.
+ */
+export async function readExtraPage(
+  link: string,
+  deps: {
+    chainPages: ChainDenylist;
+    isHarvestable: (url: string) => boolean;
+    robots: (url: string) => Promise<{ allowed: boolean }>;
+    readHtml: (url: string) => Promise<PageRead>;
+  },
+): Promise<string | null> {
+  if (!deps.isHarvestable(link) || isChainPage(link, deps.chainPages)) return null;
+  if (!(await deps.robots(link)).allowed) return null;
+  const extra = await deps.readHtml(link);
+  if (!extra.ok || isChainPage(extra.url, deps.chainPages)) return null;
+  return extra.text;
+}
+
 /** Keep true values whose evidence is a quote from the page that states the amenity. Everything else goes. */
 export function keepEvidencedAmenities(
   amenities: Partial<Record<PubWebsiteAmenityKey, ParsedAmenity>>,

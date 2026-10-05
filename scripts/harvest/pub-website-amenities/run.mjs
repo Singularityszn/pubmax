@@ -51,12 +51,12 @@ import {
   keepEvidencedAmenities,
   liftSiteStamps,
   matchPubToVenue,
-  mergeChainDenylists,
+  mergeHarvestEvidence,
   parseChainDenylist,
   parsePubAmenityModelJson,
   projectPubAmenitySpend,
-  provenChainEvidence,
   pubSpecificEvidence,
+  readExtraPage,
   spendFromTokenCounts,
   stampAmenityColumns,
 } from "../../../lib/harvest/pubWebsiteAmenities.ts";
@@ -399,39 +399,6 @@ function restampFromEvidence() {
   );
 }
 
-/**
- * The committed evidence with this run's pages laid over it, and the chain
- * list with this run's readers and what they prove. Every pub that read a
- * page is a reader, whatever came of the read, and its quotes count before
- * the chain rule drops any of them.
- */
-function mergeEvidence(previous, fresh, knownChainPages) {
-  const skipCounts = { ...(previous?.skipCounts ?? {}) };
-  const candidates = (previous?.rows ?? []).filter((row) => !fresh.has(row.osmId));
-  const reads = [];
-  for (const [osmId, entry] of fresh) {
-    if (entry.sourceUrl) reads.push({ osmId, sourceUrl: entry.sourceUrl, amenities: entry.amenities ?? {} });
-    if (entry.status !== "ok") {
-      const status = entry.status ?? "unknown";
-      skipCounts[status] = (skipCounts[status] ?? 0) + 1;
-      continue;
-    }
-    candidates.push({
-      osmId,
-      name: entry.name,
-      venueId: entry.venueId,
-      sourceUrl: entry.sourceUrl,
-      verifiedAt: entry.verifiedAt,
-      amenities: entry.amenities ?? {},
-    });
-  }
-  const chainPages = mergeChainDenylists(knownChainPages, provenChainEvidence([...candidates, ...reads]));
-  const rows = pubSpecificEvidence(candidates, chainPages).sort((a, b) => a.osmId.localeCompare(b.osmId));
-  const unused = candidates.length - rows.length;
-  if (unused > 0) skipCounts.ok = (skipCounts.ok ?? 0) + unused;
-  return { rows, skipCounts, chainPages };
-}
-
 async function main() {
   if (process.argv.includes("--restamp")) {
     restampFromEvidence();
@@ -578,12 +545,14 @@ async function main() {
     let text = home.text;
     const extraLinks = sameHostLinks(home.html, home.url);
     for (const link of extraLinks.slice(0, 1)) {
-      if (!isHarvestableOperatorUrl(link) || isChainPage(link, knownChainPages)) continue;
-      const extraPermission = await robots(link);
-      if (!extraPermission.allowed) continue;
-      const extra = await readHtml(link);
-      if (!extra.ok) continue;
-      text = `${text}\n${extra.text}`.slice(0, PAGE_CHAR_CAP);
+      const extraText = await readExtraPage(link, {
+        chainPages: knownChainPages,
+        isHarvestable: isHarvestableOperatorUrl,
+        robots,
+        readHtml,
+      });
+      if (extraText === null) continue;
+      text = `${text}\n${extraText}`.slice(0, PAGE_CHAR_CAP);
       break;
     }
     if (text.length < 40) {
@@ -642,7 +611,13 @@ async function main() {
   await save();
 
   const previous = readEvidence();
-  const { rows: evidenceRows, skipCounts, chainPages } = mergeEvidence(previous, fresh, knownChainPages);
+  const { rows: evidenceRows, skipCounts, chainPages } = mergeHarvestEvidence({
+    previousRows: previous?.rows ?? [],
+    previousSkipCounts: previous?.skipCounts,
+    fresh,
+    checkpoint: byOsmId,
+    knownChainPages,
+  });
   writeChainPages(chainPages);
   const evidence = withStampFigures({
     version: 1,

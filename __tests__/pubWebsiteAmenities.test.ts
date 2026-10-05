@@ -15,11 +15,13 @@ import {
   liftSiteStamps,
   matchPubToVenue,
   mergeChainDenylists,
+  mergeHarvestEvidence,
   parseChainDenylist,
   parsePubAmenityModelJson,
   projectPubAmenitySpend,
   provenChainEvidence,
   pubSpecificEvidence,
+  readExtraPage,
   stampAmenityColumns,
   statedAmenities,
 } from "@/lib/harvest/pubWebsiteAmenities";
@@ -471,6 +473,79 @@ describe("chain denylist", () => {
         { osmId: "b", sourceUrl: "http://motherkellys.example", amenities: {} },
       ]).pages,
     ).toEqual(["motherkellys.example"]);
+  });
+
+  it("counts the reads a stopped run left in the checkpoint when a resumed run merges", () => {
+    // Run 1 read pub A on the chain page, saved the checkpoint and stopped before it wrote the chain list.
+    const checkpoint = {
+      a: { status: "ok", sourceUrl: "https://chain.example/locations", amenities: {} },
+      c: { status: "empty-page", sourceUrl: "https://chain.example/bars/c" },
+      d: { status: "ok", sourceUrl: "https://chain.example/bars/d", amenities: { food: "stacked burgers" } },
+    };
+    // The resumed run skips the checkpointed pubs and reads only B.
+    const fresh = new Map([
+      [
+        "b",
+        {
+          status: "ok",
+          name: "B",
+          venueId: "venue-b",
+          sourceUrl: "https://chain.example/locations?pub=b",
+          verifiedAt: "2026-10-05",
+          amenities: { beerGarden: "Pub Gardens" },
+        },
+      ],
+      [
+        "e",
+        {
+          status: "ok",
+          name: "E",
+          venueId: "venue-e",
+          sourceUrl: "https://chain.example/bars/e",
+          verifiedAt: "2026-10-05",
+          amenities: { food: "Stacked  burgers", pool: "a pool table upstairs" },
+        },
+      ],
+    ]);
+    const resumed = { previousRows: [], fresh, knownChainPages: EMPTY_CHAIN_DENYLIST };
+    const merged = mergeHarvestEvidence({ ...resumed, checkpoint: { ...checkpoint, ...Object.fromEntries(fresh) } });
+    expect(merged.chainPages.pages).toContain("chain.example/locations");
+    expect(merged.chainPages.quotes).toContainEqual({ host: "chain.example", key: "food", quote: "stacked burgers" });
+    expect(merged.rows).toEqual([
+      {
+        osmId: "e",
+        name: "E",
+        venueId: "venue-e",
+        sourceUrl: "https://chain.example/bars/e",
+        verifiedAt: "2026-10-05",
+        amenities: { pool: "a pool table upstairs" },
+      },
+    ]);
+    // Counting only this process's reads lets B and E's chain quote through.
+    const freshOnly = mergeHarvestEvidence({ ...resumed, checkpoint: Object.fromEntries(fresh) });
+    expect(freshOnly.rows.map((row) => row.osmId)).toEqual(["b", "e"]);
+  });
+
+  it("drops an extra page whose link is allowed but which lands on a proven chain page", async () => {
+    const chainPages = { ...EMPTY_CHAIN_DENYLIST, pages: ["chain.example/food-drink"] };
+    const fetched: string[] = [];
+    const pages: Record<string, string> = {
+      "https://pub.example/menu": "https://www.chain.example/food-drink/",
+      "https://pub.example/whats-on": "https://pub.example/whats-on",
+    };
+    const deps = {
+      chainPages,
+      isHarvestable: () => true,
+      robots: async () => ({ allowed: true }),
+      readHtml: async (url: string) => {
+        fetched.push(url);
+        return { ok: true as const, url: pages[url] ?? url, text: `text of ${url}` };
+      },
+    };
+    expect(await readExtraPage("https://pub.example/menu", deps)).toBeNull();
+    expect(await readExtraPage("https://pub.example/whats-on", deps)).toBe("text of https://pub.example/whats-on");
+    expect(await readExtraPage("https://chain.example/food-drink", deps)).toBeNull();
+    expect(fetched).toEqual(["https://pub.example/menu", "https://pub.example/whats-on"]);
   });
 
   it("asks about a URL the way the chain rule reads a page", () => {
