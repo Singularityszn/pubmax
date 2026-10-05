@@ -18,10 +18,11 @@ import {
 // SavedPubDTO groups and passes the grouped map. Each item renders the resolved
 // venue name (never a raw "venue-…" id) linking to the venue on the map, filed under
 // each list heading. Empty lists are skipped; a fully-empty state shows a
-// friendly hint.
+// friendly hint. Null groups mean the read has not answered yet: the heading
+// holds the place and nothing claims the list is empty.
 type SavedPubListProps = {
   ownerHandle?: string;
-  groups: Partial<Record<ListType, SavedPubDTO[]>>;
+  groups: Partial<Record<ListType, SavedPubDTO[]>> | null;
   followedLists?: FollowedSavedListDTO[];
 };
 
@@ -35,6 +36,18 @@ export default function SavedPubList({
   followedLists = [],
 }: SavedPubListProps) {
   const owner = normalizeHandle(ownerHandle);
+  if (groups === null) {
+    return (
+      <>
+        <section className="savedSection" aria-labelledby="savedHeading" aria-busy="true">
+          <h2 id="savedHeading" className="savedHeading">
+            Saved venues
+          </h2>
+        </section>
+        <FollowedLists lists={followedLists} />
+      </>
+    );
+  }
   // Render built-ins in canonical order, then any custom list names the handle has
   // actually used. Custom lists are first-class B3 list names, not filtered out.
   const builtIns = BUILT_IN_LIST_TYPES.filter((t) => (groups[t]?.length ?? 0) > 0);

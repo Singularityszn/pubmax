@@ -42,6 +42,16 @@ describe("SavedPubList", () => {
     expect(html).not.toContain("saved pubs");
   });
 
+  it("never claims an empty list before the read has answered", () => {
+    const html = renderToStaticMarkup(
+      createElement(SavedPubList, { ownerHandle: "sam", groups: null }),
+    );
+
+    expect(html).toContain("Saved venues");
+    expect(html).toContain('aria-busy="true"');
+    expect(html).not.toContain("No saved venues yet.");
+  });
+
   it("surfaces followed authored lists with attribution, links, and counts", () => {
     const followedLists: FollowedSavedListDTO[] = [
       {

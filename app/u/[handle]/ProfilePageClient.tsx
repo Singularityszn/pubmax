@@ -33,6 +33,7 @@ import EmptyState from "@/components/ui/empty-state";
 import { ACCOUNT_VISIBILITY_COPY } from "@/lib/accountVisibility";
 import { getAccessToken } from "@/lib/authClient";
 import { authedFetch } from "@/lib/authedFetch";
+import { readProviderIdentityRevision } from "@/lib/authProviderRevision";
 import { isLimitedProfileProjection } from "@/lib/profileVisibility";
 import {
   AUTHOR_CRAWL_LIST_DEFAULT_LIMIT,
@@ -424,15 +425,21 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const [state, setState] = useState<LoadState>("loading");
   // Saved venues render as DTOs (venue NAME + map url). Durable when this handle has
   // server-side saves (/api/saved-pubs); otherwise the localStorage fallback
-  // (savedByList) mapped into DTOs. Start empty so the server render and the
-  // client's first (hydration) paint match, then fill in after mount.
-  const [saved, setSaved] = useState<Partial<Record<ListType, SavedPubDTO[]>>>({});
+  // (savedByList) mapped into DTOs. Null until this handle's read answers, so the
+  // server render and the hydration paint match and neither claims the list is
+  // empty before anyone has asked.
+  const [savedRead, setSavedRead] = useState<{
+    handle: string;
+    groups: Partial<Record<ListType, SavedPubDTO[]>>;
+  } | null>(null);
+  const saved = savedRead?.handle === routeHandle ? savedRead.groups : null;
   const [followedLists, setFollowedLists] = useState<FollowedSavedListDTO[]>([]);
   // The shared reader is the only place this surface may learn who is holding
   // the device. It returns null while identity is unresolved, so a cached
   // handle cannot name the previous account during session restore.
   const viewerHandleFromIdentity = useViewerHandle() ?? "";
   const viewerHandle = user ? viewerHandleFromIdentity : "";
+  const identityReadyForSurface = identityResolved && !viewerSession.unresolved;
   // The owner's own linked socials, public on their card by their own choice.
   const [socialLinks, setSocialLinks] = useState<PublicSocialLink[]>([]);
   // Durable profile row + follow graph, fetched from /api/profiles/[handle].
@@ -590,22 +597,32 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // Load this handle's saved venues: durable first (the API resolves real venue
   // names for the profile's handle), falling back to the viewer's localStorage
   // view mapped into DTOs. Done in an async callback (not the synchronous effect
-  // body) so hydration paints the empty server state first, then swaps in the
-  // saves — and so setState only runs in async work (react-hooks rule).
+  // body) so setState only runs in async work (react-hooks rule).
+  //
+  // The read is identity-bound, and restoring the session aborts every
+  // identity-bound request, so asking before identity is ready got an aborted
+  // read that fell back to the local view and never asked again: an owner's
+  // full load said "No saved venues yet." It waits for identity, asks again
+  // when the account changes, and drops an answer whose account is gone.
   useEffect(() => {
+    if (!identityReadyForSurface) return;
     const controller = new AbortController();
     async function loadSaved() {
       const durable = routeHandle
         ? await fetchSavedForHandle(routeHandle, controller.signal)
         : null;
       if (controller.signal.aborted) return;
+      if (readProviderIdentityRevision() !== accountRevision) return;
       // Durable hit (even an empty list) is authoritative for this handle; only a
       // null (no handle / request failed) falls back to the local view.
-      setSaved(durable ? groupDTOsByList(durable) : localSavedDTOs());
+      setSavedRead({
+        handle: routeHandle,
+        groups: durable ? groupDTOsByList(durable) : localSavedDTOs(),
+      });
     }
     void loadSaved();
     return () => controller.abort();
-  }, [routeHandle]);
+  }, [accountRevision, identityReadyForSurface, routeHandle]);
 
   // Followed saved lists are public social context for this handle's saved view:
   // "Ken follows Sam's Date Night list" appears on /u/ken. Reads are fail-soft,
@@ -861,7 +878,6 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   });
   const stats = profileStats(drops as ProfileDrop[]);
   const isOwnProfile = viewerHandle !== "" && viewerHandle === routeHandle;
-  const identityReadyForSurface = identityResolved && !viewerSession.unresolved;
   const isAnonymous = identityReadyForSurface && viewerSession.signedOut;
   // A stranger may only adopt a handle NOBODY owns. The offer used to ride on
   // `isAnonymous` alone, so a signed-out visitor met "Claim this handle" under
