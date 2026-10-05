@@ -1389,6 +1389,10 @@ export default function PubMap({
   // to reset this from inside an effect body.
   const [mapCanvasCeilingLapsedAttempt, setMapCanvasCeilingLapsedAttempt] =
     useState<number | null>(null);
+  // The attempt whose canvas has built MapLibre. Its own watchdogs answer from
+  // there, so the shell's ceiling stops (lib/mapCanvasAvailability.ts).
+  const [mapCanvasWatchingAttempt, setMapCanvasWatchingAttempt] =
+    useState<number | null>(null);
   // Bumped by the shell's own Retry. It keys a fresh lazy component AND a fresh
   // boundary, so a blocked chunk is genuinely re-requested rather than replayed
   // out of React's cache.
@@ -2428,7 +2432,11 @@ export default function PubMap({
     moduleFailed: mapCanvasModuleFailed,
     canvasOwnsFailure: mapCanvasErrored,
     canvasReady: mapCanvasReady,
+    canvasWatching: mapCanvasWatchingAttempt === mapCanvasAttempt,
   });
+  const handleMapCanvasConstructed = useCallback(() => {
+    setMapCanvasWatchingAttempt(mapCanvasAttempt);
+  }, [mapCanvasAttempt]);
   const handleMapCanvasModuleFailed = useCallback(() => {
     setMapCanvasModuleFailed(true);
   }, []);
@@ -2442,8 +2450,8 @@ export default function PubMap({
   // The bounded readiness timeout. A canvas that never answers used to hold the
   // loading frame, and with it the whole phone shell, indefinitely: every other
   // watchdog is armed by the canvas itself, so a mount that never gets that far
-  // has nothing watching it. The clock runs only while the frame is genuinely
-  // held by a canvas that has said nothing, and it restarts with each attempt.
+  // has nothing watching it. mapCanvasCeilingArmed owns the construction
+  // handoff and stop conditions. Each attempt starts a fresh clock.
   useEffect(() => {
     if (!mapCanvasCeilingRunning) return;
     const attempt = mapCanvasAttempt;
@@ -6470,6 +6478,7 @@ export default function PubMap({
         initialLandmarkId={seed.landmarkId}
         onLandmarkSelect={handleLandmarkSelect}
         onMapReady={handleMapCanvasReady}
+        onMapConstructed={handleMapCanvasConstructed}
         onMapErrored={setMapCanvasErrored}
         mapView={openingViewport
           ? withCityCameraAttitude(openingViewport, city.mapView)
@@ -6479,6 +6488,7 @@ export default function PubMap({
         fitQueryOnArrival={shouldFitQueryVenuesOnArrival(arrivalSearch)}
         searchFitToken={searchFitToken}
         userLocation={userLocation}
+        nearMePending={nearbyLoading}
         readerPosition={readerPosition}
         poisPath={city.poisPath}
         secondaryStreamsHeld={secondaryStreamsHeld}
