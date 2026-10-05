@@ -808,40 +808,6 @@
       "provider": "parallel"
     },
     {
-      "name": "Adel Tap",
-      "kind": "bar",
-      "address": "475 Otley Road, Adel, Leeds LS16 7NR",
-      "postcode": "LS16 7NR",
-      "locality": "Leeds",
-      "website": null,
-      "lat": 53.854982,
-      "lng": -1.591555,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://leeds.camra.org.uk/pubguide"
-      ],
-      "evidence": [
-        {
-          "url": "https://leeds.camra.org.uk/pubguide",
-          "excerpt": "Adel Tap 475 Otley Road Adel LS16 7NR"
-        },
-        {
-          "url": "https://leeds.camra.org.uk/pubguide",
-          "excerpt": "Neighbourhood bar which opened November 2024."
-        }
-      ],
-      "observedAt": "2026-10-04T11:27:30.355Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/LS16%207NR",
-        "observedAt": "2026-10-04T11:27:30.375Z",
-        "postcode": "LS16 7NR",
-        "quality": 1
-      },
-      "runId": "trun_ce5fd53e0016415fbca6f13577a288ad",
-      "id": "venue-lds-dseyeu",
-      "provider": "parallel"
-    },
-    {
       "name": "The Fishermans Lodge",
       "kind": "restaurant",
       "address": "391 Street Lane, Moortown, Leeds, West Yorkshire LS17 6HQ",

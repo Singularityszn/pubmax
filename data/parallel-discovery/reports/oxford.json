@@ -15,22 +15,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:31:25.108Z",
+          "at": "2026-10-05T09:34:10.988Z",
           "reason": "robots-unreadable",
           "evidence": "https://www.oxfordcompass.org/robots.txt answered 429, so no permission can be read."
         },
         {
-          "at": "2026-10-04T14:31:30.938Z",
+          "at": "2026-10-05T09:34:16.593Z",
           "reason": "robots-unreadable",
           "evidence": "https://www.oxfordcompass.org/robots.txt answered 429, so no permission can be read."
         },
         {
-          "at": "2026-10-04T14:31:36.012Z",
+          "at": "2026-10-05T09:34:21.727Z",
           "reason": "robots-unreadable",
           "evidence": "https://www.oxfordcompass.org/robots.txt answered 429, so no permission can be read."
         }
       ],
-      "checkedAt": "2026-10-04T14:31:36.012Z"
+      "checkedAt": "2026-10-05T09:34:21.727Z"
     }
   ],
   "filteredSources": [

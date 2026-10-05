@@ -192,40 +192,6 @@
       "provider": "parallel"
     },
     {
-      "name": "Berlinkys",
-      "kind": "pub",
-      "address": "396 Sauchiehall Street, Glasgow G2 3JD",
-      "postcode": "G2 3JD",
-      "locality": "Glasgow",
-      "website": null,
-      "lat": 55.866052,
-      "lng": -4.266769,
-      "coordinatePrecision": "postcode-centroid",
-      "sourceUrls": [
-        "https://camra.org.uk/pubs/station/charing-cross-glasgow-g2-4pr-664"
-      ],
-      "evidence": [
-        {
-          "url": "https://camra.org.uk/pubs/station/charing-cross-glasgow-g2-4pr-664",
-          "excerpt": "Open ### Berlinkys Pub , in Glasgow"
-        },
-        {
-          "url": "https://camra.org.uk/pubs/station/charing-cross-glasgow-g2-4pr-664",
-          "excerpt": "396 Sauchiehall Street, Charing Cross, Glasgow, G2 3JD"
-        }
-      ],
-      "observedAt": "2026-10-04T11:28:27.394Z",
-      "geocode": {
-        "url": "https://api.postcodes.io/postcodes/G2%203JD",
-        "observedAt": "2026-10-04T11:28:27.417Z",
-        "postcode": "G2 3JD",
-        "quality": 1
-      },
-      "runId": "trun_ce5fd53e0016415faad2c014b4d27d51",
-      "id": "venue-glw-gqihq0",
-      "provider": "parallel"
-    },
-    {
       "name": "King Tut's Wah Wah Hut",
       "kind": "pub",
       "address": "272A St Vincent Street, Glasgow G2 5RL",

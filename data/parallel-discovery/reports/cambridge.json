@@ -15,42 +15,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:27:46.742Z",
+          "at": "2026-10-05T09:34:27.628Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:22.501Z",
+          "at": "2026-10-05T09:35:03.399Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:58.259Z",
+          "at": "2026-10-05T09:35:39.192Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:31:31.458Z"
-    },
-    {
-      "district": "CB2",
-      "category": "cocktail-bar",
-      "url": "https://bills-website.co.uk/restaurants/cambridge",
-      "host": "bills-website.co.uk",
-      "outcome": "skipped",
-      "kind": "extract",
-      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 307",
-      "attempts": 2,
-      "evidence": {
-        "basic": "Failed to fetch url",
-        "advanced": "Failed to fetch url",
-        "probe": {
-          "status": 307,
-          "landed": "permitted",
-          "checkedAt": "2026-10-04T14:31:33.975Z"
-        }
-      },
-      "checkedAt": "2026-10-04T14:31:33.674Z"
+      "checkedAt": "2026-10-05T09:35:39.209Z"
     },
     {
       "district": "CB3",
@@ -62,42 +42,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:31:32.747Z",
+          "at": "2026-10-05T09:34:11.528Z",
           "reason": "robots-unreadable",
           "evidence": "https://www.hyatt.com/robots.txt answered 429, so no permission can be read."
         },
         {
-          "at": "2026-10-04T14:31:37.877Z",
+          "at": "2026-10-05T09:34:16.956Z",
           "reason": "robots-unreadable",
           "evidence": "https://www.hyatt.com/robots.txt answered 429, so no permission can be read."
         },
         {
-          "at": "2026-10-04T14:31:43.111Z",
+          "at": "2026-10-05T09:34:22.362Z",
           "reason": "robots-unreadable",
           "evidence": "https://www.hyatt.com/robots.txt answered 429, so no permission can be read."
         }
       ],
-      "checkedAt": "2026-10-04T14:31:43.111Z"
-    },
-    {
-      "district": "CB5",
-      "category": "bar",
-      "url": "https://cipr.co.uk/CIPR/CIPR/Events/Event_Display_Groups.aspx?EventKey=EA22071403",
-      "host": "cipr.co.uk",
-      "outcome": "skipped",
-      "kind": "extract",
-      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
-      "attempts": 2,
-      "evidence": {
-        "basic": "Failed to fetch url",
-        "advanced": "Failed to fetch url",
-        "probe": {
-          "status": 200,
-          "landed": "permitted",
-          "checkedAt": "2026-10-04T14:31:44.202Z"
-        }
-      },
-      "checkedAt": "2026-10-04T14:31:43.835Z"
+      "checkedAt": "2026-10-05T09:34:22.362Z"
     }
   ],
   "filteredSources": [

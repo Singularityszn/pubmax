@@ -430,9 +430,45 @@ export type HarvestRead = {
   name?: string;
   venueId?: string | null;
   sourceUrl?: string;
+  reader?: string;
+  located?: boolean;
+  landingChecked?: boolean;
   verifiedAt?: string;
   amenities?: Partial<Record<PubWebsiteAmenityKey, string>>;
 };
+
+/**
+ * The checkpoint entry for a page read and kept for a later model run. A
+ * Firecrawl read had its landing fenced as it was read, so its landing is not
+ * asked again when the model run takes it up.
+ */
+export function pageReadEntry(
+  pub: { venueId: string | null; name: string },
+  read: { sourceUrl: string; reader: string; located?: boolean },
+): HarvestRead {
+  return {
+    status: "read",
+    venueId: pub.venueId,
+    name: pub.name,
+    sourceUrl: read.sourceUrl,
+    reader: read.reader,
+    located: read.located,
+    ...(read.reader === "firecrawl" ? { landingChecked: true } : {}),
+  };
+}
+
+/**
+ * A kept page read with its text, or null when the pub must be read again: the
+ * checkpoint holds no kept read for it, or its page text is gone.
+ */
+export function cachedPageRead(
+  entry: HarvestRead | undefined,
+  loadText: () => string | null,
+): (HarvestRead & { text: string }) | null {
+  if (entry?.status !== "read") return null;
+  const text = loadText();
+  return text === null ? null : { ...entry, text };
+}
 
 export type HarvestEvidenceRow = PubEvidenceRow & {
   osmId: string;
@@ -441,6 +477,13 @@ export type HarvestEvidenceRow = PubEvidenceRow & {
   verifiedAt?: string;
 };
 
+const UNCONFIRMED_SITE_STATUSES = new Set(["located-site-unconfirmed", "listed-site-unconfirmed"]);
+
+/** Whether a read owns the page it read: every read but one whose page did not state the pub's address. */
+function readOwnsPage(status: string | undefined): boolean {
+  return !UNCONFIRMED_SITE_STATUSES.has(status ?? "");
+}
+
 /**
  * The committed evidence with this run's pages laid over it, and the chain
  * list with every reader and what they prove. `fresh` is what this process
@@ -448,7 +491,10 @@ export type HarvestEvidenceRow = PubEvidenceRow & {
  * those of a run that stopped before it wrote the chain list, so a resumed
  * harvest still counts the pubs it will not read again. Every pub that read a
  * page is a reader, whatever came of the read, and its quotes count before
- * the chain rule drops any of them.
+ * the chain rule drops any of them. A page that did not state the pub's
+ * address was not that pub's, so its read proves nothing, and a dataset
+ * venue's read of a page that belongs to another pub is a duplicate of that
+ * pub's read.
  */
 export function mergeHarvestEvidence(input: {
   previousRows: readonly HarvestEvidenceRow[];
@@ -474,17 +520,22 @@ export function mergeHarvestEvidence(input: {
       amenities: entry.amenities ?? {},
     });
   }
-  const reads = [...new Map([...Object.entries(input.checkpoint), ...input.fresh]).entries()].flatMap(
-    ([osmId, entry]) => (entry.sourceUrl ? [{ osmId, sourceUrl: entry.sourceUrl, amenities: entry.amenities ?? {} }] : []),
+  const allReads = [...new Map([...Object.entries(input.checkpoint), ...input.fresh]).entries()];
+  const ownedReads = allReads.flatMap(([osmId, entry]) =>
+    entry.sourceUrl && readOwnsPage(entry.status) ? [{ osmId, sourceUrl: entry.sourceUrl, amenities: entry.amenities ?? {} }] : [],
   );
-  const chainPages = mergeChainDenylists(input.knownChainPages, provenChainEvidence([...candidates, ...reads]));
-  const rows = pubSpecificEvidence(candidates, chainPages).sort((a, b) => a.osmId.localeCompare(b.osmId));
+  const owners = pageOwners(input.previousRows, allReads, input.knownChainPages);
+  const notDuplicate = (read: { osmId: string; sourceUrl?: string }) =>
+    !read.sourceUrl || !siteOfAnotherPub(read.sourceUrl, read.osmId, owners);
+  const ownCandidates = candidates.filter(notDuplicate);
+  const chainPages = mergeChainDenylists(input.knownChainPages, provenChainEvidence([...ownCandidates, ...ownedReads.filter(notDuplicate)]));
+  const rows = pubSpecificEvidence(ownCandidates, chainPages).sort((a, b) => a.osmId.localeCompare(b.osmId));
   const unused = candidates.length - rows.length;
   if (unused > 0) skipCounts.ok = (skipCounts.ok ?? 0) + unused;
   return { rows, skipCounts, chainPages };
 }
 
-type PageRead = { ok: true; url: string; text: string } | { ok: false; reason: string };
+export type PageRead = { ok: true; url: string; text: string } | { ok: false; reason: string };
 
 /**
  * The text of one extra page from a pub's site, or null. A link is checked
@@ -657,4 +708,164 @@ export function matchPubToVenue(
     if (!best || metres < best.metres) best = { venue, metres };
   }
   return best?.venue ?? null;
+}
+
+/** A page shorter than this after tags are stripped is read as a script-built page. */
+const THIN_PAGE_CHARS = 200;
+
+/**
+ * Whether a plain read may be asked again through Firecrawl. Only a read the
+ * network or a script-built page kept from us qualifies: a timeout, a failed
+ * connection, a 429 or 5xx, or a page with almost no text. A 401, 403 or 451 is
+ * the site refusing us, a 404 or 410 is gone, and a redirect off the source
+ * fence stays refused, so none of those is read another way.
+ */
+export function firecrawlMayReread(read: PageRead): boolean {
+  if (read.ok) return read.text.length < THIN_PAGE_CHARS;
+  if (read.reason === "timeout" || read.reason === "fetch-failed") return true;
+  const status = Number(/^http-(\d{3})$/.exec(read.reason)?.[1]);
+  return status === 429 || status >= 500;
+}
+
+const POSTCODE = /\b([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})\b/i;
+
+/** The full UK postcode an address states, normalised as "N1 9AA", or null. */
+export function postcodeOf(address: string): string | null {
+  const match = POSTCODE.exec(address);
+  return match ? `${match[1]} ${match[2]}`.toUpperCase() : null;
+}
+
+/** Whether page text states this postcode, with or without its space. */
+export function pageStatesPostcode(text: string, postcode: string): boolean {
+  const [outward, inward] = postcode.toUpperCase().split(" ");
+  return new RegExp(`\\b${outward}\\s*${inward}\\b`, "i").test(text);
+}
+
+/**
+ * The first search hit that can be this pub's own site: permitted by the
+ * source policy, not a chain-wide page, and on a host that carries a
+ * distinctive word of the pub's name. The page must still state the pub's
+ * postcode before anything read from it counts.
+ */
+export function locatedOwnSite(
+  name: string,
+  hits: readonly { url: string }[],
+  deps: {
+    chainPages: ChainDenylist;
+    isHarvestable: (url: string) => boolean;
+    ownSite: (name: string, url: string) => string | null;
+  },
+): string | null {
+  for (const { url } of hits) {
+    if (!deps.isHarvestable(url) || isChainPage(url, deps.chainPages)) continue;
+    if (deps.ownSite(name, url)) return url;
+  }
+  return null;
+}
+
+const STREET_SUFFIXES: Record<string, string> = {
+  st: "street", rd: "road", ln: "lane", ave: "avenue", sq: "square", pl: "place", ct: "court", cres: "crescent", gdns: "gardens", hwy: "highway",
+};
+
+/**
+ * The street an address names in its first part, without the house number,
+ * as words, or null when that part has fewer than two words. "10 James St,
+ * London" gives ["james", "street"].
+ */
+export function streetOf(address: string): string[] | null {
+  const first = address.split(",")[0]?.toLowerCase().replace(/^[\d\s\-–/a-z]{0,4}\d[a-z]?\b/, "") ?? "";
+  const words = first.match(/[a-z']+/g)?.map((word) => STREET_SUFFIXES[word] ?? word) ?? [];
+  return words.length >= 2 ? words : null;
+}
+
+/** Whether page text names this street, its suffix spelled out or abbreviated. */
+export function pageStatesStreet(text: string, street: readonly string[]): boolean {
+  const abbreviations = Object.fromEntries(Object.entries(STREET_SUFFIXES).map(([short, long]) => [long, short]));
+  const pattern = street
+    .map((word) => (abbreviations[word] ? `(?:${word}|${abbreviations[word]}\\.?)` : word.replace(/'/g, "['’]?")))
+    .join("\\s+");
+  return new RegExp(`\\b${pattern}\\b`, "i").test(text);
+}
+
+/**
+ * Every read that can own a page, for `siteOfAnotherPub`: the committed
+ * evidence, the checkpoint's reads with their status, and the chain list's
+ * readers that OSM gave a site, which never reach the evidence file when their
+ * read kept nothing. A dataset venue the chain list names as a reader is the
+ * duplicate the list must not stand on.
+ */
+export function pageOwners(
+  previousRows: readonly { osmId: string; sourceUrl?: string }[],
+  reads: Iterable<readonly [string, HarvestRead]>,
+  knownChainPages: ChainDenylist,
+): { osmId: string; sourceUrl?: string; status?: string }[] {
+  const listed = Object.entries(knownChainPages.readers).flatMap(([page, osmIds]) =>
+    osmIds.filter((osmId) => !isDatasetVenueRead(osmId)).map((osmId) => ({ osmId, sourceUrl: `https://${page}` })),
+  );
+  return [
+    ...previousRows,
+    ...[...reads].map(([osmId, entry]) => ({ osmId, sourceUrl: entry.sourceUrl, status: entry.status })),
+    ...listed,
+  ];
+}
+
+/** Whether a read is a price-dataset venue's, which OSM gives no site. */
+function isDatasetVenueRead(osmId: string): boolean {
+  return osmId.startsWith("venue/");
+}
+
+/**
+ * Whether page text states this address: its postcode when it has one, else
+ * its street. An address with neither is never stated.
+ */
+export function pageStatesAddress(
+  text: string,
+  address: { postcode: string | null; street: readonly string[] | null },
+): boolean {
+  if (address.postcode) return pageStatesPostcode(text, address.postcode);
+  return address.street !== null && pageStatesStreet(text, address.street);
+}
+
+/**
+ * Whether this page belongs to another pub. The price dataset can hold one pub
+ * twice under two spellings, and a read by the duplicate would prove the page,
+ * or a quote on it, chain-wide and withdraw the first pub's evidence. A page
+ * another pub has read is that pub's, and so is any page on a host exactly one
+ * other pub has read. A host two or more pubs read is a chain's, whose other
+ * pages the chain list already judges. A read owns its page unless the page did
+ * not state the pub's address. Only a dataset venue, keyed `venue/`, can read a
+ * page of another pub: a site OSM gives a pub is that pub's own.
+ */
+export function siteOfAnotherPub(
+  url: string,
+  osmId: string,
+  reads: readonly { osmId: string; sourceUrl?: string; status?: string }[],
+): boolean {
+  const target = sourcePage(url);
+  if (!target || !isDatasetVenueRead(osmId)) return false;
+  const others = reads.flatMap((read) => {
+    const source = read.osmId !== osmId && read.sourceUrl !== undefined && readOwnsPage(read.status) ? sourcePage(read.sourceUrl) : null;
+    return source ? [{ osmId: read.osmId, ...source }] : [];
+  });
+  if (others.some((read) => read.page === target.page)) return true;
+  return new Set(others.filter((read) => read.host === target.host).map((read) => read.osmId)).size === 1;
+}
+
+/**
+ * This run's reads without those that would make a pub's evidence thinner. A
+ * scoped harvest reads again pubs whose site already gave evidence, and a
+ * re-read that failed or kept fewer amenities leaves the earlier row in place.
+ */
+export function withoutThinnerRereads(
+  fresh: ReadonlyMap<string, HarvestRead>,
+  previousRows: readonly HarvestEvidenceRow[],
+): Map<string, HarvestRead> {
+  const previous = new Map(previousRows.map((row) => [row.osmId, Object.keys(row.amenities ?? {}).length]));
+  return new Map(
+    [...fresh].filter(([osmId, entry]) => {
+      const before = previous.get(osmId);
+      if (before === undefined) return true;
+      return entry.status === "ok" && Object.keys(entry.amenities ?? {}).length > before;
+    }),
+  );
 }

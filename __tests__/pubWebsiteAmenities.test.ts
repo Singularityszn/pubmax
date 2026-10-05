@@ -9,21 +9,34 @@ import {
   JOB_SPEND_CAP_USD,
   SITE_STAMP,
   amenityColumnIsBlank,
+  cachedPageRead,
   evidenceQuoteIsOnPage,
+  firecrawlMayReread,
   isChainPage,
   keepEvidencedAmenities,
   liftSiteStamps,
+  locatedOwnSite,
   matchPubToVenue,
   mergeChainDenylists,
   mergeHarvestEvidence,
+  pageOwners,
+  pageReadEntry,
+  pageStatesAddress,
+  pageStatesPostcode,
+  pageStatesStreet,
   parseChainDenylist,
   parsePubAmenityModelJson,
+  postcodeOf,
   projectPubAmenitySpend,
   provenChainEvidence,
   pubSpecificEvidence,
   readExtraPage,
+  siteOfAnotherPub,
   stampAmenityColumns,
   statedAmenities,
+  streetOf,
+  withoutThinnerRereads,
+  type HarvestRead,
 } from "@/lib/harvest/pubWebsiteAmenities";
 
 const PAGE = [
@@ -526,6 +539,94 @@ describe("chain denylist", () => {
     expect(freshOnly.rows.map((row) => row.osmId)).toEqual(["b", "e"]);
   });
 
+  it("does not count a read of a page that did not state the pub's address as a reader of it", () => {
+    const own: HarvestRead = {
+      status: "ok",
+      name: "The Two Brewers",
+      venueId: "venue-clapham",
+      sourceUrl: "https://www.the2brewers.com/london",
+      verifiedAt: "2026-10-05",
+      amenities: { liveMusic: "live music every Friday" },
+    };
+    const fresh = new Map<string, HarvestRead>([["node/1", own]]);
+    const checkpoint: Record<string, HarvestRead> = {
+      "node/1": own,
+      "venue/islington": { status: "listed-site-unconfirmed", venueId: "venue-islington", sourceUrl: "https://www.the2brewers.com/london" },
+      "venue/other": { status: "located-site-unconfirmed", venueId: "venue-other", sourceUrl: "https://www.the2brewers.com/" },
+    };
+    const merged = mergeHarvestEvidence({ previousRows: [], fresh, checkpoint, knownChainPages: EMPTY_CHAIN_DENYLIST });
+    expect(merged.chainPages.pages).toEqual([]);
+    expect(merged.rows.map((row) => row.osmId)).toEqual(["node/1"]);
+  });
+
+  it("does not let a dataset venue's read of a page an OSM pub read prove it chain-wide, whatever came of either read", () => {
+    const page = "https://www.greeneking.co.uk/pubs/greater-london/butchers-hook";
+    const duplicate: HarvestRead = {
+      status: "ok",
+      name: "Butchers Hook",
+      venueId: "venue-dup",
+      sourceUrl: page,
+      verifiedAt: "2026-10-05",
+      amenities: { food: "savour delicious pub classics" },
+    };
+    const osm: HarvestRead = { status: "quota", venueId: "venue-osm", sourceUrl: page };
+    const fresh = new Map<string, HarvestRead>([["venue/venue-dup", duplicate]]);
+    const merged = mergeHarvestEvidence({
+      previousRows: [],
+      fresh,
+      checkpoint: { "way/151288979": osm, "venue/venue-dup": duplicate },
+      knownChainPages: EMPTY_CHAIN_DENYLIST,
+    });
+    expect(merged.chainPages.pages).toEqual([]);
+    expect(merged.rows).toEqual([]);
+    const ownRow = { osmId: "way/151288979", venueId: "venue-osm", sourceUrl: page, amenities: { food: "savour delicious pub classics" } };
+    const kept = mergeHarvestEvidence({
+      previousRows: [ownRow],
+      fresh,
+      checkpoint: { "venue/venue-dup": duplicate },
+      knownChainPages: EMPTY_CHAIN_DENYLIST,
+    });
+    expect(kept.chainPages.pages).toEqual([]);
+    expect(kept.rows.map((row) => row.osmId)).toEqual(["way/151288979"]);
+  });
+
+  it("treats a dataset venue's read as a duplicate when the OSM owner is only a reader on the chain list", () => {
+    const page = "https://www.greeneking.co.uk/pubs/greater-london/butchers-hook";
+    const duplicate: HarvestRead = {
+      status: "ok",
+      name: "Butchers Hook",
+      venueId: "venue-dup",
+      sourceUrl: page,
+      verifiedAt: "2026-10-05",
+      amenities: { food: "savour delicious pub classics" },
+    };
+    const knownChainPages = { ...EMPTY_CHAIN_DENYLIST, readers: { "greeneking.co.uk/pubs/greater-london/butchers-hook": ["way/151288979"] } };
+    const merged = mergeHarvestEvidence({
+      previousRows: [],
+      fresh: new Map([["venue/venue-dup", duplicate]]),
+      checkpoint: { "venue/venue-dup": duplicate },
+      knownChainPages,
+    });
+    expect(merged.chainPages.pages).toEqual([]);
+    expect(merged.rows).toEqual([]);
+    const owners = pageOwners([], Object.entries({ "venue/venue-dup": duplicate }), knownChainPages);
+    expect(siteOfAnotherPub(page, "venue/venue-dup", owners)).toBe(true);
+    expect(siteOfAnotherPub(page, "way/151288979", owners)).toBe(false);
+  });
+
+  it("does not let two dataset venues' reads of one page prove it chain-wide", () => {
+    const read = (venueId: string): HarvestRead => ({
+      status: "ok",
+      venueId,
+      sourceUrl: "https://www.thecrown.example/",
+      verifiedAt: "2026-10-05",
+      amenities: { pool: "a pool table upstairs" },
+    });
+    const fresh = new Map<string, HarvestRead>([["venue/a", read("a")], ["venue/b", read("b")]]);
+    const merged = mergeHarvestEvidence({ previousRows: [], fresh, checkpoint: Object.fromEntries(fresh), knownChainPages: EMPTY_CHAIN_DENYLIST });
+    expect(merged.chainPages.pages).toEqual([]);
+  });
+
   it("drops an extra page whose link is allowed but which lands on a proven chain page", async () => {
     const chainPages = { ...EMPTY_CHAIN_DENYLIST, pages: ["chain.example/food-drink"] };
     const fetched: string[] = [];
@@ -767,3 +868,126 @@ describe("matchPubToVenue", () => {
   });
 });
 
+
+describe("firecrawlMayReread", () => {
+  it("rereads only what the network or a script kept from the plain read", () => {
+    for (const reason of ["timeout", "fetch-failed", "http-429", "http-503"]) expect(firecrawlMayReread({ ok: false, reason })).toBe(true);
+    for (const reason of ["http-401", "http-403", "http-451", "http-404", "http-410", "redirect-refused", "not-html"]) {
+      expect(firecrawlMayReread({ ok: false, reason })).toBe(false);
+    }
+    expect(firecrawlMayReread({ ok: true, url: "https://a.example/", text: "Loading" })).toBe(true);
+    expect(firecrawlMayReread({ ok: true, url: "https://a.example/", text: "x".repeat(200) })).toBe(false);
+  });
+});
+
+describe("kept page reads", () => {
+  const pub = { venueId: "venue-abc", name: "The Crown" };
+
+  it("keeps a Firecrawl read's fenced landing so the model run does not ask the site again", () => {
+    const firecrawl = pageReadEntry(pub, { sourceUrl: "https://crown.example/", reader: "firecrawl", located: false });
+    const kept = cachedPageRead(firecrawl, () => PAGE);
+    expect(kept).toMatchObject({ status: "read", reader: "firecrawl", sourceUrl: "https://crown.example/", landingChecked: true, text: PAGE });
+    const plain = cachedPageRead(pageReadEntry(pub, { sourceUrl: "https://crown.example/", reader: "fetch" }), () => PAGE);
+    expect(plain?.landingChecked).toBeUndefined();
+  });
+
+  it("reads the pub again when its kept page text is gone", () => {
+    const entry = pageReadEntry(pub, { sourceUrl: "https://crown.example/", reader: "firecrawl" });
+    expect(cachedPageRead(entry, () => null)).toBeNull();
+    expect(cachedPageRead({ status: "ok", sourceUrl: "https://crown.example/" }, () => PAGE)).toBeNull();
+    expect(cachedPageRead(undefined, () => PAGE)).toBeNull();
+  });
+});
+
+describe("located own sites", () => {
+  const deps = {
+    chainPages: { ...EMPTY_CHAIN_DENYLIST, pages: ["chainpubs.example/the-crown"] },
+    isHarvestable: (url: string) => !url.includes("tripadvisor"),
+    ownSite: (name: string, url: string) => (new URL(url).hostname.includes(name.split(" ").at(-1)!.toLowerCase()) ? url : null),
+  };
+
+  it("keeps the first permitted, non-chain hit whose host carries the pub's name", () => {
+    const hits = [
+      { url: "https://www.tripadvisor.co.uk/crown" },
+      { url: "https://chainpubs.example/the-crown" },
+      { url: "https://www.thecrownislington.example/" },
+    ];
+    expect(locatedOwnSite("The Crown", hits, deps)).toBe("https://www.thecrownislington.example/");
+    expect(locatedOwnSite("The Crown", hits.slice(0, 2), deps)).toBeNull();
+  });
+
+  it("reads a postcode from an address and finds it on a page with or without its space", () => {
+    expect(postcodeOf("116 Cloudesley Rd, London n1 0eb")).toBe("N1 0EB");
+    expect(postcodeOf("Cloudesley Road, Islington")).toBeNull();
+    expect(pageStatesPostcode("Find us at 116 Cloudesley Road, N10EB", "N1 0EB")).toBe(true);
+    expect(pageStatesPostcode("Find us at N1 0EBX", "N1 0EB")).toBe(false);
+    expect(pageStatesPostcode("Find us at SN1 0EB", "N1 0EB")).toBe(false);
+  });
+});
+
+describe("street locators", () => {
+  it("reads the street from an address's first part and spells out its suffix", () => {
+    expect(streetOf("10 James St, London WC2E88T")).toEqual(["james", "street"]);
+    expect(streetOf("39-41 Crutched Friars , , London")).toEqual(["crutched", "friars"]);
+    expect(streetOf("106-107 Houndsditch, , London, UK")).toBeNull();
+    expect(streetOf(", , Southwark,")).toBeNull();
+  });
+
+  it("finds the street on a page with its suffix spelled out or abbreviated, and no other street", () => {
+    expect(pageStatesStreet("Find us on James St.", ["james", "street"])).toBe(true);
+    expect(pageStatesStreet("51 Bethnal Green Rd, E2", ["bethnal", "green", "road"])).toBe(true);
+    expect(pageStatesStreet("Jameson Street", ["james", "street"])).toBe(false);
+  });
+
+  it("confirms an address by its postcode when it has one, else its street, and never with neither", () => {
+    const clapham = "The Two Brewers, 114 Clapham High Street, London SW4 7UJ";
+    expect(pageStatesAddress(clapham, { postcode: "EC1Y 8JJ", street: ["whitecross", "street"] })).toBe(false);
+    expect(pageStatesAddress(clapham, { postcode: "SW4 7UJ", street: null })).toBe(true);
+    expect(pageStatesAddress(clapham, { postcode: null, street: ["clapham", "high", "street"] })).toBe(true);
+    expect(pageStatesAddress(clapham, { postcode: null, street: null })).toBe(false);
+  });
+});
+
+describe("scoped harvest guards", () => {
+  const reads = [
+    { osmId: "node/1", sourceUrl: "https://www.theguardhouse.example/" },
+    { osmId: "node/2", sourceUrl: "https://www.chain.example/pubs/swan" },
+    { osmId: "node/3", sourceUrl: "https://www.chain.example/pubs/crown" },
+  ];
+
+  it("leaves unread a page another pub read, and any page of a site only one other pub reads", () => {
+    expect(siteOfAnotherPub("https://theguardhouse.example/menu", "venue/a", reads)).toBe(true);
+    expect(siteOfAnotherPub("https://www.chain.example/pubs/swan/", "venue/a", reads)).toBe(true);
+    expect(siteOfAnotherPub("https://www.chain.example/pubs/lion", "venue/a", reads)).toBe(false);
+    expect(siteOfAnotherPub("https://www.theguardhouse.example/", "node/1", reads)).toBe(false);
+    expect(siteOfAnotherPub("https://new.example/", "venue/a", reads)).toBe(false);
+  });
+
+  it("gives a page to every read of it but one whose page did not state the pub's address", () => {
+    const read = { osmId: "node/9", sourceUrl: "https://thecrownandanchor.example/" };
+    for (const status of ["located-site-unconfirmed", "listed-site-unconfirmed"]) {
+      expect(siteOfAnotherPub("https://thecrownandanchor.example/", "venue/a", [{ ...read, status }])).toBe(false);
+    }
+    for (const status of ["ok", "read", "quota", "model-500", "error", "empty-page", "chain-page", undefined]) {
+      expect(siteOfAnotherPub("https://thecrownandanchor.example/", "venue/a", [{ ...read, status }])).toBe(true);
+    }
+  });
+
+  it("never takes a site OSM gives a pub away from it", () => {
+    const reads = [{ osmId: "venue/a", sourceUrl: "https://thecrownandanchor.example/", status: "read" }];
+    expect(siteOfAnotherPub("https://thecrownandanchor.example/", "node/9", reads)).toBe(false);
+  });
+
+  it("keeps earlier evidence unless a re-read keeps more amenities", () => {
+    const previous = [{ osmId: "node/1", sourceUrl: "https://a.example/", amenities: { food: "serves food", pool: "a pool table" } }];
+    const fresh = new Map<string, HarvestRead>([
+      ["node/1", { status: "ok", sourceUrl: "https://a.example/", amenities: { food: "serves food" } }],
+      ["node/2", { status: "http-404" }],
+    ]);
+    expect([...withoutThinnerRereads(fresh, previous).keys()]).toEqual(["node/2"]);
+    fresh.set("node/1", { status: "robots-unreachable" });
+    expect(withoutThinnerRereads(fresh, previous).has("node/1")).toBe(false);
+    fresh.set("node/1", { status: "ok", sourceUrl: "https://a.example/", amenities: { food: "serves food", pool: "a pool table", darts: "a dartboard" } });
+    expect(withoutThinnerRereads(fresh, previous).has("node/1")).toBe(true);
+  });
+});

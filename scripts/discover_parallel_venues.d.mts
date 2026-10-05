@@ -1,5 +1,7 @@
 export const CATEGORIES: Array<{ id: string; label: string }>;
 export const PROVIDERS: string[];
+export const FIRECRAWL_RUN_CREDITS: number;
+export function firecrawlRead(url: string, city: { id: string }, request?: (provider: string, endpoint: string, options: { city: string; body: { url: string } } & Record<string, unknown>) => Promise<{ data?: { markdown?: string; metadata?: Record<string, unknown> } }>): Promise<{ results?: Array<{ url: string; landed_url: string; raw_content: string }>; failed_results?: Array<{ url: string; status?: number; error: string }> }>;
 export function runSlice(slice: unknown, options: Record<string, unknown>, lanes?: { parallel: (slice: unknown, options: Record<string, unknown>, spend: boolean) => Promise<Record<string, unknown>>; web: (slice: unknown, options: { spend: boolean; refresh: boolean }) => Promise<Record<string, unknown>> }): Promise<Record<string, unknown>>;
 export function parseArgs(argv: string[]): { cities: string[] | null; matches: number; concurrency: number; processor: string; provider: string; list: boolean; refresh: boolean; recheckPermissions: boolean; help: boolean; check: boolean };
 export function taskRequest(request: { objective: string; context: Record<string, unknown>; known: Array<{ name: string; postcode?: string | null }>; processor: string }): { processor: string; source_policy: unknown; input: { objective: string; knownVenueNames: string[]; contextIsPartial: boolean; totalKnownVenues: number } & Record<string, unknown>; task_spec: unknown };

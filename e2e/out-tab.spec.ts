@@ -83,10 +83,13 @@ for (const width of WIDTHS) {
       // rows, so it ships noindex with no canonical of its own. Read it on the
       // server-rendered document a crawler gets, before any chip's client-side
       // navigation can briefly leave the old page's metadata beside the new.
-      await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
-        "content",
-        /noindex/,
-      );
+      await expect.poll(() => page.locator('meta[name="robots"]').evaluateAll(
+        (tags) => tags.length > 0 && tags.every((tag) =>
+          tag.getAttribute("content")?.split(",").some(
+            (directive) => directive.trim().toLowerCase() === "noindex",
+          ),
+        ),
+      )).toBe(true);
       await expect(page.locator('link[rel="canonical"]')).toHaveCount(0);
       // The day chips are LINKS, not radios: each is a destination, so they keep
       // the link role and say where they are with aria-current.

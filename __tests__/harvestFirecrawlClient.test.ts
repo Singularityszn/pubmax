@@ -197,6 +197,29 @@ describe("bounded retries", () => {
     expect(calls).toBe(2);
   });
 
+  it("reports where Firecrawl landed after a redirect, and null when it does not say", async () => {
+    const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
+      const asked = JSON.parse(String(init?.body)).url as string;
+      return asked.endsWith("/moved")
+        ? okScrape("# landed", { statusCode: 200, sourceURL: asked, url: "https://elsewhere.example/landing" })
+        : okScrape("# stayed", { statusCode: 200 });
+    });
+    const client = createFirecrawlClient({
+      apiKey: "fc-test",
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      budget: createHarvestBudget(20),
+      sleepImpl: noSleep,
+    });
+
+    const moved = await client!.scrape("https://example.com/moved");
+    if (!moved.ok) throw new Error("expected a page");
+    expect(moved.page.url).toBe("https://example.com/moved");
+    expect(moved.page.landedUrl).toBe("https://elsewhere.example/landing");
+    const stayed = await client!.scrape("https://example.com/stayed");
+    if (!stayed.ok) throw new Error("expected a page");
+    expect(stayed.page.landedUrl).toBeNull();
+  });
+
   it("refuses a success envelope carrying no markdown rather than inventing a page", async () => {
     const fetchImpl = vi.fn(async () =>
       new Response(JSON.stringify({ success: true, data: { markdown: "   " } }), { status: 200 }),

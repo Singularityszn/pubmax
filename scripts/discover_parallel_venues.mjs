@@ -15,10 +15,14 @@ const RAW = path.join(ROOT, "data-harvest/parallel-venue-discovery");
 const OUT = path.join(ROOT, "data/parallel-discovery");
 const PRICES = { base: 0.01, core: 0.025, pro: 0.10, ultra: 0.30 };
 const TAVILY_CREDIT_USD = 0.008;
-export const PROVIDERS = ["parallel", "tavily"];
+const FIRECRAWL_CREDIT_USD = 0.005;
+// One Firecrawl run may spend at most this many credits, whatever the account holds.
+export const FIRECRAWL_RUN_CREDITS = 200;
+export const PROVIDERS = ["parallel", "tavily", "firecrawl"];
 const ENDPOINTS = {
   parallel: { base: "https://api.parallel.ai", key: "PARALLEL_API_KEY", header: (key) => ({ "x-api-key": key }), exhausted: [402] },
   tavily: { base: "https://api.tavily.com", key: "TAVILY_API_KEY", header: (key) => ({ Authorization: `Bearer ${key}` }), exhausted: [402, 432, 433] },
+  firecrawl: { base: "https://api.firecrawl.dev", key: "FIRECRAWL_API_KEY", header: (key) => ({ Authorization: `Bearer ${key}` }), exhausted: [402] },
 };
 const TASK_INPUT_LIMIT = 24000;
 export const CATEGORIES = [
@@ -61,7 +65,7 @@ export function parseArgs(argv) {
   }
   for (const key of ["matches", "concurrency"]) if (!Number.isInteger(options[key]) || options[key] < 1) throw new Error(`Invalid ${key}; use a positive integer`);
   if (!Object.hasOwn(PRICES, options.processor)) throw new Error("Invalid processor; choose base, core, pro or ultra");
-  if (!PROVIDERS.includes(options.provider)) throw new Error("Invalid provider; choose parallel or tavily");
+  if (!PROVIDERS.includes(options.provider)) throw new Error("Invalid provider; choose parallel, tavily or firecrawl");
   if (options.cities?.some((id) => !DISCOVERY_CITIES.some((city) => city.id === id))) throw new Error("Unknown city; run node scripts/discover_parallel_venues.mjs --list");
   return options;
 }
@@ -127,8 +131,9 @@ async function providerRequest(provider, endpoint, { city, body, cost = () => 0,
         throw Object.assign(new Error(`${provider} ${endpoint.split("?")[0]} HTTP ${status}; validation=${JSON.stringify(details)}; checkpoint retained, rerun to resume`), { status });
       }
       const data = await response.json();
-      usage = data.usage ?? null;
-      runId = data.run_id ?? data.request_id ?? null;
+      const scrape = data.data?.metadata;
+      usage = data.usage ?? (scrape?.creditsUsed === undefined ? null : { credits: scrape.creditsUsed });
+      runId = data.run_id ?? data.request_id ?? scrape?.scrapeId ?? null;
       estimatedCostUsd = cost(data);
       return data;
     } finally {
@@ -255,6 +260,8 @@ function limiter(size) {
   };
 }
 const tavilySlot = limiter(4);
+const firecrawlSlot = limiter(4);
+let firecrawlCredits = 0;
 const robotsGate = createRobotsGate(() => createRobotsChecker());
 const permissionSlot = limiter(12);
 const permissionChecks = new Map();
@@ -310,9 +317,62 @@ function webIo({ city, district, category }) {
   };
 }
 
+const FIRECRAWL_READER = { provider: "firecrawl", label: "Firecrawl scrape", failed: "failed", depths: ["basic"] };
+
+// One Firecrawl scrape per page, markdown only, the whole page so a footer
+// address is kept. A scrape costs a credit and a PDF a credit more per page,
+// so a PDF is read to at most FIRECRAWL_PDF_PAGES pages, and each scrape holds
+// that worst case against the run cap until Firecrawl reports what it used.
+// The answer is shaped like a Tavily Extract response, keyed by the URL asked
+// for with the landing beside it, so the slice reads, settles, skips and
+// fences it by the same rules.
+const FIRECRAWL_PDF_PAGES = 5;
+const FIRECRAWL_SCRAPE_CREDITS = 1 + FIRECRAWL_PDF_PAGES;
+export async function firecrawlRead(url, city, request = providerRequest) {
+  if (firecrawlCredits + FIRECRAWL_SCRAPE_CREDITS > FIRECRAWL_RUN_CREDITS) throw new Error(`Firecrawl run cap of ${FIRECRAWL_RUN_CREDITS} credits reached; checkpoint retained, rerun to resume`);
+  firecrawlCredits += FIRECRAWL_SCRAPE_CREDITS;
+  let used = FIRECRAWL_SCRAPE_CREDITS;
+  try {
+    const data = await firecrawlSlot(() => request("firecrawl", "/v2/scrape", { city: city.id, timeoutMs: 120_000,
+      cost: (body) => (body.data?.metadata?.creditsUsed ?? FIRECRAWL_SCRAPE_CREDITS) * FIRECRAWL_CREDIT_USD,
+      body: { url, formats: ["markdown"], onlyMainContent: false, timeout: 60_000, parsers: [{ type: "pdf", maxPages: FIRECRAWL_PDF_PAGES }], location: { country: "GB", languages: ["en-GB"] } } }));
+    const metadata = data.data?.metadata ?? {};
+    used = Number(metadata.creditsUsed ?? FIRECRAWL_SCRAPE_CREDITS);
+    const status = Number(metadata.statusCode);
+    if (Number.isFinite(status) && status >= 400) return { failed_results: [{ url, status, error: `page HTTP ${status}` }] };
+    const markdown = data.data?.markdown;
+    if (typeof markdown !== "string" || !markdown.trim()) return { failed_results: [{ url, error: "Firecrawl returned no markdown" }] };
+    return { results: [{ url, landed_url: metadata.url ?? url, raw_content: markdown }] };
+  } catch (error) {
+    if (Number.isFinite(error.status)) used = 0;
+    // Firecrawl's 4xx or 5xx for one page is that page's failed read; only an
+    // exhausted account, a timeout or a rate limit stops the run.
+    if (error.status >= 400 && ![402, 408, 429].includes(error.status)) return { failed_results: [{ url, status: error.status, error: `Firecrawl HTTP ${error.status}` }] };
+    throw error;
+  } finally {
+    firecrawlCredits += used - FIRECRAWL_SCRAPE_CREDITS;
+  }
+}
+
+function firecrawlIo(slice) {
+  return {
+    ...webIo(slice),
+    search: () => { throw new Error("The Firecrawl lane reads skipped sources only; it never searches"); },
+    reader: FIRECRAWL_READER,
+    extract: async (urls) => {
+      const reads = await Promise.allSettled(urls.map((url) => firecrawlRead(url, slice.city)));
+      const answers = reads.flatMap((read) => (read.status === "fulfilled" ? [read.value] : []));
+      const response = { results: answers.flatMap((answer) => answer.results ?? []), failed_results: answers.flatMap((answer) => answer.failed_results ?? []) };
+      const failed = reads.find((read) => read.status === "rejected");
+      if (failed) throw Object.assign(failed.reason, { answered: response });
+      return response;
+    },
+  };
+}
+
 // Parallel pages already paid for always count. A slice they leave
 // incomplete is finished by the Tavily lane when it may spend.
-const LANES = { parallel: parallelSlice, web: (slice, options) => webSlice(slice, options, webIo(slice)) };
+const LANES = { parallel: parallelSlice, web: (slice, options) => webSlice(slice, options, options.skipsOnly ? firecrawlIo(slice) : webIo(slice)) };
 
 // A city outside --cities never spends and never refreshes: both lanes replay
 // what is cached, so its reports keep their completion, skips and filters.
@@ -325,7 +385,8 @@ export async function runSlice(slice, options, lanes = LANES) {
   if (parallel.complete) return parallel;
   const merge = (web) => ({ ...web, found: [...parallel.found, ...web.found], rejected: [...parallel.rejected, ...web.rejected],
     researched: parallel.researched + web.researched, taskRuns: parallel.taskRuns });
-  try { return merge(await lanes.web(slice, { spend: spend && options.provider === "tavily", refresh })); }
+  const webSpend = spend && ["tavily", "firecrawl"].includes(options.provider);
+  try { return merge(await lanes.web(slice, { spend: webSpend, refresh: refresh && options.provider === "tavily", skipsOnly: options.provider === "firecrawl" })); }
   catch (error) { throw Object.assign(error, { partial: merge(error.partial ?? { found: [], rejected: [], researched: 0, complete: false }) }); }
 }
 
@@ -422,7 +483,7 @@ async function main() {
   if (process.argv.length === 3 && ["-v", "-V", "--version"].includes(process.argv[2])) { console.log("2.0.0"); return; }
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
-    console.log("usage: node scripts/discover_parallel_venues.mjs [--provider=<parallel|tavily>] [--cities=<id,id>] [--matches=<n>] [--concurrency=<n>] [--processor=<base|core|pro|ultra>] [--refresh] [--recheck-permissions] [--list] [--check]\ndefaults: every city map, one slice per postcode district and category, parallel provider, 30 candidates per Task page, 40 concurrent slices, pro processor, resume cached runs\n--cities: only these cities may spend, first; every city is still replayed and reported. --cities= replays every city without provider requests or keys; missing permission records require robots checks\n--recheck-permissions: checks every retained evidence URL live without refreshing research\ncredentials: PARALLEL_API_KEY or TAVILY_API_KEY from environment, required before any run; --check and --list are keyless\nexamples[3]:\n  node scripts/discover_parallel_venues.mjs --list\n  node scripts/discover_parallel_venues.mjs --provider=tavily --cities=manchester,liverpool\n  node scripts/discover_parallel_venues.mjs --check");
+    console.log("usage: node scripts/discover_parallel_venues.mjs [--provider=<parallel|tavily|firecrawl>] [--cities=<id,id>] [--matches=<n>] [--concurrency=<n>] [--processor=<base|core|pro|ultra>] [--refresh] [--recheck-permissions] [--list] [--check]\ndefaults: every city map, one slice per postcode district and category, parallel provider, 30 candidates per Task page, 40 concurrent slices, pro processor, resume cached runs\n--cities: only these cities may spend, first; every city is still replayed and reported. --cities= replays every city without provider requests or keys; missing permission records require robots checks\n--recheck-permissions: checks every retained evidence URL live without refreshing research\n--provider=firecrawl: never searches; asks robots again and reads through Firecrawl only the sources earlier runs skipped, at most " + FIRECRAWL_RUN_CREDITS + " credits per run\ncredentials: PARALLEL_API_KEY, TAVILY_API_KEY or FIRECRAWL_API_KEY from environment, required before any run; --check and --list are keyless\nexamples[3]:\n  node scripts/discover_parallel_venues.mjs --list\n  node scripts/discover_parallel_venues.mjs --provider=tavily --cities=manchester,liverpool\n  node scripts/discover_parallel_venues.mjs --check");
     return;
   }
   if (options.check) { await checkPacks(); return; }
@@ -434,7 +495,9 @@ async function main() {
   }
   const key = ENDPOINTS[options.provider].key;
   if (options.cities?.length !== 0 && !process.env[key]) throw new Error(`${key} is missing; load it in the invoking shell. A keyless replay would record a credential failure as the run's outcome`);
-  recheckPermissions = options.refresh || options.recheckPermissions || options.cities?.length !== 0;
+  // A Firecrawl run reads only skipped sources, so recorded permission for
+  // published evidence replays unless asked again explicitly.
+  recheckPermissions = options.recheckPermissions || (options.provider !== "firecrawl" && (options.refresh || options.cities?.length !== 0));
   await mkdir(RAW, { recursive: true });
   await mkdir(OUT, { recursive: true });
   const { known, shipped } = await baseVenues();
