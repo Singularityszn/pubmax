@@ -2749,11 +2749,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
     );
   }
 
-  /* The London status strip docks at --city-status-desktop-top, one 58px pill
-     tall (a 44px link, 6px padding and a 1px border each side), so the card
+  /* The London status strip publishes its pill's bottom edge, so the card
      starts below the pill while the strip is on the page. */
   .appShell:has(.cityStatusStack) .mapFallback {
-    padding-top: calc(var(--city-status-desktop-top) + 58px + 16px);
+    padding-top: calc(var(--city-status-desktop-bottom) + 16px);
   }
 
   /* The city chip docks in the slot above --city-status-desktop-top and hides
