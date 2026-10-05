@@ -1153,6 +1153,18 @@ describe("londonRestaurantSelection", () => {
     expect(pick).toEqual({ cafe: crosstown, restaurant: null, release: false });
   });
 
+  it("lets a pilot cafe go off the coffee lens without waiting for the restaurant read", () => {
+    const crosstown = { id: "venue-osm-w271641406" };
+    for (const status of ["idle", "loading"] as const) {
+      const pick = londonVenueSelection({
+        selectedVenueId: crosstown.id,
+        coffee: { lensOn: false, status: "ready", byId: new Map([[crosstown.id, crosstown]]) },
+        restaurants: { shown: true, status, byId: new Map<string, { id: string }>() },
+      });
+      expect(pick).toEqual({ cafe: null, restaurant: null, release: true });
+    }
+  });
+
   it("lets go of an id neither source can open", () => {
     const pick = londonVenueSelection({
       selectedVenueId: "venue-osm-n9",

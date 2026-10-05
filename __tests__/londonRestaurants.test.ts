@@ -184,7 +184,7 @@ describe("londonRestaurantLayerShown", () => {
 });
 
 describe("londonRestaurantPackWanted", () => {
-  const base = { shown: true, held: false, zoom: 12, selectedVenueId: "" };
+  const base = { shown: true, held: false, zoom: 12, selectedVenueId: "", selectedIsCafe: false };
 
   it("draws from the pin floor every other unclustered pin layer uses", () => {
     expect(LONDON_RESTAURANT_MIN_ZOOM).toBe(PIN_MIN_ZOOM);
@@ -207,6 +207,17 @@ describe("londonRestaurantPackWanted", () => {
     expect(londonRestaurantPackWanted({ ...base, zoom: 9, selectedVenueId: "venue-1" })).toBe(
       false,
     );
+  });
+
+  it("reads nothing for a selected pilot cafe the camera is too far out to draw beside", () => {
+    expect(
+      londonRestaurantPackWanted({
+        ...base,
+        zoom: 9,
+        selectedVenueId: "venue-osm-w271641406",
+        selectedIsCafe: true,
+      }),
+    ).toBe(false);
   });
 });
 

@@ -46,15 +46,20 @@ export const LONDON_RESTAURANT_MIN_ZOOM = 12;
  * priced pins must have painted (lib/mapFirstPinStreams.ts). The camera must
  * also be at the zoom the layer draws from, unless a restaurant is selected,
  * because a shared `?sel=` link must open its sheet wherever the camera is.
+ * A selection the coffee pilot already places is a cafe, not a restaurant.
  */
 export function londonRestaurantPackWanted(input: {
   shown: boolean;
   held: boolean;
   zoom: number;
   selectedVenueId: string;
+  selectedIsCafe: boolean;
 }): boolean {
   if (!input.shown || input.held) return false;
-  return input.zoom >= LONDON_RESTAURANT_MIN_ZOOM || isLondonVenueId(input.selectedVenueId);
+  return (
+    input.zoom >= LONDON_RESTAURANT_MIN_ZOOM ||
+    (isLondonVenueId(input.selectedVenueId) && !input.selectedIsCafe)
+  );
 }
 
 /** Where the map's read of the pack stands. */

@@ -2999,6 +2999,7 @@ export default function PubMap({
       held: secondaryStreamsHeld,
       zoom: mapViewport.zoom,
       selectedVenueId,
+      selectedIsCafe: coffeePilot.byId.has(selectedVenueId),
     }),
   );
   // A `venue-osm-` selection is a pilot cafe or a London restaurant, and is let
