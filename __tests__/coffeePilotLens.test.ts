@@ -71,6 +71,7 @@ describe("coffee pilot cafes", () => {
       ],
       [cafe()],
     );
+    if (!joined) throw new Error("no cafe joined");
     expect(joined.prices.map((price) => [price.drink, price.priceGbp])).toEqual([
       ["flat white", 3.7],
       ["latte", 3.8],
@@ -88,6 +89,7 @@ describe("coffee pilot cafes", () => {
 
   it("names the drink on the pin, and an absent flat white is never borrowed", () => {
     const [onlyMatcha] = coffeePilotCafes([row({ drink: "matcha latte", priceGbp: 5.5 })], [cafe()]);
+    if (!onlyMatcha) throw new Error("no cafe joined");
     expect(coffeePilotPinLabel(onlyMatcha)).toBe("£5.50 matcha latte");
     expect(onlyMatcha.prices.map((price) => price.drink)).toEqual(["matcha latte"]);
     const empty: CoffeePilotCafe = { ...onlyMatcha, prices: [] };
