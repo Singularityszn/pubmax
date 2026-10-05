@@ -13,9 +13,12 @@ import { expect, type Locator, type Page } from "@playwright/test";
  * the live page for the same window. A DOM read in that window counts
  * every landmark, tab bar and test id twice.
  */
-export async function expectStreamedPageSettled(page: Page): Promise<void> {
-  await expect(page.locator(".routeLoadingShell")).toHaveCount(0);
-  await expect(page.locator('div[hidden][id^="S:"]')).toHaveCount(0);
+export async function expectStreamedPageSettled(
+  page: Page,
+  options: { timeout?: number } = {},
+): Promise<void> {
+  await expect(page.locator(".routeLoadingShell")).toHaveCount(0, options);
+  await expect(page.locator('div[hidden][id^="S:"]')).toHaveCount(0, options);
 }
 
 /**
