@@ -1,13 +1,27 @@
-import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { parse } from "yaml";
 
-import { parseArgs } from "@/scripts/enrich_city_pubs_tavily.mjs";
+import { defined } from "@/__tests__/helpers/defined";
+
+import {
+  committedCityPrices,
+  parseArgs,
+  pruneManagedCityPrices,
+  resumeCheckpoint,
+  runCityPass,
+} from "@/scripts/enrich_city_pubs_tavily.mjs";
 import {
   MAX_TAVILY_CREDITS_PER_RUN,
+  mergeCanonicalPrices,
+  OFFICIAL_SITE_SOURCE_LICENCE,
   runCityEnrichment,
   TAVILY_CREDITS_PER_SEARCH,
+  venueKeyForOsmPub,
 } from "@/scripts/lib/tavilyPubEnrichment.mjs";
 
 const OBSERVED_AT = "2026-10-06T02:30:00.000Z";
@@ -97,45 +111,335 @@ describe("the nightly London Tavily pass spends a bounded amount", () => {
   });
 });
 
-describe("the nightly London workflow", () => {
-  const workflow = readFileSync(
-    join(process.cwd(), ".github/workflows/tavily-london-nightly.yml"),
-    "utf8",
-  );
+type London = ReturnType<typeof londonPubs>;
 
-  it("runs the capped London pass on a schedule and by hand", () => {
-    expect(workflow).toMatch(/schedule:\s*\n\s+- cron:/);
-    expect(workflow).toContain("workflow_dispatch:");
-    expect(workflow).toContain("npm run enrich:city -- --city=london --max-queries=200 --max-credits=400");
+function officialPrice(pub: London[number], drinkName: string, priceGbp: number) {
+  return {
+    venueKey: venueKeyForOsmPub(pub),
+    drinkName,
+    category: "beer",
+    priceGbp,
+    servingSize: "pint",
+    source: { label: `${pub.name} - official site`, url: pub.website, licence: OFFICIAL_SITE_SOURCE_LICENCE },
+    observedAt: "2026-09-01T02:30:00.000Z",
+  };
+}
+
+function freshLondon(pubs: London, committed: ReturnType<typeof officialPrice>[] = []) {
+  return resumeCheckpoint(null, {
+    city: "london",
+    totalPubs: pubs.length,
+    committedPrices: committedCityPrices(committed, new Set(pubs.map(venueKeyForOsmPub))),
+    observedAt: OBSERVED_AT,
   });
+}
 
-  it("serialises runs and never overlaps two nights' spend", () => {
-    expect(workflow).toMatch(/concurrency:\s*\n\s+group:\s*tavily-london-nightly/);
-    expect(workflow).toMatch(/cancel-in-progress:\s*false/);
+/** The pub each search asked about, in the order the searches ran. */
+function searchedPubs(fetchImpl: ReturnType<typeof billing>) {
+  return fetchImpl.mock.calls.map(([, init]) => {
+    const query = String(JSON.parse(String(init?.body)).query);
+    return /"(Independent Arms \d+)"/.exec(query)?.[1];
   });
+}
 
-  it("opens a review PR and never pushes to the default branch", () => {
-    expect(workflow).toContain("scripts/ci/with-git-token.sh scripts/ci/tavily-london-review-pr.sh");
-    expect(workflow).not.toMatch(/git push[^\n]*\b(main|master)\b/);
-    expect(workflow).toContain("persist-credentials: false");
-  });
+describe("the nightly London pass keeps going and keeps what it found", () => {
+  beforeEach(() => vi.stubEnv("TYPESAFE_API_KEY", ""));
+  afterEach(() => vi.unstubAllEnvs());
 
-  it("validates the data before any PR opens", () => {
-    expect(workflow.indexOf("npm run validate-data")).toBeGreaterThan(
-      workflow.indexOf("npm run enrich:city"),
+  it("starts a fresh checkpoint from the committed London prices, so a restart deletes none", async () => {
+    const pubs = londonPubs(3);
+    const reviewed = [officialPrice(defined(pubs[0]), "Guinness", 6.2), officialPrice(defined(pubs[2]), "Pale Ale", 5.8)];
+    const elsewhere = { ...officialPrice(defined(pubs[1]), "Bitter", 4.5), venueKey: "another city pub|x|53.00000|-2.00000" };
+    const latest = [...reviewed, elsewhere];
+
+    const { state } = await runCityPass({
+      city: "london",
+      checkpoint: freshLondon(pubs, latest),
+      pubs,
+      apiKey: "test-key",
+      maxQueries: 1,
+      observedAt: OBSERVED_AT,
+      fetchImpl: billing(2),
+    });
+    const written = mergeCanonicalPrices(
+      pruneManagedCityPrices(latest, new Set(pubs.map(venueKeyForOsmPub))),
+      state.prices,
     );
-    expect(workflow.indexOf("tavily-london-review-pr.sh")).toBeGreaterThan(
-      workflow.indexOf("npm run validate-data"),
-    );
+
+    expect(state.prices).toEqual(reviewed);
+    expect(written).toEqual(expect.arrayContaining(latest));
+    expect(written).toHaveLength(latest.length);
   });
 
-  it("saves the cursor even when a later step fails", () => {
-    expect(workflow).toMatch(/Save the London cursor\s*\n\s+if: \$\{\{ !cancelled\(\) \}\}/);
-  });
+  it("restarts rather than fails when the pack or the checkpoint format changed", () => {
+    const pubs = londonPubs(3);
+    const reviewed = [officialPrice(defined(pubs[0]), "Guinness", 6.2)];
+    const options = {
+      city: "london",
+      totalPubs: pubs.length,
+      committedPrices: reviewed,
+      observedAt: OBSERVED_AT,
+    };
+    const saved = { ...freshLondon(pubs), readAt: { "node/1": OBSERVED_AT } };
 
-  it("pins every action to a commit", () => {
-    for (const line of workflow.split("\n").filter((l) => l.includes("uses:"))) {
-      expect(line).toMatch(/@[0-9a-f]{40}\b/);
+    expect(resumeCheckpoint(saved, options)).toBe(saved);
+    for (const stale of [{ ...saved, totalPubs: 4 }, { ...saved, version: 1 }, { ...saved, city: "leeds" }]) {
+      expect(resumeCheckpoint(stale, options)).toMatchObject({ readAt: {}, prices: reviewed });
     }
+  });
+
+  it("reads the stalest pubs first and records when it read them", async () => {
+    const pubs = londonPubs(3);
+    const checkpoint = {
+      ...freshLondon(pubs),
+      readAt: { "node/1": "2026-10-01T02:30:00.000Z", "node/3": "2026-09-01T02:30:00.000Z" },
+    };
+    const fetchImpl = billing(2);
+
+    const { state } = await runCityPass({
+      city: "london",
+      checkpoint,
+      pubs,
+      apiKey: "test-key",
+      maxQueries: 2,
+      observedAt: OBSERVED_AT,
+      fetchImpl,
+    });
+
+    expect(searchedPubs(fetchImpl)).toEqual(["Independent Arms 2", "Independent Arms 3"]);
+    expect(state.readAt).toEqual({
+      "node/1": "2026-10-01T02:30:00.000Z",
+      "node/2": OBSERVED_AT,
+      "node/3": OBSERVED_AT,
+    });
+  });
+
+  it("starts the next pass by itself once every pub has been read", async () => {
+    const pubs = londonPubs(250);
+    let checkpoint = freshLondon(pubs);
+    const nights = ["2026-10-06T02:30:00.000Z", "2026-10-07T02:30:00.000Z", "2026-10-08T02:30:00.000Z"];
+    const spent: number[] = [];
+    for (const observedAt of nights) {
+      const { runResult, state } = await runCityPass({
+        city: "london",
+        checkpoint,
+        pubs,
+        apiKey: "test-key",
+        observedAt,
+        fetchImpl: billing(2),
+      });
+      spent.push(runResult.queriesSpent);
+      checkpoint = state;
+    }
+
+    expect(spent).toEqual([200, 200, 200]);
+    expect(Object.keys(checkpoint.readAt)).toHaveLength(250);
+    expect(checkpoint.readAt["node/250"]).toBe("2026-10-07T02:30:00.000Z");
+    expect(checkpoint.readAt["node/1"]).toBe("2026-10-08T02:30:00.000Z");
+    expect(checkpoint.readAt["node/151"]).toBe("2026-10-08T02:30:00.000Z");
+    expect(Object.values(checkpoint.readAt)).not.toContain(nights[0]);
+  });
+
+  it("replaces a pub's old rows when its page is read again", async () => {
+    const pubs = londonPubs(1);
+    const checkpoint = freshLondon(pubs, [officialPrice(defined(pubs[0]), "Guinness", 6.2)]);
+    const fetchImpl = vi.fn<typeof fetch>(
+      async () =>
+        new Response(
+          JSON.stringify({
+            results: [{ url: `${defined(pubs[0]).website}drinks`, raw_content: "Neck Oil - Pint £6.80" }],
+            usage: { credits: 2 },
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+    );
+
+    const { state } = await runCityPass({
+      city: "london",
+      checkpoint,
+      pubs,
+      apiKey: "test-key",
+      observedAt: OBSERVED_AT,
+      fetchImpl,
+    });
+
+    expect(state.prices.map((row) => [row.drinkName, row.priceGbp])).toEqual([["Neck Oil", 6.8]]);
+  });
+
+  it("fails when it searched nothing while a pub was still due", async () => {
+    const pubs = londonPubs(3);
+    await expect(
+      runCityPass({
+        city: "london",
+        checkpoint: freshLondon(pubs),
+        pubs,
+        apiKey: "test-key",
+        maxCredits: 1,
+        observedAt: OBSERVED_AT,
+        fetchImpl: billing(2),
+      }),
+    ).rejects.toThrow(/no search ran while 3 pubs were still due/);
+  });
+
+  it("passes a night with nothing to search", async () => {
+    const pubs = londonPubs(2).map((pub) => ({ ...pub, website: null }));
+    const { runResult } = await runCityPass({
+      city: "london",
+      checkpoint: freshLondon(pubs as unknown as London),
+      pubs,
+      apiKey: "test-key",
+      observedAt: OBSERVED_AT,
+      fetchImpl: billing(2),
+    });
+
+    expect(runResult.queriesSpent).toBe(0);
+  });
+});
+
+type Step = { name?: string; uses?: string; run?: string; if?: string; with?: Record<string, unknown> };
+type Workflow = {
+  on: { schedule?: Array<{ cron: string }>; workflow_dispatch?: unknown };
+  permissions: Record<string, string>;
+  concurrency: { group: string; "cancel-in-progress": boolean };
+  jobs: Record<string, { steps: Step[]; permissions: Record<string, string> }>;
+};
+
+describe("the nightly London workflow", () => {
+  const ROOT = process.cwd();
+  const workflow = parse(
+    readFileSync(join(ROOT, ".github/workflows/tavily-london-nightly.yml"), "utf8"),
+  ) as Workflow;
+  const steps = defined(workflow.jobs.pass, "the pass job").steps;
+  const stepIndex = (match: (step: Step) => boolean) => {
+    const index = steps.findIndex(match);
+    expect(index).toBeGreaterThanOrEqual(0);
+    return index;
+  };
+  const passIndex = stepIndex((step) => /^npm run enrich:city /.test(step.run ?? ""));
+  const validateIndex = stepIndex((step) => step.run === "npm run validate-data");
+  const prIndex = stepIndex((step) => /tavily-london-review-pr\.sh$/.test(step.run ?? ""));
+
+  it("runs on a schedule and by hand", () => {
+    expect(workflow.on.schedule?.map((entry) => entry.cron)).toEqual(["30 2 * * *"]);
+    expect(workflow.on).toHaveProperty("workflow_dispatch");
+  });
+
+  it("runs the London enrichment CLI at the code's own ceilings", () => {
+    const scripts = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).scripts;
+    expect(scripts["enrich:city"]).toBe("tsx scripts/enrich_city_pubs_tavily.mjs");
+    const run = String(defined(steps[passIndex]).run);
+    const cliArgs = defined(run.split(" -- ")[1], "CLI arguments").trim().split(/\s+/);
+    expect(parseArgs(cliArgs)).toEqual({
+      city: "london",
+      maxQueries: 200,
+      maxCredits: 400,
+      reset: false,
+      dryRun: false,
+    });
+  });
+
+  it("serialises runs so two nights never overlap", () => {
+    expect(workflow.concurrency).toEqual({ group: "tavily-london-nightly", "cancel-in-progress": false });
+  });
+
+  it("validates the data after the pass and before the PR", () => {
+    expect(validateIndex).toBeGreaterThan(passIndex);
+    expect(prIndex).toBeGreaterThan(validateIndex);
+  });
+
+  it("saves the checkpoint it restored, even when a later step fails", () => {
+    const restore = defined(steps[stepIndex((step) => step.uses?.startsWith("actions/cache/restore@") ?? false)]);
+    const saveIndex = stepIndex((step) => step.uses?.startsWith("actions/cache/save@") ?? false);
+    const save = defined(steps[saveIndex]);
+
+    expect(save.if).toBe("${{ !cancelled() }}");
+    expect(save.with?.path).toBe(".tavily/enrichment/london.json");
+    expect(restore.with?.path).toBe(save.with?.path);
+    expect(stepIndex((step) => step === restore)).toBeLessThan(passIndex);
+    expect(saveIndex).toBeGreaterThan(passIndex);
+    expect(saveIndex).toBeLessThan(validateIndex);
+  });
+
+  it("keeps the token out of git config and pins every action to a commit", () => {
+    const checkout = steps.find((step) => step.uses?.startsWith("actions/checkout@"));
+    expect(checkout?.with?.["persist-credentials"]).toBe(false);
+    expect(workflow.permissions).toEqual({});
+    for (const step of steps.filter((entry) => entry.uses)) {
+      expect(step.uses).toMatch(/@[0-9a-f]{40}$/);
+    }
+  });
+});
+
+describe("the London review PR script", () => {
+  const SCRIPT = join(process.cwd(), "scripts/ci/tavily-london-review-pr.sh");
+  let dir = "";
+
+  const git = (cwd: string, ...args: string[]) =>
+    execFileSync("git", args, { cwd, encoding: "utf8", env: gitEnv(), stdio: "pipe" }).trim();
+  const gitEnv = () => ({ ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1" });
+
+  function repo() {
+    dir = mkdtempSync(join(tmpdir(), "tavily-london-pr-"));
+    const origin = join(dir, "origin.git");
+    const work = join(dir, "work");
+    const bin = join(dir, "bin");
+    mkdirSync(work);
+    mkdirSync(bin);
+    git(dir, "init", "--bare", "-b", "main", origin);
+    git(work, "init", "-b", "main");
+    git(work, "config", "user.name", "test");
+    git(work, "config", "user.email", "test@example.com");
+    git(work, "config", "commit.gpgsign", "false");
+    writeFileSync(join(work, "README.md"), "x\n");
+    git(work, "add", "README.md");
+    git(work, "commit", "-m", "init");
+    git(work, "remote", "add", "origin", origin);
+    git(work, "push", "origin", "main");
+    writeFileSync(join(bin, "gh"), `#!/bin/sh\necho "$@" >> "${join(dir, "gh.log")}"\n`);
+    chmodSync(join(bin, "gh"), 0o755);
+    return { work, mainBefore: git(work, "rev-parse", "main"), bin };
+  }
+
+  const runScript = (work: string, bin: string) =>
+    execFileSync("bash", [SCRIPT], {
+      cwd: work,
+      encoding: "utf8",
+      stdio: "pipe",
+      env: { ...gitEnv(), PATH: `${bin}:${process.env.PATH}` },
+    });
+
+  const remoteHeads = (work: string) =>
+    git(work, "ls-remote", "--heads", "origin")
+      .split("\n")
+      .map((line) => line.split("\t"));
+
+  afterEach(() => {
+    if (dir) rmSync(dir, { recursive: true, force: true });
+    dir = "";
+  });
+
+  it("pushes tonight's prices to a review branch and opens a PR, leaving main alone", () => {
+    const { work, mainBefore, bin } = repo();
+    mkdirSync(join(work, "public/data/drink_price_updates"), { recursive: true });
+    writeFileSync(join(work, "public/data/drink_price_updates/latest.json"), "{}\n");
+    mkdirSync(join(work, "data/enrichment/tavily/london"), { recursive: true });
+    writeFileSync(join(work, "data/enrichment/tavily/london/run_20261006.json"), "{}\n");
+
+    runScript(work, bin);
+
+    const heads = remoteHeads(work);
+    expect(heads.find(([, ref]) => ref === "refs/heads/main")?.[0]).toBe(mainBefore);
+    expect(heads.map(([, ref]) => ref)).toEqual(
+      expect.arrayContaining([expect.stringMatching(/^refs\/heads\/tavily-london\/\d{8}$/)]),
+    );
+    expect(heads).toHaveLength(2);
+    expect(readFileSync(join(dir, "gh.log"), "utf8")).toMatch(/^pr create /);
+  });
+
+  it("pushes nothing when the pass wrote nothing", () => {
+    const { work, mainBefore, bin } = repo();
+
+    expect(runScript(work, bin)).toContain("the pass wrote nothing to review");
+    expect(remoteHeads(work)).toEqual([[mainBefore, "refs/heads/main"]]);
   });
 });

@@ -2784,6 +2784,14 @@ function validateUkPriceBundle() {
       if (!Number.isInteger(row.sampleSize) || row.sampleSize < ESTIMATE_MIN_SAMPLE) {
         errs.add(`${where}: an estimate needs a sample of at least ${ESTIMATE_MIN_SAMPLE}`);
       }
+      if (
+        ESTIMATE_DRINK_CATEGORIES.has(row.category) &&
+        (!Number.isInteger(row.operatorCount) || row.operatorCount < ESTIMATE_MIN_OPERATORS)
+      ) {
+        errs.add(`${where}: a ${row.category} estimate must rest on at least ${ESTIMATE_MIN_OPERATORS} operators`);
+      }
+    } else if (row.operatorCount !== undefined) {
+      errs.add(`${where}: only an estimate carries an operatorCount`);
     }
     if (row.drinkLabel !== undefined) {
       if (typeof row.drinkLabel !== "string" || !row.drinkLabel.trim()) {
@@ -2831,6 +2839,7 @@ function validateUkPriceBundle() {
 // The file is optional. It has not been built in a fresh clone, and an absent
 // basis is an honest "no estimates" rather than a defect.
 const ESTIMATE_MIN_SAMPLE = 3;
+const ESTIMATE_MIN_OPERATORS = 3;
 const ESTIMATE_MIN_GBP = 2;
 const ESTIMATE_MAX_GBP = 12;
 const ESTIMATE_REGION_KINDS = new Set(["london_borough", "postcode_area"]);
@@ -2840,7 +2849,9 @@ const ESTIMATE_DRINK_CATEGORIES = new Set(["wine", "cocktail"]);
 // boroughs only: a chain or a postcode area here would put the first modelled
 // wine or cocktail outside London on one chain's menu. Every region names the
 // pages it was read from, because no beer-style dataset average stands behind
-// these. Returns how many region rows it checked.
+// these, and rests on at least ESTIMATE_MIN_OPERATORS operators, because one
+// chain's menus are not a borough's price. Returns how many region rows it
+// checked.
 function validateEstimateDrinks(drinks, errs) {
   if (drinks === undefined) return 0;
   if (typeof drinks !== "object" || drinks === null || Array.isArray(drinks)) {
@@ -2874,6 +2885,9 @@ function validateEstimateDrinkRegion(region, where, drink, errs) {
   }
   if (!Number.isInteger(region.sampleSize) || region.sampleSize < ESTIMATE_MIN_SAMPLE) {
     errs.add(`${where}: sampleSize must be an integer of at least ${ESTIMATE_MIN_SAMPLE}`);
+  }
+  if (!Number.isInteger(region.operatorCount) || region.operatorCount < ESTIMATE_MIN_OPERATORS) {
+    errs.add(`${where}: operatorCount must be an integer of at least ${ESTIMATE_MIN_OPERATORS}`);
   }
   if (typeof region.provenance !== "string" || region.provenance.trim().length === 0) {
     errs.add(`${where}: an estimate basis must name its provenance`);

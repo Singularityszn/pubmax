@@ -81,6 +81,7 @@ const DRINK_UPDATES = path.join(
   "public/data/drink_price_updates/latest.json",
 );
 const BOUNDARIES = path.join(ROOT, "data/london_boroughs_simplified.json");
+const LONDON_SLIM = path.join(ROOT, "public/data/venues_slim.json");
 const HARVEST_LEDGER_ROWS = path.join(
   ROOT,
   "data-harvest/uk_prices/rows.jsonl",
@@ -360,10 +361,22 @@ function addDrinkPriceUpdateRows(updates, push, report) {
   }
 }
 
+// The curated venues that themselves state they serve cocktails, from the
+// dataset's own cocktails column. A pub nobody has said that about never gets a
+// modelled cocktail price.
+function cocktailVenueIds() {
+  const slim = existsSync(LONDON_SLIM) ? read(LONDON_SLIM) : null;
+  const rows = Array.isArray(slim?.rows) ? slim.rows : [];
+  return new Set(
+    rows.filter((row) => row?.filterHints?.amenities?.cocktails === true).map((row) => row.id),
+  );
+}
+
 /** Lane three: the modelled figures, labelled as modelled. */
 function addEstimateRows(owners, push, report) {
   const baselines = estimateBaselines();
   const boundaries = existsSync(BOUNDARIES) ? read(BOUNDARIES) : null;
+  const servesCocktails = cocktailVenueIds();
   const snapshot = read(OSM_PUBS);
   const pubs = Array.isArray(snapshot) ? snapshot : (snapshot.pubs ?? []);
   for (const pub of pubs) {
@@ -380,6 +393,7 @@ function addEstimateRows(owners, push, report) {
       website: pub.website ?? null,
       postcode: pub.postcode ?? null,
       londonBoroughCode: boroughName ? boroughCode(boroughName) : null,
+      servesCocktails: servesCocktails.has(venueId),
     };
     // The engine models a PINT first, then each non-beer drink it holds a
     // London basis for. Every row is filed under the drink it was modelled for.
@@ -400,6 +414,7 @@ function addEstimateRows(owners, push, report) {
         observedAt: estimate.computedAt,
         basis: `${estimate.basis}:${estimate.basisKey}`,
         sampleSize: estimate.sampleSize,
+        ...(estimate.operatorCount !== undefined ? { operatorCount: estimate.operatorCount } : {}),
       });
     }
     if (!modelledAny) report.pubsWithNoBasis += 1;

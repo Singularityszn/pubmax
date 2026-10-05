@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "computedAt": "2026-10-05T23:33:31.709Z",
-  "method": "Chain rows are the median published pint price per permitted first-party chain menu. London region rows are the median of the bundled dataset's own per-borough average, classified point-in-polygon. Wine and cocktail rows are London borough medians over pubs, each pub counted once at the median of its own in-band menu lines, from permitted first-party menus. A basis under three prices is dropped rather than used.",
+  "computedAt": "2026-10-05T23:53:08.357Z",
+  "method": "Chain rows are the median published pint price per permitted first-party chain menu. London region rows are the median of the bundled dataset's own per-borough average, classified point-in-polygon. Wine and cocktail rows are London borough medians over pubs, each pub counted once at the median of its own in-band menu lines, from permitted first-party menus, and a borough whose pubs are run by fewer than three operators gets no row. A basis under three prices is dropped rather than used.",
   "chains": [],
   "regions": [
     {
@@ -242,107 +242,13 @@
       "minGbp": 3,
       "maxGbp": 12,
       "servingNote": "One glass. The source menus state no serving size, so lines outside this band are treated as bottles and dropped.",
-      "regions": [
-        {
-          "kind": "london_borough",
-          "code": "camden",
-          "label": "Camden",
-          "medianGbp": 7.32,
-          "sampleSize": 4,
-          "provenance": "Median of each pub's own wine menu median, read from permitted first-party menus in Camden.",
-          "sourceUrls": [
-            "https://www.greeneking.co.uk/pubs/greater-london/crown/menu",
-            "https://www.greeneking.co.uk/pubs/greater-london/museum-tavern/menu",
-            "https://www.greeneking.co.uk/pubs/greater-london/rising-sun/menu",
-            "https://www.greeneking.co.uk/pubs/greater-london/swan/menu"
-          ]
-        },
-        {
-          "kind": "london_borough",
-          "code": "kensington-and-chelsea",
-          "label": "Kensington and Chelsea",
-          "medianGbp": 7.48,
-          "sampleSize": 4,
-          "provenance": "Median of each pub's own wine menu median, read from permitted first-party menus in Kensington and Chelsea.",
-          "sourceUrls": [
-            "https://www.greeneking.co.uk/pubs/greater-london/goat-tavern/menu",
-            "https://www.greeneking.co.uk/pubs/greater-london/kings-head/menu",
-            "https://www.greeneking.co.uk/pubs/greater-london/stanhope-arms/menu",
-            "https://www.greeneking.co.uk/pubs/greater-london/zetland-arms/menu"
-          ]
-        },
-        {
-          "kind": "london_borough",
-          "code": "westminster",
-          "label": "Westminster",
-          "medianGbp": 7.45,
-          "sampleSize": 13,
-          "provenance": "Median of each pub's own wine menu median, read from permitted first-party menus in Westminster.",
-          "sourceUrls": [
-            "https://www.greeneking.co.uk/pubs/greater-london/bag-o-nails/menu",
-            "https://www.greeneking.co.uk/pubs/greater-london/blue-posts/menu",
-            "https://www.greeneking.co.uk/pubs/greater-london/coach-and-horses/menu",
-            "https://www.greeneking.co.uk/pubs/greater-london/golden-lion-st-james-s/menu",
-            "https://www.greeneking.co.uk/pubs/greater-london/paxtons-head/menu",
-            "https://www.greeneking.co.uk/pubs/greater-london/plumbers-arms/menu",
-            "https://www.greeneking.co.uk/pubs/greater-london/punch-and-judy/menu",
-            "https://www.greeneking.co.uk/pubs/greater-london/salisbury/menu"
-          ]
-        }
-      ]
+      "regions": []
     },
     "cocktail": {
       "minGbp": 4,
       "maxGbp": 15,
       "servingNote": "One cocktail. The source menus state no serving size, so lines outside this band are treated as jugs or sharers and dropped.",
-      "regions": [
-        {
-          "kind": "london_borough",
-          "code": "camden",
-          "label": "Camden",
-          "medianGbp": 10.5,
-          "sampleSize": 4,
-          "provenance": "Median of each pub's own cocktail menu median, read from permitted first-party menus in Camden.",
-          "sourceUrls": [
-            "https://www.greeneking.co.uk/pubs/greater-london/crown/menu",
-            "https://www.greeneking.co.uk/pubs/greater-london/museum-tavern/menu",
-            "https://www.greeneking.co.uk/pubs/greater-london/rising-sun/menu",
-            "https://www.greeneking.co.uk/pubs/greater-london/swan/menu"
-          ]
-        },
-        {
-          "kind": "london_borough",
-          "code": "kensington-and-chelsea",
-          "label": "Kensington and Chelsea",
-          "medianGbp": 11.5,
-          "sampleSize": 4,
-          "provenance": "Median of each pub's own cocktail menu median, read from permitted first-party menus in Kensington and Chelsea.",
-          "sourceUrls": [
-            "https://www.greeneking.co.uk/pubs/greater-london/goat-tavern/menu",
-            "https://www.greeneking.co.uk/pubs/greater-london/kings-head/menu",
-            "https://www.greeneking.co.uk/pubs/greater-london/stanhope-arms/menu",
-            "https://www.greeneking.co.uk/pubs/greater-london/zetland-arms/menu"
-          ]
-        },
-        {
-          "kind": "london_borough",
-          "code": "westminster",
-          "label": "Westminster",
-          "medianGbp": 12.5,
-          "sampleSize": 13,
-          "provenance": "Median of each pub's own cocktail menu median, read from permitted first-party menus in Westminster.",
-          "sourceUrls": [
-            "https://www.greeneking.co.uk/pubs/greater-london/bag-o-nails/menu",
-            "https://www.greeneking.co.uk/pubs/greater-london/blue-posts/menu",
-            "https://www.greeneking.co.uk/pubs/greater-london/coach-and-horses/menu",
-            "https://www.greeneking.co.uk/pubs/greater-london/golden-lion-st-james-s/menu",
-            "https://www.greeneking.co.uk/pubs/greater-london/paxtons-head/menu",
-            "https://www.greeneking.co.uk/pubs/greater-london/plumbers-arms/menu",
-            "https://www.greeneking.co.uk/pubs/greater-london/punch-and-judy/menu",
-            "https://www.greeneking.co.uk/pubs/greater-london/salisbury/menu"
-          ]
-        }
-      ]
+      "regions": []
     }
   }
 }

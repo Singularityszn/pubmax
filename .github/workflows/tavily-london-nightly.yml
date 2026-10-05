@@ -9,10 +9,10 @@ name: Tavily London nightly
 # so the most a night can cost is 200 x 2 credits x $0.008 = $3.20. See
 # docs/TAVILY_LONDON_NIGHTLY.md.
 #
-# TAVILY_API_KEY is a repo secret. The cursor lives in the gitignored
+# TAVILY_API_KEY is a repo secret. The checkpoint lives in the gitignored
 # .tavily/enrichment/london.json, so this job restores it from the Actions cache
-# before the run and saves it after, and a lost cache restarts the walk rather
-# than failing the job.
+# before the run and saves it after. A lost cache starts a fresh checkpoint from
+# the committed prices rather than failing the job.
 on:
   schedule:
     - cron: "30 2 * * *"

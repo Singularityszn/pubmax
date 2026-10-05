@@ -94,27 +94,66 @@ function loadCityPubs(cityId) {
   return selectCityPubs(cityId, Array.isArray(pack.pubs) ? pack.pubs : []);
 }
 
-function readCheckpoint(city, totalPubs) {
-  const filePath = checkpointPath(city);
-  if (!existsSync(filePath)) {
-    return {
-      version: 1,
-      city,
-      totalPubs,
-      observedAt: new Date().toISOString(),
-      nextIndex: 0,
-      totalQueriesSpent: 0,
-      totalCreditsSpent: 0,
-      prices: [],
-      pages: [],
-      delegatedChains: [],
-    };
+// Version 2 replaced the one-way cursor with a read time per pub. A checkpoint
+// from another version, city or pack is not resumable, so it restarts.
+const CHECKPOINT_VERSION = 2;
+
+function priceKey(row) {
+  return `${row.venueKey}|${String(row.drinkName).toLowerCase()}|${row.category}`;
+}
+
+/**
+ * The official-site prices this city already has on disk. A restarted
+ * checkpoint starts from them, because the evidence write replaces every
+ * managed price for the city with the checkpoint's own, and a checkpoint that
+ * started empty would delete every reviewed price it had not re-read tonight.
+ */
+export function committedCityPrices(existing, cityVenueKeys) {
+  return existing.filter(
+    (row) =>
+      cityVenueKeys.has(row?.venueKey) &&
+      row?.source?.licence === OFFICIAL_SITE_SOURCE_LICENCE,
+  );
+}
+
+/**
+ * The saved checkpoint when it still describes this city's pack, or a fresh
+ * one seeded with the committed prices. A changed pack restarts the walk
+ * rather than failing every night until someone deletes the file.
+ */
+export function resumeCheckpoint(saved, { city, totalPubs, committedPrices, observedAt }) {
+  if (
+    saved?.version === CHECKPOINT_VERSION &&
+    saved.city === city &&
+    saved.totalPubs === totalPubs
+  ) {
+    return saved;
   }
-  const state = JSON.parse(readFileSync(filePath, "utf8"));
-  if (state.version !== 1 || state.city !== city || state.totalPubs !== totalPubs) {
-    throw new Error(`Checkpoint ${path.relative(ROOT, filePath)} does not match current city pack. Use --reset.`);
-  }
-  return state;
+  return {
+    version: CHECKPOINT_VERSION,
+    city,
+    totalPubs,
+    observedAt,
+    readAt: {},
+    totalQueriesSpent: 0,
+    totalCreditsSpent: 0,
+    prices: committedPrices,
+    pages: [],
+    delegatedChains: [],
+  };
+}
+
+/**
+ * Every pub, stalest evidence first. A pub never read comes before any pub
+ * that was, in the city's own order, so the first walk is the old sweep. Once
+ * every pub has been read the walk does not stop: the oldest reads come round
+ * again. Pack order breaks ties so one night's batch stays together.
+ */
+export function stalestFirst(pubs, readAt) {
+  return pubs
+    .map((pub, index) => ({ index, at: readAt[pub.osmId] ?? "" }))
+    .sort((a, b) => a.at.localeCompare(b.at) || a.index - b.index)
+    .map((entry) => entry.index);
 }
 
 function uniqueBy(rows, keyFor) {
@@ -123,15 +162,23 @@ function uniqueBy(rows, keyFor) {
   return [...byKey.values()];
 }
 
-function mergeState(base, progress, runQueries = 0, runCredits = 0) {
+// A failed search is not a read, so that pub stays stalest and goes first next
+// time. A pub matched again replaces its old rows, so a drink the page no
+// longer lists does not outlive the page.
+function mergeState(base, progress, observedAt) {
+  const readAt = { ...base.readAt };
+  for (const outcome of progress.outcomes ?? []) {
+    if (outcome.status !== "failed") readAt[outcome.osmId] = observedAt;
+  }
+  const rematched = new Set(progress.pages.map((page) => page.venueKey));
   return {
     ...base,
-    nextIndex: progress.nextIndex,
-    totalQueriesSpent: base.totalQueriesSpent + runQueries,
-    totalCreditsSpent: base.totalCreditsSpent + runCredits,
+    readAt,
+    totalQueriesSpent: base.totalQueriesSpent + progress.queriesSpent,
+    totalCreditsSpent: base.totalCreditsSpent + progress.creditsSpent,
     prices: uniqueBy(
-      [...base.prices, ...progress.prices],
-      (row) => `${row.venueKey}|${row.drinkName.toLowerCase()}|${row.category}`,
+      [...base.prices.filter((row) => !rematched.has(row.venueKey)), ...progress.prices],
+      priceKey,
     ),
     pages: uniqueBy(
       [...base.pages, ...progress.pages],
@@ -149,6 +196,28 @@ function mergeState(base, progress, runQueries = 0, runCredits = 0) {
   };
 }
 
+/**
+ * One capped pass over a city, stalest pubs first. A run that searched
+ * nothing while a pub was still waiting for a search throws, so a spent-out
+ * cap or a broken order is a red job rather than a quiet green one.
+ */
+export async function runCityPass({ checkpoint, pubs, observedAt, onState, ...options }) {
+  const runResult = await runCityEnrichment({
+    ...options,
+    pubs,
+    indices: stalestFirst(pubs, checkpoint.readAt),
+    observedAt,
+    onProgress: (progress) => onState?.(mergeState(checkpoint, progress, observedAt)),
+  });
+  const state = mergeState(checkpoint, runResult, observedAt);
+  if (runResult.queriesSpent === 0 && runResult.outcomes.length < pubs.length) {
+    throw new Error(
+      `${options.city}: no search ran while ${pubs.length - runResult.outcomes.length} pubs were still due.`,
+    );
+  }
+  return { runResult, state };
+}
+
 function dateStamp(iso) {
   return iso.slice(0, 10).replace(/-/g, "");
 }
@@ -161,6 +230,10 @@ export function pruneManagedCityPrices(existing, cityVenueKeys) {
   );
 }
 
+function readUpdates(filePath) {
+  return existsSync(filePath) ? JSON.parse(readFileSync(filePath, "utf8")).updates ?? [] : [];
+}
+
 function writeEvidence(city, state, runResult, cityVenueKeys) {
   const generatedAt = new Date().toISOString();
   const stamp = dateStamp(generatedAt);
@@ -168,11 +241,9 @@ function writeEvidence(city, state, runResult, cityVenueKeys) {
     version: 1,
     city,
     generatedAt,
-    complete: runResult.complete,
-    nextIndex: state.nextIndex,
     totalPubs: state.totalPubs,
     stats: {
-      pubsProcessed: state.nextIndex,
+      pubsRead: Object.keys(state.readAt).length,
       pubsMatched: state.pages.length,
       pricesExtracted: state.prices.length,
       queriesSpentThisRun: runResult.queriesSpent,
@@ -188,27 +259,21 @@ function writeEvidence(city, state, runResult, cityVenueKeys) {
 
   if (state.prices.length === 0) return;
   const datedPath = path.join(PRICE_DIR, `prices_${stamp}.json`);
-  const datedExisting = existsSync(datedPath)
-    ? JSON.parse(readFileSync(datedPath, "utf8")).updates ?? []
-    : [];
   atomicWriteJson(datedPath, {
     version: 1,
     generatedAt,
     updates: mergeCanonicalPrices(
-      pruneManagedCityPrices(datedExisting, cityVenueKeys),
+      pruneManagedCityPrices(readUpdates(datedPath), cityVenueKeys),
       state.prices,
     ),
   });
 
   const latestPath = path.join(PRICE_DIR, "latest.json");
-  const latestExisting = existsSync(latestPath)
-    ? JSON.parse(readFileSync(latestPath, "utf8")).updates ?? []
-    : [];
   atomicWriteJson(latestPath, {
     version: 1,
     generatedAt,
     updates: mergeCanonicalPrices(
-      pruneManagedCityPrices(latestExisting, cityVenueKeys),
+      pruneManagedCityPrices(readUpdates(latestPath), cityVenueKeys),
       state.prices,
     ),
   });
@@ -220,52 +285,50 @@ async function main() {
   if (!apiKey) throw new Error("TAVILY_API_KEY is not set.");
 
   const pubs = loadCityPubs(args.city);
+  const cityVenueKeys = new Set(pubs.map(venueKeyForOsmPub));
   const statePath = checkpointPath(args.city);
   if (args.reset && existsSync(statePath)) rmSync(statePath);
-  const base = readCheckpoint(args.city, pubs.length);
-  if (base.nextIndex >= pubs.length) {
-    console.log(`${args.city}: checkpoint complete (${pubs.length}/${pubs.length} pubs). Use --reset to restart.`);
-    return;
-  }
+  const observedAt = new Date().toISOString();
+  const checkpoint = resumeCheckpoint(
+    existsSync(statePath) ? JSON.parse(readFileSync(statePath, "utf8")) : null,
+    {
+      city: args.city,
+      totalPubs: pubs.length,
+      committedPrices: committedCityPrices(
+        readUpdates(path.join(PRICE_DIR, "latest.json")),
+        cityVenueKeys,
+      ),
+      observedAt,
+    },
+  );
 
   console.log(
-    `${args.city}: ${pubs.length} OSM pubs; resume index ${base.nextIndex}; ` +
+    `${args.city}: ${pubs.length} OSM pubs; ${Object.keys(checkpoint.readAt).length} read before; ` +
       `hard Tavily cap ${args.maxQueries} queries and ${args.maxCredits} credits.`,
   );
 
-  const runResult = await runCityEnrichment({
+  const { runResult, state } = await runCityPass({
     city: args.city,
+    checkpoint,
     pubs,
     apiKey,
     maxQueries: args.maxQueries,
     maxCredits: args.maxCredits,
-    startIndex: base.nextIndex,
-    observedAt: new Date().toISOString(),
-    onProgress: (progress) => {
-      if (!args.dryRun) {
-        atomicWriteJson(
-          statePath,
-          mergeState(base, progress, progress.queriesSpent, progress.creditsSpent),
-        );
-      }
+    observedAt,
+    onState: (next) => {
+      if (!args.dryRun) atomicWriteJson(statePath, next);
     },
   });
 
-  const finalState = mergeState(base, runResult, runResult.queriesSpent, runResult.creditsSpent);
   if (!args.dryRun) {
-    atomicWriteJson(statePath, finalState);
-    writeEvidence(
-      args.city,
-      finalState,
-      runResult,
-      new Set(pubs.map(venueKeyForOsmPub)),
-    );
+    atomicWriteJson(statePath, state);
+    writeEvidence(args.city, state, runResult, cityVenueKeys);
   }
 
   console.log(
     `${args.city}: pubs matched ${runResult.matchedPubs}; prices extracted ${runResult.prices.length}; ` +
       `queries spent ${runResult.queriesSpent}/${args.maxQueries}; Tavily credits ${runResult.creditsSpent}; ` +
-      `next index ${runResult.nextIndex}/${pubs.length}${args.dryRun ? " (dry run)" : ""}.`,
+      `pubs read ${Object.keys(state.readAt).length}/${pubs.length}${args.dryRun ? " (dry run)" : ""}.`,
   );
 }
 
