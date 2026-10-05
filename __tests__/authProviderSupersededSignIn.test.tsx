@@ -17,6 +17,8 @@ const harness = vi.hoisted(() => ({
   clientReady: null as null | Promise<unknown>,
   captured: null as unknown,
   composer: false,
+  momentGate: null as Promise<void> | null,
+  momentHeld: false,
 }));
 
 vi.mock("next/link", async () => {
@@ -37,6 +39,19 @@ vi.mock("@/lib/authClient", () => ({
   getAccessToken: async () => null,
   ensureSupabaseBrowser: () => harness.clientReady,
 }));
+vi.mock("@/lib/momentDraft", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/momentDraft")>();
+  return {
+    ...actual,
+    deleteMomentDraft: async (owner: string) => {
+      if (harness.momentGate) {
+        harness.momentHeld = true;
+        await harness.momentGate;
+      }
+      return actual.deleteMomentDraft(owner);
+    },
+  };
+});
 vi.mock("@/lib/authProviderAvailability", () => ({
   loadSocialAuthProviders: async () => ({ google: false, apple: false, microsoft: false }),
   NO_SOCIAL_AUTH_PROVIDERS: { google: false, apple: false, microsoft: false },
@@ -89,6 +104,7 @@ import {
 import { deviceAccountOwner } from "@/lib/deviceAccountIdentity";
 import { readDeviceAccounts, rememberDeviceAccount } from "@/lib/deviceAccountSessions";
 import { pintDropAccountDraftOwner, readPintDropDraft } from "@/lib/pintDropDraft";
+import { createMomentDraft, loadMomentDraft, saveMomentDraft } from "@/lib/momentDraft";
 import { SPILL_EXTRAS_TOGGLE_LABEL } from "@/lib/spill";
 
 const SUPABASE_URL = "https://auth-superseded.invalid";
@@ -125,6 +141,9 @@ let refuseUser: Set<string>;
 let holdUser: Promise<void> | null;
 let holdDelete: Promise<void> | null;
 let deleteHeld: boolean;
+let acceptedUserGate: Promise<void> | null;
+let hintGate: Promise<void> | null;
+let hintHeld: boolean;
 let auth: ReturnType<typeof useAuth> | null;
 let root: Root | null;
 let container: HTMLDivElement | null;
@@ -169,7 +188,12 @@ async function transport(input: RequestInfo | URL, init: RequestInit = {}): Prom
       await holdDelete;
     }
     if (resumeTransportDown && (init.method ?? "GET") !== "DELETE") throw new TypeError("Failed to fetch");
-    return sessionRoute(url, init);
+    const response = await sessionRoute(url, init);
+    if ((init.method ?? "GET") === "GET" && hintGate) {
+      hintHeld = true;
+      await hintGate;
+    }
+    return response;
   }
   if (url.startsWith("/api/pint-drops")) return json({ drops: [] });
   if (url === "/api/cheap-pint-ping") return json({ canPrompt: false });
@@ -183,6 +207,7 @@ async function transport(input: RequestInfo | URL, init: RequestInit = {}): Prom
       if (holdUser) await holdUser;
       return json({ code: 401, error_code: "bad_jwt", msg: "synthetic refused token" }, 401);
     }
+    if (acceptedUserGate) await acceptedUserGate;
     return json(sessionFor(subject(bearer)).user);
   }
   if (url.includes("/auth/v1/logout")) {
@@ -281,6 +306,11 @@ beforeEach(() => {
   holdUser = null;
   holdDelete = null;
   deleteHeld = false;
+  acceptedUserGate = null;
+  hintGate = null;
+  hintHeld = false;
+  harness.momentGate = null;
+  harness.momentHeld = false;
   harness.composer = false;
   vi.spyOn(URL, "createObjectURL").mockImplementation(() => "blob:fixture-photo");
   vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
@@ -582,5 +612,144 @@ describe("an explicit sign-out overlapped by another document's auth work", () =
     expect(readDeviceAccounts(localStorage).map((account) => account.userId)).toEqual(scope === "device" ? [] : ["account-c"]);
     expect(storedDraftOf(A)).toBeNull();
     await vi.waitFor(() => expect(composerShows()).toEqual({ note: null, price: "", photos: 0 }));
+  });
+});
+
+
+describe("sign-out ownership after asynchronous cleanup", () => {
+  it.each(["account", "device"] as const)("keeps ordinary %s sign-out and remembered-account handoff", async (scope) => {
+    await signedInElsewhere(A);
+    const client = makeClient();
+    harness.clientReady = Promise.resolve(client);
+    await mount();
+    await vi.waitFor(() => expect(viewer()).toBe(A));
+    rememberDeviceAccount(localStorage, {
+      userId: "account-c", refreshToken: "synthetic-refresh-account-c", email: null,
+    }, Date.now());
+    await saveMomentDraft({ ...createMomentDraft(A), caption: "A departing Moment" });
+    await act(async () => { await auth!.signOut(scope); });
+    await settle();
+
+    expect(await loadMomentDraft(A)).toBeNull();
+    expect(readDeviceAccounts(localStorage).map((row) => row.userId)).toEqual(scope === "device" ? [] : ["account-c"]);
+    expect(viewer()).toBe(scope === "device" ? "signed-out" : "account-c");
+    expect(storedSdkAccount()).toBe(scope === "device" ? null : "account-c");
+    expect(deviceAccountOwner(localStorage)).toBe(scope === "device" ? null : "account-c");
+    await vi.waitFor(async () => expect(await redeemedAccount()).toBe(scope === "device" ? null : "account-c"));
+  });
+
+  it("preserves B's session and remembered row when device sign-out waits on A's draft deletion", async () => {
+    await signedInElsewhere(A);
+    const client = makeClient();
+    harness.clientReady = Promise.resolve(client);
+    harness.composer = true;
+    await mount();
+    await vi.waitFor(() => expect(viewer()).toBe(A));
+    await saveMomentDraft({ ...createMomentDraft(A), caption: "A private Moment" });
+    let finishDraftDeletion = () => {};
+    harness.momentGate = new Promise<void>((resolve) => { finishDraftDeletion = resolve; });
+    let signingOut = Promise.resolve();
+    await act(async () => { signingOut = auth!.signOut("device"); });
+    await vi.waitFor(() => expect(harness.momentHeld).toBe(true));
+
+    await act(async () => {
+      await establishAuthCallbackSession(client.auth, {
+        accessToken: sessionFor(B).access_token, refreshToken: sessionFor(B).refresh_token,
+      });
+    });
+    await vi.waitFor(() => expect(viewer()).toBe(B));
+    await draftAsB();
+    await saveMomentDraft({ ...createMomentDraft(B), caption: "B private Moment" });
+    await vi.waitFor(async () => expect(await redeemedAccount()).toBe(B));
+    const generation = readResumeGeneration();
+    expect(readDeviceAccounts(localStorage).map((row) => row.userId)).toContain(B);
+    await act(async () => { finishDraftDeletion(); await signingOut; });
+    await settle();
+
+    expect(viewer()).toBe(B);
+    expect(storedSdkAccount()).toBe(B);
+    expect(readResumeGeneration()).toBe(generation);
+    expect(deviceAccountOwner(localStorage)).toBe(B);
+    expect(storedDraftOf(B)).toMatchObject({ note: NOTE_B });
+    expect((await loadMomentDraft(B))?.caption).toBe("B private Moment");
+    expect(await loadMomentDraft(A)).toBeNull();
+    expect(readDeviceAccounts(localStorage).map((row) => row.userId)).toEqual([B]);
+  });
+
+  it("does not activate remembered C after B commits while account sign-out waits on cookie deletion", async () => {
+    await signedInElsewhere(A);
+    const client = makeClient();
+    harness.clientReady = Promise.resolve(client);
+    await mount();
+    await vi.waitFor(() => expect(viewer()).toBe(A));
+    rememberDeviceAccount(localStorage, {
+      userId: "account-c", refreshToken: "synthetic-refresh-account-c", email: null,
+    }, Date.now());
+    let finishCookieDeletion = () => {};
+    holdDelete = new Promise<void>((resolve) => { finishCookieDeletion = resolve; });
+    let signingOut = Promise.resolve();
+    await act(async () => { signingOut = auth!.signOut("account"); });
+    await vi.waitFor(() => expect(deleteHeld).toBe(true));
+    let installB = () => {};
+    acceptedUserGate = new Promise<void>((resolve) => { installB = resolve; });
+    const signingIn = establishAuthCallbackSession(client.auth, {
+      accessToken: sessionFor(B).access_token, refreshToken: sessionFor(B).refresh_token,
+    });
+    const generation = readResumeGeneration();
+    expect(generation).toMatch(new RegExp(`~${B}$`));
+    expect(storedSdkAccount()).toBeNull();
+    await act(async () => { finishCookieDeletion(); });
+    await settle();
+    const generationAfterCleanup = readResumeGeneration();
+    await act(async () => { installB(); await signingIn; await signingOut; });
+    await settle();
+
+    expect(generationAfterCleanup).toBe(generation);
+    expect(readResumeGeneration()).toBe(generation);
+    expect(viewer()).toBe(B);
+    expect(storedSdkAccount()).toBe(B);
+    expect(deviceAccountOwner(localStorage)).toBe(B);
+    expect(readDeviceAccounts(localStorage).map((row) => row.userId)).toContain(B);
+    expect(readDeviceAccounts(localStorage).map((row) => row.userId)).not.toContain(A);
+    await vi.waitFor(async () => expect(await redeemedAccount()).toBe(B));
+  });
+
+  it.each(["account", "device"] as const)("ignores a stale absent recovery result after a newer sign-in during %s sign-out", async (scope) => {
+    await signedInElsewhere(A);
+    const client = makeClient();
+    harness.clientReady = Promise.resolve(client);
+    harness.composer = true;
+    await mount();
+    await vi.waitFor(() => expect(viewer()).toBe(A));
+    holdLogout = true;
+    let signingOut = Promise.resolve();
+    await act(async () => { signingOut = auth!.signOut(scope); });
+    await vi.waitFor(() => expect(releaseLogout).not.toBeNull());
+    expect(commitSignIn(readResumeGeneration(), sessionFor("account-c").access_token)).not.toBeNull();
+    let finishHint = () => {};
+    hintGate = new Promise<void>((resolve) => { finishHint = resolve; });
+    await act(async () => { releaseLogout!(); });
+    await vi.waitFor(() => expect(hintHeld).toBe(true));
+    await act(async () => {
+      await establishAuthCallbackSession(client.auth, {
+        accessToken: sessionFor(B).access_token, refreshToken: sessionFor(B).refresh_token,
+      });
+    });
+    await vi.waitFor(() => expect(viewer()).toBe(B));
+    await draftAsB();
+    await saveMomentDraft({ ...createMomentDraft(B), caption: "B recovery Moment" });
+    await vi.waitFor(async () => expect(await redeemedAccount()).toBe(B));
+    const generation = readResumeGeneration();
+    await act(async () => { finishHint(); await signingOut; });
+    await settle();
+
+    expect(viewer()).toBe(B);
+    expect(auth?.supabaseAuthState).toBe("authenticated");
+    expect(storedSdkAccount()).toBe(B);
+    expect(readResumeGeneration()).toBe(generation);
+    expect(deviceAccountOwner(localStorage)).toBe(B);
+    expect(storedDraftOf(B)).toMatchObject({ note: NOTE_B });
+    expect((await loadMomentDraft(B))?.caption).toBe("B recovery Moment");
+    expect(readDeviceAccounts(localStorage).map((row) => row.userId)).toEqual([B]);
   });
 });

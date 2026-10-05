@@ -1054,6 +1054,7 @@ export function AuthProvider({
       // this sign-out then takes only the departing account's own things, and
       // the SIGNED_OUT it caused is not an explicit sign-out of the newer one.
       const superseded = signInSupersedes(departingGeneration);
+      const recoveryGeneration = readResumeGeneration();
       // onAuthStateChange has fired SIGNED_OUT. Invalidate the departing owner
       // before the purge, so no late write of theirs can land after it.
       if (!superseded) markProviderSignOut("supabase");
@@ -1074,17 +1075,19 @@ export function AuthProvider({
       // "all accounts" takes the whole lane. Neither is a capability: they are
       // the same act at two scopes, and the second only exists because a device
       // can hold more than one account.
-      if (scope === "device" && !superseded) forgetAllDeviceAccounts(browserLocalStorage());
+      if (scope === "device" && !signInSupersedes(departingGeneration)) forgetAllDeviceAccounts(browserLocalStorage());
       else if (departing) forgetDeviceAccount(browserLocalStorage(), departing);
       emitDeviceAccountSessionsChanged();
       setWelcomeBack(null);
       if (superseded) {
         await resumeCleared;
+        if (signInSupersedes(recoveryGeneration)) return;
         // The SDK's sign-out ends with SIGNED_OUT and can remove the newer
         // sign-in's session with it. Read the device again: a session still
         // in place is shown, a removed one comes back from its cookie, and a
         // read that could not run is unavailable rather than signed out.
         const restored = await bootstrapAuthSession(supabase.auth).catch(() => ({ status: "unavailable" }) as const);
+        if (signInSupersedes(recoveryGeneration)) return;
         const newerSessionKept =
           (restored.status === "local" || restored.status === "restored" || restored.status === "unavailable") &&
           signInSupersedes(departingGeneration);
@@ -1107,7 +1110,7 @@ export function AuthProvider({
       // next remembered account: a DELETE still in flight would land after that
       // account's persist and leave the device with no durable session at all.
       await resumeCleared;
-      if (scope === "device") return;
+      if (signInSupersedes(departingGeneration) || scope === "device") return;
       // The person asked to leave ONE account on a device that still holds
       // another signed-in one. Leaving it signed out would strand a session
       // nothing on this page can reach, so the next remembered account takes
