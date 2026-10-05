@@ -1,5 +1,49 @@
 // @vitest-environment jsdom
+import { act, createElement } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const mounted = vi.hoisted(() => ({
+  owner: "account-a",
+  replace: vi.fn(),
+  calls: [] as Array<{ url: string; init: RequestInit }>,
+  pending: [] as Array<(response: Response) => void>,
+}));
+
+vi.mock("next/dynamic", () => ({ default: () => () => null }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: mounted.replace }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+vi.mock("next/link", () => ({
+  default: ({ href, children }: { href: string; children: React.ReactNode }) => createElement("a", { href }, children),
+}));
+vi.mock("next/image", () => ({
+  default: (props: Record<string, unknown>) => {
+    const rest = { ...props };
+    delete rest.fill;
+    delete rest.unoptimized;
+    return createElement("img", rest);
+  },
+}));
+vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
+vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
+vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ user: { id: mounted.owner }, loading: false }) }));
+vi.mock("@/components/auth/useViewerSession", () => ({ useViewerSession: () => ({ unresolved: false }) }));
+vi.mock("@/lib/analytics", () => ({ trackEvent: () => {} }));
+vi.mock("@/lib/identityNudge", () => ({ recordMomentNudgeTrigger: () => {} }));
+vi.mock("@/lib/nativePlatform", () => ({ isNativeApp: () => false }));
+vi.mock("@/lib/nativeCamera", () => ({ captureNativePhoto: async () => null }));
+vi.mock("@/lib/authedFetch", () => ({
+  authedActionFetch: async (url: string, init: RequestInit) => {
+    mounted.calls.push({ url, init });
+    if (url === "/api/night-memories") return new Response(JSON.stringify({ memory: { id: "memory-mounted" } }), { status: 201 });
+    return new Promise<Response>((resolve) => { mounted.pending.push(resolve); });
+  },
+}));
+
+import MomentCapture from "@/components/moment/MomentCapture";
+import { setProviderAuthState, setProviderIdentity } from "@/lib/authProviderRevision";
 
 import {
   applyMomentSaveReceipt,
@@ -52,8 +96,14 @@ beforeEach(() => {
   vi.setSystemTime(new Date("2026-10-05T21:00:00.000Z"));
 });
 
-afterEach(() => {
+afterEach(async () => {
+  if (mountedRoot) await act(async () => mountedRoot?.unmount());
+  mountedRoot = null;
+  mountedContainer?.remove();
+  mountedContainer = null;
   vi.useRealTimers();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("Moment save receipts on the fallback lane", () => {
@@ -210,5 +260,167 @@ describe("Moment receipt normalization and independent content", () => {
     await saveMomentDraft(newer);
     await settleMomentDraftProgress(OWNER, submitted.id, receipt);
     expect(await loadMomentDraft(OWNER)).toBeNull();
+  });
+});
+
+
+let mountedRoot: Root | null = null;
+let mountedContainer: HTMLDivElement | null = null;
+
+async function mountComposer(caption = "Submitted caption") {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  mounted.owner = OWNER;
+  mounted.calls.length = 0;
+  mounted.pending.length = 0;
+  mounted.replace.mockClear();
+  setProviderIdentity("supabase", OWNER);
+  setProviderAuthState("supabase", "authenticated");
+  vi.stubGlobal("matchMedia", () => ({ matches: false, addEventListener: () => {}, removeEventListener: () => {} }));
+  let counter = 0;
+  vi.spyOn(URL, "createObjectURL").mockImplementation(() => `blob:mounted-${counter++}`);
+  vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+  await saveMomentDraft({ ...captionDraft(), caption });
+  mountedContainer = document.createElement("div");
+  document.body.append(mountedContainer);
+  mountedRoot = createRoot(mountedContainer);
+  await act(async () => { mountedRoot?.render(createElement(MomentCapture)); });
+  await vi.waitFor(() => expect(captionInput().value).toBe(caption));
+}
+
+function captionInput(): HTMLTextAreaElement {
+  const input = mountedContainer?.querySelector<HTMLTextAreaElement>(".momentFields textarea");
+  if (!input) throw new Error("Caption input missing");
+  return input;
+}
+
+async function editCaption(text: string) {
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(captionInput(), text);
+    captionInput().dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
+async function addPhoto(name: string) {
+  const bytes = new Uint8Array(64);
+  bytes.set([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01]);
+  const input = mountedContainer?.querySelector<HTMLInputElement>("#moment-photo-file");
+  if (!input) throw new Error("Photo input missing");
+  await act(async () => {
+    Object.defineProperty(input, "files", { configurable: true, value: [new File([bytes], name, { type: "image/jpeg" })] });
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await vi.waitFor(() => expect(mountedContainer?.querySelector(`button[aria-label="Remove ${name}"]`)).not.toBeNull());
+}
+
+async function startMountedSave() {
+  const form = mountedContainer?.querySelector<HTMLFormElement>("form.momentComposer");
+  if (!form) throw new Error("Moment form missing");
+  await act(async () => { form.requestSubmit(); });
+  await vi.waitFor(() => expect(mounted.pending.length).toBeGreaterThan(0));
+}
+
+async function completePost(index: number, status = 201) {
+  await act(async () => {
+    mounted.pending[index]!(new Response(JSON.stringify(status === 201 ? { moment: { id: `moment-${index}` } } : { error: "Upload unavailable" }), { status }));
+  });
+}
+
+describe("mounted Moment save completion", () => {
+  it.each([201, 503])("keeps a caption edited during a held POST that answers %s", async (status) => {
+    await mountComposer();
+    await startMountedSave();
+    await editCaption("Newer unsent caption");
+    expect(captionInput().value).toBe("Newer unsent caption");
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    await completePost(0, status);
+    expect(captionInput().value).toBe("Newer unsent caption");
+    await act(async () => { await vi.advanceTimersByTimeAsync(1800); });
+    expect(await loadMomentDraft(OWNER)).toMatchObject({ caption: "Newer unsent caption", serverMemoryId: "memory-mounted" });
+    expect(mounted.replace).not.toHaveBeenCalled();
+  });
+
+  it("keeps an edit queued in the same React batch as the held response completion", async () => {
+    await mountComposer();
+    await startMountedSave();
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(captionInput(), "Same-batch newer caption");
+      captionInput().dispatchEvent(new Event("input", { bubbles: true }));
+      mounted.pending[0]!(new Response(JSON.stringify({ moment: { id: "same-batch" } }), { status: 201 }));
+    });
+    expect(captionInput().value).toBe("Same-batch newer caption");
+    await vi.waitFor(async () => expect(await loadMomentDraft(OWNER)).toMatchObject({ caption: "Same-batch newer caption" }));
+  });
+
+  it("keeps a new photo and its preview when the earlier photo POST succeeds", async () => {
+    await mountComposer();
+    await addPhoto("submitted-one.jpg");
+    await startMountedSave();
+    await addPhoto("new-two.jpg");
+    const retainedUrl = mountedContainer?.querySelectorAll<HTMLImageElement>("figure.momentMedia img")[1]?.getAttribute("src");
+    expect(retainedUrl).toBeTruthy();
+    await completePost(0);
+    expect(mountedContainer?.querySelector('button[aria-label="Remove new-two.jpg"]')).not.toBeNull();
+    expect(mountedContainer?.querySelector('button[aria-label="Remove submitted-one.jpg"]')).toBeNull();
+    expect(URL.revokeObjectURL).not.toHaveBeenCalledWith(retainedUrl);
+    expect(mountedContainer?.querySelector("figure.momentMedia img")?.getAttribute("src")).toBe(retainedUrl);
+    expect(mounted.replace).not.toHaveBeenCalled();
+  });
+
+  it("keeps newer caption and added photo after a partial save failure", async () => {
+    await mountComposer();
+    await addPhoto("submitted-one.jpg");
+    await addPhoto("pending-two.jpg");
+    await startMountedSave();
+    await completePost(0);
+    await vi.waitFor(() => expect(mounted.pending).toHaveLength(2));
+    await editCaption("New partial-save caption");
+    await addPhoto("new-three.jpg");
+    await completePost(1, 503);
+    expect(captionInput().value).toBe("New partial-save caption");
+    expect(mountedContainer?.querySelector('button[aria-label="Remove pending-two.jpg"]')).not.toBeNull();
+    expect(mountedContainer?.querySelector('button[aria-label="Remove new-three.jpg"]')).not.toBeNull();
+    expect(mountedContainer?.querySelector('button[aria-label="Remove submitted-one.jpg"]')).toBeNull();
+    await vi.waitFor(async () => expect(await loadMomentDraft(OWNER)).toMatchObject({ caption: "New partial-save caption", serverMemoryId: "memory-mounted" }));
+  });
+
+  it("completes and returns normally when no new edits remain", async () => {
+    await mountComposer();
+    await startMountedSave();
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    await completePost(0);
+    expect(captionInput().value).toBe("");
+    expect(mountedContainer?.textContent).toContain("Moment saved privately.");
+    expect(await loadMomentDraft(OWNER)).toBeNull();
+    await act(async () => { await vi.advanceTimersByTimeAsync(1800); });
+    expect(mounted.replace).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not navigate away from edits made during the saved receipt delay", async () => {
+    await mountComposer();
+    await startMountedSave();
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    await completePost(0);
+    await editCaption("A new draft after the confirmation");
+    await act(async () => { await vi.advanceTimersByTimeAsync(1800); });
+    expect(captionInput().value).toBe("A new draft after the confirmation");
+    expect(await loadMomentDraft(OWNER)).toMatchObject({ caption: "A new draft after the confirmation" });
+    expect(mounted.replace).not.toHaveBeenCalled();
+  });
+
+  it("keeps replacement-account content after an old mounted save completes", async () => {
+    await mountComposer();
+    await startMountedSave();
+    const other = "account-b";
+    await saveMomentDraft({ ...captionDraft(other), caption: "B's private caption" });
+    await act(async () => {
+      mounted.owner = other;
+      setProviderIdentity("supabase", other);
+      mountedRoot?.render(createElement(MomentCapture));
+    });
+    await vi.waitFor(() => expect(captionInput().value).toBe("B's private caption"));
+    await completePost(0);
+    expect(captionInput().value).toBe("B's private caption");
+    expect(await loadMomentDraft(other)).toMatchObject({ caption: "B's private caption" });
+    expect(mounted.replace).not.toHaveBeenCalled();
   });
 });

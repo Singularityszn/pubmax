@@ -195,6 +195,11 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
     () => false,
   );
   const [draft, setDraft] = useState<MomentDraftV1>(() => newDraft(ownerKey));
+  const draftRef = useRef(draft);
+  const replaceDraft = useCallback((next: MomentDraftV1) => {
+    draftRef.current = next;
+    setDraft(next);
+  }, []);
   const [hydrated, setHydrated] = useState(false);
   const [message, setMessage] = useState("Your draft stays on this device until you save it.");
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -238,17 +243,17 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
       if (restored) {
         const next = withPreviewUrls({ ...restored, ownerKey });
         next.media.forEach((item) => { if (item.objectUrl) previewUrls.current.add(item.objectUrl); });
-        setDraft(next);
+        replaceDraft(next);
         setMessage("Your unfinished Moment is back.");
         if (guest && ownerKey !== GUEST_OWNER) void deleteMomentDraft(GUEST_OWNER);
       } else {
-        setDraft(newDraft(ownerKey));
+        replaceDraft(newDraft(ownerKey));
       }
       setHydrated(true);
     }
     void restore();
     return () => { cancelled = true; };
-  }, [hydrated, isCurrentComposer, ownerKey]);
+  }, [hydrated, isCurrentComposer, ownerKey, replaceDraft]);
 
   useEffect(() => {
     // While a save runs, the save records its own progress.
@@ -287,20 +292,31 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
     [authLoading, draft.caption, draft.media.length, hydrated, hideAccountDraft, saveState],
   );
 
-  // A patch may be a function of the CURRENT draft. Two removals in one tick
-  // each read `draft.media` off their own closure and the second overwrote
-  // the first (battle test M01), so anything that edits the media list
-  // derives the next list inside the updater rather than outside it.
   function update(patch: Partial<MomentDraftV1> | ((current: MomentDraftV1) => Partial<MomentDraftV1>)) {
     if (!isCurrentComposer()) return;
-    setDraft((current) => !isCurrentComposer() ? current : ({
+    const current = draftRef.current;
+    replaceDraft({
       ...current,
       ...(typeof patch === "function" ? patch(current) : patch),
       revision: current.revision + 1,
       updatedAt: new Date().toISOString(),
-    }));
+    });
     setSavedMemoryId(null);
     if (saveState === "saved") setSaveState("idle");
+  }
+
+  function reconcileSave(current: MomentDraftV1, receipt: MomentSaveReceipt): MomentDraftV1 | null | undefined {
+    if (!isCurrentComposer() || draftRef.current.id !== current.id) return undefined;
+    const remaining = applyMomentSaveReceipt(draftRef.current, receipt);
+    const retainedUrls = new Set(remaining?.media.map((item) => item.objectUrl));
+    previewUrls.current.forEach((url) => {
+      if (!retainedUrls.has(url)) {
+        URL.revokeObjectURL(url);
+        previewUrls.current.delete(url);
+      }
+    });
+    replaceDraft(remaining ?? newDraft(ownerKey));
+    return remaining;
   }
 
   function chooseMedia(event: ChangeEvent<HTMLInputElement>) {
@@ -524,16 +540,17 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
     setSaveState("saving");
     setMessage("Saving privately...");
     await momentSaves.get(draft.id)?.done;
-    if (!isCurrentComposer()) return;
+    if (!isCurrentComposer() || draftRef.current.id !== draft.id) return;
     const earlier = momentSaves.get(draft.id)?.receipt;
-    const current = earlier ? applyMomentSaveReceipt(draft, earlier) : draft;
+    const latest = draftRef.current;
+    const current = earlier ? applyMomentSaveReceipt(latest, earlier) : latest;
     if (!current) {
-      setDraft(newDraft(ownerKey));
+      replaceDraft(newDraft(ownerKey));
       setSaveState("idle");
       setMessage("This Moment was already saved.");
       return;
     }
-    if (current !== draft) setDraft(current);
+    if (current !== latest) replaceDraft(current);
     const receipt: MomentSaveReceipt = earlier ?? { uploadedMedia: [], sentCaption: null, sentTitle: null, serverMemoryId: current.serverMemoryId };
     let finish = () => {};
     momentSaves.set(current.id, { receipt, done: new Promise<void>((resolve) => { finish = resolve; }) });
@@ -548,8 +565,9 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
     // Progress belongs to this owner's stored draft, so a remount mid-save (a
     // token refresh, a provider change) resumes rather than uploads twice.
     const settle = () => settleMomentDraftProgress(ownerKey, current.id, receipt);
+    const ownsDraft = () => isCurrentComposer() && draftRef.current.id === current.id;
     await saveMomentDraft(current);
-    if (!isCurrentComposer()) return;
+    if (!ownsDraft()) return;
 
     let memoryId = receipt.serverMemoryId;
     if (!memoryId) {
@@ -563,7 +581,7 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
         ? await memoryResponse.json().catch(() => ({})) as { memory?: { id: string }; error?: string }
         : {};
       if (!memoryResponse?.ok || !memoryBody.memory) {
-        if (!isCurrentComposer()) return;
+        if (!ownsDraft()) return;
         setSaveState("idle");
         setMessage(memoryCreateFailureLine(memoryBody));
         return;
@@ -572,7 +590,7 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
       receipt.serverMemoryId = memoryId;
       receipt.sentTitle = title;
       await settle();
-      if (!isCurrentComposer()) return;
+      if (!ownsDraft()) return;
       update({ serverMemoryId: memoryId });
     }
 
@@ -586,7 +604,7 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
       return;
     }
     for (let index = 0; index < items.length; index += 1) {
-      if (!isCurrentComposer()) return;
+      if (!ownsDraft()) return;
       const item = items[index];
       const metadata = momentSubmissionMetadata(current, Boolean(item));
       const submittedMedia = item ? { ...metadata, key: momentMediaKey(item), altText: item.alt ?? "" } : null;
@@ -615,7 +633,8 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
       const responseBody = response
         ? await response.json().catch(() => ({})) as { error?: string; code?: string }
         : {};
-      if (response?.ok) {
+      const accepted = Boolean(response?.ok);
+      if (accepted) {
         if (submittedMedia) receipt.uploadedMedia.push(submittedMedia);
         if (index === 0) receipt.sentCaption = submittedCaption;
       } else if (!keepServerMemoryAfterRefusal(response?.status, responseBody.code)) {
@@ -624,31 +643,32 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
         receipt.serverMemoryId = null;
       }
       await settle();
-      if (!isCurrentComposer()) return;
-      if (!response?.ok) {
-        const remaining = applyMomentSaveReceipt(current, receipt);
-        if (remaining) update({ media: remaining.media, caption: remaining.caption, serverMemoryId: remaining.serverMemoryId });
+      if (!ownsDraft()) return;
+      if (!accepted) {
+        if (reconcileSave(current, receipt) === undefined) return;
         setSaveState("idle");
         setMessage(errorMessageFrom(responseBody, "Some photos could not be saved. The remaining draft is safe."));
         return;
       }
     }
 
-    if (!isCurrentComposer()) return;
-    current.media.forEach((item) => {
-      if (item.objectUrl) URL.revokeObjectURL(item.objectUrl);
-    });
-    previewUrls.current.clear();
+    const remaining = reconcileSave(current, receipt);
+    if (remaining === undefined) return;
     setSavedMemoryId(memoryId);
-    setDraft(newDraft(ownerKey));
+    trackEvent("night_moment_saved", { kind: current.media.length ? "photo" : current.kind, visibility: "private" });
+    if (remaining) {
+      setSaveState("idle");
+      setMessage("Moment saved privately. Your newer edits are still in this draft.");
+      return;
+    }
     setSaveState("saved");
     setMessage("Moment saved privately. You decide if it becomes a Story.");
-    trackEvent("night_moment_saved", { kind: current.media.length ? "photo" : current.kind, visibility: "private" });
+    const completedDraft = draftRef.current;
     // The receipt is the live region above the fields. Leaving on the same
     // tick unmounted it before a reader or a screen reader met it (battle
     // test L09), so the way back waits one beat for the line to land.
     window.setTimeout(() => {
-      if (isCurrentComposer()) router.replace(returnTo);
+      if (isCurrentComposer() && draftRef.current === completedDraft) router.replace(returnTo);
     }, MOMENT_SAVED_RECEIPT_MS);
   }
 
