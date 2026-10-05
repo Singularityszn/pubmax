@@ -7,7 +7,9 @@
 // 0046 and 0058 land (or on a schema-cache miss) local/preview paths fail soft
 // to the in-memory store so demos keep working. Deployed production fails closed: missing-schema
 // and hard write failures throw so the route answers 503 (house rule: degraded
-// dependency, never a fake success). Reads remain fail-soft.
+// dependency, never a fake success). Reads remain fail-soft. The durable
+// `report` is the exception: it needs the migration 0174 RPC and never falls
+// back to memory, so a missing RPC answers 503 on every path.
 //
 // Idempotent by construction: ONE report per handle per venue per night. A
 // re-submission for the same (venueId, handle, visitedAt) UPDATES the existing
