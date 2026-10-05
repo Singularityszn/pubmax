@@ -153,16 +153,38 @@ export async function deleteMomentDraft(ownerKey: string): Promise<void> {
   try { window.localStorage.removeItem(fallbackKey(ownerKey)); } catch { /* unavailable storage */ }
 }
 
+type MomentSubmissionMetadata = {
+  kind: Exclude<NightMomentKind, "pint_drop">;
+  venueId: string | null;
+  occurredAt: string;
+};
+
+export function momentSubmissionMetadata(
+  draft: Pick<MomentDraftV1, "kind" | "venueId" | "occurredAt">,
+  hasMedia: boolean,
+): MomentSubmissionMetadata {
+  return {
+    kind: hasMedia ? "photo" : draft.kind === "photo" ? "side_quest" : draft.kind,
+    venueId: draft.venueId || null,
+    occurredAt: draft.occurredAt,
+  };
+}
+
 /**
  * What the server confirmed for one draft: the photos it stored, the caption it
  * stored with them and the Memory they went into. A request whose answer never
  * arrived adds nothing, because its commit is unknown.
  */
 export type MomentSaveReceipt = {
-  uploadedMediaKeys: string[];
-  sentCaption: string | null;
+  uploadedMedia: Array<MomentSubmissionMetadata & { key: string; altText: string }>;
+  sentCaption: (MomentSubmissionMetadata & { text: string }) | null;
+  sentTitle: string | null;
   serverMemoryId: string | null;
 };
+
+function sameMomentSubmissionMetadata(left: MomentSubmissionMetadata, right: MomentSubmissionMetadata): boolean {
+  return left.kind === right.kind && left.venueId === right.venueId && left.occurredAt === right.occurredAt;
+}
 
 /**
  * The draft with a receipt applied: confirmed photos and a caption the server
@@ -173,11 +195,17 @@ export function applyMomentSaveReceipt(
   draft: MomentDraftV1,
   receipt: MomentSaveReceipt,
 ): MomentDraftV1 | null {
-  const uploaded = new Set(receipt.uploadedMediaKeys);
-  const media = draft.media.filter((item) => !uploaded.has(momentMediaKey(item)));
-  const caption = receipt.sentCaption !== null && draft.caption === receipt.sentCaption ? "" : draft.caption;
-  const savedSomething = uploaded.size > 0 || receipt.sentCaption !== null;
-  if (savedSomething && media.length === 0 && !caption.trim()) return null;
+  const photoMetadata = momentSubmissionMetadata(draft, true);
+  const media = draft.media.filter((item) => !receipt.uploadedMedia.some((sent) =>
+    sent.key === momentMediaKey(item) && sent.altText === (item.alt ?? "") && sameMomentSubmissionMetadata(sent, photoMetadata),
+  ));
+  const sentCaption = receipt.sentCaption;
+  const caption = sentCaption !== null && draft.caption === sentCaption.text &&
+    sameMomentSubmissionMetadata(sentCaption, momentSubmissionMetadata(draft, sentCaption.kind === "photo"))
+    ? "" : draft.caption;
+  const savedSomething = receipt.uploadedMedia.length > 0 || sentCaption !== null;
+  const newerTitle = receipt.sentTitle !== null && (draft.memoryTitle.trim() || "Tonight's Memory") !== receipt.sentTitle;
+  if (savedSomething && media.length === 0 && !caption.trim() && !newerTitle) return null;
   return { ...draft, media, caption, serverMemoryId: receipt.serverMemoryId };
 }
 

@@ -60,6 +60,7 @@ import {
   selectMomentMedia,
   applyMomentSaveReceipt,
   momentMediaKey,
+  momentSubmissionMetadata,
   settleMomentDraftProgress,
   type MomentSaveReceipt,
   type MomentDraftV1,
@@ -533,7 +534,7 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
       return;
     }
     if (current !== draft) setDraft(current);
-    const receipt: MomentSaveReceipt = earlier ?? { uploadedMediaKeys: [], sentCaption: null, serverMemoryId: current.serverMemoryId };
+    const receipt: MomentSaveReceipt = earlier ?? { uploadedMedia: [], sentCaption: null, sentTitle: null, serverMemoryId: current.serverMemoryId };
     let finish = () => {};
     momentSaves.set(current.id, { receipt, done: new Promise<void>((resolve) => { finish = resolve; }) });
     try {
@@ -552,10 +553,11 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
 
     let memoryId = receipt.serverMemoryId;
     if (!memoryId) {
+      const title = current.memoryTitle.trim() || "Tonight's Memory";
       const memoryResponse = await authedActionFetch("/api/night-memories", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ title: current.memoryTitle.trim() || "Tonight's Memory" }),
+        body: JSON.stringify({ title }),
       }, { requiresIdentity: true }).catch(() => null);
       const memoryBody = memoryResponse
         ? await memoryResponse.json().catch(() => ({})) as { memory?: { id: string }; error?: string }
@@ -568,6 +570,7 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
       }
       memoryId = memoryBody.memory.id;
       receipt.serverMemoryId = memoryId;
+      receipt.sentTitle = title;
       await settle();
       if (!isCurrentComposer()) return;
       update({ serverMemoryId: memoryId });
@@ -585,20 +588,21 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
     for (let index = 0; index < items.length; index += 1) {
       if (!isCurrentComposer()) return;
       const item = items[index];
+      const metadata = momentSubmissionMetadata(current, Boolean(item));
+      const submittedMedia = item ? { ...metadata, key: momentMediaKey(item), altText: item.alt ?? "" } : null;
+      const submittedCaption = { ...metadata, text: current.caption };
       const body = item ? new FormData() : JSON.stringify({
-        kind: current.kind === "photo" ? "side_quest" : current.kind,
-        caption: current.caption,
-        venueId: current.venueId || null,
-        occurredAt: current.occurredAt,
+        ...metadata,
+        caption: submittedCaption.text,
       });
       if (item && body instanceof FormData) {
         body.set("photo", item.blob, item.name);
-        body.set("caption", index === 0 ? current.caption : "");
-        body.set("venueId", current.venueId);
-        body.set("occurredAt", current.occurredAt);
+        body.set("caption", index === 0 ? submittedCaption.text : "");
+        body.set("venueId", metadata.venueId ?? "");
+        body.set("occurredAt", metadata.occurredAt);
         // Author-confirmed alt text travels with the photo. Empty is allowed for a
         // private save; it only blocks publication later, never this save.
-        body.set("altText", item.alt ?? "");
+        body.set("altText", submittedMedia!.altText);
       }
       const response = await authedActionFetch(
         `/api/night-memories/${encodeURIComponent(memoryId)}/moments`,
@@ -612,8 +616,8 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
         ? await response.json().catch(() => ({})) as { error?: string; code?: string }
         : {};
       if (response?.ok) {
-        if (item) receipt.uploadedMediaKeys.push(momentMediaKey(item));
-        if (index === 0) receipt.sentCaption = current.caption;
+        if (submittedMedia) receipt.uploadedMedia.push(submittedMedia);
+        if (index === 0) receipt.sentCaption = submittedCaption;
       } else if (!keepServerMemoryAfterRefusal(response?.status, responseBody.code)) {
         // A refusal about the photo keeps the Memory, so the re-save after
         // removing the bad file goes back into it rather than minting another.
