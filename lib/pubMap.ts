@@ -851,7 +851,8 @@ export function londonRestaurantSelection<Restaurant>(input: {
 /**
  * The London venue-layer place a `venue-osm-` selection opens: a pilot cafe or
  * a restaurant. The selection is let go only when EVERY London source would
- * let it go, because an id one source cannot place may be the other's.
+ * let it go, because an id one source cannot place may be the other's. An id
+ * the pilot already places is a cafe, so the restaurant read never holds it.
  */
 export function londonVenueSelection<Cafe, Restaurant>(input: {
   selectedVenueId: string;
@@ -867,10 +868,11 @@ export function londonVenueSelection<Cafe, Restaurant>(input: {
     ...input.restaurants,
     selectedVenueId: input.selectedVenueId,
   });
+  const knownCafe = input.coffee.byId.has(input.selectedVenueId);
   return {
     cafe: coffee.cafe,
     restaurant: restaurants.restaurant,
-    release: coffee.release && restaurants.release,
+    release: coffee.release && (knownCafe || restaurants.release),
   };
 }
 
