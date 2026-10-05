@@ -7,7 +7,7 @@
 //
 // This is NOT the idle ambient orbit coming back. That writer turned the map
 // for as long as the reader left it alone, so a chosen bearing decayed on its
-// own (deleted 3 Sep 2026, fenced by __tests__/idleOrbitRemoved.test.ts). This
+// own (deleted 3 Sep 2026). This
 // is ONE eased move, once per map, and the camera is still afterwards.
 //
 // A cold opening builds the canvas at bearing 0 on the city's own centre and

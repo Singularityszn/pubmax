@@ -41,8 +41,7 @@
    var(--press-scale)) }`, under prefers-reduced-motion: no-preference), and a
    control that wants its own says so through --shared-press-scale. The
    primitive used to carry Tailwind's `active:scale-[0.98]`, a second owner
-   that escaped the sweep by living in a class list rather than a stylesheet.
-   __tests__/designCraftCss.test.ts is the sweep. */
+   that escaped the sweep by living in a class list rather than a stylesheet. */
 .uiButton:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;

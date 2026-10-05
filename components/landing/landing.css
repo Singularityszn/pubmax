@@ -506,8 +506,7 @@ a.lpPubPint:hover { color: var(--ink); }
 @media (max-width: 700px) {
   /* Shared top-bar FRAME (siteNav.css :root --topbar-*): on a phone the landing
      bar takes the same 52px height, 14px radius and tight shadow as the in-app
-     bars so landing to app never jumps. The top offset keeps its max() literal
-     (locked by landingChromeCss.test). */
+     bars so landing to app never jumps. The top offset keeps its max() literal. */
   .lpNav {
     top: max(10px, env(safe-area-inset-top));
     width: calc(100vw - 20px);

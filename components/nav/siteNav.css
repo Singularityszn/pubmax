@@ -29,8 +29,8 @@
      · --topbar-inset  env(safe-area-inset-top)+10px. The floating top offset
                               that clears the notch (the map's proven form). The
                               in-flow standard bar keeps its own safe-area margin;
-                              landing keeps its max() literal, locked by
-                              landingChromeCss.test, resolving to the same ~10px.
+                              landing keeps its max() literal, resolving to
+                              the same ~10px.
      · --topbar-shadow the tight map-overlay shadow. Landing drops its heavy
                               0 16px 36px glass shadow on mobile to match.
    Consumed with literal fallbacks at every use site so the landing route (which

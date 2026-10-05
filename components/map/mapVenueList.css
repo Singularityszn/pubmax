@@ -296,7 +296,7 @@
    to two and the NAME is the side that loses characters. Stack the row on a
    phone so the name owns a full line and the caption wraps under it - neither is
    ever ellipsed. Must stay AFTER the base row rules above (source order
-   decides). Pinned by __tests__/mobileChromeFit.test.ts. */
+   decides). Pinned by e2e/price-caption-integrity.spec.ts. */
 @media (max-width: 640px) {
   .mapVenueListItem {
     flex-direction: column;

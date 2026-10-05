@@ -1,8 +1,7 @@
 // Effective proof for 0146, and for the half of 0034 the review lane now
-// depends on. The shape pins live in nightSignalCheckpointMigration.test.ts;
-// this file APPLIES the migrations to a real PostgreSQL 16 and exercises the
-// tables as the three Supabase roles, because a policy is a claim about what a
-// role may do and only the database can answer that.
+// depends on. This file APPLIES the migrations to a real PostgreSQL 16 and
+// exercises the tables as the three Supabase roles, because a policy is a claim
+// about what a role may do and only the database can answer that.
 //
 // Same host contract as the other effective migration proofs: a host with no
 // PostgreSQL binaries skips LOUDLY rather than passing quietly.
