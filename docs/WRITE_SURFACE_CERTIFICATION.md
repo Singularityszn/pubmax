@@ -671,7 +671,12 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
   (`lib/visitReportsStore.ts`) — capture keeps working and becomes durable the
   moment the table lands, no code change (the same soft degradation area demand
   ships with). A hard durable-store write failure answers 503
-  `STORE_UNAVAILABLE` rather than a fake success. Disabling is consequence-free:
+  `STORE_UNAVAILABLE` rather than a fake success. The public `report` action is
+  the exception to the soft fallback: with a durable store configured it appends
+  its actor only through the service-role RPC `append_visit_report_report_actor`
+  (migration 0174). An RPC error, a missing RPC or a malformed result answers
+  retryable 503 `STORE_UNAVAILABLE` and never writes to process-memory. The
+  keyless in-memory store is unchanged. Disabling is consequence-free:
   delete/503 the route and the venue-sheet panel says it could not check rather
   than claiming no visits exist.
 - **V1 moderation gap:** the queue is manual and reactive. It has no automated
@@ -1296,7 +1301,11 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   human queue and never hides; `hide` and `restore` require `isModerator`.
   Hiding is reversible, keeps the row, its bytes and its report provenance, and
   removes the photo from the wall, the pages and the author's cap count
-  together. A flag after a keep re-opens a still-visible row.
+  together. A flag after a keep re-opens a still-visible row. With a durable
+  store configured, `report` appends its actor only through the service-role
+  RPC `append_venue_photo_report_actor` (migration 0174). An RPC error, a
+  missing RPC or a malformed result answers retryable 503 `STORE_UNAVAILABLE`
+  and never writes to process-memory. The keyless in-memory store is unchanged.
 - **Crosspost honesty:** "Also share to your feed" is a request, never a
   guarantee. The feed write goes through the existing Social post machinery
   behind `requireVerifiedSocialActor`, so the wall never buys a lane around
