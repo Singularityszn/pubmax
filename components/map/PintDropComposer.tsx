@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronDown, RefreshCw, Send } from "lucide-react";
 
@@ -35,6 +35,7 @@ import { useSpeechDictation } from "@/components/map/composer/useSpeechDictation
 import { useVenueDraft } from "@/components/map/composer/useVenueDraft";
 import { pintDropAuthorValue } from "@/lib/pintDropComposerIdentity";
 import { pintDropDoorHref } from "@/lib/landingHero";
+import { readProviderAccountRevision } from "@/lib/authProviderRevision";
 import "./spillComposer.css";
 
 type PintDropComposerProps = {
@@ -102,6 +103,25 @@ function OwnedPintDropComposer({
   const maxTagsReached = vibeTags.length >= 4;
   const [transientVoiceNote, setTransientVoiceNote] = useState<{ venueId: string; typedBaseline: string } | null>(null);
   const transientVoiceNoteBaseline = transientVoiceNote?.venueId === venueId ? transientVoiceNote.typedBaseline : null;
+  const dictationActive = useRef(false);
+  const dictationRevision = readProviderAccountRevision();
+
+  useLayoutEffect(() => {
+    dictationActive.current = !privateDraftHidden;
+    return () => {
+      dictationActive.current = false;
+    };
+  }, [privateDraftHidden]);
+
+  const ownsDictation = () =>
+    dictationActive.current && readProviderAccountRevision() === dictationRevision;
+  const setDictatedDropForm: PintDropsState["setDropForm"] = (update) => {
+    if (!ownsDictation()) return;
+    setDropForm((current) => {
+      if (!ownsDictation()) return current;
+      return typeof update === "function" ? update(current) : update;
+    });
+  };
 
   useEffect(() => {
     markPubmaxTiming("pubmax:composer-mounted");
@@ -125,9 +145,12 @@ function OwnedPintDropComposer({
 
   const { speechSupported, listening, error: speechError, toggleListening } = useSpeechDictation({
     note: dropForm.note,
-    setDropForm,
-    onTranscript: (typedBaseline) => setTransientVoiceNote((current) =>
-      current?.venueId === venueId ? current : { venueId, typedBaseline }),
+    setDropForm: setDictatedDropForm,
+    onTranscript: (typedBaseline) => {
+      if (!ownsDictation()) return;
+      setTransientVoiceNote((current) =>
+        !ownsDictation() || current?.venueId === venueId ? current : { venueId, typedBaseline });
+    },
   });
 
   const hasActiveRound = useActiveRound();

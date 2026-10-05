@@ -28,6 +28,8 @@ import { writeActiveRoundCode } from "@/lib/activeRound";
 import { safeLocalStorage, safeSessionStorage } from "@/lib/safeStorage";
 import { bindDeviceAccountOwner, releaseDeviceAccountOwner, emitDeviceIdentityChanged } from "@/lib/deviceAccountIdentity";
 import { readOptimisticSpills } from "@/lib/optimisticSpillPost";
+import { pintDropAccountDraftOwner, readPintDropDraft } from "@/lib/pintDropDraft";
+import type { SpeechRecognitionLike } from "@/lib/pintDropSpeech";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -232,6 +234,116 @@ afterEach(async () => {
 });
 
 describe("mounted Pint Drop account draft isolation", () => {
+  describe("dictation ownership", () => {
+    const TRANSCRIPT = "Account A's unfinished voice transcript";
+    const REPLACEMENT_NOTE = "The replacement owner's typed story";
+    let recognitions: Recognition[];
+
+    class Recognition implements SpeechRecognitionLike {
+      lang = "";
+      interimResults = false;
+      continuous = false;
+      onresult: SpeechRecognitionLike["onresult"] = null;
+      onerror: SpeechRecognitionLike["onerror"] = null;
+      onend: SpeechRecognitionLike["onend"] = null;
+      start = vi.fn();
+      stop = vi.fn();
+
+      constructor() {
+        recognitions.push(this);
+      }
+    }
+
+    beforeEach(() => {
+      recognitions = [];
+      vi.stubGlobal("SpeechRecognition", Recognition);
+    });
+
+    async function typeStory(note: string) {
+      if (!container.querySelector("textarea")) await click(SPILL_EXTRAS_TOGGLE_LABEL);
+      await fill(container.querySelector("textarea")!, note);
+      expect(container.querySelector("textarea")?.value).toBe(note);
+    }
+
+    async function startDictation() {
+      const button = container.querySelector<HTMLButtonElement>('button[aria-label="Add note by voice"]');
+      expect(button).not.toBeNull();
+      await act(async () => button!.click());
+      expect(recognitions).toHaveLength(1);
+      const recognition = defined(recognitions[0], "started recognition");
+      expect(recognition.start).toHaveBeenCalledOnce();
+      const result = recognition.onresult;
+      expect(result).not.toBeNull();
+      return {
+        recognition,
+        complete: () => result!({ resultIndex: 0, results: [{ 0: { transcript: TRANSCRIPT }, isFinal: true }] }),
+      };
+    }
+
+    it.each(["account switch", "confirmed sign-out"] as const)(
+      "rejects A's final dictation result after %s and replacement draft hydration",
+      async (boundary) => {
+        await renderAccount(B);
+        await typeStory(REPLACEMENT_NOTE);
+        await renderAccount(A);
+        await typeStory(NOTE);
+        const { recognition, complete } = await startDictation();
+
+        const replacement = boundary === "account switch" ? B : null;
+        const storageOwner = replacement ? pintDropAccountDraftOwner(replacement.id) : "signed-out";
+        await renderAccount(replacement);
+        if (!replacement) await typeStory(REPLACEMENT_NOTE);
+        expect(container.querySelector("textarea")?.value).toBe(REPLACEMENT_NOTE);
+        expect(readPintDropDraft(sessionStorage, VENUE_ID, storageOwner)?.form.note).toBe(REPLACEMENT_NOTE);
+        expect(recognition.stop).toHaveBeenCalledOnce();
+
+        await act(async () => complete());
+
+        expect.soft(container.querySelector("textarea")?.value).toBe(REPLACEMENT_NOTE);
+        expect.soft(container.textContent).not.toContain(NOTE);
+        expect.soft(container.textContent).not.toContain(TRANSCRIPT);
+        const saved = readPintDropDraft(sessionStorage, VENUE_ID, storageOwner);
+        expect.soft(saved?.form.note).toBe(REPLACEMENT_NOTE);
+        expect.soft(JSON.stringify(saved)).not.toContain(NOTE);
+        expect.soft(JSON.stringify(saved)).not.toContain(TRANSCRIPT);
+        await renderAccount(A);
+        await renderAccount(replacement);
+        expect(container.querySelector("textarea")?.value).toBe(REPLACEMENT_NOTE);
+      },
+    );
+
+    it("rejects dictation stopped while the retained private draft is hidden", async () => {
+      await renderAccount(A);
+      await typeStory(NOTE);
+      const { recognition, complete } = await startDictation();
+      recognition.stop.mockImplementation(complete);
+
+      await renderAccount(A, false, false);
+      expect(recognition.stop).toHaveBeenCalledOnce();
+      expect(container.querySelector("textarea")).toBeNull();
+      await renderAccount(A);
+      expect(container.querySelector("textarea")?.value).toBe(NOTE);
+      expect(readPintDropDraft(sessionStorage, VENUE_ID, pintDropAccountDraftOwner(A.id))?.form.note).toBe(NOTE);
+    });
+
+    it("accepts the same owner's final dictation result after explicit Stop and token refresh", async () => {
+      await renderAccount(A);
+      await typeStory(NOTE);
+      const { recognition, complete } = await startDictation();
+      tokenVersion += 1;
+      await renderAccount(A);
+      const stop = container.querySelector<HTMLButtonElement>('button[aria-label="Stop voice note"]');
+      expect(stop).not.toBeNull();
+      await act(async () => stop!.click());
+      expect(recognition.stop).toHaveBeenCalledOnce();
+      await act(async () => complete());
+
+      expect(container.querySelector("textarea")?.value).toBe(`${NOTE} ${TRANSCRIPT}`);
+      expect(readPintDropDraft(sessionStorage, VENUE_ID, pintDropAccountDraftOwner(A.id))?.form.note).toBe(NOTE);
+      expect(container.querySelector('button[aria-label="Add note by voice"]')).not.toBeNull();
+    });
+  });
+
   it("keeps each existing photo URL live as other slots are added", async () => {
     await renderAccount(A);
     await draft(true);
