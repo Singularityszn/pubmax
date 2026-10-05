@@ -30,7 +30,7 @@ import {
 import type { MapExperienceLens } from "@/lib/mapExperienceLens";
 
 export const LONDON_RESTAURANT_PACK_PATH = "/data/london_restaurants/restaurants.json";
-export const LONDON_RESTAURANT_PACK_VERSION = 1;
+const LONDON_RESTAURANT_PACK_VERSION = 1;
 
 /**
  * The zoom the layer draws from, and the zoom the map first asks for the pack
@@ -100,7 +100,7 @@ export async function loadLondonRestaurants(
  * 50 m on the same door (Le Bab Soho), and two different restaurants that share
  * a name are rarely this close.
  */
-export const CURATED_TWIN_RADIUS_M = 75;
+const CURATED_TWIN_RADIUS_M = 75;
 
 /** A curated venue as the twin check reads it: the `Venue` fields it needs. */
 type PlacedName = { name: string; latitude: number; longitude: number };
