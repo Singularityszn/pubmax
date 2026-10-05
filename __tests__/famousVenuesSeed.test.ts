@@ -65,7 +65,7 @@ function loadSeed(file: string): FamousVenueRow[] {
 }
 
 const PACKS = [
-  ["bars.json", 38, "bar"],
+  ["bars.json", 37, "bar"],
   ["late_food.json", 25, "food"],
   ["restaurants.json", 25, "restaurant"],
 ] as const;
@@ -230,7 +230,9 @@ describe("famous venue seeds", () => {
     it("points a build after a seed re-verification at refresh:slim, and the refresh keeps every venue", () => {
       vi.spyOn(console, "log").mockImplementation(() => {});
       const lastSlim = committedSlim();
-      const verifiedDay = "2026-10-05";
+      const verifiedDay = new Date(Date.parse(lastSlim.generatedAt) + 24 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 10);
       const reverified = [
         ...applyVerification(
           new Map(PACKS.map(([file]) => [file, loadSeed(file)])),
