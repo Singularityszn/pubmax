@@ -2,6 +2,7 @@ import { expect, test as base, type Locator, type Page } from "@playwright/test"
 import { mkdir } from "node:fs/promises";
 
 import { COMMUNITY_SHEET_FIXTURE_VENUE_ID } from "./helpers/communitySheetFixture";
+import { expectLayoutSettled } from "./helpers/layoutSettled";
 
 /**
  * F08/J33 - a blocked map still gets the reader to the venue.
@@ -101,7 +102,8 @@ const fallback = (page: Page) => page.locator(".mapFallback");
  * The class of whatever owns a control's centre point, read in ONE layout.
  * Reading the box first and hit-testing in a later call measures two layouts:
  * a city strip or venue rows landing in between move the control, and the
- * stale point then lands on the card behind it.
+ * stale point then lands on the card behind it. Callers wait for the control
+ * to rest first and then read once, so a real overlap is never polled away.
  */
 const centreOwner = (control: Locator) =>
   control.evaluate((element) => {
@@ -158,7 +160,8 @@ test.describe("a blocked map library keeps the pubs reachable", () => {
       // One retry control, and it is tappable rather than under other chrome.
       const retry = page.locator(".mapFallbackRetry");
       await expect(retry).toBeVisible();
-      await expect.poll(() => centreOwner(retry)).toContain("mapFallbackRetry");
+      await expectLayoutSettled(retry);
+      expect(await centreOwner(retry)).toContain("mapFallbackRetry");
       // The heading and its one sentence are READ from below the phone chrome.
       // They used to sit behind the top bar: .mapFallback's phone padding-top
       // named a token nothing defines, so the whole calc() was dropped.
@@ -312,7 +315,8 @@ test.describe("a tile outage leaves a retry a thumb can reach", () => {
     const retry = notice.getByRole("button", { name: "Retry" });
     // Measured before the fix: BUTTON.mobilePlanActivation, the "Describe the
     // outing" bar, owned this point and swallowed the tap.
-    await expect.poll(() => centreOwner(retry)).toContain("mapSoftRetryBtn");
+    await expectLayoutSettled(retry);
+    expect(await centreOwner(retry)).toContain("mapSoftRetryBtn");
     await shot(page, "after-tiles-blocked-390");
   });
 });
