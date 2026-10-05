@@ -218,15 +218,16 @@ function terminalReversalForRoot(
         candidate.evidenceFingerprint === restoredFingerprint,
     );
     if (restored.length > 1) return { event: null, degraded: true };
-    if (restored.length === 0) return { event: reversal, degraded: false };
+    const [next] = restored;
+    if (!next) return { event: reversal, degraded: false };
     if (
-      restored[0].venueId !== root.venueId ||
-      restored[0].category !== root.category ||
-      seen.has(restored[0].id)
+      next.venueId !== root.venueId ||
+      next.category !== root.category ||
+      seen.has(next.id)
     ) {
       return { event: null, degraded: true };
     }
-    current = restored[0];
+    current = next;
     seen.add(current.id);
   }
   return { event: null, degraded: true };

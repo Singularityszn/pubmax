@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -54,10 +55,13 @@ export default function AccountMenu({
   /** Every account signed in on this device. Read once by the nav host. */
   deviceAccounts?: readonly DeviceAccountRecord[];
   onSwitchAccount?: (userId: string) => Promise<DeviceAccountSwitchOutcome>;
-  addAccountHref?: string;
+  addAccountHref?: Route;
   extraControls?: ReactNode;
 }): React.JSX.Element {
-  const profilePath = handle ? `/u/${handleOnly(handle)}` : "/u/you";
+  // /u/[handle] is a dynamic route, so these three need a cast.
+  const profilePath = (handle ? `/u/${handleOnly(handle)}` : "/u/you") as Route;
+  const wantedPath = `${profilePath}#wanted` as Route;
+  const editPath = `${profilePath}?edit=1` as Route;
   return (
     <div className="authMenu authAccountMenu" id={id} aria-label="Account options" ref={menuRef}>
       <div className="authAccountCard">
@@ -81,10 +85,10 @@ export default function AccountMenu({
         <Link href={profilePath} onClick={onNavigate}>
           Your profile
         </Link>
-        <Link href={`${profilePath}#wanted`} onClick={onNavigate}>
+        <Link href={wantedPath} onClick={onNavigate}>
           Your Wanteds
         </Link>
-        <Link href={`${profilePath}?edit=1`} onClick={onNavigate}>
+        <Link href={editPath} onClick={onNavigate}>
           Edit profile
         </Link>
       </nav>

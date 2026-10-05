@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
+import { defined } from "@/__tests__/helpers/defined";
 
 type WorkflowStep = { uses?: string; run?: string };
 type Workflow = {
@@ -31,6 +32,7 @@ describe("browser CI policy", () => {
     expect(workflow).toMatch(/schedule:/);
     expect(workflow).toMatch(/push:\n\s+branches: \[main\]/);
     const fullSuiteJob = (parse(workflow) as Workflow).jobs["full-suite"];
+    if (!fullSuiteJob) throw new Error("e2e workflow has no full-suite job");
     const shards = fullSuiteJob.strategy?.matrix?.shard;
     expect(shards).toEqual([1, 2, 3, 4]);
     const shardFlags = fullSuiteJob.steps.flatMap((step) =>
@@ -65,7 +67,7 @@ describe("browser CI policy", () => {
     const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
 
     for (const jobName of ["law-pins", "full-suite"]) {
-      const steps = jobs[jobName].steps;
+      const steps = defined(jobs[jobName]).steps;
       const install = steps.findIndex((step) =>
         step.run?.split("\n").some((line) => {
           const words = line.trim().split(/\s+/);
@@ -92,7 +94,7 @@ describe("browser CI policy", () => {
     const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
 
     for (const jobName of ["law-pins", "full-suite"]) {
-      const steps = jobs[jobName].steps;
+      const steps = defined(jobs[jobName]).steps;
       const portStep = steps.findIndex(
         (step) => step.uses === "./.github/actions/pubmax-playwright-port",
       );

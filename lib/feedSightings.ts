@@ -17,6 +17,7 @@
 // (app/feed/feedSightings.server.ts) injects the venue resolver and the parsed
 // updates.
 
+import type { Route } from "next";
 import { formatGbp } from "@/lib/formatGbp";
 import type { DrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
 import type { FeedFilter } from "@/lib/feed";
@@ -31,7 +32,7 @@ export type SightingDTO = {
   /** Human pub name, server-resolved from the venue index. */
   venueName: string;
   /** "/map?sel=…" — tapping the sighting opens the venue on the map. */
-  venueMapUrl: string;
+  venueMapUrl: Route;
   /** The specific drink the price was observed on (e.g. "Doom Bar"). */
   drink: string;
   /** The observed price in pounds — always a real, positive number. */
@@ -52,7 +53,7 @@ export type SightingDTO = {
 type SightingVenue = {
   venueId: string;
   venueName: string;
-  venueMapUrl: string;
+  venueMapUrl: Route;
 };
 
 /** Resolve a drink-update grouping key to its venue facts, or null to skip it. */

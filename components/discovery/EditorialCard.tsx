@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 
@@ -11,7 +12,7 @@ export type EditorialCardData = {
   eyebrow: string;
   title: string;
   dek: string;
-  href: string;
+  href: Route;
   cta: string;
 };
 

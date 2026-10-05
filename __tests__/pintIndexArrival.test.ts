@@ -13,6 +13,7 @@ import {
 } from "@/lib/pintIndexArrival";
 import { sanitizeEvent } from "@/lib/analyticsEvents";
 import type { Venue } from "@/lib/venues";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Only the fields the arrival reads; the rest of Venue is irrelevant here.
 function venue(id: string, borough: string, cheapestPrice: number | null): Venue {
@@ -62,8 +63,8 @@ describe("Pint Index arrival areas", () => {
       venue("b-tied", "Camden", 4),
       venue("a-tied", "Camden", 4),
     ];
-    expect(arrivalAreas(tied)[0].cheapestVenueId).toBe("a-tied");
-    expect(arrivalAreas([...tied].reverse())[0].cheapestVenueId).toBe("a-tied");
+    expect(defined(arrivalAreas(tied)[0]).cheapestVenueId).toBe("a-tied");
+    expect(defined(arrivalAreas([...tied].reverse())[0]).cheapestVenueId).toBe("a-tied");
   });
 
   it("caps the strip", () => {

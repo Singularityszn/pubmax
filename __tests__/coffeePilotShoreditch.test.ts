@@ -14,6 +14,7 @@ import {
   shoreditchCafeIds,
   shoreditchCafeNames,
 } from "../scripts/lib/coffeePilotRows.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = resolve(__dirname, "..");
 const FILE = join(ROOT, COFFEE_PILOT_FILE);
@@ -47,40 +48,40 @@ describe("Shoreditch coffee pilot", () => {
 
   it("refuses a blank coffee price, an estimate, and a cheapest figure", () => {
     const now = Date.parse("2026-10-03T18:00:00Z");
-    const base = { ...file, rows: [listedRow(sampleId)] };
+    const base = { ...file, rows: [listedRow(defined(sampleId))] };
     expect(coffeePilotProblems(base, venueIds, now)).toEqual([]);
     expect(coffeePilotProblems({
       ...base,
-      rows: [listedRow(sampleId, { drink: "coffee" })],
+      rows: [listedRow(defined(sampleId), { drink: "coffee" })],
     }, venueIds, now).join("\n")).toContain("three named drinks");
     expect(coffeePilotProblems({
       ...base,
-      rows: [listedRow(sampleId, { standing: "estimate" })],
+      rows: [listedRow(defined(sampleId), { standing: "estimate" })],
     }, venueIds, now).join("\n")).toContain("standing must be listed");
     expect(coffeePilotProblems({
       ...base,
-      rows: [listedRow(sampleId, { cheapestPrice: 3.4 })],
+      rows: [listedRow(defined(sampleId), { cheapestPrice: 3.4 })],
     }, venueIds, now).join("\n")).toContain("cheapestPrice");
     expect(coffeePilotProblems({
       ...base,
-      rows: [listedRow(sampleId, { venueId: "venue-osm-n1" })],
+      rows: [listedRow(defined(sampleId), { venueId: "venue-osm-n1" })],
     }, venueIds, now).join("\n")).toContain("not a cafe in the Shoreditch box");
-    const names = new Map([[sampleId, "Real Cafe"]]);
+    const names = new Map([[defined(sampleId), "Real Cafe"]]);
     expect(coffeePilotProblems({
       ...base,
-      rows: [listedRow(sampleId, { venueName: "Real Cafe" })],
+      rows: [listedRow(defined(sampleId), { venueName: "Real Cafe" })],
     }, venueIds, now, names)).toEqual([]);
     expect(coffeePilotProblems({
       ...base,
-      rows: [listedRow(sampleId, { venueName: "Other Cafe" })],
+      rows: [listedRow(defined(sampleId), { venueName: "Other Cafe" })],
     }, venueIds, now, names).join("\n")).toContain("does not match the cafe");
     expect(coffeePilotProblems({
       ...base,
-      rows: [listedRow(sampleId, { observedAt: "2026-02-30" })],
+      rows: [listedRow(defined(sampleId), { observedAt: "2026-02-30" })],
     }, venueIds, now).join("\n")).toContain("calendar day");
     expect(coffeePilotProblems({
       ...base,
-      rows: [listedRow(sampleId, { observedAt: "2026-10-03T18:00:00Z" })],
+      rows: [listedRow(defined(sampleId), { observedAt: "2026-10-03T18:00:00Z" })],
     }, venueIds, now).join("\n")).toContain("calendar day");
   });
 

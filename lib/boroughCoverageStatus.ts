@@ -1,3 +1,5 @@
+import type { Route } from "next";
+
 // Seed-borough coverage status for the price flywheel (PLG Wave 2).
 // Status copy only: never a leaderboard, never a stranger feed, never a claim
 // that a failed read means the borough is empty.
@@ -69,7 +71,8 @@ export type BoroughCoverageSummary =
 export function boroughCoverageSummary(
   rows: readonly BoroughCoverageInput[],
 ): BoroughCoverageSummary {
-  if (rows.length < 2) return { kind: "per-borough" };
+  const [first] = rows;
+  if (!first || rows.length < 2) return { kind: "per-borough" };
 
   const lines = new Set<string>();
   for (const row of rows) {
@@ -79,7 +82,6 @@ export function boroughCoverageSummary(
     if (lines.size > 1) return { kind: "per-borough" };
   }
 
-  const first = rows[0];
   const target = first.target ?? SEED_BOROUGH_MONTHLY_TARGET;
   if (first.status === "degraded" || first.status === "unknown") {
     return { kind: "shared", line: "We could not count corroborated pints just now." };
@@ -104,6 +106,6 @@ export function boroughCoverageSummary(
 }
 
 /** Map href that opens the patch browse without inventing a selected pub. */
-export function boroughCoverageMapHref(mapQuery: string): string {
+export function boroughCoverageMapHref(mapQuery: string): Route {
   return `/map?q=${encodeURIComponent(mapQuery)}`;
 }

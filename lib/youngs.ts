@@ -101,12 +101,12 @@ export function parseYoungsGardenMarkdown(markdown: string, sourcePage?: string)
   const out: YoungsGardenPub[] = [];
   const seen = new Set<string>();
 
-  for (let i = 0; i < lines.length; i += 1) {
-    const link = lines[i].match(
+  for (const [i, text] of lines.entries()) {
+    const linked = text.match(
       /\[Explore the pub\]\((https?:\/\/[^)\s]+)\)/i,
-    );
-    if (!link) continue;
-    const url = link[1].replace(/\/garden\/?$/i, "/").replace(/\/+$/, "") || link[1];
+    )?.[1];
+    if (!linked) continue;
+    const url = linked.replace(/\/garden\/?$/i, "/").replace(/\/+$/, "") || linked;
     let name = "";
     for (let back = 1; back <= 6; back += 1) {
       const prev = (lines[i - back] ?? "").trim();
@@ -172,10 +172,10 @@ export function matchYoungsVenue(
         }
       }
     }
-    if (byWeb.length === 1) return byWeb[0];
+    if (byWeb.length === 1) return byWeb[0] ?? null;
     if (byWeb.length > 1) {
       const keys = new Set(byWeb.map((m) => m.venueKey));
-      if (keys.size === 1) return byWeb[0];
+      if (keys.size === 1) return byWeb[0] ?? null;
       return null;
     }
   }
@@ -197,9 +197,9 @@ export function matchYoungsVenue(
       method: "fuzzy-name",
     });
   }
-  if (scored.length === 0) return null;
   scored.sort((a, b) => b.score - a.score);
   const top = scored[0];
+  if (!top) return null;
   const tie = scored[1];
   if (tie && tie.score === top.score && tie.venueKey !== top.venueKey) {
     return null;

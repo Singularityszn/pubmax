@@ -74,6 +74,7 @@ import { POST as POST_THREAD } from "@/app/api/messages/[id]/route";
 import { __resetMemoryMessages } from "@/lib/messagesStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 const BASE = "http://localhost/api/messages";
 
@@ -123,7 +124,7 @@ describe("POST /api/messages - the inbox send", () => {
   it("names both participants from what the request already held", async () => {
     await postInbox({ action: "send", handle: "ken", other: "sam", body: "Pint?" });
 
-    expect(signals.sent[0].participants).toEqual(["ken", "sam"]);
+    expect(defined(signals.sent[0]).participants).toEqual(["ken", "sam"]);
     expect(storeCalls.participants).toBe(0);
   });
 });
@@ -158,8 +159,8 @@ describe("POST /api/messages/[id] - the thread send", () => {
     await postThread(conversationId, { action: "send", handle: "ken", body: "On my way" });
 
     expect(storeCalls.participants).toBe(0);
-    expect(signals.sent[0].conversationId).toBe(conversationId);
-    expect([...signals.sent[0].participants].sort()).toEqual(["ken", "sam"]);
+    expect(defined(signals.sent[0]).conversationId).toBe(conversationId);
+    expect([...defined(signals.sent[0]).participants].sort()).toEqual(["ken", "sam"]);
   });
 
   it("still sends the message when the signal cannot go out at all", async () => {

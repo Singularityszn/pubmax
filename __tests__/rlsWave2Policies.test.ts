@@ -9,6 +9,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 const MIGRATIONS_DIR = join(process.cwd(), "supabase/migrations");
 
@@ -183,7 +184,7 @@ describe("community_prices — anon deny, non-hidden only, no author hidden leak
       /grant select\s*\(([^)]*)\)\s*on table public\.community_prices to authenticated/i,
     );
     expect(grant, "expected community_prices column grant").toBeTruthy();
-    const cols = grant![1].toLowerCase();
+    const cols = defined(grant![1]).toLowerCase();
     expect(cols).toContain("venue_id");
     expect(cols).toContain("price_pennies");
     expect(cols).not.toMatch(/\bactor\b/);

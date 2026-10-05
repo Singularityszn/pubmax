@@ -9,6 +9,7 @@
 // async resolution/catch (never the effect body), AbortController cancels on
 // unmount.
 
+import type { Route } from "next";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -20,7 +21,7 @@ type PresenceDTO = {
   handle: string;
   venueId: string;
   venueName: string;
-  venueMapUrl: string;
+  venueMapUrl: Route;
   at: string;
   avatarUrl?: string;
   // Set ONLY on seeded ambient demo rows (lib/ambientPresence) — real taps never

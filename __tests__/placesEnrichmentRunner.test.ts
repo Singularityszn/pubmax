@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { expect, it } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = path.resolve(__dirname, "..");
 function fixture(name: string) {
@@ -111,7 +112,7 @@ it("recovers interrupted quota restoration even when every paid request already 
 
 const calls = (dir: string) => existsSync(path.join(dir, "calls.log")) ? readFileSync(path.join(dir, "calls.log"), "utf8").trim().split("\n") : [];
 const pack = (dir: string) => JSON.parse(readFileSync(path.join(dir, "data/places_enrichment.json"), "utf8"));
-const preview = (dir: string, args: string[]) => JSON.parse(run(dir, ["--dry-run", ...args]).stdout.trim().split("\n")[0]);
+const preview = (dir: string, args: string[]) => JSON.parse(defined(run(dir, ["--dry-run", ...args]).stdout.trim().split("\n")[0]));
 const checkpointFile = (dir: string) => path.join(dir, "data/places_verification/enrichment_progress.json");
 const FIELDS = ["regularOpeningHours", "formattedAddress", "nationalPhoneNumber", "websiteUri"];
 function age(file: string, observedAt: string) {
@@ -269,7 +270,7 @@ it("reads only the London ledger, so another city ledger neither changes the pus
   writeFileSync(path.join(dir, "data/places_verification/uk_cities.json"), JSON.stringify({ pubs: [{ venueId: "venue-uk-n1", googlePlaceId: "ChIJCity001" }] }));
   const dry = run(dir, ["--dry-run"]);
   expect(dry.status, dry.stderr).toBe(0);
-  expect(JSON.parse(dry.stdout.trim().split("\n")[0])).toMatchObject({ verified: 3, pending: 0 });
+  expect(JSON.parse(defined(dry.stdout.trim().split("\n")[0]))).toMatchObject({ verified: 3, pending: 0 });
   expect(run(dir, ["--write", "--exclusive"]).status).toBe(0);
   expect(readFileSync(path.join(dir, "data/places_enrichment.json"), "utf8")).toBe(before);
   expect(calls(dir)).not.toContain("ChIJCity001");

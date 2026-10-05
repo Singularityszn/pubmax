@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { groupTonightListings } from "@/lib/tonightListGrouping";
 import { laneKindFacets } from "@/lib/whatsOnBadges";
 import type { WhatsOnRow } from "@/lib/whatsOn";
+import { defined } from "@/__tests__/helpers/defined";
 
 // A well-formed Tonight listing; override per case. Distinct ids so stable
 // tiebreaks are observable. Same shape as dealsDigest.test's fixture.
@@ -35,8 +36,8 @@ describe("groupTonightListings", () => {
     ];
     const grouped = groupTonightListings(rows, null);
     expect(grouped).toHaveLength(1);
-    expect(grouped[0].venueCount).toBe(3);
-    expect(grouped[0].alternates).toHaveLength(2);
+    expect(defined(grouped[0]).venueCount).toBe(3);
+    expect(defined(grouped[0]).alternates).toHaveLength(2);
   });
 
   it("shows the nearest venue first and orders alternates nearest-first when location is known", () => {
@@ -45,8 +46,8 @@ describe("groupTonightListings", () => {
     const mid = makeRow({ placeName: "Mid", lat: 51.5, lng: -0.1 });
     const grouped = groupTonightListings([far, near, mid], NEAR);
     expect(grouped).toHaveLength(1);
-    expect(grouped[0].row.placeName).toBe("Near");
-    expect(grouped[0].alternates.map((r) => r.placeName)).toEqual(["Mid", "Far"]);
+    expect(defined(grouped[0]).row.placeName).toBe("Near");
+    expect(defined(grouped[0]).alternates.map((r) => r.placeName)).toEqual(["Mid", "Far"]);
   });
 
   it("keeps a family's members in input order when no location is known", () => {
@@ -56,15 +57,15 @@ describe("groupTonightListings", () => {
     const second = makeRow({ placeName: "Second" });
     const grouped = groupTonightListings([first, second], null);
     expect(grouped).toHaveLength(1);
-    expect(grouped[0].row.placeName).toBe("First");
-    expect(grouped[0].alternates.map((r) => r.placeName)).toEqual(["Second"]);
+    expect(defined(grouped[0]).row.placeName).toBe("First");
+    expect(defined(grouped[0]).alternates.map((r) => r.placeName)).toEqual(["Second"]);
   });
 
   it("passes a lone listing through untouched (count 1, no alternates)", () => {
     const grouped = groupTonightListings([makeRow({ title: "Solo Quiz", kind: "quiz" })], null);
     expect(grouped).toHaveLength(1);
-    expect(grouped[0].venueCount).toBe(1);
-    expect(grouped[0].alternates).toEqual([]);
+    expect(defined(grouped[0]).venueCount).toBe(1);
+    expect(defined(grouped[0]).alternates).toEqual([]);
   });
 
   it("orders fully tied families by their stable group key, never by input order", () => {
@@ -97,7 +98,7 @@ describe("groupTonightListings", () => {
     }
     for (const [, n] of counts) expect(n).toBeLessThanOrEqual(2);
     // And in fact the 60 duplicates are a single card carrying all 60 venues.
-    expect(grouped[0].venueCount).toBe(60);
+    expect(defined(grouped[0]).venueCount).toBe(60);
   });
 
   it("feeds GROUPED family counts to the kind-filter facets, not raw inventory", () => {
@@ -128,7 +129,7 @@ describe("groupTonightListings", () => {
     ];
     const grouped = groupTonightListings(rows, null);
     expect(grouped).toHaveLength(1);
-    expect(grouped[0].venueCount).toBe(2);
+    expect(defined(grouped[0]).venueCount).toBe(2);
   });
 
   it("keeps distinct SOURCES apart (never collapses across publishers)", () => {
@@ -172,8 +173,8 @@ describe("groupTonightListings", () => {
     const curry = Array.from({ length: 60 }, (_, i) => makeRow({ placeName: `Curry ${i}` }));
     const grouped = groupTonightListings(curry, null);
     expect(grouped).toHaveLength(1);
-    expect(grouped[0].venueCount).toBe(60);
-    expect(grouped[0].alternates).toHaveLength(59);
+    expect(defined(grouped[0]).venueCount).toBe(60);
+    expect(defined(grouped[0]).alternates).toHaveLength(59);
   });
 
   it("orders groups by distance FIRST — a nearer listed offer beats a farther confirmed one", () => {
@@ -227,9 +228,9 @@ describe("groupTonightListings", () => {
     const near = makeRow({ placeName: "Near", lat: 51.5, lng: -0.129 });
     const mid = makeRow({ placeName: "Mid", lat: 51.5, lng: -0.1 });
     const [group] = groupTonightListings([far, near, mid], NEAR);
-    expect(group.row.placeName).toBe("Near");
-    expect(group.alternates.map((r) => r.placeName)).toEqual(["Mid", "Far"]);
-    const all = [group.row, ...group.alternates].map((r) => r.placeName);
+    expect(defined(group).row.placeName).toBe("Near");
+    expect(defined(group).alternates.map((r) => r.placeName)).toEqual(["Mid", "Far"]);
+    const all = [defined(group).row, ...defined(group).alternates].map((r) => r.placeName);
     expect(new Set(all).size).toBe(all.length); // no duplication
   });
 

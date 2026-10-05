@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import { NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 
 type SocialFeedLane = "following" | "nearby" | "discover";
@@ -81,7 +82,7 @@ export function socialShellHref(
   state:
     | Omit<SocialPostsShellState, "valid">
     | Omit<SocialDiscoverShellState, "valid">,
-): string {
+): Route {
   if (state.tab === "discover") return "/social?tab=discover";
   if (state.feed === "following") return "/social";
   const params = new URLSearchParams({ feed: state.feed });

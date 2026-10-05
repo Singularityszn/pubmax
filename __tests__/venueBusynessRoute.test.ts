@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { GET } from "@/app/api/venue/[id]/route";
 import type { SlimVenue } from "@/lib/venuesSlim";
+import { defined } from "@/__tests__/helpers/defined";
 
 const slimPayload = JSON.parse(
   readFileSync(path.resolve(__dirname, "../public/data/venues_slim.json"), "utf8"),
@@ -13,7 +14,7 @@ const slim = slimPayload.rows ?? [];
 
 describe("GET /api/venue/[id] busyness fields", () => {
   it("adds an explicitly estimated get-in read without changing the venue contract", async () => {
-    const venue = slim[0];
+    const venue = defined(slim[0]);
     const response = await GET(
       new Request(`http://localhost/api/venue/${venue.id}?groupSize=6`),
       { params: Promise.resolve({ id: venue.id }) },

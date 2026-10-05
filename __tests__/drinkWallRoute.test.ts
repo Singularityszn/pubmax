@@ -81,6 +81,7 @@ import {
   venuePhotoStore,
 } from "@/lib/venuePhotoStore";
 import { drinkWallServingKey, venuePhotoServingKey } from "@/lib/venuePhotos";
+import { defined } from "@/__tests__/helpers/defined";
 
 const VENUE = "venue-abc";
 
@@ -211,8 +212,8 @@ describe("posting a london photo to the drink wall", () => {
     expect(response.status).toBe(429);
     expect(storage.uploads).toHaveLength(0);
     expect(limitState.calls).toHaveLength(1);
-    expect(limitState.calls[0].key).toMatch(/^venue-photo:/);
-    expect(limitState.calls[0].opts?.failClosed).toBe(true);
+    expect(defined(limitState.calls[0]).key).toMatch(/^venue-photo:/);
+    expect(defined(limitState.calls[0]).opts?.failClosed).toBe(true);
   });
 });
 

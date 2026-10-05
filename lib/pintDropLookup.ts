@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import "server-only";
 
 import {
@@ -65,7 +66,7 @@ export type PublicDrop = {
   id: string;
   venueId: string;
   venueName: string;
-  venueMapUrl: string;
+  venueMapUrl: Route;
   handle: string;
   drink: string;
   priceGbp: number | null;

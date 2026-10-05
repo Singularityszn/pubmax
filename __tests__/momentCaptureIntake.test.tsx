@@ -72,6 +72,7 @@ vi.mock("@/lib/authedFetch", () => ({
 }));
 
 import MomentCapture from "@/components/moment/MomentCapture";
+import { defined } from "@/__tests__/helpers/defined";
 
 const JPEG_HEAD = [0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01];
 
@@ -250,8 +251,8 @@ describe("removing photos", () => {
     expect(previews()).toBe(3);
     const removes = Array.from(container.querySelectorAll<HTMLButtonElement>('button[aria-label^="Remove"]'));
     await act(async () => {
-      removes[0].click();
-      removes[1].click();
+      defined(removes[0]).click();
+      defined(removes[1]).click();
     });
     await settle();
     expect(previews()).toBe(1);

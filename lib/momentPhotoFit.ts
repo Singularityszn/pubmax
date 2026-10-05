@@ -110,8 +110,7 @@ export async function fitMomentPhoto(
   if (!decoded) return { outcome: "unreadable" };
   try {
     const attempts = planMomentFitAttempts(decoded);
-    for (let index = 0; index < attempts.length; index += 1) {
-      const attempt = attempts[index];
+    for (const [index, attempt] of attempts.entries()) {
       const box = momentFitBox(decoded, attempt.longEdge);
       let blob: Blob;
       try {

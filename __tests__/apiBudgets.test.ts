@@ -22,6 +22,7 @@ import {
   percentile,
   type ApiRouteMeasurement,
 } from "@/lib/apiBudgets";
+import { defined } from "@/__tests__/helpers/defined";
 
 const REPO_ROOT = join(__dirname, "..");
 
@@ -73,13 +74,13 @@ describe("the budget file", () => {
 });
 
 describe("a breach is reported, and an unmeasured route is not a pass", () => {
-  const route = API_BUDGETS.routes[0];
+  const route = defined(API_BUDGETS.routes[0]);
 
   it("fails a read past its p95", () => {
     const measured = new Map<string, ApiRouteMeasurement>([
       [route.path, { p50Ms: 1, p95Ms: route.p95Ms + 1 }],
     ]);
-    const breaches = findApiBudgetBreaches([route], measured);
+    const breaches = findApiBudgetBreaches([defined(route)], measured);
     expect(breaches.map((breach) => breach.metric)).toEqual(["p95Ms"]);
     expect(formatApiBreachTable(breaches)).toContain(route.path);
   });
@@ -88,11 +89,11 @@ describe("a breach is reported, and an unmeasured route is not a pass", () => {
     const measured = new Map<string, ApiRouteMeasurement>([
       [route.path, { p50Ms: route.p50Ms, p95Ms: route.p95Ms }],
     ]);
-    expect(findApiBudgetBreaches([route], measured)).toEqual([]);
+    expect(findApiBudgetBreaches([defined(route)], measured)).toEqual([]);
   });
 
   it("reports every metric of a route nothing measured", () => {
-    const breaches = findApiBudgetBreaches([route], new Map());
+    const breaches = findApiBudgetBreaches([defined(route)], new Map());
     expect(breaches.map((breach) => breach.metric)).toEqual([...API_BUDGET_METRICS]);
   });
 });

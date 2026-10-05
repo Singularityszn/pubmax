@@ -10,6 +10,7 @@
 // the card, state writes are deferred with Promise.resolve().then, and an
 // AbortController cancels in-flight requests on unmount.
 
+import type { Route } from "next";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowUpRight, MapPin, Sun } from "lucide-react";
@@ -61,7 +62,7 @@ function isGardenPub(row: PlaceRow): boolean {
   return row.types.some((t) => GARDEN_TYPES.has(t));
 }
 
-function mapHref(row: PlaceRow): string | null {
+function mapHref(row: PlaceRow): Route | null {
   const loc = row.location;
   if (!loc || typeof loc.lat !== "number" || typeof loc.lng !== "number") {
     return null;

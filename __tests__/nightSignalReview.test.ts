@@ -26,6 +26,7 @@ import {
   RETRY_QUERY_BUDGET,
   type NightSignalQuery,
 } from "@/lib/nightSignalReview";
+import { defined } from "@/__tests__/helpers/defined";
 
 const NOW = Date.parse("2026-09-05T20:00:00.000Z");
 const DAY = 24 * 60 * 60_000;
@@ -184,14 +185,14 @@ describe("the sweep is bounded and safe to retry", () => {
 
   it("defers a failed query with backoff and asks the other queries anyway", () => {
     const failed = recordQueryFailure(emptyNightSignalCheckpoint("london", NOW), {
-      query: QUERIES[0],
+      query: defined(QUERIES[0]),
       reason: "Exa search failed (503).",
       now: NOW,
     });
     expect(failed.terminal).toBe(false);
     expect(failed.attempts).toBe(1);
     expect(failed.checkpoint.deferred[0]).toMatchObject({
-      key: nightSignalQueryKey(QUERIES[0]),
+      key: nightSignalQueryKey(defined(QUERIES[0])),
       attempts: 1,
       reason: "Exa search failed (503).",
     });
@@ -211,13 +212,13 @@ describe("the sweep is bounded and safe to retry", () => {
 
   it("makes a query terminal at the attempt cap and gives it a way back", () => {
     let outcome = recordQueryFailure(emptyNightSignalCheckpoint("london", NOW), {
-      query: QUERIES[0],
+      query: defined(QUERIES[0]),
       reason: "timeout",
       now: NOW,
     });
     for (let attempt = 1; attempt < MAX_QUERY_ATTEMPTS; attempt += 1) {
       outcome = recordQueryFailure(outcome.checkpoint, {
-        query: QUERIES[0],
+        query: defined(QUERIES[0]),
         reason: "timeout",
         now: NOW + attempt * DAY,
       });
@@ -226,7 +227,7 @@ describe("the sweep is bounded and safe to retry", () => {
     expect(outcome.terminal).toBe(true);
     expect(outcome.attempts).toBe(MAX_QUERY_ATTEMPTS);
     expect(checkpoint.deferred).toHaveLength(0);
-    expect(checkpoint.terminal[0]?.key).toBe(nightSignalQueryKey(QUERIES[0]));
+    expect(checkpoint.terminal[0]?.key).toBe(nightSignalQueryKey(defined(QUERIES[0])));
     // Terminal means the sweep stops asking, not that nobody may.
     expect(dueNightSignalQueries(checkpoint, QUERIES, NOW + 30 * DAY)).toEqual([
       QUERIES[1],
@@ -251,11 +252,11 @@ describe("the sweep is bounded and safe to retry", () => {
 
   it("clears a deferred query the provider then answered", () => {
     const failed = recordQueryFailure(emptyNightSignalCheckpoint("london", NOW), {
-      query: QUERIES[0],
+      query: defined(QUERIES[0]),
       reason: "timeout",
       now: NOW,
     }).checkpoint;
-    const answered = recordQuerySuccess(failed, { query: QUERIES[0], now: NOW + DAY });
+    const answered = recordQuerySuccess(failed, { query: defined(QUERIES[0]), now: NOW + DAY });
     expect(answered.deferred).toHaveLength(0);
   });
 

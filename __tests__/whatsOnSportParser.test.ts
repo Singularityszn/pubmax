@@ -11,6 +11,7 @@ import {
   pubPageUrlFromMenuUrl,
   sportAttributeRow,
 } from "../scripts/whatson/greeneKingSportParser.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 const fixture = (name: string) =>
   readFileSync(path.join(__dirname, "fixtures", "whats_on", name), "utf8");
@@ -125,7 +126,7 @@ describe("buildSportAttributeRows", () => {
     const { rows, counts } = buildSportAttributeRows({ venues, observedAt });
     expect(counts).toEqual({ pubsChecked: 3, showsLiveSport: 1, noLiveSport: 1, undetermined: 1 });
     expect(rows).toHaveLength(1);
-    expect(rows[0].id).toBe("sport-attr-gk-arkles");
+    expect(defined(rows[0]).id).toBe("sport-attr-gk-arkles");
   });
 
   it("every emitted row carries first-party source + observedAt provenance", () => {
@@ -176,7 +177,7 @@ describe("greeneKingLondonVenueRecords", () => {
     const devon = { ...london, menuUrl: "https://www.greeneking.co.uk/pubs/devon/masons-arms/menu", lat: 50.7, lng: -3.5 };
     const { rows } = buildSportAttributeRows({
       venues: [
-        { record: london, showsSport: true },
+        { record: defined(london), showsSport: true },
         { record: devon, showsSport: true },
         { record: ARKLES, showsSport: true },
       ],

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { LocateFixed, RotateCw } from "lucide-react";
 
 import Screen from "@/components/ui/screen";
+import { samePathWithQuery } from "@/lib/appLink";
 import { trackEvent } from "@/lib/analytics";
 import {
   deskAnswerHeadline,
@@ -189,7 +190,7 @@ export default function NearDeskNow({
             typeof window !== "undefined" ? window.location.search : "",
             next.id,
           );
-          router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+          router.replace(samePathWithQuery(pathname, query), { scroll: false });
         } catch {
           // URL sync is best-effort.
         }

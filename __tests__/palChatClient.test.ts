@@ -16,6 +16,7 @@ vi.mock("@/lib/authedFetch", async (importOriginal) => ({
 import { AuthActionSessionError } from "@/lib/authedFetch";
 import { PAL_ERROR_FALLBACK } from "@/lib/palChat";
 import { createPalChatSession } from "@/lib/palChatClient";
+import { defined } from "@/__tests__/helpers/defined";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -62,8 +63,8 @@ describe("createPalChatSession", () => {
     expect(result).not.toBeNull();
     expect(result?.status).toBe("answered");
     if (result && result.status === "answered") {
-      expect(result.cards[0].venueId).toBe("venue-1");
-      expect(result.cards[0].provenance).toEqual({
+      expect(defined(result.cards[0]).venueId).toBe("venue-1");
+      expect(defined(result.cards[0]).provenance).toEqual({
         label: "On record",
         kind: "directory",
       });
@@ -77,7 +78,7 @@ describe("createPalChatSession", () => {
     const result = await ask("quiz tonight in chelsea", "london");
     expect(result?.status).toBe("answered");
     if (result && result.status === "answered") {
-      expect(result.cards[0].provenance).toEqual({
+      expect(defined(result.cards[0]).provenance).toEqual({
         label: "Question One",
         url: "https://example.com/quiz",
         kind: "whats-on",

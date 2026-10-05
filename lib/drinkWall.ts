@@ -1,5 +1,6 @@
 // The city-wide Drink Wall: validation and reader copy on top of venuePhotos.
 
+import type { Route } from "next";
 import {
   cleanDrinkWallPlaceLabel,
   cleanVenuePhotoCaption,
@@ -109,7 +110,7 @@ export function drinkWallRemoveConfirmLine(photo: { venueId: string | null }): s
 export const DRINK_WALL_SIGN_IN_LINE =
   "Sign in and pick a handle to add a photo to the Drink Wall.";
 
-export function drinkWallSignInHref(from?: string | null): string {
+export function drinkWallSignInHref(from?: string | null): Route {
   const back = from && from.startsWith("/") ? from : "/wall";
   return `/login?from=${encodeURIComponent(back)}`;
 }

@@ -34,6 +34,7 @@ import {
   __resetMemoryPrivateIdentities,
   memoryPrivateIdentityStore,
 } from "@/lib/privateIdentityStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 const params = (handle: string) => ({ params: Promise.resolve({ handle }) });
 const del = (handle: string, token: string) =>
@@ -85,7 +86,7 @@ describe("DELETE /api/profiles/[handle] triggers one-choke redaction (5.5)", () 
     // The gate now emits only the host's Moment, with a scrubbed caption.
     const after = await getPublishedRecapSource(story!.id);
     expect(after!.moments.map((m) => m.id)).toEqual([hostMoment!.id]);
-    expect(after!.moments[0].caption).toBe("Great night with a friend");
+    expect(defined(after!.moments[0]).caption).toBe("Great night with a friend");
     expect(JSON.stringify(after!.moments)).not.toMatch(/jordan/i);
   });
 

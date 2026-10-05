@@ -10,6 +10,7 @@ import {
 } from "@/lib/pintDropSeeds";
 import { listAllVisiblePintDrops, listVisiblePintDrops } from "@/lib/pintDrops";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
+import { defined } from "@/__tests__/helpers/defined";
 
 type SlimRow = { id: string; name: string; cheapestPrice: number | null };
 
@@ -73,7 +74,7 @@ describe("Manchester demo Pint Drop seeds", () => {
   });
 
   it("rides the same per-venue read path as London seeds", () => {
-    const first = manchesterDemoPintDrops[0];
+    const first = defined(manchesterDemoPintDrops[0]);
     expect(demoDropsFor(first.venueId)).toContainEqual(first);
     expect(listVisiblePintDrops(first.venueId)).toContainEqual(first);
   });

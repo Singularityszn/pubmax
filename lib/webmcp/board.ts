@@ -219,13 +219,13 @@ export function swapWebMcpBoardStop(board: WebMcpBoard, position: number): WebMc
   }
   const stopIndex = position - 1;
   const previous = board.route.stops[stopIndex];
+  if (!previous) return board;
   const usedVenueIds = new Set(board.route.stops.map((stop) => stop.venueId));
   const alternativeIndex = previous.alternatives.findIndex(
     (alternative) => !usedVenueIds.has(alternative.venueId),
   );
-  if (alternativeIndex < 0) return board;
-
   const selected = previous.alternatives[alternativeIndex];
+  if (!selected) return board;
   const remaining = previous.alternatives
     .slice(alternativeIndex + 1)
     .filter((alternative) => !usedVenueIds.has(alternative.venueId));

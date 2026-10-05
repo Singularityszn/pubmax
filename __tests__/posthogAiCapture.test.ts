@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 describe("PostHog AI generation capture", () => {
   afterEach(() => {
@@ -23,7 +24,7 @@ describe("PostHog AI generation capture", () => {
       totalTokens: 30,
     });
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    const body = JSON.parse(String(defined(fetchMock.mock.calls[0])[1]?.body));
     expect(body.event).toBe("$ai_generation");
     expect(body.properties.$ai_model).toBe("anthropic/claude-sonnet-4-5");
     expect(body.properties.$ai_input_tokens).toBe(10);

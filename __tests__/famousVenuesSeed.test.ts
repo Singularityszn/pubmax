@@ -9,6 +9,7 @@ import { famousRowsForRebuild } from "@/scripts/build_slim_index.mjs";
 import { applyVerification } from "@/scripts/verify_famous_venues.mjs";
 import { famousSeedLapsedAt } from "./helpers/currentFamousVenues";
 import { normalizeVenueName } from "@/scripts/lib/famousVenuePlacesMatch.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = path.resolve(__dirname, "..");
 const FAME_GATES = new Set([
@@ -267,7 +268,7 @@ describe("famous venue seeds", () => {
       const expiresAt = new Date(stampMs + 31 * dayMs).toISOString().slice(0, 10);
       const added = {
         ...template,
-        id: `${template.id}-added`,
+        id: `${defined(template).id}-added`,
         observedAt,
         expiresAt,
       };
@@ -298,11 +299,11 @@ describe("famous venue seeds", () => {
       const [gone, other] = shippedFamousIds(lastSlim);
       const seed = seedRows().filter((row) => row.id !== gone && row.id !== other);
       expect(() =>
-        famousRowsForRebuild(seed, { lastSlim, removedIds: [gone], refreshAt: null }),
+        famousRowsForRebuild(seed, { lastSlim, removedIds: [defined(gone)], refreshAt: null }),
       ).toThrow(new RegExp(`not in data/famous_venues/removed.json: ${other}$`));
       const result = famousRowsForRebuild(
         seedRows().filter((row) => row.id !== gone),
-        { lastSlim, removedIds: [gone], refreshAt: null },
+        { lastSlim, removedIds: [defined(gone)], refreshAt: null },
       );
       expect(keptIds(result)).toEqual(shippedFamousIds(lastSlim).filter((id) => id !== gone));
       expect(() =>

@@ -8,6 +8,7 @@ import {
   stripPngMetadata,
   stripWebpMetadata,
 } from "@/lib/imageSafety";
+import { defined } from "@/__tests__/helpers/defined";
 
 // ── Fixture builders ─────────────────────────────────────────────────────────
 // Hand-crafted, minimal byte streams so every test is exact and inspectable —
@@ -75,7 +76,7 @@ function buildJpeg(extraSegments: Uint8Array[] = []): Uint8Array {
   const segs = baseJpegSegments();
   // Insert extra segments (e.g. a fake APP1/Exif) right after APP0, before DQT —
   // a realistic position for APP1/APP2/COM in a real JPEG.
-  const withExtra = [segs[0], segs[1], ...extraSegments, ...segs.slice(2)];
+  const withExtra = [defined(segs[0]), defined(segs[1]), ...extraSegments, ...segs.slice(2)];
   return concat(...withExtra);
 }
 

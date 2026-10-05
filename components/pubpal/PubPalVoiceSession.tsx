@@ -13,6 +13,7 @@
 // The tri-state is unchanged and stays in PubPalVoice.tsx. This module is only
 // ever reached through the `available` branch.
 
+import type { Route } from "next";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ConversationProvider,
@@ -70,7 +71,7 @@ type VoiceSessionAttempt = {
  * ElevenLabs SDK only takes text inside a running conversation, so the box
  * beside the Start button must not depend on one.
  */
-function palWrittenAskHref(value: string): string {
+function palWrittenAskHref(value: string): Route {
   return `/pal/chat?${new URLSearchParams({ ask: value }).toString()}`;
 }
 

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { planGetInReport, type VenueLookup } from "@/lib/planGetIn";
 import type { PlanState } from "@/lib/plan";
+import { defined } from "@/__tests__/helpers/defined";
 
 function fixtureState(crewCount: number): PlanState {
   const now = "2026-07-10T18:00:00.000Z";
@@ -39,15 +40,15 @@ describe("planGetInReport", () => {
     expect(report.stops).toHaveLength(2);
 
     // Sorted by position, not input order.
-    expect(report.stops[0].position).toBe(0);
-    expect(report.stops[0].venueId).toBe("venue-a");
-    expect(report.stops[1].position).toBe(1);
-    expect(report.stops[1].venueId).toBe("venue-b");
+    expect(defined(report.stops[0]).position).toBe(0);
+    expect(defined(report.stops[0]).venueId).toBe("venue-a");
+    expect(defined(report.stops[1]).position).toBe(1);
+    expect(defined(report.stops[1]).venueId).toBe("venue-b");
 
     const [first, second] = report.stops;
 
-    expect(first.venueName).toBe("The First");
-    expect(first.busyness).toEqual(
+    expect(defined(first).venueName).toBe("The First");
+    expect(defined(first).busyness).toEqual(
       expect.objectContaining({
         level: expect.any(String),
         label: expect.any(String),
@@ -56,13 +57,13 @@ describe("planGetInReport", () => {
         explanation: expect.any(String),
       }),
     );
-    expect(first.getIn).toEqual(
+    expect(defined(first).getIn).toEqual(
       expect.objectContaining({ fit: expect.any(String), label: expect.any(String), reason: expect.any(String) }),
     );
-    expect(first.booking).toEqual({ available: true, label: "Book a table", href: "https://book.example.com/a" });
+    expect(defined(first).booking).toEqual({ available: true, label: "Book a table", href: "https://book.example.com/a" });
 
     // No booking link found for the second stop — degrades to unavailable, never fabricated.
-    expect(second.booking).toEqual({ available: false, label: "Booking link unavailable", href: null });
+    expect(defined(second).booking).toEqual({ available: false, label: "Booking link unavailable", href: null });
   });
 
   it("floors groupSize at 1 even for an empty crew", async () => {

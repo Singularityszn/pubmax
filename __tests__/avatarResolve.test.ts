@@ -19,6 +19,7 @@ import {
   publicOwnedImageUrl,
 } from "@/lib/profileStore";
 import { profileImageServingKey } from "@/lib/profileImageSlots";
+import { defined } from "@/__tests__/helpers/defined";
 
 const GENERATION = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
@@ -71,14 +72,14 @@ describe("avatarResolve", () => {
       { handle: "alice", id: "1" },
       { handle: "unlinked", id: "2" },
     ]);
-    expect(enriched[0].avatarUrl).toBe(urls.get("alice"));
-    expect(enriched[1].avatarUrl).toBeUndefined();
+    expect(defined(enriched[0]).avatarUrl).toBe(urls.get("alice"));
+    expect(defined(enriched[1]).avatarUrl).toBeUndefined();
 
     const attached = attachAvatarUrls(
       [{ handle: "bob" }],
       urls,
     );
-    expect(attached[0].avatarUrl).toBe(urls.get("bob"));
+    expect(defined(attached[0]).avatarUrl).toBe(urls.get("bob"));
 
     getSpy.mockRestore();
   });

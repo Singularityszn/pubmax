@@ -21,6 +21,7 @@ import {
 } from "@/lib/venues";
 import type { StoryBand } from "@/lib/storyBands";
 import type { Landmark } from "@/lib/landmarks";
+import { defined } from "@/__tests__/helpers/defined";
 
 function makeVenue(overrides: Partial<Venue> = {}): Venue {
   return {
@@ -661,7 +662,7 @@ describe("pubsToGeoJSON Pint Drop trust gate (AGENTS.md pin law: an uncorroborat
     ]);
     const provisional = provisionalPintDropVenueIds(dropsByVenueId, NOW);
     return (
-      pubsToGeoJSON([merged], signals, null, null, null, provisional)
+      pubsToGeoJSON([defined(merged)], signals, null, null, null, provisional)
         .features[0]?.properties ?? {}
     );
   }

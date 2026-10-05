@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { registerWebPush } from "@/lib/webPush";
+import { defined } from "@/__tests__/helpers/defined";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -53,7 +54,7 @@ describe("registerWebPush", () => {
       method: "POST",
       body: expect.stringContaining('"platform":"web"'),
     }));
-    const body = JSON.parse(String(fetch.mock.calls[0][1]?.body));
+    const body = JSON.parse(String(defined(fetch.mock.calls[0])[1]?.body));
     expect(body).toEqual({ token: expect.stringMatching(/^webpush:/), platform: "web" });
     expect(body).not.toHaveProperty("userId");
     expect(body).not.toHaveProperty("planId");

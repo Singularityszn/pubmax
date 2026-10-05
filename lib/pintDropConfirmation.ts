@@ -257,9 +257,9 @@ export function readSecondReporter(
   const callerKey = callerAuthorityKey?.trim();
   if (!callerKey) return { kind: "awaiting" };
   const own = keyed.filter((drop) => drop.authorityKey?.trim() === callerKey);
-  for (let i = 0; i < own.length; i += 1) {
-    for (let j = i + 1; j < own.length; j += 1) {
-      if (!pintDropsAgree(own[i], own[j])) continue;
+  for (const [i, earlier] of own.entries()) {
+    for (const later of own.slice(i + 1)) {
+      if (!pintDropsAgree(earlier, later)) continue;
       return { kind: "same_reporter" };
     }
   }

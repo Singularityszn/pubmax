@@ -18,6 +18,7 @@ import {
   type MaterialDisruption,
 } from "@/lib/tflDisruption";
 import { NIGHT_PATCHES } from "@/lib/nightPatches";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Hermetic: every test drives fixtures and fixed Dates. No network, no clock —
 // fetchLineStatuses (the only impure export) is deliberately left untested here,
@@ -229,8 +230,8 @@ describe("materialDisruptionsFor", () => {
       window,
     );
     expect(found.map((d) => d.lineId)).toEqual(["northern"]);
-    expect(found[0].kind).toBe("planned_closure");
-    expect(found[0].reason).toContain("engineering works");
+    expect(defined(found[0]).kind).toBe("planned_closure");
+    expect(defined(found[0]).reason).toContain("engineering works");
   });
 
   it("returns at most the most-material status per line", () => {
@@ -244,7 +245,7 @@ describe("materialDisruptionsFor", () => {
     };
     const found = materialDisruptionsFor([multi], new Set(["central"]), window);
     expect(found).toHaveLength(1);
-    expect(found[0].kind).toBe("suspended"); // suspended outranks severe delays
+    expect(defined(found[0]).kind).toBe("suspended"); // suspended outranks severe delays
   });
 
   it("is silent for empty inputs", () => {

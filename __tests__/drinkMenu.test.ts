@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { Drink, LegacyPintPrice } from "@/lib/drinks";
 import { hasMenuBeyondPints, venueDrinkMenu } from "@/lib/drinkMenu";
+import { defined } from "@/__tests__/helpers/defined";
 
 beforeEach(() => {
   delete process.env.SUPABASE_URL;
@@ -63,7 +64,7 @@ describe("venueDrinkMenu", () => {
       [{ app_price_id: "na1", pint_name: "Lucky Saint 0.5%", price_gbp: 4.6 }],
       () => [],
     );
-    expect(menu[0].alcoholType).toBe("low-no");
+    expect(defined(menu[0]).alcoholType).toBe("low-no");
   });
 
   it("returns only beer when a venue has no seeded menu", () => {

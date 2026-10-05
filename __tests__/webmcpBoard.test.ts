@@ -12,6 +12,7 @@ import {
   writeWebMcpRouteToPlanDraft,
 } from "@/lib/webmcp/board";
 import { readPlanRouteDraftEnvelope } from "@/lib/planRouteDraft";
+import { defined } from "@/__tests__/helpers/defined";
 
 const NOW = Date.parse("2026-09-03T12:00:00.000Z");
 const GROUNDING_PROOF = `${Buffer.from(JSON.stringify({ v: 1, expiresAt: NOW + 2 * 60 * 60 * 1000 }), "utf8").toString("base64url")}.test-signature`;
@@ -213,7 +214,7 @@ describe("WebMCP board route contracts", () => {
         { venueId: "venue-b", venueName: "Venue B" },
       ],
     });
-    expect(swapped.route?.stops[0].reason).toBe("Starts near the station.");
+    expect(defined(swapped.route?.stops[0]).reason).toBe("Starts near the station.");
     expect(swapped.route).toMatchObject({
       routeTotals: null,
       planningConfidence: null,
@@ -228,7 +229,7 @@ describe("WebMCP board route contracts", () => {
 
   it("preserves board and revision when swap has no unused alternative", () => {
     const response = generatedRoute();
-    response.stops[1].alternatives = [
+    defined(response.stops[1]).alternatives = [
       { venueId: "venue-a", venueName: "Venue A" },
       { venueId: "venue-c", venueName: "Venue C" },
     ];

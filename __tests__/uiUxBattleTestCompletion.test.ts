@@ -6,6 +6,7 @@ import {
   AUDITED_FLOWS,
   configureAuditedFlowsForRunMode,
 } from "../scripts/lib/uiUxBattleTestNavigation.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 const completionInput = {
   originNames: ["local"],
@@ -159,7 +160,7 @@ describe("UI UX audit completion", () => {
     expect(() => assertCompleteUiUxAudit(input)).not.toThrow();
     expect(() => assertCompleteUiUxAudit({
       ...input,
-      flowResults: [{ ...input.flowResults[0], authConfigured: true }],
+      flowResults: [{ ...defined(input.flowResults[0]), authConfigured: true }],
     })).toThrow("Failed applicable flow: local/desktop-1440/login-sheet-open");
 
     const configuredFlows = configureAuditedFlowsForRunMode(AUDITED_FLOWS, {
@@ -172,12 +173,12 @@ describe("UI UX audit completion", () => {
       motionPolicy: { live: "reduce" },
       flowDefinitions: [loginFlow],
       pages: [{
-        ...input.pages[0],
+        ...defined(input.pages[0]),
         origin: "live",
         reducedMotion: true,
       }],
       flowResults: [{
-        ...input.flowResults[0],
+        ...defined(input.flowResults[0]),
         origin: "live",
         reason: "frozen-live-autofocus-unavailable",
         authConfigured: undefined,
@@ -192,7 +193,7 @@ describe("UI UX audit completion", () => {
     })).toThrow("Failed applicable flow: live/desktop-1440/login-sheet-open");
     expect(() => assertCompleteUiUxAudit({
       ...liveInput,
-      flowResults: [{ ...liveInput.flowResults[0], frozenLiveBaseline: false }],
+      flowResults: [{ ...defined(liveInput.flowResults[0]), frozenLiveBaseline: false }],
     })).toThrow("Failed applicable flow: live/desktop-1440/login-sheet-open");
   });
 });

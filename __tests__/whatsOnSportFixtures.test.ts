@@ -7,6 +7,7 @@ import {
   SPORT_FIXTURES,
 } from "../scripts/whatson/sportFixtures.mjs";
 import { dedupeKey, dedupeRows, isValidWhatsOnRow, type WhatsOnRow } from "@/lib/whatsOn";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ARKLES = {
   id: "sport-attr-gk-arkles",
@@ -106,7 +107,7 @@ describe("buildSportFixtureRows", () => {
   const observedAt = "2026-07-12T00:00:00.000Z";
 
   it("crosses every fixture against every screening pub", () => {
-    const fixtures = [SPORT_FIXTURES[0]];
+    const fixtures = [defined(SPORT_FIXTURES[0])];
     const rows = buildSportFixtureRows({ attributeRows: [ARKLES, BARON], fixtures, observedAt });
     expect(rows).toHaveLength(2);
     expect(rows.map((r) => r.placeName).sort()).toEqual(["Arkles", "Baron of Beef"]);
@@ -115,11 +116,11 @@ describe("buildSportFixtureRows", () => {
   it("emits the B1 row contract shape with confidence:'derived' and dual provenance", () => {
     const rows = buildSportFixtureRows({
       attributeRows: [ARKLES],
-      fixtures: [SPORT_FIXTURES[0]],
+      fixtures: [defined(SPORT_FIXTURES[0])],
       observedAt,
     });
     expect(rows).toHaveLength(1);
-    const row = rows[0];
+    const row = defined(rows[0]);
     expect(row).toMatchObject({
       id: "sport-fixture-wc2026-final-esp-arg-arkles",
       placeName: "Arkles",
@@ -138,14 +139,14 @@ describe("buildSportFixtureRows", () => {
     // AND the URL — named in prose.
     expect(row.detail).toContain("Greene King-listed");
     expect(row.detail).toContain("not confirmed by the venue");
-    expect(row.detail).toContain(SPORT_FIXTURES[0].source.label);
-    expect(row.detail).toContain(SPORT_FIXTURES[0].source.url);
+    expect(row.detail).toContain(defined(SPORT_FIXTURES[0]).source.label);
+    expect(row.detail).toContain(defined(SPORT_FIXTURES[0]).source.url);
   });
 
   it("passes isValidWhatsOnRow (the spine's own guard)", () => {
     const rows = buildSportFixtureRows({
       attributeRows: [ARKLES],
-      fixtures: [SPORT_FIXTURES[0]],
+      fixtures: [defined(SPORT_FIXTURES[0])],
       observedAt,
     });
     const now = Date.parse("2026-07-12T12:00:00.000Z");
@@ -155,7 +156,7 @@ describe("buildSportFixtureRows", () => {
   it("omits venueId/lat/lng when the attribute row lacks coordinates (never invented)", () => {
     const rows = buildSportFixtureRows({
       attributeRows: [PROSPECT_NO_COORDS],
-      fixtures: [SPORT_FIXTURES[0]],
+      fixtures: [defined(SPORT_FIXTURES[0])],
       observedAt,
     });
     expect(rows).toHaveLength(1);
@@ -165,13 +166,13 @@ describe("buildSportFixtureRows", () => {
   });
 
   it("drops a fixture whose kickoff cannot be resolved, rather than fabricating a time", () => {
-    const badFixture = { ...SPORT_FIXTURES[0], kickoffLondonTime: "not-a-time" };
+    const badFixture = { ...defined(SPORT_FIXTURES[0]), kickoffLondonTime: "not-a-time" };
     const rows = buildSportFixtureRows({ attributeRows: [ARKLES], fixtures: [badFixture], observedAt });
     expect(rows).toHaveLength(0);
   });
 
   it("drops a fixture whose own source URL isn't a real absolute http(s) URL", () => {
-    const badFixture = { ...SPORT_FIXTURES[0], source: { label: "bad", url: "not-a-url" } };
+    const badFixture = { ...defined(SPORT_FIXTURES[0]), source: { label: "bad", url: "not-a-url" } };
     const rows = buildSportFixtureRows({ attributeRows: [ARKLES], fixtures: [badFixture], observedAt });
     expect(rows).toHaveLength(0);
   });
@@ -179,7 +180,7 @@ describe("buildSportFixtureRows", () => {
   it("drops an attribute row with no placeName or no source url", () => {
     const rows = buildSportFixtureRows({
       attributeRows: [{ ...ARKLES, placeName: undefined }, { ...ARKLES, source: {} }],
-      fixtures: [SPORT_FIXTURES[0]],
+      fixtures: [defined(SPORT_FIXTURES[0])],
       observedAt,
     });
     expect(rows).toHaveLength(0);
@@ -188,7 +189,7 @@ describe("buildSportFixtureRows", () => {
   it("ignores non-sport attribute rows", () => {
     const rows = buildSportFixtureRows({
       attributeRows: [{ ...ARKLES, kind: "quiz" }],
-      fixtures: [SPORT_FIXTURES[0]],
+      fixtures: [defined(SPORT_FIXTURES[0])],
       observedAt,
     });
     expect(rows).toHaveLength(0);
@@ -211,14 +212,14 @@ describe("buildSportFixtureRows", () => {
   it("dedupeRows collapses two rows that land on the same (place, kind, startsAt), keeping the freshest", () => {
     const rows = buildSportFixtureRows({
       attributeRows: [ARKLES],
-      fixtures: [SPORT_FIXTURES[0]],
+      fixtures: [defined(SPORT_FIXTURES[0])],
       observedAt,
     });
-    const stale = { ...rows[0], id: "stale-dupe", observedAt: "2026-07-01T00:00:00.000Z", title: "stale" };
-    const fresh = { ...rows[0], id: "fresh-dupe", observedAt: "2026-07-12T00:00:00.000Z", title: "fresh" };
+    const stale = { ...defined(rows[0]), id: "stale-dupe", observedAt: "2026-07-01T00:00:00.000Z", title: "stale" };
+    const fresh = { ...defined(rows[0]), id: "fresh-dupe", observedAt: "2026-07-12T00:00:00.000Z", title: "fresh" };
     const deduped = dedupeRows([stale, fresh] as unknown as WhatsOnRow[]);
     expect(deduped).toHaveLength(1);
-    expect(deduped[0].title).toBe("fresh");
+    expect(defined(deduped[0]).title).toBe("fresh");
   });
 });
 
@@ -226,7 +227,7 @@ describe("buildSportFixtureRowsWithDiagnostics", () => {
   const observedAt = "2026-07-12T00:00:00.000Z";
 
   it("reports a dropped fixture with its reason, never silently", () => {
-    const badFixture = { ...SPORT_FIXTURES[0], kickoffLondonTime: "not-a-time" };
+    const badFixture = { ...defined(SPORT_FIXTURES[0]), kickoffLondonTime: "not-a-time" };
     const { rows, diagnostics } = buildSportFixtureRowsWithDiagnostics({
       attributeRows: [ARKLES],
       fixtures: [badFixture],
@@ -243,7 +244,7 @@ describe("buildSportFixtureRowsWithDiagnostics", () => {
   it("reports dropped (fixture, pub) pairs with a reason, never silently", () => {
     const { rows, diagnostics } = buildSportFixtureRowsWithDiagnostics({
       attributeRows: [{ ...ARKLES, placeName: undefined }, { ...ARKLES, source: {} }],
-      fixtures: [SPORT_FIXTURES[0]],
+      fixtures: [defined(SPORT_FIXTURES[0])],
       observedAt,
     });
     expect(rows).toHaveLength(0);

@@ -71,28 +71,30 @@ export function contributionStreak(
     new Set(dropIsoTimestamps.map((iso) => londonDayKey(iso)).filter(Boolean)),
   ).sort(); // ascending YYYY-MM-DD
 
-  if (days.length === 0) {
+  const lastDay = days.at(-1);
+  if (lastDay === undefined) {
     return { current: 0, longest: 0, activeDays: 0, lastDay: "" };
   }
+  // Each active day after the first, paired with the one before it.
+  const steps = days.slice(1).map((day, i) => daysBetween(days[i] ?? day, day));
 
   // Longest run: walk ascending, resetting whenever the gap to the previous
   // active day is more than one calendar day.
   let longest = 1;
   let run = 1;
-  for (let i = 1; i < days.length; i++) {
-    run = daysBetween(days[i - 1], days[i]) === 1 ? run + 1 : 1;
+  for (const step of steps) {
+    run = step === 1 ? run + 1 : 1;
     if (run > longest) longest = run;
   }
 
   // Current run: only "live" if the last active day is today or yesterday.
   const today = londonDayKey(now);
-  const lastDay = days[days.length - 1];
   const gapToNow = daysBetween(lastDay, today);
   let current = 0;
   if (gapToNow === 0 || gapToNow === 1) {
     current = 1;
-    for (let i = days.length - 1; i > 0; i--) {
-      if (daysBetween(days[i - 1], days[i]) === 1) current += 1;
+    for (const step of [...steps].reverse()) {
+      if (step === 1) current += 1;
       else break;
     }
   }

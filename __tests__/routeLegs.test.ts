@@ -15,6 +15,7 @@ import {
 } from "@/lib/routeLegs";
 import type { Venue } from "@/lib/venues";
 import type { Poi } from "@/lib/pois";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Minimal Venue fixture — routeLegs only reads id/name/latitude/longitude.
 function v(id: string, name: string, longitude: number, latitude: number): Venue {
@@ -63,10 +64,10 @@ describe("buildRouteLegs", () => {
     ];
     const summary = buildRouteLegs(route);
     expect(summary.legs).toHaveLength(2);
-    expect(summary.legs[0].fromIndex).toBe(0);
-    expect(summary.legs[0].toIndex).toBe(1);
-    expect(summary.legs[1].fromIndex).toBe(1);
-    expect(summary.legs[1].toIndex).toBe(2);
+    expect(defined(summary.legs[0]).fromIndex).toBe(0);
+    expect(defined(summary.legs[0]).toIndex).toBe(1);
+    expect(defined(summary.legs[1]).fromIndex).toBe(1);
+    expect(defined(summary.legs[1]).toIndex).toBe(2);
   });
 
   it("sums leg distance and minutes into the route total", () => {
@@ -87,7 +88,7 @@ describe("buildRouteLegs", () => {
     expect(buildRouteLegs(route).pace).toBe("walk");
     const runSummary = buildRouteLegs(route, "run");
     expect(runSummary.pace).toBe("run");
-    expect(runSummary.legs[0].pace).toBe("run");
+    expect(defined(runSummary.legs[0]).pace).toBe("run");
   });
 });
 
@@ -148,21 +149,21 @@ describe("withRoutedDistances", () => {
 
   it("upgrades a leg with its routed distance and relabels it routed", () => {
     const straight = buildRouteLegs(route);
-    const routedLeg0Km = straight.legs[0].distanceKm + 0.2; // pavement is longer
+    const routedLeg0Km = defined(straight.legs[0]).distanceKm + 0.2; // pavement is longer
     const upgraded = withRoutedDistances(straight, new Map([[0, routedLeg0Km]]));
-    expect(upgraded.legs[0].distanceKm).toBeCloseTo(routedLeg0Km, 9);
-    expect(upgraded.legs[0].distanceBasis).toBe("routed");
-    expect(upgraded.legs[0].minutes).toBe(legMinutes(routedLeg0Km, "walk"));
-    expect(formatLeg(upgraded.legs[0])).toContain("walking route");
+    expect(defined(upgraded.legs[0]).distanceKm).toBeCloseTo(routedLeg0Km, 9);
+    expect(defined(upgraded.legs[0]).distanceBasis).toBe("routed");
+    expect(defined(upgraded.legs[0]).minutes).toBe(legMinutes(routedLeg0Km, "walk"));
+    expect(formatLeg(defined(upgraded.legs[0]))).toContain("walking route");
   });
 
   it("keeps an unrouted leg straight-line, verbatim", () => {
     const straight = buildRouteLegs(route);
     const upgraded = withRoutedDistances(straight, new Map([[0, 0.9]]));
     // Leg 1 got no routed entry — untouched distance, no routed basis.
-    expect(upgraded.legs[1].distanceKm).toBe(straight.legs[1].distanceKm);
-    expect(upgraded.legs[1].distanceBasis).toBeUndefined();
-    expect(formatLeg(upgraded.legs[1])).toContain("straight-line");
+    expect(defined(upgraded.legs[1]).distanceKm).toBe(defined(straight.legs[1]).distanceKm);
+    expect(defined(upgraded.legs[1]).distanceBasis).toBeUndefined();
+    expect(formatLeg(defined(upgraded.legs[1]))).toContain("straight-line");
   });
 
   it("marks the total routed only when EVERY leg is routed", () => {
@@ -180,16 +181,16 @@ describe("withRoutedDistances", () => {
   it("ignores a non-positive routed distance (keeps the straight leg)", () => {
     const straight = buildRouteLegs(route);
     const upgraded = withRoutedDistances(straight, new Map([[0, 0]]));
-    expect(upgraded.legs[0].distanceBasis).toBeUndefined();
-    expect(upgraded.legs[0].distanceKm).toBe(straight.legs[0].distanceKm);
+    expect(defined(upgraded.legs[0]).distanceBasis).toBeUndefined();
+    expect(defined(upgraded.legs[0]).distanceKm).toBe(defined(straight.legs[0]).distanceKm);
   });
 
   it("does not mutate the input summary", () => {
     const straight = buildRouteLegs(route);
-    const before = straight.legs[0].distanceKm;
+    const before = defined(straight.legs[0]).distanceKm;
     withRoutedDistances(straight, new Map([[0, before + 0.5]]));
-    expect(straight.legs[0].distanceKm).toBe(before);
-    expect(straight.legs[0].distanceBasis).toBeUndefined();
+    expect(defined(straight.legs[0]).distanceKm).toBe(before);
+    expect(defined(straight.legs[0]).distanceBasis).toBeUndefined();
   });
 });
 
@@ -208,8 +209,8 @@ describe("poisOnLeg", () => {
     const near = poi("market-1", "market", -0.0901, 51.5051); // ~a few metres from `from`
     const results = poisOnLeg(leg, [near]);
     expect(results).toHaveLength(1);
-    expect(results[0].poi.id).toBe("market-1");
-    expect(results[0].km).toBeLessThanOrEqual(ON_THE_WAY_KM);
+    expect(defined(results[0]).poi.id).toBe("market-1");
+    expect(defined(results[0]).km).toBeLessThanOrEqual(ON_THE_WAY_KM);
   });
 
   it("excludes a POI outside the threshold distance", () => {
@@ -235,7 +236,7 @@ describe("poisOnLeg", () => {
     const nearer = poi("historic-near", "historic", -0.0901, 51.5051);
     const fartherButInRange = poi("historic-far", "historic", -0.088, 51.507);
     const results = poisOnLeg(leg, [fartherButInRange, nearer]);
-    expect(results[0].poi.id).toBe("historic-near");
+    expect(defined(results[0]).poi.id).toBe("historic-near");
   });
 
   it("respects a custom withinKm override", () => {
@@ -257,6 +258,6 @@ describe("poisOnRoute", () => {
     const byLeg = poisOnRoute(summary.legs, [nearby]);
     expect(byLeg.has(0)).toBe(true);
     expect(byLeg.has(1)).toBe(false);
-    expect(byLeg.get(0)?.[0].poi.id).toBe("market-1");
+    expect(defined(byLeg.get(0)?.[0]).poi.id).toBe("market-1");
   });
 });

@@ -46,7 +46,7 @@ function viewFor(
 ): TodayPintsView {
   const id = resolveTodayPintsPatchId(remembered, index);
   return {
-    pints: id ? index[id] : null,
+    pints: id ? (index[id] ?? null) : null,
     hasRememberedLocality:
       remembered?.kind === "patch" && id === remembered.id,
   };

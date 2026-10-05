@@ -16,6 +16,7 @@
 // taps the one quiet control that asks. The landing never asks on arrival:
 // `?locate=1` is the geolocation ask and it rides a deliberate tap alone.
 
+import type { Route } from "next";
 import {
   legacyPintPriceObservedAt,
   legacyPintPriceObservedOn,
@@ -105,11 +106,12 @@ export const LANDING_FALLBACK_RECEIPT_LABEL = "Log what you paid";
  * ignores anything that is not a positive GBP figure, the field stays editable,
  * and nothing is written until the drinker presses Log it.
  */
-export function pintDropDoorHref(venueId: string, priceGbp?: number): string {
+export function pintDropDoorHref(venueId: string, priceGbp?: number): Route {
   const door = `${venueMapUrl(venueId)}&log=1`;
-  return typeof priceGbp === "number" && Number.isFinite(priceGbp) && priceGbp > 0
+  // `door` is a venueMapUrl() Route with its query open, so appending keeps it one.
+  return (typeof priceGbp === "number" && Number.isFinite(priceGbp) && priceGbp > 0
     ? `${door}&price=${priceGbp.toFixed(2)}`
-    : door;
+    : door) as Route;
 }
 
 /** The line above the answer card. */
@@ -147,7 +149,7 @@ const TONIGHT_DOOR_HREF = "/tonight";
 const TONIGHT_DOOR_LABEL = "Tonight";
 
 export type LandingQuietDoor = {
-  href: string;
+  href: Route;
   label: string;
   /** The `landing_cta_clicked` target this door reports. */
   cta: "tonight";

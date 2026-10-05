@@ -6,6 +6,7 @@ import {
   venueExternalActions,
 } from "@/lib/venueExternalActions";
 import type { Venue } from "@/lib/venues";
+import { defined } from "@/__tests__/helpers/defined";
 
 function venue(over: Partial<Venue> = {}): Venue {
   return {
@@ -155,7 +156,7 @@ describe("venueExternalActions", () => {
       label: "Find booking",
       tier: "search",
     });
-    expect(actions[0].href).toContain("https://www.google.com/maps/search");
+    expect(defined(actions[0]).href).toContain("https://www.google.com/maps/search");
   });
 
   it("surfaces Book a table when bookingLink is http(s)", () => {

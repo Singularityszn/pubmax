@@ -29,6 +29,7 @@ import {
   commandsForMode,
 } from "../scripts/local-refresh/scheduler.mjs";
 import { isValidWhatsOnRow } from "@/lib/whatsOn";
+import { defined } from "@/__tests__/helpers/defined";
 
 const temporaryDirs: string[] = [];
 afterAll(() => {
@@ -228,7 +229,7 @@ describe("sourceId dedupe", () => {
     )!;
     const deduped = dedupeEventRowsBySourceId([first, second]);
     expect(deduped).toHaveLength(1);
-    expect(deduped[0].sourceId).toBe("tm-theatre-1");
+    expect(defined(deduped[0]).sourceId).toBe("tm-theatre-1");
   });
 });
 
@@ -282,7 +283,7 @@ describe("local scheduler events mode", () => {
     expect(commands.every((command) => command.independent === true)).toBe(true);
     // And the Common lane declares no key requirement, so a keyless machine
     // still runs it.
-    expect(commands[1].requiresAnyKey).toBeUndefined();
+    expect(defined(commands[1]).requiresAnyKey).toBeUndefined();
   });
 });
 
@@ -678,10 +679,10 @@ describe("exactly one owner of the Common crawl per run", () => {
     // per run is what this flag exists to stop.
     const schedulerLanes = commandsForMode("events", false);
     const eventsLane = schedulerLanes.find((command) =>
-      command.args[0].endsWith("eventsRefresh.mjs"),
+      defined(command.args[0]).endsWith("eventsRefresh.mjs"),
     );
     const commonLanes = schedulerLanes.filter((command) =>
-      command.args[0].endsWith("commonRefresh.mjs"),
+      defined(command.args[0]).endsWith("commonRefresh.mjs"),
     );
     expect(eventsLane).toBeDefined();
     expect(eventsLane?.args).not.toContain(WITH_COMMON_FLAG);
@@ -951,7 +952,7 @@ describe("CLI entry point", () => {
       `node ${EVENTS_REFRESH_NODE_ARGS.join(" ")} scripts/whatson/eventsRefresh.mjs`,
     );
     const eventsLane = commandsForMode("events", false).find((command) =>
-      command.args[0].endsWith("eventsRefresh.mjs"),
+      defined(command.args[0]).endsWith("eventsRefresh.mjs"),
     );
     expect(eventsLane?.nodeArgs).toEqual(EVENTS_REFRESH_NODE_ARGS);
   });

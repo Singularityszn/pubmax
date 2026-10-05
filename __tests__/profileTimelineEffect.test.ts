@@ -47,6 +47,7 @@ vi.mock("@/lib/optimisticToggle", () => ({
 }));
 
 import ProfileTimeline from "@/components/profile/ProfileTimeline";
+import { defined } from "@/__tests__/helpers/defined";
 
 const DROP = {
   id: "drop-1",
@@ -120,7 +121,7 @@ describe("ProfileTimeline reaction effect cleanup", () => {
     const baseline = { "drop-1": { counts: { cheers: 2 }, mine: [] } };
     harness.states[0] = baseline;
 
-    await expect(cards[0].props.onToggleReaction("drop-1", "cheers")).resolves.toBe(false);
+    await expect(defined(cards[0]).props.onToggleReaction("drop-1", "cheers")).resolves.toBe(false);
     expect(harness.states[0]).toEqual(baseline);
     expect(harness.post).toHaveBeenCalledWith({
       id: "drop-1",

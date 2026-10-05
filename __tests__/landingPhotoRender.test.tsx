@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -32,6 +33,7 @@ import LandingSkylinePreload from "@/components/landing/LandingSkylinePreload";
 import { landingPhotoFor, LANDING_PHOTOS, PUB_PHOTOS } from "@/lib/landingImagery";
 import type { LandingArchiveIndex } from "@/lib/landingHero";
 import type { LandingPubCardData } from "@/lib/landingPubCard";
+import { defined } from "@/__tests__/helpers/defined";
 
 // What a reader really gets (captain 6 Sep 2026): a landing carries a
 // photograph of London, credited, and it never carries the venue lane's
@@ -40,12 +42,12 @@ import type { LandingPubCardData } from "@/lib/landingPubCard";
 const anchorId = Object.keys(PUB_PHOTOS)[0];
 
 const card: LandingPubCardData = {
-  id: anchorId,
+  id: defined(anchorId),
   name: "The Black Friar",
   area: "City of London",
   priceGbp: 6.5,
   pintName: "a pint of Pravha",
-  drinkHref: "/drink/pravha",
+  drinkHref: "/drink/pravha" as Route,
   publisher: { label: "pint-prices.com", url: "https://www.pint-prices.com/pub/x" },
   observedOn: "2026-07-03",
   standing: "listed",
@@ -90,7 +92,7 @@ describe("the home document ships the skyline preload", () => {
 
 describe("the landing hero stands on a photograph", () => {
   const html = hero();
-  const anchorPhoto = LANDING_PHOTOS[PUB_PHOTOS[anchorId]];
+  const anchorPhoto = defined(LANDING_PHOTOS[defined(PUB_PHOTOS[defined(anchorId)])]);
 
   it("shows the anchor pub's own photograph, in both formats and both widths", () => {
     expect(html).toContain(`/landing/london/${anchorPhoto.id}-640.avif 640w`);
@@ -176,7 +178,7 @@ describe("a borough chapter carries its own photograph", () => {
     );
     expect(html).toContain("landingPhoto--band");
     expect(html).toContain("/landing/london/camden-lock-640.avif 640w");
-    expect(html).toContain(LANDING_PHOTOS["camden-lock"].credit.author);
+    expect(html).toContain(defined(LANDING_PHOTOS["camden-lock"]).credit.author);
     expect(html).not.toContain("No photo yet");
   });
 

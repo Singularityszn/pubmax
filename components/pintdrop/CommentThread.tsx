@@ -421,13 +421,14 @@ function insertThreaded(list: Comment[], posted: Comment): Comment[] {
   if (!posted.parentId) return [...list, posted];
   const out: Comment[] = [];
   let inserted = false;
-  for (let i = 0; i < list.length; i += 1) {
-    out.push(list[i]);
+  for (const [i, comment] of list.entries()) {
+    out.push(comment);
     const isLastOfGroup =
-      list[i].id === posted.parentId || list[i].parentId === posted.parentId;
+      comment.id === posted.parentId || comment.parentId === posted.parentId;
+    const next = list[i + 1];
     const nextBelongs =
-      i + 1 < list.length &&
-      (list[i + 1].id === posted.parentId || list[i + 1].parentId === posted.parentId);
+      next !== undefined &&
+      (next.id === posted.parentId || next.parentId === posted.parentId);
     if (!inserted && isLastOfGroup && !nextBelongs) {
       out.push(posted);
       inserted = true;

@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import Image, { size } from "@/app/u/[handle]/opengraph-image";
 import { HANDLE_MAX } from "@/lib/profiles";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The profile share card is the preview every /u/<handle> link unfurls to. It
 // once threw on every handle: `@{handle}` renders two text children, and satori
@@ -25,8 +26,8 @@ async function inkMap(png: Buffer) {
     const i = (y * info.width + x) * info.channels;
     return [data[i], data[i + 1], data[i + 2]];
   };
-  const near = ([r, g, b]: number[], [R, G, B]: number[]) =>
-    Math.abs(r - R) + Math.abs(g - G) + Math.abs(b - B) < 60;
+  const near = ([r, g, b]: readonly (number | undefined)[], [R, G, B]: readonly number[]) =>
+    Math.abs(defined(r) - defined(R)) + Math.abs(defined(g) - defined(G)) + Math.abs(defined(b) - defined(B)) < 60;
   const isCream = (x: number, y: number) => near(at(x, y), [0xec, 0xe3, 0xd2]);
   const isBrass = (x: number, y: number) => near(at(x, y), [0xd3, 0xa4, 0x4a]);
   return { width: info.width, isCream, isBrass };

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { NormalizedCheckInInput } from "@/lib/checkIn";
 import { __resetMemoryCheckIns, checkInStore } from "@/lib/checkInStore";
 import { __resetMemoryProfiles } from "@/lib/profileStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Keyless env → selectStore returns the in-memory backend (vitest.setup strips
 // SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY). This exercises the memory store.
@@ -48,8 +49,8 @@ describe("checkInStore (memory)", () => {
     const rows = await store.listByHandles(["karan", "amy"]);
     expect(rows).toHaveLength(2);
     // newest first — the karan row was created last.
-    expect(rows[0].handle).toBe("karan");
-    expect(rows[1].handle).toBe("amy");
+    expect(defined(rows[0]).handle).toBe("karan");
+    expect(defined(rows[1]).handle).toBe("amy");
   });
 
   it("returns [] for an empty handle list (no scan)", async () => {
@@ -81,7 +82,7 @@ describe("checkInStore (memory)", () => {
     const created = await store.create(input({ handle: "karan", areaSlug: null, note: null }));
     expect(created.areaSlug).toBeNull();
     const [row] = await store.listByHandles(["karan"]);
-    expect(row.areaSlug).toBeNull();
+    expect(defined(row).areaSlug).toBeNull();
   });
 
   it("deleteForHandle removes every check-in a handle authored (cascade helper)", async () => {

@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import { MapPin } from "lucide-react";
 import Link from "next/link";
 import { type ReactNode } from "react";
@@ -8,6 +9,7 @@ import FoundingMemberMark from "@/components/founding/FoundingMemberMark";
 import ProfileCoverCarousel from "@/components/profile/ProfileCoverCarousel";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import ProfileSocialLinks from "@/components/profile/ProfileSocialLinks";
+import { profilePath } from "@/lib/appLink";
 import { displayHandle } from "@/lib/handleDisplay";
 import { profileCoverUrls } from "@/lib/profileCovers";
 import {
@@ -59,7 +61,7 @@ function ProfileStatTile({
 }: {
   label: string;
   value: number | string;
-  href: string;
+  href: Route;
   hint: string;
 }) {
   return (
@@ -154,7 +156,9 @@ export default function ProfileHeader({
   const facts = cardFacts(profile);
   // Tiles link within this profile, so /u/you keeps its own sentinel route
   // rather than bouncing a signed-in reader to a handle they have not claimed.
-  const profileBase = `/u/${encodeURIComponent(handle)}`;
+  const profileBase = profilePath(handle);
+  // Sub-pages and anchors of /u/[handle], a dynamic route.
+  const profileHref = (suffix: string): Route => `${profileBase}${suffix}` as Route;
 
   const crawlsPosted =
     crawls === null
@@ -256,20 +260,20 @@ export default function ProfileHeader({
         <ProfileStatTile
           label="Pints logged"
           value={stats.pintsLogged}
-          href={`${profileBase}#timeline`}
+          href={profileHref("#timeline")}
           hint="Open the pint timeline"
         />
         <ProfileStatTile
           label="Cheapest pint"
           value={formatCheapestPint(stats.cheapestPintGbp)}
-          href={`${profileBase}#timeline`}
+          href={profileHref("#timeline")}
           hint="Open the pint timeline"
         />
         {typeof followers === "number" ? (
           <ProfileStatTile
             label="Followers"
             value={followers}
-            href={`${profileBase}/people/followers`}
+            href={profileHref("/people/followers")}
             hint="See who follows this handle"
           />
         ) : null}
@@ -277,20 +281,20 @@ export default function ProfileHeader({
           <ProfileStatTile
             label="Following"
             value={following}
-            href={`${profileBase}/people/following`}
+            href={profileHref("/people/following")}
             hint="See who this handle follows"
           />
         ) : null}
         <ProfileStatTile
           label="Crawls"
           value={formatStatCount(crawlsPosted)}
-          href={`${profileBase}#crawl-stories`}
+          href={profileHref("#crawl-stories")}
           hint="Open the published crawls"
         />
         <ProfileStatTile
           label="Memories"
           value={memoriesPosted}
-          href={`${profileBase}#night-memories`}
+          href={profileHref("#night-memories")}
           hint="Open night memories"
         />
       </div>

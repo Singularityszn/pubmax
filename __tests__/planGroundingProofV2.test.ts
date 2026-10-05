@@ -10,6 +10,7 @@ import {
   verifyPlanGroundingProof,
   type MintPlanGroundingProofV2Input,
 } from "@/lib/planGrounding.server";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ISSUED_AT = Date.parse("2026-07-24T12:00:00.000Z");
 const OPERATION = "create-operation-a";
@@ -28,7 +29,7 @@ function routeInput(overrides: Partial<MintPlanGroundingProofV2Input> = {}): Min
 
 function reEncode(proof: string, mutate: (payload: Record<string, unknown>) => void): string {
   const [encoded, signature] = proof.split(".");
-  const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as Record<string, unknown>;
+  const payload = JSON.parse(Buffer.from(defined(encoded), "base64url").toString("utf8")) as Record<string, unknown>;
   mutate(payload);
   const nextEncoded = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
   return `${nextEncoded}.${signature}`;

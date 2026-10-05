@@ -14,6 +14,7 @@ import {
   type IndexVenueFact,
 } from "@/lib/pintIndexFromConfirmations";
 import { LONDON_BOROUGH_CLASSIFIER_VERSION } from "@/lib/londonBoroughPoint.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 const GENERATED_AT = "2026-09-30T09:00:00.000Z";
 const SEEN_ON = "2026-09-02T20:00:00.000Z";
@@ -89,7 +90,7 @@ describe("the September edition", () => {
       boroughName: "Camden",
       boroughCode: "camden",
       pricePence: 420,
-      sourceId: source.id,
+      sourceId: defined(source).id,
     });
   });
 

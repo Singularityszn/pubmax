@@ -20,6 +20,7 @@ import {
   readIcoMembers,
 } from "@/lib/brandIconAssets.mjs";
 import { MARK_POLYGONS as OG_MARK_POLYGONS } from "@/lib/ogBrand";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The installed home-screen icon is the one brand surface nobody looks at
 // twice, so it rotted quietly: four modules each kept their own copy of the
@@ -162,7 +163,7 @@ describe("every committed icon matches a fresh regeneration", () => {
     expect(committed.map((m) => m.size)).toEqual([16, 32, 48]);
     expect(fresh.map((m) => m.size)).toEqual([16, 32, 48]);
     for (let i = 0; i < committed.length; i += 1) {
-      await expectSamePixels(committed[i].png, fresh[i].png, `ico ${committed[i].size}`);
+      await expectSamePixels(defined(committed[i]).png, defined(fresh[i]).png, `ico ${defined(committed[i]).size}`);
     }
   });
 
@@ -196,9 +197,9 @@ describe("the shipped tiles obey the icon policy", () => {
       for (let x = 0; x < width; x += 1) {
         const i = (y * width + x) * channels;
         const off =
-          Math.abs(data[i] - field[0]) +
-          Math.abs(data[i + 1] - field[1]) +
-          Math.abs(data[i + 2] - field[2]);
+          Math.abs(defined(data[i]) - defined(field[0])) +
+          Math.abs(defined(data[i + 1]) - defined(field[1])) +
+          Math.abs(defined(data[i + 2]) - defined(field[2]));
         if (off > 90) {
           if (x < minX) minX = x;
           if (x > maxX) maxX = x;
@@ -293,7 +294,7 @@ describe("what the head and the manifest point at exists", () => {
 
   it("lists only generated files in the manifest", () => {
     for (const icon of manifest.icons) {
-      const name = icon.src.split("?", 1)[0].replace(/^\//, "");
+      const name = defined(icon.src.split("?", 1)[0]).replace(/^\//, "");
       expect(`${icon.src} is generated`).toBe(
         `${icon.src} is ${built.has(name) ? "generated" : "MISSING"}`,
       );
@@ -317,7 +318,7 @@ describe("what the head and the manifest point at exists", () => {
     const iconUrlPattern =
       /url: "(\/(?:favicon|icon|apple-touch-icon)[^"]+\.(?:png|svg|ico))(?:\?[^"]+)?"/g;
     for (const url of layout.matchAll(iconUrlPattern)) {
-      const name = url[1].replace(/^\//, "");
+      const name = defined(url[1]).replace(/^\//, "");
       expect(`${url[1]} is generated`).toBe(
         `${url[1]} is ${built.has(name) ? "generated" : "MISSING"}`,
       );

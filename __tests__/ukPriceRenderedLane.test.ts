@@ -3,6 +3,7 @@ import path from "node:path";
 import { appendFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { dedupeSiteHarvestLedgerRows } from "@/lib/siteHarvestLedgerCore";
+import { defined } from "@/__tests__/helpers/defined";
 
 vi.mock("node:fs", () => ({
   existsSync: (file: string) => file.endsWith("uk_osm_pubs.json"),
@@ -46,8 +47,8 @@ describe("rendered price ledger", () => {
     await import("../scripts/harvest/uk-prices/render.mjs");
     const writes = vi.mocked(appendFileSync).mock.calls;
     expect(writes).toHaveLength(1);
-    expect(writes[0][0]).toBe(path.join(process.cwd(), "data-harvest/uk_prices/rows.jsonl"));
-    const rows = String(writes[0][1]).trim().split("\n").map((line) => JSON.parse(line));
+    expect(defined(writes[0])[0]).toBe(path.join(process.cwd(), "data-harvest/uk_prices/rows.jsonl"));
+    const rows = String(defined(writes[0])[1]).trim().split("\n").map((line) => JSON.parse(line));
     const deduped = dedupeSiteHarvestLedgerRows(rows, new Map());
     expect(deduped.filter((row) => row.drinkLabel === "Chardonnay, France")).toEqual([
       expect.objectContaining({ servingSize: "125ml", priceGbp: 5.5 }),

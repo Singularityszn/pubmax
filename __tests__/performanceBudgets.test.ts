@@ -24,6 +24,7 @@ import {
   type RouteMeasurement,
   type SampleRow,
 } from "@/lib/performanceBudgets";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The budget's own fence. The measuring runs in a browser (e2e/performance
 // -budget.spec.ts), so the RULES are pinned here where they cost nothing:
@@ -121,7 +122,7 @@ describe("findBudgetBreaches", () => {
     );
 
     expect(breaches.map((breach) => breach.metric)).toEqual(["lcpMs"]);
-    expect(Number.isNaN(breaches[0].measured)).toBe(true);
+    expect(Number.isNaN(defined(breaches[0]).measured)).toBe(true);
   });
 
   it("fails a route nobody measured rather than reading silence as a pass", () => {
@@ -421,7 +422,7 @@ describe("judgeBudgets", () => {
     const verdict = judge(lcps(392, 400, 408));
     expect(verdict.unmeasured).toEqual([]);
     expect(verdict.breaches.map((breach) => breach.metric)).toEqual(["lcpMs"]);
-    expect(verdict.breaches[0].measured).toBe(400);
+    expect(defined(verdict.breaches[0]).measured).toBe(400);
   });
 
   it("reports a wide run that straddles its ceiling as unmeasured rather than breached", () => {
@@ -466,7 +467,7 @@ describe("judgeBudgets", () => {
     const verdict = judge(lcps(320, 800, 1200));
     expect(verdict.unmeasured).toEqual([]);
     expect(verdict.breaches.map((breach) => breach.metric)).toEqual(["lcpMs"]);
-    expect(verdict.breaches[0].measured).toBe(800);
+    expect(defined(verdict.breaches[0]).measured).toBe(800);
   });
 
   it("draws the line at the ceiling itself", () => {
@@ -491,7 +492,7 @@ describe("judgeBudgets", () => {
     );
     expect(verdict.breaches).toEqual([]);
     expect(verdict.unmeasured.map((entry) => entry.metric)).toEqual(["lcpMs"]);
-    expect(verdict.unmeasured[0].median).toBe(290);
+    expect(defined(verdict.unmeasured[0]).median).toBe(290);
   });
 
   it("says nothing about a wide run that never reached its ceiling", () => {
@@ -548,7 +549,7 @@ describe("judgeBudgets", () => {
     );
     expect(verdict.unmeasured).toEqual([]);
     expect(verdict.breaches.map((breach) => breach.metric)).toEqual(["requests"]);
-    expect(verdict.breaches[0].measured).toBe(60);
+    expect(defined(verdict.breaches[0]).measured).toBe(60);
   });
 
   it("fails a straddling run whose samples agreed, because that is the line rather than the noise", () => {
@@ -746,7 +747,7 @@ describe("the disjoint breach sets of 3ebac98ac", () => {
       } else {
         expect(lcpBreach).toEqual([]);
         expect(lcpUnmeasured).toHaveLength(1);
-        expect(lcpUnmeasured[0].median).toBe(median(samples));
+        expect(defined(lcpUnmeasured[0]).median).toBe(median(samples));
       }
     });
   }

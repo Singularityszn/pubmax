@@ -1,6 +1,8 @@
 // Thin city map href builder — no story-band or crawl catalog imports.
 // PubMap's shell chunk only needs the path; OG copy lives in cityShare.ts.
 
+import type { Route } from "next";
+
 import { parseCityId, type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
 
 export type CityMapHrefOptions = {
@@ -32,7 +34,7 @@ function normalizeCrawlId(raw: string | null | undefined): string | undefined {
 export function cityMapShareUrl(
   cityId: CityId | string | null | undefined,
   options: CityMapHrefOptions = {},
-): string {
+): Route {
   const id = resolveCityId(cityId);
   const path = id === "london" ? "/map" : `/map/${id}`;
   const params = new URLSearchParams();
@@ -41,7 +43,7 @@ export function cityMapShareUrl(
   if (band) params.set("band", band);
   if (crawl) params.set("crawl", crawl);
   const qs = params.toString();
-  return qs ? `${path}?${qs}` : path;
+  return (qs ? `${path}?${qs}` : path) as Route;
 }
 
 /**
@@ -50,7 +52,7 @@ export function cityMapShareUrl(
 export function cityAwareMapPath(
   cityId: CityId | string | null | undefined,
   query?: URLSearchParams | string | null,
-): string {
+): Route {
   const id = resolveCityId(cityId);
   const base = id === "london" ? "/map" : `/map/${id}`;
   const qs =
@@ -59,5 +61,5 @@ export function cityAwareMapPath(
       : query && [...query.keys()].length > 0
         ? query.toString()
         : "";
-  return qs ? `${base}?${qs}` : base;
+  return (qs ? `${base}?${qs}` : base) as Route;
 }

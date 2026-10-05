@@ -121,7 +121,7 @@ export function hostOf(website: string): string | null {
  */
 export function postcodeArea(postcode: string): string | null {
   const match = /^([A-Z]{1,2})\d/.exec(postcode.trim().toUpperCase());
-  return match ? match[1] : null;
+  return match?.[1] ?? null;
 }
 
 function chainFor(pub: EstimatablePub, baselines: EstimateBaselines): ChainBaseline | null {

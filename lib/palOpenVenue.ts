@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import { DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import { cityAwareMapPath } from "@/lib/curatedCrawls";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
@@ -11,8 +12,8 @@ import type { SlimVenue } from "@/lib/venuesSlim";
 export { UNKNOWN_MAP_SELECTION_NOTE as PAL_UNMATCHED_VENUE_NOTICE };
 
 export type PalVenueOpenTarget =
-  | { kind: "open"; href: string }
-  | { kind: "fallback"; href: string; notice: string };
+  | { kind: "open"; href: Route }
+  | { kind: "fallback"; href: Route; notice: string };
 
 /** Listed venue ids from the slim index — the one honest pre-check Pal can run client-side. */
 export function palKnownVenueIds(slim: readonly SlimVenue[]): ReadonlySet<string> {
@@ -24,7 +25,7 @@ export function palKnownVenueIds(slim: readonly SlimVenue[]): ReadonlySet<string
 }
 
 /** Map browse link with no `?sel=` — the unmatched fallback lands here. */
-function palMapBrowseHref(cityId: CityId | null = DEFAULT_CITY_ID): string {
+function palMapBrowseHref(cityId: CityId | null = DEFAULT_CITY_ID): Route {
   return cityAwareMapPath(
     cityId ?? DEFAULT_CITY_ID,
     `${MAP_SELECTION_NOTICE_PARAM}=unknown`,

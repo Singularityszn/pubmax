@@ -85,6 +85,7 @@ export function summariseWhatsOnByVenue(
   for (const [venueId, { kinds, count }] of kindsByVenue) {
     const ordered = KINDS_BY_PRIORITY.filter((k) => kinds.has(k));
     const heroKind = ordered[0];
+    if (!heroKind) continue;
     out.set(venueId, {
       venueId,
       heroKind,

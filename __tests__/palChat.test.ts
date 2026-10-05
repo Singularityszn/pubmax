@@ -13,6 +13,7 @@ import {
   formatPalWhen,
   palAnswerFromBody,
 } from "@/lib/palChat";
+import { defined } from "@/__tests__/helpers/defined";
 
 const VENUE_BODY = {
   intent: { mood: ["cosy"], groupSize: 4 },
@@ -113,7 +114,7 @@ describe("palAnswerFromBody — venue ranking", () => {
       venues: [{ id: "x", area: "Soho", reasons: [] }, ...VENUE_BODY.venues],
     });
     expect(answer.cards).toHaveLength(1);
-    expect(answer.cards[0].title).toBe("The Lamb");
+    expect(defined(answer.cards[0]).title).toBe("The Lamb");
   });
 });
 
@@ -170,7 +171,7 @@ describe("palAnswerFromBody — What's-On", () => {
       ],
     });
     expect(answer.cards).toHaveLength(1);
-    expect(answer.cards[0].key).toBe("wo-1");
+    expect(defined(answer.cards[0]).key).toBe("wo-1");
   });
 
   it("refuses honestly on a zero-row What's-On answer", () => {
@@ -200,7 +201,7 @@ describe("palAnswerFromBody — What's-On", () => {
         },
       ],
     });
-    expect(answer.cards[0].venueId).toBe("");
+    expect(defined(answer.cards[0]).venueId).toBe("");
   });
 });
 

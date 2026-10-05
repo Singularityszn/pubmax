@@ -20,6 +20,7 @@ import {
   ukBasePubFromFeature,
   ukBasePubsToGeoJSON,
 } from "@/lib/ukBasePubs";
+import { defined } from "@/__tests__/helpers/defined";
 
 // A synthetic three-cell grid. The cells are disjoint so "which cells does this
 // viewport need" is exact, and one of them is deliberately far away so an
@@ -146,7 +147,7 @@ describe("ukBasePubsToGeoJSON", () => {
 
   it("carries the whole record and NOTHING the price system could read", () => {
     const [feature] = ukBasePubsToGeoJSON(pubs).features;
-    expect(feature.properties).toEqual({
+    expect(defined(feature).properties).toEqual({
       id: "venue-uk-n1",
       name: "The Anchor",
       address: "1 Dock Road",
@@ -154,9 +155,9 @@ describe("ukBasePubsToGeoJSON", () => {
       provisional: false,
     });
     // No bucket / price / story: the price-colour system must find nothing here.
-    expect(feature.properties).not.toHaveProperty("bucket");
-    expect(feature.properties).not.toHaveProperty("cheapestPrice");
-    expect(feature.geometry).toEqual({ type: "Point", coordinates: [-0.18, 51.42] });
+    expect(defined(feature).properties).not.toHaveProperty("bucket");
+    expect(defined(feature).properties).not.toHaveProperty("cheapestPrice");
+    expect(defined(feature).geometry).toEqual({ type: "Point", coordinates: [-0.18, 51.42] });
   });
 
   it("gives an unpriced base pub outside the ranking nothing a pin could paint with", () => {
@@ -170,10 +171,10 @@ describe("ukBasePubsToGeoJSON", () => {
       modalMilliunits: 12_785,
     }).features;
 
-    expect(feature.properties).not.toHaveProperty("spoonsBucket");
-    expect(feature.properties).not.toHaveProperty("spoonsLabel");
-    expect(feature.properties).not.toHaveProperty("bucket");
-    expect(feature.properties).not.toHaveProperty("priceLabel");
+    expect(defined(feature).properties).not.toHaveProperty("spoonsBucket");
+    expect(defined(feature).properties).not.toHaveProperty("spoonsLabel");
+    expect(defined(feature).properties).not.toHaveProperty("bucket");
+    expect(defined(feature).properties).not.toHaveProperty("priceLabel");
   });
 
   it("binds a provisional mark by stable salted base id without adding price authority", () => {
@@ -217,7 +218,7 @@ describe("ukBasePubsToGeoJSON", () => {
 
   it("round-trips back to the pub a tap needs", () => {
     const [feature] = ukBasePubsToGeoJSON(pubs).features;
-    expect(ukBasePubFromFeature(feature)).toEqual(pubs[0]);
+    expect(ukBasePubFromFeature(defined(feature))).toEqual(pubs[0]);
   });
 
   it("refuses a feature that is not a base pin", () => {

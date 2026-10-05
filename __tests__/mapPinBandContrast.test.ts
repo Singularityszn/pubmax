@@ -16,6 +16,7 @@ import {
   UNPRICED_PIN_FILL,
   VENUE_PIN_FILL_TOKEN,
 } from "@/lib/mapIcons";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The dark theme's own values, read from the SHIPPED stylesheet rather than
 // restated here. That is the whole point of this file: the defect it guards
@@ -38,7 +39,7 @@ function darkBlock(): string {
 function darkToken(name: string): string {
   const match = new RegExp(`${name}:\\s*(#[0-9a-f]{6})`, "i").exec(darkBlock());
   expect(match, `${name} must be a plain hex in the dark theme block`).toBeTruthy();
-  return match![1].toLowerCase();
+  return defined(match![1]).toLowerCase();
 }
 
 function lightBlock(): string {
@@ -51,7 +52,7 @@ function lightBlock(): string {
 function lightToken(name: string): string {
   const match = new RegExp(`${name}:\\s*(#[0-9a-f]{6})`, "i").exec(lightBlock());
   expect(match, `${name} must be a plain hex in the light :root block`).toBeTruthy();
-  return match![1].toLowerCase();
+  return defined(match![1]).toLowerCase();
 }
 
 const LIGHT = {
@@ -84,13 +85,13 @@ function relativeLuminance(hex: string): number {
     const s = c / 255;
     return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
   });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return 0.2126 * defined(r) + 0.7152 * defined(g) + 0.0722 * defined(b);
 }
 
 /** WCAG 2 contrast ratio between two opaque hex colours. */
 function contrast(a: string, b: string): number {
   const [hi, lo] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x);
-  return (hi + 0.05) / (lo + 0.05);
+  return (defined(hi) + 0.05) / (defined(lo) + 0.05);
 }
 
 // Every opaque tone the dark basemap paints UNDER a pin. Roads now sit behind

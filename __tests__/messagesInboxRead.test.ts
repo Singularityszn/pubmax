@@ -90,6 +90,7 @@ import {
   INBOX_UNREAD_SCAN_CAP,
   supabaseMessagesStore,
 } from "@/lib/messagesStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 const C1 = "11111111-1111-4111-8111-111111111111";
 const C2 = "22222222-2222-4222-8222-222222222222";
@@ -176,7 +177,7 @@ describe("inbox read", () => {
     const { conversations: inbox } = await supabaseMessagesStore.listConversations("ken");
     const singles = state.queries.filter((q) => q.single);
     expect(singles).toHaveLength(1);
-    expect(filterValue(singles[0], "eq")).toEqual(["conversation_id", C2]);
+    expect(filterValue(defined(singles[0]), "eq")).toEqual(["conversation_id", C2]);
     expect(inbox[1]).toMatchObject({ id: C2, lastBody: "quiet one", lastFromMe: false });
   });
 
@@ -340,7 +341,7 @@ describe("inbox read is honest about what it could not do", () => {
 
     expect(status).toBe("degraded");
     expect(conversations.map((c) => c.id)).toEqual([C1, C2]);
-    expect(conversations[0].lastBody).toBe("still here");
+    expect(defined(conversations[0]).lastBody).toBe("still here");
     // UNCOUNTED IS NOT ZERO: the field is absent, so no surface can print a
     // confident nothing over a message that is waiting.
     for (const conversation of conversations) {
@@ -361,8 +362,8 @@ describe("inbox read is honest about what it could not do", () => {
 
     expect(status).toBe("degraded");
     expect(conversations.map((c) => c.id)).toEqual([C1, C2]);
-    expect(conversations[0].lastBody).toBeUndefined();
-    expect(conversations[0].unread).toBe(1);
+    expect(defined(conversations[0]).lastBody).toBeUndefined();
+    expect(defined(conversations[0]).unread).toBe(1);
   });
 
   it("only the CONVERSATIONS read may empty the inbox, and even then it says degraded", async () => {

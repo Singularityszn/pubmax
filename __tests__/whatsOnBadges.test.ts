@@ -12,6 +12,7 @@ import {
   summariseWhatsOnByVenue,
   WHATS_ON_KIND_META,
 } from "@/lib/whatsOnBadges";
+import { defined } from "@/__tests__/helpers/defined";
 
 function row(overrides: Partial<WhatsOnRow> & { kind: WhatsOnKind }): WhatsOnRow {
   return {
@@ -87,7 +88,7 @@ describe("laneCardsFromRows", () => {
     );
     const cards = laneCardsFromRows(rows, { limit: 3 });
     expect(cards).toHaveLength(3);
-    expect(cards[0].title).toBe("Quiz 0");
+    expect(defined(cards[0]).title).toBe("Quiz 0");
   });
 
   it("surfaces every fixture before repeating one fixture at another pub", () => {
@@ -118,15 +119,15 @@ describe("laneCardsFromRows", () => {
     const [card] = laneCardsFromRows([
       row({ kind: "quiz", venueId: "v1", priceGbp: 2 }),
     ]);
-    expect(card.venueId).toBe("v1");
-    expect(card.priceGbp).toBe(2);
-    expect(card.timeLabel).toBe("8:00 pm"); // 19:00Z = 20:00 BST
+    expect(defined(card).venueId).toBe("v1");
+    expect(defined(card).priceGbp).toBe(2);
+    expect(defined(card).timeLabel).toBe("8:00 pm"); // 19:00Z = 20:00 BST
   });
 
   it("leaves sport untimed (badge label instead of a clock)", () => {
     const [card] = laneCardsFromRows([row({ kind: "sport", venueId: "v1" })]);
-    expect(card.timeLabel).toBeNull();
-    expect(card.badgeLabel).toBe("Screens live sport");
+    expect(defined(card).timeLabel).toBeNull();
+    expect(defined(card).badgeLabel).toBe("Screens live sport");
   });
 
   it("adds a haversine walk label when near + venue coords are present", () => {
@@ -134,14 +135,14 @@ describe("laneCardsFromRows", () => {
       [row({ kind: "quiz", venueId: "v1", lat: 51.515, lng: -0.09 })],
       { near: { lat: 51.515, lng: -0.092 } },
     );
-    expect(card.walkLabel).toMatch(/^~\d+ min walk$/);
+    expect(defined(card).walkLabel).toMatch(/^~\d+ min walk$/);
   });
 
   it("omits walk label without a near origin", () => {
     const [card] = laneCardsFromRows([
       row({ kind: "quiz", venueId: "v1", lat: 51.515, lng: -0.09 }),
     ]);
-    expect(card.walkLabel).toBeUndefined();
+    expect(defined(card).walkLabel).toBeUndefined();
   });
 });
 

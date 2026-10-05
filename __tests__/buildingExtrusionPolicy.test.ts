@@ -6,6 +6,7 @@ import {
   buildingExtrusionHeightExpr,
   tameFillExtrusionLayers,
 } from "@/components/map/canvas/buildScene";
+import { defined } from "@/__tests__/helpers/defined";
 
 describe("building extrusion anti-Lego policy", () => {
   it("caps opacity hard so grey prisms never dominate inspector zoom", () => {
@@ -88,6 +89,6 @@ describe("building extrusion anti-Lego policy", () => {
     } as never);
 
     expect(added).toHaveLength(1);
-    expect(added[0].paint?.["fill-extrusion-vertical-gradient"]).toBe(true);
+    expect(defined(added[0]).paint?.["fill-extrusion-vertical-gradient"]).toBe(true);
   });
 });

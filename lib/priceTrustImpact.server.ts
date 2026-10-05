@@ -198,8 +198,9 @@ export async function reconcilePendingPriceTrust(
       task.category,
     );
     if (live.degraded || live.events.length > 1) return TRUST_UNAVAILABLE;
-    if (live.events.length === 1) {
-      return repairEventCredits(live.events[0], listed.observations);
+    const [only] = live.events;
+    if (only) {
+      return repairEventCredits(only, listed.observations);
     }
     const observations = asTrustObservations(listed.observations);
     if (!categoryIsTrusted(observations, now)) return TRUST_SYNCED;
