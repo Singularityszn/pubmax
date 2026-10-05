@@ -50,11 +50,11 @@ async function seedMomentGuest(page: Page): Promise<void> {
   });
 }
 
+const MOMENT_URL = process.env.PW_MOMENT_BASE_URL
+  ? `${process.env.PW_MOMENT_BASE_URL}/moment`
+  : "/moment";
+
 async function attachPhoto(page: Page): Promise<void> {
-  const momentUrl = process.env.PW_MOMENT_BASE_URL
-    ? `${process.env.PW_MOMENT_BASE_URL}/moment`
-    : "/moment";
-  await page.goto(momentUrl);
   await page.locator('input[type="file"]').setInputFiles({
     name: "night.png",
     mimeType: "image/png",
@@ -69,15 +69,25 @@ test.describe("Moment photo editor with the sign-in nudge armed", () => {
 
   test("a guest's first tap on Edit opens the editor before the nudge", async ({ page }) => {
     await seedMomentGuest(page);
+    // The first photo arms the "Own your memories" nudge, which then waits out
+    // an 8 s first-paint grace or the first tap. Hold the page's clock so only
+    // the Edit tap can end that grace, however slow the runner is.
+    const start = Date.now();
+    await page.clock.install({ time: start });
+    await page.clock.pauseAt(start + 5_000);
+    await page.goto(MOMENT_URL);
     await attachPhoto(page);
-    // The first photo arms the "Own your memories" nudge. It waits out its
-    // first-paint grace, which the Edit tap ends.
+    // The draft save that arms the nudge is debounced by 300 ms.
+    await page.clock.runFor(1_000);
     await expect
       .poll(() => page.evaluate(() => window.localStorage.getItem("pubmax:identityNudge:pending:v1")))
       .toBe("moment");
     await expect(page.getByRole("dialog", { name: "Own your memories" })).toHaveCount(0);
 
     await page.getByRole("button", { name: "Edit night.png" }).click();
+    // The tap has ended the grace. The editor is a lazy chunk whose Suspense
+    // reveal waits on timers, so let the page's time run again.
+    await page.clock.resume();
 
     await expect(page.getByRole("dialog", { name: "Edit photo" })).toBeVisible();
     await expect(page.getByRole("dialog", { name: "Own your memories" })).toBeVisible();
@@ -118,6 +128,7 @@ test.describe("Moment photo editor", () => {
       }
     });
 
+    await page.goto(MOMENT_URL);
     await attachPhoto(page);
     const originalDigest = await momentPreviewDigest(page);
 
