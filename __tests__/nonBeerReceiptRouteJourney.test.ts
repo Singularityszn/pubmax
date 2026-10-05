@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 const OWNER = "11111111-1111-4111-8111-111111111111";
 const PROFILE = "22222222-2222-4222-8222-222222222222";
@@ -207,8 +208,8 @@ it("retains a readable bill with an owner's nonbeer observation through the actu
   expect(response.status, await response.clone().text()).toBe(201);
   expect(await response.json()).toMatchObject({ ok: true, price: { venueId: VENUE, drinkCategory: "wine", priceGbp: 5.5 } });
   expect(state.prices).toHaveLength(1);
-  expect(state.prices[0]).toMatchObject({ actor: `profile:${PROFILE}`, contributor_handle: "receipt_owner" });
-  const key = state.prices[0].receipt_photo_key;
+  expect(defined(state.prices[0])).toMatchObject({ actor: `profile:${PROFILE}`, contributor_handle: "receipt_owner" });
+  const key = defined(state.prices[0]).receipt_photo_key;
   expect(key, "Accepted nonbeer price must retain its bill pointer").toBeTypeOf("string");
   if (!key) throw new Error("Accepted price lost its bill");
   const image = await imageReader.readUploadedImageObject(key);
@@ -249,7 +250,7 @@ it("keeps the documented price-only exception when a valid bill meets a Storage 
   expect(response.status, await response.clone().text()).toBe(201);
   expect(state.uploadAttempts).toBeGreaterThan(0);
   expect(state.prices).toHaveLength(1);
-  expect(state.prices[0]).toMatchObject({ price_pennies: 550, receipt_photo_key: null });
+  expect(defined(state.prices[0])).toMatchObject({ price_pennies: 550, receipt_photo_key: null });
   expect(state.objects.size).toBe(0);
   expect(console.log).toHaveBeenCalledWith(expect.stringContaining("community_prices.receipt_upload_failed"));
 });
@@ -265,7 +266,7 @@ it("uses the stranger's verified account rather than the asserted owner actor an
   const response = await submit(await bill(), "receipt-stranger");
   expect(response.status, await response.clone().text()).toBe(201);
   expect(state.prices).toHaveLength(1);
-  expect(state.prices[0]).toMatchObject({
+  expect(defined(state.prices[0])).toMatchObject({
     actor: `profile:${STRANGER_PROFILE}`, contributor_handle: "receipt_stranger",
   });
   expect(state.prices.some(row => row.actor === `profile:${PROFILE}`)).toBe(false);

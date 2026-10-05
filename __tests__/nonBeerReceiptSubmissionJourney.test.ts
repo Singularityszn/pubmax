@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 
 import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Actual multipart route, auth verifier, contribution gate and durable store.
 // Only the Supabase Auth, database and Storage SDK boundary is doubled.
@@ -306,10 +307,10 @@ describe("non-beer price submission and its bill", () => {
     expect(service.verifiedTokens).toContain("nonbeer-owner-token");
     expect(body).toMatchObject({ ok: true, price: { venueId: VENUE_ID, drinkCategory: category, priceGbp: 5.5 } });
     expect(service.prices).toHaveLength(1);
-    expect(service.prices[0]).toMatchObject({ actor: "profile:nonbeer-profile-owner", contributor_handle: "receipt_owner" });
+    expect(defined(service.prices[0])).toMatchObject({ actor: "profile:nonbeer-profile-owner", contributor_handle: "receipt_owner" });
     expect(service.drops).toEqual([]);
     expect(service.acceptedUploads).toBe(1);
-    const key = service.prices[0].receipt_photo_key;
+    const key = defined(service.prices[0]).receipt_photo_key;
     expect(key).toBeTypeOf("string");
     const stored = await readUploadedImageObject(String(key));
     expect(stored.ok).toBe(true);
@@ -344,7 +345,7 @@ describe("non-beer price submission and its bill", () => {
       expect(price).not.toHaveProperty("receiptPhotoKey");
     }
     expect(service.drops).toEqual([]);
-    expect(service.prices[0].actor).toBe("profile:nonbeer-profile-owner");
+    expect(defined(service.prices[0]).actor).toBe("profile:nonbeer-profile-owner");
   });
 
   it("keeps the receipt-required gate for wine", async () => {
@@ -404,7 +405,7 @@ describe("non-beer bill retention through failures and corrections", () => {
     vi.setSystemTime(new Date(LATER));
     await accepted(await POST(request("wine", await bill(), "nonbeer-owner-token", "6.50")), 6.5);
     expect(service.prices).toHaveLength(1);
-    const saved = service.prices[0];
+    const saved = defined(service.prices[0]);
     expect(saved).toMatchObject({ id: "prior-owned-observation", price_pennies: 650 });
     expect(saved.receipt_photo_key).toBeTypeOf("string");
     expect(saved.receipt_photo_key).not.toBe(old);
@@ -419,7 +420,7 @@ describe("non-beer bill retention through failures and corrections", () => {
   it("keeps a newer owned bill and removes only this stale attempt's upload", async () => {
     const old = await seedObservation(LATER, 650);
     await accepted(await POST(request("wine", await bill())), 6.5);
-    expect(service.prices[0]).toMatchObject({ id: "prior-owned-observation", price_pennies: 650, receipt_photo_key: old });
+    expect(defined(service.prices[0])).toMatchObject({ id: "prior-owned-observation", price_pennies: 650, receipt_photo_key: old });
     expect(service.acceptedUploads).toBe(1);
     expect(service.removedKeys).toHaveLength(1);
     expect(service.removedKeys).not.toContain(old);
@@ -430,9 +431,9 @@ describe("non-beer bill retention through failures and corrections", () => {
   it("accepts the existing equal-timestamp correction and its new bill", async () => {
     const old = await seedObservation();
     await accepted(await POST(request("wine", await bill(), "nonbeer-owner-token", "6.50")), 6.5);
-    expect(service.prices[0]).toMatchObject({ id: "prior-owned-observation", price_pennies: 650 });
-    expect(service.prices[0].receipt_photo_key).toBeTypeOf("string");
-    expect(service.prices[0].receipt_photo_key).not.toBe(old);
+    expect(defined(service.prices[0])).toMatchObject({ id: "prior-owned-observation", price_pennies: 650 });
+    expect(defined(service.prices[0]).receipt_photo_key).toBeTypeOf("string");
+    expect(defined(service.prices[0]).receipt_photo_key).not.toBe(old);
     expect(service.removedKeys).toEqual([old]);
     expect(service.objects.size).toBe(1);
   });
@@ -443,7 +444,7 @@ describe("non-beer bill retention through failures and corrections", () => {
     expect(service.uploadAttempts).toBe(1);
     expect(service.acceptedUploads).toBe(0);
     expect(service.prices).toHaveLength(1);
-    expect(service.prices[0].receipt_photo_key ?? null).toBeNull();
+    expect(defined(service.prices[0]).receipt_photo_key ?? null).toBeNull();
     expect(service.objects.size).toBe(0);
   });
 
@@ -460,7 +461,7 @@ describe("non-beer bill retention through failures and corrections", () => {
   it("keeps accepted bill when readback is unavailable rather than proven corrupt", async () => {
     service.downloadMode = "unavailable";
     await accepted(await POST(request("wine", await bill())));
-    const key = service.prices[0].receipt_photo_key;
+    const key = defined(service.prices[0]).receipt_photo_key;
     expect(key).toBeTypeOf("string");
     expect(service.objects.has(`${STORAGE_BUCKET}/${key}`)).toBe(true);
     expect(service.removedKeys).toEqual([]);
@@ -472,7 +473,7 @@ describe("non-beer bill retention through failures and corrections", () => {
     await accepted(await POST(request("wine", await bill())));
     expect(service.rpcCalls.map((call) => Object.hasOwn(call, "p_receipt_photo_key"))).toEqual([true, false]);
     expect(service.acceptedUploads).toBe(1);
-    expect(service.prices[0].receipt_photo_key ?? null).toBeNull();
+    expect(defined(service.prices[0]).receipt_photo_key ?? null).toBeNull();
     expect(service.removedKeys).toHaveLength(1);
     expect(service.objects.size).toBe(0);
   });
@@ -482,7 +483,7 @@ describe("non-beer bill retention through failures and corrections", () => {
     await accepted(await POST(request("wine", await bill())));
     expect(service.ownerReads).toBeGreaterThan(0);
     expect(service.prices).toHaveLength(1);
-    const key = service.prices[0].receipt_photo_key;
+    const key = defined(service.prices[0]).receipt_photo_key;
     expect(key).toBeTypeOf("string");
     expect(service.objects.has(`${STORAGE_BUCKET}/${key}`)).toBe(true);
     expect(service.removedKeys).toEqual([]);
@@ -513,12 +514,12 @@ describe("non-beer bill retention through failures and corrections", () => {
     vi.setSystemTime(new Date(LATER));
     service.rpcMode = "unknown-delayed";
     await refused(await POST(request("wine", await bill(), "nonbeer-owner-token", "6.50")));
-    expect(service.prices[0]).toMatchObject({ price_pennies: 550, receipt_photo_key: old });
+    expect(defined(service.prices[0])).toMatchObject({ price_pennies: 550, receipt_photo_key: old });
     expect(service.removedKeys).toEqual([]);
     expect(service.delayedCommit).toBeTypeOf("function");
     await service.delayedCommit!();
-    const key = service.prices[0].receipt_photo_key;
-    expect(service.prices[0]).toMatchObject({ price_pennies: 650 });
+    const key = defined(service.prices[0]).receipt_photo_key;
+    expect(defined(service.prices[0])).toMatchObject({ price_pennies: 650 });
     expect(key).not.toBe(old);
     expect(service.objects.has(`${STORAGE_BUCKET}/${key}`)).toBe(true);
     expect(service.removedKeys).toEqual([]);
@@ -530,15 +531,15 @@ describe("non-beer bill retention through failures and corrections", () => {
     service.rpcMode = "malformed-delayed";
     await refused(await POST(request("wine", await bill(), "nonbeer-owner-token", "6.50")));
     expect(service.ownerReads).toBeGreaterThan(0);
-    if (old) expect(service.prices[0].receipt_photo_key).toBe(old);
+    if (old) expect(defined(service.prices[0]).receipt_photo_key).toBe(old);
     else expect(service.prices).toEqual([]);
     expect(service.objects.size).toBe(hasPriorOwner ? 2 : 1);
     expect(service.removedKeys).toEqual([]);
     expect(service.delayedCommit).toBeTypeOf("function");
     await service.delayedCommit!();
     expect(service.prices).toHaveLength(1);
-    expect(service.prices[0].price_pennies).toBe(650);
-    const retained = service.prices[0].receipt_photo_key;
+    expect(defined(service.prices[0]).price_pennies).toBe(650);
+    const retained = defined(service.prices[0]).receipt_photo_key;
     expect(retained).toBeTypeOf("string");
     expect(retained).not.toBe(old);
     expect(service.objects.has(`${STORAGE_BUCKET}/${retained}`)).toBe(true);
@@ -553,7 +554,7 @@ describe("non-beer bill retention through failures and corrections", () => {
     expect(result.price).toMatchObject({ venueId: VENUE_ID, drinkCategory: "wine", priceGbp: 6.5 });
     noPublicKeys(result);
     expect(service.rpcCalls.at(-1)).toMatchObject({ p_receipt_photo_key: null });
-    expect(service.prices[0]).toMatchObject({ id: "prior-owned-observation", price_pennies: 650, receipt_photo_key: null });
+    expect(defined(service.prices[0])).toMatchObject({ id: "prior-owned-observation", price_pennies: 650, receipt_photo_key: null });
     expect(service.removedKeys).toEqual([old]);
     expect(service.objects.size).toBe(0);
   });
@@ -562,7 +563,7 @@ describe("non-beer bill retention through failures and corrections", () => {
     const old = await seedObservation();
     service.rpcMode = "refused";
     await refused(await POST(request("wine", await bill())));
-    expect(service.prices[0]).toMatchObject({ id: "prior-owned-observation", price_pennies: 550, receipt_photo_key: old });
+    expect(defined(service.prices[0])).toMatchObject({ id: "prior-owned-observation", price_pennies: 550, receipt_photo_key: old });
     expect(service.objects.has(`${STORAGE_BUCKET}/${old}`)).toBe(true);
     expect(service.objects.size).toBe(1);
     expect(service.removedKeys).toHaveLength(1);
@@ -573,7 +574,7 @@ describe("non-beer bill retention through failures and corrections", () => {
     const old = await seedObservation(LATER, 650);
     service.removeFault = fault;
     await accepted(await POST(request("wine", await bill())), 6.5);
-    expect(service.prices[0]).toMatchObject({ price_pennies: 650, receipt_photo_key: old });
+    expect(defined(service.prices[0])).toMatchObject({ price_pennies: 650, receipt_photo_key: old });
     expect(service.acceptedUploads).toBe(1);
     expect(service.removedKeys).toHaveLength(1);
     expect(service.removedKeys).not.toContain(old);

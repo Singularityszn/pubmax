@@ -3,6 +3,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 import { postgresSkipReason } from "../scripts/rls/postgresHost.mjs";
 
 type Session = {
@@ -72,7 +73,7 @@ function owner(reply: Reply): Owner {
   expect(reply.status, JSON.stringify(reply.body)).toBe(200);
   expect(Array.isArray(reply.body)).toBe(true);
   expect(reply.body).toHaveLength(1);
-  return (reply.body as Owner[])[0];
+  return defined((reply.body as Owner[])[0]);
 }
 function retained(venue: string, actor = actorA): Record<string, unknown> {
   return JSON.parse(sql(`select jsonb_build_object('id', id, 'price', price_pennies,
@@ -156,7 +157,7 @@ describe.skipIf(skipReason !== null)("community price receipt ownership", { conc
       rpc({ ...args("accounts"), p_receipt_photo_key: "receipts/account-a.jpg" }),
       rpc({ ...args("accounts", "wine", 850, later, actorB), p_receipt_photo_key: "receipts/account-b.jpg" }),
     ]);
-    const a = owner(replies[0]); const b = owner(replies[1]);
+    const a = owner(defined(replies[0])); const b = owner(defined(replies[1]));
     expect(a.id).not.toBe(b.id);
     expect(a.previous_receipt_photo_key).toBeNull(); expect(b.previous_receipt_photo_key).toBeNull();
     expect(retained("accounts", actorA)).toMatchObject({ price: 550, key: "receipts/account-a.jpg" });
