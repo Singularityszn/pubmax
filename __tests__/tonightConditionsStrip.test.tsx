@@ -109,4 +109,16 @@ describe("the Tonight conditions strip", () => {
     expect(text).toContain(NO_WEATHER_READING_LINE);
     expect(container.querySelector(".tonightConditionsHold")).toBeNull();
   });
+
+  it("holds no room in the feed's desktop rail while the read runs", async () => {
+    read = "hang";
+    await render({});
+    expect(container.innerHTML).toBe("");
+  });
+
+  it("renders nothing in the feed's desktop rail when the read fails", async () => {
+    read = "fail";
+    await render({});
+    expect(container.innerHTML).toBe("");
+  });
 });
