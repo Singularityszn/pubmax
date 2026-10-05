@@ -1022,9 +1022,12 @@ for (const viewport of VIEWPORTS) {
     }
 
     // And every one of them stays clear of the tab bar it parks above.
-    // boundingBox() does not wait for paint, so wait for the bar first.
-    await expect(page.locator(".mobileTabBar")).toBeVisible();
-    const bar = await page.locator(".mobileTabBar").boundingBox();
+    // React reveals the bar after the page content, and the unrevealed copy
+    // in the hidden segment shares the class and has no box, so wait for the
+    // visible Primary navigation before reading its box.
+    const tabBar = page.getByRole("navigation", { name: "Primary" });
+    await expect(tabBar).toBeVisible();
+    const bar = await tabBar.boundingBox();
     expect(bar).not.toBeNull();
     for (const box of boxes) {
       expect(
@@ -1098,7 +1101,9 @@ for (const viewport of VIEWPORTS) {
     const prompt = page.locator(".analyticsConsentPrompt");
     // Present, or this case would pass by measuring nothing.
     await expect(prompt).toBeVisible({ timeout: 30_000 });
-    await expect(page.locator(".mobileTabBar")).toBeVisible();
+    // React reveals the bar after the page content, and the unrevealed copy
+    // in the hidden segment shares the class, so name the visible one.
+    await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
     // And the map members really are absent, so this IS the default berth.
     await expect(page.locator(".palSummon")).toHaveCount(0);
     await expect(page.locator(".mobilePlanActivation")).toHaveCount(0);
@@ -1200,9 +1205,12 @@ for (const viewport of VIEWPORTS) {
     expect(box!.height, "56px square").toBe(56);
     expect(box!.x + box!.width, "inside the viewport").toBeLessThanOrEqual(viewport.width);
 
-    // boundingBox() does not wait for paint, so wait for the bar first.
-    await expect(page.locator(".mobileTabBar")).toBeVisible();
-    const bar = await page.locator(".mobileTabBar").boundingBox();
+    // React reveals the bar after the page content, and the unrevealed copy
+    // in the hidden segment shares the class and has no box, so wait for the
+    // visible Primary navigation before reading its box.
+    const tabBar = page.getByRole("navigation", { name: "Primary" });
+    await expect(tabBar).toBeVisible();
+    const bar = await tabBar.boundingBox();
     expect(bar, "the tab bar has a box").not.toBeNull();
     expect(
       box!.y + box!.height,

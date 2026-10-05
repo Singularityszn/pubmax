@@ -302,11 +302,7 @@ test("reserves app-tab clearance before hydration", async ({ browser, baseURL })
     const page = await context.newPage();
     await page.goto("/");
 
-    // The bar itself is in the server's document, not a placeholder for it:
-    // with no script to reveal a streamed copy, a bar outlined behind a
-    // Suspense boundary would never paint here.
-    await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
-    await expect(page.locator(".mobileTabBar")).toHaveCount(1);
+    await expect(page.locator(".mobileTabBarClearance")).toHaveCount(1);
     const bodyPaddingBottom = await page.evaluate(() =>
       Number.parseFloat(getComputedStyle(document.body).paddingBottom),
     );

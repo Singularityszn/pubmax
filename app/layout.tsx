@@ -8,7 +8,9 @@ import ConsentAwareVercelSpeedInsights from "@/components/ConsentAwareVercelSpee
 import "./globals.css";
 import "./theme.css";
 import CreateFab from "@/components/nav/CreateFab";
-import MobileTabBar from "@/components/nav/MobileTabBar";
+import MobileTabBar, {
+  MobileTabBarClearanceFallback,
+} from "@/components/nav/MobileTabBar";
 import DeferredShellExtras from "@/components/DeferredShellExtras";
 import ClientErrorReporter from "@/components/ClientErrorReporter";
 import OfflineReady from "@/components/OfflineReady";
@@ -380,13 +382,12 @@ export default async function RootLayout({
                 {/* App-wide bottom tab bar — mounted on every route and visible only
                     on ≤640px (see mobileNav.css). display:none on desktop leaves the
                     existing navs untouched.
-                    NO Suspense boundary of its own: it reads no search params,
-                    so nothing in it suspends, and a boundary around it is
-                    outlined once the document passes React's progressive chunk.
-                    The bar then streams as a hidden copy at the foot of the
-                    HTML and is revealed up to 300ms later, so the first paint
-                    had no tab bar and the DOM briefly held two. */}
-                <MobileTabBar />
+                    Suspense boundary: it lets React stream the page content
+                    first and reveal the bar after it; .mobileTabBarClearance
+                    reserves the bar's lane until then. */}
+                <Suspense fallback={<MobileTabBarClearanceFallback />}>
+                  <MobileTabBar />
+                </Suspense>
                 <CreateFab />
                 {/* Night Mode card, Pub Pal summon, first-run tour, A2HS prompt and
                     native push explainer all render nothing on first paint, so they
@@ -412,7 +413,9 @@ export default async function RootLayout({
           <AuthProvider clerkIntegrationConfigured={clerkIntegrationConfigured}>
             <CommandPaletteProvider>
               {children}
-              <MobileTabBar />
+              <Suspense fallback={<MobileTabBarClearanceFallback />}>
+                <MobileTabBar />
+              </Suspense>
               <CreateFab />
               <DeferredShellExtras />
               <OfflineReady />
