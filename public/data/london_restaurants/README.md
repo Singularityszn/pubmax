@@ -32,7 +32,10 @@ A row is the shard tuple, unchanged, then a borough:
 `restaurant`. The borough is the London borough polygon the point falls in, by
 the lookup that places curated pins (`scripts/lib/boroughFromPoint.mjs`), or ""
 outside every borough. Map search matches it, as it matches a curated pin's
-borough. `layer` names the shard generation the pack was cut from.
+borough. A search for an area no row names, such as Soho or Shoreditch, keeps
+the restaurants within 400 m of a curated pin whose address or borough names
+it (`lib/londonRestaurants.ts`), so the pack carries no neighbourhood column.
+`layer` names the shard generation the pack was cut from.
 `__tests__/londonRestaurantPack.test.ts` holds the committed pack to the
 committed shards and to every restaurant in
 `data/london_restaurant_drinks/evidence.json`.

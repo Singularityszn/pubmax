@@ -19,8 +19,12 @@ import {
   londonRestaurantsPassingMapFilters,
   parseLondonRestaurantPack,
 } from "@/lib/londonRestaurants";
+import { SEED_BOROUGH_CAMPAIGN } from "@/lib/boroughCoverageStatus";
 import { londonVenueIdFor } from "@/lib/londonVenueShards";
+import { rowsFromSlimPayload } from "@/lib/slimPayload";
+import { slimVenuesToPins } from "@/lib/slimPins";
 import { initialFilters } from "@/lib/venues";
+import type { SlimVenue } from "@/lib/venuesSlim";
 
 const PUBLIC = path.join(__dirname, "..", "public");
 
@@ -90,12 +94,41 @@ describe("the committed London restaurant pack", () => {
         savedOnly: false,
         nearMe: null,
         selectedVenueId: "",
+        curated: [],
       });
     for (const borough of ["camden", "westminster", "hackney"]) {
       const byBoroughAlone = searched(borough).filter(
         (place) => !`${place.name} ${place.address}`.toLowerCase().includes(borough),
       );
       expect(byBoroughAlone.length).toBeGreaterThan(40);
+    }
+  });
+});
+
+describe("the borough coverage links", () => {
+  it("each show restaurants in the area they name, beside the committed curated pins", () => {
+    const restaurants = parseLondonRestaurantPack(committedPack) ?? [];
+    const curated = slimVenuesToPins(
+      (rowsFromSlimPayload(readJson("data/venues_slim.json")) ?? []) as SlimVenue[],
+    );
+    expect(curated.length).toBeGreaterThan(1000);
+    for (const { mapQuery } of SEED_BOROUGH_CAMPAIGN) {
+      const query = mapQuery.toLowerCase();
+      const shown = londonRestaurantsPassingMapFilters(restaurants, {
+        filters: { ...initialFilters, query: mapQuery },
+        savedOnly: false,
+        nearMe: null,
+        selectedVenueId: "",
+        curated,
+      });
+      const byOwnFields = shown.filter((place) =>
+        [place.name, place.address, place.borough].some((field) =>
+          field.toLowerCase().includes(query),
+        ),
+      );
+      expect(shown.length, mapQuery).toBeGreaterThanOrEqual(5);
+      expect(shown.length, mapQuery).toBeGreaterThan(byOwnFields.length);
+      expect(shown.length, mapQuery).toBeLessThan(restaurants.length / 2);
     }
   });
 });

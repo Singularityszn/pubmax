@@ -19,6 +19,7 @@ import {
   type LondonRestaurant,
 } from "@/lib/londonRestaurants";
 import { londonVenueIdFromFeature } from "@/lib/londonVenueShards";
+import { slimVenueToPin } from "@/lib/slimPins";
 import { initialFilters, type Filters } from "@/lib/venues";
 
 const RULES_ROW = [
@@ -219,7 +220,14 @@ describe("londonRestaurantsPassingMapFilters", () => {
     savedOnly: boolean;
     nearMe: { location: { lat: number; lng: number }; radiusKm: number } | null;
     selectedVenueId: string;
-  } = { filters: initialFilters, savedOnly: false, nearMe: null, selectedVenueId: "" };
+    curated: Parameters<typeof londonRestaurantsPassingMapFilters>[1]["curated"];
+  } = {
+    filters: initialFilters,
+    savedOnly: false,
+    nearMe: null,
+    selectedVenueId: "",
+    curated: [],
+  };
   const pass = (overrides: Partial<typeof base>, filters: Partial<Filters> = {}) =>
     londonRestaurantsPassingMapFilters(both, {
       ...base,
@@ -243,6 +251,101 @@ describe("londonRestaurantsPassingMapFilters", () => {
         filters: { ...initialFilters, query: "camden" },
       }).map((place) => place.id),
     ).toEqual([kingsCross.id]);
+  });
+
+  describe("an area the pack names nowhere", () => {
+    const pin = (address: string, latitude: number, longitude: number, borough = "Westminster") => ({
+      latitude,
+      longitude,
+      address,
+      primaryBorough: borough,
+      visibleBoroughs: [borough],
+    });
+    const searched = (
+      restaurants: LondonRestaurant[],
+      curated: typeof base.curated,
+      query: string,
+    ) =>
+      londonRestaurantsPassingMapFilters(restaurants, {
+        ...base,
+        curated,
+        filters: { ...initialFilters, query },
+      }).map((place) => place.id);
+
+    it("keeps the Soho restaurants near a curated pin whose address says Soho", () => {
+      const threeGreyhounds = pin("Old Compton Street, Soho, W1D 4DZ, London", 51.51344, -0.13031);
+      const bocca = restaurant({ id: "venue-osm-soho", name: "Bocca Di Lupo", lat: 51.5116, lng: -0.1338 });
+      const mayfair = restaurant({ id: "venue-osm-far", name: "Scott's", lat: 51.5098, lng: -0.1508 });
+      expect(searched([bocca, mayfair], [threeGreyhounds], "soho")).toEqual([bocca.id]);
+    });
+
+    it("keeps the Shoreditch and Clapham restaurants the same way", () => {
+      const queensHead = pin("222 Shoreditch High St, London E1 6PJ", 51.5227, -0.0780131, "Hackney");
+      const belleVue = pin("1 Clapham Common South Side, London SW4 7AA", 51.4618, -0.137634, "Lambeth");
+      const dishoomShoreditch = restaurant({
+        id: "venue-osm-shoreditch",
+        name: "Dishoom",
+        lat: 51.5245,
+        lng: -0.0767,
+        borough: "Hackney",
+      });
+      const claphamGrill = restaurant({
+        id: "venue-osm-clapham",
+        name: "Grill on the Common",
+        lat: 51.4625,
+        lng: -0.1395,
+        borough: "Lambeth",
+      });
+      const places = [dishoomShoreditch, claphamGrill];
+      expect(searched(places, [queensHead, belleVue], "shoreditch")).toEqual([dishoomShoreditch.id]);
+      expect(searched(places, [queensHead, belleVue], "clapham")).toEqual([claphamGrill.id]);
+    });
+
+    it("takes no area from a curated pin's name", () => {
+      const sohoHouse = { ...pin("76 Dean Street, London W1D 3SQ", 51.5136, -0.1323), name: "Soho House" };
+      const bocca = restaurant({ id: "venue-osm-soho", name: "Bocca Di Lupo", lat: 51.5116, lng: -0.1338 });
+      expect(searched([bocca], [sohoHouse], "soho")).toEqual([]);
+    });
+
+    it("takes no area from the drinks a slim pin pours", () => {
+      const blueBoar = slimVenueToPin({
+        id: "venue-blue-boar",
+        name: "Blue Boar Pub",
+        lat: 51.5116,
+        lng: -0.1335,
+        cheapestPrice: 6,
+        borough: "Westminster",
+        filterHints: {
+          searchText: "blue boar pub 45 tothill st, london sw1h 9lq westminster soho lager",
+          amenities: {
+            food: false,
+            cocktails: false,
+            beerGarden: false,
+            liveSports: false,
+            nonAlcoholic: false,
+          },
+          curation: { nearWater: false, hasStory: false },
+          canonical: true,
+          drinkText: "soho lager",
+        },
+      });
+      const bocca = restaurant({ id: "venue-osm-soho", name: "Bocca Di Lupo", lat: 51.5116, lng: -0.1338 });
+      expect(searched([bocca], [blueBoar], "soho")).toEqual([]);
+      expect(searched([bocca], [blueBoar], "tothill")).toEqual([bocca.id]);
+    });
+
+    it("keeps no area restaurant while a filter hides every restaurant", () => {
+      const threeGreyhounds = pin("Old Compton Street, Soho, W1D 4DZ, London", 51.51344, -0.13031);
+      const bocca = restaurant({ id: "venue-osm-soho", name: "Bocca Di Lupo", lat: 51.5116, lng: -0.1338 });
+      expect(
+        londonRestaurantsPassingMapFilters([bocca], {
+          ...base,
+          savedOnly: true,
+          curated: [threeGreyhounds],
+          filters: { ...initialFilters, query: "soho" },
+        }),
+      ).toEqual([]);
+    });
   });
 
   it("lets the food filter through, because a restaurant serves food", () => {

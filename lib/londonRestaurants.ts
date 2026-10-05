@@ -22,8 +22,10 @@
 //    Restaurants hidden in the filter, or a view that is not about restaurants,
 //    take this layer off the map.
 // 4. THE MAP'S FILTERS NARROW IT TOO. The search matches a name, an address or
-//    a borough, as it does a curated pin's, and near me keeps the restaurants
-//    inside its walk ring. A filter that asks what a row cannot answer (a
+//    a borough, as it does a curated pin's. A search for an area the pack does
+//    not name (Soho, Shoreditch) keeps the restaurants within 400 m of a
+//    curated pin whose address or borough names it. Near me keeps the
+//    restaurants inside its walk ring. A filter that asks what a row cannot answer (a
 //    price, Open now, Saved only, an amenity, a drink, a zone) hides every
 //    restaurant while it is on.
 
@@ -34,7 +36,7 @@ import {
   type LondonVenue,
 } from "@/lib/londonVenueShards";
 import type { MapExperienceLens } from "@/lib/mapExperienceLens";
-import { NO_PINT_PRICE_CAP, type Filters } from "@/lib/venues";
+import { NO_PINT_PRICE_CAP, type Filters, type Venue } from "@/lib/venues";
 import { parseZoneParam } from "@/lib/zones";
 
 export const LONDON_RESTAURANT_PACK_PATH = "/data/london_restaurants/restaurants.json";
@@ -254,11 +256,56 @@ function filtersAskBeyondARestaurantRow(filters: Filters): boolean {
 }
 
 /**
+ * How far a restaurant may stand from a curated pin that names the searched
+ * area and still be shown as in that area.
+ */
+const AREA_PIN_RADIUS_M = 400;
+
+/** A curated pin as the area search reads it: where it stands and the area its record names. */
+type AreaPin = Pick<
+  Venue,
+  "latitude" | "longitude" | "address" | "primaryBorough" | "visibleBoroughs" | "filterHints"
+>;
+
+/**
+ * Whether the pin's address or borough holds the query. A slim pin's address
+ * is cut from its search text and can end with the drinks it pours, so those
+ * are taken out first: a pub pouring Soho Lager is not in Soho.
+ */
+function pinNamesArea(pin: AreaPin, query: string): boolean {
+  let address = pin.address.toLowerCase();
+  for (const drink of (pin.filterHints?.drinkText ?? "").toLowerCase().split(";")) {
+    const phrase = drink.trim();
+    if (phrase) address = address.split(phrase).join(" ");
+  }
+  return [address, pin.primaryBorough, ...pin.visibleBoroughs].some((field) =>
+    field.toLowerCase().includes(query),
+  );
+}
+
+/** About 400 m of latitude, and of longitude at London's latitude, for a cheap first test. */
+const AREA_PIN_LAT_SPAN = 0.0037;
+const AREA_PIN_LNG_SPAN = 0.0059;
+
+function nearAreaPin(restaurant: LondonRestaurant, pins: readonly AreaPin[]): boolean {
+  return pins.some(
+    (pin) =>
+      Math.abs(pin.latitude - restaurant.lat) <= AREA_PIN_LAT_SPAN &&
+      Math.abs(pin.longitude - restaurant.lng) <= AREA_PIN_LNG_SPAN &&
+      haversineMeters(pin.latitude, pin.longitude, restaurant.lat, restaurant.lng) <=
+        AREA_PIN_RADIUS_M,
+  );
+}
+
+/**
  * The restaurants the map's own filters let through, as curated pins are let
- * through. Saved only keeps places a reader chose, and no restaurant can be
- * saved. Near me keeps the restaurants inside the walk ring the sheet names;
- * the nearest-few top-up for a thin area is the curated pins' alone. The
- * selected restaurant stays, as a selected curated pin does.
+ * through. The search keeps a restaurant whose name, address or borough holds
+ * it, or one near a curated pin (`curated`, the map's pins before any filter)
+ * whose address or borough holds it, so an area the pack names nowhere still
+ * keeps its restaurants. Saved only keeps places a reader chose, and no
+ * restaurant can be saved. Near me keeps the restaurants inside the walk ring
+ * the sheet names; the nearest-few top-up for a thin area is the curated pins'
+ * alone. The selected restaurant stays, as a selected curated pin does.
  */
 export function londonRestaurantsPassingMapFilters(
   restaurants: readonly LondonRestaurant[],
@@ -267,19 +314,24 @@ export function londonRestaurantsPassingMapFilters(
     savedOnly: boolean;
     nearMe: { location: { lat: number; lng: number }; radiusKm: number } | null;
     selectedVenueId: string;
+    curated: readonly AreaPin[];
   },
 ): readonly LondonRestaurant[] {
   const query = input.filters.query.trim().toLowerCase();
   const nearMe = input.nearMe;
   const nothingPasses = input.savedOnly || filtersAskBeyondARestaurantRow(input.filters);
   if (!nothingPasses && !query && !nearMe) return restaurants;
+  const areaPins = query && !nothingPasses
+    ? input.curated.filter((pin) => pinNamesArea(pin, query))
+    : [];
   return restaurants.filter(
     (restaurant) =>
       restaurant.id === input.selectedVenueId ||
       (!nothingPasses &&
-        [restaurant.name, restaurant.address, restaurant.borough].some((field) =>
+        ([restaurant.name, restaurant.address, restaurant.borough].some((field) =>
           field.toLowerCase().includes(query),
-        ) &&
+        ) ||
+          nearAreaPin(restaurant, areaPins)) &&
         (!nearMe ||
           haversineMeters(nearMe.location.lat, nearMe.location.lng, restaurant.lat, restaurant.lng) <=
             nearMe.radiusKm * 1000)),

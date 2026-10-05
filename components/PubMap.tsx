@@ -3034,6 +3034,7 @@ export default function PubMap({
               savedOnly,
               nearMe: nearbyMapResultForView,
               selectedVenueId,
+              curated: venues,
             }),
             canvasVenues,
           )
@@ -3046,6 +3047,7 @@ export default function PubMap({
       nearbyMapResultForView,
       savedOnly,
       selectedVenueId,
+      venues,
     ],
   );
   const drawnLondonRestaurants = useStableRestaurantList(filteredLondonRestaurants);
