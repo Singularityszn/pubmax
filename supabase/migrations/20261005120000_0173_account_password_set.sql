@@ -24,15 +24,16 @@
 -- record: the database writes it when GoTrue changes the hash, so no caller
 -- can claim a password it did not set, or erase one it did.
 --
--- THE BACKFILL. GoTrue logs `user_updated_password` in
--- `auth.audit_log_entries` each time an owner sets a password, with the
--- account id as `actor_id`. Every account with such an entry and a non-empty
--- hash is recorded, so an account that really set a password keeps "Change
--- password". An account whose only password came from an admin call
--- (`auth.admin.createUser` or `updateUserById`) has no such entry and reads
--- as "Create password" until its owner sets one. On a live account the
--- owner then creates a password without the current one, which is the same
--- authority they already hold: a signed-in session can set a password today.
+-- THE BACKFILL. Every account that exists when 0173 is applied and holds a
+-- non-empty hash is recorded, so every existing account keeps the "Change
+-- password" it shows today and nothing regresses. No older record can tell
+-- an owner-set password from the random one: production keeps no rows in
+-- `auth.audit_log_entries` (read-only check, 5 Oct 2026). So the new rule
+-- applies only to accounts created after the apply.
+--
+-- THE LIMIT. An existing email-link sign-up that never set a password still
+-- reads as having one. It keeps "Change password" and still needs the
+-- current-password path or a recovery link to set one.
 --
 -- THE RECORD. `pubmax_private.account_password_set` holds the account id and
 -- when the password was last set, and nothing else. No client role may read
@@ -89,15 +90,11 @@ create trigger account_password_set_on_auth_user_update
   for each row
   execute function pubmax_private.record_account_password_set();
 
-insert into pubmax_private.account_password_set (user_id, set_at)
-select u.id, max(a.created_at)
+insert into pubmax_private.account_password_set (user_id)
+select u.id
 from auth.users u
-join auth.audit_log_entries a
-  on a.payload ->> 'actor_id' = u.id::text
- and a.payload ->> 'action' = 'user_updated_password'
 where u.encrypted_password is not null
   and u.encrypted_password <> ''
-group by u.id
 on conflict (user_id) do nothing;
 
 create or replace function public.account_has_password(p_user_id uuid)

@@ -4,8 +4,8 @@
 -- true, so the account hub asks those accounts for a current password they
 -- never had and they cannot set up the handle + password sign-in. The record
 -- of which owners set a password is dropped with its table. Applying 0173
--- again rebuilds it from `auth.audit_log_entries`, but not for a password
--- set by an admin call, which that log does not name.
+-- again re-marks every account that then holds a hash, so every email-link
+-- sign-up made before the re-apply keeps "Change password" from then on.
 
 begin;
 

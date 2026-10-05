@@ -37,10 +37,11 @@ const EMAIL_SIGNUP = "a0000000-0000-4000-8000-000000000001";
 const OWNER_SET = "b0000000-0000-4000-8000-000000000002";
 const NULL_PASSWORD = "c0000000-0000-4000-8000-000000000003";
 const BLANK_PASSWORD = "d0000000-0000-4000-8000-000000000004";
-const AUDITED_OWNER = "e0000000-0000-4000-8000-000000000005";
-const AUDITED_CLEARED = "f0000000-0000-4000-8000-000000000006";
-const LINK_ONLY = "a1000000-0000-4000-8000-000000000007";
+const EXISTING_HASH = "e0000000-0000-4000-8000-000000000005";
+const EXISTING_BLANK = "f0000000-0000-4000-8000-000000000006";
+const LATE_SIGNUP = "a1000000-0000-4000-8000-000000000007";
 const DEPARTING = "b1000000-0000-4000-8000-000000000008";
+const EXISTING_NULL = "c1000000-0000-4000-8000-000000000009";
 const UNKNOWN = "d0000000-0000-4000-8000-0000000000ff";
 const RANDOM_HASH = "$2a$10$randomrandomrandomrandomuJ0r9Yq7a2l1oYb3hQ0tq6Qm3cZbQx1e";
 const CHOSEN_HASH = "$2a$10$chosenchosenchosenchosenuJ0r9Yq7a2l1oYb3hQ0tq6Qm3cZbQx1e";
@@ -56,10 +57,6 @@ function hasPassword(userId: string | null): string {
   return asServiceRole(
     `select public.account_has_password(${userId === null ? "null" : `'${userId}'`})`,
   );
-}
-
-function auditEntry(id: string, actorId: string, action: string): string {
-  return `('${id}', json_build_object('action', '${action}', 'actor_id', '${actorId}', 'log_type', 'user'))`;
 }
 
 /** GoTrue's email-link sign-up: the account arrives holding a random hash. */
@@ -136,32 +133,6 @@ describe.skipIf(skipReason !== null)("account_has_password", () => {
     ).toBe("0");
   });
 
-  it("backfills owners GoTrue logged setting a password, and only them", () => {
-    db().sql(`
-      insert into auth.users (id, encrypted_password) values
-        ('${AUDITED_OWNER}', '${CHOSEN_HASH}'),
-        ('${AUDITED_CLEARED}', ''),
-        ('${LINK_ONLY}', '${RANDOM_HASH}')
-    `);
-    db().sql(`
-      insert into auth.audit_log_entries (id, payload) values
-        ${auditEntry("01000000-0000-4000-8000-000000000001", AUDITED_OWNER, "user_signedup")},
-        ${auditEntry("01000000-0000-4000-8000-000000000002", AUDITED_OWNER, "user_updated_password")},
-        ${auditEntry("01000000-0000-4000-8000-000000000003", AUDITED_CLEARED, "user_updated_password")},
-        ${auditEntry("01000000-0000-4000-8000-000000000004", LINK_ONLY, "user_signedup")},
-        ${auditEntry("01000000-0000-4000-8000-000000000005", LINK_ONLY, "login")},
-        ${auditEntry("01000000-0000-4000-8000-000000000006", LINK_ONLY, "user_recovery_requested")}
-    `);
-    // A captain may apply it twice, and the second run must change nothing else.
-    db().applyFile(MIGRATION);
-
-    expect(db().sql(hasPassword(AUDITED_OWNER))).toBe("t");
-    expect(db().sql(hasPassword(AUDITED_CLEARED))).toBe("f");
-    expect(db().sql(hasPassword(LINK_ONLY))).toBe("f");
-    expect(db().sql(hasPassword(OWNER_SET))).toBe("t");
-    expect(db().sql(hasPassword(EMAIL_SIGNUP))).toBe("f");
-  });
-
   it("returns a boolean and nothing the hash could leak through", () => {
     expect(
       db().sql(`select pg_get_function_result('public.account_has_password(uuid)'::regprocedure)`),
@@ -211,8 +182,30 @@ describe.skipIf(skipReason !== null)("account_has_password", () => {
     // The fault is back: the email-link sign-up reads as holding a password.
     expect(db().sql(hasPassword(EMAIL_SIGNUP))).toBe("t");
 
+    // Re-applying marks every account that then holds a hash, as the rollback says.
     db().applyFile(MIGRATION);
-    expect(db().sql(hasPassword(EMAIL_SIGNUP))).toBe("f");
-    expect(db().sql(hasPassword(AUDITED_OWNER))).toBe("t");
+    expect(db().sql(hasPassword(EMAIL_SIGNUP))).toBe("t");
+    expect(db().sql(hasPassword(OWNER_SET))).toBe("t");
+  });
+
+  it("backfills every account holding a hash at apply time, and no sign-up after it", () => {
+    db().sql(`
+      insert into auth.users (id, encrypted_password) values
+        ('${EXISTING_HASH}', '${RANDOM_HASH}'),
+        ('${EXISTING_NULL}', null),
+        ('${EXISTING_BLANK}', '')
+    `);
+    // A captain may apply it twice, and the second run must change nothing else.
+    db().applyFile(MIGRATION);
+    db().applyFile(MIGRATION);
+
+    expect(db().sql(hasPassword(EXISTING_HASH))).toBe("t");
+    expect(db().sql(hasPassword(EXISTING_NULL))).toBe("f");
+    expect(db().sql(hasPassword(EXISTING_BLANK))).toBe("f");
+
+    signUpByEmailLink(LATE_SIGNUP);
+    expect(db().sql(hasPassword(LATE_SIGNUP))).toBe("f");
+    ownerSetsPassword(LATE_SIGNUP);
+    expect(db().sql(hasPassword(LATE_SIGNUP))).toBe("t");
   });
 });

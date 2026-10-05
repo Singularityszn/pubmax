@@ -51,16 +51,6 @@ alter table auth.users
 alter table auth.users
   add column if not exists banned_until timestamptz;
 
--- GoTrue's audit log. 0173 reads `user_updated_password` entries out of it to
--- record which owners already set a password.
-create table if not exists auth.audit_log_entries (
-  instance_id uuid,
-  id uuid primary key,
-  payload json,
-  created_at timestamptz default now(),
-  ip_address varchar(64) not null default ''
-);
-
 create or replace function auth.uid()
 returns uuid
 language sql
