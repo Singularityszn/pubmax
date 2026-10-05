@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { PRIMARY_NAV_ITEMS } from "../components/nav/navigationModel";
 import { PERFORMANCE_BUDGETS } from "../lib/performanceBudgets";
+import { expectStreamedPageSettled } from "./helpers/streamedPage";
 
 // Rendered geometry for the phone map chrome at 320, 390 and 430.
 //
@@ -1191,6 +1192,9 @@ for (const viewport of VIEWPORTS) {
 
     const response = await page.goto("/out");
     expect(response?.status()).toBe(200);
+    // /out streams behind its loading skeleton, and until React swaps the page
+    // in the document holds the skeleton's tab bar and the page's own.
+    await expectStreamedPageSettled(page);
 
     const create = page.getByTestId("create-fab");
     await expect(create).toBeVisible();

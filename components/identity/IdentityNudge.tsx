@@ -77,16 +77,23 @@ export default function IdentityNudge(): React.JSX.Element | null {
   // trigger can't slam a dialog over a page the instant it loads (belt-and-
   // braces with the pending TTL in lib/identityNudge.ts). setState only fires
   // from async callbacks (timer / one-shot listeners), never the effect body.
+  //
+  // A tap ends the grace once it has CLICKED, never on pointerdown. On
+  // pointerdown the sheet painted between press and release, its backdrop took
+  // the release, and the tap that ended the grace never reached its control:
+  // a guest with a Moment draft tapped Edit and got the sign-in sheet with no
+  // editor (e2e/moment-photo-editor.spec.ts). The window listener runs after
+  // the page's own click handlers, so the tap lands first.
   const [graced, setGraced] = useState(false);
   useEffect(() => {
     if (graced) return;
     const settle = () => setGraced(true);
     const timer = window.setTimeout(settle, IDENTITY_NUDGE_FIRST_PAINT_GRACE_MS);
-    window.addEventListener("pointerdown", settle, { once: true });
+    window.addEventListener("click", settle, { once: true });
     window.addEventListener("keydown", settle, { once: true });
     return () => {
       window.clearTimeout(timer);
-      window.removeEventListener("pointerdown", settle);
+      window.removeEventListener("click", settle);
       window.removeEventListener("keydown", settle);
     };
   }, [graced]);

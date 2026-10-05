@@ -1,6 +1,11 @@
 // Instant held frame while a primary-tab route's RSC/client tree arrives.
 // Same paper/ink tokens as the real pages — no design change, just a skeleton
 // so cold tab taps paint something within the transition budget.
+//
+// A named region, never a <main>. On a document load React streams the real
+// page, <main> and all, into a hidden segment and swaps it in up to 300 ms
+// later, so a skeleton <main> made two <main> elements in one document for
+// that window. The skeleton stands in for the page; the page owns the landmark.
 
 import SiteNav from "@/components/nav/SiteNav";
 
@@ -13,7 +18,8 @@ type RouteLoadingShellProps = {
 
 export default function RouteLoadingShell({ label }: RouteLoadingShellProps) {
   return (
-    <main id="main"
+    <section
+      id="main"
       className="routeLoadingShell"
       aria-busy="true"
       aria-live="polite"
@@ -27,6 +33,6 @@ export default function RouteLoadingShell({ label }: RouteLoadingShellProps) {
         <span className="routeLoadingShellCard" aria-hidden="true" />
         <p className="routeLoadingShellLabel">{label}</p>
       </div>
-    </main>
+    </section>
   );
 }

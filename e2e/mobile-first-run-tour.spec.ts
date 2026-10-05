@@ -1,6 +1,8 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { priceBandLegendLabel } from "../lib/priceBand";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+import { expectHydrated } from "./helpers/streamedPage";
 
 async function expectTappable(locator: Locator, label: string): Promise<void> {
   await expect(locator, `${label} should be visible`).toBeVisible();
@@ -35,6 +37,10 @@ test.describe("mobile first-run tour", () => {
 
   test("presents thumb-safe onboarding controls before first value", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
+    // The tour covers the map, so the basemap is not what this checks. Live
+    // tiles painted in software under the scrim slowed every locator read to
+    // 2-3 s on a loaded runner and spent the 30 s budget before the last tap.
+    await installDeterministicMapBasemap(page);
     // Map-only gate (lib/firstRunTour.ts); /pubs is a gallery, not the map.
     await page.goto("/map");
 
@@ -65,7 +71,11 @@ test.describe("mobile first-run tour", () => {
 
     await page.goto("/pal", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("dialog", { name: "PUBMAXXING" })).toHaveCount(0);
-    await page.getByRole("button", { name: /Meet your Pub Pal/i }).click();
+    // The meeting screen is painted on the server, so its button is tappable
+    // before React answers it. A tap in that window does nothing.
+    const meet = page.getByRole("button", { name: /Meet your Pub Pal/i });
+    await expectHydrated(meet);
+    await meet.click();
     await expect(page.getByRole("heading", { name: "The grown-up bit first." })).toBeVisible();
 
     const geometry = await page.evaluate(() => {

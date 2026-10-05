@@ -49,6 +49,11 @@ test.describe("Moment photo editor", () => {
       // Consent docks after the product answers; a photo upload counts, so pin
       // the wait as already satisfied before the editor opens.
       window.sessionStorage.setItem("pubmax:consent-answer-moment:v1", "second-route");
+      // A guest's first photo arms the "Own your memories" sign-in nudge, and
+      // the nudge opens on the first tap or after 8 s, over whatever is on
+      // screen. This journey is about the editor, so the guest has already
+      // said "not now" this week (lib/identityNudge.ts cooldown).
+      window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
     });
   });
 

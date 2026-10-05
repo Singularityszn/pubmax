@@ -296,11 +296,17 @@ export default function PalExperience() {
           },
         }
       : DEFAULT_PAL_DRAFT;
+    // The meeting screen paints before the owner settles, so "Meet your Pub
+    // Pal" can already have opened onboarding. On that first settle keep the
+    // viewer's choice; a later owner change still starts from the meeting.
+    const firstSettle = draftOwner === "";
     let cancelled = false;
     void Promise.resolve().then(() => {
       if (cancelled) return;
       setDraftOwner(owner);
-      setMode(restored ? "onboarding" : "meeting");
+      setMode((current) =>
+        restored || (firstSettle && current === "onboarding") ? "onboarding" : "meeting",
+      );
       setStep(restored?.step ?? 0);
       setDraft(restored?.draft ?? firstRunDraft);
       setPrivacy(restored?.privacy ?? DEFAULT_PRIVACY);
