@@ -16,8 +16,8 @@
  * sources): a frame is owed from then on, and a render after it disarms the
  * check. Plain idle never spends the budget.
  *
- * This module is ONLY the decision: given the last render timestamp, the clock,
- * whether the document is visible, whether the canvas is really on-screen with a
+ * This module is ONLY the decision: given the last render timestamp, the last
+ * dirtying event, the clock, whether the document is visible, whether the canvas is really on-screen with a
  * non-zero size, and how many recoveries we've already spent this mount, should
  * we fire ONE recovery (map.resize() + map.triggerRepaint())? It performs no I/O
  * and touches no map — the caller owns the side effects and the retry counter,
@@ -27,10 +27,10 @@
 /** How often the watchdog interval samples paint liveness (ms). */
 export const PAINT_WATCHDOG_INTERVAL_MS = 2000;
 /**
- * A render gap longer than this means the frame loop has parked. Kept above the
- * interval so a single skipped tick can't trip it, and well above a normal idle
- * (MapLibre renders on demand, but a healthy just-resized/just-arrived map
- * presents within a frame or two).
+ * A frame a dirtying event owed that has not presented for longer than this
+ * means the frame loop has parked. Kept above the interval so a single skipped
+ * tick can't trip it (a healthy just-resized/just-arrived map presents within a
+ * frame or two).
  */
 export const PAINT_STALL_THRESHOLD_MS = 2500;
 /**
