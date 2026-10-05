@@ -33,13 +33,15 @@ export function mintAdminSession(token: string): string {
 }
 
 function validAdminSession(value: string, token: string): boolean {
-  const [, payload, issued, mac] = /^(v1\.([0-9]{1,12}))\.([a-f0-9]{64})$/.exec(value) ?? [];
-  if (!payload || !issued || !mac) return false;
-  const issuedAt = Number(issued);
+  const match = /^(v1\.([0-9]{1,12}))\.([a-f0-9]{64})$/.exec(value);
+  if (!match) return false;
+  const [, payload, issuedAtText, signatureHex] = match;
+  if (payload === undefined || issuedAtText === undefined || signatureHex === undefined) return false;
+  const issuedAt = Number(issuedAtText);
   const now = Math.floor(Date.now() / 1000);
   if (issuedAt > now || now - issuedAt >= ADMIN_SESSION_MAX_AGE_SEC) return false;
   const signature = createHmac("sha256", token).update(payload).digest("hex");
-  return safeTokenEqual(mac, signature);
+  return safeTokenEqual(signatureHex, signature);
 }
 
 // The two credentials are read off a header list, never off a whole Request:
