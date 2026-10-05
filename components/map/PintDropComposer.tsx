@@ -50,9 +50,7 @@ type PintDropComposerProps = {
 };
 
 export default function PintDropComposer(props: PintDropComposerProps) {
-  // Keep the map and hook mounted. Only the account's local disclosure and
-  // dictation lifecycle leave when a different confirmed owner arrives.
-  return <OwnedPintDropComposer key={props.state.draftOwner ?? "unknown"} {...props} />;
+  return <OwnedPintDropComposer key={JSON.stringify([props.state.draftOwner ?? "unknown", props.venueId])} {...props} />;
 }
 
 function OwnedPintDropComposer({

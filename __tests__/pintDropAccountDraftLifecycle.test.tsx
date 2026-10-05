@@ -34,6 +34,7 @@ import type { SpeechRecognitionLike } from "@/lib/pintDropSpeech";
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const VENUE_ID = "venue-test1";
+const OTHER_VENUE_ID = "venue-test2";
 const NOTE = "Account A's private draft story";
 const A = { id: "fixture-account-a", handle: "fixture_a" };
 const B = { id: "fixture-account-b", handle: "fixture_b" };
@@ -59,9 +60,12 @@ let showDropList = false;
 
 function ComposerHost() {
   const state = usePintDrops("london");
+  const [composerVenueId, setComposerVenueId] = useState(VENUE_ID);
   const [heldSubmit, setHeldSubmit] = useState<(() => Promise<void> | void) | null>(null);
   const [heldReport, setHeldReport] = useState<(() => Promise<void> | void) | null>(null);
   return createElement("div", null,
+    createElement("button", { onClick: () => setComposerVenueId(VENUE_ID) }, "Open first venue"),
+    createElement("button", { onClick: () => setComposerVenueId(OTHER_VENUE_ID) }, "Open second venue"),
     createElement("button", {
       onClick: () => {
         const own = state.dropsByVenueId.get(VENUE_ID)?.find((drop) => drop.handle === activeAccount?.handle);
@@ -81,7 +85,7 @@ function ComposerHost() {
       [...state.dropsByVenueId.values()].flat().map((drop) => drop.passedDownNote).join(" | ")),
     createElement("output", { "data-testid": "drop-states" },
       [...state.dropsByVenueId.values()].flat().map((drop) => drop.optimistic?.state ?? "saved").join(" | ")),
-    createElement(PintDropComposer, { venueId: VENUE_ID, venueName: "The Fixture Arms", state }),
+    createElement(PintDropComposer, { venueId: composerVenueId, venueName: "The Fixture Arms", state }),
     showDropList ? createElement("section", { "data-testid": "drop-list" }, createElement(PintDropsList, {
       venue: { id: VENUE_ID, name: "The Fixture Arms" } as Venue,
       drops: state.dropsByVenueId.get(VENUE_ID) ?? [],
@@ -279,6 +283,45 @@ describe("mounted Pint Drop account draft isolation", () => {
         complete: () => result!({ resultIndex: 0, results: [{ 0: { transcript: TRANSCRIPT }, isFinal: true }] }),
       };
     }
+
+    it.each([
+      [VENUE_ID, OTHER_VENUE_ID],
+      [OTHER_VENUE_ID, VENUE_ID],
+    ])("rejects late dictation from %s after %s hydrates and after returning", async (sourceVenue, targetVenue) => {
+      const selectVenue = (venueId: string) => click(venueId === VENUE_ID ? "Open first venue" : "Open second venue");
+      const storageOwner = pintDropAccountDraftOwner(A.id);
+      await renderAccount(A);
+      const accountRevision = readProviderAccountRevision();
+      await selectVenue(targetVenue);
+      await typeStory(REPLACEMENT_NOTE);
+      expect(readPintDropDraft(sessionStorage, targetVenue, storageOwner)?.form.note).toBe(REPLACEMENT_NOTE);
+      await selectVenue(sourceVenue);
+      await typeStory(NOTE);
+      const { recognition, complete } = await startDictation();
+
+      await selectVenue(targetVenue);
+      expect(readProviderAccountRevision()).toBe(accountRevision);
+      expect(container.querySelector("textarea")?.value).toBe(REPLACEMENT_NOTE);
+      expect.soft(recognition.stop).toHaveBeenCalledOnce();
+      await act(async () => complete());
+
+      expect.soft(container.querySelector("textarea")?.value).toBe(REPLACEMENT_NOTE);
+      expect.soft(container.textContent).not.toContain(NOTE);
+      expect.soft(container.textContent).not.toContain(TRANSCRIPT);
+      const saved = readPintDropDraft(sessionStorage, targetVenue, storageOwner);
+      expect.soft(saved?.form.note).toBe(REPLACEMENT_NOTE);
+      expect.soft(JSON.stringify(saved)).not.toContain(NOTE);
+      expect.soft(JSON.stringify(saved)).not.toContain(TRANSCRIPT);
+
+      await selectVenue(sourceVenue);
+      expect.soft(container.querySelector("textarea")?.value).toBe(NOTE);
+      await act(async () => complete());
+      expect.soft(container.querySelector("textarea")?.value).toBe(NOTE);
+      expect.soft(container.textContent).not.toContain(TRANSCRIPT);
+      expect.soft(readPintDropDraft(sessionStorage, sourceVenue, storageOwner)?.form.note).toBe(NOTE);
+      await selectVenue(targetVenue);
+      expect(container.querySelector("textarea")?.value).toBe(REPLACEMENT_NOTE);
+    });
 
     it.each(["account switch", "confirmed sign-out"] as const)(
       "rejects A's final dictation result after %s and replacement draft hydration",
