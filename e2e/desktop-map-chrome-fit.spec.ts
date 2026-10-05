@@ -383,48 +383,78 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   // is kept. Under load the spring can finish before the first frame, so
   // mid-exchange geometry is asserted only when a crossing frame is caught.
   type Rect = { x: number; y: number; width: number; height: number };
-  const ownershipChange = await firstVenueOption.evaluate(
-    (option) =>
-      new Promise<{
+  // The sampler is armed in the page before a REAL pointer tap, so Playwright
+  // still checks that the reader can hit the venue option. A capture listener
+  // reads the toolbar before the tap; a bubble listener on window reads it once
+  // React has handled the tap; frames are then sampled from that moment.
+  await page.evaluate(() => {
+    type Rect = { x: number; y: number; width: number; height: number };
+    type Probe = {
+      before: number;
+      after: number;
+      mid: { planner: Rect; venue: Rect; toolbar: Rect } | null;
+    };
+    const rect = (selector: string): Rect | null => {
+      const node = document.querySelector<HTMLElement>(selector);
+      if (!node) return null;
+      const { x, y, width, height } = node.getBoundingClientRect();
+      return { x, y, width, height };
+    };
+    const toolbarX = () => {
+      const toolbar = document.querySelector<HTMLElement>(".mapToolbar");
+      if (!toolbar) throw new Error("desktop toolbar is missing");
+      return toolbar.getBoundingClientRect().x;
+    };
+    const holder = window as unknown as { __exchangeProbe?: Promise<Probe> };
+    holder.__exchangeProbe = new Promise<Probe>((resolve) => {
+      let before = 0;
+      window.addEventListener("click", () => (before = toolbarX()), {
+        capture: true,
+        once: true,
+      });
+      window.addEventListener(
+        "click",
+        () => {
+          const after = toolbarX();
+          const startedAt = performance.now();
+          const sample = () => {
+            const planner = rect(".mapDrawer.left.springDrawer");
+            const venue = rect(".mapDrawer.right.springDrawer");
+            const bar = rect(".mapToolbar");
+            if (
+              planner &&
+              venue &&
+              bar &&
+              planner.x < -1 &&
+              planner.x > -planner.width
+            ) {
+              resolve({ before, after, mid: { planner, venue, toolbar: bar } });
+              return;
+            }
+            if (performance.now() - startedAt > 8_000) {
+              resolve({ before, after, mid: null });
+              return;
+            }
+            requestAnimationFrame(sample);
+          };
+          requestAnimationFrame(sample);
+        },
+        { once: true },
+      );
+    });
+  });
+  await firstVenueOption.click();
+  const ownershipChange = await page.evaluate(() => {
+    const holder = window as unknown as {
+      __exchangeProbe?: Promise<{
         before: number;
         after: number;
         mid: { planner: Rect; venue: Rect; toolbar: Rect } | null;
-      }>((resolve) => {
-        const rect = (selector: string): Rect | null => {
-          const node = document.querySelector<HTMLElement>(selector);
-          if (!node) return null;
-          const { x, y, width, height } = node.getBoundingClientRect();
-          return { x, y, width, height };
-        };
-        const toolbar = document.querySelector<HTMLElement>(".mapToolbar");
-        if (!toolbar) throw new Error("desktop toolbar is missing");
-        const before = toolbar.getBoundingClientRect().x;
-        (option as HTMLElement).click();
-        const after = toolbar.getBoundingClientRect().x;
-        const startedAt = performance.now();
-        const sample = () => {
-          const planner = rect(".mapDrawer.left.springDrawer");
-          const venue = rect(".mapDrawer.right.springDrawer");
-          const bar = rect(".mapToolbar");
-          if (
-            planner &&
-            venue &&
-            bar &&
-            planner.x < -1 &&
-            planner.x > -planner.width
-          ) {
-            resolve({ before, after, mid: { planner, venue, toolbar: bar } });
-            return;
-          }
-          if (performance.now() - startedAt > 8_000) {
-            resolve({ before, after, mid: null });
-            return;
-          }
-          requestAnimationFrame(sample);
-        };
-        requestAnimationFrame(sample);
-      }),
-  );
+      }>;
+    };
+    if (!holder.__exchangeProbe) throw new Error("exchange probe was not armed");
+    return holder.__exchangeProbe;
+  });
   expect(
     Math.abs(ownershipChange.after - ownershipChange.before),
   ).toBeLessThan(16);
@@ -513,6 +543,10 @@ test("1440px planner hands ownership to venue and Back restores composed state",
     venue.getByRole("heading", { name: retargetVenueName }).first(),
   ).toBeVisible({ timeout: 20_000 });
 
+  // The open state is measured at rest, once the venue spring and the
+  // toolbar's shift have both settled.
+  await expectLayoutSettled(venue);
+  await expectLayoutSettled(toolbar);
   const [mapAfter, venueOpen, toolbarOpen] = await Promise.all([
     renderedBox(mapStage, "map stage after exchange"),
     renderedBox(venue, "open venue drawer"),
