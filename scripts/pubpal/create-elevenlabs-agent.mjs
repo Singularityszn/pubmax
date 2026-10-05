@@ -186,7 +186,12 @@ function clientEvents(existing) {
 
 // Tools that end in a confirm proposal. The person may not talk over the
 // proposal, or they miss what they are asked to confirm (ADR 0006).
-const CONFIRM_PROPOSAL_TOOLS = new Set(["propose_plan", "propose_map_action", "report_occupancy"]);
+const CONFIRM_PROPOSAL_TOOLS = new Set([
+  "propose_plan",
+  "propose_map_action",
+  "report_occupancy",
+  "propose_memory",
+]);
 
 // Speech around a tool call. "force" makes the agent say its one short
 // checking sentence before every tool runs, so the first audio does not wait
