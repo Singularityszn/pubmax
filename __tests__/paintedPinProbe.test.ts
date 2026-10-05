@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type * as maplibregl from "maplibre-gl";
 
-import { paintedMapTapPoints } from "@/components/map/canvas/paintedPinProbe";
+import {
+  paintedLondonPlaceTapPoints,
+  paintedMapTapPoints,
+} from "@/components/map/canvas/paintedPinProbe";
 
 // The probe exists so a browser test taps a mark that is really there. Each
 // gate below is one way a canvas can lie about that, so each is pinned apart.
@@ -231,5 +234,31 @@ describe("paintedMapTapPoints", () => {
   it("carries where the mark is, beside where it is being drawn", () => {
     const [point] = paintedMapTapPoints(makeMap({ painted: [PIN_A] }));
     expect(point).toMatchObject({ lng: PIN_A.lng, lat: PIN_A.lat });
+  });
+});
+
+describe("paintedLondonPlaceTapPoints", () => {
+  const restaurant: FakeMark = {
+    layer: "london-restaurant-point",
+    id: "venue-osm-n25496840",
+    lng: -0.11,
+    lat: 51.517,
+    x: 160,
+    y: 440,
+  };
+  const layers = ["london-restaurant-point", "coffee-pilot-point", "pubs-point", "clusters"];
+
+  it("answers the painted London restaurants and never a pub or a cluster", () => {
+    const points = paintedLondonPlaceTapPoints(
+      makeMap({ painted: [restaurant, PIN_A, CLUSTER], layers }),
+    );
+    expect(points).toEqual([
+      { kind: "pin", id: restaurant.id, x: 160, y: 440, lng: -0.11, lat: 51.517 },
+    ]);
+  });
+
+  it("keeps London places out of the pub answer every map spec reads", () => {
+    const points = paintedMapTapPoints(makeMap({ painted: [restaurant, PIN_A], layers }));
+    expect(points.map((point) => point.id)).toEqual(["pub-a"]);
   });
 });
