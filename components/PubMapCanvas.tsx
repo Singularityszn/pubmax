@@ -2620,7 +2620,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
           settleSceneError({
             kind: "tiles",
             message:
-              "The map is taking too long to finish loading. The pub list and crawl planner still work.",
+              "The map is taking too long to finish loading.",
             detail: "Scene ready timeout",
           });
         };
@@ -2655,7 +2655,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         reportMapError({
           kind: "tiles",
           message:
-            "The map couldn't load its tiles right now. The pub list and crawl planner still work.",
+            "The map couldn't load its tiles right now.",
           detail,
         });
       });
