@@ -34,7 +34,12 @@ import {
 } from "@/components/map/canvas/filters";
 import { landmarksToGeoJSON } from "@/components/map/canvas/geojson";
 import type { Landmark } from "@/lib/landmarks";
-import type { Tokens } from "@/components/map/canvas/tokens";
+import {
+  GLOW_BASE_STROKE_OPACITY,
+  GLOW_BASE_STROKE_WIDTH,
+  GLOW_SELECTED_STROKE_WIDTH,
+  type Tokens,
+} from "@/components/map/canvas/tokens";
 
 // The mobile map's density contract (owner report: "as you load the map all the
 // places are so grouped together … you can see they are so close and it's so
@@ -667,5 +672,21 @@ describe("landmarksToGeoJSON priority", () => {
     ] as unknown as readonly Landmark[];
     const collection = landmarksToGeoJSON(catalog);
     expect(collection.features.map((feature) => feature.properties?.priority)).toEqual([0, 1]);
+  });
+});
+
+// A theme swap rebuilds the scene while the RAF loop rests, so the rebuilt
+// selected ring must already be the static frame the loop rests on.
+describe("pubs-selected-glow is built on its rest frame", () => {
+  const glowPaint = (selectedId: string) =>
+    buildScenePieces(selectedId).layers.get("pubs-selected-glow")!.paint ?? {};
+
+  it("is the fatter selected ring when a pub is selected", () => {
+    expect(glowPaint("venue-abc")["circle-stroke-width"]).toBe(GLOW_SELECTED_STROKE_WIDTH);
+    expect(glowPaint("venue-abc")["circle-stroke-opacity"]).toBe(GLOW_BASE_STROKE_OPACITY);
+  });
+
+  it("is the base ring when nothing is selected", () => {
+    expect(glowPaint("")["circle-stroke-width"]).toBe(GLOW_BASE_STROKE_WIDTH);
   });
 });
