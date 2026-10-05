@@ -6,9 +6,25 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const authState = vi.hoisted(() => ({
   current: {} as Record<string, unknown>,
 }));
-const focusTrapState = vi.hoisted(() => ({
-  useFocusTrap: vi.fn(),
-}));
+const focusTrapState = vi.hoisted(() => {
+  const listeners = new Set<() => void>();
+  const state = {
+    strictModalOpen: false,
+    useFocusTrap: vi.fn(),
+    subscribeStrictModalFocusTrap: (listener: () => void) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    readStrictModalFocusTrap: () => state.strictModalOpen,
+    readOtherStrictModalFocusTrap: () => state.strictModalOpen,
+    serverStrictModalFocusTrap: () => false,
+    setStrictModalOpen: (open: boolean) => {
+      state.strictModalOpen = open;
+      for (const listener of listeners) listener();
+    },
+  };
+  return state;
+});
 const magicLinkState = vi.hoisted(() => ({
   signInWithEmail: null as ((email: string) => Promise<unknown>) | null,
 }));
@@ -213,6 +229,7 @@ async function renderAfterGrace(): Promise<void> {
 
 beforeEach(() => {
   vi.useFakeTimers();
+  focusTrapState.strictModalOpen = false;
   magicLinkState.signInWithEmail = null;
   authState.current = {
     user: null,
@@ -293,6 +310,27 @@ describe("IdentityNudge visibility", () => {
       expect.objectContaining({ current: expect.anything() }),
       "strict-modal",
     );
+  });
+
+  // The tap that ends the grace can open another strict modal (Edit opens the
+  // Moment photo editor). Two strict traps inert each other, so the nudge
+  // steps aside while that one is open and comes back when it closes.
+  it("steps aside while another strict modal is open, then opens when it closes", async () => {
+    authState.current.configured = true;
+    focusTrapState.strictModalOpen = true;
+
+    await renderAfterGrace();
+    expect(container.childNodes).toHaveLength(0);
+
+    await commitReactWork(async () => {
+      focusTrapState.setStrictModalOpen(false);
+    });
+    expect(container.childNodes.length).toBeGreaterThan(0);
+
+    await commitReactWork(async () => {
+      focusTrapState.setStrictModalOpen(true);
+    });
+    expect(container.childNodes).toHaveLength(0);
   });
 
   it("keeps one functional magic-link email action and no dormant digest capture", async () => {

@@ -41,10 +41,19 @@ describe("RouteLoadingShell", () => {
   });
 
   it("still says which route is loading, and says it politely", () => {
-    const main = shellTree("Tonight")[0] as ReactElement<Record<string, unknown>>;
-    expect(main.props["aria-busy"]).toBe("true");
-    expect(main.props["aria-live"]).toBe("polite");
-    expect(main.props["aria-label"]).toBe("Loading Tonight");
-    expect(main.props.className).toBe("routeLoadingShell");
+    const shell = shellTree("Tonight")[0] as ReactElement<Record<string, unknown>>;
+    expect(shell.props["aria-busy"]).toBe("true");
+    expect(shell.props["aria-live"]).toBe("polite");
+    expect(shell.props["aria-label"]).toBe("Loading Tonight");
+    expect(shell.props.className).toBe("routeLoadingShell");
+  });
+
+  // On a document load React streams the page's own <main> into a hidden
+  // segment while this frame is on screen, so a <main> here made two in one
+  // document until the swap (e2e/social-loop.spec.ts, /discover).
+  it("is a named region, so the page it stands in for owns the one <main>", () => {
+    const tree = shellTree();
+    expect(tree[0]?.type).toBe("section");
+    expect(tree.some((element) => element.type === "main")).toBe(false);
   });
 });

@@ -5,6 +5,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import MapLoading from "@/app/map/loading";
 import MapLoadingFrame from "@/components/map/MapLoadingFrame";
 import MapLoadingSkeleton from "@/components/map/MapLoadingSkeleton";
 import { useMapPinsRevealed } from "@/components/map/useMapPinsRevealed";
@@ -173,6 +174,29 @@ describe("the map's held skeleton", () => {
 
     expect(copy()).toContain("Loading pubs…");
     expect(copy()).not.toContain("London");
+  });
+
+  // On a document load React streams the map page, with PubMap's held <main>,
+  // into a hidden segment beside the route's own loading frame, so a <main>
+  // there made two in one document until the swap.
+  it("is a named region at route level, so the map page owns the one <main>", () => {
+    act(() => {
+      root.render(createElement(MapLoading));
+    });
+
+    expect(host.querySelector("main")).toBeNull();
+    const region = host.querySelector<HTMLElement>("section.mapSkeleton");
+    expect(region?.getAttribute("aria-label")).toBe("Loading map");
+    expect(region?.getAttribute("aria-busy")).toBe("true");
+    expect(region?.id).toBe("main");
+  });
+
+  it("is the page's <main> while it holds PubMap's place", () => {
+    act(() => {
+      root.render(createElement(MapLoadingSkeleton));
+    });
+
+    expect(host.querySelectorAll("main.mapSkeleton")).toHaveLength(1);
   });
 });
 

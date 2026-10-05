@@ -60,7 +60,7 @@ test("Plan identity nudge keeps one sign-in email action on a 390px phone", asyn
   // Clear grace without navigating away from Plan. Focus origin lets the test
   // prove modal teardown returns the keyboard user to the exact prior control.
   await page.evaluate(() => {
-    window.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Shift", bubbles: true }));
   });
 
   const dialog = page.getByRole("dialog", { name: "Keep your nights" });
@@ -145,7 +145,7 @@ test("strict identity modal isolates an open map sheet and releases it on dismis
   await expect(sheet).toHaveAttribute("aria-modal", "true");
 
   await page.evaluate(() => {
-    window.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Shift", bubbles: true }));
   });
   const dialog = page.getByRole("dialog", { name: "Keep your nights" });
   await expect(dialog).toBeVisible();

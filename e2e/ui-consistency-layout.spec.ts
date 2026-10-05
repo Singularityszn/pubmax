@@ -851,7 +851,7 @@ async function auditRoute(
     }).catch(() => null);
   }
   await page
-    .locator("main.routeLoadingShell")
+    .locator(".routeLoadingShell")
     .waitFor({ state: "hidden", timeout: 45_000 })
     .catch(() => undefined);
   await settle(page);
@@ -1120,7 +1120,6 @@ test("capture UI consistency evidence", async ({ browser }) => {
     const incomplete = routeAudit.filter(
       (measurement) =>
         measurement.status === null ||
-        measurement.mainSelector === "main.routeLoadingShell" ||
         (measurement.classification === "no-main" &&
           measurement.status !== 404),
     );

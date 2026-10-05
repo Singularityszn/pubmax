@@ -38,17 +38,82 @@ async function editorCanvasDigest(canvas: Locator): Promise<string> {
   });
 }
 
+async function seedMomentGuest(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    window.localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+    // Consent docks after the product answers; a photo upload counts, so pin
+    // the wait as already satisfied before the editor opens.
+    window.sessionStorage.setItem("pubmax:consent-answer-moment:v1", "second-route");
+  });
+}
+
+const MOMENT_URL = process.env.PW_MOMENT_BASE_URL
+  ? `${process.env.PW_MOMENT_BASE_URL}/moment`
+  : "/moment";
+
+async function attachPhoto(page: Page): Promise<void> {
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "night.png",
+    mimeType: "image/png",
+    buffer: PHOTO,
+  });
+  await expect(page.getByRole("button", { name: "Edit night.png" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Edit photo" })).toHaveCount(0);
+}
+
+test.describe("Moment photo editor with the sign-in nudge armed", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("a guest's first tap on Edit opens a usable editor, and the nudge waits for it to close", async ({ page }) => {
+    await seedMomentGuest(page);
+    // The first photo arms the "Own your memories" nudge, which then waits out
+    // an 8 s first-paint grace or the first tap. Hold the page's clock so only
+    // the Edit tap can end that grace, however slow the runner is.
+    const start = Date.now();
+    await page.clock.install({ time: start });
+    await page.clock.pauseAt(start + 5_000);
+    await page.goto(MOMENT_URL);
+    await attachPhoto(page);
+    // The draft save that arms the nudge is debounced by 300 ms.
+    await page.clock.runFor(1_000);
+    await expect
+      .poll(() => page.evaluate(() => window.localStorage.getItem("pubmax:identityNudge:pending:v1")))
+      .toBe("moment");
+    await expect(page.getByRole("dialog", { name: "Own your memories" })).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Edit night.png" }).click();
+    // The tap has ended the grace. The editor is a lazy chunk whose Suspense
+    // reveal waits on timers, so let the page's time run again.
+    await page.clock.resume();
+
+    const editor = page.getByRole("dialog", { name: "Edit photo" });
+    const nudge = page.getByRole("dialog", { name: "Own your memories" });
+    await expect(editor).toBeVisible();
+    // The tap ended the grace, but the nudge never opens over the editor: two
+    // strict modals inert each other and neither could be reached.
+    await expect(nudge).toHaveCount(0);
+    expect(await editor.evaluate((node) => node.closest("[inert]") === null)).toBe(true);
+
+    await page.getByRole("button", { name: "Close editor" }).click();
+    await expect(editor).toBeHidden();
+    await expect(nudge).toBeVisible();
+  });
+});
+
 test.describe("Moment photo editor", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
   test.beforeEach(async ({ page }) => {
+    await seedMomentGuest(page);
     await page.addInitScript(() => {
-      window.localStorage.setItem("pubmax-tour-v1-done", "1");
-      window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
-      window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
-      // Consent docks after the product answers; a photo upload counts, so pin
-      // the wait as already satisfied before the editor opens.
-      window.sessionStorage.setItem("pubmax:consent-answer-moment:v1", "second-route");
+      // A guest's first photo arms the "Own your memories" sign-in nudge, and
+      // the nudge opens on the first tap or after 8 s, over whatever is on
+      // screen. This journey is about the editor, so the guest has already
+      // said "not now" this week (lib/identityNudge.ts cooldown).
+      window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
     });
   });
 
@@ -72,17 +137,8 @@ test.describe("Moment photo editor", () => {
       }
     });
 
-    const momentUrl = process.env.PW_MOMENT_BASE_URL
-      ? `${process.env.PW_MOMENT_BASE_URL}/moment`
-      : "/moment";
-    await page.goto(momentUrl);
-    await page.locator('input[type="file"]').setInputFiles({
-      name: "night.png",
-      mimeType: "image/png",
-      buffer: PHOTO,
-    });
-    await expect(page.getByRole("button", { name: "Edit night.png" })).toBeVisible();
-    await expect(page.getByRole("dialog", { name: "Edit photo" })).toHaveCount(0);
+    await page.goto(MOMENT_URL);
+    await attachPhoto(page);
     const originalDigest = await momentPreviewDigest(page);
 
     await page.getByRole("button", { name: "Edit night.png" }).click();
