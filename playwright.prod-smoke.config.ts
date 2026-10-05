@@ -23,10 +23,6 @@ if (
   );
 }
 
-// Playwright's own output folders: gitignored, and skipped by ESLint, which
-// would otherwise lint the HTML report's bundled JavaScript.
-const OUTPUT_NAME = process.env.SMOKE_OUTPUT_NAME ?? "prod-smoke";
-
 export default defineConfig({
   testDir: "./e2e/prod-smoke",
   // One worker and no retries: the signed-in journeys share one session, the
@@ -39,10 +35,12 @@ export default defineConfig({
   // Real network, a cold production map and a model-backed Pub Pal reply.
   timeout: 120_000,
   expect: { timeout: 30_000 },
-  outputDir: `test-results/${OUTPUT_NAME}`,
+  // Playwright's own output folders: gitignored, and skipped by ESLint, which
+  // would otherwise lint the HTML report's bundled JavaScript.
+  outputDir: "test-results/prod-smoke",
   reporter: [
     ["list"],
-    ["html", { outputFolder: `playwright-report/${OUTPUT_NAME}`, open: "never" }],
+    ["html", { outputFolder: "playwright-report/prod-smoke", open: "never" }],
   ],
   use: {
     ...devices["Desktop Chrome"],
