@@ -507,7 +507,14 @@ test("1440px planner hands ownership to venue and Back restores composed state",
     renderedBox(venue, "open venue drawer"),
     renderedBox(toolbar, "toolbar beside venue"),
   ]);
-  expect(venueOpen.x).toBeCloseTo(800, 0);
+  // At rest the venue drawer docks to the right edge at the width it publishes
+  // (venueSheet.css: --desktop-venue-drawer-width: min(640px, 46vw), so 800px
+  // at 1440). The custom property is an unresolved min(), so its resolved
+  // computed width is read instead of restating 640 here.
+  const venueRestX = await venue.evaluate(
+    (node) => window.innerWidth - Number.parseFloat(getComputedStyle(node).width),
+  );
+  expect(venueOpen.x).toBeCloseTo(venueRestX, 1);
   expect(toolbarOpen.x + toolbarOpen.width).toBeLessThanOrEqual(
     venueOpen.x - EDGE_GUTTER + SUBPIXEL_TOLERANCE,
   );
