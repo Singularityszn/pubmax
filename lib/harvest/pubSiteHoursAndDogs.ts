@@ -467,20 +467,24 @@ export function siteFactsRows(input: {
 }
 
 /**
- * Why a run must not replace the committed facts, or null when it may. A
- * committed row may drop only when its pub's read is settled: a finished read
- * whose kept page the extractor read again, or a final refusal. A pub with no
- * checkpoint entry, an unfinished or failed read, or a missing kept page was
- * not read again, so dropping its row would erase a fact nobody disproved.
+ * The rows to publish: the fresh rows, plus each committed row whose pub the
+ * checkpoint has not settled, kept unchanged. A pub with no checkpoint entry,
+ * an unfinished or failed read, or a missing kept page was not read again, so
+ * only a settled outcome (a finished read with its kept page, or a final
+ * refusal) may change or drop its row. A checkpoint with no finished read at
+ * all is not a harvest, so it publishes nothing.
  */
-export function publishRefusal(
-  previousRows: readonly { osmId: string }[],
-  checkpoint: { reads: Readonly<Record<string, KeptPageRead>>; unsettled: readonly string[] },
-): string | null {
-  const unsettled = new Set(checkpoint.unsettled);
-  const lost = previousRows
-    .filter((row) => !Object.hasOwn(checkpoint.reads, row.osmId) || unsettled.has(row.osmId))
-    .map((row) => row.osmId);
-  if (lost.length === 0) return null;
-  return `${lost.length} committed row(s) belong to pubs the checkpoint has not settled: no entry, an unfinished or failed read, or a missing kept page (${lost.slice(0, 5).join(", ")}${lost.length > 5 ? ", ..." : ""}); finish the amenity harvest or restore the page cache first`;
+export function mergeSiteFactsRows(
+  previousRows: readonly SiteFactsRow[],
+  fresh: { rows: readonly SiteFactsRow[]; skipCounts: Readonly<Record<string, number>>; unsettled: readonly string[] },
+  reads: Readonly<Record<string, KeptPageRead>>,
+): { rows: SiteFactsRow[]; skipCounts: Record<string, number> } | { refusal: string } {
+  if (previousRows.length > 0 && !Object.values(reads).some((read) => read.status === "ok")) {
+    return { refusal: "the checkpoint holds no finished read; run the amenity harvest without --read-only first" };
+  }
+  const unsettled = new Set(fresh.unsettled);
+  const kept = previousRows.filter((row) => !Object.hasOwn(reads, row.osmId) || unsettled.has(row.osmId));
+  const rows = [...fresh.rows, ...kept].sort((a, b) => a.osmId.localeCompare(b.osmId));
+  const skipCounts = { ...fresh.skipCounts, ...(kept.length > 0 ? { "kept-unsettled": kept.length } : {}) };
+  return { rows, skipCounts };
 }

@@ -4,11 +4,12 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
-  publishRefusal,
+  mergeSiteFactsRows,
   siteFactsRows,
   statedDogPolicy,
   statedSiteOpeningHours,
   type KeptPageRead,
+  type SiteFactsRow,
 } from "@/lib/harvest/pubSiteHoursAndDogs";
 import { slimVenueToPin } from "@/lib/slimPins";
 import { applyVenueSiteFacts, venueSiteFactsFromRow } from "@/lib/venueSiteFacts";
@@ -243,12 +244,13 @@ describe("siteFactsRows", () => {
   });
 });
 
-describe("publishing from an unsettled checkpoint", () => {
+describe("publishing over committed rows", () => {
   const loadPage = (osmId: string) =>
     osmId === "node/1" || osmId === "node/4"
       ? { text: osmId === "node/1" ? "We're dog-friendly." : "Book a table for Sunday lunch.", readAt: "2026-10-05T10:00:00.000Z" }
       : null;
   const reads: Record<string, KeptPageRead> = {
+    // A finished read whose kept page states new facts.
     "node/1": { status: "ok", venueId: "venue-a", sourceUrl: "https://one.example/" },
     // A --read-only amenity run leaves its fenced pages as "read".
     "node/2": { status: "read", venueId: "venue-b", sourceUrl: "https://two.example/" },
@@ -262,13 +264,26 @@ describe("publishing from an unsettled checkpoint", () => {
     "node/8": { status: "site-of-another-pub", venueId: "venue-h" },
     "node/9": { status: "http-404", venueId: "venue-i" },
   };
-  const result = siteFactsRows({ reads, loadPage, isChainPage: () => false });
-  const refusalFor = (osmId: string) => publishRefusal([{ osmId: "node/1" }, { osmId }], { reads, unsettled: result.unsettled });
+  const fresh = siteFactsRows({ reads, loadPage, isChainPage: () => false });
+  const committedRow = (osmId: string): SiteFactsRow => ({
+    osmId,
+    name: `Pub ${osmId}`,
+    venueId: `venue-${osmId}`,
+    sourceUrl: "https://old.example/",
+    readOn: "2026-01-01",
+    dogs: { policy: "not-allowed", evidence: "No dogs." },
+  });
+  const committed = ["node/1", "node/2", "node/3", "node/4", "node/5", "node/6", "node/7", "node/8", "node/9", "node/10"].map(
+    committedRow,
+  );
+  const merged = mergeSiteFactsRows(committed, fresh, reads);
+  const mergedRows = "rows" in merged ? merged.rows : [];
+  const rowOf = (osmId: string) => mergedRows.find((row) => row.osmId === osmId);
 
   it("reports unsettled reads instead of skipping them silently", () => {
-    expect(result.rows.map((row) => row.osmId)).toEqual(["node/1"]);
-    expect(result.unsettled).toEqual(["node/2", "node/3", "node/5", "node/6", "node/7"]);
-    expect(result.skipCounts).toEqual({
+    expect(fresh.rows.map((row) => row.osmId)).toEqual(["node/1"]);
+    expect(fresh.unsettled).toEqual(["node/2", "node/3", "node/5", "node/6", "node/7"]);
+    expect(fresh.skipCounts).toEqual({
       "unsettled-read": 1,
       "unsettled-page-missing": 1,
       "unsettled-quota": 1,
@@ -278,24 +293,31 @@ describe("publishing from an unsettled checkpoint", () => {
     });
   });
 
-  it("refuses to drop a committed row whose pub has no checkpoint entry", () => {
-    expect(refusalFor("node/10")).toMatch(/^1 committed row\(s\).*\(node\/10\)/);
-    expect(publishRefusal([{ osmId: "node/10" }], { reads: {}, unsettled: [] })).toMatch(/^1 committed row\(s\)/);
+  it("keeps a committed row unchanged when its pub has no checkpoint entry", () => {
+    expect(rowOf("node/10")).toEqual(committedRow("node/10"));
+    expect(mergeSiteFactsRows([committedRow("node/10")], fresh, reads)).toEqual({
+      rows: [fresh.rows[0], committedRow("node/10")],
+      skipCounts: { ...fresh.skipCounts, "kept-unsettled": 1 },
+    });
   });
 
-  it("refuses to drop a committed row whose read is unfinished, failed or lost its page", () => {
-    for (const osmId of ["node/2", "node/3", "node/5", "node/6", "node/7"]) {
-      expect(refusalFor(osmId)).toMatch(new RegExp(`^1 committed row\\(s\\).*\\(${osmId.replace("/", "\\/")}\\)`));
-    }
-    const committed = ["node/1", "node/2", "node/3", "node/5", "node/6", "node/7", "node/10"].map((osmId) => ({ osmId }));
-    expect(publishRefusal(committed, { reads, unsettled: result.unsettled })).toMatch(
-      /^6 committed row\(s\).*\(node\/2, node\/3, node\/5, node\/6, node\/7, \.\.\.\)/,
-    );
+  it("keeps a committed row unchanged when its read is unfinished, failed or lost its page", () => {
+    for (const osmId of ["node/2", "node/3", "node/5", "node/6", "node/7"]) expect(rowOf(osmId)).toEqual(committedRow(osmId));
+    expect("skipCounts" in merged && merged.skipCounts["kept-unsettled"]).toBe(6);
   });
 
-  it("lets a committed row drop when its pub's read is settled", () => {
-    for (const osmId of ["node/4", "node/8", "node/9"]) expect(refusalFor(osmId)).toBeNull();
-    expect(publishRefusal([], { reads: {}, unsettled: [] })).toBeNull();
+  it("lets a settled read drop or replace a committed row", () => {
+    for (const osmId of ["node/4", "node/8", "node/9"]) expect(rowOf(osmId)).toBeUndefined();
+    expect(rowOf("node/1")).toEqual(fresh.rows[0]);
+    expect(rowOf("node/1")?.dogs).toEqual({ policy: "welcome", evidence: "We're dog-friendly." });
+    expect(mergedRows.map((row) => row.osmId)).toEqual(["node/1", "node/10", "node/2", "node/3", "node/5", "node/6", "node/7"]);
+  });
+
+  it("refuses a checkpoint with no finished read when facts are committed", () => {
+    const readOnly = { "node/2": reads["node/2"]! };
+    const result = siteFactsRows({ reads: readOnly, loadPage, isChainPage: () => false });
+    expect(mergeSiteFactsRows([committedRow("node/9")], result, readOnly)).toEqual({ refusal: expect.stringMatching(/no finished read/) });
+    expect(mergeSiteFactsRows([], result, readOnly)).toEqual({ rows: [], skipCounts: { "unsettled-read": 1 } });
   });
 });
 
