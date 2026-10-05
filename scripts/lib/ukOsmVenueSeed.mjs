@@ -81,10 +81,14 @@ function statedAvailable(value) {
   return value.split(";").some((part) => DRINK_AVAILABLE.includes(part.trim()));
 }
 
-/** Overpass match for a qualifying availability, alone or as one semicolon-separated token. */
+/**
+ * Overpass match for a qualifying availability, alone or as one semicolon-separated token.
+ * Overpass compiles tag regexes as POSIX ERE, so the pattern uses plain groups and a
+ * literal space: `(?:` and `\s` are static errors there and fail the whole request.
+ */
 function drinkAvailablePattern() {
   const token = DRINK_AVAILABLE.join("|");
-  return `^(?:[^;]*;)*\\s*(?:${token})\\s*(?:;.*)?$`;
+  return `^([^;]*;)* *(${token}) *(;.*)?$`;
 }
 
 /**
@@ -312,7 +316,14 @@ function roundCoord(value) {
 
 /**
  * Overpass QL for one grid cell and one query scope, clipped to the UK area
- * relation exactly as the pub query is.
+ * relation with the same `(area.uk)` filter the pub query uses.
+ *
+ * Each selector is bounded by the cell alone, and the area filter runs ONCE
+ * over the union. With the area on every selector the server tested the UK
+ * polygon once per selector: the London cell took 143 s against the
+ * `[timeout:90]` budget, so it could never complete. Filtering the union
+ * returned the identical element set in 73 s (measured 2026-10-04 on
+ * overpass-api.de).
  *
  * @param {Bbox} bbox
  * @param {string} [scope]
@@ -323,8 +334,8 @@ export function buildUkVenueQuery(bbox, scope = "all", { timeout = 90 } = {}) {
   const lines = [];
   for (const row of taxonomyForScope(scope)) {
     for (const selector of row.selectors) {
-      lines.push(`  node${selector}(area.uk)(${box});`);
-      lines.push(`  way${selector}(area.uk)(${box});`);
+      lines.push(`  node${selector}(${box});`);
+      lines.push(`  way${selector}(${box});`);
     }
   }
   return `
@@ -332,6 +343,10 @@ export function buildUkVenueQuery(bbox, scope = "all", { timeout = 90 } = {}) {
 area(id:${UK_AREA_ID})->.uk;
 (
 ${lines.join("\n")}
+)->.cell;
+(
+  node.cell(area.uk);
+  way.cell(area.uk);
 );
 out center tags;
 `.trim();

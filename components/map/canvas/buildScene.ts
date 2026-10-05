@@ -4,9 +4,15 @@ import {
   applySelectionMute,
   clusterCircleColorExpr,
 } from "@/lib/mapBasemapTaste";
+import { CATEGORY_COLORS } from "@/lib/categoryColors";
 import { isTransitNetworkVisible } from "@/lib/poiToggleGroups";
 import { TRANSPORT_CATEGORIES, type PoiCategory } from "@/lib/pois";
-import { iconId, UK_BASE_ICON_KEY, type IconTokens } from "@/lib/mapIcons";
+import {
+  COFFEE_PILOT_ICON_KEY,
+  iconId,
+  UK_BASE_ICON_KEY,
+  type IconTokens,
+} from "@/lib/mapIcons";
 import { USER_LOCATION_ACCURACY_RADIUS_PX } from "@/lib/mapReaderPosition";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import {
@@ -104,6 +110,15 @@ const UK_BASE_ICON_IMAGE_EXPR: maplibregl.ExpressionSpecification = [
     ["to-string", ["get", "spoonsBucket"]],
   ],
   iconId("base", UK_BASE_ICON_KEY),
+];
+
+/** A coffee pilot cafe's named-drink tag, from the same zoom as a price tag. */
+const COFFEE_PILOT_LABEL_EXPR: maplibregl.ExpressionSpecification = [
+  "step",
+  ["zoom"],
+  "",
+  PIN_PRICE_LABEL_MIN_ZOOM,
+  ["get", "label"],
 ];
 
 /** The base pin's units tag, blank on every pub outside the ranking. */
@@ -252,6 +267,8 @@ export type SceneCtx = {
   ukBaseData: GeoJSON.FeatureCollection;
   tonightData: GeoJSON.FeatureCollection;
   tonightVisible: boolean;
+  /** Shoreditch coffee pilot cafes, empty unless the coffee lane owns the map — see buildCoffeePilot. */
+  coffeePilotData: GeoJSON.FeatureCollection;
   selectedId: string;
   /** M2 — caller-owned store of pre-mute paint originals (layerId::prop → value)
    *  for the POI-at-initiation selection mute. Survives across builds via a ref;
@@ -517,6 +534,7 @@ function registerSceneIcons(ctx: SceneCtx) {
     // venuePinEdgeTokens: `paper` above resolves to a near-black in dark, so the
     // glasses' "light rim" was a black one against a near-black basemap.
     ...venuePinEdgeTokens(tokens, dark),
+    coffee: dark ? CATEGORY_COLORS.coffee.dark : CATEGORY_COLORS.coffee.light,
   };
   registerMapIcons(map, iconTokens);
   markPubmaxTiming("pubmax:map-icons-ready");
@@ -927,6 +945,75 @@ export function buildUkBase(ctx: SceneCtx) {
       dark,
       UK_BASE_ICON_OPACITY,
     ),
+  });
+}
+
+/**
+ * The Shoreditch coffee pilot's cafes (lib/coffeePilot.ts). The source is empty
+ * unless the coffee lane owns the map, so a pint reader's map is untouched.
+ *
+ * A cafe is a dot in the coffee hue, never a price band: the pilot holds a
+ * dozen cafes, which is no basis for calling one cheap. Its tag names the drink
+ * the figure is for, on the same deal as every price tag here: a real symbol in
+ * the collision index, and where it will not fit the TAG goes and the dot stays.
+ */
+export function buildCoffeePilot(ctx: SceneCtx) {
+  const { map, tokens, dark, textFont, addLayerOnce, coffeePilotData, selectedId } = ctx;
+  if (!map.getSource("coffee-pilot")) {
+    // The cafe's position and name are OpenStreetMap's (lib/londonVenueShards.ts).
+    map.addSource("coffee-pilot", {
+      type: "geojson",
+      data: coffeePilotData,
+      attribution: OSM_ATTRIBUTION,
+    });
+  }
+  addLayerOnce({
+    id: "coffee-pilot-selected",
+    type: "circle",
+    source: "coffee-pilot",
+    minzoom: PIN_MIN_ZOOM,
+    filter: ["==", ["get", "id"], selectedId],
+    paint: {
+      "circle-color": "rgba(0,0,0,0)",
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 9, 17, 14],
+      "circle-stroke-color": tokens.brass,
+      "circle-stroke-width": 2.4,
+      "circle-stroke-opacity": dark ? 0.9 : 0.85,
+    },
+  });
+  // One symbol carries the cafe and its tag, on the deal `uk-base-point`
+  // takes: the icon is in the collision index (no `*-allow-overlap`), so where
+  // two cafes would stack the second is not placed, and a tap can only land on
+  // a cafe the map actually drew. The tag is optional: where it will not fit
+  // the TAG goes and the cafe stays.
+  addLayerOnce({
+    id: "coffee-pilot-point",
+    type: "symbol",
+    source: "coffee-pilot",
+    minzoom: PIN_MIN_ZOOM,
+    layout: {
+      "icon-image": iconId("base", COFFEE_PILOT_ICON_KEY),
+      "icon-size": UK_BASE_ICON_SIZE_EXPR,
+      "icon-allow-overlap": false,
+      "icon-ignore-placement": false,
+      "icon-padding": 3,
+      "text-field": COFFEE_PILOT_LABEL_EXPR,
+      "text-font": textFont,
+      "text-size": PIN_PRICE_LABEL_SIZE_EXPR,
+      "text-anchor": "top",
+      "text-offset": PIN_PRICE_LABEL_OFFSET_EM,
+      "text-letter-spacing": 0.01,
+      "text-allow-overlap": false,
+      "text-ignore-placement": false,
+      "text-optional": true,
+      "text-padding": PIN_PRICE_LABEL_PADDING,
+    },
+    paint: {
+      "text-color": tokens.pricePlaqueInk,
+      "text-halo-color": tokens.pricePlaqueSurface,
+      "text-halo-width": PIN_PRICE_LABEL_HALO_WIDTH,
+      "text-halo-blur": 0.2,
+    },
   });
 }
 
@@ -1528,6 +1615,7 @@ export function assembleSceneCritical(ctx: SceneCtx) {
   buildRoute(ctx);
   buildBandCorridor(ctx);
   buildPubs(ctx);
+  buildCoffeePilot(ctx);
   buildRouteStops(ctx);
   applySelectionState(ctx);
 }

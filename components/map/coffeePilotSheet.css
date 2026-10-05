@@ -1,0 +1,125 @@
+/* The sheet behind a Shoreditch coffee pilot cafe
+   (components/map/CoffeePilotSheet.tsx). Scoped to .coffeePilot; reuses the
+   shared app tokens and the coffee category token so it inherits both themes
+   without forking a hex. Mobile-first at 390px: nothing here relies on hover. */
+
+.coffeePilot {
+  padding: 18px 18px 24px;
+}
+
+.coffeePilotHead {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.coffeePilotTag {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: 1px solid color-mix(in srgb, var(--cat-coffee) 35%, var(--line));
+  border-radius: var(--radius-pill, 999px);
+  background: color-mix(in srgb, var(--cat-coffee) 10%, var(--panel-raised));
+  color: var(--ink);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.coffeePilotTag svg {
+  color: var(--cat-coffee);
+}
+
+.coffeePilotName {
+  margin: 0;
+  font-family: var(--font-display, var(--serif));
+  font-size: 1.32rem;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--ink);
+}
+
+.coffeePilotAddress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--ink-soft, var(--muted));
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.coffeePilotAddress svg {
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+
+/* The portal sheet's own header already shows the cafe name as its title, as
+   it does for a base pub (unverifiedPubSheet.css). */
+.mobileSharedSheet .coffeePilotName {
+  display: none;
+}
+
+.coffeePilotLead {
+  margin: 14px 0 0;
+  color: var(--ink-soft, var(--muted));
+  font-size: 0.94rem;
+  line-height: 1.45;
+}
+
+.coffeePilotPrices {
+  display: flex;
+  flex-direction: column;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+
+.coffeePilotPrice {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.coffeePilotDrink {
+  color: var(--ink);
+  font-size: 0.98rem;
+  font-weight: 600;
+}
+
+.coffeePilotFigure {
+  color: var(--ink);
+  font-size: 1.08rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.coffeePilotSourceLink {
+  grid-column: 1 / -1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  justify-self: start;
+  min-height: 24px;
+  color: var(--ink-soft, var(--muted));
+  font-size: 0.78rem;
+  text-decoration: underline;
+}
+
+.coffeePilotSource {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.coffeePilotSource a {
+  color: inherit;
+  text-decoration: underline;
+}

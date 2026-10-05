@@ -86,6 +86,7 @@ function buildScenePieces(selectedId = "") {
     ukBaseData: { type: "FeatureCollection", features: [] },
     tonightData: { type: "FeatureCollection", features: [] },
     tonightVisible: false,
+    coffeePilotData: { type: "FeatureCollection", features: [] },
     selectedId,
     selectionMuteStore: new Map<string, unknown>(),
   } satisfies SceneCtx;

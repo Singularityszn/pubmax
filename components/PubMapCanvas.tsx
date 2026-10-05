@@ -26,6 +26,7 @@ import {
 } from "react";
 
 import type { Landmark } from "@/lib/landmarks";
+import { coffeePilotToGeoJSON, type CoffeePilotCafe } from "@/lib/coffeePilot";
 import { bandMemberPubs } from "@/lib/storyBandVenueProximity";
 import type { StoryBand } from "@/lib/storyBands";
 import {
@@ -390,6 +391,8 @@ type PubMapCanvasProps = {
   tonightOpportunities?: ThingsToDoOpportunity[];
   tonightOverlayVisible?: boolean;
   onTonightOpportunityClick?: (op: ThingsToDoOpportunity) => void;
+  /** Shoreditch coffee pilot cafes. Empty unless the coffee lane owns the map. */
+  coffeePilotCafes?: readonly CoffeePilotCafe[];
   /**
    * Borough browse arrival (`?q=`): fit the filtered venue set once after
    * style/load so outer-London places land framed, not on the city default.
@@ -499,6 +502,9 @@ const EMPTY_DATA_PACK: GeoJSON.FeatureCollection = {
   type: "FeatureCollection",
   features: [],
 };
+// The coffee pilot prop's resting value, one reference so the data effect
+// does not rerun on every render of a pint map.
+const NO_COFFEE_PILOT_CAFES: readonly CoffeePilotCafe[] = [];
 // Every pub-source layer, gated together through the basemap gate on desktop
 // and the stricter source-aware visible-frame handoff on phone.
 const PUB_PIN_LAYERS = [
@@ -573,6 +579,7 @@ export default function PubMapCanvas({
   tonightOpportunities = [],
   tonightOverlayVisible = false,
   onTonightOpportunityClick,
+  coffeePilotCafes = NO_COFFEE_PILOT_CAFES,
   fitQueryOnArrival = false,
   searchFitToken = 0,
   userLocation = null,
@@ -982,6 +989,10 @@ export default function PubMapCanvas({
   const tonightDataRef = useRef<GeoJSON.FeatureCollection>(
     opportunitiesToGeoJSON([]),
   );
+  const coffeePilotDataRef = useRef<GeoJSON.FeatureCollection>(
+    coffeePilotToGeoJSON(coffeePilotCafes),
+  );
+  const coffeePilotCafesRef = useRef(coffeePilotCafes);
   // Story-band corridor (a tinted line through the anchors); reseeded after a
   // theme setStyle wipes sources, same pattern as the other data refs.
   const bandCorridorRef = useRef<GeoJSON.FeatureCollection>({
@@ -2137,6 +2148,7 @@ export default function PubMapCanvas({
         ukBaseData: ukBaseDataRef.current,
         tonightData: tonightDataRef.current,
         tonightVisible: tonightOverlayVisibleRef.current,
+        coffeePilotData: coffeePilotDataRef.current,
         selectedId: selectedIdRef.current,
         selectionMuteStore: selectionMuteStoreRef.current,
       };
@@ -2216,6 +2228,7 @@ export default function PubMapCanvas({
               ukBaseData: ukBaseDataRef.current,
               tonightData: tonightDataRef.current,
               tonightVisible: tonightOverlayVisibleRef.current,
+              coffeePilotData: coffeePilotDataRef.current,
               selectedId: selectedIdRef.current,
               selectionMuteStore: selectionMuteStoreRef.current,
             });
@@ -3567,6 +3580,19 @@ export default function PubMapCanvas({
     });
   }, [tonightOpportunities, tonightOverlayVisible, mapReady, applyToMap]);
 
+  // Shoreditch coffee pilot cafes → source data. Kept out of the mount effect
+  // deps for the same reason as the tonight overlay above.
+  useEffect(() => {
+    coffeePilotDataRef.current = coffeePilotToGeoJSON(coffeePilotCafes);
+    coffeePilotCafesRef.current = coffeePilotCafes;
+    if (!mapReady) return;
+    applyToMap("coffee-pilot:data", (map) => {
+      (map.getSource("coffee-pilot") as maplibregl.GeoJSONSource | undefined)?.setData(
+        coffeePilotDataRef.current,
+      );
+    });
+  }, [coffeePilotCafes, mapReady, applyToMap]);
+
   // POIs load once (client fetch) and feed the "pois" source.
   // Non-London cities pass poisPath=null → empty layer, no 404.
   useEffect(() => {
@@ -3646,6 +3672,10 @@ export default function PubMapCanvas({
       // selected id drives it, so exactly one of the two ever matches.
       if (map.getLayer("uk-base-selected")) {
         map.setFilter("uk-base-selected", selectedFilter);
+      }
+      // So does a Shoreditch pilot cafe: its `venue-osm-` id matches no pub.
+      if (map.getLayer("coffee-pilot-selected")) {
+        map.setFilter("coffee-pilot-selected", selectedFilter);
       }
       // M1 selection spotlight — dim every non-selected pub pin; the selected
       // pin stays fully opaque. Deselect restores the plain serves-based dim.
@@ -3814,7 +3844,9 @@ export default function PubMapCanvas({
   // remain out of the deps (no re-flying on churn, the original guarantee).
   const selectedPresent =
     Boolean(selectedVenueId) &&
-    (venues.some((item) => item.id === selectedVenueId) || isUkBaseId(selectedVenueId));
+    (venues.some((item) => item.id === selectedVenueId) ||
+      isUkBaseId(selectedVenueId) ||
+      coffeePilotCafes.some((cafe) => cafe.id === selectedVenueId));
 
   // There is no ambient camera here, and that is a decision (captain, 3 Sep
   // 2026). An idle orbit used to turn the map at 0.6 degrees a second once the
@@ -3851,7 +3883,12 @@ export default function PubMapCanvas({
             const base = ukBaseResidentPubsRef.current.find(
               (pub) => pub.id === selectedVenueId,
             );
-            return base ? ([base.lng, base.lat] as [number, number]) : null;
+            if (base) return [base.lng, base.lat] as [number, number];
+            // A Shoreditch pilot cafe is not a venue either; it carries its own place.
+            const cafe = coffeePilotCafesRef.current.find(
+              (item) => item.id === selectedVenueId,
+            );
+            return cafe ? ([cafe.lng, cafe.lat] as [number, number]) : null;
           })();
     if (!center) return;
     const isPhone = window.matchMedia("(max-width: 640px)").matches;

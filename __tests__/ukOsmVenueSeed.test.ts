@@ -60,15 +60,18 @@ describe("UK venue taxonomy", () => {
     const query = buildUkVenueQuery(LONDON_CELL);
     expect(query).toContain("[timeout:90]");
     expect(query).toContain("area(id:3600062149)->.uk;");
-    expect(query).toContain('node["amenity"="pub"](area.uk)(50.8,-0.7,51.8,0.3);');
-    expect(query).toContain('way["amenity"="pub"](area.uk)(50.8,-0.7,51.8,0.3);');
+    expect(query).toContain('node["amenity"="pub"](50.8,-0.7,51.8,0.3);');
+    expect(query).toContain('way["amenity"="pub"](50.8,-0.7,51.8,0.3);');
+    // The UK clip runs once over the cell's union, not once per selector.
+    expect(query).toContain(")->.cell;\n(\n  node.cell(area.uk);\n  way.cell(area.uk);\n);");
+    expect(query.match(/\(area\.uk\)/g)).toHaveLength(2);
     expect(query.trimEnd().endsWith("out center tags;")).toBe(true);
   });
 
   it("asks for the whole taxonomy in one request by default", () => {
     const all = buildUkVenueQuery(LONDON_CELL);
     for (const row of UK_VENUE_TAXONOMY) {
-      for (const selector of row.selectors) expect(all).toContain(`node${selector}(area.uk)`);
+      for (const selector of row.selectors) expect(all).toContain(`node${selector}(50.8`);
     }
     expect(taxonomyForScope("all")).toHaveLength(UK_VENUE_TAXONOMY.length);
     expect(UK_VENUE_QUERY_SCOPES[0]).toBe("all");
@@ -76,7 +79,7 @@ describe("UK venue taxonomy", () => {
 
   it("narrows to one lane when a scope is named", () => {
     const work = buildUkVenueQuery(LONDON_CELL, "work");
-    expect(work).toContain('node["amenity"="library"](area.uk)');
+    expect(work).toContain('node["amenity"="library"](50.8');
     expect(work).not.toContain('"amenity"="pub"');
     expect(() => taxonomyForScope("nightclubs")).toThrow(/Unknown venue scope/);
   });
@@ -145,13 +148,47 @@ describe("UK venue taxonomy", () => {
 
   it("asks Overpass for every alcoholic drink key and no non-alcoholic one", () => {
     const query = buildUkVenueQuery(LONDON_CELL, "drink");
-    expect(query).toContain('node["amenity"="nightclub"](area.uk)');
-    expect(query).toContain('node["amenity"="music_venue"](area.uk)');
-    expect(query).toContain('node["club"]["bar"="yes"](area.uk)');
-    expect(query).toContain('node["amenity"="casino"]["alcohol"~"^(yes|served)$"](area.uk)');
+    expect(query).toContain('node["amenity"="nightclub"](50.8');
+    expect(query).toContain('node["amenity"="music_venue"](50.8');
+    expect(query).toContain('node["club"]["bar"="yes"](50.8');
+    expect(query).toContain('node["amenity"="casino"]["alcohol"~"^(yes|served)$"](50.8');
     expect(query).not.toContain("drink:coffee");
-    expect(query).toContain("(?:[^;]*;)*\\s*(?:yes|served|draught|bottled)\\s*(?:;.*)?$");
+    expect(query).toContain('"^([^;]*;)* *(yes|served|draught|bottled) *(;.*)?$"');
     for (const key of ALCOHOLIC_DRINK_KEYS) expect(query).toContain(key);
+  });
+
+  // Overpass compiles a tag regex as POSIX ERE. A PCRE-only form such as `(?:`
+  // or `\s` is a static error, and the server answers 400 for the whole chunk.
+  it("writes every Overpass regex in POSIX ERE, matching what statesAlcohol accepts", () => {
+    const query = buildUkVenueQuery(LONDON_CELL, "all");
+    const patterns = [...query.matchAll(/~"([^"]*)"/g)].map((match) => match[1]);
+    expect(patterns.length).toBeGreaterThan(0);
+    for (const pattern of patterns) {
+      expect(pattern).not.toContain("(?");
+      expect(pattern).not.toContain("\\");
+    }
+
+    const valuePattern = query.match(/\[~"\^\(drink:[^"]*\)\$"~"([^"]*)"\]/)?.[1];
+    expect(valuePattern).toBeDefined();
+    const available = new RegExp(valuePattern!);
+    const samples = [
+      "yes",
+      "served",
+      "draught",
+      "bottled",
+      "served;bottled",
+      "served; bottled",
+      "no;served",
+      "no; yes",
+      "no",
+      "retail",
+      "no;retail",
+      "notserved",
+      "yesno",
+    ];
+    for (const value of samples) {
+      expect(available.test(value), value).toBe(statesAlcohol({ "drink:beer": value }));
+    }
   });
 
   it("takes fast food only where OSM states alcohol or round-the-clock hours", () => {

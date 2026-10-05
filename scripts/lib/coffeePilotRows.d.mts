@@ -1,13 +1,4 @@
-export const COFFEE_PILOT_FILE: string;
-
-export const COFFEE_PILOT_DRINKS: string[];
-
-export const COFFEE_PILOT_BOX: {
-  latMin: number;
-  latMax: number;
-  lngMin: number;
-  lngMax: number;
-};
+export { COFFEE_PILOT_BOX, COFFEE_PILOT_DRINKS, COFFEE_PILOT_FILE } from "./coffeePilotArea.mjs";
 
 export function coffeePilotProblems(
   file: unknown,

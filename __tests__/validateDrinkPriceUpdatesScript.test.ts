@@ -74,6 +74,10 @@ function buildBaseScratch(): string {
     join(scratchScripts, "lib", "coffeePilotRows.mjs"),
   );
   cpSync(
+    join(ROOT, "scripts", "lib", "coffeePilotArea.mjs"),
+    join(scratchScripts, "lib", "coffeePilotArea.mjs"),
+  );
+  cpSync(
     join(ROOT, "scripts", "lib", "slimShards.mjs"),
     join(scratchScripts, "lib", "slimShards.mjs"),
   );
