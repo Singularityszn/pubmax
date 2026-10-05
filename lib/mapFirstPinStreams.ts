@@ -49,6 +49,7 @@ export const HELD_MAP_SECONDARY_STREAMS = [
   "slim-shard-rings",
   "uk-base-layer",
   "ambient-poi-overlay",
+  "london-restaurant-pack",
 ] as const;
 
 export type MapSecondaryStreamSignals = {

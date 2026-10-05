@@ -4,6 +4,7 @@ import { lngLatOf } from "@/lib/geo";
 import type { Landmark } from "@/lib/landmarks";
 import type { PoiCategory } from "@/lib/pois";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
+import { londonVenueIdFromFeature } from "@/lib/londonVenueShards";
 import { ukBasePubFromFeature, type UkBasePub } from "@/lib/ukBasePubs";
 import { opportunityForFeature } from "./filters";
 import type { HoveredVenue } from "./types";
@@ -21,7 +22,9 @@ const LANDMARK_INTERACTION_LAYERS = [
 // `uk-base-point` sits AFTER the curated pub layers and before the ambient
 // ones: an unverified pub is still a pub (so it beats a landmark or a station
 // under the same thumb), but where a curated pin and a base pin overlap the
-// curated one wins — the same precedence the paint order states.
+// curated one wins — the same precedence the paint order states. A London
+// restaurant comes after the base pubs for the same reason: it is drawn under
+// them.
 export const PUB_FIRST_LAYERS = [
   "pubs-point-selected",
   "pubs-point",
@@ -30,6 +33,7 @@ export const PUB_FIRST_LAYERS = [
   "clusters",
   "coffee-pilot-point",
   "uk-base-point",
+  "london-restaurant-point",
   ...LANDMARK_INTERACTION_LAYERS,
   "pois-dot",
   "pois-transport-major",
@@ -112,18 +116,20 @@ export function wireClickRouting(map: maplibregl.Map, deps: ClickDeps) {
       return;
     }
 
-    // A Shoreditch pilot cafe opens the same drawer a pub does, by its own
-    // `venue-osm-` id; PubMap resolves the id to the cafe's sheet.
-    const cafeHit = byLayer.get("coffee-pilot-point");
-    if (cafeHit) {
-      const id = cafeHit.properties?.id;
-      if (typeof id !== "string") return;
+    // A London venue-layer place opens the same drawer a pub does, by its own
+    // `venue-osm-` id; PubMap resolves the id to the cafe's or restaurant's
+    // sheet. A feature with no such id answers nothing.
+    const openLondonPlace = (id: string | null) => {
+      if (!id) return;
       selectLandmark(null);
       setHoveredVenue(null);
       setActivePoi(null);
       onVenueClickRef.current(id);
-      return;
-    }
+    };
+
+    // A Shoreditch pilot cafe.
+    const cafeHit = byLayer.get("coffee-pilot-point");
+    if (cafeHit) return openLondonPlace(londonVenueIdFromFeature(cafeHit));
 
     const baseHit = byLayer.get("uk-base-point");
     if (baseHit) {
@@ -135,6 +141,10 @@ export function wireClickRouting(map: maplibregl.Map, deps: ClickDeps) {
       onUkBasePubClickRef.current?.(pub);
       return;
     }
+
+    // A London restaurant, drawn under the base pubs and so answered after them.
+    const restaurantHit = byLayer.get("london-restaurant-point");
+    if (restaurantHit) return openLondonPlace(londonVenueIdFromFeature(restaurantHit));
 
     const tonightHit = byLayer.get("tonight-point");
     if (tonightHit) {
@@ -235,6 +245,7 @@ export function wireCursor(map: maplibregl.Map) {
     "tonight-point",
     "coffee-pilot-point",
     "uk-base-point",
+    "london-restaurant-point",
     ...LANDMARK_INTERACTION_LAYERS,
     "pois-dot",
     "pois-transport-major",

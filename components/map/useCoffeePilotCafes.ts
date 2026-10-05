@@ -58,12 +58,13 @@ export function useCoffeePilotCafes(wanted: boolean): CoffeePilotState {
 }
 
 /**
- * Lets a pilot cafe selection go once `release` says it has no sheet to open
- * (lib/pubMap.ts `coffeePilotSelection`). It leaves through the map trail's own
- * `rejectSelection`, so the cafe's venue entry leaves history with the sheet
- * and a later Back cannot land on it.
+ * Lets a `venue-osm-` selection go once `release` says no London source has a
+ * sheet to open for it (lib/pubMap.ts `coffeePilotSelection` and
+ * `londonRestaurantSelection`). It leaves through the map trail's own
+ * `rejectSelection`, so the venue entry leaves history with the sheet and a
+ * later Back cannot land on it.
  */
-export function useReleaseCoffeeSelection(
+export function useReleaseLondonVenueSelection(
   release: boolean,
   selectedVenueId: string,
   rejectSelection: (venueId: string) => void,

@@ -35,6 +35,7 @@ import { fileURLToPath } from "node:url";
 import { publishStagedDirectory } from "./lib/atomicDirectoryPublish.mjs";
 import { coveringStamp } from "./lib/coveringStamp.mjs";
 import { cellBbox, cellIndexFor, cellKey } from "./lib/ukBaseGrid.mjs";
+import { writeLondonRestaurantPack } from "./build_london_restaurant_pack.mjs";
 import { validateRestaurantDrinksPack } from "./lib/londonRestaurantDrinks.mjs";
 import { UK_VENUE_GROUPS } from "./lib/ukOsmVenueSeed.mjs";
 import { GREATER_LONDON_BBOX } from "./fetch_uk_osm_venues.mjs";
@@ -315,6 +316,10 @@ async function main() {
   } finally {
     await rm(stagedDir, { recursive: true, force: true });
   }
+
+  // The map reads the restaurants from their own pack, cut from the shards
+  // just published, so a rebuilt layer never leaves the pack a generation behind.
+  await writeLondonRestaurantPack();
 }
 
 const isDirectRun = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);

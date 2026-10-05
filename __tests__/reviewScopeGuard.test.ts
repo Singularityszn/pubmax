@@ -141,6 +141,7 @@ describe("review scope guard", () => {
       "public/data/uk_base/README.md",
       "public/data/london_venues/README.md",
       "public/data/london_desks/README.md",
+      "public/data/london_restaurants/README.md",
       "public/data/drink_price_updates/latest.json",
       "public/data/heritage_cache.json",
     ];
@@ -260,6 +261,33 @@ describe("review scope guard", () => {
     expect(report.ok).toBe(false);
     expect(report.forbidden).toEqual([
       { category: "generated", path: "public/data/london_desks/desks.json" },
+    ]);
+  });
+
+  it("permits the London restaurant pack when the diff carries its builder or the shards it is cut from", () => {
+    for (const producer of [
+      "scripts/build_london_restaurant_pack.mjs",
+      "public/data/london_venues/manifest.json",
+    ]) {
+      const report = summarizeReviewScope([
+        producer,
+        "public/data/london_restaurants/restaurants.json",
+      ]);
+      expect(report.forbidden).toEqual(
+        producer.startsWith("public/")
+          ? [{ category: "generated", path: producer }]
+          : [],
+      );
+      expect(report.regeneratedLanes).toContain("london_restaurants");
+    }
+  });
+
+  it("refuses a London restaurant pack that nothing in the diff produced", () => {
+    const report = summarizeReviewScope(["public/data/london_restaurants/restaurants.json"]);
+
+    expect(report.ok).toBe(false);
+    expect(report.forbidden).toEqual([
+      { category: "generated", path: "public/data/london_restaurants/restaurants.json" },
     ]);
   });
 

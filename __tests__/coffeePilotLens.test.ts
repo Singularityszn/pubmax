@@ -185,6 +185,7 @@ describe("the coffee pilot layer", () => {
       tonightData: empty,
       tonightVisible: false,
       coffeePilotData: empty,
+      londonRestaurantData: empty,
       selectedId: "",
       selectionMuteStore: new Map<string, unknown>(),
     } satisfies SceneCtx);

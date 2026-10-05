@@ -8,7 +8,7 @@ import { act, createElement, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-import { useReleaseCoffeeSelection } from "@/components/map/useCoffeePilotCafes";
+import { useReleaseLondonVenueSelection } from "@/components/map/useCoffeePilotCafes";
 import { coffeePilotSelection } from "@/lib/pubMap";
 
 const CROSSTOWN = "venue-osm-w271641406";
@@ -20,7 +20,7 @@ const root = createRoot(container);
 function CoffeeLens({ lensOn, rejectSelection }: { lensOn: boolean; rejectSelection: (id: string) => void }) {
   const [selectedVenueId, setSelectedVenueId] = useState(CROSSTOWN);
   const pick = coffeePilotSelection({ lensOn, selectedVenueId, status: "ready", byId });
-  useReleaseCoffeeSelection(pick.release, selectedVenueId, rejectSelection, setSelectedVenueId);
+  useReleaseLondonVenueSelection(pick.release, selectedVenueId, rejectSelection, setSelectedVenueId);
   return createElement("p", { "data-selected": selectedVenueId }, pick.cafe?.name ?? "");
 }
 

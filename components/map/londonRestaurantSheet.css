@@ -1,0 +1,83 @@
+/* The sheet behind a London restaurant pin
+   (components/map/LondonRestaurantSheet.tsx). Scoped to .londonRestaurant and
+   built from the shared app tokens, so it inherits both themes without forking
+   a hex. Mobile-first at 390px: nothing here relies on hover. */
+
+.londonRestaurant {
+  padding: 18px 18px 24px;
+}
+
+.londonRestaurantHead {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.londonRestaurantTag {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill, 999px);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.londonRestaurantTag svg {
+  color: var(--muted);
+}
+
+.londonRestaurantName {
+  margin: 0;
+  font-family: var(--font-display, var(--serif));
+  font-size: 1.32rem;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--ink);
+}
+
+.londonRestaurantAddress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--ink-soft, var(--muted));
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.londonRestaurantAddress svg {
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+
+/* The portal sheet's own header already shows the name as its title, as it
+   does for a base pub (unverifiedPubSheet.css). */
+.mobileSharedSheet .londonRestaurantName {
+  display: none;
+}
+
+.londonRestaurantLead {
+  margin: 14px 0 0;
+  color: var(--ink-soft, var(--muted));
+  font-size: 0.94rem;
+  line-height: 1.45;
+}
+
+.londonRestaurantSource {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.londonRestaurantSource a {
+  color: inherit;
+  text-decoration: underline;
+}

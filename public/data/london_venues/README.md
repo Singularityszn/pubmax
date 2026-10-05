@@ -60,6 +60,14 @@ published, because that is where the curated layer, the prices and the readers
 are. Widening it to the country needs the per-shard and whole-layer budgets
 re-measured, not raised.
 
+## Restaurant pack
+
+The map draws this layer's restaurants, and reads them from
+[`public/data/london_restaurants/`](../london_restaurants/README.md), not from
+these shards: the shards a phone at zoom 12 covers are mostly cafes, and the
+restaurants alone are one small file. `npm run build:london-venues` writes that
+pack after every publish, so it is never a generation behind.
+
 ## Desk pack
 
 The amenity-bearing sibling of these shards lives in

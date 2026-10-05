@@ -50,7 +50,7 @@ const GENERATED_PATHS = [
   /^(?:data|public\/data)\/generated(?:\/|$)/,
   /^public\/data\/venues_slim[^/]*\.json$/,
   /^public\/data\/cities\/[^/]+\/venues_slim[^/]*\.json$/,
-  /^public\/data\/(?:uk_base|london_venues|london_desks)\/(?!README\.md$).+/,
+  /^public\/data\/(?:uk_base|london_venues|london_desks|london_restaurants)\/(?!README\.md$).+/,
   /^public\/data\/pubmaxxing_seed_snapshot\.json$/,
   /^public\/data\/(?:heritage_listings|historic_pubs)\.json$/,
   /^data\/persona_drinks\.json$/,
@@ -138,6 +138,14 @@ export const REGENERATED_LANES = [
       /^scripts\/build_london_desk_index\.mjs$/,
       /^scripts\/build_london_venue_shards\.mjs$/,
       /^data\/osm\/uk\/uk_osm_venues_[a-z]+\.json$/,
+    ],
+  },
+  {
+    id: "london_restaurants",
+    output: /^public\/data\/london_restaurants\/(?!README\.md$).+/,
+    inputs: [
+      /^scripts\/build_london_restaurant_pack\.mjs$/,
+      /^public\/data\/london_venues\/(?!README\.md$).+/,
     ],
   },
   {
