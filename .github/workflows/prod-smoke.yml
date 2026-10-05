@@ -61,7 +61,37 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
+      # The live origin always serves the newest deploy, while this run checked
+      # out one commit. Compare Vercel deployment ids: the deployment's own URL
+      # and the live origin both answer /api/version without credentials. A
+      # newer deploy already serving production makes this run moot, because
+      # that deploy's own run tests it.
+      - name: Check the live site serves this deployment
+        id: bound
+        env:
+          DEPLOYMENT_URL: ${{ github.event.deployment_status.environment_url }}
+        run: |
+          live=$(curl -fsS --max-time 30 https://pubmaxxing.com/api/version | jq -r '.deploymentId // empty')
+          if [ -z "$live" ]; then echo "::error::https://pubmaxxing.com/api/version named no deployment"; exit 1; fi
+          echo "live=$live" >> "$GITHUB_OUTPUT"
+          if [ -z "$DEPLOYMENT_URL" ]; then
+            echo "Dispatched run: testing $live with the dispatched ref."
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! printf '%s' "$DEPLOYMENT_URL" | grep -Eq '^https://[a-z0-9-]+\.vercel\.app$'; then
+            echo "::error::Unexpected deployment URL: $DEPLOYMENT_URL"; exit 1
+          fi
+          mine=$(curl -fsS --max-time 30 "$DEPLOYMENT_URL/api/version" | jq -r '.deploymentId // empty')
+          if [ "$mine" = "$live" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Production now serves $live, not this deployment ($mine). Skipping: the newer deploy's run tests it."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Run the production smoke suite
+        if: steps.bound.outputs.run == 'true'
         env:
           # Pinned, so the smoke account's secrets only ever go to the live site.
           SMOKE_BASE_URL: https://pubmaxxing.com
@@ -71,8 +101,21 @@ jobs:
           SMOKE_REQUIRE_SIGN_IN: "1"
         run: npx playwright test --config=playwright.prod-smoke.config.ts
 
+      # A deploy that lands mid-run moves the live origin under the suite, so
+      # its verdict no longer belongs to the commit checked out here.
+      - name: Check production did not move during the run
+        if: ${{ !cancelled() && steps.bound.outputs.run == 'true' }}
+        env:
+          LIVE_BEFORE: ${{ steps.bound.outputs.live }}
+        run: |
+          live=$(curl -fsS --max-time 30 https://pubmaxxing.com/api/version | jq -r '.deploymentId // empty')
+          if [ "$live" != "$LIVE_BEFORE" ]; then
+            echo "::error::Production moved from $LIVE_BEFORE to $live during the run, so this verdict is not this deployment's. The newer deploy's run decides."
+            exit 1
+          fi
+
       - name: Upload the report and screenshots
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.bound.outputs.run == 'true' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: prod-smoke-${{ github.run_id }}

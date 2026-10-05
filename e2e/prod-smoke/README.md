@@ -78,6 +78,15 @@ by hand after one:
 gh workflow run prod-smoke.yml
 ```
 
+Before the suite runs, the workflow checks that the live site serves the
+deployment that started it. Both the deployment's own URL and
+`https://pubmaxxing.com` answer `/api/version` with a Vercel deployment id. If a
+newer deploy already serves production, the run skips with a notice, because the
+newer deploy's own run tests it. If production moves while the suite runs, the
+run fails and says so: its verdict no longer belongs to the commit it checked
+out. A dispatched run tests the ref it was dispatched on, so dispatch it on the
+commit that is live.
+
 The workflow always tests `https://pubmaxxing.com`, so the smoke account's
 secrets never go to another origin. `SMOKE_BASE_URL` is for local runs only.
 
