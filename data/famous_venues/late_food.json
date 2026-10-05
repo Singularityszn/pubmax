@@ -147,8 +147,8 @@
     "name": "Mangal 2",
     "address": "4 Stoke Newington Road, London N16 7XN",
     "borough": "Hackney",
-    "lat": 51.550984,
-    "lng": -0.074805,
+    "lat": 51.550797,
+    "lng": -0.074917,
     "kind": "food",
     "hasStory": true,
     "fameGates": [
@@ -183,8 +183,8 @@
     "description": "The second-generation Dirik family turned a beloved Dalston ocakbasi into a nationally recognised modern Turkish dining room.",
     "area": "Hackney",
     "location": {
-      "lat": 51.550984,
-      "lng": -0.074805
+      "lat": 51.550797,
+      "lng": -0.074917
     },
     "sourceName": "mangal2.com",
     "expiresAt": "2026-11-04",
@@ -244,8 +244,8 @@
     "name": "Antepliler",
     "address": "46 Grand Parade, Green Lanes, London N4 1AG",
     "borough": "Haringey",
-    "lat": 51.579164,
-    "lng": -0.098858,
+    "lat": 51.579345,
+    "lng": -0.098941,
     "kind": "food",
     "hasStory": true,
     "fameGates": [
@@ -276,8 +276,8 @@
     "description": "Named for the people of Gaziantep, Antepliler helped make Green Lanes synonymous with baklava, lahmacun and charcoal kebabs.",
     "area": "Haringey",
     "location": {
-      "lat": 51.579164,
-      "lng": -0.098858
+      "lat": 51.579345,
+      "lng": -0.098941
     },
     "sourceName": "anteplilerlondon.co.uk",
     "expiresAt": "2026-11-04",
@@ -292,8 +292,8 @@
     "name": "Diyarbakir Kitchen",
     "address": "52-53 Grand Parade, Green Lanes, London N4 1AG",
     "borough": "Haringey",
-    "lat": 51.579164,
-    "lng": -0.098858,
+    "lat": 51.578953,
+    "lng": -0.098863,
     "kind": "food",
     "hasStory": true,
     "fameGates": [
@@ -324,8 +324,8 @@
     "description": "This Green Lanes stalwart built its name on Kurdish and south-eastern Turkish charcoal cooking served late from an open grill.",
     "area": "Haringey",
     "location": {
-      "lat": 51.579164,
-      "lng": -0.098858
+      "lat": 51.578953,
+      "lng": -0.098863
     },
     "sourceName": "diyarbakir.co.uk",
     "expiresAt": "2026-11-04",
