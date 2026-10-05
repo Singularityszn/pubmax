@@ -2,11 +2,18 @@ import { mkdir, writeFile } from "node:fs/promises";
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import {
+  LANDING_FIRST_RUN_HREF,
+  LANDING_PRIMARY_HREF,
+  LANDING_PRIMARY_NAME,
+} from "./helpers/landingHero";
+
 // The first-run journey on the web (lib/onboardingFlow.ts). A browser reaches
-// it only from a link inside the app, which is a same-origin navigation; a typed
-// or shared URL is still turned away at the edge (__tests__/onboardingWebDocument
-// .test.ts). The native shell's own arrival is covered in
-// e2e/mobile-first-run-onboarding.spec.ts.
+// it only from the landing hero's primary, which a first-time visitor's tap
+// points at the journey; a returning visitor's tap and every deep link go
+// straight to their target, and a typed or shared URL is still turned away at
+// the edge (__tests__/onboardingWebDocument.test.ts). The native shell's own
+// arrival is covered in e2e/mobile-first-run-onboarding.spec.ts.
 
 const SIZES = [
   { name: "phone-390x844", width: 390, height: 844 },
@@ -34,25 +41,16 @@ async function saveShot(page: Page, name: string): Promise<void> {
   await writeFile(`docs/screenshots/onboarding/${name}.png`, await page.screenshot({ fullPage: false }));
 }
 
-/** Follow a link inside the app: a same-origin document navigation, which is what the edge lets through. */
-async function followInAppLink(page: Page, href: string): Promise<void> {
-  await page.evaluate((target) => {
-    const link = document.createElement("a");
-    link.href = target;
-    document.body.append(link);
-    link.click();
-  }, href);
+function heroPrimary(page: Page): Locator {
+  return page.locator(".lpHero [data-primary-action]").getByRole("link", { name: LANDING_PRIMARY_NAME });
 }
 
-/** Arrive the way an in-app link does: the page navigates itself. */
+/** Arrive the way a first-time visitor does: a fresh browser taps the landing hero's primary. */
 async function openJourneyFromTheApp(page: Page): Promise<void> {
-  await page.goto("/about");
-  await page.evaluate(() => {
-    for (const key of ["pubmax:onboarding:budget:v1", "pubmax:first-run-companion:v1", "pubmax-tour-v1-done", "pubmax-tour-v2-done"]) {
-      window.localStorage.removeItem(key);
-    }
-  });
-  await followInAppLink(page, "/onboarding?start=web");
+  await page.goto("/");
+  const primary = heroPrimary(page);
+  await expect(primary).toHaveAttribute("href", LANDING_FIRST_RUN_HREF, { timeout: 30_000 });
+  await primary.click();
   await expect(page).toHaveURL(/\/onboarding\?start=web$/);
   await expect(page.getByRole("heading", { name: "London is ready." })).toBeVisible({ timeout: 30_000 });
 }
@@ -164,8 +162,46 @@ test("a typed visit is still turned away, and the start mark alone does not let 
 
 test("a web visit without the start mark returns home and writes nothing", async ({ page }) => {
   await page.goto("/about");
-  await followInAppLink(page, "/onboarding");
+  // A same-origin document navigation, which is what the edge lets through.
+  await page.evaluate(() => window.location.assign(new URL("/onboarding", window.location.href).href));
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole("heading", { name: "London is ready." })).toHaveCount(0);
   expect(await page.evaluate(() => window.localStorage.getItem("pubmax:onboarding:budget:v1"))).toBeNull();
+});
+
+test("Skip records the mark and lands where the hero was going, which a returning visitor then takes", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "geolocation", {
+      configurable: true,
+      value: { getCurrentPosition: () => {} },
+    });
+  });
+  await openJourneyFromTheApp(page);
+  await page.getByRole("button", { name: "Skip" }).click();
+
+  await expect(page).toHaveURL(/\/near\?locate=1(?:&patch=[^&]+)?$/);
+  expect(await page.evaluate(() => window.localStorage.getItem("pubmax-tour-v2-done"))).toBe("1");
+
+  // Back on the landing, the mark sends the same tap straight to /near. The
+  // hydrated door is pinned in __tests__/landingPrimaryDoor.test.tsx.
+  await page.goto("/");
+  await expect(heroPrimary(page)).toHaveAttribute("href", LANDING_PRIMARY_HREF);
+  await heroPrimary(page).click();
+  await expect(page).toHaveURL(/\/near\?locate=1(?:&patch=[^&]+)?$/);
+  await expect(page.getByRole("heading", { name: "London is ready." })).toHaveCount(0);
+});
+
+test("a first-time visitor's deep link goes straight to its target", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "geolocation", {
+      configurable: true,
+      value: { getCurrentPosition: () => {} },
+    });
+  });
+  await page.goto("/near?patch=soho&locate=1");
+  await expect(page).toHaveURL(/\/near\?patch=soho&locate=1/);
+  await expect(page.locator(".nmnCard").first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("heading", { name: "London is ready." })).toHaveCount(0);
+  expect(await page.evaluate(() => window.localStorage.getItem("pubmax-tour-v2-done"))).toBeNull();
 });

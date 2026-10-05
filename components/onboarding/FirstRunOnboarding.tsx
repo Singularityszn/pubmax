@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, MapPinned, ShieldCheck } from "lucide-react";
@@ -24,7 +25,12 @@ import {
   type FirstRunCompanion,
 } from "@/lib/firstRunTour";
 import { formatGbp } from "@/lib/formatGbp";
-import { pricedWithinWalk, rankNearMe, type NearMeCard } from "@/lib/nearMeAnswer";
+import {
+  WIDENED_RADIUS_KM,
+  pricedWithinWalk,
+  rankNearMe,
+  type NearMeCard,
+} from "@/lib/nearMeAnswer";
 import { NIGHT_PATCHES, writeRememberedArea } from "@/lib/nightPatches";
 import {
   BUDGET_CHOICES,
@@ -40,7 +46,7 @@ import {
   type OnboardingStep,
 } from "@/lib/onboardingFlow";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
-import { loadSlimVenuesForCity, type SlimVenue } from "@/lib/venuesSlim";
+import { loadSlimVenuesForCityResult, type SlimVenueLoadResult } from "@/lib/venuesSlim";
 
 type ReviewedArea = {
   name: string;
@@ -50,6 +56,7 @@ type ReviewedArea = {
 type Answer =
   | { status: "loading" }
   | { status: "empty" }
+  | { status: "unavailable" }
   | { status: "ready"; cards: NearMeCard[]; widened: boolean; walkPrices: number[] };
 
 // The same read /near makes: a coarse fix, a short wait, a recent one is fine.
@@ -61,8 +68,11 @@ const GEO_OPTIONS: PositionOptions = {
 
 export default function FirstRunOnboarding({
   reviewedAreas,
+  skipHref,
 }: {
   reviewedAreas: ReviewedArea[];
+  /** Where Skip lands: where the reader was going before the journey. */
+  skipHref: Route;
 }) {
   const router = useRouter();
   const [step, setStep] = useState<OnboardingStep>("london");
@@ -72,8 +82,9 @@ export default function FirstRunOnboarding({
   const [showPatches, setShowPatches] = useState(false);
   const [origin, setOrigin] = useState<OnboardingOrigin | null>(null);
   const [answer, setAnswer] = useState<Answer>({ status: "loading" });
-  // A reader who taps a patch twice, or backs out mid-read, must not see the
-  // older read land over the newer one.
+  // A reader who taps a patch twice, picks a patch while the location prompt is
+  // open, or backs out mid-read, must not see the older answer land over the
+  // newer one.
   const answerGeneration = useRef(0);
 
   useEffect(() => {
@@ -129,23 +140,40 @@ export default function FirstRunOnboarding({
     writeFirstRunCompanion(choice);
   }
 
+  // Any newer answer, or a step away from the location screen, makes a pending
+  // fix or venue read stale, and a prompt left open no longer holds the button.
+  const beginAnswer = useCallback(() => {
+    setLocateState((state) => (state === "requesting" ? "idle" : state));
+    return ++answerGeneration.current;
+  }, []);
+
   // Rank the priced pubs around `from` and move to the result. A read we could
-  // not run is an empty answer the reader can retry from another patch, never
-  // a spinner that does not end.
+  // not run is not an empty area: it is its own answer, with a retry.
   const readAnswer = useCallback(async (from: OnboardingOrigin) => {
-    const generation = ++answerGeneration.current;
+    const generation = beginAnswer();
     setOrigin(from);
     setAnswer({ status: "loading" });
     setStep("result");
-    let rows: SlimVenue[];
+    let read: SlimVenueLoadResult;
     try {
-      rows = await loadSlimVenuesForCity("london");
+      read = await loadSlimVenuesForCityResult("london");
     } catch {
-      rows = [];
+      read = { rows: [], status: "unavailable" };
     }
     if (generation !== answerGeneration.current) return;
+    if (read.status === "unavailable") {
+      setAnswer({ status: "unavailable" });
+      return;
+    }
+    const { rows } = read;
     const ranked = rankNearMe(from.lat, from.lng, rows);
-    if (ranked.scope === "none") {
+    // The ranker falls back to the nearest priced pubs however far they are,
+    // so a fix in Manchester would be answered with London. Past the widened
+    // ring nothing is near the reader.
+    const inReach = ranked.cards.some(
+      (card) => card.distanceKm !== undefined && card.distanceKm <= WIDENED_RADIUS_KM,
+    );
+    if (!inReach) {
       if (from.kind === "location") {
         // Located fine, nothing priced in range: say so and offer the patches.
         setLocateState("outside");
@@ -162,7 +190,7 @@ export default function FirstRunOnboarding({
       widened: ranked.scope === "widened",
       walkPrices: pricedWithinWalk(from.lat, from.lng, rows),
     });
-  }, []);
+  }, [beginAnswer]);
 
   function locate() {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -170,9 +198,11 @@ export default function FirstRunOnboarding({
       setShowPatches(true);
       return;
     }
+    const generation = beginAnswer();
     setLocateState("requesting");
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        if (generation !== answerGeneration.current) return;
         setLocateState("idle");
         void readAnswer({
           kind: "location",
@@ -181,6 +211,7 @@ export default function FirstRunOnboarding({
         });
       },
       (error) => {
+        if (generation !== answerGeneration.current) return;
         setLocateState(error.code === error.PERMISSION_DENIED ? "denied" : "unavailable");
         setShowPatches(true);
       },
@@ -199,7 +230,7 @@ export default function FirstRunOnboarding({
     markTourSeen();
     trackEvent("tour_complete", { completed: false });
     releaseTourPromptBudget();
-    router.replace("/tonight");
+    router.replace(skipHref);
   }
 
   function startPlan() {
@@ -353,7 +384,10 @@ export default function FirstRunOnboarding({
                 onLocate={locate}
                 onShowPatches={() => setShowPatches(true)}
                 onPickPatch={pickPatch}
-                onBack={() => goTo(previous)}
+                onBack={() => {
+                  beginAnswer();
+                  goTo(previous);
+                }}
               />
             ) : null}
 
@@ -364,6 +398,9 @@ export default function FirstRunOnboarding({
                 areaLabel={areaLabel}
                 budgetLabel={budgetChoice?.ceiling ? budgetChoice.label : null}
                 onConfirm={() => goTo(nextOnboardingStep("result"))}
+                onRetry={() => {
+                  if (origin) void readAnswer(origin);
+                }}
                 onChangeBudget={() => setStep("budget")}
                 onChangeArea={() => {
                   setShowPatches(true);

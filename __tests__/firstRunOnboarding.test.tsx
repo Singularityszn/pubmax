@@ -19,9 +19,10 @@ vi.mock("next/image", () => ({
     return createElement("img", rest);
   },
 }));
-vi.mock("@/lib/venuesSlim", () => ({ loadSlimVenuesForCity: slim.load }));
+vi.mock("@/lib/venuesSlim", () => ({ loadSlimVenuesForCityResult: slim.load }));
 
 import FirstRunOnboarding from "@/components/onboarding/FirstRunOnboarding";
+import { hasSeenTour } from "@/lib/firstRunTour";
 import { readBudgetChoice } from "@/lib/onboardingFlow";
 
 let container: HTMLDivElement;
@@ -73,12 +74,17 @@ async function reachLocation() {
 beforeEach(async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   window.localStorage.clear();
-  slim.load.mockResolvedValue(SOHO_PUBS);
+  slim.load.mockResolvedValue({ rows: SOHO_PUBS, status: "ready" });
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
   await act(async () => {
-    root?.render(createElement(FirstRunOnboarding, { reviewedAreas: [{ name: "Clapham", transportAnchor: "Clapham North" }] }));
+    root?.render(
+      createElement(FirstRunOnboarding, {
+        reviewedAreas: [{ name: "Clapham", transportAnchor: "Clapham North" }],
+        skipHref: "/near?locate=1",
+      }),
+    );
   });
 });
 
@@ -116,7 +122,7 @@ describe("first-run budget question", () => {
     });
     root = createRoot(container);
     await act(async () => {
-      root?.render(createElement(FirstRunOnboarding, { reviewedAreas: [] }));
+      root?.render(createElement(FirstRunOnboarding, { reviewedAreas: [], skipHref: "/tonight" }));
     });
     await tap("Use London");
 
@@ -166,7 +172,7 @@ describe("first-run location ask", () => {
   });
 
   it("says so, and offers the patches, when nothing is priced where the reader is", async () => {
-    slim.load.mockResolvedValue([]);
+    slim.load.mockResolvedValue({ rows: [], status: "ready" });
     stubGeolocation((ok) =>
       ok({ coords: { latitude: 53.4, longitude: -2.2 } } as GeolocationPosition),
     );
@@ -178,8 +184,21 @@ describe("first-run location ask", () => {
     expect(buttonContaining("Camden")).toBeTruthy();
   });
 
+  it("treats a fix far from London as outside coverage, never as pubs near the reader", async () => {
+    stubGeolocation((ok) =>
+      ok({ coords: { latitude: 53.4808, longitude: -2.2426 } } as GeolocationPosition),
+    );
+    await reachLocation();
+    await tap("Use my location");
+    await settle();
+
+    expect(container.querySelector("h1")?.textContent).toBe("Find the cheapest pint near you.");
+    expect(container.textContent).toContain("We don't list prices where you are yet. Pick a London patch.");
+    expect(container.textContent).not.toContain("The Crown");
+  });
+
   it("holds an honest empty answer when a picked patch has no priced pubs", async () => {
-    slim.load.mockResolvedValue([]);
+    slim.load.mockResolvedValue({ rows: [], status: "ready" });
     stubGeolocation((_ok, fail) =>
       fail({ code: 2, PERMISSION_DENIED: 1 } as GeolocationPositionError),
     );
@@ -189,6 +208,98 @@ describe("first-run location ask", () => {
     await settle();
 
     expect(container.querySelector("h1")?.textContent).toBe("No listed prices around Brixton yet.");
+  });
+});
+
+describe("first-run answers that arrive late or not at all", () => {
+  it("shows a venue read that came back incomplete as unavailable, with a retry that answers", async () => {
+    slim.load.mockResolvedValueOnce({ rows: [], status: "unavailable" });
+    stubGeolocation((ok) =>
+      ok({ coords: { latitude: 51.5136, longitude: -0.1365 } } as GeolocationPosition),
+    );
+    await reachLocation();
+    await tap("Use my location");
+    await settle();
+
+    expect(container.querySelector("h1")?.textContent).toBe("We couldn\u2019t load prices just now.");
+    expect(container.textContent).not.toContain("We don't list prices where you are yet.");
+
+    await tap("Try again");
+    await settle();
+
+    expect(container.querySelector("h1")?.textContent).toBe("£4.90 at The Crown.");
+  });
+
+  it("shows a venue read that threw as unavailable, never as an empty patch", async () => {
+    slim.load.mockRejectedValueOnce(new Error("offline"));
+    stubGeolocation((_ok, fail) =>
+      fail({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError),
+    );
+    await reachLocation();
+    await tap("Use my location");
+    await tap("Soho");
+    await settle();
+
+    expect(container.querySelector("h1")?.textContent).toBe("We couldn\u2019t load prices just now.");
+    expect(container.textContent).not.toContain("No listed prices around Soho");
+  });
+
+  it("ignores a fix that lands after the reader picked a patch", async () => {
+    const pending: { grant?: PositionCallback } = {};
+    stubGeolocation((ok) => {
+      pending.grant = ok;
+    });
+    await reachLocation();
+    await tap("Use my location");
+    expect(buttonContaining("Finding your location").disabled).toBe(true);
+    await tap("Pick a London patch instead");
+    await tap("Soho");
+    await settle();
+    expect(container.textContent).toContain("Cheapest listed around Soho");
+
+    await act(async () => {
+      pending.grant?.({ coords: { latitude: 51.5136, longitude: -0.1365 } } as GeolocationPosition);
+    });
+    await settle();
+
+    expect(container.textContent).toContain("Cheapest listed around Soho");
+    expect(container.textContent).not.toContain("near you");
+
+    await tap("Change area");
+    expect(buttonContaining("Use my location").disabled).toBe(false);
+  });
+
+  it("ignores a fix or a refusal that lands after the reader went back", async () => {
+    const pending: { grant?: PositionCallback; refuse?: PositionErrorCallback } = {};
+    stubGeolocation((ok, fail) => {
+      pending.grant = ok;
+      pending.refuse = fail;
+    });
+    await reachLocation();
+    await tap("Use my location");
+    await tap("Back");
+    expect(container.querySelector("h1")?.textContent).toBe("What's a fair pint to you?");
+
+    await act(async () => {
+      pending.grant?.({ coords: { latitude: 51.5136, longitude: -0.1365 } } as GeolocationPosition);
+      pending.refuse?.({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError);
+    });
+    await settle();
+
+    expect(container.querySelector("h1")?.textContent).toBe("What's a fair pint to you?");
+    await tap("Continue");
+    expect(container.textContent).not.toContain("No location, no problem.");
+    expect(buttonContaining("Use my location").disabled).toBe(false);
+  });
+});
+
+describe("first-run skip", () => {
+  it("records the seen mark and lands where the reader was going", async () => {
+    expect(hasSeenTour()).toBe(false);
+    await tap("Skip");
+
+    expect(hasSeenTour()).toBe(true);
+    expect(router.replace).toHaveBeenCalledWith("/near?locate=1");
   });
 });
 
