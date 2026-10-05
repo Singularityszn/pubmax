@@ -144,31 +144,39 @@ test.describe("signed-in journeys", () => {
     await evidence(page, "plan-locked");
   });
 
-  test("a saved list is visible to its owner", async () => {
-    // KNOWN PRODUCT DEFECT, found by this suite on 5 Oct 2026 and fixed in a
-    // separate change. The save lands (POST /api/saved-pubs answers it and
-    // /u/<handle>/lists/<list> shows it), but a full load of the owner's own
-    // /u/<handle> shows "No saved venues yet.": loadSaved in
-    // app/u/[handle]/ProfilePageClient.tsx asks before the session has
-    // restored, gets null and never asks again. Remove this line when that fix
-    // lands; until then a pass here fails the run, which says it has landed.
-    test.fail(true, "Owner's profile hides their saves after a full load (ProfilePageClient loadSaved).");
-    created.saved = true;
+  test("saves a venue to a list", async () => {
     // A run that died before its cleanup leaves the save behind, and the
     // control toggles, so remove that save before this run saves again.
     if (await hasSave(page)) await toggleSave(page);
+    created.saved = true;
     await toggleSave(page);
+    // POST /api/saved-pubs answers 200 even when the write fails, so read the
+    // list back to prove the save landed.
+    expect(await hasSave(page), "the save is on the list").toBe(true);
+    await page.goto(`/u/${HANDLE}/lists/${encodeURIComponent(SAVE_LIST)}`);
+    await expect(page.locator(".listDetailItem", { hasText: SAVE_VENUE.name })).toBeVisible();
+    await evidence(page, "saved-list");
+  });
+
+  test("the owner's profile shows their save", async () => {
+    // KNOWN PRODUCT DEFECT, found by this suite on 5 Oct 2026 and fixed in a
+    // separate change. The save lands (the test before proves it), but a full
+    // load of the owner's own /u/<handle> shows "No saved venues yet.":
+    // loadSaved in app/u/[handle]/ProfilePageClient.tsx asks before the
+    // session has restored, gets null and never asks again. Remove this line
+    // when that fix lands; until then a pass here fails the run, which says it
+    // has landed.
+    test.fail(true, "Owner's profile hides their saves after a full load (ProfilePageClient loadSaved).");
+    await page.goto(`/u/${HANDLE}#saved-pubs`);
+    await expect(savedRow(page)).toBeVisible();
+  });
+
+  test("removes the save", async () => {
     // Undo here, while the session is still signed in: afterAll runs after
     // sign-out, when the save control can no longer write.
-    try {
-      await page.goto(`/u/${HANDLE}#saved-pubs`);
-      await expect(savedRow(page)).toBeVisible();
-      await evidence(page, "saved-list");
-    } finally {
-      await toggleSave(page);
-      expect(await hasSave(page), "the save is removed").toBe(false);
-      created.saved = false;
-    }
+    await toggleSave(page);
+    expect(await hasSave(page), "the save is removed").toBe(false);
+    created.saved = false;
   });
 
   test("signs out", async () => {

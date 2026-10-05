@@ -17,8 +17,14 @@ permissions:
 
 concurrency:
   # Two deploys in a row queue their runs: the smoke account holds one
-  # session, and two runs would race each other's cleanup.
-  group: ${{ github.workflow }}
+  # session, and two runs would race each other's cleanup. Every other
+  # deployment status (Preview, pending) gets a group of its own, so it can
+  # never cancel a smoke run that is waiting in the queue.
+  group: >-
+    ${{ (github.event_name == 'workflow_dispatch' ||
+    (github.event.deployment_status.state == 'success' &&
+    startsWith(github.event.deployment.environment, 'Production'))) &&
+    github.workflow || format('{0}-{1}', github.workflow, github.run_id) }}
   cancel-in-progress: false
 
 jobs:

@@ -17,7 +17,9 @@ and the main browser suite ignores this folder.
 | `signed-in.spec.ts` | Pub Pal answers a text request with a plan and venue cards. | One Pub Pal turn |
 | `signed-in.spec.ts` | Pub Pal answers a message typed into "Message your Pub Pal" on `/pal`. On the first run it walks the five-step Pub Pal setup a new account meets. | One Pub Pal turn, and a Pal on the first run |
 | `signed-in.spec.ts` | A Plan is created and locked in. | One Plan, then abandoned |
-| `signed-in.spec.ts` | A venue saved to "Want to Visit" shows on the owner's profile. Marked as an expected failure: see below. | One save, then removed |
+| `signed-in.spec.ts` | A venue is saved to "Want to Visit", and the list's own page shows it. | One save |
+| `signed-in.spec.ts` | The owner's profile shows the save. Marked as an expected failure: see below. | None |
+| `signed-in.spec.ts` | The save is removed again. | The save is removed |
 | `signed-in.spec.ts` | The account signs out. | None |
 
 The signed-in journeys share one session and run in order. Each write is undone
@@ -35,8 +37,10 @@ before the run ends, and `afterAll` undoes it again when a journey fails partway
 
 ### A known product defect
 
-"A saved list is visible to its owner" is marked `test.fail`. The suite found the
-defect on 5 October 2026. The save lands, but a full load of the owner's own
+"The owner's profile shows their save" is marked `test.fail`, and it is the only
+journey that is. The suite found the defect on 5 October 2026. The save lands,
+and the journey before it proves that through `/api/saved-pubs` and
+`/u/<handle>/lists/Want%20to%20Visit`. But a full load of the owner's own
 `/u/<handle>` shows "No saved venues yet.". A separate change fixes it. When that
 fix lands, this journey passes and the run fails until the `test.fail` line is
 removed.
