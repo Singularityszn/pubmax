@@ -35,7 +35,7 @@ describe("explicit implicit-flow callback completion", () => {
     });
     const setSession = vi.fn().mockResolvedValue({ data: { session: null }, error: null });
     const getUser = vi.fn().mockResolvedValue({
-      data: { user: { id: "account-a", email: "person@example.com" } },
+      data: { user: { id: "account-a", email: "person@example.com", emailConfirmedAt: "2026-01-01T00:00:00.000Z" } },
       error: null,
     });
     const pending = await prepareAuthCallbackSession(
@@ -82,7 +82,10 @@ describe("explicit implicit-flow callback completion", () => {
       { setSession: vi.fn() },
       { accessToken: "synthetic-access", refreshToken: "synthetic-refresh" },
       false,
-      mintMatchingSession,
+      async (refreshToken: string) => ({
+        status: "minted" as const,
+        session: { access_token: accessTokenWithMethod("a", "magiclink"), refresh_token: refreshToken },
+      }),
       getUser,
     );
     expect(pending).toMatchObject({
@@ -124,7 +127,7 @@ describe("explicit implicit-flow callback completion", () => {
       error: null,
     }));
     const getUser = vi.fn().mockResolvedValue({
-      data: { user: { id: "account-a", email: "a@example.com" } },
+      data: { user: { id: "account-a", email: "a@example.com", emailConfirmedAt: "2026-01-01T00:00:00.000Z" } },
       error: null,
     });
     const mintSession = vi.fn().mockResolvedValue({
@@ -215,7 +218,8 @@ describe("explicit implicit-flow callback completion", () => {
     expect(setSession).not.toHaveBeenCalled();
 
     getUser.mockResolvedValue({
-      data: { user: { id: "account-a", email: "person@example.com" } }, error: null,
+      data: { user: { id: "account-a", email: "person@example.com", emailConfirmedAt: "2026-01-01T00:00:00.000Z" } },
+      error: null,
     });
     const pending = await prepareAuthCallbackSession(
       { setSession }, tokens, false, mintMatchingSession, getUser,
@@ -331,6 +335,58 @@ describe("unowned callback sign-in method", () => {
       { setSession }, tokens, false, mintWith(mintedAccess), verifiedUser,
     );
     expect(pending).toEqual({ status: "verification-failed" });
+    expect(setSession).not.toHaveBeenCalled();
+  });
+
+  // GoTrue records amr `otp` for an emailed link and an SMS code alike. This
+  // app has no phone sign-in, so only the account's confirmed phone tells them apart.
+  const providerUser = (user: object) => (accessToken: string) => fetchAuthCallbackUser(accessToken, {
+    authConfig: { url: "https://provider.example", key: "public-key" },
+    fetchImpl: vi.fn<typeof fetch>(async () => new Response(JSON.stringify(user))),
+  });
+
+  it("refuses an SMS code session handed over in a link", async () => {
+    const setSession = vi.fn();
+    const pending = await prepareAuthCallbackSession(
+      { setSession }, tokens, false, mintWith(accessTokenWithMethod("a", "otp")),
+      providerUser({
+        id: "account-a",
+        email: "person@example.com",
+        email_confirmed_at: "2026-01-01T00:00:00.000Z",
+        phone: "447700900123",
+        phone_confirmed_at: "2026-01-01T00:00:00.000Z",
+      }),
+    );
+    expect(pending).toEqual({ status: "verification-failed" });
+    expect(setSession).not.toHaveBeenCalled();
+  });
+
+  it("refuses an otp session whose account has no confirmed email", async () => {
+    const setSession = vi.fn();
+    const pending = await prepareAuthCallbackSession(
+      { setSession }, tokens, false, mintWith(accessTokenWithMethod("a", "otp")),
+      providerUser({ id: "account-a", email: "person@example.com", email_confirmed_at: null }),
+    );
+    expect(pending).toEqual({ status: "verification-failed" });
+    expect(setSession).not.toHaveBeenCalled();
+  });
+
+  it.each(["otp", "magiclink"])("offers confirmation for an emailed %s link read from the provider", async (method) => {
+    const setSession = vi.fn();
+    const pending = await prepareAuthCallbackSession(
+      { setSession }, tokens, false, mintWith(accessTokenWithMethod("a", method)),
+      providerUser({
+        id: "account-a",
+        email: "person@example.com",
+        email_confirmed_at: "2026-01-01T00:00:00.000Z",
+        phone: "",
+        phone_confirmed_at: null,
+      }),
+    );
+    expect(pending).toMatchObject({
+      status: "confirmation-required",
+      identity: { userId: "account-a", label: "person@example.com" },
+    });
     expect(setSession).not.toHaveBeenCalled();
   });
 
@@ -479,7 +535,7 @@ describe("callback identity verification failures", () => {
     await expect(fetchAuthCallbackUser("access-a", {
       authConfig: { url: "https://provider.example", key: "public-key" }, fetchImpl,
     })).resolves.toEqual({
-      data: { user: { id: "account-a", email: "a@example.com", emailConfirmedAt: null } },
+      data: { user: { id: "account-a", email: "a@example.com", emailConfirmedAt: null, phoneConfirmedAt: null } },
       error: null,
     });
     expect(fetchImpl).toHaveBeenCalledWith("https://provider.example/auth/v1/user", expect.objectContaining({

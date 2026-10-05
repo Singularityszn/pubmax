@@ -25,8 +25,11 @@ function CoffeeLens() {
   return createElement("p", { "data-status": pilot.status }, pilot.cafes.map((cafe) => cafe.name).join(", "));
 }
 
-async function settle() {
-  for (let index = 0; index < 20; index += 1) {
+// The loader's dynamic JSON import can take many ticks under a loaded suite,
+// so settle until the lens reaches the awaited state, not for a fixed count.
+async function settle(reached: () => boolean) {
+  const deadline = Date.now() + 5_000;
+  while (!reached() && Date.now() < deadline) {
     await act(async () => {
       await new Promise((done) => setTimeout(done, 0));
     });
@@ -54,7 +57,7 @@ it("names a failed read with a Retry that reads the pilot again", async () => {
   vi.stubGlobal("fetch", fetchMock);
 
   await act(async () => root.render(createElement(CoffeeLens)));
-  await settle();
+  await settle(() => container.querySelector("[data-testid='coffee-pilot-load-failed']") !== null);
 
   const note = container.querySelector("[data-testid='coffee-pilot-load-failed']");
   expect(note?.textContent).toContain("Shoreditch coffee prices could not load");
@@ -63,7 +66,7 @@ it("names a failed read with a Retry that reads the pilot again", async () => {
 
   layerDown = false;
   await act(async () => retry!.click());
-  await settle();
+  await settle(() => container.querySelector("[data-status='ready']") !== null);
 
   expect(container.querySelector("[data-testid='coffee-pilot-load-failed']")).toBeNull();
   const lens = container.querySelector("[data-status]");

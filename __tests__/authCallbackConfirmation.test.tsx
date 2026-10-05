@@ -276,6 +276,10 @@ describe("unowned auth callback confirmation", () => {
       data: { user: { id: "account-a", email: "victim@example.com" } },
       error: null,
     });
+    harness.mintSession.mockResolvedValue({
+      status: "minted",
+      session: { access_token: accessTokenWithMethod("synthetic-access", "magiclink"), refresh_token: "synthetic-refresh" },
+    });
     harness.setSession.mockResolvedValue({
       data: {
         session: {
