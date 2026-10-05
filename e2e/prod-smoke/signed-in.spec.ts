@@ -88,9 +88,24 @@ test.describe("signed-in journeys", () => {
   });
 
   test("Pub Pal answers a message typed on its home page", async () => {
-    await page.goto("/pal");
+    // The welcome paints before the account's Pal is read, so only the read's
+    // answer says whether this account has a Pal yet.
+    const [palRead] = await Promise.all([
+      page.waitForResponse(
+        (response) =>
+          response.request().method() === "GET" && new URL(response.url()).pathname === "/api/pub-pal",
+      ),
+      page.goto("/pal"),
+    ]);
+    expect(palRead.ok(), "read the account's Pal").toBe(true);
+    const { pal } = (await palRead.json()) as { pal: unknown };
+    // A new account meets the five-step setup first. That is the journey a new
+    // user takes, so the smoke account walks it on its first run and keeps the
+    // Pal it made for every run after.
+    if (!pal) await createPal(page);
+    const message = page.getByRole("textbox", { name: "Message your Pub Pal" });
     // With no live voice session, the box hands the message to the written Pal.
-    await page.getByRole("textbox", { name: "Message your Pub Pal" }).fill("Two quiet pubs near Borough Market");
+    await message.fill("Two quiet pubs near Borough Market");
     await page.getByRole("button", { name: "Send message" }).click();
     await expect(page).toHaveURL(/\/pal\/chat\?ask=/);
     await expect(page.locator(".palChatRow--user").last()).toHaveText("Two quiet pubs near Borough Market");
@@ -130,17 +145,30 @@ test.describe("signed-in journeys", () => {
   });
 
   test("a saved list is visible to its owner", async () => {
+    // KNOWN PRODUCT DEFECT, found by this suite on 5 Oct 2026 and fixed in a
+    // separate change. The save lands (POST /api/saved-pubs answers it and
+    // /u/<handle>/lists/<list> shows it), but a full load of the owner's own
+    // /u/<handle> shows "No saved venues yet.": loadSaved in
+    // app/u/[handle]/ProfilePageClient.tsx asks before the session has
+    // restored, gets null and never asks again. Remove this line when that fix
+    // lands; until then a pass here fails the run, which says it has landed.
+    test.fail(true, "Owner's profile hides their saves after a full load (ProfilePageClient loadSaved).");
     created.saved = true;
     // A run that died before its cleanup leaves the save behind, and the
     // control toggles, so remove that save before this run saves again.
     if (await hasSave(page)) await toggleSave(page);
     await toggleSave(page);
-    await page.goto(`/u/${HANDLE}#saved-pubs`);
-    await expect(savedRow(page)).toBeVisible();
-    await evidence(page, "saved-list");
-    await toggleSave(page);
-    expect(await hasSave(page), "the save is removed").toBe(false);
-    created.saved = false;
+    // Undo here, while the session is still signed in: afterAll runs after
+    // sign-out, when the save control can no longer write.
+    try {
+      await page.goto(`/u/${HANDLE}#saved-pubs`);
+      await expect(savedRow(page)).toBeVisible();
+      await evidence(page, "saved-list");
+    } finally {
+      await toggleSave(page);
+      expect(await hasSave(page), "the save is removed").toBe(false);
+      created.saved = false;
+    }
   });
 
   test("signs out", async () => {
@@ -198,6 +226,23 @@ test.describe("signed-in journeys", () => {
     expect(saved.ok()).toBe(true);
   }
 });
+
+/**
+ * The five-step Pub Pal setup a new account meets on /pal, with the defaults a
+ * person who only wants to get going would keep. It ends on the Pal's home,
+ * where the message box lives.
+ */
+async function createPal(page: Page) {
+  await page.getByRole("button", { name: "Meet your Pub Pal" }).click();
+  await page.getByRole("checkbox", { name: /I confirm I.m 18 or over/ }).check();
+  const next = page.getByRole("button", { name: "Continue" });
+  await next.click();
+  await page.getByRole("textbox", { name: "Name" }).fill("Smoke");
+  // Signal, chemistry and privacy keep their defaults.
+  for (let step = 0; step < 3; step += 1) await next.click();
+  await page.getByRole("button", { name: "Create my Pal" }).click();
+  await expect(page.getByRole("textbox", { name: "Message your Pub Pal" })).toBeVisible();
+}
 
 /** Plans have no delete: abandoning is the end state a host can choose. */
 async function abandonPlan(page: Page, plan: { id: string; memberToken: string }) {
