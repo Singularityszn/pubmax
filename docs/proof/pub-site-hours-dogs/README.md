@@ -11,10 +11,13 @@ stands only when a passage on the page states it, and the row keeps that
 passage, the page URL and the day of the read.
 
 - **Dogs.** "Dog friendly", "dogs are welcome" and similar are a welcome.
-  "No dogs", "dogs are not allowed" or "assistance dogs only" is a refusal. A
-  page that does both, even when either has a limit, stays unknown. So do a
-  welcome or a refusal limited to a garden, a restaurant, indoors, an area or
-  an hour, a guest review, a footer link and "assistance dogs welcome".
+  A refusal counts only when the whole statement, past "sorry" or "please",
+  is a fixed form such as "no dogs", "dogs are not allowed in the pub", "we do
+  not allow dogs" or "only assistance dogs". A refusal with any other words,
+  such as a day, an hour or a room, stays unknown. A page that both welcomes
+  and refuses dogs, even when either has a limit, stays unknown. So do a
+  welcome limited to a garden, an area or an hour, a guest review, a footer
+  link and "assistance dogs welcome".
 - **Hours.** Only a passage under an opening-hours label counts. Kitchen,
   food, seasonal and Christmas blocks do not. A day the page does not state is
   absent, not closed. A time with no am, pm or colon ("11 - 5") is not read.

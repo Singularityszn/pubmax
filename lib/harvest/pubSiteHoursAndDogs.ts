@@ -61,15 +61,20 @@ const DOG_REFUSED =
   /\bno dogs\b|\b(?:dogs?|pets?)\s+(?:are\s+)?(?:not|n't|never)\s+(?:allowed|permitted|admitted|welcome)\b|\b(?:do not|don't|cannot|can't)\s+(?:allow|accept|admit|welcome)\s+(?:any\s+)?(?:dogs?|pets?)\b|\bnot\s+(?:a\s+)?dog[\s-]*friendly\b|\bonly\s+(?:assistance|guide|hearing)\s+dogs\b|\b(?:except|apart from|other than|with the exception of)\s+(?:registered\s+)?(?:assistance|guide|hearing)\s+dogs\b/i;
 /** Assistance dogs are a legal duty, so a page that welcomes them says nothing about pets. */
 const ASSISTANCE_DOG = /\b(?:assistance|guide|hearing|service)\s+dogs?\b/i;
-/** A part of the building, an hour or a share of a group's venues. */
-const AREA_OR_HOUR = String.raw`only in|(?:some|certain|selected|most|many) (?:areas|of our)|at times|(?:until|after|before|from|till) \d{1,2}(?:[:.]\d{2})?\s*(?:am|pm)?|gardens?|terraces?|bar areas?|areas|outside|outdoors?|patio|courtyard`;
-/** A refusal with a limit on it, a restaurant or a dining room included, is not a refusal at the pub. */
-const LIMITED = new RegExp(String.raw`\b(?:${AREA_OR_HOUR}|restaurant|dining(?: room| area)?|inside|indoors)\b`, "i");
-/** A welcome with a limit on it is not a welcome to the pub. */
-const CONDITIONAL = new RegExp(
-  String.raw`\b(?:only|except|unless|excluding|but not|not in|not inside|on request|at (?:the|our) discretion|designated|${AREA_OR_HOUR})\b`,
-  "i",
-);
+/**
+ * A welcome with a limit on it is not a welcome to the pub: an hour, a part of
+ * the building or a share of a group's venues.
+ */
+const CONDITIONAL =
+  /\b(?:only|except|unless|excluding|but not|not in|not inside|on request|at (?:the|our) discretion|designated|(?:some|certain|selected|most|many) (?:areas|of our)|at times|(?:until|after|before|from|till) \d{1,2}(?:[:.]\d{2})?\s*(?:am|pm)?|gardens?|terraces?|bar areas?|areas|outside|outdoors?|patio|courtyard)\b/i;
+/** Politeness around a refusal, which limits nothing. */
+const COURTESY = /\b(?:sorry|please|unfortunately|we(?:'re| are) afraid|note)\b/g;
+/**
+ * The whole of a refusal at the pub. Any other words beside a refusal, a day,
+ * an hour, a room or the furniture, may limit it, so it is no policy.
+ */
+const PUB_WIDE_REFUSAL =
+  /^(?:no dogs(?: are)?(?: allowed| permitted)?|dogs are not (?:allowed|permitted|admitted|welcome)(?: (?:in|inside|at) (?:the pub|our pub|the premises|the building|the venue))?|we (?:do not|don't) (?:allow|accept|admit) dogs|we(?: are|'re) not dog friendly|only (?:assistance|guide) dogs(?: are)?(?: allowed| permitted| welcome)?|no dogs (?:except|apart from) (?:assistance|guide) dogs)$/;
 /** A visitor's review quotes a guest, and a site footer names a page; neither is the pub stating a policy. */
 const NOT_THE_PUB_SPEAKING =
   /\b(?:google|tripadvisor|reviews?|reviewed|rated|stars?|thanks|thank you|careers|privacy policy|terms and conditions|cookie|gift cards?|mailing list|sign up|quick links)\b|[\u2605\u2B50]|\p{Extended_Pictographic}/iu;
@@ -81,11 +86,16 @@ function clauses(pageText: string): string[] {
   return pageText.split(CLAUSE_BREAK).map((clause) => clause.trim()).filter(Boolean);
 }
 
+function isPubWideRefusal(clause: string): boolean {
+  const words = fold(clause).replace(COURTESY, " ").replace(/[^a-z']+/g, " ").trim();
+  return PUB_WIDE_REFUSAL.test(words);
+}
+
 /** What a clause says about dogs, and whether it stands as the pub's policy or only as a limited answer. */
 function dogClauseVerdict(clause: string): { policy: DogPolicy; stands: boolean } | null {
   if (!DOG_WORD.test(clause) || /\?\s*$/.test(clause)) return null;
   if (NOT_THE_PUB_SPEAKING.test(clause)) return null;
-  if (DOG_REFUSED.test(clause)) return { policy: "not-allowed", stands: !LIMITED.test(clause) };
+  if (DOG_REFUSED.test(clause)) return { policy: "not-allowed", stands: isPubWideRefusal(clause) };
   if (!DOG_WELCOME.test(clause)) return null;
   if (ASSISTANCE_DOG.test(clause) || NEGATION.test(clause) || ONE_OFF.test(clause)) return null;
   return { policy: "welcome", stands: !CONDITIONAL.test(clause) };
