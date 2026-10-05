@@ -42,24 +42,28 @@
    120-character answer ran to four lines in the panel's 248px at a 320px
    viewport, three in its 318px to 358px at 390 and 430, and two in its 628px
    at 768. The panel is its own size container so a narrow host (the feed's
-   desktop rail) gets the narrow floor. */
-.tonightConditionsHold {
-  visibility: hidden;
+   desktop rail) gets the narrow floor. The one-line no-reading strip keeps
+   the same room, so a failed read moves nothing below it. */
+.tonightConditionsRoom {
   container-type: inline-size;
 }
 
-.tonightConditionsHold .tonightConditionsCopy {
+.tonightConditionsHold {
+  visibility: hidden;
+}
+
+.tonightConditionsRoom .tonightConditionsCopy {
   min-height: 2lh;
 }
 
 @container (max-width: 439.98px) {
-  .tonightConditionsHold .tonightConditionsCopy {
+  .tonightConditionsRoom .tonightConditionsCopy {
     min-height: 3lh;
   }
 }
 
 @container (max-width: 299.98px) {
-  .tonightConditionsHold .tonightConditionsCopy {
+  .tonightConditionsRoom .tonightConditionsCopy {
     min-height: 4lh;
   }
 }

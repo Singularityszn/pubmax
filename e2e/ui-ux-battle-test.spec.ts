@@ -354,6 +354,38 @@ test("Tonight error settles without holding loading space", async ({ baseURL, pa
   expect(result.cls!).toBeLessThan(UI_UX_CLS_BUDGET);
 });
 
+test("Tonight keeps the conditions room when the conditions read fails", async ({
+  baseURL,
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route("**/api/tonight-conditions**", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    await route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "Conditions unavailable" }),
+    });
+  });
+
+  const route = AUDITED_ROUTES.find(({ name }) => name === "tonight")!;
+  const navigation = navigateToAuditedRoute(page, baseURL!, route);
+  const hold = page.locator(".tonightConditionsHold");
+  await expect(hold).toBeAttached();
+  const heldHeight = await hold.evaluate((element) => element.getBoundingClientRect().height);
+
+  await navigation;
+  const strip = page.getByTestId("tonight-conditions");
+  await expect(strip).toContainText("No weather reading");
+  await expect(hold).toHaveCount(0);
+  expect(await strip.evaluate((element) => element.getBoundingClientRect().height))
+    .toBeCloseTo(heldHeight, 0);
+  // Read the shift again once the failed read has settled the strip.
+  const result = await waitForAuditedRouteSettlement(page, route, 500);
+  expect(result.cls).not.toBeNull();
+  expect(result.cls!).toBeLessThan(UI_UX_CLS_BUDGET * 0.75);
+});
+
 test("shared audit navigation measures layout shift from navigation start", async ({
   baseURL,
   page,
