@@ -254,16 +254,16 @@ function vertexUrl(model) {
   return `https://${host}/v1/projects/${VERTEX_PROJECT}/locations/${VERTEX_LOCATION}/publishers/google/models/${model}:generateContent`;
 }
 
-// Firecrawl search answered 429 at four seconds apart on this plan; the
-// workers share one slot so a burst never spends the run's request budget
-// on 429 retries.
-const SEARCH_SPACING_MS = 6_000;
-let nextSearchSlot = 0;
+// Firecrawl search and scrape answered 429 at four seconds apart on this
+// plan; the workers share one slot so a burst never spends the run's request
+// budget on 429 retries.
+const FIRECRAWL_SPACING_MS = 6_000;
+let nextFirecrawlSlot = 0;
 
-async function paceSearch() {
+async function paceFirecrawl() {
   const now = Date.now();
-  const slot = Math.max(now, nextSearchSlot);
-  nextSearchSlot = slot + SEARCH_SPACING_MS;
+  const slot = Math.max(now, nextFirecrawlSlot);
+  nextFirecrawlSlot = slot + FIRECRAWL_SPACING_MS;
   if (slot > now) await new Promise((resolve) => setTimeout(resolve, slot - now));
 }
 
@@ -635,6 +635,7 @@ async function main() {
   // lasts, except a PDF, which Firecrawl bills per page; a Firecrawl failure
   // falls back to the plain read.
   async function scrapePage(url) {
+    await paceFirecrawl();
     const scraped = await firecrawl.scrape(url, { onlyMainContent: false });
     if (!scraped.ok) return { ok: false, reason: `firecrawl-${scraped.failure.reason}` };
     const status = scraped.page.statusCode;
@@ -662,7 +663,7 @@ async function main() {
     if (Object.hasOwn(located, pub.osmId)) return located[pub.osmId];
     if (!pub.postcode && !pub.street) return null;
     if (!firecrawl) return undefined;
-    await paceSearch();
+    await paceFirecrawl();
     const where = pub.postcode ?? `"${pub.street.join(" ")}" London`;
     const found = await firecrawl.search(`"${pub.name}" pub ${where}`, { limit: 5 });
     if (!found.ok) return undefined;
