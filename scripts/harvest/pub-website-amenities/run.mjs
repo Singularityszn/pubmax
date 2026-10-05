@@ -251,10 +251,10 @@ function vertexUrl(model) {
   return `https://${host}/v1/projects/${VERTEX_PROJECT}/locations/${VERTEX_LOCATION}/publishers/google/models/${model}:generateContent`;
 }
 
-// Firecrawl search allows about 20 requests a minute on this plan; the
+// Firecrawl search answered 429 at four seconds apart on this plan; the
 // workers share one slot so a burst never spends the run's request budget
 // on 429 retries.
-const SEARCH_SPACING_MS = 4_000;
+const SEARCH_SPACING_MS = 6_000;
 let nextSearchSlot = 0;
 
 async function paceSearch() {
