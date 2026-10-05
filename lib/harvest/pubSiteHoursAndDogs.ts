@@ -369,16 +369,28 @@ export function siteFactsRows(input: {
   reads: Readonly<Record<string, KeptPageRead>>;
   loadPage: (osmId: string) => { text: string; readAt: string } | null;
   isChainPage: (url: string) => boolean;
-}): { rows: SiteFactsRow[]; skipCounts: Record<string, number> } {
+}): { rows: SiteFactsRow[]; skipCounts: Record<string, number>; incomplete: string[] } {
   const skipCounts: Record<string, number> = {};
   const skip = (reason: string) => {
     skipCounts[reason] = (skipCounts[reason] ?? 0) + 1;
   };
+  const incomplete: string[] = [];
   const candidates: SiteFactsRow[] = [];
   for (const [osmId, read] of Object.entries(input.reads)) {
+    // A page read under --read-only waits as "read" until a model run
+    // finishes it, and its later fences have not run yet.
+    if (read.status === "read") {
+      incomplete.push(osmId);
+      skip("unfinished-read");
+      continue;
+    }
     if (read.status !== "ok" || !read.sourceUrl) continue;
     const page = input.loadPage(osmId);
-    if (!page) continue;
+    if (!page) {
+      incomplete.push(osmId);
+      skip("page-missing");
+      continue;
+    }
     if (input.isChainPage(read.sourceUrl)) {
       skip("chain-page");
       continue;
@@ -424,5 +436,24 @@ export function siteFactsRows(input: {
     if (kept.dogs || kept.hours) rows.push(kept);
   }
   rows.sort((a, b) => a.osmId.localeCompare(b.osmId));
-  return { rows, skipCounts };
+  return { rows, skipCounts, incomplete: incomplete.sort() };
+}
+
+/**
+ * Why a run must not replace the committed facts, or null when it may. A pub
+ * whose read is unfinished or whose kept page is gone was not read again, so
+ * dropping its committed row would erase a fact nobody disproved. A checkpoint
+ * with no finished read at all is not a harvest.
+ */
+export function publishRefusal(
+  previousRows: readonly { osmId: string }[],
+  result: { rows: readonly unknown[]; incomplete: readonly string[]; finishedReads: number },
+): string | null {
+  if (result.finishedReads === 0 && previousRows.length > 0) {
+    return "the checkpoint holds no finished read; run the amenity harvest without --read-only first";
+  }
+  const incomplete = new Set(result.incomplete);
+  const lost = previousRows.filter((row) => incomplete.has(row.osmId)).map((row) => row.osmId);
+  if (lost.length === 0) return null;
+  return `${lost.length} committed row(s) belong to pubs whose read is unfinished or whose kept page is missing (${lost.slice(0, 5).join(", ")}${lost.length > 5 ? ", ..." : ""}); finish the amenity harvest or restore the page cache first`;
 }

@@ -4,6 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  publishRefusal,
   siteFactsRows,
   statedDogPolicy,
   statedSiteOpeningHours,
@@ -239,6 +240,41 @@ describe("siteFactsRows", () => {
 
   it("drops chain pages and a passage two pubs on one host state word for word, and skips unfinished reads", () => {
     expect(skipCounts).toEqual({ "chain-page": 1, "chain-hours-passage": 2, "page-stated-neither": 1 });
+  });
+});
+
+describe("publishing from an incomplete checkpoint", () => {
+  const loadPage = (osmId: string) =>
+    osmId === "node/1" ? { text: "We're dog-friendly.", readAt: "2026-10-05T10:00:00.000Z" } : null;
+  const reads: Record<string, KeptPageRead> = {
+    "node/1": { status: "ok", venueId: "venue-a", sourceUrl: "https://one.example/" },
+    // A --read-only amenity run leaves its fenced pages as "read".
+    "node/2": { status: "read", venueId: "venue-b", sourceUrl: "https://two.example/" },
+    // A finished read whose kept page file is gone.
+    "node/3": { status: "ok", venueId: "venue-c", sourceUrl: "https://three.example/" },
+  };
+  const result = siteFactsRows({ reads, loadPage, isChainPage: () => false });
+
+  it("reports unfinished reads and missing pages instead of skipping them silently", () => {
+    expect(result.rows.map((row) => row.osmId)).toEqual(["node/1"]);
+    expect(result.incomplete).toEqual(["node/2", "node/3"]);
+    expect(result.skipCounts).toMatchObject({ "unfinished-read": 1, "page-missing": 1 });
+  });
+
+  it("refuses to drop a committed row whose pub was not read again", () => {
+    const committed = [{ osmId: "node/1" }, { osmId: "node/2" }, { osmId: "node/3" }];
+    expect(publishRefusal(committed, { ...result, finishedReads: 2 })).toMatch(/^2 committed row\(s\).*node\/2, node\/3/);
+  });
+
+  it("refuses a checkpoint with no finished read when facts are committed", () => {
+    const readOnly = siteFactsRows({ reads: { "node/2": reads["node/2"]! }, loadPage, isChainPage: () => false });
+    expect(readOnly.rows).toEqual([]);
+    expect(publishRefusal([{ osmId: "node/9" }], { ...readOnly, finishedReads: 0 })).toMatch(/no finished read/);
+  });
+
+  it("publishes when every committed row's pub was read again", () => {
+    expect(publishRefusal([{ osmId: "node/1" }], { ...result, finishedReads: 2 })).toBeNull();
+    expect(publishRefusal([], { rows: [], incomplete: [], finishedReads: 0 })).toBeNull();
   });
 });
 
