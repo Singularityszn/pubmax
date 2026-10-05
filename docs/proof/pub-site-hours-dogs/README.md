@@ -31,13 +31,10 @@ passage, the page URL and the day of the read.
   Hours with a condition ("for club nights") are not read. A page with two
   hours blocks that disagree on a day states nothing.
 
-The same fences as the amenity harvest apply. Only a read that the amenity run
-finished is used, so the source policy, robots, the landing check, the address
-check and the duplicate check all held. A page on the chain list is skipped. A
-passage that more than one pub on one host states word for word is the
-chain's, so it is dropped. The file lists each such passage under
-`chainPassages`, and a later run keeps dropping it. A partial checkpoint that
-holds only one of the pubs that state it therefore cannot publish it.
+The [CLI header](../../../scripts/harvest/pub-website-amenities/hours-and-dogs.mjs)
+owns the finished-read, carry-forward, chain-check and publication rules.
+The regression cases are in
+[`pubSiteHoursAndDogs.test.ts`](../../../__tests__/pubSiteHoursAndDogs.test.ts).
 
 ## Result
 
@@ -60,14 +57,9 @@ Every row names a venue in the app.
 
 ## Where the app reads it
 
-The venue detail (`lib/venueDetailIndex.ts`) adds `siteFacts` to the venue.
-While the read is no older than 30 days, the same rule as other opening
-evidence, the site's hours set `openingHours` when nothing else has set
-them. Fresh Google Places hours still replace them. The Overview tab shows
-the dog policy and the hours under "Details and practical info". It uses the
-existing amenity chip and hours list, credited "Pub website · Read 5 Oct
-2026". A fact that Google Places already gives is not shown twice. The
-site's hours also show when Google's hours are too old to decide open state.
+The [product features](../../../README.md#features) describe the display and
+Google Places precedence. The open-state freshness rule is documented beside
+[`applyVenueSiteFacts`](../../../lib/venueSiteFacts.ts).
 
 ## Gaps
 

@@ -14,12 +14,14 @@
 // A committed row whose pub the checkpoint has not settled is carried forward:
 // one with no entry, an unfinished read (a --read-only run), a quota, model,
 // network or server failure, or a missing kept page. Only a finished read with
-// its kept page, or a final refusal, may change or drop a committed row. A
-// carried row still passes the chain list and the chain-passage check. A
+// its kept page, or a final refusal, may change or drop a committed row,
+// except that every carried row still passes the chain list and the
+// chain-passage check. Kept rows count under skipCounts["kept-unsettled"]. A
 // passage found to be a chain's is written to chainPassages and stays the
 // chain's on later runs, so a partial checkpoint that holds only one of its
-// pubs cannot publish it. It refuses to write when the checkpoint holds no
-// finished read at all.
+// pubs cannot publish it. When committed rows exist, a checkpoint with no
+// finished ("ok") read refuses to write and exits 1. A missing checkpoint
+// also exits 1 without writing.
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";

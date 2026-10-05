@@ -393,9 +393,10 @@ export type SiteFactsRow = {
  * A committed row whose pub the checkpoint has not settled (no entry, an
  * unfinished or failed read, or a missing kept page) is carried forward, so
  * only a finished read with its kept page or a final refusal may change or
- * drop it. A page on the chain list speaks for the brand, so its row goes,
- * fresh or carried. A passage more than one pub on one host states word for
- * word is the chain's too, so it goes. Such a passage is written down and
+ * drop it, except for the chain checks below. A page on the chain list speaks
+ * for the brand, so its row goes, fresh or carried. A passage more than one
+ * pub on one host states word for word is the chain's too, so it goes.
+ * Such a passage is written down and
  * stays the chain's, because a later partial checkpoint may hold only one of
  * the pubs that state it. A checkpoint with no finished read at all is not a
  * harvest, so it publishes nothing over committed rows.

@@ -63,8 +63,10 @@ on different runs is still proven.
 opening hours that a pub's own page states, read from the page texts the
 amenity harvest kept, with no fetch and no model call
 (`npm run harvest:pub-website-hours-dogs`). Each row keeps the page, the day it
-was read and the passage that states each fact. The venue detail shows these
-facts when Google Places does not answer them.
+was read and the passage that states each fact. The
+[product features](../README.md#features) describe their display.
+The [CLI header](../scripts/harvest/pub-website-amenities/hours-and-dogs.mjs)
+owns the checkpoint, carry-forward and publication rules.
 
 The 2026-09-04 re-collection read 964 pages with no errors and re-observed 2,624
 of the 2,788 priced rows (94.1%); 55 prices had moved. The other 164 priced rows
