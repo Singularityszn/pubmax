@@ -19,9 +19,7 @@ no pub or curated pin claims the spot, and the rest wait for a closer zoom.
 
 ![After, phone at zoom 12](after-phone-z12.png)
 
-A tap on a fork opens the restaurant's sheet, with no price on it. This shot
-was taken before the lead line changed to "We have no prices for it."
-(`components/map/LondonRestaurantSheet.tsx`):
+A tap on a fork opens the restaurant's sheet, with no price on it:
 
 ![After, restaurant sheet](after-phone-sheet.png)
 
