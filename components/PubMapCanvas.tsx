@@ -3113,8 +3113,8 @@ export default function PubMapCanvas({
     // (2) Paint watchdog. Stamp the last real present from MapLibre's "render"
     // event (fires only from an actual frame), then poll on a coarse interval:
     // if the map/style are loaded, the canvas is on-screen with a non-zero size,
-    // and no frame has presented for longer than the stall threshold, fire ONE
-    // recovery (resize + triggerRepaint). A capped retry counter means it can
+    // and a frame a dirtying event owed has not presented for longer than the
+    // stall threshold, fire ONE recovery (resize + triggerRepaint). A capped retry counter means it can
     // never loop hot — after the cap it logs one structured warning and stops.
     // The decision itself is the pure shouldRecoverPaint() (lib/mapPaintWatchdog)
     // so it stays hermetically testable; this wrapper only owns the side effects.
@@ -3123,6 +3123,15 @@ export default function PubMapCanvas({
       lastRenderAt = performance.now();
     };
     map.on("render", stampRender);
+    // A resize (the container observer above, the window, a recovery) or a
+    // style load owes a fresh frame; a map at rest owes none, so plain idle
+    // never arms the stall check.
+    let paintDirtiedAt: number | null = null;
+    const markPaintDirty = () => {
+      paintDirtiedAt = performance.now();
+    };
+    map.on("resize", markPaintDirty);
+    map.on("style.load", markPaintDirty);
     let paintCapWarned = false;
     let paintWatchdogTimer: ReturnType<typeof setInterval> | undefined;
     const samplePaint = () => {
@@ -3135,6 +3144,7 @@ export default function PubMapCanvas({
       const recover = shouldRecoverPaint({
         now: performance.now(),
         lastRenderAt,
+        dirtiedAt: paintDirtiedAt,
         documentVisible: true,
         mapLoaded: Boolean(map.isStyleLoaded()),
         canvasVisible: onScreen,
@@ -3166,14 +3176,14 @@ export default function PubMapCanvas({
       paintWatchdogTimer = undefined;
     };
     // Pause the interval entirely while the tab is hidden (no wasted wakes, and
-    // no false stall from a legitimately throttled background rAF); resume — and
-    // stamp — on return so a backgrounded-then-resumed map gets a clean first
-    // sample and one present.
+    // no false stall from a legitimately throttled background rAF); a return
+    // to visible owes a fresh frame, so it arms the check for the present the
+    // foreground health check asks for.
     const onPaintVisibility = () => {
       if (document.visibilityState === "hidden") {
         stopPaintWatchdog();
       } else if (mapRef.current === map) {
-        lastRenderAt = performance.now();
+        markPaintDirty();
         // Health-check WebGL on every return to foreground (iOS app-switch).
         healthCheckOnForeground("visibility-visible");
         startPaintWatchdog();
@@ -3357,6 +3367,8 @@ export default function PubMapCanvas({
       // Black-canvas recovery net teardown.
       paintObserver.disconnect();
       map.off("render", stampRender);
+      map.off("resize", markPaintDirty);
+      map.off("style.load", markPaintDirty);
       stopPaintWatchdog();
       document.removeEventListener("visibilitychange", onPaintVisibility);
       window.removeEventListener("pageshow", onPageShow);
