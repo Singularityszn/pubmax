@@ -259,7 +259,8 @@ function vertexUrl(model) {
 
 // Firecrawl search and scrape answered 429 at four seconds apart on this
 // plan; the workers share one slot so a burst never spends the run's request
-// budget on 429 retries.
+// budget on 429 retries. Once the budget is spent no slot is taken, so the
+// pubs left do not wait for requests that will never be sent.
 const FIRECRAWL_SPACING_MS = 6_000;
 let nextFirecrawlSlot = 0;
 
