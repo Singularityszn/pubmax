@@ -42,14 +42,8 @@ import {
   readCounts,
   countsEqual,
 } from "@/components/map/canvas/donutClusters";
-import { CLUSTER_LAYER_FILTER } from "@/components/map/canvas/buildScene";
 import type { DonutCounts } from "@/lib/donutClusterGeometry";
 import { defined } from "@/__tests__/helpers/defined";
-
-// Donuts hide the GL underlay with a filter that matches nothing. Visibility
-// would leave the `pubs` source unused below the pin floor, and MapLibre would
-// unload its tiles under the donuts.
-const NO_CLUSTER_FEATURES = ["boolean", false];
 
 // Pure helpers cover bucket coercion and SVG rebuilds. The fake map covers
 // listener lifecycle and source-snapshot authority, while the map E2E suite
@@ -113,7 +107,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
       getLayer: () => undefined,
       getZoom: () => 10,
       querySourceFeatures: (): unknown[] => [],
-      setFilter: vi.fn(),
+      setLayoutProperty: vi.fn(),
     };
     return { map, handlers };
   }
@@ -155,7 +149,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     const [moveend] = [...(handlers.get("moveend") ?? [])];
     expect(() => defined(moveend)()).not.toThrow();
     // Guarded out before any layer toggle.
-    expect(map.setFilter).not.toHaveBeenCalled();
+    expect(map.setLayoutProperty).not.toHaveBeenCalled();
   });
 
   it("the style.load handler clears cleanly with no live markers", () => {
@@ -197,7 +191,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     });
 
     expect(map.on).not.toHaveBeenCalled();
-    expect(map.setFilter).not.toHaveBeenCalled();
+    expect(map.setLayoutProperty).not.toHaveBeenCalled();
   });
 
   it("retains active donuts for transient and non-content emptiness, then clears them when loaded content is empty", () => {
@@ -236,9 +230,10 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
 
     defined(moveend)();
     expect(markerHarness.instances).toHaveLength(1);
-    expect(map.setFilter).toHaveBeenLastCalledWith(
+    expect(map.setLayoutProperty).toHaveBeenLastCalledWith(
       "cluster-count",
-      NO_CLUSTER_FEATURES,
+      "visibility",
+      "none",
     );
 
     // MapLibre 6 can transiently return no source features during render even
@@ -246,9 +241,10 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     // ownership back to the GL fallback or remove every active DOM marker.
     defined(render)();
     expect(defined(markerHarness.instances[0]).remove).not.toHaveBeenCalled();
-    expect(map.setFilter).toHaveBeenLastCalledWith(
+    expect(map.setLayoutProperty).toHaveBeenLastCalledWith(
       "cluster-count",
-      NO_CLUSTER_FEATURES,
+      "visibility",
+      "none",
     );
 
     defined(sourcedata)({
@@ -272,9 +268,10 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
       isSourceLoaded: false,
     });
     expect(defined(markerHarness.instances[0]).remove).not.toHaveBeenCalled();
-    expect(map.setFilter).toHaveBeenLastCalledWith(
+    expect(map.setLayoutProperty).toHaveBeenLastCalledWith(
       "cluster-count",
-      NO_CLUSTER_FEATURES,
+      "visibility",
+      "none",
     );
 
     defined(sourcedata)({
@@ -283,9 +280,10 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
       isSourceLoaded: true,
     });
     expect(defined(markerHarness.instances[0]).remove).toHaveBeenCalledOnce();
-    expect(map.setFilter).toHaveBeenLastCalledWith(
+    expect(map.setLayoutProperty).toHaveBeenLastCalledWith(
       "cluster-count",
-      CLUSTER_LAYER_FILTER,
+      "visibility",
+      "visible",
     );
 
     sync.destroy();
@@ -335,9 +333,10 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
       isSourceLoaded: true,
     });
     expect(markerHarness.instances).toHaveLength(1);
-    expect(map.setFilter).toHaveBeenLastCalledWith(
+    expect(map.setLayoutProperty).toHaveBeenLastCalledWith(
       "cluster-count",
-      NO_CLUSTER_FEATURES,
+      "visibility",
+      "none",
     );
 
     sync.destroy();
