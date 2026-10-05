@@ -547,3 +547,33 @@ for (const generated of [
     expect(await page.evaluate(() => localStorage.getItem("pubmax:favoritePint:v1"))).toBe("estrella");
   });
 }
+
+test("London dry gin plan keeps its proper name in stop counts and the calendar", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.addInitScript(() => {
+    localStorage.setItem("pubmax-tour-v1-done", "1");
+    localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+  });
+  const response = await page.goto("/map?drink=gin&sub=gin-london-dry&mode=build&pubs=venue-149rmv7,venue-1vle947");
+  expect(response?.status()).toBe(200);
+  const toggle = page.getByRole("button", { name: /^(Plan an outing|Close plan)$/ });
+  await expect(async () => {
+    if (await toggle.getAttribute("aria-pressed") !== "true") await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-pressed", "true", { timeout: 1_000 });
+  }).toPass({ timeout: 30_000 });
+  await expectSoleDesktopDrawer(page, "planner");
+  const route = desktopPlannerDrawer(page).locator(".routePanel");
+  await expect(route.locator(".routeList > li")).toHaveCount(2);
+  await expect(route.getByRole("heading", { name: "London dry gin plan", exact: true })).toBeVisible();
+  await expect(route.locator(".routeMetrics")).toContainText("London dry gin stops");
+  await expect(route.locator(".routeMetrics")).not.toContainText("london dry gin");
+  const calendar = page.waitForEvent("download");
+  await route.getByRole("button", { name: "Add to calendar (.ics)", exact: true }).click();
+  const contents = await readFile((await (await calendar).path())!, "utf8");
+  expect(contents).toContain("SUMMARY:London dry gin plan");
+  expect(contents).toContain("London dry gin stop");
+  expect(contents).not.toContain("london dry gin stop");
+});

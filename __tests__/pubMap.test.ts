@@ -53,6 +53,7 @@ import {
   tonightLaneReadState,
   venueEntranceOvershootFor,
   type VenueDetailStatus,
+  plannerDefaultDrinkSelection,
 } from "@/lib/pubMap";
 import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { getCity } from "@/lib/cities";
@@ -1310,5 +1311,20 @@ describe("the phone planner and the pill read the crawl being built", () => {
     expect(phonePlannerOrder({ mobileViewport: true, mode: "build", builtCount: 0 })).toBe("describe-first");
     expect(phonePlannerOrder({ mobileViewport: true, mode: "suggest", builtCount: 2 })).toBe("describe-first");
     expect(phonePlannerOrder({ mobileViewport: false, mode: "build", builtCount: 2 })).toBe("describe-first");
+  });
+});
+
+describe("plannerDefaultDrinkSelection", () => {
+  const wine = { drinkCategory: "wine", drinkSubtype: "", drinkBrand: "" };
+
+  it("gives the No-alcohol view an Alcohol-free default", () => {
+    expect(plannerDefaultDrinkSelection("no-alcohol", undefined)).toEqual({
+      drinkCategory: "alcohol-free", drinkSubtype: "", drinkBrand: "",
+    });
+  });
+
+  it("keeps the map's own drink selection in every other view", () => {
+    expect(plannerDefaultDrinkSelection("all", wine)).toBe(wine);
+    expect(plannerDefaultDrinkSelection("food", undefined)).toBeUndefined();
   });
 });

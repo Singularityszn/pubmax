@@ -142,6 +142,14 @@ describe("selected-drink hand-built Plan", () => {
     [{ drinkCategory: "beer", drinkSubtype: "", drinkBrand: "guinness", topShelfOnly: true }, "Top shelf Guinness plan", "top shelf Guinness stops"],
     [{ drinkCategory: "beer", drinkSubtype: "", drinkBrand: "guinness" }, "Guinness plan", "Guinness stops"],
     [{ drinkCategory: "wine", drinkSubtype: "wine-red", drinkBrand: "" }, "Red wine plan", "red wine stops"],
+    [{ drinkCategory: "gin", drinkSubtype: "gin-london-dry", drinkBrand: "" }, "London dry gin plan", "London dry gin stops"],
+    [{ drinkCategory: "gin", drinkSubtype: "gin-old-tom", drinkBrand: "", topShelfOnly: true }, "Top shelf Old Tom gin plan", "top shelf Old Tom gin stops"],
+    [{ drinkCategory: "whisky", drinkSubtype: "whisky-irish", drinkBrand: "" }, "Irish whiskey plan", "Irish whiskey stops"],
+    [{ drinkCategory: "whisky", drinkSubtype: "whisky-japanese", drinkBrand: "", topShelfOnly: true }, "Top shelf Japanese whisky plan", "top shelf Japanese whisky stops"],
+    [{ drinkCategory: "whisky", drinkSubtype: "whisky-scotch", drinkBrand: "" }, "Scotch whisky plan", "Scotch whisky stops"],
+    [{ drinkCategory: "whisky", drinkSubtype: "whisky-rye", drinkBrand: "" }, "Rye whiskey plan", "rye whiskey stops"],
+    [{ drinkCategory: "soft-drink", drinkSubtype: "soft-drink-diet-coke", drinkBrand: "" }, "Diet Coke plan", "Diet Coke stops"],
+    [{ drinkCategory: "soft-drink", drinkSubtype: "soft-drink-pepsi-max", drinkBrand: "", topShelfOnly: true }, "Top shelf Pepsi Max plan", "top shelf Pepsi Max stops"],
   ] as const)("keeps sentence case and brand names in %j", async (selection, title, stops) => {
     await render({ drinkSelection: selection, route: [duke, dove] });
     expect(container.querySelector("h2")?.textContent).toBe(title);

@@ -17,6 +17,19 @@ export type MapPlanDrinkPresentation = {
   refined: boolean;
 };
 
+/** Subtype labels that lead with a place or product name keep their capitals. */
+const PROPER_NAME_SUBTYPES: ReadonlySet<string> = new Set([
+  "whisky-irish",
+  "whisky-japanese",
+  "whisky-scotch",
+  "gin-london-dry",
+  "gin-old-tom",
+  "soft-drink-coke-zero",
+  "soft-drink-diet-coke",
+  "soft-drink-pepsi-max",
+  "soft-drink-diet-pepsi",
+]);
+
 /** The unrefined Beer lane keeps the existing pint presentation. */
 export function mapPlanDrinkPresentation(
   selection?: MapPlanDrinkSelection,
@@ -29,10 +42,11 @@ export function mapPlanDrinkPresentation(
   const brand = findBrand(selection.drinkBrand);
   const ownBrand = brand?.category === category ? brand.brand.label : null;
   const common = subtype?.longLabel ?? categoryLabel(category);
-  const named = ownBrand ?? (selection.topShelfOnly ? sentenceCaseNoun(common) : common);
-  const label = selection.topShelfOnly ? `Top shelf ${named}` : named;
+  const proper = ownBrand ?? (subtype && PROPER_NAME_SUBTYPES.has(subtype.id) ? subtype.longLabel : null);
+  const noun = proper ?? sentenceCaseNoun(common);
+  const label = selection.topShelfOnly ? `Top shelf ${noun}` : ownBrand ?? common;
   const priceNoun = drinkLensPriceNoun(category);
-  const stopNoun = !refined ? priceNoun : label === ownBrand ? label : sentenceCaseNoun(label);
+  const stopNoun = !refined ? priceNoun : selection.topShelfOnly ? `top shelf ${noun}` : noun;
   return { category, label, priceNoun, stopNoun: `${stopNoun} stop`, refined };
 }
 

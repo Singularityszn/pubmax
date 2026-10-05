@@ -506,7 +506,6 @@ import {
   type CategoryPriceIndexStatus,
   type MapExperienceLens as MapExperienceLensValue,
 } from "@/lib/mapExperienceLens";
-import type { MapPlanDrinkSelection } from "@/lib/mapPlanDrinkPresentation";
 import { loadSpoonsValueLane } from "@/lib/spoonsValueLane";
 import {
   spoonsValueLensRequested,
@@ -651,6 +650,7 @@ import {
   type VenueDetailStatus,
   builtStopCountFor,
   phonePlannerOrder,
+  plannerDefaultDrinkSelection,
 } from "@/lib/pubMap";
 import { explicitMapIntent } from "@/lib/explicitMapIntent";
 import {
@@ -1051,19 +1051,6 @@ function mapChipLabelFor(input: {
   return mapChosenArea && mapChosenArea.cityId === cityId
     ? mapChosenArea.label
     : ukPlaceArrival?.name ?? claimedArea?.name ?? mapContextName;
-}
-
-const NO_ALCOHOL_PLAN_DRINK_SELECTION: MapPlanDrinkSelection = {
-  drinkCategory: "alcohol-free",
-  drinkSubtype: "",
-  drinkBrand: "",
-};
-
-function plannerDefaultDrinkSelection(
-  lens: MapExperienceLensValue,
-  selection: MapPlanDrinkSelection | undefined,
-): MapPlanDrinkSelection | undefined {
-  return lens === "no-alcohol" ? NO_ALCOHOL_PLAN_DRINK_SELECTION : selection;
 }
 
 export default function PubMap({

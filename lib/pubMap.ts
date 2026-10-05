@@ -16,6 +16,7 @@ import {
 } from "@/lib/cities";
 import { CATEGORY_META, type DrinkCategory } from "@/lib/drinks";
 import type { CategoryPriceIndexStatus, MapExperienceLens } from "@/lib/mapExperienceLens";
+import type { MapPlanDrinkSelection } from "@/lib/mapPlanDrinkPresentation";
 import type { MapOverlay, MapSheetKind, MapViewportSnapshot } from "@/lib/mobileShell";
 import { seedCrawlState } from "@/lib/crawlUrl";
 import { WALK_ROUTE_MAX_STOPS } from "@/lib/walkRoute";
@@ -1135,4 +1136,18 @@ export function phonePlannerOrder(input: {
   return input.mobileViewport && input.mode === "build" && input.builtCount > 0
     ? "build-first"
     : "describe-first";
+}
+
+const NO_ALCOHOL_PLAN_DRINK_SELECTION: MapPlanDrinkSelection = {
+  drinkCategory: "alcohol-free",
+  drinkSubtype: "",
+  drinkBrand: "",
+};
+
+/** The No-alcohol view gives a location-only phone plan a zero-proof default. */
+export function plannerDefaultDrinkSelection(
+  lens: MapExperienceLens,
+  selection: MapPlanDrinkSelection | undefined,
+): MapPlanDrinkSelection | undefined {
+  return lens === "no-alcohol" ? NO_ALCOHOL_PLAN_DRINK_SELECTION : selection;
 }
