@@ -138,6 +138,18 @@ afterEach(async () => {
 });
 
 describe("a night of unmatched listings renders rows, not an empty state", () => {
+  it.each([
+    ["tonight", "Tonight", "What’s on tonight."],
+    ["tomorrow", "Tomorrow", "What’s on tomorrow."],
+    ["weekend", "Weekend", "What’s on the weekend."],
+  ] as const)("names the selected %s period in the page heading", async (day, label, heading) => {
+    await renderOut([], day);
+
+    expect(container.querySelector("h1#out-title")?.textContent).toBe(heading);
+    const selectedChip = container.querySelector('.outDayChips a[aria-current="page"]');
+    expect(selectedChip?.textContent).toBe(label);
+  });
+
   it("prints all 148 sourced listings as real rows", async () => {
     const rows = Array.from({ length: UNMATCHED_COUNT }, (_, index) => unmatchedRow(index));
     await renderOut(rows);
