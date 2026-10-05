@@ -32,6 +32,7 @@ import {
   statedAmenities,
   streetOf,
   withoutThinnerRereads,
+  type HarvestRead,
 } from "@/lib/harvest/pubWebsiteAmenities";
 
 const PAGE = [
@@ -845,7 +846,7 @@ describe("scoped harvest guards", () => {
 
   it("keeps earlier evidence unless a re-read keeps more amenities", () => {
     const previous = [{ osmId: "node/1", sourceUrl: "https://a.example/", amenities: { food: "serves food", pool: "a pool table" } }];
-    const fresh = new Map([
+    const fresh = new Map<string, HarvestRead>([
       ["node/1", { status: "ok", sourceUrl: "https://a.example/", amenities: { food: "serves food" } }],
       ["node/2", { status: "http-404" }],
     ]);
