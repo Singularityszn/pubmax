@@ -422,7 +422,7 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
       admitted.push(ready);
     }
     const incoming = admitted.map(makeMedia);
-    const selection = selectMomentMedia(draft.media, incoming);
+    const selection = selectMomentMedia(draftRef.current.media, incoming);
     if (selection.error) {
       incoming.forEach((item) => { if (item.objectUrl) URL.revokeObjectURL(item.objectUrl); });
       setMessage(selection.error);

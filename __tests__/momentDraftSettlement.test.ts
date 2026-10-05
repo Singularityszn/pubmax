@@ -312,6 +312,29 @@ async function addPhoto(name: string) {
   await vi.waitFor(() => expect(mountedContainer?.querySelector(`button[aria-label="Remove ${name}"]`)).not.toBeNull());
 }
 
+async function holdPhotoIntake(name: string) {
+  const bytes = new Uint8Array(64);
+  bytes.set([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01]);
+  const file = new File([bytes], name, { type: "image/jpeg" });
+  let release = () => {};
+  let started = false;
+  const admitted = new Promise<ArrayBuffer>((resolve) => { release = () => resolve(bytes.buffer); });
+  const slice = file.slice.bind(file);
+  Object.defineProperty(file, "slice", { value: (...args: Parameters<File["slice"]>) => {
+    const chunk = slice(...args);
+    Object.defineProperty(chunk, "arrayBuffer", { value: () => { started = true; return admitted; } });
+    return chunk;
+  } });
+  const input = mountedContainer?.querySelector<HTMLInputElement>("#moment-photo-file");
+  if (!input) throw new Error("Photo input missing");
+  await act(async () => {
+    Object.defineProperty(input, "files", { configurable: true, value: [file] });
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  expect(started).toBe(true);
+  return async () => { await act(async () => { release(); }); };
+}
+
 async function startMountedSave() {
   const form = mountedContainer?.querySelector<HTMLFormElement>("form.momentComposer");
   if (!form) throw new Error("Moment form missing");
@@ -326,6 +349,76 @@ async function completePost(index: number, status = 201) {
 }
 
 describe("mounted Moment save completion", () => {
+  it("merges intake completed after Save with the new draft without restoring consumed photos", async () => {
+    await mountComposer();
+    await addPhoto("already-saved.jpg");
+    const consumedUrl = mountedContainer?.querySelector("figure.momentMedia img")?.getAttribute("src");
+    await startMountedSave();
+    const release = await holdPhotoIntake("later-intake.jpg");
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    await completePost(0);
+    expect(mountedContainer?.querySelector('button[aria-label="Remove already-saved.jpg"]')).toBeNull();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith(consumedUrl);
+    await release();
+    expect(mountedContainer?.querySelector('button[aria-label="Remove later-intake.jpg"]')).not.toBeNull();
+    expect(mountedContainer?.querySelector('button[aria-label="Remove already-saved.jpg"]')).toBeNull();
+    const newUrl = mountedContainer?.querySelector("figure.momentMedia img")?.getAttribute("src");
+    expect(newUrl).toBeTruthy();
+    expect(newUrl).not.toBe(consumedUrl);
+    expect(URL.revokeObjectURL).not.toHaveBeenCalledWith(newUrl);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1800); });
+    expect(mounted.replace).not.toHaveBeenCalled();
+    const form = mountedContainer?.querySelector<HTMLFormElement>("form.momentComposer");
+    await act(async () => { form?.requestSubmit(); });
+    expect(mounted.pending).toHaveLength(2);
+    const posts = mounted.calls.filter((call) => call.url.endsWith("/moments"));
+    expect((posts[1]!.init.body as FormData).get("photo")).toMatchObject({ name: "later-intake.jpg" });
+    await completePost(1);
+    expect(mounted.calls.filter((call) => call.url.endsWith("/moments"))).toHaveLength(2);
+  });
+
+  it("merges held intake with a photo added and a photo removed while admission waits", async () => {
+    await mountComposer();
+    await addPhoto("removed.jpg");
+    const release = await holdPhotoIntake("held.jpg");
+    await act(async () => { mountedContainer?.querySelector<HTMLButtonElement>('button[aria-label="Remove removed.jpg"]')?.click(); });
+    await addPhoto("added-during-wait.jpg");
+    await release();
+    expect(mountedContainer?.querySelector('button[aria-label="Remove removed.jpg"]')).toBeNull();
+    expect(mountedContainer?.querySelector('button[aria-label="Remove held.jpg"]')).not.toBeNull();
+    expect(mountedContainer?.querySelector('button[aria-label="Remove added-during-wait.jpg"]')).not.toBeNull();
+    expect(mountedContainer?.querySelectorAll("figure.momentMedia")).toHaveLength(2);
+  });
+
+  it("adds ordinary photos without a save or held admission", async () => {
+    await mountComposer();
+    await addPhoto("ordinary-one.jpg");
+    await addPhoto("ordinary-two.jpg");
+    expect(mountedContainer?.querySelectorAll("figure.momentMedia")).toHaveLength(2);
+    expect(captionInput().value).toBe("Submitted caption");
+    expect(mountedContainer?.textContent).toContain("2 photos added.");
+    expect(mounted.calls).toHaveLength(0);
+    expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+  });
+
+  it("refuses held intake when the account changes before admission completes", async () => {
+    await mountComposer();
+    const release = await holdPhotoIntake("a-held.jpg");
+    const other = "account-b";
+    await saveMomentDraft({ ...captionDraft(other), caption: "B's intake boundary" });
+    await act(async () => {
+      mounted.owner = other;
+      setProviderIdentity("supabase", other);
+      mountedRoot?.render(createElement(MomentCapture));
+    });
+    await vi.waitFor(() => expect(captionInput().value).toBe("B's intake boundary"));
+    await release();
+    expect(captionInput().value).toBe("B's intake boundary");
+    expect(mountedContainer?.querySelectorAll("figure.momentMedia")).toHaveLength(0);
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+    expect(await loadMomentDraft(other)).toMatchObject({ caption: "B's intake boundary" });
+  });
+
   it.each([201, 503])("keeps a caption edited during a held POST that answers %s", async (status) => {
     await mountComposer();
     await startMountedSave();
