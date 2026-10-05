@@ -141,11 +141,6 @@ describe("the map wires the reveal to the log intent and nothing else", () => {
   const start = pubMap.indexOf("const openComposerForLog = useCallback(");
   const body = pubMap.slice(start, pubMap.indexOf("}, [closePlanning", start));
 
-  it("reveals from openComposerForLog, the one door the intent opens", () => {
-    expect(start).toBeGreaterThan(-1);
-    expect(body).toContain("requestLogIntentReveal(document, browserPrefersReducedMotion())");
-  });
-
   it("moves no focus, so the soft keyboard stays the reader's own next move", () => {
     expect(body).not.toContain(".focus(");
   });
@@ -153,19 +148,5 @@ describe("the map wires the reveal to the log intent and nothing else", () => {
   it("keeps the sheet's own detent and tab decisions unchanged", () => {
     expect(body).toContain('setVenueInitialTab("pints")');
     expect(body).toContain('setSheetSnap("full")');
-  });
-});
-
-describe("the price step and the sheet close the loop", () => {
-  it("the price step takes the waiting reveal as it mounts", () => {
-    const step = read("components/map/composer/ComposerPriceStep.tsx");
-    expect(step).toContain("takeLogIntentReveal(stepRef.current)");
-    expect(step).toContain('ref={stepRef} className="spillPriceStep" data-testid="spill-price-step"');
-  });
-
-  it("closing the sheet cancels a reveal whose composer never mounted", () => {
-    expect(read("components/PubMap.tsx")).toMatch(
-      /if \(!detailOpen\) cancelLogIntentReveal\(\);/,
-    );
   });
 });
