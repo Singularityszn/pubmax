@@ -8,7 +8,8 @@ The packs beside this file are generated. This file is hand-written and
 survives a rebuild.
 
 ```
-uk_osm_venues_drink.json   # pubs, bars, beer gardens, restaurants with a bar,
+uk_osm_venues_drink.json   # pubs, bars, beer gardens, clubs, music venues,
+                           # restaurants, social clubs and casinos with a bar,
                            # hotel bars, off-licences
 uk_osm_venues_food.json    # cafes, coffee shops, late fast food
 uk_osm_venues_work.json    # coworking, libraries, community centres with wifi
