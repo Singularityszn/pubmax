@@ -25,11 +25,11 @@ const TABLE = "diary_entries";
 const MIGRATION_HINT = "apply migration 0174";
 
 /** A second log of the same pub on the same London day is refused, never merged. */
-export type DiaryCreateResult =
+type DiaryCreateResult =
   | { status: "created"; entry: DiaryEntryDTO }
   | { status: "duplicate" };
 
-export type DiaryListResult = {
+type DiaryListResult = {
   status: "ready" | "degraded";
   entries: DiaryEntryDTO[];
 };
