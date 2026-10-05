@@ -2,8 +2,8 @@
 // never from figures typed in by hand: a count in prose rots the moment the
 // pack behind it is rebuilt, and this report exists to be cited.
 //
-// Reads data/osm/uk/venue_chunks.json and venue_counts.json plus each pack's own
-// size, and writes docs/data/uk-osm-extract-<run date>.md.
+// Reads data/osm/uk/venue_chunks.json and venue_counts.json, each pack's own
+// size and data/freshness_registry.json, and writes docs/data/uk-osm-extract-<run date>.md.
 //
 // Run: node scripts/report_uk_venue_extract.mjs
 
@@ -29,11 +29,23 @@ async function sizeOf(filePath) {
   }
 }
 
+/** A table cell's text with its pipes and angle brackets escaped, so a note
+ * such as `alcohol=yes|served` stays in its own column and `<alcoholic name>`
+ * is not swallowed as an HTML tag. */
+export function markdownCell(text) {
+  return String(text).replaceAll("|", "\\|").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+}
+
 async function main() {
   const manifest = JSON.parse(await readFile(path.join(UK_DIR, "venue_chunks.json"), "utf8"));
   const counts = JSON.parse(await readFile(path.join(UK_DIR, "venue_counts.json"), "utf8"));
 
   const runDate = String(manifest.generatedAt ?? "").slice(0, 10) || "unknown";
+
+  const registry = JSON.parse(await readFile(path.join(ROOT, "data", "freshness_registry.json"), "utf8"));
+  const registeredPacks = (registry.datasets ?? [])
+    .map((dataset) => String(dataset.artifact ?? ""))
+    .filter((artifact) => artifact.startsWith("data/osm/uk/uk_osm_venues_"));
 
   // The London publish is optional in this report: the packs can exist before
   // the shards are cut, and a report that invented a shard count would be worse
@@ -73,7 +85,7 @@ async function main() {
   const taxonomyRows = UK_VENUE_TAXONOMY.map(
     (row) =>
       `| \`${row.key}\` | ${row.kind} | ${counts.london?.byTaxonomyKey?.[row.key] ?? 0} | ` +
-      `${counts.uk?.byTaxonomyKey?.[row.key] ?? 0} | ${row.note} |`,
+      `${counts.uk?.byTaxonomyKey?.[row.key] ?? 0} | ${markdownCell(row.note)} |`,
   );
 
   const stats = Array.isArray(manifest.chunkStats) ? manifest.chunkStats : [];
@@ -163,36 +175,32 @@ async function main() {
             .sort()
             .map(([kind, n]) => `| ${kind} | ${n} |`),
           "",
-          "No UI reads these shards yet. The layer is published and kind-tagged so a",
-          "work-spot surface can be built against real data; `lib/londonVenueShards.ts`",
-          "is the decoder and `isPubVenueKind` answers false for every non-pub kind in",
-          "it, so nothing here can reach a price band, a pin figure, a cheapest bucket",
-          "or the Pint Index.",
+          "No UI fetches these shards. The app reads two siblings cut from the same",
+          "UK packs: the map (`components/PubMap.tsx`) streams `public/data/uk_base/`",
+          "(`npm run build:uk-base`) through `lib/ukBasePubs.ts`, with",
+          "`lib/venueKindFilters.ts` deciding which kinds it shows, and Near Desk",
+          "(`components/nearme/NearDeskNow.tsx`) reads `public/data/london_desks/`",
+          "(`npm run build:london-desks`) through `lib/nearDeskVenues.ts`. The shards",
+          "themselves are read by `scripts/verify_london_places.mjs`,",
+          "`scripts/verify_pub_hours.mjs` and the coffee pilot check in",
+          "`scripts/lib/coffeePilotRows.mjs`. `lib/londonVenueShards.ts` is the",
+          "decoder and `isPubVenueKind` answers false for every non-pub kind in it, so",
+          "nothing here can reach a price band, a pin figure, a cheapest bucket or the",
+          "Pint Index.",
           "",
         ]
       : []),
-    "## Enrichment freshness",
+    "## Freshness",
     "",
-    "Read off the code, not off a run anybody watched.",
-    "",
-    "- `vercel.json` schedules `/api/cron/enrich-city-pubs` at `15 3 * * *`, so a",
-    "  03:15 UTC run on the day of this extraction was scheduled and the",
-    "  2026-08-15 23:27 deployment was live in time for it.",
-    "- It would NOT have touched a London pub. `CITY_ROTATION` in",
-    "  `lib/tavilyPubEnrichment.server.ts` held manchester, birmingham, edinburgh,",
-    "  glasgow, leeds and bristol, and the epoch-day index for 2026-08-16 selects",
-    "  **bristol**. London was absent from the rotation entirely, so no London pub",
-    "  had ever reached this seam.",
-    "- London now leads that rotation, and `selectCityPubs` sorts a pub the curated",
-    "  layer already owns (`curatedRef`) behind one nobody has looked at. The",
-    "  candidate source is unchanged: the UK OSM pub pack, filtered to pubs that",
-    "  state a website and are not a chain the harvesters already cover.",
-    "- The Exa query cap (`SEARCH_CRON_QUERY_CAP`, 25) and the Tavily fallback in",
-    "  `createSearchProvider` are untouched.",
-    "",
-    "Still open: these packs carry no entry in `data/freshness_registry.json`, so",
-    "the freshness spine cannot report them stale or unmeasurable. Wiring them in is",
-    "its own change, because it moves file tracing and audit behaviour with it.",
+    registeredPacks.length === 0
+      ? [
+          "These packs carry no entry in `data/freshness_registry.json`, so the",
+          "freshness spine cannot report them stale or unmeasurable. Wiring them in is",
+          "its own change, because it moves file tracing and audit behaviour with it.",
+        ].join("\n")
+      : `\`data/freshness_registry.json\` tracks ${registeredPacks
+          .map((artifact) => `\`${artifact}\``)
+          .join(", ")}.`,
     "",
     "## Busiest chunks",
     "",
