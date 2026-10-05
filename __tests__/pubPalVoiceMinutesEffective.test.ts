@@ -16,6 +16,7 @@ import { billableVoiceMinutes } from "@/lib/palVoiceMetering";
 
 import {
   asBrowserRole,
+  asServiceRole,
   postgresSkipReason,
   startMigratedPostgres,
   type PostgresSession,
@@ -79,20 +80,20 @@ describe.skipIf(skipReason !== null)("record_pub_pal_voice_minutes", () => {
   it("bills what billableVoiceMinutes bills, second for second", () => {
     for (const seconds of [-30, 0, 1, 59, 60, 61, 119, 120, 121, 599, 3_600]) {
       resetMinutes(ALICE, MONTH);
-      expect(db().sql(record(ALICE, MONTH, seconds))).toBe("t");
+      expect(db().sql(asServiceRole(record(ALICE, MONTH, seconds)))).toBe("t");
       expect(usedMinutes(ALICE, MONTH), `${seconds}s`).toBe(billableVoiceMinutes(seconds));
     }
   });
 
   it("bills nothing for a null duration", () => {
     resetMinutes(ALICE, MONTH);
-    expect(db().sql(record(ALICE, MONTH, null))).toBe("t");
+    expect(db().sql(asServiceRole(record(ALICE, MONTH, null)))).toBe("t");
     expect(usedMinutes(ALICE, MONTH)).toBe(0);
   });
 
   it("answers false and creates no row for an owner with no reserved session", () => {
-    expect(db().sql(record(NO_SESSION, MONTH, 300))).toBe("f");
-    expect(db().sql(record(ALICE, "2026-11-01", 300))).toBe("f");
+    expect(db().sql(asServiceRole(record(NO_SESSION, MONTH, 300)))).toBe("f");
+    expect(db().sql(asServiceRole(record(ALICE, "2026-11-01", 300)))).toBe("f");
     expect(
       db().sql(`
         select count(*) from public.pub_pal_voice_usage
@@ -103,7 +104,7 @@ describe.skipIf(skipReason !== null)("record_pub_pal_voice_minutes", () => {
 
   it("moves only the named owner's named month", () => {
     resetMinutes(ALICE, MONTH);
-    expect(db().sql(record(ALICE, MONTH, 180))).toBe("t");
+    expect(db().sql(asServiceRole(record(ALICE, MONTH, 180)))).toBe("t");
     expect(usedMinutes(ALICE, MONTH)).toBe(3);
     expect(usedMinutes(ALICE, LAST_MONTH)).toBe(7);
     expect(usedMinutes(BOB, MONTH)).toBe(4);
@@ -111,7 +112,7 @@ describe.skipIf(skipReason !== null)("record_pub_pal_voice_minutes", () => {
 
   it("loses no minute when releases land at once", async () => {
     resetMinutes(ALICE, MONTH);
-    await db().concurrent(Array.from({ length: 10 }, () => record(ALICE, MONTH, 61)));
+    await db().concurrent(Array.from({ length: 10 }, () => asServiceRole(record(ALICE, MONTH, 61))));
     expect(usedMinutes(ALICE, MONTH)).toBe(10 * billableVoiceMinutes(61));
   });
 

@@ -18,6 +18,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
   asBrowserRole,
+  asServiceRole,
   postgresSkipReason,
   startMigratedPostgres,
   type PostgresSession,
@@ -84,7 +85,7 @@ function erase(userId: string | null): string {
 }
 
 function answer(statement: string): Record<string, unknown> {
-  return JSON.parse(db().sql(statement)) as Record<string, unknown>;
+  return JSON.parse(db().sql(asServiceRole(statement))) as Record<string, unknown>;
 }
 
 function count(statement: string): number {
@@ -141,7 +142,9 @@ describe.skipIf(skipReason !== null)("get_or_create_referral_invite_code", () =>
 
   it("mints one code when first requests race", async () => {
     const answers = await db().concurrentResults(
-      Array.from({ length: 6 }, (_, index) => inviteCode(RACER, tokenFor(`racer-${index}`))),
+      Array.from({ length: 6 }, (_, index) =>
+        asServiceRole(inviteCode(RACER, tokenFor(`racer-${index}`))),
+      ),
     );
     const codes = new Set(answers.map((raw) => (JSON.parse(raw) as { code: string }).code));
     expect(codes.size).toBe(1);
@@ -251,7 +254,7 @@ describe.skipIf(skipReason !== null)("qualify_referral_from_contribution", () =>
 describe.skipIf(skipReason !== null)("erase_referral_account", () => {
   it("does nothing for a missing id", () => {
     const before = count(`select count(*) from public.referral_erasure_blocks`);
-    db().sql(erase(null));
+    db().sql(asServiceRole(erase(null)));
     expect(count(`select count(*) from public.referral_erasure_blocks`)).toBe(before);
   });
 
@@ -261,7 +264,7 @@ describe.skipIf(skipReason !== null)("erase_referral_account", () => {
     expect(answer(qualify(ERASED_INVITEE, "community_price", "erased-price"))).toMatchObject({ status: "qualified" });
     expect(traces(ERASED_INVITER)).toBe("1|1|1");
 
-    db().sql(erase(ERASED_INVITER));
+    db().sql(asServiceRole(erase(ERASED_INVITER)));
     expect(traces(ERASED_INVITER)).toBe("0|0|0");
     expect(traces(ERASED_INVITEE)).toBe("0|0|0");
     expect(count(`select count(*) from public.referral_qualification_events where contribution_id = 'erased-price'`)).toBe(0);
@@ -275,7 +278,7 @@ describe.skipIf(skipReason !== null)("erase_referral_account", () => {
   });
 
   it("keeps an erased account from minting, being claimed or qualifying again", () => {
-    db().sql(erase(ERASED));
+    db().sql(asServiceRole(erase(ERASED)));
     expect(answer(inviteCode(ERASED, tokenFor("erased")))).toEqual({ ok: false, reason: "deleted_identity" });
     expect(answer(claim(tokenFor("inviter"), ERASED))).toEqual({ ok: false, reason: "deleted_identity" });
     expect(answer(qualify(ERASED, "community_price", "erased-again"))).toEqual({

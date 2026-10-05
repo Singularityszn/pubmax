@@ -14,6 +14,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
   asBrowserRole,
+  asServiceRole,
   postgresSkipReason,
   startMigratedPostgres,
   type PostgresSession,
@@ -153,14 +154,14 @@ afterAll(async () => {
 
 describe.skipIf(skipReason !== null)("reconcile_round_price_keys", () => {
   it("refuses a blank actor, an unknown spend and another actor's spend, and moves nothing", () => {
-    expect(db().sql(reconcile(OLDER, "  "))).toBe("forbidden");
-    expect(db().sql(reconcile(UNKNOWN_SPEND, ALICE_ACTOR))).toBe("not_found");
-    expect(db().sql(reconcile(OLDER, BOB_ACTOR))).toBe("forbidden");
+    expect(db().sql(asServiceRole(reconcile(OLDER, "  ")))).toBe("forbidden");
+    expect(db().sql(asServiceRole(reconcile(UNKNOWN_SPEND, ALICE_ACTOR)))).toBe("not_found");
+    expect(db().sql(asServiceRole(reconcile(OLDER, BOB_ACTOR)))).toBe("forbidden");
     expect(statuses(OLDER)).toBe("pending,pending,pending");
   });
 
   it("keeps the newest line per pub and drink and supersedes the older one", () => {
-    expect(db().sql(reconcile(OLDER, ALICE_ACTOR))).toBe("ok");
+    expect(db().sql(asServiceRole(reconcile(OLDER, ALICE_ACTOR)))).toBe("ok");
     // The older beer loses to the newer beer; the wine is the only wine; the
     // demo line is not a round price and is never touched.
     expect(statuses(OLDER)).toBe("superseded,pending,pending");
@@ -170,7 +171,7 @@ describe.skipIf(skipReason !== null)("reconcile_round_price_keys", () => {
   });
 
   it("is idempotent", () => {
-    expect(db().sql(reconcile(NEWER, ALICE_ACTOR))).toBe("ok");
+    expect(db().sql(asServiceRole(reconcile(NEWER, ALICE_ACTOR)))).toBe("ok");
     expect(statuses(OLDER)).toBe("superseded,pending,pending");
     expect(statuses(NEWER)).toBe("pending,pending");
   });
@@ -178,17 +179,17 @@ describe.skipIf(skipReason !== null)("reconcile_round_price_keys", () => {
 
 describe.skipIf(skipReason !== null)("transition_round_price_lines", () => {
   it("refuses a blank actor, a non-array update, an unknown spend and another actor", () => {
-    expect(db().sql(transition(LADDER, "", [{ index: 0, status: "ready" }]))).toBe("forbidden");
-    expect(db().sql(transition(LADDER, ALICE_ACTOR, { index: 0, status: "ready" }))).toBe("forbidden");
-    expect(db().sql(transition(UNKNOWN_SPEND, ALICE_ACTOR, []))).toBe("not_found");
-    expect(db().sql(transition(LADDER, BOB_ACTOR, [{ index: 0, status: "ready" }]))).toBe("forbidden");
+    expect(db().sql(asServiceRole(transition(LADDER, "", [{ index: 0, status: "ready" }])))).toBe("forbidden");
+    expect(db().sql(asServiceRole(transition(LADDER, ALICE_ACTOR, { index: 0, status: "ready" })))).toBe("forbidden");
+    expect(db().sql(asServiceRole(transition(UNKNOWN_SPEND, ALICE_ACTOR, [])))).toBe("not_found");
+    expect(db().sql(asServiceRole(transition(LADDER, BOB_ACTOR, [{ index: 0, status: "ready" }])))).toBe("forbidden");
     expect(statuses(LADDER)).toBe("pending,pending,pending,pending,pending");
   });
 
   it("moves pending to ready, and skips a demo line, a bad index and a skipped rung", () => {
     expect(
       db().sql(
-        transition(LADDER, ALICE_ACTOR, [
+        asServiceRole(transition(LADDER, ALICE_ACTOR, [
           { index: 0, status: "ready" },
           { index: 1, status: "promoted" },
           { index: 3, status: "ready" },
@@ -196,14 +197,14 @@ describe.skipIf(skipReason !== null)("transition_round_price_lines", () => {
           { index: -1, status: "ready" },
           { index: 99, status: "ready" },
           "not an object",
-        ]),
+        ])),
       ),
     ).toBe("ok");
     expect(statuses(LADDER)).toBe("ready,pending,ready,pending,pending");
   });
 
   it("promotes a ready line only once its community price exists", () => {
-    expect(db().sql(transition(LADDER, ALICE_ACTOR, [{ index: 0, status: "promoted" }]))).toBe("ok");
+    expect(db().sql(asServiceRole(transition(LADDER, ALICE_ACTOR, [{ index: 0, status: "promoted" }])))).toBe("ok");
     expect(statuses(LADDER)).toBe("ready,pending,ready,pending,pending");
 
     // A price at the right line but written by somebody else does not count.
@@ -211,7 +212,7 @@ describe.skipIf(skipReason !== null)("transition_round_price_lines", () => {
       insert into public.community_prices (venue_id, drink_category, price_pennies, actor, round_spend_id, round_line_index)
       values ('venue-ladder', 'beer', 600, '${BOB_ACTOR}', '${LADDER}', 0)
     `);
-    expect(db().sql(transition(LADDER, ALICE_ACTOR, [{ index: 0, status: "promoted" }]))).toBe("ok");
+    expect(db().sql(asServiceRole(transition(LADDER, ALICE_ACTOR, [{ index: 0, status: "promoted" }])))).toBe("ok");
     expect(statuses(LADDER)).toBe("ready,pending,ready,pending,pending");
 
     db().sql(`
@@ -219,26 +220,26 @@ describe.skipIf(skipReason !== null)("transition_round_price_lines", () => {
       insert into public.community_prices (venue_id, drink_category, price_pennies, actor, round_spend_id, round_line_index)
       values ('venue-ladder', 'beer', 600, '${ALICE_ACTOR}', '${LADDER}', 0)
     `);
-    expect(db().sql(transition(LADDER, ALICE_ACTOR, [{ index: 0, status: "promoted" }]))).toBe("ok");
+    expect(db().sql(asServiceRole(transition(LADDER, ALICE_ACTOR, [{ index: 0, status: "promoted" }])))).toBe("ok");
     expect(statuses(LADDER)).toBe("promoted,pending,ready,pending,pending");
   });
 
   it("supersedes a pending, ready or promoted line, and never revives one", () => {
     expect(
       db().sql(
-        transition(LADDER, ALICE_ACTOR, [
+        asServiceRole(transition(LADDER, ALICE_ACTOR, [
           { index: 0, status: "superseded" },
           { index: 2, status: "superseded" },
-        ]),
+        ])),
       ),
     ).toBe("ok");
     expect(statuses(LADDER)).toBe("superseded,pending,superseded,pending,pending");
     expect(
       db().sql(
-        transition(LADDER, ALICE_ACTOR, [
+        asServiceRole(transition(LADDER, ALICE_ACTOR, [
           { index: 0, status: "ready" },
           { index: 2, status: "pending" },
-        ]),
+        ])),
       ),
     ).toBe("ok");
     expect(statuses(LADDER)).toBe("superseded,pending,superseded,pending,pending");
@@ -263,15 +264,15 @@ describe.skipIf(skipReason !== null)("transition_round_price_lines", () => {
     });
     // No reconcile has run for the Stag: FRESH's beer owns the key, so the
     // transition itself supersedes STALE's beer instead of readying it.
-    expect(db().sql(transition(STALE, ALICE_ACTOR, [{ index: 0, status: "ready" }]))).toBe("ok");
+    expect(db().sql(asServiceRole(transition(STALE, ALICE_ACTOR, [{ index: 0, status: "ready" }])))).toBe("ok");
     expect(statuses(STALE)).toBe("superseded");
     expect(statuses(FRESH)).toBe("pending");
   });
 
   it("loses no line when two transitions on one spend land at once", async () => {
     await db().concurrent([
-      transition(LADDER, ALICE_ACTOR, [{ index: 1, status: "ready" }]),
-      transition(LADDER, ALICE_ACTOR, [{ index: 4, status: "ready" }]),
+      asServiceRole(transition(LADDER, ALICE_ACTOR, [{ index: 1, status: "ready" }])),
+      asServiceRole(transition(LADDER, ALICE_ACTOR, [{ index: 4, status: "ready" }])),
     ]);
     expect(statuses(LADDER)).toBe("superseded,ready,superseded,pending,ready");
   });

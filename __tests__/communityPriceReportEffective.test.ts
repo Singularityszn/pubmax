@@ -12,6 +12,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
   asBrowserRole,
+  asServiceRole,
   postgresSkipReason,
   startMigratedPostgres,
   type PostgresSession,
@@ -70,7 +71,7 @@ afterAll(async () => {
 
 describe.skipIf(skipReason !== null)("report_community_price", () => {
   it("flags the price on a first report and keeps the reason", () => {
-    expect(db().sql(report(PRICE, "actor-a", "wrong pub"))).toBe("true");
+    expect(db().sql(asServiceRole(report(PRICE, "actor-a", "wrong pub")))).toBe("true");
     expect(counts(PRICE)).toBe("1|1");
     expect(
       db().sql(`
@@ -81,7 +82,7 @@ describe.skipIf(skipReason !== null)("report_community_price", () => {
   });
 
   it("answers yes to the same actor again without moving the count", () => {
-    expect(db().sql(report(PRICE, "actor-a", "still wrong"))).toBe("true");
+    expect(db().sql(asServiceRole(report(PRICE, "actor-a", "still wrong")))).toBe("true");
     expect(counts(PRICE)).toBe("1|1");
     expect(db().sql(`select report_reason from public.community_prices where id = '${PRICE}'`)).toBe(
       "wrong pub",
@@ -89,7 +90,7 @@ describe.skipIf(skipReason !== null)("report_community_price", () => {
   });
 
   it("counts a different actor, and a blank reason keeps the last one given", () => {
-    expect(db().sql(report(PRICE, "actor-b", ""))).toBe("true");
+    expect(db().sql(asServiceRole(report(PRICE, "actor-b", "")))).toBe("true");
     expect(counts(PRICE)).toBe("2|2");
     expect(db().sql(`select report_reason from public.community_prices where id = '${PRICE}'`)).toBe(
       "wrong pub",
@@ -97,7 +98,7 @@ describe.skipIf(skipReason !== null)("report_community_price", () => {
   });
 
   it("answers null for a price that does not exist and writes nothing", () => {
-    expect(db().sql(report(UNKNOWN_PRICE, "actor-a", "ghost"))).toBe("null");
+    expect(db().sql(asServiceRole(report(UNKNOWN_PRICE, "actor-a", "ghost")))).toBe("null");
     expect(
       db().sql(
         `select count(*) from public.community_price_reports where community_price_id = '${UNKNOWN_PRICE}'`,
@@ -107,7 +108,7 @@ describe.skipIf(skipReason !== null)("report_community_price", () => {
 
   it("moves the count once for a concurrent burst from one actor", async () => {
     const answers = await db().concurrentResults(
-      Array.from({ length: 8 }, () => report(BURST_PRICE, "actor-burst", "burst")),
+      Array.from({ length: 8 }, () => asServiceRole(report(BURST_PRICE, "actor-burst", "burst"))),
     );
     expect(answers).toEqual(Array.from({ length: 8 }, () => "true"));
     expect(counts(BURST_PRICE)).toBe("1|1");
@@ -115,7 +116,9 @@ describe.skipIf(skipReason !== null)("report_community_price", () => {
 
   it("counts every one of a concurrent crowd of different actors", async () => {
     const answers = await db().concurrentResults(
-      Array.from({ length: 6 }, (_, index) => report(CROWD_PRICE, `actor-crowd-${index}`, "crowd")),
+      Array.from({ length: 6 }, (_, index) =>
+        asServiceRole(report(CROWD_PRICE, `actor-crowd-${index}`, "crowd")),
+      ),
     );
     expect(answers).toEqual(Array.from({ length: 6 }, () => "true"));
     expect(counts(CROWD_PRICE)).toBe("6|6");

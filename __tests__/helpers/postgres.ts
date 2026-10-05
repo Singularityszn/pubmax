@@ -363,6 +363,16 @@ export async function startMigratedPostgres(
   }
 }
 
+/**
+ * One statement as `service_role`, the role the app's server client holds.
+ * A proof's successful calls go through this rather than the harness
+ * superuser, so a lost `service_role` grant fails the proof instead of
+ * passing under a role production never uses.
+ */
+export function asServiceRole(statement: string): string {
+  return `set role service_role; ${statement}`;
+}
+
 export type BrowserRole = "anon" | "authenticated";
 
 /**

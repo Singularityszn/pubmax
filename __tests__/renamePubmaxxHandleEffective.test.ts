@@ -12,6 +12,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
   asBrowserRole,
+  asServiceRole,
   postgresSkipReason,
   startMigratedPostgres,
   type PostgresSession,
@@ -43,7 +44,7 @@ function rename(userId: string | null, handle: string): string {
 
 /** The RPC's answer, parsed. */
 function renameAs(userId: string | null, handle: string): Record<string, unknown> {
-  return JSON.parse(db().sql(rename(userId, handle))) as Record<string, unknown>;
+  return JSON.parse(db().sql(asServiceRole(rename(userId, handle)))) as Record<string, unknown>;
 }
 
 function handleOf(profileId: string): string {
@@ -164,7 +165,10 @@ describe.skipIf(skipReason !== null)("rename_pubmaxx_handle", () => {
   });
 
   it("gives one winner when two accounts race for one handle", async () => {
-    const answers = await db().concurrentResults([rename(CAROL, "contested"), rename(DAVE, "contested")]);
+    const answers = await db().concurrentResults([
+      asServiceRole(rename(CAROL, "contested")),
+      asServiceRole(rename(DAVE, "contested")),
+    ]);
     const codes = answers.map((raw) => {
       const answer = JSON.parse(raw) as { ok: boolean; code?: string };
       return answer.ok ? "ok" : answer.code;

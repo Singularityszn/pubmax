@@ -10,6 +10,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
   asBrowserRole,
+  asServiceRole,
   postgresSkipReason,
   startMigratedPostgres,
   type PostgresSession,
@@ -54,14 +55,14 @@ afterAll(async () => {
 
 describe.skipIf(skipReason !== null)("account_has_password", () => {
   it("answers true only for an account holding a non-empty password hash", () => {
-    expect(db().sql(hasPassword(WITH_PASSWORD))).toBe("t");
-    expect(db().sql(hasPassword(NULL_PASSWORD))).toBe("f");
-    expect(db().sql(hasPassword(BLANK_PASSWORD))).toBe("f");
+    expect(db().sql(asServiceRole(hasPassword(WITH_PASSWORD)))).toBe("t");
+    expect(db().sql(asServiceRole(hasPassword(NULL_PASSWORD)))).toBe("f");
+    expect(db().sql(asServiceRole(hasPassword(BLANK_PASSWORD)))).toBe("f");
   });
 
   it("answers false, not an error, for an unknown or missing id", () => {
-    expect(db().sql(hasPassword(UNKNOWN))).toBe("f");
-    expect(db().sql(hasPassword(null))).toBe("f");
+    expect(db().sql(asServiceRole(hasPassword(UNKNOWN)))).toBe("f");
+    expect(db().sql(asServiceRole(hasPassword(null)))).toBe("f");
   });
 
   it("returns a boolean and nothing the hash could leak through", () => {
