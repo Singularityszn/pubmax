@@ -58,15 +58,48 @@ describe("browser CI policy", () => {
 
     const lawPins = workflow.slice(
       workflow.indexOf("  law-pins:"),
-      workflow.indexOf("  full-suite:"),
+      workflow.indexOf("  layout-pins:"),
     );
     expect(lawPins).not.toContain("if: github.event_name");
+  });
+
+  it("runs the layout-pinning browser specs on every pull request, in three shards", () => {
+    const workflow = readFileSync(workflowPath, "utf8");
+    const layoutPinsJob = (parse(workflow) as Workflow).jobs["layout-pins"];
+    if (!layoutPinsJob) throw new Error("e2e workflow has no layout-pins job");
+    const shards = layoutPinsJob.strategy?.matrix?.shard;
+    expect(shards).toEqual([1, 2, 3]);
+    const run = layoutPinsJob.steps
+      .map((step) => step.run ?? "")
+      .filter((script) => script.includes("npx playwright test"))
+      .join("\n");
+    expect(run).toContain(`--shard=\${{ matrix.shard }}/${shards?.length}`);
+    expect(run).toContain("--workers=1");
+    // These specs alone now hold layout once pinned by source-text unit tests.
+    for (const spec of [
+      "e2e/desktop-map-chrome-fit.spec.ts",
+      "e2e/mobile-map-shell-matrix.spec.ts",
+      "e2e/ui-consistency-layout.spec.ts",
+      "e2e/map-desktop-arrival-chrome.spec.ts",
+    ]) {
+      expect(run).toContain(spec);
+    }
+    for (const project of ["chromium", "chromium-gl", "chromium-no-gl"]) {
+      expect(run.split(/\s+/)).toContain(`--project=${project}`);
+    }
+
+    const layoutPins = workflow.slice(
+      workflow.indexOf("  layout-pins:"),
+      workflow.indexOf("  full-suite:"),
+    );
+    expect(layoutPins).not.toContain("if: github.event_name");
+    expect(layoutPins).toContain("--require-zero-skipped");
   });
 
   it("installs Chromium and its system dependencies before every Playwright run", () => {
     const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
 
-    for (const jobName of ["law-pins", "full-suite"]) {
+    for (const jobName of ["law-pins", "layout-pins", "full-suite"]) {
       const steps = defined(jobs[jobName]).steps;
       const install = steps.findIndex((step) =>
         step.run?.split("\n").some((line) => {
@@ -93,7 +126,7 @@ describe("browser CI policy", () => {
   it("chooses a runner-specific Playwright port before every Playwright run", () => {
     const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
 
-    for (const jobName of ["law-pins", "full-suite"]) {
+    for (const jobName of ["law-pins", "layout-pins", "full-suite"]) {
       const steps = defined(jobs[jobName]).steps;
       const portStep = steps.findIndex(
         (step) => step.uses === "./.github/actions/pubmax-playwright-port",
@@ -113,6 +146,6 @@ describe("browser CI policy", () => {
   it("gives each production browser build enough heap", () => {
     const workflow = readFileSync(workflowPath, "utf8");
 
-    expect(workflow.match(/NODE_OPTIONS: "--max-old-space-size=6144"/g)).toHaveLength(2);
+    expect(workflow.match(/NODE_OPTIONS: "--max-old-space-size=6144"/g)).toHaveLength(3);
   });
 });

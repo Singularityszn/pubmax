@@ -92,6 +92,121 @@ jobs:
           --require-zero-skipped
           --skips-argued e2e/conditional-skips.allowlist.json
 
+  layout-pins:
+    name: Browser layout pins (${{ matrix.shard }}/3)
+    # The browser specs that hold layout and chrome once held by source-text
+    # unit tests (the CSS and JSX regex pins removed in the test-suite prune).
+    # A regex over a stylesheet no longer guards these surfaces, so the specs
+    # that measure them run on every pull request. They are cut into three
+    # shards on separate runners, one worker each, so the law pins above keep
+    # their own clock.
+    runs-on: macos-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        timeout-minutes: 5
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm run deps:install-scripts
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Choose Playwright port
+        uses: ./.github/actions/pubmax-playwright-port
+
+      - name: Run layout-pinning journeys
+        env:
+          PUBMAX_TRACKED_OUTPUTS: public/data
+          NODE_OPTIONS: "--max-old-space-size=6144"
+          PUBMAX_E2E_KEYLESS: "1"
+          PW_SKIP_KEYLESS_WEBSERVER: "1"
+          PLAYWRIGHT_JSON_OUTPUT_NAME: "playwright-layout-pins-${{ matrix.shard }}.json"
+        run: >-
+          npx playwright test
+          --reporter=list,json
+          e2e/aperture-splash.spec.ts
+          e2e/avatar-wp3-mobile.spec.ts
+          e2e/consent-after-first-answer.spec.ts
+          e2e/core-route-smoke.spec.ts
+          e2e/crews-and-people.spec.ts
+          e2e/dark-primary-surfaces.spec.ts
+          e2e/design-review-followups.spec.ts
+          e2e/design-taste-wave-1.spec.ts
+          e2e/desktop-map-chrome-fit.spec.ts
+          e2e/desktop-map-rail.spec.ts
+          e2e/desktop-sheet-chrome-fit.spec.ts
+          e2e/first-run-tour-placement.spec.ts
+          e2e/map-arrival-card-pins.spec.ts
+          e2e/map-arrival.spec.ts
+          e2e/map-blocked-fallback.spec.ts
+          e2e/map-consent-bottom-controls.spec.ts
+          e2e/map-desktop-arrival-chrome.spec.ts
+          e2e/map-fallback.spec.ts
+          e2e/map-search-no-results.spec.ts
+          e2e/map-search-typing.spec.ts
+          e2e/map-selection-history.spec.ts
+          e2e/map-tile-retry.spec.ts
+          e2e/mobile-bottom-nav.spec.ts
+          e2e/mobile-button-system.spec.ts
+          e2e/mobile-city-chooser.spec.ts
+          e2e/mobile-feed-actions.spec.ts
+          e2e/mobile-first-run-tour.spec.ts
+          e2e/mobile-landing-entry.spec.ts
+          e2e/mobile-map-controls.spec.ts
+          e2e/mobile-map-first-visit.spec.ts
+          e2e/mobile-map-search.spec.ts
+          e2e/mobile-map-shell-matrix.spec.ts
+          e2e/mobile-pal-layout.spec.ts
+          e2e/mobile-profile.spec.ts
+          e2e/mobile-venue-sheet-tabs.spec.ts
+          e2e/night-mode-chrome.spec.ts
+          e2e/pal-chat-composer.spec.ts
+          e2e/passport-and-activity.spec.ts
+          e2e/phone-tap-targets.spec.ts
+          e2e/plan-crawl-stops.spec.ts
+          e2e/plan-invite.spec.ts
+          e2e/plan-join-reveal.spec.ts
+          e2e/price-caption-integrity.spec.ts
+          e2e/profile-avatar.spec.ts
+          e2e/profile-hero-desktop.spec.ts
+          e2e/quality-floor.spec.ts
+          e2e/social-composer.spec.ts
+          e2e/tonight-vibe-chips.spec.ts
+          e2e/tonight.spec.ts
+          e2e/ui-consistency-layout.spec.ts
+          e2e/ui-empty-states-fit.spec.ts
+          e2e/ux-consent-chrome.spec.ts
+          e2e/venue-sheet-tablet-command-bar.spec.ts
+          e2e/venue-tabs-fit.spec.ts
+          e2e/wordmark-chrome.spec.ts
+          --project=chromium
+          --project=chromium-gl
+          --project=chromium-no-gl
+          --workers=1
+          --shard=${{ matrix.shard }}/3
+
+      - name: Gate the layout-pinning shard
+        run: >-
+          node scripts/assert-playwright-gate.mjs playwright-layout-pins-${{ matrix.shard }}.json
+          --require-zero-skipped
+          --skips-argued e2e/conditional-skips.allowlist.json
+
   full-suite:
     name: Full browser suite (${{ matrix.shard }}/4)
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
