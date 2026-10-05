@@ -469,6 +469,22 @@
   scroll-padding-bottom: calc(
     var(--sheet-hidden-below, 0px) + var(--venue-command-bar-h)
   );
+  /* The top edge has the same problem. `.mapDrawerHead` is sticky and only
+     part opaque (10px above a 44px row of Back and close), so `?log=1`'s
+     reveal put "What did it cost?" at the scrollport's top, under the Back
+     chevron, with the tab strip showing faintly through the head. The
+     head's height plus a 12px gap is the edge where content is clear. */
+  scroll-padding-top: 66px;
+}
+
+/* The reveal aims at the price step, but the composer's eyebrow and the
+   pub's name sit just above it and say where the price goes. 85px is the
+   composer's 1px border and 13px padding, that intro (37px), and the
+   signed-out note with a 9px gap either side (34px), measured at 1280x900,
+   so the composer's own top edge lands in the clear too. Signed in, there is
+   no note and the card simply sits 25px lower. */
+.mapDrawer.right.open:not(.mobileSharedSheet) .spillPriceStep {
+  scroll-margin-top: 85px;
 }
 
 /* Venue command bar. It stays pinned in the desktop inspector and moves into
@@ -1369,8 +1385,8 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
     padding: 18px 0;
   }
 
-  /* Golden Thread (or the composer, when open) beside the Pint Drops list
-     instead of stacked — the panel is wide enough now to read both at once. */
+  /* Golden Thread beside the Pint Drops list instead of stacked: the panel
+     is wide enough now to read both at once. An open composer stacks below. */
   .venuePintsCols {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -1378,7 +1394,15 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
     align-items: start;
   }
 
-  .venuePintsCols .pintDrops {
+  /* An open composer takes the full width. Two columns of this drawer
+     (at most 640px) left it about 240 to 290px wide, which wrapped the price
+     chips and put the empty Pint Drops note alone in the right column. The
+     list then stacks below the composer, as it does on a phone. */
+  .venuePintsCols--composing {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .venuePintsCols:not(.venuePintsCols--composing) .pintDrops {
     /* Reset the stacked-section rule (globals.css) — as a grid column it no
        longer needs the dashed divider that used to separate it from the
        Golden Thread above. */

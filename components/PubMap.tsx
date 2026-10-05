@@ -336,6 +336,7 @@ import { useSelParamSync } from "@/components/map/pubmap/useSelParamSync";
 import { useMapKeyboardShortcuts } from "@/components/map/pubmap/useMapKeyboardShortcuts";
 import { useLandmarkJourney } from "@/components/map/pubmap/useLandmarkJourney";
 import { useLogIntent } from "@/components/map/pubmap/useLogIntent";
+import { useLogIntentRevealScope } from "@/components/map/pubmap/useLogIntentRevealScope";
 import { MappedRouteChip } from "@/components/map/pubmap/MappedRouteChip";
 import { BandOnboardingChip } from "@/components/map/pubmap/BandOnboardingChip";
 const MapOnboardingOverlay = dynamic(
@@ -435,8 +436,7 @@ import {
 } from "@/lib/mapLogIntent";
 import {
   browserPrefersReducedMotion,
-  browserRevealTimers,
-  scheduleLogIntentReveal,
+  requestLogIntentReveal,
 } from "@/lib/logIntentReveal";
 import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
@@ -4091,11 +4091,7 @@ export default function PubMap({
     // and focus stays put so raising the keyboard is the reader's own next move
     // (lib/logIntentReveal.ts owns the wait, the selector and the behaviour).
     if (typeof document !== "undefined") {
-      scheduleLogIntentReveal({
-        root: document,
-        reducedMotion: browserPrefersReducedMotion(),
-        timers: browserRevealTimers(),
-      });
+      requestLogIntentReveal(document, browserPrefersReducedMotion());
     }
   }, [closePlanning, dismissOnboarding, setComposerOpen, setSheetDragY, setSheetSnap]);
 
@@ -4409,6 +4405,7 @@ export default function PubMap({
   // The venue sheet is open for a curated venue OR for a tapped base pub; both
   // fill the same drawer/sheet, so every open/close/snap path stays one path.
   const detailOpen = mapSelection.detailOpen;
+  useLogIntentRevealScope(detailOpen, pintDrops.composerOpen);
   const activeNightArea = useMemo(() => nightAreaForMapQuery(cityId, filters.query) ??
     (!filters.query.trim() && plannedNightArea ? getNightArea(plannedNightArea) : null),
   [cityId, filters.query, plannedNightArea]);

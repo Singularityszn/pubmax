@@ -1,7 +1,8 @@
-import { useId } from "react";
+import { useEffect, useId, useRef } from "react";
 import { Minus, Plus } from "lucide-react";
 
 import MeasureChips from "@/components/map/composer/MeasureChips";
+import { takeLogIntentReveal } from "@/lib/logIntentReveal";
 import { formatPriceChipGbp, stepPrice } from "@/lib/spill";
 import type { PintDropsState } from "@/components/map/usePintDrops";
 
@@ -33,9 +34,16 @@ export function ComposerPriceStep({
 }: ComposerPriceStepProps) {
   const priceInputId = useId();
   const drinkInputId = useId();
+  const stepRef = useRef<HTMLDivElement>(null);
+
+  // `?log=1` asks for this step before the composer exists, and the step
+  // answers as it mounts, however long the sheet took to get here.
+  useEffect(() => {
+    takeLogIntentReveal(stepRef.current);
+  }, []);
 
   return (
-    <div className="spillPriceStep" data-testid="spill-price-step">
+    <div ref={stepRef} className="spillPriceStep" data-testid="spill-price-step">
       <div className="priceField">
         <label className="priceFieldLabel" htmlFor={priceInputId}>
           What did it cost?
