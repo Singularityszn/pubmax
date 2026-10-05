@@ -79,7 +79,7 @@ vi.mock("@/lib/authedFetch", () => ({
 
 import MomentCapture from "@/components/moment/MomentCapture";
 import { defined } from "@/__tests__/helpers/defined";
-import { createMomentDraft } from "@/lib/momentDraft";
+import { applyMomentSaveReceipt, createMomentDraft } from "@/lib/momentDraft";
 import { readProviderIdentityRevision, setProviderIdentity, setProviderAuthState } from "@/lib/authProviderRevision";
 
 const JPEG_HEAD = [0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01];
@@ -392,21 +392,15 @@ describe("Moment save progress across an account boundary", () => {
     store = new Map();
     releaseUpload = [];
     loadDraft.mockImplementation(async (owner: string) => store.get(owner) ?? null);
-    let tick = 0;
-    const stamp = () => new Date(1_800_000_000_000 + ++tick).toISOString();
-    saveDraft.mockImplementation(async (draft: Stored) => {
-      const updatedAt = stamp();
-      store.set(draft.ownerKey, { ...draft, updatedAt });
-      return updatedAt;
-    });
+    saveDraft.mockImplementation(async (draft: Stored) => { store.set(draft.ownerKey, { ...draft }); });
     deleteDraft.mockImplementation(async (owner: string) => { store.delete(owner); });
-    settleDraft.mockImplementation(async (owner: string, id: string, updatedAt: string, progress: Partial<Stored> | null) => {
+    // The store's own receipt merge, over an in-memory row instead of IndexedDB.
+    settleDraft.mockImplementation(async (owner: string, id: string, receipt: Parameters<typeof applyMomentSaveReceipt>[1]) => {
       const stored = store.get(owner);
-      if (!stored || stored.id !== id || stored.updatedAt !== updatedAt) return null;
-      const settledAt = stamp();
-      if (progress === null) store.delete(owner);
-      else store.set(owner, { ...stored, ...progress, updatedAt: settledAt });
-      return settledAt;
+      if (stored?.id !== id) return;
+      const next = applyMomentSaveReceipt(stored, receipt);
+      if (next) store.set(owner, next);
+      else store.delete(owner);
     });
     answer = (call) => {
       if (call.url === "/api/night-memories") return json({ memory: { id: "memory-1" } }, 201);
@@ -461,11 +455,18 @@ describe("Moment save progress across an account boundary", () => {
     expect(container.querySelector(".momentSaved")).not.toBeNull();
   });
 
-  it("does not upload again what an earlier visit's save confirmed after this visit restored it", async () => {
-    await startThreePhotoSave();
+  const sentPhotos = () => calls.filter((call) => call.url.endsWith("/moments"))
+    .map((call) => ((call.init.body as FormData).get("photo") as File).name);
+
+  async function revisitSameAccount() {
     await act(async () => root?.unmount());
     container.remove();
     await mount();
+  }
+
+  it("does not upload again what an earlier visit's save confirmed after this visit restored it", async () => {
+    await startThreePhotoSave();
+    await revisitSameAccount();
     expect(previews()).toBe(2);
     await act(async () => { releaseUpload.shift()?.(json({ moment: { id: "late" } }, 201)); });
     await settle();
@@ -473,13 +474,48 @@ describe("Moment save progress across an account boundary", () => {
 
     answer = () => json({ moment: { id: "moment-next" } }, 201);
     await save();
-    expect(status()).toBe("Your unfinished Moment is back.");
-    expect(previews()).toBe(1);
-    await save();
-    const sent = calls.filter((call) => call.url.endsWith("/moments"))
-      .map((call) => ((call.init.body as FormData).get("photo") as File).name);
-    expect(sent).toEqual(["one.jpg", "two.jpg", "three.jpg"]);
+    expect(sentPhotos()).toEqual(["one.jpg", "two.jpg", "three.jpg"]);
     expect(store.has("host")).toBe(false);
+    expect(container.querySelector(".momentSaved")).not.toBeNull();
+  });
+
+  it.each([
+    ["unchanged", null],
+    ["with a caption edited before autosave", "A newer visit's caption"],
+  ])("waits for an earlier visit's upload still in flight before a newer %s visit saves", async (_label, newCaption) => {
+    await startThreePhotoSave();
+    await revisitSameAccount();
+    if (newCaption) {
+      const caption = container.querySelector<HTMLTextAreaElement>(".momentFields textarea")!;
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(caption, newCaption);
+        caption.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+    }
+    answer = () => json({ moment: { id: "moment-next" } }, 201);
+    await act(async () => { container.querySelector<HTMLFormElement>("form.momentComposer")!.requestSubmit(); });
+    await settle();
+    expect(sentPhotos()).toEqual(["one.jpg", "two.jpg"]);
+
+    await act(async () => { releaseUpload.shift()?.(json({ moment: { id: "late" } }, 201)); });
+    await settle(10);
+    expect(sentPhotos()).toEqual(["one.jpg", "two.jpg", "three.jpg"]);
+    const last = calls.filter((call) => call.url.endsWith("/moments")).at(-1)!;
+    expect((last.init.body as FormData).get("caption")).toBe(newCaption ?? "");
+    expect(store.has("host")).toBe(false);
+  });
+
+  it("saves the restored draft when storage cannot be read at save time", async () => {
+    answer = (call) => call.url === "/api/night-memories" ? json({ memory: { id: "memory-1" } }, 201) : json({ moment: { id: "m" } }, 201);
+    const draft = { ...createMomentDraft("host"), media: [], caption: "Restored before the outage", revision: 3 };
+    store.set("host", draft);
+    await mount();
+    expect(container.querySelector<HTMLTextAreaElement>(".momentFields textarea")?.value).toBe("Restored before the outage");
+    loadDraft.mockRejectedValue(new Error("Connection to Indexed Database server lost"));
+    await save();
+    expect(status()).not.toBe("This Moment was already saved.");
+    expect(calls.filter((call) => call.url.endsWith("/moments"))).toHaveLength(1);
+    expect(container.querySelector(".momentSaved")).not.toBeNull();
   });
 
   it("clears the stored draft once every photo is saved", async () => {
@@ -508,7 +544,7 @@ describe("Moment save progress across an account boundary", () => {
     await act(async () => { releaseUpload.shift()?.(json({ moment: { id: "late" } }, 201)); });
     await settle();
     expect(store.get("host")?.caption).toBe("A newer visit's caption");
-    expect(store.get("host")?.media).toHaveLength(2);
+    expect(store.get("host")?.media.map((item) => item.name)).toEqual(["three.jpg"]);
   });
 
   it("never recreates a draft that an explicit sign-out purged", async () => {

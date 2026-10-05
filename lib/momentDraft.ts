@@ -129,17 +129,15 @@ export async function loadMomentDraft(ownerKey: string): Promise<MomentDraftV1 |
   }
 }
 
-/** Store the draft; returns the `updatedAt` it was stored with. */
-export async function saveMomentDraft(draft: MomentDraftV1): Promise<string> {
+export async function saveMomentDraft(draft: MomentDraftV1): Promise<void> {
+  if (typeof window === "undefined") return;
   const next = { ...draft, updatedAt: new Date().toISOString() };
-  if (typeof window === "undefined") return next.updatedAt;
   try {
     await withStore<IDBValidKey>("readwrite", (store) => store.put(next));
   } catch {
     const metadataOnly = { ...next, media: [] };
     try { window.localStorage.setItem(fallbackKey(draft.ownerKey), JSON.stringify(metadataOnly)); } catch { /* unavailable storage */ }
   }
-  return next.updatedAt;
 }
 
 export async function deleteMomentDraft(ownerKey: string): Promise<void> {
@@ -148,71 +146,83 @@ export async function deleteMomentDraft(ownerKey: string): Promise<void> {
   try { window.localStorage.removeItem(fallbackKey(ownerKey)); } catch { /* unavailable storage */ }
 }
 
-export type MomentSaveProgress = Pick<MomentDraftV1, "media" | "caption" | "serverMemoryId">;
+/**
+ * What the server confirmed for one draft: the photos it stored, the caption it
+ * stored with them and the Memory they went into. A request whose answer never
+ * arrived adds nothing, because its commit is unknown.
+ */
+export type MomentSaveReceipt = {
+  uploadedMediaIds: string[];
+  sentCaption: string | null;
+  serverMemoryId: string | null;
+};
 
-/** Whether the stored row is still the one this save last wrote. */
-function isSettleTarget(
-  stored: MomentDraftV1 | null | undefined,
-  draftId: string,
-  updatedAt: string,
-): stored is MomentDraftV1 {
-  return stored?.id === draftId && stored.updatedAt === updatedAt;
+/**
+ * The draft with a receipt applied: confirmed photos and a caption the server
+ * already holds removed, the Memory kept. Every other edit stays. Null when
+ * nothing is left to save.
+ */
+export function applyMomentSaveReceipt(
+  draft: MomentDraftV1,
+  receipt: MomentSaveReceipt,
+): MomentDraftV1 | null {
+  const uploaded = new Set(receipt.uploadedMediaIds);
+  const media = draft.media.filter((item) => !uploaded.has(item.id));
+  const caption = receipt.sentCaption !== null && draft.caption === receipt.sentCaption ? "" : draft.caption;
+  const savedSomething = uploaded.size > 0 || receipt.sentCaption !== null;
+  if (savedSomething && media.length === 0 && !caption.trim()) return null;
+  return { ...draft, media, caption, serverMemoryId: receipt.serverMemoryId };
 }
 
 /**
- * Record a save's progress on the exact row it last wrote: what is still to
- * upload, or (null) that nothing is left. The row must still carry the
- * `updatedAt` this save wrote, so progress never recreates a draft a sign-out
- * purged and never overwrites anything another visit stored since. It settles
- * in the lane `loadMomentDraft` reads. Returns the new `updatedAt`, or null when
- * nothing was settled.
+ * Apply a save's receipt to whatever this owner has stored for the same draft,
+ * in the lane `loadMomentDraft` reads, in one read-and-write. A purged or
+ * replaced draft is left alone, a later edit keeps everything the receipt does
+ * not cover, and a draft with nothing left is removed. Never rejects.
  */
 export async function settleMomentDraftProgress(
   ownerKey: string,
   draftId: string,
-  updatedAt: string,
-  progress: MomentSaveProgress | null,
-): Promise<string | null> {
-  if (typeof window === "undefined") return null;
-  const settledAt = new Date().toISOString();
+  receipt: MomentSaveReceipt,
+): Promise<void> {
+  if (typeof window === "undefined") return;
   let db: IDBDatabase;
   try {
     db = await openDraftDb();
   } catch {
-    return settleFallbackDraft(ownerKey, draftId, updatedAt, progress, settledAt);
+    settleFallbackDraft(ownerKey, draftId, receipt);
+    return;
   }
-  return new Promise<string | null>((resolve) => {
-    let settled: string | null = null;
-    const transaction = db.transaction(STORE_NAME, "readwrite");
-    const store = transaction.objectStore(STORE_NAME);
-    const read = store.get(ownerKey);
-    read.onsuccess = () => {
-      const stored = read.result as MomentDraftV1 | undefined;
-      if (!isSettleTarget(stored, draftId, updatedAt)) return;
-      if (progress === null) store.delete(ownerKey);
-      else store.put({ ...stored, ...progress, updatedAt: settledAt });
-      settled = settledAt;
-    };
-    transaction.oncomplete = () => { db.close(); resolve(settled); };
-    transaction.onabort = () => { db.close(); resolve(null); };
+  await new Promise<void>((resolve) => {
+    try {
+      const transaction = db.transaction(STORE_NAME, "readwrite");
+      const store = transaction.objectStore(STORE_NAME);
+      const read = store.get(ownerKey);
+      read.onsuccess = () => {
+        const stored = read.result as MomentDraftV1 | undefined;
+        if (stored?.id !== draftId) return;
+        const next = applyMomentSaveReceipt(stored, receipt);
+        if (next) store.put({ ...next, updatedAt: new Date().toISOString() });
+        else store.delete(ownerKey);
+      };
+      transaction.oncomplete = () => { db.close(); resolve(); };
+      transaction.onabort = () => { db.close(); resolve(); };
+    } catch {
+      db.close();
+      resolve();
+    }
   });
 }
 
-function settleFallbackDraft(
-  ownerKey: string,
-  draftId: string,
-  updatedAt: string,
-  progress: MomentSaveProgress | null,
-  settledAt: string,
-): string | null {
+function settleFallbackDraft(ownerKey: string, draftId: string, receipt: MomentSaveReceipt): void {
   try {
     const raw = window.localStorage.getItem(fallbackKey(ownerKey));
     const stored = raw ? JSON.parse(raw) as MomentDraftV1 : null;
-    if (!isSettleTarget(stored, draftId, updatedAt)) return null;
-    if (progress === null) window.localStorage.removeItem(fallbackKey(ownerKey));
-    else window.localStorage.setItem(fallbackKey(ownerKey), JSON.stringify({ ...stored, ...progress, media: [], updatedAt: settledAt }));
-    return settledAt;
+    if (stored?.id !== draftId) return;
+    const next = applyMomentSaveReceipt(stored, receipt);
+    if (next) window.localStorage.setItem(fallbackKey(ownerKey), JSON.stringify({ ...next, media: [], updatedAt: new Date().toISOString() }));
+    else window.localStorage.removeItem(fallbackKey(ownerKey));
   } catch {
-    return null;
+    // Unavailable storage holds no draft to settle.
   }
 }

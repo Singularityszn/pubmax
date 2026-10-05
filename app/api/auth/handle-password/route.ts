@@ -6,9 +6,10 @@ import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import {
   AUTH_RESUME_GENERATION_COOKIE,
-  SIGNED_OUT_GENERATION_PREFIX,
+  accessTokenSubject,
   authResumeCookieFromHeader,
   authResumeSetCookieHeaders,
+  resumeGenerationAdmits,
 } from "@/lib/authSessionResume";
 import {
   HANDLE_PASSWORD_GENERIC_ERROR,
@@ -29,11 +30,15 @@ assertServerEnv();
 const RATE_LIMIT = 12;
 const RATE_WINDOW_MS = 15 * 60 * 1000;
 
-/** The browser started this sign-in's generation; the cookie is stamped with it. */
-function setResumeCookie(request: Request, refreshToken: string, email: string | null): Headers | undefined {
+/** Stamped with the request's generation, and only when that admits this account. */
+function setResumeCookie(
+  request: Request,
+  session: { access_token: string; refresh_token: string },
+  email: string | null,
+): Headers | undefined {
   const generation = authResumeCookieFromHeader(request.headers.get("cookie"), AUTH_RESUME_GENERATION_COOKIE);
-  if (generation?.startsWith(SIGNED_OUT_GENERATION_PREFIX)) return undefined;
-  return authResumeSetCookieHeaders({ refreshToken, email, generation });
+  if (!resumeGenerationAdmits(generation, accessTokenSubject(session.access_token))) return undefined;
+  return authResumeSetCookieHeaders({ refreshToken: session.refresh_token, email, generation });
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -108,6 +113,6 @@ export async function POST(request: Request): Promise<Response> {
         token_type: session.token_type,
       },
     },
-    { headers: setResumeCookie(request, session.refresh_token, email) },
+    { headers: setResumeCookie(request, session, email) },
   );
 }

@@ -26,7 +26,7 @@
 
 import { isGoTrueUserBannedError } from "@/lib/authAccountBan";
 import { ensureSupabaseBrowser } from "@/lib/authClient";
-import { beginResumeGeneration } from "@/lib/authSessionResumeClient";
+import { rememberDeliberateSignIn } from "@/lib/authSessionResumeClient";
 import {
   markDeviceAccountNeedsSignIn,
   readDeviceAccounts,
@@ -200,12 +200,12 @@ export function browserDeviceAccountSwitchDeps(): DeviceAccountSwitchDeps {
     async setSession(session) {
       const supabase = await ensureSupabaseBrowser().catch(() => null);
       if (!supabase) return { ok: false };
-      // Switching accounts is a sign-in the person asked for.
-      beginResumeGeneration();
       const { error } = await supabase.auth.setSession({
         access_token: session.access_token,
         refresh_token: session.refresh_token,
       });
+      // Switching accounts is a sign-in the person asked for.
+      if (!error) void rememberDeliberateSignIn(session);
       return { ok: !error };
     },
   };

@@ -8,6 +8,8 @@ import {
   AUTH_RESUME_GENERATION_COOKIE,
   AUTH_RESUME_GENERATION_MAX_AGE_SECONDS,
   SIGNED_OUT_GENERATION_PREFIX,
+  accessTokenSubject,
+  accountResumeGeneration,
   authResumeCookieFromHeader,
   newResumeGeneration,
 } from "@/lib/authSessionResume";
@@ -32,15 +34,6 @@ function writeResumeGeneration(value: string): void {
     `; Path=/; SameSite=Lax; Max-Age=${AUTH_RESUME_GENERATION_MAX_AGE_SECONDS}${secure}`;
 }
 
-/**
- * Start a resume generation for a sign-in the person just asked for. Only these
- * actions call it: a password sign-in, an auth callback and an account switch.
- * Refreshes, boots and other tabs persist under whatever generation is current,
- * so none of them can undo an explicit sign-out.
- */
-export function beginResumeGeneration(): void {
-  writeResumeGeneration(newResumeGeneration());
-}
 
 export type ResumeHint = { maskedEmail: string | null };
 
@@ -136,6 +129,24 @@ export async function persistSessionForResume(
     // Best-effort: the next refresh persists again.
     return "unavailable";
   }
+}
+
+/**
+ * Remember a sign-in the person asked for, once it has succeeded: a password
+ * sign-in, an auth callback and an account switch. It starts a generation for
+ * that account and persists under it. Nothing before success touches the
+ * generation, so a failed attempt leaves the remembered sign-in as it was.
+ * Refreshes, boots and other tabs persist under whatever generation is current,
+ * so none of them can undo an explicit sign-out or take over another account's.
+ */
+export async function rememberDeliberateSignIn(
+  session: { access_token: string; refresh_token: string },
+  fetchImpl: FetchLike = fetch,
+): Promise<PersistResumeOutcome> {
+  const userId = accessTokenSubject(session.access_token);
+  if (!userId) return "unavailable";
+  writeResumeGeneration(accountResumeGeneration(userId));
+  return persistSessionForResume(session, fetchImpl);
 }
 
 /** Exchange the durable cookie for a fresh session after storage loss. */

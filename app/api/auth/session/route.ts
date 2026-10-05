@@ -32,6 +32,7 @@ import {
   isPlausibleRefreshToken,
   maskEmail,
   newResumeGeneration,
+  resumeGenerationAdmits,
   type AuthResumeCookiePayload,
 } from "@/lib/authSessionResume";
 import { requestMagicLink } from "@/lib/passwordlessAuth";
@@ -134,15 +135,13 @@ async function persist(
     return publicApiError("A refresh token is required.", "INVALID_REQUEST", 400);
   }
   // The cookie is stamped with the generation the request carried and never
-  // writes one: only the browser starts a generation, at a sign-in the person
-  // asked for. After an explicit sign-out nothing is remembered until then.
+  // writes one: only the browser starts a generation, for the account a sign-in
+  // the person asked for produced. After an explicit sign-out nothing is
+  // remembered until then, and nobody else is remembered under it.
   const generation = authResumeCookieFromHeader(
     request.headers.get("cookie"),
     AUTH_RESUME_GENERATION_COOKIE,
   );
-  if (generation?.startsWith(SIGNED_OUT_GENERATION_PREFIX)) {
-    return publicApiError("This device was signed out.", "SIGNED_OUT", 409);
-  }
 
   // The bearer token proves who the refresh token is being stored FOR, and
   // supplies the verified email for the welcome-back hint. When verification
@@ -164,6 +163,9 @@ async function persist(
   const existing = cookiePayload(request);
   const userId =
     verification.status === "verified" ? verification.identity.id : null;
+  if (!resumeGenerationAdmits(generation, userId)) {
+    return publicApiError("This device was signed out.", "SIGNED_OUT", 409);
+  }
   const email =
     verification.status === "verified" && verification.identity.email
       ? verification.identity.email

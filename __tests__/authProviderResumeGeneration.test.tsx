@@ -80,7 +80,7 @@ vi.mock("@/lib/authServer", () => ({
 
 import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
 import { DELETE, GET, POST } from "@/app/api/auth/session/route";
-import { beginResumeGeneration } from "@/lib/authSessionResumeClient";
+import { rememberDeliberateSignIn } from "@/lib/authSessionResumeClient";
 import { resolveSocialAccess } from "@/lib/socialAccessServer";
 
 const SUPABASE_URL = "https://auth-generation.invalid";
@@ -180,7 +180,10 @@ beforeEach(async () => {
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input instanceof Request ? input.url : input);
     if (url === "/api/auth/session") return sessionRoute(init);
-    if (url.includes("/auth/v1/token")) return new Response(JSON.stringify(sessionFor(A)), { status: 200 });
+    if (url.includes("/auth/v1/token")) {
+      const refresh = (JSON.parse(String(init?.body)) as { refresh_token: string }).refresh_token;
+      return new Response(JSON.stringify(sessionFor(refresh.replace("synthetic-refresh-", ""))), { status: 200 });
+    }
     return new Response("{}");
   }));
   container = document.createElement("div");
@@ -203,11 +206,11 @@ afterEach(async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: false });
 });
 
-/** A sign-in the person asked for: the app starts a generation, then the SDK signs in. */
-async function deliberateSignIn() {
+/** A sign-in the person asked for: the SDK signs in, then the app remembers that account. */
+async function deliberateSignIn(id = A) {
   await emit("INITIAL_SESSION", null);
-  beginResumeGeneration();
-  await emit("SIGNED_IN", sessionFor(A));
+  await emit("SIGNED_IN", sessionFor(id));
+  await act(async () => { await rememberDeliberateSignIn(sessionFor(id)); });
   await vi.waitFor(async () => expect(await hintPresent()).toBe(true));
 }
 
@@ -223,7 +226,7 @@ describe("resume generations come only from sign-ins the person asked for", () =
   });
 
   it("does not let a cold-boot persist that lands after an explicit sign-out remember the account", async () => {
-    beginResumeGeneration();
+    await rememberDeliberateSignIn(sessionFor(A));
     harness.holdPersist = true;
     // The installed SDK replays a stored session as SIGNED_IN before INITIAL_SESSION.
     await emit("SIGNED_IN", sessionFor(A));
@@ -250,4 +253,23 @@ describe("resume generations come only from sign-ins the person asked for", () =
     await emit("TOKEN_REFRESHED", sessionFor(A));
     expect(await hintPresent()).toBe(true);
   });
+
+  it("does not remember an older account's session that the SDK adopts after another account's sign-in", async () => {
+    await deliberateSignIn(A);
+    await act(async () => auth?.signOut());
+    await deliberateSignIn("account-b");
+    // A's setSession finishes late and the SDK emits its SIGNED_IN.
+    await emit("SIGNED_IN", sessionFor(A));
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+
+    const reader = await resolveSocialAccess(new Request("http://localhost/api/social/access", { headers: { cookie: cookieHeader() } }));
+    expect(reader.state).not.toBe("sign_in_required");
+    const redeemed = await (await POST(new Request("http://localhost/api/auth/session", {
+      method: "POST",
+      headers: { cookie: cookieHeader(), "sec-fetch-site": "same-origin", "content-type": "application/json" },
+      body: JSON.stringify({ action: "redeem" }),
+    }))).json() as { session?: { refresh_token?: string } };
+    expect(redeemed.session?.refresh_token).toBe("synthetic-refresh-account-b");
+  });
 });
+

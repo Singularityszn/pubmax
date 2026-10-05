@@ -31,7 +31,7 @@ vi.mock("@/lib/authServer", () => ({
 
 import { DELETE, GET, POST } from "@/app/api/auth/session/route";
 import { bootstrapAuthSession } from "@/lib/authSessionBootstrap";
-import { beginResumeGeneration, clearPersistedSession, persistSessionForResume } from "@/lib/authSessionResumeClient";
+import { clearPersistedSession, persistSessionForResume, rememberDeliberateSignIn } from "@/lib/authSessionResumeClient";
 import { resolveSocialAccess } from "@/lib/socialAccessServer";
 
 type Account = { id: string; email: string };
@@ -142,11 +142,10 @@ function makeClient() {
   });
 }
 
-/** A deliberate sign-in as the app performs it: start a generation, local SDK session, then persist. */
+/** A deliberate sign-in as the app completes it: local SDK session, then remembered for that account. */
 async function signIn(account: Account) {
-  beginResumeGeneration();
   sdkItems.set(SDK_STORAGE_KEY, JSON.stringify(sessionFor(account)));
-  expect(await persistSessionForResume(sessionFor(account))).toBe("stored");
+  expect(await rememberDeliberateSignIn(sessionFor(account))).toBe("stored");
   return makeClient();
 }
 
@@ -309,7 +308,6 @@ describe("explicit sign-out against the durable resume cookie", () => {
 
   it("does not let a late response to a deliberate sign-in persist replace the sign-out fence", async () => {
     const client = await signIn(A);
-    beginResumeGeneration();
     // The body an earlier client sent for a deliberate sign-in, answered by the
     // server while the page that sent it navigates away.
     const late = await POST(sessionRequest({
@@ -342,4 +340,19 @@ describe("explicit sign-out against the durable resume cookie", () => {
     expect((await client.auth.getSession()).data.session).toBeNull();
     expect((await cookieReader()).state).toBe("sign_in_required");
   });
+
+  it("keeps another account's deliberate sign-in when an older account's SDK adoption lands after it", async () => {
+    const client = await signIn(A);
+    await explicitSignOut(client);
+    await signIn(B);
+    // A's session reaches the SDK late (a delayed setSession user lookup) and
+    // the provider persists it the way it persists every session event.
+    expect(await persistSessionForResume(sessionFor(A))).toBe("unavailable");
+
+    sdkItems.clear();
+    const { outcome } = await reload();
+    expect(outcome).toMatchObject({ status: "restored", session: { refresh_token: `synthetic-refresh-${B.id}` } });
+    expect(tokenGrants.at(-1)).toBe(`synthetic-refresh-${B.id}`);
+  });
 });
+

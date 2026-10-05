@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   createMomentDraft,
@@ -7,68 +7,81 @@ import {
   loadMomentDraft,
   saveMomentDraft,
   settleMomentDraftProgress,
+  type MomentDraftV1,
+  type MomentMediaDraft,
 } from "@/lib/momentDraft";
 
 // The real draft store. jsdom has no IndexedDB, so every call here takes the
 // store's own localStorage fallback lane - the lane a browser uses when
-// IndexedDB is unavailable. The IndexedDB lane itself is not executed here.
+// IndexedDB is unavailable, which keeps metadata and no photo bytes. The
+// IndexedDB lane itself is not executed here.
 
 const OWNER = "account-a";
 
-function captionDraft(owner = OWNER) {
+function photo(id: string): MomentMediaDraft {
+  return {
+    id, type: "image", name: `${id}.jpg`, mimeType: "image/jpeg", size: 4, blob: new Blob(["jpeg"]),
+    objectUrl: null, width: null, height: null, focalX: 0.5, focalY: 0.5, alt: "",
+  };
+}
+
+function captionDraft(owner = OWNER): MomentDraftV1 {
   return { ...createMomentDraft(owner), caption: "A night worth keeping", revision: 1 };
 }
 
 beforeEach(() => {
   expect(typeof indexedDB).toBe("undefined");
   localStorage.clear();
+  // Every write in these tests lands in the same millisecond.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-05T21:00:00.000Z"));
 });
 
-describe("Moment save progress on the fallback lane", () => {
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe("Moment save receipts on the fallback lane", () => {
   it("keeps a confirmed Memory id for the same account to resume", async () => {
     const draft = captionDraft();
-    const storedAt = await saveMomentDraft(draft);
-    const settledAt = await settleMomentDraftProgress(OWNER, draft.id, storedAt, {
-      media: [], caption: draft.caption, serverMemoryId: "memory-1",
-    });
-    expect(settledAt).not.toBeNull();
+    await saveMomentDraft(draft);
+    await settleMomentDraftProgress(OWNER, draft.id, { uploadedMediaIds: [], sentCaption: null, serverMemoryId: "memory-1" });
     expect(await loadMomentDraft(OWNER)).toMatchObject({ id: draft.id, serverMemoryId: "memory-1", caption: "A night worth keeping" });
   });
 
-  it("clears the draft once nothing is left to upload", async () => {
+  it("clears the draft once the server holds everything in it", async () => {
     const draft = captionDraft();
-    const storedAt = await saveMomentDraft(draft);
-    expect(await settleMomentDraftProgress(OWNER, draft.id, storedAt, null)).not.toBeNull();
+    await saveMomentDraft(draft);
+    await settleMomentDraftProgress(OWNER, draft.id, { uploadedMediaIds: [], sentCaption: draft.caption, serverMemoryId: "memory-1" });
     expect(await loadMomentDraft(OWNER)).toBeNull();
   });
 
   it("never recreates a draft a sign-out purged", async () => {
     const draft = captionDraft();
-    const storedAt = await saveMomentDraft(draft);
+    await saveMomentDraft(draft);
     await deleteMomentDraft(OWNER);
-    expect(await settleMomentDraftProgress(OWNER, draft.id, storedAt, {
-      media: [], caption: draft.caption, serverMemoryId: "memory-1",
-    })).toBeNull();
+    await settleMomentDraftProgress(OWNER, draft.id, { uploadedMediaIds: [], sentCaption: null, serverMemoryId: "memory-1" });
     expect(await loadMomentDraft(OWNER)).toBeNull();
   });
 
-  it("leaves a row another visit stored since untouched", async () => {
-    const draft = captionDraft();
-    const storedAt = await saveMomentDraft(draft);
-    await new Promise((resolve) => setTimeout(resolve, 2));
+  it("keeps a newer edit of the same draft written in the same millisecond", async () => {
+    const draft = { ...captionDraft(), media: [photo("one")] };
+    await saveMomentDraft(draft);
     await saveMomentDraft({ ...draft, caption: "A newer visit's caption", revision: 2 });
-    expect(await settleMomentDraftProgress(OWNER, draft.id, storedAt, null)).toBeNull();
-    expect(await loadMomentDraft(OWNER)).toMatchObject({ caption: "A newer visit's caption" });
+    await settleMomentDraftProgress(OWNER, draft.id, {
+      uploadedMediaIds: ["one"], sentCaption: "A night worth keeping", serverMemoryId: "memory-1",
+    });
+    expect(await loadMomentDraft(OWNER)).toMatchObject({ caption: "A newer visit's caption", serverMemoryId: "memory-1" });
   });
 
   it("touches only its own owner's draft", async () => {
     const guest = captionDraft("guest");
     const mine = captionDraft();
     await saveMomentDraft(guest);
-    const storedAt = await saveMomentDraft(mine);
-    await settleMomentDraftProgress(OWNER, mine.id, storedAt, null);
-    expect(await loadMomentDraft("guest")).toMatchObject({ id: guest.id });
-    expect(await settleMomentDraftProgress("guest", mine.id, storedAt, null)).toBeNull();
-    expect(await loadMomentDraft("guest")).toMatchObject({ id: guest.id });
+    await saveMomentDraft(mine);
+    await settleMomentDraftProgress(OWNER, mine.id, { uploadedMediaIds: [], sentCaption: mine.caption, serverMemoryId: "memory-1" });
+    await settleMomentDraftProgress("guest", mine.id, { uploadedMediaIds: [], sentCaption: mine.caption, serverMemoryId: "memory-1" });
+    expect(await loadMomentDraft("guest")).toMatchObject({ id: guest.id, caption: guest.caption });
+    expect(await loadMomentDraft(OWNER)).toBeNull();
   });
 });

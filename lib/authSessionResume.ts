@@ -40,6 +40,35 @@ export function newResumeGeneration(prefix = ""): string {
   return `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
 }
 
+/**
+ * A sign-in's generation names the account that signed in, so a session of any
+ * other account that lands later - a delayed SDK adoption, another tab - can
+ * never be remembered under it.
+ */
+const GENERATION_ACCOUNT_SEPARATOR = "~";
+
+export function accountResumeGeneration(userId: string): string {
+  return `${newResumeGeneration()}${GENERATION_ACCOUNT_SEPARATOR}${userId}`;
+}
+
+/** Whether `userId`'s session may be remembered under this generation. */
+export function resumeGenerationAdmits(generation: string | null, userId: string | null): boolean {
+  if (generation?.startsWith(SIGNED_OUT_GENERATION_PREFIX)) return false;
+  const account = generation?.split(GENERATION_ACCOUNT_SEPARATOR)[1];
+  return !account || account === userId;
+}
+
+/** The account a Supabase access token was issued to, or null. */
+export function accessTokenSubject(accessToken: string): string | null {
+  try {
+    const payload = accessToken.split(".")[1] ?? "";
+    const claims = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/"))) as { sub?: unknown };
+    return typeof claims.sub === "string" && claims.sub ? claims.sub : null;
+  } catch {
+    return null;
+  }
+}
+
 export type AuthResumeCookiePayload = {
   /** Supabase refresh token, absent once a redeem proved it dead. */
   refreshToken: string | null;
