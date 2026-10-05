@@ -489,6 +489,50 @@ export type Database = {
           },
         ];
       };
+      diary_entries: {
+        Row: {
+          id: string;
+          owner_profile_id: string;
+          venue_id: string;
+          venue_name: string;
+          visited_on: string;
+          rating: number | null;
+          review: string;
+          visibility: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          owner_profile_id: string;
+          venue_id: string;
+          venue_name: string;
+          visited_on: string;
+          rating?: number | null;
+          review?: string;
+          visibility?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          owner_profile_id?: string;
+          venue_id?: string;
+          venue_name?: string;
+          visited_on?: string;
+          rating?: number | null;
+          review?: string;
+          visibility?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "diary_entries_owner_profile_id_fkey";
+            columns: ["owner_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       drink_ratings: {
         Row: {
           id: string;
