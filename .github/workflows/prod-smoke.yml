@@ -11,11 +11,6 @@ name: Production smoke
 on:
   deployment_status:
   workflow_dispatch:
-    inputs:
-      base_url:
-        description: "Origin to test"
-        required: false
-        default: "https://pubmaxxing.com"
 
 permissions:
   contents: read
@@ -62,7 +57,8 @@ jobs:
 
       - name: Run the production smoke suite
         env:
-          SMOKE_BASE_URL: ${{ inputs.base_url || 'https://pubmaxxing.com' }}
+          # Pinned, so the smoke account's secrets only ever go to the live site.
+          SMOKE_BASE_URL: https://pubmaxxing.com
           SMOKE_USER_HANDLE: ${{ secrets.SMOKE_USER_HANDLE }}
           SMOKE_USER_PASSWORD: ${{ secrets.SMOKE_USER_PASSWORD }}
           # A missing secret fails the run rather than skipping the signed-in half.

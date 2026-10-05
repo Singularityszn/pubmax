@@ -33,12 +33,25 @@ test.describe("signed-in journeys", () => {
   });
 
   test.afterAll(async () => {
-    try {
-      if (created.plan) await abandonPlan(page, created.plan);
-      if (created.saved) await toggleSave(page);
-    } finally {
-      await page.context().close();
+    // Each undo runs on its own, so one that fails still leaves the other to run.
+    const failures: unknown[] = [];
+    const undos = [
+      async () => {
+        if (created.plan) await abandonPlan(page, created.plan);
+      },
+      async () => {
+        if (created.saved && (await hasSave(page))) await toggleSave(page);
+      },
+    ];
+    for (const undo of undos) {
+      try {
+        await undo();
+      } catch (error) {
+        failures.push(error);
+      }
     }
+    await page.context().close();
+    if (failures.length) throw failures[0];
   });
 
   test("signs in with the smoke account", async () => {
@@ -74,12 +87,21 @@ test.describe("signed-in journeys", () => {
     await evidence(page, "pub-pal");
   });
 
+  test("Pub Pal answers a message typed on its home page", async () => {
+    await page.goto("/pal");
+    // With no live voice session, the box hands the message to the written Pal.
+    await page.getByRole("textbox", { name: "Message your Pub Pal" }).fill("Two quiet pubs near Borough Market");
+    await page.getByRole("button", { name: "Send message" }).click();
+    await expect(page).toHaveURL(/\/pal\/chat\?ask=/);
+    await expect(page.locator(".palChatRow--user").last()).toHaveText("Two quiet pubs near Borough Market");
+    const reply = page.locator(".palChatRow--pal").last();
+    await expect(page.locator(".palChatBubble--pending")).toHaveCount(0, { timeout: 90_000 });
+    await expect(page.locator(".palChatBubble--error")).toHaveCount(0);
+    await expect(reply.locator(".palChatBubble")).not.toBeEmpty();
+    await evidence(page, "pub-pal-home");
+  });
+
   test("creates a Plan and locks it in", async () => {
-    const createdResponse = page.waitForResponse(
-      (response) =>
-        response.request().method() === "POST" && new URL(response.url()).pathname === "/api/plans",
-      { timeout: 60_000 },
-    );
     await page.goto("/plan");
     await expect(describeFirstQuery(page)).toBeEditable();
     await expect(async () => {
@@ -90,8 +112,14 @@ test.describe("signed-in journeys", () => {
       ).toBeVisible({ timeout: 5_000 });
     }).toPass({ timeout: 60_000 });
     await page.getByLabel("Your name").fill("Smoke test");
-    await page.getByRole("button", { name: "Lock it in" }).click();
-    const response = await createdResponse;
+    const [response] = await Promise.all([
+      page.waitForResponse(
+        (response) =>
+          response.request().method() === "POST" && new URL(response.url()).pathname === "/api/plans",
+        { timeout: 60_000 },
+      ),
+      page.getByRole("button", { name: "Lock it in" }).click(),
+    ]);
     expect(response.status()).toBe(201);
     const body = (await response.json()) as { plan: { plan: { id: string } }; memberToken: string };
     created.plan = { id: body.plan.plan.id, memberToken: body.memberToken };
@@ -102,16 +130,17 @@ test.describe("signed-in journeys", () => {
   });
 
   test("a saved list is visible to its owner", async () => {
-    // A run that died before its cleanup leaves the save behind, and the
-    // control toggles, so start from an empty list rather than unsaving it.
-    if (await savedRow(page).count()) await toggleSave(page);
-    await toggleSave(page);
     created.saved = true;
+    // A run that died before its cleanup leaves the save behind, and the
+    // control toggles, so remove that save before this run saves again.
+    if (await hasSave(page)) await toggleSave(page);
+    await toggleSave(page);
+    await page.goto(`/u/${HANDLE}#saved-pubs`);
     await expect(savedRow(page)).toBeVisible();
     await evidence(page, "saved-list");
     await toggleSave(page);
+    expect(await hasSave(page), "the save is removed").toBe(false);
     created.saved = false;
-    await expect(savedRow(page)).toHaveCount(0);
   });
 
   test("signs out", async () => {
@@ -138,24 +167,35 @@ test.describe("signed-in journeys", () => {
       .locator(".savedItem", { hasText: SAVE_VENUE.name });
   }
 
-  /** Tap the list chip once from the venue sheet, then reload the profile. */
+  /**
+   * Whether the smoke venue is on the owner's list, read from the same API
+   * the profile loads, so the answer never depends on a half-loaded page.
+   */
+  async function hasSave(target: Page): Promise<boolean> {
+    const response = await target.request.get(`/api/saved-pubs?handle=${encodeURIComponent(HANDLE)}`);
+    expect(response.ok(), "read the saved list").toBe(true);
+    const body = (await response.json()) as { saved: { venueId: string; listType: string }[] };
+    return body.saved.some((row) => row.venueId === SAVE_VENUE.id && row.listType === SAVE_LIST);
+  }
+
+  /** Tap the list chip once from the venue sheet. */
   async function toggleSave(target: Page) {
     await target.goto(`/map?sel=${SAVE_VENUE.id}`);
     const sheet = target.getByRole("dialog", { name: "Pub detail" });
     await expect(sheet.getByRole("heading", { name: SAVE_VENUE.name })).toBeInViewport();
     await sheet.getByRole("button", { name: `Save ${SAVE_VENUE.name} to a list` }).click();
-    const saved = target.waitForResponse(
-      (response) =>
-        response.request().method() === "POST" &&
-        new URL(response.url()).pathname === "/api/saved-pubs",
-    );
-    await sheet
-      .getByRole("region", { name: "Save this venue to a list" })
-      .getByRole("button", { name: SAVE_LIST, exact: true })
-      .click();
-    expect((await saved).ok()).toBe(true);
-    await target.goto(`/u/${HANDLE}#saved-pubs`);
-    await expect(target.locator("#saved-pubs")).toBeVisible();
+    const [saved] = await Promise.all([
+      target.waitForResponse(
+        (response) =>
+          response.request().method() === "POST" &&
+          new URL(response.url()).pathname === "/api/saved-pubs",
+      ),
+      sheet
+        .getByRole("region", { name: "Save this venue to a list" })
+        .getByRole("button", { name: SAVE_LIST, exact: true })
+        .click(),
+    ]);
+    expect(saved.ok()).toBe(true);
   }
 });
 
