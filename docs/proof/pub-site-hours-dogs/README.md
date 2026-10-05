@@ -10,14 +10,14 @@ sends no Firecrawl request and no model call, so the spend is USD 0.
 stands only when a passage on the page states it, and the row keeps that
 passage, the page URL and the day of the read.
 
-- **Dogs.** "Dog friendly", "dogs are welcome" and similar are a welcome.
-  A refusal counts only when the whole statement, past "sorry" or "please",
-  is a fixed form such as "no dogs", "dogs are not allowed in the pub", "we do
-  not allow dogs" or "only assistance dogs". A refusal with any other words,
-  such as a day, an hour or a room, stays unknown. A page that both welcomes
-  and refuses dogs, even when either has a limit, stays unknown. So do a
-  welcome limited to a garden, an area or an hour, a guest review, a footer
-  link and "assistance dogs welcome".
+- **Dogs.** A welcome or a refusal counts only when the whole statement,
+  past "sorry" or "please", is a fixed form. A welcome is "dog friendly",
+  "dogs are welcome in our pub", "we welcome dogs" or "bring your dog". A
+  refusal is "no dogs", "dogs are not allowed in the pub", "we do not allow
+  dogs" or "only assistance dogs". A statement with any other words, such as a
+  day, an hour or a room, stays unknown. A page that both welcomes and refuses
+  dogs, even when either has a limit, stays unknown. So do a guest review, a
+  footer link and "assistance dogs welcome".
 - **Hours.** Only a passage under an opening-hours label counts. Kitchen,
   food, seasonal and Christmas blocks do not. A day the page does not state is
   absent, not closed. A time with no am, pm or colon ("11 - 5") is not read.
@@ -41,14 +41,14 @@ chain's, so it is dropped.
 | Measure | Count |
 | --- | --- |
 | Finished reads with a kept page | 360 |
-| Pubs with a stated fact | 186 |
-| Dogs welcome | 50 |
+| Pubs with a stated fact | 178 |
+| Dogs welcome | 19 |
 | Dogs not allowed | 0 |
 | Opening hours | 176 (154 with all seven days) |
 | Pages on the chain list | 6 |
 | Hours passages dropped as chain-wide | 32 |
 | Dog passages dropped as chain-wide | 8 |
-| Pages that state neither | 139 |
+| Pages that state neither | 147 |
 
 Every row names a venue in the app.
 

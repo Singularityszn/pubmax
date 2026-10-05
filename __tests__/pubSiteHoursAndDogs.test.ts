@@ -16,7 +16,28 @@ describe("statedDogPolicy", () => {
   it("reads a welcome the pub states, with the passage as evidence", () => {
     expect(statedDogPolicy("Sunday roasts. We're dog-friendly. Book now")).toEqual({ policy: "welcome", evidence: "We're dog-friendly." });
     expect(statedDogPolicy("## FACILITIES - Dog Friendly - Family Friendly - Sky Sports")).toEqual({ policy: "welcome", evidence: "Dog Friendly" });
-    expect(statedDogPolicy("Yes, dogs are welcome at the Larkshall. Parking nearby.")?.policy).toBe("welcome");
+    for (const welcome of [
+      "Dog friendly!",
+      "Dog-friendly pub.",
+      "We are a dog friendly establishment.",
+      "Dogs welcome.",
+      "Dogs are always welcome in our pub.",
+      "Dogs are very welcome at the pub.",
+      "We welcome dogs.",
+      "Bring your dog.",
+      "Four-legged friends are welcome.",
+    ]) expect(statedDogPolicy(welcome)?.policy, welcome).toBe("welcome");
+  });
+
+  it("reads no welcome with any other words beside it", () => {
+    for (const limited of [
+      "Dogs welcome at weekends.",
+      "Dogs welcome upstairs.",
+      "Dogs are welcome on Sundays.",
+      "Dogs welcome during the day.",
+      "Yes, dogs are welcome at the Larkshall.",
+      "Our dog-friendly pub also has a small pavement seating area.",
+    ]) expect(statedDogPolicy(limited), limited).toBeNull();
   });
 
   it("reads a refusal only in a form that refuses dogs at the whole pub", () => {

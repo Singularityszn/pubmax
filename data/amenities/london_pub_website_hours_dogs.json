@@ -3,17 +3,17 @@
   "extractor": "lib/harvest/pubSiteHoursAndDogs.ts, no model",
   "spendUsd": 0,
   "skipCounts": {
-    "page-stated-neither": 139,
+    "page-stated-neither": 147,
     "chain-page": 6,
     "chain-hours-passage": 32,
     "chain-dogs-passage": 8
   },
   "counts": {
-    "rows": 186,
-    "dogsWelcome": 50,
+    "rows": 178,
+    "dogsWelcome": 19,
     "dogsNotAllowed": 0,
     "hours": 176,
-    "withVenueId": 186
+    "withVenueId": 178
   },
   "rows": [
     {
@@ -341,10 +341,6 @@
       "venueId": "venue-14alocj",
       "sourceUrl": "https://www.richardthefirst.co.uk/",
       "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "Dog Friendly Your dogs are always warmly welcome to our pub, we are dog friendly!"
-      },
       "hours": {
         "hours": {
           "0": [
@@ -533,10 +529,6 @@
       "venueId": "venue-1ymp3wq",
       "sourceUrl": "https://www.thevanbrugh.com/",
       "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "Families Children & dogs welcome"
-      },
       "hours": {
         "hours": {
           "0": [
@@ -1750,10 +1742,6 @@
       "venueId": "venue-xm8zex",
       "sourceUrl": "https://www.sailloftgreenwich.co.uk/",
       "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "Dog Friendly Book a table"
-      },
       "hours": {
         "hours": {
           "0": [
@@ -1987,26 +1975,11 @@
       }
     },
     {
-      "osmId": "node/691632516",
-      "name": "Brewmaster",
-      "venueId": "venue-12bzb84",
-      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/brewmaster",
-      "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "Our dog-friendly pub also has a small pavement seating area, which is perfect for watching the bustle of the city pass you by."
-      }
-    },
-    {
       "osmId": "node/9891375140",
       "name": "The Green Goddess",
       "venueId": "venue-1mhmkh",
       "sourceUrl": "https://www.thegreengoddess.pub/",
       "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "​ Child friendly, dog friendly and fully accessible"
-      },
       "hours": {
         "hours": {
           "0": [
@@ -2065,10 +2038,6 @@
       "venueId": "venue-1057vj5",
       "sourceUrl": "https://oystercatchergreenwich.co.uk/",
       "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "We’re proudly dog-friendly, so they’re welcome to join you too!"
-      },
       "hours": {
         "hours": {
           "0": [
@@ -2652,10 +2621,6 @@
       "venueId": "venue-16bgt1v",
       "sourceUrl": "https://www.larkshallpub.co.uk/",
       "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "Yes, dogs are welcome at the Larkshall."
-      },
       "hours": {
         "hours": {
           "0": [
@@ -2719,10 +2684,6 @@
       "venueId": "venue-16twk4e",
       "sourceUrl": "https://www.thebullsheadbarnes.com/",
       "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "Yes, The Bull’s Head is a dog-friendly pub in Barnes."
-      },
       "hours": {
         "hours": {
           "0": [
@@ -3005,10 +2966,6 @@
       "venueId": "venue-19pzh7p",
       "sourceUrl": "https://www.devonshirebalham.co.uk/",
       "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "…And don’t forget to bring the pooch, for paw-sibly the best doggie roast in town."
-      },
       "hours": {
         "hours": {
           "0": [
@@ -3317,10 +3274,6 @@
       "venueId": "venue-1drd13s",
       "sourceUrl": "https://www.thecrownlee.co.uk/",
       "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "Proudly pouring craft beers and Young’s cask ales, along with an extensive wine selection, there’s something for everyone at our local, family and dog-friendly, pub."
-      },
       "hours": {
         "hours": {
           "0": [
@@ -3637,17 +3590,6 @@
       }
     },
     {
-      "osmId": "venue/venue-1k2w9wy",
-      "name": "Market Halls, Victoria",
-      "venueId": "venue-1k2w9wy",
-      "sourceUrl": "https://markethalls.co.uk/venue/victoria/",
-      "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "We’re dog friendly across all our venues, however we must mention that our venues are at their busiest and loudest post 6pm"
-      }
-    },
-    {
       "osmId": "venue/venue-1kbl05l",
       "name": "The Rugby Tavern",
       "venueId": "venue-1kbl05l",
@@ -3914,10 +3856,6 @@
       "venueId": "venue-1pbyyad",
       "sourceUrl": "https://royalforesteppingforest.com/",
       "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "Happy Hour Steak Night Live at The Local Sunday Roasts Dog Friendly Pub Welcome to The Royal Forest, a pub hotel & restaurant in Epping Forest."
-      },
       "hours": {
         "hours": {
           "0": [
@@ -4030,10 +3968,6 @@
       "venueId": "venue-1pnwx8j",
       "sourceUrl": "https://www.theharesheen.co.uk/",
       "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "Family-friendly, dog-friendly and always welcoming, we’re here for everything from relaxed midweek lunches to birthday celebrations, rugby afternoons and catch-ups with your favourite locals."
-      },
       "hours": {
         "hours": {
           "0": [
@@ -4418,10 +4352,6 @@
       "venueId": "venue-1wtqjvr",
       "sourceUrl": "https://www.thewoodman.co/",
       "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "Dog Friendly [Book a table](https://www.sevenrooms.com/explore/thewoodman/reservations/create/search/)"
-      },
       "hours": {
         "hours": {
           "0": [
@@ -5102,10 +5032,6 @@
       "venueId": "venue-94m3w2",
       "sourceUrl": "https://www.thecurtainsup.co.uk/",
       "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "see the menus Dog-Friendly Pub Four-legged locals are every bit as welcome as the two-legged ones."
-      },
       "hours": {
         "hours": {
           "0": [
@@ -5372,10 +5298,6 @@
       "venueId": "venue-c012qs",
       "sourceUrl": "https://www.pipemajorpubdagenham.co.uk/",
       "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "GAIN ACCESS Your local dog friendly pub in Dagenham Come and enjoy drinks and delicious food with your furry friend at your side."
-      },
       "hours": {
         "hours": {
           "0": [
@@ -5758,10 +5680,6 @@
       "venueId": "venue-i4w5zs",
       "sourceUrl": "https://www.shaftesburyrichmond.co.uk/",
       "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "View Drinks Dog-Friendly Pubs Muddy paws are very welcome in our pub!"
-      },
       "hours": {
         "hours": {
           "0": [
@@ -6069,17 +5987,6 @@
           6
         ],
         "evidence": "Opening Times Pub Monday to Saturday: Midday - 11pm Sunday: Midday - 10:30pm"
-      }
-    },
-    {
-      "osmId": "venue/venue-m5nemu",
-      "name": "Builders Arms",
-      "venueId": "venue-m5nemu",
-      "sourceUrl": "https://www.buildersarmspottersbar.com/",
-      "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "And as a dog-friendly pub, your four-legged friends are always welcome to join you while you relax."
       }
     },
     {
@@ -7033,10 +6940,6 @@
       "venueId": "venue-njaus8",
       "sourceUrl": "https://www.greeneking.co.uk/pubs/middlesex/green-man",
       "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "Take a look at our beers Discover your local dog-friendly pub Pints with your pup We're proud to be dog friendly."
-      },
       "hours": {
         "hours": {
           "0": [
@@ -7607,17 +7510,6 @@
       }
     },
     {
-      "osmId": "way/155494899",
-      "name": "Fountains Abbey",
-      "venueId": "venue-1w54puk",
-      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/fountains-abbey",
-      "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "with our dog-friendly pub everyone is welcome."
-      }
-    },
-    {
       "osmId": "way/157322970",
       "name": "Commercial Tavern",
       "venueId": "venue-eamebn",
@@ -7678,17 +7570,6 @@
           6
         ],
         "evidence": "Opening Hours Monday - 12:00-23:00 Tuesday - 12:00-23:00 Wednesday - 12:00-23:00 Thursday - 12:00-23:00 Friday - 12:00-23:00 Saturday - 12:00-23:00 Sunday - 12:00-22:30"
-      }
-    },
-    {
-      "osmId": "way/158919239",
-      "name": "Duke of Wellington",
-      "venueId": "venue-1xky4gf",
-      "sourceUrl": "https://www.dukeofwellingtonbelgravia.co.uk/",
-      "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "As a dog-friendly pub, we also extend our welcome to your four-legged friends."
       }
     },
     {
@@ -8153,10 +8034,6 @@
       "venueId": "venue-hoql3p",
       "sourceUrl": "https://thegoodreader.co.uk/",
       "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "Good to Know Before You Visit **Dog Friendly** We are a dog friendly pub to friendly dogs!"
-      },
       "hours": {
         "hours": {
           "0": [
@@ -8215,10 +8092,6 @@
       "venueId": "venue-rqytty",
       "sourceUrl": "https://www.theberrylands.co.uk/",
       "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "We are a traditional, hearty, local pub; family friendly, dog friendly"
-      },
       "hours": {
         "hours": {
           "0": [
@@ -8282,10 +8155,6 @@
       "venueId": "venue-1rsemdf",
       "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/goat-tavern-mayfair",
       "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "Today, Goat Tavern is a family-friendly, dog-friendly pub showing live sports on our Sky Sports and TNT Sports screens."
-      },
       "hours": {
         "hours": {
           "0": [
@@ -8622,17 +8491,6 @@
           6
         ],
         "evidence": "Opening Times **Monday to Sunday -** 12 noon to 11pm"
-      }
-    },
-    {
-      "osmId": "way/343914450",
-      "name": "The Cocoanut",
-      "venueId": "venue-1yztt02",
-      "sourceUrl": "https://www.cocoanut.co.uk/",
-      "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "Our pub is incredibly dog-friendly, so bring your furry friends along and enjoy a meal together."
       }
     },
     {
@@ -9702,10 +9560,6 @@
       "venueId": "venue-ugr6l6",
       "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/county-arms",
       "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "Our charming and dog friendly pub is family-friendly, with a stacked menu serving up fantastic pub food like all-day breakfasts, hand-battered fish & chips, succulent steaks and crafted burgers"
-      },
       "hours": {
         "hours": {
           "0": [
@@ -10025,10 +9879,6 @@
       "venueId": "venue-617vip",
       "sourceUrl": "https://www.flaminggrillpubs.co.uk/pubs/middlesex/torch",
       "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "Our family-friendly welcome extends to your pup, as we're also dog-friendly."
-      },
       "hours": {
         "hours": {
           "0": [
@@ -10213,26 +10063,11 @@
       }
     },
     {
-      "osmId": "way/824948809",
-      "name": "The Holland",
-      "venueId": "venue-1dre7k9",
-      "sourceUrl": "https://thehollandkensington.co.uk/",
-      "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "The Holland is a new family & dog-friendly pub that’s just a stone’s throw from Holland Park."
-      }
-    },
-    {
       "osmId": "way/837514114",
       "name": "The Blackbird",
       "venueId": "venue-1ogexf4",
       "sourceUrl": "https://www.blackbirdearlscourt.co.uk/",
       "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "Dog Friendly Book a table"
-      },
       "hours": {
         "hours": {
           "0": [
@@ -10288,17 +10123,6 @@
           6
         ],
         "evidence": "Opening Times ### Opening Times | Day | Opening Time | Second opening Time | Third opening Time | | --- | --- | --- | --- | | Monday | 08:00 - 23:00 | | | | Tuesday | 08:00 - 23:00 | | | | Wednesday | 08:00 - 23:00 | | | | Thursday | 08:00 - 23:00 | | | | Friday | 08:00 - 23:00 | | | | Saturday | 08:00 - 23:00 | | | | Sunday | 08:00 - 22:30"
-      }
-    },
-    {
-      "osmId": "way/861436031",
-      "name": "The Bunch of Grapes",
-      "venueId": "venue-1qlbipx",
-      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/bunch-of-grapes",
-      "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "We're even dog-friendly, so you can bring your four-legged friend."
       }
     },
     {
@@ -10752,10 +10576,6 @@
       "venueId": "venue-17zruog",
       "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/assembly-house",
       "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "We're also dog-friendly, so your pet pooch can enjoy a slice of the fun."
-      },
       "hours": {
         "hours": {
           "0": [
