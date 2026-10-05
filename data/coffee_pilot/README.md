@@ -2,7 +2,9 @@
 
 Hand-checked counter prices for three drinks at cafes in one box: latitude
 51.5215–51.5305, longitude −0.0835 to −0.0705. `shoreditch.json` is the file.
-The map does not read it.
+The map's coffee lane draws these cafes and opens each one's prices in its
+own sheet (`lib/coffeePilot.ts`). No pint band, pin colour, cheapest bucket or
+Pint Index reads it.
 
 ## What earns a row
 

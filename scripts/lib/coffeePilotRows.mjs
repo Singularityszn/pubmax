@@ -6,16 +6,9 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-export const COFFEE_PILOT_FILE = "data/coffee_pilot/shoreditch.json";
+import { COFFEE_PILOT_BOX, COFFEE_PILOT_DRINKS } from "./coffeePilotArea.mjs";
 
-export const COFFEE_PILOT_DRINKS = ["flat white", "latte", "matcha latte"];
-
-export const COFFEE_PILOT_BOX = {
-  latMin: 51.5215,
-  latMax: 51.5305,
-  lngMin: -0.0835,
-  lngMax: -0.0705,
-};
+export { COFFEE_PILOT_BOX, COFFEE_PILOT_DRINKS, COFFEE_PILOT_FILE } from "./coffeePilotArea.mjs";
 
 const FILE_KEYS = new Set(["version", "area", "checkedOn", "rows"]);
 const ROW_KEYS = new Set([
