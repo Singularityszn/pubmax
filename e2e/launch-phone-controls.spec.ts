@@ -1,8 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-// The V0.1 phone pass for the surfaces OUTSIDE the map shell. The map, the
-// landing and the venue sheet already have their own rendered-geometry fences
-// (e2e/mobile-map-chrome-fit.spec.ts, __tests__/mobileChromeFit.test.ts); these
+// The V0.1 phone pass for the surfaces OUTSIDE the map shell. The map already
+// has its own rendered-geometry fence (e2e/mobile-map-chrome-fit.spec.ts); these
 // pages had none, and the first measured run found five control rows painting
 // under the house 44px floor: Discover brand chips, Discover leaderboard pub
 // names, Pubs jump chips, Find-your-lot invite links, and About press-kit links.
