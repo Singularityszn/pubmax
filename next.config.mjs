@@ -296,25 +296,11 @@ const nextConfig = {
     // Social owns posts and public pub discovery. Retired route families go
     // straight to their canonical Social surface with no redirect chain.
     return [
-      // Host canonicalisation (SEO split-brain fix, docs/SEO_CANONICAL_RUNBOOK
-      // _2026-07-21.md). www.pubmaxxing.com was serving a full 200 MIRROR of the
-      // app instead of redirecting to the apex, so Google indexed it as a second
-      // site and pinned a stale crawl (old title/favicon) under the www host.
-      // Every page already emits an apex `rel=canonical` (metadataBase +
-      // per-route alternates.canonical), but a canonical is only a HINT — a URL
-      // that answers 200 with no redirect keeps getting indexed. This permanent
-      // (308) host redirect is the DIRECTIVE that collapses www into the apex,
-      // and it lives in-repo so the consolidation holds regardless of the Vercel
-      // dashboard domain config (which should ALSO be set to redirect www→apex;
-      // see the runbook). `has` host match fires only for the www host, so the
-      // apex is never self-redirected. :path* preserves the full path + carries
-      // "/" through to the apex root. __tests__/wwwHostRedirect.test.ts pins it.
-      {
-        source: "/:path*",
-        has: [{ type: "host", value: "www.pubmaxxing.com" }],
-        destination: "https://pubmaxxing.com/:path*",
-        permanent: true,
-      },
+      // The www -> apex host redirect lives in vercel.json, not here. `next
+      // typegen` turns every source in this list into a typedRoutes route and
+      // ignores `has`, so a host-conditioned "/:path*" became a root catch-all
+      // that let a link to any missing page pass the typecheck.
+      // __tests__/wwwHostRedirect.test.ts pins both halves.
       { source: "/feed", destination: "/social", permanent: true },
       { source: "/feed/:path*", destination: "/social", permanent: true },
       { source: "/stories", destination: "/social", permanent: true },

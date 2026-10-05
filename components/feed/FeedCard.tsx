@@ -635,7 +635,7 @@ function PubOverflowActions({
       {venueId ? (
         <Link
           className="feedCardAction"
-          href={`${venueMapUrl(venueId)}&log=1`}
+          href={`${venueMapUrl(venueId)}&log=1` as Route}
           onPointerEnter={onPrefetch}
         >
           Drop
