@@ -68,6 +68,8 @@ function looksLikeRepositoryPath(raw: string): boolean {
 const NOT_REPO_PATHS = new Set([
   // Next development route types are generated and absent from a clean clone.
   "./.next/dev/types/routes.d.ts",
+  // Next writes this on every dev, build and typegen run, so it is ignored.
+  "next-env.d.ts",
   // Next agent guides ship in node_modules; not git-tracked.
   "node_modules/next/dist/docs/",
   "node_modules/next/dist/server/lib/generate-agent-files.js",
