@@ -175,22 +175,38 @@ describe("clean-main CI release gate", () => {
       expect(jobAncestors(job, needs).has("freshness"), job).toBe(false);
     }
     expect(needs["production-build"]).toEqual(["lint-and-types"]);
-    expect(needs["unit-tests"]).toEqual(["production-build"]);
     expect(needs.coverage).toEqual(["unit-tests"]);
     expect(needs.freshness).toEqual([]);
   });
 
-  it("gates coverage and freshness independently", () => {
-    expect(workflow).toMatch(/coverage:[\s\S]*name: Coverage[\s\S]*run: >-[\s\S]*npm run coverage/);
-    // The clusterless jobs exclude exactly the closed list in
-    // scripts/rls/postgresSuites.mjs, never a `*Migration*` glob: that glob
-    // both dropped source-text migration tests nobody needed to skip AND let
-    // three new `*MigrationEffective` proofs run in a job with no PostgreSQL,
-    // where they printed a skip banner and left the job green.
-    // __tests__/postgresSuiteInventory.test.ts holds the two lists together.
-    expect(workflow).toMatch(
-      /coverage:[\s\S]*PUBMAX_RLS_NO_PG: "1"[\s\S]*--exclude '__tests__\/permissionMatrixEffective\.test\.ts'/,
+  it("starts the unit shards at once and in parallel", () => {
+    // The shards build their own slim data and read nothing lint or the
+    // production build make, so waiting on them only lengthens the path.
+    expect(parseJobNeeds(workflow)["unit-tests"]).toEqual([]);
+    const { jobs } = parse(workflow) as {
+      jobs: Record<string, { strategy?: { "max-parallel"?: number } }>;
+    };
+    expect(jobs["unit-tests"]?.strategy?.["max-parallel"]).toBeUndefined();
+  });
+
+  it("gates coverage on the merged shards and freshness independently", () => {
+    // Each shard collects coverage for its half and writes a blob. A half
+    // cannot meet the whole-suite thresholds, so a shard turns them off and
+    // the Coverage job enforces them over the merged blobs. The suite runs
+    // once per CI run, not once in the shards and again for coverage.
+    const shard = steps.find((step) => step.job === "unit-tests" && step.name === "Unit tests with coverage");
+    expect(shard?.run).toContain("npm run coverage --");
+    expect(shard?.run).toContain("--shard=${{ matrix.shard }}/2");
+    expect(shard?.run).toContain("--coverage.thresholds=false");
+    expect(shard?.run).toContain("--reporter=blob");
+    expect(shard?.env.PUBMAX_RLS_NO_PG).toBe("1");
+
+    const merge = steps.find((step) => step.job === "coverage" && step.name === "Enforce coverage");
+    expect(merge?.run).toBe("npx vitest --merge-reports=blob-reports --coverage");
+    expect(steps.filter((step) => step.job === "coverage").map((step) => step.run).join("\n")).not.toContain(
+      "thresholds",
     );
+    expect(workflow).toMatch(/coverage:\n\s+name: Coverage\n/);
     expect(workflow).not.toMatch(/--exclude '__tests__\/\*\*\/\*Migration\.test\.ts'/);
     expect(workflow).toMatch(
       /freshness:[\s\S]*name: Freshness release gate[\s\S]*npm run check:freshness -- --artifacts-only[\s\S]*node scripts\/check-production-store-freshness\.mjs/,

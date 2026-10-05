@@ -99,10 +99,22 @@ Browser law pins and the two `performance.yml` jobs keep `--workers=1`. The nigh
 
 Each workflow has its own concurrency group. A newer pull request head supersedes that pull request's older runs of the same workflow, so rerun the latest workflow run for the current head. Main pushes, the nightly browser suite and manual dispatches never cancel. There is no repo-wide group and no shared browser queue.
 
-`ci.yml` chains the code jobs (`production-build` after lint, unit shards
-`max-parallel: 1`, coverage after unit tests). The freshness job runs on its
-own: a calendar breach is that job's red mark and does not skip the build,
-the unit shards or coverage.
+`ci.yml` starts lint and the two unit shards at once. `production-build` runs
+after lint. The unit shards wait on nothing, because they build their own slim
+data, and they run in parallel. Each shard runs
+`npm run coverage -- --without-postgres` on its half of the suite with
+coverage thresholds off and writes a Vitest blob report. The Coverage job runs
+after both shards: it merges the two blobs with
+`npx vitest --merge-reports=blob-reports --coverage` and enforces the
+thresholds in `vitest.config.mts` over the whole suite. So CI runs the unit
+suite once, not once in the shards and again for coverage. The freshness job
+runs on its own: a calendar breach is that job's red mark and does not skip the
+build, the unit shards or coverage.
+
+Locally, `npm run verify` runs `npm run coverage -- --without-postgres` and
+then `npm run test:rls`, so each PostgreSQL suite runs once. The suites
+`--without-postgres` excludes are the closed list in
+`scripts/rls/postgresSuites.mjs`.
 
 The lint-and-types job and the merge bar `npm run verify` both run
 [`npm run typecheck`](../package.json). It runs `next typegen` first, so the
