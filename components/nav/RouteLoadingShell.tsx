@@ -8,6 +8,7 @@
 // that window. The skeleton stands in for the page; the page owns the landmark.
 
 import SiteNav from "@/components/nav/SiteNav";
+import PintLoader from "@/components/ui/pint-loader";
 
 import "./mobileNav.css";
 
@@ -31,7 +32,7 @@ export default function RouteLoadingShell({ label }: RouteLoadingShellProps) {
         <span className="routeLoadingShellBar routeLoadingShellBar--short" aria-hidden="true" />
         <span className="routeLoadingShellCard" aria-hidden="true" />
         <span className="routeLoadingShellCard" aria-hidden="true" />
-        <p className="routeLoadingShellLabel">{label}</p>
+        <PintLoader className="routeLoadingShellLabel" label={label} labelSize="quiet" />
       </div>
     </section>
   );

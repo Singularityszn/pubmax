@@ -2099,8 +2099,8 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   display: inline-flex;
   min-height: 44px;
   align-items: center;
-  gap: 11px;
-  padding: 10px 14px;
+  gap: 12px;
+  padding: 12px 14px;
   border: 1px solid color-mix(in srgb, var(--brass) 28%, var(--line));
   border-radius: var(--radius-sm);
   background: var(--panel-raised);
@@ -2118,18 +2118,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.24);
 }
 
-.mapLoadingCopy::before {
-  content: "";
-  flex: 0 0 auto;
-  width: 9px;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: var(--brass-bright);
-  box-shadow: 0 0 0 5px rgba(211, 164, 74, 0.16);
-  animation: pulse 1.4s ease-in-out infinite;
-}
-
-/* The pill is ONE row: the pulsing dot, then this stack. Every line the frame
+/* The pill is ONE row: the pint glass, then this stack. Every line the frame
    prints is a row of the stack, so a line added later drops UNDER the one
    above it rather than growing the pill a third column at 390px. */
 .mapLoadingLines {
@@ -2195,14 +2184,16 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   }
 
   .mapLoadingCopy {
+    width: min(86vw, 420px);
     max-width: min(88vw, 390px);
   }
 }
 
 /* Issue #35 — map loading skeleton. app/map/loading.tsx paints a pitched-London
    impression (a river curve + pulsing price-coloured dots) during the route
-   chunk load; PubMap's .mapLoading (above) continues the SAME dot idiom while
-   the WebGL canvas style loads, so the transition reads as one held frame.
+   chunk load; PubMap's .mapLoading (above) continues the SAME pint-glass pill
+   (glyph, gap and padding) while the WebGL canvas style loads, so the
+   transition reads as one held frame.
    Every colour derives from existing tokens; reduced-motion holds the dots
    still. --ink-deep backs the dark mode; the paper grid backs light. */
 .mapSkeleton {
@@ -2348,19 +2339,9 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   line-height: 1.25;
 }
 
-.mapSkeletonSpinnerDot {
-  flex: 0 0 auto;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--brass);
-  box-shadow: 0 0 0 5px rgba(154, 106, 36, 0.14);
-  animation: pulse 1.4s ease-in-out infinite;
-}
-
 @media (max-width: 640px) {
   .mapSkeletonInner {
-    width: min(92vw, 560px);
+    width: min(100%, 560px);
   }
 
   .mapSkeletonCopy {
@@ -2368,15 +2349,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   }
 }
 
-/* Reduced motion: the field stays legible but still; status pulses stop. */
+/* Reduced motion: the field stays legible but still. */
 @media (prefers-reduced-motion: reduce) {
   .mapSkeletonPin,
   .mapLoadingPin {
-    animation: none;
-    opacity: 0.9;
-  }
-  .mapSkeletonSpinnerDot,
-  .mapLoadingCopy::before {
     animation: none;
     opacity: 0.9;
   }

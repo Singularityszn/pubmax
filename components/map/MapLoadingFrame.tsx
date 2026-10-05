@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import PintLoader from "@/components/ui/pint-loader";
 import {
   MAP_LOADING_SLOW_AFTER_MS,
   MAP_LOADING_SLOW_LINE,
@@ -47,6 +48,7 @@ export default function MapLoadingFrame({
         <span className="mapLoadingPin mapLoadingPin--pint mapLoadingPin--four" />
       </div>
       <div className="mapLoadingCopy">
+        <PintLoader size="sm" />
         <div className="mapLoadingLines">
           <span className="mapLoadingEyebrow">{mapDisplayName} pub map</span>
           <span>

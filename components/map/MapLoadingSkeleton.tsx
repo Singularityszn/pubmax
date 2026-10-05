@@ -14,6 +14,7 @@
 // while the WebGL canvas style loads. All colour comes from existing tokens;
 // reduced-motion holds the dots still (see the .mapSkeleton rules in globals).
 
+import PintLoader from "@/components/ui/pint-loader";
 import { mapLoadingPrimaryLine } from "@/lib/mapLoadingCopy";
 
 // Dot positions are hand-placed to read as a loose scatter of London pubs, each
@@ -105,7 +106,7 @@ export default function MapLoadingSkeleton({
           ))}
         </svg>
         <div className="mapSkeletonCopy" id="mapSkeletonStatus" role="status">
-          <span aria-hidden="true" className="mapSkeletonSpinnerDot" />
+          <PintLoader size="sm" />
           <div>
             <h1>UK venue map</h1>
             <p>{mapLoadingPrimaryLine(cityDisplayName)}</p>
