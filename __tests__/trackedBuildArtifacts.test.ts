@@ -37,4 +37,13 @@ describe("tracked build artifacts", () => {
     const lines = ignore.split("\n").map((line) => line.trim());
     expect(lines).toContain("*.tsbuildinfo");
   });
+
+  // Next.js writes next-env.d.ts on every dev, build and typegen run, pointing
+  // it at whichever dist dir ran last, so a tracked copy rode into reviews and
+  // turned Review scope red. `npm run typecheck` runs `next typegen` first.
+  it("never tracks next-env.d.ts and ignores it, which Next.js regenerates", () => {
+    expect(trackedFiles()).not.toContain("next-env.d.ts");
+    const ignore = readFileSync(path.join(ROOT, ".gitignore"), "utf8");
+    expect(ignore.split("\n").map((line) => line.trim())).toContain("next-env.d.ts");
+  });
 });
