@@ -184,6 +184,23 @@ describe("builtStopsNeedingHydration", () => {
     ).toEqual(["v2"]);
   });
 
+  it("requests detail for a priced slim stop without its pint identity", () => {
+    const pins = new Map([["v1", makeVenue({ cheapestPrice: 6.15, cheapestPint: "", prices: [] })]]);
+    expect(builtStopsNeedingHydration({
+      venueDataReady: true, builtIds: ["v1"], venueById: pins, askedIds: none,
+    })).toEqual(["v1"]);
+  });
+
+  it("does not request a present unpriced stop or repeat a failed identity read", () => {
+    const pins = new Map([
+      ["v1", makeVenue({ cheapestPrice: 6.15, cheapestPint: "", prices: [] })],
+      ["v2", makeVenue({ id: "v2", cheapestPrice: null, cheapestPint: "", prices: [] })],
+    ]);
+    expect(builtStopsNeedingHydration({
+      venueDataReady: true, builtIds: ["v1", "v2"], venueById: pins, askedIds: new Set(["v1"]),
+    })).toEqual([]);
+  });
+
   it("never asks twice for the same stop", () => {
     expect(
       builtStopsNeedingHydration({

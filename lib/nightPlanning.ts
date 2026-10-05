@@ -143,7 +143,7 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
   if (/\bfood\b/.test(lower) && !foodNeeds.includes("food")) foodNeeds.push("food");
   const accessibility = /wheelchair|step[- ]free|accessible/.test(lower) ? ["step-free"] : [];
   const transportConstraints = /tube/.test(lower) ? ["tube"] : /walk/.test(lower) ? ["walking"] : [];
-  const zeroProof = /zero[ -]?proof|alcohol[ -]?free|soft[ -]?drinks?|not drinking|sober|0\.0/.test(lower);
+  const zeroProof = /zero[ -]?proof|alcohol[ -]?free|\bno[ -]alcohol\b|soft[ -]?drinks?|not drinking|sober|0\.0/.test(lower);
   const drinkCategory = requestedDrinkCategory(query, zeroProof, reasons);
   const wetherspoonsPreferred = spoonsMentioned;
   if (wetherspoonsPreferred) {

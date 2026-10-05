@@ -119,7 +119,8 @@ export function buildMapSeed(search: string, _cityId: CityId = DEFAULT_CITY_ID):
 }
 
 /**
- * The built stops a shared plan still owes a detail request.
+ * The built stops a shared plan still owes a detail request, including priced
+ * slim pins whose compact record cannot name the pint.
  *
  * Nothing is owed until the slim pack has settled: before that every id misses
  * `venueById`, so an unready map would request the whole plan over the same
@@ -141,7 +142,12 @@ export function builtStopsNeedingHydration({
   if (!venueDataReady) return [];
   return builtIds
     .slice(0, WALK_ROUTE_MAX_STOPS)
-    .filter((id) => Boolean(id) && !venueById.has(id) && !askedIds.has(id));
+    .filter((id) => {
+      if (!id || askedIds.has(id)) return false;
+      const venue = venueById.get(id);
+      return !venue || (typeof venue.cheapestPrice === "number"
+        && Number.isFinite(venue.cheapestPrice) && venue.cheapestPrice > 0 && !venue.cheapestPint);
+    });
 }
 
 export type BuiltStopHydrationResult = {
