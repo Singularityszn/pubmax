@@ -131,17 +131,29 @@ describe("selected-drink hand-built Plan", () => {
     expect(container.querySelector("h2")?.textContent).toBe("Top shelf beer plan");
     expect(container.querySelector(".routeMetrics")?.textContent).toContain("Not recordedround total");
     expect(container.querySelector(".routeMetrics")?.textContent).toContain("2top shelf beer stops");
-    expect(container.querySelector(".routeList")?.textContent).toContain("Top shelf beer price not shown in plans");
+    expect(container.querySelector(".routeList")?.textContent).toContain("Top shelf beer price unknown here. Ask at the bar.");
     expect(container.textContent).not.toMatch(/AMSTEL|£6\.15|£12\.30/);
     expect(Array.from(container.querySelectorAll("button")).some((item) => item.textContent?.includes("Save as story"))).toBe(false);
+  });
+
+  it.each([
+    [{ drinkCategory: "beer", drinkSubtype: "beer-stout", drinkBrand: "", topShelfOnly: true }, "Top shelf stout plan", "top shelf stout stops"],
+    [{ drinkCategory: "beer", drinkSubtype: "beer-ipa", drinkBrand: "", topShelfOnly: true }, "Top shelf IPA plan", "top shelf IPA stops"],
+    [{ drinkCategory: "beer", drinkSubtype: "", drinkBrand: "guinness", topShelfOnly: true }, "Top shelf Guinness plan", "top shelf Guinness stops"],
+    [{ drinkCategory: "beer", drinkSubtype: "", drinkBrand: "guinness" }, "Guinness plan", "Guinness stops"],
+    [{ drinkCategory: "wine", drinkSubtype: "wine-red", drinkBrand: "" }, "Red wine plan", "red wine stops"],
+  ] as const)("keeps sentence case and brand names in %j", async (selection, title, stops) => {
+    await render({ drinkSelection: selection, route: [duke, dove] });
+    expect(container.querySelector("h2")?.textContent).toBe(title);
+    expect(container.querySelector(".routeMetrics")?.textContent).toContain(`2${stops}`);
   });
 
   it.each(["ready", "partial", "degraded", "idle"] as const)(
     "does not claim a refined Guinness price is absent when the %s category index was never its evidence",
     async (status) => {
       await render({ drinkSelection: { drinkCategory: "beer", drinkSubtype: "", drinkBrand: "guinness" }, drinkPriceStatus: status });
-      expect(container.querySelector(".routeList")?.textContent).toContain("Guinness price not shown in plans");
-      expect(container.querySelector(".venuePickerList")?.textContent).toContain("Guinness price not shown in plans");
+      expect(container.querySelector(".routeList")?.textContent).toContain("Guinness price unknown here. Ask at the bar.");
+      expect(container.querySelector(".venuePickerList")?.textContent).toContain("Guinness price unknown here. Ask at the bar.");
       expect(container.textContent).not.toMatch(/no Guinness price|Guinness price could not be read|Guinness price not read yet|Guinness prices/);
     },
   );

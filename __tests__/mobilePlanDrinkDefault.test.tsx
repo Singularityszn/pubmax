@@ -119,7 +119,18 @@ describe("map drink default in the phone planner", () => {
     await render({ drinkCategory: "beer", drinkBrand: "", drinkSubtype: "", topShelfOnly: true }, "Soho");
     await generate();
     expect(requests).toHaveLength(0);
-    expect(container.querySelector('[role="alert"]')?.textContent).toContain("The planner cannot match Top shelf beer yet.");
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+      "The planner cannot match Top shelf beer yet. Turn off Top shelf on the map, or name a different drink.",
+    );
+  });
+
+  it("names every selected refinement in a Top shelf brand refusal", async () => {
+    await render({ drinkCategory: "beer", drinkBrand: "guinness", drinkSubtype: "", topShelfOnly: true });
+    await generate();
+    expect(requests).toHaveLength(0);
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+      "The planner cannot match Top shelf Guinness yet. Turn off the brand and Top shelf on the map, or name a different drink.",
+    );
   });
 
   it("allows an explicit Wine request to replace a Top shelf Beer default", async () => {

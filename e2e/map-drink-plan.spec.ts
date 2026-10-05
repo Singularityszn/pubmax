@@ -417,3 +417,133 @@ test("generated Cocktail uses the map's Cocktail filter policy", async ({ page }
   await expect(sheet).toBeVisible();
   await expect(sheet.getByRole("group", { name: "Filter by drink shape" }).getByRole("button", { name: "Cocktails (selected)", exact: true })).toHaveAttribute("aria-pressed", "true");
 });
+
+test("Top shelf Beer plan keeps its refinement and unknown money through share and reopen", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.addInitScript(() => {
+    localStorage.setItem("pubmax-tour-v1-done", "1");
+    localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+  });
+  const stops = "venue-149rmv7,venue-1vle947";
+  const response = await page.goto(`/map?drink=beer&topshelf=1&mode=build&pubs=${stops}`);
+  expect(response?.status()).toBe(200);
+  const toggle = page.getByRole("button", { name: /^(Plan an outing|Close plan)$/ });
+  const openPlanner = async () => {
+    await expect(async () => {
+      if (await toggle.getAttribute("aria-pressed") !== "true") await toggle.click();
+      await expect(toggle).toHaveAttribute("aria-pressed", "true", { timeout: 1_000 });
+    }).toPass({ timeout: 30_000 });
+    await expectSoleDesktopDrawer(page, "planner");
+  };
+  const route = desktopPlannerDrawer(page).locator(".routePanel");
+  const expectTopShelfPlan = async () => {
+    await expect(route.locator(".routeList > li")).toHaveCount(2);
+    await expect(route.getByRole("heading", { name: "Top shelf beer plan", exact: true })).toBeVisible();
+    await expect(route.locator(".routeList > li").nth(0)).toContainText("Top shelf beer price unknown here. Ask at the bar.");
+    await expect(route.locator(".routeList")).not.toContainText("AMSTEL");
+    await expect(route.locator(".routeList")).not.toContainText("no Top shelf beer price");
+    await expect(route.locator(".routeMetrics")).toContainText("Not recorded");
+    await expect(route.locator(".routeMetrics")).toContainText("top shelf beer stops");
+    await expect(route.locator(".routeMetrics")).not.toContainText("£6.15");
+    await expect(route.getByRole("button", { name: "Save as story", exact: true })).toHaveCount(0);
+  };
+  await openPlanner();
+  await expectTopShelfPlan();
+  await route.locator(".routeHeader").scrollIntoViewIfNeeded();
+  await testInfo.attach("top-shelf-plan", { body: await page.screenshot(), contentType: "image/png" });
+  await route.getByRole("button", { name: "Start this crawl", exact: true }).click();
+  const crawlProgress = route.getByTestId("crawl-progress");
+  await crawlProgress.getByRole("button", { name: "Mark complete", exact: true }).click();
+  await expect(
+    crawlProgress.getByRole("status").filter({ hasText: /^Crawl complete: 2\/2 stops$/ }),
+  ).toHaveText("Crawl complete: 2/2 stops");
+  const shared = route.getByTestId("crawl-share-open");
+  await expect(shared).toBeVisible();
+  const params = new URL((await shared.getAttribute("href"))!, "http://localhost").searchParams;
+  expect(params.get("drink")).toBe("beer");
+  expect(params.get("topshelf")).toBe("1");
+  expect(params.get("pubs")).toBe(stops);
+  await shared.click();
+  await page.reload();
+  await openPlanner();
+  await expectTopShelfPlan();
+  await page.waitForTimeout(600);
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await route.locator(".routeHeader").scrollIntoViewIfNeeded();
+  const copyLink = route.getByRole("button", { name: "Copy a shareable link to this crawl", exact: true });
+  await copyLink.click();
+  await expect(copyLink).toHaveText("Copied");
+  const copied = new URL(await page.evaluate(() => navigator.clipboard.readText()));
+  expect(copied.searchParams.get("drink")).toBe("beer");
+  expect(copied.searchParams.get("topshelf")).toBe("1");
+  expect(copied.searchParams.get("pubs")).toBe(stops);
+  await testInfo.attach("top-shelf-reopened", { body: await page.screenshot(), contentType: "image/png" });
+});
+
+test("phone planner refuses a Top shelf Beer default before requesting a generic plan", async ({ page }) => {
+  let generationRequests = 0;
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname === "/api/plans/generate" && request.method() === "POST") {
+      generationRequests += 1;
+    }
+  });
+  const intent = await openPhonePlanner(page, "drink=beer&topshelf=1");
+  await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill("Soho");
+  await intent.getByRole("button", { name: "Make a plan", exact: true }).click();
+  await expect(intent.getByRole("alert")).toContainText(
+    "The planner cannot match Top shelf beer yet. Turn off Top shelf on the map, or name a different drink.",
+  );
+  expect(generationRequests).toBe(0);
+});
+
+test("phone generation from the No-alcohol view stays zero-proof", async ({ page }) => {
+  const intent = await openPhonePlanner(page, "experience=no-alcohol");
+  await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill("Soho");
+  const generatedResponse = page.waitForResponse((response) =>
+    new URL(response.url()).pathname === "/api/plans/generate" && response.request().method() === "POST",
+  );
+  await intent.getByRole("button", { name: "Make a plan", exact: true }).click();
+  const response = await generatedResponse;
+  const sent = response.request().postDataJSON() as { context: Record<string, unknown> };
+  expect(sent.context.zeroProof).toBe(true);
+  expect(sent.context).not.toHaveProperty("drinkCategory");
+  expect(response.status()).toBe(200);
+  const body = await response.json() as { inferredContext: { zeroProof: boolean; drinkCategory: string | null } };
+  expect(body.inferredContext.zeroProof).toBe(true);
+  expect(body.inferredContext.drinkCategory).toBeNull();
+  const route = page.locator(".mapDrawer.left .routePanel");
+  await expect(route.locator(".routeList > li")).toHaveCount(2);
+  await expect(page).toHaveURL(/[?&]drink=alcohol-free(?:&|$)/);
+  await expect(route.getByRole("heading", { name: "Alcohol-free plan", exact: true })).toBeVisible();
+  await expect(route.locator(".routeList")).not.toContainText("AMSTEL");
+});
+
+for (const generated of [
+  { query: "Beer in Soho", category: "beer" },
+  { query: "Gin in Soho", category: "gin" },
+] as const) {
+  test(`generated ${generated.category} keeps the saved favourite pint`, async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem("pubmax:favoritePint:v1", "estrella"));
+    const intent = await openPhonePlanner(page);
+    await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill(generated.query);
+    const generatedResponse = page.waitForResponse((response) =>
+      new URL(response.url()).pathname === "/api/plans/generate" && response.request().method() === "POST",
+    );
+    await intent.getByRole("button", { name: "Make a plan", exact: true }).click();
+    const response = await generatedResponse;
+    expect(response.status()).toBe(200);
+    const body = await response.json() as { inferredContext: { drinkCategory: string } };
+    expect(body.inferredContext.drinkCategory).toBe(generated.category);
+    const route = page.locator(".mapDrawer.left .routePanel");
+    await expect(route.locator(".routeList > li")).toHaveCount(2);
+    if (generated.category === "gin") {
+      await expect(route.getByRole("heading", { name: "Gin plan", exact: true })).toBeVisible();
+    } else {
+      await expect(route.getByRole("radio", { name: "Pint", exact: true })).toHaveAttribute("aria-checked", "true");
+    }
+    expect(await page.evaluate(() => localStorage.getItem("pubmax:favoritePint:v1"))).toBe("estrella");
+  });
+}

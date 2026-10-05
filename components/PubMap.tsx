@@ -4776,7 +4776,7 @@ export default function PubMap({
     changeExperienceLens("all");
     setPersonaLensId(null);
     const lane = generated.context.zeroProof ? "alcohol-free" : generated.context.drinkCategory ?? DEFAULT_DRINK_LANE;
-    if (lane !== DEFAULT_DRINK_LANE) changeFavoritePint(null);
+    if (lane !== DEFAULT_DRINK_LANE) setFavoritePintState(null);
     setFilters((current) => applyDrinkLane(current, lane, { clearRefinements: true }));
     if (lane === DEFAULT_DRINK_LANE) setAltStyle("pint");
     activateGeneratedPlan(generated.context.nightArea, ids);
@@ -4788,7 +4788,7 @@ export default function PubMap({
         daypart: generated.context.daypart,
       });
     }
-  }, [activateGeneratedPlan, changeExperienceLens, changeFavoritePint, setActiveCrawl]);
+  }, [activateGeneratedPlan, changeExperienceLens, setActiveCrawl]);
   // The landmark whose story is open, resolved against the city's own catalog.
   // Resolved HERE, ahead of the overlay coordination below, because the story
   // is a surface the reader is on: it hides the planning pill and it enters

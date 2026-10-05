@@ -27,14 +27,18 @@ export function mapPlanDrinkPresentation(
   if (category === "beer" && !refined) return null;
   const subtype = parseDrinkSubtypeParam(selection.drinkSubtype, category);
   const brand = findBrand(selection.drinkBrand);
-  const named = brand?.category === category
-    ? brand.brand.label
-    : subtype?.longLabel ?? categoryLabel(category);
-  const label = selection.topShelfOnly
-    ? `Top shelf ${named === categoryLabel(category) ? named.toLowerCase() : named}`
-    : named;
-  const priceNoun = refined ? label : drinkLensPriceNoun(category);
-  return { category, label, priceNoun, stopNoun: `${priceNoun.toLowerCase()} stop`, refined };
+  const ownBrand = brand?.category === category ? brand.brand.label : null;
+  const common = subtype?.longLabel ?? categoryLabel(category);
+  const named = ownBrand ?? (selection.topShelfOnly ? sentenceCaseNoun(common) : common);
+  const label = selection.topShelfOnly ? `Top shelf ${named}` : named;
+  const priceNoun = drinkLensPriceNoun(category);
+  const stopNoun = !refined ? priceNoun : label === ownBrand ? label : sentenceCaseNoun(label);
+  return { category, label, priceNoun, stopNoun: `${stopNoun} stop`, refined };
+}
+
+/** Lower a common noun mid-sentence, but keep acronyms such as IPA. */
+function sentenceCaseNoun(noun: string): string {
+  return /^[A-Z]{2}/.test(noun) ? noun : noun.charAt(0).toLowerCase() + noun.slice(1);
 }
 
 export function mapPlanDrinkPriceDescription(
@@ -44,7 +48,7 @@ export function mapPlanDrinkPriceDescription(
   status: CategoryPriceIndexStatus = "idle",
 ): string {
   // Category reports have no brand, subtype, top-shelf or serving identity.
-  if (presentation.refined) return `${presentation.priceNoun} price not shown in plans`;
+  if (presentation.refined) return `${presentation.label} price unknown here. Ask at the bar.`;
   const price = prices?.get(venueId);
   const evidence = price?.venueId === venueId
     ? selectedDrinkPriceEvidenceForPrice(price, { drinkCategory: presentation.category, zeroProof: false })
@@ -62,7 +66,12 @@ export function mapPlanDrinkDefaultContext(
   const drink = mapPlanDrinkPresentation(selection);
   if (!drink) return {};
   if (drink.refined) {
-    throw new Error(`The planner cannot match ${drink.label} yet. Choose a drink lane without a brand or style, or name a different drink.`);
+    const choices = [
+      selection?.drinkBrand ? "the brand" : null,
+      selection?.drinkSubtype ? "the style" : null,
+      selection?.topShelfOnly ? "Top shelf" : null,
+    ].filter(Boolean).join(" and ");
+    throw new Error(`The planner cannot match ${drink.label} yet. Turn off ${choices} on the map, or name a different drink.`);
   }
   return drink.category === "alcohol-free" ? { zeroProof: true } : { drinkCategory: drink.category };
 }
