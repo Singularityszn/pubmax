@@ -421,17 +421,10 @@ async function seed(admin: Admin): Promise<void> {
   const password = randomBytes(32).toString("base64url");
   let userId: string;
   if (existingUserId) {
-    const { error } = await admin.auth.admin.updateUserById(existingUserId, {
-      password,
-      email_confirm: true,
-      user_metadata: { full_name: E2E_QA_DISPLAY_NAME, name: E2E_QA_DISPLAY_NAME },
-    });
-    assertRequest("resetting the E2E QA password", error);
     userId = existingUserId;
   } else {
     const { data, error } = await admin.auth.admin.createUser({
       email: E2E_QA_EMAIL,
-      password,
       email_confirm: true,
       user_metadata: { full_name: E2E_QA_DISPLAY_NAME, name: E2E_QA_DISPLAY_NAME },
     });
@@ -439,6 +432,12 @@ async function seed(admin: Admin): Promise<void> {
     if (!data.user?.id) fail("Supabase created no E2E QA user.");
     userId = data.user.id;
   }
+  const { error: passwordError } = await admin.auth.admin.updateUserById(userId, {
+    password,
+    email_confirm: true,
+    user_metadata: { full_name: E2E_QA_DISPLAY_NAME, name: E2E_QA_DISPLAY_NAME },
+  });
+  assertRequest("setting the E2E QA password", passwordError);
 
   const { data: profileData, error: profileError } = await admin
     .from("profiles")
