@@ -81,6 +81,14 @@ export const GLOW_PULSE_MAX_OPACITY = 0.62;
 export const GLOW_PULSE_MIN_WIDTH = 3;
 export const GLOW_PULSE_MAX_WIDTH = 4.6;
 
+// The pulse above and the route's marching ants are AMBIENT motion: each write
+// is a full map redraw, so left running they redraw an idle map ~11 to 60 times
+// a second for as long as it is open, the phone in a pocket on a crawl
+// included. They move for this long after the route, the selection or the
+// camera last changed (three breaths of the pulse), then rest on the static
+// frame reduced-motion readers already see.
+export const AMBIENT_MOTION_WINDOW_MS = GLOW_PULSE_PERIOD_MS * 3;
+
 // M7 pin entrance: a per-pub OPACITY ramp fired once, right after
 // settleSceneReady()'s first pin reveal, off the SAME RAF loop the M1 pulse
 // uses (no second requestAnimationFrame). Each pub's own ramp is spread out

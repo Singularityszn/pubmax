@@ -97,6 +97,7 @@ import type { VenueWhatsOnSummary } from "@/lib/whatsOnBadges";
 import {
   applyPoiCategoryVisibility,
   TONIGHT_OPPORTUNITY_LAYERS, pubIconOpacityExpr, glowPulsePaint,
+  ambientMotionLive, routeLineShowsDash,
   pinEntranceIconOpacityExpr,
   selectedPinIconSizeExpr, selectedPinFilter, pinSortKeyExpr, pinPriceLabelExpr,
   clusterEntranceProgress,
@@ -1095,6 +1096,11 @@ export default function PubMapCanvas({
 
   const reducedRef = useRef(false);
   const blurredRef = useRef(false);
+  // When ambient motion (the selected-pin pulse, the route's marching ants)
+  // was last woken; the RAF loop lets it move for AMBIENT_MOTION_WINDOW_MS
+  // after this, then rests. Null until the first route, selection or camera
+  // change.
+  const ambientMotionWokeAtRef = useRef<number | null>(null);
   const themeRef = useRef<"dark" | "light">("dark");
   const textFontRef = useRef<string[]>(["Noto Sans Bold"]);
   const hoverCapableRef = useRef(false);
@@ -1597,6 +1603,9 @@ export default function PubMapCanvas({
       // fresh present. A repaint moves no camera, so this cannot re-fire
       // moveend; deliberately NOT hooked on `idle` (that would loop).
       map.triggerRepaint();
+      // The reader is looking somewhere new: the route and the selected pin
+      // may say so again, for one window.
+      ambientMotionWokeAtRef.current = performance.now();
       setMapBearing(map.getBearing());
       setMapPitch(map.getPitch());
       // A start whose end never came would hold the camera for the rest of the
@@ -3200,10 +3209,29 @@ export default function PubMapCanvas({
     // One RAF loop for motivated feedback only: pin entrance, route direction,
     // and the selected-pin pulse. The old perpetual camera orbit changed the
     // whole canvas every frame while idle, forcing tile churn that read as
-    // flicker and fought the user's spatial memory.
+    // flicker and fought the user's spatial memory. The dash and the pulse
+    // obey the same rule: they move for a window after a change, then rest.
     let rafId = 0;
     let dashStep = 0;
     let dashAt = 0;
+    // The layers are built on their static frame, so the loop starts at rest.
+    let ambientResting = true;
+    // The frame reduced-motion readers see: the dash's first step, and the
+    // ring the selection effect sets.
+    const restAmbientMotion = () => {
+      dashStep = 0;
+      if (map.getLayer("route-line-dash")) {
+        map.setPaintProperty("route-line-dash", "line-dasharray", DASH_SEQ[0]);
+      }
+      if (map.getLayer("pubs-selected-glow")) {
+        map.setPaintProperty("pubs-selected-glow", "circle-stroke-opacity", GLOW_BASE_STROKE_OPACITY);
+        map.setPaintProperty(
+          "pubs-selected-glow",
+          "circle-stroke-width",
+          selectedIdRef.current ? GLOW_BASE_STROKE_WIDTH + 1.2 : GLOW_BASE_STROKE_WIDTH,
+        );
+      }
+    };
     const frame = (now: number) => {
       rafId = requestAnimationFrame(frame);
       // M7 pin entrance — progressed ahead of the big early-return below so
@@ -3240,15 +3268,29 @@ export default function PubMapCanvas({
       // isStyleLoaded() is null-safe and false mid-swap; check it BEFORE
       // getLayer, which throws on the transiently-null style during a theme
       // setStyle({diff:false}) or on teardown.
+      if (!map.isStyleLoaded() || !map.getLayer("pubs-point")) return;
+      // Every write below is a full map redraw. Motion runs only for a window
+      // after the route, selection or camera changed, and never for
+      // reduced-motion, hidden or blurred; otherwise one write puts the
+      // static frame back and the loop draws nothing more.
       if (
         reducedRef.current ||
         document.hidden ||
         blurredRef.current ||
-        !map.isStyleLoaded() ||
-        !map.getLayer("pubs-point")
-      )
+        !ambientMotionLive(now, ambientMotionWokeAtRef.current)
+      ) {
+        if (!ambientResting) {
+          ambientResting = true;
+          restAmbientMotion();
+        }
         return;
-      if (now - dashAt > 90 && map.getLayer("route-line-dash")) {
+      }
+      ambientResting = false;
+      if (
+        now - dashAt > 90 &&
+        map.getLayer("route-line-dash") &&
+        routeLineShowsDash(routeLineRef.current)
+      ) {
         dashAt = now;
         dashStep = (dashStep + 1) % DASH_SEQ.length;
         map.setPaintProperty("route-line-dash", "line-dasharray", DASH_SEQ[dashStep]);
@@ -3628,6 +3670,7 @@ export default function PubMapCanvas({
     routeLineRef.current = routeToLine(route);
     routeStopsRef.current = routeToStops(route);
     selectedIdRef.current = selectedVenueId;
+    ambientMotionWokeAtRef.current = performance.now();
     if (!mapReady) return;
     // Route source data via the permissive gate (see applyRouteData) so a
     // set-once plan route paints even while basemap tiles are still loading.
