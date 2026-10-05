@@ -13,6 +13,7 @@ import {
   withAlpha,
 } from "@/lib/mapBasemapTaste";
 import { applySelectionState, type SceneCtx } from "@/components/map/canvas/buildScene";
+import { defined } from "@/__tests__/helpers/defined";
 
 function channels(hex: string): [number, number, number] {
   const n = parseInt(hex.replace("#", ""), 16);
@@ -24,12 +25,12 @@ function relativeLuminance(hex: string): number {
   const [r, g, b] = channels(hex).map((c) =>
     c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4,
   );
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return 0.2126 * defined(r) + 0.7152 * defined(g) + 0.0722 * defined(b);
 }
 
 function contrast(a: string, b: string): number {
   const [hi, lo] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x);
-  return (hi + 0.05) / (lo + 0.05);
+  return (defined(hi) + 0.05) / (defined(lo) + 0.05);
 }
 
 /** HSL saturation as a percentage — the axis a park must NOT grow along. */
@@ -790,22 +791,22 @@ describe("M2 · POI-at-initiation selection mute", () => {
     applySelectionMute(map, true, store);
 
     // Issue #222 — the muted value is min(original, 0.12), not a flat 0.12.
-    expect(map.paint.poi_label["text-opacity"]).toEqual(["min", 0.9, SELECTION_MUTE_OPACITY]);
-    expect(map.paint.road_label["text-opacity"]).toEqual(["min", 1, SELECTION_MUTE_OPACITY]);
-    expect(map.paint["pois-label"]["text-opacity"]).toEqual(["min", 0.88, SELECTION_MUTE_OPACITY]);
-    expect(map.paint["tube-lines-color"]["line-opacity"]).toEqual([
+    expect(defined(map.paint.poi_label)["text-opacity"]).toEqual(["min", 0.9, SELECTION_MUTE_OPACITY]);
+    expect(defined(map.paint.road_label)["text-opacity"]).toEqual(["min", 1, SELECTION_MUTE_OPACITY]);
+    expect(defined(map.paint["pois-label"])["text-opacity"]).toEqual(["min", 0.88, SELECTION_MUTE_OPACITY]);
+    expect(defined(map.paint["tube-lines-color"])["line-opacity"]).toEqual([
       "min",
       ["interpolate"],
       SELECTION_MUTE_OPACITY,
     ]);
-    expect(map.paint["landmarks-label"]["text-opacity"]).toEqual([
+    expect(defined(map.paint["landmarks-label"])["text-opacity"]).toEqual([
       "min",
       0.86,
       SELECTION_MUTE_OPACITY,
     ]);
-    expect(map.paint["landmarks-icon"]["icon-opacity"]).toEqual(["min", 1, SELECTION_MUTE_OPACITY]);
+    expect(defined(map.paint["landmarks-icon"])["icon-opacity"]).toEqual(["min", 1, SELECTION_MUTE_OPACITY]);
     // Place labels are overview context — untouched.
-    expect(map.paint.place_city["text-opacity"]).toBe(0.95);
+    expect(defined(map.paint.place_city)["text-opacity"]).toBe(0.95);
   });
 
   it("restores EXACT originals on deselect (idempotent select/deselect cycles)", () => {
@@ -829,7 +830,7 @@ describe("M2 · POI-at-initiation selection mute", () => {
     applySelectionMute(map, true, store); // must NOT capture the muted 0.12
     expect(store.get("poi_label::text-opacity")).toBe(0.9);
     applySelectionMute(map, false, store);
-    expect(map.paint.poi_label["text-opacity"]).toBe(0.9);
+    expect(defined(map.paint.poi_label)["text-opacity"]).toBe(0.9);
   });
 
   it("restores an unset paint prop to style default via undefined", () => {
@@ -840,7 +841,7 @@ describe("M2 · POI-at-initiation selection mute", () => {
     expect(store.get("road_label::icon-opacity")).toBeUndefined();
     applySelectionMute(map, false, store);
     // Restored to undefined (style default), not left at the mute value.
-    expect(map.paint.road_label["icon-opacity"]).toBeUndefined();
+    expect(defined(map.paint.road_label)["icon-opacity"]).toBeUndefined();
   });
 });
 
@@ -914,7 +915,7 @@ describe("style.load recapture path (applySelectionState, buildScene.ts)", () =>
     expect(store.get("pois-transport-minor::icon-opacity")).toBe(0);
     // The muted paint attenuates the FRESH original, never the stale one —
     // min(0, 0.12) stays 0, not min(0.9, 0.12) = 0.12 (a raise).
-    expect(paint["pois-transport-minor"]["icon-opacity"]).toEqual(["min", 0, SELECTION_MUTE_OPACITY]);
+    expect(defined(paint["pois-transport-minor"])["icon-opacity"]).toEqual(["min", 0, SELECTION_MUTE_OPACITY]);
   });
 
   it("with nothing selected, a reload is a pure clear — no mute is (re)applied", () => {
@@ -956,7 +957,7 @@ describe("style.load recapture path (applySelectionState, buildScene.ts)", () =>
     // style.load with a venue still selected: clear stale, recapture fresh, mute.
     applySelectionState(makeCtx(map, store, "venue-1"));
     expect(store.get("pois-transport-minor::icon-opacity")).toBe(0.7); // fresh, not 0.9
-    expect(paint["pois-transport-minor"]["icon-opacity"]).toEqual([
+    expect(defined(paint["pois-transport-minor"])["icon-opacity"]).toEqual([
       "min",
       0.7,
       SELECTION_MUTE_OPACITY,
@@ -964,7 +965,7 @@ describe("style.load recapture path (applySelectionState, buildScene.ts)", () =>
 
     // Deselect: restore must land on the FRESH original (0.7), and clear.
     applySelectionMute(map, false, store);
-    expect(paint["pois-transport-minor"]["icon-opacity"]).toBe(0.7);
+    expect(defined(paint["pois-transport-minor"])["icon-opacity"]).toBe(0.7);
     expect(store.size).toBe(0);
   });
 });

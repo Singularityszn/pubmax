@@ -28,6 +28,7 @@ import {
 } from "@/lib/tonightOutListings";
 import type { VenueRef } from "@/lib/venueIndex";
 import type { WhatsOnRow } from "@/lib/whatsOn";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ABBA_ARENA: VenueRef = {
   id: "venue-16cduf6",
@@ -103,14 +104,14 @@ describe("out honesty guard — request-time matching", () => {
   it("keeps SIX at the Vaudeville Theatre unmatched", () => {
     expect(matchOutRowVenue(SIX_VAUDEVILLE, SLIM_INDEX)).toBeNull();
     const attached = attachOutVenues([SIX_VAUDEVILLE], SLIM_INDEX);
-    expect(attached.rows[0].venueId).toBeUndefined();
+    expect(defined(attached.rows[0]).venueId).toBeUndefined();
     expect(attached.unmatched).toBe(1);
   });
 
   it("keeps New Cross Inn (Wrex) unmatched until a real London pub match exists", () => {
     expect(matchOutRowVenue(NEW_CROSS_WREX, SLIM_INDEX)).toBeNull();
     const attached = attachOutVenues([NEW_CROSS_WREX], SLIM_INDEX);
-    expect(attached.rows[0].venueId).toBeUndefined();
+    expect(defined(attached.rows[0]).venueId).toBeUndefined();
   });
 
   it("only attaches ABBA Arena when the place name and coordinates confirm the pin", () => {
@@ -134,7 +135,7 @@ describe("out honesty guard — /out lead and wording", () => {
     const lead = outListingLead(rows, "ready", "tonight");
     expect(lead.honestEmpty).toBeNull();
     expect(lead.matched).toHaveLength(1);
-    expect(lead.matched[0].id).toBe("events-tm-lex");
+    expect(defined(lead.matched[0]).id).toBe("events-tm-lex");
     expect(lead.unmatched.map((row) => row.id)).toEqual([
       "events-tm-six-vaudeville",
       "events-tm-new-cross-wrex",
@@ -149,7 +150,7 @@ describe("out honesty guard — /out lead and wording", () => {
   it("renders On PUBMAXX only on confirmed matches and the absent line on theatres", () => {
     const matched = attachOutVenues([ABBA_VOYAGE], SLIM_INDEX).rows[0];
     const matchedHtml = renderToStaticMarkup(
-      createElement(OutListingPubPair, { row: matched }),
+      createElement(OutListingPubPair, { row: defined(matched) }),
     );
     expect(matchedHtml).toContain(OUT_LISTING_VENUE_BADGE_LABEL);
     expect(matchedHtml).toContain("/map?sel=venue-16cduf6");

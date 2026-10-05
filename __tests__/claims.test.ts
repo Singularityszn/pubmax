@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildVenueClaims, type ClaimDrop } from "@/lib/curation";
 import { groupVenuePrices, scoreVenue, type VenuePrice } from "@/lib/venues";
+import { defined } from "@/__tests__/helpers/defined";
 
 function makeRow(overrides: Partial<VenuePrice> = {}): VenuePrice {
   return {
@@ -65,7 +66,7 @@ function makeDrop(overrides: Partial<ClaimDrop> = {}): ClaimDrop {
 describe("buildVenueClaims", () => {
   it("keeps a Sourced editorial claim and an Anecdote drop as SEPARATE entries", () => {
     // The Grapes is a curated writer pick with a source URL → sourced editorial.
-    const venue = groupVenuePrices([makeRow({ pub_name: "The Grapes" })])[0];
+    const venue = defined(groupVenuePrices([makeRow({ pub_name: "The Grapes" })])[0]);
     const claims = buildVenueClaims(venue.curation, [
       makeDrop({ passedDownNote: "My grandad drank here in the 70s.", provenance: "anecdote" }),
     ]);
@@ -75,42 +76,42 @@ describe("buildVenueClaims", () => {
     expect(sourced).toHaveLength(1);
     expect(anecdote).toHaveLength(1);
     // The two contents are distinct — nothing is buried under the other.
-    expect(sourced[0].content).not.toBe(anecdote[0].content);
-    expect(sourced[0].sourceRef).toBeTruthy();
-    expect(anecdote[0].content).toContain("grandad");
+    expect(defined(sourced[0]).content).not.toBe(defined(anecdote[0]).content);
+    expect(defined(sourced[0]).sourceRef).toBeTruthy();
+    expect(defined(anecdote[0]).content).toContain("grandad");
   });
 
   it("downgrades an unverified inferred heritage note to needs-source", () => {
-    const venue = groupVenuePrices([
+    const venue = defined(groupVenuePrices([
       makeRow({ pub_name: "The Nothing", description: "A grand Victorian corner pub." }),
-    ])[0];
+    ])[0]);
     const claims = buildVenueClaims(venue.curation, []);
     expect(claims).toHaveLength(1);
-    expect(claims[0].kind).toBe("needs-source");
-    expect(claims[0].sourceRef).toBeUndefined();
+    expect(defined(claims[0]).kind).toBe("needs-source");
+    expect(defined(claims[0]).sourceRef).toBeUndefined();
   });
 
   it("a priced drop is a contributor claim, a note-only drop is an anecdote", () => {
-    const venue = groupVenuePrices([makeRow({ pub_name: "The Nothing" })])[0];
+    const venue = defined(groupVenuePrices([makeRow({ pub_name: "The Nothing" })])[0]);
     const claims = buildVenueClaims(venue.curation, [
       makeDrop({ priceGbp: 4.5, drink: "Ale", provenance: "contributor" }),
       makeDrop({ passedDownNote: "Best jukebox in Camden.", provenance: "anecdote" }),
     ]);
     expect(claims.map((c) => c.kind)).toEqual(["contributor", "anecdote"]);
-    expect(claims[0].content).toContain("4.50");
+    expect(defined(claims[0]).content).toContain("4.50");
   });
 
   it("a demo seed drop becomes a Baseline claim, never Contributor/Anecdote", () => {
-    const venue = groupVenuePrices([makeRow({ pub_name: "The Nothing" })])[0];
+    const venue = defined(groupVenuePrices([makeRow({ pub_name: "The Nothing" })])[0]);
     const claims = buildVenueClaims(venue.curation, [
       makeDrop({ priceGbp: 5.8, passedDownNote: "A seeded passed-down note.", provenance: "demo" }),
     ]);
     expect(claims).toHaveLength(1);
-    expect(claims[0].kind).toBe("baseline");
+    expect(defined(claims[0]).kind).toBe("baseline");
   });
 
   it("a Sourced claim is never relabeled by a later contributor/anecdote drop", () => {
-    const venue = groupVenuePrices([makeRow({ pub_name: "The Grapes" })])[0];
+    const venue = defined(groupVenuePrices([makeRow({ pub_name: "The Grapes" })])[0]);
     const claims = buildVenueClaims(venue.curation, [
       makeDrop({ priceGbp: 5, provenance: "contributor" }),
       makeDrop({ passedDownNote: "Cosy corner.", provenance: "anecdote" }),
@@ -124,21 +125,21 @@ describe("buildVenueClaims", () => {
 
 describe("Pint Drop summary signals (no flattening)", () => {
   it("hasStory lights from an editorial heritage note", () => {
-    const venue = groupVenuePrices([makeRow({ pub_name: "The Lamb" })])[0];
+    const venue = defined(groupVenuePrices([makeRow({ pub_name: "The Lamb" })])[0]);
     expect(venue.hasStory).toBe(true);
   });
 
   it("a plain venue has no story until a signal is derived", () => {
-    const venue = groupVenuePrices([makeRow({ pub_name: "The Nothing" })])[0];
+    const venue = defined(groupVenuePrices([makeRow({ pub_name: "The Nothing" })])[0]);
     expect(venue.hasStory).toBe(false);
     // The heritage score reads the derived hasStory signal, not a merged note.
     const withStory = { ...venue, hasStory: true };
-    expect(scoreVenue(withStory, "heritage")).toBeGreaterThan(scoreVenue(venue, "heritage"));
+    expect(scoreVenue(defined(withStory), "heritage")).toBeGreaterThan(scoreVenue(defined(venue), "heritage"));
   });
 
   it("a contributor price drives the summary cheapestPrice via Math.min", () => {
     // Mirrors mergeVenueDrops: contributor price undercuts baseline.
-    const venue = groupVenuePrices([makeRow({ price_gbp: 7 })])[0];
+    const venue = defined(groupVenuePrices([makeRow({ price_gbp: 7 })])[0]);
     const contributorPrice = 4.5;
     const cheapest = Math.min(venue.cheapestPrice ?? Infinity, contributorPrice);
     expect(cheapest).toBe(4.5);

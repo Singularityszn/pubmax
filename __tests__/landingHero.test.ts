@@ -15,6 +15,7 @@ import {
 import { mapLogIntentPrice } from "@/lib/mapLogIntent";
 import { buildLandingAnchorRail, buildLandingArchiveIndex } from "@/lib/landingPubCard";
 import type { Venue } from "@/lib/venues";
+import { defined } from "@/__tests__/helpers/defined";
 
 const NOW = Date.parse("2026-09-04T12:00:00.000Z");
 
@@ -65,12 +66,12 @@ describe("landing hero policy", () => {
     expect(pintDropDoorHref("venue-eltcmh", 4.2)).toBe(
       "/map?sel=venue-eltcmh&log=1&price=4.20",
     );
-    expect(mapLogIntentPrice(pintDropDoorHref("venue-eltcmh", 6.5).split("?")[1])).toBe("6.50");
+    expect(mapLogIntentPrice(defined(pintDropDoorHref("venue-eltcmh", 6.5).split("?")[1]))).toBe("6.50");
   });
 
   it("says the same figure in the label and in the door", () => {
     for (const priceGbp of [2.99, 4.2, 6.5, 12]) {
-      const seeded = mapLogIntentPrice(pintDropDoorHref("venue-x", priceGbp).split("?")[1]);
+      const seeded = mapLogIntentPrice(defined(pintDropDoorHref("venue-x", priceGbp).split("?")[1]));
       expect(stillPriceLabel(priceGbp)).toBe(`Still £${seeded}?`);
     }
   });

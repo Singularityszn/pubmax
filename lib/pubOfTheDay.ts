@@ -29,6 +29,7 @@
 // `now`), and the day rotation is the London calendar day so every visitor on a
 // given day sees the same pub.
 
+import type { Route } from "next";
 import { isFeaturedHeritageSource, type HeritageFact } from "@/lib/heritageFacts";
 import { internalLanguageFindings } from "@/lib/heritageLanguageGate.mjs";
 import { heritagePlaceConflict } from "@/lib/heritagePlaceConflict.mjs";
@@ -62,7 +63,7 @@ export type PubOfTheDayCard = {
   sourceLabel: string;
   sourceRef: string | null;
   /** The ONE internal action: this pub, on the map. */
-  mapHref: string;
+  mapHref: Route;
   /** Which markers earned the sentence its place. Diagnostics, never printed. */
   markers: PubOfTheDayMarkerId[];
 };
@@ -147,7 +148,7 @@ function comparable(text: string): string {
  * a source title appends ("Slug and Lettuce, Islington").
  */
 function nameKey(name: string): string {
-  const base = String(name ?? "").split(",")[0];
+  const base = String(name ?? "").split(",")[0] ?? "";
   return comparable(base.replace(/^\s*(?:the|ye)\s+/i, ""));
 }
 
@@ -261,7 +262,10 @@ export function judgePubOfTheDay(
   const sourced = (candidate.facts ?? []).filter((fact) =>
     isFeaturedHeritageSource(fact.source),
   );
-  if (sourced.length === 0) {
+  const best = [...sourced].sort(
+    (a, b) => sourcePriority(a.source) - sourcePriority(b.source),
+  )[0];
+  if (!best) {
     return refuse(
       "no-sourced-fact",
       "nothing here is attributable: seed material is not a sourced claim",
@@ -271,9 +275,6 @@ export function judgePubOfTheDay(
     return refuse("venue-gone", "a source describes this pub as former or closed");
   }
 
-  const best = [...sourced].sort(
-    (a, b) => sourcePriority(a.source) - sourcePriority(b.source),
-  )[0];
   const reason = best.fact.trim();
 
   const internal = internalLanguageFindings(reason)[0];
@@ -364,11 +365,10 @@ export function pickPubOfTheDay(
     const verdict = judgePubOfTheDay(candidate);
     if (verdict.ok) eligible.push(verdict.card);
   }
-  if (eligible.length === 0) return null;
   eligible.sort(
     (a, b) => a.pubName.localeCompare(b.pubName) || a.slug.localeCompare(b.slug),
   );
-  return eligible[londonDayIndex(now) % eligible.length];
+  return eligible[londonDayIndex(now) % eligible.length] ?? null;
 }
 
 /**

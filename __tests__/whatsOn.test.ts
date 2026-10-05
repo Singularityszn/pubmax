@@ -23,6 +23,7 @@ import {
 import { mapThingsToDoToRows, THINGS_TO_DO_KIND_MAP } from "@/lib/whatsOnCitymcp";
 import type { ThingsToDoResult, ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import { laneTimeLabel, listingUrgency } from "@/lib/whatsOnBadges";
+import { defined } from "@/__tests__/helpers/defined";
 
 const NOW = Date.parse("2026-07-11T20:00:00.000Z");
 
@@ -100,8 +101,8 @@ describe("isValidWhatsOnRow", () => {
       sourceId: "tm-99",
       area: "camden",
     });
-    expect(parsed[0].source.url).toMatch(/^https:\/\//);
-    expect(parsed[0].observedAt).toBe(eventRow.observedAt);
+    expect(defined(parsed[0]).source.url).toMatch(/^https:\/\//);
+    expect(defined(parsed[0]).observedAt).toBe(eventRow.observedAt);
   });
 
   it("rejects an event row that drops provenance", () => {
@@ -143,7 +144,7 @@ describe("parseWhatsOnRows + dedupe", () => {
       NOW,
     );
     expect(parsed).toHaveLength(1);
-    expect(parsed[0].title).toBe("new");
+    expect(defined(parsed[0]).title).toBe("new");
   });
 
   it("keys off venueId when present, else lowercased placeName", () => {
@@ -515,7 +516,7 @@ describe("mapThingsToDoToRows", () => {
       },
       { now: NOW },
     );
-    expect(rows[0].observedAt).toBe("2026-07-11T18:30:00.000Z");
+    expect(defined(rows[0]).observedAt).toBe("2026-07-11T18:30:00.000Z");
   });
 
   it("drops non-mapping kinds, missing place names, and non-http sources", () => {
@@ -583,8 +584,8 @@ describe("normaliseEventTitle", () => {
       NOW,
     );
     expect(rows).toHaveLength(1);
-    expect(rows[0].title).not.toMatch(/[\u2013\u2014]/);
-    expect(rows[0].title).toBe("Live Music - Fridays - 8pm");
+    expect(defined(rows[0]).title).not.toMatch(/[\u2013\u2014]/);
+    expect(defined(rows[0]).title).toBe("Live Music - Fridays - 8pm");
   });
 
   it("no typographic dash survives a CityMCP row through mapThingsToDoToRows", () => {
@@ -603,8 +604,8 @@ describe("normaliseEventTitle", () => {
       now: NOW,
     });
     expect(rows).toHaveLength(1);
-    expect(rows[0].title).not.toMatch(/[\u2013\u2014]/);
-    expect(rows[0].title).toBe("Jazz - Late");
+    expect(defined(rows[0]).title).not.toMatch(/[\u2013\u2014]/);
+    expect(defined(rows[0]).title).toBe("Jazz - Late");
   });
 });
 
@@ -627,8 +628,8 @@ describe("normaliseSourceLabel", () => {
       NOW,
     );
     expect(rows).toHaveLength(1);
-    expect(rows[0].source.label).not.toMatch(/[\u2013\u2014]/);
-    expect(rows[0].source.label).toBe("Skehan's - Live Music");
+    expect(defined(rows[0]).source.label).not.toMatch(/[\u2013\u2014]/);
+    expect(defined(rows[0]).source.label).toBe("Skehan's - Live Music");
   });
 
   it("no typographic dash survives a source label through mapThingsToDoToRows", () => {
@@ -647,8 +648,8 @@ describe("normaliseSourceLabel", () => {
       now: NOW,
     });
     expect(rows).toHaveLength(1);
-    expect(rows[0].source.label).not.toMatch(/[\u2013\u2014]/);
-    expect(rows[0].source.label).toBe("Skehan's - Live Music");
+    expect(defined(rows[0]).source.label).not.toMatch(/[\u2013\u2014]/);
+    expect(defined(rows[0]).source.label).toBe("Skehan's - Live Music");
   });
 });
 

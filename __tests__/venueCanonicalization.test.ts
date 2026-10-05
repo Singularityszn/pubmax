@@ -18,6 +18,7 @@ import {
   venueGroupingKey as tsVenueGroupingKey,
   type VenuePrice,
 } from "@/lib/venues";
+import { defined } from "@/__tests__/helpers/defined";
 
 // A row factory mirroring __tests__/venues.test.ts so canonicalized rows can be
 // fed straight into groupVenuePrices for the regression assertion.
@@ -168,9 +169,9 @@ describe("canonicalizeDataset — Rochester Castle merge", () => {
     expect(venues).toHaveLength(1);
     const ids = venues.map((v) => v.id);
     expect(new Set(ids).size).toBe(ids.length); // no two entries share a canonical id
-    expect(venues[0].name).toBe("The Rochester Castle");
-    expect(venues[0].cheapestPrice).toBe(1.99); // cheapest across the union
-    expect(venues[0].prices).toHaveLength(2); // both price rows preserved
+    expect(defined(venues[0]).name).toBe("The Rochester Castle");
+    expect(defined(venues[0]).cheapestPrice).toBe(1.99); // cheapest across the union
+    expect(defined(venues[0]).prices).toHaveLength(2); // both price rows preserved
   });
 });
 

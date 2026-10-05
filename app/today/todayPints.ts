@@ -9,6 +9,7 @@
 // Fail-soft throughout: an area with no verified prices yields no module (never
 // an empty box). Pure and node-testable — no fs, no serverEnv, no DOM.
 
+import type { Route } from "next";
 import { venueCheapestPintObservedAt } from "@/lib/drinks";
 import { areaUnderCentre, cheapestDrinksInArea } from "@/lib/areaButton";
 import {
@@ -35,7 +36,7 @@ type TodayPintRow = {
   /** "£4.80", ready to render. */
   priceLabel: string;
   /** Deep link to the venue on the map ({@link venueMapUrl}). */
-  mapHref: string;
+  mapHref: Route;
   /**
    * Whether this pub is IN the area the card names, or only near it
    * (lib/venueTruth.ts). The area's radius is how far the list reaches, not a

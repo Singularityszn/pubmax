@@ -9,6 +9,7 @@ import {
   commentsStore,
   memoryCommentsStore,
 } from "@/lib/commentsStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 beforeEach(() => {
   delete process.env.SUPABASE_URL;
@@ -39,9 +40,9 @@ describe("listForReview — the hidden queue", () => {
 
     const queue = await commentsStore().listForReview("hidden");
     expect(queue).toHaveLength(1);
-    expect(queue[0].body).toBe("hidden one");
-    expect(queue[0].pintDropId).toBe("drop-1");
-    expect(queue[0].status).toBe("hidden");
+    expect(defined(queue[0]).body).toBe("hidden one");
+    expect(defined(queue[0]).pintDropId).toBe("drop-1");
+    expect(defined(queue[0]).status).toBe("hidden");
     // actor_hash must never ride along in the moderator DTO.
     expect(JSON.stringify(queue[0])).not.toContain("secret-hash");
   });
@@ -72,7 +73,7 @@ describe("moderate — restore / keep hidden", () => {
     });
     const [target] = await commentsStore().listForReview("hidden");
 
-    const ok = await commentsStore().moderate(target.id, "visible");
+    const ok = await commentsStore().moderate(defined(target).id, "visible");
     expect(ok).toBe(true);
     // Gone from the hidden queue…
     expect(await commentsStore().listForReview("hidden")).toHaveLength(0);
@@ -89,7 +90,7 @@ describe("moderate — restore / keep hidden", () => {
       status: "hidden",
     });
     const [target] = await commentsStore().listForReview("hidden");
-    expect(await commentsStore().moderate(target.id, "hidden")).toBe(true);
+    expect(await commentsStore().moderate(defined(target).id, "hidden")).toBe(true);
     expect((await commentsStore().listComments("drop-1")).map((c) => c.body)).not.toContain(
       "stay hidden",
     );

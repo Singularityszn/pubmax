@@ -9,6 +9,7 @@ import {
 } from "@/lib/cityRivalry";
 import { cityMapShareUrl } from "@/lib/cityShare";
 import { demoPintDropsForCity } from "@/lib/pintDropSeeds";
+import { defined } from "@/__tests__/helpers/defined";
 
 describe("rivalryScore", () => {
   it("weights drops×3 + crawls×5 + min(venues,200)/10", () => {
@@ -45,9 +46,9 @@ describe("rankCities", () => {
       },
     ]);
     expect(ranked.map((r) => r.cityId)).toEqual(["london", "manchester", "glasgow"]);
-    expect(ranked[0].displayName).toBe("London");
-    expect(ranked[0].score).toBeGreaterThan(ranked[1].score);
-    expect(ranked[2].dropCount).toBe(0);
+    expect(defined(ranked[0]).displayName).toBe("London");
+    expect(defined(ranked[0]).score).toBeGreaterThan(defined(ranked[1]).score);
+    expect(defined(ranked[2]).dropCount).toBe(0);
   });
 });
 
@@ -71,17 +72,17 @@ describe("buildCityRivalrySnapshot / cityRivalryLeaderboard", () => {
     expect(board.length).toBeGreaterThanOrEqual(3);
 
     const byId = Object.fromEntries(board.map((e) => [e.cityId, e]));
-    expect(byId.london.dropCount).toBe(demoPintDropsForCity("london").length);
-    expect(byId.manchester.dropCount).toBe(demoPintDropsForCity("manchester").length);
-    expect(byId.glasgow.dropCount).toBe(0);
-    expect(byId.london.crawlPackCount).toBe(crawlPackCountForCity("london"));
-    expect(byId.manchester.crawlPackCount).toBe(crawlPackCountForCity("manchester"));
-    expect(byId.glasgow.crawlPackCount).toBe(crawlPackCountForCity("glasgow"));
-    expect(byId.liverpool.crawlPackCount).toBe(crawlPackCountForCity("liverpool"));
-    expect(byId.liverpool.crawlPackCount).toBeGreaterThanOrEqual(3);
+    expect(defined(byId.london).dropCount).toBe(demoPintDropsForCity("london").length);
+    expect(defined(byId.manchester).dropCount).toBe(demoPintDropsForCity("manchester").length);
+    expect(defined(byId.glasgow).dropCount).toBe(0);
+    expect(defined(byId.london).crawlPackCount).toBe(crawlPackCountForCity("london"));
+    expect(defined(byId.manchester).crawlPackCount).toBe(crawlPackCountForCity("manchester"));
+    expect(defined(byId.glasgow).crawlPackCount).toBe(crawlPackCountForCity("glasgow"));
+    expect(defined(byId.liverpool).crawlPackCount).toBe(crawlPackCountForCity("liverpool"));
+    expect(defined(byId.liverpool).crawlPackCount).toBeGreaterThanOrEqual(3);
 
     // London should lead on demo drops + crawl packs.
-    expect(board[0].cityId).toBe("london");
+    expect(defined(board[0]).cityId).toBe("london");
     expect(board.every((e) => e.score === rivalryScore(e))).toBe(true);
   });
 
@@ -104,9 +105,9 @@ describe("buildCityRivalrySnapshot / cityRivalryLeaderboard", () => {
   it("rivalry city links use cityMapShareUrl (London /map, others /map/{id})", () => {
     const board = buildCityRivalrySnapshot(venueOverrides);
     const byId = Object.fromEntries(board.map((e) => [e.cityId, e]));
-    expect(cityMapShareUrl(byId.london.cityId)).toBe("/map");
-    expect(cityMapShareUrl(byId.bristol.cityId)).toBe("/map/bristol");
-    expect(cityMapShareUrl(byId.manchester.cityId)).toBe("/map/manchester");
-    expect(cityMapShareUrl(byId.glasgow.cityId)).toBe("/map/glasgow");
+    expect(cityMapShareUrl(defined(byId.london).cityId)).toBe("/map");
+    expect(cityMapShareUrl(defined(byId.bristol).cityId)).toBe("/map/bristol");
+    expect(cityMapShareUrl(defined(byId.manchester).cityId)).toBe("/map/manchester");
+    expect(cityMapShareUrl(defined(byId.glasgow).cityId)).toBe("/map/glasgow");
   });
 });

@@ -24,6 +24,7 @@ import {
   subscribeToMessages,
 } from "@/lib/messagesRealtime";
 import { messagesInboxTopic, messagesThreadTopic } from "@/lib/messagesTopics";
+import { defined } from "@/__tests__/helpers/defined";
 
 type StatusCallback = (status: string) => void;
 type SignalCallback = () => void;
@@ -311,7 +312,7 @@ describe("messaging channels are private", () => {
 
     const unsubscribe = subscribeToMessages("conversation-9", vi.fn(), { poll: vi.fn() });
 
-    const [, config] = fixture.client.channel.mock.calls[0];
+    const [, config] = defined(fixture.client.channel.mock.calls[0]);
     expect(config).toEqual({ config: { private: true } });
     unsubscribe();
   });
@@ -322,7 +323,7 @@ describe("messaging channels are private", () => {
 
     const unsubscribe = subscribeToInbox("ken", vi.fn(), { poll: vi.fn() });
 
-    const [topic, config] = fixture.client.channel.mock.calls[0];
+    const [topic, config] = defined(fixture.client.channel.mock.calls[0]);
     expect(topic).toBe(messagesInboxTopic("ken"));
     expect(config).toEqual({ config: { private: true } });
     unsubscribe();

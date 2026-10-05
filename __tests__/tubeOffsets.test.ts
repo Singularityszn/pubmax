@@ -9,6 +9,7 @@ import {
   assignLineOffsets,
   SUBSURFACE_FAN_ORDER,
 } from "@/lib/tubeOffsets";
+import { defined } from "@/__tests__/helpers/defined";
 
 function line(name: string, coords: number[][]): Feature {
   return {
@@ -43,7 +44,7 @@ describe("sharedSegmentLineCount", () => {
       features: [
         line("District", shared),
         // Circle draws the same edge reversed — must still be detected as shared.
-        line("Circle", [shared[1], shared[0]]),
+        line("Circle", [defined(shared[1]), defined(shared[0])]),
         // A lone edge only District walks.
         line("District", [
           [-0.09, 51.51],
@@ -52,7 +53,7 @@ describe("sharedSegmentLineCount", () => {
       ],
     };
     const counts = sharedSegmentLineCount(fc);
-    expect(counts.get(segmentKey(shared[0], shared[1]))).toBe(2);
+    expect(counts.get(segmentKey(defined(shared[0]), defined(shared[1])))).toBe(2);
     expect(counts.get(segmentKey([-0.09, 51.51], [-0.08, 51.52]))).toBe(1);
   });
 });
@@ -88,12 +89,12 @@ describe("assignLineOffsets", () => {
 
   it("stamps offsetIndex without mutating the input or dropping properties", () => {
     const out = assignLineOffsets(fc);
-    expect(fc.features[0].properties).not.toHaveProperty("offsetIndex"); // input untouched
-    expect(out.features[0].properties?.offsetIndex).toBe(offsetIndexForLine("District"));
-    expect(out.features[1].properties?.offsetIndex).toBe(0);
+    expect(defined(fc.features[0]).properties).not.toHaveProperty("offsetIndex"); // input untouched
+    expect(defined(out.features[0]).properties?.offsetIndex).toBe(offsetIndexForLine("District"));
+    expect(defined(out.features[1]).properties?.offsetIndex).toBe(0);
     // Existing properties survive.
-    expect(out.features[0].properties?.line).toBe("District");
-    expect(out.features[0].properties?.color).toBe("#123456");
+    expect(defined(out.features[0]).properties?.line).toBe("District");
+    expect(defined(out.features[0]).properties?.color).toBe("#123456");
   });
 
   it("is idempotent — re-running yields the same indices", () => {

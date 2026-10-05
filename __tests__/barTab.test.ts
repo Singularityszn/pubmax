@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { ANON_HANDLE_LABEL } from "@/lib/pintDrops";
 import { buildBarTab, normalizePintDrop, type FeedItem, type PintDropDTO } from "@/lib/feed";
+import { defined } from "@/__tests__/helpers/defined";
 
 // A minimal public DTO (the shape listVisible returns), overridable per-test.
 function dto(overrides: Partial<PintDropDTO> = {}): PintDropDTO {
@@ -51,10 +52,10 @@ describe("buildBarTab", () => {
     expect(tab.tileCount).toBe(2);
     expect(tab.photoCount).toBe(1);
     const byId = Object.fromEntries(tab.tiles.map((t) => [t.id, t]));
-    expect(byId.photo.kind).toBe("photo");
-    expect(byId.photo.photoUrl).toBe("p.jpg");
-    expect(byId.text.kind).toBe("receipt");
-    expect(byId.text.photoUrl).toBeNull();
+    expect(defined(byId.photo).kind).toBe("photo");
+    expect(defined(byId.photo).photoUrl).toBe("p.jpg");
+    expect(defined(byId.text).kind).toBe("receipt");
+    expect(defined(byId.text).photoUrl).toBeNull();
   });
 
   it("orders tiles newest-first regardless of input order", () => {
@@ -112,7 +113,7 @@ describe("buildBarTab", () => {
     // the real handle is never reconstructed here.
     const anonDto = dto({ id: "anon", handle: ANON_HANDLE_LABEL, pintPhotoUrl: "p.jpg" });
     const tab = buildBarTab([normalizePintDrop(anonDto)]);
-    expect(tab.tiles[0].handle).toBe(ANON_HANDLE_LABEL);
-    expect(tab.tiles[0].handle).not.toContain("old_ken");
+    expect(defined(tab.tiles[0]).handle).toBe(ANON_HANDLE_LABEL);
+    expect(defined(tab.tiles[0]).handle).not.toContain("old_ken");
   });
 });

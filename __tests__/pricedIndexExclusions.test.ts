@@ -8,6 +8,7 @@ import {
   isValidExclusionEntry,
   pricedRowExclusionMatch,
 } from "../scripts/lib/pricedIndexExclusions.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT_DIR = join(__dirname, "..");
 
@@ -40,8 +41,8 @@ describe("priced index exclusions", () => {
     ];
     const found = findExcludedPricedRows(rows, [EXCLUSION]);
     expect(found).toHaveLength(1);
-    expect(found[0].index).toBe(1);
-    expect(found[0].exclusion).toEqual(EXCLUSION);
+    expect(defined(found[0]).index).toBe(1);
+    expect(defined(found[0]).exclusion).toEqual(EXCLUSION);
   });
 
   it("requires a non-empty name, address and reason", () => {

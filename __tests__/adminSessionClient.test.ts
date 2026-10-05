@@ -9,6 +9,7 @@ import {
   readAdminSessionState,
   submitAdminToken,
 } from "@/lib/adminSessionClient";
+import { defined } from "@/__tests__/helpers/defined";
 
 type Call = { input: string; init?: RequestInit };
 
@@ -48,15 +49,15 @@ describe("submitAdminToken", () => {
       status: "open",
     });
     expect(calls).toHaveLength(2);
-    expect(calls[0].input).toBe("/api/admin/session");
-    expect(calls[0].input).not.toContain("secret");
-    expect(calls[0].init?.method).toBe("POST");
-    expect(calls[0].init?.body).toBe(JSON.stringify({ token: "secret" }));
-    expect(calls[0].init?.credentials).toBe("include");
-    expect(calls[0].init?.headers).toEqual({ "content-type": "application/json" });
-    expect(JSON.stringify(calls[0].init?.headers)).not.toContain("secret");
-    expect(calls[1].init?.method).toBe("GET");
-    expect(calls[1].init?.credentials).toBe("include");
+    expect(defined(calls[0]).input).toBe("/api/admin/session");
+    expect(defined(calls[0]).input).not.toContain("secret");
+    expect(defined(calls[0]).init?.method).toBe("POST");
+    expect(defined(calls[0]).init?.body).toBe(JSON.stringify({ token: "secret" }));
+    expect(defined(calls[0]).init?.credentials).toBe("include");
+    expect(defined(calls[0]).init?.headers).toEqual({ "content-type": "application/json" });
+    expect(JSON.stringify(defined(calls[0]).init?.headers)).not.toContain("secret");
+    expect(defined(calls[1]).init?.method).toBe("GET");
+    expect(defined(calls[1]).init?.credentials).toBe("include");
   });
 
   // THE REGRESSION: the POST answers 200 while the browser drops a `Secure`

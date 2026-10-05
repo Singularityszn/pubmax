@@ -4,6 +4,7 @@ import {
   buildCuratedSoftDrinkTargets,
   selectCuratedSoftDrinkTargets,
 } from "@/scripts/lib/softDrinkTargets.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 const indexes = {
   idToKey: new Map([
@@ -74,7 +75,7 @@ describe("curated soft-drink targets", () => {
     }];
     expect(
       selectCuratedSoftDrinkTargets(targets, {
-        urlsFileText: `${targets[0].url}\n`,
+        urlsFileText: `${defined(targets[0]).url}\n`,
         limit: 1,
       }),
     ).toEqual(targets);

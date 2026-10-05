@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resolveFullAnswerKeyEntry } from "@/evals/pal/answerKeyResolver";
 import { loadPalEvalSuite } from "@/evals/pal/loadSuite";
 import { runPalEvalSuite } from "@/evals/pal/runSuite";
+import { defined } from "@/__tests__/helpers/defined";
 
 beforeEach(() => {
   delete process.env.OPENROUTER_API_KEY;
@@ -61,7 +62,7 @@ describe("Pal eval suite (deterministic)", () => {
     const handAuthored = ["answerIncludes", "anyTools", "priceTolerance"] as const;
 
     for (const caseDef of cases) {
-      const committed = answerKey[caseDef.id];
+      const committed = defined(answerKey[caseDef.id]);
       const resolved = await resolveFullAnswerKeyEntry(caseDef, {
         now,
         cityId: caseDef.cityId ?? "london",

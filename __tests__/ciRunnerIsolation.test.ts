@@ -24,6 +24,7 @@ import {
   checkAllowlist,
   packagesWithInstallScripts,
 } from "@/scripts/ci/install-script-allowlist.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = process.cwd();
 
@@ -72,7 +73,7 @@ function triggers(workflow: Workflow): string[] {
 }
 
 function expressions(value: unknown): string[] {
-  if (typeof value === "string") return [...value.matchAll(/\$\{\{([\s\S]*?)\}\}/g)].map((match) => match[1]);
+  if (typeof value === "string") return [...value.matchAll(/\$\{\{([\s\S]*?)\}\}/g)].map((match) => defined(match[1]));
   if (Array.isArray(value)) return value.flatMap(expressions);
   if (value && typeof value === "object") return Object.values(value).flatMap(expressions);
   return [];

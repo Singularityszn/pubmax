@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 import { cheapestTonight, type TonightDrop } from "@/lib/leaderboard";
+import { defined } from "@/__tests__/helpers/defined";
 
 // A fixed "now" so "the last 24h" is deterministic. All fixtures date their
 // createdAt relative to this instant via the ISO helper below.
@@ -64,7 +65,7 @@ describe("cheapestTonight", () => {
     const dupe = result.find((e) => e.venueId === "dupe");
     expect(dupe?.priceGbp).toBe(3);
     // cheapest overall (3) leads
-    expect(result[0].venueId).toBe("dupe");
+    expect(defined(result[0]).venueId).toBe("dupe");
   });
 
   it("respects the cap", () => {

@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import Link from "next/link";
 import { ArrowRight, ChevronDown } from "lucide-react";
 
@@ -105,7 +106,7 @@ function ChainRow({
   const row: WhatsOnRow = group.row;
   const when = laneTimeLabel(row);
   const alsoAt = dealDigestNote(group.venueCount);
-  const mapHref =
+  const mapHref: Route | null =
     row.venueId && (selectableVenueIds === undefined || selectableVenueIds?.has(row.venueId))
       ? `/map?sel=${encodeURIComponent(row.venueId)}`
       : null;

@@ -26,6 +26,7 @@ import {
   matchWetherspoonsDirectoryPub,
   matchedWetherspoonsVenueIds,
 } from "@/lib/wetherspoonsMatch.server";
+import { defined } from "@/__tests__/helpers/defined";
 
 const SOLD_LONDON_PUBS = [
   { name: "The Millers Well", postcode: "E6 2JX" },
@@ -64,7 +65,7 @@ describe("the Wetherspoon directory never names a pub the chain has sold", () =>
       const [row] = rows;
 
       expect(
-        matchWetherspoonsDirectoryPub({ name: row.name, lat: row.latitude, lng: row.longitude }, pubs),
+        matchWetherspoonsDirectoryPub({ name: defined(row).name, lat: defined(row).latitude, lng: defined(row).longitude }, pubs),
       ).toBeNull();
 
       const matchedIds = await matchedWetherspoonsVenueIds(
@@ -75,8 +76,8 @@ describe("the Wetherspoon directory never names a pub the chain has sold", () =>
           lng: venue.longitude,
         })),
       );
-      expect(matchedIds.has(row.id)).toBe(false);
-      expect(tonightCheapPintChain(row, matchedIds)).toBeNull();
+      expect(matchedIds.has(defined(row).id)).toBe(false);
+      expect(tonightCheapPintChain(defined(row), matchedIds)).toBeNull();
     });
   }
 });

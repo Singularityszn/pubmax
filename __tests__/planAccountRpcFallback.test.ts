@@ -37,6 +37,7 @@ import {
 } from "@/lib/planCrewIdentity";
 import { planCollaborationStore } from "@/lib/planCollaborationStore";
 import { supabasePlanStore } from "@/lib/planStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 const PLAN_ID = "11111111-1111-4111-8111-111111111111";
 const MEMBER_ID = "33333333-3333-4333-8333-333333333333";
@@ -95,7 +96,7 @@ describe("account claim RPC fallbacks", () => {
 
     expect(result).toEqual({ ok: false, error: "error" });
     expect(supabase.rpc).toHaveBeenCalledOnce();
-    expect(supabase.rpc.mock.calls[0][0]).toBe("join_plan_account_idempotent_atomic");
+    expect(defined(supabase.rpc.mock.calls[0])[0]).toBe("join_plan_account_idempotent_atomic");
     expect(supabase.rpc).not.toHaveBeenCalledWith("join_plan_idempotent_atomic", expect.anything());
   });
 
@@ -123,7 +124,7 @@ describe("account claim RPC fallbacks", () => {
 
     expect(result).toEqual({ ok: false, error: "error" });
     expect(supabase.rpc).toHaveBeenCalledOnce();
-    expect(supabase.rpc.mock.calls[0][0]).toBe("join_plan_account_idempotent_atomic");
+    expect(defined(supabase.rpc.mock.calls[0])[0]).toBe("join_plan_account_idempotent_atomic");
     expect(supabase.queryCalls).not.toContainEqual(["eq", "user_id", USER_ID]);
   });
 
@@ -143,7 +144,7 @@ describe("account claim RPC fallbacks", () => {
 
     expect(result).toEqual({ ok: false, error: "error" });
     expect(supabase.rpc).toHaveBeenCalledOnce();
-    expect(supabase.rpc.mock.calls[0][0]).toBe("redeem_plan_invite_account_idempotent_atomic");
+    expect(defined(supabase.rpc.mock.calls[0])[0]).toBe("redeem_plan_invite_account_idempotent_atomic");
     expect(supabase.rpc).not.toHaveBeenCalledWith("redeem_plan_invite_idempotent_atomic", expect.anything());
   });
 
@@ -160,7 +161,7 @@ describe("account claim RPC fallbacks", () => {
 
     expect(result).toEqual({ ok: false, error: "error" });
     expect(supabase.rpc).toHaveBeenCalledOnce();
-    expect(supabase.rpc.mock.calls[0][0]).toBe("redeem_plan_invite_account_idempotent_atomic");
+    expect(defined(supabase.rpc.mock.calls[0])[0]).toBe("redeem_plan_invite_account_idempotent_atomic");
     expect(supabase.rpc).not.toHaveBeenCalledWith("redeem_plan_invite_idempotent_atomic", expect.anything());
     expect(supabase.queryCalls).not.toContainEqual(["eq", "user_id", USER_ID]);
   });

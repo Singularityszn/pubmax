@@ -1,3 +1,5 @@
+import { lastOf } from "@/lib/tuple";
+
 // City enrichment checkpoint - the policy that makes the nightly enrichment
 // cron safe to fail and safe to retry.
 //
@@ -332,7 +334,7 @@ export function venueRetryDue(entry: DeferredVenue, now: number): boolean {
 /** The nominal step for this attempt: the CEILING of the jitter band. */
 export function backoffMsForAttempts(attempts: number): number {
   const step = Math.min(Math.max(attempts, 1), VENUE_RETRY_BACKOFF_MS.length) - 1;
-  return VENUE_RETRY_BACKOFF_MS[step];
+  return VENUE_RETRY_BACKOFF_MS[step] ?? lastOf(VENUE_RETRY_BACKOFF_MS);
 }
 
 /**

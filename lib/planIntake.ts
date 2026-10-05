@@ -10,6 +10,7 @@ import type {
   NightContext,
   NightAreaSlug,
 } from "@/lib/nightPlanning";
+import { lastOf } from "@/lib/tuple";
 import type { CityId } from "@/lib/cities";
 import type { PlanGenerationAnchor as PlanGenerationWireAnchor } from "@/lib/planGenerationRequest";
 import {
@@ -496,7 +497,7 @@ export function parsePlanIntakeDraftWithMetadata(
       expiresAt: envelope.expiresAt,
       draft: {
         version: PLAN_INTAKE_VERSION,
-        currentStep: firstUnsettled ?? PLAN_INTAKE_STEPS[PLAN_INTAKE_STEPS.length - 1],
+        currentStep: firstUnsettled ?? lastOf(PLAN_INTAKE_STEPS),
         settledSteps,
         skippedSteps,
         completed: terminal,

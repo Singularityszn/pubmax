@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Two pieces of chrome that read as debris on a phone (desktop taste gate,
 // finding M7). Both were invisible to a desktop browser, so both are held in
@@ -32,8 +33,8 @@ function rule(css: string, selector: string): string {
   const flat = css.replace(/\/\*[\s\S]*?\*\//g, "").replace(/@media[^{]*\{/g, "");
   const declarations: string[] = [];
   for (const [, list, body] of flat.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-    if (list.split(",").some((name) => name.trim() === selector)) {
-      declarations.push(body);
+    if (defined(list).split(",").some((name) => name.trim() === selector)) {
+      declarations.push(defined(body));
     }
   }
   return declarations.join("\n");

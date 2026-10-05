@@ -21,6 +21,7 @@ import {
   VENUE_ID_BY_CACHE_KEY,
   // @ts-expect-error -- untyped .mjs module (resolves fine at runtime under vitest)
 } from "../scripts/build_historic_index.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 // A tiny, self-contained fixture — deliberately NOT the committed dataset, so
 // these assertions can never drift with the real data.
@@ -253,9 +254,9 @@ describe("venue joins survive a renamed or merged dataset row", () => {
       primary_borough: "Southwark",
     },
   ];
-  const canonicalId: string = [
+  const canonicalId: string = defined([
     ...(buildVenueIdIndex(RENAMED_DATASET) as Map<string, { venueId: string }>).keys(),
-  ][0];
+  ][0]);
   const MERGED_ID = "venue-gone";
   const CACHE = {
     "the george inn": [

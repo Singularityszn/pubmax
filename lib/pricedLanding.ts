@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import { namedLegacyPintPriceSource } from "@/lib/drinks";
 import { NIGHT_AREAS, nightAreaHasRouteReadyProof, type NightArea } from "@/lib/nightAreas";
 import { PRODUCTION_SITE_ORIGIN } from "@/lib/siteUrlConfig.mjs";
@@ -129,7 +130,7 @@ export function pricedLandingMapHref(input: {
   brandSlug: string;
   venueId?: string | null;
   log?: boolean;
-}): string {
+}): Route {
   const params = new URLSearchParams();
   if (input.venueId) params.set("sel", input.venueId);
   params.set("brand", input.brandSlug);
@@ -137,7 +138,7 @@ export function pricedLandingMapHref(input: {
   return `/map?${params.toString()}`;
 }
 
-export type PricedLandingMapCta = { href: string; label: string };
+export type PricedLandingMapCta = { href: Route; label: string };
 
 /**
  * The brand-by-area arrival: ONE decision answers both the destination and the
@@ -190,7 +191,7 @@ export function pricedLandingLogCta(input: {
   };
 }
 
-export type PricedLandingBrandAreaLink = { href: string; label: string };
+export type PricedLandingBrandAreaLink = { href: Route; label: string };
 
 /** The brand page's inbound links to published `/area/{slug}/drink/{brand}` pairs. */
 export function pricedLandingBrandAreaLinks(
@@ -200,7 +201,7 @@ export function pricedLandingBrandAreaLinks(
   return pairs
     .filter((pair) => pair.brandSlug === brandSlug)
     .map((pair) => ({
-      href: `/area/${encodeURIComponent(pair.areaSlug)}/drink/${encodeURIComponent(brandSlug)}`,
+      href: `/area/${encodeURIComponent(pair.areaSlug)}/drink/${encodeURIComponent(brandSlug)}` as Route,
       label: pair.areaName,
     }));
 }

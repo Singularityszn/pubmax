@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import { encodeCrawl } from "@/lib/crawlUrl";
 import { initialFilters } from "@/lib/venues";
 
@@ -13,7 +14,7 @@ type CreatorListMapVenue = {
  */
 export function creatorListMapHref(
   venues: readonly CreatorListMapVenue[],
-): string | null {
+): Route | null {
   const unique: CreatorListMapVenue[] = [];
   const seen = new Set<string>();
 

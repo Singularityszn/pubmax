@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 
 import { renderDatabaseTypes } from "@/scripts/db/renderDatabaseTypes.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 function scalar(udt: string) {
   return { udt, category: "S" };
@@ -148,7 +149,7 @@ describe("generated database types", () => {
   it("renders the same text when catalog order changes", () => {
     const first = catalog();
     const second = catalog();
-    second.tables[0].columns.reverse();
+    defined(second.tables[0]).columns.reverse();
     second.functions.reverse();
     second.enums.reverse();
     expect(renderDatabaseTypes(second)).toBe(renderDatabaseTypes(first));

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-16T04:01:27.583Z",
+  "generatedAt": "2026-10-04T23:58:31.421Z",
   "source": "OpenStreetMap Overpass",
   "license": "ODbL",
   "attribution": "© OpenStreetMap contributors",
@@ -13,6 +13,7 @@
   "kinds": [
     "bar",
     "cafe",
+    "club",
     "coworking",
     "food",
     "hotel_lounge",
@@ -22,76 +23,85 @@
     "restaurant"
   ],
   "uk": {
-    "total": 91431,
+    "total": 93072,
     "byKind": {
-      "pub": 38207,
-      "bar": 7195,
-      "other": 2572,
-      "restaurant": 517,
-      "hotel_lounge": 296,
-      "cafe": 38266,
-      "food": 319,
-      "library": 3601,
-      "coworking": 458
+      "pub": 38117,
+      "bar": 7267,
+      "other": 2584,
+      "restaurant": 594,
+      "club": 1173,
+      "hotel_lounge": 303,
+      "cafe": 38630,
+      "food": 326,
+      "library": 3610,
+      "coworking": 468
     },
     "byTaxonomyKey": {
-      "pub": 38207,
-      "bar": 7168,
-      "off_licence": 2465,
-      "restaurant_bar": 517,
-      "hotel_bar": 296,
-      "biergarten": 27,
-      "cafe": 37897,
-      "coffee_shop": 369,
-      "late_fast_food": 319,
-      "library": 3601,
-      "coworking": 458,
+      "pub": 38117,
+      "bar": 7239,
+      "off_licence": 2476,
+      "restaurant_bar": 594,
+      "nightclub": 1075,
+      "hotel_bar": 303,
+      "music_venue": 60,
+      "social_club": 38,
+      "biergarten": 28,
+      "casino_bar": 1,
+      "cafe": 38259,
+      "coffee_shop": 371,
+      "late_fast_food": 326,
+      "library": 3610,
+      "coworking": 468,
       "community_centre_wifi": 107
     }
   },
   "london": {
-    "total": 13477,
+    "total": 13719,
     "byKind": {
-      "pub": 3650,
-      "bar": 1246,
-      "other": 513,
+      "pub": 3641,
+      "bar": 1252,
+      "other": 515,
+      "club": 177,
       "hotel_lounge": 43,
-      "restaurant": 159,
-      "cafe": 7203,
+      "restaurant": 171,
+      "cafe": 7251,
       "food": 46,
       "library": 463,
-      "coworking": 154
+      "coworking": 160
     },
     "byTaxonomyKey": {
-      "pub": 3650,
+      "pub": 3641,
       "biergarten": 10,
-      "bar": 1236,
-      "off_licence": 503,
+      "bar": 1242,
+      "off_licence": 505,
+      "nightclub": 160,
+      "social_club": 7,
       "hotel_bar": 43,
-      "restaurant_bar": 159,
-      "cafe": 7133,
-      "coffee_shop": 70,
+      "restaurant_bar": 171,
+      "music_venue": 10,
+      "cafe": 7182,
+      "coffee_shop": 69,
       "late_fast_food": 46,
       "library": 463,
       "community_centre_wifi": 10,
-      "coworking": 154
+      "coworking": 160
     }
   },
   "groups": [
     {
       "group": "drink",
-      "venues": 48680,
-      "bytes": 22091176
+      "venues": 49931,
+      "bytes": 22703229
     },
     {
       "group": "food",
-      "venues": 38585,
-      "bytes": 17731746
+      "venues": 38956,
+      "bytes": 17924969
     },
     {
       "group": "work",
-      "venues": 4166,
-      "bytes": 2052800
+      "venues": 4185,
+      "bytes": 2067342
     }
   ]
 }

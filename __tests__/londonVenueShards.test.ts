@@ -26,6 +26,7 @@ import {
   isPubVenueKind,
 } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
+import { defined } from "@/__tests__/helpers/defined";
 
 const CELL = "51.50_-0.25";
 
@@ -109,7 +110,7 @@ describe("London venue manifest", () => {
 
   it("expands each cell id to a URL under its own prefix", () => {
     const parsed = parseLondonVenueManifest(manifest);
-    expect(parsed?.shards[0].url).toBe("/data/london_venues/packs/0123456789abcdef/51.50_-0.25.json");
+    expect(defined(parsed?.shards[0]).url).toBe("/data/london_venues/packs/0123456789abcdef/51.50_-0.25.json");
   });
 
   it("refuses a prefix that is not this layer's", () => {
@@ -190,16 +191,16 @@ describe("the published manifest speaks one bbox order", () => {
       shards: { id: string; bbox: number[] }[];
     };
     const [minLng, minLat, maxLng, maxLat] = manifest.bbox;
-    expect(minLng).toBeLessThan(maxLng);
-    expect(minLat).toBeLessThan(maxLat);
+    expect(minLng).toBeLessThan(defined(maxLng));
+    expect(minLat).toBeLessThan(defined(maxLat));
     expect(manifest.shards.length).toBeGreaterThan(0);
 
     for (const shardEntry of manifest.shards) {
       const [cellMinLng, cellMinLat, cellMaxLng, cellMaxLat] = shardEntry.bbox;
-      expect(cellMaxLng).toBeGreaterThan(minLng);
-      expect(cellMinLng).toBeLessThan(maxLng);
-      expect(cellMaxLat).toBeGreaterThan(minLat);
-      expect(cellMinLat).toBeLessThan(maxLat);
+      expect(cellMaxLng).toBeGreaterThan(defined(minLng));
+      expect(cellMinLng).toBeLessThan(defined(maxLng));
+      expect(cellMaxLat).toBeGreaterThan(defined(minLat));
+      expect(cellMinLat).toBeLessThan(defined(maxLat));
     }
   });
 
@@ -222,10 +223,10 @@ describe("the published manifest speaks one bbox order", () => {
       );
       expect(rows.length).toBeGreaterThan(0);
       for (const venue of rows) {
-        expect(venue.lng).toBeGreaterThanOrEqual(cellMinLng);
-        expect(venue.lng).toBeLessThanOrEqual(cellMaxLng);
-        expect(venue.lat).toBeGreaterThanOrEqual(cellMinLat);
-        expect(venue.lat).toBeLessThanOrEqual(cellMaxLat);
+        expect(venue.lng).toBeGreaterThanOrEqual(defined(cellMinLng));
+        expect(venue.lng).toBeLessThanOrEqual(defined(cellMaxLng));
+        expect(venue.lat).toBeGreaterThanOrEqual(defined(cellMinLat));
+        expect(venue.lat).toBeLessThanOrEqual(defined(cellMaxLat));
       }
     }
   });
@@ -241,7 +242,7 @@ describe("the layer stays out of every pub system", () => {
 
   it("carries no price field of any kind", () => {
     const [venue] = parseLondonVenueShard(shard([CAFE]));
-    expect(Object.keys(venue).sort()).toEqual(["address", "id", "kind", "lat", "lng", "name"]);
+    expect(Object.keys(defined(venue)).sort()).toEqual(["address", "id", "kind", "lat", "lng", "name"]);
   });
 
   it("holds work-spot kinds no pub surface will claim", () => {
@@ -326,9 +327,10 @@ describe("the shipped London layer", () => {
       defaultVenueKindVisibility(),
     );
     const shownKinds = new Set(shown.map((venue) => venue.kind));
-    expect([...shownKinds].sort()).toEqual(["bar", "food", "pub", "restaurant"]);
-    // Every kind the OSM widening added stays out of the curated view, and
-    // nothing but a pub answers the pub predicate.
+    // A club shows and hides with the bars (`curatedVenueKind`). Every other
+    // kind the OSM widening added stays out of the curated view, and nothing
+    // but a pub answers the pub predicate.
+    expect([...shownKinds].sort()).toEqual(["bar", "club", "food", "pub", "restaurant"]);
     for (const venue of venues) {
       if (isPubVenueKind(venue.kind)) expect(venue.kind).toBe("pub");
     }

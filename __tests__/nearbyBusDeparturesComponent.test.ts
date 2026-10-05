@@ -12,6 +12,7 @@ import NearbyBusDepartures, {
   shouldOfferBusRetry,
 } from "@/components/map/NearbyBusDepartures";
 import type { NearbyBusDeparturesResult } from "@/lib/nearbyBusDepartures";
+import { defined } from "@/__tests__/helpers/defined";
 
 const unavailable: NearbyBusDeparturesResult = {
   status: "unavailable",
@@ -52,8 +53,8 @@ function arrivingAt(iso: string): NearbyBusDeparturesResult {
     ...result,
     stops: [
       {
-        ...result.stops[0],
-        departures: [{ ...result.stops[0].departures[0], expectedArrival: iso }],
+        ...defined(result.stops[0]),
+        departures: [{ ...defined(defined(result.stops[0]).departures[0]), expectedArrival: iso }],
       },
     ],
   };
@@ -228,8 +229,8 @@ describe("NearbyBusDepartures", () => {
       ...result,
       generatedAt: "2026-07-28T22:40:30.000Z",
       stops: [
-        result.stops[0],
-        { ...result.stops[0], id: "490000123C", name: "Ludgate Circus" },
+        defined(result.stops[0]),
+        { ...defined(result.stops[0]), id: "490000123C", name: "Ludgate Circus" },
       ],
     };
 

@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import type { ScrapedPubSourceId } from "@/lib/scrapedPubs";
 import { toZoneId, type ZoneId } from "@/lib/zones";
 
@@ -90,7 +91,7 @@ export function paginateIndexRows<T>(
 export function historicIndexHref(
   filters: HistoricFilterQuery,
   page: number,
-): string {
+): Route {
   const params = new URLSearchParams();
   if (filters.borough) params.set("borough", filters.borough);
   if (filters.listedOnly) params.set("listed", "1");
@@ -101,7 +102,7 @@ export function historicIndexHref(
   return query ? `/historic?${query}` : "/historic";
 }
 
-export function pubsIndexHref(filters: PubsFilterQuery, page: number): string {
+export function pubsIndexHref(filters: PubsFilterQuery, page: number): Route {
   const params = new URLSearchParams();
   if (filters.source !== "all") params.set("source", filters.source);
   if (filters.zone !== null) params.set("zone", String(filters.zone));

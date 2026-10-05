@@ -117,7 +117,7 @@ export function stopEventChips(
       if (priorityDiff !== 0) return priorityDiff;
       return Date.parse(a.startsAt ?? "") - Date.parse(b.startsAt ?? "");
     })[0];
-    chips.set(venueId, toChip(hero));
+    if (hero) chips.set(venueId, toChip(hero));
   }
   return chips;
 }

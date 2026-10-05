@@ -132,6 +132,15 @@ export const REGENERATED_LANES = [
     ],
   },
   {
+    id: "london_desks",
+    output: /^public\/data\/london_desks\/(?!README\.md$).+/,
+    inputs: [
+      /^scripts\/build_london_desk_index\.mjs$/,
+      /^scripts\/build_london_venue_shards\.mjs$/,
+      /^data\/osm\/uk\/uk_osm_venues_[a-z]+\.json$/,
+    ],
+  },
+  {
     id: "uk_pub_search",
     output: /^data\/generated\/uk_pub_search\.json$/,
     inputs: [

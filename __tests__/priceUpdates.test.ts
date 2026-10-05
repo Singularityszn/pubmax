@@ -7,6 +7,7 @@ import {
   type PriceUpdate,
 } from "@/lib/priceUpdates";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
+import { defined } from "@/__tests__/helpers/defined";
 
 const NOW = Date.parse("2026-07-06T12:00:00.000Z");
 
@@ -110,7 +111,7 @@ describe("parsePriceUpdates", () => {
       NOW,
     );
     expect(parsed).toHaveLength(1);
-    expect(parsed[0].venueKey).toBe("the test arms|1 test street|51.50000|-0.10000");
+    expect(defined(parsed[0]).venueKey).toBe("the test arms|1 test street|51.50000|-0.10000");
   });
 
   it("accepts a { updates: [...] } envelope", () => {
@@ -127,7 +128,7 @@ describe("parsePriceUpdates", () => {
       NOW,
     );
     expect(parsed).toHaveLength(1);
-    expect(parsed[0].price).toBe(5.9);
+    expect(defined(parsed[0]).price).toBe(5.9);
   });
 
   it("returns [] for non-array, non-envelope input", () => {
@@ -141,26 +142,26 @@ describe("mergePriceUpdates precedence", () => {
     `${v.name.toLowerCase()}|${v.address.toLowerCase()}|${v.latitude.toFixed(5)}|${v.longitude.toFixed(5)}`;
 
   function baseVenue(): Venue {
-    return groupVenuePrices([makeRow()])[0];
+    return defined(groupVenuePrices([makeRow()])[0]);
   }
 
   it("a sourced update overrides the static baseline and stamps attribution", () => {
     const venue = baseVenue();
     expect(venue.cheapestPrice).toBe(7);
     const [merged] = mergePriceUpdates([venue], [makeUpdate({ price: 5.5 })], keyFor);
-    expect(merged.cheapestPrice).toBe(5.5);
-    expect(merged.sourcedPrice).not.toBeNull();
-    expect(merged.sourcedPrice?.provenance).toBe(PRICE_UPDATE_PROVENANCE);
-    expect(merged.sourcedPrice?.provenance).toBe("sourced");
-    expect(merged.sourcedPrice?.sourceUrl).toBe("https://example-pub.co.uk/menu");
-    expect(merged.sourcedPrice?.observedAt).toBe("2026-07-01T00:00:00.000Z");
+    expect(defined(merged).cheapestPrice).toBe(5.5);
+    expect(defined(merged).sourcedPrice).not.toBeNull();
+    expect(defined(merged).sourcedPrice?.provenance).toBe(PRICE_UPDATE_PROVENANCE);
+    expect(defined(merged).sourcedPrice?.provenance).toBe("sourced");
+    expect(defined(merged).sourcedPrice?.sourceUrl).toBe("https://example-pub.co.uk/menu");
+    expect(defined(merged).sourcedPrice?.observedAt).toBe("2026-07-01T00:00:00.000Z");
   });
 
   it("no update → baseline stands, sourcedPrice null", () => {
     const venue = baseVenue();
     const [merged] = mergePriceUpdates([venue], [], keyFor);
-    expect(merged.cheapestPrice).toBe(7);
-    expect(merged.sourcedPrice).toBeNull();
+    expect(defined(merged).cheapestPrice).toBe(7);
+    expect(defined(merged).sourcedPrice).toBeNull();
   });
 
   it("a FRESHER community drop beats the sourced update (community stays live)", () => {
@@ -176,8 +177,8 @@ describe("mergePriceUpdates precedence", () => {
       keyFor,
     );
     // The community price is untouched; the update is ignored.
-    expect(merged.cheapestPrice).toBe(4.2);
-    expect(merged.sourcedPrice).toBeNull();
+    expect(defined(merged).cheapestPrice).toBe(4.2);
+    expect(defined(merged).sourcedPrice).toBeNull();
   });
 
   it("a STALE community drop does NOT block a fresher sourced update", () => {
@@ -192,7 +193,7 @@ describe("mergePriceUpdates precedence", () => {
       [makeUpdate({ price: 5.5, observedAt: "2026-07-01T00:00:00.000Z" })],
       keyFor,
     );
-    expect(merged.cheapestPrice).toBe(5.5);
-    expect(merged.sourcedPrice?.provenance).toBe("sourced");
+    expect(defined(merged).cheapestPrice).toBe(5.5);
+    expect(defined(merged).sourcedPrice?.provenance).toBe("sourced");
   });
 });

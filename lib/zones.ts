@@ -63,9 +63,11 @@ export function median(values: readonly number[]): number | null {
   const nums = values
     .filter((v): v is number => typeof v === "number" && Number.isFinite(v))
     .sort((a, b) => a - b);
-  if (nums.length === 0) return null;
   const mid = Math.floor(nums.length / 2);
-  return nums.length % 2 === 0 ? (nums[mid - 1] + nums[mid]) / 2 : nums[mid];
+  const upper = nums[mid];
+  if (upper === undefined) return null;
+  const lower = nums[mid - 1];
+  return nums.length % 2 === 0 && lower !== undefined ? (lower + upper) / 2 : upper;
 }
 
 /** Minimal venue shape the zone index needs. */
@@ -132,7 +134,7 @@ export function computeZonePintIndex(venues: readonly ZonePricedVenue[]): ZonePi
     .sort((a, b) => a.medianGbp - b.medianGbp);
 
   const cheapest = ranked[0] ?? null;
-  const dearest = ranked.length ? ranked[ranked.length - 1] : null;
+  const dearest = ranked.at(-1) ?? null;
   const taxGbp =
     cheapest && dearest && cheapest !== dearest
       ? Number((dearest.medianGbp! - cheapest.medianGbp!).toFixed(2))
@@ -170,7 +172,7 @@ export function zoneOrderSurpriseLine(index: ZonePintIndex): string | null {
   for (let i = 1; i < publishable.length; i += 1) {
     const inner = publishable[i - 1];
     const outer = publishable[i];
-    if (outer.medianGbp <= inner.medianGbp) continue;
+    if (!inner || !outer || outer.medianGbp <= inner.medianGbp) continue;
     // The pair must BE the thin end, or the sample is not the explanation.
     const thinnest = publishable
       .map((row) => row.pricedCount)

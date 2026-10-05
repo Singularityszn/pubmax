@@ -323,9 +323,9 @@ export function venuePinEdgeTokens(
 }
 
 export function withAlpha(hex: string, alpha: number): string {
-  const match = /^#([0-9a-f]{6})$/i.exec(hex.trim());
-  if (!match) return hex;
-  const n = parseInt(match[1], 16);
+  const digits = /^#([0-9a-f]{6})$/i.exec(hex.trim())?.[1];
+  if (!digits) return hex;
+  const n = parseInt(digits, 16);
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 }
 

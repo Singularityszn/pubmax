@@ -193,7 +193,7 @@ function claimsAreSupported(
       AFTER_BE.test(clause.slice(0, participle.index)));
     const governing = [...verbs, ...participles].sort((a, b) => a.index - b.index);
     const factsBetween = (start: number, end: number) =>
-      [...clause.slice(start, end).matchAll(/fact_(\w+)/g)].map((match) => match[1]);
+      [...clause.slice(start, end).matchAll(/fact_(\w+)/g)].map((match) => match[1] ?? "");
     const activeFit = verbs.every((verb) => {
       const end = governing.find((next) => next.index > verb.index)?.index ?? clause.length;
       const fits: readonly string[] = VERB_FITS.find(([pattern]) => pattern.test(verb[0]))?.[1] ?? [];
@@ -224,10 +224,11 @@ function factsStandPlain(text: string): boolean {
     const after = tokens.slice(index + 1).find((next) => !BETWEEN_BE.has(next)) ?? "";
     if (BE.has(after)) return true;
     let at = index - 1;
-    while (at >= 0 && (BE.has(tokens[at]) || BETWEEN_BE.has(tokens[at]))) at--;
+    const tokenAt = (i: number) => tokens[i] ?? "";
+    while (at >= 0 && (BE.has(tokenAt(at)) || BETWEEN_BE.has(tokenAt(at)))) at--;
     let featureSubject = false;
-    for (; at >= 0 && (tokens[at].startsWith("fact_") || SUBJECT_LINK.has(tokens[at])); at--) {
-      featureSubject ||= tokens[at].startsWith("fact_");
+    for (; at >= 0 && (tokenAt(at).startsWith("fact_") || SUBJECT_LINK.has(tokenAt(at))); at--) {
+      featureSubject ||= tokenAt(at).startsWith("fact_");
     }
     return !featureSubject || AFTER_FACT_IS.has(after);
   });

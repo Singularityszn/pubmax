@@ -367,7 +367,9 @@ function selectLondonDepartureCandidate(
   candidates: number[],
   serviceHour?: number,
 ): number {
-  if (candidates.length === 0) {
+  const first = candidates[0];
+  const last = candidates.at(-1);
+  if (first === undefined || last === undefined) {
     // Spring-forward gaps have no real instant. Keep the existing offset-based
     // fallback for malformed or exceptional timetable data.
     const departureOffset = londonOffsetMinutes(new Date(wallAsUtc));
@@ -376,7 +378,7 @@ function selectLondonDepartureCandidate(
   // TfL's 25:xx service hour is the first 01:xx occurrence on a fall-back
   // night. Without the original hour, retain the prior later-occurrence choice
   // for callers that only have a display clock and past-midnight flag.
-  return serviceHour === 25 ? candidates[0] : candidates[candidates.length - 1];
+  return serviceHour === 25 ? first : last;
 }
 
 export type LastPintDecisionInput = {

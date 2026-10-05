@@ -15,6 +15,7 @@ import {
   stepPrice,
   VISIBILITIES,
 } from "@/lib/spill";
+import { defined } from "@/__tests__/helpers/defined";
 
 describe("spill: price stepper", () => {
   it("steps up from a quick-add price by PRICE_STEP_GBP", () => {
@@ -97,7 +98,7 @@ describe("spill: with-suffix builder", () => {
   it("caps per-entry length", () => {
     const long = "@" + "a".repeat(100);
     const [entry] = parseWithEntries(long);
-    expect(entry.length).toBeLessThanOrEqual(30);
+    expect(defined(entry).length).toBeLessThanOrEqual(30);
   });
 
   it("appends the suffix to a non-empty note with a separating space", () => {

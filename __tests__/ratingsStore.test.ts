@@ -7,6 +7,7 @@ import {
   ratingsStore,
 } from "@/lib/ratingsStore";
 import type { RatingValue } from "@/lib/ratings";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Memory-store contract coverage: upsert semantics and batch summaries.
 // Supabase env cleared per convention so ratingsStore() deterministically
@@ -65,7 +66,7 @@ describe("memory store — rate() upsert semantics", () => {
   it("drink and venue votes live in separate namespaces", async () => {
     await cast("shared-ref", "ken", 5, "drink");
     const venueSide = await memoryRatingsStore.summaryFor("venue", ["shared-ref"]);
-    expect(venueSide["shared-ref"].count).toBe(0);
+    expect(defined(venueSide["shared-ref"]).count).toBe(0);
   });
 });
 
@@ -73,17 +74,17 @@ describe("memory store — summaryFor() batch", () => {
   it("returns a summary per requested ref; unknown refs are honestly blank", async () => {
     await cast("venue-1", "a", 4);
     const out = await memoryRatingsStore.summaryFor("venue", ["venue-1", "ghost"]);
-    expect(out["venue-1"].count).toBe(1);
+    expect(defined(out["venue-1"]).count).toBe(1);
     expect(out.ghost).toEqual({ average: null, bayesian: null, count: 0, shown: false });
   });
 
   it("hides the score under the 10-vote floor and shows it at the floor", async () => {
     for (let i = 0; i < 9; i++) await cast("venue-1", `h${i}`, 4);
     let out = await memoryRatingsStore.summaryFor("venue", ["venue-1"]);
-    expect(out["venue-1"].shown).toBe(false);
+    expect(defined(out["venue-1"]).shown).toBe(false);
     await cast("venue-1", "h9", 4);
     out = await memoryRatingsStore.summaryFor("venue", ["venue-1"]);
-    expect(out["venue-1"].shown).toBe(true);
+    expect(defined(out["venue-1"]).shown).toBe(true);
   });
 
   it("empty refs → empty map", async () => {

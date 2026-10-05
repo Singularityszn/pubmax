@@ -160,10 +160,9 @@ export function pickGuardianTip(
   windowEnd: Date,
   tips: readonly string[] = GUARDIAN_TIPS,
 ): string {
-  if (tips.length === 0) return "";
   const dayIndex = Math.floor(windowEnd.getTime() / DAY_MS);
   const weekIndex = Math.floor(dayIndex / 7);
-  return tips[((weekIndex % tips.length) + tips.length) % tips.length];
+  return tips[((weekIndex % tips.length) + tips.length) % tips.length] ?? "";
 }
 
 // ── Generator ─────────────────────────────────────────────────────────────────

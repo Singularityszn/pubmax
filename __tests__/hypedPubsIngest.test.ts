@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildHypedPubsFile, normaliseVenueName } from "../scripts/hyped-pubs-ingest.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 /**
  * The fence between a research file and the app.
@@ -36,7 +37,7 @@ describe("hyped pubs ingest", () => {
   it("matches a pub by name to exactly one curated venue", () => {
     const { file, report } = buildHypedPubsFile({ rows: [row()] }, VENUES, NOW);
     expect(file.rows).toHaveLength(1);
-    expect(file.rows[0].venueId).toBe("venue-dover");
+    expect(defined(file.rows[0]).venueId).toBe("venue-dover");
     expect(report.matched).toBe(1);
   });
 
@@ -46,7 +47,7 @@ describe("hyped pubs ingest", () => {
       VENUES,
       NOW,
     );
-    expect(file.rows[0].venueId).toBe("venue-crown-hackney");
+    expect(defined(file.rows[0]).venueId).toBe("venue-crown-hackney");
   });
 
   it("leaves an ambiguous name unmatched rather than guessing", () => {
@@ -55,7 +56,7 @@ describe("hyped pubs ingest", () => {
       VENUES,
       NOW,
     );
-    expect(file.rows[0].venueId).toBeNull();
+    expect(defined(file.rows[0]).venueId).toBeNull();
     expect(report.matched).toBe(0);
     expect(report.published).toBe(1);
   });
@@ -71,7 +72,7 @@ describe("hyped pubs ingest", () => {
       NOW,
     );
     expect(file.rows).toHaveLength(1);
-    expect(file.rows[0].venueId).toBeNull();
+    expect(defined(file.rows[0]).venueId).toBeNull();
     expect(report.unmatchedIds).toBe(1);
     expect(report.matched).toBe(0);
   });

@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import { enabledCityContainingPoint } from "@/lib/cities";
 import {
   displayUkPlaceName,
@@ -179,7 +180,7 @@ export function parseUkPlaceMapArrival(
   return { name, lat, lng };
 }
 
-export function ukPlaceMapUrl(place: UkPlaceMapArrival): string {
+export function ukPlaceMapUrl(place: UkPlaceMapArrival): Route {
   const params = new URLSearchParams({
     place: place.name,
     lat: String(place.lat),

@@ -17,6 +17,7 @@ import {
   parseSpeedQuizzingFindEvents,
   placeNameFromQuestionOneTitle,
 } from "../scripts/whatson/quizParsers.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 const fixture = (name: string) =>
   readFileSync(path.join(__dirname, "fixtures", "whats_on", name), "utf8");
@@ -37,7 +38,7 @@ describe("parseQuestionOneVenuesPage", () => {
       time: "19:30",
     });
     // HTML entities in titles are decoded (&#8211; -> –).
-    expect(cards[1].title).toBe("PUB QUIZ – The Britannia, Poole – Every Other Sunday");
+    expect(defined(cards[1]).title).toBe("PUB QUIZ – The Britannia, Poole – Every Other Sunday");
   });
 
   it("follows the archive's rel=next pagination link", () => {
@@ -162,7 +163,7 @@ describe("buildQuestionOneRows", () => {
     const detailsByUrl = new Map([
       // Real detail fixture belongs to King's Arms; reused here to give the
       // Chelsea card a fee + London postcode without a second fixture file.
-      [cards[0].url, parseQuestionOneVenueDetail(DETAIL)],
+      [defined(cards[0]).url, parseQuestionOneVenueDetail(DETAIL)],
     ]);
     const { rows, dropped } = buildQuestionOneRows({ cards, detailsByUrl, observedAt });
 
@@ -181,7 +182,7 @@ describe("buildQuestionOneRows", () => {
       title: "Pub quiz — Sundays 7:30pm",
       detail: "Weekly pub quiz — every Sunday 19:30 · entry £2 · SE1 8TB · run by Question One",
       priceGbp: 2,
-      source: { label: "Question One", url: cards[0].url },
+      source: { label: "Question One", url: defined(cards[0]).url },
       observedAt,
       confidence: "listed",
     });

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { PlanAnchorMetadata, PlanStopDTO } from "@/lib/plan";
 import { planRouteReady } from "@/lib/plan";
 import { __resetMemoryPlans, memoryPlanStore } from "@/lib/planStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ANCHOR_ONLY: PlanAnchorMetadata = { venueId: "venue-a", source: "near", outcome: "anchor-only" };
 
@@ -89,7 +90,7 @@ describe("grounded one-Stop Plan lifecycle", () => {
     expect(upgraded.plan.plan.startTime).toBe(startTime);
     expect(upgraded.plan.crew).toHaveLength(crewCount);
     expect(upgraded.plan.stops).toHaveLength(3);
-    expect(upgraded.plan.stops[0].venueId).toBe("venue-a");
+    expect(defined(upgraded.plan.stops[0]).venueId).toBe("venue-a");
     expect(upgraded.plan.plan.outcome).toBe("route");
     expect(upgraded.plan.plan.routeReadyAt).toEqual(expect.any(String));
     expect(planRouteReady(upgraded.plan.plan, upgraded.plan.stops.length)).toBe(true);

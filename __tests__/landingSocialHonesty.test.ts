@@ -22,6 +22,7 @@ vi.mock("@/lib/cityPreference", () => ({
 }));
 
 import LandingPage from "@/components/landing/LandingPage";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The landing document is CDN-held, so its Social label is the first one a
 // stranger reads. Social is not a front door, so the top bar carries none; the
@@ -33,7 +34,7 @@ function renderLanding(socialFriendsLaunchEnabled: boolean): string {
 }
 
 function socialLinks(html: string): string[] {
-  return [...html.matchAll(/<a[^>]*href="\/social"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => m[1]);
+  return [...html.matchAll(/<a[^>]*href="\/social"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => defined(m[1]));
 }
 
 function landingNav(html: string): string {

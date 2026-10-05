@@ -39,7 +39,7 @@ function runbookTableRows(): TableRow[] {
     const cells = line.split("|").map((cell) => cell.trim());
     const route = /^`GET (\/api\/cron\/[^`]+)`$/.exec(cells[1] ?? "")?.[1];
     if (!route) continue;
-    const schedules = [...(cells[2] ?? "").matchAll(/`([^`]+)`/g)].map((match) => match[1]);
+    const schedules = [...(cells[2] ?? "").matchAll(/`([^`]+)`/g)].map((match) => match[1] ?? "");
     const maxDuration = /^(\d+)s$/.exec(cells[5] ?? "")?.[1];
     expect(maxDuration, `${route} row ends in a maxDuration such as 30s`).toBeDefined();
     rows.push({ route, schedules, maxDurationSeconds: Number(maxDuration) });

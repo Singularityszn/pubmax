@@ -256,7 +256,8 @@ export function rankConciergeVenues(
 
 export function narrateCrawl(results: readonly RankedConciergeVenue[]): string | undefined {
   if (results.length === 0) return undefined;
-  if (results.length === 1) return `Start at ${results[0].venue.name}.`;
+  const [only] = results;
+  if (results.length === 1 && only) return `Start at ${only.venue.name}.`;
   const names = results.map((result) => result.venue.name);
   if (names.length === 2) return `Start at ${names[0]}, then finish at ${names[1]}.`;
   return `Start at ${names[0]}, then head to ${names.slice(1, -1).join(", ")}, and finish at ${names.at(-1)}.`;

@@ -11,6 +11,7 @@ import {
   resolveAnalyticsEnvironment,
 } from "@/lib/analyticsAttribution.mjs";
 import { ANALYTICS_EVENTS } from "@/lib/analyticsEvents";
+import { defined } from "@/__tests__/helpers/defined";
 
 const PRODUCTION_SHA = "5bf044f55a1b2c3d4e5f60718293a4b5c6d7e8f9";
 const PREVIEW_SHA = "1d716d930a1b2c3d4e5f60718293a4b5c6d7e8f9";
@@ -202,7 +203,7 @@ describe("both senders stamp the same two dimensions", () => {
       analyticsConsent: true,
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const body = JSON.parse(String(fetchMock.mock.calls[0][1].body)) as {
+    const body = JSON.parse(String(defined(fetchMock.mock.calls[0])[1].body)) as {
       properties: Record<string, unknown>;
     };
     return body.properties;
@@ -264,7 +265,7 @@ describe("both senders stamp the same two dimensions", () => {
       anonymousId: "anon_018f47a2-8e71-7a7a-9f18-8b953d45b2da",
       analyticsConsent: true,
     });
-    const body = JSON.parse(String(fetchMock.mock.calls[0][1].body)) as {
+    const body = JSON.parse(String(defined(fetchMock.mock.calls[0])[1].body)) as {
       properties: Record<string, unknown>;
     };
     expect(body.properties.environment).toBe("production");

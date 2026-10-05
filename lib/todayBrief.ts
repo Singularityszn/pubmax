@@ -17,6 +17,9 @@
 // No em dashes or en dashes anywhere (product-copy rule extends to the strings
 // this module builds).
 
+import type { Route } from "next";
+
+import type { AppOrExternalLink } from "@/lib/appLink";
 import {
   evaluateDrinkWeather,
   type DrinkWeatherRuleId,
@@ -159,19 +162,18 @@ export function rankTonightPicks(rows: readonly WhatsOnRow[], limit = 3): WhatsO
   return picks;
 }
 
+/** Map deep-link (own venue) or external source URL, or no link. */
+type TonightPickLink = AppOrExternalLink | { href: null; external: false };
+
 // Serializable subset of a pick for the client card (the row's link is resolved
 // here so the client never re-derives it).
-export type TonightPickDto = {
+export type TonightPickDto = TonightPickLink & {
   id: string;
   title: string;
   placeName: string;
   kind: WhatsOnKind;
   kindLabel: string;
   sourceLabel: string;
-  /** Map deep-link (own venue) or external source URL, or null. */
-  href: string | null;
-  /** True when href leaves the app (an external source page). */
-  external: boolean;
   priceGbp: number | null;
   /** Venue coordinate when the row carries one; lets the client order picks
    *  around the viewer's remembered patch (#427) without another fetch. */
@@ -196,23 +198,21 @@ const KIND_LABEL: Record<WhatsOnKind, string> = {
 export function toTonightPickDto(row: WhatsOnRow): TonightPickDto {
   const venueId = typeof row.venueId === "string" && row.venueId.length > 0 ? row.venueId : null;
   const sourceUrl = firstHttp(row.source?.url);
-  let href: string | null = null;
-  let external = false;
+  let link: TonightPickLink = { href: null, external: false };
   if (venueId) {
-    href = `/map?sel=${encodeURIComponent(venueId)}`;
+    const href: Route = `/map?sel=${encodeURIComponent(venueId)}`;
+    link = { href, external: false };
   } else if (sourceUrl) {
-    href = sourceUrl;
-    external = true;
+    link = { href: sourceUrl, external: true };
   }
   return {
+    ...link,
     id: row.id,
     title: row.title,
     placeName: row.placeName,
     kind: row.kind,
     kindLabel: KIND_LABEL[row.kind],
     sourceLabel: row.source.label,
-    href,
-    external,
     priceGbp: whatsOnBarePriceGbp(row),
     lat: typeof row.lat === "number" && Number.isFinite(row.lat) ? row.lat : null,
     lng: typeof row.lng === "number" && Number.isFinite(row.lng) ? row.lng : null,

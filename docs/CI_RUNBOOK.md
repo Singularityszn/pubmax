@@ -104,10 +104,14 @@ Each workflow has its own concurrency group. A newer pull request head supersede
 own: a calendar breach is that job's red mark and does not skip the build,
 the unit shards or coverage.
 
-The lint-and-types job runs `npx tsc --noEmit`. Next resolves the TypeScript 6
-compiler API at build time. The merge bar `npm run verify` runs
-[`npm run typecheck`](../package.json) (TypeScript 7 native); see
-[`next.config.mjs`](../next.config.mjs) for why both exist.
+The lint-and-types job and the merge bar `npm run verify` both run
+[`npm run typecheck`](../package.json). It runs `next typegen` first, so the
+`typedRoutes` link types exist, then the TypeScript 7 native `tsc`. The
+lint-and-types job then checks the same full tsconfig with the TypeScript 6
+bridge compiler, `node node_modules/typescript/bin/tsc --noEmit`. Next resolves
+that TypeScript 6 compiler API at build time; see
+[`next.config.mjs`](../next.config.mjs) for why both exist. `npx tsc` resolves
+to TypeScript 7, so call the TypeScript 6 compiler by its path.
 
 ### Prove the runner
 

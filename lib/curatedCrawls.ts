@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import {
   DEFAULT_CITY_ID,
   parseCityId,
@@ -340,7 +341,7 @@ export function placeStoryMapHref(
   crawlId?: string,
   cityId?: CityId | string | null,
   crawls: readonly CuratedCrawl[] = curatedCrawls,
-): string {
+): Route {
   const crawl = crawlId
     ? crawls.find((c) => c.id === crawlId) ??
       (cityId ? undefined : curatedCrawlById(crawlId))
@@ -364,7 +365,7 @@ export function placeStoryMapHref(
 export function curatedCrawlMapHref(
   crawl: CuratedCrawl,
   cityId?: CityId | string | null,
-): string {
+): Route {
   const params = new URLSearchParams();
   params.set("mode", "build");
   params.set("pubs", crawl.venueIds.join(","));
@@ -388,7 +389,7 @@ export function crawlShareMapHref(input: {
   cityId?: CityId | string | null;
   /** Optional city crawl pack for band lookup when crawlId is set. */
   crawls?: readonly CuratedCrawl[];
-}): string {
+}): Route {
   const ids = input.venueIds
     .map((id) => id.trim())
     .filter(Boolean)

@@ -5,6 +5,7 @@ import {
   validateWeatherSnapshot,
   type WeatherSnapshot,
 } from "@/lib/weatherSnapshots";
+import { defined } from "@/__tests__/helpers/defined";
 
 const snapshot: WeatherSnapshot = {
   version: 1,
@@ -43,7 +44,7 @@ describe("cached weather snapshots", () => {
     expect(validateWeatherSnapshot({ ...snapshot, observations: [...snapshot.observations, ...snapshot.observations] })).toBeNull();
     expect(validateWeatherSnapshot({
       ...snapshot,
-      observations: [{ ...snapshot.observations[0], source: { ...snapshot.observations[0].source, sourceUrl: "javascript:bad" } }],
+      observations: [{ ...snapshot.observations[0], source: { ...defined(snapshot.observations[0]).source, sourceUrl: "javascript:bad" } }],
     })).toBeNull();
   });
 

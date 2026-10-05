@@ -1,5 +1,6 @@
 import type * as maplibregl from "maplibre-gl";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
+import { lngLatOf } from "@/lib/geo";
 import type { Landmark } from "@/lib/landmarks";
 import type { PoiCategory } from "@/lib/pois";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
@@ -105,8 +106,8 @@ export function wireClickRouting(map: maplibregl.Map, deps: ClickDeps) {
       const source = map.getSource("pubs") as maplibregl.GeoJSONSource;
       if (clusterId == null || !source) return;
       source.getClusterExpansionZoom(clusterId).then((zoom) => {
-        const [lng, lat] = (clusterHit.geometry as GeoJSON.Point).coordinates;
-        cinematic({ center: [lng, lat], zoom, duration: 700 }, "cluster");
+        const center = lngLatOf((clusterHit.geometry as GeoJSON.Point).coordinates);
+        if (center) cinematic({ center, zoom, duration: 700 }, "cluster");
       });
       return;
     }

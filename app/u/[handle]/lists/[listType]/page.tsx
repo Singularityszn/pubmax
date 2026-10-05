@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import type { Metadata } from "next";
 
 import SiteNav from "@/components/nav/SiteNav";
@@ -39,7 +40,7 @@ type SavedListDisplayCounts = {
   savedPubs: number;
 };
 
-function listCardHref(ownerHandle: string, listType: string, counts: SavedListDisplayCounts): string {
+function listCardHref(ownerHandle: string, listType: string, counts: SavedListDisplayCounts): Route {
   const params = new URLSearchParams();
   params.set("owner", ownerHandle);
   params.set("list", listType);

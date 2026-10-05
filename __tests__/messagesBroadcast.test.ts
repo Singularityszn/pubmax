@@ -10,6 +10,7 @@ import {
   MESSAGES_BROADCAST_TIMEOUT_MS,
 } from "@/lib/messagesBroadcast.server";
 import { messagesInboxTopic, messagesThreadTopic } from "@/lib/messagesTopics";
+import { defined } from "@/__tests__/helpers/defined";
 
 const config = { url: "https://example.supabase.co/", key: "service-key" };
 
@@ -28,11 +29,11 @@ describe("message broadcast (server half of the realtime lane)", () => {
     await expect(broadcastMessageSent("c1", ["ken", "sam"], { fetchImpl, config })).resolves.toBe(true);
 
     expect(calls).toHaveLength(1);
-    expect(calls[0].url).toBe("https://example.supabase.co/realtime/v1/api/broadcast");
-    const headers = new Headers(calls[0].init.headers);
+    expect(defined(calls[0]).url).toBe("https://example.supabase.co/realtime/v1/api/broadcast");
+    const headers = new Headers(defined(calls[0]).init.headers);
     expect(headers.get("apikey")).toBe("service-key");
     expect(headers.get("authorization")).toBe("Bearer service-key");
-    const body = JSON.parse(String(calls[0].init.body)) as { messages: Array<Record<string, unknown>> };
+    const body = JSON.parse(String(defined(calls[0]).init.body)) as { messages: Array<Record<string, unknown>> };
     expect(body.messages.map((m) => m.topic)).toEqual([
       messagesThreadTopic("c1"),
       messagesInboxTopic("ken"),
@@ -48,7 +49,7 @@ describe("message broadcast (server half of the realtime lane)", () => {
   it("names the read signal on the thread topic alone", async () => {
     const { calls, fetchImpl } = capture();
     await broadcastMessagesRead("c1", { fetchImpl, config });
-    const body = JSON.parse(String(calls[0].init.body)) as { messages: Array<Record<string, unknown>> };
+    const body = JSON.parse(String(defined(calls[0]).init.body)) as { messages: Array<Record<string, unknown>> };
     expect(body.messages).toEqual([
       { topic: messagesThreadTopic("c1"), event: "read", payload: {}, private: true },
     ]);
@@ -72,7 +73,7 @@ describe("message broadcast (server half of the realtime lane)", () => {
 
     const { calls, fetchImpl } = capture();
     await broadcastMessagesRead("c1", { fetchImpl, config });
-    expect(calls[0].init.signal).toBeInstanceOf(AbortSignal);
+    expect(defined(calls[0]).init.signal).toBeInstanceOf(AbortSignal);
     expect(MESSAGES_BROADCAST_TIMEOUT_MS).toBeLessThanOrEqual(2_000);
   });
 });
@@ -90,7 +91,7 @@ describe("no messaging signal is ever public", () => {
     const { calls, fetchImpl } = capture();
     await broadcastMessageSent("c1", ["ken", "sam"], { fetchImpl, config });
 
-    const body = JSON.parse(String(calls[0].init.body)) as {
+    const body = JSON.parse(String(defined(calls[0]).init.body)) as {
       messages: Array<Record<string, unknown>>;
     };
     expect(body.messages).toHaveLength(3);
@@ -102,7 +103,7 @@ describe("no messaging signal is ever public", () => {
     const { calls, fetchImpl } = capture();
     await broadcastMessagesRead("c1", { fetchImpl, config });
 
-    const body = JSON.parse(String(calls[0].init.body)) as {
+    const body = JSON.parse(String(defined(calls[0]).init.body)) as {
       messages: Array<Record<string, unknown>>;
     };
     expect(body.messages.every((message) => message.private === true)).toBe(true);
@@ -112,7 +113,7 @@ describe("no messaging signal is ever public", () => {
     const { calls, fetchImpl } = capture();
     await broadcastMessageSent("c1", ["ken"], { fetchImpl, config });
 
-    const headers = new Headers(calls[0].init.headers);
+    const headers = new Headers(defined(calls[0]).init.headers);
     expect(headers.get("apikey")).toBe(config.key);
     expect(headers.get("authorization")).toBe(`Bearer ${config.key}`);
   });
@@ -121,7 +122,7 @@ describe("no messaging signal is ever public", () => {
     const { calls, fetchImpl } = capture();
     await broadcastMessageSent("c1", ["ken", "sam"], { fetchImpl, config });
 
-    const body = JSON.parse(String(calls[0].init.body)) as {
+    const body = JSON.parse(String(defined(calls[0]).init.body)) as {
       messages: Array<{ payload: unknown }>;
     };
     for (const message of body.messages) expect(message.payload).toEqual({});

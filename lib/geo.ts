@@ -19,3 +19,9 @@ export function coarsenViewerPoint(point: LatLngPoint): LatLngPoint {
     lng: Math.round(point.lng * VIEWER_COORDINATE_FACTOR) / VIEWER_COORDINATE_FACTOR,
   };
 }
+
+/** A GeoJSON position as [lng, lat], or null when it lacks either axis. */
+export function lngLatOf(position: readonly number[]): [number, number] | null {
+  const [lng, lat] = position;
+  return lng === undefined || lat === undefined ? null : [lng, lat];
+}

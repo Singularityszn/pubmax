@@ -19,6 +19,7 @@ import {
 import { getNightArea } from "@/lib/nightAreas";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import type { Venue } from "@/lib/venues";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Minimal Venue factory — only the fields the area models read matter. Mirrors
 // the house pattern in __tests__/mapVenueList.test.ts.
@@ -121,7 +122,7 @@ describe("cheapestDrinksInArea - ranking + fail-soft pricing", () => {
     ];
     const rows = cheapestDrinksInArea(soho, venues, fromMapCentre);
     expect(rows.map((r) => r.id)).toEqual(["cheap", "mid", "dear"]);
-    expect(rows[0].priceLabel).toBe("£4.50");
+    expect(defined(rows[0]).priceLabel).toBe("£4.50");
   });
 
   it("prefers a contributor's verified price over the baseline", () => {
@@ -130,8 +131,8 @@ describe("cheapestDrinksInArea - ranking + fail-soft pricing", () => {
       inArea("dropped", { cheapestPrice: 6.0, latestContributorPrice: 4.2 }),
     ];
     const rows = cheapestDrinksInArea(soho, venues, fromMapCentre);
-    expect(rows[0].id).toBe("dropped");
-    expect(rows[0].priceLabel).toBe("£4.20");
+    expect(defined(rows[0]).id).toBe("dropped");
+    expect(defined(rows[0]).priceLabel).toBe("£4.20");
   });
 
   it("keeps unpriced pubs after priced ones and fails their price soft", () => {
@@ -141,8 +142,8 @@ describe("cheapestDrinksInArea - ranking + fail-soft pricing", () => {
     ];
     const rows = cheapestDrinksInArea(soho, venues, fromMapCentre);
     expect(rows.map((r) => r.id)).toEqual(["priced", "unpriced"]);
-    expect(rows[1].priceLabel).toBe("no priced pints yet");
-    expect(rows[1].price).toBeNull();
+    expect(defined(rows[1]).priceLabel).toBe("no priced pints yet");
+    expect(defined(rows[1]).price).toBeNull();
   });
 
   it("ranks the selected drink and never borrows a pint price", () => {
@@ -184,7 +185,7 @@ describe("cheapestDrinksInArea - ranking + fail-soft pricing", () => {
       "whisky-dear",
       "pint-only",
     ]);
-    expect(rows[0].priceLabel).toBe("Whisky · £6.00");
+    expect(defined(rows[0]).priceLabel).toBe("Whisky · £6.00");
     expect(rows[2]).toMatchObject({
       price: null,
       priceLabel: "no whisky price logged",
@@ -226,11 +227,11 @@ describe("cheapestDrinksNearPoint - ad-hoc locality/borough ring", () => {
       ],
     );
     expect(rows.map((r) => r.id)).toEqual(["cheap", "dear"]);
-    expect(rows[0].priceLabel).toBe("£4.10");
+    expect(defined(rows[0]).priceLabel).toBe("£4.10");
     // Distance is measured from the centroid the camera flew to. That is a map
     // point, never the reader, so the row names it rather than saying "away".
-    expect(rows[0].distanceLabel).toMatch(/^\d+ m from map centre$/);
-    expect(rows[0].distanceLabel).not.toContain("away");
+    expect(defined(rows[0]).distanceLabel).toMatch(/^\d+ m from map centre$/);
+    expect(defined(rows[0]).distanceLabel).not.toContain("away");
   });
 
   it("excludes venues outside the ~1.2km ring and caps at ten", () => {
@@ -384,7 +385,7 @@ describe("buildAreaSheetModel — the whole sheet in one derivation", () => {
     );
     expect(model.areaName).toBe("Piccadilly & Soho");
     expect(model.pubs).toHaveLength(1);
-    expect(model.pubs[0].priceLabel).toBe("£5.10");
+    expect(defined(model.pubs[0]).priceLabel).toBe("£5.10");
   });
 });
 
@@ -411,8 +412,8 @@ describe("area rows under an incomplete drink read", () => {
       "Whisky",
       "degraded",
     );
-    expect(degraded[0].priceLabel).toBe("whisky price could not be read");
-    expect(degraded[0].priceLabel).not.toContain("logged");
+    expect(defined(degraded[0]).priceLabel).toBe("whisky price could not be read");
+    expect(defined(degraded[0]).priceLabel).not.toContain("logged");
 
     const partial = cheapestDrinksInArea(
       soho,
@@ -423,6 +424,6 @@ describe("area rows under an incomplete drink read", () => {
       "Whisky",
       "partial",
     );
-    expect(partial[0].priceLabel).toBe("no whisky price in what we read");
+    expect(defined(partial[0]).priceLabel).toBe("no whisky price in what we read");
   });
 });

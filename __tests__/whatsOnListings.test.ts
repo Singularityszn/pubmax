@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { preferDurableWhatsOn } from "@/lib/whatsOnListings";
 import type { WhatsOnRow } from "@/lib/whatsOn";
+import { defined } from "@/__tests__/helpers/defined";
 
 const NOW = Date.parse("2026-08-24T20:00:00.000Z");
 
@@ -27,7 +28,7 @@ describe("preferDurableWhatsOn", () => {
     const durable = [row({ observedAt: "2026-08-24T10:00:00.000Z", title: "Tonight jazz" })];
     const served = preferDurableWhatsOn(durable, bundled, NOW);
     expect(served).toHaveLength(1);
-    expect(served[0].title).toBe("Tonight jazz");
+    expect(defined(served[0]).title).toBe("Tonight jazz");
   });
 
   it("prefers durable rows regardless of confidence or observed time", () => {
@@ -45,7 +46,7 @@ describe("preferDurableWhatsOn", () => {
         title: "Durable listing",
       }),
     ];
-    expect(preferDurableWhatsOn(durable, bundled, NOW)[0].title).toBe("Durable listing");
+    expect(defined(preferDurableWhatsOn(durable, bundled, NOW)[0]).title).toBe("Durable listing");
   });
 
   it("merges durable and bundled rows when source labels differ only by whitespace", () => {
@@ -58,7 +59,7 @@ describe("preferDurableWhatsOn", () => {
     const durable = [row({ title: "Durable title" })];
     const served = preferDurableWhatsOn(durable, bundled, NOW);
     expect(served).toHaveLength(1);
-    expect(served[0].title).toBe("Durable title");
+    expect(defined(served[0]).title).toBe("Durable title");
   });
 
   it("fills only a missing durable venueId from its bundled source twin", () => {

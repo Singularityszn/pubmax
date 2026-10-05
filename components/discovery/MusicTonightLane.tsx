@@ -3,6 +3,7 @@
 // W4 Music vertical UI. Consumes /api/whats-on?kind=music with honest
 // thin-coverage copy when the spine is sparse (CityMCP + chain listings).
 
+import type { Route } from "next";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Music2 } from "lucide-react";
@@ -98,7 +99,7 @@ export default function MusicTonightLane({ rows: providedRows, asOf: providedAsO
       </p>
       <ul className="dealsTonightList">
         {rows.map((row) => {
-          const mapHref = row.venueId
+          const mapHref: Route = row.venueId
             ? `/map?sel=${encodeURIComponent(row.venueId)}`
             : preferredCityMapHref();
           return (

@@ -64,9 +64,7 @@ export function summariseGetHome(
   // to the latest-running line when the decision is absent.
   const decision = result.decision ?? null;
   const primaryLineName =
-    decision && decision.lineNames.length > 0
-      ? decision.lineNames[0]
-      : lastTrain.lineName;
+    decision?.lineNames[0] ?? lastTrain.lineName;
 
   const disruption = decision?.disruptionSummary ?? null;
   const statusLine = disruption

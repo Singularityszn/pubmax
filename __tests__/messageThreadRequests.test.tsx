@@ -101,6 +101,7 @@ vi.mock("@/lib/authedFetch", () => ({
 }));
 
 import MessageThread from "@/components/messages/MessageThread";
+import { defined } from "@/__tests__/helpers/defined";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -182,7 +183,7 @@ describe("message thread request budget", () => {
     await mount();
     const gets = fetchLog.calls.filter((c) => c.method === "GET");
     expect(gets).toHaveLength(1);
-    expect(gets[0].url).toBe("/api/messages/c1?handle=ken");
+    expect(defined(gets[0]).url).toBe("/api/messages/c1?handle=ken");
     expect(container.querySelectorAll(".messageRow")).toHaveLength(1);
   });
 
@@ -195,8 +196,8 @@ describe("message thread request budget", () => {
     // is already empty for the next one.
     const rows = container.querySelectorAll(".messageRow");
     expect(rows).toHaveLength(2);
-    expect(rows[1].hasAttribute("data-sending")).toBe(true);
-    expect(rows[1].textContent).toContain("Yo");
+    expect(defined(rows[1]).hasAttribute("data-sending")).toBe(true);
+    expect(defined(rows[1]).textContent).toContain("Yo");
     expect(container.querySelector<HTMLTextAreaElement>(".composerInput")!.value).toBe("");
 
     await act(async () => {
@@ -211,8 +212,8 @@ describe("message thread request budget", () => {
 
     const after = container.querySelectorAll(".messageRow");
     expect(after).toHaveLength(2);
-    expect(after[1].hasAttribute("data-sending")).toBe(false);
-    expect(after[1].textContent).toContain("Yo");
+    expect(defined(after[1]).hasAttribute("data-sending")).toBe(false);
+    expect(defined(after[1]).textContent).toContain("Yo");
     expect(fetchLog.calls.filter((c) => c.method === "POST")).toHaveLength(1);
     expect(fetchLog.calls.filter((c) => c.method === "GET")).toHaveLength(1);
   });
@@ -259,7 +260,7 @@ describe("the send is latched and carries an idempotency key", () => {
     await mount();
     await typeAndSend("Keyed");
 
-    const sent = JSON.parse(posts()[0].body) as { clientMessageId?: string };
+    const sent = JSON.parse(defined(posts()[0]).body) as { clientMessageId?: string };
     expect(sent.clientMessageId).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
     );

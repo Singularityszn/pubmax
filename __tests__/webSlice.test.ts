@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createRobotsGate, robotsOutcome, settleReadFailure, webSlice } from "../scripts/lib/webSlice.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 const oxford = { id: "oxford", displayName: "Oxford", bbox: [51.72, -1.3, 51.8, -1.2] as [number, number, number, number] };
 const slice = { city: oxford, district: "OX4", category: { id: "pub", label: "pubs" } };
@@ -162,7 +163,7 @@ describe("robots gate", () => {
       return vi.fn(async (url: string) => {
         const { origin, pathname } = new URL(url);
         if (!cache.has(origin)) { cache.set(origin, true); fetched.push(origin); }
-        return answer(pathname);
+        return defined(answer)(pathname);
       });
     };
     return { make, fetched, made: () => made };

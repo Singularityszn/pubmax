@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import {
   curatedCrawlById,
   curatedCrawlMapHref,
@@ -115,7 +116,7 @@ export function routePackPrimaryCrawl(pack: RoutePack): CuratedCrawl | undefined
 }
 
 /** Map-first deep-link for a pack's lead crawl (Old London → Victorian Soho). */
-export function routePackMapHref(pack: RoutePack): string {
+export function routePackMapHref(pack: RoutePack): Route {
   const primary = routePackPrimaryCrawl(pack);
   return primary ? curatedCrawlMapHref(primary) : "/map";
 }

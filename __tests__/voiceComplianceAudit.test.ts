@@ -7,6 +7,7 @@ import {
   nightAreaOptionLabel,
   nightAreaSelectorGroups,
 } from "@/components/plan/PlanComposer";
+import { defined } from "@/__tests__/helpers/defined";
 
 function read(path: string): string {
   return readFileSync(join(process.cwd(), path), "utf8");
@@ -16,7 +17,7 @@ function notInspectedFiles(evidence: string): Set<string> {
   const sections = evidence.split("Not inspected:").slice(1);
   return new Set(sections.flatMap((section) => {
     const inventory = section.split(/\n##/u, 1)[0] ?? "";
-    return [...inventory.matchAll(/^- `([^`]+)`$/gmu)].map((match) => match[1]);
+    return [...inventory.matchAll(/^- `([^`]+)`$/gmu)].map((match) => defined(match[1]));
   }));
 }
 

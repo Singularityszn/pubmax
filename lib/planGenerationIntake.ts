@@ -12,6 +12,7 @@ import {
   type PlanIntakeStep,
   type PlanTimeWindowId,
 } from "@/lib/planIntake";
+import { clockMinutes } from "@/lib/clock";
 import { NIGHT_PATCHES, type NightPatchId } from "@/lib/nightPatches";
 import type { Budget, NightAreaSlug } from "@/lib/nightPlanning";
 import { isPlanStopCount, normalizePlanStopCount } from "@/lib/planStopCount";
@@ -93,11 +94,9 @@ function presetContainsStart(windowId: PlanTimeWindowId, iso: string): boolean {
   const option = PLAN_TIME_WINDOWS.find((candidate) => candidate.id === windowId);
   const minute = londonClockMinutes(iso);
   if (!option || minute === null) return false;
-  const [startHour, startMinute] = option.start.split(":").map(Number);
-  const start = startHour * 60 + startMinute;
+  const start = clockMinutes(option.start);
   if (option.end === null) return minute >= start || minute < 4 * 60;
-  const [endHour, endMinute] = option.end.split(":").map(Number);
-  return minute >= start && minute < endHour * 60 + endMinute;
+  return minute >= start && minute < clockMinutes(option.end);
 }
 
 function windowEndIso(windowId: PlanTimeWindowId, exactStartIso: string): string | null {

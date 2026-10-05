@@ -8,6 +8,7 @@ import {
   savedPubsStore,
 } from "@/lib/savedPubsStore";
 import { getVenueIndex } from "@/lib/venueIndex";
+import { defined } from "@/__tests__/helpers/defined";
 
 beforeEach(() => {
   delete process.env.SUPABASE_URL;
@@ -27,12 +28,12 @@ describe("savedListFollowsStore — in-memory list follows", () => {
     const [first, second] = await venueIds(2);
     await savedPubsStore().toggleSaved({
       handle: "Sam",
-      venueId: first,
+      venueId: defined(first),
       listType: "Date Night",
     });
     await savedPubsStore().toggleSaved({
       handle: "sam",
-      venueId: second,
+      venueId: defined(second),
       listType: "Date Night",
     });
 
@@ -49,7 +50,7 @@ describe("savedListFollowsStore — in-memory list follows", () => {
       savedCount: 2,
       followerCount: 1,
     });
-    expect(Date.parse(followed[0].followedAt)).not.toBeNaN();
+    expect(Date.parse(defined(followed[0]).followedAt)).not.toBeNaN();
   });
 
   it("is idempotent and never inflates a list's follower count", async () => {

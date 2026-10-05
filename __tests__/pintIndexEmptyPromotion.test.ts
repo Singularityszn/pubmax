@@ -19,6 +19,7 @@ import { SEED_BOROUGH_MONTHLY_TARGET } from "@/lib/boroughCoverageStatus";
 import { validatePintIndexSnapshot, type PintIndexSnapshot } from "@/lib/pintIndex";
 import { pintIndexMeetsAdmissionFloor } from "@/lib/pintIndexArchive";
 import { LONDON_BOROUGH_CLASSIFIER_VERSION } from "@/lib/londonBoroughPoint.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 /** A snapshot whose named boroughs carry the priced-pub counts given. */
 function snapshotWith(boroughs: readonly [string, string, number][]): PintIndexSnapshot {
@@ -72,13 +73,13 @@ const EVERY_BOROUGH_THIN = snapshotWith([
 ]);
 
 function withDates(snapshot: PintIndexSnapshot, dates: string[]): PintIndexSnapshot {
-  const observations = snapshot.observations.map((row, index) => ({ ...row, observedAt: dates[index] }));
+  const observations = snapshot.observations.map((row, index) => ({ ...row, observedAt: defined(dates[index]) }));
   const instants = dates.map((date) => new Date(date).toISOString()).sort();
   return {
     ...snapshot,
     generatedAt: "2026-09-12T00:00:00.000Z",
     observations,
-    observationWindow: { start: instants[0], end: instants[instants.length - 1] },
+    observationWindow: { start: defined(instants[0]), end: defined(instants[instants.length - 1]) },
   };
 }
 

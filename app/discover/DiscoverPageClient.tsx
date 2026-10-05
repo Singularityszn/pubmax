@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
@@ -55,7 +56,7 @@ import "./discover.css";
 import "@/components/night/nightAreaCoverage.css";
 
 /** Discover Hungry chips → map with food filter + cuisine hint in the query. */
-function hungryCuisineHref(tag: string, cityId: CityId): string {
+function hungryCuisineHref(tag: string, cityId: CityId): Route {
   const params = new URLSearchParams({ food: "1", q: tag });
   return cityAwareMapPath(cityId, params);
 }
@@ -102,18 +103,18 @@ function exploreHref(
   category: DrinkCategory,
   cityId: CityId,
   brandId?: string,
-): string {
+): Route {
   const params = new URLSearchParams({ drink: category });
   if (category === "cocktail") params.set("cocktails", "1");
   if (brandId) params.set("brand", brandId);
   return cityAwareMapPath(cityId, params);
 }
 
-function hungryHref(cityId: CityId): string {
+function hungryHref(cityId: CityId): Route {
   return cityAwareMapPath(cityId, new URLSearchParams({ food: "1" }));
 }
 
-function lowNoHref(cityId: CityId): string {
+function lowNoHref(cityId: CityId): Route {
   return cityAwareMapPath(
     cityId,
     new URLSearchParams({ drink: "low-no", low: "1", alt: "mocktail" }),
@@ -121,7 +122,7 @@ function lowNoHref(cityId: CityId): string {
 }
 
 /** Map-first crawl href, or city map if the curated id is missing. */
-function crawlMapHref(crawlId: string, cityId: CityId): string {
+function crawlMapHref(crawlId: string, cityId: CityId): Route {
   const crawl = curatedCrawlById(crawlId);
   return crawl
     ? curatedCrawlMapHref(crawl, cityId)
@@ -129,7 +130,7 @@ function crawlMapHref(crawlId: string, cityId: CityId): string {
 }
 
 /** Map-first pack lead crawl, or city map if the pack is empty. */
-function packMapHref(packId: string, cityId: CityId): string {
+function packMapHref(packId: string, cityId: CityId): Route {
   const pack = getRoutePack(packId);
   if (!pack) return cityAwareMapPath(cityId);
   const primary = routePackPrimaryCrawl(pack);

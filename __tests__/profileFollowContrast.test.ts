@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 const globalsCss = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
 const themeCss = readFileSync(join(process.cwd(), "app/theme.css"), "utf8");
@@ -17,7 +18,7 @@ function block(css: string, selector: string): string {
 function token(source: string, name: string): string {
   const match = new RegExp(`${name}:\\s*(#[0-9a-f]{6})`, "i").exec(source);
   expect(match, `${name} must be a plain hex`).toBeTruthy();
-  return match![1].toLowerCase();
+  return defined(match![1]).toLowerCase();
 }
 
 function channels(hex: string): [number, number, number] {
@@ -30,7 +31,7 @@ function mixSrgb(first: string, second: string, firstPercent: number): string {
   const secondChannels = channels(second);
   const weight = firstPercent / 100;
   return `#${firstChannels.map((channel, index) =>
-    Math.round(channel * weight + secondChannels[index] * (1 - weight))
+    Math.round(channel * weight + defined(secondChannels[index]) * (1 - weight))
       .toString(16)
       .padStart(2, "0"),
   ).join("")}`;
@@ -41,13 +42,13 @@ function relativeLuminance(hex: string): number {
     const value = channel / 255;
     return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
   });
-  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+  return 0.2126 * defined(red) + 0.7152 * defined(green) + 0.0722 * defined(blue);
 }
 
 function contrast(first: string, second: string): number {
   const [lighter, darker] = [relativeLuminance(first), relativeLuminance(second)]
     .sort((a, b) => b - a);
-  return (lighter + 0.05) / (darker + 0.05);
+  return (defined(lighter) + 0.05) / (defined(darker) + 0.05);
 }
 
 describe("mutual-follow action", () => {

@@ -90,8 +90,9 @@ function expiredCallbackSubject(error: unknown, accessToken: string): string | n
   ) return null;
   try {
     const parts = accessToken.split(".");
-    if (parts.length !== 3) return null;
-    const claims = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+    const payload = parts[1];
+    if (parts.length !== 3 || payload === undefined) return null;
+    const claims = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
     return typeof claims?.sub === "string" && claims.sub &&
       typeof claims.exp === "number" && Number.isFinite(claims.exp) ? claims.sub : null;
   } catch {

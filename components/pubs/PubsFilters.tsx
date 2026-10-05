@@ -8,6 +8,7 @@ import {
   SCRAPED_SOURCE_LABELS,
   type ScrapedPubSourceId,
 } from "@/lib/scrapedPubs";
+import { samePathWithQuery } from "@/lib/appLink";
 import type { ZoneSelection } from "@/lib/zones";
 
 export type PubsFilterKey = "all" | ScrapedPubSourceId;
@@ -54,7 +55,7 @@ export default function PubsFilters({
   function navigate(nextFilter: PubsFilterKey, nextZone: ZoneSelection): void {
     const query = queryFor(nextFilter, nextZone);
     startTransition(() => {
-      router.push(query ? `${pathname}?${query}` : pathname);
+      router.push(samePathWithQuery(pathname, query));
     });
   }
 

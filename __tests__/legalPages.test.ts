@@ -12,6 +12,7 @@ import {
   WEATHER_RECOMMENDATION_CONDITIONS,
   weatherRecommendationConditionLabel,
 } from "@/lib/weatherRecommendations";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The /privacy + /terms fence. These pages are the only surfaces where the site
 // makes promises about data ON THE RECORD, so the regressions that matter are
@@ -359,7 +360,7 @@ describe("legal content pages", () => {
       for (const name of modules) {
         const source = readFileSync(join(directory, name), "utf8");
         for (const match of source.matchAll(/https:\/\/([A-Za-z0-9.-]+)/g)) {
-          hosts.add(match[1]);
+          hosts.add(defined(match[1]));
         }
       }
     }

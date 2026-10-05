@@ -49,6 +49,8 @@
 //    A POLL points at nothing, so it stores its own ballot; its counts are
 //    derived on every read and no voter is ever named (`lib/messagePoll.ts`).
 
+import type { Route } from "next";
+import { profilePath } from "@/lib/appLink";
 import { formatGbp } from "@/lib/formatGbp";
 import type { MessagePollView, MessagePollWrite } from "@/lib/messagePoll";
 import type { CropTarget } from "@/lib/profileImagePicker";
@@ -172,10 +174,10 @@ export type MessageVenueCard = {
   area: string;
   priceGbp: number | null;
   /** Always `/map?sel=<id>`, city-aware, through the one link helper. */
-  mapUrl: string;
+  mapUrl: Route;
 };
 
-export function messageVenueMapUrl(venueId: string): string {
+export function messageVenueMapUrl(venueId: string): Route {
   return venueMapUrl(venueId);
 }
 
@@ -217,11 +219,11 @@ export type MessageContactCard = {
   /** Approved owned avatar path, when there is one. The monogram covers absence. */
   avatarUrl: string | null;
   /** Always `/u/<handle>`, through the one helper below. */
-  profileUrl: string;
+  profileUrl: Route;
 };
 
-export function messageContactProfileUrl(handle: string): string {
-  return `/u/${encodeURIComponent(handle)}`;
+export function messageContactProfileUrl(handle: string): Route {
+  return profilePath(handle);
 }
 
 /**
@@ -262,11 +264,11 @@ export type MessageEventCard = {
   /** Whether the route has reached a usable state. Says nothing about where. */
   routeReady: boolean;
   /** Always `/plan/<id>`, through the one helper below. */
-  planUrl: string;
+  planUrl: Route;
 };
 
-export function messageEventPlanUrl(planId: string): string {
-  return `/plan/${encodeURIComponent(planId)}`;
+export function messageEventPlanUrl(planId: string): Route {
+  return `/plan/${encodeURIComponent(planId)}` as Route;
 }
 
 /**

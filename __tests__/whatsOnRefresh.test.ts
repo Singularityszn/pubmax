@@ -10,6 +10,7 @@ import type { OutLiveProvider } from "@/lib/out/loadOut";
 import { buildOutVenueMatchIndex } from "@/lib/out/venueMatch";
 import { loadWhatsOn } from "@/lib/whatsOnStore";
 import type { VenueRef } from "@/lib/venueIndex";
+import { defined } from "@/__tests__/helpers/defined";
 
 const NOW = Date.parse("2026-08-24T20:00:00.000Z");
 const GENERATED = "2026-08-24T20:00:00.000Z";
@@ -130,7 +131,7 @@ describe("refreshOfficialWhatsOnListings", () => {
 
     const snap = await store.readAll();
     expect(snap.rows).toHaveLength(1);
-    expect(snap.rows[0].venueId).toBe(LEXINGTON.id);
+    expect(defined(snap.rows[0]).venueId).toBe(LEXINGTON.id);
 
     const pubOnly = await loadWhatsOn(
       { pubOnly: true, venueMatchIndex },

@@ -36,7 +36,9 @@ function stopToLngLat(stop: PlanWalkingStop): LngLat {
 export function routePathDistanceKm(coordinates: readonly LngLat[]): number {
   let km = 0;
   for (let index = 0; index < coordinates.length - 1; index += 1) {
-    km += haversineKm(coordinates[index], coordinates[index + 1]);
+    const from = coordinates[index];
+    const to = coordinates[index + 1];
+    if (from && to) km += haversineKm(from, to);
   }
   return km;
 }

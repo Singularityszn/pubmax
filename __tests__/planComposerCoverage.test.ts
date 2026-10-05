@@ -49,6 +49,7 @@ import {
   PLANNING_INTENT_STORAGE_KEY,
   readPlanningIntent,
 } from "@/lib/planningIntent";
+import { defined } from "@/__tests__/helpers/defined";
 
 describe("PlanComposer PlanningIntent settlement", () => {
   const intent = { acceptedVenueId: "venue-accepted" };
@@ -428,7 +429,7 @@ describe("PlanComposer Night Area coverage states", () => {
       "piccadilly-soho",
       "canary-wharf",
     ]);
-    expect(nightAreaOptionLabel(ready!.areas[0], false)).toBe("Clapham");
+    expect(nightAreaOptionLabel(defined(ready!.areas[0]), false)).toBe("Clapham");
   });
 
   it("keeps unchecked areas available with an honest label", () => {

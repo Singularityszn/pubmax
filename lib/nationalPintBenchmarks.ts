@@ -118,7 +118,7 @@ export function isValidNationalPintBenchmark(
   // citation, so it is dropped instead.
   if (figures.length === 2) {
     const [then, latest] = figures as NationalPintFigure[];
-    if (latest.year < then.year) return false;
+    if (!then || !latest || latest.year < then.year) return false;
   }
   return true;
 }
@@ -198,8 +198,8 @@ export type NationalPintArc = {
 };
 
 export function nationalPintArc(row: NationalPintBenchmark): NationalPintArc | null {
-  if (row.figures.length !== 2) return null;
   const [then, latest] = row.figures;
+  if (row.figures.length !== 2 || !then || !latest) return null;
   return {
     then,
     latest,

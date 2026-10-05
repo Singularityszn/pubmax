@@ -43,6 +43,7 @@ import {
   countsEqual,
 } from "@/components/map/canvas/donutClusters";
 import type { DonutCounts } from "@/lib/donutClusterGeometry";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Pure helpers cover bucket coercion and SVG rebuilds. The fake map covers
 // listener lifecycle and source-snapshot authority, while the map E2E suite
@@ -146,7 +147,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     const { map, handlers } = makeFakeMap();
     createDonutClusterSync(map as unknown as maplibregl.Map, () => {});
     const [moveend] = [...(handlers.get("moveend") ?? [])];
-    expect(() => moveend()).not.toThrow();
+    expect(() => defined(moveend)()).not.toThrow();
     // Guarded out before any layer toggle.
     expect(map.setLayoutProperty).not.toHaveBeenCalled();
   });
@@ -155,7 +156,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     const { map, handlers } = makeFakeMap();
     createDonutClusterSync(map as unknown as maplibregl.Map, () => {});
     const [onStyleLoad] = [...(handlers.get("style.load") ?? [])];
-    expect(() => onStyleLoad()).not.toThrow();
+    expect(() => defined(onStyleLoad)()).not.toThrow();
   });
 
   it("stays active through the whole 13.x band and deactivates only at CLUSTER_MAX_ZOOM + 1", () => {
@@ -171,7 +172,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
       map.querySourceFeatures = querySourceFeatures;
       createDonutClusterSync(map as unknown as maplibregl.Map, () => {});
       const [moveend] = [...(handlers.get("moveend") ?? [])];
-      moveend();
+      defined(moveend)();
       return querySourceFeatures;
     };
 
@@ -227,7 +228,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     const [render] = [...(handlers.get("render") ?? [])];
     const [sourcedata] = [...(handlers.get("sourcedata") ?? [])];
 
-    moveend();
+    defined(moveend)();
     expect(markerHarness.instances).toHaveLength(1);
     expect(map.setLayoutProperty).toHaveBeenLastCalledWith(
       "cluster-count",
@@ -238,47 +239,47 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     // MapLibre 6 can transiently return no source features during render even
     // though the settled camera still has clusters. That snapshot cannot hand
     // ownership back to the GL fallback or remove every active DOM marker.
-    render();
-    expect(markerHarness.instances[0].remove).not.toHaveBeenCalled();
+    defined(render)();
+    expect(defined(markerHarness.instances[0]).remove).not.toHaveBeenCalled();
     expect(map.setLayoutProperty).toHaveBeenLastCalledWith(
       "cluster-count",
       "visibility",
       "none",
     );
 
-    sourcedata({
+    defined(sourcedata)({
       sourceId: "basemap",
       sourceDataType: "content",
       isSourceLoaded: true,
     });
-    sourcedata({
+    defined(sourcedata)({
       sourceId: "pubs",
       sourceDataType: "visibility",
       isSourceLoaded: true,
     });
-    sourcedata({
+    defined(sourcedata)({
       sourceId: "pubs",
       sourceDataType: "idle",
       isSourceLoaded: true,
     });
-    sourcedata({
+    defined(sourcedata)({
       sourceId: "pubs",
       sourceDataType: "content",
       isSourceLoaded: false,
     });
-    expect(markerHarness.instances[0].remove).not.toHaveBeenCalled();
+    expect(defined(markerHarness.instances[0]).remove).not.toHaveBeenCalled();
     expect(map.setLayoutProperty).toHaveBeenLastCalledWith(
       "cluster-count",
       "visibility",
       "none",
     );
 
-    sourcedata({
+    defined(sourcedata)({
       sourceId: "pubs",
       sourceDataType: "content",
       isSourceLoaded: true,
     });
-    expect(markerHarness.instances[0].remove).toHaveBeenCalledOnce();
+    expect(defined(markerHarness.instances[0]).remove).toHaveBeenCalledOnce();
     expect(map.setLayoutProperty).toHaveBeenLastCalledWith(
       "cluster-count",
       "visibility",
@@ -323,10 +324,10 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     const [render] = [...(handlers.get("render") ?? [])];
     const [sourcedata] = [...(handlers.get("sourcedata") ?? [])];
 
-    render();
+    defined(render)();
     expect(markerHarness.instances).toHaveLength(0);
 
-    sourcedata({
+    defined(sourcedata)({
       sourceId: "pubs",
       sourceDataType: "idle",
       isSourceLoaded: true,
@@ -371,7 +372,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     const [idle] = [...(handlers.get("idle") ?? [])];
 
     expect(idle).toBeTypeOf("function");
-    idle();
+    defined(idle)();
     expect(markerHarness.instances).toHaveLength(1);
 
     sync.destroy();

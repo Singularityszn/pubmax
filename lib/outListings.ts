@@ -155,7 +155,7 @@ function londonYmd(ms: number): string {
 }
 
 function addCalendarDays(ymd: string, days: number): string {
-  const [year, month, day] = ymd.split("-").map(Number);
+  const [year = Number.NaN, month = Number.NaN, day = Number.NaN] = ymd.split("-").map(Number);
   const next = new Date(Date.UTC(year, month - 1, day + days));
   return next.toISOString().slice(0, 10);
 }

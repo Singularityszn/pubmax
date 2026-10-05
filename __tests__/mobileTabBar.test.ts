@@ -1,6 +1,8 @@
+import type { Route } from "next";
 import { describe, expect, it } from "vitest";
 import { buildTabs, shouldShowMobileTabBar } from "@/components/nav/MobileTabBar";
 import { navPathMatches } from "@/components/nav/navigationModel";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Six-tab contract for the mobile bar, in the order of the loop: find (Tonight,
 // Map, Places, Out), plan (Plan), and You. Moment is a floating + action, never
@@ -51,24 +53,24 @@ describe("mobile tab bar contract", () => {
   it("routes every tab to its owned destination", () => {
     const tabs = buildTabs();
     const byLabel = Object.fromEntries(tabs.map((tab) => [tab.label, tab]));
-    expect(byLabel.Tonight.href).toBe("/tonight");
-    expect(byLabel.Tonight.match).toEqual(["/today", "/tonight"]);
-    expect(byLabel.Map.href).toBe("/map");
-    expect(byLabel.Places.href).toBe("/places");
-    expect(byLabel.Out.href).toBe("/out");
-    expect(byLabel.Plan.href).toBe("/plan");
-    expect(byLabel.You.href).toBe("/u/you");
+    expect(defined(byLabel.Tonight).href).toBe("/tonight");
+    expect(defined(byLabel.Tonight).match).toEqual(["/today", "/tonight"]);
+    expect(defined(byLabel.Map).href).toBe("/map");
+    expect(defined(byLabel.Places).href).toBe("/places");
+    expect(defined(byLabel.Out).href).toBe("/out");
+    expect(defined(byLabel.Plan).href).toBe("/plan");
+    expect(defined(byLabel.You).href).toBe("/u/you");
   });
 
   it("accepts the preferred-city Map destination, and Places keeps its own", () => {
-    const tabs = buildTabs("/u/you", "/map/glasgow");
+    const tabs = buildTabs("/u/you" as Route, "/map/glasgow" as Route);
     expect(tabs.find((tab) => tab.label === "Map")?.href).toBe("/map/glasgow");
     // Places is where the city is CHOSEN, so it never follows the chosen one.
     expect(tabs.find((tab) => tab.label === "Places")?.href).toBe("/places");
   });
 
   it("points You at the device handle when known (skips /u/you sentinel hop)", () => {
-    const tabs = buildTabs("/u/karan");
+    const tabs = buildTabs("/u/karan" as Route);
     const you = tabs.find((tab) => tab.label === "You");
     expect(you?.href).toBe("/u/karan");
     expect(you?.match).toEqual(["/u"]);

@@ -11,6 +11,7 @@ import {
   supabaseOperatorProposalStore,
 } from "@/lib/operatorProposalsStore";
 import type { OperatorProposalFields } from "@/lib/operatorProposals";
+import { defined } from "@/__tests__/helpers/defined";
 
 type Row = Record<string, unknown>;
 
@@ -122,7 +123,7 @@ describe("memoryOperatorProposalStore", () => {
     expect(await memoryOperatorProposalStore.listForReview("pending")).toHaveLength(0);
     const accepted = await memoryOperatorProposalStore.listAcceptedForVenue("venue-1");
     expect(accepted).toHaveLength(1);
-    expect(accepted[0].id).toBe(dto.id);
+    expect(defined(accepted[0]).id).toBe(dto.id);
   });
 
   it("decline leaves nothing accepted", async () => {

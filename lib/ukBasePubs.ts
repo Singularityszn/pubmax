@@ -33,6 +33,7 @@ import {
   type ShardManifest,
   parseShardManifest,
 } from "@/lib/slimShards";
+import { lngLatOf } from "@/lib/geo";
 import { UK_BASE_ID_PREFIX } from "@/lib/cityVenueIds";
 import { spoonsValuePinFor, type SpoonsValuePinLane } from "@/lib/spoonsValue";
 import { discardBody } from "@/lib/responseBody";
@@ -595,8 +596,9 @@ export function ukBasePubFromFeature(feature: {
   const { id, name, address, curatedVenueId, kind } = props;
   if (typeof id !== "string" || !isUkBaseId(id)) return null;
   if (typeof name !== "string" || name.length === 0) return null;
-  const [lng, lat] = geometry.coordinates;
-  if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null;
+  const lngLat = lngLatOf(geometry.coordinates);
+  if (!lngLat || !lngLat.every(Number.isFinite)) return null;
+  const [lng, lat] = lngLat;
   return {
     id,
     name,

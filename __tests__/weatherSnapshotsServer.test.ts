@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { loadWeatherSnapshot } from "@/lib/weatherSnapshots.server";
 import type { WeatherSnapshot } from "@/lib/weatherSnapshots";
 import type { WeatherSnapshotStore } from "@/lib/weatherSnapshotStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 function snap(generatedAt: string, feelsLikeC: number): WeatherSnapshot {
   return {
@@ -45,13 +46,13 @@ describe("loadWeatherSnapshot (store-first, committed fallback)", () => {
     const fresh = snap("2026-07-21T12:00:00.000Z", 25);
     const result = await loadWeatherSnapshot({ store: storeReturning(fresh), committed: COMMITTED });
     expect(result?.generatedAt).toBe("2026-07-21T12:00:00.000Z");
-    expect(result?.observations[0].feelsLikeC).toBe(25);
+    expect(defined(result?.observations[0]).feelsLikeC).toBe(25);
   });
 
   it("falls back to the committed file when the store is empty", async () => {
     const result = await loadWeatherSnapshot({ store: storeReturning(null), committed: COMMITTED });
     expect(result?.generatedAt).toBe("2026-07-19T00:00:00.000Z");
-    expect(result?.observations[0].feelsLikeC).toBe(11);
+    expect(defined(result?.observations[0]).feelsLikeC).toBe(11);
   });
 
   it("falls back to the committed file when the store returns something invalid", async () => {

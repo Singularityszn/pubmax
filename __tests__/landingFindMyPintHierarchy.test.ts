@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -35,6 +36,7 @@ import { LANDING_QUIET_DOORS } from "@/lib/landingHero";
 // link below the hero or a directory link in the footer.
 
 import type { LandingPubCardData } from "@/lib/landingPubCard";
+import { defined } from "@/__tests__/helpers/defined";
 
 const card: LandingPubCardData = {
   id: "venue-test",
@@ -42,7 +44,7 @@ const card: LandingPubCardData = {
   area: "City of London",
   priceGbp: 6.5,
   pintName: "a pint of Pravha",
-  drinkHref: "/drink/pravha",
+  drinkHref: "/drink/pravha" as Route,
   publisher: { label: "Pint Prices", url: "https://www.pint-prices.com/pub/x" },
   observedOn: "2026-07-03",
   standing: "listed",
@@ -142,7 +144,7 @@ describe("landing hierarchy: the price receipt door", () => {
 
     const openMapLinks = [
       ...rendered.matchAll(/<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g),
-    ].filter((match) => match[2].includes("Open the map"));
+    ].filter((match) => defined(match[2]).includes("Open the map"));
     expect(openMapLinks.length).toBeGreaterThan(0);
     expect(openMapLinks.every((match) => match[1] === "/map")).toBe(true);
     expect(rendered).toMatch(/href="\/places"[^>]*>Pick your city<\/a>/);

@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 
@@ -27,7 +28,7 @@ import { buildHistoricPubShareText } from "@/lib/shareArtifacts";
 
 // The map's build mode with this pub as the first stop: the same share-URL
 // shape the borough chapter and a landmark's "Start a crawl here" use.
-function planNightHref(venueId: string): string {
+function planNightHref(venueId: string): Route {
   const params = new URLSearchParams();
   params.set("mode", "build");
   params.set("pubs", venueId);
@@ -42,7 +43,7 @@ export default function HistoricPubDetail({ pub }: { pub: HistoricPub }) {
   const grade = listedBadge(pub.listed);
   const status = venueStatusBadge(pub.venueStatus);
   const boroughSlug = pub.borough ? slugifyBorough(pub.borough) : null;
-  const mapHref = pub.venueId ? `/map?sel=${pub.venueId}` : null;
+  const mapHref: Route | null = pub.venueId ? `/map?sel=${pub.venueId}` : null;
   const canonical = `/historic/${pub.slug}`;
   const shareText = buildHistoricPubShareText({ name: pub.name, hook: pub.hook });
 
