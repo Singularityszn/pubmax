@@ -5,7 +5,12 @@ import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 
 type WorkflowStep = { uses?: string; run?: string };
-type Workflow = { jobs: Record<string, { steps: WorkflowStep[] }> };
+type Workflow = {
+  jobs: Record<
+    string,
+    { steps: WorkflowStep[]; strategy?: { matrix?: { shard?: number[] } } }
+  >;
+};
 
 describe("browser CI policy", () => {
   const workflowPath = join(process.cwd(), ".github", "workflows", "e2e.yml");
@@ -25,8 +30,18 @@ describe("browser CI policy", () => {
 
     expect(workflow).toMatch(/schedule:/);
     expect(workflow).toMatch(/push:\n\s+branches: \[main\]/);
-    expect(workflow).toContain("shard: [1, 2]");
-    expect(workflow).toContain("--shard=${{ matrix.shard }}/2");
+    const fullSuiteJob = (parse(workflow) as Workflow).jobs["full-suite"];
+    const shards = fullSuiteJob.strategy?.matrix?.shard;
+    expect(shards).toEqual([1, 2, 3, 4]);
+    const shardFlags = fullSuiteJob.steps.flatMap((step) =>
+      [...(step.run ?? "").matchAll(/--shard=(.+?)\/(\d+)/g)].map((match) => ({
+        index: match[1],
+        total: Number(match[2]),
+      })),
+    );
+    expect(shardFlags).toEqual([
+      { index: "${{ matrix.shard }}", total: shards?.length },
+    ]);
     // P0-3: the three trusted-handoff rollout flags are retired, so there is no
     // second suite whose behaviour a deployment lacks.
     expect(workflow).not.toContain("flag-on");

@@ -2,6 +2,8 @@ import { expect, test, type Locator, type Page, type TestInfo } from "@playwrigh
 
 import { formatObservedDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 
+import { stubSocialAuthProviders } from "./helpers/authDoubles";
+
 const BRAND = "Guinness";
 const BRAND_SLUG = "guinness";
 // The collection day is DERIVED from data/freshness_registry.json through the
@@ -54,6 +56,7 @@ async function setLandingState(page: Page): Promise<void> {
       body: "{}",
     }),
   );
+  await stubSocialAuthProviders(page);
   await page.route("**/_vercel/insights/script.js", (route) =>
     route.fulfill({ status: 200, contentType: "application/javascript", body: "" }),
   );
