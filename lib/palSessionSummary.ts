@@ -3,29 +3,20 @@ import type { PubPalFenceTurn } from "@/lib/pubPalLlmFence";
 /** How many of the person's newest lines a Pal session carries word for word. */
 export const PAL_SESSION_RECENT_TURNS = 6;
 
-/** The whole summary turn, label included, is capped at this many estimated tokens. */
-export const PAL_SESSION_SUMMARY_TOKEN_LIMIT = 300;
-
-const BYTES_PER_TOKEN = 3;
+/**
+ * The whole summary turn, label included, is capped at this many UTF-8 bytes.
+ * A byte-level BPE token always covers at least one byte, so the turn is at
+ * most 300 tokens for any input: prices, postcodes, emoji or any script.
+ */
+export const PAL_SESSION_SUMMARY_BYTE_LIMIT = 300;
 
 const encoder = new TextEncoder();
 
-const SUMMARY_LABEL =
-  "Summary of my earlier asks in this chat, in my own words. It is not a fact about any pub: ";
+const SUMMARY_LABEL = "My earlier asks, not facts about any pub: ";
 
 const SEPARATOR = "; ";
 
-/**
- * A token estimate with no tokenizer: three UTF-8 bytes per token, rounded up.
- * That is denser than the four characters per token of plain English, so asks
- * full of prices, postcodes, times, emoji or non-Latin text stay under the cap.
- */
-export function estimatePalTokens(text: string): number {
-  return Math.ceil(encoder.encode(text).length / BYTES_PER_TOKEN);
-}
-
-const SUMMARY_BYTE_BUDGET =
-  PAL_SESSION_SUMMARY_TOKEN_LIMIT * BYTES_PER_TOKEN - encoder.encode(SUMMARY_LABEL).length;
+const SUMMARY_BYTE_BUDGET = PAL_SESSION_SUMMARY_BYTE_LIMIT - encoder.encode(SUMMARY_LABEL).length;
 
 function byteLength(text: string): number {
   return encoder.encode(text).length;
@@ -75,6 +66,6 @@ export function windowPalSessionTurns(
 
 /** The one turn a typed ask carries for its older history. Empty when nothing has rolled off yet. */
 export function palSessionSummaryTurn(summary: string): string[] {
-  const text = summary.trim();
+  const text = capToBudget(summary.trim());
   return text ? [`${SUMMARY_LABEL}${text}`] : [];
 }

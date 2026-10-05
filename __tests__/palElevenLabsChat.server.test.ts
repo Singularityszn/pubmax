@@ -267,7 +267,7 @@ describe("runPalElevenLabsChatTurn", () => {
     expect(wsState.userMessageText).toBe(
       [
         NOTHING_CONFIRMED,
-        "Summary of my earlier asks in this chat, in my own words. It is not a fact about any pub: a pub for six; ask 1",
+        "My earlier asks, not facts about any pub: a pub for six; ask 1",
         "My earlier asks in this chat, oldest first:",
         "- ask 2",
         "- ask 3",

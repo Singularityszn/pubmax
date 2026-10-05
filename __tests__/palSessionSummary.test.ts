@@ -2,14 +2,20 @@ import { describe, expect, it } from "vitest";
 
 import {
   PAL_SESSION_RECENT_TURNS,
-  PAL_SESSION_SUMMARY_TOKEN_LIMIT,
-  estimatePalTokens,
+  PAL_SESSION_SUMMARY_BYTE_LIMIT,
   palSessionSummaryTurn,
   windowPalSessionTurns,
 } from "@/lib/palSessionSummary";
 import type { PubPalFenceTurn } from "@/lib/pubPalLlmFence";
 
 const ask = (content: string): PubPalFenceTurn => ({ role: "user", content });
+
+function expectWithinByteCap(turn: string | undefined) {
+  expect(turn).toBeDefined();
+  const bytes = new TextEncoder().encode(turn as string);
+  expect(bytes.length).toBeLessThanOrEqual(PAL_SESSION_SUMMARY_BYTE_LIMIT);
+  expect(new TextDecoder().decode(bytes)).toBe(turn);
+}
 
 describe("Pal rolling session summary", () => {
   it("keeps the newest lines word for word and leaves the summary alone until one rolls off", () => {
@@ -30,7 +36,7 @@ describe("Pal rolling session summary", () => {
     expect(session.summary).not.toContain("£3");
   });
 
-  it("keeps the emitted summary turn within its token cap over a long chat, dropping the oldest asks first", () => {
+  it("keeps the emitted summary turn within its byte cap over a long chat, dropping the oldest asks first", () => {
     let session = { summary: "", turns: [] as PubPalFenceTurn[] };
     for (let index = 0; index < 200; index += 1) {
       session = windowPalSessionTurns(session.summary, [
@@ -38,38 +44,32 @@ describe("Pal rolling session summary", () => {
         ask(`ask number ${index} about a quiet pub with a garden near the river`),
       ]);
       const [turn] = palSessionSummaryTurn(session.summary);
-      if (turn) expect(estimatePalTokens(turn)).toBeLessThanOrEqual(PAL_SESSION_SUMMARY_TOKEN_LIMIT);
+      if (turn) expectWithinByteCap(turn);
     }
     expect(session.summary).not.toContain("ask number 0 ");
     expect(session.summary).toContain(`ask number ${199 - PAL_SESSION_RECENT_TURNS} `);
   });
 
-  it("caps asks dense with prices, postcodes and emoji at three UTF-8 bytes per token, splitting no character", () => {
+  it("caps a worst-case summary of digits, pound signs, postcodes and emoji at 300 UTF-8 bytes, splitting no character", () => {
     let session = { summary: "", turns: [] as PubPalFenceTurn[] };
     for (let index = 0; index < 100; index += 1) {
       session = windowPalSessionTurns(session.summary, [
         ...session.turns,
-        ask(`pints under £5 near E1 6AN by 7pm 🍺🍺 #${index}`),
+        ask(`£4.50 £5 E1 6AN SW1A 1AA 7pm 🍺🍺 #${index}`),
       ]);
+      const [turn] = palSessionSummaryTurn(session.summary);
+      if (turn) expectWithinByteCap(turn);
     }
-    const [turn] = palSessionSummaryTurn(session.summary);
-    expect(turn).toBeDefined();
-    const bytes = new TextEncoder().encode(turn as string);
-    expect(bytes.length).toBeLessThanOrEqual(PAL_SESSION_SUMMARY_TOKEN_LIMIT * 3);
-    expect(new TextDecoder().decode(bytes)).toBe(turn);
+    expect(session.summary).toContain(`#${99 - PAL_SESSION_RECENT_TURNS}`);
 
-    const emoji = [ask("🍺".repeat(1_000)), ...Array.from({ length: PAL_SESSION_RECENT_TURNS }, (_, index) => ask(`recent ${index}`))];
-    const [capped] = palSessionSummaryTurn(windowPalSessionTurns("", emoji).summary);
-    const cappedBytes = new TextEncoder().encode(capped as string);
-    expect(cappedBytes.length).toBeLessThanOrEqual(PAL_SESSION_SUMMARY_TOKEN_LIMIT * 3);
-    expect(new TextDecoder().decode(cappedBytes)).toBe(capped);
+    const emoji = [ask("🍺£".repeat(1_000)), ...Array.from({ length: PAL_SESSION_RECENT_TURNS }, (_, index) => ask(`recent ${index}`))];
+    expectWithinByteCap(palSessionSummaryTurn(windowPalSessionTurns("", emoji).summary)[0]);
+    expectWithinByteCap(palSessionSummaryTurn("🍺".repeat(1_000))[0]);
   });
 
   it("caps a single ask that is longer than the whole budget", () => {
     const long = "cask ".repeat(2_000);
     const turns = [ask(long), ...Array.from({ length: PAL_SESSION_RECENT_TURNS }, (_, index) => ask(`recent ${index}`))];
-    const [turn] = palSessionSummaryTurn(windowPalSessionTurns("", turns).summary);
-    expect(turn).toBeDefined();
-    expect(estimatePalTokens(turn as string)).toBeLessThanOrEqual(PAL_SESSION_SUMMARY_TOKEN_LIMIT);
+    expectWithinByteCap(palSessionSummaryTurn(windowPalSessionTurns("", turns).summary)[0]);
   });
 });

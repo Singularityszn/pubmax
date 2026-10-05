@@ -117,9 +117,10 @@ proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url 
    proposals on. It refuses in a voice call, where no card can be shown. It
    saves nothing: the memory exists once the person taps
    Confirm, which posts to `POST /api/pub-pal/memories`. Typed chat also carries
-   a rolling session summary capped at 300 tokens, estimated at three UTF-8
-   bytes per token so prices, postcodes and emoji stay under it. It is built
-   only from the person's own older asks and never used as a fact source.
+   a rolling session summary turn capped at 300 UTF-8 bytes, label included.
+   A byte-level BPE token always covers at least one byte, so the turn is at
+   most 300 tokens for any input. It is built only from the person's own older
+   asks and never used as a fact source.
 3. **Voices** and per-session `voice_id` overrides (unchanged).
 4. **House prompt**: call tools before any fact, never invent a price, propose
    then confirm, plain speech on get-home topics.
