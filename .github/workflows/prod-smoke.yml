@@ -1,0 +1,78 @@
+name: Production smoke
+
+# Real journeys against the live site after every production deploy, with
+# nothing mocked. e2e/prod-smoke/README.md is the runbook, including how the
+# smoke account behind SMOKE_USER_HANDLE and SMOKE_USER_PASSWORD is made.
+#
+# Vercel's Git integration reports each deploy to GitHub as a deployment, so a
+# successful Production deployment status starts this run. A CLI deploy
+# reports nothing to GitHub: dispatch this workflow by hand after one.
+
+on:
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Origin to test"
+        required: false
+        default: "https://pubmaxxing.com"
+
+permissions:
+  contents: read
+
+concurrency:
+  # Two deploys in a row queue their runs: the smoke account holds one
+  # session, and two runs would race each other's cleanup.
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    name: Production smoke
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' &&
+       startsWith(github.event.deployment.environment, 'Production'))
+    # The browser suites run on macOS, where the map's SwiftShader context is
+    # proven (e2e.yml).
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # Test the commit that was deployed, not whatever main is now.
+          ref: ${{ github.event.deployment.sha || github.sha }}
+
+      - name: Setup Node
+        timeout-minutes: 5
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm run deps:install-scripts
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run the production smoke suite
+        env:
+          SMOKE_BASE_URL: ${{ inputs.base_url || 'https://pubmaxxing.com' }}
+          SMOKE_USER_HANDLE: ${{ secrets.SMOKE_USER_HANDLE }}
+          SMOKE_USER_PASSWORD: ${{ secrets.SMOKE_USER_PASSWORD }}
+          # A missing secret fails the run rather than skipping the signed-in half.
+          SMOKE_REQUIRE_SIGN_IN: "1"
+        run: npx playwright test -c playwright.prod-smoke.config.ts
+
+      - name: Upload the report and screenshots
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: prod-smoke-${{ github.run_id }}
+          path: artifacts/prod-smoke
+          retention-days: 14
