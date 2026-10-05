@@ -340,7 +340,7 @@ async function firecrawlRead(url, city) {
     if (Number.isFinite(status) && status >= 400) return { failed_results: [{ url, status, error: `page HTTP ${status}` }] };
     const markdown = data.data?.markdown;
     if (typeof markdown !== "string" || !markdown.trim()) return { failed_results: [{ url, error: "Firecrawl returned no markdown" }] };
-    return { results: [{ url: metadata.url ?? metadata.sourceURL ?? url, raw_content: markdown }] };
+    return { results: [{ url, landed_url: metadata.url ?? url, raw_content: markdown }] };
   } catch (error) {
     if (Number.isFinite(error.status)) used = 0;
     // Firecrawl's 4xx or 5xx for one page is that page's failed read; only an
@@ -358,8 +358,12 @@ function firecrawlIo(slice) {
     search: () => { throw new Error("The Firecrawl lane reads skipped sources only; it never searches"); },
     reader: FIRECRAWL_READER,
     extract: async (urls) => {
-      const answers = await Promise.all(urls.map((url) => firecrawlRead(url, slice.city)));
-      return { results: answers.flatMap((answer) => answer.results ?? []), failed_results: answers.flatMap((answer) => answer.failed_results ?? []) };
+      const reads = await Promise.allSettled(urls.map((url) => firecrawlRead(url, slice.city)));
+      const answers = reads.flatMap((read) => (read.status === "fulfilled" ? [read.value] : []));
+      const response = { results: answers.flatMap((answer) => answer.results ?? []), failed_results: answers.flatMap((answer) => answer.failed_results ?? []) };
+      const failed = reads.find((read) => read.status === "rejected");
+      if (failed) throw Object.assign(failed.reason, { answered: response });
+      return response;
     },
   };
 }

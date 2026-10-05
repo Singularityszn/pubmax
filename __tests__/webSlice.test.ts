@@ -136,6 +136,39 @@ describe("Tavily web slice", () => {
     expect(outcome.skips).toMatchObject([{ url: ownSite, kind: "extract", attempts: 1, reason: "Firecrawl scrape failed; the page answered HTTP 200", evidence: { basic: "Firecrawl returned no markdown", probe: { status: 200 } } }]);
   });
 
+  it("reads a page the reader answered after a redirect, fencing the landing and not the URL asked for", async () => {
+    const reader = { provider: "firecrawl", label: "Firecrawl scrape", failed: "failed", depths: ["basic"] };
+    const landedUrl = "https://cricketersarmsoxford.example/welcome";
+    const searches = { "search-0": search([{ url: ownSite, title: "Cricketers Arms", content: "OX4 2EZ" }]), "search-1": search([]) };
+    const state = { queries: [{ query: "q0", resultPath: "search-0", observedAt }, { query: "q1", resultPath: "search-1", observedAt }], robots: { [ownSite]: allowed } };
+    const pages = { [ownSite]: { url: ownSite, skip: { outcome: "skipped", kind: "extract" } } };
+    const redirected = harness({ state, searches, pages,
+      extract: vi.fn(async () => ({ results: [{ url: ownSite, landed_url: landedUrl, raw_content: ownText }], failed_results: [] })) });
+    const outcome = await webSlice(slice, { spend: true, skipsOnly: true }, { ...redirected.io, reader });
+    expect(outcome).toMatchObject({ complete: true, skips: [], found: [{ name: "Cricketers Arms" }] });
+    expect(redirected.stored.get(ownSite)).toMatchObject({ landedUrl, reader: "firecrawl" });
+    const refused = harness({ state, searches, pages,
+      extract: vi.fn(async () => ({ results: [{ url: ownSite, landed_url: "http://localhost/admin", raw_content: ownText }], failed_results: [] })) });
+    const fenced = await webSlice(slice, { spend: true, skipsOnly: true }, { ...refused.io, reader });
+    expect(fenced.found).toEqual([]);
+    expect(refused.stored.get(ownSite)).toMatchObject({ unreadable: "landed outside the source fence", settled: true });
+  });
+
+  it("keeps the pages a batch already read when one read in it fails, then stops the slice", async () => {
+    const reader = { provider: "firecrawl", label: "Firecrawl scrape", failed: "failed", depths: ["basic"] };
+    const other = "https://www.thewhitehartoxford.example/";
+    const searches = { "search-0": search([{ url: ownSite, title: "Cricketers Arms", content: "OX4 2EZ" }, { url: other, content: "OX4 1AA" }]), "search-1": search([]) };
+    const skipped = { outcome: "skipped", kind: "extract" };
+    const extract = vi.fn(async () => {
+      throw Object.assign(new Error("Firecrawl HTTP 402"), { status: 402, answered: { results: [{ url: ownSite, raw_content: ownText }], failed_results: [] } });
+    });
+    const { io, stored } = harness({ state: { queries: [{ query: "q0", resultPath: "search-0", observedAt }], robots: { [ownSite]: allowed, [other]: allowed } }, searches,
+      pages: { [ownSite]: { url: ownSite, skip: skipped }, [other]: { url: other, skip: skipped } }, extract });
+    await expect(webSlice(slice, { spend: true, skipsOnly: true }, { ...io, reader })).rejects.toMatchObject({ message: "Firecrawl HTTP 402", partial: { complete: false } });
+    expect(stored.get(ownSite)).toMatchObject({ landedUrl: ownSite, text: ownText, reader: "firecrawl" });
+    expect(stored.get(other)).toEqual({ url: other, skip: skipped });
+  });
+
   it("filters pages from sites that cannot describe a venue before reading or paying for them", async () => {
     const council = "https://democracy.manchester.gov.uk/documents/s1/licence.pdf";
     const postcodes = "https://www.postcodearea.co.uk/postaltowns/oxford/ox42lf";
