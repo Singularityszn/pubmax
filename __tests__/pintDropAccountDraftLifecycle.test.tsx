@@ -3,6 +3,7 @@
 import { act, createElement, Profiler, useState, type FormEvent } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Synthetic Auth and transport boundaries. The composer, draft hydration,
 // account request guard and Pint Drop hook remain real. This is UI lifecycle
@@ -384,7 +385,7 @@ describe("mounted Pint Drop account draft isolation", () => {
     await act(async () => {
       container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
     });
-    expect((posts[0].body as FormData).get("visibility")).toBe(visibility);
+    expect((defined(posts[0], "submitted Pint Drop request").body as FormData).get("visibility")).toBe(visibility);
     expect(container.querySelector('[data-testid="drop-result"]')?.textContent).toContain("Your Pint Drop is live");
     expect(container.querySelector('[data-testid="drop-notes"]')?.textContent).toContain(NOTE);
     await renderAccount(null, true, true, true);
@@ -419,7 +420,7 @@ describe("mounted Pint Drop account draft isolation", () => {
     await renderAccount(A);
     await click("Send held submit");
     expect(posts).toHaveLength(1);
-    expect((posts[0].body as FormData).get("passedDownNote")).toBe(NOTE);
+    expect((defined(posts[0], "submitted Pint Drop request").body as FormData).get("passedDownNote")).toBe(NOTE);
     expect(container.querySelector('[data-testid="drop-result"]')?.textContent).toBe("Fixture refused this drop");
   });
 

@@ -742,7 +742,7 @@ describe("validate-data.mjs slim venue index validation", () => {
   it("FAILS on malformed OSM kind evidence for a published sourced bar", () => {
     const scriptsDir = setupScratch({});
     const fixture = readSourcedBarFixture(scriptsDir);
-    const row = fixture.rows[fixture.sourceIndex];
+    const row = defined(fixture.rows[fixture.sourceIndex], "sourced bar fixture row");
     fixture.rows[fixture.sourceIndex] = {
       ...row,
       venue_kind_osm_id: "not-an-osm-id",
@@ -759,7 +759,7 @@ describe("validate-data.mjs slim venue index validation", () => {
   it("FAILS on contradictory sourced kinds within a raw venue group", () => {
     const scriptsDir = setupScratch({});
     const fixture = readSourcedBarFixture(scriptsDir);
-    const row = fixture.rows[fixture.sourceIndex];
+    const row = defined(fixture.rows[fixture.sourceIndex], "sourced bar fixture row");
     fixture.rows.push({
       ...row,
       app_price_id: "app_price_validator_source_kind_conflict",
@@ -788,7 +788,7 @@ describe("validate-data.mjs slim venue index validation", () => {
     );
     if (!famousBar) throw new Error("fixture has no published famous bar");
 
-    const template = fixture.rows[fixture.sourceIndex];
+    const template = defined(fixture.rows[fixture.sourceIndex], "sourced bar fixture row");
     const osmId = "node/999999999999";
     const evidence = {
       ...template,
