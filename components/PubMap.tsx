@@ -484,7 +484,6 @@ import {
   mapCanvasUnavailableLine,
 } from "@/lib/mapCanvasAvailability";
 import { mapAmbientBannersVisible, pickMapSurfaceToast } from "@/lib/mapSurfaceChrome";
-import { compassResetLabel } from "@/lib/mapCompass";
 import { resolveMapDisplayName } from "@/lib/mapDisplayName";
 import MapLoadingFrame from "@/components/map/MapLoadingFrame";
 import { useMapPinsRevealed } from "@/components/map/useMapPinsRevealed";
@@ -5863,7 +5862,6 @@ export default function PubMap({
             className="w-full uiButton--start"
             disabled={!cameraReset}
             onClick={() => cameraReset?.run()}
-            aria-label={compassResetLabel(city.displayName)}
           >
             <Navigation2 size={18} aria-hidden="true" />
             Reset view

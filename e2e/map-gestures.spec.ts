@@ -456,7 +456,7 @@ test("a phone turns and tilts the map, and Reset view in the Layers tab gives ba
     return sheet;
   };
   let sheet = await openLayersTab();
-  const reset = sheet.getByRole("button", { name: "Reset the map view of London" });
+  const reset = sheet.getByRole("button", { name: "Reset view", exact: true });
   await expect(reset).toBeEnabled();
   await reset.click();
 
@@ -473,5 +473,5 @@ test("a phone turns and tilts the map, and Reset view in the Layers tab gives ba
   await expect(reset).toBeDisabled();
   await sheet.getByRole("button", { name: "Close Map controls" }).click();
   sheet = await openLayersTab();
-  await expect(sheet.getByRole("button", { name: "Reset the map view of London" })).toBeDisabled();
+  await expect(sheet.getByRole("button", { name: "Reset view", exact: true })).toBeDisabled();
 });
