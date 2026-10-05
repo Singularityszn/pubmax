@@ -55,7 +55,7 @@ import { isDemoDrinkProvenance } from "@/lib/drinks";
 import {
   isHarvestableDrinkUpdateUrl,
 } from "@/lib/harvest/sourcePolicy";
-import { estimateForPub } from "@/lib/priceEstimate";
+import { ESTIMATE_DRINK_CATEGORIES, estimateForPub } from "@/lib/priceEstimate";
 import { normalizeSiteHarvestLedgerRow } from "@/lib/siteHarvestLedgerCore";
 import { estimateBaselines } from "@/lib/priceEstimateBaselines";
 import {
@@ -375,34 +375,34 @@ function addEstimateRows(owners, push, report) {
       boundaries && Number.isFinite(pub.lat) && Number.isFinite(pub.lng)
         ? boroughNameForPoint(pub.lat, pub.lng, boundaries)
         : null;
-    const estimate = estimateForPub(
-      {
-        operator: pub.operator ?? null,
-        website: pub.website ?? null,
-        postcode: pub.postcode ?? null,
-        londonBoroughCode: boroughName ? boroughCode(boroughName) : null,
-      },
-      baselines,
-    );
-    if (!estimate) {
-      report.pubsWithNoBasis += 1;
-      continue;
+    const modelled = {
+      operator: pub.operator ?? null,
+      website: pub.website ?? null,
+      postcode: pub.postcode ?? null,
+      londonBoroughCode: boroughName ? boroughCode(boroughName) : null,
+    };
+    // The engine models a PINT first, then each non-beer drink it holds a
+    // London basis for. Every row is filed under the drink it was modelled for.
+    let modelledAny = false;
+    for (const category of ["beer", ...ESTIMATE_DRINK_CATEGORIES]) {
+      const estimate = estimateForPub(modelled, baselines, category);
+      if (!estimate) continue;
+      modelledAny = true;
+      push({
+        venueId,
+        name: pub.name ?? null,
+        category,
+        priceGbp: estimate.priceGbp,
+        lane: "estimate",
+        standing: "estimate",
+        sourceUrl: null,
+        publisher: null,
+        observedAt: estimate.computedAt,
+        basis: `${estimate.basis}:${estimate.basisKey}`,
+        sampleSize: estimate.sampleSize,
+      });
     }
-    push({
-      venueId,
-      name: pub.name ?? null,
-      // The estimate engine models a PINT, so its row is a beer row and says so
-      // rather than being filed under a category nobody modelled.
-      category: "beer",
-      priceGbp: estimate.priceGbp,
-      lane: "estimate",
-      standing: "estimate",
-      sourceUrl: null,
-      publisher: null,
-      observedAt: estimate.computedAt,
-      basis: `${estimate.basis}:${estimate.basisKey}`,
-      sampleSize: estimate.sampleSize,
-    });
+    if (!modelledAny) report.pubsWithNoBasis += 1;
   }
   return pubs.length;
 }

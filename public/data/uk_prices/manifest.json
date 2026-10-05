@@ -1,16 +1,16 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-06T00:38:13.225Z",
+  "generatedAt": "2026-10-06T03:27:12.467Z",
   "rowsPath": "/data/uk_prices/rows.json",
   "counts": {
-    "rows": 7595,
+    "rows": 8857,
     "venues": 3233,
     "byStanding": {
-      "estimate": 2950,
+      "estimate": 4212,
       "listed": 4645
     },
     "byLane": {
-      "estimate": 2950,
+      "estimate": 4212,
       "drink-price-update": 1560,
       "site-harvest": 3085
     }

@@ -5,6 +5,12 @@
  * Usage:
  *   npm run enrich:city -- --city=manchester
  *   npm run enrich:city -- --city=manchester --max-queries=200 --reset
+ *   npm run enrich:city -- --city=london --max-queries=200 --max-credits=400
+ *
+ * Two ceilings are held in code and neither can be raised from here: 200
+ * queries and 400 credits per run (an advanced search is 2 credits, so a full
+ * run is $3.20 at the $0.008 pay as you go price). --max-queries and
+ * --max-credits can only lower them.
  *
  * TAVILY_API_KEY is required. Local progress lives in ignored .tavily/ state.
  * Wetherspoons, Greene King, and Mitchells & Butlers pubs are delegated to the
@@ -24,6 +30,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   CITY_DEFINITIONS,
+  MAX_TAVILY_CREDITS_PER_RUN,
   mergeCanonicalPrices,
   OFFICIAL_SITE_SOURCE_LICENCE,
   runCityEnrichment,
@@ -57,9 +64,15 @@ export function parseArgs(argv) {
   if (!Number.isInteger(maxQueries) || maxQueries < 1 || maxQueries > MAX_TAVILY_QUERIES_PER_RUN) {
     throw new Error("--max-queries must be an integer from 1 to 200.");
   }
+  const rawCredits = readArg(argv, "--max-credits");
+  const maxCredits = rawCredits === undefined ? MAX_TAVILY_CREDITS_PER_RUN : Number(rawCredits);
+  if (!Number.isInteger(maxCredits) || maxCredits < 1 || maxCredits > MAX_TAVILY_CREDITS_PER_RUN) {
+    throw new Error(`--max-credits must be an integer from 1 to ${MAX_TAVILY_CREDITS_PER_RUN}.`);
+  }
   return {
     city,
     maxQueries,
+    maxCredits,
     reset: argv.includes("--reset"),
     dryRun: argv.includes("--dry-run"),
   };
@@ -217,7 +230,7 @@ async function main() {
 
   console.log(
     `${args.city}: ${pubs.length} OSM pubs; resume index ${base.nextIndex}; ` +
-      `hard Tavily cap ${args.maxQueries} queries.`,
+      `hard Tavily cap ${args.maxQueries} queries and ${args.maxCredits} credits.`,
   );
 
   const runResult = await runCityEnrichment({
@@ -225,6 +238,7 @@ async function main() {
     pubs,
     apiKey,
     maxQueries: args.maxQueries,
+    maxCredits: args.maxCredits,
     startIndex: base.nextIndex,
     observedAt: new Date().toISOString(),
     onProgress: (progress) => {

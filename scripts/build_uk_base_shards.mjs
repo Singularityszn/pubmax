@@ -75,6 +75,7 @@ const DRINK_PACK_PATH = path.join(
 const OUT_DIR = path.join(ROOT, "public", "data", SHARD_DIR_NAME);
 const LONDON_SLIM_PATH = path.join(ROOT, "public", "data", "venues_slim.json");
 const OUTER_LONDON_PATH = path.join(ROOT, "data", "osm", "outer_london_osm_pubs.json");
+const LONDON_PROMOTION_LEDGER_PATH = path.join(ROOT, "data", "london_osm_promotion", "ledger.json");
 
 // Per-shard ceiling. A cell is one viewport-triggered fetch, so a fat cell is
 // felt directly as a stall while panning. The densest cell today (central
@@ -167,6 +168,19 @@ async function loadCuratedVenueOwners() {
     if (venueId) {
       owners.set(ownerKey("outer-london-osm-seed", pub.osmId), venueId);
     }
+  }
+
+  // Pubs promoted out of this same base layer into the London index
+  // (scripts/promote_london_osm_pubs.mjs) are owned by their own OSM id, the
+  // exact identity, so the seed pack never has to be re-annotated or refetched
+  // to stop a promoted pub drawing twice. The curated row is found by the same
+  // name-and-distance rule the outer-London seed uses.
+  const ledger = await readFile(LONDON_PROMOTION_LEDGER_PATH, "utf8")
+    .then(JSON.parse)
+    .catch(() => null);
+  for (const entry of Array.isArray(ledger?.promotions) ? ledger.promotions : []) {
+    const venueId = outerLondonOwnerForPub(entry, londonVenues) ?? "";
+    if (venueId) ownersByOsmId.set(String(entry.osmId), venueId);
   }
 
   for (const [cityId, city] of Object.entries(CITIES)) {

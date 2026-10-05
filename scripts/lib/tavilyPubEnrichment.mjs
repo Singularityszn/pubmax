@@ -4,6 +4,13 @@ export { extractPintPrices };
 
 const TAVILY_SEARCH_URL = "https://api.tavily.com/search";
 const MAX_TAVILY_CALLS_PER_RUN = 200;
+// The money ceiling, held in code beside the query ceiling. An advanced search
+// costs 2 Tavily credits, so 200 queries is 400 credits; at the $0.008 pay as
+// you go price that is $3.20 a run. If the provider ever bills a search at more
+// than 2 credits the credit ceiling stops the run before the query ceiling
+// does, so the spend can never grow by a pricing change alone.
+export const TAVILY_CREDITS_PER_SEARCH = 2;
+export const MAX_TAVILY_CREDITS_PER_RUN = MAX_TAVILY_CALLS_PER_RUN * TAVILY_CREDITS_PER_SEARCH;
 
 export const CITY_DEFINITIONS = Object.freeze({
   // London is the city the product is about and was the one city the rotation
@@ -485,6 +492,8 @@ export async function runCityEnrichment({
   apiKey,
   searchProvider,
   maxQueries = 200,
+  // Can only lower the credit ceiling, never raise it.
+  maxCredits = MAX_TAVILY_CREDITS_PER_RUN,
   startIndex = 0,
   indices,
   observedAt = new Date().toISOString(),
@@ -505,6 +514,10 @@ export async function runCityEnrichment({
   const queryCap = Math.min(
     MAX_TAVILY_CALLS_PER_RUN,
     Math.max(0, Math.floor(Number(maxQueries) || 0)),
+  );
+  const creditCap = Math.min(
+    MAX_TAVILY_CREDITS_PER_RUN,
+    Math.max(0, Math.floor(Number(maxCredits) || 0)),
   );
   const prices = [];
   const pages = [];
@@ -542,6 +555,8 @@ export async function runCityEnrichment({
       continue;
     }
     if (queriesSpent >= queryCap) break;
+    // Ask before spending: the next search may bill TAVILY_CREDITS_PER_SEARCH.
+    if (creditsSpent + TAVILY_CREDITS_PER_SEARCH > creditCap) break;
 
     queriesSpent += 1;
     let payload;
