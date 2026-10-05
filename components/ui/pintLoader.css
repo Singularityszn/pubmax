@@ -1,0 +1,105 @@
+/* Shared blocking-load indicator. All colour comes from existing tokens. */
+.pintLoader {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink-soft);
+}
+
+.pintLoaderGlass {
+  display: block;
+  width: 56px;
+  height: auto;
+  overflow: visible;
+}
+
+.pintLoader--sm .pintLoaderGlass {
+  width: 28px;
+}
+
+.pintLoaderShadow {
+  fill: color-mix(in srgb, var(--ink-deep) 22%, transparent);
+}
+
+.pintLoaderRim {
+  fill: color-mix(in srgb, var(--panel-raised) 10%, transparent);
+  stroke: color-mix(in srgb, var(--ink) 55%, transparent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.pintLoaderGleam {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.45);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.pintLoaderBeerTop {
+  stop-color: var(--amber);
+}
+
+.pintLoaderBeerBottom {
+  stop-color: color-mix(in srgb, var(--amber) 62%, var(--brick));
+}
+
+.pintLoaderHead {
+  fill: color-mix(in srgb, var(--paper) 88%, var(--amber));
+}
+
+.pintLoaderBubble {
+  fill: rgba(255, 255, 255, 0.7);
+  opacity: 0;
+}
+
+.pintLoaderLabel {
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+/* The pour: the liquid rises, holds full for a beat, then drains and pours
+   again. Only transform and opacity move. */
+@media (prefers-reduced-motion: no-preference) {
+  .pintLoaderFill {
+    transform-box: view-box;
+    animation: pintLoaderPour 3.2s cubic-bezier(0.33, 0, 0.2, 1) infinite;
+  }
+
+  .pintLoaderBubble {
+    animation-name: pintLoaderRise;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.9, 0.6);
+    animation-iteration-count: infinite;
+  }
+}
+
+@keyframes pintLoaderPour {
+  0% {
+    opacity: 1;
+    transform: translateY(100px);
+  }
+  62%,
+  88% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+}
+
+@keyframes pintLoaderRise {
+  0% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+  15% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-74px);
+  }
+}
