@@ -13,6 +13,7 @@ import type { CityId } from "@/lib/cities";
 import { gettingHomeLabel } from "@/lib/venueInspectorTabs";
 
 import "@/components/disclosure.css";
+import { scrollMotionBehavior } from "@/lib/scrollMotion";
 
 /**
  * Getting home, as a fold on the Overview. It used to be the seventh tab, and
@@ -46,7 +47,7 @@ export default function VenueGettingHomeSection({
   useEffect(() => {
     if (!openRequest) return;
     const frame = window.requestAnimationFrame(() => {
-      foldRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+      foldRef.current?.scrollIntoView({ block: "start", behavior: scrollMotionBehavior() });
     });
     return () => window.cancelAnimationFrame(frame);
   }, [openRequest]);

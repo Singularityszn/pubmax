@@ -106,6 +106,9 @@ test("a half logged through the one-tap door travels as a half and moves no pin 
     await door.click();
     await expect(submit).toBeVisible({ timeout: 1_500 });
   }).toPass({ timeout: 20_000 });
+  // The door scrolls the price field into view and focuses it in one frame;
+  // focus is the sign the composer has settled where it will be measured.
+  await expect(submit.getByRole("textbox", { name: /Price of a beer at/ })).toBeFocused();
 
   // The closed question stands above the figure.
   const chips = submit.locator(".measureChip");
@@ -162,6 +165,7 @@ test("a pint logged through the same door still says pint", async ({ page }) => 
     await door.click();
     await expect(submit).toBeVisible({ timeout: 1_500 });
   }).toPass({ timeout: 20_000 });
+  await expect(submit.getByRole("textbox", { name: /Price of a beer at/ })).toBeFocused();
 
   // Pint is the default and it is a REAL answer on screen, not an assumption.
   await expect(submit.getByRole("radio", { name: "Pint" })).toHaveAttribute(
