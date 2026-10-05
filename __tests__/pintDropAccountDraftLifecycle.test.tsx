@@ -54,12 +54,19 @@ let paints: { accountId: string | null; note: string; photos: number; pendingNot
 let createdPhotoUrls: string[];
 let revokedPhotoUrls: string[];
 let showDropList = false;
-let listedDrops: unknown[];
 
 function ComposerHost() {
   const state = usePintDrops("london");
   const [heldSubmit, setHeldSubmit] = useState<(() => Promise<void> | void) | null>(null);
+  const [heldReport, setHeldReport] = useState<(() => Promise<void> | void) | null>(null);
   return createElement("div", null,
+    createElement("button", {
+      onClick: () => {
+        const own = state.dropsByVenueId.get(VENUE_ID)?.find((drop) => drop.handle === activeAccount?.handle);
+        if (own) setHeldReport(() => () => state.reportDrop(VENUE_ID, own.id));
+      },
+    }, "Hold own report"),
+    createElement("button", { onClick: () => { void heldReport?.(); } }, "Send held report"),
     createElement("button", {
       onClick: () => {
         setHeldSubmit(() => () => state.submitDrop({ preventDefault() {} } as FormEvent, VENUE_ID));
@@ -74,7 +81,7 @@ function ComposerHost() {
       [...state.dropsByVenueId.values()].flat().map((drop) => drop.optimistic?.state ?? "saved").join(" | ")),
     createElement(PintDropComposer, { venueId: VENUE_ID, venueName: "The Fixture Arms", state }),
     showDropList ? createElement("section", { "data-testid": "drop-list" }, createElement(PintDropsList, {
-      venue: { id: VENUE_ID } as Venue,
+      venue: { id: VENUE_ID, name: "The Fixture Arms" } as Venue,
       drops: state.dropsByVenueId.get(VENUE_ID) ?? [],
       lastTrainDecision: null,
       reportDrop: state.reportDrop,
@@ -192,11 +199,10 @@ beforeEach(() => {
   });
   postHandler = async () => new Response(JSON.stringify({ error: { message: "Fixture refused this drop" } }), { status: 503 });
   showDropList = false;
-  listedDrops = [serverDrop];
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init: RequestInit = {}) => {
     if (String(input).startsWith("/api/pint-drops") && (init.method ?? "GET") === "GET") {
       if (String(input).includes("venueId=")) venueReads.push(String(input));
-      return new Response(JSON.stringify({ drops: listedDrops }));
+      return new Response(JSON.stringify({ drops: [serverDrop] }));
     }
     if (String(input) === "/api/pint-drops" && init.method === "POST") {
       posts.push(init);
@@ -515,46 +521,140 @@ describe("mounted Pint Drop account draft isolation", () => {
     expect(container.querySelector('[data-testid="drop-notes"]')?.textContent).toContain(SERVER_NOTE);
   });
 
-  it.each([
-    ["the report request fails", async () => { throw new TypeError("Failed to fetch"); }],
-    ["the report is refused", async () => new Response("not json", { status: 503 })],
-  ] as const)("does not put A's reported private drop or its error back under B when %s", async (_label, answer) => {
-    const PRIVATE_NOTE = "A's friends-only note about the landlord";
-    listedDrops = [serverDrop, {
-      ...serverDrop, id: "fixture-friends-drop", handle: A.handle, passedDownNote: PRIVATE_NOTE, visibility: "friends",
-    }];
-    showDropList = true;
-    let answerReport!: () => void;
-    postHandler = (init) => new Promise<Response>((resolve, reject) => {
-      answerReport = () => { void answer().then(resolve, reject); };
-      void init;
+  describe("reporting an accepted friends-only Pint Drop", () => {
+    const FRIENDS_DROP_ID = "fixture-accepted-friends-drop";
+    const NOTE_B = "B's own public drop";
+    const RECEIPT_B = "Cheers. Your Pint Drop is live.";
+    const privatePhoto = () => container.querySelector(`img[alt="Pint at The Fixture Arms shared by ${A.handle}"]`);
+    const list = () => container.querySelector('[data-testid="drop-list"]')?.textContent ?? "";
+    const result = () => container.querySelector('[data-testid="drop-result"]')?.textContent ?? "";
+    const reports = () => posts.filter((init) => typeof init.body === "string" && JSON.parse(init.body).action === "report");
+    let reportAnswer: () => Promise<Response>;
+
+    function acceptedDrop(account: typeof A, id: string, note: string, visibility: string, photo: string | null) {
+      return new Response(JSON.stringify({ drop: {
+        ...serverDrop, id, handle: account.handle, passedDownNote: note, visibility, priceGbp: 5.75,
+        pintPhotoUrl: photo,
+      } }), { status: 201 });
+    }
+
+    /** A submits a friends-only drop with a pint photo through the real composer; the server accepts it. */
+    async function acceptAFriendsDrop() {
+      showDropList = true;
+      postHandler = async (init) => {
+        if (typeof init.body === "string" && JSON.parse(init.body).action === "report") return reportAnswer();
+        return activeAccount?.id === A.id
+          ? acceptedDrop(A, FRIENDS_DROP_ID, NOTE, "friends", "https://pubmaxxing.com/photos/a-private-pint.jpg")
+          : acceptedDrop(B, "fixture-b-public-drop", NOTE_B, "public", null);
+      };
+      await renderAccount(A);
+      await draft(true);
+      const friends = [...container.querySelectorAll<HTMLButtonElement>('button[role="radio"]')]
+        .find((button) => button.textContent?.trim() === "Friends");
+      await act(async () => friends!.click());
+      await act(async () => container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+      await vi.waitFor(() => expect(list()).toContain(NOTE));
+      expect(privatePhoto()).not.toBeNull();
+      expect(list()).toContain(SERVER_NOTE);
+    }
+
+    async function reportOwnDrop() {
+      await act(async () => container.querySelector<HTMLButtonElement>(`button[aria-label="Report Pint Drop by ${A.handle}"]`)!.click());
+      expect(reports()).toHaveLength(1);
+      expect(list()).not.toContain(NOTE);
+    }
+
+    /** B signs in, logs a public drop and holds its receipt. */
+    async function bLogsADrop() {
+      await renderAccount(B);
+      if (!container.querySelector("textarea")) await click(SPILL_EXTRAS_TOGGLE_LABEL);
+      await fill(container.querySelector("textarea")!, NOTE_B);
+      await act(async () => container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+      await vi.waitFor(() => expect(result()).toBe(RECEIPT_B));
+      expect(list()).toContain(NOTE_B);
+    }
+
+    function delayedJson(status: number, body: unknown) {
+      let release!: () => void;
+      const response = new Response(new ReadableStream({
+        start(controller) {
+          release = () => {
+            controller.enqueue(new TextEncoder().encode(JSON.stringify(body)));
+            controller.close();
+          };
+        },
+      }), { status, headers: { "content-type": "application/json" } });
+      return { response, release: () => release() };
+    }
+
+    it.each([
+      ["its request fails after B signed in", "transport"],
+      ["it is refused and its body arrives after B signed in", "refused"],
+      ["it succeeds and its body arrives after B signed in", "accepted"],
+    ] as const)("keeps A's private note, photo and report outcome out of B's lane when %s", async (_label, outcome) => {
+      let settle!: () => void;
+      reportAnswer = () => {
+        if (outcome === "transport") {
+          return new Promise<Response>((_resolve, reject) => { settle = () => reject(new TypeError("Failed to fetch")); });
+        }
+        const delayed = delayedJson(outcome === "refused" ? 503 : 200, outcome === "refused"
+          ? { error: { message: "Fixture refused this report" } }
+          : { ok: true });
+        settle = delayed.release;
+        return Promise.resolve(delayed.response);
+      };
+      await acceptAFriendsDrop();
+      await reportOwnDrop();
+      await bLogsADrop();
+
+      await act(async () => settle());
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+
+      expect(list()).not.toContain(NOTE);
+      expect(privatePhoto()).toBeNull();
+      expect(list()).toContain(NOTE_B);
+      expect(list()).toContain(SERVER_NOTE);
+      expect(result()).toBe(RECEIPT_B);
     });
-    await renderAccount(A);
-    const list = () => container.querySelector('[data-testid="drop-list"]')?.textContent ?? "";
-    await vi.waitFor(() => expect(list()).toContain(PRIVATE_NOTE));
-    await act(async () => container.querySelector<HTMLButtonElement>(`button[aria-label="Report Pint Drop by ${A.handle}"]`)!.click());
-    expect(posts).toHaveLength(1);
-    expect(list()).not.toContain(PRIVATE_NOTE);
 
-    await renderAccount(B);
-    await act(async () => answerReport());
-    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+    it("does not send A's held report from B's session", async () => {
+      reportAnswer = async () => new Response(JSON.stringify({ ok: true }));
+      await acceptAFriendsDrop();
+      await click("Hold own report");
+      await bLogsADrop();
+      await click("Send held report");
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
 
-    expect(list()).not.toContain(PRIVATE_NOTE);
-    expect(list()).toContain(SERVER_NOTE);
-    expect(container.querySelector('[data-testid="drop-result"]')?.textContent).toBe("");
-  });
+      expect(reports()).toHaveLength(0);
+      expect(list()).toContain(NOTE_B);
+      expect(result()).toBe(RECEIPT_B);
+    });
 
-  it("puts a reported drop back for the same account when the report fails", async () => {
-    showDropList = true;
-    postHandler = async () => { throw new TypeError("Failed to fetch"); };
-    await renderAccount(A);
-    const list = () => container.querySelector('[data-testid="drop-list"]')?.textContent ?? "";
-    await vi.waitFor(() => expect(list()).toContain(SERVER_NOTE));
-    await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="Report Pint Drop by fixture_public"]')!.click());
-    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
-    expect(list()).toContain(SERVER_NOTE);
-    expect(container.querySelector('[data-testid="drop-result"]')?.textContent).not.toBe("");
+    it("puts the private drop and its photo back for A when A's own report fails", async () => {
+      reportAnswer = async () => { throw new TypeError("Failed to fetch"); };
+      await acceptAFriendsDrop();
+      await act(async () => container.querySelector<HTMLButtonElement>(`button[aria-label="Report Pint Drop by ${A.handle}"]`)!.click());
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+
+      expect(list()).toContain(NOTE);
+      expect(privatePhoto()).not.toBeNull();
+      expect(result()).toBe("Could not report that Pint Drop. Try again.");
+    });
+
+    it("puts a public drop A reported back under B when the report fails", async () => {
+      let settle!: () => void;
+      reportAnswer = () => new Promise<Response>((_resolve, reject) => { settle = () => reject(new TypeError("Failed to fetch")); });
+      await acceptAFriendsDrop();
+      await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="Report Pint Drop by fixture_public"]')!.click());
+      expect(list()).not.toContain(SERVER_NOTE);
+      await bLogsADrop();
+      await act(async () => settle());
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+
+      expect(list()).toContain(SERVER_NOTE);
+      expect(list()).not.toContain(NOTE);
+      expect(result()).toBe(RECEIPT_B);
+    });
   });
 
   it("lets a guest reach the price step and sign-in door while the Auth SDK is unavailable", async () => {
