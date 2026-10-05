@@ -73,3 +73,34 @@ describe("runSlice", () => {
     expect(fake.web).toHaveBeenLastCalledWith(slice("leeds"), { spend: false, refresh: false, skipsOnly: false });
   });
 });
+
+// Each test loads the script afresh, so its run credit count starts at zero.
+async function freshScript() {
+  vi.resetModules();
+  return import("../scripts/discover_parallel_venues.mjs");
+}
+
+describe("firecrawlRead", () => {
+  const oxford = city("oxford");
+  type ScrapeRequest = (provider: string, endpoint: string, options: { city: string; body: { url: string } }) => Promise<{ data: { markdown: string; metadata: Record<string, unknown> } }>;
+
+  it("keeps the run under its credit cap when every concurrent scrape is a PDF billed a credit for the page and one per PDF page", async () => {
+    const { firecrawlRead, FIRECRAWL_RUN_CREDITS } = await freshScript();
+    const request = vi.fn<ScrapeRequest>(async (_provider, _endpoint, { body }) => {
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      return { data: { markdown: "# Menu", metadata: { creditsUsed: 6, statusCode: 200, url: body.url } } };
+    });
+    const reads = await Promise.allSettled(Array.from({ length: 60 }, (_, index) => firecrawlRead(`https://pub${index}.example/menu.pdf`, oxford, request)));
+    const used = request.mock.calls.length * 6;
+    expect(used).toBeLessThanOrEqual(FIRECRAWL_RUN_CREDITS);
+    expect(reads.filter((read) => read.status === "rejected").map((read) => (read as PromiseRejectedResult).reason.message)).toContain(`Firecrawl run cap of ${FIRECRAWL_RUN_CREDITS} credits reached; checkpoint retained, rerun to resume`);
+  });
+
+  it("answers under the URL it was asked for and carries a redirect's landing beside it", async () => {
+    const { firecrawlRead } = await freshScript();
+    const asked = "https://www.crown.example/";
+    const landed = "https://crown.example/welcome";
+    const request = vi.fn<ScrapeRequest>(async () => ({ data: { markdown: "The Crown, OX4 2EZ", metadata: { creditsUsed: 1, statusCode: 200, url: landed } } }));
+    expect(await firecrawlRead(asked, oxford, request)).toEqual({ results: [{ url: asked, landed_url: landed, raw_content: "The Crown, OX4 2EZ" }] });
+  });
+});

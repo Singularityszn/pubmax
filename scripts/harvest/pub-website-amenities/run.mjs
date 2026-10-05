@@ -66,6 +66,7 @@ import {
   PAGE_CHAR_CAP,
   PUB_WEBSITE_AMENITY_COLUMNS,
   PUB_WEBSITE_AMENITY_KEYS,
+  cachedPageRead,
   firecrawlMayReread,
   isChainPage,
   keepEvidencedAmenities,
@@ -78,6 +79,7 @@ import {
   streetOf,
   liftSiteStamps,
   matchPubToVenue,
+  pageReadEntry,
   mergeHarvestEvidence,
   parseChainDenylist,
   parsePubAmenityModelJson,
@@ -713,6 +715,14 @@ async function main() {
   const otherReads = () => pageOwners(previousRows, Object.entries(byOsmId), knownChainPages);
 
   const pagePath = (key) => path.join(PAGES_DIR, `${key.replace(/[^a-z0-9-]/gi, "_")}.json`);
+  const cachedText = (key) => {
+    try {
+      return JSON.parse(readFileSync(pagePath(key), "utf8")).text;
+    } catch (error) {
+      if (error.code === "ENOENT") return null;
+      throw error;
+    }
+  };
 
   async function readSite(pub) {
     const website = pub.website ?? (locate ? await locateSite(pub) : null);
@@ -751,11 +761,9 @@ async function main() {
       stopped = true;
       return;
     }
-    let read;
-    const cached = byOsmId[pub.osmId]?.status === "read";
-    if (cached) {
-      read = { ...byOsmId[pub.osmId], text: JSON.parse(readFileSync(pagePath(pub.osmId), "utf8")).text };
-    } else {
+    let read = cachedPageRead(byOsmId[pub.osmId], () => cachedText(pub.osmId));
+    const cached = read !== null;
+    if (!cached) {
       read = await readSite(pub);
       if (read.status === null) return;
       if (read.status !== "read") {
@@ -783,7 +791,7 @@ async function main() {
     if (!cached) {
       mkdirSync(PAGES_DIR, { recursive: true });
       writeFileSync(pagePath(pub.osmId), JSON.stringify({ url: read.sourceUrl, reader: read.reader, readAt: new Date().toISOString(), text: read.text }));
-      byOsmId[pub.osmId] = { status: "read", venueId: pub.venueId, name: pub.name, sourceUrl: read.sourceUrl, reader: read.reader, located: read.located };
+      byOsmId[pub.osmId] = pageReadEntry(pub, read);
       if (readOnly) return;
     }
     sourceUrl = read.sourceUrl;

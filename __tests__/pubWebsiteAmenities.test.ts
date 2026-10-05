@@ -9,6 +9,7 @@ import {
   JOB_SPEND_CAP_USD,
   SITE_STAMP,
   amenityColumnIsBlank,
+  cachedPageRead,
   evidenceQuoteIsOnPage,
   firecrawlMayReread,
   isChainPage,
@@ -19,6 +20,7 @@ import {
   mergeChainDenylists,
   mergeHarvestEvidence,
   pageOwners,
+  pageReadEntry,
   pageStatesAddress,
   pageStatesPostcode,
   pageStatesStreet,
@@ -875,6 +877,25 @@ describe("firecrawlMayReread", () => {
     }
     expect(firecrawlMayReread({ ok: true, url: "https://a.example/", text: "Loading" })).toBe(true);
     expect(firecrawlMayReread({ ok: true, url: "https://a.example/", text: "x".repeat(200) })).toBe(false);
+  });
+});
+
+describe("kept page reads", () => {
+  const pub = { venueId: "venue-abc", name: "The Crown" };
+
+  it("keeps a Firecrawl read's fenced landing so the model run does not ask the site again", () => {
+    const firecrawl = pageReadEntry(pub, { sourceUrl: "https://crown.example/", reader: "firecrawl", located: false });
+    const kept = cachedPageRead(firecrawl, () => PAGE);
+    expect(kept).toMatchObject({ status: "read", reader: "firecrawl", sourceUrl: "https://crown.example/", landingChecked: true, text: PAGE });
+    const plain = cachedPageRead(pageReadEntry(pub, { sourceUrl: "https://crown.example/", reader: "fetch" }), () => PAGE);
+    expect(plain?.landingChecked).toBeUndefined();
+  });
+
+  it("reads the pub again when its kept page text is gone", () => {
+    const entry = pageReadEntry(pub, { sourceUrl: "https://crown.example/", reader: "firecrawl" });
+    expect(cachedPageRead(entry, () => null)).toBeNull();
+    expect(cachedPageRead({ status: "ok", sourceUrl: "https://crown.example/" }, () => PAGE)).toBeNull();
+    expect(cachedPageRead(undefined, () => PAGE)).toBeNull();
   });
 });
 

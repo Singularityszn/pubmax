@@ -53,10 +53,14 @@ reader.
 | Pubs that lost a description | - | 0 |
 
 The restamp also lifts stale stamps on `origin/main` that its own gate and chain
-list already refuse. Three earlier rows no longer pass the gate because new
-readers on the same chain site state the same boilerplate ("dart boards" and
-"Dartboard" on Craft Union and Greene King pages, "prepare and cook food" on
-J D Wetherspoon).
+list already refuse. Six earlier rows drop out. Five are chain-site rows whose
+boilerplate new readers on the same chain site also state: "dart boards" and
+"pool tables" (Craft Union, Brook House), "Dartboard" (Greene King, Golden
+Lion), "Our food is all about great value" (Great Local Pubs, Goose
+Walthamstow), and "serve food and drinks" and "prepare and cook food" (two
+J D Wetherspoon pubs). The sixth is The Hat and Tun, whose only quote, "Major
+Sporting Events", the live-sports gate refuses. A further 54 kept rows lose 55
+stale quotes, 49 of them for live sport.
 
 Gemini spend for this work: USD 0.21 extraction and USD 0.29 copy in the
 withdrawn write, then USD 0.16 extraction and USD 0.02 copy in the rebuild,

@@ -430,9 +430,45 @@ export type HarvestRead = {
   name?: string;
   venueId?: string | null;
   sourceUrl?: string;
+  reader?: string;
+  located?: boolean;
+  landingChecked?: boolean;
   verifiedAt?: string;
   amenities?: Partial<Record<PubWebsiteAmenityKey, string>>;
 };
+
+/**
+ * The checkpoint entry for a page read and kept for a later model run. A
+ * Firecrawl read had its landing fenced as it was read, so its landing is not
+ * asked again when the model run takes it up.
+ */
+export function pageReadEntry(
+  pub: { venueId: string | null; name: string },
+  read: { sourceUrl: string; reader: string; located?: boolean },
+): HarvestRead {
+  return {
+    status: "read",
+    venueId: pub.venueId,
+    name: pub.name,
+    sourceUrl: read.sourceUrl,
+    reader: read.reader,
+    located: read.located,
+    ...(read.reader === "firecrawl" ? { landingChecked: true } : {}),
+  };
+}
+
+/**
+ * A kept page read with its text, or null when the pub must be read again: the
+ * checkpoint holds no kept read for it, or its page text is gone.
+ */
+export function cachedPageRead(
+  entry: HarvestRead | undefined,
+  loadText: () => string | null,
+): (HarvestRead & { text: string }) | null {
+  if (entry?.status !== "read") return null;
+  const text = loadText();
+  return text === null ? null : { ...entry, text };
+}
 
 export type HarvestEvidenceRow = PubEvidenceRow & {
   osmId: string;

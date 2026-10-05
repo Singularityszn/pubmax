@@ -320,22 +320,24 @@ function webIo({ city, district, category }) {
 const FIRECRAWL_READER = { provider: "firecrawl", label: "Firecrawl scrape", failed: "failed", depths: ["basic"] };
 
 // One Firecrawl scrape per page, markdown only, the whole page so a footer
-// address is kept. A PDF costs a credit per page, so it is read to at most
-// FIRECRAWL_PDF_PAGES pages, and each scrape holds that many credits against
-// the run cap until Firecrawl reports what it used. The answer is shaped like a
-// Tavily Extract response so the slice reads, settles and skips it by the same
-// rules.
+// address is kept. A scrape costs a credit and a PDF a credit more per page,
+// so a PDF is read to at most FIRECRAWL_PDF_PAGES pages, and each scrape holds
+// that worst case against the run cap until Firecrawl reports what it used.
+// The answer is shaped like a Tavily Extract response, keyed by the URL asked
+// for with the landing beside it, so the slice reads, settles, skips and
+// fences it by the same rules.
 const FIRECRAWL_PDF_PAGES = 5;
-async function firecrawlRead(url, city) {
-  if (firecrawlCredits + FIRECRAWL_PDF_PAGES > FIRECRAWL_RUN_CREDITS) throw new Error(`Firecrawl run cap of ${FIRECRAWL_RUN_CREDITS} credits reached; checkpoint retained, rerun to resume`);
-  firecrawlCredits += FIRECRAWL_PDF_PAGES;
-  let used = FIRECRAWL_PDF_PAGES;
+const FIRECRAWL_SCRAPE_CREDITS = 1 + FIRECRAWL_PDF_PAGES;
+export async function firecrawlRead(url, city, request = providerRequest) {
+  if (firecrawlCredits + FIRECRAWL_SCRAPE_CREDITS > FIRECRAWL_RUN_CREDITS) throw new Error(`Firecrawl run cap of ${FIRECRAWL_RUN_CREDITS} credits reached; checkpoint retained, rerun to resume`);
+  firecrawlCredits += FIRECRAWL_SCRAPE_CREDITS;
+  let used = FIRECRAWL_SCRAPE_CREDITS;
   try {
-    const data = await firecrawlSlot(() => providerRequest("firecrawl", "/v2/scrape", { city: city.id, timeoutMs: 120_000,
-      cost: (body) => (body.data?.metadata?.creditsUsed ?? FIRECRAWL_PDF_PAGES) * FIRECRAWL_CREDIT_USD,
+    const data = await firecrawlSlot(() => request("firecrawl", "/v2/scrape", { city: city.id, timeoutMs: 120_000,
+      cost: (body) => (body.data?.metadata?.creditsUsed ?? FIRECRAWL_SCRAPE_CREDITS) * FIRECRAWL_CREDIT_USD,
       body: { url, formats: ["markdown"], onlyMainContent: false, timeout: 60_000, parsers: [{ type: "pdf", maxPages: FIRECRAWL_PDF_PAGES }], location: { country: "GB", languages: ["en-GB"] } } }));
     const metadata = data.data?.metadata ?? {};
-    used = Number(metadata.creditsUsed ?? FIRECRAWL_PDF_PAGES);
+    used = Number(metadata.creditsUsed ?? FIRECRAWL_SCRAPE_CREDITS);
     const status = Number(metadata.statusCode);
     if (Number.isFinite(status) && status >= 400) return { failed_results: [{ url, status, error: `page HTTP ${status}` }] };
     const markdown = data.data?.markdown;
@@ -348,7 +350,7 @@ async function firecrawlRead(url, city) {
     if (error.status >= 400 && ![402, 408, 429].includes(error.status)) return { failed_results: [{ url, status: error.status, error: `Firecrawl HTTP ${error.status}` }] };
     throw error;
   } finally {
-    firecrawlCredits += used - FIRECRAWL_PDF_PAGES;
+    firecrawlCredits += used - FIRECRAWL_SCRAPE_CREDITS;
   }
 }
 

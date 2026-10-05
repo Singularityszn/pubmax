@@ -114,7 +114,7 @@ describe("Tavily web slice", () => {
     const robots = vi.fn<(url: string) => Promise<typeof allowed>>(async () => allowed);
     const { io, stored } = harness({ state, searches, pages, robots, extract });
     const outcome = await webSlice(slice, { spend: true, skipsOnly: true }, { ...io, reader });
-    expect(robots.mock.calls.map(([url]) => url)).toEqual([listing]);
+    expect(robots.mock.calls.map(([url]) => url)).toEqual([listing, ownSite]);
     expect(extract.mock.calls).toEqual([[[listing, ownSite], "basic"]]);
     expect(io.search).not.toHaveBeenCalled();
     expect(outcome).toMatchObject({ complete: true, skips: [] });
@@ -125,12 +125,34 @@ describe("Tavily web slice", () => {
     expect(unsearched.io.search).not.toHaveBeenCalled();
   });
 
+  it("asks robots again before reading a source an earlier run skipped at the read, even when robots once allowed it", async () => {
+    const reader = { provider: "firecrawl", label: "Firecrawl scrape", failed: "failed", depths: ["basic"] };
+    const state = { queries: [{ query: "q0", resultPath: "search-0", observedAt }, { query: "q1", resultPath: "search-1", observedAt }], robots: { [ownSite]: allowed } };
+    const searches = { "search-0": search([{ url: ownSite, title: "Cricketers Arms", content: "OX4 2EZ" }]), "search-1": search([]) };
+    const robots = vi.fn(async () => ({ outcome: "refused", reason: "robots-disallowed" }));
+    const { io, stored } = harness({ state, searches, pages: { [ownSite]: { url: ownSite, skip: { outcome: "skipped", kind: "extract" } } }, robots });
+    const outcome = await webSlice(slice, { spend: true, skipsOnly: true }, { ...io, reader });
+    expect(robots).toHaveBeenCalledWith(ownSite);
+    expect(io.extract).not.toHaveBeenCalled();
+    expect(outcome).toMatchObject({ complete: true, found: [], rejected: [{ name: ownSite, reason: "unreadable: robots refused (robots-disallowed)" }] });
+    expect(stored.get(ownSite)).toEqual({ url: ownSite, skip: { outcome: "skipped", kind: "extract" } });
+  });
+
+  it("buys no read under Firecrawl for a source no earlier run skipped", async () => {
+    const reader = { provider: "firecrawl", label: "Firecrawl scrape", failed: "failed", depths: ["basic"] };
+    const state = { queries: [{ query: "q0", resultPath: "search-0", observedAt }, { query: "q1", resultPath: "search-1", observedAt }], robots: { [ownSite]: allowed } };
+    const searches = { "search-0": search([{ url: ownSite, title: "Cricketers Arms", content: "OX4 2EZ" }]), "search-1": search([]) };
+    const { io } = harness({ state, searches });
+    await expect(webSlice(slice, { spend: true, skipsOnly: true }, { ...io, reader })).rejects.toMatchObject({ message: expect.stringContaining(`page not yet read: ${ownSite}`), partial: { complete: false } });
+    for (const name of ["search", "robots", "extract", "probe"] as const) expect(io[name]).not.toHaveBeenCalled();
+  });
+
   it("records a Firecrawl skip with its one read and the page's status", async () => {
     const reader = { provider: "firecrawl", label: "Firecrawl scrape", failed: "failed", depths: ["basic"] };
     const searches = { "search-0": search([{ url: ownSite, title: "Cricketers Arms", content: "OX4 2EZ" }]) };
     const extract = vi.fn(async (urls: string[]) => ({ failed_results: urls.map((url) => ({ url, error: "Firecrawl returned no markdown" })) }));
     const { io } = harness({ state: { queries: [{ query: "q0", resultPath: "search-0", observedAt }, { query: "q1", resultPath: "search-1", observedAt }], robots: { [ownSite]: allowed } }, searches: { ...searches, "search-1": search([]) },
-      pages: { [ownSite]: { url: ownSite, skip: { outcome: "skipped", kind: "extract" } } }, extract, probe: vi.fn(async () => ({ status: 200, landed: "permitted" })) });
+      pages: { [ownSite]: { url: ownSite, skip: { outcome: "skipped", kind: "extract" } } }, robots: vi.fn(async () => allowed), extract, probe: vi.fn(async () => ({ status: 200, landed: "permitted" })) });
     const outcome = await webSlice(slice, { spend: true, skipsOnly: true }, { ...io, reader });
     expect(extract).toHaveBeenCalledTimes(1);
     expect(outcome.skips).toMatchObject([{ url: ownSite, kind: "extract", attempts: 1, reason: "Firecrawl scrape failed; the page answered HTTP 200", evidence: { basic: "Firecrawl returned no markdown", probe: { status: 200 } } }]);
@@ -142,12 +164,12 @@ describe("Tavily web slice", () => {
     const searches = { "search-0": search([{ url: ownSite, title: "Cricketers Arms", content: "OX4 2EZ" }]), "search-1": search([]) };
     const state = { queries: [{ query: "q0", resultPath: "search-0", observedAt }, { query: "q1", resultPath: "search-1", observedAt }], robots: { [ownSite]: allowed } };
     const pages = { [ownSite]: { url: ownSite, skip: { outcome: "skipped", kind: "extract" } } };
-    const redirected = harness({ state, searches, pages,
+    const redirected = harness({ state, searches, pages, robots: vi.fn(async () => allowed),
       extract: vi.fn(async () => ({ results: [{ url: ownSite, landed_url: landedUrl, raw_content: ownText }], failed_results: [] })) });
     const outcome = await webSlice(slice, { spend: true, skipsOnly: true }, { ...redirected.io, reader });
     expect(outcome).toMatchObject({ complete: true, skips: [], found: [{ name: "Cricketers Arms" }] });
     expect(redirected.stored.get(ownSite)).toMatchObject({ landedUrl, reader: "firecrawl" });
-    const refused = harness({ state, searches, pages,
+    const refused = harness({ state, searches, pages, robots: vi.fn(async () => allowed),
       extract: vi.fn(async () => ({ results: [{ url: ownSite, landed_url: "http://localhost/admin", raw_content: ownText }], failed_results: [] })) });
     const fenced = await webSlice(slice, { spend: true, skipsOnly: true }, { ...refused.io, reader });
     expect(fenced.found).toEqual([]);
@@ -163,7 +185,7 @@ describe("Tavily web slice", () => {
       throw Object.assign(new Error("Firecrawl HTTP 402"), { status: 402, answered: { results: [{ url: ownSite, raw_content: ownText }], failed_results: [] } });
     });
     const { io, stored } = harness({ state: { queries: [{ query: "q0", resultPath: "search-0", observedAt }], robots: { [ownSite]: allowed, [other]: allowed } }, searches,
-      pages: { [ownSite]: { url: ownSite, skip: skipped }, [other]: { url: other, skip: skipped } }, extract });
+      pages: { [ownSite]: { url: ownSite, skip: skipped }, [other]: { url: other, skip: skipped } }, robots: vi.fn(async () => allowed), extract });
     await expect(webSlice(slice, { spend: true, skipsOnly: true }, { ...io, reader })).rejects.toMatchObject({ message: "Firecrawl HTTP 402", partial: { complete: false } });
     expect(stored.get(ownSite)).toMatchObject({ landedUrl: ownSite, text: ownText, reader: "firecrawl" });
     expect(stored.get(other)).toEqual({ url: other, skip: skipped });
@@ -195,7 +217,7 @@ describe("Tavily web slice", () => {
       throw Object.assign(new Error("Firecrawl HTTP 402"), { status: 402, answered: { results: [], failed_results: [{ url: gone, status: 404, error: "page HTTP 404" }] } });
     });
     const { io, stored } = harness({ state: { queries: [{ query: "q0", resultPath: "search-0", observedAt }], robots: { [ownSite]: allowed, [gone]: allowed } }, searches,
-      pages: { [ownSite]: { url: ownSite, skip: skipped }, [gone]: { url: gone, skip: skipped } }, extract });
+      pages: { [ownSite]: { url: ownSite, skip: skipped }, [gone]: { url: gone, skip: skipped } }, robots: vi.fn(async () => allowed), extract });
     await expect(webSlice(slice, { spend: true, skipsOnly: true }, { ...io, reader })).rejects.toThrow("Firecrawl HTTP 402");
     expect(stored.get(gone)).toMatchObject({ unreadable: "extract: page HTTP 404", settled: true });
     expect(stored.get(ownSite)).toEqual({ url: ownSite, skip: skipped });

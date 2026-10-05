@@ -115,7 +115,8 @@ async function readBatch(batch, search, io, pages, skips) {
 }
 
 // With skipsOnly, a spending run asks robots again and reads again only the
-// sources an earlier run skipped; every settled answer and page replays.
+// sources an earlier run skipped at robots or at the read; every other answer
+// and page replays, and nothing else is bought.
 async function readPages(urls, search, state, { spend, refresh, skipsOnly }, io) {
   const pages = new Map();
   const extract = [];
@@ -123,21 +124,22 @@ async function readPages(urls, search, state, { spend, refresh, skipsOnly }, io)
   const skips = [];
   for (const url of urls) {
     const host = new URL(url).host;
+    const stored = refresh ? null : await io.storedPage(url);
     let answer = state.robots[url];
-    if (spend && (!skipsOnly || !answer || answer.outcome === "skipped")) {
+    const buy = spend && (!skipsOnly || answer?.outcome === "skipped" || Boolean(stored?.skip));
+    if (buy) {
       answer = { ...(await io.robots(url)), checkedAt: io.now() };
       state.robots[url] = answer;
     }
     if (!answer) { transient.push(`robots not yet asked for ${host}`); continue; }
     if (answer.outcome === "skipped") { skips.push({ url, host, kind: "robots", reason: answer.reason, attempts: answer.attempts, evidence: answer.evidence, checkedAt: answer.checkedAt }); continue; }
     if (answer.outcome !== "allowed") { pages.set(url, { url, unreadable: `robots refused (${answer.reason})` }); continue; }
-    const stored = refresh ? null : await io.storedPage(url);
     const result = search.results.find((row) => row.url === url);
-    if (stored?.skip && spend && skipsOnly) extract.push(url);
+    if (stored?.skip && buy && skipsOnly) extract.push(url);
     else if (stored?.skip) skips.push({ url, host, ...stored.skip });
     else if (settled(stored)) pages.set(url, stored);
     else if (result?.raw_content) pages.set(url, { url, landedUrl: url, observedAt: search.observedAt, title: result.title ?? null, text: result.raw_content });
-    else if (spend) extract.push(url);
+    else if (buy) extract.push(url);
     else transient.push(`page not yet read: ${url}`);
   }
   for (let at = 0; at < extract.length; at += 20) await readBatch(extract.slice(at, at + 20), search, io, pages, skips);
