@@ -16,6 +16,7 @@ const focusTrapState = vi.hoisted(() => {
       return () => listeners.delete(listener);
     },
     readStrictModalFocusTrap: () => state.strictModalOpen,
+    readOtherStrictModalFocusTrap: () => state.strictModalOpen,
     serverStrictModalFocusTrap: () => false,
     setStrictModalOpen: (open: boolean) => {
       state.strictModalOpen = open;
@@ -224,10 +225,6 @@ async function renderAfterGrace(): Promise<void> {
   await commitReactWork(() => {
     vi.advanceTimersByTime(8_000);
   });
-  // The nudge opens from a microtask once nothing else holds a strict modal.
-  await commitReactWork(async () => {
-    await Promise.resolve();
-  });
 }
 
 beforeEach(() => {
@@ -317,8 +314,8 @@ describe("IdentityNudge visibility", () => {
 
   // The tap that ends the grace can open another strict modal (Edit opens the
   // Moment photo editor). Two strict traps inert each other, so the nudge
-  // waits for that one to close instead of opening behind or over it.
-  it("waits while another strict modal is open, then opens when it closes", async () => {
+  // steps aside while that one is open and comes back when it closes.
+  it("steps aside while another strict modal is open, then opens when it closes", async () => {
     authState.current.configured = true;
     focusTrapState.strictModalOpen = true;
 
@@ -327,12 +324,13 @@ describe("IdentityNudge visibility", () => {
 
     await commitReactWork(async () => {
       focusTrapState.setStrictModalOpen(false);
-      await Promise.resolve();
-    });
-    await commitReactWork(async () => {
-      await Promise.resolve();
     });
     expect(container.childNodes.length).toBeGreaterThan(0);
+
+    await commitReactWork(async () => {
+      focusTrapState.setStrictModalOpen(true);
+    });
+    expect(container.childNodes).toHaveLength(0);
   });
 
   it("keeps one functional magic-link email action and no dormant digest capture", async () => {

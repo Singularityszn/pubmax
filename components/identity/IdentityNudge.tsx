@@ -22,7 +22,7 @@ import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import {
-  readStrictModalFocusTrap,
+  readOtherStrictModalFocusTrap,
   serverStrictModalFocusTrap,
   subscribeStrictModalFocusTrap,
   useFocusTrap,
@@ -116,29 +116,20 @@ export default function IdentityNudge(): React.JSX.Element | null {
     configured &&
     hasPromptBudgetFor(IDENTITY_SURFACE);
 
-  // Never open over another strict modal. The tap that ends the grace is often
-  // the tap that opens one (Edit on a Moment opens the photo editor), and two
-  // strict traps inert each other: the reader saw an inert editor over a
-  // sign-in sheet they could not reach. The nudge waits for that modal to
-  // close. Once open it stays open; its own trap counts as a strict modal.
-  // A map-surface sheet is not a strict modal, so the nudge still covers it.
-  const strictModalOpen = useSyncExternalStore(
+  // Never share the page with another strict modal. The tap that ends the
+  // grace is often the tap that opens one (Edit on a Moment opens the photo
+  // editor, a lazy chunk that mounts after the nudge has already opened), and
+  // two strict traps inert each other: the reader saw an inert editor over a
+  // sign-in sheet they could not reach. While any strict modal other than this
+  // one holds the page the nudge steps aside, and it comes back when that modal
+  // closes. A map-surface sheet or drawer is not a strict modal, so the nudge
+  // still covers it.
+  const otherStrictModalOpen = useSyncExternalStore(
     subscribeStrictModalFocusTrap,
-    readStrictModalFocusTrap,
+    () => readOtherStrictModalFocusTrap(dialogRef.current),
     serverStrictModalFocusTrap,
   );
-  const [opened, setOpened] = useState(false);
-  useEffect(() => {
-    if (!eligible) {
-      if (opened) void Promise.resolve().then(() => setOpened(false));
-      return;
-    }
-    if (opened || strictModalOpen) return;
-    void Promise.resolve().then(() => {
-      if (!readStrictModalFocusTrap()) setOpened(true);
-    });
-  }, [eligible, opened, strictModalOpen]);
-  const canShow = eligible && opened;
+  const canShow = eligible && !otherStrictModalOpen;
 
   // Claim the shared one-prompt-per-session budget at the moment it shows
   // (docs/PROMPT_ORCHESTRATION.md). Idempotent for this surface.
