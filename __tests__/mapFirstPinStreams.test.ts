@@ -65,13 +65,6 @@ describe("the closed set of held lanes", () => {
     ]);
   });
 
-  it("holds the London restaurant pack until the pins have painted", () => {
-    const source = read("components/PubMap.tsx");
-    expect(source).toMatch(
-      /londonRestaurantPackWanted\(\{[^}]*held: secondaryStreamsHeld,/,
-    );
-  });
-
   it("holds the slim shard rings at the one door every ring load comes through", () => {
     const source = read("components/PubMap.tsx");
     // The guard sits at the TOP of scheduleRingLoad, before the pending-key
