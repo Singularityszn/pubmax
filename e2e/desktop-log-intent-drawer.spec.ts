@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 
+import { expectSoleDesktopDrawer } from "./helpers/mapSurfaceDrawers";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 /**
@@ -42,6 +43,8 @@ test("the desktop log drawer gives the composer the full panel, clear of the hea
 
   const priceStep = page.getByTestId("spill-price-step");
   await expect(priceStep).toBeVisible({ timeout: 45_000 });
+  // The venue drawer is the one open desktop drawer before anything reads it.
+  await expectSoleDesktopDrawer(page, "venue");
 
   // The reveal waits for the composer to mount and then scrolls once. Wait until the
   // drawer's scroll position holds still across two reads before measuring.

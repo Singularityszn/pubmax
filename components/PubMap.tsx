@@ -336,6 +336,7 @@ import { useSelParamSync } from "@/components/map/pubmap/useSelParamSync";
 import { useMapKeyboardShortcuts } from "@/components/map/pubmap/useMapKeyboardShortcuts";
 import { useLandmarkJourney } from "@/components/map/pubmap/useLandmarkJourney";
 import { useLogIntent } from "@/components/map/pubmap/useLogIntent";
+import { useLogIntentRevealScope } from "@/components/map/pubmap/useLogIntentRevealScope";
 import { MappedRouteChip } from "@/components/map/pubmap/MappedRouteChip";
 import { BandOnboardingChip } from "@/components/map/pubmap/BandOnboardingChip";
 const MapOnboardingOverlay = dynamic(
@@ -435,7 +436,6 @@ import {
 } from "@/lib/mapLogIntent";
 import {
   browserPrefersReducedMotion,
-  cancelLogIntentReveal,
   requestLogIntentReveal,
 } from "@/lib/logIntentReveal";
 import prefetchVenue from "@/lib/prefetchVenue";
@@ -4405,11 +4405,7 @@ export default function PubMap({
   // The venue sheet is open for a curated venue OR for a tapped base pub; both
   // fill the same drawer/sheet, so every open/close/snap path stays one path.
   const detailOpen = mapSelection.detailOpen;
-  // A log intent's reveal waits for the composer's price step to mount, so a
-  // sheet closed before that happens takes the waiting reveal with it.
-  useEffect(() => {
-    if (!detailOpen) cancelLogIntentReveal();
-  }, [detailOpen]);
+  useLogIntentRevealScope(detailOpen);
   const activeNightArea = useMemo(() => nightAreaForMapQuery(cityId, filters.query) ??
     (!filters.query.trim() && plannedNightArea ? getNightArea(plannedNightArea) : null),
   [cityId, filters.query, plannedNightArea]);
