@@ -141,6 +141,19 @@ export default function SaveButton() {
 }
 `;
 
+/** One fixture per credential door, keyed by the door an exception may argue. */
+const DOOR_PAGES: Record<string, string> = {
+  "cookies()": COOKIE_PAGE,
+  "draftMode()": DRAFT_MODE_PAGE,
+  "the credential gate @/lib/adminAuth": CREDENTIAL_GATE_PAGE,
+  "the Authorization header": AUTHORIZATION_PAGE,
+  "the Cookie header": COOKIE_HEADER_PAGE,
+};
+
+const EXCEPTIONS = Object.entries(PER_SESSION_SERVER_PAGES).map(
+  ([file, { door }]) => [file, door] as const,
+);
+
 describe("invariant 1 - no page renders per-account content on the server", () => {
   it.each([
     ["cookies()", COOKIE_PAGE],
@@ -166,15 +179,25 @@ describe("invariant 1 - no page renders per-account content on the server", () =
     );
   });
 
-  it.each(Object.keys(PER_SESSION_SERVER_PAGES))(
-    "lets the argued exception %s read the credential",
-    async (file) => {
-      const rules = await lintRules(file, COOKIE_PAGE);
+  it.each(EXCEPTIONS)("lets the argued exception %s read %s", async (file, door) => {
+    const code = DOOR_PAGES[door];
+    if (code === undefined) throw new Error(`no fixture reads ${door}`);
 
-      expect(rules).not.toContain(CREDENTIAL_READ);
-      expect(rules).not.toContain(STALE_EXCEPTION);
-    },
-  );
+    const rules = await lintRules(file, code);
+
+    expect(rules).not.toContain(CREDENTIAL_READ);
+    expect(rules).not.toContain(STALE_EXCEPTION);
+  });
+
+  it.each(
+    EXCEPTIONS.flatMap(([file, door]) =>
+      Object.entries(DOOR_PAGES)
+        .filter(([other]) => other !== door)
+        .map(([other, code]) => [file, other, code] as const),
+    ),
+  )("still refuses the argued exception %s reading %s", async (file, _door, code) => {
+    expect(await lintRules(file, code)).toContain(CREDENTIAL_READ);
+  });
 
   it.each(Object.keys(PER_SESSION_SERVER_PAGES))(
     "reports the argued exception %s as stale once it stops reading the credential",
