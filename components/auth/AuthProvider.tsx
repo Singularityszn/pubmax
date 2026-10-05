@@ -223,16 +223,15 @@ function scrubLingeringBrowserAuthCallback(): void {
 async function persistSessionWithRetry(
   auth: { getSession: () => Promise<{ data: { session: Session | null } }> },
   session: Session,
-  intent: "sign-in" | "background",
 ): Promise<void> {
-  const outcome = await persistSessionForResume(session, fetch, intent);
+  const outcome = await persistSessionForResume(session);
   if (outcome !== "unauthenticated") return;
   const refreshed = await auth
     .getSession()
     .then(({ data }) => data.session ?? null)
     .catch(() => null);
   if (!refreshed || refreshed.access_token === session.access_token) return;
-  await persistSessionForResume(refreshed, fetch, intent);
+  await persistSessionForResume(refreshed);
 }
 
 async function prepareAuthCallback(
@@ -645,11 +644,7 @@ export function AuthProvider({
             event === "TOKEN_REFRESHED" ||
             event === "INITIAL_SESSION"
           ) {
-            void persistSessionWithRetry(
-              supabase.auth,
-              nextSession,
-              event === "SIGNED_IN" && signedIn ? "sign-in" : "background",
-            );
+            void persistSessionWithRetry(supabase.auth, nextSession);
           }
         }
         if (event === "SIGNED_IN" && nextSession?.user) {
@@ -1039,6 +1034,11 @@ export function AuthProvider({
       // onAuthStateChange has fired SIGNED_OUT. Invalidate the departing owner
       // before the purge, so no late write of theirs can land after it.
       markProviderSignOut("supabase");
+      // Explicit sign-out is the one place the durable resume cookie dies too —
+      // a transient SIGNED_OUT (failed refresh) must keep it for silent restore.
+      // Started first, because its signed-out generation is written before the
+      // call yields, so the cookie stops counting before any cleanup awaits.
+      const resumeCleared = clearPersistedSession();
       // The same set the account boundary clears, and the owner stamp with it.
       // Leaving the handle behind is what let the next account inherit it: the
       // session went and its name stayed.
@@ -1055,12 +1055,10 @@ export function AuthProvider({
       else if (departing) forgetDeviceAccount(browserLocalStorage(), departing);
       emitDeviceAccountSessionsChanged();
       setWelcomeBack(null);
-      // Explicit sign-out is the one place the durable resume cookie dies too —
-      // a transient SIGNED_OUT (failed refresh) must keep it for silent restore.
       // AWAITED, because an account sign-out may hand the device straight to the
       // next remembered account: a DELETE still in flight would land after that
       // account's persist and leave the device with no durable session at all.
-      await clearPersistedSession();
+      await resumeCleared;
       if (scope === "device") return;
       // The person asked to leave ONE account on a device that still holds
       // another signed-in one. Leaving it signed out would strand a session

@@ -133,14 +133,14 @@ async function persist(
   if (!isPlausibleRefreshToken(refreshToken)) {
     return publicApiError("A refresh token is required.", "INVALID_REQUEST", 400);
   }
-  // After an explicit sign-out only a deliberate sign-in may remember an
-  // account again. A background refresh or boot persist is refused.
-  const deliberate = body.intent === "sign-in";
-  const currentGeneration = authResumeCookieFromHeader(
+  // The cookie is stamped with the generation the request carried and never
+  // writes one: only the browser starts a generation, at a sign-in the person
+  // asked for. After an explicit sign-out nothing is remembered until then.
+  const generation = authResumeCookieFromHeader(
     request.headers.get("cookie"),
     AUTH_RESUME_GENERATION_COOKIE,
   );
-  if (!deliberate && currentGeneration?.startsWith(SIGNED_OUT_GENERATION_PREFIX)) {
+  if (generation?.startsWith(SIGNED_OUT_GENERATION_PREFIX)) {
     return publicApiError("This device was signed out.", "SIGNED_OUT", 409);
   }
 
@@ -168,16 +168,12 @@ async function persist(
     verification.status === "verified" && verification.identity.email
       ? verification.identity.email
       : inheritedResumeEmail(existing, { userId, refreshToken });
-  const generation = deliberate ? newResumeGeneration() : currentGeneration;
-  const headers = setCookieHeaders(
-    {
-      refreshToken: refreshToken,
-      email,
-      userId,
-      generation,
-    },
-    deliberate && generation ? generation : undefined,
-  );
+  const headers = setCookieHeaders({
+    refreshToken: refreshToken,
+    email,
+    userId,
+    generation,
+  });
   return jsonNoStore({ ok: true }, { headers });
 }
 

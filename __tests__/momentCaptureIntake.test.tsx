@@ -392,13 +392,21 @@ describe("Moment save progress across an account boundary", () => {
     store = new Map();
     releaseUpload = [];
     loadDraft.mockImplementation(async (owner: string) => store.get(owner) ?? null);
-    saveDraft.mockImplementation(async (draft: Stored) => { store.set(draft.ownerKey, { ...draft }); });
+    let tick = 0;
+    const stamp = () => new Date(1_800_000_000_000 + ++tick).toISOString();
+    saveDraft.mockImplementation(async (draft: Stored) => {
+      const updatedAt = stamp();
+      store.set(draft.ownerKey, { ...draft, updatedAt });
+      return updatedAt;
+    });
     deleteDraft.mockImplementation(async (owner: string) => { store.delete(owner); });
-    settleDraft.mockImplementation(async (owner: string, id: string, revision: number, progress: Partial<Stored> | null) => {
+    settleDraft.mockImplementation(async (owner: string, id: string, updatedAt: string, progress: Partial<Stored> | null) => {
       const stored = store.get(owner);
-      if (!stored || stored.id !== id || stored.revision > revision) return;
+      if (!stored || stored.id !== id || stored.updatedAt !== updatedAt) return null;
+      const settledAt = stamp();
       if (progress === null) store.delete(owner);
-      else store.set(owner, { ...stored, ...progress });
+      else store.set(owner, { ...stored, ...progress, updatedAt: settledAt });
+      return settledAt;
     });
     answer = (call) => {
       if (call.url === "/api/night-memories") return json({ memory: { id: "memory-1" } }, 201);
@@ -453,6 +461,27 @@ describe("Moment save progress across an account boundary", () => {
     expect(container.querySelector(".momentSaved")).not.toBeNull();
   });
 
+  it("does not upload again what an earlier visit's save confirmed after this visit restored it", async () => {
+    await startThreePhotoSave();
+    await act(async () => root?.unmount());
+    container.remove();
+    await mount();
+    expect(previews()).toBe(2);
+    await act(async () => { releaseUpload.shift()?.(json({ moment: { id: "late" } }, 201)); });
+    await settle();
+    expect(store.get("host")?.media.map((item) => item.name)).toEqual(["three.jpg"]);
+
+    answer = () => json({ moment: { id: "moment-next" } }, 201);
+    await save();
+    expect(status()).toBe("Your unfinished Moment is back.");
+    expect(previews()).toBe(1);
+    await save();
+    const sent = calls.filter((call) => call.url.endsWith("/moments"))
+      .map((call) => ((call.init.body as FormData).get("photo") as File).name);
+    expect(sent).toEqual(["one.jpg", "two.jpg", "three.jpg"]);
+    expect(store.has("host")).toBe(false);
+  });
+
   it("clears the stored draft once every photo is saved", async () => {
     answer = (call) => call.url === "/api/night-memories" ? json({ memory: { id: "memory-1" } }, 201) : json({ moment: { id: "m" } }, 201);
     await mount();
@@ -504,6 +533,50 @@ describe("Moment save progress across an account boundary", () => {
     expect(previews()).toBe(0);
     expect(store.has("other")).toBe(false);
     expect(store.get("host")?.media.map((item) => item.name)).toEqual(["three.jpg"]);
+  });
+});
+
+// The real draft store, through its fallback lane: jsdom has no IndexedDB.
+describe("Moment save progress on the store's fallback lane", () => {
+  beforeEach(async () => {
+    const actual = await vi.importActual<typeof import("@/lib/momentDraft")>("@/lib/momentDraft");
+    localStorage.clear();
+    loadDraft.mockImplementation(actual.loadMomentDraft);
+    saveDraft.mockImplementation(actual.saveMomentDraft);
+    deleteDraft.mockImplementation(actual.deleteMomentDraft);
+    settleDraft.mockImplementation(actual.settleMomentDraftProgress);
+  });
+
+  it("resumes into the confirmed Memory after a session blip instead of creating another", async () => {
+    let releaseMoment!: (response: Response | null) => void;
+    answer = (call) => call.url === "/api/night-memories"
+      ? json({ memory: { id: "memory-1" } }, 201)
+      : new Promise<Response | null>((resolve) => { releaseMoment = resolve; }) as unknown as Response;
+    await mount();
+    const caption = container.querySelector<HTMLTextAreaElement>(".momentFields textarea")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(caption, "A night worth keeping");
+      caption.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 350)); });
+    await act(async () => { container.querySelector<HTMLFormElement>("form.momentComposer")!.requestSubmit(); });
+    await vi.waitFor(() => expect(calls.map((call) => call.url)).toContain("/api/night-memories/memory-1/moments"));
+
+    await act(async () => {
+      auth.owner = null;
+      setProviderIdentity("supabase", null);
+      setProviderAuthState("supabase", "signed-out");
+      releaseMoment(null);
+    });
+    await settle();
+    await changeAccount("host");
+    expect(JSON.parse(localStorage.getItem("pubmaxx:moment-draft:v1:host") ?? "{}").serverMemoryId).toBe("memory-1");
+
+    answer = () => json({ moment: { id: "moment-1" } }, 201);
+    await save();
+    expect(calls.filter((call) => call.url === "/api/night-memories")).toHaveLength(1);
+    expect(calls.at(-1)?.url).toBe("/api/night-memories/memory-1/moments");
+    expect(localStorage.getItem("pubmaxx:moment-draft:v1:host")).toBeNull();
   });
 });
 

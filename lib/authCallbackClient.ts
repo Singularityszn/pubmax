@@ -1,6 +1,7 @@
 import type { AuthCallbackTokens } from "@/lib/authRedirect";
 import { isGoTrueUserBannedError } from "@/lib/authAccountBan";
 import { withAuthFetchTimeout } from "@/lib/authFetch";
+import { beginResumeGeneration } from "@/lib/authSessionResumeClient";
 import type { DeviceAccountSwitchDeps, MintOutcome } from "@/lib/deviceAccountSwitch";
 
 export type AuthSessionEstablishClient<SessionValue> = {
@@ -166,6 +167,8 @@ export async function establishAuthCallbackSession<SessionValue>(
   tokens: AuthCallbackTokens,
 ): Promise<AuthCallbackSessionResult<SessionValue>> {
   try {
+    // The person followed this link or provider return to sign in.
+    beginResumeGeneration();
     const { data, error } = await auth.setSession({
       access_token: tokens.accessToken,
       refresh_token: tokens.refreshToken,

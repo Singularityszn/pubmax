@@ -2,6 +2,7 @@ import type { Session } from "@supabase/supabase-js";
 
 import {
   fetchResumeHint,
+  readResumeGeneration,
   redeemPersistedSession,
   type RedeemResult,
   type ResumeHintReadOutcome,
@@ -56,6 +57,9 @@ export async function bootstrapAuthSession(
   auth: BrowserAuthSession,
   deps: AuthSessionBootstrapDeps = {},
 ): Promise<AuthSessionBootstrapOutcome> {
+  // An explicit sign-out while the redeem was in flight changes this; the
+  // restored session then belongs to an account that already left.
+  const generationAtStart = readResumeGeneration();
   let localSettled = false;
   let localSession: Session | null = null;
   let localReadFailed = false;
@@ -108,6 +112,7 @@ export async function bootstrapAuthSession(
     return { status: "unavailable" };
   }
   if (restored.status !== "restored") return restored;
+  if (readResumeGeneration() !== generationAtStart) return { status: "none" };
 
   try {
     const result = await auth.setSession(restored.session);

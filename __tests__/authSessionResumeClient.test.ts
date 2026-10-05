@@ -72,7 +72,6 @@ describe("persisting the resume cookie", () => {
     expect(JSON.parse(String(init.body))).toEqual({
       action: "persist",
       refreshToken: "rt_1",
-      intent: "background",
     });
   });
 

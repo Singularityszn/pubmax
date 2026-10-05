@@ -278,8 +278,8 @@ describe("the switch never binds identity itself", () => {
 
     // An account sign-out may activate the next remembered account, whose
     // SIGNED_IN persists a new cookie. A DELETE still in flight would land after
-    // that persist and leave the device with no durable session at all.
-    expect(provider).toContain("await clearPersistedSession()");
+    // that persist and leave the device with no durable session at all. The
+    // ordering itself is exercised in __tests__/authProviderSignOutBoundary.test.tsx.
     expect(provider).not.toContain("void clearPersistedSession()");
 
     const signedOutAt = provider.indexOf("await supabase.auth.signOut()");

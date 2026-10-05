@@ -17,6 +17,8 @@ const harness = vi.hoisted(() => ({
   events: [] as string[],
   atActivate: null as null | { owner: string | null; spills: string | null; drafts: string[]; lane: string[] },
   post: null as null | ((init: RequestInit) => Promise<Response>),
+  momentPurgeGate: Promise.resolve() as Promise<void>,
+  deleteGate: Promise.resolve() as Promise<void>,
 }));
 
 vi.mock("@/components/auth/ArrivalWelcome", () => ({ default: () => null }));
@@ -56,12 +58,27 @@ vi.mock("@/lib/authSessionBootstrap", () => ({
   AUTH_SESSION_BOOTSTRAP_TIMEOUT_MS: 20_000,
   bootstrapAuthSession: async () => ({ status: "none" }),
 }));
-vi.mock("@/lib/authSessionResumeClient", async () => ({
-  ...(await vi.importActual<typeof import("@/lib/authSessionResumeClient")>("@/lib/authSessionResumeClient")),
-  clearPersistedSession: async () => {
-    harness.events.push("durable-cookie-delete");
-  },
-}));
+vi.mock("@/lib/authSessionResumeClient", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/authSessionResumeClient")>("@/lib/authSessionResumeClient");
+  return {
+    ...actual,
+    clearPersistedSession: (...args: Parameters<typeof actual.clearPersistedSession>) => {
+      harness.events.push("durable-cookie-delete");
+      return actual.clearPersistedSession(...args);
+    },
+  };
+});
+vi.mock("@/lib/momentDraft", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/momentDraft")>("@/lib/momentDraft");
+  return {
+    ...actual,
+    deleteMomentDraft: async (owner: string) => {
+      harness.events.push(`moment-purge:${owner}`);
+      await harness.momentPurgeGate;
+      return actual.deleteMomentDraft(owner);
+    },
+  };
+});
 vi.mock("@/lib/deviceAccountSwitch", async () => ({
   ...(await vi.importActual<typeof import("@/lib/deviceAccountSwitch")>("@/lib/deviceAccountSwitch")),
   activateDeviceAccount: vi.fn(async (userId: string) => {
@@ -94,6 +111,7 @@ import { deviceAccountOwner } from "@/lib/deviceAccountIdentity";
 import { readDeviceAccounts, rememberDeviceAccount } from "@/lib/deviceAccountSessions";
 import { OPTIMISTIC_SPILL_STORAGE_KEY, readOptimisticSpills, writeOptimisticSpills } from "@/lib/optimisticSpillPost";
 import { pintDropDraftStorageKey } from "@/lib/pintDropDraft";
+import { readResumeGeneration } from "@/lib/authSessionResumeClient";
 import type { Visibility } from "@/lib/spill";
 
 const ACCOUNT = "account-a";
@@ -153,12 +171,22 @@ beforeEach(async () => {
   harness.outcome = "signed-out";
   harness.duringProviderSignOut = null;
   harness.events = [];
+  harness.momentPurgeGate = Promise.resolve();
+  harness.deleteGate = Promise.resolve();
+  for (const cookie of document.cookie.split(";")) {
+    const name = cookie.split("=")[0]?.trim();
+    if (name) document.cookie = `${name}=; Max-Age=0; Path=/`;
+  }
   harness.atActivate = null;
   harness.post = null;
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init: RequestInit = {}) => {
     const url = String(input);
     if (url === "/api/pint-drops" && init.method === "POST" && harness.post) return harness.post(init);
     if (url.startsWith("/api/pint-drops")) return new Response(JSON.stringify({ drops: [] }));
+    if (url === "/api/auth/session" && init.method === "DELETE") {
+      await harness.deleteGate;
+      harness.events.push("durable-cookie-deleted");
+    }
     return new Response("{}");
   }));
   for (const key of [...accountDraftKeys, ...retainedKeys]) sessionStorage.setItem(key, "{}");
@@ -219,7 +247,7 @@ describe("explicit sign-out account boundary", () => {
       for (const owner of [ACCOUNT, OTHER, "guest"]) localStorage.setItem(`pubmaxx:moment-draft:v1:${owner}`, "{}");
       const signOutRevision = readProviderSignOutRevision("supabase");
       await signOut();
-      expect(harness.events).toEqual(["provider-sign-out", "durable-cookie-delete"]);
+      expect(harness.events).toEqual(["provider-sign-out", "durable-cookie-delete", `moment-purge:${ACCOUNT}`, "durable-cookie-deleted"]);
       expect(readProviderSignOutRevision("supabase")).toBe(signOutRevision + 1);
       expect(viewer()).toBe("signed-out");
       expect(deviceAccountOwner(localStorage)).toBeNull();
@@ -236,15 +264,41 @@ describe("explicit sign-out account boundary", () => {
       rememberDeviceAccount(localStorage, { userId: OTHER, refreshToken: "synthetic-refresh-b", email: "b@example.com" }, Date.now() - 60_000);
       writeOptimisticSpills(localStorage, [storedSpill]);
       await signOut();
-      expect(harness.events).toEqual(["provider-sign-out", "durable-cookie-delete", `activate:${OTHER}`]);
+      expect(harness.events).toEqual(["provider-sign-out", "durable-cookie-delete", `moment-purge:${ACCOUNT}`, "durable-cookie-deleted", `activate:${OTHER}`]);
       expect(harness.atActivate).toEqual({ owner: null, spills: null, drafts: [], lane: [OTHER] });
+    });
+
+    it("hands the device to the next account only after the cookie DELETE has finished", async () => {
+      rememberDeviceAccount(localStorage, { userId: OTHER, refreshToken: "synthetic-refresh-b", email: "b@example.com" }, Date.now() - 60_000);
+      let releaseDelete!: () => void;
+      harness.deleteGate = new Promise((resolve) => { releaseDelete = resolve; });
+      const leaving = auth!.signOut();
+      await vi.waitFor(() => expect(harness.events).toContain(`moment-purge:${ACCOUNT}`));
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 10)); });
+      expect(harness.events).not.toContain(`activate:${OTHER}`);
+      releaseDelete();
+      await act(async () => leaving);
+      expect(harness.events.slice(-2)).toEqual(["durable-cookie-deleted", `activate:${OTHER}`]);
+    });
+
+    it("stops the departed cookie counting before the Moment purge finishes, and hands over only after it", async () => {
+      rememberDeviceAccount(localStorage, { userId: OTHER, refreshToken: "synthetic-refresh-b", email: "b@example.com" }, Date.now() - 60_000);
+      let releasePurge!: () => void;
+      harness.momentPurgeGate = new Promise((resolve) => { releasePurge = resolve; });
+      const leaving = auth!.signOut();
+      await vi.waitFor(() => expect(harness.events).toContain(`moment-purge:${ACCOUNT}`));
+      expect(readResumeGeneration()?.startsWith("out.")).toBe(true);
+      expect(harness.events).not.toContain(`activate:${OTHER}`);
+      releasePurge();
+      await act(async () => leaving);
+      expect(harness.events.at(-1)).toBe(`activate:${OTHER}`);
     });
 
     it("forgets every remembered account and hands the device to nobody on a device sign-out", async () => {
       rememberDeviceAccount(localStorage, { userId: OTHER, refreshToken: "synthetic-refresh-b", email: "b@example.com" }, Date.now() - 60_000);
       writeOptimisticSpills(localStorage, [storedSpill]);
       await signOut("device");
-      expect(harness.events).toEqual(["provider-sign-out", "durable-cookie-delete"]);
+      expect(harness.events).toEqual(["provider-sign-out", "durable-cookie-delete", `moment-purge:${ACCOUNT}`, "durable-cookie-deleted"]);
       expect(viewer()).toBe("signed-out");
       expect(deviceAccountOwner(localStorage)).toBeNull();
       expect(readDeviceAccounts(localStorage)).toEqual([]);

@@ -129,15 +129,17 @@ export async function loadMomentDraft(ownerKey: string): Promise<MomentDraftV1 |
   }
 }
 
-export async function saveMomentDraft(draft: MomentDraftV1): Promise<void> {
-  if (typeof window === "undefined") return;
+/** Store the draft; returns the `updatedAt` it was stored with. */
+export async function saveMomentDraft(draft: MomentDraftV1): Promise<string> {
   const next = { ...draft, updatedAt: new Date().toISOString() };
+  if (typeof window === "undefined") return next.updatedAt;
   try {
     await withStore<IDBValidKey>("readwrite", (store) => store.put(next));
   } catch {
     const metadataOnly = { ...next, media: [] };
     try { window.localStorage.setItem(fallbackKey(draft.ownerKey), JSON.stringify(metadataOnly)); } catch { /* unavailable storage */ }
   }
+  return next.updatedAt;
 }
 
 export async function deleteMomentDraft(ownerKey: string): Promise<void> {
@@ -146,35 +148,71 @@ export async function deleteMomentDraft(ownerKey: string): Promise<void> {
   try { window.localStorage.removeItem(fallbackKey(ownerKey)); } catch { /* unavailable storage */ }
 }
 
+export type MomentSaveProgress = Pick<MomentDraftV1, "media" | "caption" | "serverMemoryId">;
+
+/** Whether the stored row is still the one this save last wrote. */
+function isSettleTarget(
+  stored: MomentDraftV1 | null | undefined,
+  draftId: string,
+  updatedAt: string,
+): stored is MomentDraftV1 {
+  return stored?.id === draftId && stored.updatedAt === updatedAt;
+}
+
 /**
- * Record a save's progress on the draft it started from: what is still to
- * upload, or (null) that nothing is left. One transaction reads and writes, so
- * it never recreates a draft a sign-out purged, never overwrites a later edit
- * and never touches a different draft.
+ * Record a save's progress on the exact row it last wrote: what is still to
+ * upload, or (null) that nothing is left. The row must still carry the
+ * `updatedAt` this save wrote, so progress never recreates a draft a sign-out
+ * purged and never overwrites anything another visit stored since. It settles
+ * in the lane `loadMomentDraft` reads. Returns the new `updatedAt`, or null when
+ * nothing was settled.
  */
 export async function settleMomentDraftProgress(
   ownerKey: string,
   draftId: string,
-  revision: number,
-  progress: Pick<MomentDraftV1, "media" | "caption" | "serverMemoryId"> | null,
-): Promise<void> {
-  if (typeof window === "undefined") return;
+  updatedAt: string,
+  progress: MomentSaveProgress | null,
+): Promise<string | null> {
+  if (typeof window === "undefined") return null;
+  const settledAt = new Date().toISOString();
+  let db: IDBDatabase;
   try {
-    const db = await openDraftDb();
-    await new Promise<void>((resolve, reject) => {
-      const transaction = db.transaction(STORE_NAME, "readwrite");
-      const store = transaction.objectStore(STORE_NAME);
-      const read = store.get(ownerKey);
-      read.onsuccess = () => {
-        const stored = read.result as MomentDraftV1 | undefined;
-        if (stored?.id !== draftId || stored.revision > revision) return;
-        if (progress === null) store.delete(ownerKey);
-        else store.put({ ...stored, ...progress, updatedAt: new Date().toISOString() });
-      };
-      transaction.oncomplete = () => { db.close(); resolve(); };
-      transaction.onabort = () => { db.close(); reject(transaction.error ?? new Error("Draft storage was interrupted.")); };
-    });
+    db = await openDraftDb();
   } catch {
-    // Unavailable storage holds no draft to settle.
+    return settleFallbackDraft(ownerKey, draftId, updatedAt, progress, settledAt);
+  }
+  return new Promise<string | null>((resolve) => {
+    let settled: string | null = null;
+    const transaction = db.transaction(STORE_NAME, "readwrite");
+    const store = transaction.objectStore(STORE_NAME);
+    const read = store.get(ownerKey);
+    read.onsuccess = () => {
+      const stored = read.result as MomentDraftV1 | undefined;
+      if (!isSettleTarget(stored, draftId, updatedAt)) return;
+      if (progress === null) store.delete(ownerKey);
+      else store.put({ ...stored, ...progress, updatedAt: settledAt });
+      settled = settledAt;
+    };
+    transaction.oncomplete = () => { db.close(); resolve(settled); };
+    transaction.onabort = () => { db.close(); resolve(null); };
+  });
+}
+
+function settleFallbackDraft(
+  ownerKey: string,
+  draftId: string,
+  updatedAt: string,
+  progress: MomentSaveProgress | null,
+  settledAt: string,
+): string | null {
+  try {
+    const raw = window.localStorage.getItem(fallbackKey(ownerKey));
+    const stored = raw ? JSON.parse(raw) as MomentDraftV1 : null;
+    if (!isSettleTarget(stored, draftId, updatedAt)) return null;
+    if (progress === null) window.localStorage.removeItem(fallbackKey(ownerKey));
+    else window.localStorage.setItem(fallbackKey(ownerKey), JSON.stringify({ ...stored, ...progress, media: [], updatedAt: settledAt }));
+    return settledAt;
+  } catch {
+    return null;
   }
 }

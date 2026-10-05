@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { safeAuthNext } from "@/lib/authRedirect";
 import { ensureSupabaseBrowser } from "@/lib/authClient";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
-import { persistSessionForResume } from "@/lib/authSessionResumeClient";
+import { beginResumeGeneration, persistSessionForResume } from "@/lib/authSessionResumeClient";
 import {
   HANDLE_PASSWORD_GENERIC_ERROR,
   MIN_PASSWORD_LENGTH,
@@ -75,6 +75,7 @@ export default function HandlePasswordSignIn({
     trackEvent("sign_in_initiated", { provider: "handle_password" });
 
     try {
+      beginResumeGeneration();
       const res = await fetch("/api/auth/handle-password", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -124,11 +125,10 @@ export default function HandlePasswordSignIn({
         return;
       }
 
-      void persistSessionForResume(
-        { access_token: session.access_token, refresh_token: session.refresh_token },
-        fetch,
-        "sign-in",
-      );
+      void persistSessionForResume({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      });
 
       // A full assignment rather than a router push: the destination may be a
       // server-rendered surface that has to read the fresh session, and the

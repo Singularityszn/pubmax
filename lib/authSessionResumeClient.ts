@@ -8,6 +8,7 @@ import {
   AUTH_RESUME_GENERATION_COOKIE,
   AUTH_RESUME_GENERATION_MAX_AGE_SECONDS,
   SIGNED_OUT_GENERATION_PREFIX,
+  authResumeCookieFromHeader,
   newResumeGeneration,
 } from "@/lib/authSessionResume";
 import type { MagicLinkResult } from "@/lib/passwordlessAuth";
@@ -16,6 +17,30 @@ const ENDPOINT = "/api/auth/session";
 const REQUEST_TIMEOUT_MS = 8_000;
 
 type FetchLike = typeof fetch;
+
+/** The resume generation this document can see now, or null. */
+export function readResumeGeneration(): string | null {
+  if (typeof document === "undefined") return null;
+  return authResumeCookieFromHeader(document.cookie, AUTH_RESUME_GENERATION_COOKIE);
+}
+
+function writeResumeGeneration(value: string): void {
+  if (typeof document === "undefined") return;
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie =
+    `${AUTH_RESUME_GENERATION_COOKIE}=${value}` +
+    `; Path=/; SameSite=Lax; Max-Age=${AUTH_RESUME_GENERATION_MAX_AGE_SECONDS}${secure}`;
+}
+
+/**
+ * Start a resume generation for a sign-in the person just asked for. Only these
+ * actions call it: a password sign-in, an auth callback and an account switch.
+ * Refreshes, boots and other tabs persist under whatever generation is current,
+ * so none of them can undo an explicit sign-out.
+ */
+export function beginResumeGeneration(): void {
+  writeResumeGeneration(newResumeGeneration());
+}
 
 export type ResumeHint = { maskedEmail: string | null };
 
@@ -88,7 +113,6 @@ export type PersistResumeOutcome = "stored" | "unauthenticated" | "unavailable";
 export async function persistSessionForResume(
   session: { access_token: string; refresh_token: string },
   fetchImpl: FetchLike = fetch,
-  intent: "sign-in" | "background" = "background",
 ): Promise<PersistResumeOutcome> {
   try {
     const response = await fetchImpl(ENDPOINT, {
@@ -100,7 +124,6 @@ export async function persistSessionForResume(
       body: JSON.stringify({
         action: "persist",
         refreshToken: session.refresh_token,
-        intent,
       }),
       // Sign-in often navigates immediately (handle-claim redirect); keepalive
       // lets the cookie write outlive the page that started it.
@@ -201,12 +224,7 @@ export async function requestResumeLink(
 export async function clearPersistedSession(
   fetchImpl: FetchLike = fetch,
 ): Promise<void> {
-  if (typeof document !== "undefined") {
-    const secure = window.location.protocol === "https:" ? "; Secure" : "";
-    document.cookie =
-      `${AUTH_RESUME_GENERATION_COOKIE}=${newResumeGeneration(SIGNED_OUT_GENERATION_PREFIX)}` +
-      `; Path=/; SameSite=Lax; Max-Age=${AUTH_RESUME_GENERATION_MAX_AGE_SECONDS}${secure}`;
-  }
+  writeResumeGeneration(newResumeGeneration(SIGNED_OUT_GENERATION_PREFIX));
   try {
     await fetchImpl(ENDPOINT, { method: "DELETE", signal: timeoutSignal() });
   } catch {

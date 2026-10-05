@@ -8,7 +8,8 @@ vi.mock("@/components/auth/AuthProvider", () => ({
 }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/authClient", () => ({ ensureSupabaseBrowser: vi.fn() }));
-vi.mock("@/lib/authSessionResumeClient", () => ({ persistSessionForResume: vi.fn() }));
+const resumeClient = vi.hoisted(() => ({ beginResumeGeneration: vi.fn(), persistSessionForResume: vi.fn() }));
+vi.mock("@/lib/authSessionResumeClient", () => resumeClient);
 
 import HandlePasswordSignIn from "@/components/auth/HandlePasswordSignIn";
 
@@ -68,6 +69,10 @@ describe("HandlePasswordSignIn form", () => {
     await act(async () => submit.click());
 
     expect(fetchDouble).toHaveBeenCalledTimes(1);
+    // The password sign-in is the person's own action, so it starts the resume
+    // generation before the request that stamps the cookie with it.
+    expect(resumeClient.beginResumeGeneration.mock.invocationCallOrder[0])
+      .toBeLessThan(fetchDouble.mock.invocationCallOrder[0]!);
     expect(fetchDouble).toHaveBeenCalledWith(
       "/api/auth/handle-password",
       expect.objectContaining({

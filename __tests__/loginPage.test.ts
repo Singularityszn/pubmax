@@ -107,6 +107,10 @@ vi.mock("@/components/auth/HandlePasswordSignIn", () => ({
 
 import LoginPage from "@/components/auth/LoginPage";
 import { defined } from "@/__tests__/helpers/defined";
+import { encodeAuthResumeCookie } from "@/lib/authSessionResume";
+
+// The resume cookie as the server writes it, stamped with a resume generation.
+const RESUME_COOKIE = encodeAuthResumeCookie({ refreshToken: "rt_resume_value", email: null, generation: "g1" });
 
 // The page declares every prop optional with a `= {}` default, so React's own
 // inference reads it as taking none. This names the props it really accepts.
@@ -147,14 +151,27 @@ describe("login page", () => {
   // see it. A signed-in reader gets the card's shape, not the email door.
   it("holds the email door back for a reader with a resume cookie", async () => {
     authState.current.loading = true;
-    requestCookies.set("pubmax_session_resume", "opaque-resume-value");
+    requestCookies.set("pubmax_session_resume", RESUME_COOKIE);
+    requestCookies.set("pubmax_resume_gen", "g1");
     const { default: LoginRoute } = await import("@/app/login/page");
     const html = renderToStaticMarkup(
       await LoginRoute({ searchParams: Promise.resolve({}) }),
     );
     expect(html).toContain("loginPageSkeleton");
     expect(html).not.toContain("email form");
-    expect(html).not.toContain("opaque-resume-value");
+    expect(html).not.toContain("rt_resume_value");
+  });
+
+  it("paints the email door when the resume cookie belongs to an earlier generation", async () => {
+    authState.current.loading = true;
+    requestCookies.set("pubmax_session_resume", RESUME_COOKIE);
+    requestCookies.set("pubmax_resume_gen", "g2");
+    const { default: LoginRoute } = await import("@/app/login/page");
+    const html = renderToStaticMarkup(
+      await LoginRoute({ searchParams: Promise.resolve({}) }),
+    );
+    expect(html).not.toContain("loginPageSkeleton");
+    expect(html).toContain("email form");
   });
 
   // Back from Google, Apple or Microsoft: the session is in the fragment and
@@ -180,7 +197,8 @@ describe("login page", () => {
   // Adding a second account asked for the form, so a hint must not hide it.
   it("paints the form for an added account even with a resume cookie", async () => {
     authState.current.loading = true;
-    requestCookies.set("pubmax_session_resume", "opaque-resume-value");
+    requestCookies.set("pubmax_session_resume", RESUME_COOKIE);
+    requestCookies.set("pubmax_resume_gen", "g1");
     const { default: LoginRoute } = await import("@/app/login/page");
     const html = renderToStaticMarkup(
       await LoginRoute({ searchParams: Promise.resolve({ add: "1" }) }),

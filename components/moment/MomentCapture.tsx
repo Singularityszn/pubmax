@@ -59,6 +59,7 @@ import {
   saveMomentDraft,
   selectMomentMedia,
   settleMomentDraftProgress,
+  type MomentSaveProgress,
   type MomentDraftV1,
   type MomentMediaDraft,
 } from "@/lib/momentDraft";
@@ -167,8 +168,6 @@ function memoryCreateFailureLine(body: unknown): string {
     ? "You look offline. Reconnect, then try again. Your draft is safe."
     : errorMessageFrom(body, "That Memory could not be created. Your draft is safe.");
 }
-
-type MomentSaveProgress = Pick<MomentDraftV1, "media" | "caption" | "serverMemoryId">;
 
 /** What is left after item `index` uploaded: null once nothing is. */
 function momentUploadedProgress(
@@ -536,6 +535,30 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
     ? editorSession.file
     : null;
 
+  /**
+   * An earlier visit's save can finish uploads after this visit restored the
+   * draft. Saving the restored copy would upload them again, so an unedited
+   * restore first takes what is stored now and lets the person save that.
+   */
+  async function adoptedProgressSinceRestore(): Promise<boolean> {
+    if (draft.revision !== restoredRevision.current) return false;
+    const stored = await loadMomentDraft(ownerKey);
+    if (!isCurrentComposer()) return true;
+    if (stored?.updatedAt === draft.updatedAt) return false;
+    if (stored) {
+      const next = withPreviewUrls({ ...stored, ownerKey });
+      next.media.forEach((item) => { if (item.objectUrl) previewUrls.current.add(item.objectUrl); });
+      restoredRevision.current = next.revision;
+      setDraft(next);
+      setMessage("Your unfinished Moment is back.");
+    } else {
+      restoredRevision.current = -1;
+      setDraft(newDraft(ownerKey));
+      setMessage("This Moment was already saved.");
+    }
+    return true;
+  }
+
   async function saveMoment(event: FormEvent) {
     event.preventDefault();
     if (!user) {
@@ -543,15 +566,16 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
       return;
     }
     if (!canSave || !isCurrentComposer()) return;
+    if (await adoptedProgressSinceRestore()) return;
     setSaveState("saving");
     setMessage("Saving privately...");
     // Progress belongs to this owner's stored draft, so a remount mid-save (a
     // token refresh, a provider change) resumes rather than uploads twice.
-    const startRevision = draft.revision;
-    await saveMomentDraft(draft);
+    let settledAt = await saveMomentDraft(draft);
     if (!isCurrentComposer()) return;
-    const settle = (progress: Parameters<typeof settleMomentDraftProgress>[3]) =>
-      settleMomentDraftProgress(ownerKey, draft.id, startRevision, progress);
+    const settle = async (progress: MomentSaveProgress | null) => {
+      settledAt = (await settleMomentDraftProgress(ownerKey, draft.id, settledAt, progress)) ?? settledAt;
+    };
 
     let memoryId = draft.serverMemoryId;
     if (!memoryId) {
