@@ -1,8 +1,10 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { ESLint } from "eslint";
 import type { NextConfig } from "next";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { missingExceptionPages, PER_SESSION_SERVER_PAGES } from "@/lib/routerCacheFence.mjs";
 
@@ -311,6 +313,54 @@ describe("invariant 1 - no page renders per-account content on the server", () =
       expect(await lintRules(file, NONCE_PAGE)).toContain(STALE_EXCEPTION);
     },
   );
+});
+
+describe("following a page's imports", () => {
+  const FIXTURE_PAGE = "app/fence-fixture/page.tsx";
+  let dir = "";
+  /** The specifier a fixture page uses to import `name` from the scratch directory. */
+  const from = (name: string) =>
+    path.relative(path.resolve(path.dirname(FIXTURE_PAGE)), path.join(dir, name)).split(path.sep).join("/");
+  const importing = (name: string) => `import * as helper from "${from(name)}";
+
+export default function Page() {
+  return <p>{Object.keys(helper).length}</p>;
+}
+`;
+
+  beforeAll(() => {
+    dir = mkdtempSync(path.join(tmpdir(), "router-cache-fence-"));
+    const cookieRead = 'export const signedIn = (h: Headers) => h.has("cookie");\n';
+    for (const [file, code] of Object.entries({
+      "index-js/index.js": 'export const signedIn = (h) => h.has("cookie");\n',
+      "index-mjs/index.mjs": 'export const signedIn = (h) => h.has("cookie");\n',
+      "widget.jsx": 'export const Badge = ({ h }) => <b>{h.get("cookie")}</b>;\n',
+      "jsx-in-js.js": 'export const Badge = ({ h }) => <b>{h.get("cookie")}</b>;\n',
+      "typed.ts": cookieRead,
+      "broken.ts": "export const = ;\n",
+    })) {
+      const target = path.join(dir, file);
+      mkdirSync(path.dirname(target), { recursive: true });
+      writeFileSync(target, code);
+    }
+  });
+
+  afterAll(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it.each(["index-js", "index-mjs", "widget", "jsx-in-js", "typed"])(
+    "refuses a page whose import %s reaches a credential read",
+    async (name) => {
+      expect(await lintRules(FIXTURE_PAGE, importing(name))).toContain(CREDENTIAL_READ);
+    },
+  );
+
+  it("fails the lint run on a module it cannot parse, rather than counting it clean", async () => {
+    await expect(lintRules(FIXTURE_PAGE, importing("broken"))).rejects.toThrow(
+      /router-cache fence could not parse .*broken\.ts/,
+    );
+  });
 });
 
 describe("the argued exception list", () => {
