@@ -171,7 +171,10 @@ jobs:
           npm run coverage --
           --without-postgres
           --shard=${{ matrix.shard }}/2
-          --coverage.thresholds=false
+          --coverage.thresholds.statements=0
+          --coverage.thresholds.branches=0
+          --coverage.thresholds.functions=0
+          --coverage.thresholds.lines=0
           --reporter=default
           --reporter=blob
           --outputFile.blob=blob-reports/blob-${{ matrix.shard }}.json

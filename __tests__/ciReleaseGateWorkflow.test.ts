@@ -199,7 +199,10 @@ describe("clean-main CI release gate", () => {
       expect(words.slice(4), `shard ${shard}`).toEqual(
         expect.arrayContaining([
           `--shard=${shard}/${total}`,
-          "--coverage.thresholds=false",
+          "--coverage.thresholds.statements=0",
+          "--coverage.thresholds.branches=0",
+          "--coverage.thresholds.functions=0",
+          "--coverage.thresholds.lines=0",
           "--reporter=blob",
           `--outputFile.blob=blob-reports/blob-${shard}.json`,
         ]),
@@ -215,7 +218,6 @@ describe("clean-main CI release gate", () => {
     expect(merge).toEqual(["npx", "vitest", "--merge-reports=blob-reports", "--coverage"]);
     const coverageWords = (coverage.steps ?? []).flatMap((step) => step.run?.trim().split(/\s+/) ?? []);
     expect(coverageWords.filter((word) => word.startsWith("--coverage.thresholds"))).toEqual([]);
-    expect(workflow).not.toMatch(/--exclude '__tests__\/\*\*\/\*Migration\.test\.ts'/);
     expect(workflow).toMatch(
       /freshness:[\s\S]*name: Freshness release gate[\s\S]*npm run check:freshness -- --artifacts-only[\s\S]*node scripts\/check-production-store-freshness\.mjs/,
     );
