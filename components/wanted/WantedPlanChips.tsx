@@ -12,8 +12,10 @@ import "./wanted.css";
 /** Open Wanteds as plan describe-first chips so saved places become tonight options. */
 export default function WantedPlanChips({
   onPick,
+  ready = true,
 }: {
   onPick: (query: string) => void;
+  ready?: boolean;
 }): React.JSX.Element | null {
   const { identityResolved, user } = useAuth();
   const userId = identityResolved ? user?.id ?? null : null;
@@ -63,6 +65,7 @@ export default function WantedPlanChips({
             key={wanted.id}
             type="button"
             className="wantedPlanChip"
+            aria-disabled={ready ? undefined : true}
             onClick={() => onPick(chip)}
           >
             {wanted.venueName}
