@@ -443,6 +443,11 @@ export type HarvestEvidenceRow = PubEvidenceRow & {
 
 const UNCONFIRMED_SITE_STATUSES = new Set(["located-site-unconfirmed", "listed-site-unconfirmed"]);
 
+/** Whether a read owns the page it read: every read but one whose page did not state the pub's address. */
+function readOwnsPage(status: string | undefined): boolean {
+  return !UNCONFIRMED_SITE_STATUSES.has(status ?? "");
+}
+
 /**
  * The committed evidence with this run's pages laid over it, and the chain
  * list with every reader and what they prove. `fresh` is what this process
@@ -451,7 +456,9 @@ const UNCONFIRMED_SITE_STATUSES = new Set(["located-site-unconfirmed", "listed-s
  * harvest still counts the pubs it will not read again. Every pub that read a
  * page is a reader, whatever came of the read, and its quotes count before
  * the chain rule drops any of them. A page that did not state the pub's
- * address was not that pub's, so its read proves nothing.
+ * address was not that pub's, so its read proves nothing, and a dataset
+ * venue's read of a page that belongs to a pub OSM gives a site to is a
+ * duplicate of that pub's read.
  */
 export function mergeHarvestEvidence(input: {
   previousRows: readonly HarvestEvidenceRow[];
@@ -477,14 +484,18 @@ export function mergeHarvestEvidence(input: {
       amenities: entry.amenities ?? {},
     });
   }
-  const reads = [...new Map([...Object.entries(input.checkpoint), ...input.fresh]).entries()].flatMap(
+  const ownedReads = [...new Map([...Object.entries(input.checkpoint), ...input.fresh]).entries()].flatMap(
     ([osmId, entry]) =>
-      entry.sourceUrl && !UNCONFIRMED_SITE_STATUSES.has(entry.status ?? "")
-        ? [{ osmId, sourceUrl: entry.sourceUrl, amenities: entry.amenities ?? {} }]
+      entry.sourceUrl && readOwnsPage(entry.status)
+        ? [{ osmId, status: entry.status, sourceUrl: entry.sourceUrl, amenities: entry.amenities ?? {} }]
         : [],
   );
-  const chainPages = mergeChainDenylists(input.knownChainPages, provenChainEvidence([...candidates, ...reads]));
-  const rows = pubSpecificEvidence(candidates, chainPages).sort((a, b) => a.osmId.localeCompare(b.osmId));
+  const osmOwners = [...input.previousRows, ...ownedReads].filter((read) => !isDatasetVenueRead(read.osmId));
+  const notDuplicate = (read: { osmId: string; sourceUrl?: string }) =>
+    !read.sourceUrl || !siteOfAnotherPub(read.sourceUrl, read.osmId, osmOwners);
+  const ownCandidates = candidates.filter(notDuplicate);
+  const chainPages = mergeChainDenylists(input.knownChainPages, provenChainEvidence([...ownCandidates, ...ownedReads.filter(notDuplicate)]));
+  const rows = pubSpecificEvidence(ownCandidates, chainPages).sort((a, b) => a.osmId.localeCompare(b.osmId));
   const unused = candidates.length - rows.length;
   if (unused > 0) skipCounts.ok = (skipCounts.ok ?? 0) + unused;
   return { rows, skipCounts, chainPages };
@@ -742,6 +753,11 @@ export function pageStatesStreet(text: string, street: readonly string[]): boole
   return new RegExp(`\\b${pattern}\\b`, "i").test(text);
 }
 
+/** Whether a read is a price-dataset venue's, which OSM gives no site. */
+function isDatasetVenueRead(osmId: string): boolean {
+  return osmId.startsWith("venue/");
+}
+
 /**
  * Whether page text states this address: its postcode when it has one, else
  * its street. An address with neither is never stated.
@@ -760,10 +776,9 @@ export function pageStatesAddress(
  * or a quote on it, chain-wide and withdraw the first pub's evidence. A page
  * another pub has read is that pub's, and so is any page on a host exactly one
  * other pub has read. A host two or more pubs read is a chain's, whose other
- * pages the chain list already judges. Only a read the pub kept owns a page: an
- * evidence row, which has no status, or a checkpoint read that is "ok" or
- * "read". A page that failed, proved chain-wide or did not state the pub's
- * address is no pub's.
+ * pages the chain list already judges. A read owns its page unless the page did
+ * not state the pub's address. Only a dataset venue, keyed `venue/`, can read a
+ * page of another pub: a site OSM gives a pub is that pub's own.
  */
 export function siteOfAnotherPub(
   url: string,
@@ -771,10 +786,9 @@ export function siteOfAnotherPub(
   reads: readonly { osmId: string; sourceUrl?: string; status?: string }[],
 ): boolean {
   const target = sourcePage(url);
-  if (!target) return false;
-  const owns = (status: string | undefined) => status === undefined || status === "ok" || status === "read";
+  if (!target || !isDatasetVenueRead(osmId)) return false;
   const others = reads.flatMap((read) => {
-    const source = read.osmId !== osmId && read.sourceUrl !== undefined && owns(read.status) ? sourcePage(read.sourceUrl) : null;
+    const source = read.osmId !== osmId && read.sourceUrl !== undefined && readOwnsPage(read.status) ? sourcePage(read.sourceUrl) : null;
     return source ? [{ osmId: read.osmId, ...source }] : [];
   });
   if (others.some((read) => read.page === target.page)) return true;

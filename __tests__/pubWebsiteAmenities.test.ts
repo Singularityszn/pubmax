@@ -556,6 +556,37 @@ describe("chain denylist", () => {
     expect(merged.rows.map((row) => row.osmId)).toEqual(["node/1"]);
   });
 
+  it("does not let a dataset venue's read of a page an OSM pub read prove it chain-wide, whatever came of either read", () => {
+    const page = "https://www.greeneking.co.uk/pubs/greater-london/butchers-hook";
+    const duplicate: HarvestRead = {
+      status: "ok",
+      name: "Butchers Hook",
+      venueId: "venue-dup",
+      sourceUrl: page,
+      verifiedAt: "2026-10-05",
+      amenities: { food: "savour delicious pub classics" },
+    };
+    const osm: HarvestRead = { status: "quota", venueId: "venue-osm", sourceUrl: page };
+    const fresh = new Map<string, HarvestRead>([["venue/venue-dup", duplicate]]);
+    const merged = mergeHarvestEvidence({
+      previousRows: [],
+      fresh,
+      checkpoint: { "way/151288979": osm, "venue/venue-dup": duplicate },
+      knownChainPages: EMPTY_CHAIN_DENYLIST,
+    });
+    expect(merged.chainPages.pages).toEqual([]);
+    expect(merged.rows).toEqual([]);
+    const ownRow = { osmId: "way/151288979", venueId: "venue-osm", sourceUrl: page, amenities: { food: "savour delicious pub classics" } };
+    const kept = mergeHarvestEvidence({
+      previousRows: [ownRow],
+      fresh,
+      checkpoint: { "venue/venue-dup": duplicate },
+      knownChainPages: EMPTY_CHAIN_DENYLIST,
+    });
+    expect(kept.chainPages.pages).toEqual([]);
+    expect(kept.rows.map((row) => row.osmId)).toEqual(["way/151288979"]);
+  });
+
   it("drops an extra page whose link is allowed but which lands on a proven chain page", async () => {
     const chainPages = { ...EMPTY_CHAIN_DENYLIST, pages: ["chain.example/food-drink"] };
     const fetched: string[] = [];
@@ -873,14 +904,19 @@ describe("scoped harvest guards", () => {
     expect(siteOfAnotherPub("https://new.example/", "venue/a", reads)).toBe(false);
   });
 
-  it("gives a page only to a pub whose read of it was kept", () => {
-    const located = { osmId: "venue/a", sourceUrl: "https://thecrownandanchor.example/" };
-    for (const status of ["located-site-unconfirmed", "listed-site-unconfirmed", "chain-page", "empty-page"]) {
-      expect(siteOfAnotherPub("https://thecrownandanchor.example/", "node/9", [{ ...located, status }])).toBe(false);
+  it("gives a page to every read of it but one whose page did not state the pub's address", () => {
+    const read = { osmId: "node/9", sourceUrl: "https://thecrownandanchor.example/" };
+    for (const status of ["located-site-unconfirmed", "listed-site-unconfirmed"]) {
+      expect(siteOfAnotherPub("https://thecrownandanchor.example/", "venue/a", [{ ...read, status }])).toBe(false);
     }
-    for (const status of ["ok", "read", undefined]) {
-      expect(siteOfAnotherPub("https://thecrownandanchor.example/", "node/9", [{ ...located, status }])).toBe(true);
+    for (const status of ["ok", "read", "quota", "model-500", "error", "empty-page", "chain-page", undefined]) {
+      expect(siteOfAnotherPub("https://thecrownandanchor.example/", "venue/a", [{ ...read, status }])).toBe(true);
     }
+  });
+
+  it("never takes a site OSM gives a pub away from it", () => {
+    const reads = [{ osmId: "venue/a", sourceUrl: "https://thecrownandanchor.example/", status: "read" }];
+    expect(siteOfAnotherPub("https://thecrownandanchor.example/", "node/9", reads)).toBe(false);
   });
 
   it("keeps earlier evidence unless a re-read keeps more amenities", () => {

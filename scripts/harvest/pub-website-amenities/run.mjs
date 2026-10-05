@@ -701,7 +701,6 @@ async function main() {
     const home = await readPage(website);
     if (!home.ok) return { status: home.reason };
     if (isChainPage(home.url, knownChainPages)) return { status: "chain-page", sourceUrl: home.url };
-    if (copySkipped && siteOfAnotherPub(home.url, pub.osmId, otherReads())) return { status: "site-of-another-pub" };
     const landedPermission = await robots(home.url);
     if (!landedPermission.allowed) return { status: landedPermission.reason ?? "robots-denied" };
     let text = home.text;
@@ -739,6 +738,10 @@ async function main() {
         byOsmId[pub.osmId] = { status: read.status, venueId: pub.venueId, ...(read.sourceUrl ? { sourceUrl: read.sourceUrl } : {}) };
         return;
       }
+    }
+    if (siteOfAnotherPub(read.sourceUrl, pub.osmId, otherReads())) {
+      byOsmId[pub.osmId] = { status: "site-of-another-pub", venueId: pub.venueId };
+      return;
     }
     if (pub.needsAddress && !pageStatesAddress(read.text, pub)) {
       byOsmId[pub.osmId] = { status: pub.website ? "listed-site-unconfirmed" : "located-site-unconfirmed", venueId: pub.venueId, sourceUrl: read.sourceUrl };
