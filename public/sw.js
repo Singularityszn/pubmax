@@ -188,7 +188,8 @@ async function migrateCacheFamily({
     for (const request of await destination.keys()) {
       const eligible = current === PLAN_CACHE
         ? isEligiblePlanCacheUrl(new URL(request.url))
-        : isEligibleShellCacheUrl(new URL(request.url));
+        : isEligibleShellCacheUrl(new URL(request.url)) &&
+          isStorableShell(await destination.match(request));
       if (!eligible) await destination.delete(request);
     }
   }
@@ -201,6 +202,10 @@ async function migrateCacheFamily({
     for (const request of await source.keys()) {
       if ((current === PLAN_CACHE && !isEligiblePlanCacheUrl(new URL(request.url))) ||
         (current === SHELL_CACHE && !isInheritableShellCacheUrl(new URL(request.url)))) {
+        if (!(await source.delete(request))) covered = false;
+        continue;
+      }
+      if (current === SHELL_CACHE && !isStorableShell(await source.match(request))) {
         if (!(await source.delete(request))) covered = false;
         continue;
       }
@@ -241,7 +246,7 @@ async function matchCacheFamily(currentName, request, options) {
       : names;
   for (const name of candidates) {
     const response = await (await caches.open(name)).match(request, options);
-    if (response) return response;
+    if (response && (currentName !== SHELL_CACHE || isStorableShell(response))) return response;
   }
   return undefined;
 }

@@ -1207,6 +1207,48 @@ describe("map shell versus per-request map documents", () => {
     expect([...(records.get("pubmax-sw-shell-target")?.keys() ?? [])]).toEqual(stored.map((path) => `${origin}${path}`));
   });
 
+  it.each([
+    { rejectDeletes: false, rejectCurrentWrites: false },
+    { rejectDeletes: true, rejectCurrentWrites: false },
+    { rejectDeletes: false, rejectCurrentWrites: true },
+    { rejectDeletes: true, rejectCurrentWrites: true },
+  ])("never serves or inherits a stored shell that forbids storing itself (deletes rejected: $rejectDeletes, writes rejected: $rejectCurrentWrites)", async ({ rejectDeletes, rejectCurrentWrites }) => {
+    const restricted = (marker: string) => new Response(marker, { headers: { "cache-control": "private, no-store" } });
+    const landing = new Response("public landing shell");
+    const legacyLanding = new Response("older public landing shell");
+    const { listeners, records } = rolloutWorkerHarness({
+      rejectDeletes,
+      rejectCurrentWrites,
+      entries: {
+        "pubmax-sw-shell-target": [
+          ["/", landing],
+          ["/tonight", restricted("current restricted tonight")],
+        ],
+        "pubmax-sw-shell-legacy-active": [
+          ["/", legacyLanding],
+          ["/tonight", restricted("older restricted tonight")],
+          ["/offline.html", restricted("older restricted offline page")],
+        ],
+      },
+    });
+    for (const phase of ["before activation", "after activation"]) {
+      if (phase === "after activation") await Promise.all(dispatchLifecycle(listeners.get("activate")!));
+      for (const path of ["/tonight", "/offline.html", "/p/never-cached"]) {
+        const navigation = dispatchFetch(listeners.get("fetch")!, {
+          method: "GET",
+          mode: "navigate",
+          url: `${origin}${path}`,
+        } as Request);
+        expect(await (await navigation.response as Response).clone().text(), `${phase}: ${path}`).toBe("public landing shell");
+      }
+    }
+    const current = records.get("pubmax-sw-shell-target")!;
+    const kept = await Promise.all([...current.values()].map(({ response }) => response.clone().text()));
+    expect(kept).not.toContain("older restricted tonight");
+    expect(kept).not.toContain("older restricted offline page");
+    if (!rejectDeletes) expect(kept).toEqual(["public landing shell"]);
+  });
+
   it("does not serve an older worker's map document offline before or after activation", async () => {
     const landing = new Response("landing shell");
     const { listeners, records } = rolloutWorkerHarness({
