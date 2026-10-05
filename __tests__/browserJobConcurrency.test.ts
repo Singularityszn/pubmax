@@ -55,6 +55,7 @@ describe("browser jobs on hosted runners", () => {
       "e2e.yml / law-pins",
       "performance.yml / performance-budget",
       "performance.yml / ux-lane-performance",
+      "prod-smoke.yml / smoke",
     ]);
   });
 
