@@ -374,10 +374,10 @@ test("two fingers tilt the map, and the pins stay on the ground", async ({ page 
   expect(Math.abs(same.y - projectedAfter.y)).toBeLessThan(0.5);
 });
 
-// A phone has no compass at all: the popover that owns it is hidden under the
-// 640px query, which docs/proof/red-on-main-2026-09.md R19 records as an open
-// lead. This block runs where the control ships, so the proof is of the
-// shipped control.
+// The popover that owns the desktop compass is hidden under the 640px query. A
+// phone gets the same reset as a "Reset view" action in the Layers tab of Map
+// controls (docs/proof/red-on-main-2026-09.md R19). This block runs where the
+// popover ships, so the proof is of the shipped control.
 test.describe("the compass, where the map has one", () => {
   test.use({ hasTouch: true, viewport: TABLET_VIEWPORT });
 
@@ -433,4 +433,43 @@ test.describe("the compass, where the map has one", () => {
     expect(Math.abs(reset.pitch - LONDON_ATTITUDE.pitch)).toBeLessThan(0.5);
     expect(LONDON_ATTITUDE.pitch).toBeGreaterThan(0);
   });
+});
+
+test("a phone turns and tilts the map, and Reset view in the Layers tab gives back the view", async ({ page }) => {
+  test.setTimeout(240_000);
+  await openMap(page);
+  const opening = await readCamera(page);
+  const cdp = await page.context().newCDPSession(page);
+  const centre = await canvasCentre(page);
+  await twoFingerRotate(page, cdp, centre);
+  await twoFingerTilt(page, cdp, centre);
+  await expect.poll(
+    async () => Math.abs((await readCamera(page)).bearing - opening.bearing),
+    { timeout: 10_000 },
+  ).toBeGreaterThan(MIN_BEARING_CHANGE);
+
+  const openLayersTab = async () => {
+    await page.getByRole("button", { name: "More map controls" }).click();
+    const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="layers"]');
+    await expect(sheet).toBeVisible();
+    await sheet.getByRole("tab", { name: "Layers" }).click();
+    return sheet;
+  };
+  let sheet = await openLayersTab();
+  const reset = sheet.getByRole("button", { name: "Reset view" });
+  await expect(reset).toBeVisible();
+  await reset.click();
+
+  await expect.poll(
+    async () => Math.abs((await readCamera(page)).bearing - LONDON_ATTITUDE.bearing),
+    { timeout: 10_000 },
+  ).toBeLessThan(0.5);
+  const back = await readCamera(page);
+  expect(Math.abs(back.pitch - LONDON_ATTITUDE.pitch)).toBeLessThan(0.5);
+
+  // On the city's own attitude there is nothing to reset, so the action is gone.
+  await expect(reset).toBeHidden();
+  await sheet.getByRole("button", { name: "Close Map controls" }).click();
+  sheet = await openLayersTab();
+  await expect(sheet.getByRole("button", { name: "Reset view" })).toHaveCount(0);
 });
