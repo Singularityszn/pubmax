@@ -69,6 +69,8 @@ import {
   isChainPage,
   keepEvidencedAmenities,
   locatedOwnSite,
+  siteOfAnotherPub,
+  withoutThinnerRereads,
   pageStatesPostcode,
   pageStatesStreet,
   postcodeOf,
@@ -675,6 +677,13 @@ async function main() {
     return located[pub.osmId];
   }
 
+  // Pages other pubs have read: the committed evidence and this checkpoint.
+  const previousRows = readEvidence()?.rows ?? [];
+  const otherReads = () => [
+    ...previousRows,
+    ...Object.entries(byOsmId).map(([osmId, entry]) => ({ osmId, sourceUrl: entry.sourceUrl })),
+  ];
+
   const pagePath = (key) => path.join(PAGES_DIR, `${key.replace(/[^a-z0-9-]/gi, "_")}.json`);
 
   async function readSite(pub) {
@@ -688,6 +697,7 @@ async function main() {
     const home = await readPage(website);
     if (!home.ok) return { status: home.reason };
     if (isChainPage(home.url, knownChainPages)) return { status: "chain-page", sourceUrl: home.url };
+    if (copySkipped && siteOfAnotherPub(home.url, pub.osmId, otherReads())) return { status: "site-of-another-pub" };
     const landedPermission = await robots(home.url);
     if (!landedPermission.allowed) return { status: landedPermission.reason ?? "robots-denied" };
     if (!pub.website && !(pub.postcode ? pageStatesPostcode(home.text, pub.postcode) : pageStatesStreet(home.text, pub.street))) return { status: "located-site-unconfirmed", sourceUrl: home.url };
@@ -791,7 +801,7 @@ async function main() {
   const { rows: evidenceRows, skipCounts, chainPages } = mergeHarvestEvidence({
     previousRows: previous?.rows ?? [],
     previousSkipCounts: previous?.skipCounts,
-    fresh,
+    fresh: copySkipped ? withoutThinnerRereads(fresh, previous?.rows ?? []) : fresh,
     checkpoint: byOsmId,
     knownChainPages,
   });
