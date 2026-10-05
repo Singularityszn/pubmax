@@ -7,7 +7,12 @@ import {
 import { CATEGORY_COLORS } from "@/lib/categoryColors";
 import { isTransitNetworkVisible } from "@/lib/poiToggleGroups";
 import { TRANSPORT_CATEGORIES, type PoiCategory } from "@/lib/pois";
-import { iconId, UK_BASE_ICON_KEY, type IconTokens } from "@/lib/mapIcons";
+import {
+  COFFEE_PILOT_ICON_KEY,
+  iconId,
+  UK_BASE_ICON_KEY,
+  type IconTokens,
+} from "@/lib/mapIcons";
 import { USER_LOCATION_ACCURACY_RADIUS_PX } from "@/lib/mapReaderPosition";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import {
@@ -105,6 +110,15 @@ const UK_BASE_ICON_IMAGE_EXPR: maplibregl.ExpressionSpecification = [
     ["to-string", ["get", "spoonsBucket"]],
   ],
   iconId("base", UK_BASE_ICON_KEY),
+];
+
+/** A coffee pilot cafe's named-drink tag, from the same zoom as a price tag. */
+const COFFEE_PILOT_LABEL_EXPR: maplibregl.ExpressionSpecification = [
+  "step",
+  ["zoom"],
+  "",
+  PIN_PRICE_LABEL_MIN_ZOOM,
+  ["get", "label"],
 ];
 
 /** The base pin's units tag, blank on every pub outside the ranking. */
@@ -520,6 +534,7 @@ function registerSceneIcons(ctx: SceneCtx) {
     // venuePinEdgeTokens: `paper` above resolves to a near-black in dark, so the
     // glasses' "light rim" was a black one against a near-black basemap.
     ...venuePinEdgeTokens(tokens, dark),
+    coffee: dark ? CATEGORY_COLORS.coffee.dark : CATEGORY_COLORS.coffee.light,
   };
   registerMapIcons(map, iconTokens);
   markPubmaxTiming("pubmax:map-icons-ready");
@@ -944,7 +959,6 @@ export function buildUkBase(ctx: SceneCtx) {
  */
 export function buildCoffeePilot(ctx: SceneCtx) {
   const { map, tokens, dark, textFont, addLayerOnce, coffeePilotData, selectedId } = ctx;
-  const coffee = dark ? CATEGORY_COLORS.coffee.dark : CATEGORY_COLORS.coffee.light;
   if (!map.getSource("coffee-pilot")) {
     // The cafe's position and name are OpenStreetMap's (lib/londonVenueShards.ts).
     map.addSource("coffee-pilot", {
@@ -967,25 +981,23 @@ export function buildCoffeePilot(ctx: SceneCtx) {
       "circle-stroke-opacity": dark ? 0.9 : 0.85,
     },
   });
+  // One symbol carries the cafe and its tag, on the deal `uk-base-point`
+  // takes: the icon is in the collision index (no `*-allow-overlap`), so where
+  // two cafes would stack the second is not placed, and a tap can only land on
+  // a cafe the map actually drew. The tag is optional: where it will not fit
+  // the TAG goes and the cafe stays.
   addLayerOnce({
     id: "coffee-pilot-point",
-    type: "circle",
-    source: "coffee-pilot",
-    minzoom: PIN_MIN_ZOOM,
-    paint: {
-      "circle-color": coffee,
-      "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 4.5, 15, 7, 17, 8.5],
-      "circle-stroke-color": dark ? tokens.inkDeep : tokens.paper,
-      "circle-stroke-width": 1.6,
-    },
-  });
-  addLayerOnce({
-    id: "coffee-pilot-label",
     type: "symbol",
     source: "coffee-pilot",
-    minzoom: PIN_PRICE_LABEL_MIN_ZOOM,
+    minzoom: PIN_MIN_ZOOM,
     layout: {
-      "text-field": ["get", "label"],
+      "icon-image": iconId("base", COFFEE_PILOT_ICON_KEY),
+      "icon-size": UK_BASE_ICON_SIZE_EXPR,
+      "icon-allow-overlap": false,
+      "icon-ignore-placement": false,
+      "icon-padding": 3,
+      "text-field": COFFEE_PILOT_LABEL_EXPR,
       "text-font": textFont,
       "text-size": PIN_PRICE_LABEL_SIZE_EXPR,
       "text-anchor": "top",
@@ -993,6 +1005,7 @@ export function buildCoffeePilot(ctx: SceneCtx) {
       "text-letter-spacing": 0.01,
       "text-allow-overlap": false,
       "text-ignore-placement": false,
+      "text-optional": true,
       "text-padding": PIN_PRICE_LABEL_PADDING,
     },
     paint: {

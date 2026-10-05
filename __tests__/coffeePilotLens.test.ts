@@ -150,7 +150,7 @@ describe("the coffee pilot layer", () => {
   function build() {
     const layers = new Map<
       string,
-      { id: string; minzoom?: number; layout?: Record<string, unknown>; paint?: Record<string, unknown> }
+      { id: string; type?: string; minzoom?: number; layout?: Record<string, unknown>; paint?: Record<string, unknown> }
     >();
     const sources = new Map<string, Record<string, unknown>>();
     const map = {
@@ -193,15 +193,30 @@ describe("the coffee pilot layer", () => {
     expect(build().sources.get("coffee-pilot")?.attribution).toBe(OSM_ATTRIBUTION);
   });
 
-  it("prints the named figure on the price tag deal and paints no price band", () => {
+  it("puts every cafe in the collision index rather than stacking dots", () => {
     const { layers } = build();
-    const label = layers.get("coffee-pilot-label")!;
-    expect(label.minzoom).toBe(PIN_PRICE_LABEL_MIN_ZOOM);
-    expect(label.layout?.["text-field"]).toEqual(["get", "label"]);
-    expect(label.layout?.["text-allow-overlap"]).toBe(false);
-    expect(label.layout?.["text-ignore-placement"]).toBe(false);
-    const dot = layers.get("coffee-pilot-point")!;
-    expect(JSON.stringify(dot.paint)).not.toMatch(/priceBucket|band/);
+    const pin = layers.get("coffee-pilot-point")!;
+    expect(pin.type).toBe("symbol");
+    expect(pin.layout?.["icon-image"]).toBe("base:coffee");
+    expect(pin.layout?.["icon-allow-overlap"]).toBe(false);
+    expect(pin.layout?.["icon-ignore-placement"]).toBe(false);
+    expect(pin.layout?.["text-allow-overlap"]).toBe(false);
+    expect(pin.layout?.["text-ignore-placement"]).toBe(false);
+    // Where the tag will not fit, the TAG goes and the cafe stays.
+    expect(pin.layout?.["text-optional"]).toBe(true);
+    expect(layers.has("coffee-pilot-label")).toBe(false);
+  });
+
+  it("prints the named figure from the price tag zoom and paints no price band", () => {
+    const pin = build().layers.get("coffee-pilot-point")!;
+    expect(pin.layout?.["text-field"]).toEqual([
+      "step",
+      ["zoom"],
+      "",
+      PIN_PRICE_LABEL_MIN_ZOOM,
+      ["get", "label"],
+    ]);
+    expect(JSON.stringify(pin)).not.toMatch(/priceBucket|band/);
   });
 
   it("answers a tap after the pub pins and before the UK base layer", () => {
