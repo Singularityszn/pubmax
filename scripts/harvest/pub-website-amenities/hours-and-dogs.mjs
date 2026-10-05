@@ -15,8 +15,11 @@
 // one with no entry, an unfinished read (a --read-only run), a quota, model,
 // network or server failure, or a missing kept page. Only a finished read with
 // its kept page, or a final refusal, may change or drop a committed row. A
-// carried row still passes the chain list and the chain-passage check. It
-// refuses to write when the checkpoint holds no finished read at all.
+// carried row still passes the chain list and the chain-passage check. A
+// passage found to be a chain's is written to chainPassages and stays the
+// chain's on later runs, so a partial checkpoint that holds only one of its
+// pubs cannot publish it. It refuses to write when the checkpoint holds no
+// finished read at all.
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -49,12 +52,13 @@ function main() {
   const checkpoint = JSON.parse(readFileSync(CHECKPOINT_PATH, "utf8"));
   const chainPages = parseChainDenylist(JSON.parse(readFileSync(CHAIN_PAGES_PATH, "utf8")));
   const reads = checkpoint.byOsmId ?? {};
-  const previousRows = existsSync(OUT_PATH) ? (JSON.parse(readFileSync(OUT_PATH, "utf8")).rows ?? []) : [];
-  const { rows, skipCounts, refusal } = siteFactsRows({
+  const previous = existsSync(OUT_PATH) ? JSON.parse(readFileSync(OUT_PATH, "utf8")) : {};
+  const { rows, chainPassages, skipCounts, refusal } = siteFactsRows({
     reads,
     loadPage,
     isChainPage: (url) => isChainPage(url, chainPages),
-    previousRows,
+    previousRows: previous.rows ?? [],
+    previousChainPassages: previous.chainPassages ?? [],
   });
   if (refusal) {
     console.error(`not writing ${path.relative(ROOT, OUT_PATH)}: ${refusal}`);
@@ -73,6 +77,7 @@ function main() {
       withVenueId: rows.filter((row) => row.venueId).length,
     },
     rows,
+    chainPassages,
   };
   writeFileSync(OUT_PATH, `${JSON.stringify(output, null, 2)}\n`);
   console.log(JSON.stringify({ out: path.relative(ROOT, OUT_PATH), skipCounts, counts: output.counts }));

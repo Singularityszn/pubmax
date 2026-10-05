@@ -10637,5 +10637,37 @@
         "evidence": "Opening Hours Today (Mon) 12:00pm - 11:00pm Tuesday 12:00pm - 11:00pm Wednesday 12:00pm - 11:00pm Thursday 12:00pm - 11:00pm Friday 12:00pm - 12:00am Saturday 12:00pm - 12:00am Sunday 12:00pm - 10:30pm"
       }
     }
+  ],
+  "chainPassages": [
+    {
+      "host": "craftunionpubs.com",
+      "kind": "hours",
+      "passage": "opening times monday 10 am - 11 pm tuesday 10 am - 11 pm wednesday 10 am - 11 pm thursday 10 am - 11 pm friday 10 am - 11 pm saturday 10 am - 11 pm sunday 10 am - 10 pm"
+    },
+    {
+      "host": "greeneking.co.uk",
+      "kind": "dogs",
+      "passage": "dog friendly"
+    },
+    {
+      "host": "greeneking.co.uk",
+      "kind": "hours",
+      "passage": "opening hours today (mon) 11:00am - 11:00pm tuesday 11:00am - 11:00pm wednesday 11:00am - 11:00pm thursday 11:00am - 11:00pm friday 11:00am - 12:00am saturday 11:00am - 12:00am sunday 11:00am - 10:30pm"
+    },
+    {
+      "host": "greeneking.co.uk",
+      "kind": "hours",
+      "passage": "opening hours today (mon) 11:00am - 11:00pm tuesday 11:00am - 11:00pm wednesday 11:00am - 11:00pm thursday 11:00am - 11:00pm friday 11:00am - 12:00am saturday 11:00am - 12:00am sunday 12:00pm - 10:30pm"
+    },
+    {
+      "host": "jdwetherspoon.com",
+      "kind": "hours",
+      "passage": "opening times monday 8:00am - 12:00am tuesday 8:00am - 12:00am wednesday 8:00am - 12:00am thursday 8:00am - 12:00am friday 8:00am - 12:00am saturday 8:00am - 12:00am sunday 8:00am - 12:00am"
+    },
+    {
+      "host": "jdwetherspoon.com",
+      "kind": "hours",
+      "passage": "opening times monday 8:00am - 12:00am tuesday 8:00am - 12:00am wednesday 8:00am - 12:00am thursday 8:00am - 12:00am friday 8:00am - 1:00am saturday 8:00am - 1:00am sunday 8:00am - 12:00am"
+    }
   ]
 }

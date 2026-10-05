@@ -226,11 +226,12 @@ describe("siteFactsRows", () => {
     "node/5": read("https://five.example/"),
     "venue/venue-6": read("https://six.example/", "site-of-another-pub"),
   };
-  const { rows, skipCounts } = siteFactsRows({
+  const { rows, chainPassages, skipCounts } = siteFactsRows({
     reads,
     loadPage: (osmId) => (pages[osmId] ? { text: pages[osmId]!, readAt: "2026-10-05T10:00:00.000Z" } : null),
     isChainPage: (url) => url === "https://shared.example/",
     previousRows: [],
+    previousChainPassages: [],
   });
 
   it("keeps a read the amenity run finished and records its page, day and passages", () => {
@@ -241,6 +242,22 @@ describe("siteFactsRows", () => {
 
   it("drops chain pages and a passage two pubs on one host state word for word, and skips unfinished reads", () => {
     expect(skipCounts).toEqual({ "chain-page": 1, "chain-hours-passage": 2, "page-stated-neither": 1 });
+  });
+
+  it("keeps a chain passage the chain's when a later checkpoint holds only one pub that states it", () => {
+    const partial = siteFactsRows({
+      reads: { "node/2": reads["node/2"]! },
+      loadPage: (osmId) => ({ text: pages[osmId]!, readAt: "2026-10-05T10:00:00.000Z" }),
+      isChainPage: () => false,
+      previousRows: rows,
+      previousChainPassages: chainPassages,
+    });
+    expect(chainPassages).toEqual([
+      { host: "chain.example", kind: "hours", passage: "opening hours monday 12pm - 11pm tuesday 12pm - 10pm" },
+    ]);
+    expect(partial.rows.map((row) => row.osmId)).toEqual(["node/1"]);
+    expect(partial.chainPassages).toEqual(chainPassages);
+    expect(partial.skipCounts["chain-hours-passage"]).toBe(1);
   });
 });
 
@@ -273,7 +290,7 @@ describe("publishing over committed rows", () => {
     dogs: { policy: "not-allowed", evidence: `No dogs at ${osmId}.` },
   });
   const publish = (previousRows: SiteFactsRow[], checkpoint = reads, isChainPage = (_url: string) => false) =>
-    siteFactsRows({ reads: checkpoint, loadPage, isChainPage, previousRows });
+    siteFactsRows({ reads: checkpoint, loadPage, isChainPage, previousRows, previousChainPassages: [] });
   const committed = ["node/1", "node/2", "node/3", "node/4", "node/5", "node/6", "node/7", "node/8", "node/9", "node/10"].map(
     (osmId) => committedRow(osmId),
   );
@@ -338,7 +355,7 @@ describe("publishing over committed rows", () => {
   it("refuses a checkpoint with no finished read when facts are committed", () => {
     const readOnly = { "node/2": reads["node/2"]! };
     expect(publish([committedRow("node/9")], readOnly).refusal).toMatch(/no finished read/);
-    expect(publish([], readOnly)).toEqual({ rows: [], skipCounts: { "unsettled-read": 1 }, refusal: null });
+    expect(publish([], readOnly)).toEqual({ rows: [], chainPassages: [], skipCounts: { "unsettled-read": 1 }, refusal: null });
   });
 });
 

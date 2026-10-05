@@ -35,7 +35,9 @@ The same fences as the amenity harvest apply. Only a read that the amenity run
 finished is used, so the source policy, robots, the landing check, the address
 check and the duplicate check all held. A page on the chain list is skipped. A
 passage that more than one pub on one host states word for word is the
-chain's, so it is dropped.
+chain's, so it is dropped. The file lists each such passage under
+`chainPassages`, and a later run keeps dropping it. A partial checkpoint that
+holds only one of the pubs that state it therefore cannot publish it.
 
 ## Result
 

@@ -370,6 +370,9 @@ const SETTLED_REFUSALS: ReadonlySet<string> = new Set([
   "http-451",
 ]);
 
+/** A passage more than one pub on one host stated word for word, after folding. */
+export type ChainPassage = { host: string; kind: "dogs" | "hours"; passage: string };
+
 export type SiteFactsRow = {
   osmId: string;
   name: string;
@@ -392,15 +395,18 @@ export type SiteFactsRow = {
  * only a finished read with its kept page or a final refusal may change or
  * drop it. A page on the chain list speaks for the brand, so its row goes,
  * fresh or carried. A passage more than one pub on one host states word for
- * word is the chain's too, so it goes. A checkpoint with no finished read at
- * all is not a harvest, so it publishes nothing over committed rows.
+ * word is the chain's too, so it goes. Such a passage is written down and
+ * stays the chain's, because a later partial checkpoint may hold only one of
+ * the pubs that state it. A checkpoint with no finished read at all is not a
+ * harvest, so it publishes nothing over committed rows.
  */
 export function siteFactsRows(input: {
   reads: Readonly<Record<string, KeptPageRead>>;
   loadPage: (osmId: string) => { text: string; readAt: string } | null;
   isChainPage: (url: string) => boolean;
   previousRows: readonly SiteFactsRow[];
-}): { rows: SiteFactsRow[]; skipCounts: Record<string, number>; refusal: string | null } {
+  previousChainPassages: readonly ChainPassage[];
+}): { rows: SiteFactsRow[]; chainPassages: ChainPassage[]; skipCounts: Record<string, number>; refusal: string | null } {
   const skipCounts: Record<string, number> = {};
   const skip = (reason: string) => {
     skipCounts[reason] = (skipCounts[reason] ?? 0) + 1;
@@ -408,6 +414,7 @@ export function siteFactsRows(input: {
   if (input.previousRows.length > 0 && !Object.values(input.reads).some((read) => read.status === "ok")) {
     return {
       rows: [],
+      chainPassages: [],
       skipCounts,
       refusal: "the checkpoint holds no finished read; run the amenity harvest without --read-only first",
     };
@@ -461,23 +468,28 @@ export function siteFactsRows(input: {
     candidates.push(row);
   }
   const hostOf = (url: string) => new URL(url).host.toLowerCase().replace(/^www\./, "");
-  const statedBy = new Map<string, Set<string>>();
-  const passageId = (row: SiteFactsRow, kind: "dogs" | "hours") => {
+  const idOf = (passage: ChainPassage) => `${passage.host}\u0000${passage.kind}\u0000${passage.passage}`;
+  const passageOf = (row: SiteFactsRow, kind: "dogs" | "hours"): ChainPassage | null => {
     const evidence = row[kind]?.evidence;
-    return evidence === undefined ? null : `${hostOf(row.sourceUrl)}\u0000${kind}\u0000${fold(evidence)}`;
+    return evidence === undefined ? null : { host: hostOf(row.sourceUrl), kind, passage: fold(evidence) };
   };
+  const chainPassages = new Map(input.previousChainPassages.map((passage) => [idOf(passage), passage]));
+  const statedBy = new Map<string, Set<string>>();
   for (const row of candidates) {
     for (const kind of ["dogs", "hours"] as const) {
-      const id = passageId(row, kind);
-      if (id) statedBy.set(id, (statedBy.get(id) ?? new Set()).add(row.osmId));
+      const passage = passageOf(row, kind);
+      if (!passage) continue;
+      const id = idOf(passage);
+      statedBy.set(id, (statedBy.get(id) ?? new Set()).add(row.osmId));
+      if (statedBy.get(id)!.size > 1) chainPassages.set(id, passage);
     }
   }
   const rows: SiteFactsRow[] = [];
   for (const row of candidates) {
     const kept: SiteFactsRow = { ...row };
     for (const kind of ["dogs", "hours"] as const) {
-      const id = passageId(row, kind);
-      if (id && (statedBy.get(id)?.size ?? 0) > 1) {
+      const passage = passageOf(row, kind);
+      if (passage && chainPassages.has(idOf(passage))) {
         delete kept[kind];
         skip(`chain-${kind}-passage`);
       }
@@ -485,5 +497,6 @@ export function siteFactsRows(input: {
     if (kept.dogs || kept.hours) rows.push(kept);
   }
   rows.sort((a, b) => a.osmId.localeCompare(b.osmId));
-  return { rows, skipCounts, refusal: null };
+  const sortedChainPassages = [...chainPassages.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([, passage]) => passage);
+  return { rows, chainPassages: sortedChainPassages, skipCounts, refusal: null };
 }
