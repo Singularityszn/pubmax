@@ -478,11 +478,13 @@
 }
 
 /* The reveal aims at the price step, but the composer's eyebrow and the
-   pub's name sit just above it and say where the price goes. 64px is that
-   intro (37px), the composer's 9px gap, 13px padding and 1px border, plus
-   4px, so the composer's own top edge lands in the clear too. */
+   pub's name sit just above it and say where the price goes. 85px is the
+   composer's 1px border and 13px padding, that intro (37px), and the
+   signed-out note with a 9px gap either side (34px), measured at 1280x900,
+   so the composer's own top edge lands in the clear too. Signed in, there is
+   no note and the card simply sits 25px lower. */
 .mapDrawer.right.open:not(.mobileSharedSheet) .spillPriceStep {
-  scroll-margin-top: 64px;
+  scroll-margin-top: 85px;
 }
 
 /* Venue command bar. It stays pinned in the desktop inspector and moves into
