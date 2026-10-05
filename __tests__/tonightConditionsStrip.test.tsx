@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import TonightConditionsStrip from "@/app/tonight/TonightConditionsStrip";
+import { NO_WEATHER_READING_LINE } from "@/lib/conditionsFormat";
 import type { TonightConditionsSummary } from "@/lib/tonightConditions";
 
 // The summary is the clock's, because /feed and the desktop map chip read the
@@ -21,6 +22,8 @@ const MORNING_SUMMARY: TonightConditionsSummary = {
 };
 
 let served: TonightConditionsSummary = MORNING_SUMMARY;
+// "answer" serves the summary, "hang" never settles, "fail" settles unanswered.
+let read: "answer" | "hang" | "fail" = "answer";
 
 vi.mock("@/lib/surfaceDataCache", () => ({
   loadSurfaceJson: async (
@@ -29,6 +32,8 @@ vi.mock("@/lib/surfaceDataCache", () => ({
     apply: (value: { summary: TonightConditionsSummary }) => void,
   ) => {
     await Promise.resolve();
+    if (read === "hang") return new Promise<never>(() => undefined);
+    if (read === "fail") return "failed";
     apply({ summary: served });
     return "network";
   },
@@ -42,6 +47,7 @@ beforeEach(() => {
   vi.setSystemTime(new Date("2026-10-03T08:30:00.000Z"));
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   served = MORNING_SUMMARY;
+  read = "answer";
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -85,5 +91,34 @@ describe("the Tonight conditions strip", () => {
     const text = await render({ tonightMode: true });
     expect(text).toContain("Last checked 2 days ago.");
     expect(text).not.toContain("Amber ale");
+  });
+
+  it("holds its own room, unpainted and unread, while the read runs", async () => {
+    read = "hang";
+    const text = await render({ tonightMode: true });
+    expect(text).toBe("");
+    const hold = container.querySelector(".tonightConditions");
+    expect(hold?.classList.contains("tonightConditionsHold")).toBe(true);
+    expect(hold?.getAttribute("aria-hidden")).toBe("true");
+    expect(container.querySelector("[data-testid='tonight-conditions']")).toBeNull();
+  });
+
+  it("says there is no reading when the read fails, so the room is never blank", async () => {
+    read = "fail";
+    const text = await render({ tonightMode: true });
+    expect(text).toContain(NO_WEATHER_READING_LINE);
+    expect(container.querySelector(".tonightConditionsHold")).toBeNull();
+  });
+
+  it("holds no room in the feed's desktop rail while the read runs", async () => {
+    read = "hang";
+    await render({});
+    expect(container.innerHTML).toBe("");
+  });
+
+  it("renders nothing in the feed's desktop rail when the read fails", async () => {
+    read = "fail";
+    await render({});
+    expect(container.innerHTML).toBe("");
   });
 });

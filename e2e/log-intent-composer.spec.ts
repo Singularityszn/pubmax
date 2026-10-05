@@ -56,10 +56,14 @@ test("the log intent lands the reader on the composer's price step", async ({ pa
   const nearby = page.locator(".logIntentNearbyBtn").first();
   await expect(nearby).toBeVisible({ timeout: 45_000 });
   // A control painted on the server is tappable before React attaches, so the
-  // tap is retried rather than the assertion after it made harder.
+  // tap is retried rather than the assertion after it made harder. Only a tap
+  // that was dropped is retried: a tap that landed closes the picker, and on a
+  // loaded box the composer can take over 10s to follow it. Clicking the gone
+  // button then waited out the whole budget on actionability and never looked
+  // at the price step again, which read as a composer that never opened.
   const priceStep = page.getByTestId("spill-price-step");
   await expect(async () => {
-    await nearby.click();
+    if (await nearby.isVisible()) await nearby.click({ timeout: 2_000 });
     await expect(priceStep).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 25_000 });
 
@@ -88,4 +92,12 @@ test("the log intent lands the reader on the composer's price step", async ({ pa
 
   // The price field itself is what the reader came to fill in.
   await expect(priceStep.locator("input").first()).toBeInViewport();
+
+  // A reveal and never a re-layout: the sheet opened on its Pints tab, and
+  // focus stayed put, so raising the keyboard is the reader's own next move.
+  await expect(page.locator("#venueTab-pints")).toHaveAttribute("aria-selected", "true");
+  expect(
+    await priceStep.evaluate((step) => step.contains(document.activeElement)),
+    "the reveal moves no focus into the price step",
+  ).toBe(false);
 });

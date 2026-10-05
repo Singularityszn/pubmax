@@ -762,15 +762,9 @@ function buildFilterHints(rows, venueId, scrapedIds) {
 
 // --- build -------------------------------------------------------------------
 
-async function main() {
-  const rawText = await readFile(RAW_PATH, "utf8");
-  const rows = JSON.parse(rawText);
-  if (!Array.isArray(rows)) {
-    throw new Error(`Expected an array in ${RAW_PATH}, got ${typeof rows}`);
-  }
-
-  // Enrichment venue ids (Young's / Nicholson's / Greene King) — stamp scraped
-  // + drink accents even when the underlying pint row is already canonical.
+// Enrichment venue ids (Young's / Nicholson's / Greene King) — stamp scraped
+// + drink accents even when the underlying pint row is already canonical.
+async function readScrapedIds() {
   const scrapedIds = new Set();
   try {
     const enrichmentPath = path.join(
@@ -784,6 +778,17 @@ async function main() {
   } catch {
     // Missing enrichment is fine — gazetteer source_datasets still stamps scraped.
   }
+  return scrapedIds;
+}
+
+async function main() {
+  const rawText = await readFile(RAW_PATH, "utf8");
+  const rows = JSON.parse(rawText);
+  if (!Array.isArray(rows)) {
+    throw new Error(`Expected an array in ${RAW_PATH}, got ${typeof rows}`);
+  }
+
+  const scrapedIds = await readScrapedIds();
 
   // Group rows by the canonical key. Preserve first-seen order so the first row
   // of a group supplies name/lat/lng/borough — matching groupVenuePrices, whose
@@ -941,9 +946,16 @@ async function main() {
   // consumers (crawls, rounds) read — they need ALL venues by id, not a
   // viewport. The sharded files below are the CLIENT MAP first-paint
   // optimization derived from the same rows.
-  await writeFile(SLIM_PATH, slimText);
   await writeFile(DETAIL_ROWS_PATH, detailText);
   await writeFile(DETAIL_INDEX_PATH, detailIndexText);
+  // --details-only writes just the two gitignored detail files, so CI can
+  // validate the committed packs without a rebuild writing over them.
+  if (process.argv.includes("--details-only")) {
+    console.log(`wrote: ${path.relative(ROOT, DETAIL_ROWS_PATH)}`);
+    console.log(`wrote: ${path.relative(ROOT, DETAIL_INDEX_PATH)}`);
+    return;
+  }
+  await writeFile(SLIM_PATH, slimText);
 
   // --- spatially shard the slim index for the map's first paint --------------
   const cells = classifySpatialShards(slim, SPATIAL_GRID);

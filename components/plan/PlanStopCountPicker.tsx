@@ -16,9 +16,11 @@ import { PLAN_STOP_COUNTS, normalizePlanStopCount, type PlanStopCount } from "@/
 export default function PlanStopCountPicker({
   value,
   onChange,
+  ready = true,
 }: {
   value: unknown;
   onChange: (value: PlanStopCount) => void;
+  ready?: boolean;
 }) {
   const selected = normalizePlanStopCount(value);
   return (
@@ -30,7 +32,8 @@ export default function PlanStopCountPicker({
             key={count}
             variant="number"
             aria-pressed={selected === count}
-            onClick={() => onChange(count)}
+            aria-disabled={ready ? undefined : true}
+            onClick={() => { if (ready) onChange(count); }}
           >
             {count}
           </Chip>
