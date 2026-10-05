@@ -11,7 +11,7 @@
 // M01: removing two photos in one tick removes both, because the removal
 // reads the current draft rather than the closure's copy of it.
 
-import { act, createElement } from "react";
+import { act, createElement, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -37,22 +37,25 @@ vi.mock("next/image", () => ({
 }));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
+const auth = vi.hoisted(() => ({ owner: "host" as string | null, unresolved: false }));
 vi.mock("@/components/auth/AuthProvider", () => ({
-  useAuth: () => ({ user: { id: "host" }, loading: false }),
+  useAuth: () => ({ user: auth.owner ? { id: auth.owner } : null, loading: false, accountRevision: readProviderIdentityRevision() }),
 }));
 vi.mock("@/components/auth/useViewerSession", () => ({
-  useViewerSession: () => ({ phase: "authenticated", signedIn: true, signedOut: false, unresolved: false }),
+  useViewerSession: () => ({ phase: auth.unresolved ? "unresolved" : auth.owner ? "signed-in" : "signed-out", signedIn: Boolean(auth.owner), signedOut: !auth.owner && !auth.unresolved, unresolved: auth.unresolved }),
 }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: () => undefined }));
 vi.mock("@/lib/identityNudge", () => ({ recordMomentNudgeTrigger: () => undefined }));
 vi.mock("@/lib/nativePlatform", () => ({ isNativeApp: () => false }));
 vi.mock("@/lib/nativeCamera", () => ({ captureNativePhoto: async () => null }));
+const loadDraft = vi.hoisted(() => vi.fn());
+const saveDraft = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/momentDraft", async () => {
   const actual = await vi.importActual<typeof import("@/lib/momentDraft")>("@/lib/momentDraft");
   return {
     ...actual,
-    loadMomentDraft: async () => null,
-    saveMomentDraft: async () => undefined,
+    loadMomentDraft: (...args: unknown[]) => loadDraft(...args),
+    saveMomentDraft: (...args: unknown[]) => saveDraft(...args),
     deleteMomentDraft: async () => undefined,
   };
 });
@@ -73,6 +76,8 @@ vi.mock("@/lib/authedFetch", () => ({
 
 import MomentCapture from "@/components/moment/MomentCapture";
 import { defined } from "@/__tests__/helpers/defined";
+import { createMomentDraft } from "@/lib/momentDraft";
+import { readProviderIdentityRevision, setProviderIdentity, setProviderAuthState } from "@/lib/authProviderRevision";
 
 const JPEG_HEAD = [0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01];
 
@@ -101,12 +106,12 @@ async function settle(rounds = 6): Promise<void> {
   }
 }
 
-async function mount(): Promise<void> {
+async function mount(strict = false): Promise<void> {
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
   await act(async () => {
-    root!.render(createElement(MomentCapture));
+    root!.render(strict ? createElement(StrictMode, null, createElement(MomentCapture)) : createElement(MomentCapture));
   });
   await settle();
 }
@@ -144,6 +149,12 @@ async function save(): Promise<void> {
 }
 
 beforeEach(() => {
+  auth.owner = "host";
+  auth.unresolved = false;
+  setProviderIdentity("supabase", "host");
+  setProviderAuthState("supabase", "authenticated");
+  loadDraft.mockReset().mockResolvedValue(null);
+  saveDraft.mockReset().mockResolvedValue(undefined);
   calls.length = 0;
   fitMomentPhoto.mockReset();
   Object.defineProperty(window, "matchMedia", {
@@ -257,5 +268,94 @@ describe("removing photos", () => {
     await settle();
     expect(previews()).toBe(1);
     expect(container.querySelector('button[aria-label="Remove three.jpg"]')).not.toBeNull();
+  });
+});
+
+
+async function changeAccount(owner: string | null, unresolved = false): Promise<void> {
+  auth.owner = owner;
+  auth.unresolved = unresolved;
+  if (!unresolved) setProviderIdentity("supabase", owner);
+  setProviderAuthState("supabase", unresolved ? "unresolved" : owner ? "authenticated" : "signed-out");
+  await act(async () => { root!.render(createElement(MomentCapture)); });
+  await settle();
+}
+
+describe("Moment account ownership", () => {
+  it("captures locally while Auth is unresolved and imports that guest draft after sign-in", async () => {
+    let guest = { ...createMomentDraft("guest"), caption: "Guest night fixture" };
+    loadDraft.mockImplementation(async (owner: string) => owner === "guest" ? guest : null);
+    saveDraft.mockImplementation(async (draft: typeof guest) => { if (draft.ownerKey === "guest") guest = draft; });
+    auth.owner = null;
+    auth.unresolved = true;
+    setProviderIdentity("supabase", null);
+    setProviderAuthState("supabase", "unavailable");
+    await mount();
+    expect(container.querySelector<HTMLFormElement>(".momentComposer")?.hidden).toBe(false);
+    expect(container.querySelector<HTMLTextAreaElement>(".momentFields textarea")?.value).toBe("Guest night fixture");
+    await choose(jpegFile("guest-night.jpg"));
+    expect(previews()).toBe(1);
+    expect(calls).toHaveLength(0);
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 350)); });
+    await changeAccount("host");
+    expect(container.querySelector<HTMLTextAreaElement>(".momentFields textarea")?.value).toBe("Guest night fixture");
+    expect(previews()).toBe(1);
+    expect(container.querySelector<HTMLButtonElement>(".momentSave")?.disabled).toBe(false);
+  });
+
+  it("restores the account's own draft instead of importing the guest draft", async () => {
+    const owned = { ...createMomentDraft("host"), caption: "Owner's night fixture" };
+    loadDraft.mockImplementation(async (owner: string) => owner === "host" ? owned : { ...createMomentDraft("guest"), caption: "Guest night fixture" });
+    await mount();
+    expect(container.querySelector<HTMLTextAreaElement>(".momentFields textarea")?.value).toBe("Owner's night fixture");
+    expect(loadDraft).not.toHaveBeenCalledWith("guest");
+  });
+
+  it("restores an editable draft during StrictMode effect replay", async () => {
+    await mount(true);
+    await choose(jpegFile("strict-mode.jpg"));
+    expect(previews()).toBe(1);
+    expect(container.querySelector<HTMLButtonElement>(".momentSave")?.disabled).toBe(false);
+  });
+  it("does not continue a save when the old Memory body arrives under another account", async () => {
+    let releaseBody!: (value: unknown) => void;
+    const body = new Promise<unknown>((resolve) => { releaseBody = resolve; });
+    answer = () => ({ ok: true, status: 201, json: () => body }) as Response;
+    await mount();
+    await choose(jpegFile("owner-photo.jpg"));
+    await save();
+    expect(calls).toHaveLength(1);
+    await changeAccount("other");
+    expect(previews()).toBe(0);
+    await act(async () => { releaseBody({ memory: { id: "old-owner-memory" } }); });
+    await settle();
+    expect(calls).toHaveLength(1);
+    expect(status()).toBe("Your draft stays on this device until you save it.");
+    expect(container.querySelector(".momentSaved")).toBeNull();
+  });
+
+  it("discards a photo fit that finishes after switching accounts", async () => {
+    let releaseFit!: (value: unknown) => void;
+    fitMomentPhoto.mockReturnValue(new Promise((resolve) => { releaseFit = resolve; }));
+    await mount();
+    await choose(jpegFile("large-private.jpg", 8_060_438));
+    expect(fitMomentPhoto).toHaveBeenCalledTimes(1);
+    await changeAccount("other");
+    await act(async () => { releaseFit({ outcome: "fitted", file: jpegFile("fitted-private.jpg"), attempts: 1 }); });
+    await settle();
+    expect(previews()).toBe(0);
+    expect(status()).toBe("Your draft stays on this device until you save it.");
+  });
+
+  it("keeps the same account's photo through token refresh and unresolved recovery", async () => {
+    await mount();
+    await choose(jpegFile("same-account.jpg"));
+    await changeAccount("host");
+    expect(previews()).toBe(1);
+    await changeAccount(null, true);
+    expect(container.querySelector<HTMLFormElement>(".momentComposer")?.hidden).toBe(true);
+    await changeAccount("host");
+    expect(container.querySelector<HTMLFormElement>(".momentComposer")?.hidden).toBe(false);
+    expect(previews()).toBe(1);
   });
 });

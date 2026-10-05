@@ -12,6 +12,7 @@ import {
   FormEvent,
   MouseEvent as ReactMouseEvent,
   type ReactNode,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -29,6 +30,7 @@ import { trackEvent } from "@/lib/analytics";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
 import { recordMomentNudgeTrigger } from "@/lib/identityNudge";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { readProviderAccountRevision, subscribeProviderIdentityRevision } from "@/lib/authProviderRevision";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { captureNativePhoto } from "@/lib/nativeCamera";
 import { isNativeApp } from "@/lib/nativePlatform";
@@ -148,6 +150,18 @@ function withPreviewUrls(draft: MomentDraftV1): MomentDraftV1 {
 }
 
 export default function MomentCapture(): React.JSX.Element {
+  const { user } = useAuth();
+  const accountRevision = useSyncExternalStore(subscribeProviderIdentityRevision, readProviderAccountRevision, () => 0);
+  const viewerSession = useViewerSession();
+  const [settledOwner, setSettledOwner] = useState(user?.id ?? GUEST_OWNER);
+  const ownerKey = viewerSession.unresolved ? settledOwner : user?.id ?? GUEST_OWNER;
+  if (ownerKey !== settledOwner) setSettledOwner(ownerKey);
+  // Device drafts and pending operations belong to one account visit. A token
+  // refresh keeps this key, while an account switch cannot paint old fields.
+  return <MomentComposer key={`${accountRevision}:${ownerKey}`} ownerKey={ownerKey} accountRevision={accountRevision} />;
+}
+
+function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accountRevision: number }): React.JSX.Element {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnTo = safeMomentReturnTo(searchParams?.get("returnTo"));
@@ -155,13 +169,12 @@ export default function MomentCapture(): React.JSX.Element {
   const captionField = useRef<HTMLTextAreaElement | null>(null);
   const { user, loading: authLoading } = useAuth();
   const viewerSession = useViewerSession();
-  const ownerKey = user?.id ?? GUEST_OWNER;
   const isPhone = useSyncExternalStore(
     subscribeMobileViewport,
     getMobileViewportSnapshot,
     () => false,
   );
-  const [draft, setDraft] = useState<MomentDraftV1>(() => newDraft(GUEST_OWNER));
+  const [draft, setDraft] = useState<MomentDraftV1>(() => newDraft(ownerKey));
   const [hydrated, setHydrated] = useState(false);
   const [message, setMessage] = useState("Your draft stays on this device until you save it.");
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -172,6 +185,11 @@ export default function MomentCapture(): React.JSX.Element {
   const editorSessionRef = useRef<EditorSession | null>(null);
   const editorOpenerRef = useRef<HTMLElement | null>(null);
   const previewUrls = useRef<Set<string>>(new Set());
+  const mounted = useRef(true);
+  const isCurrentComposer = useCallback(
+    () => mounted.current && (ownerKey === GUEST_OWNER || !viewerSession.unresolved) && readProviderAccountRevision() === accountRevision,
+    [accountRevision, ownerKey, viewerSession.unresolved],
+  );
   // Arm the identity nudge once per composer visit, the first time a signed-out
   // guest has a Moment draft worth keeping. The server save path requires auth,
   // so a signed-out capture is always a local draft — exactly when "own your
@@ -179,12 +197,24 @@ export default function MomentCapture(): React.JSX.Element {
   const momentNudgeArmed = useRef(false);
 
   useEffect(() => {
+    mounted.current = true;
+    const urls = previewUrls.current;
+    return () => {
+      mounted.current = false;
+      editorSessionRef.current = null;
+      urls.forEach((url) => URL.revokeObjectURL(url));
+      urls.clear();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (hydrated || !isCurrentComposer()) return;
     let cancelled = false;
     async function restore() {
       const owned = await loadMomentDraft(ownerKey);
       const guest = ownerKey !== GUEST_OWNER && !owned ? await loadMomentDraft(GUEST_OWNER) : null;
       const restored = owned ?? guest;
-      if (cancelled) return;
+      if (cancelled || !isCurrentComposer()) return;
       if (restored) {
         const next = withPreviewUrls({ ...restored, ownerKey });
         next.media.forEach((item) => { if (item.objectUrl) previewUrls.current.add(item.objectUrl); });
@@ -198,11 +228,12 @@ export default function MomentCapture(): React.JSX.Element {
     }
     void restore();
     return () => { cancelled = true; };
-  }, [ownerKey]);
+  }, [hydrated, isCurrentComposer, ownerKey]);
 
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || !isCurrentComposer()) return;
     const timer = window.setTimeout(() => {
+      if (!isCurrentComposer()) return;
       void saveMomentDraft(draft);
       if (!user && !momentNudgeArmed.current && (draft.caption.trim() || draft.media.length)) {
         momentNudgeArmed.current = true;
@@ -215,27 +246,22 @@ export default function MomentCapture(): React.JSX.Element {
       }
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [draft, hydrated, user]);
+  }, [draft, hydrated, isCurrentComposer, user]);
 
   useEffect(() => {
     if (typeof BroadcastChannel === "undefined") return;
     const channel = new BroadcastChannel(MOMENT_DRAFT_CHANNEL);
     channel.onmessage = (event: MessageEvent<{ ownerKey?: string; revision?: number }>) => {
-      if (event.data.ownerKey === draft.ownerKey && Number(event.data.revision) > draft.revision) {
+      if (isCurrentComposer() && event.data.ownerKey === draft.ownerKey && Number(event.data.revision) > draft.revision) {
         setMessage("This Moment changed in another tab. Refresh to load the latest draft.");
       }
     };
     return () => channel.close();
-  }, [draft.ownerKey, draft.revision]);
-
-  useEffect(() => () => {
-    previewUrls.current.forEach((url) => URL.revokeObjectURL(url));
-    previewUrls.current.clear();
-  }, []);
+  }, [draft.ownerKey, draft.revision, isCurrentComposer]);
 
   const canSave = useMemo(
-    () => Boolean(draft.caption.trim() || draft.media.length) && !authLoading && saveState !== "saving",
-    [authLoading, draft.caption, draft.media.length, saveState],
+    () => Boolean(draft.caption.trim() || draft.media.length) && hydrated && !viewerSession.unresolved && !authLoading && saveState !== "saving",
+    [authLoading, draft.caption, draft.media.length, hydrated, saveState, viewerSession.unresolved],
   );
 
   // A patch may be a function of the CURRENT draft. Two removals in one tick
@@ -243,7 +269,8 @@ export default function MomentCapture(): React.JSX.Element {
   // the first (battle test M01), so anything that edits the media list
   // derives the next list inside the updater rather than outside it.
   function update(patch: Partial<MomentDraftV1> | ((current: MomentDraftV1) => Partial<MomentDraftV1>)) {
-    setDraft((current) => ({
+    if (!isCurrentComposer()) return;
+    setDraft((current) => !isCurrentComposer() ? current : ({
       ...current,
       ...(typeof patch === "function" ? patch(current) : patch),
       revision: current.revision + 1,
@@ -266,7 +293,7 @@ export default function MomentCapture(): React.JSX.Element {
     if (!isNativeApp()) return;
     event.preventDefault();
     const file = await captureNativePhoto("moment");
-    if (file) void addFiles([file]);
+    if (file && isCurrentComposer()) void addFiles([file]);
   }
 
   function onPickerDragEnter(event: ReactDragEvent<HTMLLabelElement>) {
@@ -309,11 +336,13 @@ export default function MomentCapture(): React.JSX.Element {
   // iPhone's HEIC takes the same fit whatever it weighs, and a browser that
   // cannot decode one says where to go rather than uploading nothing.
   async function admitFile(file: File): Promise<File | null> {
+    const kind = await sniffFile(file);
+    if (!isCurrentComposer()) return null;
     const decision = momentPhotoIntakeDecision({
       name: file.name,
       type: file.type,
       size: file.size,
-      kind: await sniffFile(file),
+      kind,
     });
     if (decision.outcome === "refuse") {
       setMessage(decision.message);
@@ -327,6 +356,7 @@ export default function MomentCapture(): React.JSX.Element {
     }
     setMessage(decision.reason === "heic" ? "Converting photo..." : "Resizing photo...");
     const fitted = await fitMomentPhoto(file);
+    if (!isCurrentComposer()) return null;
     if (fitted.outcome === "fitted") return fitted.file;
     setMessage(
       fitted.outcome === "unreadable"
@@ -345,11 +375,11 @@ export default function MomentCapture(): React.JSX.Element {
   }
 
   async function addFiles(files: File[]) {
-    if (!files.length) return;
+    if (!files.length || !isCurrentComposer()) return;
     const admitted: File[] = [];
     for (const file of files) {
       const ready = await admitFile(file);
-      if (!ready) return;
+      if (!ready || !isCurrentComposer()) return;
       admitted.push(ready);
     }
     const incoming = admitted.map(makeMedia);
@@ -417,7 +447,7 @@ export default function MomentCapture(): React.JSX.Element {
   }
 
   function finishPhotoEdit(session: EditorSession | null, result: { blob: Blob }) {
-    if (!session || editorSessionRef.current !== session || editingMediaId !== session.mediaId) return;
+    if (!isCurrentComposer() || !session || editorSessionRef.current !== session || editingMediaId !== session.mediaId) return;
     const current = draft.media.find((item) => item.id === session.mediaId);
     if (!current) {
       closePhotoEditor();
@@ -445,7 +475,7 @@ export default function MomentCapture(): React.JSX.Element {
     session: EditorSession | null,
     reason: "open" | "save" = "open",
   ) {
-    if (!session || editorSessionRef.current !== session || editingMediaId !== session.mediaId) return;
+    if (!isCurrentComposer() || !session || editorSessionRef.current !== session || editingMediaId !== session.mediaId) return;
     closePhotoEditor();
     setMessage(
       reason === "save"
@@ -467,7 +497,7 @@ export default function MomentCapture(): React.JSX.Element {
       setMessage("Sign in to save this Moment. Your draft will stay here.");
       return;
     }
-    if (!canSave) return;
+    if (!canSave || !isCurrentComposer()) return;
     setSaveState("saving");
     setMessage("Saving privately...");
 
@@ -481,6 +511,7 @@ export default function MomentCapture(): React.JSX.Element {
       const memoryBody = memoryResponse
         ? await memoryResponse.json().catch(() => ({})) as { memory?: { id: string }; error?: string }
         : {};
+      if (!isCurrentComposer()) return;
       if (!memoryResponse?.ok || !memoryBody.memory) {
         setSaveState("idle");
         setMessage(
@@ -504,6 +535,7 @@ export default function MomentCapture(): React.JSX.Element {
       return;
     }
     for (let index = 0; index < items.length; index += 1) {
+      if (!isCurrentComposer()) return;
       const item = items[index];
       const body = item ? new FormData() : JSON.stringify({
         kind: draft.kind === "photo" ? "side_quest" : draft.kind,
@@ -531,6 +563,7 @@ export default function MomentCapture(): React.JSX.Element {
       const responseBody = response
         ? await response.json().catch(() => ({})) as { error?: string; code?: string }
         : {};
+      if (!isCurrentComposer()) return;
       if (!response?.ok) {
         const remaining = draft.media.slice(index);
         // A refusal about the photo keeps the Memory, so the re-save after
@@ -546,7 +579,9 @@ export default function MomentCapture(): React.JSX.Element {
       }
     }
 
+    if (!isCurrentComposer()) return;
     await deleteMomentDraft(ownerKey);
+    if (!isCurrentComposer()) return;
     draft.media.forEach((item) => {
       if (item.objectUrl) URL.revokeObjectURL(item.objectUrl);
     });
@@ -559,7 +594,9 @@ export default function MomentCapture(): React.JSX.Element {
     // The receipt is the live region above the fields. Leaving on the same
     // tick unmounted it before a reader or a screen reader met it (battle
     // test L09), so the way back waits one beat for the line to land.
-    window.setTimeout(() => router.replace(returnTo), MOMENT_SAVED_RECEIPT_MS);
+    window.setTimeout(() => {
+      if (isCurrentComposer()) router.replace(returnTo);
+    }, MOMENT_SAVED_RECEIPT_MS);
   }
 
   return (
@@ -584,7 +621,7 @@ export default function MomentCapture(): React.JSX.Element {
         primary={
           <button
             type="button"
-            disabled={saveState === "saving"}
+            disabled={(viewerSession.unresolved && ownerKey !== GUEST_OWNER) || saveState === "saving"}
             onClick={() => {
               if (canSave) composerForm.current?.requestSubmit();
               else captionField.current?.focus();
@@ -621,6 +658,7 @@ export default function MomentCapture(): React.JSX.Element {
         <form
           ref={composerForm}
           className="momentComposer"
+          hidden={viewerSession.unresolved && ownerKey !== GUEST_OWNER}
           onSubmit={saveMoment}
           aria-label="Private Moment composer"
         >
@@ -757,7 +795,7 @@ export default function MomentCapture(): React.JSX.Element {
           )}
         </form>
 
-        {editingFile ? (
+        {editingFile && !viewerSession.unresolved ? (
           <MomentImageEditorBoundary onError={() => handlePhotoEditorError(editorSession)}>
             <MomentImageEditor
               file={editingFile}
@@ -773,7 +811,7 @@ export default function MomentCapture(): React.JSX.Element {
           </MomentImageEditorBoundary>
         ) : null}
 
-        {savedMemoryId ? (
+        {savedMemoryId && !viewerSession.unresolved ? (
           <section className="momentSaved" aria-labelledby="moment-saved-title">
             <h2 id="moment-saved-title">Saved. Still yours.</h2>
             <p>Add more Moments, choose which to include, and shape a Story when you are ready.</p>
