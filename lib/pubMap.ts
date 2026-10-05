@@ -20,6 +20,7 @@ import type { MapOverlay, MapSheetKind, MapViewportSnapshot } from "@/lib/mobile
 import { seedCrawlState } from "@/lib/crawlUrl";
 import { WALK_ROUTE_MAX_STOPS } from "@/lib/walkRoute";
 import { isDrinkShapeArrival } from "@/lib/mapArrival";
+import { applyDrinkLane, DEFAULT_DRINK_LANE } from "@/lib/drinkLanes";
 import type { CoffeePilotStatus } from "@/lib/coffeePilot";
 import type { LondonRestaurantStatus } from "@/lib/londonRestaurants";
 import { isLondonVenueId } from "@/lib/londonVenueShards";
@@ -106,12 +107,15 @@ export function buildMapSeed(search: string, _cityId: CityId = DEFAULT_CITY_ID):
   if (isDrinkShapeArrival(search)) {
     return { ...seeded, activeCrawl: null, routeMapped: false };
   }
+  const arrivalFilters = new URLSearchParams(search).get("drink") === DEFAULT_DRINK_LANE
+    ? applyDrinkLane(seeded.filters, DEFAULT_DRINK_LANE, { clearRefinements: true })
+    : seeded.filters;
   const hintedAltStyle =
     eagerCuratedCrawlAltStyle(seeded.crawlId) ??
     eagerCuratedCrawlAltStyleForBuiltIds(seeded.builtIds);
   return {
     ...seeded,
-    filters: filtersForCuratedCrawlHint(seeded.filters, hintedAltStyle),
+    filters: filtersForCuratedCrawlHint(arrivalFilters, hintedAltStyle),
     altStyle: hintedAltStyle ?? seeded.altStyle,
     activeCrawl: null,
     routeMapped: seeded.builtIds.length >= 2,

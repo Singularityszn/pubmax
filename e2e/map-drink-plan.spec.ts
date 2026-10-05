@@ -74,6 +74,9 @@ for (const drink of ["beer", "wine", "gin"] as const) {
       await expect(route.locator(".routeList")).not.toContainText("AMSTEL");
       await expect(route.getByRole("button", { name: "Save as story", exact: true })).toHaveCount(0);
     }
+    if (drink === "beer") {
+      await expect(route.getByRole("button", { name: "Hide line", exact: true })).toHaveAttribute("aria-pressed", "true");
+    }
     await testInfo.attach("reopened-drink-plan", { body: await page.screenshot(), contentType: "image/png" });
   });
 }
@@ -255,7 +258,7 @@ test("generated Alcohol-free replaces the previous Gin refinement", async ({ pag
 
 
 test("generated Beer clears the previous Gin brand and style", async ({ page }, testInfo) => {
-  const intent = await openPhonePlanner(page, "drink=gin&brand=sipsmith&sub=gin-london-dry");
+  const intent = await openPhonePlanner(page, "drink=gin&brand=sipsmith&sub=gin-london-dry&alt=mocktail");
   await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill("Beer in Soho");
   const generatedResponse = page.waitForResponse((response) =>
     new URL(response.url()).pathname === "/api/plans/generate" && response.request().method() === "POST",
@@ -267,11 +270,39 @@ test("generated Beer clears the previous Gin brand and style", async ({ page }, 
   expect(body.inferredContext.drinkCategory).toBe("beer");
   const route = page.locator(".mapDrawer.left .routePanel");
   await expect(route.locator(".routeList > li")).toHaveCount(2);
-  await expect(page).toHaveURL(/[?&]drink=beer(?:&|$)/);
+  await expect(page).not.toHaveURL(/[?&]drink=gin(?:&|$)/);
   const params = new URL(page.url()).searchParams;
+  expect(params.get("drink")).toBeNull();
   expect(params.has("brand")).toBe(false);
   expect(params.has("sub")).toBe(false);
   await expect(route.getByRole("radio", { name: "Pint", exact: true })).toHaveAttribute("aria-checked", "true");
   await expect(route.getByRole("button", { name: "Save as story", exact: true })).toHaveCount(1);
+  const calendar = page.waitForEvent("download");
+  await route.getByRole("button", { name: "Add to calendar (.ics)", exact: true }).click();
+  const download = await calendar;
+  const contents = await readFile((await download.path())!, "utf8");
+  expect(contents).toContain("pint stop");
+  expect(contents).not.toContain("mocktail stop");
   await testInfo.attach("generated-beer-activation", { body: await page.screenshot(), contentType: "image/png" });
+});
+
+
+test("generated Cocktail uses the map's Cocktail filter policy", async ({ page }) => {
+  const intent = await openPhonePlanner(page);
+  await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill("Cocktails in Soho");
+  const generatedResponse = page.waitForResponse((response) =>
+    new URL(response.url()).pathname === "/api/plans/generate" && response.request().method() === "POST",
+  );
+  await intent.getByRole("button", { name: "Make a plan", exact: true }).click();
+  const response = await generatedResponse;
+  expect(response.status()).toBe(200);
+  const body = await response.json() as { inferredContext: { drinkCategory: string } };
+  expect(body.inferredContext.drinkCategory).toBe("cocktail");
+  await expect(page).toHaveURL(/[?&]drink=cocktail(?:&|$)/);
+  await page.getByRole("button", { name: "Close planner", exact: true }).click();
+  const filtersButton = page.getByRole("button", { name: /^Filters/ });
+  await filtersButton.click();
+  const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByRole("group", { name: "Filter by drink shape" }).getByRole("button", { name: "Cocktails (selected)", exact: true })).toHaveAttribute("aria-pressed", "true");
 });

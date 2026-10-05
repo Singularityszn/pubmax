@@ -141,6 +141,13 @@ describe("buildMapSeed", () => {
     expect(seed.routeMapped).toBe(false);
   });
 
+  it("restores explicit unrefined Beer shared stops without a selected Beer filter", () => {
+    const seed = buildMapSeed("?drink=beer&mode=build&pubs=venue-a,venue-b");
+    expect(seed.routeMapped).toBe(true);
+    expect(seed.filters.drinkCategory).toBe("");
+    expect(seed.filters.requireCocktails).toBe(false);
+  });
+
   it("plain arrival has no active crawl and an unmapped route", () => {
     const seed = buildMapSeed("");
     expect(seed.activeCrawl).toBeNull();
