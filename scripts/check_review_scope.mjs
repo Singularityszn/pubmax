@@ -59,7 +59,6 @@ const GENERATED_PATHS = [
   /^(?:generated|__generated__)(?:\/|$)/,
   /(?:^|\/)__generated__(?:\/|$)/,
   /(?:^|\/)[^/]+\.generated\.[^/]+$/,
-  /^next-env\.d\.ts$/,
   /^types\/database\.ts$/,
 ];
 /**
