@@ -548,46 +548,26 @@ const PUB_PIN_LAYERS = [
   "cluster-count",
 ] as const;
 
-
-
-
-export default function PubMapCanvas({
+// Every optional prop with its default applied. The defaults live here, not in
+// the component's parameter list, because ESLint scores each default as a
+// branch of the function that declares it.
+// `spoonsValue` has no default: an absent lane and an off lens are the same
+// falsy answer to every reader of it.
+function withPubMapCanvasDefaults({
   venues,
   filteredVenueCount = venues.length,
-  venueDataReady,
-  route,
-  selectedVenueId,
-  onVenueClick,
-  onReaderTouchedMap,
-  onUkBasePubClick,
-  onUkBasePubsChange,
-  onUkBaseStatusChange,
-  onUkBaseResidentPubsChange,
-  onVisibleVenueIdsChange,
-  onRenderedStateChange,
   venueListOpen = false,
   ukBaseRestore = null,
-  onRouteStopClick,
-  onVenuePrefetch,
   venueSignals = new Map(),
   favoritePint = null,
   drinkCategory = null,
   whatsOnByVenue = null,
   provisionalVenueIds = null,
   lensPrices = null,
-  // No default: an absent lane and an off lens are the same falsy answer to
-  // every reader below, and a default here costs this already-dense function
-  // a branch it does not need.
-  spoonsValue,
   lensNoun = null,
   lensIndexStatus = "ready",
-  onLandmarkSelect,
   activeBandId = "",
-  onBandChange,
   initialLandmarkId = "",
-  onMapReady,
-  onMapErrored,
-  onMapConstructed,
   mapView = LONDON_VIEW,
   resumeViewport = null,
   maxBounds = UK_BOUNDS,
@@ -599,31 +579,133 @@ export default function PubMapCanvas({
   cityId = DEFAULT_CITY_ID,
   tonightOpportunities = [],
   tonightOverlayVisible = false,
-  onTonightOpportunityClick,
   coffeePilotCafes = NO_COFFEE_PILOT_CAFES,
-  londonRestaurants,
   fitQueryOnArrival = false,
   searchFitToken = 0,
   userLocation = null,
   readerPosition = null,
-  poiHidden: controlledPoiHidden,
-  onPoiHiddenChange,
   hideLayersControl = false,
-  layersReaderKey,
-  layersReaderPriceFilter,
-  onReloadVenueData,
   venueDataFailed = false,
   listOpen = false,
-  onListOpenChange,
   listCount = 0,
-  onSoftRetryChange,
   focusPoint = null,
-  nearMePending,
-  openingCameraSettled,
-  onViewportChange,
-  onUserCameraMove,
-  onBoundsChange,
+  ...props
 }: PubMapCanvasProps) {
+  return {
+    ...props,
+    venues,
+    filteredVenueCount,
+    venueListOpen,
+    ukBaseRestore,
+    venueSignals,
+    favoritePint,
+    drinkCategory,
+    whatsOnByVenue,
+    provisionalVenueIds,
+    lensPrices,
+    lensNoun,
+    lensIndexStatus,
+    activeBandId,
+    initialLandmarkId,
+    mapView,
+    resumeViewport,
+    maxBounds,
+    poisPath,
+    secondaryStreamsHeld,
+    transitLinesPath,
+    cityLandmarks,
+    cityStoryBands,
+    cityId,
+    tonightOpportunities,
+    tonightOverlayVisible,
+    coffeePilotCafes,
+    fitQueryOnArrival,
+    searchFitToken,
+    userLocation,
+    readerPosition,
+    hideLayersControl,
+    venueDataFailed,
+    listOpen,
+    listCount,
+    focusPoint,
+  };
+}
+
+export default function PubMapCanvas(props: PubMapCanvasProps) {
+  // `useMemo` keyed on `props` recomputes whenever the parent renders. It is
+  // here for React Compiler, which treats a value handed to a helper it cannot
+  // see through as possibly mutated and would otherwise drop the memo blocks
+  // that read these props.
+  const {
+    venues,
+    filteredVenueCount,
+    venueDataReady,
+    route,
+    selectedVenueId,
+    onVenueClick,
+    onReaderTouchedMap,
+    onUkBasePubClick,
+    onUkBasePubsChange,
+    onUkBaseStatusChange,
+    onUkBaseResidentPubsChange,
+    onVisibleVenueIdsChange,
+    onRenderedStateChange,
+    venueListOpen,
+    ukBaseRestore,
+    onRouteStopClick,
+    onVenuePrefetch,
+    venueSignals,
+    favoritePint,
+    drinkCategory,
+    whatsOnByVenue,
+    provisionalVenueIds,
+    lensPrices,
+    spoonsValue,
+    lensNoun,
+    lensIndexStatus,
+    onLandmarkSelect,
+    activeBandId,
+    onBandChange,
+    initialLandmarkId,
+    onMapReady,
+    onMapErrored,
+    onMapConstructed,
+    mapView,
+    resumeViewport,
+    maxBounds,
+    poisPath,
+    secondaryStreamsHeld,
+    transitLinesPath,
+    cityLandmarks,
+    cityStoryBands,
+    cityId,
+    tonightOpportunities,
+    tonightOverlayVisible,
+    onTonightOpportunityClick,
+    coffeePilotCafes,
+    londonRestaurants,
+    fitQueryOnArrival,
+    searchFitToken,
+    userLocation,
+    readerPosition,
+    poiHidden: controlledPoiHidden,
+    onPoiHiddenChange,
+    hideLayersControl,
+    layersReaderKey,
+    layersReaderPriceFilter,
+    onReloadVenueData,
+    venueDataFailed,
+    listOpen,
+    onListOpenChange,
+    listCount,
+    onSoftRetryChange,
+    focusPoint,
+    nearMePending,
+    openingCameraSettled,
+    onViewportChange,
+    onUserCameraMove,
+    onBoundsChange,
+  } = useMemo(() => withPubMapCanvasDefaults(props), [props]);
   const showLandmarks = cityLandmarks.length > 0;
   const landmarkById = useCallback(
     (id: string | null | undefined) =>
@@ -4233,38 +4315,107 @@ export default function PubMapCanvas({
     () => (hoveredVenueId ? venues.find((venue) => venue.id === hoveredVenueId) : undefined),
     [venues, hoveredVenueId],
   );
-  const hoverSignal = hoveredVenueId ? venueSignals.get(hoveredVenueId) : undefined;
-  const hoverCopy = hoverCardCopy(
-    hoverMapVenue,
-    hoverSignal,
-    hoverDetail,
-    Boolean(hoveredVenueId && provisionalVenueIds?.has(hoveredVenueId)),
-    lensPrices === null || !hoveredVenueId
-      ? undefined
-      : lensPrices.get(hoveredVenueId) ?? null,
-    lensNoun,
-    lensIndexStatus,
-  );
-  const hoverImageUrl = hoverImageUrlFor(hoverDetail, failedHoverImage, hoveredVenueId);
-  const hoverCardStyle = hoveredVenue
-    ? {
-        left: `clamp(${HOVER_CARD_VIEWPORT_GUTTER_PX}px, ${hoveredVenue.x + HOVER_CARD_X_OFFSET_PX}px, calc(100vw - ${HOVER_CARD_WIDTH_PX + HOVER_CARD_VIEWPORT_GUTTER_PX}px))`,
-        top: `clamp(${HOVER_CARD_MIN_TOP_PX}px, ${hoveredVenue.y + HOVER_CARD_Y_OFFSET_PX}px, calc(100dvh - ${HOVER_CARD_HEIGHT_PX + HOVER_CARD_VIEWPORT_GUTTER_PX}px))`,
-      }
-    : undefined;
 
-  if (mapError) {
+  // Both Retry buttons fully re-init: clear the failure, let the context
+  // auto-retry spend itself again, and remount MapLibre.
+  const reinitMap = () => {
+    setMapError(null);
+    setSoftRetry(null);
+    publishMapErrored(false);
+    publishMapReady(false);
+    contextAutoReinitSpentRef.current = false;
+    setInitAttempt((a) => a + 1);
+  };
+
+  // The desktop hover card, as a nested function rather than a component so the
+  // element tree is unchanged and ESLint scores its branches on their own.
+  const renderVenueHoverCard = (hovered: HoveredVenue) => {
+    const hoverCopy = hoverCardCopy(
+      hoverMapVenue,
+      venueSignals.get(hovered.id),
+      hoverDetail,
+      Boolean(provisionalVenueIds?.has(hovered.id)),
+      lensPrices === null ? undefined : lensPrices.get(hovered.id) ?? null,
+      lensNoun,
+      lensIndexStatus,
+    );
+    const hoverImageUrl = hoverImageUrlFor(hoverDetail, failedHoverImage, hovered.id);
+    const hoverCardStyle = {
+      left: `clamp(${HOVER_CARD_VIEWPORT_GUTTER_PX}px, ${hovered.x + HOVER_CARD_X_OFFSET_PX}px, calc(100vw - ${HOVER_CARD_WIDTH_PX + HOVER_CARD_VIEWPORT_GUTTER_PX}px))`,
+      top: `clamp(${HOVER_CARD_MIN_TOP_PX}px, ${hovered.y + HOVER_CARD_Y_OFFSET_PX}px, calc(100dvh - ${HOVER_CARD_HEIGHT_PX + HOVER_CARD_VIEWPORT_GUTTER_PX}px))`,
+    };
+    return (
+      <aside className="venueHoverCard" style={hoverCardStyle} aria-hidden="true">
+        {hoverImageUrl ? (
+          <figure className="venueHoverPhoto">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={hoverImageUrl}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              onError={() =>
+                setFailedHoverImage({ venueId: hovered.id, url: hoverImageUrl })
+              }
+            />
+          </figure>
+        ) : (
+          <div className="venueHoverPhotoFallback" aria-hidden="true">
+            <span>{hovered.name.slice(0, 1).toUpperCase()}</span>
+          </div>
+        )}
+        <div className="venueHoverBody">
+          <span className="venueHoverEyebrow">
+            {hoverDetail === undefined
+              ? `Loading ${hoverCopy.venueTypeLabel.toLowerCase()} picture`
+              : hoverDetail
+                ? `${hoverCopy.venueTypeLabel} preview`
+                : `Fast ${hoverCopy.venueTypeLabel.toLowerCase()} preview`}
+          </span>
+          <strong>{hoverDetail?.name ?? hovered.name}</strong>
+          <span className="venueHoverMeta">
+            {hoverDetail?.primaryBorough ? `${hoverDetail.primaryBorough} · ` : ""}
+            {hoverCopy.price !== null && hoverCopy.price !== undefined ? (
+              <>
+                {/* The figure wears its price band (lib/priceBand.ts). */}
+                <span className={hoverPriceBandClass(hoverCopy)}>
+                  {formatPrice(hoverCopy.price)}
+                </span>{" "}
+                {hoverCopy.priceSuffix}
+              </>
+            ) : (
+              `Tap for full ${hoverCopy.detailLabel}`
+            )}
+          </span>
+          <span className="venueHoverProvenance">{hoverCopy.provenance}</span>
+          {/* The badge on the pin, said in words. Its dot is the same colour
+              as the one the map is drawing, so the card explains a mark the
+              reader can see rather than introducing a new one. */}
+          {hoverCopy.pendingNote ? (
+            <span className="venueHoverPending">
+              <i className="venueHoverPendingDot" />
+              {hoverCopy.pendingNote}
+            </span>
+          ) : null}
+        </div>
+      </aside>
+    );
+  };
+
+  // A nested function rather than a component, so the element tree is the one
+  // the early return always produced and ESLint scores the heading on its own.
+  const renderMapErrorFallback = (error: NonNullable<typeof mapError>) => {
     // Heading + body vary by cause so we never cry "needs WebGL" at a browser
     // that has it. Only the confirmed-dead-probe case makes that claim (and
     // hides Retry, since a re-init can't conjure a context that doesn't exist);
     // every other kind gets an honest one-liner and a Retry that fully re-inits.
-    const heading = mapError.noWebgl
+    const heading = error.noWebgl
       ? "Map unavailable"
-      : mapError.kind === "tiles"
+      : error.kind === "tiles"
         ? "Map tiles unavailable"
-        : mapError.kind === "no-frame"
+        : error.kind === "no-frame"
           ? "Map couldn't draw"
-          : mapError.kind === "context-lost"
+          : error.kind === "context-lost"
             ? "Map lost its graphics"
             : "Map couldn't start";
     // Static venue alternative: the slim pin index needs no WebGL, so surface
@@ -4281,26 +4432,17 @@ export default function PubMapCanvas({
         <MapFallbackCard
           key="map-fallback"
           heading={heading}
-          message={`${mapError.message} The pub list and crawl planner beside it still work as ever.`}
-          detail={mapError.detail}
+          message={`${error.message} The pub list and crawl planner beside it still work as ever.`}
+          detail={error.detail}
           venues={fallbackVenues}
           onSelectVenue={onVenueClick}
-          onRetry={
-            mapError.noWebgl
-              ? null
-              : () => {
-                  setMapError(null);
-                  setSoftRetry(null);
-                  publishMapErrored(false);
-                  publishMapReady(false);
-                  contextAutoReinitSpentRef.current = false;
-                  setInitAttempt((a) => a + 1);
-                }
-          }
+          onRetry={error.noWebgl ? null : reinitMap}
         />
       </div>
     );
-  }
+  };
+
+  if (mapError) return renderMapErrorFallback(mapError);
 
   const canRecenter = route.length >= 2;
   const cityDisplayName = getCity(cityId).displayName;
@@ -4400,12 +4542,7 @@ export default function PubMapCanvas({
                 pinRetryRef.current?.(softRetry.kind);
                 return;
               }
-              setSoftRetry(null);
-              setMapError(null);
-              publishMapErrored(false);
-              publishMapReady(false);
-              contextAutoReinitSpentRef.current = false;
-              setInitAttempt((a) => a + 1);
+              reinitMap();
             }}
           >
             Retry
@@ -4436,64 +4573,7 @@ export default function PubMapCanvas({
           </button>
         </div>
       ) : null}
-      {hoveredVenue ? (
-        <aside className="venueHoverCard" style={hoverCardStyle} aria-hidden="true">
-          {hoverImageUrl ? (
-            <figure className="venueHoverPhoto">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={hoverImageUrl}
-                alt=""
-                loading="lazy"
-                decoding="async"
-                onError={() => {
-                  if (hoveredVenueId) {
-                    setFailedHoverImage({ venueId: hoveredVenueId, url: hoverImageUrl });
-                  }
-                }}
-              />
-            </figure>
-          ) : (
-            <div className="venueHoverPhotoFallback" aria-hidden="true">
-              <span>{hoveredVenue.name.slice(0, 1).toUpperCase()}</span>
-            </div>
-          )}
-          <div className="venueHoverBody">
-            <span className="venueHoverEyebrow">
-              {hoverDetail === undefined
-                ? `Loading ${hoverCopy.venueTypeLabel.toLowerCase()} picture`
-                : hoverDetail
-                  ? `${hoverCopy.venueTypeLabel} preview`
-                  : `Fast ${hoverCopy.venueTypeLabel.toLowerCase()} preview`}
-            </span>
-            <strong>{hoverDetail?.name ?? hoveredVenue.name}</strong>
-            <span className="venueHoverMeta">
-              {hoverDetail?.primaryBorough ? `${hoverDetail.primaryBorough} · ` : ""}
-              {hoverCopy.price !== null && hoverCopy.price !== undefined ? (
-                <>
-                  {/* The figure wears its price band (lib/priceBand.ts). */}
-                  <span className={hoverPriceBandClass(hoverCopy)}>
-                    {formatPrice(hoverCopy.price)}
-                  </span>{" "}
-                  {hoverCopy.priceSuffix}
-                </>
-              ) : (
-                `Tap for full ${hoverCopy.detailLabel}`
-              )}
-            </span>
-            <span className="venueHoverProvenance">{hoverCopy.provenance}</span>
-            {/* The badge on the pin, said in words. Its dot is the same colour
-                as the one the map is drawing, so the card explains a mark the
-                reader can see rather than introducing a new one. */}
-            {hoverCopy.pendingNote ? (
-              <span className="venueHoverPending">
-                <i className="venueHoverPendingDot" />
-                {hoverCopy.pendingNote}
-              </span>
-            ) : null}
-          </div>
-        </aside>
-      ) : null}
+      {hoveredVenue ? renderVenueHoverCard(hoveredVenue) : null}
       {heroVenue && !heroDismissed ? (
         <MapHeroCard
           venue={heroVenue}
