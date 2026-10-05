@@ -841,6 +841,7 @@ export function usePintDrops(
   }
 
   async function reportDrop(venueId: string, id: string) {
+    if (!ownsCurrentAccount()) return;
     if (reportsInFlight.current.has(id)) return;
     reportsInFlight.current.add(id);
     const reportedDrop = dropsByVenueId.get(venueId)?.find((drop) => drop.id === id);
@@ -850,6 +851,24 @@ export function usePintDrops(
       next.set(venueId, (next.get(venueId) ?? []).filter((drop) => drop.id !== id));
       return next;
     });
+    const reportFailed = (text: string) => {
+      reportsInFlight.current.delete(id);
+      const owns = ownsCurrentAccount();
+      if (reportedDrop && (owns || (
+        !reportedDrop.optimistic &&
+        shouldOptimisticallyAppearInFeed(reportedDrop.visibility ?? DEFAULT_VISIBILITY)
+      ))) {
+        setDropsByVenueId((current) => {
+          const next = new Map(current);
+          next.set(venueId, [
+            reportedDrop,
+            ...(next.get(venueId) ?? []).filter((drop) => drop.id !== id),
+          ]);
+          return next;
+        });
+      }
+      if (owns) setDropMsg({ ok: false, text });
+    };
     try {
       // `actor` is the device's stable anon id (same attribution reactions and
       // comments use) — the server hashes it into the per-actor report key, so
@@ -864,42 +883,12 @@ export function usePintDrops(
       }, { requiresIdentity: true });
       const body: unknown = await res.json().catch(() => null);
       if (!res.ok) {
-        if (reportedDrop) {
-          setDropsByVenueId((current) => {
-            const next = new Map(current);
-            next.set(venueId, [
-              reportedDrop,
-              ...(next.get(venueId) ?? []).filter((drop) => drop.id !== id),
-            ]);
-            return next;
-          });
-        }
-        reportsInFlight.current.delete(id);
-        setDropMsg({
-          ok: false,
-          text:
-            offlineOrMessage(errorMessageFrom(body, "Could not report that Pint Drop. Try again."))
-        });
+        reportFailed(offlineOrMessage(errorMessageFrom(body, "Could not report that Pint Drop. Try again.")));
         return;
       }
-      setDropMsg({ ok: true, text: "Report received. That Pint Drop is hidden." });
+      if (ownsCurrentAccount()) setDropMsg({ ok: true, text: "Report received. That Pint Drop is hidden." });
     } catch {
-      if (reportedDrop) {
-        setDropsByVenueId((current) => {
-          const next = new Map(current);
-          next.set(venueId, [
-            reportedDrop,
-            ...(next.get(venueId) ?? []).filter((drop) => drop.id !== id),
-          ]);
-          return next;
-        });
-      }
-      reportsInFlight.current.delete(id);
-      setDropMsg({
-        ok: false,
-        text:
-          offlineOrMessage("Could not report that Pint Drop. Try again.")
-      });
+      reportFailed(offlineOrMessage("Could not report that Pint Drop. Try again."));
     }
   }
 

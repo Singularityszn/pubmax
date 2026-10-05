@@ -18,6 +18,8 @@ vi.mock("@/lib/authClient", () => ({
 
 import { AuthContext, useAuth } from "@/components/auth/authContext";
 import PintDropComposer from "@/components/map/PintDropComposer";
+import PintDropsList from "@/components/map/inspector/PintDropsList";
+import type { Venue } from "@/lib/venues";
 import { usePintDrops } from "@/components/map/usePintDrops";
 import { publishAuthActionState } from "@/lib/authedFetch";
 import { markProviderSignOut, readProviderAccountRevision, setProviderAuthState, setProviderIdentity } from "@/lib/authProviderRevision";
@@ -51,6 +53,8 @@ let tokenVersion: number;
 let paints: { accountId: string | null; note: string; photos: number; pendingNotes: string }[];
 let createdPhotoUrls: string[];
 let revokedPhotoUrls: string[];
+let showDropList = false;
+let listedDrops: unknown[];
 
 function ComposerHost() {
   const state = usePintDrops("london");
@@ -69,6 +73,12 @@ function ComposerHost() {
     createElement("output", { "data-testid": "drop-states" },
       [...state.dropsByVenueId.values()].flat().map((drop) => drop.optimistic?.state ?? "saved").join(" | ")),
     createElement(PintDropComposer, { venueId: VENUE_ID, venueName: "The Fixture Arms", state }),
+    showDropList ? createElement("section", { "data-testid": "drop-list" }, createElement(PintDropsList, {
+      venue: { id: VENUE_ID } as Venue,
+      drops: state.dropsByVenueId.get(VENUE_ID) ?? [],
+      lastTrainDecision: null,
+      reportDrop: state.reportDrop,
+    })) : null,
   );
 }
 
@@ -181,10 +191,12 @@ beforeEach(() => {
     revokedPhotoUrls.push(url);
   });
   postHandler = async () => new Response(JSON.stringify({ error: { message: "Fixture refused this drop" } }), { status: 503 });
+  showDropList = false;
+  listedDrops = [serverDrop];
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init: RequestInit = {}) => {
     if (String(input).startsWith("/api/pint-drops") && (init.method ?? "GET") === "GET") {
       if (String(input).includes("venueId=")) venueReads.push(String(input));
-      return new Response(JSON.stringify({ drops: [serverDrop] }));
+      return new Response(JSON.stringify({ drops: listedDrops }));
     }
     if (String(input) === "/api/pint-drops" && init.method === "POST") {
       posts.push(init);
@@ -501,6 +513,48 @@ describe("mounted Pint Drop account draft isolation", () => {
     expect.soft(container.querySelector('[data-testid="drop-result"]')?.textContent).toBe("");
     expect.soft(container.querySelector('[data-testid="drop-notes"]')?.textContent).not.toContain(NOTE);
     expect(container.querySelector('[data-testid="drop-notes"]')?.textContent).toContain(SERVER_NOTE);
+  });
+
+  it.each([
+    ["the report request fails", async () => { throw new TypeError("Failed to fetch"); }],
+    ["the report is refused", async () => new Response("not json", { status: 503 })],
+  ] as const)("does not put A's reported private drop or its error back under B when %s", async (_label, answer) => {
+    const PRIVATE_NOTE = "A's friends-only note about the landlord";
+    listedDrops = [serverDrop, {
+      ...serverDrop, id: "fixture-friends-drop", handle: A.handle, passedDownNote: PRIVATE_NOTE, visibility: "friends",
+    }];
+    showDropList = true;
+    let answerReport!: () => void;
+    postHandler = (init) => new Promise<Response>((resolve, reject) => {
+      answerReport = () => { void answer().then(resolve, reject); };
+      void init;
+    });
+    await renderAccount(A);
+    const list = () => container.querySelector('[data-testid="drop-list"]')?.textContent ?? "";
+    await vi.waitFor(() => expect(list()).toContain(PRIVATE_NOTE));
+    await act(async () => container.querySelector<HTMLButtonElement>(`button[aria-label="Report Pint Drop by ${A.handle}"]`)!.click());
+    expect(posts).toHaveLength(1);
+    expect(list()).not.toContain(PRIVATE_NOTE);
+
+    await renderAccount(B);
+    await act(async () => answerReport());
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+
+    expect(list()).not.toContain(PRIVATE_NOTE);
+    expect(list()).toContain(SERVER_NOTE);
+    expect(container.querySelector('[data-testid="drop-result"]')?.textContent).toBe("");
+  });
+
+  it("puts a reported drop back for the same account when the report fails", async () => {
+    showDropList = true;
+    postHandler = async () => { throw new TypeError("Failed to fetch"); };
+    await renderAccount(A);
+    const list = () => container.querySelector('[data-testid="drop-list"]')?.textContent ?? "";
+    await vi.waitFor(() => expect(list()).toContain(SERVER_NOTE));
+    await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="Report Pint Drop by fixture_public"]')!.click());
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+    expect(list()).toContain(SERVER_NOTE);
+    expect(container.querySelector('[data-testid="drop-result"]')?.textContent).not.toBe("");
   });
 
   it("lets a guest reach the price step and sign-in door while the Auth SDK is unavailable", async () => {
