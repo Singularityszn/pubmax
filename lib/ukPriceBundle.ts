@@ -78,6 +78,8 @@ export type UkPriceBundleRow = {
   /** Present only on an estimate, and what makes it answerable. */
   basis: string | null;
   sampleSize: number | null;
+  /** How many operators an estimate's basis rests on. Owed by every non-beer estimate. */
+  operatorCount?: number;
   /**
    * The drink name as printed on the source page or menu line (trimmed, max
    * 80 chars). Absent when the producing lane stated category only.
@@ -140,6 +142,19 @@ export function isUkPriceBundleLane(value: unknown): value is UkPriceBundleLane 
 }
 
 /**
+ * An estimate owes its basis and sample, and only an estimate may carry an
+ * operator count, because only a modelled figure rests on operators.
+ */
+function hasValidEstimateArgument(row: Record<string, unknown>): boolean {
+  if (row.standing === "estimate") {
+    if (!isNonEmptyString(row.basis)) return false;
+    if (!Number.isInteger(row.sampleSize) || (row.sampleSize as number) <= 0) return false;
+  }
+  if (row.operatorCount === undefined) return true;
+  return row.standing === "estimate" && Number.isInteger(row.operatorCount) && (row.operatorCount as number) > 0;
+}
+
+/**
  * A row is valid only if it can be cited. THE TWO THINGS EVERY ROW OWES are a
  * day and, unless it is modelled, a source URL; a row without them is a figure
  * nobody can check or correct, and validate-data refuses the file over it.
@@ -163,10 +178,7 @@ export function isValidUkPriceBundleRow(value: unknown): value is UkPriceBundleR
       return false;
     }
   }
-  if (row.standing === "estimate") {
-    if (!isNonEmptyString(row.basis)) return false;
-    if (!Number.isInteger(row.sampleSize) || (row.sampleSize as number) <= 0) return false;
-  }
+  if (!hasValidEstimateArgument(row)) return false;
   if (row.drinkLabel !== undefined) {
     if (typeof row.drinkLabel !== "string" || row.drinkLabel.length === 0) return false;
     if (row.drinkLabel.length > UK_PRICE_BUNDLE_DRINK_LABEL_MAX) return false;

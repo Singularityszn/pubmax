@@ -15,11 +15,19 @@ An advanced search costs 2 credits. The pay as you go price is $0.008 a credit. 
 
 London holds 3,640 pubs in the UK OSM pack. 1,861 of them state a website. A pub with no website uses no query. One full walk takes about 10 nights.
 
+## Order
+
+Each night reads the pubs with the stalest evidence first. A pub that was never read comes first, in the pack's own order. When every pub has been read, the walk does not stop. The pubs read longest ago come round again. A failed search is not a read, so that pub goes first the next night.
+
+A night that runs no search while a pub still waits for one fails the job. A green job therefore always means that searches ran.
+
 ## State
 
-The cursor is the gitignored file `.tavily/enrichment/london.json`. The workflow restores it from the Actions cache before the run and saves it after the run. A lost cache restarts the walk from the first pub. It does not fail the job.
+The checkpoint is the gitignored file `.tavily/enrichment/london.json`. It holds the last read time of each pub and every price found so far. The workflow restores it from the Actions cache before the run and saves it after the run.
 
-The checkpoint keeps every price found so far. Each review PR is therefore complete even when an earlier PR was not merged yet.
+A lost cache, `--reset` or a changed UK OSM pack starts a fresh checkpoint. It does not fail the job. A fresh checkpoint starts from the London official-site prices already in `public/data/drink_price_updates/latest.json`, so a restart never deletes a reviewed price.
+
+Each review PR is therefore complete even when an earlier PR was not merged yet. When a pub's page is read again, its new rows replace its old rows.
 
 ## Evidence
 
