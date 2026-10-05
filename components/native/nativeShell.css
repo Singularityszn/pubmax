@@ -58,10 +58,9 @@
    magnifier and the Copy/Look Up bar are always an accident.
 
    Selection itself is deliberately NOT touched here. app/globals.css already
-   suppresses it on every control the whole site over, native included, and
-   __tests__/mobileWebPolish.test.ts holds that to a short deliberate list so a
-   new file cannot quietly make more of the page unselectable. The callout is
-   the part no web rule covers, so it is the only part this file adds. */
+   suppresses it on every control the whole site over, native included. The
+   callout is the part no web rule covers, so it is the only part this file
+   adds. */
 [data-native-shell] :is(button, a, summary, label, [role="button"], [role="tab"], [role="switch"]),
 [data-native-shell] :is(.mobileTabBar, .siteNavBar, .surfaceNav, .createFab) {
   -webkit-touch-callout: none;

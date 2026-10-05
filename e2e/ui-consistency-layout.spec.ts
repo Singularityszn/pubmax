@@ -8,6 +8,9 @@ import {
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import { expectLayoutSettled } from "./helpers/layoutSettled";
+import { expectStreamedPageSettled } from "./helpers/streamedPage";
+
 const EVIDENCE_PHASE = process.env.UI_EVIDENCE_PHASE ?? "verify";
 const CAPTURE_EVIDENCE =
   EVIDENCE_PHASE === "before" || EVIDENCE_PHASE === "after";
@@ -847,25 +850,23 @@ async function auditRoute(
       timeout: 120_000,
     }).catch(() => null);
   }
-  await page
-    .locator(".routeLoadingShell")
-    .waitFor({ state: "hidden", timeout: 45_000 })
-    .catch(() => undefined);
   // Read the page's own settled landmark. The loading skeleton is a region,
   // not a <main>, and a page that is still resolving stands in an aria-busy
   // <main>. On a slow runner the read used to land before either had given
   // way (the 5 Oct 2026 nightly and dispatch found no visible <main> on
-  // /onboarding, served as "/", and on /map), so it waits for the landmark.
-  await page
-    .locator('main:not([aria-busy="true"]):visible')
-    .first()
-    .waitFor({ state: "visible", timeout: 30_000 })
-    .catch(() => undefined);
+  // /onboarding, served as "/", and on /map), so it waits for streaming to
+  // settle and for that landmark to come to rest. Only a 404 may have none.
+  const main = page.locator('main:not([aria-busy="true"]):visible').first();
+  let mainShown = false;
+  if (response?.status() === 404) {
+    mainShown = await main.isVisible().catch(() => false);
+  } else {
+    await expectStreamedPageSettled(page, { timeout: 45_000 });
+    await expectLayoutSettled(main, { timeout: 30_000 });
+    mainShown = true;
+  }
   await settle(page);
-  const main = page.locator("main:visible").first();
-  const box = (await main.isVisible().catch(() => false))
-    ? await main.boundingBox().catch(() => null)
-    : null;
+  const box = mainShown ? await main.boundingBox().catch(() => null) : null;
   if (!box) {
     return {
       viewportWidth,

@@ -17,9 +17,8 @@ import { defined } from "@/__tests__/helpers/defined";
 // The /privacy + /terms fence. These pages are the only surfaces where the site
 // makes promises about data ON THE RECORD, so the regressions that matter are
 // (a) a reader who cannot find them, (b) a dead contact address, and (c) a
-// privacy claim drifting away from what the code does. Source-level assertions,
-// the same house pattern as landingChromeCss.test.ts: they fail in CI rather
-// than needing a browser pass we can't run headless.
+// privacy claim drifting away from what the code does. Source-level assertions:
+// they fail in CI rather than needing a browser pass we can't run headless.
 
 function read(path: string): string {
   return readFileSync(join(process.cwd(), path), "utf8");
