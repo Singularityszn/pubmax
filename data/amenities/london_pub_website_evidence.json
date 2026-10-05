@@ -7,31 +7,13 @@
     "note": "Vertex AI Gemini 2.5 Flash-Lite standard text tier on project pubmaxx. No search grounding. Output price includes thinking tokens."
   },
   "projected": {
-    "calls": 1882,
-    "inputTokensPerCall": 3212,
+    "calls": 1401,
+    "inputTokensPerCall": 3329,
     "outputTokensPerCall": 700,
-    "spendUsd": 1.1315
+    "spendUsd": 0.8587
   },
-  "actualSpendUsd": 0.4559,
+  "actualSpendUsd": 0.6617,
   "jobCapUsd": 6,
-  "columnCoverageAfter": {
-    "venues": 1916,
-    "food": 867,
-    "cocktails": 385,
-    "beerGarden": 621,
-    "liveSports": 411,
-    "nonAlcoholic": 26,
-    "liveMusic": 257,
-    "pubQuiz": 188,
-    "darts": 61,
-    "pool": 59,
-    "happyHour": 52,
-    "karaoke": 60,
-    "any": 1027,
-    "none": 889
-  },
-  "stampedVenues": 250,
-  "stampedRows": 340,
   "skipCounts": {
     "robots-unreadable": 98,
     "http-404": 60,
@@ -39,8 +21,8 @@
     "robots-unreachable": 127,
     "refused-host": 104,
     "http-403": 3,
-    "ok": 350,
-    "quota": 53,
+    "ok": 602,
+    "quota": 93,
     "empty-page": 16,
     "model-0": 3,
     "timeout": 1,
@@ -77,11 +59,11 @@
       "name": "The Hanbury",
       "venueId": "venue-kyvgg5",
       "sourceUrl": "https://www.thehanbury.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "Our menu includes all your favourite pub classics as well as some of our own flavourful dishes.",
-        "liveMusic": "Every Friday and Saturday | 8pm Live Music",
-        "pubQuiz": "Every Thursday | 7pm Pub Quiz"
+        "liveMusic": "Live Music",
+        "pubQuiz": "Pub Quiz"
       }
     },
     {
@@ -122,10 +104,12 @@
       "osmId": "node/10266440541",
       "name": "Kings Arms",
       "venueId": "venue-1j2l3mv",
-      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/kings-arms-greenwich",
-      "verifiedAt": "2026-10-03",
+      "sourceUrl": "https://www.greeneking-pubs.co.uk/pubs/greater-london/kings-arms-greenwich/",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "generous pub food menu"
+        "food": "Fuel up for a day of exploring with our generous pub food menu.",
+        "beerGarden": "our spacious beer garden has heated huts",
+        "pubQuiz": "Join our pub quiz, every Tuesday"
       }
     },
     {
@@ -422,7 +406,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "We have a great bar menu of home made food",
-        "liveSports": "dedicated fanzone areas for every sport",
         "liveMusic": "legendary live music"
       }
     },
@@ -431,13 +414,16 @@
       "name": "Three Compasses",
       "venueId": "venue-wp5tqm",
       "sourceUrl": "https://www.threecompasseshornsey.com/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "Food & Drinks",
-        "cocktails": "dancing on the cocktails",
-        "liveSports": "Live Sport",
-        "liveMusic": "local bands and DJs",
-        "darts": "Smart Darts"
+        "food": "From meat eaters to vegans, we like to think we have something for everyone.",
+        "cocktails": "2 for &pound;12 Cocktails",
+        "liveSports": "We show a variation of live sports",
+        "liveMusic": "everything from drag brunches to jazz orchestras, blues jams and local bands and DJs.",
+        "pubQuiz": "Come down every tuesday and join us for our pub quiz!",
+        "darts": "interactive darts board",
+        "pool": "and Pool table, perfect for events!",
+        "happyHour": "&pound;10 Happy Hour"
       }
     },
     {
@@ -445,7 +431,7 @@
       "name": "The White Horse",
       "venueId": "venue-k455jp",
       "sourceUrl": "https://www.whitehorsewembley.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "all-day dining, with delicious, fresh-cooked food",
         "liveSports": "Big Screen Sports Viewing"
@@ -476,16 +462,6 @@
       }
     },
     {
-      "osmId": "node/1215861506",
-      "name": "The Queen's Head",
-      "venueId": null,
-      "sourceUrl": "https://queensheadlondon.com/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "great place to eat"
-      }
-    },
-    {
       "osmId": "node/1216069730",
       "name": "The Hollybush",
       "venueId": null,
@@ -495,16 +471,6 @@
         "cocktails": "serving fresh cocktails",
         "pool": "Ultimate Pool",
         "karaoke": "Karaoke Night"
-      }
-    },
-    {
-      "osmId": "node/12198799907",
-      "name": "The Leyton Engineer",
-      "venueId": "venue-16uukwz",
-      "sourceUrl": "https://theleytonengineer.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "Food Menu"
       }
     },
     {
@@ -578,9 +544,9 @@
       "name": "The Fox at Crouch End",
       "venueId": "venue-t2e0s5",
       "sourceUrl": "https://www.urbanpubsandbars.com/venues/the-fox-at-crouch-end",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "great food made with the finest seasonal British ingredients"
+        "food": "we’re passionate about great food made with the finest seasonal British ingredients"
       }
     },
     {
@@ -588,11 +554,11 @@
       "name": "Maynard Arms",
       "venueId": "venue-81dpgr",
       "sourceUrl": "https://www.maynardarmsn8.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "Relaxed Pub Dining & Drinks",
+        "food": "Enjoy seasonal food, Sunday roasts, summer barbecues",
         "beerGarden": "Beer Garden",
-        "liveSports": "Live Sports"
+        "liveSports": "Sky Sports"
       }
     },
     {
@@ -607,17 +573,6 @@
         "beerGarden": "sunny pub garden",
         "liveMusic": "live music",
         "pubQuiz": "Tuesday Quiz Night"
-      }
-    },
-    {
-      "osmId": "node/12641738152",
-      "name": "The Brook House",
-      "venueId": null,
-      "sourceUrl": "https://www.craftunionpubs.com/brook-house-pub-hayes",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "darts": "dart boards",
-        "pool": "pool tables"
       }
     },
     {
@@ -706,20 +661,6 @@
       }
     },
     {
-      "osmId": "node/12890502854",
-      "name": "Richard I",
-      "venueId": "venue-14alocj",
-      "sourceUrl": "https://www.richardthefirst.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "Our Food & Drinks",
-        "cocktails": "Winter Cocktails",
-        "beerGarden": "Pub & Beer Garden",
-        "liveSports": "Watch the Autumn Nations",
-        "nonAlcoholic": "Non-Alcoholic Spritzes"
-      }
-    },
-    {
       "osmId": "node/12920922063",
       "name": "The Two Brewers",
       "venueId": null,
@@ -727,16 +668,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "range of pub food classics"
-      }
-    },
-    {
-      "osmId": "node/12961239334",
-      "name": "The North Pole",
-      "venueId": null,
-      "sourceUrl": "https://www.northpolegreenwich.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "great food"
       }
     },
     {
@@ -795,19 +726,19 @@
       "name": "The Bull's Head",
       "venueId": "venue-1j8bjz9",
       "sourceUrl": "https://www.chefandbrewer.com/pubs/greater-london/bulls-head",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "beerGarden": "Sit back in the beer garden"
+        "beerGarden": "Beer Garden"
       }
     },
     {
       "osmId": "node/13235500301",
       "name": "The Grenadier",
       "venueId": "venue-1ha28jc",
-      "sourceUrl": "https://www.grenadierbelgravia.com/",
-      "verifiedAt": "2026-10-03",
+      "sourceUrl": "https://www.grenadierbelgravia.com",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "Created in-house from scratch, our Head Chef brings fresh seasonal dishes and pub classics to the menu"
+        "food": "Seasonal Menu Created in-house from scratch, our Head Chef brings fresh seasonal dishes and pub classics to the menu"
       }
     },
     {
@@ -821,20 +752,6 @@
       }
     },
     {
-      "osmId": "node/13327212416",
-      "name": "Three Colts Tavern",
-      "venueId": null,
-      "sourceUrl": "https://www.threecoltstavern.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "Romana Americana pizza from Short Road.",
-        "cocktails": "plus cocktails and natural wines.",
-        "beerGarden": "plenty of outside seating",
-        "liveMusic": "Live music and more",
-        "pubQuiz": "We host Quiz nights"
-      }
-    },
-    {
       "osmId": "node/13409071887",
       "name": "The Mulberry Bush",
       "venueId": null,
@@ -843,7 +760,6 @@
       "amenities": {
         "food": "Our menus are bursting with the best of the British seasons Food & Drink",
         "cocktails": "From classic beers to beautifully crafted cocktails, our drinks menu is designed so everyone can join in.",
-        "liveSports": "From international sport, to seasonal supper clubs, take a look at the best events coming up in Southbank.",
         "nonAlcoholic": "NO AND LOW ALCOHOL"
       }
     },
@@ -911,9 +827,9 @@
       "name": "The Last Drop Inn",
       "venueId": "venue-x4txk3",
       "sourceUrl": "https://www.thelastdropinn.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "FOOd MENU"
+        "food": "Italian and Indian finger food"
       }
     },
     {
@@ -927,6 +843,18 @@
         "cocktails": "plus classic cocktails, cocktails with a twist",
         "beerGarden": "Outdoor Dining on Fulham Road, London",
         "liveSports": "Live Sports"
+      }
+    },
+    {
+      "osmId": "node/13782246514",
+      "name": "The Vanbrugh",
+      "venueId": "venue-1ymp3wq",
+      "sourceUrl": "https://www.thevanbrugh.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "serving seasonal classics",
+        "beerGarden": "garden and dining room",
+        "liveSports": "Live sport"
       }
     },
     {
@@ -991,23 +919,14 @@
       }
     },
     {
-      "osmId": "node/14178896047",
-      "name": "The Ship",
-      "venueId": null,
-      "sourceUrl": "https://www.shipsoho.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "osmId": "node/14178896054",
+      "name": "Admiral Duncan",
+      "venueId": "venue-1u9c7tf",
+      "sourceUrl": "https://www.admiral-duncan.co.uk/",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "Food served"
-      }
-    },
-    {
-      "osmId": "node/14178896099",
-      "name": "The Mason Arms",
-      "venueId": null,
-      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/masons-arms",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "We serve traditional pub food"
+        "beerGarden": "Outside Area",
+        "karaoke": "karaoke on our visit"
       }
     },
     {
@@ -1043,17 +962,6 @@
       }
     },
     {
-      "osmId": "node/14181043737",
-      "name": "George Inn",
-      "venueId": null,
-      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/george-southwark",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "mouthwatering pub food classics",
-        "beerGarden": "our beer garden operates"
-      }
-    },
-    {
       "osmId": "node/14181043751",
       "name": "Bunch of Grapes",
       "venueId": null,
@@ -1071,7 +979,7 @@
       "name": "True Craft",
       "venueId": "venue-ua94gq",
       "sourceUrl": "https://www.truecraftlondon.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "SOURDOUGH PIZZA"
       }
@@ -1086,19 +994,6 @@
         "food": "bar snacks",
         "cocktails": "classically inspired cocktails",
         "liveMusic": "live music"
-      }
-    },
-    {
-      "osmId": "node/14206898649",
-      "name": "The Elephant's Head",
-      "venueId": null,
-      "sourceUrl": "https://www.elephantsheadcamden.com/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "cocktails": "cocktails",
-        "nonAlcoholic": "low or no alcohol options",
-        "liveMusic": "live music",
-        "pubQuiz": "weekly quizzes"
       }
     },
     {
@@ -1250,16 +1145,6 @@
       }
     },
     {
-      "osmId": "node/1676757006",
-      "name": "The Crown",
-      "venueId": "venue-12rqlci",
-      "sourceUrl": "https://www.craftunionpubs.com/crown-pub-sutton",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "karaoke": "karaoke on a Wednesday night"
-      }
-    },
-    {
       "osmId": "node/1678982781",
       "name": "The Morden Brook",
       "venueId": null,
@@ -1267,7 +1152,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "If you need some good pub food, we’ve got you covered with stacked burgers, hand-battered fish & chips, hunter’s chicken and succulent steaks, alongside a tasty kids’ menu and a load of sides!",
-        "liveSports": "Live sport Book a table for all the top sporting action, from footy to rugby, F1, darts and more!",
         "happyHour": "From the 14th September to 1st October, enjoy 2-for-1 on selected drinks from 4pm - 7pm, Monday to Thursday!"
       }
     },
@@ -1342,7 +1226,6 @@
       "amenities": {
         "food": "scrumptious Thai kitchen",
         "beerGarden": "conservatory and garden",
-        "liveSports": "WORLD CUP 2026",
         "pubQuiz": "Pub Quiz every Monday",
         "happyHour": "HAPPY HOUR"
       }
@@ -1355,7 +1238,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "a menu full of dishes to explore",
-        "liveSports": "Rugby at Sylvan Post",
         "pubQuiz": "Pub Quiz in Forest Hill"
       }
     },
@@ -1577,19 +1459,6 @@
       }
     },
     {
-      "osmId": "node/248546654",
-      "name": "The Moby Dick",
-      "venueId": null,
-      "sourceUrl": "https://www.mobydickgreenlanddock.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "home-cooked meals",
-        "beerGarden": "large terrace",
-        "liveMusic": "exceptional live music",
-        "pubQuiz": "legendary pub quiz night"
-      }
-    },
-    {
       "osmId": "node/249257137",
       "name": "The Plough",
       "venueId": null,
@@ -1610,16 +1479,6 @@
       "amenities": {
         "food": "Food Bar & Brunch Menu Kids Menu",
         "cocktails": "Cocktail Lovers"
-      }
-    },
-    {
-      "osmId": "node/249672846",
-      "name": "The Goose",
-      "venueId": "venue-mlvpta",
-      "sourceUrl": "https://www.greatlocalpubs.co.uk/pubs/goose-walthamstow/contact",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "Our food is all about great value"
       }
     },
     {
@@ -1687,8 +1546,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Food Service Times",
-        "cocktails": "flavourful cocktails",
-        "liveSports": "Autumn Nations Rugby"
+        "cocktails": "flavourful cocktails"
       }
     },
     {
@@ -1726,29 +1584,6 @@
         "food": "Enjoy delicious food",
         "cocktails": "2-4-1 cocktails",
         "darts": "game of darts"
-      }
-    },
-    {
-      "osmId": "node/25475914",
-      "name": "The Swan",
-      "venueId": null,
-      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/swan",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "From our menu packed with pub classics",
-        "beerGarden": "small beer garden outside"
-      }
-    },
-    {
-      "osmId": "node/25510381",
-      "name": "Crown & Cushion",
-      "venueId": null,
-      "sourceUrl": "https://www.thecrownandcushion-london.foodanddrinksites.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "Thai and English food",
-        "beerGarden": "Beer garden",
-        "liveSports": "Live Sports"
       }
     },
     {
@@ -1804,6 +1639,16 @@
         "food": "delicious handmade pizza",
         "cocktails": "classic cocktails",
         "liveMusic": "live music and comedy"
+      }
+    },
+    {
+      "osmId": "node/25746185",
+      "name": "The Cheshire Cheese",
+      "venueId": "venue-heljpa",
+      "sourceUrl": "https://www.cheshirecheese.pub/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "delicious menu"
       }
     },
     {
@@ -1917,9 +1762,7 @@
       "amenities": {
         "food": "bites & cocktails to die for",
         "cocktails": "cocktails to die for",
-        "nonAlcoholic": "All of our cocktails and mocktails are all included",
-        "liveMusic": "Live singer on Sundays",
-        "happyHour": "every hour is happy hour"
+        "liveMusic": "Live singer on Sundays"
       }
     },
     {
@@ -2015,17 +1858,6 @@
       }
     },
     {
-      "osmId": "node/271387709",
-      "name": "Cask",
-      "venueId": null,
-      "sourceUrl": "https://www.caskpubandkitchen.com/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "Food always prepared fresh to order.",
-        "liveMusic": "Live Music Every Sunday"
-      }
-    },
-    {
       "osmId": "node/271949863",
       "name": "The Adam & Eve",
       "venueId": null,
@@ -2116,9 +1948,20 @@
       "name": "The Star Tavern",
       "venueId": "venue-17hygdx",
       "sourceUrl": "https://www.star-tavern-belgravia.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "home-cooked food"
+      }
+    },
+    {
+      "osmId": "node/277834910",
+      "name": "The Old Bank",
+      "venueId": "venue-1yaq1ej",
+      "sourceUrl": "https://www.greatlocalpubs.co.uk/pubs/old-bank-sutton",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "offering delicious food",
+        "beerGarden": "Outside Area"
       }
     },
     {
@@ -2156,16 +1999,6 @@
       }
     },
     {
-      "osmId": "node/280592972",
-      "name": "New Cross Inn",
-      "venueId": "venue-6tjmcd",
-      "sourceUrl": "https://www.newcrossinn.com/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "liveMusic": "Live Music Venue"
-      }
-    },
-    {
       "osmId": "node/280606890",
       "name": "The Brookmill Pub",
       "venueId": null,
@@ -2191,7 +2024,6 @@
         "food": "Serving up tasty dishes, from loaded burgers to classics like fish and chips.",
         "cocktails": "Negroni Month at Royal Albert",
         "beerGarden": "a sunny beer garden",
-        "liveSports": "Rugby at Royal Albert",
         "liveMusic": "Sunday jazz",
         "pubQuiz": "Monday night quizzes",
         "pool": "The Pool Table"
@@ -2237,10 +2069,10 @@
       "name": "The Wellington",
       "venueId": "venue-13b8v6f",
       "sourceUrl": "https://www.wellingtonhotelwaterloo.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "first-class food",
-        "liveSports": "Live Sport"
+        "liveSports": "live sports"
       }
     },
     {
@@ -2275,16 +2107,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "classic pub fare"
-      }
-    },
-    {
-      "osmId": "node/291953084",
-      "name": "The Whitecross Tap",
-      "venueId": null,
-      "sourceUrl": "https://www.socialpubandkitchen.co.uk/pubs/whitecross-tap-old-street",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "delicious pizzas sourdough pizzas"
       }
     },
     {
@@ -2359,10 +2181,10 @@
       "name": "Brave New World",
       "venueId": "venue-pch5k4",
       "sourceUrl": "https://www.bravebar.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "beerGarden": "sun-trap courtyard area",
-        "liveSports": "Allied to big-screen sport",
+        "liveSports": "Live Sports TV",
         "liveMusic": "We offer live music"
       }
     },
@@ -2411,11 +2233,11 @@
       "osmId": "node/295905009",
       "name": "Bbar",
       "venueId": "venue-1bw18uv",
-      "sourceUrl": "https://bbarlondon.com/",
-      "verifiedAt": "2026-10-03",
+      "sourceUrl": "https://www.bbarlondon.com/",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "Our menu features signature classics with a modern twist.",
-        "cocktails": "Enjoy delicious signature cocktails",
+        "food": "exceptional food",
+        "cocktails": "signature cocktails",
         "liveSports": "catch live sports screenings",
         "happyHour": "Happy Hour, Happier Prices"
       }
@@ -2455,11 +2277,11 @@
       "osmId": "node/298220599",
       "name": "Lord Wargrave",
       "venueId": "venue-hbtda7",
-      "sourceUrl": "https://www.urbanpubsandbars.com/venues/lord-wargrave",
-      "verifiedAt": "2026-10-03",
+      "sourceUrl": "https://www.lordwargrave.com/",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "authentic barbecue menu offers something for everyone",
-        "beerGarden": "Outdoor Benches"
+        "food": "authentic barbecue menu",
+        "cocktails": "secret cocktail bar"
       }
     },
     {
@@ -2481,7 +2303,6 @@
       "amenities": {
         "food": "Pub Food Bookings",
         "beerGarden": "Pubs with Beers Gardens",
-        "liveSports": "From Live Music, Sports",
         "liveMusic": "From Live Music, Sports",
         "pubQuiz": "A Traditional Pub Quiz",
         "darts": "Dart Board"
@@ -2526,17 +2347,6 @@
         "nonAlcoholic": "alcohol free options",
         "pubQuiz": "The Foxglove Pub Quiz!",
         "happyHour": "£5 PINTS 5pm - 7pm"
-      }
-    },
-    {
-      "osmId": "node/304744886",
-      "name": "The Green Man",
-      "venueId": "venue-32iafq",
-      "sourceUrl": "http://www.thegreenmanhotelatwembley.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "All our food is made with fresh ingredients",
-        "beerGarden": "Large Beer Garden"
       }
     },
     {
@@ -2723,9 +2533,9 @@
       "name": "The Crown",
       "venueId": "venue-htm670",
       "sourceUrl": "https://www.crownislington.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "refined pub classics crafted from fresh, seasonal ingredients",
+        "food": "We offer a menu featuring refined pub classics crafted from fresh, seasonal ingredients.",
         "beerGarden": "chill out in our outdoor terrace"
       }
     },
@@ -2734,13 +2544,14 @@
       "name": "The Regent",
       "venueId": "venue-1mjowpj",
       "sourceUrl": "https://theregentpub.com/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "excellent stone baked pizza every day",
-        "beerGarden": "inside and outside",
-        "liveSports": "book for all major sporting events",
+        "food": "serving excellent stone baked pizza",
+        "cocktails": "2-4-£12 cocktails",
+        "liveMusic": "Our trad sessions are back tonight",
         "pubQuiz": "THURSDAY PUB QUIZ",
-        "karaoke": "karaoke, along with buffet"
+        "happyHour": "2-4-£12 cocktails from 5pm",
+        "karaoke": "karaoke machine"
       }
     },
     {
@@ -2845,9 +2656,18 @@
         "food": "Pub classics, stone-baked pizzas and fresh plates",
         "cocktails": "Draught pints, cocktails, wine and soft drinks",
         "beerGarden": "beer garden",
-        "liveSports": "Nations Championship rugby",
         "pubQuiz": "Quiz Night Pub quiz nights",
         "karaoke": "Karaoke Singalong nights"
+      }
+    },
+    {
+      "osmId": "node/362359474",
+      "name": "The Horatia",
+      "venueId": "venue-1ephuyt",
+      "sourceUrl": "https://www.thehoratia.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "pubQuiz": "pub quiz"
       }
     },
     {
@@ -2866,11 +2686,11 @@
       "name": "Hare and Hounds",
       "venueId": "venue-jacc3k",
       "sourceUrl": "https://www.hareandhoundsosterley.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "fresh food",
         "beerGarden": "super outdoor space",
-        "liveSports": "Live sport"
+        "liveSports": "Big Screen Sports Viewing"
       }
     },
     {
@@ -2882,7 +2702,6 @@
       "amenities": {
         "food": "exquisite pub classics",
         "beerGarden": "Riverside Terrace",
-        "liveSports": "RUGBY WHATS ON",
         "pubQuiz": "SUNDAY NIGHT QUIZ"
       }
     },
@@ -2891,10 +2710,10 @@
       "name": "The Queens Head",
       "venueId": "venue-1fgag4g",
       "sourceUrl": "https://www.queensheadkingston.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "refined pub classics crafted from fresh, seasonal ingredients.",
-        "liveSports": "Live sport Check out what live sport we have coming up"
+        "food": "Food served",
+        "liveSports": "Live sport"
       }
     },
     {
@@ -2916,7 +2735,6 @@
       "amenities": {
         "food": "classic Irish bites",
         "cocktails": "Karaoke & Cocktails",
-        "liveSports": "major sporting events",
         "liveMusic": "live acts every weekends",
         "karaoke": "Karaoke & Cocktails"
       }
@@ -3000,16 +2818,6 @@
       }
     },
     {
-      "osmId": "node/375848733",
-      "name": "Duke of Cambridge",
-      "venueId": null,
-      "sourceUrl": "https://www.dukeorganic.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "all of our food has been organic"
-      }
-    },
-    {
       "osmId": "node/3793532459",
       "name": "The Craft Beer Co.",
       "venueId": null,
@@ -3017,29 +2825,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "We have partnered up with our friends Green Mosaic to bring you fresh pizza straight to your table"
-      }
-    },
-    {
-      "osmId": "node/380568360",
-      "name": "The Yorkshire Grey",
-      "venueId": "venue-11n9s46",
-      "sourceUrl": "https://www.yorkshiregrey.com/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "Serious Pizza.",
-        "cocktails": "HAPPY HOUR COCKTAILS",
-        "liveMusic": "BRIGHTNIGHTS LIVE MUSIC",
-        "happyHour": "HAPPY HOUR"
-      }
-    },
-    {
-      "osmId": "node/385018022",
-      "name": "The Wooden Cross",
-      "venueId": "venue-1tol54x",
-      "sourceUrl": "https://www.the-wooden-cross.com/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "Food | Discover Flavors Now"
       }
     },
     {
@@ -3086,10 +2871,10 @@
       "name": "The Ram",
       "venueId": "venue-z15jvr",
       "sourceUrl": "https://www.theramkingston.com/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "Seasonal Food",
-        "beerGarden": "beer garden"
+        "food": "fresh, seasonal food",
+        "beerGarden": "beer garden atmosphere"
       }
     },
     {
@@ -3203,20 +2988,6 @@
       }
     },
     {
-      "osmId": "node/448921712",
-      "name": "Elephant Inn",
-      "venueId": null,
-      "sourceUrl": "https://www.elephantinnfinchley.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "Enjoy great beer and traditional Thai food",
-        "liveSports": "Live Sport",
-        "liveMusic": "live music on Friday's",
-        "darts": "Darts Board",
-        "pool": "Pool Table"
-      }
-    },
-    {
       "osmId": "node/451271",
       "name": "The Tally Ho",
       "venueId": null,
@@ -3227,20 +2998,6 @@
         "cocktails": "handcrafted cocktails",
         "liveMusic": "we host live music",
         "pubQuiz": "quiz nights"
-      }
-    },
-    {
-      "osmId": "node/4515363508",
-      "name": "The Guard House",
-      "venueId": "venue-9e93hd",
-      "sourceUrl": "https://www.theguardhousewoolwich.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "top-notch pub meal",
-        "cocktails": "or a tipple (or two)",
-        "beerGarden": "Our beer garden is the perfect place",
-        "liveSports": "Autumn Nations in Woolwich",
-        "nonAlcoholic": "alcohol-free serves"
       }
     },
     {
@@ -3298,7 +3055,6 @@
       "amenities": {
         "food": "delicious pop-up food",
         "cocktails": "Negroni Month at King & Co",
-        "liveSports": "Rugby at King & Co",
         "liveMusic": "Open Mic Night"
       }
     },
@@ -3462,6 +3218,16 @@
       }
     },
     {
+      "osmId": "node/529116489",
+      "name": "The Elbow Room",
+      "venueId": "venue-18vf6ey",
+      "sourceUrl": "https://www.craftunionpubs.com/pubs/elbow-room-tottenham",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "liveSports": "Sky Sports"
+      }
+    },
+    {
       "osmId": "node/535099403",
       "name": "Railway Tavern",
       "venueId": null,
@@ -3469,8 +3235,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "cocktails": "cocktails",
-        "beerGarden": "decked garden",
-        "liveSports": "GAME DAY PASS"
+        "beerGarden": "decked garden"
       }
     },
     {
@@ -3481,16 +3246,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "liveSports": "Watch Live Sport at The Crowning Angel Romford"
-      }
-    },
-    {
-      "osmId": "node/5382875197",
-      "name": "The Golden Lion",
-      "venueId": null,
-      "sourceUrl": "https://www.greeneking.co.uk/pubs/essex/golden-lion",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "darts": "Dartboard"
       }
     },
     {
@@ -3525,7 +3280,6 @@
         "food": "Food Service Times",
         "cocktails": "Our Winter cocktails",
         "beerGarden": "beer Garden",
-        "liveSports": "Autumn Nations",
         "pubQuiz": "pub quiz"
       }
     },
@@ -3544,11 +3298,12 @@
       "name": "The Sail Loft",
       "venueId": "venue-xm8zex",
       "sourceUrl": "https://www.sailloftgreenwich.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "The Sail Loft serves up fresh food",
-        "beerGarden": "our beautiful outdoor terrace",
-        "liveSports": "Live Sport Check out what live sport"
+        "food": "fresh food",
+        "beerGarden": "outdoor terrace",
+        "liveSports": "Live Sport",
+        "pubQuiz": "Pub Quiz Night"
       }
     },
     {
@@ -3556,7 +3311,7 @@
       "name": "Punch & Judy",
       "venueId": "venue-11bllvc",
       "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/punch-and-judy",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "indulge in refined pub food classics"
       }
@@ -3581,10 +3336,10 @@
       "name": "The Admiralty",
       "venueId": "venue-1t2cfa2",
       "sourceUrl": "https://www.admiraltytrafalgar.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "best of British pub food awaits",
-        "liveSports": "Live sport Check out what live sport we have coming up"
+        "liveSports": "Big Screen Sports Viewing"
       }
     },
     {
@@ -3714,13 +3469,17 @@
       }
     },
     {
-      "osmId": "node/6381240591",
-      "name": "The Signal Box",
-      "venueId": null,
-      "sourceUrl": "https://www.signalboxeuston.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "osmId": "node/651539992",
+      "name": "The Tichenham Inn - JD Wetherspoon",
+      "venueId": "venue-1yrzxrw",
+      "sourceUrl": "https://www.thetichenhaminn.co.uk/",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "cracking food to savour"
+        "food": "Great Food, Perfect For Casual Lunches",
+        "cocktails": "Handcrafted Cocktails Enjoy a cracking selection of cocktails",
+        "beerGarden": "Lovely Beer Garden",
+        "liveSports": "Live Sports",
+        "liveMusic": "Live Music Events"
       }
     },
     {
@@ -3798,17 +3557,6 @@
       }
     },
     {
-      "osmId": "node/675808547",
-      "name": "Davy's",
-      "venueId": null,
-      "sourceUrl": "https://www.davy.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "great food",
-        "liveMusic": "live music"
-      }
-    },
-    {
       "osmId": "node/675867856",
       "name": "The Red Lion",
       "venueId": null,
@@ -3854,11 +3602,10 @@
       "name": "Brewmaster",
       "venueId": "venue-12bzb84",
       "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/brewmaster",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "Tuck into a dish from our pub food menu",
         "beerGarden": "small pavement seating area",
-        "liveSports": "Our large screens showcase the latest sporting action",
         "liveMusic": "we often host live music nights too"
       }
     },
@@ -3878,7 +3625,7 @@
       "name": "Pressure Drop",
       "venueId": "venue-4vek0i",
       "sourceUrl": "https://pressuredropbrewing.co.uk/pages/taproom",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "For food we always have local legends Yard Sale Pizza available for delivery direct to your table and a rotating selection of pop up food traders.",
         "beerGarden": "Plenty of indoor & outdoor seating available"
@@ -3990,16 +3737,6 @@
       }
     },
     {
-      "osmId": "node/7804014021",
-      "name": "Bohem Tap Room",
-      "venueId": null,
-      "sourceUrl": "https://www.bohembrewery.com/bohem-tap-room/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "liveMusic": "Enjoy live music"
-      }
-    },
-    {
       "osmId": "node/7858027226",
       "name": "The Duke of Clarence",
       "venueId": "venue-m21ekp",
@@ -4040,7 +3777,7 @@
       "name": "Gravity Well Taproom",
       "venueId": "venue-paanyc",
       "sourceUrl": "https://www.gravitywellbrewing.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "Vegan Japanese street food!"
       }
@@ -4097,9 +3834,9 @@
       "name": "Fox Under The Hill",
       "venueId": "venue-1vagdvl",
       "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/fox-under-the-hill",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "you’ll find our menu has got it covered"
+        "food": "you’ll find our menu has got it covered. We do comfort food"
       }
     },
     {
@@ -4219,6 +3956,1933 @@
       }
     },
     {
+      "osmId": "venue/venue-1026snf",
+      "name": "The Auctioneer",
+      "venueId": "venue-1026snf",
+      "sourceUrl": "https://www.auctioneerleyton.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "darts": "dart boards",
+        "pool": "pool tables"
+      }
+    },
+    {
+      "osmId": "venue/venue-1057vj5",
+      "name": "The Oystercatcher",
+      "venueId": "venue-1057vj5",
+      "sourceUrl": "https://oystercatchergreenwich.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Food, Drink & Good Times",
+        "beerGarden": "brunch on the terrace"
+      }
+    },
+    {
+      "osmId": "venue/venue-1098oqz",
+      "name": "Mimosa",
+      "venueId": "venue-1098oqz",
+      "sourceUrl": "https://mimosaproduce.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "traditional cakes, snacks and drinks"
+      }
+    },
+    {
+      "osmId": "venue/venue-10j13wn",
+      "name": "The Coach & Horses",
+      "venueId": "venue-10j13wn",
+      "sourceUrl": "https://www.coachhotelkew.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "tuck into our menu that is brimming with rich, seasonal flavours and produce",
+        "cocktails": "two welcome cocktails when you arrive",
+        "beerGarden": "soaking up the sunshine in the garden",
+        "nonAlcoholic": "Berry Hugo 0.0%"
+      }
+    },
+    {
+      "osmId": "venue/venue-10litj1",
+      "name": "Northumberland Arms",
+      "venueId": "venue-10litj1",
+      "sourceUrl": "https://northumberlandarms.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "liveMusic": "live music performances"
+      }
+    },
+    {
+      "osmId": "venue/venue-10st8hy",
+      "name": "The Crown & Sceptre",
+      "venueId": "venue-10st8hy",
+      "sourceUrl": "https://www.crownandsceptreshepherdsbush.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Savour refreshing drinks and indulge in some of the finest Thai food the city has to offer",
+        "cocktails": "cocktails, or traditional drinks",
+        "beerGarden": "cosy secret garden, providing a serene escape",
+        "liveSports": "Live sport Check out what live sport we have coming up"
+      }
+    },
+    {
+      "osmId": "venue/venue-10yaryo",
+      "name": "The Audley",
+      "venueId": "venue-10yaryo",
+      "sourceUrl": "https://theaudleypublichouse.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "small menu of classic bar snacks and dishes",
+        "liveMusic": "The Audley will occasionally have live music"
+      }
+    },
+    {
+      "osmId": "venue/venue-11e0hkh",
+      "name": "The Belle Vue",
+      "venueId": "venue-11e0hkh",
+      "sourceUrl": "https://www.bellevueclapham.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "proper pub food",
+        "cocktails": "after-work cocktails",
+        "beerGarden": "pub garden sessions",
+        "liveSports": "Sky Sports & TNT Sports"
+      }
+    },
+    {
+      "osmId": "venue/venue-11iolkd",
+      "name": "The Lemon Tree",
+      "venueId": "venue-11iolkd",
+      "sourceUrl": "https://www.lemontreecoventgarden.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "delicious authentic Thai cuisine",
+        "cocktails": "Cocktails"
+      }
+    },
+    {
+      "osmId": "venue/venue-11x08sx",
+      "name": "The Racehorse",
+      "venueId": "venue-11x08sx",
+      "sourceUrl": "https://www.theracehorsepub.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Great food, quality beer",
+        "beerGarden": "renovations on the beer garden"
+      }
+    },
+    {
+      "osmId": "venue/venue-12k6mg7",
+      "name": "Tapelia",
+      "venueId": "venue-12k6mg7",
+      "sourceUrl": "https://www.tapelia.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Tapelia brings authentic Spanish flavour to the heart of Ealing. From vibrant tapas to rich paellas and handpicked wines, every dish is made for sharing.",
+        "nonAlcoholic": "ESTRELLA GALICIA ALCOHOL FREE – £4.75"
+      }
+    },
+    {
+      "osmId": "venue/venue-12qgqym",
+      "name": "The Eight Bells",
+      "venueId": "venue-12qgqym",
+      "sourceUrl": "https://www.eightbellsewell.co.uk/index",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "freshly prepared lunches, locally sourced ingredients, home-cooked pub favourites",
+        "cocktails": "Alongside great ales, cocktails"
+      }
+    },
+    {
+      "osmId": "venue/venue-140rjwt",
+      "name": "Tapas Brindisa London Bridge",
+      "venueId": "venue-140rjwt",
+      "sourceUrl": "https://www.brindisakitchens.com/restaurant/tapas-brindisa-london-bridge/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "authentic Spanish tapas restaurant",
+        "cocktails": "cocktails"
+      }
+    },
+    {
+      "osmId": "venue/venue-1476779",
+      "name": "The Raven W6",
+      "venueId": "venue-1476779",
+      "sourceUrl": "http://www.theravenw6.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "we serve up delicious homemade stone-baked pizzas and juicy burgers!"
+      }
+    },
+    {
+      "osmId": "venue/venue-14bzmkq",
+      "name": "No5 Dining and Lounge",
+      "venueId": "venue-14bzmkq",
+      "sourceUrl": "https://no5dining.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Our indulgent menu offers unique Mediterranean inspired dishes",
+        "cocktails": "Dive into our signature selection of unique cocktails",
+        "beerGarden": "designated smoking area in our back garden",
+        "liveSports": "customers viewing sporting events such as boxing or football",
+        "nonAlcoholic": "Our master mixologists have curated a concoction of cocktails and mocktails"
+      }
+    },
+    {
+      "osmId": "venue/venue-14dqzut",
+      "name": "The Bat and Ball",
+      "venueId": "venue-14dqzut",
+      "sourceUrl": "https://www.thebatandball.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "mouth-watering food",
+        "cocktails": "expert bartenders are always happy to serve you up the perfect cocktail",
+        "liveSports": "Watch all live sports",
+        "darts": "Interactive darts"
+      }
+    },
+    {
+      "osmId": "venue/venue-14hh7x8",
+      "name": "Roof East",
+      "venueId": "venue-14hh7x8",
+      "sourceUrl": "https://www.roofeast.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "cocktails": "Cocktails, wine, craft beers and spirits"
+      }
+    },
+    {
+      "osmId": "venue/venue-14zs2l8",
+      "name": "Ex Cellar Wine Café",
+      "venueId": "venue-14zs2l8",
+      "sourceUrl": "https://www.excellar.co.uk/blog/category/live-music",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "liveMusic": "Live Music"
+      }
+    },
+    {
+      "osmId": "venue/venue-15pj44z",
+      "name": "The Old Red Lion",
+      "venueId": "venue-15pj44z",
+      "sourceUrl": "https://theoldredlion.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Expect all your pub favourites, stackable burgers, fresh seasonal dishes, and small plates you'll want to share with your friends.",
+        "liveMusic": "Open mic night Second Thursday of the month",
+        "pubQuiz": "Book your quiz, Sunday roast or World Cup table today."
+      }
+    },
+    {
+      "osmId": "venue/venue-162buoz",
+      "name": "The Swan",
+      "venueId": "venue-162buoz",
+      "sourceUrl": "https://www.theswanwembley.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "share a meal"
+      }
+    },
+    {
+      "osmId": "venue/venue-163qaii",
+      "name": "The Coach & Horses",
+      "venueId": "venue-163qaii",
+      "sourceUrl": "https://www.coachandhorsesisleworth.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Great Food & Drinks",
+        "cocktails": "seasonal cocktail menu",
+        "beerGarden": "South West London's Best Pub Garden"
+      }
+    },
+    {
+      "osmId": "venue/venue-16bgt1v",
+      "name": "The Larkshall",
+      "venueId": "venue-16bgt1v",
+      "sourceUrl": "https://www.larkshallpub.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Food Service Times",
+        "beerGarden": "Our beautiful Beer garden",
+        "liveSports": "large TVs to watch any sport"
+      }
+    },
+    {
+      "osmId": "venue/venue-16glug0",
+      "name": "Oliver's Jazz Bar",
+      "venueId": "venue-16glug0",
+      "sourceUrl": "https://oliversjazzbar.com",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "liveMusic": "live music every night"
+      }
+    },
+    {
+      "osmId": "venue/venue-16twk4e",
+      "name": "The Bulls Head",
+      "venueId": "venue-16twk4e",
+      "sourceUrl": "https://www.thebullsheadbarnes.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Seasonal British Food in Barnes",
+        "cocktails": "our new winter cocktails",
+        "liveMusic": "Live Jazz & Sunday Roasts"
+      }
+    },
+    {
+      "osmId": "venue/venue-176d6nl",
+      "name": "Forest Wines",
+      "venueId": "venue-176d6nl",
+      "sourceUrl": "https://www.forestwines.com/pages/bar?srsltid=AU7gw4VW2EFRvnsvlUk3wBjFtZ3NnxjbqjFRLXTKmPvzRww0ARU0mb8l",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "excellent deli snacks such as olives, crisps and nuts",
+        "nonAlcoholic": "Alcohol Free Beer"
+      }
+    },
+    {
+      "osmId": "venue/venue-17kbdpw",
+      "name": "Blue Check",
+      "venueId": "venue-17kbdpw",
+      "sourceUrl": "https://www.bluecheckwembley.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Homemade DISHES with OVER 500+ 5* Reviews",
+        "cocktails": "Cocktails & Beers TOO!"
+      }
+    },
+    {
+      "osmId": "venue/venue-17r9lzv",
+      "name": "The Spread Eagle, Croydon",
+      "venueId": "venue-17r9lzv",
+      "sourceUrl": "https://croydonbid.com/explore/spread-eagle/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "wide selection of food and drink",
+        "liveSports": "sports shown on multiple screens"
+      }
+    },
+    {
+      "osmId": "venue/venue-18bpz15",
+      "name": "The House of Hammerton",
+      "venueId": "venue-18bpz15",
+      "sourceUrl": "https://hammertonbrewery.co.uk/pages/house-of-hammerton-islington-food-and-drink",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "serving up bold, mouth-watering Mexican flavours",
+        "cocktails": "all cocktails are available at just £10",
+        "nonAlcoholic": "Alcohol Free Gift Box",
+        "happyHour": "Join us every day from 4 PM to 7 PM for Happy Hour"
+      }
+    },
+    {
+      "osmId": "venue/venue-18cp9b2",
+      "name": "The Lido Cafe (Now 400 Rabbits)",
+      "venueId": "venue-18cp9b2",
+      "sourceUrl": "https://www.400rabbits.co.uk/hernehill",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Pizza served 10am - 8pm",
+        "cocktails": "&pound;6 Cocktails",
+        "happyHour": "HAPPY HOUR 4-5pm"
+      }
+    },
+    {
+      "osmId": "venue/venue-18d8k3w",
+      "name": "The Leyton Star",
+      "venueId": "venue-18d8k3w",
+      "sourceUrl": "https://leytonstar.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Patty&Bun now brings it&#8217;s unapologetically messy, high-quality burgers and bold flavours to The Leyton Star.",
+        "cocktails": "THURSDAY 2-4-£14 COCKTAILS",
+        "beerGarden": "Beer Garden",
+        "liveSports": "Live Sport",
+        "pubQuiz": "our monthly quiz nights",
+        "happyHour": "Spritz Up Your Life &#8211; £6 Spritzes 4 &#8211; 9pm Every Friday"
+      }
+    },
+    {
+      "osmId": "venue/venue-18gipm9",
+      "name": "The Bulstrode Pub",
+      "venueId": "venue-18gipm9",
+      "sourceUrl": "https://bulstrodepub.com/contact/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Food is served during the",
+        "cocktails": "including cocktails, wines, beers,",
+        "beerGarden": "outdoor gardens"
+      }
+    },
+    {
+      "osmId": "venue/venue-19211ib",
+      "name": "The Queens Arms",
+      "venueId": "venue-19211ib",
+      "sourceUrl": "https://www.brunningandprice.co.uk/queensarms/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "serving up pints to the good people of Pimlico ever since",
+        "cocktails": "a range of delicious cocktails",
+        "beerGarden": "our outside space, with plenty of seating"
+      }
+    },
+    {
+      "osmId": "venue/venue-19a3qur",
+      "name": "The Bountiful Cow",
+      "venueId": "venue-19a3qur",
+      "sourceUrl": "https://www.thebountifulcow.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "delicious steak oriented lunch & dinner menu"
+      }
+    },
+    {
+      "osmId": "venue/venue-19pzh7p",
+      "name": "The Devonshire",
+      "venueId": "venue-19pzh7p",
+      "sourceUrl": "https://www.devonshirebalham.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Our Food & Drink",
+        "cocktails": "Brunches that roll into cocktails",
+        "beerGarden": "Best Garden in SW London",
+        "liveMusic": "live music that keep things going"
+      }
+    },
+    {
+      "osmId": "venue/venue-1a9or74",
+      "name": "Robin Hood",
+      "venueId": "venue-1a9or74",
+      "sourceUrl": "https://www.therobinhoodsutton.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "indulge in our delicious food",
+        "cocktails": "cocktails, and everything in between",
+        "beerGarden": "TRANQUIL TERRACE Our sun-drenched terrace"
+      }
+    },
+    {
+      "osmId": "venue/venue-1b0h1wq",
+      "name": "The Royal Oak",
+      "venueId": "venue-1b0h1wq",
+      "sourceUrl": "https://www.royaloakhighamspark.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "scrumptious food",
+        "cocktails": "2 for £13.50 Cocktails",
+        "beerGarden": "Beer Garden",
+        "pubQuiz": "Quiz Night"
+      }
+    },
+    {
+      "osmId": "venue/venue-1b10w2i",
+      "name": "The Nightingale",
+      "venueId": "venue-1b10w2i",
+      "sourceUrl": "https://www.thenightingalesutton.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "beerGarden": "the largest and best beer garden in the borough",
+        "liveMusic": "LIVE MUSIC Every Weekend"
+      }
+    },
+    {
+      "osmId": "venue/venue-1bmb61s",
+      "name": "The Brunel",
+      "venueId": "venue-1bmb61s",
+      "sourceUrl": "https://www.brunel-rotherhithe.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "share a meal",
+        "cocktails": "a cocktail",
+        "beerGarden": "Beer Garden",
+        "liveSports": "Live Sport",
+        "liveMusic": "Live Music",
+        "pubQuiz": "Quiz Night"
+      }
+    },
+    {
+      "osmId": "venue/venue-1bqyxzj",
+      "name": "Old Deer Park Sports Grounds",
+      "venueId": "venue-1bqyxzj",
+      "sourceUrl": "http://www.olddeerpark.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "beerGarden": "use the bars and terraces",
+        "pubQuiz": "Quiz Nights"
+      }
+    },
+    {
+      "osmId": "venue/venue-1bwv6zb",
+      "name": "The Brook",
+      "venueId": "venue-1bwv6zb",
+      "sourceUrl": "https://thebrookworcesterpark.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "catch up with friends over a delicious meal",
+        "cocktails": "expertly crafted cocktails",
+        "beerGarden": "our large garden"
+      }
+    },
+    {
+      "osmId": "venue/venue-1bzpmdx",
+      "name": "Epsom Downs Racecourse",
+      "venueId": "venue-1bzpmdx",
+      "sourceUrl": "https://goepsom.com/directory/epsom-downs-racecourse/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "award-winning catering"
+      }
+    },
+    {
+      "osmId": "venue/venue-1cuys17",
+      "name": "The Garden Shed",
+      "venueId": "venue-1cuys17",
+      "sourceUrl": "https://www.thegardenshedpub.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "beerGarden": "spacious beer gardens",
+        "liveSports": "watch live sport",
+        "liveMusic": "Live Music"
+      }
+    },
+    {
+      "osmId": "venue/venue-1d25b77",
+      "name": "The Britannia SMOK’D",
+      "venueId": "venue-1d25b77",
+      "sourceUrl": "https://www.britannia.smokd.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "MODERN BRITISH BARBECUE",
+        "cocktails": "Margaritas from just £7 all night!"
+      }
+    },
+    {
+      "osmId": "venue/venue-1d6wmdx",
+      "name": "Vintners Yard Bar",
+      "venueId": "venue-1d6wmdx",
+      "sourceUrl": "https://vintnersyard.co.uk/residents/yard-bar/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "artisan pizza",
+        "cocktails": "cocktail making",
+        "beerGarden": "seasonal oasis",
+        "liveSports": "live sports events"
+      }
+    },
+    {
+      "osmId": "venue/venue-1d9y0lj",
+      "name": "WeBrew",
+      "venueId": "venue-1d9y0lj",
+      "sourceUrl": "https://webrew.co.uk/venues/kingston/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "flavour-packed food",
+        "liveMusic": "regular live music",
+        "pubQuiz": "BIG FAT QUIZ OF THE YEAR"
+      }
+    },
+    {
+      "osmId": "venue/venue-1drd13s",
+      "name": "The Crown Tavern",
+      "venueId": "venue-1drd13s",
+      "sourceUrl": "https://www.thecrownlee.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "serving the best Sunday roasts",
+        "cocktails": "Best Cocktails in Lewisham",
+        "liveSports": "Live Sports in South-East London",
+        "nonAlcoholic": "alcohol-free serves"
+      }
+    },
+    {
+      "osmId": "venue/venue-1duinu2",
+      "name": "Alma",
+      "venueId": "venue-1duinu2",
+      "sourceUrl": "https://thealmalondon.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "nonAlcoholic": "alcohol free beers in our fridges",
+        "liveMusic": "GLYNN Mr Soul - Soul Singer - Live Music"
+      }
+    },
+    {
+      "osmId": "venue/venue-1dydno",
+      "name": "The Old Hat Ealing",
+      "venueId": "venue-1dydno",
+      "sourceUrl": "https://www.theoldhatealing.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "delicious pub classics",
+        "beerGarden": "Garden bar set up",
+        "liveMusic": "live music"
+      }
+    },
+    {
+      "osmId": "venue/venue-1dynyz2",
+      "name": "Coach and Horses",
+      "venueId": "venue-1dynyz2",
+      "sourceUrl": "https://thecoachleyton.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Neighbourhood pub with food",
+        "cocktails": "cocktails",
+        "beerGarden": "partially-covered beer garden",
+        "liveSports": "sports on the big screens",
+        "liveMusic": "live music",
+        "pubQuiz": "Quiz nights"
+      }
+    },
+    {
+      "osmId": "venue/venue-1fvqrf9",
+      "name": "The Watergate",
+      "venueId": "venue-1fvqrf9",
+      "sourceUrl": "https://www.thewatergate.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Cocktails, Natural Wines, Food",
+        "cocktails": "Cocktails, Natural Wines, Food"
+      }
+    },
+    {
+      "osmId": "venue/venue-1g1ttqf",
+      "name": "The Hercules",
+      "venueId": "venue-1g1ttqf",
+      "sourceUrl": "https://www.theherculesholloway.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Whether you’re in for lunch, dinner or drinks, we’ve got you covered",
+        "liveMusic": "live music every single Saturday & Sunday night"
+      }
+    },
+    {
+      "osmId": "venue/venue-1g8dzkx",
+      "name": "The Depot",
+      "venueId": "venue-1g8dzkx",
+      "sourceUrl": "https://www.thedepotpub.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Serving delicious, British food",
+        "cocktails": "wines and cocktails",
+        "beerGarden": "head out onto our sun-trap terrace",
+        "nonAlcoholic": "selection of alcohol-free serves"
+      }
+    },
+    {
+      "osmId": "venue/venue-1gbzh7u",
+      "name": "Spice Station",
+      "venueId": "venue-1gbzh7u",
+      "sourceUrl": "http://www.spicestationandbar.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "The Finest Contemporary Indian & Bengali Cuisine"
+      }
+    },
+    {
+      "osmId": "venue/venue-1gdbryb",
+      "name": "Rose & Crown",
+      "venueId": "venue-1gdbryb",
+      "sourceUrl": "https://www.roseandcrownwallington.co.uk/index",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "liveSports": "Home for Live Sport",
+        "liveMusic": "LIVE BAND SATURDAYS",
+        "pubQuiz": "Thursday Quiz Night!"
+      }
+    },
+    {
+      "osmId": "venue/venue-1h547kg",
+      "name": "The Forest Gate Hotel",
+      "venueId": "venue-1h547kg",
+      "sourceUrl": "https://www.theforestgatehotel.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Selection of bar snacks available",
+        "beerGarden": "rear patio",
+        "liveSports": "Watch live sports",
+        "pubQuiz": "Pub quiz",
+        "darts": "Pool, Darts",
+        "pool": "Pool, Darts"
+      }
+    },
+    {
+      "osmId": "venue/venue-1hkvco4",
+      "name": "Blue Boar Pub",
+      "venueId": "venue-1hkvco4",
+      "sourceUrl": "https://blueboarlondon.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "proper pub dining",
+        "cocktails": "tempting cocktails",
+        "liveSports": "Summer of Live Sport",
+        "liveMusic": "live music from 3pm"
+      }
+    },
+    {
+      "osmId": "venue/venue-1k0kfv7",
+      "name": "The Wilton Arms",
+      "venueId": "venue-1k0kfv7",
+      "sourceUrl": "https://www.thewiltonarmssw1.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "PASSIONATE ABOUT FOOD Our commitment to using the best seasonal British produce shines through in every dish"
+      }
+    },
+    {
+      "osmId": "venue/venue-1k2w9wy",
+      "name": "Market Halls, Victoria",
+      "venueId": "venue-1k2w9wy",
+      "sourceUrl": "https://markethalls.co.uk/venue/victoria/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "9 Kitchens",
+        "cocktails": "2 FOR £20 SPRITZ",
+        "beerGarden": "hidden rooftop",
+        "happyHour": "HAPPY HOURS"
+      }
+    },
+    {
+      "osmId": "venue/venue-1kbl05l",
+      "name": "The Rugby Tavern",
+      "venueId": "venue-1kbl05l",
+      "sourceUrl": "https://rugbytavern.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "A Classic British Pub Menu",
+        "cocktails": "pair your favourite fine wines and cocktails",
+        "beerGarden": "lovely outside space under the trees"
+      }
+    },
+    {
+      "osmId": "venue/venue-1kcgil7",
+      "name": "Neckstamper Brewing",
+      "venueId": "venue-1kcgil7",
+      "sourceUrl": "https://neckstamper.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Vietnamese BBQ from Hanoi Ca Phe (vegan and meat)",
+        "liveSports": "Six Nations rugby on the taproom’s big screen",
+        "liveMusic": "Live music with Grace Hartley from 7pm."
+      }
+    },
+    {
+      "osmId": "venue/venue-1khnupq",
+      "name": "Pop Brixton",
+      "venueId": "venue-1khnupq",
+      "sourceUrl": "https://www.popbrixton.org/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "independent street food",
+        "liveMusic": "Live music"
+      }
+    },
+    {
+      "osmId": "venue/venue-1kpw767",
+      "name": "Vino Tap",
+      "venueId": "venue-1kpw767",
+      "sourceUrl": "https://vinoramica.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Food: 5/5",
+        "pubQuiz": "Wine Tasting & Quiz"
+      }
+    },
+    {
+      "osmId": "venue/venue-1l1ls5k",
+      "name": "The Priory Arms",
+      "venueId": "venue-1l1ls5k",
+      "sourceUrl": "https://www.theprioryarms.com/pubinfo",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Tacos, Fried Chicken and delicious Dominican Tapas.",
+        "pubQuiz": "Quiz Night is every Sunday"
+      }
+    },
+    {
+      "osmId": "venue/venue-1l9ehj3",
+      "name": "The Salusbury",
+      "venueId": "venue-1l9ehj3",
+      "sourceUrl": "https://thesalusbury.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Serving times Lunch: Wednesday – Saturday, 12 – 3pm Dinner: Monday – Saturday, 5.30 – 9.30pm Sunday Roast: Sunday, 12 – 5.30pm",
+        "liveMusic": "Live Music - Every Sunday evening from 7.30 PM",
+        "pubQuiz": "THE QUEENS PARK WORLD FAMOUS PUB QUIZ"
+      }
+    },
+    {
+      "osmId": "venue/venue-1ljsyep",
+      "name": "The Beehive",
+      "venueId": "venue-1ljsyep",
+      "sourceUrl": "https://www.beehiveneweltham.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "liveMusic": "beehive new eltham live music"
+      }
+    },
+    {
+      "osmId": "venue/venue-1lpdp6i",
+      "name": "Springfield Tavern",
+      "venueId": "venue-1lpdp6i",
+      "sourceUrl": "https://www.thespringfieldtavern.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "We specialise in Thai Cuisine offering a delightful menu of authentic regional dishes.",
+        "beerGarden": "Come and experience our newly renovated heated & covered beer garden.",
+        "liveSports": "Watch all the live sports action on our multiple widescreen TVs",
+        "liveMusic": "Join us every weekend for live music performances"
+      }
+    },
+    {
+      "osmId": "venue/venue-1naml38",
+      "name": "Lower Deck",
+      "venueId": "venue-1naml38",
+      "sourceUrl": "https://www.greenwichsu.co.uk/lowerdeck/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "great value food",
+        "cocktails": "Our cocktail list features signature drinks",
+        "nonAlcoholic": "alcohol-free options",
+        "pubQuiz": "Pub Quiz"
+      }
+    },
+    {
+      "osmId": "venue/venue-1nnut7v",
+      "name": "Up the Creek Comedy Club",
+      "venueId": "venue-1nnut7v",
+      "sourceUrl": "https://www.up-the-creek.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "liveMusic": "Live Band Karaoke",
+        "karaoke": "Live Band Karaoke"
+      }
+    },
+    {
+      "osmId": "venue/venue-1oa8eys",
+      "name": "The Asparagus",
+      "venueId": "venue-1oa8eys",
+      "sourceUrl": "https://asparagusbattersea.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "A cosy Battersea pub serving cracking pints and comforting classic dishes.",
+        "liveMusic": "Live Music Saturdays",
+        "pubQuiz": "Falconbrook Quiz"
+      }
+    },
+    {
+      "osmId": "venue/venue-1oiuk6x",
+      "name": "Eadn London",
+      "venueId": "venue-1oiuk6x",
+      "sourceUrl": "https://eadn.co.uk",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Our master chef has meticulously curated a menu",
+        "cocktails": "delicious cocktails"
+      }
+    },
+    {
+      "osmId": "venue/venue-1pbyyad",
+      "name": "The Royal Forest",
+      "venueId": "venue-1pbyyad",
+      "sourceUrl": "https://royalforesteppingforest.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "mouth-watering food",
+        "beerGarden": "south facing terrace",
+        "nonAlcoholic": "Non-alcoholic option also available",
+        "happyHour": "Happy Hour"
+      }
+    },
+    {
+      "osmId": "venue/venue-1pfnt71",
+      "name": "Blues Kitchen",
+      "venueId": "venue-1pfnt71",
+      "sourceUrl": "https://theblueskitchen.com/camden/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "cocktails": "£6 Cocktails",
+        "liveMusic": "Live Blues & Soul",
+        "karaoke": "PARTY BOOKINGS & KARAOKE"
+      }
+    },
+    {
+      "osmId": "venue/venue-1phs07y",
+      "name": "The Pilgrim Pub",
+      "venueId": "venue-1phs07y",
+      "sourceUrl": "https://www.thepilgrimpub.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "delicious food and drinks",
+        "beerGarden": "two inviting beer gardens",
+        "liveSports": "catch the big game",
+        "liveMusic": "we offer live music",
+        "happyHour": "daily happy hours"
+      }
+    },
+    {
+      "osmId": "venue/venue-1pnwx8j",
+      "name": "Hare & Hounds",
+      "venueId": "venue-1pnwx8j",
+      "sourceUrl": "https://www.theharesheen.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Fresh, Seasonal British Pub Food",
+        "cocktails": "winter cocktails",
+        "beerGarden": "outdoor space in our garden",
+        "liveSports": "live sport"
+      }
+    },
+    {
+      "osmId": "venue/venue-1q44pwj",
+      "name": "The Alfred Tennyson",
+      "venueId": "venue-1q44pwj",
+      "sourceUrl": "https://www.cubitthouse.co.uk/the-alfred-tennyson-belgravia/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "serving beautifully prepared British and French classics",
+        "cocktails": "perfectly stirred martinis",
+        "beerGarden": "In the summer months our terrace is the perfect spot"
+      }
+    },
+    {
+      "osmId": "venue/venue-1qrmxhz",
+      "name": "The Boleyn Tavern",
+      "venueId": "venue-1qrmxhz",
+      "sourceUrl": "https://boleyntavern.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "food menu",
+        "nonAlcoholic": "Non alcoholic beer and spirits available"
+      }
+    },
+    {
+      "osmId": "venue/venue-1rkfaxs",
+      "name": "Swirl E10",
+      "venueId": "venue-1rkfaxs",
+      "sourceUrl": "https://swirle10.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "delicious food options such as beautiful cheese platters and appetizers"
+      }
+    },
+    {
+      "osmId": "venue/venue-1rqsqdd",
+      "name": "The Park Tavern",
+      "venueId": "venue-1rqsqdd",
+      "sourceUrl": "https://www.parktaverneltham.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "DRINKS & FOOD",
+        "beerGarden": "garden to the rear is well established",
+        "liveMusic": "light classical music and jazz in the background"
+      }
+    },
+    {
+      "osmId": "venue/venue-1t1cm4z",
+      "name": "The Clarence Tavern",
+      "venueId": "venue-1t1cm4z",
+      "sourceUrl": "https://www.clarencetavern.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "cocktails": "seasonal cocktails"
+      }
+    },
+    {
+      "osmId": "venue/venue-1toxhgz",
+      "name": "The Glasshouse",
+      "venueId": "venue-1toxhgz",
+      "sourceUrl": "https://www.glasshouse.pub/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Real Food. The Heart of New Malden."
+      }
+    },
+    {
+      "osmId": "venue/venue-1u2v4eh",
+      "name": "The Waterloo Tap",
+      "venueId": "venue-1u2v4eh",
+      "sourceUrl": "https://waterlootap.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Honest Burgers"
+      }
+    },
+    {
+      "osmId": "venue/venue-1uh3g2g",
+      "name": "Bethnal Green Tavern",
+      "venueId": "venue-1uh3g2g",
+      "sourceUrl": "https://www.bethnalgreentavern.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "banging pub classics from our kitchen",
+        "cocktails": "cocktails and wine",
+        "beerGarden": "beer garden"
+      }
+    },
+    {
+      "osmId": "venue/venue-1uk6kty",
+      "name": "The Fountain",
+      "venueId": "venue-1uk6kty",
+      "sourceUrl": "https://fountainhotellondon.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "best Kitchen and Bar",
+        "beerGarden": "vibrant garden"
+      }
+    },
+    {
+      "osmId": "venue/venue-1uvk466",
+      "name": "Boom Battle Bar",
+      "venueId": "venue-1uvk466",
+      "sourceUrl": "https://boombattlebar.com/uk/theo2/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "cocktails": "delicious cocktails",
+        "happyHour": "HAPPY HOURS WITH A BOOM!",
+        "karaoke": "BOOM BOX KARAOKE"
+      }
+    },
+    {
+      "osmId": "venue/venue-1vteszv",
+      "name": "The Phoenix",
+      "venueId": "venue-1vteszv",
+      "sourceUrl": "https://www.thephoenixinvictoria.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Pub Food in Victoria",
+        "cocktails": "seasonal cocktail",
+        "beerGarden": "pub garden is made for settling in"
+      }
+    },
+    {
+      "osmId": "venue/venue-1vzaiwq",
+      "name": "The Antelope",
+      "venueId": "venue-1vzaiwq",
+      "sourceUrl": "https://www.theantelope.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Burgers, sharing plates & pub classics"
+      }
+    },
+    {
+      "osmId": "venue/venue-1wtqjvr",
+      "name": "The Woodman Pub",
+      "venueId": "venue-1wtqjvr",
+      "sourceUrl": "https://www.thewoodman.co/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Our kitchen will be open as usual!",
+        "cocktails": "Enjoy a great selection of craft beers, spirits, and cocktails",
+        "beerGarden": "one of Wimbledon’s largest beer gardens.",
+        "liveSports": "WE SHOW ALL MAJOR SPORTS",
+        "darts": "Darts Board",
+        "pool": "Pool Table",
+        "happyHour": "Happy Hour"
+      }
+    },
+    {
+      "osmId": "venue/venue-1wxa6rs",
+      "name": "The Two Bridges",
+      "venueId": "venue-1wxa6rs",
+      "sourceUrl": "https://www.thetwobridges.co.uk/index",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Our menu is bursting with traditional pub classics, delicious desserts and award winning kids dishes.",
+        "cocktails": "Pair with cocktails, crisp wines, or premium pints",
+        "liveSports": "TNT Sports Sky Sports",
+        "nonAlcoholic": "plus a great choice of low and no alcohol options.",
+        "liveMusic": "From weekly quizzes & live music",
+        "pubQuiz": "From weekly quizzes & live music"
+      }
+    },
+    {
+      "osmId": "venue/venue-1x16vuy",
+      "name": "The Red Lion",
+      "venueId": "venue-1x16vuy",
+      "sourceUrl": "https://www.theredlionwallington.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "share a meal",
+        "beerGarden": "Beer Garden"
+      }
+    },
+    {
+      "osmId": "venue/venue-1xh21ch",
+      "name": "The Farriers Arms",
+      "venueId": "venue-1xh21ch",
+      "sourceUrl": "https://thefarriersarmspub.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "beerGarden": "our neat beer garden",
+        "liveSports": "Watch all the latest sports with us",
+        "darts": "borrow a pool cue or set of darts",
+        "pool": "borrow a pool cue or set of darts"
+      }
+    },
+    {
+      "osmId": "venue/venue-1xmac",
+      "name": "The Grapes SW18",
+      "venueId": "venue-1xmac",
+      "sourceUrl": "http://www.thegrapessw18.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "liveMusic": "LIVE MUSIC NEXT WEEK",
+        "darts": "dart boards",
+        "pool": "pool tables"
+      }
+    },
+    {
+      "osmId": "venue/venue-1yfamhh",
+      "name": "Tollington Arms",
+      "venueId": "venue-1yfamhh",
+      "sourceUrl": "https://tollingtonarms-holloway.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Superb home cooked food including Sunday roasts",
+        "beerGarden": "superb outside area for al fresco dining",
+        "liveSports": "8 giant plasma TV screens showing every major sporting event"
+      }
+    },
+    {
+      "osmId": "venue/venue-46mqmt",
+      "name": "The Lamb",
+      "venueId": "venue-46mqmt",
+      "sourceUrl": "https://www.lambsurbiton.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "liveMusic": "LIVE MUSIC"
+      }
+    },
+    {
+      "osmId": "venue/venue-4r1951",
+      "name": "Milford Arms",
+      "venueId": "venue-4r1951",
+      "sourceUrl": "https://themilfordarms.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Enjoy freshly cooked pub food",
+        "cocktails": "Download Cocktail Menu (jpg)",
+        "beerGarden": "Enjoy our spacious garden",
+        "liveSports": "Live Sport",
+        "liveMusic": "live jazz",
+        "karaoke": "Saturday Karaoke"
+      }
+    },
+    {
+      "osmId": "venue/venue-4wsk4u",
+      "name": "The Maxwell",
+      "venueId": "venue-4wsk4u",
+      "sourceUrl": "https://www.themaxwell.co.uk/index",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "known for good food",
+        "cocktails": "Cocktails",
+        "beerGarden": "Outside Seating",
+        "liveSports": "Home for Live Sport",
+        "liveMusic": "live music",
+        "pubQuiz": "quiz nights",
+        "darts": "dart board",
+        "pool": "pool table"
+      }
+    },
+    {
+      "osmId": "venue/venue-59ibpp",
+      "name": "The Marian Anderson",
+      "venueId": "venue-59ibpp",
+      "sourceUrl": "https://themariananderson.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Great Beer, Great Food, Great Company",
+        "beerGarden": "outdoor seating"
+      }
+    },
+    {
+      "osmId": "venue/venue-5cjjk6",
+      "name": "The Blind Beggar",
+      "venueId": "venue-5cjjk6",
+      "sourceUrl": "https://www.theblindbeggar.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Pizza by Marco at The Blind Beggar",
+        "beerGarden": "Award Winning Beer Garden",
+        "liveMusic": "plays host to live music"
+      }
+    },
+    {
+      "osmId": "venue/venue-67t8g6",
+      "name": "The Pied Bull",
+      "venueId": "venue-67t8g6",
+      "sourceUrl": "https://www.piedbullenfield.co.uk/index",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Enjoy classic British pub food at The Pied Bull, where quality ingredients and hearty flavours take centre stage."
+      }
+    },
+    {
+      "osmId": "venue/venue-698bu3",
+      "name": "The Old Spades",
+      "venueId": "venue-698bu3",
+      "sourceUrl": "https://www.oldshades.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "We specialise in the best of British pub food"
+      }
+    },
+    {
+      "osmId": "venue/venue-6ayczf",
+      "name": "The Waterside",
+      "venueId": "venue-6ayczf",
+      "sourceUrl": "https://www.watersideimperialwharf.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "our chefs have crafted a menu full of fresh, seasonal dishes",
+        "cocktails": "Winter Cocktails",
+        "beerGarden": "Riverside pub and terrace",
+        "pubQuiz": "proper pub quiz every Wednesday"
+      }
+    },
+    {
+      "osmId": "venue/venue-72gquy",
+      "name": "Pretty Decent",
+      "venueId": "venue-72gquy",
+      "sourceUrl": "https://prettydecentbeer.co/pages/bhr-taproom?srsltid=AU7gw4V3nuXseAJvy3guw1Foz-LH8J88PR4c2XsUqOHMsB8wtD5MnRC5",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "enjoy your food and drink",
+        "cocktails": "classic and seasonal cocktails"
+      }
+    },
+    {
+      "osmId": "venue/venue-8rf7pi",
+      "name": "Tattoo Bar",
+      "venueId": "venue-8rf7pi",
+      "sourceUrl": "https://tattoo-bar.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "cocktails": "Any 2 cocktails for £15",
+        "nonAlcoholic": "PERONI NASTRO 0.0%",
+        "happyHour": "Happy Hours Happy Hour Any 2 cocktails for £15"
+      }
+    },
+    {
+      "osmId": "venue/venue-8vygop",
+      "name": "Riverside, Vauxhall",
+      "venueId": "venue-8vygop",
+      "sourceUrl": "https://www.riversidelondon.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "The Riverside serves up fresh seasonal British menus",
+        "cocktails": "after-work cocktails",
+        "beerGarden": "two outdoor terraces",
+        "liveSports": "Watch the Autumn Nations in Vauxhall",
+        "pubQuiz": "Vauxhall's Best Pub Quiz"
+      }
+    },
+    {
+      "osmId": "venue/venue-90m3gm",
+      "name": "The Spring Grove",
+      "venueId": "venue-90m3gm",
+      "sourceUrl": "https://www.thespringgrove.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Food Served 12pm - 10pm",
+        "cocktails": "Winter Cocktails Our brand-new, oh-so-seasonal Winter Cocktail menu is here",
+        "beerGarden": "The Aviary Garden Huts The Bar The Garden",
+        "nonAlcoholic": "Alongside a generous selection of alcohol-free serves.",
+        "pubQuiz": "looking for a fun-filled pub quiz"
+      }
+    },
+    {
+      "osmId": "venue/venue-92l5if",
+      "name": "1 Lombard Street Bar & Restaurant Bank",
+      "venueId": "venue-92l5if",
+      "sourceUrl": "https://www.1lombardstreet.com/?utm_source=GMB&utm_medium=website%20click&utm_campaign=SDM&utm_id=GM",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "ALL DAY DINING"
+      }
+    },
+    {
+      "osmId": "venue/venue-94m3w2",
+      "name": "The Curtains Up",
+      "venueId": "venue-94m3w2",
+      "sourceUrl": "https://www.thecurtainsup.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "proper pub food",
+        "cocktails": "winter cocktail menu",
+        "liveSports": "Autumn Nations, with the rugby on screen",
+        "pubQuiz": "Sunday night pub quiz"
+      }
+    },
+    {
+      "osmId": "venue/venue-9dwjpl",
+      "name": "Victoria Tavern",
+      "venueId": "venue-9dwjpl",
+      "sourceUrl": "https://thevictoriatavern.co.uk/victoria-tavern/the-victoria-tavern-in-the-good-pub-guide/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "excellent seasonally sourced home cooked food"
+      }
+    },
+    {
+      "osmId": "venue/venue-a9nk2t",
+      "name": "Hazine",
+      "venueId": "venue-a9nk2t",
+      "sourceUrl": "https://hazine.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Our all-day menu celebrates the best of Turkish and Mediterranean cuisine",
+        "cocktails": "2 for 1 Cocktails Saturday, 26/09/2026",
+        "liveMusic": "Join us for live music every weekend"
+      }
+    },
+    {
+      "osmId": "venue/venue-alvnwn",
+      "name": "Fire Stables",
+      "venueId": "venue-alvnwn",
+      "sourceUrl": "https://www.firestables.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Fresh, seasonal & locally-sourced ## Food & Drinks",
+        "cocktails": "Our expert bartenders shake up world-class cocktails",
+        "liveSports": "Watching the Autumn Nations 2026"
+      }
+    },
+    {
+      "osmId": "venue/venue-an88gc",
+      "name": "Three Horseshoes",
+      "venueId": "venue-an88gc",
+      "sourceUrl": "https://threehorseshoesfeltham.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "introduced great food",
+        "beerGarden": "development of the large garden at the rear",
+        "liveSports": "continued activities such as live sport"
+      }
+    },
+    {
+      "osmId": "venue/venue-atk7mc",
+      "name": "The Fighting Cocks",
+      "venueId": "venue-atk7mc",
+      "sourceUrl": "https://the-fighting-cocks.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "cocktails": "lavish cocktails",
+        "liveMusic": "best in live music",
+        "pubQuiz": "OCTOBER PUB QUIZ",
+        "pool": "pool tournament october"
+      }
+    },
+    {
+      "osmId": "venue/venue-b2uihc",
+      "name": "Prince Albert",
+      "venueId": "venue-b2uihc",
+      "sourceUrl": "https://www.princealbertbexleyheath.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Food serving times"
+      }
+    },
+    {
+      "osmId": "venue/venue-b85at0",
+      "name": "The Queens Head",
+      "venueId": "venue-b85at0",
+      "sourceUrl": "https://thequeensheadholborn.com",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "delicious lunch spot",
+        "liveSports": "Live Sport",
+        "pubQuiz": "PUB QUIZ: TUESDAYS AT 7PM"
+      }
+    },
+    {
+      "osmId": "venue/venue-bd6rpo",
+      "name": "The Artful Duke Pub (Bromley)",
+      "venueId": "venue-bd6rpo",
+      "sourceUrl": "https://theartfulduke.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "great food"
+      }
+    },
+    {
+      "osmId": "venue/venue-bdyva2",
+      "name": "The Calthorpe Arms",
+      "venueId": "venue-bdyva2",
+      "sourceUrl": "https://www.calthorpearmswc1.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "HOME COOKED FOOD The food available is home-cooked",
+        "liveSports": "ENJOY SPORTS WITH US We show all terrestrial TV sports",
+        "liveMusic": "FOLK MUSIC NIGHTS ON SATURDAY!",
+        "pubQuiz": "PUB QUIZ NIGHTS We are home to two teams"
+      }
+    },
+    {
+      "osmId": "venue/venue-bvopgj",
+      "name": "Myddleton Arms, Islington",
+      "venueId": "venue-bvopgj",
+      "sourceUrl": "https://myddletonarms.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "delicious food",
+        "beerGarden": "cosy beer garden",
+        "liveMusic": "cosy jazz session",
+        "pubQuiz": "Monday Pub Quiz"
+      }
+    },
+    {
+      "osmId": "venue/venue-c012qs",
+      "name": "Pipe Major",
+      "venueId": "venue-c012qs",
+      "sourceUrl": "https://www.pipemajorpubdagenham.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "fabulous daily carvery, great atmosphere, and extensive menu",
+        "beerGarden": "being in our beer garden!",
+        "liveMusic": "From live music and quiz nights",
+        "pubQuiz": "From live music and quiz nights"
+      }
+    },
+    {
+      "osmId": "venue/venue-c7he1z",
+      "name": "Bingham Riverhouse",
+      "venueId": "venue-c7he1z",
+      "sourceUrl": "https://www.binghamriverhouse.com/?utm_source=google&utm_medium=local&utm_campaign=binghamriverhouse",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Riverhouse Restaurant",
+        "beerGarden": "Garden Domes"
+      }
+    },
+    {
+      "osmId": "venue/venue-cwtxq2",
+      "name": "The Village Green",
+      "venueId": "venue-cwtxq2",
+      "sourceUrl": "https://www.thevillagegreen.pub/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "FRESHLY COOKED pub classics such as fish & chips and roasts on a sunday.",
+        "beerGarden": "WITH PLENTY OF SPACE INSIDE AND OUT",
+        "pubQuiz": "QUIZ NIGHT ! #### EVERY TUESDAY from 19:30",
+        "happyHour": "All day happy hour on selected drinks."
+      }
+    },
+    {
+      "osmId": "venue/venue-ej7ok7",
+      "name": "The White Hart Inn",
+      "venueId": "venue-ej7ok7",
+      "sourceUrl": "https://www.whitehartinntwickenham.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "beerGarden": "coveredterrace",
+        "liveSports": "Sky Sports"
+      }
+    },
+    {
+      "osmId": "venue/venue-ejcaqb",
+      "name": "The Merchant of Battersea",
+      "venueId": "venue-ejcaqb",
+      "sourceUrl": "https://www.themerchantbattersea.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "cocktails": "sip cocktails",
+        "liveMusic": "Your Go-To Battersea Pub for Sport & Live Music"
+      }
+    },
+    {
+      "osmId": "venue/venue-fejqqd",
+      "name": "The Constitution",
+      "venueId": "venue-fejqqd",
+      "sourceUrl": "https://www.theconstitutioncamden.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Our stunning Food & Drink",
+        "cocktails": "It’s the ultimate spot for cocktails",
+        "beerGarden": "Head up to our rooftop terrace",
+        "nonAlcoholic": "alcohol-free faves",
+        "liveMusic": "live music to smooth jazz sessions",
+        "pubQuiz": "From quiz nights"
+      }
+    },
+    {
+      "osmId": "venue/venue-fsp3yu",
+      "name": "The Oyster Shed",
+      "venueId": "venue-fsp3yu",
+      "sourceUrl": "https://www.oystershed.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "AA Rosette-awarded food",
+        "cocktails": "Winter Cocktails",
+        "beerGarden": "dog-friendly garden",
+        "nonAlcoholic": "No and Low Alcohol Cocktail Menu"
+      }
+    },
+    {
+      "osmId": "venue/venue-fudfew",
+      "name": "Black Lion",
+      "venueId": "venue-fudfew",
+      "sourceUrl": "https://www.blacklion.london/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "We serve a wide range of delicious dishes every day of the week"
+      }
+    },
+    {
+      "osmId": "venue/venue-fw3cy8",
+      "name": "Langham Working Mens Club",
+      "venueId": "venue-fw3cy8",
+      "sourceUrl": "https://www.langhamclub.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "liveSports": "Sky Sports and TNT Sports",
+        "pool": "pool and snooker tables"
+      }
+    },
+    {
+      "osmId": "venue/venue-gshjia",
+      "name": "The Weir",
+      "venueId": "venue-gshjia",
+      "sourceUrl": "https://www.theweirbar.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "AUTUMN MENU We've launched our brand new Autumn menu",
+        "liveMusic": "Live music will be returning to The Weir"
+      }
+    },
+    {
+      "osmId": "venue/venue-i4w5zs",
+      "name": "Shaftesbury",
+      "venueId": "venue-i4w5zs",
+      "sourceUrl": "https://www.shaftesburyrichmond.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Pub Food",
+        "cocktails": "winter cocktails",
+        "beerGarden": "A Hidden Garden in Richmond",
+        "pubQuiz": "our Sunday pub quiz"
+      }
+    },
+    {
+      "osmId": "venue/venue-j7ktuq",
+      "name": "The White Cross",
+      "venueId": "venue-j7ktuq",
+      "sourceUrl": "https://www.thewhitecrossrichmond.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Proper Pub Grub",
+        "beerGarden": "outdoor riverside tables"
+      }
+    },
+    {
+      "osmId": "venue/venue-jfkv2h",
+      "name": "The Castle",
+      "venueId": "venue-jfkv2h",
+      "sourceUrl": "https://www.castletooting.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Food Service Times",
+        "cocktails": "winter cocktails",
+        "beerGarden": "Tooting's best beer garden",
+        "pubQuiz": "Harvey's hype-worthy Pub Quiz"
+      }
+    },
+    {
+      "osmId": "venue/venue-kvh5js",
+      "name": "Beer + Burger",
+      "venueId": "venue-kvh5js",
+      "sourceUrl": "https://www.beerandburgerstore.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "BURGERS + SIDES"
+      }
+    },
+    {
+      "osmId": "venue/venue-kvvbtt",
+      "name": "The Windsor",
+      "venueId": "venue-kvvbtt",
+      "sourceUrl": "https://www.thewindsoroldkentroad.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "We have authentic stone baked pizzas available too!",
+        "beerGarden": "We’ve got a lovely beer garden out the front",
+        "liveSports": "we’ll always show all the best action on Sky Sports"
+      }
+    },
+    {
+      "osmId": "venue/venue-l0h2ot",
+      "name": "Boom Battle Bar Ealing",
+      "venueId": "venue-l0h2ot",
+      "sourceUrl": "https://boombattlebar.com/uk/ealing/?utm_source=GMB&utm_medium=search&utm_campaign=GMB",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "cocktails": "Cocktail Masterclass",
+        "happyHour": "Happy Hour",
+        "karaoke": "BOOM BOX KARAOKE™ Booths"
+      }
+    },
+    {
+      "osmId": "venue/venue-lw1nbc",
+      "name": "Davy's Wine Vaults",
+      "venueId": "venue-lw1nbc",
+      "sourceUrl": "https://www.davy.co.uk/wine-bar/davys-wine-vaults/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "modern British dishes on the menu",
+        "beerGarden": "outdoor terrace",
+        "liveSports": "live sport",
+        "liveMusic": "live jazz performance"
+      }
+    },
+    {
+      "osmId": "venue/venue-m40xal",
+      "name": "The Roebuck",
+      "venueId": "venue-m40xal",
+      "sourceUrl": "https://www.roebuckhampstead.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Mouth-Watering Food & Drink",
+        "cocktails": "Food and cocktails were the bomb!",
+        "beerGarden": "North London Pub Garden"
+      }
+    },
+    {
+      "osmId": "venue/venue-m5hwrg",
+      "name": "The Chamberlayne",
+      "venueId": "venue-m5hwrg",
+      "sourceUrl": "https://thechamberlayne.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "great food & drinks",
+        "beerGarden": "beautiful private terrace"
+      }
+    },
+    {
+      "osmId": "venue/venue-m5nemu",
+      "name": "Builders Arms",
+      "venueId": "venue-m5nemu",
+      "sourceUrl": "https://www.buildersarmspottersbar.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "classic British pub dining",
+        "beerGarden": "OUR COURTYARD"
+      }
+    },
+    {
+      "osmId": "venue/venue-m9wlkb",
+      "name": "The Castle Tavern",
+      "venueId": "venue-m9wlkb",
+      "sourceUrl": "https://thecastletavern.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Traditional African Food"
+      }
+    },
+    {
+      "osmId": "venue/venue-mn77vs",
+      "name": "Slug & Lettuce",
+      "venueId": "venue-mn77vs",
+      "sourceUrl": "https://www.slugandlettuce.co.uk/bars/o2-arena-london",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "fangtastic food and drink",
+        "cocktails": "bites & cocktails to die for"
+      }
+    },
+    {
+      "osmId": "venue/venue-myrcsz",
+      "name": "The Royal Oak",
+      "venueId": "venue-myrcsz",
+      "sourceUrl": "https://royaloaknewmalden.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "serving up local craft beers, a classic British menu to enjoy",
+        "beerGarden": "in a glorious pub garden for you to soak up the afternoon sun.",
+        "liveSports": "perfect for Live Sports"
+      }
+    },
+    {
+      "osmId": "venue/venue-pkatki",
+      "name": "Delicio (Bexleyheath)",
+      "venueId": "venue-pkatki",
+      "sourceUrl": "https://deliciobexleyheath.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Turkish & Italian Food",
+        "cocktails": "Long Island £9.25 This one is definitely for the summers, rum, gin, triple sec, vodka, sweet and sour topped with coke.",
+        "liveMusic": "Jazz Band Live Event"
+      }
+    },
+    {
+      "osmId": "venue/venue-pof9vf",
+      "name": "Vinegar Yard",
+      "venueId": "venue-pof9vf",
+      "sourceUrl": "https://www.vinegaryard.london/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "our food traders offer a great choice for every taste, daily",
+        "cocktails": "cocktails 2.jpg",
+        "beerGarden": "our huge outside venue"
+      }
+    },
+    {
+      "osmId": "venue/venue-qk6ti7",
+      "name": "Camden Head",
+      "venueId": "venue-qk6ti7",
+      "sourceUrl": "https://camdenhead.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Kitchen 12-10pm"
+      }
+    },
+    {
+      "osmId": "venue/venue-qliv2p",
+      "name": "Queer Brewing Project",
+      "venueId": "venue-qliv2p",
+      "sourceUrl": "https://www.thequeerbrewingproject.com/taproom",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "order food in to enjoy while you’re here",
+        "nonAlcoholic": "Alcohol-free and gluten-free options are always available",
+        "happyHour": "happy hour: every friday 4-6pm!"
+      }
+    },
+    {
+      "osmId": "venue/venue-qtavbf",
+      "name": "The Two Brewers",
+      "venueId": "venue-qtavbf",
+      "sourceUrl": "https://www.the2brewers.com/london",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "de bon plats traditionnels",
+        "liveMusic": "Live Music",
+        "pubQuiz": "can’t wait for the quiz",
+        "karaoke": "kill it at karaoke"
+      }
+    },
+    {
+      "osmId": "venue/venue-r5ah5u",
+      "name": "The Black Lion",
+      "venueId": "venue-r5ah5u",
+      "sourceUrl": "https://www.blacklionsurbiton.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Perfect Food & Drink, Anytime",
+        "beerGarden": "Pubs with Beers Gardens"
+      }
+    },
+    {
+      "osmId": "venue/venue-rbkmed",
+      "name": "The Bricklayers Arms",
+      "venueId": "venue-rbkmed",
+      "sourceUrl": "https://www.bricklayerskingston.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "great food, quality drinks",
+        "liveSports": "watching the game"
+      }
+    },
+    {
+      "osmId": "venue/venue-rt46p2",
+      "name": "The County Arms",
+      "venueId": "venue-rt46p2",
+      "sourceUrl": "https://www.countyarms.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Get hungry for some Food",
+        "cocktails": "Kraken espresso martini",
+        "beerGarden": "beer garden near Wandsworth Common"
+      }
+    },
+    {
+      "osmId": "venue/venue-s9p005",
+      "name": "The Ship",
+      "venueId": "venue-s9p005",
+      "sourceUrl": "https://shiprotherhithe.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "menu of pub classics",
+        "beerGarden": "pretty beer garden"
+      }
+    },
+    {
+      "osmId": "venue/venue-tbemxq",
+      "name": "Crooked Billet",
+      "venueId": "venue-tbemxq",
+      "sourceUrl": "https://www.thecrookedbilletwimbledon.com/food-drink",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Wimbledon's best pub for dining",
+        "beerGarden": "deck chairs on the common"
+      }
+    },
+    {
+      "osmId": "venue/venue-tdvny4",
+      "name": "The Grange",
+      "venueId": "venue-tdvny4",
+      "sourceUrl": "https://www.grangeealing.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Fresh, British, Seasonal Food & drink",
+        "cocktails": "Winter Cocktails",
+        "beerGarden": "large pub garden",
+        "nonAlcoholic": "plenty of alcohol free options",
+        "pubQuiz": "weekly pub quiz"
+      }
+    },
+    {
+      "osmId": "venue/venue-u7q2iw",
+      "name": "The Cat's Back",
+      "venueId": "venue-u7q2iw",
+      "sourceUrl": "https://www.thecatsback.co.uk/index",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Pubs serving food",
+        "beerGarden": "Pubs with Beers Gardens",
+        "pool": "Pubs with Pool Tables"
+      }
+    },
+    {
+      "osmId": "venue/venue-ukflm",
+      "name": "Boisdale of Belgravia",
+      "venueId": "venue-ukflm",
+      "sourceUrl": "https://www.boisdale.co.uk/restaurant/belgravia",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "cocktails": "Negroni Bar",
+        "beerGarden": "Bar & Garden Terrace",
+        "liveMusic": "live music Monday to Saturday nights"
+      }
+    },
+    {
+      "osmId": "venue/venue-uov7ku",
+      "name": "The Lamb",
+      "venueId": "venue-uov7ku",
+      "sourceUrl": "https://www.thelambn7.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "nonAlcoholic": "at least four non-alcoholic beer options",
+        "liveMusic": "live music help to make the pub"
+      }
+    },
+    {
+      "osmId": "venue/venue-v1h0f5",
+      "name": "Mother's Ruin Gin Factory",
+      "venueId": "venue-v1h0f5",
+      "sourceUrl": "https://www.mothersruin.net/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "cocktails": "used in cocktails",
+        "nonAlcoholic": "no-alcohol available too",
+        "liveMusic": "DJ & Live Music with Diz Toba"
+      }
+    },
+    {
+      "osmId": "venue/venue-wfc91j",
+      "name": "Joyau",
+      "venueId": "venue-wfc91j",
+      "sourceUrl": "https://joyau.co/london",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "serving breakfast, lunch and dinner"
+      }
+    },
+    {
+      "osmId": "venue/venue-wtaou3",
+      "name": "Beechwood Sport Pub & Kitchen",
+      "venueId": "venue-wtaou3",
+      "sourceUrl": "https://beechwoodsportspub.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "good food, great drinks, and live sport",
+        "cocktails": "classic cocktails",
+        "beerGarden": "sprawling terrace",
+        "liveSports": "live sport",
+        "nonAlcoholic": "alcohol-free favourites"
+      }
+    },
+    {
+      "osmId": "venue/venue-x91ijv",
+      "name": "Angle 90",
+      "venueId": "venue-x91ijv",
+      "sourceUrl": "https://www.angleldn.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Angle London serves traditional Nigerian dishes with a modern, British twist.",
+        "cocktails": "accompanied by creative cocktails",
+        "nonAlcoholic": "we don’t just serve the best cocktails and mocktails in town"
+      }
+    },
+    {
+      "osmId": "venue/venue-xdrh5t",
+      "name": "The Gladstone Arms",
+      "venueId": "venue-xdrh5t",
+      "sourceUrl": "https://www.thegladpub.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Anglo-Indian food",
+        "beerGarden": "intimate beer garden/roof terrace",
+        "liveMusic": "Live music, craft beer"
+      }
+    },
+    {
+      "osmId": "venue/venue-xt3n44",
+      "name": "The Rising Sun",
+      "venueId": "venue-xt3n44",
+      "sourceUrl": "https://www.risingsunwillesden.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "new food offering: The Secret Thai Garden",
+        "beerGarden": "Its large rear garden provides a refreshing outdoor space",
+        "liveSports": "Watch all the live sports action on our multiple widescreen TVs"
+      }
+    },
+    {
+      "osmId": "venue/venue-ygsdq3",
+      "name": "Harry's Bar & Dining Room",
+      "venueId": "venue-ygsdq3",
+      "sourceUrl": "http://harrys.co.uk/abchurch/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Full menu available in restaurant and courtyard, tapas dishes also served in the evenings.",
+        "cocktails": "one of our excellent cocktails made just for you",
+        "beerGarden": "shaded courtyard"
+      }
+    },
+    {
+      "osmId": "venue/venue-ypt5do",
+      "name": "The Rookwood Village",
+      "venueId": "venue-ypt5do",
+      "sourceUrl": "https://therookwoodvillage.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "New Menu is here with Fresh Flavours and Pub Favourites",
+        "cocktails": "from craft beer to cocktails and everything in between.",
+        "liveSports": "Watch live sport & TNT Sports on our large screen TVs",
+        "darts": "Interactive Darts"
+      }
+    },
+    {
+      "osmId": "venue/venue-zfg366",
+      "name": "The Lamb Tavern",
+      "venueId": "venue-zfg366",
+      "sourceUrl": "https://www.lambtavernleadenhall.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "SERVING THE BEST Food & Drink",
+        "cocktails": "Enjoy a cocktail (or two)",
+        "liveSports": "live sport"
+      }
+    },
+    {
+      "osmId": "venue/venue-zh8723",
+      "name": "The London Hospital Tavern",
+      "venueId": "venue-zh8723",
+      "sourceUrl": "https://www.londonhospitaltavern.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Home Cooked Food"
+      }
+    },
+    {
       "osmId": "way/100013433",
       "name": "The Maple Leaf",
       "venueId": null,
@@ -4265,16 +5929,6 @@
       }
     },
     {
-      "osmId": "way/100275592",
-      "name": "The Roebuck",
-      "venueId": "venue-1t2rx3d",
-      "sourceUrl": "https://theroebuck.net/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "we serve truly traditional pub grub"
-      }
-    },
-    {
       "osmId": "way/1005979803",
       "name": "The Fairmile",
       "venueId": null,
@@ -4289,7 +5943,7 @@
       "name": "The Royal Oak",
       "venueId": "venue-kjzhhd",
       "sourceUrl": "https://www.royaloaklondon.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "good food"
       }
@@ -4469,7 +6123,7 @@
       "name": "Tufnell Park Tavern",
       "venueId": "venue-medp78",
       "sourceUrl": "https://www.tufnellparktavern.com/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "Food: 12pm -3pm & 5pm - 10pm"
       }
@@ -4489,8 +6143,8 @@
       "osmId": "way/1027522305",
       "name": "The Black Lion",
       "venueId": "venue-100hpw",
-      "sourceUrl": "https://blacklionplaistow.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "sourceUrl": "http://www.blacklionplaistow.co.uk/",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "homemade pub food made from fresh high-quality ingredients",
         "beerGarden": "we also have a large beer garden",
@@ -4546,10 +6200,11 @@
       "name": "The Albion",
       "venueId": "venue-npyfez",
       "sourceUrl": "https://www.thealbionkingston.com/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "tasty food",
-        "beerGarden": "best beer garden in the area"
+        "beerGarden": "best beer garden in the area",
+        "pubQuiz": "Quiz Night"
       }
     },
     {
@@ -4557,13 +6212,13 @@
       "name": "The Bugle Horn",
       "venueId": "venue-1f2j3q3",
       "sourceUrl": "https://buglehornpub.com/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "beerGarden": "great outdoor space",
-        "liveSports": "Sports Watch all the latest sports",
+        "liveSports": "Watch all the latest sports",
         "liveMusic": "live entertainment, including live music",
-        "darts": "Pool & Darts",
-        "pool": "Pool & Darts",
+        "darts": "set of darts and enjoy a game",
+        "pool": "borrow a pool cue",
         "karaoke": "karaoke nights"
       }
     },
@@ -4682,7 +6337,6 @@
       "amenities": {
         "food": "delicious home-cooked food",
         "beerGarden": "large floodlit beer garden",
-        "liveSports": "all major sporting events",
         "liveMusic": "live music"
       }
     },
@@ -4731,7 +6385,6 @@
       "amenities": {
         "food": "British, seasonal Food & Drink",
         "cocktails": "Spritz Season",
-        "liveSports": "Don’t miss the Autumn Nations 2026",
         "nonAlcoholic": "Alcohol free options available."
       }
     },
@@ -4763,11 +6416,11 @@
       "name": "The Beehive",
       "venueId": "venue-dqqawa",
       "sourceUrl": "https://beehiven17.com/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "Our kitchen&#8217;s open all day long",
+        "food": "Our kitchen’s open all day long as well serving up classic homecooked pub grub",
         "beerGarden": "large beer garden",
-        "liveSports": "We have screens all over the pub showing football"
+        "liveSports": "We have screens all over the pub showing football and other sports all day"
       }
     },
     {
@@ -4813,16 +6466,6 @@
       "amenities": {
         "food": "traditional Indian restaurant",
         "liveSports": "watching all the live sports matches"
-      }
-    },
-    {
-      "osmId": "way/108251970",
-      "name": "The Greene Man",
-      "venueId": null,
-      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/greene-man",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "Serving real ales and traditional pub food"
       }
     },
     {
@@ -4879,23 +6522,10 @@
       "name": "The Ashburnham Arms",
       "venueId": "venue-3xoea3",
       "sourceUrl": "https://www.ashburnham-arms.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "serving hearty home-cooked food",
         "beerGarden": "a large garden to the back"
-      }
-    },
-    {
-      "osmId": "way/1095646248",
-      "name": "The Old Brewery",
-      "venueId": "venue-x7riso",
-      "sourceUrl": "https://www.oldbrewerygreenwich.com/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "Serving up The Best Pub Food in Greenwich",
-        "cocktails": "Season of Winter Cocktails",
-        "beerGarden": "an impressive garden",
-        "liveSports": "Watch the Autumn Nations in Greenwich"
       }
     },
     {
@@ -4952,9 +6582,10 @@
       "name": "The Lucky Saint",
       "venueId": "venue-1ekoksv",
       "sourceUrl": "https://luckysaint.co/pages/the-lucky-saint-pub-london-w1",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "a light menu featuring pub classics"
+        "food": "a light menu featuring pub classics",
+        "nonAlcoholic": "alcohol-free beer brand"
       }
     },
     {
@@ -4967,7 +6598,6 @@
         "food": "Head Chef Juan whips up superb, seasonal pub food",
         "cocktails": "mixing up cracking cocktails",
         "beerGarden": "dog-friendly pub and garden",
-        "liveSports": "Autumn Nations score a table",
         "nonAlcoholic": "generous selection of alcohol-free serves"
       }
     },
@@ -4985,25 +6615,14 @@
       }
     },
     {
-      "osmId": "way/1119244237",
-      "name": "The Yacht",
-      "venueId": null,
-      "sourceUrl": "https://www.flaminggrillpubs.co.uk/pubs/kent/yacht",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "flame-grilled pub grub",
-        "cocktails": "punchy cocktails",
-        "liveSports": "Live sport Book a table"
-      }
-    },
-    {
       "osmId": "way/112544263",
       "name": "Morpeth Arms",
       "venueId": "venue-itkpxe",
-      "sourceUrl": "https://www.morpetharms.com/",
-      "verifiedAt": "2026-10-03",
+      "sourceUrl": "https://www.morpetharms.co.uk/",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "Pub food & Sunday roasts in Westminster"
+        "food": "Food Served 12pm - 9pm",
+        "liveSports": "Do you show live sport? Yes, we show major sporting events"
       }
     },
     {
@@ -5067,8 +6686,8 @@
       "osmId": "way/1136139752",
       "name": "The Swan",
       "venueId": "venue-i4knvc",
-      "sourceUrl": "https://www.theswanchiswick.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "sourceUrl": "https://www.theswanchiswick.co.uk",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "Mediterranean-inspired menu",
         "beerGarden": "wonderful garden for the summer"
@@ -5088,19 +6707,6 @@
         "pubQuiz": "quiz nights",
         "darts": "dart board",
         "pool": "Free Pool Mondays!"
-      }
-    },
-    {
-      "osmId": "way/115190097",
-      "name": "Princess of Wales",
-      "venueId": null,
-      "sourceUrl": "https://www.princessofwalesclapton.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "Food Service Times",
-        "cocktails": "expertly mixed cocktails",
-        "beerGarden": "covered and heated beer garden",
-        "pubQuiz": "weekly pub quiz"
       }
     },
     {
@@ -5126,15 +6732,13 @@
       }
     },
     {
-      "osmId": "way/117232134",
-      "name": "Latymers",
-      "venueId": null,
-      "sourceUrl": "https://www.latymershammersmith.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "osmId": "way/1171226026",
+      "name": "The Green Man",
+      "venueId": "venue-njaus8",
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/middlesex/green-man",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "tempting Thai food menu",
-        "cocktails": "cocktails and spirits",
-        "liveSports": "Big Screen Sports Viewing"
+        "liveMusic": "from live music"
       }
     },
     {
@@ -5145,8 +6749,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Food is served Wednesday to Sunday",
-        "beerGarden": "small seating area outside at the front",
-        "liveSports": "When the cricket is being played"
+        "beerGarden": "small seating area outside at the front"
       }
     },
     {
@@ -5198,10 +6801,10 @@
       "osmId": "way/1208115927",
       "name": "Signature Brew Taproom",
       "venueId": "venue-kvt1gy",
-      "sourceUrl": "https://www.signaturebrew.co.uk/pages/blackhorse-road",
-      "verifiedAt": "2026-10-03",
+      "sourceUrl": "https://www.signaturebrew.co.uk/pages/visit-the-brewers-bar-at-signature-brew-in-blackhorse-road-walthamstow",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "KITCHEN: Monday: CLOSED Tuesday - Thursday: 16:00 - 21:30 Friday - Saturday: 12:00 - 21:30 Sunday: 12:00 - 20:30 FOOD Say hello to our latest pop up kitchen residents, Sireli! serving a unique celebration of Armenian cuisine."
+        "food": "FOOD Say hello to our latest pop up kitchen residents, Sireli! serving a unique celebration of Armenian cuisine."
       }
     },
     {
@@ -5229,11 +6832,11 @@
       "name": "The Nelson Arms",
       "venueId": "venue-1ctdax4",
       "sourceUrl": "https://www.nelsonarms.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "Our New pub food Menu with little Indian fusion twist will be served",
-        "beerGarden": "Screens throughout the pubs including beer garden bug screens too.",
-        "liveSports": "The Nelson Arms is known as a \"Sports Pub\" mainly for Football, Rugby and Cricket."
+        "food": "THE NELSON ARMS FOOD MENU",
+        "beerGarden": "garden which are both available for hire",
+        "liveSports": "We will be showing Huddersfield v AFC Wimbledon"
       }
     },
     {
@@ -5324,12 +6927,10 @@
       "name": "The Old Hall Tavern",
       "venueId": "venue-sszyaw",
       "sourceUrl": "https://www.oldhalltavernchingford.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "we serve proper crowd-pleasers",
-        "cocktails": "Wine & Cocktails",
-        "liveSports": "Live Sport",
-        "nonAlcoholic": "low and no-alcohol options"
+        "food": "From quick bites to pub favourites, you’ll find hearty classics and fresh flavours, with veggie and vegan options too.",
+        "nonAlcoholic": "plus low and no-alcohol options too."
       }
     },
     {
@@ -5337,9 +6938,9 @@
       "name": "The Wych Elm",
       "venueId": "venue-16b6tl5",
       "sourceUrl": "https://thewych.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "Food &mdash; The Wych Elm Kingston"
+        "food": "For our LIVE MENUfollow this link for all current daily specials, small plates and dishes to share and allergen information."
       }
     },
     {
@@ -5426,18 +7027,6 @@
       }
     },
     {
-      "osmId": "way/126610395",
-      "name": "The Half Moon",
-      "venueId": null,
-      "sourceUrl": "https://www.halfmoonhernehill.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "seasonal food",
-        "beerGarden": "impressive outdoor spaces",
-        "liveSports": "Live sport"
-      }
-    },
-    {
       "osmId": "way/1267662909",
       "name": "The Waverley Arms",
       "venueId": null,
@@ -5446,20 +7035,8 @@
       "amenities": {
         "food": "Offering Gastro quality food",
         "cocktails": "Cocktails, Real Ales",
-        "liveSports": "during Rugby World Cup!",
         "pubQuiz": "Nunhead’s best Quiz Night",
         "darts": "Interactive Darts"
-      }
-    },
-    {
-      "osmId": "way/1275812271",
-      "name": "Earl of Essex",
-      "venueId": null,
-      "sourceUrl": "https://www.earlofessex.net/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "Kitchen Hours: Monday to Thursday - 12.00 - 21.00",
-        "beerGarden": "BOOK OUR GARDEN TABLES"
       }
     },
     {
@@ -5502,12 +7079,13 @@
       "name": "The Victoria",
       "venueId": "venue-375qff",
       "sourceUrl": "https://www.thevictoriatottenham.com/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "Yard Sale Pizza",
-        "liveMusic": "open mic nights",
-        "pubQuiz": "WEEKLY QUIZ NIGHT",
-        "happyHour": "HAPPY HOURS WEEKDAYS"
+        "food": "Yard Sale pizzas",
+        "beerGarden": "private terrace",
+        "liveMusic": "monthly live music",
+        "pubQuiz": "weekly pub quiz",
+        "pool": "pool table"
       }
     },
     {
@@ -5696,8 +7274,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "“chop-house-inspired” first-floor restaurant",
-        "cocktails": "basement cocktail bar",
-        "liveMusic": "From live music to Burns Night"
+        "cocktails": "basement cocktail bar"
       }
     },
     {
@@ -5742,20 +7319,6 @@
       }
     },
     {
-      "osmId": "way/135669417",
-      "name": "Dial Arch",
-      "venueId": null,
-      "sourceUrl": "https://www.dialarch.com/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "Food Service Times Monday - Saturday 10am - 10pm",
-        "cocktails": "super-sippable cocktails after a hard day’s work",
-        "beerGarden": "Woolwich's Best Pub Garden to the garden",
-        "liveSports": "Catch all the action of The Autumn Nations in Woolwich",
-        "nonAlcoholic": "Alongside a generous selection of alcohol-free serves."
-      }
-    },
-    {
       "osmId": "way/136012106",
       "name": "The Royal Vauxhall Tavern",
       "venueId": null,
@@ -5787,7 +7350,7 @@
       "name": "George and Devonshire",
       "venueId": "venue-1quhuf",
       "sourceUrl": "https://www.georgeanddevonshire.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "fabulous food and drink",
         "beerGarden": "Outside seating"
@@ -5810,7 +7373,7 @@
       "name": "The Tavern On The Hill",
       "venueId": "venue-1l88ur9",
       "sourceUrl": "https://www.tavernonthehill.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "award-winning burgers",
         "cocktails": "£6 Tommy’s Margs"
@@ -5864,8 +7427,8 @@
       "osmId": "way/142241624",
       "name": "King William IV",
       "venueId": "venue-td3udt",
-      "sourceUrl": "https://www.william-the-fourth.com/",
-      "verifiedAt": "2026-10-03",
+      "sourceUrl": "https://williamthefourth.co.uk/",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "pizza from local legends",
         "cocktails": "alongside cocktails",
@@ -5953,7 +7516,6 @@
         "food": "Food Service Times",
         "cocktails": "Winter Cocktails",
         "beerGarden": "our glorious garden",
-        "liveSports": "Autumn Nations Series",
         "liveMusic": "Live Music Venue"
       }
     },
@@ -5988,16 +7550,6 @@
       "amenities": {
         "food": "serving great food",
         "nonAlcoholic": "non-alcoholic beers"
-      }
-    },
-    {
-      "osmId": "way/147191437",
-      "name": "The Lord Raglan",
-      "venueId": null,
-      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/lord-raglan",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "beerGarden": "idyllic outdoor seating"
       }
     },
     {
@@ -6060,16 +7612,6 @@
       }
     },
     {
-      "osmId": "way/148155199",
-      "name": "The Globe",
-      "venueId": null,
-      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/globe",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "liveSports": "Sky Sports and TNT Sports showcasing the live sports action"
-      }
-    },
-    {
       "osmId": "way/1484038886",
       "name": "The Bell Inn",
       "venueId": null,
@@ -6113,8 +7655,7 @@
       "amenities": {
         "food": "properly good pub food",
         "cocktails": "winter cocktails",
-        "beerGarden": "beautiful beer garden",
-        "liveSports": "Autumn Nations Rugby"
+        "beerGarden": "beautiful beer garden"
       }
     },
     {
@@ -6153,7 +7694,6 @@
         "food": "Check out Our Pub Food",
         "cocktails": "quirky cocktails",
         "beerGarden": "or the garden – it’s heated and covered",
-        "liveSports": "Autumn Nations Series",
         "pubQuiz": "weekly quiz"
       }
     },
@@ -6182,11 +7722,22 @@
       }
     },
     {
+      "osmId": "way/151490690",
+      "name": "The Bird in Hand",
+      "venueId": "venue-xji6if",
+      "sourceUrl": "https://thebirdinhandlondon.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Seasonal Mediterranean sharing plates, crisp Roman-style pizzas & exceptional cocktails.",
+        "cocktails": "exceptional cocktails."
+      }
+    },
+    {
       "osmId": "way/153698493",
       "name": "Sun and 13 Cantons",
       "venueId": "venue-1h8bsgr",
       "sourceUrl": "https://www.sunand13cantons.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "food from Mamapen - our new resident kitchen serving delicious Cambodian cuisine",
         "beerGarden": "Outside seating"
@@ -6207,10 +7758,10 @@
       "name": "The Bull",
       "venueId": "venue-1rdh1p6",
       "sourceUrl": "https://www.thebullhighgate.com/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "seasonal British food",
-        "beerGarden": "Garden Pub in the Heart of Highgate"
+        "beerGarden": "garden Pub in the Heart of Highgate"
       }
     },
     {
@@ -6228,11 +7779,23 @@
       "osmId": "way/1545736312",
       "name": "Whelans",
       "venueId": "venue-ndbkyg",
-      "sourceUrl": "https://whelanspubs.co.uk/whelanskingston/",
-      "verifiedAt": "2026-10-03",
+      "sourceUrl": "https://whelanspubs.co.uk/whelans-irish-traditional/whelans-kingston/",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "cocktails": "The house cocktail list",
-        "beerGarden": "Our garden patio"
+        "cocktails": "Cocktail Menu",
+        "beerGarden": "Our garden patio is perfect"
+      }
+    },
+    {
+      "osmId": "way/1547410549",
+      "name": "The Florence",
+      "venueId": "venue-nhfdof",
+      "sourceUrl": "https://www.florencehernehill.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Great Food, Big Games & Garden Vibes",
+        "beerGarden": "one of the best beer gardens",
+        "liveSports": "live sport on screen"
       }
     },
     {
@@ -6303,8 +7866,8 @@
       "osmId": "way/155363891",
       "name": "The Three Kings",
       "venueId": "venue-127tr3j",
-      "sourceUrl": "https://www.thethreekings.london/",
-      "verifiedAt": "2026-10-03",
+      "sourceUrl": "https://www.thethreekings.london",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "fine selection of food and drink"
       }
@@ -6389,12 +7952,11 @@
       "osmId": "way/157322970",
       "name": "Commercial Tavern",
       "venueId": "venue-eamebn",
-      "sourceUrl": "https://www.urbanpubsandbars.com/venues/commercial-tavern",
-      "verifiedAt": "2026-10-03",
+      "sourceUrl": "https://www.commercial-tavern.com/",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "Now serving mouthwatering burgers and sides by MEAT STOP.",
-        "liveMusic": "Music Events",
-        "karaoke": "Karaoke at Commercial Tavern"
+        "cocktails": "Cocktails"
       }
     },
     {
@@ -6416,8 +7978,7 @@
       "amenities": {
         "food": "Fabulous food",
         "cocktails": "cocktail from the bar",
-        "beerGarden": "head out to the garden",
-        "liveSports": "Come for a pint and the football"
+        "beerGarden": "head out to the garden"
       }
     },
     {
@@ -6473,10 +8034,10 @@
       "name": "Duke of Wellington",
       "venueId": "venue-1xky4gf",
       "sourceUrl": "https://www.dukeofwellingtonbelgravia.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "our old London pub serves traditional food",
-        "cocktails": "Cocktails Available A selection of cocktails may be available",
+        "cocktails": "A selection of cocktails may be available",
         "beerGarden": "Outdoor area",
         "liveSports": "Live sport on TV"
       }
@@ -6516,7 +8077,6 @@
         "food": "Best Food in Shepherds Bush",
         "cocktails": "new winter cocktail list",
         "beerGarden": "Winter Drinks in Our Covered Courtyard",
-        "liveSports": "Autumn Nations Rugby in Shepherd’s Bush",
         "liveMusic": "live blues music to the pub",
         "pubQuiz": "quizzes, pop-ups"
       }
@@ -6525,10 +8085,10 @@
       "osmId": "way/159296346",
       "name": "Ye Olde Rose and Crown",
       "venueId": "venue-a0fypd",
-      "sourceUrl": "https://yeolderoseandcrowntheatrepub.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "sourceUrl": "https://www.yeolderoseandcrowntheatrepub.co.uk/",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "OUR KITCHEN IS OPEN MONDAY-SATURDAY"
+        "food": "All food served at Ye Olde Rose and Crown is home cooked"
       }
     },
     {
@@ -6551,7 +8111,6 @@
       "amenities": {
         "food": "fabulous fresh food",
         "beerGarden": "superb courtyard",
-        "liveSports": "Home of Sport In the City",
         "darts": "Darts Board"
       }
     },
@@ -6732,7 +8291,7 @@
       "name": "The Dove",
       "venueId": "venue-1p5ftm3",
       "sourceUrl": "https://www.dovehammersmith.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "wonderful seasonal food",
         "beerGarden": "Outside seating"
@@ -6746,7 +8305,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Classic, Creative Cuisine",
-        "liveSports": "OPEN FOR EVERY GAMEDAY",
         "liveMusic": "Iconic Music Venue"
       }
     },
@@ -6765,12 +8323,11 @@
       "osmId": "way/175632028",
       "name": "Express Tavern",
       "venueId": "venue-1cd4i4s",
-      "sourceUrl": "https://www.expresstavern.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "sourceUrl": "http://www.expresstavern.co.uk/",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "hearty food",
-        "beerGarden": "spectacular outdoor space",
-        "liveSports": "WATCH LIVE SPORTS ON-SITE"
+        "food": "freshly prepared food",
+        "beerGarden": "spectacular outdoor space"
       }
     },
     {
@@ -6885,11 +8442,11 @@
       "name": "The Gun",
       "venueId": "venue-2iz4qz",
       "sourceUrl": "https://www.thegundocklands.com/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "Food served",
-        "beerGarden": "beautiful pub garden",
-        "liveSports": "Live sport"
+        "food": "We offer a menu featuring refined pub classics crafted from fresh, seasonal ingredients.",
+        "beerGarden": "experience our exceptional riverside terrace",
+        "liveSports": "Live sport Check out what live sport we have coming up."
       }
     },
     {
@@ -6919,9 +8476,9 @@
       "name": "The Churchill Arms",
       "venueId": "venue-17h8293",
       "sourceUrl": "https://www.churchillarmskensington.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "authentic Thai cuisine",
+        "food": "serving real ales and authentic Thai cuisine",
         "liveSports": "Live Sport"
       }
     },
@@ -6943,7 +8500,7 @@
       "name": "The Pilot Inn",
       "venueId": "venue-1463ly",
       "sourceUrl": "https://www.pilotgreenwich.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "Food served",
         "liveSports": "Big Screen Sports Viewing"
@@ -6969,7 +8526,6 @@
       "amenities": {
         "food": "delicious seasonal pub food",
         "cocktails": "Negroni Month",
-        "liveSports": "Rugby at Westow House",
         "pubQuiz": "Classic Pub Quiz"
       }
     },
@@ -6991,11 +8547,11 @@
       "name": "The George Tavern",
       "venueId": "venue-u41dix",
       "sourceUrl": "https://thegeorgetavern.london/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "We're now serving fresh hand stretched pizza",
-        "beerGarden": "pizza in the garden!",
-        "liveMusic": "enjoy live music"
+        "food": "We're now serving fresh hand stretched pizza in the garden!",
+        "beerGarden": "in the garden!",
+        "liveMusic": "enjoy live music from a range of different artists"
       }
     },
     {
@@ -7023,15 +8579,14 @@
       "osmId": "way/198639606",
       "name": "The Village Public House",
       "venueId": "venue-1czr9op",
-      "sourceUrl": "https://village-walthamstow.com/",
-      "verifiedAt": "2026-10-03",
+      "sourceUrl": "https://www.village-walthamstow.com/",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "New Menu is here with Fresh Flavours and Pub Favourites",
-        "cocktails": "La Dolce Vita — Our Summer Spritz Menu Is Here",
-        "beerGarden": "Pub Garden in Walthamstow | The Village",
-        "liveSports": "live sports and more...",
+        "food": "We serve a wide range of freshly cooked dishes",
+        "beerGarden": "Our newly refurbished garden is the best beer garden",
+        "liveSports": "live sports and more",
         "pubQuiz": "Quiz Night",
-        "darts": "including Darts, board games,"
+        "darts": "including Darts, board games"
       }
     },
     {
@@ -7043,7 +8598,6 @@
       "amenities": {
         "food": "great food",
         "beerGarden": "front and back gardens",
-        "liveSports": "Sports fans won’t miss a kick",
         "darts": "classic dartboard",
         "pool": "game of pool"
       }
@@ -7079,14 +8633,16 @@
       }
     },
     {
-      "osmId": "way/203530059",
-      "name": "The Sutton Arms",
-      "venueId": null,
-      "sourceUrl": "https://www.sutton-arms.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "osmId": "way/203526627",
+      "name": "The Shakespeare",
+      "venueId": "venue-1pq1x5j",
+      "sourceUrl": "https://www.theshakespearebarbican.co.uk/",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "Food served",
-        "liveSports": "Live sport"
+        "cocktails": "Americano Campari bitter, sweet vermouth, soda water",
+        "nonAlcoholic": "Non-alcoholic options available",
+        "liveMusic": "We can arrange for live music",
+        "happyHour": "HAPPY HOUR DAILY 4PM - 6PM"
       }
     },
     {
@@ -7135,7 +8691,6 @@
         "food": "Food & Drink Tuck into Wandsworth's seasonal favourites",
         "cocktails": "seasonal cocktails",
         "beerGarden": "courtyard catch ups",
-        "liveSports": "match day atmosphere",
         "nonAlcoholic": "non-alcoholic options"
       }
     },
@@ -7160,8 +8715,7 @@
       "sourceUrl": "https://www.crownandanchorchiswick.com/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "exceptional food",
-        "liveSports": "big sports match"
+        "food": "exceptional food"
       }
     },
     {
@@ -7222,18 +8776,6 @@
         "food": "purveyor of quality drinks and food",
         "beerGarden": "BEER ROOF GARDEN",
         "liveSports": "Sports & SCREENS"
-      }
-    },
-    {
-      "osmId": "way/209434696",
-      "name": "The Packhorse and Talbot",
-      "venueId": null,
-      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/packhorse-and-talbot",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "beerGarden": "our beer garden is perfect for a catch-up",
-        "liveMusic": "watch our live music nights",
-        "pubQuiz": "round up a team for quiz night"
       }
     },
     {
@@ -7329,10 +8871,10 @@
       "osmId": "way/223934463",
       "name": "The Salisbury",
       "venueId": "venue-19svw63",
-      "sourceUrl": "https://thesalisburyhotelpub.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "sourceUrl": "https://thesalisburyhotelpub.co.uk",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "Food Food menu"
+        "food": "Food menu"
       }
     },
     {
@@ -7353,9 +8895,10 @@
       "name": "Holly Tree",
       "venueId": "venue-1ezx1ur",
       "sourceUrl": "https://thehollytreepub.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "beerGarden": "leave our garden open"
+        "beerGarden": "leave our garden open",
+        "nonAlcoholic": "creative non-alcoholic options"
       }
     },
     {
@@ -7394,20 +8937,6 @@
       }
     },
     {
-      "osmId": "way/227827311",
-      "name": "The Alma",
-      "venueId": "venue-cgh71l",
-      "sourceUrl": "https://thealmaislington.com/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "Our kitchen delights seven days a week",
-        "beerGarden": "Beer Garden",
-        "liveSports": "Catch every major sporting event",
-        "liveMusic": "Live Irish Folk band",
-        "pubQuiz": "Sunday Quiz"
-      }
-    },
-    {
       "osmId": "way/227830213",
       "name": "The Snooty Fox",
       "venueId": "venue-1ae0qgz",
@@ -7416,18 +8945,6 @@
       "amenities": {
         "food": "The Snooty Fox serves modern pub classics with a twist…",
         "pubQuiz": "Every Tuesday - Pub Quiz"
-      }
-    },
-    {
-      "osmId": "way/230252979",
-      "name": "The Canonbury Tavern",
-      "venueId": null,
-      "sourceUrl": "https://www.thecanonbury.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "Serving the best of British Food & Drink",
-        "cocktails": "cocktails worth raising a glass to",
-        "beerGarden": "Pub, Dining & Beer Garden"
       }
     },
     {
@@ -7440,7 +8957,6 @@
         "food": "featuring pizza, burgers & other Italian eats",
         "cocktails": "beers, cocktails, all the sport",
         "beerGarden": "a beer garden",
-        "liveSports": "all the sport",
         "liveMusic": "live music",
         "pubQuiz": "THURSDAY PUB QUIZ"
       }
@@ -7531,23 +9047,14 @@
       }
     },
     {
-      "osmId": "way/237795434",
-      "name": "The Punch Bowl",
-      "venueId": null,
-      "sourceUrl": "https://butcombe.com/the-punchbowl-pub-mayfair/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "Classical Pub Food On Farm Street",
-        "cocktails": "classic cocktails"
-      }
-    },
-    {
       "osmId": "way/237918839",
       "name": "The Selkirk",
       "venueId": "venue-o0dgac",
       "sourceUrl": "https://www.theselkirksw17.com/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
+        "food": "epic food",
+        "cocktails": "Three different cocktails",
         "beerGarden": "Great beer garden"
       }
     },
@@ -7633,11 +9140,10 @@
       "name": "The Arch",
       "venueId": "venue-1y2tpcy",
       "sourceUrl": "https://thearchwembley.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "Stylish Modern Indian Restaurant, Bar & Hotel",
-        "beerGarden": "large beer garden",
-        "liveSports": "sports bar, restaurant and hotel"
+        "food": "Premium Indian food showcasing all the classics as well as a diverse burger menu.",
+        "beerGarden": "large beer garden"
       }
     },
     {
@@ -7656,11 +9162,13 @@
       "osmId": "way/249343304",
       "name": "The Lyric",
       "venueId": "venue-7tarkc",
-      "sourceUrl": "http://www.lyricsoho.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "sourceUrl": "http://www.lyricsoho.co.uk",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "pub classics like fish and chips and Sunday roasts",
-        "liveSports": "catch live sports"
+        "liveSports": "catch live sports",
+        "liveMusic": "live music and quiz nights",
+        "pubQuiz": "live music and quiz nights"
       }
     },
     {
@@ -7727,10 +9235,9 @@
       "osmId": "way/258498191",
       "name": "The George Staples",
       "venueId": "venue-i81gs6",
-      "sourceUrl": "https://www.greatlocalpubs.co.uk/pubs/george-staples-sidcup",
-      "verifiedAt": "2026-10-03",
+      "sourceUrl": "https://www.greatukpubs.co.uk/george-staples-sidcup",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "Pub Food at George Staples Sidcup",
         "beerGarden": "large beer garden out front"
       }
     },
@@ -7772,7 +9279,7 @@
       "name": "The Good Reader",
       "venueId": "venue-hoql3p",
       "sourceUrl": "https://thegoodreader.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "Independent gastropub"
       }
@@ -7793,20 +9300,10 @@
       "name": "Berrylands",
       "venueId": "venue-rqytty",
       "sourceUrl": "https://www.theberrylands.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "All our food is cooked from scratch"
-      }
-    },
-    {
-      "osmId": "way/274708128",
-      "name": "The Counting House",
-      "venueId": null,
-      "sourceUrl": "https://www.the-counting-house.com/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "The perfect place to eat, drink & stay in the City of London, the opulent pub has a seasonal menu with classic British handmade pies at the heart of a delicious dining offer.",
-        "liveSports": "Live Sport We now show live sport at The Counting House."
+        "food": "All our food is cooked from scratch",
+        "beerGarden": "Children's outdoor play area"
       }
     },
     {
@@ -7833,17 +9330,6 @@
         "liveSports": "live sport",
         "liveMusic": "live music",
         "happyHour": "Heroically priced Happy Hour"
-      }
-    },
-    {
-      "osmId": "way/279533213",
-      "name": "The Coach and Horses",
-      "venueId": "venue-phqazo",
-      "sourceUrl": "https://www.coachandhorsessoho.pub/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "delicious food and drink",
-        "beerGarden": "Outside seating"
       }
     },
     {
@@ -7905,11 +9391,11 @@
       "osmId": "way/290081133",
       "name": "The Goat Tavern",
       "venueId": "venue-1rsemdf",
-      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/goat-tavern-mayfair",
-      "verifiedAt": "2026-10-03",
+      "sourceUrl": "https://www.greeneking-pubs.co.uk/pubs/greater-london/goat-tavern-mayfair/",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "Try out our menu: packed with flavour, full of pub classics and brimming with value for money.",
-        "liveSports": "showing live sports on our Sky Sports and TNT Sports screens."
+        "food": "Try out our menu: packed with flavour, full of pub classics",
+        "liveSports": "showing live sports on our Sky Sports and TNT Sports screens"
       }
     },
     {
@@ -7954,7 +9440,7 @@
       "name": "Boaters Inn",
       "venueId": "venue-gpmqfc",
       "sourceUrl": "https://www.boaterskingston.com/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "hearty pub plates",
         "beerGarden": "riverside beer garden"
@@ -8008,20 +9494,10 @@
       "name": "Coach and Horses",
       "venueId": "venue-mpkn36",
       "sourceUrl": "https://www.coachandhorsesmayfair.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "Good food, great drinks",
+        "food": "Good food, great drinks, classic Mayfair character",
         "beerGarden": "our outdoor tables provide the perfect spot"
-      }
-    },
-    {
-      "osmId": "way/299039550",
-      "name": "The Only Running Footman",
-      "venueId": "venue-6hsjmi",
-      "sourceUrl": "https://www.thefootmanmayfair.com/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "modern British dining"
       }
     },
     {
@@ -8035,23 +9511,11 @@
       }
     },
     {
-      "osmId": "way/299668095",
-      "name": "The Trafalgar Tavern",
-      "venueId": null,
-      "sourceUrl": "https://www.trafalgartavern.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "Whether you’re popping in for a pub lunch, midday pint or Sunday roast with friends and family, we’ve got a delicious seasonal menu including those much loved classics such as our famous fish & chips.",
-        "cocktails": "Not to mention our signature and timeless cocktails, which can be enjoyed all year round.",
-        "pubQuiz": "We accept online reservations for the pub, Nile restaurant, terrace bookings and quiz and comedy nights."
-      }
-    },
-    {
       "osmId": "way/299668096",
       "name": "The Yacht",
       "venueId": "venue-137r3lb",
       "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/yacht",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "Our pub food menu offers traditional classics"
       }
@@ -8066,7 +9530,6 @@
         "food": "Our talented kitchen team serve delicious dishes all day, every day",
         "cocktails": "Our Winter Cocktails",
         "beerGarden": "our vibrant pub garden is the perfect place",
-        "liveSports": "Watch every tackle, try and match-winning moment",
         "nonAlcoholic": "alcohol-free serves for those choosing to skip the booze"
       }
     },
@@ -8083,20 +9546,6 @@
         "pubQuiz": "live music and quiz nights",
         "darts": "Dartboard",
         "pool": "Pool Table"
-      }
-    },
-    {
-      "osmId": "way/305154786",
-      "name": "Regent",
-      "venueId": null,
-      "sourceUrl": "https://theregentbalham.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "great food",
-        "cocktails": "cocktails",
-        "beerGarden": "secret garden",
-        "liveSports": "live sport",
-        "liveMusic": "Live Music"
       }
     },
     {
@@ -8146,7 +9595,6 @@
       "amenities": {
         "food": "Amazing Food",
         "cocktails": "Cocktails",
-        "liveSports": "Rugby Info",
         "pubQuiz": "Monthly Quiz Night"
       }
     },
@@ -8199,17 +9647,6 @@
       }
     },
     {
-      "osmId": "way/31235539",
-      "name": "The Railway Tavern",
-      "venueId": null,
-      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/railway",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "serves a menu that's bursting with flavour",
-        "beerGarden": "sip away from our idyllic beer garden"
-      }
-    },
-    {
       "osmId": "way/31293000",
       "name": "Hope & Anchor",
       "venueId": "venue-qky1h5",
@@ -8218,17 +9655,6 @@
       "amenities": {
         "food": "Free pub classic? Oh yes.",
         "liveMusic": "we still have live music nights regularly"
-      }
-    },
-    {
-      "osmId": "way/31324086",
-      "name": "Steam Passage Tavern",
-      "venueId": null,
-      "sourceUrl": "https://www.greatlocalpubs.co.uk/pubs/steam-passage-angel",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "great selection of food and drinks",
-        "beerGarden": "seated outside area"
       }
     },
     {
@@ -8293,6 +9719,17 @@
       }
     },
     {
+      "osmId": "way/31900825",
+      "name": "The Albion",
+      "venueId": "venue-1wgjxs6",
+      "sourceUrl": "https://www.the-albion.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "quality food and drink",
+        "beerGarden": "English country garden"
+      }
+    },
+    {
       "osmId": "way/321450395",
       "name": "Craft Beer Co",
       "venueId": null,
@@ -8341,29 +9778,6 @@
       }
     },
     {
-      "osmId": "way/332723845",
-      "name": "The Salutation",
-      "venueId": null,
-      "sourceUrl": "https://www.salutationhammersmith.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "Our Khun Pakin Thai restaurant offers an exceptional dining experience",
-        "beerGarden": "Garden Outside seating"
-      }
-    },
-    {
-      "osmId": "way/333082445",
-      "name": "Pub on the Park",
-      "venueId": null,
-      "sourceUrl": "https://pubonthepark.com/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "Kitchen open 12pm - 10pm",
-        "beerGarden": "London Fields Beer Garden",
-        "liveSports": "If you’re booking in for any sports screening"
-      }
-    },
-    {
       "osmId": "way/334030129",
       "name": "The Dolphin",
       "venueId": "venue-o1bguk",
@@ -8380,9 +9794,9 @@
       "name": "The Albert",
       "venueId": "venue-1sbjuy5",
       "sourceUrl": "https://www.thealbertkingston.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "Our lip-smacking menu",
+        "food": "best pub dining",
         "cocktails": "Kingston's best cocktails",
         "beerGarden": "The beer garden is great",
         "liveSports": "Watch the Autumn Nations",
@@ -8404,9 +9818,10 @@
       "name": "The Woodman",
       "venueId": "venue-gail8a",
       "sourceUrl": "https://www.woodman-battersea.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "beerGarden": "quirky courtyard garden"
+        "food": "Eat with us",
+        "beerGarden": "courtyard garden provides a peaceful outdoor haven"
       }
     },
     {
@@ -8414,7 +9829,7 @@
       "name": "The Cocoanut",
       "venueId": "venue-1yztt02",
       "sourceUrl": "https://www.cocoanut.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "Serving up the finest Thai cuisine",
         "beerGarden": "Beer garden"
@@ -8501,7 +9916,6 @@
         "food": "Best in British Food & drink",
         "cocktails": "A range of cocktails",
         "beerGarden": "Our outdoor seating",
-        "liveSports": "Autumn Nations 2026",
         "nonAlcoholic": "alcohol-free options"
       }
     },
@@ -8514,19 +9928,6 @@
       "amenities": {
         "food": "great food",
         "beerGarden": "Beer Garden"
-      }
-    },
-    {
-      "osmId": "way/360905405",
-      "name": "Elgin",
-      "venueId": null,
-      "sourceUrl": "https://www.theelgin.com/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "cocktails": "Creativity & Cocktails",
-        "liveMusic": "LIVE MUSIC Sundays",
-        "pubQuiz": "QUIZ NIGHT Tuesdays",
-        "happyHour": "THURSDAY FIXES £9 cocktails"
       }
     },
     {
@@ -8714,7 +10115,6 @@
         "food": "Food &#038; Drink",
         "cocktails": "range of cocktails",
         "beerGarden": "great outdoors with our covered and heated terrace",
-        "liveSports": "UEFA Nations League: Croatia v England",
         "pubQuiz": "The Star By Hackney Downs Pub Quiz",
         "happyHour": "Thursday 2-4-£14 Cocktails"
       }
@@ -8724,10 +10124,9 @@
       "name": "The Lord Nelson",
       "venueId": "venue-vx9pky",
       "sourceUrl": "https://www.thelordnelsonbrentford.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "The Lord Nelson promises good food",
-        "beerGarden": "is our beautiful covered & heated garden"
+        "food": "good food"
       }
     },
     {
@@ -8833,9 +10232,9 @@
       "name": "East London Brewery",
       "venueId": "venue-u6tewt",
       "sourceUrl": "https://www.eastlondonbrewing.com/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "incredible open-fire food from Play With Fire"
+        "food": "incredible open-fire food from [Play With Fire"
       }
     },
     {
@@ -8896,9 +10295,10 @@
       "name": "Blue Posts",
       "venueId": "venue-8yibly",
       "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/blue-posts-st-james-s",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "brilliant menu filled with refined pub classics, like steaks, burgers, fish & chips and Sunday roasts",
+        "food": "refined pub classics, like steaks, burgers, fish & chips and Sunday roasts",
+        "cocktails": "a cocktail",
         "beerGarden": "Sit outside and watch the world go by under our awning"
       }
     },
@@ -8941,9 +10341,9 @@
       "name": "Ye Olde Mitre",
       "venueId": "venue-lkjwk4",
       "sourceUrl": "https://www.yeoldemitreholborn.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "great home-made bar snacks",
+        "food": "home-made bar snacks",
         "beerGarden": "Outside seating"
       }
     },
@@ -8980,7 +10380,6 @@
         "food": "Our food menus celebrate British pub classics",
         "cocktails": "classic cocktails",
         "beerGarden": "our pub garden",
-        "liveSports": "Autumn Internationals 2026",
         "nonAlcoholic": "including alcohol-free"
       }
     },
@@ -9091,16 +10490,6 @@
       }
     },
     {
-      "osmId": "way/430448024",
-      "name": "The Hand & Shears",
-      "venueId": null,
-      "sourceUrl": "https://thehandandshears.com/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "Kitchen Menu Home"
-      }
-    },
-    {
       "osmId": "way/430938730",
       "name": "The Coborn",
       "venueId": "venue-17nbxyh",
@@ -9170,12 +10559,11 @@
       "osmId": "way/434179033",
       "name": "Catford Bridge Tavern",
       "venueId": "venue-fo6wxd",
-      "sourceUrl": "https://catfordtavern.com/",
-      "verifiedAt": "2026-10-03",
+      "sourceUrl": "https://www.catfordtavern.com/",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "Serving Pub Classics",
+        "food": "classic pub dishes",
         "beerGarden": "Grab a pint on the terrace",
-        "liveSports": "Rugby at Catford Bridge Tavern",
         "pubQuiz": "Pub quiz Every Tuesday"
       }
     },
@@ -9200,7 +10588,6 @@
         "food": "Now, let’s talk food.",
         "cocktails": "Surbiton's Best Winter Cocktails",
         "beerGarden": "Surbiton's Best Beer Garden",
-        "liveSports": "Watch every tackle, try and match-winning moment",
         "nonAlcoholic": "Alongside a generous selection of alcohol-free serves."
       }
     },
@@ -9223,10 +10610,11 @@
       "name": "The European",
       "venueId": "venue-gseiop",
       "sourceUrl": "https://theeuropeanpub.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "Food Food menu",
-        "beerGarden": "Roof Terrace"
+        "food": "Food [Food menu](https://theeuropeanpub.co.uk/food/)",
+        "beerGarden": "Roof Terrace Hire",
+        "liveMusic": "Live Music Wednesdays"
       }
     },
     {
@@ -9243,15 +10631,14 @@
     },
     {
       "osmId": "way/445139621",
-      "name": "The Star Of Bethnal Green",
+      "name": "The Star of Bethnal Green",
       "venueId": "venue-1hsf01d",
       "sourceUrl": "https://starofbethnalgreen.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "food menu from our kitchen residents",
+        "food": "food menu from our kitchen residents Patty & Pickle",
         "cocktails": "Thursday 2-4-£14 Cocktails",
         "pubQuiz": "Drag Pub Quiz with Margarine",
-        "happyHour": "£6 Margarita Monday",
         "karaoke": "Private Karaoke Rooms"
       }
     },
@@ -9333,23 +10720,10 @@
       "name": "Hand in Hand",
       "venueId": "venue-1pfypco",
       "sourceUrl": "https://www.thehandinhandwimbledon.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "hearty-and-delicious pub classics",
-        "beerGarden": "outdoor seating",
-        "liveSports": "Catch the Autumn Nations live"
-      }
-    },
-    {
-      "osmId": "way/450830265",
-      "name": "The Crooked Billet",
-      "venueId": null,
-      "sourceUrl": "https://www.thecrookedbilletwimbledon.com/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "Food Service Times",
-        "cocktails": "deliciously sip-worthy cocktails",
-        "liveSports": "Autumn Nations 2026 Catch the Action"
+        "beerGarden": "outdoor seating"
       }
     },
     {
@@ -9450,11 +10824,11 @@
       "osmId": "way/467012110",
       "name": "Parlour Kensal",
       "venueId": "venue-1dn2ekm",
-      "sourceUrl": "https://www.parlourkensal.com/",
-      "verifiedAt": "2026-10-03",
+      "sourceUrl": "http://parlourkensal.com/",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "Delicious Food & Iconic Film Moments",
-        "beerGarden": "Yes we STILL have a Garden"
+        "food": "We Do Casual Glasses of Mulled Wine, Fancy Stand Up Canape GROUP Drinks - Sit Down Feasts with Crackers & Funny Hats, Explore the Options.",
+        "beerGarden": "Yes we STILL have a Garden.."
       }
     },
     {
@@ -9466,16 +10840,6 @@
       "amenities": {
         "food": "fantastic food",
         "beerGarden": "a beer garden"
-      }
-    },
-    {
-      "osmId": "way/469688061",
-      "name": "Lady Mildmay",
-      "venueId": null,
-      "sourceUrl": "https://www.ladymildmay.com/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "Kitchen: 12 - 3 / 6 - 10pm"
       }
     },
     {
@@ -9504,13 +10868,14 @@
     },
     {
       "osmId": "way/475957291",
-      "name": "Coach and Horses",
+      "name": "Coach & Horses",
       "venueId": "venue-nyowgc",
       "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/coach-and-horses-soho",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "Enjoy traditional pub food fayre",
         "cocktails": "expertly crafted cocktails",
+        "liveSports": "watching a football match shown on TV",
         "karaoke": "karaoke night with friends"
       }
     },
@@ -9701,9 +11066,9 @@
       "name": "The Vintry",
       "venueId": "venue-18tu8ho",
       "sourceUrl": "https://www.vintryec4.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "refined pub classics, hearty mains and small plates"
+        "food": "We offer a menu featuring refined pub classics, hearty mains and small plates crafted from fresh, seasonal ingredients."
       }
     },
     {
@@ -9739,11 +11104,11 @@
       "osmId": "way/527245738",
       "name": "The Enterprise",
       "venueId": "venue-1xu6lap",
-      "sourceUrl": "https://www.the-enterprise.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "sourceUrl": "http://www.the-enterprise.co.uk/",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "Roshan's Kitchen serving authentic Sri Lankan and Jamaican food",
-        "beerGarden": "our Mediterranean Garden",
+        "beerGarden": "Mediterranean Garden",
         "liveSports": "live sport"
       }
     },
@@ -9782,19 +11147,6 @@
       }
     },
     {
-      "osmId": "way/531239102",
-      "name": "The Rose and Crown",
-      "venueId": null,
-      "sourceUrl": "https://www.roseandcrownwimbledon.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "seasonal British dishes",
-        "cocktails": "two welcome cocktails",
-        "beerGarden": "great garden",
-        "nonAlcoholic": "Berry Hugo 0.0%s"
-      }
-    },
-    {
       "osmId": "way/531373357",
       "name": "Two Chairmen",
       "venueId": "venue-vpuut8",
@@ -9808,11 +11160,11 @@
       "osmId": "way/532061943",
       "name": "Clissold Arms",
       "venueId": "venue-1vlj3j2",
-      "sourceUrl": "https://clissoldarms.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "sourceUrl": "https://clissoldarms.co.uk",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "serving a variety of delectable Mediterranean dishes",
-        "beerGarden": "all year round heated and covered bear garden"
+        "beerGarden": "outside in our large private garden"
       }
     },
     {
@@ -9830,21 +11182,11 @@
       }
     },
     {
-      "osmId": "way/536043069",
-      "name": "The De Beauvoir Arms",
-      "venueId": null,
-      "sourceUrl": "https://www.debeauvoirarms.com/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "Kitchen Mon - Sat: Noon - 4pm | 6pm - 10pm Sunday: Noon - 4pm | Dinner, 6pm - 9pm"
-      }
-    },
-    {
       "osmId": "way/536399756",
       "name": "The Prince",
       "venueId": "venue-whntd2",
       "sourceUrl": "https://www.theprincen16.com/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "finest pub food we've tasted"
       }
@@ -9861,31 +11203,6 @@
         "liveSports": "Live Sport",
         "liveMusic": "Live music at 9:30pm",
         "pubQuiz": "Pub Quiz"
-      }
-    },
-    {
-      "osmId": "way/538990064",
-      "name": "Bag O Nails",
-      "venueId": null,
-      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/bag-o-nails",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "You can savour the flavour of our burgers, soups, steaks or sharers and pair your meal with our wide selection of drinks.",
-        "beerGarden": "Watch the city go by as you sit in our beer garden or take a trip to Buckingham Palace just seven minutes away."
-      }
-    },
-    {
-      "osmId": "way/539369586",
-      "name": "The White Bear",
-      "venueId": null,
-      "sourceUrl": "https://www.whitebearkennington.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "Food Served 12:00 - 21:30",
-        "cocktails": "classic cocktails",
-        "beerGarden": "our pub garden in Kennington",
-        "liveSports": "Watch the Autumn Nations",
-        "nonAlcoholic": "Low and No Alcohol"
       }
     },
     {
@@ -9909,17 +11226,6 @@
         "cocktails": "seasonal cocktails",
         "beerGarden": "charming Beer Garden",
         "pubQuiz": "popular Pub Quiz"
-      }
-    },
-    {
-      "osmId": "way/547171167",
-      "name": "The Thomas Cubitt",
-      "venueId": null,
-      "sourceUrl": "https://www.cubitthouse.co.uk/the-thomas-cubitt-belgravia/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "Serving a seasonal menu of British classics including perfectly grilled steaks, fish and chips and a very special Sunday lunch.",
-        "cocktails": "Drop in for a pint or a cocktail and maybe a snack or two."
       }
     },
     {
@@ -9948,9 +11254,9 @@
       "name": "The Golden Fleece",
       "venueId": "venue-fgxk7q",
       "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/golden-fleece",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "Our menu is chock-full of hearty pub food classics",
+        "food": "Our menu is chock-full of hearty pub food classics and succulent signature dishes",
         "beerGarden": "Make yourself at home in the beer garden",
         "liveSports": "catch all the latest live sports action"
       }
@@ -9998,18 +11304,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "the grill is sizzling and so is the atmosphere",
-        "beerGarden": "open, airy beer garden",
-        "liveSports": "Live sport Book a table for all the top sporting action"
-      }
-    },
-    {
-      "osmId": "way/558503742",
-      "name": "The Harp",
-      "venueId": "venue-1bz7oic",
-      "sourceUrl": "https://www.harpcoventgarden.com/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "delicious food and drink"
+        "beerGarden": "open, airy beer garden"
       }
     },
     {
@@ -10021,17 +11316,6 @@
       "amenities": {
         "food": "Food Menu",
         "liveMusic": "live music"
-      }
-    },
-    {
-      "osmId": "way/559103590",
-      "name": "Golden Lion",
-      "venueId": null,
-      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/golden-lion",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "menu is filled with your favourite pub classics from hearty pies, fish & chips and steaks cooked to perfection.",
-        "liveSports": "We also show live sport through our Sky Sports and TNT Sport screens"
       }
     },
     {
@@ -10078,16 +11362,6 @@
       }
     },
     {
-      "osmId": "way/572670795",
-      "name": "The Hat and Tun",
-      "venueId": null,
-      "sourceUrl": "https://www.thehatandtun.com/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "liveSports": "Major Sporting Events"
-      }
-    },
-    {
       "osmId": "way/579402933",
       "name": "Sir Colin Campbell",
       "venueId": null,
@@ -10101,6 +11375,19 @@
       }
     },
     {
+      "osmId": "way/582966821",
+      "name": "The minories",
+      "venueId": "venue-127hklk",
+      "sourceUrl": "https://www.socialpubandkitchen.co.uk/pubs/minories-london",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "Food is served daily",
+        "cocktails": "mini cocktails!",
+        "beerGarden": "heated beer garden",
+        "liveSports": "All major sporting events are shown"
+      }
+    },
+    {
       "osmId": "way/58603914",
       "name": "The Swan",
       "venueId": null,
@@ -10110,6 +11397,17 @@
         "food": "The Best Pub Food in Walton-on-Thames",
         "beerGarden": "Pub & Beer Garden in Surrey",
         "liveSports": "Where To Watch Autumn Nations Rugby"
+      }
+    },
+    {
+      "osmId": "way/586427054",
+      "name": "Thatched House",
+      "venueId": "venue-13inamg",
+      "sourceUrl": "https://www.thatchedhousepub.com/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "good food",
+        "beerGarden": "Pubs with Beers Gardens"
       }
     },
     {
@@ -10133,8 +11431,7 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "quality food",
-        "beerGarden": "Outside seating",
-        "liveSports": "England vs Australia"
+        "beerGarden": "Outside seating"
       }
     },
     {
@@ -10155,19 +11452,6 @@
       "verifiedAt": "2026-10-03",
       "amenities": {
         "food": "Our kitchen takes great care in getting quality ingredients and preparing a variety of fresh, seasonal homemade food."
-      }
-    },
-    {
-      "osmId": "way/592373230",
-      "name": "Ye White Hart",
-      "venueId": null,
-      "sourceUrl": "https://www.whitehartbarnes.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "Food Service Times",
-        "cocktails": "Ciah served us with the best espresso martinis",
-        "beerGarden": "tables on the terrace",
-        "nonAlcoholic": "Alcohol Free Wine List"
       }
     },
     {
@@ -10200,18 +11484,7 @@
         "food": "delicious food, using fine ingredients",
         "cocktails": "pints, cocktails & more",
         "beerGarden": "inside and outside",
-        "liveSports": "major sporting events",
         "pubQuiz": "WEDNESDAY PUB QUIZ"
-      }
-    },
-    {
-      "osmId": "way/603491262",
-      "name": "Adam & Eve",
-      "venueId": null,
-      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/adam-and-eve",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "range of grub food classics"
       }
     },
     {
@@ -10219,9 +11492,9 @@
       "name": "Chesham Arms",
       "venueId": "venue-dxasie",
       "sourceUrl": "https://www.cheshamarms.com/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "pizza, two fireplaces for winter and a big garden for summer",
+        "food": "pizza for delivery with the amazing Yard Sale Pizza",
         "beerGarden": "a big garden for summer"
       }
     },
@@ -10369,8 +11642,7 @@
       "sourceUrl": "https://www.thegeorgetwickenham.co.uk/",
       "verifiedAt": "2026-10-03",
       "amenities": {
-        "food": "great food",
-        "liveSports": "catch the televised action"
+        "food": "great food"
       }
     },
     {
@@ -10416,7 +11688,6 @@
       "amenities": {
         "food": "great food, fine drinks and warm hospitality",
         "cocktails": "signature cocktails",
-        "liveSports": "well established Rugby dining venue",
         "pubQuiz": "Tuesdays at 8pm: Quiz Night"
       }
     },
@@ -10536,23 +11807,11 @@
       }
     },
     {
-      "osmId": "way/67383553",
-      "name": "Plaquemine Lock",
-      "venueId": null,
-      "sourceUrl": "https://plaqlock.com/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "Serving the taste of Louisiana in London",
-        "cocktails": "proper cocktails at prices",
-        "liveMusic": "live music and the kind of atmosphere"
-      }
-    },
-    {
       "osmId": "way/676767336",
       "name": "The Wrestlers",
       "venueId": "venue-flflsf",
       "sourceUrl": "https://thewrestlershighgate.com/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "We proudly serve traditional home made meals.",
         "beerGarden": "At the back of our pub you can find our cute little beer garden"
@@ -10628,12 +11887,12 @@
       "name": "The County Arms",
       "venueId": "venue-ugr6l6",
       "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/county-arms",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "fantastic pub food like all-day breakfasts, hand-battered fish & chips, succulent steaks and crafted burgers",
+        "food": "serving up fantastic pub food like all-day breakfasts, hand-battered fish & chips, succulent steaks and crafted burgers",
         "beerGarden": "in our beer garden on those sunny days",
-        "liveSports": "Watch live sports with our Sky Sports and TNT Sports screens",
-        "happyHour": "2-for-1 on selected drinks from 4pm - 7pm"
+        "liveSports": "watch live sports with our Sky Sports and TNT Sports screens",
+        "happyHour": "enjoy 2-for-1 on selected drinks from 4pm - 7pm, Monday to Thursday!"
       }
     },
     {
@@ -10672,23 +11931,23 @@
     },
     {
       "osmId": "way/698319681",
-      "name": "The Duke Of York",
+      "name": "The Duke of York",
       "venueId": "venue-1v2mdpj",
-      "sourceUrl": "https://thedukeofyork.com/",
-      "verifiedAt": "2026-10-03",
+      "sourceUrl": "https://www.thedukeofyork.com/",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "enjoy a delicious meal",
-        "cocktails": "wide selection of great beers, wines and cocktails"
+        "cocktails": "great beers, wines and cocktails"
       }
     },
     {
       "osmId": "way/70320037",
       "name": "The Alice House",
       "venueId": "venue-yh56cb",
-      "sourceUrl": "https://alicehouse.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "sourceUrl": "https://www.thealicehouse.co.uk/",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "amazing seasonal food",
+        "food": "amazing seasonal food including weekday lunches, Saturday brunch and Sunday roasts",
         "cocktails": "seasonal cocktails"
       }
     },
@@ -10841,9 +12100,9 @@
       "name": "The Victoria",
       "venueId": "venue-1do2gfz",
       "sourceUrl": "https://www.victoriapaddington.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "seasonal menu",
+        "food": "Food served",
         "beerGarden": "Outside seating"
       }
     },
@@ -10864,7 +12123,7 @@
       "name": "The Swan",
       "venueId": "venue-zoqbw1",
       "sourceUrl": "https://www.swanhydepark.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "fine food",
         "beerGarden": "a terrace overlooking the park",
@@ -10908,17 +12167,6 @@
       }
     },
     {
-      "osmId": "way/760032532",
-      "name": "Black Horse",
-      "venueId": null,
-      "sourceUrl": "https://www.blackhorsesouthmymms.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "great food",
-        "beerGarden": "Our beer garden"
-      }
-    },
-    {
       "osmId": "way/765454461",
       "name": "The Ladbroke Arms",
       "venueId": null,
@@ -10959,22 +12207,14 @@
       "osmId": "way/775813753",
       "name": "The Rose",
       "venueId": "venue-31n3t2",
-      "sourceUrl": "https://www.urbanpubsandbars.com/venues/the-rose",
-      "verifiedAt": "2026-10-03",
+      "sourceUrl": "https://www.rosepubandkitchen.com",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "delicious seasonal food",
-        "cocktails": "hand crafted cocktails"
-      }
-    },
-    {
-      "osmId": "way/77755297",
-      "name": "The Founders Arms",
-      "venueId": null,
-      "sourceUrl": "https://www.foundersarms.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "Serving up the very Best of British dishes",
-        "beerGarden": "Pooches are welcome on our terrace"
+        "cocktails": "hand crafted cocktails",
+        "beerGarden": "awesome beer garden",
+        "liveSports": "Live Sport",
+        "pubQuiz": "Pub Quiz"
       }
     },
     {
@@ -11033,18 +12273,6 @@
         "cocktails": "winter cocktails",
         "beerGarden": "Grab a table in the garden",
         "liveSports": "Live Sport"
-      }
-    },
-    {
-      "osmId": "way/791132629",
-      "name": "The Hop Pole",
-      "venueId": null,
-      "sourceUrl": "https://www.hoppolewandsworth.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "fine food",
-        "beerGarden": "pleasant heated garden",
-        "liveSports": "live sport"
       }
     },
     {
@@ -11123,10 +12351,12 @@
       "osmId": "way/806213988",
       "name": "The Torch",
       "venueId": "venue-617vip",
-      "sourceUrl": "https://www.flaminggrillpubs.co.uk/pubs/middlesex/torch",
-      "verifiedAt": "2026-10-03",
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/middlesex/torch",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "We've got wings, steaks, burgers, veggie and vegan options, all the best pub food classics"
+        "food": "We've got wings, steaks, burgers, veggie and vegan options, all the best pub food classics",
+        "liveSports": "We're showing all the live sports you love, with Sky Sports and TNT Sports.",
+        "nonAlcoholic": "A glass of beer, a glass of fizzy drink, and a bottle of Peroni 0.0% alcohol beer also sit on the table."
       }
     },
     {
@@ -11157,9 +12387,9 @@
       "name": "Red Lion & Sun",
       "venueId": "venue-1v4wkmz",
       "sourceUrl": "https://www.theredlionandsun.com/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "Our chefs serve freshly prepared and cooked meals",
+        "food": "Our chefs serve freshly prepared and cooked meals every day",
         "beerGarden": "two beer gardens"
       }
     },
@@ -11214,18 +12444,7 @@
       "amenities": {
         "food": "award-winning food",
         "cocktails": "Cocktails, natural wines",
-        "liveSports": "Football at The Three Crowns",
         "liveMusic": "live jazz and late nights"
-      }
-    },
-    {
-      "osmId": "way/818160419",
-      "name": "The Moon Under Water",
-      "venueId": "venue-1g4b8k7",
-      "sourceUrl": "https://www.jdwetherspoon.com/pubs/the-moon-under-water-hounslow",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "prepare and cook food"
       }
     },
     {
@@ -11237,7 +12456,6 @@
       "amenities": {
         "food": "Traditional British Pub Food in Kensington",
         "cocktails": "winter cocktail menu",
-        "liveSports": "Autumn Internationals",
         "nonAlcoholic": "Alcohol Free, Low Alcohol Main Menu",
         "pubQuiz": "monthly pub quiz"
       }
@@ -11247,21 +12465,10 @@
       "name": "The Holland",
       "venueId": "venue-1dre7k9",
       "sourceUrl": "https://thehollandkensington.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "British ingredient-led cuisine",
+        "food": "British ingredient-led cuisine, serving a seasonal, regularly-changing menu",
         "cocktails": "fantastic cocktails"
-      }
-    },
-    {
-      "osmId": "way/82770796",
-      "name": "The Barrowboy & Banker",
-      "venueId": null,
-      "sourceUrl": "https://www.barrowboy-and-banker.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "serves fresh ales, craft beers, a seasonal menu and pies",
-        "liveSports": "Live Sport Check out what live sport is on"
       }
     },
     {
@@ -11315,9 +12522,10 @@
       "name": "The Blackbird",
       "venueId": "venue-1ogexf4",
       "sourceUrl": "https://www.blackbirdearlscourt.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "delicious homemade food"
+        "food": "delicious homemade food",
+        "liveMusic": "Live Music"
       }
     },
     {
@@ -11419,10 +12627,10 @@
     },
     {
       "osmId": "way/861436031",
-      "name": "The Bunch Of Grapes",
+      "name": "The Bunch of Grapes",
       "venueId": "venue-1qlbipx",
-      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/bunch-of-grapes",
-      "verifiedAt": "2026-10-03",
+      "sourceUrl": "https://www.greeneking-pubs.co.uk/pubs/greater-london/bunch-of-grapes/",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "Famed for our fish & chips, we have a menu bursting with flavour"
       }
@@ -11648,7 +12856,7 @@
       "name": "Crown & Horseshoe",
       "venueId": "venue-168ndjw",
       "sourceUrl": "https://www.greeneking.co.uk/pubs/middlesex/crown-and-horseshoes",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "Our menu is packed with pub food classics",
         "beerGarden": "heated beer garden"
@@ -11672,10 +12880,10 @@
       "name": "The City Barge",
       "venueId": "venue-1qmac29",
       "sourceUrl": "https://www.citybargechiswick.com/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "seasonal à la carte dining",
-        "beerGarden": "garden seating"
+        "food": "Our seasonal menu features fresh, local ingredients",
+        "beerGarden": "unbeatable riverside and garden seating"
       }
     },
     {
@@ -11771,17 +12979,6 @@
       }
     },
     {
-      "osmId": "way/93710844",
-      "name": "Dean Swift",
-      "venueId": null,
-      "sourceUrl": "https://www.thedeanswift.com/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "serving Sunday Roast, Fish & Chips and the best craft beers",
-        "pubQuiz": "QUIZ NIGHT EVERY SUNDAY"
-      }
-    },
-    {
       "osmId": "way/93710849",
       "name": "The Raven",
       "venueId": null,
@@ -11800,17 +12997,6 @@
       "amenities": {
         "food": "We stock the excellent Piper's Crisps.",
         "beerGarden": "our much expanded beer garden opened"
-      }
-    },
-    {
-      "osmId": "way/941142501",
-      "name": "The Parakeet",
-      "venueId": "venue-1u13yzn",
-      "sourceUrl": "https://theparakeetpub.com/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "the best restaurant",
-        "pubQuiz": "The Pub Quiz"
       }
     },
     {
@@ -11856,24 +13042,8 @@
       "amenities": {
         "cocktails": "winter cocktail menu",
         "beerGarden": "covered garden spaces",
-        "liveSports": "Autumn Nations Rugby",
         "nonAlcoholic": "Alcohol Free/Low Alcohol Drinks List",
         "pubQuiz": "Tuesday pub quiz"
-      }
-    },
-    {
-      "osmId": "way/946022259",
-      "name": "The Sheephaven Bay",
-      "venueId": null,
-      "sourceUrl": "https://sheephavenbaycamden.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "food": "Finest Quality Food & Drink",
-        "beerGarden": "leads onto the beer garden",
-        "liveSports": "14 plasma TV screens showing all the latest sport",
-        "pubQuiz": "quiz nights",
-        "darts": "a darts board",
-        "happyHour": "10% OFF DRINK (11am-7pm) Monday to Friday"
       }
     },
     {
@@ -11881,7 +13051,7 @@
       "name": "The Duck and Ball",
       "venueId": "venue-1n5r94l",
       "sourceUrl": "https://www.chiswickcc.org/clients/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "liveSports": "Sky Sports and BT Sports"
       }
@@ -11891,12 +13061,12 @@
       "name": "The Black Boy",
       "venueId": "venue-1uy2q82",
       "sourceUrl": "https://blackboysidcup.com/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "beerGarden": "large beer garden",
         "liveSports": "Watch all the latest sports",
-        "liveMusic": "enjoy live music",
-        "pool": "play Pool!"
+        "liveMusic": "We often enjoy live music",
+        "pool": "We welcome you to play Pool!"
       }
     },
     {
@@ -11981,12 +13151,11 @@
       "name": "The Stonhouse",
       "venueId": "venue-12x0p9j",
       "sourceUrl": "https://www.thestonhouse.co.uk/",
-      "verifiedAt": "2026-10-03",
+      "verifiedAt": "2026-10-05",
       "amenities": {
         "food": "simple, honest food",
         "cocktails": "innovative cocktails",
-        "beerGarden": "elegant pub and garden",
-        "liveSports": "Garden Sport Kids"
+        "beerGarden": "pub and garden"
       }
     },
     {
@@ -12034,16 +13203,6 @@
       "amenities": {
         "food": "delicious Mediterranean-inspired menu",
         "beerGarden": "small outside terrace"
-      }
-    },
-    {
-      "osmId": "way/96598337",
-      "name": "The Windmill",
-      "venueId": "venue-pmqf8u",
-      "sourceUrl": "https://www.windmillbrixton.co.uk/",
-      "verifiedAt": "2026-10-03",
-      "amenities": {
-        "karaoke": "midnight karaoke"
       }
     },
     {
@@ -12111,10 +13270,22 @@
       "osmId": "way/973132221",
       "name": "The Assembly House",
       "venueId": "venue-17zruog",
-      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/assembly-house",
-      "verifiedAt": "2026-10-03",
+      "sourceUrl": "https://www.greeneking-pubs.co.uk/pubs/greater-london/assembly-house/",
+      "verifiedAt": "2026-10-05",
       "amenities": {
-        "food": "Our food menu is sure to satisfy any craving"
+        "food": "Our food menu is sure to satisfy any craving, with a tasty range of hearty classics, seasonal staples and sweet treats.",
+        "liveSports": "Live sport Book a table for all the top sporting action, from footy to rugby, F1, darts and more!"
+      }
+    },
+    {
+      "osmId": "way/97425688",
+      "name": "The Hope",
+      "venueId": "venue-1kk8osq",
+      "sourceUrl": "http://www.hopecarshalton.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "delicious home cooked meal",
+        "beerGarden": "fantastic decking area"
       }
     },
     {
@@ -12174,10 +13345,13 @@
       "osmId": "way/98612270",
       "name": "The Old Bell",
       "venueId": "venue-1d9bmai",
-      "sourceUrl": "https://www.greatlocalpubs.co.uk/pubs/old-bell-kilburn",
-      "verifiedAt": "2026-10-03",
+      "sourceUrl": "https://www.greatukpubs.co.uk/old-bell-kilburn",
+      "verifiedAt": "2026-10-05",
       "amenities": {
+        "food": "delicious food",
         "beerGarden": "large beer garden",
+        "liveSports": "watch all major live sport",
+        "liveMusic": "Live Music",
         "pubQuiz": "quiz nights",
         "karaoke": "karaoke sessions"
       }
@@ -12204,7 +13378,6 @@
         "food": "Properly good food",
         "cocktails": "Hugo Spritz Plymouth Gin",
         "beerGarden": "covered and heated beer garden",
-        "liveSports": "Autumn Nations live",
         "nonAlcoholic": "alcohol-free drinks"
       }
     },
@@ -12301,6 +13474,18 @@
       }
     },
     {
+      "osmId": "way/996506249",
+      "name": "Hoop and Grapes",
+      "venueId": "venue-1gfikb8",
+      "sourceUrl": "https://www.hoopandgrapes.co.uk/",
+      "verifiedAt": "2026-10-05",
+      "amenities": {
+        "food": "welcoming place to eat, drink and meet",
+        "cocktails": "signature cocktails - From refreshing Mojitos to Espresso Martinis",
+        "beerGarden": "charming courtyard garden"
+      }
+    },
+    {
       "osmId": "way/99869572",
       "name": "The Rose & Crown",
       "venueId": null,
@@ -12367,5 +13552,23 @@
     "karaoke": 42,
     "any": 889,
     "none": 1027
-  }
+  },
+  "columnCoverageAfter": {
+    "venues": 1916,
+    "food": 941,
+    "cocktails": 449,
+    "beerGarden": 663,
+    "liveSports": 429,
+    "nonAlcoholic": 50,
+    "liveMusic": 299,
+    "pubQuiz": 221,
+    "darts": 68,
+    "pool": 69,
+    "happyHour": 60,
+    "karaoke": 64,
+    "any": 1103,
+    "none": 813
+  },
+  "stampedVenues": 390,
+  "stampedRows": 539
 }
