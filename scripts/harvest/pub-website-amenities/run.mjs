@@ -72,6 +72,7 @@ import {
   locatedOwnSite,
   siteOfAnotherPub,
   withoutThinnerRereads,
+  pageOwners,
   pageStatesAddress,
   postcodeOf,
   streetOf,
@@ -681,12 +682,9 @@ async function main() {
     return located[pub.osmId];
   }
 
-  // Pages other pubs have read: the committed evidence and this checkpoint.
+  // Pages other pubs have read: the committed evidence, this checkpoint and the chain list's readers.
   const previousRows = readEvidence()?.rows ?? [];
-  const otherReads = () => [
-    ...previousRows,
-    ...Object.entries(byOsmId).map(([osmId, entry]) => ({ osmId, sourceUrl: entry.sourceUrl, status: entry.status })),
-  ];
+  const otherReads = () => pageOwners(previousRows, Object.entries(byOsmId), knownChainPages);
 
   const pagePath = (key) => path.join(PAGES_DIR, `${key.replace(/[^a-z0-9-]/gi, "_")}.json`);
 
