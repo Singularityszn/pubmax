@@ -1,6 +1,8 @@
 import { test, expect } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 
+import { expectFallbackTextClearOfChrome } from "./helpers/mapFallbackClearance";
+
 // No-WebGL contract. Runs only under the `chromium-no-gl` project, which launches
 // Chromium with `--disable-webgl --disable-webgl2` so the MapLibre constructor
 // gets NO context — exactly the genuinely-WebGL-less browser we owe an honest,
@@ -32,6 +34,7 @@ test("/map surfaces an honest fallback with a detail line when WebGL is disabled
 
   // Honest copy: a confirmed-no-WebGL probe is the only case allowed to claim it.
   await expect(fallback).toContainText(/WebGL/i);
+  await expectFallbackTextClearOfChrome(page);
 
   // The technical diagnostic is present but collapsed by default — calm,
   // honest copy up front, the raw diagnostic only a tap away for a bug report.
@@ -62,3 +65,32 @@ test("/map surfaces an honest fallback with a detail line when WebGL is disabled
     await page.screenshot({ path: `${directory}/webgl-fallback-390x844-light.png` });
   }
 });
+
+// The desktop half of the same card. The search toolbar and the city chip float
+// over the map at every desktop width, and a centred card read its heading and
+// first lines from behind them. Wait for the chip, because it arrives after
+// the card and the card has to clear it once it does.
+for (const viewport of [
+  { width: 1024, height: 768 },
+  { width: 1280, height: 720 },
+  { width: 1440, height: 900 },
+]) {
+  test(`/map fallback heading and message clear the toolbar and city chip at ${viewport.width}x${viewport.height}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmax-tour-v1-done", "1");
+      window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+      window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    });
+    await page.goto("/map");
+
+    await expect(page.locator(".mapFallback")).toContainText("Map unavailable", {
+      timeout: 20_000,
+    });
+    await expect(page.locator(".mapToolbar")).toBeVisible();
+    await expect(page.locator(".citySuggestBanner")).toBeVisible({ timeout: 15_000 });
+    await expectFallbackTextClearOfChrome(page);
+  });
+}

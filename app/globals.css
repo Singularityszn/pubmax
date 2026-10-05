@@ -2738,6 +2738,27 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   overflow-y: auto;
 }
 
+@media (min-width: 641px) {
+  /* The search toolbar floats over the map at every desktop width, and a
+     centred card sat its heading and first lines behind it. Start the card
+     below the toolbar's published bottom edge instead. */
+  .mapFallback {
+    place-content: start center;
+    padding-top: calc(
+      var(--map-top-clearance) + var(--map-toolbar-resting-height) + 24px
+    );
+  }
+
+  /* The city chip docks in the next slot under the toolbar, the same 82px slot
+     .cityStatusStack steps over, so the card clears that slot too while the
+     chip is on the page. */
+  .appShell:has(.citySuggestBanner) .mapFallback {
+    padding-top: calc(
+      var(--map-top-clearance) + var(--map-toolbar-resting-height) + 82px + 16px
+    );
+  }
+}
+
 @media (max-width: 640px) {
   /* Clear the WHOLE phone chrome, bar plus docked chip row, from the token
      mobileMapShell.css publishes for it. This used to read a
