@@ -38,8 +38,8 @@ export default function VenuePintsTab({
           Pint Drops list in a two-column layout instead of stacking. This
           wrapper is a no-op on mobile (venueSheet.css only grids it ≥1024px);
           on mobile the two children still stack in document order exactly as
-          before. */}
-      <div className="venuePintsCols">
+          before. An open composer stacks at every width (--composing). */}
+      <div className={composerOpen ? "venuePintsCols venuePintsCols--composing" : "venuePintsCols"}>
         {composerOpen ? (
           <PintDropComposer
             venueId={venue.id}
