@@ -40,6 +40,7 @@ vi.mock("@/lib/palChatClient", () => ({
 }));
 
 import PalChat from "@/components/pal/PalChat";
+import { defined } from "@/__tests__/helpers/defined";
 
 let container: HTMLDivElement;
 let root: Root | null = null;
@@ -176,6 +177,6 @@ describe("Pal venue card navigation", () => {
     await act(async () => venueLink.click());
 
     expect(router.push).toHaveBeenCalledWith("/map?mapNotice=unknown");
-    expect(new URL(router.push.mock.calls[0][0], "https://pubmaxxing.test").searchParams.has("sel")).toBe(false);
+    expect(new URL(defined(router.push.mock.calls[0])[0], "https://pubmaxxing.test").searchParams.has("sel")).toBe(false);
   });
 });

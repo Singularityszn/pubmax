@@ -40,6 +40,7 @@ vi.mock("@/lib/authedFetch", () => ({
 
 import DrinkWall from "@/components/drink-wall/DrinkWall";
 import type { DrinkWallPhotoDTO } from "@/lib/drinkWall";
+import { defined } from "@/__tests__/helpers/defined";
 
 function photo(overrides: Partial<DrinkWallPhotoDTO> = {}): DrinkWallPhotoDTO {
   return {
@@ -81,7 +82,7 @@ async function flush(): Promise<void> {
 function take(match: (request: Pending) => boolean): Pending {
   const index = net.pending.findIndex(match);
   if (index < 0) throw new Error("no matching request is pending");
-  return net.pending.splice(index, 1)[0];
+  return defined(net.pending.splice(index, 1)[0]);
 }
 
 function wallRead(category: string | null): (request: Pending) => boolean {

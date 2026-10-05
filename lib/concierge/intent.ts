@@ -56,7 +56,7 @@ function deterministicIntent(text: string, knownAreas: readonly string[]): Conci
     ?? text.match(/\b(?:for|group of|we(?:'re| are))\s+(?!£)(\d{1,2})\b/i)?.[1];
   const wordGroup = text.match(/\b(one|two|three|four|five|six|seven|eight|nine|ten|twelve)\s+(?:of us|people|mates|pax)\b/i)?.[1]
     ?? text.match(/\b(?:for|group of|we(?:'re| are))\s+(one|two|three|four|five|six|seven|eight|nine|ten|twelve)\b/i)?.[1];
-  const parsedGroup = numericGroup ? Number(numericGroup) : wordGroup ? NUMBER_WORDS[wordGroup.toLowerCase()] : DEFAULT_GROUP_SIZE;
+  const parsedGroup = numericGroup ? Number(numericGroup) : wordGroup ? (NUMBER_WORDS[wordGroup.toLowerCase()] ?? DEFAULT_GROUP_SIZE) : DEFAULT_GROUP_SIZE;
   const groupSize = Math.min(20, Math.max(1, parsedGroup));
 
   const area = deterministicAreaInText(text, knownAreas);

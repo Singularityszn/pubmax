@@ -12,6 +12,7 @@ import {
   supabaseAreaDemandStore,
 } from "@/lib/areaDemandStore";
 import type { NormalisedAreaDemand } from "@/lib/areaDemand";
+import { defined } from "@/__tests__/helpers/defined";
 
 type Row = {
   area: string;
@@ -124,7 +125,7 @@ describe("supabaseAreaDemandStore", () => {
     expect(await supabaseAreaDemandStore.record(input())).toEqual({ status: "recorded" });
     await supabaseAreaDemandStore.record(input({ area: "Peckham", email: "me@example.com" }));
     expect(db.rows).toHaveLength(2);
-    expect(db.rows[0].area_key).toBe("peckham");
+    expect(defined(db.rows[0]).area_key).toBe("peckham");
     expect(await supabaseAreaDemandStore.countForArea("peckham")).toBe(2);
   });
 

@@ -104,7 +104,7 @@ const MAP_SHAPES: MapKeyEntry[] = [
   },
 ];
 
-const MAP_MARKS: MapKeyEntry[] = [
+const MAP_MARKS: [MapKeyEntry, ...MapKeyEntry[]] = [
   {
     id: "your-location",
     label: "Blue centre with a pulse",
@@ -269,12 +269,14 @@ function mixedRenderedRows(
   return ([0, 1, 2, 3] as const).flatMap((bucket) => {
     const hasPintMeaning = pairs.has(`pint:${bucket}`);
     const hasTypeRelativeMeaning = pairs.has(`type-relative:${bucket}`);
-    if (hasPintMeaning && hasTypeRelativeMeaning) {
-      return [mixedRows[bucket]];
-    }
-    if (hasPintMeaning) return [pintRows[bucket]];
-    if (hasTypeRelativeMeaning) return [typeRelativeRows[bucket]];
-    return [];
+    const row = hasPintMeaning && hasTypeRelativeMeaning
+      ? mixedRows[bucket]
+      : hasPintMeaning
+        ? pintRows[bucket]
+        : hasTypeRelativeMeaning
+          ? typeRelativeRows[bucket]
+          : undefined;
+    return row ? [row] : [];
   });
 }
 

@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import ShareBar from "@/components/share/ShareBar";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
+import { profilePath } from "@/lib/appLink";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
@@ -47,10 +48,6 @@ function readCounts(value: unknown): { followers: number | null; savedPubs: numb
       ? raw.savedPubs
       : null;
   return { followers, savedPubs };
-}
-
-function ownerProfileUrl(ownerHandle: string): string {
-  return `/u/${encodeURIComponent(ownerHandle)}`;
 }
 
 export default function SavedListDetail({
@@ -241,7 +238,7 @@ export default function SavedListDetail({
           <h1 id="listDetailHeading" className="listDetailTitle">
             {listType}
           </h1>
-          <Link className="listDetailAuthor" href={ownerProfileUrl(owner)}>
+          <Link className="listDetailAuthor" href={profilePath(owner)}>
             By @{owner}
           </Link>
         </div>

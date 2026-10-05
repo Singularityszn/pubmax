@@ -114,8 +114,8 @@ export function readChainPintPrices(html: string): ChainPriceReading {
 export function cheapestStatedPintRow(
   reading: ChainPriceReading,
 ): { priceGbp: number; drinkLabel?: string } | null {
-  if (reading.kept.length === 0) return null;
   let best = reading.kept[0];
+  if (!best) return null;
   for (const row of reading.kept) {
     if (row.priceGbp < best.priceGbp) best = row;
   }

@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { expect, it } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 it("builds only exact identity records and a freshness stamp dated by the oldest row of every pack without changing observations, and removes retired runtime files", () => {
   const root = process.cwd();
@@ -27,7 +28,7 @@ it("builds only exact identity records and a freshness stamp dated by the oldest
     writeFileSync(source, JSON.stringify({ version: 1, ...head, venues: [rows[0]] }));
     writeFileSync(path.join(fixture, "data/places_enrichment_uk_cities.json"), JSON.stringify({ version: 1, venues: [rows[2]] }));
     writeFileSync(path.join(fixture, "data/places_enrichment_london_extras.json"), JSON.stringify({ version: 1, venues: [{
-      venueId: rows[0].venueId, googlePlaceId: rows[0].googlePlaceId, observedAt: "2026-10-05T00:00:00Z",
+      venueId: defined(rows[0]).venueId, googlePlaceId: defined(rows[0]).googlePlaceId, observedAt: "2026-10-05T00:00:00Z",
       rating: { value: 4.2, source: "google_places", observedAt: "2026-10-05T00:00:00Z" },
     }] }));
     build();
@@ -35,9 +36,9 @@ it("builds only exact identity records and a freshness stamp dated by the oldest
     const merged = JSON.parse(readFileSync(path.join(output, "node-123.json"), "utf8"));
     expect(merged).toHaveLength(1);
     expect(merged[0].rating.value).toBe(4.2);
-    expect(merged[0].formattedAddress).toEqual(rows[0].formattedAddress);
+    expect(merged[0].formattedAddress).toEqual(defined(rows[0]).formattedAddress);
     writeFileSync(path.join(fixture, "data/places_enrichment_uk_cities_extras.json"), JSON.stringify({ version: 1, venues: [{
-      venueId: "venue-uk-n123", googlePlaceId: rows[0].googlePlaceId, observedAt: "2026-10-06T00:00:00Z",
+      venueId: "venue-uk-n123", googlePlaceId: defined(rows[0]).googlePlaceId, observedAt: "2026-10-06T00:00:00Z",
       rating: { value: 4.7, source: "google_places", observedAt: "2026-10-06T00:00:00Z" },
       formattedAddress: { value: "Older address", source: "google_places", observedAt: "2026-10-01T00:00:00Z" },
     }] }));
@@ -45,7 +46,7 @@ it("builds only exact identity records and a freshness stamp dated by the oldest
     const aliases = JSON.parse(readFileSync(path.join(output, "node-123.json"), "utf8"));
     expect(aliases).toHaveLength(1);
     expect(aliases[0].rating).toEqual({ value: 4.7, source: "google_places", observedAt: "2026-10-06T00:00:00Z" });
-    expect(aliases[0].formattedAddress).toEqual(rows[0].formattedAddress);
+    expect(aliases[0].formattedAddress).toEqual(defined(rows[0]).formattedAddress);
     expect(aliases[0].observedAt).toBe("2026-10-06T00:00:00Z");
     expect(stamp().observedAt).toBe("2026-10-02T00:00:00Z");
     expect(Object.fromEntries(Object.entries(stamp().packs).map(([name, row]) => [name, (row as { observedAt: string }).observedAt]))).toEqual({

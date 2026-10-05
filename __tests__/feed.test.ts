@@ -10,6 +10,7 @@ import {
   type FeedItem,
   type PintDropDTO,
 } from "@/lib/feed";
+import { defined } from "@/__tests__/helpers/defined";
 
 // A minimal valid public DTO; overrides let each test vary one field.
 function dto(overrides: Partial<PintDropDTO> = {}): PintDropDTO {
@@ -160,7 +161,7 @@ describe("paginate", () => {
   it("returns the first `limit` and a nextCursor of the last item", () => {
     const page = paginate(items, undefined, 10);
     expect(page.items).toHaveLength(10);
-    expect(page.nextCursor).toBe(cursorOf(items[9]));
+    expect(page.nextCursor).toBe(cursorOf(defined(items[9])));
   });
 
   it("continues from a cursor with no overlap across pages", () => {
@@ -170,11 +171,11 @@ describe("paginate", () => {
     for (const it of second.items) {
       expect(firstIds.has(it.id)).toBe(false);
     }
-    expect(second.items[0].id).toBe(items[10].id);
+    expect(defined(second.items[0]).id).toBe(defined(items[10]).id);
   });
 
   it("returns a null nextCursor on the final page", () => {
-    const last = paginate(items, cursorOf(items[19]), 10);
+    const last = paginate(items, cursorOf(defined(items[19])), 10);
     expect(last.items).toHaveLength(5);
     expect(last.nextCursor).toBeNull();
   });
@@ -185,7 +186,7 @@ describe("paginate", () => {
 
   it("falls back to the first page for an unknown cursor", () => {
     const page = paginate(items, "bogus|cursor", 5);
-    expect(page.items[0].id).toBe(items[0].id);
+    expect(defined(page.items[0]).id).toBe(defined(items[0]).id);
   });
 });
 

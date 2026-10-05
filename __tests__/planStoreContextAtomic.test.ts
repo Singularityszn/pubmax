@@ -11,6 +11,7 @@ vi.mock("@/lib/supabase", () => ({
 
 import type { PlanState } from "@/lib/plan";
 import { supabasePlanStore } from "@/lib/planStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 const CONTEXT = {
   nightArea: "piccadilly-soho" as const,
@@ -100,11 +101,11 @@ describe("Supabase Plan creation context", () => {
 
     expect(result.ok).toBe(true);
     expect(supabase.rpc).toHaveBeenCalledTimes(2);
-    const fallbackArgs = supabase.rpc.mock.calls[1];
+    const fallbackArgs = defined(supabase.rpc.mock.calls[1]);
     expect(fallbackArgs[0]).toBe("create_plan_idempotent_atomic");
     expect(fallbackArgs[1]).not.toHaveProperty("p_context");
     expect(fallbackArgs[1]).toMatchObject({
-      p_request_hash: supabase.rpc.mock.calls[0][1].p_request_hash,
+      p_request_hash: defined(supabase.rpc.mock.calls[0])[1].p_request_hash,
     });
   });
 
@@ -143,11 +144,11 @@ describe("Supabase Plan creation context", () => {
     const replay = await supabasePlanStore.create({ ...base, stops: [{ venueId: "venue-a", venueName: "A" }] }, options);
     expect(first.ok && first.created).toBe(true);
     expect(replay.ok && replay.created).toBe(false);
-    expect(supabase.rpc.mock.calls[0][1].p_request_hash).toBe(supabase.rpc.mock.calls[1][1].p_request_hash);
-    expect(supabase.rpc.mock.calls[0][1].p_stops).not.toEqual(supabase.rpc.mock.calls[1][1].p_stops);
+    expect(defined(supabase.rpc.mock.calls[0])[1].p_request_hash).toBe(defined(supabase.rpc.mock.calls[1])[1].p_request_hash);
+    expect(defined(supabase.rpc.mock.calls[0])[1].p_stops).not.toEqual(defined(supabase.rpc.mock.calls[1])[1].p_stops);
 
     const changed = await supabasePlanStore.create(base, {
-      ...options, idempotencyStops: [{ ...submittedStops[0], selectedDrinkPriceEvidence: { ...evidence, pence: 850 } }],
+      ...options, idempotencyStops: [{ ...defined(submittedStops[0]), selectedDrinkPriceEvidence: { ...evidence, pence: 850 } }],
     });
     expect(changed).toEqual({ ok: false, error: "conflict" });
   });

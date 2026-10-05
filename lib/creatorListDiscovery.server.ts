@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import "server-only";
 
 import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
@@ -48,7 +49,7 @@ type CreatorListDiscoveryInput = {
   afterHandle?: string;
 };
 
-function creatorListPlanUrl(handle: string, listType: string): string {
+function creatorListPlanUrl(handle: string, listType: string): Route {
   const params = new URLSearchParams();
   params.set(PLAN_QUERY_PARAM, `Plan ${listType} by @${handle}`);
   return `/plan?${params.toString()}`;

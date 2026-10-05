@@ -9,6 +9,7 @@ import {
   type ListType,
 } from "@/lib/savedPubsStore";
 import { isBuiltInListType } from "@/lib/savedListPolicy";
+import { defined } from "@/__tests__/helpers/defined";
 
 // FORCE the in-memory path. On Vercel, vitest runs with the project's env set —
 // if SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are present, savedPubsStore() would
@@ -122,13 +123,13 @@ describe("memory store — round-trip (add → list → remove)", () => {
     // add
     const afterAdd = await store.toggleSaved({ handle: "ken", venueId: id, listType });
     expect(afterAdd).toHaveLength(1);
-    expect(afterAdd[0].venueId).toBe(id);
-    expect(afterAdd[0].listType).toBe(listType);
+    expect(defined(afterAdd[0]).venueId).toBe(id);
+    expect(defined(afterAdd[0]).listType).toBe(listType);
 
     // list reads it back
     const listed = await store.listSaved({ handle: "ken" });
     expect(listed).toHaveLength(1);
-    expect(listed[0].venueId).toBe(id);
+    expect(defined(listed[0]).venueId).toBe(id);
 
     // toggle again removes it
     const afterRemove = await store.toggleSaved({ handle: "ken", venueId: id, listType });
@@ -146,7 +147,7 @@ describe("memory store — round-trip (add → list → remove)", () => {
       note: "  best\tpint\nround\there  ",
     });
     // Control chars (tab/newline) → spaces, whitespace collapsed, trimmed.
-    expect(saved[0].note).toBe("best pint round here");
+    expect(defined(saved[0]).note).toBe("best pint round here");
   });
 
   it("strips angle brackets from a note (no inline HTML stored)", async () => {
@@ -160,8 +161,8 @@ describe("memory store — round-trip (add → list → remove)", () => {
     });
     // Only the angle brackets are removed (mirrors lib/pintDrops clean()); the
     // point is no `<` / `>` survive to be interpreted as markup downstream.
-    expect(saved[0].note).not.toContain("<");
-    expect(saved[0].note).not.toContain(">");
+    expect(defined(saved[0]).note).not.toContain("<");
+    expect(defined(saved[0]).note).not.toContain(">");
   });
 });
 
@@ -197,9 +198,9 @@ describe("DTO enrichment — venue name, not raw id", () => {
     const store = savedPubsStore();
     const { id, name } = await aRealVenue();
     const [dto] = await store.toggleSaved({ handle: "ken", venueId: id, listType: "Date Night" });
-    expect(dto.venueName).toBe(name);
-    expect(dto.venueName).not.toMatch(/^venue-/); // never the raw id as a label
-    expect(dto.venueMapUrl).toBe(`/map?sel=${encodeURIComponent(id)}`);
+    expect(defined(dto).venueName).toBe(name);
+    expect(defined(dto).venueName).not.toMatch(/^venue-/); // never the raw id as a label
+    expect(defined(dto).venueMapUrl).toBe(`/map?sel=${encodeURIComponent(id)}`);
   });
 
   it("carries city-scoped map urls for known non-London venues", async () => {
@@ -210,8 +211,8 @@ describe("DTO enrichment — venue name, not raw id", () => {
       listType: "Historic",
     });
 
-    expect(dto.venueName).toBe("Turf Tavern");
-    expect(dto.venueMapUrl).toBe("/map/oxford?sel=venue-oxf-16404bl");
+    expect(defined(dto).venueName).toBe("Turf Tavern");
+    expect(defined(dto).venueMapUrl).toBe("/map/oxford?sel=venue-oxf-16404bl");
   });
 
   it("falls back to a friendly label (never the raw id) for an unknown venue", async () => {
@@ -221,9 +222,9 @@ describe("DTO enrichment — venue name, not raw id", () => {
       venueId: "venue-does-not-exist",
       listType: "Local Legend",
     });
-    expect(dto.venueName).toBe("A London venue");
-    expect(dto.venueName).not.toBe("venue-does-not-exist");
+    expect(defined(dto).venueName).toBe("A London venue");
+    expect(defined(dto).venueName).not.toBe("venue-does-not-exist");
     // The map link still resolves to the id so "open on the map" works.
-    expect(dto.venueMapUrl).toBe("/map?sel=venue-does-not-exist");
+    expect(defined(dto).venueMapUrl).toBe("/map?sel=venue-does-not-exist");
   });
 });

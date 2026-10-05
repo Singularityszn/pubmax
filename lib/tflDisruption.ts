@@ -290,14 +290,14 @@ export function materialDisruptionsFor(
       let kind: MaterialKind | null = null;
 
       if (isLiveMaterialSeverity(code)) {
-        kind = LIVE_SEVERITY_KIND[code as number];
+        kind = LIVE_SEVERITY_KIND[code as number] ?? null;
       } else if (isPlannedClosureSeverity(code)) {
         const periods = detail.validityPeriods ?? [];
         const overlaps =
           periods.length > 0
             ? periods.some((p) => periodOverlapsTonight(p, window))
             : false;
-        if (overlaps) kind = PLANNED_SEVERITY_KIND[code as number];
+        if (overlaps) kind = PLANNED_SEVERITY_KIND[code as number] ?? null;
       }
       if (!kind) continue;
 

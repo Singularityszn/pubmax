@@ -17,6 +17,7 @@
 // list may say "we cannot let you back in silently", and may never say an
 // account was never here.
 
+import type { Route } from "next";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
@@ -46,7 +47,7 @@ export default function AccountSwitcher({
   /** The accounts this device holds, minus the one already active. */
   accounts: readonly DeviceAccountRecord[];
   /** The normal sign-in page, told where to come back to. */
-  addAccountHref: string;
+  addAccountHref: Route;
   /** Held by the card, so this stays a list and its state has one owner. */
   open: boolean;
   onToggle: () => void;

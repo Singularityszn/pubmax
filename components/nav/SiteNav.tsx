@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CirclePlus } from "lucide-react";
@@ -63,7 +64,7 @@ type NavKey =
 
 type NavLink = {
   key: NavKey;
-  href: string;
+  href: Route;
   label: string;
   /** Path prefixes that should mark this link active (defaults to href). */
   match: string[];

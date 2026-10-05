@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Route } from "next";
 import { headers } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
@@ -176,7 +176,7 @@ export default async function BarTabPage({ params }: PageProps) {
         <EmptyState
           className="barTabEmpty"
           title="No pints on the tab yet."
-          action={<Link prefetch={false} href={`${venueMapUrl(canonicalId)}&log=1`}>Drop a pint here</Link>}
+          action={<Link prefetch={false} href={`${venueMapUrl(canonicalId)}&log=1` as Route}>Drop a pint here</Link>}
         >
           Be the first to drop one here. Snap your pint, log the price, pass down a story.
         </EmptyState>

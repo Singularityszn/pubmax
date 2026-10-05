@@ -21,6 +21,7 @@ import {
   strongestBundleRow,
   type UkPriceBundleRow,
 } from "@/lib/ukPriceBundle";
+import { defined } from "@/__tests__/helpers/defined";
 
 const NOW = Date.parse("2026-09-04T12:00:00.000Z");
 
@@ -66,8 +67,8 @@ describe("what a bundle row owes", () => {
     expect(isValidUkPriceBundleRow({ ...listed, servingSize: "125\0ml" })).toBe(false);
     expect(isValidUkPriceBundleRow({ ...listed, servingSize: "125ml\u007f" })).toBe(false);
     expect(parseUkPriceBundleRows([{ ...listed, servingSize: "125\0ml" }])).toEqual([]);
-    expect(parseUkPriceBundleRows([{ ...listed, servingSize: "Btl" }])[0].servingSize).toBe("Btl");
-    expect(parseUkPriceBundleRows([listed])[0].servingSize).toBeUndefined();
+    expect(defined(parseUkPriceBundleRows([{ ...listed, servingSize: "Btl" }])[0]).servingSize).toBe("Btl");
+    expect(defined(parseUkPriceBundleRows([listed])[0]).servingSize).toBeUndefined();
   });
 
   it("keeps same named wine servings in separate collect keys", () => {

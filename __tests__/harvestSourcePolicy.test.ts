@@ -24,6 +24,7 @@ import {
   WETHERSPOON_DIRECTORY_SOURCE_ID,
   wetherspoonDirectoryEndpoint,
 } from "../scripts/fetch_wetherspoons_pubs.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 describe("every source is a decision with evidence", () => {
   it("gives every source a unique id and an http(s) provenance url", () => {
@@ -227,7 +228,7 @@ describe("the run report separates empty, skipped and failed", () => {
   });
 
   it("orders drop counts by how many there were", () => {
-    expect(report.sources[0].drops).toEqual([
+    expect(defined(report.sources[0]).drops).toEqual([
       { reason: "no-stated-window", count: 2 },
       { reason: "no-stated-day", count: 1 },
     ]);

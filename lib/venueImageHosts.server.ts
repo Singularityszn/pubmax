@@ -58,7 +58,7 @@ export function allowedVenueImageHosts(): Set<string> {
       // files: every https URL in them is app-served content, and this
       // avoids hardcoding each file's shape here.
       for (const match of raw.matchAll(/https:\/\/([a-z0-9][a-z0-9.-]*)/gi)) {
-        hosts.add(match[1].toLowerCase());
+        if (match[1]) hosts.add(match[1].toLowerCase());
       }
     } catch {
       // A missing data file just contributes no hosts — fail closed.

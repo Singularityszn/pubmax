@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { LocateFixed } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -116,7 +117,7 @@ type Answer = {
   /** "a pint of Pravha" for the anchor; the slim index names no pint. */
   pintName: string | null;
   /** The pint's own drink page, when one publishes (lib/landingPubCard.ts). */
-  drinkHref: string | null;
+  drinkHref: Route | null;
   scope: LandingAnswerScope;
   walkMinutes?: number;
   evidence: Evidence;
@@ -246,11 +247,11 @@ export default function LandingHero({
               position.coords.longitude,
               slim,
             );
-            if (ranked.scope === "none" || ranked.cards.length === 0) {
+            const [first, ...rest] = ranked.cards;
+            if (ranked.scope === "none" || !first) {
               fail(NEAR_ME_NOTHING_LINE);
               return;
             }
-            const [first, ...rest] = ranked.cards;
             setAnswer(nearAnswer(first, rest, ranked.scope, archive));
             setNear({ kind: "answered" });
             const controller = new AbortController();

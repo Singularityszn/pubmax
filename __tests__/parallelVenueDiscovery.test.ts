@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { venueBases, parseTaskVenues, dedupeVenues, allowedEvidenceUrl, validateDiscoveryPack, mergeCityVenueSources, assembleCityDiscoveries, gateVenueEvidence, postcodeDistricts, unseenNames } from "../scripts/lib/parallelVenueDiscovery.mjs";
 import { parseArgs, taskRequest } from "../scripts/discover_parallel_venues.mjs";
 import { buildCitySlim } from "../scripts/build_city_slim_index.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 const city = { id: "birmingham", displayName: "Birmingham", bbox: [52.42, -1.98, 52.55, -1.8] as [number, number, number, number] };
 const venue = {
@@ -21,10 +22,10 @@ describe("Parallel venue discovery", () => {
   it("refuses a source outside the static fence without asking the network", async () => {
     const url = "http://127.0.0.1/evidence";
     const row = { ...venue, kind: "bar" as const, postcode: "B1 1AA", locality: city.displayName, sourceUrls: [url], observedAt: "2026-10-04T10:00:00Z", lat: 52.48, lng: -1.90, coordinatePrecision: "postcode-centroid" as const,
-      evidence: [{ url, excerpt: venue.evidence[0].excerpt }] };
+      evidence: [{ url, excerpt: defined(venue.evidence[0]).excerpt }] };
     const gated = await gateVenueEvidence([row], city, async () => { throw new Error("Must not call the network"); });
     expect(gated.venues).toEqual([]);
-    expect(gated.rejected[0].sources).toEqual([{ url, outcome: "refused", reason: "outside-source-fence" }]);
+    expect(defined(gated.rejected[0]).sources).toEqual([{ url, outcome: "refused", reason: "outside-source-fence" }]);
   });
   it("dedupes adjacent-postcode centroids before the exact-coordinate postcode guard", () => {
     const row = { name: "Royal Standard", address: "Oxford OX3 9AA", lat: 51.759856, lng: -1.212887, coordinatePrecision: "postcode-centroid" };
@@ -42,11 +43,11 @@ describe("Parallel venue discovery", () => {
   it("keeps only independently sufficient permitted excerpts without changing observation dates", async () => {
     const url = "https://camra.org.uk/pubs/copper-rooms";
     const row = { ...venue, kind: "bar" as const, postcode: "B1 1AA", locality: city.displayName, sourceUrls: [venue.website, url], observedAt: "2026-10-04T10:00:00Z", lat: 52.48, lng: -1.90, coordinatePrecision: "postcode-centroid" as const,
-      evidence: [...venue.evidence, { url, excerpt: venue.evidence[0].excerpt }] };
+      evidence: [...venue.evidence, { url, excerpt: defined(venue.evidence[0]).excerpt }] };
     const gated = await gateVenueEvidence([row], city, async (source) => ({ outcome: source === url ? "allowed" : "refused" }));
-    expect(gated.venues).toEqual([{ ...row, sourceUrls: [url], evidence: [{ url, excerpt: venue.evidence[0].excerpt }] }]);
+    expect(gated.venues).toEqual([{ ...row, sourceUrls: [url], evidence: [{ url, excerpt: defined(venue.evidence[0]).excerpt }] }]);
     expect(gated.rejected).toEqual([]);
-    const split = { ...row, evidence: [{ url: venue.website, excerpt: venue.evidence[0].excerpt }, { url, excerpt: "Copper Rooms cocktail bar." }] };
+    const split = { ...row, evidence: [{ url: venue.website, excerpt: defined(venue.evidence[0]).excerpt }, { url, excerpt: "Copper Rooms cocktail bar." }] };
     expect((await gateVenueEvidence([split], city, async (source) => ({ outcome: source === url ? "allowed" : "refused" }))).venues).toEqual([]);
   });
   it("dedupes Black Lion Hotel against its mapped venue-type name variant", () => {
@@ -88,19 +89,19 @@ describe("Parallel venue discovery", () => {
   });
   it("does not borrow citations belonging to another venue", () => {
     const raw = result();
-    raw.output.basis[0].field = "venues.1";
+    defined(raw.output.basis[0]).field = "venues.1";
     expect(parseTaskVenues(raw, city, "2026-10-04T10:00:00Z").candidates).toEqual([]);
   });
   it("requires restaurant alcohol evidence", () => {
     const raw = result({ ...venue, kind: "restaurant" });
     const quote = "Copper Rooms restaurant, 12 Test Street, Birmingham, B1 1AA. Wine sauce and coffee.";
-    raw.output.content.venues[0].evidence = [{ url: venue.website, excerpt: quote }];
-    raw.output.basis[0].citations[0].excerpts = [quote];
-    expect(parseTaskVenues(raw, city, "2026-10-04T10:00:00Z").rejected[0].reason).toBe("missing-drinking-evidence");
+    defined(raw.output.content.venues[0]).evidence = [{ url: venue.website, excerpt: quote }];
+    defined(defined(raw.output.basis[0]).citations[0]).excerpts = [quote];
+    expect(defined(parseTaskVenues(raw, city, "2026-10-04T10:00:00Z").rejected[0]).reason).toBe("missing-drinking-evidence");
   });
   it("keeps source coordinates only when quoted, leaving invented points for geocoding", () => {
     const raw = result({ ...venue, lat: 52.48, lng: -1.90 });
-    expect(parseTaskVenues(raw, city, "2026-10-04T10:00:00Z").candidates[0].lat).toBeNull();
+    expect(defined(parseTaskVenues(raw, city, "2026-10-04T10:00:00Z").candidates[0]).lat).toBeNull();
   });
   it("dedupes name variants near existing venues and within a discovery batch", () => {
     const existing = [{ name: "The Copper Rooms", lat: 52.48, lng: -1.90 }];
@@ -120,8 +121,8 @@ describe("Parallel venue discovery", () => {
     ["1 Lime Walk, Headington, Oxford OX3 7RD", [51.759531, -1.213994], "Britannia", "74, London Road, OX3 7AA", [51.7590452, -1.2139214], "The Britannia Inn"],
     ["21-23 Hollywood Road, Brislington, Bristol BS4 4LD", [51.437534, -2.549317], "Pilgrim Inn", "21, Hollywood Road, Bristol, BS4 4LE", [51.4352354, -2.5482971], "The Pilgrim Inn"],
   ])("matches the discovery at %s to the OSM pub already on the map", (address, [lat, lng], name, osmAddress, [osmLat, osmLng], osmName) => {
-    const discovery = { name, address, lat, lng, coordinatePrecision: "postcode-centroid" };
-    const osm = { name: osmName, address: osmAddress, lat: osmLat, lng: osmLng, osmId: "node/1" };
+    const discovery = { name, address, lat: defined(lat), lng: defined(lng), coordinatePrecision: "postcode-centroid" };
+    const osm = { name: osmName, address: osmAddress, lat: defined(osmLat), lng: defined(osmLng), osmId: "node/1" };
     expect(dedupeVenues([discovery], [osm])).toMatchObject({ accepted: [], duplicates: [{ name, matchedName: osmName, matchedId: "node/1" }] });
   });
   it.each([
@@ -209,13 +210,13 @@ describe("Parallel venue discovery", () => {
   ])("does not retain a fabricated street behind a quoted qualifier: %s", (address) => {
     const quote = "Copper Rooms cocktail bar, Upstairs, Birmingham, B1 1AA.";
     const raw = result({ ...venue, address, evidence: [{ url: venue.website, excerpt: quote }] });
-    raw.output.basis[0].citations[0].excerpts = [quote];
+    defined(defined(raw.output.basis[0]).citations[0]).excerpts = [quote];
     expect(parseTaskVenues(raw, city, "2026-10-04T10:00:00Z").rejected).toEqual([{ name: "Copper Rooms", reason: "citation-does-not-bind-name-and-address" }]);
   });
   it("keeps a qualified address when every part of it is quoted", () => {
     const quote = "Copper Rooms cocktail bar, Upstairs, 12 Test Street, Birmingham B1 1AA.";
     const raw = result({ ...venue, address: "Upstairs, 12 Test Street, Birmingham B1 1AA", evidence: [{ url: venue.website, excerpt: quote }] });
-    raw.output.basis[0].citations[0].excerpts = [quote];
+    defined(defined(raw.output.basis[0]).citations[0]).excerpts = [quote];
     expect(parseTaskVenues(raw, city, "2026-10-04T10:00:00Z").candidates).toMatchObject([{ address: "Upstairs, 12 Test Street, Birmingham B1 1AA" }]);
   });
   it("refuses a persisted row whose street its quotes never state", () => {
@@ -272,12 +273,12 @@ describe("Parallel venue discovery", () => {
     const rows = [{ name: "Copper Rooms", lat: 52.48, lng: -1.90, kind: "bar" }, { name: "Silver Rooms", lat: 52.481, lng: -1.91, kind: "restaurant" }];
     const built = buildCitySlim(config, { pubs: rows });
     expect(built.slim.map((row) => [row.kind, row.cheapestPrice])).toEqual([["bar", null], ["restaurant", null]]);
-    expect(built.slim[1].filterHints.amenities.food).toBe(true);
+    expect(defined(built.slim[1]).filterHints.amenities.food).toBe(true);
   });
   it("does not accept a decimal prefix as a cited coordinate", () => {
     const quote = "Copper Rooms cocktail bar, 12 Test Street, Birmingham, B1 1AA. Coordinates 52.480123, -1.900123.";
     const raw = result({ ...venue, lat: 52.48, lng: -1.9, evidence: [{ url: venue.website, excerpt: quote }] });
-    raw.output.basis[0].citations[0].excerpts = [quote];
-    expect(parseTaskVenues(raw, city, "2026-10-04T10:00:00Z").candidates[0].lat).toBeNull();
+    defined(defined(raw.output.basis[0]).citations[0]).excerpts = [quote];
+    expect(defined(parseTaskVenues(raw, city, "2026-10-04T10:00:00Z").candidates[0]).lat).toBeNull();
   });
 });

@@ -25,6 +25,7 @@
 // family and the URL reader) and nothing else, so a bundle that needs the word
 // "units" pulls no venue index behind it.
 
+import type { Route } from "next";
 import { firstHttps } from "@/lib/httpUrl";
 import { priceBandClass, type PriceBand } from "@/lib/priceBand";
 
@@ -689,7 +690,7 @@ export const SPOONS_VALUE_MAP_HREF =
   `/map?${SPOONS_VALUE_LENS_PARAM}=${SPOONS_VALUE_LENS_VALUE}` as const;
 
 /** Where a ranked pub opens on the map, or null when no pin was joined to it. */
-export function spoonsValueMapHref(row: SpoonsValueTableRow): string | null {
+export function spoonsValueMapHref(row: SpoonsValueTableRow): Route | null {
   if (!row.venueId) return null;
   return `/map?sel=${encodeURIComponent(row.venueId)}&${SPOONS_VALUE_LENS_PARAM}=${SPOONS_VALUE_LENS_VALUE}`;
 }

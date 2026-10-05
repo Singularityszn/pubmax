@@ -158,6 +158,7 @@ function memorySummarize(dropId: string, actorHash: string): ReactionSummary {
   for (const key of memoryRows) {
     if (!key.startsWith(prefix)) continue;
     const [, actor, reaction] = key.split("|");
+    if (actor === undefined || reaction === undefined) continue;
     rows.push({ reaction, actor_hash: actor });
   }
   return summarizeRows(rows, actorHash);

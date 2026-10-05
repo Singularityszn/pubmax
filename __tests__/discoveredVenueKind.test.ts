@@ -1,6 +1,8 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+
+import { defined } from "@/__tests__/helpers/defined";
 import { assembleCityDiscoveries, discoveredKind, gateVenueEvidence, parseTaskVenues } from "../scripts/lib/parallelVenueDiscovery.mjs";
 
 const city = { id: "birmingham", displayName: "Birmingham", bbox: [52.42, -1.98, 52.55, -1.8] as [number, number, number, number] };
@@ -47,7 +49,7 @@ describe("discovered venue kind", () => {
       evidence: excerpts.map((excerpt) => ({ url: "https://camra.org.uk/pubs/ward-end", excerpt })) }] },
       basis: [{ field: "venues.0", confidence: "high", citations: [{ url: "https://camra.org.uk/pubs/ward-end", excerpts }] }] } };
     const [candidate] = parseTaskVenues(raw, city, "2026-10-04T10:00:00Z").candidates;
-    const found = { ...candidate, lat: 52.49, lng: -1.83, coordinatePrecision: "postcode-centroid" as const };
+    const found = { ...defined(candidate, "the parsed candidate"), lat: 52.49, lng: -1.83, coordinatePrecision: "postcode-centroid" as const };
     expect((await gateVenueEvidence([found], city, allowed)).venues.map((row) => row.kind)).toEqual(["club"]);
     const assembled = assembleCityDiscoveries({ found: [], previous: [{ ...found, id: "venue-bhm-ward" }], existing: [], city }).venues;
     expect((await gateVenueEvidence(assembled, city, allowed)).venues.map((row) => row.kind)).toEqual(["club"]);

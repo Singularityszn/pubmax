@@ -1,3 +1,6 @@
+import type { Route } from "next";
+
+import type { AppOrExternalLink } from "@/lib/appLink";
 import { firstHttp } from "@/lib/httpUrl";
 import {
   outCardSource,
@@ -696,9 +699,9 @@ function outLaneCredit(
 
 export type TonightRowLinks = {
   /** The whole card's link, or null when the row carries neither. */
-  primary: { href: string; external: boolean } | null;
+  primary: AppOrExternalLink | null;
   /** The map, when the card link went to the publisher instead. */
-  mapHref: string | null;
+  mapHref: Route | null;
   /** How this row's publisher is spelled, wherever the row names it. */
   sourceLabel: string;
 };
@@ -728,7 +731,7 @@ export function tonightRowLinks(
   const sourceLabel = credit.label;
   const sourceUrl = credit.href ? firstHttp(credit.href) : null;
   const venueId = canonicalOutVenueId(row.venueId);
-  const mapHref =
+  const mapHref: Route | null =
     venueId && tonightMapHrefAllowed(venueId, selectable)
       ? `/map?sel=${encodeURIComponent(venueId)}`
       : null;

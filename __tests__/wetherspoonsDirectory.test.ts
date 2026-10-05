@@ -8,6 +8,7 @@ import type {
   WetherspoonsDirectory,
   WetherspoonsPub,
 } from "@/lib/wetherspoonsDirectory";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The directory is SCRAPED/observed data. These tests lock the non-negotiable
 // invariants: an honest per-pub {source, observedAt} provenance stamp, and
@@ -83,8 +84,8 @@ describe("Wetherspoons directory dataset", () => {
     const dir = load<WetherspoonsDirectory>(DIRECTORY_PATHS[0]);
     const pubs = dir.pubs as WetherspoonsPub[];
     for (let index = 1; index < pubs.length; index += 1) {
-      const left = pubs[index - 1];
-      const right = pubs[index];
+      const left = defined(pubs[index - 1]);
+      const right = defined(pubs[index]);
       const byKey = `${left.country}|${left.townCity}|${left.name}`.localeCompare(
         `${right.country}|${right.townCity}|${right.name}`,
       );

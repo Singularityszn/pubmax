@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
@@ -36,7 +37,7 @@ async function getVenues(): Promise<Venue[]> {
   }
 }
 
-function startCrawlHref(pubIds: string[]): string {
+function startCrawlHref(pubIds: string[]): Route {
   const params = new URLSearchParams();
   params.set("mode", "build");
   params.set("pubs", pubIds.join(","));
@@ -80,7 +81,7 @@ export default async function LandmarkChapterPage({ params }: PageProps) {
   const venues = await getVenues();
   const nearby = nearestStoryPubs(landmark, venues, 5);
   const crawlIds = nearby.map((row) => row.venue.id).slice(0, 3);
-  const mapHref = `/map?landmark=${encodeURIComponent(landmark.id)}`;
+  const mapHref: Route = `/map?landmark=${encodeURIComponent(landmark.id)}`;
 
   return (
     <main id="main" className="landmarkChapterPage">

@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import { offlineOrMessage } from "@/lib/apiErrorMessage";
 
 import { Check, Footprints } from "lucide-react";
@@ -17,8 +18,8 @@ type CrawlProgressSectionProps = {
   handleMarkComplete: () => void;
   paceLabel: string;
   placeStoryBandId: string | undefined;
-  dropHref: string;
-  shareMapHref: string;
+  dropHref: Route;
+  shareMapHref: Route;
 };
 
 export default function CrawlProgressSection({

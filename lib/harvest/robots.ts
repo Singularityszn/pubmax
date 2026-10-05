@@ -170,7 +170,7 @@ export function looksLikeChallengePage(body: string): boolean {
   if (CHALLENGE_PAGE_SIGNATURES.some(({ mark }) => head.includes(mark))) return true;
   const refresh = /<meta[^>]+http-equiv\s*=\s*["']?refresh["']?[^>]*content\s*=\s*["'][^"']*url\s*=\s*([^"'\s]+)/i.exec(head);
   if (refresh) {
-    const target = refresh[1];
+    const target = refresh[1] ?? "";
     if (/challenge|captcha|cdn-cgi|_sec\/|incapsula|bot-?check|verify/i.test(target)) return true;
   }
   return false;
@@ -210,7 +210,7 @@ export function looksLikeHtmlDocument(body: string): boolean {
  */
 function looksLikeRulesFile(body: string): boolean {
   for (const raw of body.split(/\r?\n/)) {
-    const line = raw.split("#")[0].trim();
+    const line = (raw.split("#")[0] ?? "").trim();
     if (line.length === 0) continue;
     const separator = line.indexOf(":");
     if (separator < 1) return false;
@@ -231,7 +231,7 @@ export function parseRobotsTxt(body: string): RobotsRules {
   let sawRuleForGroup = false;
 
   for (const raw of body.split(/\r?\n/)) {
-    const line = raw.split("#")[0].trim();
+    const line = (raw.split("#")[0] ?? "").trim();
     if (line.length === 0) continue;
     const separator = line.indexOf(":");
     if (separator < 0) continue;

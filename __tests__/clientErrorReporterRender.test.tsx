@@ -11,6 +11,7 @@ vi.mock("@/lib/nativePlatform", () => ({
 }));
 
 import ClientErrorReporter, { CLIENT_ERROR_SESSION_CAP } from "@/components/ClientErrorReporter";
+import { defined } from "@/__tests__/helpers/defined";
 
 // GAP 16, the browser half. What matters is that a thrown error reaches the
 // endpoint redacted, that one bug does not become a flood, and that the
@@ -77,7 +78,7 @@ describe("ClientErrorReporter", () => {
     throwUncaught(new TypeError("Failed to fetch https://pubmaxxing.com/api/venue?id=1"));
 
     expect(sendBeacon).toHaveBeenCalledTimes(1);
-    expect(sendBeacon.mock.calls[0][0]).toBe("/api/client-error");
+    expect(defined(sendBeacon.mock.calls[0])[0]).toBe("/api/client-error");
     expect(sentPayloads()[0]).toEqual({
       kind: "error",
       name: "TypeError",

@@ -39,6 +39,7 @@ import {
   POI_TOGGLE_GROUPS,
   togglePoiGroup,
 } from "@/lib/poiToggleGroups";
+import { defined } from "@/__tests__/helpers/defined";
 
 function hiddenMap(hidden: Partial<Record<PoiCategory, boolean>> = {}): Record<PoiCategory, boolean> {
   return new Proxy(hidden as Record<PoiCategory, boolean>, {
@@ -196,13 +197,13 @@ function evalMapLibreExpr(expr: unknown, props: Record<string, unknown>): number
   const vals = args.map((a) => evalMapLibreExpr(a, props));
   switch (op) {
     case "+":
-      return vals[0] + vals[1];
+      return defined(vals[0]) + defined(vals[1]);
     case "-":
-      return vals[0] - vals[1];
+      return defined(vals[0]) - defined(vals[1]);
     case "*":
-      return vals[0] * vals[1];
+      return defined(vals[0]) * defined(vals[1]);
     case "/":
-      return vals[0] / vals[1];
+      return defined(vals[0]) / defined(vals[1]);
     case "min":
       return Math.min(...vals);
     case "max":

@@ -8,6 +8,7 @@ import {
   parseExtractedFact,
   searchKeenable,
 } from "../scripts/lib/keenableAreaNews.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -43,7 +44,7 @@ describe("Keenable area-news client", () => {
         }),
       }),
     );
-    expect(JSON.parse(fetchImpl.mock.calls[0][1].body)).toMatchObject({
+    expect(JSON.parse(defined(fetchImpl.mock.calls[0])[1].body)).toMatchObject({
       query: "pubs",
       max_results: 4,
     });
@@ -90,7 +91,7 @@ describe("Keenable area-news client", () => {
     await expect(
       fetchKeenable("https://example.com/article", { env: {}, fetchImpl }),
     ).resolves.toMatchObject({ content: "# Article\n\nA real page." });
-    expect(fetchImpl.mock.calls[0][0]).toContain("/v1/fetch/public?url=");
+    expect(defined(fetchImpl.mock.calls[0])[0]).toContain("/v1/fetch/public?url=");
 
     const emptyFetch = vi.fn().mockResolvedValue(jsonResponse({ content: "" }));
     await expect(fetchKeenable("https://example.com/article", { env: {}, fetchImpl: emptyFetch })).rejects.toThrow(

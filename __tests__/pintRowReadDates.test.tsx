@@ -9,6 +9,7 @@ import { oldestPintRead } from "@/lib/drinks";
 import { nearPriceTrustObservedAt, resolveNearPriceTrust } from "@/lib/nearPriceTrust";
 import { faqItems, pintFactStats } from "@/lib/pintFacts";
 import type { Venue, VenuePrice } from "@/lib/venues";
+import { defined } from "@/__tests__/helpers/defined";
 
 // A price is dated by the read of its own row. The 2 October re-collection did
 // not re-read every row, and a row last read in July says July, never the
@@ -75,14 +76,14 @@ describe("a price is dated by its own row's read", () => {
   it("dates a borough's cheapest pint by that pint's own read", () => {
     const stats = pintFactStats([venue("cheap", 3.5, JULY), venue("dear", 7, OCTOBER)], "Camden", "camden");
     const [cheapest] = faqItems(stats, { monthYear: "October 2026", year: "2026" });
-    expect(cheapest.answer).toBe(
+    expect(defined(cheapest).answer).toBe(
       "The cheapest tracked pint in Camden is £3.50 at The cheap, as collected on 3 July 2026.",
     );
     const [unread] = faqItems(
       pintFactStats([venue("cheap", 3.5, undefined)], "Camden", "camden"),
       { monthYear: "October 2026", year: "2026" },
     );
-    expect(unread.answer).toBe("The cheapest tracked pint in Camden is £3.50 at The cheap.");
+    expect(defined(unread).answer).toBe("The cheapest tracked pint in Camden is £3.50 at The cheap.");
   });
 
   it("carries a near-you price's own read into the accepted venue's provenance", () => {

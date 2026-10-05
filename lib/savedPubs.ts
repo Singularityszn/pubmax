@@ -7,6 +7,9 @@
 // (dedupe, uniqueness, idempotent toggles) is pure and lives in
 // upsertSaved/removeSaved so it can be unit-tested with no `window`.
 
+import type { Route } from "next";
+import { profilePath } from "@/lib/appLink";
+import { savedListPath } from "@/lib/savedListUrl";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
 import { isListTypeEligibleForVenue } from "@/lib/savedListPolicy";
@@ -240,7 +243,7 @@ export function savedByList(): Partial<Record<ListType, SavedPub[]>> {
 export type SavedPubDTO = {
   venueId: string;
   venueName: string;
-  venueMapUrl: string;
+  venueMapUrl: Route;
   listType: ListType;
   note?: string;
   savedAt: string;
@@ -248,9 +251,9 @@ export type SavedPubDTO = {
 
 export type FollowedSavedListDTO = {
   ownerHandle: string;
-  ownerProfileUrl: string;
+  ownerProfileUrl: Route;
   listType: ListType;
-  listUrl: string;
+  listUrl: Route;
   savedCount: number;
   followerCount: number;
   followedAt: string;
@@ -279,7 +282,8 @@ function parseDTOs(data: unknown): SavedPubDTO[] {
             : "A London venue",
         venueMapUrl:
           typeof row.venueMapUrl === "string" && row.venueMapUrl
-            ? row.venueMapUrl
+            ? // The server builds this field with venueMapUrl().
+              (row.venueMapUrl as Route)
             : `/map?sel=${encodeURIComponent(row.venueId)}`,
         listType: row.listType,
         note: typeof row.note === "string" ? row.note : undefined,
@@ -313,9 +317,9 @@ function parseFollowedLists(data: unknown): FollowedSavedListDTO[] {
       if (!ownerHandle || !isListType(listType)) continue;
       out.push({
         ownerHandle,
-        ownerProfileUrl: `/u/${encodeURIComponent(ownerHandle)}`,
+        ownerProfileUrl: profilePath(ownerHandle),
         listType,
-        listUrl: `/u/${encodeURIComponent(ownerHandle)}/lists/${encodeURIComponent(listType)}`,
+        listUrl: savedListPath(ownerHandle, listType),
         savedCount: positiveNumber(row.savedCount),
         followerCount: positiveNumber(row.followerCount),
         followedAt:

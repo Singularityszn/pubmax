@@ -12,6 +12,8 @@
 // ConfirmFollow.tsx) renders it and the follow route (app/api/profiles/
 // [handle]/follow) writes it - neither owns a rule.
 
+import type { Route } from "next";
+import { profilePath } from "@/lib/appLink";
 import { arrivalDestination, type ArrivalIntent } from "@/lib/arrivalWelcome";
 import { displayHandle } from "@/lib/handleDisplay";
 import { safeInviteReturnTo } from "@/lib/inviteReturnTo";
@@ -41,16 +43,16 @@ export function addLinkReturnTo(handle: string): string | null {
 }
 
 /** Where the two doors point. `mode` is the login page's own door parameter. */
-function loginHref(mode: "signup" | "signin", returnTo: string): string {
+function loginHref(mode: "signup" | "signin", returnTo: string): Route {
   const params = new URLSearchParams({ mode, from: returnTo });
   return `/login?${params.toString()}`;
 }
 
 export type AddLinkDoors = {
   /** Make an account, then land back and add them. */
-  createHref: string;
+  createHref: Route;
   /** Already has an account. Same landing. */
-  signInHref: string;
+  signInHref: Route;
 };
 
 /** Both doors for one target, or null when the handle is not a handle. */
@@ -286,7 +288,7 @@ export function addLinkReceiptTitle(handle: string, name?: string | null): strin
 export const ADD_LINK_RECEIPT_BODY =
   "When they add you back, you are each other's lot.";
 
-export type AddLinkNextStep = { href: string; label: string };
+export type AddLinkNextStep = { href: Route; label: string };
 
 /**
  * Where a receipt sends somebody next. Three doors on purpose: the map is the
@@ -301,7 +303,7 @@ export function addLinkNextSteps(handle: string): AddLinkNextStep[] {
     { href: "/map", label: "Open the map" },
     { href: "/near", label: "Find a pint" },
     ...(target
-      ? [{ href: `/u/${target}`, label: "Send them a message" }]
+      ? [{ href: profilePath(target), label: "Send them a message" }]
       : []),
   ];
 }

@@ -17,6 +17,7 @@ import {
   PRESENCE_TTL_MS,
   type PresenceDTO,
 } from "@/lib/presenceStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 const HANDLE = "old_ken";
 const OTHER_HANDLE = "riverside_sam";
@@ -41,9 +42,9 @@ describe("markPresence + recentPresence — the happy path", () => {
     await markPresence({ handle: HANDLE, venueId: VENUE, actorHash: ACTOR }, T0);
     const rows = await recentPresence(undefined, T0 + 60_000);
     expect(rows).toHaveLength(1);
-    expect(rows[0].handle).toBe(HANDLE);
-    expect(rows[0].venueId).toBe(VENUE);
-    expect(typeof rows[0].at).toBe("string");
+    expect(defined(rows[0]).handle).toBe(HANDLE);
+    expect(defined(rows[0]).venueId).toBe(VENUE);
+    expect(typeof defined(rows[0]).at).toBe("string");
   });
 
   it("scopes recentPresence to a single venue when asked", async () => {
@@ -55,7 +56,7 @@ describe("markPresence + recentPresence — the happy path", () => {
 
     const scoped = await recentPresence(VENUE, T0 + 1);
     expect(scoped).toHaveLength(1);
-    expect(scoped[0].venueId).toBe(VENUE);
+    expect(defined(scoped[0]).venueId).toBe(VENUE);
   });
 });
 
@@ -97,7 +98,7 @@ describe("re-mark refreshes expiry (UPSERT on actor+venue)", () => {
     await markPresence({ handle: "renamed_ken", venueId: VENUE, actorHash: ACTOR }, T0 + 1000);
     const rows = await recentPresence(undefined, T0 + 2000);
     expect(rows).toHaveLength(1);
-    expect(rows[0].handle).toBe("renamed_ken");
+    expect(defined(rows[0]).handle).toBe("renamed_ken");
   });
 });
 
@@ -106,7 +107,7 @@ describe("public DTO — no actor_hash leak", () => {
     await markPresence({ handle: HANDLE, venueId: VENUE, actorHash: ACTOR }, T0);
     const rows = await recentPresence(undefined, T0 + 1);
     expect(rows).toHaveLength(1);
-    const dto: PresenceDTO = rows[0];
+    const dto: PresenceDTO = defined(rows[0]);
 
     // Enriched public fields present.
     expect(typeof dto.venueName).toBe("string");
@@ -140,8 +141,8 @@ describe("input hygiene", () => {
     );
     const rows = await recentPresence(undefined, T0 + 1);
     expect(rows).toHaveLength(1);
-    expect(rows[0].handle).not.toContain("<");
-    expect(rows[0].handle).not.toContain(">");
+    expect(defined(rows[0]).handle).not.toContain("<");
+    expect(defined(rows[0]).handle).not.toContain(">");
   });
 });
 

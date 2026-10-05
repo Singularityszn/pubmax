@@ -11,6 +11,7 @@ import {
   type WalkRouteFetch,
 } from "@/lib/walkRouteProvider";
 import type { LngLat } from "@/lib/walkRoute";
+import { defined } from "@/__tests__/helpers/defined";
 
 const A: LngLat = [-0.1005, 51.5136];
 const B: LngLat = [-0.0975, 51.5142];
@@ -57,7 +58,7 @@ describe("fetchWalkLeg", () => {
     const result = await fetchWalkLeg(A, B, { apiKey: "ork_secret", doFetch });
     expect(result).toEqual(routed);
     expect(doFetch).toHaveBeenCalledTimes(1);
-    const [url, init] = doFetch.mock.calls[0];
+    const [url, init] = defined(doFetch.mock.calls[0]);
     expect(url).toBe(ORS_FOOT_WALKING_URL);
     expect(init.method).toBe("POST");
     expect(init.headers.Authorization).toBe("ork_secret");
@@ -107,7 +108,7 @@ describe("fetchWalkLeg", () => {
     expect(await fetchWalkLeg(A, B, { apiKey: "k", doFetch, timeoutMs: 5 })).toBeNull();
     expect(doFetch).toHaveBeenCalledTimes(1);
     // The signal handed to fetch is the bounded deadline signal, and it aborted.
-    expect(doFetch.mock.calls[0][1].signal?.aborted).toBe(true);
+    expect(defined(doFetch.mock.calls[0])[1].signal?.aborted).toBe(true);
   });
 
   it("aborts the leg when the caller's own signal is already aborted", async () => {

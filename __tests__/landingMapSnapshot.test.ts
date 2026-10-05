@@ -12,6 +12,7 @@ import {
   LONDON_MAP_PUB_DOTS,
   LONDON_MAP_VIEWBOX,
 } from "@/components/landing/londonMapGeometry";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The generated geometry still supplies the historic-pub count printed on the
 // landing and OG card. Keep its source data honest and generated, even though
@@ -142,15 +143,15 @@ describe("the landing's generated London data", () => {
     const [, , width, height] = LONDON_MAP_VIEWBOX.split(" ").map(Number);
     for (const [, x, y] of LONDON_MAP_PUB_DOTS.matchAll(/M(-?[\d.]+) (-?[\d.]+)/g)) {
       expect(Number(x)).toBeGreaterThanOrEqual(-10);
-      expect(Number(x)).toBeLessThanOrEqual(width);
+      expect(Number(x)).toBeLessThanOrEqual(defined(width));
       expect(Number(y)).toBeGreaterThanOrEqual(0);
-      expect(Number(y)).toBeLessThanOrEqual(height);
+      expect(Number(y)).toBeLessThanOrEqual(defined(height));
     }
     for (const pin of LONDON_MAP_PINS) {
       expect(pin.x).toBeGreaterThanOrEqual(0);
-      expect(pin.x).toBeLessThanOrEqual(width);
+      expect(pin.x).toBeLessThanOrEqual(defined(width));
       expect(pin.y).toBeGreaterThanOrEqual(0);
-      expect(pin.y).toBeLessThanOrEqual(height);
+      expect(pin.y).toBeLessThanOrEqual(defined(height));
       expect(["start", "end"]).toContain(pin.anchor);
     }
   });

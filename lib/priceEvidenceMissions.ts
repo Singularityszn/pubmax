@@ -129,10 +129,11 @@ function candidateForVenue(
     else stale.push(price);
   }
 
-  const pick = (list: CommunityPrice[], reason: PriceEvidenceMissionReason): PriceEvidenceMission => {
+  const pick = (list: CommunityPrice[], reason: PriceEvidenceMissionReason): PriceEvidenceMission | null => {
     const chosen = [...list].sort((left, right) =>
       categoryOrder(left.drinkCategory) - categoryOrder(right.drinkCategory),
     )[0];
+    if (!chosen) return null;
     return {
       venueId: venue.venueId,
       reason,

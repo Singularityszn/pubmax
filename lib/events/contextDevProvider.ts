@@ -289,11 +289,12 @@ function eventEvidenceSections(markdown: string, title: string): string[] {
     const heading = /^(#{1,6})\s+(.+?)(?:\s+#+)?$/.exec(content);
     if (heading) {
       flush();
+      const headingText = heading[2] ?? "";
       if (heading[1] === "#") {
-        card = [heading[2]];
+        card = [headingText];
         flush();
-      } else if (evidenceWords(heading[2]) === evidenceWords(title)) {
-        card = [heading[2]];
+      } else if (evidenceWords(headingText) === evidenceWords(title)) {
+        card = [headingText];
         cardKind = "heading";
       }
       continue;
@@ -302,9 +303,9 @@ function eventEvidenceSections(markdown: string, title: string): string[] {
     const list = /^(\s*)(?:[-*+]|\d+[.)])\s+(.+)$/.exec(line);
     if (list) {
       flush();
-      card = [list[2]];
+      card = [list[2] ?? ""];
       cardKind = "list";
-      listIndent = list[1].length;
+      listIndent = (list[1] ?? "").length;
       continue;
     }
 

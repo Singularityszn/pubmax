@@ -1,3 +1,5 @@
+import type { Route } from "next";
+
 const INVITE_ORIGIN = "https://pubmax.invalid";
 const INVITE_PATH = /^\/add\/[a-z0-9_]{3,30}$/;
 /**
@@ -12,7 +14,7 @@ const INVITE_SEARCH = "?auto=1";
  * Keep invite continuation inside one add-link path. The value is carried in
  * the URL during account setup and is never written to device storage.
  */
-export function safeInviteReturnTo(raw: string | null | undefined): string | null {
+export function safeInviteReturnTo(raw: string | null | undefined): Route | null {
   if (typeof raw !== "string") return null;
   const candidate = raw.trim();
   if (
@@ -33,13 +35,14 @@ export function safeInviteReturnTo(raw: string | null | undefined): string | nul
     ) {
       return null;
     }
-    return `${url.pathname}${url.search}`;
+    // Same-origin path, checked above.
+    return `${url.pathname}${url.search}` as Route;
   } catch {
     return null;
   }
 }
 
-export function inviteReturnToFromUrl(rawUrl: string): string | null {
+export function inviteReturnToFromUrl(rawUrl: string): Route | null {
   try {
     return safeInviteReturnTo(new URL(rawUrl).searchParams.get("returnTo"));
   } catch {

@@ -42,6 +42,7 @@ import "server-only";
 // nearest-station lookup fails or finds nothing, it returns 200 with an `error`
 // string and an empty body the card can show gracefully (user story 24).
 
+import { clockMinutes } from "@/lib/clock";
 import { publicApiError } from "@/lib/apiError";
 import {
   computeLastPintDecision,
@@ -725,10 +726,8 @@ export async function runLastTrainRoute(request: Request): Promise<Response> {
   // reads negative (departed/withdrawn), never ~24h ahead.
   let minutesUntilLastTrain: number | null = null;
   for (const t of trains) {
-    const [h, m] = t.clock.split(":").map(Number);
-    const clockMinutes = h * 60 + m;
     const mins = minutesUntilDeparture(
-      clockMinutes,
+      clockMinutes(t.clock),
       t.pastMidnight,
       nowMinutes,
       nowInstant,

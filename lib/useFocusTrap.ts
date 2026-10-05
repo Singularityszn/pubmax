@@ -271,12 +271,12 @@ export function nextTrapFocus(input: {
   const index = regions.findIndex((region) =>
     region.some((node) => node === input.active),
   );
-  if (index < 0) return null;
   const region = regions[index];
-  const edge = input.shift ? region[0] : region[region.length - 1];
+  if (!region) return null;
+  const edge = input.shift ? region[0] : region.at(-1);
   if (input.active !== edge) return null;
   const next = regions[(index + (input.shift ? regions.length - 1 : 1)) % regions.length];
-  return input.shift ? next[next.length - 1] : next[0];
+  return (input.shift ? next?.at(-1) : next?.[0]) ?? null;
 }
 
 function visibleFocusables(root: HTMLElement): HTMLElement[] {
@@ -413,7 +413,7 @@ export function useFocusTrap(
       if (!focusable.length) return;
       if (document.activeElement === container) {
         event.preventDefault();
-        (event.shiftKey ? focusable[focusable.length - 1] : focusable[0]).focus();
+        (event.shiftKey ? focusable.at(-1) : focusable[0])?.focus();
         return;
       }
       const next = nextTrapFocus({

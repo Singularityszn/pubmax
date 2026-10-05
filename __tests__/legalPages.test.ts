@@ -12,6 +12,7 @@ import {
   WEATHER_RECOMMENDATION_CONDITIONS,
   weatherRecommendationConditionLabel,
 } from "@/lib/weatherRecommendations";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The /privacy + /terms fence. These pages are the only surfaces where the site
 // makes promises about data ON THE RECORD, so the regressions that matter are
@@ -327,6 +328,13 @@ describe("legal content pages", () => {
     }
   });
 
+  it("says confirmed Pal memories go to the model provider with each Pub Pal chat", () => {
+    // Confirmed memories go ahead of every typed ask and to the voice agent
+    // through recall_memories. The AI features row must not still claim
+    // nothing else about you goes.
+    expect(privacyText).toMatch(/memories you confirmed for your Pal[\s\S]*go with each chat or voice call/i);
+  });
+
   it("names the host of every observability egress the code carries", () => {
     // The WIDENING. The two blocks above are hand-written recipient tables, so
     // they only ever catch a vendor somebody remembered to add. This one reads
@@ -352,7 +360,7 @@ describe("legal content pages", () => {
       for (const name of modules) {
         const source = readFileSync(join(directory, name), "utf8");
         for (const match of source.matchAll(/https:\/\/([A-Za-z0-9.-]+)/g)) {
-          hosts.add(match[1]);
+          hosts.add(defined(match[1]));
         }
       }
     }

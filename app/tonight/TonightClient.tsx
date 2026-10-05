@@ -8,6 +8,7 @@
 // straight-line haversine estimate once the viewer shares location (labelled "~").
 // React 19 safe: settle() defers setState out of the effect body.
 
+import type { Route } from "next";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
@@ -175,7 +176,7 @@ function mobileSecondaryLanes(lanes: ReactNode): ReactNode {
 const THIN_NIGHT_MAX_ROWS = 2;
 
 type QuietAlternative = {
-  href: string;
+  href: Route;
   icon: typeof TrainFront;
   title: string;
   sub: string;

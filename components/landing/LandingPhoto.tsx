@@ -12,6 +12,7 @@
 // component rather than the caller's problem: a CC BY photograph without its
 // photographer's name beside it is one we had no right to publish.
 
+import { lastOf } from "@/lib/tuple";
 import {
   landingPhotoAlt,
   landingPhotoCreditNamesPlace,
@@ -23,7 +24,7 @@ import {
 
 import "./landingPhoto.css";
 
-const WIDEST = LANDING_PHOTO_WIDTHS[LANDING_PHOTO_WIDTHS.length - 1];
+const WIDEST = lastOf(LANDING_PHOTO_WIDTHS);
 
 export default function LandingPhoto({
   resolved,

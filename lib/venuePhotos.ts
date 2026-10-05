@@ -27,6 +27,7 @@
 //    discovers by opening a feed that has nothing in it, so an unverified
 //    author is told the wall took the photo and the feed did not.
 
+import type { Route } from "next";
 import { categoryLabel, DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
 import type { CropTarget } from "@/lib/profileImagePicker";
 
@@ -422,7 +423,7 @@ export const VENUE_PHOTO_SIGN_IN_LINE =
  * takes a path on this site or nothing; `arrivalDestination` refuses an
  * off-site one on the other side regardless.
  */
-export function venuePhotoSignInHref(from?: string | null): string {
+export function venuePhotoSignInHref(from?: string | null): Route {
   const back = from && from.startsWith("/") ? from : "/map";
   return `/login?from=${encodeURIComponent(back)}`;
 }

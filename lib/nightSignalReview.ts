@@ -29,6 +29,7 @@
 // This module is a pure leaf: its one import is the claim TYPE set, so the
 // cron, the store, the moderator door and the tests read one copy of the rules.
 
+import { lastOf } from "@/lib/tuple";
 import type {
   NightSignalClaim,
   NightSignalReviewAuthority,
@@ -378,7 +379,7 @@ export function recordQueryFailure(
       attempts,
     };
   }
-  const backoff = QUERY_RETRY_BACKOFF_MS[Math.min(attempts - 1, QUERY_RETRY_BACKOFF_MS.length - 1)];
+  const backoff = QUERY_RETRY_BACKOFF_MS[Math.min(attempts - 1, QUERY_RETRY_BACKOFF_MS.length - 1)] ?? lastOf(QUERY_RETRY_BACKOFF_MS);
   const deferred = [
     ...checkpoint.deferred.filter((entry) => entry.key !== key),
     { key, attempts, retryAfter: iso(options.now + backoff), reason, recordedAt },

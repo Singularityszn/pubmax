@@ -11,6 +11,7 @@
 //   - a reported message stops carrying its photo, in the ONE projection both
 //     the durable and the in-memory backend read.
 
+import type { Route } from "next";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -36,9 +37,11 @@ import {
   messagePhotoStagingKey,
   messageVenueCardLabel,
   messageVenuePriceLine,
+  type MessageVenueCard,
 } from "@/lib/messageAttachments";
 import { cleanAttachedBody, cleanBody } from "@/lib/messages";
 import { __resetMemoryMessages, memoryMessagesStore } from "@/lib/messagesStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
@@ -130,7 +133,7 @@ describe("a pub card holds a pub, never a place", () => {
       area: "Soho",
       priceGbp: 5.4,
       mapUrl: "/map?sel=v1",
-    };
+    } satisfies MessageVenueCard;
     expect(messageVenueCardLabel(card)).toBe("The Coach and Horses, Soho. Open on the map");
     expect(messageVenueCardLabel({ ...card, area: "" })).toBe(
       "The Coach and Horses. Open on the map",
@@ -187,8 +190,8 @@ describe("a reported message stops carrying its photo", () => {
     expect(await memoryMessagesStore.report(conversationId!, messageId, "sam")).toBe(true);
 
     const after = await memoryMessagesStore.listMessages(conversationId!, "sam");
-    expect(after?.[0].flagged).toBe(true);
-    expect(after?.[0].attachment).toBeUndefined();
+    expect(defined(after?.[0]).flagged).toBe(true);
+    expect(defined(after?.[0]).attachment).toBeUndefined();
     // The bytes stop being reachable at the same moment, through the same
     // projection, not through a second copy of the rule.
     expect(
@@ -286,7 +289,7 @@ describe("attachment card accessible names", () => {
   it("ends contact and event card labels with the shared open copy", () => {
     expect(MESSAGE_CONTACT_OPEN_LABEL).toBe("Open profile");
     expect(MESSAGE_EVENT_OPEN_LABEL).toBe("Open the plan");
-    expect(messageContactCardLabel({ handle: "ada", displayName: null, avatarUrl: null, profileUrl: "/u/ada" })).toContain(
+    expect(messageContactCardLabel({ handle: "ada", displayName: null, avatarUrl: null, profileUrl: "/u/ada" as Route })).toContain(
       MESSAGE_CONTACT_OPEN_LABEL,
     );
     expect(
@@ -297,7 +300,7 @@ describe("attachment card accessible names", () => {
         startLabel: "Friday 8pm",
         stopCount: 2,
         routeReady: true,
-        planUrl: "/plan/p1",
+        planUrl: "/plan/p1" as Route,
       }),
     ).toContain(MESSAGE_EVENT_OPEN_LABEL);
   });

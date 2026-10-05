@@ -5,6 +5,7 @@ import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { agentsMdFiles } from "./helpers/agentsMdTree";
+import { defined } from "@/__tests__/helpers/defined";
 
 // AGENTS.md is a POINTER document, so a pointer that no longer resolves is the
 // one way it can rot silently. Nothing else reads it: no test, script or
@@ -276,10 +277,10 @@ function resolvesPattern(pointer: string): boolean {
   function visit(directory: string, index: number): boolean {
     if (index === segments.length) return true;
 
-    const segment = segments[index];
+    const segment = defined(segments[index]);
     if (segment.includes("*")) {
       if (!existsSync(directory) || !statSync(directory).isDirectory()) return false;
-      const pattern = wildcardRegExp(segment);
+      const pattern = wildcardRegExp(defined(segment));
       return readdirSync(directory).some(
         (entry) => {
           if (!pattern.test(entry)) return false;
@@ -295,7 +296,7 @@ function resolvesPattern(pointer: string): boolean {
       );
     }
 
-    const next = join(directory, segment);
+    const next = join(directory, defined(segment));
     const nextPath = relativePathInsideRoot(next);
     if (nextPath === null || !trackedNodeExists(nextPath) || !existsSync(next)) {
       return false;

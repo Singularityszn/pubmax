@@ -15,6 +15,7 @@ import {
   parseArgs,
   pruneManagedCityPrices,
 } from "@/scripts/enrich_city_pubs_tavily.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 const OBSERVED_AT = "2026-07-26T10:00:00.000Z";
 
@@ -189,7 +190,7 @@ describe("Tavily pub enrichment governance", () => {
       fetchImpl,
     });
 
-    expect(classifyChainPub(result.delegatedChains[0].pub)).toEqual({
+    expect(classifyChainPub(defined(result.delegatedChains[0]).pub)).toEqual({
       chain: "wetherspoons",
       harvester: "scripts/fetch_wetherspoons_pubs.mjs",
     });

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ownSiteFor, parseTaskVenues, statesDrinking, validateDiscoveryPack } from "../scripts/lib/parallelVenueDiscovery.mjs";
 import { nonVenueSource, rankSearchResults, readFailureIsDefinitive, webPageResult } from "../scripts/lib/webVenueDiscovery.mjs";
 import { parseArgs } from "../scripts/discover_parallel_venues.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 const manchester = { id: "manchester", displayName: "Manchester", bbox: [53.38, -2.35, 53.55, -2.1] as [number, number, number, number] };
 const observedAt = "2026-10-04T10:00:00Z";
@@ -14,8 +15,8 @@ describe("Tavily venue discovery", () => {
     const parsed = read("https://www.copperrooms.example/contact", text, "Copper Rooms | Cocktail bar");
     expect(parsed.candidates).toMatchObject([{ name: "Copper Rooms", kind: "bar", postcode: "M3 2BY", website: "https://www.copperrooms.example/",
       address: "12 Test Street, Manchester M3 2BY", sourceUrls: ["https://www.copperrooms.example/contact"] }]);
-    expect(parsed.candidates[0].evidence[0].excerpt).toContain("Copper Rooms");
-    expect(parsed.candidates[0].evidence[0].excerpt).toContain("M3 2BY");
+    expect(defined(defined(parsed.candidates[0]).evidence[0]).excerpt).toContain("Copper Rooms");
+    expect(defined(defined(parsed.candidates[0]).evidence[0]).excerpt).toContain("M3 2BY");
   });
 
   it("reads each listing entry with its own address, never lends a name to the next entry and skips closed ones", () => {
@@ -115,10 +116,10 @@ describe("Tavily venue discovery", () => {
       { url: "https://camra.org.uk/pubs/manchester", excerpt: "Bar B, 2 Low Street, Manchester M3 2BB" },
     ] };
     const page = "Bar A, 1 High Street, Manchester M3 1AA\nBar B, 2 Low Street, Manchester M3 2BB";
-    const result = { output: { type: "json", content: { venues: [row] }, basis: [{ field: "venues.0", confidence: "high", citations: [{ url: row.evidence[0].url, excerpts: [page] }] }] } };
+    const result = { output: { type: "json", content: { venues: [row] }, basis: [{ field: "venues.0", confidence: "high", citations: [{ url: defined(row.evidence[0]).url, excerpts: [page] }] }] } };
     expect(parseTaskVenues(result, manchester, observedAt, { local: true }).rejected).toEqual([{ name: "Bar A", reason: "citation-does-not-bind-name-and-address" }]);
     expect(parseTaskVenues(result, manchester, observedAt).candidates).toHaveLength(1);
-    const stored = { ...row, postcode: "M3 2BB", locality: "Manchester", sourceUrls: [row.evidence[0].url], observedAt, lat: 53.48, lng: -2.25, coordinatePrecision: "postcode-centroid" };
+    const stored = { ...row, postcode: "M3 2BB", locality: "Manchester", sourceUrls: [defined(row.evidence[0]).url], observedAt, lat: 53.48, lng: -2.25, coordinatePrecision: "postcode-centroid" };
     expect(() => validateDiscoveryPack({ city: "manchester", venues: [{ ...stored, provider: "tavily" }] }, manchester)).toThrow("Invalid Parallel venue evidence");
     expect(validateDiscoveryPack({ city: "manchester", venues: [{ ...stored, provider: "parallel" }] }, manchester).venues).toHaveLength(1);
   });

@@ -46,8 +46,7 @@ export type { PresenceDTO } from "@/lib/presence";
  * Returns null for a Round with no stops yet (nothing to check presence against).
  */
 export function currentStop(stops: readonly RoundStopDTO[]): RoundStopDTO | null {
-  if (!stops || stops.length === 0) return null;
-  return stops[stops.length - 1];
+  return stops?.at(-1) ?? null;
 }
 
 /**

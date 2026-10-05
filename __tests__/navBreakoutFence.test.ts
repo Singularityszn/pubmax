@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 /* WHY THIS FENCE EXISTS (regression review D6)
  *
@@ -185,8 +186,8 @@ describe("nav breakout fence (D6): the formula", () => {
     const fallback = stripComments(siteNavCss).match(
       /var\(--topbar-side,\s*([^)]+)\)\s*-\s*\(100svw/,
     );
-    expect(token?.[1].trim()).toBe("10px");
-    expect(fallback?.[1].trim()).toBe("10px");
+    expect(defined(token?.[1]).trim()).toBe("10px");
+    expect(defined(fallback?.[1]).trim()).toBe("10px");
   });
 
   it("never skews the in-flow bar with left/right margin longhands", () => {

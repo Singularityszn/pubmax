@@ -13,6 +13,7 @@ import {
   submitCommunityPrice,
   submitCommunityVenueSignal,
 } from "@/lib/communityPriceStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 // With no Supabase env configured (the default under vitest), the store selects
 // its process-memory backend. These pin the contract the durable backend must
@@ -83,8 +84,8 @@ describe("communityPriceStore (memory backend)", () => {
 
     const rows = await readCommunityPrices("v1");
     expect(rows).toHaveLength(1);
-    expect(rows[0].priceGbp).toBe(4.6);
-    expect(rows[0].submittedAt).toBe(2_000);
+    expect(defined(rows[0]).priceGbp).toBe(4.6);
+    expect(defined(rows[0]).submittedAt).toBe(2_000);
   });
 
   it("does not let a delayed older write replace the contributor's newer price", async () => {
@@ -116,7 +117,7 @@ describe("communityPriceStore (memory backend)", () => {
     const rows = await readCommunityPrices("v1");
     // Both observations are retained; the read surfaces the freshest one.
     expect(rows).toHaveLength(1);
-    expect(rows[0].priceGbp).toBe(5.1);
+    expect(defined(rows[0]).priceGbp).toBe(5.1);
   });
 
   it("scopes observations to their own venue", async () => {
@@ -420,8 +421,8 @@ describe("community venue signals in the shared observation store", () => {
     );
 
     const [row] = await readCommunityVenueSignals("v1", 3_000);
-    expect(row.corroborations).toBe(2);
-    expect(row.establishedCandidate).toEqual({
+    expect(defined(row).corroborations).toBe(2);
+    expect(defined(row).establishedCandidate).toEqual({
       signalValue: "step-free",
       submittedAt: 2_000,
       corroborations: 2,
@@ -454,9 +455,9 @@ describe("community venue signals in the shared observation store", () => {
     );
 
     const [row] = await readCommunityVenueSignals("v1", 4_000);
-    expect(row.signalValue).toBe("steps");
-    expect(row.corroborations).toBe(1);
-    expect(row.establishedCandidate).toEqual({
+    expect(defined(row).signalValue).toBe("steps");
+    expect(defined(row).corroborations).toBe(1);
+    expect(defined(row).establishedCandidate).toEqual({
       signalValue: "step-free",
       submittedAt: 2_000,
       corroborations: 2,
@@ -482,8 +483,8 @@ describe("community venue signals in the shared observation store", () => {
     );
 
     const [row] = await readCommunityVenueSignals("v1", 3_000);
-    expect(row.corroborations).toBe(1);
-    expect(row.establishedCandidate?.corroborations).toBe(1);
+    expect(defined(row).corroborations).toBe(1);
+    expect(defined(row).establishedCandidate?.corroborations).toBe(1);
   });
 
   it("exposes per-contributor totals for a future leaderboard", async () => {
@@ -578,7 +579,7 @@ describe("communityPriceStore corroboration counting (memory backend)", () => {
 
   it("counts a lone report as one voice", async () => {
     await beerAt("v1", 4.2, 1_000, "a");
-    expect((await readCommunityPrices("v1", 10_000))[0].corroborations).toBe(1);
+    expect(defined((await readCommunityPrices("v1", 10_000))[0]).corroborations).toBe(1);
   });
 
   it("counts two contributors agreeing within tolerance as two", async () => {
@@ -588,8 +589,8 @@ describe("communityPriceStore corroboration counting (memory backend)", () => {
     const [row] = await readCommunityPrices("v1", 10_000);
     // The freshest figure is the one being corroborated, and £4.20 is inside
     // its 50p window - so this is one price two people saw, not two prices.
-    expect(row.priceGbp).toBe(4.5);
-    expect(row.corroborations).toBe(2);
+    expect(defined(row).priceGbp).toBe(4.5);
+    expect(defined(row).corroborations).toBe(2);
   });
 
   it("does not let a stale report corroborate a fresh store row", async () => {
@@ -598,8 +599,8 @@ describe("communityPriceStore corroboration counting (memory backend)", () => {
     await beerAt("v1", 4.2, 9_000, "fresh-actor");
 
     const [row] = await readCommunityPrices("v1", 10_000);
-    expect(row.corroborations).toBe(1);
-    expect(row.mapCandidate).toEqual({
+    expect(defined(row).corroborations).toBe(1);
+    expect(defined(row).mapCandidate).toEqual({
       priceGbp: 4.2,
       submittedAt: 9_000,
       corroborations: 1,
@@ -613,7 +614,7 @@ describe("communityPriceStore corroboration counting (memory backend)", () => {
     const [row] = await readCommunityPrices("v1", 10_000);
     // £4.20 does not corroborate £6.50; it contradicts it. A disagreement must
     // never read as support, or two people arguing would restamp the pin.
-    expect(row.corroborations).toBe(1);
+    expect(defined(row).corroborations).toBe(1);
   });
 
   it("never lets one contributor corroborate themselves by resubmitting", async () => {
@@ -625,7 +626,7 @@ describe("communityPriceStore corroboration counting (memory backend)", () => {
     // The store already collapses a contributor's own corrections to one row; this
     // asserts the trust count agrees, which is the whole spray defence.
     expect(rows).toHaveLength(1);
-    expect(rows[0].corroborations).toBe(1);
+    expect(defined(rows[0]).corroborations).toBe(1);
   });
 
   it("counts all unattributed reports as at most one voice", async () => {
@@ -635,11 +636,11 @@ describe("communityPriceStore corroboration counting (memory backend)", () => {
     await beerAt("v1", 4.2, 1_000);
     await beerAt("v1", 4.25, 2_000);
     await beerAt("v1", 4.3, 3_000);
-    expect((await readCommunityPrices("v1", 10_000))[0].corroborations).toBe(1);
+    expect(defined((await readCommunityPrices("v1", 10_000))[0]).corroborations).toBe(1);
 
     // One attributed contributor agreeing alongside them does make it two.
     await beerAt("v1", 4.3, 4_000, "a");
-    expect((await readCommunityPrices("v1", 10_000))[0].corroborations).toBe(2);
+    expect(defined((await readCommunityPrices("v1", 10_000))[0]).corroborations).toBe(2);
   });
 
   it("counts each drink category on its own", async () => {
@@ -702,10 +703,10 @@ describe("communityPriceStore map candidate (memory backend)", () => {
 
     const [row] = await readCommunityPrices("v1", 10_000);
     // Sheet: freshest-wins, honestly one voice.
-    expect(row.priceGbp).toBe(9);
-    expect(row.corroborations).toBe(1);
+    expect(defined(row).priceGbp).toBe(9);
+    expect(defined(row).corroborations).toBe(1);
     // Map: the corroborated figure, stamped with its cluster's freshest report.
-    expect(row.mapCandidate).toEqual({
+    expect(defined(row).mapCandidate).toEqual({
       priceGbp: 4.2,
       submittedAt: 2_000,
       corroborations: 2,
@@ -721,7 +722,7 @@ describe("communityPriceStore map candidate (memory backend)", () => {
     const [row] = await readCommunityPrices("v1", 10_000);
     // Both clusters count two voices; the tie goes to the fresher cluster,
     // which is exactly "the new price takes over once it is confirmed".
-    expect(row.mapCandidate).toEqual({
+    expect(defined(row).mapCandidate).toEqual({
       priceGbp: 9,
       submittedAt: 4_000,
       corroborations: 2,
@@ -734,8 +735,8 @@ describe("communityPriceStore map candidate (memory backend)", () => {
 
     const [row] = await readCommunityPrices("v1", 2_000 + 31 * DAY);
     // The sheet keeps the dated row; the map has nothing current to stand on.
-    expect(row.priceGbp).toBe(4.2);
-    expect(row.mapCandidate).toBeUndefined();
+    expect(defined(row).priceGbp).toBe(4.2);
+    expect(defined(row).mapCandidate).toBeUndefined();
   });
 
   it("skips aged-out clusters when picking the candidate", async () => {
@@ -747,7 +748,7 @@ describe("communityPriceStore map candidate (memory backend)", () => {
     const [row] = await readCommunityPrices("v1", 35 * DAY + 1_000);
     // The candidate is stated honestly at one voice - the merge's threshold
     // gate is what keeps it off the map, not a hidden count.
-    expect(row.mapCandidate).toEqual({
+    expect(defined(row).mapCandidate).toEqual({
       priceGbp: 9,
       submittedAt: 35 * DAY,
       corroborations: 1,

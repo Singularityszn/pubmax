@@ -1,3 +1,4 @@
+import { lastOf } from "@/lib/tuple";
 import type { Provenance } from "@/lib/curation";
 import type { Venue } from "@/lib/venues";
 
@@ -119,7 +120,8 @@ export function computeThenVsNow(
 // the app, kept as a compact anchor table so the math stays deterministic and
 // unit-testable offline (no live index fetch). We linearly interpolate BETWEEN
 // anchors and clamp OUTSIDE the covered range, so a stray year never throws.
-const CPI_ANCHORS: ReadonlyArray<readonly [year: number, index: number]> = [
+type CpiAnchor = readonly [year: number, index: number];
+const CPI_ANCHORS: readonly [CpiAnchor, ...CpiAnchor[]] = [
   [1950, 6.6],
   [1960, 8.1],
   [1970, 11.0],
@@ -135,7 +137,7 @@ const CPI_ANCHORS: ReadonlyArray<readonly [year: number, index: number]> = [
 // The "today" the CPI table revalues into — the newest anchor year. Kept as a
 // named constant so both the math and the copy ("in today's money") agree on
 // which year "today" means without a wall-clock dependency (deterministic).
-export const INFLATION_TODAY_YEAR = CPI_ANCHORS[CPI_ANCHORS.length - 1][0];
+export const INFLATION_TODAY_YEAR = lastOf(CPI_ANCHORS)[0];
 
 // The CPI index for a year, linearly interpolated between the nearest anchors
 // and clamped to the endpoint index outside the covered range. Returns null
@@ -143,12 +145,13 @@ export const INFLATION_TODAY_YEAR = CPI_ANCHORS[CPI_ANCHORS.length - 1][0];
 export function cpiIndexForYear(year: number): number | null {
   if (!isFiniteNumber(year)) return null;
   const first = CPI_ANCHORS[0];
-  const last = CPI_ANCHORS[CPI_ANCHORS.length - 1];
+  const last = lastOf(CPI_ANCHORS);
   if (year <= first[0]) return first[1];
   if (year >= last[0]) return last[1];
-  for (let i = 1; i < CPI_ANCHORS.length; i += 1) {
-    const [loYear, loIdx] = CPI_ANCHORS[i - 1];
-    const [hiYear, hiIdx] = CPI_ANCHORS[i];
+  for (const [i, [hiYear, hiIdx]] of CPI_ANCHORS.entries()) {
+    const previous = CPI_ANCHORS[i - 1];
+    if (!previous) continue;
+    const [loYear, loIdx] = previous;
     if (year <= hiYear) {
       const t = (year - loYear) / (hiYear - loYear);
       return loIdx + t * (hiIdx - loIdx);

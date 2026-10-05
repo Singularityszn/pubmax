@@ -553,7 +553,7 @@ export function nightAreaOptionLabel(area: NightArea, disabled: boolean): string
   return disabled || !isNightAreaRouteReady(area) ? `${area.name} - not crawl-ready yet` : area.name;
 }
 
-export function nightAreaMapHref(area: NightArea): string {
+export function nightAreaMapHref(area: NightArea): import("next").Route {
   return `/map?q=${encodeURIComponent(area.name)}`;
 }
 

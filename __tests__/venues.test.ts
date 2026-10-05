@@ -19,6 +19,7 @@ import {
 } from "@/lib/venues";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import { drinkSubtypePricedMapHref } from "@/lib/drinkSubtypeObservedPrice";
+import { defined } from "@/__tests__/helpers/defined";
 
 function makeRow(overrides: Partial<VenuePrice> = {}): VenuePrice {
   return {
@@ -104,7 +105,7 @@ describe("groupVenuePrices", () => {
       makeRow({ pint_name: "Ale", price_gbp: 5 }),
     ]);
     expect(venues).toHaveLength(1);
-    expect(venues[0].prices).toHaveLength(2);
+    expect(defined(venues[0]).prices).toHaveLength(2);
   });
 
   
@@ -117,8 +118,8 @@ describe("groupVenuePrices", () => {
         booking_link: "https://book.example/table",
       }),
     ]);
-    expect(venues[0].bookingLink).toBe("https://book.example/table");
-    expect(venues[0].website).toBe("https://a.example");
+    expect(defined(venues[0]).bookingLink).toBe("https://book.example/table");
+    expect(defined(venues[0]).website).toBe("https://a.example");
   });
 
   it("skips email/whitespace booking_link so a later http(s) URL wins", () => {
@@ -130,7 +131,7 @@ describe("groupVenuePrices", () => {
         booking_link: "  https://book.example/table  ",
       }),
     ]);
-    expect(venues[0].bookingLink).toBe("https://book.example/table");
+    expect(defined(venues[0]).bookingLink).toBe("https://book.example/table");
   });
 
   it("stores empty bookingLink when only non-http booking values exist", () => {
@@ -138,7 +139,7 @@ describe("groupVenuePrices", () => {
       makeRow({ booking_link: "mailto:book@pub.example" }),
       makeRow({ pint_name: "Ale", price_gbp: 5, booking_link: "   " }),
     ]);
-    expect(venues[0].bookingLink).toBe("");
+    expect(defined(venues[0]).bookingLink).toBe("");
   });
 
   it("cheapestPrice is the min numeric price and a null never wins", () => {
@@ -147,12 +148,12 @@ describe("groupVenuePrices", () => {
       makeRow({ price_gbp: null }),
       makeRow({ price_gbp: 4.5 }),
     ]);
-    expect(venues[0].cheapestPrice).toBe(4.5);
+    expect(defined(venues[0]).cheapestPrice).toBe(4.5);
   });
 
   it("all-null prices yield null cheapestPrice", () => {
     const venues = groupVenuePrices([makeRow({ price_gbp: null })]);
-    expect(venues[0].cheapestPrice).toBeNull();
+    expect(defined(venues[0]).cheapestPrice).toBeNull();
   });
 
   it("OR's amenities across the group's rows", () => {
@@ -160,12 +161,12 @@ describe("groupVenuePrices", () => {
       makeRow({ beer_garden: "" }),
       makeRow({ beer_garden: "yes" }),
     ]);
-    expect(venues[0].amenities.beerGarden).toBe(true);
+    expect(defined(venues[0]).amenities.beerGarden).toBe(true);
   });
 
   it("attaches curation, honestly uncurated for a plain fixture with no heritage or water terms", () => {
     const venues = groupVenuePrices([makeRow()]);
-    expect(venues[0].curation).toMatchObject({ nearWater: false, provenance: undefined });
+    expect(defined(venues[0]).curation).toMatchObject({ nearWater: false, provenance: undefined });
   });
 
   it("uses stable venue ids from the grouping key instead of array order", () => {
@@ -198,9 +199,9 @@ describe("filterVenues", () => {
 
   it("zone filter narrows to the matching fare zone; unknown zone fails a concrete pick", () => {
     const zone1 = groupVenuePrices([makeRow({ address: "Z1" })]);
-    zone1[0].zone = 1;
+    defined(zone1[0]).zone = 1;
     const zone3 = groupVenuePrices([makeRow({ address: "Z3" })]);
-    zone3[0].zone = 3;
+    defined(zone3[0]).zone = 3;
     const unknown = groupVenuePrices([makeRow({ address: "Z?" })]); // no zone
     const all = [...zone1, ...zone3, ...unknown];
 
@@ -209,7 +210,7 @@ describe("filterVenues", () => {
     expect(filterVenues(all, makeFilters({ zone: "all" }))).toHaveLength(3);
     // A concrete zone narrows to that zone only.
     expect(filterVenues(all, makeFilters({ zone: "1" }))).toHaveLength(1);
-    expect(filterVenues(all, makeFilters({ zone: "3" }))[0].address).toBe("Z3");
+    expect(defined(filterVenues(all, makeFilters({ zone: "3" }))[0]).address).toBe("Z3");
     // An unknown-zone venue never matches a concrete zone.
     expect(filterVenues(unknown, makeFilters({ zone: "3" }))).toHaveLength(0);
   });
@@ -245,11 +246,11 @@ describe("filterVenues", () => {
   it("uses slim filter hints before venue detail rows hydrate", () => {
     const [venue] = groupVenuePrices([makeRow({ pub_name: "The Anchor", price_gbp: 5 })]);
     const slim = {
-      ...venue,
+      ...defined(venue),
       prices: [],
       cheapestPint: "",
       amenities: {
-        ...venue.amenities,
+        ...defined(venue).amenities,
         cocktails: false,
         nonAlcoholic: false,
       },
@@ -284,10 +285,10 @@ describe("filterVenues", () => {
   it("matches drinkCategory / drinkBrand via hints and search text", () => {
     const [base] = groupVenuePrices([makeRow({ pub_name: "The Spirit Arms", price_gbp: 5 })]);
     const ginVenue = {
-      ...base,
+      ...defined(base),
       prices: [],
       cheapestPint: "",
-      amenities: { ...base.amenities, cocktails: false },
+      amenities: { ...defined(base).amenities, cocktails: false },
       filterHints: {
         searchText: "the spirit arms sipsmith gin",
         amenities: {
@@ -304,11 +305,11 @@ describe("filterVenues", () => {
       },
     };
     const beerOnly = {
-      ...base,
+      ...defined(base),
       id: "venue-beer-only",
       prices: [],
       cheapestPint: "",
-      amenities: { ...base.amenities, cocktails: false },
+      amenities: { ...defined(base).amenities, cocktails: false },
       filterHints: {
         searchText: "lager pint guinness",
         amenities: {
@@ -344,9 +345,9 @@ describe("filterVenues", () => {
       makeRow({ pub_name: name, pint_name: pintName, price_gbp: price }),
     ]);
     return {
-      ...base,
+      ...defined(base),
       filterHints: {
-        searchText: base.name.toLowerCase(),
+        searchText: defined(base).name.toLowerCase(),
         amenities: {
           food: false,
           cocktails: false,
@@ -393,13 +394,13 @@ describe("filterVenues", () => {
     ]);
     expect(
       filterVenues(
-        [mixed],
+        [defined(mixed)],
         makeFilters({ drinkCategory: "beer", drinkSubtype: "beer-stout" }),
       ),
     ).toHaveLength(1);
     expect(
       filterVenues(
-        [mixed],
+        [defined(mixed)],
         makeFilters({ drinkCategory: "beer", drinkSubtype: "beer-lager" }),
       ),
     ).toHaveLength(1);
@@ -415,14 +416,14 @@ describe("filterVenues", () => {
       ["Cola Arms", "Coca-Cola"],
     ] as const;
     const pubs = rows.map(([pub_name, pint_name], index) =>
-      groupVenuePrices([
+      defined(groupVenuePrices([
         makeRow({
           pub_name,
           pint_name,
           address: `${index + 1} Test Street`,
           price_gbp: 3,
         }),
-      ])[0],
+      ])[0]),
     );
     const href = drinkSubtypePricedMapHref({ subtypeId: "soft-drink-zero-sugar-cola" });
     const params = new URL(href, "https://pubmax.test").searchParams;
@@ -454,13 +455,13 @@ describe("filterVenues", () => {
 
     expect(
       filterVenues(
-        [pub],
+        [defined(pub)],
         makeFilters({ drinkCategory: "soft-drink", drinkSubtype: "soft-drink-diet-coke" }),
       ),
     ).toHaveLength(1);
     expect(
       filterVenues(
-        [pub],
+        [defined(pub)],
         makeFilters({ drinkCategory: "soft-drink", drinkSubtype: "soft-drink-diet-pepsi" }),
       ),
     ).toHaveLength(0);
@@ -486,25 +487,25 @@ describe("filterVenues", () => {
       makeRow({ pub_name: "The Local", pint_name: "CARLING", price_gbp: 5 }),
     ]);
     const ordinaryWithOldBuildingCopy = {
-      ...ordinary,
+      ...defined(ordinary),
       description: "A premium pub in an aged Victorian building with vintage decor.",
     };
     const found = filterVenues(
-      [premium, ordinaryWithOldBuildingCopy],
+      [defined(premium), ordinaryWithOldBuildingCopy],
       makeFilters({ topShelfOnly: true }),
     );
     expect(found.map((venue) => venue.name)).toEqual(["The Back Bar"]);
     // Off is a no-op, not a hidden narrowing.
-    expect(filterVenues([premium, ordinaryWithOldBuildingCopy], makeFilters())).toHaveLength(2);
+    expect(filterVenues([defined(premium), ordinaryWithOldBuildingCopy], makeFilters())).toHaveLength(2);
   });
 
   it("does not match drinkBrand against pub name buried in filterHints.searchText", () => {
     const [base] = groupVenuePrices([makeRow({ pub_name: "The Gordon Arms", price_gbp: 5 })]);
     const named = {
-      ...base,
+      ...defined(base),
       prices: [],
       cheapestPint: "",
-      amenities: { ...base.amenities, cocktails: false },
+      amenities: { ...defined(base).amenities, cocktails: false },
       filterHints: {
         // Slim index still puts pub_name into searchText for general query —
         // drink brand matching must ignore it.
@@ -528,8 +529,8 @@ describe("filterVenues", () => {
     const [venue] = groupVenuePrices([
       makeRow({ pub_name: "Cocktail Corner", cocktails: "yes", price_gbp: 6 }),
     ]);
-    expect(filterVenues([venue], makeFilters({ drinkCategory: "cocktail" }))).toHaveLength(1);
-    expect(filterVenues([venue], makeFilters({ drinkCategory: "vodka" }))).toHaveLength(0);
+    expect(filterVenues([defined(venue)], makeFilters({ drinkCategory: "cocktail" }))).toHaveLength(1);
+    expect(filterVenues([defined(venue)], makeFilters({ drinkCategory: "vodka" }))).toHaveLength(0);
   });
 
   it("matches beer via pint tokens / hints, not any priced row", () => {
@@ -569,27 +570,27 @@ describe("filterVenues", () => {
 describe("scoreVenue", () => {
   it("writer pick scores higher under writerTrail than balanced", () => {
     const venue = groupVenuePrices([makeRow({ pub_name: "The Grapes" })])[0];
-    expect(scoreVenue(venue, "writerTrail")).toBeGreaterThan(scoreVenue(venue, "balanced"));
+    expect(scoreVenue(defined(venue), "writerTrail")).toBeGreaterThan(scoreVenue(defined(venue), "balanced"));
   });
 
   it("cheap venue outscores expensive under cheapest", () => {
     const cheap = groupVenuePrices([makeRow({ address: "A", price_gbp: 4 })])[0];
     const expensive = groupVenuePrices([makeRow({ address: "B", price_gbp: 9 })])[0];
-    expect(scoreVenue(cheap, "cheapest")).toBeGreaterThan(scoreVenue(expensive, "cheapest"));
+    expect(scoreVenue(defined(cheap), "cheapest")).toBeGreaterThan(scoreVenue(defined(expensive), "cheapest"));
   });
 
   it("heritage-note venue outscores a plain one under heritage", () => {
     const heritage = groupVenuePrices([makeRow({ pub_name: "The Lamb" })])[0];
     const plain = groupVenuePrices([makeRow({ pub_name: "The Nothing" })])[0];
-    expect(scoreVenue(heritage, "heritage")).toBeGreaterThan(scoreVenue(plain, "heritage"));
+    expect(scoreVenue(defined(heritage), "heritage")).toBeGreaterThan(scoreVenue(defined(plain), "heritage"));
   });
 
   // noAlcoholFirst biases toward a corroborated NA price the same way filters
   // travel: a Map keyed by venue id, never a new VenueSignal or pint bucket.
   it("corroborated-NA venue outscores one without under noAlcoholFirst", () => {
-    const withNa = groupVenuePrices([
+    const withNa = defined(groupVenuePrices([
       makeRow({ address: "A", pub_name: "The Dry Arms" }),
-    ])[0];
+    ])[0]);
     const withoutNa = groupVenuePrices([
       makeRow({ address: "B", pub_name: "The Wet Arms" }),
     ])[0];
@@ -605,8 +606,8 @@ describe("scoreVenue", () => {
         },
       ],
     ]);
-    expect(scoreVenue(withNa, "noAlcoholFirst", naLensPrices)).toBeGreaterThan(
-      scoreVenue(withoutNa, "noAlcoholFirst", naLensPrices),
+    expect(scoreVenue(defined(withNa), "noAlcoholFirst", naLensPrices)).toBeGreaterThan(
+      scoreVenue(defined(withoutNa), "noAlcoholFirst", naLensPrices),
     );
   });
 
@@ -616,24 +617,24 @@ describe("scoreVenue", () => {
     const cheap = groupVenuePrices([makeRow({ address: "A", price_gbp: 4 })])[0];
     const alsoCheap = groupVenuePrices([makeRow({ address: "B", price_gbp: 4 })])[0];
     const emptyNaLensPrices: ReadonlyMap<string, MapLensPrice> = new Map();
-    expect(scoreVenue(cheap, "noAlcoholFirst", emptyNaLensPrices)).toBe(
-      scoreVenue(alsoCheap, "noAlcoholFirst", emptyNaLensPrices),
+    expect(scoreVenue(defined(cheap), "noAlcoholFirst", emptyNaLensPrices)).toBe(
+      scoreVenue(defined(alsoCheap), "noAlcoholFirst", emptyNaLensPrices),
     );
     // Neutral holds with no map at all, too.
-    expect(scoreVenue(cheap, "noAlcoholFirst")).toBe(
-      scoreVenue(alsoCheap, "noAlcoholFirst"),
+    expect(scoreVenue(defined(cheap), "noAlcoholFirst")).toBe(
+      scoreVenue(defined(alsoCheap), "noAlcoholFirst"),
     );
   });
 
   // Among two NA-priced venues, rank on the NA figure itself, not pint
   // cheapness - a dearer pint with a cheaper corroborated lemonade still wins.
   it("cheaper corroborated NA price outranks a dearer one under noAlcoholFirst, even against a cheaper pint", () => {
-    const cheaperNa = groupVenuePrices([
+    const cheaperNa = defined(groupVenuePrices([
       makeRow({ address: "A", pub_name: "The Dry Arms", price_gbp: 9 }),
-    ])[0];
-    const dearerNa = groupVenuePrices([
+    ])[0]);
+    const dearerNa = defined(groupVenuePrices([
       makeRow({ address: "B", pub_name: "The Dry Anchor", price_gbp: 4 }),
-    ])[0];
+    ])[0]);
     const naLensPrices: ReadonlyMap<string, MapLensPrice> = new Map([
       [
         cheaperNa.id,
@@ -656,8 +657,8 @@ describe("scoreVenue", () => {
         },
       ],
     ]);
-    expect(scoreVenue(cheaperNa, "noAlcoholFirst", naLensPrices)).toBeGreaterThan(
-      scoreVenue(dearerNa, "noAlcoholFirst", naLensPrices),
+    expect(scoreVenue(defined(cheaperNa), "noAlcoholFirst", naLensPrices)).toBeGreaterThan(
+      scoreVenue(defined(dearerNa), "noAlcoholFirst", naLensPrices),
     );
   });
 });
@@ -720,44 +721,44 @@ describe("mergeVenueDrops", () => {
 
   // A venue with no editorial heritage note → hasStory starts false.
   function plainVenue() {
-    return groupVenuePrices([makeRow({ pub_name: "The Nothing", price_gbp: 6 })])[0];
+    return defined(groupVenuePrices([makeRow({ pub_name: "The Nothing", price_gbp: 6 })])[0]);
   }
 
   it("a price-only drop does NOT flip hasStory (a bare price is not a story)", () => {
     const venue = plainVenue();
-    expect(venue.hasStory).toBe(false);
+    expect(defined(venue).hasStory).toBe(false);
     const [merged] = mergeVenueDrops(
-      [venue],
-      new Map([[venue.id, corroboratedPair(4.5)]]),
+      [defined(venue)],
+      new Map([[defined(venue).id, corroboratedPair(4.5)]]),
       NOW,
     );
-    expect(merged.hasStory).toBe(false);
+    expect(defined(merged).hasStory).toBe(false);
     // ...and therefore no heritage-score boost either.
-    expect(scoreVenue(merged, "heritage")).toBe(scoreVenue(venue, "heritage"));
+    expect(scoreVenue(defined(merged), "heritage")).toBe(scoreVenue(defined(venue), "heritage"));
     // The corroborated price signal itself still merges.
-    expect(merged.cheapestPrice).toBe(4.5);
+    expect(defined(merged).cheapestPrice).toBe(4.5);
   });
 
   it("a lone uncorroborated drop never moves cheapestPrice or the contributor layer (AGENTS.md pin law: an uncorroborated report cannot reach either lane)", () => {
     const venue = plainVenue();
     const [merged] = mergeVenueDrops(
-      [venue],
-      new Map([[venue.id, [makeSummaryDrop({ priceGbp: 4.5 })]]]),
+      [defined(venue)],
+      new Map([[defined(venue).id, [makeSummaryDrop({ priceGbp: 4.5 })]]]),
       NOW,
     );
-    expect(merged.cheapestPrice).toBe(venue.cheapestPrice);
-    expect(merged.cheapestPint).toBe(venue.cheapestPint);
-    expect(merged.latestContributorPrice).toBeNull();
-    expect(merged.latestContributorAt).toBeNull();
+    expect(defined(merged).cheapestPrice).toBe(defined(venue).cheapestPrice);
+    expect(defined(merged).cheapestPint).toBe(defined(venue).cheapestPint);
+    expect(defined(merged).latestContributorPrice).toBeNull();
+    expect(defined(merged).latestContributorAt).toBeNull();
   });
 
   it("two drops from the SAME handle stay one report - no self-corroboration", () => {
     const venue = plainVenue();
     const [merged] = mergeVenueDrops(
-      [venue],
+      [defined(venue)],
       new Map([
         [
-          venue.id,
+          defined(venue).id,
           [
             makeSummaryDrop({ priceGbp: 4.5, handle: "first_drinker" }),
             makeSummaryDrop({
@@ -770,17 +771,17 @@ describe("mergeVenueDrops", () => {
       ]),
       NOW,
     );
-    expect(merged.latestContributorPrice).toBeNull();
-    expect(merged.cheapestPrice).toBe(venue.cheapestPrice);
+    expect(defined(merged).latestContributorPrice).toBeNull();
+    expect(defined(merged).cheapestPrice).toBe(defined(venue).cheapestPrice);
   });
 
   it("two independent drinkers disagreeing beyond tolerance do not corroborate", () => {
     const venue = plainVenue();
     const [merged] = mergeVenueDrops(
-      [venue],
+      [defined(venue)],
       new Map([
         [
-          venue.id,
+          defined(venue).id,
           [
             makeSummaryDrop({ priceGbp: 4.5, handle: "first_drinker" }),
             makeSummaryDrop({
@@ -793,16 +794,16 @@ describe("mergeVenueDrops", () => {
       ]),
       NOW,
     );
-    expect(merged.latestContributorPrice).toBeNull();
+    expect(defined(merged).latestContributorPrice).toBeNull();
   });
 
   it("a second report outside the 30-day window does not corroborate", () => {
     const venue = plainVenue();
     const [merged] = mergeVenueDrops(
-      [venue],
+      [defined(venue)],
       new Map([
         [
-          venue.id,
+          defined(venue).id,
           [
             makeSummaryDrop({ priceGbp: 4.5, handle: "first_drinker" }),
             makeSummaryDrop({
@@ -815,16 +816,16 @@ describe("mergeVenueDrops", () => {
       ]),
       NOW,
     );
-    expect(merged.latestContributorPrice).toBeNull();
+    expect(defined(merged).latestContributorPrice).toBeNull();
   });
 
   it("drops without a handle cannot prove independence, so they never corroborate", () => {
     const venue = plainVenue();
     const [merged] = mergeVenueDrops(
-      [venue],
+      [defined(venue)],
       new Map([
         [
-          venue.id,
+          defined(venue).id,
           [
             makeSummaryDrop({ priceGbp: 4.5, handle: undefined }),
             makeSummaryDrop({
@@ -837,38 +838,38 @@ describe("mergeVenueDrops", () => {
       ]),
       NOW,
     );
-    expect(merged.latestContributorPrice).toBeNull();
+    expect(defined(merged).latestContributorPrice).toBeNull();
   });
 
   it("a drop WITH a passed-down note lights hasStory", () => {
     const venue = plainVenue();
     const [merged] = mergeVenueDrops(
-      [venue],
+      [defined(venue)],
       new Map([
-        [venue.id, [makeSummaryDrop({ passedDownNote: "My grandad's corner table.", provenance: "anecdote" })]],
+        [defined(venue).id, [makeSummaryDrop({ passedDownNote: "My grandad's corner table.", provenance: "anecdote" })]],
       ]),
       NOW,
     );
-    expect(merged.hasStory).toBe(true);
+    expect(defined(merged).hasStory).toBe(true);
   });
 
   it("a whitespace-only note is not a story", () => {
     const venue = plainVenue();
     const [merged] = mergeVenueDrops(
-      [venue],
-      new Map([[venue.id, [makeSummaryDrop({ passedDownNote: "   ", priceGbp: 5 })]]]),
+      [defined(venue)],
+      new Map([[defined(venue).id, [makeSummaryDrop({ passedDownNote: "   ", priceGbp: 5 })]]]),
       NOW,
     );
-    expect(merged.hasStory).toBe(false);
+    expect(defined(merged).hasStory).toBe(false);
   });
 
   it("demo seeds are display-only: they never move prices or hasStory", () => {
     const venue = plainVenue();
     const [merged] = mergeVenueDrops(
-      [venue],
+      [defined(venue)],
       new Map([
         [
-          venue.id,
+          defined(venue).id,
           [
             makeSummaryDrop({
               provenance: "demo",
@@ -880,18 +881,18 @@ describe("mergeVenueDrops", () => {
       ]),
       NOW,
     );
-    expect(merged.hasStory).toBe(false);
-    expect(merged.cheapestPrice).toBe(venue.cheapestPrice);
+    expect(defined(merged).hasStory).toBe(false);
+    expect(defined(merged).cheapestPrice).toBe(defined(venue).cheapestPrice);
     expect(merged).toEqual(venue);
   });
 
   it("a demo drop ahead of corroborated organic ones never wins the latest-price or story slot", () => {
     const venue = plainVenue();
     const [merged] = mergeVenueDrops(
-      [venue],
+      [defined(venue)],
       new Map([
         [
-          venue.id,
+          defined(venue).id,
           [
             // Newest-first list: the demo seed sits ahead of the organic pair.
             makeSummaryDrop({
@@ -919,44 +920,44 @@ describe("mergeVenueDrops", () => {
       NOW,
     );
     // The corroborated organic signals win; the demo drop is invisible to them.
-    expect(merged.cheapestPrice).toBe(4.5);
-    expect(merged.cheapestPint).toBe("Organic Ale");
-    expect(merged.hasStory).toBe(false);
+    expect(defined(merged).cheapestPrice).toBe(4.5);
+    expect(defined(merged).cheapestPint).toBe("Organic Ale");
+    expect(defined(merged).hasStory).toBe(false);
   });
 
   it("an editorial heritage note keeps hasStory true regardless of drops", () => {
-    const venue = groupVenuePrices([makeRow({ pub_name: "The Lamb" })])[0];
+    const venue = defined(groupVenuePrices([makeRow({ pub_name: "The Lamb" })])[0]);
     const [merged] = mergeVenueDrops(
-      [venue],
+      [defined(venue)],
       new Map([[venue.id, corroboratedPair(5)]]),
       NOW,
     );
-    expect(merged.hasStory).toBe(true);
+    expect(defined(merged).hasStory).toBe(true);
   });
 
   it("carries the corroborated price drop's createdAt through as latestContributorAt", () => {
     const venue = plainVenue();
-    expect(venue.latestContributorPrice).toBeNull();
-    expect(venue.latestContributorAt).toBeNull();
+    expect(defined(venue).latestContributorPrice).toBeNull();
+    expect(defined(venue).latestContributorAt).toBeNull();
     const [merged] = mergeVenueDrops(
-      [venue],
-      new Map([[venue.id, corroboratedPair(4.5)]]),
+      [defined(venue)],
+      new Map([[defined(venue).id, corroboratedPair(4.5)]]),
       NOW,
     );
-    expect(merged.latestContributorPrice).toBe(4.5);
+    expect(defined(merged).latestContributorPrice).toBe(4.5);
     // The candidate is the newest agreeing drop; its timestamp travels with it.
-    expect(merged.latestContributorAt).toBe("2026-06-01T10:00:00.000Z");
+    expect(defined(merged).latestContributorAt).toBe("2026-06-01T10:00:00.000Z");
   });
 
   it("a note-only drop leaves the contributor price layer null (no live price)", () => {
     const venue = plainVenue();
     const [merged] = mergeVenueDrops(
-      [venue],
-      new Map([[venue.id, [makeSummaryDrop({ passedDownNote: "Grandad's local.", provenance: "anecdote" })]]]),
+      [defined(venue)],
+      new Map([[defined(venue).id, [makeSummaryDrop({ passedDownNote: "Grandad's local.", provenance: "anecdote" })]]]),
       NOW,
     );
-    expect(merged.latestContributorPrice).toBeNull();
-    expect(merged.latestContributorAt).toBeNull();
+    expect(defined(merged).latestContributorPrice).toBeNull();
+    expect(defined(merged).latestContributorAt).toBeNull();
   });
 
   describe("corroboratedPriceDrop", () => {
@@ -1090,13 +1091,13 @@ describe("mergeVenueDrops", () => {
     it("moves nothing in the venue projection, whatever it answers", () => {
       const venue = plainVenue();
       const [merged] = mergeVenueDrops(
-        [venue],
-        new Map([[venue.id, [makeSummaryDrop({ priceGbp: 4.5 })]]]),
+        [defined(venue)],
+        new Map([[defined(venue).id, [makeSummaryDrop({ priceGbp: 4.5 })]]]),
         NOW,
       );
-      expect(merged.cheapestPrice).toBe(venue.cheapestPrice);
-      expect(merged.latestContributorPrice).toBeNull();
-      expect(merged.latestContributorAt).toBeNull();
+      expect(defined(merged).cheapestPrice).toBe(defined(venue).cheapestPrice);
+      expect(defined(merged).latestContributorPrice).toBeNull();
+      expect(defined(merged).latestContributorAt).toBeNull();
     });
   });
 

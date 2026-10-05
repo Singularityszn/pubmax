@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import ErrorBoundary from "@/app/error";
+import { defined } from "@/__tests__/helpers/defined";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // THE DOCUMENTS NOBODY READS UNTIL SOMETHING BREAKS
@@ -72,7 +73,7 @@ describe("error and not-found documents", () => {
       /text-transform:\s*uppercase/,
     );
     const tracking = [...source.matchAll(/letterSpacing:\s*["']([\d.]+)em/g)].map((match) =>
-      Number.parseFloat(match[1]),
+      Number.parseFloat(defined(match[1])),
     );
     for (const value of tracking) {
       // ~0.01em is the sentence-case band the caps policy names. 0.08em is the
@@ -104,7 +105,7 @@ describe("error and not-found documents", () => {
     }
     // Whatever the surface, a fallback may not name a colour the app retired.
     for (const [, fallback] of source.matchAll(/var\(--brass,\s*(#[0-9a-f]{3,8})/gi)) {
-      expect(fallback.toLowerCase(), `${file} falls back to a retired brass`).toBe(
+      expect(defined(fallback).toLowerCase(), `${file} falls back to a retired brass`).toBe(
         "#ff5a5f",
       );
     }

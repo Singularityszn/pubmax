@@ -1,6 +1,8 @@
 // Night OS Ask — shared request/response contracts (ADR 0014).
 // Browser-safe types only: no server imports.
 
+import type { PubPalMemoryKind } from "@/lib/palMemoryKinds.mjs";
+
 export type AskSource = {
   label: string;
   url?: string;
@@ -52,6 +54,14 @@ export type AskProposal =
       label: string;
       venueId: string;
       level: "empty" | "some-seats" | "full";
+    }
+  | {
+      /** A Pal memory the person may keep. Nothing is saved until they confirm it. */
+      id: string;
+      kind: "remember_memory";
+      label: string;
+      memoryKind: PubPalMemoryKind;
+      value: string;
     };
 
 export type AskTurn = {

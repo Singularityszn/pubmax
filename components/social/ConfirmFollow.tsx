@@ -17,6 +17,7 @@
 // When the link is the VIEWER's own handle, this becomes the share surface
 // instead: copy / share your link so friends at the table can add you.
 
+import type { Route } from "next";
 import Link from "next/link";
 import {
   type Dispatch,
@@ -169,9 +170,10 @@ export default function ConfirmFollow({
     typeof window !== "undefined" ? `${window.location.origin}/add/${target}` : `/add/${target}`;
   const doors = addLinkDoors(target);
   const inviteReturnTo = addLinkReturnTo(target);
-  const claimHref = inviteReturnTo
+  // /u/[handle] is a dynamic route, so the claim door needs a cast.
+  const claimHref = (inviteReturnTo
     ? `/u/you?returnTo=${encodeURIComponent(inviteReturnTo)}`
-    : "/u/you";
+    : "/u/you") as Route;
   const name = (targetName ?? "").trim();
 
   // One door marker per target, on the device rather than the tab, so the

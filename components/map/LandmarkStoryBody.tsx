@@ -71,6 +71,7 @@ export default function LandmarkStoryBody({
   onAskPubmaxxer?: (venueId: string) => void;
 }) {
   const nearbyIds = nearby.map((row) => row.venue.id);
+  const firstNearbyId = nearbyIds[0];
   return (
     <div className="landmarkStory">
       <LandmarkHeroPhoto
@@ -120,11 +121,11 @@ export default function LandmarkStoryBody({
               Start a crawl here
             </Button>
           ) : null}
-          {onAskPubmaxxer ? (
+          {onAskPubmaxxer && firstNearbyId ? (
             <Button
               type="button"
               variant="secondary"
-              onClick={() => onAskPubmaxxer(nearbyIds[0])}
+              onClick={() => onAskPubmaxxer(firstNearbyId)}
             >
               Ask the PUBMAXXER
             </Button>

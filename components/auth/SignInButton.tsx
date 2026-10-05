@@ -15,6 +15,7 @@
 // so stale capability state cannot strand someone on a raw provider error.
 // ──────────────────────────────────────────────────────────────────────────
 
+import type { Route } from "next";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
@@ -76,7 +77,7 @@ function readServerHydration(): boolean {
  * it instead of parking them on the account surface. Read at click time, not at
  * render, so the link is right on whichever page the nav happens to be on.
  */
-function loginHref(pathname: string | null): string {
+function loginHref(pathname: string | null): Route {
   if (!pathname || !pathname.startsWith("/")) return "/login";
   const params = new URLSearchParams({ [ARRIVAL_FROM_PARAM]: pathname });
   return `/login?${params.toString()}`;
@@ -87,7 +88,7 @@ function loginHref(pathname: string | null): string {
  * second account. Without the flag /login answers the signed-in card, so the
  * switcher's Add account would land somewhere with no form on it.
  */
-function addAccountLoginHref(pathname: string | null): string {
+function addAccountLoginHref(pathname: string | null): Route {
   const params = new URLSearchParams({ [LOGIN_ADD_ACCOUNT_PARAM]: "1" });
   if (pathname && pathname.startsWith("/")) {
     params.set(ARRIVAL_FROM_PARAM, pathname);

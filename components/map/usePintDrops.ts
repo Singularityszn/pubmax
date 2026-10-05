@@ -1,8 +1,10 @@
 "use client";
 
+import type { Route } from "next";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import { useAuth } from "@/components/auth/authContext";
+import { barTabPath, profilePath } from "@/lib/appLink";
 import { readActiveRoundCode } from "@/lib/activeRound";
 import { getAnonId } from "@/lib/anonId";
 import { authedActionFetch } from "@/lib/authedFetch";
@@ -93,7 +95,7 @@ export type PhotoSlotName = "pint" | "venue" | "receipt";
 export type DropMsg = {
   ok: boolean;
   text: string;
-  links?: Array<{ href: string; label: string }>;
+  links?: Array<{ href: Route; label: string }>;
 };
 
 // ONE NUMBER ON BOTH SIDES OF THE WIRE, and ONE PLACE THAT ASKS. This gate
@@ -800,12 +802,12 @@ export function usePintDrops(
         ];
         if (addedToNight) {
           links.push({
-            href: `/bar-tab/${encodeURIComponent(venueId)}`,
+            href: barTabPath(venueId),
             label: "Bar tab",
           });
           const cleanHandle = submittedRound?.handle.replace(/^@+/, "") ?? "";
           if (cleanHandle) {
-            links.push({ href: `/u/${encodeURIComponent(cleanHandle)}`, label: "Your profile" });
+            links.push({ href: profilePath(cleanHandle), label: "Your profile" });
           }
         }
         // What the second-reporter pass answered. A mint changes the standing of

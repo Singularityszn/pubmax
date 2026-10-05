@@ -87,10 +87,11 @@ export function pintFactStats(
     maxPubName: null,
     maxObservedAt: null,
   };
-  if (priced.length === 0) return base;
+  const [first] = priced;
+  if (!first) return base;
 
-  let min = priced[0];
-  let max = priced[0];
+  let min = first;
+  let max = first;
   let sum = 0;
   for (const pub of priced) {
     sum += pub.price;

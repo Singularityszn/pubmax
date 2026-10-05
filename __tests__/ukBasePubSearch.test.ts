@@ -6,6 +6,7 @@ import {
   UK_BASE_SEARCH_GROUP_LABEL,
 } from "@/lib/ukBasePubSearch";
 import type { UkBasePub } from "@/lib/ukBasePubs";
+import { defined } from "@/__tests__/helpers/defined";
 
 function basePub(overrides: Partial<UkBasePub> & { id: string; name: string }): UkBasePub {
   return {
@@ -76,7 +77,7 @@ describe("searchUkBasePubsByName — resident shards only", () => {
       address: "23 Alma Street",
       pub: fatCat,
     });
-    expect(result[0].distanceLabel).toContain("from centre");
+    expect(defined(result[0]).distanceLabel).toContain("from centre");
   });
 
   it("ranks prefix matches ahead of substring matches, then nearest", () => {
@@ -147,7 +148,7 @@ describe("searchUkBasePubsByName — resident shards only", () => {
       userLocation: { lat: 53.38, lng: -1.47 },
       mapCenter: SHEFFIELD_CENTRE,
     });
-    expect(result[0].distanceLabel).toContain("away");
+    expect(defined(result[0]).distanceLabel).toContain("away");
   });
 
   it("dedupes by id and never invents a single-character substring flood", () => {

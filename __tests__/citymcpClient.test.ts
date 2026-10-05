@@ -14,6 +14,7 @@ import {
   trimCityPlace,
   trimSignals,
 } from "@/lib/citymcp/client";
+import { defined } from "@/__tests__/helpers/defined";
 
 function sseFrame(payload: unknown): string {
   return `event: message\ndata: ${JSON.stringify(payload)}\n\n`;
@@ -468,7 +469,7 @@ describe("fetchThingsToDo", () => {
     });
     expect(first.opportunities).toHaveLength(2);
     expect(first.opportunities.map((o) => o.title)).toEqual(["Show 1", "Show 2"]);
-    expect(first.opportunities[0].startsAt).toBe("2026-07-29T20:00:00+01:00");
+    expect(defined(first.opportunities[0]).startsAt).toBe("2026-07-29T20:00:00+01:00");
 
     // Cache hit — no new upstream call.
     const second = await fetchThingsToDo({

@@ -26,4 +26,8 @@ describe("pal chat mobile layout", () => {
     expect(scroll).toMatch(/flex:\s*0\s+1\s+auto/);
     expect(scroll).not.toMatch(/flex:\s*1\s+1\s+auto/);
   });
+
+  it("styles the note that tells the person a saved memory goes to ElevenLabs", () => {
+    expect(palChatCss).toMatch(/\.palChatProposalNote\s*{/);
+  });
 });

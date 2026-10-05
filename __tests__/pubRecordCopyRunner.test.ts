@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import path from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = path.resolve(__dirname, "..");
 const directories: string[] = [];
@@ -117,7 +118,7 @@ describe("pub copy generation CLI", () => {
     rmSync(path.join(dir, "checkpoint.json"));
     const resumed = run("--generate");
     expect(resumed.status, resumed.stderr).toBe(0);
-    expect(JSON.parse(resumed.stdout.split("\n")[0]).pending).toBe(0);
+    expect(JSON.parse(defined(resumed.stdout.split("\n")[0])).pending).toBe(0);
     const pack = JSON.parse(readFileSync(path.join(dir, "copy.json"), "utf8"));
     expect(pack).toMatchObject({ requests: 2, runSpendUsd: 0, runCapUsd: 15, actualSpendUsd: lifetime });
     expect(Object.keys(pack.venues)).toHaveLength(2);
@@ -198,7 +199,7 @@ describe("pub copy generation CLI", () => {
     const resumed = run("--generate");
     expect(resumed.status).toBe(1);
     expect(resumed.stderr).toContain("unresolved spend reservations");
-    const projection = JSON.parse(resumed.stdout.split("\n")[0]);
+    const projection = JSON.parse(defined(resumed.stdout.split("\n")[0]));
     expect(projection.reservedUsd).toBe(reservedUsd);
     expect(projection.projectedSpendUsd).toBeGreaterThan(reservedUsd);
     expect(JSON.parse(readFileSync(path.join(dir, "checkpoint.json"), "utf8")).reservedUsd).toBeCloseTo(reservedUsd, 8);
@@ -232,7 +233,7 @@ describe("pub copy generation CLI", () => {
     rmSync(path.join(dir, "request.json"));
     const resumed = run("--generate");
     expect(resumed.status, resumed.stderr).toBe(0);
-    expect(JSON.parse(resumed.stdout.split("\n")[0]).pending).toBe(0);
+    expect(JSON.parse(defined(resumed.stdout.split("\n")[0])).pending).toBe(0);
     expect(existsSync(path.join(dir, "request.json"))).toBe(false);
     const pack = JSON.parse(readFileSync(path.join(dir, "copy.json"), "utf8"));
     expect(pack.venues).toEqual(published.venues);

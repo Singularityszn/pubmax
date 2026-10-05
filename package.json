@@ -12,7 +12,7 @@
     "deploy:preview": "node scripts/deploy-vercel.mjs",
     "deploy:preview:prod-env": "node scripts/deploy-preview-prod-env.mjs",
     "lint": "eslint .",
-    "typecheck": "node node_modules/@typescript/native/lib/tsc.js --noEmit",
+    "typecheck": "next typegen && node node_modules/@typescript/native/lib/tsc.js --noEmit",
     "db:types": "node scripts/db/generate-database-types.mjs",
     "db:types:check": "node scripts/db/generate-database-types.mjs --check",
     "test": "node scripts/check_node_modules_fresh.mjs && vitest run",
@@ -196,7 +196,7 @@
     "pdfjs-dist": "6.3.289",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.15",
-    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "typescript": "6.0.3",
     "vitest": "^5.0.3",
     "yaml": "^2.9.1",
     "@typescript/native": "npm:typescript@^7.0.2"

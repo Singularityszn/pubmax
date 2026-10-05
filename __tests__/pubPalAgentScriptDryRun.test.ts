@@ -148,8 +148,19 @@ describe("pubpal:agent dry run", () => {
         interruption_mode: string;
       }>;
     };
-    const confirmTools = ["propose_plan", "propose_map_action", "report_occupancy"];
-    expect(body.webhook_tools.length).toBe(14);
+    const confirmTools = ["propose_plan", "propose_map_action", "report_occupancy", "propose_memory"];
+    expect(body.webhook_tools.length).toBe(16);
+    const byName = new Map(body.webhook_tools.map((tool) => [tool.name, tool]));
+    expect(byName.get("recall_memories")).toMatchObject({
+      pre_tool_speech: "force",
+      execution_mode: "immediate",
+      interruption_mode: "allow",
+    });
+    expect(byName.get("propose_memory")).toMatchObject({
+      pre_tool_speech: "force",
+      execution_mode: "immediate",
+      interruption_mode: "disable_during_tool_and_turn",
+    });
     for (const tool of body.webhook_tools) {
       expect(tool.pre_tool_speech).toBe("force");
       expect(tool.execution_mode).toBe("immediate");

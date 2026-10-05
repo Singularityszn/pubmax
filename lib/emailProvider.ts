@@ -77,9 +77,10 @@ export function isResendConfigured(): boolean {
  */
 export const noopEmailProvider: EmailProvider = {
   async send(messages) {
-    if (messages.length > 0) {
+    const [first] = messages;
+    if (first) {
       console.info(
-        `[emailProvider:noop] would deliver "${messages[0].subject}" to ${messages.length} recipient(s) — email provider not configured, skipping.`,
+        `[emailProvider:noop] would deliver "${first.subject}" to ${messages.length} recipient(s) — email provider not configured, skipping.`,
       );
     }
     return messages.map((msg) => ({

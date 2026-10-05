@@ -19,6 +19,7 @@ import {
   readChainPintPrices,
 } from "@/lib/harvest/chainMenuPrices";
 import { CATEGORY_PRICE_BANDS } from "@/lib/harvest/ukPriceCrawl";
+import { defined } from "@/__tests__/helpers/defined";
 
 const menuPage = (body: string) => `<!doctype html><html><head>
   <style>.price::after{content:"£9.99"}</style>
@@ -29,8 +30,8 @@ describe("reading a chain menu page", () => {
   it("takes a pint price the page states", () => {
     const reading = readChainPintPrices(menuPage("<li>Camden Hells Lager, pint &pound;6.20</li>"));
     expect(reading.kept).toHaveLength(1);
-    expect(reading.kept[0].priceGbp).toBe(6.2);
-    expect(reading.kept[0].verbatim).toBe("£6.20");
+    expect(defined(reading.kept[0]).priceGbp).toBe(6.2);
+    expect(defined(reading.kept[0]).verbatim).toBe("£6.20");
   });
 
   it("never reads a price out of a script or a stylesheet", () => {

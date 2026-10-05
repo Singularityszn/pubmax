@@ -8,6 +8,7 @@ import {
   seedRouteDraft,
   type EditableStop,
 } from "@/lib/planRouteEditor";
+import { defined } from "@/__tests__/helpers/defined";
 
 const stored: EditableStop[] = [
   { venueId: "v-beehive", venueName: "Beehive", position: 0 },
@@ -78,7 +79,7 @@ describe("seedRouteDraft", () => {
   ];
 
   it("opens on the STORED stops in stored order, never on the generated route", () => {
-    const shuffled = [stored[2], stored[0], stored[1]];
+    const shuffled = [defined(stored[2]), defined(stored[0]), defined(stored[1])];
     expect(seedRouteDraft(shuffled, generated).map((stop) => stop.venueName)).toEqual([
       "Beehive",
       "Bread & Roses",
@@ -88,12 +89,12 @@ describe("seedRouteDraft", () => {
 
   it("offers the generated candidates as backups, its own position first, without any stop already in the route", () => {
     const draft = seedRouteDraft(stored, generated);
-    expect(draft[2].alternatives).toEqual([
+    expect(defined(draft[2]).alternatives).toEqual([
       { venueId: "v-cafesol", venueName: "Cafe Sol" },
       { venueId: "v-stonhouse", venueName: "Stonhouse" },
       { venueId: "v-falcon", venueName: "The Falcon" },
     ]);
-    expect(draft[0].alternatives?.map((alternative) => alternative.venueId)).toEqual([
+    expect(defined(draft[0]).alternatives?.map((alternative) => alternative.venueId)).toEqual([
       "v-stonhouse",
       "v-falcon",
       "v-cafesol",
@@ -127,10 +128,10 @@ describe("seedRouteDraft", () => {
       { venueId: "v-cafesol", venueName: "Cafe Sol", selectedDrinkPriceEvidence: cocktail },
     ]);
 
-    expect(draft[2].alternatives?.[0]).toEqual({
+    expect(defined(draft[2]).alternatives?.[0]).toEqual({
       venueId: "v-cafesol", venueName: "Cafe Sol", selectedDrinkPriceEvidence: cocktail,
     });
-    expect(draft[2].selectedDrinkPriceEvidence).toBeUndefined();
+    expect(defined(draft[2]).selectedDrinkPriceEvidence).toBeUndefined();
   });
 
   it("does not mutate the stored stops", () => {

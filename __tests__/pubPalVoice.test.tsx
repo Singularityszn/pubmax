@@ -66,6 +66,7 @@ import {
   PAL_MICROPHONE_PERMISSION_ERROR,
   PAL_VOICE_START_ERROR,
 } from "@/lib/pubPalVoiceSession";
+import { defined } from "@/__tests__/helpers/defined";
 
 let container: HTMLDivElement;
 let root: Root | null;
@@ -386,7 +387,7 @@ describe("Pub Pal voice controls", () => {
       await Promise.resolve();
     });
 
-    const session = voice.startSession.mock.calls[0][0] as {
+    const session = defined(voice.startSession.mock.calls[0])[0] as {
       onConnect?: () => void;
       onDisconnect?: () => void;
     };
@@ -406,7 +407,7 @@ describe("Pub Pal voice controls", () => {
     expect(ended).toEqual([["voice_ended", { reason: "cap" }]]);
 
     expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
-    const releaseRequest = requests.authedActionFetch.mock.calls[1][1] as RequestInit;
+    const releaseRequest = defined(requests.authedActionFetch.mock.calls[1])[1] as RequestInit;
     const releaseBody = JSON.parse(String(releaseRequest.body)) as {
       action: string;
       durationSeconds: number;
@@ -442,7 +443,7 @@ describe("Pub Pal voice controls", () => {
       await Promise.resolve();
     });
 
-    const session = voice.startSession.mock.calls[0][0] as {
+    const session = defined(voice.startSession.mock.calls[0])[0] as {
       onConnect?: () => void;
       onError?: (error: unknown) => void;
       onDisconnect?: () => void;
@@ -472,7 +473,7 @@ describe("Pub Pal voice controls", () => {
 
     expect(voice.endSession).toHaveBeenCalledOnce();
     expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
-    const releaseRequest = requests.authedActionFetch.mock.calls[1][1] as RequestInit;
+    const releaseRequest = defined(requests.authedActionFetch.mock.calls[1])[1] as RequestInit;
     const releaseBody = JSON.parse(String(releaseRequest.body)) as {
       action: string;
       durationSeconds: number;
@@ -525,7 +526,7 @@ describe("Pub Pal voice controls", () => {
       await Promise.resolve();
       await Promise.resolve();
     });
-    const sessionA = voice.startSession.mock.calls[0][0] as {
+    const sessionA = defined(voice.startSession.mock.calls[0])[0] as {
       onConnect?: () => void;
       onError?: (error: unknown) => void;
       onDisconnect?: () => void;
@@ -544,7 +545,7 @@ describe("Pub Pal voice controls", () => {
       await Promise.resolve();
       await Promise.resolve();
     });
-    const sessionB = voice.startSession.mock.calls[1][0] as {
+    const sessionB = defined(voice.startSession.mock.calls[1])[0] as {
       onConnect?: () => void;
     };
     await act(async () => {
@@ -567,7 +568,7 @@ describe("Pub Pal voice controls", () => {
       await Promise.resolve();
     });
     expect(requests.authedActionFetch).toHaveBeenCalledTimes(4);
-    const releaseRequest = requests.authedActionFetch.mock.calls[3][1] as RequestInit;
+    const releaseRequest = defined(requests.authedActionFetch.mock.calls[3])[1] as RequestInit;
     expect(JSON.parse(String(releaseRequest.body))).toEqual({
       action: "release",
       durationSeconds: 1,
@@ -605,7 +606,7 @@ describe("Pub Pal voice controls", () => {
     expect(requests.authedActionFetch).toHaveBeenCalledTimes(1);
     expect(voice.startSession).toHaveBeenCalledOnce();
 
-    const session = voice.startSession.mock.calls[0][0] as {
+    const session = defined(voice.startSession.mock.calls[0])[0] as {
       onConnect?: () => void;
       onError?: (error: unknown) => void;
       onDisconnect?: () => void;
@@ -672,7 +673,7 @@ describe("Pub Pal voice controls", () => {
     });
 
     expect(voice.startSession).toHaveBeenCalledOnce();
-    const session = voice.startSession.mock.calls[0][0] as {
+    const session = defined(voice.startSession.mock.calls[0])[0] as {
       onConnect?: () => void;
       onError?: (error: unknown) => void;
       onDisconnect?: () => void;
@@ -725,7 +726,7 @@ describe("Pub Pal voice controls", () => {
     });
 
     expect(voice.startSession).toHaveBeenCalledOnce();
-    expect(voice.startSession.mock.calls[0][0]).toEqual(expect.objectContaining({
+    expect(defined(voice.startSession.mock.calls[0])[0]).toEqual(expect.objectContaining({
       workletPaths: ELEVENLABS_WORKLET_PATHS,
       libsampleratePath: ELEVENLABS_LIBSAMPLERATE_PATH,
     }));
@@ -765,7 +766,7 @@ describe("Pub Pal voice controls", () => {
     });
 
     expect(voice.startSession).toHaveBeenCalledOnce();
-    const session = voice.startSession.mock.calls[0][0] as {
+    const session = defined(voice.startSession.mock.calls[0])[0] as {
       overrides?: { agent?: { prompt?: unknown; firstMessage?: string }; tts?: { voiceId?: string } };
       dynamicVariables?: Record<string, string>;
       onMessage?: (message: { role: string; message: string }) => void;

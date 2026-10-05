@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -45,9 +46,9 @@ describe("SavedPubList", () => {
     const followedLists: FollowedSavedListDTO[] = [
       {
         ownerHandle: "sam",
-        ownerProfileUrl: "/u/sam",
+        ownerProfileUrl: "/u/sam" as Route,
         listType: "my locals",
-        listUrl: "/u/sam/lists/my%20locals",
+        listUrl: "/u/sam/lists/my%20locals" as Route,
         savedCount: 3,
         followerCount: 12,
         followedAt: "2026-07-07T12:00:00.000Z",

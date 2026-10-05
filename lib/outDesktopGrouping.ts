@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import type { OutOpenPlan } from "@/lib/out";
 import {
   outSourceAttribution,
@@ -32,7 +33,7 @@ export type OutListingPubPair =
   | {
       status: "matched";
       placeName: string;
-      mapHref: string;
+      mapHref: Route;
     }
   | {
       status: "absent";

@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import Link from "next/link";
 
 import CrawlStoryCopyButton from "@/components/crawl/CrawlStoryCopyButton";
@@ -20,7 +21,7 @@ import { buildCrawlShareText } from "@/lib/shareArtifacts";
 // Plan the crawl back onto the map from its stop venue ids, the same share-URL
 // shape seedCrawlState reads (mode=build&pubs=id1,id2). Stops missing a venue
 // id just are not planned back.
-function crawlMapHref(story: DurableStory): string {
+function crawlMapHref(story: DurableStory): Route {
   const ids = story.stops.map((stop) => stop.venueId).filter(Boolean);
   if (ids.length === 0) return "/map";
   const params = new URLSearchParams();
@@ -46,7 +47,7 @@ function chaosScoreFor(story: DurableStory) {
 // Build a /api/chaos-card URL carrying the already-computed score, grade and
 // line so the OG image never has to recompute (and can never drift from what
 // is shown on the page).
-function chaosCardHref(story: DurableStory, chaos: ReturnType<typeof computeChaosScore>): string {
+function chaosCardHref(story: DurableStory, chaos: ReturnType<typeof computeChaosScore>): Route {
   const params = new URLSearchParams();
   params.set("title", story.title);
   params.set("score", String(chaos.score));

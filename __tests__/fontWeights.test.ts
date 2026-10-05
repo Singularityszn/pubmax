@@ -104,7 +104,7 @@ describe("the mono face carries only weights something asks for", () => {
         token = decl.value;
       });
     });
-    const requested = token.split(",")[0].trim().replace(/^["']|["']$/g, "");
+    const requested = (token.split(",")[0] ?? "").trim().replace(/^["']|["']$/g, "");
     const mono = localFontCalls.find((options) => options.variable === "--font-data");
     const family = mono?.declarations?.find((decl) => decl.prop === "font-family")?.value;
     expect(requested).not.toBe("");

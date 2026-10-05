@@ -10,6 +10,7 @@ import {
   siteHarvestLedgerCollectKey,
   siteHarvestLedgerDuplicateKeys,
 } from "@/lib/siteHarvestLedgerCore";
+import { defined } from "@/__tests__/helpers/defined";
 
 describe("site harvest ledger", () => {
   const owners = loadCuratedUkBaseOwners();
@@ -26,7 +27,7 @@ describe("site harvest ledger", () => {
     const newer = { ...older, priceGbp: 6.2, observedAt: "2026-09-21T00:00:00.000Z" };
     const out = dedupeSiteHarvestLedgerRows([older, newer], owners);
     expect(out).toHaveLength(1);
-    expect(out[0].observedAt).toBe(newer.observedAt);
+    expect(defined(out[0]).observedAt).toBe(newer.observedAt);
   });
 
   it("preserves separate explicit servings and collapses only a repeated serving", () => {

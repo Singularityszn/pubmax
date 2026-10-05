@@ -29,6 +29,7 @@ import {
   type FcmConfig,
 } from "@/lib/fcmPushProvider";
 import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
+import { defined } from "@/__tests__/helpers/defined";
 
 const APNS_ENV = {
   APNS_KEY_ID: "KEY123",
@@ -144,12 +145,12 @@ describe("Firebase Cloud Messaging provider", () => {
     const iat = 1_700_000_000;
     const jwt = buildFcmServiceAccountJwt({ ...TEST_FCM_CONFIG, iat });
     const [headerB64, claimsB64, signatureB64] = jwt.split(".");
-    expect(decodeJwtPart(headerB64)).toEqual({
+    expect(decodeJwtPart(defined(headerB64))).toEqual({
       alg: "RS256",
       typ: "JWT",
       kid: TEST_FCM_CONFIG.privateKeyId,
     });
-    expect(decodeJwtPart(claimsB64)).toEqual({
+    expect(decodeJwtPart(defined(claimsB64))).toEqual({
       iss: TEST_FCM_CONFIG.clientEmail,
       scope: "https://www.googleapis.com/auth/firebase.messaging",
       aud: "https://oauth2.googleapis.com/token",
@@ -160,7 +161,7 @@ describe("Firebase Cloud Messaging provider", () => {
       "RSA-SHA256",
       Buffer.from(`${headerB64}.${claimsB64}`),
       testFcmPublicKey,
-      Buffer.from(signatureB64, "base64url"),
+      Buffer.from(defined(signatureB64), "base64url"),
     )).toBe(true);
   });
 
@@ -420,15 +421,15 @@ describe("buildApnsJwt", () => {
     const [headerB64, claimsB64, sigB64] = jwt.split(".");
     expect(jwt.split(".")).toHaveLength(3);
 
-    const header = decodeJwtPart(headerB64);
+    const header = decodeJwtPart(defined(headerB64));
     expect(header).toEqual({ alg: "ES256", kid: "ABC123" });
 
-    const claims = decodeJwtPart(claimsB64);
+    const claims = decodeJwtPart(defined(claimsB64));
     expect(claims).toEqual({ iss: "TEAM99", iat });
 
     // The signature must verify against the public key, in JOSE raw r‖s form
     // (64 bytes for P-256) — proving we did NOT emit DER.
-    const signature = Buffer.from(sigB64, "base64url");
+    const signature = Buffer.from(defined(sigB64), "base64url");
     expect(signature).toHaveLength(64);
     const ok = cryptoVerify(
       "sha256",
@@ -519,7 +520,7 @@ describe("createApnsPushProvider — transport + response mapping", () => {
   it("maps an unexpected 4xx (e.g. bad JWT) → error, never invalid", async () => {
     const { provider } = providerWith(() => ({ status: 403, reason: "InvalidProviderToken" }));
     const [r] = await provider.send(["tok"], { title: "T", body: "B" });
-    expect(r.status).toBe("error");
+    expect(defined(r).status).toBe("error");
   });
 
   it("falls back to apns_<status> when the body carries no reason", async () => {
@@ -558,7 +559,7 @@ describe("createApnsPushProvider — transport + response mapping", () => {
       gone: { status: 410, reason: "Unregistered" },
       flaky: { status: 503, reason: "ServiceUnavailable" },
     };
-    const { provider, transport, hosts } = providerWith((token) => byToken[token]);
+    const { provider, transport, hosts } = providerWith((token) => defined(byToken[token]));
     const results = await provider.send(["good", "gone", "flaky"], { title: "T", body: "B" });
 
     expect(results.map((r) => [r.token, r.status])).toEqual([
@@ -580,7 +581,7 @@ describe("createApnsPushProvider — transport + response mapping", () => {
       threadId: "night-signals",
       data: { kind: "night_signal_live", entityId: "e1" },
     });
-    const req = transport.requests[0];
+    const req = defined(transport.requests[0]);
     expect(req.headers["apns-topic"]).toBe("com.pubmaxx.app");
     expect(req.headers["apns-push-type"]).toBe("alert");
     expect(req.headers["apns-priority"]).toBe("10");
@@ -679,7 +680,7 @@ describe("createApnsPushProvider — transport + response mapping", () => {
 
 describe("createApnsPushProvider — JWT caching / reuse window", () => {
   function bearerOf(transport: { requests: ApnsRequest[] }, i = 0): string {
-    return transport.requests[i].headers.authorization.replace(/^bearer /, "");
+    return defined(defined(transport.requests[i]).headers.authorization).replace(/^bearer /, "");
   }
 
   it("reuses one signed JWT across sends within the ~50-min window, then refreshes", async () => {
@@ -708,8 +709,8 @@ describe("createApnsPushProvider — JWT caching / reuse window", () => {
     const jwt3 = bearerOf(transport, 2);
     expect(jwt3).not.toBe(jwt1);
 
-    const iat1 = (decodeJwtPart(jwt1.split(".")[1]) as { iat: number }).iat;
-    const iat3 = (decodeJwtPart(jwt3.split(".")[1]) as { iat: number }).iat;
+    const iat1 = (decodeJwtPart(defined(jwt1.split(".")[1])) as { iat: number }).iat;
+    const iat3 = (decodeJwtPart(defined(jwt3.split(".")[1])) as { iat: number }).iat;
     expect(iat3).toBeGreaterThan(iat1);
   });
 });

@@ -1,8 +1,10 @@
+import type { Route } from "next";
+
 export type PrimaryNavKey = "now" | "map" | "places" | "out" | "plan" | "you";
 
 export type PrimaryNavItem = {
   key: PrimaryNavKey;
-  href: string;
+  href: Route;
   label: string;
   match: string[];
 };
@@ -41,7 +43,7 @@ export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [
   // concierge) is its OWN destination with no primary tab — it used to sit in
   // this match set and wrongly lit "You" on both the mobile tab bar and the
   // desktop nav (audit F10). Dropped so /pal maps to no active tab.
-  { key: "you", href: "/u/you", label: "You", match: ["/u"] },
+  { key: "you", href: "/u/you" as Route, label: "You", match: ["/u"] },
 ] as const;
 
 /**
@@ -64,7 +66,7 @@ export const MOMENT_NAV_ACTION = {
   label: "Moment",
 } as const;
 
-export type MomentReturnTarget = string;
+export type MomentReturnTarget = Route;
 
 const BLOCKED_MOMENT_RETURN_PREFIXES = ["/api", "/admin", "/auth", "/moment"];
 
@@ -92,12 +94,13 @@ export function safeMomentReturnTo(value: string | null | undefined): MomentRetu
     const url = new URL(value, "https://pubmaxxing.com");
     if (url.origin !== "https://pubmaxxing.com") return "/map";
     if (BLOCKED_MOMENT_RETURN_PREFIXES.some((prefix) => url.pathname === prefix || url.pathname.startsWith(`${prefix}/`))) return "/map";
-    return `${url.pathname}${url.search}${url.hash}`;
+    // Same-origin path outside the blocked prefixes, checked above.
+    return `${url.pathname}${url.search}${url.hash}` as Route;
   } catch {
     return "/map";
   }
 }
 
-export function momentHref(returnTo: string | null | undefined): string {
+export function momentHref(returnTo: string | null | undefined): Route {
   return `${MOMENT_NAV_ACTION.href}?returnTo=${encodeURIComponent(safeMomentReturnTo(returnTo))}`;
 }

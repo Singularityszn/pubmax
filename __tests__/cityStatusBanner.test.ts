@@ -6,6 +6,7 @@ import {
   normaliseSignalKind,
   pickCityStatusHeadline,
 } from "@/components/map/CityStatusBanner";
+import { defined } from "@/__tests__/helpers/defined";
 
 describe("pickCityStatusHeadline", () => {
   it.each(["javascript:alert(1)", "data:text/html,<script>alert(1)</script>"])(
@@ -51,11 +52,11 @@ describe("groupSignalsByKind", () => {
       { headline: "No kind at all" },
     ]);
     expect(groups.map((g) => g.kind)).toEqual(["alert", "transport", "event", "other"]);
-    expect(groups[0].signals.map((s) => s.headline)).toEqual(["Wildfire risk"]);
-    expect(groups[1].signals.map((s) => s.headline)).toEqual(["Tube strike"]);
+    expect(defined(groups[0]).signals.map((s) => s.headline)).toEqual(["Wildfire risk"]);
+    expect(defined(groups[1]).signals.map((s) => s.headline)).toEqual(["Tube strike"]);
     // Upstream relative order preserved within a bucket.
-    expect(groups[2].signals.map((s) => s.headline)).toEqual(["Gig at Wembley", "Second gig"]);
-    expect(groups[3].signals.map((s) => s.headline)).toEqual(["Mystery", "No kind at all"]);
+    expect(defined(groups[2]).signals.map((s) => s.headline)).toEqual(["Gig at Wembley", "Second gig"]);
+    expect(defined(groups[3]).signals.map((s) => s.headline)).toEqual(["Mystery", "No kind at all"]);
   });
 
   it("normalises kind aliases", () => {

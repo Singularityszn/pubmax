@@ -191,6 +191,7 @@ import {
 } from "@/lib/pintDropsStore";
 import { RECEIPT_REQUIRED_LINE, priceNeedsReceipt } from "@/lib/pintDropReceipt";
 import { memoryProfileStore } from "@/lib/profileStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 const URL_BASE = "http://localhost/api/pint-drops";
 
@@ -521,9 +522,9 @@ describe("POST /api/pint-drops (create)", () => {
     // The row itself carries the key, which is what lets this price
     // corroborate: the confirmation producer reads it server-side.
     const [stored] = await memoryPintDropStore.listConfirmationCandidates(VENUE);
-    expect(stored.id).toBe(drop.id);
-    expect(stored.authorityKey).toMatch(/^[a-f0-9]{64}$/);
-    expect(stored.authorityKey).not.toContain("account-anon");
+    expect(defined(stored).id).toBe(drop.id);
+    expect(defined(stored).authorityKey).toMatch(/^[a-f0-9]{64}$/);
+    expect(defined(stored).authorityKey).not.toContain("account-anon");
   });
 
   it("refuses a priced drop with no photo of the bill", async () => {
@@ -1247,7 +1248,7 @@ describe("verified-account Pint Drop report counting", () => {
         reportCount?: number;
       }>;
       expect(listed).toHaveLength(1);
-      expect(listed[0].reportCount).toBe(1);
+      expect(defined(listed[0]).reportCount).toBe(1);
     } finally {
       vi.useRealTimers();
     }
@@ -1284,7 +1285,7 @@ describe("durable per-actor report uniqueness", () => {
         reportCount?: number;
       }>;
       expect(listed).toHaveLength(1);
-      expect(listed[0].reportCount).toBe(1);
+      expect(defined(listed[0]).reportCount).toBe(1);
 
       // A DISTINCT actor's report is the second real one → threshold → hidden.
       vi.advanceTimersByTime(61_000);
@@ -1310,7 +1311,7 @@ describe("durable per-actor report uniqueness", () => {
     // One counted report → still visible with reportCount 1.
     const listed = (await (await get(VENUE)).json()).drops as Array<{ reportCount?: number }>;
     expect(listed).toHaveLength(1);
-    expect(listed[0].reportCount).toBe(1);
+    expect(defined(listed[0]).reportCount).toBe(1);
 
     // A different actorHash is the second real report → hidden.
     expect(
@@ -1412,7 +1413,7 @@ describe("durable rate limiting (Supabase configured)", () => {
     );
     expect(res.status).toBe(201);
     expect(checkRateLimitDurableDetailed).toHaveBeenCalledTimes(1);
-    const key = checkRateLimitDurableDetailed.mock.calls[0][0];
+    const key = defined(checkRateLimitDurableDetailed.mock.calls[0])[0];
     expect(key).toContain("ale"); // handle (lowercased) is in the key
     expect(key).toMatch(/[0-9a-f]{64}$/); // ...plus the sha256 IP hash
     expect(key).not.toContain("203.0.113.7"); // raw IP never appears

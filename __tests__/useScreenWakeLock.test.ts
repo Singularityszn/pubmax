@@ -10,6 +10,7 @@ import {
   type WakeLockNavigatorLike,
   type WakeLockSentinelLike,
 } from "@/components/night/useScreenWakeLock";
+import { defined } from "@/__tests__/helpers/defined";
 
 type FakeSentinel = WakeLockSentinelLike & {
   released: boolean;
@@ -89,7 +90,7 @@ describe("createWakeLockManager", () => {
     await manager.enable();
     await manager.disable();
 
-    expect(sentinels[0].release).toHaveBeenCalledTimes(1);
+    expect(defined(sentinels[0]).release).toHaveBeenCalledTimes(1);
     expect(manager.isActive()).toBe(false);
   });
 
@@ -111,7 +112,7 @@ describe("createWakeLockManager", () => {
     expect(requests()).toBe(1);
 
     // Browser auto-releases the sentinel when the tab hides.
-    sentinels[0].fireBrowserRelease();
+    defined(sentinels[0]).fireBrowserRelease();
     expect(manager.isActive()).toBe(false);
 
     // Coming back into view while still armed re-acquires.
@@ -140,7 +141,7 @@ describe("createWakeLockManager", () => {
     await manager.handleVisibility(false);
 
     // The lock is left to the browser's own release; we do not touch it.
-    expect(sentinels[0].release).not.toHaveBeenCalled();
+    expect(defined(sentinels[0]).release).not.toHaveBeenCalled();
     expect(manager.isActive()).toBe(true);
   });
 

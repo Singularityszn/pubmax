@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   __resetPubPalToolTurnStore,
   appendOwnedPubPalUserTurn,
+  bindPubPalToolTurn,
   hasStoredPubPalToolTurnForTest,
   appendPubPalToolTurn,
   PUB_PAL_TOOL_TURN_TTL_MS,
@@ -147,6 +148,31 @@ describe("pubPalToolTurnStore (memory backend)", () => {
     ).toBe(false);
     expect(await readOwnedPubPalToolTurn(CONVERSATION_ID, OTHER_OWNER_ID)).toBeNull();
     expect((await readPubPalToolTurn(CONVERSATION_ID))?.query).toBe("quiet pubs in Clapham");
+  });
+
+  it("keeps only the newest voice lines and stores no session summary for a voice row", async () => {
+    await bindPubPalToolTurn(CONVERSATION_ID, OWNER_ID, "london");
+    for (let index = 1; index <= 8; index += 1) {
+      expect(
+        await appendOwnedPubPalUserTurn(
+          CONVERSATION_ID,
+          OWNER_ID,
+          { role: "user", content: `ask ${index}` },
+          "london",
+        ),
+      ).toBe(true);
+    }
+
+    const owned = await readOwnedPubPalToolTurn(CONVERSATION_ID, OWNER_ID);
+    expect(owned?.turns.map((turn) => turn.content)).toEqual([
+      "ask 3",
+      "ask 4",
+      "ask 5",
+      "ask 6",
+      "ask 7",
+      "ask 8",
+    ]);
+    expect(owned?.summary).toBe("");
   });
 
   it("drops a turn once the retention window has passed", async () => {

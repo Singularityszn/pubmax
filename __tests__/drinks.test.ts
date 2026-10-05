@@ -16,6 +16,7 @@ import {
   type Drink,
   type LegacyPintPrice,
 } from "@/lib/drinks";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Convention: pure lib, no Supabase — clear env so nothing reaches a backend.
 beforeEach(() => {
@@ -44,7 +45,7 @@ function latestCheckedCategories(constraint: string): string[] | undefined {
       "gi",
     );
     for (const match of sql.matchAll(pattern)) {
-      latest = [...match[1].matchAll(/'([^']+)'/g)].map((value) => value[1]);
+      latest = [...defined(match[1]).matchAll(/'([^']+)'/g)].map((value) => defined(value[1]));
     }
   }
   return latest;
@@ -166,7 +167,7 @@ describe("groupDrinksByCategory", () => {
     // Only the three present categories, in CATEGORY_META order (beer < wine < gin).
     expect(groups.map((g) => g.category)).toEqual(["beer", "wine", "gin"]);
     expect(groups.every((g) => g.drinks.length === 1)).toBe(true);
-    expect(groups[0].label).toBe("Beer");
+    expect(defined(groups[0]).label).toBe("Beer");
   });
 
   it("sorts within a section by price then name, deterministically", () => {
@@ -175,7 +176,7 @@ describe("groupDrinksByCategory", () => {
       drink({ id: "b", category: "wine", name: "Alpha", priceGbp: 7 }),
       drink({ id: "c", category: "wine", name: "Cheap", priceGbp: 5 }),
     ]);
-    expect(groups[0].drinks.map((d) => d.name)).toEqual(["Cheap", "Alpha", "Zeta"]);
+    expect(defined(groups[0]).drinks.map((d) => d.name)).toEqual(["Cheap", "Alpha", "Zeta"]);
   });
 
   it("does not mutate its input", () => {
@@ -210,13 +211,13 @@ describe("legacyPricesToDrinks", () => {
       priceGbp: 6.4,
     });
     // Unknown brand → no invented ABV (keeps low/no name matching honest).
-    expect(drinks[0].abv).toBeUndefined();
+    expect(defined(drinks[0]).abv).toBeUndefined();
     expect(drinks[1]).toMatchObject({
       id: "beer-p2",
       name: "Guinness",
       abv: 4.2,
     });
-    expect(drinks[0].provenance).toEqual({
+    expect(defined(drinks[0]).provenance).toEqual({
       source: "app-dataset",
       licence: "first-party",
       observedAt: "2026-07-03T23:10:47.000Z",
@@ -254,7 +255,7 @@ describe("legacyPricesToDrinks", () => {
       ],
     );
 
-    expect(drink.provenance).toMatchObject({
+    expect(defined(drink).provenance).toMatchObject({
       source: "Pint Prices",
       sourceUrl,
     });
@@ -274,7 +275,7 @@ describe("legacyPricesToDrinks", () => {
     const drinks = legacyPricesToDrinks(
       [{ app_price_id: "p1", pint_name: "", price_gbp: 5 }],
     );
-    expect(drinks[0].name).toBe("Pint");
+    expect(defined(drinks[0]).name).toBe("Pint");
   });
 });
 
@@ -302,6 +303,6 @@ describe("beerDrinksToLegacy (inverse view)", () => {
     const back = beerDrinksToLegacy([
       drink({ id: "raw-id", category: "beer", name: "X", priceGbp: 5 }),
     ]);
-    expect(back[0].app_price_id).toBe("raw-id");
+    expect(defined(back[0]).app_price_id).toBe("raw-id");
   });
 });

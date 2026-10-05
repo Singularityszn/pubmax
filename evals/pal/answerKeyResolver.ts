@@ -134,8 +134,8 @@ async function firstWhatsOnCard(
     matched = filterRowsByWeekday(matched, detected.weekday);
   }
   const answer = buildWhatsOnAnswer(detected, matched);
-  if (answer.listings.length === 0) return null;
   const item = answer.listings[0];
+  if (!item) return null;
   let venueId = item.venueId;
   if (!venueId && item.venue) {
     const venues = await loadConciergeVenues("london");

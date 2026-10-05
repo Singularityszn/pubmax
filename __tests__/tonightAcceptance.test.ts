@@ -13,6 +13,7 @@ import {
 } from "@/lib/planningIntent";
 import { acceptTonightVenue, tonightRowAcceptanceError } from "@/lib/tonightAcceptance";
 import { TonightRowAccept } from "@/app/tonight/TonightRowAccept";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The Tonight acceptance seam is pure — inject storage + clock and read the
 // result. Source is fixed "tonight", evidence is "what's-on", browsing is never
@@ -110,7 +111,7 @@ describe("acceptTonightVenue", () => {
 
   it("records a canonical borough as the accepted area", () => {
     const result = acceptTonightVenue(
-      { ...baseInput, area: { kind: "borough", name: CANONICAL_BOROUGH } },
+      { ...baseInput, area: { kind: "borough", name: defined(CANONICAL_BOROUGH) } },
       { storage, now: NOW },
     );
     expect(result.telemetry?.hasArea).toBe(true);

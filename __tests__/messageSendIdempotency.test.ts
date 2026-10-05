@@ -89,6 +89,7 @@ import {
   readClientMessageId,
   supabaseMessagesStore,
 } from "@/lib/messagesStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 const CONVERSATION = "11111111-1111-4111-8111-111111111111";
 const KEY = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
@@ -138,7 +139,7 @@ describe("durable send with an idempotency key", () => {
     });
 
     expect(sent?.message.body).toBe("first");
-    expect(insertQueries()[0].payload?.client_message_id).toBe(KEY);
+    expect(defined(insertQueries()[0]).payload?.client_message_id).toBe(KEY);
   });
 
   it("hands back the pair the write already proved, so no caller re-reads it", async () => {
@@ -214,7 +215,7 @@ describe("durable send with an idempotency key", () => {
     expect(sent?.message.body).toBe("delivered anyway");
     const inserts = insertQueries();
     expect(inserts).toHaveLength(2);
-    expect(inserts[1].payload?.client_message_id).toBeUndefined();
+    expect(defined(inserts[1]).payload?.client_message_id).toBeUndefined();
   });
 
   it("a 23505 about some OTHER constraint is still a failure, not a silent replay", async () => {
@@ -242,7 +243,7 @@ describe("durable send with an idempotency key", () => {
 
     await supabaseMessagesStore.send(CONVERSATION, "ken", "plain");
 
-    expect("client_message_id" in (insertQueries()[0].payload ?? {})).toBe(false);
+    expect("client_message_id" in (defined(insertQueries()[0]).payload ?? {})).toBe(false);
   });
 });
 

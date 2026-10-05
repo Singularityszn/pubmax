@@ -35,6 +35,7 @@ import {
 } from "@/lib/messageAttachments";
 import { POLL_COMPOSE_LABEL, POLL_UNREADABLE_LINE, type MessagePollView } from "@/lib/messagePoll";
 import { MAX_MESSAGE_BODY } from "@/lib/messages";
+import { defined } from "@/__tests__/helpers/defined";
 
 const BALLOT = [{ index: 0, label: "The Harp", votes: 0 }, { index: 1, label: "The Blackfriar", votes: 0 }] as const;
 const messages = ["alice", "bridget"].map((senderHandle, i) => ({
@@ -255,7 +256,7 @@ describe("rendered conversation and composer", () => {
     await act(async () => field().dispatchEvent(event));
     expect(event.defaultPrevented).toBe(fine);
     expect(posts()).toHaveLength(fine ? 1 : 0);
-    if (fine) expect(JSON.parse(String(posts()[0][1].body))).toMatchObject({ action: "send", handle: "alice", body: "See you there" });
+    if (fine) expect(JSON.parse(String(defined(posts()[0])[1].body))).toMatchObject({ action: "send", handle: "alice", body: "See you there" });
     else expect(field().value).toBe("See you there");
   });
 
@@ -282,9 +283,9 @@ describe("rendered conversation and composer", () => {
     expect(state.track).toHaveBeenCalledWith("message_attach_selected", { kind: "poll" });
     const inputs = host.querySelectorAll<HTMLInputElement>(".composerPollComposer input");
     expect(inputs).toHaveLength(3);
-    await typeInto(inputs[0], "Where first?");
-    await typeInto(inputs[1], "The Harp");
-    await typeInto(inputs[2], "The Blackfriar");
+    await typeInto(defined(inputs[0]), "Where first?");
+    await typeInto(defined(inputs[1]), "The Harp");
+    await typeInto(defined(inputs[2]), "The Blackfriar");
     const attach = host.querySelector<HTMLButtonElement>(".composerPollComposer .composerVenueResult")!;
     await act(async () => attach.click());
     expect(field().value).toBe("");
@@ -297,7 +298,7 @@ describe("rendered conversation and composer", () => {
     await act(async () => { send.click(); send.click(); });
     const posts = state.request.mock.calls.filter(([, init]) => init?.method === "POST");
     expect(posts).toHaveLength(1);
-    expect(JSON.parse(String(posts[0][1].body))).toMatchObject({ body: "", poll: { question: "Where first?", options: ["The Harp", "The Blackfriar"] } });
+    expect(JSON.parse(String(defined(posts[0])[1].body))).toMatchObject({ body: "", poll: { question: "Where first?", options: ["The Harp", "The Blackfriar"] } });
     expect(button("Send").disabled).toBe(true);
     await act(async () => release(Response.json({ message: { ...messages[0], id: "poll-sent", body: "" } })));
   });
@@ -371,7 +372,7 @@ describe("private photo rendering", () => {
     expect(state.request).toHaveBeenCalledWith("/api/messages/photo?handle=alice", expect.objectContaining({ signal: expect.any(AbortSignal) }), { requiresIdentity: true });
     await act(async () => release(new Response("private", { status: 200 })));
     expect(createUrl).toHaveBeenCalledOnce();
-    const photoBlob = createUrl.mock.calls[0][0];
+    const photoBlob = defined(createUrl.mock.calls[0])[0];
     if (!("text" in photoBlob)) throw new Error("Expected photo bytes as a Blob");
     await expect(photoBlob.text()).resolves.toBe("private");
     expect(host.querySelector("figure")).toBe(figure);

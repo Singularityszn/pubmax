@@ -151,11 +151,11 @@ export function venuePriceArc(
   nowGbp: number | null | undefined,
   asOf: number = Date.now(),
 ): VenuePriceArc | null {
-  if (!history.length) return null;
   const ordered = [...history].sort(
     (a, b) => a.observedOn.localeCompare(b.observedOn) || a.priceGbp - b.priceGbp,
   );
   const then = ordered[0];
+  if (!then) return null;
   const thenMs = Date.parse(`${then.observedOn}T00:00:00.000Z`);
   const years = Number.isFinite(thenMs)
     ? Math.max(0, Math.floor((asOf - thenMs) / (365.2425 * DAY_MS)))
@@ -193,7 +193,7 @@ export function formatObservedMonth(observedOn: string): string {
   const match = /^(\d{4})-(\d{2})-\d{2}$/.exec(observedOn);
   if (!match) return observedOn;
   const month = MONTHS[Number(match[2]) - 1];
-  return month ? `${month} ${match[1]}` : match[1];
+  return month ? `${month} ${match[1]}` : (match[1] ?? observedOn);
 }
 
 /** "14 July 2013" — the full day, for the source line and the accessible name. */

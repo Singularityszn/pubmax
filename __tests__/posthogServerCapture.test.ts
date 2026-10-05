@@ -5,6 +5,7 @@ const nextServer = vi.hoisted(() => ({ after: vi.fn() }));
 vi.mock("next/server", () => ({ after: nextServer.after }));
 
 import { capturePosthogServerEvent } from "@/lib/posthogServer";
+import { defined } from "@/__tests__/helpers/defined";
 
 describe("server-side PostHog capture", () => {
   afterEach(() => {
@@ -23,7 +24,7 @@ describe("server-side PostHog capture", () => {
 
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(nextServer.after).toHaveBeenCalledOnce();
-    const held = nextServer.after.mock.calls[0][0] as Promise<unknown>;
+    const held = defined(nextServer.after.mock.calls[0])[0] as Promise<unknown>;
     let settled = false;
     void held.then(() => { settled = true; });
     await Promise.resolve();

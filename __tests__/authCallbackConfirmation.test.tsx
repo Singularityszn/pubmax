@@ -48,7 +48,7 @@ vi.mock("@/lib/deviceAccountSwitch", () => ({
   browserDeviceAccountSwitchDeps: () => ({
     authConfig: { url: "https://provider.example", key: "public-key" },
     fetchImpl: async (_url: string, init: RequestInit) => {
-      const token = (init.headers as Record<string, string>).authorization.slice(7);
+      const token = defined((init.headers as Record<string, string>).authorization).slice(7);
       const result = await harness.getUser(token);
       return new Response(JSON.stringify(result.error ?? result.data.user), { status: result.error ? 403 : 200 });
     },
@@ -89,6 +89,7 @@ vi.mock("@/lib/referralClaimClient", () => ({
 }));
 
 import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
+import { defined } from "@/__tests__/helpers/defined";
 
 function ViewerProbe() {
   const { user, loading } = useAuth();

@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = process.cwd();
 
@@ -42,10 +43,10 @@ describe("desktop taste wave 1", () => {
 
       const css = readFileSync(file, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
       for (const match of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-        const selector = match[1].trim();
+        const selector = defined(match[1]).trim();
         const declarations = match[2];
         if (!/(eyebrow|kicker|sectionLabel)/i.test(selector)) continue;
-        if (!/text-transform:\s*uppercase/i.test(declarations)) continue;
+        if (!/text-transform:\s*uppercase/i.test(defined(declarations))) continue;
         if (excludedSelectors.some((excluded) => selector.includes(excluded))) continue;
         if (stampSelectors.some((stamp) => selector.includes(stamp))) continue;
         violations.push(`${fileName}: ${selector.replace(/\s+/g, " ")}`);

@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -58,6 +59,7 @@ import {
   type DrinkBrandLanding,
 } from "@/lib/drinkBrandLanding";
 import * as drinkBrandLandingPageModule from "@/app/drink/[slug]/page";
+import { defined } from "@/__tests__/helpers/defined";
 
 describe("governed drink brand landing page", () => {
   it("prebuilds exactly the published beer brand slugs, in catalogue order", async () => {
@@ -104,7 +106,7 @@ describe("governed drink brand landing page", () => {
     // resolves what its eager shard carries: the cheapest Guinness pint in
     // London sits in a lazy borough shard, so rank 1 is not that pub.
     const selectable = await loadMapSelectableVenueIds();
-    expect(selectable?.has(decodeURIComponent(logHref![1]))).toBe(true);
+    expect(selectable?.has(decodeURIComponent(defined(logHref![1])))).toBe(true);
     expect(html).not.toContain("drink=beer");
     // Derived from the bundle's own collection stamp, so a re-collection moves
     // one value rather than every page test that prints the date.
@@ -360,8 +362,8 @@ describe("governed drink brand landing page", () => {
         landing: model,
         mapSelectableVenueIds: new Set(["venue-1"]),
         areaPages: [
-          { href: "/area/clapham/drink/guinness", label: "Clapham" },
-          { href: "/area/victoria/drink/guinness", label: "Victoria" },
+          { href: "/area/clapham/drink/guinness" as Route, label: "Clapham" },
+          { href: "/area/victoria/drink/guinness" as Route, label: "Victoria" },
         ],
       }),
     );

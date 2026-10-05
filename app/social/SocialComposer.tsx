@@ -170,7 +170,7 @@ function VenueEditor({
                 event.preventDefault(); onActiveIndex((current) => Math.min(current + 1, results.length - 1));
               } else if (event.key === "ArrowUp" && results.length > 0) {
                 event.preventDefault(); onActiveIndex((current) => current <= 0 ? results.length - 1 : current - 1);
-              } else if (event.key === "Enter" && activeIndex >= 0) {
+              } else if (event.key === "Enter" && results[activeIndex]) {
                 event.preventDefault(); onSelect(results[activeIndex]);
               } else if (event.key === "Escape" && results.length > 0) {
                 event.preventDefault(); event.stopPropagation(); onClearResults();

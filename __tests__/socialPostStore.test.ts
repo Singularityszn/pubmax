@@ -7,6 +7,7 @@ import {
   type SocialPostActor,
 } from "@/lib/socialPostStore";
 import { validateSocialPostCreate } from "@/lib/socialPosts";
+import { defined } from "@/__tests__/helpers/defined";
 
 const alice: SocialPostActor = { accountId: "account-a", profileId: "profile-a", handle: "alice" };
 const bob: SocialPostActor = { accountId: "account-b", profileId: "profile-b", handle: "bob" };
@@ -195,7 +196,7 @@ describe("Social post store visibility and feeds", () => {
     expect(discover.nextCursor).toEqual(expect.any(String));
     const cursorParts = discover.nextCursor!.split(".");
     expect(cursorParts).toHaveLength(2);
-    expect(JSON.parse(Buffer.from(cursorParts[0], "base64url").toString("utf8")))
+    expect(JSON.parse(Buffer.from(defined(cursorParts[0]), "base64url").toString("utf8")))
       .not.toHaveProperty("viewer");
     const page2 = await store.feed(bob, { lane: "discover", limit: 1, cursor: discover.nextCursor });
     expect(page2.posts.map((post) => post.body)).toEqual(["older public"]);

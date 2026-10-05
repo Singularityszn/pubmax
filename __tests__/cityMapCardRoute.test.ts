@@ -11,6 +11,7 @@ import {
 } from "@/lib/cityMapCardWaves";
 import { GET } from "@/app/api/city-map-card/route";
 import { __resetPintDrops } from "@/lib/pintDrops";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
 const ORIGINAL_SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -52,7 +53,7 @@ describe("GET /api/city-map-card", () => {
       );
     }
     expect(responses.slice(0, 30).every((res) => res.status === 200)).toBe(true);
-    expect(responses[30].status).toBe(429);
+    expect(defined(responses[30]).status).toBe(429);
   });
 });
 
@@ -78,7 +79,7 @@ describe("waveColour", () => {
     for (const band of [0, 1, 2] as const) {
       const match = waveColour(band).match(/rgba\((\d+,\d+,\d+),/);
       expect(match).not.toBeNull();
-      expect(paletteRgb.has(match![1])).toBe(true);
+      expect(paletteRgb.has(defined(match![1]))).toBe(true);
     }
   });
 });

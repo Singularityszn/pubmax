@@ -21,7 +21,7 @@ function mark(week: Uint8Array, start: number, end: number) {
 
 function clock(value: unknown): number | null {
   if (typeof value !== "string" || !/^\d{2}:\d{2}$/.test(value)) return null;
-  const [hour, minute] = value.split(":").map(Number);
+  const [hour = Number.NaN, minute = Number.NaN] = value.split(":").map(Number);
   return hour <= 24 && minute < 60 && (hour < 24 || minute === 0) ? hour * 60 + minute : null;
 }
 

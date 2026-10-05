@@ -2,6 +2,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // A HUE AS A WORD  (docs/DESIGN_SYSTEM.md · "Launch tokens", "Colour")
@@ -61,7 +62,7 @@ function channels(hex: string): Rgb | null {
   const parsed = [0, 2, 4].map((index) =>
     Number.parseInt(value.slice(index, index + 2), 16),
   );
-  return parsed.some(Number.isNaN) ? null : [parsed[0], parsed[1], parsed[2]];
+  return parsed.some(Number.isNaN) ? null : [defined(parsed[0]), defined(parsed[1]), defined(parsed[2])];
 }
 
 function hexOf(colour: Rgb): string {
@@ -73,16 +74,16 @@ function hexOf(colour: Rgb): string {
 /** Hue in degrees, the axis the price band and the accent are held apart on. */
 function hueOf(colour: Rgb): number {
   const [red, green, blue] = colour.map((channel) => channel / 255);
-  const high = Math.max(red, green, blue);
-  const low = Math.min(red, green, blue);
+  const high = Math.max(defined(red), defined(green), defined(blue));
+  const low = Math.min(defined(red), defined(green), defined(blue));
   const span = high - low;
   if (span === 0) return 0;
   const sextant =
     high === red
-      ? (green - blue) / span
+      ? (defined(green) - defined(blue)) / span
       : high === green
-        ? (blue - red) / span + 2
-        : (red - green) / span + 4;
+        ? (defined(blue) - defined(red)) / span + 2
+        : (defined(red) - defined(green)) / span + 4;
   return ((sextant * 60) % 360 + 360) % 360;
 }
 
@@ -97,7 +98,7 @@ function relativeLuminance(colour: Rgb): number {
     const scaled = channel / 255;
     return scaled <= 0.04045 ? scaled / 12.92 : ((scaled + 0.055) / 1.055) ** 2.4;
   });
-  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+  return 0.2126 * defined(red) + 0.7152 * defined(green) + 0.0722 * defined(blue);
 }
 
 function contrast(foreground: Rgb, background: Rgb): number {
@@ -122,7 +123,7 @@ function tokenValue(css: string, token: string): string {
     new RegExp(`^\\s*${token}\\s*:\\s*(#[0-9a-f]{3,8})\\s*;`, "im"),
   );
   expect(match, `${token} is declared with a literal hex`).not.toBeNull();
-  return (match as RegExpMatchArray)[1];
+  return defined((match as RegExpMatchArray)[1]);
 }
 
 // ── The theme a declaration is read against ──────────────────────────────────
@@ -136,8 +137,8 @@ const THEME = read("app/theme.css");
 
 function declarationsIn(block: string): Array<[string, string]> {
   return [...block.matchAll(/(--[a-z0-9-]+)\s*:\s*([^;{}]+);/gi)].map((match) => [
-    match[1],
-    match[2].trim(),
+    defined(match[1]),
+    defined(match[2]).trim(),
   ]);
 }
 
@@ -155,7 +156,7 @@ function applyRule(
 ): void {
   const rule = css.match(selector);
   expect(rule, label).not.toBeNull();
-  const declared = declarationsIn((rule as RegExpMatchArray)[1]);
+  const declared = declarationsIn(defined((rule as RegExpMatchArray)[1]));
   expect(declared.length, `${label} declares custom properties`).toBeGreaterThan(0);
   for (const [name, value] of declared) tokens.set(name, value);
 }
@@ -251,7 +252,7 @@ function resolveColour(
 
   const reference = input.match(/^var\(\s*(--[a-z0-9-]+)\s*(?:,([\s\S]+))?\)$/i);
   if (reference) {
-    const declared = tokens.get(reference[1]);
+    const declared = tokens.get(defined(reference[1]));
     const inner = declared
       ? resolveColour(declared, tokens, depth + 1)
       : reference[2]
@@ -259,13 +260,13 @@ function resolveColour(
         : null;
     if (!inner) return null;
     const share = new Map(inner.share);
-    share.set(reference[1], 1);
+    share.set(defined(reference[1]), 1);
     return { rgb: inner.rgb, share };
   }
 
   const mix = input.match(/^color-mix\(\s*in\s+srgb\s*,([\s\S]+)\)$/i);
   if (mix) {
-    const parts = splitArguments(mix[1]);
+    const parts = splitArguments(defined(mix[1]));
     if (parts.length !== 2) return null;
     const split = (part: string) => {
       const percentage = part.match(/(-?[\d.]+)%\s*$/);
@@ -273,11 +274,11 @@ function resolveColour(
         colour: percentage
           ? part.slice(0, part.length - percentage[0].length).trim()
           : part.trim(),
-        weight: percentage ? Number.parseFloat(percentage[1]) : null,
+        weight: percentage ? Number.parseFloat(defined(percentage[1])) : null,
       };
     };
-    const first = split(parts[0]);
-    const second = split(parts[1]);
+    const first = split(defined(parts[0]));
+    const second = split(defined(parts[1]));
     let firstWeight = first.weight;
     let secondWeight = second.weight;
     if (firstWeight === null && secondWeight === null) {
@@ -293,8 +294,8 @@ function resolveColour(
     if (!left || !right) return null;
     const rgb = [0, 1, 2].map(
       (index) =>
-        (left.rgb[index] * (firstWeight as number) +
-          right.rgb[index] * (secondWeight as number)) /
+        (defined(left.rgb[index]) * (firstWeight as number) +
+          defined(right.rgb[index]) * (secondWeight as number)) /
         total,
     ) as unknown as Rgb;
     const share = new Map<string, number>();
@@ -340,15 +341,15 @@ function paintedPairs(): Pair[] {
   for (const file of SHEETS) {
     const css = read(file).replace(/\/\*[\s\S]*?\*\//g, "");
     for (const block of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-      const body = block[2];
+      const body = defined(block[2]);
       const foreground = body.match(/(?:^|[;\s])color\s*:\s*([^;]+)/);
       const background = body.match(/(?:^|[;\s])background(?:-color)?\s*:\s*([^;]+)/);
       if (!foreground || !background) continue;
       pairs.push({
         file,
-        selector: block[1].trim().split("\n").pop()?.trim() ?? "",
-        foreground: foreground[1].trim(),
-        background: background[1].trim(),
+        selector: defined(block[1]).trim().split("\n").pop()?.trim() ?? "",
+        foreground: defined(foreground[1]).trim(),
+        background: defined(background[1]).trim(),
       });
     }
   }
@@ -386,7 +387,7 @@ const HUE_FAMILY: Record<string, readonly string[]> = {
 
 /** How much of this colour is the named hue, counting the hue's own family. */
 function hueShare(colour: Resolved, hue: string): number {
-  return Math.max(...HUE_FAMILY[hue].map((token) => colour.share.get(token) ?? 0));
+  return Math.max(...defined(HUE_FAMILY[hue]).map((token) => colour.share.get(token) ?? 0));
 }
 
 /**

@@ -264,7 +264,7 @@ async function cleanupQaData(
     }
   }
 
-  const venuePhotos = profileIds.length
+  const venuePhotos = profileIds[0] !== undefined
     ? await selectRows(admin, "venue_photos", "id,object_key", [["author_profile_id", profileIds[0]]])
     : [];
   if (profileIds.length > 1) {

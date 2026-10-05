@@ -14,6 +14,7 @@ vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 import { GET, POST } from "@/app/api/ratings/route";
 import { __resetMemoryRatings } from "@/lib/ratingsStore";
 import type { RatingSummary } from "@/lib/ratings";
+import { defined } from "@/__tests__/helpers/defined";
 
 const URL_BASE = "http://localhost/api/ratings";
 
@@ -119,9 +120,9 @@ describe("GET /api/ratings", () => {
     const res = await get("kind=venue&refs=v1,ghost");
     expect(res.status).toBe(200);
     const body = (await res.json()) as { summaries: Record<string, RatingSummary> };
-    expect(body.summaries.v1.count).toBe(1);
-    expect(body.summaries.ghost.count).toBe(0);
-    expect(body.summaries.ghost.average).toBe(null);
+    expect(defined(body.summaries.v1).count).toBe(1);
+    expect(defined(body.summaries.ghost).count).toBe(0);
+    expect(defined(body.summaries.ghost).average).toBe(null);
   });
 
   it("no refs → an empty (but valid) map, never an error", async () => {

@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import type { Metadata } from "next";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { headers } from "next/headers";
@@ -86,7 +87,7 @@ const BOROUGH_COVERAGE_FLOOR = 15;
 
 // Browse the borough on the clean map via search (`?q=`), so outer areas like
 // Barnet open without resurrecting a hand-built crawl into the planner.
-function boroughBrowseMapUrl(name: string): string {
+function boroughBrowseMapUrl(name: string): Route {
   const params = new URLSearchParams();
   params.set("q", name);
   return `/map?${params.toString()}`;
@@ -95,7 +96,7 @@ function boroughBrowseMapUrl(name: string): string {
 // Optional crawl deep-link: pre-build the same share-URL shape a hand-built
 // crawl uses (mode=build&pubs=id1,id2). Honest: "here's where they are", not
 // a routed transit itinerary.
-function boroughMapUrl(pubs: Venue[]): string {
+function boroughMapUrl(pubs: Venue[]): Route {
   if (pubs.length === 0) return "/map";
   const params = new URLSearchParams();
   params.set("mode", "build");

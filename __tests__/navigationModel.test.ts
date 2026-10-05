@@ -8,6 +8,7 @@ import {
   primaryNavKeyForPath,
   safeMomentReturnTo,
 } from "@/components/nav/navigationModel";
+import { defined } from "@/__tests__/helpers/defined";
 
 describe("PUBMAXX primary navigation", () => {
   it("keeps six destinations on the loop and models Moment separately", () => {
@@ -60,7 +61,7 @@ describe("PUBMAXX primary navigation", () => {
     const places = PRIMARY_NAV_ITEMS.find((item) => item.key === "places");
     expect(places?.match).toEqual(["/places"]);
     expect(primaryNavKeyForPath("/places")).toBe("places");
-    expect(primaryNavKeyForPath("/places?city=manchester".split("?")[0])).toBe("places");
+    expect(primaryNavKeyForPath(defined("/places?city=manchester".split("?")[0]))).toBe("places");
     // /choose-city has no page and 308s at the edge, so no client is on it.
     expect(primaryNavKeyForPath("/choose-city")).toBeUndefined();
     // Map and Places are separate destinations: neither may claim the other.

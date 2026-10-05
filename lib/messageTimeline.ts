@@ -223,7 +223,7 @@ export function buildMessageTimeline(
   const items: TimelineItem[] = [];
   let lastOwnIndex = -1;
   for (let index = messages.length - 1; index >= 0; index -= 1) {
-    if (messages[index].senderHandle === viewerHandle) {
+    if (messages[index]?.senderHandle === viewerHandle) {
       lastOwnIndex = index;
       break;
     }
@@ -235,8 +235,8 @@ export function buildMessageTimeline(
       items.push({ kind: "day", key: day, label: messageDayLabel(message.createdAt, now) });
       previousDay = day;
     }
-    const before = index > 0 ? messages[index - 1] : null;
-    const after = index + 1 < messages.length ? messages[index + 1] : null;
+    const before = messages[index - 1] ?? null;
+    const after = messages[index + 1] ?? null;
     const mine = message.senderHandle === viewerHandle;
     items.push({
       kind: "message",

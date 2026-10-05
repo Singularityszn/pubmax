@@ -275,7 +275,9 @@ export function landingPhotoFor(where: {
   const borough = photoById(where.boroughSlug ? BOROUGH_PHOTOS[where.boroughSlug] : undefined);
   if (borough) return { photo: borough, scope: "borough" };
   // The fallback is a real entry, so this cannot answer null.
-  return { photo: LANDING_PHOTOS[LONDON_PHOTO_ID], scope: "london" };
+  const london = LANDING_PHOTOS[LONDON_PHOTO_ID];
+  if (!london) throw new Error(`landing photo ${LONDON_PHOTO_ID} is missing`);
+  return { photo: london, scope: "london" };
 }
 
 /** `/landing/london/<id>-<width>.<format>`. */
@@ -369,9 +371,12 @@ export function landingPhotoScrimContrast(
   alpha: number = LANDING_SCRIM_ALPHA,
   photoPixel: readonly [number, number, number] = [255, 255, 255],
 ): number {
-  const composite = LANDING_SCRIM_RGB.map(
-    (channel, index) => alpha * channel + (1 - alpha) * photoPixel[index],
-  ) as unknown as [number, number, number];
+  const blend = (channel: number, pixel: number) => alpha * channel + (1 - alpha) * pixel;
+  const composite: [number, number, number] = [
+    blend(LANDING_SCRIM_RGB[0], photoPixel[0]),
+    blend(LANDING_SCRIM_RGB[1], photoPixel[1]),
+    blend(LANDING_SCRIM_RGB[2], photoPixel[2]),
+  ];
   const surface = relativeLuminance(composite);
   const foreground = relativeLuminance(parseHex(ink));
   const [lighter, darker] =

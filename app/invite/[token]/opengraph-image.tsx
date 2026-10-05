@@ -63,9 +63,10 @@ async function loadStops(
   stops: PlanStopDTO[],
 ): Promise<{ name: string; price: string | null; priceGbp: number | null }[]> {
   const ordered = [...stops].sort((a, b) => a.position - b.position).slice(0, PLAN_STOP_MAX);
-  const details = await Promise.all(ordered.map((stop) => lookupVenueDetail(stop.venueId)));
-  return ordered.map((stop, index) => {
-    const detail = details[index];
+  const details = await Promise.all(
+    ordered.map(async (stop) => ({ stop, detail: await lookupVenueDetail(stop.venueId) })),
+  );
+  return details.map(({ stop, detail }) => {
     const venue = detail.status === "found" ? detail.venue : null;
     return {
       name: stop.venueName,

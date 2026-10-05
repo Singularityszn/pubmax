@@ -60,7 +60,7 @@ export type FirstDropCopy = {
 // so the nudge doesn't read as a templated string when a user pans across a
 // cluster of unpriced outer pubs. Selection is deterministic per venue (below)
 // so the same pub always speaks the same way — no reshuffling on re-render.
-const FIRST_DROP_VARIANTS: readonly FirstDropCopy[] = [
+const FIRST_DROP_VARIANTS: readonly [FirstDropCopy, ...FirstDropCopy[]] = [
   { line: "No pint price logged here yet. Be the first.", cta: LOG_PRICE_DOOR_LABEL },
   { line: "Nobody has logged a pint here. Yours can mark the pin.", cta: LOG_PRICE_DOOR_LABEL },
   { line: "No pint on record here. A dated log starts the trust path.", cta: LOG_PRICE_DOOR_LABEL },
@@ -108,7 +108,7 @@ function hashVenueId(venueId: string): number {
  */
 export function firstDropNudgeCopy(venueId: string): FirstDropCopy {
   const index = hashVenueId(venueId) % FIRST_DROP_VARIANTS.length;
-  return FIRST_DROP_VARIANTS[index];
+  return FIRST_DROP_VARIANTS[index] ?? FIRST_DROP_VARIANTS[0];
 }
 
 /**

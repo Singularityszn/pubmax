@@ -7,6 +7,7 @@ import {
   SKEHANS_SOURCE,
 } from "../scripts/whatson/musicRefresh.mjs";
 import { dedupeKey, dedupeRows, isValidWhatsOnRow, type WhatsOnRow } from "@/lib/whatsOn";
+import { defined } from "@/__tests__/helpers/defined";
 
 describe("buildMusicResidencyRows", () => {
   const observedAt = "2026-07-12T00:00:00.000Z"; // a Sunday
@@ -18,11 +19,11 @@ describe("buildMusicResidencyRows", () => {
 
   it("emits the B1 row contract shape with kind:'music', confidence:'listed', and real provenance", () => {
     const rows = buildMusicResidencyRows({
-      residencies: [MUSIC_RESIDENCIES[0]],
+      residencies: [defined(MUSIC_RESIDENCIES[0])],
       observedAt,
     });
     expect(rows).toHaveLength(1);
-    const row = rows[0];
+    const row = defined(rows[0]);
     expect(row).toMatchObject({
       id: "music-skehans-monday-jam",
       placeName: "Skehan's",
@@ -50,8 +51,8 @@ describe("buildMusicResidencyRows", () => {
       observedAt: "2026-07-12T08:00:00.000Z", // Sunday morning, before 16:00
     });
     expect(rows).toHaveLength(1);
-    expect(rows[0].startsAt).toBe("2026-07-12T16:00:00+01:00");
-    expect(rows[0].source).toEqual(IVY_HOUSE_SOURCE);
+    expect(defined(rows[0]).startsAt).toBe("2026-07-12T16:00:00+01:00");
+    expect(defined(rows[0]).source).toEqual(IVY_HOUSE_SOURCE);
   });
 
   it("rolls over to next week when observed after the slot's start time on the same day", () => {
@@ -60,7 +61,7 @@ describe("buildMusicResidencyRows", () => {
       observedAt: "2026-07-12T20:00:00.000Z", // Sunday evening, after 16:00
     });
     expect(rows).toHaveLength(1);
-    expect(rows[0].startsAt).toBe("2026-07-19T16:00:00+01:00");
+    expect(defined(rows[0]).startsAt).toBe("2026-07-19T16:00:00+01:00");
   });
 
   it("resolves a residency slot the right side of a DST switch", () => {
@@ -72,12 +73,12 @@ describe("buildMusicResidencyRows", () => {
       observedAt: "2026-03-27T10:00:00.000Z",
     });
     expect(rows).toHaveLength(1);
-    expect(rows[0].startsAt).toBe("2026-03-30T20:30:00+01:00");
+    expect(defined(rows[0]).startsAt).toBe("2026-03-30T20:30:00+01:00");
   });
 
   it("drops a residency with a malformed day/time rather than guessing", () => {
     const rows = buildMusicResidencyRows({
-      residencies: [{ ...MUSIC_RESIDENCIES[0], dayName: "Notaday" }],
+      residencies: [{ ...defined(MUSIC_RESIDENCIES[0]), dayName: "Notaday" }],
       observedAt,
     });
     expect(rows).toHaveLength(0);
@@ -86,8 +87,8 @@ describe("buildMusicResidencyRows", () => {
   it("drops a residency with no placeName or no id", () => {
     const rows = buildMusicResidencyRows({
       residencies: [
-        { ...MUSIC_RESIDENCIES[0], placeName: undefined as unknown as string },
-        { ...MUSIC_RESIDENCIES[0], id: undefined as unknown as string },
+        { ...defined(MUSIC_RESIDENCIES[0]), placeName: undefined as unknown as string },
+        { ...defined(MUSIC_RESIDENCIES[0]), id: undefined as unknown as string },
       ],
       observedAt,
     });
@@ -97,10 +98,10 @@ describe("buildMusicResidencyRows", () => {
   it("drops a residency with empty or missing title/detail", () => {
     const rows = buildMusicResidencyRows({
       residencies: [
-        { ...MUSIC_RESIDENCIES[0], title: "" },
-        { ...MUSIC_RESIDENCIES[0], title: undefined as unknown as string },
-        { ...MUSIC_RESIDENCIES[0], detail: "" },
-        { ...MUSIC_RESIDENCIES[0], detail: undefined as unknown as string },
+        { ...defined(MUSIC_RESIDENCIES[0]), title: "" },
+        { ...defined(MUSIC_RESIDENCIES[0]), title: undefined as unknown as string },
+        { ...defined(MUSIC_RESIDENCIES[0]), detail: "" },
+        { ...defined(MUSIC_RESIDENCIES[0]), detail: undefined as unknown as string },
       ],
       observedAt,
     });
@@ -116,14 +117,14 @@ describe("buildMusicResidencyRows", () => {
 
   it("dedupeRows collapses two rows landing on the same (place, kind, startsAt), keeping the freshest", () => {
     const rows = buildMusicResidencyRows({
-      residencies: [MUSIC_RESIDENCIES[0]],
+      residencies: [defined(MUSIC_RESIDENCIES[0])],
       observedAt,
     });
-    const stale = { ...rows[0], id: "stale-dupe", observedAt: "2026-07-01T00:00:00.000Z", title: "stale" };
-    const fresh = { ...rows[0], id: "fresh-dupe", observedAt: "2026-07-12T00:00:00.000Z", title: "fresh" };
+    const stale = { ...defined(rows[0]), id: "stale-dupe", observedAt: "2026-07-01T00:00:00.000Z", title: "stale" };
+    const fresh = { ...defined(rows[0]), id: "fresh-dupe", observedAt: "2026-07-12T00:00:00.000Z", title: "fresh" };
     const deduped = dedupeRows([stale, fresh] as unknown as WhatsOnRow[]);
     expect(deduped).toHaveLength(1);
-    expect(deduped[0].title).toBe("fresh");
+    expect(defined(deduped[0]).title).toBe("fresh");
   });
 });
 

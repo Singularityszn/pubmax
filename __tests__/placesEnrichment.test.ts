@@ -2,6 +2,7 @@ import { applyPlacesEnrichment } from "@/lib/venuePlacesEnrichment";
 import { expect, it } from "vitest";
 import { placesEnrichmentRecord, placesOpeningHours, planPlacesEnrichment } from "@/lib/placesEnrichment";
 import { slimVenueToPin } from "@/lib/slimPins";
+import { defined } from "@/__tests__/helpers/defined";
 
 const now = new Date("2026-10-04T12:00:00Z");
 const base = () => slimVenueToPin({ id: "venue-osm-n1", name: "Test Arms", lat: 51.5, lng: -0.1, borough: "Camden", cheapestPrice: null });
@@ -51,8 +52,8 @@ it("keeps missing and invalid hours unknown, including future-dated hours", () =
 it("prioritises incomparable and mismatched verified pubs, refusing unverified report ids and budget overruns", () => {
   const verified = ["1", "2", "3"].map((n) => ({ venueId: `venue-osm-n${n}`, googlePlaceId: `ChIJVerified00${n}` }));
   const report = [
-    { ...verified[1], verdict: "mismatch" },
-    { ...verified[2], verdict: "unknown" },
+    { ...defined(verified[1]), verdict: "mismatch" },
+    { ...defined(verified[2]), verdict: "unknown" },
     { venueId: "venue-osm-n4", googlePlaceId: "ChIJNotVerified", verdict: "unknown" },
   ];
   const plan = planPlacesEnrichment(verified, report, 0.03, 0);

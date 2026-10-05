@@ -106,6 +106,7 @@ vi.mock("@/components/auth/HandlePasswordSignIn", () => ({
 }));
 
 import LoginPage from "@/components/auth/LoginPage";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The page declares every prop optional with a `= {}` default, so React's own
 // inference reads it as taking none. This names the props it really accepts.
@@ -429,11 +430,11 @@ describe("login page", () => {
         const v = c / 255;
         return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
       });
-      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      return 0.2126 * defined(r) + 0.7152 * defined(g) + 0.0722 * defined(b);
     };
     const ratio = (a: string, b: string) => {
       const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
-      return (hi + 0.05) / (lo + 0.05);
+      return (defined(hi) + 0.05) / (defined(lo) + 0.05);
     };
     // color-mix(in srgb, ...) interpolates the gamma-encoded channels.
     const mix = (a: string, weight: number, b: string) => {
@@ -443,7 +444,7 @@ describe("login page", () => {
         Math.round(x * weight + y * (1 - weight))
           .toString(16)
           .padStart(2, "0");
-      return `#${blend(ar, br)}${blend(ag, bg)}${blend(ab, bb)}`;
+      return `#${blend(defined(ar), defined(br))}${blend(defined(ag), defined(bg))}${blend(defined(ab), defined(bb))}`;
     };
 
     expect(ratio(onPhoto!, brassAccessible!)).toBeGreaterThanOrEqual(4.5);
@@ -463,7 +464,7 @@ describe("login page", () => {
       const mixedInto =
         mixToken === "ink-deep"
           ? [inkDeepLight!, inkDeepDark!]
-          : [token(globals, mixToken), token(theme, mixToken)].filter(Boolean) as string[];
+          : [token(globals, defined(mixToken)), token(theme, defined(mixToken))].filter(Boolean) as string[];
       expect(mixedInto.length, `${label} mixes toward an unresolved --${mixToken}`).toBe(2);
       for (const other of mixedInto) {
         const fill = mix(brassAccessible!, Number(accentPct) / 100, other);

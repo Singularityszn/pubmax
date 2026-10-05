@@ -36,10 +36,10 @@ export function generateRoundCode(length = ROUND_CODE_LENGTH): string {
   if (cryptoObj && typeof cryptoObj.getRandomValues === "function") {
     const bytes = new Uint8Array(length);
     cryptoObj.getRandomValues(bytes);
-    for (let i = 0; i < length; i += 1) out.push(ROUND_CODE_ALPHABET[bytes[i] % n]);
+    for (const byte of bytes) out.push(ROUND_CODE_ALPHABET.charAt(byte % n));
   } else {
     for (let i = 0; i < length; i += 1) {
-      out.push(ROUND_CODE_ALPHABET[Math.floor(Math.random() * n)]);
+      out.push(ROUND_CODE_ALPHABET.charAt(Math.floor(Math.random() * n)));
     }
   }
   return out.join("");
@@ -368,12 +368,12 @@ export function roundTurn(
   }
   const latest = spends.at(-1);
   if (!latest) {
-    return { currentHandle: members[0].handle, lastPayerHandle: null };
+    return { currentHandle: members[0]?.handle ?? null, lastPayerHandle: null };
   }
   const payerIndex = members.findIndex((member) => member.handle === latest.payerHandle);
   const nextIndex = payerIndex >= 0 ? (payerIndex + 1) % members.length : 0;
   return {
-    currentHandle: members[nextIndex].handle,
+    currentHandle: members[nextIndex]?.handle ?? null,
     lastPayerHandle: latest.payerHandle,
   };
 }

@@ -326,7 +326,7 @@ export function parseChainDenylist(data: unknown): ChainDenylist {
  * and the home page of a host whose pages more than one pub has read.
  */
 function pagesProvenByReaders(readers: Record<string, string[]>): string[] {
-  const hostOf = (page: string) => page.split("/")[0];
+  const hostOf = (page: string) => page.split("/")[0] ?? "";
   const pubsPerHost = new Map<string, Set<string>>();
   for (const [page, osmIds] of Object.entries(readers)) {
     const pubs = pubsPerHost.get(hostOf(page)) ?? new Set<string>();

@@ -97,6 +97,7 @@ vi.mock("@/components/profile/ProfileImageCropper", () => ({ default: () => null
 
 import MessagesInboxClient from "@/app/messages/MessagesInboxClient";
 import MessageThread from "@/components/messages/MessageThread";
+import { defined } from "@/__tests__/helpers/defined";
 
 let host: HTMLDivElement;
 let root: Root;
@@ -337,7 +338,7 @@ describe("message sign-in doors", () => {
     signedIn();
     fetchState.pending = true;
     await render(createElement(MessagesInboxClient));
-    const signal = fetchState.requests[0].signal;
+    const signal = defined(fetchState.requests[0]).signal;
     await completeCreation();
     expect(fetchState.requests).toHaveLength(2);
     await act(async () => root.render(null));

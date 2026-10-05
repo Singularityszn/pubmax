@@ -68,6 +68,7 @@ import OpenGraphImage from "@/app/recap/[storyId]/opengraph-image";
 import PublicRecapPage, { generateMetadata } from "@/app/recap/[storyId]/page";
 import { getNightStory, readNightStory, readPublishedRecapSource } from "@/lib/nightMemoryStore";
 import { RECAP_OG_CACHE_HEADERS } from "@/lib/recapCard";
+import { defined } from "@/__tests__/helpers/defined";
 
 const STORY_ID = "0b6d6f4e-3f6f-4d0a-9d2e-3c1f0d2a5b7c";
 const MEMORY_ID = "memory-1";
@@ -135,7 +136,7 @@ type OgResponse = { element: ReactNode; headers: Record<string, string> };
 
 async function renderOgCard(): Promise<{ markup: string; cacheControl: string }> {
   const response = (await OpenGraphImage({ params: Promise.resolve({ storyId: STORY_ID }) })) as unknown as OgResponse;
-  return { markup: renderToStaticMarkup(response.element), cacheControl: response.headers["cache-control"] };
+  return { markup: renderToStaticMarkup(response.element), cacheControl: defined(response.headers["cache-control"]) };
 }
 
 async function renderPage(): Promise<string> {

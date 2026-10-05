@@ -74,10 +74,11 @@ export async function judgedMatchVenue(
     }
   }
 
-  if (merged.length === 1) {
+  const [only] = merged;
+  if (only && merged.length === 1) {
     return {
-      venueId: merged[0].venue.id,
-      confidence: merged[0].confidence,
+      venueId: only.venue.id,
+      confidence: only.confidence,
       review,
     };
   }

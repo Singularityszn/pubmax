@@ -14,6 +14,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { evaluateFreshness } from "@/scripts/check_freshness.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = process.cwd();
 
@@ -84,11 +85,11 @@ describe("the weather freshness measurement", () => {
     });
 
     expect(results).toHaveLength(1);
-    expect(results[0].id).toBe("weather");
-    expect(results[0].status).toBe("unknown");
-    expect(results[0].status).not.toBe("fresh");
-    expect(results[0].status).not.toBe("stale");
-    expect(results[0].detail).toContain('Durable store for "weather" is unmeasurable without credentials');
+    expect(defined(results[0]).id).toBe("weather");
+    expect(defined(results[0]).status).toBe("unknown");
+    expect(defined(results[0]).status).not.toBe("fresh");
+    expect(defined(results[0]).status).not.toBe("stale");
+    expect(defined(results[0]).detail).toContain('Durable store for "weather" is unmeasurable without credentials');
   });
 
   it("fails where the store was supposed to be reachable", () => {

@@ -7,6 +7,7 @@ import {
   evaluateFreshness,
   freshnessGateFailed,
 } from "@/scripts/check_freshness.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = process.cwd();
 
@@ -22,7 +23,7 @@ describe("check:freshness advisory lanes", () => {
       now,
       rootDir: ROOT,
     });
-    expect(results[0].status).toBe("stale");
+    expect(defined(results[0]).status).toBe("stale");
     expect(freshnessGateFailed(results)).toBe(false);
   });
 
@@ -37,7 +38,7 @@ describe("check:freshness advisory lanes", () => {
       now,
       rootDir: ROOT,
     });
-    expect(results[0].status).toBe("stale");
+    expect(defined(results[0]).status).toBe("stale");
     expect(freshnessGateFailed(results)).toBe(true);
   });
 });

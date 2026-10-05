@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
@@ -76,7 +77,7 @@ export default function PlanRouteMiniMap({
   mapHref,
 }: {
   stops: PlanCrawlRouteStop[];
-  mapHref?: string | null;
+  mapHref?: Route | null;
 }) {
   const attributionSlotRef = useRef<HTMLDivElement | null>(null);
   const [resolved, setResolved] = useState<ResolvedPlanCrawlRoute | null>(null);

@@ -9,6 +9,7 @@ import {
   savedPubsStore,
 } from "@/lib/savedPubsStore";
 import { getVenueIndex } from "@/lib/venueIndex";
+import { defined } from "@/__tests__/helpers/defined";
 
 beforeEach(() => {
   delete process.env.SUPABASE_URL;
@@ -28,12 +29,12 @@ describe("saved-list detail metadata", () => {
     const [first, second] = await venueIds(2);
     await savedPubsStore().toggleSaved({
       handle: "Sam",
-      venueId: first,
+      venueId: defined(first),
       listType: "my locals",
     });
     await savedPubsStore().toggleSaved({
       handle: "sam",
-      venueId: second,
+      venueId: defined(second),
       listType: "my locals",
     });
     await savedListFollowsStore().followList("ken", "sam", "my locals");

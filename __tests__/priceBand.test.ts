@@ -22,6 +22,7 @@ import {
 } from "@/lib/priceBand";
 import { buildPriceBandTable, readCityPintPrices } from "../scripts/build_price_bands.mjs";
 import thresholdsTable from "@/public/data/price_bands/thresholds.json";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Captain's law (2026-09-05): RED means expensive, YELLOW means affordable and
 // average, GREEN means cheap. lib/priceBand.ts is the ONE rule, and this file
@@ -199,7 +200,7 @@ describe("the shipped thresholds table", () => {
 
 type Rgb = [number, number, number];
 const hex = (h: string): Rgb => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)) as Rgb;
-const mix = (a: Rgb, b: Rgb, pa: number): Rgb => a.map((c, i) => Math.round(c * pa + b[i] * (1 - pa))) as Rgb;
+const mix = (a: Rgb, b: Rgb, pa: number): Rgb => a.map((c, i) => Math.round(c * pa + defined(b[i]) * (1 - pa))) as Rgb;
 const luminance = ([r, g, b]: Rgb) => {
   const lin = (v: number) => {
     const s = v / 255;
@@ -214,7 +215,7 @@ const contrast = (a: Rgb, b: Rgb) => {
 };
 
 function declarations(css: string, name: string): string[] {
-  return [...css.matchAll(new RegExp(`^\\s*${name}:\\s*([^;]+);`, "gm"))].map((m) => m[1].trim());
+  return [...css.matchAll(new RegExp(`^\\s*${name}:\\s*([^;]+);`, "gm"))].map((m) => defined(m[1]).trim());
 }
 
 function hexTokens(css: string, name: string): Rgb[] {
@@ -228,7 +229,7 @@ function inkMix(css: string, name: string): { hue: string; share: number } {
   const value = declarations(css, name)[0];
   const m = /color-mix\(in srgb, var\(--(\w+)\) (\d+)%, var\(--ink\)\)/.exec(value ?? "");
   expect(m, `${name} is a color-mix of a hue and --ink`).not.toBeNull();
-  return { hue: m![1], share: Number(m![2]) / 100 };
+  return { hue: defined(m![1]), share: Number(m![2]) / 100 };
 }
 
 describe("the band tokens", () => {
@@ -263,9 +264,9 @@ describe("the band tokens", () => {
       expect(t.surfaces.length, `${name} surfaces found`).toBeGreaterThanOrEqual(2);
       for (const band of PRICE_BANDS) {
         const { hue, share } = inkMix(t.css, `${PRICE_BAND_TOKEN[band]}-ink`);
-        const ink = mix(t.hues[hue as keyof typeof t.hues], t.ink, share);
+        const ink = mix(defined(t.hues[hue as keyof typeof t.hues]), defined(t.ink), share);
         for (const surface of t.surfaces) {
-          expect(contrast(ink, surface), `${name} ${band} ink on ${JSON.stringify(surface)}`).toBeGreaterThanOrEqual(4.5);
+          expect(contrast(ink, defined(surface)), `${name} ${band} ink on ${JSON.stringify(surface)}`).toBeGreaterThanOrEqual(4.5);
         }
       }
     }

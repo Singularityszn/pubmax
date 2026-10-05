@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The map banner-staging coordinator lives in CSS (which self-gating sibling may
 // render is a presentation concern). This locks its policy from source, the same
@@ -45,7 +46,7 @@ describe("map banner staging CSS", () => {
           `${CASCADE[lower]} yields to ${CASCADE[higher]}`,
         ).toMatch(
           new RegExp(
-            `:has\\(${escape(CASCADE[higher])}\\)\\s+${escape(CASCADE[lower])}`,
+            `:has\\(${escape(defined(CASCADE[higher]))}\\)\\s+${escape(defined(CASCADE[lower]))}`,
           ),
         );
       }
@@ -60,7 +61,7 @@ describe("map banner staging CSS", () => {
           `${CASCADE[higher]} does not yield to ${CASCADE[lower]}`,
         ).not.toMatch(
           new RegExp(
-            `:has\\(${escape(CASCADE[lower])}\\)\\s+${escape(CASCADE[higher])}`,
+            `:has\\(${escape(defined(CASCADE[lower]))}\\)\\s+${escape(defined(CASCADE[higher]))}`,
           ),
         );
       }
@@ -77,7 +78,7 @@ describe("map banner staging CSS", () => {
     // answer and the band arrives the moment it does.
     const suppressors = [
       ...css.matchAll(/([^\n{,]*:has\([^)]*\)[^\n{,]*)\s+\.cityStatusBanner/g),
-    ].map((match) => match[1].trim());
+    ].map((match) => defined(match[1]).trim());
     expect(suppressors).toEqual([
       "body:has(.mapArrivalCard)",
       ".mapStage:has(.citySuggestBanner)",

@@ -9,6 +9,7 @@ import {
 } from "@/lib/mapVenueList";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import type { Venue } from "@/lib/venues";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Minimal Venue factory — only the fields the list model reads matter.
 function venue(overrides: Partial<Venue> & { id: string }): Venue {
@@ -125,8 +126,8 @@ describe("buildMapVenueListModel — ordering (mirrors the eye)", () => {
     // Input order is far, near — the model must re-sort to near, far.
     const model = buildMapVenueListModel([far, near], [-0.12, 51.5]);
     expect(model.rows.map((r) => r.id)).toEqual(["near", "far"]);
-    expect(typeof model.rows[0].distanceKm).toBe("number");
-    expect(model.rows[0].distanceKm!).toBeLessThan(model.rows[1].distanceKm!);
+    expect(typeof defined(model.rows[0]).distanceKm).toBe("number");
+    expect(defined(model.rows[0]).distanceKm!).toBeLessThan(defined(model.rows[1]).distanceKm!);
   });
 
   it("preserves filtered map order and omits distance without a viewport fix", () => {
@@ -135,7 +136,7 @@ describe("buildMapVenueListModel — ordering (mirrors the eye)", () => {
       null,
     );
     expect(model.rows.map((r) => r.id)).toEqual(["a", "b"]);
-    expect(model.rows[0].distanceKm).toBeUndefined();
+    expect(defined(model.rows[0]).distanceKm).toBeUndefined();
   });
 
   it("treats a non-finite viewport centre as no fix (no crash, input order)", () => {
@@ -144,7 +145,7 @@ describe("buildMapVenueListModel — ordering (mirrors the eye)", () => {
       [Number.NaN, 51.5],
     );
     expect(model.rows.map((r) => r.id)).toEqual(["a", "b"]);
-    expect(model.rows[0].distanceKm).toBeUndefined();
+    expect(defined(model.rows[0]).distanceKm).toBeUndefined();
   });
 
   it("defaults to nearest even when cheaper pubs sit farther away", () => {
@@ -277,7 +278,7 @@ describe("buildMapVenueListModel — ordering (mirrors the eye)", () => {
       "soft-dear",
       "no-soft",
     ]);
-    expect(model.rows[2].priceLabel).toBe("No soft drink price logged");
+    expect(defined(model.rows[2]).priceLabel).toBe("No soft drink price logged");
   });
 
   it("cheapest sort prefers map-authority contributor price over the baseline", () => {
@@ -315,7 +316,7 @@ describe("buildMapVenueListModel — ordering (mirrors the eye)", () => {
       "contributor-cheaper",
       "baseline-cheap",
     ]);
-    expect(model.rows[0].priceLabel).toBe("£3.50");
+    expect(defined(model.rows[0]).priceLabel).toBe("£3.50");
   });
 
   it("ignores venue.latestContributorPrice when venueSignals is the map authority", () => {
@@ -336,7 +337,7 @@ describe("buildMapVenueListModel — ordering (mirrors the eye)", () => {
       "nearest",
       null,
     );
-    expect(model.rows[0].priceLabel).toBe("£5.00");
+    expect(defined(model.rows[0]).priceLabel).toBe("£5.00");
   });
 
   it("cheapest sort order matches the visible pint price label from venueSignals", () => {
@@ -369,8 +370,8 @@ describe("buildMapVenueListModel — ordering (mirrors the eye)", () => {
       "cheap-via-signal",
       "dear-baseline",
     ]);
-    expect(model.rows[0].priceLabel).toBe("£3.20");
-    expect(model.rows[1].priceLabel).toBe("£8.00");
+    expect(defined(model.rows[0]).priceLabel).toBe("£3.20");
+    expect(defined(model.rows[1]).priceLabel).toBe("£8.00");
   });
 });
 
@@ -380,8 +381,8 @@ describe("buildMapVenueListModel — selection wiring + labels", () => {
       [venue({ id: "abc-123", name: "The Test Arms" })],
       null,
     );
-    expect(model.rows[0].id).toBe("abc-123");
-    expect(model.rows[0].name).toBe("The Test Arms");
+    expect(defined(model.rows[0]).id).toBe("abc-123");
+    expect(defined(model.rows[0]).name).toBe("The Test Arms");
   });
 
   it("formats an honest price label (known price vs TBD)", () => {
@@ -532,7 +533,7 @@ describe("buildMapVenueListModel — the accessible parallel to the pins", () =>
       "ready",
     );
     expect(model.coverageNote).toBeNull();
-    expect(model.rows[0].priceLabel).toBe("No whisky price logged");
+    expect(defined(model.rows[0]).priceLabel).toBe("No whisky price logged");
   });
 
   it("never tells a non-visual reader a failed read was an empty city", () => {
@@ -547,8 +548,8 @@ describe("buildMapVenueListModel — the accessible parallel to the pins", () =>
       "degraded",
     );
     expect(model.coverageNote).toContain("could not read the whisky prices");
-    expect(model.rows[0].priceLabel).toBe("Whisky price could not be read");
-    expect(model.rows[0].priceLabel).not.toContain("logged");
+    expect(defined(model.rows[0]).priceLabel).toBe("Whisky price could not be read");
+    expect(defined(model.rows[0]).priceLabel).not.toContain("logged");
   });
 
   it("keeps a truncated-but-successful read out of the failure wording", () => {
@@ -562,7 +563,7 @@ describe("buildMapVenueListModel — the accessible parallel to the pins", () =>
     );
     expect(model.coverageNote).toContain("part of the whisky prices");
     expect(model.coverageNote).not.toContain("could not");
-    expect(model.rows[0].priceLabel).toBe("No whisky price in what we read");
+    expect(defined(model.rows[0]).priceLabel).toBe("No whisky price in what we read");
   });
 
   it("uses a coffee noun for unknown rows and coverage, never pint wording", () => {
@@ -575,9 +576,9 @@ describe("buildMapVenueListModel — the accessible parallel to the pins", () =>
       noun,
       "ready",
     );
-    expect(model.rows[0].priceLabel).toBe("No coffee price logged");
+    expect(defined(model.rows[0]).priceLabel).toBe("No coffee price logged");
     expect(model.coverageNote).toBeNull();
-    expect(model.rows[0].priceLabel).not.toMatch(/pint|beer|alcohol-free/i);
+    expect(defined(model.rows[0]).priceLabel).not.toMatch(/pint|beer|alcohol-free/i);
 
     const degraded = buildMapVenueListModel(
       [venue({ id: "unknown", cheapestPrice: 5.8 })],
@@ -588,7 +589,7 @@ describe("buildMapVenueListModel — the accessible parallel to the pins", () =>
       "degraded",
     );
     expect(degraded.coverageNote).toContain("coffee prices");
-    expect(degraded.rows[0].priceLabel).toBe("Coffee price could not be read");
+    expect(defined(degraded.rows[0]).priceLabel).toBe("Coffee price could not be read");
     expect(JSON.stringify(degraded)).not.toContain("alcohol-free or soft drink");
   });
 
@@ -602,6 +603,6 @@ describe("buildMapVenueListModel — the accessible parallel to the pins", () =>
       "degraded",
     );
     expect(model.coverageNote).toBeNull();
-    expect(model.rows[0].priceLabel).toBe("£4.50");
+    expect(defined(model.rows[0]).priceLabel).toBe("£4.50");
   });
 });

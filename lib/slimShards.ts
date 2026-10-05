@@ -234,7 +234,7 @@ export function shardForPoint(
   const containing = outer.filter((s) => bboxContainsPoint(s.bbox, lat, lng));
   const pool = containing.length > 0 ? containing : [];
   if (pool.length === 0) return null;
-  if (pool.length === 1) return pool[0];
+  if (pool.length === 1) return pool[0] ?? null;
   let best: ShardEntry | null = null;
   let bestDist = Infinity;
   for (const s of pool) {
@@ -713,11 +713,11 @@ export function createSlimShardLoader(
       ).filter((s) => s.partition !== "kind" && !loadedUrls.has(s.url));
       if (needed.length === 0) return { rows: [], status: "ready" };
       let results = await Promise.all(needed.map((s) => loadShard(s.url)));
-      const unavailable = needed.filter((s, index) => results[index].status === "unavailable");
+      const unavailable = needed.filter((s, index) => results[index]?.status === "unavailable");
       if (unavailable.length > 0) {
         const retries = await Promise.all(unavailable.map((s) => loadShard(s.url)));
         const retryByUrl = new Map(unavailable.map((s, index) => [s.url, retries[index]]));
-        results = results.map((result, index) => retryByUrl.get(needed[index].url) ?? result);
+        results = results.map((result, index) => retryByUrl.get(needed[index]?.url ?? "") ?? result);
       }
       return {
         rows: results.flatMap((result) => result.rows),

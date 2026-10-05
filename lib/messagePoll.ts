@@ -157,13 +157,13 @@ export function pollResults(
   let viewerOptionIndex: number | null = null;
   for (const [handle, index] of votes) {
     if (!Number.isInteger(index) || index < 0 || index >= options.length) continue;
-    counts[index] += 1;
+    counts[index] = (counts[index] ?? 0) + 1;
     totalVotes += 1;
     if (handle === viewer) viewerOptionIndex = index;
   }
   return {
     question,
-    options: options.map((label, index) => ({ index, label, votes: counts[index] })),
+    options: options.map((label, index) => ({ index, label, votes: counts[index] ?? 0 })),
     totalVotes,
     viewerOptionIndex,
   };

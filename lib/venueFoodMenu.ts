@@ -15,11 +15,11 @@ function applyFoodUpdatesForKeys(
   keys: string[],
   updates: FoodPriceUpdate[],
 ): FoodItem[] {
-  if (keys.length === 0) return base;
+  const canonical = keys[0];
+  if (canonical === undefined) return base;
   const keySet = new Set(keys);
   const scoped = updates.filter((u) => keySet.has(u.venueKey));
   if (scoped.length === 0) return base;
-  const canonical = keys[0];
   const remapped = scoped.map((u) =>
     u.venueKey === canonical ? u : { ...u, venueKey: canonical },
   );

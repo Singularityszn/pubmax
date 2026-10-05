@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import FirstActionsRow from "@/components/profile/FirstActionsRow";
 import { SocialFriendsLaunchProvider } from "@/lib/useSocialFriendsLaunch";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Social is not a dock tab, so the signed-in You hub's first actions are its
 // door on a phone. The link is named for the launch state, the same name the
@@ -33,7 +34,7 @@ describe("the You hub's first actions", () => {
     const links = Array.from(render(enabled).querySelectorAll<HTMLAnchorElement>("a"));
     const social = links.filter((link) => link.getAttribute("href") === "/social");
     expect(social).toHaveLength(1);
-    expect(social[0].textContent).toBe(label);
+    expect(defined(social[0]).textContent).toBe(label);
   });
 
   it("keeps the loop's actions ahead of Social", () => {

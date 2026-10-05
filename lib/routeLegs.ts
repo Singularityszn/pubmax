@@ -103,6 +103,7 @@ export function buildRouteLegs(route: Venue[], pace: RoutePace = "walk"): RouteL
   for (let i = 0; i < route.length - 1; i += 1) {
     const from = route[i];
     const to = route[i + 1];
+    if (!from || !to) continue;
     const distanceKm = haversineKm([from.longitude, from.latitude], [to.longitude, to.latitude]);
     legs.push({
       fromIndex: i,

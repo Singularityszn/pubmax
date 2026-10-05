@@ -26,7 +26,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "16 August 2026";
+const LAST_UPDATED = "5 October 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -726,7 +726,10 @@ export default function PrivacyPage() {
               or by voice, the text or audio of that request goes to the model
               provider that answers it (OpenRouter, and ElevenLabs at{" "}
               <code>api.elevenlabs.io</code> when Pub Pal voice or typed chat is
-              configured). Nothing else about you goes with it. We do not keep
+              configured). With Pub Pal, the memories you confirmed for your
+              Pal (up to eight short preferences, such as a drink you like or
+              an access need) go with each chat or voice call too, so it can
+              use them. Nothing else about you goes with it. We do not keep
               the audio. Recent lines are stored against your account for two
               minutes after your last line, then deleted by a clean-up that
               runs every minute.

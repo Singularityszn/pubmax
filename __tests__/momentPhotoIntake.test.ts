@@ -24,6 +24,7 @@ import {
   planMomentFitAttempts,
 } from "@/lib/momentPhotoIntake";
 import { UPLOAD_PHOTO_MAX_BYTES, UPLOAD_PHOTO_MAX_LABEL } from "@/lib/uploadBodyLimit";
+import { defined } from "@/__tests__/helpers/defined";
 
 const MB = 1024 * 1024;
 
@@ -118,8 +119,8 @@ describe("the fit ladder", () => {
     expect(attempts[0]).toEqual({ longEdge: MOMENT_FIT_LONG_EDGES[0], quality: MOMENT_FIT_QUALITIES[0] });
     expect(attempts).toHaveLength(MOMENT_FIT_LONG_EDGES.length * MOMENT_FIT_QUALITIES.length);
     for (let index = 1; index < attempts.length; index += 1) {
-      const previous = attempts[index - 1];
-      const current = attempts[index];
+      const previous = defined(attempts[index - 1]);
+      const current = defined(attempts[index]);
       const notLarger = current.longEdge < previous.longEdge
         || (current.longEdge === previous.longEdge && current.quality < previous.quality);
       expect(notLarger).toBe(true);

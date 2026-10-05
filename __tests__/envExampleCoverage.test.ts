@@ -2,6 +2,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, it, expect } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 /**
  * A VARIABLE THE CODE READS IS EITHER DOCUMENTED OR PLATFORM-OWNED.
@@ -69,7 +70,7 @@ function documentedNames(): Set<string> {
   const names = new Set<string>();
   for (const line of source.split("\n")) {
     const match = /^([A-Z0-9_]+)=/.exec(line.trim());
-    if (match) names.add(match[1]);
+    if (match) names.add(defined(match[1]));
   }
   return names;
 }

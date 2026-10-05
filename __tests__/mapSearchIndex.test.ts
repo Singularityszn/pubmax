@@ -5,6 +5,7 @@ import {
   searchMapSearchIndex,
   type MapSearchPack,
 } from "@/lib/mapSearchIndex";
+import { defined } from "@/__tests__/helpers/defined";
 
 const cities = [
   { id: "bath" as const, displayName: "Bath" },
@@ -37,7 +38,7 @@ describe("map search index", () => {
       area: "Bath",
       cityId: "bath",
     });
-    expect(Object.keys(index.venues[0])).toEqual(["id", "name", "area", "cityId"]);
+    expect(Object.keys(defined(index.venues[0]))).toEqual(["id", "name", "area", "cityId"]);
   });
 
   it("ranks an exact name prefix ahead of a fuzzy venue match", () => {
@@ -51,7 +52,7 @@ describe("map search index", () => {
       id: "venue-bath-the-royal",
       kind: "venue",
     });
-    expect(searchMapSearchIndex(index, "crwn")[0].id).toBe("venue-bath-crown");
+    expect(defined(searchMapSearchIndex(index, "crwn")[0]).id).toBe("venue-bath-crown");
   });
 
   it("ranks an area or city match above venues named for that area", () => {
