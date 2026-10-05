@@ -19,7 +19,7 @@ vi.mock("@/lib/authServer", () => ({
 import { POST as CONFIRM_MEMORY } from "@/app/api/pub-pal/memories/route";
 import { POST as TOOL } from "@/app/api/pub-pal/tools/[toolName]/route";
 import type { AskProposal } from "@/lib/ask/types";
-import { confirmedPalMemoriesFor } from "@/lib/palConfirmedMemories.server";
+import { readConfirmedPalMemories } from "@/lib/palConfirmedMemories.server";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 import {
   __resetPubPalStore,
@@ -104,7 +104,7 @@ describe("propose_memory: the Pal proposes, only the person saves", () => {
       }),
     );
     expect(confirmed.status).toBe(201);
-    expect(await confirmedPalMemoriesFor(OWNER)).toEqual([
+    expect(await readConfirmedPalMemories(OWNER)).toEqual([
       { kind: "drink_preference", label: "Drinks", value: "Cask ale, no lager" },
     ]);
   });

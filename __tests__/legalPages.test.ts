@@ -328,11 +328,9 @@ describe("legal content pages", () => {
   });
 
   it("says confirmed Pal memories go to the model provider with each Pub Pal chat", () => {
-    // lib/palElevenLabsChat.server.ts puts confirmed memories ahead of every
-    // typed ask, and the recall_memories webhook hands them to the voice agent.
-    // The AI features row must not still claim nothing else about you goes.
-    expect(read("lib/palElevenLabsChat.server.ts")).toContain("palMemoryPreamble(");
-    expect(read("app/api/pub-pal/tools/[toolName]/route.ts")).toContain("recallPalMemoriesForConversation");
+    // Confirmed memories go ahead of every typed ask and to the voice agent
+    // through recall_memories. The AI features row must not still claim
+    // nothing else about you goes.
     expect(privacyText).toMatch(/memories you confirmed for your Pal[\s\S]*go with each chat or voice call/i);
   });
 

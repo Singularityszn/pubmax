@@ -27,7 +27,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 import { POST } from "@/app/api/pub-pal/tools/[toolName]/route";
 import {
   PAL_RECALL_MEMORY_LIMIT,
-  confirmedPalMemoriesFor,
+  readConfirmedPalMemories,
   palMemoryPreamble,
 } from "@/lib/palConfirmedMemories.server";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
@@ -83,10 +83,10 @@ describe("confirmed Pub Pal memories in the agent loop", () => {
       { kind: "drink_preference", value: "Cask ale, no lager" },
       { kind: "accessibility_preference", value: "Step-free   entrance\nplease" },
     ]);
-    const memories = (await confirmedPalMemoriesFor(OWNER)) ?? [];
+    const memories = (await readConfirmedPalMemories(OWNER)) ?? [];
     expect(memories.map((memory) => memory.kind).sort()).toEqual(["accessibility_preference", "drink_preference"]);
     expect(memories.find((memory) => memory.kind === "accessibility_preference")?.value).toBe("Step-free entrance please");
-    expect(await confirmedPalMemoriesFor(STRANGER)).toEqual([]);
+    expect(await readConfirmedPalMemories(STRANGER)).toEqual([]);
   });
 
   it("caps how many memories reach the prompt", async () => {
@@ -94,7 +94,7 @@ describe("confirmed Pub Pal memories in the agent loop", () => {
       OWNER,
       Array.from({ length: PAL_RECALL_MEMORY_LIMIT + 3 }, (_, index) => ({ kind: "venue_preference", value: `Pub note ${index}` })),
     );
-    expect(await confirmedPalMemoriesFor(OWNER)).toHaveLength(PAL_RECALL_MEMORY_LIMIT);
+    expect(await readConfirmedPalMemories(OWNER)).toHaveLength(PAL_RECALL_MEMORY_LIMIT);
   });
 
   it("drops a memory the moment the owner deletes it", async () => {
@@ -103,7 +103,7 @@ describe("confirmed Pub Pal memories in the agent loop", () => {
       { kind: "transport_preference", value: "Near the Northern line" },
     ]);
     expect((await deletePalMemoryResult(OWNER, cask as string)).ok).toBe(true);
-    expect(((await confirmedPalMemoriesFor(OWNER)) ?? []).map((memory) => memory.value)).toEqual(["Near the Northern line"]);
+    expect(((await readConfirmedPalMemories(OWNER)) ?? []).map((memory) => memory.value)).toEqual(["Near the Northern line"]);
   });
 
   it("frames the typed preamble as preferences, and says so when nothing is confirmed", () => {
@@ -142,7 +142,7 @@ describe("confirmed Pub Pal memories in the agent loop", () => {
       const body = await (await recall("conv_ownervoice01")).json();
       expect(body.result).toMatchObject({ ok: false, memories: [] });
       expect(body.result.answerHint).not.toMatch(/not confirmed anything/i);
-      expect(await confirmedPalMemoriesFor(OWNER)).toBeNull();
+      expect(await readConfirmedPalMemories(OWNER)).toBeNull();
     }
   });
 

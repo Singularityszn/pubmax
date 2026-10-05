@@ -37,8 +37,12 @@ function recalled(memory: PubPalMemory): PalRecalledMemory | null {
   return value ? { kind: memory.kind, label, value } : null;
 }
 
-/** The newest confirmed memories of the account's own Pal, or null when the store failed. A missing Pal has none. */
-async function readConfirmedPalMemories(ownerId: string): Promise<PalRecalledMemory[] | null> {
+/**
+ * The newest confirmed memories of the account's own Pal, or null when the
+ * store failed. A missing Pal has none. A typed turn still answers on null, but
+ * it says recall was unavailable instead of claiming nothing is confirmed.
+ */
+export async function readConfirmedPalMemories(ownerId: string): Promise<PalRecalledMemory[] | null> {
   let result: Awaited<ReturnType<typeof listPalMemoriesResult>>;
   try {
     result = await listPalMemoriesResult(ownerId);
@@ -54,15 +58,6 @@ async function readConfirmedPalMemories(ownerId: string): Promise<PalRecalledMem
     if (out.length >= PAL_RECALL_MEMORY_LIMIT) break;
   }
   return out;
-}
-
-/**
- * The confirmed memories a typed turn carries, or null when the store failed.
- * The turn still answers on null, but it says recall was unavailable instead of
- * claiming nothing is confirmed.
- */
-export async function confirmedPalMemoriesFor(ownerId: string): Promise<PalRecalledMemory[] | null> {
-  return readConfirmedPalMemories(ownerId);
 }
 
 /**

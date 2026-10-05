@@ -4,7 +4,7 @@ import { composeAnswer } from "@/lib/ask/runAsk";
 import type { AskCard, AskProposal } from "@/lib/ask/types";
 import { resolveAskCityId } from "@/lib/ask/tools";
 import {
-  confirmedPalMemoriesFor,
+  readConfirmedPalMemories,
   palMemoryPreamble,
   type PalRecalledMemory,
 } from "@/lib/palConfirmedMemories.server";
@@ -159,7 +159,7 @@ export async function runPalElevenLabsChatTurn(
   }
 
   // Read from the signed-in owner's own Pal, never from the request body. It never rejects.
-  const memoriesRead = confirmedPalMemoriesFor(input.ownerId);
+  const memoriesRead = readConfirmedPalMemories(input.ownerId);
 
   let signedUrl: string;
   try {

@@ -17,12 +17,12 @@ vi.mock("@/lib/pubPalStore", () => ({
   }),
 }));
 
-import { confirmedPalMemoriesFor } from "@/lib/palConfirmedMemories.server";
+import { readConfirmedPalMemories } from "@/lib/palConfirmedMemories.server";
 
 describe("which Pal memories may reach the model", () => {
   it("keeps only memories the person confirmed or corrected, newest edit first", async () => {
     storeState.fail = false;
-    expect(await confirmedPalMemoriesFor("owner")).toEqual([
+    expect(await readConfirmedPalMemories("owner")).toEqual([
       { kind: "correction", label: "Correction", value: "Not a fan of rooftop bars" },
       { kind: "venue_preference", label: "Pubs", value: "Quiet back rooms" },
     ]);
@@ -30,6 +30,6 @@ describe("which Pal memories may reach the model", () => {
 
   it("reads as unavailable, not as no memories, when the store throws", async () => {
     storeState.fail = true;
-    expect(await confirmedPalMemoriesFor("owner")).toBeNull();
+    expect(await readConfirmedPalMemories("owner")).toBeNull();
   });
 });
