@@ -632,9 +632,10 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
   is the canonical name the server resolves for the id, never a typed one. The
   day is a bare `YYYY-MM-DD` that must be a real day, not in the future and
   not before 2000. The rating is a half star from 1 to 5. A review is the
-  owner's private words: it is trimmed, stripped of control characters and
-  stored as typed, with no copy filter. A review over 280 characters answers
-  400, never a silent cut. The migration's CHECK constraints (0174) hold the
+  owner's private words: control characters are stripped (tab and newline
+  stay) and the ends are trimmed, and nothing else changes. No copy filter
+  runs, and angle brackets and inner spacing are kept. A review over 280
+  characters answers 400, never a silent cut. The migration's CHECK constraints (0174) hold the
   same bounds.
 - **Rate limit (boundary):** durable per-profile + hashed-IP `isLimited` with
   key `diary:${owner.actor}:${ipHash}` - 429 `RATE_LIMITED` on exceed.
