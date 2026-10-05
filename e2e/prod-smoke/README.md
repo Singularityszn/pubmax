@@ -46,9 +46,9 @@ SMOKE_BASE_URL=http://localhost:3400 npm run test:prod-smoke
 
 Plain `http` is accepted on loopback only. Every other origin must be `https`.
 
-Results go to `artifacts/prod-smoke/`. The HTML report is in `report/`. Each
-journey's screenshot is in `results/<test>/`. Set `SMOKE_OUTPUT_DIR` to write
-somewhere else.
+The HTML report goes to `playwright-report/prod-smoke/`. Each journey's
+screenshot goes to `test-results/prod-smoke/<test>/`. Set `SMOKE_OUTPUT_NAME`
+to use another folder name, so a second run keeps the first run's results.
 
 The suite uses one worker and no retries. A flaky journey fails the run so that
 someone sees it. Timeouts allow for real network latency instead.
