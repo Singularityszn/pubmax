@@ -1,5 +1,7 @@
 import { test, expect } from "@playwright/test";
 
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+
 // Synthetic WebGL context-loss recovery. Real iOS backgrounding is not
 // lab-reachable; this proves the canvas module (a) preventDefaults the DOM
 // event so the browser may restore, (b) marks recovery state on the map
@@ -13,6 +15,11 @@ test.beforeEach(async ({ page }) => {
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
+  // The live tile host is not what these tests ask about, and a headless
+  // browser reads every painted WebGL frame back on its main thread: a stream
+  // of real tiles held it for seconds at a time and the map's own readiness
+  // guards ran out under it (e2e/AGENTS.md, map network fixtures).
+  await installDeterministicMapBasemap(page);
 });
 
 test("/map preventDefaults webglcontextlost and arms recovery without full fallback", async ({
@@ -95,24 +102,22 @@ test("/map dispatches webglcontextrestored → recovery marker and live canvas",
     )
     .toBe("listening");
 
-  await page.evaluate(() => {
+  // The marker is read in the same task that dispatches the events. The
+  // restore rebuilds MapLibre's painter and reloads its style, which under a
+  // software rasteriser can hold the main thread for seconds, and a poll queued
+  // behind that work timed out without ever reading the marker.
+  const recovery = await page.evaluate(() => {
     const el = document.querySelector(".maplibreMap canvas");
-    if (!el) return;
+    if (!el) return "no-canvas";
     el.dispatchEvent(
       new Event("webglcontextlost", { cancelable: true, bubbles: true }),
     );
     el.dispatchEvent(
       new Event("webglcontextrestored", { cancelable: true, bubbles: true }),
     );
+    return document.querySelector(".maplibreMap")?.getAttribute("data-webgl-recovery");
   });
-
-  await expect
-    .poll(
-      async () =>
-        page.locator(".maplibreMap").getAttribute("data-webgl-recovery"),
-      { timeout: 5_000 },
-    )
-    .toBe("restored");
+  expect(recovery).toBe("restored");
 
   await expect(canvas).toBeVisible();
   await expect(page.locator(".mapFallback")).toHaveCount(0);

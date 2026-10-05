@@ -78,17 +78,29 @@ describe("map canvas availability", () => {
   });
 
   it("runs the ceiling from mount until the canvas answers, and no longer", () => {
+    const silent = {
+      moduleFailed: false,
+      canvasOwnsFailure: false,
+      canvasReady: false,
+      canvasWatching: false,
+    };
+    expect(mapCanvasCeilingArmed(silent)).toBe(true);
+    expect(mapCanvasCeilingArmed({ ...silent, canvasReady: true })).toBe(false);
+    expect(mapCanvasCeilingArmed({ ...silent, moduleFailed: true })).toBe(false);
+    expect(mapCanvasCeilingArmed({ ...silent, canvasOwnsFailure: true })).toBe(false);
+  });
+
+  it("stands down once the canvas has built its map and watches itself", () => {
+    // The canvas's own scene-ready guard is 18 s from construction, which is
+    // later than this ceiling's 18 s from mount. Left running, the shell won
+    // that race and unmounted a map whose scene was queued for its next frame.
     expect(
-      mapCanvasCeilingArmed({ moduleFailed: false, canvasOwnsFailure: false, canvasReady: false }),
-    ).toBe(true);
-    expect(
-      mapCanvasCeilingArmed({ moduleFailed: false, canvasOwnsFailure: false, canvasReady: true }),
-    ).toBe(false);
-    expect(
-      mapCanvasCeilingArmed({ moduleFailed: true, canvasOwnsFailure: false, canvasReady: false }),
-    ).toBe(false);
-    expect(
-      mapCanvasCeilingArmed({ moduleFailed: false, canvasOwnsFailure: true, canvasReady: false }),
+      mapCanvasCeilingArmed({
+        moduleFailed: false,
+        canvasOwnsFailure: false,
+        canvasReady: false,
+        canvasWatching: true,
+      }),
     ).toBe(false);
   });
 
@@ -180,6 +192,11 @@ describe("the readiness ceiling", () => {
 
 describe("the shell wiring", () => {
   const shell = readFileSync(path.join(process.cwd(), "components/PubMap.tsx"), "utf8");
+
+  it("stops the ceiling on the canvas's own construction signal", () => {
+    expect(shell).toContain("onMapConstructed={handleMapCanvasConstructed}");
+    expect(shell).toContain("canvasWatching: mapCanvasWatchingAttempt === mapCanvasAttempt");
+  });
 
   it("catches the canvas subtree so a blocked chunk cannot take the page", () => {
     expect(shell).toContain("class MapCanvasBoundary");

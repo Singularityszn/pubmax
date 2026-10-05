@@ -20,6 +20,15 @@ type MapCameraReading = {
   center: [number, number];
   /** True while MapLibre is running a gesture or an animation. */
   moving: boolean;
+  /**
+   * True while the app still owes the camera a move of its own: the opening
+   * turn has not been decided yet, a scheduled move is waiting for its frame
+   * or for the bottom sheet, the opening-location answer has not moved the
+   * camera yet, or a granted location has not been framed yet. `moving` is
+   * false in all of these, so a still camera is not yet a resting one
+   * (lib/mapArrivalBearing.ts).
+   */
+  settling: boolean;
 };
 
 /**
@@ -39,7 +48,10 @@ type CameraProbeWindow = Window & {
   [MAP_CAMERA_PROBE_KEY]?: CameraProbe;
 };
 
-function readMapCamera(map: maplibregl.Map): MapCameraReading {
+function readMapCamera(
+  map: maplibregl.Map,
+  settling: () => boolean,
+): MapCameraReading {
   const center = map.getCenter();
   return {
     bearing: map.getBearing(),
@@ -47,6 +59,7 @@ function readMapCamera(map: maplibregl.Map): MapCameraReading {
     zoom: map.getZoom(),
     center: [center.lng, center.lat],
     moving: map.isMoving(),
+    settling: settling(),
   };
 }
 
@@ -59,11 +72,17 @@ function projectOnMap(
   return { x: rect.left + point.x, y: rect.top + point.y };
 }
 
-/** Publishes the camera reading for the browser suite. Returns its own removal. */
-export function installMapCameraProbe(map: maplibregl.Map): () => void {
+/**
+ * Publishes the camera reading for the browser suite. Returns its own removal.
+ * `settling` answers whether the app still owes the camera a move.
+ */
+export function installMapCameraProbe(
+  map: maplibregl.Map,
+  settling: () => boolean,
+): () => void {
   const probeWindow = window as CameraProbeWindow;
   probeWindow[MAP_CAMERA_PROBE_KEY] = {
-    read: () => readMapCamera(map),
+    read: () => readMapCamera(map, settling),
     project: (lngLat) => projectOnMap(map, lngLat),
   };
   return () => {
