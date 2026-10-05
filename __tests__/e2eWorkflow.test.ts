@@ -32,6 +32,7 @@ describe("browser CI policy", () => {
     expect(workflow).toMatch(/schedule:/);
     expect(workflow).toMatch(/push:\n\s+branches: \[main\]/);
     const fullSuiteJob = (parse(workflow) as Workflow).jobs["full-suite"];
+    if (!fullSuiteJob) throw new Error("e2e workflow has no full-suite job");
     const shards = fullSuiteJob.strategy?.matrix?.shard;
     expect(shards).toEqual([1, 2, 3, 4]);
     const shardFlags = fullSuiteJob.steps.flatMap((step) =>
