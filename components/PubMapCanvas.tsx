@@ -989,13 +989,15 @@ export default function PubMapCanvas({
   const tonightDataRef = useRef<GeoJSON.FeatureCollection>(
     opportunitiesToGeoJSON([]),
   );
-  const coffeePilotDataRef = useRef<GeoJSON.FeatureCollection>(
-    coffeePilotToGeoJSON(coffeePilotCafes),
-  );
+  const coffeePilotDataRef = useRef<GeoJSON.FeatureCollection>({
+    type: "FeatureCollection",
+    features: [],
+  });
   const coffeePilotCafesRef = useRef(coffeePilotCafes);
-  const londonRestaurantDataRef = useRef<GeoJSON.FeatureCollection>(
-    londonRestaurantsToGeoJSON(londonRestaurants),
-  );
+  const londonRestaurantDataRef = useRef<GeoJSON.FeatureCollection>({
+    type: "FeatureCollection",
+    features: [],
+  });
   const londonRestaurantsRef = useRef(londonRestaurants);
   // Story-band corridor (a tinted line through the anchors); reseeded after a
   // theme setStyle wipes sources, same pattern as the other data refs.
