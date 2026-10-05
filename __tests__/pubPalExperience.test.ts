@@ -57,6 +57,7 @@ afterEach(async () => {
   });
   root = null;
   container.remove();
+  authState.current = { user: null, loading: false, configured: false };
   vi.restoreAllMocks();
 });
 
@@ -97,6 +98,33 @@ describe("Pub Pal first meeting and onboarding", () => {
     expect(container.textContent).toContain("3 of 5");
     expect(container.textContent).toContain("Tune the signal.");
     expect(container.textContent).not.toContain("Meet your Pub Pal");
+  });
+
+  // The meeting screen paints before the viewer's session answers, so Meet can
+  // be tapped while auth is still loading. The owner settle that follows used
+  // to reset the mode to the meeting and silently drop that tap.
+  it("keeps a Meet tap made before the session answers", async () => {
+    await act(async () => {
+      root?.unmount();
+    });
+    authState.current = { user: null, loading: true, configured: true };
+    root = createRoot(container);
+    await act(async () => {
+      root?.render(createElement(PalExperience));
+    });
+    await settle();
+
+    await act(async () => {
+      buttonContaining("Meet your Pub Pal").click();
+    });
+    authState.current = { user: null, loading: false, configured: true };
+    await act(async () => {
+      root?.render(createElement(PalExperience));
+    });
+    await settle();
+
+    expect(container.textContent).toContain("The grown-up bit first.");
+    expect(container.textContent).toContain("1 of 5");
   });
 
   it("switches from the default robin to another rendered form", async () => {
