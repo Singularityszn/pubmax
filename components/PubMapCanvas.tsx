@@ -83,7 +83,7 @@ import {
   MAP_STYLES, FALLBACK_STYLES, STYLE_LOAD_TIMEOUT_MS, LONDON_VIEW, UK_BOUNDS,
   OSM_ATTRIBUTION,
   DASH_SEQ,
-  GLOW_BASE_STROKE_OPACITY, GLOW_BASE_STROKE_WIDTH,
+  GLOW_BASE_STROKE_OPACITY, GLOW_BASE_STROKE_WIDTH, GLOW_SELECTED_STROKE_WIDTH,
   PIN_ENTRANCE_BUCKETS, PIN_ENTRANCE_STAGGER_MS, PIN_ENTRANCE_RAMP_MS, PIN_ENTRANCE_TOTAL_MS,
   PIN_ENTRANCE_SETTLE_CEILING_MS,
   readTokens,
@@ -96,7 +96,8 @@ import {
 import type { VenueWhatsOnSummary } from "@/lib/whatsOnBadges";
 import {
   applyPoiCategoryVisibility,
-  TONIGHT_OPPORTUNITY_LAYERS, pubIconOpacityExpr, glowPulsePaint,
+  TONIGHT_OPPORTUNITY_LAYERS, pubIconOpacityExpr, selectedGlowPaint,
+  ambientMotionLevel, ambientMotionResting, routeLineShowsDash,
   pinEntranceIconOpacityExpr,
   selectedPinIconSizeExpr, selectedPinFilter, pinSortKeyExpr, pinPriceLabelExpr,
   clusterEntranceProgress,
@@ -163,6 +164,7 @@ import {
   PAINT_WATCHDOG_INTERVAL_MS,
   PAINT_WATCHDOG_MAX_RETRIES,
   shouldRecoverPaint,
+  sourceChangeOwesFrame,
 } from "@/lib/mapPaintWatchdog";
 import {
   DATA_PACK_RETRY_DELAY_MS,
@@ -1095,6 +1097,12 @@ export default function PubMapCanvas({
 
   const reducedRef = useRef(false);
   const blurredRef = useRef(false);
+  // When ambient motion (the selected-pin pulse, the route's marching ants)
+  // was last woken; the RAF loop lets it move for AMBIENT_MOTION_WINDOW_MS
+  // after this, then rests. Null until the first route, selection or camera
+  // change.
+  const ambientMotionWokeAtRef = useRef<number | null>(null);
+  const ambientMotionKeyRef = useRef<string | null>(null);
   const themeRef = useRef<"dark" | "light">("dark");
   const textFontRef = useRef<string[]>(["Noto Sans Bold"]);
   const hoverCapableRef = useRef(false);
@@ -1592,11 +1600,26 @@ export default function PubMapCanvas({
       map.on(`${name}start`, beginGesture(name));
       map.on(`${name}end`, endGesture(name));
     }
+    let ambientMotionCameraKey = "";
     map.on("moveend", () => {
       // Audit F5: every camera move (programmatic flys included) ends on a
       // fresh present. A repaint moves no camera, so this cannot re-fire
       // moveend; deliberately NOT hooked on `idle` (that would loop).
       map.triggerRepaint();
+      // The reader is looking somewhere new: the route and the selected pin
+      // may say so again, for one window. A resize (the paint watchdog's
+      // recovery among them) also ends in moveend without moving the camera,
+      // and must not restart motion on an idle map.
+      const cameraKey = [
+        map.getCenter().toArray().join(","),
+        map.getZoom(),
+        map.getBearing(),
+        map.getPitch(),
+      ].join("|");
+      if (cameraKey !== ambientMotionCameraKey) {
+        ambientMotionCameraKey = cameraKey;
+        ambientMotionWokeAtRef.current = performance.now();
+      }
       setMapBearing(map.getBearing());
       setMapPitch(map.getPitch());
       // A start whose end never came would hold the camera for the rest of the
@@ -3091,8 +3114,8 @@ export default function PubMapCanvas({
     // (2) Paint watchdog. Stamp the last real present from MapLibre's "render"
     // event (fires only from an actual frame), then poll on a coarse interval:
     // if the map/style are loaded, the canvas is on-screen with a non-zero size,
-    // and no frame has presented for longer than the stall threshold, fire ONE
-    // recovery (resize + triggerRepaint). A capped retry counter means it can
+    // and a frame a dirtying event owed has not presented for longer than the
+    // stall threshold, fire ONE recovery (resize + triggerRepaint). A capped retry counter means it can
     // never loop hot — after the cap it logs one structured warning and stops.
     // The decision itself is the pure shouldRecoverPaint() (lib/mapPaintWatchdog)
     // so it stays hermetically testable; this wrapper only owns the side effects.
@@ -3101,6 +3124,27 @@ export default function PubMapCanvas({
       lastRenderAt = performance.now();
     };
     map.on("render", stampRender);
+    // A resize (the container observer above, the window, a recovery), a
+    // style load or new data in an app source owes a fresh frame; a map at
+    // rest owes none, so plain idle never arms the stall check.
+    let paintDirtiedAt: number | null = null;
+    const markPaintDirty = () => {
+      paintDirtiedAt = performance.now();
+    };
+    const onPaintSourceData = (event: unknown) => {
+      const dataEvent = event as { sourceDataType?: unknown; source?: { type?: unknown } };
+      if (
+        sourceChangeOwesFrame({
+          sourceDataType: dataEvent.sourceDataType,
+          sourceType: dataEvent.source?.type,
+        })
+      ) {
+        markPaintDirty();
+      }
+    };
+    map.on("resize", markPaintDirty);
+    map.on("style.load", markPaintDirty);
+    map.on("sourcedata", onPaintSourceData);
     let paintCapWarned = false;
     let paintWatchdogTimer: ReturnType<typeof setInterval> | undefined;
     const samplePaint = () => {
@@ -3113,6 +3157,7 @@ export default function PubMapCanvas({
       const recover = shouldRecoverPaint({
         now: performance.now(),
         lastRenderAt,
+        dirtiedAt: paintDirtiedAt,
         documentVisible: true,
         mapLoaded: Boolean(map.isStyleLoaded()),
         canvasVisible: onScreen,
@@ -3144,14 +3189,14 @@ export default function PubMapCanvas({
       paintWatchdogTimer = undefined;
     };
     // Pause the interval entirely while the tab is hidden (no wasted wakes, and
-    // no false stall from a legitimately throttled background rAF); resume — and
-    // stamp — on return so a backgrounded-then-resumed map gets a clean first
-    // sample and one present.
+    // no false stall from a legitimately throttled background rAF); a return
+    // to visible owes a fresh frame, so it arms the check for the present the
+    // foreground health check asks for.
     const onPaintVisibility = () => {
       if (document.visibilityState === "hidden") {
         stopPaintWatchdog();
       } else if (mapRef.current === map) {
-        lastRenderAt = performance.now();
+        markPaintDirty();
         // Health-check WebGL on every return to foreground (iOS app-switch).
         healthCheckOnForeground("visibility-visible");
         startPaintWatchdog();
@@ -3200,12 +3245,35 @@ export default function PubMapCanvas({
     // One RAF loop for motivated feedback only: pin entrance, route direction,
     // and the selected-pin pulse. The old perpetual camera orbit changed the
     // whole canvas every frame while idle, forcing tile churn that read as
-    // flicker and fought the user's spatial memory.
+    // flicker and fought the user's spatial memory. The dash and the pulse
+    // obey the same rule: they move for a window after a change, then rest.
     let rafId = 0;
     let dashStep = 0;
     let dashAt = 0;
+    // The layers are built on their static frame, so the loop starts at rest.
+    let ambientResting = true;
+    let ambientLevel = 0;
+    let ambientAt = performance.now();
+    // The frame reduced-motion readers see: the dash's first step, and the
+    // ring the selection effect sets.
+    const restAmbientMotion = () => {
+      dashStep = 0;
+      if (map.getLayer("route-line-dash")) {
+        map.setPaintProperty("route-line-dash", "line-dasharray", DASH_SEQ[0]);
+      }
+      if (map.getLayer("pubs-selected-glow")) {
+        map.setPaintProperty("pubs-selected-glow", "circle-stroke-opacity", GLOW_BASE_STROKE_OPACITY);
+        map.setPaintProperty(
+          "pubs-selected-glow",
+          "circle-stroke-width",
+          selectedIdRef.current ? GLOW_SELECTED_STROKE_WIDTH : GLOW_BASE_STROKE_WIDTH,
+        );
+      }
+    };
     const frame = (now: number) => {
       rafId = requestAnimationFrame(frame);
+      const ambientDt = now - ambientAt;
+      ambientAt = now;
       // M7 pin entrance — progressed ahead of the big early-return below so
       // it isn't starved by a hidden/blurred tab (a background tab still
       // ticks rAF, just throttled; the elapsed-time check below simply
@@ -3240,15 +3308,28 @@ export default function PubMapCanvas({
       // isStyleLoaded() is null-safe and false mid-swap; check it BEFORE
       // getLayer, which throws on the transiently-null style during a theme
       // setStyle({diff:false}) or on teardown.
-      if (
-        reducedRef.current ||
-        document.hidden ||
-        blurredRef.current ||
-        !map.isStyleLoaded() ||
-        !map.getLayer("pubs-point")
-      )
+      if (!map.isStyleLoaded() || !map.getLayer("pubs-point")) return;
+      // Every write below is a full map redraw. Motion runs only for a window
+      // after the route, selection or camera changed, easing in and out of
+      // rest with the dash marching on to its first step, and never for
+      // reduced-motion, hidden or blurred, which drop straight to rest; at
+      // rest one write puts the static frame back and the loop draws nothing
+      // more.
+      const ambientHeld = reducedRef.current || document.hidden || blurredRef.current;
+      ambientLevel = ambientHeld
+        ? 0
+        : ambientMotionLevel(ambientLevel, ambientDt, now, ambientMotionWokeAtRef.current);
+      const dashMarching =
+        Boolean(map.getLayer("route-line-dash")) && routeLineShowsDash(routeLineRef.current);
+      if (ambientHeld || ambientMotionResting(ambientLevel, dashMarching ? dashStep : 0)) {
+        if (!ambientResting) {
+          ambientResting = true;
+          restAmbientMotion();
+        }
         return;
-      if (now - dashAt > 90 && map.getLayer("route-line-dash")) {
+      }
+      ambientResting = false;
+      if (dashMarching && now - dashAt > 90) {
         dashAt = now;
         dashStep = (dashStep + 1) % DASH_SEQ.length;
         map.setPaintProperty("route-line-dash", "line-dasharray", DASH_SEQ[dashStep]);
@@ -3258,7 +3339,7 @@ export default function PubMapCanvas({
       // reduced-motion / hidden / blurred guard above, so reduced-motion gets
       // a static ring (the dim-opacity spotlight still applies, unaffected).
       if (selectedIdRef.current && map.getLayer("pubs-selected-glow")) {
-        const pulse = glowPulsePaint(now);
+        const pulse = selectedGlowPaint(now, ambientLevel);
         map.setPaintProperty("pubs-selected-glow", "circle-stroke-opacity", pulse.opacity);
         map.setPaintProperty("pubs-selected-glow", "circle-stroke-width", pulse.width);
       }
@@ -3299,6 +3380,9 @@ export default function PubMapCanvas({
       // Black-canvas recovery net teardown.
       paintObserver.disconnect();
       map.off("render", stampRender);
+      map.off("resize", markPaintDirty);
+      map.off("style.load", markPaintDirty);
+      map.off("sourcedata", onPaintSourceData);
       stopPaintWatchdog();
       document.removeEventListener("visibilitychange", onPaintVisibility);
       window.removeEventListener("pageshow", onPageShow);
@@ -3628,6 +3712,13 @@ export default function PubMapCanvas({
     routeLineRef.current = routeToLine(route);
     routeStopsRef.current = routeToStops(route);
     selectedIdRef.current = selectedVenueId;
+    // A parent re-render hands over a new `route` array for the same stops;
+    // only a real change of stops or selection is news worth moving for.
+    const motionKey = `${route.map((venue) => venue.id).join(",")}|${selectedVenueId}`;
+    if (motionKey !== ambientMotionKeyRef.current) {
+      ambientMotionKeyRef.current = motionKey;
+      ambientMotionWokeAtRef.current = performance.now();
+    }
     if (!mapReady) return;
     // Route source data via the permissive gate (see applyRouteData) so a
     // set-once plan route paints even while basemap tiles are still loading.
@@ -3644,11 +3735,10 @@ export default function PubMapCanvas({
         // loop takes over from here again next frame if a venue is selected,
         // and a deselect leaves the ring at this baseline (not mid-pulse).
         map.setPaintProperty("pubs-selected-glow", "circle-stroke-opacity", GLOW_BASE_STROKE_OPACITY);
-        // Slightly fatter ring while selected so the pinpoint reads under the sheet.
         map.setPaintProperty(
           "pubs-selected-glow",
           "circle-stroke-width",
-          selectedIdRef.current ? GLOW_BASE_STROKE_WIDTH + 1.2 : GLOW_BASE_STROKE_WIDTH,
+          selectedIdRef.current ? GLOW_SELECTED_STROKE_WIDTH : GLOW_BASE_STROKE_WIDTH,
         );
       }
       if (map.getLayer("pubs-selected")) {

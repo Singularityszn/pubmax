@@ -22,6 +22,7 @@ import {
   registerMapIcons,
   GLOW_BASE_STROKE_OPACITY,
   GLOW_BASE_STROKE_WIDTH,
+  GLOW_SELECTED_STROKE_WIDTH,
   OSM_ATTRIBUTION,
   venuePinEdgeTokens,
 } from "./tokens";
@@ -1336,7 +1337,7 @@ export function buildPubs(ctx: SceneCtx) {
       "circle-color": "rgba(0,0,0,0)",
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 11, 15, 15],
       "circle-stroke-color": tokens.brass,
-      "circle-stroke-width": GLOW_BASE_STROKE_WIDTH,
+      "circle-stroke-width": selectedId ? GLOW_SELECTED_STROKE_WIDTH : GLOW_BASE_STROKE_WIDTH,
       "circle-stroke-opacity": GLOW_BASE_STROKE_OPACITY,
       "circle-stroke-width-transition": { duration: 0, delay: 0 },
       "circle-stroke-opacity-transition": { duration: 0, delay: 0 },

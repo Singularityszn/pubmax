@@ -223,7 +223,7 @@ a live style throws `"Layer with id X already exists"` inside MapLibre's event
 dispatch, aborting the scene and half-building the map. `addLayerOnce` checks
 `getLayer` first; sources get `if (!map.getSource(...))` guards.
 
-**Why animation checks `isStyleLoaded()`.** During a theme `setStyle({diff:false})` the style is *transiently null*, and calling `getLayer` on a null style throws (the classic "#418 / getLayer-on-null"). The loop checks `!map.isStyleLoaded()` first because it is null-safe and returns `false` mid-swap. It also skips work under `prefers-reduced-motion` and when `document.hidden`.
+**Why animation checks `isStyleLoaded()`.** During a theme `setStyle({diff:false})` the style is *transiently null*, and calling `getLayer` on a null style throws (the classic "#418 / getLayer-on-null"). The loop checks `!map.isStyleLoaded()` first because it is null-safe and returns `false` mid-swap. It also skips work under `prefers-reduced-motion` and when `document.hidden`. The route dash and the selected-pin pulse move only for `AMBIENT_MOTION_WINDOW_MS` (`components/map/canvas/tokens.ts`) after a route, selection or camera change, then rest on their static frame.
 
 **Theme flip.** A `MutationObserver` on `html[data-theme]` (`:696`) calls `setStyle(MAP_STYLES[next], { diff: false })`. `diff: false` is deliberate: it forces a full swap so `style.load` re-fires and scene assembly re-reads the (already-flipped) tokens. A diff'd swap would keep stale-themed layers.
 

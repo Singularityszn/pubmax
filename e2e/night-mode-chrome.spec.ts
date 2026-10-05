@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeFirst";
+import { sortDescribeFirst } from "./helpers/planDescribeFirst";
 import { setFirstPintIn } from "./helpers/planFirstPint";
 
 // Night mode owns the whole screen, and nothing may own a tap inside it.
@@ -40,8 +40,7 @@ async function prepare(page: Page, viewport: { width: number; height: number }):
 /** Lock a plan whose first pint is half an hour out, so the night is ON. */
 async function lockAPlanOnTonight(page: Page): Promise<void> {
   await page.goto("/plan");
-  await describeFirstQuery(page).fill("Quiet in Clapham for 4, not pricey");
-  await describeFirstSubmit(page).click();
+  await sortDescribeFirst(page, "Quiet in Clapham for 4, not pricey");
   await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set below.")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");
   await setFirstPintIn(page, 30);

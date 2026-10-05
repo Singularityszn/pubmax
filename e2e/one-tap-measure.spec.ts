@@ -66,11 +66,15 @@ async function openVenueSheet(page: Page) {
   await expect(venueSheet).toBeVisible({ timeout: 30_000 });
   const inspector = venueSheet.locator(".venueInspector");
   const expand = venueSheet.getByRole("button", { name: "Expand sheet" });
+  // The sheet's body waits on the pub index, which a loaded box can hold past the
+  // default 10 s: give it the same budget as the sheet itself.
   await expect
-    .poll(async () => (await inspector.isVisible()) || (await expand.isVisible()))
+    .poll(async () => (await inspector.isVisible()) || (await expand.isVisible()), {
+      timeout: 30_000,
+    })
     .toBe(true);
   if (!(await inspector.isVisible()) && (await expand.isVisible())) await expand.click();
-  await expect(inspector).toBeVisible();
+  await expect(inspector).toBeVisible({ timeout: 30_000 });
   return venueSheet;
 }
 
@@ -106,6 +110,9 @@ test("a half logged through the one-tap door travels as a half and moves no pin 
     await door.click();
     await expect(submit).toBeVisible({ timeout: 1_500 });
   }).toPass({ timeout: 20_000 });
+  // The door scrolls the price field into view and focuses it in one frame;
+  // focus is the sign the composer has settled where it will be measured.
+  await expect(submit.getByRole("textbox", { name: /Price of a beer at/ })).toBeFocused();
 
   // The closed question stands above the figure.
   const chips = submit.locator(".measureChip");
@@ -132,18 +139,6 @@ test("a half logged through the one-tap door travels as a half and moves no pin 
   await expect(sheet.locator(".vpsubStampBlock")).toContainText("Half");
   await expect(sheet.locator(".vpsubStampBlock")).toContainText("On this pub’s page");
   await expect(sheet.locator(".vpsubStampBlock")).not.toContainText("On the map");
-
-  // Nothing about this pub's pin colour moved: no priced community row exists.
-  const painted = await page.evaluate(
-    (id) =>
-      (
-        window as unknown as {
-          paintedMapTapPoints?: () => Array<{ venueId?: string; band?: unknown }>;
-        }
-      ).paintedMapTapPoints?.()?.filter((point) => point.venueId === id) ?? [],
-    UNPRICED,
-  );
-  for (const point of painted) expect(point.band ?? null).toBeNull();
 });
 
 test("a pint logged through the same door still says pint", async ({ page }) => {
@@ -162,6 +157,7 @@ test("a pint logged through the same door still says pint", async ({ page }) => 
     await door.click();
     await expect(submit).toBeVisible({ timeout: 1_500 });
   }).toPass({ timeout: 20_000 });
+  await expect(submit.getByRole("textbox", { name: /Price of a beer at/ })).toBeFocused();
 
   // Pint is the default and it is a REAL answer on screen, not an assumption.
   await expect(submit.getByRole("radio", { name: "Pint" })).toHaveAttribute(

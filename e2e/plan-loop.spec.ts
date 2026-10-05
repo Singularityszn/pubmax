@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeFirst";
+import { sortDescribeFirst } from "./helpers/planDescribeFirst";
 import { setFirstPintIn } from "./helpers/planFirstPint";
 
 
@@ -33,8 +33,7 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
     )
     .toBeLessThanOrEqual(1);
 
-  await describeFirstQuery(page).fill("Quiet in Clapham for 4, not pricey");
-  await describeFirstSubmit(page).click();
+  await sortDescribeFirst(page, "Quiet in Clapham for 4, not pricey");
   await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set below.")).toBeVisible();
   await expect(page.getByRole("combobox", { name: /Area/i })).toHaveValue("clapham");
   await expect(page.getByRole("spinbutton", { name: /People/i })).toHaveValue("4");
@@ -140,8 +139,7 @@ test("host still gets night mode ambushed at their own plan's start time", async
     window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
   });
   await page.goto("/plan");
-  await describeFirstQuery(page).fill("Quiet in Clapham for 4, not pricey");
-  await describeFirstSubmit(page).click();
+  await sortDescribeFirst(page, "Quiet in Clapham for 4, not pricey");
   await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set below.")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");
   // The night has to actually BE on, and an inferred start is not: the
