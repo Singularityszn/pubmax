@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { ESLint } from "eslint";
@@ -60,12 +59,8 @@ async function lintRules(file: string, code: string): Promise<string[]> {
   return messages.flatMap((message) => (message.ruleId ? [message.ruleId] : []));
 }
 
-/** The two rules that refuse a server page reading the request's credential. */
-const CREDENTIAL_RULES = ["no-restricted-imports", "no-restricted-syntax"] as const;
-
-function readsCredential(rules: string[]): boolean {
-  return CREDENTIAL_RULES.some((rule) => rules.includes(rule));
-}
+const CREDENTIAL_READ = "router-cache/credential-read";
+const STALE_EXCEPTION = "router-cache/stale-exception";
 
 const COOKIE_PAGE = `import { cookies } from "next/headers";
 
@@ -108,12 +103,23 @@ export default async function Page() {
 }
 `;
 
+const COOKIE_HEADER_PAGE = `import { headers } from "next/headers";
+
+export default async function Page() {
+  const h = await headers();
+  return <p>{h.get("cookie")?.includes("sb-") ? "signed in" : "anonymous"}</p>;
+}
+`;
+
 const CREDENTIAL_ROUTE = `import { cookies, headers } from "next/headers";
 
 export async function GET() {
   const jar = await cookies();
-  const auth = (await headers()).get("authorization");
-  return Response.json({ v: jar.get("x")?.value, signedIn: Boolean(auth) });
+  const h = await headers();
+  return Response.json({
+    v: jar.get("x")?.value,
+    signedIn: Boolean(h.get("authorization") ?? h.get("cookie")),
+  });
 }
 `;
 
@@ -137,35 +143,43 @@ export default function SaveButton() {
 
 describe("invariant 1 - no page renders per-account content on the server", () => {
   it.each([
-    ["cookies()", COOKIE_PAGE, "no-restricted-imports"],
-    ["draftMode()", DRAFT_MODE_PAGE, "no-restricted-imports"],
-    ["a credential gate module", CREDENTIAL_GATE_PAGE, "no-restricted-imports"],
-    ["the authorization header", AUTHORIZATION_PAGE, "no-restricted-syntax"],
-    ["the Authorization header", CAPITALISED_AUTHORIZATION_PAGE, "no-restricted-syntax"],
-  ])("refuses a server page that reads %s", async (_door, code, rule) => {
-    expect(await lintRules("app/fence-fixture/page.tsx", code)).toContain(rule);
+    ["cookies()", COOKIE_PAGE],
+    ["draftMode()", DRAFT_MODE_PAGE],
+    ["a credential gate module", CREDENTIAL_GATE_PAGE],
+    ["the authorization header", AUTHORIZATION_PAGE],
+    ["the Authorization header", CAPITALISED_AUTHORIZATION_PAGE],
+    ["the cookie header", COOKIE_HEADER_PAGE],
+  ])("refuses a server page that reads %s", async (_door, code) => {
+    expect(await lintRules("app/fence-fixture/page.tsx", code)).toContain(CREDENTIAL_READ);
   });
 
   it("leaves the per-request nonce read alone", async () => {
-    expect(readsCredential(await lintRules("app/fence-fixture/page.tsx", NONCE_PAGE))).toBe(false);
+    const rules = await lintRules("app/fence-fixture/page.tsx", NONCE_PAGE);
+
+    expect(rules).not.toContain(CREDENTIAL_READ);
+    expect(rules).not.toContain(STALE_EXCEPTION);
   });
 
   it("leaves API routes alone, since the router cache never holds them", async () => {
-    expect(
-      readsCredential(await lintRules("app/api/fence-fixture/route.ts", CREDENTIAL_ROUTE)),
-    ).toBe(false);
+    expect(await lintRules("app/api/fence-fixture/route.ts", CREDENTIAL_ROUTE)).not.toContain(
+      CREDENTIAL_READ,
+    );
   });
 
   it.each(Object.keys(PER_SESSION_SERVER_PAGES))(
-    "keeps the argued exception %s real, so the list can only shrink",
+    "lets the argued exception %s read the credential",
     async (file) => {
-      const source = readFileSync(path.resolve(file), "utf8");
+      const rules = await lintRules(file, COOKIE_PAGE);
 
-      expect(
-        readsCredential(await lintRules("app/fence-fixture/page.tsx", source)),
-        `${file} no longer reads per-session state: delete its exception, do not leave it as a mute button`,
-      ).toBe(true);
-      expect(readsCredential(await lintRules(file, source))).toBe(false);
+      expect(rules).not.toContain(CREDENTIAL_READ);
+      expect(rules).not.toContain(STALE_EXCEPTION);
+    },
+  );
+
+  it.each(Object.keys(PER_SESSION_SERVER_PAGES))(
+    "reports the argued exception %s as stale once it stops reading the credential",
+    async (file) => {
+      expect(await lintRules(file, NONCE_PAGE)).toContain(STALE_EXCEPTION);
     },
   );
 });
