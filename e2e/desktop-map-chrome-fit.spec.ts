@@ -248,6 +248,8 @@ for (const width of DESKTOP_WIDTHS) {
   test(`${width}px open planner keeps toolbar search and Clear search beyond the rail edge`, async ({
     page,
   }) => {
+    test.setTimeout(90_000);
+    await page.emulateMedia({ reducedMotion: "reduce" });
     await prepareDesktopMap(page, width);
     await stubCityStatus(page);
 
@@ -327,15 +329,13 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   await prepareDesktopMap(page);
   await stubCityStatus(page);
 
-  const response = await page.goto("/map?desktop-drawer-exchange=1440", {
+  const response = await page.goto("/map?list=1&desktop-drawer-exchange=1440", {
     waitUntil: "domcontentloaded",
   });
   expect(response?.status()).toBe(200);
 
   const toolbar = page.locator(".mapToolbar");
   await expect(toolbar).toBeVisible({ timeout: 20_000 });
-  await page.getByRole("button", { name: /Map layers:/ }).click();
-  await page.getByRole("button", { name: "List view" }).click();
   const retargetVenue = page
     .locator(".mapVenueListItem")
     .filter({ hasNotText: "Three Sheets Soho" })

@@ -17,7 +17,7 @@ async function returningVisitor(page: Page, consent = false): Promise<void> {
 }
 
 for (const width of [390, 768, 1440]) {
-  test(`Manchester map fills ${width}x900 without a blank document tail`, async ({ page }, testInfo) => {
+  test(`Manchester map fills ${width}x900 without a blank document tail`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await returningVisitor(page);
     await page.goto("/map/manchester");
@@ -30,7 +30,6 @@ for (const width of [390, 768, 1440]) {
       bodyPadding: Number.parseFloat(getComputedStyle(document.body).paddingBottom),
       stageBottom: document.querySelector(".mapStage")?.getBoundingClientRect().bottom,
     }));
-    await page.screenshot({ path: testInfo.outputPath(`manchester-map-${width}.png`) });
 
     expect(dimensions.stageBottom).toBeCloseTo(dimensions.viewport, 0);
     expect(dimensions.bodyPadding).toBe(0);
@@ -40,7 +39,7 @@ for (const width of [390, 768, 1440]) {
 
 for (const width of [390, 768, 1440]) {
   for (const consent of [true, false]) {
-    test(`Places final city stays clear at ${width}px with consent ${consent ? "present" : "absent"}`, async ({ page }, testInfo) => {
+    test(`Places final city stays clear at ${width}px with consent ${consent ? "present" : "absent"}`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
       await returningVisitor(page, consent);
       await page.goto("/places");
@@ -63,7 +62,6 @@ for (const width of [390, 768, 1440]) {
         const rect = element.getBoundingClientRect();
         return element.contains(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2));
       })).toBe(true);
-      await page.screenshot({ path: testInfo.outputPath(`places-bottom-clearance-${width}-${consent}.png`) });
       const destination = await lastCity.getAttribute("href");
       expect(destination).not.toBeNull();
       await lastCity.click();
