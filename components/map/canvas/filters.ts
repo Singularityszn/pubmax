@@ -4,7 +4,10 @@ import { offsetIndexForLine } from "@/lib/tubeOffsets";
 import { TRANSPORT_CATEGORIES, type PoiCategory } from "@/lib/pois";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import {
+  AMBIENT_MOTION_EASE_MS,
   AMBIENT_MOTION_WINDOW_MS,
+  GLOW_BASE_STROKE_OPACITY,
+  GLOW_SELECTED_STROKE_WIDTH,
   SELECTION_DIM_OPACITY,
   GLOW_PULSE_PERIOD_MS,
   GLOW_PULSE_MIN_OPACITY,
@@ -313,11 +316,33 @@ export function glowPulsePaint(now: number): { opacity: number; width: number } 
   };
 }
 
-// Whether ambient motion (the selected-pin pulse, the route's marching ants)
-// may still move at `now`: only inside AMBIENT_MOTION_WINDOW_MS of the last
-// wake, never before the first. Pure, so the RAF loop's rest is unit-testable.
-export function ambientMotionLive(now: number, wokeAt: number | null): boolean {
-  return wokeAt !== null && now - wokeAt < AMBIENT_MOTION_WINDOW_MS;
+// How far ambient motion (the selected-pin pulse, the route's marching ants)
+// is from rest at `now`: 0 is the static frame, 1 is full motion. It moves
+// toward 1 after a wake and back to 0 by the end of AMBIENT_MOTION_WINDOW_MS,
+// at most `dt` / AMBIENT_MOTION_EASE_MS per frame, so a wake mid-ease turns
+// it round where it stands. Pure, so the RAF loop's rest is unit-testable.
+export function ambientMotionLevel(
+  level: number,
+  dt: number,
+  now: number,
+  wokeAt: number | null,
+): number {
+  const target =
+    wokeAt !== null && now - wokeAt < AMBIENT_MOTION_WINDOW_MS - AMBIENT_MOTION_EASE_MS ? 1 : 0;
+  const step = Math.max(0, dt) / AMBIENT_MOTION_EASE_MS;
+  return target > level ? Math.min(1, level + step) : Math.max(0, level - step);
+}
+
+// The selected ring at motion `level`: the static selected ring at 0, the
+// breathing pulse at 1, and a smoothstep blend between, so the pulse settles
+// onto the static ring instead of stopping at whatever phase the window ends.
+export function selectedGlowPaint(now: number, level: number): { opacity: number; width: number } {
+  const pulse = glowPulsePaint(now);
+  const eased = level * level * (3 - 2 * level);
+  return {
+    opacity: GLOW_BASE_STROKE_OPACITY + (pulse.opacity - GLOW_BASE_STROKE_OPACITY) * eased,
+    width: GLOW_SELECTED_STROKE_WIDTH + (pulse.width - GLOW_SELECTED_STROKE_WIDTH) * eased,
+  };
 }
 
 // The `route-line-dash` layer paints only the straight fallback (buildScene.ts

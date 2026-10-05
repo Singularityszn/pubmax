@@ -3,7 +3,7 @@ import type * as maplibregl from "maplibre-gl";
 
 import {
   AMBIENT_CATEGORIES,
-  ambientMotionLive,
+  ambientMotionLevel,
   applyPoiCategoryVisibility,
   opportunityForFeature,
   pinEntranceIconOpacityExpr,
@@ -16,6 +16,7 @@ import {
   pubIconOpacityExpr,
   glowPulsePaint,
   routeLineShowsDash,
+  selectedGlowPaint,
   hashEntranceSeed,
   selectedPinIconSizeExpr,
   transportFilter,
@@ -24,7 +25,10 @@ import {
 } from "@/components/map/canvas/filters";
 import { SELECTED_PIN_SIZE_SCALE } from "@/components/map/canvas/easing";
 import {
+  AMBIENT_MOTION_EASE_MS,
   AMBIENT_MOTION_WINDOW_MS,
+  GLOW_BASE_STROKE_OPACITY,
+  GLOW_SELECTED_STROKE_WIDTH,
   GLOW_PULSE_PERIOD_MS,
   GLOW_PULSE_MIN_OPACITY,
   GLOW_PULSE_MAX_OPACITY,
@@ -134,20 +138,83 @@ describe("glowPulsePaint", () => {
   });
 });
 
-describe("ambientMotionLive (the dash and the pulse rest)", () => {
-  it("moves only inside the window after something woke it", () => {
-    expect(ambientMotionLive(1_000, 1_000)).toBe(true);
-    expect(ambientMotionLive(1_000 + AMBIENT_MOTION_WINDOW_MS - 1, 1_000)).toBe(true);
-    expect(ambientMotionLive(1_000 + AMBIENT_MOTION_WINDOW_MS, 1_000)).toBe(false);
+describe("ambientMotionLevel (the dash and the pulse rest)", () => {
+  const FRAME_MS = 16;
+  const run = (wokeAt: number | null, from: number, to: number, start = 0) => {
+    const levels: number[] = [];
+    let level = start;
+    for (let now = from; now <= to; now += FRAME_MS) {
+      level = ambientMotionLevel(level, FRAME_MS, now, wokeAt);
+      levels.push(level);
+    }
+    return levels;
+  };
+
+  it("eases up after a wake, holds, then eases back to rest by the end of the window", () => {
+    const levels = run(1_000, 1_000, 1_000 + AMBIENT_MOTION_WINDOW_MS + FRAME_MS);
+    expect(levels[0]).toBeGreaterThan(0);
+    expect(levels[0]).toBeLessThan(1);
+    const index = (at: number) => Math.floor(at / FRAME_MS);
+    expect(levels[index(AMBIENT_MOTION_EASE_MS + FRAME_MS)]).toBe(1);
+    expect(levels[index(AMBIENT_MOTION_WINDOW_MS - AMBIENT_MOTION_EASE_MS - FRAME_MS)]).toBe(1);
+    expect(levels[levels.length - 1]).toBe(0);
+  });
+
+  it("never moves by more than one frame's ease step, so nothing jumps", () => {
+    const levels = run(1_000, 1_000, 1_000 + AMBIENT_MOTION_WINDOW_MS + 200);
+    levels.reduce((previous, level) => {
+      expect(Math.abs(level - previous)).toBeLessThanOrEqual(FRAME_MS / AMBIENT_MOTION_EASE_MS + 1e-9);
+      return level;
+    });
+  });
+
+  it("turns round where it stands when woken again mid-ease", () => {
+    const fading = ambientMotionLevel(0.4, FRAME_MS, 1_000 + AMBIENT_MOTION_WINDOW_MS - 300, 1_000);
+    expect(fading).toBeLessThan(0.4);
+    const rewoken = ambientMotionLevel(fading, FRAME_MS, 1_000 + AMBIENT_MOTION_WINDOW_MS - 284, 1_000 + AMBIENT_MOTION_WINDOW_MS - 284);
+    expect(rewoken).toBeGreaterThan(fading);
+    expect(rewoken - fading).toBeLessThanOrEqual(FRAME_MS / AMBIENT_MOTION_EASE_MS + 1e-9);
   });
 
   it("never moves before anything woke it", () => {
-    expect(ambientMotionLive(5_000, null)).toBe(false);
+    expect(ambientMotionLevel(0, FRAME_MS, 5_000, null)).toBe(0);
   });
 
   it("is a bounded promise: a few breaths of the pulse, then rest", () => {
     expect(AMBIENT_MOTION_WINDOW_MS).toBeGreaterThanOrEqual(GLOW_PULSE_PERIOD_MS * 2);
     expect(AMBIENT_MOTION_WINDOW_MS).toBeLessThanOrEqual(10_000);
+    expect(AMBIENT_MOTION_EASE_MS * 2).toBeLessThan(AMBIENT_MOTION_WINDOW_MS);
+  });
+});
+
+describe("selectedGlowPaint (the pulse settles onto the static ring)", () => {
+  it("is exactly the static selected ring at rest, whatever the pulse phase", () => {
+    for (let t = 0; t < GLOW_PULSE_PERIOD_MS; t += 97) {
+      expect(selectedGlowPaint(t, 0)).toEqual({
+        opacity: GLOW_BASE_STROKE_OPACITY,
+        width: GLOW_SELECTED_STROKE_WIDTH,
+      });
+    }
+  });
+
+  it("is the full breathing pulse at full motion", () => {
+    const t = GLOW_PULSE_PERIOD_MS * 0.6;
+    expect(selectedGlowPaint(t, 1).opacity).toBeCloseTo(glowPulsePaint(t).opacity, 9);
+    expect(selectedGlowPaint(t, 1).width).toBeCloseTo(glowPulsePaint(t).width, 9);
+  });
+
+  it("lands on the static ring without a jump as the window ends", () => {
+    const wokeAt = 333;
+    let level = 1;
+    let previous = selectedGlowPaint(wokeAt, level);
+    for (let now = wokeAt; now <= wokeAt + AMBIENT_MOTION_WINDOW_MS + 32; now += 16) {
+      level = ambientMotionLevel(level, 16, now, wokeAt);
+      const paint = selectedGlowPaint(now, level);
+      expect(Math.abs(paint.width - previous.width)).toBeLessThan(0.1);
+      expect(Math.abs(paint.opacity - previous.opacity)).toBeLessThan(0.02);
+      previous = paint;
+    }
+    expect(previous).toEqual({ opacity: GLOW_BASE_STROKE_OPACITY, width: GLOW_SELECTED_STROKE_WIDTH });
   });
 });
 

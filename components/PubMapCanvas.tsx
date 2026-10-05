@@ -83,7 +83,7 @@ import {
   MAP_STYLES, FALLBACK_STYLES, STYLE_LOAD_TIMEOUT_MS, LONDON_VIEW, UK_BOUNDS,
   OSM_ATTRIBUTION,
   DASH_SEQ,
-  GLOW_BASE_STROKE_OPACITY, GLOW_BASE_STROKE_WIDTH,
+  GLOW_BASE_STROKE_OPACITY, GLOW_BASE_STROKE_WIDTH, GLOW_SELECTED_STROKE_WIDTH,
   PIN_ENTRANCE_BUCKETS, PIN_ENTRANCE_STAGGER_MS, PIN_ENTRANCE_RAMP_MS, PIN_ENTRANCE_TOTAL_MS,
   PIN_ENTRANCE_SETTLE_CEILING_MS,
   readTokens,
@@ -96,8 +96,8 @@ import {
 import type { VenueWhatsOnSummary } from "@/lib/whatsOnBadges";
 import {
   applyPoiCategoryVisibility,
-  TONIGHT_OPPORTUNITY_LAYERS, pubIconOpacityExpr, glowPulsePaint,
-  ambientMotionLive, routeLineShowsDash,
+  TONIGHT_OPPORTUNITY_LAYERS, pubIconOpacityExpr, selectedGlowPaint,
+  ambientMotionLevel, routeLineShowsDash,
   pinEntranceIconOpacityExpr,
   selectedPinIconSizeExpr, selectedPinFilter, pinSortKeyExpr, pinPriceLabelExpr,
   clusterEntranceProgress,
@@ -3229,6 +3229,8 @@ export default function PubMapCanvas({
     let dashAt = 0;
     // The layers are built on their static frame, so the loop starts at rest.
     let ambientResting = true;
+    let ambientLevel = 0;
+    let ambientAt = performance.now();
     // The frame reduced-motion readers see: the dash's first step, and the
     // ring the selection effect sets.
     const restAmbientMotion = () => {
@@ -3241,12 +3243,14 @@ export default function PubMapCanvas({
         map.setPaintProperty(
           "pubs-selected-glow",
           "circle-stroke-width",
-          selectedIdRef.current ? GLOW_BASE_STROKE_WIDTH + 1.2 : GLOW_BASE_STROKE_WIDTH,
+          selectedIdRef.current ? GLOW_SELECTED_STROKE_WIDTH : GLOW_BASE_STROKE_WIDTH,
         );
       }
     };
     const frame = (now: number) => {
       rafId = requestAnimationFrame(frame);
+      const ambientDt = now - ambientAt;
+      ambientAt = now;
       // M7 pin entrance — progressed ahead of the big early-return below so
       // it isn't starved by a hidden/blurred tab (a background tab still
       // ticks rAF, just throttled; the elapsed-time check below simply
@@ -3283,15 +3287,15 @@ export default function PubMapCanvas({
       // setStyle({diff:false}) or on teardown.
       if (!map.isStyleLoaded() || !map.getLayer("pubs-point")) return;
       // Every write below is a full map redraw. Motion runs only for a window
-      // after the route, selection or camera changed, and never for
-      // reduced-motion, hidden or blurred; otherwise one write puts the
-      // static frame back and the loop draws nothing more.
-      if (
-        reducedRef.current ||
-        document.hidden ||
-        blurredRef.current ||
-        !ambientMotionLive(now, ambientMotionWokeAtRef.current)
-      ) {
+      // after the route, selection or camera changed, easing in and out of
+      // rest, and never for reduced-motion, hidden or blurred, which drop
+      // straight to rest; at rest one write puts the static frame back and
+      // the loop draws nothing more.
+      ambientLevel =
+        reducedRef.current || document.hidden || blurredRef.current
+          ? 0
+          : ambientMotionLevel(ambientLevel, ambientDt, now, ambientMotionWokeAtRef.current);
+      if (ambientLevel === 0) {
         if (!ambientResting) {
           ambientResting = true;
           restAmbientMotion();
@@ -3313,7 +3317,7 @@ export default function PubMapCanvas({
       // reduced-motion / hidden / blurred guard above, so reduced-motion gets
       // a static ring (the dim-opacity spotlight still applies, unaffected).
       if (selectedIdRef.current && map.getLayer("pubs-selected-glow")) {
-        const pulse = glowPulsePaint(now);
+        const pulse = selectedGlowPaint(now, ambientLevel);
         map.setPaintProperty("pubs-selected-glow", "circle-stroke-opacity", pulse.opacity);
         map.setPaintProperty("pubs-selected-glow", "circle-stroke-width", pulse.width);
       }
@@ -3706,11 +3710,10 @@ export default function PubMapCanvas({
         // loop takes over from here again next frame if a venue is selected,
         // and a deselect leaves the ring at this baseline (not mid-pulse).
         map.setPaintProperty("pubs-selected-glow", "circle-stroke-opacity", GLOW_BASE_STROKE_OPACITY);
-        // Slightly fatter ring while selected so the pinpoint reads under the sheet.
         map.setPaintProperty(
           "pubs-selected-glow",
           "circle-stroke-width",
-          selectedIdRef.current ? GLOW_BASE_STROKE_WIDTH + 1.2 : GLOW_BASE_STROKE_WIDTH,
+          selectedIdRef.current ? GLOW_SELECTED_STROKE_WIDTH : GLOW_BASE_STROKE_WIDTH,
         );
       }
       if (map.getLayer("pubs-selected")) {
