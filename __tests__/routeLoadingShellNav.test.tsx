@@ -2,21 +2,35 @@
 //
 // It is the SAME frame the route itself paints, so the top bar is part of it.
 // Without the bar the shell was a page with no chrome, and the moment it stood
-// in for a route the site nav left the screen: /today, /tonight, /out, /social
-// and /feed own a `loading.tsx`, so their whole page - the nav and the
-// PUBMAXX wordmark inside it - sits in a Suspense boundary. React hands a
-// boundary back to its fallback whenever a sync update lands before that
-// boundary has hydrated, and the root of this app settles several on every
-// load, so a route that had already painted could drop back to a bar-less
-// skeleton and take the wordmark with it. Measured on /today at 390px on the
-// evening clock: one load in four. With the bar in the shell, none.
+// in for a route the site nav left the screen: /out, /social and /feed own a
+// `loading.tsx`, so their whole page - the nav and the PUBMAXX wordmark inside
+// it - sits in a Suspense boundary. React hands a boundary back to its fallback
+// whenever a sync update lands before that boundary has hydrated, and the root
+// of this app settles several on every load, so a route that had already
+// painted could drop back to a bar-less skeleton and take the wordmark with it.
+// Measured on /today at 390px on the evening clock: one load in four. With the
+// bar in the shell, none.
 //
 // The bar therefore stays put whichever half is on screen, and a cold tab tap
 // paints chrome straight away instead of a page that grows a header.
 //
+// A PRERENDERED ROUTE OWNS NO SHELL. /today and /tonight are force-static, so
+// their whole page is already in the document, but it runs past React's
+// 12,800-byte limit for an inline boundary. React therefore streamed it into a
+// hidden div behind the shell and revealed it up to 300ms after the first
+// paint. A root update in that window made hydration render the route again
+// on the client: the shell came back, the page remounted, and for a moment
+// the document held two Today screens. The browser suite failed on both
+// (5 Oct 2026). Without the shell the page is in the first paint. On a cold
+// tab tap over slow 4G the shell had painted at about 850ms and the page at
+// about 1250ms, the same moment the page now paints without it.
+//
 // The tree is read rather than rendered: SiteNav is a client component that
 // asks the app's auth and command-palette contexts for its own children, and a
 // stub of those would only prove the stub.
+
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import { isValidElement, type ReactElement, type ReactNode } from "react";
 import { describe, expect, it } from "vitest";
@@ -46,5 +60,13 @@ describe("RouteLoadingShell", () => {
     expect(main.props["aria-live"]).toBe("polite");
     expect(main.props["aria-label"]).toBe("Loading Tonight");
     expect(main.props.className).toBe("routeLoadingShell");
+  });
+
+  it("never stands in front of a prerendered route", () => {
+    for (const route of ["today", "tonight"]) {
+      const page = readFileSync(join(process.cwd(), "app", route, "page.tsx"), "utf8");
+      expect(page).toContain('export const dynamic = "force-static";');
+      expect(existsSync(join(process.cwd(), "app", route, "loading.tsx"))).toBe(false);
+    }
   });
 });

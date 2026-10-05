@@ -19,6 +19,7 @@ export default function PlanDescribeFirst({
   onQueryChange,
   onPrefillQueryChange,
   initialQuery = "",
+  ready = true,
 }: {
   onSubmit: (query: string, stopCount?: PlanStopCount) => void;
   onGuideMeInstead: () => void;
@@ -27,6 +28,12 @@ export default function PlanDescribeFirst({
   onPrefillQueryChange?: (query: string) => void;
   /** Prefill from a confirmed Night OS Ask draft_plan proposal. */
   initialQuery?: string;
+  /**
+   * False on the server-painted form PlanComposer replaces once it hydrates.
+   * That form is thrown away with whatever was typed into it, so until the
+   * real one mounts the field reads only and Sort it is unavailable.
+   */
+  ready?: boolean;
 }) {
   const [query, setQuery] = useState(initialQuery.slice(0, 500));
   const [stopCount, setStopCount] = useState<PlanStopCount>(normalizePlanStopCount(inferNightContext(initialQuery).context.stopCount));
@@ -74,6 +81,7 @@ export default function PlanDescribeFirst({
   }, [initialQuery, stopCountTouched, touched]);
 
   function submit(queryOverride = query) {
+    if (!ready) return;
     const trimmed = queryOverride.trim();
     if (!trimmed) return;
     onSubmit(trimmed, stopCount);
@@ -119,6 +127,7 @@ export default function PlanDescribeFirst({
         // field, which is the one thing left to do.
         <button
           type="button"
+          aria-disabled={ready ? undefined : true}
           onClick={() => query.trim() ? submit() : queryInput.current?.focus()}
         >
           Sort it
@@ -140,6 +149,7 @@ export default function PlanDescribeFirst({
           id="plan-describe-first-query"
           type="text"
           value={query}
+          readOnly={!ready}
           onChange={(event) => {
             setTouched(true);
             const value = event.target.value;

@@ -1993,6 +1993,7 @@ function PlanComposerForm({
         entryMode,
       }) ? (
         <PlanDescribeFirst
+          ready={canPersist}
           initialQuery={askDraftQuery}
           onSubmit={submitFromEntry}
           onQueryChange={setConciergeQuery}
@@ -2346,6 +2347,11 @@ export default function PlanComposer() {
       hasDurableDraft: Boolean(durableDraft),
     };
   }, [hydrated]);
+  // The form is MOUNTED AGAIN once hydrated, so its state initialisers read the
+  // recovered drafts. Whatever the server-painted form held is thrown away with
+  // it, so that form takes no input (`canPersist` reaches the describe-first
+  // field as `ready`). On a slow load the browser suite typed a query into it,
+  // lost it at the remount, and tapped Sort it on an empty field (5 Oct 2026).
   return (
     <PlanComposerForm
       key={hydrated ? "hydrated" : "server"}

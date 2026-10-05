@@ -35,3 +35,31 @@
   color: var(--brass);
   font-weight: 600;
 }
+
+/* The room the strip holds while its read runs (TonightConditionsStrip.tsx).
+   The same panel, unpainted, with the copy floored to the lines the answer
+   takes at this width. Measured on a keyless build (5 Oct 2026), the
+   120-character answer ran to four lines in the panel's 248px at a 320px
+   viewport, three in its 318px to 358px at 390 and 430, and two in its 628px
+   at 768. The panel is its own size container so a narrow host (the feed's
+   desktop rail) gets the narrow floor. */
+.tonightConditionsHold {
+  visibility: hidden;
+  container-type: inline-size;
+}
+
+.tonightConditionsHold .tonightConditionsCopy {
+  min-height: 2lh;
+}
+
+@container (max-width: 439.98px) {
+  .tonightConditionsHold .tonightConditionsCopy {
+    min-height: 3lh;
+  }
+}
+
+@container (max-width: 299.98px) {
+  .tonightConditionsHold .tonightConditionsCopy {
+    min-height: 4lh;
+  }
+}
