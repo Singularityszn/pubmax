@@ -21,8 +21,7 @@
 -- through. Reworking the live write path to un-break a function nothing calls
 -- buys risk, not safety. Should the pairing lane ever be revived for its
 -- atomicity, the receipt belongs at that upsert boundary FIRST, so no caller
--- has to guess again; __tests__/oneTapPricePairRemovalEffective.test.ts holds
--- that door.
+-- has to guess again.
 --
 -- This DROPS THE FUNCTION AND NO ROW. A pair-written Pint Drop carries no
 -- column separating it from one the live two-phase lane wrote, and EXECUTE is
