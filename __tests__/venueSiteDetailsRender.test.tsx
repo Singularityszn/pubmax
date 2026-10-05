@@ -2,7 +2,7 @@
 
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
-import { expect, it } from "vitest";
+import { afterAll, beforeAll, expect, it, vi } from "vitest";
 
 import VenueSiteDetails from "@/components/map/VenueSiteDetails";
 import { placesEnrichmentRecord } from "@/lib/placesEnrichment";
@@ -11,6 +11,14 @@ import { applyPlacesEnrichment } from "@/lib/venuePlacesEnrichment";
 import { applyVenueSiteFacts, type VenueSiteFacts } from "@/lib/venueSiteFacts";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+beforeAll(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-05T12:00:00Z"));
+});
+afterAll(() => {
+  vi.useRealTimers();
+});
 
 const pin = slimVenueToPin({ id: "venue-a", name: "Test Arms", lat: 51.5, lng: -0.1, borough: "Camden", cheapestPrice: null });
 const facts: VenueSiteFacts = {
@@ -63,5 +71,16 @@ it("does not repeat a fact Google Places already answers", () => {
   }, "2026-10-01T09:00:00Z");
   const { container, unmount } = render(applyPlacesEnrichment(applyVenueSiteFacts(pin, facts), record));
   expect(container.innerHTML).toBe("");
+  unmount();
+});
+
+it("shows the site's hours when Google Places hours are too old to decide open state", () => {
+  const record = placesEnrichmentRecord("venue-a", "ChIJVerified123", {
+    regularOpeningHours: { periods: [{ open: { day: 1, hour: 11, minute: 0 }, close: { day: 1, hour: 23, minute: 0 } }] },
+  }, "2026-08-06T09:00:00Z");
+  const venue = applyPlacesEnrichment(applyVenueSiteFacts(pin, facts), record);
+  expect(venue.openingHours).toEqual(facts.hours?.hours);
+  const { container, unmount } = render(venue);
+  expect(container.querySelector("dl > div dd")?.textContent).toBe("12:00 to 23:00");
   unmount();
 });

@@ -45,6 +45,17 @@ describe("statedDogPolicy", () => {
   it("states nothing when the page both welcomes and refuses dogs", () => {
     expect(statedDogPolicy("Dog Friendly. No dogs in the restaurant after 6pm.")).toBeNull();
   });
+
+  it("reads no refusal limited to an area or an hour, but still refuses assistance dogs only", () => {
+    expect(statedDogPolicy("Please note no dogs are allowed in the restaurant.")).toBeNull();
+    expect(statedDogPolicy("Dogs are not allowed after 6pm.")).toBeNull();
+    expect(statedDogPolicy("No dogs in the dining room.")).toBeNull();
+    expect(statedDogPolicy("No dogs in the garden.")).toBeNull();
+    expect(statedDogPolicy("Dogs are not permitted in some areas.")).toBeNull();
+    expect(statedDogPolicy("No dogs before 5pm.")).toBeNull();
+    expect(statedDogPolicy("Only assistance dogs are allowed.")?.policy).toBe("not-allowed");
+    expect(statedDogPolicy("No dogs except assistance dogs.")?.policy).toBe("not-allowed");
+  });
 });
 
 describe("statedSiteOpeningHours", () => {
@@ -88,6 +99,16 @@ describe("statedSiteOpeningHours", () => {
     expect(statedSiteOpeningHours("[Opening Times](https://pub.example/opening-times/) Monday 12pm - 11pm")).toBeNull();
     expect(statedSiteOpeningHours("Opening hours Monday 11 - 5")).toBeNull();
     expect(statedSiteOpeningHours("Monday 12pm - 11pm Tuesday 12pm - 11pm")).toBeNull();
+  });
+
+  it("reads a clock without a meridiem only when its window reads as 24-hour", () => {
+    expect(statedSiteOpeningHours("Opening Hours Monday - Saturday 12:00 - 11:00 Sunday 12:00 - 10:30")).toBeNull();
+    expect(statedSiteOpeningHours("Opening hours Monday - Thursday 5:00 - 11:00pm")).toBeNull();
+    expect(statedSiteOpeningHours("Opening hours Monday 11:00am - 23:00")).toBeNull();
+    expect(statedSiteOpeningHours("Opening hours Monday 12pm - 3pm, 5:00 - 11:00")).toBeNull();
+    expect(statedSiteOpeningHours("Opening hours Monday 08:00 - 11:00")?.hours).toEqual({ 1: [{ opens: "08:00", closes: "11:00" }] });
+    expect(statedSiteOpeningHours("Opening hours Monday 11:00 - 00:00")?.hours).toEqual({ 1: [{ opens: "11:00", closes: "00:00" }] });
+    expect(statedSiteOpeningHours("Opening hours Monday 12 noon - 23:00")?.hours).toEqual({ 1: [{ opens: "12:00", closes: "23:00" }] });
   });
 
   it("stops before hours that hold only under a condition", () => {

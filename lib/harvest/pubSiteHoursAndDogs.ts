@@ -61,12 +61,15 @@ const DOG_REFUSED =
   /\bno dogs\b|\b(?:dogs?|pets?)\s+(?:are\s+)?(?:not|n't|never)\s+(?:allowed|permitted|admitted|welcome)\b|\b(?:do not|don't|cannot|can't)\s+(?:allow|accept|admit|welcome)\s+(?:any\s+)?(?:dogs?|pets?)\b|\bnot\s+(?:a\s+)?dog[\s-]*friendly\b|\bonly\s+(?:assistance|guide|hearing)\s+dogs\b|\b(?:except|apart from|other than|with the exception of)\s+(?:registered\s+)?(?:assistance|guide|hearing)\s+dogs\b/i;
 /** Assistance dogs are a legal duty, so a page that welcomes them says nothing about pets. */
 const ASSISTANCE_DOG = /\b(?:assistance|guide|hearing|service)\s+dogs?\b/i;
-/**
- * A welcome with a limit on it is not a welcome to the pub: an hour, a part of
- * the building or a share of a group's venues.
- */
-const CONDITIONAL =
-  /\b(?:only|except|unless|excluding|but not|not in|not inside|on request|at (?:the|our) discretion|designated|(?:some|certain|selected|most|many) (?:areas|of our)|at times|(?:until|after|before|from|till) \d{1,2}(?:[:.]\d{2})?\s*(?:am|pm)?|gardens?|terraces?|bar areas?|areas|outside|outdoors?|patio|courtyard)\b/i;
+/** A part of the building, an hour or a share of a group's venues. */
+const AREA_OR_HOUR = String.raw`only in|(?:some|certain|selected|most|many) (?:areas|of our)|at times|(?:until|after|before|from|till) \d{1,2}(?:[:.]\d{2})?\s*(?:am|pm)?|gardens?|terraces?|bar areas?|areas|outside|outdoors?|patio|courtyard`;
+/** A refusal with a limit on it, a restaurant or a dining room included, is not a refusal at the pub. */
+const LIMITED = new RegExp(String.raw`\b(?:${AREA_OR_HOUR}|restaurant|dining(?: room| area)?)\b`, "i");
+/** A welcome with a limit on it is not a welcome to the pub. */
+const CONDITIONAL = new RegExp(
+  String.raw`\b(?:only|except|unless|excluding|but not|not in|not inside|on request|at (?:the|our) discretion|designated|${AREA_OR_HOUR})\b`,
+  "i",
+);
 /** A visitor's review quotes a guest, and a site footer names a page; neither is the pub stating a policy. */
 const NOT_THE_PUB_SPEAKING =
   /\b(?:google|tripadvisor|reviews?|reviewed|rated|stars?|thanks|thank you|careers|privacy policy|terms and conditions|cookie|gift cards?|mailing list|sign up|quick links)\b|[\u2605\u2B50]|\p{Extended_Pictographic}/iu;
@@ -78,10 +81,11 @@ function clauses(pageText: string): string[] {
   return pageText.split(CLAUSE_BREAK).map((clause) => clause.trim()).filter(Boolean);
 }
 
-function dogClauseVerdict(clause: string): DogPolicy | null {
+/** A refusal limited to an area or an hour states no policy for the pub, but it still limits any welcome. */
+function dogClauseVerdict(clause: string): DogPolicy | "limited-refusal" | null {
   if (!DOG_WORD.test(clause) || /\?\s*$/.test(clause)) return null;
   if (NOT_THE_PUB_SPEAKING.test(clause)) return null;
-  if (DOG_REFUSED.test(clause)) return "not-allowed";
+  if (DOG_REFUSED.test(clause)) return LIMITED.test(clause) ? "limited-refusal" : "not-allowed";
   if (!DOG_WELCOME.test(clause)) return null;
   if (ASSISTANCE_DOG.test(clause) || CONDITIONAL.test(clause) || NEGATION.test(clause) || ONE_OFF.test(clause)) return null;
   return "welcome";
@@ -105,12 +109,14 @@ function quotable(clause: string, pattern: RegExp): string | null {
 export function statedDogPolicy(pageText: string): StatedDogPolicy | null {
   let welcome: string | null = null;
   let refused: string | null = null;
+  let limitedRefusal = false;
   for (const clause of clauses(pageText)) {
     const verdict = dogClauseVerdict(clause);
     if (verdict === "welcome") welcome ??= quotable(clause, DOG_WELCOME);
     if (verdict === "not-allowed") refused ??= quotable(clause, DOG_REFUSED);
+    if (verdict === "limited-refusal") limitedRefusal = true;
   }
-  if (welcome && refused) return null;
+  if (welcome && (refused || limitedRefusal)) return null;
   const evidence = welcome ?? refused;
   if (!evidence || !passageIsOnPage(pageText, evidence, MAX_DOG_EVIDENCE_CHARS)) return null;
   return { policy: welcome ? "welcome" : "not-allowed", evidence };
@@ -159,10 +165,25 @@ function clockOf(raw: string): string | null {
   return parseStatedClock(compact);
 }
 
+const BARE_CLOCK = /^(\d{1,2})(?:[:.]\d{2})?$/;
+const MERIDIEM_CLOCK = /\d\s*[ap]\.?m\.?$/i;
+
+/**
+ * A clock with no meridiem reads only as 24-hour, so its window must show it:
+ * an hour from 13 to 23, a 00 hour or a zero-padded clock. "12:00 - 11:00" and
+ * "5:00 - 11:00pm" could each be either, so they are not read.
+ */
+function reads24Hour(raws: readonly string[]): boolean {
+  const bare = raws.map((raw) => BARE_CLOCK.exec(raw.trim())).filter((match) => match !== null);
+  if (bare.length === 0) return true;
+  if (raws.some((raw) => MERIDIEM_CLOCK.test(raw.trim()))) return false;
+  return bare.some(([clock, hour]) => clock.startsWith("0") || Number(hour) >= 13);
+}
+
 function windowOf(opensRaw: string, closesRaw: string): OpeningWindow | null {
   const opens = clockOf(opensRaw);
   const closes = clockOf(closesRaw);
-  if (!opens || !closes || opens === closes) return null;
+  if (!opens || !closes || opens === closes || !reads24Hour([opensRaw, closesRaw])) return null;
   return { opens, closes };
 }
 
@@ -282,7 +303,8 @@ const blocksAgree = (a: WeeklyOpeningHours, b: WeeklyOpeningHours) =>
  * null. Days the page does not state stay out, an explicitly closed day is an
  * empty window list, and a page whose hours blocks disagree on a day has
  * stated nothing. Of blocks that agree, the one stating the most days stands.
- * A bare "11 - 5" names no meridiem and is not read.
+ * A bare "11 - 5" names no meridiem and is not read, and neither is a window
+ * whose clocks without a meridiem could be 12-hour ("12:00 - 11:00").
  */
 export function statedSiteOpeningHours(pageText: string): StatedSiteHours | null {
   const blocks: StatedSiteHours[] = [];

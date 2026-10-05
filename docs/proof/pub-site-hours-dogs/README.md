@@ -12,11 +12,15 @@ passage, the page URL and the day of the read.
 
 - **Dogs.** "Dog friendly", "dogs are welcome" and similar are a welcome.
   "No dogs", "dogs are not allowed" or "assistance dogs only" is a refusal. A
-  page that does both, a welcome limited to a garden, an area or an hour, a
-  guest review, a footer link and "assistance dogs welcome" all stay unknown.
+  page that does both, a welcome or a refusal limited to a garden, a
+  restaurant, an area or an hour, a guest review, a footer link and
+  "assistance dogs welcome" all stay unknown.
 - **Hours.** Only a passage under an opening-hours label counts. Kitchen,
   food, seasonal and Christmas blocks do not. A day the page does not state is
   absent, not closed. A time with no am, pm or colon ("11 - 5") is not read.
+  A clock with no am or pm is read only as 24-hour, when its window has an
+  hour from 13 to 23, a 00 hour or a zero-padded clock. "12:00 - 11:00" and
+  "5:00 - 11:00pm" are not read, and an hours block stops at such a window.
   Hours with a condition ("for club nights") are not read. A page with two
   hours blocks that disagree on a day states nothing.
 
@@ -34,14 +38,14 @@ chain's, so it is dropped.
 | Measure | Count |
 | --- | --- |
 | Finished reads with a kept page | 360 |
-| Pubs with a stated fact | 188 |
+| Pubs with a stated fact | 186 |
 | Dogs welcome | 50 |
 | Dogs not allowed | 0 |
-| Opening hours | 178 (157 with all seven days) |
+| Opening hours | 176 (154 with all seven days) |
 | Pages on the chain list | 6 |
 | Hours passages dropped as chain-wide | 32 |
 | Dog passages dropped as chain-wide | 8 |
-| Pages that state neither | 137 |
+| Pages that state neither | 139 |
 
 Every row names a venue in the app.
 

@@ -1,4 +1,4 @@
-import { placesOpeningHours, usablePlacesObservation } from "@/lib/placesEnrichment";
+import { PLACES_REFRESH_DAYS, placesOpeningHours, usablePlacesObservation } from "@/lib/placesEnrichment";
 import type { Venue } from "@/lib/venues";
 import "./venuePlacesDetails.css";
 
@@ -10,15 +10,16 @@ const read = (readOn: string) =>
 /**
  * Dog policy and opening hours the pub's own website states, each credited to
  * that page and the day it was read. Google Places answers first: a fact it
- * already holds is not repeated here. A day the site does not state reads as
- * not stated, never as closed.
+ * already holds is not repeated here, and its hours count only while fresh
+ * enough to decide open state. A day the site does not state reads as not
+ * stated, never as closed.
  */
 export default function VenueSiteDetails({ venue }: { venue: Venue }) {
   const facts = venue.siteFacts;
   if (!facts) return null;
   const now = new Date();
   const dogs = facts.dogs && !usablePlacesObservation(venue.placesContent?.allowsDogs, now) ? facts.dogs : null;
-  const hours = facts.hours && !placesOpeningHours(venue.placesContent, now) ? facts.hours.hours : null;
+  const hours = facts.hours && !placesOpeningHours(venue.placesContent, now, PLACES_REFRESH_DAYS) ? facts.hours.hours : null;
   if (!dogs && !hours) return null;
   const credit = <small className="venuePlacesDetailsCredit">Pub website · Read {read(facts.readOn)}</small>;
   return (

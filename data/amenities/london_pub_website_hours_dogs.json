@@ -3,17 +3,17 @@
   "extractor": "lib/harvest/pubSiteHoursAndDogs.ts, no model",
   "spendUsd": 0,
   "skipCounts": {
-    "page-stated-neither": 137,
+    "page-stated-neither": 139,
     "chain-page": 6,
     "chain-hours-passage": 32,
     "chain-dogs-passage": 8
   },
   "counts": {
-    "rows": 188,
+    "rows": 186,
     "dogsWelcome": 50,
     "dogsNotAllowed": 0,
-    "hours": 178,
-    "withVenueId": 188
+    "hours": 176,
+    "withVenueId": 186
   },
   "rows": [
     {
@@ -6804,55 +6804,6 @@
       }
     },
     {
-      "osmId": "venue/venue-zh8723",
-      "name": "The London Hospital Tavern",
-      "venueId": "venue-zh8723",
-      "sourceUrl": "https://www.londonhospitaltavern.com/",
-      "readOn": "2026-10-05",
-      "hours": {
-        "hours": {
-          "1": [
-            {
-              "opens": "11:30",
-              "closes": "23:00"
-            }
-          ],
-          "2": [
-            {
-              "opens": "11:30",
-              "closes": "00:00"
-            }
-          ],
-          "3": [
-            {
-              "opens": "11:30",
-              "closes": "00:00"
-            }
-          ],
-          "4": [
-            {
-              "opens": "11:30",
-              "closes": "01:00"
-            }
-          ],
-          "5": [
-            {
-              "opens": "11:30",
-              "closes": "01:00"
-            }
-          ]
-        },
-        "statedDays": [
-          1,
-          2,
-          3,
-          4,
-          5
-        ],
-        "evidence": "Opening Hours Monday: 11:30 - 11pm Tuesday: 11:30 - 12am Wednesday: 11:30 - 12am Thursday: 11:30 - 1am Friday: 11:30 - 1am"
-      }
-    },
-    {
       "osmId": "way/100856450",
       "name": "The White House",
       "venueId": "venue-13ribh6",
@@ -6972,12 +6923,6 @@
       "readOn": "2026-10-05",
       "hours": {
         "hours": {
-          "0": [
-            {
-              "opens": "12:00",
-              "closes": "22:30"
-            }
-          ],
           "1": [
             {
               "opens": "15:00",
@@ -7007,24 +6952,16 @@
               "opens": "15:00",
               "closes": "01:00"
             }
-          ],
-          "6": [
-            {
-              "opens": "12:00",
-              "closes": "01:00"
-            }
           ]
         },
         "statedDays": [
-          0,
           1,
           2,
           3,
           4,
-          5,
-          6
+          5
         ],
-        "evidence": "Opening Times Monday: 15:00 – 23:00 (Kitchen open until 22:00) Tuesday: 15:00 – 23:00 (Kitchen open until 22:00) Wednesday: 15:00 – 23:00 (Kitchen open until 22:00) Thursday: 15:00 – 23:00 (Kitchen open until 22:00) Friday: 15:00 – 1:00 (Kitchen open until 22:00) Saturday: 12:00 – 1:00 (Kitchen open until 22:00) Sunday: 12:00 – 22:30 (Kitchen open until 21:00)"
+        "evidence": "Opening Times Monday: 15:00 – 23:00 (Kitchen open until 22:00) Tuesday: 15:00 – 23:00 (Kitchen open until 22:00) Wednesday: 15:00 – 23:00 (Kitchen open until 22:00) Thursday: 15:00 – 23:00 (Kitchen open until 22:00) Friday: 15:00 – 1:00 (Kitchen open until 22:00)"
       }
     },
     {
@@ -8176,12 +8113,6 @@
       "readOn": "2026-10-05",
       "hours": {
         "hours": {
-          "0": [
-            {
-              "opens": "12:00",
-              "closes": "23:00"
-            }
-          ],
           "1": [
             {
               "opens": "16:00",
@@ -8205,30 +8136,15 @@
               "opens": "12:00",
               "closes": "23:00"
             }
-          ],
-          "5": [
-            {
-              "opens": "12:00",
-              "closes": "01:00"
-            }
-          ],
-          "6": [
-            {
-              "opens": "12:00",
-              "closes": "01:00"
-            }
           ]
         },
         "statedDays": [
-          0,
           1,
           2,
           3,
-          4,
-          5,
-          6
+          4
         ],
-        "evidence": "Opening Hours - Monday-Tuesday 4pm-11pm - Wednesday-Thursday 12pm-11pm - Friday-Saturday 12pm-01:00 - Sunday - 12pm-11pm"
+        "evidence": "Opening Hours - Monday-Tuesday 4pm-11pm - Wednesday-Thursday 12pm-11pm"
       }
     },
     {
@@ -10895,69 +10811,6 @@
           6
         ],
         "evidence": "Opening Hours Today (Mon) 12:00pm - 11:00pm Tuesday 12:00pm - 11:00pm Wednesday 12:00pm - 11:00pm Thursday 12:00pm - 11:00pm Friday 12:00pm - 12:00am Saturday 12:00pm - 12:00am Sunday 12:00pm - 10:30pm"
-      }
-    },
-    {
-      "osmId": "way/97425688",
-      "name": "The Hope",
-      "venueId": "venue-1kk8osq",
-      "sourceUrl": "http://www.hopecarshalton.co.uk/",
-      "readOn": "2026-10-05",
-      "hours": {
-        "hours": {
-          "0": [
-            {
-              "opens": "12:00",
-              "closes": "22:30"
-            }
-          ],
-          "1": [
-            {
-              "opens": "12:00",
-              "closes": "23:00"
-            }
-          ],
-          "2": [
-            {
-              "opens": "12:00",
-              "closes": "23:00"
-            }
-          ],
-          "3": [
-            {
-              "opens": "12:00",
-              "closes": "23:00"
-            }
-          ],
-          "4": [
-            {
-              "opens": "12:00",
-              "closes": "23:00"
-            }
-          ],
-          "5": [
-            {
-              "opens": "12:00",
-              "closes": "23:00"
-            }
-          ],
-          "6": [
-            {
-              "opens": "12:00",
-              "closes": "23:00"
-            }
-          ]
-        },
-        "statedDays": [
-          0,
-          1,
-          2,
-          3,
-          4,
-          5,
-          6
-        ],
-        "evidence": "opening times Mon - Sat 12.00 - 11.00pm Sun 12.00 - 10.30pm"
       }
     }
   ]
