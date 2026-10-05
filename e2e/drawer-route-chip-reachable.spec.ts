@@ -87,7 +87,10 @@ test.describe("desktop drawer leaves the route chip reachable", () => {
     const { drawer, chip } = await openFirstStopDrawer(page, 1440);
 
     const door = chip.getByRole("button", { name: "Check last train at final stop" });
-    await expect.poll(() => door.evaluate((node) => node.closest("[inert]") === null)).toBe(true);
+    // The click is the inert check: an inert button takes no hit, so the click
+    // retries until the trap exempts the chip. A separate read of `[inert]` had
+    // only expect.poll's 10s, and one read could wait longer than that for a
+    // main thread busy drawing the map.
     await door.click({ timeout: 30_000 });
 
     await expectFinalStopLastTrain(page, drawer);
