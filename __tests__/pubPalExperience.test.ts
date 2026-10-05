@@ -5,19 +5,25 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const authState = vi.hoisted(() => ({
-  current: { user: null, loading: false, configured: false },
+  current: { user: null as { id: string } | null, loading: false, configured: false },
 }));
+const transport = vi.hoisted(() => ({ request: vi.fn<typeof fetch>() }));
 
 vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => authState.current,
 }));
 vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
+vi.mock("@/lib/authedFetch", async (original) => ({
+  ...(await original<typeof import("@/lib/authedFetch")>()),
+  authedActionFetch: transport.request,
+}));
 
 import PalExperience from "@/components/pal/PalExperience";
 import {
   anonymousPalDraftOwner,
   DEFAULT_PAL_DRAFT,
   writePalOnboardingDraft,
+  type PubPal,
 } from "@/lib/pubPal";
 
 let container: HTMLDivElement;
@@ -39,6 +45,8 @@ function buttonContaining(text: string): HTMLButtonElement {
 }
 
 beforeEach(async () => {
+  authState.current = { user: null, loading: false, configured: false };
+  transport.request.mockReset();
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   window.localStorage.clear();
   window.sessionStorage.clear();
@@ -155,5 +163,47 @@ describe("Pub Pal first meeting and onboarding", () => {
     // The greyhound ships a master of its own, so the portrait becomes that
     // photograph rather than the robin's.
     expect(container.querySelector('img[alt="Pub Pal"]')?.getAttribute("src")).toContain("circuit-greyhound");
+  });
+});
+
+describe("Pub Pal home appearance description", () => {
+  it.each([
+    ["beer", "Your amber robin shaped around your night, with boundaries you control."],
+    ["gin", "Your crystal robin shaped around your night, with boundaries you control."],
+    ["rum", "Your copper robin shaped around your night, with boundaries you control."],
+    ["whisky", "Your faceted robin shaped around your night, with boundaries you control."],
+    ["brandy", "Your polished robin shaped around your night, with boundaries you control."],
+    ["vodka", "Your ice robin shaped around your night, with boundaries you control."],
+  ] as const)("describes a %s Pal without an incorrect indefinite article", async (signalAffinity, description) => {
+    await act(async () => root?.unmount());
+    const ownerId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const timestamp = "2026-10-04T12:00:00.000Z";
+    const pal: PubPal = {
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      ownerId,
+      name: "Moss",
+      adultAttestedAt: timestamp,
+      appearance: { ...DEFAULT_PAL_DRAFT.appearance, signalAffinity },
+      personality: DEFAULT_PAL_DRAFT.personality,
+      voice: DEFAULT_PAL_DRAFT.voice,
+      muted: true,
+      hidden: false,
+      proposalPreferences: { memories: false, routes: true },
+      masteryPoints: 0,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    authState.current = { user: { id: ownerId }, loading: false, configured: true };
+    transport.request.mockImplementation(async (input) => {
+      if (input === "/api/pub-pal") return Response.json({ pal });
+      if (input === "/api/pub-pal/memories") return Response.json({ memories: [] });
+      throw new Error(`Unexpected Pal request: ${String(input)}`);
+    });
+    root = createRoot(container);
+    await act(async () => root?.render(createElement(PalExperience)));
+    await settle();
+
+    expect(container.querySelector("#pal-home-title")?.textContent).toBe("Moss");
+    expect(container.querySelector("#pal-home-title + p")?.textContent).toBe(description);
   });
 });
