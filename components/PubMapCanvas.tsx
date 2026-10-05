@@ -144,7 +144,7 @@ import { MAP_PIN_REVEAL_EVENT } from "@/lib/mapPinRevealEvent";
 import {
   wireClickRouting, wireHoverPrefetch, wirePubHover, wireCursor,
 } from "@/components/map/canvas/interactions";
-import { installMapCameraProbe } from "@/components/map/canvas/cameraProbe";
+import { installMapCameraProbe, mapCameraSettling } from "@/components/map/canvas/cameraProbe";
 import {
   installMapReaderPositionProbe,
   syncReaderPositionOnMap,
@@ -618,7 +618,7 @@ export default function PubMapCanvas({
   listCount = 0,
   onSoftRetryChange,
   focusPoint = null,
-  nearMePending = false,
+  nearMePending,
   openingCameraSettled,
   onViewportChange,
   onUserCameraMove,
@@ -1190,9 +1190,9 @@ export default function PubMapCanvas({
   );
   const focusKeyRef = useRef<string | null>(null);
   const focusPointRef = useRef(focusPoint);
-  const nearMePendingRef = useRef(nearMePending);
+  const nearMePendingRef = useRef(Boolean(nearMePending));
   useEffect(() => {
-    nearMePendingRef.current = nearMePending;
+    nearMePendingRef.current = Boolean(nearMePending);
   }, [nearMePending]);
   const openingCameraSettledRef = useRef(openingCameraSettled);
   useEffect(() => {
@@ -3310,18 +3310,15 @@ export default function PubMapCanvas({
     const removePaintedPinProbe = installPaintedPinProbe(map);
     // Camera side of the same answer: what a gesture left behind, and where a
     // geographic point is being painted (cameraProbe.ts).
-    // A move is still owed while the opening turn is undecided, while a
-    // scheduled move waits for its frame, or while the opening-location answer
-    // has yet to move the camera (the same reading the turn's own wait takes).
-    const removeMapCameraProbe = installMapCameraProbe(
-      map,
-      () =>
-        !arrivalBearingSpentRef.current ||
-        cameraLanePending() ||
-        !openingCameraSettledRef.current ||
-        mapCameraFocusMoves(focusPointRef.current, focusKeyRef.current) ||
-        nearMePendingRef.current ||
-        nearbyFramingOwedRef.current,
+    const removeMapCameraProbe = installMapCameraProbe(map, () =>
+      mapCameraSettling({
+        arrivalTurnSpent: arrivalBearingSpentRef.current,
+        cameraLanePending: cameraLanePending(),
+        openingCameraSettled: openingCameraSettledRef.current,
+        focusMoves: mapCameraFocusMoves(focusPointRef.current, focusKeyRef.current),
+        nearMePending: nearMePendingRef.current,
+        nearbyFramingOwed: nearbyFramingOwedRef.current,
+      }),
     );
     const removeMapReaderPositionProbe = installMapReaderPositionProbe(map);
     wireHoverPrefetch(map, { onVenuePrefetchRef });

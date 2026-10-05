@@ -72,6 +72,33 @@ function projectOnMap(
   return { x: rect.left + point.x, y: rect.top + point.y };
 }
 
+/** The moves the app may still owe the camera, as the canvas reads them. */
+type MapCameraOwedMoves = {
+  arrivalTurnSpent: boolean;
+  cameraLanePending: boolean;
+  openingCameraSettled: boolean;
+  focusMoves: boolean;
+  nearMePending: boolean;
+  nearbyFramingOwed: boolean;
+};
+
+/**
+ * The probe's `settling`: a move is still owed while the opening turn is
+ * undecided, while a scheduled move waits for its frame, while the
+ * opening-location answer has yet to move the camera (the same reading the
+ * turn's own wait takes), or while a Near me answer or its framing is owed.
+ */
+export function mapCameraSettling(owed: MapCameraOwedMoves): boolean {
+  return (
+    !owed.arrivalTurnSpent ||
+    owed.cameraLanePending ||
+    !owed.openingCameraSettled ||
+    owed.focusMoves ||
+    owed.nearMePending ||
+    owed.nearbyFramingOwed
+  );
+}
+
 /**
  * Publishes the camera reading for the browser suite. Returns its own removal.
  * `settling` answers whether the app still owes the camera a move.
