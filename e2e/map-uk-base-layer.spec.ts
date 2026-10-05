@@ -1,6 +1,7 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Response as PlaywrightResponse } from "@playwright/test";
 import { attachBill } from "./helpers/priceBill";
 import { MAP_CHOSEN_AREA_KEY } from "../lib/mapChosenArea";
+import { parseUkBaseShard, type UkBasePub } from "../lib/ukBasePubs";
 
 // The UK base layer's two load-bearing promises, asserted in a real browser
 // with a real MapLibre canvas (this spec runs in the `chromium-gl` project):
@@ -147,6 +148,18 @@ test("normal London entry paints UK base pubs and takes a price", async ({
     });
   });
   const requests = ukBaseRequests(page);
+  // Observe only packs the real arrival already requests. Do not fetch or
+  // inject a fixture route to make the chosen pubs available.
+  const publicBaseRows = new Map<string, UkBasePub>();
+  const shardReads: Promise<void>[] = [];
+  const observeArrivalShard = (response: PlaywrightResponse) => {
+    const path = new URL(response.url()).pathname;
+    if (!path.startsWith("/data/uk_base/packs/") || !path.endsWith(".json") || !response.ok()) return;
+    shardReads.push(response.json().then((body: unknown) => {
+      for (const pub of parseUkBaseShard(body)) publicBaseRows.set(pub.id, pub);
+    }));
+  };
+  page.on("response", observeArrivalShard);
 
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
@@ -157,6 +170,11 @@ test("normal London entry paints UK base pubs and takes a price", async ({
   });
   await expect
     .poll(async () => Number(await wrap.getAttribute("data-uk-base-count")), { timeout: 30_000 })
+    .toBeGreaterThan(0);
+  // Let the curated pack populate before selecting a base pub, so an
+  // overlapping curated identity has reached the ordinary pin router.
+  await expect
+    .poll(async () => Number(await wrap.getAttribute("data-venue-count")), { timeout: 30_000 })
     .toBeGreaterThan(0);
   const curatedBefore = await wrap.getAttribute("data-venue-count");
 
@@ -203,93 +221,65 @@ test("normal London entry paints UK base pubs and takes a price", async ({
     })
     .toBeGreaterThan(1);
 
-  const pins = uniqueUkPins(await paintedMarks(page));
-  expect(pins.length).toBeGreaterThan(1);
+  // This source-qualified pair has no curated owner. An arbitrary edge
+  // pub can focus a viewport with no second operable base pin.
+  const firstId = "venue-uk-n33101954"; // Turnpike House
+  const secondId = "venue-uk-w640280851"; // The Axe
+  page.off("response", observeArrivalShard);
+  await Promise.all(shardReads);
+  for (const id of [firstId, secondId]) {
+    const pub = publicBaseRows.get(id);
+    expect(pub, `${id} must come from an arrival's actual public shard`).toBeDefined();
+    expect(pub?.curatedVenueId, `${id} must be base-only`).toBe("");
+    expect(pub?.kind).toBe("pub");
+  }
   let firstPinId: string | null = null;
 
-  async function dismissCuratedSheetIfOpen(): Promise<void> {
-    const curatedClose = page.getByRole("button", { name: "Close pub detail" });
-    if (!(await curatedClose.isVisible().catch(() => false))) return;
-    await curatedClose.click();
-    await expect(page.locator(".venueInspector")).toHaveCount(0, { timeout: 10_000 });
-    await expect(sheet).toHaveCount(0, { timeout: 5_000 });
-  }
-
-  let firstPinAttempt = 0;
   await expect
     .poll(
       async () => {
-        await dismissCuratedSheetIfOpen();
-        const ukPins = uniqueUkPins(await paintedMarks(page));
-        if (ukPins.length === 0) return null;
-        const pin = ukPins[firstPinAttempt % ukPins.length];
-        firstPinAttempt += 1;
+        const pin = uniqueUkPins(await paintedMarks(page)).find((mark) => mark.id === firstId);
+        if (!pin) return null;
         await page.mouse.click(pin.x, pin.y);
         await page.waitForTimeout(400);
         if ((await sheet.count()) === 0) return null;
         const name = await sheetName();
-        if (!name) return null;
         const sel = new URL(page.url()).searchParams.get("sel");
-        if (!sel?.startsWith("venue-uk-")) return null;
-        firstPinId = pin.id;
+        if (sel !== firstId || !name) return null;
+        firstPinId = sel;
         firstName = name;
         await priceField.fill(TYPED_PRICE);
         await expect(priceField).toHaveValue(TYPED_PRICE);
         return name;
       },
       {
-        message: "a painted UK base pin opens the unverified price sheet",
+        message: "the base-only Turnpike House pin opens the unverified price sheet",
         timeout: 90_000,
       },
     )
     .not.toBeNull();
 
-  expect(firstPinId).not.toBeNull();
-
-  async function selectOtherUkBaseFromList(): Promise<void> {
-    const listButton = page
-      .locator(
-        `button.mapVenueListItem[data-venue-id^="venue-uk-"]:not([data-venue-id="${firstPinId}"])`,
-      )
-      .first();
-    if (!(await listButton.isVisible().catch(() => false))) {
-      const more = page.getByRole("button", { name: "More map controls" });
-      await expect(more).toBeVisible({ timeout: 10_000 });
-      await more.click();
-      const listToggle = page.getByRole("button", { name: "List view" });
-      await expect(listToggle).toBeVisible({ timeout: 10_000 });
-      await listToggle.click();
-      await expect(listButton).toBeVisible({ timeout: 15_000 });
-    }
-    await listButton.click();
-    await page.waitForTimeout(400);
-  }
-
+  expect(firstPinId).toBe(firstId);
+  await expect(page.locator(".venueInspector")).toHaveCount(0);
   await priceField.blur();
 
   await expect
     .poll(
       async () => {
-        for (const pin of uniqueUkPins(await paintedMarks(page))) {
-          if (pin.id === firstPinId) continue;
-          await dismissCuratedSheetIfOpen();
-          await page.mouse.click(pin.x, pin.y);
-          await page.waitForTimeout(500);
-          if ((await sheet.count()) === 0) continue;
-          const name = await sheetName();
-          if (name && name !== firstName) return name;
-        }
-        try {
-          await selectOtherUkBaseFromList();
-        } catch {
-          return null;
-        }
+        // A selection moves the camera. Read B's current painted coordinates
+        // while retaining the same mounted A sheet and typed price.
+        const pin = uniqueUkPins(await paintedMarks(page)).find((mark) => mark.id === secondId);
+        if (!pin) return null;
+        await page.mouse.click(pin.x, pin.y);
+        await page.waitForTimeout(500);
+        if ((await sheet.count()) === 0) return null;
         const name = await sheetName();
-        if (name && name !== firstName) return name;
+        const sel = new URL(page.url()).searchParams.get("sel");
+        if (sel === secondId && sel !== firstPinId && name && name !== firstName) return name;
         return null;
       },
       {
-        message: "a second UK base pub is reachable while the first sheet stays open",
+        message: "The Axe base pin is reachable while the Turnpike House sheet stays open",
         timeout: 90_000,
       },
     )
