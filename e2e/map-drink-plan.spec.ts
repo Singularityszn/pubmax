@@ -134,6 +134,56 @@ test("ordinary Beer plans keep their default URL after synchronization and copyi
   expect(copied.searchParams.get("pubs")).toBe(stops);
 });
 
+test("curated Beer shares retain their drink through style hydration and copying", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.addInitScript(() => {
+    localStorage.setItem("pubmax-tour-v1-done", "1");
+    localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+  });
+  // Existing curated shares carry the catalogue identity and ordered stops,
+  // without a style. Victorian Soho supplies heritage after mount.
+  const stops = "venue-1ufn31x,venue-1t8siin,venue-xiesdn,venue-phqazo,venue-15i2wst";
+  const response = await page.goto(`/map?drink=beer&mode=build&pubs=${stops}&crawl=victorian-soho`);
+  expect(response?.status()).toBe(200);
+  const toggle = page.getByRole("button", { name: /^(Plan an outing|Close plan)$/ });
+  await expect(async () => {
+    if (await toggle.getAttribute("aria-pressed") !== "true") await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-pressed", "true", { timeout: 1_000 });
+  }).toPass({ timeout: 30_000 });
+  await expectSoleDesktopDrawer(page, "planner");
+  const route = desktopPlannerDrawer(page).locator(".routePanel");
+  await expect(route.locator(".routeList > li")).toHaveCount(5);
+  await expect(route.getByRole("radio", { name: "Pint", exact: true })).toHaveAttribute("aria-checked", "true");
+  await expect.poll(() => new URL(page.url()).searchParams.get("style")).toBe("heritage");
+  await page.waitForTimeout(600);
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await route.locator(".routeHeader").scrollIntoViewIfNeeded();
+  const copyLink = route.getByRole("button", { name: "Copy a shareable link to this crawl", exact: true });
+  await copyLink.click();
+  await expect(copyLink).toHaveText("Copied");
+  const copied = new URL(await page.evaluate(() => navigator.clipboard.readText()));
+  await testInfo.attach("curated-share-context", {
+    body: Buffer.from(JSON.stringify({
+      location: page.url(), copied: copied.toString(),
+    })),
+    contentType: "application/json",
+  });
+  expect(new URL(page.url()).searchParams.get("drink")).toBe("beer");
+  expect(copied.searchParams.get("drink")).toBe("beer");
+  expect(copied.searchParams.get("pubs")).toBe(stops);
+  expect(copied.searchParams.get("style")).toBe("heritage");
+  expect(copied.searchParams.get("crawl")).toBe("victorian-soho");
+  await page.goto(copied.toString());
+  await page.reload();
+  await expect.poll(() => new URL(page.url()).searchParams.get("style")).toBe("heritage");
+  await page.waitForTimeout(600);
+  expect(new URL(page.url()).searchParams.get("drink")).toBe("beer");
+  expect(new URL(page.url()).searchParams.get("pubs")).toBe(stops);
+});
+
 async function openPhonePlanner(page: Page, search = "drink=wine") {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => {
