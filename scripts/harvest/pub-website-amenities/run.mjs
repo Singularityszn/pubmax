@@ -19,7 +19,10 @@
 // set, a page the plain read could not get (timeout, failed connection, 429,
 // 5xx, or almost no text) is read once more through Firecrawl, after the same
 // robots and source checks. --firecrawl-requests caps those requests, default
-// HARVEST_CLI_REQUEST_BUDGET. --read-only stops after reading and keeps each
+// HARVEST_CLI_REQUEST_BUDGET. --unwritten widens --copy-skipped to every pub
+// the copy pack holds no copy for, thin pubs first. --firecrawl-first reads a
+// page through Firecrawl before the plain read, while the request cap lasts,
+// except a PDF. --read-only stops after reading and keeps each
 // page's text under data-harvest/pub-website-amenities/pages, so a later run
 // sends the model those pages without reading them again.
 //
@@ -364,11 +367,13 @@ function runFlags() {
     copySkipped: process.argv.includes("--copy-skipped"),
     locate: process.argv.includes("--locate"),
     readOnly: process.argv.includes("--read-only"),
+    unwritten: process.argv.includes("--unwritten"),
+    firecrawlFirst: process.argv.includes("--firecrawl-first"),
     firecrawlRequests,
   };
   const refusal = limit !== null && (!Number.isInteger(limit) || limit < 1) ? "--limit needs a positive integer"
     : !Number.isInteger(firecrawlRequests) || firecrawlRequests < 0 ? "--firecrawl-requests needs a whole number"
-      : flags.locate && !flags.copySkipped ? "--locate needs --copy-skipped" : null;
+      : (flags.locate || flags.unwritten) && !flags.copySkipped ? "--locate and --unwritten need --copy-skipped" : null;
   if (refusal) {
     console.error(refusal);
     process.exit(1);
@@ -389,17 +394,15 @@ function readCounts(work, byOsmId) {
 
 /**
  * The pubs the copy pack skipped for insufficient stored facts and whose own
- * site has given no evidence yet. Each takes the website OSM gives it, else the
- * one the price dataset gives it, else none, and the postcode its dataset
- * address states. A pub with a website comes first.
+ * site has given no evidence yet. With `unwritten`, every other pub the pack
+ * holds no copy for follows: thin pubs whose site gave evidence, then pubs
+ * whose drafts failed review. Each takes the website OSM gives it, else the
+ * one the price dataset gives it, else none, and the postcode or street its
+ * dataset address states. A pub with a website comes first.
  */
-function copySkippedPubs(dataset, anchors, londonSites) {
+function copySkippedPubs(dataset, anchors, londonSites, { unwritten = false } = {}) {
   const copy = JSON.parse(readFileSync(COPY_PATH, "utf8"));
-  const skipped = new Set(
-    Object.entries(copy.skipped ?? {})
-      .filter(([, skip]) => skip?.reason === "insufficient-stored-facts")
-      .map(([venueId]) => venueId),
-  );
+  const reasons = new Map(Object.entries(copy.skipped ?? {}).map(([venueId, skip]) => [venueId, skip?.reason]));
   const evidenced = new Set((readEvidence()?.rows ?? []).map((row) => row.venueId).filter(Boolean));
   const siteByVenue = new Map();
   for (const site of londonSites) if (site.venueId && !siteByVenue.has(site.venueId)) siteByVenue.set(site.venueId, site);
@@ -408,8 +411,16 @@ function copySkippedPubs(dataset, anchors, londonSites) {
     const venueId = stableVenueIdFromKey(venueGroupingKey(row));
     rowsByVenue.set(venueId, [...(rowsByVenue.get(venueId) ?? []), row]);
   }
+  // Lower ranks are read first; a pub outside the scope has no rank.
+  const rank = (venueId) => {
+    const thin = reasons.get(venueId) === "insufficient-stored-facts";
+    if (thin && !evidenced.has(venueId)) return 0;
+    if (!unwritten || !reasons.has(venueId)) return null;
+    return thin ? 1 : 2;
+  };
   const pubs = anchors
-    .filter((anchor) => skipped.has(anchor.venueId) && !evidenced.has(anchor.venueId))
+    .filter((anchor) => rank(anchor.venueId) !== null)
+    .sort((a, b) => rank(a.venueId) - rank(b.venueId))
     .map((anchor) => {
       const rows = rowsByVenue.get(anchor.venueId) ?? [];
       const site = siteByVenue.get(anchor.venueId);
@@ -514,7 +525,7 @@ async function main() {
     restampFromEvidence();
     return;
   }
-  const { limit, copySkipped, locate, readOnly, firecrawlRequests } = runFlags();
+  const { limit, copySkipped, locate, readOnly, firecrawlRequests, unwritten, firecrawlFirst } = runFlags();
 
   const pubsDoc = JSON.parse(readFileSync(PUBS_PATH, "utf8"));
   const dataset = JSON.parse(readFileSync(DATASET_PATH, "utf8"));
@@ -551,7 +562,7 @@ async function main() {
     const venue = matchPubToVenue(site, anchors);
     londonSites.push({ ...site, venueId: venue?.venueId ?? null });
   }
-  const pubs = copySkipped ? copySkippedPubs(dataset, anchors, londonSites) : londonSites;
+  const pubs = copySkipped ? copySkippedPubs(dataset, anchors, londonSites, { unwritten }) : londonSites;
   if (!copySkipped) pubs.sort((a, b) => Number(Boolean(b.venueId)) - Number(Boolean(a.venueId)) || a.osmId.localeCompare(b.osmId));
 
   const inputTokensPerCallCap = Math.ceil((PAGE_CHAR_CAP + PROMPT.length) / 4);
@@ -620,15 +631,28 @@ async function main() {
 
   // A plain read first. A page the network or a script kept from it is read
   // once more through Firecrawl, which returns markdown and no HTML.
-  async function readPage(url) {
-    const plain = await readHtml(url);
-    if (!firecrawl || !firecrawlMayReread(plain)) return { ...plain, reader: "fetch" };
+  // With --firecrawl-first a page is read through Firecrawl while its budget
+  // lasts, except a PDF, which Firecrawl bills per page; a Firecrawl failure
+  // falls back to the plain read.
+  async function scrapePage(url) {
     const scraped = await firecrawl.scrape(url, { onlyMainContent: false });
-    if (!scraped.ok) return plain.ok ? { ...plain, reader: "fetch" } : { ok: false, reason: `firecrawl-${scraped.failure.reason}` };
+    if (!scraped.ok) return { ok: false, reason: `firecrawl-${scraped.failure.reason}` };
     const status = scraped.page.statusCode;
     if (status !== null && status >= 400) return { ok: false, reason: `http-${status}` };
     const text = scraped.page.markdown.replace(/\s+/g, " ").trim().slice(0, MAX_BYTES);
     return { ok: true, url, html: scraped.page.markdown, text, reader: "firecrawl" };
+  }
+
+  async function readPage(url) {
+    if (firecrawlFirst && firecrawl && firecrawl.budget.remaining() > 0 && !/\.pdf$/i.test(new URL(url).pathname)) {
+      const scraped = await scrapePage(url);
+      if (scraped.ok) return scraped;
+    }
+    const plain = await readHtml(url);
+    if (!firecrawl || !firecrawlMayReread(plain)) return { ...plain, reader: "fetch" };
+    const scraped = await scrapePage(url);
+    if (scraped.ok || scraped.reason.startsWith("http-")) return scraped;
+    return plain.ok ? { ...plain, reader: "fetch" } : scraped;
   }
 
   // The own site of a pub with no website, found once and remembered. A search
