@@ -8,8 +8,8 @@ import { useEffect } from "react";
 //
 // The ?v= query carries the per-deploy build id (inlined from next.config.mjs
 // as NEXT_PUBLIC_SW_VERSION). A new deploy changes the registration URL, the
-// browser treats it as a new worker, and its `activate` step preserves usable
-// offline entries while retiring superseded cache versions only when safe.
+// browser treats it as a new worker. public/sw.js owns activation and cache
+// migration. public/sw-plan-cache.js documents Plan cache retirement.
 //
 // REGISTRATION IS OWED TO EVERY ROUTE, NOT ONLY THE MAP. The first-pins gate
 // below exists so installing the worker cannot tax the map's cold path, and it
