@@ -660,7 +660,7 @@ export function matchPubToVenue(
 }
 
 /** A page shorter than this after tags are stripped is read as a script-built page. */
-export const THIN_PAGE_CHARS = 200;
+const THIN_PAGE_CHARS = 200;
 
 /**
  * Whether a plain read may be asked again through Firecrawl. Only a read the
