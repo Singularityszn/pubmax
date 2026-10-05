@@ -333,6 +333,13 @@ export function ambientMotionLevel(
   return target > level ? Math.min(1, level + step) : Math.max(0, level - step);
 }
 
+// Whether ambient motion may rest: the level has eased to 0 and the route's
+// marching ants (`dashStep`, 0 when no dash is painted) have marched forward
+// round to DASH_SEQ[0], the static frame, so resting never snaps the dash back.
+export function ambientMotionResting(level: number, dashStep: number): boolean {
+  return level === 0 && dashStep === 0;
+}
+
 // The selected ring at motion `level`: the static selected ring at 0, the
 // breathing pulse at 1, and a smoothstep blend between, so the pulse settles
 // onto the static ring instead of stopping at whatever phase the window ends.

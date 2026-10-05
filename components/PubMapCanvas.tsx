@@ -97,7 +97,7 @@ import type { VenueWhatsOnSummary } from "@/lib/whatsOnBadges";
 import {
   applyPoiCategoryVisibility,
   TONIGHT_OPPORTUNITY_LAYERS, pubIconOpacityExpr, selectedGlowPaint,
-  ambientMotionLevel, routeLineShowsDash,
+  ambientMotionLevel, ambientMotionResting, routeLineShowsDash,
   pinEntranceIconOpacityExpr,
   selectedPinIconSizeExpr, selectedPinFilter, pinSortKeyExpr, pinPriceLabelExpr,
   clusterEntranceProgress,
@@ -3288,14 +3288,17 @@ export default function PubMapCanvas({
       if (!map.isStyleLoaded() || !map.getLayer("pubs-point")) return;
       // Every write below is a full map redraw. Motion runs only for a window
       // after the route, selection or camera changed, easing in and out of
-      // rest, and never for reduced-motion, hidden or blurred, which drop
-      // straight to rest; at rest one write puts the static frame back and
-      // the loop draws nothing more.
-      ambientLevel =
-        reducedRef.current || document.hidden || blurredRef.current
-          ? 0
-          : ambientMotionLevel(ambientLevel, ambientDt, now, ambientMotionWokeAtRef.current);
-      if (ambientLevel === 0) {
+      // rest with the dash marching on to its first step, and never for
+      // reduced-motion, hidden or blurred, which drop straight to rest; at
+      // rest one write puts the static frame back and the loop draws nothing
+      // more.
+      const ambientHeld = reducedRef.current || document.hidden || blurredRef.current;
+      ambientLevel = ambientHeld
+        ? 0
+        : ambientMotionLevel(ambientLevel, ambientDt, now, ambientMotionWokeAtRef.current);
+      const dashMarching =
+        Boolean(map.getLayer("route-line-dash")) && routeLineShowsDash(routeLineRef.current);
+      if (ambientHeld || ambientMotionResting(ambientLevel, dashMarching ? dashStep : 0)) {
         if (!ambientResting) {
           ambientResting = true;
           restAmbientMotion();
@@ -3303,11 +3306,7 @@ export default function PubMapCanvas({
         return;
       }
       ambientResting = false;
-      if (
-        now - dashAt > 90 &&
-        map.getLayer("route-line-dash") &&
-        routeLineShowsDash(routeLineRef.current)
-      ) {
+      if (dashMarching && now - dashAt > 90) {
         dashAt = now;
         dashStep = (dashStep + 1) % DASH_SEQ.length;
         map.setPaintProperty("route-line-dash", "line-dasharray", DASH_SEQ[dashStep]);

@@ -4,6 +4,7 @@ import type * as maplibregl from "maplibre-gl";
 import {
   AMBIENT_CATEGORIES,
   ambientMotionLevel,
+  ambientMotionResting,
   applyPoiCategoryVisibility,
   opportunityForFeature,
   pinEntranceIconOpacityExpr,
@@ -27,6 +28,7 @@ import { SELECTED_PIN_SIZE_SCALE } from "@/components/map/canvas/easing";
 import {
   AMBIENT_MOTION_EASE_MS,
   AMBIENT_MOTION_WINDOW_MS,
+  DASH_SEQ,
   GLOW_BASE_STROKE_OPACITY,
   GLOW_SELECTED_STROKE_WIDTH,
   GLOW_PULSE_PERIOD_MS,
@@ -184,6 +186,25 @@ describe("ambientMotionLevel (the dash and the pulse rest)", () => {
     expect(AMBIENT_MOTION_WINDOW_MS).toBeGreaterThanOrEqual(GLOW_PULSE_PERIOD_MS * 2);
     expect(AMBIENT_MOTION_WINDOW_MS).toBeLessThanOrEqual(10_000);
     expect(AMBIENT_MOTION_EASE_MS * 2).toBeLessThan(AMBIENT_MOTION_WINDOW_MS);
+  });
+});
+
+describe("ambientMotionResting (the dash marches on to its static frame)", () => {
+  it("rests only once the level is 0 and the dash is back on its first step", () => {
+    expect(ambientMotionResting(0, 0)).toBe(true);
+    expect(ambientMotionResting(0, 7)).toBe(false);
+    expect(ambientMotionResting(0.2, 0)).toBe(false);
+  });
+
+  it("finishes a window closing mid-march by stepping forward to DASH_SEQ[0], never back", () => {
+    let step = 7;
+    const visited: number[] = [];
+    while (!ambientMotionResting(0, step)) {
+      step = (step + 1) % DASH_SEQ.length;
+      visited.push(step);
+    }
+    expect(visited).toEqual([8, 9, 10, 11, 12, 13, 0]);
+    expect(DASH_SEQ[step]).toEqual(DASH_SEQ[0]);
   });
 });
 
