@@ -24,6 +24,7 @@ import { AUTH_ACCOUNT_BANNED_MESSAGE } from "@/lib/authAccountBan";
 import { verifyCallerAuth } from "@/lib/authServer";
 import {
   accessTokenSubject,
+  authResumeSignOutCookieHeaders,
   authResumePayloadFromHeader,
   authResumeSetCookieHeaders,
   inheritedResumeEmail,
@@ -115,10 +116,12 @@ export async function DELETE(request: Request): Promise<Response> {
       retryable: true,
     });
   }
-  // The browser has already moved to a signed-out generation; this clears every
-  // resume cookie the request carried, and only those, so a late answer never
-  // clears the cookie of a sign-in that happened after it.
-  return jsonNoStore({ ok: true }, { headers: setCookieHeaders(request, null) });
+  // The browser has already left the generation it signs out of; see
+  // authResumeSignOutCookieHeaders for which cookies this clears.
+  return jsonNoStore(
+    { ok: true },
+    { headers: authResumeSignOutCookieHeaders(request.headers.get("cookie")) },
+  );
 }
 
 async function persist(

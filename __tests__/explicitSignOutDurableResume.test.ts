@@ -161,8 +161,9 @@ async function signIn(account: Account) {
 
 /** The two device steps AuthProvider.signOut awaits after the SDK sign-out, in its order. */
 async function explicitSignOut(client: ReturnType<typeof makeClient>) {
+  const departing = readResumeGeneration();
   await client.auth.signOut();
-  await clearPersistedSession();
+  await clearPersistedSession(departing);
 }
 
 async function reload() {
@@ -356,7 +357,7 @@ describe("explicit sign-out against the durable resume cookie", () => {
     const client = makeClient();
     const booting = bootstrapAuthSession(client.auth);
     await vi.waitFor(() => expect(releaseRedeem).not.toBeNull());
-    await clearPersistedSession();
+    await clearPersistedSession(readResumeGeneration());
     releaseRedeem!();
 
     expect((await booting).status).toBe("none");
@@ -382,7 +383,7 @@ describe("explicit sign-out against the durable resume cookie", () => {
     const client = await signIn(A);
     holdDelete = true;
     await client.auth.signOut();
-    const signingOut = clearPersistedSession();
+    const signingOut = clearPersistedSession(readResumeGeneration());
     await vi.waitFor(() => expect(releaseDelete).not.toBeNull());
     holdDelete = false;
     await signIn(B);

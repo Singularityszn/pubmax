@@ -212,7 +212,7 @@ describe("a password sign-in and the remembered sign-in", () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ handle: "fixture_b", password: "correct horse battery" }),
     }));
-    await clearPersistedSession();
+    await clearPersistedSession(readResumeGeneration());
     applySetCookies(late);
     expect(await redeemedAccount()).toBeNull();
   });

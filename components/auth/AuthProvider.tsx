@@ -113,6 +113,7 @@ import {
   readResumeGeneration,
   requestResumeLink,
   sessionAccountAdmitted,
+  signInSupersedes,
   type ResumeHint,
 } from "@/lib/authSessionResumeClient";
 import { authAccountBanMessageFromError } from "@/lib/authAccountBan";
@@ -1049,15 +1050,18 @@ export function AuthProvider({
       // the local session (and fires SIGNED_OUT) on network and 5xx failures.
       // Only a refusal that left the departing session in place keeps its data.
       if (error && departing !== null && sessionTransitions.current.currentUserId() === departing) return;
+      // A sign-in the person asked for that committed meanwhile owns the device:
+      // this sign-out then takes only the departing account's own things, and
+      // the SIGNED_OUT it caused is not an explicit sign-out of the newer one.
+      const superseded = signInSupersedes(departingGeneration);
       // onAuthStateChange has fired SIGNED_OUT. Invalidate the departing owner
       // before the purge, so no late write of theirs can land after it.
-      markProviderSignOut("supabase");
-      const superseded = readResumeGeneration() !== departingGeneration;
+      if (!superseded) markProviderSignOut("supabase");
       // Explicit sign-out is the one place the durable resume cookie dies too —
       // a transient SIGNED_OUT (failed refresh) must keep it for silent restore.
       // Started first, because its signed-out generation is written before the
       // call yields, so the cookie stops counting before any cleanup awaits.
-      const resumeCleared = superseded ? null : clearPersistedSession();
+      const resumeCleared = clearPersistedSession(departingGeneration);
       // The same set the account boundary clears, and the owner stamp with it.
       // Leaving the handle behind is what let the next account inherit it: the
       // session went and its name stayed. A newer sign-in binds its own.
@@ -1075,11 +1079,14 @@ export function AuthProvider({
       emitDeviceAccountSessionsChanged();
       setWelcomeBack(null);
       if (superseded) {
+        await resumeCleared;
         // The SDK's sign-out ends with SIGNED_OUT and can remove the newer
         // sign-in's session with it. Read the device again: a session still
-        // in place is shown, and a removed one comes back from its cookie.
-        const restored = await bootstrapAuthSession(supabase.auth).catch(() => null);
-        if (restored?.status === "local") updateSession(restored.session);
+        // in place is shown, a removed one comes back from its cookie, and a
+        // read that could not run is unavailable rather than signed out.
+        const restored = await bootstrapAuthSession(supabase.auth).catch(() => ({ status: "unavailable" }) as const);
+        if (restored.status === "local") updateSession(restored.session);
+        else if (restored.status === "unavailable") setProviderAuthState("supabase", "unavailable");
         return;
       }
       // AWAITED, because an account sign-out may hand the device straight to the

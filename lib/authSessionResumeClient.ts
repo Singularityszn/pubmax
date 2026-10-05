@@ -66,9 +66,28 @@ export function commitSignIn(baseline: string | null, accessToken: string): Sign
   return { written, previous: baseline };
 }
 
-/** A committed sign-in failed to install: put back what it replaced, unless something newer has. */
+/** Generations an explicit sign-out left while a newer sign-in held the device. */
+const departedGenerations = new Set<string | null>();
+
+/**
+ * A committed sign-in failed to install: put back what it replaced, unless
+ * something newer has. A generation an explicit sign-out has left is never
+ * put back; the device is signed out instead.
+ */
 export function rollbackSignIn(commit: SignInCommit): void {
-  if (readResumeGeneration() === commit.written) writeResumeGeneration(commit.previous);
+  if (readResumeGeneration() !== commit.written) return;
+  writeResumeGeneration(
+    departedGenerations.has(commit.previous) ? newResumeGeneration(SIGNED_OUT_GENERATION_PREFIX) : commit.previous,
+  );
+}
+
+/**
+ * Whether a sign-in the person asked for has committed since `departing`, so
+ * it owns the device. Another sign-out moving the device on is not one.
+ */
+export function signInSupersedes(departing: string | null): boolean {
+  const current = readResumeGeneration();
+  return current !== null && current !== departing && !current.startsWith(SIGNED_OUT_GENERATION_PREFIX);
 }
 
 
@@ -247,14 +266,19 @@ export async function requestResumeLink(
 }
 
 /**
- * Remove the durable cookie (sign-out). The signed-out generation is written
- * here first, with no network, so the old cookie stops counting on this device
- * even if the DELETE below never arrives.
+ * Remove the durable cookie of the generation a sign-out leaves. While the
+ * device still holds `departing`, a signed-out generation is written first,
+ * with no network, so the old cookie stops counting even if the DELETE below
+ * never arrives. When something else has moved the device on, that is left in
+ * place and `departing` is only marked as left. The DELETE clears every resume
+ * cookie it carries except the current generation's.
  */
 export async function clearPersistedSession(
+  departing: string | null,
   fetchImpl: FetchLike = fetch,
 ): Promise<void> {
-  writeResumeGeneration(newResumeGeneration(SIGNED_OUT_GENERATION_PREFIX));
+  if (readResumeGeneration() === departing) writeResumeGeneration(newResumeGeneration(SIGNED_OUT_GENERATION_PREFIX));
+  else departedGenerations.add(departing);
   try {
     await fetchImpl(ENDPOINT, { method: "DELETE", signal: timeoutSignal() });
   } catch {

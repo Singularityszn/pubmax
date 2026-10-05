@@ -227,13 +227,42 @@ function isResumeCookieName(name: string): boolean {
   return name.startsWith(prefix) && GENERATION_PATTERN.test(name.slice(prefix.length));
 }
 
+function resumeSetCookie(name: string, value: string, maxAge: number): string {
+  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  return `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
+}
+
+function resumeCookieNames(cookieHeader: string | null | undefined): Set<string> {
+  return new Set(cookieParts(cookieHeader).map(([name]) => name).filter(isResumeCookieName));
+}
+
+function expiredResumeCookies(names: Iterable<string>): Headers {
+  const headers = new Headers();
+  for (const name of names) headers.append("Set-Cookie", resumeSetCookie(name, "", 0));
+  return headers;
+}
+
 /**
- * Set-Cookie headers answering one request: the cookie of the generation the
- * request carries gets `payload` (null clears it), and every other resume
- * cookie the request named - an earlier sign-in's, a legacy one - is cleared,
- * so a device keeps one remembered credential. A request names only cookies
- * that existed when it was sent, so a late answer can never clear the cookie of
- * a sign-in that came after it.
+ * Sign-out: clear every resume cookie the request named - an earlier sign-in's,
+ * a legacy one - except the cookie of the generation it carries, which is a
+ * signed-out one or a newer sign-in's. A request with no generation is leaving
+ * the legacy cookie. A request names only cookies that existed when it was
+ * sent, so a late answer never clears a later sign-in's cookie; a cookie a
+ * late answer itself creates is left for the next request to clear.
+ */
+export function authResumeSignOutCookieHeaders(cookieHeader: string | null | undefined): Headers {
+  const generation = resumeGenerationFromHeader(cookieHeader);
+  const names = resumeCookieNames(cookieHeader);
+  if (generation) names.delete(authResumeCookieName(generation));
+  else names.add(AUTH_RESUME_COOKIE);
+  return expiredResumeCookies(names);
+}
+
+/**
+ * The cookie of the generation a request carries gets `payload` (null clears
+ * it), and every other resume cookie the request named is cleared. A cookie an
+ * earlier request's late answer creates afterwards stays until the next
+ * request names it, so a device can briefly hold more than one.
  */
 export function authResumeSetCookieHeaders(
   cookieHeader: string | null | undefined,
@@ -241,18 +270,15 @@ export function authResumeSetCookieHeaders(
 ): Headers {
   const generation = resumeGenerationFromHeader(cookieHeader);
   const current = authResumeCookieName(generation);
-  const headers = new Headers();
-  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
-  const write = (name: string, value: string, maxAge: number) =>
-    headers.append("Set-Cookie", `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`);
-  const departed = new Set(cookieParts(cookieHeader).map(([name]) => name).filter(isResumeCookieName));
-  departed.delete(current);
-  for (const name of departed) write(name, "", 0);
-  if (payload) {
-    write(current, encodeURIComponent(encodeAuthResumeCookie({ ...payload, generation })), AUTH_RESUME_MAX_AGE_SECONDS);
-  } else {
-    write(current, "", 0);
-  }
+  const names = resumeCookieNames(cookieHeader);
+  names.delete(current);
+  const headers = expiredResumeCookies(names);
+  headers.append(
+    "Set-Cookie",
+    payload
+      ? resumeSetCookie(current, encodeURIComponent(encodeAuthResumeCookie({ ...payload, generation })), AUTH_RESUME_MAX_AGE_SECONDS)
+      : resumeSetCookie(current, "", 0),
+  );
   return headers;
 }
 

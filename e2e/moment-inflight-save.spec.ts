@@ -192,7 +192,9 @@ test("a photo cropped in a newer visit survives the earlier visit's upload of it
     expect(uploads.map((upload) => upload.sha)).toEqual([PHOTO_SHA, PHOTO_SHA]);
 
     // The earlier visit's upload of the original bytes succeeds and settles
-    // its receipt into the stored draft (a fresh updatedAt is that write).
+    // its receipt into the stored draft. A fresh updatedAt is that write only
+    // because no edit follows the caption the poll above saw stored; an
+    // autosave is debounced off edits, so this signal holds for this script.
     holds.get(2)?.();
     await expect.poll(() => answered.has(2)).toBe(true);
     await expect.poll(async () => (await storedMomentMedia(page, ACCOUNTS.A.id))?.updatedAt).not.toBe(beforeRelease.updatedAt);

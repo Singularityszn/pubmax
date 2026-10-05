@@ -16,7 +16,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const harness = vi.hoisted(() => ({
   clientReady: null as null | Promise<unknown>,
   captured: null as unknown,
+  composer: false,
 }));
+
+vi.mock("next/link", async () => {
+  const { createElement } = await import("react");
+  return {
+    default: ({ href, children, ...props }: { href: string; children: React.ReactNode }) =>
+      createElement("a", { href, ...props }, children),
+  };
+});
 
 vi.mock("@/components/auth/ArrivalWelcome", () => ({ default: () => null }));
 vi.mock("@/components/identity/AccountOnboarding", () => ({ default: () => null }));
@@ -40,8 +49,12 @@ vi.mock("@/lib/authRedirect", () => ({
 vi.mock("@/lib/identityClient", () => ({
   handleClaimRouteAfterSignIn: async () => null,
   IDENTITY_HANDLE_CHANGED_EVENT: "pubmax:identity-handle-changed",
-  identityHandleForOwner: () => null,
-  resolveCanonicalIdentity: async () => null,
+  identityHandleForOwner: (identity: { ownerId?: string; handle?: string } | null, owner: string | null) =>
+    identity?.ownerId === owner ? identity?.handle ?? null : null,
+  resolveCanonicalIdentity: async (userId: string) => ({
+    ok: true,
+    identity: { ownerId: userId, handle: userId.replace(/-/g, "_") },
+  }),
 }));
 vi.mock("@/lib/referralClaimClient", () => ({
   claimSignupReferralFromAuthCallback: async () => {},
@@ -63,6 +76,8 @@ vi.mock("@/lib/authServer", () => ({
 }));
 
 import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
+import PintDropComposer from "@/components/map/PintDropComposer";
+import { usePintDrops } from "@/components/map/usePintDrops";
 import { DELETE, GET, POST } from "@/app/api/auth/session/route";
 import { establishAuthCallbackSession } from "@/lib/authCallbackClient";
 import {
@@ -72,6 +87,9 @@ import {
   sessionAccountAdmitted,
 } from "@/lib/authSessionResumeClient";
 import { deviceAccountOwner } from "@/lib/deviceAccountIdentity";
+import { readDeviceAccounts, rememberDeviceAccount } from "@/lib/deviceAccountSessions";
+import { pintDropAccountDraftOwner, readPintDropDraft } from "@/lib/pintDropDraft";
+import { SPILL_EXTRAS_TOGGLE_LABEL } from "@/lib/spill";
 
 const SUPABASE_URL = "https://auth-superseded.invalid";
 const SDK_STORAGE_KEY = "pubmax-superseded-auth-token";
@@ -102,6 +120,9 @@ let httpOnlyCookies: Map<string, string>;
 let sdkItems: Map<string, string>;
 let holdLogout: boolean;
 let releaseLogout: (() => void) | null;
+let resumeTransportDown: boolean;
+let refuseUser: Set<string>;
+let holdUser: Promise<void> | null;
 let auth: ReturnType<typeof useAuth> | null;
 let root: Root | null;
 let container: HTMLDivElement | null;
@@ -140,13 +161,22 @@ async function sessionRoute(url: string, init: RequestInit = {}): Promise<Respon
 
 async function transport(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
   const url = String(input instanceof Request ? input.url : input);
-  if (url.startsWith("/api/auth/session")) return sessionRoute(url, init);
+  if (url.startsWith("/api/auth/session")) {
+    if (resumeTransportDown && (init.method ?? "GET") !== "DELETE") throw new TypeError("Failed to fetch");
+    return sessionRoute(url, init);
+  }
+  if (url.startsWith("/api/pint-drops")) return json({ drops: [] });
+  if (url === "/api/cheap-pint-ping") return json({ canPrompt: false });
   if (url.includes("/auth/v1/token")) {
     const refresh = (JSON.parse(String(init.body)) as { refresh_token: string }).refresh_token;
     return json(sessionFor(refresh.replace("synthetic-refresh-", "")));
   }
   if (url.includes("/auth/v1/user")) {
     const bearer = new Headers(init.headers).get("authorization")?.replace(/^Bearer /, "") ?? "";
+    if (refuseUser.has(subject(bearer))) {
+      if (holdUser) await holdUser;
+      return json({ code: 401, error_code: "bad_jwt", msg: "synthetic refused token" }, 401);
+    }
     return json(sessionFor(subject(bearer)).user);
   }
   if (url.includes("/auth/v1/logout")) {
@@ -179,6 +209,14 @@ function Probe() {
   return createElement("output", { "data-testid": "viewer" }, current.user?.id ?? "signed-out");
 }
 
+const VENUE_ID = "venue-test1";
+const NOTE_B = "B's half-written story about the snug";
+
+function ComposerHost() {
+  const state = usePintDrops("london");
+  return createElement(PintDropComposer, { venueId: VENUE_ID, venueName: "The Fixture Arms", state });
+}
+
 function viewer(): string | null | undefined {
   return container?.querySelector('[data-testid="viewer"]')?.textContent;
 }
@@ -209,7 +247,8 @@ async function mount() {
   document.body.append(container);
   root = createRoot(container);
   await act(async () => {
-    root?.render(createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(Probe)));
+    root?.render(createElement(AuthProvider, { clerkIntegrationConfigured: false },
+      createElement(Probe), harness.composer ? createElement(ComposerHost) : null));
   });
 }
 
@@ -231,6 +270,12 @@ beforeEach(() => {
   sdkItems = new Map();
   holdLogout = false;
   releaseLogout = null;
+  resumeTransportDown = false;
+  refuseUser = new Set();
+  holdUser = null;
+  harness.composer = false;
+  vi.spyOn(URL, "createObjectURL").mockImplementation(() => "blob:fixture-photo");
+  vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
   auth = null;
   root = null;
   container = null;
@@ -244,6 +289,7 @@ afterEach(async () => {
   container?.remove();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
+  vi.restoreAllMocks();
   const { __resetPintDrops } = await import("@/lib/pintDrops");
   __resetPintDrops();
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: false });
@@ -348,5 +394,148 @@ describe("a sign-in the person asked for owns the device over older auth work", 
     expect(readResumeGeneration()).toMatch(new RegExp(`~${A}$`));
     expect(storedSdkAccount()).toBe(A);
     await vi.waitFor(async () => expect(await redeemedAccount()).toBe(A));
+  });
+});
+
+async function fill(field: HTMLInputElement | HTMLTextAreaElement, value: string) {
+  const prototype = field instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(prototype, "value")!.set!.call(field, value);
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
+/** B's own unfinished Pint Drop in the mounted composer: note, price and a pint photo. */
+async function draftAsB() {
+  await vi.waitFor(() => expect(container?.querySelector("button")).not.toBeNull());
+  const toggle = [...container!.querySelectorAll("button")].find((button) => button.textContent?.trim() === SPILL_EXTRAS_TOGGLE_LABEL);
+  expect(toggle).toBeDefined();
+  await act(async () => toggle!.click());
+  await fill(container!.querySelector("textarea")!, NOTE_B);
+  await fill(container!.querySelector<HTMLInputElement>('input[inputmode="decimal"]')!, "5.75");
+  const photo = container!.querySelector<HTMLInputElement>('input[type="file"]')!;
+  await act(async () => {
+    Object.defineProperty(photo, "files", { configurable: true, value: [new File(["synthetic-jpeg"], "b-pint.jpg", { type: "image/jpeg" })] });
+    photo.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await vi.waitFor(() => expect(storedDraftOf(B)).toMatchObject({ note: NOTE_B, price: "5.75" }));
+}
+
+function storedDraftOf(id: string) {
+  return readPintDropDraft(sessionStorage, VENUE_ID, pintDropAccountDraftOwner(id))?.form ?? null;
+}
+
+function composerShows() {
+  return {
+    note: container?.querySelector("textarea")?.value ?? null,
+    price: container?.querySelector<HTMLInputElement>('input[inputmode="decimal"]')?.value ?? null,
+    photos: container?.querySelectorAll('img[src="blob:fixture-photo"]').length ?? 0,
+  };
+}
+
+/** A is signed in here; its sign-out waits on the provider while B signs in fully and starts a draft. */
+async function settledBDuringSignOut(scope: "account" | "device") {
+  await signedInElsewhere(A);
+  const client = makeClient();
+  harness.clientReady = Promise.resolve(client);
+  harness.composer = true;
+  await mount();
+  await vi.waitFor(() => expect(viewer()).toBe(A));
+  holdLogout = true;
+  let signingOut: Promise<void> = Promise.resolve();
+  await act(async () => { signingOut = auth!.signOut(scope); });
+  await vi.waitFor(() => expect(releaseLogout).not.toBeNull());
+  await act(async () => {
+    await establishAuthCallbackSession(client.auth, {
+      accessToken: sessionFor(B).access_token,
+      refreshToken: sessionFor(B).refresh_token,
+    });
+  });
+  await vi.waitFor(() => expect(viewer()).toBe(B));
+  await vi.waitFor(async () => expect(await redeemedAccount()).toBe(B));
+  await draftAsB();
+  return { client, release: async () => { await act(async () => { releaseLogout!(); await signingOut; }); await settle(); } };
+}
+
+describe("an older sign-out that lands after a newer sign-in settled", () => {
+  it.each(["account", "device"] as const)("keeps B's open Pint Drop draft through an %s sign-out of A", async (scope) => {
+    const { release } = await settledBDuringSignOut(scope);
+    const bGeneration = readResumeGeneration();
+    await release();
+
+    await vi.waitFor(() => expect(viewer()).toBe(B));
+    expect(readResumeGeneration()).toBe(bGeneration);
+    expect(storedDraftOf(B)).toMatchObject({ note: NOTE_B, price: "5.75" });
+    await vi.waitFor(() => expect(composerShows()).toEqual({ note: NOTE_B, price: "5.75", photos: 1 }));
+    expect(deviceAccountOwner(localStorage)).toBe(B);
+    expect(readDeviceAccounts(localStorage).map((account) => account.userId)).toEqual([B]);
+  });
+
+  it("reports an unreachable remembered sign-in as unavailable, not signed out, and keeps B's draft", async () => {
+    const { release } = await settledBDuringSignOut("account");
+    resumeTransportDown = true;
+    await release();
+
+    expect(auth?.user ?? null).toBeNull();
+    expect(auth?.supabaseAuthState).toBe("unavailable");
+    expect(storedDraftOf(B)).toMatchObject({ note: NOTE_B, price: "5.75" });
+
+    resumeTransportDown = false;
+    expect(await redeemedAccount()).toBe(B);
+  });
+});
+
+describe("an explicit sign-out overlapped by another document's auth work", () => {
+  it("still forgets every remembered account when another tab signs out meanwhile", async () => {
+    await signedInElsewhere(A);
+    rememberDeviceAccount(localStorage, { userId: "account-c", refreshToken: "synthetic-refresh-account-c", email: null }, Date.now());
+    harness.clientReady = Promise.resolve(makeClient());
+    await mount();
+    await vi.waitFor(() => expect(viewer()).toBe(A));
+    expect(readDeviceAccounts(localStorage).length).toBeGreaterThan(0);
+
+    holdLogout = true;
+    let signingOut: Promise<void> = Promise.resolve();
+    await act(async () => { signingOut = auth!.signOut("device"); });
+    await vi.waitFor(() => expect(releaseLogout).not.toBeNull());
+    // Another tab's account sign-out moves the device to its own signed-out generation.
+    document.cookie = "pubmax_resume_gen=out.othertab; Path=/";
+    await act(async () => { releaseLogout!(); await signingOut; });
+    await settle();
+
+    expect(readDeviceAccounts(localStorage)).toEqual([]);
+    expect(deviceAccountOwner(localStorage)).toBeNull();
+    expect(viewer()).toBe("signed-out");
+    expect(await redeemedAccount()).toBeNull();
+  });
+
+  it("does not hand A's remembered sign-in back when a newer sign-in fails after A's sign-out moved on", async () => {
+    await signedInElsewhere(A);
+    const client = makeClient();
+    harness.clientReady = Promise.resolve(client);
+    await mount();
+    await vi.waitFor(() => expect(viewer()).toBe(A));
+
+    holdLogout = true;
+    let signingOut: Promise<void> = Promise.resolve();
+    await act(async () => { signingOut = auth!.signOut("account"); });
+    await vi.waitFor(() => expect(releaseLogout).not.toBeNull());
+    // B's sign-in commits, but its token check is still out when A's sign-out continues.
+    refuseUser.add(B);
+    let refuseB = () => {};
+    holdUser = new Promise<void>((resolve) => { refuseB = resolve; });
+    const signingIn = establishAuthCallbackSession(client.auth, {
+      accessToken: sessionFor(B).access_token,
+      refreshToken: sessionFor(B).refresh_token,
+    });
+    await act(async () => { releaseLogout!(); await signingOut; });
+    await act(async () => { refuseB(); await signingIn; });
+    await settle();
+
+    expect((await signingIn).failed).toBe(true);
+    expect(readResumeGeneration()).toMatch(/^out\./);
+    expect(sessionAccountAdmitted(A)).toBe(false);
+    expect(await redeemedAccount()).toBeNull();
+    expect(viewer()).toBe("signed-out");
   });
 });
