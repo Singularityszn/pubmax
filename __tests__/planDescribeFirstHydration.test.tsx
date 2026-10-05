@@ -5,6 +5,30 @@ import { createRoot, hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const signedIn = vi.hoisted(() => ({ current: false }));
+
+vi.mock("@/components/auth/AuthProvider", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/components/auth/AuthProvider")>();
+  return {
+    ...original,
+    useAuth: () => signedIn.current
+      ? { ...original.useAuth(), identityResolved: true, user: { id: "account-a" } }
+      : original.useAuth(),
+  };
+});
+
+vi.mock("@/lib/authedFetch", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/lib/authedFetch")>();
+  return {
+    ...original,
+    authedFetch: (...args: Parameters<typeof original.authedFetch>) => signedIn.current
+      ? Promise.resolve(new Response(JSON.stringify({
+        wanteds: [{ id: "wanted-a", status: "open", venueKind: "curated", venueName: "The Wanted Arms" }],
+      }), { status: 200, headers: { "content-type": "application/json" } }))
+      : original.authedFetch(...args),
+  };
+});
+
 vi.mock("next/navigation", () => ({
   usePathname: () => "/plan",
   useRouter: () => ({
@@ -32,6 +56,7 @@ afterEach(async () => {
   root = null;
   host?.remove();
   host = null;
+  signedIn.current = false;
   vi.unstubAllGlobals();
 });
 
@@ -74,14 +99,16 @@ describe("the describe-first field on the form PlanComposer replaces", () => {
   it("reads only and offers no action until the real form mounts", async () => {
     const onSubmit = vi.fn();
     const onGuideMeInstead = vi.fn();
+    signedIn.current = true;
     const { field, sortIt } = await render(false, onSubmit, onGuideMeInstead);
+    const wantedChip = button("The Wanted Arms");
     const exampleChip = host!.querySelector<HTMLButtonElement>(".planDescribeFirst__chip:not(.planDescribeFirst__chip--culture)")!;
     const cultureChip = host!.querySelector<HTMLButtonElement>(".planDescribeFirst__chip--culture")!;
     const stopCount = button("2");
     const guideMe = button("Guide me instead");
 
     expect(field.readOnly).toBe(true);
-    for (const action of [sortIt, exampleChip, cultureChip, stopCount, guideMe]) {
+    for (const action of [sortIt, exampleChip, cultureChip, wantedChip, stopCount, guideMe]) {
       expect(action.getAttribute("aria-disabled")).toBe("true");
       await act(async () => action.click());
     }

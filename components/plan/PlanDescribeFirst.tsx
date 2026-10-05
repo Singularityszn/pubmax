@@ -177,7 +177,7 @@ export default function PlanDescribeFirst({
           setStopCount(next);
         }}
       />
-      <WantedPlanChips onPick={submitChip} />
+      <WantedPlanChips ready={ready} onPick={submitChip} />
       <div className="planDescribeFirst__culture" role="group" aria-label="Culture Crawl">
         <p className="planDescribeFirst__cultureLead">{CULTURE_CRAWL_MISSION}</p>
         <div className="planDescribeFirst__cultureChips">
