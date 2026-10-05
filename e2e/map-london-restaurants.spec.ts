@@ -127,9 +127,13 @@ test("List view gives a keyboard reader every restaurant in view", async ({ page
   const more = page.getByRole("button", { name: "More map controls" });
   await expect(more).toBeVisible({ timeout: 20_000 });
   await more.click();
-  const listToggle = page.getByRole("button", { name: "List view" });
-  await expect(listToggle).toBeVisible({ timeout: 10_000 });
-  await listToggle.click();
+  const layersSheet = page.locator('.mobileSheetPortal[data-sheet-kind="layers"]:visible');
+  await expect(layersSheet).toBeVisible({ timeout: 10_000 });
+  await layersSheet.getByRole("tab", { name: "Layers" }).click();
+  const listShortcut = layersSheet.getByRole("button", { name: "List view of venues on the map" });
+  await expect(listShortcut).toBeVisible({ timeout: 10_000 });
+  await listShortcut.click();
+  await expect(page.locator(".mapVenueListPanel")).toBeVisible({ timeout: 10_000 });
 
   const group = page.getByRole("list", { name: "Restaurants with no listed price" });
   await expect(group).toBeVisible({ timeout: 30_000 });
