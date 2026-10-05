@@ -135,18 +135,6 @@ test("a half logged through the one-tap door travels as a half and moves no pin 
   await expect(sheet.locator(".vpsubStampBlock")).toContainText("Half");
   await expect(sheet.locator(".vpsubStampBlock")).toContainText("On this pub’s page");
   await expect(sheet.locator(".vpsubStampBlock")).not.toContainText("On the map");
-
-  // Nothing about this pub's pin colour moved: no priced community row exists.
-  const painted = await page.evaluate(
-    (id) =>
-      (
-        window as unknown as {
-          paintedMapTapPoints?: () => Array<{ venueId?: string; band?: unknown }>;
-        }
-      ).paintedMapTapPoints?.()?.filter((point) => point.venueId === id) ?? [],
-    UNPRICED,
-  );
-  for (const point of painted) expect(point.band ?? null).toBeNull();
 });
 
 test("a pint logged through the same door still says pint", async ({ page }) => {

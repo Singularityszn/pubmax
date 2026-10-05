@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeFirst";
+import { sortDescribeFirst } from "./helpers/planDescribeFirst";
 
 for (const journey of [
   { category: "wine", query: "Quiet wine in Clapham for 2, not pricey", name: "Wine Browser" },
@@ -21,11 +21,7 @@ for (const journey of [
     });
 
     expect((await page.goto("/plan"))?.status()).toBe(200);
-    await describeFirstQuery(page).fill(journey.query);
-    const generation = page.waitForResponse((response) => response.request().method() === "POST"
-      && new URL(response.url()).pathname === "/api/plans/generate");
-    await describeFirstSubmit(page).click();
-    const generatedResponse = await generation;
+    const generatedResponse = await sortDescribeFirst(page, journey.query);
     expect(generatedResponse.status()).toBe(200);
     const generated = await generatedResponse.json() as {
       inferredContext?: { drinkCategory?: string; zeroProof?: boolean };
