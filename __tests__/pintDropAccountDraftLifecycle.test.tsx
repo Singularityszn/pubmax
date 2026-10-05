@@ -46,6 +46,7 @@ let postHandler: (init: RequestInit) => Promise<Response>;
 let roundHandler: ((init: RequestInit) => Promise<Response>) | null;
 let roundRequests: RequestInit[];
 let posts: RequestInit[];
+let venueReads: string[];
 let tokenVersion: number;
 let paints: { accountId: string | null; note: string; photos: number; pendingNotes: string }[];
 let createdPhotoUrls: string[];
@@ -62,6 +63,7 @@ function ComposerHost() {
     }, "Hold current submit"),
     createElement("button", { onClick: () => { void heldSubmit?.(); } }, "Send held submit"),
     createElement("output", { "data-testid": "drop-result" }, state.dropMsg?.text ?? ""),
+    createElement("output", { "data-testid": "drop-links" }, state.dropMsg?.links?.map((link) => link.label).join(" | ") ?? ""),
     createElement("output", { "data-testid": "drop-notes" },
       [...state.dropsByVenueId.values()].flat().map((drop) => drop.passedDownNote).join(" | ")),
     createElement("output", { "data-testid": "drop-states" },
@@ -161,6 +163,7 @@ beforeEach(() => {
   sessionStorage.clear();
   localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
   posts = [];
+  venueReads = [];
   roundHandler = null;
   roundRequests = [];
   tokenVersion = 1;
@@ -179,7 +182,10 @@ beforeEach(() => {
   });
   postHandler = async () => new Response(JSON.stringify({ error: { message: "Fixture refused this drop" } }), { status: 503 });
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init: RequestInit = {}) => {
-    if (String(input).startsWith("/api/pint-drops") && (init.method ?? "GET") === "GET") return new Response(JSON.stringify({ drops: [serverDrop] }));
+    if (String(input).startsWith("/api/pint-drops") && (init.method ?? "GET") === "GET") {
+      if (String(input).includes("venueId=")) venueReads.push(String(input));
+      return new Response(JSON.stringify({ drops: [serverDrop] }));
+    }
     if (String(input) === "/api/pint-drops" && init.method === "POST") {
       posts.push(init);
       return postHandler(init);
@@ -551,6 +557,57 @@ describe("mounted Pint Drop account draft isolation", () => {
       expect(readOptimisticSpills(localStorage)).toEqual([]);
       expect(container.querySelector('[data-testid="drop-notes"]')?.textContent).not.toContain(NOTE);
       expect(container.querySelector('[data-testid="drop-result"]')?.textContent).toBe("");
+    });
+  });
+
+  describe("an accepted drop settling after a delayed Round append", () => {
+    let finishAppend: () => void;
+
+    beforeEach(() => {
+      writeActiveRoundCode("BCDFGH");
+      postHandler = async () => new Response(JSON.stringify({
+        drop: { ...serverDrop, id: "fixture-round-saved-drop", handle: A.handle, passedDownNote: NOTE },
+        confirmationOutcome: {
+          status: "confirmed",
+          confirmation: { confirmationId: "fixture-confirmation", confirmedAt: "2026-10-04T18:05:00Z", basis: "second_reporter" },
+          dropIds: ["fixture-round-saved-drop"],
+        },
+      }), { status: 201 });
+      roundHandler = async (init) => JSON.parse(String(init.body)).action === "join"
+        ? new Response("{}")
+        : new Promise<Response>((resolve) => { finishAppend = () => resolve(new Response("{}")); });
+    });
+
+    async function submitAndHoldAppend() {
+      await renderAccount(A);
+      await draft();
+      await act(async () => container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+      await vi.waitFor(() => expect(roundRequests).toHaveLength(2));
+    }
+
+    it("gives the same account its receipt, Round links and minted lane re-read after a failed-refresh blip", async () => {
+      await submitAndHoldAppend();
+      expect(venueReads).toEqual([]);
+      await renderAccount(null, true, true, true);
+      await renderAccount(A);
+      await act(async () => finishAppend());
+      await vi.waitFor(() => expect(container.querySelector('[data-testid="drop-result"]')?.textContent).toContain("Cheers. Added to your night."));
+      expect(container.querySelector('[data-testid="drop-links"]')?.textContent).toBe("Open Social | Bar tab | Your profile");
+      expect(venueReads).toEqual([`/api/pint-drops?venueId=${VENUE_ID}`]);
+    });
+
+    it.each([
+      ["another account", async () => renderAccount(B)],
+      ["an old visit of the same account", async () => { await renderAccount(B); await renderAccount(A); }],
+      ["an explicit sign-out", async () => renderAccount(null)],
+    ])("withholds the receipt and re-read after %s", async (_label, boundary) => {
+      await submitAndHoldAppend();
+      await boundary();
+      await act(async () => finishAppend());
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+      expect(container.querySelector('[data-testid="drop-result"]')?.textContent).toBe("");
+      expect(container.querySelector('[data-testid="drop-links"]')?.textContent).toBe("");
+      expect(venueReads).toEqual([]);
     });
   });
 });

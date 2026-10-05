@@ -1025,16 +1025,18 @@ export function AuthProvider({
       const supabase = await ensureSupabaseBrowser();
       if (!supabase) return;
       const departing = sessionTransitions.current.currentUserId();
-      // Explicit sign-out is the one place the durable resume cookie dies too —
-      // a transient SIGNED_OUT (failed refresh) must keep it for silent restore.
-      // AWAITED, because an account sign-out may hand the device straight to the
-      // next remembered account: a DELETE still in flight would land after that
-      // account's persist and leave the device with no durable session at all.
-      await clearPersistedSession();
+      const { error } = await supabase.auth.signOut();
+      // A failed sign-out keeps the session, so everything the account owns on
+      // this device stays with it.
+      if (error) return;
+      // onAuthStateChange has fired SIGNED_OUT. Invalidate the departing owner
+      // before the purge, so no late write of theirs can land after it.
+      markProviderSignOut("supabase");
       // The same set the account boundary clears, and the owner stamp with it.
       // Leaving the handle behind is what let the next account inherit it: the
       // session went and its name stayed.
       releaseDeviceAccountOwner(browserLocalStorage(), browserSessionStorage());
+      if (departing) clearAccountPintDropDrafts(browserSessionStorage(), departing);
       emitDeviceIdentityChanged();
       // The account that is leaving takes its stored refresh token with it, and
       // "all accounts" takes the whole lane. Neither is a capability: they are
@@ -1044,12 +1046,12 @@ export function AuthProvider({
       else if (departing) forgetDeviceAccount(browserLocalStorage(), departing);
       emitDeviceAccountSessionsChanged();
       setWelcomeBack(null);
-      const { error } = await supabase.auth.signOut();
-      // A failed sign-out keeps the session, so the account boundary stays put.
-      if (error) return;
-      markProviderSignOut("supabase");
-      if (departing) clearAccountPintDropDrafts(browserSessionStorage(), departing);
-      // onAuthStateChange fires SIGNED_OUT → session clears via the subscription.
+      // Explicit sign-out is the one place the durable resume cookie dies too —
+      // a transient SIGNED_OUT (failed refresh) must keep it for silent restore.
+      // AWAITED, because an account sign-out may hand the device straight to the
+      // next remembered account: a DELETE still in flight would land after that
+      // account's persist and leave the device with no durable session at all.
+      await clearPersistedSession();
       if (scope === "device") return;
       // The person asked to leave ONE account on a device that still holds
       // another signed-in one. Leaving it signed out would strand a session

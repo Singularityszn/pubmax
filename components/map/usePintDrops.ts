@@ -8,7 +8,7 @@ import { barTabPath, profilePath } from "@/lib/appLink";
 import { readActiveRoundCode } from "@/lib/activeRound";
 import { getAnonId } from "@/lib/anonId";
 import { authedActionFetch } from "@/lib/authedFetch";
-import { readProviderAccountRevision, readProviderSignOutRevision } from "@/lib/authProviderRevision";
+import { readProviderAccountRevision, readProviderSignOutRevision, subscribeProviderIdentityRevision } from "@/lib/authProviderRevision";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { trackEvent } from "@/lib/analytics";
 import type { CityId } from "@/lib/cities";
@@ -695,9 +695,14 @@ export function usePintDrops(
     // A failed refresh moves the account revision without changing the owner.
     // Only another account or an explicit sign-out ends this drop's owner.
     const submittedSignOutRevision = readProviderSignOutRevision("supabase");
+    let displaced = false;
+    const stopWatchingOwner = subscribeProviderIdentityRevision(() => {
+      const currentUserId = getCurrentUserId();
+      if (currentUserId !== null && currentUserId !== requestUserId) displaced = true;
+    });
     const ownsSubmittedDrop = () => {
       const currentUserId = getCurrentUserId();
-      return readProviderSignOutRevision("supabase") === submittedSignOutRevision &&
+      return !displaced && readProviderSignOutRevision("supabase") === submittedSignOutRevision &&
         (currentUserId === requestUserId || currentUserId === null);
     };
     const markFailed = (message: string) => {
@@ -802,7 +807,7 @@ export function usePintDrops(
           venueName: options?.venueName ?? unresolvedVenueLabel(venueId),
           dropRef: pintDropId(data.drop),
         });
-        if (!ownsCurrentAccount()) return;
+        if (!ownsSubmittedDrop()) return;
 
         const links: NonNullable<DropMsg["links"]> = [
           { href: "/social", label: "Open Social" },
@@ -829,6 +834,8 @@ export function usePintDrops(
         });
       } catch {
         markFailed("Network or storage error. Try again.");
+      } finally {
+        stopWatchingOwner();
       }
     }
   }
