@@ -70,7 +70,7 @@ test.describe("/how-we-estimate", () => {
     // page guessing.
     const body = (await section.innerText()).trim();
     const readBasis = /Basis last computed/.test(body);
-    const unreadBasis = /this page cannot\s+tell you what it holds/.test(body);
+    const unreadBasis = /We could not load the estimate data/.test(body);
     expect(
       readBasis !== unreadBasis,
       `the basis section said neither that it was read nor that it could not be: ${body}`,

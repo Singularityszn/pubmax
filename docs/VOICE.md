@@ -113,7 +113,7 @@ Some of these are lines we already own and should copy the rhythm of. Others are
 | 8 | No grounded nearby extension is available without widening the route. | Nothing close enough to add without dragging the night out. | `NightModeCard` |
 | 9 | Nearest rail signal: {station}. | Nearest station: {station}. | `NightModeCard` |
 | 10 | Kitchen hours can change; verify tonight before leaving the last pub. | Kitchens can shut early. Check tonight's hours before you leave the last pub. | `NightModeCard` |
-| 11 | After a hard day's work you want a cheap pint nearby — without bouncing between Google Maps, other maps, and ChatGPT. | You finish work, you want a good pint nearby. So you open Google Maps, then another map, then reviews, then you're asking ChatGPT, and an hour later you're back at the same place as last time. | `/about` lede |
+| 11 | After a hard day's work you want a cheap pint nearby — without bouncing between Google Maps, other maps, and ChatGPT. | Find a pub, check its listed prices and send your mates a plan. | `/about` lede |
 | 12 | Karan Manoharan &mdash; X | Karan Manoharan · X | `/about` press-kit founder line (no dash construction) |
 
 ## Where the jokes live

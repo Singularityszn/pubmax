@@ -144,8 +144,8 @@ describe("About outings story (Wave S1)", () => {
 
     expect(html).toContain("coffee and a laptop at a Spoons");
     expect(html).toContain("alcohol-free hang");
-    expect(html).toContain("Food anchors stay honest");
-    expect(html).toContain("Fake Wetherspoons prices");
+    expect(html).toContain("Food listings name their source");
+    expect(html).toContain("Wetherspoons prices");
     expect(html).toContain("second independent drinker");
     expect(html).toContain("founder-led by");
     expect(html).toContain("Karan Manoharan");
