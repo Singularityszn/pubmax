@@ -40,6 +40,22 @@ describe("statedDogPolicy", () => {
     ]) expect(statedDogPolicy(limited), limited).toBeNull();
   });
 
+  it("reads no welcome or refusal that the next list item or a clock limits", () => {
+    for (const limited of [
+      "Dogs welcome – garden only",
+      "Dogs welcome - except Sundays",
+      "Dog friendly | weekdays only",
+      "Dogs welcome\nin the bar area only",
+      "Dog Friendly - Garden Only",
+      "No dogs allowed – garden only",
+      "Dogs welcome 12:00-17:00",
+      "No dogs 18:00-23:00",
+      "Dogs welcome 12:00 - 17:00",
+    ]) expect(statedDogPolicy(limited), limited).toBeNull();
+    expect(statedDogPolicy("Dog Friendly - Family Friendly | Sky Sports")?.policy).toBe("welcome");
+    expect(statedDogPolicy("No dogs allowed. Garden open daily from noon.")?.policy).toBe("not-allowed");
+  });
+
   it("reads a refusal only in a form that refuses dogs at the whole pub", () => {
     expect(statedDogPolicy("Sorry, no dogs.")).toEqual({ policy: "not-allowed", evidence: "Sorry, no dogs." });
     for (const refusal of [

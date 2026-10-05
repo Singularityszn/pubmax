@@ -78,21 +78,52 @@ const NEGATION = /\b(?:not|no|never|n't|unfortunately|sadly)\b|n't\b/i;
 /** Seasonal and one-off events speak for a day, not the pub's standing policy. */
 const ONE_OFF = /\b(?:christmas|festive|halloween|new years?|easter|show|competition|parade|walk|event|festival|race)\b/i;
 
-function clauses(pageText: string): string[] {
-  return pageText.split(CLAUSE_BREAK).map((clause) => clause.trim()).filter(Boolean);
+/** A dash, a pipe, a newline or a heading, after which a clause may still speak about the one before it. */
+const LIST_BREAK = /[-\u2013\u2022*|#\n]/;
+const ITEM_LIMIT = /\b(?:only|except|unless|excluding|not|no|until|after|before|from|weekdays?|weekends?|(?:mon|tues|wednes|thurs|fri|satur|sun)days?)\b/i;
+
+type Clause = { text: string; listed: string | null };
+
+/** Each clause with the clause after it when a list break, not a sentence end, parts them. */
+function clauses(pageText: string): Clause[] {
+  const parts = pageText.split(new RegExp(`(${CLAUSE_BREAK.source})`));
+  const found: { text: string; breakBefore: string }[] = [];
+  let breakBefore = "";
+  parts.forEach((part, index) => {
+    if (index % 2 === 1) {
+      breakBefore += part;
+      return;
+    }
+    const text = part.trim();
+    if (!text) return;
+    found.push({ text, breakBefore });
+    breakBefore = "";
+  });
+  return found.map(({ text }, index) => {
+    const next = found[index + 1];
+    return { text, listed: next && LIST_BREAK.test(next.breakBefore) ? next.text : null };
+  });
 }
 
-function statesOnly(clause: string, form: RegExp): boolean {
-  return form.test(fold(clause).replace(COURTESY, " ").replace(/[^a-z']+/g, " ").trim());
+/** Another short item in a facility list ("Family Friendly"), which limits nothing before it. */
+function isFacilityItem(clause: string): boolean {
+  const words = clause.split(/\s+/);
+  return words.length <= 4 && !/\d/.test(clause) && !ITEM_LIMIT.test(clause) && words.every((word) => /^[A-Z&]/.test(word));
+}
+
+function statesOnly({ text, listed }: Clause, form: RegExp): boolean {
+  if (listed !== null && !isFacilityItem(listed)) return false;
+  return form.test(fold(text).replace(COURTESY, " ").replace(/[^a-z0-9']+/g, " ").trim());
 }
 
 /** What a clause says about dogs, and whether it stands as the pub's policy or only as a limited answer. */
-function dogClauseVerdict(clause: string): { policy: DogPolicy; stands: boolean } | null {
-  if (!DOG_WORD.test(clause) || /\?\s*$/.test(clause)) return null;
-  if (NOT_THE_PUB_SPEAKING.test(clause)) return null;
-  if (DOG_REFUSED.test(clause)) return { policy: "not-allowed", stands: statesOnly(clause, PUB_WIDE_REFUSAL) };
-  if (!DOG_WELCOME.test(clause)) return null;
-  if (ASSISTANCE_DOG.test(clause) || NEGATION.test(clause) || ONE_OFF.test(clause)) return null;
+function dogClauseVerdict(clause: Clause): { policy: DogPolicy; stands: boolean } | null {
+  const { text } = clause;
+  if (!DOG_WORD.test(text) || /\?\s*$/.test(text)) return null;
+  if (NOT_THE_PUB_SPEAKING.test(text)) return null;
+  if (DOG_REFUSED.test(text)) return { policy: "not-allowed", stands: statesOnly(clause, PUB_WIDE_REFUSAL) };
+  if (!DOG_WELCOME.test(text)) return null;
+  if (ASSISTANCE_DOG.test(text) || NEGATION.test(text) || ONE_OFF.test(text)) return null;
   return { policy: "welcome", stands: statesOnly(clause, PUB_WIDE_WELCOME) };
 }
 
@@ -121,8 +152,8 @@ export function statedDogPolicy(pageText: string): StatedDogPolicy | null {
     if (!verdict) continue;
     said.add(verdict.policy);
     if (!verdict.stands) continue;
-    if (verdict.policy === "welcome") welcome ??= quotable(clause, DOG_WELCOME);
-    else refused ??= quotable(clause, DOG_REFUSED);
+    if (verdict.policy === "welcome") welcome ??= quotable(clause.text, DOG_WELCOME);
+    else refused ??= quotable(clause.text, DOG_REFUSED);
   }
   if (said.size > 1) return null;
   const evidence = welcome ?? refused;

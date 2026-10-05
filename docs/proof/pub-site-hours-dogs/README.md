@@ -15,7 +15,10 @@ passage, the page URL and the day of the read.
   "dogs are welcome in our pub", "we welcome dogs" or "bring your dog". A
   refusal is "no dogs", "dogs are not allowed in the pub", "we do not allow
   dogs" or "only assistance dogs". A statement with any other words, such as a
-  day, an hour or a room, stays unknown. A page that both welcomes and refuses
+  day, an hour, a clock time or a room, stays unknown. So does a statement
+  whose next item after a dash, a pipe, a newline or a heading limits it
+  ("Dogs welcome - garden only"). Another short facility item ("Family
+  Friendly") does not limit it. A page that both welcomes and refuses
   dogs, even when either has a limit, stays unknown. So do a guest review, a
   footer link and "assistance dogs welcome".
 - **Hours.** Only a passage under an opening-hours label counts. Kitchen,
