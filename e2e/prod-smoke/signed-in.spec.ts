@@ -119,13 +119,22 @@ test.describe("signed-in journeys", () => {
   test("creates a Plan and locks it in", async () => {
     await page.goto("/plan");
     await expect(describeFirstQuery(page)).toBeEditable();
+    // Retry the tap only until it sends the request: once it lands, "Sort it"
+    // gives way to the route, so a slow answer must be waited for, not re-tapped.
     await expect(async () => {
       await describeFirstQuery(page).fill("Quiet in Clapham for 4, not pricey");
-      await describeFirstSubmit(page).click({ timeout: 2_000 });
-      await expect(
-        page.getByText("3 stops we can stand behind, shaped by the outing you set below."),
-      ).toBeVisible({ timeout: 5_000 });
+      await Promise.all([
+        page.waitForRequest(
+          (request) =>
+            request.method() === "POST" && new URL(request.url()).pathname === "/api/plans/generate",
+          { timeout: 2_000 },
+        ),
+        describeFirstSubmit(page).click({ timeout: 2_000 }),
+      ]);
     }).toPass({ timeout: 60_000 });
+    await expect(
+      page.getByText("3 stops we can stand behind, shaped by the outing you set below."),
+    ).toBeVisible({ timeout: 60_000 });
     await page.getByLabel("Your name").fill("Smoke test");
     const [response] = await Promise.all([
       page.waitForResponse(
@@ -185,11 +194,13 @@ test.describe("signed-in journeys", () => {
       await abandonPlan(page, created.plan);
       created.plan = undefined;
     }
-    await page.goto("/map");
-    await page.getByRole("button", { name: /Account options/ }).first().click();
-    await page.locator(".authAccountMenu").getByRole("button", { name: "Sign out", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Sign in", exact: true }).first()).toBeVisible();
+    // Sign out from the account card on /login. A return to /map reopens the
+    // venue sheet the save journeys left open, and an open sheet makes the
+    // site nav inert, so its account menu cannot be reached from there.
     await page.goto("/login");
+    const account = page.getByRole("region", { name: "Signed-in account" });
+    await account.getByRole("button", { name: "Sign out", exact: true }).click();
+    await expect(account).toBeHidden();
     await expect(page.getByTestId("e2e-login-toggle")).toBeVisible();
     await evidence(page, "signed-out");
     assertNoPageErrors();
