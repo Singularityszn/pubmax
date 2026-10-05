@@ -13,7 +13,7 @@ import { normalizeHandle } from "@/lib/profiles";
 import { formatSavedVenueCount } from "@/lib/savedListPresentation";
 import { savedListPath } from "@/lib/savedListUrl";
 import { buildSavedListShareText } from "@/lib/shareArtifacts";
-import type { ListType, SavedPubDTO } from "@/lib/savedPubs";
+import { fetchSavedForHandle, type ListType, type SavedPubDTO } from "@/lib/savedPubs";
 import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
 import { creatorListMapHref } from "@/lib/creatorListMap";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
@@ -53,7 +53,7 @@ function readCounts(value: unknown): { followers: number | null; savedPubs: numb
 export default function SavedListDetail({
   ownerHandle,
   listType,
-  venues,
+  venues: initialVenues,
   initialCounts,
   initialFollowing = false,
 }: SavedListDetailProps) {
@@ -67,11 +67,17 @@ export default function SavedListDetail({
   const [followStateKey, setFollowStateKey] = useState(viewerKey);
   const viewerKeyRef = useRef(viewerKey);
   const [counts, setCounts] = useState(initialCounts);
+  const [ownerRead, setOwnerRead] = useState<{ key: string; venues: SavedPubDTO[] } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const viewerStateReady = followStateKey === viewerKey;
   const canFollow = socialFriendsLaunchEnabled && viewerStateReady && viewer !== "" && viewer !== owner;
+  const viewerIsOwner = viewerStateReady && viewer !== "" && viewer === owner;
+  // The server renders the public read, which a withdrawn (suspended) handle
+  // answers as empty. Its signed-in owner gets their own list back from the
+  // owner-aware reads below.
+  const venues = ownerRead?.key === viewerKey ? ownerRead.venues : initialVenues;
   const shareUrl = savedListPath(owner, listType);
   const mapHref = creatorListMapHref(venues);
   const shareText = buildSavedListShareText({
@@ -85,10 +91,48 @@ export default function SavedListDetail({
     void Promise.resolve().then(() => {
       setFollowStateKey(viewerKey);
       setFollowing(false);
+      setCounts(initialCounts);
       setBusy(false);
       setError(null);
     });
-  }, [viewerKey]);
+  }, [initialCounts, viewerKey]);
+
+  useEffect(() => {
+    if (!viewerIsOwner) return;
+    const controller = new AbortController();
+
+    async function loadOwnerList() {
+      const saved = await fetchSavedForHandle(owner, controller.signal);
+      if (!saved || controller.signal.aborted || viewerKeyRef.current !== viewerKey) return;
+      const listVenues = saved.filter((venue) => venue.listType === listType);
+      setOwnerRead({ key: viewerKey, venues: listVenues });
+      setCounts((current) => ({ ...current, savedPubs: listVenues.length }));
+      if (!socialFriendsLaunchEnabled) return;
+      try {
+        const res = await authedFetch(
+          `/api/saved-pubs/list-follows?owner=${encodeURIComponent(owner)}&listType=${encodeURIComponent(
+            listType,
+          )}`,
+          { signal: controller.signal },
+          { requiresIdentity: true },
+        );
+        if (!res.ok) {
+          discardBody(res);
+          return;
+        }
+        const body = (await res.json()) as { counts?: unknown };
+        const nextCounts = readCounts(body.counts);
+        if (nextCounts && !controller.signal.aborted && viewerKeyRef.current === viewerKey) {
+          setCounts((current) => ({ ...current, followers: nextCounts.followers }));
+        }
+      } catch {
+        // The follower count is additive; the owner's venues already painted.
+      }
+    }
+
+    void loadOwnerList();
+    return () => controller.abort();
+  }, [listType, owner, socialFriendsLaunchEnabled, viewerIsOwner, viewerKey]);
 
   useEffect(() => {
     if (!socialFriendsLaunchEnabled || !canFollow) return;
@@ -243,7 +287,7 @@ export default function SavedListDetail({
         {venues.length === 0 ? (
           <p className="profileEmpty">@{owner} has not saved any venues to this list yet.</p>
         ) : (
-          <ul className="savedListItems listDetailItems">
+          <ul className="savedListItems">
             {venues.map((venue) => (
               <li className="savedItem listDetailItem" key={`${venue.venueId}:${venue.listType}`}>
                 <Link className="savedItemVenue" href={venue.venueMapUrl}>
