@@ -24,7 +24,6 @@ vi.mock("@/components/auth/ArrivalWelcome", () => ({ default: () => null }));
 vi.mock("@/components/identity/AccountOnboarding", () => ({ default: () => null }));
 vi.mock("@/components/identity/IdentityNudge", () => ({ default: () => null }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
-vi.mock("@/lib/posthog/posthogPerson", () => ({ syncPosthogPersonIdentity: vi.fn() }));
 vi.mock("@/lib/authClient", () => ({
   isAuthConfigured: () => true,
   ensureSupabaseBrowser: async () => ({

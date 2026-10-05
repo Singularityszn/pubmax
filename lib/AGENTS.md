@@ -37,7 +37,7 @@ Full rules: [`docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md`](../doc
 
 ## Observability
 
-Arize model-call tracing leaf and registration. PostHog journey event names for dashboards: [`docs/analytics/POSTHOG_EVENT_NAMES.md`](../docs/analytics/POSTHOG_EVENT_NAMES.md); replay sampling: [`docs/analytics/POSTHOG_SAMPLING.md`](../docs/analytics/POSTHOG_SAMPLING.md).
+Arize model-call tracing leaf and registration. PostHog journey event names for dashboards: [`docs/analytics/POSTHOG_EVENT_NAMES.md`](../docs/analytics/POSTHOG_EVENT_NAMES.md); browser SDK features (replay, heatmaps, surveys, identify and flags are off): [`docs/analytics/POSTHOG_SAMPLING.md`](../docs/analytics/POSTHOG_SAMPLING.md).
 
 Full rules: [`docs/rules/lib-observability.md`](../docs/rules/lib-observability.md).
 
