@@ -30,6 +30,7 @@ evals/pal/scoreboard/
 evals/askRouterModel/scoreboard/
 artifacts/
 /coverage/
+/blob-reports/
 e2e/screenshots/
 .e2e/
 # public/vendor/ is BUILD-WRITTEN (lib/staticAssetPrefixes.mjs): `npm run dev`

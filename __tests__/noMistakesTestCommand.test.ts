@@ -26,8 +26,8 @@ import { parse } from "yaml";
 
 import { requireDataRevision } from "@/lib/dataRevision.mjs";
 
-import { SERIAL_SHM_RUN } from "../scripts/rls/postgresSuites.mjs";
-import { coverageRuns } from "../scripts/run-coverage.mjs";
+import { POSTGRES_BACKED_SUITES, SERIAL_SHM_RUN } from "../scripts/rls/postgresSuites.mjs";
+import { WITHOUT_POSTGRES, coverageRuns } from "../scripts/run-coverage.mjs";
 import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = process.cwd();
@@ -100,6 +100,28 @@ describe("the no-mistakes repository test command", () => {
     const excluded = SERIAL_SHM_RUN.suites.flatMap((suite) => ["--exclude", suite]);
 
     expect(coverageRuns(excluded)).toHaveLength(1);
+  });
+
+  it("leaves the PostgreSQL suites to npm run test:rls", () => {
+    // verify runs those suites in `npm run test:rls`, so its coverage run
+    // excludes them rather than running each one twice.
+    const verify = defined(packageScripts().verify, "verify script")
+      .split("&&")
+      .map((command) => command.trim().split(/\s+/));
+    const at = verify.findIndex((words) => words.slice(0, 3).join(" ") === "npm run coverage");
+    expect(at).toBeGreaterThanOrEqual(0);
+    expect(defined(verify[at]).slice(3)).toEqual(["--", WITHOUT_POSTGRES]);
+    expect(verify[at + 1]).toEqual(["npm", "run", "test:rls"]);
+
+    const runs = coverageRuns([WITHOUT_POSTGRES, "--shard=1/2"]);
+    expect(runs).toHaveLength(1);
+    expect(defined(runs[0]).args).toEqual([
+      "run",
+      "--coverage",
+      "--maxWorkers=4",
+      ...POSTGRES_BACKED_SUITES.flatMap((suite) => ["--exclude", suite]),
+      "--shard=1/2",
+    ]);
   });
 
   it("validates committed bundled data without regenerating slim shards", () => {

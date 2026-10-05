@@ -2,8 +2,9 @@
  * THE CLOSED LIST OF SUITES THAT NEED A REAL POSTGRESQL CLUSTER.
  *
  * One list, read three ways, because a proof owned by nobody is a proof that
- * runs nowhere: `npm run test:rls` runs exactly these, the `unit-tests` and
- * `coverage` jobs exclude exactly these (they install no cluster), and
+ * runs nowhere: `npm run test:rls` runs exactly these, `npm run coverage --
+ * --without-postgres` excludes exactly these (the CI unit shards install no
+ * cluster, and `npm run verify` runs them in `npm run test:rls`), and
  * `__tests__/postgresSuiteInventory.test.ts` fails when a suite starts a
  * cluster without joining the list. That fence is the fix for the day three
  * migration proofs landed in a job with no PostgreSQL and reported themselves
