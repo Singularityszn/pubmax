@@ -281,7 +281,7 @@ describe("runPalElevenLabsChatTurn", () => {
     expect(storeMocks.registerPubPalToolTurn).toHaveBeenCalledWith(
       "conv_regression01",
       expect.objectContaining({
-        summary: "a pub for six; ask 1",
+        summary: "a pub for six\nask 1",
         turns: ["ask 2", "ask 3", "ask 4", "ask 5", "ask 6", "ask 7"].map((content) => ({ role: "user", content })),
       }),
     );

@@ -14,7 +14,10 @@ const encoder = new TextEncoder();
 
 const SUMMARY_LABEL = "My earlier asks, not facts about any pub: ";
 
-const SEPARATOR = "; ";
+/** Asks are stored one per line: whitespace is collapsed, so no ask holds a newline. */
+const STORED_SEPARATOR = "\n";
+
+const RENDERED_SEPARATOR = "; ";
 
 const SUMMARY_BYTE_BUDGET = PAL_SESSION_SUMMARY_BYTE_LIMIT - encoder.encode(SUMMARY_LABEL).length;
 
@@ -41,13 +44,14 @@ function capToBudget(text: string): string {
  */
 function rollSummary(summary: string, evicted: PubPalFenceTurn[]): string {
   const asks = [
-    ...summary.split(SEPARATOR),
+    ...summary.split(STORED_SEPARATOR),
     ...evicted.filter((turn) => turn.role === "user").map((turn) => turn.content),
   ]
     .map((ask) => ask.replace(/\s+/g, " ").trim())
     .filter(Boolean);
-  while (asks.length > 1 && byteLength(asks.join(SEPARATOR)) > SUMMARY_BYTE_BUDGET) asks.shift();
-  return capToBudget(asks.join(SEPARATOR));
+  while (asks.length > 1 && byteLength(asks.join(RENDERED_SEPARATOR)) > SUMMARY_BYTE_BUDGET) asks.shift();
+  if (asks.length === 1) return capToBudget(asks[0] as string);
+  return asks.join(STORED_SEPARATOR);
 }
 
 /**
@@ -66,6 +70,12 @@ export function windowPalSessionTurns(
 
 /** The one turn a typed ask carries for its older history. Empty when nothing has rolled off yet. */
 export function palSessionSummaryTurn(summary: string): string[] {
-  const text = capToBudget(summary.trim());
+  const text = capToBudget(
+    summary
+      .split(STORED_SEPARATOR)
+      .map((ask) => ask.trim())
+      .filter(Boolean)
+      .join(RENDERED_SEPARATOR),
+  );
   return text ? [`${SUMMARY_LABEL}${text}`] : [];
 }

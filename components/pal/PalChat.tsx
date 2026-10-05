@@ -414,9 +414,10 @@ export default function PalChat() {
     if (proposal.kind === "remember_memory") {
       void (async () => {
         const result = await confirmPalMemoryProposal(
-          { memoryKind: proposal.memoryKind, value: proposal.value },
+          { id: proposal.id, memoryKind: proposal.memoryKind, value: proposal.value },
           auth,
         );
+        if (!result) return;
         if (!result.ok && result.needsSignIn) {
           router.push("/login?mode=signin&from=/pal/chat");
           return;

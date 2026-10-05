@@ -30,10 +30,28 @@ describe("Pal rolling session summary", () => {
       { role: "assistant", content: "The Crown has a £3 pint." },
       ...Array.from({ length: PAL_SESSION_RECENT_TURNS }, (_, index) => ask(`recent ${index}`)),
     ];
-    const session = windowPalSessionTurns("quiet   pubs\nin Soho", turns);
-    expect(session.summary).toBe("quiet pubs in Soho; a pub for six");
+    const session = windowPalSessionTurns("quiet   pubs\tin Soho", turns);
+    expect(palSessionSummaryTurn(session.summary)).toEqual([
+      "My earlier asks, not facts about any pub: quiet pubs in Soho; a pub for six",
+    ]);
     expect(session.turns).toHaveLength(PAL_SESSION_RECENT_TURNS);
     expect(session.summary).not.toContain("£3");
+  });
+
+  it("drops a whole older ask, never part of one, when an ask itself contains the rendered separator", () => {
+    const recent = (offset: number) =>
+      Array.from({ length: PAL_SESSION_RECENT_TURNS }, (_, index) => ask(`recent ${offset + index}`));
+    let session = windowPalSessionTurns("", [ask("pints under £5; beer garden"), ...recent(0)]);
+    expect(palSessionSummaryTurn(session.summary)).toEqual([
+      "My earlier asks, not facts about any pub: pints under £5; beer garden",
+    ]);
+
+    const filler = "quiet corner table near the fire ".repeat(10).slice(0, 240);
+    session = windowPalSessionTurns(session.summary, [ask(filler), ...recent(10)]);
+    const [turn] = palSessionSummaryTurn(session.summary);
+    expectWithinByteCap(turn);
+    expect(turn).not.toContain("beer garden");
+    expect(turn).not.toContain("pints under £5");
   });
 
   it("keeps the emitted summary turn within its byte cap over a long chat, dropping the oldest asks first", () => {
