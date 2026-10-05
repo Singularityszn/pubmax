@@ -1217,9 +1217,9 @@
 
 /* NOTE ON PRESS FEEDBACK: these pills need none of their own. app/globals.css
    already presses every <button> on :active via --press-scale, behind a
-   prefers-reduced-motion: no-preference gate, and __tests__/designCraftCss.test.ts
-   holds that to ONE scale owner per control. A local transform: scale() here
-   would be a second owner and would lose the reduced-motion gate with it. */
+   prefers-reduced-motion: no-preference gate, with ONE scale owner per control.
+   A local transform: scale() here would be a second owner and would lose the
+   reduced-motion gate with it. */
 
 /* The lead action. Coral is already the app's one accent, so emphasis here is
    a firmer edge and a heavier label, never a second hue. */

@@ -174,7 +174,7 @@ Wave 6  Memory / store / expansion (gated)
 |---|---|---|---|
 | W1.1 | Venue Drinks empty state: short honest line + path to contribute / log a price (not a fake menu) | P1 | **Complete:** unavailable drinks are stated plainly and the action opens the existing Pint Drop contribution flow |
 | W1.2 | Pint Index league empty: shorter copy that still separates zone strip vs sourced league | P1 | **Complete:** short copy keeps the wider fare-zone picture separate from the dated public-source league |
-| W1.3 | Mobile venue sheet: price captions wrap, never ellipsis | Verify | Passes `__tests__/mobileChromeFit.test.ts` spirit on real 390×844 device viewport |
+| W1.3 | Mobile venue sheet: price captions wrap, never ellipsis | Verify | Passes `e2e/price-caption-integrity.spec.ts` on a real 390×844 device viewport |
 | W1.4 | Dark mode pass: landing, map, venue sheet vs Night Out tokens | Verify | Both themes screenshot-read; no black-on-black pin rims |
 | W1.5 | **Complete:** Nav discoverability for Plan / Near (P2) | P2 | Contextual entry points supplement More without changing the six-tab navigation model; placement is pinned in `__tests__/journeyEntryPoints.test.ts` and `e2e/today-journey-entry-points.spec.ts` |
 | W1.6 | Contribute / log-price entry points from sheet | Verify | First-time drinker can find price submit without docs |
