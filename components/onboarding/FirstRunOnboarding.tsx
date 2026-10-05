@@ -3,8 +3,14 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, MapPinned, ShieldCheck } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import {
+  BudgetPanel,
+  LocationPanel,
+  ResultPanel,
+  type LocateState,
+} from "@/components/onboarding/OnboardingPanels";
 import PalPortrait from "@/components/pal/PalPortrait";
 import { trackEvent } from "@/lib/analytics";
 import { writePreferredCity } from "@/lib/cityPreference";
@@ -17,11 +23,40 @@ import {
   writeFirstRunCompanion,
   type FirstRunCompanion,
 } from "@/lib/firstRunTour";
+import { formatGbp } from "@/lib/formatGbp";
+import { pricedWithinWalk, rankNearMe, type NearMeCard } from "@/lib/nearMeAnswer";
+import { NIGHT_PATCHES, writeRememberedArea } from "@/lib/nightPatches";
+import {
+  BUDGET_CHOICES,
+  ONBOARDING_STEPS,
+  nextOnboardingStep,
+  onboardingResult,
+  onboardingStepNumber,
+  previousOnboardingStep,
+  readBudgetChoice,
+  writeBudgetChoice,
+  type BudgetChoiceId,
+  type OnboardingOrigin,
+  type OnboardingStep,
+} from "@/lib/onboardingFlow";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
+import { loadSlimVenuesForCity, type SlimVenue } from "@/lib/venuesSlim";
 
 type ReviewedArea = {
   name: string;
   transportAnchor: string;
+};
+
+type Answer =
+  | { status: "loading" }
+  | { status: "empty" }
+  | { status: "ready"; cards: NearMeCard[]; widened: boolean; walkPrices: number[] };
+
+// The same read /near makes: a coarse fix, a short wait, a recent one is fine.
+const GEO_OPTIONS: PositionOptions = {
+  enableHighAccuracy: false,
+  timeout: 7000,
+  maximumAge: 60_000,
 };
 
 export default function FirstRunOnboarding({
@@ -30,13 +65,23 @@ export default function FirstRunOnboarding({
   reviewedAreas: ReviewedArea[];
 }) {
   const router = useRouter();
-  const [stage, setStage] = useState<"london" | "companion">("london");
+  const [step, setStep] = useState<OnboardingStep>("london");
   const [companion, setCompanion] = useState<FirstRunCompanion>("robin");
+  const [budget, setBudget] = useState<BudgetChoiceId | null>(null);
+  const [locateState, setLocateState] = useState<LocateState>("idle");
+  const [showPatches, setShowPatches] = useState(false);
+  const [origin, setOrigin] = useState<OnboardingOrigin | null>(null);
+  const [answer, setAnswer] = useState<Answer>({ status: "loading" });
+  // A reader who taps a patch twice, or backs out mid-read, must not see the
+  // older read land over the newer one.
+  const answerGeneration = useRef(0);
 
   useEffect(() => {
     claimTourPromptBudget();
     const remembered = readFirstRunCompanion();
     if (remembered) void Promise.resolve().then(() => setCompanion(remembered));
+    const rememberedBudget = readBudgetChoice();
+    if (rememberedBudget) void Promise.resolve().then(() => setBudget(rememberedBudget));
     const releaseBudget = () => releaseTourPromptBudget();
     window.addEventListener("pagehide", releaseBudget);
     return () => {
@@ -56,15 +101,98 @@ export default function FirstRunOnboarding({
     }),
     [companion],
   );
+  const budgetChoice = BUDGET_CHOICES.find((choice) => choice.id === budget) ?? null;
+  const result = useMemo(
+    () =>
+      answer.status === "ready"
+        ? onboardingResult(answer.cards, budget, answer.widened, answer.walkPrices)
+        : null,
+    [answer, budget],
+  );
+
+  const goTo = useCallback((next: OnboardingStep | null) => {
+    if (next) setStep(next);
+  }, []);
 
   function confirmLondon() {
     writePreferredCity("london");
-    setStage("companion");
+    goTo(nextOnboardingStep("london"));
+  }
+
+  function chooseBudget(choice: BudgetChoiceId) {
+    setBudget(choice);
+    writeBudgetChoice(choice);
   }
 
   function chooseCompanion(choice: FirstRunCompanion) {
     setCompanion(choice);
     writeFirstRunCompanion(choice);
+  }
+
+  // Rank the priced pubs around `from` and move to the result. A read we could
+  // not run is an empty answer the reader can retry from another patch, never
+  // a spinner that does not end.
+  const readAnswer = useCallback(async (from: OnboardingOrigin) => {
+    const generation = ++answerGeneration.current;
+    setOrigin(from);
+    setAnswer({ status: "loading" });
+    setStep("result");
+    let rows: SlimVenue[];
+    try {
+      rows = await loadSlimVenuesForCity("london");
+    } catch {
+      rows = [];
+    }
+    if (generation !== answerGeneration.current) return;
+    const ranked = rankNearMe(from.lat, from.lng, rows);
+    if (ranked.scope === "none") {
+      if (from.kind === "location") {
+        // Located fine, nothing priced in range: say so and offer the patches.
+        setLocateState("outside");
+        setShowPatches(true);
+        setStep("location");
+        return;
+      }
+      setAnswer({ status: "empty" });
+      return;
+    }
+    setAnswer({
+      status: "ready",
+      cards: ranked.cards,
+      widened: ranked.scope === "widened",
+      walkPrices: pricedWithinWalk(from.lat, from.lng, rows),
+    });
+  }, []);
+
+  function locate() {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setLocateState("unavailable");
+      setShowPatches(true);
+      return;
+    }
+    setLocateState("requesting");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLocateState("idle");
+        void readAnswer({
+          kind: "location",
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+      },
+      (error) => {
+        setLocateState(error.code === error.PERMISSION_DENIED ? "denied" : "unavailable");
+        setShowPatches(true);
+      },
+      GEO_OPTIONS,
+    );
+  }
+
+  function pickPatch(id: string) {
+    const patch = NIGHT_PATCHES.find((candidate) => candidate.id === id);
+    if (!patch) return;
+    writeRememberedArea({ kind: "patch", id: patch.id });
+    void readAnswer({ kind: "patch", ...patch });
   }
 
   function skipOnboarding() {
@@ -86,7 +214,10 @@ export default function FirstRunOnboarding({
     router.push("/map?plan=1");
   }
 
-  const isCompanionStage = stage === "companion";
+  const stepNumber = onboardingStepNumber(step);
+  const previous = previousOnboardingStep(step);
+  const areaLabel =
+    origin?.kind === "patch" ? `around ${origin.label}` : "near you";
 
   return (
     <main
@@ -95,7 +226,7 @@ export default function FirstRunOnboarding({
       // than parking a round + over the reviewed-area list
       // (components/nav/createFab.css).
       className="firstRunOnboarding pageHidesCreateFab"
-      data-stage={stage}
+      data-stage={step}
     >
       <header className="firstRunTopbar">
         <div className="firstRunBrand" aria-label="PUBMAXXING">
@@ -107,20 +238,27 @@ export default function FirstRunOnboarding({
           role="progressbar"
           aria-label="Onboarding progress"
           aria-valuemin={1}
-          aria-valuemax={2}
-          aria-valuenow={isCompanionStage ? 2 : 1}
+          aria-valuemax={ONBOARDING_STEPS.length}
+          aria-valuenow={stepNumber}
+          style={{ "--first-run-steps": ONBOARDING_STEPS.length } as React.CSSProperties}
         >
-          <span className={isCompanionStage ? "isComplete" : "isCurrent"} />
-          <span className={isCompanionStage ? "isCurrent" : ""} />
+          {ONBOARDING_STEPS.map((id, index) => (
+            <span
+              key={id}
+              className={
+                index + 1 < stepNumber ? "isComplete" : index + 1 === stepNumber ? "isCurrent" : ""
+              }
+            />
+          ))}
         </div>
         <button type="button" className="firstRunSkip pressable" onClick={skipOnboarding}>
           Skip
         </button>
       </header>
 
-      <div className="firstRunStage" key={stage}>
-        <section className="firstRunVisual" aria-label={isCompanionStage ? "Companion preview" : "London preview"}>
-          {isCompanionStage ? (
+      <div className="firstRunStage" key={step}>
+        <section className="firstRunVisual" aria-label={visualLabel(step)}>
+          {step === "companion" ? (
             <div className="firstRunCompanionHero">
               <PalPortrait
                 appearance={appearance}
@@ -133,6 +271,20 @@ export default function FirstRunOnboarding({
                   : "Pick the Pal you want in your corner for the first night."}
               </p>
             </div>
+          ) : step === "budget" ? (
+            <div className="firstRunFigureHero">
+              <p className="firstRunFigure" aria-hidden="true">
+                {budgetChoice ? (budgetChoice.ceiling ? `£${budgetChoice.ceiling}` : "Any") : "£?"}
+              </p>
+              <p>{budgetChoice ? `A pint at ${budgetChoice.label.toLowerCase()}.` : "Your pint, your number."}</p>
+            </div>
+          ) : step === "result" && result?.best ? (
+            <div className="firstRunFigureHero">
+              <p className="firstRunFigure" aria-hidden="true">
+                {formatGbp(result.best.cheapestPrice)}
+              </p>
+              <p>{result.best.name}</p>
+            </div>
           ) : (
             <figure className="firstRunLondonPhoto">
               <Image
@@ -142,14 +294,85 @@ export default function FirstRunOnboarding({
                 priority
                 sizes="(max-width: 760px) 100vw, 52vw"
               />
-              <figcaption>London, with the route home kept in view.</figcaption>
+              <figcaption>
+                {step === "location"
+                  ? "Every pint near you, cheapest first."
+                  : "London, with the route home kept in view."}
+              </figcaption>
             </figure>
           )}
         </section>
 
         <section className="firstRunPanel" aria-live="polite">
           <div className="firstRunPanelInner">
-            {isCompanionStage ? (
+            {step === "london" ? (
+              <>
+                <p className="firstRunEyebrow">Your city</p>
+                <h1>London is ready.</h1>
+                <p className="firstRunLead">
+                  Start with checked routes, listed pint prices, and a clear way home.
+                </p>
+
+                <div className="firstRunAreaList" aria-label="Reviewed London route areas">
+                  {reviewedAreas.map((area) => (
+                    <article key={area.name}>
+                      <MapPinned size={19} aria-hidden="true" />
+                      {/* The stamp rides INSIDE the text block, so a short
+                          phone can fold it onto the way-home line
+                          (app/onboarding/onboarding.css, the short phone). */}
+                      <div>
+                        <strong>{area.name}</strong>
+                        <span>Home via {area.transportAnchor}</span>
+                        <small>PUBMAXX reviewed</small>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+
+                <div className="firstRunActions firstRunActionsSingle">
+                  <button type="button" className="firstRunPrimary pressable" onClick={confirmLondon}>
+                    Use London <ArrowRight size={18} aria-hidden="true" />
+                  </button>
+                </div>
+              </>
+            ) : null}
+
+            {step === "budget" ? (
+              <BudgetPanel
+                budget={budget}
+                onChoose={chooseBudget}
+                onBack={() => goTo(previous)}
+                onContinue={() => goTo(nextOnboardingStep("budget"))}
+              />
+            ) : null}
+
+            {step === "location" ? (
+              <LocationPanel
+                state={locateState}
+                showPatches={showPatches}
+                onLocate={locate}
+                onShowPatches={() => setShowPatches(true)}
+                onPickPatch={pickPatch}
+                onBack={() => goTo(previous)}
+              />
+            ) : null}
+
+            {step === "result" ? (
+              <ResultPanel
+                status={answer.status}
+                result={result}
+                areaLabel={areaLabel}
+                budgetLabel={budgetChoice?.ceiling ? budgetChoice.label : null}
+                onConfirm={() => goTo(nextOnboardingStep("result"))}
+                onChangeBudget={() => setStep("budget")}
+                onChangeArea={() => {
+                  setShowPatches(true);
+                  setStep("location");
+                }}
+              />
+            ) : null}
+
+            {step === "companion" ? (
               <>
                 <p className="firstRunEyebrow">Your companion</p>
                 <h1>Pick your Pub Pal.</h1>
@@ -182,7 +405,7 @@ export default function FirstRunOnboarding({
                 </p>
 
                 <div className="firstRunActions">
-                  <button type="button" className="firstRunBack pressable" onClick={() => setStage("london")}>
+                  <button type="button" className="firstRunBack pressable" onClick={() => goTo(previous)}>
                     <ArrowLeft size={18} aria-hidden="true" /> Back
                   </button>
                   <button
@@ -198,40 +421,25 @@ export default function FirstRunOnboarding({
                   We won&rsquo;t ask about notifications until your first night&rsquo;s sorted.
                 </p>
               </>
-            ) : (
-              <>
-                <p className="firstRunEyebrow">Your city</p>
-                <h1>London is ready.</h1>
-                <p className="firstRunLead">
-                  Start with checked routes, listed pint prices, and a clear way home.
-                </p>
-
-                <div className="firstRunAreaList" aria-label="Reviewed London route areas">
-                  {reviewedAreas.map((area) => (
-                    <article key={area.name}>
-                      <MapPinned size={19} aria-hidden="true" />
-                      {/* The stamp rides INSIDE the text block, so a short
-                          phone can fold it onto the way-home line
-                          (app/onboarding/onboarding.css, the short phone). */}
-                      <div>
-                        <strong>{area.name}</strong>
-                        <span>Home via {area.transportAnchor}</span>
-                        <small>PUBMAXX reviewed</small>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-
-                <div className="firstRunActions firstRunActionsSingle">
-                  <button type="button" className="firstRunPrimary pressable" onClick={confirmLondon}>
-                    Use London <ArrowRight size={18} aria-hidden="true" />
-                  </button>
-                </div>
-              </>
-            )}
+            ) : null}
           </div>
         </section>
       </div>
     </main>
   );
+}
+
+function visualLabel(step: OnboardingStep): string {
+  switch (step) {
+    case "companion":
+      return "Companion preview";
+    case "budget":
+      return "Your pint budget";
+    case "result":
+      return "Your cheapest pint";
+    case "location":
+      return "London preview";
+    default:
+      return "London preview";
+  }
 }

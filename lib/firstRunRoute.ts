@@ -8,3 +8,15 @@
 //
 // Owner-locked, issue #441.
 export const ONBOARDING_PATH = "/onboarding";
+
+/**
+ * Whether a location search string carries the web start mark,
+ * `/onboarding?start=web`. The native shell is let in by a one-time handoff
+ * (lib/nativeFirstRun.ts). The web has no handoff to consume, so a reader who
+ * followed a link inside the app says so with this query. A typed or shared
+ * URL still meets proxy.ts's 307 before any document renders, so the mark
+ * alone never opens the route to a stranger.
+ */
+export function webOnboardingStartRequested(search: string): boolean {
+  return new URLSearchParams(search).get("start") === "web";
+}

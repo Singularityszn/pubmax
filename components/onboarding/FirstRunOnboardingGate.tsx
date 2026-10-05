@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 import FirstRunOnboarding from "@/components/onboarding/FirstRunOnboarding";
 import { SHELL_START_PATH } from "@/lib/entryDecision";
+import { webOnboardingStartRequested } from "@/lib/firstRunRoute";
 import { consumeNativeFirstRunHandoff } from "@/lib/nativeFirstRun";
 import { isNativeApp } from "@/lib/nativePlatform";
 
@@ -20,8 +21,9 @@ type EligibilityDecision = {
 
 /**
  * Fail-closed route boundary for /onboarding. The stateful onboarding UI is
- * mounted only after consuming the one-time handoff issued at the native root;
- * direct web links return home and ineligible native visits return to Tonight.
+ * mounted only after consuming the one-time handoff issued at the native root,
+ * or, on the web, when an in-app link carried the start mark. Any other web
+ * visit returns home and an ineligible native visit returns to Tonight.
  */
 export default function FirstRunOnboardingGate({
   reviewedAreas,
@@ -36,7 +38,11 @@ export default function FirstRunOnboardingGate({
     if (!decision.current) {
       const isNative = isNativeApp();
       decision.current = {
-        allowed: consumeNativeFirstRunHandoff(isNative),
+        // The shell is let in by its one-time handoff. A browser is let in
+        // only when an in-app link said it meant to start (the web start mark).
+        allowed: isNative
+          ? consumeNativeFirstRunHandoff(isNative)
+          : webOnboardingStartRequested(window.location.search),
         fallback: isNative ? SHELL_START_PATH : "/",
       };
     }
