@@ -117,7 +117,10 @@ then `npm run test:rls`, so each PostgreSQL suite runs once. The suites
 `scripts/rls/postgresSuites.mjs`.
 
 The Data validation job also runs on its own. It runs `npm run validate-data`,
-the same data gate `npm run verify` starts with.
+the same data gate `npm run verify` starts with, with
+`PUBMAX_VERIFY_COMMITTED_DATA=1`. No builder rewrites a committed pack, so the
+job checks the packs as they ship. It first runs `npm run build:venue-details`,
+which writes only the gitignored venue detail files.
 
 The lint-and-types job and the merge bar `npm run verify` both run
 [`npm run typecheck`](../package.json). It runs `next typegen` first, so the

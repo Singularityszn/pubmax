@@ -246,6 +246,8 @@ jobs:
   # every pull request and every push to main. Before this job the validator
   # ran only inside a local `npm run verify`, so a pack change that skipped it
   # reached main unchecked. It runs on its own, like the freshness gate.
+  # PUBMAX_VERIFY_COMMITTED_DATA=1 skips the rebuild, so the committed packs are
+  # checked as they ship. Only the gitignored venue detail files are generated.
   validate-data:
     name: Data validation
     runs-on: ubuntu-latest
@@ -265,5 +267,9 @@ jobs:
         run: |
           npm ci
           npm run deps:install-scripts
+      - name: Generate the gitignored venue detail files
+        run: npm run build:venue-details
       - name: Validate every bundled dataset
+        env:
+          PUBMAX_VERIFY_COMMITTED_DATA: "1"
         run: npm run validate-data
