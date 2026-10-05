@@ -50,13 +50,16 @@ vi.mock("@/lib/nativePlatform", () => ({ isNativeApp: () => false }));
 vi.mock("@/lib/nativeCamera", () => ({ captureNativePhoto: async () => null }));
 const loadDraft = vi.hoisted(() => vi.fn());
 const saveDraft = vi.hoisted(() => vi.fn());
+const deleteDraft = vi.hoisted(() => vi.fn());
+const settleDraft = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/momentDraft", async () => {
   const actual = await vi.importActual<typeof import("@/lib/momentDraft")>("@/lib/momentDraft");
   return {
     ...actual,
     loadMomentDraft: (...args: unknown[]) => loadDraft(...args),
     saveMomentDraft: (...args: unknown[]) => saveDraft(...args),
-    deleteMomentDraft: async () => undefined,
+    deleteMomentDraft: (...args: unknown[]) => deleteDraft(...args),
+    settleMomentDraftProgress: (...args: unknown[]) => settleDraft(...args),
   };
 });
 
@@ -155,6 +158,8 @@ beforeEach(() => {
   setProviderAuthState("supabase", "authenticated");
   loadDraft.mockReset().mockResolvedValue(null);
   saveDraft.mockReset().mockResolvedValue(undefined);
+  deleteDraft.mockReset().mockResolvedValue(undefined);
+  settleDraft.mockReset().mockResolvedValue(undefined);
   calls.length = 0;
   fitMomentPhoto.mockReset();
   Object.defineProperty(window, "matchMedia", {
@@ -374,3 +379,131 @@ describe("Moment account ownership", () => {
     expect(previews()).toBe(1);
   });
 });
+
+// The draft store here is an explicit in-memory double that keeps
+// settleMomentDraftProgress's contract (same draft id, no later revision). jsdom
+// has no IndexedDB, so the real single-transaction write is not executed here.
+describe("Moment save progress across an account boundary", () => {
+  type Stored = ReturnType<typeof createMomentDraft>;
+  let store: Map<string, Stored>;
+  let releaseUpload: Array<(response: Response | null) => void>;
+
+  beforeEach(() => {
+    store = new Map();
+    releaseUpload = [];
+    loadDraft.mockImplementation(async (owner: string) => store.get(owner) ?? null);
+    saveDraft.mockImplementation(async (draft: Stored) => { store.set(draft.ownerKey, { ...draft }); });
+    deleteDraft.mockImplementation(async (owner: string) => { store.delete(owner); });
+    settleDraft.mockImplementation(async (owner: string, id: string, revision: number, progress: Partial<Stored> | null) => {
+      const stored = store.get(owner);
+      if (!stored || stored.id !== id || stored.revision > revision) return;
+      if (progress === null) store.delete(owner);
+      else store.set(owner, { ...stored, ...progress });
+    });
+    answer = (call) => {
+      if (call.url === "/api/night-memories") return json({ memory: { id: "memory-1" } }, 201);
+      const uploads = calls.filter((item) => item.url.endsWith("/moments")).length;
+      if (uploads === 2) {
+        return new Promise<Response | null>((resolve) => { releaseUpload.push(resolve); }) as unknown as Response;
+      }
+      return json({ moment: { id: `moment-${uploads}` } }, 201);
+    };
+  });
+
+  const uploads = () => calls.filter((call) => call.url.endsWith("/moments")).length;
+
+  async function startThreePhotoSave() {
+    await mount();
+    await choose(jpegFile("one.jpg"), jpegFile("two.jpg"), jpegFile("three.jpg"));
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 350)); });
+    await act(async () => { container.querySelector<HTMLFormElement>("form.momentComposer")!.requestSubmit(); });
+    await vi.waitFor(() => expect(releaseUpload).toHaveLength(1));
+  }
+
+  /** A failed refresh: SIGNED_OUT aborts the in-flight upload, then the same account returns. */
+  async function sameAccountBlip() {
+    await act(async () => {
+      auth.owner = null;
+      setProviderIdentity("supabase", null);
+      setProviderAuthState("supabase", "signed-out");
+      releaseUpload.shift()?.(null);
+    });
+    await settle();
+    await changeAccount("host");
+  }
+
+  it("resumes a partial multi-photo save for the same account instead of uploading twice", async () => {
+    await startThreePhotoSave();
+    expect(uploads()).toBe(2);
+    await sameAccountBlip();
+    expect(store.get("host")?.serverMemoryId).toBe("memory-1");
+    expect(store.get("host")?.media.map((item) => item.name)).toEqual(["two.jpg", "three.jpg"]);
+    expect(previews()).toBe(2);
+
+    answer = () => json({ moment: { id: "moment-next" } }, 201);
+    await save();
+    expect(calls.filter((call) => call.url === "/api/night-memories")).toHaveLength(1);
+    expect(calls.filter((call) => call.url.endsWith("/moments")).map((call) => call.url)).toEqual([
+      "/api/night-memories/memory-1/moments",
+      "/api/night-memories/memory-1/moments",
+      "/api/night-memories/memory-1/moments",
+      "/api/night-memories/memory-1/moments",
+    ]);
+    expect(store.has("host")).toBe(false);
+    expect(container.querySelector(".momentSaved")).not.toBeNull();
+  });
+
+  it("clears the stored draft once every photo is saved", async () => {
+    answer = (call) => call.url === "/api/night-memories" ? json({ memory: { id: "memory-1" } }, 201) : json({ moment: { id: "m" } }, 201);
+    await mount();
+    await choose(jpegFile("one.jpg"), jpegFile("two.jpg"));
+    await save();
+    expect(uploads()).toBe(2);
+    expect(store.has("host")).toBe(false);
+  });
+
+  it("does not overwrite a newer edit of the same account's draft", async () => {
+    await startThreePhotoSave();
+    await act(async () => {
+      auth.owner = null;
+      setProviderIdentity("supabase", null);
+      setProviderAuthState("supabase", "signed-out");
+    });
+    await changeAccount("host");
+    const caption = container.querySelector<HTMLTextAreaElement>(".momentFields textarea")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(caption, "A newer visit's caption");
+      caption.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 350)); });
+    await act(async () => { releaseUpload.shift()?.(json({ moment: { id: "late" } }, 201)); });
+    await settle();
+    expect(store.get("host")?.caption).toBe("A newer visit's caption");
+    expect(store.get("host")?.media).toHaveLength(2);
+  });
+
+  it("never recreates a draft that an explicit sign-out purged", async () => {
+    await startThreePhotoSave();
+    await act(async () => {
+      auth.owner = null;
+      setProviderIdentity("supabase", null);
+      setProviderAuthState("supabase", "signed-out");
+      store.delete("host");
+    });
+    await act(async () => { releaseUpload.shift()?.(json({ moment: { id: "late" } }, 201)); });
+    await settle();
+    expect(store.has("host")).toBe(false);
+  });
+
+  it("keeps a replacement account's composer and server writes free of the old save", async () => {
+    await startThreePhotoSave();
+    await changeAccount("other");
+    await act(async () => { releaseUpload.shift()?.(json({ moment: { id: "late" } }, 201)); });
+    await settle();
+    expect(uploads()).toBe(2);
+    expect(previews()).toBe(0);
+    expect(store.has("other")).toBe(false);
+    expect(store.get("host")?.media.map((item) => item.name)).toEqual(["three.jpg"]);
+  });
+});
+

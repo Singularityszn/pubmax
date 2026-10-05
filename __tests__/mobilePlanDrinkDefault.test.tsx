@@ -9,7 +9,9 @@ vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ user: null 
 
 import { MobilePlanActivation } from "@/components/plan/MobilePlanActivation";
 import type { MapPlanDrinkSelection } from "@/lib/mapPlanDrinkPresentation";
-import { inferNightContext } from "@/lib/nightPlanning";
+import { inferNightContext, type NightContext } from "@/lib/nightPlanning";
+import { planAlcoholOptionalInviteLine } from "@/lib/planAlcoholOptional";
+import { planGenerationEvidenceGaps } from "@/lib/planGenerationRanking";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -106,6 +108,25 @@ describe("map drink default in the phone planner", () => {
     await generate();
     expect(requests[0]!.context.zeroProof).toBe(true);
     expect(requests[0]!.context).not.toHaveProperty("drinkCategory");
+  });
+
+  it("plans the map's Alcohol-free lane as a zero-proof night", async () => {
+    await render({ drinkCategory: "alcohol-free", drinkBrand: "", drinkSubtype: "" });
+    await generate();
+    expect(requests[0]!.context.zeroProof).toBe(true);
+    expect(requests[0]!.context).not.toHaveProperty("drinkCategory");
+    const context = { ...inferNightContext("").context, ...requests[0]!.context } as NightContext;
+    expect(planGenerationEvidenceGaps({
+      context, accessibilityEnforced: true, hasDatedWindow: true, allOpeningListed: true,
+      hasCompletePriceEvidence: true, allZeroProofConfirmed: false, hasTonightEvidence: true, hasWeatherEvidence: true,
+    }).contextEvidenceGaps).toContain("zero_proof_options");
+    expect(planAlcoholOptionalInviteLine({ context })).toBe("Drinks are alcohol-optional on this plan.");
+  });
+
+  it("treats a brand from another category as no refinement", async () => {
+    await render({ drinkCategory: "wine", drinkBrand: "amstel", drinkSubtype: "" });
+    await generate();
+    expect(requests[0]!.context.drinkCategory).toBe("wine");
   });
 
   it("refuses an unsupported brand default instead of widening it to generic Gin", async () => {

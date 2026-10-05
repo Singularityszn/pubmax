@@ -2,7 +2,7 @@ import { isModerator, moderatorStaffRoleId } from "@/lib/adminAuth";
 import { publicApiError } from "@/lib/apiError";
 import { isLimited } from "@/lib/pintDrops";
 import { socialPostConsentStore } from "@/lib/socialPostConsentStore";
-import { downloadUploadedImageObject } from "@/lib/uploadedImage.server";
+import { readUploadedImageObject } from "@/lib/uploadedImage.server";
 import { clientIp, hashIp } from "@/lib/supabase";
 import {
   isSocialFriendsLaunchEnabled,
@@ -16,6 +16,13 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 
 function missing(): Response {
   return publicApiError("Photo not found.", "NOT_FOUND", 404, {
+    headers: { "Cache-Control": "private, no-store" },
+  });
+}
+
+function unavailable(): Response {
+  return publicApiError("Social post photo is unavailable.", "UNAVAILABLE", 503, {
+    retryable: true,
     headers: { "Cache-Control": "private, no-store" },
   });
 }
@@ -44,8 +51,11 @@ export async function GET(request: Request, context: Context): Promise<Response>
     const objectKey = await socialPostConsentStore.adminMediaObjectKey(staffRoleId, mediaId);
     if (!objectKey) return missing();
     // Staff and held-queue permission must govern each read, not a reusable URL.
-    const image = await downloadUploadedImageObject(objectKey);
-    if (!image) return missing();
+    const read = await readUploadedImageObject(objectKey);
+    // A held post names this object, so a Storage refusal is an outage to
+    // retry, not proof the photo is gone. Only bytes that are not our JPEG 404.
+    if (!read.ok) return read.failure === "magic_bytes_mismatch" ? missing() : unavailable();
+    const image = read.image;
     return new Response(new Uint8Array(image.bytes), {
       status: 200,
       headers: {
@@ -56,9 +66,6 @@ export async function GET(request: Request, context: Context): Promise<Response>
       },
     });
   } catch {
-    return publicApiError("Social post photo is unavailable.", "UNAVAILABLE", 503, {
-      retryable: true,
-      headers: { "Cache-Control": "private, no-store" },
-    });
+    return unavailable();
   }
 }

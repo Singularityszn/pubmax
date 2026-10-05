@@ -116,6 +116,7 @@ import {
 import { authAccountBanMessageFromError } from "@/lib/authAccountBan";
 import { requestMagicLink, type MagicLinkResult } from "@/lib/passwordlessAuth";
 import { clearAccountPintDropDrafts } from "@/lib/pintDropDraft";
+import { deleteMomentDraft } from "@/lib/momentDraft";
 import {
   markProviderSignOut,
   readProviderAuthState,
@@ -222,15 +223,16 @@ function scrubLingeringBrowserAuthCallback(): void {
 async function persistSessionWithRetry(
   auth: { getSession: () => Promise<{ data: { session: Session | null } }> },
   session: Session,
+  intent: "sign-in" | "background",
 ): Promise<void> {
-  const outcome = await persistSessionForResume(session);
+  const outcome = await persistSessionForResume(session, fetch, intent);
   if (outcome !== "unauthenticated") return;
   const refreshed = await auth
     .getSession()
     .then(({ data }) => data.session ?? null)
     .catch(() => null);
   if (!refreshed || refreshed.access_token === session.access_token) return;
-  await persistSessionForResume(refreshed);
+  await persistSessionForResume(refreshed, fetch, intent);
 }
 
 async function prepareAuthCallback(
@@ -643,7 +645,11 @@ export function AuthProvider({
             event === "TOKEN_REFRESHED" ||
             event === "INITIAL_SESSION"
           ) {
-            void persistSessionWithRetry(supabase.auth, nextSession);
+            void persistSessionWithRetry(
+              supabase.auth,
+              nextSession,
+              event === "SIGNED_IN" && signedIn ? "sign-in" : "background",
+            );
           }
         }
         if (event === "SIGNED_IN" && nextSession?.user) {
@@ -1038,6 +1044,8 @@ export function AuthProvider({
       // session went and its name stayed.
       releaseDeviceAccountOwner(browserLocalStorage(), browserSessionStorage());
       if (departing) clearAccountPintDropDrafts(browserSessionStorage(), departing);
+      // Moment drafts are keyed by account id and hold private photo blobs.
+      if (departing) await deleteMomentDraft(departing);
       emitDeviceIdentityChanged();
       // The account that is leaving takes its stored refresh token with it, and
       // "all accounts" takes the whole lane. Neither is a capability: they are

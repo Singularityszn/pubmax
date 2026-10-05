@@ -24,6 +24,7 @@ describe("auth session resume cookie helpers", () => {
       refreshToken: "rt_abc123456",
       email: "person@example.com",
       userId: null,
+      generation: null,
     });
   });
 
@@ -36,6 +37,7 @@ describe("auth session resume cookie helpers", () => {
       refreshToken: null,
       email: "person@example.com",
       userId: null,
+      generation: null,
     });
   });
 

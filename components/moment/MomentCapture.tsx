@@ -58,6 +58,7 @@ import {
   MOMENT_DRAFT_CHANNEL,
   saveMomentDraft,
   selectMomentMedia,
+  settleMomentDraftProgress,
   type MomentDraftV1,
   type MomentMediaDraft,
 } from "@/lib/momentDraft";
@@ -161,6 +162,44 @@ export default function MomentCapture(): React.JSX.Element {
   return <MomentComposer key={`${accountRevision}:${ownerKey}`} ownerKey={ownerKey} accountRevision={accountRevision} />;
 }
 
+function memoryCreateFailureLine(body: unknown): string {
+  return typeof navigator !== "undefined" && navigator.onLine === false
+    ? "You look offline. Reconnect, then try again. Your draft is safe."
+    : errorMessageFrom(body, "That Memory could not be created. Your draft is safe.");
+}
+
+type MomentSaveProgress = Pick<MomentDraftV1, "media" | "caption" | "serverMemoryId">;
+
+/** What is left after item `index` uploaded: null once nothing is. */
+function momentUploadedProgress(
+  draft: MomentDraftV1,
+  index: number,
+  itemCount: number,
+  memoryId: string,
+): MomentSaveProgress | null {
+  if (index + 1 === itemCount) return null;
+  return { media: draft.media.slice(index + 1), caption: "", serverMemoryId: memoryId };
+}
+
+/**
+ * What is left after item `index` was refused. A refusal about the photo keeps
+ * the Memory, so the re-save after removing the bad file goes back into it
+ * rather than minting another.
+ */
+function momentRefusalProgress(
+  draft: MomentDraftV1,
+  index: number,
+  memoryId: string,
+  status: number | undefined,
+  code: string | undefined,
+): MomentSaveProgress {
+  return {
+    media: draft.media.slice(index),
+    caption: index > 0 ? "" : draft.caption,
+    serverMemoryId: keepServerMemoryAfterRefusal(status, code) ? memoryId : null,
+  };
+}
+
 function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accountRevision: number }): React.JSX.Element {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -196,6 +235,9 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
   // so a signed-out capture is always a local draft — exactly when "own your
   // memories" is honest. The gate (lib/identityNudge.ts) still self-guards.
   const momentNudgeArmed = useRef(false);
+  // The stored revision this visit restored unchanged. Re-saving it would put
+  // back what an earlier visit's save has since uploaded.
+  const restoredRevision = useRef(-1);
 
   useEffect(() => {
     mounted.current = true;
@@ -217,6 +259,7 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
       const restored = owned ?? guest;
       if (cancelled || !isCurrentComposer()) return;
       if (restored) {
+        restoredRevision.current = owned ? owned.revision : -1;
         const next = withPreviewUrls({ ...restored, ownerKey });
         next.media.forEach((item) => { if (item.objectUrl) previewUrls.current.add(item.objectUrl); });
         setDraft(next);
@@ -232,10 +275,11 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
   }, [hydrated, isCurrentComposer, ownerKey]);
 
   useEffect(() => {
-    if (!hydrated || !isCurrentComposer()) return;
+    // While a save runs, the save records its own progress.
+    if (!hydrated || !isCurrentComposer() || saveState === "saving") return;
     const timer = window.setTimeout(() => {
       if (!isCurrentComposer()) return;
-      void saveMomentDraft(draft);
+      if (draft.revision !== restoredRevision.current) void saveMomentDraft(draft);
       if (!user && !momentNudgeArmed.current && (draft.caption.trim() || draft.media.length)) {
         momentNudgeArmed.current = true;
         recordMomentNudgeTrigger();
@@ -247,7 +291,7 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
       }
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [draft, hydrated, isCurrentComposer, user]);
+  }, [draft, hydrated, isCurrentComposer, saveState, user]);
 
   useEffect(() => {
     if (typeof BroadcastChannel === "undefined") return;
@@ -501,6 +545,13 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
     if (!canSave || !isCurrentComposer()) return;
     setSaveState("saving");
     setMessage("Saving privately...");
+    // Progress belongs to this owner's stored draft, so a remount mid-save (a
+    // token refresh, a provider change) resumes rather than uploads twice.
+    const startRevision = draft.revision;
+    await saveMomentDraft(draft);
+    if (!isCurrentComposer()) return;
+    const settle = (progress: Parameters<typeof settleMomentDraftProgress>[3]) =>
+      settleMomentDraftProgress(ownerKey, draft.id, startRevision, progress);
 
     let memoryId = draft.serverMemoryId;
     if (!memoryId) {
@@ -512,17 +563,15 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
       const memoryBody = memoryResponse
         ? await memoryResponse.json().catch(() => ({})) as { memory?: { id: string }; error?: string }
         : {};
-      if (!isCurrentComposer()) return;
       if (!memoryResponse?.ok || !memoryBody.memory) {
+        if (!isCurrentComposer()) return;
         setSaveState("idle");
-        setMessage(
-          typeof navigator !== "undefined" && navigator.onLine === false
-            ? "You look offline. Reconnect, then try again. Your draft is safe."
-            : errorMessageFrom(memoryBody, "That Memory could not be created. Your draft is safe."),
-        );
+        setMessage(memoryCreateFailureLine(memoryBody));
         return;
       }
       memoryId = memoryBody.memory.id;
+      await settle({ media: draft.media, caption: draft.caption, serverMemoryId: memoryId });
+      if (!isCurrentComposer()) return;
       update({ serverMemoryId: memoryId });
     }
 
@@ -564,24 +613,19 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
       const responseBody = response
         ? await response.json().catch(() => ({})) as { error?: string; code?: string }
         : {};
+      const refusal = response?.ok
+        ? null
+        : momentRefusalProgress(draft, index, memoryId, response?.status, responseBody.code);
+      await settle(refusal ?? momentUploadedProgress(draft, index, items.length, memoryId));
       if (!isCurrentComposer()) return;
-      if (!response?.ok) {
-        const remaining = draft.media.slice(index);
-        // A refusal about the photo keeps the Memory, so the re-save after
-        // removing the bad file goes back into it rather than minting another.
-        update({
-          media: remaining,
-          caption: index > 0 ? "" : draft.caption,
-          serverMemoryId: keepServerMemoryAfterRefusal(response?.status, responseBody.code) ? memoryId : null,
-        });
+      if (refusal) {
+        update(refusal);
         setSaveState("idle");
         setMessage(errorMessageFrom(responseBody, "Some photos could not be saved. The remaining draft is safe."));
         return;
       }
     }
 
-    if (!isCurrentComposer()) return;
-    await deleteMomentDraft(ownerKey);
     if (!isCurrentComposer()) return;
     draft.media.forEach((item) => {
       if (item.objectUrl) URL.revokeObjectURL(item.objectUrl);

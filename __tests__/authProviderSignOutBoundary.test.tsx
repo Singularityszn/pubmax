@@ -193,6 +193,7 @@ describe("explicit sign-out account boundary", () => {
   it("leaves everything the account owns on this device when a refusal keeps the session", async () => {
     writeOptimisticSpills(localStorage, [storedSpill]);
     harness.outcome = "session-kept-refusal";
+    localStorage.setItem(`pubmaxx:moment-draft:v1:${ACCOUNT}`, "{}");
     const signOutRevision = readProviderSignOutRevision("supabase");
     const accountRevision = readProviderAccountRevision();
     await signOut();
@@ -204,6 +205,7 @@ describe("explicit sign-out account boundary", () => {
     expect(readDeviceAccounts(localStorage).map((account) => account.userId)).toContain(ACCOUNT);
     expect(readOptimisticSpills(localStorage)).toEqual([storedSpill]);
     for (const key of accountDraftKeys) expect(sessionStorage.getItem(key)).toBe("{}");
+    expect(localStorage.getItem(`pubmaxx:moment-draft:v1:${ACCOUNT}`)).toBe("{}");
   });
 
   describe.each(["signed-out", "removed-then-logout-error"] as const)("when the SDK removed the session (%s)", (outcome) => {
@@ -211,8 +213,10 @@ describe("explicit sign-out account boundary", () => {
       harness.outcome = outcome;
     });
 
-    it("removes every venue draft and pending Pint Drop of the departing account with no map mounted", async () => {
+    it("removes every venue draft, Moment draft and pending Pint Drop of the departing account with no map mounted", async () => {
       writeOptimisticSpills(localStorage, [storedSpill]);
+      // jsdom has no IndexedDB, so the Moment draft lives in its documented localStorage fallback.
+      for (const owner of [ACCOUNT, OTHER, "guest"]) localStorage.setItem(`pubmaxx:moment-draft:v1:${owner}`, "{}");
       const signOutRevision = readProviderSignOutRevision("supabase");
       await signOut();
       expect(harness.events).toEqual(["provider-sign-out", "durable-cookie-delete"]);
@@ -223,6 +227,9 @@ describe("explicit sign-out account boundary", () => {
       expect(localStorage.getItem(OPTIMISTIC_SPILL_STORAGE_KEY)).toBeNull();
       for (const key of accountDraftKeys) expect(sessionStorage.getItem(key)).toBeNull();
       for (const key of retainedKeys) expect(sessionStorage.getItem(key)).toBe("{}");
+      expect(localStorage.getItem(`pubmaxx:moment-draft:v1:${ACCOUNT}`)).toBeNull();
+      expect(localStorage.getItem(`pubmaxx:moment-draft:v1:${OTHER}`)).toBe("{}");
+      expect(localStorage.getItem("pubmaxx:moment-draft:v1:guest")).toBe("{}");
     });
 
     it("purges the departing account and deletes the durable cookie before the next account takes over", async () => {

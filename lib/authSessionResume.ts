@@ -25,6 +25,21 @@ export const AUTH_RESUME_COOKIE = "pubmax_session_resume";
 /** Durable window: 30 days, re-extended on every sign-in, refresh and redeem. */
 export const AUTH_RESUME_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 
+/**
+ * The resume cookie's generation fence. Page script can write it, so an
+ * explicit sign-out takes effect on this device even when the logout and the
+ * cookie DELETE never reach a server. A resume cookie counts only while it
+ * carries the generation this cookie holds now, so a cookie persisted before a
+ * sign-out - including one a late response writes afterwards - is read as
+ * absent everywhere. Only a deliberate sign-in mints a new generation.
+ */
+export const AUTH_RESUME_GENERATION_COOKIE = "pubmax_resume_gen";
+export const SIGNED_OUT_GENERATION_PREFIX = "out.";
+
+export function newResumeGeneration(prefix = ""): string {
+  return `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export type AuthResumeCookiePayload = {
   /** Supabase refresh token, absent once a redeem proved it dead. */
   refreshToken: string | null;
@@ -37,6 +52,8 @@ export type AuthResumeCookiePayload = {
    * welcome-back line offered to resume as somebody else.
    */
   userId?: string | null;
+  /** The generation cookie value this payload was persisted under. */
+  generation?: string | null;
 };
 
 const COOKIE_VERSION = 1;
@@ -80,6 +97,7 @@ export function encodeAuthResumeCookie(payload: AuthResumeCookiePayload): string
       rt: payload.refreshToken ?? undefined,
       em: payload.email ?? undefined,
       uid: payload.userId ?? undefined,
+      g: payload.generation ?? undefined,
     }),
   );
 }
@@ -98,8 +116,9 @@ export function decodeAuthResumeCookie(
     const email = isPlausibleEmail(parsed.em) ? parsed.em : null;
     const userId =
       typeof parsed.uid === "string" && parsed.uid ? parsed.uid : null;
+    const generation = typeof parsed.g === "string" && parsed.g ? parsed.g : null;
     if (!refreshToken && !email) return null;
-    return { refreshToken, email, userId };
+    return { refreshToken, email, userId, generation };
   } catch {
     return null;
   }
@@ -118,12 +137,13 @@ export function decodeAuthResumeCookie(
  */
 export function authResumeCookieFromHeader(
   cookieHeader: string | null | undefined,
+  name: string = AUTH_RESUME_COOKIE,
 ): string | null {
   if (!cookieHeader) return null;
   for (const part of cookieHeader.split(";")) {
     const eq = part.indexOf("=");
     if (eq === -1) continue;
-    if (part.slice(0, eq).trim() !== AUTH_RESUME_COOKIE) continue;
+    if (part.slice(0, eq).trim() !== name) continue;
     const value = part.slice(eq + 1).trim();
     if (!value) return null;
     try {
@@ -133,6 +153,56 @@ export function authResumeCookieFromHeader(
     }
   }
   return null;
+}
+
+/** Browsers cap a cookie's lifetime at 400 days; the fence should outlive any resume cookie. */
+export const AUTH_RESUME_GENERATION_MAX_AGE_SECONDS = 400 * 24 * 60 * 60;
+
+/**
+ * Set-Cookie headers for the resume cookie (null clears it) and, when given,
+ * the generation it now belongs to.
+ */
+export function authResumeSetCookieHeaders(
+  payload: AuthResumeCookiePayload | null,
+  generation?: string,
+): Headers {
+  const headers = new Headers();
+  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  const value = payload ? encodeURIComponent(encodeAuthResumeCookie(payload)) : "";
+  const maxAge = payload ? AUTH_RESUME_MAX_AGE_SECONDS : 0;
+  headers.append(
+    "Set-Cookie",
+    `${AUTH_RESUME_COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`,
+  );
+  if (generation !== undefined) {
+    headers.append(
+      "Set-Cookie",
+      `${AUTH_RESUME_GENERATION_COOKIE}=${generation}; Path=/; SameSite=Lax; Max-Age=${AUTH_RESUME_GENERATION_MAX_AGE_SECONDS}${secure}`,
+    );
+  }
+  return headers;
+}
+
+/**
+ * The resume payload this device may still use: decoded, and persisted under
+ * the generation the device holds now. Every reader goes through this.
+ */
+export function currentAuthResumePayload(
+  resumeCookie: string | null | undefined,
+  generationCookie: string | null | undefined,
+): AuthResumeCookiePayload | null {
+  const payload = decodeAuthResumeCookie(resumeCookie);
+  if (!payload) return null;
+  return (payload.generation ?? null) === (generationCookie || null) ? payload : null;
+}
+
+export function authResumePayloadFromHeader(
+  cookieHeader: string | null | undefined,
+): AuthResumeCookiePayload | null {
+  return currentAuthResumePayload(
+    authResumeCookieFromHeader(cookieHeader),
+    authResumeCookieFromHeader(cookieHeader, AUTH_RESUME_GENERATION_COOKIE),
+  );
 }
 
 /**

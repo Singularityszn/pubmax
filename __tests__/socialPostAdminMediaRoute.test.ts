@@ -7,7 +7,7 @@ const state = vi.hoisted(() => ({
   limited: false,
   staffConfigured: true,
   readError: false,
-  image: "present" as "present" | "missing" | "error",
+  image: "present" as "present" | "missing" | "error" | "unconfigured" | "not-jpeg",
 }));
 
 vi.mock("@/lib/adminAuth", () => ({
@@ -18,9 +18,25 @@ vi.mock("@/lib/adminAuth", () => ({
       : null,
 }));
 vi.mock("@/lib/pintDrops", () => ({ isLimited: async () => state.limited }));
+// The real Storage reader runs; only the Storage client under it is synthetic.
 vi.mock("@/lib/supabase", () => ({
   clientIp: () => "127.0.0.1",
   hashIp: () => "ip-digest",
+  STORAGE_BUCKET: "synthetic-bucket",
+  isSupabaseConfigured: () => state.image !== "unconfigured",
+  requireSupabaseAdmin: () => ({
+    storage: {
+      from: () => ({
+        download: async () => {
+          state.imageReads += 1;
+          if (state.image === "error") return { data: null, error: { message: "Storage unavailable" } };
+          if (state.image === "missing") return { data: null, error: { message: "Object not found" } };
+          const bytes = state.image === "not-jpeg" ? [0x89, 0x50, 0x4e, 0x47] : [0xff, 0xd8, 0xff, 0xdb];
+          return { data: new Blob([new Uint8Array(bytes)]), error: null };
+        },
+      }),
+    },
+  }),
 }));
 vi.mock("@/lib/socialPostConsentStore", () => ({
   socialPostConsentStore: {
@@ -29,13 +45,6 @@ vi.mock("@/lib/socialPostConsentStore", () => ({
       if (state.readError) throw new Error("Staff unavailable");
       return state.objectKey;
     },
-  },
-}));
-vi.mock("@/lib/uploadedImage.server", () => ({
-  downloadUploadedImageObject: async () => {
-    state.imageReads += 1;
-    if (state.image === "error") throw new Error("Storage unavailable");
-    return state.image === "missing" ? null : { bytes: Buffer.from([255, 216, 255]), contentType: "image/jpeg" };
   },
 }));
 
@@ -92,7 +101,7 @@ describe("admin Social photo preview", () => {
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expect(response.headers.get("Content-Type")).toBe("image/jpeg");
     expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
-    expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([255, 216, 255]));
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([255, 216, 255, 219]));
   });
 
   it("does not expose media outside the held queue", async () => {
@@ -137,10 +146,16 @@ describe("admin Social photo preview", () => {
     expect(state.imageReads).toBe(0);
   });
 
-  it.each(["missing", "error"] as const)("preserves the Storage %s refusal", async (image) => {
+  it.each([
+    ["error", 503],
+    ["missing", 503],
+    ["unconfigured", 503],
+    ["not-jpeg", 404],
+  ] as const)("answers a Storage %s read with %i", async (image, status) => {
     state.image = image;
     const response = await GET(request({ "x-admin-token": "admin-token" }), { params: Promise.resolve({ mediaId }) });
-    expect(response.status).toBe(image === "missing" ? 404 : 503);
+    expect(response.status).toBe(status);
+    if (status === 503) expect(await response.clone().json()).toMatchObject({ code: "UNAVAILABLE", retryable: true });
     expect(response.headers.get("location")).toBeNull();
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
   });

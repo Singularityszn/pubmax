@@ -3,10 +3,7 @@ import "server-only";
 import { needsAdultSelfAssertion } from "@/lib/adultGate";
 import { adultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
 import { verifyCallerAuth } from "@/lib/authServer";
-import {
-  authResumeCookieFromHeader,
-  decodeAuthResumeCookie,
-} from "@/lib/authSessionResume";
+import { authResumePayloadFromHeader } from "@/lib/authSessionResume";
 import {
   decideFriendsLaunchSocialAccess,
   type SocialAccessState,
@@ -91,9 +88,7 @@ async function verifySupabaseSessionFromRequest(
   }
   if (!request) return { status: "absent" };
 
-  const payload = decodeAuthResumeCookie(
-    authResumeCookieFromHeader(request.headers.get("cookie")),
-  );
+  const payload = authResumePayloadFromHeader(request.headers.get("cookie"));
   if (!payload?.refreshToken) return { status: "absent" };
 
   const config = supabaseAuthConfig();

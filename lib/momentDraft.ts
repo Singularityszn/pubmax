@@ -145,3 +145,36 @@ export async function deleteMomentDraft(ownerKey: string): Promise<void> {
   try { await withStore<undefined>("readwrite", (store) => store.delete(ownerKey)); } catch { /* fallback below */ }
   try { window.localStorage.removeItem(fallbackKey(ownerKey)); } catch { /* unavailable storage */ }
 }
+
+/**
+ * Record a save's progress on the draft it started from: what is still to
+ * upload, or (null) that nothing is left. One transaction reads and writes, so
+ * it never recreates a draft a sign-out purged, never overwrites a later edit
+ * and never touches a different draft.
+ */
+export async function settleMomentDraftProgress(
+  ownerKey: string,
+  draftId: string,
+  revision: number,
+  progress: Pick<MomentDraftV1, "media" | "caption" | "serverMemoryId"> | null,
+): Promise<void> {
+  if (typeof window === "undefined") return;
+  try {
+    const db = await openDraftDb();
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, "readwrite");
+      const store = transaction.objectStore(STORE_NAME);
+      const read = store.get(ownerKey);
+      read.onsuccess = () => {
+        const stored = read.result as MomentDraftV1 | undefined;
+        if (stored?.id !== draftId || stored.revision > revision) return;
+        if (progress === null) store.delete(ownerKey);
+        else store.put({ ...stored, ...progress, updatedAt: new Date().toISOString() });
+      };
+      transaction.oncomplete = () => { db.close(); resolve(); };
+      transaction.onabort = () => { db.close(); reject(transaction.error ?? new Error("Draft storage was interrupted.")); };
+    });
+  } catch {
+    // Unavailable storage holds no draft to settle.
+  }
+}

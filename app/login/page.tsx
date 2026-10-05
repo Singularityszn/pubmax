@@ -10,7 +10,11 @@ import {
   parseArrivalIntent,
 } from "@/lib/arrivalWelcome";
 import { AUTH_CALLBACK_MARKER } from "@/lib/authRedirect";
-import { AUTH_RESUME_COOKIE } from "@/lib/authSessionResume";
+import {
+  AUTH_RESUME_COOKIE,
+  AUTH_RESUME_GENERATION_COOKIE,
+  SIGNED_OUT_GENERATION_PREFIX,
+} from "@/lib/authSessionResume";
 import { loginPageHasSessionHint } from "@/lib/loginPageFraming";
 
 export const metadata: Metadata = {
@@ -44,7 +48,9 @@ export default async function LoginRoute({
   // The resume cookie is HttpOnly. Its value is a refresh token, so only the
   // boolean leaves this function: the browser never receives the cookie body.
   const sessionHint = loginPageHasSessionHint({
-    resumeCookie: jar.get(AUTH_RESUME_COOKIE)?.value,
+    resumeCookie: jar.get(AUTH_RESUME_GENERATION_COOKIE)?.value.startsWith(SIGNED_OUT_GENERATION_PREFIX)
+      ? null
+      : jar.get(AUTH_RESUME_COOKIE)?.value,
     authCallback: first(params[AUTH_CALLBACK_MARKER]),
     authError: first(params.authError),
   });

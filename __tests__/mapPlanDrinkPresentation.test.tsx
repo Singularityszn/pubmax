@@ -161,6 +161,20 @@ describe("selected-drink hand-built Plan", () => {
     expect(container.querySelector(".routeMetrics")?.textContent).toContain("£12.30");
   });
 
+  it("names a suggested route for the pint ranking that chose it, not the drink lane", async () => {
+    await render({ mode: "suggest", crawlStyle: "cheapest", drinkSelection: wine, route: [duke, dove] });
+    expect(container.querySelector("h2")?.textContent).toBe("Cheapest plan");
+    expect(container.querySelector(".routeHeader")?.textContent).not.toContain("Wine");
+    expect(container.querySelector(".routeMetrics")?.textContent).not.toContain("wine stop");
+  });
+
+  it("prices a category-incompatible brand as the plain drink lane", async () => {
+    await render({ drinkSelection: { ...wine, drinkBrand: "amstel" }, drinkPrices: new Map([[duke.id, wineQuote]]), drinkPriceStatus: "ready" });
+    expect(container.querySelector("h2")?.textContent).toBe("Wine plan");
+    expect(container.querySelector(".routeList")?.textContent).toContain("Wine £5.50");
+    expect(container.textContent).not.toContain("price not checked");
+  });
+
   it("keeps a hand-built route's progress when the map drink changes", async () => {
     await render({ drinkSelection: wine, route: [duke, dove] });
     await act(async () => button("Start this crawl").click());

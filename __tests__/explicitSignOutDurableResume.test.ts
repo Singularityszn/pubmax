@@ -2,87 +2,124 @@
 import { createClient } from "@supabase/supabase-js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+// What runs for real: the installed Supabase client, bootstrapAuthSession, the
+// browser resume client, the /api/auth/session route handlers and the social
+// cookie-authenticated reader. The doubles are explicit: an in-memory GoTrue
+// that never revokes a token (the logout that failed offline), the bearer
+// verifier, rate limiting, and a cookie jar that applies Set-Cookie the way a
+// browser does - HttpOnly cookies in a map, script-visible ones in jsdom's
+// document.cookie. This is device-side restore proof, not real GoTrue
+// revocation and not a compiled-browser run.
+
+vi.mock("@/lib/supabase", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/supabase")>()),
+  isSupabaseConfigured: () => false,
+  checkRateLimitDurableDetailed: async () => ({ verdict: null, reason: "no-client" }) as const,
+}));
+vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {}, assertProductionSecrets: () => {} }));
+vi.mock("@/lib/authServer", () => ({
+  verifyCallerAuth: async (request: Request) => {
+    const bearer = request.headers.get("authorization")?.replace(/^Bearer /, "");
+    if (!bearer) return { status: "absent" };
+    const sub = JSON.parse(Buffer.from(bearer.split(".")[1] ?? "", "base64url").toString()).sub as string;
+    const account = [A, B].find((candidate) => candidate.id === sub);
+    return account
+      ? { status: "verified", identity: { id: account.id, email: account.email, createdAt: null } }
+      : { status: "invalid" };
+  },
+}));
+
+import { DELETE, GET, POST } from "@/app/api/auth/session/route";
 import { bootstrapAuthSession } from "@/lib/authSessionBootstrap";
 import { clearPersistedSession, persistSessionForResume } from "@/lib/authSessionResumeClient";
-
-// The installed Supabase client, the boot resolver and the durable resume
-// client run for real. The /auth/v1 provider and the /api/auth/session cookie
-// endpoint are explicit in-memory doubles holding synthetic tokens; "offline"
-// makes both reject. This proves the device-side restore decision, not real
-// GoTrue revocation or a real HttpOnly cookie.
+import { resolveSocialAccess } from "@/lib/socialAccessServer";
 
 type Account = { id: string; email: string };
 const A: Account = { id: "account-a", email: "a@example.com" };
 const B: Account = { id: "account-b", email: "b@example.com" };
+const SUPABASE_URL = "https://auth-journey.invalid";
 const SDK_STORAGE_KEY = "pubmax-resume-journey-auth-token";
 
 function base64Url(value: unknown): string {
   return Buffer.from(JSON.stringify(value)).toString("base64url");
 }
 
-function accessTokenFor(account: Account): string {
-  const exp = Math.floor(Date.now() / 1000) + 3600;
-  return `${base64Url({ alg: "HS256", typ: "JWT" })}.${base64Url({ sub: account.id, exp, role: "authenticated" })}.${base64Url("synthetic-signature")}`;
-}
-
-function userFor(account: Account) {
-  return {
-    id: account.id, aud: "authenticated", role: "authenticated", email: account.email,
-    app_metadata: {}, user_metadata: {}, created_at: "2026-01-01T00:00:00.000Z",
-  };
-}
-
 function sessionFor(account: Account) {
+  const expiresAt = Math.floor(Date.now() / 1000) + 3600;
   return {
-    access_token: accessTokenFor(account), refresh_token: `synthetic-refresh-${account.id}`,
-    token_type: "bearer", expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, user: userFor(account),
+    access_token: `${base64Url({ alg: "HS256", typ: "JWT" })}.${base64Url({ sub: account.id, exp: expiresAt, role: "authenticated" })}.${base64Url("signature")}`,
+    refresh_token: `synthetic-refresh-${account.id}`,
+    token_type: "bearer",
+    expires_in: 3600,
+    expires_at: expiresAt,
+    user: {
+      id: account.id, aud: "authenticated", role: "authenticated", email: account.email,
+      app_metadata: {}, user_metadata: {}, created_at: "2026-01-01T00:00:00.000Z",
+    },
   };
 }
 
 let online: boolean;
-let deleteStatus: number;
-let cookie: Account | null;
+let deleteReachesServer: boolean;
+let httpOnlyCookies: Map<string, string>;
 let sdkItems: Map<string, string>;
-let cookieRequests: string[];
-let heldPersist: (() => void) | null;
+let tokenGrants: string[];
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 }
 
-async function cookieEndpoint(init: RequestInit = {}): Promise<Response> {
-  if (!online) throw new TypeError("Failed to fetch");
-  const method = init.method ?? "GET";
-  if (method === "GET") {
-    cookieRequests.push("hint");
-    return json({ hint: cookie ? { maskedEmail: "a***@example.com" } : null });
+function cookieHeader(): string {
+  return [document.cookie, ...[...httpOnlyCookies].map(([name, value]) => `${name}=${value}`)]
+    .filter(Boolean)
+    .join("; ");
+}
+
+function applySetCookies(response: Response): void {
+  for (const raw of response.headers.getSetCookie()) {
+    const pair = raw.split(";")[0] ?? "";
+    const name = pair.slice(0, pair.indexOf("="));
+    const value = pair.slice(pair.indexOf("=") + 1);
+    const expired = /max-age=0/i.test(raw) || value === "";
+    if (/;\s*httponly/i.test(raw)) {
+      if (expired) httpOnlyCookies.delete(name);
+      else httpOnlyCookies.set(name, value);
+    } else {
+      document.cookie = raw.replace(/;\s*secure/i, "");
+    }
   }
-  if (method === "DELETE") {
-    cookieRequests.push(`delete:${deleteStatus}`);
-    if (deleteStatus !== 200) return json({ error: "synthetic outage" }, deleteStatus);
-    cookie = null;
-    return json({ ok: true });
+}
+
+function sessionRequest(init: RequestInit = {}): Request {
+  const headers = new Headers(init.headers);
+  headers.set("cookie", cookieHeader());
+  headers.set("sec-fetch-site", "same-origin");
+  return new Request("http://localhost/api/auth/session", { ...init, headers });
+}
+
+async function sessionRoute(request: Request): Promise<Response> {
+  const method = request.method;
+  const response = method === "GET" ? await GET(request) : method === "DELETE" ? await DELETE(request) : await POST(request);
+  applySetCookies(response);
+  return response;
+}
+
+async function gotrue(url: string, init: RequestInit = {}): Promise<Response> {
+  if (url.includes("/auth/v1/token")) {
+    const refresh = (JSON.parse(String(init.body)) as { refresh_token: string }).refresh_token;
+    tokenGrants.push(refresh);
+    const account = [A, B].find((candidate) => refresh === `synthetic-refresh-${candidate.id}`);
+    return account ? json(sessionFor(account)) : json({ error_code: "refresh_token_not_found" }, 400);
   }
-  const body = JSON.parse(String(init.body)) as { action: string; refreshToken?: string };
-  cookieRequests.push(body.action);
-  if (body.action === "redeem") {
-    return cookie ? json({ status: "restored", session: sessionFor(cookie) }) : json({ status: "none" });
+  if (url.includes("/auth/v1/logout")) return new Response(null, { status: 204 });
+  if (url.includes("/auth/v1/user")) {
+    return json(sessionFor(A).user);
   }
-  const owner = [A, B].find((account) => body.refreshToken === `synthetic-refresh-${account.id}`) ?? null;
-  if (heldPersist === null) {
-    cookie = owner;
-    return json({ ok: true });
-  }
-  return new Promise<Response>((resolve) => {
-    heldPersist = () => {
-      cookie = owner;
-      resolve(json({ ok: true }));
-    };
-  });
+  throw new Error(`Unexpected synthetic provider request: ${url}`);
 }
 
 function makeClient() {
-  return createClient("http://auth-journey.invalid", "synthetic-public-key", {
+  return createClient(SUPABASE_URL, "synthetic-public-key", {
     auth: {
       storageKey: SDK_STORAGE_KEY,
       storage: {
@@ -95,28 +132,25 @@ function makeClient() {
       detectSessionInUrl: false,
     },
     global: {
-      fetch: async (input: RequestInfo | URL) => {
-        const url = String(input instanceof Request ? input.url : input);
+      fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
         if (!online) throw new TypeError("Failed to fetch");
-        if (url.includes("/auth/v1/logout")) return new Response(null, { status: 204 });
-        if (url.includes("/auth/v1/user")) return json(userFor(cookie ?? A));
-        throw new Error(`Unexpected synthetic provider request: ${url}`);
+        return gotrue(String(input instanceof Request ? input.url : input), init);
       },
     },
   });
 }
 
-function signedInAs(account: Account) {
+/** A deliberate sign-in as the app performs it: local SDK session, then a sign-in persist. */
+async function signIn(account: Account) {
   sdkItems.set(SDK_STORAGE_KEY, JSON.stringify(sessionFor(account)));
-  cookie = account;
+  expect(await persistSessionForResume(sessionFor(account), fetch, "sign-in")).toBe("stored");
   return makeClient();
 }
 
-/** The two device steps AuthProvider.signOut awaits, in its order. */
+/** The two device steps AuthProvider.signOut awaits after the SDK sign-out, in its order. */
 async function explicitSignOut(client: ReturnType<typeof makeClient>) {
-  const result = await client.auth.signOut();
+  await client.auth.signOut();
   await clearPersistedSession();
-  return result;
 }
 
 async function reload() {
@@ -125,110 +159,137 @@ async function reload() {
   return { client, outcome };
 }
 
+async function cookieReader() {
+  return resolveSocialAccess(new Request("http://localhost/api/social/access", { headers: { cookie: cookieHeader() } }));
+}
+
 beforeEach(() => {
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", SUPABASE_URL);
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
+  for (const cookie of document.cookie.split(";")) {
+    const name = cookie.split("=")[0]?.trim();
+    if (name) document.cookie = `${name}=; Max-Age=0; Path=/`;
+  }
   localStorage.clear();
   online = true;
-  deleteStatus = 200;
-  cookie = null;
+  deleteReachesServer = true;
+  httpOnlyCookies = new Map();
   sdkItems = new Map();
-  cookieRequests = [];
-  heldPersist = null;
+  tokenGrants = [];
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-    if (String(input) === "/api/auth/session") return cookieEndpoint(init);
-    throw new Error(`Unexpected synthetic request: ${String(input)}`);
+    const url = String(input instanceof Request ? input.url : input);
+    if (url === "/api/auth/session") {
+      if (!online) throw new TypeError("Failed to fetch");
+      if (init?.method === "DELETE" && !deleteReachesServer) return json({ error: "synthetic outage" }, 503);
+      return sessionRoute(sessionRequest(init));
+    }
+    return gotrue(url, init);
   }));
 });
 
-afterEach(() => {
+afterEach(async () => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   vi.restoreAllMocks();
+  const { __resetPintDrops } = await import("@/lib/pintDrops");
+  __resetPintDrops();
 });
 
 describe("explicit sign-out against the durable resume cookie", () => {
   it.each([
     ["the device is offline", () => { online = false; }],
-    ["the cookie endpoint answers 503", () => { deleteStatus = 503; }],
-  ])("does not restore the departed account after reconnecting when %s at sign-out", async (_label, fail) => {
-    const client = signedInAs(A);
+    ["the cookie DELETE answers 503", () => { deleteReachesServer = false; }],
+  ])("keeps the departed account signed out after reconnecting when %s", async (_label, fail) => {
+    const client = await signIn(A);
     fail();
     await explicitSignOut(client);
     expect((await client.auth.getSession()).data.session).toBeNull();
-    expect(cookie).toEqual(A);
+    expect(httpOnlyCookies.size).toBe(1);
 
     online = true;
-    deleteStatus = 200;
+    deleteReachesServer = true;
     const { client: reloaded, outcome } = await reload();
     expect(outcome.status).toBe("none");
     expect((await reloaded.auth.getSession()).data.session).toBeNull();
-    expect(cookie).toBeNull();
-    expect(cookieRequests).not.toContain("redeem");
+    expect(tokenGrants).toEqual([]);
+    expect((await cookieReader()).state).toBe("sign_in_required");
+    expect(tokenGrants).toEqual([]);
   });
 
-  it("stays signed out across an offline reload, then clears the cookie once reconnected", async () => {
-    const client = signedInAs(A);
-    online = false;
-    await explicitSignOut(client);
-    const offline = await reload();
-    expect(offline.outcome.status).toBe("none");
-    online = true;
-    const { outcome } = await reload();
-    expect(outcome.status).toBe("none");
-    expect(cookie).toBeNull();
-    const after = await reload();
-    expect(after.outcome.status).toBe("none");
-    expect(cookieRequests.filter((request) => request === "redeem")).toEqual([]);
-    expect(cookieRequests.at(-1)).toBe("hint");
-  });
-
-  it("does not let a persist that was in flight at sign-out bring the departed account back", async () => {
-    const client = signedInAs(A);
-    heldPersist = () => {};
-    const stalePersist = persistSessionForResume(sessionFor(A));
-    await vi.waitFor(() => expect(cookieRequests).toContain("persist"));
-    await explicitSignOut(client);
-    expect(cookie).toBeNull();
-    heldPersist();
-    await stalePersist;
-    expect(cookie).toEqual(A);
-
-    const { outcome } = await reload();
-    expect(outcome.status).toBe("none");
-    expect(cookie).toBeNull();
-  });
-
-  it("keeps durable resume for an intentional new sign-in after a failed clear", async () => {
-    const client = signedInAs(A);
+  it("stops the cookie authenticating server readers as soon as the device reconnects, before any boot", async () => {
+    const client = await signIn(A);
     online = false;
     await explicitSignOut(client);
     online = true;
-    expect(await persistSessionForResume(sessionFor(B))).toBe("stored");
-    expect(cookie).toEqual(B);
+    expect((await cookieReader()).state).toBe("sign_in_required");
+    expect(tokenGrants).toEqual([]);
+  });
 
+  it("holds the fence when browser storage is unavailable", async () => {
+    const client = await signIn(A);
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("storage blocked"); });
+    online = false;
+    await explicitSignOut(client);
+    online = true;
+    const { outcome } = await reload();
+    expect(outcome.status).toBe("none");
+    expect(tokenGrants).toEqual([]);
+  });
+
+  it("does not count a cookie written by a pre-logout persist whose page is gone", async () => {
+    const client = await signIn(A);
+    const latePersist = await POST(sessionRequest({
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${sessionFor(A).access_token}` },
+      body: JSON.stringify({ action: "persist", refreshToken: sessionFor(A).refresh_token, intent: "background" }),
+    }));
+    await explicitSignOut(client);
+    expect(httpOnlyCookies.size).toBe(0);
+    applySetCookies(latePersist);
+    expect(httpOnlyCookies.size).toBe(1);
+
+    const { outcome } = await reload();
+    expect(outcome.status).toBe("none");
+    expect((await cookieReader()).state).toBe("sign_in_required");
+    expect(tokenGrants).toEqual([]);
+  });
+
+  it("refuses a background refresh persist of the departed account after sign-out", async () => {
+    const client = await signIn(A);
+    await explicitSignOut(client);
+    expect(await persistSessionForResume(sessionFor(A), fetch, "background")).toBe("unavailable");
+    expect(httpOnlyCookies.size).toBe(0);
+    const { outcome } = await reload();
+    expect(outcome.status).toBe("none");
+  });
+
+  it("remembers a deliberate new sign-in after an offline sign-out", async () => {
+    const client = await signIn(A);
+    online = false;
+    await explicitSignOut(client);
+    online = true;
+    await signIn(B);
+    sdkItems.clear();
     const { outcome } = await reload();
     expect(outcome).toMatchObject({ status: "restored", session: { refresh_token: `synthetic-refresh-${B.id}` } });
   });
 
-  it("still restores an account whose local session was evicted without a sign-out", async () => {
-    signedInAs(A);
+  it("keeps durable resume across background refreshes when nobody signed out", async () => {
+    await signIn(A);
+    expect(await persistSessionForResume(sessionFor(A), fetch, "background")).toBe("stored");
     sdkItems.clear();
     const { client, outcome } = await reload();
     expect(outcome).toMatchObject({ status: "restored", session: { refresh_token: `synthetic-refresh-${A.id}` } });
     expect((await client.auth.getSession()).data.session?.user.id).toBe(A.id);
+    expect((await cookieReader()).state).not.toBe("sign_in_required");
   });
 
-  it("clears the cookie and resumes nothing when the sign-out DELETE succeeds", async () => {
-    const client = signedInAs(A);
-    await explicitSignOut(client);
-    expect(cookie).toBeNull();
+  it("still restores a cookie persisted before the generation fence existed", async () => {
+    sdkItems.set(SDK_STORAGE_KEY, JSON.stringify(sessionFor(A)));
+    expect(await persistSessionForResume(sessionFor(A), fetch, "background")).toBe("stored");
+    expect(document.cookie).toBe("");
+    sdkItems.clear();
     const { outcome } = await reload();
-    expect(outcome.status).toBe("none");
-  });
-
-  it("still sends the DELETE when the device cannot record the pending clear", async () => {
-    const client = signedInAs(A);
-    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("storage blocked"); });
-    await explicitSignOut(client);
-    expect(cookieRequests).toContain("delete:200");
-    expect(cookie).toBeNull();
+    expect(outcome.status).toBe("restored");
   });
 });

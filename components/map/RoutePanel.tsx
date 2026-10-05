@@ -149,10 +149,13 @@ export default function RoutePanel({
   // Alt-style copy: a "coffee stop" / "food stop" / "mocktail stop" instead of
   // the default "pint stop". A single source (lib/crawlUrl) keeps label + noun
   // in sync with the URL round-trip.
-  const stopNoun = drinkPresentation?.stopNoun ?? altStyleStopNoun[altStyle];
+  // A suggestion is ranked on pint prices, so only a hand-built route is named
+  // for the selected drink.
+  const builtDrink = mode === "build" ? drinkPresentation : null;
+  const stopNoun = builtDrink?.stopNoun ?? altStyleStopNoun[altStyle];
   const routeTitle =
     mode === "build" ? crawlName || "My hand-built crawl" : `${styleLabels[crawlStyle]} crawl`;
-  const crawlTitle = drinkPresentation ? crawlName || `${drinkPresentation.label} plan` : routeTitle;
+  const crawlTitle = builtDrink ? crawlName || `${builtDrink.label} plan` : routeTitle;
 
   // Loop 2 crawl-completion stickiness — localStorage only. Key off crawlId when
   // present, else a stable title slug so hand-built routes still track.
@@ -223,7 +226,7 @@ export default function RoutePanel({
         crawlBlurb={crawlBlurb}
         altStyle={altStyle}
         onAltStyleChange={onAltStyleChange}
-        drinkLabel={drinkPresentation?.label}
+        drinkLabel={builtDrink?.label}
       />
 
       {drinkCoverageNote ? <p className="description muted" role="status">{drinkCoverageNote}</p> : null}

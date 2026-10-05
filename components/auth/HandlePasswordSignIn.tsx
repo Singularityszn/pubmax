@@ -124,10 +124,11 @@ export default function HandlePasswordSignIn({
         return;
       }
 
-      void persistSessionForResume({
-        access_token: session.access_token,
-        refresh_token: session.refresh_token,
-      });
+      void persistSessionForResume(
+        { access_token: session.access_token, refresh_token: session.refresh_token },
+        fetch,
+        "sign-in",
+      );
 
       // A full assignment rather than a router push: the destination may be a
       // server-rendered surface that has to read the fresh session, and the

@@ -22,13 +22,12 @@ export function mapPlanDrinkPresentation(
 ): MapPlanDrinkPresentation | null {
   if (!selection) return null;
   const category = isMapLensDrinkCategory(selection.drinkCategory) ? selection.drinkCategory : "beer";
-  const refined = Boolean(selection.drinkSubtype || selection.drinkBrand);
-  if (category === "beer" && !refined) return null;
   const subtype = parseDrinkSubtypeParam(selection.drinkSubtype, category);
   const brand = findBrand(selection.drinkBrand);
-  const label = brand?.category === category
-    ? brand.brand.label
-    : subtype?.longLabel ?? categoryLabel(category);
+  const categoryBrand = brand?.category === category ? brand.brand : null;
+  const refined = Boolean(subtype || categoryBrand);
+  if (category === "beer" && !refined) return null;
+  const label = categoryBrand?.label ?? subtype?.longLabel ?? categoryLabel(category);
   const priceNoun = refined ? label : drinkLensPriceNoun(category);
   return { category, label, priceNoun, stopNoun: `${priceNoun.toLowerCase()} stop`, refined };
 }
@@ -60,7 +59,8 @@ export function mapPlanDrinkDefaultContext(
   if (drink.refined) {
     throw new Error(`The planner cannot match ${drink.label} yet. Choose a drink lane without a brand or style, or name a different drink.`);
   }
-  return { drinkCategory: drink.category };
+  // The Alcohol-free lane is the zero-proof planning mode the query also infers.
+  return drink.category === "alcohol-free" ? { zeroProof: true } : { drinkCategory: drink.category };
 }
 
 /** Share only closed taxonomy values that agree with the selected category. */

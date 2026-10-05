@@ -4,11 +4,7 @@
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
-import {
-  encodeAuthResumeCookie,
-  AUTH_RESUME_COOKIE,
-  AUTH_RESUME_MAX_AGE_SECONDS,
-} from "@/lib/authSessionResume";
+import { authResumeSetCookieHeaders, newResumeGeneration } from "@/lib/authSessionResume";
 import {
   HANDLE_PASSWORD_GENERIC_ERROR,
   MIN_PASSWORD_LENGTH,
@@ -29,16 +25,9 @@ const RATE_LIMIT = 12;
 const RATE_WINDOW_MS = 15 * 60 * 1000;
 
 function setResumeCookie(refreshToken: string, email: string | null): Headers {
-  const headers = new Headers();
-  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
-  const value = encodeURIComponent(
-    encodeAuthResumeCookie({ refreshToken, email }),
-  );
-  headers.append(
-    "Set-Cookie",
-    `${AUTH_RESUME_COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${AUTH_RESUME_MAX_AGE_SECONDS}${secure}`,
-  );
-  return headers;
+  // A password sign-in is deliberate, so it starts a new resume generation.
+  const generation = newResumeGeneration();
+  return authResumeSetCookieHeaders({ refreshToken, email, generation }, generation);
 }
 
 export async function POST(request: Request): Promise<Response> {

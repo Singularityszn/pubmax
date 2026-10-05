@@ -23,14 +23,15 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { AUTH_ACCOUNT_BANNED_MESSAGE } from "@/lib/authAccountBan";
 import { verifyCallerAuth } from "@/lib/authServer";
 import {
-  AUTH_RESUME_COOKIE,
-  AUTH_RESUME_MAX_AGE_SECONDS,
+  AUTH_RESUME_GENERATION_COOKIE,
+  SIGNED_OUT_GENERATION_PREFIX,
   authResumeCookieFromHeader,
-  decodeAuthResumeCookie,
-  encodeAuthResumeCookie,
+  authResumePayloadFromHeader,
+  authResumeSetCookieHeaders,
   inheritedResumeEmail,
   isPlausibleRefreshToken,
   maskEmail,
+  newResumeGeneration,
   type AuthResumeCookiePayload,
 } from "@/lib/authSessionResume";
 import { requestMagicLink } from "@/lib/passwordlessAuth";
@@ -57,22 +58,10 @@ function supabaseAuthConfig(): { url: string; key: string } | null {
 }
 
 function cookiePayload(request: Request): AuthResumeCookiePayload | null {
-  return decodeAuthResumeCookie(
-    authResumeCookieFromHeader(request.headers.get("cookie")),
-  );
+  return authResumePayloadFromHeader(request.headers.get("cookie"));
 }
 
-function setCookieHeaders(payload: AuthResumeCookiePayload | null): Headers {
-  const headers = new Headers();
-  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
-  const value = payload ? encodeURIComponent(encodeAuthResumeCookie(payload)) : "";
-  const maxAge = payload ? AUTH_RESUME_MAX_AGE_SECONDS : 0;
-  headers.append(
-    "Set-Cookie",
-    `${AUTH_RESUME_COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`,
-  );
-  return headers;
-}
+const setCookieHeaders = authResumeSetCookieHeaders;
 
 async function limited(
   request: Request,
@@ -122,7 +111,10 @@ export async function DELETE(request: Request): Promise<Response> {
       retryable: true,
     });
   }
-  return jsonNoStore({ ok: true }, { headers: setCookieHeaders(null) });
+  return jsonNoStore(
+    { ok: true },
+    { headers: setCookieHeaders(null, newResumeGeneration(SIGNED_OUT_GENERATION_PREFIX)) },
+  );
 }
 
 async function persist(
@@ -140,6 +132,16 @@ async function persist(
   const refreshToken = body.refreshToken;
   if (!isPlausibleRefreshToken(refreshToken)) {
     return publicApiError("A refresh token is required.", "INVALID_REQUEST", 400);
+  }
+  // After an explicit sign-out only a deliberate sign-in may remember an
+  // account again. A background refresh or boot persist is refused.
+  const deliberate = body.intent === "sign-in";
+  const currentGeneration = authResumeCookieFromHeader(
+    request.headers.get("cookie"),
+    AUTH_RESUME_GENERATION_COOKIE,
+  );
+  if (!deliberate && currentGeneration?.startsWith(SIGNED_OUT_GENERATION_PREFIX)) {
+    return publicApiError("This device was signed out.", "SIGNED_OUT", 409);
   }
 
   // The bearer token proves who the refresh token is being stored FOR, and
@@ -166,11 +168,16 @@ async function persist(
     verification.status === "verified" && verification.identity.email
       ? verification.identity.email
       : inheritedResumeEmail(existing, { userId, refreshToken });
-  const headers = setCookieHeaders({
-    refreshToken: refreshToken,
-    email,
-    userId,
-  });
+  const generation = deliberate ? newResumeGeneration() : currentGeneration;
+  const headers = setCookieHeaders(
+    {
+      refreshToken: refreshToken,
+      email,
+      userId,
+      generation,
+    },
+    deliberate && generation ? generation : undefined,
+  );
   return jsonNoStore({ ok: true }, { headers });
 }
 
@@ -238,6 +245,7 @@ async function redeem(request: Request): Promise<Response> {
       email: typeof sessionEmail === "string" ? sessionEmail : payload.email,
       userId:
         typeof sessionUserId === "string" ? sessionUserId : payload.userId ?? null,
+      generation: payload.generation ?? null,
     });
     return jsonNoStore(
       {
@@ -276,6 +284,7 @@ async function redeem(request: Request): Promise<Response> {
             refreshToken: null,
             email: payload.email,
             userId: payload.userId ?? null,
+            generation: payload.generation ?? null,
           }
         : null,
     );
