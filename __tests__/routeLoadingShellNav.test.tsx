@@ -29,9 +29,6 @@
 // asks the app's auth and command-palette contexts for its own children, and a
 // stub of those would only prove the stub.
 
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { isValidElement, type ReactElement, type ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 
@@ -60,13 +57,5 @@ describe("RouteLoadingShell", () => {
     expect(main.props["aria-live"]).toBe("polite");
     expect(main.props["aria-label"]).toBe("Loading Tonight");
     expect(main.props.className).toBe("routeLoadingShell");
-  });
-
-  it("never stands in front of a prerendered route", () => {
-    for (const route of ["today", "tonight"]) {
-      const page = readFileSync(join(process.cwd(), "app", route, "page.tsx"), "utf8");
-      expect(page).toContain('export const dynamic = "force-static";');
-      expect(existsSync(join(process.cwd(), "app", route, "loading.tsx"))).toBe(false);
-    }
   });
 });

@@ -31,7 +31,7 @@ export default function PlanDescribeFirst({
   /**
    * False on the server-painted form PlanComposer replaces once it hydrates.
    * That form is thrown away with whatever was typed into it, so until the
-   * real one mounts the field reads only and Sort it is unavailable.
+   * real one mounts the field reads only and no action is available.
    */
   ready?: boolean;
 }) {
@@ -88,6 +88,7 @@ export default function PlanDescribeFirst({
   }
 
   function submitChip(value: string) {
+    if (!ready) return;
     const chipInferredStopCount = normalizePlanStopCount(inferNightContext(value).context.stopCount);
     const hadTypedQuery = Boolean(query.trim());
     const resolved = resolveDescribeChipSubmit({
@@ -134,7 +135,11 @@ export default function PlanDescribeFirst({
         </button>
       }
       secondary={
-        <button type="button" onClick={onGuideMeInstead}>
+        <button
+          type="button"
+          aria-disabled={ready ? undefined : true}
+          onClick={() => { if (ready) onGuideMeInstead(); }}
+        >
           Guide me instead
         </button>
       }
@@ -166,6 +171,7 @@ export default function PlanDescribeFirst({
       </div>
       <PlanStopCountPicker
         value={stopCount}
+        ready={ready}
         onChange={(next) => {
           setStopCountTouched(true);
           setStopCount(next);
@@ -180,6 +186,7 @@ export default function PlanDescribeFirst({
               key={chip.id}
               type="button"
               className="planDescribeFirst__chip planDescribeFirst__chip--culture"
+              aria-disabled={ready ? undefined : true}
               onClick={() => submitChip(chip.query)}
             >
               {chip.label}
@@ -193,6 +200,7 @@ export default function PlanDescribeFirst({
             key={chip}
             type="button"
             className="planDescribeFirst__chip"
+            aria-disabled={ready ? undefined : true}
             onClick={() => submitChip(chip)}
           >
             {chip}
