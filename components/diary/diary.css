@@ -1,0 +1,123 @@
+/* The Diary: the composer's rating row and the profile list. The card, date,
+   note and submit furniture is visitReports.css, so a diary entry and a visit
+   report share one look. Tokens only. */
+
+.diaryLogPanel {
+  gap: 0.75rem;
+}
+
+.diaryRatingField {
+  display: grid;
+  min-width: 0;
+  gap: 0.35rem;
+}
+
+.diaryRatingLabel {
+  color: var(--color-text, var(--ink, #1a1a1a));
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+
+.diaryRatingRow {
+  display: flex;
+  min-width: 0;
+  min-height: 44px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.diaryRatingRow .starRatingGlyphs {
+  font-size: 1.6rem;
+}
+
+.diaryRatingValue {
+  color: var(--color-text-muted, var(--muted, #6b6b6b));
+  font-size: 0.84rem;
+}
+
+.diaryRatingClear {
+  min-height: 44px;
+  border: 0;
+  padding: 0 0.5rem;
+  background: transparent;
+  color: var(--color-text-muted, var(--muted, #6b6b6b));
+  font: inherit;
+  font-size: 0.8rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.diaryRatingClear:focus-visible {
+  outline: 3px solid var(--color-focus, var(--river, #2f6e8e));
+  outline-offset: 2px;
+}
+
+/* Profile list */
+.diaryPanel {
+  margin: 1.25rem 0 1.75rem;
+}
+
+.diaryPanel__title {
+  margin: 0 0 0.35rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.diaryPanel__lede,
+.diaryPanel__empty {
+  margin: 0 0 0.85rem;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: var(--color-text-muted, var(--muted, #6b6b6b));
+}
+
+.diaryList {
+  display: grid;
+  min-width: 0;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.diaryRow {
+  display: grid;
+  min-width: 0;
+  gap: 0.4rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border, var(--line, rgba(0, 0, 0, 0.12)));
+  border-radius: var(--radius-sm, 10px);
+  background: var(--color-surface-raised, var(--panel-raised, rgba(0, 0, 0, 0.025)));
+}
+
+.diaryRow__head {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+}
+
+.diaryRow__venue {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--color-text, var(--ink, #1a1a1a));
+  font-size: 0.98rem;
+  font-weight: 700;
+}
+
+.diaryRow__date {
+  color: var(--color-text-muted, var(--muted, #6b6b6b));
+  font-size: 0.78rem;
+}
+
+.diaryRow__review {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--color-text, var(--ink, #1a1a1a));
+  font-size: 0.92rem;
+  line-height: 1.45;
+}

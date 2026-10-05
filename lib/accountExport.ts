@@ -34,6 +34,7 @@ import type { SavedPubDTO } from "@/lib/savedPubs";
 import type { DrinkWallCategory } from "@/lib/venuePhotos";
 import type { PublicSocialConnection } from "@/lib/socialConnections";
 import type { VisitReportDTO } from "@/lib/visitReports";
+import type { DiaryEntryDTO } from "@/lib/diary";
 import type { WantedDTO } from "@/lib/wanted";
 
 /** The export document's version, bumped when a field changes meaning. */
@@ -213,6 +214,8 @@ export type AccountExport = {
   follows: AccountExportLane<string>;
   savedPubs: AccountExportLane<SavedPubDTO>;
   wanted: AccountExportLane<WantedDTO>;
+  /** The account's own diary: private visits, each with its day and optional half-star rating. */
+  diary: AccountExportLane<DiaryEntryDTO>;
   socialLinks: AccountExportLane<PublicSocialConnection>;
   /** At most one row, the same way `identity` is. */
   nightProfile: AccountExportLane<NightProfile>;
@@ -232,6 +235,7 @@ export const ACCOUNT_EXPORT_LANES = [
   "follows",
   "savedPubs",
   "wanted",
+  "diary",
   "socialLinks",
   "nightProfile",
   "messages",

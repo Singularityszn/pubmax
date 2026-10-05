@@ -6,9 +6,9 @@ The inventory is descriptive, not a runtime registry.
 
 ## Current snapshot
 
-- The repository has 52 `lib/*Store.ts` modules.
+- The repository has 53 `lib/*Store.ts` modules.
 - 32 modules call `selectStore` directly.
-- 7 modules use `createDualBackendStore`.
+- 8 modules use `createDualBackendStore`.
 - 6 modules keep memory state on `globalThis` so it survives a development
   server reload. That state pattern is separate from backend selection.
 - The remaining modules use an explicit backend, a file or static data path,
@@ -50,6 +50,7 @@ silently stale.
 | communityPriceStore | factory-eligible, policy-heavy | Moderation, corroboration, venue signals, and Round source ownership. |
 | contributorLeaderboardStore | legacy-exception | Inline Supabase configuration check; durable aggregate read. |
 | crawlStoryStore | legacy-exception | Multiple inline Supabase configuration checks. |
+| diaryStore | factory-ready | Owner-scoped private Diary entries with shared backend selection. |
 | feedFreshnessStore | factory-ready | Pilot store; durable or memory freshness stamp. |
 | followStore | factory-ready | Directed follow graph with shared backend selection. |
 | harvestOverlayStore | factory-ready | Fold-written UK harvest overlays; one shared selector, with a `requireDurable` guard for the non-dry fold CLI. |
@@ -240,8 +241,8 @@ and Supabase implementations keep their existing fail-soft behavior.
 
 The current branch also has `createDualBackendStore` in
 `adultSelfAssertionStore`, `feedFreshnessStore`, `occupancyStore`,
-`priceTrustEventStore`, `stepOutNudgeStore`, `walkRouteStore`, and
-`wantedStore`. This inventory records that current state; it does not require
+`priceTrustEventStore`, `stepOutNudgeStore`, `walkRouteStore`, `wantedStore`,
+and `diaryStore`. This inventory records that current state; it does not require
 other stores to migrate.
 
 ## Review-scope guard
