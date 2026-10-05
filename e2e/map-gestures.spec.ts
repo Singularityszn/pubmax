@@ -57,6 +57,7 @@ type CameraReading = {
   zoom: number;
   center: [number, number];
   moving: boolean;
+  settling: boolean;
 };
 
 type PaintedPoint = {
@@ -348,6 +349,14 @@ test("two fingers tilt the map, and the pins stay on the ground", async ({ page 
     async () => Math.abs((await readCamera(page)).pitch - before.pitch),
     { timeout: 10_000 },
   ).toBeGreaterThan(MIN_PITCH_CHANGE);
+  // The fingers lift as soon as the pitch passes the threshold, and MapLibre
+  // can still be easing the tilt out. A pin painted mid-ease and the camera
+  // projected a frame later disagree by a pixel or two, so the anchoring claim
+  // is only made about a camera at rest.
+  await expect.poll(async () => {
+    const camera = await readCamera(page);
+    return !camera.moving && !camera.settling;
+  }, { timeout: 20_000 }).toBe(true);
 
   const tilted = await readCamera(page);
   // A tilt is a tilt. Nothing else about the camera may come with it.
