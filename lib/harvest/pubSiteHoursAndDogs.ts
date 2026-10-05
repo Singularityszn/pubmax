@@ -387,19 +387,32 @@ export type SiteFactsRow = {
  * fence the run holds: the source policy and robots at the page it landed on,
  * the chain list, the pub's address on a site only a dataset or a search gave
  * it, and the duplicate check for a dataset venue reading another pub's page.
- * A page on the chain list speaks for the brand. A passage more than one pub
- * on one host states word for word is the chain's too, so it goes.
+ * A committed row whose pub the checkpoint has not settled (no entry, an
+ * unfinished or failed read, or a missing kept page) is carried forward, so
+ * only a finished read with its kept page or a final refusal may change or
+ * drop it. A page on the chain list speaks for the brand, so its row goes,
+ * fresh or carried. A passage more than one pub on one host states word for
+ * word is the chain's too, so it goes. A checkpoint with no finished read at
+ * all is not a harvest, so it publishes nothing over committed rows.
  */
 export function siteFactsRows(input: {
   reads: Readonly<Record<string, KeptPageRead>>;
   loadPage: (osmId: string) => { text: string; readAt: string } | null;
   isChainPage: (url: string) => boolean;
-}): { rows: SiteFactsRow[]; skipCounts: Record<string, number>; unsettled: string[] } {
+  previousRows: readonly SiteFactsRow[];
+}): { rows: SiteFactsRow[]; skipCounts: Record<string, number>; refusal: string | null } {
   const skipCounts: Record<string, number> = {};
   const skip = (reason: string) => {
     skipCounts[reason] = (skipCounts[reason] ?? 0) + 1;
   };
-  const unsettled: string[] = [];
+  if (input.previousRows.length > 0 && !Object.values(input.reads).some((read) => read.status === "ok")) {
+    return {
+      rows: [],
+      skipCounts,
+      refusal: "the checkpoint holds no finished read; run the amenity harvest without --read-only first",
+    };
+  }
+  const unsettled = new Set<string>();
   const candidates: SiteFactsRow[] = [];
   for (const [osmId, read] of Object.entries(input.reads)) {
     // A page read under --read-only waits as "read" until a model run
@@ -407,19 +420,19 @@ export function siteFactsRows(input: {
     // network or server failure may pass on a later run.
     if (read.status !== "ok") {
       if (!SETTLED_REFUSALS.has(read.status ?? "")) {
-        unsettled.push(osmId);
+        unsettled.add(osmId);
         skip(`unsettled-${read.status ?? "no-status"}`);
       }
       continue;
     }
-    const page = read.sourceUrl ? input.loadPage(osmId) : null;
-    if (!read.sourceUrl || !page) {
-      unsettled.push(osmId);
-      skip("unsettled-page-missing");
+    if (read.sourceUrl && input.isChainPage(read.sourceUrl)) {
+      skip("chain-page");
       continue;
     }
-    if (input.isChainPage(read.sourceUrl)) {
-      skip("chain-page");
+    const page = read.sourceUrl ? input.loadPage(osmId) : null;
+    if (!read.sourceUrl || !page) {
+      unsettled.add(osmId);
+      skip("unsettled-page-missing");
       continue;
     }
     const dogs = statedDogPolicy(page.text);
@@ -437,6 +450,15 @@ export function siteFactsRows(input: {
       ...(dogs ? { dogs } : {}),
       ...(hours ? { hours } : {}),
     });
+  }
+  for (const row of input.previousRows) {
+    if (Object.hasOwn(input.reads, row.osmId) && !unsettled.has(row.osmId)) continue;
+    if (input.isChainPage(row.sourceUrl)) {
+      skip("chain-page");
+      continue;
+    }
+    skip("kept-unsettled");
+    candidates.push(row);
   }
   const hostOf = (url: string) => new URL(url).host.toLowerCase().replace(/^www\./, "");
   const statedBy = new Map<string, Set<string>>();
@@ -463,28 +485,5 @@ export function siteFactsRows(input: {
     if (kept.dogs || kept.hours) rows.push(kept);
   }
   rows.sort((a, b) => a.osmId.localeCompare(b.osmId));
-  return { rows, skipCounts, unsettled: unsettled.sort() };
-}
-
-/**
- * The rows to publish: the fresh rows, plus each committed row whose pub the
- * checkpoint has not settled, kept unchanged. A pub with no checkpoint entry,
- * an unfinished or failed read, or a missing kept page was not read again, so
- * only a settled outcome (a finished read with its kept page, or a final
- * refusal) may change or drop its row. A checkpoint with no finished read at
- * all is not a harvest, so it publishes nothing.
- */
-export function mergeSiteFactsRows(
-  previousRows: readonly SiteFactsRow[],
-  fresh: { rows: readonly SiteFactsRow[]; skipCounts: Readonly<Record<string, number>>; unsettled: readonly string[] },
-  reads: Readonly<Record<string, KeptPageRead>>,
-): { rows: SiteFactsRow[]; skipCounts: Record<string, number> } | { refusal: string } {
-  if (previousRows.length > 0 && !Object.values(reads).some((read) => read.status === "ok")) {
-    return { refusal: "the checkpoint holds no finished read; run the amenity harvest without --read-only first" };
-  }
-  const unsettled = new Set(fresh.unsettled);
-  const kept = previousRows.filter((row) => !Object.hasOwn(reads, row.osmId) || unsettled.has(row.osmId));
-  const rows = [...fresh.rows, ...kept].sort((a, b) => a.osmId.localeCompare(b.osmId));
-  const skipCounts = { ...fresh.skipCounts, ...(kept.length > 0 ? { "kept-unsettled": kept.length } : {}) };
-  return { rows, skipCounts };
+  return { rows, skipCounts, refusal: null };
 }

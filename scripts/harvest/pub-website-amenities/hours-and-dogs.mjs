@@ -11,10 +11,11 @@
 // states a dog policy or its opening hours, each with the source page, the day
 // it was read and the passage that states it.
 //
-// A committed row whose pub the checkpoint has not settled is kept unchanged:
+// A committed row whose pub the checkpoint has not settled is carried forward:
 // one with no entry, an unfinished read (a --read-only run), a quota, model,
 // network or server failure, or a missing kept page. Only a finished read with
-// its kept page, or a final refusal, may change or drop a committed row. It
+// its kept page, or a final refusal, may change or drop a committed row. A
+// carried row still passes the chain list and the chain-passage check. It
 // refuses to write when the checkpoint holds no finished read at all.
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -22,7 +23,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { isChainPage, parseChainDenylist } from "../../../lib/harvest/pubWebsiteAmenities.ts";
-import { mergeSiteFactsRows, siteFactsRows } from "../../../lib/harvest/pubSiteHoursAndDogs.ts";
+import { siteFactsRows } from "../../../lib/harvest/pubSiteHoursAndDogs.ts";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const CHECKPOINT_DIR = path.join(ROOT, "data-harvest/pub-website-amenities");
@@ -48,19 +49,17 @@ function main() {
   const checkpoint = JSON.parse(readFileSync(CHECKPOINT_PATH, "utf8"));
   const chainPages = parseChainDenylist(JSON.parse(readFileSync(CHAIN_PAGES_PATH, "utf8")));
   const reads = checkpoint.byOsmId ?? {};
-  const fresh = siteFactsRows({
+  const previousRows = existsSync(OUT_PATH) ? (JSON.parse(readFileSync(OUT_PATH, "utf8")).rows ?? []) : [];
+  const { rows, skipCounts, refusal } = siteFactsRows({
     reads,
     loadPage,
     isChainPage: (url) => isChainPage(url, chainPages),
+    previousRows,
   });
-  const previousRows = existsSync(OUT_PATH) ? (JSON.parse(readFileSync(OUT_PATH, "utf8")).rows ?? []) : [];
-  const merged = mergeSiteFactsRows(previousRows, fresh, reads);
-  if ("refusal" in merged) {
-    console.error(`not writing ${path.relative(ROOT, OUT_PATH)}: ${merged.refusal}`);
-    console.error(JSON.stringify({ skipCounts: fresh.skipCounts }));
+  if (refusal) {
+    console.error(`not writing ${path.relative(ROOT, OUT_PATH)}: ${refusal}`);
     process.exit(1);
   }
-  const { rows, skipCounts } = merged;
   const output = {
     version: 1,
     extractor: "lib/harvest/pubSiteHoursAndDogs.ts, no model",
