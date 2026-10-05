@@ -44,6 +44,27 @@ describe("Pal rolling session summary", () => {
     expect(session.summary).toContain(`ask number ${199 - PAL_SESSION_RECENT_TURNS} `);
   });
 
+  it("caps asks dense with prices, postcodes and emoji at three UTF-8 bytes per token, splitting no character", () => {
+    let session = { summary: "", turns: [] as PubPalFenceTurn[] };
+    for (let index = 0; index < 100; index += 1) {
+      session = windowPalSessionTurns(session.summary, [
+        ...session.turns,
+        ask(`pints under £5 near E1 6AN by 7pm 🍺🍺 #${index}`),
+      ]);
+    }
+    const [turn] = palSessionSummaryTurn(session.summary);
+    expect(turn).toBeDefined();
+    const bytes = new TextEncoder().encode(turn as string);
+    expect(bytes.length).toBeLessThanOrEqual(PAL_SESSION_SUMMARY_TOKEN_LIMIT * 3);
+    expect(new TextDecoder().decode(bytes)).toBe(turn);
+
+    const emoji = [ask("🍺".repeat(1_000)), ...Array.from({ length: PAL_SESSION_RECENT_TURNS }, (_, index) => ask(`recent ${index}`))];
+    const [capped] = palSessionSummaryTurn(windowPalSessionTurns("", emoji).summary);
+    const cappedBytes = new TextEncoder().encode(capped as string);
+    expect(cappedBytes.length).toBeLessThanOrEqual(PAL_SESSION_SUMMARY_TOKEN_LIMIT * 3);
+    expect(new TextDecoder().decode(cappedBytes)).toBe(capped);
+  });
+
   it("caps a single ask that is longer than the whole budget", () => {
     const long = "cask ".repeat(2_000);
     const turns = [ask(long), ...Array.from({ length: PAL_SESSION_RECENT_TURNS }, (_, index) => ask(`recent ${index}`))];
