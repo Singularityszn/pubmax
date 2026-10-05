@@ -32,7 +32,7 @@ const MAX_DIARY_VENUE_NAME = 120;
 export const DIARY_EARLIEST_VISITED_ON = "2000-01-01";
 
 /** Phase 1 has one visibility. Friends and public arrive with their policies. */
-export type DiaryVisibility = "private";
+type DiaryVisibility = "private";
 
 /** Validated fields the store persists (id and timestamps come from the store). */
 export type DiaryEntryFields = {
@@ -99,7 +99,7 @@ const DIARY_REVIEW_CONTROL = /[\u0000-\u0008\u000B-\u001F\u007F]/g;
  * copy filter runs on it, and angle brackets, newlines and inner spacing stay.
  * The length cap is a refusal in validateDiaryEntryCreate, never a cut.
  */
-export function cleanDiaryReview(value: unknown): string {
+function cleanDiaryReview(value: unknown): string {
   if (typeof value !== "string") return "";
   return value.replace(DIARY_REVIEW_CONTROL, "").trim();
 }
