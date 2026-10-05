@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { expectHydrated } from "./helpers/streamedPage";
+
 /**
  * No surface in this product is a dead end.
  *
@@ -62,20 +64,21 @@ async function openSheetFromTopBar(page: Page, label: string): Promise<void> {
 }
 
 /**
- * Open the planner from the layers sheet, retrying the TAP rather than waiting
- * harder on what follows it. A control painted on the server is tappable before
- * React attaches, so Playwright's actionability check passes and the tap is
- * dropped with nothing on screen saying so (AGENTS.md, "A LONE CLICK IS NOT A
- * WAIT FOR HYDRATION"). On a 2 vCPU runner that window is wide enough to hit,
- * and the browser law pins are gated on zero retries.
+ * Open the planner from the layers sheet with ONE tap, once React has attached.
+ * A control painted on the server is tappable before React attaches, so
+ * Playwright's actionability check passes and the tap is dropped with nothing on
+ * screen saying so (AGENTS.md, "A LONE CLICK IS NOT A WAIT FOR HYDRATION").
+ * Retrying the tap instead was not safe: when the first tap landed late, the
+ * retry opened a second planner on the trail, and Back then stepped from one
+ * planner to the other instead of to the sheet that opened it.
  */
 async function openPlannerFromSheet(page: Page): Promise<void> {
-  await expect(async () => {
-    await page.getByRole("button", { name: "Plan an outing" }).first().click();
-    await expect(sheet(page)).toHaveAttribute("data-sheet-kind", "planner", {
-      timeout: 2_000,
-    });
-  }).toPass({ timeout: 30_000 });
+  const plan = page.getByRole("button", { name: "Plan an outing" }).first();
+  await expectHydrated(plan);
+  await plan.click();
+  await expect(sheet(page)).toHaveAttribute("data-sheet-kind", "planner", {
+    timeout: 30_000,
+  });
 }
 
 /** Select the Layers section inside the map-controls sheet (hydration-safe tap). */
