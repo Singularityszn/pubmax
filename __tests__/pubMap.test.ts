@@ -25,6 +25,8 @@ import {
   coordinatedMapOverlay,
   coffeePilotSelection,
   crawlJourneysWanted,
+  londonRestaurantSelection,
+  londonVenueSelection,
   drinkFiltersActiveFor,
   drinkIndexStatusFor,
   firstIdOf,
@@ -1021,6 +1023,33 @@ describe("mapSelectionFrame", () => {
     expect(answer.coffeeCafeOpen).toBe(false);
   });
 
+  it("opens the SAME sheet for a London restaurant once the pack resolves it", () => {
+    const answer = mapSelectionFrame({
+      selectedVenueId: "venue-osm-n25496840",
+      selectedVenue: undefined,
+      selectedBasePub: null,
+      selectedLondonRestaurant: { id: "venue-osm-n25496840" },
+      venueById,
+      isPubVenue,
+    });
+    expect(answer.londonRestaurantOpen).toBe(true);
+    expect(answer.coffeeCafeOpen).toBe(false);
+    expect(answer.resolvable).toBe(false);
+    expect(answer.detailOpen).toBe(true);
+  });
+
+  it("retires a held restaurant the moment it stops being the selection", () => {
+    const answer = mapSelectionFrame({
+      selectedVenueId: "v1",
+      selectedVenue: crown,
+      selectedBasePub: null,
+      selectedLondonRestaurant: { id: "venue-osm-n25496840" },
+      venueById,
+      isPubVenue,
+    });
+    expect(answer.londonRestaurantOpen).toBe(false);
+  });
+
   it("opens the detail sheet while a deep-linked sel waits on the slim index", () => {
     const answer = mapSelectionFrame({
       selectedVenueId: "v1",
@@ -1069,6 +1098,75 @@ describe("coffeePilotSelection", () => {
       expect(
         coffeePilotSelection({ lensOn: false, selectedVenueId, status: "ready", byId }),
       ).toEqual({ cafe: null, release: false });
+    }
+  });
+});
+
+describe("londonRestaurantSelection", () => {
+  const furnival = { id: "venue-osm-n25496840" };
+  const byId = new Map([[furnival.id, furnival]]);
+
+  it("opens a restaurant while its layer is shown", () => {
+    expect(
+      londonRestaurantSelection({ shown: true, selectedVenueId: furnival.id, status: "ready", byId }),
+    ).toEqual({ restaurant: furnival, release: false });
+  });
+
+  it("lets the selection go when the layer leaves the map", () => {
+    expect(
+      londonRestaurantSelection({ shown: false, selectedVenueId: furnival.id, status: "ready", byId }),
+    ).toEqual({ restaurant: null, release: true });
+  });
+
+  it("holds a restaurant selection while the pack is not read yet", () => {
+    for (const status of ["idle", "loading"] as const) {
+      expect(
+        londonRestaurantSelection({ shown: true, selectedVenueId: furnival.id, status, byId: new Map() }),
+      ).toEqual({ restaurant: null, release: false });
+    }
+  });
+
+  it("lets go of an id the settled read could not place", () => {
+    for (const status of ["ready", "failed"] as const) {
+      expect(
+        londonRestaurantSelection({ shown: true, selectedVenueId: "venue-osm-n9", status, byId }),
+      ).toEqual({ restaurant: null, release: true });
+    }
+  });
+
+  it("keeps a restaurant open off the coffee lens, because the map lets go only when both sources would", () => {
+    const pick = londonVenueSelection({
+      selectedVenueId: furnival.id,
+      coffee: { lensOn: false, status: "idle", byId: new Map() },
+      restaurants: { shown: true, status: "ready", byId },
+    });
+    expect(pick).toEqual({ cafe: null, restaurant: furnival, release: false });
+  });
+
+  it("opens a pilot cafe under the coffee lens while the restaurant layer is off the map", () => {
+    const crosstown = { id: "venue-osm-w271641406" };
+    const pick = londonVenueSelection({
+      selectedVenueId: crosstown.id,
+      coffee: { lensOn: true, status: "ready", byId: new Map([[crosstown.id, crosstown]]) },
+      restaurants: { shown: false, status: "idle", byId: new Map<string, { id: string }>() },
+    });
+    expect(pick).toEqual({ cafe: crosstown, restaurant: null, release: false });
+  });
+
+  it("lets go of an id neither source can open", () => {
+    const pick = londonVenueSelection({
+      selectedVenueId: "venue-osm-n9",
+      coffee: { lensOn: false, status: "idle", byId: new Map() },
+      restaurants: { shown: true, status: "ready", byId },
+    });
+    expect(pick.release).toBe(true);
+  });
+
+  it("leaves every other selection alone", () => {
+    for (const selectedVenueId of ["", "v1", "venue-uk-9"]) {
+      expect(
+        londonRestaurantSelection({ shown: false, selectedVenueId, status: "ready", byId }),
+      ).toEqual({ restaurant: null, release: false });
     }
   });
 });

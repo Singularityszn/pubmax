@@ -56,12 +56,20 @@ describe("the hold's ceiling", () => {
 });
 
 describe("the closed set of held lanes", () => {
-  it("names exactly the three lanes the rule holds", () => {
+  it("names exactly the four lanes the rule holds", () => {
     expect([...HELD_MAP_SECONDARY_STREAMS]).toEqual([
       "slim-shard-rings",
       "uk-base-layer",
       "ambient-poi-overlay",
+      "london-restaurant-pack",
     ]);
+  });
+
+  it("holds the London restaurant pack until the pins have painted", () => {
+    const source = read("components/PubMap.tsx");
+    expect(source).toMatch(
+      /londonRestaurantPackWanted\(\{[^}]*held: secondaryStreamsHeld,/,
+    );
   });
 
   it("holds the slim shard rings at the one door every ring load comes through", () => {
