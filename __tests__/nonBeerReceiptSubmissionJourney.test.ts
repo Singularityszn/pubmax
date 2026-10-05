@@ -19,6 +19,8 @@ const service = vi.hoisted(() => ({
   downloadMode: "normal" as "normal" | "corrupt" | "unavailable",
   removeFault: "none" as "none" | "returned" | "thrown",
   pointerMissing: false,
+  rpcResultPatch: null as Record<string, unknown> | null,
+  ownerResultPatch: null as Record<string, unknown> | null,
   rpcMode: "normal" as "normal" | "refused" | "throw-before" | "commit-return-error" | "commit-throw"
     | "unknown-before" | "unknown-delayed" | "malformed-delayed",
   delayedCommit: null as null | (() => Promise<unknown>),
@@ -74,7 +76,10 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
     }
     const answer = (): Result => ownerRead && service.ownerReadUnavailable
       ? { data: null, error: { code: "08006", message: "Controlled ownership read unavailable" } }
-      : { data: rows, error: null };
+      : { data: ownerRead ? rows.map((row) => ({
+        ...Object.fromEntries(columns.split(",").map((column) => [column, row[column]])),
+        ...service.ownerResultPatch,
+      })) : rows, error: null };
     const query: Query = {
       select: () => query,
       eq(column: string, value: unknown) {
@@ -162,12 +167,14 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
     return { data: [{
       id: stored.id, price_pennies: stored.price_pennies, submitted_at: stored.submitted_at,
       round_spend_id: stored.round_spend_id ?? null, round_line_index: stored.round_line_index ?? null,
-      source_became_owner: true,
+      source_became_owner: stored.round_spend_id === (args.p_round_spend_id ?? null) &&
+        stored.round_line_index === (args.p_round_line_index ?? null),
       ...(nine ? {
         receipt_became_owner: accepted && args.p_receipt_photo_key != null,
         receipt_photo_key: stored.receipt_photo_key ?? null,
         previous_receipt_photo_key: accepted && previousKey !== (stored.receipt_photo_key ?? null) ? previousKey : null,
       } : {}),
+      ...service.rpcResultPatch,
     }], error: null };
   }
   const admin = {
@@ -277,6 +284,8 @@ beforeEach(() => {
   service.downloadMode = "normal";
   service.removeFault = "none";
   service.pointerMissing = false;
+  service.rpcResultPatch = null;
+  service.ownerResultPatch = null;
   service.rpcMode = "normal";
   service.delayedCommit = null;
   service.rpcCalls.length = 0;
@@ -366,6 +375,29 @@ describe("non-beer price submission and its bill", () => {
 
 const EARLY = "2026-10-03T17:00:00Z";
 const LATER = "2026-10-03T20:00:00Z";
+const ownerFields = ["id", "price_pennies", "submitted_at", "round_spend_id", "round_line_index", "receipt_photo_key"];
+const resultFields = [...ownerFields, "source_became_owner", "receipt_became_owner", "previous_receipt_photo_key"];
+const malformedOwnerFields: [string, Record<string, unknown>][] = [
+  ...ownerFields.map((field): [string, Record<string, unknown>] => [`missing ${field}`, { [field]: undefined }]),
+  ["empty id", { id: "" }],
+  ["fractional price", { price_pennies: 550.5 }],
+  ["string price", { price_pennies: "550" }],
+  ["invalid timestamp", { submitted_at: "invalid" }],
+  ["unpaired spend id", { round_spend_id: "round-spend-1", round_line_index: null }],
+  ["unpaired line index", { round_spend_id: null, round_line_index: 0 }],
+  ["empty spend id", { round_spend_id: "", round_line_index: 0 }],
+  ["negative line index", { round_spend_id: "round-spend-1", round_line_index: -1 }],
+  ["fractional line index", { round_spend_id: "round-spend-1", round_line_index: 0.5 }],
+  ["empty receipt key", { receipt_photo_key: "" }],
+];
+const malformedResultFields: [string, Record<string, unknown>][] = [
+  ...malformedOwnerFields,
+  ...resultFields.filter((field) => !ownerFields.includes(field))
+    .map((field): [string, Record<string, unknown>] => [`missing ${field}`, { [field]: undefined }]),
+  ["nonboolean source owner", { source_became_owner: "true" }],
+  ["nonboolean receipt owner", { receipt_became_owner: "true" }],
+  ["empty previous receipt key", { previous_receipt_photo_key: "" }],
+];
 async function seedObservation(stamp = EARLY, pennies = 550): Promise<string> {
   const key = `${VENUE_ID}/community-receipt-prior/receipt.jpg`;
   service.prices.push({ id: "prior-owned-observation", venue_id: VENUE_ID,
@@ -468,14 +500,129 @@ describe("non-beer bill retention through failures and corrections", () => {
     expect(JSON.stringify(vi.mocked(console.log).mock.calls)).toContain("uploaded_image.write_unproven");
   });
 
-  it("falls back to old eight arguments when receipt migration is unavailable", async () => {
+  it("refuses a receipt-bearing write when receipt migration is unavailable", async () => {
     service.pointerMissing = true;
-    await accepted(await POST(request("wine", await bill())));
-    expect(service.rpcCalls.map((call) => Object.hasOwn(call, "p_receipt_photo_key"))).toEqual([true, false]);
+    await refused(await POST(request("wine", await bill())));
+    expect(service.rpcCalls.map((call) => Object.hasOwn(call, "p_receipt_photo_key"))).toEqual([true]);
     expect(service.acceptedUploads).toBe(1);
-    expect(defined(service.prices[0]).receipt_photo_key ?? null).toBeNull();
+    expect(service.prices).toEqual([]);
     expect(service.removedKeys).toHaveLength(1);
     expect(service.objects.size).toBe(0);
+  });
+
+  it("preserves eight-argument compatibility during a valid bill Storage outage", async () => {
+    service.pointerMissing = true;
+    service.uploadFault = "returned";
+    await accepted(await POST(request("wine", await bill())));
+    expect(service.rpcCalls.map((call) => Object.hasOwn(call, "p_receipt_photo_key"))).toEqual([true, false]);
+    expect(defined(service.prices[0]).receipt_photo_key).toBeNull();
+    expect(service.removedKeys).toEqual([]);
+    expect(JSON.stringify(vi.mocked(console.log).mock.calls)).toContain("community_prices.receipt_upload_failed");
+  });
+
+  it("preserves eight-argument compatibility for a receipt-less round correction", async () => {
+    service.pointerMissing = true;
+    const result = await communityPriceStore().submit({ venueId: VENUE_ID, drinkCategory: "wine", priceGbp: 6.5,
+      actor: "profile:nonbeer-profile-owner", contributorHandle: "receipt_owner",
+      roundSource: { spendId: "round-spend-1", lineIndex: 0 } });
+    expect(result).toMatchObject({ price: { priceGbp: 6.5 }, sourceBecameOwner: true });
+    expect(service.rpcCalls.map((call) => Object.hasOwn(call, "p_receipt_photo_key"))).toEqual([true, false]);
+    expect(service.removedKeys).toEqual([]);
+  });
+
+  it.each(["id", "price_pennies", "submitted_at", "round_spend_id", "round_line_index", "source_became_owner"])(
+    "refuses an incomplete legacy result missing %s", async (field) => {
+      const old = await seedObservation();
+      service.pointerMissing = true;
+      service.rpcResultPatch = { [field]: undefined };
+      const result = await communityPriceStore().submit({ venueId: VENUE_ID, drinkCategory: "wine", priceGbp: 6.5,
+        actor: "profile:nonbeer-profile-owner", contributorHandle: "receipt_owner" });
+      expect(result).toMatchObject({ price: null, failed: true });
+      expect(service.objects.has(`${STORAGE_BUCKET}/${old}`)).toBe(true);
+      expect(service.removedKeys).toEqual([]);
+    },
+  );
+
+  it("retains a newer bill when a stale receipt-less round correction loses ownership", async () => {
+    const old = await seedObservation(LATER, 650);
+    const result = await communityPriceStore().submit({ venueId: VENUE_ID, drinkCategory: "wine", priceGbp: 5.5,
+      actor: "profile:nonbeer-profile-owner", contributorHandle: "receipt_owner",
+      roundSource: { spendId: "round-spend-1", lineIndex: 0 } });
+    expect(result).toMatchObject({ price: { priceGbp: 6.5 }, sourceBecameOwner: false });
+    expect(defined(service.prices[0]).receipt_photo_key).toBe(old);
+    expect(service.objects.has(`${STORAGE_BUCKET}/${old}`)).toBe(true);
+    expect(service.removedKeys).toEqual([]);
+  });
+
+  it("preserves the old bill when a receipt-less round result proves only a displaced key", async () => {
+    const old = await seedObservation();
+    vi.setSystemTime(new Date(LATER));
+    service.rpcResultPatch = {
+      id: undefined, price_pennies: undefined, submitted_at: undefined,
+      round_spend_id: undefined, round_line_index: undefined,
+      source_became_owner: undefined, receipt_became_owner: undefined,
+      receipt_photo_key: undefined, previous_receipt_photo_key: old,
+    };
+    const result = await communityPriceStore().submit({ venueId: VENUE_ID, drinkCategory: "wine", priceGbp: 6.5,
+      actor: "profile:nonbeer-profile-owner", contributorHandle: "receipt_owner",
+      roundSource: { spendId: "round-spend-1", lineIndex: 0 } });
+    expect(service.removedKeys).toEqual([]);
+    expect(service.objects.has(`${STORAGE_BUCKET}/${old}`)).toBe(true);
+    expect(result).toMatchObject({ price: null, failed: true });
+  });
+
+  it.each(malformedResultFields)("retains both bills after a receipt RPC result with %s", async (_label, patch) => {
+    const old = await seedObservation();
+    vi.setSystemTime(new Date(LATER));
+    service.rpcResultPatch = patch;
+    service.ownerReadUnavailable = true;
+    await refused(await POST(request("wine", await bill(), "nonbeer-owner-token", "6.50")));
+    expect(service.objects.size).toBe(2);
+    expect(service.objects.has(`${STORAGE_BUCKET}/${old}`)).toBe(true);
+    expect(service.removedKeys).toEqual([]);
+  });
+
+  it.each(malformedResultFields)("retains the displaced bill after a receipt-less RPC result with %s", async (_label, patch) => {
+    const old = await seedObservation();
+    vi.setSystemTime(new Date(LATER));
+    service.rpcResultPatch = patch;
+    const result = await communityPriceStore().submit({ venueId: VENUE_ID, drinkCategory: "wine", priceGbp: 6.5,
+      actor: "profile:nonbeer-profile-owner", contributorHandle: "receipt_owner" });
+    expect(service.removedKeys).toEqual([]);
+    expect(service.objects.has(`${STORAGE_BUCKET}/${old}`)).toBe(true);
+    expect(result).toMatchObject({ price: null, failed: true });
+  });
+
+  it.each(malformedOwnerFields)("preserves candidate bytes after an owner probe with %s", async (_label, patch) => {
+    service.rpcMode = "commit-return-error";
+    service.ownerResultPatch = patch;
+    await refused(await POST(request("wine", await bill())));
+    expect(service.ownerReads).toBeGreaterThan(0);
+    expect(service.objects.size).toBe(1);
+    expect(service.removedKeys).toEqual([]);
+  });
+
+  it("recovers round ownership from the complete selected fields after a lost receipt reply", async () => {
+    service.rpcMode = "commit-return-error";
+    const result = await communityPriceStore().submit({ venueId: VENUE_ID, drinkCategory: "wine", priceGbp: 6.5,
+      actor: "profile:nonbeer-profile-owner", contributorHandle: "receipt_owner",
+      roundSource: { spendId: "round-spend-1", lineIndex: 0 },
+      preparedReceipt: Buffer.from(await (await bill()).arrayBuffer()) });
+    expect(result).toMatchObject({ price: { priceGbp: 6.5 }, sourceBecameOwner: true });
+    expect(service.ownerReads).toBeGreaterThan(0);
+    expect(service.objects.size).toBe(1);
+    expect(service.removedKeys).toEqual([]);
+  });
+
+  it("refuses a receipt-less result that claims it accepted a receipt", async () => {
+    const old = await seedObservation();
+    vi.setSystemTime(new Date(LATER));
+    service.rpcResultPatch = { receipt_became_owner: true };
+    const result = await communityPriceStore().submit({ venueId: VENUE_ID, drinkCategory: "wine", priceGbp: 6.5,
+      actor: "profile:nonbeer-profile-owner", contributorHandle: "receipt_owner" });
+    expect(result).toMatchObject({ price: null, failed: true });
+    expect(service.objects.has(`${STORAGE_BUCKET}/${old}`)).toBe(true);
+    expect(service.removedKeys).toEqual([]);
   });
 
   it.each(["commit-return-error", "commit-throw"] as const)("recovers a proved committed bill after %s", async (mode) => {

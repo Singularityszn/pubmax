@@ -1382,17 +1382,26 @@ function isStatementRefusal(error: unknown): boolean {
   return typeof code === "string" && /^[0-9A-Z]{5}$/.test(code) && !code.startsWith("08") && code !== "40003";
 }
 
-function hasStoredReceipt(row: Record<string, unknown> | null): row is Record<string, unknown> {
+function hasPriceResultFields(row: Record<string, unknown> | null): row is Record<string, unknown> {
   if (!row) return false;
-  return typeof row.id === "string" && row.id !== "" &&
+  return typeof row.id === "string" && row.id.trim() !== "" &&
     Number.isInteger(row.price_pennies) &&
     typeof row.submitted_at === "string" && Number.isFinite(Date.parse(row.submitted_at)) &&
-    (row.receipt_photo_key === null || typeof row.receipt_photo_key === "string");
+    ((row.round_spend_id === null && row.round_line_index === null) ||
+      (typeof row.round_spend_id === "string" && row.round_spend_id.trim() !== "" &&
+        typeof row.round_line_index === "number" && Number.isInteger(row.round_line_index) && row.round_line_index >= 0));
+}
+
+function hasReceiptOwner(row: Record<string, unknown> | null): row is Record<string, unknown> {
+  return hasPriceResultFields(row) &&
+    (row.receipt_photo_key === null || (typeof row.receipt_photo_key === "string" && row.receipt_photo_key.trim() !== ""));
 }
 
 function hasReceiptResult(row: Record<string, unknown> | null): row is Record<string, unknown> {
-  return hasStoredReceipt(row) && typeof row.receipt_became_owner === "boolean" &&
-    (row.previous_receipt_photo_key === null || typeof row.previous_receipt_photo_key === "string");
+  return hasReceiptOwner(row) && typeof row.source_became_owner === "boolean" &&
+    typeof row.receipt_became_owner === "boolean" &&
+    (row.previous_receipt_photo_key === null ||
+      (typeof row.previous_receipt_photo_key === "string" && row.previous_receipt_photo_key.trim() !== ""));
 }
 
 /** Undefined means we could not look; null means the canonical row is absent. */
@@ -1407,7 +1416,7 @@ async function readReceiptOwner(args: AttributedPriceArgs): Promise<Record<strin
     if (error || !Array.isArray(data)) return undefined;
     if (data.length === 0) return null;
     const row = receiptRow(data);
-    return hasStoredReceipt(row) ? row : undefined;
+    return hasReceiptOwner(row) ? row : undefined;
   } catch {
     return undefined;
   }
@@ -1425,6 +1434,7 @@ async function submitPriceWithReceipt(args: AttributedPriceArgs, processed: Buff
     if (error instanceof PhotoProcessingError) return null;
     log("warn", "community_prices.receipt_upload_failed", { venueId: args.p_venue_id });
   }
+  if (candidate === null) return receiptRow(await submitPriceWithoutReceipt(args));
 
   let settled = false;
   try {
@@ -1432,18 +1442,16 @@ async function submitPriceWithReceipt(args: AttributedPriceArgs, processed: Buff
       ...args, p_receipt_photo_key: candidate,
     });
     if (isMissingReceiptRpc(error)) {
-      // The old overload cannot retain this generation, even on a lost reply.
-      if (candidate) await deletePhotos([candidate]);
+      await deletePhotos([candidate]);
       log("warn", "community_prices.receipt_schema_unavailable", { venueId: args.p_venue_id });
-      const legacy = await admin().rpc(ATTRIBUTED_PRICE_RPC, args);
-      return legacy.error ? null : receiptRow(legacy.data);
+      return null;
     }
     const saved = receiptRow(data);
     if (!error && hasReceiptResult(saved) &&
-      (!saved.receipt_became_owner || (candidate !== null && saved.receipt_photo_key === candidate))) {
+      (!saved.receipt_became_owner || saved.receipt_photo_key === candidate)) {
       const retained = saved.receipt_photo_key;
       const displaced = saved.previous_receipt_photo_key;
-      if (candidate && retained !== candidate) await deletePhotos([candidate]);
+      if (retained !== candidate) await deletePhotos([candidate]);
       if (typeof displaced === "string" && displaced !== retained && displaced !== candidate) {
         await deletePhotos([displaced]);
       }
@@ -1456,8 +1464,14 @@ async function submitPriceWithReceipt(args: AttributedPriceArgs, processed: Buff
   }
 
   const owner = await readReceiptOwner(args);
-  if (candidate && owner?.receipt_photo_key === candidate) return owner;
-  if (candidate && settled && owner !== undefined) await deletePhotos([candidate]);
+  if (owner?.receipt_photo_key === candidate) {
+    return {
+      ...owner,
+      source_became_owner: owner.round_spend_id === args.p_round_spend_id &&
+        owner.round_line_index === args.p_round_line_index,
+    };
+  }
+  if (settled && owner !== undefined) await deletePhotos([candidate]);
   log("warn", "community_prices.receipt_write_unconfirmed", {
     venueId: args.p_venue_id,
     ownership: owner === undefined ? "unknown" : "not_retained",
@@ -1471,12 +1485,19 @@ async function submitPriceWithoutReceipt(args: AttributedPriceArgs): Promise<unk
   if (isMissingReceiptRpc(result.error)) {
     const legacy = await admin().rpc(ATTRIBUTED_PRICE_RPC, args);
     if (legacy.error) throw new Error(legacy.error.message);
+    const saved = receiptRow(legacy.data);
+    if (!hasPriceResultFields(saved) || typeof saved.source_became_owner !== "boolean") {
+      throw new Error("Community price write could not be confirmed");
+    }
     return legacy.data;
   }
   if (result.error) throw new Error(result.error.message);
   const saved = receiptRow(result.data);
-  const displaced = saved?.previous_receipt_photo_key;
-  if (typeof displaced === "string" && displaced !== saved?.receipt_photo_key) {
+  if (!hasReceiptResult(saved) || saved.receipt_became_owner) {
+    throw new Error("Community price write could not be confirmed");
+  }
+  const displaced = saved.previous_receipt_photo_key;
+  if (typeof displaced === "string" && displaced !== saved.receipt_photo_key) {
     const { deletePhotos } = await import("@/lib/uploadedImage.server");
     await deletePhotos([displaced]);
   }
