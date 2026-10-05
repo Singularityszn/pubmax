@@ -278,6 +278,7 @@ export type Database = {
           contradicted_at: string | null;
           round_spend_id: string | null;
           round_line_index: number | null;
+          receipt_photo_key: string | null;
         };
         Insert: {
           id?: string;
@@ -299,6 +300,7 @@ export type Database = {
           contradicted_at?: string | null;
           round_spend_id?: string | null;
           round_line_index?: number | null;
+          receipt_photo_key?: string | null;
         };
         Update: {
           id?: string;
@@ -320,6 +322,7 @@ export type Database = {
           contradicted_at?: string | null;
           round_spend_id?: string | null;
           round_line_index?: number | null;
+          receipt_photo_key?: string | null;
         };
         Relationships: [];
       };
@@ -7700,7 +7703,8 @@ export type Database = {
         };
         Returns: string;
       };
-      upsert_attributed_community_price_if_newer: {
+      upsert_attributed_community_price_if_newer:
+        | {
         Args: {
           p_venue_id: string | null;
           p_drink_category: string | null;
@@ -7718,6 +7722,30 @@ export type Database = {
           round_spend_id: string;
           round_line_index: number;
           source_became_owner: boolean;
+        }[];
+      }
+        | {
+        Args: {
+          p_venue_id: string | null;
+          p_drink_category: string | null;
+          p_price_pennies: number | null;
+          p_actor: string | null;
+          p_contributor_handle: string | null;
+          p_submitted_at: string | null;
+          p_round_spend_id: string | null;
+          p_round_line_index: number | null;
+          p_receipt_photo_key: string | null;
+        };
+        Returns: {
+          id: string;
+          price_pennies: number;
+          submitted_at: string;
+          round_spend_id: string;
+          round_line_index: number;
+          source_became_owner: boolean;
+          receipt_became_owner: boolean;
+          receipt_photo_key: string;
+          previous_receipt_photo_key: string;
         }[];
       };
       upsert_plan_invite_rsvp_membership_atomic: {
