@@ -152,7 +152,7 @@ export function drinksEvidence(markdown, name) {
   let best = null;
   let bestScore = 0;
   for (const line of lines) {
-    if (FURNITURE.test(fold(line)) || OFF_PREMISES.test(fold(line)) || !statesRestaurantDrinks(line, name)) continue;
+    if (FURNITURE.test(fold(line)) || OFF_PREMISES.test(withoutName(line, name)) || !statesRestaurantDrinks(line, name)) continue;
     const score = drinkScore(line, name);
     if (score > bestScore) {
       best = line;
@@ -228,7 +228,7 @@ function evidenceProblems(entry, row) {
     !statesRestaurantDrinks(excerpt, row.name) && "excerpt does not state alcohol without the name",
     REFUSES_ALCOHOL.test(fold(excerpt)) && "excerpt refuses alcohol",
     FURNITURE.test(fold(excerpt)) && "excerpt is page furniture",
-    OFF_PREMISES.test(fold(excerpt)) && "excerpt sells, gives, delivers or teaches a drink, or names another venue",
+    OFF_PREMISES.test(withoutName(excerpt, row.name)) && "excerpt sells, gives, delivers or teaches a drink, or names another venue",
     !ISO.test(String(entry?.observedAt ?? "")) && "evidence has no read date",
     (entry?.robots?.outcome !== "allowed" || !ISO.test(String(entry?.robots?.checkedAt ?? ""))) && "evidence has no recorded robots permission",
   ].filter(Boolean);

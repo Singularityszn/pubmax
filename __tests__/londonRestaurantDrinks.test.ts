@@ -141,6 +141,7 @@ describe("London restaurant drinks evidence", () => {
       expect(drinksEvidence(line, "Example"), line).toEqual({});
     }
     expect(drinksEvidence("Happy hour: buy 1 get 1 free on all cocktails", "Example")).toEqual({ quote: "Happy hour: buy 1 get 1 free on all cocktails" });
+    expect(drinksEvidence("Cocktails and Champagne at Cote Brasserie every evening", "Cote Brasserie")).toEqual({ quote: "Cocktails and Champagne at Cote Brasserie every evening" });
     expect(drinksEvidence("Wine hampers delivered nationwide.\nCocktails and wine at the bar every night.", "Example")).toEqual({ quote: "Cocktails and wine at the bar every night." });
   });
 
@@ -231,7 +232,8 @@ describe("London restaurant drinks evidence", () => {
     const pack = JSON.parse(readFileSync(path.join(process.cwd(), "data/london_restaurant_drinks/evidence.json"), "utf8"));
     const exclusions = JSON.parse(readFileSync(path.join(process.cwd(), "data/london_restaurant_drinks/exclusions.json"), "utf8"));
     expect(validateRestaurantDrinksPack(pack, { inGreaterLondon, exclusions })).toEqual([]);
-    expect(excludedOsmIds(exclusions).size).toBeGreaterThan(0);
+    expect(excludedOsmIds(exclusions).size).toBe(10);
+    expect(pack.rows.some((row: { osmId: string }) => excludedOsmIds(exclusions).has(row.osmId))).toBe(false);
     expect(pack.rows.length).toBeGreaterThan(0);
   });
 });

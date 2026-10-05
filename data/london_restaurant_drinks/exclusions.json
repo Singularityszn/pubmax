@@ -45,6 +45,11 @@
       "osmId": "way/697821712",
       "name": "Drunch",
       "reason": "The quote describes the speakeasy beneath Drunch Oxford Circus, not this St John's Wood restaurant."
+    },
+    {
+      "osmId": "node/1493424623",
+      "name": "Hush",
+      "reason": "The quote describes the lounge at the Holborn brasserie, a sister venue, not this Mayfair restaurant."
     }
   ]
 }

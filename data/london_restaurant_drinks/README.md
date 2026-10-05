@@ -120,10 +120,17 @@ consultancy, a sister venue, the group's other venues, a bar beneath the
 restaurant or a brasserie elsewhere, or that carries stray navigation brackets,
 is not evidence, and neither is a shop page. The 26 committed rows whose quote
 that rule refuses were removed without a new read and are not excluded, so the
-next run may publish a clean line from the same site. `evidence.json` holds
-929 restaurants (927 are new to the London layer; OSM already shipped 2).
+next run may publish a clean line from the same site. A tenth restaurant,
+Hush in Mayfair, was then excluded by hand because its quote describes the
+Holborn branch. `evidence.json` holds 928 restaurants (926 are new to the
+London layer; OSM already shipped 2).
 `report.json` still holds that run's counts, including its 1,018 accepted; the
 next run that reads the pages again replaces them.
+
+The classifier is lexical, so a small number of published rows may quote a
+sister venue, shop or class rather than this restaurant; reviewers found and
+excluded 10 by hand, and further rows of that kind are corrected through
+`exclusions.json`.
 
 `report.json` counts 1,997 Tavily credits. The first full run stopped on a
 rate limit before writing its report, so its 146 searches (about 146 credits)

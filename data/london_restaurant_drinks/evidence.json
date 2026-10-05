@@ -2482,27 +2482,6 @@
       ]
     },
     {
-      "osmId": "node/1493424623",
-      "kind": "restaurant",
-      "name": "Hush",
-      "address": "8, Lancashire Court, London, W1S 1EY",
-      "lat": 51.5127937,
-      "lng": -0.1457785,
-      "website": "https://hush.co.uk/",
-      "siteFrom": "osm-website",
-      "evidence": [
-        {
-          "url": "https://hush.co.uk/",
-          "excerpt": "Located at the entrance to our Holborn brasserie, our lounge area is a relaxed cocktail bar, perfect for after work drinks, pre-theatre tipples or people watching in the heart of the city.",
-          "observedAt": "2026-10-04T22:23:52.497Z",
-          "robots": {
-            "outcome": "allowed",
-            "checkedAt": "2026-10-04T22:11:05.241Z"
-          }
-        }
-      ]
-    },
-    {
       "osmId": "node/1502306531",
       "kind": "restaurant",
       "name": "Superfish",
