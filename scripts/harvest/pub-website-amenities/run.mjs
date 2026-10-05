@@ -654,6 +654,30 @@ async function main() {
     return { ok: true, url: landing.url, html: scraped.page.markdown, text, reader: "firecrawl" };
   }
 
+  // A Firecrawl page cached before its landing was recorded is asked again with
+  // a plain request that follows redirects and reads no body. A landing outside
+  // the source fence, one robots refuses, or one that cannot be checked leaves
+  // the cached text unused.
+  async function cachedFirecrawlLanding(url) {
+    let landed;
+    try {
+      const response = await fetch(url, {
+        redirect: "follow",
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        headers: { accept: "text/html,application/xhtml+xml", "user-agent": USER_AGENT },
+      });
+      await response.body?.cancel();
+      landed = response.url || url;
+    } catch {
+      return { status: "landing-unverified" };
+    }
+    const landing = harvestRedirectLanding(url, landed);
+    if (landing.outcome === "refused" || !isHarvestableOperatorUrl(landing.url)) return { status: "redirect-refused" };
+    if (isChainPage(landing.url, knownChainPages)) return { status: "chain-page" };
+    if (!(await robots(landing.url)).allowed) return { status: "robots-denied" };
+    return { url: landing.url };
+  }
+
   async function readPage(url) {
     if (firecrawlFirst && firecrawl && firecrawl.budget.remaining() > 0 && !/\.pdf$/i.test(new URL(url).pathname)) {
       const scraped = await scrapePage(url);
@@ -738,6 +762,15 @@ async function main() {
         byOsmId[pub.osmId] = { status: read.status, venueId: pub.venueId, ...(read.sourceUrl ? { sourceUrl: read.sourceUrl } : {}) };
         return;
       }
+    }
+    if (cached && read.reader === "firecrawl" && !read.landingChecked) {
+      const landing = await cachedFirecrawlLanding(read.sourceUrl);
+      if (landing.status) {
+        byOsmId[pub.osmId] = { status: landing.status, venueId: pub.venueId };
+        return;
+      }
+      read = { ...read, sourceUrl: landing.url, landingChecked: true };
+      byOsmId[pub.osmId] = { ...byOsmId[pub.osmId], sourceUrl: landing.url, landingChecked: true };
     }
     if (siteOfAnotherPub(read.sourceUrl, pub.osmId, otherReads())) {
       byOsmId[pub.osmId] = { status: "site-of-another-pub", venueId: pub.venueId };

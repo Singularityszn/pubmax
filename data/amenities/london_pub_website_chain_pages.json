@@ -1,15 +1,18 @@
 {
   "version": 1,
   "pages": [
+    "anticlondon.com",
     "batterseabrew.co.uk",
     "beavertownbrewery.co.uk/pages/venues",
     "brunningandprice.co.uk/company/urban",
     "greeneking.co.uk/pubs-near-me",
+    "highpress25.co.uk/wp-signup.php",
     "jdwetherspoon.com",
     "motherkellys.co.uk",
     "postmarket.co.uk",
     "socialpubandkitchen.co.uk",
     "socialpubandkitchen.co.uk/find-a-local-pub-near-you",
+    "stonegategroup.co.uk/find-your-local",
     "youngs.co.uk",
     "youngs.co.uk/food-drink",
     "youngs.co.uk/our-pubs"
@@ -103,6 +106,11 @@
     {
       "host": "craftunionpubs.com",
       "key": "darts",
+      "quote": "dart boards"
+    },
+    {
+      "host": "craftunionpubs.com",
+      "key": "darts",
       "quote": "dartboard"
     },
     {
@@ -138,6 +146,11 @@
     {
       "host": "craftunionpubs.com",
       "key": "liveSports",
+      "quote": "sky sports"
+    },
+    {
+      "host": "craftunionpubs.com",
+      "key": "liveSports",
       "quote": "we show live sports every day"
     },
     {
@@ -149,6 +162,16 @@
       "host": "craftunionpubs.com",
       "key": "pool",
       "quote": "pool table"
+    },
+    {
+      "host": "craftunionpubs.com",
+      "key": "pool",
+      "quote": "pool tables"
+    },
+    {
+      "host": "cubitthouse.co.uk",
+      "key": "liveMusic",
+      "quote": "from live music to burns night"
     },
     {
       "host": "flaminggrillpubs.co.uk",
@@ -189,6 +212,16 @@
       "host": "greatlocalpubs.co.uk",
       "key": "food",
       "quote": "delicious food"
+    },
+    {
+      "host": "greatlocalpubs.co.uk",
+      "key": "food",
+      "quote": "food serving"
+    },
+    {
+      "host": "greatlocalpubs.co.uk",
+      "key": "liveMusic",
+      "quote": "live music"
     },
     {
       "host": "greatlocalpubs.co.uk",
@@ -289,6 +322,11 @@
       "host": "greeneking.co.uk",
       "key": "darts",
       "quote": "book a table for all the top sporting action, from footy to rugby, f1, darts and more!"
+    },
+    {
+      "host": "greeneking.co.uk",
+      "key": "darts",
+      "quote": "dartboard"
     },
     {
       "host": "greeneking.co.uk",
@@ -468,6 +506,11 @@
     {
       "host": "greeneking.co.uk",
       "key": "liveSports",
+      "quote": "live sport book a table for all the top sporting action, from footy to rugby, f1, darts and more!"
+    },
+    {
+      "host": "greeneking.co.uk",
+      "key": "liveSports",
       "quote": "show live sports on big screens"
     },
     {
@@ -623,7 +666,17 @@
     {
       "host": "jdwetherspoon.com",
       "key": "food",
+      "quote": "prepare and cook food"
+    },
+    {
+      "host": "jdwetherspoon.com",
+      "key": "food",
       "quote": "preparing, cooking and presenting food"
+    },
+    {
+      "host": "jdwetherspoon.com",
+      "key": "food",
+      "quote": "serve food and drinks"
     },
     {
       "host": "jdwetherspoon.com",
@@ -912,8 +965,14 @@
     }
   ],
   "readers": {
+    "1lombardstreet.com": [
+      "venue/venue-92l5if"
+    ],
     "3compasses.com": [
       "way/863500628"
+    ],
+    "400rabbits.co.uk/hernehill": [
+      "venue/venue-18cp9b2"
     ],
     "601queensrd.co.uk": [
       "node/4117016441"
@@ -923,6 +982,9 @@
     ],
     "adamandevepub.com": [
       "way/982884990"
+    ],
+    "admiral-duncan.co.uk": [
+      "node/14178896054"
     ],
     "admiralhardygreenwich.co.uk": [
       "node/10266440600"
@@ -966,11 +1028,18 @@
     "angeloakpeckham.com": [
       "way/79220804"
     ],
+    "angleldn.co.uk": [
+      "venue/venue-x91ijv"
+    ],
     "angleseaarmspub.co.uk": [
       "way/965793174"
     ],
     "antelope-eaton-terrace.co.uk": [
       "way/262477180"
+    ],
+    "anticlondon.com": [
+      "way/474345654",
+      "way/925218087"
     ],
     "antwerparms.co.uk": [
       "node/520913454"
@@ -983,6 +1052,9 @@
     ],
     "askewshepherdsbush.co.uk": [
       "way/952193494"
+    ],
+    "auctioneerleyton.com": [
+      "venue/venue-1026snf"
     ],
     "ballsbrothersminstercourt.co.uk": [
       "node/296614817"
@@ -1028,8 +1100,20 @@
     "beehiven17.com": [
       "way/1076851225"
     ],
+    "beehiveneweltham.com": [
+      "venue/venue-1ljsyep"
+    ],
     "beermerchantstap.com": [
       "way/663004043"
+    ],
+    "bellevueclapham.com": [
+      "venue/venue-11e0hkh"
+    ],
+    "belmeis.com": [
+      "venue/venue-1fcznd1"
+    ],
+    "bethnalgreentavern.co.uk": [
+      "venue/venue-1uh3g2g"
     ],
     "bigpennysocial.co.uk": [
       "way/23376430"
@@ -1052,14 +1136,26 @@
     "blackhorsesouthmymms.co.uk": [
       "way/760032532"
     ],
+    "blacklion.london": [
+      "venue/venue-fudfew"
+    ],
     "blacklionkilburn.co.uk": [
       "way/172055438"
     ],
     "blacklionplaistow.co.uk": [
       "way/1027522305"
     ],
+    "blacklionsurbiton.co.uk": [
+      "venue/venue-r5ah5u"
+    ],
     "blackswanockham.com": [
       "node/2097977437"
+    ],
+    "blueboarlondon.com": [
+      "venue/venue-1hkvco4"
+    ],
+    "bluecheckwembley.com": [
+      "venue/venue-17kbdpw"
     ],
     "boaterskingston.com": [
       "way/293872610"
@@ -1070,11 +1166,23 @@
     "bohembrewery.com/bohem-tap-room": [
       "node/7804014021"
     ],
+    "bohembrewery.com/nicholas-nickleby": [
+      "node/1517871629"
+    ],
+    "boisdale.co.uk/restaurant/belgravia": [
+      "venue/venue-ukflm"
+    ],
+    "boleyntavern.co.uk": [
+      "venue/venue-1qrmxhz"
+    ],
     "bostonarms.co.uk": [
       "way/1026053464"
     ],
     "boundaryonthegreenpub.co.uk": [
       "way/293243021"
+    ],
+    "bradleysspanishbar.com": [
+      "node/385564475"
     ],
     "bravebar.co.uk": [
       "node/293702008"
@@ -1100,11 +1208,23 @@
     "brewdog.com/pages/bars/waterloo": [
       "node/9962758030"
     ],
+    "brewery-tap.co.uk": [
+      "way/899331123"
+    ],
     "bricklayersarms.com": [
       "way/667956811"
     ],
     "bricklayersarmsbromley.co.uk": [
       "way/962256644"
+    ],
+    "bricklayerskingston.co.uk": [
+      "venue/venue-rbkmed"
+    ],
+    "brindisatapas.com": [
+      "venue/venue-140rjwt"
+    ],
+    "britannia.smokd.co.uk": [
+      "venue/venue-1d25b77"
     ],
     "britanniakensington.co.uk": [
       "way/824789669"
@@ -1130,9 +1250,15 @@
     "brouhahabar.com": [
       "way/224432174"
     ],
+    "brunel-rotherhithe.co.uk": [
+      "venue/venue-1bmb61s"
+    ],
     "brunningandprice.co.uk/company/urban": [
       "node/262702979",
       "node/3507694575"
+    ],
+    "brunningandprice.co.uk/queensarms": [
+      "venue/venue-19211ib"
     ],
     "brunningandprice.co.uk/whitehartchipstead": [
       "way/371380217"
@@ -1143,8 +1269,14 @@
     "buildersarmscroydon.co.uk": [
       "node/299106201"
     ],
+    "buildersarmspottersbar.com": [
+      "venue/venue-m5nemu"
+    ],
     "bullandgatenw5.co.uk": [
       "way/449266220"
+    ],
+    "bulstrodepub.com/contact": [
+      "venue/venue-18gipm9"
     ],
     "bunchofgrapesborough.co.uk": [
       "node/14181043751"
@@ -1164,11 +1296,20 @@
     "cabbagepatch.co.uk": [
       "way/311753728"
     ],
+    "calthorpearmswc1.co.uk": [
+      "venue/venue-bdyva2"
+    ],
+    "camdenhead.com": [
+      "venue/venue-qk6ti7"
+    ],
     "camdentownbrewery.com/pages/visit-us": [
       "node/4285984291"
     ],
     "cantonarms.com": [
       "node/14178836603"
+    ],
+    "cartandhorses.london": [
+      "venue/venue-1i5zirh"
     ],
     "caseisalteredpinner.co.uk": [
       "node/2407449923"
@@ -1178,6 +1319,9 @@
     ],
     "castleealing.co.uk": [
       "node/27476034"
+    ],
+    "castletooting.com": [
+      "venue/venue-jfkv2h"
     ],
     "catandmutton.com": [
       "way/366327540"
@@ -1215,6 +1359,9 @@
     "cheshamarms.com": [
       "way/606507213"
     ],
+    "cheshirecheese.pub": [
+      "node/25746185"
+    ],
     "chiswickcc.org/clients": [
       "way/948427610"
     ],
@@ -1232,6 +1379,9 @@
     ],
     "claphamnorthpub.co.uk": [
       "way/1090549508"
+    ],
+    "clarencetavern.com": [
+      "venue/venue-1t1cm4z"
     ],
     "clissoldarms.co.uk": [
       "way/532061943"
@@ -1254,6 +1404,9 @@
     "coachandhorsessoho.pub": [
       "way/279533213"
     ],
+    "coachhotelkew.co.uk": [
+      "venue/venue-10j13wn"
+    ],
     "cockandbottlew11.com": [
       "way/363039919"
     ],
@@ -1269,6 +1422,9 @@
     "comptonarms.co.uk": [
       "node/339394917"
     ],
+    "comptonsofsoho.co.uk": [
+      "node/1937328128"
+    ],
     "connollysofchiswick.com": [
       "way/205562545"
     ],
@@ -1277,6 +1433,9 @@
     ],
     "coopersarms.co.uk": [
       "way/902771276"
+    ],
+    "countyarms.co.uk": [
+      "venue/venue-rt46p2"
     ],
     "craftunionpubs.com/bedford-arms-fulham": [
       "way/1210875022"
@@ -1386,6 +1545,33 @@
     "craftunionpubs.com/prince-albert-enfield": [
       "way/104168253"
     ],
+    "craftunionpubs.com/pubs/crown-pub-sutton": [
+      "node/1676757006"
+    ],
+    "craftunionpubs.com/pubs/elbow-room-tottenham": [
+      "node/529116489"
+    ],
+    "craftunionpubs.com/pubs/fox-and-hounds-forest-gate": [
+      "way/875103908"
+    ],
+    "craftunionpubs.com/pubs/lamplighter-hounslow": [
+      "way/1039080279"
+    ],
+    "craftunionpubs.com/pubs/lord-palmerston-walthamstow": [
+      "venue/venue-om4dhj"
+    ],
+    "craftunionpubs.com/pubs/prince-albert-enfield": [
+      "way/104168253"
+    ],
+    "craftunionpubs.com/pubs/the-bell-leytonstone": [
+      "way/507095501"
+    ],
+    "craftunionpubs.com/pubs/white-house-enfield": [
+      "way/100856450"
+    ],
+    "craftunionpubs.com/pubs/wishing-well-chingford": [
+      "way/684584616"
+    ],
     "craftunionpubs.com/queen-victoria-bermondsey": [
       "way/87939544"
     ],
@@ -1452,6 +1638,9 @@
     "crownandanchorchiswick.com": [
       "way/205143238"
     ],
+    "crownandsceptreshepherdsbush.co.uk": [
+      "venue/venue-10st8hy"
+    ],
     "crownandsceptresouthcroydon.co.uk": [
       "way/1250246727"
     ],
@@ -1469,6 +1658,12 @@
     ],
     "crownrooms.co.uk": [
       "node/12819770592"
+    ],
+    "croydonbid.com/explore/spread-eagle": [
+      "venue/venue-17r9lzv"
+    ],
+    "cubitthouse.co.uk/the-alfred-tennyson-belgravia": [
+      "venue/venue-1q44pwj"
     ],
     "cubitthouse.co.uk/the-builders-arms": [
       "way/893965349"
@@ -1499,6 +1694,12 @@
     ],
     "defectors-weld.co.uk": [
       "way/159244751"
+    ],
+    "deliciobexleyheath.co.uk": [
+      "venue/venue-pkatki"
+    ],
+    "devonshirebalham.co.uk": [
+      "venue/venue-19pzh7p"
     ],
     "dialarch.com": [
       "way/135669417"
@@ -1551,6 +1752,9 @@
     "earlofessex.net": [
       "way/1275812271"
     ],
+    "eastindiaarms.co.uk/contact-us": [
+      "venue/venue-18p8sga"
+    ],
     "eastlondonbrewing.com": [
       "way/412076101"
     ],
@@ -1559,6 +1763,9 @@
     ],
     "eebriatrade.com": [
       "node/4172844859"
+    ],
+    "eightbellsewell.co.uk/index": [
+      "venue/venue-12qgqym"
     ],
     "elephantinnfinchley.co.uk": [
       "node/448921712"
@@ -1593,6 +1800,9 @@
     "exale.uk": [
       "node/7056928285"
     ],
+    "excellar.co.uk/blog/category/live-music": [
+      "venue/venue-14zs2l8"
+    ],
     "expresstavern.co.uk": [
       "way/175632028"
     ],
@@ -1610,6 +1820,9 @@
     ],
     "finchspub.co.uk": [
       "way/629300448"
+    ],
+    "firestables.co.uk": [
+      "venue/venue-alvnwn"
     ],
     "flaminggrillpubs.co.uk/pubs/essex/albion": [
       "way/1079882786"
@@ -1638,6 +1851,9 @@
     "fleettavern.com": [
       "node/596791858"
     ],
+    "florencehernehill.com": [
+      "way/1547410549"
+    ],
     "flowersoftheforest.co.uk": [
       "node/12997774502"
     ],
@@ -1647,8 +1863,14 @@
     "foresterealing.co.uk": [
       "way/524800980"
     ],
+    "forestwines.com/pages/bar": [
+      "venue/venue-176d6nl"
+    ],
     "foundersarms.co.uk": [
       "way/77755297"
+    ],
+    "fountainhotellondon.com": [
+      "venue/venue-1uk6kty"
     ],
     "foxandgrapeswimbledon.co.uk": [
       "way/531068519"
@@ -1701,11 +1923,20 @@
     "gipsyqueentavern.co.uk": [
       "way/99475943"
     ],
+    "glasshouse.pub": [
+      "venue/venue-1toxhgz"
+    ],
+    "goepsom.com/directory/epsom-downs-racecourse": [
+      "venue/venue-1bzpmdx"
+    ],
     "goldenfleececity.com": [
       "way/522314555"
     ],
     "graftonarms.co.uk": [
       "node/257937397"
+    ],
+    "grapessw18.co.uk": [
+      "venue/venue-1xmac"
     ],
     "gravitywellbrewing.co.uk": [
       "node/8355222754"
@@ -2139,6 +2370,9 @@
     "greeneking.co.uk/pubs/kent/george": [
       "way/232970659"
     ],
+    "greeneking.co.uk/pubs/kent/george/find-us": [
+      "venue/venue-1eycmcw"
+    ],
     "greeneking.co.uk/pubs/kent/lullingstone-castle": [
       "way/43914785"
     ],
@@ -2232,6 +2466,9 @@
     "greenmanputney.co.uk": [
       "way/837636082"
     ],
+    "greenwichsu.co.uk/lowerdeck/home": [
+      "venue/venue-1naml38"
+    ],
     "greenwichtavern.co.uk": [
       "node/10266443623"
     ],
@@ -2268,6 +2505,9 @@
     "halfmoonhernehill.co.uk": [
       "way/126610395"
     ],
+    "hammertonbrewery.co.uk/pages/house-of-hammerton-islington-food-and-drink": [
+      "venue/venue-18bpz15"
+    ],
     "handandflower.co.uk": [
       "way/115595349"
     ],
@@ -2289,6 +2529,9 @@
     "harrowlondon.co.uk": [
       "way/148677469"
     ],
+    "harrys.co.uk/abchurch": [
+      "venue/venue-ygsdq3"
+    ],
     "harwoodarms.com": [
       "way/944382658"
     ],
@@ -2297,6 +2540,9 @@
     ],
     "haydennottinghill.com": [
       "node/7099537759"
+    ],
+    "hazine.co.uk": [
+      "venue/venue-a9nk2t"
     ],
     "heathcoteandstar.co.uk": [
       "way/1047662587"
@@ -2316,6 +2562,10 @@
     "heritagepubs.co.uk/ferry-boat-tottenham": [
       "way/134777475"
     ],
+    "highpress25.co.uk/wp-signup.php": [
+      "node/601523012",
+      "way/1221239101"
+    ],
     "hikensingtonforumhotel.co.uk/food-drink/the-tavern-a-traditional-english-pub-in-the-heart-of-london": [
       "node/2080592567"
     ],
@@ -2328,14 +2578,23 @@
     "hollywoodarmschelsea.com": [
       "way/363961554"
     ],
+    "hoopandgrapes.co.uk": [
+      "way/996506249"
+    ],
     "hopeandanchorbrixton.co.uk": [
       "node/274268703"
+    ],
+    "hopecarshalton.co.uk": [
+      "way/97425688"
     ],
     "hopinnhornchurch.com": [
       "way/1298834057"
     ],
     "hoppolewandsworth.co.uk": [
       "way/791132629"
+    ],
+    "horseandgroombelgravia.com": [
+      "way/551566816"
     ],
     "horseandwig.com": [
       "node/338504993"
@@ -2509,6 +2768,9 @@
     "jdwetherspoon.com/pubs/the-holland-tringham-streatham": [
       "way/1562612297"
     ],
+    "jdwetherspoon.com/pubs/the-ice-wharf-camden": [
+      "node/6677415686"
+    ],
     "jdwetherspoon.com/pubs/the-kings-ford-chingford": [
       "way/685395571"
     ],
@@ -2553,6 +2815,9 @@
     ],
     "jdwetherspoon.com/pubs/the-moon-under-water-hounslow": [
       "way/818160419"
+    ],
+    "jdwetherspoon.com/pubs/the-moon-under-water-norbury": [
+      "way/479854544"
     ],
     "jdwetherspoon.com/pubs/the-moon-under-water-watford": [
       "node/1586998347"
@@ -2662,6 +2927,9 @@
     "jollyfarmers-purley.co.uk": [
       "way/351140834"
     ],
+    "joyau.co": [
+      "venue/venue-wfc91j"
+    ],
     "juggedharevictoria.co.uk": [
       "way/116957518"
     ],
@@ -2716,8 +2984,20 @@
     "lambandflagcoventgarden.co.uk": [
       "way/565171598"
     ],
+    "lambsurbiton.co.uk": [
+      "venue/venue-46mqmt"
+    ],
+    "lambtavernleadenhall.com": [
+      "venue/venue-zfg366"
+    ],
     "landoflibertypub.com": [
       "node/1206741009"
+    ],
+    "langhamclub.co.uk": [
+      "venue/venue-fw3cy8"
+    ],
+    "larkshallpub.co.uk": [
+      "venue/venue-16bgt1v"
     ],
     "lassorichmondhill.co.uk": [
       "way/477729134"
@@ -2728,17 +3008,32 @@
     "leatherbottlepub.co.uk": [
       "node/5554760222"
     ],
+    "lemontreecoventgarden.com": [
+      "venue/venue-11iolkd"
+    ],
+    "leytonstar.co.uk": [
+      "venue/venue-18d8k3w"
+    ],
     "leytonstonetavern.com/public": [
       "way/767855492"
     ],
     "locipubs.com/alliance": [
       "way/1238928087"
     ],
+    "london-fire.gov.uk/community/hammersmith-and-fulham": [
+      "venue/venue-fe38n8"
+    ],
+    "londonhospitaltavern.com": [
+      "venue/venue-zh8723"
+    ],
     "londonspride.com": [
       "node/4527208488"
     ],
     "lordnapierstar.co.uk": [
       "way/525700383"
+    ],
+    "lordwargrave.com": [
+      "node/298220599"
     ],
     "loreoftheland.com": [
       "way/745483505"
@@ -2772,6 +3067,9 @@
     ],
     "maltshovelda1.co.uk": [
       "way/830286999"
+    ],
+    "markethalls.co.uk/venue/victoria": [
+      "venue/venue-1k2w9wy"
     ],
     "marquesscanonbury.com": [
       "way/230373565"
@@ -2812,6 +3110,9 @@
     "mikkeller.com/locations/mikkeller-brewpub-london": [
       "way/99379796"
     ],
+    "mimosaproduce.com": [
+      "venue/venue-1098oqz"
+    ],
     "mobydickgreenlanddock.co.uk": [
       "node/248546654"
     ],
@@ -2825,11 +3126,17 @@
       "node/2831429756",
       "node/6488078275"
     ],
+    "mothersruin.net": [
+      "venue/venue-v1h0f5"
+    ],
     "mr-foggs.com/mr-foggs-hat-tavern": [
       "node/14178896045"
     ],
     "mulberrybushpub.co.uk": [
       "node/13409071887"
+    ],
+    "myddletonarms.co.uk": [
+      "venue/venue-bvopgj"
     ],
     "nds.in.net": [
       "way/288628918"
@@ -2864,8 +3171,17 @@
     "northumberland-arms.com": [
       "way/294886276"
     ],
+    "northumberlandarms.uk": [
+      "venue/venue-10litj1"
+    ],
+    "oldbankofengland.co.uk": [
+      "way/99275253"
+    ],
     "oldbrewerygreenwich.com": [
       "way/1095646248"
+    ],
+    "olddeerpark.co.uk": [
+      "venue/venue-1bqyxzj"
     ],
     "oldfountain.co.uk": [
       "way/154856396"
@@ -2881,6 +3197,9 @@
     ],
     "oldredcow.co.uk": [
       "way/146989400"
+    ],
+    "oldshades.co.uk": [
+      "venue/venue-698bu3"
     ],
     "oldship.net": [
       "way/195649318"
@@ -2903,6 +3222,12 @@
     "orbitbeers.com/pages/taproom": [
       "node/3493582134"
     ],
+    "orfordhouse.org": [
+      "venue/venue-w7l1f0"
+    ],
+    "orientsupporters.org/find-us": [
+      "venue/venue-lcr7wu"
+    ],
     "ourblackheart.com": [
       "node/293390260"
     ],
@@ -2912,8 +3237,17 @@
     "owlandpussycatshoreditch.com": [
       "way/373272377"
     ],
+    "oystercatchergreenwich.co.uk": [
+      "venue/venue-1057vj5"
+    ],
+    "oystershed.co.uk": [
+      "venue/venue-fsp3yu"
+    ],
     "parcelyard.co.uk": [
       "way/416601731"
+    ],
+    "parktaverneltham.co.uk": [
+      "venue/venue-1rqsqdd"
     ],
     "parlourkensal.com": [
       "way/467012110"
@@ -2936,6 +3270,9 @@
     "peoplesparktavern.pub": [
       "way/95243702"
     ],
+    "piedbullenfield.co.uk/index": [
+      "venue/venue-67t8g6"
+    ],
     "pigsearpub.com": [
       "node/280835439"
     ],
@@ -2947,6 +3284,9 @@
     ],
     "pilotgreenwich.co.uk": [
       "way/193321876"
+    ],
+    "pipemajorpubdagenham.co.uk": [
+      "venue/venue-c012qs"
     ],
     "placejuice.com/windmill-inn-fyz3hkm": [
       "way/1340576583"
@@ -2963,6 +3303,9 @@
     "plumegreenwich.com": [
       "node/10266449760"
     ],
+    "popbrixton.org": [
+      "venue/venue-1khnupq"
+    ],
     "porterhouse.london": [
       "way/99952313"
     ],
@@ -2973,11 +3316,17 @@
     "pressuredropbrewing.co.uk/pages/taproom": [
       "node/6939589391"
     ],
+    "prettydecentbeer.co/pages/bhr-taproom": [
+      "venue/venue-72gquy"
+    ],
     "prince-alfred.co.uk": [
       "way/753467777"
     ],
     "princealbert.pub": [
       "way/1009113811"
+    ],
+    "princealbertbexleyheath.co.uk": [
+      "venue/venue-b2uihc"
     ],
     "princealberttwickenham.co.uk": [
       "way/354182350"
@@ -3054,6 +3403,9 @@
     "railwaytelegraph.co.uk": [
       "node/479652522"
     ],
+    "realal.co": [
+      "venue/venue-vivrne"
+    ],
     "redlionchenies.com": [
       "way/1084918766"
     ],
@@ -3081,8 +3433,20 @@
     "risingsunisleworth.co.uk": [
       "way/88866345"
     ],
+    "risingsunwillesden.co.uk": [
+      "venue/venue-xt3n44"
+    ],
+    "riversidelondon.co.uk": [
+      "venue/venue-8vygop"
+    ],
     "roebuck-hamptonhill.co.uk": [
       "way/311971054"
+    ],
+    "roebuckhampstead.com": [
+      "venue/venue-m40xal"
+    ],
+    "roofeast.com": [
+      "venue/venue-14hh7x8"
     ],
     "roseandcrownealing.co.uk": [
       "node/293970330"
@@ -3096,11 +3460,17 @@
     "roseofdenmarkpub.co.uk": [
       "way/224131481"
     ],
+    "rosepubandkitchen.com": [
+      "way/775813753"
+    ],
     "roundhousecoventgarden.co.uk": [
       "way/183362087"
     ],
     "royalalbertpub.co.uk": [
       "node/280606917"
+    ],
+    "royalforesteppingforest.com": [
+      "venue/venue-1pbyyad"
     ],
     "royalgeorgepub.co.uk": [
       "way/86725862"
@@ -3114,6 +3484,9 @@
     "royaloakbethnalgreen.co.uk": [
       "way/546566227"
     ],
+    "royaloakhighamspark.co.uk": [
+      "venue/venue-1b0h1wq"
+    ],
     "royaloakisleworth.co.uk": [
       "node/36685542"
     ],
@@ -3123,8 +3496,14 @@
     "royaloaknewashgreen.co.uk": [
       "way/252531140"
     ],
+    "royaloaknewmalden.co.uk": [
+      "venue/venue-myrcsz"
+    ],
     "rubbinghouse.com": [
       "way/252279620"
+    ],
+    "rugbytavern.co.uk": [
+      "venue/venue-1kbl05l"
     ],
     "rustybike.pub/rusty-bike-pub-mile-end": [
       "way/413304152"
@@ -3134,6 +3513,9 @@
     ],
     "sailloftgreenwich.co.uk": [
       "node/5659383343"
+    ],
+    "saltbeerfactory.co.uk": [
+      "node/3932136290"
     ],
     "salutationhammersmith.co.uk": [
       "way/332723845"
@@ -3153,6 +3535,12 @@
     "sebrightarms.com": [
       "way/305492454"
     ],
+    "shacklewellarms.com": [
+      "way/466647109"
+    ],
+    "shaftesburyrichmond.co.uk": [
+      "venue/venue-i4w5zs"
+    ],
     "shawsbooksellers.co.uk": [
       "way/325208608"
     ],
@@ -3161,6 +3549,9 @@
     ],
     "shipec3.co.uk": [
       "way/142680573"
+    ],
+    "shiprotherhithe.co.uk": [
+      "venue/venue-s9p005"
     ],
     "shipsoho.co.uk": [
       "node/14178896047"
@@ -3209,6 +3600,9 @@
     ],
     "slugandlettuce.co.uk/bars/richmond": [
       "node/264010568"
+    ],
+    "smallbeern8.co.uk": [
+      "node/656954583"
     ],
     "smithsofsmithfield.co.uk": [
       "way/42935883"
@@ -3259,6 +3653,9 @@
     "socialpubandkitchen.co.uk/pubs/marquis-of-wellington-bermondsey": [
       "way/128568070"
     ],
+    "socialpubandkitchen.co.uk/pubs/minories-london": [
+      "way/582966821"
+    ],
     "socialpubandkitchen.co.uk/pubs/station-master-marylebone": [
       "way/193375861"
     ],
@@ -3270,6 +3667,9 @@
     ],
     "socialpubandkitchen.co.uk/pubs/whitecross-tap-old-street": [
       "node/291953084"
+    ],
+    "sonnys-riverside.com": [
+      "venue/venue-12qo5vj"
     ],
     "spanishgalleon.co.uk": [
       "node/10266440595"
@@ -3307,6 +3707,10 @@
     "starofbethnalgreen.co.uk": [
       "way/445139621"
     ],
+    "stonegategroup.co.uk/find-your-local": [
+      "node/269255191",
+      "way/247245128"
+    ],
     "stonemasonsarms.co.uk": [
       "way/972149539"
     ],
@@ -3340,17 +3744,29 @@
     "swanwalton.com": [
       "way/58603914"
     ],
+    "swirle10.com": [
+      "venue/venue-1rkfaxs"
+    ],
     "sydneyarmschelsea.com": [
       "node/8308248176"
     ],
     "sylvanpost.co.uk": [
       "node/1933445586"
     ],
+    "symposiumlondon.co.uk": [
+      "venue/venue-xmy0sb"
+    ],
     "tam.tv/locations/smithfield": [
       "way/568747636"
     ],
     "tankandpaddle.co.uk/bars/minster-court": [
       "node/9306966309"
+    ],
+    "tapeast.co.uk": [
+      "way/1360397272"
+    ],
+    "tapelia.co.uk": [
+      "venue/venue-12k6mg7"
     ],
     "tapontheline.co.uk": [
       "way/191632542"
@@ -3373,6 +3789,12 @@
     "thamessidebrewery.co.uk": [
       "node/10317011442"
     ],
+    "thatchedhousepub.com": [
+      "way/586427054"
+    ],
+    "the-albion.co.uk": [
+      "way/31900825"
+    ],
     "the-anchor.pub": [
       "node/3598403423"
     ],
@@ -3390,6 +3812,9 @@
     ],
     "the-enterprise.co.uk": [
       "way/527245738"
+    ],
+    "the-fighting-cocks.co.uk": [
+      "venue/venue-atk7mc"
     ],
     "the-old-manor.co.uk": [
       "way/42452556"
@@ -3442,6 +3867,9 @@
     "thealmaislington.com": [
       "way/227827311"
     ],
+    "thealmalondon.com": [
+      "venue/venue-1duinu2"
+    ],
     "thealmapub.com": [
       "way/189512277"
     ],
@@ -3450,6 +3878,9 @@
     ],
     "theandoverarmsw6.com": [
       "way/966387179"
+    ],
+    "theantelope.co.uk": [
+      "venue/venue-1vzaiwq"
     ],
     "theapproachtavern.co.uk": [
       "way/220801895"
@@ -3468,6 +3899,9 @@
     ],
     "thebarrelproject.co.uk": [
       "node/7398105829"
+    ],
+    "thebearcamberwell.com": [
+      "venue/venue-x256t8"
     ],
     "thebearoxshott.co.uk": [
       "node/2525354717"
@@ -3496,6 +3930,9 @@
     "thebickley.co.uk": [
       "way/443228559"
     ],
+    "thebirdinhandlondon.com": [
+      "way/151490690"
+    ],
     "thebirdsnestpub.co.uk": [
       "way/1187589494"
     ],
@@ -3508,11 +3945,17 @@
     "theblackeel.uk": [
       "way/378840185"
     ],
+    "theblindbeggar.com": [
+      "venue/venue-5cjjk6"
+    ],
     "theblueboat.co.uk": [
       "way/503644476"
     ],
     "thebluecoatspub.com": [
       "node/2267462478"
+    ],
+    "theblueskitchen.com/camden": [
+      "venue/venue-1pfnt71"
     ],
     "thebluestoops.com": [
       "node/12437701305"
@@ -3526,6 +3969,9 @@
     "thebolter.co.uk": [
       "node/12534156761"
     ],
+    "thebountifulcow.co.uk": [
+      "venue/venue-19a3qur"
+    ],
     "thebravelondon.co.uk": [
       "way/197695792"
     ],
@@ -3534,6 +3980,9 @@
     ],
     "thebrookmill.co.uk": [
       "node/280606890"
+    ],
+    "thebrookworcesterpark.co.uk": [
+      "venue/venue-1bwv6zb"
     ],
     "thebrownswood.co.uk": [
       "way/395988684"
@@ -3546,6 +3995,9 @@
     ],
     "thebullhighgate.com": [
       "way/154117129"
+    ],
+    "thebullsheadbarnes.com": [
+      "venue/venue-16twk4e"
     ],
     "thebullsheadhotel.co.uk": [
       "node/428941713"
@@ -3574,11 +4026,17 @@
     "thecastlelondon.com": [
       "node/277909036"
     ],
+    "thecastletavern.com": [
+      "venue/venue-m9wlkb"
+    ],
     "thechalkfreehouse.co.uk": [
       "way/781302184"
     ],
     "thechamberlainhotel.co.uk": [
       "node/666918951"
+    ],
+    "thechamberlayne.com": [
+      "venue/venue-m5hwrg"
     ],
     "thechaptercollection.co.uk/pubs/duchess-marylebone": [
       "way/159039182"
@@ -3610,11 +4068,17 @@
     "thecoachandhorseschertsey.co.uk": [
       "way/866257694"
     ],
+    "thecoachleyton.com": [
+      "venue/venue-1dynyz2"
+    ],
     "thecoborn.co.uk": [
       "way/430938730"
     ],
     "thecolonelfawcett.co.uk": [
       "node/49314952"
+    ],
+    "theconstitutioncamden.co.uk": [
+      "venue/venue-fejqqd"
     ],
     "thecraftbeerco.com/brixton": [
       "way/321450395"
@@ -3634,14 +4098,23 @@
     "thecrownhackney.co.uk": [
       "way/372808122"
     ],
+    "thecrownlee.co.uk": [
+      "venue/venue-1drd13s"
+    ],
     "theculpeper.com": [
       "way/161720577"
     ],
     "thecumberlandarmspub.co.uk": [
       "way/148723643"
     ],
+    "thecurtainsup.co.uk": [
+      "venue/venue-94m3w2"
+    ],
     "thedeanswift.com": [
       "way/93710844"
+    ],
+    "thedepotpub.co.uk": [
+      "venue/venue-1g8dzkx"
     ],
     "thederbyse11.co.uk": [
       "node/1103275887"
@@ -3660,6 +4133,9 @@
     ],
     "thedoorhinge.co.uk": [
       "node/3731791377"
+    ],
+    "thedovecotechingford.co.uk/index": [
+      "venue/venue-yaue59"
     ],
     "thedrapersarms.com": [
       "way/31052744"
@@ -3712,6 +4188,9 @@
     "theeuropeanpub.co.uk": [
       "way/444642776"
     ],
+    "thefarriersarmspub.co.uk": [
+      "venue/venue-1xh21ch"
+    ],
     "thefellow.co.uk": [
       "way/512346650"
     ],
@@ -3730,6 +4209,9 @@
     "thefootmanmayfair.com": [
       "way/299039550"
     ],
+    "theforestgatehotel.co.uk": [
+      "venue/venue-1h547kg"
+    ],
     "theforrestersarms.co.uk": [
       "way/205997395"
     ],
@@ -3745,6 +4227,9 @@
     "thefoxpublichouse.co.uk": [
       "way/161289706"
     ],
+    "thegardenshedpub.com": [
+      "venue/venue-1cuys17"
+    ],
     "thegarrison.co.uk": [
       "way/101328343"
     ],
@@ -3759,6 +4244,9 @@
     ],
     "theglobemarylebone.co.uk": [
       "way/688991974"
+    ],
+    "thegoodnessbrew.co": [
+      "node/8263743019"
     ],
     "thegoodreader.co.uk": [
       "way/264128874"
@@ -3841,6 +4329,9 @@
     "thehandinhandwimbledon.co.uk": [
       "way/450830263"
     ],
+    "theharesheen.co.uk": [
+      "venue/venue-1pnwx8j"
+    ],
     "thehatandtun.com": [
       "way/572670795"
     ],
@@ -3861,6 +4352,9 @@
     ],
     "thehollytreepub.co.uk": [
       "way/224178092"
+    ],
+    "thehoratia.co.uk": [
+      "node/362359474"
     ],
     "thehorseandgroom.net": [
       "way/164534150"
@@ -3903,6 +4397,9 @@
     ],
     "thelamblondon.com": [
       "way/112564610"
+    ],
+    "thelambn7.co.uk": [
+      "venue/venue-uov7ku"
     ],
     "thelarrik.com": [
       "way/680918475"
@@ -3964,6 +4461,9 @@
     "themaltshoveleynsford.co.uk": [
       "way/1545056577"
     ],
+    "themariananderson.com": [
+      "venue/venue-59ibpp"
+    ],
     "themarketporter.co.uk": [
       "node/14181043717"
     ],
@@ -3975,6 +4475,15 @@
     ],
     "themarquiscoventgarden.co.uk": [
       "way/558503751"
+    ],
+    "themaxwell.co.uk/index": [
+      "venue/venue-4wsk4u"
+    ],
+    "themerchantbattersea.com": [
+      "venue/venue-ejcaqb"
+    ],
+    "themilfordarms.co.uk": [
+      "venue/venue-4r1951"
     ],
     "themiller.co.uk": [
       "way/101530109"
@@ -4006,8 +4515,14 @@
     "thenewmanarms.co.uk": [
       "way/648689210"
     ],
+    "thenightingalesutton.co.uk": [
+      "venue/venue-1b10w2i"
+    ],
     "theoldbluelast.com": [
       "way/157236295"
+    ],
+    "theoldcrownleytonstone.co.uk": [
+      "venue/venue-jo9s88"
     ],
     "theoldcrownweybridge.co.uk": [
       "way/659551137"
@@ -4020,6 +4535,9 @@
     ],
     "theoldqueenshead.com": [
       "way/982457191"
+    ],
+    "theoldredlion.uk": [
+      "venue/venue-15pj44z"
     ],
     "theoldshiprichmond.com": [
       "way/432267481"
@@ -4048,6 +4566,12 @@
     "thephoenixchelsea.co.uk": [
       "node/443032351"
     ],
+    "thephoenixinvictoria.co.uk": [
+      "venue/venue-1vteszv"
+    ],
+    "thepilgrimpub.com": [
+      "venue/venue-1phs07y"
+    ],
     "thepineapplepubnw5.com": [
       "node/192399976"
     ],
@@ -4071,6 +4595,9 @@
     ],
     "theprideofpaddington.co.uk": [
       "way/739178496"
+    ],
+    "theprince-edward.co.uk": [
+      "way/621622012"
     ],
     "theprincealbertbattersea.co.uk": [
       "way/111787083"
@@ -4099,11 +4626,23 @@
     "theprincessofshoreditch.com": [
       "node/301516360"
     ],
+    "theprioryarms.com/pubinfo": [
+      "venue/venue-1l1ls5k"
+    ],
     "thepriorypubn8.com": [
       "node/370187947"
     ],
     "thequeenadelaide.co.uk": [
       "way/30838121"
+    ],
+    "thequeensheadholborn.com": [
+      "venue/venue-b85at0"
+    ],
+    "thequeerbrewingproject.com/taproom": [
+      "venue/venue-qliv2p"
+    ],
+    "theracehorsepub.com": [
+      "venue/venue-11x08sx"
     ],
     "therailwaysw16.co.uk": [
       "way/913129291"
@@ -4117,6 +4656,9 @@
     "theraventowerbridge.co.uk": [
       "way/93710849"
     ],
+    "theravenw6.com": [
+      "venue/venue-1476779"
+    ],
     "therebelinn.com": [
       "node/1657901115"
     ],
@@ -4128,6 +4670,9 @@
     ],
     "theredlionw5.com": [
       "node/27475983"
+    ],
+    "theredlionwallington.co.uk": [
+      "venue/venue-1x16vuy"
     ],
     "theregentbalham.co.uk": [
       "way/305154786"
@@ -4153,11 +4698,17 @@
     "theriveralehouse.com": [
       "node/10253245701"
     ],
+    "therobinhoodsutton.co.uk": [
+      "venue/venue-1a9or74"
+    ],
     "therobinlondon.com": [
       "way/366291167"
     ],
     "theroebuck.net": [
       "way/100275592"
+    ],
+    "therookwoodvillage.com": [
+      "venue/venue-ypt5do"
     ],
     "therosendale.co.uk": [
       "way/922524127"
@@ -4177,11 +4728,17 @@
     "therushmeresw19.com": [
       "way/448014277"
     ],
+    "therustybucket.pub": [
+      "venue/venue-1obyoui"
+    ],
     "thesaint-bow.co.uk": [
       "node/666475908"
     ],
     "thesalisburyhotelpub.co.uk": [
       "way/223934463"
+    ],
+    "thesalusbury.co.uk": [
+      "venue/venue-1l9ehj3"
     ],
     "thesamuelpalmer.com": [
       "way/188840611"
@@ -4194,6 +4751,9 @@
     ],
     "theshaftesburytavern.co.uk": [
       "way/190104590"
+    ],
+    "theshakespearebarbican.co.uk": [
+      "way/203526627"
     ],
     "theship.co.uk": [
       "way/331995902"
@@ -4210,6 +4770,12 @@
     "thespreadeaglelondon.co.uk": [
       "way/637516538"
     ],
+    "thespringfieldtavern.co.uk": [
+      "venue/venue-1lpdp6i"
+    ],
+    "thespringgrove.co.uk": [
+      "venue/venue-90m3gm"
+    ],
     "thestablehand.co.uk": [
       "way/517877764"
     ],
@@ -4218,6 +4784,9 @@
     ],
     "thestationhousew3.com": [
       "node/1941233361"
+    ],
+    "thesteelespub.co.uk": [
+      "venue/venue-1gz2vse"
     ],
     "thesterlingbar.co.uk": [
       "node/369119280"
@@ -4236,6 +4805,9 @@
     ],
     "theswanchiswick.co.uk": [
       "way/1136139752"
+    ],
+    "theswanwembley.co.uk": [
+      "venue/venue-162buoz"
     ],
     "theswimmer.co.uk": [
       "node/687158190"
@@ -4258,6 +4830,15 @@
     "thethreesteps.co.uk": [
       "way/974404015"
     ],
+    "thetichenhaminn.co.uk": [
+      "node/651539992"
+    ],
+    "thetipperarypub.com": [
+      "venue/venue-1r447i7"
+    ],
+    "thetrafsw19.co.uk": [
+      "way/1287078169"
+    ],
     "thetrinity.co.uk": [
       "way/99928994"
     ],
@@ -4267,14 +4848,26 @@
     "thetwobrewersongar.co.uk": [
       "way/1061674176"
     ],
+    "thetwobridges.co.uk": [
+      "venue/venue-1wxa6rs"
+    ],
+    "thevanbrugh.com": [
+      "node/13782246514"
+    ],
     "thevic.london": [
       "way/195008372"
     ],
     "thevictoriasurbiton.co.uk": [
       "way/441838245"
     ],
+    "thevictoriatavern.co.uk/victoria-tavern/the-victoria-tavern-in-the-good-pub-guide": [
+      "venue/venue-9dwjpl"
+    ],
     "thevictoriatottenham.com": [
       "way/1288548017"
+    ],
+    "thevillagegreen.pub": [
+      "venue/venue-cwtxq2"
     ],
     "thevirginqueenpub.co.uk": [
       "way/934330566"
@@ -4288,23 +4881,38 @@
     "thewaltonvillage.com": [
       "way/431427674"
     ],
+    "thewatergate.co.uk": [
+      "venue/venue-1fvqrf9"
+    ],
     "thewatermansarms.co.uk": [
       "way/354074632"
     ],
     "thewaterway.co.uk": [
       "node/3154333461"
     ],
+    "theweirbar.com": [
+      "venue/venue-gshjia"
+    ],
     "thewellshampstead.co.uk": [
       "way/553138189"
     ],
+    "thewhitecrossrichmond.com": [
+      "venue/venue-j7ktuq"
+    ],
     "thewhitehorsepub.co.uk": [
       "way/1039879206"
+    ],
+    "thewiltonarmssw1.com": [
+      "venue/venue-1k0kfv7"
     ],
     "thewoodbine.co.uk": [
       "way/261841643"
     ],
     "thewoodhousedulwich.co.uk": [
       "way/111349153"
+    ],
+    "thewoodman.co": [
+      "venue/venue-1wtqjvr"
     ],
     "thewrestlershighgate.com": [
       "way/676767336"
@@ -4327,6 +4935,9 @@
     "threehillsbrewing.com": [
       "node/9006872322"
     ],
+    "threehorseshoesfeltham.co.uk": [
+      "venue/venue-an88gc"
+    ],
     "threehorseshoeslaleham.co.uk": [
       "way/1347076167"
     ],
@@ -4338,6 +4949,9 @@
     ],
     "tokenhousemoorgate.co.uk": [
       "way/160096670"
+    ],
+    "tollingtonarms-holloway.co.uk": [
+      "venue/venue-1yfamhh"
     ],
     "townoframsgate.pub": [
       "way/425809832"
@@ -4365,6 +4979,9 @@
     ],
     "uniontavernlondon.uk": [
       "way/155724665"
+    ],
+    "up-the-creek.com": [
+      "venue/venue-1nnut7v"
     ],
     "urbanpubsandbars.com/city-by-urban/venues/the-fire-station": [
       "node/295971752"
@@ -4432,6 +5049,9 @@
     "useyourlocal.com/pubs/stag-chipping-ongar-1658": [
       "way/1047440910"
     ],
+    "utobeer.co.uk/the-rake": [
+      "way/82770789"
+    ],
     "vennstreetrecords.com": [
       "node/12093799635"
     ],
@@ -4453,8 +5073,17 @@
     "village-walthamstow.com": [
       "way/198639606"
     ],
+    "vinoramica.com": [
+      "venue/venue-1kpw767"
+    ],
+    "vintnersyard.co.uk/residents/yard-bar": [
+      "venue/venue-1d6wmdx"
+    ],
     "vintryec4.co.uk": [
       "way/523388241"
+    ],
+    "vistaprint.com/digital-marketing/webs-shutdown": [
+      "way/1211573218"
     ],
     "wandleearlsfield.com": [
       "node/1737829080"
@@ -4464,6 +5093,12 @@
     ],
     "warwick-arms-kensington.co.uk": [
       "way/144667841"
+    ],
+    "waterlootap.com": [
+      "venue/venue-1u2v4eh"
+    ],
+    "watersideimperialwharf.co.uk": [
+      "venue/venue-6ayczf"
     ],
     "watsonstelegraph.pub": [
       "way/27515855"
@@ -4519,6 +5154,9 @@
     "whiteharthoteluk.co.uk": [
       "way/364312014"
     ],
+    "whitehartinntwickenham.co.uk": [
+      "venue/venue-ej7ok7"
+    ],
     "whitehartsouthwark.co.uk": [
       "way/207282617"
     ],
@@ -4561,6 +5199,9 @@
     "windmillclapham.co.uk": [
       "node/279526311"
     ],
+    "windmillhotelnorthlondon.co.uk": [
+      "venue/venue-kf4qeu"
+    ],
     "windmillwaterloo.co.uk": [
       "node/306666717"
     ],
@@ -4569,6 +5210,9 @@
     ],
     "wishfuldrinking.co.uk": [
       "node/8904125782"
+    ],
+    "wolfpackbars.com/queens-park-bar": [
+      "way/65658313"
     ],
     "woodman-battersea.co.uk": [
       "way/340395024"
@@ -4618,6 +5262,14 @@
   },
   "quoteReaders": [
     {
+      "host": "1lombardstreet.com",
+      "key": "food",
+      "quote": "all day dining",
+      "readers": [
+        "venue/venue-92l5if"
+      ]
+    },
+    {
       "host": "3compasses.com",
       "key": "beerGarden",
       "quote": "lovely beer garden",
@@ -4663,6 +5315,30 @@
       "quote": "best pub quiz in hackney",
       "readers": [
         "way/863500628"
+      ]
+    },
+    {
+      "host": "400rabbits.co.uk",
+      "key": "cocktails",
+      "quote": "&pound;6 cocktails",
+      "readers": [
+        "venue/venue-18cp9b2"
+      ]
+    },
+    {
+      "host": "400rabbits.co.uk",
+      "key": "food",
+      "quote": "pizza served 10am - 8pm",
+      "readers": [
+        "venue/venue-18cp9b2"
+      ]
+    },
+    {
+      "host": "400rabbits.co.uk",
+      "key": "happyHour",
+      "quote": "happy hour 4-5pm",
+      "readers": [
+        "venue/venue-18cp9b2"
       ]
     },
     {
@@ -4778,6 +5454,22 @@
       ]
     },
     {
+      "host": "admiral-duncan.co.uk",
+      "key": "beerGarden",
+      "quote": "outside area",
+      "readers": [
+        "node/14178896054"
+      ]
+    },
+    {
+      "host": "admiral-duncan.co.uk",
+      "key": "karaoke",
+      "quote": "karaoke on our visit",
+      "readers": [
+        "node/14178896054"
+      ]
+    },
+    {
       "host": "admiralhardygreenwich.co.uk",
       "key": "food",
       "quote": "food, drink & good times",
@@ -4837,6 +5529,14 @@
       "host": "admiraltytrafalgar.co.uk",
       "key": "food",
       "quote": "best of british pub food awaits",
+      "readers": [
+        "node/581058547"
+      ]
+    },
+    {
+      "host": "admiraltytrafalgar.co.uk",
+      "key": "liveSports",
+      "quote": "big screen sports viewing",
       "readers": [
         "node/581058547"
       ]
@@ -4949,6 +5649,14 @@
       "host": "alicehouse.co.uk",
       "key": "food",
       "quote": "amazing seasonal food",
+      "readers": [
+        "way/70320037"
+      ]
+    },
+    {
+      "host": "alicehouse.co.uk",
+      "key": "food",
+      "quote": "amazing seasonal food including weekday lunches, saturday brunch and sunday roasts",
       "readers": [
         "way/70320037"
       ]
@@ -5106,6 +5814,30 @@
       ]
     },
     {
+      "host": "angleldn.co.uk",
+      "key": "cocktails",
+      "quote": "accompanied by creative cocktails",
+      "readers": [
+        "venue/venue-x91ijv"
+      ]
+    },
+    {
+      "host": "angleldn.co.uk",
+      "key": "food",
+      "quote": "angle london serves traditional nigerian dishes with a modern, british twist.",
+      "readers": [
+        "venue/venue-x91ijv"
+      ]
+    },
+    {
+      "host": "angleldn.co.uk",
+      "key": "nonAlcoholic",
+      "quote": "we don't just serve the best cocktails and mocktails in town",
+      "readers": [
+        "venue/venue-x91ijv"
+      ]
+    },
+    {
       "host": "angleseaarmspub.co.uk",
       "key": "beerGarden",
       "quote": "small outside terrace",
@@ -5194,6 +5926,14 @@
       ]
     },
     {
+      "host": "ashburnham-arms.co.uk",
+      "key": "food",
+      "quote": "serving up homely hospitality",
+      "readers": [
+        "way/1095220538"
+      ]
+    },
+    {
       "host": "askewshepherdsbush.co.uk",
       "key": "beerGarden",
       "quote": "relax in the garden",
@@ -5231,6 +5971,30 @@
       "quote": "here for live sport",
       "readers": [
         "way/952193494"
+      ]
+    },
+    {
+      "host": "auctioneerleyton.com",
+      "key": "darts",
+      "quote": "dart boards",
+      "readers": [
+        "venue/venue-1026snf"
+      ]
+    },
+    {
+      "host": "auctioneerleyton.com",
+      "key": "liveSports",
+      "quote": "auctioneer is the only place for live sport",
+      "readers": [
+        "venue/venue-1026snf"
+      ]
+    },
+    {
+      "host": "auctioneerleyton.com",
+      "key": "pool",
+      "quote": "pool tables",
+      "readers": [
+        "venue/venue-1026snf"
       ]
     },
     {
@@ -5390,6 +6154,22 @@
       "host": "bbarlondon.com",
       "key": "cocktails",
       "quote": "enjoy delicious signature cocktails",
+      "readers": [
+        "node/295905009"
+      ]
+    },
+    {
+      "host": "bbarlondon.com",
+      "key": "cocktails",
+      "quote": "signature cocktails",
+      "readers": [
+        "node/295905009"
+      ]
+    },
+    {
+      "host": "bbarlondon.com",
+      "key": "food",
+      "quote": "exceptional food",
       "readers": [
         "node/295905009"
       ]
@@ -5557,10 +6337,34 @@
     },
     {
       "host": "beehiven17.com",
+      "key": "food",
+      "quote": "our kitchen's open all day long as well serving up classic homecooked pub grub",
+      "readers": [
+        "way/1076851225"
+      ]
+    },
+    {
+      "host": "beehiven17.com",
       "key": "liveSports",
       "quote": "we have screens all over the pub showing football",
       "readers": [
         "way/1076851225"
+      ]
+    },
+    {
+      "host": "beehiven17.com",
+      "key": "liveSports",
+      "quote": "we have screens all over the pub showing football and other sports all day",
+      "readers": [
+        "way/1076851225"
+      ]
+    },
+    {
+      "host": "beehiveneweltham.com",
+      "key": "liveMusic",
+      "quote": "beehive new eltham live music",
+      "readers": [
+        "venue/venue-1ljsyep"
       ]
     },
     {
@@ -5585,6 +6389,62 @@
       "quote": "weekly quiz",
       "readers": [
         "way/663004043"
+      ]
+    },
+    {
+      "host": "bellevueclapham.com",
+      "key": "beerGarden",
+      "quote": "pub garden sessions",
+      "readers": [
+        "venue/venue-11e0hkh"
+      ]
+    },
+    {
+      "host": "bellevueclapham.com",
+      "key": "cocktails",
+      "quote": "after-work cocktails",
+      "readers": [
+        "venue/venue-11e0hkh"
+      ]
+    },
+    {
+      "host": "bellevueclapham.com",
+      "key": "food",
+      "quote": "proper pub food",
+      "readers": [
+        "venue/venue-11e0hkh"
+      ]
+    },
+    {
+      "host": "bellevueclapham.com",
+      "key": "liveSports",
+      "quote": "sky sports & tnt sports",
+      "readers": [
+        "venue/venue-11e0hkh"
+      ]
+    },
+    {
+      "host": "bethnalgreentavern.co.uk",
+      "key": "beerGarden",
+      "quote": "beer garden",
+      "readers": [
+        "venue/venue-1uh3g2g"
+      ]
+    },
+    {
+      "host": "bethnalgreentavern.co.uk",
+      "key": "cocktails",
+      "quote": "cocktails and wine",
+      "readers": [
+        "venue/venue-1uh3g2g"
+      ]
+    },
+    {
+      "host": "bethnalgreentavern.co.uk",
+      "key": "food",
+      "quote": "banging pub classics from our kitchen",
+      "readers": [
+        "venue/venue-1uh3g2g"
       ]
     },
     {
@@ -5724,6 +6584,14 @@
       ]
     },
     {
+      "host": "blackbirdearlscourt.co.uk",
+      "key": "liveMusic",
+      "quote": "live music",
+      "readers": [
+        "way/837514114"
+      ]
+    },
+    {
       "host": "blackboysidcup.com",
       "key": "beerGarden",
       "quote": "large beer garden",
@@ -5741,6 +6609,14 @@
     },
     {
       "host": "blackboysidcup.com",
+      "key": "liveMusic",
+      "quote": "we often enjoy live music",
+      "readers": [
+        "way/950101217"
+      ]
+    },
+    {
+      "host": "blackboysidcup.com",
       "key": "liveSports",
       "quote": "watch all the latest sports",
       "readers": [
@@ -5751,6 +6627,14 @@
       "host": "blackboysidcup.com",
       "key": "pool",
       "quote": "play pool!",
+      "readers": [
+        "way/950101217"
+      ]
+    },
+    {
+      "host": "blackboysidcup.com",
+      "key": "pool",
+      "quote": "we welcome you to play pool!",
       "readers": [
         "way/950101217"
       ]
@@ -5804,6 +6688,14 @@
       ]
     },
     {
+      "host": "blacklion.london",
+      "key": "food",
+      "quote": "we serve a wide range of delicious dishes every day of the week",
+      "readers": [
+        "venue/venue-fudfew"
+      ]
+    },
+    {
       "host": "blacklionkilburn.co.uk",
       "key": "food",
       "quote": "our food offer is not your standard pub fare",
@@ -5836,6 +6728,22 @@
       ]
     },
     {
+      "host": "blacklionsurbiton.co.uk",
+      "key": "beerGarden",
+      "quote": "pubs with beers gardens",
+      "readers": [
+        "venue/venue-r5ah5u"
+      ]
+    },
+    {
+      "host": "blacklionsurbiton.co.uk",
+      "key": "food",
+      "quote": "perfect food & drink, anytime",
+      "readers": [
+        "venue/venue-r5ah5u"
+      ]
+    },
+    {
       "host": "blackswanockham.com",
       "key": "beerGarden",
       "quote": "beer garden",
@@ -5849,6 +6757,54 @@
       "quote": "modern british dishes",
       "readers": [
         "node/2097977437"
+      ]
+    },
+    {
+      "host": "blueboarlondon.com",
+      "key": "cocktails",
+      "quote": "tempting cocktails",
+      "readers": [
+        "venue/venue-1hkvco4"
+      ]
+    },
+    {
+      "host": "blueboarlondon.com",
+      "key": "food",
+      "quote": "proper pub dining",
+      "readers": [
+        "venue/venue-1hkvco4"
+      ]
+    },
+    {
+      "host": "blueboarlondon.com",
+      "key": "liveMusic",
+      "quote": "live music from 3pm",
+      "readers": [
+        "venue/venue-1hkvco4"
+      ]
+    },
+    {
+      "host": "blueboarlondon.com",
+      "key": "liveSports",
+      "quote": "summer of live sport",
+      "readers": [
+        "venue/venue-1hkvco4"
+      ]
+    },
+    {
+      "host": "bluecheckwembley.com",
+      "key": "cocktails",
+      "quote": "cocktails & beers too!",
+      "readers": [
+        "venue/venue-17kbdpw"
+      ]
+    },
+    {
+      "host": "bluecheckwembley.com",
+      "key": "food",
+      "quote": "homemade dishes with over 500+ 5* reviews",
+      "readers": [
+        "venue/venue-17kbdpw"
       ]
     },
     {
@@ -5913,6 +6869,46 @@
       "quote": "enjoy live music",
       "readers": [
         "node/7804014021"
+      ]
+    },
+    {
+      "host": "boisdale.co.uk",
+      "key": "beerGarden",
+      "quote": "bar & garden terrace",
+      "readers": [
+        "venue/venue-ukflm"
+      ]
+    },
+    {
+      "host": "boisdale.co.uk",
+      "key": "cocktails",
+      "quote": "negroni bar",
+      "readers": [
+        "venue/venue-ukflm"
+      ]
+    },
+    {
+      "host": "boisdale.co.uk",
+      "key": "liveMusic",
+      "quote": "live music monday to saturday nights",
+      "readers": [
+        "venue/venue-ukflm"
+      ]
+    },
+    {
+      "host": "boleyntavern.co.uk",
+      "key": "food",
+      "quote": "food menu",
+      "readers": [
+        "venue/venue-1qrmxhz"
+      ]
+    },
+    {
+      "host": "boleyntavern.co.uk",
+      "key": "nonAlcoholic",
+      "quote": "non alcoholic beer and spirits available",
+      "readers": [
+        "venue/venue-1qrmxhz"
       ]
     },
     {
@@ -5999,6 +6995,14 @@
       "host": "bravebar.co.uk",
       "key": "liveSports",
       "quote": "allied to big-screen sport",
+      "readers": [
+        "node/293702008"
+      ]
+    },
+    {
+      "host": "bravebar.co.uk",
+      "key": "liveSports",
+      "quote": "live sports tv",
       "readers": [
         "node/293702008"
       ]
@@ -6186,6 +7190,54 @@
       ]
     },
     {
+      "host": "bricklayerskingston.co.uk",
+      "key": "food",
+      "quote": "great food, quality drinks",
+      "readers": [
+        "venue/venue-rbkmed"
+      ]
+    },
+    {
+      "host": "bricklayerskingston.co.uk",
+      "key": "liveSports",
+      "quote": "watching the game",
+      "readers": [
+        "venue/venue-rbkmed"
+      ]
+    },
+    {
+      "host": "brindisatapas.com",
+      "key": "cocktails",
+      "quote": "cocktails",
+      "readers": [
+        "venue/venue-140rjwt"
+      ]
+    },
+    {
+      "host": "brindisatapas.com",
+      "key": "food",
+      "quote": "authentic spanish tapas restaurant",
+      "readers": [
+        "venue/venue-140rjwt"
+      ]
+    },
+    {
+      "host": "britannia.smokd.co.uk",
+      "key": "cocktails",
+      "quote": "margaritas from just £7 all night!",
+      "readers": [
+        "venue/venue-1d25b77"
+      ]
+    },
+    {
+      "host": "britannia.smokd.co.uk",
+      "key": "food",
+      "quote": "modern british barbecue",
+      "readers": [
+        "venue/venue-1d25b77"
+      ]
+    },
+    {
       "host": "britanniakensington.co.uk",
       "key": "cocktails",
       "quote": "winter cocktail menu",
@@ -6354,12 +7406,76 @@
       ]
     },
     {
+      "host": "brunel-rotherhithe.co.uk",
+      "key": "beerGarden",
+      "quote": "beer garden",
+      "readers": [
+        "venue/venue-1bmb61s"
+      ]
+    },
+    {
+      "host": "brunel-rotherhithe.co.uk",
+      "key": "cocktails",
+      "quote": "a cocktail",
+      "readers": [
+        "venue/venue-1bmb61s"
+      ]
+    },
+    {
+      "host": "brunel-rotherhithe.co.uk",
+      "key": "food",
+      "quote": "share a meal",
+      "readers": [
+        "venue/venue-1bmb61s"
+      ]
+    },
+    {
+      "host": "brunel-rotherhithe.co.uk",
+      "key": "liveMusic",
+      "quote": "live music",
+      "readers": [
+        "venue/venue-1bmb61s"
+      ]
+    },
+    {
+      "host": "brunel-rotherhithe.co.uk",
+      "key": "liveSports",
+      "quote": "live sport",
+      "readers": [
+        "venue/venue-1bmb61s"
+      ]
+    },
+    {
+      "host": "brunel-rotherhithe.co.uk",
+      "key": "pubQuiz",
+      "quote": "quiz night",
+      "readers": [
+        "venue/venue-1bmb61s"
+      ]
+    },
+    {
+      "host": "brunningandprice.co.uk",
+      "key": "beerGarden",
+      "quote": "our outside space, with plenty of seating",
+      "readers": [
+        "venue/venue-19211ib"
+      ]
+    },
+    {
       "host": "brunningandprice.co.uk",
       "key": "beerGarden",
       "quote": "so many people came to witness the eclipse with us in our gardens",
       "readers": [
         "node/262702979",
         "node/3507694575"
+      ]
+    },
+    {
+      "host": "brunningandprice.co.uk",
+      "key": "cocktails",
+      "quote": "a range of delicious cocktails",
+      "readers": [
+        "venue/venue-19211ib"
       ]
     },
     {
@@ -6381,6 +7497,14 @@
     },
     {
       "host": "brunningandprice.co.uk",
+      "key": "food",
+      "quote": "serving up pints to the good people of pimlico ever since",
+      "readers": [
+        "venue/venue-19211ib"
+      ]
+    },
+    {
+      "host": "brunningandprice.co.uk",
       "key": "pubQuiz",
       "quote": "white hart pub quiz",
       "readers": [
@@ -6391,6 +7515,14 @@
       "host": "buglehornpub.com",
       "key": "beerGarden",
       "quote": "great outdoor space",
+      "readers": [
+        "way/1033935072"
+      ]
+    },
+    {
+      "host": "buglehornpub.com",
+      "key": "darts",
+      "quote": "borrow a pool cue or set of darts",
       "readers": [
         "way/1033935072"
       ]
@@ -6423,6 +7555,22 @@
       "host": "buglehornpub.com",
       "key": "liveSports",
       "quote": "sports watch all the latest sports",
+      "readers": [
+        "way/1033935072"
+      ]
+    },
+    {
+      "host": "buglehornpub.com",
+      "key": "liveSports",
+      "quote": "watch all the latest sports",
+      "readers": [
+        "way/1033935072"
+      ]
+    },
+    {
+      "host": "buglehornpub.com",
+      "key": "pool",
+      "quote": "borrow a pool cue or set of darts",
       "readers": [
         "way/1033935072"
       ]
@@ -6484,6 +7632,22 @@
       ]
     },
     {
+      "host": "buildersarmspottersbar.com",
+      "key": "beerGarden",
+      "quote": "our courtyard",
+      "readers": [
+        "venue/venue-m5nemu"
+      ]
+    },
+    {
+      "host": "buildersarmspottersbar.com",
+      "key": "food",
+      "quote": "classic british pub dining",
+      "readers": [
+        "venue/venue-m5nemu"
+      ]
+    },
+    {
       "host": "bullandgatenw5.co.uk",
       "key": "cocktails",
       "quote": "winter cocktails",
@@ -6513,6 +7677,30 @@
       "quote": "watch live sport",
       "readers": [
         "way/449266220"
+      ]
+    },
+    {
+      "host": "bulstrodepub.com",
+      "key": "beerGarden",
+      "quote": "outdoor gardens",
+      "readers": [
+        "venue/venue-18gipm9"
+      ]
+    },
+    {
+      "host": "bulstrodepub.com",
+      "key": "cocktails",
+      "quote": "including cocktails, wines, beers,",
+      "readers": [
+        "venue/venue-18gipm9"
+      ]
+    },
+    {
+      "host": "bulstrodepub.com",
+      "key": "food",
+      "quote": "food is served during the",
+      "readers": [
+        "venue/venue-18gipm9"
       ]
     },
     {
@@ -6641,6 +7829,46 @@
       "quote": "live sport",
       "readers": [
         "way/311753728"
+      ]
+    },
+    {
+      "host": "calthorpearmswc1.co.uk",
+      "key": "food",
+      "quote": "home cooked food the food available is home-cooked",
+      "readers": [
+        "venue/venue-bdyva2"
+      ]
+    },
+    {
+      "host": "calthorpearmswc1.co.uk",
+      "key": "liveMusic",
+      "quote": "folk music nights on saturday!",
+      "readers": [
+        "venue/venue-bdyva2"
+      ]
+    },
+    {
+      "host": "calthorpearmswc1.co.uk",
+      "key": "liveSports",
+      "quote": "enjoy sports with us we show all terrestrial tv sports",
+      "readers": [
+        "venue/venue-bdyva2"
+      ]
+    },
+    {
+      "host": "calthorpearmswc1.co.uk",
+      "key": "pubQuiz",
+      "quote": "pub quiz nights we are home to two teams",
+      "readers": [
+        "venue/venue-bdyva2"
+      ]
+    },
+    {
+      "host": "camdenhead.com",
+      "key": "food",
+      "quote": "kitchen 12-10pm",
+      "readers": [
+        "venue/venue-qk6ti7"
       ]
     },
     {
@@ -6780,6 +8008,46 @@
       ]
     },
     {
+      "host": "castletooting.com",
+      "key": "beerGarden",
+      "quote": "tooting's best beer garden",
+      "readers": [
+        "venue/venue-jfkv2h"
+      ]
+    },
+    {
+      "host": "castletooting.com",
+      "key": "cocktails",
+      "quote": "winter cocktails",
+      "readers": [
+        "venue/venue-jfkv2h"
+      ]
+    },
+    {
+      "host": "castletooting.com",
+      "key": "food",
+      "quote": "food service times",
+      "readers": [
+        "venue/venue-jfkv2h"
+      ]
+    },
+    {
+      "host": "castletooting.com",
+      "key": "liveSports",
+      "quote": "watch the rugby",
+      "readers": [
+        "venue/venue-jfkv2h"
+      ]
+    },
+    {
+      "host": "castletooting.com",
+      "key": "pubQuiz",
+      "quote": "harvey's hype-worthy pub quiz",
+      "readers": [
+        "venue/venue-jfkv2h"
+      ]
+    },
+    {
       "host": "catandmutton.com",
       "key": "cocktails",
       "quote": "cocktails",
@@ -6823,6 +8091,14 @@
       "host": "catfordtavern.com",
       "key": "beerGarden",
       "quote": "grab a pint on the terrace",
+      "readers": [
+        "way/434179033"
+      ]
+    },
+    {
+      "host": "catfordtavern.com",
+      "key": "food",
+      "quote": "classic pub dishes",
       "readers": [
         "way/434179033"
       ]
@@ -6905,6 +8181,14 @@
       "quote": "beautifully kept beer garden",
       "readers": [
         "node/178903443"
+      ]
+    },
+    {
+      "host": "chefandbrewer.com",
+      "key": "beerGarden",
+      "quote": "beer garden",
+      "readers": [
+        "node/130577747"
       ]
     },
     {
@@ -7067,9 +8351,25 @@
     {
       "host": "cheshamarms.com",
       "key": "food",
+      "quote": "pizza for delivery with the amazing yard sale pizza",
+      "readers": [
+        "way/606507213"
+      ]
+    },
+    {
+      "host": "cheshamarms.com",
+      "key": "food",
       "quote": "pizza, two fireplaces for winter and a big garden for summer",
       "readers": [
         "way/606507213"
+      ]
+    },
+    {
+      "host": "cheshirecheese.pub",
+      "key": "food",
+      "quote": "delicious menu",
+      "readers": [
+        "node/25746185"
       ]
     },
     {
@@ -7098,6 +8398,14 @@
     },
     {
       "host": "churchillarmskensington.co.uk",
+      "key": "food",
+      "quote": "serving real ales and authentic thai cuisine",
+      "readers": [
+        "way/192794336"
+      ]
+    },
+    {
+      "host": "churchillarmskensington.co.uk",
       "key": "liveSports",
       "quote": "live sport",
       "readers": [
@@ -7108,6 +8416,22 @@
       "host": "citybargechiswick.com",
       "key": "beerGarden",
       "quote": "garden seating",
+      "readers": [
+        "way/909926391"
+      ]
+    },
+    {
+      "host": "citybargechiswick.com",
+      "key": "beerGarden",
+      "quote": "unbeatable riverside and garden seating",
+      "readers": [
+        "way/909926391"
+      ]
+    },
+    {
+      "host": "citybargechiswick.com",
+      "key": "food",
+      "quote": "our seasonal menu features fresh, local ingredients",
       "readers": [
         "way/909926391"
       ]
@@ -7185,9 +8509,25 @@
       ]
     },
     {
+      "host": "clarencetavern.com",
+      "key": "cocktails",
+      "quote": "seasonal cocktails",
+      "readers": [
+        "venue/venue-1t1cm4z"
+      ]
+    },
+    {
       "host": "clissoldarms.co.uk",
       "key": "beerGarden",
       "quote": "all year round heated and covered bear garden",
+      "readers": [
+        "way/532061943"
+      ]
+    },
+    {
+      "host": "clissoldarms.co.uk",
+      "key": "beerGarden",
+      "quote": "outside in our large private garden",
       "readers": [
         "way/532061943"
       ]
@@ -7306,6 +8646,14 @@
     },
     {
       "host": "coachandhorsesmayfair.co.uk",
+      "key": "food",
+      "quote": "good food, great drinks, classic mayfair character",
+      "readers": [
+        "way/299039548"
+      ]
+    },
+    {
+      "host": "coachandhorsesmayfair.co.uk",
       "key": "nonAlcoholic",
       "quote": "soft drinks",
       "readers": [
@@ -7334,6 +8682,38 @@
       "quote": "delicious food and drink",
       "readers": [
         "way/279533213"
+      ]
+    },
+    {
+      "host": "coachhotelkew.co.uk",
+      "key": "beerGarden",
+      "quote": "soaking up the sunshine in the garden",
+      "readers": [
+        "venue/venue-10j13wn"
+      ]
+    },
+    {
+      "host": "coachhotelkew.co.uk",
+      "key": "cocktails",
+      "quote": "two welcome cocktails when you arrive",
+      "readers": [
+        "venue/venue-10j13wn"
+      ]
+    },
+    {
+      "host": "coachhotelkew.co.uk",
+      "key": "food",
+      "quote": "tuck into our menu that is brimming with rich, seasonal flavours and produce",
+      "readers": [
+        "venue/venue-10j13wn"
+      ]
+    },
+    {
+      "host": "coachhotelkew.co.uk",
+      "key": "nonAlcoholic",
+      "quote": "berry hugo 0.0%",
+      "readers": [
+        "venue/venue-10j13wn"
       ]
     },
     {
@@ -7481,6 +8861,14 @@
       ]
     },
     {
+      "host": "comptonsofsoho.co.uk",
+      "key": "food",
+      "quote": "food and drink explore the latest menus",
+      "readers": [
+        "node/1937328128"
+      ]
+    },
+    {
       "host": "connollysofchiswick.com",
       "key": "beerGarden",
       "quote": "spacious covered beer garden",
@@ -7593,6 +8981,30 @@
       ]
     },
     {
+      "host": "countyarms.co.uk",
+      "key": "beerGarden",
+      "quote": "beer garden near wandsworth common",
+      "readers": [
+        "venue/venue-rt46p2"
+      ]
+    },
+    {
+      "host": "countyarms.co.uk",
+      "key": "cocktails",
+      "quote": "kraken espresso martini",
+      "readers": [
+        "venue/venue-rt46p2"
+      ]
+    },
+    {
+      "host": "countyarms.co.uk",
+      "key": "food",
+      "quote": "get hungry for some food",
+      "readers": [
+        "venue/venue-rt46p2"
+      ]
+    },
+    {
       "host": "craftunionpubs.com",
       "key": "beerGarden",
       "quote": "beer garden",
@@ -7638,8 +9050,11 @@
         "node/2519314340",
         "node/26979399",
         "node/4175592346",
+        "node/529116489",
         "node/8648598325",
         "way/100856450",
+        "way/1039080279",
+        "way/104168253",
         "way/1208480794",
         "way/1457317600",
         "way/238585366",
@@ -7667,7 +9082,9 @@
         "node/12641738152",
         "node/13191255035",
         "node/283218340",
+        "node/529116489",
         "node/958765282",
+        "venue/venue-om4dhj",
         "way/376224324",
         "way/82732716"
       ]
@@ -7739,7 +9156,8 @@
       "key": "darts",
       "quote": "dart boards",
       "readers": [
-        "node/12641738152"
+        "node/12641738152",
+        "venue/venue-om4dhj"
       ]
     },
     {
@@ -7877,6 +9295,7 @@
         "node/2519314340",
         "node/26979399",
         "node/291969215",
+        "node/529116489",
         "way/238585366",
         "way/376224324",
         "way/82732716",
@@ -7935,10 +9354,15 @@
         "node/26979399",
         "node/283218340",
         "node/8648598325",
+        "venue/venue-om4dhj",
+        "way/100856450",
+        "way/1039080279",
+        "way/104168253",
         "way/1208480794",
         "way/376224324",
         "way/475491527",
         "way/653145311",
+        "way/684584616",
         "way/82732716",
         "way/875103908"
       ]
@@ -8002,6 +9426,16 @@
       "quote": "live sport football premier league champions league efl fa cup conference league rugby horse racing golf boxing darts formula 1",
       "readers": [
         "way/84599924"
+      ]
+    },
+    {
+      "host": "craftunionpubs.com",
+      "key": "liveSports",
+      "quote": "sky sports",
+      "readers": [
+        "node/1676757006",
+        "node/529116489",
+        "way/507095501"
       ]
     },
     {
@@ -8131,7 +9565,8 @@
       "key": "pool",
       "quote": "pool tables",
       "readers": [
-        "node/12641738152"
+        "node/12641738152",
+        "venue/venue-om4dhj"
       ]
     },
     {
@@ -8335,6 +9770,38 @@
       ]
     },
     {
+      "host": "crownandsceptreshepherdsbush.co.uk",
+      "key": "beerGarden",
+      "quote": "cosy secret garden, providing a serene escape",
+      "readers": [
+        "venue/venue-10st8hy"
+      ]
+    },
+    {
+      "host": "crownandsceptreshepherdsbush.co.uk",
+      "key": "cocktails",
+      "quote": "cocktails, or traditional drinks",
+      "readers": [
+        "venue/venue-10st8hy"
+      ]
+    },
+    {
+      "host": "crownandsceptreshepherdsbush.co.uk",
+      "key": "food",
+      "quote": "savour refreshing drinks and indulge in some of the finest thai food the city has to offer",
+      "readers": [
+        "venue/venue-10st8hy"
+      ]
+    },
+    {
+      "host": "crownandsceptreshepherdsbush.co.uk",
+      "key": "liveSports",
+      "quote": "live sport check out what live sport we have coming up",
+      "readers": [
+        "venue/venue-10st8hy"
+      ]
+    },
+    {
       "host": "crownandsceptresouthcroydon.co.uk",
       "key": "beerGarden",
       "quote": "outside seating",
@@ -8431,6 +9898,14 @@
       ]
     },
     {
+      "host": "crownislington.co.uk",
+      "key": "food",
+      "quote": "we offer a menu featuring refined pub classics crafted from fresh, seasonal ingredients.",
+      "readers": [
+        "node/331298014"
+      ]
+    },
+    {
       "host": "crownofbromley.co.uk",
       "key": "food",
       "quote": "mouth-watering indian and chinese food can be chosen from the lunch and àla carte menu.",
@@ -8495,6 +9970,30 @@
       ]
     },
     {
+      "host": "croydonbid.com",
+      "key": "food",
+      "quote": "wide selection of food and drink",
+      "readers": [
+        "venue/venue-17r9lzv"
+      ]
+    },
+    {
+      "host": "croydonbid.com",
+      "key": "liveSports",
+      "quote": "sports shown on multiple screens",
+      "readers": [
+        "venue/venue-17r9lzv"
+      ]
+    },
+    {
+      "host": "cubitthouse.co.uk",
+      "key": "beerGarden",
+      "quote": "in the summer months our terrace is the perfect spot",
+      "readers": [
+        "venue/venue-1q44pwj"
+      ]
+    },
+    {
       "host": "cubitthouse.co.uk",
       "key": "beerGarden",
       "quote": "there is also an outside terrace for sunnier days.",
@@ -8516,6 +10015,14 @@
       "quote": "drop in for a pint or a cocktail and maybe a snack or two.",
       "readers": [
         "way/547171167"
+      ]
+    },
+    {
+      "host": "cubitthouse.co.uk",
+      "key": "cocktails",
+      "quote": "perfectly stirred martinis",
+      "readers": [
+        "venue/venue-1q44pwj"
       ]
     },
     {
@@ -8553,6 +10060,14 @@
     {
       "host": "cubitthouse.co.uk",
       "key": "food",
+      "quote": "serving beautifully prepared british and french classics",
+      "readers": [
+        "venue/venue-1q44pwj"
+      ]
+    },
+    {
+      "host": "cubitthouse.co.uk",
+      "key": "food",
       "quote": "wood-fired pizzas",
       "readers": [
         "way/147249462"
@@ -8563,6 +10078,7 @@
       "key": "liveMusic",
       "quote": "from live music to burns night",
       "readers": [
+        "venue/venue-1q44pwj",
         "way/134708046"
       ]
     },
@@ -8764,6 +10280,62 @@
       "quote": "quizzes, pop-ups",
       "readers": [
         "way/159244751"
+      ]
+    },
+    {
+      "host": "deliciobexleyheath.co.uk",
+      "key": "cocktails",
+      "quote": "delicious meal and cocktails",
+      "readers": [
+        "venue/venue-pkatki"
+      ]
+    },
+    {
+      "host": "deliciobexleyheath.co.uk",
+      "key": "food",
+      "quote": "turkish & italian food",
+      "readers": [
+        "venue/venue-pkatki"
+      ]
+    },
+    {
+      "host": "deliciobexleyheath.co.uk",
+      "key": "liveMusic",
+      "quote": "jazz band live event",
+      "readers": [
+        "venue/venue-pkatki"
+      ]
+    },
+    {
+      "host": "devonshirebalham.co.uk",
+      "key": "beerGarden",
+      "quote": "best garden in sw london",
+      "readers": [
+        "venue/venue-19pzh7p"
+      ]
+    },
+    {
+      "host": "devonshirebalham.co.uk",
+      "key": "cocktails",
+      "quote": "brunches that roll into cocktails",
+      "readers": [
+        "venue/venue-19pzh7p"
+      ]
+    },
+    {
+      "host": "devonshirebalham.co.uk",
+      "key": "food",
+      "quote": "our food & drink",
+      "readers": [
+        "venue/venue-19pzh7p"
+      ]
+    },
+    {
+      "host": "devonshirebalham.co.uk",
+      "key": "liveMusic",
+      "quote": "live music that keep things going",
+      "readers": [
+        "venue/venue-19pzh7p"
       ]
     },
     {
@@ -9105,6 +10677,14 @@
     {
       "host": "dukeofwellingtonbelgravia.co.uk",
       "key": "cocktails",
+      "quote": "a selection of cocktails may be available",
+      "readers": [
+        "way/158919239"
+      ]
+    },
+    {
+      "host": "dukeofwellingtonbelgravia.co.uk",
+      "key": "cocktails",
       "quote": "cocktails available a selection of cocktails may be available",
       "readers": [
         "way/158919239"
@@ -9209,6 +10789,14 @@
     {
       "host": "eastlondonbrewing.com",
       "key": "food",
+      "quote": "incredible open-fire food from [play with fire",
+      "readers": [
+        "way/412076101"
+      ]
+    },
+    {
+      "host": "eastlondonbrewing.com",
+      "key": "food",
       "quote": "incredible open-fire food from play with fire",
       "readers": [
         "way/412076101"
@@ -9228,6 +10816,22 @@
       "quote": "soft drinks",
       "readers": [
         "node/4172844859"
+      ]
+    },
+    {
+      "host": "eightbellsewell.co.uk",
+      "key": "cocktails",
+      "quote": "alongside great ales, cocktails",
+      "readers": [
+        "venue/venue-12qgqym"
+      ]
+    },
+    {
+      "host": "eightbellsewell.co.uk",
+      "key": "food",
+      "quote": "freshly prepared lunches, locally sourced ingredients, home-cooked pub favourites",
+      "readers": [
+        "venue/venue-12qgqym"
       ]
     },
     {
@@ -9543,9 +11147,25 @@
       ]
     },
     {
+      "host": "excellar.co.uk",
+      "key": "liveMusic",
+      "quote": "live music",
+      "readers": [
+        "venue/venue-14zs2l8"
+      ]
+    },
+    {
       "host": "expresstavern.co.uk",
       "key": "beerGarden",
       "quote": "spectacular outdoor space",
+      "readers": [
+        "way/175632028"
+      ]
+    },
+    {
+      "host": "expresstavern.co.uk",
+      "key": "food",
+      "quote": "freshly prepared food",
       "readers": [
         "way/175632028"
       ]
@@ -9703,6 +11323,30 @@
       ]
     },
     {
+      "host": "firestables.co.uk",
+      "key": "cocktails",
+      "quote": "our expert bartenders shake up world-class cocktails",
+      "readers": [
+        "venue/venue-alvnwn"
+      ]
+    },
+    {
+      "host": "firestables.co.uk",
+      "key": "food",
+      "quote": "fresh, seasonal & locally-sourced ## food & drinks",
+      "readers": [
+        "venue/venue-alvnwn"
+      ]
+    },
+    {
+      "host": "firestables.co.uk",
+      "key": "liveSports",
+      "quote": "watching the autumn nations 2026",
+      "readers": [
+        "venue/venue-alvnwn"
+      ]
+    },
+    {
       "host": "flaminggrillpubs.co.uk",
       "key": "beerGarden",
       "quote": "head out to the beer garden",
@@ -9757,6 +11401,14 @@
       "quote": "punchy cocktails",
       "readers": [
         "way/1119244237"
+      ]
+    },
+    {
+      "host": "flaminggrillpubs.co.uk",
+      "key": "darts",
+      "quote": "dartboard",
+      "readers": [
+        "way/806213988"
       ]
     },
     {
@@ -9904,6 +11556,22 @@
     },
     {
       "host": "flaminggrillpubs.co.uk",
+      "key": "liveSports",
+      "quote": "we're showing all the live sports you love, with sky sports and tnt sports.",
+      "readers": [
+        "way/806213988"
+      ]
+    },
+    {
+      "host": "flaminggrillpubs.co.uk",
+      "key": "nonAlcoholic",
+      "quote": "a glass of beer, a glass of fizzy drink, and a bottle of peroni 0.0% alcohol beer also sit on the table.",
+      "readers": [
+        "way/806213988"
+      ]
+    },
+    {
+      "host": "flaminggrillpubs.co.uk",
       "key": "pool",
       "quote": "cashless pool tables",
       "readers": [
@@ -9940,6 +11608,30 @@
       "quote": "kitchen 12pm-4pm & 5pm-10pm",
       "readers": [
         "node/596791858"
+      ]
+    },
+    {
+      "host": "florencehernehill.com",
+      "key": "beerGarden",
+      "quote": "one of the best beer gardens",
+      "readers": [
+        "way/1547410549"
+      ]
+    },
+    {
+      "host": "florencehernehill.com",
+      "key": "food",
+      "quote": "great food, big games & garden vibes",
+      "readers": [
+        "way/1547410549"
+      ]
+    },
+    {
+      "host": "florencehernehill.com",
+      "key": "liveSports",
+      "quote": "live sport on screen",
+      "readers": [
+        "way/1547410549"
       ]
     },
     {
@@ -10079,6 +11771,22 @@
       ]
     },
     {
+      "host": "forestwines.com",
+      "key": "food",
+      "quote": "excellent deli snacks such as olives, crisps and nuts",
+      "readers": [
+        "venue/venue-176d6nl"
+      ]
+    },
+    {
+      "host": "forestwines.com",
+      "key": "nonAlcoholic",
+      "quote": "alcohol free beer",
+      "readers": [
+        "venue/venue-176d6nl"
+      ]
+    },
+    {
       "host": "foundersarms.co.uk",
       "key": "beerGarden",
       "quote": "pooches are welcome on our terrace",
@@ -10092,6 +11800,22 @@
       "quote": "serving up the very best of british dishes",
       "readers": [
         "way/77755297"
+      ]
+    },
+    {
+      "host": "fountainhotellondon.com",
+      "key": "beerGarden",
+      "quote": "vibrant garden",
+      "readers": [
+        "venue/venue-1uk6kty"
+      ]
+    },
+    {
+      "host": "fountainhotellondon.com",
+      "key": "food",
+      "quote": "best kitchen and bar",
+      "readers": [
+        "venue/venue-1uk6kty"
       ]
     },
     {
@@ -10503,6 +12227,22 @@
       ]
     },
     {
+      "host": "glasshouse.pub",
+      "key": "food",
+      "quote": "real food. the heart of new malden.",
+      "readers": [
+        "venue/venue-1toxhgz"
+      ]
+    },
+    {
+      "host": "goepsom.com",
+      "key": "food",
+      "quote": "award-winning catering",
+      "readers": [
+        "venue/venue-1bzpmdx"
+      ]
+    },
+    {
       "host": "goldenfleececity.com",
       "key": "food",
       "quote": "seasonal food and great drinks",
@@ -10524,6 +12264,30 @@
       "quote": "asian food",
       "readers": [
         "node/257937397"
+      ]
+    },
+    {
+      "host": "grapessw18.co.uk",
+      "key": "darts",
+      "quote": "dart boards",
+      "readers": [
+        "venue/venue-1xmac"
+      ]
+    },
+    {
+      "host": "grapessw18.co.uk",
+      "key": "liveMusic",
+      "quote": "live music next week",
+      "readers": [
+        "venue/venue-1xmac"
+      ]
+    },
+    {
+      "host": "grapessw18.co.uk",
+      "key": "pool",
+      "quote": "pool tables",
+      "readers": [
+        "venue/venue-1xmac"
       ]
     },
     {
@@ -10580,6 +12344,14 @@
       "quote": "largest pub garden in town",
       "readers": [
         "way/1324138135"
+      ]
+    },
+    {
+      "host": "greatlocalpubs.co.uk",
+      "key": "beerGarden",
+      "quote": "outside area",
+      "readers": [
+        "node/277834910"
       ]
     },
     {
@@ -10647,6 +12419,15 @@
     {
       "host": "greatlocalpubs.co.uk",
       "key": "food",
+      "quote": "food serving",
+      "readers": [
+        "node/249672846",
+        "way/258498191"
+      ]
+    },
+    {
+      "host": "greatlocalpubs.co.uk",
+      "key": "food",
       "quote": "good food and beer",
       "readers": [
         "way/1060529595"
@@ -10666,6 +12447,14 @@
       "quote": "great selection of food and drinks",
       "readers": [
         "way/31324086"
+      ]
+    },
+    {
+      "host": "greatlocalpubs.co.uk",
+      "key": "food",
+      "quote": "offering delicious food",
+      "readers": [
+        "node/277834910"
       ]
     },
     {
@@ -10737,7 +12526,16 @@
       "key": "liveMusic",
       "quote": "live music",
       "readers": [
-        "node/266890511"
+        "node/266890511",
+        "way/98612270"
+      ]
+    },
+    {
+      "host": "greatlocalpubs.co.uk",
+      "key": "liveSports",
+      "quote": "watch all major live sport",
+      "readers": [
+        "way/98612270"
       ]
     },
     {
@@ -11199,6 +12997,14 @@
     {
       "host": "greeneking.co.uk",
       "key": "beerGarden",
+      "quote": "our spacious beer garden has heated huts",
+      "readers": [
+        "node/10266440541"
+      ]
+    },
+    {
+      "host": "greeneking.co.uk",
+      "key": "beerGarden",
       "quote": "our spacious beer garden is a great spot",
       "readers": [
         "node/241473415"
@@ -11259,6 +13065,7 @@
       "readers": [
         "node/25729218",
         "node/415673841",
+        "way/1171226026",
         "way/406074332"
       ]
     },
@@ -11398,6 +13205,14 @@
       "quote": "watch the world go by in our outdoor seating",
       "readers": [
         "node/2316821043"
+      ]
+    },
+    {
+      "host": "greeneking.co.uk",
+      "key": "cocktails",
+      "quote": "a cocktail",
+      "readers": [
+        "way/418075242"
       ]
     },
     {
@@ -11552,7 +13367,10 @@
       "key": "darts",
       "quote": "dartboard",
       "readers": [
-        "node/5382875197"
+        "node/5382875197",
+        "node/90272342",
+        "way/550447429",
+        "way/681581511"
       ]
     },
     {
@@ -11995,6 +13813,14 @@
     {
       "host": "greeneking.co.uk",
       "key": "food",
+      "quote": "fuel up for a day of exploring with our generous pub food menu.",
+      "readers": [
+        "node/10266440541"
+      ]
+    },
+    {
+      "host": "greeneking.co.uk",
+      "key": "food",
       "quote": "generous pub food menu",
       "readers": [
         "node/10266440541"
@@ -12149,6 +13975,14 @@
     {
       "host": "greeneking.co.uk",
       "key": "food",
+      "quote": "our food menu is sure to satisfy any craving, with a tasty range of hearty classics, seasonal staples and sweet treats.",
+      "readers": [
+        "way/973132221"
+      ]
+    },
+    {
+      "host": "greeneking.co.uk",
+      "key": "food",
       "quote": "our food menu, with hearty pies, succulent steaks, stacked gourmet burgers and aromatic curries.",
       "readers": [
         "node/241473415"
@@ -12166,6 +14000,14 @@
       "host": "greeneking.co.uk",
       "key": "food",
       "quote": "our menu is chock-full of hearty pub food classics",
+      "readers": [
+        "way/550447429"
+      ]
+    },
+    {
+      "host": "greeneking.co.uk",
+      "key": "food",
+      "quote": "our menu is chock-full of hearty pub food classics and succulent signature dishes",
       "readers": [
         "way/550447429"
       ]
@@ -12311,6 +14153,14 @@
     {
       "host": "greeneking.co.uk",
       "key": "food",
+      "quote": "refined pub classics, like steaks, burgers, fish & chips and sunday roasts",
+      "readers": [
+        "way/418075242"
+      ]
+    },
+    {
+      "host": "greeneking.co.uk",
+      "key": "food",
       "quote": "refined pub food classics",
       "readers": [
         "way/273610363",
@@ -12451,6 +14301,14 @@
     {
       "host": "greeneking.co.uk",
       "key": "food",
+      "quote": "serving up fantastic pub food like all-day breakfasts, hand-battered fish & chips, succulent steaks and crafted burgers",
+      "readers": [
+        "way/681581511"
+      ]
+    },
+    {
+      "host": "greeneking.co.uk",
+      "key": "food",
       "quote": "settle down and enjoy a hearty pub meal",
       "readers": [
         "node/292615228"
@@ -12568,6 +14426,14 @@
         "way/155488603",
         "way/174088756",
         "way/631474504"
+      ]
+    },
+    {
+      "host": "greeneking.co.uk",
+      "key": "food",
+      "quote": "try out our menu: packed with flavour, full of pub classics",
+      "readers": [
+        "way/290081133"
       ]
     },
     {
@@ -12725,6 +14591,14 @@
     },
     {
       "host": "greeneking.co.uk",
+      "key": "food",
+      "quote": "you'll find our menu has got it covered. we do comfort food",
+      "readers": [
+        "node/90272342"
+      ]
+    },
+    {
+      "host": "greeneking.co.uk",
       "key": "happyHour",
       "quote": "2-for-1 on selected drinks from 4pm - 7pm",
       "readers": [
@@ -12745,8 +14619,17 @@
       "key": "happyHour",
       "quote": "enjoy 2-for-1 on selected drinks from 4pm - 7pm",
       "readers": [
+        "node/90272342",
         "way/1135490946",
         "way/943635819"
+      ]
+    },
+    {
+      "host": "greeneking.co.uk",
+      "key": "happyHour",
+      "quote": "enjoy 2-for-1 on selected drinks from 4pm - 7pm, monday to thursday!",
+      "readers": [
+        "way/681581511"
       ]
     },
     {
@@ -12928,6 +14811,14 @@
       "quote": "exciting events from live music",
       "readers": [
         "way/900831933"
+      ]
+    },
+    {
+      "host": "greeneking.co.uk",
+      "key": "liveMusic",
+      "quote": "from live music",
+      "readers": [
+        "way/1171226026"
       ]
     },
     {
@@ -13246,6 +15137,14 @@
     {
       "host": "greeneking.co.uk",
       "key": "liveSports",
+      "quote": "catch all the latest live sports action with sky sports and tnt sports",
+      "readers": [
+        "way/550447429"
+      ]
+    },
+    {
+      "host": "greeneking.co.uk",
+      "key": "liveSports",
       "quote": "catch the latest live sports action on the big screen",
       "readers": [
         "node/292615228"
@@ -13272,6 +15171,7 @@
         "way/321967936",
         "way/357447830",
         "way/392465039",
+        "way/418075242",
         "way/631474504",
         "way/813541218",
         "way/864727590",
@@ -13299,8 +15199,12 @@
         "node/1112173867",
         "node/1360505703",
         "node/292183282",
+        "node/295905003",
         "node/3223507051",
+        "node/691632516",
         "node/739464861",
+        "node/90272342",
+        "venue/venue-1eycmcw",
         "way/1042222567",
         "way/108251970",
         "way/1135490946",
@@ -13327,7 +15231,8 @@
       "key": "liveSports",
       "quote": "live sport book a table for all the top sporting action, from footy to rugby, f1, darts and more!",
       "readers": [
-        "node/1678982781"
+        "node/1678982781",
+        "way/973132221"
       ]
     },
     {
@@ -13413,6 +15318,14 @@
       "quote": "showing live sports",
       "readers": [
         "way/966321710"
+      ]
+    },
+    {
+      "host": "greeneking.co.uk",
+      "key": "liveSports",
+      "quote": "showing live sports on our sky sports and tnt sports screens",
+      "readers": [
+        "way/290081133"
       ]
     },
     {
@@ -13517,6 +15430,14 @@
       "quote": "watch live sports with our sky sports and tnt sports screens",
       "readers": [
         "way/681581511"
+      ]
+    },
+    {
+      "host": "greeneking.co.uk",
+      "key": "liveSports",
+      "quote": "watching a football match shown on tv",
+      "readers": [
+        "way/475957291"
       ]
     },
     {
@@ -14002,6 +15923,7 @@
       "key": "pubQuiz",
       "quote": "join our pub quiz, every monday",
       "readers": [
+        "node/295905003",
         "way/1135490946",
         "way/237286956",
         "way/900831933"
@@ -14033,6 +15955,7 @@
       "key": "pubQuiz",
       "quote": "join our pub quiz, every tuesday",
       "readers": [
+        "node/10266440541",
         "node/739464861",
         "way/1042222567",
         "way/328572823",
@@ -14199,6 +16122,38 @@
       ]
     },
     {
+      "host": "greenwichsu.co.uk",
+      "key": "cocktails",
+      "quote": "our cocktail list features signature drinks",
+      "readers": [
+        "venue/venue-1naml38"
+      ]
+    },
+    {
+      "host": "greenwichsu.co.uk",
+      "key": "food",
+      "quote": "great value food",
+      "readers": [
+        "venue/venue-1naml38"
+      ]
+    },
+    {
+      "host": "greenwichsu.co.uk",
+      "key": "nonAlcoholic",
+      "quote": "alcohol-free options",
+      "readers": [
+        "venue/venue-1naml38"
+      ]
+    },
+    {
+      "host": "greenwichsu.co.uk",
+      "key": "pubQuiz",
+      "quote": "pub quiz",
+      "readers": [
+        "venue/venue-1naml38"
+      ]
+    },
+    {
       "host": "greenwichtavern.co.uk",
       "key": "beerGarden",
       "quote": "stylish beer garden space",
@@ -14226,6 +16181,14 @@
       "host": "grenadierbelgravia.com",
       "key": "food",
       "quote": "created in-house from scratch, our head chef brings fresh seasonal dishes and pub classics to the menu",
+      "readers": [
+        "node/13235500301"
+      ]
+    },
+    {
+      "host": "grenadierbelgravia.com",
+      "key": "food",
+      "quote": "seasonal menu created in-house from scratch, our head chef brings fresh seasonal dishes and pub classics to the menu",
       "readers": [
         "node/13235500301"
       ]
@@ -14487,6 +16450,30 @@
       ]
     },
     {
+      "host": "hammertonbrewery.co.uk",
+      "key": "cocktails",
+      "quote": "all cocktails are available at just £10",
+      "readers": [
+        "venue/venue-18bpz15"
+      ]
+    },
+    {
+      "host": "hammertonbrewery.co.uk",
+      "key": "food",
+      "quote": "serving up bold, mouth-watering mexican flavours",
+      "readers": [
+        "venue/venue-18bpz15"
+      ]
+    },
+    {
+      "host": "hammertonbrewery.co.uk",
+      "key": "happyHour",
+      "quote": "join us every day from 4 pm to 7 pm for happy hour",
+      "readers": [
+        "venue/venue-18bpz15"
+      ]
+    },
+    {
       "host": "handandflower.co.uk",
       "key": "food",
       "quote": "food served",
@@ -14562,6 +16549,14 @@
       "host": "hareandhoundsosterley.co.uk",
       "key": "food",
       "quote": "fresh food",
+      "readers": [
+        "node/36487478"
+      ]
+    },
+    {
+      "host": "hareandhoundsosterley.co.uk",
+      "key": "liveSports",
+      "quote": "big screen sports viewing",
       "readers": [
         "node/36487478"
       ]
@@ -14679,6 +16674,30 @@
       ]
     },
     {
+      "host": "harrys.co.uk",
+      "key": "beerGarden",
+      "quote": "shaded courtyard",
+      "readers": [
+        "venue/venue-ygsdq3"
+      ]
+    },
+    {
+      "host": "harrys.co.uk",
+      "key": "cocktails",
+      "quote": "one of our excellent cocktails made just for you",
+      "readers": [
+        "venue/venue-ygsdq3"
+      ]
+    },
+    {
+      "host": "harrys.co.uk",
+      "key": "food",
+      "quote": "full menu available in restaurant and courtyard, tapas dishes also served in the evenings.",
+      "readers": [
+        "venue/venue-ygsdq3"
+      ]
+    },
+    {
       "host": "harwoodarms.com",
       "key": "food",
       "quote": "award-winning food and wine",
@@ -14724,6 +16743,30 @@
       "quote": "happy hour twins",
       "readers": [
         "node/7099537759"
+      ]
+    },
+    {
+      "host": "hazine.co.uk",
+      "key": "cocktails",
+      "quote": "2 for 1 cocktails saturday, 26/09/2026",
+      "readers": [
+        "venue/venue-a9nk2t"
+      ]
+    },
+    {
+      "host": "hazine.co.uk",
+      "key": "food",
+      "quote": "our all-day menu celebrates the best of turkish and mediterranean cuisine",
+      "readers": [
+        "venue/venue-a9nk2t"
+      ]
+    },
+    {
+      "host": "hazine.co.uk",
+      "key": "liveMusic",
+      "quote": "join us for live music every weekend",
+      "readers": [
+        "venue/venue-a9nk2t"
       ]
     },
     {
@@ -15119,6 +17162,30 @@
       ]
     },
     {
+      "host": "hoopandgrapes.co.uk",
+      "key": "beerGarden",
+      "quote": "charming courtyard garden",
+      "readers": [
+        "way/996506249"
+      ]
+    },
+    {
+      "host": "hoopandgrapes.co.uk",
+      "key": "cocktails",
+      "quote": "signature cocktails - from refreshing mojitos to espresso martinis",
+      "readers": [
+        "way/996506249"
+      ]
+    },
+    {
+      "host": "hoopandgrapes.co.uk",
+      "key": "food",
+      "quote": "welcoming place to eat, drink and meet",
+      "readers": [
+        "way/996506249"
+      ]
+    },
+    {
       "host": "hopeandanchorbrixton.co.uk",
       "key": "beerGarden",
       "quote": "beer garden",
@@ -15156,6 +17223,22 @@
       "quote": "catch the game",
       "readers": [
         "node/274268703"
+      ]
+    },
+    {
+      "host": "hopecarshalton.co.uk",
+      "key": "beerGarden",
+      "quote": "fantastic decking area",
+      "readers": [
+        "way/97425688"
+      ]
+    },
+    {
+      "host": "hopecarshalton.co.uk",
+      "key": "food",
+      "quote": "delicious home cooked meal",
+      "readers": [
+        "way/97425688"
       ]
     },
     {
@@ -15624,6 +17707,7 @@
       "key": "beerGarden",
       "quote": "licensed outside area",
       "readers": [
+        "node/11067789496",
         "node/1117274890",
         "node/11445942141",
         "node/153620231",
@@ -15643,10 +17727,12 @@
         "node/411115268",
         "node/512246937",
         "node/646585258",
+        "node/6677415686",
         "node/812415878",
         "node/87355103",
         "way/1002485834",
         "way/1194233515",
+        "way/1240494104",
         "way/1249142247",
         "way/140144150",
         "way/1504081862",
@@ -15662,15 +17748,19 @@
         "way/422437719",
         "way/424790398",
         "way/448779543",
+        "way/511169062",
         "way/540185919",
         "way/609808911",
         "way/611600821",
         "way/671045075",
+        "way/671115609",
         "way/671119848",
         "way/685395571",
         "way/80823095",
         "way/828302568",
         "way/87853299",
+        "way/91002646",
+        "way/930548529",
         "way/965765986",
         "way/999531990"
       ]
@@ -15686,12 +17776,17 @@
         "node/2531024418",
         "node/256404255",
         "node/267777279",
+        "node/293516727",
         "node/29395318",
         "node/294950903",
         "node/302166735",
         "node/331529890",
         "node/512246937",
         "node/5793837555",
+        "node/6284663193",
+        "node/6284670927",
+        "node/733975796",
+        "node/87355103",
         "node/915100787",
         "node/951344064",
         "node/958771969",
@@ -15700,18 +17795,22 @@
         "way/1249142247",
         "way/1504081862",
         "way/160669972",
+        "way/198678837",
         "way/200175760",
         "way/279651998",
         "way/424790398",
+        "way/441509845",
         "way/540185919",
         "way/569138325",
         "way/595124545",
+        "way/671115609",
         "way/685395571",
         "way/729378689",
         "way/80823095",
         "way/828302568",
         "way/863516669",
-        "way/87853299"
+        "way/87853299",
+        "way/930548529"
       ]
     },
     {
@@ -15724,6 +17823,7 @@
         "node/1132744385",
         "node/12231843057",
         "node/12529152052",
+        "node/153620231",
         "node/1586998347",
         "node/1713315332",
         "node/2522664082",
@@ -15745,6 +17845,7 @@
         "node/6284663193",
         "node/6284670927",
         "node/646585258",
+        "node/6677415686",
         "node/733975796",
         "node/812415878",
         "node/87355103",
@@ -15757,6 +17858,7 @@
         "way/161764743",
         "way/178680197",
         "way/198678837",
+        "way/200175760",
         "way/277929219",
         "way/279322556",
         "way/315002920",
@@ -15769,8 +17871,10 @@
         "way/438299712",
         "way/441509845",
         "way/441808906",
+        "way/479854544",
         "way/511169062",
         "way/520713807",
+        "way/540185919",
         "way/609808911",
         "way/611600821",
         "way/65382138",
@@ -15778,8 +17882,11 @@
         "way/671115609",
         "way/671115966",
         "way/671119848",
+        "way/685395571",
+        "way/729378689",
         "way/753674033",
         "way/818160419",
+        "way/863516669",
         "way/91002646",
         "way/930548529",
         "way/94758909",
@@ -15792,7 +17899,9 @@
       "key": "cocktails",
       "quote": "wetherspoon's spritz cocktail range, a choice of nine classic and fruity recipes for all tastes.",
       "readers": [
+        "node/11067789496",
         "node/3895190286",
+        "way/1562612297",
         "way/248749056",
         "way/448779543"
       ]
@@ -15840,10 +17949,15 @@
         "node/153620231",
         "node/1786418431",
         "node/267777279",
+        "node/293516727",
         "node/331529890",
         "node/5793837555",
+        "node/6284663193",
+        "node/6284670927",
+        "node/87355103",
         "node/958771969",
         "way/1002485834",
+        "way/1249142247",
         "way/200175760",
         "way/279651998",
         "way/424790398",
@@ -15893,7 +18007,9 @@
       "key": "food",
       "quote": "food and drinks wetherspoon's menus offer something for every taste.",
       "readers": [
+        "node/11067789496",
         "node/3895190286",
+        "way/200175760",
         "way/448779543"
       ]
     },
@@ -15902,6 +18018,7 @@
       "key": "food",
       "quote": "prepare and cook food",
       "readers": [
+        "way/198678837",
         "way/818160419"
       ]
     },
@@ -15911,6 +18028,8 @@
       "quote": "preparing, cooking and presenting food",
       "readers": [
         "node/256404255",
+        "node/733975796",
+        "node/958771969",
         "way/1504081862",
         "way/595124545"
       ]
@@ -15918,8 +18037,17 @@
     {
       "host": "jdwetherspoon.com",
       "key": "food",
+      "quote": "quality of the food offered",
+      "readers": [
+        "way/930548529"
+      ]
+    },
+    {
+      "host": "jdwetherspoon.com",
+      "key": "food",
       "quote": "serve food and drinks",
       "readers": [
+        "way/441509845",
         "way/569138325"
       ]
     },
@@ -15951,17 +18079,30 @@
       "readers": [
         "node/11067789496",
         "node/1117274890",
+        "node/1132744385",
         "node/1713315332",
         "node/3282498381",
+        "node/385560795",
         "node/411115268",
         "node/512246937",
+        "node/6677415686",
         "way/1240494104",
         "way/140144150",
         "way/1562612297",
         "way/161764743",
         "way/178680197",
         "way/315002920",
+        "way/391735310",
+        "way/422437719",
         "way/441509845",
+        "way/479854544",
+        "way/540185919",
+        "way/611600821",
+        "way/671045075",
+        "way/671119848",
+        "way/729378689",
+        "way/863516669",
+        "way/91002646",
         "way/965765986",
         "way/999531990"
       ]
@@ -15973,16 +18114,24 @@
       "readers": [
         "node/12231843057",
         "node/12529152052",
+        "node/153620231",
         "node/1586998347",
         "node/348817410",
         "node/3569354105",
+        "node/366073245",
         "node/618653525",
+        "way/178680197",
+        "way/315002920",
+        "way/321450393",
         "way/38325241",
+        "way/511169062",
         "way/520713807",
         "way/609808911",
         "way/671045075",
         "way/671115609",
+        "way/671115966",
         "way/671119848",
+        "way/685395571",
         "way/753674033",
         "way/94758909"
       ]
@@ -16248,6 +18397,14 @@
       "quote": "listen to great live music, exceptional dj and have some fun.",
       "readers": [
         "way/351140834"
+      ]
+    },
+    {
+      "host": "joyau.co",
+      "key": "food",
+      "quote": "serving breakfast, lunch and dinner",
+      "readers": [
+        "venue/venue-wfc91j"
       ]
     },
     {
@@ -16707,11 +18864,75 @@
       ]
     },
     {
+      "host": "lambsurbiton.co.uk",
+      "key": "liveMusic",
+      "quote": "live music",
+      "readers": [
+        "venue/venue-46mqmt"
+      ]
+    },
+    {
+      "host": "lambtavernleadenhall.com",
+      "key": "cocktails",
+      "quote": "enjoy a cocktail (or two)",
+      "readers": [
+        "venue/venue-zfg366"
+      ]
+    },
+    {
+      "host": "lambtavernleadenhall.com",
+      "key": "food",
+      "quote": "serving the best food & drink",
+      "readers": [
+        "venue/venue-zfg366"
+      ]
+    },
+    {
+      "host": "lambtavernleadenhall.com",
+      "key": "liveSports",
+      "quote": "live sport",
+      "readers": [
+        "venue/venue-zfg366"
+      ]
+    },
+    {
       "host": "landoflibertypub.com",
       "key": "food",
       "quote": "great snacks",
       "readers": [
         "node/1206741009"
+      ]
+    },
+    {
+      "host": "langhamclub.co.uk",
+      "key": "liveSports",
+      "quote": "sky sports and tnt sports",
+      "readers": [
+        "venue/venue-fw3cy8"
+      ]
+    },
+    {
+      "host": "langhamclub.co.uk",
+      "key": "pool",
+      "quote": "pool and snooker tables",
+      "readers": [
+        "venue/venue-fw3cy8"
+      ]
+    },
+    {
+      "host": "larkshallpub.co.uk",
+      "key": "beerGarden",
+      "quote": "our beautiful beer garden in chingford",
+      "readers": [
+        "venue/venue-16bgt1v"
+      ]
+    },
+    {
+      "host": "larkshallpub.co.uk",
+      "key": "food",
+      "quote": "serving up the best seasonal dishes",
+      "readers": [
+        "venue/venue-16bgt1v"
       ]
     },
     {
@@ -16811,6 +19032,78 @@
       ]
     },
     {
+      "host": "lemontreecoventgarden.com",
+      "key": "cocktails",
+      "quote": "cocktails",
+      "readers": [
+        "venue/venue-11iolkd"
+      ]
+    },
+    {
+      "host": "lemontreecoventgarden.com",
+      "key": "food",
+      "quote": "delicious authentic thai cuisine",
+      "readers": [
+        "venue/venue-11iolkd"
+      ]
+    },
+    {
+      "host": "leytonstar.co.uk",
+      "key": "beerGarden",
+      "quote": "it is the perfect beer garden",
+      "readers": [
+        "venue/venue-18d8k3w"
+      ]
+    },
+    {
+      "host": "leytonstar.co.uk",
+      "key": "cocktails",
+      "quote": "thursday 2-4-£14 cocktails",
+      "readers": [
+        "venue/venue-18d8k3w"
+      ]
+    },
+    {
+      "host": "leytonstar.co.uk",
+      "key": "food",
+      "quote": "patty&bun now brings it&#8217;s unapologetically messy, high-quality burgers and bold flavours to the leyton star.",
+      "readers": [
+        "venue/venue-18d8k3w"
+      ]
+    },
+    {
+      "host": "leytonstar.co.uk",
+      "key": "happyHour",
+      "quote": "spritz up your life &#8211; £6 spritzes 4 &#8211; 9pm every friday",
+      "readers": [
+        "venue/venue-18d8k3w"
+      ]
+    },
+    {
+      "host": "leytonstar.co.uk",
+      "key": "karaoke",
+      "quote": "private karaoke room",
+      "readers": [
+        "venue/venue-18d8k3w"
+      ]
+    },
+    {
+      "host": "leytonstar.co.uk",
+      "key": "liveSports",
+      "quote": "the ideal pub in leyton to watch the next big match.",
+      "readers": [
+        "venue/venue-18d8k3w"
+      ]
+    },
+    {
+      "host": "leytonstar.co.uk",
+      "key": "pubQuiz",
+      "quote": "our weekly events include our monthly quiz nights",
+      "readers": [
+        "venue/venue-18d8k3w"
+      ]
+    },
+    {
       "host": "leytonstonetavern.com",
       "key": "cocktails",
       "quote": "friday 2 tiempo cocktails for £16.50",
@@ -16848,6 +19141,14 @@
       "quote": "trivia aficionado",
       "readers": [
         "way/1238928087"
+      ]
+    },
+    {
+      "host": "londonhospitaltavern.com",
+      "key": "food",
+      "quote": "home cooked food",
+      "readers": [
+        "venue/venue-zh8723"
       ]
     },
     {
@@ -16920,6 +19221,22 @@
       "quote": "lord napier star pub quiz",
       "readers": [
         "way/525700383"
+      ]
+    },
+    {
+      "host": "lordwargrave.com",
+      "key": "cocktails",
+      "quote": "secret cocktail bar",
+      "readers": [
+        "node/298220599"
+      ]
+    },
+    {
+      "host": "lordwargrave.com",
+      "key": "food",
+      "quote": "authentic barbecue menu",
+      "readers": [
+        "node/298220599"
       ]
     },
     {
@@ -17019,6 +19336,14 @@
       ]
     },
     {
+      "host": "luckysaint.co",
+      "key": "nonAlcoholic",
+      "quote": "alcohol-free beer brand",
+      "readers": [
+        "way/110753811"
+      ]
+    },
+    {
       "host": "lvls.london",
       "key": "cocktails",
       "quote": "expert made cocktails",
@@ -17060,8 +19385,24 @@
     },
     {
       "host": "lyricsoho.co.uk",
+      "key": "liveMusic",
+      "quote": "live music and quiz nights",
+      "readers": [
+        "way/249343304"
+      ]
+    },
+    {
+      "host": "lyricsoho.co.uk",
       "key": "liveSports",
       "quote": "catch live sports",
+      "readers": [
+        "way/249343304"
+      ]
+    },
+    {
+      "host": "lyricsoho.co.uk",
+      "key": "pubQuiz",
+      "quote": "live music and quiz nights",
       "readers": [
         "way/249343304"
       ]
@@ -17187,6 +19528,38 @@
       ]
     },
     {
+      "host": "markethalls.co.uk",
+      "key": "beerGarden",
+      "quote": "hidden rooftop",
+      "readers": [
+        "venue/venue-1k2w9wy"
+      ]
+    },
+    {
+      "host": "markethalls.co.uk",
+      "key": "cocktails",
+      "quote": "2 for £20 spritz",
+      "readers": [
+        "venue/venue-1k2w9wy"
+      ]
+    },
+    {
+      "host": "markethalls.co.uk",
+      "key": "food",
+      "quote": "9 kitchens",
+      "readers": [
+        "venue/venue-1k2w9wy"
+      ]
+    },
+    {
+      "host": "markethalls.co.uk",
+      "key": "happyHour",
+      "quote": "happy hours",
+      "readers": [
+        "venue/venue-1k2w9wy"
+      ]
+    },
+    {
       "host": "marquesscanonbury.com",
       "key": "beerGarden",
       "quote": "two cosy outdoor spaces",
@@ -17277,6 +19650,14 @@
     {
       "host": "maynardarmsn8.co.uk",
       "key": "food",
+      "quote": "enjoy seasonal food, sunday roasts, summer barbecues",
+      "readers": [
+        "node/12633199509"
+      ]
+    },
+    {
+      "host": "maynardarmsn8.co.uk",
+      "key": "food",
       "quote": "relaxed pub dining & drinks",
       "readers": [
         "node/12633199509"
@@ -17286,6 +19667,14 @@
       "host": "maynardarmsn8.co.uk",
       "key": "liveSports",
       "quote": "live sports",
+      "readers": [
+        "node/12633199509"
+      ]
+    },
+    {
+      "host": "maynardarmsn8.co.uk",
+      "key": "liveSports",
+      "quote": "sky sports",
       "readers": [
         "node/12633199509"
       ]
@@ -17477,6 +19866,14 @@
       ]
     },
     {
+      "host": "mimosaproduce.com",
+      "key": "food",
+      "quote": "we offer a variety of traditional cakes, snacks and drinks",
+      "readers": [
+        "venue/venue-1098oqz"
+      ]
+    },
+    {
       "host": "mobydickgreenlanddock.co.uk",
       "key": "beerGarden",
       "quote": "large terrace",
@@ -17527,6 +19924,14 @@
     {
       "host": "morpetharms.com",
       "key": "food",
+      "quote": "food served 12pm - 9pm",
+      "readers": [
+        "way/112544263"
+      ]
+    },
+    {
+      "host": "morpetharms.com",
+      "key": "food",
       "quote": "pub food & sunday roasts in westminster",
       "readers": [
         "way/112544263"
@@ -17536,6 +19941,14 @@
       "host": "morpetharms.com",
       "key": "liveSports",
       "quote": "do you show live sport?",
+      "readers": [
+        "way/112544263"
+      ]
+    },
+    {
+      "host": "morpetharms.com",
+      "key": "liveSports",
+      "quote": "do you show live sport? yes, we show major sporting events",
       "readers": [
         "way/112544263"
       ]
@@ -17574,6 +19987,38 @@
       "readers": [
         "node/2831429756",
         "node/6488078275"
+      ]
+    },
+    {
+      "host": "mothersruin.net",
+      "key": "cocktails",
+      "quote": "used in cocktails",
+      "readers": [
+        "venue/venue-v1h0f5"
+      ]
+    },
+    {
+      "host": "mothersruin.net",
+      "key": "food",
+      "quote": "hot food",
+      "readers": [
+        "venue/venue-v1h0f5"
+      ]
+    },
+    {
+      "host": "mothersruin.net",
+      "key": "liveMusic",
+      "quote": "live music by diz toba",
+      "readers": [
+        "venue/venue-v1h0f5"
+      ]
+    },
+    {
+      "host": "mothersruin.net",
+      "key": "nonAlcoholic",
+      "quote": "no-alcohol available too",
+      "readers": [
+        "venue/venue-v1h0f5"
       ]
     },
     {
@@ -17617,6 +20062,38 @@
       ]
     },
     {
+      "host": "myddletonarms.co.uk",
+      "key": "beerGarden",
+      "quote": "cosy beer garden",
+      "readers": [
+        "venue/venue-bvopgj"
+      ]
+    },
+    {
+      "host": "myddletonarms.co.uk",
+      "key": "food",
+      "quote": "delicious food",
+      "readers": [
+        "venue/venue-bvopgj"
+      ]
+    },
+    {
+      "host": "myddletonarms.co.uk",
+      "key": "liveMusic",
+      "quote": "cosy jazz session",
+      "readers": [
+        "venue/venue-bvopgj"
+      ]
+    },
+    {
+      "host": "myddletonarms.co.uk",
+      "key": "pubQuiz",
+      "quote": "monday pub quiz",
+      "readers": [
+        "venue/venue-bvopgj"
+      ]
+    },
+    {
       "host": "nds.in.net",
       "key": "liveSports",
       "quote": "cá cược thể thao",
@@ -17643,6 +20120,14 @@
     {
       "host": "nelsonarms.co.uk",
       "key": "beerGarden",
+      "quote": "garden which are both available for hire",
+      "readers": [
+        "way/1212143912"
+      ]
+    },
+    {
+      "host": "nelsonarms.co.uk",
+      "key": "beerGarden",
       "quote": "screens throughout the pubs including beer garden bug screens too.",
       "readers": [
         "way/1212143912"
@@ -17658,8 +20143,24 @@
     },
     {
       "host": "nelsonarms.co.uk",
+      "key": "food",
+      "quote": "the nelson arms food menu",
+      "readers": [
+        "way/1212143912"
+      ]
+    },
+    {
+      "host": "nelsonarms.co.uk",
       "key": "liveSports",
       "quote": "the nelson arms is known as a \"sports pub\" mainly for football, rugby and cricket.",
+      "readers": [
+        "way/1212143912"
+      ]
+    },
+    {
+      "host": "nelsonarms.co.uk",
+      "key": "liveSports",
+      "quote": "we will be showing huddersfield v afc wimbledon",
       "readers": [
         "way/1212143912"
       ]
@@ -17793,6 +20294,14 @@
       ]
     },
     {
+      "host": "northumberlandarms.uk",
+      "key": "liveMusic",
+      "quote": "live music performances",
+      "readers": [
+        "venue/venue-10litj1"
+      ]
+    },
+    {
       "host": "oldbrewerygreenwich.com",
       "key": "beerGarden",
       "quote": "an impressive garden",
@@ -17825,6 +20334,22 @@
       ]
     },
     {
+      "host": "olddeerpark.co.uk",
+      "key": "beerGarden",
+      "quote": "use the bars and terraces",
+      "readers": [
+        "venue/venue-1bqyxzj"
+      ]
+    },
+    {
+      "host": "olddeerpark.co.uk",
+      "key": "pubQuiz",
+      "quote": "quiz nights",
+      "readers": [
+        "venue/venue-1bqyxzj"
+      ]
+    },
+    {
       "host": "oldfountain.co.uk",
       "key": "food",
       "quote": "eat drink relax",
@@ -17836,6 +20361,14 @@
       "host": "oldhalltavernchingford.co.uk",
       "key": "cocktails",
       "quote": "wine & cocktails",
+      "readers": [
+        "way/1232304253"
+      ]
+    },
+    {
+      "host": "oldhalltavernchingford.co.uk",
+      "key": "food",
+      "quote": "from quick bites to pub favourites, you'll find hearty classics and fresh flavours, with veggie and vegan options too.",
       "readers": [
         "way/1232304253"
       ]
@@ -17860,6 +20393,14 @@
       "host": "oldhalltavernchingford.co.uk",
       "key": "nonAlcoholic",
       "quote": "low and no-alcohol options",
+      "readers": [
+        "way/1232304253"
+      ]
+    },
+    {
+      "host": "oldhalltavernchingford.co.uk",
+      "key": "nonAlcoholic",
+      "quote": "plus low and no-alcohol options too.",
       "readers": [
         "way/1232304253"
       ]
@@ -17934,6 +20475,14 @@
       "quote": "non-alcoholic beers",
       "readers": [
         "way/146989400"
+      ]
+    },
+    {
+      "host": "oldshades.co.uk",
+      "key": "food",
+      "quote": "we specialise in the best of british pub food",
+      "readers": [
+        "venue/venue-698bu3"
       ]
     },
     {
@@ -18257,6 +20806,54 @@
       ]
     },
     {
+      "host": "oystercatchergreenwich.co.uk",
+      "key": "beerGarden",
+      "quote": "brunch on the terrace",
+      "readers": [
+        "venue/venue-1057vj5"
+      ]
+    },
+    {
+      "host": "oystercatchergreenwich.co.uk",
+      "key": "food",
+      "quote": "food, drink & good times",
+      "readers": [
+        "venue/venue-1057vj5"
+      ]
+    },
+    {
+      "host": "oystershed.co.uk",
+      "key": "beerGarden",
+      "quote": "dog-friendly garden",
+      "readers": [
+        "venue/venue-fsp3yu"
+      ]
+    },
+    {
+      "host": "oystershed.co.uk",
+      "key": "cocktails",
+      "quote": "winter cocktails",
+      "readers": [
+        "venue/venue-fsp3yu"
+      ]
+    },
+    {
+      "host": "oystershed.co.uk",
+      "key": "food",
+      "quote": "aa rosette-awarded food",
+      "readers": [
+        "venue/venue-fsp3yu"
+      ]
+    },
+    {
+      "host": "oystershed.co.uk",
+      "key": "nonAlcoholic",
+      "quote": "no and low alcohol cocktail menu",
+      "readers": [
+        "venue/venue-fsp3yu"
+      ]
+    },
+    {
       "host": "parcelyard.co.uk",
       "key": "darts",
       "quote": "darts board",
@@ -18281,6 +20878,30 @@
       ]
     },
     {
+      "host": "parktaverneltham.co.uk",
+      "key": "beerGarden",
+      "quote": "garden to the rear is well established",
+      "readers": [
+        "venue/venue-1rqsqdd"
+      ]
+    },
+    {
+      "host": "parktaverneltham.co.uk",
+      "key": "food",
+      "quote": "drinks & food",
+      "readers": [
+        "venue/venue-1rqsqdd"
+      ]
+    },
+    {
+      "host": "parktaverneltham.co.uk",
+      "key": "liveMusic",
+      "quote": "light classical music and jazz in the background",
+      "readers": [
+        "venue/venue-1rqsqdd"
+      ]
+    },
+    {
       "host": "parlourkensal.com",
       "key": "beerGarden",
       "quote": "yes we still have a garden",
@@ -18290,8 +20911,24 @@
     },
     {
       "host": "parlourkensal.com",
+      "key": "beerGarden",
+      "quote": "yes we still have a garden..",
+      "readers": [
+        "way/467012110"
+      ]
+    },
+    {
+      "host": "parlourkensal.com",
       "key": "food",
       "quote": "delicious food & iconic film moments",
+      "readers": [
+        "way/467012110"
+      ]
+    },
+    {
+      "host": "parlourkensal.com",
+      "key": "food",
+      "quote": "we do casual glasses of mulled wine, fancy stand up canape group drinks - sit down feasts with crackers & funny hats, explore the options.",
       "readers": [
         "way/467012110"
       ]
@@ -18537,6 +21174,14 @@
       ]
     },
     {
+      "host": "piedbullenfield.co.uk",
+      "key": "food",
+      "quote": "enjoy classic british pub food at the pied bull, where quality ingredients and hearty flavours take centre stage.",
+      "readers": [
+        "venue/venue-67t8g6"
+      ]
+    },
+    {
       "host": "pigsearpub.com",
       "key": "cocktails",
       "quote": "cocktails, and wines",
@@ -18606,6 +21251,38 @@
       "quote": "big screen sports viewing",
       "readers": [
         "way/193321876"
+      ]
+    },
+    {
+      "host": "pipemajorpubdagenham.co.uk",
+      "key": "beerGarden",
+      "quote": "being in our beer garden!",
+      "readers": [
+        "venue/venue-c012qs"
+      ]
+    },
+    {
+      "host": "pipemajorpubdagenham.co.uk",
+      "key": "food",
+      "quote": "fabulous daily carvery, great atmosphere, and extensive menu",
+      "readers": [
+        "venue/venue-c012qs"
+      ]
+    },
+    {
+      "host": "pipemajorpubdagenham.co.uk",
+      "key": "liveMusic",
+      "quote": "from live music and quiz nights",
+      "readers": [
+        "venue/venue-c012qs"
+      ]
+    },
+    {
+      "host": "pipemajorpubdagenham.co.uk",
+      "key": "pubQuiz",
+      "quote": "from live music and quiz nights",
+      "readers": [
+        "venue/venue-c012qs"
       ]
     },
     {
@@ -18745,6 +21422,22 @@
       ]
     },
     {
+      "host": "popbrixton.org",
+      "key": "food",
+      "quote": "independent street food",
+      "readers": [
+        "venue/venue-1khnupq"
+      ]
+    },
+    {
+      "host": "popbrixton.org",
+      "key": "liveMusic",
+      "quote": "live music",
+      "readers": [
+        "venue/venue-1khnupq"
+      ]
+    },
+    {
       "host": "porterhouse.london",
       "key": "beerGarden",
       "quote": "largest beer gardens",
@@ -18828,6 +21521,22 @@
       ]
     },
     {
+      "host": "prettydecentbeer.co",
+      "key": "cocktails",
+      "quote": "classic and seasonal cocktails",
+      "readers": [
+        "venue/venue-72gquy"
+      ]
+    },
+    {
+      "host": "prettydecentbeer.co",
+      "key": "food",
+      "quote": "handmade neapolitan pizzas from it's not big dough",
+      "readers": [
+        "venue/venue-72gquy"
+      ]
+    },
+    {
       "host": "prince-alfred.co.uk",
       "key": "darts",
       "quote": "ar darts, shuffleboard",
@@ -18881,6 +21590,14 @@
       "quote": "weekly quiz every wednesday",
       "readers": [
         "way/1009113811"
+      ]
+    },
+    {
+      "host": "princealbertbexleyheath.co.uk",
+      "key": "food",
+      "quote": "food serving times",
+      "readers": [
+        "venue/venue-b2uihc"
       ]
     },
     {
@@ -19374,7 +22091,23 @@
     {
       "host": "queensheadkingston.co.uk",
       "key": "food",
+      "quote": "food served",
+      "readers": [
+        "node/367883196"
+      ]
+    },
+    {
+      "host": "queensheadkingston.co.uk",
+      "key": "food",
       "quote": "refined pub classics crafted from fresh, seasonal ingredients.",
+      "readers": [
+        "node/367883196"
+      ]
+    },
+    {
+      "host": "queensheadkingston.co.uk",
+      "key": "liveSports",
+      "quote": "live sport",
       "readers": [
         "node/367883196"
       ]
@@ -19645,6 +22378,22 @@
     },
     {
       "host": "richardthefirst.co.uk",
+      "key": "beerGarden",
+      "quote": "the best beer garden in greenwich",
+      "readers": [
+        "node/12890502854"
+      ]
+    },
+    {
+      "host": "richardthefirst.co.uk",
+      "key": "cocktails",
+      "quote": "get sipping on our ## winter cocktails",
+      "readers": [
+        "node/12890502854"
+      ]
+    },
+    {
+      "host": "richardthefirst.co.uk",
       "key": "cocktails",
       "quote": "winter cocktails",
       "readers": [
@@ -19663,6 +22412,14 @@
       "host": "richardthefirst.co.uk",
       "key": "liveSports",
       "quote": "watch the autumn nations",
+      "readers": [
+        "node/12890502854"
+      ]
+    },
+    {
+      "host": "richardthefirst.co.uk",
+      "key": "liveSports",
+      "quote": "watch the autumn nations in greenwich",
       "readers": [
         "node/12890502854"
       ]
@@ -19716,6 +22473,70 @@
       ]
     },
     {
+      "host": "risingsunwillesden.co.uk",
+      "key": "beerGarden",
+      "quote": "its large rear garden provides a refreshing outdoor space",
+      "readers": [
+        "venue/venue-xt3n44"
+      ]
+    },
+    {
+      "host": "risingsunwillesden.co.uk",
+      "key": "food",
+      "quote": "new food offering: the secret thai garden",
+      "readers": [
+        "venue/venue-xt3n44"
+      ]
+    },
+    {
+      "host": "risingsunwillesden.co.uk",
+      "key": "liveSports",
+      "quote": "watch all the live sports action on our multiple widescreen tvs",
+      "readers": [
+        "venue/venue-xt3n44"
+      ]
+    },
+    {
+      "host": "riversidelondon.co.uk",
+      "key": "beerGarden",
+      "quote": "two outdoor terraces",
+      "readers": [
+        "venue/venue-8vygop"
+      ]
+    },
+    {
+      "host": "riversidelondon.co.uk",
+      "key": "cocktails",
+      "quote": "after-work cocktails",
+      "readers": [
+        "venue/venue-8vygop"
+      ]
+    },
+    {
+      "host": "riversidelondon.co.uk",
+      "key": "food",
+      "quote": "the riverside serves up fresh seasonal british menus",
+      "readers": [
+        "venue/venue-8vygop"
+      ]
+    },
+    {
+      "host": "riversidelondon.co.uk",
+      "key": "liveSports",
+      "quote": "watch the autumn nations in vauxhall",
+      "readers": [
+        "venue/venue-8vygop"
+      ]
+    },
+    {
+      "host": "riversidelondon.co.uk",
+      "key": "pubQuiz",
+      "quote": "vauxhall's best pub quiz",
+      "readers": [
+        "venue/venue-8vygop"
+      ]
+    },
+    {
       "host": "roebuck-hamptonhill.co.uk",
       "key": "beerGarden",
       "quote": "delightful walled garden at the back",
@@ -19729,6 +22550,38 @@
       "quote": "we serve traditional pub food",
       "readers": [
         "way/311971054"
+      ]
+    },
+    {
+      "host": "roebuckhampstead.com",
+      "key": "beerGarden",
+      "quote": "north london pub garden",
+      "readers": [
+        "venue/venue-m40xal"
+      ]
+    },
+    {
+      "host": "roebuckhampstead.com",
+      "key": "cocktails",
+      "quote": "food and cocktails were the bomb!",
+      "readers": [
+        "venue/venue-m40xal"
+      ]
+    },
+    {
+      "host": "roebuckhampstead.com",
+      "key": "food",
+      "quote": "mouth-watering food & drink",
+      "readers": [
+        "venue/venue-m40xal"
+      ]
+    },
+    {
+      "host": "roofeast.com",
+      "key": "cocktails",
+      "quote": "cocktails, wine, craft beers and spirits",
+      "readers": [
+        "venue/venue-14hh7x8"
       ]
     },
     {
@@ -19892,6 +22745,38 @@
       ]
     },
     {
+      "host": "royalforesteppingforest.com",
+      "key": "beerGarden",
+      "quote": "south facing terrace",
+      "readers": [
+        "venue/venue-1pbyyad"
+      ]
+    },
+    {
+      "host": "royalforesteppingforest.com",
+      "key": "food",
+      "quote": "mouth-watering food",
+      "readers": [
+        "venue/venue-1pbyyad"
+      ]
+    },
+    {
+      "host": "royalforesteppingforest.com",
+      "key": "happyHour",
+      "quote": "happy hour",
+      "readers": [
+        "venue/venue-1pbyyad"
+      ]
+    },
+    {
+      "host": "royalforesteppingforest.com",
+      "key": "nonAlcoholic",
+      "quote": "non-alcoholic option also available",
+      "readers": [
+        "venue/venue-1pbyyad"
+      ]
+    },
+    {
       "host": "royalgeorgepub.co.uk",
       "key": "beerGarden",
       "quote": "beer garden in hersham",
@@ -20004,6 +22889,38 @@
       ]
     },
     {
+      "host": "royaloakhighamspark.co.uk",
+      "key": "beerGarden",
+      "quote": "beer garden",
+      "readers": [
+        "venue/venue-1b0h1wq"
+      ]
+    },
+    {
+      "host": "royaloakhighamspark.co.uk",
+      "key": "cocktails",
+      "quote": "2 for £13.50 cocktails",
+      "readers": [
+        "venue/venue-1b0h1wq"
+      ]
+    },
+    {
+      "host": "royaloakhighamspark.co.uk",
+      "key": "food",
+      "quote": "scrumptious food",
+      "readers": [
+        "venue/venue-1b0h1wq"
+      ]
+    },
+    {
+      "host": "royaloakhighamspark.co.uk",
+      "key": "pubQuiz",
+      "quote": "quiz night",
+      "readers": [
+        "venue/venue-1b0h1wq"
+      ]
+    },
+    {
       "host": "royaloakisleworth.co.uk",
       "key": "beerGarden",
       "quote": "riverside terrace",
@@ -20084,6 +23001,30 @@
       ]
     },
     {
+      "host": "royaloaknewmalden.co.uk",
+      "key": "beerGarden",
+      "quote": "in a glorious pub garden for you to soak up the afternoon sun.",
+      "readers": [
+        "venue/venue-myrcsz"
+      ]
+    },
+    {
+      "host": "royaloaknewmalden.co.uk",
+      "key": "food",
+      "quote": "serving up local craft beers, a classic british menu to enjoy",
+      "readers": [
+        "venue/venue-myrcsz"
+      ]
+    },
+    {
+      "host": "royaloaknewmalden.co.uk",
+      "key": "liveSports",
+      "quote": "perfect for live sports",
+      "readers": [
+        "venue/venue-myrcsz"
+      ]
+    },
+    {
       "host": "rubbinghouse.com",
       "key": "beerGarden",
       "quote": "large beer garden out the front",
@@ -20121,6 +23062,30 @@
       "quote": "great coffee too",
       "readers": [
         "way/252279620"
+      ]
+    },
+    {
+      "host": "rugbytavern.co.uk",
+      "key": "beerGarden",
+      "quote": "lovely outside space",
+      "readers": [
+        "venue/venue-1kbl05l"
+      ]
+    },
+    {
+      "host": "rugbytavern.co.uk",
+      "key": "cocktails",
+      "quote": "expertly crafted cocktails",
+      "readers": [
+        "venue/venue-1kbl05l"
+      ]
+    },
+    {
+      "host": "rugbytavern.co.uk",
+      "key": "food",
+      "quote": "classic british pub menu",
+      "readers": [
+        "venue/venue-1kbl05l"
       ]
     },
     {
@@ -20197,6 +23162,22 @@
     },
     {
       "host": "sailloftgreenwich.co.uk",
+      "key": "beerGarden",
+      "quote": "outdoor terrace",
+      "readers": [
+        "node/5659383343"
+      ]
+    },
+    {
+      "host": "sailloftgreenwich.co.uk",
+      "key": "food",
+      "quote": "fresh food",
+      "readers": [
+        "node/5659383343"
+      ]
+    },
+    {
+      "host": "sailloftgreenwich.co.uk",
       "key": "food",
       "quote": "the sail loft serves up fresh food",
       "readers": [
@@ -20206,7 +23187,23 @@
     {
       "host": "sailloftgreenwich.co.uk",
       "key": "liveSports",
+      "quote": "live sport",
+      "readers": [
+        "node/5659383343"
+      ]
+    },
+    {
+      "host": "sailloftgreenwich.co.uk",
+      "key": "liveSports",
       "quote": "live sport check out what live sport",
+      "readers": [
+        "node/5659383343"
+      ]
+    },
+    {
+      "host": "sailloftgreenwich.co.uk",
+      "key": "pubQuiz",
+      "quote": "pub quiz night",
       "readers": [
         "node/5659383343"
       ]
@@ -20324,6 +23321,38 @@
       ]
     },
     {
+      "host": "shaftesburyrichmond.co.uk",
+      "key": "beerGarden",
+      "quote": "a hidden garden in richmond",
+      "readers": [
+        "venue/venue-i4w5zs"
+      ]
+    },
+    {
+      "host": "shaftesburyrichmond.co.uk",
+      "key": "cocktails",
+      "quote": "winter cocktails",
+      "readers": [
+        "venue/venue-i4w5zs"
+      ]
+    },
+    {
+      "host": "shaftesburyrichmond.co.uk",
+      "key": "food",
+      "quote": "pub food",
+      "readers": [
+        "venue/venue-i4w5zs"
+      ]
+    },
+    {
+      "host": "shaftesburyrichmond.co.uk",
+      "key": "pubQuiz",
+      "quote": "our sunday pub quiz",
+      "readers": [
+        "venue/venue-i4w5zs"
+      ]
+    },
+    {
       "host": "shawsbooksellers.co.uk",
       "key": "food",
       "quote": "seasonal pub food",
@@ -20393,6 +23422,22 @@
       "quote": "decent bar snacks",
       "readers": [
         "way/142680573"
+      ]
+    },
+    {
+      "host": "shiprotherhithe.co.uk",
+      "key": "beerGarden",
+      "quote": "pretty beer garden",
+      "readers": [
+        "venue/venue-s9p005"
+      ]
+    },
+    {
+      "host": "shiprotherhithe.co.uk",
+      "key": "food",
+      "quote": "we serve food",
+      "readers": [
+        "venue/venue-s9p005"
       ]
     },
     {
@@ -20497,6 +23542,14 @@
       "quote": "sunday roast menu",
       "readers": [
         "way/289754934"
+      ]
+    },
+    {
+      "host": "signaturebrew.co.uk",
+      "key": "food",
+      "quote": "food say hello to our latest pop up kitchen residents, sireli! serving a unique celebration of armenian cuisine.",
+      "readers": [
+        "way/1208115927"
       ]
     },
     {
@@ -20822,6 +23875,14 @@
     {
       "host": "socialpubandkitchen.co.uk",
       "key": "beerGarden",
+      "quote": "heated beer garden",
+      "readers": [
+        "way/582966821"
+      ]
+    },
+    {
+      "host": "socialpubandkitchen.co.uk",
+      "key": "beerGarden",
       "quote": "large external beer garden",
       "readers": [
         "node/295979629"
@@ -20890,6 +23951,14 @@
       "quote": "cocktail of your choice",
       "readers": [
         "node/702773347"
+      ]
+    },
+    {
+      "host": "socialpubandkitchen.co.uk",
+      "key": "cocktails",
+      "quote": "mini cocktails!",
+      "readers": [
+        "way/582966821"
       ]
     },
     {
@@ -20981,6 +24050,14 @@
       "quote": "fantastic food",
       "readers": [
         "way/469077992"
+      ]
+    },
+    {
+      "host": "socialpubandkitchen.co.uk",
+      "key": "food",
+      "quote": "food is served daily",
+      "readers": [
+        "way/582966821"
       ]
     },
     {
@@ -21080,6 +24157,14 @@
       "quote": "live dj sets",
       "readers": [
         "node/26310696"
+      ]
+    },
+    {
+      "host": "socialpubandkitchen.co.uk",
+      "key": "liveSports",
+      "quote": "all major sporting events are shown",
+      "readers": [
+        "way/582966821"
       ]
     },
     {
@@ -21495,6 +24580,14 @@
     },
     {
       "host": "starofbethnalgreen.co.uk",
+      "key": "food",
+      "quote": "food menu from our kitchen residents patty & pickle",
+      "readers": [
+        "way/445139621"
+      ]
+    },
+    {
+      "host": "starofbethnalgreen.co.uk",
       "key": "happyHour",
       "quote": "£6 margarita monday",
       "readers": [
@@ -21766,6 +24859,14 @@
       ]
     },
     {
+      "host": "swirle10.com",
+      "key": "food",
+      "quote": "delicious food options such as beautiful cheese platters and appetizers",
+      "readers": [
+        "venue/venue-1rkfaxs"
+      ]
+    },
+    {
       "host": "sydneyarmschelsea.com",
       "key": "food",
       "quote": "freshly prepared food made with the best ingredients",
@@ -21867,6 +24968,22 @@
       "quote": "watch liverpool vs man city live",
       "readers": [
         "node/9306966309"
+      ]
+    },
+    {
+      "host": "tapelia.co.uk",
+      "key": "food",
+      "quote": "tapelia brings authentic spanish flavour to the heart of ealing. from vibrant tapas to rich paellas and handpicked wines, every dish is made for sharing.",
+      "readers": [
+        "venue/venue-12k6mg7"
+      ]
+    },
+    {
+      "host": "tapelia.co.uk",
+      "key": "nonAlcoholic",
+      "quote": "estrella galicia alcohol free – £4.75",
+      "readers": [
+        "venue/venue-12k6mg7"
       ]
     },
     {
@@ -22046,6 +25163,38 @@
       ]
     },
     {
+      "host": "thatchedhousepub.com",
+      "key": "beerGarden",
+      "quote": "lovely garden",
+      "readers": [
+        "way/586427054"
+      ]
+    },
+    {
+      "host": "thatchedhousepub.com",
+      "key": "food",
+      "quote": "good food",
+      "readers": [
+        "way/586427054"
+      ]
+    },
+    {
+      "host": "the-albion.co.uk",
+      "key": "beerGarden",
+      "quote": "english country garden",
+      "readers": [
+        "way/31900825"
+      ]
+    },
+    {
+      "host": "the-albion.co.uk",
+      "key": "food",
+      "quote": "quality food and drink",
+      "readers": [
+        "way/31900825"
+      ]
+    },
+    {
       "host": "the-anchor.pub",
       "key": "beerGarden",
       "quote": "beer garden",
@@ -22184,6 +25333,14 @@
     {
       "host": "the-enterprise.co.uk",
       "key": "beerGarden",
+      "quote": "mediterranean garden",
+      "readers": [
+        "way/527245738"
+      ]
+    },
+    {
+      "host": "the-enterprise.co.uk",
+      "key": "beerGarden",
       "quote": "our mediterranean garden",
       "readers": [
         "way/527245738"
@@ -22203,6 +25360,38 @@
       "quote": "live sport",
       "readers": [
         "way/527245738"
+      ]
+    },
+    {
+      "host": "the-fighting-cocks.co.uk",
+      "key": "cocktails",
+      "quote": "lavish cocktails",
+      "readers": [
+        "venue/venue-atk7mc"
+      ]
+    },
+    {
+      "host": "the-fighting-cocks.co.uk",
+      "key": "liveMusic",
+      "quote": "the best in live music",
+      "readers": [
+        "venue/venue-atk7mc"
+      ]
+    },
+    {
+      "host": "the-fighting-cocks.co.uk",
+      "key": "pool",
+      "quote": "pool tournament october",
+      "readers": [
+        "venue/venue-atk7mc"
+      ]
+    },
+    {
+      "host": "the-fighting-cocks.co.uk",
+      "key": "pubQuiz",
+      "quote": "october pub quiz",
+      "readers": [
+        "venue/venue-atk7mc"
       ]
     },
     {
@@ -22319,8 +25508,40 @@
     },
     {
       "host": "the-wooden-cross.com",
+      "key": "beerGarden",
+      "quote": "cozy outdoor patio with string lights, potted plants, black wooden tables and benches, and a textured dark painted wall.",
+      "readers": [
+        "node/385018022"
+      ]
+    },
+    {
+      "host": "the-wooden-cross.com",
+      "key": "cocktails",
+      "quote": "green cocktail with ice and basil leaf garnish on wooden table",
+      "readers": [
+        "node/385018022"
+      ]
+    },
+    {
+      "host": "the-wooden-cross.com",
       "key": "food",
       "quote": "food | discover flavors now",
+      "readers": [
+        "node/385018022"
+      ]
+    },
+    {
+      "host": "the-wooden-cross.com",
+      "key": "liveSports",
+      "quote": "now showing all major sport",
+      "readers": [
+        "node/385018022"
+      ]
+    },
+    {
+      "host": "the-wooden-cross.com",
+      "key": "pubQuiz",
+      "quote": "the-wooden-cross-pub-quiz-every-wednesday",
       "readers": [
         "node/385018022"
       ]
@@ -22520,6 +25741,14 @@
     {
       "host": "thealbertkingston.co.uk",
       "key": "food",
+      "quote": "best pub dining",
+      "readers": [
+        "way/334861808"
+      ]
+    },
+    {
+      "host": "thealbertkingston.co.uk",
+      "key": "food",
       "quote": "our lip-smacking menu",
       "readers": [
         "way/334861808"
@@ -22553,6 +25782,14 @@
       "host": "thealbionkingston.com",
       "key": "food",
       "quote": "tasty food",
+      "readers": [
+        "way/103362186"
+      ]
+    },
+    {
+      "host": "thealbionkingston.com",
+      "key": "pubQuiz",
+      "quote": "quiz night",
       "readers": [
         "way/103362186"
       ]
@@ -22662,6 +25899,22 @@
       ]
     },
     {
+      "host": "thealmalondon.com",
+      "key": "liveMusic",
+      "quote": "glynn mr soul - soul singer - live music",
+      "readers": [
+        "venue/venue-1duinu2"
+      ]
+    },
+    {
+      "host": "thealmalondon.com",
+      "key": "nonAlcoholic",
+      "quote": "alcohol free beers in our fridges",
+      "readers": [
+        "venue/venue-1duinu2"
+      ]
+    },
+    {
       "host": "thealmapub.com",
       "key": "beerGarden",
       "quote": "independent freehouse pub & garden",
@@ -22726,6 +25979,14 @@
       ]
     },
     {
+      "host": "theantelope.co.uk",
+      "key": "food",
+      "quote": "burgers, sharing plates & pub classics",
+      "readers": [
+        "venue/venue-1vzaiwq"
+      ]
+    },
+    {
       "host": "theapproachtavern.co.uk",
       "key": "food",
       "quote": "food food menu",
@@ -22737,6 +25998,14 @@
       "host": "thearchwembley.co.uk",
       "key": "beerGarden",
       "quote": "large beer garden",
+      "readers": [
+        "way/247983971"
+      ]
+    },
+    {
+      "host": "thearchwembley.co.uk",
+      "key": "food",
+      "quote": "indian restaurant",
       "readers": [
         "way/247983971"
       ]
@@ -23015,6 +26284,14 @@
     },
     {
       "host": "theberrylands.co.uk",
+      "key": "beerGarden",
+      "quote": "children's outdoor play area",
+      "readers": [
+        "way/274158269"
+      ]
+    },
+    {
+      "host": "theberrylands.co.uk",
       "key": "food",
       "quote": "all our food is cooked from scratch",
       "readers": [
@@ -23107,6 +26384,22 @@
       "quote": "alcohol-free serves",
       "readers": [
         "way/443228559"
+      ]
+    },
+    {
+      "host": "thebirdinhandlondon.com",
+      "key": "cocktails",
+      "quote": "exceptional cocktails.",
+      "readers": [
+        "way/151490690"
+      ]
+    },
+    {
+      "host": "thebirdinhandlondon.com",
+      "key": "food",
+      "quote": "seasonal mediterranean sharing plates, crisp roman-style pizzas & exceptional cocktails.",
+      "readers": [
+        "way/151490690"
       ]
     },
     {
@@ -23238,6 +26531,30 @@
       ]
     },
     {
+      "host": "theblindbeggar.com",
+      "key": "beerGarden",
+      "quote": "award winning beer garden",
+      "readers": [
+        "venue/venue-5cjjk6"
+      ]
+    },
+    {
+      "host": "theblindbeggar.com",
+      "key": "food",
+      "quote": "pizza by marco at the blind beggar",
+      "readers": [
+        "venue/venue-5cjjk6"
+      ]
+    },
+    {
+      "host": "theblindbeggar.com",
+      "key": "liveMusic",
+      "quote": "plays host to live music",
+      "readers": [
+        "venue/venue-5cjjk6"
+      ]
+    },
+    {
       "host": "theblueboat.co.uk",
       "key": "beerGarden",
       "quote": "spacious patio next to the water",
@@ -23283,6 +26600,30 @@
       "quote": "showing the football",
       "readers": [
         "node/2267462478"
+      ]
+    },
+    {
+      "host": "theblueskitchen.com",
+      "key": "cocktails",
+      "quote": "£6 cocktails",
+      "readers": [
+        "venue/venue-1pfnt71"
+      ]
+    },
+    {
+      "host": "theblueskitchen.com",
+      "key": "karaoke",
+      "quote": "party bookings & karaoke",
+      "readers": [
+        "venue/venue-1pfnt71"
+      ]
+    },
+    {
+      "host": "theblueskitchen.com",
+      "key": "liveMusic",
+      "quote": "live blues & soul",
+      "readers": [
+        "venue/venue-1pfnt71"
       ]
     },
     {
@@ -23355,6 +26696,14 @@
       "quote": "our snack range checks all the boxes, plus in the evening we serve the legendary pelt trader pizzas.",
       "readers": [
         "node/12534156761"
+      ]
+    },
+    {
+      "host": "thebountifulcow.co.uk",
+      "key": "food",
+      "quote": "delicious steak oriented lunch & dinner menu",
+      "readers": [
+        "venue/venue-19a3qur"
       ]
     },
     {
@@ -23454,6 +26803,30 @@
       ]
     },
     {
+      "host": "thebrookworcesterpark.co.uk",
+      "key": "beerGarden",
+      "quote": "our large garden",
+      "readers": [
+        "venue/venue-1bwv6zb"
+      ]
+    },
+    {
+      "host": "thebrookworcesterpark.co.uk",
+      "key": "cocktails",
+      "quote": "expertly crafted cocktails",
+      "readers": [
+        "venue/venue-1bwv6zb"
+      ]
+    },
+    {
+      "host": "thebrookworcesterpark.co.uk",
+      "key": "food",
+      "quote": "catch up with friends over a delicious meal",
+      "readers": [
+        "venue/venue-1bwv6zb"
+      ]
+    },
+    {
       "host": "thebrownswood.co.uk",
       "key": "beerGarden",
       "quote": "beer garden indulge in our beautiful heated beer garden",
@@ -23531,6 +26904,30 @@
       "quote": "seasonal british food",
       "readers": [
         "way/154117129"
+      ]
+    },
+    {
+      "host": "thebullsheadbarnes.com",
+      "key": "cocktails",
+      "quote": "our new winter cocktails",
+      "readers": [
+        "venue/venue-16twk4e"
+      ]
+    },
+    {
+      "host": "thebullsheadbarnes.com",
+      "key": "food",
+      "quote": "local, seasonal, british food & drink",
+      "readers": [
+        "venue/venue-16twk4e"
+      ]
+    },
+    {
+      "host": "thebullsheadbarnes.com",
+      "key": "liveMusic",
+      "quote": "live jazz & sunday roasts",
+      "readers": [
+        "venue/venue-16twk4e"
       ]
     },
     {
@@ -23814,6 +27211,14 @@
       ]
     },
     {
+      "host": "thecastletavern.com",
+      "key": "food",
+      "quote": "traditional african food",
+      "readers": [
+        "venue/venue-m9wlkb"
+      ]
+    },
+    {
       "host": "thechalkfreehouse.co.uk",
       "key": "cocktails",
       "quote": "standout cocktails",
@@ -23843,6 +27248,22 @@
       "quote": "live sport",
       "readers": [
         "node/666918951"
+      ]
+    },
+    {
+      "host": "thechamberlayne.com",
+      "key": "beerGarden",
+      "quote": "beautiful private terrace",
+      "readers": [
+        "venue/venue-m5hwrg"
+      ]
+    },
+    {
+      "host": "thechamberlayne.com",
+      "key": "food",
+      "quote": "best pub in kensal rise for food & drinks",
+      "readers": [
+        "venue/venue-m5hwrg"
       ]
     },
     {
@@ -24055,6 +27476,54 @@
       ]
     },
     {
+      "host": "thecoachleyton.com",
+      "key": "beerGarden",
+      "quote": "partially-covered beer garden",
+      "readers": [
+        "venue/venue-1dynyz2"
+      ]
+    },
+    {
+      "host": "thecoachleyton.com",
+      "key": "cocktails",
+      "quote": "cocktails, nepalese street food",
+      "readers": [
+        "venue/venue-1dynyz2"
+      ]
+    },
+    {
+      "host": "thecoachleyton.com",
+      "key": "food",
+      "quote": "neighbourhood pub with food",
+      "readers": [
+        "venue/venue-1dynyz2"
+      ]
+    },
+    {
+      "host": "thecoachleyton.com",
+      "key": "liveMusic",
+      "quote": "live music and sports",
+      "readers": [
+        "venue/venue-1dynyz2"
+      ]
+    },
+    {
+      "host": "thecoachleyton.com",
+      "key": "liveSports",
+      "quote": "sports on the big screens",
+      "readers": [
+        "venue/venue-1dynyz2"
+      ]
+    },
+    {
+      "host": "thecoachleyton.com",
+      "key": "pubQuiz",
+      "quote": "quiz nights",
+      "readers": [
+        "venue/venue-1dynyz2"
+      ]
+    },
+    {
       "host": "thecoborn.co.uk",
       "key": "beerGarden",
       "quote": "a south-facing terrace, the perfect place to soak up the winter sun",
@@ -24140,6 +27609,54 @@
       "quote": "quiz or the whole venue",
       "readers": [
         "node/49314952"
+      ]
+    },
+    {
+      "host": "theconstitutioncamden.co.uk",
+      "key": "beerGarden",
+      "quote": "head up to our rooftop terrace",
+      "readers": [
+        "venue/venue-fejqqd"
+      ]
+    },
+    {
+      "host": "theconstitutioncamden.co.uk",
+      "key": "cocktails",
+      "quote": "it's the ultimate spot for cocktails",
+      "readers": [
+        "venue/venue-fejqqd"
+      ]
+    },
+    {
+      "host": "theconstitutioncamden.co.uk",
+      "key": "food",
+      "quote": "our stunning food & drink",
+      "readers": [
+        "venue/venue-fejqqd"
+      ]
+    },
+    {
+      "host": "theconstitutioncamden.co.uk",
+      "key": "liveMusic",
+      "quote": "live music to smooth jazz sessions",
+      "readers": [
+        "venue/venue-fejqqd"
+      ]
+    },
+    {
+      "host": "theconstitutioncamden.co.uk",
+      "key": "nonAlcoholic",
+      "quote": "alcohol-free faves",
+      "readers": [
+        "venue/venue-fejqqd"
+      ]
+    },
+    {
+      "host": "theconstitutioncamden.co.uk",
+      "key": "pubQuiz",
+      "quote": "quiz nights",
+      "readers": [
+        "venue/venue-fejqqd"
       ]
     },
     {
@@ -24294,6 +27811,38 @@
       ]
     },
     {
+      "host": "thecrownlee.co.uk",
+      "key": "cocktails",
+      "quote": "best cocktails in lewisham",
+      "readers": [
+        "venue/venue-1drd13s"
+      ]
+    },
+    {
+      "host": "thecrownlee.co.uk",
+      "key": "food",
+      "quote": "serving the best sunday roasts",
+      "readers": [
+        "venue/venue-1drd13s"
+      ]
+    },
+    {
+      "host": "thecrownlee.co.uk",
+      "key": "liveSports",
+      "quote": "live sports in south-east london",
+      "readers": [
+        "venue/venue-1drd13s"
+      ]
+    },
+    {
+      "host": "thecrownlee.co.uk",
+      "key": "nonAlcoholic",
+      "quote": "alcohol-free serves",
+      "readers": [
+        "venue/venue-1drd13s"
+      ]
+    },
+    {
       "host": "theculpeper.com",
       "key": "beerGarden",
       "quote": "rooftop garden",
@@ -24318,6 +27867,38 @@
       ]
     },
     {
+      "host": "thecurtainsup.co.uk",
+      "key": "cocktails",
+      "quote": "winter cocktail menu",
+      "readers": [
+        "venue/venue-94m3w2"
+      ]
+    },
+    {
+      "host": "thecurtainsup.co.uk",
+      "key": "food",
+      "quote": "proper pub food",
+      "readers": [
+        "venue/venue-94m3w2"
+      ]
+    },
+    {
+      "host": "thecurtainsup.co.uk",
+      "key": "liveSports",
+      "quote": "autumn nations, with the rugby on screen",
+      "readers": [
+        "venue/venue-94m3w2"
+      ]
+    },
+    {
+      "host": "thecurtainsup.co.uk",
+      "key": "pubQuiz",
+      "quote": "sunday night pub quiz",
+      "readers": [
+        "venue/venue-94m3w2"
+      ]
+    },
+    {
       "host": "thedeanswift.com",
       "key": "food",
       "quote": "serving sunday roast, fish & chips and the best craft beers",
@@ -24331,6 +27912,38 @@
       "quote": "quiz night every sunday",
       "readers": [
         "way/93710844"
+      ]
+    },
+    {
+      "host": "thedepotpub.co.uk",
+      "key": "beerGarden",
+      "quote": "head out onto our sun-trap terrace",
+      "readers": [
+        "venue/venue-1g8dzkx"
+      ]
+    },
+    {
+      "host": "thedepotpub.co.uk",
+      "key": "cocktails",
+      "quote": "wines and cocktails",
+      "readers": [
+        "venue/venue-1g8dzkx"
+      ]
+    },
+    {
+      "host": "thedepotpub.co.uk",
+      "key": "food",
+      "quote": "serving delicious, british food",
+      "readers": [
+        "venue/venue-1g8dzkx"
+      ]
+    },
+    {
+      "host": "thedepotpub.co.uk",
+      "key": "nonAlcoholic",
+      "quote": "selection of alcohol-free serves",
+      "readers": [
+        "venue/venue-1g8dzkx"
       ]
     },
     {
@@ -24752,6 +28365,14 @@
     {
       "host": "thedukeofyork.com",
       "key": "cocktails",
+      "quote": "great beers, wines and cocktails",
+      "readers": [
+        "way/698319681"
+      ]
+    },
+    {
+      "host": "thedukeofyork.com",
+      "key": "cocktails",
       "quote": "wide selection of great beers, wines and cocktails",
       "readers": [
         "way/698319681"
@@ -25015,10 +28636,66 @@
     },
     {
       "host": "theeuropeanpub.co.uk",
+      "key": "beerGarden",
+      "quote": "roof terrace hire",
+      "readers": [
+        "way/444642776"
+      ]
+    },
+    {
+      "host": "theeuropeanpub.co.uk",
+      "key": "food",
+      "quote": "food [food menu](https://theeuropeanpub.co.uk/food/)",
+      "readers": [
+        "way/444642776"
+      ]
+    },
+    {
+      "host": "theeuropeanpub.co.uk",
       "key": "food",
       "quote": "food food menu",
       "readers": [
         "way/444642776"
+      ]
+    },
+    {
+      "host": "theeuropeanpub.co.uk",
+      "key": "liveMusic",
+      "quote": "live music wednesdays",
+      "readers": [
+        "way/444642776"
+      ]
+    },
+    {
+      "host": "thefarriersarmspub.co.uk",
+      "key": "beerGarden",
+      "quote": "our neat beer garden",
+      "readers": [
+        "venue/venue-1xh21ch"
+      ]
+    },
+    {
+      "host": "thefarriersarmspub.co.uk",
+      "key": "darts",
+      "quote": "borrow a pool cue or set of darts",
+      "readers": [
+        "venue/venue-1xh21ch"
+      ]
+    },
+    {
+      "host": "thefarriersarmspub.co.uk",
+      "key": "liveSports",
+      "quote": "watch all the latest sports with us",
+      "readers": [
+        "venue/venue-1xh21ch"
+      ]
+    },
+    {
+      "host": "thefarriersarmspub.co.uk",
+      "key": "pool",
+      "quote": "borrow a pool cue or set of darts",
+      "readers": [
+        "venue/venue-1xh21ch"
       ]
     },
     {
@@ -25115,6 +28792,54 @@
       "quote": "modern british dining",
       "readers": [
         "way/299039550"
+      ]
+    },
+    {
+      "host": "theforestgatehotel.co.uk",
+      "key": "beerGarden",
+      "quote": "rear patio",
+      "readers": [
+        "venue/venue-1h547kg"
+      ]
+    },
+    {
+      "host": "theforestgatehotel.co.uk",
+      "key": "darts",
+      "quote": "pool, darts",
+      "readers": [
+        "venue/venue-1h547kg"
+      ]
+    },
+    {
+      "host": "theforestgatehotel.co.uk",
+      "key": "food",
+      "quote": "selection of bar snacks available",
+      "readers": [
+        "venue/venue-1h547kg"
+      ]
+    },
+    {
+      "host": "theforestgatehotel.co.uk",
+      "key": "liveSports",
+      "quote": "watch live sports",
+      "readers": [
+        "venue/venue-1h547kg"
+      ]
+    },
+    {
+      "host": "theforestgatehotel.co.uk",
+      "key": "pool",
+      "quote": "pool, darts",
+      "readers": [
+        "venue/venue-1h547kg"
+      ]
+    },
+    {
+      "host": "theforestgatehotel.co.uk",
+      "key": "pubQuiz",
+      "quote": "pub quiz",
+      "readers": [
+        "venue/venue-1h547kg"
       ]
     },
     {
@@ -25270,6 +28995,30 @@
       ]
     },
     {
+      "host": "thegardenshedpub.com",
+      "key": "beerGarden",
+      "quote": "spacious beer gardens",
+      "readers": [
+        "venue/venue-1cuys17"
+      ]
+    },
+    {
+      "host": "thegardenshedpub.com",
+      "key": "liveMusic",
+      "quote": "live music",
+      "readers": [
+        "venue/venue-1cuys17"
+      ]
+    },
+    {
+      "host": "thegardenshedpub.com",
+      "key": "liveSports",
+      "quote": "watch live sport",
+      "readers": [
+        "venue/venue-1cuys17"
+      ]
+    },
+    {
       "host": "thegarrison.co.uk",
       "key": "cocktails",
       "quote": "cocktails",
@@ -25312,6 +29061,14 @@
     {
       "host": "thegeorgetavern.london",
       "key": "beerGarden",
+      "quote": "in the garden!",
+      "readers": [
+        "way/195649317"
+      ]
+    },
+    {
+      "host": "thegeorgetavern.london",
+      "key": "beerGarden",
       "quote": "pizza in the garden!",
       "readers": [
         "way/195649317"
@@ -25327,8 +29084,24 @@
     },
     {
       "host": "thegeorgetavern.london",
+      "key": "food",
+      "quote": "we're now serving fresh hand stretched pizza in the garden!",
+      "readers": [
+        "way/195649317"
+      ]
+    },
+    {
+      "host": "thegeorgetavern.london",
       "key": "liveMusic",
       "quote": "enjoy live music",
+      "readers": [
+        "way/195649317"
+      ]
+    },
+    {
+      "host": "thegeorgetavern.london",
+      "key": "liveMusic",
+      "quote": "enjoy live music from a range of different artists",
       "readers": [
         "way/195649317"
       ]
@@ -25847,6 +29620,14 @@
     },
     {
       "host": "thegundocklands.com",
+      "key": "beerGarden",
+      "quote": "experience our exceptional riverside terrace",
+      "readers": [
+        "way/189811893"
+      ]
+    },
+    {
+      "host": "thegundocklands.com",
       "key": "food",
       "quote": "food served",
       "readers": [
@@ -25855,8 +29636,24 @@
     },
     {
       "host": "thegundocklands.com",
+      "key": "food",
+      "quote": "we offer a menu featuring refined pub classics crafted from fresh, seasonal ingredients.",
+      "readers": [
+        "way/189811893"
+      ]
+    },
+    {
+      "host": "thegundocklands.com",
       "key": "liveSports",
       "quote": "live sport",
+      "readers": [
+        "way/189811893"
+      ]
+    },
+    {
+      "host": "thegundocklands.com",
+      "key": "liveSports",
+      "quote": "live sport check out what live sport we have coming up.",
       "readers": [
         "way/189811893"
       ]
@@ -25967,8 +29764,24 @@
     },
     {
       "host": "thehanbury.co.uk",
+      "key": "liveMusic",
+      "quote": "live music",
+      "readers": [
+        "node/10092511647"
+      ]
+    },
+    {
+      "host": "thehanbury.co.uk",
       "key": "pubQuiz",
       "quote": "every thursday | 7pm pub quiz",
+      "readers": [
+        "node/10092511647"
+      ]
+    },
+    {
+      "host": "thehanbury.co.uk",
+      "key": "pubQuiz",
+      "quote": "pub quiz",
       "readers": [
         "node/10092511647"
       ]
@@ -26003,6 +29816,38 @@
       "quote": "catch the autumn nations live",
       "readers": [
         "way/450830263"
+      ]
+    },
+    {
+      "host": "theharesheen.co.uk",
+      "key": "beerGarden",
+      "quote": "plenty of outdoor space in our garden",
+      "readers": [
+        "venue/venue-1pnwx8j"
+      ]
+    },
+    {
+      "host": "theharesheen.co.uk",
+      "key": "cocktails",
+      "quote": "one of our winter cocktails",
+      "readers": [
+        "venue/venue-1pnwx8j"
+      ]
+    },
+    {
+      "host": "theharesheen.co.uk",
+      "key": "food",
+      "quote": "fresh, seasonal british pub food",
+      "readers": [
+        "venue/venue-1pnwx8j"
+      ]
+    },
+    {
+      "host": "theharesheen.co.uk",
+      "key": "liveSports",
+      "quote": "live sport",
+      "readers": [
+        "venue/venue-1pnwx8j"
       ]
     },
     {
@@ -26102,11 +29947,51 @@
       ]
     },
     {
+      "host": "thehollandkensington.co.uk",
+      "key": "food",
+      "quote": "british ingredient-led cuisine, serving a seasonal, regularly-changing menu",
+      "readers": [
+        "way/824948809"
+      ]
+    },
+    {
       "host": "thehollytreepub.co.uk",
       "key": "beerGarden",
       "quote": "leave our garden open",
       "readers": [
         "way/224178092"
+      ]
+    },
+    {
+      "host": "thehollytreepub.co.uk",
+      "key": "beerGarden",
+      "quote": "leave our garden open for walk ins",
+      "readers": [
+        "way/224178092"
+      ]
+    },
+    {
+      "host": "thehollytreepub.co.uk",
+      "key": "cocktails",
+      "quote": "creative non-alcoholic options. our drinks list changes daily as we rotate our twenty-five beer taps and adapt our cocktail and wine list to the seasons.",
+      "readers": [
+        "way/224178092"
+      ]
+    },
+    {
+      "host": "thehollytreepub.co.uk",
+      "key": "nonAlcoholic",
+      "quote": "creative non-alcoholic options",
+      "readers": [
+        "way/224178092"
+      ]
+    },
+    {
+      "host": "thehoratia.co.uk",
+      "key": "pubQuiz",
+      "quote": "pub quiz",
+      "readers": [
+        "node/362359474"
       ]
     },
     {
@@ -26438,6 +30323,22 @@
       ]
     },
     {
+      "host": "thelambn7.co.uk",
+      "key": "liveMusic",
+      "quote": "live music help to make the pub",
+      "readers": [
+        "venue/venue-uov7ku"
+      ]
+    },
+    {
+      "host": "thelambn7.co.uk",
+      "key": "nonAlcoholic",
+      "quote": "at least four non-alcoholic beer options",
+      "readers": [
+        "venue/venue-uov7ku"
+      ]
+    },
+    {
       "host": "thelarrik.com",
       "key": "beerGarden",
       "quote": "great outdoor seating for nice weather",
@@ -26457,6 +30358,14 @@
       "host": "thelastdropinn.co.uk",
       "key": "food",
       "quote": "food menu",
+      "readers": [
+        "node/13691299423"
+      ]
+    },
+    {
+      "host": "thelastdropinn.co.uk",
+      "key": "food",
+      "quote": "italian and indian finger food",
       "readers": [
         "node/13691299423"
       ]
@@ -26816,6 +30725,14 @@
     {
       "host": "thelordnelsonbrentford.co.uk",
       "key": "food",
+      "quote": "good food",
+      "readers": [
+        "way/378650642"
+      ]
+    },
+    {
+      "host": "thelordnelsonbrentford.co.uk",
+      "key": "food",
       "quote": "the lord nelson promises good food",
       "readers": [
         "way/378650642"
@@ -26891,6 +30808,22 @@
       "quote": "decaf (filtered) coffee",
       "readers": [
         "way/1545056577"
+      ]
+    },
+    {
+      "host": "themariananderson.com",
+      "key": "beerGarden",
+      "quote": "outdoor seating",
+      "readers": [
+        "venue/venue-59ibpp"
+      ]
+    },
+    {
+      "host": "themariananderson.com",
+      "key": "food",
+      "quote": "great beer, great food, great company",
+      "readers": [
+        "venue/venue-59ibpp"
       ]
     },
     {
@@ -26979,6 +30912,134 @@
       "quote": "live music",
       "readers": [
         "way/558503751"
+      ]
+    },
+    {
+      "host": "themaxwell.co.uk",
+      "key": "beerGarden",
+      "quote": "outside seating",
+      "readers": [
+        "venue/venue-4wsk4u"
+      ]
+    },
+    {
+      "host": "themaxwell.co.uk",
+      "key": "cocktails",
+      "quote": "cocktails",
+      "readers": [
+        "venue/venue-4wsk4u"
+      ]
+    },
+    {
+      "host": "themaxwell.co.uk",
+      "key": "darts",
+      "quote": "dart board",
+      "readers": [
+        "venue/venue-4wsk4u"
+      ]
+    },
+    {
+      "host": "themaxwell.co.uk",
+      "key": "food",
+      "quote": "known for good food",
+      "readers": [
+        "venue/venue-4wsk4u"
+      ]
+    },
+    {
+      "host": "themaxwell.co.uk",
+      "key": "liveMusic",
+      "quote": "live music",
+      "readers": [
+        "venue/venue-4wsk4u"
+      ]
+    },
+    {
+      "host": "themaxwell.co.uk",
+      "key": "liveSports",
+      "quote": "home for live sport",
+      "readers": [
+        "venue/venue-4wsk4u"
+      ]
+    },
+    {
+      "host": "themaxwell.co.uk",
+      "key": "pool",
+      "quote": "pool table",
+      "readers": [
+        "venue/venue-4wsk4u"
+      ]
+    },
+    {
+      "host": "themaxwell.co.uk",
+      "key": "pubQuiz",
+      "quote": "quiz nights",
+      "readers": [
+        "venue/venue-4wsk4u"
+      ]
+    },
+    {
+      "host": "themerchantbattersea.com",
+      "key": "cocktails",
+      "quote": "sip cocktails",
+      "readers": [
+        "venue/venue-ejcaqb"
+      ]
+    },
+    {
+      "host": "themerchantbattersea.com",
+      "key": "liveMusic",
+      "quote": "your go-to battersea pub for sport & live music",
+      "readers": [
+        "venue/venue-ejcaqb"
+      ]
+    },
+    {
+      "host": "themilfordarms.co.uk",
+      "key": "beerGarden",
+      "quote": "enjoy our spacious garden",
+      "readers": [
+        "venue/venue-4r1951"
+      ]
+    },
+    {
+      "host": "themilfordarms.co.uk",
+      "key": "cocktails",
+      "quote": "download cocktail menu",
+      "readers": [
+        "venue/venue-4r1951"
+      ]
+    },
+    {
+      "host": "themilfordarms.co.uk",
+      "key": "food",
+      "quote": "enjoy freshly cooked pub food",
+      "readers": [
+        "venue/venue-4r1951"
+      ]
+    },
+    {
+      "host": "themilfordarms.co.uk",
+      "key": "karaoke",
+      "quote": "saturday karaoke",
+      "readers": [
+        "venue/venue-4r1951"
+      ]
+    },
+    {
+      "host": "themilfordarms.co.uk",
+      "key": "liveMusic",
+      "quote": "from live jazz and comedy",
+      "readers": [
+        "venue/venue-4r1951"
+      ]
+    },
+    {
+      "host": "themilfordarms.co.uk",
+      "key": "liveSports",
+      "quote": "catching live sport",
+      "readers": [
+        "venue/venue-4r1951"
       ]
     },
     {
@@ -27190,6 +31251,22 @@
       ]
     },
     {
+      "host": "thenightingalesutton.co.uk",
+      "key": "beerGarden",
+      "quote": "the largest and best beer garden in the borough",
+      "readers": [
+        "venue/venue-1b10w2i"
+      ]
+    },
+    {
+      "host": "thenightingalesutton.co.uk",
+      "key": "liveMusic",
+      "quote": "live music every weekend",
+      "readers": [
+        "venue/venue-1b10w2i"
+      ]
+    },
+    {
       "host": "theoldbluelast.com",
       "key": "happyHour",
       "quote": "early birds weekdays 1-5pm",
@@ -27211,6 +31288,30 @@
       "quote": "live sports",
       "readers": [
         "way/157236295"
+      ]
+    },
+    {
+      "host": "theoldcrownleytonstone.co.uk",
+      "key": "darts",
+      "quote": "dart boards",
+      "readers": [
+        "venue/venue-jo9s88"
+      ]
+    },
+    {
+      "host": "theoldcrownleytonstone.co.uk",
+      "key": "karaoke",
+      "quote": "karaoke night",
+      "readers": [
+        "venue/venue-jo9s88"
+      ]
+    },
+    {
+      "host": "theoldcrownleytonstone.co.uk",
+      "key": "pool",
+      "quote": "pool tables",
+      "readers": [
+        "venue/venue-jo9s88"
       ]
     },
     {
@@ -27331,6 +31432,30 @@
       "quote": "pub quiz london",
       "readers": [
         "way/982457191"
+      ]
+    },
+    {
+      "host": "theoldredlion.uk",
+      "key": "food",
+      "quote": "expect all your pub favourites, stackable burgers, fresh seasonal dishes, and small plates you'll want to share with your friends.",
+      "readers": [
+        "venue/venue-15pj44z"
+      ]
+    },
+    {
+      "host": "theoldredlion.uk",
+      "key": "liveMusic",
+      "quote": "open mic night second thursday of the month",
+      "readers": [
+        "venue/venue-15pj44z"
+      ]
+    },
+    {
+      "host": "theoldredlion.uk",
+      "key": "pubQuiz",
+      "quote": "book your quiz, sunday roast or world cup table today.",
+      "readers": [
+        "venue/venue-15pj44z"
       ]
     },
     {
@@ -27579,6 +31704,70 @@
       "quote": "who doesn&#8217;t love a pub quiz?",
       "readers": [
         "node/443032351"
+      ]
+    },
+    {
+      "host": "thephoenixinvictoria.co.uk",
+      "key": "beerGarden",
+      "quote": "pub garden is made for settling in",
+      "readers": [
+        "venue/venue-1vteszv"
+      ]
+    },
+    {
+      "host": "thephoenixinvictoria.co.uk",
+      "key": "cocktails",
+      "quote": "seasonal cocktail",
+      "readers": [
+        "venue/venue-1vteszv"
+      ]
+    },
+    {
+      "host": "thephoenixinvictoria.co.uk",
+      "key": "food",
+      "quote": "pub food in victoria",
+      "readers": [
+        "venue/venue-1vteszv"
+      ]
+    },
+    {
+      "host": "thepilgrimpub.com",
+      "key": "beerGarden",
+      "quote": "two inviting beer gardens",
+      "readers": [
+        "venue/venue-1phs07y"
+      ]
+    },
+    {
+      "host": "thepilgrimpub.com",
+      "key": "food",
+      "quote": "delicious food and drinks",
+      "readers": [
+        "venue/venue-1phs07y"
+      ]
+    },
+    {
+      "host": "thepilgrimpub.com",
+      "key": "happyHour",
+      "quote": "daily happy hours",
+      "readers": [
+        "venue/venue-1phs07y"
+      ]
+    },
+    {
+      "host": "thepilgrimpub.com",
+      "key": "liveMusic",
+      "quote": "we offer live music",
+      "readers": [
+        "venue/venue-1phs07y"
+      ]
+    },
+    {
+      "host": "thepilgrimpub.com",
+      "key": "liveSports",
+      "quote": "catch the big game",
+      "readers": [
+        "venue/venue-1phs07y"
       ]
     },
     {
@@ -27918,6 +32107,14 @@
       ]
     },
     {
+      "host": "theprincen16.com",
+      "key": "food",
+      "quote": "we serve sharing mains, weekly specials, saturday brunch, sunday lunch, freshly made bar snacks and much more.",
+      "readers": [
+        "way/536399756"
+      ]
+    },
+    {
       "host": "theprincen22.co.uk",
       "key": "food",
       "quote": "modern british food",
@@ -27963,6 +32160,22 @@
       "quote": "kitchen opening hours",
       "readers": [
         "node/301516360"
+      ]
+    },
+    {
+      "host": "theprioryarms.com",
+      "key": "food",
+      "quote": "tacos, fried chicken and delicious dominican tapas.",
+      "readers": [
+        "venue/venue-1l1ls5k"
+      ]
+    },
+    {
+      "host": "theprioryarms.com",
+      "key": "pubQuiz",
+      "quote": "quiz night is every sunday",
+      "readers": [
+        "venue/venue-1l1ls5k"
       ]
     },
     {
@@ -28054,6 +32267,70 @@
       ]
     },
     {
+      "host": "thequeensheadholborn.com",
+      "key": "food",
+      "quote": "delicious lunch spot",
+      "readers": [
+        "venue/venue-b85at0"
+      ]
+    },
+    {
+      "host": "thequeensheadholborn.com",
+      "key": "liveSports",
+      "quote": "live sport",
+      "readers": [
+        "venue/venue-b85at0"
+      ]
+    },
+    {
+      "host": "thequeensheadholborn.com",
+      "key": "pubQuiz",
+      "quote": "pub quiz: tuesdays at 7pm",
+      "readers": [
+        "venue/venue-b85at0"
+      ]
+    },
+    {
+      "host": "thequeerbrewingproject.com",
+      "key": "food",
+      "quote": "order food in to enjoy",
+      "readers": [
+        "venue/venue-qliv2p"
+      ]
+    },
+    {
+      "host": "thequeerbrewingproject.com",
+      "key": "happyHour",
+      "quote": "happy hour: every friday 4-6pm!",
+      "readers": [
+        "venue/venue-qliv2p"
+      ]
+    },
+    {
+      "host": "thequeerbrewingproject.com",
+      "key": "nonAlcoholic",
+      "quote": "alcohol-free and gluten-free options",
+      "readers": [
+        "venue/venue-qliv2p"
+      ]
+    },
+    {
+      "host": "theracehorsepub.com",
+      "key": "beerGarden",
+      "quote": "renovations on the beer garden",
+      "readers": [
+        "venue/venue-11x08sx"
+      ]
+    },
+    {
+      "host": "theracehorsepub.com",
+      "key": "food",
+      "quote": "great food, quality beer",
+      "readers": [
+        "venue/venue-11x08sx"
+      ]
+    },
+    {
       "host": "therailwaysw16.co.uk",
       "key": "food",
       "quote": "serving lunch, dinner, and of course our delicious sunday roasts",
@@ -28065,6 +32342,22 @@
       "host": "theramkingston.com",
       "key": "beerGarden",
       "quote": "beer garden",
+      "readers": [
+        "node/422887154"
+      ]
+    },
+    {
+      "host": "theramkingston.com",
+      "key": "beerGarden",
+      "quote": "best beer garden atmosphere",
+      "readers": [
+        "node/422887154"
+      ]
+    },
+    {
+      "host": "theramkingston.com",
+      "key": "food",
+      "quote": "fresh, seasonal food",
       "readers": [
         "node/422887154"
       ]
@@ -28110,6 +32403,14 @@
       ]
     },
     {
+      "host": "theravenw6.com",
+      "key": "food",
+      "quote": "we serve up delicious homemade stone-baked pizzas and juicy burgers!",
+      "readers": [
+        "venue/venue-1476779"
+      ]
+    },
+    {
       "host": "therebelinn.com",
       "key": "liveMusic",
       "quote": "live music",
@@ -28129,6 +32430,14 @@
       "host": "theredlionandsun.com",
       "key": "food",
       "quote": "our chefs serve freshly prepared and cooked meals",
+      "readers": [
+        "way/810341385"
+      ]
+    },
+    {
+      "host": "theredlionandsun.com",
+      "key": "food",
+      "quote": "our chefs serve freshly prepared and cooked meals every day",
       "readers": [
         "way/810341385"
       ]
@@ -28190,6 +32499,22 @@
       ]
     },
     {
+      "host": "theredlionwallington.co.uk",
+      "key": "beerGarden",
+      "quote": "beer garden",
+      "readers": [
+        "venue/venue-1x16vuy"
+      ]
+    },
+    {
+      "host": "theredlionwallington.co.uk",
+      "key": "food",
+      "quote": "share a meal",
+      "readers": [
+        "venue/venue-1x16vuy"
+      ]
+    },
+    {
       "host": "theregentbalham.co.uk",
       "key": "beerGarden",
       "quote": "secret garden",
@@ -28239,6 +32564,14 @@
     },
     {
       "host": "theregentpub.com",
+      "key": "cocktails",
+      "quote": "2-4-£12 cocktails from 5pm",
+      "readers": [
+        "node/331318827"
+      ]
+    },
+    {
+      "host": "theregentpub.com",
       "key": "food",
       "quote": "excellent stone baked pizza every day",
       "readers": [
@@ -28247,8 +32580,40 @@
     },
     {
       "host": "theregentpub.com",
+      "key": "food",
+      "quote": "serving excellent stone baked pizza every day",
+      "readers": [
+        "node/331318827"
+      ]
+    },
+    {
+      "host": "theregentpub.com",
+      "key": "happyHour",
+      "quote": "2-4-£12 cocktails from 5pm",
+      "readers": [
+        "node/331318827"
+      ]
+    },
+    {
+      "host": "theregentpub.com",
+      "key": "karaoke",
+      "quote": "karaoke machine!",
+      "readers": [
+        "node/331318827"
+      ]
+    },
+    {
+      "host": "theregentpub.com",
       "key": "karaoke",
       "quote": "karaoke, along with buffet",
+      "readers": [
+        "node/331318827"
+      ]
+    },
+    {
+      "host": "theregentpub.com",
+      "key": "liveMusic",
+      "quote": "our trad sessions are back tonight",
       "readers": [
         "node/331318827"
       ]
@@ -28265,6 +32630,14 @@
       "host": "theregentpub.com",
       "key": "liveSports",
       "quote": "book for all major sporting events",
+      "readers": [
+        "node/331318827"
+      ]
+    },
+    {
+      "host": "theregentpub.com",
+      "key": "pubQuiz",
+      "quote": "our famous pub quiz tonight",
       "readers": [
         "node/331318827"
       ]
@@ -28398,6 +32771,30 @@
       ]
     },
     {
+      "host": "therobinhoodsutton.co.uk",
+      "key": "beerGarden",
+      "quote": "tranquil terrace",
+      "readers": [
+        "venue/venue-1a9or74"
+      ]
+    },
+    {
+      "host": "therobinhoodsutton.co.uk",
+      "key": "cocktails",
+      "quote": "cocktails",
+      "readers": [
+        "venue/venue-1a9or74"
+      ]
+    },
+    {
+      "host": "therobinhoodsutton.co.uk",
+      "key": "food",
+      "quote": "delicious food",
+      "readers": [
+        "venue/venue-1a9or74"
+      ]
+    },
+    {
       "host": "therobinlondon.com",
       "key": "liveSports",
       "quote": "unless we are in a final, then we might get a projector.",
@@ -28411,6 +32808,38 @@
       "quote": "we serve truly traditional pub grub",
       "readers": [
         "way/100275592"
+      ]
+    },
+    {
+      "host": "therookwoodvillage.com",
+      "key": "cocktails",
+      "quote": "from craft beer to cocktails",
+      "readers": [
+        "venue/venue-ypt5do"
+      ]
+    },
+    {
+      "host": "therookwoodvillage.com",
+      "key": "darts",
+      "quote": "interactive darts",
+      "readers": [
+        "venue/venue-ypt5do"
+      ]
+    },
+    {
+      "host": "therookwoodvillage.com",
+      "key": "food",
+      "quote": "new menu is here with fresh flavours and pub favourites",
+      "readers": [
+        "venue/venue-ypt5do"
+      ]
+    },
+    {
+      "host": "therookwoodvillage.com",
+      "key": "liveSports",
+      "quote": "watch live sport & tnt sports on our large screen tvs",
+      "readers": [
+        "venue/venue-ypt5do"
       ]
     },
     {
@@ -28598,6 +33027,38 @@
       ]
     },
     {
+      "host": "thesalisburyhotelpub.co.uk",
+      "key": "food",
+      "quote": "food menu",
+      "readers": [
+        "way/223934463"
+      ]
+    },
+    {
+      "host": "thesalusbury.co.uk",
+      "key": "food",
+      "quote": "serving times lunch: wednesday – saturday, 12 – 3pm dinner: monday – saturday, 5.30 – 9.30pm sunday roast: sunday, 12 – 5.30pm",
+      "readers": [
+        "venue/venue-1l9ehj3"
+      ]
+    },
+    {
+      "host": "thesalusbury.co.uk",
+      "key": "liveMusic",
+      "quote": "live music - every sunday evening from 7.30 pm",
+      "readers": [
+        "venue/venue-1l9ehj3"
+      ]
+    },
+    {
+      "host": "thesalusbury.co.uk",
+      "key": "pubQuiz",
+      "quote": "the queens park world famous pub quiz",
+      "readers": [
+        "venue/venue-1l9ehj3"
+      ]
+    },
+    {
       "host": "thesamuelpalmer.com",
       "key": "beerGarden",
       "quote": "on our outside terraces",
@@ -28638,11 +33099,59 @@
       ]
     },
     {
+      "host": "theselkirksw17.com",
+      "key": "cocktails",
+      "quote": "three different cocktails",
+      "readers": [
+        "way/237918839"
+      ]
+    },
+    {
+      "host": "theselkirksw17.com",
+      "key": "food",
+      "quote": "epic food",
+      "readers": [
+        "way/237918839"
+      ]
+    },
+    {
       "host": "theshaftesburytavern.co.uk",
       "key": "food",
       "quote": "food food menu",
       "readers": [
         "way/190104590"
+      ]
+    },
+    {
+      "host": "theshakespearebarbican.co.uk",
+      "key": "cocktails",
+      "quote": "americano campari bitter, sweet vermouth, soda water",
+      "readers": [
+        "way/203526627"
+      ]
+    },
+    {
+      "host": "theshakespearebarbican.co.uk",
+      "key": "happyHour",
+      "quote": "happy hour daily 4pm - 6pm",
+      "readers": [
+        "way/203526627"
+      ]
+    },
+    {
+      "host": "theshakespearebarbican.co.uk",
+      "key": "liveMusic",
+      "quote": "we can arrange for live music",
+      "readers": [
+        "way/203526627"
+      ]
+    },
+    {
+      "host": "theshakespearebarbican.co.uk",
+      "key": "nonAlcoholic",
+      "quote": "non-alcoholic options available",
+      "readers": [
+        "way/203526627"
       ]
     },
     {
@@ -28806,6 +33315,78 @@
       ]
     },
     {
+      "host": "thespringfieldtavern.co.uk",
+      "key": "beerGarden",
+      "quote": "come and experience our newly renovated heated & covered beer garden.",
+      "readers": [
+        "venue/venue-1lpdp6i"
+      ]
+    },
+    {
+      "host": "thespringfieldtavern.co.uk",
+      "key": "food",
+      "quote": "we specialise in thai cuisine offering a delightful menu of authentic regional dishes.",
+      "readers": [
+        "venue/venue-1lpdp6i"
+      ]
+    },
+    {
+      "host": "thespringfieldtavern.co.uk",
+      "key": "liveMusic",
+      "quote": "join us every weekend for live music performances",
+      "readers": [
+        "venue/venue-1lpdp6i"
+      ]
+    },
+    {
+      "host": "thespringfieldtavern.co.uk",
+      "key": "liveSports",
+      "quote": "watch all the live sports action on our multiple widescreen tvs",
+      "readers": [
+        "venue/venue-1lpdp6i"
+      ]
+    },
+    {
+      "host": "thespringgrove.co.uk",
+      "key": "beerGarden",
+      "quote": "the aviary garden huts the bar the garden",
+      "readers": [
+        "venue/venue-90m3gm"
+      ]
+    },
+    {
+      "host": "thespringgrove.co.uk",
+      "key": "cocktails",
+      "quote": "winter cocktails our brand-new, oh-so-seasonal winter cocktail menu is here",
+      "readers": [
+        "venue/venue-90m3gm"
+      ]
+    },
+    {
+      "host": "thespringgrove.co.uk",
+      "key": "food",
+      "quote": "food served 12pm - 10pm",
+      "readers": [
+        "venue/venue-90m3gm"
+      ]
+    },
+    {
+      "host": "thespringgrove.co.uk",
+      "key": "nonAlcoholic",
+      "quote": "alongside a generous selection of alcohol-free serves.",
+      "readers": [
+        "venue/venue-90m3gm"
+      ]
+    },
+    {
+      "host": "thespringgrove.co.uk",
+      "key": "pubQuiz",
+      "quote": "looking for a fun-filled pub quiz",
+      "readers": [
+        "venue/venue-90m3gm"
+      ]
+    },
+    {
       "host": "thestablehand.co.uk",
       "key": "cocktails",
       "quote": "classic cocktails on offer",
@@ -28913,6 +33494,14 @@
       "host": "thestonhouse.co.uk",
       "key": "beerGarden",
       "quote": "elegant pub and garden",
+      "readers": [
+        "way/961153760"
+      ]
+    },
+    {
+      "host": "thestonhouse.co.uk",
+      "key": "beerGarden",
+      "quote": "pub and garden",
       "readers": [
         "way/961153760"
       ]
@@ -29051,6 +33640,14 @@
       "quote": "mediterranean-inspired menu",
       "readers": [
         "way/1136139752"
+      ]
+    },
+    {
+      "host": "theswanwembley.co.uk",
+      "key": "food",
+      "quote": "share a meal",
+      "readers": [
+        "venue/venue-162buoz"
       ]
     },
     {
@@ -29222,6 +33819,46 @@
       ]
     },
     {
+      "host": "thetichenhaminn.co.uk",
+      "key": "beerGarden",
+      "quote": "lovely beer garden",
+      "readers": [
+        "node/651539992"
+      ]
+    },
+    {
+      "host": "thetichenhaminn.co.uk",
+      "key": "cocktails",
+      "quote": "handcrafted cocktails enjoy a cracking selection of cocktails",
+      "readers": [
+        "node/651539992"
+      ]
+    },
+    {
+      "host": "thetichenhaminn.co.uk",
+      "key": "food",
+      "quote": "great food, perfect for casual lunches",
+      "readers": [
+        "node/651539992"
+      ]
+    },
+    {
+      "host": "thetichenhaminn.co.uk",
+      "key": "liveMusic",
+      "quote": "live music events",
+      "readers": [
+        "node/651539992"
+      ]
+    },
+    {
+      "host": "thetichenhaminn.co.uk",
+      "key": "liveSports",
+      "quote": "live sports",
+      "readers": [
+        "node/651539992"
+      ]
+    },
+    {
       "host": "thetrinity.co.uk",
       "key": "beerGarden",
       "quote": "outside seating",
@@ -29318,6 +33955,78 @@
       ]
     },
     {
+      "host": "thetwobridges.co.uk",
+      "key": "cocktails",
+      "quote": "pair with cocktails, crisp wines, or premium pints",
+      "readers": [
+        "venue/venue-1wxa6rs"
+      ]
+    },
+    {
+      "host": "thetwobridges.co.uk",
+      "key": "food",
+      "quote": "our menu is bursting with traditional pub classics, delicious desserts and award winning kids dishes.",
+      "readers": [
+        "venue/venue-1wxa6rs"
+      ]
+    },
+    {
+      "host": "thetwobridges.co.uk",
+      "key": "liveMusic",
+      "quote": "from weekly quizzes & live music",
+      "readers": [
+        "venue/venue-1wxa6rs"
+      ]
+    },
+    {
+      "host": "thetwobridges.co.uk",
+      "key": "liveSports",
+      "quote": "tnt sports sky sports",
+      "readers": [
+        "venue/venue-1wxa6rs"
+      ]
+    },
+    {
+      "host": "thetwobridges.co.uk",
+      "key": "nonAlcoholic",
+      "quote": "great choice of low and no alcohol options.",
+      "readers": [
+        "venue/venue-1wxa6rs"
+      ]
+    },
+    {
+      "host": "thetwobridges.co.uk",
+      "key": "pubQuiz",
+      "quote": "from weekly quizzes & live music",
+      "readers": [
+        "venue/venue-1wxa6rs"
+      ]
+    },
+    {
+      "host": "thevanbrugh.com",
+      "key": "beerGarden",
+      "quote": "garden and dining room",
+      "readers": [
+        "node/13782246514"
+      ]
+    },
+    {
+      "host": "thevanbrugh.com",
+      "key": "food",
+      "quote": "serving seasonal classics",
+      "readers": [
+        "node/13782246514"
+      ]
+    },
+    {
+      "host": "thevanbrugh.com",
+      "key": "liveSports",
+      "quote": "live sport",
+      "readers": [
+        "node/13782246514"
+      ]
+    },
+    {
       "host": "thevic.london",
       "key": "beerGarden",
       "quote": "beer garden",
@@ -29398,9 +34107,33 @@
       ]
     },
     {
+      "host": "thevictoriatavern.co.uk",
+      "key": "food",
+      "quote": "excellent seasonally sourced home cooked food",
+      "readers": [
+        "venue/venue-9dwjpl"
+      ]
+    },
+    {
+      "host": "thevictoriatottenham.com",
+      "key": "beerGarden",
+      "quote": "private terrace",
+      "readers": [
+        "way/1288548017"
+      ]
+    },
+    {
       "host": "thevictoriatottenham.com",
       "key": "food",
       "quote": "yard sale pizza",
+      "readers": [
+        "way/1288548017"
+      ]
+    },
+    {
+      "host": "thevictoriatottenham.com",
+      "key": "food",
+      "quote": "yard sale pizzas",
       "readers": [
         "way/1288548017"
       ]
@@ -29416,7 +34149,39 @@
     {
       "host": "thevictoriatottenham.com",
       "key": "liveMusic",
+      "quote": "monthly live music",
+      "readers": [
+        "way/1288548017"
+      ]
+    },
+    {
+      "host": "thevictoriatottenham.com",
+      "key": "liveMusic",
       "quote": "open mic nights",
+      "readers": [
+        "way/1288548017"
+      ]
+    },
+    {
+      "host": "thevictoriatottenham.com",
+      "key": "liveSports",
+      "quote": "big screens throughout the venue for all of your sporting needs",
+      "readers": [
+        "way/1288548017"
+      ]
+    },
+    {
+      "host": "thevictoriatottenham.com",
+      "key": "pool",
+      "quote": "pool table",
+      "readers": [
+        "way/1288548017"
+      ]
+    },
+    {
+      "host": "thevictoriatottenham.com",
+      "key": "pubQuiz",
+      "quote": "weekly pub quiz",
       "readers": [
         "way/1288548017"
       ]
@@ -29427,6 +34192,38 @@
       "quote": "weekly quiz night",
       "readers": [
         "way/1288548017"
+      ]
+    },
+    {
+      "host": "thevillagegreen.pub",
+      "key": "beerGarden",
+      "quote": "with plenty of space inside and out",
+      "readers": [
+        "venue/venue-cwtxq2"
+      ]
+    },
+    {
+      "host": "thevillagegreen.pub",
+      "key": "food",
+      "quote": "freshly cooked pub classics such as fish & chips and roasts on a sunday.",
+      "readers": [
+        "venue/venue-cwtxq2"
+      ]
+    },
+    {
+      "host": "thevillagegreen.pub",
+      "key": "happyHour",
+      "quote": "all day happy hour on selected drinks.",
+      "readers": [
+        "venue/venue-cwtxq2"
+      ]
+    },
+    {
+      "host": "thevillagegreen.pub",
+      "key": "pubQuiz",
+      "quote": "quiz night ! #### every tuesday from 19:30",
+      "readers": [
+        "venue/venue-cwtxq2"
       ]
     },
     {
@@ -29526,6 +34323,22 @@
       ]
     },
     {
+      "host": "thewatergate.co.uk",
+      "key": "cocktails",
+      "quote": "cocktails, natural wines, food",
+      "readers": [
+        "venue/venue-1fvqrf9"
+      ]
+    },
+    {
+      "host": "thewatergate.co.uk",
+      "key": "food",
+      "quote": "cocktails, natural wines, food",
+      "readers": [
+        "venue/venue-1fvqrf9"
+      ]
+    },
+    {
       "host": "thewatermansarms.co.uk",
       "key": "beerGarden",
       "quote": "country yard garden",
@@ -29574,6 +34387,22 @@
       ]
     },
     {
+      "host": "theweirbar.com",
+      "key": "food",
+      "quote": "autumn menu we've launched our brand new autumn menu",
+      "readers": [
+        "venue/venue-gshjia"
+      ]
+    },
+    {
+      "host": "theweirbar.com",
+      "key": "liveMusic",
+      "quote": "live music will be returning to the weir",
+      "readers": [
+        "venue/venue-gshjia"
+      ]
+    },
+    {
       "host": "thewellshampstead.co.uk",
       "key": "beerGarden",
       "quote": "terrace dining our covered terrace",
@@ -29595,6 +34424,22 @@
       "quote": "the menus have evolved over time",
       "readers": [
         "way/553138189"
+      ]
+    },
+    {
+      "host": "thewhitecrossrichmond.com",
+      "key": "beerGarden",
+      "quote": "outdoor riverside tables",
+      "readers": [
+        "venue/venue-j7ktuq"
+      ]
+    },
+    {
+      "host": "thewhitecrossrichmond.com",
+      "key": "food",
+      "quote": "proper pub grub",
+      "readers": [
+        "venue/venue-j7ktuq"
       ]
     },
     {
@@ -29627,6 +34472,14 @@
       "quote": "live music, pub quizzes & more",
       "readers": [
         "way/1039879206"
+      ]
+    },
+    {
+      "host": "thewiltonarmssw1.com",
+      "key": "food",
+      "quote": "passionate about food our commitment to using the best seasonal british produce shines through in every dish",
+      "readers": [
+        "venue/venue-1k0kfv7"
       ]
     },
     {
@@ -29686,6 +34539,62 @@
       ]
     },
     {
+      "host": "thewoodman.co",
+      "key": "beerGarden",
+      "quote": "one of wimbledon's largest beer gardens.",
+      "readers": [
+        "venue/venue-1wtqjvr"
+      ]
+    },
+    {
+      "host": "thewoodman.co",
+      "key": "cocktails",
+      "quote": "enjoy a great selection of craft beers, spirits, and cocktails",
+      "readers": [
+        "venue/venue-1wtqjvr"
+      ]
+    },
+    {
+      "host": "thewoodman.co",
+      "key": "darts",
+      "quote": "darts board",
+      "readers": [
+        "venue/venue-1wtqjvr"
+      ]
+    },
+    {
+      "host": "thewoodman.co",
+      "key": "food",
+      "quote": "our kitchen will be open as usual!",
+      "readers": [
+        "venue/venue-1wtqjvr"
+      ]
+    },
+    {
+      "host": "thewoodman.co",
+      "key": "happyHour",
+      "quote": "happy hour",
+      "readers": [
+        "venue/venue-1wtqjvr"
+      ]
+    },
+    {
+      "host": "thewoodman.co",
+      "key": "liveSports",
+      "quote": "we show all major sports",
+      "readers": [
+        "venue/venue-1wtqjvr"
+      ]
+    },
+    {
+      "host": "thewoodman.co",
+      "key": "pool",
+      "quote": "pool table",
+      "readers": [
+        "venue/venue-1wtqjvr"
+      ]
+    },
+    {
       "host": "thewrestlershighgate.com",
       "key": "beerGarden",
       "quote": "at the back of our pub you can find our cute little beer garden",
@@ -29705,6 +34614,14 @@
       "host": "thewych.co.uk",
       "key": "food",
       "quote": "food &mdash; the wych elm kingston",
+      "readers": [
+        "way/1238338171"
+      ]
+    },
+    {
+      "host": "thewych.co.uk",
+      "key": "food",
+      "quote": "for our live menufollow this link for all current daily specials, small plates and dishes to share and allergen information.",
       "readers": [
         "way/1238338171"
       ]
@@ -29760,7 +34677,23 @@
     {
       "host": "threecompasseshornsey.com",
       "key": "cocktails",
+      "quote": "2 for &pound;12 cocktails",
+      "readers": [
+        "node/12007863407"
+      ]
+    },
+    {
+      "host": "threecompasseshornsey.com",
+      "key": "cocktails",
       "quote": "dancing on the cocktails",
+      "readers": [
+        "node/12007863407"
+      ]
+    },
+    {
+      "host": "threecompasseshornsey.com",
+      "key": "darts",
+      "quote": "interactive darts board",
       "readers": [
         "node/12007863407"
       ]
@@ -29783,6 +34716,30 @@
     },
     {
       "host": "threecompasseshornsey.com",
+      "key": "food",
+      "quote": "from meat eaters to vegans, we like to think we have something for everyone.",
+      "readers": [
+        "node/12007863407"
+      ]
+    },
+    {
+      "host": "threecompasseshornsey.com",
+      "key": "happyHour",
+      "quote": "&pound;10 happy hour",
+      "readers": [
+        "node/12007863407"
+      ]
+    },
+    {
+      "host": "threecompasseshornsey.com",
+      "key": "liveMusic",
+      "quote": "everything from drag brunches to jazz orchestras, blues jams and local bands and djs.",
+      "readers": [
+        "node/12007863407"
+      ]
+    },
+    {
+      "host": "threecompasseshornsey.com",
       "key": "liveMusic",
       "quote": "local bands and djs",
       "readers": [
@@ -29793,6 +34750,30 @@
       "host": "threecompasseshornsey.com",
       "key": "liveSports",
       "quote": "live sport",
+      "readers": [
+        "node/12007863407"
+      ]
+    },
+    {
+      "host": "threecompasseshornsey.com",
+      "key": "liveSports",
+      "quote": "we show a variation of live sports",
+      "readers": [
+        "node/12007863407"
+      ]
+    },
+    {
+      "host": "threecompasseshornsey.com",
+      "key": "pool",
+      "quote": "and pool table, perfect for events!",
+      "readers": [
+        "node/12007863407"
+      ]
+    },
+    {
+      "host": "threecompasseshornsey.com",
+      "key": "pubQuiz",
+      "quote": "come down every tuesday and join us for our pub quiz!",
       "readers": [
         "node/12007863407"
       ]
@@ -29875,6 +34856,30 @@
       "quote": "live music thursdays & fridays",
       "readers": [
         "node/9006872322"
+      ]
+    },
+    {
+      "host": "threehorseshoesfeltham.co.uk",
+      "key": "beerGarden",
+      "quote": "development of the large garden at the rear",
+      "readers": [
+        "venue/venue-an88gc"
+      ]
+    },
+    {
+      "host": "threehorseshoesfeltham.co.uk",
+      "key": "food",
+      "quote": "introduced great food",
+      "readers": [
+        "venue/venue-an88gc"
+      ]
+    },
+    {
+      "host": "threehorseshoesfeltham.co.uk",
+      "key": "liveSports",
+      "quote": "live sport",
+      "readers": [
+        "venue/venue-an88gc"
       ]
     },
     {
@@ -29987,6 +34992,30 @@
       "quote": "pool table",
       "readers": [
         "way/160096670"
+      ]
+    },
+    {
+      "host": "tollingtonarms-holloway.co.uk",
+      "key": "beerGarden",
+      "quote": "superb outside area for al fresco dining",
+      "readers": [
+        "venue/venue-1yfamhh"
+      ]
+    },
+    {
+      "host": "tollingtonarms-holloway.co.uk",
+      "key": "food",
+      "quote": "superb home cooked food including sunday roasts",
+      "readers": [
+        "venue/venue-1yfamhh"
+      ]
+    },
+    {
+      "host": "tollingtonarms-holloway.co.uk",
+      "key": "liveSports",
+      "quote": "8 giant plasma tv screens showing every major sporting event",
+      "readers": [
+        "venue/venue-1yfamhh"
       ]
     },
     {
@@ -30190,6 +35219,22 @@
       ]
     },
     {
+      "host": "up-the-creek.com",
+      "key": "karaoke",
+      "quote": "live band karaoke",
+      "readers": [
+        "venue/venue-1nnut7v"
+      ]
+    },
+    {
+      "host": "up-the-creek.com",
+      "key": "liveMusic",
+      "quote": "live band karaoke",
+      "readers": [
+        "venue/venue-1nnut7v"
+      ]
+    },
+    {
       "host": "urbanpubsandbars.com",
       "key": "beerGarden",
       "quote": "a gorgeous beer garden and london's highest theatre",
@@ -30270,6 +35315,14 @@
       "quote": "classic pub food cocktails",
       "readers": [
         "way/70609598"
+      ]
+    },
+    {
+      "host": "urbanpubsandbars.com",
+      "key": "cocktails",
+      "quote": "cocktails",
+      "readers": [
+        "way/157322970"
       ]
     },
     {
@@ -30483,6 +35536,14 @@
       "quote": "we're now serving up incredible food too!",
       "readers": [
         "way/237487429"
+      ]
+    },
+    {
+      "host": "urbanpubsandbars.com",
+      "key": "food",
+      "quote": "we're passionate about great food made with the finest seasonal british ingredients",
+      "readers": [
+        "node/12633199507"
       ]
     },
     {
@@ -30850,6 +35911,14 @@
     {
       "host": "victoriapaddington.co.uk",
       "key": "food",
+      "quote": "food served",
+      "readers": [
+        "way/744634826"
+      ]
+    },
+    {
+      "host": "victoriapaddington.co.uk",
+      "key": "food",
       "quote": "seasonal menu",
       "readers": [
         "way/744634826"
@@ -30874,6 +35943,14 @@
     {
       "host": "village-walthamstow.com",
       "key": "beerGarden",
+      "quote": "our newly refurbished garden is the best beer garden",
+      "readers": [
+        "way/198639606"
+      ]
+    },
+    {
+      "host": "village-walthamstow.com",
+      "key": "beerGarden",
       "quote": "pub garden in walthamstow | the village",
       "readers": [
         "way/198639606"
@@ -30890,6 +35967,14 @@
     {
       "host": "village-walthamstow.com",
       "key": "darts",
+      "quote": "including darts, board games",
+      "readers": [
+        "way/198639606"
+      ]
+    },
+    {
+      "host": "village-walthamstow.com",
+      "key": "darts",
       "quote": "including darts, board games,",
       "readers": [
         "way/198639606"
@@ -30899,6 +35984,22 @@
       "host": "village-walthamstow.com",
       "key": "food",
       "quote": "new menu is here with fresh flavours and pub favourites",
+      "readers": [
+        "way/198639606"
+      ]
+    },
+    {
+      "host": "village-walthamstow.com",
+      "key": "food",
+      "quote": "we serve a wide range of freshly cooked dishes",
+      "readers": [
+        "way/198639606"
+      ]
+    },
+    {
+      "host": "village-walthamstow.com",
+      "key": "liveSports",
+      "quote": "live sports and more",
       "readers": [
         "way/198639606"
       ]
@@ -30928,9 +36029,65 @@
       ]
     },
     {
+      "host": "vinoramica.com",
+      "key": "food",
+      "quote": "food: 5/5",
+      "readers": [
+        "venue/venue-1kpw767"
+      ]
+    },
+    {
+      "host": "vinoramica.com",
+      "key": "pubQuiz",
+      "quote": "wine tasting & quiz",
+      "readers": [
+        "venue/venue-1kpw767"
+      ]
+    },
+    {
+      "host": "vintnersyard.co.uk",
+      "key": "beerGarden",
+      "quote": "seasonal oasis",
+      "readers": [
+        "venue/venue-1d6wmdx"
+      ]
+    },
+    {
+      "host": "vintnersyard.co.uk",
+      "key": "cocktails",
+      "quote": "cocktail making",
+      "readers": [
+        "venue/venue-1d6wmdx"
+      ]
+    },
+    {
+      "host": "vintnersyard.co.uk",
+      "key": "food",
+      "quote": "artisan pizza",
+      "readers": [
+        "venue/venue-1d6wmdx"
+      ]
+    },
+    {
+      "host": "vintnersyard.co.uk",
+      "key": "liveSports",
+      "quote": "live sports events",
+      "readers": [
+        "venue/venue-1d6wmdx"
+      ]
+    },
+    {
       "host": "vintryec4.co.uk",
       "key": "food",
       "quote": "refined pub classics, hearty mains and small plates",
+      "readers": [
+        "way/523388241"
+      ]
+    },
+    {
+      "host": "vintryec4.co.uk",
+      "key": "food",
+      "quote": "we offer a menu featuring refined pub classics, hearty mains and small plates crafted from fresh, seasonal ingredients.",
       "readers": [
         "way/523388241"
       ]
@@ -31053,6 +36210,46 @@
       "quote": "soft drinks",
       "readers": [
         "way/144667841"
+      ]
+    },
+    {
+      "host": "waterlootap.com",
+      "key": "food",
+      "quote": "honest burgers",
+      "readers": [
+        "venue/venue-1u2v4eh"
+      ]
+    },
+    {
+      "host": "watersideimperialwharf.co.uk",
+      "key": "beerGarden",
+      "quote": "riverside pub and terrace",
+      "readers": [
+        "venue/venue-6ayczf"
+      ]
+    },
+    {
+      "host": "watersideimperialwharf.co.uk",
+      "key": "cocktails",
+      "quote": "winter cocktails",
+      "readers": [
+        "venue/venue-6ayczf"
+      ]
+    },
+    {
+      "host": "watersideimperialwharf.co.uk",
+      "key": "food",
+      "quote": "our chefs have crafted a menu full of fresh, seasonal dishes",
+      "readers": [
+        "venue/venue-6ayczf"
+      ]
+    },
+    {
+      "host": "watersideimperialwharf.co.uk",
+      "key": "pubQuiz",
+      "quote": "proper pub quiz every wednesday",
+      "readers": [
+        "venue/venue-6ayczf"
       ]
     },
     {
@@ -31185,6 +36382,14 @@
     },
     {
       "host": "wellingtonhotelwaterloo.co.uk",
+      "key": "liveSports",
+      "quote": "live sports",
+      "readers": [
+        "node/287749130"
+      ]
+    },
+    {
+      "host": "wellingtonhotelwaterloo.co.uk",
       "key": "pubQuiz",
       "quote": "quiz machine",
       "readers": [
@@ -31291,6 +36496,22 @@
       "host": "whelanspubs.co.uk",
       "key": "beerGarden",
       "quote": "our garden patio",
+      "readers": [
+        "way/1545736312"
+      ]
+    },
+    {
+      "host": "whelanspubs.co.uk",
+      "key": "beerGarden",
+      "quote": "our garden patio is perfect",
+      "readers": [
+        "way/1545736312"
+      ]
+    },
+    {
+      "host": "whelanspubs.co.uk",
+      "key": "cocktails",
+      "quote": "cocktail menu",
       "readers": [
         "way/1545736312"
       ]
@@ -31495,6 +36716,22 @@
       "quote": "seasonal menu made with local ingredient",
       "readers": [
         "way/364312014"
+      ]
+    },
+    {
+      "host": "whitehartinntwickenham.co.uk",
+      "key": "beerGarden",
+      "quote": "coveredterrace",
+      "readers": [
+        "venue/venue-ej7ok7"
+      ]
+    },
+    {
+      "host": "whitehartinntwickenham.co.uk",
+      "key": "liveSports",
+      "quote": "sky sports",
+      "readers": [
+        "venue/venue-ej7ok7"
       ]
     },
     {
@@ -31810,6 +37047,14 @@
       ]
     },
     {
+      "host": "windmillbrixton.co.uk",
+      "key": "liveMusic",
+      "quote": "the no frills folk club",
+      "readers": [
+        "way/96598337"
+      ]
+    },
+    {
       "host": "windmillclapham.co.uk",
       "key": "beerGarden",
       "quote": "our garden",
@@ -32074,6 +37319,22 @@
       ]
     },
     {
+      "host": "yeoldemitreholborn.co.uk",
+      "key": "food",
+      "quote": "home-made bar snacks",
+      "readers": [
+        "way/420644092"
+      ]
+    },
+    {
+      "host": "yeolderoseandcrowntheatrepub.co.uk",
+      "key": "food",
+      "quote": "all food served at ye olde rose and crown is home cooked",
+      "readers": [
+        "way/159296346"
+      ]
+    },
+    {
       "host": "yeolderoseandcrowntheatrepub.co.uk",
       "key": "food",
       "quote": "our kitchen is open monday-saturday",
@@ -32101,6 +37362,14 @@
       "host": "yorkshiregrey.com",
       "key": "happyHour",
       "quote": "happy hour",
+      "readers": [
+        "node/380568360"
+      ]
+    },
+    {
+      "host": "yorkshiregrey.com",
+      "key": "happyHour",
+      "quote": "happy hour cocktails",
       "readers": [
         "node/380568360"
       ]
