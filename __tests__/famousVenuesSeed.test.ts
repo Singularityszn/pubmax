@@ -65,7 +65,7 @@ function loadSeed(file: string): FamousVenueRow[] {
 }
 
 const PACKS = [
-  ["bars.json", 37, "bar"],
+  ["bars.json", 38, "bar"],
   ["late_food.json", 25, "food"],
   ["restaurants.json", 25, "restaurant"],
 ] as const;

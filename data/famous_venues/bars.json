@@ -52,6 +52,51 @@
     ]
   },
   {
+    "id": "bar-beaufort-bar-savoy",
+    "name": "Beaufort Wine Bar",
+    "address": "Strand, London WC2R 0EZ",
+    "borough": "Westminster",
+    "lat": 51.51038,
+    "lng": -0.12025,
+    "kind": "bar",
+    "hasStory": true,
+    "fameGates": [
+      {
+        "kind": "cultural_weight",
+        "sourceUrl": "https://www.hot-dinners.com/2026090815351/Gastroblog/Latest-news/savoy-beaufort-wine-bar-opening"
+      },
+      {
+        "kind": "distinct_experience",
+        "sourceUrl": "https://www.thesavoylondon.com/restaurants-and-bars/beaufort-wine-bar"
+      }
+    ],
+    "sourceUrl": "https://www.thesavoylondon.com/restaurants-and-bars/beaufort-wine-bar",
+    "observedAt": "2026-08-25",
+    "anchor": {
+      "kind": "house_cocktail",
+      "label": "Beaufort signature cocktail",
+      "price": 24,
+      "observedAt": "2026-07-26",
+      "sourceUrl": "https://www.thesavoylondon.com/restaurants-and-bars/beaufort-bar"
+    },
+    "story": {
+      "text": "The Savoy has relaunched its Beaufort Bar as a wine bar, pouring more than 120 of its 250-plus wines by the glass through Coravin.",
+      "sourceUrl": "https://www.thesavoylondon.com/restaurants-and-bars/beaufort-wine-bar"
+    },
+    "category": "bar",
+    "job": "late_night_bar",
+    "description": "The Savoy has relaunched its Beaufort Bar as a wine bar, pouring more than 120 of its 250-plus wines by the glass through Coravin.",
+    "area": "Westminster",
+    "location": {
+      "lat": 51.51038,
+      "lng": -0.12025
+    },
+    "sourceName": "thesavoylondon.com",
+    "expiresAt": "2026-09-24",
+    "discoveredVia": "manual",
+    "extractedVia": "manual"
+  },
+  {
     "id": "bar-connaught",
     "name": "Connaught Bar",
     "address": "Carlos Place, London W1K 2AL",
