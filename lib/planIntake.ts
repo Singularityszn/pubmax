@@ -296,9 +296,10 @@ export function resolveFutureLondonStartIso(
 
 /**
  * The composer's default First pint, as a London datetime-local value: at
- * least a quarter of an hour out, on a quarter, and never before 18:00. It is
- * built from London wall time, not the device clock, because the lock check
- * (`resolveFutureLondonStartIso`) reads the field as London time.
+ * least a quarter of an hour out, on a quarter, and 18:00 when that lands
+ * before 17:00. It is built from London wall time, not the device clock,
+ * because the lock check (`resolveFutureLondonStartIso`) reads the field as
+ * London time.
  */
 export function defaultLondonStartInput(now = new Date()): string {
   const london = londonParts(now);
