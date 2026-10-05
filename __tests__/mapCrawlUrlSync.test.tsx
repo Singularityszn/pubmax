@@ -529,3 +529,88 @@ describe("crawl URL after Map history traversal", () => {
     expect(window.location.pathname + window.location.search).toBe("/map");
   });
 });
+
+
+describe("completed Beer share intent during actual URL synchronization", () => {
+  const plan = { mode: "build" as const, builtIds: ["pub-a", "pub-b"] };
+
+  it("retains explicit Beer after the debounce and selection-only changes", async () => {
+    window.history.replaceState({ root: true }, "", "/map?mode=build&pubs=pub-a,pub-b&drink=beer#route");
+    await act(async () => root.render(createElement(HistoryHarness, { query: "", plan })));
+    act(() => vi.advanceTimersByTime(300));
+    expect(new URLSearchParams(window.location.search).get("drink")).toBe("beer");
+    await act(async () => root.render(createElement(HistoryHarness, {
+      query: "", plan: { ...plan, crawlId: "chosen-crawl" }, selectedVenueId: "pub-a",
+    })));
+    act(() => vi.advanceTimersByTime(300));
+    const params = new URLSearchParams(window.location.search);
+    expect(params.get("drink")).toBe("beer");
+    expect(params.get("pubs")).toBe("pub-a,pub-b");
+    expect(params.get("sel")).toBe("pub-a");
+    expect(params.get("crawl")).toBe("chosen-crawl");
+    expect(window.location.hash).toBe("#route");
+    expect(window.history.state.root).toBe(true);
+  });
+
+  it("does not resurrect a shared Beer intent after a context change", async () => {
+    window.history.replaceState({}, "", "/map?mode=build&pubs=pub-a,pub-b&drink=beer");
+    await act(async () => root.render(createElement(HistoryHarness, { query: "", plan })));
+    act(() => vi.advanceTimersByTime(300));
+    await act(async () => root.render(createElement(HistoryHarness, { query: "Soho", plan })));
+    act(() => vi.advanceTimersByTime(300));
+    expect(new URLSearchParams(window.location.search).get("drink")).toBeNull();
+    expect(new URLSearchParams(window.location.search).get("q")).toBe("Soho");
+    await act(async () => root.render(createElement(HistoryHarness, { query: "", plan })));
+    act(() => vi.advanceTimersByTime(300));
+    expect(new URLSearchParams(window.location.search).get("drink")).toBeNull();
+  });
+
+  it("allows a new drink lane to replace explicit Beer", async () => {
+    window.history.replaceState({}, "", "/map?mode=build&pubs=pub-a,pub-b&drink=beer");
+    await act(async () => root.render(createElement(HistoryHarness, { query: "", plan })));
+    act(() => vi.advanceTimersByTime(300));
+    await act(async () => root.render(createElement(HistoryHarness, { query: "", plan, drinkCategory: "wine" })));
+    act(() => vi.advanceTimersByTime(300));
+    expect(new URLSearchParams(window.location.search).get("drink")).toBe("wine");
+  });
+
+  it("releases explicit Beer when the stop order changes", async () => {
+    window.history.replaceState({}, "", "/map?mode=build&pubs=pub-a,pub-b&drink=beer");
+    await act(async () => root.render(createElement(HistoryHarness, { query: "", plan })));
+    act(() => vi.advanceTimersByTime(300));
+    expect(new URLSearchParams(window.location.search).get("drink")).toBe("beer");
+    await act(async () => root.render(createElement(HistoryHarness, {
+      query: "", plan: { mode: "build", builtIds: ["pub-b", "pub-a"] },
+    })));
+    act(() => vi.advanceTimersByTime(300));
+    const params = new URLSearchParams(window.location.search);
+    expect(params.get("drink")).toBeNull();
+    expect(params.get("pubs")).toBe("pub-b,pub-a");
+  });
+
+  it.each([
+    "?mode=build&pubs=pub-a,pub-b",
+    "?drink=wine&mode=build&pubs=pub-a,pub-b",
+    "?drink=beer&mode=build&pubs=pub-a,pub-b&brand=AMSTEL",
+    "?drink=beer&mode=build&pubs=pub-a",
+    "?drink=beer&mode=build&pubs=pub-a,pub-a",
+    "?drink=beer",
+  ])("does not invent Beer share intent for %s", async (arrival) => {
+    window.history.replaceState({}, "", `/map${arrival}`);
+    await act(async () => root.render(createElement(HistoryHarness, { query: "", plan })));
+    act(() => vi.advanceTimersByTime(300));
+    expect(new URLSearchParams(window.location.search).get("drink")).toBeNull();
+  });
+
+  it("keeps explicit Beer when the planner closes before the debounce", async () => {
+    window.history.replaceState({ root: true }, "", "/map?mode=build&pubs=pub-a,pub-b&drink=beer#route");
+    await act(async () => root.render(createElement(HistoryHarness, { query: "", plan })));
+    act(() => openHistorySurface({ id: "planner", title: "Plan", state: EMPTY_MAP_SURFACE_STATE }));
+    await traverseHistory(() => closeHistorySurfaces());
+    const params = new URLSearchParams(window.location.search);
+    expect(params.get("drink")).toBe("beer");
+    expect(params.get("pubs")).toBe("pub-a,pub-b");
+    expect(window.location.hash).toBe("#route");
+    expect(window.history.state.root).toBe(true);
+  });
+});

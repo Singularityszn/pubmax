@@ -77,9 +77,62 @@ for (const drink of ["beer", "wine", "gin"] as const) {
     if (drink === "beer") {
       await expect(route.getByRole("button", { name: "Hide line", exact: true })).toHaveAttribute("aria-pressed", "true");
     }
+    // Observe the shared intent after the map's 300 ms URL debounce, not only
+    // immediately after reload. This also checks what the visible Copy link sends.
+    await page.waitForTimeout(600);
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+    await route.locator(".routeHeader").scrollIntoViewIfNeeded();
+    const copyLink = route.getByRole("button", { name: "Copy a shareable link to this crawl", exact: true });
+    await copyLink.click();
+    await expect(copyLink).toHaveText("Copied");
+    const copiedLink = new URL(await page.evaluate(() => navigator.clipboard.readText()));
+    await testInfo.attach("reopened-share-context", {
+      body: Buffer.from(JSON.stringify({
+        locationDrink: new URL(page.url()).searchParams.get("drink"),
+        copiedDrink: copiedLink.searchParams.get("drink"),
+        copiedStops: copiedLink.searchParams.get("pubs"),
+      })),
+      contentType: "application/json",
+    });
+    expect(new URL(page.url()).searchParams.get("drink")).toBe(drink);
+    expect(copiedLink.searchParams.get("drink")).toBe(drink);
+    expect(copiedLink.searchParams.get("pubs")).toBe(stops);
     await testInfo.attach("reopened-drink-plan", { body: await page.screenshot(), contentType: "image/png" });
   });
 }
+
+test("ordinary Beer plans keep their default URL after synchronization and copying", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.addInitScript(() => {
+    localStorage.setItem("pubmax-tour-v1-done", "1");
+    localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+  });
+  const stops = "venue-149rmv7,venue-1vle947";
+  const response = await page.goto(`/map?mode=build&pubs=${stops}`);
+  expect(response?.status()).toBe(200);
+  const toggle = page.getByRole("button", { name: /^(Plan an outing|Close plan)$/ });
+  await expect(async () => {
+    if (await toggle.getAttribute("aria-pressed") !== "true") await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-pressed", "true", { timeout: 1_000 });
+  }).toPass({ timeout: 30_000 });
+  await expectSoleDesktopDrawer(page, "planner");
+  const route = desktopPlannerDrawer(page).locator(".routePanel");
+  await expect(route.locator(".routeList > li")).toHaveCount(2);
+  await expect(route.getByRole("radio", { name: "Pint", exact: true })).toHaveAttribute("aria-checked", "true");
+  await page.waitForTimeout(600);
+  expect(new URL(page.url()).searchParams.get("drink")).toBeNull();
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await route.locator(".routeHeader").scrollIntoViewIfNeeded();
+  const copyLink = route.getByRole("button", { name: "Copy a shareable link to this crawl", exact: true });
+  await copyLink.click();
+  await expect(copyLink).toHaveText("Copied");
+  const copied = new URL(await page.evaluate(() => navigator.clipboard.readText()));
+  expect(copied.searchParams.get("drink")).toBeNull();
+  expect(copied.searchParams.get("pubs")).toBe(stops);
+});
 
 async function openPhonePlanner(page: Page, search = "drink=wine") {
   await page.setViewportSize({ width: 390, height: 844 });
