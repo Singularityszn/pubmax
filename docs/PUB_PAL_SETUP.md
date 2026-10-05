@@ -219,4 +219,6 @@ audio frames on the ElevenLabs WebSocket.
 
 - `docs/adr/0006-pub-pal-user-owned-digital-companion.md` - what a Pal may do
 - `docs/adr/0014-night-os-ask-agent.md` - the tool allowlist
+- `docs/adr/0016-pub-pal-confirmed-memory-recall.md` - what the Pal reads from
+  confirmed memories
 - `docs/VOICE.md` - how every line above had to read
