@@ -46,17 +46,25 @@ describe("HandlePasswordSignIn toggle before hydration", () => {
   // before React attaches opens nothing and is lost, for a person on a slow
   // phone as much as for the production smoke suite.
   it("paints the toggle disabled on the server and enables it once React owns it", () => {
+    // Unmounting the client root clears its container, so it goes first.
+    act(() => root.unmount());
     const html = renderToString(createElement(HandlePasswordSignIn));
     host.innerHTML = html;
-    expect(byTestId<HTMLButtonElement>("e2e-login-toggle").disabled).toBe(true);
+    const serverToggle = byTestId<HTMLButtonElement>("e2e-login-toggle");
+    expect(serverToggle.disabled).toBe(true);
 
-    act(() => root.unmount());
+    const mismatches: unknown[] = [];
     let hydrated!: Root;
     act(() => {
-      hydrated = hydrateRoot(host, createElement(HandlePasswordSignIn));
+      hydrated = hydrateRoot(host, createElement(HandlePasswordSignIn), {
+        onRecoverableError: (error) => mismatches.push(error),
+      });
     });
     root = hydrated;
-    expect(byTestId<HTMLButtonElement>("e2e-login-toggle").disabled).toBe(false);
+    expect(mismatches).toEqual([]);
+    // Hydration adopts the server's button rather than painting a new one.
+    expect(byTestId<HTMLButtonElement>("e2e-login-toggle")).toBe(serverToggle);
+    expect(serverToggle.disabled).toBe(false);
   });
 });
 
