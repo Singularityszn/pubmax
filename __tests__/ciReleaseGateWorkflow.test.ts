@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 
 import { PERF_AB_JOB_WALL_MS } from "@/lib/performanceAbEvidence";
+import { ciJobs, jobStep, unitShards } from "@/__tests__/helpers/ciWorkflow";
 import { defined } from "@/__tests__/helpers/defined";
 
 const HEAP = "--max-old-space-size=6144";
@@ -183,10 +184,7 @@ describe("clean-main CI release gate", () => {
     // The shards build their own slim data and read nothing lint or the
     // production build make, so waiting on them only lengthens the path.
     expect(parseJobNeeds(workflow)["unit-tests"]).toEqual([]);
-    const { jobs } = parse(workflow) as {
-      jobs: Record<string, { strategy?: { "max-parallel"?: number } }>;
-    };
-    expect(jobs["unit-tests"]?.strategy?.["max-parallel"]).toBeUndefined();
+    expect(ciJobs()["unit-tests"]?.strategy?.["max-parallel"]).toBeUndefined();
   });
 
   it("gates coverage on the merged shards and freshness independently", () => {
@@ -194,19 +192,29 @@ describe("clean-main CI release gate", () => {
     // cannot meet the whole-suite thresholds, so a shard turns them off and
     // the Coverage job enforces them over the merged blobs. The suite runs
     // once per CI run, not once in the shards and again for coverage.
-    const shard = steps.find((step) => step.job === "unit-tests" && step.name === "Unit tests with coverage");
-    expect(shard?.run).toContain("npm run coverage --");
-    expect(shard?.run).toContain("--shard=${{ matrix.shard }}/2");
-    expect(shard?.run).toContain("--coverage.thresholds=false");
-    expect(shard?.run).toContain("--reporter=blob");
-    expect(shard?.env.PUBMAX_RLS_NO_PG).toBe("1");
+    const shards = unitShards();
+    expect(shards.map(({ shard }) => shard)).toEqual([1, 2]);
+    for (const { shard, total, words, env } of shards) {
+      expect(words.slice(0, 4), `shard ${shard}`).toEqual(["npm", "run", "coverage", "--"]);
+      expect(words.slice(4), `shard ${shard}`).toEqual(
+        expect.arrayContaining([
+          `--shard=${shard}/${total}`,
+          "--coverage.thresholds=false",
+          "--reporter=blob",
+          `--outputFile.blob=blob-reports/blob-${shard}.json`,
+        ]),
+      );
+      expect(env.PUBMAX_RLS_NO_PG, `shard ${shard}`).toBe("1");
+    }
 
-    const merge = steps.find((step) => step.job === "coverage" && step.name === "Enforce coverage");
-    expect(merge?.run).toBe("npx vitest --merge-reports=blob-reports --coverage");
-    expect(steps.filter((step) => step.job === "coverage").map((step) => step.run).join("\n")).not.toContain(
-      "thresholds",
-    );
-    expect(workflow).toMatch(/coverage:\n\s+name: Coverage\n/);
+    // The Coverage name is the required check branch protection reads.
+    const coverage = defined(ciJobs().coverage, "coverage job");
+    expect(coverage.name).toBe("Coverage");
+    expect(jobStep(coverage, "Download coverage blobs").with?.path).toBe("blob-reports");
+    const merge = defined(jobStep(coverage, "Enforce coverage").run, "merge run").trim().split(/\s+/);
+    expect(merge).toEqual(["npx", "vitest", "--merge-reports=blob-reports", "--coverage"]);
+    const coverageWords = (coverage.steps ?? []).flatMap((step) => step.run?.trim().split(/\s+/) ?? []);
+    expect(coverageWords.filter((word) => word.startsWith("--coverage.thresholds"))).toEqual([]);
     expect(workflow).not.toMatch(/--exclude '__tests__\/\*\*\/\*Migration\.test\.ts'/);
     expect(workflow).toMatch(
       /freshness:[\s\S]*name: Freshness release gate[\s\S]*npm run check:freshness -- --artifacts-only[\s\S]*node scripts\/check-production-store-freshness\.mjs/,

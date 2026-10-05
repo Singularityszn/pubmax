@@ -105,7 +105,13 @@ describe("the no-mistakes repository test command", () => {
   it("leaves the PostgreSQL suites to npm run test:rls", () => {
     // verify runs those suites in `npm run test:rls`, so its coverage run
     // excludes them rather than running each one twice.
-    expect(packageScripts().verify).toContain("npm run coverage -- --without-postgres && npm run test:rls");
+    const verify = defined(packageScripts().verify, "verify script")
+      .split("&&")
+      .map((command) => command.trim().split(/\s+/));
+    const at = verify.findIndex((words) => words.slice(0, 3).join(" ") === "npm run coverage");
+    expect(at).toBeGreaterThanOrEqual(0);
+    expect(defined(verify[at]).slice(3)).toEqual(["--", WITHOUT_POSTGRES]);
+    expect(verify[at + 1]).toEqual(["npm", "run", "test:rls"]);
 
     const runs = coverageRuns([WITHOUT_POSTGRES, "--shard=1/2"]);
     expect(runs).toHaveLength(1);
