@@ -30,7 +30,9 @@ async function loginCookie(): Promise<string> {
     body: JSON.stringify({ token: "test-admin-secret" }),
   }));
   expect(login.status).toBe(200);
-  return login.headers.get("set-cookie")!.split(";")[0]!;
+  const [cookie] = (login.headers.get("set-cookie") ?? "").split(";");
+  if (!cookie) throw new Error("login set no session cookie");
+  return cookie;
 }
 
 async function expectRefusedCookie(cookie: string): Promise<void> {
