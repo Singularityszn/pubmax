@@ -66,6 +66,7 @@ test("Near shows prices before bounded publisher evidence on mobile", async ({ p
   expect(trustUrl.search).not.toMatch(/lat|lng|price|borough/i);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
 
+  await expect(page.locator(".mobileTabBar")).toBeVisible();
   const firstRow = await cards.first().boundingBox();
   const tabBar = await page.locator(".mobileTabBar").boundingBox();
   expect(firstRow).not.toBeNull();

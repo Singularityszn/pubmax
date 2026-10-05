@@ -32,7 +32,7 @@
 /* ── Head ───────────────────────────────────────────────────── */
 /* The head is the shared Screen primitive (components/ui/screen.css). The
    page already pays the reading column and its gutters, so the head drops
-   its own. The story lede is long on purpose, so it takes the column. */
+   its own. Keep the introduction short enough to reach the map on a phone. */
 .aboutPage .aboutHero {
   width: 100%;
   padding-inline: 0;
@@ -80,16 +80,12 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 12px;
+  gap: 0;
 }
 
 .aboutEthos li {
-  position: relative;
-  padding: 14px 16px 14px 18px;
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--brass);
-  border-radius: var(--radius, 10px);
-  background: var(--panel);
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line-soft, var(--line));
   font-size: 0.97rem;
   line-height: 1.55;
   color: var(--ink-soft);
@@ -100,9 +96,13 @@
   font-weight: 600;
 }
 
+.aboutEthos li:last-child {
+  border-bottom: 0;
+}
+
 /* ── Founder note ───────────────────────────────────────────── */
-/* First-person block inside "Who builds it". Same panel + brass-edge idiom as
-   the ethos list, sized up to read as one settled note rather than a bullet. */
+/* First-person block inside "Who builds it". Keep the founder's statement
+   distinct from the price policies above it. */
 .aboutFounderNote {
   margin: 18px 0 0;
   padding: 18px 18px 16px;
@@ -163,7 +163,7 @@
   font-size: clamp(1.6rem, 7vw, 2.1rem);
   font-weight: 700;
   line-height: 1;
-  color: var(--brass);
+  color: var(--color-accent-ink);
   font-variant-numeric: tabular-nums;
 }
 
@@ -239,8 +239,7 @@
 .aboutPressRow dt {
   font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--muted);
 }
 
@@ -259,16 +258,15 @@
 }
 
 .aboutLink {
-  color: var(--brass);
+  color: var(--color-accent-ink);
   font-weight: 600;
-  text-decoration: none;
-  border-bottom: 1px solid transparent;
-  transition: border-color 0.16s ease;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
 }
 
-.aboutLink:hover,
 .aboutLink:focus-visible {
-  border-bottom-color: currentcolor;
+  text-decoration-thickness: 2px;
 }
 
 /* ── Closing row ────────────────────────────────────────────── */
@@ -297,9 +295,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .aboutLink {
-    transition: none;
-  }
   .aboutPriceStamp {
     transform: none;
   }

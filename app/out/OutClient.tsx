@@ -150,7 +150,7 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
       <Screen
         as="div"
         className="outScreen"
-        title="What’s on tonight."
+        title={`${outListingsSectionTitle(day).replace("'", "’")}.`}
         titleId="out-title"
         primary={
           <Link prefetch={false} href={OUT_MAP_WAY.href}>

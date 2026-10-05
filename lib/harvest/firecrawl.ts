@@ -27,6 +27,8 @@
 // parsers' job (lib/harvest/chainDeals.ts and friends), because a page that does
 // not state a thing must yield no row.
 
+import { Effect } from "effect";
+
 const FIRECRAWL_API_BASE = "https://api.firecrawl.dev/v2";
 
 /** One request may take this long before it is abandoned as a timeout. */
@@ -240,40 +242,53 @@ export function createFirecrawlClient(
     payload: Record<string, unknown>,
     read: (body: unknown) => Attempt<T>,
   ): Promise<Attempt<T>> {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const response = await fetchImpl(`${apiBase}${path}`, {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${apiKey}`,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-      if (!response.ok) {
+    // The deadline covers both transport and JSON decoding. Effect aborts the
+    // transport signal and returns even if the transport ignores cancellation.
+    const request = Effect.tryPromise({
+      try: async (signal): Promise<Attempt<T>> => {
+        const response = await fetchImpl(`${apiBase}${path}`, {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${apiKey}`,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify(payload),
+          signal,
+        });
+        if (!response.ok) {
+          return {
+            kind: "fail",
+            reason: "http-error",
+            detail: `Firecrawl returned ${response.status}.`,
+            status: response.status,
+            retry: isRetryableStatus(response.status),
+          };
+        }
+        return read(await response.json());
+      },
+      catch: (error): Extract<Attempt<T>, { kind: "fail" }> => {
+        const message = error instanceof Error ? error.message : String(error);
+        const aborted = error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError");
         return {
           kind: "fail",
-          reason: "http-error",
-          detail: `Firecrawl returned ${response.status}.`,
-          status: response.status,
-          retry: isRetryableStatus(response.status),
+          reason: aborted ? "timeout" : "network",
+          detail: message,
+          retry: true,
         };
-      }
-      return read(await response.json());
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      const aborted = error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError");
-      return {
-        kind: "fail",
-        reason: aborted ? "timeout" : "network",
-        detail: message,
-        retry: true,
-      };
-    } finally {
-      clearTimeout(timer);
-    }
+      },
+    });
+    return Effect.runPromise(request.pipe(
+      Effect.timeoutOrElse({
+        duration: timeoutMs,
+        orElse: () => Effect.succeed<Attempt<T>>({
+          kind: "fail",
+          reason: "timeout",
+          detail: `Firecrawl request exceeded ${timeoutMs}ms.`,
+          retry: true,
+        }),
+      }),
+      Effect.catch((failure) => Effect.succeed(failure)),
+    ));
   }
 
   async function withBudgetedRetries<T>(
