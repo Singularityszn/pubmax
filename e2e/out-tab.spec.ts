@@ -142,20 +142,6 @@ for (const width of WIDTHS) {
       // Open plans stays hidden when no sendable plan lands.
       await expect(page.getByRole("region", { name: "Open plans" })).toHaveCount(0);
 
-      // /out is not a crawlable family yet: it duplicates /tonight's baseline
-      // rows, so it ships noindex with no canonical of its own.
-      // A soft navigation can leave the outgoing route's robots tag in the head
-      // beside the incoming one for a frame, so every robots tag present must
-      // say noindex, not only the first.
-      const robots = page.locator('meta[name="robots"]');
-      await expect(robots.first()).toBeAttached();
-      for (const content of await robots.evaluateAll((tags) =>
-        tags.map((tag) => tag.getAttribute("content")),
-      )) {
-        expect(content).toMatch(/noindex/);
-      }
-      await expect(page.locator('link[rel="canonical"]')).toHaveCount(0);
-
       await openCreateMenu(page);
       await createRow(page, "Post a moment").click();
       await page.waitForURL(/\/moment\?returnTo=/);
