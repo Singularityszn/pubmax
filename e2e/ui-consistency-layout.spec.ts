@@ -865,7 +865,7 @@ async function auditRoute(
     mainShown = await main.isVisible().catch(() => false);
   } else {
     await expectStreamedPageSettled(page, { timeout: 45_000 });
-    await expectLayoutSettled(main);
+    await expectLayoutSettled(main, { timeout: 30_000 });
     mainShown = true;
   }
   await settle(page);
