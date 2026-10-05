@@ -158,7 +158,7 @@
     },
     {
       "venueId": "venue-osm-n13646215319",
-      "venueName": "gram'n degrees",
+      "venueName": "Gramndegrees",
       "drink": "flat white",
       "priceGbp": 4.7,
       "sourceUrl": "https://gramndegrees.co.uk/product/flat-white/",
@@ -167,7 +167,7 @@
     },
     {
       "venueId": "venue-osm-n13646215319",
-      "venueName": "gram'n degrees",
+      "venueName": "Gramndegrees",
       "drink": "latte",
       "priceGbp": 4.95,
       "sourceUrl": "https://gramndegrees.co.uk/product/latte/",
@@ -189,60 +189,6 @@
       "drink": "latte",
       "priceGbp": 4.5,
       "sourceUrl": "https://cdn.shopify.com/s/files/1/0441/8895/8871/files/Digital_Drinks_AW_2025.pdf?v=1762938027",
-      "observedAt": "2026-10-03",
-      "standing": "listed"
-    },
-    {
-      "venueId": "venue-osm-n13684996801",
-      "venueName": "Gecko Coffeehouse",
-      "drink": "flat white",
-      "priceGbp": 4.2,
-      "sourceUrl": "https://geckocoffee.house/pages/menu",
-      "observedAt": "2026-10-03",
-      "standing": "listed"
-    },
-    {
-      "venueId": "venue-osm-n13684996801",
-      "venueName": "Gecko Coffeehouse",
-      "drink": "latte",
-      "priceGbp": 4.2,
-      "sourceUrl": "https://geckocoffee.house/pages/menu",
-      "observedAt": "2026-10-03",
-      "standing": "listed"
-    },
-    {
-      "venueId": "venue-osm-n13684996801",
-      "venueName": "Gecko Coffeehouse",
-      "drink": "matcha latte",
-      "priceGbp": 4.5,
-      "sourceUrl": "https://geckocoffee.house/pages/menu",
-      "observedAt": "2026-10-03",
-      "standing": "listed"
-    },
-    {
-      "venueId": "venue-osm-n14022302823",
-      "venueName": "Urban Baristas",
-      "drink": "flat white",
-      "priceGbp": 4.3,
-      "sourceUrl": "https://cdn.shopify.com/s/files/1/0374/3694/8611/files/Online_TA_Menu_2026.pdf?v=1786965549",
-      "observedAt": "2026-10-03",
-      "standing": "listed"
-    },
-    {
-      "venueId": "venue-osm-n14022302823",
-      "venueName": "Urban Baristas",
-      "drink": "latte",
-      "priceGbp": 4.4,
-      "sourceUrl": "https://cdn.shopify.com/s/files/1/0374/3694/8611/files/Online_TA_Menu_2026.pdf?v=1786965549",
-      "observedAt": "2026-10-03",
-      "standing": "listed"
-    },
-    {
-      "venueId": "venue-osm-n14022302823",
-      "venueName": "Urban Baristas",
-      "drink": "matcha latte",
-      "priceGbp": 4.5,
-      "sourceUrl": "https://cdn.shopify.com/s/files/1/0374/3694/8611/files/Online_TA_Menu_2026.pdf?v=1786965549",
       "observedAt": "2026-10-03",
       "standing": "listed"
     },
