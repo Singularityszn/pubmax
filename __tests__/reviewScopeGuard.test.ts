@@ -238,6 +238,31 @@ describe("review scope guard", () => {
     expect(report.regeneratedLanes).toEqual(["london_venues"]);
   });
 
+  it("permits London venue shards and the desk pack when the diff carries the UK venue packs", () => {
+    const report = summarizeReviewScope([
+      "data/osm/uk/uk_osm_venues_drink.json",
+      "public/data/london_venues/manifest.json",
+      "public/data/london_venues/packs/0123456789abcdef/51.500_-0.125.json",
+      "public/data/london_desks/desks.json",
+    ]);
+
+    expect(report.ok).toBe(true);
+    expect(report.forbidden).toEqual([]);
+    expect(report.regeneratedLanes).toEqual(["london_venues", "london_desks"]);
+  });
+
+  it("refuses a London desk pack that nothing in the diff produced", () => {
+    const report = summarizeReviewScope([
+      "data/london_restaurant_drinks/evidence.json",
+      "public/data/london_desks/desks.json",
+    ]);
+
+    expect(report.ok).toBe(false);
+    expect(report.forbidden).toEqual([
+      { category: "generated", path: "public/data/london_desks/desks.json" },
+    ]);
+  });
+
   it("refuses London venue shards that nothing in the diff produced", () => {
     const report = summarizeReviewScope(["public/data/london_venues/manifest.json"]);
 
