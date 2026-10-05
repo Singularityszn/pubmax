@@ -107,6 +107,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
       getLayer: () => undefined,
       getZoom: () => 10,
       querySourceFeatures: (): unknown[] => [],
+      setFilter: vi.fn(),
       setLayoutProperty: vi.fn(),
     };
     return { map, handlers };
@@ -149,7 +150,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     const [moveend] = [...(handlers.get("moveend") ?? [])];
     expect(() => defined(moveend)()).not.toThrow();
     // Guarded out before any layer toggle.
-    expect(map.setLayoutProperty).not.toHaveBeenCalled();
+    expect(map.setFilter).not.toHaveBeenCalled();
   });
 
   it("the style.load handler clears cleanly with no live markers", () => {
@@ -191,7 +192,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     });
 
     expect(map.on).not.toHaveBeenCalled();
-    expect(map.setLayoutProperty).not.toHaveBeenCalled();
+    expect(map.setFilter).not.toHaveBeenCalled();
   });
 
   it("retains active donuts for transient and non-content emptiness, then clears them when loaded content is empty", () => {
@@ -230,22 +231,14 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
 
     defined(moveend)();
     expect(markerHarness.instances).toHaveLength(1);
-    expect(map.setLayoutProperty).toHaveBeenLastCalledWith(
-      "cluster-count",
-      "visibility",
-      "none",
-    );
+    expect(map.setFilter).toHaveBeenLastCalledWith("cluster-count", false);
 
     // MapLibre 6 can transiently return no source features during render even
     // though the settled camera still has clusters. That snapshot cannot hand
     // ownership back to the GL fallback or remove every active DOM marker.
     defined(render)();
     expect(defined(markerHarness.instances[0]).remove).not.toHaveBeenCalled();
-    expect(map.setLayoutProperty).toHaveBeenLastCalledWith(
-      "cluster-count",
-      "visibility",
-      "none",
-    );
+    expect(map.setFilter).toHaveBeenLastCalledWith("cluster-count", false);
 
     defined(sourcedata)({
       sourceId: "basemap",
@@ -268,11 +261,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
       isSourceLoaded: false,
     });
     expect(defined(markerHarness.instances[0]).remove).not.toHaveBeenCalled();
-    expect(map.setLayoutProperty).toHaveBeenLastCalledWith(
-      "cluster-count",
-      "visibility",
-      "none",
-    );
+    expect(map.setFilter).toHaveBeenLastCalledWith("cluster-count", false);
 
     defined(sourcedata)({
       sourceId: "pubs",
@@ -280,11 +269,10 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
       isSourceLoaded: true,
     });
     expect(defined(markerHarness.instances[0]).remove).toHaveBeenCalledOnce();
-    expect(map.setLayoutProperty).toHaveBeenLastCalledWith(
-      "cluster-count",
-      "visibility",
-      "visible",
-    );
+    expect(map.setFilter).toHaveBeenLastCalledWith("cluster-count", [
+      "has",
+      "point_count",
+    ]);
 
     sync.destroy();
     vi.unstubAllGlobals();
@@ -333,11 +321,48 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
       isSourceLoaded: true,
     });
     expect(markerHarness.instances).toHaveLength(1);
-    expect(map.setLayoutProperty).toHaveBeenLastCalledWith(
-      "cluster-count",
-      "visibility",
-      "none",
+    expect(map.setFilter).toHaveBeenLastCalledWith("cluster-count", false);
+
+    sync.destroy();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("empties the GL cluster layers rather than hiding them, so the pubs source stays loaded", () => {
+    // Below PIN_MIN_ZOOM the cluster disc and its count are the only layers on
+    // the pubs source. Hidden, they left MapLibre with an unused source: it
+    // dropped the tiles, the next idle query found no clusters, every donut
+    // cleared and the discs came back, over and over on a still map.
+    stubMarkerDocument();
+
+    const { map, handlers } = makeFakeMap();
+    const cluster = {
+      properties: { cluster_id: 20, point_count: 2, b0: 1, b1: 1, b2: 0, b3: 0 },
+      geometry: { type: "Point", coordinates: [-2.2426, 53.4808] },
+    };
+    map.getSource = () => ({}) as never;
+    map.getLayer = () => ({}) as never;
+    map.querySourceFeatures = vi
+      .fn()
+      .mockReturnValueOnce([cluster])
+      .mockReturnValue([]);
+
+    const sync = createDonutClusterSync(
+      map as unknown as maplibregl.Map,
+      () => {},
     );
+    const [idle] = [...(handlers.get("idle") ?? [])];
+
+    defined(idle)();
+    expect(map.setFilter).toHaveBeenCalledWith("clusters", false);
+    expect(map.setFilter).toHaveBeenCalledWith("cluster-count", false);
+
+    defined(idle)();
+    expect(map.setFilter).toHaveBeenLastCalledWith("cluster-count", [
+      "has",
+      "point_count",
+    ]);
+    expect(map.setLayoutProperty).not.toHaveBeenCalled();
 
     sync.destroy();
     vi.unstubAllGlobals();
