@@ -151,6 +151,9 @@ export default function MapSearchSuggest({
   const [searchIndexLoading, setSearchIndexLoading] = useState(false);
   const searchIndexPromiseRef = useRef<Promise<MapSearchIndex | null> | null>(null);
   const ensureSearchIndex = useCallback(() => {
+    // A national/uncovered blank search draws places, not city venue results.
+    // Keep the packs deferred until this search has a query to answer.
+    if (!includeLocalResults && !query.trim()) return;
     if (searchIndex || searchIndexPromiseRef.current) return;
     setSearchIndexLoading(true);
     const pending = loadMapSearchIndex({
@@ -167,11 +170,11 @@ export default function MapSearchSuggest({
         setSearchIndexLoading(false);
       });
     searchIndexPromiseRef.current = pending;
-  }, [cityId, searchIndex, venues]);
+  }, [cityId, includeLocalResults, query, searchIndex, venues]);
 
   useEffect(() => {
-    if (mode === "overlay") ensureSearchIndex();
-  }, [cityId, ensureSearchIndex, mode]);
+    if (mode === "overlay" || toolbarFocused) ensureSearchIndex();
+  }, [cityId, ensureSearchIndex, mode, toolbarFocused]);
 
   const suggestions = useMemo(
     () =>
