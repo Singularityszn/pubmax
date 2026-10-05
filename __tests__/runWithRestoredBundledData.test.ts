@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -76,30 +76,40 @@ describe("committed bundled data restore", () => {
 });
 
 describe("no-mistakes verify wrapper regression", () => {
-  it("leaves committed bundled data clean after validate-data on this tree", () => {
-    const manifest = join(process.cwd(), "public/data/cities/bath/venues_slim.manifest.json");
-    if (!existsSync(manifest)) return;
-    const before = readFileSync(manifest, "utf8");
-    writeFileSync(manifest, `${before.trimEnd()}\n`, "utf8");
+  it("restores invalid fixture data after validation without erasing caller work", () => {
+    const root = process.cwd();
+    const callerDiff = execFileSync("git", ["diff", "--binary", "HEAD", "--", "public/data"], { cwd: root });
+    const scratch = mkdtempSync(join(tmpdir(), "pubmax-validator-restore-"));
+    const cwd = join(scratch, "validation");
     try {
-      execFileSync(
-        process.execPath,
-        [bundledWrapper, "npm", "run", "validate-data"],
-        {
-          cwd: process.cwd(),
-          env: {
-            ...process.env,
-            DEPLOYMENT_VERSION: "local",
-            PUBMAX_VERIFY_COMMITTED_DATA: "1",
-          },
-          stdio: ["ignore", "pipe", "pipe"],
-        },
-      );
-      expect(execFileSync("git", ["status", "--short", "public/data"], { encoding: "utf8" })).toBe("");
-    } finally {
-      execFileSync("git", ["restore", "--worktree", "--source=HEAD", "--", "public/data"], {
-        cwd: process.cwd(),
+      initialiseGit(scratch);
+      const callerData = join(scratch, "public/data/baseline.json");
+      writeFileSync(callerData, '{"sampleSize":947}\n', "utf8");
+      mkdirSync(join(cwd, "scripts"), { recursive: true });
+      initialiseGit(cwd);
+      // The real validator resolves datasets relative to its module, not cwd.
+      // Only its read-only dependency modules are shared with the checkout.
+      copyFileSync(join(root, "scripts/validate-data.mjs"), join(cwd, "scripts/validate-data.mjs"));
+      symlinkSync(join(root, "scripts/lib"), join(cwd, "scripts/lib"), "dir");
+      symlinkSync(join(root, "lib"), join(cwd, "lib"), "dir");
+      const pois = join(cwd, "public/data/london_pois.json");
+      writeFileSync(pois, "[]\n", "utf8");
+      execFileSync("git", ["add", "public/data"], { cwd });
+      execFileSync("git", ["commit", "-qm", "fixture dataset"], { cwd });
+      writeFileSync(pois, "invalid JSON\n", "utf8");
+      const result = spawnSync(process.execPath, [bundledWrapper, process.execPath, "scripts/validate-data.mjs"], {
+        cwd,
+        env: { PATH: process.env.PATH, NODE_ENV: "test", DEPLOYMENT_VERSION: "local", PUBMAX_VERIFY_COMMITTED_DATA: "1" },
+        encoding: "utf8",
       });
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain("FAIL public/data/london_pois.json: could not read/parse");
+      expect(readFileSync(pois, "utf8")).toBe("[]\n");
+      expect(execFileSync("git", ["status", "--short", "public/data"], { cwd, encoding: "utf8" })).toBe("");
+      expect(readFileSync(callerData, "utf8")).toBe('{"sampleSize":947}\n');
+      expect(execFileSync("git", ["diff", "--binary", "HEAD", "--", "public/data"], { cwd: root })).toEqual(callerDiff);
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
     }
   });
 });

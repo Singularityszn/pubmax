@@ -3,6 +3,7 @@ import { existsSync, realpathSync, readFileSync, writeFileSync, mkdirSync, mkdte
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 import { loadSlimVenuesFromPathResult } from "@/lib/venuesSlim";
 import { slimVenueToPin } from "@/lib/slimPins";
@@ -38,8 +39,9 @@ function fixture(rows: VenuePrice[] = [abba, pub], pubs = seedRows): string {
     if (!relative.endsWith(".mjs")) return;
     // Copy the real CLI's local dependencies. No implementation is replaced.
     for (const match of contents.toString().matchAll(/(?:from\s+|import\s*)["']([^"']+)["']/g)) {
-      if (match[1].startsWith(".")) {
-        copy(path.relative(ROOT, path.resolve(path.dirname(source), match[1])));
+      const dependency = defined(match[1], "CLI dependency path");
+      if (dependency.startsWith(".")) {
+        copy(path.relative(ROOT, path.resolve(path.dirname(source), dependency)));
       }
     }
   }
@@ -70,7 +72,7 @@ function cli(root: string, name: string) {
   });
 }
 
-function withoutKindEvidence(row: Record<string, unknown>) {
+function withoutKindEvidence(row: VenuePrice): VenuePrice {
   const original = { ...row };
   delete original.venue_kind;
   delete original.venue_kind_osm_id;
@@ -89,7 +91,7 @@ describe("sourced venue kind through the real publication chain", () => {
     expect(bar).toMatchObject({
       venue_kind: "bar", venue_kind_osm_id: "node/9829140325", venue_kind_observed_at: seed.fetchedAt,
     });
-    expect(withoutKindEvidence(bar)).toEqual(abba);
+    expect(withoutKindEvidence(bar)).toEqual(withoutKindEvidence(abba));
     const published = readFileSync(path.join(root, "public/data/pint_prices_app_dataset.json"));
     expect(cli(root, "merge_outer_london_osm.mjs").status).toBe(0);
     expect(readFileSync(path.join(root, "public/data/pint_prices_app_dataset.json"))).toEqual(published);
@@ -99,7 +101,7 @@ describe("sourced venue kind through the real publication chain", () => {
     const artifacts = readFileSync(path.join(root, "data/generated/venue_details.jsonl"), "utf8").trim().split("\n").map((line) => JSON.parse(line));
     const detail = venueFromDetailArtifact(artifacts.find((row) => row.id === "venue-16cduf6"), "venue-16cduf6");
     expect(detail).toMatchObject({ id: "venue-16cduf6", kind: "bar", cheapestPrice: null });
-    expect(detail?.prices[0].scraped_at_values).toBe("2026-07-17T22:47:09.827Z");
+    expect(defined(detail?.prices[0], "published bar price").scraped_at_values).toBe("2026-07-17T22:47:09.827Z");
     expect(groupVenuePrices(merged).find((row) => row.name === "Jack and Jill")).toMatchObject({ kind: "pub" });
     expect(existsSync(path.join(root, "data/generated/venue_detail_index.json"))).toBe(true);
     const priorSlim = readFileSync(path.join(root, "public/data/venues_slim.json"));
@@ -123,8 +125,8 @@ describe("sourced venue kind through the real publication chain", () => {
     expect(cli(root, "merge_outer_london_osm.mjs").status).toBe(0);
     const merged: VenuePrice[] = json(path.join(root, "public/data/pint_prices_app_dataset.json"));
     const bar = merged.find((row) => row.app_price_id === abba.app_price_id)!;
-    const legacy = { ...abba, app_price_id: "legacy-price", price_gbp: 4, comment: "pub" };
-    const grouped = groupVenuePrices([legacy, bar, pub]);
+    const legacy = { ...withoutKindEvidence(abba), app_price_id: "legacy-price", price_gbp: 4, comment: "pub" };
+    const grouped = groupVenuePrices([legacy, bar, withoutKindEvidence(pub)]);
     expect(grouped.find((row) => row.id === "venue-16cduf6")).toMatchObject({ kind: "bar", cheapestPrice: 4 });
     expect(grouped.find((row) => row.name === "Jack and Jill")?.kind).toBeUndefined();
   });
@@ -171,10 +173,11 @@ describe("sourced venue kind through the real publication chain", () => {
   });
 
   it("does not infer a type from names, comments or an absent OSM amenity", () => {
-    const root = fixture([abba], seedRows.filter((row: { osmId: string }) => row.osmId === "node/9829140325").map((row: Record<string, unknown>) => ({ ...row, amenity: undefined })));
+    const unsourced = withoutKindEvidence(abba);
+    const root = fixture([unsourced], seedRows.filter((row: { osmId: string }) => row.osmId === "node/9829140325").map((row: Record<string, unknown>) => ({ ...row, amenity: undefined })));
     expect(cli(root, "merge_outer_london_osm.mjs").status).toBe(0);
-    expect(json(path.join(root, "public/data/pint_prices_app_dataset.json"))).toEqual([abba]);
-    expect(groupVenuePrices([abba])[0].kind).toBeUndefined();
+    expect(json(path.join(root, "public/data/pint_prices_app_dataset.json"))).toEqual([unsourced]);
+    expect(defined(groupVenuePrices([unsourced])[0], "unsourced venue").kind).toBeUndefined();
   });
 
   it("keeps the sourced bar on the compact map and detail while both Out events remain unmatched", () => {
@@ -272,7 +275,7 @@ describe("sourced venue kind through the real publication chain", () => {
     const merged: VenuePrice[] = json(path.join(root, "public/data/pint_prices_app_dataset.json"));
     for (const original of pricedBars) {
       const published = merged.find((row) => row.app_price_id === original.app_price_id)!;
-      expect(JSON.stringify(withoutKindEvidence(published))).toBe(JSON.stringify(original));
+      expect(JSON.stringify(withoutKindEvidence(published))).toBe(JSON.stringify(withoutKindEvidence(original)));
     }
     expect(cli(root, "build_slim_index.mjs").status).toBe(0);
     const payload = json(path.join(root, "public/data/venues_slim.json"));
@@ -294,11 +297,13 @@ describe("sourced venue kind through the real publication chain", () => {
       for (const field of ["anchorLabel", "anchorCourse", "anchorObservedAt", "anchorSourceUrl"]) expect(slim).not.toHaveProperty(field);
       const pin = slimVenueToPin(slim);
       expect(pin.cheapestPrice).toBeNull();
-      const feature = pubsToGeoJSON([pin], new Map(), null).features[0];
+      const feature = defined(pubsToGeoJSON([pin], new Map(), null).features[0], "bar pin feature");
       expect(feature.properties).not.toHaveProperty("priceLabel");
       const detail = venueFromDetailArtifact(artifacts.find((row) => row.id === typed.id), typed.id)!;
       expect(detail).toMatchObject({ id: typed.id, kind: "bar", cheapestPrice: original.price_gbp });
-      expect(JSON.stringify(withoutKindEvidence(detail.prices[0]))).toBe(JSON.stringify(original));
+      const detailPrice = defined(detail.prices[0], "published sourced bar price");
+      expect(JSON.stringify(withoutKindEvidence(detailPrice))).toBe(JSON.stringify(withoutKindEvidence(original)));
+      expect(detailPrice).toEqual(original);
       expect(hoverCardCopy(pin, undefined, detail)).toMatchObject({ price: null, priceSuffix: "", provenance: "Tap for detail", detailLabel: "venue detail" });
     }
     const famous = compact.rows.find((row) => row.kind === "bar" && row.anchorLabel && typeof row.cheapestPrice === "number")!;
