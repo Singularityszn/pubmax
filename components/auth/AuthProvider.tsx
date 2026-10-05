@@ -1026,9 +1026,10 @@ export function AuthProvider({
       if (!supabase) return;
       const departing = sessionTransitions.current.currentUserId();
       const { error } = await supabase.auth.signOut();
-      // A failed sign-out keeps the session, so everything the account owns on
-      // this device stays with it.
-      if (error) return;
+      // A logout error alone does not mean the session stayed: the SDK removes
+      // the local session (and fires SIGNED_OUT) on network and 5xx failures.
+      // Only a refusal that left the departing session in place keeps its data.
+      if (error && departing !== null && sessionTransitions.current.currentUserId() === departing) return;
       // onAuthStateChange has fired SIGNED_OUT. Invalidate the departing owner
       // before the purge, so no late write of theirs can land after it.
       markProviderSignOut("supabase");

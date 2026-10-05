@@ -9,7 +9,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // GoTrue revocation or durable server persistence.
 const harness = vi.hoisted(() => ({
   emit: null as null | ((event: string, session: unknown) => void),
-  signOutError: null as Error | null,
+  // "removed-then-logout-error" is what the installed SDK does on a network or
+  // 5xx logout failure (__tests__/supabaseSignOutLogoutErrorContract.test.ts).
+  // "session-kept-refusal" is its session-read failure: nothing is removed.
+  outcome: "signed-out" as "signed-out" | "removed-then-logout-error" | "session-kept-refusal",
   duringProviderSignOut: null as null | (() => Promise<void>),
   events: [] as string[],
   atActivate: null as null | { owner: string | null; spills: string | null; drafts: string[]; lane: string[] },
@@ -32,10 +35,10 @@ vi.mock("@/lib/authClient", () => ({
       },
       signOut: async () => {
         harness.events.push("provider-sign-out");
-        if (harness.signOutError) return { error: harness.signOutError };
+        if (harness.outcome === "session-kept-refusal") return { error: new Error("synthetic session read failure") };
         harness.emit?.("SIGNED_OUT", null);
         await harness.duringProviderSignOut?.();
-        return { error: null };
+        return { error: harness.outcome === "removed-then-logout-error" ? new Error("synthetic logout 503") : null };
       },
     },
   }),
@@ -138,8 +141,8 @@ async function settle(): Promise<void> {
   for (let index = 0; index < 5; index += 1) await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-async function signOut(): Promise<void> {
-  await act(async () => auth?.signOut());
+async function signOut(scope?: "account" | "device"): Promise<void> {
+  await act(async () => auth?.signOut(scope));
 }
 
 beforeEach(async () => {
@@ -147,7 +150,7 @@ beforeEach(async () => {
   sessionStorage.clear();
   localStorage.clear();
   localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
-  harness.signOutError = null;
+  harness.outcome = "signed-out";
   harness.duringProviderSignOut = null;
   harness.events = [];
   harness.atActivate = null;
@@ -187,9 +190,9 @@ afterEach(async () => {
 });
 
 describe("explicit sign-out account boundary", () => {
-  it("leaves everything the account owns on this device when the provider refuses sign-out", async () => {
+  it("leaves everything the account owns on this device when a refusal keeps the session", async () => {
     writeOptimisticSpills(localStorage, [storedSpill]);
-    harness.signOutError = new Error("synthetic network failure");
+    harness.outcome = "session-kept-refusal";
     const signOutRevision = readProviderSignOutRevision("supabase");
     const accountRevision = readProviderAccountRevision();
     await signOut();
@@ -203,29 +206,56 @@ describe("explicit sign-out account boundary", () => {
     for (const key of accountDraftKeys) expect(sessionStorage.getItem(key)).toBe("{}");
   });
 
-  it("removes every venue draft and pending Pint Drop of the departing account with no map mounted", async () => {
-    writeOptimisticSpills(localStorage, [storedSpill]);
-    const signOutRevision = readProviderSignOutRevision("supabase");
-    await signOut();
-    expect(harness.events).toEqual(["provider-sign-out", "durable-cookie-delete"]);
-    expect(readProviderSignOutRevision("supabase")).toBe(signOutRevision + 1);
-    expect(viewer()).toBe("signed-out");
-    expect(deviceAccountOwner(localStorage)).toBeNull();
-    expect(readDeviceAccounts(localStorage).map((account) => account.userId)).not.toContain(ACCOUNT);
-    expect(localStorage.getItem(OPTIMISTIC_SPILL_STORAGE_KEY)).toBeNull();
-    for (const key of accountDraftKeys) expect(sessionStorage.getItem(key)).toBeNull();
-    for (const key of retainedKeys) expect(sessionStorage.getItem(key)).toBe("{}");
+  describe.each(["signed-out", "removed-then-logout-error"] as const)("when the SDK removed the session (%s)", (outcome) => {
+    beforeEach(() => {
+      harness.outcome = outcome;
+    });
+
+    it("removes every venue draft and pending Pint Drop of the departing account with no map mounted", async () => {
+      writeOptimisticSpills(localStorage, [storedSpill]);
+      const signOutRevision = readProviderSignOutRevision("supabase");
+      await signOut();
+      expect(harness.events).toEqual(["provider-sign-out", "durable-cookie-delete"]);
+      expect(readProviderSignOutRevision("supabase")).toBe(signOutRevision + 1);
+      expect(viewer()).toBe("signed-out");
+      expect(deviceAccountOwner(localStorage)).toBeNull();
+      expect(readDeviceAccounts(localStorage).map((account) => account.userId)).not.toContain(ACCOUNT);
+      expect(localStorage.getItem(OPTIMISTIC_SPILL_STORAGE_KEY)).toBeNull();
+      for (const key of accountDraftKeys) expect(sessionStorage.getItem(key)).toBeNull();
+      for (const key of retainedKeys) expect(sessionStorage.getItem(key)).toBe("{}");
+    });
+
+    it("purges the departing account and deletes the durable cookie before the next account takes over", async () => {
+      rememberDeviceAccount(localStorage, { userId: OTHER, refreshToken: "synthetic-refresh-b", email: "b@example.com" }, Date.now() - 60_000);
+      writeOptimisticSpills(localStorage, [storedSpill]);
+      await signOut();
+      expect(harness.events).toEqual(["provider-sign-out", "durable-cookie-delete", `activate:${OTHER}`]);
+      expect(harness.atActivate).toEqual({ owner: null, spills: null, drafts: [], lane: [OTHER] });
+    });
+
+    it("forgets every remembered account and hands the device to nobody on a device sign-out", async () => {
+      rememberDeviceAccount(localStorage, { userId: OTHER, refreshToken: "synthetic-refresh-b", email: "b@example.com" }, Date.now() - 60_000);
+      writeOptimisticSpills(localStorage, [storedSpill]);
+      await signOut("device");
+      expect(harness.events).toEqual(["provider-sign-out", "durable-cookie-delete"]);
+      expect(viewer()).toBe("signed-out");
+      expect(deviceAccountOwner(localStorage)).toBeNull();
+      expect(readDeviceAccounts(localStorage)).toEqual([]);
+      expect(localStorage.getItem(OPTIMISTIC_SPILL_STORAGE_KEY)).toBeNull();
+      for (const key of accountDraftKeys) expect(sessionStorage.getItem(key)).toBeNull();
+    });
   });
 
-  it("purges the departing account and deletes the durable cookie before the next account takes over", async () => {
-    rememberDeviceAccount(localStorage, { userId: OTHER, refreshToken: "synthetic-refresh-b", email: "b@example.com" }, Date.now() - 60_000);
-    writeOptimisticSpills(localStorage, [storedSpill]);
-    await signOut();
-    expect(harness.events).toEqual(["provider-sign-out", "durable-cookie-delete", `activate:${OTHER}`]);
-    expect(harness.atActivate).toEqual({ owner: null, spills: null, drafts: [], lane: [OTHER] });
-  });
+  describe.each([
+    ["public", "signed-out"],
+    ["anonymous", "signed-out"],
+    ["public", "removed-then-logout-error"],
+    ["anonymous", "removed-then-logout-error"],
+  ] as const)("a %s Pint Drop settling during a %s provider call", (visibility, outcome) => {
+    beforeEach(() => {
+      harness.outcome = outcome;
+    });
 
-  describe.each(["public", "anonymous"] as const)("a %s Pint Drop settling during the provider call", (visibility) => {
     async function submitPending() {
       await act(async () => {
         drops?.setVisibility(visibility);
