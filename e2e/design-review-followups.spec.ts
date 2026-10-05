@@ -211,9 +211,11 @@ for (const viewport of WIDTHS) {
     await expect(nearby).toBeVisible({ timeout: 45_000 });
     const priceStep = page.getByTestId("spill-price-step");
     // A control painted on the server is tappable before React attaches, so the
-    // tap is retried rather than the assertion after it made harder.
+    // tap is retried rather than the assertion after it made harder. Only a
+    // dropped tap is retried: a tap that landed closes the picker, and clicking
+    // the gone button waited out the whole budget on actionability.
     await expect(async () => {
-      await nearby.click();
+      if (await nearby.isVisible()) await nearby.click({ timeout: 2_000 });
       await expect(priceStep).toBeVisible({ timeout: 2_000 });
     }).toPass({ timeout: 25_000 });
 
