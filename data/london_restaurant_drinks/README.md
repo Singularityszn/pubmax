@@ -24,7 +24,9 @@ drinker could sit in. This lane asks each restaurant's own website instead.
    disallow, a 401 or a 403 refuses it; an unreachable file is asked twice more
    and then skipped. Robots is never assumed to allow.
 4. Tavily Extract reads the page, and the landing stays on the restaurant's
-   site. When the landing page states nothing, up to three drinks, wine,
+   site. Tavily may answer under a canonical spelling of the URL or the page
+   it landed on, so an answer is matched to its request by that spelling, and
+   the reported URL is what the landing check reads. When the landing page states nothing, up to three drinks, wine,
    cocktail, bar or menu pages linked from it on the same host are read too.
 5. One line from those pages states alcohol: wine, a wine list, cocktails,
    beer, lager, ale, cider, prosecco, champagne, sake, spirits, gin, whisky
@@ -82,7 +84,9 @@ npm run build:london-venues
 The Overpass answer, searches, robots answers and page reads are cached under
 the ignored `data-harvest/london-restaurant-drinks/`, so a failed run resumes.
 A Tavily rate limit that outlasts eight retries leaves that restaurant
-`pending` for the next run. `--search-limit` caps how many untagged restaurants
+`pending` for the next run, and so does a page Extract fails to read for any
+reason other than the page being gone (404 or 410): only a gone page is cached
+as unreadable, and a paid run asks again about an older cached failure. `--search-limit` caps how many untagged restaurants
 are searched, nearest Charing Cross first. `--refresh-osm` asks Overpass again.
 `--replay` never fetches: it refuses to start without the cached Overpass
 answer, and it refuses to write when a restaurant ends `pending` because a
@@ -122,14 +126,19 @@ is not evidence, and neither is a shop page. The 26 committed rows whose quote
 that rule refuses were removed without a new read and are not excluded, so the
 next run may publish a clean line from the same site. A tenth restaurant,
 Hush in Mayfair, was then excluded by hand because its quote describes the
-Holborn branch. `evidence.json` holds 928 restaurants (926 are new to the
-London layer; OSM already shipped 2).
+Holborn branch. Code review then flagged five more rows. Ev and DHE Chayakkada
+were excluded by hand: Ev's quote describes Ev Bar, a separate bar to visit
+after dinner, and DHE Chayakkada's names a Kerala drink, not alcohol. The three
+YO! Sushi rows quote cocktails at its sushi schools, so the class rule now
+covers sushi, cookery, pasta and baking classes and schools, and those rows
+were removed without being excluded. `evidence.json` holds 923 restaurants
+(921 are new to the London layer; OSM already shipped 2).
 `report.json` still holds that run's counts, including its 1,018 accepted; the
 next run that reads the pages again replaces them.
 
 The classifier is lexical, so a small number of published rows may quote a
 sister venue, shop or class rather than this restaurant; reviewers found and
-excluded 10 by hand, and further rows of that kind are corrected through
+excluded 12 by hand, and further rows of that kind are corrected through
 `exclusions.json`.
 
 `report.json` counts 1,997 Tavily credits. The first full run stopped on a

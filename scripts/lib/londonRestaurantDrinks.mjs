@@ -11,7 +11,7 @@
 // does the reading, and `scripts/build_london_venue_shards.mjs` publishes.
 
 import { allowedEvidenceUrl, ownSiteFor, withoutName } from "./parallelVenueDiscovery.mjs";
-import { pageText } from "./webVenueDiscovery.mjs";
+import { pageText, readFailureIsDefinitive } from "./webVenueDiscovery.mjs";
 
 export const LONDON = { id: "london", displayName: "London" };
 
@@ -36,6 +36,57 @@ export function taggedOwnSite(website) {
     return null;
   }
 }
+
+// One spelling of a page for matching an Extract answer to its request:
+// scheme, `www.`, a fragment and a trailing slash are not part of the page.
+function pageKey(url) {
+  try {
+    const parsed = new URL(url);
+    return `${hostOf(url)}${parsed.pathname.replace(/\/+$/, "")}${parsed.search}`;
+  } catch {
+    return String(url);
+  }
+}
+
+/**
+ * Pairs each requested URL with Tavily Extract's answer for it. Tavily may
+ * canonicalise a URL (scheme, `www.`, trailing slash) or report the page it
+ * landed on, so a result is matched exactly, then by its normalised spelling,
+ * then as the only unmatched result on the only unmatched request's host. A
+ * matched page keeps the URL Tavily reported, so the landing check sees any
+ * redirect. A failure is settled only when it says the page is gone; any other
+ * failure is `retry`, which the caller must not cache.
+ */
+export function pairExtractResults(urls, data) {
+  const results = [...(data?.results ?? [])];
+  const failures = data?.failed_results ?? [];
+  const answers = new Map();
+  const take = (url, test) => {
+    const at = results.findIndex(test);
+    if (at < 0) return false;
+    answers.set(url, { landedUrl: results[at].url, text: results[at].raw_content ?? "" });
+    results.splice(at, 1);
+    return true;
+  };
+  const open = urls.filter((url) => !take(url, (result) => result.url === url));
+  const still = open.filter((url) => !take(url, (result) => pageKey(result.url) === pageKey(url)));
+  for (const url of still) {
+    const host = hostOf(url);
+    const sameHostRequests = still.filter((other) => hostOf(other) === host && !answers.has(other));
+    const sameHostResults = results.filter((result) => hostOf(result.url) === host);
+    if (sameHostRequests.length === 1 && sameHostResults.length === 1) take(url, (result) => result === sameHostResults[0]);
+  }
+  for (const url of urls) {
+    if (answers.has(url)) continue;
+    const failure = failures.find((row) => row.url === url || pageKey(row.url) === pageKey(url)) ?? { url, error: "Extract returned nothing" };
+    const reason = String(failure.error ?? failure.status ?? "Extract returned nothing").slice(0, 160);
+    answers.set(url, readFailureIsDefinitive(failure) ? { unreadable: reason } : { retry: reason });
+  }
+  return answers;
+}
+
+/** A cached unreadable page Extract might read on another try: not a 404 or 410. */
+export const retryableUnreadable = (page) => Boolean(page?.unreadable) && !readFailureIsDefinitive({ error: page.unreadable });
 
 const POSTCODE = /\b[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}\b/gi;
 const compactPostcode = (value) => String(value ?? "").toUpperCase().replace(/\s+/g, "");
@@ -125,7 +176,7 @@ const FURNITURE = /©|\bcopyright\b|all rights reserved|registered (?:in england
 // a delivery, a masterclass, a consultancy, a sister venue, a bar beneath the
 // restaurant, a brasserie elsewhere, or the stray bracket left by navigation
 // link text.
-const OFF_PREMISES = /\b(?:(?:wine|bottle|online|farm) shop|shop online|purchase|buy\b(?! (?:one|two|1|2)\b)|order online|deliver(?:y|ies|ed)|to take home|hampers?|gifts?|masterclass(?:es)?|workshops?|(?:making|tasting|cooking|cocktail|wine) (?:class(?:es)?|courses?)|consultancy|consulting|our other (?:restaurants?|venues?|sites?|bars?)|sister (?:restaurants?|venues?|bars?|sites?))\b|\b(?:alongside|part of) [a-z ]* group\b|\b(?:below|above|beneath|underneath) (?:my|our) (?:[a-z]+ )?restaurant\b|\bat (?!our\b|the\b|my\b|this\b)[a-z]+ brasserie\b|[\[\]]/;
+const OFF_PREMISES = /\b(?:(?:wine|bottle|online|farm) shop|shop online|purchase|buy\b(?! (?:one|two|1|2)\b)|order online|deliver(?:y|ies|ed)|to take home|hampers?|gifts?|masterclass(?:es)?|workshops?|(?:making|tasting|cooking|cocktail|wine|sushi|cookery|pasta|baking) (?:class(?:es)?|courses?|schools?)|consultancy|consulting|our other (?:restaurants?|venues?|sites?|bars?)|sister (?:restaurants?|venues?|bars?|sites?))\b|\b(?:alongside|part of) [a-z ]* group\b|\b(?:below|above|beneath|underneath) (?:my|our) (?:[a-z]+ )?restaurant\b|\bat (?!our\b|the\b|my\b|this\b)[a-z]+ brasserie\b|[\[\]]/;
 
 // A page at a shop path (a Shopify collection, a product, a shop or a store
 // page) sells what it names; it is not evidence and is not followed.

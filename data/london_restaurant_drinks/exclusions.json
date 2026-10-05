@@ -50,6 +50,16 @@
       "osmId": "node/1493424623",
       "name": "Hush",
       "reason": "The quote describes the lounge at the Holborn brasserie, a sister venue, not this Mayfair restaurant."
+    },
+    {
+      "osmId": "node/441698041",
+      "name": "EV",
+      "reason": "The quote describes Ev Bar, a separate bar to visit after dining at the restaurant, not the restaurant pouring."
+    },
+    {
+      "osmId": "way/1446396624",
+      "name": "DHE Chayakkada",
+      "reason": "The quote is a menu item, Kannur Cocktail, which names a Kerala drink, not alcohol."
     }
   ]
 }

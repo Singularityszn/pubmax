@@ -22,3 +22,9 @@ export function drinkLinks(markdown: unknown, pageUrl: string, limit?: number): 
 export function restaurantCandidate(element: unknown, deps: { statesAlcohol: (tags: Record<string, string>) => boolean; excluded: Set<string> }): RestaurantCandidate | null;
 export function excludedOsmIds(exclusions: unknown): Set<string>;
 export function validateRestaurantDrinksPack(pack: unknown, deps: { inGreaterLondon: (lat: number, lng: number) => boolean; exclusions: unknown }): string[];
+export type ExtractAnswer = { landedUrl: string; text: string } | { unreadable: string } | { retry: string };
+export function pairExtractResults(
+  urls: string[],
+  data: { results?: Array<{ url: string; raw_content?: string | null }>; failed_results?: Array<{ url: string; error?: unknown; status?: number }> } | null | undefined,
+): Map<string, ExtractAnswer>;
+export function retryableUnreadable(page: { unreadable?: string } | null | undefined): boolean;

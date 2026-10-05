@@ -34,7 +34,9 @@ import {
   hostOf,
   LONDON,
   offPremisesUrl,
+  pairExtractResults,
   restaurantCandidate,
+  retryableUnreadable,
   searchBindsSite,
   searchQuery,
   validateRestaurantDrinksPack,
@@ -179,7 +181,9 @@ function tavilyClient(spend) {
       const missing = [];
       for (const url of urls) {
         const cached = await readJson(hashed("pages", url));
-        if (cached) pages.set(url, cached);
+        // A read that failed for a reason other than a gone page is asked again
+        // by a paid run; a replay keeps what was recorded.
+        if (cached && !(spend && retryableUnreadable(cached))) pages.set(url, cached);
         else missing.push(url);
       }
       if (!spend) return pages;
@@ -195,11 +199,11 @@ function tavilyClient(spend) {
           throw error;
         }
         const observedAt = new Date().toISOString();
-        for (const url of batch) {
-          const row = (data.results ?? []).find((result) => result.url === url);
-          const page = row
-            ? { url, landedUrl: row.url, observedAt, text: row.raw_content ?? "" }
-            : { url, observedAt, unreadable: String((data.failed_results ?? []).find((failure) => failure.url === url)?.error ?? "Extract returned nothing").slice(0, 160) };
+        for (const [url, answer] of pairExtractResults(batch, data)) {
+          // A failure that does not say the page is gone stays unread, so the
+          // restaurant ends pending and the next run asks again.
+          if (answer.retry) continue;
+          const page = { url, observedAt, ...answer };
           await writeJson(hashed("pages", url), page);
           pages.set(url, page);
         }

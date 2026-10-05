@@ -9,7 +9,9 @@ import {
   drinkLinks,
   drinksEvidence,
   excludedOsmIds,
+  pairExtractResults,
   restaurantCandidate,
+  retryableUnreadable,
   searchBindsSite,
   statesRestaurantDrinks,
   taggedOwnSite,
@@ -232,8 +234,43 @@ describe("London restaurant drinks evidence", () => {
     const pack = JSON.parse(readFileSync(path.join(process.cwd(), "data/london_restaurant_drinks/evidence.json"), "utf8"));
     const exclusions = JSON.parse(readFileSync(path.join(process.cwd(), "data/london_restaurant_drinks/exclusions.json"), "utf8"));
     expect(validateRestaurantDrinksPack(pack, { inGreaterLondon, exclusions })).toEqual([]);
-    expect(excludedOsmIds(exclusions).size).toBe(10);
+    expect(excludedOsmIds(exclusions).size).toBe(12);
     expect(pack.rows.some((row: { osmId: string }) => excludedOsmIds(exclusions).has(row.osmId))).toBe(false);
     expect(pack.rows.length).toBeGreaterThan(0);
+  });
+  it("does not take a class held at the restaurant as the restaurant pouring", () => {
+    expect(drinksEvidence("Master the roll and sip on MOTH: cocktails at our exclusive adults only sushi schools.", "YO! Sushi")).toEqual({});
+    expect(drinksEvidence("Join a pasta class, then cocktails at the bar.", "Example")).toEqual({});
+  });
+
+  it("pairs Extract answers with their requests when Tavily canonicalises or redirects the URL", () => {
+    const answers = pairExtractResults(
+      ["http://example-trattoria.co.uk/", "https://www.fenice.co.uk/menu", "https://bistro-uno.co.uk/drinks/"],
+      {
+        results: [
+          { url: "https://www.example-trattoria.co.uk", raw_content: "Wine list" },
+          { url: "https://www.fenice.co.uk/en/menu", raw_content: "Cocktails" },
+          { url: "https://bistro-uno.co.uk/drinks", raw_content: "Beers" },
+        ],
+      },
+    );
+    expect(answers.get("http://example-trattoria.co.uk/")).toEqual({ landedUrl: "https://www.example-trattoria.co.uk", text: "Wine list" });
+    expect(answers.get("https://www.fenice.co.uk/menu")).toEqual({ landedUrl: "https://www.fenice.co.uk/en/menu", text: "Cocktails" });
+    expect(answers.get("https://bistro-uno.co.uk/drinks/")).toEqual({ landedUrl: "https://bistro-uno.co.uk/drinks", text: "Beers" });
+  });
+
+  it("settles only a gone page, and leaves any other Extract failure to be asked again", () => {
+    const answers = pairExtractResults(["https://a-venue.co.uk/", "https://b-venue.co.uk/", "https://c-venue.co.uk/"], {
+      failed_results: [
+        { url: "https://a-venue.co.uk/", error: "Failed to fetch url" },
+        { url: "https://b-venue.co.uk/", error: "HTTP 404 Not Found" },
+      ],
+    });
+    expect(answers.get("https://a-venue.co.uk/")).toEqual({ retry: "Failed to fetch url" });
+    expect(answers.get("https://b-venue.co.uk/")).toEqual({ unreadable: "HTTP 404 Not Found" });
+    expect(answers.get("https://c-venue.co.uk/")).toEqual({ retry: "Extract returned nothing" });
+    expect(retryableUnreadable({ unreadable: "Failed to fetch url" })).toBe(true);
+    expect(retryableUnreadable({ unreadable: "HTTP 410 Gone" })).toBe(false);
+    expect(retryableUnreadable({})).toBe(false);
   });
 });
