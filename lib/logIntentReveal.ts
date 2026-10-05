@@ -41,7 +41,7 @@ type RevealRoot = Pick<Document, "querySelector">;
  * after all, in about one arrival in four under parallel load. So the request
  * waits for the step instead of for a clock: the step reveals itself as it
  * mounts (`takeLogIntentReveal`), and a request the reader walks away from is
- * cancelled by the sheet closing, never by a timer.
+ * cancelled by the map (`useLogIntentRevealScope`), never by a timer.
  */
 type PendingReveal = { reducedMotion: boolean };
 
@@ -93,7 +93,8 @@ export function takeLogIntentReveal(step: HTMLElement | null): boolean {
   return true;
 }
 
-/** The sheet closed, so no later composer may inherit this arrival's scroll. */
+/** The wait can no longer end in the intent's composer, so no later composer
+ *  may inherit this arrival's scroll. */
 export function cancelLogIntentReveal(): void {
   pendingReveal = null;
 }
