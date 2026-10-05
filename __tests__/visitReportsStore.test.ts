@@ -138,7 +138,27 @@ vi.mock("@/lib/supabase", () => {
 
   return {
     isSupabaseConfigured: () => true,
-    requireSupabaseAdmin: () => ({ from: () => makeQuery() }),
+    requireSupabaseAdmin: () => ({
+      from: () => makeQuery(),
+      // Model the external RPC boundary. Real SQL concurrency and grants are
+      // covered separately in venueVisitReportActorAppendMigrationEffective.
+      rpc: async (name: string, args: { p_id: string; p_actor: string; p_reason: string | null }) => {
+        if (name !== "append_visit_report_report_actor") throw new Error("Unexpected fixture RPC");
+        if (db.schemaMiss) return { data: null, error: { message: TABLE_MISSING } };
+        if (db.failWrites) return { data: null, error: { message: "update boom" } };
+        const row = db.rows.find((candidate) => candidate.id === args.p_id);
+        if (!row) return { data: false, error: null };
+        const actors = row.report_actors as string[];
+        if (!actors.includes(args.p_actor)) {
+          row.report_actors = [...actors, args.p_actor];
+          row.report_count = actors.length + 1;
+          row.reported_at = new Date().toISOString();
+          if (args.p_reason?.trim()) row.report_reason = args.p_reason.trim();
+          if (row.status === "visible") row.moderated_at = null;
+        }
+        return { data: true, error: null };
+      },
+    }),
   };
 });
 
@@ -426,7 +446,7 @@ describe("supabaseVisitReportStore", () => {
 
     const seeded = await memoryVisitReportStore.create(fields());
     await expect(supabaseVisitReportStore.report(seeded.id, "spam", "actor-a")).rejects.toThrow(
-      /refusing process-memory write fallback.*0046/,
+      /Could not find the table/,
     );
     await expect(supabaseVisitReportStore.moderate(seeded.id, "hidden")).rejects.toThrow(
       /refusing process-memory write fallback.*0046/,
