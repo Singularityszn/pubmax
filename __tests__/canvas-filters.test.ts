@@ -3,6 +3,7 @@ import type * as maplibregl from "maplibre-gl";
 
 import {
   AMBIENT_CATEGORIES,
+  ambientMotionLive,
   applyPoiCategoryVisibility,
   opportunityForFeature,
   pinEntranceIconOpacityExpr,
@@ -14,6 +15,7 @@ import {
   poiFilter,
   pubIconOpacityExpr,
   glowPulsePaint,
+  routeLineShowsDash,
   hashEntranceSeed,
   selectedPinIconSizeExpr,
   transportFilter,
@@ -22,6 +24,7 @@ import {
 } from "@/components/map/canvas/filters";
 import { SELECTED_PIN_SIZE_SCALE } from "@/components/map/canvas/easing";
 import {
+  AMBIENT_MOTION_WINDOW_MS,
   GLOW_PULSE_PERIOD_MS,
   GLOW_PULSE_MIN_OPACITY,
   GLOW_PULSE_MAX_OPACITY,
@@ -128,6 +131,40 @@ describe("glowPulsePaint", () => {
     const threeQuarter = glowPulsePaint(GLOW_PULSE_PERIOD_MS * 0.75);
     expect(quarter.opacity).toBeCloseTo(GLOW_PULSE_MAX_OPACITY, 5);
     expect(threeQuarter.opacity).toBeCloseTo(GLOW_PULSE_MIN_OPACITY, 5);
+  });
+});
+
+describe("ambientMotionLive (the dash and the pulse rest)", () => {
+  it("moves only inside the window after something woke it", () => {
+    expect(ambientMotionLive(1_000, 1_000)).toBe(true);
+    expect(ambientMotionLive(1_000 + AMBIENT_MOTION_WINDOW_MS - 1, 1_000)).toBe(true);
+    expect(ambientMotionLive(1_000 + AMBIENT_MOTION_WINDOW_MS, 1_000)).toBe(false);
+  });
+
+  it("never moves before anything woke it", () => {
+    expect(ambientMotionLive(5_000, null)).toBe(false);
+  });
+
+  it("is a bounded promise: a few breaths of the pulse, then rest", () => {
+    expect(AMBIENT_MOTION_WINDOW_MS).toBeGreaterThanOrEqual(GLOW_PULSE_PERIOD_MS * 2);
+    expect(AMBIENT_MOTION_WINDOW_MS).toBeLessThanOrEqual(10_000);
+  });
+});
+
+describe("routeLineShowsDash", () => {
+  const line = (source: string): GeoJSON.FeatureCollection => ({
+    type: "FeatureCollection",
+    features: [{
+      type: "Feature",
+      properties: { source },
+      geometry: { type: "LineString", coordinates: [[0, 51], [0.01, 51.01]] },
+    }],
+  });
+
+  it("is true only for the straight fallback the dash layer paints", () => {
+    expect(routeLineShowsDash(line("straight"))).toBe(true);
+    expect(routeLineShowsDash(line("ors"))).toBe(false);
+    expect(routeLineShowsDash({ type: "FeatureCollection", features: [] })).toBe(false);
   });
 });
 

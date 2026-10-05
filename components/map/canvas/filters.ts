@@ -4,6 +4,7 @@ import { offsetIndexForLine } from "@/lib/tubeOffsets";
 import { TRANSPORT_CATEGORIES, type PoiCategory } from "@/lib/pois";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import {
+  AMBIENT_MOTION_WINDOW_MS,
   SELECTION_DIM_OPACITY,
   GLOW_PULSE_PERIOD_MS,
   GLOW_PULSE_MIN_OPACITY,
@@ -310,6 +311,20 @@ export function glowPulsePaint(now: number): { opacity: number; width: number } 
     opacity: GLOW_PULSE_MIN_OPACITY + (GLOW_PULSE_MAX_OPACITY - GLOW_PULSE_MIN_OPACITY) * wave,
     width: GLOW_PULSE_MIN_WIDTH + (GLOW_PULSE_MAX_WIDTH - GLOW_PULSE_MIN_WIDTH) * wave,
   };
+}
+
+// Whether ambient motion (the selected-pin pulse, the route's marching ants)
+// may still move at `now`: only inside AMBIENT_MOTION_WINDOW_MS of the last
+// wake, never before the first. Pure, so the RAF loop's rest is unit-testable.
+export function ambientMotionLive(now: number, wokeAt: number | null): boolean {
+  return wokeAt !== null && now - wokeAt < AMBIENT_MOTION_WINDOW_MS;
+}
+
+// The `route-line-dash` layer paints only the straight fallback (buildScene.ts
+// buildRoute); a routed line or no route leaves it invisible, and animating an
+// invisible dash still redraws the whole map.
+export function routeLineShowsDash(routeLine: GeoJSON.FeatureCollection): boolean {
+  return routeLine.features.some((feature) => feature.properties?.source === "straight");
 }
 
 // M7 pin entrance — deterministic FNV-1a-style hash of a pub id into
