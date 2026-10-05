@@ -18,6 +18,7 @@ import {
   matchPubToVenue,
   mergeChainDenylists,
   mergeHarvestEvidence,
+  pageOwners,
   pageStatesAddress,
   pageStatesPostcode,
   pageStatesStreet,
@@ -585,6 +586,43 @@ describe("chain denylist", () => {
     });
     expect(kept.chainPages.pages).toEqual([]);
     expect(kept.rows.map((row) => row.osmId)).toEqual(["way/151288979"]);
+  });
+
+  it("treats a dataset venue's read as a duplicate when the OSM owner is only a reader on the chain list", () => {
+    const page = "https://www.greeneking.co.uk/pubs/greater-london/butchers-hook";
+    const duplicate: HarvestRead = {
+      status: "ok",
+      name: "Butchers Hook",
+      venueId: "venue-dup",
+      sourceUrl: page,
+      verifiedAt: "2026-10-05",
+      amenities: { food: "savour delicious pub classics" },
+    };
+    const knownChainPages = { ...EMPTY_CHAIN_DENYLIST, readers: { "greeneking.co.uk/pubs/greater-london/butchers-hook": ["way/151288979"] } };
+    const merged = mergeHarvestEvidence({
+      previousRows: [],
+      fresh: new Map([["venue/venue-dup", duplicate]]),
+      checkpoint: { "venue/venue-dup": duplicate },
+      knownChainPages,
+    });
+    expect(merged.chainPages.pages).toEqual([]);
+    expect(merged.rows).toEqual([]);
+    const owners = pageOwners([], Object.entries({ "venue/venue-dup": duplicate }), knownChainPages);
+    expect(siteOfAnotherPub(page, "venue/venue-dup", owners)).toBe(true);
+    expect(siteOfAnotherPub(page, "way/151288979", owners)).toBe(false);
+  });
+
+  it("does not let two dataset venues' reads of one page prove it chain-wide", () => {
+    const read = (venueId: string): HarvestRead => ({
+      status: "ok",
+      venueId,
+      sourceUrl: "https://www.thecrown.example/",
+      verifiedAt: "2026-10-05",
+      amenities: { pool: "a pool table upstairs" },
+    });
+    const fresh = new Map<string, HarvestRead>([["venue/a", read("a")], ["venue/b", read("b")]]);
+    const merged = mergeHarvestEvidence({ previousRows: [], fresh, checkpoint: Object.fromEntries(fresh), knownChainPages: EMPTY_CHAIN_DENYLIST });
+    expect(merged.chainPages.pages).toEqual([]);
   });
 
   it("drops an extra page whose link is allowed but which lands on a proven chain page", async () => {

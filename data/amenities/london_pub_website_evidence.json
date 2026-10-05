@@ -19,7 +19,7 @@
     "food": 867,
     "cocktails": 385,
     "beerGarden": 621,
-    "liveSports": 411,
+    "liveSports": 397,
     "nonAlcoholic": 26,
     "liveMusic": 257,
     "pubQuiz": 188,
@@ -30,8 +30,8 @@
     "any": 1027,
     "none": 889
   },
-  "stampedVenues": 250,
-  "stampedRows": 340,
+  "stampedVenues": 248,
+  "stampedRows": 337,
   "skipCounts": {
     "robots-unreadable": 98,
     "http-404": 60,

@@ -457,8 +457,8 @@ function readOwnsPage(status: string | undefined): boolean {
  * page is a reader, whatever came of the read, and its quotes count before
  * the chain rule drops any of them. A page that did not state the pub's
  * address was not that pub's, so its read proves nothing, and a dataset
- * venue's read of a page that belongs to a pub OSM gives a site to is a
- * duplicate of that pub's read.
+ * venue's read of a page that belongs to another pub is a duplicate of that
+ * pub's read.
  */
 export function mergeHarvestEvidence(input: {
   previousRows: readonly HarvestEvidenceRow[];
@@ -484,15 +484,13 @@ export function mergeHarvestEvidence(input: {
       amenities: entry.amenities ?? {},
     });
   }
-  const ownedReads = [...new Map([...Object.entries(input.checkpoint), ...input.fresh]).entries()].flatMap(
-    ([osmId, entry]) =>
-      entry.sourceUrl && readOwnsPage(entry.status)
-        ? [{ osmId, status: entry.status, sourceUrl: entry.sourceUrl, amenities: entry.amenities ?? {} }]
-        : [],
+  const allReads = [...new Map([...Object.entries(input.checkpoint), ...input.fresh]).entries()];
+  const ownedReads = allReads.flatMap(([osmId, entry]) =>
+    entry.sourceUrl && readOwnsPage(entry.status) ? [{ osmId, sourceUrl: entry.sourceUrl, amenities: entry.amenities ?? {} }] : [],
   );
-  const osmOwners = [...input.previousRows, ...ownedReads].filter((read) => !isDatasetVenueRead(read.osmId));
+  const owners = pageOwners(input.previousRows, allReads, input.knownChainPages);
   const notDuplicate = (read: { osmId: string; sourceUrl?: string }) =>
-    !read.sourceUrl || !siteOfAnotherPub(read.sourceUrl, read.osmId, osmOwners);
+    !read.sourceUrl || !siteOfAnotherPub(read.sourceUrl, read.osmId, owners);
   const ownCandidates = candidates.filter(notDuplicate);
   const chainPages = mergeChainDenylists(input.knownChainPages, provenChainEvidence([...ownCandidates, ...ownedReads.filter(notDuplicate)]));
   const rows = pubSpecificEvidence(ownCandidates, chainPages).sort((a, b) => a.osmId.localeCompare(b.osmId));
@@ -751,6 +749,28 @@ export function pageStatesStreet(text: string, street: readonly string[]): boole
     .map((word) => (abbreviations[word] ? `(?:${word}|${abbreviations[word]}\\.?)` : word.replace(/'/g, "['’]?")))
     .join("\\s+");
   return new RegExp(`\\b${pattern}\\b`, "i").test(text);
+}
+
+/**
+ * Every read that can own a page, for `siteOfAnotherPub`: the committed
+ * evidence, the checkpoint's reads with their status, and the chain list's
+ * readers that OSM gave a site, which never reach the evidence file when their
+ * read kept nothing. A dataset venue the chain list names as a reader is the
+ * duplicate the list must not stand on.
+ */
+export function pageOwners(
+  previousRows: readonly { osmId: string; sourceUrl?: string }[],
+  reads: Iterable<readonly [string, HarvestRead]>,
+  knownChainPages: ChainDenylist,
+): { osmId: string; sourceUrl?: string; status?: string }[] {
+  const listed = Object.entries(knownChainPages.readers).flatMap(([page, osmIds]) =>
+    osmIds.filter((osmId) => !isDatasetVenueRead(osmId)).map((osmId) => ({ osmId, sourceUrl: `https://${page}` })),
+  );
+  return [
+    ...previousRows,
+    ...[...reads].map(([osmId, entry]) => ({ osmId, sourceUrl: entry.sourceUrl, status: entry.status })),
+    ...listed,
+  ];
 }
 
 /** Whether a read is a price-dataset venue's, which OSM gives no site. */
