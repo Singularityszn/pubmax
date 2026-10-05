@@ -21,7 +21,12 @@ import { useViewerSession } from "@/components/auth/useViewerSession";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
-import { useFocusTrap } from "@/lib/useFocusTrap";
+import {
+  readStrictModalFocusTrap,
+  serverStrictModalFocusTrap,
+  subscribeStrictModalFocusTrap,
+  useFocusTrap,
+} from "@/lib/useFocusTrap";
 import {
   IDENTITY_NUDGE_FIRST_PAINT_GRACE_MS,
   getIdentityNudgeClientSnapshot,
@@ -102,7 +107,7 @@ export default function IdentityNudge(): React.JSX.Element | null {
   // snapshot, so a sign-in in another tab instantly hides the nudge. Nothing to
   // offer when auth is unconfigured — no dead buttons. The grace gate keeps it
   // off the first paint.
-  const canShow =
+  const eligible =
     Boolean(trigger) &&
     graced &&
     !loading &&
@@ -110,6 +115,30 @@ export default function IdentityNudge(): React.JSX.Element | null {
     viewerSession.signedOut &&
     configured &&
     hasPromptBudgetFor(IDENTITY_SURFACE);
+
+  // Never open over another strict modal. The tap that ends the grace is often
+  // the tap that opens one (Edit on a Moment opens the photo editor), and two
+  // strict traps inert each other: the reader saw an inert editor over a
+  // sign-in sheet they could not reach. The nudge waits for that modal to
+  // close. Once open it stays open; its own trap counts as a strict modal.
+  // A map-surface sheet is not a strict modal, so the nudge still covers it.
+  const strictModalOpen = useSyncExternalStore(
+    subscribeStrictModalFocusTrap,
+    readStrictModalFocusTrap,
+    serverStrictModalFocusTrap,
+  );
+  const [opened, setOpened] = useState(false);
+  useEffect(() => {
+    if (!eligible) {
+      if (opened) void Promise.resolve().then(() => setOpened(false));
+      return;
+    }
+    if (opened || strictModalOpen) return;
+    void Promise.resolve().then(() => {
+      if (!readStrictModalFocusTrap()) setOpened(true);
+    });
+  }, [eligible, opened, strictModalOpen]);
+  const canShow = eligible && opened;
 
   // Claim the shared one-prompt-per-session budget at the moment it shows
   // (docs/PROMPT_ORCHESTRATION.md). Idempotent for this surface.

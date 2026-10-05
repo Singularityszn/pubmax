@@ -67,7 +67,7 @@ async function attachPhoto(page: Page): Promise<void> {
 test.describe("Moment photo editor with the sign-in nudge armed", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test("a guest's first tap on Edit opens the editor before the nudge", async ({ page }) => {
+  test("a guest's first tap on Edit opens a usable editor, and the nudge waits for it to close", async ({ page }) => {
     await seedMomentGuest(page);
     // The first photo arms the "Own your memories" nudge, which then waits out
     // an 8 s first-paint grace or the first tap. Hold the page's clock so only
@@ -89,8 +89,17 @@ test.describe("Moment photo editor with the sign-in nudge armed", () => {
     // reveal waits on timers, so let the page's time run again.
     await page.clock.resume();
 
-    await expect(page.getByRole("dialog", { name: "Edit photo" })).toBeVisible();
-    await expect(page.getByRole("dialog", { name: "Own your memories" })).toBeVisible();
+    const editor = page.getByRole("dialog", { name: "Edit photo" });
+    const nudge = page.getByRole("dialog", { name: "Own your memories" });
+    await expect(editor).toBeVisible();
+    // The tap ended the grace, but the nudge never opens over the editor: two
+    // strict modals inert each other and neither could be reached.
+    await expect(nudge).toHaveCount(0);
+    expect(await editor.evaluate((node) => node.closest("[inert]") === null)).toBe(true);
+
+    await page.getByRole("button", { name: "Close editor" }).click();
+    await expect(editor).toBeHidden();
+    await expect(nudge).toBeVisible();
   });
 });
 

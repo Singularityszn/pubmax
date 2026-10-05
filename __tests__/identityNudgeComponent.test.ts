@@ -6,9 +6,24 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const authState = vi.hoisted(() => ({
   current: {} as Record<string, unknown>,
 }));
-const focusTrapState = vi.hoisted(() => ({
-  useFocusTrap: vi.fn(),
-}));
+const focusTrapState = vi.hoisted(() => {
+  const listeners = new Set<() => void>();
+  const state = {
+    strictModalOpen: false,
+    useFocusTrap: vi.fn(),
+    subscribeStrictModalFocusTrap: (listener: () => void) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    readStrictModalFocusTrap: () => state.strictModalOpen,
+    serverStrictModalFocusTrap: () => false,
+    setStrictModalOpen: (open: boolean) => {
+      state.strictModalOpen = open;
+      for (const listener of listeners) listener();
+    },
+  };
+  return state;
+});
 const magicLinkState = vi.hoisted(() => ({
   signInWithEmail: null as ((email: string) => Promise<unknown>) | null,
 }));
@@ -209,10 +224,15 @@ async function renderAfterGrace(): Promise<void> {
   await commitReactWork(() => {
     vi.advanceTimersByTime(8_000);
   });
+  // The nudge opens from a microtask once nothing else holds a strict modal.
+  await commitReactWork(async () => {
+    await Promise.resolve();
+  });
 }
 
 beforeEach(() => {
   vi.useFakeTimers();
+  focusTrapState.strictModalOpen = false;
   magicLinkState.signInWithEmail = null;
   authState.current = {
     user: null,
@@ -293,6 +313,26 @@ describe("IdentityNudge visibility", () => {
       expect.objectContaining({ current: expect.anything() }),
       "strict-modal",
     );
+  });
+
+  // The tap that ends the grace can open another strict modal (Edit opens the
+  // Moment photo editor). Two strict traps inert each other, so the nudge
+  // waits for that one to close instead of opening behind or over it.
+  it("waits while another strict modal is open, then opens when it closes", async () => {
+    authState.current.configured = true;
+    focusTrapState.strictModalOpen = true;
+
+    await renderAfterGrace();
+    expect(container.childNodes).toHaveLength(0);
+
+    await commitReactWork(async () => {
+      focusTrapState.setStrictModalOpen(false);
+      await Promise.resolve();
+    });
+    await commitReactWork(async () => {
+      await Promise.resolve();
+    });
+    expect(container.childNodes.length).toBeGreaterThan(0);
   });
 
   it("keeps one functional magic-link email action and no dormant digest capture", async () => {
