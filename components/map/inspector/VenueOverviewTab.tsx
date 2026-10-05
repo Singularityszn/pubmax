@@ -66,6 +66,7 @@ import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import VenueActionStrip from "@/components/map/VenueActionStrip";
 import CityPlaceStrip from "@/components/map/CityPlaceStrip";
 import VenuePlacesDetails from "@/components/map/VenuePlacesDetails";
+import VenueSiteDetails from "@/components/map/VenueSiteDetails";
 import VenueBuzz from "@/components/map/VenueBuzz";
 import VenueAwardBadge from "@/components/areanews/VenueAwardBadge";
 import VenueHygiene from "@/components/map/VenueHygiene";
@@ -988,6 +989,7 @@ export default function VenueOverviewTab({
         onClearLocation={onClearLocation}
       />
       <VenuePlacesDetails venue={venue} links />
+      <VenueSiteDetails venue={venue} />
       <CityPlaceStrip
         venueId={venue.id}
         venueName={venue.name}

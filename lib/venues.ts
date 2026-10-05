@@ -158,6 +158,8 @@ export function isVenueKind(value: unknown): value is VenueKind {
 
 export type Venue = {
   placesContent?: import("@/lib/placesEnrichment").PlacesEnrichmentRecord;
+  /** Dog policy and opening hours the pub's own website states (lib/venueSiteFacts.ts). Absent is unknown. */
+  siteFacts?: import("@/lib/venueSiteFacts").VenueSiteFacts;
   openingHours?: import("@/lib/busyness").WeeklyOpeningHours;
   id: string;
   name: string;
