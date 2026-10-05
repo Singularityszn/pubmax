@@ -10,11 +10,10 @@
 // empty list so the list surface still renders its own empty state, and a
 // failed enrichment costs a name and a face rather than the list.
 
-import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { followListEntries } from "@/lib/followListProjection.server";
 import { normalizeHandle } from "@/lib/profiles";
-import { callerOwnedWithdrawnHandle } from "@/lib/profileOwnership";
+import { handleWithdrawnFromCaller } from "@/lib/profileOwnership";
 import { followStore } from "@/lib/followStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 import {
@@ -39,10 +38,7 @@ export async function GET(
 
   try {
     // A withdrawn handle reads like an unknown one, except to its own owner.
-    if (
-      (await withdrawnHandles([handle])).has(handle) &&
-      !(await callerOwnedWithdrawnHandle(request, handle))
-    ) {
+    if (await handleWithdrawnFromCaller(request, handle)) {
       return jsonNoStore({ followers: [] }, { status: 200 });
     }
     const handles = await followStore().listFollowers(handle);

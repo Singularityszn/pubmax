@@ -11,11 +11,10 @@
 // handle or a backend hiccup degrades to an empty list so the feed still renders
 // (the Friends lane just falls through to its "follow people" empty state).
 
-import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { followListEntries } from "@/lib/followListProjection.server";
 import { normalizeHandle } from "@/lib/profiles";
-import { callerOwnedWithdrawnHandle } from "@/lib/profileOwnership";
+import { handleWithdrawnFromCaller } from "@/lib/profileOwnership";
 import { followStore } from "@/lib/followStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 import {
@@ -42,10 +41,7 @@ export async function GET(
 
   try {
     // A withdrawn handle reads like an unknown one, except to its own owner.
-    if (
-      (await withdrawnHandles([handle])).has(handle) &&
-      !(await callerOwnedWithdrawnHandle(request, handle))
-    ) {
+    if (await handleWithdrawnFromCaller(request, handle)) {
       return jsonNoStore({ following: [] }, { status: 200 });
     }
     const handles = await followStore().listFollowing(handle);

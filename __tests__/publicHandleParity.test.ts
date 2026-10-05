@@ -40,6 +40,8 @@ import ProfilePage, { generateMetadata } from "@/app/u/[handle]/page";
 import SavedListPage, { generateMetadata as savedListMetadata } from "@/app/u/[handle]/lists/[listType]/page";
 import { GET as getSavedPubs } from "@/app/api/saved-pubs/route";
 import { GET as getListFollows } from "@/app/api/saved-pubs/list-follows/route";
+import { GET as getDirectory } from "@/app/api/profiles/directory/route";
+import { GET as getStarterPacks } from "@/app/api/starter-packs/route";
 import {
   __resetMemoryProfileWithdrawals,
   __setMemoryAuthUserBanned,
@@ -248,6 +250,34 @@ describe("public handle parity", () => {
     await followStore().follow("bannedbob", "suspendedbob");
     authState.userId = "user-suspended";
     expect(await (await lot("suspendedbob")).json()).toEqual({ lot: ["alice"] });
+  });
+
+  it("filters the directory for a suspended viewer like an unknown handle", async () => {
+    const directory = (viewer: string) => get(getDirectory, `/api/profiles/directory?viewer=${viewer}`);
+    expect(await answered(await directory("suspendedbob"))).toEqual(await answered(await directory(UNKNOWN)));
+    authState.userId = "user-sam";
+    expect(await answered(await directory("suspendedbob"))).toEqual(await answered(await directory(UNKNOWN)));
+  });
+
+  it("still filters the directory for a suspended owner by their own follows", async () => {
+    authState.userId = "user-suspended";
+    const body = (await (await get(getDirectory, "/api/profiles/directory?viewer=suspendedbob")).json()) as {
+      people: { handle: string }[];
+      alreadyFollowing: number;
+    };
+    expect(body.alreadyFollowing).toBe(2);
+    expect(body.people.map((person) => person.handle)).not.toContain("alice");
+    expect(body.people.map((person) => person.handle)).not.toContain("sam");
+  });
+
+  it("counts a suspended starter-pack viewer like an unknown handle, except for its owner", async () => {
+    const viewerFollowing = async (viewer: string) =>
+      ((await (await get(getStarterPacks, `/api/starter-packs?viewer=${viewer}`)).json()) as {
+        viewerFollowing: number | null;
+      }).viewerFollowing;
+    expect(await viewerFollowing("suspendedbob")).toBe(await viewerFollowing(UNKNOWN));
+    authState.userId = "user-suspended";
+    expect(await viewerFollowing("suspendedbob")).toBe(2);
   });
 
   it("asks who the caller is on a graph read only when the handle is withdrawn", async () => {

@@ -82,7 +82,6 @@ const SURFACE_READ_EXEMPTIONS = [
   { path: "components/ratings/ratingsClient.ts", fetchCount: 1, reason: "rating client is an additive detail read" },
   { path: "components/social/CreatorListsLane.tsx", fetchCount: 1, reason: "Social creator-list discovery is no-store" },
   { path: "components/social/FindYourLot.tsx", fetchCount: 1, reason: "Social discovery is no-store" },
-  { path: "components/social/PeopleDirectory.tsx", fetchCount: 2, reason: "Social directory and follow actions are no-store" },
   { path: "components/social/PublicCrewRouteClient.tsx", fetchCount: 1, reason: "public Open Crew preview is a no-store route with identity-scoped lifecycle guards" },
   { path: "components/visits/visitReportsClient.ts", fetchCount: 2, reason: "Visit Report reader and flag action have their own freshness and moderation lane" },
   { path: "components/map/inspector/VenueStoryTab.tsx", fetchCount: 1, reason: "venue story is an additive map detail read" },
