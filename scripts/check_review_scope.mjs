@@ -145,6 +145,9 @@ export const REGENERATED_LANES = [
     output: /^public\/data\/london_restaurants\/(?!README\.md$).+/,
     inputs: [
       /^scripts\/build_london_restaurant_pack\.mjs$/,
+      /^scripts\/lib\/boroughFromPoint\.mjs$/,
+      /^lib\/londonBoroughPoint\.mjs$/,
+      /^data\/london_boroughs_simplified\.json$/,
       /^public\/data\/london_venues\/(?!README\.md$).+/,
     ],
   },

@@ -405,14 +405,14 @@ import {
   useCoffeePilotCafes,
   useReleaseLondonVenueSelection,
 } from "@/components/map/useCoffeePilotCafes";
-import { useLondonRestaurants } from "@/components/map/useLondonRestaurants";
+import { useLondonRestaurants, useStableRestaurantList } from "@/components/map/useLondonRestaurants";
 import {
   londonRestaurantLayerShown,
   londonRestaurantPackWanted,
   londonRestaurantsPassingMapFilters,
   londonRestaurantsWithoutCuratedTwin,
+  type LondonRestaurant,
 } from "@/lib/londonRestaurants";
-import type { LondonVenue } from "@/lib/londonVenueShards";
 import type { CoffeePilotCafe } from "@/lib/coffeePilot";
 import { mapSeedNeedsCuratedCrawlLookup } from "@/lib/mapSeedCrawlPolicy";
 import { completeNeighbourhoodCountSlugs } from "@/lib/mapAreaPicker";
@@ -850,7 +850,7 @@ const NO_LOCALITIES: Locality[] = [];
 /** A limited-coverage arrival searches no curated venues; UK places fill the gap. */
 const NO_SEARCH_VENUES: Venue[] = [];
 const NO_COFFEE_PILOT_CAFES: readonly CoffeePilotCafe[] = [];
-const NO_LONDON_RESTAURANTS: readonly LondonVenue[] = [];
+const NO_LONDON_RESTAURANTS: readonly LondonRestaurant[] = [];
 
 // Shard coverage is recomputed after every shard settles, so the held set is
 // replaced only when its membership really moved.
@@ -3025,7 +3025,7 @@ export default function PubMap({
   const selectedLondonRestaurant = londonPlacePick.restaurant;
   // The map's filters narrow the layer as they narrow curated pins, and a
   // drawn curated venue owns its own place, so the OSM row beside it is not drawn.
-  const drawnLondonRestaurants = useMemo(
+  const filteredLondonRestaurants = useMemo(
     () =>
       londonRestaurantsShown
         ? londonRestaurantsWithoutCuratedTwin(
@@ -3048,6 +3048,7 @@ export default function PubMap({
       selectedVenueId,
     ],
   );
+  const drawnLondonRestaurants = useStableRestaurantList(filteredLondonRestaurants);
   const activeLensLabel = activeLensLabelFor(mapDrinkLensCategory, experienceLens);
   // The name a heading wears is not always the name a sentence wants: the
   // no-alcohol lens is titled with a negative, and "no no-alcohol price

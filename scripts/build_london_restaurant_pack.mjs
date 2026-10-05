@@ -6,7 +6,7 @@
 // and a phone at zoom 12 over central London covers about 48 of the 0.025°
 // cells once the read is padded. Those cells are mostly cafes: the fattest is
 // 84 KB, so reading them to draw a few restaurants would cost the map over a
-// megabyte. The 1,094 restaurant rows alone are about 105 KB, or 35 KB on the
+// megabyte. The 1,094 restaurant rows alone are about 118 KB, or 37 KB on the
 // wire, so the map reads them in one request.
 //
 // WHY A PROJECTION OF THE SHARDS. The shards are the London layer. This pack
@@ -15,6 +15,12 @@
 // one rule about which restaurants count: the one `npm run build:london-venues`
 // applies. `__tests__/londonRestaurantPack.test.ts` holds the committed pack to
 // the committed shards.
+//
+// WHY A BOROUGH. Map search finds a curated pin by its borough, so a search for
+// Camden keeps Camden's pubs. A shard row names no borough, so each pack row
+// gains one: the borough polygon its point falls in, by the same lookup that
+// places curated pins (`scripts/lib/boroughFromPoint.mjs`), or "" outside
+// every borough.
 //
 // WHY ITS OWN DIRECTORY. The shard publisher deletes every *.json in its own
 // root that is not manifest.json (public/data/london_desks/README.md says the
@@ -29,12 +35,14 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { boroughForPoint } from "./lib/boroughFromPoint.mjs";
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 
 export const RESTAURANT_PACK_DIR_NAME = "london_restaurants";
 export const RESTAURANT_PACK_FILE_NAME = "restaurants.json";
-export const RESTAURANT_PACK_VERSION = 1;
+export const RESTAURANT_PACK_VERSION = 2;
 const RESTAURANT_KIND = "restaurant";
 const PUBLIC_DIR = path.join(ROOT, "public");
 const LAYER_MANIFEST_PATH = path.join(PUBLIC_DIR, "data", "london_venues", "manifest.json");
@@ -76,7 +84,10 @@ export async function restaurantRowsFromLayer(manifest, readShard) {
   return rows;
 }
 
-/** The pack body: the layer generation it was cut from, and the rows. */
+/**
+ * The pack body: the layer generation it was cut from, and the rows, each the
+ * shard row with its borough after it.
+ */
 export function restaurantPackBody(manifest, rows) {
   return {
     version: RESTAURANT_PACK_VERSION,
@@ -85,7 +96,7 @@ export function restaurantPackBody(manifest, rows) {
     license: "ODbL",
     attribution: "© OpenStreetMap contributors",
     count: rows.length,
-    venues: rows,
+    venues: rows.map((row) => [...row, boroughForPoint(row[3], row[4])]),
   };
 }
 

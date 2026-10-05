@@ -2,19 +2,19 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import type { LondonVenue } from "@/lib/londonVenueShards";
 import {
   loadLondonRestaurants,
+  type LondonRestaurant,
   type LondonRestaurantStatus,
 } from "@/lib/londonRestaurants";
 
 export type LondonRestaurantsState = {
   status: LondonRestaurantStatus;
-  restaurants: readonly LondonVenue[];
-  byId: ReadonlyMap<string, LondonVenue>;
+  restaurants: readonly LondonRestaurant[];
+  byId: ReadonlyMap<string, LondonRestaurant>;
 };
 
-const NO_RESTAURANTS: readonly LondonVenue[] = [];
+const NO_RESTAURANTS: readonly LondonRestaurant[] = [];
 
 /**
  * The London restaurant pack, read the first time `wanted` turns true and held
@@ -24,7 +24,7 @@ const NO_RESTAURANTS: readonly LondonVenue[] = [];
  */
 export function useLondonRestaurants(wanted: boolean): LondonRestaurantsState {
   const [status, setStatus] = useState<LondonRestaurantStatus>("idle");
-  const [restaurants, setRestaurants] = useState<readonly LondonVenue[]>(NO_RESTAURANTS);
+  const [restaurants, setRestaurants] = useState<readonly LondonRestaurant[]>(NO_RESTAURANTS);
   const requested = useRef(false);
 
   useEffect(() => {
@@ -48,4 +48,17 @@ export function useLondonRestaurants(wanted: boolean): LondonRestaurantsState {
     [restaurants],
   );
   return { status, restaurants, byId };
+}
+
+/**
+ * `restaurants`, or the list this hook last returned while that one holds the
+ * same restaurants in the same order. The canvas resets its restaurant source
+ * for every new list, and a tap rebuilds the drawn list without changing it.
+ */
+export function useStableRestaurantList<T extends { id: string }>(
+  restaurants: readonly T[],
+): readonly T[] {
+  const ids = useMemo(() => restaurants.map((restaurant) => restaurant.id).join(" "), [restaurants]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the ids are the list's identity
+  return useMemo(() => restaurants, [ids]);
 }

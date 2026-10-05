@@ -6,7 +6,8 @@
 // A row is on that layer only when it serves alcohol: OpenStreetMap tags it
 // with a bar or alcohol, or the restaurant's own website says so
 // (`data/london_restaurant_drinks/`). Its name, address and position are
-// OpenStreetMap's.
+// OpenStreetMap's. Its borough is the borough polygon its point falls in, found
+// by the lookup that places curated pins.
 //
 // PURE and browser-safe, apart from `loadLondonRestaurants`, which fetches.
 // Four rules ride with it:
@@ -20,10 +21,11 @@
 // 3. THE KIND FILTER AND THE VIEW DECIDE, as they do for a curated restaurant.
 //    Restaurants hidden in the filter, or a view that is not about restaurants,
 //    take this layer off the map.
-// 4. THE MAP'S FILTERS NARROW IT TOO. The search matches a name or address, and
-//    near me keeps the restaurants inside its walk ring. A filter that asks what
-//    a row cannot answer (a price, Open now, Saved only, an amenity, a drink, a
-//    zone) hides every restaurant while it is on.
+// 4. THE MAP'S FILTERS NARROW IT TOO. The search matches a name, an address or
+//    a borough, as it does a curated pin's, and near me keeps the restaurants
+//    inside its walk ring. A filter that asks what a row cannot answer (a
+//    price, Open now, Saved only, an amenity, a drink, a zone) hides every
+//    restaurant while it is on.
 
 import { haversineMeters } from "@/lib/greatCircle.mjs";
 import {
@@ -36,7 +38,7 @@ import { NO_PINT_PRICE_CAP, type Filters } from "@/lib/venues";
 import { parseZoneParam } from "@/lib/zones";
 
 export const LONDON_RESTAURANT_PACK_PATH = "/data/london_restaurants/restaurants.json";
-const LONDON_RESTAURANT_PACK_VERSION = 1;
+const LONDON_RESTAURANT_PACK_VERSION = 2;
 
 /**
  * The zoom the layer draws from, and the zoom the map first asks for the pack
@@ -68,6 +70,22 @@ export function londonRestaurantPackWanted(input: {
   );
 }
 
+/** A London restaurant: its shard row, and the borough it stands in. */
+export type LondonRestaurant = LondonVenue & {
+  /**
+   * The London borough polygon the point falls in
+   * (`scripts/lib/boroughFromPoint.mjs`), or "" outside every borough.
+   */
+  borough: string;
+};
+
+/** A pack row: the shard row `[osmRef, name, address, lat, lng, kind]`, then the borough. */
+type PackRow = [unknown, unknown, unknown, unknown, unknown, unknown, string];
+
+function isPackRow(value: unknown): value is PackRow {
+  return Array.isArray(value) && value.length === 7 && typeof value[6] === "string";
+}
+
 /** Where the map's read of the pack stands. */
 export type LondonRestaurantStatus = "idle" | "loading" | "ready" | "failed";
 
@@ -76,26 +94,32 @@ export type LondonRestaurantStatus = "idle" | "loading" | "ready" | "failed";
  * when a row failed to decode: a pack that lost rows would hide restaurants
  * with nothing saying so.
  */
-export function parseLondonRestaurantPack(value: unknown): LondonVenue[] | null {
+export function parseLondonRestaurantPack(value: unknown): LondonRestaurant[] | null {
   if (typeof value !== "object" || value === null) return null;
   const pack = value as Record<string, unknown>;
+  const rows = pack.venues;
   if (
     pack.version !== LONDON_RESTAURANT_PACK_VERSION ||
     pack.kind !== "restaurant" ||
-    !Array.isArray(pack.venues) ||
-    pack.count !== pack.venues.length
+    !Array.isArray(rows) ||
+    pack.count !== rows.length ||
+    !rows.every(isPackRow)
   ) {
     return null;
   }
-  const venues = parseLondonVenueShard(pack);
-  if (venues.length !== pack.venues.length) return null;
-  return venues.every((venue) => venue.kind === "restaurant") ? venues : null;
+  const restaurants: LondonRestaurant[] = [];
+  for (const row of rows) {
+    const [venue] = parseLondonVenueShard({ venues: [row.slice(0, 6)] });
+    if (!venue || venue.kind !== "restaurant") return null;
+    restaurants.push({ ...venue, borough: row[6] });
+  }
+  return restaurants;
 }
 
 /** Read the pack. Rejects when it cannot be read or does not decode. */
 export async function loadLondonRestaurants(
   fetchImpl: typeof fetch = fetch,
-): Promise<LondonVenue[]> {
+): Promise<LondonRestaurant[]> {
   const response = await fetchImpl(LONDON_RESTAURANT_PACK_PATH);
   if (!response.ok) {
     throw new Error(`${LONDON_RESTAURANT_PACK_PATH} answered ${response.status}`);
@@ -148,10 +172,10 @@ function twinCell(lat: number, lng: number): [number, number] {
  * The restaurants with no curated twin. A curated venue of any kind counts,
  * because the curated index files some restaurants as late food, bars or pubs.
  */
-export function londonRestaurantsWithoutCuratedTwin(
-  restaurants: readonly LondonVenue[],
+export function londonRestaurantsWithoutCuratedTwin<T extends LondonVenue>(
+  restaurants: readonly T[],
   curated: readonly PlacedName[],
-): LondonVenue[] {
+): T[] {
   if (curated.length === 0) return [...restaurants];
   const cells = new Map<string, { venue: PlacedName; tokens: string[] }[]>();
   for (const venue of curated) {
@@ -237,14 +261,14 @@ function filtersAskBeyondARestaurantRow(filters: Filters): boolean {
  * selected restaurant stays, as a selected curated pin does.
  */
 export function londonRestaurantsPassingMapFilters(
-  restaurants: readonly LondonVenue[],
+  restaurants: readonly LondonRestaurant[],
   input: {
     filters: Filters;
     savedOnly: boolean;
     nearMe: { location: { lat: number; lng: number }; radiusKm: number } | null;
     selectedVenueId: string;
   },
-): readonly LondonVenue[] {
+): readonly LondonRestaurant[] {
   const query = input.filters.query.trim().toLowerCase();
   const nearMe = input.nearMe;
   const nothingPasses = input.savedOnly || filtersAskBeyondARestaurantRow(input.filters);
@@ -253,8 +277,9 @@ export function londonRestaurantsPassingMapFilters(
     (restaurant) =>
       restaurant.id === input.selectedVenueId ||
       (!nothingPasses &&
-        (restaurant.name.toLowerCase().includes(query) ||
-          restaurant.address.toLowerCase().includes(query)) &&
+        [restaurant.name, restaurant.address, restaurant.borough].some((field) =>
+          field.toLowerCase().includes(query),
+        ) &&
         (!nearMe ||
           haversineMeters(nearMe.location.lat, nearMe.location.lng, restaurant.lat, restaurant.lng) <=
             nearMe.radiusKm * 1000)),

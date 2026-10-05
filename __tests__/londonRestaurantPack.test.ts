@@ -14,8 +14,13 @@ import {
   restaurantPackBody,
   restaurantRowsFromLayer,
 } from "../scripts/build_london_restaurant_pack.mjs";
-import { LONDON_RESTAURANT_PACK_PATH, parseLondonRestaurantPack } from "@/lib/londonRestaurants";
+import {
+  LONDON_RESTAURANT_PACK_PATH,
+  londonRestaurantsPassingMapFilters,
+  parseLondonRestaurantPack,
+} from "@/lib/londonRestaurants";
 import { londonVenueIdFor } from "@/lib/londonVenueShards";
+import { initialFilters } from "@/lib/venues";
 
 const PUBLIC = path.join(__dirname, "..", "public");
 
@@ -75,6 +80,37 @@ describe("the committed London restaurant pack", () => {
     expect(restaurants?.[0]?.id).toBe(londonVenueIdFor(String(committedPack.venues[0]?.[0])));
     const bytes = readFileSync(path.join(PUBLIC, LONDON_RESTAURANT_PACK_PATH)).byteLength;
     expect(bytes).toBeLessThan(192 * 1024);
+  });
+
+  it("finds a borough's restaurants by the borough's name, as it finds its curated pins", () => {
+    const restaurants = parseLondonRestaurantPack(committedPack) ?? [];
+    const searched = (query: string) =>
+      londonRestaurantsPassingMapFilters(restaurants, {
+        filters: { ...initialFilters, query },
+        savedOnly: false,
+        nearMe: null,
+        selectedVenueId: "",
+      });
+    for (const borough of ["camden", "westminster", "hackney"]) {
+      const byBoroughAlone = searched(borough).filter(
+        (place) => !`${place.name} ${place.address}`.toLowerCase().includes(borough),
+      );
+      expect(byBoroughAlone.length).toBeGreaterThan(40);
+    }
+  });
+});
+
+describe("restaurantPackBody", () => {
+  it("writes each row's borough after it, by the lookup that places curated pins", () => {
+    const body = restaurantPackBody({ urlPrefix: "/data/london_venues/", shards: [] }, [
+      ["n1", "Rules", "35 Maiden Lane", 51.51083, -0.12319, "restaurant"],
+      ["n2", "Far Away", "", 52.2, 0.12, "restaurant"],
+    ]);
+    expect(body.version).toBe(2);
+    expect(body.venues).toEqual([
+      ["n1", "Rules", "35 Maiden Lane", 51.51083, -0.12319, "restaurant", "Westminster"],
+      ["n2", "Far Away", "", 52.2, 0.12, "restaurant", ""],
+    ]);
   });
 });
 

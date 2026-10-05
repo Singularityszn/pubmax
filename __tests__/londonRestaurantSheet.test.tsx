@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 
 // The London restaurant layer from the shell's side: the pack is read once,
-// when it is first wanted, and the sheet a tapped restaurant opens says what
-// the map knows and where that came from, and claims no price.
+// when it is first wanted, the drawn list is new only when the restaurants on
+// it change, and the sheet a tapped restaurant opens says what the map knows
+// and where that came from, and claims no price.
 
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -12,7 +13,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import LondonRestaurantSheet from "@/components/map/LondonRestaurantSheet";
-import { useLondonRestaurants } from "@/components/map/useLondonRestaurants";
+import { useLondonRestaurants, useStableRestaurantList } from "@/components/map/useLondonRestaurants";
 import { LONDON_RESTAURANT_PACK_PATH } from "@/lib/londonRestaurants";
 
 const ROOT = resolve(__dirname, "..");
@@ -112,4 +113,23 @@ it("opens a sheet that names the restaurant, says it serves alcohol and credits 
   expect(sheet?.textContent).not.toMatch(/£\d/);
   const credit = sheet?.querySelector("a[href='https://www.openstreetmap.org/copyright']");
   expect(credit?.textContent).toBe("OpenStreetMap contributors");
+});
+
+it("hands the canvas a new list only when the restaurants on it change", async () => {
+  const drawn: (readonly { id: string }[])[] = [];
+  function DrawnRestaurants({ list }: { list: readonly { id: string }[] }) {
+    drawn.push(useStableRestaurantList(list));
+    return null;
+  }
+  const rules = { id: "venue-osm-n101" };
+  const furnival = { id: "venue-osm-n25496840" };
+
+  await act(async () => root.render(createElement(DrawnRestaurants, { list: [rules, furnival] })));
+  await act(async () => root.render(createElement(DrawnRestaurants, { list: [rules, furnival] })));
+  await act(async () => root.render(createElement(DrawnRestaurants, { list: [furnival] })));
+
+  expect(drawn).toHaveLength(3);
+  expect(drawn[1]).toBe(drawn[0]);
+  expect(drawn[2]).not.toBe(drawn[0]);
+  expect(drawn[2]).toEqual([furnival]);
 });

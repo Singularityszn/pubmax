@@ -15,7 +15,7 @@ committed shards.
 A phone at zoom 12 over central London covers about 48 shard cells once the
 read is padded, and those cells are mostly cafes. Reading them to draw the
 restaurants would cost well over a megabyte. The restaurants alone are about
-105 KB, or 35 KB on the wire, so the map reads them in one request, once, after
+118 KB, or 37 KB on the wire, so the map reads them in one request, once, after
 the priced pins have painted.
 
 ## Why its own directory
@@ -27,10 +27,14 @@ reason.
 
 ## What a row may say
 
-A row is the shard tuple, unchanged: `[osmRef, name, address, lat, lng, kind]`,
-with `kind` always `restaurant`. `layer` names the shard generation the pack was
-cut from. `__tests__/londonRestaurantPack.test.ts` holds the committed pack to
-the committed shards and to every restaurant in
+A row is the shard tuple, unchanged, then a borough:
+`[osmRef, name, address, lat, lng, kind, borough]`, with `kind` always
+`restaurant`. The borough is the London borough polygon the point falls in, by
+the lookup that places curated pins (`scripts/lib/boroughFromPoint.mjs`), or ""
+outside every borough. Map search matches it, as it matches a curated pin's
+borough. `layer` names the shard generation the pack was cut from.
+`__tests__/londonRestaurantPack.test.ts` holds the committed pack to the
+committed shards and to every restaurant in
 `data/london_restaurant_drinks/evidence.json`.
 
 A restaurant is on the layer only when it serves alcohol: OpenStreetMap tags it

@@ -16,11 +16,20 @@ import {
   londonRestaurantsWithoutCuratedTwin,
   loadLondonRestaurants,
   parseLondonRestaurantPack,
+  type LondonRestaurant,
 } from "@/lib/londonRestaurants";
-import { londonVenueIdFromFeature, type LondonVenue } from "@/lib/londonVenueShards";
+import { londonVenueIdFromFeature } from "@/lib/londonVenueShards";
 import { initialFilters, type Filters } from "@/lib/venues";
 
-const RULES_ROW = ["n101", "Rules", "35 Maiden Lane, London", 51.51083, -0.12319, "restaurant"];
+const RULES_ROW = [
+  "n101",
+  "Rules",
+  "35 Maiden Lane, London",
+  51.51083,
+  -0.12319,
+  "restaurant",
+  "Westminster",
+];
 const FURNIVAL_ROW = [
   "n25496840",
   "26 Furnival Street",
@@ -28,11 +37,12 @@ const FURNIVAL_ROW = [
   51.51671,
   -0.11036,
   "restaurant",
+  "City of London",
 ];
 
 function pack(rows: unknown[][], overrides: Record<string, unknown> = {}) {
   return {
-    version: 1,
+    version: 2,
     kind: "restaurant",
     layer: "/data/london_venues/packs/0123456789abcdef/",
     count: rows.length,
@@ -41,7 +51,7 @@ function pack(rows: unknown[][], overrides: Record<string, unknown> = {}) {
   };
 }
 
-function restaurant(overrides: Partial<LondonVenue> = {}): LondonVenue {
+function restaurant(overrides: Partial<LondonRestaurant> = {}): LondonRestaurant {
   return {
     id: "venue-osm-n1",
     name: "Dishoom",
@@ -49,6 +59,7 @@ function restaurant(overrides: Partial<LondonVenue> = {}): LondonVenue {
     lat: 51.5124,
     lng: -0.1269,
     kind: "restaurant",
+    borough: "Westminster",
     ...overrides,
   };
 }
@@ -63,20 +74,28 @@ describe("parseLondonRestaurantPack", () => {
         lat: 51.51671,
         lng: -0.11036,
         kind: "restaurant",
+        borough: "City of London",
       },
     ]);
   });
 
+  it("refuses a row that names no borough, as a pack cut before boroughs would", () => {
+    expect(parseLondonRestaurantPack(pack([FURNIVAL_ROW.slice(0, 6)]))).toBeNull();
+    expect(parseLondonRestaurantPack(pack([[...FURNIVAL_ROW.slice(0, 6), null]]))).toBeNull();
+  });
+
   it("refuses a pack that lost a row, rather than hiding a restaurant", () => {
-    expect(parseLondonRestaurantPack(pack([FURNIVAL_ROW, ["n2", "", "", 51.5, -0.1, "restaurant"]]))).toBeNull();
+    expect(
+      parseLondonRestaurantPack(pack([FURNIVAL_ROW, ["n2", "", "", 51.5, -0.1, "restaurant", ""]])),
+    ).toBeNull();
     expect(parseLondonRestaurantPack(pack([FURNIVAL_ROW], { count: 2 }))).toBeNull();
   });
 
   it("refuses a row of any other kind and a pack of another version", () => {
     expect(
-      parseLondonRestaurantPack(pack([["n3", "Desk & Bean", "", 51.5, -0.1, "cafe"]])),
+      parseLondonRestaurantPack(pack([["n3", "Desk & Bean", "", 51.5, -0.1, "cafe", ""]])),
     ).toBeNull();
-    expect(parseLondonRestaurantPack(pack([FURNIVAL_ROW], { version: 2 }))).toBeNull();
+    expect(parseLondonRestaurantPack(pack([FURNIVAL_ROW], { version: 1 }))).toBeNull();
     expect(parseLondonRestaurantPack(pack([FURNIVAL_ROW], { kind: "cafe" }))).toBeNull();
     expect(parseLondonRestaurantPack(null)).toBeNull();
   });
@@ -212,10 +231,18 @@ describe("londonRestaurantsPassingMapFilters", () => {
     expect(pass({})).toEqual([dishoom.id, rules.id]);
   });
 
-  it("matches the search against a name or an address", () => {
+  it("matches the search against a name, an address or a borough", () => {
     expect(pass({}, { query: "  DISHOOM " })).toEqual([dishoom.id]);
     expect(pass({}, { query: "maiden" })).toEqual([rules.id]);
     expect(pass({}, { query: "wolseley" })).toEqual([]);
+    expect(pass({}, { query: "westminster" })).toEqual([dishoom.id, rules.id]);
+    const kingsCross = restaurant({ id: "venue-osm-n3", name: "Dishoom", borough: "Camden" });
+    expect(
+      londonRestaurantsPassingMapFilters([...both, kingsCross], {
+        ...base,
+        filters: { ...initialFilters, query: "camden" },
+      }).map((place) => place.id),
+    ).toEqual([kingsCross.id]);
   });
 
   it("lets the food filter through, because a restaurant serves food", () => {

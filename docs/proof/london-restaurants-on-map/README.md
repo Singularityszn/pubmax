@@ -26,7 +26,7 @@ A tap on a fork opens the restaurant's sheet, with no price on it:
 ## Measured
 
 - The pack `public/data/london_restaurants/restaurants.json`: 1,094 rows,
-  106,638 bytes, 35,781 bytes gzipped, read once per visit after the priced
+  121,235 bytes, 37,564 bytes gzipped, read once per visit after the priced
   pins paint. Reading the London venue shards for the same rows instead would
   cost over a megabyte at zoom 12 in central London.
 - `data-london-restaurant-count` on the opening London map: 1,078, because
