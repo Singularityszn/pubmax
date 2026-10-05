@@ -39,7 +39,6 @@ import {
   type AccountAuthSnapshot,
 } from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
-import { syncPosthogPersonIdentity } from "@/lib/posthog/posthogPerson";
 import { isUserSignUp } from "@/lib/userSignedUp";
 import {
   authCallbackConfirmationLabel,
@@ -364,7 +363,6 @@ export function AuthProvider({
         setRejectedContributionAuth(null);
       }
       setSession(nextSession);
-      syncPosthogPersonIdentity(nextUserId);
       return signedIn;
     },
     [],
