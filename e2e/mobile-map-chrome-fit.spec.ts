@@ -1022,6 +1022,8 @@ for (const viewport of VIEWPORTS) {
     }
 
     // And every one of them stays clear of the tab bar it parks above.
+    // boundingBox() does not wait for paint, so wait for the bar first.
+    await expect(page.locator(".mobileTabBar")).toBeVisible();
     const bar = await page.locator(".mobileTabBar").boundingBox();
     expect(bar).not.toBeNull();
     for (const box of boxes) {
@@ -1198,6 +1200,8 @@ for (const viewport of VIEWPORTS) {
     expect(box!.height, "56px square").toBe(56);
     expect(box!.x + box!.width, "inside the viewport").toBeLessThanOrEqual(viewport.width);
 
+    // boundingBox() does not wait for paint, so wait for the bar first.
+    await expect(page.locator(".mobileTabBar")).toBeVisible();
     const bar = await page.locator(".mobileTabBar").boundingBox();
     expect(bar, "the tab bar has a box").not.toBeNull();
     expect(

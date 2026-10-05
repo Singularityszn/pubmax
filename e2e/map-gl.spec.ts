@@ -465,6 +465,7 @@ test("/map keeps the honest retry visible while basemap tiles keep failing", asy
   await expect(page.locator(".mapArrivalCard")).toHaveCount(0);
   const retry = notice.getByRole("button", { name: "Retry" });
   await expect(retry).toBeVisible();
+  await expect(page.locator(".mobileTabBar")).toBeVisible();
   const [retryBox, tabBarBox] = await Promise.all([
     retry.boundingBox(),
     page.locator(".mobileTabBar").boundingBox(),
@@ -516,6 +517,7 @@ test("/map keeps the phone Retry control usable and recovers after a basemap out
 
   const retry = notice.getByRole("button", { name: "Retry" });
   await expect(retry).toBeVisible();
+  await expect(page.locator(".mobileTabBar")).toBeVisible();
   const [retryBox, tabBarBox] = await Promise.all([
     retry.boundingBox(),
     page.locator(".mobileTabBar").boundingBox(),

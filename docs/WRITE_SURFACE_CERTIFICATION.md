@@ -386,9 +386,9 @@ bodies.
 - **Moderation:** the queue reads only visible held posts and exposes no
   post-author identity. Approval or hide binds the current post and private media, keeps
   provenance, and appends the named staff action. The preview RPC returns an
-  object key only for media attached to a held post; the route exchanges it for
-  a short-lived signed URL. Neither action deletes the post, media audit, or tag
-  consent history.
+  object key only for media attached to a held post. The route returns private,
+  no-store image bytes after each permission check, without a signed redirect.
+  Neither action deletes the post, media audit, or tag consent history.
 - **Failure:** malformed requests return 400, stale held rows return 409, and
   missing migration, named staff authority, or storage failures return 503.
   Responses are private and no-store. No partial moderation result is
