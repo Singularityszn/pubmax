@@ -762,15 +762,9 @@ function buildFilterHints(rows, venueId, scrapedIds) {
 
 // --- build -------------------------------------------------------------------
 
-async function main() {
-  const rawText = await readFile(RAW_PATH, "utf8");
-  const rows = JSON.parse(rawText);
-  if (!Array.isArray(rows)) {
-    throw new Error(`Expected an array in ${RAW_PATH}, got ${typeof rows}`);
-  }
-
-  // Enrichment venue ids (Young's / Nicholson's / Greene King) — stamp scraped
-  // + drink accents even when the underlying pint row is already canonical.
+// Enrichment venue ids (Young's / Nicholson's / Greene King) — stamp scraped
+// + drink accents even when the underlying pint row is already canonical.
+async function readScrapedIds() {
   const scrapedIds = new Set();
   try {
     const enrichmentPath = path.join(
@@ -784,6 +778,17 @@ async function main() {
   } catch {
     // Missing enrichment is fine — gazetteer source_datasets still stamps scraped.
   }
+  return scrapedIds;
+}
+
+async function main() {
+  const rawText = await readFile(RAW_PATH, "utf8");
+  const rows = JSON.parse(rawText);
+  if (!Array.isArray(rows)) {
+    throw new Error(`Expected an array in ${RAW_PATH}, got ${typeof rows}`);
+  }
+
+  const scrapedIds = await readScrapedIds();
 
   // Group rows by the canonical key. Preserve first-seen order so the first row
   // of a group supplies name/lat/lng/borough — matching groupVenuePrices, whose
