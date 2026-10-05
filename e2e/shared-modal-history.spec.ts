@@ -21,6 +21,7 @@ for (const finalOpen of [false, true]) {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/map");
     await expectMapToolbarReady(page);
+    const search = page.locator(".mapToolbar").getByRole("combobox", { name: "Search pubs" });
     await selectFirstToolbarVenue(page, "The French House");
     const drawer = page.locator(".mapDrawer.right");
     await expect(drawer).toHaveAttribute("aria-hidden", "false");

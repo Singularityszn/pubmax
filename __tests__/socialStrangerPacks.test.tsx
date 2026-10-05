@@ -50,6 +50,7 @@ vi.mock("@/components/auth/useViewerHandle", () => ({
 }));
 
 vi.mock("@/lib/authedFetch", () => ({
+  authedFetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init),
   authedActionFetch: transport.authedActionFetch,
 }));
 

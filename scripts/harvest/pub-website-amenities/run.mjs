@@ -16,6 +16,15 @@
 // run's pages to the committed evidence; the checkpoint only says which pubs
 // are already done.
 //
+// A page or quote proven chain-wide stays in
+// data/amenities/london_pub_website_chain_pages.json, with every pub that has
+// read each page, whatever came of the read, and every pub that has stated
+// each quote. The harvest reads it before fetching and skips a pub whose page
+// is on it, every stamp goes through it, and a harvest adds its readers and
+// what they prove. A pub that kept no amenity, failed, or read a chain-wide
+// page never reaches the evidence file, so without the list a later run that
+// reads one of those pages or quotes alone would take it for the pub's own.
+//
 // Calls go to Vertex AI on project pubmaxx so the Google Cloud trial pays.
 // The Gemini Developer API answered 402 (AI Studio prepay depleted) and does
 // not bill that trial. No Google Places call is made. The script never prints
@@ -38,12 +47,16 @@ import {
   PAGE_CHAR_CAP,
   PUB_WEBSITE_AMENITY_COLUMNS,
   PUB_WEBSITE_AMENITY_KEYS,
+  isChainPage,
   keepEvidencedAmenities,
   liftSiteStamps,
   matchPubToVenue,
+  mergeHarvestEvidence,
+  parseChainDenylist,
   parsePubAmenityModelJson,
   projectPubAmenitySpend,
   pubSpecificEvidence,
+  readExtraPage,
   spendFromTokenCounts,
   stampAmenityColumns,
 } from "../../../lib/harvest/pubWebsiteAmenities.ts";
@@ -54,6 +67,7 @@ const ROOT = path.resolve(__dirname, "../../..");
 const PUBS_PATH = path.join(ROOT, "data/osm/uk/uk_osm_pubs.json");
 const DATASET_PATH = path.join(ROOT, "public/data/pint_prices_app_dataset.json");
 const EVIDENCE_PATH = path.join(ROOT, "data/amenities/london_pub_website_evidence.json");
+const CHAIN_PAGES_PATH = path.join(ROOT, "data/amenities/london_pub_website_chain_pages.json");
 const CHECKPOINT_DIR = path.join(ROOT, "data-harvest/pub-website-amenities");
 const CHECKPOINT_PATH = path.join(CHECKPOINT_DIR, "checkpoint.json");
 
@@ -310,7 +324,7 @@ function readEvidence() {
  * evidence, so a rerun changes nothing and a quote the gate now refuses loses
  * its stamp.
  */
-function stampDataset(evidenceRows) {
+function stampDataset(evidenceRows, chainPages) {
   const dataset = JSON.parse(readFileSync(DATASET_PATH, "utf8"));
   if (!Array.isArray(dataset)) throw new Error("expected a pint dataset array");
   const rowsByVenue = new Map();
@@ -324,7 +338,7 @@ function stampDataset(evidenceRows) {
   const before = columnCoverage(dataset);
   let stampedRows = 0;
   let stampedVenues = 0;
-  for (const entry of pubSpecificEvidence(evidenceRows)) {
+  for (const entry of pubSpecificEvidence(evidenceRows, chainPages)) {
     if (!entry.venueId) continue;
     let venueStamped = false;
     for (const index of rowsByVenue.get(entry.venueId) ?? []) {
@@ -355,6 +369,16 @@ function withStampFigures(evidence, previous, stamps) {
   };
 }
 
+/** The committed chain list. A missing file throws, because reading it as empty lets every chain page back in. */
+function readChainPages() {
+  return parseChainDenylist(JSON.parse(readFileSync(CHAIN_PAGES_PATH, "utf8")));
+}
+
+function writeChainPages(chainPages) {
+  mkdirSync(path.dirname(CHAIN_PAGES_PATH), { recursive: true });
+  writeFileSync(CHAIN_PAGES_PATH, `${JSON.stringify({ version: 1, ...chainPages }, null, 2)}\n`);
+}
+
 function writeEvidence(evidence) {
   mkdirSync(path.dirname(EVIDENCE_PATH), { recursive: true });
   writeFileSync(EVIDENCE_PATH, `${JSON.stringify(evidence, null, 2)}\n`);
@@ -363,7 +387,7 @@ function writeEvidence(evidence) {
 function restampFromEvidence() {
   const evidence = readEvidence();
   if (!evidence || !Array.isArray(evidence.rows)) throw new Error("no committed evidence file to restamp from");
-  const next = withStampFigures(evidence, evidence, stampDataset(evidence.rows));
+  const next = withStampFigures(evidence, evidence, stampDataset(evidence.rows, readChainPages()));
   writeEvidence(next);
   console.log(
     JSON.stringify({
@@ -373,31 +397,6 @@ function restampFromEvidence() {
       columnCoverageAfter: next.columnCoverageAfter,
     }),
   );
-}
-
-/** The committed evidence with this run's pages laid over it. */
-function mergeEvidence(previous, fresh) {
-  const skipCounts = { ...(previous?.skipCounts ?? {}) };
-  const candidates = (previous?.rows ?? []).filter((row) => !fresh.has(row.osmId));
-  for (const [osmId, entry] of fresh) {
-    if (entry.status !== "ok") {
-      const status = entry.status ?? "unknown";
-      skipCounts[status] = (skipCounts[status] ?? 0) + 1;
-      continue;
-    }
-    candidates.push({
-      osmId,
-      name: entry.name,
-      venueId: entry.venueId,
-      sourceUrl: entry.sourceUrl,
-      verifiedAt: entry.verifiedAt,
-      amenities: entry.amenities ?? {},
-    });
-  }
-  const rows = pubSpecificEvidence(candidates).sort((a, b) => a.osmId.localeCompare(b.osmId));
-  const unused = candidates.length - rows.length;
-  if (unused > 0) skipCounts.ok = (skipCounts.ok ?? 0) + unused;
-  return { rows, skipCounts };
 }
 
 async function main() {
@@ -491,6 +490,7 @@ async function main() {
   const byOsmId = checkpoint.byOsmId;
   const fresh = new Map();
   const robots = createRobotsChecker();
+  const knownChainPages = readChainPages();
   const queue = pubs.filter((pub) => !byOsmId[pub.osmId]);
   const work = limit === null ? queue : queue.slice(0, limit);
   let cursor = 0;
@@ -508,6 +508,7 @@ async function main() {
   };
 
   async function one(pub) {
+    let sourceUrl;
     try {
     if (stopped || spent >= SPEND_STOP_USD) {
       stopped = true;
@@ -515,6 +516,10 @@ async function main() {
     }
     if (!isHarvestableOperatorUrl(pub.website)) {
       byOsmId[pub.osmId] = { status: "refused-host", venueId: pub.venueId };
+      return;
+    }
+    if (isChainPage(pub.website, knownChainPages)) {
+      byOsmId[pub.osmId] = { status: "chain-page", venueId: pub.venueId };
       return;
     }
     const permission = await robots(pub.website);
@@ -527,6 +532,11 @@ async function main() {
       byOsmId[pub.osmId] = { status: home.reason, venueId: pub.venueId };
       return;
     }
+    sourceUrl = home.url;
+    if (isChainPage(home.url, knownChainPages)) {
+      byOsmId[pub.osmId] = { status: "chain-page", venueId: pub.venueId, sourceUrl: home.url };
+      return;
+    }
     const landedPermission = await robots(home.url);
     if (!landedPermission.allowed) {
       byOsmId[pub.osmId] = { status: landedPermission.reason ?? "robots-denied", venueId: pub.venueId };
@@ -535,12 +545,14 @@ async function main() {
     let text = home.text;
     const extraLinks = sameHostLinks(home.html, home.url);
     for (const link of extraLinks.slice(0, 1)) {
-      if (!isHarvestableOperatorUrl(link)) continue;
-      const extraPermission = await robots(link);
-      if (!extraPermission.allowed) continue;
-      const extra = await readHtml(link);
-      if (!extra.ok) continue;
-      text = `${text}\n${extra.text}`.slice(0, PAGE_CHAR_CAP);
+      const extraText = await readExtraPage(link, {
+        chainPages: knownChainPages,
+        isHarvestable: isHarvestableOperatorUrl,
+        robots,
+        readHtml,
+      });
+      if (extraText === null) continue;
+      text = `${text}\n${extraText}`.slice(0, PAGE_CHAR_CAP);
       break;
     }
     if (text.length < 40) {
@@ -551,11 +563,11 @@ async function main() {
     const cost = usageCost(result.body);
     spent += cost.usd;
     if (result.status === 429) {
-      byOsmId[pub.osmId] = { status: "quota", venueId: pub.venueId, usd: cost.usd };
+      byOsmId[pub.osmId] = { status: "quota", venueId: pub.venueId, sourceUrl, usd: cost.usd };
       return;
     }
     if (result.status !== 200) {
-      byOsmId[pub.osmId] = { status: `model-${result.status}`, venueId: pub.venueId, usd: cost.usd };
+      byOsmId[pub.osmId] = { status: `model-${result.status}`, venueId: pub.venueId, sourceUrl, usd: cost.usd };
       return;
     }
     const textOut = result.body?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("") ?? "";
@@ -576,7 +588,7 @@ async function main() {
     };
     if (spent >= SPEND_STOP_USD) stopped = true;
     } catch {
-      byOsmId[pub.osmId] = { status: "error", venueId: pub.venueId };
+      byOsmId[pub.osmId] = { status: "error", venueId: pub.venueId, sourceUrl };
     }
   }
 
@@ -599,7 +611,14 @@ async function main() {
   await save();
 
   const previous = readEvidence();
-  const { rows: evidenceRows, skipCounts } = mergeEvidence(previous, fresh);
+  const { rows: evidenceRows, skipCounts, chainPages } = mergeHarvestEvidence({
+    previousRows: previous?.rows ?? [],
+    previousSkipCounts: previous?.skipCounts,
+    fresh,
+    checkpoint: byOsmId,
+    knownChainPages,
+  });
+  writeChainPages(chainPages);
   const evidence = withStampFigures({
     version: 1,
     model: FLASH_LITE_SKU.model,
@@ -618,7 +637,7 @@ async function main() {
     jobCapUsd: JOB_SPEND_CAP_USD,
     skipCounts,
     rows: evidenceRows,
-  }, previous, stampDataset(evidenceRows));
+  }, previous, stampDataset(evidenceRows, chainPages));
   writeEvidence(evidence);
   console.log(
     JSON.stringify({

@@ -130,6 +130,15 @@ html[data-theme="dark"] .messagesPage {
   color: var(--ink);
 }
 
+/* Signed out, the primary is the Sign in link. It shares the head's row with
+   the title, so it takes its own width rather than the Screen's 14rem floor,
+   which pushed a 360px phone 18px sideways. */
+.messagesScreen .screenPrimary > a {
+  min-width: 0;
+  width: auto;
+  white-space: nowrap;
+}
+
 .messagesScreen .screenPrimary > button:hover {
   background: var(--messages-soft-surface);
   color: var(--ink);
