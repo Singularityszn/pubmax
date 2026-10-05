@@ -76,6 +76,9 @@ test("a London entry draws restaurants from one pack, and a tap opens one", asyn
   await expect
     .poll(
       async () => {
+        // A sheet that opened after the last check covers the map, so read it
+        // before looking for another restaurant to tap.
+        if ((await sheet.count()) > 0) return new URL(page.url()).searchParams.get("sel");
         const restaurants = await paintedRestaurants(page);
         if (restaurants.length === 0) return null;
         const mark = restaurants[attempt % restaurants.length];
