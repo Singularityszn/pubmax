@@ -243,38 +243,59 @@ describe("siteFactsRows", () => {
   });
 });
 
-describe("publishing from an incomplete checkpoint", () => {
+describe("publishing from an unsettled checkpoint", () => {
   const loadPage = (osmId: string) =>
-    osmId === "node/1" ? { text: "We're dog-friendly.", readAt: "2026-10-05T10:00:00.000Z" } : null;
+    osmId === "node/1" || osmId === "node/4"
+      ? { text: osmId === "node/1" ? "We're dog-friendly." : "Book a table for Sunday lunch.", readAt: "2026-10-05T10:00:00.000Z" }
+      : null;
   const reads: Record<string, KeptPageRead> = {
     "node/1": { status: "ok", venueId: "venue-a", sourceUrl: "https://one.example/" },
     // A --read-only amenity run leaves its fenced pages as "read".
     "node/2": { status: "read", venueId: "venue-b", sourceUrl: "https://two.example/" },
     // A finished read whose kept page file is gone.
     "node/3": { status: "ok", venueId: "venue-c", sourceUrl: "https://three.example/" },
+    // A finished read whose kept page now states nothing.
+    "node/4": { status: "ok", venueId: "venue-d", sourceUrl: "https://four.example/" },
+    "node/5": { status: "quota", venueId: "venue-e" },
+    "node/6": { status: "model-500", venueId: "venue-f" },
+    "node/7": { status: "http-503", venueId: "venue-g" },
+    "node/8": { status: "site-of-another-pub", venueId: "venue-h" },
+    "node/9": { status: "http-404", venueId: "venue-i" },
   };
   const result = siteFactsRows({ reads, loadPage, isChainPage: () => false });
+  const refusalFor = (osmId: string) => publishRefusal([{ osmId: "node/1" }, { osmId }], { reads, unsettled: result.unsettled });
 
-  it("reports unfinished reads and missing pages instead of skipping them silently", () => {
+  it("reports unsettled reads instead of skipping them silently", () => {
     expect(result.rows.map((row) => row.osmId)).toEqual(["node/1"]);
-    expect(result.incomplete).toEqual(["node/2", "node/3"]);
-    expect(result.skipCounts).toMatchObject({ "unfinished-read": 1, "page-missing": 1 });
+    expect(result.unsettled).toEqual(["node/2", "node/3", "node/5", "node/6", "node/7"]);
+    expect(result.skipCounts).toEqual({
+      "unsettled-read": 1,
+      "unsettled-page-missing": 1,
+      "unsettled-quota": 1,
+      "unsettled-model-500": 1,
+      "unsettled-http-503": 1,
+      "page-stated-neither": 1,
+    });
   });
 
-  it("refuses to drop a committed row whose pub was not read again", () => {
-    const committed = [{ osmId: "node/1" }, { osmId: "node/2" }, { osmId: "node/3" }];
-    expect(publishRefusal(committed, { ...result, finishedReads: 2 })).toMatch(/^2 committed row\(s\).*node\/2, node\/3/);
+  it("refuses to drop a committed row whose pub has no checkpoint entry", () => {
+    expect(refusalFor("node/10")).toMatch(/^1 committed row\(s\).*\(node\/10\)/);
+    expect(publishRefusal([{ osmId: "node/10" }], { reads: {}, unsettled: [] })).toMatch(/^1 committed row\(s\)/);
   });
 
-  it("refuses a checkpoint with no finished read when facts are committed", () => {
-    const readOnly = siteFactsRows({ reads: { "node/2": reads["node/2"]! }, loadPage, isChainPage: () => false });
-    expect(readOnly.rows).toEqual([]);
-    expect(publishRefusal([{ osmId: "node/9" }], { ...readOnly, finishedReads: 0 })).toMatch(/no finished read/);
+  it("refuses to drop a committed row whose read is unfinished, failed or lost its page", () => {
+    for (const osmId of ["node/2", "node/3", "node/5", "node/6", "node/7"]) {
+      expect(refusalFor(osmId)).toMatch(new RegExp(`^1 committed row\\(s\\).*\\(${osmId.replace("/", "\\/")}\\)`));
+    }
+    const committed = ["node/1", "node/2", "node/3", "node/5", "node/6", "node/7", "node/10"].map((osmId) => ({ osmId }));
+    expect(publishRefusal(committed, { reads, unsettled: result.unsettled })).toMatch(
+      /^6 committed row\(s\).*\(node\/2, node\/3, node\/5, node\/6, node\/7, \.\.\.\)/,
+    );
   });
 
-  it("publishes when every committed row's pub was read again", () => {
-    expect(publishRefusal([{ osmId: "node/1" }], { ...result, finishedReads: 2 })).toBeNull();
-    expect(publishRefusal([], { rows: [], incomplete: [], finishedReads: 0 })).toBeNull();
+  it("lets a committed row drop when its pub's read is settled", () => {
+    for (const osmId of ["node/4", "node/8", "node/9"]) expect(refusalFor(osmId)).toBeNull();
+    expect(publishRefusal([], { reads: {}, unsettled: [] })).toBeNull();
   });
 });
 

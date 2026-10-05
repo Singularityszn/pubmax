@@ -4,8 +4,11 @@
   "spendUsd": 0,
   "skipCounts": {
     "page-stated-neither": 144,
+    "unsettled-http-503": 1,
+    "unsettled-not-json": 1,
     "chain-page": 6,
-    "unfinished-read": 1,
+    "unsettled-empty-page": 4,
+    "unsettled-read": 1,
     "chain-hours-passage": 32,
     "chain-dogs-passage": 13
   },

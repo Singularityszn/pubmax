@@ -11,9 +11,10 @@
 // states a dog policy or its opening hours, each with the source page, the day
 // it was read and the passage that states it.
 //
-// It refuses to write when the checkpoint holds no finished read, or when a
-// committed row belongs to a pub whose read is unfinished (a --read-only run)
-// or whose kept page is missing: such a run would erase facts nobody read again.
+// It refuses to write when a committed row belongs to a pub the checkpoint has
+// not settled: one with no entry, an unfinished read (a --read-only run), a
+// quota, model, network or server failure, or a missing kept page. Such a run
+// would erase facts nobody read again.
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -46,14 +47,13 @@ function main() {
   const checkpoint = JSON.parse(readFileSync(CHECKPOINT_PATH, "utf8"));
   const chainPages = parseChainDenylist(JSON.parse(readFileSync(CHAIN_PAGES_PATH, "utf8")));
   const reads = checkpoint.byOsmId ?? {};
-  const { rows, skipCounts, incomplete } = siteFactsRows({
+  const { rows, skipCounts, unsettled } = siteFactsRows({
     reads,
     loadPage,
     isChainPage: (url) => isChainPage(url, chainPages),
   });
   const previousRows = existsSync(OUT_PATH) ? (JSON.parse(readFileSync(OUT_PATH, "utf8")).rows ?? []) : [];
-  const finishedReads = Object.values(reads).filter((read) => read?.status === "ok").length;
-  const refusal = publishRefusal(previousRows, { rows, incomplete, finishedReads });
+  const refusal = publishRefusal(previousRows, { reads, unsettled });
   if (refusal) {
     console.error(`not writing ${path.relative(ROOT, OUT_PATH)}: ${refusal}`);
     console.error(JSON.stringify({ skipCounts }));
