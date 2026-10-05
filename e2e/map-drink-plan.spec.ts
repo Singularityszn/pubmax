@@ -49,6 +49,7 @@ for (const drink of ["beer", "wine", "gin"] as const) {
     expect(params.get("pubs")).toBe(stops);
     expect(params.get("drink")).toBe(drink === "beer" ? null : drink);
     await shared.click();
+    await expect(page).toHaveURL(new URL(href!, page.url()).href);
     await page.reload();
     expect(new URL(page.url()).searchParams.get("drink")).toBe(drink === "beer" ? null : drink);
     await expect(async () => {
