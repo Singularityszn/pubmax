@@ -17,6 +17,8 @@ import { applyHarvestWebsiteMenu } from "@/lib/harvestFold";
 import { harvestOverlayStore } from "@/lib/harvestOverlayStore";
 import { enrichVenueForDetail } from "@/lib/venueMenuEnrichment";
 import { applyPlacesEnrichment } from "@/lib/venuePlacesEnrichment";
+import { applyVenueSiteFacts } from "@/lib/venueSiteFacts";
+import { siteFactsForVenue } from "@/lib/venueSiteFacts.server";
 import { placesRecordForVenue } from "@/lib/placesEnrichment.server";
 import { enrichVenueWithRecordCopy } from "@/lib/venueRecordCopy.server";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
@@ -360,8 +362,8 @@ export async function lookupVenueDetail(requestedId: string): Promise<VenueDetai
   const result = await lookupVenueDetailBase(requestedId);
   if (result.status !== "found") return result;
   const osmIds = cachedDetails.get(result.venue.id)?.overlayVenueIds ?? [];
-  const record = await placesRecordForVenue(result.venue.id, osmIds);
-  return { ...result, venue: applyPlacesEnrichment(result.venue, record) };
+  const [record, siteFacts] = await Promise.all([placesRecordForVenue(result.venue.id, osmIds), siteFactsForVenue(result.venue.id)]);
+  return { ...result, venue: applyPlacesEnrichment(applyVenueSiteFacts(result.venue, siteFacts), record) };
 }
 
 export async function getVenueDetail(requestedId: string): Promise<Venue | null> {

@@ -75,6 +75,6 @@ at 390 px with its new description and tags. Both descriptions are unchanged in
 the rebuilt pack.
 
 Hours and dog policy are not extracted in this change: the amenity vocabulary
-and the copy judge do not hold them. They ship in the follow-up task
-`pubmax-dogs-hours-from-cache`, built from the cached page texts under the
-ignored `data-harvest/pub-website-amenities/pages`.
+and the copy judge do not hold them. A later change reads them from the cached
+page texts under the ignored `data-harvest/pub-website-amenities/pages`; see
+[`../pub-site-hours-dogs/README.md`](../pub-site-hours-dogs/README.md).

@@ -97,6 +97,7 @@
     "harvest:fold": "node --conditions=react-server --import tsx scripts/harvest/uk-pubs/fold.mjs",
     "editorial:poll": "node scripts/editorial/poll.mjs",
     "harvest:pub-website-amenities": "node --conditions=react-server --import tsx scripts/harvest/pub-website-amenities/run.mjs",
+    "harvest:pub-website-hours-dogs": "node --conditions=react-server --import tsx scripts/harvest/pub-website-amenities/hours-and-dogs.mjs",
     "harvest:uk-prices": "node --conditions=react-server --import tsx scripts/harvest/uk-prices/run.mjs",
     "build:uk-price-bundle": "tsx scripts/build_uk_price_bundle.mjs",
     "harvest:uk-menu-urls": "tsx scripts/harvest/uk-prices/menu-urls.mjs",
