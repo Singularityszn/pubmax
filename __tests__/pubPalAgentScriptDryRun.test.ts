@@ -149,7 +149,7 @@ describe("pubpal:agent dry run", () => {
       }>;
     };
     const confirmTools = ["propose_plan", "propose_map_action", "report_occupancy"];
-    expect(body.webhook_tools.length).toBe(14);
+    expect(body.webhook_tools.length).toBe(16);
     for (const tool of body.webhook_tools) {
       expect(tool.pre_tool_speech).toBe("force");
       expect(tool.execution_mode).toBe("immediate");
