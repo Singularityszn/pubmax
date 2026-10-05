@@ -76,7 +76,21 @@ test("a previous owner's caption stays hidden while the next account's device dr
   const caption = page.getByPlaceholder("One line you will still remember next year.");
   await expect(page.getByRole("button", { name: `Account options for ${ACCOUNTS.A.name}`, exact: true }).first()).toBeVisible();
   await caption.fill("Owner A's private fixture caption.");
-  await page.waitForTimeout(450);
+  await expect.poll(() => page.evaluate((ownerKey) => new Promise<{ ownerKey: string; caption: string } | null>((resolve, reject) => {
+    const request = indexedDB.open("pubmaxx-moment-drafts", 1);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const db = request.result;
+      const transaction = db.transaction("drafts", "readonly");
+      transaction.oncomplete = () => db.close();
+      const read = transaction.objectStore("drafts").get(ownerKey);
+      read.onerror = () => reject(read.error);
+      read.onsuccess = () => {
+        const draft = read.result as { ownerKey: string; caption: string } | undefined;
+        resolve(draft ? { ownerKey: draft.ownerKey, caption: draft.caption } : null);
+      };
+    };
+  }), ACCOUNTS.A.id)).toEqual({ ownerKey: ACCOUNTS.A.id, caption: "Owner A's private fixture caption." });
   // A real IndexedDB transaction models another tab using the same device
   // store. It delays the next restore without changing React or auth state.
   await page.evaluate(() => new Promise<void>((resolve, reject) => {
