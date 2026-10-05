@@ -71,6 +71,13 @@ import { PRICE_AUTHORITY_MAX_AGE_MS } from "@/lib/priceAuthorityWindow";
 import { UPLOAD_PHOTO_MAX_BYTES, uploadPhotoSizeLabel } from "@/lib/uploadBodyLimit";
 import { admin, selectStore } from "@/lib/storeBackend";
 import { STORAGE_BUCKET } from "@/lib/supabase";
+import {
+  deletePhotos,
+  PhotoProcessingError,
+  uploadPreparedPhoto,
+} from "@/lib/uploadedImage.server";
+
+export { deletePhotos } from "@/lib/uploadedImage.server";
 import { isLiveLastTrainDecision } from "@/lib/lastTrainBadge";
 import { londonDayKey } from "@/lib/pintContributions";
 import { PINT_DROPS_TABLE } from "@/lib/pintDropTable";
@@ -1012,7 +1019,7 @@ export const supabasePintDropStore: PintDropStore = {
           );
           uploaded.push(persistable.receiptPhotoKey);
         } catch (err) {
-          if (err instanceof PhotoRefusalError) throw err;
+          if (err instanceof PhotoRefusalError || err instanceof PhotoProcessingError) throw err;
           log("warn", "pint_drops.receipt_upload_failed", {
             venueId: drop.venueId,
             dropId: drop.id,
@@ -1420,8 +1427,6 @@ export const supabasePintDropStore: PintDropStore = {
 // format-specific metadata quirks; JPEG q80 at ≤1200px is plenty for a pint
 // photo. (If we ever want format-preserving output, branch here and in the
 // sharp pipeline together.)
-const NORMALIZED_EXT = "jpg";
-const NORMALIZED_CONTENT_TYPE = "image/jpeg";
 const MAX_IMAGE_DIMENSION = 1200;
 const JPEG_QUALITY = 80;
 
@@ -1488,13 +1493,14 @@ export class PhotoRefusalError extends Error {}
 export const UNREADABLE_PHOTO_REFUSAL =
   "That photo could not be read. Choose a different image.";
 
-export async function uploadPhoto(
+/** Prepare once; the same bytes can then be stored beside either price lane. */
+export async function preparePhoto(
   slot: "pint" | "venue" | "receipt",
   venueId: string,
   dropId: string,
   file: File,
   maxBytes = MAX_PHOTO_BYTES,
-): Promise<string> {
+): Promise<Buffer> {
   const invalid = validatePhoto(file.type, file.size, maxBytes);
   if (invalid) throw new PhotoRefusalError(invalid);
 
@@ -1554,38 +1560,16 @@ export async function uploadPhoto(
     throw new PhotoRefusalError(UNREADABLE_PHOTO_REFUSAL);
   }
 
-  const key = `${venueId}/${dropId}/${slot}.${NORMALIZED_EXT}`;
-
-  const { error } = await admin()
-    .storage.from(STORAGE_BUCKET)
-    .upload(key, processed, { contentType: NORMALIZED_CONTENT_TYPE, upsert: false });
-  if (error) {
-    log("error", "pint_drops.photo_upload_failed", {
-      slot,
-      venueId,
-      dropId,
-      error: error.message,
-    });
-    throw new Error(error.message);
-  }
-  return key;
+  return processed;
 }
 
-/** Best-effort delete of uploaded objects — called to undo orphans when the
- *  DB insert fails after upload. Never throws: cleanup must not mask the
- *  original 503. */
-export async function deletePhotos(keys: string[]): Promise<void> {
-  const present = keys.filter(Boolean);
-  if (!present.length) return;
-  try {
-    await admin().storage.from(STORAGE_BUCKET).remove(present);
-  } catch (err) {
-    // Never re-throw — cleanup must not mask the original failure. But log a
-    // warning (safe fields only: a count, not the keys) so orphaned objects are
-    // observable rather than silently accumulating.
-    log("warn", "pint_drops.photo_cleanup_failed", {
-      keyCount: present.length,
-      error: err instanceof Error ? err.message : String(err),
-    });
-  }
+export async function uploadPhoto(
+  slot: "pint" | "venue" | "receipt",
+  venueId: string,
+  dropId: string,
+  file: File,
+  maxBytes = MAX_PHOTO_BYTES,
+): Promise<string> {
+  const processed = await preparePhoto(slot, venueId, dropId, file, maxBytes);
+  return uploadPreparedPhoto(slot, venueId, dropId, processed);
 }
