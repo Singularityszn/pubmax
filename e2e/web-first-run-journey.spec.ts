@@ -41,7 +41,7 @@ async function openJourneyFromTheApp(page: Page): Promise<void> {
     for (const key of ["pubmax:onboarding:budget:v1", "pubmax:first-run-companion:v1", "pubmax-tour-v1-done", "pubmax-tour-v2-done"]) {
       window.localStorage.removeItem(key);
     }
-    window.location.assign("/onboarding?start=web");
+    window.location.href = "/onboarding?start=web";
   });
   await expect(page).toHaveURL(/\/onboarding\?start=web$/);
   await expect(page.getByRole("heading", { name: "London is ready." })).toBeVisible({ timeout: 30_000 });
@@ -154,7 +154,7 @@ test("a typed visit is still turned away, and the start mark alone does not let 
 
 test("a web visit without the start mark returns home and writes nothing", async ({ page }) => {
   await page.goto("/about");
-  await page.evaluate(() => window.location.assign("/onboarding"));
+  await page.evaluate(() => window.location.href = "/onboarding");
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole("heading", { name: "London is ready." })).toHaveCount(0);
   expect(await page.evaluate(() => window.localStorage.getItem("pubmax:onboarding:budget:v1"))).toBeNull();
