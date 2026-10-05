@@ -17,8 +17,11 @@ import { expect, type Locator } from "@playwright/test";
  *   `will-change: transform` only while its spring moves;
  * - the box then holds across two rendered frames.
  */
-export async function expectLayoutSettled(locator: Locator): Promise<void> {
-  await expect(locator).toBeVisible();
+export async function expectLayoutSettled(
+  locator: Locator,
+  options: { timeout?: number } = {},
+): Promise<void> {
+  await expect(locator).toBeVisible(options);
   await expect
     .poll(
       () =>
@@ -60,7 +63,10 @@ export async function expectLayoutSettled(locator: Locator): Promise<void> {
             before.height === after.height
           );
         }),
-      { message: "element reaches its resting layout", timeout: 20_000 },
+      {
+        message: "element reaches its resting layout",
+        timeout: options.timeout ?? 20_000,
+      },
     )
     .toBe(true);
 }
