@@ -34,6 +34,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 import { boroughNameForPoint } from "../lib/londonBoroughPoint.mjs";
 
 const ROOT = process.cwd();
@@ -45,6 +46,9 @@ const OUT_DIR = path.join(ROOT, "public/data/price_estimates");
 const OUT_PATH = path.join(OUT_DIR, "baselines.json");
 
 const MIN_SAMPLE = 3;
+// A wine or cocktail borough row speaks for every pub in the borough, so one
+// operator's menus cannot carry it however many of its pubs they cover.
+const MIN_OPERATORS = 3;
 const MIN_GBP = 2;
 const MAX_GBP = 12;
 
@@ -53,7 +57,7 @@ const MAX_GBP = 12;
 // wine line under 3 pounds is not a glass and one over 12 is a bottle, and a
 // cocktail line over 15 is a jug or a sharer. Lines outside the band are
 // dropped and counted, never rounded into a median.
-const DRINK_MODELS = [
+export const DRINK_MODELS = [
   {
     category: "wine",
     minGbp: 3,
@@ -277,13 +281,23 @@ function pointOfVenueKey(venueKey) {
   return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
 }
 
+// The operator a menu page speaks for: the chain that owns its host, or the
+// host itself for a pub that publishes its own menu. Every Greene King brand
+// host is one operator, so a chain cannot pass for several.
+function operatorOfHost(host) {
+  const chain = CHAIN_IDENTITY.find((identity) =>
+    identity.hosts.some((known) => host === known || host.endsWith(`.${known}`)),
+  );
+  return chain?.id ?? host;
+}
+
 // A non-beer drink's London borough rows. THE SAMPLE IS PUBS, NOT MENU LINES: a
 // pub that lists forty wines is one pub, so each venue contributes the median of
 // its own in-band lines and the borough median is taken over those. A borough
-// under MIN_SAMPLE pubs gets no row and is reported, not borrowed from a
-// neighbour. Only permitted first-party hosts feed it, so a demo fixture or a
-// refused estate never does.
-function buildDrinkBaselines(updates, allowedHosts, boundaries, model, report) {
+// under MIN_SAMPLE pubs or MIN_OPERATORS operators gets no row and is reported,
+// not borrowed from a neighbour. Only permitted first-party hosts feed it, so a
+// demo fixture or a refused estate never does.
+export function buildDrinkBaselines(updates, allowedHosts, boundaries, model, report) {
   const drops = {
     droppedNoHost: 0,
     droppedNotPermitted: 0,
@@ -306,22 +320,37 @@ function buildDrinkBaselines(updates, allowedHosts, boundaries, model, report) {
     if (!point) { drops.droppedNoPoint += 1; continue; }
     const borough = boroughNameForPoint(point.lat, point.lng, boundaries);
     if (!borough) { drops.droppedOutsideBoroughs += 1; continue; }
-    const venue = venues.get(row.venueKey) ?? { borough, prices: [], sourceUrls: new Set() };
+    const venue = venues.get(row.venueKey) ?? {
+      borough,
+      operator: operatorOfHost(host),
+      prices: [],
+      sourceUrls: new Set(),
+    };
     venue.prices.push(row.priceGbp);
     venue.sourceUrls.add(row.source.url);
     venues.set(row.venueKey, venue);
   }
   const byBorough = new Map();
   for (const venue of venues.values()) {
-    const bucket = byBorough.get(venue.borough) ?? { name: venue.borough, medians: [], sourceUrls: new Set() };
+    const bucket = byBorough.get(venue.borough) ?? {
+      name: venue.borough,
+      medians: [],
+      operators: new Set(),
+      sourceUrls: new Set(),
+    };
     bucket.medians.push(median(venue.prices));
+    bucket.operators.add(venue.operator);
     for (const url of venue.sourceUrls) bucket.sourceUrls.add(url);
     byBorough.set(venue.borough, bucket);
   }
   const regions = [];
   for (const bucket of byBorough.values()) {
-    if (bucket.medians.length < MIN_SAMPLE) {
-      drops.boroughsUnderFloor.push({ code: boroughCode(bucket.name), sampleSize: bucket.medians.length });
+    if (bucket.medians.length < MIN_SAMPLE || bucket.operators.size < MIN_OPERATORS) {
+      drops.boroughsUnderFloor.push({
+        code: boroughCode(bucket.name),
+        sampleSize: bucket.medians.length,
+        operatorCount: bucket.operators.size,
+      });
       continue;
     }
     regions.push({
@@ -330,7 +359,8 @@ function buildDrinkBaselines(updates, allowedHosts, boundaries, model, report) {
       label: bucket.name,
       medianGbp: median(bucket.medians),
       sampleSize: bucket.medians.length,
-      provenance: `Median of each pub's own ${model.category} menu median, read from permitted first-party menus in ${bucket.name}.`,
+      operatorCount: bucket.operators.size,
+      provenance: `Estimate. Median of each pub's own ${model.category} menu median over ${bucket.medians.length} pubs run by ${bucket.operators.size} operators, read from permitted first-party menus in ${bucket.name}.`,
       sourceUrls: [...bucket.sourceUrls].sort().slice(0, 8),
     });
   }
@@ -376,7 +406,7 @@ function main() {
     version: 1,
     computedAt: new Date().toISOString(),
     method:
-      "Chain rows are the median published pint price per permitted first-party chain menu. London region rows are the median of the bundled dataset's own per-borough average, classified point-in-polygon. Wine and cocktail rows are London borough medians over pubs, each pub counted once at the median of its own in-band menu lines, from permitted first-party menus. A basis under three prices is dropped rather than used.",
+      "Chain rows are the median published pint price per permitted first-party chain menu. London region rows are the median of the bundled dataset's own per-borough average, classified point-in-polygon. Wine and cocktail rows are London borough medians over pubs, each pub counted once at the median of its own in-band menu lines, from permitted first-party menus, and a borough whose pubs are run by fewer than three operators gets no row. A basis under three prices is dropped rather than used.",
     chains,
     regions,
     drinks,
@@ -399,4 +429,5 @@ function main() {
   console.log(`  drops: ${JSON.stringify(report)}`);
 }
 
-main();
+const isDirectRun = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isDirectRun) main();
