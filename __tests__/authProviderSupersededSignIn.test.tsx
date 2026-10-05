@@ -405,20 +405,25 @@ async function fill(field: HTMLInputElement | HTMLTextAreaElement, value: string
   });
 }
 
-/** B's own unfinished Pint Drop in the mounted composer: note, price and a pint photo. */
-async function draftAsB() {
+/** An account's own unfinished Pint Drop in the mounted composer: note, price and a pint photo. */
+async function draftAs(id: string, note: string) {
   await vi.waitFor(() => expect(container?.querySelector("button")).not.toBeNull());
   const toggle = [...container!.querySelectorAll("button")].find((button) => button.textContent?.trim() === SPILL_EXTRAS_TOGGLE_LABEL);
   expect(toggle).toBeDefined();
   await act(async () => toggle!.click());
-  await fill(container!.querySelector("textarea")!, NOTE_B);
+  await fill(container!.querySelector("textarea")!, note);
   await fill(container!.querySelector<HTMLInputElement>('input[inputmode="decimal"]')!, "5.75");
   const photo = container!.querySelector<HTMLInputElement>('input[type="file"]')!;
   await act(async () => {
-    Object.defineProperty(photo, "files", { configurable: true, value: [new File(["synthetic-jpeg"], "b-pint.jpg", { type: "image/jpeg" })] });
+    Object.defineProperty(photo, "files", { configurable: true, value: [new File(["synthetic-jpeg"], `${id}-pint.jpg`, { type: "image/jpeg" })] });
     photo.dispatchEvent(new Event("change", { bubbles: true }));
   });
-  await vi.waitFor(() => expect(storedDraftOf(B)).toMatchObject({ note: NOTE_B, price: "5.75" }));
+  await vi.waitFor(() => expect(storedDraftOf(id)).toMatchObject({ note, price: "5.75" }));
+  await vi.waitFor(() => expect(composerShows()).toEqual({ note, price: "5.75", photos: 1 }));
+}
+
+async function draftAsB() {
+  await draftAs(B, NOTE_B);
 }
 
 function storedDraftOf(id: string) {
@@ -509,16 +514,23 @@ describe("an explicit sign-out overlapped by another document's auth work", () =
     expect(await redeemedAccount()).toBeNull();
   });
 
-  it("does not hand A's remembered sign-in back when a newer sign-in fails after A's sign-out moved on", async () => {
+  it.each(["account", "device"] as const)("finishes A's %s sign-out when the newer sign-in that overtook it fails", async (scope) => {
+    const NOTE_A = "A's private note about the back room";
     await signedInElsewhere(A);
+    rememberDeviceAccount(localStorage, { userId: "account-c", refreshToken: "synthetic-refresh-account-c", email: null }, Date.now());
     const client = makeClient();
     harness.clientReady = Promise.resolve(client);
+    harness.composer = true;
     await mount();
     await vi.waitFor(() => expect(viewer()).toBe(A));
+    // A's cached handle, as the identity cache keeps it for the device owner.
+    localStorage.setItem("pubmax_handle", "account_a");
+    await draftAs(A, NOTE_A);
+    expect(deviceAccountOwner(localStorage)).toBe(A);
 
     holdLogout = true;
     let signingOut: Promise<void> = Promise.resolve();
-    await act(async () => { signingOut = auth!.signOut("account"); });
+    await act(async () => { signingOut = auth!.signOut(scope); });
     await vi.waitFor(() => expect(releaseLogout).not.toBeNull());
     // B's sign-in commits, but its token check is still out when A's sign-out continues.
     refuseUser.add(B);
@@ -537,5 +549,10 @@ describe("an explicit sign-out overlapped by another document's auth work", () =
     expect(sessionAccountAdmitted(A)).toBe(false);
     expect(await redeemedAccount()).toBeNull();
     expect(viewer()).toBe("signed-out");
+    expect(deviceAccountOwner(localStorage)).toBeNull();
+    expect(localStorage.getItem("pubmax_handle")).toBeNull();
+    expect(readDeviceAccounts(localStorage).map((account) => account.userId)).toEqual(scope === "device" ? [] : ["account-c"]);
+    expect(storedDraftOf(A)).toBeNull();
+    await vi.waitFor(() => expect(composerShows()).toEqual({ note: null, price: "", photos: 0 }));
   });
 });
