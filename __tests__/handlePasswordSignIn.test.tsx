@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, createElement } from "react";
-import { createRoot, type Root } from "react-dom/client";
+import { createRoot, hydrateRoot, type Root } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/components/auth/AuthProvider", () => ({
@@ -38,6 +39,25 @@ afterEach(() => {
   act(() => root.unmount());
   host.remove();
   vi.unstubAllGlobals();
+});
+
+describe("HandlePasswordSignIn toggle before hydration", () => {
+  // The /login page paints the toggle on the server. Enabled there, a tap
+  // before React attaches opens nothing and is lost, for a person on a slow
+  // phone as much as for the production smoke suite.
+  it("paints the toggle disabled on the server and enables it once React owns it", () => {
+    const html = renderToString(createElement(HandlePasswordSignIn));
+    host.innerHTML = html;
+    expect(byTestId<HTMLButtonElement>("e2e-login-toggle").disabled).toBe(true);
+
+    act(() => root.unmount());
+    let hydrated!: Root;
+    act(() => {
+      hydrated = hydrateRoot(host, createElement(HandlePasswordSignIn));
+    });
+    root = hydrated;
+    expect(byTestId<HTMLButtonElement>("e2e-login-toggle").disabled).toBe(false);
+  });
 });
 
 describe("HandlePasswordSignIn form", () => {
