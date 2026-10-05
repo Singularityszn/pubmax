@@ -6,7 +6,8 @@ import { selectedDrinkPriceDescription, selectedDrinkPriceEvidenceForPrice } fro
 import type { Filters } from "@/lib/venues";
 import type { InferredNightContext, NightContext } from "@/lib/nightPlanning";
 
-export type MapPlanDrinkSelection = Pick<Filters, "drinkCategory" | "drinkSubtype" | "drinkBrand">;
+export type MapPlanDrinkSelection = Pick<Filters, "drinkCategory" | "drinkSubtype" | "drinkBrand">
+  & Partial<Pick<Filters, "topShelfOnly">>;
 
 export type MapPlanDrinkPresentation = {
   category: DrinkCategory;
@@ -22,13 +23,16 @@ export function mapPlanDrinkPresentation(
 ): MapPlanDrinkPresentation | null {
   if (!selection) return null;
   const category = isMapLensDrinkCategory(selection.drinkCategory) ? selection.drinkCategory : "beer";
-  const refined = Boolean(selection.drinkSubtype || selection.drinkBrand);
+  const refined = Boolean(selection.drinkSubtype || selection.drinkBrand || selection.topShelfOnly);
   if (category === "beer" && !refined) return null;
   const subtype = parseDrinkSubtypeParam(selection.drinkSubtype, category);
   const brand = findBrand(selection.drinkBrand);
-  const label = brand?.category === category
+  const named = brand?.category === category
     ? brand.brand.label
     : subtype?.longLabel ?? categoryLabel(category);
+  const label = selection.topShelfOnly
+    ? `Top shelf ${named === categoryLabel(category) ? named.toLowerCase() : named}`
+    : named;
   const priceNoun = refined ? label : drinkLensPriceNoun(category);
   return { category, label, priceNoun, stopNoun: `${priceNoun.toLowerCase()} stop`, refined };
 }
@@ -39,9 +43,10 @@ export function mapPlanDrinkPriceDescription(
   prices?: ReadonlyMap<string, MapLensPrice> | null,
   status: CategoryPriceIndexStatus = "idle",
 ): string {
+  // Category reports have no brand, subtype, top-shelf or serving identity.
+  if (presentation.refined) return `${presentation.priceNoun} price not shown in plans`;
   const price = prices?.get(venueId);
-  // Category reports have no brand, subtype or serving identity.
-  const evidence = !presentation.refined && price?.venueId === venueId
+  const evidence = price?.venueId === venueId
     ? selectedDrinkPriceEvidenceForPrice(price, { drinkCategory: presentation.category, zeroProof: false })
     : null;
   return selectedDrinkPriceDescription(evidence ?? undefined)
@@ -74,4 +79,5 @@ export function appendMapPlanDrinkSelection(
   params.set("drink", category);
   if (subtype) params.set("sub", subtype.id);
   if (brand?.category === category) params.set("brand", brand.brand.id);
+  if (selection.topShelfOnly) params.set("topshelf", "1");
 }

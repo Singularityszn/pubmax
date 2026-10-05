@@ -127,7 +127,7 @@ export default function RoutePanel({
   const summary = useMemo(() => crawlSummary(route), [route]);
   const drinkPresentation = mapPlanDrinkPresentation(drinkSelection);
   const pricedStopCount = route.filter((venue) => typeof venue.cheapestPrice === "number").length;
-  const drinkCoverageNote = drinkPresentation
+  const drinkCoverageNote = drinkPresentation && !drinkPresentation.refined
     ? drinkLensCoverageNote(drinkPresentation.priceNoun, drinkPriceStatus)
     : null;
   const routeWaterCount = route.filter((venue) => venue.curation.nearWater).length;

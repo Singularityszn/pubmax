@@ -506,6 +506,7 @@ import {
   type CategoryPriceIndexStatus,
   type MapExperienceLens as MapExperienceLensValue,
 } from "@/lib/mapExperienceLens";
+import type { MapPlanDrinkSelection } from "@/lib/mapPlanDrinkPresentation";
 import { loadSpoonsValueLane } from "@/lib/spoonsValueLane";
 import {
   spoonsValueLensRequested,
@@ -1050,6 +1051,19 @@ function mapChipLabelFor(input: {
   return mapChosenArea && mapChosenArea.cityId === cityId
     ? mapChosenArea.label
     : ukPlaceArrival?.name ?? claimedArea?.name ?? mapContextName;
+}
+
+const NO_ALCOHOL_PLAN_DRINK_SELECTION: MapPlanDrinkSelection = {
+  drinkCategory: "alcohol-free",
+  drinkSubtype: "",
+  drinkBrand: "",
+};
+
+function plannerDefaultDrinkSelection(
+  lens: MapExperienceLensValue,
+  selection: MapPlanDrinkSelection | undefined,
+): MapPlanDrinkSelection | undefined {
+  return lens === "no-alcohol" ? NO_ALCOHOL_PLAN_DRINK_SELECTION : selection;
 }
 
 export default function PubMap({
@@ -4760,9 +4774,9 @@ export default function PubMap({
   const applyGeneratedMobilePlan = useCallback((generated: GeneratedMobilePlan) => {
     const ids = generated.stops.map((stop) => stop.venueId);
     changeExperienceLens("all");
-    changeFavoritePint(null);
     setPersonaLensId(null);
     const lane = generated.context.zeroProof ? "alcohol-free" : generated.context.drinkCategory ?? DEFAULT_DRINK_LANE;
+    if (lane !== DEFAULT_DRINK_LANE) changeFavoritePint(null);
     setFilters((current) => applyDrinkLane(current, lane, { clearRefinements: true }));
     if (lane === DEFAULT_DRINK_LANE) setAltStyle("pint");
     activateGeneratedPlan(generated.context.nightArea, ids);
@@ -5442,7 +5456,7 @@ export default function PubMap({
         cityId={cityId}
         initialNightArea={suggestedPlanArea.slug}
         venuesById={venuesById}
-        defaultDrinkSelection={plannerDrinkSelection}
+        defaultDrinkSelection={plannerDefaultDrinkSelection(experienceLens, plannerDrinkSelection)}
         onGenerated={applyGeneratedMobilePlan}
       />
     ) : null;

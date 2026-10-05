@@ -115,12 +115,36 @@ describe("selected-drink hand-built Plan", () => {
     { ...wine, drinkBrand: "rioja" },
     { ...wine, drinkSubtype: "wine-red" },
     { drinkCategory: "beer", drinkSubtype: "beer-cider", drinkBrand: "" },
+    { drinkCategory: "beer", drinkSubtype: "", drinkBrand: "", topShelfOnly: true },
   ])("does not borrow category or pint money for a refined choice %j", async (selection) => {
     await render({ drinkSelection: selection, drinkPrices: new Map([[duke.id, wineQuote]]), drinkPriceStatus: "ready" });
     expect(container.querySelector(".routeMetrics")?.textContent).toContain("Not recorded");
     expect(container.querySelector(".routeList")?.textContent).not.toMatch(/£5\.50|£6\.15|AMSTEL/);
     expect(container.querySelector(".venuePickerList")?.textContent).not.toMatch(/£5\.50|£6\.15/);
   });
+
+  it("names a Top shelf Beer plan without its pint money, totals or story entry", async () => {
+    await render({
+      drinkSelection: { drinkCategory: "beer", drinkSubtype: "", drinkBrand: "", topShelfOnly: true },
+      route: [duke, dove], drinkPriceStatus: "ready",
+    });
+    expect(container.querySelector("h2")?.textContent).toBe("Top shelf beer plan");
+    expect(container.querySelector(".routeMetrics")?.textContent).toContain("Not recordedround total");
+    expect(container.querySelector(".routeMetrics")?.textContent).toContain("2top shelf beer stops");
+    expect(container.querySelector(".routeList")?.textContent).toContain("Top shelf beer price not shown in plans");
+    expect(container.textContent).not.toMatch(/AMSTEL|£6\.15|£12\.30/);
+    expect(Array.from(container.querySelectorAll("button")).some((item) => item.textContent?.includes("Save as story"))).toBe(false);
+  });
+
+  it.each(["ready", "partial", "degraded", "idle"] as const)(
+    "does not claim a refined Guinness price is absent when the %s category index was never its evidence",
+    async (status) => {
+      await render({ drinkSelection: { drinkCategory: "beer", drinkSubtype: "", drinkBrand: "guinness" }, drinkPriceStatus: status });
+      expect(container.querySelector(".routeList")?.textContent).toContain("Guinness price not shown in plans");
+      expect(container.querySelector(".venuePickerList")?.textContent).toContain("Guinness price not shown in plans");
+      expect(container.textContent).not.toMatch(/no Guinness price|Guinness price could not be read|Guinness price not read yet|Guinness prices/);
+    },
+  );
 
   it.each([
     { ...wineQuote, category: "gin" as const },

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { crawlShareMapHref, curatedCrawlMapHref, curatedCrawls } from "@/lib/curatedCrawls";
 import { landmarks } from "@/lib/landmarks";
-import { ALT_CRAWL_STYLES } from "@/lib/crawlUrl";
+import { ALT_CRAWL_STYLES, seedCrawlState } from "@/lib/crawlUrl";
 import { groupVenuePrices, type CrawlStyle, type VenuePrice } from "@/lib/venues";
 import dataset from "../public/data/pint_prices_app_dataset.json";
 
@@ -163,6 +163,20 @@ describe("curated crawls", () => {
       venueIds: ["venue-a", "venue-b"], drinkSelection: { drinkCategory: "beer", drinkBrand: "", drinkSubtype: "" },
     }), "https://pubmaxxing.com").searchParams;
     expect(params.get("drink")).toBe("beer");
+  });
+
+  it("keeps a Top shelf Beer choice through a completed route share and reopen", () => {
+    const href = crawlShareMapHref({
+      venueIds: ["venue-a", "venue-b"],
+      drinkSelection: { drinkCategory: "beer", drinkBrand: "", drinkSubtype: "", topShelfOnly: true },
+    });
+    const url = new URL(href, "https://pubmaxxing.com");
+    expect(url.searchParams.get("drink")).toBe("beer");
+    expect(url.searchParams.get("topshelf")).toBe("1");
+    const reopened = seedCrawlState(url.search);
+    expect(reopened.filters.drinkCategory).toBe("beer");
+    expect(reopened.filters.topShelfOnly).toBe(true);
+    expect(reopened.builtIds).toEqual(["venue-a", "venue-b"]);
   });
 
   it("drops refinements from another category rather than changing the shared drink", () => {

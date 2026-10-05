@@ -115,6 +115,28 @@ describe("map drink default in the phone planner", () => {
     expect(container.querySelector('[role="alert"]')?.textContent).toContain("The planner cannot match Sipsmith yet.");
   });
 
+  it("refuses a Top shelf Beer default instead of widening it to generic Beer", async () => {
+    await render({ drinkCategory: "beer", drinkBrand: "", drinkSubtype: "", topShelfOnly: true }, "Soho");
+    await generate();
+    expect(requests).toHaveLength(0);
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain("The planner cannot match Top shelf beer yet.");
+  });
+
+  it("allows an explicit Wine request to replace a Top shelf Beer default", async () => {
+    await render({ drinkCategory: "beer", drinkBrand: "", drinkSubtype: "", topShelfOnly: true }, "Wine in Soho");
+    await generate();
+    expect(requests).toHaveLength(1);
+    expect(requests[0]!.context).not.toHaveProperty("drinkCategory");
+  });
+
+  it("lets the Alcohol-free chip replace a Top shelf Beer default", async () => {
+    await render({ drinkCategory: "beer", drinkBrand: "", drinkSubtype: "", topShelfOnly: true });
+    await act(async () => button("Alcohol-free").click());
+    await generate();
+    expect(requests).toHaveLength(1);
+    expect(requests[0]!.context.zeroProof).toBe(true);
+  });
+
   it("allows an explicit Wine request to replace an unsupported Gin brand default", async () => {
     await render({ drinkCategory: "gin", drinkBrand: "sipsmith", drinkSubtype: "" }, "Wine in Soho");
     await generate();
