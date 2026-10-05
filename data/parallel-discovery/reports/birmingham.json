@@ -15,103 +15,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:27:46.742Z",
+          "at": "2026-10-05T09:34:27.628Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:22.501Z",
+          "at": "2026-10-05T09:35:03.399Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:58.259Z",
+          "at": "2026-10-05T09:35:39.192Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:28:58.259Z"
-    },
-    {
-      "district": "B2",
-      "category": "pub",
-      "url": "https://www.theheadofsteam.co.uk/bars/birmingham",
-      "host": "www.theheadofsteam.co.uk",
-      "kind": "robots",
-      "reason": "robots unreachable",
-      "attempts": 3,
-      "evidence": [
-        {
-          "at": "2026-10-04T14:27:38.295Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
-        },
-        {
-          "at": "2026-10-04T14:28:05.069Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
-        },
-        {
-          "at": "2026-10-04T14:28:31.822Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
-        }
-      ],
-      "checkedAt": "2026-10-04T14:28:58.485Z"
-    },
-    {
-      "district": "B2",
-      "category": "bar",
-      "url": "https://www.theheadofsteam.co.uk/bars/birmingham",
-      "host": "www.theheadofsteam.co.uk",
-      "kind": "robots",
-      "reason": "robots unreachable",
-      "attempts": 3,
-      "evidence": [
-        {
-          "at": "2026-10-04T14:27:38.295Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
-        },
-        {
-          "at": "2026-10-04T14:28:05.069Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
-        },
-        {
-          "at": "2026-10-04T14:28:31.822Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
-        }
-      ],
-      "checkedAt": "2026-10-04T14:28:31.822Z"
-    },
-    {
-      "district": "B2",
-      "category": "restaurant",
-      "url": "https://www.theheadofsteam.co.uk/bars/birmingham",
-      "host": "www.theheadofsteam.co.uk",
-      "kind": "robots",
-      "reason": "robots unreachable",
-      "attempts": 3,
-      "evidence": [
-        {
-          "at": "2026-10-04T14:27:38.295Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
-        },
-        {
-          "at": "2026-10-04T14:28:05.069Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
-        },
-        {
-          "at": "2026-10-04T14:28:31.822Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
-        }
-      ],
-      "checkedAt": "2026-10-04T14:28:31.822Z"
+      "checkedAt": "2026-10-05T09:35:39.200Z"
     },
     {
       "district": "B15",
@@ -123,22 +42,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:27:21.729Z",
+          "at": "2026-10-05T09:33:57.892Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:27:27.542Z",
+          "at": "2026-10-05T09:34:03.783Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:27:33.365Z",
+          "at": "2026-10-05T09:34:09.652Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:27:33.365Z"
+      "checkedAt": "2026-10-05T09:34:09.652Z"
     },
     {
       "district": "B17",
@@ -150,22 +69,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:27:46.742Z",
+          "at": "2026-10-05T09:34:27.628Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:22.501Z",
+          "at": "2026-10-05T09:35:03.399Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:58.259Z",
+          "at": "2026-10-05T09:35:39.192Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:28:58.260Z"
+      "checkedAt": "2026-10-05T09:35:39.203Z"
     },
     {
       "district": "B17",
@@ -177,22 +96,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:27:46.742Z",
+          "at": "2026-10-05T09:34:27.628Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:22.501Z",
+          "at": "2026-10-05T09:35:03.399Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:58.259Z",
+          "at": "2026-10-05T09:35:39.192Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:28:58.262Z"
+      "checkedAt": "2026-10-05T09:35:39.203Z"
     },
     {
       "district": "B23",
@@ -204,22 +123,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:27:46.742Z",
+          "at": "2026-10-05T09:34:27.628Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:22.501Z",
+          "at": "2026-10-05T09:35:03.399Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:58.259Z",
+          "at": "2026-10-05T09:35:39.192Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:28:58.262Z"
+      "checkedAt": "2026-10-05T09:35:39.203Z"
     },
     {
       "district": "B70",
@@ -231,22 +150,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:27:34.826Z",
+          "at": "2026-10-05T09:33:58.315Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.thevine.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:27:40.668Z",
+          "at": "2026-10-05T09:34:04.168Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.thevine.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:27:46.508Z",
+          "at": "2026-10-05T09:34:10.075Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.thevine.co.uk/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:27:46.508Z"
+      "checkedAt": "2026-10-05T09:34:10.075Z"
     },
     {
       "district": "B70",
@@ -258,22 +177,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:27:34.826Z",
+          "at": "2026-10-05T09:33:58.315Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.thevine.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:27:40.668Z",
+          "at": "2026-10-05T09:34:04.168Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.thevine.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:27:46.508Z",
+          "at": "2026-10-05T09:34:10.075Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.thevine.co.uk/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:27:46.508Z"
+      "checkedAt": "2026-10-05T09:34:10.075Z"
     },
     {
       "district": "B72",
@@ -285,22 +204,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:27:46.742Z",
+          "at": "2026-10-05T09:34:27.628Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:22.501Z",
+          "at": "2026-10-05T09:35:03.399Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:58.259Z",
+          "at": "2026-10-05T09:35:39.192Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:28:58.262Z"
+      "checkedAt": "2026-10-05T09:35:39.204Z"
     },
     {
       "district": "B73",
@@ -312,22 +231,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:27:46.742Z",
+          "at": "2026-10-05T09:34:27.628Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:22.501Z",
+          "at": "2026-10-05T09:35:03.399Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:58.259Z",
+          "at": "2026-10-05T09:35:39.192Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:28:58.262Z"
+      "checkedAt": "2026-10-05T09:35:39.203Z"
     },
     {
       "district": "B73",
@@ -339,22 +258,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:27:46.742Z",
+          "at": "2026-10-05T09:34:27.628Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:22.501Z",
+          "at": "2026-10-05T09:35:03.399Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:58.259Z",
+          "at": "2026-10-05T09:35:39.192Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:28:58.262Z"
+      "checkedAt": "2026-10-05T09:35:39.203Z"
     },
     {
       "district": "B73",
@@ -366,22 +285,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:27:46.742Z",
+          "at": "2026-10-05T09:34:27.628Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:22.501Z",
+          "at": "2026-10-05T09:35:03.399Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:58.259Z",
+          "at": "2026-10-05T09:35:39.192Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:28:58.262Z"
+      "checkedAt": "2026-10-05T09:35:39.204Z"
     },
     {
       "district": "B76",
@@ -393,22 +312,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:27:46.742Z",
+          "at": "2026-10-05T09:34:27.628Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:22.501Z",
+          "at": "2026-10-05T09:35:03.399Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:58.259Z",
+          "at": "2026-10-05T09:35:39.192Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:28:58.388Z"
+      "checkedAt": "2026-10-05T09:35:39.204Z"
     }
   ],
   "filteredSources": [
@@ -428,20 +347,6 @@
     },
     {
       "district": "B3",
-      "category": "bar",
-      "url": "https://find-and-update.company-information.service.gov.uk/company/11136685/filing-history",
-      "host": "find-and-update.company-information.service.gov.uk",
-      "reason": "public body or academic site"
-    },
-    {
-      "district": "B3",
-      "category": "bar",
-      "url": "https://www.ucb.ac.uk/university/campuses/summer-row",
-      "host": "www.ucb.ac.uk",
-      "reason": "public body or academic site"
-    },
-    {
-      "district": "B3",
       "category": "restaurant",
       "url": "https://uk.indeed.com/m/jobs?q=Wine+Wine&l=Birmingham",
       "host": "uk.indeed.com",
@@ -453,27 +358,6 @@
       "url": "https://find-and-update.company-information.service.gov.uk/company/05043754/officers",
       "host": "find-and-update.company-information.service.gov.uk",
       "reason": "public body or academic site"
-    },
-    {
-      "district": "B14",
-      "category": "pub",
-      "url": "https://find-and-update.company-information.service.gov.uk/company/07144419/officers",
-      "host": "find-and-update.company-information.service.gov.uk",
-      "reason": "public body or academic site"
-    },
-    {
-      "district": "B14",
-      "category": "pub",
-      "url": "https://www.birmingham.gov.uk/directory_record/138098/hare_and_hounds_kings_heath",
-      "host": "www.birmingham.gov.uk",
-      "reason": "public body or academic site"
-    },
-    {
-      "district": "B14",
-      "category": "pub",
-      "url": "https://uk.indeed.com/q-independent-music-venue-jobs.html",
-      "host": "uk.indeed.com",
-      "reason": "job board"
     },
     {
       "district": "B14",
@@ -736,9 +620,9 @@
     }
   ],
   "taskRuns": 675,
-  "webSearches": 156,
-  "pagesRead": 584,
-  "researched": 2070,
+  "webSearches": 148,
+  "pagesRead": 548,
+  "researched": 2028,
   "added": 0,
   "retained": [
     {
@@ -1207,7 +1091,7 @@
     }
   ],
   "totalAccepted": 116,
-  "repeats": 58,
+  "repeats": 57,
   "duplicates": [
     {
       "name": "52 Gas Street",
@@ -1418,7 +1302,7 @@
           "url": "https://www.opentable.com/r/aria-bistro",
           "outcome": "refused",
           "reason": "robots-disallowed",
-          "checkedAt": "2026-10-04T18:08:27.153Z"
+          "checkedAt": "2026-10-05T09:24:09.193Z"
         }
       ]
     },
@@ -1431,7 +1315,7 @@
           "url": "https://www.opentable.co.uk/r/milano-bar-and-ristorante-birmingham",
           "outcome": "refused",
           "reason": "robots-disallowed",
-          "checkedAt": "2026-10-04T18:08:27.463Z"
+          "checkedAt": "2026-10-05T09:24:09.466Z"
         }
       ]
     },
@@ -1444,7 +1328,7 @@
           "url": "https://www.opentable.com/r/harvester-star-city-birmingham",
           "outcome": "refused",
           "reason": "robots-disallowed",
-          "checkedAt": "2026-10-04T18:08:27.157Z"
+          "checkedAt": "2026-10-05T09:24:09.193Z"
         }
       ]
     },
@@ -1457,7 +1341,7 @@
           "url": "https://www.low-places.co.uk/",
           "outcome": "refused",
           "reason": "robots-unreadable",
-          "checkedAt": "2026-10-04T18:08:27.507Z"
+          "checkedAt": "2026-10-05T09:24:08.937Z"
         }
       ]
     },
@@ -1470,13 +1354,13 @@
           "url": "https://thesatori.co.uk/",
           "outcome": "refused",
           "reason": "robots-unreadable",
-          "checkedAt": "2026-10-04T18:08:27.827Z"
+          "checkedAt": "2026-10-05T09:24:09.498Z"
         },
         {
           "url": "https://thesatori.co.uk/contact",
           "outcome": "refused",
           "reason": "robots-unreadable",
-          "checkedAt": "2026-10-04T18:08:27.827Z"
+          "checkedAt": "2026-10-05T09:24:09.498Z"
         }
       ]
     },
@@ -1489,7 +1373,7 @@
           "url": "https://www.opentable.com/r/vedique-resto-bar-birmingham",
           "outcome": "refused",
           "reason": "robots-disallowed",
-          "checkedAt": "2026-10-04T18:08:28.920Z"
+          "checkedAt": "2026-10-05T09:24:09.193Z"
         }
       ]
     },
@@ -1506,22 +1390,22 @@
           "attempts": 3,
           "evidence": [
             {
-              "at": "2026-10-04T18:08:32.613Z",
+              "at": "2026-10-05T09:24:10.578Z",
               "reason": "robots-unreadable",
               "evidence": "https://yumbobirmingham.com/robots.txt answered 500, so no permission can be read."
             },
             {
-              "at": "2026-10-04T18:08:38.836Z",
+              "at": "2026-10-05T09:24:16.990Z",
               "reason": "robots-unreadable",
               "evidence": "https://yumbobirmingham.com/robots.txt answered 500, so no permission can be read."
             },
             {
-              "at": "2026-10-04T18:08:46.268Z",
+              "at": "2026-10-05T09:24:23.409Z",
               "reason": "robots-unreadable",
               "evidence": "https://yumbobirmingham.com/robots.txt answered 500, so no permission can be read."
             }
           ],
-          "checkedAt": "2026-10-04T18:08:46.268Z"
+          "checkedAt": "2026-10-05T09:24:23.409Z"
         }
       ]
     },
@@ -1534,7 +1418,7 @@
           "url": "https://www.opentable.com/r/lime-n-chilli-birmingham",
           "outcome": "refused",
           "reason": "robots-disallowed",
-          "checkedAt": "2026-10-04T18:08:29.606Z"
+          "checkedAt": "2026-10-05T09:24:09.196Z"
         }
       ]
     },
@@ -1551,22 +1435,22 @@
           "attempts": 3,
           "evidence": [
             {
-              "at": "2026-10-04T18:08:31.762Z",
+              "at": "2026-10-05T09:24:09.972Z",
               "reason": "robots-unreachable",
               "evidence": "https://www.acocksgreenbowling.co.uk/robots.txt could not be fetched (fetch failed)."
             },
             {
-              "at": "2026-10-04T18:08:37.517Z",
+              "at": "2026-10-05T09:24:15.732Z",
               "reason": "robots-unreachable",
               "evidence": "https://www.acocksgreenbowling.co.uk/robots.txt could not be fetched (fetch failed)."
             },
             {
-              "at": "2026-10-04T18:08:43.275Z",
+              "at": "2026-10-05T09:24:21.494Z",
               "reason": "robots-unreachable",
               "evidence": "https://www.acocksgreenbowling.co.uk/robots.txt could not be fetched (fetch failed)."
             }
           ],
-          "checkedAt": "2026-10-04T18:08:43.276Z"
+          "checkedAt": "2026-10-05T09:24:21.494Z"
         }
       ]
     },
@@ -1579,7 +1463,7 @@
           "url": "https://www.opentable.com/raja-monkey",
           "outcome": "refused",
           "reason": "robots-disallowed",
-          "checkedAt": "2026-10-04T18:08:31.210Z"
+          "checkedAt": "2026-10-05T09:24:09.200Z"
         }
       ]
     },
@@ -1596,22 +1480,22 @@
           "attempts": 3,
           "evidence": [
             {
-              "at": "2026-10-04T18:08:32.161Z",
+              "at": "2026-10-05T09:24:09.977Z",
               "reason": "robots-unreachable",
               "evidence": "https://www.deli17.co.uk/robots.txt could not be fetched (fetch failed)."
             },
             {
-              "at": "2026-10-04T18:08:37.916Z",
+              "at": "2026-10-05T09:24:15.732Z",
               "reason": "robots-unreachable",
               "evidence": "https://www.deli17.co.uk/robots.txt could not be fetched (fetch failed)."
             },
             {
-              "at": "2026-10-04T18:08:43.675Z",
+              "at": "2026-10-05T09:24:21.495Z",
               "reason": "robots-unreachable",
               "evidence": "https://www.deli17.co.uk/robots.txt could not be fetched (fetch failed)."
             }
           ],
-          "checkedAt": "2026-10-04T18:08:43.675Z"
+          "checkedAt": "2026-10-05T09:24:21.495Z"
         }
       ]
     },
@@ -1624,7 +1508,7 @@
           "url": "https://www.stonehouserestaurants.co.uk/nationalsearch/eastandwestmidlands/themaltshovelgreatbarr",
           "outcome": "refused",
           "reason": "robots-unreadable",
-          "checkedAt": "2026-10-04T18:08:31.716Z"
+          "checkedAt": "2026-10-05T09:24:09.815Z"
         }
       ]
     },
@@ -1637,7 +1521,7 @@
           "url": "https://antonios.co.uk/book-online",
           "outcome": "refused",
           "reason": "robots-unreadable",
-          "checkedAt": "2026-10-04T18:08:32.110Z"
+          "checkedAt": "2026-10-05T09:24:09.575Z"
         }
       ]
     }
@@ -2281,6 +2165,10 @@
       "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
+      "name": "https://www.theheadofsteam.co.uk/bars/birmingham",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
       "name": "The Cocktail Club Birmingham",
       "reason": "missing-drinking-evidence"
     },
@@ -2358,6 +2246,10 @@
     },
     {
       "name": "https://www.thetrocaderobirmingham.co.uk",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.theheadofsteam.co.uk/bars/birmingham",
       "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
@@ -2545,60 +2437,12 @@
       "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
+      "name": "https://www.theheadofsteam.co.uk/bars/birmingham",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
       "name": "Bushwackers",
       "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "Arch 13 at Connolly's",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Samai Thai",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Saint Paul's Market",
-      "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "The Jam House",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "White Lion Pub",
-      "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "The Lasan Cocktail Bar",
-      "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "Dishoom",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "24 Stories",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Madeleine",
-      "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "Fazenda Rodizio Bar & Grill",
-      "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "Jamaya Birmingham",
-      "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "Asha’s Indian Restaurant",
-      "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "Rosa’s Thai Birmingham",
-      "reason": "missing-venue-specific-citation"
     },
     {
       "name": "The Lasan Bar",
@@ -2639,66 +2483,6 @@
     {
       "name": "Asha's Birmingham",
       "reason": "missing-drinking-evidence"
-    },
-    {
-      "name": "Fazenda Rodizio Bar & Grill",
-      "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "Rosa's Thai Birmingham",
-      "reason": "missing-drinking-evidence"
-    },
-    {
-      "name": "Cow & Sow",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Arch 13 at Connolly’s",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Blacklock Birmingham",
-      "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "La Bellezza",
-      "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "Locanta",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Trentina",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Cucina Rustica",
-      "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "SKRATCH Golf",
-      "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "Opheem",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "https://www.cntraveller.com/gallery/birmingham-bars",
-      "reason": "unreadable: robots refused (robots-disallowed)"
-    },
-    {
-      "name": "https://www.theroyalbirmingham.co.uk",
-      "reason": "unreadable: robots refused (robots-unreadable)"
-    },
-    {
-      "name": "https://thetravelista.net/travel/destination-guides/a-foodie-guide-to-birmingham",
-      "reason": "unreadable: robots refused (robots-unreadable)"
-    },
-    {
-      "name": "https://www.eatdrinkmeet.co.uk",
-      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "Saint Paul's House",
@@ -3573,14 +3357,6 @@
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
-      "name": "Roberto's Bar & Tasting Club",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Zumhof Biergarten",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
       "name": "Sophy Birmingham",
       "reason": "missing-venue-specific-citation"
     },
@@ -4087,18 +3863,6 @@
     {
       "name": "Horseshoe Inn",
       "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Snake Oil",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "https://www.ticketsource.com/whats-on/kings-heath-birmingham/hare-and-hounds-pub",
-      "reason": "unreadable: source refused HTTP 403"
-    },
-    {
-      "name": "https://www.folkandhoney.co.uk/rest-of-the-uk/hare-amp;-hounds-kings-heath-v2166",
-      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "Byzantium",
@@ -6913,46 +6677,6 @@
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
-      "name": "Garretts Green Sports Bar (The Club)",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Mackadown Sports & Social Club",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Meadway Sports and Social Club",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Stechford Social Working Mens Club",
-      "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "The Stechford Club",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "BJ's Luxury Bingo Club",
-      "reason": "citation-does-not-bind-name-and-address"
-    },
-    {
-      "name": "Bengal Palace",
-      "reason": "missing-drinking-evidence"
-    },
-    {
-      "name": "Cafe Balti",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Jolpai Bangladesh & Indian Restaurant",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "The Stechford Club",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
       "name": "Sheldon Hall",
       "reason": "citation-does-not-bind-name-and-address"
     },
@@ -7030,22 +6754,6 @@
     },
     {
       "name": "Garretts Green Sports Bar ( The Club )",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Stechford Social Working Mens Club",
-      "reason": "missing-drinking-evidence"
-    },
-    {
-      "name": "Bengal Palace",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Cafe Balti",
-      "reason": "missing-venue-specific-citation"
-    },
-    {
-      "name": "Jolpai Bangladesh & Indian Restaurant",
       "reason": "missing-venue-specific-citation"
     },
     {

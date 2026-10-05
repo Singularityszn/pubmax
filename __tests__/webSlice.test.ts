@@ -102,6 +102,40 @@ describe("Tavily web slice", () => {
     expect(gone.stored.get(ownSite)).toMatchObject({ unreadable: "page HTTP 404", settled: true });
   });
 
+  it("reads again through the Firecrawl reader only the sources an earlier run skipped, never searching", async () => {
+    const robotsSkip = { outcome: "skipped", reason: "robots unreachable", attempts: 3, evidence: [], checkedAt: observedAt };
+    const extractSkip = { outcome: "skipped", kind: "extract", reason: "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200", attempts: 2, evidence: {}, checkedAt: observedAt };
+    const reread = "https://www.reread.example/";
+    const state = { queries: [{ query: "q0", resultPath: "search-0", observedAt }, { query: "q1", resultPath: "search-1", observedAt }], robots: { [listing]: robotsSkip, [ownSite]: allowed, [reread]: allowed } };
+    const searches = { "search-0": search([{ url: listing, content: "OX4 2LF" }, { url: ownSite, title: "Cricketers Arms", content: "OX4 2EZ" }, { url: reread, title: "Reread", content: "OX4 1AA" }]), "search-1": search([]) };
+    const pages = { [ownSite]: { url: ownSite, skip: extractSkip }, [reread]: { url: reread, landedUrl: reread, observedAt, title: null, text: "" } };
+    const reader = { provider: "firecrawl", label: "Firecrawl scrape", failed: "failed", depths: ["basic"] };
+    const extract = vi.fn(async (urls: string[]) => ({ results: urls.map((url) => ({ url, raw_content: url === listing ? listingText : ownText })) }));
+    const robots = vi.fn(async () => allowed);
+    const { io, stored } = harness({ state, searches, pages, robots, extract });
+    const outcome = await webSlice(slice, { spend: true, skipsOnly: true }, { ...io, reader });
+    expect(robots.mock.calls.map(([url]) => url)).toEqual([listing]);
+    expect(extract.mock.calls).toEqual([[[listing, ownSite], "basic"]]);
+    expect(io.search).not.toHaveBeenCalled();
+    expect(outcome).toMatchObject({ complete: true, skips: [] });
+    expect(outcome.found.map((row: { name: string; provider: string }) => [row.name, row.provider])).toEqual([["Original Swan", "tavily-firecrawl"], ["Cricketers Arms", "tavily-firecrawl"]]);
+    expect(stored.get(ownSite)).toMatchObject({ reader: "firecrawl", text: ownText });
+    const unsearched = harness({ state: { queries: [] }, searches, robots, extract });
+    expect(await webSlice(slice, { spend: true, skipsOnly: true }, { ...unsearched.io, reader })).toMatchObject({ complete: false });
+    expect(unsearched.io.search).not.toHaveBeenCalled();
+  });
+
+  it("records a Firecrawl skip with its one read and the page's status", async () => {
+    const reader = { provider: "firecrawl", label: "Firecrawl scrape", failed: "failed", depths: ["basic"] };
+    const searches = { "search-0": search([{ url: ownSite, title: "Cricketers Arms", content: "OX4 2EZ" }]) };
+    const extract = vi.fn(async (urls: string[]) => ({ failed_results: urls.map((url) => ({ url, error: "Firecrawl returned no markdown" })) }));
+    const { io } = harness({ state: { queries: [{ query: "q0", resultPath: "search-0", observedAt }, { query: "q1", resultPath: "search-1", observedAt }], robots: { [ownSite]: allowed } }, searches: { ...searches, "search-1": search([]) },
+      pages: { [ownSite]: { url: ownSite, skip: { outcome: "skipped", kind: "extract" } } }, extract, probe: vi.fn(async () => ({ status: 200, landed: "permitted" })) });
+    const outcome = await webSlice(slice, { spend: true, skipsOnly: true }, { ...io, reader });
+    expect(extract).toHaveBeenCalledTimes(1);
+    expect(outcome.skips).toMatchObject([{ url: ownSite, kind: "extract", attempts: 1, reason: "Firecrawl scrape failed; the page answered HTTP 200", evidence: { basic: "Firecrawl returned no markdown", probe: { status: 200 } } }]);
+  });
+
   it("filters pages from sites that cannot describe a venue before reading or paying for them", async () => {
     const council = "https://democracy.manchester.gov.uk/documents/s1/licence.pdf";
     const postcodes = "https://www.postcodearea.co.uk/postaltowns/oxford/ox42lf";

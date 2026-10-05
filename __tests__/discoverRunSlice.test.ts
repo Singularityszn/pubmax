@@ -21,7 +21,7 @@ describe("runSlice", () => {
     const options = { cities: ["birmingham"], provider: "parallel", refresh: false, processor: "pro", matches: 30 };
     const unselected = await runSlice(slice("oxford"), options, fake);
     expect(fake.parallel).toHaveBeenLastCalledWith(slice("oxford"), expect.objectContaining({ refresh: false }), false);
-    expect(fake.web).toHaveBeenCalledWith(slice("oxford"), { spend: false, refresh: false });
+    expect(fake.web).toHaveBeenCalledWith(slice("oxford"), { spend: false, refresh: false, skipsOnly: false });
     expect(unselected).toMatchObject({ complete: true, taskRuns: 2, skips: cachedWeb.skips, filtered: cachedWeb.filtered, found: cachedWeb.found });
     const selected = await runSlice(slice("birmingham"), options, fake);
     expect(fake.parallel).toHaveBeenLastCalledWith(slice("birmingham"), expect.objectContaining({ refresh: false }), true);
@@ -34,10 +34,10 @@ describe("runSlice", () => {
     const options = { cities: ["manchester"], provider: "tavily", refresh: true, processor: "pro", matches: 30 };
     expect(await runSlice(slice("oxford"), options, fake)).toMatchObject({ complete: true, skips: cachedWeb.skips, filtered: cachedWeb.filtered });
     expect(fake.parallel).toHaveBeenLastCalledWith(slice("oxford"), expect.objectContaining({ refresh: false }), false);
-    expect(fake.web).toHaveBeenLastCalledWith(slice("oxford"), { spend: false, refresh: false });
+    expect(fake.web).toHaveBeenLastCalledWith(slice("oxford"), { spend: false, refresh: false, skipsOnly: false });
     await runSlice(slice("manchester"), options, fake);
     expect(fake.parallel).toHaveBeenLastCalledWith(slice("manchester"), expect.objectContaining({ refresh: false }), false);
-    expect(fake.web).toHaveBeenLastCalledWith(slice("manchester"), { spend: true, refresh: true });
+    expect(fake.web).toHaveBeenLastCalledWith(slice("manchester"), { spend: true, refresh: true, skipsOnly: false });
   });
 
   it("keeps a selected city's paid Parallel pages under a Tavily refresh and buys no search for a finished slice", async () => {
@@ -56,10 +56,20 @@ describe("runSlice", () => {
     expect(fake.parallel).toHaveBeenLastCalledWith(slice("birmingham"), expect.objectContaining({ refresh: true }), true);
   });
 
+  it("reads only skipped sources under Firecrawl, never refreshing either lane", async () => {
+    const fake = lanes(() => false);
+    const options = { cities: ["leeds"], provider: "firecrawl", refresh: true, processor: "pro", matches: 30 };
+    await runSlice(slice("leeds"), options, fake);
+    expect(fake.parallel).toHaveBeenLastCalledWith(slice("leeds"), expect.objectContaining({ refresh: false }), false);
+    expect(fake.web).toHaveBeenLastCalledWith(slice("leeds"), { spend: true, refresh: false, skipsOnly: true });
+    await runSlice(slice("oxford"), options, fake);
+    expect(fake.web).toHaveBeenLastCalledWith(slice("oxford"), { spend: false, refresh: false, skipsOnly: true });
+  });
+
   it("replays every city without spending when no city is selected", async () => {
     const fake = lanes(() => false);
     await runSlice(slice("leeds"), { cities: [], provider: "tavily", refresh: true, processor: "pro", matches: 30 }, fake);
     expect(fake.parallel).toHaveBeenLastCalledWith(slice("leeds"), expect.objectContaining({ refresh: false }), false);
-    expect(fake.web).toHaveBeenLastCalledWith(slice("leeds"), { spend: false, refresh: false });
+    expect(fake.web).toHaveBeenLastCalledWith(slice("leeds"), { spend: false, refresh: false, skipsOnly: false });
   });
 });

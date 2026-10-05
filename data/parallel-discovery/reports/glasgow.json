@@ -15,22 +15,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:29:09.547Z",
+          "at": "2026-10-05T09:33:59.085Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.ukinbound.org/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:29:15.386Z",
+          "at": "2026-10-05T09:34:04.910Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.ukinbound.org/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:29:21.276Z",
+          "at": "2026-10-05T09:34:10.735Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.ukinbound.org/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:29:21.276Z"
+      "checkedAt": "2026-10-05T09:34:10.735Z"
     },
     {
       "district": "G31",
@@ -42,22 +42,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:29:33.240Z",
+          "at": "2026-10-05T09:34:19.617Z",
           "reason": "robots-unreachable",
           "evidence": "https://iblog.dearbornschools.org/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:29:59.729Z",
+          "at": "2026-10-05T09:34:45.723Z",
           "reason": "robots-unreachable",
           "evidence": "https://iblog.dearbornschools.org/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:30:26.224Z",
+          "at": "2026-10-05T09:35:12.243Z",
           "reason": "robots-unreachable",
           "evidence": "https://iblog.dearbornschools.org/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:30:26.224Z"
+      "checkedAt": "2026-10-05T09:35:12.243Z"
     },
     {
       "district": "G32",
@@ -69,22 +69,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:27:21.729Z",
+          "at": "2026-10-05T09:33:57.892Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:27:27.542Z",
+          "at": "2026-10-05T09:34:03.783Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:27:33.365Z",
+          "at": "2026-10-05T09:34:09.652Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:29:11.097Z"
+      "checkedAt": "2026-10-05T09:34:09.652Z"
     },
     {
       "district": "G40",
@@ -96,22 +96,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:29:33.239Z",
+          "at": "2026-10-05T09:34:19.617Z",
           "reason": "robots-unreachable",
           "evidence": "https://mercureglasgow.cityhotel.org/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:29:59.729Z",
+          "at": "2026-10-05T09:34:46.195Z",
           "reason": "robots-unreachable",
           "evidence": "https://mercureglasgow.cityhotel.org/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:30:26.225Z",
+          "at": "2026-10-05T09:35:12.242Z",
           "reason": "robots-unreachable",
           "evidence": "https://mercureglasgow.cityhotel.org/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:30:26.225Z"
+      "checkedAt": "2026-10-05T09:35:12.242Z"
     },
     {
       "district": "G41",
@@ -123,22 +123,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:27:46.742Z",
+          "at": "2026-10-05T09:34:27.628Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:22.501Z",
+          "at": "2026-10-05T09:35:03.399Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:58.259Z",
+          "at": "2026-10-05T09:35:39.192Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:29:12.341Z"
+      "checkedAt": "2026-10-05T09:35:39.204Z"
     }
   ],
   "filteredSources": [
@@ -732,10 +732,6 @@
       "id": "venue-glw-p8mmqn"
     },
     {
-      "name": "Berlinkys",
-      "id": "venue-glw-gqihq0"
-    },
-    {
       "name": "King Tut's Wah Wah Hut",
       "id": "venue-glw-1ttk5oj"
     },
@@ -796,9 +792,15 @@
       "id": "venue-glw-mfbz0j"
     }
   ],
-  "totalAccepted": 21,
+  "totalAccepted": 20,
   "repeats": 4,
   "duplicates": [
+    {
+      "name": "Berlinkys",
+      "id": null,
+      "matchedName": "Berlinkys",
+      "matchedId": "node/6056122714"
+    },
     {
       "name": "Big Slope",
       "id": null,
@@ -870,7 +872,7 @@
           "url": "https://bothyglasgow.co.uk/",
           "outcome": "refused",
           "reason": "robots-unreadable",
-          "checkedAt": "2026-10-04T18:09:04.655Z"
+          "checkedAt": "2026-10-05T09:24:36.978Z"
         }
       ]
     },
@@ -887,22 +889,22 @@
           "attempts": 3,
           "evidence": [
             {
-              "at": "2026-10-04T18:09:05.483Z",
+              "at": "2026-10-05T09:24:37.884Z",
               "reason": "robots-unreachable",
               "evidence": "https://sohojordanhill.com/robots.txt could not be fetched (fetch failed)."
             },
             {
-              "at": "2026-10-04T18:09:11.876Z",
+              "at": "2026-10-05T09:24:43.709Z",
               "reason": "robots-unreachable",
               "evidence": "https://sohojordanhill.com/robots.txt could not be fetched (fetch failed)."
             },
             {
-              "at": "2026-10-04T18:09:17.763Z",
+              "at": "2026-10-05T09:24:49.605Z",
               "reason": "robots-unreachable",
               "evidence": "https://sohojordanhill.com/robots.txt could not be fetched (fetch failed)."
             }
           ],
-          "checkedAt": "2026-10-04T18:09:17.763Z"
+          "checkedAt": "2026-10-05T09:24:49.605Z"
         }
       ]
     },
@@ -915,7 +917,7 @@
           "url": "https://www.opentable.com/r/killermont-poloclub-glasgow",
           "outcome": "refused",
           "reason": "robots-disallowed",
-          "checkedAt": "2026-10-04T18:09:04.577Z"
+          "checkedAt": "2026-10-05T09:24:36.867Z"
         }
       ]
     }

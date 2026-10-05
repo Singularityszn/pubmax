@@ -4,62 +4,7 @@
   "slices": 4,
   "slicesComplete": 4,
   "incompleteSlices": [],
-  "skippedSources": [
-    {
-      "district": "DH1",
-      "category": "pub",
-      "url": "https://www.theheadofsteam.co.uk/bars/durham",
-      "host": "www.theheadofsteam.co.uk",
-      "kind": "robots",
-      "reason": "robots unreachable",
-      "attempts": 3,
-      "evidence": [
-        {
-          "at": "2026-10-04T14:27:38.295Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
-        },
-        {
-          "at": "2026-10-04T14:28:05.069Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
-        },
-        {
-          "at": "2026-10-04T14:28:31.822Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
-        }
-      ],
-      "checkedAt": "2026-10-04T14:30:35.298Z"
-    },
-    {
-      "district": "DH1",
-      "category": "bar",
-      "url": "https://www.theheadofsteam.co.uk/bars/durham",
-      "host": "www.theheadofsteam.co.uk",
-      "kind": "robots",
-      "reason": "robots unreachable",
-      "attempts": 3,
-      "evidence": [
-        {
-          "at": "2026-10-04T14:27:38.295Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
-        },
-        {
-          "at": "2026-10-04T14:28:05.069Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
-        },
-        {
-          "at": "2026-10-04T14:28:31.822Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
-        }
-      ],
-      "checkedAt": "2026-10-04T14:30:35.233Z"
-    }
-  ],
+  "skippedSources": [],
   "filteredSources": [
     {
       "district": "DH1",
@@ -168,6 +113,10 @@
       "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
+      "name": "https://www.theheadofsteam.co.uk/bars/durham",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
       "name": "The Avenue Inn",
       "reason": "citation-does-not-bind-name-and-address"
     },
@@ -193,6 +142,10 @@
     },
     {
       "name": "https://www.thehalfmooninndurham.co.uk",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.theheadofsteam.co.uk/bars/durham",
       "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {

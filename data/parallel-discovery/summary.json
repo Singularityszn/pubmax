@@ -1,7 +1,8 @@
 {
   "providers": [
     "parallel",
-    "tavily"
+    "tavily",
+    "firecrawl"
   ],
   "parallelProcessor": "pro",
   "parallelMatchesPerPage": 30,
@@ -20,19 +21,19 @@
       "districts": 42,
       "slices": 168,
       "slicesComplete": 168,
-      "slicesWithSkips": 14,
-      "skippedSources": 15,
-      "robotsSkips": 15,
+      "slicesWithSkips": 12,
+      "skippedSources": 12,
+      "robotsSkips": 12,
       "extractSkips": 0,
-      "filteredSources": 46,
+      "filteredSources": 41,
       "taskRuns": 675,
-      "webSearches": 156,
-      "pagesRead": 584,
-      "researched": 2070,
+      "webSearches": 148,
+      "pagesRead": 548,
+      "researched": 2028,
       "added": 0,
       "retained": 116,
       "duplicates": 33,
-      "rejected": 1978,
+      "rejected": 1934,
       "totalAccepted": 116,
       "usage": {
         "parallel": {
@@ -53,9 +54,9 @@
       "districts": 21,
       "slices": 84,
       "slicesComplete": 84,
-      "slicesWithSkips": 5,
-      "skippedSources": 6,
-      "robotsSkips": 5,
+      "slicesWithSkips": 2,
+      "skippedSources": 2,
+      "robotsSkips": 1,
       "extractSkips": 1,
       "filteredSources": 31,
       "taskRuns": 110,
@@ -63,10 +64,10 @@
       "pagesRead": 500,
       "researched": 506,
       "added": 0,
-      "retained": 22,
-      "duplicates": 4,
-      "rejected": 556,
-      "totalAccepted": 25,
+      "retained": 21,
+      "duplicates": 5,
+      "rejected": 560,
+      "totalAccepted": 24,
       "usage": {
         "parallel": {
           "calls": 328,
@@ -77,6 +78,11 @@
           "calls": 314,
           "credits": 223,
           "estimatedCostUsd": 1.784
+        },
+        "firecrawl": {
+          "calls": 3,
+          "credits": 0,
+          "estimatedCostUsd": 0
         }
       }
     },
@@ -96,10 +102,10 @@
       "pagesRead": 872,
       "researched": 310,
       "added": 0,
-      "retained": 18,
-      "duplicates": 10,
+      "retained": 17,
+      "duplicates": 11,
       "rejected": 460,
-      "totalAccepted": 21,
+      "totalAccepted": 20,
       "usage": {
         "parallel": {
           "calls": 261,
@@ -119,10 +125,10 @@
       "districts": 52,
       "slices": 208,
       "slicesComplete": 208,
-      "slicesWithSkips": 16,
-      "skippedSources": 21,
-      "robotsSkips": 17,
-      "extractSkips": 4,
+      "slicesWithSkips": 12,
+      "skippedSources": 13,
+      "robotsSkips": 13,
+      "extractSkips": 0,
       "filteredSources": 81,
       "taskRuns": 0,
       "webSearches": 380,
@@ -131,7 +137,7 @@
       "added": 0,
       "retained": 33,
       "duplicates": 57,
-      "rejected": 208,
+      "rejected": 212,
       "totalAccepted": 33,
       "usage": {
         "parallel": {
@@ -145,9 +151,9 @@
           "estimatedCostUsd": 4.512
         },
         "firecrawl": {
-          "calls": 128,
-          "credits": 604,
-          "estimatedCostUsd": 3.02
+          "calls": 132,
+          "credits": 608,
+          "estimatedCostUsd": 3.04
         }
       }
     },
@@ -157,9 +163,9 @@
       "districts": 1,
       "slices": 4,
       "slicesComplete": 4,
-      "slicesWithSkips": 2,
-      "skippedSources": 2,
-      "robotsSkips": 2,
+      "slicesWithSkips": 0,
+      "skippedSources": 0,
+      "robotsSkips": 0,
       "extractSkips": 0,
       "filteredSources": 3,
       "taskRuns": 8,
@@ -169,7 +175,7 @@
       "added": 0,
       "retained": 8,
       "duplicates": 1,
-      "rejected": 44,
+      "rejected": 46,
       "totalAccepted": 8,
       "usage": {
         "parallel": {
@@ -190,10 +196,10 @@
       "districts": 35,
       "slices": 140,
       "slicesComplete": 140,
-      "slicesWithSkips": 18,
-      "skippedSources": 19,
+      "slicesWithSkips": 15,
+      "skippedSources": 16,
       "robotsSkips": 14,
-      "extractSkips": 5,
+      "extractSkips": 2,
       "filteredSources": 54,
       "taskRuns": 0,
       "webSearches": 247,
@@ -214,6 +220,11 @@
           "calls": 557,
           "credits": 383,
           "estimatedCostUsd": 3.064
+        },
+        "firecrawl": {
+          "calls": 9,
+          "credits": 32,
+          "estimatedCostUsd": 0.16
         }
       }
     },
@@ -223,10 +234,10 @@
       "districts": 14,
       "slices": 56,
       "slicesComplete": 56,
-      "slicesWithSkips": 7,
-      "skippedSources": 8,
-      "robotsSkips": 3,
-      "extractSkips": 5,
+      "slicesWithSkips": 2,
+      "skippedSources": 2,
+      "robotsSkips": 2,
+      "extractSkips": 0,
       "filteredSources": 27,
       "taskRuns": 0,
       "webSearches": 110,
@@ -235,7 +246,7 @@
       "added": 0,
       "retained": 5,
       "duplicates": 7,
-      "rejected": 83,
+      "rejected": 84,
       "totalAccepted": 5,
       "usage": {
         "parallel": {
@@ -247,6 +258,11 @@
           "calls": 257,
           "credits": 199,
           "estimatedCostUsd": 1.592
+        },
+        "firecrawl": {
+          "calls": 8,
+          "credits": 4,
+          "estimatedCostUsd": 0.02
         }
       }
     },
@@ -256,10 +272,10 @@
       "districts": 2,
       "slices": 8,
       "slicesComplete": 8,
-      "slicesWithSkips": 2,
-      "skippedSources": 2,
+      "slicesWithSkips": 1,
+      "skippedSources": 1,
       "robotsSkips": 1,
-      "extractSkips": 1,
+      "extractSkips": 0,
       "filteredSources": 5,
       "taskRuns": 0,
       "webSearches": 18,
@@ -280,6 +296,11 @@
           "calls": 45,
           "credits": 38,
           "estimatedCostUsd": 0.304
+        },
+        "firecrawl": {
+          "calls": 3,
+          "credits": 1,
+          "estimatedCostUsd": 0.005
         }
       }
     },
@@ -322,10 +343,10 @@
       "districts": 5,
       "slices": 20,
       "slicesComplete": 20,
-      "slicesWithSkips": 4,
-      "skippedSources": 4,
+      "slicesWithSkips": 2,
+      "skippedSources": 2,
       "robotsSkips": 2,
-      "extractSkips": 2,
+      "extractSkips": 0,
       "filteredSources": 22,
       "taskRuns": 0,
       "webSearches": 45,
@@ -346,6 +367,11 @@
           "calls": 138,
           "credits": 102,
           "estimatedCostUsd": 0.816
+        },
+        "firecrawl": {
+          "calls": 4,
+          "credits": 2,
+          "estimatedCostUsd": 0.01
         }
       }
     },
@@ -387,7 +413,7 @@
   "failedSlices": 0,
   "firstFailure": null,
   "usage": {
-    "calls": 5871,
+    "calls": 5902,
     "byEndpoint": {
       "parallel /v1/search 200": 10,
       "parallel /v1/tasks/runs 422": 1,
@@ -397,9 +423,9 @@
       "parallel /v1/tasks/runs/{run_id}/result 408": 13,
       "parallel /v1/tasks/runs 402": 823,
       "tavily /search 200": 1380,
-      "firecrawl /v2/scrape 200": 109,
-      "firecrawl /v2/scrape 429": 14,
-      "firecrawl /v2/scrape 500": 2,
+      "firecrawl /v2/scrape 200": 126,
+      "firecrawl /v2/scrape 429": 22,
+      "firecrawl /v2/scrape 500": 8,
       "firecrawl /v2/scrape 408": 1,
       "firecrawl /v2/scrape 402": 2,
       "tavily /extract 200": 1740,
@@ -429,6 +455,11 @@
           "calls": 314,
           "credits": 223,
           "estimatedCostUsd": 1.784
+        },
+        "firecrawl": {
+          "calls": 3,
+          "credits": 0,
+          "estimatedCostUsd": 0
         }
       },
       "glasgow": {
@@ -467,9 +498,9 @@
           "estimatedCostUsd": 4.512
         },
         "firecrawl": {
-          "calls": 128,
-          "credits": 604,
-          "estimatedCostUsd": 3.02
+          "calls": 132,
+          "credits": 608,
+          "estimatedCostUsd": 3.04
         }
       },
       "liverpool": {
@@ -482,6 +513,11 @@
           "calls": 557,
           "credits": 383,
           "estimatedCostUsd": 3.064
+        },
+        "firecrawl": {
+          "calls": 9,
+          "credits": 32,
+          "estimatedCostUsd": 0.16
         }
       },
       "bristol": {
@@ -494,6 +530,11 @@
           "calls": 257,
           "credits": 199,
           "estimatedCostUsd": 1.592
+        },
+        "firecrawl": {
+          "calls": 8,
+          "credits": 4,
+          "estimatedCostUsd": 0.02
         }
       },
       "bath": {
@@ -506,6 +547,11 @@
           "calls": 45,
           "credits": 38,
           "estimatedCostUsd": 0.304
+        },
+        "firecrawl": {
+          "calls": 3,
+          "credits": 1,
+          "estimatedCostUsd": 0.005
         }
       },
       "oxford": {
@@ -530,6 +576,11 @@
           "calls": 138,
           "credits": 102,
           "estimatedCostUsd": 0.816
+        },
+        "firecrawl": {
+          "calls": 4,
+          "credits": 2,
+          "estimatedCostUsd": 0.01
         }
       },
       "llandudno": {
@@ -552,6 +603,6 @@
         }
       }
     },
-    "estimatedCostUsd": 108.186
+    "estimatedCostUsd": 108.401
   }
 }

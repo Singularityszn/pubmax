@@ -6,60 +6,6 @@
   "incompleteSlices": [],
   "skippedSources": [
     {
-      "district": "LS1",
-      "category": "restaurant",
-      "url": "https://www.theheadofsteam.co.uk/bars/leeds-park-row",
-      "host": "www.theheadofsteam.co.uk",
-      "kind": "robots",
-      "reason": "robots unreachable",
-      "attempts": 3,
-      "evidence": [
-        {
-          "at": "2026-10-04T14:27:38.295Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
-        },
-        {
-          "at": "2026-10-04T14:28:05.069Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
-        },
-        {
-          "at": "2026-10-04T14:28:31.822Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
-        }
-      ],
-      "checkedAt": "2026-10-04T14:28:59.206Z"
-    },
-    {
-      "district": "LS1",
-      "category": "restaurant",
-      "url": "https://www.theheadofsteam.co.uk/bars/leeds-city-centre",
-      "host": "www.theheadofsteam.co.uk",
-      "kind": "robots",
-      "reason": "robots unreachable",
-      "attempts": 3,
-      "evidence": [
-        {
-          "at": "2026-10-04T14:27:38.295Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
-        },
-        {
-          "at": "2026-10-04T14:28:05.069Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
-        },
-        {
-          "at": "2026-10-04T14:28:31.822Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
-        }
-      ],
-      "checkedAt": "2026-10-04T14:29:00.350Z"
-    },
-    {
       "district": "LS2",
       "category": "pub",
       "url": "https://www.datathistle.com/place/107285-revolution-leeds",
@@ -69,22 +15,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:27:21.729Z",
+          "at": "2026-10-05T09:33:57.892Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:27:27.542Z",
+          "at": "2026-10-05T09:34:03.783Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:27:33.365Z",
+          "at": "2026-10-05T09:34:09.652Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:28:59.463Z"
+      "checkedAt": "2026-10-05T09:34:09.652Z"
     },
     {
       "district": "LS5",
@@ -93,72 +39,17 @@
       "host": "mindtrip.ai",
       "outcome": "skipped",
       "kind": "extract",
-      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
-      "attempts": 2,
+      "reason": "Firecrawl scrape failed; the page answered HTTP 200",
+      "attempts": 1,
       "evidence": {
-        "basic": "Failed to fetch url",
-        "advanced": "Failed to fetch url",
+        "basic": "Firecrawl HTTP 500",
         "probe": {
           "status": 200,
           "landed": "permitted",
-          "checkedAt": "2026-10-04T14:29:18.455Z"
+          "checkedAt": "2026-10-05T09:34:03.145Z"
         }
       },
-      "checkedAt": "2026-10-04T14:29:18.099Z"
-    },
-    {
-      "district": "LS6",
-      "category": "bar",
-      "url": "https://www.theheadofsteam.co.uk/bars/headingley",
-      "host": "www.theheadofsteam.co.uk",
-      "kind": "robots",
-      "reason": "robots unreachable",
-      "attempts": 3,
-      "evidence": [
-        {
-          "at": "2026-10-04T14:27:38.295Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
-        },
-        {
-          "at": "2026-10-04T14:28:05.069Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
-        },
-        {
-          "at": "2026-10-04T14:28:31.822Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
-        }
-      ],
-      "checkedAt": "2026-10-04T14:29:00.699Z"
-    },
-    {
-      "district": "LS6",
-      "category": "cocktail-bar",
-      "url": "https://www.theheadofsteam.co.uk/bars/headingley",
-      "host": "www.theheadofsteam.co.uk",
-      "kind": "robots",
-      "reason": "robots unreachable",
-      "attempts": 3,
-      "evidence": [
-        {
-          "at": "2026-10-04T14:27:38.295Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
-        },
-        {
-          "at": "2026-10-04T14:28:05.069Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
-        },
-        {
-          "at": "2026-10-04T14:28:31.822Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://www.theheadofsteam.co.uk/robots.txt could not be fetched (fetch failed)."
-        }
-      ],
-      "checkedAt": "2026-10-04T14:29:00.830Z"
+      "checkedAt": "2026-10-05T09:34:02.505Z"
     }
   ],
   "filteredSources": [
@@ -463,10 +354,6 @@
       "id": "venue-lds-xso151"
     },
     {
-      "name": "Adel Tap",
-      "id": "venue-lds-dseyeu"
-    },
-    {
       "name": "The Fishermans Lodge",
       "id": "venue-lds-1dshprx"
     },
@@ -475,7 +362,7 @@
       "id": "venue-lds-eopqpi"
     }
   ],
-  "totalAccepted": 25,
+  "totalAccepted": 24,
   "repeats": 6,
   "duplicates": [
     {
@@ -501,6 +388,12 @@
       "id": null,
       "matchedName": "The Old Red Lion",
       "matchedId": "node/2141116425"
+    },
+    {
+      "name": "Adel Tap",
+      "id": null,
+      "matchedName": "Adel Tap",
+      "matchedId": "node/14248780549"
     }
   ],
   "withdrawn": [
@@ -513,13 +406,13 @@
           "url": "https://www.egorestaurants.co.uk/restaurants/yorkshire/shadwell/drinks-menu",
           "outcome": "refused",
           "reason": "robots-unreadable",
-          "checkedAt": "2026-10-04T18:08:50.280Z"
+          "checkedAt": "2026-10-05T09:24:29.726Z"
         },
         {
           "url": "https://www.egorestaurants.co.uk/restaurants/yorkshire/shadwell",
           "outcome": "refused",
           "reason": "robots-unreadable",
-          "checkedAt": "2026-10-04T18:08:50.280Z"
+          "checkedAt": "2026-10-05T09:24:29.726Z"
         }
       ]
     }
@@ -827,12 +720,20 @@
       "reason": "missing-venue-specific-citation"
     },
     {
+      "name": "https://www.theheadofsteam.co.uk/bars/leeds-park-row",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
       "name": "https://www.yelp.ca/search?cflt=restaurants&find_loc=1+Whitehall+Quay%2C+Leeds+LS1+4HR%2C+United+Kingdom",
       "reason": "unreadable: robots refused (robots-disallowed)"
     },
     {
       "name": "https://leeds-list.com/page/57?attachment_id=",
       "reason": "unreadable: page HTTP 410"
+    },
+    {
+      "name": "https://www.theheadofsteam.co.uk/bars/leeds-city-centre",
+      "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
       "name": "Salt Calls Landing",
@@ -1047,6 +948,10 @@
       "reason": "citation-does-not-bind-name-and-address"
     },
     {
+      "name": "https://www.theheadofsteam.co.uk/bars/headingley",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
       "name": "https://www.theoriginaloakleeds.co.uk",
       "reason": "unreadable: robots refused (robots-unreadable)"
     },
@@ -1108,6 +1013,10 @@
     },
     {
       "name": "https://www.theheadingleytapsleeds.co.uk",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.theheadofsteam.co.uk/bars/headingley",
       "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {
