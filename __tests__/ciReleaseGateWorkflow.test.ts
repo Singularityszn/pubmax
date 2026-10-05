@@ -184,7 +184,8 @@ describe("clean-main CI release gate", () => {
   it("validates every bundled dataset in its own job", () => {
     const validation = steps.filter((step) => step.job === "validate-data");
     expect(validation.map((step) => step.run)).toContain("npm run validate-data");
-    expect(workflow).toMatch(/validate-data:\n {4}name: Data validation\n/);
+    const { jobs } = parse(workflow) as { jobs: Record<string, { name?: string }> };
+    expect(jobs["validate-data"]?.name).toBe("Data validation");
   });
 
   it("starts the unit shards at once and in parallel", () => {
