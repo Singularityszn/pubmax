@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { paintedAmbientSurfaces } from "./helpers/ambientMapSurfaces";
+import { expectLayoutSettled } from "./helpers/layoutSettled";
 
 const DESKTOP = { width: 1440, height: 900 };
 const DESKTOP_WIDTHS = [1024, 1280, 1440, 1600] as const;
@@ -248,8 +249,8 @@ for (const width of DESKTOP_WIDTHS) {
   test(`${width}px open planner keeps toolbar search and Clear search beyond the rail edge`, async ({
     page,
   }) => {
+    // A cold map gives the toolbar and the rail up to 20 s each below.
     test.setTimeout(90_000);
-    await page.emulateMedia({ reducedMotion: "reduce" });
     await prepareDesktopMap(page, width);
     await stubCityStatus(page);
 
@@ -276,6 +277,9 @@ for (const width of DESKTOP_WIDTHS) {
         message: "planner rail has finished its slide to the viewport edge",
       })
       .toBeLessThanOrEqual(1);
+    // The rail's spring and the toolbar's shift are measured at rest.
+    await expectLayoutSettled(rail);
+    await expectLayoutSettled(toolbar);
 
     const [railBox, toolbarBox, searchBox, clearBox] = await Promise.all([
       renderedBox(rail, "planner rail"),
