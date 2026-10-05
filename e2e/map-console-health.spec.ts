@@ -183,7 +183,7 @@ test("/map stays console-healthy across repeated /map↔/feed navigation", async
   }
   await page.setViewportSize({ width: 390, height: 844 });
   // A phone has no map-edge compass: its reset is "Reset view" in the Layers tab
-  // of More map controls, shown only once the camera is off the city's attitude
+  // of More map controls, disabled while the camera is on the city's attitude
   // (docs/proof/red-on-main-2026-09.md R19; e2e/map-gestures.spec.ts). What a
   // phone must not do is answer the same question with MapLibre's own flattened
   // compass, or its native zoom pair.

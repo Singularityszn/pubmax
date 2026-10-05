@@ -484,6 +484,7 @@ import {
   mapCanvasUnavailableLine,
 } from "@/lib/mapCanvasAvailability";
 import { mapAmbientBannersVisible, pickMapSurfaceToast } from "@/lib/mapSurfaceChrome";
+import { compassResetLabel } from "@/lib/mapCompass";
 import { resolveMapDisplayName } from "@/lib/mapDisplayName";
 import MapLoadingFrame from "@/components/map/MapLoadingFrame";
 import { useMapPinsRevealed } from "@/components/map/useMapPinsRevealed";
@@ -1078,7 +1079,8 @@ export default function PubMap({
     () => nationalBrowse || isUkNationalBrowse(currentSearch()),
   );
   // The canvas hands over its camera reset only while the camera is off the
-  // city's attitude; the phone Layers tab shows Reset view while it holds one.
+  // city's attitude; the phone Layers tab always shows Reset view, disabled
+  // while it holds none.
   const [cameraReset, setCameraReset] = useState<{ run: () => void } | null>(null);
   const handleCameraResetChange = useCallback((run: (() => void) | null) => {
     setCameraReset(run ? { run } : null);
@@ -5856,12 +5858,16 @@ export default function PubMap({
             <div><strong>Map appearance</strong><small>Theme changes preserve this view and its active sheet.</small></div>
             <ThemeToggle />
           </div>
-          {cameraReset ? (
-            <Button variant="secondary" className="w-full uiButton--start" onClick={() => cameraReset.run()}>
-              <Navigation2 size={18} aria-hidden="true" />
-              Reset view
-            </Button>
-          ) : null}
+          <Button
+            variant="secondary"
+            className="w-full uiButton--start"
+            disabled={!cameraReset}
+            onClick={() => cameraReset?.run()}
+            aria-label={compassResetLabel(city.displayName)}
+          >
+            <Navigation2 size={18} aria-hidden="true" />
+            Reset view
+          </Button>
           <MapLayersControl embedded poiHidden={poiHidden} onPoiHiddenChange={setPoiHidden} activeBandId={activeBandId} onBandChange={setActiveBandId} storyBands={cityStoryBands} cityId={cityId} />
         </TabsContent>
         {experienceLens === "all" ? (

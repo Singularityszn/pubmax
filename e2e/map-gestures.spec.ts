@@ -456,8 +456,8 @@ test("a phone turns and tilts the map, and Reset view in the Layers tab gives ba
     return sheet;
   };
   let sheet = await openLayersTab();
-  const reset = sheet.getByRole("button", { name: "Reset view" });
-  await expect(reset).toBeVisible();
+  const reset = sheet.getByRole("button", { name: "Reset the map view of London" });
+  await expect(reset).toBeEnabled();
   await reset.click();
 
   await expect.poll(
@@ -467,9 +467,11 @@ test("a phone turns and tilts the map, and Reset view in the Layers tab gives ba
   const back = await readCamera(page);
   expect(Math.abs(back.pitch - LONDON_ATTITUDE.pitch)).toBeLessThan(0.5);
 
-  // On the city's own attitude there is nothing to reset, so the action is gone.
-  await expect(reset).toBeHidden();
+  // On the city's own attitude there is nothing to reset, so the action stays
+  // in place and is disabled.
+  await expect(reset).toBeVisible();
+  await expect(reset).toBeDisabled();
   await sheet.getByRole("button", { name: "Close Map controls" }).click();
   sheet = await openLayersTab();
-  await expect(sheet.getByRole("button", { name: "Reset view" })).toHaveCount(0);
+  await expect(sheet.getByRole("button", { name: "Reset the map view of London" })).toBeDisabled();
 });
