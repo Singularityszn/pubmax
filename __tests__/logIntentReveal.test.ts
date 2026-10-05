@@ -7,9 +7,6 @@
 //
 // The fix is a REVEAL and never a re-layout, and this is its contract.
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -19,12 +16,6 @@ import {
   requestLogIntentReveal,
   takeLogIntentReveal,
 } from "@/lib/logIntentReveal";
-
-const REPO_ROOT = join(__dirname, "..");
-
-function read(relative: string): string {
-  return readFileSync(join(REPO_ROOT, relative), "utf8");
-}
 
 function stepWith(scrollIntoView: unknown): HTMLElement {
   return { scrollIntoView } as unknown as HTMLElement;
@@ -133,20 +124,5 @@ describe("a composer that is already open", () => {
     clock.flush();
     expect(fromMount).toHaveBeenCalledTimes(1);
     expect(fromFrame).not.toHaveBeenCalled();
-  });
-});
-
-describe("the map wires the reveal to the log intent and nothing else", () => {
-  const pubMap = read("components/PubMap.tsx");
-  const start = pubMap.indexOf("const openComposerForLog = useCallback(");
-  const body = pubMap.slice(start, pubMap.indexOf("}, [closePlanning", start));
-
-  it("moves no focus, so the soft keyboard stays the reader's own next move", () => {
-    expect(body).not.toContain(".focus(");
-  });
-
-  it("keeps the sheet's own detent and tab decisions unchanged", () => {
-    expect(body).toContain('setVenueInitialTab("pints")');
-    expect(body).toContain('setSheetSnap("full")');
   });
 });

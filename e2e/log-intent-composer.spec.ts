@@ -92,4 +92,12 @@ test("the log intent lands the reader on the composer's price step", async ({ pa
 
   // The price field itself is what the reader came to fill in.
   await expect(priceStep.locator("input").first()).toBeInViewport();
+
+  // A reveal and never a re-layout: the sheet opened on its Pints tab, and
+  // focus stayed put, so raising the keyboard is the reader's own next move.
+  await expect(page.locator("#venueTab-pints")).toHaveAttribute("aria-selected", "true");
+  expect(
+    await priceStep.evaluate((step) => step.contains(document.activeElement)),
+    "the reveal moves no focus into the price step",
+  ).toBe(false);
 });

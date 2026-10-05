@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 
 // The map takes back a log intent's waiting reveal when that wait can no longer
-// end in its own composer: when the sheet closes, and when the map unmounts.
+// end in the composer the intent opened: when the sheet closes, when that
+// composer closes, and when the map unmounts.
 // This mounts the real hook beside the real price step and watches whether a
 // later composer still scrolls.
 
@@ -20,8 +21,16 @@ let scrolls: number;
 
 // The map, standing in: the hook at a fixed place in the tree, and the
 // composer's price step beside it once the sheet has loaded it.
-function MapStandIn({ detailOpen, composer }: { detailOpen: boolean; composer: boolean }) {
-  useLogIntentRevealScope(detailOpen);
+function MapStandIn({
+  detailOpen,
+  composerOpen = detailOpen,
+  composer,
+}: {
+  detailOpen: boolean;
+  composerOpen?: boolean;
+  composer: boolean;
+}) {
+  useLogIntentRevealScope(detailOpen, composerOpen);
   return composer ? priceStep() : null;
 }
 
@@ -85,6 +94,14 @@ describe("the map scopes a waiting reveal to itself", () => {
     render(createElement(MapStandIn, { detailOpen: true, composer: false }));
     requestLogIntentReveal(document, false, () => {});
     render(createElement(MapStandIn, { detailOpen: false, composer: false }));
+    render(createElement(MapStandIn, { detailOpen: true, composer: true }));
+    expect(scrolls).toBe(0);
+  });
+
+  it("drops the request when another pub closes the composer before its step mounts", () => {
+    render(createElement(MapStandIn, { detailOpen: true, composer: false }));
+    requestLogIntentReveal(document, false, () => {});
+    render(createElement(MapStandIn, { detailOpen: true, composerOpen: false, composer: false }));
     render(createElement(MapStandIn, { detailOpen: true, composer: true }));
     expect(scrolls).toBe(0);
   });
