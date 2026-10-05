@@ -27,10 +27,8 @@ packs, `venue_counts.json` and the extract report untouched. Rerun without
 
 ## What earns a row
 
-The committed packs predate the `nightclub`, `music_venue`, `social_club` and
-`casino_bar` rows and the widened `restaurant_bar` selectors. Each pack's own
-`taxonomy` array records the table it was built with. Those rows arrive with the
-next full `npm run fetch:uk-venues`.
+Each pack's own `taxonomy` array records the table it was built with. The
+latest run and its counts are in `docs/data/uk-osm-extract-2026-10-04.md`.
 
 `scripts/lib/ukOsmVenueSeed.mjs` is the taxonomy and the only place it is
 written down. THE RULE is that a row exists because OSM **states** the thing:
