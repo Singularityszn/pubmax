@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PAL_VOICE_MAX_SESSION_SECONDS } from "@/lib/palVoiceMetering";
-import { pubPalAgentSystemPrompt } from "@/lib/palVoicePrompt.mjs";
+import { PAL_VOICE_PRE_TOOL_LINE_RULE, pubPalAgentSystemPrompt } from "@/lib/palVoicePrompt.mjs";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 import {
   PAL_VOICE_GET_HOME_REGISTER_INTRO,
@@ -45,6 +45,11 @@ describe("Pub Pal voice prompt register", () => {
     expect(overrides.firstMessage).toContain("Ripley");
   });
 
+  it("asks for a checking line before each tool that states no fact", () => {
+    const prompt = pubPalAgentSystemPrompt(PAL_VOICE_MAX_SESSION_SECONDS);
+    expect(prompt).toContain(PAL_VOICE_PRE_TOOL_LINE_RULE);
+  });
+
   it("leaves no dynamic slot a voice browser could fill inside the system prompt", () => {
     expect(pubPalAgentSystemPrompt(PAL_VOICE_MAX_SESSION_SECONDS)).not.toContain("{{");
   });
@@ -54,6 +59,7 @@ describe("Pub Pal voice prompt register", () => {
       PAL_VOICE_GET_HOME_REGISTER_INTRO,
       ...PAL_VOICE_GET_HOME_REGISTER_RULES,
       PAL_VOICE_PROPOSE_THEN_CONFIRM_RULE,
+      PAL_VOICE_PRE_TOOL_LINE_RULE,
     ];
     for (const line of strings) {
       expect(line).not.toMatch(/!/);

@@ -116,4 +116,49 @@ describe("pubpal:agent dry run", () => {
       PAL_VOICE_MAX_SESSION_SECONDS,
     );
   });
+  it("sends the voice events and the events typed chat needs to find the end of a turn", () => {
+    const printed = dryRun().stdout.split("\nDefault voice resolved:")[0] ?? "";
+    const start = printed.indexOf("{");
+    const end = printed.lastIndexOf("}");
+    const body = JSON.parse(printed.slice(start, end + 1)) as {
+      conversation_config: { conversation: { client_events: string[] } };
+    };
+    expect(body.conversation_config.conversation.client_events).toEqual(
+      expect.arrayContaining([
+        "audio",
+        "interruption",
+        "user_transcript",
+        "agent_response",
+        "agent_tool_request",
+        "agent_tool_response",
+        "agent_response_complete",
+      ]),
+    );
+  });
+
+  it("speaks a checking line before every tool and keeps confirm proposals uninterrupted", () => {
+    const printed = dryRun().stdout.split("\nDefault voice resolved:")[0] ?? "";
+    const start = printed.indexOf("{");
+    const end = printed.lastIndexOf("}");
+    const body = JSON.parse(printed.slice(start, end + 1)) as {
+      webhook_tools: Array<{
+        name: string;
+        pre_tool_speech: string;
+        execution_mode: string;
+        interruption_mode: string;
+      }>;
+    };
+    const confirmTools = ["propose_plan", "propose_map_action", "report_occupancy"];
+    expect(body.webhook_tools.length).toBe(14);
+    for (const tool of body.webhook_tools) {
+      expect(tool.pre_tool_speech).toBe("force");
+      expect(tool.execution_mode).toBe("immediate");
+      expect(tool.interruption_mode).toBe(
+        confirmTools.includes(tool.name) ? "disable_during_tool_and_turn" : "allow",
+      );
+    }
+    expect(
+      body.webhook_tools.filter((tool) => tool.interruption_mode !== "allow").map((tool) => tool.name),
+    ).toEqual(confirmTools);
+  });
 });

@@ -77,7 +77,7 @@ function wholePhraseInText(text: string, phrase: string): boolean {
 }
 
 /** Area phrase the regex path already extracts. Shared so candidates match it. */
-export function extractAreaPhrase(text: string): string | undefined {
+function extractAreaPhrase(text: string): string | undefined {
   const areaMatch = text.match(
     /\b(?:near|around|in)\s+([\p{L}][\p{L}' .-]*?)(?=\s+(?:for|with|under|below|max|not)\b|\s*,|[.!?]|$)/iu,
   );
@@ -93,6 +93,80 @@ export function extractExplicitBudget(text: string): number | undefined {
   const n = Number(explicitBudget);
   if (!Number.isFinite(n)) return undefined;
   return Math.min(15, Math.max(3, n));
+}
+
+/** A preposition directly before an area: "in Shoreditch", "near Soho". */
+const AREA_PREPOSITION_BEFORE = /\b(?:in|near|around|at)\s+$/iu;
+
+/**
+ * Nouns a bare area names a night out with: "a Shoreditch crawl", "Soho pubs",
+ * "a Shoreditch pub-crawl". A singular "pub" or "bar" is left out, because
+ * "the Angel pub" names a venue, not the area.
+ */
+const AREA_NIGHT_NOUNS = /^\s+(?:pub[\s-]+crawls?|crawls?|pubs|bars|drinks|pints?)\b/iu;
+
+/**
+ * Longer London place names that start with a known area's word but are not
+ * that area: "in Victoria Park" is not Victoria.
+ */
+const PLACES_THAT_ARE_NOT_KNOWN_AREAS = [
+  "Victoria Park",
+  "Camden Passage",
+  "Richmond Park",
+  "Greenwich Park",
+  "Clapham Common Road",
+  "Angel Islington",
+] as const;
+
+/**
+ * The area a keyless parse plans in. A known area named after "in", "near",
+ * "around" or "at" wins, so "in Shoreditch tonight" is Shoreditch. So does a
+ * request that is only the area's name, and a known area directly before a
+ * night-out noun, so "a Shoreditch crawl" is Shoreditch. At each position the
+ * longest label named there is read, in any case, so "in Camden Town" is
+ * Camden Town and "in victoria park" is the place, not Victoria. The first
+ * area named wins. A known area named anywhere else is not read as the area:
+ * "a crawl along the Victoria line" plans across London.
+ */
+export function deterministicAreaInText(
+  text: string,
+  knownAreas: readonly string[],
+): string | undefined {
+  return firstKnownAreaNamedIn(text, knownAreas) ?? extractAreaPhrase(text);
+}
+
+function firstKnownAreaNamedIn(
+  text: string,
+  knownAreas: readonly string[],
+): string | undefined {
+  const longestAt = new Map<number, { label: string; known: boolean }>();
+  const labels = [
+    ...knownAreas.map((label) => ({ label: label.trim(), known: true })),
+    ...PLACES_THAT_ARE_NOT_KNOWN_AREAS.map((label) => ({ label, known: false })),
+  ];
+  for (const { label, known } of labels) {
+    if (!label) continue;
+    const pattern = new RegExp(`\\b${escapeRegExp(label)}\\b`, "giu");
+    for (const match of text.matchAll(pattern)) {
+      const current = longestAt.get(match.index);
+      if (!current || label.length > current.label.length) {
+        longestAt.set(match.index, { label, known });
+      }
+    }
+  }
+  const whole = text.trim().replace(/[.!?]+$/u, "").trim().toLocaleLowerCase("en-GB");
+  for (const [index, { label, known }] of [...longestAt].sort(([a], [b]) => a - b)) {
+    if (!known) continue;
+    const after = text.slice(index + label.length);
+    if (
+      whole === label.toLocaleLowerCase("en-GB")
+      || AREA_NIGHT_NOUNS.test(after)
+      || AREA_PREPOSITION_BEFORE.test(text.slice(0, index))
+    ) {
+      return label;
+    }
+  }
+  return undefined;
 }
 
 /**
