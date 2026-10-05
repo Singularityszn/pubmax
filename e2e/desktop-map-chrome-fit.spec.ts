@@ -362,58 +362,68 @@ test("1440px planner hands ownership to venue and Back restores composed state",
     "toolbar before ownership change",
   );
   await captureDrawerExchange(page, "planner-open");
-  const ownershipChange = await firstVenueOption.evaluate((option) => {
-    const toolbar = document.querySelector<HTMLElement>(".mapToolbar");
-    if (!toolbar) throw new Error("desktop toolbar is missing");
-    const before = toolbar.getBoundingClientRect().x;
-    (option as HTMLElement).click();
-    return {
-      before,
-      after: toolbar.getBoundingClientRect().x,
-    };
-  });
+  // The mid-exchange frame is sampled in the page, on every animation frame
+  // from the click on. Sampling from the test through a Playwright round trip
+  // per box landed in the planner spring's long settling tail, after the venue
+  // spring had already come to rest, so the venue was always caught at 800.
+  // Fully off-screen is also x < -1, so the first frame that is still crossing
+  // is kept. Under load the spring can finish before the first frame, so
+  // mid-exchange geometry is asserted only when a crossing frame is caught.
+  type Rect = { x: number; y: number; width: number; height: number };
+  const ownershipChange = await firstVenueOption.evaluate(
+    (option) =>
+      new Promise<{
+        before: number;
+        after: number;
+        mid: { planner: Rect; venue: Rect; toolbar: Rect } | null;
+      }>((resolve) => {
+        const rect = (selector: string): Rect | null => {
+          const node = document.querySelector<HTMLElement>(selector);
+          if (!node) return null;
+          const { x, y, width, height } = node.getBoundingClientRect();
+          return { x, y, width, height };
+        };
+        const toolbar = document.querySelector<HTMLElement>(".mapToolbar");
+        if (!toolbar) throw new Error("desktop toolbar is missing");
+        const before = toolbar.getBoundingClientRect().x;
+        (option as HTMLElement).click();
+        const after = toolbar.getBoundingClientRect().x;
+        const startedAt = performance.now();
+        const sample = () => {
+          const planner = rect(".mapDrawer.left.springDrawer");
+          const venue = rect(".mapDrawer.right.springDrawer");
+          const bar = rect(".mapToolbar");
+          if (
+            planner &&
+            venue &&
+            bar &&
+            planner.x < -1 &&
+            planner.x > -planner.width
+          ) {
+            resolve({ before, after, mid: { planner, venue, toolbar: bar } });
+            return;
+          }
+          if (performance.now() - startedAt > 8_000) {
+            resolve({ before, after, mid: null });
+            return;
+          }
+          requestAnimationFrame(sample);
+        };
+        requestAnimationFrame(sample);
+      }),
+  );
   expect(
     Math.abs(ownershipChange.after - ownershipChange.before),
   ).toBeLessThan(16);
 
-  // Fully off-screen is also x < -1, so wait for a frame that is still
-  // crossing rather than sampling after the spring has finished. Under load the
-  // spring can finish before the first sample, so mid-exchange geometry is
-  // asserted only when a crossing frame is caught.
-  let caughtMidExchange = false;
-  let plannerMid: Awaited<ReturnType<typeof renderedBox>> | null = null;
-  let venueMid: Awaited<ReturnType<typeof renderedBox>> | null = null;
-  let toolbarMid: Awaited<ReturnType<typeof renderedBox>> | null = null;
-  try {
-    await expect
-      .poll(
-        async () => {
-          const [plannerBox, venueBox, toolbarBox] = await Promise.all([
-            renderedBox(planner, "moving planner"),
-            renderedBox(venue, "moving venue"),
-            renderedBox(toolbar, "moving toolbar"),
-          ]);
-          const crossing = plannerBox.x < -1 && plannerBox.x > -plannerBox.width;
-          if (crossing) {
-            plannerMid = plannerBox;
-            venueMid = venueBox;
-            toolbarMid = toolbarBox;
-          }
-          return crossing;
-        },
-        {
-          intervals: [8, 8, 8, 8, 16, 16, 32],
-          timeout: 8_000,
-        },
-      )
-      .toBe(true);
-    caughtMidExchange = true;
-  } catch {
-    caughtMidExchange = false;
-  }
+  const caughtMidExchange = ownershipChange.mid !== null;
+  const plannerMid = ownershipChange.mid?.planner ?? null;
+  const venueMid = ownershipChange.mid?.venue ?? null;
+  const toolbarMid = ownershipChange.mid?.toolbar ?? null;
   if (caughtMidExchange && plannerMid && venueMid && toolbarMid) {
     expect(plannerMid.x).toBeLessThan(0);
     expect(plannerMid.x).toBeGreaterThan(-plannerMid.width);
+    expect(venueMid.x).toBeGreaterThan(800);
     expect(venueMid.x).toBeLessThan(DESKTOP.width);
     await captureDrawerExchange(page, "mid-exchange");
   }
