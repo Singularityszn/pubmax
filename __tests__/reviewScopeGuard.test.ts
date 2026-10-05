@@ -133,9 +133,11 @@ describe("review scope guard", () => {
       "public/data/historic_pubs.json",
       "data/persona_drinks.json",
     ];
-    expect(summarizeReviewScope(generated).forbidden).toEqual(
-      generated.sort().map((path) => ({ category: "generated", path })),
-    );
+    for (const path of generated) {
+      expect(summarizeReviewScope([path]).forbidden).toEqual([
+        { category: "generated", path },
+      ]);
+    }
 
     const curated = [
       "public/data/uk_base/README.md",
@@ -180,6 +182,44 @@ describe("review scope guard", () => {
     expect(report.ok).toBe(true);
     expect(report.categoryCounts).toEqual({ source: 1, regenerated: 1 });
     expect(report.regeneratedLanes).toEqual(["venues_slim"]);
+  });
+
+  it.each([
+    "public/data/venues_slim.json",
+    "public/data/cities/leeds/venues_slim.json",
+    "public/data/cities/glasgow/venues_slim.json",
+    "data/osm/outer_london_osm_pubs.json",
+    "data/cities/leeds/osm_pubs.json",
+    "lib/outerLondonOwnership.mjs",
+    "lib/cityVenueId.mjs",
+    "scripts/build_city_slim_index.mjs",
+    "scripts/fetch_city_osm_pubs.mjs",
+  ])("permits UK base ownership output when its input changes: %s", (input) => {
+    const outputs = [
+      "public/data/uk_base/manifest.json",
+      "public/data/uk_base/packs/520da468effa470f/51.50_-0.25.json",
+    ];
+    const report = summarizeReviewScope([input, ...outputs]);
+
+    expect(report.categories.regenerated).toEqual(expect.arrayContaining(outputs));
+    expect(report.regeneratedLanes).toContain("uk_base");
+    expect(report.forbidden.filter((file) => outputs.includes(file.path))).toEqual([]);
+  });
+
+  it.each([
+    "public/data/venues_slim.core.json",
+    "public/data/cities/leeds/venues_slim.core.json",
+    "public/data/cities/glasgow/venues_slim.manifest.json",
+    "data/cities/leeds/parallel_venues.json",
+  ])("refuses UK base output with an input its builder does not read: %s", (input) => {
+    const report = summarizeReviewScope([input, "public/data/uk_base/manifest.json"]);
+
+    expect(report.ok).toBe(false);
+    expect(report.regeneratedLanes).not.toContain("uk_base");
+    expect(report.forbidden).toContainEqual({
+      category: "generated",
+      path: "public/data/uk_base/manifest.json",
+    });
   });
 
   it("permits city slim packs when the diff carries a city OSM pack", () => {
