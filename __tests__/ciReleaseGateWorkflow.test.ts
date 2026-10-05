@@ -138,9 +138,9 @@ describe("clean-main CI release gate", () => {
     // them: it builds the merge base in a worktree.
     const needsHeap = steps.filter(
       (step) =>
-        /npm run build|next build|npm run typecheck|node_modules\/typescript\/bin\/tsc|playwright test|scripts\/perf-ab\.mjs/.test(
+        /npm run build(?!:)|next build|npm run typecheck|node_modules\/typescript\/bin\/tsc|playwright test|scripts\/perf-ab\.mjs/.test(
           step.run,
-        ) && !/npm run build:slim/.test(step.run),
+        ),
     );
 
     expect(needsHeap.length).toBeGreaterThan(0);
@@ -183,7 +183,13 @@ describe("clean-main CI release gate", () => {
 
   it("validates every bundled dataset in its own job", () => {
     const validation = steps.filter((step) => step.job === "validate-data");
-    expect(validation.map((step) => step.run)).toContain("npm run validate-data");
+    const runs = validation.map((step) => step.run);
+    const validate = validation.find((step) => step.run === "npm run validate-data");
+    expect(validate?.env.PUBMAX_VERIFY_COMMITTED_DATA).toBe("1");
+    expect(runs.indexOf("npm run build:venue-details")).toBeGreaterThan(-1);
+    expect(runs.indexOf("npm run build:venue-details")).toBeLessThan(
+      runs.indexOf("npm run validate-data"),
+    );
     const { jobs } = parse(workflow) as { jobs: Record<string, { name?: string }> };
     expect(jobs["validate-data"]?.name).toBe("Data validation");
   });

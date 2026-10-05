@@ -33,6 +33,10 @@ const NEWER = "f1000000-0000-4000-8000-000000000002";
 const BOBS = "f1000000-0000-4000-8000-000000000003";
 /** Alice's spend whose lines walk the promotion ladder. */
 const LADDER = "f1000000-0000-4000-8000-000000000004";
+/** Alice's earlier beer at the Stag, never reconciled before its transition. */
+const STALE = "f1000000-0000-4000-8000-000000000005";
+/** Alice's later beer at the Stag, which owns the key. */
+const FRESH = "f1000000-0000-4000-8000-000000000006";
 const UNKNOWN_SPEND = "f1000000-0000-4000-8000-0000000000ff";
 
 let session: PostgresSession | null = null;
@@ -241,9 +245,27 @@ describe.skipIf(skipReason !== null)("transition_round_price_lines", () => {
   });
 
   it("supersedes the older line itself before it moves anything", () => {
-    // NEWER's beer owns the key, so OLDER's beer is superseded and stays so.
-    expect(db().sql(transition(OLDER, ALICE_ACTOR, [{ index: 0, status: "ready" }]))).toBe("ok");
-    expect(statuses(OLDER)).toBe("superseded,pending,pending");
+    seedSpend({
+      id: STALE,
+      clientRef: "stale",
+      venueId: "venue-stag",
+      actor: ALICE_ACTOR,
+      recordedAt: "2026-10-02 19:00:00+01",
+      lines: [{ drinkCategory: "beer" }],
+    });
+    seedSpend({
+      id: FRESH,
+      clientRef: "fresh",
+      venueId: "venue-stag",
+      actor: ALICE_ACTOR,
+      recordedAt: "2026-10-02 20:00:00+01",
+      lines: [{ drinkCategory: "beer" }],
+    });
+    // No reconcile has run for the Stag: FRESH's beer owns the key, so the
+    // transition itself supersedes STALE's beer instead of readying it.
+    expect(db().sql(transition(STALE, ALICE_ACTOR, [{ index: 0, status: "ready" }]))).toBe("ok");
+    expect(statuses(STALE)).toBe("superseded");
+    expect(statuses(FRESH)).toBe("pending");
   });
 
   it("loses no line when two transitions on one spend land at once", async () => {

@@ -37,6 +37,7 @@
     "export:data": "python3 scripts/export_app_dataset_json.py && npm run canonicalize:venues",
     "canonicalize:venues": "node scripts/canonicalize_venue_dataset.mjs",
     "build:slim": "npm run canonicalize:venues && node scripts/build_slim_index.mjs",
+    "build:venue-details": "node scripts/build_slim_index.mjs --details-only",
     "refresh:slim": "npm run build:slim -- --refresh",
     "fetch:city-pubs": "node scripts/fetch_city_osm_pubs.mjs",
     "fetch:city-places": "node scripts/fetch_city_place_nodes.mjs",

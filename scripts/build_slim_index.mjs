@@ -941,9 +941,16 @@ async function main() {
   // consumers (crawls, rounds) read — they need ALL venues by id, not a
   // viewport. The sharded files below are the CLIENT MAP first-paint
   // optimization derived from the same rows.
-  await writeFile(SLIM_PATH, slimText);
   await writeFile(DETAIL_ROWS_PATH, detailText);
   await writeFile(DETAIL_INDEX_PATH, detailIndexText);
+  // --details-only writes just the two gitignored detail files, so CI can
+  // validate the committed packs without a rebuild writing over them.
+  if (process.argv.includes("--details-only")) {
+    console.log(`wrote: ${path.relative(ROOT, DETAIL_ROWS_PATH)}`);
+    console.log(`wrote: ${path.relative(ROOT, DETAIL_INDEX_PATH)}`);
+    return;
+  }
+  await writeFile(SLIM_PATH, slimText);
 
   // --- spatially shard the slim index for the map's first paint --------------
   const cells = classifySpatialShards(slim, SPATIAL_GRID);
