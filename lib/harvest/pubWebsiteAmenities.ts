@@ -484,7 +484,7 @@ export function mergeHarvestEvidence(input: {
   return { rows, skipCounts, chainPages };
 }
 
-type PageRead = { ok: true; url: string; text: string } | { ok: false; reason: string };
+export type PageRead = { ok: true; url: string; text: string } | { ok: false; reason: string };
 
 /**
  * The text of one extra page from a pub's site, or null. A link is checked
@@ -657,4 +657,57 @@ export function matchPubToVenue(
     if (!best || metres < best.metres) best = { venue, metres };
   }
   return best?.venue ?? null;
+}
+
+/** A page shorter than this after tags are stripped is read as a script-built page. */
+export const THIN_PAGE_CHARS = 200;
+
+/**
+ * Whether a plain read may be asked again through Firecrawl. Only a read the
+ * network or a script-built page kept from us qualifies: a timeout, a failed
+ * connection, a 429 or 5xx, or a page with almost no text. A 401, 403 or 451 is
+ * the site refusing us, a 404 or 410 is gone, and a redirect off the source
+ * fence stays refused, so none of those is read another way.
+ */
+export function firecrawlMayReread(read: PageRead): boolean {
+  if (read.ok) return read.text.length < THIN_PAGE_CHARS;
+  if (read.reason === "timeout" || read.reason === "fetch-failed") return true;
+  const status = Number(/^http-(\d{3})$/.exec(read.reason)?.[1]);
+  return status === 429 || status >= 500;
+}
+
+const POSTCODE = /\b([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})\b/i;
+
+/** The full UK postcode an address states, normalised as "N1 9AA", or null. */
+export function postcodeOf(address: string): string | null {
+  const match = POSTCODE.exec(address);
+  return match ? `${match[1]} ${match[2]}`.toUpperCase() : null;
+}
+
+/** Whether page text states this postcode, with or without its space. */
+export function pageStatesPostcode(text: string, postcode: string): boolean {
+  const [outward, inward] = postcode.toUpperCase().split(" ");
+  return new RegExp(`\\b${outward}\\s*${inward}\\b`, "i").test(text);
+}
+
+/**
+ * The first search hit that can be this pub's own site: permitted by the
+ * source policy, not a chain-wide page, and on a host that carries a
+ * distinctive word of the pub's name. The page must still state the pub's
+ * postcode before anything read from it counts.
+ */
+export function locatedOwnSite(
+  name: string,
+  hits: readonly { url: string }[],
+  deps: {
+    chainPages: ChainDenylist;
+    isHarvestable: (url: string) => boolean;
+    ownSite: (name: string, url: string) => string | null;
+  },
+): string | null {
+  for (const { url } of hits) {
+    if (!deps.isHarvestable(url) || isChainPage(url, deps.chainPages)) continue;
+    if (deps.ownSite(name, url)) return url;
+  }
+  return null;
 }

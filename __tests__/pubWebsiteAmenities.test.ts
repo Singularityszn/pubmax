@@ -10,14 +10,18 @@ import {
   SITE_STAMP,
   amenityColumnIsBlank,
   evidenceQuoteIsOnPage,
+  firecrawlMayReread,
   isChainPage,
   keepEvidencedAmenities,
   liftSiteStamps,
+  locatedOwnSite,
   matchPubToVenue,
   mergeChainDenylists,
   mergeHarvestEvidence,
+  pageStatesPostcode,
   parseChainDenylist,
   parsePubAmenityModelJson,
+  postcodeOf,
   projectPubAmenitySpend,
   provenChainEvidence,
   pubSpecificEvidence,
@@ -767,3 +771,40 @@ describe("matchPubToVenue", () => {
   });
 });
 
+
+describe("firecrawlMayReread", () => {
+  it("rereads only what the network or a script kept from the plain read", () => {
+    for (const reason of ["timeout", "fetch-failed", "http-429", "http-503"]) expect(firecrawlMayReread({ ok: false, reason })).toBe(true);
+    for (const reason of ["http-401", "http-403", "http-451", "http-404", "http-410", "redirect-refused", "not-html"]) {
+      expect(firecrawlMayReread({ ok: false, reason })).toBe(false);
+    }
+    expect(firecrawlMayReread({ ok: true, url: "https://a.example/", text: "Loading" })).toBe(true);
+    expect(firecrawlMayReread({ ok: true, url: "https://a.example/", text: "x".repeat(200) })).toBe(false);
+  });
+});
+
+describe("located own sites", () => {
+  const deps = {
+    chainPages: { ...EMPTY_CHAIN_DENYLIST, pages: ["chainpubs.example/the-crown"] },
+    isHarvestable: (url: string) => !url.includes("tripadvisor"),
+    ownSite: (name: string, url: string) => (new URL(url).hostname.includes(name.split(" ").at(-1)!.toLowerCase()) ? url : null),
+  };
+
+  it("keeps the first permitted, non-chain hit whose host carries the pub's name", () => {
+    const hits = [
+      { url: "https://www.tripadvisor.co.uk/crown" },
+      { url: "https://chainpubs.example/the-crown" },
+      { url: "https://www.thecrownislington.example/" },
+    ];
+    expect(locatedOwnSite("The Crown", hits, deps)).toBe("https://www.thecrownislington.example/");
+    expect(locatedOwnSite("The Crown", hits.slice(0, 2), deps)).toBeNull();
+  });
+
+  it("reads a postcode from an address and finds it on a page with or without its space", () => {
+    expect(postcodeOf("116 Cloudesley Rd, London n1 0eb")).toBe("N1 0EB");
+    expect(postcodeOf("Cloudesley Road, Islington")).toBeNull();
+    expect(pageStatesPostcode("Find us at 116 Cloudesley Road, N10EB", "N1 0EB")).toBe(true);
+    expect(pageStatesPostcode("Find us at N1 0EBX", "N1 0EB")).toBe(false);
+    expect(pageStatesPostcode("Find us at SN1 0EB", "N1 0EB")).toBe(false);
+  });
+});
