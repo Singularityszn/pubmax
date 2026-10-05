@@ -1168,6 +1168,45 @@ describe("map shell versus per-request map documents", () => {
     },
   );
 
+  it.each(["private, no-store", "no-store", "no-cache", "private", 'private="set-cookie", max-age=60'])(
+    "keeps the shell when a navigation answers with Cache-Control %s",
+    async (cacheControl) => {
+      const live = new Response("uncacheable map document", { headers: { "cache-control": cacheControl } });
+      expect(await navigateOnline("/map", live)).toBe("prerendered map shell");
+    },
+  );
+
+  it("refreshes the shell from a public document the CDN revalidates", async () => {
+    const live = new Response("revalidated map shell", {
+      headers: { "cache-control": "public, max-age=0, must-revalidate" },
+    });
+    expect(await navigateOnline("/map", live)).toBe("revalidated map shell");
+  });
+
+  it("returns the live shell document and settles its lifetime when Cache Storage rejects the write", async () => {
+    const live = new Response("live map shell");
+    const { listeners } = rolloutWorkerHarness({ entries: {}, response: live, rejectCurrentWrites: true });
+    const navigation = dispatchFetch(listeners.get("fetch")!, {
+      method: "GET",
+      mode: "navigate",
+      url: `${origin}/map`,
+    } as Request);
+    expect(await navigation.response).toBe(live);
+    await expect(Promise.all(navigation.lifetime)).resolves.toBeDefined();
+  });
+
+  it.each([
+    ["public, max-age=0, must-revalidate", ["/", "/map", "/tonight", "/offline.html"]],
+    ["private, no-cache, no-store, max-age=0, must-revalidate", []],
+  ] as const)("precaches shells answered with Cache-Control %s only when storable", async (cacheControl, stored) => {
+    const { listeners, records } = rolloutWorkerHarness({
+      entries: {},
+      response: new Response("installed shell", { headers: { "cache-control": cacheControl } }),
+    });
+    await Promise.all(dispatchLifecycle(listeners.get("install")!));
+    expect([...(records.get("pubmax-sw-shell-target")?.keys() ?? [])]).toEqual(stored.map((path) => `${origin}${path}`));
+  });
+
   it("does not serve an older worker's map document offline before or after activation", async () => {
     const landing = new Response("landing shell");
     const { listeners, records } = rolloutWorkerHarness({

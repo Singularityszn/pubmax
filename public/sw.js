@@ -80,7 +80,7 @@ self.addEventListener("install", (event) => {
       Promise.allSettled(
         SHELL_URLS.map((url) =>
           fetch(url, { cache: "no-cache" }).then((response) => {
-            if (response.ok) return cache.put(url, response);
+            if (isStorableShell(response)) return cache.put(url, response);
             return undefined;
           }),
         ),
@@ -155,6 +155,17 @@ function isShellDocumentNavigation(url) {
   return isEligibleShellCacheUrl(url) && !(
     url.pathname === "/map" &&
     MAP_DOCUMENT_QUERY_KEYS.some((key) => (url.searchParams.get(key) ?? "").trim().length > 0)
+  );
+}
+
+// The shells are public CDN documents revalidated on every request
+// (`max-age=0, must-revalidate`), which `isCacheable` refuses on purpose for
+// data; a document that forbids storing itself is never a shell.
+function isStorableShell(response) {
+  if (!response?.ok) return false;
+  const cacheControl = response.headers?.get?.("cache-control")?.toLowerCase() || "";
+  return !cacheControl.split(",").some((directive) =>
+    ["no-store", "no-cache", "private"].includes(directive.trim().split("=", 1)[0]),
   );
 }
 
@@ -485,10 +496,12 @@ async function handleNavigation(event, request, url) {
     const response = await fetch(request);
     // Keep the shell copies fresh so the offline fallback is the latest deploy
     // this browser has seen — but only for the pages we deliberately shelve.
-    if (response.ok && isShellDocumentNavigation(url)) {
+    if (isStorableShell(response) && isShellDocumentNavigation(url)) {
       const copy = response.clone();
       event.waitUntil(
-        caches.open(SHELL_CACHE).then((cache) => cache.put(url.pathname, copy)),
+        caches.open(SHELL_CACHE)
+          .then((cache) => cache.put(url.pathname, copy))
+          .catch(() => undefined),
       );
     } else if (response.ok && isEligiblePlanCacheUrl(url) && self.planCache) {
       // Shelve the plan preview so a crew that opened the link earlier
