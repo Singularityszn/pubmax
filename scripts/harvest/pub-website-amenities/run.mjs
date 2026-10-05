@@ -248,6 +248,19 @@ function vertexUrl(model) {
   return `https://${host}/v1/projects/${VERTEX_PROJECT}/locations/${VERTEX_LOCATION}/publishers/google/models/${model}:generateContent`;
 }
 
+// Firecrawl search allows about 20 requests a minute on this plan; the
+// workers share one slot so a burst never spends the run's request budget
+// on 429 retries.
+const SEARCH_SPACING_MS = 4_000;
+let nextSearchSlot = 0;
+
+async function paceSearch() {
+  const now = Date.now();
+  const slot = Math.max(now, nextSearchSlot);
+  nextSearchSlot = slot + SEARCH_SPACING_MS;
+  if (slot > now) await new Promise((resolve) => setTimeout(resolve, slot - now));
+}
+
 let nextModelSlot = 0;
 
 async function paceModelCall() {
@@ -621,6 +634,7 @@ async function main() {
     if (Object.hasOwn(located, pub.osmId)) return located[pub.osmId];
     if (!pub.postcode) return null;
     if (!firecrawl) return undefined;
+    await paceSearch();
     const found = await firecrawl.search(`"${pub.name}" pub ${pub.postcode}`, { limit: 5 });
     if (!found.ok) return undefined;
     located[pub.osmId] = locatedOwnSite(pub.name, found.results, {
