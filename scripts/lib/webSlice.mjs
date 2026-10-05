@@ -66,7 +66,9 @@ const TAVILY_READER = { provider: "tavily", label: "Tavily Extract", failed: "fa
 // One read batch at the reader's first depth, and the pages it could not read
 // once more at its second depth when it has one. What no read gets is settled
 // by the page's own status when that says gone or refused, and otherwise
-// skipped with the evidence.
+// skipped with the evidence. When an extract call throws, the pages already
+// read and the 404 or 410 answers are still stored before the error stops the
+// slice, so a paid read is not bought again.
 async function readBatch(batch, search, io, pages, skips) {
   const reader = io.reader ?? TAVILY_READER;
   const [firstDepth, secondDepth] = reader.depths;
