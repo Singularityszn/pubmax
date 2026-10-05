@@ -56,6 +56,25 @@ describe("statedDogPolicy", () => {
     expect(statedDogPolicy("No dogs allowed. Garden open daily from noon.")?.policy).toBe("not-allowed");
   });
 
+  it("reads no statement whose run-on clause names a short day, a part of the day or a place", () => {
+    for (const limited of [
+      "Dogs Welcome - Mon-Fri",
+      "Dog Friendly | Sat & Sun",
+      "Dog Friendly - Lunchtimes",
+      "Dogs Welcome – In The Garden",
+    ]) expect(statedDogPolicy(limited), limited).toBeNull();
+  });
+
+  it("keeps a statement that ends a sentence or runs on into a clause with no limit", () => {
+    for (const [page, policy] of [
+      ["Dogs welcome.\nWe serve food all day.", "welcome"],
+      ["No dogs allowed.\nGarden open daily from noon.", "not-allowed"],
+      ["- Live Sport\n- Dog Friendly\n\nOur kitchen is open every day.", "welcome"],
+      ["## Dog Friendly\n\nWe love having your four-legged friends with us.", "welcome"],
+      ["Dog Friendly\n\nBook a table", "welcome"],
+    ] as const) expect(statedDogPolicy(page)?.policy, page).toBe(policy);
+  });
+
   it("reads a refusal only in a form that refuses dogs at the whole pub", () => {
     expect(statedDogPolicy("Sorry, no dogs.")).toEqual({ policy: "not-allowed", evidence: "Sorry, no dogs." });
     for (const refusal of [

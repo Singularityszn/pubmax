@@ -78,41 +78,20 @@ const NEGATION = /\b(?:not|no|never|n't|unfortunately|sadly)\b|n't\b/i;
 /** Seasonal and one-off events speak for a day, not the pub's standing policy. */
 const ONE_OFF = /\b(?:christmas|festive|halloween|new years?|easter|show|competition|parade|walk|event|festival|race)\b/i;
 
-/** A dash, a pipe, a newline or a heading, after which a clause may still speak about the one before it. */
-const LIST_BREAK = /[-\u2013\u2022*|#\n]/;
-const ITEM_LIMIT = /\b(?:only|except|unless|excluding|not|no|until|after|before|from|weekdays?|weekends?|(?:mon|tues|wednes|thurs|fri|satur|sun)days?)\b/i;
+/** A day, a part of the day, a place, an exception, a number or a clock: words that limit a statement. */
+const LIMIT =
+  /\d|\b(?:only|except|excluding|unless|until|after|before|during|weekdays?|weekends?|(?:mon|tues?|wed(?:nes)?|weds|thu(?:rs?)?|fri|sat(?:ur)?|sun)(?:days?)?|lunch(?:times?)?|mornings?|afternoons?|evenings?|nights?|daytime|gardens?|terraces?|bar areas?|areas?|rooms?|upstairs|downstairs|inside|outside|indoors|outdoors|restaurant|dining)\b/i;
 
-type Clause = { text: string; listed: string | null };
+/** A clause, and the clause after it when this one does not end a sentence and so may run on into it. */
+type Clause = { text: string; next: string | null };
 
-/** Each clause with the clause after it when a list break, not a sentence end, parts them. */
 function clauses(pageText: string): Clause[] {
-  const parts = pageText.split(new RegExp(`(${CLAUSE_BREAK.source})`));
-  const found: { text: string; breakBefore: string }[] = [];
-  let breakBefore = "";
-  parts.forEach((part, index) => {
-    if (index % 2 === 1) {
-      breakBefore += part;
-      return;
-    }
-    const text = part.trim();
-    if (!text) return;
-    found.push({ text, breakBefore });
-    breakBefore = "";
-  });
-  return found.map(({ text }, index) => {
-    const next = found[index + 1];
-    return { text, listed: next && LIST_BREAK.test(next.breakBefore) ? next.text : null };
-  });
+  const texts = pageText.split(CLAUSE_BREAK).map((clause) => clause.trim()).filter(Boolean);
+  return texts.map((text, index) => ({ text, next: /[.!?]["')\]]*$/.test(text) ? null : texts[index + 1] ?? null }));
 }
 
-/** Another short item in a facility list ("Family Friendly"), which limits nothing before it. */
-function isFacilityItem(clause: string): boolean {
-  const words = clause.split(/\s+/);
-  return words.length <= 4 && !/\d/.test(clause) && !ITEM_LIMIT.test(clause) && words.every((word) => /^[A-Z&]/.test(word));
-}
-
-function statesOnly({ text, listed }: Clause, form: RegExp): boolean {
-  if (listed !== null && !isFacilityItem(listed)) return false;
+function statesOnly({ text, next }: Clause, form: RegExp): boolean {
+  if (next !== null && LIMIT.test(next)) return false;
   return form.test(fold(text).replace(COURTESY, " ").replace(/[^a-z0-9']+/g, " ").trim());
 }
 

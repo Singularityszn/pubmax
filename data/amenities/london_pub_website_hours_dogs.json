@@ -3,10 +3,10 @@
   "extractor": "lib/harvest/pubSiteHoursAndDogs.ts, no model",
   "spendUsd": 0,
   "skipCounts": {
-    "page-stated-neither": 147,
+    "page-stated-neither": 144,
     "chain-page": 6,
     "chain-hours-passage": 32,
-    "chain-dogs-passage": 8
+    "chain-dogs-passage": 13
   },
   "counts": {
     "rows": 178,
@@ -7255,10 +7255,6 @@
       "venueId": "venue-1h8bsgr",
       "sourceUrl": "https://www.sunand13cantons.co.uk/",
       "readOn": "2026-10-05",
-      "dogs": {
-        "policy": "welcome",
-        "evidence": "Dog Friendly"
-      },
       "hours": {
         "hours": {
           "0": [
@@ -9879,6 +9875,10 @@
       "venueId": "venue-617vip",
       "sourceUrl": "https://www.flaminggrillpubs.co.uk/pubs/middlesex/torch",
       "readOn": "2026-10-05",
+      "dogs": {
+        "policy": "welcome",
+        "evidence": "Dog Friendly"
+      },
       "hours": {
         "hours": {
           "0": [
