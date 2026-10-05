@@ -1085,13 +1085,17 @@ export function AuthProvider({
         // in place is shown, a removed one comes back from its cookie, and a
         // read that could not run is unavailable rather than signed out.
         const restored = await bootstrapAuthSession(supabase.auth).catch(() => ({ status: "unavailable" }) as const);
-        if (restored.status === "local") updateSession(restored.session);
-        else if (restored.status === "unavailable") setProviderAuthState("supabase", "unavailable");
         const newerSessionKept =
-          restored.status === "local" || restored.status === "restored" || restored.status === "unavailable";
-        if (newerSessionKept && signInSupersedes(departingGeneration)) return;
+          (restored.status === "local" || restored.status === "restored" || restored.status === "unavailable") &&
+          signInSupersedes(departingGeneration);
+        if (newerSessionKept) {
+          if (restored.status === "local") updateSession(restored.session);
+          else if (restored.status === "unavailable") setProviderAuthState("supabase", "unavailable");
+          return;
+        }
         // The newer sign-in never installed, so this explicit sign-out is the
         // device's last word: finish what it held back for that sign-in.
+        setProviderAuthState("supabase", "signed-out");
         markProviderSignOut("supabase");
         releaseDeviceAccountOwner(browserLocalStorage(), browserSessionStorage());
         if (scope === "device") forgetAllDeviceAccounts(browserLocalStorage());

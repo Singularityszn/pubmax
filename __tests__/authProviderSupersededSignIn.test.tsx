@@ -123,6 +123,8 @@ let releaseLogout: (() => void) | null;
 let resumeTransportDown: boolean;
 let refuseUser: Set<string>;
 let holdUser: Promise<void> | null;
+let holdDelete: Promise<void> | null;
+let deleteHeld: boolean;
 let auth: ReturnType<typeof useAuth> | null;
 let root: Root | null;
 let container: HTMLDivElement | null;
@@ -162,6 +164,10 @@ async function sessionRoute(url: string, init: RequestInit = {}): Promise<Respon
 async function transport(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
   const url = String(input instanceof Request ? input.url : input);
   if (url.startsWith("/api/auth/session")) {
+    if (init.method === "DELETE" && holdDelete) {
+      deleteHeld = true;
+      await holdDelete;
+    }
     if (resumeTransportDown && (init.method ?? "GET") !== "DELETE") throw new TypeError("Failed to fetch");
     return sessionRoute(url, init);
   }
@@ -273,6 +279,8 @@ beforeEach(() => {
   resumeTransportDown = false;
   refuseUser = new Set();
   holdUser = null;
+  holdDelete = null;
+  deleteHeld = false;
   harness.composer = false;
   vi.spyOn(URL, "createObjectURL").mockImplementation(() => "blob:fixture-photo");
   vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
@@ -514,7 +522,12 @@ describe("an explicit sign-out overlapped by another document's auth work", () =
     expect(await redeemedAccount()).toBeNull();
   });
 
-  it.each(["account", "device"] as const)("finishes A's %s sign-out when the newer sign-in that overtook it fails", async (scope) => {
+  it.each([
+    ["account", "online"],
+    ["device", "online"],
+    ["account", "offline"],
+    ["device", "offline"],
+  ] as const)("finishes A's %s sign-out when the newer sign-in that overtook it fails, with the recovery read %s", async (scope, recovery) => {
     const NOTE_A = "A's private note about the back room";
     await signedInElsewhere(A);
     rememberDeviceAccount(localStorage, { userId: "account-c", refreshToken: "synthetic-refresh-account-c", email: null }, Date.now());
@@ -540,11 +553,26 @@ describe("an explicit sign-out overlapped by another document's auth work", () =
       accessToken: sessionFor(B).access_token,
       refreshToken: sessionFor(B).refresh_token,
     });
-    await act(async () => { releaseLogout!(); await signingOut; });
-    await act(async () => { refuseB(); await signingIn; });
+    if (recovery === "online") {
+      await act(async () => { releaseLogout!(); await signingOut; });
+      await act(async () => { refuseB(); await signingIn; });
+    } else {
+      // A's sign-out has decided B overtook it; B then fails and rolls back
+      // before A's recovery read, which the dropped connection cannot run.
+      let releaseDelete = () => {};
+      holdDelete = new Promise<void>((resolve) => { releaseDelete = resolve; });
+      await act(async () => { releaseLogout!(); });
+      await vi.waitFor(() => expect(deleteHeld).toBe(true));
+      await act(async () => { refuseB(); await signingIn; });
+      expect(readResumeGeneration()).toMatch(/^out\./);
+      resumeTransportDown = true;
+      await act(async () => { releaseDelete(); await signingOut; });
+      resumeTransportDown = false;
+    }
     await settle();
 
     expect((await signingIn).failed).toBe(true);
+    expect(auth?.supabaseAuthState).toBe("signed-out");
     expect(readResumeGeneration()).toMatch(/^out\./);
     expect(sessionAccountAdmitted(A)).toBe(false);
     expect(await redeemedAccount()).toBeNull();
