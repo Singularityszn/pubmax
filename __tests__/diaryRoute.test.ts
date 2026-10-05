@@ -102,6 +102,17 @@ describe("POST /api/diary", () => {
     expect(entry.review).toBe("");
   });
 
+  it.each(["Best Guinness in Soho!", "Hidden gem, great garden."])(
+    "stores the review %s exactly as written",
+    async (review) => {
+      const res = await POST(post({ venueId: VENUE_ID, review }));
+      expect(res.status).toBe(201);
+      expect((await res.json()).entry.review).toBe(review);
+      const list = await (await GET(get())).json();
+      expect(list.entries.map((row: { review: string }) => row.review)).toEqual([review]);
+    },
+  );
+
   it("takes the venue name from the server, never from the body", async () => {
     const res = await POST(post({ venueId: VENUE_ID, venueName: "Fake Name" }));
     expect((await res.json()).entry.venueName).toBe(VENUE_NAME);
