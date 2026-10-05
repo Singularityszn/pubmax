@@ -145,6 +145,23 @@ function isEligibleShellCacheUrl(url) {
   return url.origin === self.location.origin && SHELL_URLS.includes(url.pathname);
 }
 
+// A /map request carrying one of these renders its own document (the twin in
+// lib/mapDocumentTwin.ts, which owns the list), so it never stands in for the
+// shell. Older workers wrote such documents under /map, so an older cache's
+// /map cannot be told from the shell and only this version's copy counts.
+const MAP_DOCUMENT_QUERY_KEYS = ["place", "uk", "band", "crawl", "pubs"];
+
+function isShellDocumentNavigation(url) {
+  return isEligibleShellCacheUrl(url) && !(
+    url.pathname === "/map" &&
+    MAP_DOCUMENT_QUERY_KEYS.some((key) => (url.searchParams.get(key) ?? "").trim().length > 0)
+  );
+}
+
+function isInheritableShellCacheUrl(url) {
+  return isEligibleShellCacheUrl(url) && url.pathname !== "/map";
+}
+
 async function migrateCacheFamily({
   current,
   prefix,
@@ -172,7 +189,7 @@ async function migrateCacheFamily({
     let covered = true;
     for (const request of await source.keys()) {
       if ((current === PLAN_CACHE && !isEligiblePlanCacheUrl(new URL(request.url))) ||
-        (current === SHELL_CACHE && !isEligibleShellCacheUrl(new URL(request.url)))) {
+        (current === SHELL_CACHE && !isInheritableShellCacheUrl(new URL(request.url)))) {
         if (!(await source.delete(request))) covered = false;
         continue;
       }
@@ -207,7 +224,8 @@ async function matchCacheFamily(currentName, request, options) {
   }
   const names = await cacheFamilyNames(currentName);
   const candidates =
-    currentName === SWR_CACHE && requestUrl.hostname === TILE_HOST
+    (currentName === SWR_CACHE && requestUrl.hostname === TILE_HOST) ||
+    (currentName === SHELL_CACHE && !isInheritableShellCacheUrl(requestUrl))
       ? [currentName]
       : names;
   for (const name of candidates) {
@@ -467,7 +485,7 @@ async function handleNavigation(event, request, url) {
     const response = await fetch(request);
     // Keep the shell copies fresh so the offline fallback is the latest deploy
     // this browser has seen — but only for the pages we deliberately shelve.
-    if (response.ok && isEligibleShellCacheUrl(url)) {
+    if (response.ok && isShellDocumentNavigation(url)) {
       const copy = response.clone();
       event.waitUntil(
         caches.open(SHELL_CACHE).then((cache) => cache.put(url.pathname, copy)),

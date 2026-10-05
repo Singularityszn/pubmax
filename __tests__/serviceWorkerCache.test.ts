@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { defined } from "@/__tests__/helpers/defined";
+import { MAP_DOCUMENT_QUERY_KEYS } from "@/lib/mapDocumentTwin";
 
 type Listener = (event: unknown) => void;
 
@@ -575,7 +575,7 @@ describe("service worker map cache", () => {
   });
 
   it("purges old tiles but preserves usable offline caches when migration writes fail", async () => {
-    const shellResponse = new Response("offline map");
+    const shellResponse = new Response("offline landing");
     const dataResponse = new Response("legacy data");
     const staticResponse = new Response("legacy static");
     const planResponse = new Response("legacy plan");
@@ -591,7 +591,8 @@ describe("service worker map cache", () => {
         rejectCurrentWrites: true,
         entries: {
           "pubmax-sw-shell-legacy-active": [
-            ["/map", shellResponse],
+            ["/", shellResponse],
+            ["/map", new Response("older map document")],
             ["/p/legacy-drop", new Response("legacy Pint Drop")],
           ],
           "pubmax-sw-data-legacy-active": [
@@ -624,6 +625,8 @@ describe("service worker map cache", () => {
     expect(records.has("pubmax-sw-shell-legacy-active")).toBe(true);
     expect(records.get("pubmax-sw-shell-legacy-active")
       ?.has("https://pubmaxxing.com/p/legacy-drop")).toBe(false);
+    expect(records.get("pubmax-sw-shell-legacy-active")
+      ?.has("https://pubmaxxing.com/map")).toBe(false);
     expect(records.has("pubmax-sw-data-legacy-active")).toBe(true);
     expect(records.has("pubmax-sw-preview-plan-v2-legacy-active")).toBe(true);
     expect(
@@ -674,6 +677,7 @@ describe("service worker map cache", () => {
       ["/tonight", new Response("tonight shell")],
       ["/offline.html", new Response("offline shell")],
     ];
+    const olderMapDocument: [string, Response] = ["/map", new Response("older map document")];
     const privatePaths = ["/p/drop1", "/plan/night1/recap"];
     const excluded: Array<[string, Response]> = [
       ...privatePaths.map((path): [string, Response] => [path, new Response("private HTML")]),
@@ -685,8 +689,8 @@ describe("service worker map cache", () => {
       entries: {
         "pubmax-sw-preview-plan-v2-target": [["/plan/current?old=1", currentPlan], ...excluded],
         "pubmax-sw-preview-plan-v2-legacy-active": [["/plan/legacy?old=1", legacyPlan], ...excluded],
-        "pubmax-sw-shell-target": [defined(shells[0]), ...excluded],
-        "pubmax-sw-shell-legacy-active": [...shells.slice(1), ...excluded],
+        "pubmax-sw-shell-target": [...shells.slice(0, 2), ...excluded],
+        "pubmax-sw-shell-legacy-active": [...shells.slice(2), olderMapDocument, ...excluded],
       },
     });
     expect(importScripts).toHaveBeenCalledOnce();
@@ -722,10 +726,10 @@ describe("service worker map cache", () => {
       rejectCurrentWrites ? [`${origin}/plan/legacy?old=1`] : [],
     );
     expect([...records.get("pubmax-sw-shell-target")!.keys()]).toEqual(
-      (rejectCurrentWrites ? shells.slice(0, 1) : shells).map(([path]) => `${origin}${path}`),
+      (rejectCurrentWrites ? shells.slice(0, 2) : shells).map(([path]) => `${origin}${path}`),
     );
     expect([...(records.get("pubmax-sw-shell-legacy-active")?.keys() ?? [])]).toEqual(
-      (rejectCurrentWrites ? shells.slice(1) : []).map(([path]) => `${origin}${path}`),
+      (rejectCurrentWrites ? shells.slice(2) : []).map(([path]) => `${origin}${path}`),
     );
   });
 
@@ -861,8 +865,8 @@ describe("service worker map cache", () => {
     expect(records.get("pubmax-sw-preview-plan-v2-target")?.size ?? 0).toBe(0);
   });
 
-  it("purges Pint Drops from current and legacy shell caches on activation", async () => {
-    const mapResponse = new Response("offline map");
+  it("purges Pint Drops and older map documents from current and legacy shell caches on activation", async () => {
+    const mapResponse = new Response("older map document");
     const { listeners, records } = rolloutWorkerHarness({
       entries: {
         "pubmax-sw-shell-target": [
@@ -877,16 +881,16 @@ describe("service worker map cache", () => {
 
     await Promise.all(dispatchLifecycle(listeners.get("activate")!));
 
-    expect([...records.get("pubmax-sw-shell-target")!.keys()]).toEqual([
-      "https://pubmaxxing.com/map",
-    ]);
+    expect([...records.get("pubmax-sw-shell-target")!.keys()]).toEqual([]);
     expect(records.has("pubmax-sw-shell-legacy-active")).toBe(false);
 
     const map = dispatchFetch(
       listeners.get("fetch")!,
       { method: "GET", mode: "navigate", url: "https://pubmaxxing.com/map" } as Request,
     );
-    expect(await map.response).toBe(mapResponse);
+    const served = await map.response as Response;
+    expect(served).not.toBe(mapResponse);
+    expect(served.status).toBe(503);
   });
 
   it("migrates shell entries without promoting old stable data", async () => {
@@ -894,7 +898,8 @@ describe("service worker map cache", () => {
       rolloutWorkerHarness({
         entries: {
           "pubmax-sw-shell-legacy-active": [
-            ["/map", new Response("offline map")],
+            ["/tonight", new Response("offline tonight")],
+            ["/map", new Response("older map document")],
           ],
           "pubmax-sw-data-legacy-active": [
             ["/data/venues_slim.core.json", new Response("legacy data")],
@@ -906,11 +911,9 @@ describe("service worker map cache", () => {
     await expect(Promise.all(lifetime)).resolves.toBeDefined();
 
     expect(deletedCaches).toEqual(["pubmax-sw-shell-legacy-active"]);
-    expect(
-      records
-        .get("pubmax-sw-shell-target")
-        ?.has("https://pubmaxxing.com/map"),
-    ).toBe(true);
+    expect([...records.get("pubmax-sw-shell-target")!.keys()]).toEqual([
+      "https://pubmaxxing.com/tonight",
+    ]);
     expect(
       records
         .get("pubmax-sw-data-target")
@@ -1126,6 +1129,67 @@ describe("service worker map cache", () => {
 
     expect(response.type).toBe("error");
     expect(response.status).toBe(0);
+  });
+});
+
+describe("map shell versus per-request map documents", () => {
+  const origin = "https://pubmaxxing.com";
+  const shell = () => new Response("prerendered map shell");
+
+  async function navigateOnline(path: string, live: Response) {
+    const { listeners, records } = rolloutWorkerHarness({
+      entries: { "pubmax-sw-shell-target": [["/map", shell()]] },
+      response: live,
+    });
+    const navigation = dispatchFetch(listeners.get("fetch")!, {
+      method: "GET",
+      mode: "navigate",
+      url: new URL(path, origin).href,
+    } as Request);
+    expect(await navigation.response).toBe(live);
+    await Promise.all(navigation.lifetime);
+    return records.get("pubmax-sw-shell-target")!.get(`${origin}/map`)?.response.text();
+  }
+
+  it.each(MAP_DOCUMENT_QUERY_KEYS.flatMap((key) => [`/map?${key}=camden`, `/map?drink=wine&${key}=%20x%20`]))(
+    "keeps the shell when %s renders its own document",
+    async (path) => {
+      const twin = new Response("per-request map document", {
+        headers: { "cache-control": "private, no-store" },
+      });
+      expect(await navigateOnline(path, twin)).toBe("prerendered map shell");
+    },
+  );
+
+  it.each(["/map", "/map?drink=wine", "/map?place=%20%20", "/map?place=&place=camden", "/map?sel=venue-1"])(
+    "refreshes the shell from %s, which the prerendered document answers",
+    async (path) => {
+      expect(await navigateOnline(path, new Response("fresh map shell"))).toBe("fresh map shell");
+    },
+  );
+
+  it("does not serve an older worker's map document offline before or after activation", async () => {
+    const landing = new Response("landing shell");
+    const { listeners, records } = rolloutWorkerHarness({
+      entries: {
+        "pubmax-sw-shell-legacy-active": [
+          ["/", landing],
+          ["/map", new Response("older map document")],
+        ],
+      },
+    });
+    for (const phase of ["before activation", "after activation"]) {
+      if (phase === "after activation") {
+        await Promise.all(dispatchLifecycle(listeners.get("activate")!));
+        expect(records.get("pubmax-sw-shell-target")?.has(`${origin}/map`) ?? false).toBe(false);
+      }
+      const navigation = dispatchFetch(listeners.get("fetch")!, {
+        method: "GET",
+        mode: "navigate",
+        url: `${origin}/map?drink=wine`,
+      } as Request);
+      expect(await navigation.response, phase).toBe(landing);
+    }
   });
 });
 
