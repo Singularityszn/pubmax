@@ -111,6 +111,15 @@ export default async function Page() {
 }
 `;
 
+const COOKIE_HEADER_PRESENCE_PAGE = `import { headers } from "next/headers";
+
+export default async function Page() {
+  const h = await headers();
+  return <p>{h.has("cookie") ? "signed in" : "anonymous"}</p>;
+}
+`;
+
+// lib/pintDropViewer reads no header itself; lib/authServer, which it imports, reads Authorization.
 const PINT_DROP_VIEWER_PAGE = `import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
 
 export default async function Page() {
@@ -220,18 +229,35 @@ const UNRELATED_REFRESH = refreshingComponent(NAVIGATION, `  const router = useR
   const poll = { refresh() {} };
   return <button onClick={() => { poll.refresh(); router.push("/"); }}>Save</button>;`);
 
-/** One fixture per credential door, keyed by the door an exception may argue. */
-const DOOR_PAGES: Record<string, string> = {
-  "cookies()": COOKIE_PAGE,
-  "draftMode()": DRAFT_MODE_PAGE,
-  "the credential helper @/lib/adminAuth": CREDENTIAL_GATE_PAGE,
-  "the credential helper @/lib/pintDropViewer": PINT_DROP_VIEWER_PAGE,
-  "the Authorization header": AUTHORIZATION_PAGE,
-  "the Cookie header": COOKIE_HEADER_PAGE,
+/**
+ * The fixtures that open each credential door, keyed by the door an exception
+ * may argue: a page reads it directly or through a module it imports.
+ */
+const DOOR_PAGES: Record<string, Array<[how: string, code: string]>> = {
+  "cookies()": [["directly", COOKIE_PAGE]],
+  "draftMode()": [["directly", DRAFT_MODE_PAGE]],
+  "the Authorization header": [
+    ["directly", AUTHORIZATION_PAGE],
+    ["through @/lib/pintDropViewer", PINT_DROP_VIEWER_PAGE],
+  ],
+  "the Cookie header": [
+    ["directly", COOKIE_HEADER_PAGE],
+    ["through @/lib/adminAuth", CREDENTIAL_GATE_PAGE],
+  ],
 };
 
 const EXCEPTIONS = Object.entries(PER_SESSION_SERVER_PAGES).flatMap(([file, { doors }]) =>
-  doors.map((door) => [file, door] as const),
+  doors.flatMap((door) => {
+    const pages = DOOR_PAGES[door];
+    if (pages === undefined) throw new Error(`no fixture reads ${door}`);
+    return pages.map(([how, code]) => [file, door, how, code] as const);
+  }),
+);
+
+const UNARGUED_DOORS = Object.entries(PER_SESSION_SERVER_PAGES).flatMap(([file, { doors }]) =>
+  Object.entries(DOOR_PAGES)
+    .filter(([door]) => !doors.includes(door))
+    .flatMap(([door, pages]) => pages.map(([how, code]) => [file, door, how, code] as const)),
 );
 
 describe("invariant 1 - no page renders per-account content on the server", () => {
@@ -242,6 +268,7 @@ describe("invariant 1 - no page renders per-account content on the server", () =
     ["the authorization header", AUTHORIZATION_PAGE],
     ["the Authorization header", CAPITALISED_AUTHORIZATION_PAGE],
     ["the cookie header", COOKIE_HEADER_PAGE],
+    ["whether the cookie header is present", COOKIE_HEADER_PRESENCE_PAGE],
     ["a credential helper", AUTH_SERVER_HELPER_PAGE],
     ["a module that imports a credential helper", TRANSITIVE_HELPER_PAGE],
   ])("refuses a server page that reads %s", async (_door, code) => {
@@ -267,22 +294,16 @@ describe("invariant 1 - no page renders per-account content on the server", () =
     );
   });
 
-  it.each(EXCEPTIONS)("lets the argued exception %s read %s", async (file, door) => {
-    const code = DOOR_PAGES[door];
-    if (code === undefined) throw new Error(`no fixture reads ${door}`);
-
+  it.each(EXCEPTIONS)("lets the argued exception %s read %s %s", async (file, _door, _how, code) => {
     expect(await lintRules(file, code)).not.toContain(CREDENTIAL_READ);
   });
 
-  it.each(
-    Object.entries(PER_SESSION_SERVER_PAGES).flatMap(([file, { doors }]) =>
-      Object.entries(DOOR_PAGES)
-        .filter(([other]) => !doors.includes(other))
-        .map(([other, code]) => [file, other, code] as const),
-    ),
-  )("still refuses the argued exception %s reading %s", async (file, _door, code) => {
-    expect(await lintRules(file, code)).toContain(CREDENTIAL_READ);
-  });
+  it.each(UNARGUED_DOORS)(
+    "still refuses the argued exception %s reading %s %s",
+    async (file, _door, _how, code) => {
+      expect(await lintRules(file, code)).toContain(CREDENTIAL_READ);
+    },
+  );
 
   it.each(Object.keys(PER_SESSION_SERVER_PAGES))(
     "reports the argued exception %s as stale once it stops reading the credential",
