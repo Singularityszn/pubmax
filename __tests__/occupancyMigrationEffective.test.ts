@@ -1,7 +1,7 @@
-// Effective proof for 0107. The shape pins live in occupancyMigration.test.ts;
-// this file APPLIES the migration to a real PostgreSQL 16 and exercises the
-// table as the three Supabase roles, because a policy is a claim about what a
-// role may do and only the database can answer that.
+// Effective proof for 0107. This file APPLIES the migration to a real
+// PostgreSQL 16 and exercises the table as the three Supabase roles, because a
+// policy is a claim about what a role may do and only the database can answer
+// that.
 //
 // Same host contract as the other effective migration proofs
 // (rateLimitExpiryMigration, foundingMembersMigration): a host with no

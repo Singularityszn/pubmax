@@ -162,8 +162,7 @@ describe("the native document stylesheet", () => {
   });
 
   it("suppresses no selection of its own, leaving that to the one site-wide rule", () => {
-    // app/globals.css already unselects every control, native included, and
-    // __tests__/mobileWebPolish.test.ts holds that to a short deliberate list.
+    // app/globals.css already unselects every control, native included.
     // The callout is the half no web rule covers, so it is the only half here.
     expect(css).not.toContain("user-select");
   });
