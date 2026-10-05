@@ -2,6 +2,7 @@ import { expect, test, type Page, type Response as PlaywrightResponse } from "@p
 import { attachBill } from "./helpers/priceBill";
 import { MAP_CHOSEN_AREA_KEY } from "../lib/mapChosenArea";
 import { parseUkBaseShard, type UkBasePub } from "../lib/ukBasePubs";
+import { SHEET_SNAP_FRACTIONS } from "../lib/sheetSnap";
 
 // The UK base layer's two load-bearing promises, asserted in a real browser
 // with a real MapLibre canvas (this spec runs in the `chromium-gl` project):
@@ -91,7 +92,7 @@ test.beforeEach(async ({ page }) => {
 
 test("normal London entry paints UK base pubs and takes a price", async ({
   page,
-}) => {
+}, testInfo) => {
   test.setTimeout(180_000);
   await seedSignedInSession(page);
   await page.route("https://pubmaxx-e2e.supabase.co/**", async (route) => {
@@ -263,19 +264,63 @@ test("normal London entry paints UK base pubs and takes a price", async ({
   await expect(page.locator(".venueInspector")).toHaveCount(0);
   await priceField.blur();
 
+  // UK base selection requests peek, while a repeat tap can settle at half.
+  // Keep an existing peek; otherwise use the ordinary header drag without
+  // closing A or replacing its mounted price form.
+  const aSheet = await sheet.elementHandle();
+  if (!aSheet) throw new Error("Turnpike House's mounted sheet is required");
+  const phoneSheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"] .mobileSharedSheet');
+  await expect(phoneSheet).toHaveAttribute("data-sheet-motion", "idle");
+  await expect(phoneSheet).toHaveClass(/sheet-(half|peek)\b/);
+  const draggedToPeek = (await phoneSheet.getAttribute("class"))?.split(/\s+/).includes("sheet-half") === true;
+  if (draggedToPeek) {
+    const header = phoneSheet.locator(".mobileSharedSheetHeader");
+    const headerBox = await header.boundingBox();
+    const sheetBox = await phoneSheet.boundingBox();
+    if (!headerBox || !sheetBox) throw new Error("The visible venue header is required for a drag");
+    const dragX = headerBox.x + 18;
+    const dragY = headerBox.y + headerBox.height - 10;
+    const peekHeight = page.viewportSize()!.height * SHEET_SNAP_FRACTIONS.peek;
+    await page.mouse.move(dragX, dragY);
+    await page.mouse.down();
+    await page.mouse.move(dragX, dragY + sheetBox.height - peekHeight, { steps: 12 });
+    await page.mouse.up();
+  }
+  await expect(phoneSheet).toHaveClass(/sheet-peek/);
+  await expect(phoneSheet).toHaveAttribute("data-sheet-motion", "idle");
+  await expect(phoneSheet).not.toHaveAttribute("aria-modal", "true");
+  await expect(phoneSheet).not.toHaveAttribute("role", "dialog");
+  expect(new URL(page.url()).searchParams.get("sel")).toBe(firstId);
+  expect(await sheet.evaluate((node, original) => node === original, aSheet)).toBe(true);
+  await expect(priceField).toHaveValue(TYPED_PRICE);
+  await aSheet.dispose();
+  let bTap: { pin: PaintedMark; sheetTop: number; canvasOwnsTap: boolean } | null = null;
+
   await expect
     .poll(
       async () => {
         // A selection moves the camera. Read B's current painted coordinates
         // while retaining the same mounted A sheet and typed price.
-        const pin = uniqueUkPins(await paintedMarks(page)).find((mark) => mark.id === secondId);
-        if (!pin) return null;
-        await page.mouse.click(pin.x, pin.y);
+        const target = await page.evaluate((id) => {
+          const probe = window as Window & { __pubmaxPaintedMapTapPoints?: () => PaintedMark[] };
+          const pin = probe.__pubmaxPaintedMapTapPoints?.().find((mark) => mark.kind === "pin" && mark.id === id);
+          const openSheet = document.querySelector('.mobileSheetPortal[data-sheet-kind="venue"] .mobileSharedSheet');
+          if (!pin || !openSheet) return null;
+          return { pin, sheetTop: openSheet.getBoundingClientRect().top,
+            canvasOwnsTap: document.elementFromPoint(pin.x, pin.y)?.matches("canvas.maplibregl-canvas") === true };
+        }, secondId);
+        if (!target) return null;
+        expect(target.pin.y).toBeLessThan(target.sheetTop);
+        expect(target.canvasOwnsTap).toBe(true);
+        await page.mouse.click(target.pin.x, target.pin.y);
         await page.waitForTimeout(500);
         if ((await sheet.count()) === 0) return null;
         const name = await sheetName();
         const sel = new URL(page.url()).searchParams.get("sel");
-        if (sel === secondId && sel !== firstPinId && name && name !== firstName) return name;
+        if (sel === secondId && sel !== firstPinId && name && name !== firstName) {
+          bTap = target;
+          return name;
+        }
         return null;
       },
       {
@@ -329,6 +374,25 @@ test("normal London entry paints UK base pubs and takes a price", async ({
   const restoredSheet = page.locator(".unverifiedPub");
   await expect(restoredSheet).toBeVisible({ timeout: 45_000 });
   await expect(restoredSheet.locator(".unverifiedPubName")).toHaveText(pubName);
+  await expect(phoneSheet).toHaveAttribute("data-sheet-motion", "idle");
+  await expect.poll(() => page.evaluate(() => {
+    const probe = window as Window & { __pubmaxMapCamera?: { read: () => { moving: boolean } } };
+    return probe.__pubmaxMapCamera?.read().moving;
+  }), { timeout: 20_000 }).toBe(false);
+  const settled = await phoneSheet.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    const probe = window as Window & { __pubmaxMapCamera?: { read: () => unknown } };
+    return { className: element.className, motion: element.getAttribute("data-sheet-motion"),
+      modal: element.getAttribute("aria-modal"), bounds: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+      camera: probe.__pubmaxMapCamera?.read() ?? null };
+  });
+  await testInfo.attach("london-mounted-pair-proof", {
+    body: JSON.stringify({ firstId, firstName, secondId, secondName: pubName, draggedToPeek, bTap,
+      restoredUrl: page.url(), settled }, null, 2), contentType: "application/json",
+  });
+  await testInfo.attach("london-mounted-pair-restored", {
+    body: await page.screenshot(), contentType: "image/png",
+  });
 });
 
 test("selecting Gin keeps street-level UK pub presence available", async ({ page }) => {
