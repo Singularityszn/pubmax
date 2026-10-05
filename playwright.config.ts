@@ -154,6 +154,9 @@ export default defineConfig({
       // WebGL-agnostic (smoke.spec asserts canvas-OR-fallback), so running them
       // here would false-fail. Screenshots are design-QA artifacts, excluded too.
       testIgnore: [
+        // The production smoke suite drives a deployed site, never this
+        // build. playwright.prod-smoke.config.ts owns it.
+        "**/prod-smoke/**",
         "**/screenshots.spec.ts",
         ...(DISPOSABLE_PLAN_DB ? [] : ["**/plan-selected-drink-disposable.spec.ts"]),
         "**/price-contribution-auth.spec.ts",
