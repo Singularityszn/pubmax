@@ -14,7 +14,8 @@
 // insufficient stored facts, from the website OSM or the price dataset gives
 // them. --locate asks Firecrawl search for the own site of such a pub that has
 // none, and keeps a hit only when its host carries a distinctive word of the
-// pub's name and the page states the pub's postcode. With FIRECRAWL_API_KEY
+// pub's name and the page states the pub's postcode, or its street when the
+// dataset address gives no postcode. With FIRECRAWL_API_KEY
 // set, a page the plain read could not get (timeout, failed connection, 429,
 // 5xx, or almost no text) is read once more through Firecrawl, after the same
 // robots and source checks. --firecrawl-requests caps those requests, default
@@ -66,7 +67,9 @@ import {
   keepEvidencedAmenities,
   locatedOwnSite,
   pageStatesPostcode,
+  pageStatesStreet,
   postcodeOf,
+  streetOf,
   liftSiteStamps,
   matchPubToVenue,
   mergeHarvestEvidence,
@@ -419,6 +422,7 @@ function copySkippedPubs(dataset, anchors, londonSites) {
         website: site?.website ?? listed ?? null,
         venueId: anchor.venueId,
         postcode: rows.map((row) => postcodeOf(String(row.address ?? ""))).find(Boolean) ?? null,
+        street: rows.map((row) => streetOf(String(row.address ?? ""))).find(Boolean) ?? null,
       };
     });
   return [...pubs.filter((pub) => pub.website), ...pubs.filter((pub) => !pub.website)];
@@ -632,10 +636,11 @@ async function main() {
   // unread and a later run searches again.
   async function locateSite(pub) {
     if (Object.hasOwn(located, pub.osmId)) return located[pub.osmId];
-    if (!pub.postcode) return null;
+    if (!pub.postcode && !pub.street) return null;
     if (!firecrawl) return undefined;
     await paceSearch();
-    const found = await firecrawl.search(`"${pub.name}" pub ${pub.postcode}`, { limit: 5 });
+    const where = pub.postcode ?? `"${pub.street.join(" ")}" London`;
+    const found = await firecrawl.search(`"${pub.name}" pub ${where}`, { limit: 5 });
     if (!found.ok) return undefined;
     located[pub.osmId] = locatedOwnSite(pub.name, found.results, {
       chainPages: knownChainPages,
@@ -660,7 +665,7 @@ async function main() {
     if (isChainPage(home.url, knownChainPages)) return { status: "chain-page", sourceUrl: home.url };
     const landedPermission = await robots(home.url);
     if (!landedPermission.allowed) return { status: landedPermission.reason ?? "robots-denied" };
-    if (!pub.website && !pageStatesPostcode(home.text, pub.postcode)) return { status: "located-site-unconfirmed", sourceUrl: home.url };
+    if (!pub.website && !(pub.postcode ? pageStatesPostcode(home.text, pub.postcode) : pageStatesStreet(home.text, pub.street))) return { status: "located-site-unconfirmed", sourceUrl: home.url };
     let text = home.text;
     const extraLinks = sameHostLinks(home.html, home.url);
     for (const link of extraLinks.slice(0, 1)) {

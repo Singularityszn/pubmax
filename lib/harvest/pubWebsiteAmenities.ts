@@ -711,3 +711,27 @@ export function locatedOwnSite(
   }
   return null;
 }
+
+const STREET_SUFFIXES: Record<string, string> = {
+  st: "street", rd: "road", ln: "lane", ave: "avenue", sq: "square", pl: "place", ct: "court", cres: "crescent", gdns: "gardens", hwy: "highway",
+};
+
+/**
+ * The street an address names in its first part, without the house number,
+ * as words, or null when that part has fewer than two words. "10 James St,
+ * London" gives ["james", "street"].
+ */
+export function streetOf(address: string): string[] | null {
+  const first = address.split(",")[0]?.toLowerCase().replace(/^[\d\s\-–/a-z]{0,4}\d[a-z]?\b/, "") ?? "";
+  const words = first.match(/[a-z']+/g)?.map((word) => STREET_SUFFIXES[word] ?? word) ?? [];
+  return words.length >= 2 ? words : null;
+}
+
+/** Whether page text names this street, its suffix spelled out or abbreviated. */
+export function pageStatesStreet(text: string, street: readonly string[]): boolean {
+  const abbreviations = Object.fromEntries(Object.entries(STREET_SUFFIXES).map(([short, long]) => [long, short]));
+  const pattern = street
+    .map((word) => (abbreviations[word] ? `(?:${word}|${abbreviations[word]}\\.?)` : word.replace(/'/g, "['’]?")))
+    .join("\\s+");
+  return new RegExp(`\\b${pattern}\\b`, "i").test(text);
+}

@@ -19,6 +19,7 @@ import {
   mergeChainDenylists,
   mergeHarvestEvidence,
   pageStatesPostcode,
+  pageStatesStreet,
   parseChainDenylist,
   parsePubAmenityModelJson,
   postcodeOf,
@@ -28,6 +29,7 @@ import {
   readExtraPage,
   stampAmenityColumns,
   statedAmenities,
+  streetOf,
 } from "@/lib/harvest/pubWebsiteAmenities";
 
 const PAGE = [
@@ -806,5 +808,20 @@ describe("located own sites", () => {
     expect(pageStatesPostcode("Find us at 116 Cloudesley Road, N10EB", "N1 0EB")).toBe(true);
     expect(pageStatesPostcode("Find us at N1 0EBX", "N1 0EB")).toBe(false);
     expect(pageStatesPostcode("Find us at SN1 0EB", "N1 0EB")).toBe(false);
+  });
+});
+
+describe("street locators", () => {
+  it("reads the street from an address's first part and spells out its suffix", () => {
+    expect(streetOf("10 James St, London WC2E88T")).toEqual(["james", "street"]);
+    expect(streetOf("39-41 Crutched Friars , , London")).toEqual(["crutched", "friars"]);
+    expect(streetOf("106-107 Houndsditch, , London, UK")).toBeNull();
+    expect(streetOf(", , Southwark,")).toBeNull();
+  });
+
+  it("finds the street on a page with its suffix spelled out or abbreviated, and no other street", () => {
+    expect(pageStatesStreet("Find us on James St.", ["james", "street"])).toBe(true);
+    expect(pageStatesStreet("51 Bethnal Green Rd, E2", ["bethnal", "green", "road"])).toBe(true);
+    expect(pageStatesStreet("Jameson Street", ["james", "street"])).toBe(false);
   });
 });
