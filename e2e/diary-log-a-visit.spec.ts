@@ -20,7 +20,7 @@ test.use({ viewport: { width: 390, height: 844 } });
 
 const SHOTS = runnerShotDir("pubmax-diary-phase1");
 const VENUE_ID = "venue-1f5ygjb";
-const VENUE_NAME = "The Blackfriar";
+const VENUE_NAME = "The Bohemia";
 const OWNER = "profile:00000000-0000-4000-8000-0000000000a1";
 
 type Entry = {
