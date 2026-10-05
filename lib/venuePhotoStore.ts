@@ -24,6 +24,8 @@ import { isProfileWithdrawnFromPublic } from "@/lib/accountPublicAccess.server";
 //    together. Hiding never deletes: the row, its bytes and its report trail
 //    stay, so the decision is reversible from the surface that made it.
 
+import { requireSupabaseAdmin } from "@/lib/supabase";
+
 import {
   admin,
   createFailSoftGuard,
@@ -524,42 +526,17 @@ const supabaseVenuePhotoStore: VenuePhotoStore = {
   },
 
   async report(id, reason, actorHash) {
-    return guard<boolean>({
-      context: "report",
-      onSchemaMiss: () =>
-        onMissingDurableWrite({
-          storeTag: "venue-photos",
-          migrationHint: MIGRATION_HINT,
-          fallback: () => memoryVenuePhotoStore.report(id, reason, actorHash),
-        }),
-      run: async () => {
-        const { data, error } = await admin()
-          .from(TABLE)
-          .select("id, moderation_state, report_count, report_actors")
-          .eq("id", id)
-          .maybeSingle();
-        if (error) throw new Error(error.message);
-        if (!data) return false;
-        const row = data as Record<string, unknown>;
-        const actors = Array.isArray(row.report_actors)
-          ? (row.report_actors as unknown[]).filter((a): a is string => typeof a === "string")
-          : [];
-        if (actors.includes(actorHash)) return true;
-        const nextActors = [...actors, actorHash];
-        const { error: updateError } = await admin()
-          .from(TABLE)
-          .update({
-            report_actors: nextActors,
-            report_count: nextActors.length,
-            reported_at: new Date().toISOString(),
-            ...(reason ? { report_reason: reason } : {}),
-            ...(row.moderation_state === "approved" ? { moderated_at: null } : {}),
-          })
-          .eq("id", id);
-        if (updateError) throw new Error(updateError.message);
-        return true;
-      },
+    // The database owns actor uniqueness and reads the current moderation
+    // state under its row lock. A missing RPC must never acknowledge a flag
+    // through the former read-modify-write or process-memory fallback.
+    const { data, error } = await requireSupabaseAdmin().rpc("append_venue_photo_report_actor", {
+      p_id: id,
+      p_actor: actorHash,
+      p_reason: reason ?? null,
     });
+    if (error) throw new Error(error.message);
+    if (typeof data !== "boolean") throw new Error("Reporter storage returned an invalid result.");
+    return data;
   },
 
   async moderate(id, state, note) {
