@@ -36,8 +36,10 @@ type SavedRow = {
  * The durable store, answering only for the owner's handle. A GET is counted
  * per bearer so the test can say the profile read went out signed in.
  */
-async function installSavedPubsDouble(page: Page): Promise<{ signedReads: () => number }> {
-  const rows: SavedRow[] = [];
+async function installSavedPubsDouble(
+  page: Page,
+  rows: SavedRow[] = [],
+): Promise<{ signedReads: () => number }> {
   let signedReads = 0;
   await page.route("**/api/saved-pubs**", async (route) => {
     const request = route.request();
@@ -134,5 +136,35 @@ test.describe("profile saved venues after a full reload", () => {
       "the empty state never painted before the saves arrived",
     ).toBe(false);
     await page.locator("#saved-pubs").screenshot({ path: `${SHOTS}/profile-saved-after-reload.png` });
+  });
+
+  test("a profile whose canonical handle read fails still shows its saved venues", async ({ page }) => {
+    test.slow();
+    await installAuthDoubles(page);
+    const venueId = "venue-e2e-canonical-down";
+    const store = await installSavedPubsDouble(page, [
+      {
+        venueId,
+        venueName: COMMUNITY_SHEET_FIXTURE_VENUE_NAME,
+        venueMapUrl: `/map?sel=${venueId}`,
+        listType: LIST,
+        savedAt: new Date().toISOString(),
+      },
+    ]);
+    // The session restores, but the account's handle never comes back, so
+    // identity is never settled for the page.
+    await page.route("**/api/identity/handle/current", (route) =>
+      route.fulfill({ status: 503, contentType: "application/json", body: "{}" }),
+    );
+    await seedSignedIn(page, "A");
+
+    await page.goto(`/u/${ACCOUNTS.A.handle}#saved-pubs`);
+    const row = page
+      .locator("#saved-pubs .savedList")
+      .filter({ has: page.locator(".savedListName", { hasText: LIST }) })
+      .locator(".savedItem", { hasText: COMMUNITY_SHEET_FIXTURE_VENUE_NAME });
+    await expect(row).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator("#saved-pubs .savedSection")).not.toHaveAttribute("aria-busy", "true");
+    expect(store.signedReads(), "the profile read went out with the session").toBeGreaterThan(0);
   });
 });

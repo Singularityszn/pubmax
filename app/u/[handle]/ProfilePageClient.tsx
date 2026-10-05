@@ -404,7 +404,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const isYouRoute = routeHandle === YOU_SENTINEL;
   const router = useRouter();
   const documentComplete = useDocumentComplete();
-  const { accountRevision, user, identityResolved, signOut } = useAuth();
+  const { accountRevision, user, identityResolved, loading: sessionLoading, signOut } = useAuth();
   const viewerSession = useViewerSession();
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const followKey = `${accountRevision}:${routeHandle}`;
@@ -425,21 +425,25 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const [state, setState] = useState<LoadState>("loading");
   // Saved venues render as DTOs (venue NAME + map url). Durable when this handle has
   // server-side saves (/api/saved-pubs); otherwise the localStorage fallback
-  // (savedByList) mapped into DTOs. Null until this handle's read answers, so the
-  // server render and the hydration paint match and neither claims the list is
-  // empty before anyone has asked.
+  // (savedByList) mapped into DTOs. Null until this handle's read answers for
+  // this account, so the server render and the hydration paint match, neither
+  // claims the list is empty before anyone has asked, and a previous account's
+  // answer is never shown to the next one.
   const [savedRead, setSavedRead] = useState<{
     handle: string;
+    accountRevision: number;
     groups: Partial<Record<ListType, SavedPubDTO[]>>;
   } | null>(null);
-  const saved = savedRead?.handle === routeHandle ? savedRead.groups : null;
+  const saved =
+    savedRead?.handle === routeHandle && savedRead.accountRevision === accountRevision
+      ? savedRead.groups
+      : null;
   const [followedLists, setFollowedLists] = useState<FollowedSavedListDTO[]>([]);
   // The shared reader is the only place this surface may learn who is holding
   // the device. It returns null while identity is unresolved, so a cached
   // handle cannot name the previous account during session restore.
   const viewerHandleFromIdentity = useViewerHandle() ?? "";
   const viewerHandle = user ? viewerHandleFromIdentity : "";
-  const identityReadyForSurface = identityResolved && !viewerSession.unresolved;
   // The owner's own linked socials, public on their card by their own choice.
   const [socialLinks, setSocialLinks] = useState<PublicSocialLink[]>([]);
   // Durable profile row + follow graph, fetched from /api/profiles/[handle].
@@ -600,12 +604,13 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // body) so setState only runs in async work (react-hooks rule).
   //
   // The read is identity-bound, and restoring the session aborts every
-  // identity-bound request, so asking before identity is ready got an aborted
+  // identity-bound request, so asking before the session settled got an aborted
   // read that fell back to the local view and never asked again: an owner's
-  // full load said "No saved venues yet." It waits for identity, asks again
-  // when the account changes, and drops an answer whose account is gone.
+  // full load said "No saved venues yet." It waits for the session to settle
+  // (never for the canonical handle, which may not come back), asks again when
+  // the account changes, and drops an answer whose account is gone.
   useEffect(() => {
-    if (!identityReadyForSurface) return;
+    if (sessionLoading) return;
     const controller = new AbortController();
     async function loadSaved() {
       const durable = routeHandle
@@ -617,16 +622,19 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       // null (no handle / request failed) falls back to the local view.
       setSavedRead({
         handle: routeHandle,
+        accountRevision,
         groups: durable ? groupDTOsByList(durable) : localSavedDTOs(),
       });
     }
     void loadSaved();
     return () => controller.abort();
-  }, [accountRevision, identityReadyForSurface, routeHandle]);
+  }, [accountRevision, routeHandle, sessionLoading]);
 
   // Followed saved lists are public social context for this handle's saved view:
   // "Ken follows Sam's Date Night list" appears on /u/ken. Reads are fail-soft,
-  // matching the API contract, because followed lists are additive context.
+  // matching the API contract, because followed lists are additive context. The
+  // read is identity-bound like the saved venues above, so it waits for the
+  // session the same way.
   useEffect(() => {
     let active = true;
     if (!socialFriendsLaunchEnabled) {
@@ -637,19 +645,22 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         active = false;
       };
     }
+    if (sessionLoading) return;
     const controller = new AbortController();
     async function loadFollowedLists() {
       const lists = routeHandle
         ? await fetchFollowedListsForHandle(routeHandle, controller.signal)
         : [];
-      if (!controller.signal.aborted) setFollowedLists(lists);
+      if (controller.signal.aborted) return;
+      if (readProviderIdentityRevision() !== accountRevision) return;
+      setFollowedLists(lists);
     }
     void loadFollowedLists();
     return () => {
       active = false;
       controller.abort();
     };
-  }, [routeHandle, socialFriendsLaunchEnabled]);
+  }, [accountRevision, routeHandle, sessionLoading, socialFriendsLaunchEnabled]);
 
   // This handle's public crawls and their total (story 35 authorship), from one
   // read so the tile and the listing agree. Best-effort: a failure leaves an
@@ -878,6 +889,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   });
   const stats = profileStats(drops as ProfileDrop[]);
   const isOwnProfile = viewerHandle !== "" && viewerHandle === routeHandle;
+  const identityReadyForSurface = identityResolved && !viewerSession.unresolved;
   const isAnonymous = identityReadyForSurface && viewerSession.signedOut;
   // A stranger may only adopt a handle NOBODY owns. The offer used to ride on
   // `isAnonymous` alone, so a signed-out visitor met "Claim this handle" under
