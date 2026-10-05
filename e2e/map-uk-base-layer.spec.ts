@@ -340,6 +340,22 @@ test("normal London entry paints UK base pubs and takes a price", async ({
   await expect(restoredSheet.locator(".unverifiedPubName")).toHaveText(pubName);
 });
 
+// The desktop drawer names a base pub's sheet for its own OSM kind. It used to
+// read the curated selection, which a base pub never has, so a search that
+// opened the base twin of a curated pub landed in a sheet called "Venue detail".
+for (const pub of [
+  { id: "venue-uk-n352930271", at: "51.5003,-0.0842", name: "The Leather Exchange", label: "Pub detail" },
+  { id: "venue-uk-n4470162948", at: "51.5002,-0.0765", name: "The Doodle Bar", label: "Bar detail" },
+]) {
+  test(`a base pub's desktop sheet is named ${pub.label}`, async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/map?sel=${pub.id}&at=${pub.at}`);
+    const sheet = page.getByRole("dialog", { name: pub.label, exact: true });
+    await expect(sheet.locator(".unverifiedPubName")).toHaveText(pub.name, { timeout: 45_000 });
+  });
+}
+
 test("a fresh national overview stays below the UK base gate and fetches no data", async ({
   page,
 }) => {

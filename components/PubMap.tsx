@@ -6856,7 +6856,13 @@ export default function PubMap({
             detailOpen && !(routeMappedActive && drawerSideLaneViewport) ? true : undefined
           }
           role={detailOpen ? "dialog" : undefined}
-          aria-label={detailOpen ? selectedVenueLabels.detailLabel : undefined}
+          // A base pub has no curated venue, so name it from its own OSM kind:
+          // a pub's sheet is "Pub detail" whichever record opened it.
+          aria-label={
+            detailOpen
+              ? venueSheetLabels(basePubOpen ? selectedBasePub : selectedVenue).detailLabel
+              : undefined
+          }
         >
           <div
             className="mapDrawerHead sheetDragHandle"
