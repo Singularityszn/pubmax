@@ -111,7 +111,7 @@ describe("Tavily web slice", () => {
     const pages = { [ownSite]: { url: ownSite, skip: extractSkip }, [reread]: { url: reread, landedUrl: reread, observedAt, title: null, text: "" } };
     const reader = { provider: "firecrawl", label: "Firecrawl scrape", failed: "failed", depths: ["basic"] };
     const extract = vi.fn(async (urls: string[]) => ({ results: urls.map((url) => ({ url, raw_content: url === listing ? listingText : ownText })) }));
-    const robots = vi.fn(async (_url: string) => allowed);
+    const robots = vi.fn<(url: string) => Promise<typeof allowed>>(async () => allowed);
     const { io, stored } = harness({ state, searches, pages, robots, extract });
     const outcome = await webSlice(slice, { spend: true, skipsOnly: true }, { ...io, reader });
     expect(robots.mock.calls.map(([url]) => url)).toEqual([listing]);
