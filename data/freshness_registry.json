@@ -369,7 +369,7 @@
       "artifact": "public/data/venues_slim.json",
       "stamp": {
         "kind": "literal",
-        "value": "2026-10-03T00:00:00.000Z",
+        "value": "2026-10-05T00:00:00.000Z",
         "consumedBy": "public/data/venues_slim.json generatedAt, the latest seed observedAt or expiresAt at or before the build that scripts/build_slim_index.mjs kept the current famous rows as of. A rebuild before the next seed boundary writes the same value, so the literal matches that field without the gate opening the slim payload."
       },
       "cadence": "episodic. Re-verify the seed (npm run verify:famous-venues -- --write) and run npm run refresh:slim before the window closes, then commit the slim",
