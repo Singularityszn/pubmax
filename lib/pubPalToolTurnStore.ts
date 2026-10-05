@@ -331,6 +331,32 @@ async function writeStoredRowIfUnchanged(
 
 const APPEND_ATTEMPTS = 5;
 
+/**
+ * Read the owned row, change it, and write it back only if no other writer
+ * moved it in between, retrying on a lost race. Every writer that runs during
+ * a live session goes through here, so a stale read never drops a tool's
+ * cards, hints or toolsUsed. Returns false when the row is not available to
+ * this writer.
+ */
+async function updateOwnedRow(
+  conversationId: string,
+  ownerId: string | null,
+  change: (existing: StoredTurn) => void,
+): Promise<boolean> {
+  for (let attempt = 0; attempt < APPEND_ATTEMPTS; attempt += 1) {
+    const lookup = await lookupStoredRow(conversationId);
+    if (lookup.status !== "owned") return false;
+    if (ownerId !== null && lookup.turn.ownerId !== ownerId) return false;
+    const existing = lookup.turn;
+    const readExpiry = existing.expiresAt;
+    change(existing);
+    // The expiry is the row version: every write must move it.
+    if (existing.expiresAt <= readExpiry) existing.expiresAt = readExpiry + 1;
+    if (await writeStoredRowIfUnchanged(conversationId, existing, lookup.version)) return true;
+  }
+  throw new Error("pub_pal_tool_turns write lost every race");
+}
+
 const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
   async bind(conversationId, ownerId, cityId) {
     assertConversationId(conversationId);
@@ -434,12 +460,9 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
         }),
       run: async () => {
         await purgeExpiredRows();
-        const lookup = await lookupStoredRow(conversationId);
-        if (lookup.status !== "owned" || lookup.turn.ownerId !== ownerId) return false;
-        const existing = lookup.turn;
-        existing.expiresAt = Date.now() + PUB_PAL_TOOL_TURN_TTL_MS;
-        await writeStoredRow(conversationId, existing);
-        return true;
+        return updateOwnedRow(conversationId, ownerId, (existing) => {
+          existing.expiresAt = Date.now() + PUB_PAL_TOOL_TURN_TTL_MS;
+        });
       },
     });
   },
@@ -458,15 +481,12 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
         }),
       run: async () => {
         await purgeExpiredRows();
-        const lookup = await lookupStoredRow(conversationId);
-        if (lookup.status !== "owned" || lookup.turn.ownerId !== ownerId) return false;
-        const existing = lookup.turn;
-        existing.turns = [...existing.turns, turn].slice(-6);
-        if (turn.role === "user" && turn.content.trim()) existing.query = turn.content.trim();
-        existing.cityId = cityId;
-        existing.expiresAt = Date.now() + PUB_PAL_TOOL_TURN_TTL_MS;
-        await writeStoredRow(conversationId, existing);
-        return true;
+        return updateOwnedRow(conversationId, ownerId, (existing) => {
+          existing.turns = [...existing.turns, turn].slice(-6);
+          if (turn.role === "user" && turn.content.trim()) existing.query = turn.content.trim();
+          existing.cityId = cityId;
+          existing.expiresAt = Date.now() + PUB_PAL_TOOL_TURN_TTL_MS;
+        });
       },
     });
   },
@@ -481,10 +501,7 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
           fallback: () => memoryPubPalToolTurnStore.append(conversationId, patch),
         }),
       run: async () => {
-        for (let attempt = 0; attempt < APPEND_ATTEMPTS; attempt += 1) {
-          const lookup = await lookupStoredRow(conversationId);
-          if (lookup.status !== "owned") return;
-          const existing = lookup.turn;
+        await updateOwnedRow(conversationId, null, (existing) => {
           if (patch.cards?.length) existing.cards.push(...patch.cards);
           if (patch.proposals?.length) existing.proposals.push(...patch.proposals);
           if (patch.hints?.length) existing.hints.push(...patch.hints);
@@ -493,10 +510,7 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
               if (!existing.toolsUsed.includes(name)) existing.toolsUsed.push(name);
             }
           }
-          existing.expiresAt += 1;
-          if (await writeStoredRowIfUnchanged(conversationId, existing, lookup.version)) return;
-        }
-        throw new Error("pub_pal_tool_turns append lost every write race");
+        });
       },
     });
   },

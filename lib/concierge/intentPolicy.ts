@@ -98,8 +98,12 @@ export function extractExplicitBudget(text: string): number | undefined {
 /** A preposition directly before an area: "in Shoreditch", "near Soho". */
 const AREA_PREPOSITION_BEFORE = /\b(?:in|near|around|at)\s+$/iu;
 
-/** Nouns a bare area names a night out with: "a Shoreditch crawl", "Soho pubs". */
-const AREA_NIGHT_NOUNS = /^\s+(?:pub\s+)?(?:crawl|crawls|pubs?|bars?|drinks|pints?)\b/iu;
+/**
+ * Nouns a bare area names a night out with: "a Shoreditch crawl", "Soho pubs",
+ * "a Shoreditch pub-crawl". A singular "pub" or "bar" is left out, because
+ * "the Angel pub" names a venue, not the area.
+ */
+const AREA_NIGHT_NOUNS = /^\s+(?:pub[\s-]+crawls?|crawls?|pubs|bars|drinks|pints?)\b/iu;
 
 /**
  * Longer London place names that start with a known area's word but are not

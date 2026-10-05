@@ -206,6 +206,34 @@ describe("pubPalToolTurnStore (durable backend purge)", () => {
     expect(turn?.cards.map((stored) => stored.venueId).sort()).toEqual(["london-a", "london-b"]);
   });
 
+  it("keeps a tool result when the owner's line and a keep-alive write at the same time", async () => {
+    durable.configured = true;
+    await registerPubPalToolTurn(CONVERSATION_ID, {
+      query: "Plan me a 3 pub crawl in Shoreditch tonight",
+      cityId: "london",
+      ownerId: OWNER_ID,
+    });
+
+    await Promise.all([
+      touchPubPalToolTurn(CONVERSATION_ID, OWNER_ID),
+      appendOwnedPubPalUserTurn(
+        CONVERSATION_ID,
+        OWNER_ID,
+        { role: "user", content: "somewhere cheaper" },
+        "london",
+      ),
+      appendPubPalToolTurn(CONVERSATION_ID, {
+        hints: ["Proposed draft."],
+        toolsUsed: ["propose_plan"],
+      }),
+    ]);
+
+    const turn = await readPubPalToolTurn(CONVERSATION_ID);
+    expect(turn?.toolsUsed).toEqual(["propose_plan"]);
+    expect(turn?.hints).toEqual(["Proposed draft."]);
+    expect(turn?.query).toBe("somewhere cheaper");
+  });
+
   it("deletes every row whose expires_at has passed", async () => {
     durable.configured = true;
     vi.useFakeTimers();

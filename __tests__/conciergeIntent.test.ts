@@ -150,6 +150,8 @@ describe("parseConciergeIntent keyless fallback", () => {
     "Can you plan a Shoreditch crawl?",
     "plan me a shoreditch pub crawl tonight",
     "Best Shoreditch pubs for 4",
+    "Plan a Shoreditch pub-crawl",
+    "Start at the Angel pub, then a crawl in Shoreditch",
   ])("reads a known area named just before a night out in %j", async (text) => {
     const parsed = await parseConciergeIntent(text);
 
