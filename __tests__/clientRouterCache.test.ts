@@ -80,6 +80,13 @@ export default async function Page() {
 }
 `;
 
+const DYNAMIC_COOKIE_PAGE = `export default async function Page() {
+  const { cookies } = await import("next/headers");
+  const jar = await cookies();
+  return <p>{jar.get("sb-account")?.value}</p>;
+}
+`;
+
 const CREDENTIAL_GATE_PAGE = `import { headers } from "next/headers";
 
 import { canOpenAdminDocument } from "@/lib/adminAuth";
@@ -227,9 +234,42 @@ const REFRESHING_COMPONENTS: Array<[string, string]> = [
   ],
 ];
 
+/** A router that reaches the code through a parameter, a prop or an object, never a useRouter() call here. */
+const PASSED_ROUTERS: Array<[string, string]> = [
+  [
+    "a router parameter",
+    `export function afterSave(router: { refresh(): void }) {
+  router.refresh();
+}
+`,
+  ],
+  [
+    "a router prop",
+    refreshingComponent("", `  return <button onClick={() => router.refresh()}>Save</button>;`).replace(
+      "SaveButton()",
+      "SaveButton({ router }: { router: { refresh(): void } })",
+    ),
+  ],
+  [
+    "a router on the props object",
+    refreshingComponent("", `  return <button onClick={() => props.router?.refresh()}>Save</button>;`).replace(
+      "SaveButton()",
+      "SaveButton(props: { router: { refresh(): void } })",
+    ),
+  ],
+  [
+    "a router held as an object property",
+    `export function afterSave(deps: { appRouter: { refresh(): void } }) {
+  deps.appRouter.refresh();
+}
+`,
+  ],
+];
+
 const UNRELATED_REFRESH = refreshingComponent(NAVIGATION, `  const router = useRouter();
   const poll = { refresh() {} };
-  return <button onClick={() => { poll.refresh(); router.push("/"); }}>Save</button>;`);
+  const pollRef = { current: { refresh() {} } as { refresh(): void } | null };
+  return <button onClick={() => { poll.refresh(); pollRef.current?.refresh(); router.push("/"); }}>Save</button>;`);
 
 /**
  * The fixtures that open each credential door, keyed by the door an exception
@@ -266,6 +306,7 @@ describe("invariant 1 - no page renders per-account content on the server", () =
   it.each([
     ["cookies()", COOKIE_PAGE],
     ["draftMode()", DRAFT_MODE_PAGE],
+    ["cookies() through a dynamic import", DYNAMIC_COOKIE_PAGE],
     ["a credential gate module", CREDENTIAL_GATE_PAGE],
     ["the authorization header", AUTHORIZATION_PAGE],
     ["the Authorization header", CAPITALISED_AUTHORIZATION_PAGE],
@@ -337,6 +378,12 @@ export default function Page() {
       "widget.jsx": 'export const Badge = ({ h }) => <b>{h.get("cookie")}</b>;\n',
       "jsx-in-js.js": 'export const Badge = ({ h }) => <b>{h.get("cookie")}</b>;\n',
       "typed.ts": cookieRead,
+      "dynamic.ts":
+        'export async function account() {\n  const { cookies } = await import("next/headers");\n  return (await cookies()).get("sb-account")?.value;\n}\n',
+      "reexport.ts": 'export { cookies } from "next/headers";\n',
+      "reexport-renamed.ts": 'export { draftMode as preview } from "next/headers";\n',
+      "reexport-all.ts": 'export * from "next/headers";\n',
+      "reexport-namespace.ts": 'export * as request from "next/headers";\n',
       "broken.ts": "export const = ;\n",
     })) {
       const target = path.join(dir, file);
@@ -349,7 +396,18 @@ export default function Page() {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it.each(["index-js", "index-mjs", "widget", "jsx-in-js", "typed"])(
+  it.each([
+    "index-js",
+    "index-mjs",
+    "widget",
+    "jsx-in-js",
+    "typed",
+    "dynamic",
+    "reexport",
+    "reexport-renamed",
+    "reexport-all",
+    "reexport-namespace",
+  ])(
     "refuses a page whose import %s reaches a credential read",
     async (name) => {
       expect(await lintRules(FIXTURE_PAGE, importing(name))).toContain(CREDENTIAL_READ);
@@ -383,10 +441,18 @@ const ROUTER_REFRESH = "router-cache/no-router-refresh";
 describe("invariant 2 - no surface expects the server to re-render after a write", () => {
   it.each(
     ["components/FenceFixture.tsx", "app/fence-fixture/SaveButton.tsx"].flatMap((file) =>
-      REFRESHING_COMPONENTS.map(([spelling, code]) => [spelling, file, code] as const),
+      [...REFRESHING_COMPONENTS, ...PASSED_ROUTERS].map(([spelling, code]) => [spelling, file, code] as const),
     ),
   )("refuses a refresh through %s in %s", async (_spelling, file, code) => {
     expect(await lintRules(file, code)).toContain(ROUTER_REFRESH);
+  });
+
+  it("reports a refresh once when both the binding and the router's name reach it", async () => {
+    const code = refreshingComponent(NAVIGATION, `  const router = useRouter();
+  return <button onClick={() => router.refresh()}>Save</button>;`);
+    const rules = await lintRules("components/FenceFixture.tsx", code);
+
+    expect(rules.filter((rule) => rule === ROUTER_REFRESH)).toHaveLength(1);
   });
 
   it("leaves a refresh on anything but the router alone", async () => {
