@@ -32,10 +32,8 @@ import {
   spatialShardFile,
 } from "./lib/slimShards.mjs";
 import { loadStationZones, nearestStationZone } from "./lib/stationZones.mjs";
-import {
-  isCurrentNightOutPlace,
-  nightOutPlaceRowValidationErrors,
-} from "../lib/nightOutPlaceContract.mjs";
+import { isCurrentFamousVenue } from "./lib/currentFamousVenue.mjs";
+import { nightOutPlaceRowValidationErrors } from "../lib/nightOutPlaceContract.mjs";
 import { isLivePriceRow } from "../lib/priceRowEligibility.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -140,8 +138,9 @@ function famousVenueFilterHints(row) {
 }
 
 // A malformed seed row fails the build. A well-formed row whose verification
-// window has lapsed (isCurrentNightOutPlace) is not current. famousRowsForRebuild
-// refuses to write when that would drop a venue the last slim index shipped.
+// window has lapsed, or that has no price anchor (isCurrentFamousVenue), is not
+// current. famousRowsForRebuild refuses to write when that would drop a venue
+// the last slim index shipped.
 function assertCurrentFamousVenueRows(rows, now) {
   const malformed = rows.filter(
     (row) => nightOutPlaceRowValidationErrors(row).length > 0,
@@ -156,12 +155,12 @@ function assertCurrentFamousVenueRows(rows, now) {
   const current = [];
   const withheld = [];
   for (const row of rows) {
-    if (isCurrentNightOutPlace(row, now)) current.push(row);
+    if (isCurrentFamousVenue(row, now)) current.push(row);
     else withheld.push(row);
   }
   if (withheld.length > 0) {
     console.log(
-      `withholding ${withheld.length} famous venue(s) with lapsed or missing verification: ${withheld.map((row) => row.id).join(", ")}`,
+      `withholding ${withheld.length} famous venue(s) with lapsed or missing verification or no anchor: ${withheld.map((row) => row.id).join(", ")}`,
     );
   }
   return current;
@@ -183,6 +182,7 @@ function shippedFamousVenueIds(payload) {
  * only an explicit refresh moves the clock. A non-empty seed that is entirely
  * lapsed, or any shipped id missing from the current set and not named in
  * data/famous_venues/removed.json, fails before a shorter index is written.
+ * A shipped seed row whose anchor was removed is withheld, not a failure.
  */
 function famousRowsForRebuild(seedRows, { lastSlim, removedIds, refreshAt }) {
   let at = refreshAt;
@@ -208,14 +208,17 @@ function famousRowsForRebuild(seedRows, { lastSlim, removedIds, refreshAt }) {
   }
   const kept = assertCurrentFamousVenueRows(seedRows, builtAt);
   const keptIds = new Set(kept.map((row) => row.id));
-  const seedIds = new Set(seedRows.map((row) => row.id));
+  const seedById = new Map(seedRows.map((row) => [row.id, row]));
   const allowedRemovals = new Set(removedIds);
   const lapsed = [];
   const removed = [];
   for (const id of shippedFamousVenueIds(lastSlim)) {
     if (keptIds.has(id)) continue;
-    if (seedIds.has(id)) lapsed.push(id);
-    else if (!allowedRemovals.has(id)) removed.push(id);
+    const seedRow = seedById.get(id);
+    // A curator who removes a row's anchor withholds it on purpose.
+    if (seedRow) {
+      if (seedRow.anchor) lapsed.push(id);
+    } else if (!allowedRemovals.has(id)) removed.push(id);
   }
   if (lapsed.length > 0 || removed.length > 0) {
     const parts = [];

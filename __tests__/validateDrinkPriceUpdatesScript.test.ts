@@ -179,6 +179,10 @@ function buildBaseScratch(): string {
     join(scratchScripts, "lib", "pricedIndexExclusions.mjs"),
   );
   cpSync(
+    join(ROOT, "scripts", "lib", "currentFamousVenue.mjs"),
+    join(scratchScripts, "lib", "currentFamousVenue.mjs"),
+  );
+  cpSync(
     join(ROOT, "data", "priced_index_excluded_venues.json"),
     join(scratchRoot, "data", "priced_index_excluded_venues.json"),
   );

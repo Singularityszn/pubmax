@@ -244,19 +244,21 @@ async function getFallbackIndex(): Promise<Map<string, Venue>> {
           path.join(process.cwd(), "data", "famous_venues", file),
           "utf8",
         ),
-      ) as FamousVenueSeed[];
+      ) as Array<Omit<FamousVenueSeed, "anchor"> & { anchor?: FamousVenueSeed["anchor"] }>;
       for (const seed of seeds) {
+        const { anchor } = seed;
+        if (!anchor) continue;
         const slim: SlimVenue = {
           id: seed.id,
           name: seed.name,
           lat: seed.lat,
           lng: seed.lng,
-          cheapestPrice: seed.anchor.price,
+          cheapestPrice: anchor.price,
           borough: seed.borough,
           kind: seed.kind,
         };
         const venue = venueFromDetailArtifact(
-          { id: seed.id, famous: { seed, slim } },
+          { id: seed.id, famous: { seed: { ...seed, anchor }, slim } },
           seed.id,
         );
         if (venue) index.set(seed.id, venue);

@@ -31,7 +31,10 @@ const sampleRow = {
   lat: 51.51173,
   lng: -0.13265,
   sourceUrl: "https://example.com/",
+  anchor: { sourceUrl: "https://example.com/menu" },
 };
+
+const liveAnchor = async () => ({ status: 200, location: null });
 
 describe("famous venue Places match rules", () => {
   it("accepts an operational match when name and postcode align", () => {
@@ -146,7 +149,7 @@ describe("famous venue Places match rules", () => {
 describe("verifyRowWithPlaces", () => {
   it("maps a Places fixture through the verifier row shape", async () => {
     const payload = loadFixture("operational_match.json");
-    const check = await verifyRowWithPlaces(sampleRow, async () => payload);
+    const check = await verifyRowWithPlaces(sampleRow, async () => payload, liveAnchor);
     expect(check.outcome).toBe("confirmed");
     expect(check.method).toBe("places_text_search");
     expect(check.placeId).toMatch(/^places\//);
@@ -156,11 +159,15 @@ describe("verifyRowWithPlaces", () => {
 describe("verifyRowWithPlaces failed call", () => {
   it("aborts on a non-2xx Places response instead of recording a verdict", async () => {
     await expect(
-      verifyRowWithPlaces(sampleRow, async () => ({
-        httpStatus: 429,
-        body: { error: { status: "RESOURCE_EXHAUSTED" } },
-        fetchedAt: "2026-09-24T12:00:00.000Z",
-      })),
+      verifyRowWithPlaces(
+        sampleRow,
+        async () => ({
+          httpStatus: 429,
+          body: { error: { status: "RESOURCE_EXHAUSTED" } },
+          fetchedAt: "2026-09-24T12:00:00.000Z",
+        }),
+        liveAnchor,
+      ),
     ).rejects.toThrow("Places Text Search failed for food-wong-kei: HTTP 429");
   });
 });
@@ -172,7 +179,7 @@ describe("committed Places artifact", () => {
       fetchedAt: "2026-09-25T10:00:00.000Z",
     };
     const committed = toCommittedPlacesCheck(
-      await verifyRowWithPlaces(sampleRow, async () => payload),
+      await verifyRowWithPlaces(sampleRow, async () => payload, liveAnchor),
     );
     expect(Object.keys(committed).sort()).toEqual([
       "checkedAt",
