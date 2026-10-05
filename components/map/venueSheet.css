@@ -1385,8 +1385,8 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
     padding: 18px 0;
   }
 
-  /* Golden Thread (or the composer, when open) beside the Pint Drops list
-     instead of stacked — the panel is wide enough now to read both at once. */
+  /* Golden Thread beside the Pint Drops list instead of stacked: the panel
+     is wide enough now to read both at once. An open composer stacks below. */
   .venuePintsCols {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);

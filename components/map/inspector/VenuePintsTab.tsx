@@ -34,7 +34,7 @@ export default function VenuePintsTab({
       className="venueTabPanel"
       hidden={tab !== "pints"}
     >
-      {/* Desktop docked panel (N3): Golden Thread / composer sits beside the
+      {/* Desktop docked panel (N3): Golden Thread sits beside the
           Pint Drops list in a two-column layout instead of stacking. This
           wrapper is a no-op on mobile (venueSheet.css only grids it ≥1024px);
           on mobile the two children still stack in document order exactly as
