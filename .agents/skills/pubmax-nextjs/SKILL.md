@@ -48,7 +48,7 @@ Route and API ceilings live in `perf/AGENTS.md` and `lib/apiBudgets.mjs`. A ceil
 ## Local runs
 
 - `npm run dev` works with no secrets.
-- `next dev` rewrites `next-env.d.ts`. Run `git checkout -- next-env.d.ts` before you commit.
+- `next dev`, `next build` and `next typegen` rewrite `next-env.d.ts`. The file is ignored, so it never needs a checkout before you commit.
 - For a production build beside a running dev server, use `NEXT_DIST_DIR=.next-prod`.
 - Drive the app in a browser as `e2e/AGENTS.md` describes.
 
