@@ -375,38 +375,20 @@ test("1440px planner hands ownership to venue and Back restores composed state",
     "toolbar before ownership change",
   );
   await captureDrawerExchange(page, "planner-open");
-  // The mid-exchange frame is sampled in the page, on every animation frame
-  // from the click on. Sampling from the test through a Playwright round trip
-  // per box landed in the planner spring's long settling tail, after the venue
-  // spring had already come to rest, so the venue was always caught at 800.
-  // Fully off-screen is also x < -1, so the first frame that is still crossing
-  // is kept. Under load the spring can finish before the first frame, so
-  // mid-exchange geometry is asserted only when a crossing frame is caught.
-  type Rect = { x: number; y: number; width: number; height: number };
-  // The sampler is armed in the page before a REAL pointer tap, so Playwright
-  // still checks that the reader can hit the venue option. A capture listener
-  // reads the toolbar before the tap; a bubble listener on window reads it once
-  // React has handled the tap; frames are then sampled from that moment.
+  // The venue is chosen with a REAL pointer tap, so Playwright checks that a
+  // reader can hit the option. The toolbar is read in the page on either side
+  // of React's handler: a capture listener on window before the tap, a bubble
+  // listener after it.
   await page.evaluate(() => {
-    type Rect = { x: number; y: number; width: number; height: number };
-    type Probe = {
-      before: number;
-      after: number;
-      mid: { planner: Rect; venue: Rect; toolbar: Rect } | null;
-    };
-    const rect = (selector: string): Rect | null => {
-      const node = document.querySelector<HTMLElement>(selector);
-      if (!node) return null;
-      const { x, y, width, height } = node.getBoundingClientRect();
-      return { x, y, width, height };
-    };
     const toolbarX = () => {
       const toolbar = document.querySelector<HTMLElement>(".mapToolbar");
       if (!toolbar) throw new Error("desktop toolbar is missing");
       return toolbar.getBoundingClientRect().x;
     };
-    const holder = window as unknown as { __exchangeProbe?: Promise<Probe> };
-    holder.__exchangeProbe = new Promise<Probe>((resolve) => {
+    const holder = window as unknown as {
+      __ownershipChange?: Promise<{ before: number; after: number }>;
+    };
+    holder.__ownershipChange = new Promise((resolve) => {
       let before = 0;
       window.addEventListener("click", () => (before = toolbarX()), {
         capture: true,
@@ -414,31 +396,7 @@ test("1440px planner hands ownership to venue and Back restores composed state",
       });
       window.addEventListener(
         "click",
-        () => {
-          const after = toolbarX();
-          const startedAt = performance.now();
-          const sample = () => {
-            const planner = rect(".mapDrawer.left.springDrawer");
-            const venue = rect(".mapDrawer.right.springDrawer");
-            const bar = rect(".mapToolbar");
-            if (
-              planner &&
-              venue &&
-              bar &&
-              planner.x < -1 &&
-              planner.x > -planner.width
-            ) {
-              resolve({ before, after, mid: { planner, venue, toolbar: bar } });
-              return;
-            }
-            if (performance.now() - startedAt > 8_000) {
-              resolve({ before, after, mid: null });
-              return;
-            }
-            requestAnimationFrame(sample);
-          };
-          requestAnimationFrame(sample);
-        },
+        () => resolve({ before, after: toolbarX() }),
         { once: true },
       );
     });
@@ -446,14 +404,10 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   await firstVenueOption.click();
   const ownershipChange = await page.evaluate(() => {
     const holder = window as unknown as {
-      __exchangeProbe?: Promise<{
-        before: number;
-        after: number;
-        mid: { planner: Rect; venue: Rect; toolbar: Rect } | null;
-      }>;
+      __ownershipChange?: Promise<{ before: number; after: number }>;
     };
-    if (!holder.__exchangeProbe) throw new Error("exchange probe was not armed");
-    return holder.__exchangeProbe;
+    if (!holder.__ownershipChange) throw new Error("tap probe was not armed");
+    return holder.__ownershipChange;
   });
   expect(
     Math.abs(ownershipChange.after - ownershipChange.before),
@@ -552,7 +506,14 @@ test("1440px planner hands ownership to venue and Back restores composed state",
     renderedBox(venue, "open venue drawer"),
     renderedBox(toolbar, "toolbar beside venue"),
   ]);
-  expect(venueOpen.x).toBeCloseTo(800, 0);
+  // At rest the venue drawer docks to the right edge at the width it publishes
+  // (venueSheet.css: --desktop-venue-drawer-width: min(640px, 46vw), so 800px
+  // at 1440). The custom property is an unresolved min(), so its resolved
+  // computed width is read instead of restating 640 here.
+  const venueRestX = await venue.evaluate(
+    (node) => window.innerWidth - Number.parseFloat(getComputedStyle(node).width),
+  );
+  expect(venueOpen.x).toBeCloseTo(venueRestX, 1);
   expect(toolbarOpen.x + toolbarOpen.width).toBeLessThanOrEqual(
     venueOpen.x - EDGE_GUTTER + SUBPIXEL_TOLERANCE,
   );
