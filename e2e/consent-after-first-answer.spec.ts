@@ -87,18 +87,28 @@ function boxesOverlap(a: Box, b: Box): boolean {
   );
 }
 
-/** The first anchor on the page that really rendered, or null when none did. */
+/**
+ * The first anchor on the page that really rendered, or null when none did
+ * within the budget. `domcontentloaded` is not a paint: on a cold server the
+ * route's loading shell streams first and the answer waits in a hidden
+ * segment for React to reveal it, so a single read races that reveal.
+ */
 async function firstAnchorBox(
   page: import("@playwright/test").Page,
   anchors: readonly string[],
+  timeout = 10_000,
 ): Promise<Box | null> {
-  for (const selector of anchors) {
-    const candidate = page.locator(selector).first();
-    if (await candidate.count() === 0) continue;
-    const box = await candidate.boundingBox();
-    if (box && box.width > 0 && box.height > 0) return box;
+  const deadline = Date.now() + timeout;
+  for (;;) {
+    for (const selector of anchors) {
+      const candidate = page.locator(selector).first();
+      if (await candidate.count() === 0) continue;
+      const box = await candidate.boundingBox();
+      if (box && box.width > 0 && box.height > 0) return box;
+    }
+    if (Date.now() >= deadline) return null;
+    await page.waitForTimeout(100);
   }
-  return null;
 }
 
 for (const viewport of WIDTHS) {
