@@ -303,6 +303,21 @@ describe("Moment account ownership", () => {
     expect(container.querySelector<HTMLButtonElement>(".momentSave")?.disabled).toBe(false);
   });
 
+  it("tells a guest to sign in when Save is tapped while Auth is unavailable", async () => {
+    auth.owner = null;
+    auth.unresolved = true;
+    setProviderIdentity("supabase", null);
+    setProviderAuthState("supabase", "unavailable");
+    await mount();
+    await choose(jpegFile("guest-save.jpg"));
+    const saveButton = [...container.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Save this Moment");
+    await act(async () => saveButton!.click());
+    await settle();
+    expect(status()).toBe("Sign in to save this Moment. Your draft will stay here.");
+    expect(calls).toHaveLength(0);
+    expect(previews()).toBe(1);
+  });
+
   it("restores the account's own draft instead of importing the guest draft", async () => {
     const owned = { ...createMomentDraft("host"), caption: "Owner's night fixture" };
     loadDraft.mockImplementation(async (owner: string) => owner === "host" ? owned : { ...createMomentDraft("guest"), caption: "Guest night fixture" });

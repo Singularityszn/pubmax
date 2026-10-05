@@ -42,7 +42,7 @@ import {
   type VenueDropRead,
   type VenueDropReadStatus,
 } from "@/lib/venueDropRead";
-import { clearPintDropDraft } from "@/lib/pintDropDraft";
+import { clearPintDropDraft, pintDropAccountDraftOwner } from "@/lib/pintDropDraft";
 import { safeLocalStorage, safeSessionStorage } from "@/lib/safeStorage";
 import { pintDropAuthorValue } from "@/lib/pintDropComposerIdentity";
 import { notifyCheapPintPingQualified } from "@/lib/cheapPintPingQualifyClient";
@@ -274,15 +274,15 @@ export function usePintDrops(
   const identityReady = !authLoading && identityResolved;
   const signOutRevision = readProviderSignOutRevision("supabase");
   const [draftAuthority, setDraftAuthority] = useState(() => ({
-    owner: !authConfigured ? "keyless" : user && session ? `account:${user.id}` : null,
+    owner: !authConfigured ? "keyless" : user && session ? pintDropAccountDraftOwner(user.id) : null,
     signOutRevision,
   }));
   const draftOwner = draftAuthority.owner;
   const confirmedDraftOwner = !authConfigured
     ? "keyless"
     : user && session
-      ? `account:${user.id}`
-      : supabaseAuthState === "signed-out" && (
+      ? pintDropAccountDraftOwner(user.id)
+      : (supabaseAuthState === "signed-out" || supabaseAuthState === "unavailable") && (
           draftOwner === null || draftOwner === "signed-out" ||
           signOutRevision !== draftAuthority.signOutRevision
         ) ? "signed-out" : null;
@@ -529,7 +529,6 @@ export function usePintDrops(
   function updateOptimisticFeedStorage(
     update: (current: ReturnType<typeof readOptimisticSpills>) => ReturnType<typeof readOptimisticSpills>,
   ) {
-    if (!ownsCurrentAccount()) return;
     const storage = safeLocalStorage();
     if (!storage) return;
     const next = update(readOptimisticSpills(storage));
@@ -693,13 +692,21 @@ export function usePintDrops(
       links: [{ href: "/social", label: "Open Social" }],
     });
 
+    // A failed refresh moves the account revision without changing the owner.
+    // Only another account or an explicit sign-out ends this drop's owner.
+    const submittedSignOutRevision = readProviderSignOutRevision("supabase");
+    const ownsSubmittedDrop = () => {
+      const currentUserId = getCurrentUserId();
+      return readProviderSignOutRevision("supabase") === submittedSignOutRevision &&
+        (currentUserId === requestUserId || currentUserId === null);
+    };
     const markFailed = (message: string) => {
-      if (!ownsCurrentAccount()) return;
+      if (!ownsSubmittedDrop()) return;
       if (publishToFeed) {
         updateOptimisticFeedStorage((current) => failOptimisticSpill(current, clientRequestId, message));
       }
       setDropsByVenueId((current) => {
-        if (!ownsCurrentAccount()) return current;
+        if (!ownsSubmittedDrop()) return current;
         const next = new Map(current);
         next.set(
           venueId,
@@ -756,9 +763,9 @@ export function usePintDrops(
         if (submittedReceiptFile) body.set("receipt_photo", submittedReceiptFile);
 
         const response = await authedActionFetch("/api/pint-drops", { method: "POST", body }, { requiresIdentity: true });
-        if (!ownsCurrentAccount()) return;
+        if (!ownsSubmittedDrop()) return;
         const data = await response.json().catch(() => null);
-        if (!ownsCurrentAccount()) return;
+        if (!ownsSubmittedDrop()) return;
         if (!response.ok) {
           markFailed(errorMessageFrom(data, "Could not save that drop."));
           return;
@@ -777,7 +784,7 @@ export function usePintDrops(
           );
         }
         setDropsByVenueId((current) => {
-          if (!ownsCurrentAccount()) return current;
+          if (!ownsSubmittedDrop()) return current;
           const next = new Map(current);
           next.set(venueId, [
             data.drop,
@@ -821,7 +828,7 @@ export function usePintDrops(
           links,
         });
       } catch {
-        if (ownsCurrentAccount()) markFailed("Network or storage error. Try again.");
+        markFailed("Network or storage error. Try again.");
       }
     }
   }

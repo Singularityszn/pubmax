@@ -405,8 +405,9 @@ export async function buildOutResponse(
   // "we could not check" apart from "not listed yet".
   let venueMatch: OutVenueMatchStatus = "ready";
   let matchedAtRequest = 0;
-  let unmatched = inWindow.filter((row) => canonicalOutVenueId(row.venueId) === null).length;
-  let matchedRows = inWindow;
+  // A stored id cannot name a pub until the index has confirmed it.
+  let unmatched = inWindow.length;
+  let matchedRows = inWindow.map((row) => row.venueId === undefined ? row : { ...row, venueId: undefined });
   try {
     const index = await loadVenueMatchIndex(city as CityId);
     if (index) {

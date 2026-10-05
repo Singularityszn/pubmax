@@ -261,8 +261,8 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
   }, [draft.ownerKey, draft.revision, isCurrentComposer]);
 
   const canSave = useMemo(
-    () => Boolean(draft.caption.trim() || draft.media.length) && hydrated && !viewerSession.unresolved && !authLoading && saveState !== "saving",
-    [authLoading, draft.caption, draft.media.length, hydrated, saveState, viewerSession.unresolved],
+    () => Boolean(draft.caption.trim() || draft.media.length) && hydrated && !hideAccountDraft && !authLoading && saveState !== "saving",
+    [authLoading, draft.caption, draft.media.length, hydrated, hideAccountDraft, saveState],
   );
 
   // A patch may be a function of the CURRENT draft. Two removals in one tick

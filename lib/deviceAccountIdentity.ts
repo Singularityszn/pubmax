@@ -24,6 +24,7 @@ import {
   NIGHT_PROFILE_DEVICE_KEY,
   readDeviceNightProfileProvenance,
 } from "@/lib/nightProfileDeviceProvenance";
+import { OPTIMISTIC_SPILL_STORAGE_KEY } from "@/lib/optimisticSpillPost";
 
 /** Which account the device-cached identity artifacts below belong to. */
 export const DEVICE_ACCOUNT_OWNER_KEY = "pubmax_account_owner";
@@ -103,6 +104,9 @@ export function clearDeviceAccountArtifacts(
 ): void {
   for (const key of DEVICE_IDENTITY_LOCAL_KEYS) removeKey(local, key);
   for (const key of DEVICE_IDENTITY_SESSION_KEYS) removeKey(session, key);
+  // Pending and failed Pint Drops carry the posting account's fields and retry
+  // payload. Not in the identity set: other tabs write it on every post.
+  removeKey(local, OPTIMISTIC_SPILL_STORAGE_KEY);
   // A Night Profile mirrored off an account is that account's answer wearing a
   // device label. One typed on this device belongs to the device and stays.
   if (readDeviceNightProfileProvenance(local) === "account") {

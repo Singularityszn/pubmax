@@ -39,9 +39,10 @@ export function mapPlanDrinkPriceDescription(
   prices?: ReadonlyMap<string, MapLensPrice> | null,
   status: CategoryPriceIndexStatus = "idle",
 ): string {
-  const price = prices?.get(venueId);
   // Category reports have no brand, subtype or serving identity.
-  const evidence = !presentation.refined && price?.venueId === venueId
+  if (presentation.refined) return `${presentation.priceNoun} price not checked`;
+  const price = prices?.get(venueId);
+  const evidence = price?.venueId === venueId
     ? selectedDrinkPriceEvidenceForPrice(price, { drinkCategory: presentation.category, zeroProof: false })
     : null;
   return selectedDrinkPriceDescription(evidence ?? undefined)

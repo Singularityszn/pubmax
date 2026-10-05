@@ -95,6 +95,10 @@ export function seededPintDropDraftForm(
   return { ...draftForm, price: priceSeed };
 }
 
+export function pintDropAccountDraftOwner(userId: string): string {
+  return `account:${userId}`;
+}
+
 export function pintDropDraftStorageKey(venueId: string, owner?: string): string {
   const venueKey = `${DRAFT_KEY_PREFIX}${encodeURIComponent(venueId)}`;
   return owner === undefined ? venueKey : `${venueKey}:owner:${encodeURIComponent(owner)}`;
@@ -190,6 +194,25 @@ export function clearPintDropDraft(
   if (!storage || !venueId) return;
   try {
     storage.removeItem(pintDropDraftStorageKey(venueId, owner));
+  } catch {
+    // Same storage-failure posture as writes: fail soft.
+  }
+}
+
+/** Sign-out: remove every venue draft the departing account left in this tab. */
+export function clearAccountPintDropDrafts(
+  storage: Pick<Storage, "key" | "length" | "removeItem"> | null | undefined,
+  userId: string,
+): void {
+  if (!storage) return;
+  const ownerSuffix = `:owner:${encodeURIComponent(pintDropAccountDraftOwner(userId))}`;
+  try {
+    const keys: string[] = [];
+    for (let index = 0; index < storage.length; index += 1) {
+      const key = storage.key(index);
+      if (key?.startsWith(DRAFT_KEY_PREFIX) && key.endsWith(ownerSuffix)) keys.push(key);
+    }
+    for (const key of keys) storage.removeItem(key);
   } catch {
     // Same storage-failure posture as writes: fail soft.
   }

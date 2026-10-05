@@ -25,6 +25,7 @@ import { SPILL_EXTRAS_TOGGLE_LABEL } from "@/lib/spill";
 import { writeActiveRoundCode } from "@/lib/activeRound";
 import { safeLocalStorage, safeSessionStorage } from "@/lib/safeStorage";
 import { bindDeviceAccountOwner, releaseDeviceAccountOwner, emitDeviceIdentityChanged } from "@/lib/deviceAccountIdentity";
+import { readOptimisticSpills } from "@/lib/optimisticSpillPost";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -63,6 +64,8 @@ function ComposerHost() {
     createElement("output", { "data-testid": "drop-result" }, state.dropMsg?.text ?? ""),
     createElement("output", { "data-testid": "drop-notes" },
       [...state.dropsByVenueId.values()].flat().map((drop) => drop.passedDownNote).join(" | ")),
+    createElement("output", { "data-testid": "drop-states" },
+      [...state.dropsByVenueId.values()].flat().map((drop) => drop.optimistic?.state ?? "saved").join(" | ")),
     createElement(PintDropComposer, { venueId: VENUE_ID, venueName: "The Fixture Arms", state }),
   );
 }
@@ -492,5 +495,62 @@ describe("mounted Pint Drop account draft isolation", () => {
     expect.soft(container.querySelector('[data-testid="drop-result"]')?.textContent).toBe("");
     expect.soft(container.querySelector('[data-testid="drop-notes"]')?.textContent).not.toContain(NOTE);
     expect(container.querySelector('[data-testid="drop-notes"]')?.textContent).toContain(SERVER_NOTE);
+  });
+
+  it("lets a guest reach the price step and sign-in door while the Auth SDK is unavailable", async () => {
+    await renderAccount(null, false, true, true);
+    expect(container.textContent).not.toContain("Loading saved Pint Drop draft");
+    const price = container.querySelector<HTMLInputElement>('input[inputmode="decimal"]');
+    expect(price).not.toBeNull();
+    await fill(price!, "4.80");
+    expect(container.querySelector<HTMLInputElement>('input[inputmode="decimal"]')?.value).toBe("4.80");
+    const door = [...container.querySelectorAll("a")].find((link) => link.textContent?.trim() === "Sign in to post");
+    expect(door?.getAttribute("href")).toContain("/login?mode=signin");
+  });
+
+  describe("an in-flight submit aborted by the account boundary", () => {
+    beforeEach(() => {
+      postHandler = (init) => new Promise<Response>((_resolve, reject) => {
+        init.signal!.addEventListener("abort", () => reject(init.signal!.reason), { once: true });
+      });
+    });
+
+    async function submitPending() {
+      await renderAccount(A);
+      await draft();
+      await act(async () => {
+        container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      });
+      expect(posts).toHaveLength(1);
+      expect(container.querySelector('[data-testid="drop-states"]')?.textContent).toContain("pending");
+      expect(readOptimisticSpills(localStorage).map((entry) => entry.drop.optimistic?.state)).toEqual(["pending"]);
+    }
+
+    it("offers the same account a retry after a failed-refresh SIGNED_OUT", async () => {
+      await submitPending();
+      await renderAccount(null, true, true, true);
+      expect.soft(container.querySelector('[data-testid="drop-result"]')?.textContent).toBe("");
+      await renderAccount(A);
+      expect(container.querySelector('[data-testid="drop-states"]')?.textContent).toContain("failed");
+      expect(container.querySelector('[data-testid="drop-states"]')?.textContent).not.toContain("pending");
+      expect(container.querySelector('[data-testid="drop-result"]')?.textContent).toBe("Network or storage error. Try again.");
+      expect(readOptimisticSpills(localStorage).map((entry) => entry.drop.optimistic?.state)).toEqual(["failed"]);
+    });
+
+    it("leaves none of A's pending work in B's lane, feed storage or composer", async () => {
+      await submitPending();
+      await renderAccount(B);
+      expect(readOptimisticSpills(localStorage)).toEqual([]);
+      expect(container.querySelector('[data-testid="drop-notes"]')?.textContent).not.toContain(NOTE);
+      expect(container.querySelector('[data-testid="drop-result"]')?.textContent).toBe("");
+    });
+
+    it("leaves none of A's pending work after an explicit sign-out", async () => {
+      await submitPending();
+      await renderAccount(null);
+      expect(readOptimisticSpills(localStorage)).toEqual([]);
+      expect(container.querySelector('[data-testid="drop-notes"]')?.textContent).not.toContain(NOTE);
+      expect(container.querySelector('[data-testid="drop-result"]')?.textContent).toBe("");
+    });
   });
 });

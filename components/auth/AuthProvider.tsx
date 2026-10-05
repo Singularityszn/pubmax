@@ -115,6 +115,7 @@ import {
 } from "@/lib/authSessionResumeClient";
 import { authAccountBanMessageFromError } from "@/lib/authAccountBan";
 import { requestMagicLink, type MagicLinkResult } from "@/lib/passwordlessAuth";
+import { clearAccountPintDropDrafts } from "@/lib/pintDropDraft";
 import {
   markProviderSignOut,
   readProviderAuthState,
@@ -1030,7 +1031,6 @@ export function AuthProvider({
       // next remembered account: a DELETE still in flight would land after that
       // account's persist and leave the device with no durable session at all.
       await clearPersistedSession();
-      markProviderSignOut("supabase");
       // The same set the account boundary clears, and the owner stamp with it.
       // Leaving the handle behind is what let the next account inherit it: the
       // session went and its name stayed.
@@ -1044,7 +1044,11 @@ export function AuthProvider({
       else if (departing) forgetDeviceAccount(browserLocalStorage(), departing);
       emitDeviceAccountSessionsChanged();
       setWelcomeBack(null);
-      await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut();
+      // A failed sign-out keeps the session, so the account boundary stays put.
+      if (error) return;
+      markProviderSignOut("supabase");
+      if (departing) clearAccountPintDropDrafts(browserSessionStorage(), departing);
       // onAuthStateChange fires SIGNED_OUT → session clears via the subscription.
       if (scope === "device") return;
       // The person asked to leave ONE account on a device that still holds

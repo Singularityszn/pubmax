@@ -127,7 +127,7 @@ export default function RoutePanel({
   const summary = useMemo(() => crawlSummary(route), [route]);
   const drinkPresentation = mapPlanDrinkPresentation(drinkSelection);
   const pricedStopCount = route.filter((venue) => typeof venue.cheapestPrice === "number").length;
-  const drinkCoverageNote = drinkPresentation
+  const drinkCoverageNote = drinkPresentation && !drinkPresentation.refined
     ? drinkLensCoverageNote(drinkPresentation.priceNoun, drinkPriceStatus)
     : null;
   const routeWaterCount = route.filter((venue) => venue.curation.nearWater).length;
@@ -150,13 +150,13 @@ export default function RoutePanel({
   // the default "pint stop". A single source (lib/crawlUrl) keeps label + noun
   // in sync with the URL round-trip.
   const stopNoun = drinkPresentation?.stopNoun ?? altStyleStopNoun[altStyle];
-  const crawlTitle = drinkPresentation
-    ? crawlName || `${drinkPresentation.label} plan`
-    : mode === "build" ? crawlName || "My hand-built crawl" : `${styleLabels[crawlStyle]} crawl`;
+  const routeTitle =
+    mode === "build" ? crawlName || "My hand-built crawl" : `${styleLabels[crawlStyle]} crawl`;
+  const crawlTitle = drinkPresentation ? crawlName || `${drinkPresentation.label} plan` : routeTitle;
 
   // Loop 2 crawl-completion stickiness — localStorage only. Key off crawlId when
   // present, else a stable title slug so hand-built routes still track.
-  const progressKey = (crawlId || crawlTitle).trim();
+  const progressKey = (crawlId || routeTitle).trim();
   const placeStoryBandId = crawlId
     ? curatedCrawlByIdForCity(cityId, crawlId)?.placeStoryBandId
     : undefined;

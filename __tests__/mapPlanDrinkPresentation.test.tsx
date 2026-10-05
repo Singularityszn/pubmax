@@ -122,6 +122,13 @@ describe("selected-drink hand-built Plan", () => {
     expect(container.querySelector(".venuePickerList")?.textContent).not.toMatch(/£5\.50|£6\.15/);
   });
 
+  it("does not claim a brand price is absent at a stop the brand filter kept", async () => {
+    await render({ drinkSelection: { drinkCategory: "beer", drinkSubtype: "", drinkBrand: "amstel" }, drinkPriceStatus: "ready" });
+    expect(container.querySelector(".routeList")?.textContent).toContain("Amstel price not checked");
+    expect(container.querySelector(".venuePickerList")?.textContent).toContain("Amstel price not checked");
+    expect(container.textContent).not.toMatch(/no Amstel price logged|Checking Amstel prices/);
+  });
+
   it.each([
     { ...wineQuote, category: "gin" as const },
     { ...wineQuote, venueId: dove.id },
@@ -152,6 +159,16 @@ describe("selected-drink hand-built Plan", () => {
     expect(container.querySelector('[role="radio"][aria-checked="true"]')?.textContent).toBe("Pint");
     expect(container.querySelector(".routeList")?.textContent).toContain("£6.15 · AMSTEL");
     expect(container.querySelector(".routeMetrics")?.textContent).toContain("£12.30");
+  });
+
+  it("keeps a hand-built route's progress when the map drink changes", async () => {
+    await render({ drinkSelection: wine, route: [duke, dove] });
+    await act(async () => button("Start this crawl").click());
+    await render({ drinkSelection: { drinkCategory: "gin", drinkSubtype: "", drinkBrand: "" }, route: [duke, dove] });
+    expect(container.querySelector('[data-testid="crawl-progress"]')?.textContent).toContain("0/2 stops");
+    await act(async () => button("Mark complete").click());
+    await render({ route: [duke, dove] });
+    expect(container.querySelector('[data-testid="crawl-progress"]')?.textContent).toContain("Crawl complete: 2/2 stops");
   });
 
   it("keeps Add, Remove and Reverse controls connected", async () => {

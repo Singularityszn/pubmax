@@ -438,6 +438,21 @@ describe("buildOutResponse", () => {
     expect(body.unmatchedCount).toBe(1);
   });
 
+  it("does not serve a stored refresh venueId as a pub when matching is unavailable", async () => {
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [eventRow({ venueId: "venue-16cduf6", placeName: "ABBA Arena" })],
+        liveProviders: [],
+        loadVenueMatchIndex: async () => null,
+      },
+    );
+    expect(body.venueMatch).toBe("unavailable");
+    expect(defined(body.events[0]).venueId).toBeUndefined();
+    expect(body.unmatchedCount).toBe(1);
+  });
+
   it("keeps venueId on a venue-matched row so a later lane can attach price and occupancy", async () => {
     const body = await buildOutResponse(
       { city: "london", day: "today" },
