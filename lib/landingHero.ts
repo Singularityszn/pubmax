@@ -23,6 +23,7 @@ import {
   namedLegacyPintPriceSource,
   type LegacyPintPrice,
 } from "@/lib/drinks";
+import { WEB_ONBOARDING_START_HREF } from "@/lib/firstRunRoute";
 import { formatGbp } from "@/lib/formatGbp";
 import { priceStandingFor, type PriceStanding } from "@/lib/priceTier";
 import { venueMapUrl } from "@/lib/venueMapUrl";
@@ -90,6 +91,18 @@ export function stillPriceLabel(priceGbp: number): string {
  */
 export const LANDING_PRIMARY_HREF = "/near?locate=1";
 export const LANDING_PRIMARY_LABEL = "Cheapest pints near me";
+
+/**
+ * Where the primary goes for this visitor. A first-time visitor (no seen mark,
+ * lib/firstRunTour.ts) takes the first-run journey first, and its Skip lands on
+ * `LANDING_PRIMARY_HREF`. A returning visitor goes straight there. Only the
+ * landing's own primary asks: a deep link or any other path never meets it.
+ */
+export function landingPrimaryHref(
+  seenOnboarding: boolean,
+): typeof LANDING_PRIMARY_HREF | typeof WEB_ONBOARDING_START_HREF {
+  return seenOnboarding ? LANDING_PRIMARY_HREF : WEB_ONBOARDING_START_HREF;
+}
 
 /** The receipt door when no card can back one: the plain price door. */
 export const LANDING_FALLBACK_RECEIPT_HREF = "/near";

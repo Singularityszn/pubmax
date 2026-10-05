@@ -188,15 +188,17 @@ export function ResultPanel({
   areaLabel,
   budgetLabel,
   onConfirm,
+  onRetry,
   onChangeBudget,
   onChangeArea,
 }: {
-  status: "loading" | "ready" | "empty";
+  status: "loading" | "ready" | "empty" | "unavailable";
   result: OnboardingResult | null;
   /** "near you" for a located read, or the patch the reader picked. */
   areaLabel: string;
   budgetLabel: string | null;
   onConfirm: () => void;
+  onRetry: () => void;
   onChangeBudget: () => void;
   onChangeArea: () => void;
 }) {
@@ -207,6 +209,27 @@ export function ResultPanel({
         <h1 className="firstRunQuestion">Working out your nearest pints.</h1>
         <p className="firstRunLead">Checking listed prices {areaLabel}.</p>
       </div>
+    );
+  }
+
+  // A read we could not run says so. It never claims the area has no prices.
+  if (status === "unavailable") {
+    return (
+      <>
+        <p className="firstRunEyebrow">Your answer</p>
+        <h1 className="firstRunQuestion">We couldn&rsquo;t load prices just now.</h1>
+        <p className="firstRunLead">Check your connection and try again.</p>
+        <div className="firstRunActions firstRunActionsSingle">
+          <button type="button" className="firstRunPrimary pressable" onClick={onRetry}>
+            Try again <ArrowRight size={18} aria-hidden="true" />
+          </button>
+        </div>
+        <div className="firstRunQuietRow">
+          <button type="button" className="firstRunQuiet pressable" onClick={onChangeArea}>
+            Change area
+          </button>
+        </div>
+      </>
     );
   }
 
