@@ -43,7 +43,7 @@ test("the desktop log drawer gives the composer the full panel, clear of the hea
   const priceStep = page.getByTestId("spill-price-step");
   await expect(priceStep).toBeVisible({ timeout: 45_000 });
 
-  // The reveal polls for the composer and then scrolls once. Wait until the
+  // The reveal waits for the composer to mount and then scrolls once. Wait until the
   // drawer's scroll position holds still across two reads before measuring.
   let lastScrollTop = -1;
   await expect
