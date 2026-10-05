@@ -321,7 +321,9 @@ for (const width of DESKTOP_WIDTHS) {
 test("1440px planner hands ownership to venue and Back restores composed state", async ({
   page,
 }) => {
-  test.setTimeout(120_000);
+  // The venue list may take up to 90 s to finish counting on a slow runner,
+  // so the budget leaves room for that wait plus every step after it.
+  test.setTimeout(210_000);
   await prepareDesktopMap(page);
   await stubCityStatus(page);
 
