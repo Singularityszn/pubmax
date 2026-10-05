@@ -29,6 +29,13 @@ async function sizeOf(filePath) {
   }
 }
 
+/** A table cell's text with its pipes and angle brackets escaped, so a note
+ * such as `alcohol=yes|served` stays in its own column and `<alcoholic name>`
+ * is not swallowed as an HTML tag. */
+export function markdownCell(text) {
+  return String(text).replaceAll("|", "\\|").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+}
+
 async function main() {
   const manifest = JSON.parse(await readFile(path.join(UK_DIR, "venue_chunks.json"), "utf8"));
   const counts = JSON.parse(await readFile(path.join(UK_DIR, "venue_counts.json"), "utf8"));
@@ -73,7 +80,7 @@ async function main() {
   const taxonomyRows = UK_VENUE_TAXONOMY.map(
     (row) =>
       `| \`${row.key}\` | ${row.kind} | ${counts.london?.byTaxonomyKey?.[row.key] ?? 0} | ` +
-      `${counts.uk?.byTaxonomyKey?.[row.key] ?? 0} | ${row.note} |`,
+      `${counts.uk?.byTaxonomyKey?.[row.key] ?? 0} | ${markdownCell(row.note)} |`,
   );
 
   const stats = Array.isArray(manifest.chunkStats) ? manifest.chunkStats : [];
