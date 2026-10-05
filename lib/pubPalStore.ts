@@ -1,7 +1,7 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import { cleanPalDraft, compatiblePalSpecies, type PalProposalPreferences, type PubPal, type PubPalMemory, type PubPalMemoryKind } from "@/lib/pubPal";
+import { cleanPalDraft, compatiblePalSpecies, isPubPalMemoryKind, type PalProposalPreferences, type PubPal, type PubPalMemory, type PubPalMemoryKind } from "@/lib/pubPal";
 import { cleanText } from "@/lib/textClean";
 import { admin } from "@/lib/storeBackend";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -131,8 +131,8 @@ export async function confirmPalMemoryResult(ownerId: string, raw: unknown): Pro
   if (!palResult.ok) return palResult;
   const pal = palResult.value;
   if (!pal || !raw || typeof raw !== "object") return { ok: false, error: "not_found" };
-  const input = raw as Record<string, unknown>; const value = cleanText(input.value, 500); const allowed: PubPalMemoryKind[] = ["venue_preference", "atmosphere_preference", "accessibility_preference", "transport_preference", "drink_preference", "night_outcome", "correction"];
-  const kind = typeof input.kind === "string" && allowed.includes(input.kind as PubPalMemoryKind) ? input.kind as PubPalMemoryKind : null; if (!kind || !value) return { ok: false, error: "not_found" };
+  const input = raw as Record<string, unknown>; const value = cleanText(input.value, 500);
+  const kind = isPubPalMemoryKind(input.kind) ? input.kind : null; if (!kind || !value) return { ok: false, error: "not_found" };
   const timestamp = new Date().toISOString();
   const memory: PubPalMemory = { id: randomUUID(), palId: pal.id, kind, value, provenance: kind === "correction" ? "user_correction" : "user_confirmed", createdAt: timestamp, updatedAt: timestamp };
   if (!isSupabaseConfigured()) { memories.set(pal.id, [memory, ...(memories.get(pal.id) ?? [])]); return { ok: true, value: memory }; }

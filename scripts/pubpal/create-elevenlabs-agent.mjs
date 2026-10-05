@@ -32,6 +32,7 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
+import { PUB_PAL_MEMORY_KINDS } from "../../lib/palMemoryKinds.mjs";
 import { PAL_VOICE_MAX_SESSION_SECONDS } from "../../lib/palVoiceCap.mjs";
 import { pubPalAgentSystemPrompt } from "../../lib/palVoicePrompt.mjs";
 
@@ -47,7 +48,7 @@ const LLM_SECRET_NAME = "PUBMAXX_PUB_PAL_LLM_SECRET";
 const AGENT_NAME = "PUBMAXX Pub Pal";
 const MAX_SESSION_SECONDS = PAL_VOICE_MAX_SESSION_SECONDS;
 
-/** Short descriptions aligned with lib/ask/tools.ts allowlist. */
+/** Short descriptions aligned with lib/ask/tools.ts allowlist, plus the Pal-only memory tools. */
 const TOOL_DESCRIPTIONS = {
   search_venues:
     "Rank listed pubs by mood, area, group size, and budget. Never invents venues.",
@@ -74,6 +75,10 @@ const TOOL_DESCRIPTIONS = {
     "Places to sit and work from cafe, co-working and library rows only.",
   report_occupancy:
     "Propose a crowd report for a pub. Writes nothing until the reader confirms.",
+  recall_memories:
+    "Read the preferences this person confirmed for their Pal to remember. Read-only. Never facts about a pub.",
+  propose_memory:
+    "Typed chat only. Propose one preference for the Pal to remember. Saves nothing until the person confirms the card.",
 };
 
 function loadDotEnv() {
@@ -133,6 +138,21 @@ const TOOL_WEBHOOK_BODY_PROPERTIES = {
     conversation_id: conversationIdProperty(),
     query: { type: "string", description: "The venue search ask." },
   },
+  recall_memories: {
+    conversation_id: conversationIdProperty(),
+  },
+  propose_memory: {
+    conversation_id: conversationIdProperty(),
+    kind: {
+      type: "string",
+      enum: [...PUB_PAL_MEMORY_KINDS],
+      description: "What sort of preference this is.",
+    },
+    value: {
+      type: "string",
+      description: "The preference in the person's own words, one short line.",
+    },
+  },
 };
 
 const DEFAULT_WEBHOOK_BODY_PROPERTIES = {
@@ -166,7 +186,12 @@ function clientEvents(existing) {
 
 // Tools that end in a confirm proposal. The person may not talk over the
 // proposal, or they miss what they are asked to confirm (ADR 0006).
-const CONFIRM_PROPOSAL_TOOLS = new Set(["propose_plan", "propose_map_action", "report_occupancy"]);
+const CONFIRM_PROPOSAL_TOOLS = new Set([
+  "propose_plan",
+  "propose_map_action",
+  "report_occupancy",
+  "propose_memory",
+]);
 
 // Speech around a tool call. "force" makes the agent say its one short
 // checking sentence before every tool runs, so the first audio does not wait

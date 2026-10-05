@@ -1,6 +1,14 @@
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { isAskToolName } from "@/lib/ask/types";
+import {
+  PAL_RECALL_MEMORIES_TOOL,
+  recallPalMemoriesForConversation,
+} from "@/lib/palConfirmedMemories.server";
+import {
+  PAL_PROPOSE_MEMORY_TOOL,
+  proposePalMemoryForConversation,
+} from "@/lib/palMemoryProposal.server";
 import { assertPubPalLlmAuth } from "@/lib/pubPalLlmAuth";
 import {
   invokePubPalAskTool,
@@ -23,7 +31,8 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
 
   const { toolName } = await context.params;
   const normalized = toolName.trim();
-  if (!isAskToolName(normalized)) {
+  const palOnly = normalized === PAL_RECALL_MEMORIES_TOOL || normalized === PAL_PROPOSE_MEMORY_TOOL;
+  if (!palOnly && !isAskToolName(normalized)) {
     return publicApiError("That tool is not available.", "TOOL_NOT_ALLOWED", 404);
   }
 
@@ -50,6 +59,12 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, {
       retryable: true,
     });
+  }
+  if (normalized === PAL_RECALL_MEMORIES_TOOL) {
+    return jsonNoStore(await recallPalMemoriesForConversation(conversationId));
+  }
+  if (normalized === PAL_PROPOSE_MEMORY_TOOL) {
+    return jsonNoStore(await proposePalMemoryForConversation(conversationId, args));
   }
   const outcome = await invokePubPalAskTool({
     toolName: normalized,

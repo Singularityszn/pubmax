@@ -1,5 +1,6 @@
 import { clamp as clampRange } from "@/lib/mathClamp";
 import { PAL_MASCOT_SLUGS, type PalMascotSlug } from "@/lib/palMascotAssets.mjs";
+import type { PubPalMemoryKind } from "@/lib/palMemoryKinds.mjs";
 import { cleanText } from "@/lib/textClean";
 
 /**
@@ -142,14 +143,7 @@ export type PubPal = {
   updatedAt: string;
 };
 
-export type PubPalMemoryKind =
-  | "venue_preference"
-  | "atmosphere_preference"
-  | "accessibility_preference"
-  | "transport_preference"
-  | "drink_preference"
-  | "night_outcome"
-  | "correction";
+export { isPubPalMemoryKind, type PubPalMemoryKind } from "@/lib/palMemoryKinds.mjs";
 
 export type PubPalMemory = {
   id: string;
