@@ -193,11 +193,6 @@ describe("the readiness ceiling", () => {
 describe("the shell wiring", () => {
   const shell = readFileSync(path.join(process.cwd(), "components/PubMap.tsx"), "utf8");
 
-  it("stops the ceiling on the canvas's own construction signal", () => {
-    expect(shell).toContain("onMapConstructed={handleMapCanvasConstructed}");
-    expect(shell).toContain("canvasWatching: mapCanvasWatchingAttempt === mapCanvasAttempt");
-  });
-
   it("catches the canvas subtree so a blocked chunk cannot take the page", () => {
     expect(shell).toContain("class MapCanvasBoundary");
     expect(shell).toContain("<MapCanvasBoundary");

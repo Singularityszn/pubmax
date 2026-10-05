@@ -4018,7 +4018,7 @@ export default function PubMapCanvas({
       nearbyMapVenues.length > 0 &&
       didFitUserLocationRef.current !==
         `${userLocation?.lat.toFixed(5)},${userLocation?.lng.toFixed(5)}`;
-  }, [userLocation, route.length, nearbyMapVenues]);
+  }, [mapReady, userLocation, route.length, nearbyMapVenues]);
 
   // The reader's dot is a CANVAS layer under the pins (see buildUserLocation),
   // not a DOM marker over them, so a pin the reader is standing on keeps its
