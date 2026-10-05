@@ -13,10 +13,15 @@ type WorkflowStep = {
 };
 type WorkflowJob = {
   if?: string;
+  env?: Record<string, string>;
   steps: WorkflowStep[];
   strategy?: { matrix?: { shard?: number[] } };
 };
-type Workflow = { jobs: Record<string, WorkflowJob> };
+type Workflow = {
+  on: Record<string, unknown>;
+  env?: Record<string, string>;
+  jobs: Record<string, WorkflowJob>;
+};
 
 // A `${{ ... }}` expression is one word even though it holds spaces.
 function runWords(run: string | undefined): string[] {
@@ -31,44 +36,70 @@ describe("browser CI policy", () => {
   const workflowPath = join(process.cwd(), ".github", "workflows", "e2e.yml");
 
   it("runs a bounded law-pinning browser suite on pull requests and main", () => {
-    const workflow = readFileSync(workflowPath, "utf8");
+    const workflow = parse(readFileSync(workflowPath, "utf8")) as Workflow;
 
-    expect(workflow).toMatch(/pull_request:/);
-    expect(workflow).toContain("e2e/smoke.spec.ts");
-    expect(workflow).toContain("e2e/map-surface-history.spec.ts");
-    expect(workflow).toContain("e2e/mobile-map-chrome-fit.spec.ts");
-    expect(workflow).toContain("--project=chromium");
+    expect(Object.keys(workflow.on)).toContain("pull_request");
+    const lawPinsJob = defined(workflow.jobs["law-pins"]);
+    expect(lawPinsJob.if).toBeUndefined();
+    const [testStep, ...extraTestSteps] = playwrightSteps(lawPinsJob);
+    expect(extraTestSteps).toEqual([]);
+    const run = runWords(defined(testStep, "law-pins Playwright step").run);
+    for (const spec of [
+      "e2e/smoke.spec.ts",
+      "e2e/map-surface-history.spec.ts",
+      "e2e/mobile-map-chrome-fit.spec.ts",
+    ]) {
+      expect(run).toContain(spec);
+    }
+    expect(run).toContain("--project=chromium");
   });
 
   it("keeps the exhaustive browser matrix on nightly and manual runs", () => {
-    const workflow = readFileSync(workflowPath, "utf8");
+    const workflow = parse(readFileSync(workflowPath, "utf8")) as Workflow;
 
-    expect(workflow).toMatch(/schedule:/);
-    expect(workflow).toMatch(/push:\n\s+branches: \[main\]/);
-    const fullSuiteJob = (parse(workflow) as Workflow).jobs["full-suite"];
-    if (!fullSuiteJob) throw new Error("e2e workflow has no full-suite job");
-    const shards = fullSuiteJob.strategy?.matrix?.shard;
-    expect(shards).toEqual([1, 2, 3, 4]);
-    const shardFlags = fullSuiteJob.steps.flatMap((step) =>
-      [...(step.run ?? "").matchAll(/--shard=(.+?)\/(\d+)/g)].map((match) => ({
-        index: match[1],
-        total: Number(match[2]),
-      })),
-    );
-    expect(shardFlags).toEqual([
-      { index: "${{ matrix.shard }}", total: shards?.length },
+    expect(workflow.on.schedule).toEqual([
+      expect.objectContaining({ cron: expect.any(String) }),
     ]);
-    // P0-3: the three trusted-handoff rollout flags are retired, so there is no
-    // second suite whose behaviour a deployment lacks.
-    expect(workflow).not.toContain("flag-on");
-    expect(workflow).not.toContain("PUBMAX_TONIGHT_GROUPING");
-    expect(workflow).not.toContain("PUBMAX_MAP_ROUTE_TRANSFER");
-    expect(workflow).not.toContain("PUBMAX_PAL_HANDOFF");
-
+    expect(Object.keys(workflow.on)).toContain("workflow_dispatch");
+    expect(workflow.on.push).toEqual({ branches: ["main"] });
+    const fullSuiteJob = defined(workflow.jobs["full-suite"], "full-suite job");
     expect(fullSuiteJob.if).toBe(
       "github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'",
     );
-    expect(defined((parse(workflow) as Workflow).jobs["law-pins"]).if).toBeUndefined();
+    const shards = fullSuiteJob.strategy?.matrix?.shard;
+    expect(shards).toEqual([1, 2, 3, 4]);
+    const shardFlags = playwrightSteps(fullSuiteJob).flatMap((step) =>
+      runWords(step.run).filter((word) => word.startsWith("--shard=")),
+    );
+    expect(shardFlags).toEqual([
+      `--shard=\${{ matrix.shard }}/${shards?.length}`,
+    ]);
+  });
+
+  it("runs no second suite behind a retired rollout flag", () => {
+    // P0-3: the three trusted-handoff rollout flags are retired, so there is no
+    // second suite whose behaviour a deployment lacks.
+    const workflow = parse(readFileSync(workflowPath, "utf8")) as Workflow;
+
+    expect(Object.keys(workflow.jobs)).toEqual([
+      "law-pins",
+      "layout-pins",
+      "full-suite",
+    ]);
+    const envKeys = [
+      workflow.env,
+      ...Object.values(workflow.jobs).flatMap((job) => [
+        job.env,
+        ...job.steps.map((step) => step.env),
+      ]),
+    ].flatMap((env) => Object.keys(env ?? {}));
+    for (const flag of [
+      "PUBMAX_TONIGHT_GROUPING",
+      "PUBMAX_MAP_ROUTE_TRANSFER",
+      "PUBMAX_PAL_HANDOFF",
+    ]) {
+      expect(envKeys).not.toContain(flag);
+    }
   });
 
   it("runs the layout-pinning browser specs on every pull request, in three shards", () => {
@@ -176,7 +207,9 @@ describe("browser CI policy", () => {
       const steps = playwrightSteps(defined(jobs[jobName]));
       expect(steps.length, jobName).toBeGreaterThan(0);
       for (const step of steps) {
-        expect(step.env?.NODE_OPTIONS, jobName).toBe("--max-old-space-size=6144");
+        expect(step.env?.NODE_OPTIONS, jobName).toBe(
+          "--max-old-space-size=6144",
+        );
       }
     }
   });
