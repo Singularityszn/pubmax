@@ -122,6 +122,8 @@ viewport, then loads neighbouring cells as the camera settles. Other city packs
 use one compatibility core. The generated detail files are gitignored (large).
 Local/dev falls back to the raw pint dataset and curated venue packs when they
 are missing; production should run `npm run build` / `build:slim` so the index exists.
+`npm run build:venue-details` writes only the two detail files and leaves the
+committed map packs untouched.
 See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) and the [map speed evidence](docs/perf/map-speed-caching-2026-08-28.md).
 
 ### Map data attribution
