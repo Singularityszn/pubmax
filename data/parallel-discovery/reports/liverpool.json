@@ -6,26 +6,6 @@
   "incompleteSlices": [],
   "skippedSources": [
     {
-      "district": "CH41",
-      "category": "restaurant",
-      "url": "https://theguideliverpool.com/the-ultimate-guide-to-the-wirral-food-drink-festival-2019",
-      "host": "theguideliverpool.com",
-      "outcome": "skipped",
-      "kind": "extract",
-      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
-      "attempts": 2,
-      "evidence": {
-        "basic": "Failed to fetch url",
-        "advanced": "Failed to fetch url",
-        "probe": {
-          "status": 200,
-          "landed": "permitted",
-          "checkedAt": "2026-10-04T14:30:40.196Z"
-        }
-      },
-      "checkedAt": "2026-10-04T14:30:39.869Z"
-    },
-    {
       "district": "CH42",
       "category": "pub",
       "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/2112/page/19/show_comments/5",
@@ -35,22 +15,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:27:46.742Z",
+          "at": "2026-10-05T09:34:27.628Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:22.501Z",
+          "at": "2026-10-05T09:35:03.399Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:58.259Z",
+          "at": "2026-10-05T09:35:39.192Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:30:38.865Z"
+      "checkedAt": "2026-10-05T09:35:39.206Z"
     },
     {
       "district": "CH43",
@@ -62,22 +42,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:27:46.742Z",
+          "at": "2026-10-05T09:34:27.628Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:22.501Z",
+          "at": "2026-10-05T09:35:03.399Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:58.259Z",
+          "at": "2026-10-05T09:35:39.192Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:30:40.601Z"
+      "checkedAt": "2026-10-05T09:35:39.206Z"
     },
     {
       "district": "CH43",
@@ -89,22 +69,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:27:46.742Z",
+          "at": "2026-10-05T09:34:27.628Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:22.501Z",
+          "at": "2026-10-05T09:35:03.399Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:58.259Z",
+          "at": "2026-10-05T09:35:39.192Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:30:40.602Z"
+      "checkedAt": "2026-10-05T09:35:39.206Z"
     },
     {
       "district": "L5",
@@ -116,22 +96,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:30:42.616Z",
+          "at": "2026-10-05T09:34:00.863Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beersltd.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:30:48.495Z",
+          "at": "2026-10-05T09:34:06.685Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beersltd.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:30:54.377Z",
+          "at": "2026-10-05T09:34:12.504Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beersltd.co.uk/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:30:54.388Z"
+      "checkedAt": "2026-10-05T09:34:12.504Z"
     },
     {
       "district": "L9",
@@ -143,22 +123,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:27:46.742Z",
+          "at": "2026-10-05T09:34:27.628Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:22.501Z",
+          "at": "2026-10-05T09:35:03.399Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:58.259Z",
+          "at": "2026-10-05T09:35:39.192Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:30:42.386Z"
+      "checkedAt": "2026-10-05T09:35:39.209Z"
     },
     {
       "district": "L15",
@@ -167,18 +147,17 @@
       "host": "mindtrip.ai",
       "outcome": "skipped",
       "kind": "extract",
-      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
-      "attempts": 2,
+      "reason": "Firecrawl scrape failed; the page answered HTTP 200",
+      "attempts": 1,
       "evidence": {
-        "basic": "Failed to fetch url",
-        "advanced": "Failed to fetch url",
+        "basic": "Firecrawl HTTP 500",
         "probe": {
           "status": 200,
           "landed": "permitted",
-          "checkedAt": "2026-10-04T14:31:03.602Z"
+          "checkedAt": "2026-10-05T09:34:04.668Z"
         }
       },
-      "checkedAt": "2026-10-04T14:31:03.186Z"
+      "checkedAt": "2026-10-05T09:34:04.534Z"
     },
     {
       "district": "L17",
@@ -190,22 +169,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:27:46.742Z",
+          "at": "2026-10-05T09:34:27.628Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:22.501Z",
+          "at": "2026-10-05T09:35:03.399Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:58.259Z",
+          "at": "2026-10-05T09:35:39.192Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:30:44.589Z"
+      "checkedAt": "2026-10-05T09:35:39.209Z"
     },
     {
       "district": "L18",
@@ -217,22 +196,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:27:46.742Z",
+          "at": "2026-10-05T09:34:27.628Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:22.501Z",
+          "at": "2026-10-05T09:35:03.399Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:58.259Z",
+          "at": "2026-10-05T09:35:39.192Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:30:44.834Z"
+      "checkedAt": "2026-10-05T09:35:39.209Z"
     },
     {
       "district": "L19",
@@ -244,22 +223,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:27:46.742Z",
+          "at": "2026-10-05T09:34:27.628Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:22.501Z",
+          "at": "2026-10-05T09:35:03.399Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:58.259Z",
+          "at": "2026-10-05T09:35:39.192Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:30:45.015Z"
+      "checkedAt": "2026-10-05T09:35:39.209Z"
     },
     {
       "district": "L21",
@@ -271,22 +250,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:31:07.665Z",
+          "at": "2026-10-05T09:34:24.632Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.speedquizzing.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:31:34.147Z",
+          "at": "2026-10-05T09:34:51.214Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.speedquizzing.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:32:00.632Z",
+          "at": "2026-10-05T09:35:17.747Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.speedquizzing.com/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:32:00.632Z"
+      "checkedAt": "2026-10-05T09:35:17.747Z"
     },
     {
       "district": "L24",
@@ -298,22 +277,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:27:46.742Z",
+          "at": "2026-10-05T09:34:27.628Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:22.501Z",
+          "at": "2026-10-05T09:35:03.399Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:58.259Z",
+          "at": "2026-10-05T09:35:39.192Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:30:48.633Z"
+      "checkedAt": "2026-10-05T09:35:39.209Z"
     },
     {
       "district": "L24",
@@ -325,22 +304,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:30:49.644Z",
+          "at": "2026-10-05T09:34:10.315Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.p4lcharity.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:30:55.452Z",
+          "at": "2026-10-05T09:34:16.137Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.p4lcharity.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:31:01.275Z",
+          "at": "2026-10-05T09:34:21.964Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.p4lcharity.co.uk/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:31:01.275Z"
+      "checkedAt": "2026-10-05T09:34:21.964Z"
     },
     {
       "district": "L32",
@@ -352,22 +331,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:30:50.897Z",
+          "at": "2026-10-05T09:34:10.657Z",
           "reason": "robots-unreachable",
           "evidence": "https://shoplocator.williamhill/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:30:56.756Z",
+          "at": "2026-10-05T09:34:16.503Z",
           "reason": "robots-unreachable",
           "evidence": "https://shoplocator.williamhill/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:31:02.590Z",
+          "at": "2026-10-05T09:34:22.409Z",
           "reason": "robots-unreachable",
           "evidence": "https://shoplocator.williamhill/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:31:02.590Z"
+      "checkedAt": "2026-10-05T09:34:22.409Z"
     },
     {
       "district": "L32",
@@ -379,22 +358,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:30:50.897Z",
+          "at": "2026-10-05T09:34:10.657Z",
           "reason": "robots-unreachable",
           "evidence": "https://shoplocator.williamhill/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:30:56.756Z",
+          "at": "2026-10-05T09:34:16.503Z",
           "reason": "robots-unreachable",
           "evidence": "https://shoplocator.williamhill/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:31:02.590Z",
+          "at": "2026-10-05T09:34:22.409Z",
           "reason": "robots-unreachable",
           "evidence": "https://shoplocator.williamhill/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:31:02.597Z"
+      "checkedAt": "2026-10-05T09:34:22.440Z"
     },
     {
       "district": "L33",
@@ -403,38 +382,17 @@
       "host": "popeyesuk.com",
       "outcome": "skipped",
       "kind": "extract",
-      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
-      "attempts": 2,
+      "reason": "Firecrawl scrape failed; the page answered HTTP 200",
+      "attempts": 1,
       "evidence": {
-        "basic": "Failed to fetch url",
-        "advanced": "Failed to fetch url",
+        "basic": "Extract returned nothing",
         "probe": {
           "status": 200,
           "landed": "permitted",
-          "checkedAt": "2026-10-04T14:30:55.248Z"
+          "checkedAt": "2026-10-05T09:34:10.452Z"
         }
       },
-      "checkedAt": "2026-10-04T14:30:55.233Z"
-    },
-    {
-      "district": "L33",
-      "category": "restaurant",
-      "url": "https://theguideliverpool.com/directory_category/drink/page/14",
-      "host": "theguideliverpool.com",
-      "outcome": "skipped",
-      "kind": "extract",
-      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
-      "attempts": 2,
-      "evidence": {
-        "basic": "Failed to fetch url",
-        "advanced": "Failed to fetch url",
-        "probe": {
-          "status": 200,
-          "landed": "permitted",
-          "checkedAt": "2026-10-04T14:30:55.923Z"
-        }
-      },
-      "checkedAt": "2026-10-04T14:30:55.615Z"
+      "checkedAt": "2026-10-05T09:34:10.375Z"
     },
     {
       "district": "L36",
@@ -446,42 +404,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:27:21.729Z",
+          "at": "2026-10-05T09:33:57.892Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:27:27.542Z",
+          "at": "2026-10-05T09:34:03.783Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:27:33.365Z",
+          "at": "2026-10-05T09:34:09.652Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:30:58.646Z"
-    },
-    {
-      "district": "L69",
-      "category": "cocktail-bar",
-      "url": "https://bishopsgate-inst.files.svdcdn.com/production/Pride-1991_compressed.pdf?dm=1656076637",
-      "host": "bishopsgate-inst.files.svdcdn.com",
-      "outcome": "skipped",
-      "kind": "extract",
-      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
-      "attempts": 2,
-      "evidence": {
-        "basic": "Failed to fetch url",
-        "advanced": "Failed to fetch url",
-        "probe": {
-          "status": 200,
-          "landed": "permitted",
-          "checkedAt": "2026-10-04T14:31:02.577Z"
-        }
-      },
-      "checkedAt": "2026-10-04T14:31:02.554Z"
+      "checkedAt": "2026-10-05T09:34:09.919Z"
     }
   ],
   "filteredSources": [
@@ -1225,15 +1163,7 @@
       "matchedId": "way/559723982"
     }
   ],
-  "withdrawn": [
-    {
-      "name": "Hillfoot Hotel",
-      "id": "venue-liv-1smrkir",
-      "matchedName": "The Hillfoot Inn",
-      "matchedId": "way/1560285044",
-      "reason": "duplicate of an existing venue"
-    }
-  ],
+  "withdrawn": [],
   "permissionRejected": 0,
   "rejected": [
     {

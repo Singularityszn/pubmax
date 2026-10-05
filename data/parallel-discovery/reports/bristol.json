@@ -6,129 +6,6 @@
   "incompleteSlices": [],
   "skippedSources": [
     {
-      "district": "BS6",
-      "category": "pub",
-      "url": "https://hmssbristol.com",
-      "host": "hmssbristol.com",
-      "outcome": "skipped",
-      "kind": "extract",
-      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
-      "attempts": 2,
-      "evidence": {
-        "basic": "Failed to fetch url",
-        "advanced": "Failed to fetch url",
-        "probe": {
-          "status": 200,
-          "landed": "permitted",
-          "checkedAt": "2026-10-04T14:31:11.655Z"
-        }
-      },
-      "checkedAt": "2026-10-04T14:31:11.326Z"
-    },
-    {
-      "district": "BS6",
-      "category": "cocktail-bar",
-      "url": "https://filthyxiii.com",
-      "host": "filthyxiii.com",
-      "outcome": "skipped",
-      "kind": "extract",
-      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
-      "attempts": 2,
-      "evidence": {
-        "basic": "Failed to fetch url",
-        "advanced": "Failed to fetch url",
-        "probe": {
-          "status": 200,
-          "landed": "permitted",
-          "checkedAt": "2026-10-04T14:31:08.428Z"
-        }
-      },
-      "checkedAt": "2026-10-04T14:31:08.320Z"
-    },
-    {
-      "district": "BS8",
-      "category": "cocktail-bar",
-      "url": "https://www.alteregobar.co.uk/contact-us",
-      "host": "www.alteregobar.co.uk",
-      "outcome": "skipped",
-      "kind": "extract",
-      "reason": "Tavily Extract failed at basic and advanced depth; the page did not answer",
-      "attempts": 2,
-      "evidence": {
-        "basic": "Failed to fetch url",
-        "advanced": "Failed to fetch url",
-        "probe": null
-      },
-      "checkedAt": "2026-10-04T14:31:40.771Z"
-    },
-    {
-      "district": "BS8",
-      "category": "cocktail-bar",
-      "url": "https://hmssbristol.com",
-      "host": "hmssbristol.com",
-      "outcome": "skipped",
-      "kind": "extract",
-      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
-      "attempts": 2,
-      "evidence": {
-        "basic": "Failed to fetch url",
-        "advanced": "Failed to fetch url",
-        "probe": {
-          "status": 200,
-          "landed": "permitted",
-          "checkedAt": "2026-10-04T14:31:11.655Z"
-        }
-      },
-      "checkedAt": "2026-10-04T14:31:11.326Z"
-    },
-    {
-      "district": "BS9",
-      "category": "pub",
-      "url": "https://bristol.u3asite.uk/u3a_venues/westbury-park-pub-kitchen",
-      "host": "bristol.u3asite.uk",
-      "kind": "robots",
-      "reason": "robots unreachable",
-      "attempts": 3,
-      "evidence": [
-        {
-          "at": "2026-10-04T14:31:29.149Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://bristol.u3asite.uk/robots.txt could not be fetched (fetch failed)."
-        },
-        {
-          "at": "2026-10-04T14:31:55.633Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://bristol.u3asite.uk/robots.txt could not be fetched (fetch failed)."
-        },
-        {
-          "at": "2026-10-04T14:32:22.389Z",
-          "reason": "robots-unreachable",
-          "evidence": "https://bristol.u3asite.uk/robots.txt could not be fetched (fetch failed)."
-        }
-      ],
-      "checkedAt": "2026-10-04T14:32:22.390Z"
-    },
-    {
-      "district": "BS10",
-      "category": "cocktail-bar",
-      "url": "https://www.myvue.com/cinema/bristol-cribbs-causeway/whats-on",
-      "host": "www.myvue.com",
-      "outcome": "skipped",
-      "kind": "extract",
-      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 200",
-      "attempts": 2,
-      "evidence": {
-        "basic": "Failed to fetch url",
-        "advanced": "Failed to fetch url",
-        "probe": {
-          "status": 200,
-          "landed": "permitted",
-          "checkedAt": "2026-10-04T14:31:15.588Z"
-        }
-      },
-      "checkedAt": "2026-10-04T14:31:15.324Z"
-    },
-    {
       "district": "BS16",
       "category": "cocktail-bar",
       "url": "https://www.beerintheevening.com/pubs/results.shtml?tr=1209&page=2&show_comments=5",
@@ -138,22 +15,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:27:46.742Z",
+          "at": "2026-10-05T09:34:27.628Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:22.501Z",
+          "at": "2026-10-05T09:35:03.399Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:58.259Z",
+          "at": "2026-10-05T09:35:39.192Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:31:13.617Z"
+      "checkedAt": "2026-10-05T09:35:39.209Z"
     },
     {
       "district": "BS41",
@@ -165,22 +42,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:27:46.742Z",
+          "at": "2026-10-05T09:34:27.628Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:22.501Z",
+          "at": "2026-10-05T09:35:03.399Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         },
         {
-          "at": "2026-10-04T14:28:58.259Z",
+          "at": "2026-10-05T09:35:39.192Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
         }
       ],
-      "checkedAt": "2026-10-04T14:31:13.561Z"
+      "checkedAt": "2026-10-05T09:35:39.209Z"
     }
   ],
   "filteredSources": [
@@ -584,6 +461,10 @@
     },
     {
       "name": "https://mapcarta.com/W272949385",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://bristol.u3asite.uk/u3a_venues/westbury-park-pub-kitchen",
       "reason": "unreadable: robots refused (robots-unreadable)"
     },
     {

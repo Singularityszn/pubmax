@@ -15,42 +15,22 @@
       "attempts": 3,
       "evidence": [
         {
-          "at": "2026-10-04T14:31:15.347Z",
+          "at": "2026-10-05T09:34:11.163Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.fairfieldarmsbath.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:31:21.311Z",
+          "at": "2026-10-05T09:34:17.028Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.fairfieldarmsbath.co.uk/robots.txt could not be fetched (fetch failed)."
         },
         {
-          "at": "2026-10-04T14:31:27.189Z",
+          "at": "2026-10-05T09:34:22.938Z",
           "reason": "robots-unreachable",
           "evidence": "https://www.fairfieldarmsbath.co.uk/robots.txt could not be fetched (fetch failed)."
         }
       ],
-      "checkedAt": "2026-10-04T14:31:27.189Z"
-    },
-    {
-      "district": "BA1",
-      "category": "bar",
-      "url": "https://bills-website.co.uk/restaurants/bath",
-      "host": "bills-website.co.uk",
-      "outcome": "skipped",
-      "kind": "extract",
-      "reason": "Tavily Extract failed at basic and advanced depth; the page answered HTTP 307",
-      "attempts": 2,
-      "evidence": {
-        "basic": "Failed to fetch url",
-        "advanced": "Failed to fetch url",
-        "probe": {
-          "status": 307,
-          "landed": "permitted",
-          "checkedAt": "2026-10-04T14:31:20.255Z"
-        }
-      },
-      "checkedAt": "2026-10-04T14:31:20.239Z"
+      "checkedAt": "2026-10-05T09:34:22.938Z"
     }
   ],
   "filteredSources": [
