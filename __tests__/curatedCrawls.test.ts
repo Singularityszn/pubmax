@@ -146,6 +146,36 @@ describe("curated crawls", () => {
     expect(href).toContain("crawl=freshers-first-night");
   });
 
+  it("keeps validated drink, brand and subtype choices in a completed route share", () => {
+    const href = crawlShareMapHref({
+      venueIds: ["venue-a", "venue-b"],
+      drinkSelection: { drinkCategory: "gin", drinkBrand: "sipsmith", drinkSubtype: "gin-london-dry" },
+    });
+    const params = new URL(href, "https://pubmaxxing.com").searchParams;
+    expect(params.get("pubs")).toBe("venue-a,venue-b");
+    expect(params.get("drink")).toBe("gin");
+    expect(params.get("brand")).toBe("sipsmith");
+    expect(params.get("sub")).toBe("gin-london-dry");
+  });
+
+  it("names Beer explicitly so a shared route cannot inherit another drink", () => {
+    const params = new URL(crawlShareMapHref({
+      venueIds: ["venue-a", "venue-b"], drinkSelection: { drinkCategory: "beer", drinkBrand: "", drinkSubtype: "" },
+    }), "https://pubmaxxing.com").searchParams;
+    expect(params.get("drink")).toBe("beer");
+  });
+
+  it("drops refinements from another category rather than changing the shared drink", () => {
+    const href = crawlShareMapHref({
+      venueIds: ["venue-a"],
+      drinkSelection: { drinkCategory: "wine", drinkBrand: "sipsmith", drinkSubtype: "beer-cider" },
+    });
+    const params = new URL(href, "https://pubmaxxing.com").searchParams;
+    expect(params.get("drink")).toBe("wine");
+    expect(params.has("brand")).toBe(false);
+    expect(params.has("sub")).toBe(false);
+  });
+
   it("infers /map/{city} from venue id prefixes when cityId is omitted", () => {
     const href = curatedCrawlMapHref({
       id: "freshers-first-night",
@@ -181,4 +211,3 @@ describe("curated crawls", () => {
     expect(mockHref).toContain("band=royal-civic");
   });
 });
-

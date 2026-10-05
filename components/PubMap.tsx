@@ -4759,6 +4759,17 @@ export default function PubMap({
 
   const applyGeneratedMobilePlan = useCallback((generated: GeneratedMobilePlan) => {
     const ids = generated.stops.map((stop) => stop.venueId);
+    changeExperienceLens("all");
+    changeFavoritePint(null);
+    setPersonaLensId(null);
+    setFilters((current) => ({
+      ...current,
+      drinkCategory: generated.context.zeroProof ? "alcohol-free" : generated.context.drinkCategory ?? "beer",
+      drinkBrand: "",
+      drinkSubtype: "",
+      topShelfOnly: false,
+      requireCocktails: false,
+    }));
     activateGeneratedPlan(generated.context.nightArea, ids);
     markPalRouteActivation();
     setActiveCrawl(null);
@@ -4768,7 +4779,7 @@ export default function PubMap({
         daypart: generated.context.daypart,
       });
     }
-  }, [activateGeneratedPlan, setActiveCrawl]);
+  }, [activateGeneratedPlan, changeExperienceLens, changeFavoritePint, setActiveCrawl]);
   // The landmark whose story is open, resolved against the city's own catalog.
   // Resolved HERE, ahead of the overlay coordination below, because the story
   // is a surface the reader is on: it hides the planning pill and it enters
@@ -5428,12 +5439,15 @@ export default function PubMap({
   // as a stop, the sheet used to open on the "Describe the outing" form and
   // the picked pub sat a whole form below the fold, unnamed on the first
   // screen (verify-preview-4, J04); a crawl being built now leads the sheet.
+  const plannerDrinkSelection = experienceLens === "all" ? filters : undefined;
   function renderPhoneDescribeForm() {
     return mobileViewport && isLondon && suggestedPlanArea ? (
       <MobilePlanActivation
+        key="phone-describe-form"
         cityId={cityId}
         initialNightArea={suggestedPlanArea.slug}
         venuesById={venuesById}
+        defaultDrinkSelection={plannerDrinkSelection}
         onGenerated={applyGeneratedMobilePlan}
       />
     ) : null;
@@ -5480,6 +5494,9 @@ export default function PubMap({
         altStyle={altStyle}
         onAltStyleChange={setAltStyle}
         route={route}
+        drinkSelection={plannerDrinkSelection}
+        drinkPrices={drinkLensPrices}
+        drinkPriceStatus={drinkIndexStatus}
         filteredVenues={filteredPubVenues}
         builtIds={builtIds}
         activeVenueId={selectedVenueIdOrUndefined}

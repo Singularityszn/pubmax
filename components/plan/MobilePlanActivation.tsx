@@ -31,6 +31,7 @@ import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
 import { recordKeptAction } from "@/lib/nativeReviewPrompt";
 import type { Venue } from "@/lib/venues";
 import { errorMessageFrom, readApiJson } from "@/lib/apiErrorMessage";
+import { mapPlanDrinkDefaultContext, type MapPlanDrinkSelection } from "@/lib/mapPlanDrinkPresentation";
 
 type GeneratedStop = { venueId: string; venueName: string };
 
@@ -54,11 +55,13 @@ export function MobilePlanActivation({
   cityId,
   initialNightArea,
   venuesById,
+  defaultDrinkSelection,
   onGenerated,
 }: {
   cityId: CityId;
   initialNightArea: NightAreaSlug;
   venuesById?: ReadonlyMap<string, Venue>;
+  defaultDrinkSelection?: MapPlanDrinkSelection;
   onGenerated: (plan: GeneratedMobilePlan) => void;
 }) {
   const { user } = useAuth();
@@ -123,6 +126,7 @@ export function MobilePlanActivation({
       const inferred = inferNightContext(query);
       const inferredQuery = inferred.context;
       const queryFields = new Set(inferred.reasons.map((reason) => reason.field));
+      const mapDrinkContext = mapPlanDrinkDefaultContext(defaultDrinkSelection, inferred, zeroProof);
       const atmosphere = [
         ...(moodTouched ? [mood] : []),
         ...(paceTouched ? [pace] : []),
@@ -140,6 +144,7 @@ export function MobilePlanActivation({
           budgetLimitPence: Math.round(Number(budgetLimit) * 100),
         } : {}),
         ...(zeroProof ? { zeroProof: true } : {}),
+        ...mapDrinkContext,
         ...(atmosphere.length ? { atmosphere } : {}),
         ...(stepFree ? { accessibility: ["step-free"] } : {}),
       };
@@ -260,7 +265,7 @@ export function MobilePlanActivation({
         <div className="mobilePlannerResult" role="status">
           <div className="mobilePlannerConfidence" data-level={result.confidence.level}>
             <ShieldCheck size={17} aria-hidden="true" />
-            <div><strong>{result.confidence.level === "high" ? "Prices checked" : result.confidence.level === "medium" ? "Not all checked" : "Rough guess, yours to change"}</strong><span>{result.budget.estimatedPerPersonPence === null ? "Some prices are missing. Check each stop before relying on the budget." : `Estimated £${(result.budget.estimatedPerPersonPence / 100).toFixed(2)} each for one recorded pint per stop.`}</span>{result.confidence.warnings.length ? <ul aria-label="Route warnings">{result.confidence.warnings.map((warning) => <li key={warning}><small>{warning}</small></li>)}</ul> : null}</div>
+            <div><strong>{result.confidence.level === "high" ? "Prices checked" : result.confidence.level === "medium" ? "Not all checked" : "Rough guess, yours to change"}</strong><span>{result.budget.basis === "selected-drink-price-unavailable" ? "Selected-drink servings are not recorded. Check each stop before relying on the budget." : result.budget.estimatedPerPersonPence === null ? "Some prices are missing. Check each stop before relying on the budget." : `Estimated £${(result.budget.estimatedPerPersonPence / 100).toFixed(2)} each for one recorded pint per stop.`}</span>{result.confidence.warnings.length ? <ul aria-label="Route warnings">{result.confidence.warnings.map((warning) => <li key={warning}><small>{warning}</small></li>)}</ul> : null}</div>
           </div>
           <p className="mobilePlannerRouteTotal">{result.routeTotalLabel}</p>
           <p className="mobilePlannerNextStep">Route preview stays on this device. Lock it in on Plan when you want a shareable crew link.</p>
