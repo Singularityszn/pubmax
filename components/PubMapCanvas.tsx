@@ -27,7 +27,10 @@ import {
 
 import type { Landmark } from "@/lib/landmarks";
 import { coffeePilotToGeoJSON, type CoffeePilotCafe } from "@/lib/coffeePilot";
-import { londonRestaurantsToGeoJSON } from "@/lib/londonRestaurants";
+import {
+  LONDON_RESTAURANT_MIN_ZOOM,
+  londonRestaurantsToGeoJSON,
+} from "@/lib/londonRestaurants";
 import type { LondonVenue } from "@/lib/londonVenueShards";
 import { bandMemberPubs } from "@/lib/storyBandVenueProximity";
 import type { StoryBand } from "@/lib/storyBands";
@@ -266,6 +269,7 @@ type PubMapCanvasProps = {
   onVisibleVenueIdsChange?: (membership: {
     curatedVenueIds: string[];
     ukBasePubIds: string[];
+    londonRestaurantIds: string[];
   }) => void;
   onRenderedStateChange?: (state: MapRenderedState) => void;
   /**
@@ -3537,8 +3541,19 @@ export default function PubMapCanvas({
               viewport,
             )
           : [];
-      const membershipKey =
-        `${curatedVenueIds.join("\u0000")}\u0001${ukBasePubIds.join("\u0000")}`;
+      // The restaurants drawn from the same floor their layer draws from, so
+      // the list never names a restaurant the canvas is not showing.
+      const londonRestaurantIds =
+        map.getZoom() >= LONDON_RESTAURANT_MIN_ZOOM
+          ? projectedItemIdsInViewport(
+              londonRestaurants,
+              (restaurant) => map.project([restaurant.lng, restaurant.lat]),
+              viewport,
+            )
+          : [];
+      const membershipKey = [curatedVenueIds, ukBasePubIds, londonRestaurantIds]
+        .map((ids) => ids.join("\u0000"))
+        .join("\u0001");
       if (membershipKey === lastMembershipKey) return;
       lastMembershipKey = membershipKey;
 
@@ -3546,7 +3561,7 @@ export default function PubMapCanvas({
       onUkBasePubsChange?.(
         ukBase.pubs.filter((pub) => visibleBaseIds.has(pub.id)),
       );
-      onVisibleVenueIdsChange?.({ curatedVenueIds, ukBasePubIds });
+      onVisibleVenueIdsChange?.({ curatedVenueIds, ukBasePubIds, londonRestaurantIds });
     };
     const scheduleVisibleMembership = () => {
       if (frame !== null) return;
@@ -3562,6 +3577,7 @@ export default function PubMapCanvas({
       map.off("resize", scheduleVisibleMembership);
     };
   }, [
+    londonRestaurants,
     mapReady,
     onUkBasePubsChange,
     onVisibleVenueIdsChange,

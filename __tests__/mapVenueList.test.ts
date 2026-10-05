@@ -3,7 +3,9 @@ import { describe, it, expect } from "vitest";
 import { drinkLensPriceNoun } from "@/lib/mapExperienceLens";
 import {
   buildMapVenueListModel,
+  buildLondonRestaurantListModel,
   buildUkBasePubListModel,
+  summarizeListGroups,
   projectedItemIdsInViewport,
   MAP_VENUE_LIST_LIMIT,
 } from "@/lib/mapVenueList";
@@ -604,5 +606,55 @@ describe("buildMapVenueListModel — the accessible parallel to the pins", () =>
     );
     expect(model.coverageNote).toBeNull();
     expect(defined(model.rows[0]).priceLabel).toBe("£4.50");
+  });
+});
+
+describe("buildLondonRestaurantListModel", () => {
+  const restaurant = (id: string, name: string, lat: number, lng: number) => ({
+    id,
+    name,
+    address: "",
+    lat,
+    lng,
+    kind: "restaurant" as const,
+  });
+  const near = restaurant("venue-osm-n1", "Near Kitchen", 51.5126, -0.1269);
+  const far = restaurant("venue-osm-n2", "Far Kitchen", 51.53, -0.1);
+
+  it("lists the restaurants in view nearest the centre first, with no price", () => {
+    const model = buildLondonRestaurantListModel([far, near], [-0.127, 51.5125]);
+    expect(model.rows.map((row) => row.id)).toEqual(["venue-osm-n1", "venue-osm-n2"]);
+    expect(model.rows.every((row) => row.priceLabel === "Restaurant · no listed price")).toBe(
+      true,
+    );
+    expect(model.rows[0]?.distanceKm).toBeLessThan(0.05);
+    expect(model).toMatchObject({ total: 2, shown: 2, truncated: false });
+  });
+
+  it("says when it holds back rows past its limit", () => {
+    const model = buildLondonRestaurantListModel([far, near], [-0.127, 51.5125], 1);
+    expect(model).toMatchObject({ total: 2, shown: 1, truncated: true });
+    expect(model.rows.map((row) => row.id)).toEqual(["venue-osm-n1"]);
+  });
+});
+
+describe("summarizeListGroups", () => {
+  const group = (ids: string[], total = ids.length, truncated = false) => ({
+    rows: ids.map((id) => ({ id })),
+    total,
+    shown: ids.length,
+    truncated,
+  });
+
+  it("counts every group and names the first row of the first non-empty group", () => {
+    expect(
+      summarizeListGroups([group([]), group(["venue-uk-1"], 3, true), group(["venue-osm-n1"])]),
+    ).toEqual({ total: 4, shown: 2, truncated: true, firstRowId: "venue-uk-1" });
+  });
+
+  it("lets a restaurant take focus when it is the only row", () => {
+    expect(summarizeListGroups([group([]), group([]), group(["venue-osm-n1"])]).firstRowId).toBe(
+      "venue-osm-n1",
+    );
   });
 });

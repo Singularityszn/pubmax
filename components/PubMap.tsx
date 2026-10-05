@@ -85,6 +85,7 @@ import {
 } from "@/lib/nearMeLocation";
 import {
   buildMapVenueListModel,
+  buildLondonRestaurantListModel,
   buildUkBasePubListModel,
   type MapVenueListSortMode,
 } from "@/lib/mapVenueList";
@@ -1813,6 +1814,7 @@ export default function PubMap({
     cityId: CityId;
     curatedVenueIds: string[];
     ukBasePubIds: string[];
+    londonRestaurantIds: string[];
   } | null>(null);
   const [renderedMapState, setRenderedMapState] =
     useState<MapRenderedState>(EMPTY_MAP_RENDERED_STATE);
@@ -2780,6 +2782,7 @@ export default function PubMap({
     (membership: {
       curatedVenueIds: string[];
       ukBasePubIds: string[];
+      londonRestaurantIds: string[];
     }) => {
       setVisibleVenueState({ cityId, ...membership });
     },
@@ -3179,6 +3182,19 @@ export default function PubMap({
     },
     [cityId, mapViewport.center, renderedBasePubs, visibleVenueState],
   );
+  // The restaurant pins the canvas has in view, as List view rows: the canvas
+  // symbols have no DOM, so this is how a keyboard or screen-reader user
+  // reaches a restaurant.
+  const londonRestaurantListModel = useMemo(() => {
+    if (visibleVenueState?.cityId !== cityId) {
+      return buildLondonRestaurantListModel([], mapViewport.center);
+    }
+    const visibleIds = new Set(visibleVenueState.londonRestaurantIds);
+    return buildLondonRestaurantListModel(
+      drawnLondonRestaurants.filter((restaurant) => visibleIds.has(restaurant.id)),
+      mapViewport.center,
+    );
+  }, [cityId, drawnLondonRestaurants, mapViewport.center, visibleVenueState]);
   // The place the map is OVER, and whether it is off the curated city.
   // Base-led chrome: uncovered place, national browse, or pan past cityMaxBounds.
   const { mapContextName, outsideCuratedBounds, baseLedChrome } = mapPlaceContext({
@@ -6196,6 +6212,7 @@ export default function PubMap({
       <MapVenueList
         model={mapVenueListModel}
         ukBaseModel={ukBasePubListModel}
+        restaurantModel={londonRestaurantListModel}
         ukBaseStatus={ukBaseStatus}
         cityName={mapContextName}
         open={mapListOpen}
@@ -6483,7 +6500,9 @@ export default function PubMap({
         onReloadVenueData={reloadVenueIndex}
         listOpen={mapListOpen}
         onListOpenChange={setMapListOpen}
-        listCount={mapVenueListModel.total + ukBasePubListModel.total}
+        listCount={
+          mapVenueListModel.total + ukBasePubListModel.total + londonRestaurantListModel.total
+        }
         onSoftRetryChange={setMapSoftRetryActive}
         focusPoint={areaFocus ?? openingLocationFocus}
         openingCameraSettled={openingCameraSettled({

@@ -112,3 +112,32 @@ test("a shared restaurant link opens its sheet on a cold load", async ({ page })
   await expect(sheet).toContainText("26, Furnival Street, London, EC4A 1JS");
   expect(new URL(page.url()).searchParams.get("sel")).toBe("venue-osm-n25496840");
 });
+
+test("List view gives a keyboard reader every restaurant in view", async ({ page }) => {
+  test.setTimeout(180_000);
+  const response = await page.goto("/map");
+  expect(response?.status()).toBe(200);
+  const wrap = page.locator(".mapCanvasWrap");
+  await expect
+    .poll(async () => Number(await wrap.getAttribute("data-london-restaurant-count")), {
+      timeout: 60_000,
+    })
+    .toBeGreaterThan(500);
+
+  const more = page.getByRole("button", { name: "More map controls" });
+  await expect(more).toBeVisible({ timeout: 20_000 });
+  await more.click();
+  const listToggle = page.getByRole("button", { name: "List view" });
+  await expect(listToggle).toBeVisible({ timeout: 10_000 });
+  await listToggle.click();
+
+  const group = page.getByRole("list", { name: "Restaurants with no listed price" });
+  await expect(group).toBeVisible({ timeout: 30_000 });
+  const row = group.locator('button[data-venue-id^="venue-osm-"]').first();
+  const id = await row.getAttribute("data-venue-id");
+  await row.focus();
+  await page.keyboard.press("Enter");
+
+  await expect(page.locator(`[data-london-restaurant='${id}']`)).toBeVisible({ timeout: 30_000 });
+  expect(new URL(page.url()).searchParams.get("sel")).toBe(id);
+});

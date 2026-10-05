@@ -1,21 +1,30 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef } from "react";
-import { MapPin } from "lucide-react";
+import { ForkKnife, MapPin } from "lucide-react";
 
 import CompactVenuePrice from "@/components/map/CompactVenuePrice";
 import { formatLogNearbyDistance } from "@/lib/mapLogIntent";
 import type {
   MapVenueListModel,
   MapVenueListSortMode,
+  LondonRestaurantListModel,
   UkBasePubListModel,
 } from "@/lib/mapVenueList";
+import { summarizeListGroups } from "@/lib/mapVenueList";
 import type { UkBasePub, UkBaseStreamStatus } from "@/lib/ukBasePubs";
 import SurfaceNav from "@/components/ui/surface-nav";
 import { homeActionLabel } from "@/lib/surfaceStack";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
 import "./mapVenueList.css";
+
+const EMPTY_RESTAURANT_MODEL: LondonRestaurantListModel = {
+  rows: [],
+  total: 0,
+  shown: 0,
+  truncated: false,
+};
 
 // Accessibility contract (WCAG 2.1.1): keyboard/screen-reader parallel to
 // canvas pins. A DOM list of the filtered venues projected inside the current
@@ -31,6 +40,7 @@ import "./mapVenueList.css";
 export default function MapVenueList({
   model,
   ukBaseModel,
+  restaurantModel = EMPTY_RESTAURANT_MODEL,
   ukBaseStatus = "ready",
   cityName,
   open,
@@ -48,6 +58,8 @@ export default function MapVenueList({
 }: {
   model: MapVenueListModel;
   ukBaseModel: UkBasePubListModel;
+  /** London restaurant pins in view (lib/londonRestaurants.ts). */
+  restaurantModel?: LondonRestaurantListModel;
   ukBaseStatus?: UkBaseStreamStatus;
   cityName: string;
   open: boolean;
@@ -66,14 +78,14 @@ export default function MapVenueList({
   homeTitle?: string;
 }) {
   const panelId = useId();
-  const total = model.total + ukBaseModel.total;
-  const shown = model.shown + ukBaseModel.shown;
-  const truncated = model.truncated || ukBaseModel.truncated;
+  const { total, shown, truncated, firstRowId } = summarizeListGroups([
+    model,
+    ukBaseModel,
+    restaurantModel,
+  ]);
   const firstVenueRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const venueFocusAssignedRef = useRef(false);
-  const firstCuratedId = model.rows[0]?.id;
-  const firstBaseId = firstCuratedId ? undefined : ukBaseModel.rows[0]?.id;
 
   // The list opens from Layers, so the way back is this panel's own SurfaceNav
   // and it does not join the surface trail. Escape leaves it too, because
@@ -100,7 +112,7 @@ export default function MapVenueList({
       }
     });
     return () => cancelAnimationFrame(frame);
-  }, [firstBaseId, firstCuratedId, open]);
+  }, [firstRowId, open]);
 
   // Closed, this component owns nothing on screen: the way IN is Layers, so a
   // named landmark region holding no content would only pad every screen
@@ -188,7 +200,7 @@ export default function MapVenueList({
                     {model.rows.map((row) => (
                       <li key={row.id}>
                         <button
-                          ref={row.id === firstCuratedId ? firstVenueRef : undefined}
+                          ref={row.id === firstRowId ? firstVenueRef : undefined}
                           id={`map-venue-list-item-${row.id}`}
                           type="button"
                           className="mapVenueListItem"
@@ -229,7 +241,7 @@ export default function MapVenueList({
                     {ukBaseModel.rows.map((row) => (
                       <li key={row.id}>
                         <button
-                          ref={row.id === firstBaseId ? firstVenueRef : undefined}
+                          ref={row.id === firstRowId ? firstVenueRef : undefined}
                           id={`map-venue-list-item-${row.id}`}
                           type="button"
                           className="mapVenueListItem"
@@ -240,6 +252,38 @@ export default function MapVenueList({
                         >
                           <span className="mapVenueListItemName">
                             <MapPin size={14} aria-hidden="true" />
+                            {row.name}
+                          </span>
+                          <span className="mapVenueListItemMeta">
+                            {typeof row.distanceKm === "number" ? (
+                              <span className="mapVenueListItemDist">{formatLogNearbyDistance(row.distanceKm)}</span>
+                            ) : null}
+                            <span>{row.priceLabel}</span>
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+              {restaurantModel.rows.length > 0 ? (
+                <section className="mapVenueListGroup mapVenueListGroup--unverified" aria-label="Restaurants with no listed price">
+                  <h3 className="mapVenueListGroupTitle">Restaurants · no listed price</h3>
+                  <ul className="mapVenueListItems" aria-label="Restaurants with no listed price">
+                    {restaurantModel.rows.map((row) => (
+                      <li key={row.id}>
+                        <button
+                          ref={row.id === firstRowId ? firstVenueRef : undefined}
+                          id={`map-venue-list-item-${row.id}`}
+                          type="button"
+                          className="mapVenueListItem"
+                          data-venue-id={row.id}
+                          onClick={() => {
+                            onSelectVenue(row.id);
+                          }}
+                        >
+                          <span className="mapVenueListItemName">
+                            <ForkKnife size={14} aria-hidden="true" />
                             {row.name}
                           </span>
                           <span className="mapVenueListItemMeta">
