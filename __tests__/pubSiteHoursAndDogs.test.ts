@@ -289,7 +289,7 @@ describe("publishing over committed rows", () => {
     readOn: "2026-01-01",
     dogs: { policy: "not-allowed", evidence: `No dogs at ${osmId}.` },
   });
-  const publish = (previousRows: SiteFactsRow[], checkpoint = reads, isChainPage = (_url: string) => false) =>
+  const publish = (previousRows: SiteFactsRow[], checkpoint = reads, isChainPage: (url: string) => boolean = () => false) =>
     siteFactsRows({ reads: checkpoint, loadPage, isChainPage, previousRows, previousChainPassages: [] });
   const committed = ["node/1", "node/2", "node/3", "node/4", "node/5", "node/6", "node/7", "node/8", "node/9", "node/10"].map(
     (osmId) => committedRow(osmId),
