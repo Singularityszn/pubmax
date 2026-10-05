@@ -20,24 +20,21 @@
  * loading frame, or on an empty map slot the shell believes is fine, with no
  * sentence either way.
  *
+ * MapLibre construction stops the shell's clock. The canvas then owns its
+ * first-frame, scene-ready and pin-reveal watchdogs. Keeping the shell's clock
+ * running would let it unmount a canvas before those watchdogs answer.
+ *
  * So the SHELL owns two answers the canvas cannot give, and this module is the
  * whole of that policy: the reason vocabulary, the readiness ceiling, and every
  * word either state prints. It performs no I/O and touches no map, in the shape
  * of lib/mapTileFailure.ts and lib/mapDataPackFailure.ts, so the decision stays
  * testable without a renderer. `__tests__/mapCanvasAvailability.test.ts` pins
- * it, including the rule that the ceiling sits ABOVE the canvas's own two
- * watchdogs so a mounted canvas always gets to name its own failure first.
+ * the policy, including the construction handoff.
  */
 
 /**
- * How long the shell waits for a mounted canvas that has said nothing at all.
- *
- * This is a LAST answer, never a first one. A mounted canvas diagnoses itself
- * well inside this window: `PIN_READY_CEILING_MS` (12s) is its own handoff
- * ceiling and `FIRST_FRAME_TIMEOUT_MS` (10s) its first-painted-frame watchdog,
- * both in components/PubMapCanvas.tsx. Sitting above both is what keeps this
- * from stealing a failure the canvas was about to word better, and the fence
- * reads those two numbers out of that file rather than restating them.
+ * Maximum shell wait before a canvas reports construction, readiness or failure.
+ * Construction ends this wait even while the canvas is still preparing to draw.
  */
 export const MAP_CANVAS_READINESS_CEILING_MS = 18_000;
 
@@ -108,14 +105,23 @@ export function mapCanvasFrameReleased(availability: MapCanvasAvailability): boo
 
 /**
  * Whether the readiness ceiling should be running. It runs from mount until
- * the canvas answers one way or the other: a module failure already has its
- * answer, a canvas showing its own card has given one, and a ready canvas is
- * the answer. Nothing else stops the clock.
+ * the canvas answers one way or the other, or starts watching itself: a module
+ * failure already has its answer, a canvas showing its own card has given one,
+ * a ready canvas is the answer, and a canvas that has built its map owns every
+ * answer after that. Nothing else stops the clock.
  */
 export function mapCanvasCeilingArmed(
-  state: Omit<MapCanvasReadinessState, "ceilingLapsed">,
+  state: Omit<MapCanvasReadinessState, "ceilingLapsed"> & {
+    /** The canvas has built MapLibre and armed its own watchdogs. */
+    readonly canvasWatching: boolean;
+  },
 ): boolean {
-  return !state.canvasReady && !state.moduleFailed && !state.canvasOwnsFailure;
+  return (
+    !state.canvasReady &&
+    !state.moduleFailed &&
+    !state.canvasOwnsFailure &&
+    !state.canvasWatching
+  );
 }
 
 /**

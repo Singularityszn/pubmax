@@ -67,6 +67,12 @@ import {
 export const PIN_MIN_ZOOM = 12;
 export const CLUSTER_MAX_ZOOM = 13;
 
+// The features the GL cluster disc and its count draw. Desktop donuts read the
+// same set and swap these layers' filter rather than their visibility: below
+// PIN_MIN_ZOOM they are the only layers on the `pubs` source, and MapLibre
+// unloads a source whose every layer is hidden.
+export const CLUSTER_FILTER: maplibregl.FilterSpecification = ["has", "point_count"];
+
 // The UK-wide unpriced base layer (lib/ukBasePubs.ts) shares PIN_MIN_ZOOM's
 // floor and nothing else. It is deliberately NOT part of the `pubs` source:
 //
@@ -1468,7 +1474,7 @@ export function buildPubs(ctx: SceneCtx) {
     id: "clusters",
     type: "circle",
     source: "pubs",
-    filter: ["has", "point_count"],
+    filter: CLUSTER_FILTER,
     paint: {
       // Price-aware GL fallback. Desktop normally replaces these circles with
       // segmented donuts; phones and large cluster sets keep this layer, whose
@@ -1499,7 +1505,7 @@ export function buildPubs(ctx: SceneCtx) {
     id: "cluster-count",
     type: "symbol",
     source: "pubs",
-    filter: ["has", "point_count"],
+    filter: CLUSTER_FILTER,
     layout: {
       "text-field": ["get", "point_count_abbreviated"],
       "text-font": textFont,

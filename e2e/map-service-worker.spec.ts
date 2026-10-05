@@ -9,6 +9,53 @@ const legacyWorker = readFileSync(
 
 test.describe.configure({ mode: "serial" });
 
+// The worker the app itself registers (components/OfflineReady.tsx), at the
+// version playwright.config.ts pins for every e2e build. The rollout under test
+// has to be THIS script: once the route below is lifted, every /map load
+// registers it, so a target at any other URL is replaced by a second rollout
+// during the reload, which purges the target's tiles while the map is drawing.
+const APP_WORKER_URL = "/sw.js?v=local&cache-policy=write-safe-v1";
+
+// The basemap is served locally. The workers cache, purge and serve planet
+// tile URLs on the tile host, which is what this spec is about; what is drawn
+// from them is not. Live tiles made a headless browser read every painted frame
+// back on its main thread for seconds at a time, and a live style, tilejson and
+// sprite missed the 3 s pin-reveal window, so the reload revealed on its
+// timeout rather than on its pins.
+//
+// One valid vector tile holding a single empty layer (MVT v2, extent 4096).
+const EMPTY_VECTOR_TILE = Buffer.from([
+  0x1a, 0x08, 0x78, 0x02, 0x0a, 0x01, 0x78, 0x28, 0x80, 0x20,
+]);
+const PLANET_TILE = /^https:\/\/tiles\.openfreemap\.org\/planet\/.*\.pbf(?:\?.*)?$/;
+// The uncached tile asked for under storage pressure is the size of a real
+// one (a central London z12 tile is about 150 KB). A ten-byte body can still
+// fit in the slack of a full origin, so the legacy worker would cache it and
+// the pre-fix failure this spec reproduces would not happen.
+const QUOTA_MISS_TILE = Buffer.alloc(160_000);
+const MAP_STYLE =
+  /^https:\/\/(?:tiles\.openfreemap\.org\/styles\/(?:dark|positron)\/?|basemaps\.cartocdn\.com\/gl\/(?:dark-matter|positron)-gl-style\/style\.json)$/;
+const PLANET_STYLE = JSON.stringify({
+  version: 8,
+  sources: {
+    openmaptiles: {
+      type: "vector",
+      tiles: ["https://tiles.openfreemap.org/planet/fixture/{z}/{x}/{y}.pbf"],
+      maxzoom: 14,
+    },
+  },
+  layers: [
+    { id: "background", type: "background", paint: { "background-color": "#111111" } },
+    {
+      id: "fixture-fill",
+      type: "fill",
+      source: "openmaptiles",
+      "source-layer": "x",
+      paint: { "fill-color": "#222222" },
+    },
+  ],
+});
+
 async function resetServiceWorkerState(page: Page): Promise<void> {
   await page.goto("/offline.html");
   await page.evaluate(async () => {
@@ -56,9 +103,30 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
   test.setTimeout(180_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await resetServiceWorkerState(page);
+  // Context-wide, so the workers' own fetches are answered too.
+  await context.route(MAP_STYLE, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: { "Access-Control-Allow-Origin": "*" },
+      body: PLANET_STYLE,
+    }),
+  );
+  await context.route(PLANET_TILE, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/x-protobuf",
+      headers: { "Access-Control-Allow-Origin": "*" },
+      body: route.request().url().includes("quota-miss=")
+        ? QUOTA_MISS_TILE
+        : EMPTY_VECTOR_TILE,
+    }),
+  );
   const workerRoute = /\/sw\.js\?v=/;
+  let appRegistrationRefused = false;
   await context.route(workerRoute, (route) => {
     const version = new URL(route.request().url()).searchParams.get("v");
+    if (route.request().url().includes(APP_WORKER_URL)) appRegistrationRefused = true;
     if (version?.startsWith("legacy-")) {
       return route.fulfill({
         status: 200,
@@ -220,6 +288,29 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
     origin,
     quotaSize: Math.ceil(usage.usage + 1),
   });
+  // Chromium checks a write against the usage its quota manager last
+  // recorded, and the legacy worker is still caching tiles in the background,
+  // so writes can land past the new quota until that record catches up. The
+  // legacy defect below is about a FULL origin, so wait until the origin
+  // refuses a write before asking it to cache one more tile.
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async () => {
+          try {
+            const cache = await caches.open("pubmax-e2e-quota-probe");
+            await cache.put(
+              `/quota-probe-${Date.now()}`,
+              new Response(new Uint8Array(16_384)),
+            );
+            return "stored";
+          } catch {
+            return "refused";
+          }
+        }),
+      { message: "the origin refuses writes past its quota", timeout: 30_000 },
+    )
+    .toBe("refused");
 
   const uncachedTileUrl = `${tileUrl}?quota-miss=${Date.now()}`;
   const direct = await request.get(uncachedTileUrl);
@@ -236,10 +327,20 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
     }, uncachedTileUrl),
   ).toBe("errored");
 
+  // The app registers its own worker once per page load, at idle after the
+  // first pins (components/OfflineReady.tsx). On a slow run that idle could
+  // land after the route lifts, and the app would then perform the rollout
+  // itself, so the takeover below would find the target already active and
+  // wait for a controllerchange that had already happened. Lift the route only
+  // once this page's own attempt has been refused.
+  await expect
+    .poll(() => appRegistrationRefused, {
+      message: "the app's own worker registration was refused before the rollout",
+      timeout: 30_000,
+    })
+    .toBe(true);
   await context.unroute(workerRoute);
-  const targetWorkerUrl =
-    `/sw.js?v=rollout-target-${Date.now()}` +
-    "&cache-policy=write-safe-v1";
+  const targetWorkerUrl = APP_WORKER_URL;
   const takeover = await page.evaluate(async (scriptUrl) => {
     const states: string[] = [];
     const controllerChanged = new Promise<void>((resolve) => {
@@ -279,7 +380,7 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
     };
   }, targetWorkerUrl);
 
-  expect(takeover.controller).toContain("rollout-target-");
+  expect(takeover.controller).toContain(APP_WORKER_URL);
   expect(takeover.states).toContain("installed");
   expect(takeover.states).toContain("activated");
   expect(takeover.waiting).toBeNull();
@@ -349,7 +450,7 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
         ),
       { timeout: 15_000 },
     )
-    .toContain("rollout-target-");
+    .toContain(APP_WORKER_URL);
   const recoveredTile = await page.evaluate(async (url) => {
     const response = await fetch(url);
     return { status: response.status, size: (await response.arrayBuffer()).byteLength };

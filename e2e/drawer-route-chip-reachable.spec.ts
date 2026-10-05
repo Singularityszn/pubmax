@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { COMMUNITY_SHEET_FIXTURE_VENUE_ID } from "./helpers/communitySheetFixture";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 // The mapped-route chip belongs to the map, not to the venue drawer. While the
 // desktop drawer is open its focus trap used to make the whole map stage
@@ -50,6 +51,11 @@ async function openFirstStopDrawerWithChipMounted(page: Page, width: number) {
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
+  // A headless browser reads every painted WebGL frame back on its main
+  // thread, and a stream of live tiles held it for seconds at a time: the tap,
+  // the Tab and the focus reads below were refused for want of a thread, not
+  // for want of a reachable chip. The chip does not depend on the basemap.
+  await installDeterministicMapBasemap(page);
 
   const response = await page.goto(
     `/map?mode=build&pubs=${FIRST_STOP}%2C${FINAL_STOP}&sel=${FIRST_STOP}`,
@@ -81,7 +87,10 @@ test.describe("desktop drawer leaves the route chip reachable", () => {
     const { drawer, chip } = await openFirstStopDrawer(page, 1440);
 
     const door = chip.getByRole("button", { name: "Check last train at final stop" });
-    await expect.poll(() => door.evaluate((node) => node.closest("[inert]") === null)).toBe(true);
+    // The click is the inert check: an inert button takes no hit, so the click
+    // retries until the trap exempts the chip. A separate read of `[inert]` had
+    // only expect.poll's 10s, and one read could wait longer than that for a
+    // main thread busy drawing the map.
     await door.click({ timeout: 30_000 });
 
     await expectFinalStopLastTrain(page, drawer);
