@@ -310,11 +310,10 @@ export const posthogBrowserConfig = {
   get_device_id: resolvePosthogDeviceId,
   opt_in_site_apps: false,
   person_profiles: "always",
+  // No feature-flag request, which before_send never sees, and no URL
+  // fragment in captured URLs, including the initial person properties.
   advanced_disable_flags: true,
-  // Backstops for any request before_send never sees: no URL fragment and no
-  // raw landing URL in the initial person properties.
   disable_capture_url_hashes: true,
-  mask_personal_data_properties: true,
   opt_out_capturing_by_default: true,
   opt_out_persistence_by_default: true,
   // PostHog drops HeadlessChrome before before_send. Production browser tests

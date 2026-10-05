@@ -320,14 +320,6 @@ describe("unowned callback sign-in method", () => {
     expect(setSession).not.toHaveBeenCalled();
   });
 
-  it("reads an RFC 8176 string amr a custom token hook writes", async () => {
-    const payload = Buffer.from(JSON.stringify({ amr: ["otp"] })).toString("base64url");
-    const pending = await prepareAuthCallbackSession(
-      { setSession: vi.fn() }, tokens, false, mintWith(`header.${payload}.signature`), verifiedUser,
-    );
-    expect(pending.status).toBe("confirmation-required");
-  });
-
   it.each([
     ["an OAuth session", accessTokenWithMethod("a", "oauth")],
     ["a password session", accessTokenWithMethod("a", "password")],

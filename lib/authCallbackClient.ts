@@ -112,16 +112,13 @@ function expiredCallbackSubject(error: unknown, accessToken: string): string | n
  * password always return to the browser that started them, so an unowned
  * callback carrying one is somebody else's session handed over in a link.
  */
+// A first sign-up confirmation link is an emailed link too.
 const EMAIL_LINK_AMR_METHODS = new Set(["otp", "magiclink", "email/signup"]);
 
 function isEmailLinkSession(accessToken: string): boolean {
   const amr = accessTokenClaims(accessToken)?.amr;
-  // GoTrue writes { method, timestamp } entries. A custom access token hook
-  // may write RFC 8176 strings instead.
   return Array.isArray(amr) && amr.some((entry: unknown) => {
-    const method = typeof entry === "string"
-      ? entry
-      : entry && typeof entry === "object" ? (entry as { method?: unknown }).method : null;
+    const method = entry && typeof entry === "object" ? (entry as { method?: unknown }).method : null;
     return typeof method === "string" && EMAIL_LINK_AMR_METHODS.has(method);
   });
 }

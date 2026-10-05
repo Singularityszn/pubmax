@@ -409,7 +409,6 @@ describe("PostHog browser privacy boundary", () => {
       person_profiles: "always",
       advanced_disable_flags: true,
       disable_capture_url_hashes: true,
-      mask_personal_data_properties: true,
       opt_out_capturing_by_default: true,
       opt_out_persistence_by_default: true,
       respect_dnt: true,
