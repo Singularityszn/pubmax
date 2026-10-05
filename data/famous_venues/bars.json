@@ -1515,8 +1515,8 @@
     "name": "Eve Bar",
     "address": "34-35 Southampton Street, London WC2E 7HG",
     "borough": "Westminster",
-    "lat": 51.51067,
-    "lng": -0.121916,
+    "lat": 51.510759,
+    "lng": -0.122029,
     "kind": "bar",
     "hasStory": true,
     "fameGates": [
@@ -1547,8 +1547,8 @@
     "description": "Adam Handling's subterranean bar turns kitchen offcuts into polished cocktails beneath Covent Garden.",
     "area": "Westminster",
     "location": {
-      "lat": 51.51067,
-      "lng": -0.121916
+      "lat": 51.510759,
+      "lng": -0.122029
     },
     "sourceName": "evebar.co.uk",
     "expiresAt": "2026-11-04",
