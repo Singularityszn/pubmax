@@ -4,7 +4,6 @@ import { PRICE_CHIP_COLUMNS, PRICE_CHIP_MIN_COLUMN_PX } from "@/lib/priceChipLad
 
 import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
-import { expectHydrated } from "./helpers/streamedPage";
 
 /**
  * The three follow-ups the 6 September 2026 design review recorded and did not
@@ -211,12 +210,12 @@ for (const viewport of WIDTHS) {
     const nearby = page.locator(".logIntentNearbyBtn").first();
     await expect(nearby).toBeVisible({ timeout: 45_000 });
     const priceStep = page.getByTestId("spill-price-step");
-    // A control painted on the server is tappable before React attaches, and a
-    // tap in that window is dropped. Retrying the tap could also land a second
-    // one that closes the step again, so the tap waits for hydration instead.
-    await expectHydrated(nearby);
+    // The picker is a client-only dynamic chunk (PubMap's LogIntentFallback),
+    // so its buttons carry their handler from the first paint and one tap is
+    // enough. A tap that lands hides the picker while the venue opens, so a
+    // retried tap waits on a button that is gone.
     await nearby.click();
-    await expect(priceStep).toBeVisible({ timeout: 15_000 });
+    await expect(priceStep).toBeVisible({ timeout: 25_000 });
 
     const chips = priceStep.locator(".priceQuickAdds .priceChip");
     await expect(chips.first()).toBeVisible({ timeout: 15_000 });

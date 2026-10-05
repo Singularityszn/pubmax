@@ -70,6 +70,11 @@ async function expectLockedCoralContrast(control: Locator): Promise<void> {
 function cssColourChannels(cssColour: string): { rgb: [number, number, number]; alpha: number } {
   const raw = cssColour.trim();
   if (raw === "transparent") return { rgb: [0, 0, 0], alpha: 0 };
+  // A colour caught mid-transition serialises in its interpolation space, such
+  // as `oklab(0.96 0.016 0.009)`. Read as sRGB, that near-white is black.
+  if (!/^(rgba?\(|color\(srgb )/.test(raw)) {
+    throw new Error(`Not an sRGB computed colour: ${cssColour}`);
+  }
   const nums = raw.match(/-?\d+(?:\.\d+)?/g)?.map(Number);
   if (!nums || nums.length < 3) {
     throw new Error(`Could not parse computed colour: ${cssColour}`);
@@ -128,6 +133,40 @@ async function expectReadableGhostContrast(control: Locator): Promise<void> {
   const background = cssColourChannels(computed.background);
   expect(background.alpha).toBeGreaterThan(0);
   expect(contrastRatio(foreground.rgb, background.rgb)).toBeGreaterThanOrEqual(4.5);
+}
+
+/**
+ * Switch the theme and wait until each control has finished changing colour.
+ *
+ * A theme switch starts a colour transition on every themed control, and under
+ * reduced motion that transition still lasts until the next frame. A read in
+ * the same frame gets the OLD theme's colours, with the background serialised
+ * in the transition's oklab space. The settled frame is the one a reader sees.
+ */
+async function applyTheme(
+  page: Page,
+  theme: "light" | "dark",
+  controls: readonly Locator[],
+): Promise<void> {
+  await page.evaluate((nextTheme) => {
+    window.localStorage.setItem("pubmax-theme", nextTheme);
+    document.documentElement.dataset.theme = nextTheme;
+  }, theme);
+  await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+  for (const control of controls) {
+    await expect
+      .poll(() =>
+        control.evaluate((node) => {
+          for (let cursor: Element | null = node; cursor; cursor = cursor.parentElement) {
+            if (cursor.getAnimations().some((animation) => animation instanceof CSSTransition)) {
+              return false;
+            }
+          }
+          return true;
+        }),
+      )
+      .toBe(true);
+  }
 }
 
 function dismissFirstRunChrome(page: Page): Promise<void> {
@@ -553,11 +592,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await expect(planButton).toBeVisible({ timeout: 30_000 });
 
     for (const theme of ["light", "dark"] as const) {
-      await page.evaluate((nextTheme) => {
-        window.localStorage.setItem("pubmax-theme", nextTheme);
-        document.documentElement.dataset.theme = nextTheme;
-      }, theme);
-      await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+      await applyTheme(page, theme, [planButton]);
       await expectLockedCoralContrast(planButton);
     }
 
@@ -578,10 +613,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await expect(priceDoor).toHaveCount(1);
 
     for (const theme of ["light", "dark"] as const) {
-      await page.evaluate((nextTheme) => {
-        window.localStorage.setItem("pubmax-theme", nextTheme);
-        document.documentElement.dataset.theme = nextTheme;
-      }, theme);
+      await applyTheme(page, theme, [planStop, priceDoor, acceptStop1]);
       await expectLockedCoralContrast(planStop);
       await expectLockedCoralContrast(priceDoor);
       await expectReadableGhostContrast(acceptStop1);
