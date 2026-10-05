@@ -4,6 +4,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { storyBandsForCity } from "@/lib/cityStoryBands";
 import { listEnabledCities } from "@/lib/cities";
 
+import { answerFirstRunQuestions } from "./helpers/firstRunJourney";
 import { installNativeShell } from "./helpers/nativeShell";
 
 const VIEWPORTS = [
@@ -545,7 +546,7 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
       await expect(reviewedSources.nth(index)).toBeVisible();
     }
 
-    await page.getByRole("button", { name: "Use London" }).click();
+    await answerFirstRunQuestions(page);
     for (const note of FIRST_RUN_COMPANION_NOTES) {
       const qualifier = page.getByText(note, { exact: true });
       await expect(qualifier).toBeVisible();

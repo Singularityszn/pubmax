@@ -4,6 +4,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { NATIVE_PUSH_PROMPT_COPY } from "@/lib/nativePushPrompt";
 
+import { answerFirstRunQuestions } from "./helpers/firstRunJourney";
 import { installNativeShell } from "./helpers/nativeShell";
 
 const VIEWPORT = { width: 390, height: 844 };
@@ -155,8 +156,7 @@ for (const theme of ["light", "dark"] as const) {
     await expectNoHorizontalOverflow(page);
     await saveShot(page, `london-${theme}-390`);
 
-    await page.getByRole("button", { name: "Use London" }).click();
-    await expect(page.getByRole("heading", { name: "Pick your Pub Pal." })).toBeVisible();
+    await answerFirstRunQuestions(page);
     const cat = page.getByRole("button", { name: /Black Cat/ });
     await expectTouchTarget(cat);
     await cat.click();
@@ -196,7 +196,7 @@ test("native first run hands one useful Plan to the contextual push ask", async 
   await expect(page).toHaveURL(/\/onboarding$/);
   await expect(page.getByRole("dialog", { name: NATIVE_PUSH_PROMPT_COPY.title })).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Use London" }).click();
+  await answerFirstRunQuestions(page);
   await page.getByRole("button", { name: /Pigeon/ }).click();
   await expect.poll(() => page.evaluate(() => window.localStorage.getItem("pubmax:first-run-companion:v1"))).toBe("pigeon");
   await page.getByRole("button", { name: "Plan my night" }).click();

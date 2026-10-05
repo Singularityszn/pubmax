@@ -57,3 +57,4 @@ Full rules: [`docs/rules/components-design-system-and-launch-primitives.md`](../
 - [THE PRODUCT ANSWERS FIRST, AND THE CONSENT CARD ARRIVES AFTER THE ANSWER, DOCKED.](../docs/rules/components-design-system-and-launch-primitives.md#the-product-answers-first-and-the-consent-card-arrives-after-the-answer-docked)
 - [A CHIP READS THE SAME ROW, AND A NUMBER SQUARE IS ONE FAMILY.](../docs/rules/components-design-system-and-launch-primitives.md#a-chip-reads-the-same-row-and-a-number-square-is-one-family)
 - [NEXT/IMAGE DROPS A `srcSet` PROP, AND A PROXIED PHOTO IS RESIZED THROUGH ITS LOADER.](../docs/rules/components-design-system-and-launch-primitives.md#next-image-drops-a-srcset-prop-and-a-proxied-photo-is-resized-through-its-loader)
+- [EVERY FIRST-RUN QUESTION GIVES ITS REASON, AND ONLY THE ONES THE JOURNEY USES.](../docs/rules/components-design-system-and-launch-primitives.md#every-first-run-question-gives-its-reason-and-only-the-ones-the-journey-uses)
