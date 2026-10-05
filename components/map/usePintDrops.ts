@@ -450,18 +450,17 @@ export function usePintDrops(
   }, []);
 
   // Pick a photo for one slot: pre-validate (type + size) before we ever build a
-  // preview or submit, so bad files are caught client-side. Object URLs are
-  // revoked when the slot is replaced/removed and on unmount (effect below).
+  // preview or submit, so bad files are caught client-side. Each slot's effect
+  // below owns revoking its URL when that slot changes or the hook unmounts.
   // ONE TABLE FOR THREE SLOTS. It was a pair of ternaries per function, and a
   // third slot would have made six places to keep in step.
   const photoSlots = {
-    pint: { value: pintPhoto, set: setPintPhoto, input: pintInputRef },
-    venue: { value: venuePhoto, set: setVenuePhoto, input: venueInputRef },
-    receipt: { value: receiptPhoto, set: setReceiptPhoto, input: receiptInputRef },
+    pint: { set: setPintPhoto, input: pintInputRef },
+    venue: { set: setVenuePhoto, input: venueInputRef },
+    receipt: { set: setReceiptPhoto, input: receiptInputRef },
   } as const;
 
   function pickPhoto(slot: PhotoSlotName, file: File | undefined, inputEl: HTMLInputElement | null) {
-    const current = photoSlots[slot].value;
     const setSlot = photoSlots[slot].set;
     if (!file) return;
     const refusal = photoRefusal(file);
@@ -470,7 +469,6 @@ export function usePintDrops(
       if (inputEl) inputEl.value = "";
       return;
     }
-    if (current) URL.revokeObjectURL(current.previewUrl);
     setDropMsg(null);
     setSlot({ file, previewUrl: URL.createObjectURL(file) });
   }
@@ -488,27 +486,16 @@ export function usePintDrops(
   }
 
   function removePhoto(slot: PhotoSlotName) {
-    const current = photoSlots[slot].value;
     const setSlot = photoSlots[slot].set;
     const inputEl = photoSlots[slot].input.current;
-    if (current) URL.revokeObjectURL(current.previewUrl);
     setSlot(null);
     if (inputEl) inputEl.value = "";
   }
 
   const resetComposer = useCallback(() => {
-    setPintPhoto((current) => {
-      if (current) URL.revokeObjectURL(current.previewUrl);
-      return null;
-    });
-    setVenuePhoto((current) => {
-      if (current) URL.revokeObjectURL(current.previewUrl);
-      return null;
-    });
-    setReceiptPhoto((current) => {
-      if (current) URL.revokeObjectURL(current.previewUrl);
-      return null;
-    });
+    setPintPhoto(null);
+    setVenuePhoto(null);
+    setReceiptPhoto(null);
     setDropForm(emptyComposerForm());
     setVibeTags([]);
     setVisibility(DEFAULT_VISIBILITY);
@@ -517,14 +504,25 @@ export function usePintDrops(
     if (receiptInputRef.current) receiptInputRef.current.value = "";
   }, []);
 
-  // Revoke any live preview URLs when the component unmounts.
+  // A slot owns its URL for that slot's lifetime. Changing another slot must
+  // not revoke a preview the reader still holds.
   useEffect(() => {
     return () => {
       if (pintPhoto) URL.revokeObjectURL(pintPhoto.previewUrl);
+    };
+  }, [pintPhoto]);
+
+  useEffect(() => {
+    return () => {
       if (venuePhoto) URL.revokeObjectURL(venuePhoto.previewUrl);
+    };
+  }, [venuePhoto]);
+
+  useEffect(() => {
+    return () => {
       if (receiptPhoto) URL.revokeObjectURL(receiptPhoto.previewUrl);
     };
-  }, [pintPhoto, venuePhoto, receiptPhoto]);
+  }, [receiptPhoto]);
 
   function updateOptimisticFeedStorage(
     update: (current: ReturnType<typeof readOptimisticSpills>) => ReturnType<typeof readOptimisticSpills>,

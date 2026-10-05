@@ -46,6 +46,8 @@ let roundRequests: RequestInit[];
 let posts: RequestInit[];
 let tokenVersion: number;
 let paints: { accountId: string | null; note: string; photos: number; pendingNotes: string }[];
+let createdPhotoUrls: string[];
+let revokedPhotoUrls: string[];
 
 function ComposerHost() {
   const state = usePintDrops("london");
@@ -113,6 +115,12 @@ function control(text: string) {
   return button;
 }
 
+function photoPreviewUrl(alt: string): string {
+  const image = container.querySelector<HTMLImageElement>(`img[alt="${alt}"]`);
+  if (!image) throw new Error(`Missing photo preview: ${alt}`);
+  return image.getAttribute("src") ?? "";
+}
+
 async function click(text: string) {
   await act(async () => control(text).click());
 }
@@ -153,10 +161,18 @@ beforeEach(() => {
   roundRequests = [];
   tokenVersion = 1;
   paints = [];
+  createdPhotoUrls = [];
+  revokedPhotoUrls = [];
   let urlIndex = 0;
   vi.stubGlobal("URL", URL);
-  vi.spyOn(URL, "createObjectURL").mockImplementation(() => `blob:fixture-${++urlIndex}`);
-  vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+  vi.spyOn(URL, "createObjectURL").mockImplementation(() => {
+    const url = `blob:fixture-${++urlIndex}`;
+    createdPhotoUrls.push(url);
+    return url;
+  });
+  vi.spyOn(URL, "revokeObjectURL").mockImplementation((url) => {
+    revokedPhotoUrls.push(url);
+  });
   postHandler = async () => new Response(JSON.stringify({ error: { message: "Fixture refused this drop" } }), { status: 503 });
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init: RequestInit = {}) => {
     if (String(input).startsWith("/api/pint-drops") && (init.method ?? "GET") === "GET") return new Response(JSON.stringify({ drops: [serverDrop] }));
@@ -188,6 +204,86 @@ afterEach(async () => {
 });
 
 describe("mounted Pint Drop account draft isolation", () => {
+  it("keeps each existing photo URL live as other slots are added", async () => {
+    await renderAccount(A);
+    await draft(true);
+
+    expect(createdPhotoUrls).toHaveLength(3);
+    expect(new Set(createdPhotoUrls).size).toBe(3);
+    expect(revokedPhotoUrls).toEqual([]);
+  });
+
+  it("revokes only the removed photo URL and keeps sibling previews live", async () => {
+    await renderAccount(A);
+    await draft(true);
+
+    const pintUrl = photoPreviewUrl("Preview of your pint photo");
+    const siblingUrls = createdPhotoUrls.filter((url) => url !== pintUrl);
+    const removePint = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Remove pint photo"]',
+    );
+    expect(removePint).not.toBeNull();
+
+    await act(async () => removePint!.click());
+
+    expect(revokedPhotoUrls).toEqual([pintUrl]);
+    expect(siblingUrls.every((url) => !revokedPhotoUrls.includes(url))).toBe(true);
+  });
+
+  it("replaces a removed pint photo without revoking retained sibling URLs", async () => {
+    await renderAccount(A);
+    await draft(true);
+
+    const oldPintUrl = photoPreviewUrl("Preview of your pint photo");
+    const siblingUrls = createdPhotoUrls.filter((url) => url !== oldPintUrl);
+    const removePint = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Remove pint photo"]',
+    );
+    expect(removePint).not.toBeNull();
+    await act(async () => removePint!.click());
+
+    const pintInput = container.querySelector<HTMLInputElement>(
+      'input[aria-label="Snap the pour: snap or upload a pint photo"], input[aria-label="Your pint: Snap or upload"]',
+    );
+    expect(pintInput).not.toBeNull();
+    await act(async () => {
+      Object.defineProperty(pintInput!, "files", {
+        configurable: true,
+        value: [new File(["synthetic-jpeg"], "replacement-pint.jpg", { type: "image/jpeg" })],
+      });
+      pintInput!.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    const replacementPintUrl = photoPreviewUrl("Preview of your pint photo");
+    expect(replacementPintUrl).not.toBe(oldPintUrl);
+    expect(revokedPhotoUrls).toEqual([oldPintUrl]);
+    expect(siblingUrls.every((url) => !revokedPhotoUrls.includes(url))).toBe(true);
+  });
+
+  it.each(["account switch", "explicit sign-out", "unmount"] as const)(
+    "releases each held photo URL exactly once on %s",
+    async (boundary) => {
+      await renderAccount(A);
+      await draft(true);
+
+      const heldUrls = [...createdPhotoUrls];
+      expect(heldUrls).toHaveLength(3);
+      expect(revokedPhotoUrls).toEqual([]);
+
+      if (boundary === "account switch") {
+        await renderAccount(B);
+      } else if (boundary === "explicit sign-out") {
+        await renderAccount(null);
+      } else {
+        await act(async () => root.unmount());
+        root = createRoot(container);
+      }
+
+      expect([...revokedPhotoUrls].sort()).toEqual([...heldUrls].sort());
+      expect(revokedPhotoUrls).toHaveLength(heldUrls.length);
+    },
+  );
+
   it("does not show A's story or any selected photo under B at the same venue", async () => {
     await renderAccount(A);
     await draft(true);
