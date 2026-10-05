@@ -62,7 +62,13 @@ await new Promise((resolve, reject) => {
         conversation_config_override: {
           conversation: {
             text_only: true,
-            client_events: ["agent_response", "conversation_initiation_metadata", "ping"],
+            client_events: [
+              "agent_response",
+              "agent_response_complete",
+              "agent_tool_response",
+              "conversation_initiation_metadata",
+              "ping",
+            ],
           },
         },
       }),
@@ -83,6 +89,9 @@ await new Promise((resolve, reject) => {
     }
     if (payload.type === "agent_response") {
       agentText = payload.agent_response_event?.agent_response ?? "";
+      return;
+    }
+    if (payload.type === "agent_response_complete") {
       clearTimeout(timer);
       ws.close();
       resolve(undefined);

@@ -16,7 +16,7 @@ import {
   type PubPalToolTurn,
 } from "@/lib/pubPalToolTurnStore";
 
-const CHAT_TIMEOUT_MS = 28_000;
+const CHAT_TIMEOUT_MS = 22_000;
 const TOOL_TURN_WAIT_MS = 4_000;
 const TOOL_TURN_POLL_MS = 120;
 
@@ -61,6 +61,8 @@ function userMessageText(query: string, priorAsks: PubPalFenceTurn[]): string {
 type AgentResponseEvent = {
   type?: string;
   agent_response_event?: { agent_response?: string };
+  agent_tool_request?: { tool_call_id?: string };
+  agent_tool_response?: { tool_call_id?: string };
   ping_event?: { event_id?: number };
   conversation_initiation_metadata_event?: {
     conversation_id?: string;
@@ -113,6 +115,7 @@ export async function runPalElevenLabsChatTurn(
 
   const query = input.query.trim().slice(0, 500);
   if (!query) return { ok: false, code: "UNAVAILABLE" };
+  const deadline = Date.now() + CHAT_TIMEOUT_MS;
 
   const cityId = resolveAskCityId(input.cityId);
   let turns: PubPalFenceTurn[];
@@ -148,12 +151,48 @@ export async function runPalElevenLabsChatTurn(
     let settled = false;
     let conversationId = "";
     let userMessageSent = false;
+    let latestReply = "";
+    let replyGeneration = 0;
+    let toolEvents = 0;
+    let replyToolEvents = 0;
+    const pendingToolCalls = new Set<string>();
+    // The agent says a checking line before each tool call, so a reply is the
+    // answer only when no tool event followed it and no tool is still running.
+    const replyIsAnswer = () => replyToolEvents === toolEvents && pendingToolCalls.size === 0;
+    const answer = (agentMessage: string, turn: PubPalToolTurn | null): PalElevenLabsChatOutcome => {
+      const cards = turn?.cards ?? [];
+      const proposals = turn?.proposals ?? [];
+      const message =
+        agentMessage ||
+        (turn?.hints.length
+          ? composeAnswer(turn.hints, cards, [])
+          : cards.length > 0
+            ? composeAnswer([], cards, [])
+            : "Nothing sourced for that. Try a nearby area or a broader ask.");
+      return {
+        ok: true,
+        message,
+        cards,
+        proposals,
+        conversationId,
+        toolsUsed: turn?.toolsUsed ?? [],
+      };
+    };
     const timer = setTimeout(() => {
       if (settled) return;
-      settled = true;
-      ws.close();
-      resolve({ ok: false, code: "TIMEOUT" });
-    }, CHAT_TIMEOUT_MS);
+      if (!latestReply || !replyIsAnswer()) {
+        finish({ ok: false, code: "TIMEOUT" });
+        return;
+      }
+      const agentMessage = latestReply;
+      void (async () => {
+        try {
+          finish(answer(agentMessage, conversationId ? await readPubPalToolTurn(conversationId) : null));
+        } catch {
+          finish({ ok: false, code: "TIMEOUT" });
+        }
+      })();
+    }, Math.max(0, deadline - Date.now()));
 
     const finish = (outcome: PalElevenLabsChatOutcome) => {
       if (settled) return;
@@ -165,6 +204,21 @@ export async function runPalElevenLabsChatTurn(
         // ignore
       }
       resolve(outcome);
+    };
+
+    const finishWithLatestReply = () => {
+      const agentMessage = latestReply;
+      const generation = replyGeneration;
+      const events = toolEvents;
+      void (async () => {
+        try {
+          const turn = conversationId ? await waitForPubPalToolTurn(conversationId) : null;
+          if (generation !== replyGeneration || events !== toolEvents) return;
+          finish(answer(agentMessage, turn));
+        } catch {
+          finish({ ok: false, code: "UNAVAILABLE" });
+        }
+      })();
     };
 
     const ws = new WebSocket(signedUrl);
@@ -179,7 +233,14 @@ export async function runPalElevenLabsChatTurn(
             },
             conversation: {
               text_only: true,
-              client_events: ["agent_response", "conversation_initiation_metadata", "ping"],
+              client_events: [
+                "agent_response",
+                "agent_response_complete",
+                "agent_tool_request",
+                "agent_tool_response",
+                "conversation_initiation_metadata",
+                "ping",
+              ],
             },
           },
         }),
@@ -232,31 +293,31 @@ export async function runPalElevenLabsChatTurn(
 
       if (payload.type === "agent_response") {
         if (!userMessageSent) return;
-        const agentMessage = payload.agent_response_event?.agent_response?.trim() ?? "";
-        void (async () => {
-          try {
-            const turn = conversationId ? await waitForPubPalToolTurn(conversationId) : null;
-            const cards = turn?.cards ?? [];
-            const proposals = turn?.proposals ?? [];
-            const message =
-              agentMessage ||
-              (turn?.hints.length
-                ? composeAnswer(turn.hints, cards, [])
-                : cards.length > 0
-                  ? composeAnswer([], cards, [])
-                  : "Nothing sourced for that. Try a nearby area or a broader ask.");
-            finish({
-              ok: true,
-              message,
-              cards,
-              proposals,
-              conversationId,
-              toolsUsed: turn?.toolsUsed ?? [],
-            });
-          } catch {
-            finish({ ok: false, code: "UNAVAILABLE" });
-          }
-        })();
+        latestReply = payload.agent_response_event?.agent_response?.trim() ?? "";
+        replyGeneration += 1;
+        replyToolEvents = toolEvents;
+        // Once a tool is asked for, only the turn end may finish it.
+        if (toolEvents === 0) finishWithLatestReply();
+        return;
+      }
+
+      if (payload.type === "agent_tool_request") {
+        if (!userMessageSent) return;
+        toolEvents += 1;
+        pendingToolCalls.add(payload.agent_tool_request?.tool_call_id ?? "");
+        return;
+      }
+
+      if (payload.type === "agent_tool_response") {
+        if (!userMessageSent) return;
+        toolEvents += 1;
+        pendingToolCalls.delete(payload.agent_tool_response?.tool_call_id ?? "");
+        return;
+      }
+
+      if (payload.type === "agent_response_complete") {
+        if (!userMessageSent || !replyIsAnswer()) return;
+        finishWithLatestReply();
       }
     });
 
