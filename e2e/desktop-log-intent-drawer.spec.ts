@@ -17,8 +17,8 @@ import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
  *    strip showing faintly through the head.
  *
  * What is asserted is geometry: the composer spans the panel, the Pint Drops
- * list stacks below it, and the composer's intro and price label sit below the
- * head once the reveal has run.
+ * list stacks below it, and the composer card's top edge and price label sit
+ * below the head once the reveal has run.
  */
 test.use({
   launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] },
@@ -72,7 +72,6 @@ test("the desktop log drawer gives the composer the full panel, clear of the hea
       composer: box(".dropComposer"),
       drops: box(".venuePintsCols .pintDrops"),
       head: box(".mapDrawer.right.open .mapDrawerHead"),
-      intro: box(".spillComposerIntro"),
       label: box(".priceFieldLabel"),
     };
   });
@@ -86,8 +85,8 @@ test("the desktop log drawer gives the composer the full panel, clear of the hea
     "the Pint Drops list stacks below the composer, not beside it",
   ).toBeGreaterThanOrEqual(geometry.composer.bottom);
   expect(
-    geometry.intro.top,
-    "the composer's eyebrow and pub name land below the sticky head",
+    geometry.composer.top,
+    "the composer card's own top edge, eyebrow and pub name land below the sticky head",
   ).toBeGreaterThanOrEqual(geometry.head.bottom);
   expect(
     geometry.label.top,
