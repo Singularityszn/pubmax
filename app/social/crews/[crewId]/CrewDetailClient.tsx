@@ -19,7 +19,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import SiteNav from "@/components/nav/SiteNav";
-import { authedActionFetch } from "@/lib/authedFetch";
+import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { discardBody } from "@/lib/responseBody";
 import { displayHandle } from "@/lib/handleDisplay";
@@ -276,9 +276,10 @@ export default function CrewDetailClient({
           typeof body.viewerHandle === "string" ? normalizeHandle(body.viewerHandle) : "";
         if (!active || !handle) return;
         setViewerHandle(handle);
-        const lotResponse = await fetch(
+        const lotResponse = await authedFetch(
           `/api/profiles/${encodeURIComponent(handle)}/lot`,
           { cache: "no-store", signal: controller.signal },
+          { requiresIdentity: true },
         );
         if (!lotResponse.ok) {
           discardBody(lotResponse);

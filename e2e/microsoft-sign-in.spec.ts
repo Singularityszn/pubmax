@@ -74,8 +74,11 @@ test.describe("Microsoft sign-in button", () => {
   });
 
   test("shows Microsoft when Azure is enabled and starts Azure OAuth", async ({ page, baseURL }) => {
-    await stubSupabaseSettings(page, { google: false, apple: false, azure: true, email: true });
+    // Playwright tries the newest route first. The canonical-origin proxy also
+    // matches the canonical /api/auth/providers, so it is registered first and
+    // the provider stub answers that read instead of the keyless server's 503.
     await serveCanonicalOriginLocally(page, baseURL ?? "");
+    await stubSupabaseSettings(page, { google: false, apple: false, azure: true, email: true });
     await page.goto(`${CANONICAL_ORIGIN}/login`);
 
     const microsoft = page.getByRole("button", { name: "Continue with Microsoft" });

@@ -12,6 +12,19 @@
    additive layers — semantic roles, type/spacing/motion scales — never a
    fork of the existing system.
    ──────────────────────────────────────────────────────────────────────── */
+/* The mono face's swap fallback (app/layout.tsx dataMono). These are the
+   metrics next/font/google generated for JetBrains Mono over Arial, kept
+   exactly so a price painted before the webfont lands does not move when it
+   arrives. */
+@font-face {
+  font-family: "JetBrains Mono Fallback";
+  src: local("Arial");
+  ascent-override: 75.79%;
+  descent-override: 22.29%;
+  line-gap-override: 0%;
+  size-adjust: 134.59%;
+}
+
 :root {
   /* — Colour: neutral editorial paper + coral actions. */
   --ink: #17171a;

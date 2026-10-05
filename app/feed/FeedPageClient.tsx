@@ -52,7 +52,7 @@ import { countSpillingNow, subscribeToNewDrops } from "@/lib/realtime";
 import { type ReactionKey, type ReactionSummary } from "@/lib/reactions";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import "./feed.css";
-import { authedActionFetch } from "@/lib/authedFetch";
+import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
 const PAGE_SIZE = 12;
@@ -319,9 +319,11 @@ export default function FeedPageClient({
         return;
       }
       try {
-        const res = await fetch(`/api/profiles/${encodeURIComponent(myHandle)}/following`, {
-          signal: controller.signal,
-        });
+        const res = await authedFetch(
+          `/api/profiles/${encodeURIComponent(myHandle)}/following`,
+          { signal: controller.signal },
+          { requiresIdentity: true },
+        );
         if (!res.ok) {
           discardBody(res);
           throw new Error(String(res.status));
@@ -382,7 +384,11 @@ export default function FeedPageClient({
       }
       try {
         const [lotRes, ciRes] = await Promise.all([
-          fetch(`/api/profiles/${encodeURIComponent(myHandle)}/lot`, { signal: controller.signal }),
+          authedFetch(
+            `/api/profiles/${encodeURIComponent(myHandle)}/lot`,
+            { signal: controller.signal },
+            { requiresIdentity: true },
+          ),
           fetch(`/api/check-ins?viewer=${encodeURIComponent(myHandle)}`, {
             signal: controller.signal,
           }),

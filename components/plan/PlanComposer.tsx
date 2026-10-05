@@ -97,6 +97,7 @@ import {
   clearPlanIntakeDraft,
   canSeedPlanIntakeArea,
   createPlanIntakeDraft,
+  defaultLondonStartInput,
   londonDateTimeInputFromIso,
   londonDateTimeInputToIso,
   nightAreaForPlanIntakePatch,
@@ -898,11 +899,7 @@ export function nightAreaCoverageMeta(area: NightArea, now = new Date()): string
 }
 
 function nextEvening(): string {
-  const date = new Date();
-  date.setMinutes(Math.ceil((date.getMinutes() + 15) / 15) * 15, 0, 0);
-  if (date.getHours() < 17) date.setHours(18, 0, 0, 0);
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 16);
+  return defaultLondonStartInput();
 }
 
 function unsupportedPatchForCurrentGenerator(

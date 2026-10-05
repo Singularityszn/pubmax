@@ -16,6 +16,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
+import { authedFetch } from "@/lib/authedFetch";
 import { followRelationHint, resolveFollowRelation } from "@/lib/followRelation";
 import { displayHandle } from "@/lib/handleDisplay";
 import { type FollowListEntry, parseFollowListEntry } from "@/lib/followList";
@@ -52,6 +54,11 @@ function initial(handle: string): string {
   return clean ? clean.slice(0, 1).toUpperCase() : "?";
 }
 
+// A withdrawn handle's graph reads as empty to everyone but its owner, so the
+// read carries the viewer's bearer when there is one.
+const ownerAwareFetch: typeof fetch = (input, init) =>
+  authedFetch(input, init ?? {}, { requiresIdentity: true });
+
 export default function PeopleListClient({
   handle,
   relation,
@@ -60,6 +67,7 @@ export default function PeopleListClient({
   relation: PeopleRelation;
 }) {
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
+  const { accountRevision } = useAuth();
   const [status, setStatus] = useState<LoadState>("loading");
   const [people, setPeople] = useState<FollowListEntry[]>([]);
   const [mutuals, setMutuals] = useState<Set<string>>(new Set());
@@ -68,7 +76,14 @@ export default function PeopleListClient({
   useEffect(() => {
     if (!socialFriendsLaunchEnabled) return;
     const controller = new AbortController();
-    void Promise.resolve().then(() => setStatus("loading"));
+    // The answer may be the owner's own graph, so it belongs to one account:
+    // a sign-out or account switch drops it and asks again as the new viewer.
+    // The abort below keeps a late answer for the old account off the page.
+    void Promise.resolve().then(() => {
+      setStatus("loading");
+      setPeople([]);
+      setMutuals(new Set());
+    });
     void (async () => {
       const listKey = `/api/profiles/${encodeURIComponent(handle)}/${relation}`;
       const lotKey = `/api/profiles/${encodeURIComponent(handle)}/lot`;
@@ -77,6 +92,7 @@ export default function PeopleListClient({
         {
           signal: controller.signal,
           maxAgeMs: PEOPLE_SNAPSHOT_MAX_AGE_MS,
+          fetchImpl: ownerAwareFetch,
           validate: (body) => Array.isArray(body?.[relation]),
         },
         (body) => {
@@ -96,6 +112,7 @@ export default function PeopleListClient({
         {
           signal: controller.signal,
           maxAgeMs: PEOPLE_SNAPSHOT_MAX_AGE_MS,
+          fetchImpl: ownerAwareFetch,
           validate: (body) => Boolean(body && typeof body === "object"),
         },
         (body) => {
@@ -109,7 +126,7 @@ export default function PeopleListClient({
       }
     })();
     return () => controller.abort();
-  }, [attempt, handle, relation, socialFriendsLaunchEnabled]);
+  }, [accountRevision, attempt, handle, relation, socialFriendsLaunchEnabled]);
 
   const retry = useCallback(() => {
     if (!socialFriendsLaunchEnabled) return;

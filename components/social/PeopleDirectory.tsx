@@ -23,7 +23,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { authedActionFetch } from "@/lib/authedFetch";
+import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
@@ -114,10 +114,11 @@ export default function PeopleDirectory({
     const requestViewer = viewer;
     void Promise.resolve().then(() => setStatus("loading"));
     const viewerParam = viewer ? `&viewer=${encodeURIComponent(viewer)}` : "";
-    fetch(`/api/profiles/directory?limit=${limit}${viewerParam}`, {
-      cache: "no-store",
-      signal: controller.signal,
-    })
+    authedFetch(
+      `/api/profiles/directory?limit=${limit}${viewerParam}`,
+      { cache: "no-store", signal: controller.signal },
+      { requiresIdentity: true },
+    )
       .then(async (response) => {
         if (!response.ok) {
           discardBody(response);
@@ -162,14 +163,16 @@ export default function PeopleDirectory({
     void (async () => {
       try {
         const [lotResponse, followingResponse] = await Promise.all([
-          fetch(`/api/profiles/${encodeURIComponent(viewer)}/lot`, {
-            cache: "no-store",
-            signal: controller.signal,
-          }),
-          fetch(`/api/profiles/${encodeURIComponent(viewer)}/following`, {
-            cache: "no-store",
-            signal: controller.signal,
-          }),
+          authedFetch(
+            `/api/profiles/${encodeURIComponent(viewer)}/lot`,
+            { cache: "no-store", signal: controller.signal },
+            { requiresIdentity: true },
+          ),
+          authedFetch(
+            `/api/profiles/${encodeURIComponent(viewer)}/following`,
+            { cache: "no-store", signal: controller.signal },
+            { requiresIdentity: true },
+          ),
         ]);
         if (
           controller.signal.aborted ||
@@ -198,9 +201,10 @@ export default function PeopleDirectory({
     setLoadingMore(true);
     try {
       const viewerParam = viewer ? `&viewer=${encodeURIComponent(viewer)}` : "";
-      const response = await fetch(
+      const response = await authedFetch(
         `/api/profiles/directory?limit=${limit}&after=${encodeURIComponent(cursor)}${viewerParam}`,
         { cache: "no-store" },
+        { requiresIdentity: true },
       );
       if (!response.ok) {
         discardBody(response);

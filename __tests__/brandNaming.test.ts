@@ -26,7 +26,11 @@ vi.mock("@/lib/scrapedPubs.server", () => ({
 // to be importable here. Nothing about the metadata under test reads them.
 vi.mock("next/font/google", () => {
   const face = () => ({ variable: "--font-x", className: "font-x", style: {} });
-  return { Space_Grotesk: face, Inter: face, JetBrains_Mono: face };
+  return { Space_Grotesk: face, Inter: face };
+});
+vi.mock("next/font/local", () => {
+  const face = () => ({ variable: "--font-x", className: "font-x", style: {} });
+  return { default: face };
 });
 
 describe("brand naming (captain 2026-08-17)", () => {

@@ -198,6 +198,52 @@ describe("same-origin social auth provider availability", () => {
     await expect(loadSocialAuthProviders(fetchImpl)).resolves.toBeNull();
   });
 
+  it("drains a refused answer so the browser can finish the request", async () => {
+    // Chromium keeps a response whose body is never read in flight, so a
+    // signed-out page that met a 503 here never reached network idle.
+    const refused = new Response(
+      JSON.stringify({ error: "Sign-in providers could not be read." }),
+      { status: 503 },
+    );
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(refused);
+
+    await expect(loadSocialAuthProviders(fetchImpl)).resolves.toBeNull();
+    expect(refused.bodyUsed).toBe(true);
+  });
+
+  it("gives up on a refusal body that stalls, so the provider read still settles", async () => {
+    // withAuthFetchTimeout stops its clock when the headers arrive, so the
+    // drain needs its own deadline or a stalled body holds sign-in pending.
+    vi.useFakeTimers();
+    try {
+      const cancel = vi.fn();
+      const stalled = new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode("{"));
+          },
+          cancel,
+        }),
+        { status: 503 },
+      );
+      const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(stalled);
+
+      let settled = false;
+      const read = loadSocialAuthProviders(fetchImpl).then((value) => {
+        settled = true;
+        return value;
+      });
+      await vi.advanceTimersByTimeAsync(14_999);
+      expect(settled).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+
+      await expect(read).resolves.toBeNull();
+      expect(cancel).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("does not request providers when browser auth configuration is incomplete", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "");
     const fetchImpl = vi.fn<typeof fetch>();

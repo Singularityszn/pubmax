@@ -294,6 +294,28 @@ export function resolveFutureLondonStartIso(
     : null;
 }
 
+/**
+ * The composer's default First pint, as a London datetime-local value: at
+ * least a quarter of an hour out, on a quarter, and 18:00 when that lands
+ * before 17:00. It is built from London wall time, not the device clock,
+ * because the lock check (`resolveFutureLondonStartIso`) reads the field as
+ * London time.
+ */
+export function defaultLondonStartInput(now = new Date()): string {
+  const london = londonParts(now);
+  // Wall-clock arithmetic in a zone-free Date: only the fields matter here.
+  const wall = new Date(Date.UTC(london.year, london.month - 1, london.day, london.hour, 0));
+  wall.setUTCMinutes(Math.ceil((london.minute + 15) / 15) * 15);
+  if (wall.getUTCHours() < 17) wall.setUTCHours(18, 0, 0, 0);
+  return londonInput({
+    year: wall.getUTCFullYear(),
+    month: wall.getUTCMonth() + 1,
+    day: wall.getUTCDate(),
+    hour: wall.getUTCHours(),
+    minute: wall.getUTCMinutes(),
+  });
+}
+
 /** Next future occurrence of a preset's London wall time, including DST rollover. */
 export function nextLondonOccurrenceIso(windowId: PlanTimeWindowId, now = new Date()): string {
   const option = PLAN_TIME_WINDOWS.find((candidate) => candidate.id === windowId);

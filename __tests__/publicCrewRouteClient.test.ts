@@ -142,6 +142,7 @@ vi.mock("@/app/social/crews/[crewId]/CrewDetailClient", () => ({
 }));
 
 vi.mock("@/lib/authedFetch", () => ({
+  authedFetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init),
   authedActionFetch: vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     state.actionCalls.push(`${init?.method ?? "GET"} ${url}`);

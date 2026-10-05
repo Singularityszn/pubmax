@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 // The collection day is derived from the freshness registry, never typed.
 import { NEAR_PRICE_TRUST_CAPTION } from "../lib/nearPriceTrust";
+import { stubSocialAuthProviders } from "./helpers/authDoubles";
 
 test.setTimeout(60_000);
 
@@ -21,6 +22,7 @@ function watchErrors(page: Page): string[] {
 }
 
 async function prepareReturningVisitor(page: Page): Promise<void> {
+  await stubSocialAuthProviders(page);
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");

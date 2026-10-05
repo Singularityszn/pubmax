@@ -21,6 +21,7 @@ import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { followStore } from "@/lib/followStore";
 import { resolveMessageHandle } from "@/lib/messageAuth";
+import { handleWithdrawnFromCaller } from "@/lib/profileOwnership";
 import { isLimited } from "@/lib/pintDrops";
 import { assertServerEnv } from "@/lib/serverEnv";
 import {
@@ -39,10 +40,14 @@ import {
 
 assertServerEnv();
 
-/** The viewer's follow count, or null when there is no viewer or no answer. */
-async function viewerFollowingCount(handle: string): Promise<number | null> {
+/**
+ * The viewer's follow count, or null when there is no viewer or no answer. A
+ * withdrawn viewer counts like an unknown handle, except for its own owner.
+ */
+async function viewerFollowingCount(request: Request, handle: string): Promise<number | null> {
   if (!handle) return null;
   try {
+    if (await handleWithdrawnFromCaller(request, handle)) return 0;
     const counts = await followStore().counts(handle);
     return counts.following;
   } catch {
@@ -79,7 +84,7 @@ export async function GET(request: Request): Promise<Response> {
   try {
     const [scan, viewerFollowing] = await Promise.all([
       loadStarterPacks(),
-      viewerFollowingCount(viewer),
+      viewerFollowingCount(request, viewer),
     ]);
     return jsonNoStore(
       {

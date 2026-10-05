@@ -19,7 +19,8 @@
 // that viewer already follows come out (lib/peopleDirectory.ts owns why, and
 // mates leave with them). It discloses nothing new, because the follow list it
 // reads is the same one /api/profiles/[handle]/following already hands anybody
-// who asks. The paging window is unchanged - the same rows are examined and the
+// who asks, and a withdrawn viewer filters like an unknown handle, as it reads
+// there, except for its own owner. The paging window is unchanged - the same rows are examined and the
 // same cursor comes back - so a page may simply come back shorter than the
 // limit, and `alreadyFollowing` says how much of it discovery took.
 
@@ -30,6 +31,7 @@ import { followStore } from "@/lib/followStore";
 import { discoverableRows, followSet } from "@/lib/peopleDirectory";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
+import { handleWithdrawnFromCaller } from "@/lib/profileOwnership";
 import {
   isProfileTombstoned,
   profileStore,
@@ -111,7 +113,11 @@ export async function GET(request: Request): Promise<Response> {
   let following: Set<string> | null = null;
   if (viewer) {
     try {
-      following = followSet(await followStore().listFollowing(viewer));
+      // A withdrawn viewer filters like an unknown handle, except for its own
+      // owner, so the page cannot be diffed to recover a hidden follow graph.
+      following = (await handleWithdrawnFromCaller(request, viewer))
+        ? new Set()
+        : followSet(await followStore().listFollowing(viewer));
     } catch {
       following = null;
     }
