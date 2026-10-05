@@ -95,8 +95,8 @@ proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url 
 2. **Webhook tools** for the ADR 0014 allowlist (same handlers as `/api/ask`).
    Each tool sets `pre_tool_speech: "force"` and `execution_mode: "immediate"`,
    so the Pal says one short checking line while the tool runs instead of
-   staying silent until it returns. The three confirm tools (`propose_plan`,
-   `propose_map_action`, `report_occupancy`) set `interruption_mode:
+   staying silent until it returns. The four confirm tools (`propose_plan`,
+   `propose_map_action`, `report_occupancy`, `propose_memory`) set `interruption_mode:
    "disable_during_tool_and_turn"` so the proposal is heard whole. Typed chat
    answers on the first reply when the turn asks for no tool. Once a turn asks
    for a tool, typed chat drops the checking lines. It returns a reply only
