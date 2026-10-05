@@ -850,16 +850,19 @@ async function auditRoute(
       timeout: 120_000,
     }).catch(() => null);
   }
-  const main = page.locator("main").first();
-  // A route with a loading.tsx streams its skeleton first and swaps the page
-  // in later, so the gutter is measured only once streaming has settled and
-  // the route's own <main> is at rest. Only a 404 page may have no <main>.
+  // Read the page's own settled landmark. The loading skeleton is a region,
+  // not a <main>, and a page that is still resolving stands in an aria-busy
+  // <main>. On a slow runner the read used to land before either had given
+  // way (the 5 Oct 2026 nightly and dispatch found no visible <main> on
+  // /onboarding, served as "/", and on /map), so it waits for streaming to
+  // settle and for that landmark to come to rest. Only a 404 may have none.
+  const main = page.locator('main:not([aria-busy="true"]):visible').first();
   let mainShown = false;
   if (response?.status() === 404) {
     mainShown = await main.isVisible().catch(() => false);
   } else {
     await expectStreamedPageSettled(page, { timeout: 45_000 });
-    await expectLayoutSettled(main);
+    await expectLayoutSettled(main, { timeout: 30_000 });
     mainShown = true;
   }
   await settle(page);
