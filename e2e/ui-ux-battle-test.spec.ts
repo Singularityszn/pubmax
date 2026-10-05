@@ -386,6 +386,28 @@ test("Tonight keeps the conditions room when the conditions read fails", async (
   expect(result.cls!).toBeLessThan(UI_UX_CLS_BUDGET * 0.75);
 });
 
+test("/feed at 1024px shows no conditions card when the conditions read fails", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1024, height: 800 });
+  await page.route("**/api/tonight-conditions**", (route) =>
+    route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "Conditions unavailable" }),
+    }),
+  );
+
+  const response = await page.goto("/feed");
+  expect(response?.status()).toBe(200);
+  await page.waitForLoadState("networkidle");
+
+  await expect(page.locator("main").first()).toBeVisible();
+  await expect(page.getByTestId("tonight-conditions")).toHaveCount(0);
+  await expect(page.locator(".tonightConditionsHold")).toHaveCount(0);
+  await expect(page.locator(".feedRailDesktopOnly .tonightConditions")).toHaveCount(0);
+});
+
 test("shared audit navigation measures layout shift from navigation start", async ({
   baseURL,
   page,
