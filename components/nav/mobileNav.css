@@ -160,8 +160,9 @@ body:has(.mobileMapUtilityCorner) {
   --create-fab-bottom: calc(var(--float-stack-top-map-corner) + var(--float-stack-gap));
 }
 
-/* Instant primary-tab loading shell (App Router loading.tsx). Paper/ink only —
-   no brand animation beyond a quiet pulse; reduced-motion freezes it. */
+/* Instant primary-tab loading shell (App Router loading.tsx). Paper/ink bars
+   with a quiet pulse that reduced-motion freezes here, plus the shared pint
+   loader, whose pour is gated in components/ui/pintLoader.css. */
 .routeLoadingShell {
   min-height: 100dvh;
   min-height: 100svh;

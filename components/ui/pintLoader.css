@@ -45,7 +45,7 @@
 }
 
 .pintLoaderHead {
-  fill: color-mix(in srgb, var(--paper) 88%, var(--amber));
+  fill: color-mix(in srgb, var(--color-on-inverse) 88%, var(--amber));
 }
 
 .pintLoaderBubble {
