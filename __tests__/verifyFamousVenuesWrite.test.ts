@@ -1,12 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
+import { describe, expect, it, vi } from "vitest";
 
 import {
+  type AnchorSourceHead,
   applyVerification,
   idsCoveredByPartialVerifications,
   parseVerificationLimit,
   remainingBatchSize,
   selectVerificationBatch,
   summarizeVerification,
+  verifyRowWithPlaces,
 } from "@/scripts/verify_famous_venues.mjs";
 
 type Row = { id: string; name: string; observedAt: string; expiresAt: string };
@@ -57,6 +62,115 @@ describe("verify:famous-venues --write plan", () => {
       closed: ["bar-closed"],
       unverified: ["bar-no-confident-match"],
     });
+  });
+});
+
+const ROOT = path.resolve(__dirname, "..");
+const placesFixture = (name: string) =>
+  JSON.parse(
+    readFileSync(path.join(ROOT, "__tests__", "fixtures", "famous_venues", "places", name), "utf8"),
+  );
+
+type GuardedRow = Row & {
+  address: string;
+  borough: string;
+  lat: number;
+  lng: number;
+  sourceUrl: string;
+  story: { sourceUrl: string };
+  fameGates: Array<{ sourceUrl: string }>;
+  anchor?: { sourceUrl: string };
+};
+
+const wongKei = (anchorUrl?: string): GuardedRow => ({
+  ...row("food-wong-kei"),
+  name: "Wong Kei",
+  address: "41-43 Wardour Street, London W1D 6PY",
+  borough: "Westminster",
+  lat: 51.51173,
+  lng: -0.13265,
+  sourceUrl: "https://wongkei.example/wardour-street",
+  story: { sourceUrl: "https://wongkei.example/wardour-street/story" },
+  fameGates: [{ sourceUrl: "https://press.example/wong-kei" }],
+  ...(anchorUrl ? { anchor: { sourceUrl: anchorUrl } } : {}),
+});
+
+describe("verify:famous-venues anchor guard", () => {
+  const operational = async () => placesFixture("operational_match.json");
+  const live: AnchorSourceHead = async () => ({ status: 200, location: null });
+
+  async function renewal(venue: GuardedRow, head: AnchorSourceHead = live) {
+    const check = await verifyRowWithPlaces(venue, operational, head);
+    const next = applyVerification(new Map([["late_food.json", [venue]]]), [check], "2026-10-05");
+    return { check, renewed: next.get("late_food.json")?.[0] };
+  }
+
+  it("renews a Places match whose anchor page answers under one of the row's own sources", async () => {
+    const head = vi.fn(live);
+    const { check, renewed } = await renewal(
+      wongKei("https://wongkei.example/wardour-street/menu.pdf"),
+      head,
+    );
+    expect(head).toHaveBeenCalledWith("https://wongkei.example/wardour-street/menu.pdf");
+    expect(check).toMatchObject({ outcome: "confirmed", result: "places_operational" });
+    expect(renewed?.observedAt).toBe("2026-10-05");
+  });
+
+  it.each([
+    ["a trailing slash", "https://wongkei.example/wardour-street/menu/"],
+    ["www.", "https://www.wongkei.example/wardour-street/menu"],
+    ["a trailing slash in a relative location", "/wardour-street/menu/"],
+  ])("renews an anchor page whose redirect only adds %s", async (_label, location) => {
+    const { check, renewed } = await renewal(
+      wongKei("https://wongkei.example/wardour-street/menu"),
+      async () => ({ status: 301, location }),
+    );
+    expect(check).toMatchObject({ outcome: "confirmed", result: "places_operational" });
+    expect(renewed?.observedAt).toBe("2026-10-05");
+  });
+
+  it.each([
+    [
+      "an anchor page whose domain now redirects to another site",
+      "https://wongkei.example/wardour-street",
+      async () => ({ status: 301, location: "https://www.iraqgoals.tv/" }),
+      "anchor_source_redirected",
+    ],
+    [
+      "an anchor page that redirects elsewhere",
+      "https://wongkei.example/wardour-street/menu",
+      async () => ({ status: 301, location: "/wardour-street/new-menu" }),
+      "anchor_source_redirected",
+    ],
+    [
+      "an anchor page off the row's own sources",
+      "https://wongkei.example/old-bar/menu",
+      live,
+      "anchor_source_not_row_source",
+    ],
+    [
+      "an anchor page that cannot be reached",
+      "https://wongkei.example/wardour-street/menu",
+      async () => {
+        throw new Error("ECONNRESET");
+      },
+      "anchor_source_unreachable",
+    ],
+    ["a removed anchor", undefined, live, "anchor_missing"],
+  ])("keeps the row unverified and unrenewed for %s", async (_label, anchorUrl, head, result) => {
+    const venue = wongKei(anchorUrl);
+    const { check, renewed } = await renewal(venue, head);
+    expect(check).toMatchObject({ outcome: "unverified", result });
+    expect(renewed).toEqual(venue);
+  });
+
+  it("still drops a permanently closed row whatever its anchor", async () => {
+    const check = await verifyRowWithPlaces(
+      wongKei(),
+      async () => placesFixture("permanently_closed.json"),
+      live,
+    );
+    expect(check.outcome).toBe("closed");
   });
 });
 

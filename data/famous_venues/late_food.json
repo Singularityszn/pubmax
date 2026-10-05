@@ -23,7 +23,7 @@
       }
     ],
     "sourceUrl": "https://tbtk.co.uk/",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "large_doner",
       "label": "Large lamb doner",
@@ -44,7 +44,7 @@
       "lng": -0.07422
     },
     "sourceName": "tbtk.co.uk",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -68,7 +68,7 @@
       }
     ],
     "sourceUrl": "https://www.superkebab.net/",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "large_doner",
       "label": "Large lamb doner",
@@ -89,7 +89,7 @@
       "lng": -0.07505
     },
     "sourceName": "superkebab.net",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -147,8 +147,8 @@
     "name": "Mangal 2",
     "address": "4 Stoke Newington Road, London N16 7XN",
     "borough": "Hackney",
-    "lat": 51.55285,
-    "lng": -0.07465,
+    "lat": 51.550797,
+    "lng": -0.074917,
     "kind": "food",
     "hasStory": true,
     "fameGates": [
@@ -166,7 +166,7 @@
       }
     ],
     "sourceUrl": "https://mangal2.com/",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_item",
       "label": "Adana kebab",
@@ -183,13 +183,16 @@
     "description": "The second-generation Dirik family turned a beloved Dalston ocakbasi into a nationally recognised modern Turkish dining room.",
     "area": "Hackney",
     "location": {
-      "lat": 51.55285,
-      "lng": -0.07465
+      "lat": 51.550797,
+      "lng": -0.074917
     },
     "sourceName": "mangal2.com",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "mangal 2 restaurant"
+    ]
   },
   {
     "id": "food-gokyuzu-harringay",
@@ -211,7 +214,7 @@
       }
     ],
     "sourceUrl": "https://gokyuzurestaurant.co.uk/",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "large_doner",
       "label": "Large lamb doner",
@@ -232,17 +235,17 @@
       "lng": -0.09882
     },
     "sourceName": "gokyuzurestaurant.co.uk",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
   {
     "id": "food-antepliler",
     "name": "Antepliler",
-    "address": "139-143 Green Lanes, London N4 1EL",
+    "address": "46 Grand Parade, Green Lanes, London N4 1AG",
     "borough": "Haringey",
-    "lat": 51.57091,
-    "lng": -0.09622,
+    "lat": 51.579345,
+    "lng": -0.098941,
     "kind": "food",
     "hasStory": true,
     "fameGates": [
@@ -252,42 +255,45 @@
       },
       {
         "kind": "cultural_weight",
-        "sourceUrl": "https://antepliler.co.uk/"
+        "sourceUrl": "https://anteplilerlondon.co.uk/about/"
       }
     ],
-    "sourceUrl": "https://antepliler.co.uk/",
-    "observedAt": "2026-08-25",
+    "sourceUrl": "https://anteplilerlondon.co.uk/",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_item",
       "label": "Adana kebab",
-      "price": 19.5,
-      "observedAt": "2026-07-26",
-      "sourceUrl": "https://antepliler.co.uk/"
+      "price": 24.5,
+      "observedAt": "2026-10-05",
+      "sourceUrl": "https://anteplilerlondon.co.uk/wp-content/uploads/2026/09/Antepliler_Menu_A3_PRINT.pdf"
     },
     "story": {
       "text": "Named for the people of Gaziantep, Antepliler helped make Green Lanes synonymous with baklava, lahmacun and charcoal kebabs.",
-      "sourceUrl": "https://antepliler.co.uk/"
+      "sourceUrl": "https://anteplilerlondon.co.uk/about/"
     },
     "category": "late_food",
     "job": "crawl_ending_food",
     "description": "Named for the people of Gaziantep, Antepliler helped make Green Lanes synonymous with baklava, lahmacun and charcoal kebabs.",
     "area": "Haringey",
     "location": {
-      "lat": 51.57091,
-      "lng": -0.09622
+      "lat": 51.579345,
+      "lng": -0.098941
     },
-    "sourceName": "antepliler.co.uk",
-    "expiresAt": "2026-09-24",
+    "sourceName": "anteplilerlondon.co.uk",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "antepliler restaurant"
+    ]
   },
   {
     "id": "food-diyarbakir",
-    "name": "Diyarbakir Restaurant",
-    "address": "69 Green Lanes, London N16 9BU",
-    "borough": "Hackney",
-    "lat": 51.56194,
-    "lng": -0.08729,
+    "name": "Diyarbakir Kitchen",
+    "address": "52-53 Grand Parade, Green Lanes, London N4 1AG",
+    "borough": "Haringey",
+    "lat": 51.578953,
+    "lng": -0.098863,
     "kind": "food",
     "hasStory": true,
     "fameGates": [
@@ -301,7 +307,7 @@
       }
     ],
     "sourceUrl": "https://diyarbakir.co.uk/",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_item",
       "label": "Diyarbakir special kebab",
@@ -316,13 +322,13 @@
     "category": "late_food",
     "job": "crawl_ending_food",
     "description": "This Green Lanes stalwart built its name on Kurdish and south-eastern Turkish charcoal cooking served late from an open grill.",
-    "area": "Hackney",
+    "area": "Haringey",
     "location": {
-      "lat": 51.56194,
-      "lng": -0.08729
+      "lat": 51.578953,
+      "lng": -0.098863
     },
     "sourceName": "diyarbakir.co.uk",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -346,7 +352,7 @@
       }
     ],
     "sourceUrl": "https://halarestaurant.co.uk/",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_item",
       "label": "Adana Kofte (Large)",
@@ -367,7 +373,7 @@
       "lng": -0.09904
     },
     "sourceName": "halarestaurant.co.uk",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -391,7 +397,7 @@
       }
     ],
     "sourceUrl": "https://selale.co.uk/",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_item",
       "label": "Adana kebab",
@@ -412,7 +418,7 @@
       "lng": -0.10079
     },
     "sourceName": "selale.co.uk",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual",
     "placesNameAliases": [
@@ -439,7 +445,7 @@
       }
     ],
     "sourceUrl": "https://eatlebab.com/",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_item",
       "label": "Lamb adana kebab",
@@ -460,7 +466,7 @@
       "lng": -0.13918
     },
     "sourceName": "eatlebab.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual",
     "placesNameAliases": [
@@ -487,7 +493,7 @@
       }
     ],
     "sourceUrl": "https://testirestaurant.co.uk/",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_item",
       "label": "Mixed kebab",
@@ -508,7 +514,7 @@
       "lng": -0.07475
     },
     "sourceName": "testirestaurant.co.uk",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual",
     "placesNameAliases": [
@@ -535,7 +541,7 @@
       }
     ],
     "sourceUrl": "https://berenjaklondon.com/soho",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_item",
       "label": "Jujeh kabab",
@@ -556,7 +562,7 @@
       "lng": -0.13057
     },
     "sourceName": "berenjaklondon.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -580,7 +586,7 @@
       }
     ],
     "sourceUrl": "https://www.fmmangal.co.uk/",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_item",
       "label": "Adana kebab",
@@ -601,7 +607,7 @@
       "lng": -0.09057
     },
     "sourceName": "fmmangal.co.uk",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -674,7 +680,7 @@
       }
     ],
     "sourceUrl": "https://www.tayyabs.co.uk/",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_item",
       "label": "Lamb chops",
@@ -695,7 +701,7 @@
       "lng": -0.06351
     },
     "sourceName": "tayyabs.co.uk",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -719,7 +725,7 @@
       }
     ],
     "sourceUrl": "https://www.maroush.com/restaurants/edgware-road",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_item",
       "label": "Chicken shawarma",
@@ -740,7 +746,7 @@
       "lng": -0.16085
     },
     "sourceName": "maroush.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -809,7 +815,7 @@
       }
     ],
     "sourceUrl": "https://kebabkid.co.uk/",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "large_doner",
       "label": "Large lamb doner",
@@ -830,7 +836,7 @@
       "lng": -0.19992
     },
     "sourceName": "kebabkid.co.uk",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -858,7 +864,7 @@
       }
     ],
     "sourceUrl": "https://www.beigelbake.co.uk/",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_item",
       "label": "Salt beef beigel",
@@ -879,7 +885,7 @@
       "lng": -0.07193
     },
     "sourceName": "beigelbake.co.uk",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -903,7 +909,7 @@
       }
     ],
     "sourceUrl": "https://www.polobar.co.uk/",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_item",
       "label": "Full English breakfast",
@@ -924,9 +930,12 @@
       "lng": -0.08019
     },
     "sourceName": "polobar.co.uk",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "polo bar 24 hour great british cafe"
+    ]
   },
   {
     "id": "food-duck-waffle",
@@ -948,7 +957,7 @@
       }
     ],
     "sourceUrl": "https://duckandwaffle.com/london",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_item",
       "label": "Duck and waffle",
@@ -969,7 +978,7 @@
       "lng": -0.08105
     },
     "sourceName": "duckandwaffle.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -993,14 +1002,7 @@
       }
     ],
     "sourceUrl": "https://wongkeilondon.com/",
-    "observedAt": "2026-10-03",
-    "anchor": {
-      "kind": "signature_item",
-      "label": "Roast duck on rice",
-      "price": 10.8,
-      "observedAt": "2026-07-26",
-      "sourceUrl": "https://wongkeilondon.com/"
-    },
+    "observedAt": "2026-10-05",
     "story": {
       "text": "Chinatown's vast, brisk canteen has served Cantonese roast meats and noodles across multiple floors since the 1970s.",
       "sourceUrl": "https://wongkeilondon.com/"
@@ -1014,7 +1016,7 @@
       "lng": -0.13265
     },
     "sourceName": "wongkeilondon.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -1042,7 +1044,7 @@
       }
     ],
     "sourceUrl": "https://www.instagram.com/baritaliasoho",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_item",
       "label": "Panini",
@@ -1063,7 +1065,7 @@
       "lng": -0.13165
     },
     "sourceName": "instagram.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -1087,7 +1089,7 @@
       }
     ],
     "sourceUrl": "https://www.vqrestaurants.com/locations/chelsea",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_item",
       "label": "Full English breakfast",
@@ -1108,7 +1110,7 @@
       "lng": -0.18156
     },
     "sourceName": "vqrestaurants.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -1132,14 +1134,7 @@
       }
     ],
     "sourceUrl": "https://goldendragonlondon.com/",
-    "observedAt": "2026-08-25",
-    "anchor": {
-      "kind": "signature_item",
-      "label": "Roast duck on rice",
-      "price": 14.8,
-      "observedAt": "2026-07-26",
-      "sourceUrl": "https://goldendragonlondon.com/"
-    },
+    "observedAt": "2026-10-05",
     "story": {
       "text": "Golden Dragon's long Gerrard Street dining room is a Chinatown constant for dim sum by day and Cantonese roast meats late.",
       "sourceUrl": "https://goldendragonlondon.com/"
@@ -1153,8 +1148,11 @@
       "lng": -0.13121
     },
     "sourceName": "goldendragonlondon.com",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "golden dragon chinatown"
+    ]
   }
 ]

@@ -48,10 +48,8 @@ import {
   findExcludedPricedRows,
   isValidExclusionEntry,
 } from "./lib/pricedIndexExclusions.mjs";
-import {
-  isCurrentNightOutPlace,
-  nightOutPlaceRowValidationErrors,
-} from "../lib/nightOutPlaceContract.mjs";
+import { nightOutPlaceRowValidationErrors } from "../lib/nightOutPlaceContract.mjs";
+import { isCurrentFamousVenue } from "./lib/currentFamousVenue.mjs";
 import { CITY_VENUE_PACKS } from "../lib/cityVenuePacks.mjs";
 import { isLivePriceRow, priceSupersededErrors } from "../lib/priceRowEligibility.mjs";
 import { CITY_BOUNDS } from "../lib/cityBounds.mjs";
@@ -500,7 +498,7 @@ function slimPayloadClock(payload) {
 }
 
 function currentFamousVenues(rows, builtAt) {
-  return rows.filter((row) => isCurrentNightOutPlace(row, builtAt));
+  return rows.filter((row) => isCurrentFamousVenue(row, builtAt));
 }
 
 function isReplacedByFamousVenue(first, famousRows) {
