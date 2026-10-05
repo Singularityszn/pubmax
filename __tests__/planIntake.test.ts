@@ -285,7 +285,9 @@ describe("Europe/London exact time", () => {
 describe("the composer's default First pint", () => {
   const originalTz = process.env.TZ;
   afterEach(() => {
-    process.env.TZ = originalTz;
+    // Assigning undefined would store the string "undefined", not unset TZ.
+    if (originalTz === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTz;
   });
 
   it("is London wall time on a device that is not in London", () => {
@@ -314,6 +316,13 @@ describe("the composer's default First pint", () => {
     process.env.TZ = "Asia/Tokyo";
     expect(defaultLondonStartInput(new Date("2026-12-01T17:00:00.000Z"))).toBe("2026-12-01T17:15");
     expect(defaultLondonStartInput(new Date("2026-12-01T17:01:00.000Z"))).toBe("2026-12-01T17:30");
+  });
+
+  // Runs last: vitest reuses its workers, so a zone left behind here would put
+  // every later date test in this process on the last zone above.
+  it("leaves the process zone as it found it", () => {
+    expect("TZ" in process.env).toBe(originalTz !== undefined);
+    expect(process.env.TZ).toBe(originalTz);
   });
 });
 
