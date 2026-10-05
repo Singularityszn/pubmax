@@ -72,13 +72,6 @@
     ],
     "sourceUrl": "https://www.thesavoylondon.com/restaurants-and-bars/beaufort-wine-bar",
     "observedAt": "2026-08-25",
-    "anchor": {
-      "kind": "house_cocktail",
-      "label": "Beaufort signature cocktail",
-      "price": 24,
-      "observedAt": "2026-07-26",
-      "sourceUrl": "https://www.thesavoylondon.com/restaurants-and-bars/beaufort-bar"
-    },
     "story": {
       "text": "The Savoy has relaunched its Beaufort Bar as a wine bar, pouring more than 120 of its 250-plus wines by the glass through Coravin.",
       "sourceUrl": "https://www.thesavoylondon.com/restaurants-and-bars/beaufort-wine-bar"

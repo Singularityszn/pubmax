@@ -10,6 +10,9 @@
  *                --write drops it.
  *   unverified — anything else: no result, no confident or an ambiguous match,
  *                or a temporary closure. The row is left unchanged and listed.
+ *                A Places match whose price anchor is missing, redirects, or
+ *                sits off the row's own source pages is unverified too, so a
+ *                renewal never re-publishes a price from a page that moved on.
  *                A full run exits nonzero. A --limit batch records them and
  *                exits 0 so the next day can take the rows not yet checked.
  *
@@ -86,7 +89,54 @@ export function toCommittedPlacesCheck(check) {
   };
 }
 
-export async function verifyRowWithPlaces(row, searchText) {
+function rowOwnSourceUrls(row) {
+  return [
+    row.sourceUrl,
+    row.story?.sourceUrl,
+    ...(row.fameGates ?? []).map((gate) => gate.sourceUrl),
+  ].filter((url) => typeof url === "string");
+}
+
+function isUnderSource(sourceUrl, url) {
+  const source = new URL(sourceUrl);
+  const target = new URL(url);
+  const prefix = source.pathname.endsWith("/") ? source.pathname : `${source.pathname}/`;
+  return (
+    source.host === target.host &&
+    (target.pathname === source.pathname || target.pathname.startsWith(prefix))
+  );
+}
+
+/** Asks the anchor page for its status without following a redirect. */
+export async function headAnchorSource(url) {
+  const response = await fetch(url, { method: "HEAD", redirect: "manual" });
+  return { status: response.status, location: response.headers.get("location") };
+}
+
+/** Why a confirmed row's anchor may not be renewed, or null when it may. */
+export async function anchorRenewalBlock(row, headSource) {
+  const anchorUrl = row.anchor?.sourceUrl;
+  if (typeof anchorUrl !== "string") return "anchor_missing";
+  if (!rowOwnSourceUrls(row).some((source) => isUnderSource(source, anchorUrl))) {
+    return "anchor_source_not_row_source";
+  }
+  let head;
+  try {
+    head = await headSource(anchorUrl);
+  } catch {
+    return "anchor_source_unreachable";
+  }
+  if (
+    head.status >= 300 &&
+    head.status < 400 &&
+    (!head.location || new URL(head.location, anchorUrl).href !== new URL(anchorUrl).href)
+  ) {
+    return "anchor_source_redirected";
+  }
+  return null;
+}
+
+export async function verifyRowWithPlaces(row, searchText, headSource) {
   const textQuery = placesTextQueryForRow(row);
   const payload = await searchText(textQuery);
   const httpStatus = payload.httpStatus;
@@ -97,14 +147,16 @@ export async function verifyRowWithPlaces(row, searchText) {
     throw new Error(`Places Text Search failed for ${row.id}: HTTP ${httpStatus}`);
   }
   const decision = decidePlacesVerification(row, placesFromSearchPayload(payload));
+  const anchorBlock =
+    decision.outcome === "confirmed" ? await anchorRenewalBlock(row, headSource) : null;
   return {
     id: row.id,
     method: "places_text_search",
     sourceUrl: row.sourceUrl,
     textQuery,
     evidenceFetchedAt: payload.fetchedAt ?? null,
-    outcome: decision.outcome,
-    result: decision.result,
+    outcome: anchorBlock ? "unverified" : decision.outcome,
+    result: anchorBlock ?? decision.result,
     placeId: decision.evidence?.placeId ?? null,
     matchReason: decision.evidence?.matchReason ?? null,
   };
@@ -285,7 +337,7 @@ async function main() {
     maxLiveCalls: limit == null ? MAX_LIVE_CALLS : entries.length,
   });
   const checks = await mapSequential(entries, ({ row }) =>
-    verifyRowWithPlaces(row, client.searchText),
+    verifyRowWithPlaces(row, client.searchText, headAnchorSource),
   );
 
   const confirmed = checks.filter((c) => c.outcome === "confirmed");

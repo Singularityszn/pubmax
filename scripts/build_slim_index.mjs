@@ -32,10 +32,8 @@ import {
   spatialShardFile,
 } from "./lib/slimShards.mjs";
 import { loadStationZones, nearestStationZone } from "./lib/stationZones.mjs";
-import {
-  isCurrentNightOutPlace,
-  nightOutPlaceRowValidationErrors,
-} from "../lib/nightOutPlaceContract.mjs";
+import { isCurrentFamousVenue } from "./lib/currentFamousVenue.mjs";
+import { nightOutPlaceRowValidationErrors } from "../lib/nightOutPlaceContract.mjs";
 import { isLivePriceRow } from "../lib/priceRowEligibility.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -140,8 +138,9 @@ function famousVenueFilterHints(row) {
 }
 
 // A malformed seed row fails the build. A well-formed row whose verification
-// window has lapsed (isCurrentNightOutPlace) is not current. famousRowsForRebuild
-// refuses to write when that would drop a venue the last slim index shipped.
+// window has lapsed, or that has no price anchor (isCurrentFamousVenue), is not
+// current. famousRowsForRebuild refuses to write when that would drop a venue
+// the last slim index shipped.
 function assertCurrentFamousVenueRows(rows, now) {
   const malformed = rows.filter(
     (row) => nightOutPlaceRowValidationErrors(row).length > 0,
@@ -156,12 +155,12 @@ function assertCurrentFamousVenueRows(rows, now) {
   const current = [];
   const withheld = [];
   for (const row of rows) {
-    if (isCurrentNightOutPlace(row, now)) current.push(row);
+    if (isCurrentFamousVenue(row, now)) current.push(row);
     else withheld.push(row);
   }
   if (withheld.length > 0) {
     console.log(
-      `withholding ${withheld.length} famous venue(s) with lapsed or missing verification: ${withheld.map((row) => row.id).join(", ")}`,
+      `withholding ${withheld.length} famous venue(s) with lapsed or missing verification or no anchor: ${withheld.map((row) => row.id).join(", ")}`,
     );
   }
   return current;
