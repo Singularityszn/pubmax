@@ -1003,13 +1003,6 @@
     ],
     "sourceUrl": "https://wongkeilondon.com/",
     "observedAt": "2026-10-05",
-    "anchor": {
-      "kind": "signature_item",
-      "label": "Roast duck on rice",
-      "price": 10.8,
-      "observedAt": "2026-07-26",
-      "sourceUrl": "https://wongkeilondon.com/"
-    },
     "story": {
       "text": "Chinatown's vast, brisk canteen has served Cantonese roast meats and noodles across multiple floors since the 1970s.",
       "sourceUrl": "https://wongkeilondon.com/"
@@ -1142,13 +1135,6 @@
     ],
     "sourceUrl": "https://goldendragonlondon.com/",
     "observedAt": "2026-10-05",
-    "anchor": {
-      "kind": "signature_item",
-      "label": "Roast duck on rice",
-      "price": 14.8,
-      "observedAt": "2026-07-26",
-      "sourceUrl": "https://goldendragonlondon.com/"
-    },
     "story": {
       "text": "Golden Dragon's long Gerrard Street dining room is a Chinatown constant for dim sum by day and Cantonese roast meats late.",
       "sourceUrl": "https://goldendragonlondon.com/"

@@ -182,6 +182,7 @@ function shippedFamousVenueIds(payload) {
  * only an explicit refresh moves the clock. A non-empty seed that is entirely
  * lapsed, or any shipped id missing from the current set and not named in
  * data/famous_venues/removed.json, fails before a shorter index is written.
+ * A shipped seed row whose anchor was removed is withheld, not a failure.
  */
 function famousRowsForRebuild(seedRows, { lastSlim, removedIds, refreshAt }) {
   let at = refreshAt;
@@ -207,14 +208,17 @@ function famousRowsForRebuild(seedRows, { lastSlim, removedIds, refreshAt }) {
   }
   const kept = assertCurrentFamousVenueRows(seedRows, builtAt);
   const keptIds = new Set(kept.map((row) => row.id));
-  const seedIds = new Set(seedRows.map((row) => row.id));
+  const seedById = new Map(seedRows.map((row) => [row.id, row]));
   const allowedRemovals = new Set(removedIds);
   const lapsed = [];
   const removed = [];
   for (const id of shippedFamousVenueIds(lastSlim)) {
     if (keptIds.has(id)) continue;
-    if (seedIds.has(id)) lapsed.push(id);
-    else if (!allowedRemovals.has(id)) removed.push(id);
+    const seedRow = seedById.get(id);
+    // A curator who removes a row's anchor withholds it on purpose.
+    if (seedRow) {
+      if (seedRow.anchor) lapsed.push(id);
+    } else if (!allowedRemovals.has(id)) removed.push(id);
   }
   if (lapsed.length > 0 || removed.length > 0) {
     const parts = [];

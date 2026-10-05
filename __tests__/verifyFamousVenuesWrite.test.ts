@@ -117,6 +117,25 @@ describe("verify:famous-venues anchor guard", () => {
   });
 
   it.each([
+    ["a trailing slash", "https://wongkei.example/wardour-street/menu/"],
+    ["www.", "https://www.wongkei.example/wardour-street/menu"],
+    ["a trailing slash in a relative location", "/wardour-street/menu/"],
+  ])("renews an anchor page whose redirect only adds %s", async (_label, location) => {
+    const { check, renewed } = await renewal(
+      wongKei("https://wongkei.example/wardour-street/menu"),
+      async () => ({ status: 301, location }),
+    );
+    expect(check).toMatchObject({ outcome: "confirmed", result: "places_operational" });
+    expect(renewed?.observedAt).toBe("2026-10-05");
+  });
+
+  it.each([
+    [
+      "an anchor page whose domain now redirects to another site",
+      "https://wongkei.example/wardour-street",
+      async () => ({ status: 301, location: "https://www.iraqgoals.tv/" }),
+      "anchor_source_redirected",
+    ],
     [
       "an anchor page that redirects elsewhere",
       "https://wongkei.example/wardour-street/menu",

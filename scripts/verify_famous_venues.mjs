@@ -10,9 +10,11 @@
  *                --write drops it.
  *   unverified — anything else: no result, no confident or an ambiguous match,
  *                or a temporary closure. The row is left unchanged and listed.
- *                A Places match whose price anchor is missing, redirects, or
- *                sits off the row's own source pages is unverified too, so a
- *                renewal never re-publishes a price from a page that moved on.
+ *                A Places match whose price anchor is missing, redirects to
+ *                another page, or sits off the row's own source pages is
+ *                unverified too, so a renewal never re-publishes a price from
+ *                a page that moved on. A redirect that only adds or drops www.
+ *                or a trailing slash is the same page.
  *                A full run exits nonzero. A --limit batch records them and
  *                exits 0 so the next day can take the rows not yet checked.
  *
@@ -107,6 +109,12 @@ function isUnderSource(sourceUrl, url) {
   );
 }
 
+/** One page, setting aside a leading www. and a trailing slash a site adds to canonicalise it. */
+function canonicalPage(url) {
+  const { protocol, host, pathname, search } = new URL(url);
+  return `${protocol}//${host.replace(/^www\./, "")}${pathname.replace(/\/+$/, "")}${search}`;
+}
+
 /** Asks the anchor page for its status without following a redirect. */
 export async function headAnchorSource(url) {
   const response = await fetch(url, { method: "HEAD", redirect: "manual" });
@@ -129,7 +137,8 @@ export async function anchorRenewalBlock(row, headSource) {
   if (
     head.status >= 300 &&
     head.status < 400 &&
-    (!head.location || new URL(head.location, anchorUrl).href !== new URL(anchorUrl).href)
+    (!head.location ||
+      canonicalPage(new URL(head.location, anchorUrl).href) !== canonicalPage(anchorUrl))
   ) {
     return "anchor_source_redirected";
   }

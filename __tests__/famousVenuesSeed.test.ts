@@ -325,6 +325,23 @@ describe("famous venue seeds", () => {
       expect(log).toHaveBeenCalledWith(expect.stringContaining(row.id));
     });
 
+    it("withholds a shipped venue whose anchor a curator removed instead of failing the rebuild", () => {
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+      const lastSlim = committedSlim();
+      const [withdrawn] = shippedFamousIds(lastSlim);
+      const seed = seedRows().map((row) => {
+        if (row.id !== withdrawn) return row;
+        const anchorless: FamousVenueRow = { ...row };
+        delete anchorless.anchor;
+        return anchorless;
+      });
+      const result = famousRowsForRebuild(seed, { lastSlim, removedIds: [], refreshAt: null });
+      expect(keptIds(result)).toEqual(
+        shippedFamousIds(lastSlim).filter((id) => id !== withdrawn),
+      );
+      expect(log).toHaveBeenCalledWith(expect.stringContaining(defined(withdrawn)));
+    });
+
     it("refuses a build-time rebuild with no committed stamp to rebuild at", () => {
       expect(() =>
         famousRowsForRebuild(seedRows(), { lastSlim: null, removedIds: [], refreshAt: null }),
