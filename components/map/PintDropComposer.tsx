@@ -415,8 +415,8 @@ function OwnedPintDropComposer({
           <SpillPreviewCard preview={preview} pintPhoto={pintPhoto} visibility={visibility} />
 
           <p className="consentNote">
-            Photos and notes are public and may show people. Only upload what you&rsquo;re happy to
-            share.
+            Notes follow your chosen audience. Photo links can be shared. Only upload photos
+            you&rsquo;re happy to share.
           </p>
         </div>
       ) : null}

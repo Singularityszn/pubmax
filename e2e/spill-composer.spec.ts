@@ -182,6 +182,36 @@ test.describe("price-first Spill composer", () => {
     expect(errors).toEqual([]);
   });
 
+  for (const lane of ["Friends", "Legacy"] as const) {
+    test(`${lane} notes and transferable photos have separate audience warnings`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      const { form } = await openComposer(page);
+      await openExtras(form);
+      const choice = form.getByRole("radiogroup", { name: "Visibility" })
+        .getByRole("radio", { name: lane, exact: true });
+      await expect(async () => {
+        await choice.click();
+        await expect(choice).toHaveAttribute("aria-checked", "true", { timeout: 1_000 });
+      }).toPass({ timeout: 20_000 });
+      await form.locator(".consentNote").scrollIntoViewIfNeeded();
+      await testInfo.attach("audience-warning", {
+        body: JSON.stringify({
+          lane,
+          helper: await form.locator(".visibilityHelper").innerText(),
+          consent: await form.locator(".consentNote").innerText(),
+        }), contentType: "application/json",
+      });
+      await page.screenshot({ path: testInfo.outputPath("audience-warning.png") });
+      await expect(form.locator(".consentNote")).not.toContainText("Photos and notes are public");
+      await expect(form.locator(".consentNote")).toContainText("Photo links can be shared.");
+      if (lane === "Friends") {
+        await expect(form.locator(".visibilityHelper")).toContainText("also follow you");
+      } else {
+        await expect(form.locator(".visibilityHelper")).toContainText("Only you can read the note");
+      }
+    });
+  }
+
   test("choosing Family Table selects the Legacy visibility lane", async ({ page }) => {
     const errors = watchPageErrors(page);
     await page.setViewportSize({ width: 390, height: 844 });
