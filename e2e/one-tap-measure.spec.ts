@@ -66,11 +66,15 @@ async function openVenueSheet(page: Page) {
   await expect(venueSheet).toBeVisible({ timeout: 30_000 });
   const inspector = venueSheet.locator(".venueInspector");
   const expand = venueSheet.getByRole("button", { name: "Expand sheet" });
+  // The sheet's body waits on the pub index, which a loaded box can hold past the
+  // default 10 s: give it the same budget as the sheet itself.
   await expect
-    .poll(async () => (await inspector.isVisible()) || (await expand.isVisible()))
+    .poll(async () => (await inspector.isVisible()) || (await expand.isVisible()), {
+      timeout: 30_000,
+    })
     .toBe(true);
   if (!(await inspector.isVisible()) && (await expand.isVisible())) await expand.click();
-  await expect(inspector).toBeVisible();
+  await expect(inspector).toBeVisible({ timeout: 30_000 });
   return venueSheet;
 }
 
