@@ -68,7 +68,10 @@ const TILE_HOST = "tiles.openfreemap.org";
 const OFFLINE_URL = "/offline.html";
 // Pages worth having offline: the landing shell, the map shell, and /tonight
 // (the installed-app start_url, issue #439). Precache is best-effort
-// (allSettled) — a failed precache must never fail the install.
+// (allSettled) — a failed precache must never fail the install. Opening the
+// cache is part of the precache: a full origin can refuse it, and a worker
+// whose install fails never activates, which would strand a reader on the
+// pre-fix worker for exactly the storage pressure this one is built for.
 const SHELL_URLS = ["/", "/map", "/tonight", OFFLINE_URL];
 
 self.addEventListener("install", (event) => {
@@ -82,7 +85,7 @@ self.addEventListener("install", (event) => {
           }),
         ),
       ),
-    ),
+    ).catch(() => undefined),
   );
   if (isPreFixActiveWorker()) {
     event.waitUntil(self.skipWaiting());

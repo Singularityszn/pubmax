@@ -20,6 +20,14 @@
  * loading frame, or on an empty map slot the shell believes is fine, with no
  * sentence either way.
  *
+ * Once MapLibre is built the canvas is no longer silent: it arms its own
+ * first-frame watchdog, its scene-ready guard and its pin-reveal ceiling, and
+ * each of those words its own card. The shell's clock stops there. Left
+ * running, it started before the canvas's 18 s scene-ready guard and lapsed
+ * first, so on a slow box the shell unmounted a map whose scene was already
+ * built and queued for its next frame, and said "taking longer than it should"
+ * over a canvas that was about to draw.
+ *
  * So the SHELL owns two answers the canvas cannot give, and this module is the
  * whole of that policy: the reason vocabulary, the readiness ceiling, and every
  * word either state prints. It performs no I/O and touches no map, in the shape
@@ -108,14 +116,23 @@ export function mapCanvasFrameReleased(availability: MapCanvasAvailability): boo
 
 /**
  * Whether the readiness ceiling should be running. It runs from mount until
- * the canvas answers one way or the other: a module failure already has its
- * answer, a canvas showing its own card has given one, and a ready canvas is
- * the answer. Nothing else stops the clock.
+ * the canvas answers one way or the other, or starts watching itself: a module
+ * failure already has its answer, a canvas showing its own card has given one,
+ * a ready canvas is the answer, and a canvas that has built its map owns every
+ * answer after that. Nothing else stops the clock.
  */
 export function mapCanvasCeilingArmed(
-  state: Omit<MapCanvasReadinessState, "ceilingLapsed">,
+  state: Omit<MapCanvasReadinessState, "ceilingLapsed"> & {
+    /** The canvas has built MapLibre and armed its own watchdogs. */
+    readonly canvasWatching: boolean;
+  },
 ): boolean {
-  return !state.canvasReady && !state.moduleFailed && !state.canvasOwnsFailure;
+  return (
+    !state.canvasReady &&
+    !state.moduleFailed &&
+    !state.canvasOwnsFailure &&
+    !state.canvasWatching
+  );
 }
 
 /**

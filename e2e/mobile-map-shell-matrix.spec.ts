@@ -303,6 +303,11 @@ for (const theme of THEMES) {
     )).not.toBeNull();
 
     for (const [zoom, pitch] of [[10, 0], [12, 22], [14, 40], [16, 50]] as const) {
+      // Leave the map before writing its camera. A live map keeps writing both
+      // stores: the session on every camera change, the resume cache 250ms
+      // after one. Its opening turn or a late resume write landing between this
+      // write and the reopen put the map back at its own camera, not this one.
+      await page.goto("/offline.html");
       await page.evaluate(({ nextZoom, nextPitch }) => {
         const key = "pubmaxx.mobile-map-session.v1";
         const raw = JSON.parse(window.localStorage.getItem(key) ?? "null") as Record<string, unknown> | null;
@@ -321,7 +326,7 @@ for (const theme of THEMES) {
           window.localStorage.setItem(resumeKey, JSON.stringify(resume));
         }
       }, { nextZoom: zoom, nextPitch: pitch });
-      await page.reload();
+      await page.goto("/map");
       await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });
       await waitForMapPaint(page);
       await expect(page.locator("html")).toHaveAttribute("data-theme", theme);

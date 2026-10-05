@@ -345,6 +345,13 @@ type PubMapCanvasProps = {
    */
   onMapErrored?: (errored: boolean) => void;
   /**
+   * Called once MapLibre has been built on this mount. From then on the canvas
+   * runs its own watchdogs (first frame, scene ready, pin reveal) and names its
+   * own failure, so the shell's readiness ceiling stands down
+   * (lib/mapCanvasAvailability.ts).
+   */
+  onMapConstructed?: () => void;
+  /**
    * Opening camera from CityConfig.mapView. Defaults to London for back-compat
    * when the multi-city router has not wired a city yet.
    */
@@ -443,6 +450,11 @@ type PubMapCanvasProps = {
    * (it jumps at duration 0). Null / an unchanged token is a no-op.
    */
   focusPoint?: MapCameraFocus | null;
+  /**
+   * A Near me answer the shell has asked for and not received yet. Its near-me
+   * framing is a camera move still owed, which the camera probe reports.
+   */
+  nearMePending?: boolean;
   /**
    * False while the opening-location answer may still move the camera. The
    * opening turn waits for it (lib/mapCameraFocus.ts openingCameraSettled).
@@ -576,6 +588,7 @@ export default function PubMapCanvas({
   initialLandmarkId = "",
   onMapReady,
   onMapErrored,
+  onMapConstructed,
   mapView = LONDON_VIEW,
   resumeViewport = null,
   maxBounds = UK_BOUNDS,
@@ -606,6 +619,7 @@ export default function PubMapCanvas({
   listCount = 0,
   onSoftRetryChange,
   focusPoint = null,
+  nearMePending = false,
   openingCameraSettled,
   onViewportChange,
   onUserCameraMove,
@@ -675,12 +689,14 @@ export default function PubMapCanvas({
   // (react-hooks/refs). Build/event handlers + error paths read this when ready flips.
   const onMapReadyRef = useRef(onMapReady);
   const onMapErroredRef = useRef(onMapErrored);
+  const onMapConstructedRef = useRef(onMapConstructed);
   const onRenderedStateChangeRef = useRef(onRenderedStateChange);
   useEffect(() => {
     onMapReadyRef.current = onMapReady;
     onMapErroredRef.current = onMapErrored;
+    onMapConstructedRef.current = onMapConstructed;
     onRenderedStateChangeRef.current = onRenderedStateChange;
-  }, [onMapReady, onMapErrored, onRenderedStateChange]);
+  }, [onMapReady, onMapErrored, onMapConstructed, onRenderedStateChange]);
   const publishMapReady = useCallback((ready: boolean) => {
     setMapReady(ready);
     onMapReadyRef.current?.(ready);
@@ -1166,6 +1182,8 @@ export default function PubMapCanvas({
   // into that pub owns the camera. lib/mapArrivalBearing.ts holds every other
   // case, reduced motion included.
   const arrivalBearingSpentRef = useRef(false);
+  // Read by the camera probe; written beside the near-me framing effect below.
+  const nearbyFramingOwedRef = useRef(false);
   // The deep link as it was on ARRIVAL. Reading the live prop would answer for
   // a pin the reader tapped a moment ago, which is a different question.
   const arrivalDeepLinkRef = useRef(
@@ -1173,6 +1191,10 @@ export default function PubMapCanvas({
   );
   const focusKeyRef = useRef<string | null>(null);
   const focusPointRef = useRef(focusPoint);
+  const nearMePendingRef = useRef(nearMePending);
+  useEffect(() => {
+    nearMePendingRef.current = nearMePending;
+  }, [nearMePending]);
   const openingCameraSettledRef = useRef(openingCameraSettled);
   useEffect(() => {
     focusPointRef.current = focusPoint;
@@ -1423,6 +1445,7 @@ export default function PubMapCanvas({
         ...(lowPower ? { canvasContextAttributes: { powerPreference: "low-power" } } : {}),
       });
       markPubmaxTiming("pubmax:map-constructed");
+      onMapConstructedRef.current?.();
       // MapLibre creates a forced-compact attribution control in its expanded
       // state. Start with the native info affordance closed; later taps still
       // use MapLibre's own disclosure and keep every credit readable.
@@ -1518,6 +1541,10 @@ export default function PubMapCanvas({
     mapRef.current = map;
     setMapInstanceReady(true);
     let styleGeneration = 0;
+    // MapLibre's own context-loss handler destroys the style (map.style is null
+    // until a `webglcontextrestored` sets it again), with no setStyle of ours to
+    // clear the readiness state. True from that loss to the next style.load.
+    let styleDroppedByContextLoss = false;
     const cancelDeferredWork = () => {
       if (deferredSceneIdleId !== null && typeof cancelIdleCallback === "function") {
         cancelIdleCallback(deferredSceneIdleId);
@@ -2082,6 +2109,7 @@ export default function PubMapCanvas({
       // is the half-canvas black the captain saw on a cold phone open.
       const runBuildScene = () => {
         const execute = () => {
+          sceneBuildFrameQueued = false;
           if (
             generation !== styleGeneration ||
             mapRef.current !== map ||
@@ -2114,6 +2142,7 @@ export default function PubMapCanvas({
           scheduled = true;
           map.off("render", onFirstRender);
           window.clearTimeout(buildSceneDeferTimer);
+          sceneBuildFrameQueued = true;
           requestAnimationFrame(execute);
         };
         const onFirstRender = () => {
@@ -2471,6 +2500,9 @@ export default function PubMapCanvas({
     // retry is not blamed as a stuck box; armHangFailTimer re-starts it so a
     // recovery that then stalls still owes the hang notice.
     let hangFailTimer: ReturnType<typeof setTimeout> | undefined;
+    // True from the moment buildScene has asked for its frame until that frame
+    // runs. The scene is not hung then, it is waiting its turn.
+    let sceneBuildFrameQueued = false;
     const clearHangFailTimer = () => {
       if (hangFailTimer !== undefined) clearTimeout(hangFailTimer);
       hangFailTimer = undefined;
@@ -2501,13 +2533,26 @@ export default function PubMapCanvas({
       clearHangFailTimer();
       hangFailTimer = setTimeout(() => {
         hangFailTimer = undefined;
-        console.warn("[pubmap] scene ready timeout");
-        settleSceneError({
-          kind: "tiles",
-          message:
-            "The map is taking too long to finish loading. The pub list and crawl planner still work.",
-          detail: "Scene ready timeout",
-        });
+        const failHungScene = () => {
+          if (sceneSettled || mapRef.current !== map) return;
+          console.warn("[pubmap] scene ready timeout");
+          settleSceneError({
+            kind: "tiles",
+            message:
+              "The map is taking too long to finish loading. The pub list and crawl planner still work.",
+            detail: "Scene ready timeout",
+          });
+        };
+        // A long main-thread task (a slow device compiling shaders, say) holds
+        // back both this timer and the frame the scene build is queued for.
+        // When the task ends the timer runs first, so without this it failed a
+        // style that had loaded and a scene one frame from built. The queued
+        // build was registered first and runs first in that frame.
+        if (sceneBuildFrameQueued) {
+          requestAnimationFrame(failHungScene);
+          return;
+        }
+        failHungScene();
       }, STYLE_LOAD_TIMEOUT_MS * 2 + 2000);
     };
     armHangFailTimer();
@@ -2607,6 +2652,7 @@ export default function PubMapCanvas({
     map.on("style.load", () => {
       styleGeneration += 1;
       cancelDeferredWork();
+      styleDroppedByContextLoss = false;
       styleStructureReadyRef.current = true;
       styleLoaded = true;
       styleEverLoaded = true;
@@ -2962,7 +3008,10 @@ export default function PubMapCanvas({
       contextRecoveryTimer = setTimeout(() => {
         contextRecoveryTimer = undefined;
         if (mapRef.current !== map) return;
-        const lost = isMapWebGlContextLost(map);
+        // A style MapLibre dropped with the context is as gone as the context:
+        // a live GL handle over no style is the silent grey this net exists to
+        // prevent, so it re-inits rather than repainting nothing.
+        const lost = isMapWebGlContextLost(map) || styleDroppedByContextLoss;
         const action = contextHealthAction({
           contextLost: lost,
           reinitAlreadySpent: contextAutoReinitSpentRef.current,
@@ -3034,6 +3083,15 @@ export default function PubMapCanvas({
     // (some builds only fire one path). preventDefault only works on the DOM
     // event above — map events are already past that.
     map.on("webglcontextlost", () => {
+      // MapLibre has already destroyed the style by the time this fires. Stand
+      // the scene down with it: a build queued for the next frame, or any
+      // applyToMap write, would otherwise run against no style and throw
+      // ("Style is not done loading", or a null style), and the canvas would
+      // trade a recoverable loss for its "couldn't finish drawing" card. The
+      // style.load that follows a restore builds the scene again.
+      styleDroppedByContextLoss = true;
+      styleStructureReadyRef.current = false;
+      styleGeneration += 1;
       scheduleContextRecovery("map-webglcontextlost");
     });
     map.on("webglcontextrestored", () => {
@@ -3047,7 +3105,7 @@ export default function PubMapCanvas({
     // context. A dead canvas after iOS app-switch is the owner-reported defect.
     const healthCheckOnForeground = (reason: string) => {
       if (mapRef.current !== map) return;
-      const lost = isMapWebGlContextLost(map);
+      const lost = isMapWebGlContextLost(map) || styleDroppedByContextLoss;
       const action = contextHealthAction({
         contextLost: lost,
         reinitAlreadySpent: contextAutoReinitSpentRef.current,
@@ -3253,7 +3311,19 @@ export default function PubMapCanvas({
     const removePaintedPinProbe = installPaintedPinProbe(map);
     // Camera side of the same answer: what a gesture left behind, and where a
     // geographic point is being painted (cameraProbe.ts).
-    const removeMapCameraProbe = installMapCameraProbe(map);
+    // A move is still owed while the opening turn is undecided, while a
+    // scheduled move waits for its frame, or while the opening-location answer
+    // has yet to move the camera (the same reading the turn's own wait takes).
+    const removeMapCameraProbe = installMapCameraProbe(
+      map,
+      () =>
+        !arrivalBearingSpentRef.current ||
+        cameraLanePending() ||
+        !openingCameraSettledRef.current ||
+        mapCameraFocusMoves(focusPointRef.current, focusKeyRef.current) ||
+        nearMePendingRef.current ||
+        nearbyFramingOwedRef.current,
+    );
     const removeMapReaderPositionProbe = installMapReaderPositionProbe(map);
     wireHoverPrefetch(map, { onVenuePrefetchRef });
     wirePubHover(map, { hoverCapableRef, setHoveredVenue });
@@ -3473,6 +3543,7 @@ export default function PubMapCanvas({
     // camera/bounds even if PubMap's key={cityId} is removed. Landmark layers
     // sync in their own effect — toggling showLandmarks must not remount MapLibre.
     cinematic,
+    cameraLanePending,
     cityId,
     selectLandmark,
     initAttempt,
@@ -3938,6 +4009,16 @@ export default function PubMapCanvas({
     didFitUserLocationRef.current = key;
     fitNearby(userLocation, nearbyMapVenues);
   }, [mapReady, userLocation, route.length, nearbyMapVenues, fitNearby]);
+  // The camera probe's reading of that same rule: a granted location with pubs
+  // around it that has not been framed yet is a move the map still owes.
+  useEffect(() => {
+    nearbyFramingOwedRef.current =
+      Boolean(userLocation) &&
+      route.length < 2 &&
+      nearbyMapVenues.length > 0 &&
+      didFitUserLocationRef.current !==
+        `${userLocation?.lat.toFixed(5)},${userLocation?.lng.toFixed(5)}`;
+  }, [userLocation, route.length, nearbyMapVenues]);
 
   // The reader's dot is a CANVAS layer under the pins (see buildUserLocation),
   // not a DOM marker over them, so a pin the reader is standing on keeps its

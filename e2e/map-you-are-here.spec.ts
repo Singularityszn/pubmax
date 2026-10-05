@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+
 const MAP_FIRST_VISIT_KEY = "pubmax:map-first-visit-arrival:v1";
 
 async function waitForPins(page: Page): Promise<void> {
@@ -22,6 +24,9 @@ async function waitForPins(page: Page): Promise<void> {
 }
 
 async function prepareMap(page: Page): Promise<void> {
+  // The dot is an app-owned source, so the basemap need not be live, and live
+  // tiles cost a headless browser seconds of main thread per painted frame.
+  await installDeterministicMapBasemap(page);
   await page.addInitScript((arrivalKey) => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
@@ -71,6 +76,7 @@ type CameraReading = {
   bearing: number;
   pitch: number;
   moving: boolean;
+  settling: boolean;
 };
 
 async function readCamera(page: Page): Promise<CameraReading> {
@@ -171,9 +177,16 @@ test.describe("map you are here dot", () => {
       })
       .toBe(true);
     // The opening-location answer owns a camera move of its own; let it settle
-    // before the reading the dot's own move is held against.
+    // before the reading the dot's own move is held against. A move waiting for
+    // its frame is not moving yet, so `settling` has to be clear as well.
     await expect
-      .poll(async () => (await readCamera(page)).moving, { timeout: 30_000 })
+      .poll(
+        async () => {
+          const camera = await readCamera(page);
+          return camera.moving || camera.settling;
+        },
+        { timeout: 30_000 },
+      )
       .toBe(false);
 
     const cameraBefore = await readCamera(page);

@@ -18,6 +18,7 @@ function workerHarness(input: {
   fetchError?: Error;
   cached?: FakeResponse | null;
   putError?: Error;
+  openError?: Error;
   trimError?: Error;
   activeWorker?: string;
   cacheNames?: string[];
@@ -60,7 +61,10 @@ function workerHarness(input: {
     },
   };
   const fakeCaches = {
-    open: vi.fn(async () => cache),
+    open: vi.fn(async () => {
+      if (input.openError) throw input.openError;
+      return cache;
+    }),
     keys: vi.fn(async () => input.cacheNames ?? []),
     delete: vi.fn(async () => true),
   };
@@ -280,6 +284,21 @@ describe("service worker map cache", () => {
     const { fakeSelf, listeners } = workerHarness({
       activeWorker:
         "https://pubmaxxing.com/sw.js?v=legacy-active&cache-policy=cache-write-coupled-v1",
+    });
+
+    const lifetime = dispatchLifecycle(listeners.get("install")!);
+    await expect(Promise.all(lifetime)).resolves.toBeDefined();
+
+    expect(fakeSelf.skipWaiting).toHaveBeenCalledOnce();
+  });
+
+  it("still installs, and still takes over, when a full origin refuses its cache", async () => {
+    // A worker whose install fails never activates, so a reader stuck on the
+    // pre-fix worker under storage pressure would stay on it for good. The
+    // shell precache is best-effort, and so is opening the cache it goes in.
+    const { fakeSelf, listeners } = workerHarness({
+      activeWorker: "https://pubmaxxing.com/sw.js?v=legacy-active",
+      openError: new DOMException("Quota exceeded", "QuotaExceededError"),
     });
 
     const lifetime = dispatchLifecycle(listeners.get("install")!);
