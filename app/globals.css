@@ -2749,13 +2749,17 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
     );
   }
 
-  /* The city chip docks in the next slot under the toolbar, the same 82px slot
-     .cityStatusStack steps over, so the card clears that slot too while the
-     chip is on the page. */
+  /* The London status strip docks at --city-status-desktop-top, one 58px pill
+     tall (a 44px link, 6px padding and a 1px border each side), so the card
+     starts below the pill while the strip is on the page. */
+  .appShell:has(.cityStatusStack) .mapFallback {
+    padding-top: calc(var(--city-status-desktop-top) + 58px + 16px);
+  }
+
+  /* The city chip docks in the slot above --city-status-desktop-top and hides
+     the strip while it is on the page, so the card clears only that slot. */
   .appShell:has(.citySuggestBanner) .mapFallback {
-    padding-top: calc(
-      var(--map-top-clearance) + var(--map-toolbar-resting-height) + 82px + 16px
-    );
+    padding-top: calc(var(--city-status-desktop-top) + 16px);
   }
 }
 

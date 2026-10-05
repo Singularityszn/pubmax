@@ -2,7 +2,8 @@ import { expect, type Page } from "@playwright/test";
 
 /**
  * The floating chrome the map's fallback card has to start below: the desktop
- * search toolbar, the city chip docked under it, and the one phone bar. The
+ * search toolbar, the city chip docked under it, the London status strip that
+ * takes the next slot once the chip is gone, and the one phone bar. The
  * card fills the map, so a centred card used to sit its heading and the first
  * lines of its message behind the toolbar and the chip at 1024, 1280x720 and
  * 1440x900.
@@ -10,6 +11,7 @@ import { expect, type Page } from "@playwright/test";
 const FALLBACK_COVERING_CHROME = [
   ".mapToolbar",
   ".citySuggestBanner",
+  ".cityStatusStack",
   ".mobileMapChrome",
 ] as const;
 

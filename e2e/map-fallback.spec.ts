@@ -94,3 +94,40 @@ for (const viewport of [
     await expectFallbackTextClearOfChrome(page);
   });
 }
+
+// Once the reader dismisses the chip, the London status strip takes the slot
+// under the toolbar, and the card has to clear the strip's pill as well.
+test("/map fallback heading and message clear the London status strip at 1440x900", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+  await page.route("**/api/citymcp/status**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        asOf: "2026-08-03T08:00:00.000Z",
+        weather: null,
+        tubeLines: [{ line: "Central", status: "Severe delays" }],
+        signals: [],
+      }),
+    }),
+  );
+  await page.goto("/map");
+
+  await expect(page.locator(".mapFallback")).toContainText("Map unavailable", {
+    timeout: 20_000,
+  });
+  await page
+    .getByRole("button", { name: "Dismiss city suggestion" })
+    .first()
+    .click({ timeout: 15_000 });
+  await expect(page.locator(".citySuggestBanner")).toHaveCount(0);
+  await expect(page.locator(".cityStatusStack")).toBeVisible({ timeout: 20_000 });
+  await expectFallbackTextClearOfChrome(page);
+});
