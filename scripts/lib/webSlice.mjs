@@ -70,18 +70,33 @@ const TAVILY_READER = { provider: "tavily", label: "Tavily Extract", failed: "fa
 async function readBatch(batch, search, io, pages, skips) {
   const reader = io.reader ?? TAVILY_READER;
   const [firstDepth, secondDepth] = reader.depths;
-  const first = await io.extract(batch, firstDepth);
+  const storeAnswer = async (url, row, observedAt) => {
+    const landed = harvestRedirectLanding(url, row.landed_url ?? row.url);
+    const page = landed.outcome === "refused" || !allowedEvidenceUrl(landed.url) ? { url, unreadable: "landed outside the source fence", settled: true, observedAt }
+      : { url, landedUrl: landed.url, observedAt, title: search.results.find((result) => result.url === url)?.title ?? null, text: row.raw_content ?? "", ...(reader === TAVILY_READER ? {} : { reader: reader.provider }) };
+    await io.storePage(url, page);
+    pages.set(url, page);
+  };
+  const extract = async (urls, depth) => {
+    try {
+      return await io.extract(urls, depth);
+    } catch (error) {
+      const observedAt = io.now();
+      for (const url of urls) {
+        const row = error.answered && answeredIn(error.answered, url);
+        if (row) await storeAnswer(url, row, observedAt);
+      }
+      throw error;
+    }
+  };
+  const first = await extract(batch, firstDepth);
   const retry = secondDepth ? batch.filter((url) => !answeredIn(first, url) && !readFailureIsDefinitive(failureIn(first, url))) : [];
-  const second = retry.length ? await io.extract(retry, secondDepth) : {};
+  const second = retry.length ? await extract(retry, secondDepth) : {};
   const observedAt = io.now();
   for (const url of batch) {
     const row = answeredIn(first, url) ?? answeredIn(second, url);
     if (row) {
-      const landed = harvestRedirectLanding(url, row.url);
-      const page = landed.outcome === "refused" || !allowedEvidenceUrl(landed.url) ? { url, unreadable: "landed outside the source fence", settled: true, observedAt }
-        : { url, landedUrl: landed.url, observedAt, title: search.results.find((result) => result.url === url)?.title ?? null, text: row.raw_content ?? "", ...(reader === TAVILY_READER ? {} : { reader: reader.provider }) };
-      await io.storePage(url, page);
-      pages.set(url, page);
+      await storeAnswer(url, row, observedAt);
       continue;
     }
     const failure = retry.includes(url) ? failureIn(second, url) : failureIn(first, url);

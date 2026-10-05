@@ -263,11 +263,13 @@ function vertexUrl(model) {
 const FIRECRAWL_SPACING_MS = 6_000;
 let nextFirecrawlSlot = 0;
 
-async function paceFirecrawl() {
+async function paceFirecrawl(budget) {
+  if (budget.remaining() === 0) return false;
   const now = Date.now();
   const slot = Math.max(now, nextFirecrawlSlot);
   nextFirecrawlSlot = slot + FIRECRAWL_SPACING_MS;
   if (slot > now) await new Promise((resolve) => setTimeout(resolve, slot - now));
+  return true;
 }
 
 let nextModelSlot = 0;
@@ -640,7 +642,7 @@ async function main() {
   // lasts, except a PDF, which Firecrawl bills per page; a Firecrawl failure
   // falls back to the plain read.
   async function scrapePage(url) {
-    await paceFirecrawl();
+    if (!(await paceFirecrawl(firecrawl.budget))) return { ok: false, reason: "firecrawl-budget-exhausted" };
     const scraped = await firecrawl.scrape(url, { onlyMainContent: false });
     if (!scraped.ok) return { ok: false, reason: `firecrawl-${scraped.failure.reason}` };
     const landing = harvestRedirectLanding(url, scraped.page.landedUrl);
@@ -669,8 +671,7 @@ async function main() {
   async function locateSite(pub) {
     if (Object.hasOwn(located, pub.osmId)) return located[pub.osmId];
     if (!pub.postcode && !pub.street) return null;
-    if (!firecrawl) return undefined;
-    await paceFirecrawl();
+    if (!firecrawl || !(await paceFirecrawl(firecrawl.budget))) return undefined;
     const where = pub.postcode ?? `"${pub.street.join(" ")}" London`;
     const found = await firecrawl.search(`"${pub.name}" pub ${where}`, { limit: 5 });
     if (!found.ok) return undefined;
