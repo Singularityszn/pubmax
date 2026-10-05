@@ -3029,7 +3029,7 @@ export default function PubMap({
             londonRestaurantsPassingMapFilters(londonRestaurantRead.restaurants, {
               filters: effectiveMapFilters,
               savedOnly,
-              nearMe: nearbyMapResultForView !== null,
+              nearMe: nearbyMapResultForView,
               selectedVenueId,
             }),
             canvasVenues,

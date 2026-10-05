@@ -9,7 +9,7 @@
 // OpenStreetMap's.
 //
 // PURE and browser-safe, apart from `loadLondonRestaurants`, which fetches.
-// Three rules ride with it:
+// Four rules ride with it:
 //
 // 1. NO PRICE. A restaurant here is a `venue-osm-` id, which no price band,
 //    pin band, cheapest bucket or Pint Index reads, and its feature carries no
@@ -20,9 +20,10 @@
 // 3. THE KIND FILTER AND THE VIEW DECIDE, as they do for a curated restaurant.
 //    Restaurants hidden in the filter, or a view that is not about restaurants,
 //    take this layer off the map.
-// 4. THE MAP'S FILTERS NARROW IT TOO. The search matches a name or address. A
-//    filter that asks what a row cannot answer (a price, Open now, Saved only,
-//    near me, an amenity, a drink, a zone) hides every restaurant while it is on.
+// 4. THE MAP'S FILTERS NARROW IT TOO. The search matches a name or address, and
+//    near me keeps the restaurants inside its walk ring. A filter that asks what
+//    a row cannot answer (a price, Open now, Saved only, an amenity, a drink, a
+//    zone) hides every restaurant while it is on.
 
 import { haversineMeters } from "@/lib/greatCircle.mjs";
 import {
@@ -230,24 +231,33 @@ function filtersAskBeyondARestaurantRow(filters: Filters): boolean {
 
 /**
  * The restaurants the map's own filters let through, as curated pins are let
- * through. Saved only and near me keep places a reader chose or stands beside,
- * and no restaurant is either. The selected restaurant stays, as a selected
- * curated pin does.
+ * through. Saved only keeps places a reader chose, and no restaurant can be
+ * saved. Near me keeps the restaurants inside the walk ring the sheet names;
+ * the nearest-few top-up for a thin area is the curated pins' alone. The
+ * selected restaurant stays, as a selected curated pin does.
  */
 export function londonRestaurantsPassingMapFilters(
   restaurants: readonly LondonVenue[],
-  input: { filters: Filters; savedOnly: boolean; nearMe: boolean; selectedVenueId: string },
+  input: {
+    filters: Filters;
+    savedOnly: boolean;
+    nearMe: { location: { lat: number; lng: number }; radiusKm: number } | null;
+    selectedVenueId: string;
+  },
 ): readonly LondonVenue[] {
   const query = input.filters.query.trim().toLowerCase();
-  const nothingPasses =
-    input.savedOnly || input.nearMe || filtersAskBeyondARestaurantRow(input.filters);
-  if (!nothingPasses && !query) return restaurants;
+  const nearMe = input.nearMe;
+  const nothingPasses = input.savedOnly || filtersAskBeyondARestaurantRow(input.filters);
+  if (!nothingPasses && !query && !nearMe) return restaurants;
   return restaurants.filter(
     (restaurant) =>
       restaurant.id === input.selectedVenueId ||
       (!nothingPasses &&
         (restaurant.name.toLowerCase().includes(query) ||
-          restaurant.address.toLowerCase().includes(query))),
+          restaurant.address.toLowerCase().includes(query)) &&
+        (!nearMe ||
+          haversineMeters(nearMe.location.lat, nearMe.location.lng, restaurant.lat, restaurant.lng) <=
+            nearMe.radiusKm * 1000)),
   );
 }
 

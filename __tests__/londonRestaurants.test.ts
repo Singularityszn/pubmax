@@ -187,9 +187,20 @@ describe("londonRestaurantLayerShown", () => {
 
 describe("londonRestaurantsPassingMapFilters", () => {
   const dishoom = restaurant({ id: "venue-osm-n1", name: "Dishoom", address: "12 Upper St Martin's Lane" });
-  const rules = restaurant({ id: "venue-osm-n2", name: "Rules", address: "35 Maiden Lane" });
+  const rules = restaurant({
+    id: "venue-osm-n2",
+    name: "Rules",
+    address: "35 Maiden Lane",
+    lat: 51.51083,
+    lng: -0.12319,
+  });
   const both = [dishoom, rules];
-  const base = { filters: initialFilters, savedOnly: false, nearMe: false, selectedVenueId: "" };
+  const base: {
+    filters: Filters;
+    savedOnly: boolean;
+    nearMe: { location: { lat: number; lng: number }; radiusKm: number } | null;
+    selectedVenueId: string;
+  } = { filters: initialFilters, savedOnly: false, nearMe: null, selectedVenueId: "" };
   const pass = (overrides: Partial<typeof base>, filters: Partial<Filters> = {}) =>
     londonRestaurantsPassingMapFilters(both, {
       ...base,
@@ -211,9 +222,18 @@ describe("londonRestaurantsPassingMapFilters", () => {
     expect(pass({}, { requireFood: true })).toEqual([dishoom.id, rules.id]);
   });
 
-  it("hides every restaurant while Saved only or near me is on", () => {
+  it("hides every restaurant while Saved only is on, because no restaurant can be saved", () => {
     expect(pass({ savedOnly: true })).toEqual([]);
-    expect(pass({ nearMe: true })).toEqual([]);
+  });
+
+  it("keeps the restaurants inside the near-me walk ring", () => {
+    const nearDishoom = { location: { lat: dishoom.lat, lng: dishoom.lng + 0.001 }, radiusKm: 0.2 };
+    const farFromBoth = { location: { lat: dishoom.lat + 0.05, lng: dishoom.lng }, radiusKm: 1 };
+    const besideBoth = { location: { lat: 51.5116, lng: -0.125 }, radiusKm: 1 };
+    expect(pass({ nearMe: besideBoth })).toEqual([dishoom.id, rules.id]);
+    expect(pass({ nearMe: nearDishoom })).toEqual([dishoom.id]);
+    expect(pass({ nearMe: farFromBoth })).toEqual([]);
+    expect(pass({ nearMe: nearDishoom }, { query: "rules" })).toEqual([]);
   });
 
   it("hides every restaurant while a filter asks what a row cannot answer", () => {
