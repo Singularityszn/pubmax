@@ -193,6 +193,60 @@
       "standing": "listed"
     },
     {
+      "venueId": "venue-osm-w373262267",
+      "venueName": "Gecko Coffeehouse",
+      "drink": "flat white",
+      "priceGbp": 4.2,
+      "sourceUrl": "https://geckocoffee.house/pages/menu",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-w373262267",
+      "venueName": "Gecko Coffeehouse",
+      "drink": "latte",
+      "priceGbp": 4.2,
+      "sourceUrl": "https://geckocoffee.house/pages/menu",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-w373262267",
+      "venueName": "Gecko Coffeehouse",
+      "drink": "matcha latte",
+      "priceGbp": 4.5,
+      "sourceUrl": "https://geckocoffee.house/pages/menu",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-w756604573",
+      "venueName": "Urban Baristas",
+      "drink": "flat white",
+      "priceGbp": 4.3,
+      "sourceUrl": "https://cdn.shopify.com/s/files/1/0374/3694/8611/files/Online_TA_Menu_2026.pdf?v=1786965549",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-w756604573",
+      "venueName": "Urban Baristas",
+      "drink": "latte",
+      "priceGbp": 4.4,
+      "sourceUrl": "https://cdn.shopify.com/s/files/1/0374/3694/8611/files/Online_TA_Menu_2026.pdf?v=1786965549",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
+      "venueId": "venue-osm-w756604573",
+      "venueName": "Urban Baristas",
+      "drink": "matcha latte",
+      "priceGbp": 4.5,
+      "sourceUrl": "https://cdn.shopify.com/s/files/1/0374/3694/8611/files/Online_TA_Menu_2026.pdf?v=1786965549",
+      "observedAt": "2026-10-03",
+      "standing": "listed"
+    },
+    {
       "venueId": "venue-osm-n4959842421",
       "venueName": "Holy Shot",
       "drink": "flat white",

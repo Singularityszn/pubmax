@@ -37,8 +37,8 @@ Places, review sites and menu aggregators were not used.
 | Jujuhome Cha, Boxpark | Row: matcha latte |
 | gram'n degrees, 93 Kingsland Road | Row: flat white, latte. Drink named "Matcha" not logged. The row's `venueName` is `Gramndegrees`, the name OSM gives the cafe since the 2026-10-04 layer refresh |
 | The Bike Shed, 384 Old Street | Row: flat white, latte (drinks PDF, figures without £) |
-| Gecko Coffeehouse, 49 Bethnal Green Road | Prices seen: flat white, latte, matcha latte (figures without £). Rows removed 2026-10-04: OSM deleted the node, so the cafe left the London venue layer |
-| Urban Baristas | Prices seen: flat white, latte, matcha latte (chain PDF, small size, figures without £). Rows removed 2026-10-04: OSM deleted the node, so the door left the London venue layer |
+| Gecko Coffeehouse, 49 Bethnal Green Road | Row: flat white, latte, matcha latte (figures without £). The row's `venueId` is `venue-osm-w373262267`: on the 2026-10-04 layer refresh OSM maps the cafe as a way, not node `n13684996801` |
+| Urban Baristas, 6 Richmix Square | Row: flat white, latte, matcha latte (chain PDF, small size, figures without £). The row's `venueId` is `venue-osm-w756604573`: on the 2026-10-04 layer refresh OSM maps the door as a way, not node `n14022302823` |
 | Holy Shot, 155 Bethnal Green Road | Row: flat white, latte, matcha latte (shown once the page loads in a browser) |
 | Black Sheep Coffee, 10 Hearn Street | Site opened, no price: ordering is app or delivery only; door not on the chain's store list |
 | Blank Street Coffee, 3 Redchurch Street | Site opened, no price: menu page names the drinks without prices |
