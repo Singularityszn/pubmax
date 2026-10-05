@@ -39,6 +39,15 @@ export const MIN_ESTIMATE_SAMPLE = 3;
 const ESTIMATE_MIN_GBP = 2;
 const ESTIMATE_MAX_GBP = 12;
 
+/**
+ * The drinks other than beer an estimate may be modelled for. Each is modelled
+ * from London borough medians only, because London is where the sample lives:
+ * a chain or postcode basis for wine or cocktails would put the first modelled
+ * figure outside London on the strength of one chain's menu.
+ */
+export const ESTIMATE_DRINK_CATEGORIES = ["wine", "cocktail"] as const;
+export type EstimateDrinkCategory = (typeof ESTIMATE_DRINK_CATEGORIES)[number];
+
 /** How a region row was keyed, because the two are not interchangeable. */
 type RegionKind = "london_borough" | "postcode_area";
 
@@ -65,6 +74,21 @@ type RegionBaseline = {
   sampleSize: number;
   /** Where the sample came from, named so a reader can weigh it. */
   provenance: string;
+  /** The permitted pages the sample was read from. Owed by every non-beer region. */
+  sourceUrls?: readonly string[];
+};
+
+/**
+ * What a non-beer drink is modelled from. The band is that drink's own
+ * plausible single-serving price, because a menu line outside it is a bottle or
+ * a jug and the source does not state a serving size to say otherwise.
+ */
+type DrinkBaselines = {
+  minGbp: number;
+  maxGbp: number;
+  /** What one serving means for this drink, said in front of a reader. */
+  servingNote: string;
+  regions: readonly RegionBaseline[];
 };
 
 export type EstimateBaselines = {
@@ -74,6 +98,8 @@ export type EstimateBaselines = {
   method: string;
   chains: readonly ChainBaseline[];
   regions: readonly RegionBaseline[];
+  /** The non-beer drinks. Absent in an artifact built before they were modelled. */
+  drinks?: Partial<Record<EstimateDrinkCategory, DrinkBaselines>>;
 };
 
 /** What the engine needs to know about a pub. Every field is OSM-stated or derived from its point. */
@@ -151,14 +177,44 @@ function regionFor(pub: EstimatablePub, baselines: EstimateBaselines): RegionBas
   );
 }
 
-function usable(sampleSize: number, medianGbp: number): boolean {
+function usable(
+  sampleSize: number,
+  medianGbp: number,
+  minGbp: number = ESTIMATE_MIN_GBP,
+  maxGbp: number = ESTIMATE_MAX_GBP,
+): boolean {
   return (
     Number.isInteger(sampleSize) &&
     sampleSize >= MIN_ESTIMATE_SAMPLE &&
     Number.isFinite(medianGbp) &&
-    medianGbp >= ESTIMATE_MIN_GBP &&
-    medianGbp <= ESTIMATE_MAX_GBP
+    medianGbp >= minGbp &&
+    medianGbp <= maxGbp
   );
+}
+
+/**
+ * The estimate for a drink that is not beer: the pub's London borough baseline
+ * for that drink, or nothing. A pub outside London, or in a borough whose
+ * sample is under the floor, stays grey.
+ */
+function estimateForDrink(
+  pub: EstimatablePub,
+  baselines: EstimateBaselines,
+  category: EstimateDrinkCategory,
+): PriceEstimate | null {
+  const drink = baselines.drinks?.[category];
+  if (!drink || !pub.londonBoroughCode) return null;
+  const region = drink.regions.find(
+    (candidate) => candidate.kind === "london_borough" && candidate.code === pub.londonBoroughCode,
+  );
+  if (!region || !usable(region.sampleSize, region.medianGbp, drink.minGbp, drink.maxGbp)) return null;
+  return {
+    priceGbp: region.medianGbp,
+    basis: "regional_baseline",
+    basisKey: region.code,
+    sampleSize: region.sampleSize,
+    computedAt: baselines.computedAt,
+  };
 }
 
 /**
@@ -169,7 +225,9 @@ function usable(sampleSize: number, medianGbp: number): boolean {
 export function estimateForPub(
   pub: EstimatablePub,
   baselines: EstimateBaselines,
+  category: "beer" | EstimateDrinkCategory = "beer",
 ): PriceEstimate | null {
+  if (category !== "beer") return estimateForDrink(pub, baselines, category);
   const chain = chainFor(pub, baselines);
   if (chain && usable(chain.sampleSize, chain.medianGbp)) {
     return {
@@ -215,5 +273,14 @@ export function isEstimateBaselines(value: unknown): value is EstimateBaselines 
   if (typeof record.computedAt !== "string" || !Number.isFinite(Date.parse(record.computedAt))) return false;
   if (typeof record.method !== "string" || record.method.trim().length === 0) return false;
   if (!Array.isArray(record.chains) || !Array.isArray(record.regions)) return false;
+  if (record.drinks !== undefined) {
+    if (typeof record.drinks !== "object" || record.drinks === null) return false;
+    for (const drink of Object.values(record.drinks as Record<string, unknown>)) {
+      if (typeof drink !== "object" || drink === null) return false;
+      const entry = drink as Record<string, unknown>;
+      if (!Number.isFinite(entry.minGbp) || !Number.isFinite(entry.maxGbp)) return false;
+      if (!Array.isArray(entry.regions)) return false;
+    }
+  }
   return true;
 }

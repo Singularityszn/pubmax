@@ -2834,6 +2834,58 @@ const ESTIMATE_MIN_SAMPLE = 3;
 const ESTIMATE_MIN_GBP = 2;
 const ESTIMATE_MAX_GBP = 12;
 const ESTIMATE_REGION_KINDS = new Set(["london_borough", "postcode_area"]);
+const ESTIMATE_DRINK_CATEGORIES = new Set(["wine", "cocktail"]);
+
+// The non-beer drinks. Each carries its own single-serving band and is London
+// boroughs only: a chain or a postcode area here would put the first modelled
+// wine or cocktail outside London on one chain's menu. Every region names the
+// pages it was read from, because no beer-style dataset average stands behind
+// these. Returns how many region rows it checked.
+function validateEstimateDrinks(drinks, errs) {
+  if (drinks === undefined) return 0;
+  if (typeof drinks !== "object" || drinks === null || Array.isArray(drinks)) {
+    errs.add("drinks must be an object keyed by drink category");
+    return 0;
+  }
+  let checked = 0;
+  for (const [category, drink] of Object.entries(drinks)) {
+    const dWhere = `drinks.${category}`;
+    if (!ESTIMATE_DRINK_CATEGORIES.has(category)) errs.add(`${dWhere}: not a modelled drink category`);
+    if (typeof drink !== "object" || drink === null) { errs.add(`${dWhere}: not an object`); continue; }
+    if (!isFiniteNumber(drink.minGbp) || !isFiniteNumber(drink.maxGbp) || drink.minGbp >= drink.maxGbp) {
+      errs.add(`${dWhere}: minGbp and maxGbp must be a serving band`);
+    }
+    if (typeof drink.servingNote !== "string" || !drink.servingNote.trim()) {
+      errs.add(`${dWhere}: must say what one serving means`);
+    }
+    if (!Array.isArray(drink.regions)) { errs.add(`${dWhere}: regions must be an array`); continue; }
+    drink.regions.forEach((region, i) => validateEstimateDrinkRegion(region, `${dWhere} region ${i}`, drink, errs));
+    checked += drink.regions.length;
+  }
+  return checked;
+}
+
+function validateEstimateDrinkRegion(region, where, drink, errs) {
+  if (typeof region !== "object" || region === null) { errs.add(`${where}: not an object`); return; }
+  if (region.kind !== "london_borough") errs.add(`${where}: kind "${region.kind}" must be london_borough`);
+  if (typeof region.code !== "string" || !region.code.trim()) errs.add(`${where}: missing code`);
+  if (!isFiniteNumber(region.medianGbp) || region.medianGbp < drink.minGbp || region.medianGbp > drink.maxGbp) {
+    errs.add(`${where}: medianGbp ${JSON.stringify(region.medianGbp)} is outside the serving band`);
+  }
+  if (!Number.isInteger(region.sampleSize) || region.sampleSize < ESTIMATE_MIN_SAMPLE) {
+    errs.add(`${where}: sampleSize must be an integer of at least ${ESTIMATE_MIN_SAMPLE}`);
+  }
+  if (typeof region.provenance !== "string" || region.provenance.trim().length === 0) {
+    errs.add(`${where}: an estimate basis must name its provenance`);
+  }
+  if (!Array.isArray(region.sourceUrls) || region.sourceUrls.length === 0) {
+    errs.add(`${where}: an estimate basis must name the pages it was read from`);
+    return;
+  }
+  region.sourceUrls.forEach((url, j) => {
+    if (!isHttpUrlLocal(url)) errs.add(`${where}: sourceUrls[${j}] "${url}" is not an absolute http(s) URL`);
+  });
+}
 
 function validatePriceEstimateBaselines() {
   const name = "public/data/price_estimates/baselines.json";
@@ -2908,7 +2960,9 @@ function validatePriceEstimateBaselines() {
     }
   });
 
-  const count = (chains?.length ?? 0) + (regions?.length ?? 0);
+  const drinkRegionCount = validateEstimateDrinks(data.drinks, errs);
+
+  const count = (chains?.length ?? 0) + (regions?.length ?? 0) + drinkRegionCount;
   const ok = errs.count === 0;
   console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${count} basis row(s), ${errs.count} error(s)`);
   if (!ok) errs.report();
