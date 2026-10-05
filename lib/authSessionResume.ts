@@ -188,27 +188,33 @@ export function authResumeCookieFromHeader(
 export const AUTH_RESUME_GENERATION_MAX_AGE_SECONDS = 400 * 24 * 60 * 60;
 
 /**
- * Set-Cookie headers for the resume cookie (null clears it) and, when given,
- * the generation it now belongs to.
+ * Each generation keeps its own resume cookie. A response the server built for
+ * one generation - a late sign-out DELETE, a slow sign-in - can then only touch
+ * that generation's cookie, never a later sign-in's. The server never writes
+ * the generation cookie itself; only the browser does, at the user's action.
  */
+export function authResumeCookieName(generation: string | null | undefined): string {
+  return generation ? `${AUTH_RESUME_COOKIE}.${generation}` : AUTH_RESUME_COOKIE;
+}
+
+/** A generation value as it may appear in a cookie name. */
+export function isResumeGenerationValue(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z0-9._~-]{1,256}$/.test(value);
+}
+
+/** Set-Cookie header for one generation's resume cookie; a null payload clears it. */
 export function authResumeSetCookieHeaders(
-  payload: AuthResumeCookiePayload | null,
-  generation?: string,
+  generation: string | null,
+  payload: Omit<AuthResumeCookiePayload, "generation"> | null,
 ): Headers {
   const headers = new Headers();
   const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
-  const value = payload ? encodeURIComponent(encodeAuthResumeCookie(payload)) : "";
+  const value = payload ? encodeURIComponent(encodeAuthResumeCookie({ ...payload, generation })) : "";
   const maxAge = payload ? AUTH_RESUME_MAX_AGE_SECONDS : 0;
   headers.append(
     "Set-Cookie",
-    `${AUTH_RESUME_COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`,
+    `${authResumeCookieName(generation)}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`,
   );
-  if (generation !== undefined) {
-    headers.append(
-      "Set-Cookie",
-      `${AUTH_RESUME_GENERATION_COOKIE}=${generation}; Path=/; SameSite=Lax; Max-Age=${AUTH_RESUME_GENERATION_MAX_AGE_SECONDS}${secure}`,
-    );
-  }
   return headers;
 }
 
@@ -228,9 +234,10 @@ export function currentAuthResumePayload(
 export function authResumePayloadFromHeader(
   cookieHeader: string | null | undefined,
 ): AuthResumeCookiePayload | null {
+  const generation = authResumeCookieFromHeader(cookieHeader, AUTH_RESUME_GENERATION_COOKIE);
   return currentAuthResumePayload(
-    authResumeCookieFromHeader(cookieHeader),
-    authResumeCookieFromHeader(cookieHeader, AUTH_RESUME_GENERATION_COOKIE),
+    authResumeCookieFromHeader(cookieHeader, authResumeCookieName(generation)),
+    generation,
   );
 }
 

@@ -1,7 +1,7 @@
 import type { AuthCallbackTokens } from "@/lib/authRedirect";
 import { isGoTrueUserBannedError } from "@/lib/authAccountBan";
 import { withAuthFetchTimeout } from "@/lib/authFetch";
-import { rememberDeliberateSignIn } from "@/lib/authSessionResumeClient";
+import { commitSignIn, readResumeGeneration, rollbackSignIn } from "@/lib/authSessionResumeClient";
 import type { DeviceAccountSwitchDeps, MintOutcome } from "@/lib/deviceAccountSwitch";
 
 export type AuthSessionEstablishClient<SessionValue> = {
@@ -166,24 +166,26 @@ export async function establishAuthCallbackSession<SessionValue>(
   auth: AuthSessionEstablishClient<SessionValue>,
   tokens: AuthCallbackTokens,
 ): Promise<AuthCallbackSessionResult<SessionValue>> {
+  // The person followed this link or provider return to sign in.
+  const commit = commitSignIn(readResumeGeneration(), tokens.accessToken);
+  if (!commit) return { session: null, failed: true, banned: false };
   try {
     const { data, error } = await auth.setSession({
       access_token: tokens.accessToken,
       refresh_token: tokens.refreshToken,
     });
     if (error) {
+      rollbackSignIn(commit);
       return {
         session: data.session ?? null,
         failed: !isGoTrueUserBannedError(error),
         banned: isGoTrueUserBannedError(error),
       };
     }
-    // The person followed this link or provider return to sign in.
-    if (data.session) {
-      void rememberDeliberateSignIn({ access_token: tokens.accessToken, refresh_token: tokens.refreshToken });
-    }
+    if (!data.session) rollbackSignIn(commit);
     return { session: data.session ?? null, failed: false, banned: false };
   } catch {
+    rollbackSignIn(commit);
     return { session: null, failed: true, banned: false };
   }
 }

@@ -151,7 +151,7 @@ describe("login page", () => {
   // see it. A signed-in reader gets the card's shape, not the email door.
   it("holds the email door back for a reader with a resume cookie", async () => {
     authState.current.loading = true;
-    requestCookies.set("pubmax_session_resume", RESUME_COOKIE);
+    requestCookies.set("pubmax_session_resume.g1", RESUME_COOKIE);
     requestCookies.set("pubmax_resume_gen", "g1");
     const { default: LoginRoute } = await import("@/app/login/page");
     const html = renderToStaticMarkup(
@@ -164,7 +164,7 @@ describe("login page", () => {
 
   it("paints the email door when the resume cookie belongs to an earlier generation", async () => {
     authState.current.loading = true;
-    requestCookies.set("pubmax_session_resume", RESUME_COOKIE);
+    requestCookies.set("pubmax_session_resume.g1", RESUME_COOKIE);
     requestCookies.set("pubmax_resume_gen", "g2");
     const { default: LoginRoute } = await import("@/app/login/page");
     const html = renderToStaticMarkup(
@@ -197,7 +197,7 @@ describe("login page", () => {
   // Adding a second account asked for the form, so a hint must not hide it.
   it("paints the form for an added account even with a resume cookie", async () => {
     authState.current.loading = true;
-    requestCookies.set("pubmax_session_resume", RESUME_COOKIE);
+    requestCookies.set("pubmax_session_resume.g1", RESUME_COOKIE);
     requestCookies.set("pubmax_resume_gen", "g1");
     const { default: LoginRoute } = await import("@/app/login/page");
     const html = renderToStaticMarkup(

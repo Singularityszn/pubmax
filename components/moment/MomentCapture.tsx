@@ -59,6 +59,7 @@ import {
   saveMomentDraft,
   selectMomentMedia,
   applyMomentSaveReceipt,
+  momentMediaKey,
   settleMomentDraftProgress,
   type MomentSaveReceipt,
   type MomentDraftV1,
@@ -532,7 +533,7 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
       return;
     }
     if (current !== draft) setDraft(current);
-    const receipt: MomentSaveReceipt = earlier ?? { uploadedMediaIds: [], sentCaption: null, serverMemoryId: current.serverMemoryId };
+    const receipt: MomentSaveReceipt = earlier ?? { uploadedMediaKeys: [], sentCaption: null, serverMemoryId: current.serverMemoryId };
     let finish = () => {};
     momentSaves.set(current.id, { receipt, done: new Promise<void>((resolve) => { finish = resolve; }) });
     try {
@@ -611,7 +612,7 @@ function MomentComposer({ ownerKey, accountRevision }: { ownerKey: string; accou
         ? await response.json().catch(() => ({})) as { error?: string; code?: string }
         : {};
       if (response?.ok) {
-        if (item) receipt.uploadedMediaIds.push(item.id);
+        if (item) receipt.uploadedMediaKeys.push(momentMediaKey(item));
         if (index === 0) receipt.sentCaption = current.caption;
       } else if (!keepServerMemoryAfterRefusal(response?.status, responseBody.code)) {
         // A refusal about the photo keeps the Memory, so the re-save after

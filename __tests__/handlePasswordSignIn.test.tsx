@@ -8,7 +8,12 @@ vi.mock("@/components/auth/AuthProvider", () => ({
 }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/authClient", () => ({ ensureSupabaseBrowser: vi.fn() }));
-const resumeClient = vi.hoisted(() => ({ rememberDeliberateSignIn: vi.fn() }));
+const resumeClient = vi.hoisted(() => ({
+  readResumeGeneration: vi.fn(() => null),
+  commitSignIn: vi.fn(() => ({ written: "g1~account", previous: null })),
+  rollbackSignIn: vi.fn(),
+  persistSessionForResume: vi.fn(),
+}));
 vi.mock("@/lib/authSessionResumeClient", () => resumeClient);
 
 import HandlePasswordSignIn from "@/components/auth/HandlePasswordSignIn";
@@ -70,7 +75,7 @@ describe("HandlePasswordSignIn form", () => {
 
     expect(fetchDouble).toHaveBeenCalledTimes(1);
     // Nothing is remembered before the sign-in has succeeded.
-    expect(resumeClient.rememberDeliberateSignIn).not.toHaveBeenCalled();
+    expect(resumeClient.commitSignIn).not.toHaveBeenCalled();
     expect(fetchDouble).toHaveBeenCalledWith(
       "/api/auth/handle-password",
       expect.objectContaining({

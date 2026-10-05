@@ -17,7 +17,14 @@ export type MomentMediaDraft = {
   focalX: number;
   focalY: number;
   alt: string;
+  /** Set when an edit replaces the bytes under the same id. */
+  version?: string;
 };
+
+/** The photo's identity as a save confirms it: its id and the bytes it holds. */
+export function momentMediaKey(item: Pick<MomentMediaDraft, "id" | "version">): string {
+  return item.version ? `${item.id}@${item.version}` : item.id;
+}
 
 export type MomentDraftV1 = {
   version: typeof MOMENT_DRAFT_VERSION;
@@ -152,7 +159,7 @@ export async function deleteMomentDraft(ownerKey: string): Promise<void> {
  * arrived adds nothing, because its commit is unknown.
  */
 export type MomentSaveReceipt = {
-  uploadedMediaIds: string[];
+  uploadedMediaKeys: string[];
   sentCaption: string | null;
   serverMemoryId: string | null;
 };
@@ -166,8 +173,8 @@ export function applyMomentSaveReceipt(
   draft: MomentDraftV1,
   receipt: MomentSaveReceipt,
 ): MomentDraftV1 | null {
-  const uploaded = new Set(receipt.uploadedMediaIds);
-  const media = draft.media.filter((item) => !uploaded.has(item.id));
+  const uploaded = new Set(receipt.uploadedMediaKeys);
+  const media = draft.media.filter((item) => !uploaded.has(momentMediaKey(item)));
   const caption = receipt.sentCaption !== null && draft.caption === receipt.sentCaption ? "" : draft.caption;
   const savedSomething = uploaded.size > 0 || receipt.sentCaption !== null;
   if (savedSomething && media.length === 0 && !caption.trim()) return null;

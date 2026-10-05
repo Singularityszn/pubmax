@@ -19,6 +19,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => ({
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {}, assertProductionSecrets: () => {} }));
 vi.mock("@/lib/authServer", () => ({
   verifyCallerAuth: async (request: Request) => {
+    if (verifierDown) return { status: "unavailable" };
     const bearer = request.headers.get("authorization")?.replace(/^Bearer /, "");
     if (!bearer) return { status: "absent" };
     const sub = JSON.parse(Buffer.from(bearer.split(".")[1] ?? "", "base64url").toString()).sub as string;
@@ -31,7 +32,12 @@ vi.mock("@/lib/authServer", () => ({
 
 import { DELETE, GET, POST } from "@/app/api/auth/session/route";
 import { bootstrapAuthSession } from "@/lib/authSessionBootstrap";
-import { clearPersistedSession, persistSessionForResume, rememberDeliberateSignIn } from "@/lib/authSessionResumeClient";
+import {
+  clearPersistedSession,
+  commitSignIn,
+  persistSessionForResume,
+  readResumeGeneration,
+} from "@/lib/authSessionResumeClient";
 import { resolveSocialAccess } from "@/lib/socialAccessServer";
 
 type Account = { id: string; email: string };
@@ -60,11 +66,14 @@ function sessionFor(account: Account) {
 }
 
 let online: boolean;
+let verifierDown = false;
 let deleteReachesServer: boolean;
 let httpOnlyCookies: Map<string, string>;
 let sdkItems: Map<string, string>;
 let tokenGrants: string[];
 let holdRedeem: boolean;
+let holdDelete: boolean;
+let releaseDelete: (() => void) | null;
 let releaseRedeem: (() => void) | null;
 
 function json(body: unknown, status = 200): Response {
@@ -92,11 +101,11 @@ function applySetCookies(response: Response): void {
   }
 }
 
-function sessionRequest(init: RequestInit = {}): Request {
+function sessionRequest(init: RequestInit = {}, path = "/api/auth/session"): Request {
   const headers = new Headers(init.headers);
   headers.set("cookie", cookieHeader());
   headers.set("sec-fetch-site", "same-origin");
-  return new Request("http://localhost/api/auth/session", { ...init, headers });
+  return new Request(`http://localhost${path}`, { ...init, headers });
 }
 
 async function sessionRoute(request: Request): Promise<Response> {
@@ -142,10 +151,11 @@ function makeClient() {
   });
 }
 
-/** A deliberate sign-in as the app completes it: local SDK session, then remembered for that account. */
+/** A deliberate sign-in as the app performs it: commit its generation, install the session, persist. */
 async function signIn(account: Account) {
+  expect(commitSignIn(readResumeGeneration(), sessionFor(account).access_token)).not.toBeNull();
   sdkItems.set(SDK_STORAGE_KEY, JSON.stringify(sessionFor(account)));
-  expect(await rememberDeliberateSignIn(sessionFor(account))).toBe("stored");
+  expect(await persistSessionForResume(sessionFor(account))).toBe("stored");
   return makeClient();
 }
 
@@ -180,11 +190,24 @@ beforeEach(() => {
   tokenGrants = [];
   holdRedeem = false;
   releaseRedeem = null;
+  holdDelete = false;
+  releaseDelete = null;
+  verifierDown = false;
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input instanceof Request ? input.url : input);
-    if (url === "/api/auth/session") {
+    if (url.startsWith("/api/auth/session")) {
       if (!online) throw new TypeError("Failed to fetch");
       if (init?.method === "DELETE" && !deleteReachesServer) return json({ error: "synthetic outage" }, 503);
+      if (init?.method === "DELETE" && holdDelete) {
+        // The server answers now; the browser applies the answer only on release.
+        const answered = await DELETE(sessionRequest(init, url));
+        return new Promise<Response>((resolve) => {
+          releaseDelete = () => {
+            applySetCookies(answered);
+            resolve(answered);
+          };
+        });
+      }
       if (holdRedeem && String(init?.body).includes('"redeem"')) {
         const answered = await POST(sessionRequest(init));
         return new Promise<Response>((resolve) => {
@@ -194,7 +217,7 @@ beforeEach(() => {
           };
         });
       }
-      return sessionRoute(sessionRequest(init));
+      return sessionRoute(sessionRequest(init, url));
     }
     return gotrue(url, init);
   }));
@@ -353,6 +376,60 @@ describe("explicit sign-out against the durable resume cookie", () => {
     const { outcome } = await reload();
     expect(outcome).toMatchObject({ status: "restored", session: { refresh_token: `synthetic-refresh-${B.id}` } });
     expect(tokenGrants.at(-1)).toBe(`synthetic-refresh-${B.id}`);
+  });
+
+  it("keeps a later sign-in's credential when the sign-out DELETE answer lands after it", async () => {
+    const client = await signIn(A);
+    holdDelete = true;
+    await client.auth.signOut();
+    const signingOut = clearPersistedSession();
+    await vi.waitFor(() => expect(releaseDelete).not.toBeNull());
+    holdDelete = false;
+    await signIn(B);
+    releaseDelete!();
+    await signingOut;
+
+    expect(readResumeGeneration()).toMatch(new RegExp(`~${B.id}$`));
+    expect((await cookieReader()).state).not.toBe("sign_in_required");
+    sdkItems.clear();
+    const { outcome } = await reload();
+    expect(outcome).toMatchObject({ status: "restored", session: { refresh_token: `synthetic-refresh-${B.id}` } });
+  });
+
+  it("keeps the remembered sign-in current while account verification is unavailable", async () => {
+    verifierDown = true;
+    await signIn(A);
+    expect(await persistSessionForResume(sessionFor(A))).toBe("stored");
+    expect(await persistSessionForResume(sessionFor(B))).toBe("unavailable");
+    verifierDown = false;
+    sdkItems.clear();
+    const { outcome } = await reload();
+    expect(outcome).toMatchObject({ status: "restored", session: { refresh_token: `synthetic-refresh-${A.id}` } });
+  });
+
+  it.each([
+    ["a first sign-in on the device", async () => {}],
+    ["a device upgrading with a legacy cookie", async () => {
+      expect(await persistSessionForResume(sessionFor(A))).toBe("stored");
+      expect(readResumeGeneration()).toBeNull();
+    }],
+    ["the same account signing in again", async () => { await signIn(A); }],
+  ])("keeps the sign-in's credential whichever of its two persists lands last, for %s", async (_label, before) => {
+    await before();
+    expect(commitSignIn(readResumeGeneration(), sessionFor(A).access_token)).not.toBeNull();
+    // P1: the provider's persist on SIGNED_IN, answered but applied last.
+    const p1 = await POST(sessionRequest({
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${sessionFor(A).access_token}` },
+      body: JSON.stringify({ action: "persist", refreshToken: sessionFor(A).refresh_token }),
+    }));
+    // P2: the action's own persist.
+    expect(await persistSessionForResume(sessionFor(A))).toBe("stored");
+    applySetCookies(p1);
+
+    sdkItems.clear();
+    const { outcome } = await reload();
+    expect(outcome).toMatchObject({ status: "restored", session: { refresh_token: `synthetic-refresh-${A.id}` } });
   });
 });
 

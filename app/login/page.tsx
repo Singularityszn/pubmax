@@ -11,8 +11,8 @@ import {
 } from "@/lib/arrivalWelcome";
 import { AUTH_CALLBACK_MARKER } from "@/lib/authRedirect";
 import {
-  AUTH_RESUME_COOKIE,
   AUTH_RESUME_GENERATION_COOKIE,
+  authResumeCookieName,
   currentAuthResumePayload,
 } from "@/lib/authSessionResume";
 import { loginPageHasSessionHint } from "@/lib/loginPageFraming";
@@ -47,11 +47,9 @@ export default async function LoginRoute({
   const jar = await cookies();
   // The resume cookie is HttpOnly. Its value is a refresh token, so only the
   // boolean leaves this function: the browser never receives the cookie body.
+  const generation = jar.get(AUTH_RESUME_GENERATION_COOKIE)?.value ?? null;
   const sessionHint = loginPageHasSessionHint({
-    resumeCookie: currentAuthResumePayload(
-      jar.get(AUTH_RESUME_COOKIE)?.value,
-      jar.get(AUTH_RESUME_GENERATION_COOKIE)?.value,
-    )
+    resumeCookie: currentAuthResumePayload(jar.get(authResumeCookieName(generation))?.value, generation)
       ? "current"
       : null,
     authCallback: first(params[AUTH_CALLBACK_MARKER]),

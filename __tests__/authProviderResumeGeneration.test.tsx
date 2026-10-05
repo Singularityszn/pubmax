@@ -80,7 +80,7 @@ vi.mock("@/lib/authServer", () => ({
 
 import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
 import { DELETE, GET, POST } from "@/app/api/auth/session/route";
-import { rememberDeliberateSignIn } from "@/lib/authSessionResumeClient";
+import { commitSignIn, persistSessionForResume, readResumeGeneration } from "@/lib/authSessionResumeClient";
 import { resolveSocialAccess } from "@/lib/socialAccessServer";
 
 const SUPABASE_URL = "https://auth-generation.invalid";
@@ -125,11 +125,11 @@ function applySetCookies(response: Response): void {
   }
 }
 
-async function sessionRoute(init: RequestInit = {}): Promise<Response> {
+async function sessionRoute(init: RequestInit = {}, path = "/api/auth/session"): Promise<Response> {
   const headers = new Headers(init.headers);
   headers.set("cookie", cookieHeader());
   headers.set("sec-fetch-site", "same-origin");
-  const request = new Request("http://localhost/api/auth/session", { ...init, headers });
+  const request = new Request(`http://localhost${path}`, { ...init, headers });
   const response = request.method === "GET" ? await GET(request) : request.method === "DELETE" ? await DELETE(request) : await POST(request);
   if (harness.holdPersist && request.method === "POST") {
     return new Promise<Response>((resolve) => {
@@ -179,7 +179,7 @@ beforeEach(async () => {
   harness.trackEvent.mockReset();
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input instanceof Request ? input.url : input);
-    if (url === "/api/auth/session") return sessionRoute(init);
+    if (url.startsWith("/api/auth/session")) return sessionRoute(init, url);
     if (url.includes("/auth/v1/token")) {
       const refresh = (JSON.parse(String(init?.body)) as { refresh_token: string }).refresh_token;
       return new Response(JSON.stringify(sessionFor(refresh.replace("synthetic-refresh-", ""))), { status: 200 });
@@ -206,11 +206,11 @@ afterEach(async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: false });
 });
 
-/** A sign-in the person asked for: the SDK signs in, then the app remembers that account. */
+/** A sign-in the person asked for: the action commits its generation, then the SDK signs in. */
 async function deliberateSignIn(id = A) {
   await emit("INITIAL_SESSION", null);
+  expect(commitSignIn(readResumeGeneration(), sessionFor(id).access_token)).not.toBeNull();
   await emit("SIGNED_IN", sessionFor(id));
-  await act(async () => { await rememberDeliberateSignIn(sessionFor(id)); });
   await vi.waitFor(async () => expect(await hintPresent()).toBe(true));
 }
 
@@ -226,7 +226,8 @@ describe("resume generations come only from sign-ins the person asked for", () =
   });
 
   it("does not let a cold-boot persist that lands after an explicit sign-out remember the account", async () => {
-    await rememberDeliberateSignIn(sessionFor(A));
+    commitSignIn(readResumeGeneration(), sessionFor(A).access_token);
+    await persistSessionForResume(sessionFor(A));
     harness.holdPersist = true;
     // The installed SDK replays a stored session as SIGNED_IN before INITIAL_SESSION.
     await emit("SIGNED_IN", sessionFor(A));
@@ -258,9 +259,14 @@ describe("resume generations come only from sign-ins the person asked for", () =
     await deliberateSignIn(A);
     await act(async () => auth?.signOut());
     await deliberateSignIn("account-b");
+    expect(container?.querySelector('[data-testid="viewer"]')?.textContent).toBe("account-b");
     // A's setSession finishes late and the SDK emits its SIGNED_IN.
     await emit("SIGNED_IN", sessionFor(A));
+    await emit("TOKEN_REFRESHED", sessionFor(A));
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+
+    expect(container?.querySelector('[data-testid="viewer"]')?.textContent).toBe("account-b");
+    expect(auth?.session?.user.id).toBe("account-b");
 
     const reader = await resolveSocialAccess(new Request("http://localhost/api/social/access", { headers: { cookie: cookieHeader() } }));
     expect(reader.state).not.toBe("sign_in_required");

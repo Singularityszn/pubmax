@@ -8,7 +8,13 @@ import { Button } from "@/components/ui/button";
 import { safeAuthNext } from "@/lib/authRedirect";
 import { ensureSupabaseBrowser } from "@/lib/authClient";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
-import { rememberDeliberateSignIn } from "@/lib/authSessionResumeClient";
+import {
+  commitSignIn,
+  persistSessionForResume,
+  readResumeGeneration,
+  rollbackSignIn,
+  type SignInCommit,
+} from "@/lib/authSessionResumeClient";
 import {
   HANDLE_PASSWORD_GENERIC_ERROR,
   MIN_PASSWORD_LENGTH,
@@ -74,6 +80,9 @@ export default function HandlePasswordSignIn({
     setBusy(true);
     trackEvent("sign_in_initiated", { provider: "handle_password" });
 
+    // Another sign-in or a sign-out while this request waits makes its answer stale.
+    const baseline = readResumeGeneration();
+    let commit: SignInCommit | null = null;
     try {
       const res = await fetch("/api/auth/handle-password", {
         method: "POST",
@@ -115,16 +124,22 @@ export default function HandlePasswordSignIn({
         return;
       }
 
+      commit = commitSignIn(baseline, session.access_token);
+      if (!commit) {
+        setError("Sign-in did not finish. Try again.");
+        return;
+      }
       const { error: sessionError } = await supabase.auth.setSession({
         access_token: session.access_token,
         refresh_token: session.refresh_token,
       });
       if (sessionError) {
+        rollbackSignIn(commit);
         setError("Sign-in did not finish. Try again.");
         return;
       }
 
-      void rememberDeliberateSignIn({
+      void persistSessionForResume({
         access_token: session.access_token,
         refresh_token: session.refresh_token,
       });
@@ -134,6 +149,7 @@ export default function HandlePasswordSignIn({
       // auth events have already run against this document.
       navigateAfterHandlePasswordSignIn(redirectTo, window.location);
     } catch {
+      if (commit) rollbackSignIn(commit);
       setError(
         offlineOrMessage("Sign-in did not finish. Try again.")
       );

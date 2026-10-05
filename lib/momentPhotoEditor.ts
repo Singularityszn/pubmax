@@ -128,6 +128,11 @@ export function replaceMomentMediaWithEditedBlob(
       height: null,
       focalX: 0.5,
       focalY: 0.5,
+      // New bytes under the same id: a save that confirmed the old bytes has
+      // not saved these.
+      version: typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`,
     },
     error: null,
   };

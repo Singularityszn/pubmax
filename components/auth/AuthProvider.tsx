@@ -111,6 +111,7 @@ import {
   clearPersistedSession,
   persistSessionForResume,
   requestResumeLink,
+  sessionAccountAdmitted,
   type ResumeHint,
 } from "@/lib/authSessionResumeClient";
 import { authAccountBanMessageFromError } from "@/lib/authAccountBan";
@@ -328,7 +329,12 @@ export function AuthProvider({
           : "signed-out";
   const sessionTransitions = useRef(createAuthSessionTransitionTracker());
   const updateSession = useCallback(
-    (nextSession: Session | null, event: string | null = null) => {
+    (deliveredSession: Session | null, event: string | null = null) => {
+      // A session for an account the device's last sign-in did not produce is
+      // stale (a delayed SDK adoption, another tab) and never becomes this
+      // viewer. See sessionAccountAdmitted.
+      const nextSession =
+        deliveredSession && sessionAccountAdmitted(deliveredSession.user.id) ? deliveredSession : null;
       const previousUserId = sessionTransitions.current.currentUserId();
       const nextUserId = nextSession?.user.id ?? null;
       const signedIn = sessionTransitions.current.update(event, nextUserId);
@@ -605,8 +611,12 @@ export function AuthProvider({
 
       // Live updates: SIGNED_IN / SIGNED_OUT / TOKEN_REFRESHED. The callback is
       // the ONLY place these setStates run — never the effect body.
-      const registration = supabase.auth.onAuthStateChange((event, nextSession) => {
+      const registration = supabase.auth.onAuthStateChange((event, deliveredSession) => {
         if (!active) return;
+        // A stale session's event changes nothing; on a cold boot it reads as none.
+        const admitted = !deliveredSession || sessionAccountAdmitted(deliveredSession.user.id);
+        if (!admitted && event !== "INITIAL_SESSION") return;
+        const nextSession = admitted ? deliveredSession : null;
         const signedIn = updateSession(nextSession ?? null, event);
         // INITIAL_SESSION with no local session is only the beginning of a
         // cold boot. The durable cookie still needs to be checked before the

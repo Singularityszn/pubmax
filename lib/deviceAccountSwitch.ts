@@ -26,7 +26,7 @@
 
 import { isGoTrueUserBannedError } from "@/lib/authAccountBan";
 import { ensureSupabaseBrowser } from "@/lib/authClient";
-import { rememberDeliberateSignIn } from "@/lib/authSessionResumeClient";
+import { commitSignIn, readResumeGeneration, rollbackSignIn } from "@/lib/authSessionResumeClient";
 import {
   markDeviceAccountNeedsSignIn,
   readDeviceAccounts,
@@ -193,6 +193,9 @@ function browserAuthConfig(): { url: string; key: string } | null {
 
 /** The real browser wiring. One place, so a caller cannot assemble its own. */
 export function browserDeviceAccountSwitchDeps(): DeviceAccountSwitchDeps {
+  // Switching accounts is a sign-in the person asked for, and it begins here:
+  // a sign-in or sign-out elsewhere while the token is minted makes it stale.
+  const baseline = readResumeGeneration();
   return {
     storage: browserLocalStorage(),
     fetchImpl: (...args) => fetch(...args),
@@ -200,12 +203,13 @@ export function browserDeviceAccountSwitchDeps(): DeviceAccountSwitchDeps {
     async setSession(session) {
       const supabase = await ensureSupabaseBrowser().catch(() => null);
       if (!supabase) return { ok: false };
+      const commit = commitSignIn(baseline, session.access_token);
+      if (!commit) return { ok: false };
       const { error } = await supabase.auth.setSession({
         access_token: session.access_token,
         refresh_token: session.refresh_token,
-      });
-      // Switching accounts is a sign-in the person asked for.
-      if (!error) void rememberDeliberateSignIn(session);
+      }).catch((caught: unknown) => ({ error: caught }));
+      if (error) rollbackSignIn(commit);
       return { ok: !error };
     },
   };

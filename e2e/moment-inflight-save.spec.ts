@@ -80,7 +80,7 @@ for (const edited of [false, true]) {
       releaseSecond();
       await expect.poll(() => uploads.length).toBe(3);
       await expect(page.getByText("Moment saved privately. You decide if it becomes a Story.", { exact: true })).toBeVisible();
-      await testInfo.attach(`moment-inflight-${edited ? "edited" : "unchanged"}`, { body: await page.screenshot(), contentType: "image/png" });
+      await testInfo.attach("moment-inflight", { body: await page.screenshot({ path: testInfo.outputPath(`moment-inflight-${edited ? "edited" : "unchanged"}.png`) }), contentType: "image/png" });
       expect(uploads).toEqual([
         { photo: "one.png", caption: "" },
         { photo: "two.png", caption: "" },
@@ -89,13 +89,85 @@ for (const edited of [false, true]) {
 
       await page.goto("/moment");
       await expect(page.getByRole("button", { name: `Account options for ${ACCOUNTS.A.name}`, exact: true }).first()).toBeVisible();
-      expect(await storedMomentDraft(page, ACCOUNTS.A.id)).toBeNull();
+      // Nothing is left to save; the fresh composer may already have stored its empty draft.
+      expect((await storedMomentDraft(page, ACCOUNTS.A.id)) ?? { caption: "", media: [] }).toEqual({ caption: "", media: [] });
       await expect(page.locator("figure.momentMedia")).toHaveCount(0);
     } finally {
       releaseSecond();
     }
   });
 }
+
+test("a photo cropped in a newer visit survives the earlier visit's upload of its original bytes", async ({ page }, testInfo) => {
+  test.setTimeout(120_000);
+  await installAuthDoubles(page);
+  await seedSignedIn(page, "A");
+  const uploads: { photo: string; caption: string }[] = [];
+  const holds = new Map<number, () => void>();
+  const held = (index: number) => new Promise<void>((resolve) => { holds.set(index, resolve); });
+  await page.route((url) => url.pathname === "/api/night-memories", async (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+    await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ memory: { id: "memory-1" } }) });
+  });
+  await page.route("**/api/night-memories/*/moments", async (route) => {
+    const body = route.request().postDataBuffer()?.toString("latin1") ?? "";
+    uploads.push({
+      photo: /filename="([^"]+)"/.exec(body)?.[1] ?? "none",
+      caption: /name="caption"\r\n\r\n([^\r]*)/.exec(body)?.[1] ?? "",
+    });
+    const index = uploads.length;
+    if (index === 2 || index === 3) await held(index);
+    await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ ok: true }) });
+  });
+  try {
+    await page.goto("/moment");
+    await expect(page.getByRole("button", { name: `Account options for ${ACCOUNTS.A.name}`, exact: true }).first()).toBeVisible();
+    await page.locator('input[type="file"]').setInputFiles(photos("one.png", "two.png", "three.png"));
+    await expect.poll(async () => (await storedMomentDraft(page, ACCOUNTS.A.id))?.media.length).toBe(3);
+    await page.getByRole("button", { name: "Save private Moment", exact: true }).click();
+    await expect.poll(() => uploads.length).toBe(2);
+
+    await page.getByRole("link", { name: "Back", exact: true }).click();
+    await expect(page).not.toHaveURL(/\/moment/);
+    await page.goBack();
+    await expect(page.locator("figure.momentMedia")).toHaveCount(2);
+    await page.getByRole("button", { name: "Edit two.png" }).click();
+    await page.getByRole("button", { name: "Use photo" }).click();
+    await page.getByRole("button", { name: "Use photo" }).click();
+    await expect(page.getByText("Edited photo ready.")).toBeVisible();
+    await page.getByPlaceholder("One line you will still remember next year.").fill("Cropped in the newer visit");
+
+    // Before the earlier upload answers: the crop and caption are stored.
+    await expect.poll(async () => storedMomentDraft(page, ACCOUNTS.A.id)).toEqual({
+      caption: "Cropped in the newer visit",
+      media: [expect.stringMatching(/^two-edited\./), "three.png"],
+    });
+    holds.get(2)?.();
+    await page.waitForTimeout(1_000);
+    // After the earlier upload of the original bytes succeeded: still stored.
+    expect(await storedMomentDraft(page, ACCOUNTS.A.id)).toEqual({
+      caption: "Cropped in the newer visit",
+      media: [expect.stringMatching(/^two-edited\./), "three.png"],
+    });
+
+    await page.getByRole("button", { name: "Save private Moment", exact: true }).click();
+    await expect.poll(() => uploads.length).toBe(3);
+    // While the newer save is uploading the crop: still stored.
+    expect((await storedMomentDraft(page, ACCOUNTS.A.id))?.media).toEqual([expect.stringMatching(/^two-edited\./), "three.png"]);
+    await testInfo.attach("moment-crop-mid-save", { body: await page.screenshot({ path: testInfo.outputPath("moment-crop-mid-save.png") }), contentType: "image/png" });
+    holds.get(3)?.();
+    await expect(page.getByText("Moment saved privately. You decide if it becomes a Story.", { exact: true })).toBeVisible();
+    expect(uploads.map((upload) => upload.photo)).toEqual(["one.png", "two.png", expect.stringMatching(/^two-edited\./), "three.png"]);
+    expect(uploads[2]?.caption).toBe("Cropped in the newer visit");
+
+    await page.goto("/moment");
+    await expect(page.getByRole("button", { name: `Account options for ${ACCOUNTS.A.name}`, exact: true }).first()).toBeVisible();
+    // Nothing is left to save; the fresh composer may already have stored its empty draft.
+      expect((await storedMomentDraft(page, ACCOUNTS.A.id)) ?? { caption: "", media: [] }).toEqual({ caption: "", media: [] });
+  } finally {
+    for (const release of holds.values()) release();
+  }
+});
 
 test("an explicit sign-out stops the remembered sign-in counting even when its page closes before the DELETE lands", async ({ page, context }, testInfo) => {
   await installAuthDoubles(page, { realResumeCookie: true });
@@ -119,7 +191,7 @@ test("an explicit sign-out stops the remembered sign-in counting even when its p
   }).toPass({ timeout: 20_000 });
   await page.locator(".authAccountMenu").getByRole("button", { name: /^Sign out/ }).first().click();
   await expect.poll(() => deleteSeen).toBe(true);
-  await testInfo.attach("signed-out-before-close", { body: await page.screenshot(), contentType: "image/png" });
+  await testInfo.attach("signed-out-before-close", { body: await page.screenshot({ path: testInfo.outputPath("signed-out-before-close.png") }), contentType: "image/png" });
   await page.close();
 
   expect((await context.cookies()).some((cookie) => cookie.name === "pubmax_session_resume")).toBe(true);

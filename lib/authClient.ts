@@ -16,6 +16,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { withAuthFetchTimeout } from "@/lib/authFetch";
+import { sessionAccountAdmitted } from "@/lib/authSessionResumeClient";
 import { resolveSupabaseConfig } from "@/lib/supabaseConfig";
 
 // @supabase/supabase-js (~208KB) is DYNAMICALLY imported so it code-splits off
@@ -123,6 +124,9 @@ export async function getAccessToken(): Promise<string | null> {
   if (!supabase) return null;
   try {
     const { data } = await supabase.auth.getSession();
+    // A stale session the provider refused is never a request's identity either.
+    const userId = data.session?.user?.id;
+    if (userId && !sessionAccountAdmitted(userId)) return null;
     return data.session?.access_token ?? null;
   } catch {
     return null;

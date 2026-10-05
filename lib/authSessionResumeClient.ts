@@ -12,6 +12,7 @@ import {
   accountResumeGeneration,
   authResumeCookieFromHeader,
   newResumeGeneration,
+  resumeGenerationAdmits,
 } from "@/lib/authSessionResume";
 import type { MagicLinkResult } from "@/lib/passwordlessAuth";
 
@@ -26,12 +27,48 @@ export function readResumeGeneration(): string | null {
   return authResumeCookieFromHeader(document.cookie, AUTH_RESUME_GENERATION_COOKIE);
 }
 
-function writeResumeGeneration(value: string): void {
+function writeResumeGeneration(value: string | null): void {
   if (typeof document === "undefined") return;
   const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  const maxAge = value === null ? 0 : AUTH_RESUME_GENERATION_MAX_AGE_SECONDS;
   document.cookie =
-    `${AUTH_RESUME_GENERATION_COOKIE}=${value}` +
-    `; Path=/; SameSite=Lax; Max-Age=${AUTH_RESUME_GENERATION_MAX_AGE_SECONDS}${secure}`;
+    `${AUTH_RESUME_GENERATION_COOKIE}=${value ?? ""}` +
+    `; Path=/; SameSite=Lax; Max-Age=${maxAge}${secure}`;
+}
+
+/**
+ * Whether a session for `userId` belongs on this device now. The generation
+ * names the account the last sign-in the person asked for produced, and an
+ * explicit sign-out ends it, so a session any other path delivers later - a
+ * delayed SDK adoption, another tab, a slow response - is neither shown nor
+ * used to authorize a request.
+ */
+export function sessionAccountAdmitted(userId: string): boolean {
+  return resumeGenerationAdmits(readResumeGeneration(), userId);
+}
+
+export type SignInCommit = { written: string; previous: string | null };
+
+/**
+ * The commit point of a sign-in the person asked for (a password sign-in, an
+ * auth callback, an account switch), taken just before the session is
+ * installed. `baseline` is the generation the action began under; if another
+ * sign-in or a sign-out has moved it since, this action is stale and must not
+ * install anything. Otherwise it starts the generation for the account the
+ * token names, so every persist from here on - the provider's own and the
+ * action's - carries it.
+ */
+export function commitSignIn(baseline: string | null, accessToken: string): SignInCommit | null {
+  if (readResumeGeneration() !== baseline) return null;
+  const userId = accessTokenSubject(accessToken);
+  const written = userId ? accountResumeGeneration(userId) : newResumeGeneration();
+  writeResumeGeneration(written);
+  return { written, previous: baseline };
+}
+
+/** A committed sign-in failed to install: put back what it replaced, unless something newer has. */
+export function rollbackSignIn(commit: SignInCommit): void {
+  if (readResumeGeneration() === commit.written) writeResumeGeneration(commit.previous);
 }
 
 
@@ -131,24 +168,6 @@ export async function persistSessionForResume(
   }
 }
 
-/**
- * Remember a sign-in the person asked for, once it has succeeded: a password
- * sign-in, an auth callback and an account switch. It starts a generation for
- * that account and persists under it. Nothing before success touches the
- * generation, so a failed attempt leaves the remembered sign-in as it was.
- * Refreshes, boots and other tabs persist under whatever generation is current,
- * so none of them can undo an explicit sign-out or take over another account's.
- */
-export async function rememberDeliberateSignIn(
-  session: { access_token: string; refresh_token: string },
-  fetchImpl: FetchLike = fetch,
-): Promise<PersistResumeOutcome> {
-  const userId = accessTokenSubject(session.access_token);
-  if (!userId) return "unavailable";
-  writeResumeGeneration(accountResumeGeneration(userId));
-  return persistSessionForResume(session, fetchImpl);
-}
-
 /** Exchange the durable cookie for a fresh session after storage loss. */
 export async function redeemPersistedSession(
   fetchImpl: FetchLike = fetch,
@@ -235,9 +254,11 @@ export async function requestResumeLink(
 export async function clearPersistedSession(
   fetchImpl: FetchLike = fetch,
 ): Promise<void> {
+  const departing = readResumeGeneration();
   writeResumeGeneration(newResumeGeneration(SIGNED_OUT_GENERATION_PREFIX));
+  const target = departing ? `${ENDPOINT}?generation=${encodeURIComponent(departing)}` : ENDPOINT;
   try {
-    await fetchImpl(ENDPOINT, { method: "DELETE", signal: timeoutSignal() });
+    await fetchImpl(target, { method: "DELETE", signal: timeoutSignal() });
   } catch {
     // Best-effort: an orphaned cookie dies at its Max-Age.
   }

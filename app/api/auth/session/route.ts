@@ -24,14 +24,14 @@ import { AUTH_ACCOUNT_BANNED_MESSAGE } from "@/lib/authAccountBan";
 import { verifyCallerAuth } from "@/lib/authServer";
 import {
   AUTH_RESUME_GENERATION_COOKIE,
-  SIGNED_OUT_GENERATION_PREFIX,
+  accessTokenSubject,
   authResumeCookieFromHeader,
   authResumePayloadFromHeader,
   authResumeSetCookieHeaders,
   inheritedResumeEmail,
   isPlausibleRefreshToken,
+  isResumeGenerationValue,
   maskEmail,
-  newResumeGeneration,
   resumeGenerationAdmits,
   type AuthResumeCookiePayload,
 } from "@/lib/authSessionResume";
@@ -112,9 +112,13 @@ export async function DELETE(request: Request): Promise<Response> {
       retryable: true,
     });
   }
+  // The browser has already moved to a signed-out generation; this clears the
+  // cookie of the generation it left, which it names. A late answer can then
+  // never clear the cookie of a sign-in that happened after it.
+  const departing = new URL(request.url).searchParams.get("generation");
   return jsonNoStore(
     { ok: true },
-    { headers: setCookieHeaders(null, newResumeGeneration(SIGNED_OUT_GENERATION_PREFIX)) },
+    { headers: setCookieHeaders(isResumeGenerationValue(departing) ? departing : null, null) },
   );
 }
 
@@ -163,18 +167,21 @@ async function persist(
   const existing = cookiePayload(request);
   const userId =
     verification.status === "verified" ? verification.identity.id : null;
-  if (!resumeGenerationAdmits(generation, userId)) {
+  // Which account the generation admits is a fence against storing one account
+  // under another's sign-in, not authentication: while verification is
+  // unavailable the bearer's own subject answers it, and nothing is trusted.
+  const subject = userId ?? accessTokenSubject(request.headers.get("authorization")?.replace(/^Bearer /i, "") ?? "");
+  if (!resumeGenerationAdmits(generation, subject)) {
     return publicApiError("This device was signed out.", "SIGNED_OUT", 409);
   }
   const email =
     verification.status === "verified" && verification.identity.email
       ? verification.identity.email
       : inheritedResumeEmail(existing, { userId, refreshToken });
-  const headers = setCookieHeaders({
+  const headers = setCookieHeaders(generation, {
     refreshToken: refreshToken,
     email,
     userId,
-    generation,
   });
   return jsonNoStore({ ok: true }, { headers });
 }
@@ -238,12 +245,11 @@ async function redeem(request: Request): Promise<Response> {
       typeof session.user === "object" && session.user !== null
         ? (session.user as Record<string, unknown>).id
         : null;
-    const headers = setCookieHeaders({
+    const headers = setCookieHeaders(payload.generation ?? null, {
       refreshToken: nextRefreshToken,
       email: typeof sessionEmail === "string" ? sessionEmail : payload.email,
       userId:
         typeof sessionUserId === "string" ? sessionUserId : payload.userId ?? null,
-      generation: payload.generation ?? null,
     });
     return jsonNoStore(
       {
@@ -270,19 +276,19 @@ async function redeem(request: Request): Promise<Response> {
       banned = false;
     }
     if (banned) {
-      const headers = setCookieHeaders(null);
+      const headers = setCookieHeaders(payload.generation ?? null, null);
       return jsonNoStore({ status: "banned", message: AUTH_ACCOUNT_BANNED_MESSAGE }, { headers });
     }
     // The token is dead (rotated away, revoked, or the account is gone). Keep
     // the email so the sign-in page can offer one-tap resume instead of a
     // cold form.
     const headers = setCookieHeaders(
+      payload.generation ?? null,
       payload.email
         ? {
             refreshToken: null,
             email: payload.email,
             userId: payload.userId ?? null,
-            generation: payload.generation ?? null,
           }
         : null,
     );

@@ -340,9 +340,12 @@ export async function readDeviceIdentity(page: Page): Promise<Record<string, str
   }, DEVICE_HANDLE_KEY);
 }
 
+/** The resume cookie of the generation the device holds now (lib/authSessionResume.ts). */
 export async function resumeCookie(page: Page): Promise<string | null> {
   const cookies = await page.context().cookies();
-  return cookies.find((cookie) => cookie.name === RESUME_COOKIE)?.value ?? null;
+  const generation = cookies.find((cookie) => cookie.name === "pubmax_resume_gen")?.value;
+  const name = generation ? `${RESUME_COOKIE}.${generation}` : RESUME_COOKIE;
+  return cookies.find((cookie) => cookie.name === name)?.value ?? null;
 }
 
 export function decodeResumeCookie(value: string | null): { rt?: string; em?: string } | null {

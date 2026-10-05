@@ -38,7 +38,7 @@ function setResumeCookie(
 ): Headers | undefined {
   const generation = authResumeCookieFromHeader(request.headers.get("cookie"), AUTH_RESUME_GENERATION_COOKIE);
   if (!resumeGenerationAdmits(generation, accessTokenSubject(session.access_token))) return undefined;
-  return authResumeSetCookieHeaders({ refreshToken: session.refresh_token, email, generation });
+  return authResumeSetCookieHeaders(generation, { refreshToken: session.refresh_token, email });
 }
 
 export async function POST(request: Request): Promise<Response> {

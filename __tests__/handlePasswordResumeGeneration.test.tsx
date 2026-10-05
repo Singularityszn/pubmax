@@ -12,13 +12,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const harness = vi.hoisted(() => ({
   signIn: null as null | (() => Promise<unknown>),
+  installs: [] as string[],
+  holdHandlePassword: null as null | Promise<void>,
 }));
 
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ configured: true }) }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/authClient", () => ({
   ensureSupabaseBrowser: async () => ({
-    auth: { setSession: async () => ({ data: { session: {} }, error: null }) },
+    auth: {
+      setSession: async ({ access_token }: { access_token: string }) => {
+        harness.installs.push(access_token);
+        return { data: { session: {} }, error: null };
+      },
+    },
   }),
 }));
 vi.mock("@/lib/handlePasswordSignIn", () => ({
@@ -46,7 +53,12 @@ vi.mock("@/lib/authServer", () => ({
 import HandlePasswordSignIn from "@/components/auth/HandlePasswordSignIn";
 import { POST as handlePassword } from "@/app/api/auth/handle-password/route";
 import { DELETE, POST } from "@/app/api/auth/session/route";
-import { clearPersistedSession } from "@/lib/authSessionResumeClient";
+import {
+  clearPersistedSession,
+  commitSignIn,
+  persistSessionForResume,
+  readResumeGeneration,
+} from "@/lib/authSessionResumeClient";
 
 function base64Url(value: unknown): string {
   return Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -129,15 +141,18 @@ beforeEach(async () => {
   httpOnlyCookies = new Map();
   transportDown = false;
   harness.signIn = null;
+  harness.installs = [];
+  harness.holdHandlePassword = null;
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input instanceof Request ? input.url : input);
     if (url === "/api/auth/handle-password") {
       if (transportDown) throw new TypeError("Failed to fetch");
       const response = await handlePassword(routeRequest(url, init));
+      if (harness.holdHandlePassword) await harness.holdHandlePassword;
       applySetCookies(response);
       return response;
     }
-    if (url === "/api/auth/session") {
+    if (url.startsWith("/api/auth/session")) {
       const request = routeRequest(url, init);
       const response = request.method === "DELETE" ? await DELETE(request) : await POST(request);
       applySetCookies(response);
@@ -201,4 +216,21 @@ describe("a password sign-in and the remembered sign-in", () => {
     applySetCookies(late);
     expect(await redeemedAccount()).toBeNull();
   });
+
+  it("does not install a password sign-in that another document's sign-in overtook", async () => {
+    harness.signIn = async () => sessionFor("account-b");
+    let release = () => {};
+    harness.holdHandlePassword = new Promise<void>((resolve) => { release = resolve; });
+    await submitPassword();
+    // Meanwhile account C signs in from another document.
+    expect(commitSignIn(readResumeGeneration(), sessionFor("account-c").access_token)).not.toBeNull();
+    expect(await persistSessionForResume(sessionFor("account-c"))).toBe("stored");
+    await act(async () => { release(); await new Promise((resolve) => setTimeout(resolve, 0)); });
+
+    expect(harness.installs).toEqual([]);
+    expect(host.textContent).toContain("Sign-in did not finish. Try again.");
+    expect(readResumeGeneration()).toMatch(/~account-c$/);
+    expect(await redeemedAccount()).toBe("account-c");
+  });
 });
+
