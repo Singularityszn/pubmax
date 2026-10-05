@@ -5,9 +5,41 @@
 // the cookie is a safety net, never a gate on the app.
 
 import type { MagicLinkResult } from "@/lib/passwordlessAuth";
+import { safeLocalStorage } from "@/lib/safeStorage";
 
 const ENDPOINT = "/api/auth/session";
 const REQUEST_TIMEOUT_MS = 8_000;
+
+/**
+ * An explicit sign-out whose cookie DELETE has not been confirmed. While it is
+ * set, boot retries the DELETE and never redeems the cookie: a logout that
+ * failed offline leaves the refresh token valid, so redeeming would sign the
+ * departed account back in. Only a persist that began after the sign-out
+ * clears it, because only that persist replaced the departed cookie.
+ */
+const CLEAR_PENDING_KEY = "pubmax:resume-cookie-clear-pending:v1";
+let clearEpoch = 0;
+
+function newClearPending(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function readClearPending(): string | null {
+  try {
+    return safeLocalStorage()?.getItem(CLEAR_PENDING_KEY) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function writeClearPending(value: string | null): void {
+  try {
+    if (value === null) safeLocalStorage()?.removeItem(CLEAR_PENDING_KEY);
+    else safeLocalStorage()?.setItem(CLEAR_PENDING_KEY, value);
+  } catch {
+    // Blocked storage cannot record the pending clear; the DELETE still runs.
+  }
+}
 
 type FetchLike = typeof fetch;
 
@@ -37,6 +69,10 @@ function timeoutSignal(): AbortSignal | undefined {
 export async function fetchResumeHint(
   fetchImpl: FetchLike = fetch,
 ): Promise<ResumeHintReadOutcome> {
+  if (readClearPending() !== null) {
+    await clearPersistedSession(fetchImpl);
+    return { status: "absent" };
+  }
   try {
     const response = await fetchImpl(ENDPOINT, {
       cache: "no-store",
@@ -83,6 +119,8 @@ export async function persistSessionForResume(
   session: { access_token: string; refresh_token: string },
   fetchImpl: FetchLike = fetch,
 ): Promise<PersistResumeOutcome> {
+  const clearPendingAtStart = readClearPending();
+  const clearEpochAtStart = clearEpoch;
   try {
     const response = await fetchImpl(ENDPOINT, {
       method: "POST",
@@ -99,7 +137,14 @@ export async function persistSessionForResume(
       keepalive: true,
       signal: timeoutSignal(),
     });
-    if (response.ok) return "stored";
+    if (response.ok) {
+      if (clearEpoch !== clearEpochAtStart) {
+        writeClearPending(readClearPending() ?? newClearPending());
+      } else if (clearPendingAtStart !== null && readClearPending() === clearPendingAtStart) {
+        writeClearPending(null);
+      }
+      return "stored";
+    }
     return response.status === 401 ? "unauthenticated" : "unavailable";
   } catch {
     // Best-effort: the next refresh persists again.
@@ -185,13 +230,17 @@ export async function requestResumeLink(
   }
 }
 
-/** Remove the durable cookie (sign-out). */
+/** Remove the durable cookie (sign-out). Pending until the server confirms. */
 export async function clearPersistedSession(
   fetchImpl: FetchLike = fetch,
 ): Promise<void> {
+  clearEpoch += 1;
+  const pending = readClearPending() ?? newClearPending();
+  writeClearPending(pending);
   try {
-    await fetchImpl(ENDPOINT, { method: "DELETE", signal: timeoutSignal() });
+    const response = await fetchImpl(ENDPOINT, { method: "DELETE", signal: timeoutSignal() });
+    if (response.ok && readClearPending() === pending) writeClearPending(null);
   } catch {
-    // Best-effort: an orphaned cookie dies at its Max-Age.
+    // Still pending: the next boot retries before any resume.
   }
 }
