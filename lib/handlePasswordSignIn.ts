@@ -55,7 +55,9 @@ export async function resolveAuthEmailForHandle(handle: string): Promise<string 
  * TRI-STATE, for the reason every identity read here is: `null` means we could
  * not tell. `auth.users.encrypted_password` is not reachable over PostgREST, so
  * the answer comes from `public.account_has_password` (migration 0099), which
- * returns a BOOLEAN and never the hash it looked at. Until the captain applies
+ * returns a BOOLEAN and never the hash it looked at. Since 0173 it answers true
+ * only for a password the owner set: an email-link sign-up carries a random
+ * hash GoTrue wrote, and that one does not count. Until the captain applies
  * that migration the RPC is missing and this answers
  * `null`, and a surface that has not been told may never say "you have no
  * password yet" - it says nothing about which.

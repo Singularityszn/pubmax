@@ -110,6 +110,10 @@ describe("the password UI is tri-state", () => {
     expect(setPasswordSource).toContain('className="accountHubPasswordChange"');
     expect(setPasswordSource).toContain("<summary>Change password</summary>");
     expect(setPasswordSource).not.toContain("<details open");
+    // Closed on arrival. It opens only after a save, to show the confirmation.
+    expect(setPasswordSource).toContain(
+      "const [changeOpen, setChangeOpen] = useState(false);",
+    );
     expect(setPasswordSource).toContain('hasPassword === true');
     expect(setPasswordSource).toContain('hasPassword === false');
     expect(setPasswordSource).toContain('"Create password"');

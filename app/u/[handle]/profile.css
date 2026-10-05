@@ -2063,7 +2063,9 @@
 .accountHubPasswordChange > summary::after { content: "+"; color: var(--brass); font-family: var(--font-data); font-size: 1.1rem; }
 .accountHubPasswordChange[open] > summary { border-radius: 14px 14px 0 0; }
 .accountHubPasswordChange[open] > summary::after { content: "−"; }
-.accountHubPasswordChange > .accountHubPassword { margin-top: .5rem; border: 1px solid var(--line); border-radius: 14px; }
+.accountHubPasswordChange > .accountHubPassword { display: grid; gap: .65rem; padding: 1rem; border: 1px solid var(--line); border-top: 0; border-radius: 0 0 14px 14px; background: var(--panel-raised); }
+/* The summary already names the form, so its own heading is for screen readers only. */
+.accountHubPasswordChange > .accountHubPassword > h3 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .accountHubMerge { display: grid; gap: .65rem; margin: 0 0 .75rem; padding: 1rem; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-raised); }
 .accountHubMerge h3, .accountHubMerge p, .accountHubNightProfile { margin: 0; }
 .accountHubNightProfile { margin-bottom: .75rem; color: var(--ink-muted); }
