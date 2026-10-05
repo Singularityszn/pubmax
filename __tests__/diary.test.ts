@@ -113,13 +113,23 @@ describe("validateDiaryEntryCreate", () => {
     expect(create({ visibility: "private" }).ok).toBe(true);
   });
 
-  it.each(["Best Guinness in Soho!", "Hidden gem, great garden."])(
+  it.each([
+    "Best Guinness in Soho!",
+    "Hidden gem, great garden.",
+    "Pint <3, Guinness >> the Crown",
+    "Back room:\n  quiet,\tcalm.",
+  ])(
     "stores the review %s exactly as written",
     (review) => {
       const result = create({ review });
       expect(result.ok && result.value.review).toBe(review);
     },
   );
+
+  it("strips control characters and trims the ends of a review, nothing more", () => {
+    const result = create({ review: "  Good\u0000 pint\r\nby the fire\u007F  " });
+    expect(result.ok && result.value.review).toBe("Good pint\nby the fire");
+  });
 
   it("counts the review cap in characters, so emoji fit up to 280", () => {
     expect(create({ review: "🍺".repeat(MAX_DIARY_REVIEW) }).ok).toBe(true);

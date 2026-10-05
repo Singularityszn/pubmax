@@ -102,7 +102,7 @@ describe("POST /api/diary", () => {
     expect(entry.review).toBe("");
   });
 
-  it.each(["Best Guinness in Soho!", "Hidden gem, great garden."])(
+  it.each(["Best Guinness in Soho!", "Hidden gem, great garden.", "Pint <3, Guinness >> the Crown"])(
     "stores the review %s exactly as written",
     async (review) => {
       const res = await POST(post({ venueId: VENUE_ID, review }));

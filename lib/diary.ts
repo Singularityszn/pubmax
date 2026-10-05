@@ -90,12 +90,18 @@ export function resolveDiaryVisitedOn(value: unknown, now: Date = new Date()): s
   return trimmed;
 }
 
+/** Control characters a review drops. Tab and newline are spacing the owner typed. */
+const DIARY_REVIEW_CONTROL = /[\u0000-\u0008\u000B-\u001F\u007F]/g;
+
 /**
  * Clean a review. It is the owner's own private words, so it is kept as typed:
- * trimmed, control characters stripped and capped. No copy filter runs on it.
+ * control characters are stripped and the ends are trimmed, nothing else. No
+ * copy filter runs on it, and angle brackets, newlines and inner spacing stay.
+ * The length cap is a refusal in validateDiaryEntryCreate, never a cut.
  */
 export function cleanDiaryReview(value: unknown): string {
-  return cleanText(value, MAX_DIARY_REVIEW);
+  if (typeof value !== "string") return "";
+  return value.replace(DIARY_REVIEW_CONTROL, "").trim();
 }
 
 export function validateDiaryEntryCreate(
@@ -137,10 +143,10 @@ export function validateDiaryEntryCreate(
     }
   }
 
-  if (typeof input.review === "string" && [...input.review.trim()].length > MAX_DIARY_REVIEW) {
+  const review = cleanDiaryReview(input.review);
+  if ([...review].length > MAX_DIARY_REVIEW) {
     return { ok: false, error: `Keep the review to ${MAX_DIARY_REVIEW} characters.` };
   }
-  const review = cleanDiaryReview(input.review);
 
   if (
     input.visibility !== undefined

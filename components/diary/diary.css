@@ -116,6 +116,7 @@
 
 .diaryRow__review {
   margin: 0;
+  white-space: pre-wrap;
   overflow-wrap: anywhere;
   color: var(--color-text, var(--ink, #1a1a1a));
   font-size: 0.92rem;
