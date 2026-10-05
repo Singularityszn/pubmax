@@ -20,7 +20,7 @@ describe("statedDogPolicy", () => {
   });
 
   it("reads a refusal, including assistance dogs only", () => {
-    expect(statedDogPolicy("Sorry, no dogs inside the pub.")).toEqual({ policy: "not-allowed", evidence: "Sorry, no dogs inside the pub." });
+    expect(statedDogPolicy("Sorry, no dogs in the pub.")).toEqual({ policy: "not-allowed", evidence: "Sorry, no dogs in the pub." });
     expect(statedDogPolicy("Dogs are not allowed in the pub.")?.policy).toBe("not-allowed");
     expect(statedDogPolicy("We welcome all guests, except assistance dogs only policy applies.")?.policy).toBe("not-allowed");
     expect(statedDogPolicy("Unfortunately we are not dog friendly.")?.policy).toBe("not-allowed");
@@ -44,6 +44,8 @@ describe("statedDogPolicy", () => {
 
   it("states nothing when the page both welcomes and refuses dogs", () => {
     expect(statedDogPolicy("Dog Friendly. No dogs in the restaurant after 6pm.")).toBeNull();
+    expect(statedDogPolicy("Dogs are not allowed. Dog friendly garden.")).toBeNull();
+    expect(statedDogPolicy("No dogs. Assistance dogs welcome.")?.policy).toBe("not-allowed");
   });
 
   it("reads no refusal limited to an area or an hour, but still refuses assistance dogs only", () => {
@@ -53,6 +55,8 @@ describe("statedDogPolicy", () => {
     expect(statedDogPolicy("No dogs in the garden.")).toBeNull();
     expect(statedDogPolicy("Dogs are not permitted in some areas.")).toBeNull();
     expect(statedDogPolicy("No dogs before 5pm.")).toBeNull();
+    expect(statedDogPolicy("No dogs inside.")).toBeNull();
+    expect(statedDogPolicy("Dogs are not permitted indoors.")).toBeNull();
     expect(statedDogPolicy("Only assistance dogs are allowed.")?.policy).toBe("not-allowed");
     expect(statedDogPolicy("No dogs except assistance dogs.")?.policy).toBe("not-allowed");
   });

@@ -64,7 +64,7 @@ const ASSISTANCE_DOG = /\b(?:assistance|guide|hearing|service)\s+dogs?\b/i;
 /** A part of the building, an hour or a share of a group's venues. */
 const AREA_OR_HOUR = String.raw`only in|(?:some|certain|selected|most|many) (?:areas|of our)|at times|(?:until|after|before|from|till) \d{1,2}(?:[:.]\d{2})?\s*(?:am|pm)?|gardens?|terraces?|bar areas?|areas|outside|outdoors?|patio|courtyard`;
 /** A refusal with a limit on it, a restaurant or a dining room included, is not a refusal at the pub. */
-const LIMITED = new RegExp(String.raw`\b(?:${AREA_OR_HOUR}|restaurant|dining(?: room| area)?)\b`, "i");
+const LIMITED = new RegExp(String.raw`\b(?:${AREA_OR_HOUR}|restaurant|dining(?: room| area)?|inside|indoors)\b`, "i");
 /** A welcome with a limit on it is not a welcome to the pub. */
 const CONDITIONAL = new RegExp(
   String.raw`\b(?:only|except|unless|excluding|but not|not in|not inside|on request|at (?:the|our) discretion|designated|${AREA_OR_HOUR})\b`,
@@ -81,14 +81,14 @@ function clauses(pageText: string): string[] {
   return pageText.split(CLAUSE_BREAK).map((clause) => clause.trim()).filter(Boolean);
 }
 
-/** A refusal limited to an area or an hour states no policy for the pub, but it still limits any welcome. */
-function dogClauseVerdict(clause: string): DogPolicy | "limited-refusal" | null {
+/** What a clause says about dogs, and whether it stands as the pub's policy or only as a limited answer. */
+function dogClauseVerdict(clause: string): { policy: DogPolicy; stands: boolean } | null {
   if (!DOG_WORD.test(clause) || /\?\s*$/.test(clause)) return null;
   if (NOT_THE_PUB_SPEAKING.test(clause)) return null;
-  if (DOG_REFUSED.test(clause)) return LIMITED.test(clause) ? "limited-refusal" : "not-allowed";
+  if (DOG_REFUSED.test(clause)) return { policy: "not-allowed", stands: !LIMITED.test(clause) };
   if (!DOG_WELCOME.test(clause)) return null;
-  if (ASSISTANCE_DOG.test(clause) || CONDITIONAL.test(clause) || NEGATION.test(clause) || ONE_OFF.test(clause)) return null;
-  return "welcome";
+  if (ASSISTANCE_DOG.test(clause) || NEGATION.test(clause) || ONE_OFF.test(clause)) return null;
+  return { policy: "welcome", stands: !CONDITIONAL.test(clause) };
 }
 
 /** A clause short enough to quote, or the run of words around the dog statement inside it. */
@@ -104,19 +104,22 @@ function quotable(clause: string, pattern: RegExp): string | null {
 
 /**
  * The page's dog policy, or null when the page does not state one. A page
- * that both welcomes and refuses dogs has not stated a policy.
+ * that both welcomes and refuses dogs, with a limit on either or not, has not
+ * stated a policy.
  */
 export function statedDogPolicy(pageText: string): StatedDogPolicy | null {
   let welcome: string | null = null;
   let refused: string | null = null;
-  let limitedRefusal = false;
+  const said = new Set<DogPolicy>();
   for (const clause of clauses(pageText)) {
     const verdict = dogClauseVerdict(clause);
-    if (verdict === "welcome") welcome ??= quotable(clause, DOG_WELCOME);
-    if (verdict === "not-allowed") refused ??= quotable(clause, DOG_REFUSED);
-    if (verdict === "limited-refusal") limitedRefusal = true;
+    if (!verdict) continue;
+    said.add(verdict.policy);
+    if (!verdict.stands) continue;
+    if (verdict.policy === "welcome") welcome ??= quotable(clause, DOG_WELCOME);
+    else refused ??= quotable(clause, DOG_REFUSED);
   }
-  if (welcome && (refused || limitedRefusal)) return null;
+  if (said.size > 1) return null;
   const evidence = welcome ?? refused;
   if (!evidence || !passageIsOnPage(pageText, evidence, MAX_DOG_EVIDENCE_CHARS)) return null;
   return { policy: welcome ? "welcome" : "not-allowed", evidence };

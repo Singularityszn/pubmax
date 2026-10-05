@@ -12,9 +12,9 @@ passage, the page URL and the day of the read.
 
 - **Dogs.** "Dog friendly", "dogs are welcome" and similar are a welcome.
   "No dogs", "dogs are not allowed" or "assistance dogs only" is a refusal. A
-  page that does both, a welcome or a refusal limited to a garden, a
-  restaurant, an area or an hour, a guest review, a footer link and
-  "assistance dogs welcome" all stay unknown.
+  page that does both, even when either has a limit, stays unknown. So do a
+  welcome or a refusal limited to a garden, a restaurant, indoors, an area or
+  an hour, a guest review, a footer link and "assistance dogs welcome".
 - **Hours.** Only a passage under an opening-hours label counts. Kitchen,
   food, seasonal and Christmas blocks do not. A day the page does not state is
   absent, not closed. A time with no am, pm or colon ("11 - 5") is not read.
@@ -57,7 +57,8 @@ evidence, the site's hours set `openingHours` when nothing else has set
 them. Fresh Google Places hours still replace them. The Overview tab shows
 the dog policy and the hours under "Details and practical info". It uses the
 existing amenity chip and hours list, credited "Pub website · Read 5 Oct
-2026". A fact that Google Places already gives is not shown twice.
+2026". A fact that Google Places already gives is not shown twice. The
+site's hours also show when Google's hours are too old to decide open state.
 
 ## Gaps
 
