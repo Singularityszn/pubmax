@@ -74,7 +74,9 @@ import VenueGettingThere, {
   type LocationRequestStatus,
 } from "@/components/map/VenueGettingThere";
 import VenueOccupancyRow from "@/components/map/VenueOccupancyRow";
+import DiaryLogPanel from "@/components/diary/DiaryLogPanel";
 import VisitReportPanel from "@/components/visits/VisitReportPanel";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { cuisineTagsForVenue } from "@/lib/cuisineTags";
 import type { CityId } from "@/lib/cities";
 import type { JourneyPoint } from "@/lib/venueJourney";
@@ -958,6 +960,10 @@ export default function VenueOverviewTab({
         revealRecord={revealRecord}
         revealRecordLate={revealRecordLate}
       />
+      {/* The Diary: one tap to log a visit to this pub. Private to its owner. */}
+      {isPubVenueKind(venue.kind) ? (
+        <DiaryLogPanel venueId={venue.id} venueName={venue.name} />
+      ) : null}
       {/* Visit Report peek: newest accounts only. The full composer stays on
           Lore (VenueStoryTab), so Overview never grows a second rating system. */}
       <VisitReportPanel

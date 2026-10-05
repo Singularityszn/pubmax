@@ -68,6 +68,8 @@ import { venuePhotoStore } from "@/lib/venuePhotoStore";
 import type { VenuePhoto } from "@/lib/venuePhotos";
 import type { VisitReportDTO } from "@/lib/visitReports";
 import { visitReportsStore, type VisitReportReadResult } from "@/lib/visitReportsStore";
+import type { DiaryEntryDTO } from "@/lib/diary";
+import { diaryStore } from "@/lib/diaryStore";
 import type { WantedDTO } from "@/lib/wanted";
 import { wantedStore } from "@/lib/wantedStore";
 
@@ -100,6 +102,7 @@ export type AccountExportDeps = {
   follows(handle: string): Promise<string[]>;
   savedPubs(handle: string): Promise<SavedPubsRead>;
   wanted(ownerActor: string): Promise<{ status: "ready" | "degraded"; wanteds: WantedDTO[] }>;
+  diary(ownerActor: string): Promise<{ status: "ready" | "degraded"; entries: DiaryEntryDTO[] }>;
   socialLinks(userId: string): Promise<PublicSocialConnection[]>;
   nightProfile(userId: string): Promise<NightProfile | null>;
   prices(
@@ -133,6 +136,7 @@ function storeDeps(): AccountExportDeps {
     follows: (handle) => followStore().listFollowing(handle),
     savedPubs: (handle) => savedPubsStore().readSaved({ handle }),
     wanted: (ownerActor) => wantedStore().listForOwner(ownerActor),
+    diary: (ownerActor) => diaryStore().listForOwner(ownerActor),
     async socialLinks(userId) {
       return (await socialConnectionStore().list(userId)).map(publicSocialConnection);
     },
@@ -403,6 +407,12 @@ export async function buildAccountExport(
     return { degraded: read.status === "degraded", items: read.wanteds };
   });
 
+  const diary = await lane<DiaryEntryDTO>(async () => {
+    if (!profile) return { degraded: false, items: [] };
+    const read = await deps.diary(profileActor(profile.id));
+    return { degraded: read.status === "degraded", items: read.entries };
+  });
+
   const socialLinks = await lane<PublicSocialConnection>(async () => ({
     degraded: false,
     items: await deps.socialLinks(userId),
@@ -432,6 +442,7 @@ export async function buildAccountExport(
     follows,
     savedPubs,
     wanted,
+    diary,
     socialLinks,
     nightProfile,
     messages,
