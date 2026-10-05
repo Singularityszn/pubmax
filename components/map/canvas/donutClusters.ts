@@ -2,7 +2,7 @@ import * as maplibregl from "maplibre-gl";
 import type { GeoJSONFeature } from "maplibre-gl";
 import { buildDonutMarkerSvg, donutTotal, type DonutCounts } from "@/lib/donutClusterGeometry";
 import { readTokens } from "./tokens";
-import { CLUSTER_MAX_ZOOM } from "./buildScene";
+import { CLUSTER_LAYER_FILTER, CLUSTER_MAX_ZOOM } from "./buildScene";
 
 // M5 — donut cluster markers segmented by price band. `clusterProperties`
 // (wired in buildPubs, buildScene.ts) accumulate per-bucket counts (b0..b3 —
@@ -16,9 +16,17 @@ import { CLUSTER_MAX_ZOOM } from "./buildScene";
 // bounded (DONUT_CAP) precisely so this never turns into an unbounded-DOM
 // perf trap — past the cap we fall back to the plain circle+count GL layers
 // (buildScene's `clusters` / `cluster-count`), which stay in the style as an
-// underlay the whole time and are simply toggled visible/none rather than
+// underlay the whole time and are simply filtered empty rather than
 // added/removed, so there is never a frame where neither is visible.
 const DONUT_CAP = 60;
+// Hides the GL underlay while donuts own the clusters. It must not be
+// `visibility: none`: below PIN_MIN_ZOOM these two layers are the only ones the
+// `pubs` source draws, and MapLibre unloads every tile of a source no visible
+// layer uses. querySourceFeatures then answers empty, the settled sync hands
+// the clusters back, the layers show, the tiles load and the donuts return:
+// a desktop flicker that never settles. A filter keeps the layers visible, so
+// the tiles stay. Visibility stays with the pin reveal gate alone.
+const NO_FEATURES_FILTER: maplibregl.FilterSpecification = ["boolean", false];
 // Sync runs off the map's own `render`/`moveend`/`sourcedata` events — no new
 // RAF loop (Single-RAF rule). `render` still fires every animation frame during
 // explicit camera moves, so throttle the expensive querySourceFeatures + diff
@@ -85,9 +93,9 @@ export function createDonutClusterSync(
   let lastRenderAt = 0;
 
   const setLegacyLayersVisible = (visible: boolean) => {
-    const visibility: "visible" | "none" = visible ? "visible" : "none";
+    const filter = visible ? CLUSTER_LAYER_FILTER : NO_FEATURES_FILTER;
     for (const id of ["clusters", "cluster-count"]) {
-      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", visibility);
+      if (map.getLayer(id)) map.setFilter(id, filter);
     }
   };
 

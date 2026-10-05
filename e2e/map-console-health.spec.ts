@@ -1,5 +1,10 @@
 import { test, expect, type ConsoleMessage } from "@playwright/test";
 
+import {
+  MAP_ARRIVAL_BEARING_DEG,
+  MAP_ARRIVAL_BEARING_SETTLED_BY_MS,
+} from "@/lib/mapArrivalBearing";
+
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 // Map console-health regression (review issue #5). Runs under the `chromium-gl`
@@ -144,6 +149,27 @@ test("/map stays console-healthy across repeated /map↔/feed navigation", async
   await expect(page.locator(".mapCompassBtn")).toHaveCount(1);
   await expect(page.locator(".maplibregl-ctrl-compass")).toHaveCount(0);
   const compassNeedle = compass.locator("svg");
+  // A cold map makes one eased arrival turn (lib/mapArrivalBearing.ts), and its
+  // wait counts polls, so on a loaded box it can land after the settled window.
+  // Read the idle bearing only once that turn has come to rest.
+  await page.waitForTimeout(MAP_ARRIVAL_BEARING_SETTLED_BY_MS);
+  await expect
+    .poll(
+      () =>
+        page.evaluate((target) => {
+          const probe = (
+            window as Window & {
+              __pubmaxMapCamera?: { read: () => { bearing: number; moving: boolean } };
+            }
+          ).__pubmaxMapCamera;
+          const camera = probe?.read();
+          return (
+            camera !== undefined && !camera.moving && Math.abs(camera.bearing - target) <= 0.25
+          );
+        }, MAP_ARRIVAL_BEARING_DEG),
+      { timeout: 45_000 },
+    )
+    .toBe(true);
   const bearingBeforeIdle = await compassNeedle.evaluate(
     (element) => getComputedStyle(element).transform,
   );

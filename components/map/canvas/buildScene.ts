@@ -66,6 +66,8 @@ import {
 // real pin and never hidden inside a cluster.
 export const PIN_MIN_ZOOM = 12;
 export const CLUSTER_MAX_ZOOM = 13;
+/** The cluster disc and its count draw only the source's cluster features. */
+export const CLUSTER_LAYER_FILTER: maplibregl.FilterSpecification = ["has", "point_count"];
 
 // The UK-wide unpriced base layer (lib/ukBasePubs.ts) shares PIN_MIN_ZOOM's
 // floor and nothing else. It is deliberately NOT part of the `pubs` source:
@@ -1468,7 +1470,7 @@ export function buildPubs(ctx: SceneCtx) {
     id: "clusters",
     type: "circle",
     source: "pubs",
-    filter: ["has", "point_count"],
+    filter: CLUSTER_LAYER_FILTER,
     paint: {
       // Price-aware GL fallback. Desktop normally replaces these circles with
       // segmented donuts; phones and large cluster sets keep this layer, whose
@@ -1499,7 +1501,7 @@ export function buildPubs(ctx: SceneCtx) {
     id: "cluster-count",
     type: "symbol",
     source: "pubs",
-    filter: ["has", "point_count"],
+    filter: CLUSTER_LAYER_FILTER,
     layout: {
       "text-field": ["get", "point_count_abbreviated"],
       "text-font": textFont,
