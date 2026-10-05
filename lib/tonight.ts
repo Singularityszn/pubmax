@@ -189,7 +189,7 @@ export type VenueRef = {
 };
 
 /** Cheap tonight gate: name overlap or 120 m proximity. Today's keyless rule. */
-export function cheapTonightVenueCandidate(
+function cheapTonightVenueCandidate(
   op: TonightOpportunity,
   venue: VenueRef,
 ): boolean {
