@@ -18,7 +18,6 @@
 
 import { londonDayKey } from "@/lib/pintContributions";
 import { parseRating, type RatingValue } from "@/lib/ratings";
-import { presentableDescription } from "@/lib/slopFilter";
 import { cleanText } from "@/lib/textClean";
 
 export const MAX_DIARY_REVIEW = 280;
@@ -91,11 +90,12 @@ export function resolveDiaryVisitedOn(value: unknown, now: Date = new Date()): s
   return trimmed;
 }
 
-/** Clean a review. The slop filter refuses junk text, which reads as no review. */
+/**
+ * Clean a review. It is the owner's own private words, so it is kept as typed:
+ * trimmed, control characters stripped and capped. No copy filter runs on it.
+ */
 export function cleanDiaryReview(value: unknown): string {
-  const cleaned = cleanText(value, MAX_DIARY_REVIEW);
-  if (!cleaned) return "";
-  return presentableDescription(cleaned) ?? "";
+  return cleanText(value, MAX_DIARY_REVIEW);
 }
 
 export function validateDiaryEntryCreate(
@@ -137,7 +137,7 @@ export function validateDiaryEntryCreate(
     }
   }
 
-  if (typeof input.review === "string" && input.review.trim().length > MAX_DIARY_REVIEW) {
+  if (typeof input.review === "string" && [...input.review.trim()].length > MAX_DIARY_REVIEW) {
     return { ok: false, error: `Keep the review to ${MAX_DIARY_REVIEW} characters.` };
   }
   const review = cleanDiaryReview(input.review);

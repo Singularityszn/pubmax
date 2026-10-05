@@ -113,6 +113,19 @@ describe("validateDiaryEntryCreate", () => {
     expect(create({ visibility: "private" }).ok).toBe(true);
   });
 
+  it.each(["Best Guinness in Soho!", "Hidden gem, great garden."])(
+    "stores the review %s exactly as written",
+    (review) => {
+      const result = create({ review });
+      expect(result.ok && result.value.review).toBe(review);
+    },
+  );
+
+  it("counts the review cap in characters, so emoji fit up to 280", () => {
+    expect(create({ review: "🍺".repeat(MAX_DIARY_REVIEW) }).ok).toBe(true);
+    expect(create({ review: "🍺".repeat(MAX_DIARY_REVIEW + 1) }).ok).toBe(false);
+  });
+
   it("never accepts an owner from the body: only the ownerActor argument counts", () => {
     const result = create({ owner: "profile:bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb" });
     expect(result.ok && result.value.ownerActor).toBe(OWNER);
