@@ -735,3 +735,45 @@ export function pageStatesStreet(text: string, street: readonly string[]): boole
     .join("\\s+");
   return new RegExp(`\\b${pattern}\\b`, "i").test(text);
 }
+
+/**
+ * Whether this page belongs to another pub. The price dataset can hold one pub
+ * twice under two spellings, and a read by the duplicate would prove the page,
+ * or a quote on it, chain-wide and withdraw the first pub's evidence. A page
+ * another pub has read is that pub's, and so is any page on a host exactly one
+ * other pub has read. A host two or more pubs read is a chain's, whose other
+ * pages the chain list already judges.
+ */
+export function siteOfAnotherPub(
+  url: string,
+  osmId: string,
+  reads: readonly { osmId: string; sourceUrl?: string }[],
+): boolean {
+  const target = sourcePage(url);
+  if (!target) return false;
+  const others = reads.flatMap((read) => {
+    const source = read.osmId !== osmId && read.sourceUrl !== undefined ? sourcePage(read.sourceUrl) : null;
+    return source ? [{ osmId: read.osmId, ...source }] : [];
+  });
+  if (others.some((read) => read.page === target.page)) return true;
+  return new Set(others.filter((read) => read.host === target.host).map((read) => read.osmId)).size === 1;
+}
+
+/**
+ * This run's reads without those that would make a pub's evidence thinner. A
+ * scoped harvest reads again pubs whose site already gave evidence, and a
+ * re-read that failed or kept fewer amenities leaves the earlier row in place.
+ */
+export function withoutThinnerRereads(
+  fresh: ReadonlyMap<string, HarvestRead>,
+  previousRows: readonly HarvestEvidenceRow[],
+): Map<string, HarvestRead> {
+  const previous = new Map(previousRows.map((row) => [row.osmId, Object.keys(row.amenities ?? {}).length]));
+  return new Map(
+    [...fresh].filter(([osmId, entry]) => {
+      const before = previous.get(osmId);
+      if (before === undefined) return true;
+      return entry.status === "ok" && Object.keys(entry.amenities ?? {}).length > before;
+    }),
+  );
+}

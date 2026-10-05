@@ -27,9 +27,11 @@ import {
   provenChainEvidence,
   pubSpecificEvidence,
   readExtraPage,
+  siteOfAnotherPub,
   stampAmenityColumns,
   statedAmenities,
   streetOf,
+  withoutThinnerRereads,
 } from "@/lib/harvest/pubWebsiteAmenities";
 
 const PAGE = [
@@ -823,5 +825,34 @@ describe("street locators", () => {
     expect(pageStatesStreet("Find us on James St.", ["james", "street"])).toBe(true);
     expect(pageStatesStreet("51 Bethnal Green Rd, E2", ["bethnal", "green", "road"])).toBe(true);
     expect(pageStatesStreet("Jameson Street", ["james", "street"])).toBe(false);
+  });
+});
+
+describe("scoped harvest guards", () => {
+  const reads = [
+    { osmId: "node/1", sourceUrl: "https://www.theguardhouse.example/" },
+    { osmId: "node/2", sourceUrl: "https://www.chain.example/pubs/swan" },
+    { osmId: "node/3", sourceUrl: "https://www.chain.example/pubs/crown" },
+  ];
+
+  it("leaves unread a page another pub read, and any page of a site only one other pub reads", () => {
+    expect(siteOfAnotherPub("https://theguardhouse.example/menu", "venue/a", reads)).toBe(true);
+    expect(siteOfAnotherPub("https://www.chain.example/pubs/swan/", "venue/a", reads)).toBe(true);
+    expect(siteOfAnotherPub("https://www.chain.example/pubs/lion", "venue/a", reads)).toBe(false);
+    expect(siteOfAnotherPub("https://www.theguardhouse.example/", "node/1", reads)).toBe(false);
+    expect(siteOfAnotherPub("https://new.example/", "venue/a", reads)).toBe(false);
+  });
+
+  it("keeps earlier evidence unless a re-read keeps more amenities", () => {
+    const previous = [{ osmId: "node/1", sourceUrl: "https://a.example/", amenities: { food: "serves food", pool: "a pool table" } }];
+    const fresh = new Map([
+      ["node/1", { status: "ok", sourceUrl: "https://a.example/", amenities: { food: "serves food" } }],
+      ["node/2", { status: "http-404" }],
+    ]);
+    expect([...withoutThinnerRereads(fresh, previous).keys()]).toEqual(["node/2"]);
+    fresh.set("node/1", { status: "robots-unreachable" });
+    expect(withoutThinnerRereads(fresh, previous).has("node/1")).toBe(false);
+    fresh.set("node/1", { status: "ok", sourceUrl: "https://a.example/", amenities: { food: "serves food", pool: "a pool table", darts: "a dartboard" } });
+    expect(withoutThinnerRereads(fresh, previous).has("node/1")).toBe(true);
   });
 });

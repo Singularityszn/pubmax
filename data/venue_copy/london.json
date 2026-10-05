@@ -1,10 +1,10 @@
 {
   "version": 2,
   "model": "gemini-2.5-flash-lite",
-  "generatedAt": "2026-10-05T12:19:23.172Z",
-  "startedAt": "2026-10-05T12:04:33.262Z",
+  "generatedAt": "2026-10-05T12:41:38.577Z",
+  "startedAt": "2026-10-05T12:39:38.540Z",
   "sourceDataset": "public/data/pint_prices_app_dataset.json",
-  "sourceDatasetSha256": "fc1b9a52c8316b0c71f9811ef4ba8d6354204a5f5568ed3b805e7c242c6c4ece",
+  "sourceDatasetSha256": "5429bcbc7734eeb3eeff7ea64b8778ba87e94079768b51b4e98c9ffda6aea884",
   "groundingVersion": 2,
   "judgePricing": {
     "model": "gemini-2.5-flash",
@@ -17,10 +17,10 @@
     "outputUsdPerMillion": 0.4
   },
   "runCapUsd": 15,
-  "projectedSpendUsd": 1.9267564000000013,
-  "runSpendUsd": 0.2612592999999999,
-  "actualSpendUsd": 1.827277900000001,
-  "requests": 2027,
+  "projectedSpendUsd": 0.1314492,
+  "runSpendUsd": 0.0262201,
+  "actualSpendUsd": 1.8534980000000008,
+  "requests": 2049,
   "venues": {
     "venue-1026snf": {
       "venueId": "venue-1026snf",
@@ -685,39 +685,6 @@
           {
             "phrase": "Cocktails",
             "reason": "The fact 'Cocktails' supports the presence of cocktails.",
-            "offendingPhrase": "",
-            "verdict": "SUPPORTED"
-          }
-        ]
-      }
-    },
-    "venue-11n9s46": {
-      "venueId": "venue-11n9s46",
-      "borough": "Camden",
-      "supportedTags": [
-        "Cocktails"
-      ],
-      "description": "This spot serves cocktails.",
-      "vibeTags": [
-        "Cocktails"
-      ],
-      "grounding": {
-        "version": 2,
-        "verdict": "SUPPORTED",
-        "description": "This spot serves cocktails.",
-        "vibeTags": [
-          "Cocktails"
-        ],
-        "claims": [
-          {
-            "phrase": "This spot serves cocktails.",
-            "reason": "The fact 'Cocktails' supports that the spot serves cocktails.",
-            "offendingPhrase": "",
-            "verdict": "SUPPORTED"
-          },
-          {
-            "phrase": "Cocktails",
-            "reason": "The fact 'Cocktails' is present.",
             "offendingPhrase": "",
             "verdict": "SUPPORTED"
           }
@@ -4346,39 +4313,6 @@
         ]
       }
     },
-    "venue-19211ib": {
-      "venueId": "venue-19211ib",
-      "borough": "Westminster",
-      "supportedTags": [
-        "Cocktails"
-      ],
-      "description": "Cocktails are available here.",
-      "vibeTags": [
-        "Cocktails"
-      ],
-      "grounding": {
-        "version": 2,
-        "verdict": "SUPPORTED",
-        "description": "Cocktails are available here.",
-        "vibeTags": [
-          "Cocktails"
-        ],
-        "claims": [
-          {
-            "phrase": "Cocktails are available here.",
-            "reason": "The fact 'Cocktails' is present and 'are available' is a semantically fitting paraphrase for presence.",
-            "offendingPhrase": "",
-            "verdict": "SUPPORTED"
-          },
-          {
-            "phrase": "Cocktails",
-            "reason": "The fact 'Cocktails' is present.",
-            "offendingPhrase": "",
-            "verdict": "SUPPORTED"
-          }
-        ]
-      }
-    },
     "venue-194uq0b": {
       "venueId": "venue-194uq0b",
       "borough": "Merton",
@@ -5919,54 +5853,6 @@
           {
             "phrase": "Live music",
             "reason": "The pub has a 'Live music' feature.",
-            "offendingPhrase": "",
-            "verdict": "SUPPORTED"
-          }
-        ]
-      }
-    },
-    "venue-1czr9op": {
-      "venueId": "venue-1czr9op",
-      "borough": "Waltham Forest",
-      "supportedTags": [
-        "Pub quiz",
-        "Darts"
-      ],
-      "description": "Fancy a pub quiz and some darts? This Waltham Forest pub has both.",
-      "vibeTags": [
-        "Pub quiz",
-        "Darts"
-      ],
-      "grounding": {
-        "version": 2,
-        "verdict": "SUPPORTED",
-        "description": "Fancy a pub quiz and some darts? This Waltham Forest pub has both.",
-        "vibeTags": [
-          "Pub quiz",
-          "Darts"
-        ],
-        "claims": [
-          {
-            "phrase": "Fancy a pub quiz and some darts?",
-            "reason": "The pub has 'Pub quiz' and 'Darts' features. The phrase is an invitation to supported activities. 'some' does not imply an unsupported quantity.",
-            "offendingPhrase": "",
-            "verdict": "SUPPORTED"
-          },
-          {
-            "phrase": "This Waltham Forest pub has both.",
-            "reason": "The pub has 'Pub quiz' and 'Darts' features. 'has both' refers to these features. The pub is located in 'Waltham Forest'.",
-            "offendingPhrase": "",
-            "verdict": "SUPPORTED"
-          },
-          {
-            "phrase": "Pub quiz",
-            "reason": "The pub has a 'Pub quiz' feature.",
-            "offendingPhrase": "",
-            "verdict": "SUPPORTED"
-          },
-          {
-            "phrase": "Darts",
-            "reason": "The pub has a 'Darts' feature.",
             "offendingPhrase": "",
             "verdict": "SUPPORTED"
           }
@@ -12503,6 +12389,76 @@
         ]
       }
     },
+    "venue-1uvk466": {
+      "venueId": "venue-1uvk466",
+      "borough": "Greenwich",
+      "supportedTags": [
+        "Cocktails",
+        "Pool",
+        "Happy hour",
+        "Karaoke"
+      ],
+      "description": "You can get cocktails and play pool here. They also run karaoke and have a happy hour.",
+      "vibeTags": [
+        "Karaoke",
+        "Cocktails",
+        "Pool"
+      ],
+      "grounding": {
+        "version": 2,
+        "verdict": "SUPPORTED",
+        "description": "You can get cocktails and play pool here. They also run karaoke and have a happy hour.",
+        "vibeTags": [
+          "Karaoke",
+          "Cocktails",
+          "Pool"
+        ],
+        "claims": [
+          {
+            "phrase": "You can get cocktails",
+            "reason": "The pub has 'Cocktails'. 'get cocktails' is a semantically fitting verb.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "and play pool here.",
+            "reason": "The pub has 'Pool'. 'play pool' is a semantically fitting verb.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "They also run karaoke",
+            "reason": "The pub has 'Karaoke'. 'run karaoke' is a semantically fitting verb.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "and have a happy hour.",
+            "reason": "The pub has 'Happy hour'. 'have a happy hour' is a semantically fitting verb.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Karaoke",
+            "reason": "The fact 'Karaoke' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Pool",
+            "reason": "The fact 'Pool' is present.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ]
+      }
+    },
     "venue-1v1wfs4": {
       "venueId": "venue-1v1wfs4",
       "borough": "Southwark",
@@ -14666,6 +14622,57 @@
         ]
       }
     },
+    "venue-4maprc": {
+      "venueId": "venue-4maprc",
+      "borough": "Waltham Forest",
+      "supportedTags": [
+        "Darts",
+        "Pool",
+        "Karaoke"
+      ],
+      "description": "This place has darts, pool and karaoke.",
+      "vibeTags": [
+        "Darts",
+        "Pool",
+        "Karaoke"
+      ],
+      "grounding": {
+        "version": 2,
+        "verdict": "SUPPORTED",
+        "description": "This place has darts, pool and karaoke.",
+        "vibeTags": [
+          "Darts",
+          "Pool",
+          "Karaoke"
+        ],
+        "claims": [
+          {
+            "phrase": "This place has darts, pool and karaoke.",
+            "reason": "The venue is known to have Darts, Pool, and Karaoke.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Darts",
+            "reason": "The venue is known to have Darts.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Pool",
+            "reason": "The venue is known to have Pool.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Karaoke",
+            "reason": "The venue is known to have Karaoke.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ]
+      }
+    },
     "venue-4mb6er": {
       "venueId": "venue-4mb6er",
       "borough": "Lambeth",
@@ -16610,6 +16617,48 @@
         ]
       }
     },
+    "venue-9e93hd": {
+      "venueId": "venue-9e93hd",
+      "borough": "Greenwich",
+      "supportedTags": [
+        "Cocktails",
+        "Alcohol-free options"
+      ],
+      "description": "This Greenwich pub serves cocktails and offers alcohol-free options.",
+      "vibeTags": [
+        "Cocktails",
+        "Alcohol-free options"
+      ],
+      "grounding": {
+        "version": 2,
+        "verdict": "SUPPORTED",
+        "description": "This Greenwich pub serves cocktails and offers alcohol-free options.",
+        "vibeTags": [
+          "Cocktails",
+          "Alcohol-free options"
+        ],
+        "claims": [
+          {
+            "phrase": "This Greenwich pub serves cocktails and offers alcohol-free options.",
+            "reason": "The phrase 'This Greenwich pub' uses the borough 'Greenwich' as a modifier for 'pub', which is allowed. The phrase 'serves cocktails' is supported by the fact 'Cocktails'. The phrase 'offers alcohol-free options' is supported by the fact 'Alcohol-free options'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The tag 'Cocktails' is directly supported by the fact 'Cocktails'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Alcohol-free options",
+            "reason": "The tag 'Alcohol-free options' is directly supported by the fact 'Alcohol-free options'.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ]
+      }
+    },
     "venue-9fb18e": {
       "venueId": "venue-9fb18e",
       "borough": "Kingston upon Thames",
@@ -17742,29 +17791,38 @@
       "venueId": "venue-cgh71l",
       "borough": "Islington",
       "supportedTags": [
-        "Live music"
+        "Live music",
+        "Pub quiz"
       ],
-      "description": "This place runs live music.",
+      "description": "This Islington pub hosts live music and runs a pub quiz.",
       "vibeTags": [
-        "Live music"
+        "Live music",
+        "Pub quiz"
       ],
       "grounding": {
         "version": 2,
         "verdict": "SUPPORTED",
-        "description": "This place runs live music.",
+        "description": "This Islington pub hosts live music and runs a pub quiz.",
         "vibeTags": [
-          "Live music"
+          "Live music",
+          "Pub quiz"
         ],
         "claims": [
           {
-            "phrase": "This place runs live music.",
-            "reason": "The fact 'Live music' supports the pub having live music. 'runs' is an acceptable verb for hosting.",
+            "phrase": "This Islington pub hosts live music and runs a pub quiz.",
+            "reason": "The pub is located in Islington. The pub has live music. The pub has a pub quiz.",
             "offendingPhrase": "",
             "verdict": "SUPPORTED"
           },
           {
             "phrase": "Live music",
-            "reason": "The fact 'Live music' directly supports this tag.",
+            "reason": "The pub has live music.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Pub quiz",
+            "reason": "The pub has a pub quiz.",
             "offendingPhrase": "",
             "verdict": "SUPPORTED"
           }
@@ -18674,29 +18732,38 @@
       "venueId": "venue-eamebn",
       "borough": "Tower Hamlets",
       "supportedTags": [
-        "Cocktails"
+        "Live music",
+        "Karaoke"
       ],
-      "description": "This place does cocktails.",
+      "description": "This place in Tower Hamlets has live music and karaoke.",
       "vibeTags": [
-        "Cocktails"
+        "Live music",
+        "Karaoke"
       ],
       "grounding": {
         "version": 2,
         "verdict": "SUPPORTED",
-        "description": "This place does cocktails.",
+        "description": "This place in Tower Hamlets has live music and karaoke.",
         "vibeTags": [
-          "Cocktails"
+          "Live music",
+          "Karaoke"
         ],
         "claims": [
           {
-            "phrase": "This place does cocktails.",
-            "reason": "The fact 'Cocktails' supports that the venue serves cocktails.",
+            "phrase": "This place in Tower Hamlets has live music and karaoke.",
+            "reason": "The venue is located in Tower Hamlets, and the facts confirm the presence of Live music and Karaoke.",
             "offendingPhrase": "",
             "verdict": "SUPPORTED"
           },
           {
-            "phrase": "Cocktails",
-            "reason": "The fact 'Cocktails' supports the presence of cocktails.",
+            "phrase": "Live music",
+            "reason": "The facts confirm the presence of Live music.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Karaoke",
+            "reason": "The facts confirm the presence of Karaoke.",
             "offendingPhrase": "",
             "verdict": "SUPPORTED"
           }
@@ -19754,39 +19821,6 @@
         ]
       }
     },
-    "venue-hbtda7": {
-      "venueId": "venue-hbtda7",
-      "borough": "Westminster",
-      "supportedTags": [
-        "Cocktails"
-      ],
-      "description": "Cocktails are served at this Westminster pub.",
-      "vibeTags": [
-        "Cocktails"
-      ],
-      "grounding": {
-        "version": 2,
-        "verdict": "SUPPORTED",
-        "description": "Cocktails are served at this Westminster pub.",
-        "vibeTags": [
-          "Cocktails"
-        ],
-        "claims": [
-          {
-            "phrase": "Cocktails are served at this Westminster pub.",
-            "reason": "The facts state 'Cocktails' are available, and 'served' is a semantically fitting verb. The borough 'Westminster' is a known fact, and describing the pub by its borough is acceptable as the pub remains the subject.",
-            "offendingPhrase": "",
-            "verdict": "SUPPORTED"
-          },
-          {
-            "phrase": "Cocktails",
-            "reason": "The facts state 'Cocktails' are available.",
-            "offendingPhrase": "",
-            "verdict": "SUPPORTED"
-          }
-        ]
-      }
-    },
     "venue-hesnro": {
       "venueId": "venue-hesnro",
       "borough": "Westminster",
@@ -20674,59 +20708,29 @@
       "venueId": "venue-l0h2ot",
       "borough": "Ealing",
       "supportedTags": [
-        "Cocktails",
-        "Happy hour",
-        "Karaoke"
+        "Cocktails"
       ],
-      "description": "This place does karaoke and serves cocktails. They also have happy hour.",
+      "description": "This place does cocktails.",
       "vibeTags": [
-        "Karaoke",
-        "Cocktails",
-        "Happy hour"
+        "Cocktails"
       ],
       "grounding": {
         "version": 2,
         "verdict": "SUPPORTED",
-        "description": "This place does karaoke and serves cocktails. They also have happy hour.",
+        "description": "This place does cocktails.",
         "vibeTags": [
-          "Karaoke",
-          "Cocktails",
-          "Happy hour"
+          "Cocktails"
         ],
         "claims": [
           {
-            "phrase": "This place does karaoke",
-            "reason": "The fact 'Karaoke' supports the claim that the place does karaoke.",
-            "offendingPhrase": "",
-            "verdict": "SUPPORTED"
-          },
-          {
-            "phrase": "and serves cocktails.",
-            "reason": "The fact 'Cocktails' supports the claim that the place serves cocktails.",
-            "offendingPhrase": "",
-            "verdict": "SUPPORTED"
-          },
-          {
-            "phrase": "They also have happy hour.",
-            "reason": "The fact 'Happy hour' supports the claim that they have happy hour.",
-            "offendingPhrase": "",
-            "verdict": "SUPPORTED"
-          },
-          {
-            "phrase": "Karaoke",
-            "reason": "The fact 'Karaoke' supports the tag 'Karaoke'.",
+            "phrase": "This place does cocktails.",
+            "reason": "The fact 'Cocktails' supports that the venue serves cocktails.",
             "offendingPhrase": "",
             "verdict": "SUPPORTED"
           },
           {
             "phrase": "Cocktails",
-            "reason": "The fact 'Cocktails' supports the tag 'Cocktails'.",
-            "offendingPhrase": "",
-            "verdict": "SUPPORTED"
-          },
-          {
-            "phrase": "Happy hour",
-            "reason": "The fact 'Happy hour' supports the tag 'Happy hour'.",
+            "reason": "The fact 'Cocktails' supports the presence of cocktails.",
             "offendingPhrase": "",
             "verdict": "SUPPORTED"
           }
@@ -22696,29 +22700,38 @@
       "venueId": "venue-sszyaw",
       "borough": "Waltham Forest",
       "supportedTags": [
+        "Cocktails",
         "Alcohol-free options"
       ],
-      "description": "They do offer alcohol-free options.",
+      "description": "You'll find cocktails and alcohol-free options here.",
       "vibeTags": [
-        "Alcohol-free options"
+        "Alcohol-free options",
+        "Cocktails"
       ],
       "grounding": {
         "version": 2,
         "verdict": "SUPPORTED",
-        "description": "They do offer alcohol-free options.",
+        "description": "You'll find cocktails and alcohol-free options here.",
         "vibeTags": [
-          "Alcohol-free options"
+          "Alcohol-free options",
+          "Cocktails"
         ],
         "claims": [
           {
-            "phrase": "They do offer alcohol-free options.",
-            "reason": "The fact 'Alcohol-free options' supports the claim that alcohol-free options are offered.",
+            "phrase": "You'll find cocktails and alcohol-free options here.",
+            "reason": "The fact 'Cocktails' supports 'cocktails'. The fact 'Alcohol-free options' supports 'alcohol-free options'.",
             "offendingPhrase": "",
             "verdict": "SUPPORTED"
           },
           {
             "phrase": "Alcohol-free options",
-            "reason": "The fact 'Alcohol-free options' supports the tag 'Alcohol-free options'.",
+            "reason": "The fact 'Alcohol-free options' directly supports this tag.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The fact 'Cocktails' directly supports this tag.",
             "offendingPhrase": "",
             "verdict": "SUPPORTED"
           }
@@ -24585,6 +24598,39 @@
         ]
       }
     },
+    "venue-x7riso": {
+      "venueId": "venue-x7riso",
+      "borough": "Greenwich",
+      "supportedTags": [
+        "Cocktails"
+      ],
+      "description": "This place does cocktails.",
+      "vibeTags": [
+        "Cocktails"
+      ],
+      "grounding": {
+        "version": 2,
+        "verdict": "SUPPORTED",
+        "description": "This place does cocktails.",
+        "vibeTags": [
+          "Cocktails"
+        ],
+        "claims": [
+          {
+            "phrase": "This place does cocktails.",
+            "reason": "The 'Cocktails' feature is present, and 'does' is a semantically fitting verb for the pub.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          },
+          {
+            "phrase": "Cocktails",
+            "reason": "The 'Cocktails' tag directly matches a known feature.",
+            "offendingPhrase": "",
+            "verdict": "SUPPORTED"
+          }
+        ]
+      }
+    },
     "venue-x8tw9t": {
       "venueId": "venue-x8tw9t",
       "borough": "Hammersmith and Fulham",
@@ -25644,6 +25690,10 @@
     "venue-11n82fd": {
       "reason": "insufficient-stored-facts"
     },
+    "venue-11n9s46": {
+      "inputHash": "6ce9326f91637de131d4ec902a777fa6367ed84554c728a883c6f96582816974",
+      "reason": "invalid-copy-after-retry"
+    },
     "venue-11opf9x": {
       "reason": "insufficient-stored-facts"
     },
@@ -25721,7 +25771,8 @@
       "reason": "insufficient-stored-facts"
     },
     "venue-12rqlci": {
-      "reason": "insufficient-stored-facts"
+      "inputHash": "902ade1a9a12c979683b226a53afcba2a0177458c3f2a7863ab84bb818693389",
+      "reason": "invalid-copy-after-retry"
     },
     "venue-12s35d1": {
       "reason": "insufficient-stored-facts"
@@ -25812,7 +25863,8 @@
       "reason": "insufficient-stored-facts"
     },
     "venue-14alocj": {
-      "reason": "insufficient-stored-facts"
+      "inputHash": "c4f12fdb6d934cbd90b9ad41b5020090149241b56587bac8cca2b8f4eb4dc035",
+      "reason": "invalid-copy-after-retry"
     },
     "venue-14i50y9": {
       "reason": "insufficient-stored-facts"
@@ -26071,6 +26123,9 @@
     "venue-190ztva": {
       "reason": "insufficient-stored-facts"
     },
+    "venue-19211ib": {
+      "reason": "insufficient-stored-facts"
+    },
     "venue-1986z7y": {
       "reason": "insufficient-stored-facts"
     },
@@ -26272,6 +26327,10 @@
     },
     "venue-1cviy8x": {
       "reason": "insufficient-stored-facts"
+    },
+    "venue-1czr9op": {
+      "inputHash": "31038bc17538d698e465b2a9e7a246f101fff4842a43b14198a1da9c37fb9b7a",
+      "reason": "invalid-copy-after-retry"
     },
     "venue-1d3sbn2": {
       "reason": "insufficient-stored-facts"
@@ -26556,7 +26615,7 @@
       "reason": "insufficient-stored-facts"
     },
     "venue-1hsf01d": {
-      "inputHash": "36245c1d4024ae97b1e7780d4247ca1c13774afeeb7c35a008c38442e157d232",
+      "inputHash": "35d4ca97105a538cae7d923d450bf060a2e4ddf68ff9f724c87943d3b534c476",
       "reason": "invalid-copy-after-retry"
     },
     "venue-1htbxv4": {
@@ -27293,7 +27352,8 @@
       "reason": "insufficient-stored-facts"
     },
     "venue-1u13yzn": {
-      "reason": "insufficient-stored-facts"
+      "inputHash": "03b32e8f2f6cd568406cb731703d287b5c56c6fc5d6bfe96c30a9790ab30e451",
+      "reason": "invalid-copy-after-retry"
     },
     "venue-1u28r6x": {
       "reason": "insufficient-stored-facts"
@@ -27332,10 +27392,6 @@
     },
     "venue-1utthxt": {
       "reason": "insufficient-stored-facts"
-    },
-    "venue-1uvk466": {
-      "inputHash": "2ab53daeaf87cebf928fefbe275ca6d41237318e53e69ccebb41c72024755a5b",
-      "reason": "invalid-copy-after-retry"
     },
     "venue-1uw3prz": {
       "reason": "insufficient-stored-facts"
@@ -27668,9 +27724,6 @@
     "venue-4k8aej": {
       "reason": "insufficient-stored-facts"
     },
-    "venue-4maprc": {
-      "reason": "insufficient-stored-facts"
-    },
     "venue-4oyygs": {
       "reason": "insufficient-stored-facts"
     },
@@ -27816,7 +27869,8 @@
       "reason": "insufficient-stored-facts"
     },
     "venue-6tjmcd": {
-      "reason": "insufficient-stored-facts"
+      "inputHash": "8dff7c5819e53181fd7b026c90e2fdbce6f70e5c13a7c33a944aad46754b268a",
+      "reason": "invalid-copy-after-retry"
     },
     "venue-6yj07d": {
       "reason": "insufficient-stored-facts"
@@ -27982,9 +28036,6 @@
       "reason": "insufficient-stored-facts"
     },
     "venue-9dwjpl": {
-      "reason": "insufficient-stored-facts"
-    },
-    "venue-9e93hd": {
       "reason": "insufficient-stored-facts"
     },
     "venue-9fpcx5": {
@@ -28477,6 +28528,9 @@
     "venue-ha5vr8": {
       "reason": "insufficient-stored-facts"
     },
+    "venue-hbtda7": {
+      "reason": "insufficient-stored-facts"
+    },
     "venue-hdtgni": {
       "reason": "insufficient-stored-facts"
     },
@@ -28740,8 +28794,7 @@
       "reason": "insufficient-stored-facts"
     },
     "venue-lw1nbc": {
-      "inputHash": "b8adab784ea446801cdd5fbd7159e0f816068395d3d55695b025ad169dd697b8",
-      "reason": "invalid-copy-after-retry"
+      "reason": "insufficient-stored-facts"
     },
     "venue-ly6oxk": {
       "reason": "insufficient-stored-facts"
@@ -28793,8 +28846,7 @@
       "reason": "insufficient-stored-facts"
     },
     "venue-mn77vs": {
-      "inputHash": "38419237979a782016a72db54e6d59c29eb5ddb30112a2d0d8786ccc21fe93de",
-      "reason": "invalid-copy-after-retry"
+      "reason": "insufficient-stored-facts"
     },
     "venue-mnprnd": {
       "reason": "insufficient-stored-facts"
@@ -28978,7 +29030,8 @@
       "reason": "insufficient-stored-facts"
     },
     "venue-pmqf8u": {
-      "reason": "insufficient-stored-facts"
+      "inputHash": "acae566e81208a480d8dad1d021d865efa824701f9b64b3ef985756b317b1388",
+      "reason": "invalid-copy-after-retry"
     },
     "venue-pnjai3": {
       "reason": "insufficient-stored-facts"
@@ -29389,9 +29442,6 @@
       "reason": "insufficient-stored-facts"
     },
     "venue-x5xgtw": {
-      "reason": "insufficient-stored-facts"
-    },
-    "venue-x7riso": {
       "reason": "insufficient-stored-facts"
     },
     "venue-xb62t1": {
