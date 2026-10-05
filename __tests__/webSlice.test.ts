@@ -169,6 +169,39 @@ describe("Tavily web slice", () => {
     expect(stored.get(other)).toEqual({ url: other, skip: skipped });
   });
 
+  it("keeps a basic-depth answer and stops the slice when the advanced retry fails", async () => {
+    const gone = "https://www.thewhitehartoxford.example/";
+    const searches = { "search-0": search([{ url: ownSite, title: "Cricketers Arms", content: "OX4 2EZ" }, { url: listing, content: "OX4 2LF" }, { url: gone, content: "OX4 1AA" }]), "search-1": search([]) };
+    const extract = vi.fn(async (urls: string[], depth: string) => {
+      if (depth === "advanced") throw new Error("Tavily HTTP 429");
+      return { results: [{ url: ownSite, raw_content: ownText }], failed_results: [{ url: listing, error: "Failed to fetch url" }, { url: gone, status: 404, error: "page HTTP 404" }] };
+    });
+    const { io, stored } = harness({ state: { queries: [{ query: "q0", resultPath: "search-0", observedAt }] }, searches,
+      robots: vi.fn(async () => allowed), extract, search: vi.fn(async () => search([])) });
+    await expect(webSlice(slice, { spend: true }, io)).rejects.toMatchObject({ message: "Tavily HTTP 429", partial: { complete: false } });
+    expect(extract.mock.calls).toEqual([[[ownSite, listing, gone], "basic"], [[listing], "advanced"]]);
+    expect(stored.get(ownSite)).toMatchObject({ landedUrl: ownSite, text: ownText });
+    expect(stored.get(gone)).toMatchObject({ unreadable: "extract: page HTTP 404", settled: true });
+    expect(stored.has(listing)).toBe(false);
+    expect(io.probe).not.toHaveBeenCalled();
+  });
+
+  it("settles a definitive failure a batch already paid for when another read in it fails", async () => {
+    const reader = { provider: "firecrawl", label: "Firecrawl scrape", failed: "failed", depths: ["basic"] };
+    const gone = "https://www.thewhitehartoxford.example/";
+    const searches = { "search-0": search([{ url: ownSite, title: "Cricketers Arms", content: "OX4 2EZ" }, { url: gone, content: "OX4 1AA" }]), "search-1": search([]) };
+    const skipped = { outcome: "skipped", kind: "extract" };
+    const extract = vi.fn(async () => {
+      throw Object.assign(new Error("Firecrawl HTTP 402"), { status: 402, answered: { results: [], failed_results: [{ url: gone, status: 404, error: "page HTTP 404" }] } });
+    });
+    const { io, stored } = harness({ state: { queries: [{ query: "q0", resultPath: "search-0", observedAt }], robots: { [ownSite]: allowed, [gone]: allowed } }, searches,
+      pages: { [ownSite]: { url: ownSite, skip: skipped }, [gone]: { url: gone, skip: skipped } }, extract });
+    await expect(webSlice(slice, { spend: true, skipsOnly: true }, { ...io, reader })).rejects.toThrow("Firecrawl HTTP 402");
+    expect(stored.get(gone)).toMatchObject({ unreadable: "extract: page HTTP 404", settled: true });
+    expect(stored.get(ownSite)).toEqual({ url: ownSite, skip: skipped });
+    expect(io.probe).not.toHaveBeenCalled();
+  });
+
   it("filters pages from sites that cannot describe a venue before reading or paying for them", async () => {
     const council = "https://democracy.manchester.gov.uk/documents/s1/licence.pdf";
     const postcodes = "https://www.postcodearea.co.uk/postaltowns/oxford/ox42lf";
