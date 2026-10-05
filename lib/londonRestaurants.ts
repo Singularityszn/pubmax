@@ -25,9 +25,9 @@
 //    a borough, as it does a curated pin's. A search for an area the pack does
 //    not name (Soho, Shoreditch) keeps the restaurants within 400 m of a
 //    curated pin whose address or borough names it. Near me keeps the
-//    restaurants inside its walk ring. A filter that asks what a row cannot answer (a
-//    price, Open now, Saved only, an amenity, a drink, a zone) hides every
-//    restaurant while it is on.
+//    restaurants inside its walk ring. A filter that asks what a row cannot
+//    answer (a price, Open now, Saved only, an amenity, a drink, a zone) hides
+//    every restaurant while it is on.
 
 import { haversineMeters } from "@/lib/greatCircle.mjs";
 import {
