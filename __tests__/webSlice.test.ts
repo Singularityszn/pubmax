@@ -111,14 +111,14 @@ describe("Tavily web slice", () => {
     const pages = { [ownSite]: { url: ownSite, skip: extractSkip }, [reread]: { url: reread, landedUrl: reread, observedAt, title: null, text: "" } };
     const reader = { provider: "firecrawl", label: "Firecrawl scrape", failed: "failed", depths: ["basic"] };
     const extract = vi.fn(async (urls: string[]) => ({ results: urls.map((url) => ({ url, raw_content: url === listing ? listingText : ownText })) }));
-    const robots = vi.fn(async () => allowed);
+    const robots = vi.fn(async (_url: string) => allowed);
     const { io, stored } = harness({ state, searches, pages, robots, extract });
     const outcome = await webSlice(slice, { spend: true, skipsOnly: true }, { ...io, reader });
     expect(robots.mock.calls.map(([url]) => url)).toEqual([listing]);
     expect(extract.mock.calls).toEqual([[[listing, ownSite], "basic"]]);
     expect(io.search).not.toHaveBeenCalled();
     expect(outcome).toMatchObject({ complete: true, skips: [] });
-    expect(outcome.found.map((row: { name: string; provider: string }) => [row.name, row.provider])).toEqual([["Original Swan", "tavily-firecrawl"], ["Cricketers Arms", "tavily-firecrawl"]]);
+    expect(outcome.found.map((row) => [row.name, row.provider])).toEqual([["Original Swan", "tavily-firecrawl"], ["Cricketers Arms", "tavily-firecrawl"]]);
     expect(stored.get(ownSite)).toMatchObject({ reader: "firecrawl", text: ownText });
     const unsearched = harness({ state: { queries: [] }, searches, robots, extract });
     expect(await webSlice(slice, { spend: true, skipsOnly: true }, { ...unsearched.io, reader })).toMatchObject({ complete: false });
