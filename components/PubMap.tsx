@@ -435,8 +435,8 @@ import {
 } from "@/lib/mapLogIntent";
 import {
   browserPrefersReducedMotion,
-  browserRevealTimers,
-  scheduleLogIntentReveal,
+  cancelLogIntentReveal,
+  requestLogIntentReveal,
 } from "@/lib/logIntentReveal";
 import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
@@ -4091,11 +4091,7 @@ export default function PubMap({
     // and focus stays put so raising the keyboard is the reader's own next move
     // (lib/logIntentReveal.ts owns the wait, the selector and the behaviour).
     if (typeof document !== "undefined") {
-      scheduleLogIntentReveal({
-        root: document,
-        reducedMotion: browserPrefersReducedMotion(),
-        timers: browserRevealTimers(),
-      });
+      requestLogIntentReveal(document, browserPrefersReducedMotion());
     }
   }, [closePlanning, dismissOnboarding, setComposerOpen, setSheetDragY, setSheetSnap]);
 
@@ -4409,6 +4405,11 @@ export default function PubMap({
   // The venue sheet is open for a curated venue OR for a tapped base pub; both
   // fill the same drawer/sheet, so every open/close/snap path stays one path.
   const detailOpen = mapSelection.detailOpen;
+  // A log intent's reveal waits for the composer's price step to mount, so a
+  // sheet closed before that happens takes the waiting reveal with it.
+  useEffect(() => {
+    if (!detailOpen) cancelLogIntentReveal();
+  }, [detailOpen]);
   const activeNightArea = useMemo(() => nightAreaForMapQuery(cityId, filters.query) ??
     (!filters.query.trim() && plannedNightArea ? getNightArea(plannedNightArea) : null),
   [cityId, filters.query, plannedNightArea]);
