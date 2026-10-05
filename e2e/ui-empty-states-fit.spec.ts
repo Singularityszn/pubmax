@@ -4,9 +4,6 @@ import { randomUUID } from "node:crypto";
 test.describe("UI empty states and layout fit", () => {
   test.beforeEach(async ({ page }) => {
     await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
-    await page.route("**/_vercel/insights/script.js", (route) =>
-      route.fulfill({ status: 200, contentType: "application/javascript", body: "" }),
-    );
     await page.addInitScript(() => {
       localStorage.setItem("pubmax-theme", "light");
       localStorage.setItem("pubmax-tour-v1-done", "1");
