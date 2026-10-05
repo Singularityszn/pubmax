@@ -151,12 +151,16 @@ jobs:
           e2e/desktop-map-chrome-fit.spec.ts
           e2e/desktop-map-rail.spec.ts
           e2e/desktop-sheet-chrome-fit.spec.ts
+          e2e/first-run-chrome-share.spec.ts
           e2e/first-run-tour-placement.spec.ts
+          e2e/launch-phone-controls.spec.ts
           e2e/map-arrival-card-pins.spec.ts
           e2e/map-arrival.spec.ts
           e2e/map-blocked-fallback.spec.ts
+          e2e/map-body-clearance.spec.ts
           e2e/map-consent-bottom-controls.spec.ts
           e2e/map-desktop-arrival-chrome.spec.ts
+          e2e/map-desktop-filters.spec.ts
           e2e/map-fallback.spec.ts
           e2e/map-search-no-results.spec.ts
           e2e/map-search-typing.spec.ts
