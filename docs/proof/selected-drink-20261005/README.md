@@ -26,3 +26,11 @@ The following 1440 x 900 capture shows the Wine route's selected-drink title and
 ![Desktop Wine route shows unknown total and Wine stops](wine-desktop.png)
 
 These results establish local keyless behaviour. They do not establish hosted Auth or Storage, live voice, private GPS, Core Web Vitals, production deployment or every route. The original full merge gate and Native review must complete before publication. This is a dated record, not a claim about the deployed website.
+
+## Final Native test result, 5 October 2026
+
+The formal Native test on `274198fa1f1bef5a28f1e891736d65f3608319f5` completed with zero findings. The original `npm run verify:no-mistakes` passed 19,644 unit cases with one existing skip, 525 PostgreSQL cases and 10 harness cases. A fresh original-config `.next-nmtest` production build passed all 25 affected browser cases with the original two workers, no retries and the original budgets. These were 21 selected-drink cases and 4 adjacent cases.
+
+The added cases cover Top shelf unknown money, sharing and refusal, explicit No-alcohol generation defaults, durable favourite retention after Beer and Gin generation, and London dry gin stop metrics and calendar text. Native also made adversarial visual checks on the same build, then stopped its servers and removed its build output. These are local results from real pages, data, keyless API requests, clipboard and calendar export. Root did not rerun them independently, and no compiled-byte proof was retained.
+
+They do not establish hosted Auth or Storage, live voice, private GPS, Core Web Vitals or production. The three credential-dependent freshness stores remain unmeasurable, never fresh. This record is not a merge or a deployment.
