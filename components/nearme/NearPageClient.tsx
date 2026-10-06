@@ -14,6 +14,7 @@ import { readPreferredCity, subscribePreferredCity } from "@/lib/cityPreference"
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import {
   NEAR_MODE_QUERY,
+  nearUrlNamesContent,
   resolveNearMode,
   shouldSwitchNearMode,
   type NearMode,
@@ -43,18 +44,24 @@ export function resolveNearAutoLocate(
  * page must answer Pint too, even for `?mode=desk`, or React finds Desk text
  * where the document holds Pint text and throws #418. The query and the
  * remembered mode both swap in once the browser answers.
+ *
+ * A link that names its own content (`?patch=`, `?locate=1`, `?src=`) is read
+ * from the URL alone: the remembered mode only decides the bare `/near`, so a
+ * shared link opens the same page for everyone.
  */
 export function resolveNearPageMode({
   hydrated,
   modeParam,
   rememberedMode,
+  urlNamesContent = false,
 }: {
   hydrated: boolean;
   modeParam: string | null;
   rememberedMode: string | null;
+  urlNamesContent?: boolean;
 }): NearMode {
   if (!hydrated) return "pint";
-  return resolveNearMode(modeParam, rememberedMode);
+  return resolveNearMode(modeParam, urlNamesContent ? null : rememberedMode);
 }
 
 function NearPageBody() {
@@ -87,6 +94,7 @@ function NearPageBody() {
     hydrated,
     modeParam: searchParams.get(NEAR_MODE_QUERY),
     rememberedMode,
+    urlNamesContent: nearUrlNamesContent(searchParams),
   });
 
   const setMode = useCallback((next: NearMode) => {
