@@ -1,6 +1,7 @@
 import PintIndexMapArrival from "@/components/pintindex/PintIndexMapArrival";
 import PubMaxingShell from "@/components/PubMaxingShell";
 import { londonMapMetadata } from "@/lib/londonMapMetadata";
+import { loadZonePintIndex } from "@/lib/zonePintIndex.server";
 
 // /map stays London for back-compat bookmarks. Other cities live at /map/[city].
 //
@@ -31,7 +32,10 @@ export const revalidate = 3600;
 export const metadata = londonMapMetadata();
 const mapWarmVersion = process.env.NEXT_PUBLIC_SW_VERSION?.trim() || "local";
 
-export default function MapPage() {
+export default async function MapPage() {
+  // A build-time read of the same slim index /pint-index rolls up, so the map's
+  // zone medians are the published ones, not whatever has loaded so far.
+  const zonePintIndex = await loadZonePintIndex();
   return (
     <>
       {/* defer, not a sync script. On a cold first visit - the one the
@@ -44,7 +48,7 @@ export default function MapPage() {
           event it waits for, and document.currentScript is set for a deferred
           classic script, so the ?v= revision read is unchanged. */}
       <script defer src={`/map-first-paint-init.js?v=${encodeURIComponent(mapWarmVersion)}`} />
-      <PubMaxingShell cityId="london" />
+      <PubMaxingShell cityId="london" zonePintIndex={zonePintIndex} />
       {/* Records that a Pint Index arrival reached the map. Renders nothing and
           owns no map state; it only reads its own arrival marker off the URL. */}
       <PintIndexMapArrival />

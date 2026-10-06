@@ -405,7 +405,7 @@ import {
   type UkBasePub,
   type UkBaseStreamStatus,
 } from "@/lib/ukBasePubs";
-import { computeZonePintIndex } from "@/lib/zones";
+import { computeZonePintIndex, type ZonePintIndex, type ZonePricedVenue } from "@/lib/zones";
 import { useCityStoryCatalog } from "@/components/map/useCityStoryCatalog";
 import {
   useCoffeePilotCafes,
@@ -1064,10 +1064,19 @@ function mapChipLabelFor(input: {
     : ukPlaceArrival?.name ?? claimedArea?.name ?? mapContextName;
 }
 
+/** The published fare-zone medians when the page was handed them, else a roll-up of the venues loaded so far. */
+function publishedOrLoadedZoneIndex(
+  published: ZonePintIndex | null | undefined,
+  loaded: readonly ZonePricedVenue[],
+): ZonePintIndex {
+  return published ?? computeZonePintIndex(loaded);
+}
+
 export default function PubMap({
   cityId = DEFAULT_CITY_ID,
   placeArrival = null,
   nationalBrowse = false,
+  zonePintIndex,
 }: {
   cityId?: CityId;
   /**
@@ -1083,6 +1092,12 @@ export default function PubMap({
    * appear once the camera crosses the base zoom gate. Never invents prices.
    */
   nationalBrowse?: boolean;
+  /**
+   * The published fare-zone medians, rolled up server-side from the whole slim
+   * index (`loadZonePintIndex`), the same figures /pint-index prints. Absent,
+   * the map falls back to the venues it has loaded so far.
+   */
+  zonePintIndex?: ZonePintIndex | null;
 }) {
   const city = getCity(cityId);
   const [ukPlaceArrival] = useState(() => placeArrival);
@@ -2916,10 +2931,15 @@ export default function PubMap({
       });
     });
   }, [builtIds, cityId, loaded, loadedCityId, venueById]);
-  // Zone pint index (nearest-station fare zone medians) for the zone picker.
-  // Computed off the full venue set so the strip's numbers don't shift as the
-  // user filters — it's a stable "here's the lay of the land" reference.
-  const zoneIndex = useMemo(() => computeZonePintIndex(pubVenues), [pubVenues]);
+  // Zone pint index (nearest-station fare zone medians) for the zone picker and
+  // the venue sheet's area compare. The published index covers every priced pub,
+  // so the strip's numbers do not shift as the user filters, pans or waits for
+  // more venues to load, and they match /pint-index. The loaded venues are only
+  // the fallback for a page that was handed no published index.
+  const zoneIndex = useMemo(
+    () => publishedOrLoadedZoneIndex(zonePintIndex, pubVenues),
+    [zonePintIndex, pubVenues],
+  );
   // Base narrowing: the existing filter pipeline (story filters, price, query,
   // pint-drops). Favorite-pint re-prices inside PubMapCanvas and never changes
   // membership, so it isn't part of this set.
