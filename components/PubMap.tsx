@@ -573,7 +573,7 @@ import {
 import type { AreaSheetPlaceFocus } from "@/components/map/AreaSheet";
 import { parseLocalityGazetteer, type Locality } from "@/lib/localities";
 import type { MapSearchAreaOption } from "@/lib/mapSearchSuggest";
-import { getNightArea, getNightAreasForCity, nearestNightAreaForViewport, nightAreaForMapQuery, type NightArea } from "@/lib/nightAreas";
+import { getNightArea, getNightAreasForCity, nearestNightAreaForViewport, nearestRouteReadyNightArea, nightAreaForMapQuery, type NightArea } from "@/lib/nightAreas";
 import { defaultPoiHiddenForViewport } from "@/lib/poiToggleGroups";
 import {
   defaultVenueKindVisibility,
@@ -4567,6 +4567,13 @@ export default function PubMap({
     () => activeNightArea ?? nearestNightAreaForViewport(cityId, mapViewport.center),
     [activeNightArea, cityId, mapViewport.center],
   );
+  // The phone planner opens on this area, so a view centred on an area we have
+  // not checked falls to the nearest one a crawl can be planned in. An area the
+  // reader named themselves stays as named.
+  const phonePlanArea = useMemo(
+    () => activeNightArea ?? nearestRouteReadyNightArea(cityId, mapViewport.center) ?? suggestedPlanArea,
+    [activeNightArea, cityId, mapViewport.center, suggestedPlanArea],
+  );
   const venuesById = useMemo(
     () => new Map(filteredPubVenues.map((venue) => [venue.id, venue])),
     [filteredPubVenues],
@@ -5544,11 +5551,11 @@ export default function PubMap({
   // screen (verify-preview-4, J04); a crawl being built now leads the sheet.
   const plannerDrinkSelection = experienceLens === "all" ? filters : undefined;
   function renderPhoneDescribeForm() {
-    return mobileViewport && isLondon && suggestedPlanArea ? (
+    return mobileViewport && isLondon && phonePlanArea ? (
       <MobilePlanActivation
         key="phone-describe-form"
         cityId={cityId}
-        initialNightArea={suggestedPlanArea.slug}
+        initialNightArea={phonePlanArea.slug}
         venuesById={venuesById}
         defaultDrinkSelection={plannerDefaultDrinkSelection(experienceLens, plannerDrinkSelection)}
         onGenerated={applyGeneratedMobilePlan}

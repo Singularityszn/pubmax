@@ -10,6 +10,7 @@ vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ user: null 
 import { MobilePlanActivation } from "@/components/plan/MobilePlanActivation";
 import type { MapPlanDrinkSelection } from "@/lib/mapPlanDrinkPresentation";
 import { inferNightContext } from "@/lib/nightPlanning";
+import { writePlannerHandoff } from "@/lib/onboardingFlow";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -21,6 +22,7 @@ let requests: Array<{ query?: string; context: Record<string, unknown> }>;
 beforeEach(() => {
   requests = [];
   localStorage.clear();
+  sessionStorage.clear();
   vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
     if (init?.method === "POST") {
       const body = JSON.parse(String(init.body));
@@ -188,5 +190,35 @@ describe("map drink default in the phone planner", () => {
     await render({ drinkCategory: "", drinkBrand: "", drinkSubtype: "" });
     await generate();
     expect(requests[0]!.context).not.toHaveProperty("drinkCategory");
+  });
+});
+
+describe("first-run handoff in the phone planner", () => {
+  it("opens on the chosen patch's checked area and carries the budget", async () => {
+    // The Soho patch, and a £5 pint across the default three stops.
+    writePlannerHandoff({ patch: { lat: 51.5136, lng: -0.1365 }, budget: "five" });
+    await render(wine);
+    const area = container.querySelector<HTMLSelectElement>("select")!;
+    expect(area.value).toBe("piccadilly-soho");
+    const maxEach = container.querySelector<HTMLInputElement>('input[placeholder="£"]')!;
+    expect(maxEach.value).toBe("15");
+    await generate();
+    expect(requests[0]!.context).toMatchObject({ nightArea: "piccadilly-soho", budgetLimitPence: 1500 });
+  });
+
+  it("is read once: a second planner opens on its own defaults", async () => {
+    writePlannerHandoff({ patch: { lat: 51.5136, lng: -0.1365 }, budget: "five" });
+    await render(wine);
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await render(wine);
+    expect(container.querySelector<HTMLSelectElement>("select")!.value).toBe("clapham");
+    expect(container.querySelector<HTMLInputElement>('input[placeholder="£"]')!.value).toBe("");
+  });
+
+  it("carries no budget for No limit", async () => {
+    writePlannerHandoff({ patch: null, budget: "any" });
+    await render(wine);
+    expect(container.querySelector<HTMLInputElement>('input[placeholder="£"]')!.value).toBe("");
   });
 });

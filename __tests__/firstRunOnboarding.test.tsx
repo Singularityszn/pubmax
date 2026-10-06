@@ -23,10 +23,12 @@ vi.mock("@/lib/venuesSlim", () => ({ loadSlimVenuesForCityResult: slim.load }));
 
 import FirstRunOnboarding from "@/components/onboarding/FirstRunOnboarding";
 import { hasSeenTour } from "@/lib/firstRunTour";
-import { readBudgetChoice } from "@/lib/onboardingFlow";
+import { readBudgetChoice, readPlannerHandoff } from "@/lib/onboardingFlow";
 
 let container: HTMLDivElement;
 let root: Root | null = null;
+// "Plan my night" leaves the app router for a document load; the spy stands in.
+const openPlanner = vi.fn();
 
 // Pubs around Soho (51.5136, -0.1365), cheapest first by price. Three sit inside
 // the walkable ring so the answer is not widened.
@@ -74,6 +76,7 @@ async function reachLocation() {
 beforeEach(async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   window.localStorage.clear();
+  window.sessionStorage.clear();
   // jsdom has no layout to scroll; the spy records where each step asked to open.
   vi.spyOn(window, "scrollTo").mockImplementation(() => {});
   slim.load.mockResolvedValue({ rows: SOHO_PUBS, status: "ready" });
@@ -85,6 +88,7 @@ beforeEach(async () => {
       createElement(FirstRunOnboarding, {
         reviewedAreas: [{ name: "Clapham", transportAnchor: "Clapham North" }],
         skipHref: "/near?locate=1",
+        openPlanner,
       }),
     );
   });
@@ -349,7 +353,8 @@ describe("first-run result and companion choice", () => {
     expect(greyhoundImg?.getAttribute("src")).toContain("circuit-greyhound");
 
     await tap("Plan my night");
-    expect(router.push).toHaveBeenCalledWith("/map?plan=1");
+    expect(openPlanner).toHaveBeenCalledTimes(1);
+    expect(router.push).not.toHaveBeenCalled();
   });
 
   it("moves the progress bar one step per screen", async () => {
@@ -373,5 +378,41 @@ describe("first-run result and companion choice", () => {
 
     await tap("Continue");
     expect(scrollTo).toHaveBeenCalledWith(0, 0);
+  });
+});
+
+describe("first-run handoff to the planner", () => {
+  it("hands the planner the patch and the budget the reader chose", async () => {
+    stubGeolocation((_ok, fail) =>
+      fail({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError),
+    );
+    await tap("Use London");
+    await tap("£5 or less");
+    await tap("Continue");
+    await tap("Use my location");
+    await tap("Soho");
+    await settle();
+    await tap("That looks right");
+    await tap("Plan my night");
+
+    expect(readPlannerHandoff()).toEqual({
+      patch: { lat: 51.5136, lng: -0.1365 },
+      budget: "five",
+    });
+  });
+
+  it("hands over the budget alone after a located answer, and keeps no coordinates", async () => {
+    stubGeolocation((ok) =>
+      ok({ coords: { latitude: 51.5136, longitude: -0.1365 } } as GeolocationPosition),
+    );
+    await tap("Use London");
+    await tap("£7 or less");
+    await tap("Continue");
+    await tap("Use my location");
+    await settle();
+    await tap("That looks right");
+    await tap("Plan my night");
+
+    expect(readPlannerHandoff()).toEqual({ patch: null, budget: "seven" });
   });
 });

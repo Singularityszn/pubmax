@@ -12,7 +12,8 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { useTransientSpeechInput } from "@/components/plan/useTransientSpeechInput";
 import AreaNewsBlock from "@/components/areanews/AreaNewsBlock";
 import type { CityId } from "@/lib/cities";
-import { getNightAreasForCity, type NightAreaSlug } from "@/lib/nightAreas";
+import { getNightAreasForCity, nearestRouteReadyNightArea, type NightAreaSlug } from "@/lib/nightAreas";
+import { budgetCeiling, clearPlannerHandoff, readPlannerHandoff } from "@/lib/onboardingFlow";
 import { inferNightContext, type NightContext } from "@/lib/nightPlanning";
 import type { PlanBudgetSummary, PlanEndingRecommendation, PlanningConfidence, PlanRouteTotals } from "@/lib/planIntelligence";
 import type { MapGeneratedRouteResponse } from "@/lib/mapRouteTransfer";
@@ -67,15 +68,29 @@ export function MobilePlanActivation({
   const { user } = useAuth();
   const areas = getNightAreasForCity(cityId);
   const [query, setQuery] = useState("");
-  const [area, setArea] = useState<NightAreaSlug>(initialNightArea);
-  const [areaTouched, setAreaTouched] = useState(false);
+  // The first-run journey leaves the patch and budget the reader gave. They
+  // are read once here and cleared in the effect below.
+  const [handoff] = useState(() => {
+    const held = readPlannerHandoff();
+    const patchArea = held?.patch
+      ? nearestRouteReadyNightArea(cityId, [held.patch.lng, held.patch.lat])
+      : null;
+    const ceiling = held?.budget ? budgetCeiling(held.budget) : null;
+    return {
+      area: patchArea?.slug ?? null,
+      // One listed pint per stop, the same basis the plan's budget line uses.
+      budgetLimit: ceiling ? String(ceiling * DEFAULT_PLAN_STOP_COUNT) : "",
+    };
+  });
+  const [area, setArea] = useState<NightAreaSlug>(handoff.area ?? initialNightArea);
+  const [areaTouched, setAreaTouched] = useState(handoff.area !== null);
   const [daypart, setDaypart] = useState<NightContext["daypart"]>("evening");
   const [daypartTouched, setDaypartTouched] = useState(false);
   const [mood, setMood] = useState<(typeof MOODS)[number]>("lively");
   const [moodTouched, setMoodTouched] = useState(false);
   const [pace, setPace] = useState<(typeof PACES)[number]>("balanced pace");
   const [paceTouched, setPaceTouched] = useState(false);
-  const [budgetLimit, setBudgetLimit] = useState("");
+  const [budgetLimit, setBudgetLimit] = useState(handoff.budgetLimit);
   const [groupSize, setGroupSize] = useState(4);
   const [stopCount, setStopCount] = useState<PlanStopCount>(DEFAULT_PLAN_STOP_COUNT);
   const [groupSizeTouched, setGroupSizeTouched] = useState(false);
@@ -94,6 +109,10 @@ export function MobilePlanActivation({
   const routeUpgradeRef = useRef<AbortController | null>(null);
   const requestRef = useRef<AbortController | null>(null);
   const speech = useTransientSpeechInput(query, setQuery);
+
+  useEffect(() => {
+    clearPlannerHandoff();
+  }, []);
 
   useEffect(() => () => {
     requestRef.current?.abort();

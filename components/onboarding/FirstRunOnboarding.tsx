@@ -41,6 +41,7 @@ import {
   previousOnboardingStep,
   readBudgetChoice,
   writeBudgetChoice,
+  writePlannerHandoff,
   type BudgetChoiceId,
   type OnboardingOrigin,
   type OnboardingStep,
@@ -66,13 +67,26 @@ const GEO_OPTIONS: PositionOptions = {
   maximumAge: 60_000,
 };
 
+/**
+ * The map reads its arrival query once, when it mounts. A client navigation
+ * can mount it before the address bar holds `?plan=1`, so the planner stayed
+ * shut and the handoff below was never read. A document load always carries
+ * the query, so this one step leaves the app router.
+ */
+function openPlannerDocument(): void {
+  window.location.assign(new URL("/map?plan=1", window.location.origin).href);
+}
+
 export default function FirstRunOnboarding({
   reviewedAreas,
   skipHref,
+  openPlanner = openPlannerDocument,
 }: {
   reviewedAreas: ReviewedArea[];
   /** Where Skip lands: where the reader was going before the journey. */
   skipHref: Route;
+  /** How "Plan my night" reaches the planner. Tests replace the page load. */
+  openPlanner?: () => void;
 }) {
   const router = useRouter();
   const [step, setStep] = useState<OnboardingStep>("london");
@@ -247,7 +261,12 @@ export default function FirstRunOnboarding({
     // Onboarding and push never overlap. The route generator is the first
     // action allowed to arm the native permission explainer.
     releaseTourPromptBudget();
-    router.push("/map?plan=1");
+    // The planner opens on the patch and budget the reader just gave.
+    writePlannerHandoff({
+      patch: origin?.kind === "patch" ? { lat: origin.lat, lng: origin.lng } : null,
+      budget,
+    });
+    openPlanner();
   }
 
   const stepNumber = onboardingStepNumber(step);
