@@ -9,7 +9,10 @@
   appearance: none;
   border: none;
   background: none;
-  padding: 0;
+  /* 44px tap target without growing the row: padding is the hit area and the
+     equal negative margin returns the layout height. It measured 97x24. */
+  padding: 10px 0;
+  margin: -10px 0;
   font: inherit;
   font-size: 0.95rem;
   color: var(--ledger-muted, #6b6257);

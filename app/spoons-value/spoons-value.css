@@ -144,6 +144,12 @@
 }
 
 .spoonsTablePub a {
+  /* 44px tap target without growing the row: padding is the hit area, the equal
+     negative margin returns the layout height. The link measured 156x15 and the
+     table holds 790 of them. */
+  display: block;
+  padding-block: 15px;
+  margin-block: -15px;
   color: var(--ink);
   text-decoration: underline;
   text-underline-offset: 2px;

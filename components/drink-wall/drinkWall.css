@@ -57,6 +57,7 @@
 .drinkWallScope button {
   border: 0;
   background: transparent;
+  min-height: 44px;
   padding: 6px 12px;
   font-size: 0.8125rem;
   cursor: pointer;
@@ -71,6 +72,9 @@
   border-radius: 999px;
   border: 1px solid var(--rule, rgba(0, 0, 0, 0.12));
   background: transparent;
+  /* 44px, the tap floor: the chips measured 28 to 30px. */
+  min-height: 44px;
+  min-width: 44px;
   padding: 6px 12px;
   font-size: 0.8125rem;
   cursor: pointer;

@@ -78,6 +78,9 @@
 
 .placesSearchInput {
   flex: 1 1 auto;
+  /* The field is 48px tall, but the input inside it was 26px, so a tap on the
+     padding above or below the text focused nothing. It fills the field. */
+  align-self: stretch;
   min-width: 0;
   border: 0;
   background: transparent;
