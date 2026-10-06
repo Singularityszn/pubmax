@@ -30,7 +30,7 @@ export const CURRENT_IDENTITY_READ_MS = 2_000;
 
 export const CURRENT_IDENTITY_PATH = "/api/identity/handle/current";
 
-export type CurrentIdentityBody = Readonly<Record<string, unknown>>;
+type CurrentIdentityBody = Readonly<Record<string, unknown>>;
 
 export type CurrentIdentityRead =
   | Readonly<{ ok: true; status: number; body: CurrentIdentityBody | null }>

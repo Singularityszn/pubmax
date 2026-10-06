@@ -21,7 +21,7 @@
 export const FIREWALL_HEADER = "x-vercel-mitigated";
 
 /** Pauses before each retry of a 429: 2 s, 4 s, 8 s, then give up. */
-export const FIREWALL_BACKOFF_MS = [2_000, 4_000, 8_000] as const;
+const FIREWALL_BACKOFF_MS = [2_000, 4_000, 8_000] as const;
 
 type HeaderReader = { [name: string]: string | undefined } | Headers;
 
@@ -41,7 +41,7 @@ export function isFirewallDeny(response: { status: number; headers: HeaderReader
 }
 
 /** Is this a refusal worth another try: any 429, the platform's or the app's. */
-export function isRetryable429(response: { status: number }): boolean {
+function isRetryable429(response: { status: number }): boolean {
   return response.status === 429;
 }
 
