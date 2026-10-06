@@ -114,8 +114,15 @@ for (const viewport of WIDTHS) {
       // The card mounts from an effect, so a bare absent-now assertion would
       // pass before the effect had run at all. The route's own answer is
       // awaited first, and the card is then held absent for a real window.
-      const anchored = await firstAnchorBox(page, arrival.anchors);
-      expect(anchored, `${arrival.path} rendered ${arrival.what}`).not.toBeNull();
+      // `domcontentloaded` returns before the route paints, so the anchor is
+      // polled for rather than read once: a single read raced the first paint
+      // and failed on a cold /social.
+      await expect
+        .poll(() => firstAnchorBox(page, arrival.anchors), {
+          message: `${arrival.path} rendered ${arrival.what}`,
+          timeout: 15_000,
+        })
+        .not.toBeNull();
       await expect(prompt).toHaveCount(0);
       await page.waitForTimeout(1_500);
       await expect(prompt).toHaveCount(0);
@@ -146,8 +153,13 @@ for (const viewport of WIDTHS) {
 
     const promptBox = await prompt.boundingBox();
     expect(promptBox).not.toBeNull();
+    await expect
+      .poll(() => firstAnchorBox(page, ["main a"]), {
+        message: "/tonight rendered a first listing",
+        timeout: 15_000,
+      })
+      .not.toBeNull();
     const listing = await firstAnchorBox(page, ["main a"]);
-    expect(listing, "/tonight rendered a first listing").not.toBeNull();
     expect(
       boxesOverlap(promptBox as Box, listing as Box),
       "the docked consent card covers the first listing",
