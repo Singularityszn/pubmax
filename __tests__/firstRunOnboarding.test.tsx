@@ -155,6 +155,8 @@ describe("first-run location ask", () => {
     expect(container.textContent).toMatch(/2 pubs within a \d+ minute walk come in at £6 or less\./);
     expect(container.textContent).toContain("The Lamb");
     expect(container.textContent).toContain("Pub list refreshed");
+    // The fix is ranked in the browser and never written down.
+    expect(JSON.stringify({ ...window.localStorage })).not.toMatch(/51\.513|-0\.136/);
   });
 
   it("offers the patches when location is refused, and answers from the one picked", async () => {
@@ -170,7 +172,10 @@ describe("first-run location ask", () => {
 
     expect(container.textContent).toContain("Cheapest listed around Soho");
     expect(container.querySelector("h1")?.textContent).toBe("£4.90 at The Crown.");
-    expect(window.localStorage.getItem("pubmax:nightPatch:v1")).toContain("soho");
+    // "Nothing is stored" has to stay true: neither the fix nor the picked
+    // patch is written anywhere.
+    expect(window.localStorage.getItem("pubmax:nightPatch:v1")).toBeNull();
+    expect(JSON.stringify({ ...window.localStorage })).not.toMatch(/soho|51\.51/i);
   });
 
   it("says so, and offers the patches, when nothing is priced where the reader is", async () => {

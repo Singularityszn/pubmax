@@ -31,7 +31,7 @@ import {
   rankNearMe,
   type NearMeCard,
 } from "@/lib/nearMeAnswer";
-import { NIGHT_PATCHES, writeRememberedArea } from "@/lib/nightPatches";
+import { NIGHT_PATCHES } from "@/lib/nightPatches";
 import {
   BUDGET_CHOICES,
   ONBOARDING_STEPS,
@@ -228,7 +228,6 @@ export default function FirstRunOnboarding({
   function pickPatch(id: string) {
     const patch = NIGHT_PATCHES.find((candidate) => candidate.id === id);
     if (!patch) return;
-    writeRememberedArea({ kind: "patch", id: patch.id });
     void readAnswer({ kind: "patch", ...patch });
   }
 
