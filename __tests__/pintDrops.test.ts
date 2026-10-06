@@ -94,14 +94,16 @@ vi.mock("@/lib/pintDropsBroadcast.server", () => ({ signalPintDropLanded }));
 vi.mock("@/lib/venueAliases", () => {
   const aliases: Record<string, string> = { "legacy-pub": "canonical-pub", "legacy-bar": "bar-test" };
   const canonical = (id: string) => aliases[id] ?? id;
+  const storedIds = (id: string) => [
+    canonical(id),
+    ...Object.keys(aliases).filter((from) => aliases[from] === canonical(id)),
+  ];
   return {
     resolveCanonicalVenueId: async (id: string) => canonical(id),
+    storedVenueIds: async (id: string) => storedIds(id),
     loadVenueAliasResolver: async () => ({
       canonical,
-      storedIds: (id: string) => [
-        canonical(id),
-        ...Object.keys(aliases).filter((from) => aliases[from] === canonical(id)),
-      ],
+      storedIds,
       retired: () => null,
     }),
   };

@@ -16,8 +16,10 @@ import {
   createFailSoftGuard,
   onMissingDurableWrite,
   selectStore,
+  whereVenueIdIn,
 } from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
+import { storedVenueIds } from "@/lib/venueAliases";
 import {
   validateWeatherRecommendation,
   type WeatherRecommendation,
@@ -201,8 +203,9 @@ export const memoryWeatherRecommendationStore: WeatherRecommendationStore = {
   },
 
   async listForVenue(venueId) {
+    const venueIds = await storedVenueIds(venueId);
     const recommendations = [...memoryRows.values()]
-      .filter((row) => row.venueId === venueId && row.status === "visible")
+      .filter((row) => venueIds.includes(row.venueId) && row.status === "visible")
       .sort((left, right) => right.submittedAt - left.submittedAt)
       .slice(0, MAX_WEATHER_RECOMMENDATIONS_PER_VENUE)
       .map(published);
@@ -355,10 +358,10 @@ export const supabaseWeatherRecommendationStore: WeatherRecommendationStore = {
       message: "listForVenue failed, returning a degraded read",
       onError: degradedRead,
       run: async () => {
-        const { data, error } = await requireSupabaseAdmin()
-          .from(TABLE)
-          .select("*")
-          .eq("venue_id", venueId)
+        const { data, error } = await whereVenueIdIn(
+          requireSupabaseAdmin().from(TABLE).select("*"),
+          await storedVenueIds(venueId),
+        )
           .eq("status", "visible")
           .order("submitted_at", { ascending: false })
           .limit(MAX_WEATHER_RECOMMENDATIONS_PER_VENUE);

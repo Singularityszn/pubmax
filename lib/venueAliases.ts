@@ -3,10 +3,10 @@ import "server-only";
 import { promises as fs } from "fs";
 import path from "path";
 
-import { VENUE_ALIAS_FILES } from "@/lib/venueAliasesFile.mjs";
+import { VENUE_ALIAS_FILES, flattenVenueAliasChains } from "@/lib/venueAliasesFile.mjs";
 
 // Venue-id alias resolution (D1). An id a reader may still hold can stop naming
-// a venue in two ways, and both are recorded as `oldId -> currentId`:
+// a venue in three ways, and each is recorded as `oldId -> currentId`:
 //
 //   * public/data/venue_id_aliases.json - the bundled London dataset collapses
 //     the same physical pub's duplicate lineages into one canonical venue id
@@ -14,11 +14,14 @@ import { VENUE_ALIAS_FILES } from "@/lib/venueAliasesFile.mjs";
 //   * public/data/cities/venue_id_aliases.json - a city pack refresh re-derives
 //     a pub's id from its name, address and point, so an OSM edit to any of
 //     them supersedes the id (scripts/fetch_city_osm_pubs.mjs).
+//   * public/data/uk_base_venue_id_aliases.json - a UK base refresh that drops
+//     an OSM object drops its `venue-uk-*` id, and the same pub re-mapped as a
+//     new object carries a new one (scripts/build_uk_base_shards.mjs).
 //
 // Venue ids are referenced by pint drops, plans and saved lists, so a stored
 // reference to an old id must still resolve at every server-side
 // lookup-by-id seam, and a read keyed by the current id must still find what
-// was stored under an old one. A city pub that left OpenStreetMap with no
+// was stored under an old one. A city or base pub that left OpenStreetMap with no
 // successor is RETIRED: its alias file keeps its name, area and last point, so
 // a reference to it still names that pub while the map no longer lists it.
 //
@@ -64,6 +67,7 @@ function retiredVenueFrom(id: string, value: unknown): RetiredVenue | null {
 async function loadAliases(): Promise<AliasLoadResult> {
   if (cached) return { status: "ready", ...cached };
   const maps: AliasMaps = { aliases: new Map(), retired: new Map() };
+  const pairs: Array<[string, string]> = [];
   try {
     for (const file of aliasPaths) {
       const doc = await readAliasDoc(file);
@@ -71,13 +75,16 @@ async function loadAliases(): Promise<AliasLoadResult> {
       for (const [from, to] of Object.entries(doc.aliases)) {
         // Skip self-maps and non-string targets so a bad row can't create a
         // cycle or resolve an id to a non-id.
-        if (typeof to === "string" && to && from !== to) maps.aliases.set(from, to);
+        if (typeof to === "string" && to && from !== to) pairs.push([from, to]);
       }
       for (const [id, value] of Object.entries(doc.retired ?? {})) {
         const venue = retiredVenueFrom(id, value);
         if (venue) maps.retired.set(id, venue);
       }
     }
+    // One map across all three files, each id pointing at the end of its chain
+    // (A -> B -> C reads A -> C). A cycle throws, so it degrades like a corrupt file.
+    maps.aliases = flattenVenueAliasChains(pairs);
     // Cache only a successful load. A file that's missing/corrupt now but
     // created/repaired later must be picked up on the next call — never poison
     // the cache with an empty map from a transient failure.
@@ -120,6 +127,15 @@ export type VenueAliasResolver = {
   retired(id: string): RetiredVenue | null;
 };
 
+/**
+ * Every id a row about this venue may be stored under, current id first. The
+ * one rule every store read keyed by a venue id runs through, so a row written
+ * under a merged, superseded or dropped id is still read as the venue's own.
+ */
+export async function storedVenueIds(venueId: string): Promise<string[]> {
+  return (await loadVenueAliasResolver()).storedIds(venueId);
+}
+
 /** The retired pub this id names, or null. Null too when the alias files cannot be read. */
 export async function lookupRetiredVenue(id: string): Promise<RetiredVenue | null> {
   return (await loadVenueAliasResolver()).retired(id);
@@ -161,13 +177,13 @@ export function resetVenueAliasesForTests(): void {
   }
 }
 
-export function setVenueAliasesPathForTests(file: string): void {
+export function setVenueAliasesPathForTests(file: string | string[]): void {
   if (
     process.env.NODE_ENV === "test" ||
     Boolean(process.env.VITEST) ||
     Boolean(process.env.VITEST_WORKER_ID)
   ) {
     cached = null;
-    aliasPaths = [file];
+    aliasPaths = Array.isArray(file) ? file : [file];
   }
 }

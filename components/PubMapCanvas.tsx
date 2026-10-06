@@ -3709,11 +3709,11 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // once the camera is past UK_BASE_MIN_ZOOM. Deliberately separate from the
   // `pubs` effect above: nothing here touches the curated source, its clusters
   // or its payload.
-  const handleRestoredBasePub = useCallback((pub: UkBasePub) => {
+  const handleRestoredBasePub = useCallback((pub: UkBasePub, requestedId: string) => {
     // Only reopen the sheet while the restored id is still the selection — a
     // slow shard must never steal a selection the user has already moved on
-    // from.
-    if (selectedIdRef.current !== pub.id) return;
+    // from. A re-mapped pub arrives under its current id, not the one asked for.
+    if (selectedIdRef.current !== requestedId) return;
     onUkBasePubClickRef.current?.(pub);
   }, []);
   const drawableVenueIds = useMemo(

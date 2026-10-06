@@ -45,39 +45,44 @@ function sameName(a, b) {
  * Every pub of the previous pack whose id the next pack no longer serves, with
  * the id the same pub carries now, or null when it has none. The same pub is
  * the same OSM object, or, when OSM redrew it as a new object, the nearest pub
- * under its name within SUCCESSOR_METERS. A pub with neither left OSM.
+ * under its name within `successorMeters`. A pub with neither left OSM.
  *
- * @param {string} cityId
+ * @param {(pub: Record<string, any>) => string} idOf
  * @param {Array<Record<string, any>>} previousPubs
  * @param {Array<Record<string, any>>} nextPubs
+ * @param {number} successorMeters
  * @returns {Array<{ pub: Record<string, any>, from: string, to: string | null }>}
  */
-function departures(cityId, previousPubs, nextPubs) {
-  const nextIds = new Set(nextPubs.map((pub) => venueIdOf(cityId, pub)));
-  const previousIds = new Set(previousPubs.map((pub) => venueIdOf(cityId, pub)));
+export function venueIdDepartures(idOf, previousPubs, nextPubs, successorMeters) {
+  const nextIds = new Set(nextPubs.map(idOf));
+  const previousIds = new Set(previousPubs.map(idOf));
   const nextByOsmId = new Map(nextPubs.map((pub) => [String(pub.osmId), pub]));
   // A redrawn object can only have become a pub the previous pack did not hold.
-  const arrivals = nextPubs.filter((pub) => !previousIds.has(venueIdOf(cityId, pub)));
+  const arrivals = nextPubs.filter((pub) => !previousIds.has(idOf(pub)));
 
   const departed = [];
   for (const pub of previousPubs) {
-    const from = venueIdOf(cityId, pub);
+    const from = idOf(pub);
     if (!from || nextIds.has(from)) continue;
     let successor = nextByOsmId.get(String(pub.osmId)) ?? null;
     if (!successor) {
       let nearest = Number.POSITIVE_INFINITY;
       for (const candidate of arrivals) {
         const metres = haversineMeters(pub.lat, pub.lng, candidate.lat, candidate.lng);
-        if (metres <= SUCCESSOR_METERS && metres < nearest && sameName(pub.name, candidate.name)) {
+        if (metres <= successorMeters && metres < nearest && sameName(pub.name, candidate.name)) {
           nearest = metres;
           successor = candidate;
         }
       }
     }
-    const to = successor ? venueIdOf(cityId, successor) : null;
+    const to = successor ? idOf(successor) : null;
     if (to !== from) departed.push({ pub, from, to });
   }
   return departed;
+}
+
+function departures(cityId, previousPubs, nextPubs) {
+  return venueIdDepartures((pub) => venueIdOf(cityId, pub), previousPubs, nextPubs, SUCCESSOR_METERS);
 }
 
 /**
