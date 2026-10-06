@@ -17,7 +17,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, CloudRain, Info, Sun, TrainFront, X } from "lucide-react";
 
-import { discardBody } from "@/lib/responseBody";
+import { loadSurfaceJson, SURFACE_JUST_READ_MS } from "@/lib/surfaceDataCache";
 import { firstHttp } from "@/lib/httpUrl";
 import { useStaggeredRead } from "@/lib/useStaggeredRead";
 
@@ -273,27 +273,25 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
     }
     if (!ready) return;
     const controller = new AbortController();
-    (async () => {
-      try {
-        const res = await fetch("/api/citymcp/status", {
-          signal: controller.signal,
-          headers: { accept: "application/json" },
-        });
-        if (!res.ok) {
-          discardBody(res);
-          return;
-        }
-        const body = (await res.json()) as StatusResponse;
+    // The same key the TfL panel and the garden card read, so a page that shows
+    // more than one of them asks the server once.
+    void loadSurfaceJson<StatusResponse>(
+      "/api/citymcp/status",
+      {
+        signal: controller.signal,
+        init: { headers: { accept: "application/json" } },
+        validate: (body) => Boolean(body && typeof body === "object"),
+        freshForMs: SURFACE_JUST_READ_MS,
+      },
+      (body) => {
         void Promise.resolve().then(() => {
           if (!aborted.current) {
             setData(body);
             setExpanded(false);
           }
         });
-      } catch {
-        // Fail-soft: no banner is fine.
-      }
-    })();
+      },
+    );
     return () => {
       aborted.current = true;
       controller.abort();
