@@ -26,7 +26,9 @@ function setupFixture(name: string) {
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(path.join(dir, "scripts"), { recursive: true });
   mkdirSync(path.join(dir, "bin"), { recursive: true });
+  mkdirSync(path.join(dir, "scripts", "lib"), { recursive: true });
   copyFileSync(path.join(ROOT, "scripts", "verify_london_places.mjs"), path.join(dir, "scripts", "verify_london_places.mjs"));
+  copyFileSync(path.join(ROOT, "scripts", "lib", "googlePlacesQuota.mjs"), path.join(dir, "scripts", "lib", "googlePlacesQuota.mjs"));
   copyFileSync(path.join(ROOT, "tsconfig.json"), path.join(dir, "tsconfig.json"));
   symlinkSync(path.join(ROOT, "lib"), path.join(dir, "lib"), "dir");
   symlinkSync(path.join(ROOT, "node_modules"), path.join(dir, "node_modules"), "dir");
@@ -148,7 +150,7 @@ it("keeps same-day details on the day they were read", () => {
   expect(cafe.verifiedAt).toBe("2026-10-03");
 });
 
-for (const [name, observedAt] of [["legacy-undated", undefined], ["malformed-date", "2026-02-30"]] as const) {
+for (const [name, observedAt] of [["legacy-undated", undefined], ["malformed-date", "2026-02-30"], ["future-date", "2026-10-05"]] as const) {
   it(`rechecks ${name} details rather than publishing a guessed day`, () => {
     const dir = setupFixture(name);
     const progressPath = path.join(dir, "data/places_verification/progress.json");
