@@ -82,7 +82,8 @@ leak into the client.
   20 (default 6). Upstream failures fail-soft to 200 with
   `{ opportunities: [], error }`.
 - **`components/map/CityStatusBanner.tsx`** — the London-only strip that
-  fetches `/api/citymcp/status` on mount and shows one compact headline
+  reads `/api/citymcp/status` through `loadSurfaceJson` in read phase 1, shortly
+  after mount (`lib/useStaggeredRead.ts`), and shows one compact headline
   (top signal → tube summary → weather). Only renders when `cityId === "london"`.
 - **`useMobileTflStatus(cityId)`** in `components/mobile/MobileTflPanel.tsx`
   reads `/api/citymcp/status` through `loadSurfaceJson` only for London. A failed
