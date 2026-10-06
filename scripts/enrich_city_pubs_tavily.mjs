@@ -327,8 +327,8 @@ function mergeState(base, progress, observedAt) {
 
 /**
  * One capped pass over a city, stalest pubs first, reconciled with the
- * committed data. A run that searched nothing while a pub was still waiting
- * for a search throws, so a spent-out cap or a broken order is a red job
+ * committed data. A run in which no search succeeded while a pub was still
+ * waiting for one throws, so a spent-out cap or a broken order is a red job
  * rather than a quiet green one.
  */
 export async function runCityPass({
@@ -359,9 +359,14 @@ export async function runCityPass({
     correctedRows,
     mergedThrough,
   });
-  if (runResult.queriesSpent === 0 && runResult.outcomes.length < pubs.length) {
+  const searched = runResult.outcomes.filter(
+    (outcome) => outcome.status === "matched" || outcome.status === "empty",
+  ).length;
+  const due =
+    pubs.length - runResult.outcomes.filter((outcome) => outcome.status !== "failed").length;
+  if (searched === 0 && due > 0) {
     throw new Error(
-      `${options.city}: no search ran while ${pubs.length - runResult.outcomes.length} pubs were still due.`,
+      `${options.city}: no search succeeded while ${due} pubs were still due.`,
     );
   }
   return { runResult, state };
