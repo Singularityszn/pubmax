@@ -13,8 +13,10 @@ import {
   selectionSentinel,
   selectionSentinelVenueId,
   selectionTransition,
+  venueMapHref,
   withSelectionSentinel,
 } from "@/lib/mapSelectionHistory";
+import { decodeCrawl } from "@/lib/crawlUrl";
 
 describe("selection sentinel guards", () => {
   it("recognises a well-formed sentinel", () => {
@@ -283,5 +285,28 @@ describe("selectionResolution", () => {
     }).kind).toBe("none");
     // For contrast, the cleanup really does take them.
     expect(cleanMapUrl("/map", search)).toBe("/map");
+  });
+});
+
+describe("venueMapHref", () => {
+  it("names the Venue in the one parameter the Map reads", () => {
+    const href = venueMapHref("venue-122cuu1");
+    expect(href).toBe("/map?sel=venue-122cuu1");
+    const decoded = decodeCrawl(new URLSearchParams(href.slice(href.indexOf("?"))));
+    expect(decoded.selectedVenueId).toBe("venue-122cuu1");
+  });
+
+  it("escapes an id so it cannot add a parameter of its own", () => {
+    const href = venueMapHref("a&sel=b");
+    expect(new URLSearchParams(href.slice(href.indexOf("?"))).get("sel")).toBe("a&sel=b");
+  });
+
+  it("is the only Map link the plan and Night Mode stops use", async () => {
+    const { readFileSync } = await import("node:fs");
+    for (const file of ["components/plan/PlanRoute.tsx", "components/night/NightModeCard.tsx"]) {
+      const source = readFileSync(file, "utf8");
+      expect(source, file).not.toContain("/map?venue=");
+      expect(source, file).toContain("venueMapHref(");
+    }
   });
 });

@@ -54,6 +54,7 @@ import {
 } from "@/lib/analyticsEvents";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { venueMapHref } from "@/lib/mapSelectionHistory";
 import { discardBody } from "@/lib/responseBody";
 import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
 import { isPlanPreviewProjection } from "@/lib/planPrivacy";
@@ -1204,7 +1205,7 @@ function NightModeSheet({
             <NightStopSignal signal={currentSignal} />
           </div>
           <Link
-            href={`/map?venue=${encodeURIComponent(currentStop.venueId)}`}
+            href={venueMapHref(currentStop.venueId)}
             className="nightCard__logBtn"
           >
             <PlusCircle size={16} aria-hidden="true" />
@@ -1667,7 +1668,7 @@ function NightEndingResult({
         </p>
         <Link
           className="nightCard__endingLink"
-          href={`/map?venue=${encodeURIComponent(keepGoingExtension?.id ?? currentStop.venueId)}`}
+          href={venueMapHref(keepGoingExtension?.id ?? currentStop.venueId)}
         >
           {keepGoingExtension
             ? `Open ${keepGoingExtension.name} on the map`
