@@ -29,6 +29,14 @@ describe("PUBMAXX handle policy", () => {
     }
   });
 
+  it("reserves `you`, the viewer's own /u/you alias, in any case or with an @", () => {
+    for (const raw of ["you", "YOU", "  @You  "]) {
+      expect(assessPubmaxxHandle(raw)).toMatchObject({ ok: false, reason: "reserved" });
+    }
+    expect(assessPubmaxxHandle("youth")).toEqual({ ok: true, handle: "youth" });
+    expect(assessPubmaxxHandle("you_two")).toEqual({ ok: true, handle: "you_two" });
+  });
+
   it("reserves the exact contributor list and every entry is a valid handle shape", () => {
     expect(RESERVED_CONTRIBUTOR_HANDLES).toEqual(
       EXPECTED_RESERVED_CONTRIBUTOR_HANDLES,
