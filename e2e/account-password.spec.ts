@@ -264,3 +264,63 @@ test("the create-password ask rests above the tab bar, so its buttons can be tap
   );
   expect(topmostIsAccept).toBe(true);
 });
+
+test("a wrong current password and a reused password each name their fault", async ({ page }) => {
+  await installOwnedAccount(page, { hasPassword: true });
+  await page.route("**/api/auth/change-password/verify", async (route) => {
+    const body = JSON.parse(route.request().postData() ?? "{}") as { currentPassword?: string };
+    if (body.currentPassword === "Right1pass!") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ verified: true }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 401,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: "Could not change your password. Try again.",
+        code: "INVALID_CREDENTIALS",
+      }),
+    });
+  });
+  // GoTrue's answer to a new password that equals the current one.
+  await page.route("https://pubmaxx-e2e.supabase.co/auth/v1/user", async (route) => {
+    if (route.request().method() === "PUT") {
+      await route.fulfill({
+        status: 422,
+        contentType: "application/json",
+        headers: { "access-control-allow-origin": "*" },
+        body: JSON.stringify({
+          code: 422,
+          error_code: "same_password",
+          msg: "New password should be different from the old password.",
+        }),
+      });
+      return;
+    }
+    await route.fallback();
+  });
+
+  await page.goto(`/u/${HANDLE}`);
+  const disclosure = page.locator("details.accountHubPasswordChange");
+  await disclosure.locator("summary").click();
+  // The summary names the form once: no second heading repeats it.
+  await expect(disclosure.getByRole("heading", { name: "Change password" })).toHaveCount(0);
+
+  const form = disclosure.locator("form.accountHubPassword");
+  await form.getByLabel("New password").fill("Pubmaxx1!");
+  await form.getByLabel("Confirm password").fill("Pubmaxx1!");
+
+  await form.getByLabel("Current password").fill("Wrong1pass!");
+  await form.getByRole("button", { name: "Save password" }).click();
+  await expect(form.getByRole("alert")).toHaveText("That is not your current password.");
+
+  await form.getByLabel("Current password").fill("Right1pass!");
+  await form.getByRole("button", { name: "Save password" }).click();
+  await expect(form.getByRole("alert")).toHaveText(
+    "That is your current password. Pick a different one.",
+  );
+});
