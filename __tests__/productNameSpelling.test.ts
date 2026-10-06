@@ -56,11 +56,25 @@ const SKIP_DIR_NAMES = new Set([
   ".git",
   ".e2e",
   "artifacts",
+]);
+
+/**
+ * Scratch trees that exist only at the repo root. A generic name like
+ * `coverage` also names a tracked source directory (`components/coverage/`),
+ * so these are skipped at depth 0 only and everything nested stays scanned.
+ */
+const SKIP_ROOT_DIR_NAMES = new Set([
   "blob-reports",
   "coverage",
   "playwright-report",
   "test-results",
 ]);
+
+function skipsDirectory(relativeDir: string, entry: string): boolean {
+  return (
+    SKIP_DIR_NAMES.has(entry) || (relativeDir === "" && SKIP_ROOT_DIR_NAMES.has(entry))
+  );
+}
 
 /** Lines that intentionally retain one-x spellings (not product prose). */
 function lineIsExplicitlyAllowed(relativePath: string, line: string): boolean {
@@ -89,7 +103,7 @@ function lineIsExplicitlyAllowed(relativePath: string, line: string): boolean {
 function collectAgentsAndReadmes(relativeDir: string, out: Set<string>): void {
   const absoluteDir = relativeDir ? join(ROOT, relativeDir) : ROOT;
   for (const entry of readdirSync(absoluteDir)) {
-    if (SKIP_DIR_NAMES.has(entry)) continue;
+    if (skipsDirectory(relativeDir, entry)) continue;
     const rel = relativeDir ? `${relativeDir}/${entry}` : entry;
     const abs = join(absoluteDir, entry);
     const stat = statSync(abs);
@@ -105,7 +119,7 @@ function collectAgentsAndReadmes(relativeDir: string, out: Set<string>): void {
 
 function walkFiles(absoluteDir: string, relativeDir: string, out: string[]): void {
   for (const entry of readdirSync(absoluteDir)) {
-    if (SKIP_DIR_NAMES.has(entry)) continue;
+    if (skipsDirectory(relativeDir, entry)) continue;
     const abs = join(absoluteDir, entry);
     const rel = relativeDir ? `${relativeDir}/${entry}` : entry;
     const stat = statSync(abs);
@@ -174,5 +188,11 @@ describe("product name spelling (PubMaxxing in prose)", () => {
     expect(targets.has("lib/siteJsonLd.ts")).toBe(true);
     expect(targets.has("docs/growth/SEARCH_CONSOLE.md")).toBe(true);
     expect(targets.has("scripts/lib/overpassClient.mjs")).toBe(true);
+  });
+
+  it("keeps a tracked source directory named like a scratch tree in the scan", () => {
+    // `coverage` is a root-level scratch tree, and also the name of the tracked
+    // directory components/coverage/. A skip at every depth hid its copy.
+    expect(collectScanTargets()).toContain("components/coverage/UnsupportedAreaPreview.tsx");
   });
 });
