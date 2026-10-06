@@ -1,5 +1,6 @@
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { currentDeploymentId } from "@/lib/deploymentEnv";
 import { checkDatabaseHealth } from "@/lib/healthProbe.server";
 
 export const runtime = "nodejs";
@@ -14,13 +15,6 @@ export const revalidate = 0;
 // would sail past. It names the deployment so an alert says which build was
 // failing, and nothing else: no host, no error text, no table, no version
 // detail. `lib/healthProbe.server.ts` owns the probe and its per-instance cache.
-function currentDeploymentId(): string | null {
-  const deploymentId =
-    process.env.NEXT_DEPLOYMENT_ID ??
-    process.env.VERCEL_DEPLOYMENT_ID ??
-    process.env.NEXT_PUBLIC_SW_VERSION;
-  return typeof deploymentId === "string" && deploymentId ? deploymentId : null;
-}
 
 export async function GET(): Promise<Response> {
   const deploymentId = currentDeploymentId();

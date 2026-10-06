@@ -176,12 +176,6 @@ async function handleIssueToken(userId: string): Promise<Response> {
     });
   }
 
-  // The deployment-wide ceiling comes BEFORE the account's own allowance, so a
-  // refusal spends nobody's trial minutes. Per-account minutes bound one person;
-  // this bounds the sum across every account.
-  const budgetRefusal = await paidSpendBudgetRefusal("pub-pal-voice");
-  if (budgetRefusal) return budgetRefusal;
-
   const month = currentMonth();
   const usageMonth = usageMonthDate(month);
   const supabaseConfigured = isSupabaseConfigured();
@@ -220,6 +214,16 @@ async function handleIssueToken(userId: string): Promise<Response> {
   } else {
     meter.reservations += 1;
     usage.set(userId, meter);
+  }
+
+  // The deployment-wide ceiling comes AFTER the account's own allowance, so an
+  // account with no minutes left cannot spend the ceiling every account shares.
+  // A refusal hands the reservation back. Per-account minutes bound one person;
+  // this bounds the sum across every account.
+  const budgetRefusal = await paidSpendBudgetRefusal("pub-pal-voice");
+  if (budgetRefusal) {
+    await releaseVoiceReservation(admin, userId, usageMonth, meter, 0);
+    return budgetRefusal;
   }
 
   const overrides = buildPalVoiceOverrides(pal);

@@ -25,14 +25,15 @@ Facts to start from:
 
 ### Take it
 
-The backup runs on the captain's Mac, from the Mac scheduler, weekly. It needs
-`pg_dump` and `pg_restore` at the server's major version or newer, and these
-variables in the scheduler's environment (never in the repository):
+The backup runs on the captain's Mac. It needs `pg_dump` and `pg_restore` at the
+server's major version or newer, and these variables in the environment that
+runs it (never in the repository):
 
 - `PUBMAX_BACKUP_DB_URL`: a `postgres://` connection string for the project (Supabase dashboard, Connect, session pooler).
 - `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`: for the bucket sync.
 - `PUBMAX_BACKUP_DIR`: optional, default `~/pubmax-backups`. The script refuses a directory inside any git checkout.
-- `PUBMAX_ALERT_WEBHOOK_URL`: optional. A failed run posts one line.
+- `PUBMAX_BACKUP_KEEP`: optional, default 8. The number of dumps to keep.
+- `PUBMAX_ALERT_WEBHOOK_URL`: optional. A failed run posts one fixed line with no reason in it. The reason stays in the local log.
 
 ```sh
 npm run backup:offplatform -- --dry-run   # prints the plan and touches nothing
@@ -42,27 +43,20 @@ npm run backup:offplatform
 It writes `pubmax-<UTC stamp>.dump` (custom format, mode 0600) with the `public`,
 `auth`, `storage` and `supabase_migrations` schemas, and syncs the bucket into
 `bucket/pint-drops/`. A dump becomes visible only after `pg_restore --list` finds
-table data in it. The bucket sync adds and replaces files and never deletes.
-The newest 8 dumps are kept.
+table data in it.
 
-Scheduling with launchd, weekly on Sunday at 03:30. Save as
-`~/Library/LaunchAgents/com.pubmax.backup.plist`, put the variables under
-`EnvironmentVariables`, then `launchctl load` it:
+Nothing in the repository installs or schedules the backup. The captain decides
+when it runs and enables scheduling. The rest of this section assumes one run a
+week.
 
-```xml
-<plist version="1.0"><dict>
-  <key>Label</key><string>com.pubmax.backup</string>
-  <key>ProgramArguments</key><array>
-    <string>/bin/zsh</string><string>-lc</string>
-    <string>cd /path/to/pubmax-checkout &amp;&amp; npm run backup:offplatform</string>
-  </array>
-  <key>StartCalendarInterval</key><dict>
-    <key>Weekday</key><integer>0</integer><key>Hour</key><integer>3</integer><key>Minute</key><integer>30</integer>
-  </dict>
-  <key>StandardOutPath</key><string>/tmp/pubmax-backup.log</string>
-  <key>StandardErrorPath</key><string>/tmp/pubmax-backup.log</string>
-</dict></plist>
-```
+### Retention
+
+The copy holds personal data: account emails, password hashes, profiles, Pint
+Drops and their photos. Nothing in it is kept forever.
+
+- The newest 8 dumps are kept. At one run a week that is 8 weeks. Each run deletes older dumps.
+- The bucket copy follows the dumps. Each run stamps every file whose object is still in the bucket. A file whose object was deleted in production is removed when the oldest kept dump no longer knew it.
+- So a deleted account's rows and photos leave the copy about 8 weeks after the deletion, when the last dump that held them is pruned.
 
 Keep a second copy off the Mac. A free option is an encrypted archive on a
 personal cloud drive. `gpg --symmetric --cipher-algo AES256 <dump>` or an
@@ -161,7 +155,7 @@ set it in Vercel Production, redeploy with `npm run release:prod`, confirm
 | 6 | Paid vendor keys: `ELEVENLABS_API_KEY`, `OPENROUTER_API_KEY`, `TYPESAFE_API_KEY`, `OPENAI_API_KEY`, `AI_GATEWAY_API_KEY`, `ELEVENLABS_LLM_SHARED_SECRET` | Money. Set a monthly cap in each vendor dashboard as well | None for users. |
 | 7 | Push and mail: `APNS_PRIVATE_KEY`, `FCM_PRIVATE_KEY`, `VAPID_PRIVATE_KEY`, `RESEND_API_KEY` | Sends as the app | Rotating `VAPID_PRIVATE_KEY` drops every web push subscription. |
 | 8 | Data vendors: `TAVILY_API_KEY`, `EXA_API_KEY`, `FIRECRAWL_API_KEY`, `TICKETMASTER_API_KEY`, `GOOGLE_PLACES_API_KEY` and the rest in `.env.example` | Quota only | None. |
-| 9 | `SUPABASE_ACCESS_TOKEN` (ledger check), GitHub personal tokens, the Vercel token, `PUBMAX_ALERT_WEBHOOK_URL` | Operator access | Re-create in the vendor, update the Mac scheduler and the repository secret. |
+| 9 | `SUPABASE_ACCESS_TOKEN` (ledger check), GitHub personal tokens, the Vercel token, `PUBMAX_ALERT_WEBHOOK_URL` | Operator access | Re-create in the vendor, update the environment that runs the backup and the repository secret. |
 
 ### If it was committed
 

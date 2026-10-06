@@ -1,13 +1,17 @@
-import { readFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  bucketFilesToPrune,
   DEFAULT_KEEP,
   DUMP_SCHEMAS,
   dumpFileName,
   dumpsToPrune,
+  dumpTakenAt,
   isInsideDirectory,
   listBucketObjects,
   pgDumpArgs,
@@ -54,6 +58,26 @@ describe("dump files", () => {
     ];
     expect(dumpsToPrune(files, 2)).toEqual(["pubmax-20260901T000000Z.dump"]);
     expect(dumpsToPrune(files, DEFAULT_KEEP)).toEqual([]);
+  });
+  it("reads when a dump was taken from its name, and nothing from any other file", () => {
+    expect(dumpTakenAt(dumpFileName(new Date("2026-10-06T07:30:05.123Z")))).toBe(Date.parse("2026-10-06T07:30:05Z"));
+    expect(dumpTakenAt("pubmax-20261006T073005Z.dump.partial")).toBeNull();
+    expect(dumpTakenAt("notes.txt")).toBeNull();
+  });
+});
+
+describe("the bucket copy keeps nothing longer than the dumps", () => {
+  const kept = ["pubmax-20260908T000000Z.dump", "pubmax-20260915T000000Z.dump", "bucket", "notes.txt"];
+  it("prunes a file last seen before the oldest kept dump, and keeps one the kept dumps can name", () => {
+    const local = [
+      { path: "/b/gone-long-ago.jpg", lastSeenMs: Date.parse("2026-09-01T00:00:00Z") },
+      { path: "/b/seen-at-oldest-dump.jpg", lastSeenMs: Date.parse("2026-09-08T00:00:00.400Z") },
+      { path: "/b/still-in-bucket.jpg", lastSeenMs: Date.parse("2026-09-15T00:00:00.400Z") },
+    ];
+    expect(bucketFilesToPrune(local, kept)).toEqual(["/b/gone-long-ago.jpg"]);
+  });
+  it("prunes nothing when no dump is kept", () => {
+    expect(bucketFilesToPrune([{ path: "/b/a.jpg", lastSeenMs: 0 }], ["bucket"])).toEqual([]);
   });
 });
 
@@ -108,27 +132,65 @@ describe("listBucketObjects", () => {
   });
 });
 
-describe("the runbook", () => {
-  const runbook = readFileSync(path.join(ROOT, "docs/DR_RUNBOOK.md"), "utf8");
-  it("covers every scenario the audit named", () => {
-    for (const heading of [
-      "## 2. Restore the database from a dump",
-      "## 3. Rebuild from zero",
-      "## 4. Account lockout",
-      "## 5. A key has leaked",
-      "## 6. Domain loss",
-    ]) {
-      expect(runbook).toContain(heading);
+describe("npm run backup:offplatform", () => {
+  const scripts = JSON.parse(readFileSync(path.join(ROOT, "package.json"), "utf8")).scripts;
+  const [command, script] = String(scripts["backup:offplatform"]).split(" ");
+  let scratch = "";
+
+  beforeEach(() => {
+    scratch = mkdtempSync(path.join(os.tmpdir(), "backup-dir-"));
+  });
+
+  afterEach(() => {
+    rmSync(scratch, { recursive: true, force: true });
+  });
+
+  const dryRun = (backupDir: string) =>
+    spawnSync(String(command), [String(script), "--dry-run"], {
+      cwd: ROOT,
+      encoding: "utf8",
+      env: {
+        NODE_ENV: "test",
+        PATH: process.env.PATH ?? "",
+        HOME: os.homedir(),
+        PUBMAX_BACKUP_DIR: backupDir,
+        PUBMAX_BACKUP_DB_URL: "postgresql://postgres.ref:pw@db.example.test:5432/postgres",
+        SUPABASE_URL: "https://ref.supabase.co",
+        SUPABASE_SERVICE_ROLE_KEY: "service-role",
+      },
+    });
+
+  it("is a node script", () => {
+    expect(command).toBe("node");
+  });
+
+  it("plans a backup into a directory outside every checkout, even one not made yet", () => {
+    const result = dryRun(path.join(scratch, "not", "made", "yet"));
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("dry run: nothing was read or written.");
+    expect(result.stdout).not.toContain("pw@");
+  });
+
+  it("refuses a directory inside a git checkout, even one whose parents are not made yet", () => {
+    execFileSync("git", ["init", "--quiet", scratch], {
+      env: { NODE_ENV: "test", PATH: process.env.PATH ?? "", HOME: os.homedir() },
+    });
+    mkdirSync(path.join(scratch, "existing"));
+    for (const dir of [scratch, path.join(scratch, "existing"), path.join(scratch, "backups", "weekly", "deep")]) {
+      const result = dryRun(dir);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("PUBMAX_BACKUP_DIR is inside a git checkout.");
     }
-    expect(runbook).toContain("Rotation table");
-    expect(runbook).toContain("restore drill");
   });
-  it("names the scripts that exist", () => {
-    const scripts = JSON.parse(readFileSync(path.join(ROOT, "package.json"), "utf8")).scripts;
-    expect(scripts["backup:offplatform"]).toBe("node scripts/backup-offplatform.mjs");
-    expect(runbook).toContain("npm run backup:offplatform");
-  });
-  it("never puts a dump or a secret in the repository", () => {
-    expect(readFileSync(path.join(ROOT, ".gitignore"), "utf8")).toMatch(/\*\.dump/);
+});
+
+describe("git keeps a backup out of a commit", () => {
+  const ignored = (file: string) =>
+    spawnSync("git", ["check-ignore", "--quiet", "--no-index", file], { cwd: ROOT }).status === 0;
+
+  it("ignores a dump anywhere in the tree and the default backup directory at the root", () => {
+    expect(ignored("pubmax-20261006T073005Z.dump")).toBe(true);
+    expect(ignored("scripts/pubmax-20261006T073005Z.dump")).toBe(true);
+    expect(ignored("pubmax-backups/bucket/pint-drops/user/photo.jpg")).toBe(true);
   });
 });

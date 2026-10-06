@@ -2,7 +2,7 @@
 // npm run backup:offplatform - a pg_dump plus a sync of the pint-drops bucket,
 // written to a private directory on this machine, never into the repository.
 // The rules are scripts/lib/offPlatformBackup.mjs and the restore is
-// docs/DR_RUNBOOK.md. Run it from the Mac scheduler, weekly.
+// docs/DR_RUNBOOK.md. Nothing here schedules it: the captain decides when it runs.
 //
 // Environment (never printed):
 //   PUBMAX_BACKUP_DB_URL        postgres:// connection string (session pooler or direct)
@@ -14,16 +14,26 @@
 // `--dry-run` prints the plan and touches nothing.
 
 import { execFileSync, spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  statSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
 import {
+  bucketFilesToPrune,
   DEFAULT_BUCKET,
   DEFAULT_KEEP,
   dumpFileName,
   dumpsToPrune,
-  isInsideDirectory,
   listBucketObjects,
   pgDumpArgs,
   pgEnvFromUrl,
@@ -39,7 +49,13 @@ function requireEnv(name) {
   return value;
 }
 
-function gitTopLevels(directory) {
+function nearestExistingDirectory(directory) {
+  let current = directory;
+  while (!existsSync(current)) current = path.dirname(current);
+  return current;
+}
+
+function gitTopLevel(directory) {
   try {
     return execFileSync("git", ["-C", directory, "rev-parse", "--show-toplevel"], {
       encoding: "utf8",
@@ -52,12 +68,13 @@ function gitTopLevels(directory) {
 
 async function runBackup() {
   const dir = path.resolve(env.PUBMAX_BACKUP_DIR?.trim() || path.join(os.homedir(), "pubmax-backups"));
-  const keep = Number.parseInt(env.PUBMAX_BACKUP_KEEP ?? "", 10) || DEFAULT_KEEP;
+  const keepOverride = Number.parseInt(env.PUBMAX_BACKUP_KEEP ?? "", 10);
+  const keep = keepOverride > 0 ? keepOverride : DEFAULT_KEEP;
   const bucket = env.SUPABASE_STORAGE_BUCKET?.trim() || DEFAULT_BUCKET;
 
   // The repository is public: a backup under any git checkout could be committed.
-  const checkout = gitTopLevels(existsSync(dir) ? dir : path.dirname(dir));
-  if (checkout && isInsideDirectory(dir, checkout)) {
+  // A directory not made yet is judged by the nearest one that exists.
+  if (gitTopLevel(nearestExistingDirectory(dir))) {
     throw new Error("PUBMAX_BACKUP_DIR is inside a git checkout. Choose a directory outside every repository.");
   }
 
@@ -65,7 +82,8 @@ async function runBackup() {
   const pgEnv = pgEnvFromUrl(dbUrl);
   const baseUrl = requireEnv("SUPABASE_URL").replace(/\/+$/, "");
   const key = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
-  const dumpFile = path.join(dir, dumpFileName(new Date()));
+  const startedAt = new Date();
+  const dumpFile = path.join(dir, dumpFileName(startedAt));
   const bucketRoot = path.join(dir, "bucket", bucket);
 
   console.log(`[backup] directory ${dir}`);
@@ -99,13 +117,17 @@ async function runBackup() {
   renameSync(partial, dumpFile);
   console.log(`[backup] dump verified, ${statSync(dumpFile).size} bytes.`);
 
-  // 2. The bucket. Objects are only added or replaced when their size changed,
-  // and never deleted here: a backup that mirrors a deletion is not a backup.
+  // 2. The bucket. Objects are only added or replaced when their size changed.
+  // Each one still in the bucket is stamped with this run's start, so an object
+  // deleted in production is kept until the dumps that knew it are pruned.
   const objects = await listBucketObjects({ baseUrl, key, bucket });
   let fetched = 0;
   for (const object of objects) {
     const target = safeObjectPath(bucketRoot, object.path);
-    if (existsSync(target) && object.size !== null && statSync(target).size === object.size) continue;
+    if (existsSync(target) && object.size !== null && statSync(target).size === object.size) {
+      utimesSync(target, startedAt, startedAt);
+      continue;
+    }
     const response = await fetch(`${baseUrl}/storage/v1/object/${bucket}/${object.path.split("/").map(encodeURIComponent).join("/")}`, {
       headers: { authorization: `Bearer ${key}`, apikey: key },
       signal: AbortSignal.timeout(60_000),
@@ -113,12 +135,20 @@ async function runBackup() {
     if (!response.ok) throw new Error(`Downloading ${object.path} answered ${response.status}.`);
     mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
     writeFileSync(target, Buffer.from(await response.arrayBuffer()), { mode: 0o600 });
+    utimesSync(target, startedAt, startedAt);
     fetched += 1;
   }
   console.log(`[backup] bucket ${bucket}: ${objects.length} objects, ${fetched} downloaded.`);
 
-  // 3. Retention.
+  // 3. Retention. The newest `keep` dumps, and the bucket files they can name.
   for (const file of dumpsToPrune(readdirSync(dir), keep)) rmSync(path.join(dir, file), { force: true });
+  const localFiles = readdirSync(bucketRoot, { recursive: true })
+    .map((relative) => path.join(bucketRoot, relative))
+    .filter((file) => statSync(file).isFile())
+    .map((file) => ({ path: file, lastSeenMs: statSync(file).mtimeMs }));
+  const stale = bucketFilesToPrune(localFiles, readdirSync(dir));
+  for (const file of stale) rmSync(file, { force: true });
+  console.log(`[backup] bucket copy: ${stale.length} files past retention removed.`);
   console.log("[backup] done.");
 }
 
@@ -129,7 +159,7 @@ try {
   console.error(`[backup] FAILED: ${message}`);
   const webhook = env.PUBMAX_ALERT_WEBHOOK_URL?.trim();
   if (webhook && !dryRun) {
-    const text = `[pubmax][backup] The off-platform backup failed: ${message}`.slice(0, 1500);
+    const text = "[pubmax][backup] The off-platform backup failed. The reason is in the log on the backup machine.";
     await fetch(webhook, {
       method: "POST",
       headers: { "content-type": "application/json" },

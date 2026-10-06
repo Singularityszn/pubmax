@@ -51,11 +51,13 @@ vi.mock("@/lib/supabase", () => ({
   requireSupabaseAdmin: () => ({ rpc: voiceState.rpc }),
   clientIp: () => "203.0.113.10",
   hashIp: (ip: string) => `hashed:${ip}`,
-  // The only durable-limiter key the deployment ceiling uses starts `paid-spend:`.
-  checkRateLimitDurableDetailed: async (key: string) => ({
-    verdict: voiceState.ceilingSpent && key.startsWith("paid-spend:"),
-    reason: "counted",
-  }),
+  // The only durable-limiter key the deployment ceiling uses starts `paid-spend:`,
+  // and each check of it spends one unit of the ceiling.
+  checkRateLimitDurableDetailed: async (key: string) => {
+    if (!key.startsWith("paid-spend:")) return { verdict: false, reason: "counted" };
+    voiceState.events.push("paid_spend");
+    return { verdict: voiceState.ceilingSpent, reason: "counted" };
+  },
 }));
 
 const voiceBind = vi.hoisted(() => vi.fn(async () => {}));
@@ -112,8 +114,12 @@ describe("Pub Pal voice token route", () => {
     expect(voiceState.rpc).not.toHaveBeenCalled();
   });
 
-  it("refuses with the deployment ceiling before it spends an account's trial minutes", async () => {
+  it("spends the deployment ceiling after the allowance and hands the reservation back on refusal", async () => {
     voiceState.ceilingSpent = true;
+    voiceState.rpc.mockImplementation(async (name: string) => {
+      voiceState.events.push(name);
+      return { data: true, error: null };
+    });
     const providerFetch = vi.fn();
     vi.stubGlobal("fetch", providerFetch);
 
@@ -122,7 +128,27 @@ describe("Pub Pal voice token route", () => {
     expect(response.status).toBe(429);
     expect(await response.json()).toMatchObject({ code: "DAILY_BUDGET_SPENT", retryable: true });
     expect(providerFetch).not.toHaveBeenCalled();
-    expect(voiceState.rpc).not.toHaveBeenCalled();
+    expect(voiceState.events).toEqual([
+      "consume_pub_pal_voice_trial",
+      "paid_spend",
+      "release_pub_pal_voice_trial",
+    ]);
+  });
+
+  it("never spends the deployment ceiling for an account whose allowance is used", async () => {
+    voiceState.rpc.mockImplementation(async (name: string) => {
+      voiceState.events.push(name);
+      return { data: false, error: null };
+    });
+    vi.stubGlobal("fetch", vi.fn());
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const response = await POST(issueRequest());
+      expect(response.status).toBe(429);
+      expect(await response.json()).toMatchObject({ code: "VOICE_ALLOWANCE_USED" });
+    }
+
+    expect(voiceState.events).not.toContain("paid_spend");
   });
 
   it("returns 503 when Pal ownership cannot be checked before quota or provider allocation", async () => {
@@ -226,6 +252,7 @@ describe("Pub Pal voice token route", () => {
     expect(response.status).toBe(502);
     expect(voiceState.events).toEqual([
       "consume_pub_pal_voice_trial",
+      "paid_spend",
       "provider_allocation",
       "release_pub_pal_voice_trial",
     ]);
@@ -246,6 +273,7 @@ describe("Pub Pal voice token route", () => {
     expect(response.status).toBe(200);
     expect(voiceState.events).toEqual([
       "consume_pub_pal_voice_trial",
+      "paid_spend",
       "provider_allocation",
     ]);
   });
@@ -407,6 +435,7 @@ describe("Pub Pal voice token route", () => {
     expect(voiceBind).not.toHaveBeenCalled();
     expect(voiceState.events).toEqual([
       "consume_pub_pal_voice_trial",
+      "paid_spend",
       "provider_allocation",
       "release_pub_pal_voice_trial",
     ]);

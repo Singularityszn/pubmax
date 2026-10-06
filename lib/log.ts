@@ -137,7 +137,9 @@ function binaryByteLength(value: unknown): number | null {
  * @param ts      timestamp override for deterministic tests (default Date.now())
  *
  * An error-level event, and the warn events in `ALERT_WARN_EVENTS`, are also
- * posted to the alert webhook when one is configured (lib/alertSink.ts).
+ * posted to the alert webhook when one is configured (lib/alertSink.ts). The
+ * post carries the event name, level and time alone: the context fields stay in
+ * this process's log.
  */
 export function log(
   level: LogLevel,
@@ -155,7 +157,10 @@ export function log(
   const line = JSON.stringify(record);
   if (level === "error") console.error(line);
   else console.log(line);
-  // The line above is already redacted, so it is the text that may leave the
-  // process. lib/alertSink.ts is silent unless PUBMAX_ALERT_WEBHOOK_URL is set.
-  if (level === "error" || ALERT_WARN_EVENTS.has(event)) sendAlert({ source: event, text: line });
+  // Only the event name, level and time leave the process: the context can name
+  // an account, a handle or an object key. lib/alertSink.ts is silent unless
+  // PUBMAX_ALERT_WEBHOOK_URL is set.
+  if (level === "error" || ALERT_WARN_EVENTS.has(event)) {
+    sendAlert({ source: event, text: `${level} at ${new Date(ts).toISOString()}` });
+  }
 }

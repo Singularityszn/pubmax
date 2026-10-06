@@ -1,5 +1,7 @@
 import { after } from "next/server";
 
+import { currentDeploymentId } from "@/lib/deploymentEnv";
+
 /**
  * THE ONE PLACE AN ALERT LEAVES THE PROCESS.
  *
@@ -10,7 +12,7 @@ import { after } from "next/server";
  * `ALERT_WARN_EVENTS`) now hand a line to `sendAlert`, which posts it to ONE
  * webhook named by `PUBMAX_ALERT_WEBHOOK_URL`.
  *
- * FOUR rules.
+ * FIVE rules.
  *
  * (1) UNSET IS SILENT. No variable, no request, no log line about the missing
  *     variable. A deployment without a webhook behaves exactly as it did before.
@@ -24,8 +26,11 @@ import { after } from "next/server";
  *     or logs through `log()`, so an alert about the sink cannot loop.
  * (4) THE BODY WORKS FOR BOTH. `content` is Discord's field and `text` is
  *     Slack's, so one URL of either kind works with no configuration.
- *
- * Callers pass text that is already safe to log: it leaves the process.
+ * (5) NO USER DATA LEAVES. The webhook is not a processor the privacy page
+ *     names, so `log()` sends the event name, level and time alone, never its
+ *     fields or error text, and every other caller sends system text only:
+ *     counts, feed ids, city names. No account id, handle, object key or key.
+ *     The sink adds the deployment id, so an alert says which build raised it.
  */
 
 export const ALERT_WEBHOOK_ENV = "PUBMAX_ALERT_WEBHOOK_URL";
@@ -112,7 +117,11 @@ export function sendAlert(alert: Alert, deps: SendDeps = {}): Promise<void> | nu
     if (!verdict.send) return null;
 
     const repeats = verdict.suppressed > 0 ? ` (+${verdict.suppressed} suppressed)` : "";
-    const message = `[pubmax][${alert.source}]${repeats} ${alert.text}`.slice(0, ALERT_MAX_TEXT);
+    const deployment = currentDeploymentId() ?? "unknown";
+    const message = `[pubmax][${alert.source}][deployment ${deployment}]${repeats} ${alert.text}`.slice(
+      0,
+      ALERT_MAX_TEXT,
+    );
     const sent = (deps.fetchImpl ?? fetch)(url, {
       method: "POST",
       headers: { "content-type": "application/json" },

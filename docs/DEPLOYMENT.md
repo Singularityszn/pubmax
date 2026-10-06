@@ -397,7 +397,7 @@ The body is `{ "ok": true, "deploymentId": "dpl_...", "database": "ok" }`. The r
 
 Set `PUBMAX_ALERT_WEBHOOK_URL` to an https Discord or Slack incoming-webhook URL, in the Vercel Production environment and as a GitHub repository secret of the same name. Treat it as a credential. With it unset, nothing is sent and nothing is logged about the missing value.
 
-The app posts every error-level `log()` event, `paid_spend.budget_spent`, the freshness audit's findings, the Social moderation backlog and the city enrichment queue alerts. Each source posts at most once per 15 minutes per instance, and at most 30 an hour. `.github/workflows/alert-on-failure.yml` watches every scheduled workflow and posts the run link when one fails. A new scheduled workflow must be added to its `workflows` list. Pin: `__tests__/alertSink.test.ts`.
+The app posts every error-level `log()` event, `paid_spend.budget_spent`, the freshness audit's findings, the Social moderation backlog and the city enrichment queue alerts. A `log()` post carries the event name, level, time and deployment id only. Its fields and error text stay in the runtime log, so no account id, handle or object key reaches the webhook. Each source posts at most once per 15 minutes per instance, and at most 30 an hour. `.github/workflows/alert-on-failure.yml` watches every scheduled workflow and posts the run link when one fails. A new scheduled workflow must be added to its `workflows` list. Pin: `__tests__/alertSink.test.ts`.
 
 ### A preview built with production values, in one command
 

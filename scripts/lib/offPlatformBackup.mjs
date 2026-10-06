@@ -50,13 +50,37 @@ export function pgDumpArgs(outputFile) {
   ];
 }
 
+const DUMP_NAME = /^pubmax-(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z\.dump$/;
+
+/** When a dump was taken, read from its name, or null for any other file. */
+export function dumpTakenAt(file) {
+  const match = DUMP_NAME.exec(file);
+  if (!match) return null;
+  const [year, month, day, hour, minute, second] = match.slice(1).map(Number);
+  return Date.UTC(year, month - 1, day, hour, minute, second);
+}
+
 /** Dump files to delete so only the newest `keep` remain. Other files are never touched. */
 export function dumpsToPrune(files, keep = DEFAULT_KEEP) {
-  const dumps = files.filter((file) => /^pubmax-\d{8}T\d{6}Z\.dump$/.test(file)).sort();
+  const dumps = files.filter((file) => dumpTakenAt(file) !== null).sort();
   return dumps.slice(0, Math.max(0, dumps.length - keep));
 }
 
-/** A backup inside a git checkout could be committed, and the repository is public. */
+/**
+ * Bucket files to delete, so the bucket copy keeps nothing longer than the
+ * dumps do. Each run stamps a file's mtime with the run's start while its object
+ * is still in the bucket, so `lastSeenMs` is the last run that saw it. A file
+ * last seen before the oldest kept dump belongs to no dump that remains, and it
+ * goes with them. With no dump kept, nothing is pruned.
+ */
+export function bucketFilesToPrune(localFiles, directoryFiles) {
+  const taken = directoryFiles.map(dumpTakenAt).filter((time) => time !== null);
+  if (taken.length === 0) return [];
+  const oldestKept = Math.min(...taken);
+  return localFiles.filter((file) => file.lastSeenMs < oldestKept).map((file) => file.path);
+}
+
+/** True when `candidate` is `directory` itself or anything under it. */
 export function isInsideDirectory(candidate, directory) {
   const relative = path.relative(path.resolve(directory), path.resolve(candidate));
   return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
