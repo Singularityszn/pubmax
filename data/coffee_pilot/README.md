@@ -2,7 +2,9 @@
 
 Hand-checked counter prices for three drinks at cafes in one box: latitude
 51.5215–51.5305, longitude −0.0835 to −0.0705. `shoreditch.json` is the file.
-The map does not read it.
+The map's coffee lane draws these cafes and opens each one's prices in its
+own sheet (`lib/coffeePilot.ts`). No pint band, pin colour, cheapest bucket or
+Pint Index reads it.
 
 ## What earns a row
 
@@ -35,10 +37,10 @@ Places, review sites and menu aggregators were not used.
 | Franzè & Evans, 101 Redchurch Street | Row: flat white, latte, matcha latte (menu PDF, hot prices) |
 | Vintage Cafe, 17 Cheshire Street | Row: flat white, latte, matcha latte ("Green Matcha Latte") |
 | Jujuhome Cha, Boxpark | Row: matcha latte |
-| gram'n degrees, 93 Kingsland Road | Row: flat white, latte. Drink named "Matcha" not logged |
+| gram'n degrees, 93 Kingsland Road | Row: flat white, latte. Drink named "Matcha" not logged. The row's `venueName` is `Gramndegrees`, the name OSM gives the cafe since the 2026-10-04 layer refresh |
 | The Bike Shed, 384 Old Street | Row: flat white, latte (drinks PDF, figures without £) |
-| Gecko Coffeehouse, 49 Bethnal Green Road | Row: flat white, latte, matcha latte (figures without £) |
-| Urban Baristas | Row: flat white, latte, matcha latte (chain PDF, small size, figures without £) |
+| Gecko Coffeehouse, 49 Bethnal Green Road | Row: flat white, latte, matcha latte (figures without £). The row's `venueId` is `venue-osm-w373262267`: on the 2026-10-04 layer refresh OSM maps the cafe as a way, not node `n13684996801` |
+| Urban Baristas, 6 Richmix Square | Row: flat white, latte, matcha latte (chain PDF, small size, figures without £). The row's `venueId` is `venue-osm-w756604573`: on the 2026-10-04 layer refresh OSM maps the door as a way, not node `n14022302823` |
 | Holy Shot, 155 Bethnal Green Road | Row: flat white, latte, matcha latte (shown once the page loads in a browser) |
 | Black Sheep Coffee, 10 Hearn Street | Site opened, no price: ordering is app or delivery only; door not on the chain's store list |
 | Blank Street Coffee, 3 Redchurch Street | Site opened, no price: menu page names the drinks without prices |

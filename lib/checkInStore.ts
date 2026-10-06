@@ -165,7 +165,7 @@ function makeMemoryCheckInStore(profiles: ProfileStore): CheckInStore {
     async deleteForHandle(handle) {
       const key = normalizeHandle(handle);
       for (let i = memoryCheckIns.length - 1; i >= 0; i -= 1) {
-        if (memoryCheckIns[i].handle === key) memoryCheckIns.splice(i, 1);
+        if (memoryCheckIns[i]?.handle === key) memoryCheckIns.splice(i, 1);
       }
     },
   };

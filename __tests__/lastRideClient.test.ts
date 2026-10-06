@@ -6,6 +6,7 @@ import {
   loadStableLastRide,
   prefetchLastRide,
 } from "@/lib/lastRideClient";
+import { defined } from "@/__tests__/helpers/defined";
 
 beforeEach(() => {
   __resetLastRideClientCache();
@@ -27,8 +28,8 @@ describe("last-ride client cache", () => {
     const cardRead = loadLastRide("london", 51.5, -0.12);
 
     expect(fetchSpy).toHaveBeenCalledTimes(2);
-    expect(String(fetchSpy.mock.calls[0][0])).toContain("scope=stable");
-    expect(String(fetchSpy.mock.calls[1][0])).not.toContain("scope=stable");
+    expect(String(defined(fetchSpy.mock.calls[0])[0])).toContain("scope=stable");
+    expect(String(defined(fetchSpy.mock.calls[1])[0])).not.toContain("scope=stable");
     await expect(stableRead).resolves.toEqual(
       expect.objectContaining({ station: { name: "Westminster" } }),
     );
@@ -60,7 +61,7 @@ describe("last-ride client cache", () => {
 
     const result = await loadStableLastRide("london", 51.5, -0.12);
 
-    expect(result?.departures?.[0].live).toBe(false);
+    expect(defined(result?.departures?.[0]).live).toBe(false);
     expect(result?.decision).toBeUndefined();
   });
 

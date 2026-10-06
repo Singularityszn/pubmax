@@ -1,3 +1,5 @@
+import type { Route } from "next";
+
 // Shared types for the global ⌘K command palette (feature N1).
 // Kept in a react-free module so the command registry + the pure filter can be
 // imported anywhere (including the node-environment vitest suite) without
@@ -13,7 +15,7 @@ export type CommandGroup = "Navigate" | "Actions";
  */
 export type CommandContext = {
   /** Client-navigate to an in-app href (router.push under the hood). */
-  navigate: (href: string) => void;
+  navigate: <T extends string>(href: Route<T>) => void;
   /** Close the palette. */
   close: () => void;
   /** Flip light ↔ dark (mirrors the ThemeToggle mechanism). */

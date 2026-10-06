@@ -23,7 +23,6 @@
  *   node --import tsx scripts/verify_london_places.mjs --uk-cities
  */
 
-import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -60,6 +59,15 @@ import {
   textQueryForOsmVenue,
   weeklyHoursFromPlacesPeriods,
 } from "../lib/placesVerification.ts";
+import {
+  accessToken,
+  dailyOverrideValue,
+  DETAILS_METRIC,
+  effectiveDailyLimit,
+  monthPlacesRequests,
+  SEARCH_METRIC,
+  setDailyOverrides,
+} from "./lib/googlePlacesQuota.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT_DIR = join(ROOT, "data", "places_verification");
@@ -71,11 +79,7 @@ const PROGRESS_PATH = join(OUT_DIR, UK_CITIES ? "uk_progress.json" : "progress.j
 let detailAttempts = 0;
 let priorDetails = 0;
 let activeProgress = null;
-const PROJECT = "projects/590118888791";
-const SERVICE = `${PROJECT}/services/places.googleapis.com`;
-const SEARCH_METRIC = "places.googleapis.com/SearchTextRequest";
-const DETAILS_METRIC = "places.googleapis.com/GetPlaceRequest";
-const DAILY_UNIT = "1/d/{project}";
+const REQUEST_REASON = "london-osm-places-verify";
 const EXPECTED_PUBS = 3650;
 const EXPECTED_CAFES = 61;
 const PACE_MS = 150;
@@ -88,113 +92,6 @@ const KNOWN_STATUS = new Set([
   "FUTURE_OPENING",
 ]);
 
-function accessToken() {
-  return execFileSync("gcloud", ["auth", "print-access-token"], { encoding: "utf8" }).trim();
-}
-
-async function apiJson(url, token, options = {}) {
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
-      ...(options.headers ?? {}),
-    },
-  });
-  const text = await response.text();
-  let body = {};
-  if (text) {
-    try {
-      body = JSON.parse(text);
-    } catch {
-      body = { raw: text.slice(0, 180) };
-    }
-  }
-  if (!response.ok) {
-    const message = body.error?.message ?? body.raw ?? `HTTP ${response.status}`;
-    throw new Error(`serviceusage ${response.status}: ${message}`);
-  }
-  return body;
-}
-
-function limitUrl(metric) {
-  return `https://serviceusage.googleapis.com/v1beta1/${SERVICE}/consumerQuotaMetrics/${encodeURIComponent(metric)}/limits/%2Fd%2Fproject`;
-}
-
-async function dailyOverrideValue(token, metric) {
-  const body = await apiJson(`${limitUrl(metric)}/consumerOverrides`, token);
-  const override = (body.overrides ?? [])[0];
-  if (!override?.overrideValue) {
-    throw new Error(`missing daily override for ${metric}`);
-  }
-  return override.overrideValue;
-}
-
-async function effectiveDailyLimit(token, metric) {
-  const body = await apiJson(limitUrl(metric), token);
-  const bucket = (body.quotaBuckets ?? [])[0];
-  return bucket?.effectiveLimit ?? null;
-}
-
-async function waitOperation(token, operation) {
-  let current = operation;
-  for (let attempt = 0; attempt < 30 && !current.done; attempt += 1) {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    current = await apiJson(
-      `https://serviceusage.googleapis.com/v1beta1/${current.name}`,
-      token,
-    );
-  }
-  if (!current.done) throw new Error("quota override operation timed out");
-  if (current.error) throw new Error(`quota override failed: ${current.error.message ?? "unknown"}`);
-}
-
-async function setDailyOverrides(token, searchValue, detailsValue) {
-  const operation = await apiJson(
-    `https://serviceusage.googleapis.com/v1beta1/${SERVICE}/consumerQuotaMetrics:importConsumerOverrides`,
-    token,
-    {
-      method: "POST",
-      body: JSON.stringify({
-        force: true,
-        inlineSource: {
-          overrides: [
-            { metric: SEARCH_METRIC, unit: DAILY_UNIT, overrideValue: String(searchValue) },
-            { metric: DETAILS_METRIC, unit: DAILY_UNIT, overrideValue: String(detailsValue) },
-          ],
-        },
-      }),
-      headers: { "X-Goog-Request-Reason": "london-osm-places-verify" },
-    },
-  );
-  if (operation.name) await waitOperation(token, operation);
-}
-
-async function monthPlacesRequests(token) {
-  const start = new Date();
-  start.setUTCDate(1);
-  start.setUTCHours(0, 0, 0, 0);
-  const params = new URLSearchParams({
-    filter: 'metric.type="serviceruntime.googleapis.com/api/request_count" AND resource.labels.service="places.googleapis.com"',
-    "interval.startTime": start.toISOString(),
-    "interval.endTime": new Date().toISOString(),
-    "aggregation.alignmentPeriod": "2678400s",
-    "aggregation.perSeriesAligner": "ALIGN_SUM",
-    ...(UK_CITIES ? {} : { "aggregation.crossSeriesReducer": "REDUCE_SUM" }),
-  });
-  const body = await apiJson(
-    `https://monitoring.googleapis.com/v3/projects/pubmaxx/timeSeries?${params}`,
-    token,
-  );
-  let total = 0;
-  for (const series of body.timeSeries ?? []) {
-    if (UK_CITIES && series.resource?.labels?.method !== "google.maps.places.v1.Places.GetPlace") continue;
-    for (const point of series.points ?? []) {
-      total += Number(point.value?.int64Value ?? point.value?.doubleValue ?? 0);
-    }
-  }
-  return total;
-}
 
 function walkShards(dir, venues) {
   for (const name of readdirSync(dir)) {
@@ -532,7 +429,7 @@ async function prepareVerification() {
   const priorArg = process.argv.find((arg) => arg.startsWith("--prior-details="));
   if (priorArg && (!DRY_RUN || !UK_CITIES)) throw new Error("--prior-details is dry-run only");
   const token = priorArg ? null : accessToken();
-  const measured = priorArg ? Number(priorArg.split("=")[1]) : await monthPlacesRequests(token);
+  const measured = priorArg ? Number(priorArg.split("=")[1]) : await monthPlacesRequests(token, UK_CITIES);
   if (!Number.isSafeInteger(measured) || measured < 0) throw new Error("invalid monthly usage");
   const progress = DRY_RUN ? null : loadProgress();
   const alreadyUsed = progress ? resumedDetailsBaseline({
@@ -629,7 +526,7 @@ async function main() {
       expectedDetails: String(originalDetails),
       attempt: async () => {
         const fresh = accessToken();
-        await setDailyOverrides(fresh, originalSearch, originalDetails);
+        await setDailyOverrides(fresh, originalSearch, originalDetails, REQUEST_REASON);
         const searchNow = await effectiveDailyLimit(fresh, SEARCH_METRIC);
         const detailsNow = await effectiveDailyLimit(fresh, DETAILS_METRIC);
         return { search: String(searchNow), details: String(detailsNow) };
@@ -651,7 +548,7 @@ async function main() {
 
   try {
     restoreNeeded = true;
-    await setDailyOverrides(token, searchCap, detailsCap);
+    await setDailyOverrides(token, searchCap, detailsCap, REQUEST_REASON);
     const raisedSearch = await effectiveDailyLimit(token, SEARCH_METRIC);
     const raisedDetails = await effectiveDailyLimit(token, DETAILS_METRIC);
     if (raisedSearch !== String(searchCap) || raisedDetails !== String(detailsCap)) {
@@ -681,7 +578,7 @@ async function main() {
     }
 
     if (UK_CITIES) {
-      const latestUsage = await monthPlacesRequests(accessToken());
+      const latestUsage = await monthPlacesRequests(accessToken(), UK_CITIES);
       priorDetails = Math.max(priorDetails, latestUsage - detailAttempts);
       const refreshedSpend = ukJobSpend(pubMatches, priorDetails);
       if (refreshedSpend > JOB_CAP_USD) {

@@ -2,7 +2,7 @@ import * as maplibregl from "maplibre-gl";
 import type { GeoJSONFeature } from "maplibre-gl";
 import { buildDonutMarkerSvg, donutTotal, type DonutCounts } from "@/lib/donutClusterGeometry";
 import { readTokens } from "./tokens";
-import { CLUSTER_MAX_ZOOM } from "./buildScene";
+import { CLUSTER_FILTER, CLUSTER_MAX_ZOOM } from "./buildScene";
 
 // M5 — donut cluster markers segmented by price band. `clusterProperties`
 // (wired in buildPubs, buildScene.ts) accumulate per-bucket counts (b0..b3 —
@@ -16,8 +16,11 @@ import { CLUSTER_MAX_ZOOM } from "./buildScene";
 // bounded (DONUT_CAP) precisely so this never turns into an unbounded-DOM
 // perf trap — past the cap we fall back to the plain circle+count GL layers
 // (buildScene's `clusters` / `cluster-count`), which stay in the style as an
-// underlay the whole time and are simply toggled visible/none rather than
-// added/removed, so there is never a frame where neither is visible.
+// underlay the whole time and are simply filtered empty/full rather than
+// added/removed, so there is never a frame where neither is visible. Their
+// visibility belongs to the pin-reveal gate alone: hiding them would leave the
+// `pubs` source with no visible layer below PIN_MIN_ZOOM, MapLibre would drop
+// its tiles, and the next settled query would find no clusters at all.
 const DONUT_CAP = 60;
 // Sync runs off the map's own `render`/`moveend`/`sourcedata` events — no new
 // RAF loop (Single-RAF rule). `render` still fires every animation frame during
@@ -85,9 +88,8 @@ export function createDonutClusterSync(
   let lastRenderAt = 0;
 
   const setLegacyLayersVisible = (visible: boolean) => {
-    const visibility: "visible" | "none" = visible ? "visible" : "none";
     for (const id of ["clusters", "cluster-count"]) {
-      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", visibility);
+      if (map.getLayer(id)) map.setFilter(id, visible ? CLUSTER_FILTER : false);
     }
   };
 
@@ -130,7 +132,7 @@ export function createDonutClusterSync(
     }
     let features: GeoJSONFeature[];
     try {
-      features = map.querySourceFeatures("pubs", { filter: ["has", "point_count"] });
+      features = map.querySourceFeatures("pubs", { filter: CLUSTER_FILTER });
     } catch {
       return;
     }

@@ -1,6 +1,6 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import PlanIntake from "@/components/plan/PlanIntake";
 
 import {
@@ -11,6 +11,7 @@ import {
   canSeedPlanIntakeArea,
   clearPlanIntakeDraft,
   createPlanIntakeDraft,
+  defaultLondonStartInput,
   londonDateTimeInputFromIso,
   londonDateTimeInputToIso,
   nextLondonOccurrenceIso,
@@ -278,6 +279,50 @@ describe("Europe/London exact time", () => {
       "2026-10-25T01:30:00.000Z",
       new Date("2026-10-25T01:30:00.000Z"),
     )).toBeNull();
+  });
+});
+
+describe("the composer's default First pint", () => {
+  const originalTz = process.env.TZ;
+  afterEach(() => {
+    // Assigning undefined would store the string "undefined", not unset TZ.
+    if (originalTz === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTz;
+  });
+
+  it("is London wall time on a device that is not in London", () => {
+    // 21:42 UTC is 22:42 BST. Built from the device clock, the default read
+    // 22:00, which the London future check refuses, so Lock it in stayed
+    // disabled for every evening user whose device is not on London time.
+    process.env.TZ = "UTC";
+    const now = new Date("2026-10-04T21:42:30.000Z");
+    const value = defaultLondonStartInput(now);
+    expect(value).toBe("2026-10-04T23:00");
+    expect(resolveFutureLondonStartIso(value, null, now)).toBe("2026-10-04T22:00:00.000Z");
+  });
+
+  it("reads the same on a London device", () => {
+    process.env.TZ = "Europe/London";
+    expect(defaultLondonStartInput(new Date("2026-10-04T21:42:30.000Z"))).toBe("2026-10-04T23:00");
+  });
+
+  it("starts an afternoon plan at 18:00 London, in summer and in winter", () => {
+    process.env.TZ = "America/New_York";
+    expect(defaultLondonStartInput(new Date("2026-07-20T09:05:00.000Z"))).toBe("2026-07-20T18:00");
+    expect(defaultLondonStartInput(new Date("2026-12-01T15:30:00.000Z"))).toBe("2026-12-01T18:00");
+  });
+
+  it("rounds a quarter hour ahead after 17:00 London", () => {
+    process.env.TZ = "Asia/Tokyo";
+    expect(defaultLondonStartInput(new Date("2026-12-01T17:00:00.000Z"))).toBe("2026-12-01T17:15");
+    expect(defaultLondonStartInput(new Date("2026-12-01T17:01:00.000Z"))).toBe("2026-12-01T17:30");
+  });
+
+  // Runs last: vitest reuses its workers, so a zone left behind here would put
+  // every later date test in this process on the last zone above.
+  it("leaves the process zone as it found it", () => {
+    expect("TZ" in process.env).toBe(originalTz !== undefined);
+    expect(process.env.TZ).toBe(originalTz);
   });
 });
 

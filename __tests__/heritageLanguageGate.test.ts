@@ -10,6 +10,7 @@ import {
   internalLanguageFindings,
   isPublishableDescription,
 } from "../lib/heritageLanguageGate.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 // F05. The Queens Arms card told every reader it was "a useful Victorian
 // reference stop for the seeded heritage route", a note we wrote to ourselves
@@ -121,7 +122,7 @@ describe("no shipped public description carries internal language", () => {
     expect(notes.length).toBeGreaterThan(5);
     const offences: string[] = [];
     for (const [, raw] of notes) {
-      const text = raw.replace(/\\"/g, '"');
+      const text = defined(raw).replace(/\\"/g, '"');
       for (const finding of internalLanguageFindings(text)) {
         offences.push(`${text.slice(0, 40)}: ${describeInternalLanguage(finding)}`);
       }

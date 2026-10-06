@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { buildLandingPubCard, LANDING_PUB_PREFERENCE } from "@/lib/landingPubCard";
 import type { Venue } from "@/lib/venues";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The landing's one real pub is built from data alone: a listed price from
 // the priced index, a publisher only when the row names one, and a dated,
@@ -141,12 +142,12 @@ describe("landing pub card", () => {
     const venues = [
       venue("venue-other", "Other Arms", 5),
       venue("venue-old", "Old Tavern", 5.5),
-      venue(LANDING_PUB_PREFERENCE[0], "The Blackfriar", 6.5),
+      venue(defined(LANDING_PUB_PREFERENCE[0]), "The Blackfriar", 6.5),
     ];
     const rows = history([
       { venueId: "venue-other", priceGbp: 4, observedOn: "2018-01-01" },
       { venueId: "venue-old", priceGbp: 2, observedOn: "2009-01-01" },
-      { venueId: LANDING_PUB_PREFERENCE[0], priceGbp: 3.6, observedOn: "2013-07-14" },
+      { venueId: defined(LANDING_PUB_PREFERENCE[0]), priceGbp: 3.6, observedOn: "2013-07-14" },
     ]);
     expect(buildLandingPubCard(venues, rows, { now: NOW })?.id).toBe(LANDING_PUB_PREFERENCE[0]);
     expect(buildLandingPubCard(venues.slice(0, 2), rows, { now: NOW })?.id).toBe("venue-old");

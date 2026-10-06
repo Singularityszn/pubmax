@@ -8,6 +8,9 @@ import {
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import { expectLayoutSettled } from "./helpers/layoutSettled";
+import { expectStreamedPageSettled } from "./helpers/streamedPage";
+
 const EVIDENCE_PHASE = process.env.UI_EVIDENCE_PHASE ?? "verify";
 const CAPTURE_EVIDENCE =
   EVIDENCE_PHASE === "before" || EVIDENCE_PHASE === "after";
@@ -240,18 +243,15 @@ async function preparePage(
 
   if (!options.signedIn) return;
   await page.route("https://pubmaxx-e2e.supabase.co/**", async (route) => {
-    const url = route.request().url();
-    const body = url.includes("/auth/v1/settings")
-      ? { external: {} }
-      : {
-          id: E2E_AUTH_USER_ID,
-          aud: "authenticated",
-          role: "authenticated",
-          email: "layout-captain@example.test",
-          app_metadata: {},
-          user_metadata: {},
-          created_at: "2026-07-30T00:00:00.000Z",
-        };
+    const body = {
+      id: E2E_AUTH_USER_ID,
+      aud: "authenticated",
+      role: "authenticated",
+      email: "layout-captain@example.test",
+      app_metadata: {},
+      user_metadata: {},
+      created_at: "2026-07-30T00:00:00.000Z",
+    };
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -850,15 +850,23 @@ async function auditRoute(
       timeout: 120_000,
     }).catch(() => null);
   }
-  await page
-    .locator("main.routeLoadingShell")
-    .waitFor({ state: "hidden", timeout: 45_000 })
-    .catch(() => undefined);
+  // Read the page's own settled landmark. The loading skeleton is a region,
+  // not a <main>, and a page that is still resolving stands in an aria-busy
+  // <main>. On a slow runner the read used to land before either had given
+  // way (the 5 Oct 2026 nightly and dispatch found no visible <main> on
+  // /onboarding, served as "/", and on /map), so it waits for streaming to
+  // settle and for that landmark to come to rest. Only a 404 may have none.
+  const main = page.locator('main:not([aria-busy="true"]):visible').first();
+  let mainShown = false;
+  if (response?.status() === 404) {
+    mainShown = await main.isVisible().catch(() => false);
+  } else {
+    await expectStreamedPageSettled(page, { timeout: 45_000 });
+    await expectLayoutSettled(main, { timeout: 30_000 });
+    mainShown = true;
+  }
   await settle(page);
-  const main = page.locator("main").first();
-  const box = (await main.isVisible().catch(() => false))
-    ? await main.boundingBox().catch(() => null)
-    : null;
+  const box = mainShown ? await main.boundingBox().catch(() => null) : null;
   if (!box) {
     return {
       viewportWidth,
@@ -1120,7 +1128,6 @@ test("capture UI consistency evidence", async ({ browser }) => {
     const incomplete = routeAudit.filter(
       (measurement) =>
         measurement.status === null ||
-        measurement.mainSelector === "main.routeLoadingShell" ||
         (measurement.classification === "no-main" &&
           measurement.status !== 404),
     );

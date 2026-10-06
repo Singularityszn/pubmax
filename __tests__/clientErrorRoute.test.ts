@@ -10,6 +10,7 @@ vi.mock("@/lib/clientErrorRateLimit", () => ({
 
 import { POST } from "@/app/api/client-error/route";
 import { isClientErrorLimited } from "@/lib/clientErrorRateLimit";
+import { defined } from "@/__tests__/helpers/defined";
 
 // GAP 16. POST /api/client-error is public and unauthenticated by design: a
 // WebView that has just thrown cannot prove anything first. What holds it
@@ -70,8 +71,8 @@ describe("POST /api/client-error", () => {
       shell: "native",
     });
     // The server owns the timestamp, and nothing else rides along.
-    expect(typeof report.ts).toBe("string");
-    expect(Object.keys(report).sort()).toEqual(["kind", "message", "name", "route", "shell", "ts"]);
+    expect(typeof defined(report).ts).toBe("string");
+    expect(Object.keys(defined(report)).sort()).toEqual(["kind", "message", "name", "route", "shell", "ts"]);
   });
 
   it("redacts again on arrival, because a direct POST is not the reporter", async () => {
@@ -86,8 +87,8 @@ describe("POST /api/client-error", () => {
     );
 
     const [report] = loggedReports();
-    expect(report.message).not.toContain("drinker@example.com");
-    expect(report.message).not.toContain("abcdef123456");
+    expect(defined(report).message).not.toContain("drinker@example.com");
+    expect(defined(report).message).not.toContain("abcdef123456");
   });
 
   it("spends the per-IP budget and logs nothing when over it", async () => {
@@ -125,6 +126,6 @@ describe("POST /api/client-error", () => {
       }),
     );
 
-    expect(loggedReports()[0].route).toBeNull();
+    expect(defined(loggedReports()[0]).route).toBeNull();
   });
 });

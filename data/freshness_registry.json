@@ -8,7 +8,11 @@
       "label": "London pint-price dataset",
       "class": "episodic",
       "artifact": "public/data/pint_prices_app_dataset.json",
-      "stamp": { "kind": "literal", "value": "2026-10-02T12:00:00Z", "consumedBy": "lib/dataFreshness.ts PINT_DATASET_OBSERVED_AT (build-time import; this stamp is the single source of truth for the pint dataset's collection date — the TS constant is derived from it, never hand-authored)" },
+      "stamp": {
+        "kind": "literal",
+        "value": "2026-10-02T12:00:00Z",
+        "consumedBy": "lib/dataFreshness.ts PINT_DATASET_OBSERVED_AT (build-time import; this stamp is the single source of truth for the pint dataset's collection date — the TS constant is derived from it, never hand-authored)"
+      },
       "cadence": "episodic — re-collected by hand, then re-exported",
       "stalenessBudgetHours": 2160,
       "refreshWorkflow": "manual (node scripts/refresh_pint_price_observations.mjs → python3 scripts/export_app_dataset_json.py --collected-at <ISO> --stamp-only → npm run canonicalize:venues → npm run build:slim). npm run export:data re-exports the committed CSV and re-collects nothing, and the bundled artifact carries layered rows the CSV does not hold, so it is not the collection step. See data/README.md.",
@@ -20,7 +24,10 @@
       "class": "episodic",
       "retired": true,
       "artifact": "public/data/price_updates/latest.json",
-      "stamp": { "kind": "field", "pointer": "generatedAt" },
+      "stamp": {
+        "kind": "field",
+        "pointer": "generatedAt"
+      },
       "cadence": "none: a closed lane. No producer exists in this tree and none may be built against today's allowlist.",
       "stalenessBudgetHours": null,
       "refreshWorkflow": "None. The hand-run publish (scripts/refresh_prices.mjs) and the parser module behind it (scripts/price_source_fetchers.mjs, whose fetchFromSource returned [] by construction) are DELETED rather than switched off, the refresh:prices package script is gone with them, and the nightly local-refresh scheduler no longer spends a slot on a command that could only ever write nothing. The registry used to name that command as this lane's refresh workflow, which read as progress somebody owed: it was not. The committed envelope stays EMPTY and its generatedAt dates NO observation: it is the day the empty envelope was aligned to the bundled pint dataset's own collection day, and it moves only when that day moves. Read it as an envelope date, never as a price date. This prose names no day of its own: the day the envelope is aligned to is whatever pint_prices reports, and a date typed here would rot the moment that one moved. Nothing restamps a row, because there are no rows.",
@@ -31,7 +38,10 @@
       "label": "Per-drink price updates",
       "class": "snapshot",
       "artifact": "public/data/drink_price_updates/latest.json",
-      "stamp": { "kind": "field", "pointer": "generatedAt" },
+      "stamp": {
+        "kind": "field",
+        "pointer": "generatedAt"
+      },
       "cadence": "static snapshot: the rows describe the day they were collected and nothing may lawfully advance them",
       "stalenessBudgetHours": null,
       "refreshWorkflow": "None. Captain ruling 2026-09-05: this lane is a static snapshot. The Drink price refresh workflow is retrieval-only and its ONLY permitted source (Wetherspoons) publishes no per-drink web prices, so no run can advance the file. A staleness budget here was a promise nobody could keep: the lane reported stale for ageing exactly as designed. Surfaces name it \"Snapshot from <collection date>\" (lib/dataFreshness.ts formatSnapshotFrom) and claim nothing about currency. Adding a source is a separate captain decision, not a budget change.",
@@ -43,7 +53,10 @@
       "class": "episodic",
       "retired": true,
       "artifact": "public/data/food_price_updates/latest.json",
-      "stamp": { "kind": "field", "pointer": "generatedAt" },
+      "stamp": {
+        "kind": "field",
+        "pointer": "generatedAt"
+      },
       "cadence": "none: a closed lane. The 3 MB pack still ships and is still read; nothing writes it.",
       "stalenessBudgetHours": null,
       "refreshWorkflow": "None, and `retired: true` is now what says so rather than a sentence a reader had to reach the end of. No script in this tree writes public/data/food_price_updates/latest.json: lib/priceUpdates.server.ts only reads it, scripts/firecrawl_greene_king_prices.mjs writes the DRINK pack beside it (its mapSectionToCategory returns null for every food section on purpose), and the Greene King rendered lane (scripts/harvest/uk-prices/render.mjs) writes the uk-prices overlay. `harvested by hand` was the last claim standing here and nobody harvests it: every row in the pack carries the same single import, which was never repeated. A 1440h budget was a promise nobody could keep before that: the lane reported stale for ageing exactly as designed and took the merge bar red with it (astra-review P0-1). The pack keeps serving and every row carries its own observedAt, which lib/priceUpdates.ts never presents as live. Writing a generator is a separate captain decision, not a budget or a status change.",
@@ -54,7 +67,10 @@
       "label": "Night signals (offline-reviewed claims)",
       "class": "episodic",
       "artifact": "public/data/night_signals/latest.json",
-      "stamp": { "kind": "field", "pointer": "generatedAt" },
+      "stamp": {
+        "kind": "field",
+        "pointer": "generatedAt"
+      },
       "cadence": "human-gated approved publish; no machine schedule",
       "stalenessBudgetHours": null,
       "refreshWorkflow": "manual approved publish via npm run refresh:night-signals -- --open-pr; Vercel candidate ingestion never publishes reviewed claims",
@@ -65,7 +81,10 @@
       "label": "Night Signal candidate ingestion (Exa sweep, pending review)",
       "class": "cron",
       "artifact": null,
-      "stamp": { "kind": "store", "feedKey": "night_signal_candidates" },
+      "stamp": {
+        "kind": "store",
+        "feedKey": "night_signal_candidates"
+      },
       "cadence": "daily, 05:15 UTC via Vercel cron",
       "stalenessBudgetHours": null,
       "refreshWorkflow": "Vercel cron GET /api/cron/refresh-night-signals sweeps Exa for dated, attributable London pub buzz and stamps feed_freshness (durable store, migration 0047 plane). Store-only, no committed artifact: /api/freshness and the freshness-audit cron both read the store's real observedAt directly (never a disk fallback, because none exists), and scripts/check_freshness.mjs queries the same table dependency-free. A store the checker cannot reach reports unmeasurable, never fresh and never stale. Hard staleness-budgeting an artifact-less cron feed is a registry-model follow-up. This feed reports when INGESTION last ran, not that any claim shipped.",
@@ -77,7 +96,10 @@
       "class": "cron",
       "artifact": "public/data/weather/latest.json",
       "artifactRole": "degraded-fallback",
-      "stamp": { "kind": "store", "feedKey": "weather" },
+      "stamp": {
+        "kind": "store",
+        "feedKey": "weather"
+      },
       "cadence": "every 6h via Vercel cron (0 */6 * * * UTC); the durable weather_snapshots store is what the site reads and what this budget measures",
       "stalenessBudgetHours": 48,
       "refreshWorkflow": "Vercel cron GET /api/cron/refresh-weather → durable weather_snapshots store (read store-first via lib/weatherSnapshots.server). THE STORE IS WHAT IS MEASURED: a Vercel filesystem is read-only, so public/data/weather/latest.json can only age and a budget over it went red however healthy the cron was. That committed file stays as the degraded fallback and is dated by nothing. A runtime with no store credentials reports this feed unmeasurable: never fresh, never stale. GitHub Actions retired.",
@@ -88,7 +110,10 @@
       "label": "What's-On (sport / quiz / deals / music / events)",
       "class": "cron",
       "artifact": null,
-      "stamp": { "kind": "store", "feedKey": "whats_on" },
+      "stamp": {
+        "kind": "store",
+        "feedKey": "whats_on"
+      },
       "cadence": "twice-daily full What's-On refresh via Vercel cron (30 5 * * * and 0 15 * * * UTC); durable rows are preferred and bundled files remain the fallback",
       "stalenessBudgetHours": 48,
       "refreshWorkflow": "Vercel cron GET /api/cron/refresh-whats-on refreshes Ticketmaster/Skiddle events plus bounded quiz, deal, music, and sport lanes into the durable whats_on_listings store (read store-first via lib/whatsOnListings.server; bundled public/data/whats_on files are the fallback). GitHub workflows remain as a secondary recovery path when Actions billing returns.",
@@ -99,7 +124,10 @@
       "label": "What's-On sport fixtures (derived screenings)",
       "class": "episodic",
       "artifact": "public/data/whats_on/sport_fixtures.json",
-      "stamp": { "kind": "field", "pointer": "generatedAt" },
+      "stamp": {
+        "kind": "field",
+        "pointer": "generatedAt"
+      },
       "cadence": "twice daily via Vercel cron (05:30 and 15:00 UTC); bundled fixtures remain the offline fallback",
       "stalenessBudgetHours": null,
       "refreshWorkflow": "Vercel cron GET /api/cron/refresh-whats-on fetches live fixtures (football-data.org football, TheSportsDB rugby) and re-derives sport rows into durable whats_on_listings; scripts/whatson/sportFixtures.mjs remains the local recovery path for the bundled fallback artifact",
@@ -121,7 +149,10 @@
       "label": "London Pint Index (borough medians)",
       "class": "snapshot",
       "artifact": "public/data/pint_index_snapshot.json",
-      "stamp": { "kind": "field", "pointer": "generatedAt" },
+      "stamp": {
+        "kind": "field",
+        "pointer": "generatedAt"
+      },
       "cadence": "empty snapshot — status is empty and observations is empty, so there is no collection to age. A published Index with observations is user-cadence again and owes a 2160h neglect budget.",
       "stalenessBudgetHours": null,
       "refreshWorkflow": "user-cadence once the snapshot holds observations (the growth loop is the refresh). While status is empty, restamping generatedAt would claim a collection that did not happen, and a 2160h budget would go red on 14 October 2026 with nothing new to publish. Restore class user-cadence and stalenessBudgetHours 2160 in the same change that publishes the first observation.",
@@ -132,7 +163,10 @@
       "label": "Late-food evidence",
       "class": "episodic",
       "artifact": "public/data/late_food_evidence.json",
-      "stamp": { "kind": "field", "pointer": "generatedAt" },
+      "stamp": {
+        "kind": "field",
+        "pointer": "generatedAt"
+      },
       "cadence": "episodic — evidenced by hand per Night Area",
       "stalenessBudgetHours": 2160,
       "refreshWorkflow": "manual (evidence curation)",
@@ -143,7 +177,10 @@
       "label": "PUBMAXXING all-drinks / history seed import",
       "class": "episodic",
       "artifact": "public/data/pubmaxxing_seed_snapshot.json",
-      "stamp": { "kind": "field", "pointer": "sourceImportedAt" },
+      "stamp": {
+        "kind": "field",
+        "pointer": "sourceImportedAt"
+      },
       "cadence": "episodic — imported from the sibling pubmaxxing repo",
       "stalenessBudgetHours": 8760,
       "refreshWorkflow": "manual (npm run build:pubmaxxing-seed)",
@@ -154,7 +191,10 @@
       "label": "Wetherspoons first-party pub directory",
       "class": "episodic",
       "artifact": "public/data/wetherspoons/pubs.json",
-      "stamp": { "kind": "field", "pointer": "generatedAt" },
+      "stamp": {
+        "kind": "field",
+        "pointer": "generatedAt"
+      },
       "cadence": "episodic — first-party WP REST directory read",
       "stalenessBudgetHours": 4320,
       "refreshWorkflow": "manual (npm run fetch:wetherspoons-pubs)",
@@ -253,7 +293,11 @@
       "label": "Listed-building heritage facts (Historic England NHLE)",
       "class": "episodic",
       "artifact": "public/data/heritage_listings.json",
-      "stamp": { "kind": "literal", "value": "2026-07-18T00:00:00Z", "consumedBy": "committed dataset; the NHLE point layer refreshes daily upstream but statutory listing status changes rarely, so this is re-ingested episodically" },
+      "stamp": {
+        "kind": "literal",
+        "value": "2026-07-18T00:00:00Z",
+        "consumedBy": "committed dataset; the NHLE point layer refreshes daily upstream but statutory listing status changes rarely, so this is re-ingested episodically"
+      },
       "cadence": "episodic — re-run scripts/build_heritage_listings.mjs against the live NHLE FeatureServer",
       "stalenessBudgetHours": 8760,
       "refreshWorkflow": "manual (node scripts/build_heritage_listings.mjs)",
@@ -265,7 +309,11 @@
       "class": "episodic",
       "artifact": "public/data/historic_pubs.json",
       "pack": true,
-      "stamp": { "kind": "literal", "value": "2026-07-18T00:00:00Z", "consumedBy": "Regenerated when scripts/build_historic_index.mjs runs after heritage_cache.json or pint_prices_app_dataset.json changes. `pack: true` opens the file in both freshness readers, so a missing, unreadable or empty index is its own audit finding rather than a literal stamp reading as fresh." },
+      "stamp": {
+        "kind": "literal",
+        "value": "2026-07-18T00:00:00Z",
+        "consumedBy": "Regenerated when scripts/build_historic_index.mjs runs after heritage_cache.json or pint_prices_app_dataset.json changes. `pack: true` opens the file in both freshness readers, so a missing, unreadable or empty index is its own audit finding rather than a literal stamp reading as fresh."
+      },
       "cadence": "episodic — node scripts/build_historic_index.mjs",
       "stalenessBudgetHours": 2160,
       "refreshWorkflow": "manual (node scripts/build_historic_index.mjs)",
@@ -276,7 +324,10 @@
       "label": "Area news (fresh-facts layer)",
       "class": "snapshot",
       "artifact": "data/area_news.json",
-      "stamp": { "kind": "field", "pointer": "generatedAt" },
+      "stamp": {
+        "kind": "field",
+        "pointer": "generatedAt"
+      },
       "cadence": "snapshot - npm run refresh:area-news",
       "stalenessBudgetHours": 504,
       "refreshWorkflow": "manual (KEENABLE_API_KEY optional; npm run refresh:area-news, then node scripts/build_area_news_matches.mjs when venue badges need rebuilding)",
@@ -287,7 +338,11 @@
       "label": "Persona drinks (reported / canon drink orders for the Drink like lens)",
       "class": "episodic",
       "artifact": "data/persona_drinks.json",
-      "stamp": { "kind": "literal", "value": "2026-07-18T12:00:00Z", "consumedBy": "committed snapshot; bundled into the app via lib/personaDrinks.ts (webpack inlines the JSON). This literal is the crawl's collection date, the single source of truth for how fresh the persona set is." },
+      "stamp": {
+        "kind": "literal",
+        "value": "2026-07-18T12:00:00Z",
+        "consumedBy": "committed snapshot; bundled into the app via lib/personaDrinks.ts (webpack inlines the JSON). This literal is the crawl's collection date, the single source of truth for how fresh the persona set is."
+      },
       "cadence": "episodic snapshot — re-run the persona crawl (Exa + Firecrawl), drop the new JSONL in as data/persona_drinks.source.jsonl, then node scripts/build_persona_drinks.mjs",
       "stalenessBudgetHours": 2160,
       "refreshWorkflow": "manual (node scripts/build_persona_drinks.mjs)",
@@ -298,7 +353,10 @@
       "label": "Spoons value ranking (imported from SpoonMe)",
       "class": "snapshot",
       "artifact": "public/data/spoonme/rows.json",
-      "stamp": { "kind": "field", "pointer": "retrievedAt" },
+      "stamp": {
+        "kind": "field",
+        "pointer": "retrievedAt"
+      },
       "cadence": "one-off third-party analysis; re-imported by hand only when SpoonMe republishes",
       "stalenessBudgetHours": null,
       "refreshWorkflow": "manual (node scripts/spoonme/import-report.mjs). The figures are SpoonMe's reading of Wetherspoon menus rather than ours, so nothing we run can lawfully advance them: the lane carries no budget and is named for the day it was retrieved, the same ruling drink_price_updates carries. See data/spoonme/README.md.",
@@ -309,11 +367,43 @@
       "label": "Famous venue verification window",
       "class": "episodic",
       "artifact": "public/data/venues_slim.json",
-      "stamp": { "kind": "literal", "value": "2026-10-03T00:00:00.000Z", "consumedBy": "public/data/venues_slim.json generatedAt, the latest seed observedAt or expiresAt at or before the build that scripts/build_slim_index.mjs kept the current famous rows as of. A rebuild before the next seed boundary writes the same value, so the literal matches that field without the gate opening the slim payload." },
+      "stamp": {
+        "kind": "literal",
+        "value": "2026-10-05T00:00:00.000Z",
+        "consumedBy": "public/data/venues_slim.json generatedAt, the latest seed observedAt or expiresAt at or before the build that scripts/build_slim_index.mjs kept the current famous rows as of. A rebuild before the next seed boundary writes the same value, so the literal matches that field without the gate opening the slim payload."
+      },
       "cadence": "episodic. Re-verify the seed (npm run verify:famous-venues -- --write) and run npm run refresh:slim before the window closes, then commit the slim",
       "stalenessBudgetHours": 384,
       "refreshWorkflow": "manual (npm run verify:famous-venues -- --write, then npm run refresh:slim; build:slim alone rebuilds at the committed stamp). The budget is two weeks of lead before the earliest expiresAt still inside this slim build, derived by __tests__/helpers/currentFamousVenues.ts.",
       "gate": "The seed's own expiresAt. A rebuild that would drop a famous venue the last slim index shipped fails instead of writing a shorter index."
+    },
+    {
+      "id": "google_places_content",
+      "label": "Google Places venue content",
+      "class": "episodic",
+      "artifact": "data/places_enrichment_stamp.json",
+      "stamp": {
+        "kind": "field",
+        "pointer": "observedAt"
+      },
+      "cadence": "Manual verified-id push per published pack (London and UK-city hours and contacts, and their extras); each copied field stays shown under its own observedAt and is due for refresh after 30 days",
+      "stalenessBudgetHours": 720,
+      "refreshWorkflow": "manual (npm run enrich:google-places -- --dry-run --usage --refresh [--pack=uk_cities|london_extras|uk_cities_extras]; then --write --exclusive --refresh after shared-key jobs finish; london is the default pack). --refresh starts a new push only once a copied row is over 30 days old and re-requests rows that are missing, failed earlier or were over 30 days old when that push started. Without --refresh the command resumes the current push and skips rows it already attempted; place-level 404 or non-key 400 failures are recorded and the run continues, and any other failure stops it. The committed spend ledger seeds a clone with no local checkpoint and keeps every push's attempts.",
+      "gate": "Advisory stale in check:freshness. Verified place ids only, dated google_places fields and checked daily-quota restoration. The London pack has a USD 85 attempt cap per calendar month across all pushes; the UK-city and both extras packs share one USD 28 task cap that does not reset. The oldest copied row across every published pack dates this artifact, a small stamp the runner and npm run build:places-enrichment derive from every data/places_enrichment*.json pack so the spine never parses a full pack."
+    },
+    {
+      "id": "parallel_venue_discovery",
+      "label": "Parallel web venue discoveries",
+      "class": "episodic",
+      "artifact": "data/parallel-discovery/freshness.json",
+      "stamp": {
+        "kind": "field",
+        "pointer": "oldestObservedAt"
+      },
+      "cadence": "Manual, city-by-city research. Cached reruns preserve observation dates.",
+      "stalenessBudgetHours": 2160,
+      "refreshWorkflow": "node scripts/discover_parallel_venues.mjs [--provider=tavily] --cities=<city,...>, then npm run build:city-slim and node scripts/discover_parallel_venues.mjs --check. Oldest accepted per-row observation owns the stamp; unchanged rows never inherit a new research date.",
+      "gate": "PARALLEL_API_KEY or TAVILY_API_KEY. Each venue requires venue-specific non-Google citations and a geocoded address or cited coordinates. Presence evidence only; no prices or opening-hours claims."
     }
   ]
 }

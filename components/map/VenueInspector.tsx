@@ -56,6 +56,7 @@ import VenueStickyBar from "./inspector/VenueStickyBar";
 
 import "./venueSheet.css";
 import "./accessibilityFilters.css";
+import { scrollMotionBehavior } from "@/lib/scrollMotion";
 
 // TabKey is imported by other modules from this file — keep it re-exported here.
 export type { TabKey };
@@ -145,7 +146,7 @@ function focusPriceDestination(id: string): void {
     window.requestAnimationFrame(() => {
       const destination = document.getElementById(id);
       destination?.focus({ preventScroll: true });
-      destination?.scrollIntoView({ block: "start", behavior: "smooth" });
+      destination?.scrollIntoView({ block: "start", behavior: scrollMotionBehavior() });
     });
   }, 120);
 }

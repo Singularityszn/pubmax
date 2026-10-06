@@ -7,6 +7,7 @@ import {
   type CommunityPriceAgreementRow,
 } from "@/lib/communityPrice";
 import { firstQualifyingCluster, type TrustObservation } from "@/lib/priceTrustEvents";
+import { defined } from "@/__tests__/helpers/defined";
 
 const NOW = Date.parse("2026-08-23T12:00:00.000Z");
 
@@ -43,7 +44,7 @@ describe("issue #1098 freshness boundary", () => {
       priceRow({ submittedAt: NOW - 1_000, actor: "profile:fresh" }),
     ];
 
-    expect(countCorroborations(rows, rows[1], NOW)).toBe(1);
+    expect(countCorroborations(rows, defined(rows[1]), NOW)).toBe(1);
     expect(bestCorroboratedRow(rows, NOW)).toEqual({ row: rows[1], corroborations: 1 });
   });
 

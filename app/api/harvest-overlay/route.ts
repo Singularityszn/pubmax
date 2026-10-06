@@ -8,6 +8,7 @@ import { mergePublicHarvestOverlays, toPublicOverlay } from "@/lib/harvestFold";
 import { harvestOverlayStore } from "@/lib/harvestOverlayStore";
 import { resolveHarvestOverlayVenue } from "@/lib/harvestOverlayVenue";
 import { isLimited } from "@/lib/pintDrops";
+import { placesRecordForVenue } from "@/lib/placesEnrichment.server";
 import { clientIp, hashIp } from "@/lib/supabase";
 
 export async function GET(request: Request): Promise<Response> {
@@ -26,8 +27,9 @@ export async function GET(request: Request): Promise<Response> {
 
   try {
     const resolution = await resolveHarvestOverlayVenue(venueId);
+    const placesContent = await placesRecordForVenue(venueId, resolution.status === "resolved" ? resolution.venueIds : []);
     if (resolution.status === "unavailable") {
-      return jsonNoStore({ status: "degraded", overlay: null }, { status: 200 });
+      return jsonNoStore({ status: "degraded", overlay: null, ...(placesContent ? { placesContent } : {}) }, { status: 200 });
     }
     const reads =
       resolution.status === "resolved"
@@ -38,7 +40,7 @@ export async function GET(request: Request): Promise<Response> {
           )
         : [{ status: "ready" as const, overlay: null }];
     if (reads.some((read) => read.status === "degraded")) {
-      return jsonNoStore({ status: "degraded", overlay: null }, { status: 200 });
+      return jsonNoStore({ status: "degraded", overlay: null, ...(placesContent ? { placesContent } : {}) }, { status: 200 });
     }
     const publicOverlays = reads.flatMap((read) =>
       read.status === "ready" && read.overlay ? [toPublicOverlay(read.overlay)] : [],
@@ -46,7 +48,7 @@ export async function GET(request: Request): Promise<Response> {
     const overlay = mergePublicHarvestOverlays(publicOverlays);
     if (!overlay.website && !overlay.menuUrl && !overlay.lore) {
       return Response.json(
-        { status: "ready", overlay: null },
+        { status: "ready", overlay: null, ...(placesContent ? { placesContent } : {}) },
         { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } },
       );
     }
@@ -54,6 +56,7 @@ export async function GET(request: Request): Promise<Response> {
       {
         status: "ready",
         overlay,
+        ...(placesContent ? { placesContent } : {}),
       },
       { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } },
     );

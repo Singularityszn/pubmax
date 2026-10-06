@@ -51,6 +51,15 @@ export function mapIsOffHouseAttitude(
   );
 }
 
+/**
+ * Whether the camera reset has a live camera to act on. A failed canvas
+ * (`mapError`) renders the fallback card, so the reset is withheld there even
+ * when the last known attitude was off the city's own.
+ */
+export function cameraResetAvailable(offAttitude: boolean, canvasFailed: boolean): boolean {
+  return offAttitude && !canvasFailed;
+}
+
 /** How long the reset takes. Long enough to follow, short enough to be an answer. */
 export const COMPASS_RESET_DURATION_MS = 450;
 

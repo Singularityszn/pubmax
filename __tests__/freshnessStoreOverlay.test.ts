@@ -76,6 +76,7 @@ import {
   resolveDurableFeedStoreReads,
   resolveStoreObservedAt,
 } from "@/lib/freshnessStoreOverlay";
+import { defined } from "@/__tests__/helpers/defined";
 
 beforeEach(() => {
   db.configured = true;
@@ -118,7 +119,7 @@ describe("resolveDurableFeedStoreReads — the real four-way read, never guessed
   it("the unreachable case: a query error is unreachable, distinct from empty or unconfigured", async () => {
     db.error = new Error("connection reset");
     const reads = await resolveDurableFeedStoreReads();
-    const read = reads[NIGHT_SIGNAL_CANDIDATES_DATASET_ID];
+    const read = defined(reads[NIGHT_SIGNAL_CANDIDATES_DATASET_ID]);
     expect(read.kind).toBe("unreachable");
     expect(read.kind === "unreachable" && read.error).toContain("connection reset");
   });
@@ -126,7 +127,7 @@ describe("resolveDurableFeedStoreReads — the real four-way read, never guessed
   it("the unreachable case: a schema-miss error names the migration, still unreachable not empty", async () => {
     db.error = new Error("Could not find the table 'public.feed_freshness' in the schema cache");
     const reads = await resolveDurableFeedStoreReads();
-    const read = reads[NIGHT_SIGNAL_CANDIDATES_DATASET_ID];
+    const read = defined(reads[NIGHT_SIGNAL_CANDIDATES_DATASET_ID]);
     expect(read.kind).toBe("unreachable");
     expect(read.kind === "unreachable" && read.error).toContain("migration 0047");
   });
@@ -134,7 +135,7 @@ describe("resolveDurableFeedStoreReads — the real four-way read, never guessed
   it("the unreachable case: a thrown exception (network failure) never becomes empty or ok", async () => {
     db.throws = new Error("fetch failed: ENOTFOUND");
     const reads = await resolveDurableFeedStoreReads();
-    const read = reads[NIGHT_SIGNAL_CANDIDATES_DATASET_ID];
+    const read = defined(reads[NIGHT_SIGNAL_CANDIDATES_DATASET_ID]);
     expect(read.kind).toBe("unreachable");
     expect(read.kind === "unreachable" && read.error).toContain("ENOTFOUND");
   });

@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import { headers } from "next/headers";
-import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
+import { Space_Grotesk, Inter } from "next/font/google";
+import localFont from "next/font/local";
 import ConsentAwareVercelAnalytics from "@/components/ConsentAwareVercelAnalytics";
 import ConsentAwareVercelSpeedInsights from "@/components/ConsentAwareVercelSpeedInsights";
 import "./globals.css";
@@ -99,8 +100,24 @@ const bodySans = Inter({
   display: "swap",
 });
 
-const dataMono = JetBrains_Mono({
-  subsets: ["latin"],
+// Vendored, not fetched. next/font/google rewrites each face's file URL into a
+// query that Turbopack must parse as exactly one entry, and on 4 Oct 2026 this
+// face failed that parse on hosted CI builds ("next/font/google queries have
+// exactly one entry"), so a build could die on Google's answer. The file is the
+// latin one Google served for both weights (v24), so the bytes do not change.
+const dataMono = localFont({
+  // Google served one variable file for 400 and for 700 and declared two
+  // faces on it. Two faces again, not one 400-700 range: a range would draw
+  // the 550 shorthands at 550, while a 700 face clamps them to 700 as before.
+  src: [
+    { path: "./_fonts/JetBrainsMono-latin-wght-400-700.woff2", weight: "400", style: "normal" },
+    { path: "./_fonts/JetBrainsMono-latin-wght-400-700.woff2", weight: "700", style: "normal" },
+  ],
+  // next/font/local names its faces after this const ("dataMono") unless told
+  // otherwise, but the :root token in app/globals.css asks for "JetBrains Mono",
+  // the family next/font/google declared. Unnamed, no face matched and every
+  // numeral painted in the system monospace.
+  declarations: [{ prop: "font-family", value: "JetBrains Mono" }],
   variable: "--font-data",
   display: "swap",
   // NOT preloaded, unlike the display and body faces. next/font preloads every
@@ -113,6 +130,12 @@ const dataMono = JetBrains_Mono({
   // the moment something uses it, and display: swap plus the metric-matched
   // fallback above keep the swap from moving the page.
   preload: false,
+  // The metric-matched fallback is the exact face next/font/google generated
+  // for this family (app/globals.css, "JetBrains Mono Fallback"). Recomputing
+  // it from the vendored file moved size-adjust from 134.59% to 131.49%, which
+  // would shift every numeral that paints before the swap.
+  adjustFontFallback: false,
+  fallback: ["JetBrains Mono Fallback"],
   // 400 for un-weighted var(--font-data) consumers (globals.css .font-data, the
   // venue price story), which would otherwise render a synthesised
   // faux-bold-adjacent fallback, and 700 for the stamped and emphasis numerals.
@@ -124,7 +147,6 @@ const dataMono = JetBrains_Mono({
   // on 700 already. Only an exact 500, or a target in (400, 500], could have
   // used it, and no shipped rule asks for either. __tests__/fontWeights.test.ts
   // is what keeps that true.
-  weight: ["400", "700"],
 });
 
 // No party accent (Bungee) webfont is loaded on any route: the vibe chips were

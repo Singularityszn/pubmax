@@ -153,9 +153,9 @@ async function dispatch(
 export async function broadcastNightSignalLive(
   highlights: readonly NightSignalHighlight[],
 ): Promise<PushDispatchSummary> {
-  if (highlights.length === 0) return { ...EMPTY_SUMMARY };
-  const targets = await pushTokenStore().list();
   const lead = highlights[0];
+  if (!lead) return { ...EMPTY_SUMMARY };
+  const targets = await pushTokenStore().list();
   const extra = highlights.length - 1;
   const payload: PushPayload = {
     title: highlights.length === 1 ? "New tonight" : `${highlights.length} updates for tonight`,

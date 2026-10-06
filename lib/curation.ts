@@ -275,7 +275,8 @@ function lookupCuratedVenue(
 }
 
 export function getVenueCuration(prices: VenuePrice[]): VenueCuration {
-  const first = prices[0];
+  const [first] = prices;
+  if (!first) return {};
   const explicit = lookupCuratedVenue(first.pub_name, first.address ?? "");
   const wikipediaRow = prices.find((row) =>
     String(row.source_datasets ?? "").includes("wikipedia_london_list"),

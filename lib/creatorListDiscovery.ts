@@ -1,3 +1,5 @@
+import type { Route } from "next";
+
 export type CreatorListProfile = {
   handle: string;
   displayName?: string;
@@ -7,7 +9,7 @@ export type CreatorListProfile = {
 type CreatorListPreviewVenue = {
   venueId: string;
   venueName: string;
-  venueMapUrl: string;
+  venueMapUrl: Route;
 };
 
 export type CreatorListDiscoveryItem = {
@@ -15,9 +17,9 @@ export type CreatorListDiscoveryItem = {
   ownerDisplayName?: string;
   ownerAvatarUrl?: string;
   listType: string;
-  listUrl: string;
-  mapUrl: string;
-  planUrl: string;
+  listUrl: Route;
+  mapUrl: Route;
+  planUrl: Route;
   savedCount: number;
   updatedAt: string;
   previewVenues: CreatorListPreviewVenue[];

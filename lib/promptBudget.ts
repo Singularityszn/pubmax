@@ -194,7 +194,7 @@ export function routeOwnsScreenFoot(
 ): boolean {
   if (!(viewportWidth <= MOBILE_MAX_WIDTH)) return false;
   if (typeof pathname !== "string") return false;
-  const path = pathname.split(/[?#]/)[0].replace(/\/+$/, "");
+  const path = (pathname.split(/[?#]/)[0] ?? "").replace(/\/+$/, "");
   return path === "/map" || path.startsWith("/map/");
 }
 

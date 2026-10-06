@@ -1,13 +1,14 @@
 # UK city OSM venue seed packs
 
-Per-city OpenStreetMap pub extracts used to seed multi-city maps. Prices are **not** taken from OSM — `cheapestPrice` stays `null` until Pint Drops (community prices) fill them in.
+Per-city OpenStreetMap pub extracts seed multi-city maps. Separate [Parallel web discovery observations](../parallel-discovery/README.md) can add evidence-backed pubs, bars, clubs and restaurants. Both sources publish unpriced pins: `cheapestPrice` stays `null` until Pint Drops fill it in.
 
 ## Layout
 
 ```
 data/cities/{city}/
-  osm_pubs_raw.json   # raw Overpass response
-  osm_pubs.json       # normalized seed pack (ODbL)
+  osm_pubs_raw.json     # raw Overpass response
+  osm_pubs.json         # normalized seed pack (ODbL)
+  parallel_venues.json  # web discoveries, where a city has any (see ../parallel-discovery)
 
 public/data/cities/{city}/
   venues_slim.json             # complete slim index
@@ -28,7 +29,7 @@ Promote whenever the base layer already carries the area. It takes the SAME rows
 
 ## What a pin says it knows
 
-`name`, position and address come from OSM and nothing else is invented. A pin's area label is the locality OSM states for that pub (`addr:city` and its siblings), and the pack's own display name only where OSM states none: a pack covering a stretch of coast would otherwise put Llandudno on a Conwy pub. No website, no opening hours and no price reaches `venues_slim.json` — it has no field for them.
+OSM pins take `name`, position and address from OSM. Their area label is the locality OSM states for that pub (`addr:city` and its siblings), and the pack's own display name only where OSM states none: a pack covering a stretch of coast would otherwise put Llandudno on a Conwy pub. Web discoveries retain their cited address and observation date in `parallel_venues.json`; the slim builder publishes their name, position, venue kind and city label. No website or opening hours reaches `venues_slim.json`, and every city pin remains unpriced.
 
 ## Refresh
 

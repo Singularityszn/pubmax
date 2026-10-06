@@ -5,6 +5,7 @@ import {
   type WebMcpRegistrationStatus,
   type WebMcpToolImplementations,
 } from "@/lib/webmcp/modelContext";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The descriptor the page really hands to registerTool. Restating a narrower
 // shape here made every mock unassignable to the ambient signature, which
@@ -146,7 +147,7 @@ describe("WebMCP tool registration", () => {
 
     registerWebMcpTools({
       modelContext: {
-        registerTool: () => pending[index++].promise,
+        registerTool: () => defined(pending[index++]).promise,
       },
       implementations: implementations(),
       onStatus: (status) => statuses.push(status),
@@ -156,7 +157,7 @@ describe("WebMCP tool registration", () => {
     await Promise.resolve();
     expect(statuses).toEqual(["registering"]);
 
-    pending[4].resolve();
+    defined(pending[4]).resolve();
     await vi.waitFor(() => expect(statuses).toEqual(["registering", "ready"]));
   });
 
@@ -248,7 +249,7 @@ describe("WebMCP tool registration", () => {
     )!.tool;
 
     await expect(tool.execute({ query: "Clapham" })).resolves.toEqual({ status: "ok" });
-    const executionContext = vi.mocked(toolImplementations.search_pubmaxx_venues).mock.calls[0][1];
+    const executionContext = defined(vi.mocked(toolImplementations.search_pubmaxx_venues).mock.calls[0])[1];
     expect(executionContext.signal).toBeInstanceOf(AbortSignal);
     expect(executionContext.signal.aborted).toBe(false);
   });
@@ -297,12 +298,12 @@ describe("WebMCP tool registration", () => {
     });
 
     expect(new Set(registrations.map(({ signal }) => signal)).size).toBe(1);
-    expect(registrations[0].signal.aborted).toBe(false);
+    expect(defined(registrations[0]).signal.aborted).toBe(false);
 
     cleanup();
     cleanup();
 
-    expect(registrations[0].signal.aborted).toBe(true);
+    expect(defined(registrations[0]).signal.aborted).toBe(true);
     expect(onAbort).toHaveBeenCalledTimes(1);
   });
 
@@ -313,7 +314,7 @@ describe("WebMCP tool registration", () => {
 
     const cleanup = registerWebMcpTools({
       modelContext: {
-        registerTool: () => pending[index++].promise,
+        registerTool: () => defined(pending[index++]).promise,
       },
       implementations: implementations(),
       onStatus: (status) => statuses.push(status),

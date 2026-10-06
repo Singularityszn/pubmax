@@ -1,0 +1,41 @@
+.venuePlacesDetails {
+  margin-block: var(--space-3);
+  color: var(--ink);
+  font-size: var(--text-sm);
+}
+.venuePlacesDetails summary {
+  cursor: pointer;
+  min-height: 44px;
+  align-content: center;
+}
+.venuePlacesDetails dl {
+  margin-block: var(--space-2);
+}
+.venuePlacesDetails dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-block: var(--space-1);
+}
+.venuePlacesDetails dd {
+  margin: 0;
+  text-align: right;
+}
+.venuePlacesDetails small {
+  color: var(--muted);
+}
+.venuePlacesDetailsLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.venuePlacesDetailsLinks a {
+  min-height: 44px;
+  align-content: center;
+  color: var(--ink);
+  text-underline-offset: 3px;
+}
+.venuePlacesDetailsCredit {
+  display: block;
+  margin-block: var(--space-1);
+}

@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { describe, expect, it } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = process.cwd();
 
@@ -14,7 +15,7 @@ function repositoryStoreNames(): string[] {
 function documentedStoreNames(): string[] {
   const markdown = readFileSync(join(ROOT, "docs/STORE_BACKEND_INVENTORY.md"), "utf8");
   return [...markdown.matchAll(/^\|\s*([A-Za-z][A-Za-z0-9]*Store)\s*\|/gm)]
-    .map((match) => match[1])
+    .map((match) => defined(match[1]))
     .sort();
 }
 
@@ -51,7 +52,7 @@ function documentedInlineBackendReferences(): string[] {
     /<!-- inline-backend-references:start -->\n```json\n([\s\S]*?)\n```\n<!-- inline-backend-references:end -->/,
   );
   if (!block) throw new Error("missing inline backend reference inventory");
-  return JSON.parse(block[1]).inlineBackendReferences;
+  return JSON.parse(defined(block[1])).inlineBackendReferences;
 }
 
 describe("store backend inventory", () => {
@@ -73,7 +74,7 @@ describe("store backend inventory", () => {
     ];
 
     for (const [, store, classification] of rows) {
-      if (classification.trim() === "factory-ready") continue;
+      if (defined(classification).trim() === "factory-ready") continue;
       expect(exceptionSection).toContain(`\`${store}\``);
     }
   });

@@ -1,6 +1,6 @@
 import { publicApiError } from "@/lib/apiError";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
-import { signSocialPhotoObject } from "@/lib/socialPostMedia.server";
+import { downloadUploadedImageObject } from "@/lib/uploadedImage.server";
 import { socialPostConsentStore } from "@/lib/socialPostConsentStore";
 import { isLimited } from "@/lib/pintDrops";
 import { hashActor } from "@/lib/supabase";
@@ -22,8 +22,18 @@ export async function GET(request: Request, context: Context): Promise<Response>
   try {
     const objectKey = await socialPostConsentStore.mediaObjectKey(access.actor, mediaId);
     if (!objectKey) return missing();
-    const signedUrl = await signSocialPhotoObject(objectKey);
-    if (!signedUrl) return missing();
-    return new Response(null, { status: 302, headers: { Location: signedUrl, "Cache-Control": "private, no-store" } });
+    // A copied Storage grant would bypass later audience or consent changes.
+    // Keep delivery behind the current permission check on every request.
+    const image = await downloadUploadedImageObject(objectKey);
+    if (!image) return missing();
+    return new Response(new Uint8Array(image.bytes), {
+      status: 200,
+      headers: {
+        "Content-Type": image.contentType,
+        "Content-Length": String(image.bytes.byteLength),
+        "Cache-Control": "private, no-store",
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
   } catch { return missing(); }
 }

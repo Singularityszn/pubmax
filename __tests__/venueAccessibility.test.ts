@@ -21,6 +21,7 @@ import {
   ACCESSIBILITY_SEED_COUNT,
   getVenueAccessibility,
 } from "@/lib/venueAccessibilitySeeds";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Minimal Venue factory: only the `accessibility` block matters to these units.
 function venueWith(accessibility?: VenueAccessibility): Venue {
@@ -210,7 +211,7 @@ describe("integration: groupVenuePrices attaches only seeded accessibility", () 
         primary_borough: "Camden",
       },
     ]);
-    expect(seeded.accessibility?.stepFree).toBe(true);
+    expect(defined(seeded).accessibility?.stepFree).toBe(true);
 
     const [unseeded] = groupVenuePrices([
       {
@@ -222,6 +223,6 @@ describe("integration: groupVenuePrices attaches only seeded accessibility", () 
         primary_borough: "Camden",
       },
     ]);
-    expect(unseeded.accessibility).toBeUndefined();
+    expect(defined(unseeded).accessibility).toBeUndefined();
   });
 });

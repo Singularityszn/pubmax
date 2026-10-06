@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 // THE STORE INVENTORY (#727, section 1). One row per `lib/*Store*.ts` module,
 // naming how it chooses between process-memory and Supabase and which class it
@@ -74,6 +75,7 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
     inlineBranches: 6,
     reason: "Per-operation branching over two tables with fail-soft reads; no single interface to select.",
   },
+  "lib/diaryStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/feedFreshnessStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/followStore.ts": { class: "plain-dual-backend", selector: "selectStore" },
   "lib/freshnessStoreOverlay.ts": {
@@ -231,7 +233,7 @@ describe("store inventory (#727)", () => {
   });
 
   it.each(modules)("%s matches its inventory row", (path) => {
-    const row = STORE_INVENTORY[path];
+    const row = defined(STORE_INVENTORY[path]);
     const src = source(path);
     const usesSeam = SEAM_SELECTORS.some((needle) => src.includes(needle));
     const inline = count(src, "isSupabaseConfigured()");

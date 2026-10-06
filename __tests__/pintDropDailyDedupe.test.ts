@@ -54,6 +54,7 @@ import {
   supabasePintDropStore,
 } from "@/lib/pintDropsStore";
 import { londonDayKey } from "@/lib/pintContributions";
+import { defined } from "@/__tests__/helpers/defined";
 
 beforeEach(() => {
   for (const k of Object.keys(filters)) delete filters[k];
@@ -131,8 +132,8 @@ describe("supabasePintDropStore.create - the daily cap guard", () => {
   it("stamps the drop's own London day on a priced drop", async () => {
     await supabasePintDropStore.create(drop(), NO_PHOTOS, CAPPED);
     expect(insertedRows).toHaveLength(1);
-    expect(insertedRows[0].price_day).toBe(londonDayKey(CREATED_AT));
-    expect(insertedRows[0].price_day).toBe("2026-09-04");
+    expect(defined(insertedRows[0]).price_day).toBe(londonDayKey(CREATED_AT));
+    expect(defined(insertedRows[0]).price_day).toBe("2026-09-04");
   });
 
   it("stamps nothing on a note-only memory, which is not a price observation", async () => {
@@ -141,7 +142,7 @@ describe("supabasePintDropStore.create - the daily cap guard", () => {
       NO_PHOTOS,
       CAPPED,
     );
-    expect(insertedRows[0].price_day).toBeNull();
+    expect(defined(insertedRows[0]).price_day).toBeNull();
   });
 
   it("turns the index's refusal into the daily-cap refusal, not a storage fault", async () => {
@@ -183,6 +184,6 @@ describe("supabasePintDropStore.create - the daily cap guard", () => {
 describe("supabasePintDropStore.create - the lane the cap leaves alone", () => {
   it("claims no day when the caller did not opt into the cap", async () => {
     await supabasePintDropStore.create(drop(), NO_PHOTOS);
-    expect(insertedRows[0].price_day).toBeNull();
+    expect(defined(insertedRows[0]).price_day).toBeNull();
   });
 });

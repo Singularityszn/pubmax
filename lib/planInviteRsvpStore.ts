@@ -377,6 +377,7 @@ const memoryReactionStore: PlanInviteReactionStore = {
     for (const key of memoryReactionRows) {
       if (!key.startsWith(prefix)) continue;
       const [, hash, reaction] = key.split("|");
+      if (hash === undefined || reaction === undefined) continue;
       rows.push({ reaction, submitter_hash: hash });
     }
     return summarizeReactionRows(rows, submitterHash);

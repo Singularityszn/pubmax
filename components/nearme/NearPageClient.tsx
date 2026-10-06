@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useSyncExternalStore } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import SiteNav from "@/components/nav/SiteNav";
+import { samePathWithQuery } from "@/lib/appLink";
 import { trackEvent } from "@/lib/analytics";
 import {
   clearPosterLandingSession,
@@ -99,7 +100,7 @@ function NearPageBody() {
       );
       params.set(NEAR_MODE_QUERY, next);
       const query = params.toString();
-      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+      router.replace(samePathWithQuery(pathname, query), { scroll: false });
     } catch {
       // URL sync is best-effort — the remembered mode still stands.
     }

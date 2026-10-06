@@ -18,6 +18,7 @@
 //     exist. The browse href below remains the safe fallback address for a
 //     caller that still chooses to move.
 
+import type { Route } from "next";
 import { LONDON_BOROUGHS } from "@/lib/boroughs";
 import { type CityId } from "@/lib/cities";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
@@ -73,7 +74,7 @@ export type VenueAcceptance = {
   /** True only when the PlanningIntent envelope actually persisted. */
   accepted: boolean;
   /** Accept deep link on success; the canonical browse link on any failure. */
-  href: string;
+  href: Route;
   /** Present only on a real acceptance, so a degraded browse never over-counts. */
   telemetry: VenueAcceptedTelemetry | null;
 };

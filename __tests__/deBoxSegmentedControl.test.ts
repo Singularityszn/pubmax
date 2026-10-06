@@ -38,7 +38,7 @@ function renderControl(selected: string): string {
 function tabClassNames(markup: string): string[] {
   return [...markup.matchAll(/<button[^>]*role="tab"[^>]*>/g)].map((match) => {
     const cls = /class="([^"]*)"/.exec(match[0]);
-    return cls ? cls[1] : "";
+    return cls?.[1] ?? "";
   });
 }
 

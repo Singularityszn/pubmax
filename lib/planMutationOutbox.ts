@@ -383,8 +383,7 @@ export function applyActivePlanFlushRollbacks(results: readonly PlanMutationFlus
       .filter((row) => row.status === "pending" && !batch.has(row.id))
       .map((row) => row.planId),
   );
-  for (let index = results.length - 1; index >= 0; index -= 1) {
-    const result = results[index];
+  for (const result of [...results].reverse()) {
     if (
       result.outcome !== "forbidden" &&
       result.outcome !== "rejected" &&

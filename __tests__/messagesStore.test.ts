@@ -9,6 +9,7 @@ import {
   memoryMessagesStore,
   messagesStore,
 } from "@/lib/messagesStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 beforeEach(() => {
   delete process.env.SUPABASE_URL;
@@ -73,14 +74,14 @@ describe("listConversations — inbox with preview + per-viewer unread", () => {
 
     const samInbox = (await s.listConversations("sam")).conversations;
     expect(samInbox).toHaveLength(1);
-    expect(samInbox[0].otherHandle).toBe("ken");
-    expect(samInbox[0].lastBody).toBe("you there?");
-    expect(samInbox[0].lastFromMe).toBe(false);
-    expect(samInbox[0].unread).toBe(2); // two unread from ken
+    expect(defined(samInbox[0]).otherHandle).toBe("ken");
+    expect(defined(samInbox[0]).lastBody).toBe("you there?");
+    expect(defined(samInbox[0]).lastFromMe).toBe(false);
+    expect(defined(samInbox[0]).unread).toBe(2); // two unread from ken
 
     const kenInbox = (await s.listConversations("ken")).conversations;
-    expect(kenInbox[0].unread).toBe(0); // his own messages are never unread
-    expect(kenInbox[0].lastFromMe).toBe(true);
+    expect(defined(kenInbox[0]).unread).toBe(0); // his own messages are never unread
+    expect(defined(kenInbox[0]).lastFromMe).toBe(true);
   });
 
   it("is empty for a handle with no conversations / a blank handle", async () => {
@@ -103,7 +104,7 @@ describe("listMessages — participant gating + mark-read", () => {
 
     // A read is a read: the route marks explicitly, so a photo send or a report
     // that lists the thread to prove participation marks nothing.
-    expect((await s.listConversations("sam")).conversations[0].unread).toBe(1);
+    expect(defined((await s.listConversations("sam")).conversations[0]).unread).toBe(1);
   });
 
   it("markRead marks the viewer's received rows, counts them, and marks nothing for an outsider", async () => {
@@ -114,12 +115,12 @@ describe("listMessages — participant gating + mark-read", () => {
     await s.send(id, "sam", "three");
 
     expect(await s.markRead(id, "mallory")).toBe(0);
-    expect((await s.listConversations("sam")).conversations[0].unread).toBe(2);
+    expect(defined((await s.listConversations("sam")).conversations[0]).unread).toBe(2);
 
     expect(await s.markRead(id, "sam")).toBe(2);
-    expect((await s.listConversations("sam")).conversations[0].unread).toBe(0);
+    expect(defined((await s.listConversations("sam")).conversations[0]).unread).toBe(0);
     // Sam's own message to ken stays unread for ken.
-    expect((await s.listConversations("ken")).conversations[0].unread).toBe(1);
+    expect(defined((await s.listConversations("ken")).conversations[0]).unread).toBe(1);
     expect(await s.markRead(id, "sam")).toBe(0);
   });
 
@@ -189,7 +190,7 @@ describe("listMessages — capped newest thread window", () => {
 
     const thread = await s.listMessages(id, "sam");
     expect(thread).toHaveLength(MAX_MESSAGES);
-    expect(thread![0].body).toBe("msg-4");
-    expect(thread![thread!.length - 1].body).toBe(`msg-${MAX_MESSAGES + 3}`);
+    expect(defined(thread![0]).body).toBe("msg-4");
+    expect(defined(thread![thread!.length - 1]).body).toBe(`msg-${MAX_MESSAGES + 3}`);
   });
 });

@@ -24,6 +24,7 @@ import {
   famousVenueLeadBudgetHours,
   slimPayloadGeneratedAt,
 } from "@/__tests__/helpers/currentFamousVenues";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Guards the built public/data/venues_slim.json — the ~400 KB file the map
 // loads instead of the ~6 MB raw dataset (scripts/build_slim_index.mjs). The
@@ -394,7 +395,7 @@ describe("venues_slim.json", () => {
       sampleIdx.add(Math.floor((rows.length / 10) * i));
     }
     for (const idx of sampleIdx) {
-      const v = rows[idx];
+      const v = defined(rows[idx]);
       expect(canonicalIds.has(v.id)).toBe(true);
     }
 

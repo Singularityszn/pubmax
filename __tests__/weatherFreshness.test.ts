@@ -17,6 +17,7 @@ import {
 import type { FetchObservationsResult } from "@/lib/weatherProvider";
 import type { NightAreaWeatherObservation, WeatherSnapshot } from "@/lib/weatherSnapshots";
 import type { WeatherSnapshotStore } from "@/lib/weatherSnapshotStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 const NOW = new Date("2026-07-22T12:00:00.000Z");
 const NOW_MS = NOW.getTime();
@@ -141,7 +142,7 @@ describe("loadFreshWeatherSnapshot (read-through)", () => {
     expect(fetchObservations).toHaveBeenCalledTimes(1);
     // Served the live snapshot (generatedAt stamped now), not the stale one.
     expect(result?.generatedAt).toBe(NOW.toISOString());
-    expect(result?.observations[0].feelsLikeC).toBe(26);
+    expect(defined(result?.observations[0]).feelsLikeC).toBe(26);
     // Cached back through the store (in-process, or durable when configured).
     expect(store.writes).toBe(1);
   });
@@ -221,7 +222,7 @@ describe("loadFreshWeatherSnapshot (read-through)", () => {
     });
 
     expect(result?.generatedAt).toBe(NOW.toISOString());
-    expect(result?.observations[0].feelsLikeC).toBe(26);
+    expect(defined(result?.observations[0]).feelsLikeC).toBe(26);
   });
 
   it("returns null when everything is stale and there is no cache to fall back to", async () => {

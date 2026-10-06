@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 // THE TOP SAFE AREA IS PAID ONCE, AND THE BAR PAYS IT.
 //
@@ -34,7 +35,7 @@ function shellBlocks(stylesheet: string, shellClass: string): string[] {
   // Comments first: a brace inside one would end a block early.
   const css = stylesheet.replace(/\/\*[\s\S]*?\*\//g, "");
   const blocks = [...css.matchAll(new RegExp(`\\.${shellClass}\\s*\\{([^}]*)\\}`, "g"))].map(
-    (match) => match[1],
+    (match) => defined(match[1]),
   );
   expect(blocks.length, `${shellClass} blocks`).toBeGreaterThan(0);
   return blocks;

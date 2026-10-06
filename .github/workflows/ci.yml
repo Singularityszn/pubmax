@@ -46,7 +46,12 @@ jobs:
         env:
           REVIEW_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           REVIEW_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: node scripts/check_review_scope.mjs --base "$REVIEW_BASE_SHA" --head "$REVIEW_HEAD_SHA"
+        # A merged commit on main cannot be rewritten, so only a pull request
+        # reads its CI-step fix commits.
+        run: |
+          args=(--base "$REVIEW_BASE_SHA" --head "$REVIEW_HEAD_SHA")
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then args+=(--ci-commits); fi
+          node scripts/check_review_scope.mjs "${args[@]}"
 
   lint-and-types:
     name: Lint and typecheck
@@ -76,7 +81,15 @@ jobs:
       - name: Typecheck
         env:
           NODE_OPTIONS: "--max-old-space-size=6144"
-        run: npx tsc --noEmit
+        # Generates the typedRoutes link types before the native tsc pass.
+        run: npm run typecheck
+
+      - name: Typecheck (TypeScript 6)
+        env:
+          NODE_OPTIONS: "--max-old-space-size=6144"
+        # The bridge compiler Next builds with, over the full tsconfig. The
+        # route types come from the step above. `npx tsc` is TypeScript 7.
+        run: node node_modules/typescript/bin/tsc --noEmit
 
   production-build:
     name: Production build
@@ -106,14 +119,18 @@ jobs:
           NODE_OPTIONS: "--max-old-space-size=6144"
         run: npm run build
 
+  # The unit shards start at once, beside lint and the production build: they
+  # build their own slim data and read nothing those jobs make. Each shard
+  # collects coverage for its half of the suite into a blob report, and the
+  # Coverage job merges the two blobs and enforces the thresholds in
+  # vitest.config.mts. A shard's own half cannot meet them, so the shards
+  # turn thresholds off and the merge holds the whole-suite gate.
   unit-tests:
-    needs: [production-build]
     name: Unit tests (${{ matrix.shard }}/2)
     runs-on: ubuntu-latest
     timeout-minutes: 22
     strategy:
       fail-fast: false
-      max-parallel: 1
       matrix:
         shard: [1, 2]
     steps:
@@ -140,68 +157,35 @@ jobs:
         run: npm run build:slim
 
       # Postgres/PostgREST proofs live in rls-session.yml, the one job that
-      # installs a cluster. This job excludes exactly the suites named in
-      # scripts/rls/postgresSuites.mjs, and __tests__/postgresSuiteInventory.
-      # test.ts holds the two lists to each other, so a new proof cannot land
-      # in a job with no PostgreSQL and report itself skipped while the job
-      # stays green. PUBMAX_RLS_NO_PG=1 stays set because a hosted image can
-      # expose partial client tools; with the suites excluded it changes
-      # nothing here and keeps a stray probe on the loud-skip path.
-      - name: Unit tests
+      # installs a cluster. `--without-postgres` excludes exactly the suites
+      # named in scripts/rls/postgresSuites.mjs, so a new proof cannot land in
+      # a job with no PostgreSQL and report itself skipped while the job stays
+      # green. PUBMAX_RLS_NO_PG=1 stays set because a hosted image can expose
+      # partial client tools; with the suites excluded it changes nothing here
+      # and keeps a stray probe on the loud-skip path.
+      - name: Unit tests with coverage
         env:
+          NODE_OPTIONS: "--max-old-space-size=6144"
           PUBMAX_RLS_NO_PG: "1"
         run: >-
-          npx vitest run
+          npm run coverage --
+          --without-postgres
           --shard=${{ matrix.shard }}/2
-          --exclude '__tests__/accountRemovalMigrationEffective.test.ts'
-          --exclude '__tests__/accountRetentionLedgerMigrationEffective.test.ts'
-          --exclude '__tests__/accountVisibilityMigrationEffective.test.ts'
-          --exclude '__tests__/browserRoleGrantFence.test.ts'
-          --exclude '__tests__/drinkWallRlsMigrationEffective.test.ts'
-          --exclude '__tests__/foundingMembersMigration.test.ts'
-          --exclude '__tests__/groupMessageThreadsMigrationEffective.test.ts'
-          --exclude '__tests__/handleClaimNoInheritanceMigration.test.ts'
-          --exclude '__tests__/harvestOverlayMigration.test.ts'
-          --exclude '__tests__/messageIdempotencyMigrationEffective.test.ts'
-          --exclude '__tests__/messagingChannelOwnershipMigrationEffective.test.ts'
-          --exclude '__tests__/messagingRealtimeAuthorizationMigrationEffective.test.ts'
-          --exclude '__tests__/nightSignalCheckpointMigrationEffective.test.ts'
-          --exclude '__tests__/occupancyMigration0109.test.ts'
-          --exclude '__tests__/occupancyMigrationEffective.test.ts'
-          --exclude '__tests__/oneTapPricePairRemovalEffective.test.ts'
-          --exclude '__tests__/openSocialCrewsMigration.test.ts'
-          --exclude '__tests__/permissionMatrixEffective.test.ts'
-          --exclude '__tests__/pintDropConfirmationsMigrationEffective.test.ts'
-          --exclude '__tests__/pintDropDailyCapAtomicEffective.test.ts'
-          --exclude '__tests__/pintDropMeasureMigrationEffective.test.ts'
-          --exclude '__tests__/pintDropVerifiedReportsMigrationEffective.test.ts'
-          --exclude '__tests__/pintDropsTableDoorMigrationEffective.test.ts'
-          --exclude '__tests__/planAccountTransitionMigrationEffective.test.ts'
-          --exclude '__tests__/planJoinRevokedPrecheckEffective.test.ts'
-          --exclude '__tests__/planLegacyReplayCapabilityEffective.test.ts'
-          --exclude '__tests__/planSelectedDrinkEvidenceCompletionMigrationEffective.test.ts'
-          --exclude '__tests__/planSelectedDrinkEvidenceContextMigrationEffective.test.ts'
-          --exclude '__tests__/planSelectedDrinkEvidenceCreateMigrationEffective.test.ts'
-          --exclude '__tests__/planSelectedDrinkEvidenceMigrationEffective.test.ts'
-          --exclude '__tests__/planSelectedDrinkEvidenceProposalMigrationEffective.test.ts'
-          --exclude '__tests__/planSelectedDrinkEvidenceReplaceContextMigrationEffective.test.ts'
-          --exclude '__tests__/planSelectedDrinkEvidenceReplaceMigrationEffective.test.ts'
-          --exclude '__tests__/postgresHarnessTimeouts.test.ts'
-          --exclude '__tests__/postgresShmHarness.test.ts'
-          --exclude '__tests__/priceTrustEventsMigrationEffective.test.ts'
-          --exclude '__tests__/publicGrantSweepMigrationEffective.test.ts'
-          --exclude '__tests__/publicWithdrawnProfilesMigrationEffective.test.ts'
-          --exclude '__tests__/rateLimitExpiryMigration.test.ts'
-          --exclude '__tests__/rlsWave2Session.test.ts'
-          --exclude '__tests__/socialComposerMigration.test.ts'
-          --exclude '__tests__/socialCrewLegacyRoutesRls.test.ts'
-          --exclude '__tests__/socialCrewMigration.test.ts'
-          --exclude '__tests__/socialIdentityMigration.test.ts'
-          --exclude '__tests__/socialInteractionsMigration.test.ts'
-          --exclude '__tests__/socialPostsMigration.test.ts'
-          --exclude '__tests__/supabaseHygieneMigrationEffective.test.ts'
-          --exclude '__tests__/wantedPromotionMigrationEffective.test.ts'
-          --exclude '__tests__/whatsOnListingsMigration.test.ts'
+          --coverage.thresholds.statements=0
+          --coverage.thresholds.branches=0
+          --coverage.thresholds.functions=0
+          --coverage.thresholds.lines=0
+          --reporter=default
+          --reporter=blob
+          --outputFile.blob=blob-reports/blob-${{ matrix.shard }}.json
+
+      - name: Upload coverage blob
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: unit-blob-${{ matrix.shard }}
+          path: blob-reports/blob-${{ matrix.shard }}.json
+          if-no-files-found: error
+          retention-days: 1
 
   coverage:
     name: Coverage
@@ -223,61 +207,16 @@ jobs:
         run: |
           npm ci
           npm run deps:install-scripts
+      - name: Download coverage blobs
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: unit-blob-*
+          path: blob-reports
+          merge-multiple: true
       - name: Enforce coverage
         env:
           NODE_OPTIONS: "--max-old-space-size=6144"
-          PUBMAX_RLS_NO_PG: "1"
-        run: >-
-          npm run coverage --
-          --exclude '__tests__/accountRemovalMigrationEffective.test.ts'
-          --exclude '__tests__/accountRetentionLedgerMigrationEffective.test.ts'
-          --exclude '__tests__/accountVisibilityMigrationEffective.test.ts'
-          --exclude '__tests__/browserRoleGrantFence.test.ts'
-          --exclude '__tests__/drinkWallRlsMigrationEffective.test.ts'
-          --exclude '__tests__/foundingMembersMigration.test.ts'
-          --exclude '__tests__/groupMessageThreadsMigrationEffective.test.ts'
-          --exclude '__tests__/handleClaimNoInheritanceMigration.test.ts'
-          --exclude '__tests__/harvestOverlayMigration.test.ts'
-          --exclude '__tests__/messageIdempotencyMigrationEffective.test.ts'
-          --exclude '__tests__/messagingChannelOwnershipMigrationEffective.test.ts'
-          --exclude '__tests__/messagingRealtimeAuthorizationMigrationEffective.test.ts'
-          --exclude '__tests__/nightSignalCheckpointMigrationEffective.test.ts'
-          --exclude '__tests__/occupancyMigration0109.test.ts'
-          --exclude '__tests__/occupancyMigrationEffective.test.ts'
-          --exclude '__tests__/oneTapPricePairRemovalEffective.test.ts'
-          --exclude '__tests__/openSocialCrewsMigration.test.ts'
-          --exclude '__tests__/permissionMatrixEffective.test.ts'
-          --exclude '__tests__/pintDropConfirmationsMigrationEffective.test.ts'
-          --exclude '__tests__/pintDropDailyCapAtomicEffective.test.ts'
-          --exclude '__tests__/pintDropMeasureMigrationEffective.test.ts'
-          --exclude '__tests__/pintDropVerifiedReportsMigrationEffective.test.ts'
-          --exclude '__tests__/pintDropsTableDoorMigrationEffective.test.ts'
-          --exclude '__tests__/planAccountTransitionMigrationEffective.test.ts'
-          --exclude '__tests__/planJoinRevokedPrecheckEffective.test.ts'
-          --exclude '__tests__/planLegacyReplayCapabilityEffective.test.ts'
-          --exclude '__tests__/planSelectedDrinkEvidenceCompletionMigrationEffective.test.ts'
-          --exclude '__tests__/planSelectedDrinkEvidenceContextMigrationEffective.test.ts'
-          --exclude '__tests__/planSelectedDrinkEvidenceCreateMigrationEffective.test.ts'
-          --exclude '__tests__/planSelectedDrinkEvidenceMigrationEffective.test.ts'
-          --exclude '__tests__/planSelectedDrinkEvidenceProposalMigrationEffective.test.ts'
-          --exclude '__tests__/planSelectedDrinkEvidenceReplaceContextMigrationEffective.test.ts'
-          --exclude '__tests__/planSelectedDrinkEvidenceReplaceMigrationEffective.test.ts'
-          --exclude '__tests__/postgresHarnessTimeouts.test.ts'
-          --exclude '__tests__/postgresShmHarness.test.ts'
-          --exclude '__tests__/priceTrustEventsMigrationEffective.test.ts'
-          --exclude '__tests__/publicGrantSweepMigrationEffective.test.ts'
-          --exclude '__tests__/publicWithdrawnProfilesMigrationEffective.test.ts'
-          --exclude '__tests__/rateLimitExpiryMigration.test.ts'
-          --exclude '__tests__/rlsWave2Session.test.ts'
-          --exclude '__tests__/socialComposerMigration.test.ts'
-          --exclude '__tests__/socialCrewLegacyRoutesRls.test.ts'
-          --exclude '__tests__/socialCrewMigration.test.ts'
-          --exclude '__tests__/socialIdentityMigration.test.ts'
-          --exclude '__tests__/socialInteractionsMigration.test.ts'
-          --exclude '__tests__/socialPostsMigration.test.ts'
-          --exclude '__tests__/supabaseHygieneMigrationEffective.test.ts'
-          --exclude '__tests__/wantedPromotionMigrationEffective.test.ts'
-          --exclude '__tests__/whatsOnListingsMigration.test.ts'
+        run: npx vitest --merge-reports=blob-reports --coverage
 
   freshness:
     name: Freshness release gate
@@ -302,3 +241,35 @@ jobs:
         run: |
           npm run check:freshness -- --artifacts-only
           node scripts/check-production-store-freshness.mjs
+
+  # The bundled datasets and city packs, held to scripts/validate-data.mjs on
+  # every pull request and every push to main. Before this job the validator
+  # ran only inside a local `npm run verify`, so a pack change that skipped it
+  # reached main unchecked. It runs on its own, like the freshness gate.
+  # PUBMAX_VERIFY_COMMITTED_DATA=1 skips the rebuild, so the committed packs are
+  # checked as they ship. Only the gitignored venue detail files are generated.
+  validate-data:
+    name: Data validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup Node
+        timeout-minutes: 5
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm run deps:install-scripts
+      - name: Generate the gitignored venue detail files
+        run: npm run build:venue-details
+      - name: Validate every bundled dataset
+        env:
+          PUBMAX_VERIFY_COMMITTED_DATA: "1"
+        run: npm run validate-data

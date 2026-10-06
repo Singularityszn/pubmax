@@ -20,6 +20,7 @@
 //      reading of how loud a pub is, and a number on a screen reads as a
 //      measurement.
 
+import type { Route } from "next";
 import { isHttpUrl } from "@/lib/httpUrl";
 import { isNonBlankString } from "@/lib/priceUpdateRowShape";
 
@@ -168,7 +169,7 @@ export function hypedPubCredit(row: HypedPub): HypedPubSource | null {
 export function hypedPubMapHref(
   row: HypedPub,
   selectable: ReadonlySet<string> | null | undefined,
-): string | null {
+): Route | null {
   if (!row.venueId) return null;
   if (selectable === null) return null;
   if (selectable !== undefined && !selectable.has(row.venueId)) return null;

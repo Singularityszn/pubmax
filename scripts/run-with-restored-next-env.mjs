@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto";
 import {
   restoreCommittedBundledData,
   shouldRestoreBundledDataAfterTrackedOutputs,
+  untrackedBundledData,
 } from "./lib/committedBundledDataPaths.mjs";
 
 const [, , command, ...args] = process.argv;
@@ -54,6 +55,7 @@ function trackedDiff() {
 }
 
 const trackedBefore = trackedDiff();
+const untrackedBefore = untrackedBundledData();
 
 let result;
 try {
@@ -62,13 +64,14 @@ try {
   });
 } finally {
   if (shouldRestoreBundledDataAfterTrackedOutputs(trackedOutputs)) {
-    if (!restoreCommittedBundledData()) {
+    if (!restoreCommittedBundledData(process.cwd(), { untrackedBefore })) {
       console.error("Failed to restore committed bundled data from HEAD.");
       process.exit(1);
     }
   }
-  // Next rewrites these tracked files to point at NEXT_DIST_DIR during a build.
-  // Restore their exact original state even when the wrapped command fails.
+  // Next rewrites these files to point at NEXT_DIST_DIR during a build. The
+  // ignored next-env.d.ts would otherwise import from the deleted isolated dist
+  // dir. Restore their exact original state even when the wrapped command fails.
   for (const file of managedFiles) {
     if (file.existed && file.original) writeFileSync(file.path, file.original);
     else rmSync(file.path, { force: true });

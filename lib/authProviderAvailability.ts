@@ -1,4 +1,4 @@
-import { withAuthFetchTimeout } from "@/lib/authFetch";
+import { AUTH_BROWSER_FETCH_TIMEOUT_MS, withAuthFetchTimeout } from "@/lib/authFetch";
 import { clerkFrontendApiOrigin } from "@/lib/clerkIdentity";
 
 export type SocialAuthProvider = "google" | "apple" | "microsoft";
@@ -70,6 +70,30 @@ function availabilityFromApiPayload(
 }
 
 /**
+ * Read a refusal to the end, or cancel it. Chromium keeps a response whose
+ * body is never read in flight, so the page would never reach network idle.
+ * withAuthFetchTimeout stops its clock once the headers arrive, so this read
+ * keeps its own deadline: a stalled body must not hold sign-in pending.
+ */
+async function discardRefusalBody(response: Response): Promise<void> {
+  const reader = response.body?.getReader();
+  if (!reader) return;
+  const deadline = setTimeout(() => {
+    void reader.cancel().catch(() => {});
+  }, AUTH_BROWSER_FETCH_TIMEOUT_MS);
+  try {
+    while (!(await reader.read()).done) {
+      // The refusal's content is not used.
+    }
+  } catch {
+    // A cancelled or broken body is still a finished read.
+  } finally {
+    clearTimeout(deadline);
+    reader.releaseLock();
+  }
+}
+
+/**
  * Read which social providers are enabled. The browser calls the same-origin
  * route so a signed-out page does not open a third-party connection. Credentials
  * stay `same-origin` so a Vercel deployment-protection cookie is sent on that
@@ -91,7 +115,10 @@ export async function loadSocialAuthProviders(
       socialAuthProvidersUrl(options.fresh === true),
       { credentials: "same-origin" },
     );
-    if (!response.ok) return null;
+    if (!response.ok) {
+      await discardRefusalBody(response);
+      return null;
+    }
     return availabilityFromApiPayload(await response.json());
   } catch {
     return null;

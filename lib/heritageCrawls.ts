@@ -119,7 +119,7 @@ export function buildHeritageCrawls(pubs: HistoricPub[]): CuratedCrawl[] {
   const listed = routable
     .filter((pub) => pub.listed === "I" || pub.listed === "II*")
     .sort((a, b) => {
-      const gradeDelta = GRADE_RANK[a.listed as string] - GRADE_RANK[b.listed as string];
+      const gradeDelta = (GRADE_RANK[a.listed as string] ?? 0) - (GRADE_RANK[b.listed as string] ?? 0);
       if (gradeDelta !== 0) return gradeDelta;
       const ay = eraStartYear(a.era);
       const by = eraStartYear(b.era);

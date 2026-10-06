@@ -4,6 +4,7 @@
 // No React, no fetch, no side effects — every export is a pure function so the
 // whole feed is covered by __tests__/feed.test.ts.
 
+import type { Route } from "next";
 import type { CheckIn } from "@/lib/checkIn";
 import type { Provenance } from "@/lib/curation";
 import { rankForYou, type ForYouContext } from "@/lib/forYou";
@@ -76,7 +77,7 @@ export type FeedItem = {
   // the raw `venue-…` id.
   venueName: string;
   // "/map?sel=…" — tapping the venue opens the map with this pub selected.
-  venueMapUrl: string;
+  venueMapUrl: Route;
   // Non-null photo URLs only, pint photo first (the hero of an InstaPint card),
   // then the venue selfie. Empty when a drop is text-only → card renders a
   // typographic "receipt" instead.
@@ -151,7 +152,8 @@ export function normalizePintDrop(dto: PintDropDTO): FeedItem {
       : VENUE_FALLBACK_LABEL;
   const venueMapUrl =
     typeof dto.venueMapUrl === "string" && dto.venueMapUrl.length > 0
-      ? dto.venueMapUrl
+      ? // The server builds this field with venueMapUrl().
+        (dto.venueMapUrl as Route)
       : buildVenueMapUrl(dto.venueId);
   const item: FeedItem = {
     type: "pint_drop",
@@ -202,9 +204,9 @@ export function normalizeCheckIn(checkIn: CheckIn): FeedItem {
     handle: normalizeHandle(checkIn.handle),
     venueId: checkIn.venueId ?? "",
     // A check-in's "venue" line is its area; the map link opens the tagged venue
-    // when one exists, otherwise it is unused (the card links to the area).
+    // when one exists, otherwise the plain map. CheckInCard renders neither.
     venueName: areaName ?? "",
-    venueMapUrl: checkIn.venueId ? buildVenueMapUrl(checkIn.venueId) : "",
+    venueMapUrl: checkIn.venueId ? buildVenueMapUrl(checkIn.venueId) : "/map",
     photoUrls: [],
     caption: checkIn.note ?? "",
     priceGbp: null,

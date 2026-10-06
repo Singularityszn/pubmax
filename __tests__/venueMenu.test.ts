@@ -11,6 +11,7 @@ import { venueMenuForInspector, venueMenuLookupKeys } from "@/lib/venueMenu";
 import { venueFoodMenuForInspector } from "@/lib/venueFoodMenu";
 import rawDrinkPriceUpdates from "../public/data/drink_price_updates/latest.json";
 import rawFoodPriceUpdates from "../public/data/food_price_updates/latest.json";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The overlays are no longer statically bundled with the menu seams (they are
 // scoped to one pub by lib/priceUpdates.server.ts and GET /api/venue/[id]); tests parse the same files
@@ -159,8 +160,8 @@ describe("venueMenuForInspector", () => {
     const menu = venueMenuForInspector({ id: SEEDED_VENUE_ID, prices });
 
     expect(menu.length).toBeGreaterThan(prices.length);
-    expect(menu[0].category).toBe("beer");
-    expect(menu[1].category).toBe("beer");
+    expect(defined(menu[0]).category).toBe("beer");
+    expect(defined(menu[1]).category).toBe("beer");
     const nonBeer = menu.filter((d) => d.category !== "beer");
     expect(nonBeer.length).toBeGreaterThan(0);
     for (const drink of nonBeer) {

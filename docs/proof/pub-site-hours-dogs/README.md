@@ -1,0 +1,82 @@
+# Dog policy and opening hours from pub sites, 5 October 2026
+
+The amenity harvest kept the text of 478 pub pages it read on 5 October 2026.
+This change reads dog policy and opening hours from those texts again. It
+sends no Firecrawl request and no model call, so the spend is USD 0.
+
+## How a fact stands
+
+`lib/harvest/pubSiteHoursAndDogs.ts` reads each page without a model. A fact
+stands only when a passage on the page states it, and the row keeps that
+passage, the page URL and the day of the read.
+
+- **Dogs.** A welcome or a refusal counts only when the whole statement,
+  past "sorry" or "please", is a fixed form. A welcome is "dog friendly",
+  "dogs are welcome in our pub", "we welcome dogs" or "bring your dog". A
+  refusal is "no dogs", "dogs are not allowed in the pub", "we do not allow
+  dogs" or "only assistance dogs". A statement with any other words, such as a
+  day, an hour, a clock time or a room, stays unknown. A statement that
+  does not end a sentence runs on into the next clause, and it stays unknown
+  when that clause names a day, a part of the day, a place, an exception or a
+  number ("Dogs welcome - garden only"). A next clause with no limit ("Family
+  Friendly", "Book a table") does not change it. A page that both welcomes and refuses
+  dogs, even when either has a limit, stays unknown. So do a guest review, a
+  footer link and "assistance dogs welcome".
+- **Hours.** Only a passage under an opening-hours label counts. Kitchen,
+  food, seasonal and Christmas blocks do not. A day the page does not state is
+  absent, not closed. A time with no am, pm or colon ("11 - 5") is not read.
+  A clock with no am or pm is read only as 24-hour, when its window has an
+  hour from 13 to 23, a 00 hour or a zero-padded clock. "12:00 - 11:00" and
+  "5:00 - 11:00pm" are not read, and an hours block stops at such a window.
+  Hours with a condition ("for club nights") are not read. A page with two
+  hours blocks that disagree on a day states nothing.
+
+The [CLI header](../../../scripts/harvest/pub-website-amenities/hours-and-dogs.mjs)
+owns the finished-read, carry-forward, chain-check and publication rules.
+The regression cases are in
+[`pubSiteHoursAndDogs.test.ts`](../../../__tests__/pubSiteHoursAndDogs.test.ts).
+
+## Result
+
+`npm run harvest:pub-website-hours-dogs` writes
+`data/amenities/london_pub_website_hours_dogs.json`.
+
+| Measure | Count |
+| --- | --- |
+| Finished reads with a kept page | 360 |
+| Pubs with a stated fact | 178 |
+| Dogs welcome | 19 |
+| Dogs not allowed | 0 |
+| Opening hours | 176 (154 with all seven days) |
+| Pages on the chain list | 6 |
+| Hours passages dropped as chain-wide | 32 |
+| Dog passages dropped as chain-wide | 13 |
+| Pages that state neither | 144 |
+
+Every row names a venue in the app.
+
+## Where the app reads it
+
+The [product features](../../../README.md#features) describe the display and
+Google Places precedence. The open-state freshness rule is documented beside
+[`applyVenueSiteFacts`](../../../lib/venueSiteFacts.ts).
+
+## Gaps
+
+- The amenity vocabulary has no dog key. The map filters and the pint dataset
+  columns do not carry dog policy.
+- The pub copy judge still refuses "dog" in written copy. Copy does not mention
+  the dog policy until the copy facts carry it.
+- No page refused dogs, so no row says "not allowed". Unit tests cover the
+  refusal path.
+
+## Proof
+
+- `before-mobile.png`: The Churchill Arms with the facts file removed. The
+  details section has no dog policy and no hours.
+- `after-mobile.png`: the same pub with the facts file. It shows "Dogs welcome"
+  and the week's hours, credited to the pub website.
+- `api-after.jsonl`: `/api/venue/<id>` for The Churchill Arms and the Maynard
+  Arms. Each carries `siteFacts`, `openingHours`, and an open state from
+  those hours. Before this change, the same response had no `siteFacts`, no
+  `openingHours`, and `busyness.isOpen` was `"unknown"`.

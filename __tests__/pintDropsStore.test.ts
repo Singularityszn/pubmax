@@ -80,6 +80,7 @@ import {
   REPORT_HIDE_THRESHOLD,
   type PintDropReportIdentity,
 } from "@/lib/pintDrops";
+import { defined } from "@/__tests__/helpers/defined";
 
 function verifiedReportIdentity(actorHash: string): PintDropReportIdentity {
   return { kind: "verified_account", actorHash };
@@ -437,7 +438,7 @@ describe("supabasePintDropStore.create (vibe_tags rollout resilience)", () => {
 
     expect(insertMock).toHaveBeenCalledTimes(1);
     // The single insert carries the vibe_tags column.
-    const row = insertMock.mock.calls[0][0] as Record<string, unknown>;
+    const row = defined(insertMock.mock.calls[0])[0] as Record<string, unknown>;
     expect(row.vibe_tags).toEqual(["cheap", "riverside"]);
     // The returned DTO still surfaces the tags (public content).
     expect(dto.vibeTags).toEqual(["cheap", "riverside"]);
@@ -463,11 +464,11 @@ describe("supabasePintDropStore.create (vibe_tags rollout resilience)", () => {
     const dto = await supabasePintDropStore.create(verifiedDrop, noPhotos);
 
     expect(insertMock).toHaveBeenCalledTimes(2);
-    expect(insertMock.mock.calls[0][0]).toHaveProperty(
+    expect(defined(insertMock.mock.calls[0])[0]).toHaveProperty(
       "authority_key",
       "authority-a",
     );
-    expect(insertMock.mock.calls[1][0]).not.toHaveProperty("authority_key");
+    expect(defined(insertMock.mock.calls[1])[0]).not.toHaveProperty("authority_key");
     expect(dto.authorityKey).toBeUndefined();
     expect(warn).toHaveBeenCalledWith(
       expect.stringContaining("migration 0117"),
@@ -491,11 +492,11 @@ describe("supabasePintDropStore.create (vibe_tags rollout resilience)", () => {
 
     expect(insertMock).toHaveBeenCalledTimes(2);
     // First insert had vibe_tags; the retry omitted the key entirely.
-    expect((insertMock.mock.calls[0][0] as Record<string, unknown>).vibe_tags).toEqual([
+    expect((defined(insertMock.mock.calls[0])[0] as Record<string, unknown>).vibe_tags).toEqual([
       "cheap",
       "riverside",
     ]);
-    expect(insertMock.mock.calls[1][0] as Record<string, unknown>).not.toHaveProperty("vibe_tags");
+    expect(defined(insertMock.mock.calls[1])[0] as Record<string, unknown>).not.toHaveProperty("vibe_tags");
     // A one-line warning names the pending migration (not silent).
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("migration 0005"), expect.any(String));
     // The drop still persists; the DTO is returned normally.
@@ -515,7 +516,7 @@ describe("supabasePintDropStore.create (vibe_tags rollout resilience)", () => {
     await supabasePintDropStore.create(dropWithTags(), noPhotos);
 
     expect(insertMock).toHaveBeenCalledTimes(2);
-    expect(insertMock.mock.calls[1][0] as Record<string, unknown>).not.toHaveProperty("vibe_tags");
+    expect(defined(insertMock.mock.calls[1])[0] as Record<string, unknown>).not.toHaveProperty("vibe_tags");
     warn.mockRestore();
   });
 
@@ -537,9 +538,9 @@ describe("supabasePintDropStore.create (vibe_tags rollout resilience)", () => {
     );
 
     expect(insertMock).toHaveBeenCalledTimes(2);
-    expect(insertMock.mock.calls[0][0]).toHaveProperty("measure", "pint");
-    expect(insertMock.mock.calls[1][0]).not.toHaveProperty("measure");
-    expect(insertMock.mock.calls[1][0]).not.toHaveProperty("measure_label");
+    expect(defined(insertMock.mock.calls[0])[0]).toHaveProperty("measure", "pint");
+    expect(defined(insertMock.mock.calls[1])[0]).not.toHaveProperty("measure");
+    expect(defined(insertMock.mock.calls[1])[0]).not.toHaveProperty("measure_label");
     // Nothing is lost: an absent measure reads as `pint` at every reader.
     expect(dto.measure).toBe("pint");
     expect(warn).toHaveBeenCalledWith(

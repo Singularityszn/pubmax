@@ -22,6 +22,8 @@ import {
   unavailableLane,
   type AccountExportLaneName,
 } from "@/lib/accountExport";
+import { MessageReadUnavailableError } from "@/lib/messagesStore";
+
 import {
   buildAccountExport,
   type AccountExportDeps,
@@ -37,6 +39,7 @@ import type { SavedPubDTO } from "@/lib/savedPubs";
 import type { PublicSocialConnection } from "@/lib/socialConnections";
 import type { VenuePhoto } from "@/lib/venuePhotos";
 import type { VisitReportDTO } from "@/lib/visitReports";
+import type { DiaryEntryDTO } from "@/lib/diary";
 import type { WantedDTO } from "@/lib/wanted";
 
 const USER = "u0000000-0000-4000-8000-000000000001";
@@ -210,6 +213,18 @@ const wantedRow = {
   promotedAt: null,
 } as unknown as WantedDTO;
 
+const diaryRow = {
+  id: "diary-1",
+  ownerUserId: USER,
+  venueId: "venue-xjf3n0",
+  venueName: "The Blackfriar",
+  visitedOn: "2026-09-04",
+  rating: 4.5,
+  review: "Back room was calm.",
+  visibility: "private",
+  createdAt: "2026-09-04T21:00:00.000Z",
+} as unknown as DiaryEntryDTO;
+
 const socialLink = {
   provider: "instagram",
   mode: "manual",
@@ -240,6 +255,7 @@ function fakeDeps(overrides: Partial<AccountExportDeps> = {}): AccountExportDeps
     follows: async () => ["bobpm"],
     savedPubs: async () => ({ status: "ready" as const, rows: [savedPub] }),
     wanted: async () => ({ status: "ready" as const, wanteds: [wantedRow] }),
+    diary: async (userId) => ({ status: "ready" as const, entries: userId === USER ? [diaryRow] : [] }),
     socialLinks: async () => [socialLink],
     nightProfile: async () => nightProfileRow,
     prices: async () => ({ observations: [price], degraded: false }),
@@ -320,6 +336,7 @@ describe("buildAccountExport", () => {
     expect(document.follows.items).toEqual(["bobpm"]);
     expect(document.savedPubs.items).toEqual([savedPub]);
     expect(document.wanted.items).toEqual([wantedRow]);
+    expect(document.diary.items).toEqual([diaryRow]);
     expect(document.socialLinks.items).toEqual([socialLink]);
     expect(document.nightProfile.items).toEqual([nightProfileRow]);
   });
@@ -366,6 +383,7 @@ describe("buildAccountExport", () => {
       wallPhotos: { wallPhotos: async () => ({ status: "degraded" as const, photos: [] }) },
       savedPubs: { savedPubs: async () => ({ status: "unavailable" as const }) },
       wanted: { wanted: async () => ({ status: "degraded" as const, wanteds: [] }) },
+      diary: { diary: async () => ({ status: "degraded" as const, entries: [] }) },
       socialLinks: { socialLinks: async () => { throw new Error("connections unreadable"); } },
       nightProfile: { nightProfile: async () => { throw new Error("night profile unreadable"); } },
       coverPhotos: { coverPhotos: async () => { throw new Error("covers unreadable"); } },
@@ -517,6 +535,14 @@ describe("buildAccountExport", () => {
     expect(unavailableExportLanes(refused)).toEqual(["messages"]);
   });
 
+  it("marks messages unavailable when a durable thread read fails", async () => {
+    const document = await buildAccountExport(USER, fakeDeps({
+      messages: async () => { throw new MessageReadUnavailableError(); },
+    }), NOW);
+    expect(document.messages).toEqual(unavailableLane());
+    expect(unavailableExportLanes(document)).toEqual(["messages"]);
+  });
+
   it("says when the cap bit rather than presenting a window as the whole", async () => {
     const many = Array.from({ length: ACCOUNT_EXPORT_LANE_CAP + 1 }, (_, i) => ({
       ...price,
@@ -639,6 +665,7 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
     excluded:
       "Ephemeral ElevenLabs tool-turn correlation rows, keyed on a provider conversation id with no account id and service-role access only.",
   },
+  "lib/diaryStore.ts": { lane: "diary" },
   "lib/pushTokenStore.ts": {
     excluded: "A live push endpoint for one device. It is a credential rather than content, and handing it back hands back a way to reach the device.",
   },

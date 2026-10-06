@@ -19,6 +19,16 @@ These were already in the tree. They are not part of the five packs below.
 
 The MapLibre and Capacitor rows above were vendored for the map and native shell in pull request 1678. The 2 Oct 2026 refresh and the store-path skills are recorded below.
 
+## Written for this repo
+
+These have no upstream. They describe this repo's own conventions and point at the files that own each rule. When a rule in one of those files changes, change the skill with it.
+
+| Directory | What it covers |
+| --- | --- |
+| `pubmax-nextjs` | Route handlers, the API error envelope, `proxy.ts`, CSP, caching and file tracing. |
+| `pubmax-supabase` | The admin and browser clients, stores, migrations and rollbacks, RLS helpers and private Realtime channels. Read it with the vendored `supabase` skill. |
+| `pubmax-ai-sdk` | The `ai` v7 AI Gateway call, the direct OpenRouter calls, TypeSafe, paid-spend lanes and model tracing. |
+
 ## Packs
 
 No two packs shipped the same directory name or the same frontmatter `name`, so nothing was dropped for a collision.
@@ -28,8 +38,8 @@ Upstream `SKILL.md` trees were copied flat, one directory per skill. Plugin test
 ### emilkowalski/skills
 
 - Repo: https://github.com/emilkowalski/skills
-- Commit: `d16ebe60d09a5ba2afcb7054ede9d0a10c9f6128` (`main`)
-- Checked 2 Oct 2026. This is still the upstream tip.
+- Commit: `e8a175de22ae1e49370fc144c1f3bb9aeedf988d` (`main`)
+- Checked 4 Oct 2026. All thirteen installed skill trees match this tip, preserving the `emil-prototype` namespace. The new tip only adds `break-ui`, which was not installed; the thirteen installed trees are unchanged.
 
 `animate`, `animate-expo`, `animation-vocabulary`, `apple-design`, `ask-sonner`, `emil-design-eng`, `find-animation-opportunities`, `improve-animations`, `mobile-native`, `pick-ui-library`, `emil-prototype`, `review-animations`, `write-swift`.
 
@@ -39,7 +49,7 @@ Upstream `SKILL.md` trees were copied flat, one directory per skill. Plugin test
 
 - Repo: https://github.com/Leonxlnx/taste-skill
 - Commit: `ce26fc25c0e5e8cab638f883de62d9a86ee5e45b` (`main`)
-- Checked 2 Oct 2026. This is still the upstream tip.
+- Checked 4 Oct 2026. All thirteen installed skill trees match this tip.
 
 Directory name, then frontmatter `name` when it differs:
 
@@ -127,6 +137,9 @@ A last30days run on 2 Oct 2026 (Reddit, YouTube, Hacker News, GitHub, Digg) rank
 
 - Repo: https://github.com/vercel-labs/agent-skills
 - Commit: `063bee94c3f4df8453406c830b0a7df0f2860278` (`main`)
+- Checked 4 Oct 2026. Four installed skill trees match upstream. `vercel-optimize` keeps five local changes:
+  - `CONTRIBUTING.md`, `README.md`, `references/data-collection.md` and `references/playbooks/README.md` say the upstream test package `packages/vercel-optimize-tests` was not vendored.
+  - `lib/vercel.mjs` resolves a `usr_` link to the CLI username scope only when the signed-in user ID equals the linked ID. Upstream also accepts a missing user ID. This is the scope fix from `13121954d`.
 
 `react-best-practices` (frontmatter `vercel-react-best-practices`), `composition-patterns` (`vercel-composition-patterns`), `react-view-transitions` (`vercel-react-view-transitions`), `web-design-guidelines`, `vercel-optimize`.
 
@@ -171,3 +184,9 @@ Left upstream: Capgo cloud and live-update skills, version-upgrade skills (this 
 ### maplibre/maplibre-agent-skills (added)
 
 Same commit as the MapLibre refresh above. `maplibre-cartography`, `maplibre-fonts-glyphs`.
+
+## Machine-wide design addition, 4 Oct 2026
+
+Anthropic `frontend-design` is installed in the canonical machine-wide skill root at `~/.agents/skills/frontend-design`, exposed to Codex. Source: [anthropics/skills](https://github.com/anthropics/skills), commit `8a1541c4a3ffa5a20a5a91de0dcf3f0bab1d1ef4`. Claude already provides this skill through its enabled synced plugin, so no second Claude copy was added.
+
+`docs/DESIGN_SYSTEM.md` and `docs/VOICE.md` remain authoritative for this project. Upstream design skills do not replace project tokens, brand identity, price semantics or copy laws.

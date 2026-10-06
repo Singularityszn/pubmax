@@ -52,6 +52,7 @@ import {
   type SummaryDrop,
   type Venue,
 } from "@/lib/venues";
+import { defined } from "@/__tests__/helpers/defined";
 
 vi.mock("@/components/visits/VisitReportPanel", () => ({
   default: () => createElement("div", { "data-testid": "visit-report-peek" }),
@@ -200,7 +201,7 @@ function renderOverview(drops: SummaryDrop[], base: Venue = venue()): string {
   const signal = pintTrustSignalFields(pintTrustFor(drops, NOW));
   return renderToStaticMarkup(
     createElement(VenueOverviewTab, {
-      venue: merged,
+      venue: defined(merged),
       tab: "overview",
       cityId: "london",
       mode: "suggest",
@@ -235,12 +236,12 @@ function renderOverview(drops: SummaryDrop[], base: Venue = venue()): string {
 function peekChip(drops: SummaryDrop[], base: Venue = venue()) {
   const [merged] = mergeVenueDrops([base], new Map([[VENUE_ID, drops]]), NOW);
   const signal = pintTrustSignalFields(pintTrustFor(drops, NOW));
-  const bundle = venueBundlePrices(merged);
+  const bundle = venueBundlePrices(defined(merged));
   return peekPriceChip(
     venuePriceLane(
-      merged,
+      defined(merged),
       signal.latestContributorPrice,
-      venueSourcedPrice(merged),
+      venueSourcedPrice(defined(merged)),
       bundle,
       dropLaneInput(signal.provisionalContributorPrice, signal.provisionalContributorAt),
       dropLaneInput(signal.agedContributorPrice, signal.agedContributorAt),
@@ -256,7 +257,7 @@ function pin(drops: SummaryDrop[], base: Venue = venue()) {
   const [merged] = mergeVenueDrops([base], new Map([[VENUE_ID, drops]]), NOW);
   const signal: VenueSignal = { hasPintDrops: drops.length > 0, ...pintTrustSignalFields(pintTrustFor(drops, NOW)) };
   const marks = provisionalPintDropVenueIds(new Map([[VENUE_ID, drops]]), NOW);
-  return pubsToGeoJSON([merged], new Map([[VENUE_ID, signal]]), null, null, null, marks).features[0]!
+  return pubsToGeoJSON([defined(merged)], new Map([[VENUE_ID, signal]]), null, null, null, marks).features[0]!
     .properties as Record<string, unknown>;
 }
 
@@ -395,11 +396,11 @@ describe("what each state paints on the pin", () => {
       new Map([[VENUE_ID, confirmedPair()]]),
       NOW,
     );
-    expect(merged.cheapestPrice).toBe(4.5);
-    expect(merged.latestContributorPrice).toBe(4.5);
+    expect(defined(merged).cheapestPrice).toBe(4.5);
+    expect(defined(merged).latestContributorPrice).toBe(4.5);
     const [lone] = mergeVenueDrops([venue({ cheapestPrice: 6.2 })], new Map([[VENUE_ID, [drop()]]]), NOW);
-    expect(lone.cheapestPrice).toBe(6.2);
-    expect(lone.latestContributorPrice).toBeNull();
+    expect(defined(lone).cheapestPrice).toBe(6.2);
+    expect(defined(lone).latestContributorPrice).toBeNull();
   });
 });
 

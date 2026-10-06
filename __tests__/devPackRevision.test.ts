@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LOCAL_DATA_REVISION, requireDataRevision } from "@/lib/dataRevision.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The revision next.config.mjs inlines as NEXT_PUBLIC_SW_VERSION is the one a
 // production map client holds every pack to; outside production it holds none.
@@ -49,9 +50,9 @@ async function loaderFor(
   vi.stubEnv("NODE_ENV", env.NODE_ENV);
   vi.stubEnv("NEXT_PUBLIC_SW_VERSION", requireDataRevision(env, { workingTreeSha: SHA }));
   vi.stubGlobal("fetch", (input: RequestInfo | URL) => {
-    const url = String(input).split("?")[0];
+    const url = defined(String(input).split("?")[0]);
     if (url in bodies) {
-      return Promise.resolve({ ok: true, json: () => Promise.resolve(bodies[url]) } as Response);
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(bodies[defined(url)]) } as Response);
     }
     return Promise.resolve({ ok: false, status: 404 } as Response);
   });

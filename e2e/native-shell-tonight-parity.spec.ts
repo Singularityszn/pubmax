@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { expectStreamedPageSettled } from "./helpers/streamedPage";
+
 // THE SHELL AND THE WEB MUST DRAW ONE /tonight.
 //
 // The 13 September 2026 audit caught the iOS shell drawing /tonight with its
@@ -30,9 +32,18 @@ function orderInHtml(html: string): Order {
   };
 }
 
+/**
+ * The one /tonight on screen. Until the stream settles the document can hold a
+ * second, hidden copy of the page, which doubles every row a read counts.
+ */
+async function expectOneTonight(page: Page): Promise<void> {
+  await expect(page.getByTestId("tonight-lede").first()).toBeAttached({ timeout: 30_000 });
+  await expectStreamedPageSettled(page);
+}
+
 /** The same question asked of the painted DOM. */
 async function orderInDom(page: Page): Promise<Order> {
-  await expect(page.getByTestId("tonight-lede")).toBeAttached({ timeout: 30_000 });
+  await expectOneTonight(page);
   return page.evaluate(() => {
     const lede = document.querySelector('[data-testid="tonight-lede"]');
     const rows = document.querySelectorAll(".screenActions");
@@ -93,9 +104,9 @@ async function navOffsets(page: Page) {
     };
     const loaded = document.querySelector(".tonightPage");
     if (!loaded) throw new Error("the /tonight page is not on screen");
-    let skeleton = document.querySelector("main.routeLoadingShell");
+    let skeleton = document.querySelector(".routeLoadingShell");
     if (!skeleton) {
-      skeleton = document.createElement("main");
+      skeleton = document.createElement("section");
       skeleton.className = "routeLoadingShell";
       skeleton.append(loaded.querySelector("nav.siteNavBar")!.cloneNode(true));
       document.body.append(skeleton);
@@ -113,7 +124,7 @@ test("the loading skeleton draws the nav where the loaded /tonight draws it", as
   test.setTimeout(90_000);
   await bootAsShell(page);
   await page.goto("/tonight");
-  await expect(page.getByTestId("tonight-lede")).toBeAttached({ timeout: 30_000 });
+  await expectOneTonight(page);
   const chromium = await page.context().newCDPSession(page);
   await chromium.send("Emulation.setSafeAreaInsetsOverride", {
     insets: { top: 47, right: 0, bottom: 34, left: 0 },
@@ -168,7 +179,7 @@ test("a worker-controlled shell never serves a stale /tonight while the network 
   await page.goto("/tonight");
   await orderInDom(page);
   const version = await page.evaluate(async (v) => {
-    await navigator.serviceWorker.register(`/sw.js?v=${v}&cache-policy=write-safe-v1`);
+    await navigator.serviceWorker.register(`/sw.js?v=${v}&cache-policy=plan-preview-safe-v2`);
     const ready = await navigator.serviceWorker.ready;
     return new URL(ready.active?.scriptURL ?? location.href).searchParams.get("v");
   }, PARITY_VERSION);

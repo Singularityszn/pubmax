@@ -7,6 +7,7 @@ import {
   TRAILING_EDGE_FADE_PX,
   shouldFadeTrailingEdge,
 } from "@/lib/useTrailingEdgeFade";
+import { defined } from "@/__tests__/helpers/defined";
 
 /**
  * B1, 2026-08-03. The venue sheet's last tab read as a disabled control.
@@ -78,8 +79,8 @@ describe("B1 - the venue tab strip fades only what is really hidden", () => {
     for (const [, selector, body] of sheetCss.matchAll(
       /^(\s*\.venueTabs[^{,]*)\{([^}]*)\}/gmu,
     )) {
-      if (selector.includes("data-trailing-fade")) continue;
-      expect(body, `${selector.trim()} must not paint a mask`).not.toMatch(/mask-image:/);
+      if (defined(selector).includes("data-trailing-fade")) continue;
+      expect(body, `${defined(selector).trim()} must not paint a mask`).not.toMatch(/mask-image:/);
     }
   });
 

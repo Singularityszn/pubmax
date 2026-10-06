@@ -202,6 +202,7 @@ export function pintPriceSplitLine(split: PintPriceSplit): string {
 /** The range a compact chip prints when it has room for one string: "£4.50-£4.70". */
 export function pintPriceSplitRange(split: PintPriceSplit): string {
   const first = split.prices[0];
-  const last = split.prices[split.prices.length - 1];
+  const last = split.prices.at(-1);
+  if (first === undefined || last === undefined) return "";
   return `${formatGbp(first)}-${formatGbp(last)}`;
 }

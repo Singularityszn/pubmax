@@ -264,8 +264,7 @@ describe("the page holds no card across an account or handle boundary", () => {
   // state beside it has to go the same way.
   //
   // A source fence rather than a mount, because this is the 1,400-line page
-  // client and its siblings (`__tests__/profileEditMode.test.ts`) fence it the
-  // same way.
+  // client.
   const pageSource = readFileSync(
     path.join(process.cwd(), "app/u/[handle]/ProfilePageClient.tsx"),
     "utf8",

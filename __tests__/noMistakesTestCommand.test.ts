@@ -17,6 +17,7 @@
 // DEPLOYMENT_VERSION=local so a checkout never stamps HEAD over `local`, and
 // run-with-restored-bundled-data.mjs to git-restore bundled trees on exit.
 
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -25,8 +26,9 @@ import { parse } from "yaml";
 
 import { requireDataRevision } from "@/lib/dataRevision.mjs";
 
-import { SERIAL_SHM_RUN } from "../scripts/rls/postgresSuites.mjs";
-import { coverageRuns } from "../scripts/run-coverage.mjs";
+import { POSTGRES_BACKED_SUITES, SERIAL_SHM_RUN } from "../scripts/rls/postgresSuites.mjs";
+import { WITHOUT_POSTGRES, coverageRuns } from "../scripts/run-coverage.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = process.cwd();
 
@@ -45,9 +47,9 @@ function packageScripts(): Record<string, string> {
 function splitTestCommand(): { env: Record<string, string>; command: string } {
   const words = (repoConfig().commands?.test ?? "").trim().split(/\s+/).filter(Boolean);
   const env: Record<string, string> = {};
-  while (words.length > 0 && /^[A-Z_][A-Z0-9_]*=\S*$/.test(words[0])) {
+  while (words.length > 0 && /^[A-Z_][A-Z0-9_]*=\S*$/.test(defined(words[0]))) {
     const [name, ...value] = words.shift()!.split("=");
-    env[name] = value.join("=");
+    env[defined(name)] = value.join("=");
   }
   return { env, command: words.join(" ") };
 }
@@ -78,7 +80,7 @@ describe("the no-mistakes repository test command", () => {
 
     expect(expanded).toContain("node scripts/run-coverage.mjs");
     const [unit] = coverageRuns([]);
-    expect(unit.args.slice(0, 3)).toEqual(["run", "--coverage", "--maxWorkers=4"]);
+    expect(defined(unit).args.slice(0, 3)).toEqual(["run", "--coverage", "--maxWorkers=4"]);
     // The browser suite runs in the merge bar's own e2e workflow.
     expect(expanded).not.toMatch(/playwright/);
   });
@@ -87,7 +89,7 @@ describe("the no-mistakes repository test command", () => {
     const exclude = ["--exclude", "__tests__/rlsSession.test.ts"];
     const [unit, serial] = coverageRuns(exclude);
 
-    expect(unit.args).toEqual(["run", "--coverage", "--maxWorkers=4", ...exclude]);
+    expect(defined(unit).args).toEqual(["run", "--coverage", "--maxWorkers=4", ...exclude]);
     expect(serial).toEqual({
       args: ["run", ...SERIAL_SHM_RUN.suites, "--maxWorkers=1"],
       env: SERIAL_SHM_RUN.env,
@@ -100,20 +102,44 @@ describe("the no-mistakes repository test command", () => {
     expect(coverageRuns(excluded)).toHaveLength(1);
   });
 
+  it("leaves the PostgreSQL suites to npm run test:rls", () => {
+    // verify runs those suites in `npm run test:rls`, so its coverage run
+    // excludes them rather than running each one twice.
+    const verify = defined(packageScripts().verify, "verify script")
+      .split("&&")
+      .map((command) => command.trim().split(/\s+/));
+    const at = verify.findIndex((words) => words.slice(0, 3).join(" ") === "npm run coverage");
+    expect(at).toBeGreaterThanOrEqual(0);
+    expect(defined(verify[at]).slice(3)).toEqual(["--", WITHOUT_POSTGRES]);
+    expect(verify[at + 1]).toEqual(["npm", "run", "test:rls"]);
+
+    const runs = coverageRuns([WITHOUT_POSTGRES, "--shard=1/2"]);
+    expect(runs).toHaveLength(1);
+    expect(defined(runs[0]).args).toEqual([
+      "run",
+      "--coverage",
+      "--maxWorkers=4",
+      ...POSTGRES_BACKED_SUITES.flatMap((suite) => ["--exclude", suite]),
+      "--shard=1/2",
+    ]);
+  });
+
   it("validates committed bundled data without regenerating slim shards", () => {
     const expanded = expand(splitTestCommand().command, packageScripts());
     const env: Record<string, string> = {};
     for (const word of expanded.trim().split(/\s+/).filter(Boolean)) {
       if (!/^[A-Z_][A-Z0-9_]*=\S*$/.test(word)) break;
       const [name, ...value] = word.split("=");
-      env[name] = value.join("=");
+      env[defined(name)] = value.join("=");
     }
     expect(env.PUBMAX_VERIFY_COMMITTED_DATA).toBe("1");
     expect(env.DEPLOYMENT_VERSION).toBe("local");
 
-    const committed = JSON.parse(
-      readFileSync(join(ROOT, "public/data/cities/bath/venues_slim.manifest.json"), "utf8"),
-    ).revision;
+    // Plain verify rebuilds working files first. The pipeline contract concerns
+    // the committed artifact, regardless of any local builder's revision stamp.
+    const committed = JSON.parse(execFileSync("git", [
+      "show", "HEAD:public/data/cities/bath/venues_slim.manifest.json",
+    ], { cwd: ROOT, encoding: "utf8" })).revision;
     // A run worktree is a git checkout, so git always names a HEAD there.
     const stamped = requireDataRevision(env, {
       workingTreeSha: "0123456789abcdef0123456789abcdef01234567",

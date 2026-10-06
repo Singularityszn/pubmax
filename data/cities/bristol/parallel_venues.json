@@ -1,0 +1,161 @@
+{
+  "city": "bristol",
+  "source": "Parallel Task API; Tavily Search and Extract",
+  "observationMeaning": "Each row's observedAt is the date its Parallel research result, Tavily search page text or page read was retrieved; provider names the lane. Cached reruns retain that date. Not a claim that the venue is open tonight.",
+  "populationPriority": 472500,
+  "populationSources": [
+    "https://www.ons.gov.uk/peoplepopulationandcommunity/populationandmigration/populationestimates/bulletins/populationandhouseholdestimatesenglandandwales/census2021",
+    "https://www.scotlandscensus.gov.uk/2022-reports/scotlands-census-2022-rounded-population-estimates/"
+  ],
+  "venues": [
+    {
+      "name": "Lost & Grounded",
+      "kind": "pub",
+      "address": "91 Whitby Road, St Annes, Bristol BS4 4AR",
+      "postcode": "BS4 4AR",
+      "locality": "Bristol",
+      "website": null,
+      "lat": 51.450199,
+      "lng": -2.554045,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/bs4-3qb-1512279"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/bs4-3qb-1512279",
+          "excerpt": "### Lost & Grounded\n\nIndependent Pub, in Bristol]\n\n1 Changing Beer\n\n \n\n**0.2** miles from you\n\n91 Whitby Road, St Annes, Bristol, BS4 4AR"
+        }
+      ],
+      "observedAt": "2026-10-04T12:52:23.097Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/BS4%204AR",
+        "observedAt": "2026-10-04T13:06:03.126Z",
+        "postcode": "BS4 4AR",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-bri-gigbt6"
+    },
+    {
+      "name": "Langton",
+      "kind": "pub",
+      "address": "Langton Court Road, St Annes, Bristol BS4 4EG",
+      "postcode": "BS4 4EG",
+      "locality": "Bristol",
+      "website": null,
+      "lat": 51.45019,
+      "lng": -2.548288,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/bs4-3qb-1512279"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/bs4-3qb-1512279",
+          "excerpt": "### Langton\n\nPub, in Bristol]\n\n4 Regular, 2 Changing Beers\n\n \n\n**0.3** miles from you\n\nLangton Court Road, St Annes, Bristol, BS4 4EG"
+        }
+      ],
+      "observedAt": "2026-10-04T12:52:23.097Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/BS4%204EG",
+        "observedAt": "2026-10-04T13:06:03.147Z",
+        "postcode": "BS4 4EG",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-bri-2ej83h"
+    },
+    {
+      "name": "The Kings Head",
+      "kind": "pub",
+      "address": "Bridgwater Road, Bedminster Down, Bristol BS13 8AE",
+      "postcode": "BS13 8AE",
+      "locality": "Bristol",
+      "website": "https://kingsheadpubbedminster.com/",
+      "lat": 51.421038,
+      "lng": -2.630564,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://kingsheadpubbedminster.com"
+      ],
+      "evidence": [
+        {
+          "url": "https://kingsheadpubbedminster.com",
+          "excerpt": "# The Kings Head\n\nBridgwater Road,\nBedminster Down,\nBristol,\nBS13 8AE"
+        },
+        {
+          "url": "https://kingsheadpubbedminster.com",
+          "excerpt": "The Kings Head is a large family friendly pub situated in Bedminster Downs, Bristol. We have a full range of facilities to make each and every visit an enjoyable one."
+        }
+      ],
+      "observedAt": "2026-10-04T13:06:33.822Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/BS13%208AE",
+        "observedAt": "2026-10-04T13:06:33.947Z",
+        "postcode": "BS13 8AE",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-bri-wx5olt"
+    },
+    {
+      "name": "Cossham Inn",
+      "kind": "pub",
+      "address": "212 Charlton Road, Kingswood BS15 1LY",
+      "postcode": "BS15 1LY",
+      "locality": "Bristol",
+      "website": null,
+      "lat": 51.467993,
+      "lng": -2.520789,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/kingswood-bristol-9640"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/kingswood-bristol-9640",
+          "excerpt": "### Cossham Inn\n\nPub, in Kingswood]\n\n**Cask Ale not available**\n\n**0.7** miles from you\n\n212 Charlton Road, Kingswood, BS15 1LY"
+        }
+      ],
+      "observedAt": "2026-10-04T12:52:40.175Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/BS15%201LY",
+        "observedAt": "2026-10-04T13:06:32.828Z",
+        "postcode": "BS15 1LY",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-bri-xpufzk"
+    },
+    {
+      "name": "Beeses Bar & Tea Gardens",
+      "kind": "pub",
+      "address": "Wyndham Crescent, Brislington, Bristol BS4 4SX",
+      "postcode": "BS4 4SX",
+      "locality": "Bristol",
+      "website": null,
+      "lat": 51.44174,
+      "lng": -2.534058,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/bs4-3qb-1512279"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/bs4-3qb-1512279",
+          "excerpt": "[### Beeses Bar & Tea Gardens\n\nIndependent Pub, in Bristol]\n\n**Cask Ale not available**\n\n**0.9** miles from you\n\nWyndham Crescent, Brislington, Bristol, BS4 4SX"
+        }
+      ],
+      "observedAt": "2026-10-04T12:52:23.097Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/BS4%204SX",
+        "observedAt": "2026-10-04T13:06:03.269Z",
+        "postcode": "BS4 4SX",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-bri-182eti8"
+    }
+  ]
+}

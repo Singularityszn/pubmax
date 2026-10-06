@@ -23,6 +23,7 @@ import {
 } from "@/lib/harvest/ukPriceCrawl";
 import type { UkPriceRawCandidate } from "@/lib/harvest/ukPriceCrawl";
 import { readVenueDrinkPricesJudged } from "@/lib/harvest/ukPriceJudgment.server";
+import { defined } from "@/__tests__/helpers/defined";
 
 const drinksList = `
 <html><body>
@@ -301,15 +302,15 @@ describe("readVenueDrinkPricesJudged batch failures", () => {
     const text = pageText(html, true);
     const candidates = findUkPriceCandidates(text, 120);
     expect(candidates).toHaveLength(2);
-    expect(candidates[0].at).toBeLessThan(candidates[1].at);
+    expect(defined(candidates[0]).at).toBeLessThan(defined(candidates[1]).at);
 
     const decisions = candidates.map((raw) => decideKeylessUkPriceCandidate(text, raw));
 
     // The fallback agrees with the keyless reader it falls back to, row for row.
     const truth = readVenueDrinkPrices(html);
     expect(decisions.filter((d) => d.kept).map((d) => d.kept)).toEqual(truth.kept);
-    expect(decisions[0].kept?.category).toBe("beer");
-    expect(decisions[1].kept).toBeUndefined();
+    expect(defined(decisions[0]).kept?.category).toBe("beer");
+    expect(defined(decisions[1]).kept).toBeUndefined();
 
     vi.stubEnv("TYPESAFE_API_KEY", "test-key");
     vi.mocked(systemOneOutcome).mockResolvedValue({ status: "failed", reason: "timeout" });

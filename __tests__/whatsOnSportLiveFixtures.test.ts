@@ -9,6 +9,7 @@ import {
   SPORT_FIXTURE_HORIZON_MS,
 } from "@/lib/sport/liveFixtures";
 import { buildSportFixtureRows } from "../scripts/whatson/sportFixtures.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 type TheSportsDbEvent = Record<string, unknown>;
 
@@ -29,7 +30,7 @@ describe("live sport fixtures", () => {
   it("maps recorded TheSportsDB events and drops finished fixtures", () => {
     const league = liveSportFixtureInternals.THESPORTSDB_LEAGUES[0];
     const fixtures = (PL_SAMPLE.events ?? [])
-      .map((event: TheSportsDbEvent) => liveSportFixtureInternals.normaliseTheSportsDbEvent(event, league))
+      .map((event: TheSportsDbEvent) => liveSportFixtureInternals.normaliseTheSportsDbEvent(event, defined(league)))
       .filter(Boolean);
     expect(fixtures).toHaveLength(1);
     expect(fixtures[0]).toMatchObject({
@@ -41,7 +42,7 @@ describe("live sport fixtures", () => {
 
   it("cites TheSportsDB, not the league, as the fixture source", () => {
     const league = liveSportFixtureInternals.THESPORTSDB_LEAGUES[0];
-    const fixture = liveSportFixtureInternals.normaliseTheSportsDbEvent(PL_SAMPLE.events[0], league);
+    const fixture = liveSportFixtureInternals.normaliseTheSportsDbEvent(PL_SAMPLE.events[0], defined(league));
     expect(fixture?.source).toEqual({
       label: "TheSportsDB",
       url: "https://www.thesportsdb.com/event/2494052",
@@ -62,19 +63,19 @@ describe("live sport fixtures", () => {
       strTimeLocal: "21:00:00",
       strStatus: "NS",
     };
-    expect(liveSportFixtureInternals.normaliseTheSportsDbEvent(madrid, league)).toMatchObject({
+    expect(liveSportFixtureInternals.normaliseTheSportsDbEvent(madrid, defined(league))).toMatchObject({
       kickoffLondonDate: "2026-10-21",
       kickoffLondonTime: "20:00",
     });
 
     expect(
-      liveSportFixtureInternals.normaliseTheSportsDbEvent({ ...madrid, strTimestamp: undefined }, league),
+      liveSportFixtureInternals.normaliseTheSportsDbEvent({ ...madrid, strTimestamp: undefined }, defined(league)),
     ).toMatchObject({ kickoffLondonDate: "2026-10-21", kickoffLondonTime: "20:00" });
 
     expect(
       liveSportFixtureInternals.normaliseTheSportsDbEvent(
         { ...madrid, strTimestamp: "2026-10-21T19:00:00+00:00" },
-        league,
+        defined(league),
       ),
     ).toMatchObject({ kickoffLondonTime: "20:00" });
   });
@@ -182,7 +183,7 @@ describe("live sport fixtures", () => {
           strTimestamp: "2026-10-10T14:00:00",
           strStatus: "NS",
         },
-        rugby,
+        defined(rugby),
       ),
     ).toMatchObject({ kickoffLondonTime: "15:00" });
   });
@@ -302,7 +303,7 @@ describe("live sport fixtures", () => {
           strTimestamp: "2026-10-07T19:00:00",
           strStatus: "NS",
         },
-        league,
+        defined(league),
       )!,
     );
     const rows = buildSportFixtureRows({
@@ -323,7 +324,7 @@ describe("live sport fixtures", () => {
 
   it("filters fixtures outside the refresh horizon", () => {
     const league = liveSportFixtureInternals.THESPORTSDB_LEAGUES[0];
-    const fixture = liveSportFixtureInternals.normaliseTheSportsDbEvent(PL_SAMPLE.events[0], league);
+    const fixture = liveSportFixtureInternals.normaliseTheSportsDbEvent(PL_SAMPLE.events[0], defined(league));
     expect(fixture).not.toBeNull();
     expect(
       liveSportFixtureInternals.inWindow(fixture!, NOW, NOW + SPORT_FIXTURE_HORIZON_MS),
@@ -333,7 +334,7 @@ describe("live sport fixtures", () => {
 
   it("builds servable sport rows from recorded fixtures", () => {
     const league = liveSportFixtureInternals.THESPORTSDB_LEAGUES[0];
-    const fixtures = [liveSportFixtureInternals.normaliseTheSportsDbEvent(PL_SAMPLE.events[0], league)!];
+    const fixtures = [liveSportFixtureInternals.normaliseTheSportsDbEvent(PL_SAMPLE.events[0], defined(league))!];
     const rows = buildSportFixtureRows({
       attributeRows: [
         {

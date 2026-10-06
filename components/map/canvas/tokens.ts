@@ -75,11 +75,24 @@ export const SELECTION_DIM_OPACITY = 0.45;
 // static pubs-selected-glow paint below so a deselect cleanly resets to them.
 export const GLOW_BASE_STROKE_OPACITY = 0.35;
 export const GLOW_BASE_STROKE_WIDTH = 3.2;
+// Slightly fatter ring while a pub is selected, so the pinpoint reads under the sheet.
+export const GLOW_SELECTED_STROKE_WIDTH = GLOW_BASE_STROKE_WIDTH + 1.2;
 export const GLOW_PULSE_PERIOD_MS = 1600;
 export const GLOW_PULSE_MIN_OPACITY = 0.3;
 export const GLOW_PULSE_MAX_OPACITY = 0.62;
 export const GLOW_PULSE_MIN_WIDTH = 3;
 export const GLOW_PULSE_MAX_WIDTH = 4.6;
+
+// The pulse above and the route's marching ants are AMBIENT motion: each write
+// is a full map redraw, so left running they redraw an idle map ~11 to 60 times
+// a second for as long as it is open, the phone in a pocket on a crawl
+// included. They move for this long after the route, the selection or the
+// camera last changed (three breaths of the pulse), then rest on the static
+// frame reduced-motion readers already see.
+export const AMBIENT_MOTION_WINDOW_MS = GLOW_PULSE_PERIOD_MS * 3;
+// The pulse eases out of rest at the start of that window and back into rest
+// over its last stretch, so a pulse never jumps to or from the static ring.
+export const AMBIENT_MOTION_EASE_MS = GLOW_PULSE_PERIOD_MS / 2;
 
 // M7 pin entrance: a per-pub OPACITY ramp fired once, right after
 // settleSceneReady()'s first pin reveal, off the SAME RAF loop the M1 pulse
@@ -323,9 +336,9 @@ export function venuePinEdgeTokens(
 }
 
 export function withAlpha(hex: string, alpha: number): string {
-  const match = /^#([0-9a-f]{6})$/i.exec(hex.trim());
-  if (!match) return hex;
-  const n = parseInt(match[1], 16);
+  const digits = /^#([0-9a-f]{6})$/i.exec(hex.trim())?.[1];
+  if (!digits) return hex;
+  const n = parseInt(digits, 16);
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 }
 
