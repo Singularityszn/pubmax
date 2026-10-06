@@ -1,4 +1,5 @@
 import { formatGbp } from "@/lib/formatGbp";
+import { haversineKm } from "@/lib/haversine";
 import type { WhatsOnKind } from "@/lib/whatsOn";
 import { WHATS_ON_KIND_META } from "@/lib/whatsOnBadges";
 
@@ -73,6 +74,14 @@ type RankingOptions = {
    * ranking is byte-for-byte unchanged.
    */
   tonightEventKindsByVenue?: ReadonlyMap<string, ReadonlySet<WhatsOnKind>>;
+  /**
+   * Where the asked-for area really is. A pub is filed under its borough, so
+   * "Soho" (Westminster) matches only the few pubs whose text says Soho, and
+   * the cheapest pubs a short walk from Soho Square never enter the pool. When
+   * the caller knows the area's centre and radius, a pub inside that circle is
+   * in the area. Omitted, the text rules below are unchanged.
+   */
+  areaCircle?: { lat: number; lng: number; radiusKm: number };
 };
 
 // Which tonight What's-On kind a mood is grounded evidence for, when present.
@@ -123,6 +132,7 @@ function scoreOne(
   intent: ConciergeIntent,
   context: ConciergeContext,
   tonightEventKindsByVenue?: ReadonlyMap<string, ReadonlySet<WhatsOnKind>>,
+  insideAreaCircle = false,
 ): RankedConciergeVenue {
   let score = venue.canonical ? 1 : 0;
   const reasons: string[] = [];
@@ -134,7 +144,7 @@ function scoreOne(
   // line, so a leading "In Camden" note under a "Camden" place printed the
   // area twice, and the budget or mood reason it displaced says more.
   let areaReason: string | null = null;
-  if (requestedArea && !cityWideAreaAsk && venueArea.includes(requestedArea)) {
+  if (requestedArea && !cityWideAreaAsk && (insideAreaCircle || venueArea.includes(requestedArea))) {
     // Area is the strongest coordination constraint: a perfect mood match in
     // the wrong part of town is rarely useful for a same-evening plan.
     score += 30;
@@ -245,11 +255,27 @@ export function rankConciergeVenues(
   const limit = Math.min(10, Math.max(1, Math.trunc(options.limit ?? 3)));
   const organic = venues.filter((venue) => !venue.promoted);
   const requestedArea = normalise(intent.area ?? "");
-  const eligible = requestedArea
-    ? areaEligibleVenues(organic, requestedArea)
-    : organic;
+  const circle = requestedArea && requestedArea !== "london" ? options.areaCircle : undefined;
+  const insideCircle = circle
+    ? organic.filter(
+        (venue) =>
+          haversineKm([circle.lng, circle.lat], [venue.lng, venue.lat]) <= circle.radiusKm,
+      )
+    : [];
+  const insideCircleIds = new Set(insideCircle.map((venue) => venue.id));
+  const eligible = insideCircle.length > 0
+    ? insideCircle
+    : requestedArea
+      ? areaEligibleVenues(organic, requestedArea)
+      : organic;
   return eligible
-    .map((venue) => scoreOne(venue, intent, options.context ?? {}, options.tonightEventKindsByVenue))
+    .map((venue) => scoreOne(
+      venue,
+      intent,
+      options.context ?? {},
+      options.tonightEventKindsByVenue,
+      insideCircleIds.has(venue.id),
+    ))
     .sort((left, right) => right.score - left.score || left.venue.id.localeCompare(right.venue.id, "en-GB"))
     .slice(0, limit);
 }

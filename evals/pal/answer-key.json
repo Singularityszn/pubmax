@@ -67,8 +67,8 @@
     },
     "plan-soho": {
       "minCards": 1,
-      "topVenueId": "venue-e1srzr",
-      "topPrice": 6.25,
+      "topVenueId": "venue-phqazo",
+      "topPrice": 5.7,
       "expectedTools": [
         "propose_plan"
       ],
@@ -187,8 +187,8 @@
     },
     "followup-cheaper-camden": {
       "minCards": 1,
-      "topVenueId": "venue-1ar7s8w",
-      "topPrice": 4.8,
+      "topVenueId": "venue-1gz2vse",
+      "topPrice": 4.5,
       "expectedTools": [
         "search_venues"
       ]
@@ -203,8 +203,8 @@
     },
     "non-alcoholic-soho": {
       "minCards": 1,
-      "topVenueId": "venue-e1srzr",
-      "topPrice": 6.25,
+      "topVenueId": "venue-phqazo",
+      "topPrice": 5.7,
       "expectedTools": [
         "search_venues"
       ]
@@ -223,8 +223,8 @@
     },
     "crawl-refine-cheaper": {
       "minCards": 1,
-      "topVenueId": "venue-e1srzr",
-      "topPrice": 6.25,
+      "topVenueId": "venue-phqazo",
+      "topPrice": 5.7,
       "anyTools": [
         "search_venues",
         "cheapest_pint_near",

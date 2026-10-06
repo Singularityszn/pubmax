@@ -57,6 +57,53 @@ export function toVenueResolutionCandidate(
   };
 }
 
+/** Lower-case words only: curly and straight apostrophes drop, other marks split. */
+function wordsOnly(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/['\u2019\u2018]/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+}
+
+/** A pub name this short is a common word, never a name worth finding in a sentence. */
+const MIN_NAME_IN_QUERY_LENGTH = 4;
+
+/**
+ * The pub a whole sentence names ("How much is a pint at The Blackfriar?").
+ * The keyless name matcher above asks whether the pub name contains the query,
+ * which a sentence never satisfies. It is NOT folded into that matcher: a bare
+ * name that is not listed ("The Crown & Sceptre") must not land on a shorter
+ * listed pub ("The Crown"). Callers that hold the user's whole question use this
+ * after the name matcher. The pub name must appear in the query as whole
+ * words, with or without its leading "The". The longest name wins, and two
+ * different pubs sharing that longest name are no answer at all.
+ */
+export function matchVenueNameWithinQuery<T extends VenueNameMatchInput>(
+  venues: readonly T[],
+  query: string,
+): T | null {
+  const haystack = ` ${wordsOnly(query)} `;
+  let best: T | null = null;
+  let bestLength = 0;
+  let tied = false;
+  for (const venue of venues) {
+    const full = wordsOnly(venue.name);
+    for (const name of new Set([full, full.replace(/^the /, "")])) {
+      if (name.length < MIN_NAME_IN_QUERY_LENGTH) continue;
+      if (!haystack.includes(` ${name} `)) continue;
+      if (name.length > bestLength) {
+        best = venue;
+        bestLength = name.length;
+        tied = false;
+      } else if (name.length === bestLength && best && best.id !== venue.id) {
+        tied = true;
+      }
+    }
+  }
+  return tied ? null : best;
+}
+
 /** Keyless fallback: exact, then startsWith, then includes. Array order breaks ties. */
 export function matchVenueByNameKeyless<T extends VenueNameMatchInput>(
   venues: readonly T[],

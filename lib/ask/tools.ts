@@ -8,6 +8,7 @@ import {
   type CommunityPrice,
 } from "@/lib/communityPrice";
 import { readCommunityPricesWithStatus } from "@/lib/communityPriceStore";
+import { areaCircleForAsk } from "@/lib/concierge/areaCircle";
 import { parseConciergeIntent } from "@/lib/concierge/intent";
 import {
   rankConciergeVenues,
@@ -45,6 +46,7 @@ import {
   toolVenueDrinks,
 } from "@/lib/ask/conciergeTools.server";
 import { matchVenueByName } from "@/lib/ask/venueResolution.server";
+import { matchVenueNameWithinQuery } from "@/lib/ask/venueResolution";
 import type {
   AskProvenance,
   AskToolArgs,
@@ -100,7 +102,10 @@ async function toolSearchVenues(
   try {
     const parsed = await parseConciergeIntent(query, { skipModel: true });
     const venues = await loadConciergeVenues(ctx.cityId);
-    const ranked = rankConciergeVenues(venues, parsed.intent, { limit });
+    const ranked = rankConciergeVenues(venues, parsed.intent, {
+      limit,
+      areaCircle: areaCircleForAsk(ctx.cityId, parsed.intent.area),
+    });
     const cards = ranked.map(({ venue, reasons }) =>
       venueCard(venue, reasons[0] ?? "", venue.id),
     );
@@ -249,7 +254,8 @@ async function toolVenueHeritage(
     const venues = await loadConciergeVenues(ctx.cityId);
     const hit =
       (id ? venues.find((v) => v.id === id) : null) ??
-      (await matchVenueByName(venues, ctx.query.replace(/\?+$/, "")));
+      (await matchVenueByName(venues, ctx.query.replace(/\?+$/, ""))) ??
+      matchVenueNameWithinQuery(venues, ctx.query);
     if (hit) {
       name = hit.name;
       id = hit.id;
@@ -332,7 +338,8 @@ async function toolVenuePrices(
   const venue =
     (venueIdArg ? venues.find((v) => v.id === venueIdArg) : null) ??
     (venueName ? await matchVenueByName(venues, venueName) : null) ??
-    (await matchVenueByName(venues, ctx.query));
+    (await matchVenueByName(venues, ctx.query)) ??
+    matchVenueNameWithinQuery(venues, ctx.query);
 
   if (!venue) {
     return {
@@ -673,7 +680,10 @@ async function toolProposePlan(
   try {
     const parsed = await parseConciergeIntent(query, { skipModel: true });
     const venues = await loadConciergeVenues(ctx.cityId);
-    const ranked = rankConciergeVenues(venues, parsed.intent, { limit: 3 });
+    const ranked = rankConciergeVenues(venues, parsed.intent, {
+      limit: 3,
+      areaCircle: areaCircleForAsk(ctx.cityId, parsed.intent.area),
+    });
     if (ranked.length < 3) {
       return {
         ok: false,
