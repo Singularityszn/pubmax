@@ -3,6 +3,7 @@ import "server-only";
 import { venueIdMatchesCity } from "@/lib/cityVenueIds";
 import type { CityId } from "@/lib/cities";
 import { buildOutVenueMatchIndex, type OutVenueMatchIndex } from "@/lib/out/venueMatch";
+import { loadVenueAliasResolver } from "@/lib/venueAliases";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { getVenueIndexSnapshot, type VenueIndexSnapshot } from "@/lib/venueIndex";
 
@@ -25,10 +26,12 @@ async function loadSnapshot() {
 async function buildCityIndex(city: CityId): Promise<OutVenueMatchIndex | null> {
   const snapshot = await loadSnapshot();
   if (!snapshot.loadedCities.has(city)) return null;
+  const aliases = await loadVenueAliasResolver();
   return buildOutVenueMatchIndex(
     [...snapshot.index.values()].filter(
       (venue) => venueIdMatchesCity(venue.id, city) && isPubVenueKind(venue.kind),
     ),
+    aliases.canonical,
   );
 }
 
