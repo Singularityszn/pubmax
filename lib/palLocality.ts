@@ -66,7 +66,7 @@ const PLACE_PHRASE_STOP = new Set([
 ]);
 
 /**
- * The place a query names after "in", "near", "around" or "by" when it is
+ * The place a query names after "in", "near", "around" or "close to" when it is
  * written as a proper noun ("Blackfriars", "Elephant and Castle"). The taxonomy
  * knows only the night patches and boroughs, so this lets the answer say it
  * could not place a name rather than claim none was given. Lower-case phrases
@@ -74,7 +74,7 @@ const PLACE_PHRASE_STOP = new Set([
  */
 function namedPlaceFromQuery(query: string): string | null {
   const match = query.match(
-    /\b(?:in|near|around|by|close to)\s+(?:the\s+)?([A-Z][\p{L}'’-]*(?:\s+(?:and\s+|of\s+|the\s+)?[A-Z][\p{L}'’-]*){0,2})/u,
+    /\b(?:in|near|around|close to)\s+(?:the\s+)?([A-Z][\p{L}'’-]*(?:\s+(?:and\s+|of\s+|the\s+)?[A-Z][\p{L}'’-]*){0,2})/u,
   );
   if (!match?.[1]) return null;
   const words = match[1].split(/\s+/);
@@ -84,8 +84,9 @@ function namedPlaceFromQuery(query: string): string | null {
     kept.push(word);
   }
   const name = kept.join(" ").trim();
-  // "in London" names the whole answer's scope, not a place we failed to find.
-  if (normalizeSearchText(name) === "london") return null;
+  // "in London" or "in East London" names the whole answer's scope, not a
+  // place we failed to find.
+  if (/\blondon\b/.test(normalizeSearchText(name))) return null;
   return name.length >= 3 ? name : null;
 }
 
