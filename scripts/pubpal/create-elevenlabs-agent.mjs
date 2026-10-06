@@ -291,7 +291,9 @@ function agentBody(toolIds) {
     platform_settings: {
       // Without this the agent id alone starts a conversation, and the agent id
       // is a query parameter in every signed URL the app hands out.
-      auth: { enable_auth: true },
+      // ElevenLabs treats signed URLs and an allowlist as exclusive methods, so
+      // the empty allowlist replaces any hostname list the agent kept.
+      auth: { enable_auth: true, allowlist: [] },
       overrides: {
         conversation_config_override: {
           agent: {
@@ -459,6 +461,10 @@ async function checkAgent(apiKey, baseUrl) {
   if (!agentId) fail(`No agent named ${AGENT_NAME} and ELEVENLABS_PUB_PAL_AGENT_ID is not set.`);
   const liveAgent = await call("GET", `${API}/agents/${agentId}`, apiKey);
   const liveTools = await listWorkspaceTools(apiKey);
+  const secrets = await call("GET", SECRETS_API, apiKey);
+  const secretId =
+    (Array.isArray(secrets.secrets) ? secrets.secrets : []).find((row) => row?.name === LLM_SECRET_NAME)
+      ?.secret_id ?? null;
   const wantedTools = Object.fromEntries(
     (AGENT_CONFIG.toolNames ?? []).map((name) => [name, webhookToolConfig(name, baseUrl, "unused")]),
   );
@@ -470,6 +476,7 @@ async function checkAgent(apiKey, baseUrl) {
     liveTools,
     wantedAgent: agentPatch(liveAgent, liveToolIds),
     wantedTools,
+    secret: { name: LLM_SECRET_NAME, id: secretId },
   });
   console.log(`Checked agent ${agentId} against this repo's config (read-only).`);
   if (drifts.length === 0) {

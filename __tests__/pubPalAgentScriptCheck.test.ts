@@ -10,6 +10,7 @@ const SCRIPT = path.join(ROOT, "scripts", "pubpal", "create-elevenlabs-agent.mjs
 const SECRET = "0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0";
 const BASE_URL = "https://pubmaxxing.com";
 const AGENT_ID = "agent_check";
+const SECRET_ID = "live-secret-id";
 
 // Stands in for ElevenLabs. It serves the live agent and tools from a fixture
 // file and records every call that is not a GET, which --check must never make.
@@ -25,6 +26,7 @@ globalThis.fetch = async (url, init = {}) => {
   const text = String(url);
   if (text.includes("/convai/agents/")) return Response.json(live.agent);
   if (text.includes("/convai/tools")) return Response.json({ tools: live.tools });
+  if (text.includes("/convai/secrets")) return Response.json({ secrets: live.secrets });
   return new Response("unexpected " + text, { status: 404 });
 };
 `;
@@ -59,7 +61,7 @@ function run(args: string[], env: Record<string, string> = {}, cwd = scratch()) 
 }
 
 /** The agent exactly as the provisioner would write it, shaped as ElevenLabs reads it back. */
-function matchingLive(): { agent: Json; tools: Json[] } {
+function matchingLive(): { agent: Json; tools: Json[]; secrets: Json[] } {
   const printed = run(["--dry-run", "--base-url", BASE_URL]).stdout.split("\nDefault voice resolved:")[0] ?? "";
   const preview = JSON.parse(printed.slice(printed.indexOf("{"), printed.lastIndexOf("}") + 1)) as Json;
   const tools = (preview.webhook_tools as Json[]).map((config, index) => ({
@@ -68,7 +70,7 @@ function matchingLive(): { agent: Json; tools: Json[] } {
       ...config,
       api_schema: {
         ...config.api_schema,
-        request_headers: { "x-elevenlabs-llm-secret": { secret_id: "live-secret-id" } },
+        request_headers: { "x-elevenlabs-llm-secret": { secret_id: SECRET_ID } },
       },
     },
   }));
@@ -84,10 +86,11 @@ function matchingLive(): { agent: Json; tools: Json[] } {
     },
     platform_settings: preview.platform_settings,
   };
-  return { agent, tools };
+  const secrets = [{ secret_id: SECRET_ID, name: "PUBMAXX_PUB_PAL_LLM_SECRET" }];
+  return { agent, tools, secrets };
 }
 
-function check(live: { agent: Json; tools: Json[] }) {
+function check(live: { agent: Json; tools: Json[]; secrets: Json[] }) {
   const directory = scratch();
   writeFileSync(path.join(directory, "live.json"), JSON.stringify(live));
   writeFileSync(path.join(directory, "mock-fetch.mjs"), MOCK_FETCH);
@@ -184,5 +187,32 @@ describe("pubpal:agent --check", () => {
     const result = check(live);
     expect(result.status).toBe(1);
     expect(result.output).toContain("tools.stray_tool: live attached, wanted not on the agent");
+  });
+
+  it("exits 1 when an agent still holds a hostname allowlist beside signed-URL auth", () => {
+    const live = matchingLive();
+    live.agent.platform_settings.auth = { enable_auth: true, allowlist: [{ hostname: "example.com" }] };
+    const result = check(live);
+    expect(result.status).toBe(1);
+    expect(result.output).toContain("platform_settings.auth.allowlist");
+  });
+
+  it("exits 1 when a tool names a different workspace secret, without printing either id", () => {
+    const live = matchingLive();
+    const first = live.tools[0] as Json;
+    first.tool_config.api_schema.request_headers["x-elevenlabs-llm-secret"].secret_id = "someone-elses-secret";
+    const result = check(live);
+    expect(result.status).toBe(1);
+    expect(result.output).toContain(`tools.${first.tool_config.name}.api_schema.request_headers.x-elevenlabs-llm-secret: live a different secret`);
+    expect(result.output).not.toContain("someone-elses-secret");
+    expect(result.output).not.toContain(SECRET_ID);
+  });
+
+  it("exits 1 when the workspace secret itself is missing", () => {
+    const live = matchingLive();
+    live.secrets = [];
+    const result = check(live);
+    expect(result.status).toBe(1);
+    expect(result.output).toContain("secrets.PUBMAXX_PUB_PAL_LLM_SECRET: live missing");
   });
 });

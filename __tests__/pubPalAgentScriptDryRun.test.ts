@@ -70,7 +70,7 @@ describe("pubpal:agent dry run", () => {
       }>;
       llm: string;
       platform_settings: {
-        auth: { enable_auth: boolean };
+        auth: { enable_auth: boolean; allowlist: unknown[] };
         privacy: { retention_days: number; zero_retention_mode: boolean };
         overrides: {
           conversation_config_override: {
@@ -98,7 +98,7 @@ describe("pubpal:agent dry run", () => {
     );
     expect(body.conversation_config.agent.prompt.prompt).not.toContain("{{");
     // A conversation may start only with a signed URL, never with the agent id alone.
-    expect(body.platform_settings.auth).toEqual({ enable_auth: true });
+    expect(body.platform_settings.auth).toEqual({ enable_auth: true, allowlist: [] });
     expect(body.platform_settings.privacy.retention_days).toBe(-1);
     expect(body.platform_settings.privacy.zero_retention_mode).toBe(true);
     expect(body.platform_settings.overrides.conversation_config_override).toEqual({
