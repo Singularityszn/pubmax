@@ -275,7 +275,7 @@ export default function SavedListDetail({
         </div>
         {mapHref ? (
           <Link className="listMapAction" href={mapHref}>
-            View list on Map
+            View list on the map
           </Link>
         ) : null}
       </section>

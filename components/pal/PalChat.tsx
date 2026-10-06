@@ -151,7 +151,7 @@ function ProvChip({ card }: { card: PalCard }) {
   return <span className="palChatProv">{label}</span>;
 }
 
-// Explicit Pub Pal acceptance (§4.8: Pal owns its own "Use this venue", distinct
+// Explicit Pub Pal acceptance (§4.8: Pal owns its own "Use this pub", distinct
 // from browsing). Writes a source-"pal" PlanningIntent then hands off to the Map
 // acceptance URL. Storage failure is swallowed by writePlanningIntent; the href
 // still carries accept=1&src=pal so the handoff never depends on client storage.
@@ -220,7 +220,7 @@ export function AnswerCard({
           href={venueAcceptUrl(card.venueId, "pal")}
           onClick={() => acceptPalVenue(card, locality)}
         >
-          Use this venue
+          Use this pub
         </Link>
       ) : null}
     </li>
