@@ -313,6 +313,19 @@ test("mobile venue sheet (GH #17): opens at the peek snap with the grab handle v
   await expect(tablist).toBeVisible();
   await expect(goldenThreadPrice).toHaveText("£5.50");
 
+  // The sheet slides up from below the screen into its snap, so a single read
+  // can land mid-slide with the close button still under the tab bar. Wait
+  // for the slide to carry the close button and the tabs clear of it.
+  await expect.poll(async () => {
+    const [nav, close, sectionTabs] = await Promise.all([
+      mobileNav.boundingBox(),
+      closeButton.boundingBox(),
+      tablist.boundingBox(),
+    ]);
+    return nav !== null && close !== null && sectionTabs !== null &&
+      close.y + close.height < nav.y && sectionTabs.y + sectionTabs.height < nav.y;
+  }, { timeout: 10_000 }).toBe(true);
+
   const [navBox, closeBox, tabsBox, horizontalOverflow, goldenThreadPriceStyle] = await Promise.all([
     mobileNav.boundingBox(),
     closeButton.boundingBox(),
@@ -432,19 +445,27 @@ test("theme toggle flips html[data-theme], persists to localStorage, survives re
   await page.setViewportSize({ width: 390, height: 844 });
   await dismissMapFirstRunTour(page);
   await page.goto("/map");
-  await page.getByRole("button", { name: "More map controls" }).click();
   // PR #677 (3740a132, accessible context-aware map key) added the "Key" tab
   // and made it the default, pushing the ThemeToggle behind the "Layers" tab
-  // (components/PubMap.tsx, mobileLayersTab).
-  await page.getByRole("tab", { name: "Layers", exact: true }).click();
+  // (components/PubMap.tsx, mobileLayersTab). Both taps land straight after the
+  // document load, so retry them until the toggle is there: a lone tap can be
+  // dropped. More map controls is a toggle, so it is tapped only while the
+  // sheet is shut.
+  const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="layers"]');
+  const themeToggle = page.getByRole("button", { name: /switch to (dark|light) theme/i });
+  await expect(async () => {
+    if (!(await sheet.isVisible())) {
+      await page.getByRole("button", { name: "More map controls" }).click();
+    }
+    await sheet.getByRole("tab", { name: "Layers", exact: true }).click({ timeout: 1_000 });
+    await expect(themeToggle).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
 
   const html = page.locator("html");
   const before = await html.getAttribute("data-theme");
   expect(before === "light" || before === "dark").toBe(true);
 
-  await page
-    .getByRole("button", { name: /switch to (dark|light) theme/i })
-    .click();
+  await themeToggle.click();
 
   const after = await html.getAttribute("data-theme");
   expect(after).not.toBe(before);

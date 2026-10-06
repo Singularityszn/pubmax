@@ -42,6 +42,13 @@ async function mockReadyEmptyOut(page: Page) {
   );
 }
 
+// On a document load React streams the page into a hidden segment and swaps it
+// in up to 300 ms later, so for that window the document holds two copies of
+// the screen. The reader sees one; assert on that one.
+function outScreen(page: Page) {
+  return page.getByTestId("out-screen").filter({ visible: true });
+}
+
 // Three ordinary links behind a disclosure, so they are found as links. Scoped
 // to the sheet itself: /out prints its own "Start a plan" way out under Open
 // plans, and a page-wide role query matches both.
@@ -77,7 +84,7 @@ for (const width of WIDTHS) {
       const out = primaryNav(page).getByRole("link", { name: "Out", exact: true });
       await expect(out).toBeVisible();
       await expect(out).toHaveAttribute("aria-current", "page");
-      await expect(page.getByTestId("out-screen")).toBeVisible();
+      await expect(outScreen(page)).toBeVisible();
       await expect(page.getByRole("heading", { name: "What’s on tonight." })).toBeVisible();
       // /out is not a crawlable family yet: it duplicates /tonight's baseline
       // rows, so it ships noindex with no canonical of its own. Read it on the
@@ -206,7 +213,7 @@ test(
     );
 
     await page.goto("/out");
-    await expect(page.getByTestId("out-screen")).toBeVisible();
+    await expect(outScreen(page)).toBeVisible();
     await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
     // BOTH rows are real rows. The pub is a footnote on the row, not a filter.
     await expect(page.getByRole("heading", { name: "A Night at the Playhouse" })).toBeVisible();
@@ -672,7 +679,7 @@ test.describe("out tab screenshots @390", () => {
     mkdirSync(SHOTS_DIR, { recursive: true });
     await page.emulateMedia({ colorScheme: "light" });
     await page.goto("/out");
-    await expect(page.getByTestId("out-screen")).toBeVisible();
+    await expect(outScreen(page)).toBeVisible();
     await page.screenshot({ path: `${SHOTS_DIR}/out-390-light.png`, fullPage: false });
 
     const theme = page.getByRole("button", { name: /switch to dark theme/i });
@@ -680,7 +687,7 @@ test.describe("out tab screenshots @390", () => {
       await theme.click();
     }
     await page.emulateMedia({ colorScheme: "dark" });
-    await expect(page.getByTestId("out-screen")).toBeVisible();
+    await expect(outScreen(page)).toBeVisible();
     await page.screenshot({ path: `${SHOTS_DIR}/out-390-dark.png`, fullPage: false });
   });
 });

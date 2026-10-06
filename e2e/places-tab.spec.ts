@@ -117,7 +117,8 @@ test.describe("places tab @390", () => {
       },
     );
     await page.goto("/out");
-    await expect(page.getByTestId("out-screen")).toBeVisible();
+    // The visible screen, not React's hidden streamed copy beside it.
+    await expect(page.getByTestId("out-screen").filter({ visible: true })).toBeVisible();
     await expect.poll(() => outCity, { timeout: 20_000 }).toBe("manchester");
 
     // Near follows: it reads the same stored city for its ranked pint list.
