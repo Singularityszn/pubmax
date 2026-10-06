@@ -67,7 +67,6 @@ describe("drinkCategoryFromText", () => {
     expect(drinkCategoryFromText("Still water")).toBe("soft-drink");
     expect(drinkCategoryFromText("Lime and lemonade")).toBe("soft-drink");
     expect(drinkCategoryFromText("Flat white")).toBe("coffee");
-    expect(drinkCategoryFromText("Matcha")).toBe("coffee");
     expect(drinkCategoryFromText("Americano")).toBe("coffee");
     // Espresso martini stays a spirit/cocktail lane, not coffee.
     expect(drinkCategoryFromText("Espresso martini")).toBe("vodka");

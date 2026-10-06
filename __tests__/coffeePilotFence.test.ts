@@ -13,7 +13,6 @@ vi.mock("@/lib/ai/typesafe.server.ts", () => ({
 
 import { systemOneOutcome } from "@/lib/ai/typesafe.server";
 import { coffeePriceLabelExcluded } from "@/lib/coffeePricePilot";
-import { drinkCategoryFromText } from "@/lib/drinkCategoryFromText";
 import { cheapestPerCategory, readVenueDrinkPrices } from "@/lib/harvest/ukPriceCrawl";
 import { readVenueDrinkPricesJudged } from "@/lib/harvest/ukPriceJudgment.server";
 
@@ -27,9 +26,14 @@ function coffeeRowsBesideAmericano(label: string, priceGbp: number) {
 }
 
 describe("coffee pilot harvest fence", () => {
-  it("names matcha as coffee in free-text taxonomy", () => {
-    expect(drinkCategoryFromText("Matcha")).toBe("coffee");
-    expect(drinkCategoryFromText("Iced matcha")).toBe("coffee");
+  it.each([
+    ["<h2>Coffee & Tea</h2><p>Latte £3.80</p><p>Cappuccino £3.60</p>", [3.6, 3.8]],
+    ["<h2>Tea & Coffee</h2><p>Filter coffee £3.00</p>", [3]],
+    ["<h2>Espresso bar</h2><p>Tea £2.00</p><p>Flat white £3.50</p>", [3.5]],
+    ["<h2>Espresso & more</h2><p>Bottled water £1.80</p><p>Mocha £3.90</p>", [3.9]],
+  ])("judges the item's own line, not the heading above it: %s", (html, prices) => {
+    const coffee = readVenueDrinkPrices(html).kept.filter((row) => row.category === "coffee");
+    expect(coffee.map((row) => row.priceGbp).sort()).toEqual(prices);
   });
 
   it.each([

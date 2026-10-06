@@ -761,7 +761,7 @@ export function coffeeLineExcluded(
   at: number,
 ): boolean {
   if (category !== "coffee") return false;
-  return coffeePriceLabelExcluded(drinkLabel ?? printedItemName(text, at)?.own);
+  return coffeePriceLabelExcluded(printedItemName(text, at)?.own || drinkLabel);
 }
 
 /**
