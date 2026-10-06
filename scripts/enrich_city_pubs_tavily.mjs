@@ -244,8 +244,8 @@ export function resumeCheckpoint(saved, { city, totalPubs, cityVenueKeys, observ
 
 /**
  * The prices a night writes, with the committed data as the source of truth.
- * Every committed row is kept as it stands, so a price corrected in review is
- * never overwritten. A checkpoint row is kept on top only while no merged
+ * Every committed row is kept unless an unmerged reading of the same drink
+ * replaces it for review. A checkpoint row is kept on top only while no merged
  * night could have carried it: every nightly PR carries every unmerged row
  * read up to that night, so a row read no later than the newest merged night
  * and absent from the committed data was removed or corrected in review. A
