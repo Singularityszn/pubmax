@@ -28,7 +28,7 @@ import { reconcilePlanContext } from "@/lib/planGenerationContext";
 import { selectedDrinkPriceEvidenceForPrice } from "@/lib/planSelectedDrinkPriceEvidence";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
 import type { ParsedPlanGenerationIntake } from "@/lib/planGenerationIntake";
-import { scoreVenueForPlan } from "@/lib/planGenerationRanking";
+import { planScoringDrinkCategory, scoreVenueForPlan } from "@/lib/planGenerationRanking";
 import {
 	parsePlanGenerationRequest,
 	type PlanGenerationAnchor,
@@ -302,11 +302,13 @@ export async function preparePlanGeneration(
 		current.push(row);
 		tonightByVenue.set(row.venueId, current);
 	}
-	const requestedCategory = !context.zeroProof && context.drinkCategory && context.drinkCategory !== "beer"
-		? context.drinkCategory
-		: null;
+	const requestedCategory = planScoringDrinkCategory(context);
+	const requestedCategories = [...new Set([
+		...NO_ALCOHOL_DRINK_CATEGORIES,
+		...(requestedCategory ? [requestedCategory] : []),
+	])];
 	const categoryPriceRows = await readCommunityPriceCategoryIndex(
-		[...NO_ALCOHOL_DRINK_CATEGORIES, ...(requestedCategory ? [requestedCategory] : [])],
+		requestedCategories,
 		requestNow,
 	);
 	const priceRowsByVenue = new Map<string, CommunityPrice[]>();

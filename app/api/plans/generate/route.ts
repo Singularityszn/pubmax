@@ -17,7 +17,7 @@ import {
 	preparePlanGeneration,
 	runAnchoredGeneration,
 } from "@/lib/planGeneration.server";
-import { planEvidenceWarning, planGenerationEvidenceGaps } from "@/lib/planGenerationRanking";
+import { planEvidenceWarning, planGenerationEvidenceGaps, planScoringDrinkCategory } from "@/lib/planGenerationRanking";
 import { selectPlanGenerationCandidates } from "@/lib/planGenerationSelection.server";
 import type { PlanConstraintReport, SelectedGroundedPlanStop } from "@/lib/planRouteOptimizer";
 import type { PlanningIntentSource } from "@/lib/planningIntent";
@@ -275,7 +275,7 @@ export async function POST(request: Request): Promise<Response> {
 	      ...(context.foodNeeds.length ? ["foodNeeds"] : []),
 			...(context.budgetLimitPence ? ["budgetLimitPence"] : []),
 			...(context.zeroProof ? ["zeroProof"] : []),
-			...(context.budget === "value" && !context.zeroProof && !planUsesPintPrices(context) ? ["drinkCategory"] : []),
+			...(planScoringDrinkCategory(context) && (context.budget === "value" || context.zeroProof) ? ["drinkCategory"] : []),
 			...(context.wetherspoonsPreferred ? ["wetherspoonsPreferred"] : []),
 			...(planningWeather ? ["weather"] : []),
 	    ],

@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest";
 
 import { WALK_ROUTE_MAX_STOPS } from "@/lib/walkRoute";
+import { DRINK_CATEGORIES } from "@/lib/drinks";
 
 import {
   hasCrawlArrivalParams,
+  generatedMapDrinkLane,
   crawlStopsFromPubIds,
   filtersForCuratedCrawl,
   buildMapSeed,
@@ -53,6 +55,9 @@ import {
   tonightLaneReadState,
   venueEntranceOvershootFor,
   type VenueDetailStatus,
+  plannerDefaultDrinkSelection,
+  routeDrinkLensCategory,
+  routeDrinkSelection,
 } from "@/lib/pubMap";
 import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { getCity } from "@/lib/cities";
@@ -141,6 +146,13 @@ describe("buildMapSeed", () => {
     expect(seed.routeMapped).toBe(false);
   });
 
+  it("restores explicit unrefined Beer shared stops without a selected Beer filter", () => {
+    const seed = buildMapSeed("?drink=beer&mode=build&pubs=venue-a,venue-b");
+    expect(seed.routeMapped).toBe(true);
+    expect(seed.filters.drinkCategory).toBe("");
+    expect(seed.filters.requireCocktails).toBe(false);
+  });
+
   it("plain arrival has no active crawl and an unmapped route", () => {
     const seed = buildMapSeed("");
     expect(seed.activeCrawl).toBeNull();
@@ -182,6 +194,23 @@ describe("builtStopsNeedingHydration", () => {
         askedIds: none,
       }),
     ).toEqual(["v2"]);
+  });
+
+  it("requests detail for a priced slim stop without its pint identity", () => {
+    const pins = new Map([["v1", makeVenue({ cheapestPrice: 6.15, cheapestPint: "", prices: [] })]]);
+    expect(builtStopsNeedingHydration({
+      venueDataReady: true, builtIds: ["v1"], venueById: pins, askedIds: none,
+    })).toEqual(["v1"]);
+  });
+
+  it("does not request a present unpriced stop or repeat a failed identity read", () => {
+    const pins = new Map([
+      ["v1", makeVenue({ cheapestPrice: 6.15, cheapestPint: "", prices: [] })],
+      ["v2", makeVenue({ id: "v2", cheapestPrice: null, cheapestPint: "", prices: [] })],
+    ]);
+    expect(builtStopsNeedingHydration({
+      venueDataReady: true, builtIds: ["v1", "v2"], venueById: pins, askedIds: new Set(["v1"]),
+    })).toEqual([]);
   });
 
   it("never asks twice for the same stop", () => {
@@ -1286,5 +1315,69 @@ describe("the phone planner and the pill read the crawl being built", () => {
     expect(phonePlannerOrder({ mobileViewport: true, mode: "build", builtCount: 0 })).toBe("describe-first");
     expect(phonePlannerOrder({ mobileViewport: true, mode: "suggest", builtCount: 2 })).toBe("describe-first");
     expect(phonePlannerOrder({ mobileViewport: false, mode: "build", builtCount: 2 })).toBe("describe-first");
+  });
+});
+
+describe("plannerDefaultDrinkSelection", () => {
+  const wine = { drinkCategory: "wine", drinkSubtype: "", drinkBrand: "" };
+
+  it("gives the No-alcohol view an Alcohol-free default", () => {
+    expect(plannerDefaultDrinkSelection("no-alcohol", undefined)).toEqual({
+      drinkCategory: "alcohol-free", drinkSubtype: "", drinkBrand: "",
+    });
+  });
+
+  it("keeps the map's own drink selection in every other view", () => {
+    expect(plannerDefaultDrinkSelection("all", wine)).toBe(wine);
+    expect(plannerDefaultDrinkSelection("food", undefined)).toBeUndefined();
+  });
+});
+
+describe("routeDrinkSelection", () => {
+  const wine = { drinkCategory: "wine", drinkSubtype: "", drinkBrand: "" };
+  const cleared = { drinkCategory: "", drinkSubtype: "", drinkBrand: "" };
+
+  it("reads the live filters in the All view", () => {
+    expect(routeDrinkSelection("all", wine, null)).toBe(wine);
+  });
+
+  it.each(["food", "no-alcohol"] as const)("keeps the held drink in the %s view", (lens) => {
+    expect(routeDrinkSelection(lens, cleared, wine)).toBe(wine);
+  });
+});
+
+describe("routeDrinkLensCategory", () => {
+  it.each(["wine", "soft-drink", "alcohol-free"])("prices a %s route from its own index", (drinkCategory) => {
+    expect(routeDrinkLensCategory({ drinkCategory, drinkSubtype: "", drinkBrand: "" })).toBe(drinkCategory);
+  });
+
+  it.each(["", "beer", "other", "not-a-drink"])("reads no category index for %j", (drinkCategory) => {
+    expect(routeDrinkLensCategory({ drinkCategory, drinkSubtype: "", drinkBrand: "" })).toBeNull();
+  });
+
+  it("reads none without a route drink", () => {
+    expect(routeDrinkLensCategory(undefined)).toBeNull();
+  });
+});
+
+describe("generated plan drink selection", () => {
+  it.each([true, false])("keeps Soft drinks with zeroProof=%s", (zeroProof) => {
+    expect(generatedMapDrinkLane({ drinkCategory: "soft-drink", zeroProof })).toBe("soft-drink");
+  });
+
+  it.each(DRINK_CATEGORIES.filter((category) => category !== "soft-drink"))(
+    "keeps a zero-proof %s context alcohol-free",
+    (drinkCategory) => {
+      expect(generatedMapDrinkLane({ drinkCategory, zeroProof: true })).toBe("alcohol-free");
+    },
+  );
+
+  it("keeps generic no-alcohol separate from a specific soft drink", () => {
+    expect(generatedMapDrinkLane({ drinkCategory: null, zeroProof: true })).toBe("alcohol-free");
+    expect(generatedMapDrinkLane({ drinkCategory: null, zeroProof: false })).toBe("beer");
+  });
+
+  it.each(DRINK_CATEGORIES)("preserves %s without a zero-proof override", (drinkCategory) => {
+    expect(generatedMapDrinkLane({ drinkCategory, zeroProof: false })).toBe(drinkCategory);
   });
 });

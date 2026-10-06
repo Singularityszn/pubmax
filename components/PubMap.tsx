@@ -604,6 +604,7 @@ import { readMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
 import { mapListOpenFromSearch } from "@/lib/mapListRoute";
 import {
   filtersForCuratedCrawl,
+  generatedMapDrinkLane,
   buildMapSeed,
   builtStopsAskedAfter,
   builtStopsNeedingHydration,
@@ -651,6 +652,9 @@ import {
   type VenueDetailStatus,
   builtStopCountFor,
   phonePlannerOrder,
+  plannerDefaultDrinkSelection,
+  routeDrinkLensCategory,
+  routeDrinkSelection,
 } from "@/lib/pubMap";
 import { explicitMapIntent } from "@/lib/explicitMapIntent";
 import {
@@ -3751,6 +3755,30 @@ export default function PubMap({
     venueKindVisibility: VenueKindVisibility;
   };
   const experienceLensRestoreRef = useRef<ExperienceLensRestore | null>(null);
+  const [experienceLensHeldDrink, setExperienceLensHeldDrink] =
+    useState<ExperienceLensRestore | null>(null);
+  const routeDrink = routeDrinkSelection(experienceLens, filters, experienceLensHeldDrink);
+  const routeLensCategory = routeDrinkLensCategory(routeDrink);
+  useEffect(() => {
+    if (routeLensCategory) loadDrinkCategoryIndex(routeLensCategory);
+  }, [loadDrinkCategoryIndex, routeLensCategory]);
+  const routeDrinkPrices = useMemo(
+    () =>
+      routeLensCategory
+        ? trustedDrinkLensPrices(
+            communityPrices.byVenueId,
+            routeLensCategory,
+            experiencePolicyNow,
+          )
+        : null,
+    [communityPrices.byVenueId, experiencePolicyNow, routeLensCategory],
+  );
+  const routeDrinkPriceStatus = drinkIndexStatusFor(
+    routeLensCategory,
+    "all",
+    communityPrices.drinkCategoryIndexStatus,
+    communityPrices.noAlcoholIndexStatus,
+  );
   const experienceLensLiveRef = useRef<ExperienceLensRestore>({
     drinkCategory: filters.drinkCategory,
     drinkBrand: filters.drinkBrand,
@@ -3788,6 +3816,7 @@ export default function PubMap({
       if (next === "all") {
         const saved = experienceLensRestoreRef.current;
         experienceLensRestoreRef.current = null;
+        setExperienceLensHeldDrink(null);
         if (!saved) return;
         setFilters((current) => ({
           ...current,
@@ -3808,6 +3837,7 @@ export default function PubMap({
       // not overwrite the snapshot with the stood-down state.
       if (!experienceLensRestoreRef.current) {
         experienceLensRestoreRef.current = experienceLensLiveRef.current;
+        setExperienceLensHeldDrink(experienceLensLiveRef.current);
       }
       setFavoritePintState(null);
       clearFavoritePint();
@@ -4767,6 +4797,12 @@ export default function PubMap({
 
   const applyGeneratedMobilePlan = useCallback((generated: GeneratedMobilePlan) => {
     const ids = generated.stops.map((stop) => stop.venueId);
+    changeExperienceLens("all");
+    setPersonaLensId(null);
+    const lane = generatedMapDrinkLane(generated.context);
+    if (lane !== DEFAULT_DRINK_LANE) setFavoritePintState(null);
+    setFilters((current) => applyDrinkLane(current, lane, { clearRefinements: true }));
+    if (lane === DEFAULT_DRINK_LANE) setAltStyle("pint");
     activateGeneratedPlan(generated.context.nightArea, ids);
     markPalRouteActivation();
     setActiveCrawl(null);
@@ -4776,7 +4812,7 @@ export default function PubMap({
         daypart: generated.context.daypart,
       });
     }
-  }, [activateGeneratedPlan, setActiveCrawl]);
+  }, [activateGeneratedPlan, changeExperienceLens, setActiveCrawl]);
   // The landmark whose story is open, resolved against the city's own catalog.
   // Resolved HERE, ahead of the overlay coordination below, because the story
   // is a surface the reader is on: it hides the planning pill and it enters
@@ -5460,12 +5496,15 @@ export default function PubMap({
   // as a stop, the sheet used to open on the "Describe the outing" form and
   // the picked pub sat a whole form below the fold, unnamed on the first
   // screen (verify-preview-4, J04); a crawl being built now leads the sheet.
+  const plannerDrinkSelection = experienceLens === "all" ? filters : undefined;
   function renderPhoneDescribeForm() {
     return mobileViewport && isLondon && suggestedPlanArea ? (
       <MobilePlanActivation
+        key="phone-describe-form"
         cityId={cityId}
         initialNightArea={suggestedPlanArea.slug}
         venuesById={venuesById}
+        defaultDrinkSelection={plannerDefaultDrinkSelection(experienceLens, plannerDrinkSelection)}
         onGenerated={applyGeneratedMobilePlan}
       />
     ) : null;
@@ -5512,6 +5551,10 @@ export default function PubMap({
         altStyle={altStyle}
         onAltStyleChange={setAltStyle}
         route={route}
+        drinkSelection={routeDrink}
+        heldDrinkSelection={experienceLensHeldDrink}
+        drinkPrices={routeDrinkPrices}
+        drinkPriceStatus={routeDrinkPriceStatus}
         filteredVenues={filteredPubVenues}
         builtIds={builtIds}
         activeVenueId={selectedVenueIdOrUndefined}

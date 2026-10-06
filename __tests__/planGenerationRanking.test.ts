@@ -100,6 +100,61 @@ describe("Plan generation ranking evidence", () => {
     expect(wineResult.reasons.join(" ")).not.toMatch(/pints from/i);
   });
 
+  it("prefers matching Soft drinks evidence over only Alcohol-free evidence for a value Soft drinks request", () => {
+    const alcoholFreeOnly = venue(true, "alcohol-free-only");
+    const softDrink = venue(false, "soft-drink");
+    const naPrices: ReadonlyMap<string, MapLensPrice> = new Map([
+      [alcoholFreeOnly.id, { venueId: alcoholFreeOnly.id, category: "alcohol-free", categoryLabel: "Alcohol-free", priceGbp: 1, source: "community" }],
+      [softDrink.id, { venueId: softDrink.id, category: "soft-drink", categoryLabel: "Soft drinks", priceGbp: 3, source: "community" }],
+    ]);
+    const softPrices: ReadonlyMap<string, MapLensPrice> = new Map([
+      [softDrink.id, naPrices.get(softDrink.id)!],
+    ]);
+    const context = { ...AFTER_WORK_GROUP, budget: "value" as const, zeroProof: true, drinkCategory: "soft-drink" as const };
+
+    const wrong = scoreVenueForPlan(alcoholFreeOnly, context, 0.1, [], [], null, naPrices, undefined, softPrices);
+    const matching = scoreVenueForPlan(softDrink, context, 0.22, [], [], null, naPrices, undefined, softPrices);
+
+    expect(matching.score).toBeGreaterThan(wrong.score);
+    expect(matching.reasons).toContain("corroborated community soft drinks price £3.00");
+    expect(matching.reasons.filter((reason) => /soft drinks price/i.test(reason))).toHaveLength(1);
+    expect(wrong.reasons.join(" ")).not.toMatch(/corroborated|pints from/i);
+    expect(matching.reasons.join(" ")).not.toMatch(/alcohol-free price|pints from/i);
+  });
+
+  it.each(["beer", "wine", "gin", "whisky", "vodka", "rum", "cocktail"] as const)(
+    "keeps %s price authority suppressed under zero-proof",
+    (category) => {
+      const pub = venue(true);
+      const naPrices: ReadonlyMap<string, MapLensPrice> = new Map([
+        [pub.id, { venueId: pub.id, category: "alcohol-free", categoryLabel: "Alcohol-free", priceGbp: 8, source: "community" }],
+      ]);
+      const alcoholicPrices: ReadonlyMap<string, MapLensPrice> = new Map([
+        [pub.id, { venueId: pub.id, category, categoryLabel: category, priceGbp: 0.1, source: "community" }],
+      ]);
+      const context = { ...AFTER_WORK_GROUP, budget: "value" as const, zeroProof: true, drinkCategory: category };
+
+      expect(scoreVenueForPlan(pub, context, 0, [], [], null, naPrices, undefined, alcoholicPrices)).toEqual({
+        score: 4,
+        reasons: ["corroborated alcohol-free price from £8.00"],
+      });
+    },
+  );
+
+  it("keeps an explicit Soft drinks request neutral without matching price evidence", () => {
+    const pub = venue(true);
+    pub.amenities.nonAlcoholic = true;
+    const wrongCategoryPrices: ReadonlyMap<string, MapLensPrice> = new Map([
+      [pub.id, { venueId: pub.id, category: "wine", categoryLabel: "Wine", priceGbp: 1, source: "community" }],
+    ]);
+    const context = { ...AFTER_WORK_GROUP, budget: "value" as const, zeroProof: true, drinkCategory: "soft-drink" as const };
+
+    expect(scoreVenueForPlan(pub, context, 0, [], [], null, wrongCategoryPrices, undefined, wrongCategoryPrices)).toEqual({
+      score: 0,
+      reasons: [],
+    });
+  });
+
   it.each(["cocktail", "whisky", "gin", "vodka", "rum"] as const)(
     "uses trusted %s prices without falling back to a cheap pint",
     (category) => {

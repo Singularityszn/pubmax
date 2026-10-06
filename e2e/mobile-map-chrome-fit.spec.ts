@@ -317,9 +317,28 @@ async function tapRenderedCentre(
   if (scrollIntoView) {
     await control.scrollIntoViewIfNeeded();
   }
-  const box = await control.boundingBox();
-  expect(box, `${label} has a rendered box`).not.toBeNull();
-  if (!box) return;
+  // Geometry and hit-test come from ONE synchronous read, so they describe the
+  // same frame. A separate boundingBox() round trip let the sheet settle in
+  // between, and the hit-test then probed a point the control had left.
+  const container = visibleWithin ? await visibleWithin.elementHandle() : null;
+  const { box, containerBox, ownsCentre } = await control.evaluate(
+    (element, within) => {
+      const rect = element.getBoundingClientRect();
+      const hit = document.elementFromPoint(
+        rect.left + rect.width / 2,
+        rect.top + rect.height / 2,
+      );
+      const withinRect = within?.getBoundingClientRect();
+      return {
+        box: { x: rect.left, y: rect.top, width: rect.width, height: rect.height },
+        containerBox: withinRect
+          ? { x: withinRect.left, width: withinRect.width }
+          : null,
+        ownsCentre: hit === element || (hit !== null && element.contains(hit)),
+      };
+    },
+    container,
+  );
   expect(box.width, `${label} width`).toBeGreaterThanOrEqual(44);
   expect(box.height, `${label} height`).toBeGreaterThanOrEqual(44);
   expect(box.x, `${label} left`).toBeGreaterThanOrEqual(0);
@@ -327,7 +346,6 @@ async function tapRenderedCentre(
     viewportWidth,
   );
   if (visibleWithin) {
-    const containerBox = await visibleWithin.boundingBox();
     expect(containerBox, `${label} visible container has a box`).not.toBeNull();
     if (containerBox) {
       expect(box.x, `${label} clears its container left`).toBeGreaterThanOrEqual(
@@ -340,25 +358,10 @@ async function tapRenderedCentre(
     }
   }
 
-  const centre = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-  const receivesTap = await control.evaluate(
-    (button, point) => {
-      const hit = document.elementFromPoint(point.x, point.y);
-      return hit === button || (hit !== null && button.contains(hit));
-    },
-    centre,
-  );
-  expect(receivesTap, `${label} owns its centre point`).toBe(true);
-  if ((await control.getAttribute("aria-disabled")) === "true") {
-    // The unavailable Clubs chip stays intentionally focusable and clickable
-    // so it can reveal why it is unavailable. Playwright treats aria-disabled
-    // as non-actionable, while the browser correctly dispatches this pointer.
-    await page.mouse.click(centre.x, centre.y);
-  } else {
-    await control.click({
-      position: { x: box.width / 2, y: box.height / 2 },
-    });
-  }
+  expect(ownsCentre, `${label} owns its centre point`).toBe(true);
+  await control.click({
+    position: { x: box.width / 2, y: box.height / 2 },
+  });
 }
 
 async function dismissSheet(page: Page): Promise<void> {

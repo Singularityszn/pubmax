@@ -14,12 +14,15 @@ import {
   type CityId,
   DEFAULT_CITY_ID,
 } from "@/lib/cities";
-import { CATEGORY_META, type DrinkCategory } from "@/lib/drinks";
+import { CATEGORY_META, isMapLensDrinkCategory, type DrinkCategory } from "@/lib/drinks";
 import type { CategoryPriceIndexStatus, MapExperienceLens } from "@/lib/mapExperienceLens";
+import type { MapPlanDrinkSelection } from "@/lib/mapPlanDrinkPresentation";
+import type { NightContext } from "@/lib/nightPlanning";
 import type { MapOverlay, MapSheetKind, MapViewportSnapshot } from "@/lib/mobileShell";
 import { seedCrawlState } from "@/lib/crawlUrl";
 import { WALK_ROUTE_MAX_STOPS } from "@/lib/walkRoute";
 import { isDrinkShapeArrival } from "@/lib/mapArrival";
+import { applyDrinkLane, DEFAULT_DRINK_LANE } from "@/lib/drinkLanes";
 import type { CoffeePilotStatus } from "@/lib/coffeePilot";
 import type { LondonRestaurantStatus } from "@/lib/londonRestaurants";
 import { isLondonVenueId } from "@/lib/londonVenueShards";
@@ -48,6 +51,12 @@ import {
   eagerCuratedCrawlAltStyle,
   eagerCuratedCrawlAltStyleForBuiltIds,
 } from "@/lib/curatedCrawlHints";
+
+/** A specific soft drink satisfies zero-proof without widening to all alcohol-free drinks. */
+export function generatedMapDrinkLane(context: Pick<NightContext, "drinkCategory" | "zeroProof">): DrinkCategory {
+  if (context.zeroProof && context.drinkCategory !== "soft-drink") return "alcohol-free";
+  return context.drinkCategory ?? DEFAULT_DRINK_LANE;
+}
 
 // §4.5: did the page arrive with any crawl-shaping URL param (a shared/deep
 // link)? If any are present the arrival is intentional and we never onboard.
@@ -107,12 +116,15 @@ export function buildMapSeed(search: string, _cityId: CityId = DEFAULT_CITY_ID):
   if (isDrinkShapeArrival(search)) {
     return { ...seeded, activeCrawl: null, routeMapped: false };
   }
+  const arrivalFilters = new URLSearchParams(search).get("drink") === DEFAULT_DRINK_LANE
+    ? applyDrinkLane(seeded.filters, DEFAULT_DRINK_LANE, { clearRefinements: true })
+    : seeded.filters;
   const hintedAltStyle =
     eagerCuratedCrawlAltStyle(seeded.crawlId) ??
     eagerCuratedCrawlAltStyleForBuiltIds(seeded.builtIds);
   return {
     ...seeded,
-    filters: filtersForCuratedCrawlHint(seeded.filters, hintedAltStyle),
+    filters: filtersForCuratedCrawlHint(arrivalFilters, hintedAltStyle),
     altStyle: hintedAltStyle ?? seeded.altStyle,
     activeCrawl: null,
     routeMapped: seeded.builtIds.length >= 2,
@@ -120,7 +132,8 @@ export function buildMapSeed(search: string, _cityId: CityId = DEFAULT_CITY_ID):
 }
 
 /**
- * The built stops a shared plan still owes a detail request.
+ * The built stops a shared plan still owes a detail request, including priced
+ * slim pins whose compact record cannot name the pint.
  *
  * Nothing is owed until the slim pack has settled: before that every id misses
  * `venueById`, so an unready map would request the whole plan over the same
@@ -142,7 +155,12 @@ export function builtStopsNeedingHydration({
   if (!venueDataReady) return [];
   return builtIds
     .slice(0, WALK_ROUTE_MAX_STOPS)
-    .filter((id) => Boolean(id) && !venueById.has(id) && !askedIds.has(id));
+    .filter((id) => {
+      if (!id || askedIds.has(id)) return false;
+      const venue = venueById.get(id);
+      return !venue || (typeof venue.cheapestPrice === "number"
+        && Number.isFinite(venue.cheapestPrice) && venue.cheapestPrice > 0 && !venue.cheapestPint);
+    });
 }
 
 export type BuiltStopHydrationResult = {
@@ -1147,4 +1165,41 @@ export function phonePlannerOrder(input: {
   return input.mobileViewport && input.mode === "build" && input.builtCount > 0
     ? "build-first"
     : "describe-first";
+}
+
+const NO_ALCOHOL_PLAN_DRINK_SELECTION: MapPlanDrinkSelection = {
+  drinkCategory: "alcohol-free",
+  drinkSubtype: "",
+  drinkBrand: "",
+};
+
+/** The No-alcohol view gives a location-only phone plan a zero-proof default. */
+export function plannerDefaultDrinkSelection(
+  lens: MapExperienceLens,
+  selection: MapPlanDrinkSelection | undefined,
+): MapPlanDrinkSelection | undefined {
+  return lens === "no-alcohol" ? NO_ALCOHOL_PLAN_DRINK_SELECTION : selection;
+}
+
+/**
+ * A view other than All stands the drink filters down, but a route keeps the
+ * drink it was planned with: the selection held on the way out of All.
+ */
+export function routeDrinkSelection(
+  lens: MapExperienceLens,
+  live: MapPlanDrinkSelection,
+  held: MapPlanDrinkSelection | null,
+): MapPlanDrinkSelection | undefined {
+  return lens === "all" ? live : held ?? undefined;
+}
+
+/**
+ * The cross-venue index a route's own drink is priced from. The view that
+ * owns the map does not decide it: a held Wine route still reads Wine reports.
+ */
+export function routeDrinkLensCategory(
+  selection: MapPlanDrinkSelection | undefined,
+): DrinkCategory | null {
+  const category = selection?.drinkCategory;
+  return isMapLensDrinkCategory(category) && category !== "beer" ? category : null;
 }

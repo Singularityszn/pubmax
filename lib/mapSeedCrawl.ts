@@ -7,7 +7,7 @@ import { DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import { curatedCrawlsForCityAsync } from "@/lib/cityStoryCatalog.async";
 import { seedCrawlState } from "@/lib/crawlUrl";
 import { isDrinkShapeArrival } from "@/lib/mapArrival";
-import { filtersForCuratedCrawl, type MapSeed } from "@/lib/pubMap";
+import { buildMapSeed, filtersForCuratedCrawl, type MapSeed } from "@/lib/pubMap";
 import { mapSeedNeedsCuratedCrawlLookup } from "@/lib/mapSeedCrawlPolicy";
 
 export { mapSeedNeedsCuratedCrawlLookup };
@@ -45,7 +45,9 @@ export async function buildMapSeedWithCuratedCrawl(
   search: string,
   cityId: CityId = DEFAULT_CITY_ID,
 ): Promise<MapSeed> {
-  const seeded = seedCrawlState(search);
+  const seeded = new URLSearchParams(search).get("drink") === "beer" && !isDrinkShapeArrival(search)
+    ? buildMapSeed(search, cityId)
+    : seedCrawlState(search);
   if (isDrinkShapeArrival(search)) {
     return { ...seeded, activeCrawl: null, routeMapped: false };
   }
@@ -101,7 +103,9 @@ export async function curatedCrawlHydrationFromSeed(
   cityId: CityId,
 ): Promise<CuratedCrawlHydration | null> {
   if (!mapSeedNeedsCuratedCrawlLookup(search)) return null;
-  const seeded = seedCrawlState(search);
+  const seeded = new URLSearchParams(search).get("drink") === "beer" && !isDrinkShapeArrival(search)
+    ? buildMapSeed(search, cityId)
+    : seedCrawlState(search);
   const crawl = await resolveSeededCuratedCrawl(cityId, seeded.crawlId, seeded.builtIds);
   if (!crawl) return null;
   return {

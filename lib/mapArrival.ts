@@ -2,6 +2,15 @@ import type { CrawlMode } from "@/lib/venues";
 
 /** Landing drink-shape taps (`?drink=` / `?cocktails=1`) stay on the clean map. */
 export function isDrinkShapeArrival(search: string): boolean {
+  const params = new URLSearchParams(search);
+  const completedBeerShare = params.get("drink") === "beer"
+    && params.get("mode") === "build"
+    && !params.get("brand")?.trim()
+    && !params.get("sub")?.trim()
+    && params.get("topshelf") !== "1"
+    && params.get("cocktails") !== "1"
+    && new Set((params.get("pubs") ?? "").split(",").map((id) => id.trim()).filter(Boolean)).size >= 2;
+  if (completedBeerShare) return false;
   return /[?&]drink=/.test(search) || /[?&]cocktails=1(?:&|$)/.test(search);
 }
 
