@@ -150,6 +150,7 @@ gh run list --workflow self-hosted-probe.yml --limit 1
 | What's-On GitHub recovery | `events-refresh.yml` (`workflow_dispatch` only; schedule disabled as duplicate) |
 | Weather cache PR | `weather-refresh.yml` |
 | Drink price PR | `drink-price-refresh.yml` |
+| London Tavily pass PR | `tavily-london-nightly.yml` (see `docs/TAVILY_LONDON_NIGHTLY.md`) |
 | Performance budgets | `performance.yml` |
 | Browser law pins + nightly suite | `e2e.yml` |
 
