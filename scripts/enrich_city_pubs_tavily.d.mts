@@ -48,6 +48,9 @@ export function loadCityPubs(cityId: string): OsmPub[];
 
 export function readRejectedRows(value: unknown): RejectedRow[];
 
+/** The price updates a git ref holds, such as a closed nightly PR branch. */
+export function readPriceUpdatesAt(ref: string, options?: { cwd?: string }): ManagedPrice[];
+
 export function rejectClosedPrRows(
   rejectedRows: RejectedRow[],
   options: {
