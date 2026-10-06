@@ -222,4 +222,147 @@ describe("createPalChatSession", () => {
     const result = await ask("anything", "london");
     expect(result).toEqual({ status: "error", message: PAL_ERROR_FALLBACK });
   });
+
+  describe("streamed answers", () => {
+    const FINAL = {
+      answer: "Two Soho picks.",
+      cards: [
+        { key: "c1", venueId: "v1", title: "The Crown", place: "Soho", note: "Listed pint.", price: 4.8 },
+      ],
+      proposals: [],
+      conversationId: "conv_streamtest1",
+    };
+
+    function ndjson(events: unknown[], chunkAt = 0): Response {
+      const text = events.map((event) => `${JSON.stringify(event)}\n`).join("");
+      const encoder = new TextEncoder();
+      const bytes = encoder.encode(text);
+      const cut = chunkAt || bytes.length;
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(bytes.slice(0, cut));
+            controller.enqueue(bytes.slice(cut));
+            controller.close();
+          },
+        }),
+        { status: 200, headers: { "content-type": "application/x-ndjson; charset=utf-8" } },
+      );
+    }
+
+    it("asks for a stream only when the caller will show progress", async () => {
+      const accepts: Array<string | undefined> = [];
+      const ask = createPalChatSession({
+        fetchImpl: async (_input, init) => {
+          accepts.push((init?.headers as Record<string, string> | undefined)?.accept);
+          return jsonResponse(FINAL);
+        },
+      });
+      await ask("quiet pubs", "london");
+      await ask("quiet pubs", "london", () => {});
+      expect(accepts).toEqual([undefined, "application/x-ndjson"]);
+    });
+
+    it("reports the text so far as it arrives, clears it on a reset, and returns the final answer", async () => {
+      const shown: string[] = [];
+      const ask = createPalChatSession({
+        fetchImpl: async () =>
+          ndjson([
+            { type: "delta", text: "Let me check." },
+            { type: "reset" },
+            { type: "delta", text: "Two Soho" },
+            { type: "delta", text: " picks." },
+            { type: "final", body: FINAL },
+          ]),
+      });
+
+      const result = await ask("pint in Soho", "london", (text) => shown.push(text));
+
+      expect(shown).toEqual(["Let me check.", "", "Two Soho", "Two Soho picks."]);
+      expect(result).toMatchObject({
+        status: "answered",
+        message: "Two Soho picks.",
+        cards: [expect.objectContaining({ title: "The Crown" })],
+      });
+    });
+
+    it("reads a line that is split across two chunks", async () => {
+      const shown: string[] = [];
+      const ask = createPalChatSession({
+        fetchImpl: async () =>
+          ndjson([{ type: "delta", text: "Two Soho picks." }, { type: "final", body: FINAL }], 17),
+      });
+      const result = await ask("pint in Soho", "london", (text) => shown.push(text));
+      expect(shown).toEqual(["Two Soho picks."]);
+      expect(result?.status).toBe("answered");
+    });
+
+    it("carries the thread on a follow-up after a streamed answer", async () => {
+      const bodies: Record<string, unknown>[] = [];
+      const ask = createPalChatSession({
+        fetchImpl: async (_input, init) => {
+          bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+          return ndjson([{ type: "final", body: FINAL }]);
+        },
+      });
+      await ask("quiet pubs in Soho", "london", () => {});
+      await ask("somewhere cheaper there?", "london", () => {});
+      expect(bodies[1]?.threadId).toBe("conv_streamtest1");
+    });
+
+    it("answers an error event with its curated copy and keeps the turn out of the thread", async () => {
+      const ask = createPalChatSession({
+        fetchImpl: async () =>
+          ndjson([{ type: "delta", text: "Two" }, { type: "error", error: PAL_ERROR_FALLBACK }]),
+      });
+      const result = await ask("pint in Soho", "london", () => {});
+      expect(result).toEqual({ status: "error", message: PAL_ERROR_FALLBACK });
+    });
+
+    it("treats a stream that ends with no final event as a failure, not an empty answer", async () => {
+      const ask = createPalChatSession({
+        fetchImpl: async () => ndjson([{ type: "delta", text: "Two Soho" }]),
+      });
+      const result = await ask("pint in Soho", "london", () => {});
+      expect(result).toEqual({ status: "error", message: PAL_ERROR_FALLBACK });
+    });
+
+    it("still reads one JSON body when the server does not stream", async () => {
+      const shown: string[] = [];
+      const ask = createPalChatSession({ fetchImpl: async () => jsonResponse(FINAL) });
+      const result = await ask("pint in Soho", "london", (text) => shown.push(text));
+      expect(shown).toEqual([]);
+      expect(result).toMatchObject({ status: "answered", message: "Two Soho picks." });
+    });
+
+    it("refuses with sign-in copy on a 401 even when a stream was asked for", async () => {
+      const ask = createPalChatSession({
+        fetchImpl: async () => jsonResponse({ error: "Sign in to ask Pub Pal." }, 401),
+      });
+      const result = await ask("anything", "london", () => {});
+      expect(result).toEqual({ status: "error", message: "Sign in to ask Pub Pal.", needsSignIn: true });
+    });
+
+    it("drops the progress of an ask that a newer ask has replaced", async () => {
+      const shownByFirst: string[] = [];
+      let release: () => void = () => {};
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const ask = createPalChatSession({
+        fetchImpl: async (_input, init) => {
+          const first = JSON.parse(String(init?.body)).query === "first";
+          if (first) await gate;
+          return ndjson([{ type: "delta", text: first ? "stale" : "fresh" }, { type: "final", body: FINAL }]);
+        },
+      });
+      const first = ask("first", "london", (text) => shownByFirst.push(text));
+      const second = ask("second", "london", () => {});
+      release();
+
+      expect(await first).toBeNull();
+      expect((await second)?.status).toBe("answered");
+      expect(shownByFirst).toEqual([]);
+    });
+  });
 });

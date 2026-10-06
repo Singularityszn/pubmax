@@ -12,6 +12,11 @@ import {
 import type { AskProposal, AskTurn } from "@/lib/ask/types";
 import { AuthActionSessionError, authedActionFetch } from "@/lib/authedFetch";
 import { answerFromBody } from "@/lib/conciergeAskClient";
+import {
+  isPalChatStreamResponse,
+  PAL_CHAT_STREAM_TYPE,
+  readPalChatStream,
+} from "@/lib/palChatStream";
 import { isPubPalConversationId } from "@/lib/pubPalConversationId";
 
 export type PalChatResult =
@@ -100,9 +105,15 @@ export function createPalChatSession(options: SessionOptions = {}) {
   const turns: AskTurn[] = [];
   let threadId = "";
 
+  /**
+   * `onText`, when given, asks for the streamed answer and is called with all of
+   * the answer text so far as it arrives ("" clears a checking line). The result
+   * is the same either way, and a server that answers one JSON body still works.
+   */
   return async function ask(
     query: string,
     cityId: string,
+    onText?: (text: string) => void,
   ): Promise<PalChatResult | null> {
     const requestId = ++currentId;
     try {
@@ -110,10 +121,14 @@ export function createPalChatSession(options: SessionOptions = {}) {
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
       let response: Response;
       let body: unknown;
+      let streamError: string | null = null;
       try {
         response = await fetchImpl("/api/pub-pal/chat", {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: {
+            "content-type": "application/json",
+            ...(onText ? { accept: PAL_CHAT_STREAM_TYPE } : {}),
+          },
           body: JSON.stringify({
             query,
             cityId,
@@ -122,11 +137,28 @@ export function createPalChatSession(options: SessionOptions = {}) {
           }),
           signal: controller.signal,
         });
-        body = await response.json();
+        if (response.ok && response.body && isPalChatStreamResponse(response)) {
+          let text = "";
+          let final: unknown = null;
+          await readPalChatStream(response.body, (event) => {
+            if (event.type === "final") final = event.body;
+            else if (event.type === "error") streamError = event.error;
+            else {
+              text = event.type === "delta" ? text + event.text : "";
+              if (requestId === currentId) onText?.(text);
+            }
+          });
+          // A stream that ends without its final event was cut off.
+          body = final;
+          streamError ??= final === null ? PAL_ERROR_FALLBACK : null;
+        } else {
+          body = await response.json();
+        }
       } finally {
         clearTimeout(timeoutId);
       }
       if (requestId !== currentId) return null;
+      if (streamError !== null) return { status: "error", message: streamError };
       if (!response.ok) {
         const record =
           body && typeof body === "object" && !Array.isArray(body)
