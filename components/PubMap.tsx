@@ -3298,6 +3298,7 @@ export default function PubMap({
   const [selectedBasePub, setSelectedBasePub] = useState<UkBasePub | null>(null);
   // What is selected, and what that means for the sheet. A curated pin and a
   // tapped base pub fill the SAME drawer, so these five answers stay one read.
+  const selectedDetailStatus = detailStatusFor(selectedVenueId, detailById, detailStatusById);
   const mapSelection = useMemo(
     () =>
       mapSelectionFrame({
@@ -3308,10 +3309,12 @@ export default function PubMap({
         selectedLondonRestaurant,
         venueById,
         isPubVenue,
+        lookupFailed: selectedDetailStatus === "unavailable",
       }),
     [
       selectedBasePub,
       selectedCoffeeCafe,
+      selectedDetailStatus,
       selectedLondonRestaurant,
       selectedVenue,
       selectedVenueId,
@@ -3321,7 +3324,6 @@ export default function PubMap({
   const selectedVenueResolvable = mapSelection.resolvable;
   const selectedVenueIsPub = mapSelection.isPub;
   const selectedVenueLabels = venueSheetLabels(selectedVenue);
-  const selectedDetailStatus = detailStatusFor(selectedVenueId, detailById, detailStatusById);
   const selectedRetiredName = retiredSelectionNameFor(selectedVenueId, detailById);
 
   const venueIdByNormalisedName = useMemo(() => {
@@ -5119,15 +5121,20 @@ export default function PubMap({
     resolveSelection: resolveMapSelection,
   } = mapSurfaceTrail;
 
-  // The cold restore could not open the base pub a link named. Say so and close
-  // the sheet, so it never waits on a record that is not coming. Only an id
-  // nothing knows leaves the address: a failed lookup keeps `sel`, the way a
-  // curated lookup does, so a reload asks again.
+  // The cold restore could not open the base pub a link named. Say so, and
+  // never leave the sheet waiting on a record that is not coming. A failed
+  // lookup is held the way a curated one is: the selection, its Back entry and
+  // `sel` stay, the sheet stays shut, and a reload asks again. Only an id
+  // nothing knows is dropped.
   const handleUkBaseRestoreFailed = useCallback(
     (reason: UkBaseRestoreFailure, requestedId: string) => {
       setRetiredSelectionName(null);
       setSelectionNotice(ukBaseRestoreFailureNotice(reason));
-      if (reason === "missing") rejectMapSelection(requestedId);
+      if (reason === "unavailable") {
+        setDetailStatusById((current) => new Map(current).set(requestedId, "unavailable"));
+        return;
+      }
+      rejectMapSelection(requestedId);
       setSelectedVenueId((current) => (current === requestedId ? "" : current));
     },
     [rejectMapSelection],

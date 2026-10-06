@@ -1012,6 +1012,22 @@ describe("mapSelectionFrame", () => {
     expect(answer.basePubOpen).toBe(false);
   });
 
+  it("holds a deep-linked selection whose lookup failed with the sheet shut", () => {
+    const pending = {
+      selectedVenueId: "venue-uk-9",
+      selectedVenue: undefined,
+      selectedBasePub: null,
+      venueById,
+      isPubVenue,
+    };
+    expect(mapSelectionFrame(pending).detailOpen).toBe(true);
+    expect(mapSelectionFrame({ ...pending, lookupFailed: true }).detailOpen).toBe(false);
+    expect(
+      mapSelectionFrame({ ...pending, selectedBasePub: { id: "venue-uk-9" }, lookupFailed: true })
+        .detailOpen,
+    ).toBe(true);
+  });
+
   it("holds the sheet shut while nothing is selected", () => {
     const answer = mapSelectionFrame({
       selectedVenueId: "",

@@ -104,6 +104,20 @@ test.describe("unknown ?sel= honesty", () => {
     await expect(page.getByTestId("unknown-map-selection")).toHaveCount(0);
     // Kept so a reload asks again; only a pub nothing knows leaves the address.
     expect(new URL(page.url()).searchParams.get("sel")).toBe("venue-uk-n311153571");
+
+    // Back from another sheet lands on the held pub's entry, still shut.
+    const filters = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
+    await expect(async () => {
+      await page.getByRole("button", { name: /Filters/i }).click();
+      await expect(filters).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 20_000 });
+    await page.goBack();
+    await expect(filters).toHaveCount(0);
+    await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe(
+      "venue-uk-n311153571",
+    );
+    await expect(venuePortal(page)).toHaveCount(0);
+    await expect(page.getByText("Loading full venue details…")).toHaveCount(0);
   });
 
   test("a failed lookup stays distinct from an unknown pub", async ({ page }) => {

@@ -951,7 +951,8 @@ export function londonVenueSelection<Cafe, Restaurant>(input: {
  * one read.
  * A deep-linked `sel=` before the slim index resolves still counts as detail
  * open (`pendingDeepLinkSelection`) so the venue skeleton can mount while the
- * shard loads.
+ * shard loads, until its lookup fails: then the selection holds with the sheet
+ * shut, and the selection notice says what happened.
  */
 export type MapSelectionFrame = {
   selectedId: string | undefined;
@@ -973,6 +974,8 @@ export function mapSelectionFrame(input: {
   selectedLondonRestaurant?: { id: string } | null;
   venueById: ReadonlyMap<string, Venue>;
   isPubVenue: (venue: Venue) => boolean;
+  /** The selected id's lookup could not be answered (offline, 503). */
+  lookupFailed?: boolean;
 }): MapSelectionFrame {
   const { selectedVenueId, selectedVenue, selectedBasePub, venueById } = input;
   const basePubOpen = Boolean(selectedBasePub && selectedBasePub.id === selectedVenueId);
@@ -988,7 +991,8 @@ export function mapSelectionFrame(input: {
     !basePubOpen &&
     !coffeeCafeOpen &&
     !londonRestaurantOpen &&
-    !venueById.has(selectedVenueId);
+    !venueById.has(selectedVenueId) &&
+    !input.lookupFailed;
   return {
     selectedId: selectedVenue?.id,
     resolvable: selectedVenueId ? venueById.has(selectedVenueId) : false,
