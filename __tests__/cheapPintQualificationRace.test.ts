@@ -148,3 +148,67 @@ describe("cheap-pint qualification races", () => {
     expect(state.writes).toBe(0);
   });
 });
+
+async function interleaveDuringRead<T>(operation: () => Promise<T>, interleave: () => Promise<unknown>) {
+  const gate = pauseQualificationRead();
+  const pending = operation();
+  await Promise.race([gate.read, pending]);
+  state.pauseRead = null;
+  await interleave();
+  gate.resume();
+  return pending;
+}
+
+describe("sibling preference writes do not replay an old read", () => {
+  it("keeps a cheap-pint send stamp committed while the Step Out toggle holds an old read", async () => {
+    await interleaveDuringRead(
+      () => stepOutNudgeStore().put(ACTOR, { enabled: true }),
+      () => stepOutNudgeStore().markCheapPintSent(ACTOR, SENT),
+    );
+    expect(state.row).toMatchObject({ enabled: true, subscription_token: "webpush:original", cheap_pint_sent_at: SENT });
+  });
+  it("keeps a decline committed while the Step Out toggle holds an old read", async () => {
+    await interleaveDuringRead(
+      () => stepOutNudgeStore().put(ACTOR, { enabled: false }),
+      () => post("decline"),
+    );
+    expect(state.row).toMatchObject({ enabled: false, cheap_pint_declined: true, cheap_pint_enabled: false, subscription_token: null });
+    expect(await (await GET(new Request(URL))).json()).toMatchObject({ declined: true, enabled: false, canPrompt: false });
+  });
+  it("keeps Step Out and cheap-pint send stamps committed during an opt-in", async () => {
+    state.row!.enabled = true;
+    await interleaveDuringRead(
+      () => stepOutNudgeStore().optInCheapPint(ACTOR, "webpush:fresh"),
+      async () => {
+        await stepOutNudgeStore().markSent(ACTOR, SENT);
+        await stepOutNudgeStore().markCheapPintSent(ACTOR, SENT);
+      },
+    );
+    expect(state.row).toMatchObject({
+      enabled: true, subscription_token: "webpush:fresh", last_sent_at: SENT,
+      cheap_pint_enabled: true, cheap_pint_sent_at: SENT,
+    });
+  });
+  it("keeps a qualification and send stamp committed while a decline holds an old read", async () => {
+    Object.assign(state.row!, { enabled: true, cheap_pint_qualified: false });
+    await interleaveDuringRead(
+      () => stepOutNudgeStore().declineCheapPint(ACTOR),
+      async () => {
+        await qualifyCheapPintForAccountId("account-ken");
+        await stepOutNudgeStore().markCheapPintSent(ACTOR, SENT);
+      },
+    );
+    expect(state.row).toMatchObject({
+      enabled: true, subscription_token: "webpush:original", cheap_pint_qualified: true,
+      cheap_pint_enabled: false, cheap_pint_declined: true, cheap_pint_sent_at: SENT,
+    });
+  });
+  it("opts a new owner in with Step Out off and no stamps", async () => {
+    state.row = null;
+    await stepOutNudgeStore().optInCheapPint(ACTOR, "webpush:fresh");
+    expect(state.row).toMatchObject({
+      owner_actor: ACTOR, enabled: false, subscription_token: "webpush:fresh", last_sent_at: null,
+      cheap_pint_qualified: true, cheap_pint_enabled: true, cheap_pint_declined: false, cheap_pint_sent_at: null,
+    });
+  });
+});

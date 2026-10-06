@@ -275,36 +275,28 @@ const supabaseStepOutNudgeStore: StepOutNudgeStore = {
           fallback: () => memoryStepOutNudgeStore.put(ownerActor, input),
         }),
       run: async () => {
-        const now = new Date().toISOString();
         const existingDto = await readRow(ownerActor);
-
-        let subscriptionToken =
-          input.subscriptionToken === undefined
-            ? (existingDto?.subscriptionToken ?? null)
-            : input.subscriptionToken;
-        if (!input.enabled && !existingDto?.cheapPintEnabled) {
-          subscriptionToken = null;
-        }
-        let lastSentAt = existingDto?.lastSentAt ?? null;
-        if (
-          input.enabled &&
-          subscriptionToken &&
-          subscriptionToken !== existingDto?.subscriptionToken
-        ) {
-          lastSentAt = null;
-        }
-        return writeRow({
+        // Write only the Step Out columns this toggle changes. Replaying the read's
+        // cheap-pint or send fields would undo a decline or a send stamp committed
+        // between the read and the upsert. Column defaults fill a brand-new row.
+        const row: Record<string, unknown> = {
           owner_actor: ownerActor,
           enabled: input.enabled,
-          subscription_token: subscriptionToken,
-          last_sent_at: lastSentAt,
-          updated_at: now,
-          created_at: existingDto?.createdAt ?? now,
-          cheap_pint_qualified: existingDto?.cheapPintQualified ?? false,
-          cheap_pint_enabled: existingDto?.cheapPintEnabled ?? false,
-          cheap_pint_declined: existingDto?.cheapPintDeclined ?? false,
-          cheap_pint_sent_at: existingDto?.cheapPintSentAt ?? null,
-        });
+          updated_at: new Date().toISOString(),
+        };
+        if (!input.enabled && !existingDto?.cheapPintEnabled) {
+          row.subscription_token = null;
+        } else if (input.subscriptionToken !== undefined) {
+          row.subscription_token = input.subscriptionToken;
+          if (
+            input.enabled &&
+            input.subscriptionToken &&
+            input.subscriptionToken !== existingDto?.subscriptionToken
+          ) {
+            row.last_sent_at = null;
+          }
+        }
+        return writeRow(row);
       },
     });
   },
@@ -388,19 +380,15 @@ const supabaseStepOutNudgeStore: StepOutNudgeStore = {
             memoryStepOutNudgeStore.optInCheapPint(ownerActor, subscriptionToken),
         }),
       run: async () => {
-        const now = new Date().toISOString();
-        const existing = (await readRow(ownerActor)) ?? blankRow(ownerActor, now);
+        // The opt-in owns its consent flags and the token it binds, nothing else,
+        // so it needs no read and cannot replay a stale Step Out or send field.
         return writeRow({
           owner_actor: ownerActor,
-          enabled: existing.enabled,
           subscription_token: subscriptionToken,
-          last_sent_at: existing.lastSentAt,
-          created_at: existing.createdAt,
-          updated_at: now,
+          updated_at: new Date().toISOString(),
           cheap_pint_qualified: true,
           cheap_pint_enabled: true,
           cheap_pint_declined: false,
-          cheap_pint_sent_at: existing.cheapPintSentAt,
         });
       },
     });
@@ -416,26 +404,18 @@ const supabaseStepOutNudgeStore: StepOutNudgeStore = {
           fallback: () => memoryStepOutNudgeStore.declineCheapPint(ownerActor),
         }),
       run: async () => {
-        const now = new Date().toISOString();
-        const existing = (await readRow(ownerActor)) ?? blankRow(ownerActor, now);
-        const tokenAfter = keepsPushToken({
-          ...existing,
-          cheapPintEnabled: false,
-        })
-          ? existing.subscriptionToken
-          : null;
-        return writeRow({
+        const existing = await readRow(ownerActor);
+        // Write only the decline flags, and clear the token only when Step Out no
+        // longer holds it. Replaying the read's qualification or send stamp would
+        // undo one committed between the read and the upsert.
+        const row: Record<string, unknown> = {
           owner_actor: ownerActor,
-          enabled: existing.enabled,
-          subscription_token: tokenAfter,
-          last_sent_at: existing.lastSentAt,
-          created_at: existing.createdAt,
-          updated_at: now,
-          cheap_pint_qualified: existing.cheapPintQualified,
+          updated_at: new Date().toISOString(),
           cheap_pint_enabled: false,
           cheap_pint_declined: true,
-          cheap_pint_sent_at: existing.cheapPintSentAt,
-        });
+        };
+        if (!existing?.enabled) row.subscription_token = null;
+        return writeRow(row);
       },
     });
   },

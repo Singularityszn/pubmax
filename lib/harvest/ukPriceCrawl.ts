@@ -750,8 +750,11 @@ function keylessPriceDropReason(
   return null;
 }
 
-/** Tea, water and affogato lines never file as coffee, whatever sits beside them. */
-function coffeeLineExcluded(
+/**
+ * Tea, water and affogato lines never file as coffee, whatever sits beside them.
+ * Both the keyless reader and the TypeSafe-judged reader apply it.
+ */
+export function coffeeLineExcluded(
   category: DrinkCategory,
   drinkLabel: string | null | undefined,
   text: string,

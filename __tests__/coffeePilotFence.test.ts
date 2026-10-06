@@ -1,21 +1,23 @@
 // Coffee pilot fence (PR 1): tea, water and affogato never become coffee prices;
 // matcha is a coffee word; flat white, latte and matcha latte do not collapse.
-// The 73 legacy `category: coffee` bundle rows stay committed as evidence.
+// The misfiled rows fixture is frozen from the bundle the fence was written against.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import {
-  COFFEE_PILOT_NAMED_DRINKS,
-  canonicalCoffeePilotDrink,
-  coffeePriceLabelExcluded,
-} from "@/lib/coffeePricePilot";
+vi.mock("@/lib/ai/typesafe.server.ts", () => ({
+  systemOneOutcome: vi.fn(),
+}));
+
+import { systemOneOutcome } from "@/lib/ai/typesafe.server";
+import { coffeePriceLabelExcluded } from "@/lib/coffeePricePilot";
 import { drinkCategoryFromText } from "@/lib/drinkCategoryFromText";
 import { cheapestPerCategory, readVenueDrinkPrices } from "@/lib/harvest/ukPriceCrawl";
+import { readVenueDrinkPricesJudged } from "@/lib/harvest/ukPriceJudgment.server";
 
-const BUNDLE_ROWS = join(process.cwd(), "public/data/uk_prices/rows.json");
+const MISFILED_ROWS = join(process.cwd(), "__tests__/fixtures/harvest/coffee-pilot-misfiled-rows.json");
 
 describe("coffee pilot harvest fence", () => {
   it("names matcha as coffee in free-text taxonomy", () => {
@@ -64,8 +66,13 @@ describe("coffee pilot harvest fence", () => {
     const rows = cheapestPerCategory(readVenueDrinkPrices(html)).filter(
       (row) => row.category === "coffee",
     );
-    const pilotKeys = rows.map((row) => canonicalCoffeePilotDrink(row.drinkLabel));
-    expect(pilotKeys.filter(Boolean).sort()).toEqual([...COFFEE_PILOT_NAMED_DRINKS].sort());
+    expect(rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ drinkLabel: "Flat white", priceGbp: 3.5 }),
+        expect.objectContaining({ drinkLabel: "Latte", priceGbp: 3.8 }),
+        expect.objectContaining({ drinkLabel: "Matcha latte", priceGbp: 4 }),
+      ]),
+    );
     expect(rows).toHaveLength(4);
   });
 
@@ -80,34 +87,71 @@ describe("coffee pilot harvest fence", () => {
   });
 });
 
-describe("coffee pilot bundle regression fixture", () => {
-  it("keeps 73 legacy coffee rows as misread evidence", () => {
-    const rows = JSON.parse(readFileSync(BUNDLE_ROWS, "utf8")) as Array<{
-      category: string;
-      drinkLabel?: string;
-    }>;
-    const coffee = rows.filter((row) => row.category === "coffee");
-    expect(coffee).toHaveLength(73);
-  });
-
-  it("flags every tea, water and affogato label the bundle already misfiled", () => {
-    const rows = JSON.parse(readFileSync(BUNDLE_ROWS, "utf8")) as Array<{
-      category: string;
-      drinkLabel?: string;
+describe("coffee pilot misfiled rows fixture", () => {
+  it("refuses every tea, water and affogato label the bundle once filed as coffee", () => {
+    const rows = JSON.parse(readFileSync(MISFILED_ROWS, "utf8")) as Array<{
+      drinkLabel: string;
       priceGbp: number;
     }>;
-    const mislabeled = rows.filter(
-      (row) =>
-        row.category === "coffee" &&
-        typeof row.drinkLabel === "string" &&
-        coffeePriceLabelExcluded(row.drinkLabel),
-    );
-    expect(mislabeled.length).toBeGreaterThanOrEqual(8);
-    for (const row of mislabeled) {
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(coffeePriceLabelExcluded(row.drinkLabel)).toBe(true);
       const html = `<p>${row.drinkLabel} £${row.priceGbp.toFixed(2)}</p>`;
       expect(
         readVenueDrinkPrices(html).kept.some((kept) => kept.category === "coffee"),
       ).toBe(false);
+    }
+  });
+});
+
+describe("coffee pilot fence on the TypeSafe-judged reader", () => {
+  function judgeEveryFigureAsCoffee(questions: Record<string, unknown>) {
+    const count = Object.keys(questions).filter((key) => key.startsWith("whatIsPriced_")).length;
+    const answers: Record<string, unknown> = {};
+    for (let index = 0; index < count; index += 1) {
+      answers[`whatIsPriced_${index}`] = {
+        type: "choice",
+        choice: "soft_drink_or_coffee",
+        probabilities: { soft_drink_or_coffee: 0.95 },
+      };
+      answers[`isPromotionalPrice_${index}`] = { type: "noul", noul: 0.01 };
+      answers[`drinkCategory_${index}`] = {
+        type: "choice",
+        choice: "coffee",
+        probabilities: { coffee: 0.95 },
+      };
+    }
+    return {
+      status: "ok" as const,
+      result: { model: "jev-test", usage: { input_tokens: 1, output_tokens: 1 }, answers },
+    } as Awaited<ReturnType<typeof systemOneOutcome>>;
+  }
+
+  it("refuses tea, water and affogato the judge calls coffee and keeps the pilot drinks", async () => {
+    vi.stubEnv("TYPESAFE_API_KEY", "test-key");
+    vi.mocked(systemOneOutcome).mockImplementation(async (_state, questions) =>
+      judgeEveryFigureAsCoffee(questions),
+    );
+    try {
+      const judged = await readVenueDrinkPricesJudged(
+        `<p>Earl Grey Tea £2.50</p>
+        <p>Bottled Water £2.00</p>
+        <p>Affogato £6.00</p>
+        <p>Flat white £3.50</p>
+        <p>Latte £3.80</p>
+        <p>Matcha latte £4.00</p>`,
+        { pubName: "Shoreditch Grind", pageUrl: "https://shoreditchgrind.example/menu" },
+      );
+      expect(
+        judged.kept.map(({ category, drinkLabel, priceGbp }) => ({ category, drinkLabel, priceGbp })),
+      ).toEqual([
+        { category: "coffee", drinkLabel: "Flat white", priceGbp: 3.5 },
+        { category: "coffee", drinkLabel: "Latte", priceGbp: 3.8 },
+        { category: "coffee", drinkLabel: "Matcha latte", priceGbp: 4 },
+      ]);
+    } finally {
+      vi.unstubAllEnvs();
+      vi.mocked(systemOneOutcome).mockReset();
     }
   });
 });

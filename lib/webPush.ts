@@ -13,7 +13,8 @@ function abortReason(signal: AbortSignal): unknown {
 
 /** Race browser work against a signal, so a promise that never settles (a service
  * worker that never becomes ready) cannot hold a prompt open for ever. */
-function waitForWebPushWork<T>(work: PromiseLike<T>, signal: AbortSignal): Promise<T> {
+function waitForWebPushWork<T>(work: PromiseLike<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return Promise.resolve(work);
   if (signal.aborted) return Promise.reject(abortReason(signal));
   return new Promise<T>((resolve, reject) => {
     const onAbort = () => reject(abortReason(signal));
@@ -89,14 +90,17 @@ export async function registerWebPush(signal?: AbortSignal): Promise<string | nu
   }
   if (signal?.aborted) return null;
 
-  // The scope owns the timer, so every exit path disposes it.
-  const scope = registrationScope(signal);
+  // The person's time on the permission dialog is theirs: only the caller can
+  // cancel it. The scope's deadline starts once permission is granted, and every
+  // exit path after that disposes it.
+  let scope: ReturnType<typeof registrationScope> | null = null;
   try {
     const permission = Notification.permission === "default"
-      ? await waitForWebPushWork(Notification.requestPermission(), scope.signal)
+      ? await waitForWebPushWork(Notification.requestPermission(), signal)
       : Notification.permission;
     if (permission !== "granted") return null;
 
+    scope = registrationScope(signal);
     const registration = await waitForWebPushWork(
       navigator.serviceWorker.ready,
       scope.signal,
@@ -127,7 +131,7 @@ export async function registerWebPush(signal?: AbortSignal): Promise<string | nu
   } catch {
     return null;
   } finally {
-    scope.dispose();
+    scope?.dispose();
   }
 }
 

@@ -9,13 +9,16 @@ afterEach(() => {
 });
 
 type BrowserHarnessOptions = Readonly<{
+  requestPermission?: () => Promise<NotificationPermission>;
   ready?: Promise<Pick<ServiceWorkerRegistration, "pushManager">>;
   subscribe?: () => Promise<PushSubscription>;
   fetch?: typeof globalThis.fetch;
 }>;
 
 function browserHarness(options: BrowserHarnessOptions = {}) {
-  const requestPermission = vi.fn(async () => "granted" as NotificationPermission);
+  const requestPermission = vi.fn(
+    options.requestPermission ?? (async () => "granted" as NotificationPermission),
+  );
   const subscription = {
     toJSON: () => ({
       endpoint: "https://updates.push.services.mozilla.com/wpush/v2/browser",
@@ -163,6 +166,44 @@ describe("registerWebPush", () => {
 
     expect(settled).toBe(true);
     await expect(registration).resolves.toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("does not count a slow permission grant against the registration deadline", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("NEXT_PUBLIC_VAPID_PUBLIC_KEY", "A".repeat(87));
+    let grant!: (permission: NotificationPermission) => void;
+    const { fetch } = browserHarness({
+      requestPermission: () => new Promise<NotificationPermission>((resolve) => {
+        grant = resolve;
+      }),
+    });
+
+    const registration = registerWebPush();
+    await flushRegistrationMicrotasks();
+    expect(vi.getTimerCount()).toBe(0);
+    await vi.advanceTimersByTimeAsync(15_000);
+    grant("granted");
+
+    await expect(registration).resolves.toMatch(/^webpush:/);
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("lets the caller cancel a pending permission prompt", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("NEXT_PUBLIC_VAPID_PUBLIC_KEY", "A".repeat(87));
+    const { fetch } = browserHarness({
+      requestPermission: () => new Promise<NotificationPermission>(() => undefined),
+    });
+    const controller = new AbortController();
+
+    const registration = registerWebPush(controller.signal);
+    await flushRegistrationMicrotasks();
+    controller.abort();
+
+    await expect(registration).resolves.toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
     expect(vi.getTimerCount()).toBe(0);
   });
 
