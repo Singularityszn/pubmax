@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 // DAG L16. The acceptance handoff used to sit behind PUBMAX_PAL_HANDOFF, which
-// no deployment ever set, so the "Use this Venue" affordance and the locality
+// no deployment ever set, so the "Use this venue" affordance and the locality
 // line were dark. The flag is retired and the handoff is the only behaviour.
 //
 // Asserting the handoff affordance itself needs a deterministic `/api/pub-pal/chat`
