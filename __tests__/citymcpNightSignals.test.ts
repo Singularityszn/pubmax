@@ -211,3 +211,28 @@ describe("unlinkUngroundedEventSignals", () => {
     expect(kept).toEqual([strokes, opaque, unsourced, alert]);
   });
 });
+
+describe("dedupeCityStatusSignals complementary fields", () => {
+  it("keeps the explanation and fetch time only the unsourced copy carried", () => {
+    const [row] = dedupeCityStatusSignals([
+      {
+        headline: "Victoria line part closure",
+        detail: "No service Brixton to Warren Street.",
+        postcodes: ["SW9"],
+        fetchedAt: "2026-10-06T19:00:00.000Z",
+      },
+      {
+        headline: "Victoria line part closure",
+        sourceUrl: "https://example.com/victoria-line-part-closure",
+        timeWindow: "tonight",
+      },
+    ]);
+    expect(row).toMatchObject({
+      detail: "No service Brixton to Warren Street.",
+      postcodes: ["SW9"],
+      fetchedAt: "2026-10-06T19:00:00.000Z",
+      sourceUrl: "https://example.com/victoria-line-part-closure",
+      timeWindow: "tonight",
+    });
+  });
+});

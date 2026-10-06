@@ -1256,7 +1256,7 @@ function severityRank(signal: CityStatusSignal): number {
 /**
  * Collapse rows that name the same story into one, keeping the row that says
  * the most (a sourced row beats an unsourced one) at the highest severity
- * either copy carried, in the position the story first appeared. Two rows are
+ * either copy carried, and any field only the other copy had, in the position the story first appeared. Two rows are
  * the same story when their headlines share at least three quarters of their
  * words once case, punctuation and filler words are set aside. Pure, returns a
  * new array, exported for tests + the status route.
@@ -1275,7 +1275,17 @@ export function dedupeCityStatusSignals(
     }
     const severity = severityRank(signal) > severityRank(twin.signal) ? signal.severity : twin.signal.severity;
     const fuller = signalSubstance(signal) > signalSubstance(twin.signal) ? signal : twin.signal;
-    twin.signal = fuller.severity === severity ? fuller : { ...fuller, severity };
+    const other = fuller === signal ? twin.signal : signal;
+    // The fuller row wins every field it has; a field only the other copy
+    // carried (the explanation, the postcodes, the fetch time) is kept rather
+    // than lost with the discarded row.
+    const merged: CityStatusSignal = { ...fuller, severity };
+    for (const key of ["detail", "kind", "areas", "postcodes", "timeWindow", "sourceUrl", "fetchedAt"] as const) {
+      if (merged[key] === undefined && other[key] !== undefined) {
+        (merged as Record<string, unknown>)[key] = other[key];
+      }
+    }
+    twin.signal = merged;
   }
   return kept.map((entry) => entry.signal);
 }
