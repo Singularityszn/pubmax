@@ -1246,7 +1246,11 @@ export default function VenueOverviewTab({
             className="description muted"
             style={{ marginTop: "8px", fontSize: "0.82rem" }}
           >
-            Claim a handle to check in. <Link href="/u/you">Set yours</Link>.
+            Claim a handle to check in.{" "}
+            <Link href="/u/you" className="sheetPromptLink">
+              Set yours
+            </Link>
+            .
           </p>
         ) : null}
       </div>

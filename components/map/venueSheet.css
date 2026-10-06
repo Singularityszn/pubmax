@@ -1665,3 +1665,17 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
     transform: none !important;
   }
 }
+
+/* The sign-in door inside a sheet prompt ("Claim a handle to check in. Set
+   yours."). A bare anchor wore the browser's default blue, which no other text
+   on the sheet uses, so it takes the launch accent ink and keeps its underline. */
+.venueTabPanel .sheetPromptLink {
+  color: var(--brass-ink);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.venueTabPanel .sheetPromptLink:hover {
+  text-decoration-thickness: 2px;
+}
