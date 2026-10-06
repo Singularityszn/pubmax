@@ -1049,15 +1049,21 @@ export function mergeVenueDrops<D extends SummaryDrop>(
 
     const latestPriceDrop = authoritativePriceDrop(organic, now);
     const contributorPrice = latestPriceDrop?.priceGbp ?? null;
-    const cheapestPrice =
-      contributorPrice === null
-        ? venue.cheapestPrice
-        : Math.min(venue.cheapestPrice ?? Number.POSITIVE_INFINITY, contributorPrice);
+    // Keep the drink label paired with the price row it names. A pricier
+    // corroborated drop remains visible through latestContributorPrice but does
+    // not relabel the lower venue baseline.
+    const contributorIsCheapest =
+      contributorPrice !== null &&
+      contributorPrice <= (venue.cheapestPrice ?? Number.POSITIVE_INFINITY);
+    const cheapestPrice = contributorIsCheapest
+      ? Math.min(venue.cheapestPrice ?? Number.POSITIVE_INFINITY, contributorPrice)
+      : venue.cheapestPrice;
 
     return {
       ...venue,
       cheapestPrice,
-      cheapestPint: latestPriceDrop?.drink || venue.cheapestPint,
+      cheapestPint:
+        contributorIsCheapest && latestPriceDrop ? latestPriceDrop.drink : venue.cheapestPint,
       // Carry the live community price + its logged-at timestamp so the UI can
       // both show the override AND how fresh it is (formatFreshness).
       latestContributorPrice: contributorPrice,
