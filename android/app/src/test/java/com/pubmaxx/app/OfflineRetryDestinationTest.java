@@ -9,6 +9,8 @@ public class OfflineRetryDestinationTest {
     private static final String ORIGIN = "https://pubmaxxing.com";
     private static final String ERROR_PAGE = "https://localhost/offline.html";
     private static final String VENUE = ORIGIN + "/map?sel=venue-122cuu1#overview";
+    private static final String MARKED_LANDING =
+        ORIGIN + "/?_authCallback=1&_authAttempt=attempt&_referralSignupProof=proof";
 
     private OfflineRetryDestination policy() {
         return new OfflineRetryDestination(ORIGIN, ERROR_PAGE);
@@ -155,6 +157,57 @@ public class OfflineRetryDestinationTest {
             policy.recordFailure(ORIGIN + path, true);
             assertEquals(ORIGIN + "/", policy.retryTarget(ERROR_PAGE, ORIGIN, true));
         }
+    }
+
+    @Test
+    public void anAuthCallbackMarkerIsNeverRetainedForReplay() {
+        for (String query : new String[] { "?_authCallback=1", "?_AUTHCALLBACK=1", "?%5FauthCallback=1" }) {
+            OfflineRetryDestination policy = policy();
+            policy.recordFailure(ORIGIN + "/" + query, true);
+            assertEquals(ORIGIN + "/", policy.retryTarget(ERROR_PAGE, ORIGIN, true));
+        }
+    }
+
+    @Test
+    public void anAuthAttemptIsNeverRetainedForReplay() {
+        for (String query : new String[] { "?_authAttempt=attempt", "?_AUTHATTEMPT=attempt", "?%5FauthAttempt=attempt" }) {
+            OfflineRetryDestination policy = policy();
+            policy.recordFailure(ORIGIN + "/map" + query, true);
+            assertEquals(ORIGIN + "/", policy.retryTarget(ERROR_PAGE, ORIGIN, true));
+        }
+    }
+
+    @Test
+    public void aReferralSignupProofIsNeverRetainedForReplay() {
+        for (String query : new String[] {
+            "?_referralSignupProof=proof", "?_REFERRALSIGNUPPROOF=proof", "?%5FreferralSignupProof=proof"
+        }) {
+            OfflineRetryDestination policy = policy();
+            policy.recordFailure(ORIGIN + "/map" + query, true);
+            assertEquals(ORIGIN + "/", policy.retryTarget(ERROR_PAGE, ORIGIN, true));
+        }
+    }
+
+    @Test
+    public void aFailedMagicLinkLandingRetriesTheRootInsteadOfTheCallback() {
+        OfflineRetryDestination policy = policy();
+        policy.recordFailure(VENUE, true);
+        policy.pageStarted(ORIGIN + "/auth/callback?code=secret");
+        policy.recordFailure(MARKED_LANDING, true);
+        policy.pageStarted(ERROR_PAGE);
+        assertEquals(ORIGIN + "/", policy.retryTarget(ERROR_PAGE, ORIGIN, true));
+    }
+
+    @Test
+    public void aMagicLinkLandingThatFailsByHttpErrorRetriesTheRoot() {
+        OfflineRetryDestination policy = policy();
+        policy.recordFailure(VENUE, true);
+        policy.pageStarted(ORIGIN + "/auth/callback?code=secret");
+        policy.recordFailure(MARKED_LANDING, true);
+        policy.pageStarted(MARKED_LANDING);
+        policy.recordFailure(MARKED_LANDING, true);
+        policy.pageStarted(ERROR_PAGE);
+        assertEquals(ORIGIN + "/", policy.retryTarget(ERROR_PAGE, ORIGIN, true));
     }
 
     @Test

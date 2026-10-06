@@ -14,7 +14,8 @@ final class OfflineRetryDestination {
     private static final URI RETRY_BUTTON = URI.create("https://pubmaxxing.com/");
     private static final List<String> CREDENTIAL_KEYS = Arrays.asList(
         "code", "access_token", "refresh_token", "id_token", "token", "token_hash",
-        "authorization_code", "provider_token", "provider_refresh_token", "error_description"
+        "authorization_code", "provider_token", "provider_refresh_token", "error_description",
+        "_authcallback", "_authattempt", "_referralsignupproof"
     );
     private final URI origin;
     private final String root;
