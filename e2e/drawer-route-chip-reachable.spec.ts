@@ -29,7 +29,12 @@ async function tabFromDrawerEdgeToChip(page: Page, drawer: Locator, chip: Locato
       );
       controls[controls.length - 1]?.focus();
     }, 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
-    await page.keyboard.press("Tab");
+    // The desktop toolbar is an exempt surface too (QA journeys F04) and comes
+    // before the chip in the document, so Tab crosses its controls on the way.
+    for (let step = 0; step < 24; step += 1) {
+      await page.keyboard.press("Tab");
+      if (await chipFirst.evaluate((node) => node === document.activeElement)) return;
+    }
     await expect(chipFirst).toBeFocused({ timeout: 1_000 });
   }).toPass({ timeout: 30_000 });
 }

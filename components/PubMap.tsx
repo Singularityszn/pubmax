@@ -6994,10 +6994,14 @@ export default function PubMap({
             (sheetDragY !== null ? " sheet-dragging" : "")
           }
           aria-hidden={!detailOpen}
-          // Not modal while the mapped-route chip is live beside it: that chip
-          // is an exempt surface of the drawer's focus trap.
+          // Not modal while a map control is live beside it: the desktop
+          // toolbar from 1024px, and the mapped-route chip in the side lane.
+          // Both are exempt surfaces of the drawer's focus trap.
           aria-modal={
-            detailOpen && !(routeMappedActive && drawerSideLaneViewport) ? true : undefined
+            detailOpen &&
+            !(railViewport || (routeMappedActive && drawerSideLaneViewport))
+              ? true
+              : undefined
           }
           role={detailOpen ? "dialog" : undefined}
           // A base pub has no curated venue, so name it from its own OSM kind:

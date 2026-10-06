@@ -28,6 +28,7 @@ import type {
   CategoryPriceIndexStatus,
   MapExperienceLens,
 } from "@/lib/mapExperienceLens";
+import { FOCUS_TRAP_EXEMPT_ATTRIBUTE } from "@/lib/useFocusTrap";
 import { useSpringValue } from "@/lib/useSpringValue";
 import type { ZonePintIndex } from "@/lib/zones";
 import { lazyPanel } from "@/components/map/lazyPanel";
@@ -253,6 +254,16 @@ export default function MapToolbar({
   // Same contract for the drink lane: closed at rest, and its control names the
   // lane so a map showing cocktail prices never looks like the pint map.
   const [laneOpen, setLaneOpen] = useState(false);
+  // The tray never rides a surface that has just opened. A pub drawer or the
+  // planner is the reader's next question, and the tray sat open over the
+  // mapped route until they closed it by hand. Adjusted while rendering, on the
+  // edge only, so a reader who reopens the tray beside an open drawer keeps it.
+  const surfaceOpen = detailOpen || planningOpen || storyOpen;
+  const [surfaceWasOpen, setSurfaceWasOpen] = useState(surfaceOpen);
+  if (surfaceOpen !== surfaceWasOpen) {
+    setSurfaceWasOpen(surfaceOpen);
+    if (surfaceOpen) setLaneOpen(false);
+  }
   const toolbarRef = useRef<HTMLDivElement | null>(null);
   const {
     value: laneOffset,
@@ -359,6 +370,11 @@ export default function MapToolbar({
     <div
       ref={toolbarRef}
       className="mapToolbar"
+      // Beside the desktop drawer the bar sits in the lane the drawer leaves,
+      // drawn at full strength, so it takes clicks and Tab like it looks. It is
+      // an exempt surface of the drawer's focus trap (lib/useFocusTrap.ts).
+      // Below 1024px the drawer has no free lane for it and the trap keeps it.
+      {...(desktopLaneActive ? { [FOCUS_TRAP_EXEMPT_ATTRIBUTE]: "" } : null)}
       style={
         desktopLaneActive && laneOffset !== 0
           ? {
