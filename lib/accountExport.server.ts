@@ -33,12 +33,15 @@ import {
   type AccountExport,
   type AccountExportConversation,
   type AccountExportCoverPhoto,
+  type AccountExportCrowdReport,
   type AccountExportIdentity,
   type AccountExportLane,
   type AccountExportMemory,
   type AccountExportMessage,
   type AccountExportPintDrop,
   type AccountExportPrice,
+  type AccountExportProfile,
+  type AccountExportSocialPost,
   type AccountExportWallPhoto,
 } from "@/lib/accountExport";
 import {
@@ -51,6 +54,8 @@ import { followStore } from "@/lib/followStore";
 import { normalizeHandle } from "@/lib/handleNormalize";
 import type { MessageDTO } from "@/lib/messages";
 import { messagesStore, type InboxRead } from "@/lib/messagesStore";
+import { occupancyStore } from "@/lib/occupancyStore";
+import type { OccupancyReport } from "@/lib/occupancy";
 import type { NightMemory, NightMoment } from "@/lib/nightMemory";
 import { listNightMemories, listNightMoments } from "@/lib/nightMemoryStore";
 import type { NightProfile } from "@/lib/nightProfile";
@@ -64,6 +69,8 @@ import type { SavedPubDTO } from "@/lib/savedPubs";
 import { savedPubsStore, type SavedPubsRead } from "@/lib/savedPubsStore";
 import { publicSocialConnection, type PublicSocialConnection } from "@/lib/socialConnections";
 import { socialConnectionStore } from "@/lib/socialConnectionStore";
+import type { SocialPostDTO } from "@/lib/socialPosts";
+import { socialPostStore } from "@/lib/socialPostStore";
 import { venuePhotoStore } from "@/lib/venuePhotoStore";
 import type { VenuePhoto } from "@/lib/venuePhotos";
 import type { VisitReportDTO } from "@/lib/visitReports";
@@ -78,20 +85,44 @@ function profileActor(profileId: string): string {
   return `profile:${profileId}`;
 }
 
+/** The profile row as the export reads it: the identity block plus the fields the account filled in. */
+export type AccountExportProfileRow = {
+  id: string;
+  handle: string;
+  displayName: string | null;
+  bio?: string;
+  homeCity?: string;
+  favouriteDrink?: string;
+  interests?: string;
+  workplace?: string;
+  foundingMemberNumber?: number;
+  visibility?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 /**
  * Everything the export reaches for, as one seam. The default is the stores;
  * a test hands in fakes and asserts the document.
  */
 export type AccountExportDeps = {
-  profileForUser(
-    userId: string,
-  ): Promise<{ id: string; handle: string; displayName: string | null } | null>;
+  profileForUser(userId: string): Promise<AccountExportProfileRow | null>;
   /** The private card, or null for an account that never saved one. */
   identity(userId: string): Promise<AccountExportIdentity | null>;
   memories(userId: string): Promise<NightMemory[]>;
   moments(userId: string, memoryId: string): Promise<NightMoment[]>;
   /** Every visit report this handle wrote, hidden rows included. */
   visitReports(handle: string): Promise<VisitReportReadResult>;
+  /** Every Social post this account still has, newest first, at most `limit`. */
+  socialPosts(
+    owner: { accountId: string; profileId: string; handle: string },
+    limit: number,
+  ): Promise<SocialPostDTO[]>;
+  /** Every crowd report this account made, hidden rows included. */
+  crowdReports(
+    userId: string,
+    limit: number,
+  ): Promise<{ degraded: boolean; reports: Array<OccupancyReport & { id: string; hiddenAt: string | null }> }>;
   /** Every wall photo this profile authored, hidden rows included. */
   wallPhotos(profileId: string): Promise<{ status: "ready" | "degraded"; photos: VenuePhoto[] }>;
   /** The account's own cover rotation, in the order it chose. */
@@ -120,7 +151,20 @@ function storeDeps(): AccountExportDeps {
     async profileForUser(userId) {
       const profile = await profileStore().getByUserId(userId);
       return profile
-        ? { id: profile.id, handle: profile.handle, displayName: profile.displayName ?? null }
+        ? {
+            id: profile.id,
+            handle: profile.handle,
+            displayName: profile.displayName ?? null,
+            bio: profile.bio,
+            homeCity: profile.homeCity,
+            favouriteDrink: profile.favouriteDrink,
+            interests: profile.interests,
+            workplace: profile.workplace,
+            foundingMemberNumber: profile.foundingMemberNumber,
+            visibility: profile.visibility,
+            createdAt: profile.createdAt,
+            updatedAt: profile.updatedAt,
+          }
         : null;
     },
     async identity(userId) {
@@ -130,6 +174,8 @@ function storeDeps(): AccountExportDeps {
     memories: (userId) => listNightMemories(userId),
     moments: (userId, memoryId) => listNightMoments(userId, memoryId),
     visitReports: (handle) => visitReportsStore().listForContributor(handle),
+    socialPosts: (owner, limit) => socialPostStore().listOwned(owner, limit),
+    crowdReports: (userId, limit) => occupancyStore().listForReporter(userId, limit),
     wallPhotos: (profileId) => venuePhotoStore().listForAuthor(profileId),
     coverPhotos: (profileId) => profileCoverPhotoStore().listApproved(profileId),
     checkIns: (handle) => checkInStore().listByHandles([handle]),
@@ -167,6 +213,39 @@ function exportIdentity(row: {
     genderSelfDescribed: row.genderSelfDescribed ?? null,
     createdAt: row.createdAt ?? null,
     updatedAt: row.updatedAt ?? null,
+  };
+}
+
+/** The profile fields, as filled in, so nothing a store adds later leaks unread. */
+function exportProfile(row: AccountExportProfileRow): AccountExportProfile {
+  return {
+    bio: row.bio ?? null,
+    homeCity: row.homeCity ?? null,
+    favouriteDrink: row.favouriteDrink ?? null,
+    interests: row.interests ?? null,
+    workplace: row.workplace ?? null,
+    foundingMemberNumber: row.foundingMemberNumber ?? null,
+    visibility: row.visibility ?? null,
+    createdAt: row.createdAt ?? null,
+    updatedAt: row.updatedAt ?? null,
+  };
+}
+
+/** A post, field by field: its words and settings, never the viewer-shaped parts of the DTO. */
+function exportSocialPost(post: SocialPostDTO): AccountExportSocialPost {
+  return {
+    id: post.id,
+    kind: post.kind,
+    visibility: post.visibility,
+    body: post.body,
+    areaSlug: post.area,
+    venueId: post.venueId,
+    hashtags: [...post.hashtags],
+    commentPolicy: post.commentPolicy,
+    photo: post.photo ? { mediaId: post.photo.mediaId, altText: post.photo.altText } : null,
+    moderationState: post.moderationState,
+    createdAt: post.createdAt,
+    editedAt: post.editedAt,
   };
 }
 
@@ -369,6 +448,34 @@ export async function buildAccountExport(
     return { degraded: read.status === "degraded", items: read.photos.map(exportWallPhoto) };
   });
 
+  const profileLane = await lane<AccountExportProfile>(async () => ({
+    degraded: false,
+    items: profile ? [exportProfile(profile)] : [],
+  }));
+
+  const socialPosts = await lane<AccountExportSocialPost>(async () => {
+    if (!profile || !handle) return { degraded: false, items: [] };
+    const posts = await deps.socialPosts(
+      { accountId: userId, profileId: profile.id, handle },
+      ACCOUNT_EXPORT_LANE_CAP + 1,
+    );
+    return { degraded: false, items: posts.map(exportSocialPost) };
+  });
+
+  const crowdReports = await lane<AccountExportCrowdReport>(async () => {
+    const read = await deps.crowdReports(userId, ACCOUNT_EXPORT_LANE_CAP + 1);
+    return {
+      degraded: read.degraded,
+      items: read.reports.map((report) => ({
+        id: report.id,
+        venueId: report.venueId,
+        level: report.level,
+        reportedAt: report.reportedAt,
+        hidden: Boolean(report.hiddenAt),
+      })),
+    };
+  });
+
   const coverPhotos = await lane<AccountExportCoverPhoto>(async () => {
     if (!profile) return { degraded: false, items: [] };
     const rows = await deps.coverPhotos(profile.id);
@@ -430,11 +537,14 @@ export async function buildAccountExport(
       handle,
       displayName: profile?.displayName ?? null,
     },
+    profile: profileLane,
     identity,
     memories,
     prices,
     pintDrops,
     visitReports,
+    crowdReports,
+    socialPosts,
     wallPhotos,
     coverPhotos,
     checkIns,

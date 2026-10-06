@@ -34,6 +34,7 @@ import type { CheckIn } from "@/lib/checkIn";
 import type { NightMemory, NightMoment } from "@/lib/nightMemory";
 import type { NightProfile } from "@/lib/nightProfile";
 import type { PintDropDTO } from "@/lib/pintDropsStore";
+import type { SocialPostDTO } from "@/lib/socialPosts";
 import type { ProfileCoverPhoto } from "@/lib/profileCovers";
 import type { SavedPubDTO } from "@/lib/savedPubs";
 import type { PublicSocialConnection } from "@/lib/socialConnections";
@@ -242,13 +243,63 @@ const nightProfileRow = {
   updatedAt: "2026-08-10T10:00:00.000Z",
 } as unknown as NightProfile;
 
+const profileRow = {
+  id: PROFILE,
+  handle: "night_owl",
+  displayName: "Night Owl",
+  bio: "Cask ale, quiet snugs.",
+  homeCity: "London",
+  favouriteDrink: "Best bitter",
+  interests: "pub quizzes, folk sessions",
+  workplace: "A bakery in Peckham",
+  foundingMemberNumber: 42,
+  visibility: "public",
+  createdAt: "2026-08-01T10:00:00.000Z",
+  updatedAt: "2026-08-03T10:00:00.000Z",
+};
+
+const socialPost = {
+  id: "post-1",
+  kind: "standard",
+  visibility: "friends",
+  body: "Back room at the Blackfriar is calm tonight #snug",
+  area: "soho",
+  venueId: "venue-1f5ygjb",
+  venueName: "The Blackfriar",
+  venueProjected: true,
+  hashtags: ["snug"],
+  commentPolicy: "open",
+  photo: { mediaId: "media-1", altText: "A back room with a fire" },
+  moderationState: "approved",
+  featureRequest: null,
+  revision: 1,
+  mutationVersion: 2,
+  editedAt: "2026-09-04T22:00:00.000Z",
+  createdAt: "2026-09-04T21:00:00.000Z",
+  updatedAt: "2026-09-04T22:00:00.000Z",
+  author: { handle: "night_owl", avatarUrl: "https://example.com/not-for-the-file.jpg" },
+  ownedByViewer: true,
+} as unknown as SocialPostDTO;
+
+const crowdReport = {
+  id: "crowd-1",
+  venueId: "venue-1f5ygjb",
+  level: "some-seats",
+  reportedAt: "2026-09-05T19:00:00.000Z",
+  reporterUserId: USER,
+  source: "crowd",
+  hiddenAt: null,
+} as const;
+
 function fakeDeps(overrides: Partial<AccountExportDeps> = {}): AccountExportDeps {
   return {
-    profileForUser: async () => ({ id: PROFILE, handle: "night_owl", displayName: "Night Owl" }),
+    profileForUser: async () => profileRow,
     identity: async () => identity,
     memories: async () => [memory],
     moments: async () => [moment],
     visitReports: async () => ({ status: "ready" as const, reports: [visitReport] }),
+    socialPosts: async () => [socialPost],
+    crowdReports: async () => ({ degraded: false, reports: [crowdReport] }),
     wallPhotos: async () => ({ status: "ready" as const, photos: [wallPhoto] }),
     coverPhotos: async () => [coverPhoto],
     checkIns: async () => [checkIn],
@@ -341,6 +392,84 @@ describe("buildAccountExport", () => {
     expect(document.nightProfile.items).toEqual([nightProfileRow]);
   });
 
+  it("carries the profile fields, the posts and the crowd reports the file used to leave out (F15)", async () => {
+    // Public QA pass, Lane M: the file held identity, prices, drops, reports,
+    // photos, saves, Wanted, diary, Night Profile and messages, and omitted the
+    // bio, home city, favourite drink, interests and workplace, the account's
+    // own posts and its crowd readings.
+    const document = await buildAccountExport(USER, fakeDeps(), NOW);
+
+    expect(document.profile.items).toEqual([
+      {
+        bio: "Cask ale, quiet snugs.",
+        homeCity: "London",
+        favouriteDrink: "Best bitter",
+        interests: "pub quizzes, folk sessions",
+        workplace: "A bakery in Peckham",
+        foundingMemberNumber: 42,
+        visibility: "public",
+        createdAt: "2026-08-01T10:00:00.000Z",
+        updatedAt: "2026-08-03T10:00:00.000Z",
+      },
+    ]);
+    expect(document.socialPosts.items).toEqual([
+      {
+        id: "post-1",
+        kind: "standard",
+        visibility: "friends",
+        body: "Back room at the Blackfriar is calm tonight #snug",
+        areaSlug: "soho",
+        venueId: "venue-1f5ygjb",
+        hashtags: ["snug"],
+        commentPolicy: "open",
+        photo: { mediaId: "media-1", altText: "A back room with a fire" },
+        moderationState: "approved",
+        createdAt: "2026-09-04T21:00:00.000Z",
+        editedAt: "2026-09-04T22:00:00.000Z",
+      },
+    ]);
+    expect(document.crowdReports.items).toEqual([
+      {
+        id: "crowd-1",
+        venueId: "venue-1f5ygjb",
+        level: "some-seats",
+        reportedAt: "2026-09-05T19:00:00.000Z",
+        hidden: false,
+      },
+    ]);
+    // The viewer-shaped parts of a post DTO are not the account's data.
+    expect(JSON.stringify(document.socialPosts)).not.toContain("not-for-the-file");
+  });
+
+  it("marks a crowd report a moderator hid as hidden, and still exports it", async () => {
+    const document = await buildAccountExport(
+      USER,
+      fakeDeps({
+        crowdReports: async () => ({
+          degraded: false,
+          reports: [{ ...crowdReport, hiddenAt: "2026-09-05T20:00:00.000Z" }],
+        }),
+      }),
+      NOW,
+    );
+    expect(document.crowdReports.items[0]?.hidden).toBe(true);
+  });
+
+  it("gives an account with no profile an empty profile lane, and asks no post read", async () => {
+    const document = await buildAccountExport(
+      USER,
+      fakeDeps({
+        profileForUser: async () => null,
+        socialPosts: async () => {
+          throw new Error("must not be asked without a profile");
+        },
+      }),
+      NOW,
+    );
+    expect(document.profile).toEqual({ status: "complete", truncated: false, items: [] });
+    expect(document.socialPosts).toEqual({ status: "complete", truncated: false, items: [] });
+  });
+
   it("carries a Drink Wall photo's category and the place its author typed", async () => {
     const cityPhoto = {
       ...wallPhoto,
@@ -389,6 +518,8 @@ describe("buildAccountExport", () => {
       coverPhotos: { coverPhotos: async () => { throw new Error("covers unreadable"); } },
       checkIns: { checkIns: async () => { throw new Error("check-ins unreadable"); } },
       follows: { follows: async () => { throw new Error("follow graph unreadable"); } },
+      socialPosts: { socialPosts: async () => { throw new Error("posts unreadable"); } },
+      crowdReports: { crowdReports: async () => ({ degraded: true, reports: [] }) },
     } satisfies Record<string, Partial<AccountExportDeps>>;
 
     for (const [lane, override] of Object.entries(lanesUnderTest)) {
@@ -637,9 +768,7 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
   "lib/notificationsStore.ts": {
     excluded: "Notifications we generated for the account out of other people's actions; nothing here was written by them.",
   },
-  "lib/occupancyStore.ts": {
-    gap: "A crowd report is the account's own observation and has no per-account read: `report`, `readNow`, `flag` and `moderate` are the whole interface.",
-  },
+  "lib/occupancyStore.ts": { lane: "crowdReports" },
   "lib/operatorProposalsStore.ts": { excluded: "Venue operator proposals, keyed on a venue and answered by a moderator." },
   "lib/pendingPlanRecapStore.ts": {
     excluded: "A queue of recaps waiting to be written; a published recap rides its Plan, and the queue row is ours.",
@@ -655,9 +784,7 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
   },
   "lib/privateIdentityStore.ts": { lane: "identity" },
   "lib/profileCoverPhotoStore.ts": { lane: "coverPhotos" },
-  "lib/profileStore.ts": {
-    excluded: "The public profile is the export's own `account` block: the handle and the display name.",
-  },
+  "lib/profileStore.ts": { lane: "profile" },
   "lib/pubPalStore.ts": {
     excluded: "Pal memories have their own export door, `/api/pub-pal/memories/export`.",
   },
@@ -684,9 +811,7 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
   "lib/socialPostConsentStore.ts": {
     excluded: "One consent stamp per post, read back through the post itself.",
   },
-  "lib/socialPostStore.ts": {
-    gap: "The account's own posts. `readOwned` answers one post by id and `feed` is a viewer read, so there is no owner-keyed list to export.",
-  },
+  "lib/socialPostStore.ts": { lane: "socialPosts" },
   "lib/stepOutNudgeStore.ts": {
     excluded: "Push preferences and the day each nudge was last sent: a delivery record we keep, changed from the account's own settings surface.",
   },
@@ -708,9 +833,7 @@ const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
  * file. Shrink-only: closing one is deleting its line here.
  */
 const NAMED_GAPS = [
-  "lib/occupancyStore.ts",
   "lib/socialInteractionStore.ts",
-  "lib/socialPostStore.ts",
   "lib/weatherRecommendationStore.ts",
 ];
 

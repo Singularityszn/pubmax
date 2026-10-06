@@ -55,6 +55,15 @@ type OccupancyWriteInput = {
 export type OccupancyStore = {
   report(input: OccupancyWriteInput): Promise<OccupancyStoredReport>;
   readNow(venueId: string, now?: number): Promise<OccupancyNowAnswer>;
+  /**
+   * Every crowd report this account made, newest first, at most `limit`, a
+   * moderator's hidden rows included: the reading is still the account's own.
+   * `degraded` is a read that could not run, never "no reports".
+   */
+  listForReporter(
+    reporterUserId: string,
+    limit: number,
+  ): Promise<{ degraded: boolean; reports: OccupancyStoredReport[] }>;
   flag(id: string, reason?: string, actorHash?: string): Promise<boolean>;
   moderate(id: string, hidden: boolean, note?: string): Promise<boolean>;
 };
@@ -136,6 +145,17 @@ export const memoryOccupancyStore: OccupancyStore = {
       memoryReports.filter((row) => venueIds.includes(row.venueId)),
       now ?? Date.now(),
     );
+  },
+
+  async listForReporter(reporterUserId, limit) {
+    const owner = cleanUserId(reporterUserId);
+    const reports = owner
+      ? memoryReports
+          .filter((row) => row.reporterUserId === owner)
+          .sort((a, b) => b.reportedAt.localeCompare(a.reportedAt))
+          .slice(0, limit)
+      : [];
+    return { degraded: false, reports };
   },
 
   async flag(id, reason, actorHash) {
@@ -378,6 +398,39 @@ export const supabaseOccupancyStore: OccupancyStore = {
             .map((row) => fromRow(row as OccupancyRow))
             .filter((row): row is OccupancyStoredReport => row !== null);
           return occupancyNowFromReports(reports, now ?? Date.now());
+        }),
+    });
+  },
+
+  async listForReporter(reporterUserId, limit) {
+    const owner = cleanUserId(reporterUserId);
+    if (!owner) return { degraded: false, reports: [] };
+    return guard.guard({
+      context: "listForReporter",
+      // The export refuses a lane it could not read, so outside a deployed
+      // production instance the memory store answers while the migration is
+      // being prepared, and a deployed one reports the read as degraded.
+      onSchemaMiss: () =>
+        isDeployedProduction()
+          ? Promise.resolve({ degraded: true, reports: [] })
+          : memoryOccupancyStore.listForReporter(owner, limit),
+      onError: () => ({ degraded: true, reports: [] }),
+      message: "occupancy owner read failed",
+      run: () =>
+        withOccupancyColumns(async (select) => {
+          const { data, error } = await admin()
+            .from(TABLE)
+            .select(select)
+            .eq("reporter_user_id", owner)
+            .order("reported_at", { ascending: false })
+            .limit(limit);
+          if (error) throwPostgrest(error);
+          return {
+            degraded: false,
+            reports: (data ?? [])
+              .map((row) => fromRow(row as OccupancyRow))
+              .filter((row): row is OccupancyStoredReport => row !== null),
+          };
         }),
     });
   },
