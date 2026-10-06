@@ -57,7 +57,7 @@ import { outerLondonOwnerForPub } from "../lib/outerLondonOwnership.mjs";
 import { publishStagedDirectory } from "./lib/atomicDirectoryPublish.mjs";
 import {
   planUkBaseVenueIdAliases,
-  writeUkBaseVenueIdAliases,
+  publishUkBaseWithAliases,
 } from "./lib/ukBaseVenueIdAliases.mjs";
 import { cityVenueIdForPub } from "./build_city_slim_index.mjs";
 import { CITIES } from "./fetch_city_osm_pubs.mjs";
@@ -416,14 +416,18 @@ async function main() {
     });
     await writeFile(path.join(stagedDir, "manifest.json"), manifestBody);
 
-    const publication = await publishStagedDirectory({
-      stagedDir,
-      targetDir: OUT_DIR,
-      requiredFiles: ["manifest.json"],
-      manifestBudgetBytes: MANIFEST_BUDGET_BYTES,
-      totalBudgetBytes: TOTAL_BUDGET_BYTES,
+    const publication = await publishUkBaseWithAliases({
+      root: ROOT,
+      doc: aliasPlan.doc,
+      publishShards: () =>
+        publishStagedDirectory({
+          stagedDir,
+          targetDir: OUT_DIR,
+          requiredFiles: ["manifest.json"],
+          manifestBudgetBytes: MANIFEST_BUDGET_BYTES,
+          totalBudgetBytes: TOTAL_BUDGET_BYTES,
+        }),
     });
-    if (aliasPlan.doc) await writeUkBaseVenueIdAliases(ROOT, aliasPlan.doc);
 
     console.log(
       [

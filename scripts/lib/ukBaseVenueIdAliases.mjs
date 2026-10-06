@@ -11,10 +11,15 @@
 // file: an id somebody stored stays resolvable, and a build that would leave a
 // dropped id resolving to nothing fails.
 
-import { readFile, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { UK_BASE_VENUE_ALIASES_FILE } from "../../lib/venueAliasesFile.mjs";
+import {
+  UK_BASE_VENUE_ALIASES_FILE,
+  VENUE_ALIAS_FILES,
+  flattenVenueAliasChains,
+} from "../../lib/venueAliasesFile.mjs";
 import {
   mergeCityVenueIdAliases,
   mergeRetiredCityVenues,
@@ -54,6 +59,36 @@ function isResolvableRetired(record) {
 
 function ukBaseIdOf(pub) {
   return `venue-uk-${pub.osmId}`;
+}
+
+/**
+ * Throws when the aliases about to be written, read together with the London
+ * and city alias files, send an id round a cycle. The runtime readers flatten
+ * a chain to its end, so a cycle would leave them with no alias set at all.
+ * A file the checkout does not carry holds no aliases.
+ *
+ * @param {string} root repo root
+ * @param {Record<string, string>} ukAliases
+ */
+async function assertNoAliasCycle(root, ukAliases) {
+  const pairs = [];
+  for (const file of VENUE_ALIAS_FILES) {
+    if (file === UK_BASE_VENUE_ALIASES_FILE) {
+      pairs.push(...Object.entries(ukAliases));
+      continue;
+    }
+    let doc;
+    try {
+      doc = JSON.parse(await readFile(path.join(root, file), "utf8"));
+    } catch (error) {
+      if (error?.code === "ENOENT") continue;
+      throw error;
+    }
+    for (const [from, to] of Object.entries(doc.aliases ?? {})) {
+      if (typeof to === "string" && to) pairs.push([from, to]);
+    }
+  }
+  flattenVenueAliasChains(pairs);
 }
 
 /**
@@ -132,6 +167,7 @@ export async function planUkBaseVenueIdAliases(root, previousRows, nextRows, liv
       ([id]) => !(id in aliases),
     ),
   );
+  await assertNoAliasCycle(root, aliases);
   const unresolved = departed
     .map(({ from }) => from)
     .filter((id) => !(id in aliases) && !isResolvableRetired(retiredRecords[id]));
@@ -148,14 +184,61 @@ export async function planUkBaseVenueIdAliases(root, previousRows, nextRows, liv
 }
 
 /**
- * Write a planned alias file.
+ * Stage a planned alias file beside its target, fully written, so the swap that
+ * publishes it is a rename and cannot fail on the content: a disk-full or
+ * serialisation error surfaces here, before anything is published.
+ *
+ * @param {string} root repo root
+ * @param {Record<string, unknown>} doc
+ * @returns {Promise<{ commit: () => Promise<void>, discard: () => Promise<void> }>}
+ */
+export async function stageUkBaseVenueIdAliases(root, doc) {
+  const target = path.join(root, UK_BASE_VENUE_ALIASES_FILE);
+  const staged = `${target}.${randomUUID()}.tmp`;
+  try {
+    await writeFile(staged, `${JSON.stringify(doc, null, 2)}\n`);
+  } catch (error) {
+    await rm(staged, { force: true });
+    throw error;
+  }
+  return {
+    commit: () => rename(staged, target),
+    discard: () => rm(staged, { force: true }),
+  };
+}
+
+/**
+ * Publish the shards and the alias document as one step. The alias file is
+ * staged first and swapped in only after `publishShards` has succeeded, so a
+ * failed publish leaves both the old shards and the old aliases in place, and a
+ * retry compares against the same old rows and plans the same departures. The
+ * previous shard generation is the only record of what a refresh dropped, which
+ * is why the alias file is never written ahead of, or apart from, the swap. A
+ * null `doc` needs no alias change.
+ *
+ * @template T
+ * @param {{ root: string, doc: Record<string, unknown> | null, publishShards: () => Promise<T> }} options
+ * @returns {Promise<T>}
+ */
+export async function publishUkBaseWithAliases({ root, doc, publishShards }) {
+  const staged = doc ? await stageUkBaseVenueIdAliases(root, doc) : null;
+  let publication;
+  try {
+    publication = await publishShards();
+  } catch (error) {
+    await staged?.discard();
+    throw error;
+  }
+  await staged?.commit();
+  return publication;
+}
+
+/**
+ * Write a planned alias file by itself, through the same stage and swap.
  *
  * @param {string} root repo root
  * @param {Record<string, unknown>} doc
  */
 export async function writeUkBaseVenueIdAliases(root, doc) {
-  await writeFile(
-    path.join(root, UK_BASE_VENUE_ALIASES_FILE),
-    `${JSON.stringify(doc, null, 2)}\n`,
-  );
+  await (await stageUkBaseVenueIdAliases(root, doc)).commit();
 }

@@ -64,7 +64,13 @@ confirmations, community prices, venue signals, provisional price marks, price
 trust, crowd readings, ratings, photos, visit reports, weather tips, presence,
 wanted fulfilment, operator claims and operator proposals) reads
 the rows stored under the venue's former ids too, through `storedVenueIds()` in
-`lib/venueAliases.ts`. Commit the file with the shards.
+`lib/venueAliases.ts`. The readers merge the three alias files into one map and
+point every id at the end of its chain through `flattenVenueAliasChains()` in
+`lib/venueAliasesFile.mjs`, so `A -> B -> C` reads `A -> C`. A cycle is refused:
+the build fails on one and a reader treats it as an unreadable alias set. The
+build stages the alias file and swaps it in only after the shards publish, so a
+failed publish leaves the old shards and the old aliases together. Commit the
+file with the shards.
 
 Community-price visibility binds to that same salted id. The settled viewport
 asks for marked ids only, then `lib/ukBasePubs.ts` adds the mark to in-memory
