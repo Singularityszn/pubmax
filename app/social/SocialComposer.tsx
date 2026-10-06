@@ -19,7 +19,6 @@ type Draft = {
   venueId: string | null;
   venueName: string;
   visibility: SocialPostDTO["visibility"];
-  commentPolicy: SocialPostDTO["commentPolicy"];
   kind: SocialPostDTO["kind"];
   hashtags: string;
   tagHandles: string;
@@ -47,7 +46,6 @@ function initialDraft(post?: SocialPostDTO): Draft {
     venueId: post?.venueId ?? null,
     venueName: post?.venueName ?? "",
     visibility: post?.visibility ?? "friends",
-    commentPolicy: post?.commentPolicy ?? "open",
     kind: post?.kind ?? "standard",
     hashtags: post?.hashtags.join(" ") ?? "",
     tagHandles: "",
@@ -69,7 +67,6 @@ function draftHasChanges(
       draft.venueId !== (post?.venueId ?? null) ||
       draft.venueName !== (post?.venueName ?? "") ||
       draft.visibility !== (post?.visibility ?? "friends") ||
-      draft.commentPolicy !== (post?.commentPolicy ?? "open") ||
       draft.kind !== (post?.kind ?? "standard") ||
       draft.hashtags !== (post?.hashtags.join(" ") ?? "") ||
       draft.tagHandles !== ""
@@ -197,7 +194,6 @@ function PolicyFields({ draft, hasPhoto, onDraft }: { draft: Draft; hasPhoto: bo
       <label>Hashtags<input value={draft.hashtags} onChange={(event) => onDraft({ ...draft, hashtags: event.currentTarget.value })} /></label>
       {hasPhoto ? <label>Photo tags<input value={draft.tagHandles} onChange={(event) => onDraft({ ...draft, tagHandles: event.currentTarget.value })} /></label> : null}
       <label>Visibility<select value={draft.visibility} onChange={(event) => onDraft({ ...draft, visibility: event.currentTarget.value as Draft["visibility"] })}><option value="private">Private</option><option value="friends">Friends</option><option value="public">Public</option></select></label>
-      <label>Comments<select value={draft.commentPolicy} onChange={(event) => onDraft({ ...draft, commentPolicy: event.currentTarget.value as Draft["commentPolicy"] })}><option value="open">Open</option><option value="friends">Friends</option><option value="locked">Locked</option></select></label>
       <label>Post type<select value={draft.kind} onChange={(event) => onDraft({ ...draft, kind: event.currentTarget.value as Draft["kind"] })}><option value="standard">Post</option><option value="feature_request">Feature request</option></select></label>
     </>
   );
@@ -296,10 +292,11 @@ export default function SocialComposer({
       try {
         const saved = localStorage.getItem(draftKey);
         if (saved) {
-          nextDraft = {
-            ...nextDraft,
-            ...(JSON.parse(saved) as Partial<Draft>),
-          };
+          // A draft saved before the Comments setting left the composer may
+          // still carry its key. A post has no comments yet, so it is dropped.
+          const restored = JSON.parse(saved) as Partial<Draft> & { commentPolicy?: unknown };
+          delete restored.commentPolicy;
+          nextDraft = { ...nextDraft, ...restored };
         }
       } catch {
         // Ignore invalid local draft.
@@ -463,7 +460,9 @@ export default function SocialComposer({
       area: draft.area || null,
       venueId: draft.venueId,
       hashtags,
-      commentPolicy: draft.commentPolicy,
+      // No control sets this while posts take no comments. An edit keeps what the
+      // post already holds, and a new post opens as the stored default.
+      commentPolicy: basePost?.commentPolicy ?? "open",
       ...(photo || (editing && basePost?.photo && !removePhoto)
         ? { photoAltText: draft.altText }
         : {}),

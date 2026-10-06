@@ -200,6 +200,8 @@ describe("verified Social post card", () => {
     );
 
     expect(html).toContain("@alice");
+    // The author is a way into their profile, not plain text.
+    expect(html).toContain('href="/u/alice"');
     expect(html).toContain(protectedPost.body);
     expect(html).toContain("Camden");
     expect(html).toContain("#quietpint");

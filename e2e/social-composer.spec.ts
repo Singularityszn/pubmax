@@ -209,7 +209,6 @@ test("verified composer preserves failed photo draft, records consent choices, a
   await expect(dialog.getByText("Latest post loaded. Review it before saving.")).toBeVisible();
   await expect(dialog.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("Changed in another tab");
   await expect(dialog.getByLabel("Visibility")).toHaveValue("private");
-  await expect(dialog.getByLabel("Comments")).toHaveValue("locked");
   await dialog.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Changed in another tab")).toBeVisible();
   expect(editPayloads[1]).toMatchObject({ expectedMutationVersion: 2, body: "Changed in another tab", visibility: "private", commentPolicy: "locked" });
@@ -295,18 +294,16 @@ test("private visibility and comment policy survive create, owner outbox, and ed
   let dialog = page.getByRole("dialog");
   await dialog.getByRole("textbox", { name: "Write post", exact: true }).fill("Private plan");
   await dialog.getByLabel("Visibility").selectOption("private");
-  await dialog.getByLabel("Comments").selectOption("locked");
   await dialog.getByRole("button", { name: "Post", exact: true }).click();
 
   await expect(page.getByRole("heading", { name: "Outbox" })).toBeVisible();
   await expect(page.getByText("Moderation pending")).toBeVisible();
   await expect(page.getByText("Private plan", { exact: true })).toBeVisible();
-  expect(createPayloads[0]).toMatchObject({ visibility: "private", commentPolicy: "locked" });
+  expect(createPayloads[0]).toMatchObject({ visibility: "private", commentPolicy: "open" });
 
   await page.getByRole("button", { name: "Edit private post" }).click();
   dialog = page.getByRole("dialog");
   await expect(dialog.getByLabel("Visibility")).toHaveValue("private");
-  await expect(dialog.getByLabel("Comments")).toHaveValue("locked");
   await dialog.getByRole("textbox", { name: "Write post", exact: true }).fill("Private plan updated");
   await dialog.getByRole("button", { name: "Save" }).click();
   expect(editPayloads[0]).toMatchObject({ visibility: "private", commentPolicy: "locked" });
@@ -314,7 +311,8 @@ test("private visibility and comment policy survive create, owner outbox, and ed
   await page.getByRole("button", { name: "Post", exact: true }).click();
   dialog = page.getByRole("dialog");
   await expect(dialog.getByLabel("Visibility").locator("option")).toHaveText(["Private", "Friends", "Public"]);
-  await expect(dialog.getByLabel("Comments").locator("option")).toHaveText(["Open", "Friends", "Locked"]);
+  // Posts take no comments yet, so the composer offers no Comments setting.
+  await expect(dialog.getByLabel("Comments")).toHaveCount(0);
 });
 
 test("owner outbox pages older posts without duplicates and labels approved visibility", async ({ page }) => {

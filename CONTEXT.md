@@ -219,7 +219,7 @@ The deliberately published social expression of a Night Memory and the primary s
 _Avoid_: Night Memory, automatic activity feed, unreviewed archive
 
 **Social Post**:
-A verified-adult-authored Social item with text, an optional private Photo, an optional Night Area, an optional exact Venue, and author-selected visibility and comment policy. It stays out of reads until moderation approves its current revision. Exact Venue is visible only to its author and current Mutuals, and a Social Post never carries venue or price authority.
+A verified-adult-authored Social item with text, an optional private Photo, an optional Night Area, an optional exact Venue, and author-selected visibility. It stores a comment policy that no control sets while posts take no comments. It stays out of reads until moderation approves its current revision. Exact Venue is visible only to its author and current Mutuals, and a Social Post never carries venue or price authority.
 _Avoid_: Night Story, Pint Drop, Night Moment, public venue fact, price observation, unmoderated draft
 
 **Photo Tag Proposal**:
