@@ -1,4 +1,4 @@
--- Rollback 0176: `you` becomes claimable and renamable again, which re-opens
+-- Rollback 0177: `you` becomes claimable and renamable again, which re-opens
 -- QA F01 (a profile that never loads, and a `/u/you` alias that collides with
 -- a real account). Restores claim to its 0152 body and rename to its 0029 body.
 -- No row is touched. A `you` handle claimed in the meantime stays where it is.

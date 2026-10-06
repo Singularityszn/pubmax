@@ -1,4 +1,4 @@
--- 0176 reserves the handle `you` (QA F01, 6 Oct 2026).
+-- 0177 reserves the handle `you` (QA F01, 6 Oct 2026).
 -- `/u/you` is the viewer's own sentinel route and `handle=you` is the self
 -- alias, so a real account called `you` made its owner's profile load forever
 -- and made a signed-out `GET /api/profiles/you` return a stranger. The
