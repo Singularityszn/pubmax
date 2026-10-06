@@ -78,6 +78,12 @@ describe("readCurrentIdentity", () => {
     expect(load).toHaveBeenCalledTimes(2);
   });
 
+  it("hands a refusal's own words to the surface that shows them", async () => {
+    const refusal = { error: "Sign in to view your PUBMAXX handle.", code: "UNAUTHENTICATED" };
+    const read = await readCurrentIdentity("user-1", answer(refusal, 401));
+    expect(read).toEqual({ ok: false, status: 401, body: refusal });
+  });
+
   it("does not keep a read that threw", async () => {
     const load = vi.fn<() => Promise<Response>>().mockRejectedValueOnce(new Error("offline")).mockImplementation(answer());
     await expect(readCurrentIdentity("user-1", load)).rejects.toThrow("offline");

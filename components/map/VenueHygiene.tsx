@@ -61,6 +61,13 @@ function formatRatedMonth(iso: string | null): string | null {
 
 export default function VenueHygiene({ venueId, venueName, address }: Props) {
   const [rating, setRating] = useState<HygieneRating | null>(null);
+  // Which pub the held rating is ABOUT. Adopted during render, so the wait
+  // before the next pub's read never shows the previous pub's rating.
+  const [ratingFor, setRatingFor] = useState(venueId);
+  if (ratingFor !== venueId) {
+    setRatingFor(venueId);
+    setRating(null);
+  }
   const generationRef = useRef(0);
   // Below the first screen: starts after the sheet has painted.
   const ready = useStaggeredRead(2, venueId);

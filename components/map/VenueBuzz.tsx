@@ -123,6 +123,13 @@ export default function VenueBuzz({
 }: Props) {
   const isLondon = cityId === "london" || cityId === undefined;
   const [buzz, setBuzz] = useState<CityBuzz | null>(null);
+  // Which pub the held buzz is ABOUT. Adopted during render, so the wait
+  // before the next pub's read never shows the previous pub's buzz.
+  const [buzzFor, setBuzzFor] = useState(venueId);
+  if (buzzFor !== venueId) {
+    setBuzzFor(venueId);
+    setBuzz(null);
+  }
   // Generation token: writes from a superseded venue are dropped rather than
   // racing into the newly-selected sheet.
   const generationRef = useRef(0);

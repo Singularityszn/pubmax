@@ -275,13 +275,7 @@ describe("the lens costs a cold map nothing", () => {
         "<VenueSpoonsValueRow",
       );
     }
-    const row = readFileSync(
-      join(ROOT, "components", "map", "inspector", "VenueSpoonsValueRow.tsx"),
-      "utf8",
-    );
-    expect(row).toContain("/api/spoons-value?venueId=");
-    // Nothing on screen asks, so nothing asks the server.
-    expect(row).toMatch(/if \(!visible \|\| !ready\) return;/);
+    // What the row asks, and when, is held by venueSheetStaggeredPanels.test.tsx.
   });
 
   it("reads the slim lane and never the whole edition in a browser", () => {

@@ -46,8 +46,10 @@ firewall refused that burst and then unrelated routes for several seconds.
 `firewall.ts` gives the suite two rules:
 
 - **A 429 is retried with a pause.** The API reads (`hasSave`, abandoning the
-  Plan) retry up to three times, after 2 s, 4 s and 8 s. The save tap repeats
-  whole when a deny landed while it ran, because a denied write never happened.
+  Plan) retry up to three times, after 2 s, 4 s and 8 s. The save step repeats
+  whole when a deny landed while it ran. Each try reads the list first and taps
+  only when the save is not yet where the journey wants it, so a tap that
+  landed beside an unrelated deny is never undone.
 - **A deny that outlasts the retries fails as `INFRASTRUCTURE`.** The error names
   Vercel's edge firewall and the URL, and every deny is annotated on its test as
   `infrastructure`, so the report does not read it as a defect in the page.

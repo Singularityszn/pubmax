@@ -43,7 +43,7 @@ test.describe("signed-in journeys", () => {
         if (created.plan) await abandonPlan(page, created.plan);
       },
       async () => {
-        if (created.saved && (await hasSave(page))) await toggleSave(page);
+        if (created.saved) await setSave(page, false);
       },
     ];
     for (const undo of undos) {
@@ -159,9 +159,9 @@ test.describe("signed-in journeys", () => {
   test("saves a venue to a list", async () => {
     // A run that died before its cleanup leaves the save behind, and the
     // control toggles, so remove that save before this run saves again.
-    if (await hasSave(page)) await toggleSave(page);
+    await setSave(page, false);
     created.saved = true;
-    await toggleSave(page);
+    await setSave(page, true);
     // POST /api/saved-pubs answers 200 even when the write fails, so read the
     // list back to prove the save landed.
     expect(await hasSave(page), "the save is on the list").toBe(true);
@@ -181,7 +181,7 @@ test.describe("signed-in journeys", () => {
   test("removes the save", async () => {
     // Undo here, while the session is still signed in: afterAll runs after
     // sign-out, when the save control can no longer write.
-    await toggleSave(page);
+    await setSave(page, false);
     expect(await hasSave(page), "the save is removed").toBe(false);
     created.saved = false;
   });
@@ -227,12 +227,22 @@ test.describe("signed-in journeys", () => {
   }
 
   /**
-   * Tap the list chip once from the venue sheet. The tap is repeated whole when
-   * the edge firewall denied a response during it: a deny never reached the app,
-   * so the save did not happen, and a second tap is the first one done properly.
+   * Bring the smoke venue's save to `want`, tapping the list chip only when the
+   * list says otherwise. The step is repeated whole when the edge firewall
+   * denied any response during it, and each try reads the list first, so a tap
+   * that landed beside an unrelated deny is never undone by a second tap.
    */
-  function toggleSave(target: Page) {
-    return untilNoFirewallDeny(() => tapSaveChip(target), firewall.denies, undefined, undefined, "the save journey");
+  function setSave(target: Page, want: boolean) {
+    return untilNoFirewallDeny(
+      async () => {
+        if ((await hasSave(target)) === want) return;
+        await tapSaveChip(target);
+      },
+      firewall.denies,
+      undefined,
+      undefined,
+      "the save journey",
+    );
   }
 
   async function tapSaveChip(target: Page) {

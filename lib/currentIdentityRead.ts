@@ -23,7 +23,6 @@
 //  - A read that did not answer is never held, so a failure is asked again.
 
 import { authedActionFetch } from "@/lib/authedFetch";
-import { discardBody } from "@/lib/responseBody";
 import { subscribeDeviceIdentity } from "@/lib/deviceAccountIdentity";
 
 /** How long a settled answer is shared. Short: it only has to span one load. */
@@ -64,12 +63,10 @@ function bindBoundaries(): void {
 }
 
 async function parse(response: Response): Promise<CurrentIdentityRead> {
-  if (!response.ok) {
-    discardBody(response);
-    return { ok: false, status: response.status, body: null };
-  }
   const body = (await response.json().catch(() => null)) as CurrentIdentityBody | null;
-  return { ok: true, status: response.status, body };
+  return response.ok
+    ? { ok: true, status: response.status, body }
+    : { ok: false, status: response.status, body };
 }
 
 /**

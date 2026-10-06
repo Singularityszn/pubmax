@@ -154,6 +154,13 @@ export default function CityPlaceStrip({
 }: Props) {
   const isLondon = cityId === "london" || cityId === undefined;
   const [enrichment, setEnrichment] = useState<CityPlaceEnrichment | null>(null);
+  // Which pub the held strip is ABOUT. Adopted during render, so the wait
+  // before the next pub's read never shows the previous pub's strip.
+  const [enrichmentFor, setEnrichmentFor] = useState(venueId);
+  if (enrichmentFor !== venueId) {
+    setEnrichmentFor(venueId);
+    setEnrichment(null);
+  }
   // Generation token: any writes from a superseded venue are dropped rather
   // than racing into the newly-selected sheet.
   const generationRef = useRef(0);
