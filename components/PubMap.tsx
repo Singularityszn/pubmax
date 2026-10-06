@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarClock, List, MapPinned, ShieldCheck, X } from "lucide-react";
+import { CalendarClock, List, MapPinned, Navigation2, ShieldCheck, X } from "lucide-react";
 import { formatGbp } from "@/lib/formatGbp";
 import { priceBand, priceBandAreaForVenue, priceBandClass } from "@/lib/priceBand";
 import dynamic from "next/dynamic";
@@ -1077,6 +1077,13 @@ export default function PubMap({
   const [ukNationalBrowse] = useState(
     () => nationalBrowse || isUkNationalBrowse(currentSearch()),
   );
+  // The canvas hands over its camera reset only while the camera is off the
+  // city's attitude; the phone Layers tab always shows Reset view, disabled
+  // while it holds none.
+  const [cameraReset, setCameraReset] = useState<{ run: () => void } | null>(null);
+  const handleCameraResetChange = useCallback((run: (() => void) | null) => {
+    setCameraReset(run ? { run } : null);
+  }, []);
   // National gazetteer for map search (same places.json as the /places town search).
   // Loaded once when the reader types two characters or arrives on a national
   // / uncovered surface — never on every keystroke.
@@ -5850,6 +5857,15 @@ export default function PubMap({
             <div><strong>Map appearance</strong><small>Theme changes preserve this view and its active sheet.</small></div>
             <ThemeToggle />
           </div>
+          <Button
+            variant="secondary"
+            className="w-full uiButton--start"
+            disabled={!cameraReset}
+            onClick={() => cameraReset?.run()}
+          >
+            <Navigation2 size={18} aria-hidden="true" />
+            Reset view
+          </Button>
           <MapLayersControl embedded poiHidden={poiHidden} onPoiHiddenChange={setPoiHidden} activeBandId={activeBandId} onBandChange={setActiveBandId} storyBands={cityStoryBands} cityId={cityId} />
         </TabsContent>
         {experienceLens === "all" ? (
@@ -6504,6 +6520,7 @@ export default function PubMap({
         poiHidden={poiHidden}
         onPoiHiddenChange={setPoiHidden}
         hideLayersControl={mobileViewport}
+        onCameraResetChange={handleCameraResetChange}
         layersReaderKey={desktopLayersReaderKey}
         layersReaderPriceFilter={desktopLayersPriceFilter}
         venueDataFailed={venueIndexFailed}
