@@ -109,6 +109,44 @@ describe("usePublicProfileCard", () => {
     CARDS.qa_alice = { displayName: "Alice Archer", avatarUrl: "/api/profiles/a/avatar?v=1" };
   });
 
+  it("does not let a read sent before an edit repaint or hold the old face", async () => {
+    // The first read is still on the wire when the owner saves a new photo.
+    let releaseOld: (response: Response) => void = () => undefined;
+    const body = (card: unknown) =>
+      new Response(JSON.stringify({ profile: card }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    const oldCard = { displayName: "Alice Archer", avatarUrl: "/a?v=old" };
+    const newCard = { displayName: "Alice Archer", avatarUrl: "/a?v=new" };
+    fetchStub
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => { releaseOld = resolve; }))
+      .mockImplementationOnce(async () => body(newCard));
+
+    await act(async () => {
+      root.render(createElement(Probe, { handle: "qa_alice" }));
+    });
+    await act(async () => {
+      announceProfileCardChanged("qa_alice");
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    // The edit started its own request rather than joining the old one.
+    expect(fetchStub).toHaveBeenCalledTimes(2);
+    expect(latest()).toEqual(newCard);
+
+    // The old answer lands late and is dropped: not painted, not held.
+    await act(async () => {
+      releaseOld(body(oldCard));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(latest()).toEqual(newCard);
+    seen = [];
+    await act(async () => root.unmount());
+    root = createRoot(host);
+    await mount("qa_alice");
+    expect(latest()).toEqual(newCard);
+  });
+
   it("ignores a change announced for somebody else", async () => {
     await mount("qa_alice");
     const calls = fetchStub.mock.calls.length;

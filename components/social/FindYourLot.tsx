@@ -109,6 +109,10 @@ export default function FindYourLot({
       };
     }
     void Promise.resolve().then(() => setStatus("loading"));
+    // One controller per effect run: a new query, a switch of account or the
+    // session resolving cancels the request in flight, so a late answer for the
+    // previous viewer can never overwrite the current viewer's relations.
+    const controller = new AbortController();
     debounceRef.current = setTimeout(() => {
       void (async () => {
         try {
@@ -117,8 +121,12 @@ export default function FindYourLot({
           const viewerQuery = viewer ? `&viewer=${encodeURIComponent(viewer)}` : "";
           const response = await fetch(
             `/api/profiles/search?q=${encodeURIComponent(q)}${viewerQuery}`,
-            { cache: "no-store" },
+            { cache: "no-store", signal: controller.signal },
           );
+          if (controller.signal.aborted) {
+            discardBody(response);
+            return;
+          }
           if (!response.ok) {
             discardBody(response);
             setStatus("error");
@@ -126,6 +134,7 @@ export default function FindYourLot({
             return;
           }
           const body = (await response.json()) as { matches?: SearchMatch[] };
+          if (controller.signal.aborted) return;
           setMatches(
             Array.isArray(body.matches)
               ? body.matches.map((match) => ({
@@ -136,12 +145,14 @@ export default function FindYourLot({
           );
           setStatus("ready");
         } catch {
+          if (controller.signal.aborted) return;
           setStatus("error");
           setMatches([]);
         }
       })();
     }, 220);
     return () => {
+      controller.abort();
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [query, socialFriendsLaunchEnabled, viewer]);

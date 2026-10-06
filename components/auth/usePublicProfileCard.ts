@@ -33,11 +33,20 @@ export function usePublicProfileCard(handle: string | null | undefined): PublicP
 
   useEffect(() => {
     if (!key) return;
-    const controller = new AbortController();
+    let current = new AbortController();
+    // Each read cancels the one before it. A forced read follows a change to the
+    // card, so a request already on the wire was sent before that change: it is
+    // aborted and its answer is neither painted nor held, and the new read does
+    // not join it.
     const read = (force: boolean) => {
+      current.abort();
+      const controller = new AbortController();
+      current = controller;
       const fresh = force ? undefined : heldPublicProfileCard(key, PROFILE_CARD_FRESH_MS);
       void (async () => {
-        const card = fresh ?? (await loadPublicProfileCard(key, controller.signal));
+        const card =
+          fresh ??
+          (await loadPublicProfileCard(key, controller.signal, force ? { fresh: true } : {}));
         if (!controller.signal.aborted && card) setHeld({ key, card });
       })();
     };
@@ -48,7 +57,7 @@ export function usePublicProfileCard(handle: string | null | undefined): PublicP
     };
     window.addEventListener(PROFILE_CARD_CHANGED_EVENT, onChanged);
     return () => {
-      controller.abort();
+      current.abort();
       window.removeEventListener(PROFILE_CARD_CHANGED_EVENT, onChanged);
     };
   }, [key]);
