@@ -2,9 +2,14 @@
 
 import { useState } from "react";
 
+import {
+  useContributionGate,
+  type ContributionActionResult,
+} from "@/components/identity/ContributionGateDialog";
 import { trackEvent } from "@/lib/analytics";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { readContributionGateStatus } from "@/lib/contributionGateStatus";
 import { cleanText } from "@/lib/textClean";
 import {
   cleanWantedNote,
@@ -62,36 +67,33 @@ function createAnonymousWanted(input: {
   };
 }
 
+// What the gate says when a save is refused for age or handle. Without it the
+// dialog would tell a person saving a pub that they are logging a drink price.
+const WANTED_GATE_COPY = {
+  adult: "Saving a Wanted place is for over-18s.",
+  handle: "Wanted places carry your public handle, so pick one first.",
+} as const;
+
 export default function WantedCapture({ onSaved, anonymous = false, prefill }: Props): React.JSX.Element {
+  const { requestContribution, contributionGateDialog } = useContributionGate(WANTED_GATE_COPY);
   const [paste, setPaste] = useState(prefill?.venueName ?? "");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [resolve, setResolve] = useState<WantedResolveResult | null>(null);
 
-  async function saveConfirmed(candidate: WantedResolveCandidate, sourceUrl: string, rawPaste: string) {
+  // The signed-in write. It returns the gate's own status when the age or handle
+  // gate refused, so `requestContribution` can put the dialog in front of it and
+  // run this again once the one tap is recorded, rather than leaving a sentence
+  // with no control under the form.
+  async function postConfirmed(
+    candidate: WantedResolveCandidate,
+    sourceUrl: string,
+    rawPaste: string,
+  ): Promise<ContributionActionResult> {
     setBusy(true);
     setStatus(null);
     try {
-      if (anonymous) {
-        const wanted = createAnonymousWanted({
-          candidate,
-          sourceUrl,
-          sourcePlatform: detectSourcePlatform(sourceUrl),
-          rawPaste,
-          note,
-        });
-        trackEvent("wanted_created", {
-          venueKind: wanted.venueKind,
-          hasSourceUrl: Boolean(wanted.sourceUrl),
-        });
-        setStatus(`Saved ${wanted.venueName} for this session.`);
-        setPaste("");
-        setNote("");
-        setResolve(null);
-        onSaved?.(wanted);
-        return;
-      }
       const res = await authedActionFetch("/api/wanted", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -110,10 +112,12 @@ export default function WantedCapture({ onSaved, anonymous = false, prefill }: P
         return;
       }
       if (!res.ok || !body.wanted) {
-        if (body.status === "sign_in_required") {
+        const gate = readContributionGateStatus(body.status);
+        if (gate && gate !== "sign_in_required") {
+          return { status: gate, error: errorMessageFrom(body, "Could not save that Wanted place.") };
+        }
+        if (gate === "sign_in_required") {
           setStatus("Sign in to save a Wanted place.");
-        } else if (body.status === "onboarding_required") {
-          setStatus("Choose a public handle before saving Wanted places.");
         } else {
           setStatus(errorMessageFrom(body, "Could not save that Wanted place."));
         }
@@ -135,28 +139,41 @@ export default function WantedCapture({ onSaved, anonymous = false, prefill }: P
     }
   }
 
-  async function savePending(rawPaste: string, sourceUrl: string) {
+  async function saveConfirmed(candidate: WantedResolveCandidate, sourceUrl: string, rawPaste: string) {
+    if (!anonymous) {
+      await requestContribution(() => postConfirmed(candidate, sourceUrl, rawPaste));
+      return;
+    }
     setBusy(true);
     setStatus(null);
     try {
-      if (anonymous) {
-        const wanted = createAnonymousWanted({
-          sourceUrl,
-          sourcePlatform: detectSourcePlatform(sourceUrl),
-          rawPaste,
-          note,
-        });
-        trackEvent("wanted_created", {
-          venueKind: wanted.venueKind,
-          hasSourceUrl: Boolean(wanted.sourceUrl),
-        });
-        setStatus("Saved here as still matching. Add a pub name when you know it.");
-        setPaste("");
-        setNote("");
-        setResolve(null);
-        onSaved?.(wanted);
-        return;
-      }
+      const wanted = createAnonymousWanted({
+        candidate,
+        sourceUrl,
+        sourcePlatform: detectSourcePlatform(sourceUrl),
+        rawPaste,
+        note,
+      });
+      trackEvent("wanted_created", {
+        venueKind: wanted.venueKind,
+        hasSourceUrl: Boolean(wanted.sourceUrl),
+      });
+      setStatus(`Saved ${wanted.venueName} for this session.`);
+      setPaste("");
+      setNote("");
+      setResolve(null);
+      onSaved?.(wanted);
+    } catch {
+      setStatus("Could not save that Wanted place.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function postPending(rawPaste: string, sourceUrl: string): Promise<ContributionActionResult> {
+    setBusy(true);
+    setStatus(null);
+    try {
       const res = await authedActionFetch("/api/wanted", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -173,7 +190,11 @@ export default function WantedCapture({ onSaved, anonymous = false, prefill }: P
         return;
       }
       if (!res.ok || !body.wanted) {
-        if (body.status === "sign_in_required") {
+        const gate = readContributionGateStatus(body.status);
+        if (gate && gate !== "sign_in_required") {
+          return { status: gate, error: errorMessageFrom(body, "Could not save that paste.") };
+        }
+        if (gate === "sign_in_required") {
           setStatus("Sign in to save a Wanted place.");
         } else {
           setStatus(errorMessageFrom(body, "Could not save that paste."));
@@ -189,6 +210,36 @@ export default function WantedCapture({ onSaved, anonymous = false, prefill }: P
       setNote("");
       setResolve(null);
       onSaved?.(body.wanted);
+    } catch {
+      setStatus("Could not save that paste.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function savePending(rawPaste: string, sourceUrl: string) {
+    if (!anonymous) {
+      await requestContribution(() => postPending(rawPaste, sourceUrl));
+      return;
+    }
+    setBusy(true);
+    setStatus(null);
+    try {
+      const wanted = createAnonymousWanted({
+        sourceUrl,
+        sourcePlatform: detectSourcePlatform(sourceUrl),
+        rawPaste,
+        note,
+      });
+      trackEvent("wanted_created", {
+        venueKind: wanted.venueKind,
+        hasSourceUrl: Boolean(wanted.sourceUrl),
+      });
+      setStatus("Saved here as still matching. Add a pub name when you know it.");
+      setPaste("");
+      setNote("");
+      setResolve(null);
+      onSaved?.(wanted);
     } catch {
       setStatus("Could not save that paste.");
     } finally {
@@ -350,6 +401,7 @@ export default function WantedCapture({ onSaved, anonymous = false, prefill }: P
           Save as still matching
         </button>
       ) : null}
+      {contributionGateDialog}
     </div>
   );
 }

@@ -9,8 +9,13 @@ import { useEffect, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
+import ContributionGateDoor from "@/components/identity/ContributionGateDoor";
 import StarRating from "@/components/ratings/StarRating";
 import { authedFetch } from "@/lib/authedFetch";
+import {
+  readContributionDoor,
+  type ContributionDoorStatus,
+} from "@/lib/contributionGateStatus";
 import { diaryVisitedOnLabel, type DiaryEntryDTO } from "@/lib/diary";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
@@ -18,7 +23,11 @@ import "./diary.css";
 
 type DiaryRead = {
   userId: string;
-  status: "ready" | "degraded" | "error";
+  // "gated" is not a failure: an account that has not tapped "I'm 18 or over"
+  // has no diary to open yet, so the read answers the gate as data and the
+  // panel shows its door.
+  status: "ready" | "degraded" | "error" | "gated";
+  door?: ContributionDoorStatus;
   entries: DiaryEntryDTO[];
 };
 
@@ -35,6 +44,8 @@ export default function DiaryList(): React.JSX.Element | null {
   const viewerSession = useViewerSession();
   const userId = viewerSession.signedIn ? user?.id ?? null : null;
   const [read, setRead] = useState<DiaryRead | null>(null);
+  // Bumped when the one tap is recorded, so the diary is read again.
+  const [reads, setReads] = useState(0);
 
   useEffect(() => {
     if (!userId) return;
@@ -51,6 +62,11 @@ export default function DiaryList(): React.JSX.Element | null {
           entries?: DiaryEntryDTO[];
         };
         if (controller.signal.aborted) return;
+        const door = res.ok ? readContributionDoor(body) : undefined;
+        if (door) {
+          setRead({ userId, status: "gated", door, entries: [] });
+          return;
+        }
         setRead(
           res.ok
             ? {
@@ -66,7 +82,7 @@ export default function DiaryList(): React.JSX.Element | null {
       }
     })();
     return () => controller.abort();
-  }, [userId]);
+  }, [userId, reads]);
 
   if (!userId) return null;
   const current = read && read.userId === userId ? read : null;
@@ -84,6 +100,12 @@ export default function DiaryList(): React.JSX.Element | null {
         <p className="diaryPanel__empty" role="status">
           Opening your diary.
         </p>
+      ) : current.status === "gated" && current.door ? (
+        <ContributionGateDoor
+          status={current.door}
+          subject="keep a diary"
+          onAsserted={() => setReads((count) => count + 1)}
+        />
       ) : current.status !== "ready" ? (
         <p className="diaryPanel__empty" role="status">
           We couldn&apos;t open your diary just now. Try again shortly.

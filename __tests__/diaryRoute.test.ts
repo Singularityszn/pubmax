@@ -83,6 +83,36 @@ afterEach(() => vi.restoreAllMocks());
 
 const TODAY = () => londonDayKey(new Date());
 
+describe("GET /api/diary behind a gate", () => {
+  it("answers the age gate as data at 200 and still refuses the write with 409", async () => {
+    identityState.resolution = {
+      ok: false,
+      accountId: "acct-alice",
+      body: { status: "adult_check_required", error: "Confirm you are 18 or over before contributing." },
+      httpStatus: 409,
+    };
+
+    const list = await GET(get());
+    expect(list.status).toBe(200);
+    expect(await list.json()).toEqual({
+      status: "adult_check_required",
+      error: "Confirm you are 18 or over before contributing.",
+    });
+
+    const write = await POST(post({ venueId: VENUE_ID }));
+    expect(write.status).toBe(409);
+  });
+
+  it("keeps a missing sign-in a 401", async () => {
+    identityState.resolution = {
+      ok: false,
+      body: { status: "sign_in_required", error: "Sign in to contribute." },
+      httpStatus: 401,
+    };
+    expect((await GET(get())).status).toBe(401);
+  });
+});
+
 describe("POST /api/diary", () => {
   it("logs a visit and lists it for the owner", async () => {
     const created = await POST(

@@ -17,6 +17,7 @@ import { authedActionFetch } from "@/lib/authedFetch";
 import { HANDLE_CLAIM_NEXT } from "@/lib/authRedirect";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import {
+  ADULT_ASSERTED_EVENT,
   CONTRIBUTION_ADULT_REFUSAL,
   CONTRIBUTION_HANDLE_REFUSAL,
   CONTRIBUTION_UNDER_18_REFUSAL,
@@ -32,30 +33,44 @@ import "./contributionGate.css";
 /** The dialog answers the gate, so it speaks the gate's own vocabulary. */
 export type ContributionGateDialogMode = ContributionGateStatus;
 
+/**
+ * What the gate says it is FOR. The age default is the general line; a surface
+ * that is not a price (Wanted) names its own action so the dialog never tells a
+ * person they are logging a drink price when they are saving a pub.
+ */
+export type ContributionGateCopy = {
+  /** The age sentence, such as "Saving a Wanted place is for over-18s." */
+  adult?: string;
+  /** The handle sentence, such as "Wanted places carry your public handle, so pick one first." */
+  handle?: string;
+};
+
 type ContributionGateDialogProps = {
   mode: ContributionGateDialogMode;
   error: string | null;
   onClose: () => void;
   /** Called once the one tap is recorded, so the held action can run. */
   onAsserted?: () => void;
+  copy?: ContributionGateCopy;
 };
 
 /**
- * The one tap, in the price path's own frame. Social records the same
- * assertion through the same route (`/api/identity/adult-assertion`); this is
- * that door where a drinker already asked to log a price, so the age question
- * is answered where it was raised rather than on another surface.
+ * The one tap, as a hook, so the dialog and the inline door (the same question
+ * asked where a list would be) record it through ONE route and one error line.
+ * Social records the same assertion through the same route
+ * (`/api/identity/adult-assertion`); the age question is answered where it was
+ * raised rather than on another surface.
  */
-function AdultCheck({
-  onAsserted,
-}: {
-  onAsserted?: () => void;
-}): React.JSX.Element {
+export function useAdultTap(onAsserted?: () => void): {
+  assert: () => void;
+  busy: boolean;
+  error: string | null;
+} {
   const [busy, setBusy] = useState(false);
-  const [assertError, setAssertError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const assert = useCallback(() => {
     setBusy(true);
-    setAssertError(null);
+    setError(null);
     authedActionFetch(
       "/api/identity/adult-assertion",
       { method: "POST", cache: "no-store", credentials: "same-origin" },
@@ -64,13 +79,24 @@ function AdultCheck({
       .then((response) => {
         discardBody(response);
         if (!response.ok) throw new Error("Adult assertion refused");
+        // Tell every other door on the page, then resume what asked.
+        window.dispatchEvent(new Event(ADULT_ASSERTED_EVENT));
         onAsserted?.();
       })
       .catch(() => {
-        setAssertError("We could not save that just now. Try again.");
+        setError("We could not save that just now. Try again.");
       })
       .finally(() => setBusy(false));
   }, [onAsserted]);
+  return { assert, busy, error };
+}
+
+function AdultCheck({
+  onAsserted,
+}: {
+  onAsserted?: () => void;
+}): React.JSX.Element {
+  const { assert, busy, error } = useAdultTap(onAsserted);
   return (
     <>
       <button
@@ -81,9 +107,9 @@ function AdultCheck({
       >
         {ADULT_SELF_ASSERTION_ACTION}
       </button>
-      {assertError ? (
+      {error ? (
         <p className="contributionGateError" role="alert">
-          {assertError}
+          {error}
         </p>
       ) : null}
     </>
@@ -95,6 +121,7 @@ export function ContributionGateDialog({
   error,
   onClose,
   onAsserted,
+  copy,
 }: ContributionGateDialogProps): React.JSX.Element {
   // A blocking dialog owes a keyboard way out. This one had a close button and
   // nothing else, so a reader who reached it with the keyboard had to tab to
@@ -124,7 +151,9 @@ export function ContributionGateDialog({
             <p className="contributionGateEyebrow">Age check</p>
             <h2 id="contribution-gate-title">Confirm your age</h2>
             <p>
-              This is for over-18s. One tap records it, and we ask once.
+              {copy?.adult
+                ? `${copy.adult} One tap records it, and we ask once.`
+                : "This is for over-18s. One tap records it, and we ask once."}
             </p>
             <AdultCheck onAsserted={onAsserted} />
           </>
@@ -143,8 +172,8 @@ export function ContributionGateDialog({
             <p className="contributionGateEyebrow">Handle needed</p>
             <h2 id="contribution-gate-title">Choose your handle</h2>
             <p>
-              Contributions carry your public handle, so pick one before you
-              log a price.
+              {copy?.handle ??
+                "Contributions carry your public handle, so pick one before you log a price."}
             </p>
             <Link
               className="contributionGatePrimary"
@@ -304,7 +333,7 @@ export function contributionGateReducer(
   };
 }
 
-export function useContributionGate(): {
+export function useContributionGate(copy?: ContributionGateCopy): {
   requestContribution: (action: PendingContribution) => Promise<void>;
   contributionGateDialog: React.JSX.Element | null;
 } {
@@ -378,6 +407,7 @@ export function useContributionGate(): {
           error={gate.error}
           onClose={() => resetGate(userId)}
           onAsserted={resumeAfterAssertion}
+          {...(copy ? { copy } : {})}
         />
       ) : null,
   };

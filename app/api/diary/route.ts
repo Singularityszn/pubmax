@@ -1,6 +1,7 @@
 // The Diary, Phase 1: a drinker's own dated log of pub visits.
 //
-//   GET                                       -> 200 { status, entries } (owner only, newest day first)
+//   GET                                       -> 200 { status, entries } (owner only, newest day first);
+//                                                200 { status: "adult_check_required" | ... , error } while a gate stands in front of it
 //   POST { venueId, visitedOn?, rating?, review? }
 //                                             -> 201 { entry }
 //
@@ -14,6 +15,7 @@
 
 import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
+import { contributionReadRefusalResponse } from "@/lib/contributionReadRefusal.server";
 import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
 import { validateDiaryEntryCreate } from "@/lib/diary";
 import { diaryStore } from "@/lib/diaryStore";
@@ -41,7 +43,8 @@ async function parseJson(request: Request): Promise<Record<string, unknown> | nu
 
 export async function GET(request: Request): Promise<Response> {
   const owner = await resolveContributionIdentity(request);
-  if (!owner.ok) return jsonNoStore(owner.body, { status: owner.httpStatus });
+  // A gate (age, handle) in front of your own diary is data, not an error.
+  if (!owner.ok) return contributionReadRefusalResponse(owner);
 
   try {
     const result = await diaryStore().listForOwner(owner.accountId);

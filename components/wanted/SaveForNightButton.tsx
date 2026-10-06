@@ -2,10 +2,15 @@
 
 import { useState } from "react";
 
+import {
+  useContributionGate,
+  type ContributionActionResult,
+} from "@/components/identity/ContributionGateDialog";
 import { trackEvent } from "@/lib/analytics";
 import { haptic } from "@/lib/nativeHaptics";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { readContributionGateStatus } from "@/lib/contributionGateStatus";
 import { isUkBaseVenueId, type WantedDTO } from "@/lib/wanted";
 
 import "./wanted.css";
@@ -24,10 +29,16 @@ export default function SaveForNightButton({
   /** Called when a tap makes this control the one that speaks. */
   onActivate?: () => void;
 }): React.JSX.Element {
+  const { requestContribution, contributionGateDialog } = useContributionGate({
+    adult: "Saving a Wanted place is for over-18s.",
+    handle: "Wanted places carry your public handle, so pick one first.",
+  });
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
-  async function save() {
+  // Returns the gate's own status when the age or handle gate refused, so the
+  // dialog can stand in front of the save and run it again once the tap is in.
+  async function save(): Promise<ContributionActionResult> {
     onActivate?.();
     setBusy(true);
     setToast(null);
@@ -48,10 +59,13 @@ export default function SaveForNightButton({
         status?: string;
       };
       if (!res.ok || !body.wanted) {
-        if (body.status === "sign_in_required") {
+        const gate = readContributionGateStatus(body.status);
+        if (gate && gate !== "sign_in_required") {
+          haptic("action-refused");
+          return { status: gate, error: errorMessageFrom(body, "Could not save for a night.") };
+        }
+        if (gate === "sign_in_required") {
           setToast("Sign in to save for a night.");
-        } else if (body.status === "onboarding_required") {
-          setToast("Choose a public handle first.");
         } else {
           setToast(errorMessageFrom(body, "Could not save for a night."));
         }
@@ -77,7 +91,7 @@ export default function SaveForNightButton({
       <button
         type="button"
         className="wantedSaveBtn"
-        onClick={() => void save()}
+        onClick={() => void requestContribution(save)}
         disabled={busy}
         aria-label={`Save ${venueName} for a night`}
       >
@@ -88,6 +102,7 @@ export default function SaveForNightButton({
           {toast}
         </p>
       ) : null}
+      {contributionGateDialog}
     </div>
   );
 }

@@ -4,11 +4,16 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
+import ContributionGateDoor from "@/components/identity/ContributionGateDoor";
 import { authedFetch } from "@/lib/authedFetch";
 import {
   readProviderAccountRevision,
   readProviderAccountSignal,
 } from "@/lib/authProviderRevision";
+import {
+  readContributionDoor,
+  type ContributionDoorStatus,
+} from "@/lib/contributionGateStatus";
 import {
   isWantedPromotable,
   wantedPendingLabel,
@@ -33,13 +38,16 @@ type WantedFulfilEventDetail = {
   userId?: string | null;
 };
 
-type WantedFetchStatus = "loading" | "ready" | "sign_in" | "error";
+// "gated" is not a failure: a new account has not tapped "I'm 18 or over" yet,
+// so the read answers the gate as data and the panel shows its door.
+type WantedFetchStatus = "loading" | "ready" | "sign_in" | "error" | "gated";
 
 type WantedAccountState = {
   userId: string | null;
   accountRevision: number;
   wanteds: WantedDTO[];
   fetchStatus: WantedFetchStatus;
+  door?: ContributionDoorStatus;
   fulfilNote: string | null;
 };
 
@@ -97,6 +105,18 @@ export default function WantedListBody(): React.JSX.Element {
           accountRevision: requestProviderAccountRevision,
           wanteds: [],
           fetchStatus: "sign_in",
+          fulfilNote: current?.userId === requestUserId ? current.fulfilNote : null,
+        }));
+        return;
+      }
+      const door = res.ok ? readContributionDoor(body) : undefined;
+      if (door) {
+        setAccountState((current) => ({
+          userId: requestUserId,
+          accountRevision: requestProviderAccountRevision,
+          wanteds: [],
+          fetchStatus: "gated",
+          door,
           fulfilNote: current?.userId === requestUserId ? current.fulfilNote : null,
         }));
         return;
@@ -224,6 +244,7 @@ export default function WantedListBody(): React.JSX.Element {
         ? "loading"
         : currentAccountState?.fetchStatus ?? "loading";
   const owned = currentAccountState?.wanteds ?? [];
+  const door = loadStatus === "gated" ? currentAccountState?.door : undefined;
 
   const open = owned.filter((row) => row.status === "open");
   const fulfilled = owned.filter((row) => row.status === "fulfilled");
@@ -233,6 +254,12 @@ export default function WantedListBody(): React.JSX.Element {
     <>
       {loadStatus === "sign_in" ? (
         <p className="wantedPanel__empty">Sign in to keep a Wanted list.</p>
+      ) : door ? (
+        <ContributionGateDoor
+          status={door}
+          subject="keep a Wanted list"
+          onAsserted={() => void refresh()}
+        />
       ) : (
         <WantedCapture
           key={userId ?? "no-account"}

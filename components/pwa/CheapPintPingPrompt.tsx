@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { claimPromptBudget, hasPromptBudgetFor } from "@/lib/promptBudget";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { readContributionDoor } from "@/lib/contributionGateStatus";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import {
   CHEAP_PINT_PING_PROMPT_SURFACE,
@@ -45,7 +46,10 @@ export default function CheapPintPingPrompt(): React.JSX.Element | null {
       .then(async (response) => {
         if (controller.signal.aborted) return;
         const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-        if (!response.ok) return;
+        // A gate in front of the read (the account has not tapped "I'm 18 or
+        // over") answers at 200 with a status and no preference, and syncing
+        // that as "not enabled, not declined" would erase what this device knows.
+        if (!response.ok || readContributionDoor(body)) return;
         syncCheapPintPingPromptFromServer({
           canPrompt: body.canPrompt === true,
           declined: body.declined === true,

@@ -4,9 +4,14 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
+import ContributionGateDoor from "@/components/identity/ContributionGateDoor";
 import { detectA2hsPlatform } from "@/lib/a2hsPrompt";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
+import {
+  readContributionDoor,
+  type ContributionDoorStatus,
+} from "@/lib/contributionGateStatus";
 import { isNativeApp } from "@/lib/nativePlatform";
 import { registerWebPush, unregisterWebPush } from "@/lib/webPush";
 import { Button } from "@/components/ui/button";
@@ -46,6 +51,9 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
   const [pref, setPref] = useState<PrefState | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
+  // The age or handle gate, answered as data by the read and by a refused write.
+  // It stands where the on switch would be until the one tap is recorded.
+  const [gate, setGate] = useState<ContributionDoorStatus | null>(null);
   const registrationAbortRef = useRef<AbortController | null>(null);
   // Client-only install check via external store so SSR stays stable.
   const needsInstall = useSyncExternalStore(
@@ -61,6 +69,12 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
       .then(async (response) => {
         if (controller.signal.aborted) return;
         const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+        const door = response.ok ? readContributionDoor(body) : undefined;
+        if (door) {
+          setGate(door);
+          setPref({ enabled: false, lastSentAt: null, canSend: false, maxPerWeek: 1 });
+          return;
+        }
         if (!response.ok) {
           setPref({ enabled: false, lastSentAt: null, canSend: false, maxPerWeek: 1 });
           return;
@@ -112,6 +126,12 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
       }, { requiresIdentity: true });
       const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
       if (!response.ok) {
+        // A refused write that names a gate is a door, not a failure.
+        const door = readContributionDoor(body);
+        if (door) {
+          setGate(door);
+          return;
+        }
         setNotice(
           offlineOrMessage(errorMessageFrom(body, "Could not save the preference. Try again."))
         );
@@ -196,17 +216,25 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
           to Home Screen, then open PUBMAXX from the icon before turning this on.
         </p>
       ) : null}
-      <div className="accountHubActions">
-        {enabled ? (
-          <Button variant="secondary" type="button" onClick={() => void withdraw()} disabled={busy}>
-            {busy ? "Updating…" : "Turn Step Out off"}
-          </Button>
-        ) : (
-          <Button variant="secondary" type="button" onClick={() => void enable()} disabled={busy}>
-            {busy ? "Updating…" : "Turn Step Out on"}
-          </Button>
-        )}
-      </div>
+      {gate ? (
+        <ContributionGateDoor
+          status={gate}
+          subject="turn Step Out on"
+          onAsserted={() => setGate(null)}
+        />
+      ) : (
+        <div className="accountHubActions">
+          {enabled ? (
+            <Button variant="secondary" type="button" onClick={() => void withdraw()} disabled={busy}>
+              {busy ? "Updating…" : "Turn Step Out off"}
+            </Button>
+          ) : (
+            <Button variant="secondary" type="button" onClick={() => void enable()} disabled={busy}>
+              {busy ? "Updating…" : "Turn Step Out on"}
+            </Button>
+          )}
+        </div>
+      )}
       <p className="accountHubConsentStatus" role="status">
         {enabled
           ? "Step Out on · one push a week maximum."

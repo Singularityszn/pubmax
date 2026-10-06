@@ -91,3 +91,36 @@ export function readContributionGateStatus(
     ? (value as ContributionGateStatus)
     : undefined;
 }
+
+/** The three gates a READ of your own record answers as data at 200. */
+export type ContributionDoorStatus = Extract<
+  ContributionGateStatus,
+  "adult_check_required" | "adult_check_failed" | "onboarding_required"
+>;
+
+/**
+ * The door a 200 read of the caller's own record is standing at, or nothing.
+ * `lib/contributionIdentity.server.ts` answers a gated read as
+ * `{ status, error }` at 200 so the browser logs no error for a list a new
+ * account has no way to hold yet. A surface that reads such a body asks this
+ * before it reads the list, and shows its door where the list would be.
+ */
+export function readContributionDoor(body: unknown): ContributionDoorStatus | undefined {
+  const status = readContributionGateStatus(
+    body && typeof body === "object" ? (body as { status?: unknown }).status : undefined,
+  );
+  return status === "adult_check_required" ||
+    status === "adult_check_failed" ||
+    status === "onboarding_required"
+    ? status
+    : undefined;
+}
+
+/**
+ * Fired on `window` once the one tap is recorded, by whichever door took it.
+ * "We ask once" is a promise about the whole page: a profile shows a door for
+ * Wanted, another for the diary and another for Step Out, each reading its own
+ * list, and a tap on one of them has to dissolve the rest rather than leave two
+ * doors asking a question that was just answered.
+ */
+export const ADULT_ASSERTED_EVENT = "pubmax:adult-asserted";

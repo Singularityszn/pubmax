@@ -9,6 +9,7 @@
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { contributionReadRefusalResponse } from "@/lib/contributionReadRefusal.server";
 import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
 import { log } from "@/lib/log";
 import { isLimited } from "@/lib/pintDrops";
@@ -30,12 +31,16 @@ async function parseJson(request: Request): Promise<Record<string, unknown> | nu
   }
 }
 
-async function requireOwner(request: Request) {
+/** `read` is a GET of the owner's own record: a gate (age, handle) is answered as
+ * data at 200 rather than a 409, see `contributionReadRefusalResponse`. */
+async function requireOwner(request: Request, options: { read?: boolean } = {}) {
   const contributor = await resolveContributionIdentity(request);
   if (!contributor.ok) {
     return {
       ok: false as const,
-      response: jsonNoStore(contributor.body, { status: contributor.httpStatus }),
+      response: options.read
+        ? contributionReadRefusalResponse(contributor)
+        : jsonNoStore(contributor.body, { status: contributor.httpStatus }),
     };
   }
   return { ok: true as const, contributor };
@@ -56,7 +61,7 @@ function prefResponse(pref: {
 }
 
 export async function GET(request: Request): Promise<Response> {
-  const owner = await requireOwner(request);
+  const owner = await requireOwner(request, { read: true });
   if (!owner.ok) return owner.response;
 
   try {
