@@ -35,7 +35,7 @@ import { loadVenueAliasMaps } from "@/lib/venueAliasMap";
 import { resolveWritableVenueId } from "@/lib/venueWriteTarget.server";
 import {
   planUkBaseVenueIdAliases,
-  writeUkBaseVenueIdAliases,
+  publishUkBaseWithAliases,
   ukBaseIdDepartures,
 } from "../scripts/lib/ukBaseVenueIdAliases.mjs";
 
@@ -103,10 +103,10 @@ async function recordUkBaseVenueIdAliases(
   liveCuratedIds: ReadonlySet<string>,
 ): Promise<void> {
   const plan = await planUkBaseVenueIdAliases(root, previousRows, nextRows, liveCuratedIds);
-  if (plan.doc) await writeUkBaseVenueIdAliases(root, plan.doc);
+  await publishUkBaseWithAliases({ root, doc: plan.doc, publishShards: async () => {} });
 }
 
-describe("planUkBaseVenueIdAliases and writeUkBaseVenueIdAliases", () => {
+describe("planUkBaseVenueIdAliases and publishUkBaseWithAliases", () => {
   function aliasRoot(): string {
     const root = mkdtempSync(path.join(tmpdir(), "uk-base-aliases-"));
     mkdirSync(path.join(root, "public", "data"), { recursive: true });

@@ -184,34 +184,11 @@ export async function planUkBaseVenueIdAliases(root, previousRows, nextRows, liv
 }
 
 /**
- * Stage a planned alias file beside its target, fully written, so the swap that
- * publishes it is a rename and cannot fail on the content: a disk-full or
- * serialisation error surfaces here, before anything is published.
- *
- * @param {string} root repo root
- * @param {Record<string, unknown>} doc
- * @returns {Promise<{ commit: () => Promise<void>, discard: () => Promise<void> }>}
- */
-export async function stageUkBaseVenueIdAliases(root, doc) {
-  const target = path.join(root, UK_BASE_VENUE_ALIASES_FILE);
-  const staged = `${target}.${randomUUID()}.tmp`;
-  try {
-    await writeFile(staged, `${JSON.stringify(doc, null, 2)}\n`);
-  } catch (error) {
-    await rm(staged, { force: true });
-    throw error;
-  }
-  return {
-    commit: () => rename(staged, target),
-    discard: () => rm(staged, { force: true }),
-  };
-}
-
-/**
  * Publish the shards and the alias document as one step. The alias file is
- * staged first and swapped in only after `publishShards` has succeeded, so a
- * failed publish leaves both the old shards and the old aliases in place, and a
- * retry compares against the same old rows and plans the same departures. The
+ * staged first, fully written beside its target under a dot-prefixed name, and
+ * swapped in by a rename only after `publishShards` has succeeded, so a failed
+ * publish leaves both the old shards and the old aliases in place, and a retry
+ * compares against the same old rows and plans the same departures. The
  * previous shard generation is the only record of what a refresh dropped, which
  * is why the alias file is never written ahead of, or apart from, the swap. A
  * null `doc` needs no alias change.
@@ -221,24 +198,18 @@ export async function stageUkBaseVenueIdAliases(root, doc) {
  * @returns {Promise<T>}
  */
 export async function publishUkBaseWithAliases({ root, doc, publishShards }) {
-  const staged = doc ? await stageUkBaseVenueIdAliases(root, doc) : null;
-  let publication;
+  if (!doc) return publishShards();
+  const target = path.join(root, UK_BASE_VENUE_ALIASES_FILE);
+  const staged = path.join(
+    path.dirname(target),
+    `.${path.basename(target)}.${randomUUID()}.tmp`,
+  );
   try {
-    publication = await publishShards();
-  } catch (error) {
-    await staged?.discard();
-    throw error;
+    await writeFile(staged, `${JSON.stringify(doc, null, 2)}\n`);
+    const publication = await publishShards();
+    await rename(staged, target);
+    return publication;
+  } finally {
+    await rm(staged, { force: true });
   }
-  await staged?.commit();
-  return publication;
-}
-
-/**
- * Write a planned alias file by itself, through the same stage and swap.
- *
- * @param {string} root repo root
- * @param {Record<string, unknown>} doc
- */
-export async function writeUkBaseVenueIdAliases(root, doc) {
-  await (await stageUkBaseVenueIdAliases(root, doc)).commit();
 }

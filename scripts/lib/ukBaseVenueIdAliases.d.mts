@@ -30,16 +30,6 @@ export function planUkBaseVenueIdAliases(
   doc: Record<string, unknown> | null;
 }>;
 
-export function writeUkBaseVenueIdAliases(
-  root: string,
-  doc: Record<string, unknown>,
-): Promise<void>;
-
-export function stageUkBaseVenueIdAliases(
-  root: string,
-  doc: Record<string, unknown>,
-): Promise<{ commit: () => Promise<void>; discard: () => Promise<void> }>;
-
 export function publishUkBaseWithAliases<T>(options: {
   root: string;
   doc: Record<string, unknown> | null;

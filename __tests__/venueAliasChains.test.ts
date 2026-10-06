@@ -199,16 +199,20 @@ describe("publishUkBaseWithAliases", () => {
   it("swaps the alias file in after the shards publish", async () => {
     const { root, file } = aliasRoot();
     const seenWhilePublishing: string[] = [];
+    let stagedWhilePublishing: string[] = [];
     const result = await publishUkBaseWithAliases({
       root,
       doc: next,
       publishShards: async () => {
         seenWhilePublishing.push(readFileSync(file, "utf8"));
+        stagedWhilePublishing = files(root).filter((name) => name !== "uk_base_venue_id_aliases.json");
         return "published";
       },
     });
     expect(result).toBe("published");
     expect(JSON.parse(seenWhilePublishing[0] ?? "{}").aliases).toEqual({ held: "x" });
+    expect(stagedWhilePublishing).toHaveLength(1);
+    expect(stagedWhilePublishing[0]).toMatch(/^\.uk_base_venue_id_aliases\.json\..+\.tmp$/);
     expect(JSON.parse(readFileSync(file, "utf8")).aliases).toEqual(next.aliases);
     expect(files(root)).toEqual(["uk_base_venue_id_aliases.json"]);
   });
@@ -225,6 +229,16 @@ describe("publishUkBaseWithAliases", () => {
       }),
     ).rejects.toThrow("publish failed");
     expect(JSON.parse(readFileSync(file, "utf8"))).toEqual(JSON.parse(held));
+    expect(files(root)).toEqual(["uk_base_venue_id_aliases.json"]);
+  });
+
+  it("leaves no staged copy when the alias swap fails after the shards publish", async () => {
+    const root = aliasDir();
+    const file = path.join(root, UK_BASE_VENUE_ALIASES_FILE);
+    mkdirSync(path.join(file, "occupied"), { recursive: true });
+    await expect(
+      publishUkBaseWithAliases({ root, doc: next, publishShards: async () => "published" }),
+    ).rejects.toThrow();
     expect(files(root)).toEqual(["uk_base_venue_id_aliases.json"]);
   });
 
