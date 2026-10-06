@@ -54,6 +54,13 @@ When the lookup itself fails, it shows `"We could not check that pub right
 now."` (`MAP_SELECTION_LOOKUP_FAILED_NOTE`). Either way, the map stays open
 and the reader can dismiss the notice.
 
+A UK base pub id (`venue-uk-*`) needs no `at` hint to open. Without one, the
+cold restore asks `/api/uk-base/[id]` for the record. An id that the pack does
+not hold and that no venue alias owns shows the unknown notice and drops
+`sel`. A lookup that fails keeps `sel` with the sheet shut and shows the
+could-not-check notice, so a reload asks again (`ukBaseRestoreFor` and
+`ukBaseRestoreFailureNotice` in `lib/pubMap.ts`).
+
 ## First-visit arrival card
 
 After the pins reveal, a first visit to the map shows one arrival card
