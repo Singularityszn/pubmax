@@ -1,11 +1,12 @@
+import { randomUUID } from "node:crypto";
 import { callerUserId } from "@/lib/authServer";
 import { isLimited } from "@/lib/pintDrops";
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { log } from "@/lib/log";
 import {
-  billableVoiceMinutes,
-  canReserveVoiceMinute,
+  canPrepayVoiceGrant,
+  PAL_VOICE_GRANT_MINUTES,
   PAL_VOICE_MAX_SESSION_SECONDS,
   PAL_VOICE_MONTHLY_MINUTES,
   remainingVoiceMinutes,
@@ -16,6 +17,7 @@ import { buildPalVoiceOverrides } from "@/lib/palVoiceOverrides";
 import { isPubPalConversationId } from "@/lib/pubPalConversationId";
 import { bindPubPalToolTurn } from "@/lib/pubPalToolTurnStore";
 import { palVoiceConfigured } from "@/lib/pubPalVoiceConfig.server";
+import { providerCallSeconds } from "@/lib/pubPalVoiceProviderDuration.server";
 import { getPubPalResult } from "@/lib/pubPalStore";
 import { clientIp, hashIp, isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
@@ -24,7 +26,7 @@ const RELEASE_ERROR_MAX_LENGTH = 160;
 
 type VoiceTokenBody = {
   action?: string;
-  durationSeconds?: number;
+  conversationId?: unknown;
 };
 
 function releaseErrorMessage(error: unknown): string {
@@ -40,12 +42,14 @@ function releaseErrorMessage(error: unknown): string {
 function logReleaseFailure(input: {
   ownerId: string;
   usageMonth: string;
+  grantId: string;
   reason: "rpc_error" | "rpc_exception" | "not_released";
   error: unknown;
 }): void {
   log("error", "pub_pal.voice_quota_release_failed", {
     ownerId: input.ownerId,
     usageMonth: input.usageMonth,
+    grantId: input.grantId,
     reason: input.reason,
     error: releaseErrorMessage(input.error),
   });
@@ -62,70 +66,56 @@ function usageMonthDate(month: string): string {
 function meterFor(userId: string, month: string): PalVoiceMeterState {
   const current = usage.get(userId);
   if (current?.month === month) return current;
-  const meter = { month, usedMinutes: 0, reservations: 0 };
+  const meter = { month, usedMinutes: 0 };
   usage.set(userId, meter);
   return meter;
 }
 
-async function releaseVoiceReservation(
+/**
+ * Gives back one prepaid grant after the SERVER failed before it handed a signed
+ * URL to the browser. A grant that reached the browser is never refunded here:
+ * `refund_pub_pal_voice_grant` refuses anything past 'reserved'.
+ */
+async function refundVoiceGrant(
   admin: ReturnType<typeof requireSupabaseAdmin> | null,
   userId: string,
   usageMonth: string,
   meter: PalVoiceMeterState,
-  durationSeconds: number,
+  grantId: string,
 ): Promise<void> {
-  const billedMinutes = billableVoiceMinutes(durationSeconds);
-  if (admin) {
-    try {
-      const { data, error } = await admin.rpc("release_pub_pal_voice_trial", {
-        p_owner_id: userId,
-        p_month: usageMonth,
-      });
-      if (error) {
-        logReleaseFailure({
-          ownerId: userId,
-          usageMonth,
-          reason: "rpc_error",
-          error,
-        });
-      } else if (data !== true) {
-        logReleaseFailure({
-          ownerId: userId,
-          usageMonth,
-          reason: "not_released",
-          error: "Reservation row was not released.",
-        });
-      }
-      if (billedMinutes > 0) {
-        const recorded = await admin.rpc("record_pub_pal_voice_minutes", {
-          p_owner_id: userId,
-          p_month: usageMonth,
-          p_seconds: durationSeconds,
-        });
-        if (recorded.error) {
-          log("error", "pub_pal.voice_minutes_record_failed", {
-            ownerId: userId,
-            usageMonth,
-            error: releaseErrorMessage(recorded.error),
-          });
-        }
-      }
-    } catch (error) {
+  if (!admin) {
+    meter.usedMinutes = Math.max(0, meter.usedMinutes - PAL_VOICE_GRANT_MINUTES);
+    usage.set(userId, meter);
+    return;
+  }
+  try {
+    const { data, error } = await admin.rpc("refund_pub_pal_voice_grant", {
+      p_owner_id: userId,
+      p_grant_id: grantId,
+    });
+    if (error) {
+      logReleaseFailure({ ownerId: userId, usageMonth, grantId, reason: "rpc_error", error });
+    } else if (data !== true) {
       logReleaseFailure({
         ownerId: userId,
         usageMonth,
-        reason: "rpc_exception",
-        error,
+        grantId,
+        reason: "not_released",
+        error: "Grant was not refunded.",
       });
     }
-    return;
+  } catch (error) {
+    logReleaseFailure({ ownerId: userId, usageMonth, grantId, reason: "rpc_exception", error });
   }
-
-  meter.reservations = Math.max(0, meter.reservations - 1);
-  meter.usedMinutes = Math.min(PAL_VOICE_MONTHLY_MINUTES, meter.usedMinutes + billedMinutes);
-  usage.set(userId, meter);
 }
 
+/**
+ * A session ended. The browser's say-so changes nothing: it names a
+ * conversation, and the allowance is settled only from the duration ElevenLabs
+ * recorded for that conversation, under the caller's own grant. While the call
+ * is still running, or when the provider cannot be read, the prepaid grant
+ * stays charged in full, and a later release can settle it.
+ */
 async function handleRelease(
   request: Request,
   userId: string,
@@ -136,14 +126,37 @@ async function handleRelease(
     return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
-  const month = currentMonth();
-  const usageMonth = usageMonthDate(month);
-  const meter = meterFor(userId, month);
-  const durationSeconds = Math.max(0, Math.min(PAL_VOICE_MAX_SESSION_SECONDS, Number(body.durationSeconds) || 0));
-  const admin = isSupabaseConfigured() ? requireSupabaseAdmin() : null;
-  await releaseVoiceReservation(admin, userId, usageMonth, meter, durationSeconds);
-  const remainingMinutes = admin ? null : remainingVoiceMinutes(meter);
-  return jsonNoStore({ released: true, remainingMinutes });
+  const meter = meterFor(userId, currentMonth());
+  const remainingMinutes = isSupabaseConfigured() ? null : remainingVoiceMinutes(meter);
+  const unsettled = jsonNoStore({ released: true, settled: false, remainingMinutes });
+
+  const conversationId = typeof body.conversationId === "string" ? body.conversationId : "";
+  const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
+  if (!isSupabaseConfigured() || !apiKey || !isPubPalConversationId(conversationId)) return unsettled;
+
+  const seconds = await providerCallSeconds(conversationId, apiKey);
+  if (seconds === null) return unsettled;
+  try {
+    const { data, error } = await requireSupabaseAdmin().rpc("settle_pub_pal_voice_conversation", {
+      p_owner_id: userId,
+      p_conversation_id: conversationId,
+      p_seconds: seconds,
+    });
+    if (error) {
+      log("error", "pub_pal.voice_settle_failed", {
+        ownerId: userId,
+        error: releaseErrorMessage(error),
+      });
+      return unsettled;
+    }
+    return jsonNoStore({ released: true, settled: data === true, remainingMinutes });
+  } catch (error) {
+    log("error", "pub_pal.voice_settle_failed", {
+      ownerId: userId,
+      error: releaseErrorMessage(error),
+    });
+    return unsettled;
+  }
 }
 
 async function handleIssueToken(userId: string): Promise<Response> {
@@ -179,21 +192,30 @@ async function handleIssueToken(userId: string): Promise<Response> {
   const usageMonth = usageMonthDate(month);
   const supabaseConfigured = isSupabaseConfigured();
   const meter = meterFor(userId, month);
-  if (!supabaseConfigured && !canReserveVoiceMinute(meter)) {
+  if (!supabaseConfigured && !canPrepayVoiceGrant(meter)) {
     return publicApiError("Your trial voice allowance is used for this month.", "VOICE_ALLOWANCE_USED", 429, {
       compatibilityFields: { fallback: "text", remaining: 0, remainingMinutes: 0 },
     });
   }
 
+  // The server pays for the whole session cap up front, before any provider
+  // call. Nothing the browser later reports moves this meter.
+  const grantId = randomUUID();
   const admin = supabaseConfigured ? requireSupabaseAdmin() : null;
   if (admin) {
     try {
-      const { data, error } = await admin.rpc("consume_pub_pal_voice_trial", {
+      const { data, error } = await admin.rpc("prepay_pub_pal_voice_grant", {
         p_owner_id: userId,
         p_month: usageMonth,
+        p_grant_id: grantId,
+        p_minutes: PAL_VOICE_GRANT_MINUTES,
         p_limit: PAL_VOICE_MONTHLY_MINUTES,
       });
-      if (error) {
+      if (error || (data !== true && data !== false)) {
+        // The database may have committed before the reply was lost, so the
+        // grant is refunded on every ambiguous outcome and never on a plain
+        // false, which confirms nothing was charged.
+        await refundVoiceGrant(admin, userId, usageMonth, meter, grantId);
         return publicApiError("Voice allowance could not be checked.", "UNAVAILABLE", 503, {
           retryable: true,
           compatibilityFields: { fallback: "text" },
@@ -205,13 +227,14 @@ async function handleIssueToken(userId: string): Promise<Response> {
         });
       }
     } catch {
+      await refundVoiceGrant(admin, userId, usageMonth, meter, grantId);
       return publicApiError("Voice allowance could not be checked.", "UNAVAILABLE", 503, {
         retryable: true,
         compatibilityFields: { fallback: "text" },
       });
     }
   } else {
-    meter.reservations += 1;
+    meter.usedMinutes += PAL_VOICE_GRANT_MINUTES;
     usage.set(userId, meter);
   }
 
@@ -252,6 +275,25 @@ async function handleIssueToken(userId: string): Promise<Response> {
         compatibilityFields: { fallback: "text" },
       });
     }
+    if (admin) {
+      let linked = false;
+      try {
+        const { data, error } = await admin.rpc("link_pub_pal_voice_conversation", {
+          p_owner_id: userId,
+          p_grant_id: grantId,
+          p_conversation_id: conversationId,
+        });
+        linked = !error && data === true;
+      } catch {
+        linked = false;
+      }
+      if (!linked) {
+        return publicApiError("Voice service is temporarily unavailable.", "UNAVAILABLE", 503, {
+          retryable: true,
+          compatibilityFields: { fallback: "text" },
+        });
+      }
+    }
     providerAllocated = true;
     const remainingMinutes = supabaseConfigured ? null : remainingVoiceMinutes(meter);
     return jsonNoStore({
@@ -273,7 +315,7 @@ async function handleIssueToken(userId: string): Promise<Response> {
   } finally {
     clearTimeout(timeout);
     if (!providerAllocated) {
-      await releaseVoiceReservation(admin, userId, usageMonth, meter, 0);
+      await refundVoiceGrant(admin, userId, usageMonth, meter, grantId);
     }
   }
 }

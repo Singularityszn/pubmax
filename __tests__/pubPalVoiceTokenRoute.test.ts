@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PAL_VOICE_MAX_SESSION_SECONDS, PAL_VOICE_MONTHLY_MINUTES } from "@/lib/palVoiceMetering";
+import {
+  PAL_VOICE_GRANT_MINUTES,
+  PAL_VOICE_MAX_SESSION_SECONDS,
+  PAL_VOICE_MONTHLY_MINUTES,
+} from "@/lib/palVoiceMetering";
 
 const voiceState = vi.hoisted(() => ({
   configured: true,
@@ -63,12 +67,21 @@ import { POST } from "@/app/api/pub-pal/voice-token/route";
 
 const issueRequest = () => new Request("http://localhost/api/pub-pal/voice-token", { method: "POST" });
 
-const releaseRequest = (durationSeconds = 0) =>
+const CONVERSATION_ID = "conv_voiceToken01";
+
+/** A release as a browser may send it. Any extra field is attacker-controlled. */
+const releaseRequest = (body: Record<string, unknown> = { conversationId: CONVERSATION_ID }) =>
   new Request("http://localhost/api/pub-pal/voice-token", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "release", durationSeconds }),
+    body: JSON.stringify({ action: "release", ...body }),
   });
+
+const providerCall = (status: string, seconds: number | null) =>
+  vi.fn(async () => Response.json({
+    status,
+    metadata: seconds === null ? {} : { call_duration_secs: seconds },
+  }));
 
 describe("Pub Pal voice token route", () => {
   beforeEach(() => {
@@ -154,7 +167,7 @@ describe("Pub Pal voice token route", () => {
     const response = await POST(issueRequest());
 
     expect(response.status).toBe(200);
-    expect(voiceState.rpc).toHaveBeenCalledWith("consume_pub_pal_voice_trial", expect.any(Object));
+    expect(voiceState.rpc).toHaveBeenCalledWith("prepay_pub_pal_voice_grant", expect.any(Object));
     expect(providerFetch).toHaveBeenCalledOnce();
   });
 
@@ -174,7 +187,7 @@ describe("Pub Pal voice token route", () => {
     expect(response.status).toBe(429);
     expect(await response.json()).toMatchObject({ remaining: 0, remainingMinutes: 0, fallback: "text" });
     expect(providerFetch).not.toHaveBeenCalled();
-    expect(voiceState.events).toEqual(["consume_pub_pal_voice_trial"]);
+    expect(voiceState.events).toEqual(["prepay_pub_pal_voice_grant"]);
   });
 
   it("does not allocate a provider session when quota reservation errors", async () => {
@@ -189,10 +202,12 @@ describe("Pub Pal voice token route", () => {
 
     expect(response.status).toBe(503);
     expect(providerFetch).not.toHaveBeenCalled();
-    expect(voiceState.events).toEqual(["consume_pub_pal_voice_trial"]);
+    // The reply may have been lost after the database committed, so the grant is
+    // refunded; a refund of a grant that was never written moves nothing.
+    expect(voiceState.events).toEqual(["prepay_pub_pal_voice_grant", "refund_pub_pal_voice_grant"]);
   });
 
-  it("releases one reservation when provider allocation fails", async () => {
+  it("refunds one grant when provider allocation fails", async () => {
     voiceState.rpc.mockImplementation(async (name: string) => {
       voiceState.events.push(name);
       return { data: true, error: null };
@@ -206,13 +221,13 @@ describe("Pub Pal voice token route", () => {
 
     expect(response.status).toBe(502);
     expect(voiceState.events).toEqual([
-      "consume_pub_pal_voice_trial",
+      "prepay_pub_pal_voice_grant",
       "provider_allocation",
-      "release_pub_pal_voice_trial",
+      "refund_pub_pal_voice_grant",
     ]);
   });
 
-  it("keeps a successful reservation after provider allocation", async () => {
+  it("keeps a successful grant charged after provider allocation", async () => {
     voiceState.rpc.mockImplementation(async (name: string) => {
       voiceState.events.push(name);
       return { data: true, error: null };
@@ -226,8 +241,9 @@ describe("Pub Pal voice token route", () => {
 
     expect(response.status).toBe(200);
     expect(voiceState.events).toEqual([
-      "consume_pub_pal_voice_trial",
+      "prepay_pub_pal_voice_grant",
       "provider_allocation",
+      "link_pub_pal_voice_conversation",
     ]);
   });
 
@@ -255,44 +271,118 @@ describe("Pub Pal voice token route", () => {
     expect(body.overrides).not.toHaveProperty("dynamicVariables");
     expect(JSON.stringify(body)).not.toContain("Getting Home");
     expect(voiceBind).toHaveBeenCalledWith("conv_voiceToken01", voiceState.userId, "london");
-    expect(voiceState.rpc).toHaveBeenCalledWith("consume_pub_pal_voice_trial", {
+    expect(voiceState.rpc).toHaveBeenCalledWith("prepay_pub_pal_voice_grant", {
       p_owner_id: voiceState.userId,
       p_month: expect.stringMatching(/^\d{4}-\d{2}-01$/),
+      p_grant_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
+      p_minutes: PAL_VOICE_GRANT_MINUTES,
       p_limit: PAL_VOICE_MONTHLY_MINUTES,
     });
-  });
-
-  it("releases a client-failed session without billing minutes", async () => {
-    voiceState.rpc.mockImplementation(async (name: string) => {
-      voiceState.events.push(name);
-      return { data: true, error: null };
-    });
-
-    const response = await POST(releaseRequest(0));
-
-    expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ released: true });
-    expect(voiceState.events).toEqual(["release_pub_pal_voice_trial"]);
-  });
-
-  it("records billed minutes when the client releases after a live session", async () => {
-    voiceState.rpc.mockImplementation(async (name: string) => {
-      voiceState.events.push(name);
-      return { data: true, error: null };
-    });
-
-    const response = await POST(releaseRequest(95));
-
-    expect(response.status).toBe(200);
-    expect(voiceState.events).toEqual([
-      "release_pub_pal_voice_trial",
-      "record_pub_pal_voice_minutes",
-    ]);
-    expect(voiceState.rpc).toHaveBeenCalledWith("record_pub_pal_voice_minutes", {
+    expect(voiceState.rpc).toHaveBeenCalledWith("link_pub_pal_voice_conversation", {
       p_owner_id: voiceState.userId,
-      p_month: expect.stringMatching(/^\d{4}-\d{2}-01$/),
-      p_seconds: 95,
+      p_grant_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
+      p_conversation_id: "conv_voiceToken01",
     });
+  });
+
+  it("never settles or refunds from a duration the browser reports", async () => {
+    voiceState.rpc.mockImplementation(async (name: string) => {
+      voiceState.events.push(name);
+      return { data: true, error: null };
+    });
+    const provider = providerCall("in-progress", 4);
+    vi.stubGlobal("fetch", provider);
+
+    for (const durationSeconds of [0, -1, 1, 95, 1e9, "0", null]) {
+      const response = await POST(releaseRequest({ conversationId: CONVERSATION_ID, durationSeconds }));
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ released: true, settled: false });
+    }
+
+    expect(voiceState.events).toEqual([]);
+    for (const name of ["refund_pub_pal_voice_grant", "record_pub_pal_voice_minutes", "release_pub_pal_voice_trial"]) {
+      expect(voiceState.rpc).not.toHaveBeenCalledWith(name, expect.anything());
+    }
+  });
+
+  it("settles a finished call from the provider's own duration", async () => {
+    voiceState.rpc.mockImplementation(async (name: string) => {
+      voiceState.events.push(name);
+      return { data: true, error: null };
+    });
+    const provider = providerCall("done", 41);
+    vi.stubGlobal("fetch", provider);
+
+    const response = await POST(releaseRequest({ conversationId: CONVERSATION_ID, durationSeconds: 0 }));
+
+    expect(await response.json()).toMatchObject({ released: true, settled: true });
+    expect(provider).toHaveBeenCalledOnce();
+    const [url, init] = provider.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe(`https://api.elevenlabs.io/v1/convai/conversations/${CONVERSATION_ID}`);
+    expect(init.headers).toEqual({ "xi-api-key": "server-only-key" });
+    expect(voiceState.rpc).toHaveBeenCalledWith("settle_pub_pal_voice_conversation", {
+      p_owner_id: voiceState.userId,
+      p_conversation_id: CONVERSATION_ID,
+      p_seconds: 41,
+    });
+  });
+
+  it.each([
+    { label: "is still running", fetch: () => providerCall("in-progress", 12) },
+    { label: "has not started", fetch: () => providerCall("initiated", 0) },
+    { label: "carries no duration", fetch: () => providerCall("done", null) },
+    { label: "reports a negative duration", fetch: () => providerCall("done", -5) },
+    { label: "is refused by the provider", fetch: () => vi.fn(async () => new Response(null, { status: 404 })) },
+    { label: "cannot be read", fetch: () => vi.fn(async () => { throw new Error("offline"); }) },
+  ])("leaves the prepaid grant charged when the provider call $label", async ({ fetch }) => {
+    vi.stubGlobal("fetch", fetch());
+
+    const response = await POST(releaseRequest());
+
+    expect(await response.json()).toMatchObject({ released: true, settled: false });
+    expect(voiceState.rpc).not.toHaveBeenCalled();
+  });
+
+  it("does not call the provider for a conversation id it did not issue", async () => {
+    const provider = providerCall("done", 5);
+    vi.stubGlobal("fetch", provider);
+
+    for (const conversationId of [undefined, "", "../agents", "conv_a?x=1", "conv_short", 7, { id: 1 }]) {
+      const response = await POST(releaseRequest({ conversationId }));
+      expect(await response.json()).toMatchObject({ released: true, settled: false });
+    }
+
+    expect(provider).not.toHaveBeenCalled();
+    expect(voiceState.rpc).not.toHaveBeenCalled();
+  });
+
+  it("reports an unsettled release when the settle call fails", async () => {
+    vi.stubGlobal("fetch", providerCall("done", 30));
+    voiceState.rpc.mockResolvedValue({ data: null, error: { message: "db down" } });
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const response = await POST(releaseRequest());
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ released: true, settled: false });
+    expect(consoleError).toHaveBeenCalledTimes(1);
+  });
+
+  it("keyless: a release settles nothing and moves no meter", async () => {
+    voiceState.configured = false;
+    voiceState.userId = "77777777-7777-4777-8777-777777777777";
+    const provider = providerCall("done", 5);
+    vi.stubGlobal("fetch", provider);
+
+    const response = await POST(releaseRequest({ conversationId: CONVERSATION_ID, durationSeconds: 0 }));
+
+    expect(await response.json()).toMatchObject({
+      released: true,
+      settled: false,
+      remainingMinutes: PAL_VOICE_MONTHLY_MINUTES,
+    });
+    expect(provider).not.toHaveBeenCalled();
+    expect(voiceState.rpc).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -316,7 +406,7 @@ describe("Pub Pal voice token route", () => {
   ])("logs one actionable reconciliation event when compensation $label", async ({ release, reason }) => {
     voiceState.rpc.mockImplementation(async (name: string) => {
       voiceState.events.push(name);
-      if (name === "release_pub_pal_voice_trial") return release();
+      if (name === "refund_pub_pal_voice_grant") return release();
       return { data: true, error: null };
     });
     vi.stubGlobal("fetch", vi.fn(async () => {
@@ -351,11 +441,13 @@ describe("Pub Pal voice token route", () => {
     const response = await POST(issueRequest());
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ remainingMinutes: PAL_VOICE_MONTHLY_MINUTES });
+    expect(await response.json()).toMatchObject({
+      remainingMinutes: PAL_VOICE_MONTHLY_MINUTES - PAL_VOICE_GRANT_MINUTES,
+    });
     expect(voiceState.rpc).not.toHaveBeenCalled();
   });
 
-  it("releases a keyless in-memory reservation after provider failure", async () => {
+  it("refunds a keyless in-memory grant after provider failure", async () => {
     voiceState.configured = false;
     voiceState.userId = "66666666-6666-4666-8666-666666666666";
     const providerFetch = vi
@@ -368,11 +460,14 @@ describe("Pub Pal voice token route", () => {
     const recovered = await POST(issueRequest());
 
     expect(recovered.status).toBe(200);
-    expect(await recovered.json()).toMatchObject({ remainingMinutes: PAL_VOICE_MONTHLY_MINUTES });
+    // The failed attempt was refunded, so only the second grant is charged.
+    expect(await recovered.json()).toMatchObject({
+      remainingMinutes: PAL_VOICE_MONTHLY_MINUTES - PAL_VOICE_GRANT_MINUTES,
+    });
     expect(voiceState.rpc).not.toHaveBeenCalled();
   });
 
-  it("releases the reservation when the provider omits a conversation id", async () => {
+  it("refunds the grant when the provider omits a conversation id", async () => {
     voiceState.rpc.mockImplementation(async (name: string) => {
       voiceState.events.push(name);
       return { data: true, error: null };
@@ -387,13 +482,13 @@ describe("Pub Pal voice token route", () => {
     expect(response.status).toBe(502);
     expect(voiceBind).not.toHaveBeenCalled();
     expect(voiceState.events).toEqual([
-      "consume_pub_pal_voice_trial",
+      "prepay_pub_pal_voice_grant",
       "provider_allocation",
-      "release_pub_pal_voice_trial",
+      "refund_pub_pal_voice_grant",
     ]);
   });
 
-  it("releases the reservation when the conversation cannot be bound", async () => {
+  it("refunds the grant when the conversation cannot be bound", async () => {
     voiceState.rpc.mockImplementation(async (name: string) => {
       voiceState.events.push(name);
       return { data: true, error: null };
@@ -410,6 +505,28 @@ describe("Pub Pal voice token route", () => {
     const response = await POST(issueRequest());
 
     expect(response.status).toBe(503);
-    expect(voiceState.events).toContain("release_pub_pal_voice_trial");
+    expect(voiceState.events).toContain("refund_pub_pal_voice_grant");
+  });
+
+  it("refunds the grant and hands out no URL when the conversation cannot be linked to it", async () => {
+    voiceState.rpc.mockImplementation(async (name: string) => {
+      voiceState.events.push(name);
+      return { data: name === "link_pub_pal_voice_conversation" ? false : true, error: null };
+    });
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({
+      signed_url: "wss://voice.example/session",
+      conversation_id: CONVERSATION_ID,
+    })));
+
+    const response = await POST(issueRequest());
+    const body = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(body).not.toHaveProperty("signedUrl");
+    expect(voiceState.events).toEqual([
+      "prepay_pub_pal_voice_grant",
+      "link_pub_pal_voice_conversation",
+      "refund_pub_pal_voice_grant",
+    ]);
   });
 });
