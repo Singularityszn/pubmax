@@ -77,12 +77,12 @@ TAVILY_API_KEY=... npm run enrich:city -- --city=london --max-queries=20 --dry-r
 
 A dry run still spends the searches. It only skips the writes.
 
-## Related
-
-[`docs/TAVILY_NIGHTLY_PASS.md`](./TAVILY_NIGHTLY_PASS.md) describes the separate credit allowance pass that writes only a curation queue.
-
 ## Source policy and failures
 
 A pub website that `isHarvestableOperatorUrl` refuses is never sent to Tavily as a search domain. The pub gets the outcome `refused-source` and no query is spent. A result URL the policy refuses is dropped. One pub's failed search (a timeout or a 429) is recorded as `failed`, the pub stays the stalest, and the night carries on with the next pub.
 
 The review PR script gives each run its own branch, `tavily-london/YYYYMMDD-HHMMSS`, so a manual rerun on the same UTC day never collides with the scheduled run.
+
+## Related
+
+[`docs/TAVILY_NIGHTLY_PASS.md`](./TAVILY_NIGHTLY_PASS.md) describes the separate credit allowance pass that writes only a curation queue.
