@@ -51,6 +51,8 @@ type RoutePanelProps = {
   onAltStyleChange: (style: AltCrawlStyle) => void;
   route: Venue[];
   drinkSelection?: MapPlanDrinkSelection;
+  /** The drink a map view is holding down, which the route still plans with. */
+  heldDrinkSelection?: MapPlanDrinkSelection | null;
   drinkPrices?: ReadonlyMap<string, MapLensPrice> | null;
   drinkPriceStatus?: CategoryPriceIndexStatus;
   filteredVenues: Venue[];
@@ -97,6 +99,7 @@ export default function RoutePanel({
   onAltStyleChange,
   route,
   drinkSelection,
+  heldDrinkSelection,
   drinkPrices,
   drinkPriceStatus = "idle",
   filteredVenues,
@@ -224,6 +227,7 @@ export default function RoutePanel({
         altStyle={altStyle}
         onAltStyleChange={onAltStyleChange}
         drinkLabel={drinkPresentation?.label}
+        linkDrinkSelection={drinkPresentation ? heldDrinkSelection : null}
       />
 
       {drinkCoverageNote ? <p className="description muted" role="status">{drinkCoverageNote}</p> : null}

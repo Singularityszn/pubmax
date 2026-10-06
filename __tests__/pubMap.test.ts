@@ -56,6 +56,7 @@ import {
   venueEntranceOvershootFor,
   type VenueDetailStatus,
   plannerDefaultDrinkSelection,
+  routeDrinkLensCategory,
   routeDrinkSelection,
 } from "@/lib/pubMap";
 import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
@@ -1342,6 +1343,20 @@ describe("routeDrinkSelection", () => {
 
   it.each(["food", "no-alcohol"] as const)("keeps the held drink in the %s view", (lens) => {
     expect(routeDrinkSelection(lens, cleared, wine)).toBe(wine);
+  });
+});
+
+describe("routeDrinkLensCategory", () => {
+  it.each(["wine", "soft-drink", "alcohol-free"])("prices a %s route from its own index", (drinkCategory) => {
+    expect(routeDrinkLensCategory({ drinkCategory, drinkSubtype: "", drinkBrand: "" })).toBe(drinkCategory);
+  });
+
+  it.each(["", "beer", "other", "not-a-drink"])("reads no category index for %j", (drinkCategory) => {
+    expect(routeDrinkLensCategory({ drinkCategory, drinkSubtype: "", drinkBrand: "" })).toBeNull();
+  });
+
+  it("reads none without a route drink", () => {
+    expect(routeDrinkLensCategory(undefined)).toBeNull();
   });
 });
 

@@ -652,6 +652,7 @@ import {
   builtStopCountFor,
   phonePlannerOrder,
   plannerDefaultDrinkSelection,
+  routeDrinkLensCategory,
   routeDrinkSelection,
 } from "@/lib/pubMap";
 import { explicitMapIntent } from "@/lib/explicitMapIntent";
@@ -3748,6 +3749,28 @@ export default function PubMap({
   const experienceLensRestoreRef = useRef<ExperienceLensRestore | null>(null);
   const [experienceLensHeldDrink, setExperienceLensHeldDrink] =
     useState<ExperienceLensRestore | null>(null);
+  const routeDrink = routeDrinkSelection(experienceLens, filters, experienceLensHeldDrink);
+  const routeLensCategory = routeDrinkLensCategory(routeDrink);
+  useEffect(() => {
+    if (routeLensCategory) loadDrinkCategoryIndex(routeLensCategory);
+  }, [loadDrinkCategoryIndex, routeLensCategory]);
+  const routeDrinkPrices = useMemo(
+    () =>
+      routeLensCategory
+        ? trustedDrinkLensPrices(
+            communityPrices.byVenueId,
+            routeLensCategory,
+            experiencePolicyNow,
+          )
+        : null,
+    [communityPrices.byVenueId, experiencePolicyNow, routeLensCategory],
+  );
+  const routeDrinkPriceStatus = drinkIndexStatusFor(
+    routeLensCategory,
+    "all",
+    communityPrices.drinkCategoryIndexStatus,
+    communityPrices.noAlcoholIndexStatus,
+  );
   const experienceLensLiveRef = useRef<ExperienceLensRestore>({
     drinkCategory: filters.drinkCategory,
     drinkBrand: filters.drinkBrand,
@@ -5496,9 +5519,10 @@ export default function PubMap({
         altStyle={altStyle}
         onAltStyleChange={setAltStyle}
         route={route}
-        drinkSelection={routeDrinkSelection(experienceLens, filters, experienceLensHeldDrink)}
-        drinkPrices={drinkLensPrices}
-        drinkPriceStatus={drinkIndexStatus}
+        drinkSelection={routeDrink}
+        heldDrinkSelection={experienceLensHeldDrink}
+        drinkPrices={routeDrinkPrices}
+        drinkPriceStatus={routeDrinkPriceStatus}
         filteredVenues={filteredPubVenues}
         builtIds={builtIds}
         activeVenueId={selectedVenueIdOrUndefined}

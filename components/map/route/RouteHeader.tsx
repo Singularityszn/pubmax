@@ -7,6 +7,7 @@ import { useState } from "react";
 
 import { styleLabels, type CrawlMode } from "@/components/map/ControlRail";
 import type { Filters } from "@/lib/venues";
+import { linkWithMapPlanDrinkSelection, type MapPlanDrinkSelection } from "@/lib/mapPlanDrinkPresentation";
 import {
   ALT_CRAWL_STYLES,
   altStyleLabels,
@@ -19,6 +20,7 @@ type RouteHeaderProps = {
   crawlName?: string;
   crawlBlurb?: string;
   drinkLabel?: string;
+  linkDrinkSelection?: MapPlanDrinkSelection | null;
   altStyle: AltCrawlStyle;
   onAltStyleChange: (style: AltCrawlStyle) => void;
 };
@@ -29,6 +31,7 @@ export default function RouteHeader({
   crawlName,
   crawlBlurb,
   drinkLabel,
+  linkDrinkSelection,
   altStyle,
   onAltStyleChange,
 }: RouteHeaderProps) {
@@ -37,7 +40,10 @@ export default function RouteHeader({
   async function copyLink() {
     setCopyError("");
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      const href = window.location.href;
+      await navigator.clipboard.writeText(
+        linkDrinkSelection ? linkWithMapPlanDrinkSelection(href, linkDrinkSelection) : href,
+      );
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {

@@ -108,3 +108,16 @@ export function appendMapPlanDrinkSelection(
   if (brand?.category === category) params.set("brand", brand.brand.id);
   if (selection.topShelfOnly) params.set("topshelf", "1");
 }
+
+const MAP_PLAN_DRINK_PARAMS = ["drink", "sub", "brand", "topshelf"] as const;
+
+/** A page link that carries the plan's drink while a view holds the map's drink down. */
+export function linkWithMapPlanDrinkSelection(
+  href: string,
+  selection: MapPlanDrinkSelection,
+): string {
+  const url = new URL(href);
+  for (const key of MAP_PLAN_DRINK_PARAMS) url.searchParams.delete(key);
+  appendMapPlanDrinkSelection(url.searchParams, selection);
+  return url.toString();
+}

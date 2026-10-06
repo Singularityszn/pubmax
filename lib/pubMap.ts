@@ -14,7 +14,7 @@ import {
   type CityId,
   DEFAULT_CITY_ID,
 } from "@/lib/cities";
-import { CATEGORY_META, type DrinkCategory } from "@/lib/drinks";
+import { CATEGORY_META, isMapLensDrinkCategory, type DrinkCategory } from "@/lib/drinks";
 import type { CategoryPriceIndexStatus, MapExperienceLens } from "@/lib/mapExperienceLens";
 import type { MapPlanDrinkSelection } from "@/lib/mapPlanDrinkPresentation";
 import type { NightContext } from "@/lib/nightPlanning";
@@ -1169,4 +1169,15 @@ export function routeDrinkSelection(
   held: MapPlanDrinkSelection | null,
 ): MapPlanDrinkSelection | undefined {
   return lens === "all" ? live : held ?? undefined;
+}
+
+/**
+ * The cross-venue index a route's own drink is priced from. The view that
+ * owns the map does not decide it: a held Wine route still reads Wine reports.
+ */
+export function routeDrinkLensCategory(
+  selection: MapPlanDrinkSelection | undefined,
+): DrinkCategory | null {
+  const category = selection?.drinkCategory;
+  return isMapLensDrinkCategory(category) && category !== "beer" ? category : null;
 }

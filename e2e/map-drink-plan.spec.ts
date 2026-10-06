@@ -687,10 +687,26 @@ test("London dry gin plan keeps its proper name in stop counts and the calendar"
 });
 
 for (const scenario of [
-  { name: "Alcohol-free in the No alcohol view", query: "Alcohol-free in Soho", view: "No alcohol", drink: "alcohol-free", heading: "Alcohol-free plan" },
-  { name: "Wine in the Food view", query: "Soho", view: "Food", drink: "wine", heading: "Wine plan" },
+  { name: "Alcohol-free in the No alcohol view", query: "Alcohol-free in Soho", view: "No alcohol", drink: "alcohol-free", heading: "Alcohol-free plan", noun: "alcohol-free drink" },
+  { name: "Wine in the Food view", query: "Soho", view: "Food", drink: "wine", heading: "Wine plan", noun: "wine" },
+  { name: "Soft drinks in the Food view", query: "Soft drinks in Soho", view: "Food", drink: "soft-drink", heading: "Soft drinks plan", noun: "soft drink" },
+  { name: "Soft drinks in the No alcohol view", query: "Soft drinks in Soho", view: "No alcohol", drink: "soft-drink", heading: "Soft drinks plan", noun: "soft drink" },
 ] as const) {
-  test(`generated ${scenario.name} keeps its drink and unknown money`, async ({ page }, testInfo) => {
+  test(`generated ${scenario.name} keeps its drink, report and Copy link`, async ({ page }, testInfo) => {
+    // Local mocked boundary evidence: the keyless store holds no trusted report,
+    // so the category index answers one corroborated report for the first stop.
+    const reportedAt = Date.now() - 60 * 60 * 1000;
+    let releaseStops!: (venueIds: string[]) => void;
+    const stopsKnown = new Promise<string[]>((resolve) => { releaseStops = resolve; });
+    await page.route(
+      (url) => url.pathname === "/api/price-submit" && url.searchParams.get("drinkCategory") === scenario.drink,
+      async (route) => {
+        const [first] = await stopsKnown;
+        await route.fulfill({
+          json: { prices: [{ venueId: first, drinkCategory: scenario.drink, priceGbp: 4.6, submittedAt: reportedAt, corroborations: 2 }] },
+        });
+      },
+    );
     const intent = await openPhonePlanner(page);
     await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill(scenario.query);
     const generatedResponse = page.waitForResponse((response) =>
@@ -701,9 +717,14 @@ for (const scenario of [
     expect(response.status()).toBe(200);
     const body = await response.json() as { stops: Array<{ venueId: string }> };
     expect(body.stops).toHaveLength(2);
+    const stops = body.stops.map((stop) => stop.venueId);
+    releaseStops(stops);
     const route = page.locator(".mapDrawer.left .routePanel");
-    await expect(route.locator(".routeList > li")).toHaveCount(2);
+    const rows = route.locator(".routeList > li");
+    await expect(rows).toHaveCount(2);
     await expect(route.getByRole("heading", { name: scenario.heading, exact: true })).toBeVisible();
+    await expect(rows.nth(0)).toContainText("£4.60, community report");
+    const names = [await rows.nth(0).locator("strong").innerText(), await rows.nth(1).locator("strong").innerText()];
     await page.getByRole("button", { name: "Close planner", exact: true }).click();
     await page.getByRole("button", { name: /^Filters/ }).click();
     const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
@@ -718,7 +739,11 @@ for (const scenario of [
       await expect(route).toBeVisible({ timeout: 1_000 });
     }).toPass({ timeout: 30_000 });
     await expect(route.getByRole("heading", { name: scenario.heading, exact: true })).toBeVisible();
-    await expect(route.locator(".routeList > li")).toHaveCount(2);
+    await expect(rows).toHaveCount(2);
+    await expect(rows.nth(0)).toContainText(names[0]!);
+    await expect(rows.nth(1)).toContainText(names[1]!);
+    await expect(rows.nth(0)).toContainText("£4.60, community report");
+    await expect(rows.nth(1)).toContainText(`no ${scenario.noun} price logged`);
     await expect(route.locator(".routeMetrics")).toContainText("Not recorded");
     await expect(route.locator(".routeMetrics")).not.toContainText("estimated round");
     await expect(route).not.toContainText("pint stop");
@@ -731,12 +756,35 @@ for (const scenario of [
     const contents = await readFile((await (await calendar).path())!, "utf8");
     expect(contents).toContain(`SUMMARY:${scenario.heading}`);
     expect(contents).not.toContain("pint stop");
+    await page.waitForTimeout(600);
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+    const copyLink = route.getByRole("button", { name: "Copy a shareable link to this crawl", exact: true });
+    await copyLink.click();
+    await expect(copyLink).toHaveText("Copied");
+    const copied = new URL(await page.evaluate(() => navigator.clipboard.readText()));
+    await testInfo.attach("copied-link", { body: copied.href, contentType: "text/plain" });
+    expect(copied.searchParams.get("drink")).toBe(scenario.drink);
+    expect(copied.searchParams.get("pubs")).toBe(stops.join(","));
     await route.getByRole("button", { name: "Start this crawl", exact: true }).click();
     const progress = route.getByTestId("crawl-progress");
     await progress.getByRole("button", { name: "Mark complete", exact: true }).click();
     await expect(progress.getByRole("status").filter({ hasText: /^Crawl complete: 2\/2 stops$/ })).toHaveText("Crawl complete: 2/2 stops");
     const params = new URL((await route.getByTestId("crawl-share-open").getAttribute("href"))!, "http://localhost").searchParams;
     expect(params.get("drink")).toBe(scenario.drink);
-    expect(params.get("pubs")).toBe(body.stops.map((stop) => stop.venueId).join(","));
+    expect(params.get("pubs")).toBe(stops.join(","));
+    expect((await page.goto(copied.href))?.status()).toBe(200);
+    await page.reload();
+    expect(new URL(page.url()).searchParams.get("drink")).toBe(scenario.drink);
+    const reopen = page.getByRole("button", { name: "Edit your crawl, 2 stops picked", exact: true });
+    await expect(async () => {
+      if (!(await route.isVisible())) await reopen.click();
+      await expect(route).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 30_000 });
+    await expect(route.getByRole("heading", { name: scenario.heading, exact: true })).toBeVisible();
+    await expect(rows).toHaveCount(2);
+    await expect(rows.nth(0)).toContainText(names[0]!);
+    await expect(rows.nth(1)).toContainText(names[1]!);
+    await expect(rows.nth(0)).toContainText("£4.60, community report");
+    await testInfo.attach("copied-link-reopened", { body: await page.screenshot(), contentType: "image/png" });
   });
 }

@@ -219,3 +219,38 @@ describe("selected-drink hand-built Plan", () => {
     expect(Array.from(container.querySelectorAll("button")).some((item) => item.textContent?.includes("Save as story"))).toBe(false);
   });
 });
+
+describe("header Copy link under a view that holds the drink down", () => {
+  async function copied(overrides: Partial<React.ComponentProps<typeof RoutePanel>>) {
+    const writeText = vi.fn(async () => undefined);
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    window.history.replaceState(null, "", "/map?mode=build&pubs=venue-149rmv7,venue-dove");
+    await render({ route: [duke, dove], drinkPriceStatus: "ready", ...overrides });
+    await act(async () => button("Copy link").click());
+    expect(writeText).toHaveBeenCalledTimes(1);
+    return new URL((writeText.mock.calls[0] as unknown as [string])[0]);
+  }
+
+  it("adds the held Wine and keeps the ordered stops", async () => {
+    const link = await copied({ drinkSelection: wine, heldDrinkSelection: wine });
+    expect(link.searchParams.get("drink")).toBe("wine");
+    expect(link.searchParams.get("pubs")).toBe("venue-149rmv7,venue-dove");
+    expect(link.searchParams.get("mode")).toBe("build");
+  });
+
+  it("keeps the held Soft drinks style", async () => {
+    const coke = { drinkCategory: "soft-drink", drinkSubtype: "soft-drink-coke-zero", drinkBrand: "" };
+    const link = await copied({ drinkSelection: coke, heldDrinkSelection: coke });
+    expect(link.searchParams.get("drink")).toBe("soft-drink");
+    expect(link.searchParams.get("sub")).toBe("soft-drink-coke-zero");
+  });
+
+  it("copies the page unchanged when no view holds a drink", async () => {
+    expect((await copied({ drinkSelection: wine })).searchParams.has("drink")).toBe(false);
+  });
+
+  it("copies the page unchanged when the held drink is the pint default", async () => {
+    const pint = { drinkCategory: "", drinkSubtype: "", drinkBrand: "" };
+    expect((await copied({ drinkSelection: pint, heldDrinkSelection: pint })).searchParams.has("drink")).toBe(false);
+  });
+});
