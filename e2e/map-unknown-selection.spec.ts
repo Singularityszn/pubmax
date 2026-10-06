@@ -112,6 +112,29 @@ test.describe("unknown ?sel= honesty", () => {
     await expect(page.getByTestId("unknown-map-selection")).toHaveCount(0);
   });
 
+  test("a dropped base pub id with unreadable aliases is held as a failed lookup", async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    const droppedId = "venue-uk-n999999999997";
+    await page.route(
+      (url) => /^\/data\/(cities\/)?(uk_base_)?venue_id_aliases\.json$/.test(url.pathname),
+      async (route) => {
+        await route.fulfill({ status: 503, body: "Service unavailable" });
+      },
+    );
+
+    await page.goto(`/map?sel=${droppedId}`);
+
+    await expect(page.getByTestId("map-selection-lookup-failed")).toContainText(
+      "We could not check that pub right now.",
+      { timeout: 45_000 },
+    );
+    await expect(page.getByTestId("unknown-map-selection")).toHaveCount(0);
+    await expect(page.getByText("Loading full venue details…")).toHaveCount(0);
+    expect(new URL(page.url()).searchParams.get("sel")).toBe(droppedId);
+  });
+
   test("an unreadable base pack stays distinct from an unknown base pub", async ({ page }) => {
     await page.route(
       (url) => url.pathname === "/api/uk-base/venue-uk-n311153571",

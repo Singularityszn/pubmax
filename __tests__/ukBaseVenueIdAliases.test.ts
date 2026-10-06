@@ -547,6 +547,7 @@ describe("a shared /map?sel= link to a dropped base id", () => {
         new Response(readFileSync(path.join(process.cwd(), "public", url), "utf8"), { status: 200 }),
     );
     const maps = await loadVenueAliasMaps();
+    expect(maps.read).toBe(true);
     expect(ukBaseSelectionSuccessor(maps, THE_SPORTSMAN.base)).toEqual({
       kind: "curated",
       venueId: THE_SPORTSMAN.curated,
@@ -555,5 +556,26 @@ describe("a shared /map?sel= link to a dropped base id", () => {
     expect(ukBaseSelectionSuccessor(maps, THE_BELL.old)).toBeNull();
     expect(ukBaseSelectionSuccessor(maps, THE_BELL.current)).toBeNull();
     expect(ukBaseSelectionSuccessor(maps, THE_SPORTSMAN.curated)).toBeNull();
+  });
+
+  it("says when the aliases could not be read, so empty maps are never taken as no successor", async () => {
+    vi.resetModules();
+    const fresh = await import("@/lib/venueAliasMap");
+    vi.stubGlobal("fetch", async () => new Response("Service unavailable", { status: 503 }));
+    const failed = await fresh.loadVenueAliasMaps();
+    expect(failed.read).toBe(false);
+    expect(ukBaseSelectionSuccessor(failed, THE_SPORTSMAN.base)).toBeNull();
+
+    vi.stubGlobal(
+      "fetch",
+      async (url: string) =>
+        new Response(readFileSync(path.join(process.cwd(), "public", url), "utf8"), { status: 200 }),
+    );
+    const retried = await fresh.loadVenueAliasMaps();
+    expect(retried.read).toBe(true);
+    expect(ukBaseSelectionSuccessor(retried, THE_SPORTSMAN.base)).toEqual({
+      kind: "curated",
+      venueId: THE_SPORTSMAN.curated,
+    });
   });
 });

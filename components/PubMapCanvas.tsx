@@ -285,16 +285,20 @@ type PubMapCanvasProps = {
    */
   venueListOpen?: boolean;
   /**
-   * A restored `?sel=venue-uk-*` arrival: the base pub's id plus the `at=`
-   * location hint the selecting tap wrote alongside it. Seeds the selection
-   * camera (the id names no venue record, so nothing else knows where to fly)
-   * and asks the base stream to hand the whole record up once its cell loads,
-   * so the unverified sheet reopens like a curated ?sel= does. Null when the
-   * arrival named no base pub or the link carried no hint (older links
-   * degrade to the selection ring only).
+   * A restored `?sel=venue-uk-*` arrival: the base pub's id, plus the `at=`
+   * location hint the selecting tap wrote alongside it when the link has one.
+   * The hint seeds the selection camera (the id names no venue record, so
+   * nothing else knows where to fly) and scopes the cold fetch to one cell;
+   * without it the cold restore asks `/api/uk-base/[id]`. Either way the whole
+   * record is handed up, so the unverified sheet reopens like a curated ?sel=
+   * does. Null when the arrival named no base pub.
    */
   ukBaseRestore?: UkBaseRestore | null;
-  /** The cold restore could not open the base pub; the map drops the selection. */
+  /**
+   * The cold restore could not open the base pub: the map holds an unreadable
+   * one with the could-not-check note, and settles an id the pack does not hold
+   * through the venue aliases.
+   */
   onUkBaseRestoreFailed?: (reason: UkBaseRestoreFailure, requestedId: string) => void;
   onRouteStopClick: (id: string) => void;
   /** Speculative warm of `/api/venue/[id]` on press-start / hover intent. */

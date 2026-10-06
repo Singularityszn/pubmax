@@ -5198,6 +5198,10 @@ export default function PubMap({
       const successor = ukBaseSelectionSuccessor(maps, requestedVenueId);
       if (!successor) {
         if (!ukBaseRestoreMissing) return;
+        if (!maps.read) {
+          handleUkBaseRestoreFailed("unavailable", requestedVenueId);
+          return;
+        }
         setRetiredSelectionName(null);
         setSelectionNotice(ukBaseRestoreFailureNotice("missing"));
         rejectMapSelection(requestedVenueId);
@@ -5219,7 +5223,13 @@ export default function PubMap({
     return () => {
       cancelled = true;
     };
-  }, [rejectMapSelection, resolveMapSelection, selectedVenueId, ukBaseRestoreMissing]);
+  }, [
+    handleUkBaseRestoreFailed,
+    rejectMapSelection,
+    resolveMapSelection,
+    selectedVenueId,
+    ukBaseRestoreMissing,
+  ]);
 
   useEffect(() => {
     if (

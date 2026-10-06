@@ -15,6 +15,8 @@ export type VenueAliasMaps = {
   aliases: ReadonlyMap<string, string>;
   /** The name of each pub that left the map with no successor, by its last id. */
   retiredNames: ReadonlyMap<string, string>;
+  /** False when an artifact could not be read: the maps are empty, not an answer. */
+  read: boolean;
 };
 
 let pending: Promise<VenueAliasMaps> | null = null;
@@ -48,10 +50,15 @@ export function loadVenueAliasMaps(): Promise<VenueAliasMaps> {
     .then((files) => ({
       aliases: flattenVenueAliasChains(files.flatMap((file) => file.aliases)),
       retiredNames: new Map(files.flatMap((file) => file.retired)),
+      read: true,
     }))
     .catch(() => {
       pending = null;
-      return { aliases: new Map<string, string>(), retiredNames: new Map<string, string>() };
+      return {
+        aliases: new Map<string, string>(),
+        retiredNames: new Map<string, string>(),
+        read: false,
+      };
     });
   return pending;
 }
