@@ -235,7 +235,11 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
 
   async function join(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim()) {
+      setError("Add your name to join.");
+      document.getElementById("join-name")?.focus();
+      return;
+    }
     const inviteToken = hashInviteToken ?? undefined;
     // Bare /plan/{id} must never POST join (invite-only after the IDOR close).
     if (!inviteToken) {
@@ -358,7 +362,7 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
             If you&rsquo;re signed in with a claimed handle, joining connects you
             with the host in your lot.
           </p>
-          <div><input id="join-name" type="text" autoComplete="name" maxLength={CREW_NAME_MAX} value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" required /><button type="submit" disabled={pending}>I&rsquo;m in</button></div>
+          <div><input id="join-name" type="text" autoComplete="name" maxLength={CREW_NAME_MAX} value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" aria-describedby={error ? "join-error" : undefined} /><button type="submit" disabled={pending}>I&rsquo;m in</button></div>
         </form>
       ) : (
         <div className="planCrew__presence" role="group" aria-label="Update your status">
@@ -397,7 +401,7 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
           </li>
         </ul>
       )}
-      {error ? <p className="planComposer__error" role="alert">{error}</p> : null}
+      {error ? <p id="join-error" className="planComposer__error" role="alert">{error}</p> : null}
     </section>
   );
 }
