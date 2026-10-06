@@ -10,8 +10,6 @@
 //
 // Server-safe: no window/DOM/React.
 
-import type { Route } from "next";
-
 /** The sentinel stamped onto a selected history entry via history.pushState. */
 export const PUBMAX_SELECTION_SENTINEL = 1 as const;
 
@@ -56,15 +54,6 @@ export function parseSelectionHint(search: string): { lat: number; lng: number }
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
   if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
   return { lat, lng };
-}
-
-/**
- * The Map link that opens one Venue. The Map reads `sel` and nothing else
- * (`lib/crawlUrl.ts`), so a card, plan or Night Mode link names the pub here
- * and an arrival never falls back to the last session's selection.
- */
-export function venueMapHref(venueId: string): Route {
-  return `/map?sel=${encodeURIComponent(venueId)}`;
 }
 
 /** Type guard: does an unknown history.state carry our selection sentinel? */

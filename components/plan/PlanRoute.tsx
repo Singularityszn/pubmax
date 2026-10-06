@@ -10,7 +10,7 @@ import { CalendarClock, Music, Tag, Ticket, Tv, type LucideIcon } from "lucide-r
 import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
 import PlanRouteMiniMap from "@/components/plan/PlanRouteMiniMap";
 import { buildCrawlMapHref } from "@/lib/crawlUrl";
-import { venueMapHref } from "@/lib/mapSelectionHistory";
+import { venueMapUrl } from "@/lib/venueMapUrl";
 import { discardBody } from "@/lib/responseBody";
 import { isValidWhatsOnRow, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
 import { checkedLabel } from "@/lib/whatsOnBadges";
@@ -141,7 +141,7 @@ export default function PlanRoute({
                   <strong>{stop.venueName}</strong>
                   {priceLine ? <small className="planRoute__selectedDrinkPrice">{priceLine}</small> : null}
                   <StopEventBadge event={events.get(stop.venueId)} />
-                  <Link href={venueMapHref(stop.venueId)}>Open on the map</Link>
+                  <Link href={venueMapUrl(stop.venueId)}>Open on the map</Link>
                   <StopGetIn state={state} signal={signal} />
                 </div>
               </li>
