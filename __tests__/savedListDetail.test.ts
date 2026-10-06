@@ -51,7 +51,7 @@ describe("SavedListDetail", () => {
     expect(html).toContain(
       'href="/map?mode=build&amp;pubs=venue-1&amp;sel=venue-1"',
     );
-    expect(html).toContain("View list on Map");
+    expect(html).toContain("View list on the map");
     expect(html).toContain('href="/map?sel=venue-1"');
     expect(html).toContain('aria-label="Share this"');
     expect(html).toContain("Share");
@@ -84,7 +84,7 @@ describe("SavedListDetail", () => {
 
     expect(html).toContain("Follow list");
     expect(ownHtml).not.toContain("Follow list");
-    expect(html).not.toContain("View list on Map");
+    expect(html).not.toContain("View list on the map");
   });
 
   it("opens every list venue as one ordered Map plan", () => {
@@ -112,7 +112,7 @@ describe("SavedListDetail", () => {
       }),
     );
 
-    expect(html).toContain("View list on Map");
+    expect(html).toContain("View list on the map");
     expect(html).toContain(
       'href="/map?mode=build&amp;pubs=venue-alpha%2Cvenue-beta&amp;sel=venue-alpha"',
     );

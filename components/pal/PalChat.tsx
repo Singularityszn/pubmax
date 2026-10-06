@@ -220,7 +220,7 @@ export function AnswerCard({
           href={venueAcceptUrl(card.venueId, "pal")}
           onClick={() => acceptPalVenue(card, locality)}
         >
-          Use this Venue
+          Use this pub
         </Link>
       ) : null}
     </li>

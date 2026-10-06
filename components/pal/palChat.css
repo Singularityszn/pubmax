@@ -548,8 +548,13 @@
 }
 
 .palChatCardAccept {
-  display: inline-block;
-  margin-top: 0.5rem;
+  /* The card's own padding lives on .palChatCardBody, and this link sits
+     outside it, so it used to touch the card's edge. It takes the same side and
+     foot inset, and the 44px tap floor. */
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin: 0 0.9rem 0.8rem;
   padding: 0.4rem 0.75rem;
   border-radius: 0.5rem;
   background: var(--brass);

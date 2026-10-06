@@ -209,7 +209,7 @@ export function CreatorListsContent({
                     href={list.mapUrl}
                     onClick={() => trackEvent("creator_list_map_opened")}
                   >
-                    Open Map
+                    Open map
                   </Link>
                   <Link
                     className="creatorListPlanAction"
