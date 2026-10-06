@@ -94,6 +94,10 @@ const CrewsPanel = dynamic(
   () => import("@/components/social/CrewsPanel"),
   { ssr: false },
 );
+// The Diary list reads the owner-only API, so it loads only for the owner and
+// stays out of every other profile's first paint.
+const DiaryList = dynamic(() => import("@/components/diary/DiaryList"), { ssr: false });
+
 const ProfileTimeline = dynamic(
   () => import("@/components/profile/ProfileTimeline"),
   { ssr: false },
@@ -1555,6 +1559,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                   known, so gating this on the sentinel alone left the
                   owner's own Wanted tab pointing at nothing. */}
               {isYouRoute || isOwnProfile ? <WantedList /> : null}
+
+              {isYouRoute || isOwnProfile ? <DiaryList /> : null}
 
               {/* Your crews, on your own page only. It resolves the Social
                   gate itself and renders nothing when Social is in
