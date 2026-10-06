@@ -124,6 +124,31 @@ describe("the first-run gate", () => {
     expect(router.replace).toHaveBeenCalledWith("/near?locate=1");
   });
 
+  it("sends a start-marked visit that already holds the seen mark to the hero's door", async () => {
+    markTourSeen();
+    window.history.replaceState(null, "", "/onboarding?start=web");
+    await renderGate();
+
+    expect(container.querySelector("h1")).toBeNull();
+    expect(router.replace).toHaveBeenCalledWith("/near?locate=1");
+  });
+
+  it("does not replay the journey on Back after the visitor finished it", async () => {
+    window.history.replaceState(null, "", "/onboarding?start=web");
+    await renderGate();
+    expect(container.querySelector("h1")?.textContent).toBe("London is ready.");
+    tapSkip();
+    await act(async () => {
+      root?.unmount();
+    });
+    vi.clearAllMocks();
+    root = createRoot(container);
+    await renderGate();
+
+    expect(container.querySelector("h1")).toBeNull();
+    expect(router.replace).toHaveBeenCalledWith("/near?locate=1");
+  });
+
   it("returns a web visit without the start mark home", async () => {
     window.history.replaceState(null, "", "/onboarding");
     await renderGate();
