@@ -8,9 +8,7 @@ import ConsentAwareVercelSpeedInsights from "@/components/ConsentAwareVercelSpee
 import "./globals.css";
 import "./theme.css";
 import CreateFab from "@/components/nav/CreateFab";
-import MobileTabBar, {
-  MobileTabBarClearanceFallback,
-} from "@/components/nav/MobileTabBar";
+import MobileTabBar from "@/components/nav/MobileTabBar";
 import DeferredShellExtras from "@/components/DeferredShellExtras";
 import ClientErrorReporter from "@/components/ClientErrorReporter";
 import OfflineReady from "@/components/OfflineReady";
@@ -383,12 +381,11 @@ export default async function RootLayout({
                 {/* App-wide bottom tab bar — mounted on every route and visible only
                     on ≤640px (see mobileNav.css). display:none on desktop leaves the
                     existing navs untouched.
-                    Suspense boundary: it reads useSearchParams; under any future
-                    prerendered route that read would otherwise bail the whole
-                    page out to CSR. Harmless today, required tomorrow. */}
-                <Suspense fallback={<MobileTabBarClearanceFallback />}>
-                  <MobileTabBar />
-                </Suspense>
+                    No Suspense boundary: the bar reads only the pathname, and a
+                    boundary let the render stream it into a hidden segment that
+                    is revealed after hydration starts, so a client render of the
+                    boundary could put a second bar in the document. */}
+                <MobileTabBar />
                 <CreateFab />
                 {/* Night Mode card, Pub Pal summon, first-run tour, A2HS prompt and
                     native push explainer all render nothing on first paint, so they
@@ -415,9 +412,7 @@ export default async function RootLayout({
           <AuthProvider clerkIntegrationConfigured={clerkIntegrationConfigured}>
             <CommandPaletteProvider>
               {children}
-              <Suspense fallback={<MobileTabBarClearanceFallback />}>
-                <MobileTabBar />
-              </Suspense>
+              <MobileTabBar />
               <CreateFab />
               <DeferredShellExtras />
               <OfflineReady />

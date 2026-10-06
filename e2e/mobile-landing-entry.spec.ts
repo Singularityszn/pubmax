@@ -302,7 +302,7 @@ test("reserves app-tab clearance before hydration", async ({ browser, baseURL })
     const page = await context.newPage();
     await page.goto("/");
 
-    await expect(page.locator(".mobileTabBarClearance")).toHaveCount(1);
+    await expect(page.locator(".mobileTabBar")).toHaveCount(1);
     const bodyPaddingBottom = await page.evaluate(() =>
       Number.parseFloat(getComputedStyle(document.body).paddingBottom),
     );

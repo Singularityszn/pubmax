@@ -178,7 +178,7 @@ for (const viewport of WIDTHS) {
     // would call a flush card 10px adrift. --tabbar-h is the one number both
     // the bar and the body's clearance read (components/nav/mobileNav.css).
     const lane = await page.evaluate(() => {
-      if (document.querySelector(".mobileTabBar, .mobileTabBarClearance") === null) return 0;
+      if (document.querySelector(".mobileTabBar") === null) return 0;
       const raw = getComputedStyle(document.documentElement)
         .getPropertyValue("--tabbar-h");
       return Number.parseFloat(raw) || 0;

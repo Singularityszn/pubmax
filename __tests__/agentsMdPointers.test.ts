@@ -167,7 +167,6 @@ const NOT_REPO_PATHS = new Set([
   ".messageBubble",
   ".messageLine",
   ".mobileTabBar",
-  ".mobileTabBarClearance",
   // An OSM tag VALUE, not a path.
   "24/7",
   // Accept header value named in the /onboarding entry, not a path.
