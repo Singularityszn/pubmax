@@ -17,8 +17,10 @@
 // because the listed price on a card is the cheapest pint, and nothing the
 // reader chose would change it.
 //
-// Storage follows lib/firstRunTour.ts: localStorage, SSR-safe, silent when
-// storage is blocked. Nothing here is sent anywhere.
+// Storage follows lib/firstRunTour.ts: SSR-safe and silent when storage is
+// blocked. The budget is in localStorage. The chosen patch and the planner
+// handoff are held in sessionStorage for this tab only. Nothing here is sent
+// anywhere.
 
 import { WALKABLE_RADIUS_KM, walkMinutesFromKm, type NearMeCard } from "@/lib/nearMeAnswer";
 import { safeLocalStorage, safeSessionStorage } from "@/lib/safeStorage";
