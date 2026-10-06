@@ -34,16 +34,18 @@ const SUCCESSOR_METERS = 50;
 // The area a retired pub with no address is answered under.
 const NO_ADDRESS_AREA = "United Kingdom";
 
-// What an unnamed pub's row (name "") is called when it departs, the same
+// What an unnamed pub's row (name "") is called in a retired record, the same
 // label lib/ukBasePubs.ts draws it with. A retired record needs a name to
-// resolve, and "Pub" is true of it.
+// resolve, and "Pub" is true of it. Only the DISPLAY record takes it: successor
+// matching keeps the empty name, so two unrelated unnamed pubs 50 m apart are
+// never read as one pub redrawn.
 const UNNAMED_PUB_LABEL = "Pub";
 
 /** A shard row `[osmRef, name, address, lat, lng, curatedVenueId, ...]` as the pub it names. */
 function rowPub(row) {
   return {
     osmId: String(row[0]),
-    name: String(row[1] ?? "") || UNNAMED_PUB_LABEL,
+    name: String(row[1] ?? ""),
     address: String(row[2] ?? ""),
     lat: Number(row[3]),
     lng: Number(row[4]),
@@ -143,7 +145,7 @@ export async function planUkBaseVenueIdAliases(root, previousRows, nextRows, liv
       : [
           {
             id: from,
-            name: pub.name.trim(),
+            name: pub.name.trim() || UNNAMED_PUB_LABEL,
             area: pub.address.trim() || NO_ADDRESS_AREA,
             lat: pub.lat,
             lng: pub.lng,

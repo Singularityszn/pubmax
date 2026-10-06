@@ -79,6 +79,14 @@ describe("ukBaseIdDepartures", () => {
     ]);
   });
 
+  it("never reads two unnamed pubs 50 m apart as one pub redrawn", () => {
+    const gone = row("n1", "", 51.5, -0.1);
+    const arrived = row("w2", "", 51.5003, -0.1);
+    expect(ukBaseIdDepartures([gone], [arrived], NO_CURATED)).toMatchObject([
+      { from: "venue-uk-n1", to: null },
+    ]);
+  });
+
   it("sends a row a still-listed curated venue owned to that venue, and only while it is listed", () => {
     const owned = row("n1", "The Sportsman", 51.54, 0.0, "", "venue-sy8k64");
     expect(ukBaseIdDepartures([owned], [], new Set(["venue-sy8k64"]))).toMatchObject([
@@ -156,6 +164,20 @@ describe("planUkBaseVenueIdAliases and publishUkBaseWithAliases", () => {
     await recordUkBaseVenueIdAliases(root, [bellNode, crossKeys], [bellWay], NO_CURATED);
     await recordUkBaseVenueIdAliases(root, [bellWay], [bellWay, bellNode, crossKeys], NO_CURATED);
     expect(aliasDoc(root)).toMatchObject({ aliases: {}, retired: {} });
+  });
+
+  it("retires a departed unnamed pub under the label Pub, so the build does not fail", async () => {
+    const root = aliasRoot();
+    await recordUkBaseVenueIdAliases(
+      root,
+      [row("n1", "", 51.5, -0.1, "North Road, Brighton")],
+      [],
+      NO_CURATED,
+    );
+    expect(aliasDoc(root)).toMatchObject({
+      aliases: {},
+      retired: { "venue-uk-n1": { name: "Pub", area: "North Road, Brighton" } },
+    });
   });
 
   it("moves a retired id that gains an alias out of the retired records", async () => {

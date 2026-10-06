@@ -267,8 +267,11 @@ describe("unnamed base pubs (street zoom only)", () => {
     expect(layout("uk-base-unnamed-point")["text-optional"]).toBe(true);
   });
 
-  it("draws under the curated pins, which is also how it loses collisions", () => {
+  it("draws under the named base pins and the curated pins, which is also how it loses collisions", () => {
     const ids = [...layers.keys()];
+    // MapLibre places the topmost symbol layer first: a bare "Pub" may never
+    // take the room a named pub wanted.
+    expect(ids.indexOf("uk-base-unnamed-point")).toBeLessThan(ids.indexOf("uk-base-point"));
     expect(ids.indexOf("uk-base-unnamed-point")).toBeLessThan(ids.indexOf("pubs-point"));
     expect(ids.indexOf("uk-base-unnamed-point")).toBeLessThan(
       ids.indexOf("uk-base-unnamed-provisional-badge"),

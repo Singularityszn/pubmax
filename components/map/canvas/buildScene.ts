@@ -939,6 +939,42 @@ export function buildUkBase(ctx: SceneCtx) {
       "circle-stroke-opacity": dark ? 0.85 : 0.8,
     },
   });
+  // A pub with no name: the base glyph and the generic "Pub" label, from
+  // street zoom only, unless it is the selected pub. It joins the same
+  // collision index as every base pin. It is added BEFORE `uk-base-point`, and
+  // MapLibre places the topmost symbol layer first, so where a named base pin
+  // or a curated one wants the room, the bare pin goes.
+  addLayerOnce({
+    id: "uk-base-unnamed-point",
+    type: "symbol",
+    source: "uk-base",
+    minzoom: UK_BASE_MIN_ZOOM,
+    filter: ukBaseUnnamedFilter(selectedId),
+    layout: {
+      "icon-image": iconId("base", UK_BASE_ICON_KEY),
+      "icon-size": UK_BASE_ICON_SIZE_EXPR,
+      "icon-allow-overlap": false,
+      "icon-ignore-placement": false,
+      "icon-padding": 3,
+      "text-field": ["get", "name"],
+      "text-font": textFont,
+      "text-size": PIN_PRICE_LABEL_SIZE_EXPR,
+      "text-anchor": "top",
+      "text-offset": PIN_PRICE_LABEL_OFFSET_EM,
+      "text-letter-spacing": 0.01,
+      "text-allow-overlap": false,
+      "text-ignore-placement": false,
+      "text-optional": true,
+      "text-padding": PIN_PRICE_LABEL_PADDING,
+    },
+    paint: {
+      "icon-opacity": UK_BASE_ICON_OPACITY,
+      "text-color": dark ? tokens.ink : tokens.inkDeep,
+      "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
+      "text-halo-width": PIN_PRICE_LABEL_HALO_WIDTH,
+      "text-halo-blur": 0.2,
+    },
+  });
   addLayerOnce({
     id: "uk-base-point",
     type: "symbol",
@@ -980,41 +1016,6 @@ export function buildUkBase(ctx: SceneCtx) {
       // print two kinds of tag.
       "text-color": tokens.pricePlaqueInk,
       "text-halo-color": tokens.pricePlaqueSurface,
-      "text-halo-width": PIN_PRICE_LABEL_HALO_WIDTH,
-      "text-halo-blur": 0.2,
-    },
-  });
-  // A pub with no name: the base glyph and the generic "Pub" label, from
-  // street zoom only, unless it is the selected pub. It joins the same
-  // collision index as every base pin, so where a named pin or a curated one
-  // wants the room, the bare pin goes.
-  addLayerOnce({
-    id: "uk-base-unnamed-point",
-    type: "symbol",
-    source: "uk-base",
-    minzoom: UK_BASE_MIN_ZOOM,
-    filter: ukBaseUnnamedFilter(selectedId),
-    layout: {
-      "icon-image": iconId("base", UK_BASE_ICON_KEY),
-      "icon-size": UK_BASE_ICON_SIZE_EXPR,
-      "icon-allow-overlap": false,
-      "icon-ignore-placement": false,
-      "icon-padding": 3,
-      "text-field": ["get", "name"],
-      "text-font": textFont,
-      "text-size": PIN_PRICE_LABEL_SIZE_EXPR,
-      "text-anchor": "top",
-      "text-offset": PIN_PRICE_LABEL_OFFSET_EM,
-      "text-letter-spacing": 0.01,
-      "text-allow-overlap": false,
-      "text-ignore-placement": false,
-      "text-optional": true,
-      "text-padding": PIN_PRICE_LABEL_PADDING,
-    },
-    paint: {
-      "icon-opacity": UK_BASE_ICON_OPACITY,
-      "text-color": dark ? tokens.ink : tokens.inkDeep,
-      "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
       "text-halo-width": PIN_PRICE_LABEL_HALO_WIDTH,
       "text-halo-blur": 0.2,
     },
