@@ -1055,9 +1055,7 @@ export function mergeVenueDrops<D extends SummaryDrop>(
     const contributorIsCheapest =
       contributorPrice !== null &&
       contributorPrice <= (venue.cheapestPrice ?? Number.POSITIVE_INFINITY);
-    const cheapestPrice = contributorIsCheapest
-      ? Math.min(venue.cheapestPrice ?? Number.POSITIVE_INFINITY, contributorPrice)
-      : venue.cheapestPrice;
+    const cheapestPrice = contributorIsCheapest ? contributorPrice : venue.cheapestPrice;
 
     return {
       ...venue,

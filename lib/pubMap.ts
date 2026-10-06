@@ -159,7 +159,8 @@ export function builtStopsNeedingHydration({
       if (!id || askedIds.has(id)) return false;
       const venue = venueById.get(id);
       return !venue || (typeof venue.cheapestPrice === "number"
-        && Number.isFinite(venue.cheapestPrice) && venue.cheapestPrice > 0 && !venue.cheapestPint);
+        && Number.isFinite(venue.cheapestPrice) && venue.cheapestPrice > 0 && !venue.cheapestPint
+        && venue.cheapestPrice !== venue.latestContributorPrice);
     });
 }
 

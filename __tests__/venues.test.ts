@@ -959,6 +959,19 @@ describe("mergeVenueDrops", () => {
     expect(defined(merged).latestContributorPrice).toBe(7.5);
   });
 
+  it("a cheapest corroborated drop that names no drink leaves the label blank, never the baseline drink", () => {
+    const venue = plainVenue();
+    const [merged] = mergeVenueDrops(
+      [venue],
+      new Map([[venue.id, corroboratedPair(4.5).map((drop) => ({ ...drop, drink: "" }))]]),
+      NOW,
+    );
+
+    expect(defined(merged).cheapestPrice).toBe(4.5);
+    expect(defined(merged).cheapestPint).toBe("");
+    expect(defined(merged).latestContributorPrice).toBe(4.5);
+  });
+
   it("an editorial heritage note keeps hasStory true regardless of drops", () => {
     const venue = defined(groupVenuePrices([makeRow({ pub_name: "The Lamb" })])[0]);
     const [merged] = mergeVenueDrops(
