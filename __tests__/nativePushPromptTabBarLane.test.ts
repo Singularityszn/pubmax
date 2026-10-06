@@ -26,12 +26,12 @@ describe("nativePushPrompt tab bar lane", () => {
   it("lifts the card onto the tab bar's top edge on a phone", () => {
     const phone = css.match(/@media \(max-width: 640px\) \{([\s\S]*?)\n\}\n/);
     expect(phone).not.toBeNull();
-    const rule = phone![1].match(
+    const rule = phone![1]!.match(
       /body:has\(\.mobileTabBar\) \.nativePushPrompt \{([^}]*)\}/,
     );
     expect(rule).not.toBeNull();
-    expect(rule![1]).toContain("var(--tabbar-h");
-    expect(rule![1]).toContain("env(safe-area-inset-bottom");
+    expect(rule![1]!).toContain("var(--tabbar-h");
+    expect(rule![1]!).toContain("env(safe-area-inset-bottom");
   });
 
   it("drops back to the screen foot when the bar slides away", () => {
