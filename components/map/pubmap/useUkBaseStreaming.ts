@@ -175,6 +175,7 @@ export function parseUkBaseRestoreResponse(
   return {
     id: row.id,
     name: row.name,
+    ...(row.unnamed === true ? { unnamed: true as const } : {}),
     address: typeof row.address === "string" ? row.address : "",
     lat: row.lat,
     lng: row.lng,

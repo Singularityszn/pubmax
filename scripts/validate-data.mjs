@@ -1905,8 +1905,10 @@ function isUkBaseRow(row) {
     (row.length === 6 || (row.length === 7 && row[6] === "bar")) &&
     typeof row[0] === "string" &&
     row[0].length > 0 &&
+    // "" is an unnamed pub (lib/ukBasePubs.ts draws it as a bare "Pub" pin).
+    // A bar always carries the name OSM gave it.
     typeof row[1] === "string" &&
-    row[1].length > 0 &&
+    (row[1].length > 0 || row.length === 6) &&
     typeof row[2] === "string" &&
     Number.isFinite(row[3]) &&
     Number.isFinite(row[4]) &&

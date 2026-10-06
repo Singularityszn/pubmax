@@ -3,6 +3,13 @@
 // `amenity=bar` (the `bar` kind of data/osm/uk/uk_osm_venues_drink.json,
 // see data/osm/uk/VENUES.md for what earns a row in each).
 //
+// An UNNAMED pub (an `amenity=pub` OSM maps with a position and no name tag,
+// data/osm/uk/uk_osm_unnamed_pubs.json) is a six-element row whose name is "".
+// The client draws it as a bare "Pub" pin at street zoom only and keeps it out
+// of search, lists and plans (lib/ukBasePubs.ts). Its id is still
+// `venue-uk-<osm ref>`, so a save or a price attaches to it like to any other
+// base pub.
+//
 // A bar row carries "bar" as a seventh tuple element. A pub row carries six
 // elements exactly as before, so folding bars in leaves every pub row's bytes
 // untouched and no reader has to be taught a new shape to keep working.
@@ -66,6 +73,7 @@ import { CITIES } from "./fetch_city_osm_pubs.mjs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const PACK_PATH = path.join(ROOT, "data", "osm", "uk", "uk_osm_pubs.json");
+const UNNAMED_PACK_PATH = path.join(ROOT, "data", "osm", "uk", "uk_osm_unnamed_pubs.json");
 const DRINK_PACK_PATH = path.join(
   ROOT,
   "data",
@@ -111,14 +119,24 @@ function round5(value) {
   return Math.round(value * 1e5) / 1e5;
 }
 
-function isRenderablePub(pub) {
+function hasPosition(pub) {
   return (
-    typeof pub?.name === "string" &&
-    pub.name.trim().length > 0 &&
     Number.isFinite(pub?.lat) &&
     Number.isFinite(pub?.lng) &&
     compactOsmRef(pub?.osmId) !== ""
   );
+}
+
+function isRenderablePub(pub) {
+  return (
+    typeof pub?.name === "string" && pub.name.trim().length > 0 && hasPosition(pub)
+  );
+}
+
+/** An unnamed pub is renderable on position alone; it must carry no name. */
+function isRenderableUnnamedPub(pub) {
+  const named = typeof pub?.name === "string" && pub.name.trim().length > 0;
+  return !named && hasPosition(pub);
 }
 
 /**
@@ -128,7 +146,7 @@ function isRenderablePub(pub) {
 function toRow(pub, curatedVenueId, kind = "pub") {
   const row = [
     compactOsmRef(pub.osmId),
-    pub.name.trim(),
+    typeof pub.name === "string" ? pub.name.trim() : "",
     typeof pub.address === "string" ? pub.address.trim() : "",
     round5(pub.lat),
     round5(pub.lng),
@@ -305,9 +323,24 @@ async function main() {
   const { owners: curatedVenueOwners, ownersByOsmId, curatedVenues } =
     await loadCuratedVenueOwners();
   const renderable = pubs.filter(isRenderablePub);
+  // A pub OSM maps with no name, from its own pack. The pack is required: a
+  // missing one would quietly drop every unnamed pin from the next publish.
+  const unnamedPack = JSON.parse(await readFile(UNNAMED_PACK_PATH, "utf8"));
+  const unnamedPubs = Array.isArray(unnamedPack?.pubs) ? unnamedPack.pubs : [];
+  if (unnamedPubs.length === 0) {
+    throw new Error(
+      `${UNNAMED_PACK_PATH} has no pubs — refresh it with npm run fetch:uk-pubs`,
+    );
+  }
+  const renderableUnnamed = unnamedPubs.filter(
+    (pub) => isRenderableUnnamedPub(pub) && !pubOsmIds.has(String(pub.osmId)),
+  );
   const renderableBars = bars.filter(isRenderablePub);
   const skipped =
-    pubs.length - renderable.length + (bars.length - renderableBars.length);
+    pubs.length -
+    renderable.length +
+    (unnamedPubs.length - renderableUnnamed.length) +
+    (bars.length - renderableBars.length);
   let matchedOwners = 0;
 
   /** @type {Map<string, {latIndex: number, lonIndex: number, rows: unknown[][]}>} */
@@ -332,6 +365,14 @@ async function main() {
         : undefined) ??
       ownersByOsmId.get(String(pub.osmId)) ??
       "";
+    if (curatedVenueId) matchedOwners += 1;
+    addRow(pub, toRow(pub, curatedVenueId));
+  }
+
+  // An unnamed pub has no name to match a curated venue on and no `curatedRef`,
+  // so it is its own pin with no owner. A promoted one is owned by its OSM id.
+  for (const pub of renderableUnnamed) {
+    const curatedVenueId = ownersByOsmId.get(String(pub.osmId)) ?? "";
     if (curatedVenueId) matchedOwners += 1;
     addRow(pub, toRow(pub, curatedVenueId));
   }
@@ -421,8 +462,9 @@ async function main() {
       generatedFrom: {
         fetchedAt: pack.fetchedAt ?? null,
         barsFetchedAt: drinkPack.fetchedAt ?? null,
-        count: renderable.length + renderableBars.length,
+        count: renderable.length + renderableUnnamed.length + renderableBars.length,
         pubs: renderable.length,
+        unnamed: renderableUnnamed.length,
         bars: renderableBars.length,
       },
       shards,
@@ -445,10 +487,10 @@ async function main() {
     console.log(
       [
         `UK base venues → ${shards.length} shards in public/data/${SHARD_DIR_NAME}/`,
-        `  packs ............... ${pubs.length} pubs, ${bars.length} bars`,
+        `  packs ............... ${pubs.length} pubs, ${unnamedPubs.length} unnamed pubs, ${bars.length} bars`,
         `  curated owners ...... ${matchedOwners}`,
         `  unusable (dropped) .. ${skipped}`,
-        `  shipped ............. ${renderable.length} pubs, ${renderableBars.length} bars`,
+        `  shipped ............. ${renderable.length} pubs, ${renderableUnnamed.length} unnamed pubs, ${renderableBars.length} bars`,
         `  cells split ......... ${splitCells}`,
         `  manifest ............ ${formatBytes(publication.manifestBytes)} (deferred until the zoom gate)`,
         `  shards total ........ ${formatBytes(totalBytes)}`,

@@ -10,6 +10,7 @@
 
 import {
   normalizeOsmPubElement,
+  normalizeUnnamedOsmPubElement,
   sortOsmPubs,
 } from "./osmPubNormalizer.mjs";
 import { haversineMeters } from "./geo.mjs";
@@ -125,6 +126,23 @@ export function normalizeElements(elements) {
   }
   const pubs = [...byOsmId.values()];
   return sortOsmPubs(pubs);
+}
+
+/**
+ * The `amenity=pub` elements with a position and no name, the ones
+ * `normalizeElements` drops. Same chunks, same OSM-id dedupe, same order. They
+ * ride in their own `unnamedPubs` array so no reader of `pubs` ever meets a
+ * pub with no name.
+ * @param {Iterable<any>} elements
+ */
+export function normalizeUnnamedElements(elements) {
+  const byOsmId = new Map();
+  for (const element of elements) {
+    const pub = normalizeUnnamedOsmPubElement(element);
+    if (!pub || byOsmId.has(pub.osmId)) continue;
+    byOsmId.set(pub.osmId, pub);
+  }
+  return sortOsmPubs([...byOsmId.values()]);
 }
 
 // ~0.01° ≈ 1.1 km of latitude: one cell plus its 8 neighbours always contains

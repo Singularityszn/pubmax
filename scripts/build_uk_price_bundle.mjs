@@ -123,6 +123,8 @@ function basePubs() {
     );
     if (!existsSync(file)) continue;
     for (const pub of read(file).pubs ?? []) {
+      // An unnamed pub (name "") has no name to model or match a price on.
+      if (pub[1] === "") continue;
       pubs.push({ ref: pub[0], name: pub[1], lat: pub[3], lng: pub[4], curatedVenueId: pub[5] });
     }
   }

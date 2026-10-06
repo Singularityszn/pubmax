@@ -2,7 +2,7 @@
 // tsc needs a declaration to typecheck the unit tests that import it). Keep in
 // lockstep with scripts/lib/ukOsmSeed.mjs.
 
-import type { OsmPub } from "./osmPubNormalizer.mjs";
+import type { OsmPub, UnnamedOsmPub } from "./osmPubNormalizer.mjs";
 
 export type UkBbox = [number, number, number, number];
 
@@ -71,6 +71,7 @@ export function chunkId(bbox: UkBbox): string;
 export function chunkFileName(chunk: GridChunk): string;
 export function buildUkOverpassQuery(bbox: UkBbox, options?: { timeout?: number }): string;
 export function normalizeElements(elements: Iterable<unknown>): UkOsmPub[];
+export function normalizeUnnamedElements(elements: Iterable<unknown>): UnnamedOsmPub[];
 export function haversineMeters(aLat: number, aLng: number, bLat: number, bLng: number): number;
 export function buildCuratedIndex(entries: CuratedEntry[]): CuratedIndex;
 export function matchCurated(

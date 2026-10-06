@@ -33,6 +33,7 @@ export const PUB_FIRST_LAYERS = [
   "clusters",
   "coffee-pilot-point",
   "uk-base-point",
+  "uk-base-unnamed-point",
   "london-restaurant-point",
   ...LANDMARK_INTERACTION_LAYERS,
   "pois-dot",
@@ -131,7 +132,7 @@ export function wireClickRouting(map: maplibregl.Map, deps: ClickDeps) {
     const cafeHit = byLayer.get("coffee-pilot-point");
     if (cafeHit) return openLondonPlace(londonVenueIdFromFeature(cafeHit));
 
-    const baseHit = byLayer.get("uk-base-point");
+    const baseHit = byLayer.get("uk-base-point") ?? byLayer.get("uk-base-unnamed-point");
     if (baseHit) {
       const pub = ukBasePubFromFeature(baseHit);
       if (!pub) return;
@@ -245,6 +246,7 @@ export function wireCursor(map: maplibregl.Map) {
     "tonight-point",
     "coffee-pilot-point",
     "uk-base-point",
+    "uk-base-unnamed-point",
     "london-restaurant-point",
     ...LANDMARK_INTERACTION_LAYERS,
     "pois-dot",

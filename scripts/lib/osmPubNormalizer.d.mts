@@ -24,6 +24,18 @@ export function normalizeOsmPubElement(
   options?: { fallbackCity?: string | null },
 ): OsmPub | null;
 
+/** An `amenity=pub` with a position and no `name` tag. It never carries a name. */
+export interface UnnamedOsmPub {
+  osmId: string;
+  amenity: "pub";
+  lat: number;
+  lng: number;
+  address: string | null;
+  postcode: string | null;
+}
+
+export function normalizeUnnamedOsmPubElement(element: unknown): UnnamedOsmPub | null;
+
 export interface OsmVenue extends OsmPub {
   kind: string;
   taxonomyKey: string;
@@ -48,4 +60,4 @@ export function normalizeOsmVenueElement(
   options: { kind: string; taxonomyKey: string; fallbackCity?: string | null },
 ): OsmVenue | null;
 
-export function sortOsmPubs<T extends OsmPub>(pubs: T[]): T[];
+export function sortOsmPubs<T extends { osmId: string; lat: number; lng: number }>(pubs: T[]): T[];

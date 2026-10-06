@@ -53,6 +53,7 @@ const PIN_LAYERS = [
   "pubs-point",
   "uk-base-selected",
   "uk-base-point",
+  "uk-base-unnamed-point",
 ] as const;
 const LONDON_PLACE_LAYERS = ["coffee-pilot-point", "london-restaurant-point"] as const;
 const CLUSTER_LAYER = "clusters";

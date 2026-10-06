@@ -50,6 +50,14 @@
   line-height: 1.35;
 }
 
+/* An unnamed pub's heading is the generic "Pub"; this line says why. */
+.unverifiedPubNameNote {
+  margin: 0;
+  color: var(--ink-soft, var(--muted));
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
 .unverifiedPubAddress svg {
   flex: 0 0 auto;
   color: var(--muted);
