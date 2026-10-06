@@ -3,9 +3,9 @@
  *
  * Paid routes carry a deployment-wide spend ceiling: `/api/ask`, `/api/heritage`,
  * and plan generation call OpenRouter when keyed; signed-in `/api/pub-pal/chat`
- * opens an ElevenLabs conversation when keyed. Plan generation additionally
- * spends the routing budget. Each was
- * rate-limited on
+ * opens an ElevenLabs conversation when keyed, and `/api/pub-pal/voice-token`
+ * issues the signed voice session the same provider bills by the minute. Plan
+ * generation additionally spends the routing budget. Each was rate-limited on
  * the hashed caller address ALONE, so the budget an attacker got was the budget
  * they chose: a different `x-forwarded-for` value is a different bucket, and
  * 200 values are 200 budgets. `lib/clientIpTrust.ts` closes the header half of
@@ -51,6 +51,7 @@ export const PAID_SPEND_LANES = [
   "ask",
   "heritage",
   "pub-pal-chat",
+  "pub-pal-voice",
   "plan-generate",
   "typesafe",
 ] as const;
@@ -70,6 +71,9 @@ export const PAID_SPEND_DEFAULT_DAILY_BUDGET: Record<PaidSpendLane, number> = {
   ask: 1_000,
   heritage: 1_000,
   "pub-pal-chat": 2_000,
+  // Signed voice sessions. Each is real ElevenLabs minutes, capped per account at
+  // a monthly allowance but never across accounts until this ceiling.
+  "pub-pal-voice": 200,
   "plan-generate": 1_000,
   typesafe: 5_000,
 };

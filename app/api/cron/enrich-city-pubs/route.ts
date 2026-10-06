@@ -15,6 +15,7 @@
 // and the reviewed price lanes are untouched, so no repeat run can duplicate a
 // published record.
 
+import { sendAlert } from "@/lib/alertSink";
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { assertCronRequest } from "@/lib/cronAuth";
@@ -79,6 +80,10 @@ function alertOnQueueHealth(result: {
         remedy: "apply migration 0142",
       }),
     );
+    sendAlert({
+      source: "city-enrichment-checkpoint",
+      text: "Checkpoints were written to process memory, so every deferred venue is lost on the next cold start. Apply migration 0142.",
+    });
   }
 
   // A venue the attempt cap has refused is an operator's decision to make, so
@@ -114,6 +119,10 @@ function alertOnQueueHealth(result: {
         retryPath: TERMINAL_RETRY_PATH,
       }),
     );
+    sendAlert({
+      source: "city-enrichment-queue",
+      text: `The deferred queue is not draining for ${aged.map((health) => health.city).join(", ")}. Retry path: ${TERMINAL_RETRY_PATH}`,
+    });
   }
 }
 

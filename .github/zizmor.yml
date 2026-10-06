@@ -9,3 +9,11 @@ rules:
   self-repository:
     remap:
       severity: informational
+  # alert-on-failure.yml is the one workflow_run workflow. The trigger is unsafe
+  # when the run checks out or executes code from the triggering workflow, and
+  # this one has no checkout and no repository code: it posts a link through
+  # curl with the secret held in the environment. It exists so the pull request
+  # workflows it watches need no secrets context.
+  dangerous-triggers:
+    ignore:
+      - alert-on-failure.yml

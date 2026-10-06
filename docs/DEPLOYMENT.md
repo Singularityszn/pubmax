@@ -372,6 +372,39 @@ Deploying from a Mac is fine because the build runs in Vercel's cloud. Never pas
 
 `docs/SOFT_LAUNCH_RUNBOOK.md` section 1.2 is the operator source for this command pair and the promotion mechanics behind it.
 
+### One release command
+
+```sh
+npm run release:prod
+```
+
+This is the way to ship to production. It runs these steps in order and stops at the first failure:
+
+1. It refuses a dirty tree, and a `HEAD` that is not the tip of `origin/main`. The smoke run is dispatched on `main`, so the released commit has to be that tip.
+2. It runs `npm run check:migration-ledger` and refuses when production lacks a migration the repo ships.
+3. It deploys with `scripts/deploy-vercel.mjs`, so the build stamps the commit.
+4. It reads `/api/version` on the new deployment, then runs `vercel promote`.
+5. It waits until `https://pubmaxxing.com/api/version` names the new deployment.
+6. It dispatches `.github/workflows/prod-smoke.yml` with `gh workflow run`, finds the run on the released commit, and waits with `gh run watch --exit-status`.
+
+A CLI deploy reports nothing to GitHub, so Vercel never starts the smoke suite for it. Before this command, nothing tested a release made from a Mac. A failed smoke run exits non-zero. The new deploy is already live at that point, so read the run, then fix forward or roll back with `vercel rollback`.
+
+`npm run check:migration-ledger` is read-only. It reads `supabase_migrations.schema_migrations` through the Supabase Management API read-only query endpoint and compares by migration NAME, never by version, because the live versions differ from the file timestamps. A repo file counts as applied when the ledger holds its full name (`0161_plan_selected_drink_evidence`) or its bare slug. Names only the ledger holds are listed and are not a failure. It needs `SUPABASE_ACCESS_TOKEN`, a personal access token from the captain's Supabase account, in the environment. `SUPABASE_PROJECT_REF` overrides the production project.
+
+The command needs `gh` signed in with permission to run workflows in `Singularityszn/pubmax`, and a Vercel CLI session (`PUBMAX_VERCEL_BIN` names an installed one). The ordered steps are `scripts/lib/releaseProduction.mjs`. Pin: `__tests__/releaseProduction.test.ts`.
+
+### Uptime monitor
+
+Point a free external monitor at `https://pubmaxxing.com/api/health`, every 1 to 5 minutes, and alert on any status that is not 200. UptimeRobot, Better Stack and Cronitor all have a free tier for this. A 503 means the deployment is up and its database is not answering. `/api/version` stays a memory-only check and cannot tell you that, so monitor both if the monitor allows two checks.
+
+The body is `{ "ok": true, "deploymentId": "dpl_...", "database": "ok" }`. The route reads one row of `rate_limits` and holds the answer for 15 seconds per instance, so a one-minute monitor costs the database little. Pin: `__tests__/healthRoute.test.ts`.
+
+### Alert webhook
+
+Set `PUBMAX_ALERT_WEBHOOK_URL` to an https Discord or Slack incoming-webhook URL, in the Vercel Production environment and as a GitHub repository secret of the same name. Treat it as a credential. With it unset, nothing is sent and nothing is logged about the missing value.
+
+The app posts every error-level `log()` event, `paid_spend.budget_spent`, the freshness audit's findings, the Social moderation backlog and the city enrichment queue alerts. A `log()` post carries the event name, level, time and deployment id only. Its fields and error text stay in the runtime log, so no account id, handle or object key reaches the webhook. Each source posts at most once per 15 minutes per instance, and at most 30 an hour. `.github/workflows/alert-on-failure.yml` watches every scheduled workflow and posts the run link when one fails. A new scheduled workflow must be added to its `workflows` list. Pin: `__tests__/alertSink.test.ts`.
+
 ### A preview built with production values, in one command
 
 ```sh
