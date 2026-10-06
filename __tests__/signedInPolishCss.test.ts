@@ -27,3 +27,18 @@ describe("map drawer close button backing", () => {
     );
   });
 });
+
+describe("launch-token form fields", () => {
+  it("keeps the photo composer free of browser defaults", () => {
+    const css = readFileSync(join(process.cwd(), "components/venue/venuePhotoWall.css"), "utf8");
+    expect(css).toMatch(/\.venuePhotoComposerField \{[^}]*border: 0/);
+    expect(css).toMatch(/\.venuePhotoComposerShare input \{[^}]*accent-color: var\(--brass\)/);
+    expect(css).not.toMatch(/venuePhotoComposerTag\[aria-pressed="true"\] \{[^}]*background: var\(--ink/);
+  });
+
+  it("fills profile editor inputs differently from their panel", () => {
+    const css = readFileSync(join(process.cwd(), "app/u/[handle]/profile.css"), "utf8");
+    const start = css.indexOf(".profilePage .profileEditor input,");
+    expect(css.slice(start, css.indexOf("}", start))).toContain("background: var(--paper)");
+  });
+});
