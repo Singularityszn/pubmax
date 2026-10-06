@@ -22,6 +22,8 @@ import {
   unavailableLane,
   type AccountExportLaneName,
 } from "@/lib/accountExport";
+import { MessageReadUnavailableError } from "@/lib/messagesStore";
+
 import {
   buildAccountExport,
   type AccountExportDeps,
@@ -531,6 +533,14 @@ describe("buildAccountExport", () => {
     // a failed read and not "not theirs".
     const refused = await buildAccountExport(USER, fakeDeps({ messages: async () => null }), NOW);
     expect(unavailableExportLanes(refused)).toEqual(["messages"]);
+  });
+
+  it("marks messages unavailable when a durable thread read fails", async () => {
+    const document = await buildAccountExport(USER, fakeDeps({
+      messages: async () => { throw new MessageReadUnavailableError(); },
+    }), NOW);
+    expect(document.messages).toEqual(unavailableLane());
+    expect(unavailableExportLanes(document)).toEqual(["messages"]);
   });
 
   it("says when the cap bit rather than presenting a window as the whole", async () => {

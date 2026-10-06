@@ -193,27 +193,12 @@ type ThreadReadKey = {
   accountRevision: number;
 };
 
-type ThreadReadRequest = ThreadReadKey & {
-  generation: number;
-};
-
 function sameThreadReadKey(
   key: ThreadReadKey | null,
   conversationId: string,
   accountRevision: number,
 ): boolean {
   return key?.conversationId === conversationId && key?.accountRevision === accountRevision;
-}
-
-function sameThreadReadRequest(
-  left: ThreadReadRequest | null,
-  right: ThreadReadRequest,
-): boolean {
-  return (
-    left?.conversationId === right.conversationId &&
-    left.accountRevision === right.accountRevision &&
-    left.generation === right.generation
-  );
 }
 
 /** What is riding on the NEXT message. At most one, by design. */
@@ -348,15 +333,20 @@ export default function MessageThread({
   const listEndRef = useRef<HTMLDivElement | null>(null);
   const loadedForRef = useRef<ThreadReadKey | null>(null);
   const [viewRevision, setViewRevision] = useState<ThreadReadKey | null>(null);
-  const activeReadRef = useRef<ThreadReadRequest | null>(null);
   const requestGenerationRef = useRef(0);
+  /**
+   * The oldest read whose answer may still land. A read that lands raises it
+   * to its own generation, so an older read answering later is dropped; a new
+   * conversation or reader raises it past every read already sent.
+   */
+  const readFloorRef = useRef(0);
   const conversationIdRef = useRef(conversationId);
   /** Whether the inbox has already been asked to name THIS empty thread. */
   const askedInboxForNameRef = useRef(false);
   const accountRevisionRef = useRef(accountRevision);
   useLayoutEffect(() => {
     if (conversationIdRef.current === conversationId) return;
-    activeReadRef.current = null;
+    readFloorRef.current = requestGenerationRef.current + 1;
     loadedForRef.current = null;
     setViewRevision(null);
     setOutbox([]);
@@ -420,24 +410,28 @@ export default function MessageThread({
   // running; once this conversation HAS loaded, a failed poll keeps the messages
   // already on screen. The ref is keyed by id, not a bare flag: the thread pane
   // sits beside the inbox, so switching conversations reuses this instance.
+  // A NEWER READ DOES NOT CANCEL AN OLDER ONE. An upstream outage the SDK
+  // retries can hold a read past the next poll; when each poll superseded the
+  // read before it, no answer ever landed. Every read of this thread may land
+  // unless a newer one already has (see readFloorRef).
   const refresh = useCallback(
     async (signal?: AbortSignal) => {
       const requestRevision = accountRevision;
       if (requestRevision !== accountRevisionRef.current) return;
       const requestKey: ThreadReadKey = { conversationId, accountRevision: requestRevision };
-      const request: ThreadReadRequest = {
-        ...requestKey,
-        generation: requestGenerationRef.current + 1,
-      };
-      requestGenerationRef.current = request.generation;
-      activeReadRef.current = request;
+      const generation = requestGenerationRef.current + 1;
+      requestGenerationRef.current = generation;
       const stillCurrent = () =>
         !signal?.aborted &&
-        sameThreadReadRequest(activeReadRef.current, request) &&
+        generation >= readFloorRef.current &&
         conversationIdRef.current === requestKey.conversationId &&
         accountRevisionRef.current === requestKey.accountRevision;
+      const land = () => {
+        readFloorRef.current = generation;
+      };
       if (!user) {
         if (!stillCurrent()) return;
+        land();
         loadedForRef.current = null;
         setViewRevision(viewerSession.unresolved ? null : requestKey);
         // The live session has not answered yet: a thread that cannot be read
@@ -449,6 +443,7 @@ export default function MessageThread({
       const h = normalizeHandle(authHandle ?? "") || readHandle();
       if (!h) {
         if (!stillCurrent()) return;
+        land();
         loadedForRef.current = null;
         setViewRevision(requestKey);
         setState("signedout");
@@ -463,6 +458,7 @@ export default function MessageThread({
           discardBody(res);
           return;
         }
+        land();
         if (res.status === 401) {
           discardBody(res);
           loadedForRef.current = null;
@@ -494,6 +490,7 @@ export default function MessageThread({
           };
         };
         if (!stillCurrent()) return;
+        land();
         const next = Array.isArray(body.messages) ? body.messages : [];
         loadedForRef.current = requestKey;
         setViewRevision(requestKey);
@@ -542,6 +539,7 @@ export default function MessageThread({
         const aborted =
           signal?.aborted || (err instanceof Error && err.name === "AbortError");
         if (!aborted && stillCurrent()) {
+          land();
           setViewRevision(requestKey);
           if (!sameThreadReadKey(loadedForRef.current, conversationId, requestRevision)) {
             setState("unreachable");
@@ -570,6 +568,9 @@ export default function MessageThread({
     });
     return () => {
       controller.abort();
+      // A read sent for the reader or thread this effect was keyed on may not
+      // land on the next one.
+      readFloorRef.current = requestGenerationRef.current + 1;
       window.removeEventListener("focus", onFocus);
       unsub();
     };
@@ -579,9 +580,13 @@ export default function MessageThread({
   // The list scrolls on its own inside the desktop split; on a phone the page
   // is the scroller and the composer is pinned over its foot, so the end
   // marker is scrolled clear of the composer rather than merely into view.
+  // With no thread drawn (loading, not found, the retry panel) there is no
+  // newest to show: pinning the page foot then pushed the retry panel above a
+  // phone's fold, so a cold failure is left where the page starts.
   const scrollToNewest = useCallback(() => {
     const list = listRef.current;
-    if (list && getComputedStyle(list).overflowY === "auto") {
+    if (!list) return;
+    if (getComputedStyle(list).overflowY === "auto") {
       list.scrollTop = list.scrollHeight;
       return;
     }
