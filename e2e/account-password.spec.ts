@@ -231,3 +231,36 @@ test("a read that could not answer names neither state", async ({ page }) => {
   await expect(page.getByText("Create password", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Change password", { exact: true })).toHaveCount(0);
 });
+
+test("the create-password ask rests above the tab bar, so its buttons can be tapped", async ({
+  page,
+}) => {
+  await installOwnedAccount(page, { hasPassword: false });
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmaxx:analytics-consent:v1", "granted");
+    window.localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
+  });
+
+  await page.goto("/tonight");
+  const card = page.getByRole("dialog", { name: "Add a password?" });
+  await expect(card).toBeVisible();
+
+  const [cardBox, barBox] = await Promise.all([
+    card.boundingBox(),
+    page.locator(".mobileTabBar").boundingBox(),
+  ]);
+  expect(cardBox).not.toBeNull();
+  expect(barBox).not.toBeNull();
+  // The card ends above the bar's top edge rather than under it.
+  expect(cardBox!.y + cardBox!.height).toBeLessThanOrEqual(barBox!.y + 1);
+
+  // And the answer is reachable: the topmost element at the button's centre is
+  // the button itself, not a tab.
+  const accept = card.getByRole("link", { name: "Add one" });
+  const acceptBox = (await accept.boundingBox())!;
+  const topmostIsAccept = await accept.evaluate(
+    (el, point) => el.contains(document.elementFromPoint(point.x, point.y)),
+    { x: acceptBox.x + acceptBox.width / 2, y: acceptBox.y + acceptBox.height / 2 },
+  );
+  expect(topmostIsAccept).toBe(true);
+});
