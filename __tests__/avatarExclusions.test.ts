@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { redactFamilyTableEntries } from "@/lib/ledger";
 import { buildSpillPreview } from "@/lib/spillPreview";
+import { defined } from "@/__tests__/helpers/defined";
 
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
@@ -33,7 +34,7 @@ describe("avatar WP3 exclusions (PRD anti-goals)", () => {
         provenance: "contributor",
       },
     ]);
-    expect(redacted[0].handle).toBe("S.");
+    expect(defined(redacted[0]).handle).toBe("S.");
     expect(redacted[0]).not.toHaveProperty("avatarUrl");
   });
 

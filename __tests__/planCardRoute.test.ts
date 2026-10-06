@@ -9,6 +9,7 @@ import { GET } from "@/app/api/plan-card/route";
 import { __resetMemoryPlans, memoryPlanStore } from "@/lib/planStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import { __resetPlanCollaboration, planCollaborationStore } from "@/lib/planCollaborationStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Vercel runs vitest under NODE_ENV=production; neutralize the prod-only
 // guards (durable rate-limit path, Supabase reads) the same way
@@ -72,7 +73,7 @@ describe("GET /api/plan-card", () => {
     }
 
     expect(responses.slice(0, 30).every((res) => res.status === 200)).toBe(true);
-    expect(responses[30].status).toBe(429);
+    expect(defined(responses[30]).status).toBe(429);
   });
 
   it("renders the crew vibe tally without breaking the card when the plan has votes", async () => {

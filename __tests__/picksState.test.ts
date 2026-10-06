@@ -12,6 +12,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import type { TonightPickDto } from "@/lib/todayBrief";
 
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("@/components/nav/NowSegment", () => ({ default: () => null }));
@@ -421,7 +422,7 @@ const READY_PICK = {
   external: false,
   sourceLabel: "pubmaxx",
   venueNote: null,
-};
+} satisfies TonightPickDto;
 
 describe("Today picks card, one render per reachable state", () => {
   it("ready shows the picks and offers no way out of a full card", () => {

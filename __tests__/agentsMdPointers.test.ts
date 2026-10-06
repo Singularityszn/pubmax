@@ -5,6 +5,7 @@ import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { agentsMdFiles } from "./helpers/agentsMdTree";
+import { defined } from "@/__tests__/helpers/defined";
 
 // AGENTS.md is a POINTER document, so a pointer that no longer resolves is the
 // one way it can rot silently. Nothing else reads it: no test, script or
@@ -67,6 +68,8 @@ function looksLikeRepositoryPath(raw: string): boolean {
 const NOT_REPO_PATHS = new Set([
   // Next development route types are generated and absent from a clean clone.
   "./.next/dev/types/routes.d.ts",
+  // Next writes this on every dev, build and typegen run, so it is ignored.
+  "next-env.d.ts",
   // Next agent guides ship in node_modules; not git-tracked.
   "node_modules/next/dist/docs/",
   "node_modules/next/dist/server/lib/generate-agent-files.js",
@@ -98,6 +101,8 @@ const NOT_REPO_PATHS = new Set([
   "realtime.messages",
   // A row's field, named in the Out listing entry, not a repository path.
   "source.label",
+  // A venue field, named in the Google Places content entry, not a repository path.
+  "venue.openingHours",
   // A provider host named in the Out listing entry, not a repository path.
   "universe.com",
   // Analytics event name, not a repository path.
@@ -133,6 +138,8 @@ const NOT_REPO_PATHS = new Set([
   "public/data/pint_index/<YYYY-MM>.json",
   // Next configuration property, not a repository path.
   "experimental.staleTimes",
+  // Next module specifier named in the router-cache entry, not a repository path.
+  "next/headers",
   // Next router method named in the /onboarding entry, not a repository path.
   "router.replace",
   // Playwright page methods named in the A/B entry, not repository paths.
@@ -274,10 +281,10 @@ function resolvesPattern(pointer: string): boolean {
   function visit(directory: string, index: number): boolean {
     if (index === segments.length) return true;
 
-    const segment = segments[index];
+    const segment = defined(segments[index]);
     if (segment.includes("*")) {
       if (!existsSync(directory) || !statSync(directory).isDirectory()) return false;
-      const pattern = wildcardRegExp(segment);
+      const pattern = wildcardRegExp(defined(segment));
       return readdirSync(directory).some(
         (entry) => {
           if (!pattern.test(entry)) return false;
@@ -293,7 +300,7 @@ function resolvesPattern(pointer: string): boolean {
       );
     }
 
-    const next = join(directory, segment);
+    const next = join(directory, defined(segment));
     const nextPath = relativePathInsideRoot(next);
     if (nextPath === null || !trackedNodeExists(nextPath) || !existsSync(next)) {
       return false;

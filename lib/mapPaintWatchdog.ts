@@ -9,8 +9,15 @@
  * the renderer parks on its pre-tile black backbuffer with no further event to
  * dirty the scene. DOM overlays stay alive; the canvas is solid black.
  *
- * This module is ONLY the decision: given the last render timestamp, the clock,
- * whether the document is visible, whether the canvas is really on-screen with a
+ * MapLibre renders on demand, so a healthy map at rest draws nothing for as long
+ * as nothing changes. Render age alone cannot tell that rest from a parked
+ * backbuffer, so the check is armed only by a dirtying event (a resize, a
+ * return to a visible tab, a style load, new content in one of the app's own
+ * sources): a frame is owed from then on, and a render after it disarms the
+ * check. Plain idle never spends the budget.
+ *
+ * This module is ONLY the decision: given the last render timestamp, the last
+ * dirtying event, the clock, whether the document is visible, whether the canvas is really on-screen with a
  * non-zero size, and how many recoveries we've already spent this mount, should
  * we fire ONE recovery (map.resize() + map.triggerRepaint())? It performs no I/O
  * and touches no map — the caller owns the side effects and the retry counter,
@@ -20,10 +27,10 @@
 /** How often the watchdog interval samples paint liveness (ms). */
 export const PAINT_WATCHDOG_INTERVAL_MS = 2000;
 /**
- * A render gap longer than this means the frame loop has parked. Kept above the
- * interval so a single skipped tick can't trip it, and well above a normal idle
- * (MapLibre renders on demand, but a healthy just-resized/just-arrived map
- * presents within a frame or two).
+ * A frame a dirtying event owed that has not presented for longer than this
+ * means the frame loop has parked. Kept above the interval so a single skipped
+ * tick can't trip it (a healthy just-resized/just-arrived map presents within a
+ * frame or two).
  */
 export const PAINT_STALL_THRESHOLD_MS = 2500;
 /**
@@ -41,6 +48,12 @@ export type PaintWatchdogInput = {
    * first-frame watchdog — this recovery net deliberately stays out of it.
    */
   lastRenderAt: number | null;
+  /**
+   * Timestamp of the last dirtying event that owes a fresh frame (a resize, a
+   * return to a visible tab, a style load, an app source change), or null if
+   * none has happened.
+   */
+  dirtiedAt: number | null;
   /** document.visibilityState === "visible". Hidden tabs throttle rAF to ~0. */
   documentVisible: boolean;
   /** Map exists AND its style is loaded (map.isStyleLoaded()). */
@@ -63,13 +76,15 @@ export type PaintWatchdogInput = {
  * True iff the caller should fire exactly one recovery now. Every guard must
  * hold: the tab is visible, the map+style are ready, the canvas is really
  * on-screen with a non-zero size, at least one frame has rendered (so this is a
- * PARKED renderer, not a never-started one), that render is now stale past the
- * threshold, and we still have recovery budget left.
+ * PARKED renderer, not a never-started one), a dirtying event has owed a frame
+ * that has not rendered for longer than the threshold, and we still have
+ * recovery budget left.
  */
 export function shouldRecoverPaint(input: PaintWatchdogInput): boolean {
   const {
     now,
     lastRenderAt,
+    dirtiedAt,
     documentVisible,
     mapLoaded,
     canvasVisible,
@@ -86,6 +101,21 @@ export function shouldRecoverPaint(input: PaintWatchdogInput): boolean {
   if (!(canvasWidth > 0) || !(canvasHeight > 0)) return false;
   // Never rendered yet → first-frame watchdog's job, not ours.
   if (lastRenderAt === null) return false;
+  // Nothing has owed a frame since the last one rendered: a map at rest.
+  if (dirtiedAt === null || lastRenderAt >= dirtiedAt) return false;
   if (retries >= maxRetries) return false;
-  return now - lastRenderAt > stallThresholdMs;
+  return now - dirtiedAt > stallThresholdMs;
+}
+
+/**
+ * True iff a MapLibre `sourcedata` event is an app source change that owes a
+ * frame: new content set on one of the app's own GeoJSON sources (pubs,
+ * route-line and the rest). A basemap tile arriving is not one; the basemap's
+ * vector and raster sources are the style's, not the app's.
+ */
+export function sourceChangeOwesFrame(event: {
+  sourceDataType?: unknown;
+  sourceType?: unknown;
+}): boolean {
+  return event.sourceDataType === "content" && event.sourceType === "geojson";
 }

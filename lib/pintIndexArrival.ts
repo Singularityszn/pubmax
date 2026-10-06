@@ -16,6 +16,7 @@
 //     prices, not the citable Index observations, so the strip stamps their
 //     source and collection date once, underneath.
 
+import type { Route } from "next";
 import { canonicalBorough, slugifyBorough } from "@/lib/boroughs";
 import type { Venue } from "@/lib/venues";
 
@@ -76,7 +77,7 @@ export function arrivalAreas(venues: readonly Venue[], limit = ARRIVAL_AREA_LIMI
  * a phone that arrives looking at the whole of London has not answered
  * "what about my area" at all.
  */
-export function arrivalMapHref(area: ArrivalArea): string {
+export function arrivalMapHref(area: ArrivalArea): Route {
   const params = new URLSearchParams({
     sel: area.cheapestVenueId,
     [ARRIVAL_PARAM]: ARRIVAL_PARAM_VALUE,

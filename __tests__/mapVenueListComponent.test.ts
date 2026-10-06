@@ -3,7 +3,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import MapVenueList from "@/components/map/MapVenueList";
-import type { MapVenueListModel, UkBasePubListModel } from "@/lib/mapVenueList";
+import type {
+  LondonRestaurantListModel,
+  MapVenueListModel,
+  UkBasePubListModel,
+} from "@/lib/mapVenueList";
 
 const emptyBase: UkBasePubListModel = {
   rows: [],
@@ -69,6 +73,50 @@ describe("MapVenueList", () => {
     expect(html).toContain('aria-label="Other pubs and bars with no listed price"');
     expect(html).toContain("Base Arms");
     expect(html).toContain("Other pub · no listed price");
+  });
+
+  it("gives every restaurant pin in view a row, so a keyboard reader can open it", () => {
+    const empty: MapVenueListModel = {
+      rows: [],
+      total: 0,
+      shown: 0,
+      truncated: false,
+      coverageNote: null,
+    };
+    const restaurants: LondonRestaurantListModel = {
+      rows: [
+        {
+          id: "venue-osm-n25496840",
+          name: "26 Furnival Street",
+          priceLabel: "Restaurant · no listed price",
+          distanceKm: 0.2,
+        },
+      ],
+      total: 1,
+      shown: 1,
+      truncated: false,
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(MapVenueList, {
+        model: empty,
+        ukBaseModel: emptyBase,
+        restaurantModel: restaurants,
+        cityName: "London",
+        open: true,
+        onOpenChange: () => {},
+        loaded: true,
+        onSelectVenue: () => {},
+        onSelectUkBasePub: () => {},
+        onPrefetchVenue: () => {},
+      }),
+    );
+
+    expect(html).toContain('aria-label="Restaurants with no listed price"');
+    expect(html).toContain('data-venue-id="venue-osm-n25496840"');
+    expect(html).toContain("26 Furnival Street");
+    expect(html).toContain("Restaurant · no listed price");
+    expect(html).toContain("1 venue");
   });
 
   it("offers Nearest and Cheapest sort chips when the list has venues", () => {

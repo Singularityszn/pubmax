@@ -3,8 +3,10 @@
 // Shared /map?sel=venue-uk-* links need the full record (name, address, coords)
 // before the viewport stream has that cell. The client tries a hint-scoped
 // shard fetch first; this route is the fail-closed authority when there is no
-// `at=` hint or the hint's cell does not carry the id. Never invents a pub:
-// missing → 404, pack unavailable → 503.
+// `at=` hint or the hint's cell does not carry the id. An id a refresh
+// re-mapped answers with the same pub under its current id, and names the
+// requested id as `formerId`. Never invents a pub: missing → 404, pack
+// unavailable → 503.
 
 import { NextResponse } from "next/server";
 
@@ -46,7 +48,7 @@ export async function GET(
     return publicApiError("UK base pubs unavailable.", "UNAVAILABLE", 503, { retryable: true });
   }
   return NextResponse.json(
-    { pub: result.pub },
+    result.pub.id === id ? { pub: result.pub } : { pub: result.pub, formerId: id },
     {
       status: 200,
       headers: {

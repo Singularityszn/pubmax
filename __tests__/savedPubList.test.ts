@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -41,13 +42,23 @@ describe("SavedPubList", () => {
     expect(html).not.toContain("saved pubs");
   });
 
+  it("never claims an empty list before the read has answered", () => {
+    const html = renderToStaticMarkup(
+      createElement(SavedPubList, { ownerHandle: "sam", groups: null }),
+    );
+
+    expect(html).toContain("Saved venues");
+    expect(html).toContain('aria-busy="true"');
+    expect(html).not.toContain("No saved venues yet.");
+  });
+
   it("surfaces followed authored lists with attribution, links, and counts", () => {
     const followedLists: FollowedSavedListDTO[] = [
       {
         ownerHandle: "sam",
-        ownerProfileUrl: "/u/sam",
+        ownerProfileUrl: "/u/sam" as Route,
         listType: "my locals",
-        listUrl: "/u/sam/lists/my%20locals",
+        listUrl: "/u/sam/lists/my%20locals" as Route,
         savedCount: 3,
         followerCount: 12,
         followedAt: "2026-07-07T12:00:00.000Z",

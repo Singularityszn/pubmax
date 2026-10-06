@@ -7,6 +7,7 @@ import {
   type AskProposal,
   type AskTurn,
 } from "@/lib/ask/types";
+import { isPubPalMemoryKind } from "@/lib/palMemoryKinds.mjs";
 
 export type AskCard = {
   key: string;
@@ -124,6 +125,16 @@ function asProposals(raw: unknown): AskProposal[] {
         label,
         venueId: str(record.venueId),
         level: record.level,
+      });
+      continue;
+    }
+    if (record.kind === "remember_memory" && isPubPalMemoryKind(record.memoryKind) && str(record.value).trim()) {
+      out.push({
+        id: id || `remember:${record.memoryKind}`,
+        kind: "remember_memory",
+        label,
+        memoryKind: record.memoryKind,
+        value: str(record.value).trim(),
       });
     }
   }

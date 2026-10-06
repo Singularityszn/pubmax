@@ -42,6 +42,7 @@ import {
   LEAGUE_CSV_HEADER,
   validatePintIndexSnapshot,
 } from "@/lib/pintIndex";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = resolve(__dirname, "..");
 
@@ -137,7 +138,7 @@ describe("national yardstick: the shape fence", () => {
       observationWindow: { start: "1990-01-01T00:00:00.000Z", end: "2026-07-27T00:00:00.000Z" },
       classification: {},
       sources: shipped.map((row) => ({ id: row.id, publisher: row.publisher, sourceUrl: row.sourceUrl, licence: null, kind: "national" })),
-      observations: shipped.map((row) => ({ ...row, pricePence: Math.round(row.figures[0].priceGbp * 100) })),
+      observations: shipped.map((row) => ({ ...row, pricePence: Math.round(defined(row.figures[0]).priceGbp * 100) })),
       excluded: [],
     });
     expect(result.ok).toBe(false);

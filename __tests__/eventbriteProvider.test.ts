@@ -10,6 +10,7 @@ import {
 } from "@/lib/events/eventbrite";
 import { aggregateTonightEvents, type EventsProvider } from "@/lib/events/provider";
 import { isValidWhatsOnRow, type WhatsOnRow } from "@/lib/whatsOn";
+import { defined } from "@/__tests__/helpers/defined";
 
 // A Saturday 19:00 BST. Tonight window is [2026-07-18 16:00, 2026-07-19 04:00]
 // London, i.e. [15:00Z, 03:00Z]. Events at 20:00 BST (19:00Z) fall inside it.
@@ -216,7 +217,7 @@ describe("aggregateTonightEvents", () => {
       { now },
     );
     expect(rows).toHaveLength(1);
-    expect(rows[0].id).toBe("r1");
+    expect(defined(rows[0]).id).toBe("r1");
   });
 });
 

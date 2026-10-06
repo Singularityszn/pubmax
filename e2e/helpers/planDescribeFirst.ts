@@ -1,4 +1,4 @@
-import type { Locator, Page } from "@playwright/test";
+import type { Locator, Page, Response } from "@playwright/test";
 
 /**
  * The describe-first field on /plan, addressed by role and name.
@@ -25,4 +25,32 @@ export function describeFirstQuery(page: Page): Locator {
  */
 export function describeFirstSubmit(page: Page): Locator {
   return page.getByRole("button", { name: "Sort it", exact: true });
+}
+
+/**
+ * Describe the outing, tap "Sort it", and hand back the planner's answer.
+ *
+ * /plan paints this field on the server, and PlanDescribeFirst keeps it
+ * read-only, with its controls aria-disabled, until the composer that owns it
+ * has hydrated. Playwright's fill waits for an editable field and its click
+ * for an enabled control, so one fill and one tap land on the composer that
+ * will keep them, and the route is asked for exactly once.
+ */
+export async function sortDescribeFirst(
+  page: Page,
+  query: string,
+  { stopCount }: { stopCount?: number } = {},
+): Promise<Response> {
+  await describeFirstQuery(page).fill(query);
+  if (stopCount !== undefined) {
+    const stopButton = page
+      .getByRole("group", { name: "Number of pub stops" })
+      .getByRole("button", { name: String(stopCount), exact: true });
+    if (await stopButton.getAttribute("aria-pressed") !== "true") await stopButton.click();
+  }
+  const generation = page.waitForResponse((response) =>
+    response.request().method() === "POST"
+    && new URL(response.url()).pathname === "/api/plans/generate");
+  await describeFirstSubmit(page).click();
+  return generation;
 }

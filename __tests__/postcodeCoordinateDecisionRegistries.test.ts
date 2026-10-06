@@ -9,6 +9,7 @@ import {
   validatePostcodeCoordinateQuarantine,
 } from "../scripts/lib/postcodeCoordinateConsistency.mjs";
 import type { PostcodeCoordinateRow } from "../scripts/lib/postcodeCoordinateConsistency.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 const lincolnRow = {
   app_price_id: "app_price_000339",
@@ -86,7 +87,7 @@ describe("postcode-coordinate quarantine registry", () => {
         expect(match, reference).not.toBeNull();
         const [, relativePath, lineText] = match!;
         const sourceLine = readFileSync(
-          join(process.cwd(), relativePath),
+          join(process.cwd(), defined(relativePath)),
           "utf8",
         ).split(/\r?\n/)[Number(lineText) - 1];
         expect(sourceLine, reference).toContain(entry.pubName);

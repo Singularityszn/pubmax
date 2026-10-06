@@ -1,1 +1,1 @@
-{"version":1,"revision":"local","shards":[{"id":"core","core":true,"url":"/data/cities/birmingham/venues_slim.core.json","count":295,"bbox":[-1.9759404,52.4209779,-1.8000615,52.5491277]}]}
+{"version":1,"revision":"local","shards":[{"id":"core","core":true,"url":"/data/cities/birmingham/venues_slim.core.json","count":411,"bbox":[-1.978645,52.420706,-1.8000615,52.549876]}]}

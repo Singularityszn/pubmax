@@ -79,6 +79,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/check-ins`
 - `POST app/api/citymcp/journey`
 - `POST app/api/crawls`
+- `POST app/api/diary`
 - `POST app/api/drink-wall`
 - `POST app/api/events`
 - `POST app/api/heritage`
@@ -386,9 +387,9 @@ bodies.
 - **Moderation:** the queue reads only visible held posts and exposes no
   post-author identity. Approval or hide binds the current post and private media, keeps
   provenance, and appends the named staff action. The preview RPC returns an
-  object key only for media attached to a held post; the route exchanges it for
-  a short-lived signed URL. Neither action deletes the post, media audit, or tag
-  consent history.
+  object key only for media attached to a held post. The route returns private,
+  no-store image bytes after each permission check, without a signed redirect.
+  Neither action deletes the post, media audit, or tag consent history.
 - **Failure:** malformed requests return 400, stale held rows return 409, and
   missing migration, named staff authority, or storage failures return 503.
   Responses are private and no-store. No partial moderation result is
@@ -619,6 +620,36 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
   503 `STORE_UNAVAILABLE` rather than a fake success. Disabling is
   consequence-free: delete/503 the route and the preview's capture button fails
   soft to a quiet retry line while the alternative (nearest patch) still renders.
+
+### `app/api/diary` — the private Diary (Phase 1)
+
+- **Route / method:** `POST app/api/diary/route.ts` logs one visit: a pub, a
+  London calendar day, an optional half-star rating and an optional review of
+  at most 280 characters. The route also exports an owner-only `GET` list,
+  which is not a mutating verb. Entries are PRIVATE: the only visibility is
+  `private`, and no route reads another account's entries.
+- **Validation:** `validateDiaryEntryCreate` (`lib/diary.ts`). The venue name
+  is the canonical name the server resolves for the id, never a typed one. The
+  day is a bare `YYYY-MM-DD` that must be a real day, not in the future and
+  not before 2000. The rating is a half star from 1 to 5. A review is the
+  owner's private words: C0 and C1 control characters are stripped (tab and
+  newline stay) and the ends are trimmed, and nothing else changes. No copy filter
+  runs, and angle brackets and inner spacing are kept. Length is counted in
+  code points (`diaryReviewLength`), the same count the composer and the
+  CHECK's `length(review)` use, so an emoji is one character. A review over 280
+  characters answers 400, never a silent cut. An outage of the venue index
+  answers a retryable 503 `STORE_UNAVAILABLE`, never a 400 that reads as a bad
+  pub. The migration's CHECK
+  constraints (0174) hold the rating, review-length and earliest-day bounds.
+  The future-day bound is checked only by the route.
+- **Rate limit (boundary):** durable per-profile + hashed-IP `isLimited` with
+  key `diary:${owner.actor}:${ipHash}` - 429 `RATE_LIMITED` on exceed.
+- **Auth stance:** `resolveContributionIdentity` derives the owner from the
+  session, and the owner is the account's auth user id. A body owner or handle
+  is ignored. The row keys to `auth.users` with ON DELETE CASCADE, so deleting
+  the account deletes its diary. A second log of the same pub on
+  the same day answers 409 `DIARY_ENTRY_EXISTS`. A hard store failure answers
+  503, never a fake success.
 
 ### `app/api/visit-reports` — structured Visit Reports (route 66)
 

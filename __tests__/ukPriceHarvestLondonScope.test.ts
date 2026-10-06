@@ -8,6 +8,7 @@ import {
   filterHostEntriesToGreaterLondon,
 } from "../scripts/harvest/uk-prices/londonScope.mjs";
 import { isHarvestableOperatorUrl } from "@/lib/harvest/sourcePolicy";
+import { defined } from "@/__tests__/helpers/defined";
 
 describe("uk price harvest London scope", () => {
   it("keeps only pubs inside Greater London on each host", () => {
@@ -27,8 +28,8 @@ describe("uk price harvest London scope", () => {
       },
     ]);
     expect(filtered).toHaveLength(1);
-    expect(filtered[0].pubs).toHaveLength(1);
-    expect(filtered[0].pubs[0].name).toBe("Central");
+    expect(defined(filtered[0]).pubs).toHaveLength(1);
+    expect(defined(defined(filtered[0]).pubs[0]).name).toBe("Central");
   });
 
   it("seeds enrichment drink pages onto matching London hosts", () => {
@@ -54,6 +55,6 @@ describe("uk price harvest London scope", () => {
       isHarvestableOperatorUrl,
     });
     expect(seeded).toBeGreaterThan(0);
-    expect(hosts[0].seedPages?.length).toBeGreaterThan(0);
+    expect(defined(hosts[0]).seedPages?.length).toBeGreaterThan(0);
   });
 });

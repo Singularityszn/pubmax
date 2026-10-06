@@ -21,9 +21,6 @@ const VENUE_NAME = COMMUNITY_SHEET_FIXTURE_VENUE_NAME;
 async function preparePage(page: Page): Promise<void> {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.route("**/_vercel/insights/script.js", (route) =>
-    route.fulfill({ status: 200, contentType: "application/javascript", body: "" }),
-  );
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");

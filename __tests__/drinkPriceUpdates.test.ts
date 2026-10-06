@@ -10,6 +10,7 @@ import {
   type DrinkMenuRow,
 } from "@/lib/drinkPriceUpdates";
 import type { Drink } from "@/lib/drinks";
+import { defined } from "@/__tests__/helpers/defined";
 
 const NOW = Date.parse("2026-07-07T12:00:00.000Z");
 
@@ -119,7 +120,7 @@ describe("parseDrinkPriceUpdates", () => {
       NOW,
     );
     expect(parsed).toHaveLength(1);
-    expect(parsed[0].drinkName).toBe("Doom Bar");
+    expect(defined(parsed[0]).drinkName).toBe("Doom Bar");
   });
 
   it("accepts a { updates: [...] } envelope", () => {
@@ -143,7 +144,7 @@ describe("parseDrinkPriceUpdates", () => {
       NOW,
     );
     expect(parsed).toHaveLength(1);
-    expect(parsed[0].priceGbp).toBe(5.9);
+    expect(defined(parsed[0]).priceGbp).toBe(5.9);
   });
 
   it("ignores an OLDER duplicate arriving after the newest (order-independent)", () => {
@@ -156,7 +157,7 @@ describe("parseDrinkPriceUpdates", () => {
       NOW,
     );
     expect(parsed).toHaveLength(1);
-    expect(parsed[0].priceGbp).toBe(5.9);
+    expect(defined(parsed[0]).priceGbp).toBe(5.9);
   });
 
   it("treats different drinks at the same venue as independent rows", () => {
@@ -185,29 +186,29 @@ describe("mergeDrinkPriceUpdates precedence", () => {
   it("a sourced update overrides the baseline price and stamps attribution", () => {
     const row = makeRow();
     const [merged] = mergeDrinkPriceUpdates([row], [makeUpdate({ priceGbp: 4.99 })], keyFor);
-    expect(merged.priceGbp).toBe(4.99);
-    expect(merged.sourcedPrice).not.toBeNull();
-    expect(merged.sourcedPrice?.provenance).toBe(DRINK_PRICE_UPDATE_PROVENANCE);
-    expect(merged.sourcedPrice?.provenance).toBe("sourced");
-    expect(merged.sourcedPrice?.sourceUrl).toBe(
+    expect(defined(merged).priceGbp).toBe(4.99);
+    expect(defined(merged).sourcedPrice).not.toBeNull();
+    expect(defined(merged).sourcedPrice?.provenance).toBe(DRINK_PRICE_UPDATE_PROVENANCE);
+    expect(defined(merged).sourcedPrice?.provenance).toBe("sourced");
+    expect(defined(merged).sourcedPrice?.sourceUrl).toBe(
       "https://www.jdwetherspoon.com/pubs/all-pubs/the-test-arms",
     );
-    expect(merged.sourcedPrice?.licence).toContain("first-party");
-    expect(merged.sourcedPrice?.observedAt).toBe("2026-07-01T00:00:00.000Z");
+    expect(defined(merged).sourcedPrice?.licence).toContain("first-party");
+    expect(defined(merged).sourcedPrice?.observedAt).toBe("2026-07-01T00:00:00.000Z");
   });
 
   it("no update for this venue+drink → baseline stands, sourcedPrice null", () => {
     const row = makeRow();
     const [merged] = mergeDrinkPriceUpdates([row], [], keyFor);
-    expect(merged.priceGbp).toBe(6.5);
-    expect(merged.sourcedPrice).toBeNull();
+    expect(defined(merged).priceGbp).toBe(6.5);
+    expect(defined(merged).sourcedPrice).toBeNull();
   });
 
   it("an update for a DIFFERENT drink at the same venue does not affect this row", () => {
     const row = makeRow({ drinkName: "Guinness" });
     const [merged] = mergeDrinkPriceUpdates([row], [makeUpdate({ drinkName: "Doom Bar" })], keyFor);
-    expect(merged.priceGbp).toBe(6.5);
-    expect(merged.sourcedPrice).toBeNull();
+    expect(defined(merged).priceGbp).toBe(6.5);
+    expect(defined(merged).sourcedPrice).toBeNull();
   });
 
   it("a FRESHER community observation beats the sourced update (community stays live)", () => {
@@ -222,8 +223,8 @@ describe("mergeDrinkPriceUpdates precedence", () => {
       keyFor,
     );
     // The community price is untouched; the update is ignored.
-    expect(merged.priceGbp).toBe(4.5);
-    expect(merged.sourcedPrice).toBeNull();
+    expect(defined(merged).priceGbp).toBe(4.5);
+    expect(defined(merged).sourcedPrice).toBeNull();
   });
 
   it("a community observation EQUALLY as fresh as the update also wins (>= not >)", () => {
@@ -237,8 +238,8 @@ describe("mergeDrinkPriceUpdates precedence", () => {
       [makeUpdate({ priceGbp: 5.5, observedAt: "2026-07-01T00:00:00.000Z" })],
       keyFor,
     );
-    expect(merged.priceGbp).toBe(4.5);
-    expect(merged.sourcedPrice).toBeNull();
+    expect(defined(merged).priceGbp).toBe(4.5);
+    expect(defined(merged).sourcedPrice).toBeNull();
   });
 
   it("a STALE community observation does NOT block a fresher sourced update", () => {
@@ -252,15 +253,15 @@ describe("mergeDrinkPriceUpdates precedence", () => {
       [makeUpdate({ priceGbp: 5.5, observedAt: "2026-07-01T00:00:00.000Z" })],
       keyFor,
     );
-    expect(merged.priceGbp).toBe(5.5);
-    expect(merged.sourcedPrice?.provenance).toBe("sourced");
+    expect(defined(merged).priceGbp).toBe(5.5);
+    expect(defined(merged).sourcedPrice?.provenance).toBe("sourced");
   });
 
   it("preserves extra fields on the row (generic over T extends DrinkMenuRow)", () => {
     type ExtendedRow = DrinkMenuRow & { drinkId: string };
     const row: ExtendedRow = { ...makeRow(), drinkId: "abc123" };
     const [merged] = mergeDrinkPriceUpdates([row], [makeUpdate()], keyFor);
-    expect(merged.drinkId).toBe("abc123");
+    expect(defined(merged).drinkId).toBe("abc123");
   });
 });
 

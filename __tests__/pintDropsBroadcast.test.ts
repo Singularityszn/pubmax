@@ -9,6 +9,7 @@ import {
   signalPintDropLanded,
 } from "@/lib/pintDropsBroadcast.server";
 import { PINT_DROPS_LIVE_EVENT, PINT_DROPS_LIVE_TOPIC } from "@/lib/pintDropsTopics";
+import { defined } from "@/__tests__/helpers/defined";
 
 const config = { url: "https://example.supabase.co/", key: "service-key" };
 
@@ -27,11 +28,11 @@ describe("pint drop broadcast", () => {
     await expect(broadcastPintDropLanded({ fetchImpl, config })).resolves.toBe(true);
 
     expect(calls).toHaveLength(1);
-    expect(calls[0].url).toBe("https://example.supabase.co/realtime/v1/api/broadcast");
-    const headers = new Headers(calls[0].init.headers);
+    expect(defined(calls[0]).url).toBe("https://example.supabase.co/realtime/v1/api/broadcast");
+    const headers = new Headers(defined(calls[0]).init.headers);
     expect(headers.get("apikey")).toBe("service-key");
     expect(headers.get("authorization")).toBe("Bearer service-key");
-    const body = JSON.parse(String(calls[0].init.body)) as {
+    const body = JSON.parse(String(defined(calls[0]).init.body)) as {
       messages: Array<Record<string, unknown>>;
     };
     expect(body.messages).toEqual([
@@ -63,7 +64,7 @@ describe("pint drop broadcast", () => {
 
     const { calls, fetchImpl } = capture();
     await broadcastPintDropLanded({ fetchImpl, config });
-    expect(calls[0].init.signal).toBeInstanceOf(AbortSignal);
+    expect(defined(calls[0]).init.signal).toBeInstanceOf(AbortSignal);
     expect(PINT_DROPS_BROADCAST_TIMEOUT_MS).toBeLessThanOrEqual(2_000);
   });
 

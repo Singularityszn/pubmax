@@ -5,6 +5,7 @@ import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 
 import { BRAND_COLORS } from "@/lib/brandMark.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 // THE SPLASH IS THE FIRST FRAME OF THE APP, AND IN LIGHT MODE IT WAS THE WRONG ONE.
 //
@@ -69,7 +70,7 @@ async function samples(file: string) {
   const { data, info } = await sharp(file).raw().toBuffer({ resolveWithObject: true });
   const at = (x: number, y: number): Rgb => {
     const i = (y * info.width + x) * info.channels;
-    return [data[i], data[i + 1], data[i + 2]];
+    return [defined(data[i]), defined(data[i + 1]), defined(data[i + 2])];
   };
   return {
     width: info.width,
@@ -160,9 +161,9 @@ describe("the iOS launch screen is the same master, wired the way iOS 26 draws i
       colors: Array<{ appearances?: unknown; color: { components: Record<string, string> } }>;
     };
     expect(colorset.colors).toHaveLength(1);
-    expect(colorset.colors[0].appearances).toBeUndefined();
-    const { red, green, blue } = colorset.colors[0].color.components;
-    expect([red, green, blue].map((c) => Number.parseInt(c, 16))).toEqual(INK);
+    expect(defined(colorset.colors[0]).appearances).toBeUndefined();
+    const { red, green, blue } = defined(colorset.colors[0]).color.components;
+    expect([red, green, blue].map((c) => Number.parseInt(defined(c), 16))).toEqual(INK);
   });
 
   it("ships the mark at every iPhone scale, cut from the master's own centre", async () => {

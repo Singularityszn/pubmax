@@ -67,9 +67,9 @@ type TastePalette = {
 };
 
 export function withAlpha(hex: string, alpha: number): string {
-  const match = /^#([0-9a-f]{6})$/i.exec(hex.trim());
-  if (!match) return hex;
-  const n = parseInt(match[1], 16);
+  const digits = /^#([0-9a-f]{6})$/i.exec(hex.trim())?.[1];
+  if (!digits) return hex;
+  const n = parseInt(digits, 16);
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 }
 
@@ -78,11 +78,11 @@ export function withAlpha(hex: string, alpha: number): string {
  *  road hierarchy. Falls back to `hexA` unchanged if either input isn't a
  *  plain `#rrggbb`. */
 export function mixHex(hexA: string, hexB: string, t: number): string {
-  const a = /^#([0-9a-f]{6})$/i.exec(hexA.trim());
-  const b = /^#([0-9a-f]{6})$/i.exec(hexB.trim());
+  const a = /^#([0-9a-f]{6})$/i.exec(hexA.trim())?.[1];
+  const b = /^#([0-9a-f]{6})$/i.exec(hexB.trim())?.[1];
   if (!a || !b) return hexA;
-  const na = parseInt(a[1], 16);
-  const nb = parseInt(b[1], 16);
+  const na = parseInt(a, 16);
+  const nb = parseInt(b, 16);
   const clampedT = clamp(t, 0, 1);
   const mix = (shift: number) => {
     const ca = (na >> shift) & 255;

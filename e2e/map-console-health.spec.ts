@@ -45,11 +45,6 @@ const BENIGN_PATTERNS: RegExp[] = [
   // Not the named production warning (`zoom` may only be top-level input /
   // pubs-point icon-size) which CRITICAL_PATTERNS still fail on.
   /^Expected value to be of type number, but found null instead\.?$/i,
-  // Vercel Web Analytics (app/layout.tsx <Analytics />, R3) requests
-  // /_vercel/insights/script.js, which only exists on Vercel — `next start`
-  // serves the 404 HTML page and Chromium logs a strict-MIME refusal. Pure
-  // local-serve noise, unrelated to the map scene this spec guards.
-  /_vercel\/insights/i,
   /was preloaded using link preload but not used/i,
   // The E2E build is given a deliberately fake Supabase host
   // (playwright.config.ts), so the browser auth graph stays enabled while the
@@ -140,17 +135,37 @@ test("/map stays console-healthy across repeated /map↔/feed navigation", async
     if (!(await layersPanel.isVisible())) await layersFab.click();
     await expect(layersPanel.locator(".mapCompassBtn")).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: 20_000 });
-  const compass = layersPanel.locator(".mapCompassBtn");
   await expect(page.locator(".mapCompassBtn")).toHaveCount(1);
   await expect(page.locator(".maplibregl-ctrl-compass")).toHaveCount(0);
-  const compassNeedle = compass.locator("svg");
-  const bearingBeforeIdle = await compassNeedle.evaluate(
-    (element) => getComputedStyle(element).transform,
-  );
+  // The bearing is read from the camera, not the compass needle: the needle
+  // eases to each new bearing with a CSS transition, so a computed transform
+  // taken just after the camera stops is still on its way there.
+  const readCamera = () =>
+    page.evaluate(() => {
+      const probe = (window as unknown as {
+        __pubmaxMapCamera?: {
+          read: () => { bearing: number; moving: boolean; settling: boolean };
+        };
+      }).__pubmaxMapCamera;
+      return probe ? probe.read() : null;
+    });
+  // The map arrives with one designed turn (lib/mapArrivalBearing.ts), and on
+  // a loaded box it can start well after the canvas paints. Stillness is only
+  // a claim about a camera nobody owes a move, so wait for that turn to be
+  // decided and run before the idle window opens.
+  await expect
+    .poll(
+      async () => {
+        const camera = await readCamera();
+        return camera !== null && !camera.moving && !camera.settling;
+      },
+      { message: "the map's opening turn comes to rest", timeout: 60_000 },
+    )
+    .toBe(true);
+  const bearingBeforeIdle = (await readCamera())?.bearing;
   await page.waitForTimeout(7_500);
-  const bearingAfterIdle = await compassNeedle.evaluate(
-    (element) => getComputedStyle(element).transform,
-  );
+  const bearingAfterIdle = (await readCamera())?.bearing;
+  expect(bearingBeforeIdle).toEqual(expect.any(Number));
   expect(
     bearingAfterIdle,
     "interactive map bearing must stay still without a gesture",
@@ -167,11 +182,11 @@ test("/map stays console-healthy across repeated /map↔/feed navigation", async
     await page.waitForTimeout(2_000);
   }
   await page.setViewportSize({ width: 390, height: 844 });
-  // A phone has NO compass: More map controls owns layers and carries no camera
-  // action, so the desktop popover above is the one compass owner (the open lead
-  // in docs/proof/red-on-main-2026-09.md R19). What a phone must not do is
-  // answer the same question with MapLibre's own flattened compass, or its
-  // native zoom pair.
+  // A phone has no map-edge compass: its reset is "Reset view" in the Layers tab
+  // of More map controls, disabled while the camera is on the city's attitude
+  // (docs/proof/red-on-main-2026-09.md R19; e2e/map-gestures.spec.ts). What a
+  // phone must not do is answer the same question with MapLibre's own flattened
+  // compass, or its native zoom pair.
   await expect(page.locator(".maplibregl-ctrl-compass")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "More map controls" })).toBeVisible();
   await expect(page.locator(".maplibregl-ctrl-zoom-in")).toBeHidden();

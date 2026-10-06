@@ -3,6 +3,7 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
 
 import { AGENT_TOOLING_PATHS } from "./lib/agentToolingPaths.mjs";
+import { ROUTER_CACHE_FENCE_CONFIG } from "./lib/routerCacheFence.mjs";
 
 const eslintConfig = [
   {
@@ -72,6 +73,9 @@ const eslintConfig = [
       "no-extra-semi": "error",
     },
   },
+  // The client router cache is only safe while no page reads the request's
+  // credential and nothing calls router.refresh(). See lib/routerCacheFence.mjs.
+  ...ROUTER_CACHE_FENCE_CONFIG,
 ];
 
 export default eslintConfig;

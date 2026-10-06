@@ -11,9 +11,12 @@
  *   importScripts("/sw-plan-cache.js?v=" + VERSION)
  *
  * Cache identity/eviction:
- *  - The cache name is owned by sw.js (PREFIX + "plan-" + VERSION) and passed
- *    in, so it is versioned and eligible entries are migrated by sw.js during
- *    activate().
+ *  - The cache name is owned by sw.js (PREFIX + "preview-plan-v2-" + VERSION)
+ *    and passed in, so it is versioned and eligible entries are migrated by
+ *    sw.js during activate().
+ *  - The older PREFIX + "plan-" family is retired: its HTML can carry private
+ *    plan details. sw.js never reads from it and attempts best-effort deletion
+ *    during activate().
  *  - Keyed by pathname (like the shell cache) so a plan reopens regardless of
  *    ?vibe=/utm query, and one plan is never stored twice.
  *  - Bounded to the last MAX_PLAN_ENTRIES plans, LRU-ish: Cache.put replaces

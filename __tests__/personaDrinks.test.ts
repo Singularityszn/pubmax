@@ -18,6 +18,7 @@ import {
   validatePersonaDrink,
   type PersonaDrink,
 } from "@/lib/personaDrinks";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Em (U+2014) and en (U+2013) dash. The guardrail is "no em dashes anywhere".
 const BANNED_DASH = /[—–]/;
@@ -226,7 +227,7 @@ describe("picker sort logic", () => {
     const sections = buildPersonaPickerSections({ tonightCategory: "beer" });
     const personSection = sections.find((s) => s.kind === "person");
     expect(personSection).toBeDefined();
-    const first = personSection!.personas[0];
+    const first = defined(personSection!.personas[0]);
     // With a beer verdict, the first person in the group drinks beer.
     expect(first.drinkCategory).toBe("beer");
   });
@@ -304,7 +305,7 @@ describe("coffee personas lens as coffee", () => {
 describe("findPersonaById", () => {
   it("resolves a known id and returns null for an unknown one", () => {
     const [first] = loadPersonaDrinks();
-    expect(findPersonaById(first.id)?.id).toBe(first.id);
+    expect(findPersonaById(defined(first).id)?.id).toBe(defined(first).id);
     expect(findPersonaById("no-such-persona")).toBeNull();
   });
 });

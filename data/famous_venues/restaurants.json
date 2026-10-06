@@ -19,7 +19,7 @@
       }
     ],
     "sourceUrl": "https://rules.co.uk/our-menus",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_dish",
       "label": "Steak & Kidney Pudding",
@@ -41,7 +41,7 @@
       "lng": -0.1231906
     },
     "sourceName": "rules.co.uk",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -65,7 +65,7 @@
       }
     ],
     "sourceUrl": "https://ivycollection.com/restaurants-near-me/the-ivy-london/the-ivy-west-street-covent-garden/the-original-ivy-heritage-menu",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_dish",
       "label": "The Ivy Shepherd's Pie",
@@ -87,9 +87,12 @@
       "lng": -0.1280402
     },
     "sourceName": "ivycollection.com",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "original ivy west end"
+    ]
   },
   {
     "id": "restaurant-scotts",
@@ -111,7 +114,7 @@
       }
     ],
     "sourceUrl": "https://scotts-mayfair.com/wp-content/uploads/2025/10/ALC-01.10.2025-1.pdf",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_dish",
       "label": "Dover Sole, 16oz",
@@ -133,7 +136,7 @@
       "lng": -0.1509327
     },
     "sourceName": "scotts-mayfair.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -157,7 +160,7 @@
       }
     ],
     "sourceUrl": "https://j-sheekey.co.uk/wp-content/uploads/2026/05/JSheekey_Spring-Menus_ALC-28_05_26-VW.pdf",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_dish",
       "label": "J. Sheekey Fish Pie",
@@ -179,7 +182,7 @@
       "lng": -0.12758
     },
     "sourceName": "j-sheekey.co.uk",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -203,7 +206,7 @@
       }
     ],
     "sourceUrl": "https://www.quovadissoho.co.uk/wp-content/uploads/2019/01/QV195-June-26-ALC_01.pdf",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_dish",
       "label": "Smoked Eel Sandwich",
@@ -225,7 +228,7 @@
       "lng": -0.1325841
     },
     "sourceName": "quovadissoho.co.uk",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -249,7 +252,7 @@
       }
     ],
     "sourceUrl": "https://stjohnrestaurant.com/a/menus/1",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_dish",
       "label": "Roast Bone Marrow & Parsley Salad",
@@ -271,7 +274,7 @@
       "lng": -0.1012748
     },
     "sourceName": "stjohnrestaurant.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual",
     "placesNameAliases": [
@@ -298,7 +301,7 @@
       }
     ],
     "sourceUrl": "https://www.rivercafe.co.uk/",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_dish",
       "label": "Chocolate Nemesis",
@@ -320,7 +323,7 @@
       "lng": -0.2245519
     },
     "sourceName": "rivercafe.co.uk",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -344,7 +347,7 @@
       }
     ],
     "sourceUrl": "https://www.thewolseley.com/app/uploads/2026/02/00506_WOLSELEY_Winter_2025_Breakfast_A5-12pp_Kcals29.pdf",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_dish",
       "label": "Eggs Benedict, large",
@@ -366,9 +369,12 @@
       "lng": -0.1409072
     },
     "sourceName": "thewolseley.com",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "wolseley piccadilly"
+    ]
   },
   {
     "id": "restaurant-brasserie-zedel",
@@ -390,7 +396,7 @@
       }
     ],
     "sourceUrl": "https://www.brasseriezedel.com/wp-content/uploads/2020/02/Zedel-summer-2026-Kcal-combined-wine-menu.pdf",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_dish",
       "label": "Steak Haché et Frites",
@@ -412,7 +418,7 @@
       "lng": -0.1355893
     },
     "sourceName": "brasseriezedel.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -436,7 +442,7 @@
       }
     ],
     "sourceUrl": "https://www.veeraswamy.com/menu",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_dish",
       "label": "Raj Kachori",
@@ -458,7 +464,7 @@
       "lng": -0.1379192
     },
     "sourceName": "veeraswamy.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -482,7 +488,7 @@
       }
     ],
     "sourceUrl": "https://www.dishoom.com/menu/collection-covent-garden",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_dish",
       "label": "Bacon Naan Roll",
@@ -504,7 +510,7 @@
       "lng": -0.126856
     },
     "sourceName": "dishoom.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -528,7 +534,7 @@
       }
     ],
     "sourceUrl": "https://ottolenghi.co.uk/pages/restaurants/spitalfields",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_dish",
       "label": "Shakshuka",
@@ -550,7 +556,7 @@
       "lng": -0.0773112
     },
     "sourceName": "ottolenghi.co.uk",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -574,7 +580,7 @@
       }
     ],
     "sourceUrl": "https://moro.co.uk/menu",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_dish",
       "label": "Charcoal-grilled Lamb",
@@ -596,7 +602,7 @@
       "lng": -0.1090005
     },
     "sourceName": "moro.co.uk",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -605,8 +611,8 @@
     "name": "Rochelle Canteen",
     "address": "Rochelle School, Arnold Circus, London E2 7ES",
     "borough": "Tower Hamlets",
-    "lat": 51.52699,
-    "lng": -0.07171,
+    "lat": 51.525615,
+    "lng": -0.074167,
     "kind": "restaurant",
     "hasStory": true,
     "fameGates": [
@@ -620,7 +626,7 @@
       }
     ],
     "sourceUrl": "https://rochellecanteen.com/menu",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_dish",
       "label": "Chocolate Tart",
@@ -638,11 +644,11 @@
     "description": "Rochelle Canteen sits behind the gates of a former Victorian school in Arnold Circus.",
     "area": "Shoreditch",
     "location": {
-      "lat": 51.52699,
-      "lng": -0.07171
+      "lat": 51.525615,
+      "lng": -0.074167
     },
     "sourceName": "rochellecanteen.com",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -666,7 +672,7 @@
       }
     ],
     "sourceUrl": "https://www.duckandwaffle.com/london/menu/dinner",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_dish",
       "label": "Duck & Waffle",
@@ -688,7 +694,7 @@
       "lng": -0.0810446
     },
     "sourceName": "duckandwaffle.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -712,7 +718,7 @@
       }
     ],
     "sourceUrl": "https://www.padella.co/borough-market",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_dish",
       "label": "Pici Cacio & Pepe",
@@ -734,7 +740,7 @@
       "lng": -0.08981
     },
     "sourceName": "padella.co",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -758,7 +764,7 @@
       }
     ],
     "sourceUrl": "https://theblacklock.com/menus",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_dish",
       "label": "All In",
@@ -780,7 +786,7 @@
       "lng": -0.1346407
     },
     "sourceName": "theblacklock.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -804,7 +810,7 @@
       }
     ],
     "sourceUrl": "https://poppiesfishandchips.co.uk/menu",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_dish",
       "label": "Regular Haddock & Chips",
@@ -826,7 +832,7 @@
       "lng": -0.074097
     },
     "sourceName": "poppiesfishandchips.co.uk",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual",
     "placesNameAliases": [
@@ -853,7 +859,7 @@
       }
     ],
     "sourceUrl": "https://wiltons.co.uk/s/010726-Copy.pdf",
-    "observedAt": "2026-08-25",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_dish",
       "label": "Potted Shrimps",
@@ -875,9 +881,12 @@
       "lng": -0.1392041
     },
     "sourceName": "wiltons.co.uk",
-    "expiresAt": "2026-09-24",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
-    "extractedVia": "manual"
+    "extractedVia": "manual",
+    "placesNameAliases": [
+      "wiltons restaurant"
+    ]
   },
   {
     "id": "restaurant-hawksmoor-seven-dials",
@@ -899,7 +908,7 @@
       }
     ],
     "sourceUrl": "https://thehawksmoor.com/locations/seven-dials/food/menu",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_dish",
       "label": "Rib-eye, 350g",
@@ -921,7 +930,7 @@
       "lng": -0.1257487
     },
     "sourceName": "thehawksmoor.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -945,7 +954,7 @@
       }
     ],
     "sourceUrl": "https://www.bobbobricard.com/soho/menu",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_dish",
       "label": "Chicken Kyiv",
@@ -967,7 +976,7 @@
       "lng": -0.1371738
     },
     "sourceName": "bobbobricard.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -991,7 +1000,7 @@
       }
     ],
     "sourceUrl": "https://flatironsteak.co.uk/menu",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_dish",
       "label": "Flat Iron Steak",
@@ -1013,7 +1022,7 @@
       "lng": -0.1383699
     },
     "sourceName": "flatironsteak.co.uk",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -1037,7 +1046,7 @@
       }
     ],
     "sourceUrl": "https://rotiking.com/food-drink",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_dish",
       "label": "Chicken Roti Canai",
@@ -1059,7 +1068,7 @@
       "lng": -0.132048
     },
     "sourceName": "rotiking.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual",
     "placesNameAliases": [
@@ -1086,7 +1095,7 @@
       }
     ],
     "sourceUrl": "https://regencycafe.co.uk/menu",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_dish",
       "label": "Set Breakfast",
@@ -1108,7 +1117,7 @@
       "lng": -0.1320948
     },
     "sourceName": "regencycafe.co.uk",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   },
@@ -1132,7 +1141,7 @@
       }
     ],
     "sourceUrl": "https://www.hopperslondon.com/wp-content/uploads/2026/06/Hoppers-Soho-Main-Menu-A3-JUNE-2026-UPDATE.pdf",
-    "observedAt": "2026-10-03",
+    "observedAt": "2026-10-05",
     "anchor": {
       "kind": "signature_dish",
       "label": "Bone Marrow Varuval",
@@ -1154,7 +1163,7 @@
       "lng": -0.1314
     },
     "sourceName": "hopperslondon.com",
-    "expiresAt": "2026-11-02",
+    "expiresAt": "2026-11-04",
     "discoveredVia": "manual",
     "extractedVia": "manual"
   }

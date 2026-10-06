@@ -8,6 +8,7 @@
 import { describe, expect, it } from "vitest";
 
 import { groupVenuePrices, venueAmenityStatus, venueContacts, type VenuePrice } from "@/lib/venues";
+import { defined } from "@/__tests__/helpers/defined";
 
 function row(over: Partial<VenuePrice> = {}): VenuePrice {
   return {
@@ -60,19 +61,19 @@ function row(over: Partial<VenuePrice> = {}): VenuePrice {
 describe("venueAmenityStatus", () => {
   it("reads a blank column as unknown rather than a stated absence", () => {
     const [venue] = groupVenuePrices([row()]);
-    const status = venueAmenityStatus(venue);
+    const status = venueAmenityStatus(defined(venue));
     expect(status.beerGarden).toBe("unknown");
     expect(status.food).toBe("unknown");
     // The boolean the filter machinery reads is untouched: false still means
     // "not known to be true", which is the direction a positive filter wants.
-    expect(venue.amenities.beerGarden).toBe(false);
+    expect(defined(venue).amenities.beerGarden).toBe(false);
   });
 
   it("reads a stated presence, qualifier and all", () => {
     const [venue] = groupVenuePrices([
       row({ beer_garden: "Yes", live_music: "yes (fri & sat)", pub_quiz: "yes sundays" }),
     ]);
-    const status = venueAmenityStatus(venue);
+    const status = venueAmenityStatus(defined(venue));
     expect(status.beerGarden).toBe("known-true");
     expect(status.liveMusic).toBe("known-true");
     expect(status.pubQuiz).toBe("known-true");
@@ -81,12 +82,12 @@ describe("venueAmenityStatus", () => {
   it("reads a value that answers a different question as unknown", () => {
     // One bundled row really does carry "Dog friendly" in the cocktails column.
     const [venue] = groupVenuePrices([row({ cocktails: "Dog friendly" })]);
-    expect(venueAmenityStatus(venue).cocktails).toBe("unknown");
+    expect(venueAmenityStatus(defined(venue)).cocktails).toBe("unknown");
   });
 
   it("reads a stated absence as a stated absence", () => {
     const [venue] = groupVenuePrices([row({ food: "No" })]);
-    expect(venueAmenityStatus(venue).food).toBe("known-false");
+    expect(venueAmenityStatus(defined(venue)).food).toBe("known-false");
   });
 
   it("lets one row's yes answer for the whole pub", () => {
@@ -94,14 +95,14 @@ describe("venueAmenityStatus", () => {
       row({ app_price_id: "a", food: "" }),
       row({ app_price_id: "b", food: "Yes" }),
     ]);
-    expect(venueAmenityStatus(venue).food).toBe("known-true");
+    expect(venueAmenityStatus(defined(venue)).food).toBe("known-true");
   });
 
   it("never states an absence for the derived alcohol-free lane", () => {
     const [dry] = groupVenuePrices([row({ pint_name: "Lucky Saint" })]);
     const [wet] = groupVenuePrices([row({ pint_name: "Lager" })]);
-    expect(venueAmenityStatus(dry).nonAlcoholic).toBe("known-true");
-    expect(venueAmenityStatus(wet).nonAlcoholic).toBe("unknown");
+    expect(venueAmenityStatus(defined(dry)).nonAlcoholic).toBe("known-true");
+    expect(venueAmenityStatus(defined(wet)).nonAlcoholic).toBe("unknown");
   });
 
   it("reads a slim-built venue's flags as presence-or-unknown", () => {
@@ -137,7 +138,7 @@ describe("venueContacts", () => {
         website: "https://www.lsesu.com/social/three-tuns/",
       }),
     ]);
-    const contacts = venueContacts(venue);
+    const contacts = venueContacts(defined(venue));
     expect(contacts.phoneNumber).toBeNull();
     expect(contacts.phoneHref).toBeNull();
     expect(contacts.websiteHref).toBe("https://www.lsesu.com/social/three-tuns/");
@@ -145,7 +146,7 @@ describe("venueContacts", () => {
 
   it("publishes a real number and its dialable href", () => {
     const [venue] = groupVenuePrices([row({ phone_number: "020 7123 4567" })]);
-    expect(venueContacts(venue)).toMatchObject({
+    expect(venueContacts(defined(venue))).toMatchObject({
       phoneNumber: "02071234567",
       phoneHref: "tel:02071234567",
     });
@@ -181,7 +182,7 @@ describe("venueContacts", () => {
       row({ app_price_id: "row-b", phone_number: "🍽️ Food available 🍹 Cocktails available" }),
       row({ app_price_id: "row-c", phone_number: "020 8840 9430", email: "hello@theoldhat.example" }),
     ]);
-    expect(venueContacts(venue)).toMatchObject({
+    expect(venueContacts(defined(venue))).toMatchObject({
       phoneNumber: "02088409430",
       phoneHref: "tel:02088409430",
       emailHref: "mailto:hello@theoldhat.example",
@@ -193,7 +194,7 @@ describe("venueContacts", () => {
       row({ app_price_id: "row-a", phone_number: "🌐 https://www.theblueboat.co.uk/" }),
       row({ app_price_id: "row-b", phone_number: "❓ Pub quiz available", email: "not an address" }),
     ]);
-    expect(venueContacts(venue)).toMatchObject({
+    expect(venueContacts(defined(venue))).toMatchObject({
       phoneNumber: null,
       phoneHref: null,
       emailHref: null,
@@ -202,7 +203,7 @@ describe("venueContacts", () => {
 
   it("answers every field null for a venue holding nothing", () => {
     const [venue] = groupVenuePrices([row()]);
-    expect(venueContacts(venue)).toEqual({
+    expect(venueContacts(defined(venue))).toEqual({
       phoneNumber: null,
       phoneHref: null,
       websiteHref: null,

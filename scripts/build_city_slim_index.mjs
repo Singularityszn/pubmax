@@ -32,6 +32,7 @@ import {
   SHARD_VERSION,
 } from "./lib/slimShards.mjs";
 import { cityVenueIdForPub as sharedCityVenueIdForPub } from "../lib/cityVenueId.mjs";
+import { mergeCityVenueSources } from "./lib/parallelVenueDiscovery.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -77,7 +78,7 @@ function buildFilterHints(pub, displayName) {
   return {
     searchText: Array.from(searchParts).join(" "),
     amenities: {
-      food: Boolean(pub.cuisine),
+      food: Boolean(pub.cuisine) || pub.kind === "restaurant",
       cocktails: false,
       beerGarden: truthyOutdoor(pub),
       liveSports: false,
@@ -124,6 +125,7 @@ export function buildCitySlim(city, pack) {
       name,
       lat,
       lng,
+      ...(pub.kind ? { kind: pub.kind } : {}),
       cheapestPrice: null,
       borough: areaLabelForPub(pub, city.displayName),
       filterHints: buildFilterHints(pub, city.displayName),
@@ -144,7 +146,14 @@ async function buildCity(city) {
     throw new Error(`Missing OSM pack: ${path.relative(ROOT, packPath)} — run fetch:city-pubs first`);
   }
 
-  const pack = JSON.parse(await readFile(packPath, "utf8"));
+  let pack = JSON.parse(await readFile(packPath, "utf8"));
+  const discoveryPath = path.join(ROOT, "data", "cities", city.id, "parallel_venues.json");
+  try {
+    const discoveries = JSON.parse(await readFile(discoveryPath, "utf8"));
+    pack = mergeCityVenueSources(pack, discoveries, city);
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
   const { slim, droppedOob, droppedDup } = buildCitySlim(city, pack);
 
   await mkdir(outDir, { recursive: true });

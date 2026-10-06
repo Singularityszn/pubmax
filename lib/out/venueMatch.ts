@@ -45,6 +45,8 @@ export type OutVenueMatchStatus = "ready" | "unavailable";
 export type OutVenueMatchIndex = VenueResolverIndex & {
   /** Canonical Venue ids accepted by pub-only reads. Built once with the matcher. */
   venueIds: ReadonlySet<string>;
+  /** The current id a stored reference resolves to, so a merged pub is not stale. */
+  canonicalId: (id: string) => string;
 };
 
 /**
@@ -54,7 +56,10 @@ export type OutVenueMatchIndex = VenueResolverIndex & {
  * the slim index does not carry, so every match here is the conservative
  * name-plus-proximity lane.
  */
-export function buildOutVenueMatchIndex(venues: Iterable<VenueRef>): OutVenueMatchIndex {
+export function buildOutVenueMatchIndex(
+  venues: Iterable<VenueRef>,
+  canonicalId: (id: string) => string = (id) => id,
+): OutVenueMatchIndex {
   const byNormalizedName = new Map<string, VenueResolverCandidate[]>();
   const venueIds = new Set<string>();
   for (const venue of venues) {
@@ -74,7 +79,7 @@ export function buildOutVenueMatchIndex(venues: Iterable<VenueRef>): OutVenueMat
     const venueId = canonicalOutVenueId(venue.id);
     if (venueId) venueIds.add(venueId);
   }
-  return { exactByKey: new Map(), byNormalizedName, venueIds };
+  return { exactByKey: new Map(), byNormalizedName, venueIds, canonicalId };
 }
 
 /** The venue one row lands on, or null when the matcher would be guessing. */
@@ -111,8 +116,8 @@ export type AttachOutVenuesResult = {
 /**
  * Attach an eligible pub to each unmatched row.
  *
- * A refresh match remains authoritative while its id belongs to the named
- * pub in this index. The CLI had address and postcode evidence, so do not
+ * A refresh match remains authoritative while its id (after alias
+ * resolution) belongs to the named pub in this index. The CLI had address and postcode evidence, so do not
  * re-run its proximity match. An id no longer accepted by the index cannot
  * label a place as a pub; remove it and try the conservative matcher again.
  */
@@ -124,14 +129,17 @@ export function attachOutVenues(
   let matchedAtRequest = 0;
   let unmatched = 0;
   const out = rows.map((row) => {
-    const attachedId = canonicalOutVenueId(row.venueId);
+    const storedId = canonicalOutVenueId(row.venueId);
+    // A merged pub keeps its row: resolve the stored id to the current one
+    // before judging it stale.
+    const attachedId = storedId === null ? null : index.canonicalId(storedId);
     if (
       isOutVenueId(index, attachedId) &&
       index.byNormalizedName
         .get(normalizeVenueIdentityName(row.placeName))
         ?.some((candidate) => candidate.venueId === attachedId)
     ) {
-      return row;
+      return attachedId === row.venueId ? row : { ...row, venueId: attachedId ?? undefined };
     }
     const unmatchedRow = row.venueId === undefined ? row : { ...row, venueId: undefined };
     // Rejected refresh links need recovery even without a live provider row.

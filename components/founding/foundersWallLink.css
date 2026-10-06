@@ -1,5 +1,5 @@
 /* A quiet, self-contained row link. Sized to the 44px tap floor the phone
-   chrome holds every control to (__tests__/mobileChromeFit.test.ts). */
+   chrome holds every control to. */
 .foundersWallLink {
   display: flex;
   align-items: center;

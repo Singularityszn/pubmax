@@ -15,7 +15,11 @@
 // re-measured, not raised.
 //
 // WHAT A ROW MAY SAY. Name, address, position and kind - the four things OSM
-// stated. No price, no band, no opening claim, no curated ownership: those are
+// stated. One kind has a second witness: a restaurant OSM does not tag with
+// alcohol joins as a `restaurant` when its own website states that it serves
+// it (data/london_restaurant_drinks/evidence.json, written by
+// scripts/harvest_london_restaurant_drinks.mjs). Its identity is still OSM's;
+// the site only answers whether it pours. No price, no band, no opening claim, no curated ownership: those are
 // questions about a pub, and this layer holds nine other kinds. A pub surface
 // reads `uk_base`; nothing here reaches a price lane, a pint band or the Pint
 // Index, and `isPubVenueKind` answers false for every non-pub kind in it.
@@ -31,6 +35,8 @@ import { fileURLToPath } from "node:url";
 import { publishStagedDirectory } from "./lib/atomicDirectoryPublish.mjs";
 import { coveringStamp } from "./lib/coveringStamp.mjs";
 import { cellBbox, cellIndexFor, cellKey } from "./lib/ukBaseGrid.mjs";
+import { writeLondonRestaurantPack } from "./build_london_restaurant_pack.mjs";
+import { validateRestaurantDrinksPack } from "./lib/londonRestaurantDrinks.mjs";
 import { UK_VENUE_GROUPS } from "./lib/ukOsmVenueSeed.mjs";
 import { GREATER_LONDON_BBOX } from "./fetch_uk_osm_venues.mjs";
 
@@ -66,6 +72,9 @@ export const LONDON_VENUE_GRID = {
 const SHARD_BUDGET_BYTES = 150 * 1024;
 const TOTAL_BUDGET_BYTES = 5 * 1024 * 1024;
 const MANIFEST_BUDGET_BYTES = 64 * 1024;
+
+const RESTAURANT_DRINKS_PATH = path.join(ROOT, "data", "london_restaurant_drinks", "evidence.json");
+const RESTAURANT_DRINK_EXCLUSIONS_PATH = path.join(ROOT, "data", "london_restaurant_drinks", "exclusions.json");
 
 function packPathFor(group) {
   return path.join(ROOT, "data", "osm", "uk", `uk_osm_venues_${group}.json`);
@@ -181,6 +190,34 @@ async function main() {
     }
   }
 
+  // Restaurants whose own site states alcohol. The pack is checked again here,
+  // so a row that lost its evidence, its permission or its London position
+  // fails the build rather than shipping. A restaurant OSM already ships keeps
+  // its OSM row.
+  const drinks = JSON.parse(await readFile(RESTAURANT_DRINKS_PATH, "utf8"));
+  const exclusions = JSON.parse(await readFile(RESTAURANT_DRINK_EXCLUSIONS_PATH, "utf8"));
+  const problems = validateRestaurantDrinksPack(drinks, { inGreaterLondon, exclusions });
+  if (problems.length) {
+    throw new Error(
+      `${path.relative(ROOT, RESTAURANT_DRINKS_PATH)} fails its check:\n${problems.slice(0, 20).join("\n")}`,
+    );
+  }
+  let evidenced = 0;
+  for (const venue of drinks.rows) {
+    if (seen.has(venue.osmId)) continue;
+    seen.add(venue.osmId);
+    evidenced += 1;
+    byKind.restaurant = (byKind.restaurant ?? 0) + 1;
+    const { latIndex, lonIndex } = cellIndexFor(venue.lat, venue.lng, LONDON_VENUE_GRID);
+    const key = cellKey(latIndex, lonIndex, LONDON_VENUE_GRID);
+    let cell = cells.get(key);
+    if (!cell) {
+      cell = { latIndex, lonIndex, rows: [] };
+      cells.set(key, cell);
+    }
+    cell.rows.push(toVenueRow(venue));
+  }
+
   if (seen.size === 0) {
     throw new Error("No London venues in the packs - refresh them with `npm run fetch:uk-venues`.");
   }
@@ -242,6 +279,10 @@ async function main() {
       license: "ODbL",
       attribution: "© OpenStreetMap contributors",
       generatedFrom: { fetchedAt, count: seen.size },
+      // Restaurants in countsByKind.restaurant whose alcohol their own site
+      // states rather than OSM. Each row's URL, quote and read date are in
+      // this file.
+      restaurantDrinkEvidence: { path: "data/london_restaurant_drinks/evidence.json", count: evidenced },
       countsByKind: byKind,
       shards,
     });
@@ -262,6 +303,7 @@ async function main() {
         `  read (London window) . ${read}`,
         `  unusable (dropped) ... ${dropped}`,
         `  shipped .............. ${seen.size}`,
+        `  site-evidenced ....... ${evidenced} restaurants`,
         ...Object.entries(byKind)
           .sort()
           .map(([kind, n]) => `    ${kind.padEnd(14)} ${n}`),
@@ -274,6 +316,10 @@ async function main() {
   } finally {
     await rm(stagedDir, { recursive: true, force: true });
   }
+
+  // The map reads the restaurants from their own pack, cut from the shards
+  // just published, so a rebuilt layer never leaves the pack a generation behind.
+  await writeLondonRestaurantPack();
 }
 
 const isDirectRun = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);

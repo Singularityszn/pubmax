@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = process.cwd();
 const read = (file: string): string => readFileSync(join(ROOT, file), "utf8");
@@ -12,7 +13,7 @@ function channels(hex: string): [number, number, number] {
   const parsed = [0, 2, 4].map((index) =>
     Number.parseInt(value.slice(index, index + 2), 16),
   );
-  return [parsed[0], parsed[1], parsed[2]];
+  return [defined(parsed[0]), defined(parsed[1]), defined(parsed[2])];
 }
 
 function relativeLuminance(hex: string): number {
@@ -20,7 +21,7 @@ function relativeLuminance(hex: string): number {
     const scaled = channel / 255;
     return scaled <= 0.04045 ? scaled / 12.92 : ((scaled + 0.055) / 1.055) ** 2.4;
   });
-  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+  return 0.2126 * defined(red) + 0.7152 * defined(green) + 0.0722 * defined(blue);
 }
 
 function contrastRatio(foreground: string, background: string): number {
@@ -35,7 +36,7 @@ function blendOver(foreground: string, underlying: string, alpha: number): strin
   const fg = channels(foreground);
   const bg = channels(underlying);
   return `#${fg.map((value, index) =>
-    Math.round(value * alpha + bg[index] * (1 - alpha))
+    Math.round(value * alpha + defined(bg[index]) * (1 - alpha))
       .toString(16)
       .padStart(2, "0")
   ).join("")}`;
@@ -46,14 +47,14 @@ function tokenValue(css: string, token: string): string {
     new RegExp(`^\\s*${token}\\s*:\\s*(#[0-9a-f]{3,8})\\s*;`, "im"),
   );
   expect(match, `${token} is declared with a literal hex`).not.toBeNull();
-  return (match as RegExpMatchArray)[1];
+  return defined((match as RegExpMatchArray)[1]);
 }
 
 function ruleBody(css: string, selector: string): string {
   const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const match = css.match(new RegExp(`${escapedSelector}\\s*\\{([\\s\\S]*?)\\}`));
   expect(match, `${selector} rule exists`).not.toBeNull();
-  return (match as RegExpMatchArray)[1];
+  return defined((match as RegExpMatchArray)[1]);
 }
 
 describe("map retry notice contrast", () => {

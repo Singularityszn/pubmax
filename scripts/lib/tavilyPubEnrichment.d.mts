@@ -72,9 +72,12 @@ export function mergeCanonicalPrices<T extends {
 export type VenueEnrichmentOutcome = {
   index: number;
   osmId: string;
-  status: "matched" | "empty" | "delegated" | "no-website" | "failed";
+  status: "matched" | "empty" | "delegated" | "no-website" | "refused-source" | "failed";
   error?: string;
 };
+
+export const TAVILY_CREDITS_PER_SEARCH: number;
+export const MAX_TAVILY_CREDITS_PER_RUN: number;
 
 export function runCityEnrichment(options: {
   city: string;
@@ -82,6 +85,8 @@ export function runCityEnrichment(options: {
   apiKey?: string;
   searchProvider?: SearchProvider;
   maxQueries?: number;
+  /** Lowers the credit ceiling (400 per run); it can never raise it. */
+  maxCredits?: number;
   startIndex?: number;
   /** Explicit venues to walk, for re-attempting ones a previous run deferred.
    *  When given it replaces the sequential sweep and leaves the cursor alone. */

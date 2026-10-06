@@ -17,6 +17,7 @@ import {
   spoonsValueMapHref,
   type SpoonsValueTableRow,
 } from "@/lib/spoonsValue";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = process.cwd();
 
@@ -138,11 +139,11 @@ describe("the ranking table", () => {
   // on the ordinary pint map. The page is entirely about the units lens and
   // nothing on it could switch the lens on.
   it("carries the units lens through every door onto the map", () => {
-    expect(spoonsValueMapHref(rows[0])).toBe("/map?sel=venue-uk-n1&lens=spoons");
-    expect(spoonsValueMapHref(rows[1])).toBeNull();
+    expect(spoonsValueMapHref(defined(rows[0]))).toBe("/map?sel=venue-uk-n1&lens=spoons");
+    expect(spoonsValueMapHref(defined(rows[1]))).toBeNull();
     expect(SPOONS_VALUE_MAP_HREF).toBe("/map?lens=spoons");
 
-    for (const href of [SPOONS_VALUE_MAP_HREF, spoonsValueMapHref(rows[0]) ?? ""]) {
+    for (const href of [SPOONS_VALUE_MAP_HREF, spoonsValueMapHref(defined(rows[0])) ?? ""]) {
       expect(spoonsValueLensRequested(new URL(href, "https://x").search)).toBe(true);
     }
   });

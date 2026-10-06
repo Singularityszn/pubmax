@@ -1,0 +1,883 @@
+{
+  "city": "leeds",
+  "source": "Parallel Task API; Tavily Search and Extract",
+  "observationMeaning": "Each row's observedAt is the date its Parallel research result, Tavily search page text or page read was retrieved; provider names the lane. Cached reruns retain that date. Not a claim that the venue is open tonight.",
+  "populationPriority": 812000,
+  "populationSources": [
+    "https://www.ons.gov.uk/peoplepopulationandcommunity/populationandmigration/populationestimates/bulletins/populationandhouseholdestimatesenglandandwales/census2021",
+    "https://www.scotlandscensus.gov.uk/2022-reports/scotlands-census-2022-rounded-population-estimates/"
+  ],
+  "venues": [
+    {
+      "name": "SALT Calls Landing",
+      "kind": "bar",
+      "address": "36-38 The Calls, Leeds LS2 7EW",
+      "postcode": "LS2 7EW",
+      "locality": "Leeds",
+      "website": "https://taps.saltbeerfactory.co.uk/calls-landing/",
+      "lat": 53.794897,
+      "lng": -1.539021,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://taps.saltbeerfactory.co.uk/calls-landing/"
+      ],
+      "evidence": [
+        {
+          "url": "https://taps.saltbeerfactory.co.uk/calls-landing/",
+          "excerpt": "SALT Calls Landing 36-38 The Calls Leeds LS2 7EW"
+        },
+        {
+          "url": "https://taps.saltbeerfactory.co.uk/calls-landing/",
+          "excerpt": "There is a little something for everyone at SALT Calls Landing, from award-winning craft and cask beers by SALT and Ossett Brewery to 8 different cocktails"
+        }
+      ],
+      "observedAt": "2026-10-04T10:17:28.260Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS2%207EW",
+        "observedAt": "2026-10-04T10:17:28.334Z",
+        "postcode": "LS2 7EW",
+        "quality": 1
+      },
+      "id": "venue-lds-fk8iy",
+      "provider": "parallel"
+    },
+    {
+      "name": "The End",
+      "kind": "bar",
+      "address": "Hirst’s Yard, Leeds LS1 6NJ",
+      "postcode": "LS1 6NJ",
+      "locality": "Leeds",
+      "website": "https://theendleeds.co.uk/",
+      "lat": 53.795672,
+      "lng": -1.541942,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://theendleeds.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://theendleeds.co.uk/",
+          "excerpt": "Hidden away within the cobbles of Hirst’s Yard, The End is a lavish bar"
+        },
+        {
+          "url": "https://theendleeds.co.uk/",
+          "excerpt": "We’re situated in Hirst’s Yard, Leeds LS1 6NJ."
+        },
+        {
+          "url": "https://theendleeds.co.uk/",
+          "excerpt": "The End serves up an extensive drinks menu including fine wines, Champagne, spirits, cocktails and a huge selection of premium draught beers."
+        }
+      ],
+      "observedAt": "2026-10-04T10:17:28.260Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS1%206NJ",
+        "observedAt": "2026-10-04T10:17:28.365Z",
+        "postcode": "LS1 6NJ",
+        "quality": 1
+      },
+      "id": "venue-lds-1no9pxs",
+      "provider": "parallel"
+    },
+    {
+      "name": "The Cut & Craft Leeds",
+      "kind": "restaurant",
+      "address": "23 King Edward St, Leeds LS1 6AX",
+      "postcode": "LS1 6AX",
+      "locality": "Leeds",
+      "website": "https://www.thecutandcraft.co.uk/leeds/",
+      "lat": 53.797799,
+      "lng": -1.541221,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.thecutandcraft.co.uk/leeds/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.thecutandcraft.co.uk/leeds/",
+          "excerpt": "The Cut & Craft Leeds"
+        },
+        {
+          "url": "https://www.thecutandcraft.co.uk/leeds/",
+          "excerpt": "23 King Edward St, Leeds, LS1 6AX"
+        },
+        {
+          "url": "https://www.thecutandcraft.co.uk/leeds/",
+          "excerpt": "guests can enjoy world-class cocktails, premium spirits and Champagne"
+        }
+      ],
+      "observedAt": "2026-10-04T10:17:28.260Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS1%206AX",
+        "observedAt": "2026-10-04T10:17:28.390Z",
+        "postcode": "LS1 6AX",
+        "quality": 1
+      },
+      "id": "venue-lds-1dzk9eh",
+      "provider": "parallel"
+    },
+    {
+      "name": "The Banksia",
+      "kind": "restaurant",
+      "address": "2 Lower Briggate, Leeds LS1 4AE",
+      "postcode": "LS1 4AE",
+      "locality": "Leeds",
+      "website": "https://banksialeeds.co.uk/",
+      "lat": 53.794541,
+      "lng": -1.542516,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://banksialeeds.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://banksialeeds.co.uk/",
+          "excerpt": "The Banksia, found on the ground floor of Leeds’ famous Hotel Indigo, welcomes all."
+        },
+        {
+          "url": "https://banksialeeds.co.uk/",
+          "excerpt": "2 Lower Briggate, Leeds LS1 4AE"
+        },
+        {
+          "url": "https://banksialeeds.co.uk/",
+          "excerpt": "With speciality cocktails mixed by our resident bartenders, an elegant wine list and an impressive stock of whiskey and gin, we’ve got something for all tastes."
+        }
+      ],
+      "observedAt": "2026-10-04T10:17:28.260Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS1%204AE",
+        "observedAt": "2026-10-04T10:17:28.467Z",
+        "postcode": "LS1 4AE",
+        "quality": 1
+      },
+      "id": "venue-lds-teft4u",
+      "provider": "parallel"
+    },
+    {
+      "name": "Restaurant Bar & Grill Leeds",
+      "kind": "restaurant",
+      "address": "The Old Post Office, 3 City Square, Leeds LS1 2ES",
+      "postcode": "LS1 2ES",
+      "locality": "Leeds",
+      "website": "https://www.therestaurantbarandgrill.com/locations/leeds",
+      "lat": 53.797014,
+      "lng": -1.547408,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.therestaurantbarandgrill.com/locations/leeds"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.therestaurantbarandgrill.com/locations/leeds",
+          "excerpt": "Restaurant Bar & Grill Leeds"
+        },
+        {
+          "url": "https://www.therestaurantbarandgrill.com/locations/leeds",
+          "excerpt": "The Old Post Office, 3 City Square, Leeds LS1 2ES"
+        },
+        {
+          "url": "https://www.therestaurantbarandgrill.com/locations/leeds",
+          "excerpt": "From dinner around the grill to cocktails at the bar"
+        }
+      ],
+      "observedAt": "2026-10-04T10:17:28.260Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS1%202ES",
+        "observedAt": "2026-10-04T10:17:28.494Z",
+        "postcode": "LS1 2ES",
+        "quality": 1
+      },
+      "id": "venue-lds-111qh3y",
+      "provider": "parallel"
+    },
+    {
+      "name": "Rita's Leeds",
+      "kind": "bar",
+      "address": "43 Woodhouse Lane, Leeds, West Yorkshire LS1 3HQ",
+      "postcode": "LS1 3HQ",
+      "locality": "Leeds",
+      "website": "https://www.ritasbars.co.uk/",
+      "lat": 53.801969,
+      "lng": -1.545837,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.ritasbars.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.ritasbars.co.uk/",
+          "excerpt": "Rita's Leeds | Sports Bar & Live Music in Leeds"
+        },
+        {
+          "url": "https://www.ritasbars.co.uk/",
+          "excerpt": "43 Woodhouse Lane, Leeds, West Yorkshire, LS1 3HQ"
+        },
+        {
+          "url": "https://www.ritasbars.co.uk/",
+          "excerpt": "We’re Leeds’ beer hall for cocktail lovers"
+        }
+      ],
+      "observedAt": "2026-10-04T10:17:28.260Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS1%203HQ",
+        "observedAt": "2026-10-04T10:17:28.526Z",
+        "postcode": "LS1 3HQ",
+        "quality": 1
+      },
+      "id": "venue-lds-3f49ii",
+      "provider": "parallel"
+    },
+    {
+      "name": "Farrands",
+      "kind": "bar",
+      "address": "18 Swinegate, Leeds LS1 4AG",
+      "postcode": "LS1 4AG",
+      "locality": "Leeds",
+      "website": "https://www.farrandsbar.com/",
+      "lat": 53.794239,
+      "lng": -1.543461,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.farrandsbar.com/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.farrandsbar.com/",
+          "excerpt": "Farrands is an independent cocktail and wine bar"
+        },
+        {
+          "url": "https://www.farrandsbar.com/",
+          "excerpt": "18 Swinegate, Leeds LS1 4AG"
+        },
+        {
+          "url": "https://www.farrandsbar.com/",
+          "excerpt": "Offering a great selection of fine wines, beers and signature cocktails."
+        }
+      ],
+      "observedAt": "2026-10-04T10:17:28.260Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS1%204AG",
+        "observedAt": "2026-10-04T10:17:28.550Z",
+        "postcode": "LS1 4AG",
+        "quality": 1
+      },
+      "id": "venue-lds-uz9izu",
+      "provider": "parallel"
+    },
+    {
+      "name": "Below Stairs",
+      "kind": "bar",
+      "address": "Consort House, 12 South Parade, Leeds LS1 5QS",
+      "postcode": "LS1 5QS",
+      "locality": "Leeds",
+      "website": "https://www.belowstairsbar.com/",
+      "lat": 53.798869,
+      "lng": -1.548314,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.belowstairsbar.com/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.belowstairsbar.com/",
+          "excerpt": "BELOW STAIRS IS A TABLE SERVICE COCKTAIL BAR FOCUSED ON FRIENDLY SERVICE, EXPERIMENTAL INGREDIENTS AND CREATIVE COCKTAILS."
+        },
+        {
+          "url": "https://www.belowstairsbar.com/",
+          "excerpt": "Consort House\n12 South Parade, Leeds\nLS1 5QS"
+        }
+      ],
+      "observedAt": "2026-10-04T11:26:14.696Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS1%205QS",
+        "observedAt": "2026-10-04T11:26:14.721Z",
+        "postcode": "LS1 5QS",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f893942a9e706aeb0",
+      "id": "venue-lds-vznuu",
+      "provider": "parallel"
+    },
+    {
+      "name": "Napoleons Casino & Restaurant Leeds",
+      "kind": "bar",
+      "address": "2 Bingley Street, Leeds LS3 1LX",
+      "postcode": "LS3 1LX",
+      "locality": "Leeds",
+      "website": "https://napoleons-casinos.co.uk/the-casinos/leeds/",
+      "lat": 53.799127,
+      "lng": -1.562294,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://napoleons-casinos.co.uk/the-casinos/leeds/"
+      ],
+      "evidence": [
+        {
+          "url": "https://napoleons-casinos.co.uk/the-casinos/leeds/",
+          "excerpt": "Napoleons Casino & Restaurant, Leeds 2 Bingley Street Leeds LS3 1LX"
+        },
+        {
+          "url": "https://napoleons-casinos.co.uk/the-casinos/leeds/",
+          "excerpt": "Our bar is open until 5 am for you to sample a selection from our wide selection of drinks."
+        }
+      ],
+      "observedAt": "2026-10-04T11:26:38.628Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS3%201LX",
+        "observedAt": "2026-10-04T11:26:38.650Z",
+        "postcode": "LS3 1LX",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f9523fc14800d1ffc",
+      "id": "venue-lds-fmcfis",
+      "provider": "parallel"
+    },
+    {
+      "name": "Arcade Club Leeds",
+      "kind": "bar",
+      "address": "Abbey Retail Park, Savins Mill Way, Leeds LS5 3RP",
+      "postcode": "LS5 3RP",
+      "locality": "Leeds",
+      "website": "https://www.arcadeclub.co.uk/leeds/",
+      "lat": 53.814358,
+      "lng": -1.602473,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.arcadeclub.co.uk/leeds/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.arcadeclub.co.uk/leeds/",
+          "excerpt": "Welcome To Arcade Club Leeds"
+        },
+        {
+          "url": "https://www.arcadeclub.co.uk/leeds/",
+          "excerpt": "Arcade Club ABBEY RETAIL PARK SAVINS MILL WAY LEEDS LS5 3RP"
+        },
+        {
+          "url": "https://www.arcadeclub.co.uk/leeds/",
+          "excerpt": "With hundreds of games to play for free once inside, a fully licensed bar and in-house kitchen serving up freshly made food, we have everything you need to have a truly fantastic time."
+        }
+      ],
+      "observedAt": "2026-10-04T11:26:25.991Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS5%203RP",
+        "observedAt": "2026-10-04T11:26:26.012Z",
+        "postcode": "LS5 3RP",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f838ecb4e45f60e54",
+      "id": "venue-lds-bwtlmt",
+      "provider": "parallel"
+    },
+    {
+      "name": "The East Village",
+      "kind": "bar",
+      "address": "47–49 Brudenell Grove, Leeds LS6 1HR",
+      "postcode": "LS6 1HR",
+      "locality": "Leeds",
+      "website": "https://theeastvillage.bar/",
+      "lat": 53.811856,
+      "lng": -1.56775,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://theeastvillage.bar/"
+      ],
+      "evidence": [
+        {
+          "url": "https://theeastvillage.bar/",
+          "excerpt": "The East Village dive bar in Leeds"
+        },
+        {
+          "url": "https://theeastvillage.bar/",
+          "excerpt": "Address 47-49 Brudenell Grove, Leeds, LS6 1HR"
+        }
+      ],
+      "observedAt": "2026-10-04T11:26:29.139Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS6%201HR",
+        "observedAt": "2026-10-04T11:26:29.162Z",
+        "postcode": "LS6 1HR",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fa34d444a997d704f",
+      "id": "venue-lds-117f590",
+      "provider": "parallel"
+    },
+    {
+      "name": "Victoria Social",
+      "kind": "restaurant",
+      "address": "72A Victoria Road, Headingley, Leeds LS6 1DL",
+      "postcode": "LS6 1DL",
+      "locality": "Leeds",
+      "website": "https://www.victoriasocial.uk/",
+      "lat": 53.814645,
+      "lng": -1.573599,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.victoriasocial.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.victoriasocial.uk/",
+          "excerpt": "Nestled in the heart of Hyde Park, Victoria Social is a pizzeria first and foremost — serving up hand-stretched pizzas in a lively, sociable space that's become a local favourite."
+        },
+        {
+          "url": "https://www.victoriasocial.uk/",
+          "excerpt": "72A Victoria Road, Headingley, Leeds.\nLS6 1DL"
+        },
+        {
+          "url": "https://www.victoriasocial.uk/",
+          "excerpt": "2 for 1 Cocktails All Day Everyday"
+        }
+      ],
+      "observedAt": "2026-10-04T11:28:12.825Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS6%201DL",
+        "observedAt": "2026-10-04T11:28:12.882Z",
+        "postcode": "LS6 1DL",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f95251ea67f68ab1c",
+      "id": "venue-lds-1pdaeje",
+      "provider": "parallel"
+    },
+    {
+      "name": "Kesar Restaurant & Bar",
+      "kind": "restaurant",
+      "address": "142 Cardigan Road, Leeds LS6 1LU",
+      "postcode": "LS6 1LU",
+      "locality": "Leeds",
+      "website": "https://kesarrestaurant.co.uk/",
+      "lat": 53.811914,
+      "lng": -1.576315,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://kesarrestaurant.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://kesarrestaurant.co.uk/",
+          "excerpt": "Located on Cardigan Road, Leeds, Kesar Restaurant & Bar brings you the rich, bold flavours of Indian food and Indian classics, paired with a curated selection of Indian and global spirits."
+        },
+        {
+          "url": "https://kesarrestaurant.co.uk/",
+          "excerpt": "142 Cardigan Road, Leeds LS6 1LU"
+        },
+        {
+          "url": "https://kesarrestaurant.co.uk/",
+          "excerpt": "Or sip on house cocktails like the Kesar Iced Tea, Mango Lassi Colada, or Spicy Kokum Margarita."
+        }
+      ],
+      "observedAt": "2026-10-04T11:28:12.825Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS6%201LU",
+        "observedAt": "2026-10-04T11:28:12.953Z",
+        "postcode": "LS6 1LU",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f95251ea67f68ab1c",
+      "id": "venue-lds-1d6rbps",
+      "provider": "parallel"
+    },
+    {
+      "name": "No 14 Restaurant & Bar",
+      "kind": "restaurant",
+      "address": "12–14 North Lane, Headingley, Leeds LS6 3HE",
+      "postcode": "LS6 3HE",
+      "locality": "Leeds",
+      "website": "https://no14northlane.co.uk/",
+      "lat": 53.821289,
+      "lng": -1.579122,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://no14northlane.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://no14northlane.co.uk/",
+          "excerpt": "No 14 Restaurant & Bar opened its doors in 2020, bringing a fresh and exciting dining experience to Leeds in the wake of the pandemic."
+        },
+        {
+          "url": "https://no14northlane.co.uk/",
+          "excerpt": "12-14 North lane, Headingley, Leeds, LS6 3HE"
+        },
+        {
+          "url": "https://no14northlane.co.uk/",
+          "excerpt": "We have curated a special wine list, including delicious sparkling wines and champagnes – as well as our Wines of the Month."
+        }
+      ],
+      "observedAt": "2026-10-04T11:28:12.825Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS6%203HE",
+        "observedAt": "2026-10-04T11:28:12.978Z",
+        "postcode": "LS6 3HE",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f95251ea67f68ab1c",
+      "id": "venue-lds-pvpq9q",
+      "provider": "parallel"
+    },
+    {
+      "name": "Nyla’s Chapel Allerton",
+      "kind": "bar",
+      "address": "14 Stainbeck Lane, Chapel Allerton, Leeds, LS7 3QY",
+      "postcode": "LS7 3QY",
+      "locality": "Leeds",
+      "website": "https://visitnylas.com/chapel-allerton",
+      "lat": 53.829088,
+      "lng": -1.539345,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://visitnylas.com/",
+        "https://visitnylas.com/chapel-allerton"
+      ],
+      "evidence": [
+        {
+          "url": "https://visitnylas.com/",
+          "excerpt": "Nyla's Chapel Allerton 14 Stainbeck Lane, Chapel Allerton, Leeds, LS7 3QY."
+        },
+        {
+          "url": "https://visitnylas.com/chapel-allerton",
+          "excerpt": "Nyla’s Chapel Allerton is open daily from **9am** , serving coffee, breakfast, brunch, à la carte food, cocktails and drinks"
+        }
+      ],
+      "observedAt": "2026-10-04T11:26:52.634Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS7%203QY",
+        "observedAt": "2026-10-04T11:26:51.051Z",
+        "postcode": "LS7 3QY",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f9d6c7b9e93435c4a",
+      "id": "venue-lds-ko9y1z",
+      "provider": "parallel"
+    },
+    {
+      "name": "Chophaus",
+      "kind": "pub",
+      "address": "Louis House, Princes Avenue, Oakwood, Leeds LS8 2FA",
+      "postcode": "LS8 2FA",
+      "locality": "Leeds",
+      "website": null,
+      "lat": 53.827868,
+      "lng": -1.505964,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/postcode/ls8-1dp-855058"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/postcode/ls8-1dp-855058",
+          "excerpt": "Chophaus. Independent Pub, in Leeds."
+        },
+        {
+          "url": "https://camra.org.uk/pubs/postcode/ls8-1dp-855058",
+          "excerpt": "Louis House, Princes Avenue, Oakwood, Leeds, LS8 2FA."
+        }
+      ],
+      "observedAt": "2026-10-04T11:26:49.082Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS8%202FA",
+        "observedAt": "2026-10-04T11:26:49.148Z",
+        "postcode": "LS8 2FA",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f8755c8a6a21da24c",
+      "id": "venue-lds-4byeb",
+      "provider": "parallel"
+    },
+    {
+      "name": "Bar on Park Lane",
+      "kind": "bar",
+      "address": "Park Lane, Leeds LS8 2EJ",
+      "postcode": "LS8 2EJ",
+      "locality": "Leeds",
+      "website": null,
+      "lat": 53.844991,
+      "lng": -1.499532,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://leeds.camra.org.uk/pubguide"
+      ],
+      "evidence": [
+        {
+          "url": "https://leeds.camra.org.uk/pubguide",
+          "excerpt": "Bar on Park Lane Park Lane Leeds LS8 2EJ."
+        },
+        {
+          "url": "https://leeds.camra.org.uk/pubguide",
+          "excerpt": "Golf club bar which is open to the public."
+        }
+      ],
+      "observedAt": "2026-10-04T11:28:16.005Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS8%202EJ",
+        "observedAt": "2026-10-04T11:28:16.032Z",
+        "postcode": "LS8 2EJ",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415faff01a943a491955",
+      "id": "venue-lds-1ywwz2p",
+      "provider": "parallel"
+    },
+    {
+      "name": "The Clock Inn",
+      "kind": "pub",
+      "address": "488 Roundhay Rd, Roundhay, Oakwood, Leeds LS8 2HU",
+      "postcode": "LS8 2HU",
+      "locality": "Leeds",
+      "website": "https://taps.saltbeerfactory.co.uk/oakwood/",
+      "lat": 53.826717,
+      "lng": -1.505796,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://taps.saltbeerfactory.co.uk/oakwood/"
+      ],
+      "evidence": [
+        {
+          "url": "https://taps.saltbeerfactory.co.uk/oakwood/",
+          "excerpt": "The Clock Inn 488 Roundhay Rd Roundhay Oakwood Leeds LS8 2HU"
+        },
+        {
+          "url": "https://taps.saltbeerfactory.co.uk/oakwood/",
+          "excerpt": "We serve a diverse selection of locally brewed craft beers"
+        },
+        {
+          "url": "https://taps.saltbeerfactory.co.uk/oakwood/",
+          "excerpt": "We also have our famous cocktail creations available on tap"
+        }
+      ],
+      "observedAt": "2026-10-04T11:26:53.478Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS8%202HU",
+        "observedAt": "2026-10-04T11:26:53.499Z",
+        "postcode": "LS8 2HU",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fb3e26cc09c14dbb5",
+      "id": "venue-lds-1jxoauc",
+      "provider": "parallel"
+    },
+    {
+      "name": "DMC Brewery & Taproom",
+      "kind": "bar",
+      "address": "78 & 79 Railway Street, City Centre, Leeds, LS9 8HB",
+      "postcode": "LS9 8HB",
+      "locality": "Leeds",
+      "website": "https://dmcbrewery.com/taproom",
+      "lat": 53.796339,
+      "lng": -1.528636,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/dmc-brewery-taproom-leeds-197301"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/dmc-brewery-taproom-leeds-197301",
+          "excerpt": "DMC Brewery & Taproom, Leeds"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/dmc-brewery-taproom-leeds-197301",
+          "excerpt": "78 & 79 Railway Street, City Centre, Leeds, LS9 8HB"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/dmc-brewery-taproom-leeds-197301",
+          "excerpt": "DMC Brewery specialises in alcoholic ginger beer, but the taproom also has a range of other beverages including several craft beers"
+        }
+      ],
+      "observedAt": "2026-10-04T11:26:32.926Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS9%208HB",
+        "observedAt": "2026-10-04T11:26:33.039Z",
+        "postcode": "LS9 8HB",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fa882bcc5e0f1d963",
+      "id": "venue-lds-yqpcr0",
+      "provider": "parallel"
+    },
+    {
+      "name": "Brewery Wharf Tavern",
+      "kind": "pub",
+      "address": "3 Brewery Place, Leeds LS10 1NE",
+      "postcode": "LS10 1NE",
+      "locality": "Leeds",
+      "website": "https://brewerywharftavern.co.uk/",
+      "lat": 53.793903,
+      "lng": -1.537741,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://brewerywharftavern.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://brewerywharftavern.co.uk/",
+          "excerpt": "Brewery Wharf Tavern, 3 Brewery Place, Leeds LS10 1NE"
+        },
+        {
+          "url": "https://brewerywharftavern.co.uk/",
+          "excerpt": "We have a great wine list, cocktails, spritz, a selection of alcohol-free drinks, softs and gluten-free options."
+        }
+      ],
+      "observedAt": "2026-10-04T11:26:50.300Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS10%201NE",
+        "observedAt": "2026-10-04T11:26:50.326Z",
+        "postcode": "LS10 1NE",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f8dde3c4022249652",
+      "id": "venue-lds-18i7pnx",
+      "provider": "parallel"
+    },
+    {
+      "name": "The Holbeck",
+      "kind": "pub",
+      "address": "Jenkinson Lawn, Holbeck, Leeds LS11 9QX",
+      "postcode": "LS11 9QX",
+      "locality": "Leeds",
+      "website": null,
+      "lat": 53.784846,
+      "lng": -1.555279,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.visitleeds.co.uk/things-to-do/view-all/the-holbeck",
+        "https://camra.org.uk/pubs/holbeck-leeds-178096"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.visitleeds.co.uk/things-to-do/view-all/the-holbeck",
+          "excerpt": "The Holbeck\nThe Holbeck is the oldest social club in Brit"
+        },
+        {
+          "url": "https://www.visitleeds.co.uk/things-to-do/view-all/the-holbeck",
+          "excerpt": "Jenkinson Lawn, Holbeck, Leeds, LS11 9QX"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/holbeck-leeds-178096",
+          "excerpt": "This Club serves no changing beers and 3 regular beers."
+        }
+      ],
+      "observedAt": "2026-10-04T11:26:59.604Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS11%209QX",
+        "observedAt": "2026-10-04T11:26:59.642Z",
+        "postcode": "LS11 9QX",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f9ae5d9afd1844c22",
+      "id": "venue-lds-din2dl",
+      "provider": "parallel"
+    },
+    {
+      "name": "West Park Lounge",
+      "kind": "bar",
+      "address": "251 Otley Road, Leeds LS16 5LQ",
+      "postcode": "LS16 5LQ",
+      "locality": "Leeds",
+      "website": "https://thewestparklounge.co.uk/",
+      "lat": 53.832586,
+      "lng": -1.591969,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://thewestparklounge.co.uk/menus"
+      ],
+      "evidence": [
+        {
+          "url": "https://thewestparklounge.co.uk/menus",
+          "excerpt": "The West Park Lounge"
+        },
+        {
+          "url": "https://thewestparklounge.co.uk/menus",
+          "excerpt": "Wine, Beers & Spirits"
+        },
+        {
+          "url": "https://thewestparklounge.co.uk/menus",
+          "excerpt": "Company Address: 251 Otley Road, Leeds, LS16 5LQ"
+        }
+      ],
+      "observedAt": "2026-10-04T11:28:02.509Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS16%205LQ",
+        "observedAt": "2026-10-04T11:28:05.850Z",
+        "postcode": "LS16 5LQ",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fb7aa2ad07f6ad2b4",
+      "id": "venue-lds-xso151",
+      "provider": "parallel"
+    },
+    {
+      "name": "The Fishermans Lodge",
+      "kind": "restaurant",
+      "address": "391 Street Lane, Moortown, Leeds, West Yorkshire LS17 6HQ",
+      "postcode": "LS17 6HQ",
+      "locality": "Leeds",
+      "website": "https://www.thefishermanslodge.co.uk/",
+      "lat": 53.843251,
+      "lng": -1.529387,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.thefishermanslodge.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.thefishermanslodge.co.uk/",
+          "excerpt": "391 Street Lane, Moortown, Leeds, West Yorkshire LS17 6HQ"
+        },
+        {
+          "url": "https://www.thefishermanslodge.co.uk/",
+          "excerpt": "The Fishermans Lodge is now open on Street Lane"
+        },
+        {
+          "url": "https://www.thefishermanslodge.co.uk/",
+          "excerpt": "our brand new fully licensed bar with draught beers, extensive wine list, speciality beer"
+        }
+      ],
+      "observedAt": "2026-10-04T11:28:16.809Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS17%206HQ",
+        "observedAt": "2026-10-04T11:28:16.841Z",
+        "postcode": "LS17 6HQ",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fa5adce03477364b3",
+      "id": "venue-lds-1dshprx",
+      "provider": "parallel"
+    },
+    {
+      "name": "Kasa Rosa",
+      "kind": "restaurant",
+      "address": "Town End, Morley, Leeds LS27 8AQ",
+      "postcode": "LS27 8AQ",
+      "locality": "Leeds",
+      "website": "https://www.kasarosa.com/",
+      "lat": 53.742878,
+      "lng": -1.597781,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.kasarosa.com/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.kasarosa.com/",
+          "excerpt": "Kasa Rosa, Town End, Morley, Leeds LS27 8AQ"
+        },
+        {
+          "url": "https://www.kasarosa.com/",
+          "excerpt": "Alongside a selection of deliberately chosen wines to compliment our dishes."
+        }
+      ],
+      "observedAt": "2026-10-04T11:28:27.170Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/LS27%208AQ",
+        "observedAt": "2026-10-04T11:28:27.346Z",
+        "postcode": "LS27 8AQ",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f8db1d6261a9b4936",
+      "id": "venue-lds-eopqpi",
+      "provider": "parallel"
+    }
+  ]
+}

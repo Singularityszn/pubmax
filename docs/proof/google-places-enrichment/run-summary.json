@@ -1,0 +1,42 @@
+{
+  "venues": 3053,
+  "hours": 2935,
+  "addresses": 3053,
+  "phones": 2807,
+  "websites": 2627,
+  "errors": 0,
+  "priority": {
+    "unknown": {
+      "requested": 676,
+      "copiedHours": 639,
+      "venues": 676
+    },
+    "mismatch": {
+      "requested": 249,
+      "copiedHours": 249,
+      "venues": 249
+    },
+    "match": {
+      "requested": 75,
+      "copiedHours": 75,
+      "venues": 75
+    }
+  },
+  "spend": {
+    "capUsd": 85,
+    "attemptedCalls": 3053,
+    "usdPerThousand": 20,
+    "reservedUsd": 61.06,
+    "monthToDatePlacesRequestsBeforeRun": 15429,
+    "freeAllowanceAssumed": 0
+  },
+  "observedAt": "2026-10-04T10:22:24.747Z",
+  "lastObservedAt": "2026-10-04T10:34:24.070Z",
+  "quotaRestored": true,
+  "quotaBefore": {
+    "search": "100",
+    "details": "60"
+  },
+  "monthToDatePlacesRequestsAfterRun": 18482,
+  "observedRequestIncrease": 3053
+}

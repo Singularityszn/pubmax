@@ -24,7 +24,7 @@ describe("creator-list discovery", () => {
                 {
                   venueId: "venue-1",
                   venueName: "The Fox",
-                  venueMapUrl: "/map?sel=venue-1",
+                  venueMapUrl: "/map?sel=venue-1" as const,
                   listType: "Sunday roasts",
                   savedAt: "2026-08-24T12:00:00.000Z",
                 },
@@ -56,7 +56,7 @@ describe("creator-list discovery", () => {
             {
               venueId: "venue-1",
               venueName: "The Fox",
-              venueMapUrl: "/map?sel=venue-1",
+              venueMapUrl: "/map?sel=venue-1" as const,
               listType: "Sunday roasts",
               note: "Meet me at my flat first",
               savedAt: "2026-08-24T12:00:00.000Z",
@@ -64,7 +64,7 @@ describe("creator-list discovery", () => {
             {
               venueId: "venue-2",
               venueName: "The Crown",
-              venueMapUrl: "/map?sel=venue-2",
+              venueMapUrl: "/map?sel=venue-2" as const,
               listType: "Late pints",
               note: "Private note",
               savedAt: "2026-08-23T12:00:00.000Z",
@@ -72,21 +72,21 @@ describe("creator-list discovery", () => {
             {
               venueId: "venue-3",
               venueName: "The Ship",
-              venueMapUrl: "/map?sel=venue-3",
+              venueMapUrl: "/map?sel=venue-3" as const,
               listType: "Sunday roasts",
               savedAt: "2026-08-22T12:00:00.000Z",
             },
             {
               venueId: "venue-4",
               venueName: "The Rose",
-              venueMapUrl: "/map?sel=venue-4",
+              venueMapUrl: "/map?sel=venue-4" as const,
               listType: "Sunday roasts",
               savedAt: "2026-08-21T12:00:00.000Z",
             },
             {
               venueId: "venue-5",
               venueName: "The Stag",
-              venueMapUrl: "/map?sel=venue-5",
+              venueMapUrl: "/map?sel=venue-5" as const,
               listType: "Sunday roasts",
               savedAt: "2026-08-20T12:00:00.000Z",
             },
@@ -130,17 +130,17 @@ describe("creator-list discovery", () => {
             {
               venueId: "venue-1",
               venueName: "The Fox",
-              venueMapUrl: "/map?sel=venue-1",
+              venueMapUrl: "/map?sel=venue-1" as const,
             },
             {
               venueId: "venue-3",
               venueName: "The Ship",
-              venueMapUrl: "/map?sel=venue-3",
+              venueMapUrl: "/map?sel=venue-3" as const,
             },
             {
               venueId: "venue-4",
               venueName: "The Rose",
-              venueMapUrl: "/map?sel=venue-4",
+              venueMapUrl: "/map?sel=venue-4" as const,
             },
           ],
         },
@@ -158,7 +158,7 @@ describe("creator-list discovery", () => {
             {
               venueId: "venue-2",
               venueName: "The Crown",
-              venueMapUrl: "/map?sel=venue-2",
+              venueMapUrl: "/map?sel=venue-2" as const,
             },
           ],
         },
@@ -239,7 +239,7 @@ describe("creator-list discovery", () => {
                     {
                       venueId: "venue-1",
                       venueName: "The Fox",
-                      venueMapUrl: "/map?sel=venue-1",
+                      venueMapUrl: "/map?sel=venue-1" as const,
                       listType: "Sunday roasts",
                       savedAt: "2026-08-24T12:00:00.000Z",
                     },

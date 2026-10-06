@@ -8,6 +8,24 @@
 //   npm run harvest:pub-website-amenities
 //   npm run harvest:pub-website-amenities -- --limit 1
 //   npm run harvest:pub-website-amenities -- --restamp
+//   npm run harvest:pub-website-amenities -- --copy-skipped --locate --read-only
+//
+// --copy-skipped reads only the pubs the pub copy pack skipped for
+// insufficient stored facts, from the website OSM or the price dataset gives
+// them. --locate asks Firecrawl search for the own site of such a pub that has
+// none, and keeps a hit only when its host carries a distinctive word of the
+// pub's name. A located site, and a site only the price dataset gives, counts
+// only when the page states the pub's postcode, or its street when the
+// dataset address gives no postcode. With FIRECRAWL_API_KEY
+// set, a page the plain read could not get (timeout, failed connection, 429,
+// 5xx, or almost no text) is read once more through Firecrawl, after the same
+// robots and source checks. --firecrawl-requests caps those requests, default
+// HARVEST_CLI_REQUEST_BUDGET. --unwritten widens --copy-skipped to every pub
+// the copy pack holds no copy for, thin pubs first. --firecrawl-first reads a
+// page through Firecrawl before the plain read, while the request cap lasts,
+// except a PDF. --read-only stops after reading and keeps each
+// page's text under data-harvest/pub-website-amenities/pages, so a later run
+// sends the model those pages without reading them again.
 //
 // Every run lifts the earlier site stamps, then stamps the committed evidence
 // file onto the source dataset through the gate, so a rerun gives the same
@@ -15,6 +33,15 @@
 // reads no checkpoint, fetches nothing and calls no model. A harvest adds this
 // run's pages to the committed evidence; the checkpoint only says which pubs
 // are already done.
+//
+// A page or quote proven chain-wide stays in
+// data/amenities/london_pub_website_chain_pages.json, with every pub that has
+// read each page, whatever came of the read unless the page did not state the
+// pub's address, and every pub that has stated each quote. The harvest reads it before fetching and skips a pub whose page
+// is on it, every stamp goes through it, and a harvest adds its readers and
+// what they prove. A pub that kept no amenity, failed, or read a chain-wide
+// page never reaches the evidence file, so without the list a later run that
+// reads one of those pages or quotes alone would take it for the pub's own.
 //
 // Calls go to Vertex AI on project pubmaxx so the Google Cloud trial pays.
 // The Gemini Developer API answered 402 (AI Studio prepay depleted) and does
@@ -26,6 +53,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { createFirecrawlClient, createHarvestBudget, HARVEST_CLI_REQUEST_BUDGET } from "../../../lib/harvest/firecrawl.ts";
 import { createRobotsChecker } from "../../../lib/harvest/robots.ts";
 import {
   harvestRedirectLanding,
@@ -38,24 +66,42 @@ import {
   PAGE_CHAR_CAP,
   PUB_WEBSITE_AMENITY_COLUMNS,
   PUB_WEBSITE_AMENITY_KEYS,
+  cachedPageRead,
+  firecrawlMayReread,
+  isChainPage,
   keepEvidencedAmenities,
+  locatedOwnSite,
+  siteOfAnotherPub,
+  withoutThinnerRereads,
+  pageOwners,
+  pageStatesAddress,
+  postcodeOf,
+  streetOf,
   liftSiteStamps,
   matchPubToVenue,
+  pageReadEntry,
+  mergeHarvestEvidence,
+  parseChainDenylist,
   parsePubAmenityModelJson,
   projectPubAmenitySpend,
   pubSpecificEvidence,
+  readExtraPage,
   spendFromTokenCounts,
   stampAmenityColumns,
 } from "../../../lib/harvest/pubWebsiteAmenities.ts";
 import { stableVenueIdFromKey, venueGroupingKey } from "../../../lib/venues.ts";
+import { ownSiteFor } from "../../lib/parallelVenueDiscovery.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../../..");
 const PUBS_PATH = path.join(ROOT, "data/osm/uk/uk_osm_pubs.json");
 const DATASET_PATH = path.join(ROOT, "public/data/pint_prices_app_dataset.json");
 const EVIDENCE_PATH = path.join(ROOT, "data/amenities/london_pub_website_evidence.json");
+const CHAIN_PAGES_PATH = path.join(ROOT, "data/amenities/london_pub_website_chain_pages.json");
 const CHECKPOINT_DIR = path.join(ROOT, "data-harvest/pub-website-amenities");
 const CHECKPOINT_PATH = path.join(CHECKPOINT_DIR, "checkpoint.json");
+const PAGES_DIR = path.join(CHECKPOINT_DIR, "pages");
+const COPY_PATH = path.join(ROOT, "data/venue_copy/london.json");
 
 const LAT_MIN = 51.26;
 const LAT_MAX = 51.72;
@@ -118,10 +164,10 @@ function sameHostLinks(html, pageUrl) {
   const base = new URL(pageUrl);
   const found = [];
   const seen = new Set();
-  for (const match of html.matchAll(/href\s*=\s*["']([^"'#]+)["']/gi)) {
+  for (const match of html.matchAll(/href\s*=\s*["']([^"'#]+)["']|\]\(([^)\s#]+)/gi)) {
     let next;
     try {
-      next = new URL(match[1], base);
+      next = new URL(match[1] ?? match[2], base);
     } catch {
       continue;
     }
@@ -213,6 +259,22 @@ function vertexUrl(model) {
   return `https://${host}/v1/projects/${VERTEX_PROJECT}/locations/${VERTEX_LOCATION}/publishers/google/models/${model}:generateContent`;
 }
 
+// Firecrawl search and scrape answered 429 at four seconds apart on this
+// plan; the workers share one slot so a burst never spends the run's request
+// budget on 429 retries. Once the budget is spent no slot is taken, so the
+// pubs left do not wait for requests that will never be sent.
+const FIRECRAWL_SPACING_MS = 6_000;
+let nextFirecrawlSlot = 0;
+
+async function paceFirecrawl(budget) {
+  if (budget.remaining() === 0) return false;
+  const now = Date.now();
+  const slot = Math.max(now, nextFirecrawlSlot);
+  nextFirecrawlSlot = slot + FIRECRAWL_SPACING_MS;
+  if (slot > now) await new Promise((resolve) => setTimeout(resolve, slot - now));
+  return true;
+}
+
 let nextModelSlot = 0;
 
 async function paceModelCall() {
@@ -264,13 +326,14 @@ async function askModel(pageText, attempt = 0) {
 function loadCheckpoint() {
   try {
     const parsed = JSON.parse(readFileSync(CHECKPOINT_PATH, "utf8"));
-    if (!parsed || typeof parsed !== "object") return { spentUsd: 0, byOsmId: {} };
+    if (!parsed || typeof parsed !== "object") return { spentUsd: 0, byOsmId: {}, located: {} };
     return {
       spentUsd: Number(parsed.spentUsd ?? 0),
       byOsmId: parsed.byOsmId && typeof parsed.byOsmId === "object" ? parsed.byOsmId : {},
+      located: parsed.located && typeof parsed.located === "object" ? parsed.located : {},
     };
   } catch (error) {
-    if (error?.code === "ENOENT") return { spentUsd: 0, byOsmId: {} };
+    if (error?.code === "ENOENT") return { spentUsd: 0, byOsmId: {}, located: {} };
     throw error;
   }
 }
@@ -304,13 +367,95 @@ function readEvidence() {
   }
 }
 
+function runFlags() {
+  const limit = argValue("--limit") ? Number(argValue("--limit")) : null;
+  const firecrawlRequests = argValue("--firecrawl-requests") ? Number(argValue("--firecrawl-requests")) : HARVEST_CLI_REQUEST_BUDGET;
+  const flags = {
+    limit,
+    copySkipped: process.argv.includes("--copy-skipped"),
+    locate: process.argv.includes("--locate"),
+    readOnly: process.argv.includes("--read-only"),
+    unwritten: process.argv.includes("--unwritten"),
+    firecrawlFirst: process.argv.includes("--firecrawl-first"),
+    firecrawlRequests,
+  };
+  const refusal = limit !== null && (!Number.isInteger(limit) || limit < 1) ? "--limit needs a positive integer"
+    : !Number.isInteger(firecrawlRequests) || firecrawlRequests < 0 ? "--firecrawl-requests needs a whole number"
+      : (flags.locate || flags.unwritten) && !flags.copySkipped ? "--locate and --unwritten need --copy-skipped" : null;
+  if (refusal) {
+    console.error(refusal);
+    process.exit(1);
+  }
+  return flags;
+}
+
+/** How each pub of a read-only run ended, by status, reader and whether its site was located. */
+function readCounts(work, byOsmId) {
+  const counts = {};
+  for (const pub of work) {
+    const entry = byOsmId[pub.osmId];
+    const key = entry ? `${entry.status}${entry.reader ? `:${entry.reader}` : ""}${entry.located ? ":located" : ""}` : "not-reached";
+    counts[key] = (counts[key] ?? 0) + 1;
+  }
+  return counts;
+}
+
+/**
+ * The pubs the copy pack skipped for insufficient stored facts and whose own
+ * site has given no evidence yet. With `unwritten`, every other pub the pack
+ * holds no copy for follows: thin pubs whose site gave evidence, then pubs
+ * whose drafts failed review. Each takes the website OSM gives it, else the
+ * one the price dataset gives it, else none, and the postcode or street its
+ * dataset address states. A site OSM does not give it must state that address.
+ * A pub with a website comes first.
+ */
+function copySkippedPubs(dataset, anchors, londonSites, { unwritten = false } = {}) {
+  const copy = JSON.parse(readFileSync(COPY_PATH, "utf8"));
+  const reasons = new Map(Object.entries(copy.skipped ?? {}).map(([venueId, skip]) => [venueId, skip?.reason]));
+  const evidenced = new Set((readEvidence()?.rows ?? []).map((row) => row.venueId).filter(Boolean));
+  const siteByVenue = new Map();
+  for (const site of londonSites) if (site.venueId && !siteByVenue.has(site.venueId)) siteByVenue.set(site.venueId, site);
+  const rowsByVenue = new Map();
+  for (const row of dataset) {
+    const venueId = stableVenueIdFromKey(venueGroupingKey(row));
+    rowsByVenue.set(venueId, [...(rowsByVenue.get(venueId) ?? []), row]);
+  }
+  // Lower ranks are read first; a pub outside the scope has no rank.
+  const rank = (venueId) => {
+    const thin = reasons.get(venueId) === "insufficient-stored-facts";
+    if (thin && !evidenced.has(venueId)) return 0;
+    if (!unwritten || !reasons.has(venueId)) return null;
+    return thin ? 1 : 2;
+  };
+  const pubs = anchors
+    .filter((anchor) => rank(anchor.venueId) !== null)
+    .sort((a, b) => rank(a.venueId) - rank(b.venueId))
+    .map((anchor) => {
+      const rows = rowsByVenue.get(anchor.venueId) ?? [];
+      const site = siteByVenue.get(anchor.venueId);
+      const listed = rows.map((row) => String(row.website ?? "").trim()).find((url) => url.startsWith("http"));
+      return {
+        osmId: site?.osmId ?? `venue/${anchor.venueId}`,
+        name: anchor.name,
+        lat: anchor.lat,
+        lng: anchor.lng,
+        website: site?.website ?? listed ?? null,
+        needsAddress: !site,
+        venueId: anchor.venueId,
+        postcode: rows.map((row) => postcodeOf(String(row.address ?? ""))).find(Boolean) ?? null,
+        street: rows.map((row) => streetOf(String(row.address ?? ""))).find(Boolean) ?? null,
+      };
+    });
+  return [...pubs.filter((pub) => pub.website), ...pubs.filter((pub) => !pub.website)];
+}
+
 /**
  * Lift every earlier site stamp, then stamp the evidence onto what the source
  * said. The dataset that comes out depends only on the source rows and the
  * evidence, so a rerun changes nothing and a quote the gate now refuses loses
  * its stamp.
  */
-function stampDataset(evidenceRows) {
+function stampDataset(evidenceRows, chainPages) {
   const dataset = JSON.parse(readFileSync(DATASET_PATH, "utf8"));
   if (!Array.isArray(dataset)) throw new Error("expected a pint dataset array");
   const rowsByVenue = new Map();
@@ -324,7 +469,7 @@ function stampDataset(evidenceRows) {
   const before = columnCoverage(dataset);
   let stampedRows = 0;
   let stampedVenues = 0;
-  for (const entry of pubSpecificEvidence(evidenceRows)) {
+  for (const entry of pubSpecificEvidence(evidenceRows, chainPages)) {
     if (!entry.venueId) continue;
     let venueStamped = false;
     for (const index of rowsByVenue.get(entry.venueId) ?? []) {
@@ -355,6 +500,16 @@ function withStampFigures(evidence, previous, stamps) {
   };
 }
 
+/** The committed chain list. A missing file throws, because reading it as empty lets every chain page back in. */
+function readChainPages() {
+  return parseChainDenylist(JSON.parse(readFileSync(CHAIN_PAGES_PATH, "utf8")));
+}
+
+function writeChainPages(chainPages) {
+  mkdirSync(path.dirname(CHAIN_PAGES_PATH), { recursive: true });
+  writeFileSync(CHAIN_PAGES_PATH, `${JSON.stringify({ version: 1, ...chainPages }, null, 2)}\n`);
+}
+
 function writeEvidence(evidence) {
   mkdirSync(path.dirname(EVIDENCE_PATH), { recursive: true });
   writeFileSync(EVIDENCE_PATH, `${JSON.stringify(evidence, null, 2)}\n`);
@@ -363,7 +518,7 @@ function writeEvidence(evidence) {
 function restampFromEvidence() {
   const evidence = readEvidence();
   if (!evidence || !Array.isArray(evidence.rows)) throw new Error("no committed evidence file to restamp from");
-  const next = withStampFigures(evidence, evidence, stampDataset(evidence.rows));
+  const next = withStampFigures(evidence, evidence, stampDataset(evidence.rows, readChainPages()));
   writeEvidence(next);
   console.log(
     JSON.stringify({
@@ -375,41 +530,12 @@ function restampFromEvidence() {
   );
 }
 
-/** The committed evidence with this run's pages laid over it. */
-function mergeEvidence(previous, fresh) {
-  const skipCounts = { ...(previous?.skipCounts ?? {}) };
-  const candidates = (previous?.rows ?? []).filter((row) => !fresh.has(row.osmId));
-  for (const [osmId, entry] of fresh) {
-    if (entry.status !== "ok") {
-      const status = entry.status ?? "unknown";
-      skipCounts[status] = (skipCounts[status] ?? 0) + 1;
-      continue;
-    }
-    candidates.push({
-      osmId,
-      name: entry.name,
-      venueId: entry.venueId,
-      sourceUrl: entry.sourceUrl,
-      verifiedAt: entry.verifiedAt,
-      amenities: entry.amenities ?? {},
-    });
-  }
-  const rows = pubSpecificEvidence(candidates).sort((a, b) => a.osmId.localeCompare(b.osmId));
-  const unused = candidates.length - rows.length;
-  if (unused > 0) skipCounts.ok = (skipCounts.ok ?? 0) + unused;
-  return { rows, skipCounts };
-}
-
 async function main() {
   if (process.argv.includes("--restamp")) {
     restampFromEvidence();
     return;
   }
-  const limit = argValue("--limit") ? Number(argValue("--limit")) : null;
-  if (limit !== null && (!Number.isInteger(limit) || limit < 1)) {
-    console.error("--limit needs a positive integer");
-    process.exit(1);
-  }
+  const { limit, copySkipped, locate, readOnly, firecrawlRequests, unwritten, firecrawlFirst } = runFlags();
 
   const pubsDoc = JSON.parse(readFileSync(PUBS_PATH, "utf8"));
   const dataset = JSON.parse(readFileSync(DATASET_PATH, "utf8"));
@@ -431,7 +557,7 @@ async function main() {
     });
   }
 
-  const pubs = [];
+  const londonSites = [];
   for (const pub of pubsDoc.pubs) {
     const website = typeof pub.website === "string" ? pub.website.trim() : "";
     if (!website.startsWith("http")) continue;
@@ -444,9 +570,10 @@ async function main() {
       website,
     };
     const venue = matchPubToVenue(site, anchors);
-    pubs.push({ ...site, venueId: venue?.venueId ?? null });
+    londonSites.push({ ...site, venueId: venue?.venueId ?? null });
   }
-  pubs.sort((a, b) => Number(Boolean(b.venueId)) - Number(Boolean(a.venueId)) || a.osmId.localeCompare(b.osmId));
+  const pubs = copySkipped ? copySkippedPubs(dataset, anchors, londonSites, { unwritten }) : londonSites;
+  if (!copySkipped) pubs.sort((a, b) => Number(Boolean(b.venueId)) - Number(Boolean(a.venueId)) || a.osmId.localeCompare(b.osmId));
 
   const inputTokensPerCallCap = Math.ceil((PAGE_CHAR_CAP + PROMPT.length) / 4);
   const fullProjected = projectPubAmenitySpend({
@@ -491,7 +618,12 @@ async function main() {
   const byOsmId = checkpoint.byOsmId;
   const fresh = new Map();
   const robots = createRobotsChecker();
-  const queue = pubs.filter((pub) => !byOsmId[pub.osmId]);
+  const knownChainPages = readChainPages();
+  const located = checkpoint.located;
+  const firecrawl = createFirecrawlClient({ budget: createHarvestBudget(firecrawlRequests) });
+  // A pub whose page was read under --read-only waits in the checkpoint as
+  // "read" until a run that may call the model.
+  const queue = pubs.filter((pub) => (pub.website || locate) && (!byOsmId[pub.osmId] || (!readOnly && byOsmId[pub.osmId].status === "read")));
   const work = limit === null ? queue : queue.slice(0, limit);
   let cursor = 0;
   let writeChain = Promise.resolve();
@@ -499,7 +631,7 @@ async function main() {
 
   const save = () => {
     writeChain = writeChain.then(() => {
-      const next = { spentUsd: spent, byOsmId };
+      const next = { spentUsd: spent, byOsmId, located };
       const temp = `${CHECKPOINT_PATH}.tmp`;
       writeFileSync(temp, JSON.stringify(next));
       renameSync(temp, CHECKPOINT_PATH);
@@ -507,61 +639,178 @@ async function main() {
     return writeChain;
   };
 
+  // A plain read first. A page the network or a script kept from it is read
+  // once more through Firecrawl, which returns markdown and no HTML.
+  // With --firecrawl-first a page is read through Firecrawl while its budget
+  // lasts, except a PDF, which Firecrawl bills per page; a Firecrawl failure
+  // falls back to the plain read.
+  async function scrapePage(url) {
+    if (!(await paceFirecrawl(firecrawl.budget))) return { ok: false, reason: "firecrawl-budget-exhausted" };
+    const scraped = await firecrawl.scrape(url, { onlyMainContent: false });
+    if (!scraped.ok) return { ok: false, reason: `firecrawl-${scraped.failure.reason}` };
+    const landing = harvestRedirectLanding(url, scraped.page.landedUrl);
+    if (landing.outcome === "refused") return { ok: false, reason: "redirect-refused" };
+    const status = scraped.page.statusCode;
+    if (status !== null && status >= 400) return { ok: false, reason: `http-${status}` };
+    const text = scraped.page.markdown.replace(/\s+/g, " ").trim().slice(0, MAX_BYTES);
+    return { ok: true, url: landing.url, html: scraped.page.markdown, text, reader: "firecrawl" };
+  }
+
+  // A Firecrawl page cached before its landing was recorded is asked again with
+  // a plain request that follows redirects and reads no body. A landing outside
+  // the source fence, one robots refuses, or one that cannot be checked leaves
+  // the cached text unused.
+  async function cachedFirecrawlLanding(url) {
+    let landed;
+    try {
+      const response = await fetch(url, {
+        redirect: "follow",
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        headers: { accept: "text/html,application/xhtml+xml", "user-agent": USER_AGENT },
+      });
+      await response.body?.cancel();
+      landed = response.url || url;
+    } catch {
+      return { status: "landing-unverified" };
+    }
+    const landing = harvestRedirectLanding(url, landed);
+    if (landing.outcome === "refused" || !isHarvestableOperatorUrl(landing.url)) return { status: "redirect-refused" };
+    if (isChainPage(landing.url, knownChainPages)) return { status: "chain-page" };
+    if (!(await robots(landing.url)).allowed) return { status: "robots-denied" };
+    return { url: landing.url };
+  }
+
+  async function readPage(url) {
+    if (firecrawlFirst && firecrawl && firecrawl.budget.remaining() > 0 && !/\.pdf$/i.test(new URL(url).pathname)) {
+      const scraped = await scrapePage(url);
+      if (scraped.ok) return scraped;
+    }
+    const plain = await readHtml(url);
+    if (!firecrawl || !firecrawlMayReread(plain)) return { ...plain, reader: "fetch" };
+    const scraped = await scrapePage(url);
+    if (scraped.ok || scraped.reason.startsWith("http-")) return scraped;
+    return plain.ok ? { ...plain, reader: "fetch" } : scraped;
+  }
+
+  // The own site of a pub with no website, found once and remembered. A search
+  // that failed or was refused for budget answers undefined, so the pub stays
+  // unread and a later run searches again.
+  async function locateSite(pub) {
+    if (Object.hasOwn(located, pub.osmId)) return located[pub.osmId];
+    if (!pub.postcode && !pub.street) return null;
+    if (!firecrawl || !(await paceFirecrawl(firecrawl.budget))) return undefined;
+    const where = pub.postcode ?? `"${pub.street.join(" ")}" London`;
+    const found = await firecrawl.search(`"${pub.name}" pub ${where}`, { limit: 5 });
+    if (!found.ok) return undefined;
+    located[pub.osmId] = locatedOwnSite(pub.name, found.results, {
+      chainPages: knownChainPages,
+      isHarvestable: isHarvestableOperatorUrl,
+      ownSite: (name, url) => ownSiteFor(name, url, { displayName: "London" }),
+    });
+    return located[pub.osmId];
+  }
+
+  // Pages other pubs have read: the committed evidence, this checkpoint and the chain list's readers.
+  const previousRows = readEvidence()?.rows ?? [];
+  const otherReads = () => pageOwners(previousRows, Object.entries(byOsmId), knownChainPages);
+
+  const pagePath = (key) => path.join(PAGES_DIR, `${key.replace(/[^a-z0-9-]/gi, "_")}.json`);
+  const cachedText = (key) => {
+    try {
+      return JSON.parse(readFileSync(pagePath(key), "utf8")).text;
+    } catch (error) {
+      if (error.code === "ENOENT") return null;
+      throw error;
+    }
+  };
+
+  async function readSite(pub) {
+    const website = pub.website ?? (locate ? await locateSite(pub) : null);
+    if (website === undefined) return { status: null };
+    if (!website) return { status: pub.website === null && locate ? "no-site-found" : "no-website" };
+    if (!isHarvestableOperatorUrl(website)) return { status: "refused-host" };
+    if (isChainPage(website, knownChainPages)) return { status: "chain-page" };
+    const permission = await robots(website);
+    if (!permission.allowed) return { status: permission.reason ?? "robots-denied" };
+    const home = await readPage(website);
+    if (!home.ok) return { status: home.reason };
+    if (isChainPage(home.url, knownChainPages)) return { status: "chain-page", sourceUrl: home.url };
+    const landedPermission = await robots(home.url);
+    if (!landedPermission.allowed) return { status: landedPermission.reason ?? "robots-denied" };
+    let text = home.text;
+    const extraLinks = sameHostLinks(home.html, home.url);
+    for (const link of extraLinks.slice(0, 1)) {
+      const extraText = await readExtraPage(link, {
+        chainPages: knownChainPages,
+        isHarvestable: isHarvestableOperatorUrl,
+        robots,
+        readHtml: readPage,
+      });
+      if (extraText === null) continue;
+      text = `${text}\n${extraText}`.slice(0, PAGE_CHAR_CAP);
+      break;
+    }
+    if (text.length < 40) return { status: "empty-page", sourceUrl: home.url };
+    return { status: "read", sourceUrl: home.url, reader: home.reader, located: !pub.website, text };
+  }
+
   async function one(pub) {
+    let sourceUrl;
     try {
     if (stopped || spent >= SPEND_STOP_USD) {
       stopped = true;
       return;
     }
-    if (!isHarvestableOperatorUrl(pub.website)) {
-      byOsmId[pub.osmId] = { status: "refused-host", venueId: pub.venueId };
+    let read = cachedPageRead(byOsmId[pub.osmId], () => cachedText(pub.osmId));
+    const cached = read !== null;
+    if (!cached) {
+      read = await readSite(pub);
+      if (read.status === null) return;
+      if (read.status !== "read") {
+        byOsmId[pub.osmId] = { status: read.status, venueId: pub.venueId, ...(read.sourceUrl ? { sourceUrl: read.sourceUrl } : {}) };
+        return;
+      }
+    }
+    if (cached && read.reader === "firecrawl" && !read.landingChecked) {
+      const landing = await cachedFirecrawlLanding(read.sourceUrl);
+      if (landing.status) {
+        byOsmId[pub.osmId] = { status: landing.status, venueId: pub.venueId };
+        return;
+      }
+      read = { ...read, sourceUrl: landing.url, landingChecked: true };
+      byOsmId[pub.osmId] = { ...byOsmId[pub.osmId], sourceUrl: landing.url, landingChecked: true };
+    }
+    if (siteOfAnotherPub(read.sourceUrl, pub.osmId, otherReads())) {
+      byOsmId[pub.osmId] = { status: "site-of-another-pub", venueId: pub.venueId };
       return;
     }
-    const permission = await robots(pub.website);
-    if (!permission.allowed) {
-      byOsmId[pub.osmId] = { status: permission.reason ?? "robots-denied", venueId: pub.venueId };
+    if (pub.needsAddress && !pageStatesAddress(read.text, pub)) {
+      byOsmId[pub.osmId] = { status: pub.website ? "listed-site-unconfirmed" : "located-site-unconfirmed", venueId: pub.venueId, sourceUrl: read.sourceUrl };
       return;
     }
-    const home = await readHtml(pub.website);
-    if (!home.ok) {
-      byOsmId[pub.osmId] = { status: home.reason, venueId: pub.venueId };
-      return;
+    if (!cached) {
+      mkdirSync(PAGES_DIR, { recursive: true });
+      writeFileSync(pagePath(pub.osmId), JSON.stringify({ url: read.sourceUrl, reader: read.reader, readAt: new Date().toISOString(), text: read.text }));
+      byOsmId[pub.osmId] = pageReadEntry(pub, read);
+      if (readOnly) return;
     }
-    const landedPermission = await robots(home.url);
-    if (!landedPermission.allowed) {
-      byOsmId[pub.osmId] = { status: landedPermission.reason ?? "robots-denied", venueId: pub.venueId };
-      return;
-    }
-    let text = home.text;
-    const extraLinks = sameHostLinks(home.html, home.url);
-    for (const link of extraLinks.slice(0, 1)) {
-      if (!isHarvestableOperatorUrl(link)) continue;
-      const extraPermission = await robots(link);
-      if (!extraPermission.allowed) continue;
-      const extra = await readHtml(link);
-      if (!extra.ok) continue;
-      text = `${text}\n${extra.text}`.slice(0, PAGE_CHAR_CAP);
-      break;
-    }
-    if (text.length < 40) {
-      byOsmId[pub.osmId] = { status: "empty-page", venueId: pub.venueId, sourceUrl: home.url };
-      return;
-    }
+    sourceUrl = read.sourceUrl;
+    const text = read.text;
     const result = await askModel(text);
     const cost = usageCost(result.body);
     spent += cost.usd;
     if (result.status === 429) {
-      byOsmId[pub.osmId] = { status: "quota", venueId: pub.venueId, usd: cost.usd };
+      byOsmId[pub.osmId] = { status: "quota", venueId: pub.venueId, sourceUrl, usd: cost.usd };
       return;
     }
     if (result.status !== 200) {
-      byOsmId[pub.osmId] = { status: `model-${result.status}`, venueId: pub.venueId, usd: cost.usd };
+      byOsmId[pub.osmId] = { status: `model-${result.status}`, venueId: pub.venueId, sourceUrl, usd: cost.usd };
       return;
     }
     const textOut = result.body?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("") ?? "";
     const parsed = parsePubAmenityModelJson(textOut);
     if (!parsed.ok) {
-      byOsmId[pub.osmId] = { status: parsed.reason, venueId: pub.venueId, sourceUrl: home.url, usd: cost.usd };
+      byOsmId[pub.osmId] = { status: parsed.reason, venueId: pub.venueId, sourceUrl, usd: cost.usd };
       return;
     }
     const kept = keepEvidencedAmenities(parsed.amenities, text);
@@ -569,14 +818,14 @@ async function main() {
       status: "ok",
       venueId: pub.venueId,
       name: pub.name,
-      sourceUrl: home.url,
+      sourceUrl,
       verifiedAt: new Date().toISOString().slice(0, 10),
       amenities: kept,
       usd: cost.usd,
     };
     if (spent >= SPEND_STOP_USD) stopped = true;
     } catch {
-      byOsmId[pub.osmId] = { status: "error", venueId: pub.venueId };
+      byOsmId[pub.osmId] = { status: "error", venueId: pub.venueId, sourceUrl };
     }
   }
 
@@ -597,9 +846,20 @@ async function main() {
   });
   await Promise.all(workers);
   await save();
+  if (readOnly) {
+    console.log(JSON.stringify({ readOnly: true, pubs: work.length, firecrawlRequests: firecrawl?.budget.spent() ?? 0, counts: readCounts(work, byOsmId) }));
+    return;
+  }
 
   const previous = readEvidence();
-  const { rows: evidenceRows, skipCounts } = mergeEvidence(previous, fresh);
+  const { rows: evidenceRows, skipCounts, chainPages } = mergeHarvestEvidence({
+    previousRows: previous?.rows ?? [],
+    previousSkipCounts: previous?.skipCounts,
+    fresh: copySkipped ? withoutThinnerRereads(fresh, previous?.rows ?? []) : fresh,
+    checkpoint: byOsmId,
+    knownChainPages,
+  });
+  writeChainPages(chainPages);
   const evidence = withStampFigures({
     version: 1,
     model: FLASH_LITE_SKU.model,
@@ -618,7 +878,7 @@ async function main() {
     jobCapUsd: JOB_SPEND_CAP_USD,
     skipCounts,
     rows: evidenceRows,
-  }, previous, stampDataset(evidenceRows));
+  }, previous, stampDataset(evidenceRows, chainPages));
   writeEvidence(evidence);
   console.log(
     JSON.stringify({

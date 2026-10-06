@@ -23,11 +23,12 @@ import {
 import { __resetPintDrops, addPintDrop } from "@/lib/pintDrops";
 import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
+import { defined } from "@/__tests__/helpers/defined";
 
 const rows = JSON.parse(
   readFileSync(join(process.cwd(), "public/data/pint_prices_app_dataset.json"), "utf8"),
 ) as VenuePrice[];
-const venue = groupVenuePrices(rows)[0];
+const venue = defined(groupVenuePrices(rows)[0]);
 
 function drop(id: string, handle: string) {
   return {

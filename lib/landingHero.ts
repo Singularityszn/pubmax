@@ -16,12 +16,14 @@
 // taps the one quiet control that asks. The landing never asks on arrival:
 // `?locate=1` is the geolocation ask and it rides a deliberate tap alone.
 
+import type { Route } from "next";
 import {
   legacyPintPriceObservedAt,
   legacyPintPriceObservedOn,
   namedLegacyPintPriceSource,
   type LegacyPintPrice,
 } from "@/lib/drinks";
+import { WEB_ONBOARDING_START_HREF } from "@/lib/firstRunRoute";
 import { formatGbp } from "@/lib/formatGbp";
 import { priceStandingFor, type PriceStanding } from "@/lib/priceTier";
 import { venueMapUrl } from "@/lib/venueMapUrl";
@@ -90,6 +92,18 @@ export function stillPriceLabel(priceGbp: number): string {
 export const LANDING_PRIMARY_HREF = "/near?locate=1";
 export const LANDING_PRIMARY_LABEL = "Cheapest pints near me";
 
+/**
+ * Where the primary goes for this visitor. A first-time visitor (no seen mark,
+ * lib/firstRunTour.ts) takes the first-run journey first, and its Skip lands on
+ * `LANDING_PRIMARY_HREF`. A returning visitor goes straight there. Only the
+ * landing's own primary asks: a deep link or any other path never meets it.
+ */
+export function landingPrimaryHref(
+  seenOnboarding: boolean,
+): typeof LANDING_PRIMARY_HREF | typeof WEB_ONBOARDING_START_HREF {
+  return seenOnboarding ? LANDING_PRIMARY_HREF : WEB_ONBOARDING_START_HREF;
+}
+
 /** The receipt door when no card can back one: the plain price door. */
 export const LANDING_FALLBACK_RECEIPT_HREF = "/near";
 export const LANDING_FALLBACK_RECEIPT_LABEL = "Log what you paid";
@@ -105,11 +119,12 @@ export const LANDING_FALLBACK_RECEIPT_LABEL = "Log what you paid";
  * ignores anything that is not a positive GBP figure, the field stays editable,
  * and nothing is written until the drinker presses Log it.
  */
-export function pintDropDoorHref(venueId: string, priceGbp?: number): string {
+export function pintDropDoorHref(venueId: string, priceGbp?: number): Route {
   const door = `${venueMapUrl(venueId)}&log=1`;
-  return typeof priceGbp === "number" && Number.isFinite(priceGbp) && priceGbp > 0
+  // `door` is a venueMapUrl() Route with its query open, so appending keeps it one.
+  return (typeof priceGbp === "number" && Number.isFinite(priceGbp) && priceGbp > 0
     ? `${door}&price=${priceGbp.toFixed(2)}`
-    : door;
+    : door) as Route;
 }
 
 /** The line above the answer card. */
@@ -147,7 +162,7 @@ const TONIGHT_DOOR_HREF = "/tonight";
 const TONIGHT_DOOR_LABEL = "Tonight";
 
 export type LandingQuietDoor = {
-  href: string;
+  href: Route;
   label: string;
   /** The `landing_cta_clicked` target this door reports. */
   cta: "tonight";

@@ -1,5 +1,7 @@
-/** One stderr line per forbidden category, printed after the JSON report. */
-export const REVIEW_SCOPE_HINTS: Readonly<Record<"generated" | "skill-pack", string>>;
+/** One stderr line per failing check, printed after the JSON report. */
+export const REVIEW_SCOPE_HINTS: Readonly<
+  Record<"generated" | "skill-pack" | "ci-data" | "ci-flake", string>
+>;
 
 export const MAX_REVIEW_FILES: number;
 export const MAX_RUNTIME_DOMAINS: number;
@@ -55,7 +57,21 @@ export function changedFilesFromGit(
   head: string,
   cwd: string,
 ): string[];
+/** Subject prefix of a no-mistakes CI-step fix commit. */
+export const CI_FIX_COMMIT_SUBJECT: RegExp;
+
+/** Known-flake specs another lane owns, which a CI repair may not edit. */
+export const KNOWN_FLAKE_SPECS: readonly string[];
+
+export type BranchCommit = { sha: string; subject: string; paths: string[] };
+
+export type CiFixChurn = { sha: string; path: string; category: "ci-data" | "ci-flake" };
+
+/** Bundled-data and known-flake paths that no-mistakes CI-step fix commits touched. */
+export function ciFixChurn(commits: readonly BranchCommit[]): CiFixChurn[];
+export function commitsFromGit(base: string, head: string, cwd: string): BranchCommit[];
+/** Reads CI-step fix commits only when argv carries --ci-commits. */
 export function runReviewScopeCli(
   argv?: string[],
   cwd?: string,
-): ReviewScopeReport;
+): ReviewScopeReport & { ciChurn: CiFixChurn[] };

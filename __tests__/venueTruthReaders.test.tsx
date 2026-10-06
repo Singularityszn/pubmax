@@ -193,7 +193,7 @@ describe("todayPintsHeading", () => {
     name: id,
     price: 4.8,
     priceLabel: "£4.80",
-    mapHref: `/map?sel=${id}`,
+    mapHref: `/map?sel=${id}` as const,
     areaRelation: relation,
   });
 

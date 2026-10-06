@@ -76,12 +76,13 @@ import { clampOgText } from "@/lib/ogCardText";
 import { resetVenueAliasesForTests } from "@/lib/venueAliases";
 import { resetVenueDetailCachesForTests } from "@/lib/venueDetailIndex";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = process.cwd();
 const read = (file: string): string => readFileSync(join(ROOT, file), "utf8");
 
 const rows = JSON.parse(read("public/data/pint_prices_app_dataset.json")) as VenuePrice[];
-const venue = groupVenuePrices(rows)[0];
+const venue = defined(groupVenuePrices(rows)[0]);
 const FAMOUS_BAR_ID = "bar-american-bar-savoy";
 const FAMOUS_BAR_NAME = "American Bar at The Savoy";
 
@@ -93,7 +94,7 @@ const aliasDoc = JSON.parse(read("public/data/venue_id_aliases.json")) as {
 };
 const mergedId = Object.keys(aliasDoc.aliases)[0];
 const mergedCanonical = groupVenuePrices(rows).find(
-  (row) => row.id === aliasDoc.aliases[mergedId],
+  (row) => row.id === aliasDoc.aliases[defined(mergedId)],
 )!;
 
 async function render(page: (props: { params: Promise<{ id: string }> }) => Promise<unknown>, id: string) {
@@ -216,20 +217,20 @@ describe.each([
     // is not in the dataset under its own key, so the alias read decides, and a
     // read we could not run may not be worded as a pub that is not here.
     aliases.fail = true;
-    const markup = await render(page, mergedId);
+    const markup = await render(page, defined(mergedId));
     expect(markup).toContain("We could not load this pub");
     expect(markup).not.toContain(notFoundLine);
     expect(markup).not.toContain("moved");
     expect(aliases.reads).toBe(1);
 
     // Nothing was cached from that failure: the next request opens the file.
-    const again = await render(page, mergedId);
+    const again = await render(page, defined(mergedId));
     expect(again).toContain("We could not load this pub");
     expect(aliases.reads).toBe(2);
 
     // The file is readable again: the losing id opens its surviving pub.
     aliases.fail = false;
-    const resolved = await render(page, mergedId);
+    const resolved = await render(page, defined(mergedId));
     expect(resolved).not.toContain("We could not load this pub");
     expect(resolved).toContain(mergedCanonical.name);
   });
@@ -255,7 +256,7 @@ describe("the Ledger structured address", () => {
 
 describe("the Bar Tab share card", () => {
   it("names the same pub the page title names", async () => {
-    for (const id of [venue.id, mergedId, FAMOUS_BAR_ID]) {
+    for (const id of [venue.id, defined(mergedId), FAMOUS_BAR_ID]) {
       const meta = await barTabMetadata({ params: Promise.resolve({ id }) });
       const named = titleVenueName(meta.title);
       const card = await renderCard(id);
@@ -283,7 +284,7 @@ describe("the Bar Tab share card", () => {
     aliases.fail = true;
     for (const { id, name } of [
       { id: venue.id, name: venue.name },
-      { id: mergedId, name: mergedCanonical.name },
+      { id: defined(mergedId), name: mergedCanonical.name },
     ]) {
       const meta = await barTabMetadata({ params: Promise.resolve({ id }) });
       const card = await renderCard(id);

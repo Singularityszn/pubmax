@@ -51,14 +51,13 @@ export default function HowWeEstimatePage() {
         <p className="legalEyebrow">Prices</p>
         <h1 className="legalTitle">How we estimate</h1>
         <p className="legalLede">
-          A price is only worth the evidence behind it. Every price here says
-          which of four standings it holds, so you can tell a figure a drinker
-          checked from one nobody has published at all.
+          Each figure says whether it is confirmed, listed or estimated.
+          If we have no price, we say so.
         </p>
       </header>
 
       <section className="legalSection" aria-labelledby="standings">
-        <h2 id="standings" className="legalH2">The four standings</h2>
+        <h2 id="standings" className="legalH2">What the labels mean</h2>
         <ul className="legalPanelList">
           {PRICE_STANDINGS.map((standing) => (
             <li key={standing}>
@@ -68,12 +67,9 @@ export default function HowWeEstimatePage() {
           ))}
         </ul>
         <p className="legalBody">
-          A confirmation lasts {CONFIRMED_MAX_AGE_DAYS} days, because a price a
-          drinker checked last month is evidence about last month. A published
-          menu price lasts {LISTED_MAX_AGE_DAYS} days, because a chain
-          republishes its menu on its own slow cadence rather than on your
-          visit. Past those ages a price drops to whatever weaker standing the
-          pub can still support.
+          A confirmation lasts {CONFIRMED_MAX_AGE_DAYS} days. A listed menu
+          price lasts {LISTED_MAX_AGE_DAYS} days. After that, we use whichever
+          weaker label the remaining evidence supports.
         </p>
       </section>
 
@@ -102,8 +98,7 @@ export default function HowWeEstimatePage() {
         </ul>
         <p className="legalBody">
           A basis needs at least {MIN_ESTIMATE_SAMPLE} published prices behind
-          it. Below that we show no estimate at all, because a figure modelled
-          from one or two pubs is a guess wearing a decimal point.
+          it. With fewer prices, we show no estimate.
         </p>
       </section>
 
@@ -133,9 +128,8 @@ export default function HowWeEstimatePage() {
           </>
         ) : (
           <p className="legalBody">
-            We could not read the estimate basis just now, so this page cannot
-            tell you what it holds. That is a fault on our side, and not a
-            statement that the basis is empty.
+            We could not load the estimate data. This page cannot show which
+            prices we used to model the estimates.
           </p>
         )}
       </section>
@@ -145,12 +139,11 @@ export default function HowWeEstimatePage() {
         <p className="legalBody">
           By a real price. When a pub publishes its menu, or a drinker logs what
           they paid and somebody else confirms it, the estimate goes and the
-          published or confirmed figure takes its place. Estimates fill the gap
-          until then. They do not stand in for the work.
+          published or confirmed figure takes its place.
         </p>
         <p className="legalBody">
           <Link href="/pint-index" className="legalLink">The Pint Index</Link>{" "}
-          is the strict end of this. It publishes only prices with a named source
+          publishes only prices with a named source
           and a date, and no estimate has ever entered it.
         </p>
       </section>

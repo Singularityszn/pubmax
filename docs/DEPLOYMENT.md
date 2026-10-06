@@ -34,6 +34,13 @@ Set these in the Vercel project (Settings → Environment Variables).
 | `SOCIAL_MODERATOR_STAFF_ROLE_ID` | Server-only UUID of the active `private_social_staff_roles` moderator bound to the existing admin token/session. Social moderation SQL validates that the role is active and not revoked before reads or writes. |
 | `RATE_LIMIT_SALT` | At least 32 random bytes for `sha256(salt:ip)` IP hashing (raw IPs never reach the DB or logs) and the fallback trusted Plan-signing key. Defaults are allowed only for non-trusted local helpers. **Required in production:** `assertServerEnv()` refuses to start if this is unset, short, or still the dev default. |
 
+Moderator cookies contain a versioned issuance time signed with `ADMIN_TOKEN`.
+The server refuses a cookie at 24 hours, even if a caller sends it after browser expiry.
+It also refuses future timestamps and changed signatures.
+Changing `ADMIN_TOKEN` invalidates existing sessions.
+The signed format replaces the old static token digest, so existing moderators must sign in again after this update.
+The `x-admin-token` header remains available for scripts.
+
 ### Optional — The Landlord (heritage Q&A)
 
 | Var | Purpose |
@@ -150,7 +157,7 @@ The app calls Supabase Auth with `signInWithOtp` for passwordless email and `sig
 
 App fragments are never copied into Supabase's `redirectTo`: the browser holds them in a TTL-limited record keyed by a cryptographically random attempt ID. It restores them only for a claimed local attempt and matching return path, because Plan invite fragments contain one-use capabilities. The Web Locks API coordinates one live attempt across tabs, and the initiating tab records its attempt in `sessionStorage` to allow an explicit retry. Starting an attempt requires persistent browser storage and Web Locks; an incoming token callback without a local claim follows the confirmation path below. Secrets stay in the Supabase dashboard. The Next.js app only needs the public URL and publishable key above.
 
-An unowned callback, including an email link opened in another browser, shows **Sign in as [verified email]?** before installing a session. The prompt names an email only when the provider reports it confirmed, because the sender of a crafted token link can choose an unverified one; otherwise it reads **Sign in to this account?**. Choose **Continue** to install that account's verified, rotated tokens, or **Cancel** to keep the previous stored session. A callback claimed by this browser's local attempt completes automatically.
+An unowned callback, including an email link opened in another browser, shows **Sign in as [verified email]?** before installing a session. The prompt names an email only when the provider reports it confirmed, because the sender of a crafted token link can choose an unverified one; otherwise it reads **Sign in to this account?**. Choose **Continue** to install that account's verified, rotated tokens, or **Cancel** to keep the previous stored session. An unowned callback is offered only when the provider's `amr` claim names an emailed link: `magiclink` or `email/signup`, or `otp` when the account has a confirmed email and no confirmed phone. GoTrue records `otp` for SMS codes too, and this app has no phone sign-in, so an `otp` session on an account with a confirmed phone is refused. OAuth and password sign-ins always return to the browser that started them, so an unowned one is refused as a handed-over session. A callback claimed by this browser's local attempt completes automatically.
 
 [`lib/authCallbackClient.ts`](../lib/authCallbackClient.ts) owns callback verification. It reads identity directly from the provider without letting lookup errors mutate the live browser session. It verifies the refreshed identity and rejects mismatched access and refresh identities. The expired-access exception requires the provider's specific expiry response and a parsed subject matching the freshly verified identity; browser time does not decide expiry. Other verification failures reject the callback. `AuthProvider` finishes session restoration and publishes its result before offering confirmation, and reuses pending work across StrictMode effect replay. Regression coverage lives in `__tests__/authCallbackClient.test.ts`, `__tests__/authCallbackConfirmation.test.tsx`, and `e2e/auth-callback-confirmation.spec.ts`.
 

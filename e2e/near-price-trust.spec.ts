@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 // The collection day is derived from the freshness registry, never typed.
 import { NEAR_PRICE_TRUST_CAPTION } from "../lib/nearPriceTrust";
+import { stubSocialAuthProviders } from "./helpers/authDoubles";
 
 test.setTimeout(60_000);
 
@@ -21,6 +22,7 @@ function watchErrors(page: Page): string[] {
 }
 
 async function prepareReturningVisitor(page: Page): Promise<void> {
+  await stubSocialAuthProviders(page);
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
@@ -64,6 +66,7 @@ test("Near shows prices before bounded publisher evidence on mobile", async ({ p
   expect(trustUrl.search).not.toMatch(/lat|lng|price|borough/i);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
 
+  await expect(page.locator(".mobileTabBar")).toBeVisible();
   const firstRow = await cards.first().boundingBox();
   const tabBar = await page.locator(".mobileTabBar").boundingBox();
   expect(firstRow).not.toBeNull();

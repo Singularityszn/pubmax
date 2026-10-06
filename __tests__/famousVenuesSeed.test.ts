@@ -6,9 +6,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { isFoodCategory } from "@/lib/food";
 import { nightOutPlaceRowValidationErrors } from "@/lib/nightOutPlaceContract.mjs";
 import { famousRowsForRebuild } from "@/scripts/build_slim_index.mjs";
+import { isCurrentFamousVenue } from "@/scripts/lib/currentFamousVenue.mjs";
 import { applyVerification } from "@/scripts/verify_famous_venues.mjs";
 import { famousSeedLapsedAt } from "./helpers/currentFamousVenues";
 import { normalizeVenueName } from "@/scripts/lib/famousVenuePlacesMatch.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = path.resolve(__dirname, "..");
 const FAME_GATES = new Set([
@@ -39,7 +41,7 @@ type FamousVenueRow = {
   expiresAt: string;
   discoveredVia: "manual";
   extractedVia: "manual";
-  anchor: {
+  anchor?: {
     kind:
       | "house_cocktail"
       | "pint"
@@ -121,20 +123,30 @@ describe("famous venue seeds", () => {
         ).toBe(true);
         expect(row.sourceUrl).toMatch(/^https:\/\//);
         expect(Number.isNaN(Date.parse(row.observedAt))).toBe(false);
-        expect(row.anchor.price).toBeGreaterThan(0);
         if (kind === "restaurant") {
           expect(row.id).toMatch(/^restaurant-[a-z0-9-]+$/);
-          expect(row.anchor.kind).toBe("signature_dish");
-          expect(
-            isFoodCategory(row.anchor.course),
-            `${row.id} anchor course "${row.anchor.course}"`,
-          ).toBe(true);
-        } else {
-          expect(row.anchor.course, `${row.id} is not a dish`).toBeUndefined();
         }
-        expect(row.anchor.label.trim().length).toBeGreaterThan(2);
-        expect(row.anchor.sourceUrl).toMatch(/^https:\/\//);
-        expect(Number.isNaN(Date.parse(row.anchor.observedAt))).toBe(false);
+        const { anchor } = row;
+        if (anchor) {
+          expect(anchor.price).toBeGreaterThan(0);
+          if (kind === "restaurant") {
+            expect(anchor.kind).toBe("signature_dish");
+            expect(
+              isFoodCategory(anchor.course),
+              `${row.id} anchor course "${anchor.course}"`,
+            ).toBe(true);
+          } else {
+            expect(anchor.course, `${row.id} is not a dish`).toBeUndefined();
+          }
+          expect(anchor.label.trim().length).toBeGreaterThan(2);
+          expect(anchor.sourceUrl).toMatch(/^https:\/\//);
+          expect(Number.isNaN(Date.parse(anchor.observedAt))).toBe(false);
+        } else {
+          expect(
+            isCurrentFamousVenue(row, Date.parse(`${row.observedAt}T12:00:00.000Z`)),
+            `${row.id} has no anchor, so it is withheld`,
+          ).toBe(false);
+        }
         expect(row.story.text.trim().length).toBeGreaterThan(20);
         expect(row.story.sourceUrl).toMatch(/^https:\/\//);
         expect(nightOutPlaceRowValidationErrors(row)).toEqual([]);
@@ -229,7 +241,9 @@ describe("famous venue seeds", () => {
     it("points a build after a seed re-verification at refresh:slim, and the refresh keeps every venue", () => {
       vi.spyOn(console, "log").mockImplementation(() => {});
       const lastSlim = committedSlim();
-      const verifiedDay = "2026-10-05";
+      const verifiedDay = new Date(Date.parse(lastSlim.generatedAt) + 24 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 10);
       const reverified = [
         ...applyVerification(
           new Map(PACKS.map(([file]) => [file, loadSeed(file)])),
@@ -247,7 +261,9 @@ describe("famous venue seeds", () => {
         removedIds: [],
         refreshAt: new Date(`${verifiedDay}T12:00:00.000Z`),
       });
-      expect(keptIds(refreshed)).toEqual(reverified.map((row) => row.id).sort());
+      expect(keptIds(refreshed)).toEqual(
+        reverified.filter((row) => row.anchor).map((row) => row.id).sort(),
+      );
       expect(() =>
         famousRowsForRebuild(seedRows(), {
           lastSlim,
@@ -267,7 +283,7 @@ describe("famous venue seeds", () => {
       const expiresAt = new Date(stampMs + 31 * dayMs).toISOString().slice(0, 10);
       const added = {
         ...template,
-        id: `${template.id}-added`,
+        id: `${defined(template).id}-added`,
         observedAt,
         expiresAt,
       };
@@ -286,6 +302,46 @@ describe("famous venue seeds", () => {
       expect(keptIds(refreshed)).toContain(added.id);
     });
 
+    it("withholds a seed row with no anchor inside its window instead of shipping or dropping it", () => {
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+      const lastSlim = committedSlim();
+      const [template] = seedRows();
+      const stampMs = Date.parse(lastSlim.generatedAt);
+      const dayMs = 24 * 60 * 60 * 1000;
+      const row: FamousVenueRow = {
+        ...defined(template),
+        id: `${defined(template).id}-anchorless`,
+        observedAt: new Date(stampMs + dayMs).toISOString().slice(0, 10),
+        expiresAt: new Date(stampMs + 31 * dayMs).toISOString().slice(0, 10),
+      };
+      delete row.anchor;
+      const seed = [...seedRows(), row];
+      const refreshed = famousRowsForRebuild(seed, {
+        lastSlim,
+        removedIds: [],
+        refreshAt: new Date(stampMs + 2 * dayMs),
+      });
+      expect(keptIds(refreshed)).not.toContain(row.id);
+      expect(log).toHaveBeenCalledWith(expect.stringContaining(row.id));
+    });
+
+    it("withholds a shipped venue whose anchor a curator removed instead of failing the rebuild", () => {
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+      const lastSlim = committedSlim();
+      const [withdrawn] = shippedFamousIds(lastSlim);
+      const seed = seedRows().map((row) => {
+        if (row.id !== withdrawn) return row;
+        const anchorless: FamousVenueRow = { ...row };
+        delete anchorless.anchor;
+        return anchorless;
+      });
+      const result = famousRowsForRebuild(seed, { lastSlim, removedIds: [], refreshAt: null });
+      expect(keptIds(result)).toEqual(
+        shippedFamousIds(lastSlim).filter((id) => id !== withdrawn),
+      );
+      expect(log).toHaveBeenCalledWith(expect.stringContaining(defined(withdrawn)));
+    });
+
     it("refuses a build-time rebuild with no committed stamp to rebuild at", () => {
       expect(() =>
         famousRowsForRebuild(seedRows(), { lastSlim: null, removedIds: [], refreshAt: null }),
@@ -298,11 +354,11 @@ describe("famous venue seeds", () => {
       const [gone, other] = shippedFamousIds(lastSlim);
       const seed = seedRows().filter((row) => row.id !== gone && row.id !== other);
       expect(() =>
-        famousRowsForRebuild(seed, { lastSlim, removedIds: [gone], refreshAt: null }),
+        famousRowsForRebuild(seed, { lastSlim, removedIds: [defined(gone)], refreshAt: null }),
       ).toThrow(new RegExp(`not in data/famous_venues/removed.json: ${other}$`));
       const result = famousRowsForRebuild(
         seedRows().filter((row) => row.id !== gone),
-        { lastSlim, removedIds: [gone], refreshAt: null },
+        { lastSlim, removedIds: [defined(gone)], refreshAt: null },
       );
       expect(keptIds(result)).toEqual(shippedFamousIds(lastSlim).filter((id) => id !== gone));
       expect(() =>

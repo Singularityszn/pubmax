@@ -26,6 +26,12 @@ import {
 } from "react";
 
 import type { Landmark } from "@/lib/landmarks";
+import { coffeePilotToGeoJSON, type CoffeePilotCafe } from "@/lib/coffeePilot";
+import {
+  LONDON_RESTAURANT_MIN_ZOOM,
+  londonRestaurantsToGeoJSON,
+} from "@/lib/londonRestaurants";
+import type { LondonVenue } from "@/lib/londonVenueShards";
 import { bandMemberPubs } from "@/lib/storyBandVenueProximity";
 import type { StoryBand } from "@/lib/storyBands";
 import {
@@ -58,6 +64,7 @@ import {
 } from "@/lib/mapCameraFocus";
 import {
   COMPASS_RESET_DURATION_MS,
+  cameraResetAvailable,
   compassResetLabel,
   compassResetTarget,
   mapIsOffHouseAttitude,
@@ -82,7 +89,7 @@ import {
   MAP_STYLES, FALLBACK_STYLES, STYLE_LOAD_TIMEOUT_MS, LONDON_VIEW, UK_BOUNDS,
   OSM_ATTRIBUTION,
   DASH_SEQ,
-  GLOW_BASE_STROKE_OPACITY, GLOW_BASE_STROKE_WIDTH,
+  GLOW_BASE_STROKE_OPACITY, GLOW_BASE_STROKE_WIDTH, GLOW_SELECTED_STROKE_WIDTH,
   PIN_ENTRANCE_BUCKETS, PIN_ENTRANCE_STAGGER_MS, PIN_ENTRANCE_RAMP_MS, PIN_ENTRANCE_TOTAL_MS,
   PIN_ENTRANCE_SETTLE_CEILING_MS,
   readTokens,
@@ -95,7 +102,8 @@ import {
 import type { VenueWhatsOnSummary } from "@/lib/whatsOnBadges";
 import {
   applyPoiCategoryVisibility,
-  TONIGHT_OPPORTUNITY_LAYERS, pubIconOpacityExpr, glowPulsePaint,
+  TONIGHT_OPPORTUNITY_LAYERS, pubIconOpacityExpr, selectedGlowPaint,
+  ambientMotionLevel, ambientMotionResting, routeLineShowsDash,
   pinEntranceIconOpacityExpr,
   selectedPinIconSizeExpr, selectedPinFilter, pinSortKeyExpr, pinPriceLabelExpr,
   clusterEntranceProgress,
@@ -137,7 +145,7 @@ import { MAP_PIN_REVEAL_EVENT } from "@/lib/mapPinRevealEvent";
 import {
   wireClickRouting, wireHoverPrefetch, wirePubHover, wireCursor,
 } from "@/components/map/canvas/interactions";
-import { installMapCameraProbe } from "@/components/map/canvas/cameraProbe";
+import { installMapCameraProbe, mapCameraSettling } from "@/components/map/canvas/cameraProbe";
 import {
   installMapReaderPositionProbe,
   syncReaderPositionOnMap,
@@ -162,6 +170,7 @@ import {
   PAINT_WATCHDOG_INTERVAL_MS,
   PAINT_WATCHDOG_MAX_RETRIES,
   shouldRecoverPaint,
+  sourceChangeOwesFrame,
 } from "@/lib/mapPaintWatchdog";
 import {
   DATA_PACK_RETRY_DELAY_MS,
@@ -263,6 +272,7 @@ type PubMapCanvasProps = {
   onVisibleVenueIdsChange?: (membership: {
     curatedVenueIds: string[];
     ukBasePubIds: string[];
+    londonRestaurantIds: string[];
   }) => void;
   onRenderedStateChange?: (state: MapRenderedState) => void;
   /**
@@ -336,6 +346,12 @@ type PubMapCanvasProps = {
    */
   onMapErrored?: (errored: boolean) => void;
   /**
+   * Reports MapLibre construction, including canvas-owned reinitialisation.
+   * The canvas then owns its watchdogs and failure card. The shell's readiness
+   * ceiling stops at this handoff (lib/mapCanvasAvailability.ts).
+   */
+  onMapConstructed?: () => void;
+  /**
    * Opening camera from CityConfig.mapView. Defaults to London for back-compat
    * when the multi-city router has not wired a city yet.
    */
@@ -388,6 +404,10 @@ type PubMapCanvasProps = {
   tonightOpportunities?: ThingsToDoOpportunity[];
   tonightOverlayVisible?: boolean;
   onTonightOpportunityClick?: (op: ThingsToDoOpportunity) => void;
+  /** Shoreditch coffee pilot cafes. Empty unless the coffee lane owns the map. */
+  coffeePilotCafes?: readonly CoffeePilotCafe[];
+  /** London restaurants to draw. Empty unless their layer is shown (lib/londonRestaurants.ts). */
+  londonRestaurants: readonly LondonVenue[];
   /**
    * Borough browse arrival (`?q=`): fit the filtered venue set once after
    * style/load so outer-London places land framed, not on the city default.
@@ -407,6 +427,12 @@ type PubMapCanvasProps = {
   poiHidden?: Record<PoiCategory, boolean>;
   onPoiHiddenChange?: (next: PoiHiddenChange) => void;
   hideLayersControl?: boolean;
+  /**
+   * Hands the owner the compass reset while the camera is off the city's
+   * designed attitude, and null once it is back. The phone has no Layers
+   * popover on the canvas, so its Layers tab runs the reset from here.
+   */
+  onCameraResetChange?: (reset: (() => void) | null) => void;
   /** Price key, price cap and list live in Layers, not as floating chrome. */
   layersReaderKey?: ReactNode;
   layersReaderPriceFilter?: (close: () => void) => ReactNode;
@@ -430,6 +456,11 @@ type PubMapCanvasProps = {
    * (it jumps at duration 0). Null / an unchanged token is a no-op.
    */
   focusPoint?: MapCameraFocus | null;
+  /**
+   * A Near me answer the shell has asked for and not received yet. Its near-me
+   * framing is a camera move still owed, which the camera probe reports.
+   */
+  nearMePending?: boolean;
   /**
    * False while the opening-location answer may still move the camera. The
    * opening turn waits for it (lib/mapCameraFocus.ts openingCameraSettled).
@@ -497,6 +528,18 @@ const EMPTY_DATA_PACK: GeoJSON.FeatureCollection = {
   type: "FeatureCollection",
   features: [],
 };
+// The coffee pilot prop's resting value, one reference so the data effect
+// does not rerun on every render of a pint map.
+const NO_COFFEE_PILOT_CAFES: readonly CoffeePilotCafe[] = [];
+
+/** Whether a London venue-layer place on this map holds the id: a pilot cafe or a restaurant. */
+function londonPlaceDrawn(
+  id: string,
+  cafes: readonly CoffeePilotCafe[],
+  restaurants: readonly LondonVenue[],
+): boolean {
+  return cafes.some((cafe) => cafe.id === id) || restaurants.some((place) => place.id === id);
+}
 // Every pub-source layer, gated together through the basemap gate on desktop
 // and the stricter source-aware visible-frame handoff on phone.
 const PUB_PIN_LAYERS = [
@@ -512,45 +555,26 @@ const PUB_PIN_LAYERS = [
   "cluster-count",
 ] as const;
 
-
-
-
-export default function PubMapCanvas({
+// Every optional prop with its default applied. The defaults live here, not in
+// the component's parameter list, because ESLint scores each default as a
+// branch of the function that declares it.
+// `spoonsValue` has no default: an absent lane and an off lens are the same
+// falsy answer to every reader of it.
+function withPubMapCanvasDefaults({
   venues,
   filteredVenueCount = venues.length,
-  venueDataReady,
-  route,
-  selectedVenueId,
-  onVenueClick,
-  onReaderTouchedMap,
-  onUkBasePubClick,
-  onUkBasePubsChange,
-  onUkBaseStatusChange,
-  onUkBaseResidentPubsChange,
-  onVisibleVenueIdsChange,
-  onRenderedStateChange,
   venueListOpen = false,
   ukBaseRestore = null,
-  onRouteStopClick,
-  onVenuePrefetch,
   venueSignals = new Map(),
   favoritePint = null,
   drinkCategory = null,
   whatsOnByVenue = null,
   provisionalVenueIds = null,
   lensPrices = null,
-  // No default: an absent lane and an off lens are the same falsy answer to
-  // every reader below, and a default here costs this already-dense function
-  // a branch it does not need.
-  spoonsValue,
   lensNoun = null,
   lensIndexStatus = "ready",
-  onLandmarkSelect,
   activeBandId = "",
-  onBandChange,
   initialLandmarkId = "",
-  onMapReady,
-  onMapErrored,
   mapView = LONDON_VIEW,
   resumeViewport = null,
   maxBounds = UK_BOUNDS,
@@ -562,28 +586,136 @@ export default function PubMapCanvas({
   cityId = DEFAULT_CITY_ID,
   tonightOpportunities = [],
   tonightOverlayVisible = false,
-  onTonightOpportunityClick,
+  coffeePilotCafes = NO_COFFEE_PILOT_CAFES,
   fitQueryOnArrival = false,
   searchFitToken = 0,
   userLocation = null,
   readerPosition = null,
-  poiHidden: controlledPoiHidden,
-  onPoiHiddenChange,
   hideLayersControl = false,
-  layersReaderKey,
-  layersReaderPriceFilter,
-  onReloadVenueData,
+  onCameraResetChange,
   venueDataFailed = false,
   listOpen = false,
-  onListOpenChange,
   listCount = 0,
-  onSoftRetryChange,
   focusPoint = null,
-  openingCameraSettled,
-  onViewportChange,
-  onUserCameraMove,
-  onBoundsChange,
+  ...props
 }: PubMapCanvasProps) {
+  return {
+    ...props,
+    venues,
+    filteredVenueCount,
+    venueListOpen,
+    ukBaseRestore,
+    venueSignals,
+    favoritePint,
+    drinkCategory,
+    whatsOnByVenue,
+    provisionalVenueIds,
+    lensPrices,
+    lensNoun,
+    lensIndexStatus,
+    activeBandId,
+    initialLandmarkId,
+    mapView,
+    resumeViewport,
+    maxBounds,
+    poisPath,
+    secondaryStreamsHeld,
+    transitLinesPath,
+    cityLandmarks,
+    cityStoryBands,
+    cityId,
+    tonightOpportunities,
+    tonightOverlayVisible,
+    coffeePilotCafes,
+    fitQueryOnArrival,
+    searchFitToken,
+    userLocation,
+    readerPosition,
+    hideLayersControl,
+    onCameraResetChange,
+    venueDataFailed,
+    listOpen,
+    listCount,
+    focusPoint,
+  };
+}
+
+export default function PubMapCanvas(props: PubMapCanvasProps) {
+  // `useMemo` keyed on `props` recomputes whenever the parent renders. It is
+  // here for React Compiler, which treats a value handed to a helper it cannot
+  // see through as possibly mutated and would otherwise drop the memo blocks
+  // that read these props.
+  const {
+    venues,
+    filteredVenueCount,
+    venueDataReady,
+    route,
+    selectedVenueId,
+    onVenueClick,
+    onReaderTouchedMap,
+    onUkBasePubClick,
+    onUkBasePubsChange,
+    onUkBaseStatusChange,
+    onUkBaseResidentPubsChange,
+    onVisibleVenueIdsChange,
+    onRenderedStateChange,
+    venueListOpen,
+    ukBaseRestore,
+    onRouteStopClick,
+    onVenuePrefetch,
+    venueSignals,
+    favoritePint,
+    drinkCategory,
+    whatsOnByVenue,
+    provisionalVenueIds,
+    lensPrices,
+    spoonsValue,
+    lensNoun,
+    lensIndexStatus,
+    onLandmarkSelect,
+    activeBandId,
+    onBandChange,
+    initialLandmarkId,
+    onMapReady,
+    onMapErrored,
+    onMapConstructed,
+    mapView,
+    resumeViewport,
+    maxBounds,
+    poisPath,
+    secondaryStreamsHeld,
+    transitLinesPath,
+    cityLandmarks,
+    cityStoryBands,
+    cityId,
+    tonightOpportunities,
+    tonightOverlayVisible,
+    onTonightOpportunityClick,
+    coffeePilotCafes,
+    londonRestaurants,
+    fitQueryOnArrival,
+    searchFitToken,
+    userLocation,
+    readerPosition,
+    poiHidden: controlledPoiHidden,
+    onPoiHiddenChange,
+    hideLayersControl,
+    onCameraResetChange,
+    layersReaderKey,
+    layersReaderPriceFilter,
+    onReloadVenueData,
+    venueDataFailed,
+    listOpen,
+    onListOpenChange,
+    listCount,
+    onSoftRetryChange,
+    focusPoint,
+    nearMePending,
+    openingCameraSettled,
+    onViewportChange,
+    onUserCameraMove,
+    onBoundsChange,
+  } = useMemo(() => withPubMapCanvasDefaults(props), [props]);
   const showLandmarks = cityLandmarks.length > 0;
   const landmarkById = useCallback(
     (id: string | null | undefined) =>
@@ -648,12 +780,14 @@ export default function PubMapCanvas({
   // (react-hooks/refs). Build/event handlers + error paths read this when ready flips.
   const onMapReadyRef = useRef(onMapReady);
   const onMapErroredRef = useRef(onMapErrored);
+  const onMapConstructedRef = useRef(onMapConstructed);
   const onRenderedStateChangeRef = useRef(onRenderedStateChange);
   useEffect(() => {
     onMapReadyRef.current = onMapReady;
     onMapErroredRef.current = onMapErrored;
+    onMapConstructedRef.current = onMapConstructed;
     onRenderedStateChangeRef.current = onRenderedStateChange;
-  }, [onMapReady, onMapErrored, onRenderedStateChange]);
+  }, [onMapReady, onMapErrored, onMapConstructed, onRenderedStateChange]);
   const publishMapReady = useCallback((ready: boolean) => {
     setMapReady(ready);
     onMapReadyRef.current?.(ready);
@@ -968,6 +1102,16 @@ export default function PubMapCanvas({
   const tonightDataRef = useRef<GeoJSON.FeatureCollection>(
     opportunitiesToGeoJSON([]),
   );
+  const coffeePilotDataRef = useRef<GeoJSON.FeatureCollection>({
+    type: "FeatureCollection",
+    features: [],
+  });
+  const coffeePilotCafesRef = useRef(coffeePilotCafes);
+  const londonRestaurantDataRef = useRef<GeoJSON.FeatureCollection>({
+    type: "FeatureCollection",
+    features: [],
+  });
+  const londonRestaurantsRef = useRef(londonRestaurants);
   // Story-band corridor (a tinted line through the anchors); reseeded after a
   // theme setStyle wipes sources, same pattern as the other data refs.
   const bandCorridorRef = useRef<GeoJSON.FeatureCollection>({
@@ -1084,6 +1228,12 @@ export default function PubMapCanvas({
 
   const reducedRef = useRef(false);
   const blurredRef = useRef(false);
+  // When ambient motion (the selected-pin pulse, the route's marching ants)
+  // was last woken; the RAF loop lets it move for AMBIENT_MOTION_WINDOW_MS
+  // after this, then rests. Null until the first route, selection or camera
+  // change.
+  const ambientMotionWokeAtRef = useRef<number | null>(null);
+  const ambientMotionKeyRef = useRef<string | null>(null);
   const themeRef = useRef<"dark" | "light">("dark");
   const textFontRef = useRef<string[]>(["Noto Sans Bold"]);
   const hoverCapableRef = useRef(false);
@@ -1123,6 +1273,8 @@ export default function PubMapCanvas({
   // into that pub owns the camera. lib/mapArrivalBearing.ts holds every other
   // case, reduced motion included.
   const arrivalBearingSpentRef = useRef(false);
+  // Read by the camera probe; written beside the near-me framing effect below.
+  const nearbyFramingOwedRef = useRef(false);
   // The deep link as it was on ARRIVAL. Reading the live prop would answer for
   // a pin the reader tapped a moment ago, which is a different question.
   const arrivalDeepLinkRef = useRef(
@@ -1130,6 +1282,10 @@ export default function PubMapCanvas({
   );
   const focusKeyRef = useRef<string | null>(null);
   const focusPointRef = useRef(focusPoint);
+  const nearMePendingRef = useRef(Boolean(nearMePending));
+  useEffect(() => {
+    nearMePendingRef.current = Boolean(nearMePending);
+  }, [nearMePending]);
   const openingCameraSettledRef = useRef(openingCameraSettled);
   useEffect(() => {
     focusPointRef.current = focusPoint;
@@ -1380,6 +1536,7 @@ export default function PubMapCanvas({
         ...(lowPower ? { canvasContextAttributes: { powerPreference: "low-power" } } : {}),
       });
       markPubmaxTiming("pubmax:map-constructed");
+      onMapConstructedRef.current?.();
       // MapLibre creates a forced-compact attribution control in its expanded
       // state. Start with the native info affordance closed; later taps still
       // use MapLibre's own disclosure and keep every credit readable.
@@ -1475,6 +1632,10 @@ export default function PubMapCanvas({
     mapRef.current = map;
     setMapInstanceReady(true);
     let styleGeneration = 0;
+    // MapLibre's own context-loss handler destroys the style (map.style is null
+    // until a `webglcontextrestored` sets it again), with no setStyle of ours to
+    // clear the readiness state. True from that loss to the next style.load.
+    let styleDroppedByContextLoss = false;
     const cancelDeferredWork = () => {
       if (deferredSceneIdleId !== null && typeof cancelIdleCallback === "function") {
         cancelIdleCallback(deferredSceneIdleId);
@@ -1581,11 +1742,26 @@ export default function PubMapCanvas({
       map.on(`${name}start`, beginGesture(name));
       map.on(`${name}end`, endGesture(name));
     }
+    let ambientMotionCameraKey = "";
     map.on("moveend", () => {
       // Audit F5: every camera move (programmatic flys included) ends on a
       // fresh present. A repaint moves no camera, so this cannot re-fire
       // moveend; deliberately NOT hooked on `idle` (that would loop).
       map.triggerRepaint();
+      // The reader is looking somewhere new: the route and the selected pin
+      // may say so again, for one window. A resize (the paint watchdog's
+      // recovery among them) also ends in moveend without moving the camera,
+      // and must not restart motion on an idle map.
+      const cameraKey = [
+        map.getCenter().toArray().join(","),
+        map.getZoom(),
+        map.getBearing(),
+        map.getPitch(),
+      ].join("|");
+      if (cameraKey !== ambientMotionCameraKey) {
+        ambientMotionCameraKey = cameraKey;
+        ambientMotionWokeAtRef.current = performance.now();
+      }
       setMapBearing(map.getBearing());
       setMapPitch(map.getPitch());
       // A start whose end never came would hold the camera for the rest of the
@@ -2024,6 +2200,7 @@ export default function PubMapCanvas({
       // is the half-canvas black the captain saw on a cold phone open.
       const runBuildScene = () => {
         const execute = () => {
+          sceneBuildFrameQueued = false;
           if (
             generation !== styleGeneration ||
             mapRef.current !== map ||
@@ -2056,6 +2233,7 @@ export default function PubMapCanvas({
           scheduled = true;
           map.off("render", onFirstRender);
           window.clearTimeout(buildSceneDeferTimer);
+          sceneBuildFrameQueued = true;
           requestAnimationFrame(execute);
         };
         const onFirstRender = () => {
@@ -2122,6 +2300,8 @@ export default function PubMapCanvas({
         ukBaseData: ukBaseDataRef.current,
         tonightData: tonightDataRef.current,
         tonightVisible: tonightOverlayVisibleRef.current,
+        coffeePilotData: coffeePilotDataRef.current,
+        londonRestaurantData: londonRestaurantDataRef.current,
         selectedId: selectedIdRef.current,
         selectionMuteStore: selectionMuteStoreRef.current,
       };
@@ -2201,6 +2381,8 @@ export default function PubMapCanvas({
               ukBaseData: ukBaseDataRef.current,
               tonightData: tonightDataRef.current,
               tonightVisible: tonightOverlayVisibleRef.current,
+              coffeePilotData: coffeePilotDataRef.current,
+              londonRestaurantData: londonRestaurantDataRef.current,
               selectedId: selectedIdRef.current,
               selectionMuteStore: selectionMuteStoreRef.current,
             });
@@ -2409,6 +2591,9 @@ export default function PubMapCanvas({
     // retry is not blamed as a stuck box; armHangFailTimer re-starts it so a
     // recovery that then stalls still owes the hang notice.
     let hangFailTimer: ReturnType<typeof setTimeout> | undefined;
+    // True from the moment buildScene has asked for its frame until that frame
+    // runs. The scene is not hung then, it is waiting its turn.
+    let sceneBuildFrameQueued = false;
     const clearHangFailTimer = () => {
       if (hangFailTimer !== undefined) clearTimeout(hangFailTimer);
       hangFailTimer = undefined;
@@ -2439,13 +2624,26 @@ export default function PubMapCanvas({
       clearHangFailTimer();
       hangFailTimer = setTimeout(() => {
         hangFailTimer = undefined;
-        console.warn("[pubmap] scene ready timeout");
-        settleSceneError({
-          kind: "tiles",
-          message:
-            "The map is taking too long to finish loading. The pub list and crawl planner still work.",
-          detail: "Scene ready timeout",
-        });
+        const failHungScene = () => {
+          if (sceneSettled || mapRef.current !== map) return;
+          console.warn("[pubmap] scene ready timeout");
+          settleSceneError({
+            kind: "tiles",
+            message:
+              "The map is taking too long to finish loading.",
+            detail: "Scene ready timeout",
+          });
+        };
+        // A long main-thread task (a slow device compiling shaders, say) holds
+        // back both this timer and the frame the scene build is queued for.
+        // When the task ends the timer runs first, so without this it failed a
+        // style that had loaded and a scene one frame from built. The queued
+        // build was registered first and runs first in that frame.
+        if (sceneBuildFrameQueued) {
+          requestAnimationFrame(failHungScene);
+          return;
+        }
+        failHungScene();
       }, STYLE_LOAD_TIMEOUT_MS * 2 + 2000);
     };
     armHangFailTimer();
@@ -2467,7 +2665,7 @@ export default function PubMapCanvas({
         reportMapError({
           kind: "tiles",
           message:
-            "The map couldn't load its tiles right now. The pub list and crawl planner still work.",
+            "The map couldn't load its tiles right now.",
           detail,
         });
       });
@@ -2545,6 +2743,7 @@ export default function PubMapCanvas({
     map.on("style.load", () => {
       styleGeneration += 1;
       cancelDeferredWork();
+      styleDroppedByContextLoss = false;
       styleStructureReadyRef.current = true;
       styleLoaded = true;
       styleEverLoaded = true;
@@ -2900,7 +3099,10 @@ export default function PubMapCanvas({
       contextRecoveryTimer = setTimeout(() => {
         contextRecoveryTimer = undefined;
         if (mapRef.current !== map) return;
-        const lost = isMapWebGlContextLost(map);
+        // A style MapLibre dropped with the context is as gone as the context:
+        // a live GL handle over no style is the silent grey this net exists to
+        // prevent, so it re-inits rather than repainting nothing.
+        const lost = isMapWebGlContextLost(map) || styleDroppedByContextLoss;
         const action = contextHealthAction({
           contextLost: lost,
           reinitAlreadySpent: contextAutoReinitSpentRef.current,
@@ -2972,6 +3174,15 @@ export default function PubMapCanvas({
     // (some builds only fire one path). preventDefault only works on the DOM
     // event above — map events are already past that.
     map.on("webglcontextlost", () => {
+      // MapLibre has already destroyed the style by the time this fires. Stand
+      // the scene down with it: a build queued for the next frame, or any
+      // applyToMap write, would otherwise run against no style and throw
+      // ("Style is not done loading", or a null style), and the canvas would
+      // trade a recoverable loss for its "couldn't finish drawing" card. The
+      // style.load that follows a restore builds the scene again.
+      styleDroppedByContextLoss = true;
+      styleStructureReadyRef.current = false;
+      styleGeneration += 1;
       scheduleContextRecovery("map-webglcontextlost");
     });
     map.on("webglcontextrestored", () => {
@@ -2985,7 +3196,7 @@ export default function PubMapCanvas({
     // context. A dead canvas after iOS app-switch is the owner-reported defect.
     const healthCheckOnForeground = (reason: string) => {
       if (mapRef.current !== map) return;
-      const lost = isMapWebGlContextLost(map);
+      const lost = isMapWebGlContextLost(map) || styleDroppedByContextLoss;
       const action = contextHealthAction({
         contextLost: lost,
         reinitAlreadySpent: contextAutoReinitSpentRef.current,
@@ -3078,8 +3289,8 @@ export default function PubMapCanvas({
     // (2) Paint watchdog. Stamp the last real present from MapLibre's "render"
     // event (fires only from an actual frame), then poll on a coarse interval:
     // if the map/style are loaded, the canvas is on-screen with a non-zero size,
-    // and no frame has presented for longer than the stall threshold, fire ONE
-    // recovery (resize + triggerRepaint). A capped retry counter means it can
+    // and a frame a dirtying event owed has not presented for longer than the
+    // stall threshold, fire ONE recovery (resize + triggerRepaint). A capped retry counter means it can
     // never loop hot — after the cap it logs one structured warning and stops.
     // The decision itself is the pure shouldRecoverPaint() (lib/mapPaintWatchdog)
     // so it stays hermetically testable; this wrapper only owns the side effects.
@@ -3088,6 +3299,27 @@ export default function PubMapCanvas({
       lastRenderAt = performance.now();
     };
     map.on("render", stampRender);
+    // A resize (the container observer above, the window, a recovery), a
+    // style load or new data in an app source owes a fresh frame; a map at
+    // rest owes none, so plain idle never arms the stall check.
+    let paintDirtiedAt: number | null = null;
+    const markPaintDirty = () => {
+      paintDirtiedAt = performance.now();
+    };
+    const onPaintSourceData = (event: unknown) => {
+      const dataEvent = event as { sourceDataType?: unknown; source?: { type?: unknown } };
+      if (
+        sourceChangeOwesFrame({
+          sourceDataType: dataEvent.sourceDataType,
+          sourceType: dataEvent.source?.type,
+        })
+      ) {
+        markPaintDirty();
+      }
+    };
+    map.on("resize", markPaintDirty);
+    map.on("style.load", markPaintDirty);
+    map.on("sourcedata", onPaintSourceData);
     let paintCapWarned = false;
     let paintWatchdogTimer: ReturnType<typeof setInterval> | undefined;
     const samplePaint = () => {
@@ -3100,6 +3332,7 @@ export default function PubMapCanvas({
       const recover = shouldRecoverPaint({
         now: performance.now(),
         lastRenderAt,
+        dirtiedAt: paintDirtiedAt,
         documentVisible: true,
         mapLoaded: Boolean(map.isStyleLoaded()),
         canvasVisible: onScreen,
@@ -3131,14 +3364,14 @@ export default function PubMapCanvas({
       paintWatchdogTimer = undefined;
     };
     // Pause the interval entirely while the tab is hidden (no wasted wakes, and
-    // no false stall from a legitimately throttled background rAF); resume — and
-    // stamp — on return so a backgrounded-then-resumed map gets a clean first
-    // sample and one present.
+    // no false stall from a legitimately throttled background rAF); a return
+    // to visible owes a fresh frame, so it arms the check for the present the
+    // foreground health check asks for.
     const onPaintVisibility = () => {
       if (document.visibilityState === "hidden") {
         stopPaintWatchdog();
       } else if (mapRef.current === map) {
-        lastRenderAt = performance.now();
+        markPaintDirty();
         // Health-check WebGL on every return to foreground (iOS app-switch).
         healthCheckOnForeground("visibility-visible");
         startPaintWatchdog();
@@ -3169,7 +3402,16 @@ export default function PubMapCanvas({
     const removePaintedPinProbe = installPaintedPinProbe(map);
     // Camera side of the same answer: what a gesture left behind, and where a
     // geographic point is being painted (cameraProbe.ts).
-    const removeMapCameraProbe = installMapCameraProbe(map);
+    const removeMapCameraProbe = installMapCameraProbe(map, () =>
+      mapCameraSettling({
+        arrivalTurnSpent: arrivalBearingSpentRef.current,
+        cameraLanePending: cameraLanePending(),
+        openingCameraSettled: openingCameraSettledRef.current,
+        focusMoves: mapCameraFocusMoves(focusPointRef.current, focusKeyRef.current),
+        nearMePending: nearMePendingRef.current,
+        nearbyFramingOwed: nearbyFramingOwedRef.current,
+      }),
+    );
     const removeMapReaderPositionProbe = installMapReaderPositionProbe(map);
     wireHoverPrefetch(map, { onVenuePrefetchRef });
     wirePubHover(map, { hoverCapableRef, setHoveredVenue });
@@ -3187,12 +3429,35 @@ export default function PubMapCanvas({
     // One RAF loop for motivated feedback only: pin entrance, route direction,
     // and the selected-pin pulse. The old perpetual camera orbit changed the
     // whole canvas every frame while idle, forcing tile churn that read as
-    // flicker and fought the user's spatial memory.
+    // flicker and fought the user's spatial memory. The dash and the pulse
+    // obey the same rule: they move for a window after a change, then rest.
     let rafId = 0;
     let dashStep = 0;
     let dashAt = 0;
+    // The layers are built on their static frame, so the loop starts at rest.
+    let ambientResting = true;
+    let ambientLevel = 0;
+    let ambientAt = performance.now();
+    // The frame reduced-motion readers see: the dash's first step, and the
+    // ring the selection effect sets.
+    const restAmbientMotion = () => {
+      dashStep = 0;
+      if (map.getLayer("route-line-dash")) {
+        map.setPaintProperty("route-line-dash", "line-dasharray", DASH_SEQ[0]);
+      }
+      if (map.getLayer("pubs-selected-glow")) {
+        map.setPaintProperty("pubs-selected-glow", "circle-stroke-opacity", GLOW_BASE_STROKE_OPACITY);
+        map.setPaintProperty(
+          "pubs-selected-glow",
+          "circle-stroke-width",
+          selectedIdRef.current ? GLOW_SELECTED_STROKE_WIDTH : GLOW_BASE_STROKE_WIDTH,
+        );
+      }
+    };
     const frame = (now: number) => {
       rafId = requestAnimationFrame(frame);
+      const ambientDt = now - ambientAt;
+      ambientAt = now;
       // M7 pin entrance — progressed ahead of the big early-return below so
       // it isn't starved by a hidden/blurred tab (a background tab still
       // ticks rAF, just throttled; the elapsed-time check below simply
@@ -3227,15 +3492,28 @@ export default function PubMapCanvas({
       // isStyleLoaded() is null-safe and false mid-swap; check it BEFORE
       // getLayer, which throws on the transiently-null style during a theme
       // setStyle({diff:false}) or on teardown.
-      if (
-        reducedRef.current ||
-        document.hidden ||
-        blurredRef.current ||
-        !map.isStyleLoaded() ||
-        !map.getLayer("pubs-point")
-      )
+      if (!map.isStyleLoaded() || !map.getLayer("pubs-point")) return;
+      // Every write below is a full map redraw. Motion runs only for a window
+      // after the route, selection or camera changed, easing in and out of
+      // rest with the dash marching on to its first step, and never for
+      // reduced-motion, hidden or blurred, which drop straight to rest; at
+      // rest one write puts the static frame back and the loop draws nothing
+      // more.
+      const ambientHeld = reducedRef.current || document.hidden || blurredRef.current;
+      ambientLevel = ambientHeld
+        ? 0
+        : ambientMotionLevel(ambientLevel, ambientDt, now, ambientMotionWokeAtRef.current);
+      const dashMarching =
+        Boolean(map.getLayer("route-line-dash")) && routeLineShowsDash(routeLineRef.current);
+      if (ambientHeld || ambientMotionResting(ambientLevel, dashMarching ? dashStep : 0)) {
+        if (!ambientResting) {
+          ambientResting = true;
+          restAmbientMotion();
+        }
         return;
-      if (now - dashAt > 90 && map.getLayer("route-line-dash")) {
+      }
+      ambientResting = false;
+      if (dashMarching && now - dashAt > 90) {
         dashAt = now;
         dashStep = (dashStep + 1) % DASH_SEQ.length;
         map.setPaintProperty("route-line-dash", "line-dasharray", DASH_SEQ[dashStep]);
@@ -3245,7 +3523,7 @@ export default function PubMapCanvas({
       // reduced-motion / hidden / blurred guard above, so reduced-motion gets
       // a static ring (the dim-opacity spotlight still applies, unaffected).
       if (selectedIdRef.current && map.getLayer("pubs-selected-glow")) {
-        const pulse = glowPulsePaint(now);
+        const pulse = selectedGlowPaint(now, ambientLevel);
         map.setPaintProperty("pubs-selected-glow", "circle-stroke-opacity", pulse.opacity);
         map.setPaintProperty("pubs-selected-glow", "circle-stroke-width", pulse.width);
       }
@@ -3286,6 +3564,9 @@ export default function PubMapCanvas({
       // Black-canvas recovery net teardown.
       paintObserver.disconnect();
       map.off("render", stampRender);
+      map.off("resize", markPaintDirty);
+      map.off("style.load", markPaintDirty);
+      map.off("sourcedata", onPaintSourceData);
       stopPaintWatchdog();
       document.removeEventListener("visibilitychange", onPaintVisibility);
       window.removeEventListener("pageshow", onPageShow);
@@ -3350,6 +3631,7 @@ export default function PubMapCanvas({
     // camera/bounds even if PubMap's key={cityId} is removed. Landmark layers
     // sync in their own effect — toggling showLandmarks must not remount MapLibre.
     cinematic,
+    cameraLanePending,
     cityId,
     selectLandmark,
     initAttempt,
@@ -3427,11 +3709,11 @@ export default function PubMapCanvas({
   // once the camera is past UK_BASE_MIN_ZOOM. Deliberately separate from the
   // `pubs` effect above: nothing here touches the curated source, its clusters
   // or its payload.
-  const handleRestoredBasePub = useCallback((pub: UkBasePub) => {
+  const handleRestoredBasePub = useCallback((pub: UkBasePub, requestedId: string) => {
     // Only reopen the sheet while the restored id is still the selection — a
     // slow shard must never steal a selection the user has already moved on
-    // from.
-    if (selectedIdRef.current !== pub.id) return;
+    // from. A re-mapped pub arrives under its current id, not the one asked for.
+    if (selectedIdRef.current !== requestedId) return;
     onUkBasePubClickRef.current?.(pub);
   }, []);
   const drawableVenueIds = useMemo(
@@ -3502,8 +3784,19 @@ export default function PubMapCanvas({
               viewport,
             )
           : [];
-      const membershipKey =
-        `${curatedVenueIds.join("\u0000")}\u0001${ukBasePubIds.join("\u0000")}`;
+      // The restaurants drawn from the same floor their layer draws from, so
+      // the list never names a restaurant the canvas is not showing.
+      const londonRestaurantIds =
+        map.getZoom() >= LONDON_RESTAURANT_MIN_ZOOM
+          ? projectedItemIdsInViewport(
+              londonRestaurants,
+              (restaurant) => map.project([restaurant.lng, restaurant.lat]),
+              viewport,
+            )
+          : [];
+      const membershipKey = [curatedVenueIds, ukBasePubIds, londonRestaurantIds]
+        .map((ids) => ids.join("\u0000"))
+        .join("\u0001");
       if (membershipKey === lastMembershipKey) return;
       lastMembershipKey = membershipKey;
 
@@ -3511,7 +3804,7 @@ export default function PubMapCanvas({
       onUkBasePubsChange?.(
         ukBase.pubs.filter((pub) => visibleBaseIds.has(pub.id)),
       );
-      onVisibleVenueIdsChange?.({ curatedVenueIds, ukBasePubIds });
+      onVisibleVenueIdsChange?.({ curatedVenueIds, ukBasePubIds, londonRestaurantIds });
     };
     const scheduleVisibleMembership = () => {
       if (frame !== null) return;
@@ -3527,6 +3820,7 @@ export default function PubMapCanvas({
       map.off("resize", scheduleVisibleMembership);
     };
   }, [
+    londonRestaurants,
     mapReady,
     onUkBasePubsChange,
     onVisibleVenueIdsChange,
@@ -3552,6 +3846,31 @@ export default function PubMapCanvas({
       }
     });
   }, [tonightOpportunities, tonightOverlayVisible, mapReady, applyToMap]);
+
+  // Shoreditch coffee pilot cafes → source data. Kept out of the mount effect
+  // deps for the same reason as the tonight overlay above.
+  useEffect(() => {
+    coffeePilotDataRef.current = coffeePilotToGeoJSON(coffeePilotCafes);
+    coffeePilotCafesRef.current = coffeePilotCafes;
+    if (!mapReady) return;
+    applyToMap("coffee-pilot:data", (map) => {
+      (map.getSource("coffee-pilot") as maplibregl.GeoJSONSource | undefined)?.setData(
+        coffeePilotDataRef.current,
+      );
+    });
+  }, [coffeePilotCafes, mapReady, applyToMap]);
+
+  // London restaurants → source data, on the same deal as the coffee pilot.
+  useEffect(() => {
+    londonRestaurantDataRef.current = londonRestaurantsToGeoJSON(londonRestaurants);
+    londonRestaurantsRef.current = londonRestaurants;
+    if (!mapReady) return;
+    applyToMap("london-restaurants:data", (map) => {
+      (map.getSource("london-restaurants") as maplibregl.GeoJSONSource | undefined)?.setData(
+        londonRestaurantDataRef.current,
+      );
+    });
+  }, [londonRestaurants, mapReady, applyToMap]);
 
   // POIs load once (client fetch) and feed the "pois" source.
   // Non-London cities pass poisPath=null → empty layer, no 404.
@@ -3602,6 +3921,13 @@ export default function PubMapCanvas({
     routeLineRef.current = routeToLine(route);
     routeStopsRef.current = routeToStops(route);
     selectedIdRef.current = selectedVenueId;
+    // A parent re-render hands over a new `route` array for the same stops;
+    // only a real change of stops or selection is news worth moving for.
+    const motionKey = `${route.map((venue) => venue.id).join(",")}|${selectedVenueId}`;
+    if (motionKey !== ambientMotionKeyRef.current) {
+      ambientMotionKeyRef.current = motionKey;
+      ambientMotionWokeAtRef.current = performance.now();
+    }
     if (!mapReady) return;
     // Route source data via the permissive gate (see applyRouteData) so a
     // set-once plan route paints even while basemap tiles are still loading.
@@ -3618,11 +3944,10 @@ export default function PubMapCanvas({
         // loop takes over from here again next frame if a venue is selected,
         // and a deselect leaves the ring at this baseline (not mid-pulse).
         map.setPaintProperty("pubs-selected-glow", "circle-stroke-opacity", GLOW_BASE_STROKE_OPACITY);
-        // Slightly fatter ring while selected so the pinpoint reads under the sheet.
         map.setPaintProperty(
           "pubs-selected-glow",
           "circle-stroke-width",
-          selectedIdRef.current ? GLOW_BASE_STROKE_WIDTH + 1.2 : GLOW_BASE_STROKE_WIDTH,
+          selectedIdRef.current ? GLOW_SELECTED_STROKE_WIDTH : GLOW_BASE_STROKE_WIDTH,
         );
       }
       if (map.getLayer("pubs-selected")) {
@@ -3632,6 +3957,14 @@ export default function PubMapCanvas({
       // selected id drives it, so exactly one of the two ever matches.
       if (map.getLayer("uk-base-selected")) {
         map.setFilter("uk-base-selected", selectedFilter);
+      }
+      // So does a Shoreditch pilot cafe: its `venue-osm-` id matches no pub.
+      if (map.getLayer("coffee-pilot-selected")) {
+        map.setFilter("coffee-pilot-selected", selectedFilter);
+      }
+      // And a London restaurant, whose `venue-osm-` id matches no pub either.
+      if (map.getLayer("london-restaurant-selected")) {
+        map.setFilter("london-restaurant-selected", selectedFilter);
       }
       // M1 selection spotlight — dim every non-selected pub pin; the selected
       // pin stays fully opaque. Deselect restores the plain serves-based dim.
@@ -3764,6 +4097,16 @@ export default function PubMapCanvas({
     didFitUserLocationRef.current = key;
     fitNearby(userLocation, nearbyMapVenues);
   }, [mapReady, userLocation, route.length, nearbyMapVenues, fitNearby]);
+  // The camera probe's reading of that same rule: a granted location with pubs
+  // around it that has not been framed yet is a move the map still owes.
+  useEffect(() => {
+    nearbyFramingOwedRef.current =
+      Boolean(userLocation) &&
+      route.length < 2 &&
+      nearbyMapVenues.length > 0 &&
+      didFitUserLocationRef.current !==
+        `${userLocation?.lat.toFixed(5)},${userLocation?.lng.toFixed(5)}`;
+  }, [mapReady, userLocation, route.length, nearbyMapVenues]);
 
   // The reader's dot is a CANVAS layer under the pins (see buildUserLocation),
   // not a DOM marker over them, so a pin the reader is standing on keeps its
@@ -3800,7 +4143,9 @@ export default function PubMapCanvas({
   // remain out of the deps (no re-flying on churn, the original guarantee).
   const selectedPresent =
     Boolean(selectedVenueId) &&
-    (venues.some((item) => item.id === selectedVenueId) || isUkBaseId(selectedVenueId));
+    (venues.some((item) => item.id === selectedVenueId) ||
+      isUkBaseId(selectedVenueId) ||
+      londonPlaceDrawn(selectedVenueId, coffeePilotCafes, londonRestaurants));
 
   // There is no ambient camera here, and that is a decision (captain, 3 Sep
   // 2026). An idle orbit used to turn the map at 0.6 degrees a second once the
@@ -3837,7 +4182,17 @@ export default function PubMapCanvas({
             const base = ukBaseResidentPubsRef.current.find(
               (pub) => pub.id === selectedVenueId,
             );
-            return base ? ([base.lng, base.lat] as [number, number]) : null;
+            if (base) return [base.lng, base.lat] as [number, number];
+            // A Shoreditch pilot cafe is not a venue either; it carries its own place.
+            const cafe = coffeePilotCafesRef.current.find(
+              (item) => item.id === selectedVenueId,
+            );
+            if (cafe) return [cafe.lng, cafe.lat] as [number, number];
+            // So is a London restaurant.
+            const restaurant = londonRestaurantsRef.current.find(
+              (item) => item.id === selectedVenueId,
+            );
+            return restaurant ? ([restaurant.lng, restaurant.lat] as [number, number]) : null;
           })();
     if (!center) return;
     const isPhone = window.matchMedia("(max-width: 640px)").matches;
@@ -3970,38 +4325,107 @@ export default function PubMapCanvas({
     () => (hoveredVenueId ? venues.find((venue) => venue.id === hoveredVenueId) : undefined),
     [venues, hoveredVenueId],
   );
-  const hoverSignal = hoveredVenueId ? venueSignals.get(hoveredVenueId) : undefined;
-  const hoverCopy = hoverCardCopy(
-    hoverMapVenue,
-    hoverSignal,
-    hoverDetail,
-    Boolean(hoveredVenueId && provisionalVenueIds?.has(hoveredVenueId)),
-    lensPrices === null || !hoveredVenueId
-      ? undefined
-      : lensPrices.get(hoveredVenueId) ?? null,
-    lensNoun,
-    lensIndexStatus,
-  );
-  const hoverImageUrl = hoverImageUrlFor(hoverDetail, failedHoverImage, hoveredVenueId);
-  const hoverCardStyle = hoveredVenue
-    ? {
-        left: `clamp(${HOVER_CARD_VIEWPORT_GUTTER_PX}px, ${hoveredVenue.x + HOVER_CARD_X_OFFSET_PX}px, calc(100vw - ${HOVER_CARD_WIDTH_PX + HOVER_CARD_VIEWPORT_GUTTER_PX}px))`,
-        top: `clamp(${HOVER_CARD_MIN_TOP_PX}px, ${hoveredVenue.y + HOVER_CARD_Y_OFFSET_PX}px, calc(100dvh - ${HOVER_CARD_HEIGHT_PX + HOVER_CARD_VIEWPORT_GUTTER_PX}px))`,
-      }
-    : undefined;
 
-  if (mapError) {
+  // Both Retry buttons fully re-init: clear the failure, let the context
+  // auto-retry spend itself again, and remount MapLibre.
+  const reinitMap = () => {
+    setMapError(null);
+    setSoftRetry(null);
+    publishMapErrored(false);
+    publishMapReady(false);
+    contextAutoReinitSpentRef.current = false;
+    setInitAttempt((a) => a + 1);
+  };
+
+  // The desktop hover card, as a nested function rather than a component so the
+  // element tree is unchanged and ESLint scores its branches on their own.
+  const renderVenueHoverCard = (hovered: HoveredVenue) => {
+    const hoverCopy = hoverCardCopy(
+      hoverMapVenue,
+      venueSignals.get(hovered.id),
+      hoverDetail,
+      Boolean(provisionalVenueIds?.has(hovered.id)),
+      lensPrices === null ? undefined : lensPrices.get(hovered.id) ?? null,
+      lensNoun,
+      lensIndexStatus,
+    );
+    const hoverImageUrl = hoverImageUrlFor(hoverDetail, failedHoverImage, hovered.id);
+    const hoverCardStyle = {
+      left: `clamp(${HOVER_CARD_VIEWPORT_GUTTER_PX}px, ${hovered.x + HOVER_CARD_X_OFFSET_PX}px, calc(100vw - ${HOVER_CARD_WIDTH_PX + HOVER_CARD_VIEWPORT_GUTTER_PX}px))`,
+      top: `clamp(${HOVER_CARD_MIN_TOP_PX}px, ${hovered.y + HOVER_CARD_Y_OFFSET_PX}px, calc(100dvh - ${HOVER_CARD_HEIGHT_PX + HOVER_CARD_VIEWPORT_GUTTER_PX}px))`,
+    };
+    return (
+      <aside className="venueHoverCard" style={hoverCardStyle} aria-hidden="true">
+        {hoverImageUrl ? (
+          <figure className="venueHoverPhoto">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={hoverImageUrl}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              onError={() =>
+                setFailedHoverImage({ venueId: hovered.id, url: hoverImageUrl })
+              }
+            />
+          </figure>
+        ) : (
+          <div className="venueHoverPhotoFallback" aria-hidden="true">
+            <span>{hovered.name.slice(0, 1).toUpperCase()}</span>
+          </div>
+        )}
+        <div className="venueHoverBody">
+          <span className="venueHoverEyebrow">
+            {hoverDetail === undefined
+              ? `Loading ${hoverCopy.venueTypeLabel.toLowerCase()} picture`
+              : hoverDetail
+                ? `${hoverCopy.venueTypeLabel} preview`
+                : `Fast ${hoverCopy.venueTypeLabel.toLowerCase()} preview`}
+          </span>
+          <strong>{hoverDetail?.name ?? hovered.name}</strong>
+          <span className="venueHoverMeta">
+            {hoverDetail?.primaryBorough ? `${hoverDetail.primaryBorough} · ` : ""}
+            {hoverCopy.price !== null && hoverCopy.price !== undefined ? (
+              <>
+                {/* The figure wears its price band (lib/priceBand.ts). */}
+                <span className={hoverPriceBandClass(hoverCopy)}>
+                  {formatPrice(hoverCopy.price)}
+                </span>{" "}
+                {hoverCopy.priceSuffix}
+              </>
+            ) : (
+              `Tap for full ${hoverCopy.detailLabel}`
+            )}
+          </span>
+          <span className="venueHoverProvenance">{hoverCopy.provenance}</span>
+          {/* The badge on the pin, said in words. Its dot is the same colour
+              as the one the map is drawing, so the card explains a mark the
+              reader can see rather than introducing a new one. */}
+          {hoverCopy.pendingNote ? (
+            <span className="venueHoverPending">
+              <i className="venueHoverPendingDot" />
+              {hoverCopy.pendingNote}
+            </span>
+          ) : null}
+        </div>
+      </aside>
+    );
+  };
+
+  // A nested function rather than a component, so the element tree is the one
+  // the early return always produced and ESLint scores the heading on its own.
+  const renderMapErrorFallback = (error: NonNullable<typeof mapError>) => {
     // Heading + body vary by cause so we never cry "needs WebGL" at a browser
     // that has it. Only the confirmed-dead-probe case makes that claim (and
     // hides Retry, since a re-init can't conjure a context that doesn't exist);
     // every other kind gets an honest one-liner and a Retry that fully re-inits.
-    const heading = mapError.noWebgl
+    const heading = error.noWebgl
       ? "Map unavailable"
-      : mapError.kind === "tiles"
+      : error.kind === "tiles"
         ? "Map tiles unavailable"
-        : mapError.kind === "no-frame"
+        : error.kind === "no-frame"
           ? "Map couldn't draw"
-          : mapError.kind === "context-lost"
+          : error.kind === "context-lost"
             ? "Map lost its graphics"
             : "Map couldn't start";
     // Static venue alternative: the slim pin index needs no WebGL, so surface
@@ -4018,26 +4442,41 @@ export default function PubMapCanvas({
         <MapFallbackCard
           key="map-fallback"
           heading={heading}
-          message={`${mapError.message} The pub list and crawl planner beside it still work as ever.`}
-          detail={mapError.detail}
+          message={`${error.message} The pub list and crawl planner beside it still work as ever.`}
+          detail={error.detail}
           venues={fallbackVenues}
           onSelectVenue={onVenueClick}
-          onRetry={
-            mapError.noWebgl
-              ? null
-              : () => {
-                  setMapError(null);
-                  setSoftRetry(null);
-                  publishMapErrored(false);
-                  publishMapReady(false);
-                  contextAutoReinitSpentRef.current = false;
-                  setInitAttempt((a) => a + 1);
-                }
-          }
+          onRetry={error.noWebgl ? null : reinitMap}
         />
       </div>
     );
-  }
+  };
+
+  // The compass, and the phone's Layers-tab Reset view: one action. It eases to
+  // the attitude the city opens on (lib/mapCompass.ts), and does nothing when
+  // the camera is already there.
+  const resetCameraAttitude = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const designed = getCity(cityId).mapView;
+    if (!mapIsOffHouseAttitude(map.getBearing(), map.getPitch(), designed)) return;
+    const target = compassResetTarget(designed);
+    map.easeTo({
+      bearing: target.bearing,
+      pitch: target.pitch,
+      duration: reducedRef.current ? 0 : COMPASS_RESET_DURATION_MS,
+      easing: easeOutCubic,
+    });
+  }, [cityId]);
+  const cameraOffAttitude = mapIsOffHouseAttitude(mapBearing, mapPitch, getCity(cityId).mapView);
+  useEffect(() => {
+    onCameraResetChange?.(
+      cameraResetAvailable(cameraOffAttitude, mapError !== null) ? resetCameraAttitude : null,
+    );
+    return () => onCameraResetChange?.(null);
+  }, [cameraOffAttitude, mapError, resetCameraAttitude, onCameraResetChange]);
+
+  if (mapError) return renderMapErrorFallback(mapError);
 
   const canRecenter = route.length >= 2;
   const cityDisplayName = getCity(cityId).displayName;
@@ -4061,19 +4500,7 @@ export default function PubMapCanvas({
       <button
         type="button"
         className="mapCompassBtn"
-        onClick={() => {
-          const map = mapRef.current;
-          if (!map) return;
-          const designed = getCity(cityId).mapView;
-          if (!mapIsOffHouseAttitude(map.getBearing(), map.getPitch(), designed)) return;
-          const target = compassResetTarget(designed);
-          map.easeTo({
-            bearing: target.bearing,
-            pitch: target.pitch,
-            duration: reducedRef.current ? 0 : COMPASS_RESET_DURATION_MS,
-            easing: easeOutCubic,
-          });
-        }}
+        onClick={resetCameraAttitude}
         aria-label={compassResetLabel(cityDisplayName)}
         title={compassResetLabel(cityDisplayName)}
       >
@@ -4097,6 +4524,7 @@ export default function PubMapCanvas({
       data-route-stops={route.length}
       data-venue-count={venues.length}
       data-uk-base-count={ukBase.count}
+      data-london-restaurant-count={londonRestaurants.length}
       data-uk-base-status={ukBase.status}
     >
       {/* A finger or a cursor on the map, whatever it lands on. `pointerdown`
@@ -4136,12 +4564,7 @@ export default function PubMapCanvas({
                 pinRetryRef.current?.(softRetry.kind);
                 return;
               }
-              setSoftRetry(null);
-              setMapError(null);
-              publishMapErrored(false);
-              publishMapReady(false);
-              contextAutoReinitSpentRef.current = false;
-              setInitAttempt((a) => a + 1);
+              reinitMap();
             }}
           >
             Retry
@@ -4172,64 +4595,7 @@ export default function PubMapCanvas({
           </button>
         </div>
       ) : null}
-      {hoveredVenue ? (
-        <aside className="venueHoverCard" style={hoverCardStyle} aria-hidden="true">
-          {hoverImageUrl ? (
-            <figure className="venueHoverPhoto">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={hoverImageUrl}
-                alt=""
-                loading="lazy"
-                decoding="async"
-                onError={() => {
-                  if (hoveredVenueId) {
-                    setFailedHoverImage({ venueId: hoveredVenueId, url: hoverImageUrl });
-                  }
-                }}
-              />
-            </figure>
-          ) : (
-            <div className="venueHoverPhotoFallback" aria-hidden="true">
-              <span>{hoveredVenue.name.slice(0, 1).toUpperCase()}</span>
-            </div>
-          )}
-          <div className="venueHoverBody">
-            <span className="venueHoverEyebrow">
-              {hoverDetail === undefined
-                ? `Loading ${hoverCopy.venueTypeLabel.toLowerCase()} picture`
-                : hoverDetail
-                  ? `${hoverCopy.venueTypeLabel} preview`
-                  : `Fast ${hoverCopy.venueTypeLabel.toLowerCase()} preview`}
-            </span>
-            <strong>{hoverDetail?.name ?? hoveredVenue.name}</strong>
-            <span className="venueHoverMeta">
-              {hoverDetail?.primaryBorough ? `${hoverDetail.primaryBorough} · ` : ""}
-              {hoverCopy.price !== null && hoverCopy.price !== undefined ? (
-                <>
-                  {/* The figure wears its price band (lib/priceBand.ts). */}
-                  <span className={hoverPriceBandClass(hoverCopy)}>
-                    {formatPrice(hoverCopy.price)}
-                  </span>{" "}
-                  {hoverCopy.priceSuffix}
-                </>
-              ) : (
-                `Tap for full ${hoverCopy.detailLabel}`
-              )}
-            </span>
-            <span className="venueHoverProvenance">{hoverCopy.provenance}</span>
-            {/* The badge on the pin, said in words. Its dot is the same colour
-                as the one the map is drawing, so the card explains a mark the
-                reader can see rather than introducing a new one. */}
-            {hoverCopy.pendingNote ? (
-              <span className="venueHoverPending">
-                <i className="venueHoverPendingDot" />
-                {hoverCopy.pendingNote}
-              </span>
-            ) : null}
-          </div>
-        </aside>
-      ) : null}
+      {hoveredVenue ? renderVenueHoverCard(hoveredVenue) : null}
       {heroVenue && !heroDismissed ? (
         <MapHeroCard
           venue={heroVenue}

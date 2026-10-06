@@ -14,6 +14,7 @@
 // nothing near the route, the honest answer is that we found nothing, never a
 // nearest-anything substituted for the thing that was asked for.
 
+import { lngLatOf } from "@/lib/geo";
 import { haversineKm } from "@/lib/haversine";
 import { POI_CATEGORIES, POI_CATEGORY_META, type Poi, type PoiCategory } from "@/lib/pois";
 
@@ -256,7 +257,8 @@ export function cleanCultureOpener(value: unknown): CultureOpenerDTO | null {
     && Array.isArray(coordinates) && coordinates.length === 2
     && coordinates.every((part) => typeof part === "number" && Number.isFinite(part))
     && (POI_CATEGORIES as readonly unknown[]).includes(point.category);
-  if (!ok) return { requested, waypoint: null, note: CULTURE_WAYPOINT_NONE_NOTE };
+  const lngLat = ok ? lngLatOf(coordinates as number[]) : null;
+  if (!lngLat) return { requested, waypoint: null, note: CULTURE_WAYPOINT_NONE_NOTE };
   return {
     requested,
     waypoint: {
@@ -266,7 +268,7 @@ export function cleanCultureOpener(value: unknown): CultureOpenerDTO | null {
       categoryLabel: point.categoryLabel as string,
       kind: point.kind as CultureWaypointKind,
       distanceKm: point.distanceKm as number,
-      coordinates: [(coordinates as number[])[0], (coordinates as number[])[1]],
+      coordinates: lngLat,
     },
     note: row.note,
   };

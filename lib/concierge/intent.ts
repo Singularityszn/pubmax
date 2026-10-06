@@ -8,7 +8,7 @@ import {
   NUMBER_WORDS,
   areaCandidatesInText,
   defaultKnownAreas,
-  extractAreaPhrase,
+  deterministicAreaInText,
   extractExplicitBudget,
   groupSizeCandidatesInText,
   intentFromJudgment,
@@ -50,16 +50,16 @@ const MOOD_TERMS: Record<ConciergeMood, RegExp> = {
   heritage: /\b(?:heritage|historic|history|old pub)\b/i,
 };
 
-function deterministicIntent(text: string): ConciergeIntent {
+function deterministicIntent(text: string, knownAreas: readonly string[]): ConciergeIntent {
   const mood = CONCIERGE_MOODS.filter((candidate) => MOOD_TERMS[candidate].test(text));
   const numericGroup = text.match(/\b(\d{1,2})\s+(?:of us|people|mates|pax)\b/i)?.[1]
     ?? text.match(/\b(?:for|group of|we(?:'re| are))\s+(?!£)(\d{1,2})\b/i)?.[1];
   const wordGroup = text.match(/\b(one|two|three|four|five|six|seven|eight|nine|ten|twelve)\s+(?:of us|people|mates|pax)\b/i)?.[1]
     ?? text.match(/\b(?:for|group of|we(?:'re| are))\s+(one|two|three|four|five|six|seven|eight|nine|ten|twelve)\b/i)?.[1];
-  const parsedGroup = numericGroup ? Number(numericGroup) : wordGroup ? NUMBER_WORDS[wordGroup.toLowerCase()] : DEFAULT_GROUP_SIZE;
+  const parsedGroup = numericGroup ? Number(numericGroup) : wordGroup ? (NUMBER_WORDS[wordGroup.toLowerCase()] ?? DEFAULT_GROUP_SIZE) : DEFAULT_GROUP_SIZE;
   const groupSize = Math.min(20, Math.max(1, parsedGroup));
 
-  const area = extractAreaPhrase(text);
+  const area = deterministicAreaInText(text, knownAreas);
 
   const explicitBudget = extractExplicitBudget(text);
   const maxPintPrice = explicitBudget !== undefined
@@ -158,12 +158,13 @@ export async function parseConciergeIntent(
   options: ParseOptions = {},
 ): Promise<ParsedConciergeIntent> {
   const clipped = text.slice(0, 500);
-  const fallback = deterministicIntent(clipped);
+  const knownAreas = options.knownAreas ?? defaultKnownAreas();
+  const fallback = deterministicIntent(clipped, knownAreas);
   if (shouldUseDeterministicIntentOnly(options)) {
     return { intent: fallback, source: "deterministic" };
   }
   try {
-    const parsed = await typesafeIntent(clipped, options.knownAreas ?? defaultKnownAreas());
+    const parsed = await typesafeIntent(clipped, knownAreas);
     return parsed
       ? { intent: parsed, source: "model" }
       : { intent: fallback, source: "deterministic" };

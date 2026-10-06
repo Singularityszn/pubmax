@@ -1,6 +1,5 @@
-// Effective proof for 0136. The shape pins live in
-// planJoinRevokedPrecheckMigration.test.ts; this file APPLIES the migration to
-// a real PostgreSQL 16 and drives the two account entry points, because
+// Effective proof for 0136. This file APPLIES the migration to a real
+// PostgreSQL 16 and drives the two account entry points, because
 // "a revoked seat no longer blocks a join" is a claim about what the database
 // does and only the database can answer it.
 //

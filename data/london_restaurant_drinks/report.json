@@ -1,0 +1,32 @@
+{
+  "meaning": "Counts from the last run of scripts/harvest_london_restaurant_drinks.mjs. Every candidate has a site (siteFromOsm, siteFromSearch) or not (noSite, notSearched, pending); every site lands in one of robotsRefused, robotsSkipped, unreadable, landedOffSite, refusesAlcohol, noEvidence, pending or accepted. tavilyTotals accumulates every run's spend; account invoices remain authoritative.",
+  "searchLimit": 1500,
+  "counts": {
+    "osmRestaurants": 9801,
+    "candidates": 9429,
+    "siteFromOsm": 3949,
+    "searched": 1500,
+    "siteFromSearch": 312,
+    "noSite": 1188,
+    "notSearched": 3980,
+    "robotsRefused": 229,
+    "robotsSkipped": 524,
+    "unreadable": 414,
+    "landedOffSite": 0,
+    "refusesAlcohol": 47,
+    "noEvidence": 2029,
+    "pending": 0,
+    "accepted": 1018
+  },
+  "lastRunTavily": {
+    "searches": 0,
+    "extractCalls": 0,
+    "credits": 0,
+    "approxUsd": 0
+  },
+  "tavilyTotals": {
+    "searches": 1364,
+    "extractCalls": 245,
+    "credits": 1997
+  }
+}

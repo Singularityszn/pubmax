@@ -124,6 +124,7 @@ import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
 import { PalMeetingScreen } from "@/components/pal/PalExperience";
 import SocialPageClient from "@/app/social/SocialPageClient";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
+import { defined } from "@/__tests__/helpers/defined";
 
 const root = process.cwd();
 const wordmark = readFileSync(join(root, "components/brand/PubmaxxWordmark.tsx"), "utf8");
@@ -322,7 +323,7 @@ function tableRoutes(): string[] {
   const table = readFileSync(join(root, "docs/design/LAUNCH_SCREENS.md"), "utf8");
   const body = table.slice(0, table.indexOf("## Retired addresses"));
   return [...body.matchAll(/^\| (`[^|]+)/gm)].flatMap((m) =>
-    [...m[1].matchAll(/`(\/[^`]*)`/g)].map((r) => r[1]),
+    [...defined(m[1]).matchAll(/`(\/[^`]*)`/g)].map((r) => defined(r[1])),
   );
 }
 
@@ -356,12 +357,12 @@ describe("every launch route is rendered by an audit", () => {
       ...nextConfig.matchAll(
         /source:\s*"(\/[^"*]*)",\s*destination:\s*"([^"]+)",\s*permanent:\s*true/g,
       ),
-    ].map((match) => match[1]);
+    ].map((match) => defined(match[1]));
     expect(redirected.length, "permanent redirects read out of next.config.mjs")
       .toBeGreaterThan(2);
     const rows = new Set(tableRoutes());
     expect(
-      redirected.filter((route) => rows.has(route)),
+      redirected.filter((route) => rows.has(defined(route))),
       "launch table rows the router answers with a 308",
     ).toEqual([]);
   });

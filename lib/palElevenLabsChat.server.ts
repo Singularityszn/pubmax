@@ -3,6 +3,12 @@ import "server-only";
 import { composeAnswer } from "@/lib/ask/runAsk";
 import type { AskCard, AskProposal } from "@/lib/ask/types";
 import { resolveAskCityId } from "@/lib/ask/tools";
+import {
+  readConfirmedPalMemories,
+  palMemoryPreamble,
+  type PalRecalledMemory,
+} from "@/lib/palConfirmedMemories.server";
+import { palSessionSummaryTurn, windowPalSessionTurns } from "@/lib/palSessionSummary";
 import { isPubPalConversationId } from "@/lib/pubPalConversationId";
 import {
   pubPalGetHomeRegisterAnswer,
@@ -16,7 +22,7 @@ import {
   type PubPalToolTurn,
 } from "@/lib/pubPalToolTurnStore";
 
-const CHAT_TIMEOUT_MS = 28_000;
+const CHAT_TIMEOUT_MS = 22_000;
 const TOOL_TURN_WAIT_MS = 4_000;
 const TOOL_TURN_POLL_MS = 120;
 
@@ -39,21 +45,32 @@ async function waitForPubPalToolTurn(conversationId: string): Promise<PubPalTool
   return readPubPalToolTurn(conversationId);
 }
 
-/** The signed-in owner's earlier asks, read from their own stored turn and never from the request. */
-async function priorOwnedAsks(threadId: unknown, ownerId: string): Promise<PubPalFenceTurn[]> {
-  if (typeof threadId !== "string" || !isPubPalConversationId(threadId)) return [];
+type PriorSession = { turns: PubPalFenceTurn[]; summary: string };
+
+/**
+ * The signed-in owner's earlier asks, read from their own stored turn and never
+ * from the request. The newest stay word for word and older ones roll into the
+ * session summary.
+ */
+async function priorOwnedSession(threadId: unknown, ownerId: string): Promise<PriorSession> {
+  if (typeof threadId !== "string" || !isPubPalConversationId(threadId)) return { turns: [], summary: "" };
   const prior = await readOwnedPubPalToolTurn(threadId, ownerId);
-  if (!prior) return [];
-  return [...prior.turns, { role: "user" as const, content: prior.query }]
-    .filter((turn) => turn.role === "user" && turn.content.trim())
-    .slice(-6);
+  if (!prior) return { turns: [], summary: "" };
+  const asks = [...prior.turns, { role: "user" as const, content: prior.query }].filter(
+    (turn) => turn.role === "user" && turn.content.trim(),
+  );
+  return windowPalSessionTurns(prior.summary, asks);
 }
 
-function userMessageText(query: string, priorAsks: PubPalFenceTurn[]): string {
-  if (priorAsks.length === 0) return query;
+/** The typed turn as the agent reads it: confirmed memories, the session summary, earlier asks, then the ask itself. */
+function userMessageText(query: string, prior: PriorSession, memories: PalRecalledMemory[] | null): string {
+  const priorAsks = prior.turns;
   return [
-    "My earlier asks in this chat, oldest first:",
-    ...priorAsks.map((turn) => `- ${turn.content}`),
+    ...palMemoryPreamble(memories),
+    ...palSessionSummaryTurn(prior.summary),
+    ...(priorAsks.length > 0
+      ? ["My earlier asks in this chat, oldest first:", ...priorAsks.map((turn) => `- ${turn.content}`)]
+      : []),
     `Now: ${query}`,
   ].join("\n");
 }
@@ -61,6 +78,8 @@ function userMessageText(query: string, priorAsks: PubPalFenceTurn[]): string {
 type AgentResponseEvent = {
   type?: string;
   agent_response_event?: { agent_response?: string };
+  agent_tool_request?: { tool_call_id?: string };
+  agent_tool_response?: { tool_call_id?: string };
   ping_event?: { event_id?: number };
   conversation_initiation_metadata_event?: {
     conversation_id?: string;
@@ -113,14 +132,16 @@ export async function runPalElevenLabsChatTurn(
 
   const query = input.query.trim().slice(0, 500);
   if (!query) return { ok: false, code: "UNAVAILABLE" };
+  const deadline = Date.now() + CHAT_TIMEOUT_MS;
 
   const cityId = resolveAskCityId(input.cityId);
-  let turns: PubPalFenceTurn[];
+  let prior: PriorSession;
   try {
-    turns = await priorOwnedAsks(input.threadId, input.ownerId);
+    prior = await priorOwnedSession(input.threadId, input.ownerId);
   } catch {
     return { ok: false, code: "UNAVAILABLE" };
   }
+  const turns = prior.turns;
   const fenceTurns = (input.fenceTurns ?? []).filter((turn) => turn.role === "user");
   const { fenced, sobrietyOnly } = await resolvePubPalFenceIntent(query, [
     ...fenceTurns,
@@ -137,23 +158,63 @@ export async function runPalElevenLabsChatTurn(
     };
   }
 
+  // Read from the signed-in owner's own Pal, never from the request body. It never rejects.
+  const memoriesRead = readConfirmedPalMemories(input.ownerId);
+
   let signedUrl: string;
   try {
     signedUrl = await fetchSignedConversationUrl(apiKey, agentId);
   } catch {
     return { ok: false, code: "PROVIDER_UNAVAILABLE" };
   }
+  const memories = await memoriesRead;
 
   return new Promise((resolve) => {
     let settled = false;
     let conversationId = "";
     let userMessageSent = false;
+    let latestReply = "";
+    let replyGeneration = 0;
+    let toolEvents = 0;
+    let replyToolEvents = 0;
+    const pendingToolCalls = new Set<string>();
+    // The agent says a checking line before each tool call, so a reply is the
+    // answer only when no tool event followed it and no tool is still running.
+    const replyIsAnswer = () => replyToolEvents === toolEvents && pendingToolCalls.size === 0;
+    const answer = (agentMessage: string, turn: PubPalToolTurn | null): PalElevenLabsChatOutcome => {
+      const cards = turn?.cards ?? [];
+      const proposals = turn?.proposals ?? [];
+      const message =
+        agentMessage ||
+        (turn?.hints.length
+          ? composeAnswer(turn.hints, cards, [])
+          : cards.length > 0
+            ? composeAnswer([], cards, [])
+            : "Nothing sourced for that. Try a nearby area or a broader ask.");
+      return {
+        ok: true,
+        message,
+        cards,
+        proposals,
+        conversationId,
+        toolsUsed: turn?.toolsUsed ?? [],
+      };
+    };
     const timer = setTimeout(() => {
       if (settled) return;
-      settled = true;
-      ws.close();
-      resolve({ ok: false, code: "TIMEOUT" });
-    }, CHAT_TIMEOUT_MS);
+      if (!latestReply || !replyIsAnswer()) {
+        finish({ ok: false, code: "TIMEOUT" });
+        return;
+      }
+      const agentMessage = latestReply;
+      void (async () => {
+        try {
+          finish(answer(agentMessage, conversationId ? await readPubPalToolTurn(conversationId) : null));
+        } catch {
+          finish({ ok: false, code: "TIMEOUT" });
+        }
+      })();
+    }, Math.max(0, deadline - Date.now()));
 
     const finish = (outcome: PalElevenLabsChatOutcome) => {
       if (settled) return;
@@ -165,6 +226,21 @@ export async function runPalElevenLabsChatTurn(
         // ignore
       }
       resolve(outcome);
+    };
+
+    const finishWithLatestReply = () => {
+      const agentMessage = latestReply;
+      const generation = replyGeneration;
+      const events = toolEvents;
+      void (async () => {
+        try {
+          const turn = conversationId ? await waitForPubPalToolTurn(conversationId) : null;
+          if (generation !== replyGeneration || events !== toolEvents) return;
+          finish(answer(agentMessage, turn));
+        } catch {
+          finish({ ok: false, code: "UNAVAILABLE" });
+        }
+      })();
     };
 
     const ws = new WebSocket(signedUrl);
@@ -179,7 +255,14 @@ export async function runPalElevenLabsChatTurn(
             },
             conversation: {
               text_only: true,
-              client_events: ["agent_response", "conversation_initiation_metadata", "ping"],
+              client_events: [
+                "agent_response",
+                "agent_response_complete",
+                "agent_tool_request",
+                "agent_tool_response",
+                "conversation_initiation_metadata",
+                "ping",
+              ],
             },
           },
         }),
@@ -218,10 +301,11 @@ export async function runPalElevenLabsChatTurn(
               cityId,
               ownerId: input.ownerId,
               turns,
+              summary: prior.summary,
             });
             userMessageSent = true;
             ws.send(
-              JSON.stringify({ type: "user_message", text: userMessageText(query, turns) }),
+              JSON.stringify({ type: "user_message", text: userMessageText(query, prior, memories) }),
             );
           } catch {
             finish({ ok: false, code: "UNAVAILABLE" });
@@ -232,31 +316,31 @@ export async function runPalElevenLabsChatTurn(
 
       if (payload.type === "agent_response") {
         if (!userMessageSent) return;
-        const agentMessage = payload.agent_response_event?.agent_response?.trim() ?? "";
-        void (async () => {
-          try {
-            const turn = conversationId ? await waitForPubPalToolTurn(conversationId) : null;
-            const cards = turn?.cards ?? [];
-            const proposals = turn?.proposals ?? [];
-            const message =
-              agentMessage ||
-              (turn?.hints.length
-                ? composeAnswer(turn.hints, cards, [])
-                : cards.length > 0
-                  ? composeAnswer([], cards, [])
-                  : "Nothing sourced for that. Try a nearby area or a broader ask.");
-            finish({
-              ok: true,
-              message,
-              cards,
-              proposals,
-              conversationId,
-              toolsUsed: turn?.toolsUsed ?? [],
-            });
-          } catch {
-            finish({ ok: false, code: "UNAVAILABLE" });
-          }
-        })();
+        latestReply = payload.agent_response_event?.agent_response?.trim() ?? "";
+        replyGeneration += 1;
+        replyToolEvents = toolEvents;
+        // Once a tool is asked for, only the turn end may finish it.
+        if (toolEvents === 0) finishWithLatestReply();
+        return;
+      }
+
+      if (payload.type === "agent_tool_request") {
+        if (!userMessageSent) return;
+        toolEvents += 1;
+        pendingToolCalls.add(payload.agent_tool_request?.tool_call_id ?? "");
+        return;
+      }
+
+      if (payload.type === "agent_tool_response") {
+        if (!userMessageSent) return;
+        toolEvents += 1;
+        pendingToolCalls.delete(payload.agent_tool_response?.tool_call_id ?? "");
+        return;
+      }
+
+      if (payload.type === "agent_response_complete") {
+        if (!userMessageSent || !replyIsAnswer()) return;
+        finishWithLatestReply();
       }
     });
 

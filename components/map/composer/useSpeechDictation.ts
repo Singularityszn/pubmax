@@ -71,7 +71,7 @@ export function useSpeechDictation({
       recognition.onresult = (event) => {
         let transcript = "";
         for (let i = event.resultIndex; i < event.results.length; i += 1) {
-          transcript += event.results[i]["0"].transcript;
+          transcript += event.results[i]?.[0]?.transcript ?? "";
         }
         const base = noteBeforeListeningRef.current;
         const joined = base.trim() ? `${base.trim()} ${transcript}` : transcript;

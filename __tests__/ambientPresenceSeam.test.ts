@@ -39,6 +39,7 @@ vi.mock("@/lib/supabase", () => {
 
 import { recentPresenceWithAmbient } from "@/lib/presenceStore";
 import { ambientPresenceRows } from "@/lib/ambientPresence";
+import { defined } from "@/__tests__/helpers/defined";
 
 // 22:00 London (BST) — peak hour, so the ambient layer WOULD be non-empty if it
 // leaked past the Supabase gate.
@@ -52,8 +53,8 @@ describe("recentPresenceWithAmbient — Supabase configured", () => {
 
     const rows = await recentPresenceWithAmbient(undefined, PEAK);
     expect(rows).toHaveLength(1);
-    expect(rows[0].handle).toBe("live_sam");
-    expect(rows[0].provenance).toBeUndefined();
+    expect(defined(rows[0]).handle).toBe("live_sam");
+    expect(defined(rows[0]).provenance).toBeUndefined();
     expect(rows.every((r) => r.provenance !== "demo")).toBe(true);
   });
 });

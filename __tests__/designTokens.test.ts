@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LAUNCH TOKENS  (docs/DESIGN_SYSTEM.md · "Launch tokens")
@@ -90,14 +91,14 @@ function launchTokensSection(doc: string): string {
 function declaredTokens(css: string): Set<string> {
   // Every `--name:` declared anywhere in the sheet. Theme and legacy blocks
   // override values, never introduce names, so the union is the :root set.
-  return new Set([...css.matchAll(/^\s*(--[a-z0-9-]+)\s*:/gim)].map((m) => m[1]));
+  return new Set([...css.matchAll(/^\s*(--[a-z0-9-]+)\s*:/gim)].map((m) => defined(m[1])));
 }
 
 describe("launch tokens", () => {
   const globals = read("app/globals.css");
   const declared = declaredTokens(globals);
   const section = launchTokensSection(read("docs/DESIGN_SYSTEM.md"));
-  const documented = new Set([...section.matchAll(/`(--[a-z0-9-]+)`/g)].map((m) => m[1]));
+  const documented = new Set([...section.matchAll(/`(--[a-z0-9-]+)`/g)].map((m) => defined(m[1])));
   const launch: readonly string[] = LAUNCH_TOKENS;
 
   it("names a closed set with no duplicates", () => {
@@ -106,7 +107,7 @@ describe("launch tokens", () => {
 
   it("documents exactly the launch set in docs/DESIGN_SYSTEM.md", () => {
     const missingFromDoc = launch.filter((token) => !documented.has(token));
-    const extraInDoc = [...documented].filter((token) => !launch.includes(token));
+    const extraInDoc = [...documented].filter((token) => !launch.includes(defined(token)));
     expect(missingFromDoc, "tokens in the test but not in the doc section").toEqual([]);
     expect(extraInDoc, "tokens in the doc section but not in the test").toEqual([]);
   });
@@ -144,8 +145,8 @@ describe("launch tokens", () => {
       expect(css, "no hex literal").not.toMatch(/#[0-9a-f]{3,8}\b/i);
       expect(css, "no rgb()/hsl() literal").not.toMatch(/\b(?:rgba?|hsla?)\(/i);
       expect(css, "no uppercase transform: kickers are sentence case").not.toMatch(/text-transform\s*:\s*uppercase/);
-      const used = [...css.matchAll(/var\((--[a-z0-9-]+)/g)].map((m) => m[1]);
-      const foreign = [...new Set(used)].filter((token) => !launch.includes(token));
+      const used = [...css.matchAll(/var\((--[a-z0-9-]+)/g)].map((m) => defined(m[1]));
+      const foreign = [...new Set(used)].filter((token) => !launch.includes(defined(token)));
       expect(foreign, "tokens outside the launch set").toEqual([]);
     });
   }

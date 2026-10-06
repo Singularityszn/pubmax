@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 const serverEnvGuard = vi.hoisted(() => ({
   assertServerEnv: vi.fn<() => void>(() => {
@@ -109,7 +110,7 @@ describe("POST /api/admin/import-notes", () => {
     }
 
     expect(responses.slice(0, 10).every((res) => res.status === 200)).toBe(true);
-    expect(responses[10].status).toBe(429);
-    expect(await responses[10].json()).toEqual({ error: "Too many requests, slow down.", code: "RATE_LIMITED", retryable: true });
+    expect(defined(responses[10]).status).toBe(429);
+    expect(await defined(responses[10]).json()).toEqual({ error: "Too many requests, slow down.", code: "RATE_LIMITED", retryable: true });
   });
 });

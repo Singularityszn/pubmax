@@ -40,7 +40,7 @@ export const SUBSURFACE_FAN_ORDER = [
 // OSM ways collapse to the same segment id. 4 dp ≈ 11 m — tight enough to avoid
 // false merges, loose enough to catch genuinely-shared track.
 export function coordKey(coord: number[]): string {
-  return `${coord[0].toFixed(4)},${coord[1].toFixed(4)}`;
+  return `${(coord[0] ?? Number.NaN).toFixed(4)},${(coord[1] ?? Number.NaN).toFixed(4)}`;
 }
 
 // An undirected segment key for an edge between two coordinates. Undirected so a
@@ -73,7 +73,10 @@ export function sharedSegmentLineCount(
     const line = (feature.properties?.line as string | undefined) ?? "";
     for (const ring of coordRings(feature)) {
       for (let i = 0; i < ring.length - 1; i++) {
-        const key = segmentKey(ring[i], ring[i + 1]);
+        const from = ring[i];
+        const to = ring[i + 1];
+        if (!from || !to) continue;
+        const key = segmentKey(from, to);
         let set = lines.get(key);
         if (!set) {
           set = new Set();

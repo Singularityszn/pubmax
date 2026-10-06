@@ -55,6 +55,7 @@ import { CHEAPEST_NEAR_NO_ANCHOR, VENUE_DRINKS_NO_VENUE } from "@/lib/ask/concie
 import { routeAskDeterministically } from "@/lib/ask/router";
 import { runAskTool } from "@/lib/ask/tools";
 import type { AskToolContext } from "@/lib/ask/toolContract";
+import { defined } from "@/__tests__/helpers/defined";
 
 const NOW = Date.parse("2026-08-15T20:30:00.000Z");
 
@@ -167,7 +168,7 @@ describe("cheapest_pint_near", () => {
     for (const query of ["cheapest pint near me", "cheapest pint near us"]) {
       const [call] = routeAskDeterministically(query);
       expect(call?.name).toBe("cheapest_pint_near");
-      const result = await runAskTool("cheapest_pint_near", call.args, ctx({ query }));
+      const result = await runAskTool("cheapest_pint_near", defined(call).args, ctx({ query }));
       expect(result.ok).toBe(false);
       expect(result.cards).toHaveLength(0);
       expect(result.answerHint).toBe(CHEAPEST_NEAR_NO_ANCHOR);
@@ -180,7 +181,7 @@ describe("cheapest_pint_near", () => {
       venue({ id: "b", name: "The Ship", area: "Camden", cheapestPrice: 4.2 }),
     ];
     const [call] = routeAskDeterministically("cheapest pint near Camden");
-    const result = await runAskTool("cheapest_pint_near", call.args, ctx());
+    const result = await runAskTool("cheapest_pint_near", defined(call).args, ctx());
     expect(result.ok).toBe(true);
     expect(result.cards.map((card) => card.venueId)).toEqual(["b", "a"]);
   });
@@ -194,7 +195,7 @@ describe("cheapest_pint_near", () => {
     ];
     const [call] = routeAskDeterministically("cheapest pint in Tyburnia");
     expect(call?.name).toBe("cheapest_pint_near");
-    const result = await runAskTool("cheapest_pint_near", call.args, ctx());
+    const result = await runAskTool("cheapest_pint_near", defined(call).args, ctx());
     expect(result.ok).toBe(false);
     expect(result.answerHint).toBe(CHEAPEST_NEAR_NO_ANCHOR);
     expect(result.cards).toHaveLength(0);
@@ -207,7 +208,7 @@ describe("cheapest_pint_near", () => {
       venue({ id: "near", name: "The Crown", area: "Camden", lat: 51.5005, cheapestPrice: 4.5 }),
     ];
     const [call] = routeAskDeterministically("cheapest pint near The Lamb");
-    const result = await runAskTool("cheapest_pint_near", call.args, ctx());
+    const result = await runAskTool("cheapest_pint_near", defined(call).args, ctx());
     expect(result.ok).toBe(true);
     expect(result.answerHint).toContain("The Lamb");
     expect(result.cards.map((card) => card.venueId)).toContain("near");
@@ -586,7 +587,7 @@ describe("report_occupancy", () => {
 
     const [call] = routeAskDeterministically("It's rammed at The Angel");
     expect(call?.name).toBe("report_occupancy");
-    const occ = await runAskTool("report_occupancy", call.args, ctx());
+    const occ = await runAskTool("report_occupancy", defined(call).args, ctx());
     expect(occ.answerHint).toContain("Log The Angel as full");
 
     const drinks = await runAskTool("venue_drinks", { venueName: "Angel" }, ctx());
@@ -602,12 +603,12 @@ describe("report_occupancy", () => {
 
     const [areaCall] = routeAskDeterministically("It's rammed in Camden");
     expect(areaCall?.name).toBe("report_occupancy");
-    const areaResult = await runAskTool("report_occupancy", areaCall.args, ctx());
+    const areaResult = await runAskTool("report_occupancy", defined(areaCall).args, ctx());
     expect(areaResult.answerHint).not.toContain("Camden Head");
     expect(areaResult.answerHint).toContain("Name the pub");
 
     const [pubCall] = routeAskDeterministically("It's rammed in The Lamb");
-    const pubResult = await runAskTool("report_occupancy", pubCall.args, ctx());
+    const pubResult = await runAskTool("report_occupancy", defined(pubCall).args, ctx());
     expect(pubResult.answerHint).toContain("Log The Lamb as full");
   });
 

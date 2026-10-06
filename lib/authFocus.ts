@@ -9,8 +9,10 @@ export function authMenuFocusBoundary<T>(
 ): T | null {
   if (enabled.length === 0) return null;
   const activeIndex = active === null ? -1 : enabled.indexOf(active);
-  if (activeIndex === -1) return backwards ? enabled[enabled.length - 1] : enabled[0];
-  if (backwards && activeIndex === 0) return enabled[enabled.length - 1];
-  if (!backwards && activeIndex === enabled.length - 1) return enabled[0];
+  const first = enabled[0] ?? null;
+  const last = enabled.at(-1) ?? null;
+  if (activeIndex === -1) return backwards ? last : first;
+  if (backwards && activeIndex === 0) return last;
+  if (!backwards && activeIndex === enabled.length - 1) return first;
   return null;
 }

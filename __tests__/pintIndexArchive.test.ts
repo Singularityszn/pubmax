@@ -22,6 +22,7 @@ import {
   validateArchivedPintIndexSnapshot,
   type ArchivedPintIndexSnapshot,
 } from "@/lib/pintIndexArchive";
+import { defined } from "@/__tests__/helpers/defined";
 
 const sha256 = (input: string) => createHash("sha256").update(input, "utf8").digest("hex");
 
@@ -262,7 +263,7 @@ describe("monthly Pint Index editions", () => {
     if (!corrected.ok) throw new Error("unreachable");
     expect(corrected.archive.observations.map((row) => row.venueId)).toEqual(["a"]);
     expect(corrected.archive.archive.revision).toBe(2);
-    expect(corrected.archive.archive.corrections[0].previousObservationsSha256)
+    expect(defined(corrected.archive.archive.corrections[0]).previousObservationsSha256)
       .toBe(published.archive.observationsSha256);
     expect(validateArchivedPintIndexSnapshot(corrected.archive, { month: "2026-06", sha256 }).ok).toBe(true);
   });
@@ -351,7 +352,7 @@ describe("monthly Pint Index editions", () => {
     });
     if (!corrected.ok) throw new Error("unreachable");
     expect(corrected.archive.archive.revision).toBe(2);
-    expect(corrected.archive.archive.corrections[0].previousObservationsSha256)
+    expect(defined(corrected.archive.archive.corrections[0]).previousObservationsSha256)
       .toBe(edition.archive.observationsSha256);
   });
 

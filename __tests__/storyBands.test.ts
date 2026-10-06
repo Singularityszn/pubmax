@@ -14,6 +14,7 @@ import {
 } from "@/lib/storyBands";
 import { landmarks } from "@/lib/landmarks";
 import type { Venue } from "@/lib/venues";
+import { defined } from "@/__tests__/helpers/defined";
 
 // bandMemberPubs only reads latitude/longitude/hasStory/id/name — a partial cast
 // keeps the fixture honest without the full Venue shape (mirrors landmarks.test).
@@ -39,14 +40,14 @@ describe("story band DTO validation", () => {
   });
 
   it("flags an unknown anchor landmark id", () => {
-    const bad: StoryBand = { ...STORY_BANDS[0], anchorLandmarkIds: ["big-ben", "not-a-real-place"] };
+    const bad: StoryBand = { ...defined(STORY_BANDS[0]), anchorLandmarkIds: ["big-ben", "not-a-real-place"] };
     const problems = validateStoryBand(bad);
     expect(problems.join(" ")).toMatch(/unknown anchor landmark id/);
   });
 
   it("flags thin copy and a raw-hex colour token", () => {
     const bad: StoryBand = {
-      ...STORY_BANDS[0],
+      ...defined(STORY_BANDS[0]),
       copy: "Too short.",
       colourToken: "#ff0000",
     };
@@ -56,13 +57,13 @@ describe("story band DTO validation", () => {
   });
 
   it("flags a radius outside the sane range", () => {
-    expect(validateStoryBand({ ...STORY_BANDS[0], radiusKm: 0 }).join(" ")).toMatch(/radiusKm/);
-    expect(validateStoryBand({ ...STORY_BANDS[0], radiusKm: 99 }).join(" ")).toMatch(/radiusKm/);
+    expect(validateStoryBand(({ ...defined(STORY_BANDS[0]), radiusKm: 0 })).join(" ")).toMatch(/radiusKm/);
+    expect(validateStoryBand(({ ...defined(STORY_BANDS[0]), radiusKm: 99 })).join(" ")).toMatch(/radiusKm/);
   });
 
   it("detects a duplicate band id across the set", () => {
-    const dup = validateAllStoryBands([STORY_BANDS[0], STORY_BANDS[0]]);
-    expect(dup[STORY_BANDS[0].id].join(" ")).toMatch(/duplicate band id/);
+    const dup = validateAllStoryBands([defined(STORY_BANDS[0]), defined(STORY_BANDS[0])]);
+    expect(defined(dup[defined(STORY_BANDS[0]).id]).join(" ")).toMatch(/duplicate band id/);
   });
 });
 
@@ -90,7 +91,7 @@ describe("bandMemberPubs matching", () => {
     const mid = makeVenue("mid", lat, lng + 0.003, true);
     const members = bandMemberPubs(royal, [mid, near]);
     expect(members.map((m) => m.venue.id)).toEqual(["near", "mid"]);
-    expect(members[0].km).toBeLessThan(members[1].km);
+    expect(defined(members[0]).km).toBeLessThan(defined(members[1]).km);
   });
 
   it("returns an empty list when nothing qualifies (honest fallback)", () => {

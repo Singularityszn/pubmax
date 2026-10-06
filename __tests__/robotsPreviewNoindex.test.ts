@@ -13,9 +13,11 @@ vi.mock("next/font/google", () => {
   return {
     Space_Grotesk: face,
     Inter: face,
-    JetBrains_Mono: face,
   };
 });
+vi.mock("next/font/local", () => ({
+  default: () => ({ className: "font-mock", variable: "--font-mock" }),
+}));
 
 import robots from "@/app/robots";
 import { securityProxy } from "@/proxy";

@@ -374,8 +374,8 @@ export function drinkLabelFromPriceContext(
   const before = context.slice(0, priceAt);
   let start = 0;
   const priorPrices = [...before.matchAll(/£\s?\d{1,2}(?:\.\d{2})?\b/g)];
-  if (priorPrices.length > 0) {
-    const last = priorPrices[priorPrices.length - 1];
+  const last = priorPrices.at(-1);
+  if (last) {
     start = (last.index ?? 0) + last[0].length;
   }
   for (const sep of [". ", "; ", " | ", "| ", " - ", " - "]) {
@@ -419,8 +419,8 @@ export function statedWineIdentity(
     const label = drinkLabelFromPriceContext(context, price, candidateAt);
     const match = label?.match(/^(.*?)(?:\s+)?(\d{2,3}\s*ml)$/i);
     if (!match) return null;
-    currentMeasure ??= match[2].replace(/\s+/g, "").toLowerCase();
-    const name = match[1].replace(/^[/|\s\u2013\u2014-]+$/, "").trim();
+    currentMeasure ??= (match[2] ?? "").replace(/\s+/g, "").toLowerCase();
+    const name = (match[1] ?? "").replace(/^[/|\s\u2013\u2014-]+$/, "").trim();
     if (name) return { drinkLabel: name, servingSize: currentMeasure };
     const prior = [...context.slice(0, candidateAt).matchAll(PRICE_PATTERN)].at(-1);
     if (!prior) return null;
@@ -462,8 +462,10 @@ function normalizeHtmlTextWhitespace(source: string): string {
     const children = htmlChildren(node);
     const ownsHtmlText = insideElement || isHtmlElement(node);
     for (const [index, child] of children.entries()) {
-      const betweenElements = index > 0 && index < children.length - 1 &&
-        isHtmlElement(children[index - 1]) && isHtmlElement(children[index + 1]);
+      const before = children[index - 1];
+      const after = children[index + 1];
+      const betweenElements = before !== undefined && after !== undefined &&
+        isHtmlElement(before) && isHtmlElement(after);
       if (child.nodeName === "#text" && "value" in child && child.sourceCodeLocation &&
         (ownsHtmlText || (betweenElements && /^\s+$/.test(child.value)))) {
         ranges.push({ start: child.sourceCodeLocation.startOffset, end: child.sourceCodeLocation.endOffset });
@@ -1013,7 +1015,7 @@ export function menuLinkCandidates(html: string, siteOrigin: string, max = 8): s
   const seen = new Set<string>();
   const out: string[] = [];
   for (const match of html.matchAll(/<a\b[^>]*\shref\s*=\s*["']([^"']+)["']/gi)) {
-    const raw = match[1].trim();
+    const raw = (match[1] ?? "").trim();
     if (raw.startsWith("#") || raw.startsWith("mailto:") || raw.startsWith("tel:")) continue;
     if (!isLikelyMenuUrl(raw, siteOrigin)) continue;
     let resolved: string;
@@ -1033,7 +1035,7 @@ export function menuLinkCandidates(html: string, siteOrigin: string, max = 8): s
 
 /** Every `<loc>` a sitemap or sitemap index states. */
 export function sitemapLocations(xml: string): string[] {
-  return [...xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)].map((match) => match[1].trim());
+  return [...xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)].map((match) => (match[1] ?? "").trim());
 }
 
 /**

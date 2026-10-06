@@ -9,14 +9,16 @@ import "server-only";
 // canonicalised first, and an unknown one is refused with the house error.
 //
 // The UK base layer is admitted by its own id index, because those pubs are
-// streamed per viewport and are absent from the curated venue index.
+// streamed per viewport and are absent from the curated venue index. A base id
+// a refresh dropped is answered by the id it aliases to, which may be the
+// curated venue that owned the row.
 //
 // `pubsOnly` is the narrower question a PRICE lane asks: a figure printed as a
 // pint price may only come from a pub kind. A crowd occupancy reading is about
 // seats, and the venue sheet offers it on every kind, so that lane does not
 // narrow.
 
-import { getUkBaseIdIndex } from "@/lib/ukBaseIndex";
+import { currentUkBaseId, getUkBaseIdIndex } from "@/lib/ukBaseIndex";
 import { isUkBaseId } from "@/lib/ukBasePubs";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
@@ -33,17 +35,21 @@ export async function resolveWritableVenueId(
   venueId: string,
   opts?: { pubsOnly?: boolean },
 ): Promise<VenueWriteTarget> {
-  if (isUkBaseId(venueId)) {
+  const currentId = isUkBaseId(venueId) ? await currentUkBaseId(venueId) : venueId;
+  if (!currentId) {
+    return { ok: false, status: 503, error: VENUES_UNAVAILABLE };
+  }
+  if (isUkBaseId(currentId)) {
     const ukBaseIndex = await getUkBaseIdIndex();
     if (ukBaseIndex.status === "unavailable") {
       return { ok: false, status: 503, error: VENUES_UNAVAILABLE };
     }
-    return ukBaseIndex.ids.has(venueId)
-      ? { ok: true, venueId }
+    return ukBaseIndex.ids.has(currentId)
+      ? { ok: true, venueId: currentId }
       : { ok: false, status: 400, error: UNKNOWN_VENUE };
   }
 
-  const venueLookup = await lookupCanonicalVenue(venueId);
+  const venueLookup = await lookupCanonicalVenue(currentId);
   if (venueLookup.status === "unavailable") {
     return { ok: false, status: 503, error: VENUES_UNAVAILABLE };
   }
