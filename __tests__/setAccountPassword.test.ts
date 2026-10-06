@@ -123,7 +123,9 @@ describe("the password UI is tri-state", () => {
       join(process.cwd(), "app/u/[handle]/profile.css"),
       "utf8",
     );
-    expect(css).toMatch(/\.accountHubPasswordOwed\s*\{[^}]*grid-column: 1 \/ -1/);
+    // Prominent by its brass border. It no longer spans the row, which left the
+    // column beside the private details empty (signed-in QA F24i).
+    expect(css).toMatch(/\.accountHubPasswordOwed\s*\{[^}]*border: 1px solid var\(--brass\)/);
   });
 
   it("is a section and never a dialog, per the arrival laws", () => {
