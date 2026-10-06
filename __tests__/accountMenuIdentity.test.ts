@@ -120,23 +120,37 @@ describe("nav account control", () => {
     expect(html).not.toContain("Your profile");
   });
 
-  it("asks for the owned avatar only once someone opens the menu", async () => {
-    // SiteNav renders on every page. None of them owe a profile request for a
-    // card nobody looked at.
-    //
-    // The held card is keyed on its HANDLE rather than on "have we asked yet",
-    // because an account switch replaces the account under an open menu: keyed
-    // on the flag alone, the previous account's face and display name stayed
-    // above the new account's @handle.
+  it("names the chip from the person, and never from the first letter of their login", () => {
+    authState.current = {
+      ...session,
+      user: { email: "alice@example.test", user_metadata: {} },
+      handle: "qa_alice",
+    };
+    const html = renderToStaticMarkup(createElement(SignInButton, { compact: true }));
+
+    // No profile card has landed yet: the claimed handle stands in, so the chip
+    // reads Q for qa_alice and the label is the handle, never the email.
+    expect(html).toContain("Account options for @qa_alice");
+    expect(html).toContain(">Q</span>");
+    expect(html).not.toContain(">A</span>");
+    expect(html).not.toContain("alice@example.test");
+  });
+
+  it("reads the public card for the chip on every page, through the one hook", async () => {
+    // The chip wears the owned face, so the nav asks for the public card on
+    // every page. `usePublicProfileCard` answers a card read in the last minute
+    // from the tab's own snapshot with no request, holds the answer against the
+    // handle it is about (an account switch cannot leave the previous face above
+    // the new @handle), and reads again when the owner changes it
+    // (`__tests__/usePublicProfileCard.test.tsx`).
     const { readFileSync } = await import("node:fs");
     const { join } = await import("node:path");
     const source = readFileSync(
       join(process.cwd(), "components/auth/SignInButton.tsx"),
       "utf8",
     );
-    expect(source).toContain(
-      "if (!menuOpen || card?.handle === accountHandle || !accountHandle) return;",
-    );
-    expect(source).toContain("card?.handle === accountHandle ? card : null");
+    expect(source).toContain("usePublicProfileCard(accountHandle)");
+    expect(source).not.toContain("loadPublicProfileCard");
+    expect(source).not.toContain("if (!menuOpen ||");
   });
 });

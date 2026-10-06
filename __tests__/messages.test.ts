@@ -9,7 +9,11 @@ import {
   linkifyMentions,
   MAX_MESSAGE_BODY,
   normalizePair,
+  conversationRowHandle,
+  conversationRowName,
+  threadCardHandle,
   threadHeaderPrimaryLine,
+  threadHeaderSecondaryLine,
   threadIdentityFromInboxRow,
   threadIdentityFromWire,
   unreadForViewer,
@@ -187,5 +191,54 @@ describe("linkifyMentions — light @-mention linkify", () => {
 
   it("returns an empty array for an empty body", () => {
     expect(linkifyMentions("")).toEqual([]);
+  });
+});
+
+describe("a person with a display name", () => {
+  const row = {
+    id: "c1",
+    otherHandle: "qa_bob",
+    lastAt: "2026-10-06T12:00:00Z",
+    lastFromMe: false,
+  } as const;
+
+  it("is named on the inbox row, with the handle they are found by under it", () => {
+    const named = { ...row, otherDisplayName: "Bob Baker" };
+    expect(conversationRowName(named, "alice")).toBe("Bob Baker");
+    expect(conversationRowHandle(named)).toBe("@qa_bob");
+  });
+
+  it("is the handle alone when nobody set a name, so it is never printed twice", () => {
+    expect(conversationRowName(row, "alice")).toBe("@qa_bob");
+    expect(conversationRowHandle(row)).toBeNull();
+    expect(conversationRowName({ ...row, otherDisplayName: "  " }, "alice")).toBe("@qa_bob");
+    expect(conversationRowHandle({ ...row, otherDisplayName: "  " })).toBeNull();
+  });
+
+  it("never lends a group row a person's name", () => {
+    const group = {
+      ...row,
+      kind: "group" as const,
+      title: "Friday",
+      memberHandles: ["alice", "qa_bob"],
+      otherDisplayName: "Bob Baker",
+    };
+    expect(conversationRowName(group, "alice")).toBe("Friday");
+    expect(conversationRowHandle(group)).toBeNull();
+  });
+
+  it("heads a direct thread with the name, and the handle under it", () => {
+    expect(threadHeaderPrimaryLine(null, "qa_bob", "alice", "Bob Baker")).toBe("Bob Baker");
+    expect(threadHeaderSecondaryLine(null, "qa_bob", "Bob Baker")).toBe("@qa_bob");
+    expect(threadHeaderPrimaryLine(null, "qa_bob", "alice")).toBe("@qa_bob");
+    expect(threadHeaderSecondaryLine(null, "qa_bob", undefined)).toBeNull();
+    expect(threadHeaderPrimaryLine(null, "", "alice", "Bob Baker")).toBeNull();
+  });
+
+  it("asks for the card of the other person on a direct thread and of nobody on a group", () => {
+    const group = { kind: "group" as const, members: ["alice", "qa_bob"], title: null };
+    expect(threadCardHandle(null, "qa_bob")).toBe("qa_bob");
+    expect(threadCardHandle(group, "qa_bob")).toBeNull();
+    expect(threadCardHandle(null, "")).toBeNull();
   });
 });

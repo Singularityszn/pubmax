@@ -4,7 +4,8 @@
 // than one), uppercased; "?" when there is nothing to initial.
 
 export function authAvatarInitials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
+  // A handle is printed with its @, which is not a letter of anybody's name.
+  const parts = name.trim().replace(/^@+/, "").split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";
   const first = parts[0]?.[0] ?? "";
   const last = parts.length > 1 ? parts.at(-1)?.[0] ?? "" : "";
