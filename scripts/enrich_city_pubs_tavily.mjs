@@ -14,7 +14,8 @@
  *
  * TAVILY_API_KEY is required. Local progress lives in ignored .tavily/ state.
  * --reset restarts the walk and keeps the prices found so far. Rows listed in
- * data/enrichment/tavily/<city>/rejected.json are never written again.
+ * data/enrichment/tavily/<city>/rejected.json are never written again, and a
+ * price listed in corrected.json beside it is never overwritten by a reading.
  * Wetherspoons, Greene King, and Mitchells & Butlers pubs are delegated to the
  * existing chain harvesters and consume no Tavily queries.
  */
@@ -155,6 +156,47 @@ export function rejectClosedPrRows(rejectedRows, { prUpdates, committedUpdates, 
 }
 
 /**
+ * The prices a reviewer corrected, from the committed `corrected.json` beside
+ * the run reports. Each entry is a venue key, drink name and category, and no
+ * nightly reading ever overwrites the committed price for one.
+ */
+export function readCorrectedRows(value) {
+  if (value === undefined) return [];
+  if (value?.version !== 1 || !Array.isArray(value.rows)) {
+    throw new Error("corrected.json must be { version: 1, rows: [...] }.");
+  }
+  for (const row of value.rows) {
+    if (
+      typeof row?.venueKey !== "string" ||
+      typeof row?.drinkName !== "string" ||
+      typeof row?.category !== "string"
+    ) {
+      throw new Error("Every corrected row needs a venueKey, a drinkName and a category.");
+    }
+  }
+  return value.rows;
+}
+
+/**
+ * The corrected list after a reviewer edits prices: every city official-site
+ * price that holds a different price after the edit than before it is added
+ * once.
+ */
+export function recordCorrectedRows(correctedRows, { beforeUpdates, afterUpdates, cityVenueKeys, correctedAt }) {
+  const before = new Map(committedCityPrices(beforeUpdates, cityVenueKeys).map((row) => [priceKey(row), row]));
+  const seen = new Set(correctedRows.map(priceKey));
+  const added = [];
+  for (const row of committedCityPrices(afterUpdates, cityVenueKeys)) {
+    const key = priceKey(row);
+    const old = before.get(key);
+    if (!old || old.priceGbp === row.priceGbp || seen.has(key)) continue;
+    seen.add(key);
+    added.push({ venueKey: row.venueKey, drinkName: row.drinkName, category: row.category, correctedAt });
+  }
+  return [...correctedRows, ...added];
+}
+
+/**
  * The price updates a git ref holds, such as a closed nightly PR branch. The
  * file grows past git's default 1 MiB pipe buffer after one night, so the
  * buffer is raised well above it.
@@ -207,14 +249,17 @@ export function resumeCheckpoint(saved, { city, totalPubs, cityVenueKeys, observ
  * night could have carried it: every nightly PR carries every unmerged row
  * read up to that night, so a row read no later than the newest merged night
  * and absent from the committed data was removed or corrected in review. A
- * rejected venue page is never written again.
+ * rejected venue page is never written again, and a corrected price is never
+ * overwritten, however new the reading.
  */
-export function reconcileWithCommitted(state, { committedPrices, rejectedRows, mergedThrough }) {
+export function reconcileWithCommitted(state, { committedPrices, rejectedRows, correctedRows = [], mergedThrough }) {
   const rejected = new Set(rejectedRows.map((row) => `${row.venueKey}|${row.sourceUrl}`));
+  const corrected = new Set(correctedRows.map(priceKey));
   const unmerged = state.prices.filter(
     (row) =>
       !(mergedThrough && row.observedAt <= mergedThrough) &&
-      !rejected.has(`${row.venueKey}|${row.source?.url}`),
+      !rejected.has(`${row.venueKey}|${row.source?.url}`) &&
+      !corrected.has(priceKey(row)),
   );
   return { ...state, prices: mergeCanonicalPrices(committedPrices, unmerged) };
 }
@@ -292,6 +337,7 @@ export async function runCityPass({
   observedAt,
   committedPrices,
   rejectedRows = [],
+  correctedRows = [],
   mergedThrough = null,
   onState,
   ...options
@@ -306,6 +352,7 @@ export async function runCityPass({
   const state = reconcileWithCommitted(mergeState(checkpoint, runResult, observedAt), {
     committedPrices,
     rejectedRows,
+    correctedRows,
     mergedThrough,
   });
   if (runResult.queriesSpent === 0 && runResult.outcomes.length < pubs.length) {
@@ -412,6 +459,10 @@ async function main() {
   const rejectedRows = readRejectedRows(
     existsSync(rejectedPath) ? JSON.parse(readFileSync(rejectedPath, "utf8")) : undefined,
   );
+  const correctedPath = path.join(reportDir, "corrected.json");
+  const correctedRows = readCorrectedRows(
+    existsSync(correctedPath) ? JSON.parse(readFileSync(correctedPath, "utf8")) : undefined,
+  );
   const committedPrices = committedCityPrices(readUpdates(path.join(PRICE_DIR, "latest.json")), cityVenueKeys);
 
   console.log(
@@ -429,6 +480,7 @@ async function main() {
     observedAt,
     committedPrices,
     rejectedRows,
+    correctedRows,
     mergedThrough,
     onState: (next) => {
       if (!args.dryRun) atomicWriteJson(statePath, next);

@@ -33,10 +33,11 @@ Each night writes the London official-site prices in `public/data/drink_price_up
 
 Each night applies these rules:
 
-1. Every committed row stays as it is. A price that a reviewer corrected is never overwritten by a checkpoint row.
+1. Every committed row stays as it is, unless a newer reading of the same drink replaces it in the PR for review.
 2. A checkpoint row read no later than the newest merged night, and absent from the committed data, is dropped. That PR carried the row, so a reviewer removed it. This is true when the row was removed from the PR before the merge, and when it was deleted after the merge.
 3. A row whose pub and source URL are in `data/enrichment/tavily/london/rejected.json` is never written.
-4. Every other checkpoint row is unmerged evidence, and the PR carries it.
+4. A price whose pub, drink and category are in `data/enrichment/tavily/london/corrected.json` is never overwritten. A new reading of that drink is dropped, even after the walk restarts and reads the page again. A nightly reading only adds new rows and updates uncorrected ones.
+5. Every other checkpoint row is unmerged evidence, and the PR carries it.
 
 Each review PR therefore holds every unmerged night, even when an earlier PR was not merged yet.
 
@@ -49,6 +50,16 @@ To reject a whole nightly PR, close it. Then do these steps:
 3. Commit `data/enrichment/tavily/london/rejected.json` and merge it.
 
 The command lists each pub page whose rows the closed PR added and the committed data does not hold. A closed PR also carries the unmerged rows of the nights before it, so close a PR only when you reject all of its new rows. To drop the rows of one pub page only, remove them from the PR before you merge it. To also stop later nights writing that page again, add its `venueKey` and `sourceUrl` to `rejected.json` in the same PR.
+
+## Correct a price
+
+To correct a price, do these steps on the nightly PR branch or on a branch from the default branch:
+
+1. Edit the price in `public/data/drink_price_updates/latest.json`.
+2. Before you commit, run `npm run tavily:correct -- --city=london`.
+3. Commit `latest.json` and `data/enrichment/tavily/london/corrected.json` together, and merge them.
+
+The command compares `latest.json` with the committed copy at `HEAD`. Use `--ref=<ref>` to compare with another commit. It lists each London official-site price whose `priceGbp` changed, keyed by `venueKey`, `drinkName` and `category`. Delete an entry from `corrected.json` to let nightly readings update that price again.
 
 ## Wine and cocktail estimates
 
