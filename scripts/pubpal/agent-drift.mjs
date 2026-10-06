@@ -1,8 +1,8 @@
 // Pure drift check for the Pub Pal ElevenLabs agent.
 //
 // `npm run pubpal:agent -- --check` reads the live agent and its tools, builds
-// the same desired config the provisioner writes, and lists every field where
-// the two differ. It compares only what a re-run writes, so a drift it names is
+// the PATCH a run would send to that agent, and lists every field where the
+// two differ. It compares only what a re-run writes, so a drift it names is
 // one a re-run fixes. Nothing here calls the network or prints a secret.
 
 const SECRET_HEADER = "x-elevenlabs-llm-secret";
@@ -21,21 +21,14 @@ function isRecord(value) {
 
 /**
  * Every field the wanted object sets must be set the same way on the live
- * object. Live fields the wanted object never mentions are ignored. An array
- * named in `supersets` only has to contain the wanted entries, because a
- * provisioner PATCH keeps what the agent already sends.
+ * object. Live fields the wanted object never mentions are ignored.
  */
-function subsetDrift(wanted, live, path = "", supersets = new Set()) {
+function subsetDrift(wanted, live, path = "") {
   if (isRecord(wanted)) {
     if (!isRecord(live)) return [{ path, wanted, live }];
     return Object.entries(wanted).flatMap(([key, value]) =>
-      subsetDrift(value, live[key], path ? `${path}.${key}` : key, supersets),
+      subsetDrift(value, live[key], path ? `${path}.${key}` : key),
     );
-  }
-  if (Array.isArray(wanted) && supersets.has(path)) {
-    const have = Array.isArray(live) ? live : [];
-    const missing = wanted.filter((item) => !have.includes(item));
-    return missing.length > 0 ? [{ path, wanted: `includes ${missing.join(", ")}`, live }] : [];
   }
   return JSON.stringify(wanted) === JSON.stringify(live) ? [] : [{ path, wanted, live }];
 }
@@ -78,32 +71,22 @@ function toolDrift(name, wantedTool, liveTool) {
  * @param {object} input
  * @param {object} input.liveAgent The agent as GET /v1/convai/agents/{id} returns it.
  * @param {object[]} input.liveTools The workspace tools as GET /v1/convai/tools lists them.
- * @param {object} input.wantedAgent The agent body the provisioner would write.
+ * @param {object} input.wantedAgent The PATCH the provisioner would send to this live agent.
  * @param {Record<string, object>} input.wantedTools The desired webhook tool config by name.
  * @returns {{path: string, wanted: unknown, live: unknown}[]}
  */
 export function agentDrift({ liveAgent, liveTools, wantedAgent, wantedTools }) {
   const drifts = [];
 
-  const wantedPrompt = wantedAgent.conversation_config.agent.prompt;
+  // The prompt text gets a short summary and the tool ids are checked by name
+  // below, so the rest of the PATCH is compared field by field.
+  const wanted = structuredClone(wantedAgent);
+  const wantedPrompt = wanted.conversation_config.agent.prompt;
   const livePrompt = liveAgent.conversation_config?.agent?.prompt ?? {};
   drifts.push(...promptDrift(wantedPrompt.prompt, livePrompt.prompt));
-  drifts.push(
-    ...subsetDrift({ llm: wantedPrompt.llm }, livePrompt, "conversation_config.agent.prompt"),
-  );
-
-  // The provisioner keeps a live greeting and language, so they are not drift.
-  drifts.push(
-    ...subsetDrift(
-      wantedAgent.conversation_config.conversation,
-      liveAgent.conversation_config?.conversation,
-      "conversation_config.conversation",
-      new Set(["conversation_config.conversation.client_events"]),
-    ),
-  );
-  drifts.push(
-    ...subsetDrift(wantedAgent.platform_settings, liveAgent.platform_settings, "platform_settings"),
-  );
+  delete wantedPrompt.prompt;
+  delete wantedPrompt.tool_ids;
+  drifts.push(...subsetDrift(wanted, liveAgent));
 
   const liveToolIds = new Set(livePrompt.tool_ids ?? []);
   const wantedNames = new Set(Object.keys(wantedTools));

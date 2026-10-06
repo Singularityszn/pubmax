@@ -74,6 +74,7 @@ function matchingLive(): { agent: Json; tools: Json[] } {
   }));
   const agent = {
     agent_id: AGENT_ID,
+    name: preview.name,
     conversation_config: {
       ...preview.conversation_config,
       agent: {
@@ -122,6 +123,24 @@ describe("pubpal:agent --check", () => {
     const result = check(matchingLive());
     expect(result.writes).toBe("");
     expect(result.output).not.toContain("ELEVENLABS_LLM_SHARED_SECRET");
+  });
+
+  it("ignores the fields a run leaves out of its PATCH", () => {
+    const live = matchingLive();
+    const prompt = live.agent.conversation_config.agent.prompt;
+    prompt.custom_llm = { url: "https://llm.example/v1", model_id: "old-model" };
+    prompt.tools = live.tools.map((tool: Json) => tool.tool_config);
+    const result = check(live);
+    expect(result.output).toContain("The live agent matches");
+    expect(result.status).toBe(0);
+  });
+
+  it("exits 1 on a field the run rewrites that a hand-written list would miss", () => {
+    const live = matchingLive();
+    live.agent.name = "Renamed Pal";
+    const result = check(live);
+    expect(result.status).toBe(1);
+    expect(result.output).toContain("name: live Renamed Pal, wanted PUBMAXX Pub Pal");
   });
 
   it("exits 1 and names an agent that accepts unsigned conversations", () => {

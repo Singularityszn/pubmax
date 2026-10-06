@@ -416,6 +416,36 @@ function mergeAgentPatch(existingAgent, body) {
   };
 }
 
+/** The PATCH a run sends to an existing agent: the live agent with this repo's fields laid over it. */
+function agentPatch(currentAgent, toolIds) {
+  const conversationConfig = structuredClone(currentAgent.conversation_config ?? {});
+  conversationConfig.agent = {
+    ...(conversationConfig.agent ?? {}),
+    prompt: {
+      ...(conversationConfig.agent?.prompt ?? {}),
+      prompt: systemPrompt(),
+      llm: AGENT_CONFIG.llm,
+      custom_llm: null,
+      tool_ids: toolIds,
+    },
+    first_message:
+      conversationConfig.agent?.first_message ??
+      "Hello, I'm your Pub Pal. What kind of night are you planning?",
+    language: conversationConfig.agent?.language ?? "en",
+  };
+  delete conversationConfig.agent.prompt.custom_llm;
+  delete conversationConfig.agent.prompt.tools;
+  conversationConfig.conversation = {
+    ...(conversationConfig.conversation ?? {}),
+    max_duration_seconds: MAX_SESSION_SECONDS,
+    client_events: clientEvents(conversationConfig.conversation?.client_events),
+  };
+  return mergeAgentPatch(currentAgent, {
+    ...agentBody(toolIds).body,
+    conversation_config: conversationConfig,
+  });
+}
+
 async function findAgentByName(apiKey) {
   const listed = await call("GET", `${API}/agents?page_size=100`, apiKey);
   const rows = Array.isArray(listed.agents) ? listed.agents : [];
@@ -432,10 +462,13 @@ async function checkAgent(apiKey, baseUrl) {
   const wantedTools = Object.fromEntries(
     (AGENT_CONFIG.toolNames ?? []).map((name) => [name, webhookToolConfig(name, baseUrl, "unused")]),
   );
+  const liveToolIds = Object.keys(wantedTools)
+    .map((name) => liveTools.find((row) => row?.tool_config?.name === name)?.id)
+    .filter(Boolean);
   const drifts = agentDrift({
     liveAgent,
     liveTools,
-    wantedAgent: agentBody([]).body,
+    wantedAgent: agentPatch(liveAgent, liveToolIds),
     wantedTools,
   });
   console.log(`Checked agent ${agentId} against this repo's config (read-only).`);
@@ -491,33 +524,7 @@ async function main() {
 
   if (existing) {
     const currentAgent = await call("GET", `${API}/agents/${existing}`, apiKey);
-    const conversationConfig = structuredClone(currentAgent.conversation_config ?? {});
-    conversationConfig.agent = {
-      ...(conversationConfig.agent ?? {}),
-      prompt: {
-        ...(conversationConfig.agent?.prompt ?? {}),
-        prompt: systemPrompt(),
-        llm: AGENT_CONFIG.llm,
-        custom_llm: null,
-        tool_ids: toolIds,
-      },
-      first_message:
-        conversationConfig.agent?.first_message ??
-        "Hello, I'm your Pub Pal. What kind of night are you planning?",
-      language: conversationConfig.agent?.language ?? "en",
-    };
-    delete conversationConfig.agent.prompt.custom_llm;
-    delete conversationConfig.agent.prompt.tools;
-    conversationConfig.conversation = {
-      ...(conversationConfig.conversation ?? {}),
-      max_duration_seconds: MAX_SESSION_SECONDS,
-      client_events: clientEvents(conversationConfig.conversation?.client_events),
-    };
-    const patchBody = mergeAgentPatch(currentAgent, {
-      ...body,
-      conversation_config: conversationConfig,
-    });
-    await call("PATCH", `${API}/agents/${existing}`, apiKey, patchBody);
+    await call("PATCH", `${API}/agents/${existing}`, apiKey, agentPatch(currentAgent, toolIds));
     console.log(`✓ Updated agent ${existing}`);
     console.log(`  LLM: ${AGENT_CONFIG.llm}`);
     console.log(`  Webhook tools: ${toolIds.length}`);
