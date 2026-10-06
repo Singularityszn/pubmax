@@ -112,6 +112,27 @@ export function whereVenueIdIn<Q>(query: Q, venueIds: readonly string[]): Q {
   ) as Q;
 }
 
+/**
+ * Of rows found across a venue's stored ids, the one under the earliest id, so
+ * a row under the current id wins over one under a former id. The rule the
+ * memory stores follow by walking `storedVenueIds` in order.
+ */
+export function rowUnderCurrentVenueId<R extends { venue_id?: unknown }>(
+  rows: readonly R[],
+  venueIds: readonly string[],
+): R | null {
+  let best: R | null = null;
+  let bestIndex = Number.POSITIVE_INFINITY;
+  for (const row of rows) {
+    const index = venueIds.indexOf(String(row.venue_id));
+    if (index !== -1 && index < bestIndex) {
+      best = row;
+      bestIndex = index;
+    }
+  }
+  return best;
+}
+
 /** Postgres unique_violation (23505): a duplicate insert racing an existing
  *  row — the idempotent-success case for toggle/insert-if-absent writes. */
 export function isUniqueViolation(error: { code?: string } | null | undefined): boolean {

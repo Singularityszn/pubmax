@@ -28,6 +28,7 @@ import {
   createFailSoftGuard,
   isUniqueViolation,
   onMissingDurableWrite,
+  rowUnderCurrentVenueId,
   selectStore,
   whereVenueIdIn,
 } from "@/lib/storeBackend";
@@ -341,17 +342,13 @@ function fromRow(row: Record<string, unknown>): VisitReport {
 }
 
 async function selectExistingId(fields: VisitReportFields): Promise<string | null> {
-  const { data, error } = await whereVenueIdIn(
-    admin().from(TABLE).select("id"),
-    await storedVenueIds(fields.venueId),
-  )
+  const venueIds = await storedVenueIds(fields.venueId);
+  const { data, error } = await whereVenueIdIn(admin().from(TABLE).select("id, venue_id"), venueIds)
     .eq("handle", fields.handle)
-    .eq("visited_at", fields.visitedAt)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+    .eq("visited_at", fields.visitedAt);
   if (error) throw new Error(error.message);
-  return data ? String((data as { id: unknown }).id) : null;
+  const row = rowUnderCurrentVenueId((data ?? []) as { id: unknown; venue_id: unknown }[], venueIds);
+  return row ? String(row.id) : null;
 }
 
 async function updateFields(id: string, fields: VisitReportFields, createdAt: string): Promise<void> {
