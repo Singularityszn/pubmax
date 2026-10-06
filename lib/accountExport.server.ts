@@ -10,8 +10,8 @@ import "server-only";
 // second authority on nothing: the private card through `privateIdentityStore`,
 // visit reports and wall photos through their own owner-keyed reads (hidden
 // rows included, because a row a moderator took down is still the person's own
-// account of their own night), saved pubs, the Wanted list, the linked socials
-// and the Night Profile through theirs, Memories and Moments through
+// account of their own night), saved pubs, the Wanted list, the Diary, the
+// linked socials and the Night Profile through theirs, Memories and Moments through
 // `nightMemoryStore`,
 // prices through the community price store's per-actor read, Pint Drops
 // through `pintDropsStore().listVisible` with the caller as author AND viewer

@@ -634,8 +634,12 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
   not before 2000. The rating is a half star from 1 to 5. A review is the
   owner's private words: C0 and C1 control characters are stripped (tab and
   newline stay) and the ends are trimmed, and nothing else changes. No copy filter
-  runs, and angle brackets and inner spacing are kept. A review over 280
-  characters answers 400, never a silent cut. The migration's CHECK
+  runs, and angle brackets and inner spacing are kept. Length is counted in
+  code points (`diaryReviewLength`), the same count the composer and the
+  CHECK's `length(review)` use, so an emoji is one character. A review over 280
+  characters answers 400, never a silent cut. An outage of the venue index
+  answers a retryable 503 `STORE_UNAVAILABLE`, never a 400 that reads as a bad
+  pub. The migration's CHECK
   constraints (0174) hold the rating, review-length and earliest-day bounds.
   The future-day bound is checked only by the route.
 - **Rate limit (boundary):** durable per-profile + hashed-IP `isLimited` with
