@@ -384,6 +384,12 @@ A CLI deploy reports nothing to GitHub, so Vercel never starts the smoke suite f
 
 The command needs `gh` signed in with permission to run workflows in `Singularityszn/pubmax`, and a Vercel CLI session (`PUBMAX_VERCEL_BIN` names an installed one). The ordered steps are `scripts/lib/releaseProduction.mjs`. Pin: `__tests__/releaseProduction.test.ts`.
 
+### Uptime monitor
+
+Point a free external monitor at `https://pubmaxxing.com/api/health`, every 1 to 5 minutes, and alert on any status that is not 200. UptimeRobot, Better Stack and Cronitor all have a free tier for this. A 503 means the deployment is up and its database is not answering. `/api/version` stays a memory-only check and cannot tell you that, so monitor both if the monitor allows two checks.
+
+The body is `{ "ok": true, "deploymentId": "dpl_...", "database": "ok" }`. The route reads one row of `rate_limits` and holds the answer for 15 seconds per instance, so a one-minute monitor costs the database little. Pin: `__tests__/healthRoute.test.ts`.
+
 ### A preview built with production values, in one command
 
 ```sh
