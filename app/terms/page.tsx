@@ -176,10 +176,11 @@ export default function TermsPage() {
           returns a decision. If that check is unavailable or gives no usable
           decision, the post remains held. Social photos are resized, stripped
           of embedded metadata, kept private, and sent with the post text to
-          OpenAI for moderation. Profile pictures use the same OpenAI omni
-          moderation on owned storage bytes before they are publicly
-          addressable; if that check fails, the upload is refused and your
-          previous picture stays. Readers may report a profile picture; only a
+          OpenAI for moderation. Profile pictures use an advisory OpenAI omni
+          moderation check on stored image bytes. If the check refuses a
+          picture, we refuse the upload and keep your previous picture. If the
+          check cannot run or gives no usable decision, the upload can proceed
+          without scan approval. Readers may report a profile picture; only a
           named staff member may hide or restore it, and hiding never deletes
           the stored file. Photo tags need the tagged person&rsquo;s approval
           and can be withdrawn. Signed photo delivery links are short lived.

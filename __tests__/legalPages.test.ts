@@ -166,7 +166,8 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/Hiding stops public delivery/i);
     expect(privacy).toMatch(/never deletes the stored file/i);
     expect(privacy).toMatch(/Removing\s+the picture yourself[^]*removes the stored\s+file/i);
-    expect(terms).toMatch(/Profile pictures use the same OpenAI omni\s+moderation/i);
+    expect(terms).toMatch(/Profile pictures use an advisory OpenAI omni\s+moderation/i);
+    expect(terms).toMatch(/cannot run[^.]*upload can proceed\s+without scan approval/i);
     expect(terms).toMatch(/hiding never deletes\s+the stored file/i);
   });
 

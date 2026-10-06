@@ -13,6 +13,8 @@
 // (AGENTS.md anti-goals), so the front door names no price a drinker would pay
 // and collects no address for one.
 
+import { RECEIPT_REQUIRED_LINE } from "@/lib/pintDropReceipt";
+
 type Question = { id: string; question: string; answer: string };
 
 export const LANDING_FAQ: readonly Question[] = [
@@ -32,7 +34,7 @@ export const LANDING_FAQ: readonly Question[] = [
     id: "log-a-price",
     question: "How do I log a price?",
     answer:
-      "Open a pub on the map and press the price door. Type what you paid and which drink it was, then press Log it. A photo of the bill or the pint is optional. Photos and notes are public and can show people, so only add one you are happy to share.",
+      `Open a pub on the map and press the price door. Type what you paid and which drink it was, then press Log it. ${RECEIPT_REQUIRED_LINE} A photo of the pint is optional. Photos and notes are public and can show people, so only add one you are happy to share.`,
   },
   {
     id: "today-tonight",
