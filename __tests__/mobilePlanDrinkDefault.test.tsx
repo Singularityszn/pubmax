@@ -100,7 +100,9 @@ describe("map drink default in the phone planner", () => {
       await act(async () => button("Alcohol-free").click());
       await generate();
       expect(requests).toHaveLength(1);
-      expect(requests[0]!.context).toMatchObject({ drinkCategory: "soft-drink", zeroProof: true });
+      expect(requests[0]!.context).toMatchObject({ zeroProof: true });
+      // The server infers the lane from the query, so the phone does not repeat it.
+      expect(inferNightContext(requests[0]!.query).context).toMatchObject({ drinkCategory: "soft-drink" });
     },
   );
 
