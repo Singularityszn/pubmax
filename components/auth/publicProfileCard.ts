@@ -53,6 +53,7 @@ export function announceProfileCardChanged(handle: string): void {
 export async function loadPublicProfileCard(
   handle: string,
   signal?: AbortSignal,
+  options: { fresh?: boolean } = {},
 ): Promise<PublicProfileCard | null> {
   let card: PublicProfileCard | null = null;
   let answered = false;
@@ -60,6 +61,7 @@ export async function loadPublicProfileCard(
     cardKey(handle),
     {
       signal,
+      ...(options.fresh ? { fresh: true } : {}),
       validate: (body) => Boolean(body && typeof body === "object" && "profile" in body),
     },
     (body) => {

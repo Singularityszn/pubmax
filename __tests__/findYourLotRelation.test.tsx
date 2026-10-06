@@ -159,6 +159,33 @@ describe("FindYourLot relation", () => {
     await vi.waitFor(() => expect(buttonIn("sam_new").textContent).toBe("Following"));
   });
 
+  it("drops a late answer for the previous query instead of painting its relations", async () => {
+    // The first search is still on the wire when the viewer types on.
+    let releaseFirst: (response: Response) => void = () => undefined;
+    let firstSignal: AbortSignal | undefined;
+    search
+      .mockImplementationOnce((_url: string, init: RequestInit) => {
+        firstSignal = init.signal ?? undefined;
+        return new Promise<Response>((resolve) => { releaseFirst = resolve; });
+      })
+      .mockImplementationOnce(async () =>
+        json({ matches: [{ id: "7", handle: "samuel", relation: "none" }] }),
+      );
+
+    await typeQuery("sam");
+    await vi.waitFor(() => expect(search).toHaveBeenCalledTimes(1));
+    await typeQuery("samu");
+    await vi.waitFor(() => expect(host.querySelectorAll("li.findLot__row")).toHaveLength(1));
+    expect(firstSignal?.aborted).toBe(true);
+
+    await act(async () => {
+      releaseFirst(json({ matches: MATCHES }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(host.querySelectorAll("li.findLot__row")).toHaveLength(1);
+    expect(buttonIn("samuel").textContent).toBe("Follow");
+  });
+
   it("falls back to Follow when the answer carries no relation", async () => {
     search.mockResolvedValueOnce(json({ matches: [{ id: "9", handle: "sam_old" }] }));
     await typeQuery("sam");
