@@ -26,7 +26,7 @@ import { getSupabaseAdmin, requiresSupabaseStore, type TypedSupabaseClient } fro
 export type DatabaseHealth = "ok" | "not_configured" | "down";
 
 export const HEALTH_CACHE_MS = 15_000;
-export const HEALTH_TIMEOUT_MS = 4_000;
+const HEALTH_TIMEOUT_MS = 4_000;
 
 type Cached = { at: number; value: DatabaseHealth };
 let cached: Cached | null = null;

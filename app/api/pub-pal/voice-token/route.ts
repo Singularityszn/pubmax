@@ -3,6 +3,7 @@ import { isLimited } from "@/lib/pintDrops";
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { log } from "@/lib/log";
+import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import {
   billableVoiceMinutes,
   canReserveVoiceMinute,
@@ -174,6 +175,12 @@ async function handleIssueToken(userId: string): Promise<Response> {
       compatibilityFields: { fallback: "text" },
     });
   }
+
+  // The deployment-wide ceiling comes BEFORE the account's own allowance, so a
+  // refusal spends nobody's trial minutes. Per-account minutes bound one person;
+  // this bounds the sum across every account.
+  const budgetRefusal = await paidSpendBudgetRefusal("pub-pal-voice");
+  if (budgetRefusal) return budgetRefusal;
 
   const month = currentMonth();
   const usageMonth = usageMonthDate(month);

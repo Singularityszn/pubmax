@@ -3,6 +3,7 @@ import { PAL_VOICE_MAX_SESSION_SECONDS, PAL_VOICE_MONTHLY_MINUTES } from "@/lib/
 
 const voiceState = vi.hoisted(() => ({
   configured: true,
+  ceilingSpent: false,
   events: [] as string[],
   palLookupFails: false,
   palPresent: true,
@@ -50,7 +51,11 @@ vi.mock("@/lib/supabase", () => ({
   requireSupabaseAdmin: () => ({ rpc: voiceState.rpc }),
   clientIp: () => "203.0.113.10",
   hashIp: (ip: string) => `hashed:${ip}`,
-  checkRateLimitDurableDetailed: async () => ({ verdict: false, reason: "counted" }),
+  // The only durable-limiter key the deployment ceiling uses starts `paid-spend:`.
+  checkRateLimitDurableDetailed: async (key: string) => ({
+    verdict: voiceState.ceilingSpent && key.startsWith("paid-spend:"),
+    reason: "counted",
+  }),
 }));
 
 const voiceBind = vi.hoisted(() => vi.fn(async () => {}));
@@ -73,6 +78,7 @@ const releaseRequest = (durationSeconds = 0) =>
 describe("Pub Pal voice token route", () => {
   beforeEach(() => {
     voiceState.configured = true;
+    voiceState.ceilingSpent = false;
     voiceState.events.length = 0;
     voiceState.palLookupFails = false;
     voiceState.palPresent = true;
@@ -102,6 +108,19 @@ describe("Pub Pal voice token route", () => {
 
     expect(response.status).toBe(503);
     expect(await response.json()).toMatchObject({ fallback: "text" });
+    expect(providerFetch).not.toHaveBeenCalled();
+    expect(voiceState.rpc).not.toHaveBeenCalled();
+  });
+
+  it("refuses with the deployment ceiling before it spends an account's trial minutes", async () => {
+    voiceState.ceilingSpent = true;
+    const providerFetch = vi.fn();
+    vi.stubGlobal("fetch", providerFetch);
+
+    const response = await POST(issueRequest());
+
+    expect(response.status).toBe(429);
+    expect(await response.json()).toMatchObject({ code: "DAILY_BUDGET_SPENT", retryable: true });
     expect(providerFetch).not.toHaveBeenCalled();
     expect(voiceState.rpc).not.toHaveBeenCalled();
   });

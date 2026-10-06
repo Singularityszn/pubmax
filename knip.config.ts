@@ -196,8 +196,9 @@ const config: KnipConfig = {
   // (scripts/rls/postgresShm.mjs), and the Google Cloud CLI. The pub-website
   // amenity harvest mints its Vertex token with it, and the Places verify jobs
   // read an access token from it (scripts/lib/googlePlacesQuota.mjs). They are
-  // not npm binaries.
-  ignoreBinaries: ["ipcs", "ipcrm", "ps", "gcloud"],
+  // PostgreSQL client tools the off-platform backup shells out to
+  // (scripts/backup-offplatform.mjs). They are not npm binaries.
+  ignoreBinaries: ["ipcs", "ipcrm", "ps", "gcloud", "pg_dump", "pg_restore"],
 };
 
 // This optional local MCP CLI has its own pinned package manifest and named

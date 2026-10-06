@@ -31,7 +31,7 @@ import { after } from "next/server";
 export const ALERT_WEBHOOK_ENV = "PUBMAX_ALERT_WEBHOOK_URL";
 export const ALERT_COOLDOWN_MS = 15 * 60 * 1000;
 export const ALERT_HOURLY_CAP = 30;
-export const ALERT_TIMEOUT_MS = 3_000;
+const ALERT_TIMEOUT_MS = 3_000;
 export const ALERT_MAX_TEXT = 1_500;
 
 /** Warn-level events an operator must hear about, beside every error-level one. */
