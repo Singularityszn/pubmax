@@ -307,6 +307,9 @@ export default function MessagesInboxClient({
   // The open thread announces when it marks its messages read, and the nav
   // badge drops at once. Its row here drops its pill on the same signal, so the
   // two never disagree on one screen while the next inbox read is still away.
+  // A read already in flight may have been answered before the mark-read, so
+  // the signal also starts a fresh read that supersedes it: the stale answer is
+  // dropped instead of putting the pill back.
   useEffect(() => {
     if (!activeConversationId) return;
     return subscribeMessagesRead(() => {
@@ -315,8 +318,9 @@ export default function MessagesInboxClient({
           ? rows.map((c) => (c.id === activeConversationId ? { ...c, unread: 0 } : c))
           : rows,
       );
+      void refresh(undefined, true);
     });
-  }, [activeConversationId]);
+  }, [activeConversationId, refresh]);
 
   const accountDataReady = loadedRevision === accountRevision;
   // One clock for the whole list per render, so every row's time is measured
