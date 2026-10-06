@@ -234,9 +234,12 @@ export default async function PlanInvitePage({ params }: PageProps) {
     title: state.plan.title,
     context: state.context,
   });
-  const routePoints = stops
-    .map((stop) => stop.coordinates)
-    .filter((point): point is [number, number] => point !== null);
+  // Each drawn point keeps its place in the stop list, so the pin numbers match
+  // the numbered stops below even when a stop has no coordinates.
+  const routeStops = stops.flatMap((stop, index) =>
+    stop.coordinates ? [{ point: stop.coordinates, number: index + 1 }] : [],
+  );
+  const routePoints = routeStops.map((entry) => entry.point);
   const spendBand = inviteSpendBand(stops);
 
   return (
@@ -254,8 +257,12 @@ export default async function PlanInvitePage({ params }: PageProps) {
             <RouteThumbnail
               className="invite__thumb"
               points={routePoints}
+              stopNumbers={routeStops.map((entry) => entry.number)}
               label={`Route shape for ${state.plan.title}`}
             />
+            <p className="invite__thumbNote">
+              Straight lines between stops, not a walking route.
+            </p>
           </div>
         ) : null}
 
