@@ -122,7 +122,7 @@ describe("GET /api/citymcp/status", () => {
         timeWindow: "18:30-22:45",
         sourceUrl: "https://www.timeout.com/london/news/the-strokes-o2",
       },
-      { kind: "event", headline: "Holborn and St Pancras By-Election", severity: "notable", sourceUrl: "https://example.com/a" },
+      { kind: "event", headline: "Holborn and St Pancras By-Election", severity: "notable", sourceUrl: "https://example.com/holborn-st-pancras-by-election" },
       { kind: "event", headline: "The Strokes concert at O2 Arena", severity: "notable" },
       { kind: "event", headline: "Holborn and St Pancras by-election", severity: "notable" },
     ];

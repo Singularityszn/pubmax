@@ -1274,6 +1274,54 @@ export function dedupeCityStatusSignals(
   return kept.map((entry) => entry.signal);
 }
 
+// ---------- Grounding: an event row must not wear another story's source ----------
+//
+// The upstream digest sometimes attaches a link that has nothing to do with the
+// row (6 Oct 2026: a by-election row linked to a 2021 protest article, which
+// is the only thing "grounding" its sentence about police warnings). A link
+// whose readable path shares no word with the row's own headline or detail
+// grounds nothing, and an event row we cannot ground is dropped rather than
+// printed as sourced. A path with no readable words (an opaque id such as
+// "cv4g17kkxwj3o") says nothing either way, so it is trusted as before.
+
+const SLUG_STOP_WORDS: ReadonlySet<string> = new Set([
+  "news", "article", "articles", "london", "story", "live", "www", "html", "uk",
+]);
+
+function slugWords(url: string): string[] {
+  let path: string;
+  try {
+    path = new URL(url).pathname;
+  } catch {
+    return [];
+  }
+  return path
+    .toLowerCase()
+    .split(/[^a-z]+/)
+    .filter((word) => word.length >= 4 && !SLUG_STOP_WORDS.has(word));
+}
+
+/** True when an event row's source link is readable and shares no word with the row. */
+export function isUngroundedEventSignal(signal: CityStatusSignal): boolean {
+  if (String(signal.kind ?? "").toLowerCase() !== "event") return false;
+  if (!signal.sourceUrl) return false;
+  const words = slugWords(signal.sourceUrl);
+  // Fewer than two readable words is an opaque id, not a claim about the story.
+  if (words.length < 2) return false;
+  // The headline only: the detail is the generated sentence the link is meant to
+  // ground, so it cannot vouch for its own source.
+  const headline = String(signal.headline ?? "").toLowerCase();
+  return !words.some((word) => headline.includes(word));
+}
+
+/** Drop event rows whose own source link is about something else. Pure, new array. */
+export function dropUngroundedEventSignals(
+  signals: readonly CityStatusSignal[] | undefined,
+): CityStatusSignal[] {
+  if (!Array.isArray(signals)) return [];
+  return signals.filter((signal) => !isUngroundedEventSignal(signal));
+}
+
 /**
  * Return the top-N signals by severity (major > notable > info > unknown),
  * preserving upstream order for equal severities. Used by the status route

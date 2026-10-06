@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   dedupeCityStatusSignals,
+  dropUngroundedEventSignals,
   filterNightShapingSignals,
   isAviationNoiseSignal,
   type CityStatusSignal,
@@ -113,5 +114,35 @@ describe("dedupeCityStatusSignals", () => {
     expect(dedupeCityStatusSignals(input)).toHaveLength(2);
     expect(input).toEqual(copy);
     expect(dedupeCityStatusSignals(undefined)).toEqual([]);
+  });
+});
+
+describe("dropUngroundedEventSignals", () => {
+  const byElection: CityStatusSignal = {
+    kind: "event",
+    headline: "Holborn and St Pancras By-Election",
+    detail: "A by-election is taking place, with police warnings about protesters.",
+    sourceUrl: "https://www.standard.co.uk/news/london/protests-london-met-police-palestine-israel-b1299320.html",
+  };
+
+  it("drops an event whose readable source link shares no word with its headline (F14)", () => {
+    expect(dropUngroundedEventSignals([byElection])).toEqual([]);
+  });
+
+  it("keeps an event whose link names the story, an opaque id, no link, and non-events", () => {
+    const strokes: CityStatusSignal = {
+      kind: "event",
+      headline: "The Strokes Concert at The O2 Arena",
+      sourceUrl: "https://www.timeout.com/london/news/the-strokes-o2-october-2026-timings-tickets",
+    };
+    const opaque: CityStatusSignal = {
+      kind: "event",
+      headline: "Kingston Market Place fire",
+      sourceUrl: "https://www.bbc.co.uk/news/articles/cv4g17kkxwj3o",
+    };
+    const unsourced: CityStatusSignal = { kind: "event", headline: "A gig" };
+    const alert: CityStatusSignal = { ...byElection, kind: "alert" };
+    const kept = dropUngroundedEventSignals([strokes, opaque, unsourced, alert]);
+    expect(kept).toEqual([strokes, opaque, unsourced, alert]);
   });
 });
