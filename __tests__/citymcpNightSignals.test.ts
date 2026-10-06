@@ -177,6 +177,23 @@ describe("unlinkUngroundedEventSignals", () => {
     expect(unlinkUngroundedEventSignals([concert])).toEqual([concert]);
   });
 
+  it("keeps an event whose link only shares the start of a longer word, without the link", () => {
+    const musical: CityStatusSignal = {
+      kind: "event",
+      headline: "West End musical opening night",
+      sourceUrl: "https://www.standard.co.uk/news/london/westminster-protest-arrests-b1299320.html",
+    };
+    const evensong: CityStatusSignal = {
+      kind: "event",
+      headline: "Westminster Abbey evensong",
+      sourceUrl: "https://www.timeout.com/london/theatre/west-end-shows-tonight",
+    };
+    expect(unlinkUngroundedEventSignals([musical, evensong])).toEqual([
+      { kind: "event", headline: "West End musical opening night" },
+      { kind: "event", headline: "Westminster Abbey evensong" },
+    ]);
+  });
+
   it("keeps an event whose link names the story, an opaque id, no link, and non-events untouched", () => {
     const strokes: CityStatusSignal = {
       kind: "event",

@@ -1256,10 +1256,10 @@ function severityRank(signal: CityStatusSignal): number {
 /**
  * Collapse rows that name the same story into one, keeping the row that says
  * the most (a sourced row beats an unsourced one) at the highest severity
- * either copy carried, in the position the story first appeared. Two rows are the same story when their headlines share at
- * least three quarters of their words once case, punctuation and filler words
- * are set aside. Pure, returns a new array, exported for tests + the status
- * route.
+ * either copy carried, in the position the story first appeared. Two rows are
+ * the same story when their headlines share at least three quarters of their
+ * words once case, punctuation and filler words are set aside. Pure, returns a
+ * new array, exported for tests + the status route.
  */
 export function dedupeCityStatusSignals(
   signals: readonly CityStatusSignal[] | undefined,
@@ -1310,6 +1310,15 @@ function slugWords(url: string): string[] {
     .filter((word) => word.length >= 4 && !SLUG_STOP_WORDS.has(word));
 }
 
+const INFLECTION_ENDING = /^(?:s|es|d|ed|ing|er|ers)$/;
+
+/** One word, or one word with an inflection ending ("concert" and "concerts"), never a longer word that starts the same ("west" and "westminster"). */
+function sameWord(a: string, b: string): boolean {
+  if (a === b) return true;
+  const [stem, longer] = a.length < b.length ? [a, b] : [b, a];
+  return stem.length >= 3 && longer.startsWith(stem) && INFLECTION_ENDING.test(longer.slice(stem.length));
+}
+
 /** True when an event row's source link is readable and shares no word with the row. */
 export function hasUngroundedEventSource(signal: CityStatusSignal): boolean {
   if (String(signal.kind ?? "").toLowerCase() !== "event") return false;
@@ -1319,13 +1328,11 @@ export function hasUngroundedEventSource(signal: CityStatusSignal): boolean {
   if (words.length < 2) return false;
   // The headline only: the detail is the generated sentence the link is meant to
   // ground, so it cannot vouch for its own source.
-  const headline = String(signal.headline ?? "").toLowerCase();
-  // A slug word may carry an ending its headline word does not ("concerts" for
-  // "concert"), so a headline word that starts it grounds it too.
-  const headlineWords = headline.split(/[^a-z]+/).filter((word) => word.length >= 4);
-  return !words.some(
-    (word) => headline.includes(word) || headlineWords.some((stem) => word.startsWith(stem)),
-  );
+  const headlineWords = String(signal.headline ?? "")
+    .toLowerCase()
+    .split(/[^a-z]+/)
+    .filter((word) => word.length > 0);
+  return !words.some((word) => headlineWords.some((headlineWord) => sameWord(word, headlineWord)));
 }
 
 /** Strip the source link from event rows whose link is about something else. Pure, new array. */
