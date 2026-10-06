@@ -1308,9 +1308,26 @@ describe("chain denylist", () => {
       },
     };
     expect(await readExtraPage("https://pub.example/menu", deps)).toBeNull();
-    expect(await readExtraPage("https://pub.example/whats-on", deps)).toBe("text of https://pub.example/whats-on");
+    expect(await readExtraPage("https://pub.example/whats-on", deps)).toEqual({
+      url: "https://pub.example/whats-on",
+      text: "text of https://pub.example/whats-on",
+    });
     expect(await readExtraPage("https://chain.example/food-drink", deps)).toBeNull();
     expect(fetched).toEqual(["https://pub.example/menu", "https://pub.example/whats-on"]);
+  });
+
+  it("checks robots and the source policy again on the page an extra link lands on", async () => {
+    const deps = (landing: string, allowed: (url: string) => boolean, harvestable: (url: string) => boolean) => ({
+      chainPages: EMPTY_CHAIN_DENYLIST,
+      isHarvestable: harvestable,
+      robots: async (url: string) => ({ allowed: allowed(url) }),
+      readHtml: async () => ({ ok: true as const, url: landing, text: "landed text" }),
+    });
+    const landing = "https://landing.example/pub";
+    const link = "https://pub.example/whats-on";
+    expect(await readExtraPage(link, deps(landing, () => true, () => true))).toEqual({ url: landing, text: "landed text" });
+    expect(await readExtraPage(link, deps(landing, (url) => url !== landing, () => true))).toBeNull();
+    expect(await readExtraPage(link, deps(landing, () => true, (url) => url !== landing))).toBeNull();
   });
 
   it("asks about a URL the way the chain rule reads a page", () => {
@@ -1652,6 +1669,19 @@ describe("scoped harvest guards", () => {
     fresh.set("node/1", { status: "robots-unreachable" });
     expect(withoutThinnerRereads(fresh, previous).has("node/1")).toBe(false);
     fresh.set("node/1", { status: "ok", sourceUrl: "https://a.example/", amenities: { food: "serves food", pool: "a pool table", darts: "a dartboard" } });
+    expect(withoutThinnerRereads(fresh, previous).has("node/1")).toBe(true);
+  });
+
+  it("counts a pub's earlier amenities across every page row it holds", () => {
+    const previous = [
+      { osmId: "node/1", sourceUrl: "https://a.example/", amenities: { food: "serves food", pool: "a pool table" } },
+      { osmId: "node/1", sourceUrl: "https://a.example/sport", amenities: { liveSports: "live sport" } },
+    ];
+    const fresh = new Map<string, HarvestRead>([
+      ["node/1", { status: "ok", sourceUrl: "https://a.example/", amenities: { food: "serves food", pool: "a pool table" } }],
+    ]);
+    expect(withoutThinnerRereads(fresh, previous).has("node/1")).toBe(false);
+    fresh.set("node/1", { status: "ok", sourceUrl: "https://a.example/", amenities: { food: "serves food", pool: "a pool table", liveSports: "live sport", darts: "a dartboard" } });
     expect(withoutThinnerRereads(fresh, previous).has("node/1")).toBe(true);
   });
 });

@@ -31,8 +31,10 @@
 // file onto the source dataset through the gate, so a rerun gives the same
 // dataset and a tightened gate takes stamps away. --restamp does only that: it
 // reads no checkpoint, fetches nothing and calls no model. A harvest adds this
-// run's pages to the committed evidence; the checkpoint only says which pubs
-// are already done.
+// run's pages to the committed evidence. A pub's observation stays "pending" in
+// the checkpoint, under one batch id, until the evidence file carrying that id
+// is written, so a run that stopped between the two retries from the checkpoint
+// with no fetch and no model call.
 //
 // A page or quote proven chain-wide stays in
 // data/amenities/london_pub_website_chain_pages.json, with every pub that has
@@ -49,8 +51,9 @@
 // an access token.
 
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 import { createFirecrawlClient, createHarvestBudget, HARVEST_CLI_REQUEST_BUDGET } from "../../../lib/harvest/firecrawl.ts";
@@ -331,6 +334,7 @@ function loadCheckpoint() {
       spentUsd: Number(parsed.spentUsd ?? 0),
       byOsmId: parsed.byOsmId && typeof parsed.byOsmId === "object" ? parsed.byOsmId : {},
       located: parsed.located && typeof parsed.located === "object" ? parsed.located : {},
+      pendingPublication: parsed.pendingPublication,
     };
   } catch (error) {
     if (error?.code === "ENOENT") return { spentUsd: 0, byOsmId: {}, located: {} };
@@ -365,6 +369,144 @@ function readEvidence() {
     if (error?.code === "ENOENT") return null;
     throw error;
   }
+}
+
+/** Why a recorded observation may not be published again, or null when it may. */
+function unrecoverableReason(entry, osmId, scopes) {
+  let reason = "pub-no-longer-listed";
+  for (const scope of scopes) {
+    for (const pub of scope().filter((candidate) => candidate.osmId === osmId)) {
+      reason = reasonAgainst(entry, pub);
+      if (reason === null) return null;
+    }
+  }
+  return reason;
+}
+
+/**
+ * The pub lists an observation could have been made for, whichever scope its run
+ * had: this run's list and the OSM sites first, the copy-skipped list only when
+ * they do not vouch for it.
+ */
+function recoveryScopes(londonSites, pubs, loadCopySkipped) {
+  let copySkipped;
+  return [() => londonSites, () => pubs, () => (copySkipped ??= loadCopySkipped())];
+}
+
+function reasonAgainst(entry, pub) {
+  const record = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+  const quotes = (value) => record(value) && Object.entries(value).every(([key, quote]) =>
+    PUB_WEBSITE_AMENITY_KEYS.includes(key) && typeof quote === "string");
+  const permitted = (url) => typeof url === "string" && isHarvestableOperatorUrl(url);
+  if (typeof entry.name !== "string" || entry.name !== pub.name) return "pub-name-changed";
+  if (entry.venueId !== pub.venueId) return "venue-mapping-changed";
+  if (entry.website !== undefined && entry.website !== pub.website) return "website-changed";
+  if (pub.website && !permitted(pub.website)) return "website-no-longer-permitted";
+  if (!permitted(entry.sourceUrl)) return "source-no-longer-permitted";
+  const day = entry.verifiedAt;
+  if (typeof day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return "bad-observation-date";
+  const date = new Date(`${day}T00:00:00Z`);
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== day) return "bad-observation-date";
+  if (day > new Date().toISOString().slice(0, 10)) return "observation-date-in-future";
+  if (!quotes(entry.amenities)) return "bad-amenities";
+  if (entry.pages !== undefined && (!Array.isArray(entry.pages) || !entry.pages.every((page) =>
+    record(page) && permitted(page.sourceUrl) && quotes(page.amenities)))) return "bad-pages";
+  return null;
+}
+
+const BATCH_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * The observations a stopped run left unpublished, and the batch they belong to.
+ * A batch is published when the evidence file carries its id, and then nothing
+ * is merged again. Otherwise each pending observation is merged again from the
+ * checkpoint, with the date it was made and the spend its batch started from.
+ * One that may not be published now is a finding: it is reported, counted in the
+ * evidence file's skip counts and never silently taken for published.
+ */
+function recoverPending(checkpoint, previous, scopes) {
+  const stored = checkpoint.pendingPublication;
+  const batchPublished = typeof stored?.id === "string" && BATCH_ID.test(stored.id) && stored.id === previous?.publicationBatchId;
+  const fresh = new Map();
+  const findings = [];
+  for (const [osmId, entry] of Object.entries(checkpoint.byOsmId)) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry) || entry.status === "read") continue;
+    if (entry.publication === "pending" && batchPublished) {
+      entry.publication = "published";
+    } else if (entry.publication === "pending" || (entry.publication === undefined && previous === null)) {
+      // Without an evidence file nothing was ever published, so an entry with no mark is pending too.
+      const reason = entry.status === "ok" ? unrecoverableReason(entry, osmId, scopes) : null;
+      if (reason) {
+        entry.publication = "unrecoverable";
+        findings.push({ osmId, reason });
+        continue;
+      }
+      entry.publication = "pending";
+      fresh.set(osmId, entry);
+    } else if (entry.publication === undefined) {
+      // Existing publication may have deliberately removed this row.
+      entry.publication = "published";
+    }
+  }
+  const resumed = !batchPublished && Number.isFinite(stored?.spentUsd)
+    ? { spentUsd: stored.spentUsd, id: BATCH_ID.test(stored.id ?? "") ? stored.id : randomUUID() } : null;
+  return { fresh, findings, batch: resumed ?? (fresh.size > 0 ? newBatch(checkpoint.spentUsd) : null) };
+}
+
+/** A batch of observations not yet in the evidence file, with the spend it started from. */
+function newBatch(spentUsd) {
+  return { spentUsd, id: randomUUID() };
+}
+
+/** A pub with no checkpoint entry, or one whose page was kept for a model run that may now come. A malformed entry counts as an outcome. */
+function awaitsWork(byOsmId, osmId, readOnly) {
+  return !Object.hasOwn(byOsmId, osmId) || (!readOnly && byOsmId[osmId]?.status === "read");
+}
+
+function logProgress(done, total, byOsmId, spent) {
+  const kept = Object.values(byOsmId).filter((row) => row?.status === "ok" && Object.keys(row.amenities ?? {}).length > 0).length;
+  console.log(`progress ${done}/${total} kept=${kept} spentUsd=${spent.toFixed(4)}`);
+}
+
+/** The earlier evidence's spend plus what this run spent since its batch started. */
+function actualSpend(previous, spent, batchStartUsd) {
+  return Number(((previous?.actualSpendUsd ?? 0) + spent - batchStartUsd).toFixed(4));
+}
+
+/** An outcome waits in the batch until its evidence is written. A page only kept for a later model run is no outcome yet. */
+function markPending(done, osmId, fresh) {
+  if (!done || done.status === "read") return false;
+  done.publication = "pending";
+  fresh.set(osmId, done);
+  return true;
+}
+
+/** The batch's publication counter: one more than the evidence file it will replace. */
+function numberBatch(batch, previous) {
+  if (batch) batch.publications = (previous?.publications ?? 0) + 1;
+}
+
+/** Each pending observation the batch just published is published. */
+function markPublished(byOsmId) {
+  for (const entry of Object.values(byOsmId)) if (entry?.publication === "pending") entry.publication = "published";
+}
+
+/** Findings go to stderr and into the skip counts, so a refusal to republish is never silent. */
+function reportFindings(findings, skipCounts) {
+  for (const { osmId, reason } of findings) console.error(JSON.stringify({ finding: "unrecoverable-pending-observation", osmId, reason }));
+  if (findings.length > 0) skipCounts["unrecoverable-pending"] = (skipCounts["unrecoverable-pending"] ?? 0) + findings.length;
+}
+
+/** The counter and batch id this run's evidence carries: a pending batch's own, else the previous file's. */
+function publicationStamp(batch, previous) {
+  return batch
+    ? { publications: batch.publications, publicationBatchId: batch.id }
+    : { publications: previous?.publications, publicationBatchId: previous?.publicationBatchId };
+}
+
+/** The checkpoint's entries that are records. A hand-edited file may hold others, and none of them is a read. */
+function checkpointReads(byOsmId) {
+  return Object.entries(byOsmId).filter(([, entry]) => entry !== null && typeof entry === "object" && !Array.isArray(entry));
 }
 
 function runFlags() {
@@ -467,25 +609,24 @@ function stampDataset(evidenceRows, chainPages) {
     rowsByVenue.set(venueId, bucket);
   });
   const before = columnCoverage(dataset);
-  let stampedRows = 0;
-  let stampedVenues = 0;
+  // A venue read through two pages is one stamped venue, and a row two pages stamp is one stamped row.
+  const stampedRows = new Set();
+  const stampedVenues = new Set();
   for (const entry of pubSpecificEvidence(evidenceRows, chainPages)) {
     if (!entry.venueId) continue;
-    let venueStamped = false;
     for (const index of rowsByVenue.get(entry.venueId) ?? []) {
       const result = stampAmenityColumns(dataset[index], entry.amenities);
       if (result.stamped.length === 0) continue;
       dataset[index] = result.row;
-      stampedRows += 1;
-      venueStamped = true;
+      stampedRows.add(index);
+      stampedVenues.add(entry.venueId);
     }
-    if (venueStamped) stampedVenues += 1;
   }
   const after = columnCoverage(dataset);
   const datasetTemp = `${DATASET_PATH}.tmp`;
   writeFileSync(datasetTemp, JSON.stringify(dataset));
   renameSync(datasetTemp, DATASET_PATH);
-  return { before, after, stampedRows, stampedVenues };
+  return { before, after, stampedRows: stampedRows.size, stampedVenues: stampedVenues.size };
 }
 
 /** The evidence file with this run's stamp figures. The first honest before figure is kept. */
@@ -507,12 +648,19 @@ function readChainPages() {
 
 function writeChainPages(chainPages) {
   mkdirSync(path.dirname(CHAIN_PAGES_PATH), { recursive: true });
-  writeFileSync(CHAIN_PAGES_PATH, `${JSON.stringify({ version: 1, ...chainPages }, null, 2)}\n`);
+  writeFileAtomic(CHAIN_PAGES_PATH, `${JSON.stringify({ version: 1, ...chainPages }, null, 2)}\n`);
+}
+
+/** A file is either the old one or the new one, never half of the new one. */
+function writeFileAtomic(file, body) {
+  const temp = `${file}.tmp`;
+  writeFileSync(temp, body);
+  renameSync(temp, file);
 }
 
 function writeEvidence(evidence) {
   mkdirSync(path.dirname(EVIDENCE_PATH), { recursive: true });
-  writeFileSync(EVIDENCE_PATH, `${JSON.stringify(evidence, null, 2)}\n`);
+  writeFileAtomic(EVIDENCE_PATH, `${JSON.stringify(evidence, null, 2)}\n`);
 }
 
 function restampFromEvidence() {
@@ -616,14 +764,19 @@ async function main() {
   let spent = Number(checkpoint.spentUsd ?? 0);
   const startSpent = spent;
   const byOsmId = checkpoint.byOsmId;
-  const fresh = new Map();
+  const previous = readEvidence();
+  // An interrupted run may have had the other scope, so each pending observation is checked against every scope's pubs.
+  const scopes = recoveryScopes(londonSites, pubs, () => (existsSync(COPY_PATH) ? copySkippedPubs(dataset, anchors, londonSites, { unwritten: true }) : []));
+  const recovered = recoverPending(checkpoint, previous, scopes);
+  const fresh = recovered.fresh;
+  let batch = recovered.batch;
   const robots = createRobotsChecker();
   const knownChainPages = readChainPages();
   const located = checkpoint.located;
   const firecrawl = createFirecrawlClient({ budget: createHarvestBudget(firecrawlRequests) });
   // A pub whose page was read under --read-only waits in the checkpoint as
   // "read" until a run that may call the model.
-  const queue = pubs.filter((pub) => (pub.website || locate) && (!byOsmId[pub.osmId] || (!readOnly && byOsmId[pub.osmId].status === "read")));
+  const queue = pubs.filter((pub) => (pub.website || locate) && awaitsWork(byOsmId, pub.osmId, readOnly));
   const work = limit === null ? queue : queue.slice(0, limit);
   let cursor = 0;
   let writeChain = Promise.resolve();
@@ -631,7 +784,7 @@ async function main() {
 
   const save = () => {
     writeChain = writeChain.then(() => {
-      const next = { spentUsd: spent, byOsmId, located };
+      const next = { spentUsd: spent, byOsmId, located, ...(batch ? { pendingPublication: batch } : {}) };
       const temp = `${CHECKPOINT_PATH}.tmp`;
       writeFileSync(temp, JSON.stringify(next));
       renameSync(temp, CHECKPOINT_PATH);
@@ -712,12 +865,12 @@ async function main() {
 
   // Pages other pubs have read: the committed evidence, this checkpoint and the chain list's readers.
   const previousRows = readEvidence()?.rows ?? [];
-  const otherReads = () => pageOwners(previousRows, Object.entries(byOsmId), knownChainPages);
+  const otherReads = () => pageOwners(previousRows, checkpointReads(byOsmId), knownChainPages);
 
   const pagePath = (key) => path.join(PAGES_DIR, `${key.replace(/[^a-z0-9-]/gi, "_")}.json`);
-  const cachedText = (key) => {
+  const cachedPage = (key) => {
     try {
-      return JSON.parse(readFileSync(pagePath(key), "utf8")).text;
+      return JSON.parse(readFileSync(pagePath(key), "utf8"));
     } catch (error) {
       if (error.code === "ENOENT") return null;
       throw error;
@@ -737,21 +890,25 @@ async function main() {
     if (isChainPage(home.url, knownChainPages)) return { status: "chain-page", sourceUrl: home.url };
     const landedPermission = await robots(home.url);
     if (!landedPermission.allowed) return { status: landedPermission.reason ?? "robots-denied" };
-    let text = home.text;
+    // The model reads one text of at most PAGE_CHAR_CAP characters. Each page keeps
+    // the part of it that came from that page, so a quote is checked against and
+    // cited to the page that states it.
+    const pages = [{ sourceUrl: home.url, text: home.text.slice(0, PAGE_CHAR_CAP) }];
     const extraLinks = sameHostLinks(home.html, home.url);
     for (const link of extraLinks.slice(0, 1)) {
-      const extraText = await readExtraPage(link, {
+      const extra = await readExtraPage(link, {
         chainPages: knownChainPages,
         isHarvestable: isHarvestableOperatorUrl,
         robots,
         readHtml: readPage,
       });
-      if (extraText === null) continue;
-      text = `${text}\n${extraText}`.slice(0, PAGE_CHAR_CAP);
+      if (extra === null) continue;
+      pages.push({ sourceUrl: extra.url, text: extra.text.slice(0, Math.max(0, PAGE_CHAR_CAP - pages[0].text.length - 1)) });
       break;
     }
+    const text = pages.map((page) => page.text).join("\n");
     if (text.length < 40) return { status: "empty-page", sourceUrl: home.url };
-    return { status: "read", sourceUrl: home.url, reader: home.reader, located: !pub.website, text };
+    return { status: "read", sourceUrl: home.url, reader: home.reader, located: !pub.website, text, pages };
   }
 
   async function one(pub) {
@@ -761,8 +918,11 @@ async function main() {
       stopped = true;
       return;
     }
-    let read = cachedPageRead(byOsmId[pub.osmId], () => cachedText(pub.osmId));
+    const cachedFile = byOsmId[pub.osmId]?.status === "read" ? cachedPage(pub.osmId) : null;
+    let read = cachedPageRead(byOsmId[pub.osmId], () => cachedFile?.text ?? null);
     const cached = read !== null;
+    // A page file written before pages were kept has the one text and one url.
+    if (cached) read = { ...read, pages: cachedFile.pages ?? [{ sourceUrl: read.sourceUrl, text: read.text }] };
     if (!cached) {
       read = await readSite(pub);
       if (read.status === null) return;
@@ -777,7 +937,7 @@ async function main() {
         byOsmId[pub.osmId] = { status: landing.status, venueId: pub.venueId };
         return;
       }
-      read = { ...read, sourceUrl: landing.url, landingChecked: true };
+      read = { ...read, sourceUrl: landing.url, landingChecked: true, pages: [{ ...read.pages[0], sourceUrl: landing.url }, ...read.pages.slice(1)] };
       byOsmId[pub.osmId] = { ...byOsmId[pub.osmId], sourceUrl: landing.url, landingChecked: true };
     }
     if (siteOfAnotherPub(read.sourceUrl, pub.osmId, otherReads())) {
@@ -790,7 +950,7 @@ async function main() {
     }
     if (!cached) {
       mkdirSync(PAGES_DIR, { recursive: true });
-      writeFileSync(pagePath(pub.osmId), JSON.stringify({ url: read.sourceUrl, reader: read.reader, readAt: new Date().toISOString(), text: read.text }));
+      writeFileSync(pagePath(pub.osmId), JSON.stringify({ url: read.sourceUrl, reader: read.reader, readAt: new Date().toISOString(), text: read.text, pages: read.pages }));
       byOsmId[pub.osmId] = pageReadEntry(pub, read);
       if (readOnly) return;
     }
@@ -813,14 +973,18 @@ async function main() {
       byOsmId[pub.osmId] = { status: parsed.reason, venueId: pub.venueId, sourceUrl, usd: cost.usd };
       return;
     }
-    const kept = keepEvidencedAmenities(parsed.amenities, text);
+    // A quote counts for the page that states it, never for text spread across two pages.
+    // An empty page is kept: it still marks its pub as that page's reader.
+    const evidencedPages = read.pages.map((page) => ({ sourceUrl: page.sourceUrl, amenities: keepEvidencedAmenities(parsed.amenities, page.text) }));
     byOsmId[pub.osmId] = {
       status: "ok",
       venueId: pub.venueId,
       name: pub.name,
       sourceUrl,
       verifiedAt: new Date().toISOString().slice(0, 10),
-      amenities: kept,
+      amenities: Object.assign({}, ...evidencedPages.map((page) => page.amenities)),
+      pages: evidencedPages,
+      website: pub.website,
       usd: cost.usd,
     };
     if (spent >= SPEND_STOP_USD) stopped = true;
@@ -836,29 +1000,28 @@ async function main() {
       if (index >= work.length) return;
       await one(work[index]);
       const done = byOsmId[work[index].osmId];
-      if (done) fresh.set(work[index].osmId, done);
+      // A page kept for a later model run is not an outcome yet.
+      if (markPending(done, work[index].osmId, fresh)) batch ??= newBatch(startSpent);
       if ((index + 1) % 10 === 0) await save();
-      if ((index + 1) % 25 === 0) {
-        const kept = Object.values(byOsmId).filter((row) => row.status === "ok" && Object.keys(row.amenities ?? {}).length > 0).length;
-        console.log(`progress ${index + 1}/${work.length} kept=${kept} spentUsd=${spent.toFixed(4)}`);
-      }
+      if ((index + 1) % 25 === 0) logProgress(index + 1, work.length, byOsmId, spent);
     }
   });
   await Promise.all(workers);
+  numberBatch(batch, previous);
   await save();
   if (readOnly) {
     console.log(JSON.stringify({ readOnly: true, pubs: work.length, firecrawlRequests: firecrawl?.budget.spent() ?? 0, counts: readCounts(work, byOsmId) }));
     return;
   }
 
-  const previous = readEvidence();
   const { rows: evidenceRows, skipCounts, chainPages } = mergeHarvestEvidence({
     previousRows: previous?.rows ?? [],
     previousSkipCounts: previous?.skipCounts,
     fresh: copySkipped ? withoutThinnerRereads(fresh, previous?.rows ?? []) : fresh,
-    checkpoint: byOsmId,
+    checkpoint: Object.fromEntries(checkpointReads(byOsmId)),
     knownChainPages,
   });
+  reportFindings(recovered.findings, skipCounts);
   writeChainPages(chainPages);
   const evidence = withStampFigures({
     version: 1,
@@ -874,12 +1037,16 @@ async function main() {
       outputTokensPerCall: MAX_OUTPUT_TOKENS,
       spendUsd: Number(projected.toFixed(4)),
     },
-    actualSpendUsd: Number(((previous?.actualSpendUsd ?? 0) + spent - startSpent).toFixed(4)),
+    actualSpendUsd: actualSpend(previous, spent, batch?.spentUsd ?? startSpent),
     jobCapUsd: JOB_SPEND_CAP_USD,
+    ...publicationStamp(batch, previous),
     skipCounts,
     rows: evidenceRows,
   }, previous, stampDataset(evidenceRows, chainPages));
   writeEvidence(evidence);
+  markPublished(byOsmId);
+  batch = null;
+  await save();
   console.log(
     JSON.stringify({
       actualSpendUsd: evidence.actualSpendUsd,

@@ -521,6 +521,8 @@ export type HarvestRead = {
   landingChecked?: boolean;
   verifiedAt?: string;
   amenities?: Partial<Record<PubWebsiteAmenityKey, string>>;
+  /** Each page the pub's quotes came from, with the quotes that page itself states. */
+  pages?: { sourceUrl: string; amenities?: Partial<Record<PubWebsiteAmenityKey, string>> }[];
 };
 
 /**
@@ -597,18 +599,26 @@ export function mergeHarvestEvidence(input: {
       skipCounts[status] = (skipCounts[status] ?? 0) + 1;
       continue;
     }
-    candidates.push({
-      osmId,
-      name: entry.name,
-      venueId: entry.venueId,
-      sourceUrl: entry.sourceUrl,
-      verifiedAt: entry.verifiedAt,
-      amenities: entry.amenities ?? {},
-    });
+    // One row per page read, so a quote cites the page that states it and a
+    // page that stated nothing still counts its pub as a reader.
+    for (const page of entry.pages?.length ? entry.pages : [entry]) {
+      candidates.push({
+        osmId,
+        name: entry.name,
+        venueId: entry.venueId,
+        sourceUrl: page.sourceUrl,
+        verifiedAt: entry.verifiedAt,
+        amenities: page.amenities ?? {},
+      });
+    }
   }
   const allReads = [...new Map([...Object.entries(input.checkpoint), ...input.fresh]).entries()];
   const ownedReads = allReads.flatMap(([osmId, entry]) =>
-    entry.sourceUrl && readOwnsPage(entry.status) ? [{ osmId, sourceUrl: entry.sourceUrl, amenities: entry.amenities ?? {} }] : [],
+    readOwnsPage(entry.status)
+      ? (entry.pages?.length ? entry.pages.filter((page) => typeof page?.sourceUrl === "string") : entry.sourceUrl ? [{ sourceUrl: entry.sourceUrl, amenities: entry.amenities }] : []).map(
+          (page) => ({ osmId, sourceUrl: page.sourceUrl, amenities: page.amenities ?? {} }),
+        )
+      : [],
   );
   const owners = pageOwners(input.previousRows, allReads, input.knownChainPages);
   const notDuplicate = (read: { osmId: string; sourceUrl?: string }) =>
@@ -616,7 +626,8 @@ export function mergeHarvestEvidence(input: {
   const ownCandidates = candidates.filter(notDuplicate);
   const chainPages = mergeChainDenylists(input.knownChainPages, provenChainEvidence([...ownCandidates, ...ownedReads.filter(notDuplicate)]));
   const rows = pubSpecificEvidence(ownCandidates, chainPages).sort((a, b) => a.osmId.localeCompare(b.osmId));
-  const unused = candidates.length - rows.length;
+  const keptPubs = new Set(rows.map((row) => row.osmId));
+  const unused = new Set(candidates.map((row) => row.osmId).filter((osmId) => !keptPubs.has(osmId))).size;
   if (unused > 0) skipCounts.ok = (skipCounts.ok ?? 0) + unused;
   return { rows, skipCounts, chainPages };
 }
@@ -624,10 +635,11 @@ export function mergeHarvestEvidence(input: {
 export type PageRead = { ok: true; url: string; text: string } | { ok: false; reason: string };
 
 /**
- * The text of one extra page from a pub's site, or null. A link is checked
- * against the source policy and the chain list before it is fetched, and the
- * page it lands on is checked against the chain list again, because a pub's
- * own `/menu` can redirect to a chain-wide page.
+ * One extra page from a pub's site, with the URL it landed on, or null. A link
+ * is checked against the source policy and the chain list before it is
+ * fetched. The page it lands on is checked again against the chain list, the
+ * source policy and robots, because a pub's own `/menu` can redirect to a
+ * chain-wide page or to a host the harvest may not read.
  */
 export async function readExtraPage(
   link: string,
@@ -637,12 +649,13 @@ export async function readExtraPage(
     robots: (url: string) => Promise<{ allowed: boolean }>;
     readHtml: (url: string) => Promise<PageRead>;
   },
-): Promise<string | null> {
+): Promise<{ url: string; text: string } | null> {
   if (!deps.isHarvestable(link) || isChainPage(link, deps.chainPages)) return null;
   if (!(await deps.robots(link)).allowed) return null;
   const extra = await deps.readHtml(link);
   if (!extra.ok || isChainPage(extra.url, deps.chainPages)) return null;
-  return extra.text;
+  if (extra.url !== link && (!deps.isHarvestable(extra.url) || !(await deps.robots(extra.url)).allowed)) return null;
+  return { url: extra.url, text: extra.text };
 }
 
 /** Keep true values whose evidence is a quote from the page that states the amenity. Everything else goes. */
@@ -946,12 +959,16 @@ export function withoutThinnerRereads(
   fresh: ReadonlyMap<string, HarvestRead>,
   previousRows: readonly HarvestEvidenceRow[],
 ): Map<string, HarvestRead> {
-  const previous = new Map(previousRows.map((row) => [row.osmId, Object.keys(row.amenities ?? {}).length]));
+  // A pub holds one row per page it read, so its amenities are the union over its rows.
+  const previous = new Map<string, Set<string>>();
+  for (const row of previousRows) {
+    previous.set(row.osmId, new Set([...(previous.get(row.osmId) ?? []), ...Object.keys(row.amenities ?? {})]));
+  }
   return new Map(
     [...fresh].filter(([osmId, entry]) => {
       const before = previous.get(osmId);
       if (before === undefined) return true;
-      return entry.status === "ok" && Object.keys(entry.amenities ?? {}).length > before;
+      return entry.status === "ok" && Object.keys(entry.amenities ?? {}).length > before.size;
     }),
   );
 }
