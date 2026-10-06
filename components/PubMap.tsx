@@ -371,7 +371,7 @@ import {
 } from "@/lib/favoritePint";
 import { notifyCheapPintPingQualified } from "@/lib/cheapPintPingQualifyClient";
 import { canonicalizeStoredSaved, getSaved } from "@/lib/savedPubs";
-import { loadVenueAliasMap } from "@/lib/venueAliasMap";
+import { loadVenueAliasMap, loadVenueAliasMaps } from "@/lib/venueAliasMap";
 import { venuesInNearbyMembership } from "@/lib/mapNearbyMembership";
 import {
   createSlimShardLoader,
@@ -626,6 +626,7 @@ import {
   mapArrivalFrame,
   mapDrinkLensSelection,
   isRecordlessMapSelection,
+  ukBaseSelectionSuccessor,
   mapSelectionFrame,
   mapPlaceContext,
   mapShellClassName,
@@ -5130,6 +5131,30 @@ export default function PubMap({
   );
   const closeStory = useCallback(() => setActiveLandmarkId(""), []);
   const storyDrawerOpen = storyOpen && !planningOpen && !detailOpen;
+
+  useEffect(() => {
+    if (!selectedVenueId || !isUkBaseId(selectedVenueId)) return;
+    const requestedVenueId = selectedVenueId;
+    let cancelled = false;
+    void loadVenueAliasMaps().then((maps) => {
+      const successor = ukBaseSelectionSuccessor(maps, requestedVenueId);
+      if (cancelled || !successor) return;
+      if (successor.kind === "curated") {
+        resolveMapSelection(requestedVenueId, successor.venueId);
+        setSelectedVenueId((current) =>
+          current === requestedVenueId ? successor.venueId : current,
+        );
+        return;
+      }
+      setRetiredSelectionName(successor.name);
+      setSelectionNotice("retired");
+      rejectMapSelection(requestedVenueId);
+      setSelectedVenueId((current) => (current === requestedVenueId ? "" : current));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [rejectMapSelection, resolveMapSelection, selectedVenueId]);
 
   useEffect(() => {
     if (
