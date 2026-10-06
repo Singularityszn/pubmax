@@ -961,7 +961,7 @@ describe("pub website amenities CLI checkpoint publication", () => {
     const pubs = cli.read("data/osm/uk/uk_osm_pubs.json");
     pubs.pubs[0].name = "SYNTHETIC EXAMPLE PUB";
     cli.write("data/osm/uk/uk_osm_pubs.json", pubs);
-    const venueId = stableVenueIdFromKey(venueGroupingKey(PRICE_ROW));
+    const venueId = stableVenueIdFromKey(venueGroupingKey(PRICE_ROW as unknown as Parameters<typeof venueGroupingKey>[0]));
     cli.write("data/venue_copy/london.json", { skipped: { [venueId]: { reason: "insufficient-stored-facts" } } });
     cli.write("fixture.json", { ...cli.read("fixture.json"), failure: { operation: "rename", path: EVIDENCE } });
     const interrupted = cli.run(["--copy-skipped", "--limit", "1"]);
