@@ -27,6 +27,7 @@ import {
   type ConversationDTO,
 } from "@/lib/messages";
 import { subscribeToInbox } from "@/lib/messagesRealtime";
+import { subscribeMessagesRead } from "@/lib/messagesUnreadSignal";
 import { inboxTimeLabel } from "@/lib/messageTimeline";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
@@ -302,6 +303,20 @@ export default function MessagesInboxClient({
     if (paneHidden || !handle || handleNotOwned) return;
     return subscribeToInbox(handle, () => void refresh(), { poll: () => void refresh() });
   }, [refresh, handle, paneHidden, handleNotOwned]);
+
+  // The open thread announces when it marks its messages read, and the nav
+  // badge drops at once. Its row here drops its pill on the same signal, so the
+  // two never disagree on one screen while the next inbox read is still away.
+  useEffect(() => {
+    if (!activeConversationId) return;
+    return subscribeMessagesRead(() => {
+      setConversations((rows) =>
+        rows.some((c) => c.id === activeConversationId && (c.unread ?? 0) > 0)
+          ? rows.map((c) => (c.id === activeConversationId ? { ...c, unread: 0 } : c))
+          : rows,
+      );
+    });
+  }, [activeConversationId]);
 
   const accountDataReady = loadedRevision === accountRevision;
   // One clock for the whole list per render, so every row's time is measured
