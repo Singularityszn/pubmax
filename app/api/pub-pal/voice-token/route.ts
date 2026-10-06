@@ -13,7 +13,7 @@ import {
 } from "@/lib/palVoiceMetering";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { buildPalVoiceOverrides } from "@/lib/palVoiceOverrides";
-import { isPubPalConversationId } from "@/lib/pubPalConversationId";
+import { conversationIdFromSignedUrl } from "@/lib/pubPalConversationId";
 import { bindPubPalToolTurn } from "@/lib/pubPalToolTurnStore";
 import { palVoiceConfigured } from "@/lib/pubPalVoiceConfig.server";
 import { getPubPalResult } from "@/lib/pubPalStore";
@@ -235,10 +235,9 @@ async function handleIssueToken(userId: string): Promise<Response> {
         compatibilityFields: { fallback: "text" },
       });
     }
-    const payload = await response.json() as { signed_url?: string; conversation_id?: string };
-    const conversationId =
-      typeof payload.conversation_id === "string" ? payload.conversation_id.trim() : "";
-    if (!payload.signed_url || !isPubPalConversationId(conversationId)) {
+    const payload = await response.json() as { signed_url?: string };
+    const conversationId = payload.signed_url ? conversationIdFromSignedUrl(payload.signed_url) : "";
+    if (!payload.signed_url || !conversationId) {
       return publicApiError("Voice service returned no session.", "PROVIDER_UNAVAILABLE", 502, {
         retryable: true,
         compatibilityFields: { fallback: "text" },
