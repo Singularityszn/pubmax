@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
-import { act, createElement } from "react";
+import { act, createElement, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import MapToolbar from "@/components/map/MapToolbar";
+import { applyDrinkLane } from "@/lib/drinkLanes";
+import type { DrinkCategory } from "@/lib/drinks";
 import { FOCUS_TRAP_EXEMPT_ATTRIBUTE } from "@/lib/useFocusTrap";
-import { initialFilters } from "@/lib/venues";
+import { initialFilters, type Filters } from "@/lib/venues";
 
 // QA journeys F04. The drink tray closes when a pub drawer or the planner
 // opens, and the bar stays a live surface beside the desktop drawer.
@@ -112,6 +114,24 @@ describe("the drink tray and a surface that opens", () => {
     expect(trayOpen()).toBe(false);
   });
 
+  it("closes when a pub drawer hands the map straight to the planner", () => {
+    render({ detailOpen: true });
+    act(() => drinkButton().click());
+    expect(trayOpen()).toBe(true);
+
+    render({ detailOpen: false, planningOpen: true });
+    expect(trayOpen()).toBe(false);
+  });
+
+  it("closes when the planner hands the map straight to a pub drawer", () => {
+    render({ planningOpen: true });
+    act(() => drinkButton().click());
+    expect(trayOpen()).toBe(true);
+
+    render({ planningOpen: false, detailOpen: true });
+    expect(trayOpen()).toBe(false);
+  });
+
   it("stays open while a surface that was already open stays open", () => {
     render({ detailOpen: true });
     act(() => drinkButton().click());
@@ -133,5 +153,76 @@ describe("the bar beside the desktop drawer", () => {
     expect(
       host.querySelector(".mapToolbar")?.hasAttribute(FOCUS_TRAP_EXEMPT_ATTRIBUTE),
     ).toBe(false);
+  });
+});
+
+// QA journeys F24. The tray offers each drink once, as the lane picker's text
+// tabs, and still reaches what the chosen drink adds.
+function StatefulToolbar() {
+  const [filters, setFilters] = useState<Filters>(initialFilters);
+  return createElement(
+    MapToolbar,
+    props({
+      filters,
+      onFiltersChange: setFilters,
+      drinkCategory: filters.drinkCategory,
+      onDrinkLaneChange: (lane: DrinkCategory) =>
+        setFilters((current) => applyDrinkLane(current, lane)),
+    }),
+  );
+}
+
+function laneTab(label: string): HTMLButtonElement {
+  const tab = [
+    ...host.querySelectorAll<HTMLButtonElement>(".drinkLanePickerOption"),
+  ].find((button) => button.textContent === label);
+  if (!tab) throw new Error(`no ${label} tab`);
+  return tab;
+}
+
+const pintRefinements = () => host.querySelector(".drinkSubtypeChips") !== null;
+const topShelf = () =>
+  [...host.querySelectorAll("button")].some((button) =>
+    button.textContent?.includes("Top shelf"),
+  );
+
+describe("the drink tray's choices", () => {
+  beforeEach(() => {
+    act(() => root.render(createElement(StatefulToolbar)));
+  });
+
+  it("offers the drinks once, as lane tabs, with nothing extra at rest", () => {
+    act(() => drinkButton().click());
+    expect(host.querySelector(".mapToolbar .drinkLanePicker")).not.toBeNull();
+    expect(host.querySelector(".mapToolbar .drinkShapeChips")).toBeNull();
+    expect(pintRefinements()).toBe(false);
+    expect(topShelf()).toBe(false);
+  });
+
+  it("shows the pint refinements and Top shelf once Pints is pressed", () => {
+    act(() => drinkButton().click());
+    act(() => laneTab("Pints").click());
+    expect(pintRefinements()).toBe(true);
+    expect(topShelf()).toBe(true);
+  });
+
+  it("drops the pint refinements for another lane and when the tray reopens", () => {
+    act(() => drinkButton().click());
+    act(() => laneTab("Pints").click());
+    act(() => laneTab("Wine").click());
+    expect(pintRefinements()).toBe(false);
+
+    act(() => laneTab("Pints").click());
+    expect(pintRefinements()).toBe(true);
+    act(() => drinkButton().click());
+    act(() => drinkButton().click());
+    expect(pintRefinements()).toBe(false);
+  });
+
+  it("still shows the soft-drinks link for the soft drinks lane", () => {
+    act(() => drinkButton().click());
+    act(() => laneTab("Soft drinks").click());
+    expect(host.textContent).toContain("Soft drinks and water");
+    expect(host.querySelector(".mapToolbar .drinkShapeChips")).toBeNull();
   });
 });

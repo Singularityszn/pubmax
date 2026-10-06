@@ -317,13 +317,4 @@ describe("DrinkShapeChips without the category strip", () => {
     expect(draw({}, false)).toBe("");
     expect(draw({ drinkCategory: "wine" }, false)).toBe("");
   });
-
-  it("still draws the pint refinements and the soft-drinks link, but no second strip", () => {
-    const pints = draw({ drinkCategory: "beer" }, false);
-    expect(pints).not.toContain("Filter by drink shape");
-    expect(pints).toContain("Top shelf");
-    const soft = draw({ drinkCategory: "soft-drink" }, false);
-    expect(soft).not.toContain("Filter by drink shape");
-    expect(soft).toContain("Soft drinks and water");
-  });
 });
