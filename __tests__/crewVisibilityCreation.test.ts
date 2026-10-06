@@ -101,11 +101,38 @@ async function fillAndSubmitCrewForm() {
     const openRadio = container.querySelector<HTMLInputElement>('input[value="open"]');
     expect(openRadio).toBeTruthy();
     await act(async () => openRadio?.click());
-    const submitButton = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent === "Start the crew",
-    );
-    await act(async () => submitButton?.click());
+    await submitCrewForm();
+}
 
+async function submitCrewForm() {
+  const submitButton = Array.from(container.querySelectorAll("button")).find(
+    (button) => button.textContent === "Start the crew",
+  );
+  expect(submitButton).toBeTruthy();
+  await act(async () => submitButton?.click());
+}
+
+function idempotencyKeysFor(url: string): Array<string | undefined> {
+  return authedActionFetch.mock.calls
+    .filter(([callUrl, options]) => callUrl === url && options?.method === "POST")
+    .map(([, options]) => (options.headers as Record<string, string>)["idempotency-key"]);
+}
+
+function stubPlanCleanup() {
+  const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
+
+function expectPlanRetired(fetchMock: ReturnType<typeof stubPlanCleanup>) {
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+  expect(url).toBe(`/api/plans/${PLAN_ID}`);
+  expect(init.method).toBe("PATCH");
+  expect(JSON.parse(init.body as string)).toEqual({
+    status: "abandoned",
+    memberToken: PLAN_TOKEN,
+  });
 }
 
 describe("crew visibility creation", () => {
@@ -167,39 +194,97 @@ describe("crew visibility creation", () => {
     vi.useRealTimers();
   });
 
-  it("retires the plan it made when the crew is refused", async () => {
-    const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
-    vi.stubGlobal("fetch", fetchMock);
-    mockStartCrewRequests(() =>
-      new Response(
-        JSON.stringify({ error: "Social Crew request is not valid.", code: "SOCIAL_CREW_INVALID" }),
-        { status: 422 },
-      ),
-    );
+  it.each([
+    [
+      "refused",
+      () =>
+        new Response(
+          JSON.stringify({ error: "Social Crew request is not valid.", code: "SOCIAL_CREW_INVALID" }),
+          { status: 422 },
+        ),
+      "Social Crew request is not valid.",
+    ],
+    [
+      "accepted without naming a crew",
+      () => new Response(JSON.stringify({ code: "created" }), { status: 201 }),
+      "Could not start the crew.",
+    ],
+  ])("retires the plan it made when the crew is %s, and a retry starts afresh", async (_, crewResponse, message) => {
+    const fetchMock = stubPlanCleanup();
+    mockStartCrewRequests(crewResponse);
     await fillAndSubmitCrewForm();
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe(`/api/plans/${PLAN_ID}`);
-    expect(init.method).toBe("PATCH");
-    expect(JSON.parse(init.body as string)).toEqual({
-      status: "abandoned",
-      memberToken: PLAN_TOKEN,
-    });
-    expect(container.textContent).toContain("Social Crew request is not valid.");
+    expectPlanRetired(fetchMock);
+    expect(container.textContent).toContain(message);
+
+    await submitCrewForm();
+    const planKeys = idempotencyKeysFor("/api/plans");
+    const crewKeys = idempotencyKeysFor("/api/social/crews");
+    expect(planKeys).toHaveLength(2);
+    expect(planKeys[1]).not.toBe(planKeys[0]);
+    expect(crewKeys).toHaveLength(2);
+    expect(crewKeys[1]).not.toBe(crewKeys[0]);
     vi.unstubAllGlobals();
     vi.useRealTimers();
   });
 
-  it("keeps the plan when the crew call fails in a way that may have created it", async () => {
-    const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
-    vi.stubGlobal("fetch", fetchMock);
+  it.each([
+    ["answers 503", () => new Response(JSON.stringify({ error: "Try again." }), { status: 503 })],
+    [
+      "drops the connection",
+      () => {
+        throw new TypeError("Failed to fetch");
+      },
+    ],
+    [
+      "finds the session waking",
+      () => {
+        throw Object.assign(new Error("Your session is waking up."), { name: "AuthActionSessionError" });
+      },
+    ],
+  ])("keeps the plan when the crew call %s, and a retry reuses both keys", async (_, failure) => {
+    const fetchMock = stubPlanCleanup();
+    let crewCalls = 0;
+    mockStartCrewRequests(() => {
+      crewCalls += 1;
+      if (crewCalls === 1) return failure();
+      return new Response(JSON.stringify({ code: "replayed", crewId: CREW_ID }), { status: 200 });
+    });
+    await fillAndSubmitCrewForm();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(container.querySelector(".crews__problem")).toBeTruthy();
+
+    await submitCrewForm();
+    const planKeys = idempotencyKeysFor("/api/plans");
+    const crewKeys = idempotencyKeysFor("/api/social/crews");
+    expect(planKeys).toHaveLength(2);
+    expect(planKeys[1]).toBe(planKeys[0]);
+    expect(crewKeys).toHaveLength(2);
+    expect(crewKeys[1]).toBe(crewKeys[0]);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(container.querySelector(".crews__form")).toBeNull();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it("mints fresh keys when the night changes after an unsettled failure", async () => {
+    stubPlanCleanup();
     mockStartCrewRequests(() =>
       new Response(JSON.stringify({ error: "Try again." }), { status: 503 }),
     );
     await fillAndSubmitCrewForm();
 
-    expect(fetchMock).not.toHaveBeenCalled();
+    const privateRadio = container.querySelector<HTMLInputElement>('input[value="private"]');
+    expect(privateRadio).toBeTruthy();
+    await act(async () => privateRadio?.click());
+    await submitCrewForm();
+
+    const planKeys = idempotencyKeysFor("/api/plans");
+    const crewKeys = idempotencyKeysFor("/api/social/crews");
+    expect(planKeys).toHaveLength(2);
+    expect(planKeys[1]).not.toBe(planKeys[0]);
+    expect(crewKeys[1]).not.toBe(crewKeys[0]);
     vi.unstubAllGlobals();
     vi.useRealTimers();
   });

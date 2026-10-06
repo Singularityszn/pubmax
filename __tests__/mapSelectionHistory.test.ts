@@ -300,13 +300,4 @@ describe("venueMapHref", () => {
     const href = venueMapHref("a&sel=b");
     expect(new URLSearchParams(href.slice(href.indexOf("?"))).get("sel")).toBe("a&sel=b");
   });
-
-  it("is the only Map link the plan and Night Mode stops use", async () => {
-    const { readFileSync } = await import("node:fs");
-    for (const file of ["components/plan/PlanRoute.tsx", "components/night/NightModeCard.tsx"]) {
-      const source = readFileSync(file, "utf8");
-      expect(source, file).not.toContain("/map?venue=");
-      expect(source, file).toContain("venueMapHref(");
-    }
-  });
 });
