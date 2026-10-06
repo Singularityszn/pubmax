@@ -319,14 +319,15 @@ function uniqueBy(rows, keyFor) {
  * The pubs a night may ask about, stalest first. A pub refused after
  * MAX_VENUE_ATTEMPTS failed searches is held back until TERMINAL_VENUE_RETRY_MS
  * has passed, then requeued with its attempts reset, so a fixed site recovers.
- * A pub still inside its retry backoff waits for it.
+ * A pub still inside its retry backoff waits for it. Both lists may hold
+ * every pub, so no refused pub ever drops off and starts a new count.
  */
 function dueVenues(checkpoint, pubs, now) {
   const requeue = checkpoint.terminal
     .filter((entry) => !(now - Date.parse(entry.failedAt) < TERMINAL_VENUE_RETRY_MS))
     .map((entry) => entry.osmId);
   const start = requeue.length
-    ? requeueTerminalVenues(checkpoint, { now, osmIds: requeue }).checkpoint
+    ? requeueTerminalVenues(checkpoint, { now, osmIds: requeue, maxVenues: pubs.length }).checkpoint
     : checkpoint;
   const held = new Set([
     ...start.terminal.map((entry) => entry.osmId),
@@ -338,12 +339,12 @@ function dueVenues(checkpoint, pubs, now) {
   };
 }
 
-function recordVenueOutcomes(state, outcomes, now) {
+function recordVenueOutcomes(state, outcomes, now, maxVenues) {
   let next = state;
   for (const outcome of outcomes) {
     const osmId = String(outcome.osmId);
     if (outcome.status === "failed") {
-      next = recordVenueFailure(next, { osmId, error: outcome.error ?? "unknown", now }).checkpoint;
+      next = recordVenueFailure(next, { osmId, error: outcome.error ?? "unknown", now, maxVenues }).checkpoint;
     } else if (outcome.status === "matched" || outcome.status === "empty") {
       next = recordVenueSuccess(next, { osmId, now });
     }
@@ -421,7 +422,7 @@ export async function runCityPass({
     );
   }
   const state = reconcileWithCommitted(
-    recordVenueOutcomes(mergeState(start, runResult, observedAt), runResult.outcomes, now),
+    recordVenueOutcomes(mergeState(start, runResult, observedAt), runResult.outcomes, now, pubs.length),
     { committedPrices, rejectedRows, correctedRows, mergedThrough },
   );
   return { runResult, state };

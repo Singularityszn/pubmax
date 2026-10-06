@@ -697,6 +697,50 @@ describe("the nightly London pass keeps going and keeps what it found", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(3);
   });
 
+  it("keeps more than 50 refused pubs refused until the slow cadence", async () => {
+    const pubs = londonPubs(130);
+    const ok = billing(2);
+    const fetchImpl = vi.fn<typeof fetch>(async (input, init) => {
+      const pubNumber = Number(/Independent Arms (\d+)/.exec(String(init?.body))?.[1]);
+      if (pubNumber <= 120) return new Response("{}", { status: 504 });
+      return ok(input, init);
+    });
+    const at = (ms: number) => new Date(Date.parse(OBSERVED_AT) + ms).toISOString();
+    const DAY = 24 * 60 * 60_000;
+    const failingSearched = () => searchedPubs(fetchImpl).filter((name) => Number(name?.split(" ").pop()) <= 120).length;
+    let checkpoint = freshLondon(pubs);
+    const failingPerNight: number[] = [];
+    for (const observedAt of [at(0), at(DAY), at(2 * DAY), at(3 * DAY), at(2 * DAY + TERMINAL_VENUE_RETRY_MS - DAY)]) {
+      fetchImpl.mockClear();
+      const { state } = await runCityPass({
+        city: "london",
+        checkpoint,
+        pubs,
+        apiKey: "test-key",
+        observedAt,
+        committedPrices: [],
+        fetchImpl,
+      });
+      failingPerNight.push(failingSearched());
+      checkpoint = state;
+    }
+
+    expect(failingPerNight).toEqual([120, 120, 120, 0, 0]);
+    expect(checkpoint.terminal).toHaveLength(120);
+
+    fetchImpl.mockClear();
+    await runCityPass({
+      city: "london",
+      checkpoint,
+      pubs,
+      apiKey: "test-key",
+      observedAt: at(2 * DAY + TERMINAL_VENUE_RETRY_MS),
+      committedPrices: [],
+      fetchImpl,
+    });
+    expect(failingSearched()).toBe(120);
+  });
+
   it("stops searching a pub whose search always fails after 3 attempts, and asks again after 30 days", async () => {
     const pubs = londonPubs(3);
     const ok = billing(2);
