@@ -149,6 +149,22 @@ export function detectA2hsPlatform(env: PlatformSnapshot): A2hsPlatform {
   return "unsupported";
 }
 
+/**
+ * Does web push need the Home Screen install on this device? Only on an iPhone
+ * or iPad: iOS delivers web push to an installed web app and to nothing else,
+ * so a Safari tab (or Chrome on iOS, which is Safari's engine) has to be added
+ * to the Home Screen first. Every other browser offers web push in a tab, and
+ * an already installed app, a native shell or a standalone window has nothing
+ * left to install. Pure and total: never throws.
+ */
+export function webPushNeedsHomeScreenInstall(env: PlatformSnapshot): boolean {
+  if (env.isNativeApp) return false;
+  if (env.displayModeStandalone || env.navigatorStandalone) return false;
+  const ua = env.userAgent || "";
+  const isIpadOs = /Macintosh/i.test(ua) && (env.maxTouchPoints ?? 0) > 1;
+  return /iPhone|iPad|iPod/i.test(ua) || isIpadOs;
+}
+
 // ---------------------------------------------------------------------------
 // State transitions (pure)
 // ---------------------------------------------------------------------------

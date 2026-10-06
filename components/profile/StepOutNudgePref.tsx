@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import ContributionGateDoor from "@/components/identity/ContributionGateDoor";
-import { detectA2hsPlatform } from "@/lib/a2hsPrompt";
+import { webPushNeedsHomeScreenInstall } from "@/lib/a2hsPrompt";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import {
@@ -13,7 +13,7 @@ import {
   type ContributionDoorStatus,
 } from "@/lib/contributionGateStatus";
 import { isNativeApp } from "@/lib/nativePlatform";
-import { registerWebPush, unregisterWebPush } from "@/lib/webPush";
+import { registerWebPush, unregisterWebPush, webPushSupport } from "@/lib/webPush";
 import { Button } from "@/components/ui/button";
 
 type PrefState = {
@@ -23,9 +23,15 @@ type PrefState = {
   maxPerWeek: number;
 };
 
-function isStandaloneInstall(): boolean {
+/**
+ * Web push needs the Home Screen install on an iPhone or iPad and nowhere else.
+ * This used to read "not a standalone install", which is true in every desktop
+ * and Android browser tab too, so Step Out could not be turned on in any
+ * browser: it answered with an iPhone instruction to a person on a laptop.
+ */
+function needsHomeScreenInstall(): boolean {
   if (typeof window === "undefined") return false;
-  const platform = detectA2hsPlatform({
+  return webPushNeedsHomeScreenInstall({
     userAgent: navigator.userAgent,
     isNativeApp: isNativeApp(),
     displayModeStandalone: window.matchMedia("(display-mode: standalone)").matches,
@@ -34,7 +40,6 @@ function isStandaloneInstall(): boolean {
     ),
     maxTouchPoints: navigator.maxTouchPoints,
   });
-  return platform === "standalone";
 }
 
 function subscribeNoop(): () => void {
@@ -58,7 +63,7 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
   // Client-only install check via external store so SSR stays stable.
   const needsInstall = useSyncExternalStore(
     subscribeNoop,
-    () => !isStandaloneInstall(),
+    needsHomeScreenInstall,
     () => false,
   );
 
@@ -106,6 +111,19 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
       if (needsInstall) {
         setNotice(
           "On iPhone, add PUBMAXX to your Home Screen first. Web push only works from the installed app.",
+        );
+        return;
+      }
+      // Say WHY before asking, so a browser that cannot do web push and a
+      // browser the person already blocked are not both "could not turn on".
+      const support = webPushSupport();
+      if (support === "unsupported") {
+        setNotice("This browser cannot receive web push. Try Chrome, Edge or Firefox.");
+        return;
+      }
+      if (support === "blocked") {
+        setNotice(
+          "Notifications are blocked for this site. Allow them in your browser's site settings, then try again.",
         );
         return;
       }
