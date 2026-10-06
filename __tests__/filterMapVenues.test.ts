@@ -67,6 +67,23 @@ describe("filterMapVenues", () => {
     expect(result[0]?.id).toBe("venue-scraped");
   });
 
+  it.each([
+    ["requireStepFree", "stepFree"],
+    ["requireAccessibleToilet", "accessibleToilet"],
+    ["requireSeatedService", "seatedService"],
+  ] as const)("%s includes only confirmed slim pins", (filter, facet) => {
+    const confirmed = slimPin({ id: "confirmed", accessibility: { [facet]: true } });
+    const negative = slimPin({ id: "negative", accessibility: { [facet]: false } });
+    const unknown = slimPin({ id: "unknown" });
+    expect(
+      filterMapVenues(
+        [confirmed, negative, unknown],
+        { ...initialFilters, [filter]: true },
+        () => false,
+      ),
+    ).toEqual([confirmed]);
+  });
+
   it("still respects price query on slim pins", () => {
     const filters = { ...initialFilters, query: "zzzz-no-match" };
     const result = filterMapVenues([slimPin()], filters, () => false);
