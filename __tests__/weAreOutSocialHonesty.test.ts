@@ -206,6 +206,24 @@ describe("we-are-out signed-out and handle-less doors", () => {
     expect(tryAgain()).toBeTruthy();
   });
 
+  it("offers sign-in and the profile, never Try again, when the session stays unanswered", async () => {
+    vi.useFakeTimers();
+    viewer.phase = "unresolved";
+    viewer.handle = null;
+    viewer.identityResolved = false;
+    await render();
+
+    await act(async () => {
+      vi.advanceTimersByTime(4_000);
+    });
+    expect(host.querySelector('[role="status"]')?.textContent).toContain("Checking your account.");
+    expect(host.querySelector("button")).toBeNull();
+    expect(host.querySelector('a[href="/login?from=%2Fwe-are-out"]')?.textContent).toBe("Sign in");
+    expect(host.querySelector('a[href="/u/you"]')?.textContent).toBe("Open your profile");
+    expect(host.querySelector("select")).toBeNull();
+    expect(viewer.retryIdentity).not.toHaveBeenCalled();
+  });
+
   it("opens the form once a retried read resolves the handle", async () => {
     vi.useFakeTimers();
     viewer.phase = "signed-in";

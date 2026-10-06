@@ -145,8 +145,9 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = true }: Pr
         ) : !(viewerSession.signedIn && identityResolved && handle) ? (
           // The session, or a signed-in account's handle, has not answered yet.
           // Neither a form that would refuse on submit nor a door that names
-          // the viewer wrongly: a quiet, non-interactive wait.
-          <IdentityPendingDoor onRetry={retryIdentity} />
+          // the viewer wrongly: a quiet wait first, which becomes a door on
+          // after about 4 s. Only a signed-in account's read can be retried.
+          <IdentityPendingDoor onRetry={viewerSession.signedIn ? retryIdentity : null} />
         ) : (
           <section className="weAreOutForm">
             <label className="weAreOutField">
@@ -206,8 +207,9 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = true }: Pr
 
 // A read that failed leaves the account unknown until something reads it again,
 // so the wait turns into a door after a few seconds: read again, or go to the
-// profile. Mounted only while waiting, so every wait starts quiet.
-function IdentityPendingDoor({ onRetry }: { onRetry: () => void }) {
+// profile. A session that has not answered has no read to retry, so its door
+// offers sign-in instead. Mounted only while waiting, so every wait starts quiet.
+function IdentityPendingDoor({ onRetry }: { onRetry: (() => void) | null }) {
   const [slow, setSlow] = useState(false);
 
   useEffect(() => {
@@ -223,16 +225,22 @@ function IdentityPendingDoor({ onRetry }: { onRetry: () => void }) {
         <>
           <p className="weAreOutPrivacy">This is taking longer than it should.</p>
           <div className="weAreOutDoneActions">
-            <button
-              type="button"
-              className="weAreOutSubmit weAreOutDoorAction"
-              onClick={() => {
-                setSlow(false);
-                onRetry();
-              }}
-            >
-              Try again
-            </button>
+            {onRetry ? (
+              <button
+                type="button"
+                className="weAreOutSubmit weAreOutDoorAction"
+                onClick={() => {
+                  setSlow(false);
+                  onRetry();
+                }}
+              >
+                Try again
+              </button>
+            ) : (
+              <Link className="weAreOutSubmit weAreOutDoorAction" href="/login?from=%2Fwe-are-out">
+                Sign in
+              </Link>
+            )}
             <Link className="feedDropCta" href="/u/you">
               Open your profile
             </Link>
