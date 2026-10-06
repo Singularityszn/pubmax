@@ -53,6 +53,15 @@ test.describe("desktop toolbar beside the venue drawer", () => {
     await drinkButton.click();
     const tray = page.locator(".drinkLanePicker");
     await expect(tray).toBeVisible();
+    // One set of drink choices (F24): no second strip of chips under the tabs,
+    // and the eleven tabs share a row at 1440 instead of "Shots" alone below.
+    await expect(page.locator(".mapToolbar .drinkShapeChips")).toHaveCount(0);
+    const tops = await tray
+      .locator(".drinkLanePickerOption")
+      .evaluateAll((nodes) => nodes.map((node) => Math.round(node.getBoundingClientRect().top)));
+    expect(tops.length).toBe(11);
+    expect(new Set(tops).size).toBe(1);
+
     const wine = tray.getByRole("button", { name: "Wine", exact: true });
     await wine.click();
     await expect(wine).toHaveAttribute("aria-pressed", "true");

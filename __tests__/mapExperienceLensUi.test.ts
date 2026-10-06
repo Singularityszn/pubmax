@@ -84,6 +84,9 @@ describe("MapExperienceLens", () => {
     // walk finding B9): one control, one subject.
     expect(toolbar).not.toContain("mapToolbarDrinksBtn");
     expect(toolbar).toMatch(/laneOpen && laneAvailable \? \([\s\S]*?<DrinkShapeChips/);
+    // The tray's own lane picker offers every drink as text tabs, so the chip
+    // strip is not drawn a second time under it (QA journeys F24).
+    expect(toolbar).toMatch(/<DrinkShapeChips[^>]*categories=\{false\}/);
     const overview = readFileSync(
       join(
         process.cwd(),

@@ -94,6 +94,16 @@
   overflow-wrap: anywhere;
 }
 
+/* In the desktop tray the eleven lanes share a row where it is wide enough, and
+   when it is not they share each row they wrap to. Fixed chips left the last
+   lane alone on a second line at 1440 ("Shots" under a full row), so the chips
+   grow to fill their row and padding is the least that still reads as a
+   target. */
+.drinkLanePicker:not(.drinkLanePicker--sheet) .drinkLanePickerOption {
+  flex: 1 1 auto;
+  padding: 7px 8px;
+}
+
 /* In a phone sheet the control has the full width and no toolbar around it, so
    the chips can breathe. Geometry only: the vocabulary stays shared. */
 .drinkLanePicker--sheet .drinkLanePickerOptions {

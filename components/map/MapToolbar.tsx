@@ -479,7 +479,11 @@ export default function MapToolbar({
               onDrinkBrandChange={onDrinkBrandChange}
               className="mapToolbarDrinksLens"
             />
-            <DrinkShapeChips filters={filters} onFiltersChange={onFiltersChange} />
+            <DrinkShapeChips
+              filters={filters}
+              onFiltersChange={onFiltersChange}
+              categories={false}
+            />
             <div className="mapToolbarDrinksLens">
               <PersonaLensPicker
                 personaId={personaId}
