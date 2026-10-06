@@ -118,7 +118,8 @@ without recomputing the join.
 ## Consuming these packs
 
 `scripts/build_uk_base_shards.mjs` is the pack's consumer: it turns
-`uk_osm_pubs.json` into the map's UK **base layer** under `public/data/uk_base/`
+`uk_osm_pubs.json` and `uk_osm_unnamed_pubs.json` into the map's UK **base
+layer** under `public/data/uk_base/`
 (see that directory's README). It records the actual curated owner when one
 exists, salts base ids to `venue-uk-…`, and never invents a price. Runtime
 rendering suppresses a base row only when that owner is loaded and drawable.
