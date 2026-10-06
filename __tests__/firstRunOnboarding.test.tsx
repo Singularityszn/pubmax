@@ -77,6 +77,7 @@ beforeEach(async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   window.localStorage.clear();
   window.sessionStorage.clear();
+  window.history.replaceState(null, "", "/");
   // jsdom has no layout to scroll; the spy records where each step asked to open.
   vi.spyOn(window, "scrollTo").mockImplementation(() => {});
   slim.load.mockResolvedValue({ rows: SOHO_PUBS, status: "ready" });
@@ -126,6 +127,8 @@ describe("first-run budget question", () => {
     await act(async () => {
       root?.unmount();
     });
+    // A visit of its own is a new history entry, not a reload of this one.
+    window.history.replaceState(null, "", "/");
     root = createRoot(container);
     await act(async () => {
       root?.render(createElement(FirstRunOnboarding, { reviewedAreas: [], skipHref: "/tonight" }));
@@ -133,6 +136,36 @@ describe("first-run budget question", () => {
     await tap("Use London");
 
     expect(buttonContaining("£7 or less").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("reopens on the step the reader was on after a reload, with the answer kept", async () => {
+    await tap("Use London");
+    await tap("£5 or less");
+    await act(async () => {
+      root?.unmount();
+    });
+    // The same history entry survives a reload.
+    root = createRoot(container);
+    await act(async () => {
+      root?.render(createElement(FirstRunOnboarding, { reviewedAreas: [], skipHref: "/tonight" }));
+    });
+
+    expect(container.querySelector("h1")?.textContent).toBe("What's a fair pint to you?");
+    expect(buttonContaining("£5 or less").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("sends browser Back one step back, not out of the journey", async () => {
+    await tap("Use London");
+    await tap("£5 or less");
+    await tap("Continue");
+    expect(container.querySelector("h1")?.textContent).toBe("Find the cheapest pint near you.");
+
+    await act(async () => {
+      window.history.back();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(container.querySelector("h1")?.textContent).toBe("What's a fair pint to you?");
+    expect(buttonContaining("£5 or less").getAttribute("aria-pressed")).toBe("true");
   });
 });
 

@@ -47,6 +47,7 @@ import {
   type OnboardingStep,
 } from "@/lib/onboardingFlow";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
+import { readHistoryStep, useStepHistory } from "@/lib/useStepHistory";
 import { loadSlimVenuesForCityResult, type SlimVenueLoadResult } from "@/lib/venuesSlim";
 
 type ReviewedArea = {
@@ -89,7 +90,12 @@ export default function FirstRunOnboarding({
   openPlanner?: () => void;
 }) {
   const router = useRouter();
-  const [step, setStep] = useState<OnboardingStep>("london");
+  // A reload lands on the step the reader was on. The answer screen is rebuilt
+  // from a read that is gone, so a reload there goes back to the question.
+  const [step, setStep] = useState<OnboardingStep>(() => {
+    const recorded = readHistoryStep(ONBOARDING_STEPS);
+    return recorded === "result" ? "location" : (recorded ?? "london");
+  });
   const [companion, setCompanion] = useState<FirstRunCompanion>("robin");
   const [budget, setBudget] = useState<BudgetChoiceId | null>(null);
   const [locateState, setLocateState] = useState<LocateState>("idle");
@@ -166,6 +172,18 @@ export default function FirstRunOnboarding({
     setLocateState((state) => (state === "requesting" ? "idle" : state));
     return ++answerGeneration.current;
   }, []);
+
+  // Browser Back and Forward walk the steps the reader has seen. A step the
+  // reader reaches that way can name no answer that is not here: the result
+  // needs a place to read from, and leaving it drops any read still in flight.
+  useStepHistory(
+    step,
+    (next) => {
+      if (next !== "result") beginAnswer();
+      setStep(next === "result" && !origin ? "location" : next);
+    },
+    { steps: ONBOARDING_STEPS, first: "london" },
+  );
 
   // Rank the priced pubs around `from` and move to the result. A read we could
   // not run is not an empty area: it is its own answer, with a retry.
