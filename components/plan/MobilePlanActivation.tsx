@@ -126,7 +126,7 @@ export function MobilePlanActivation({
       const inferred = inferNightContext(query);
       const inferredQuery = inferred.context;
       const queryFields = new Set(inferred.reasons.map((reason) => reason.field));
-      const mapDrinkContext = mapPlanDrinkDefaultContext(defaultDrinkSelection, inferred, zeroProof, query);
+      const mapDrinkContext = mapPlanDrinkDefaultContext(defaultDrinkSelection, inferred, zeroProof);
       const atmosphere = [
         ...(moodTouched ? [mood] : []),
         ...(paceTouched ? [pace] : []),

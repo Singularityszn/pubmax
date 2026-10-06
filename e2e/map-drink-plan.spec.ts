@@ -426,7 +426,7 @@ test("generated Soft drinks shares ordered stops and exports its drink", async (
   await expect(route.getByRole("heading", { name: "Soft drinks plan", exact: true })).toBeVisible();
   await expect(route.locator(".routeList > li")).toHaveCount(2);
   await expect(route.locator(".routeMetrics")).toContainText("Not recorded");
-  await page.waitForTimeout(600);
+  await expect(page).toHaveURL(sharedUrl);
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   const copyLink = route.getByRole("button", { name: "Copy a shareable link to this crawl", exact: true });
   await route.locator(".routeHeader").scrollIntoViewIfNeeded();

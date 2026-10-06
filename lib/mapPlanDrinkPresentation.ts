@@ -5,7 +5,6 @@ import { drinkLensPriceNoun, drinkLensUnknownRowLabel, type CategoryPriceIndexSt
 import { selectedDrinkPriceDescription, selectedDrinkPriceEvidenceForPrice } from "@/lib/planSelectedDrinkPriceEvidence";
 import type { Filters } from "@/lib/venues";
 import type { InferredNightContext, NightContext } from "@/lib/nightPlanning";
-import { planRequestedDrinkCategory } from "@/lib/planDrinkRequest";
 
 export type MapPlanDrinkSelection = Pick<Filters, "drinkCategory" | "drinkSubtype" | "drinkBrand">
   & Partial<Pick<Filters, "topShelfOnly">>;
@@ -76,10 +75,7 @@ export function mapPlanDrinkDefaultContext(
   selection: MapPlanDrinkSelection | undefined,
   inferred: InferredNightContext,
   zeroProof: boolean,
-  query = "",
 ): Partial<NightContext> {
-  // Soft drinks remain a specific choice when no-alcohol inference omits the category.
-  if (planRequestedDrinkCategory(query) === "soft-drink") return { drinkCategory: "soft-drink" };
   if (zeroProof || inferred.context.zeroProof || inferred.reasons.some((reason) => reason.field === "drinkCategory")) return {};
   const drink = mapPlanDrinkPresentation(selection);
   if (!drink) return {};

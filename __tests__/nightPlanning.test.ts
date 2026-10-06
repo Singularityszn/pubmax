@@ -166,6 +166,14 @@ describe("inferNightContext", () => {
     expect(inferNightContext("a soft drink in Shoreditch", EVENING).context.zeroProof).toBe(true);
   });
 
+  it("keeps an explicit Soft drinks request as its own category for query-only callers", () => {
+    const soft = inferNightContext("soft drinks in Camden for 3", EVENING);
+    expect(soft.context).toMatchObject({ zeroProof: true, drinkCategory: "soft-drink" });
+    expect(soft.reasons.some((reason) => reason.field === "drinkCategory")).toBe(true);
+    expect(inferNightContext("alcohol free in Camden for 3", EVENING).context.drinkCategory).toBeNull();
+    expect(inferNightContext("no alcohol, a beer in Camden", EVENING).context.drinkCategory).toBeNull();
+  });
+
   it.each([
     "No alcohol tonight",
     "no-alcohol in Soho",
