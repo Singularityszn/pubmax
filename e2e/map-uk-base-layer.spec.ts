@@ -224,7 +224,10 @@ test("normal London entry paints UK base pubs and takes a price", async ({
         const pin = ukPins[firstPinAttempt % ukPins.length];
         firstPinAttempt += 1;
         await page.mouse.click(pin.x, pin.y);
-        await page.waitForTimeout(400);
+        // The base pub sheet opens at peek and keeps the map live, so a retry
+        // that taps the next pin before this one's sheet lands only switches
+        // pubs again. Give the tapped pub its own time to open.
+        await sheet.waitFor({ state: "visible", timeout: 5_000 }).catch(() => {});
         if ((await sheet.count()) === 0) return null;
         const name = await sheetName();
         if (!name) return null;
