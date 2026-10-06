@@ -43,6 +43,14 @@ const MIN_BEARING_CHANGE = 20;
 const PITCH_DRAG_PX = 420;
 const PITCH_STEPS = 60;
 const MIN_PITCH_CHANGE = 8;
+// MapLibre reads two fingers that lift within 30px of where they landed, inside
+// half a second, as a two-finger tap and zooms the map out
+// (maplibre-gl/src/ui/handler/tap_recognizer.ts). The tilt travels past that.
+const MIN_TILT_TRAVEL_PX = 40;
+// MapLibre's `bearingSnap` default, which the canvas keeps: a gesture that ends
+// within this many degrees of north eases the map to north. The 4-degree
+// arrival turn is inside it.
+const MAPLIBRE_BEARING_SNAP_DEG = 7;
 
 /** How long the camera is watched for movement nobody asked for. */
 const STILLNESS_WINDOW_MS = 4_000;
@@ -57,6 +65,7 @@ type CameraReading = {
   zoom: number;
   center: [number, number];
   moving: boolean;
+  settling: boolean;
 };
 
 type PaintedPoint = {
@@ -234,8 +243,10 @@ async function twoFingerTilt(
   await dispatchTouch(cdp, "touchStart", pair(0));
   const start = (await readCamera(page)).pitch;
   for (let step = 1; step <= PITCH_STEPS; step += 1) {
-    await dispatchTouch(cdp, "touchMove", pair(-(PITCH_DRAG_PX / PITCH_STEPS) * step));
+    const travelled = (PITCH_DRAG_PX / PITCH_STEPS) * step;
+    await dispatchTouch(cdp, "touchMove", pair(-travelled));
     await nextFrame(page);
+    if (travelled < MIN_TILT_TRAVEL_PX) continue;
     if (Math.abs((await readCamera(page)).pitch - start) > MIN_PITCH_CHANGE) break;
   }
   await dispatchTouch(cdp, "touchEnd", []);
@@ -348,10 +359,21 @@ test("two fingers tilt the map, and the pins stay on the ground", async ({ page 
     async () => Math.abs((await readCamera(page)).pitch - before.pitch),
     { timeout: 10_000 },
   ).toBeGreaterThan(MIN_PITCH_CHANGE);
+  // The fingers lift as soon as the pitch passes the threshold, and MapLibre
+  // can still be easing the tilt out. A pin painted mid-ease and the camera
+  // projected a frame later disagree by a pixel or two, so the anchoring claim
+  // is only made about a camera at rest.
+  await expect.poll(async () => {
+    const camera = await readCamera(page);
+    return !camera.moving && !camera.settling;
+  }, { timeout: 20_000 }).toBe(true);
 
   const tilted = await readCamera(page);
-  // A tilt is a tilt. Nothing else about the camera may come with it.
-  expect(Math.abs(tilted.bearing - before.bearing)).toBeLessThan(1);
+  // A tilt is a tilt. Nothing else about the camera may come with it, except
+  // MapLibre's own snap to north when the gesture ends near it.
+  const restingBearing = Math.abs(before.bearing) < MAPLIBRE_BEARING_SNAP_DEG ? 0 : before.bearing;
+  expect(Math.abs(tilted.bearing - restingBearing)).toBeLessThan(1);
+  expect(Math.abs(tilted.zoom - before.zoom)).toBeLessThan(0.01);
 
   // A tilt changes which marks survive symbol collision, so the anchoring
   // claim is made about a pin the map is STILL drawing rather than about one
@@ -374,10 +396,10 @@ test("two fingers tilt the map, and the pins stay on the ground", async ({ page 
   expect(Math.abs(same.y - projectedAfter.y)).toBeLessThan(0.5);
 });
 
-// A phone has no compass at all: the popover that owns it is hidden under the
-// 640px query, which docs/proof/red-on-main-2026-09.md R19 records as an open
-// lead. This block runs where the control ships, so the proof is of the
-// shipped control.
+// The popover that owns the desktop compass is hidden under the 640px query. A
+// phone gets the same reset as a "Reset view" action in the Layers tab of Map
+// controls (docs/proof/red-on-main-2026-09.md R19). This block runs where the
+// popover ships, so the proof is of the shipped control.
 test.describe("the compass, where the map has one", () => {
   test.use({ hasTouch: true, viewport: TABLET_VIEWPORT });
 
@@ -433,4 +455,48 @@ test.describe("the compass, where the map has one", () => {
     expect(Math.abs(reset.pitch - LONDON_ATTITUDE.pitch)).toBeLessThan(0.5);
     expect(LONDON_ATTITUDE.pitch).toBeGreaterThan(0);
   });
+});
+
+test("a phone turns and tilts the map, and Reset view in the Layers tab gives back the view", async ({ page }) => {
+  test.setTimeout(240_000);
+  await openMap(page);
+  const opening = await readCamera(page);
+  const cdp = await page.context().newCDPSession(page);
+  const centre = await canvasCentre(page);
+  await twoFingerRotate(page, cdp, centre);
+  await twoFingerTilt(page, cdp, centre);
+  await expect.poll(
+    async () => Math.abs((await readCamera(page)).bearing - opening.bearing),
+    { timeout: 10_000 },
+  ).toBeGreaterThan(MIN_BEARING_CHANGE);
+
+  const openLayersTab = async () => {
+    await page.getByRole("button", { name: "More map controls" }).click();
+    const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="layers"]');
+    await expect(sheet).toBeVisible();
+    await sheet.getByRole("tab", { name: "Layers" }).click();
+    return sheet;
+  };
+  let sheet = await openLayersTab();
+  const reset = sheet.getByRole("button", { name: "Reset view", exact: true });
+  await expect(reset).toBeEnabled();
+  await reset.click();
+
+  // The reset eases bearing and pitch together, so read the attitude it hands
+  // back once the camera is at rest rather than mid-ease.
+  await expect.poll(async () => {
+    const camera = await readCamera(page);
+    return !camera.moving && !camera.settling;
+  }, { timeout: 20_000 }).toBe(true);
+  const back = await readCamera(page);
+  expect(Math.abs(back.bearing - LONDON_ATTITUDE.bearing)).toBeLessThan(0.5);
+  expect(Math.abs(back.pitch - LONDON_ATTITUDE.pitch)).toBeLessThan(0.5);
+
+  // On the city's own attitude there is nothing to reset, so the action stays
+  // in place and is disabled.
+  await expect(reset).toBeVisible();
+  await expect(reset).toBeDisabled();
+  await sheet.getByRole("button", { name: "Close Map controls" }).click();
+  sheet = await openLayersTab();
+  await expect(sheet.getByRole("button", { name: "Reset view", exact: true })).toBeDisabled();
 });
