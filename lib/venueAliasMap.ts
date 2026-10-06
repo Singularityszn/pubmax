@@ -7,7 +7,7 @@
 // and is retried by the next caller.
 
 import { discardBody } from "@/lib/responseBody";
-import { VENUE_ALIAS_FILES } from "@/lib/venueAliasesFile.mjs";
+import { VENUE_ALIAS_FILES, flattenVenueAliasChains } from "@/lib/venueAliasesFile.mjs";
 
 /** The alias artifacts as the browser reads them. */
 export type VenueAliasMaps = {
@@ -46,7 +46,7 @@ async function readAliasFile(file: string): Promise<AliasFileEntries> {
 export function loadVenueAliasMaps(): Promise<VenueAliasMaps> {
   pending ??= Promise.all(VENUE_ALIAS_FILES.map(readAliasFile))
     .then((files) => ({
-      aliases: new Map(files.flatMap((file) => file.aliases)),
+      aliases: flattenVenueAliasChains(files.flatMap((file) => file.aliases)),
       retiredNames: new Map(files.flatMap((file) => file.retired)),
     }))
     .catch(() => {

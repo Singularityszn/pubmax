@@ -3,7 +3,7 @@ import "server-only";
 import { promises as fs } from "fs";
 import path from "path";
 
-import { VENUE_ALIAS_FILES } from "@/lib/venueAliasesFile.mjs";
+import { VENUE_ALIAS_FILES, flattenVenueAliasChains } from "@/lib/venueAliasesFile.mjs";
 
 // Venue-id alias resolution (D1). An id a reader may still hold can stop naming
 // a venue in three ways, and each is recorded as `oldId -> currentId`:
@@ -67,6 +67,7 @@ function retiredVenueFrom(id: string, value: unknown): RetiredVenue | null {
 async function loadAliases(): Promise<AliasLoadResult> {
   if (cached) return { status: "ready", ...cached };
   const maps: AliasMaps = { aliases: new Map(), retired: new Map() };
+  const pairs: Array<[string, string]> = [];
   try {
     for (const file of aliasPaths) {
       const doc = await readAliasDoc(file);
@@ -74,13 +75,16 @@ async function loadAliases(): Promise<AliasLoadResult> {
       for (const [from, to] of Object.entries(doc.aliases)) {
         // Skip self-maps and non-string targets so a bad row can't create a
         // cycle or resolve an id to a non-id.
-        if (typeof to === "string" && to && from !== to) maps.aliases.set(from, to);
+        if (typeof to === "string" && to && from !== to) pairs.push([from, to]);
       }
       for (const [id, value] of Object.entries(doc.retired ?? {})) {
         const venue = retiredVenueFrom(id, value);
         if (venue) maps.retired.set(id, venue);
       }
     }
+    // One map across all three files, each id pointing at the end of its chain
+    // (A -> B -> C reads A -> C). A cycle throws, so it degrades like a corrupt file.
+    maps.aliases = flattenVenueAliasChains(pairs);
     // Cache only a successful load. A file that's missing/corrupt now but
     // created/repaired later must be picked up on the next call — never poison
     // the cache with an empty map from a transient failure.
@@ -173,13 +177,13 @@ export function resetVenueAliasesForTests(): void {
   }
 }
 
-export function setVenueAliasesPathForTests(file: string): void {
+export function setVenueAliasesPathForTests(file: string | string[]): void {
   if (
     process.env.NODE_ENV === "test" ||
     Boolean(process.env.VITEST) ||
     Boolean(process.env.VITEST_WORKER_ID)
   ) {
     cached = null;
-    aliasPaths = [file];
+    aliasPaths = Array.isArray(file) ? file : [file];
   }
 }
