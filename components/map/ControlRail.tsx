@@ -230,6 +230,7 @@ export default function ControlRail({
         <Search size={18} />
         <input
           id="railSearchInput"
+          aria-label="Search pubs and areas"
           value={filters.query}
           onChange={(event) => onFiltersChange({ ...filters, query: event.target.value })}
           placeholder={searchPlaceholder}
@@ -248,7 +249,7 @@ export default function ControlRail({
               key={crawl.id}
               className="featuredCrawl"
               data-crawl-style={crawl.crawlStyle}
-              aria-label={`Map the ${crawl.name} crawl with ${crawl.venueIds.length} stops`}
+              aria-label={`Map ${crawl.name} with ${crawl.venueIds.length} ${crawl.venueIds.length === 1 ? "stop" : "stops"}`}
               onClick={() => onLoadCrawl(crawl)}
             >
               <span className="featuredCrawlHead">

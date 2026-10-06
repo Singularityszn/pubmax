@@ -129,7 +129,7 @@ export function outVenueMatchNotice(
   const count = options.unmatchedCount ?? unresolved.length;
   if (count === 0) return null;
   const noun = outWindowNoun(window);
-  const possessive = noun === "the weekend" ? "the weekend's" : `${noun}'s`;
+  const possessive = `${noun}'s`;
   const line = `We couldn't check which of ${possessive} ${count} ${
     count === 1 ? "listing is" : "listings are"
   } at a pub we list.`;

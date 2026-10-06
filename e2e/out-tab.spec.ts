@@ -129,10 +129,10 @@ for (const width of WIDTHS) {
       // The heading names the window the chip selected, so the list never sits
       // under another night's name.
       await expect(
-        page.getByRole("heading", { name: "What's on the weekend", exact: true }),
+        page.getByRole("heading", { name: "What's on this weekend", exact: true }),
       ).toBeVisible();
       await expect(
-        page.getByRole("heading", { level: 1, name: "What’s on the weekend.", exact: true }),
+        page.getByRole("heading", { level: 1, name: "What’s on this weekend.", exact: true }),
       ).toBeVisible();
       await tonightChip.focus();
       await page.keyboard.press("Enter");

@@ -86,7 +86,7 @@ export type OutListingsReadStatus = "ready" | "degraded";
 const WINDOW_NOUN: Record<OutDayWindow, string> = {
   tonight: "tonight",
   tomorrow: "tomorrow",
-  weekend: "the weekend",
+  weekend: "this weekend",
 };
 
 /**

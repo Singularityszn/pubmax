@@ -141,7 +141,7 @@ describe("a night of unmatched listings renders rows, not an empty state", () =>
   it.each([
     ["tonight", "Tonight", "What’s on tonight."],
     ["tomorrow", "Tomorrow", "What’s on tomorrow."],
-    ["weekend", "Weekend", "What’s on the weekend."],
+    ["weekend", "Weekend", "What’s on this weekend."],
   ] as const)("names the selected %s period in the page heading", async (day, label, heading) => {
     await renderOut([], day);
 

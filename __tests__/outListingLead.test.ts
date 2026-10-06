@@ -59,7 +59,7 @@ describe("outListingLead", () => {
       "We couldn’t match tomorrow’s listing to a pub on our map.",
     );
     expect(outListingLead(unmatched.slice(0, 3), "ready", "weekend").honestEmpty?.line).toBe(
-      "We couldn’t match any of the weekend’s 3 listings to a pub on our map.",
+      "We couldn’t match any of this weekend’s 3 listings to a pub on our map.",
     );
   });
 

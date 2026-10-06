@@ -181,7 +181,11 @@ function overviewPriceAreaReach(
   experienceLens: MapExperienceLens,
   drinkLensCategory: DrinkCategory | null | undefined,
   lane: VenuePriceLane | null,
-): { showsPriceSummary: boolean; laneLoggedPriceShown: boolean } {
+): {
+  showsPriceSummary: boolean;
+  laneLoggedPriceShown: boolean;
+  priceShownFromAnotherLane: boolean;
+} {
   const showsPriceSummary =
     !drinkLensCategory &&
     (experienceLens !== "no-alcohol" ||
@@ -195,6 +199,10 @@ function overviewPriceAreaReach(
     showsPriceSummary,
     laneLoggedPriceShown:
       showsPriceSummary && lane !== null && venuePriceLaneIsDrinkerLog(lane),
+    // A price is on screen but no drinker logged it: the absence line beside it
+    // has to say which kind of absence it is.
+    priceShownFromAnotherLane:
+      showsPriceSummary && lane !== null && !venuePriceLaneIsDrinkerLog(lane),
   };
 }
 
@@ -946,7 +954,7 @@ export default function VenueOverviewTab({
     agedPrice,
     disputedPrice,
   );
-  const { showsPriceSummary, laneLoggedPriceShown } = overviewPriceAreaReach(
+  const { showsPriceSummary, laneLoggedPriceShown, priceShownFromAnotherLane } = overviewPriceAreaReach(
     venue,
     experienceLens,
     drinkLensCategory,
@@ -1080,6 +1088,7 @@ export default function VenueOverviewTab({
           laneNoun={leadLaneNoun}
           readStatus={venueReadStatus}
           laneLoggedPriceShown={laneLoggedPriceShown}
+          priceShownFromAnotherLane={priceShownFromAnotherLane}
           inviteOwnedElsewhere={drinkInviteOwnedElsewhere}
           communityPrices={communityPrices}
           onLogPrice={logTonightPrice}
