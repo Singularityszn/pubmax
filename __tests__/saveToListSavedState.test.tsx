@@ -87,6 +87,30 @@ describe("SaveToListControl chips", () => {
   });
 });
 
+describe("SaveToListControl new list", () => {
+  it("leaves the save in place when the typed name already holds this pub", async () => {
+    window.localStorage.setItem(
+      "pubmax:savedPubs:v1",
+      JSON.stringify([
+        { venueId: "venue-1", listType: "Date Night", savedAt: "2026-10-06T10:00:00.000Z" },
+      ]),
+    );
+    await open();
+    const input = container.querySelector<HTMLInputElement>("input[aria-label='New list name']")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "Date Night");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>("button.saveToListCreate")!.click();
+    });
+
+    expect(chip("Date Night").getAttribute("aria-pressed")).toBe("true");
+    expect(container.querySelector(".saveToListToast")?.textContent).toBe("Saved to “Date Night”");
+    expect(JSON.parse(window.localStorage.getItem("pubmax:savedPubs:v1") ?? "[]")).toHaveLength(1);
+  });
+});
+
 describe("SaveToListControl chips for a signed-in handle", () => {
   const row = (listType: string) => ({
     venueId: "venue-1",

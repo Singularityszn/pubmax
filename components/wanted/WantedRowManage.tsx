@@ -22,8 +22,9 @@ import {
 
 type Props = {
   wanted: WantedDTO;
-  /** The note was saved: the row as the server now holds it. */
-  onChanged: (wanted: WantedDTO) => void;
+  /** The note was saved: the row as the server now holds it. Left out, the row
+   * can be removed but not edited (a fulfilled row). */
+  onChanged?: (wanted: WantedDTO) => void;
   /** The row was removed. */
   onRemoved: (id: string) => void;
 };
@@ -60,7 +61,7 @@ export default function WantedRowManage({ wanted, onChanged, onRemoved }: Props)
       return;
     }
     setEditing(false);
-    onChanged(body.wanted);
+    onChanged?.(body.wanted);
   }
 
   async function remove() {
@@ -124,19 +125,21 @@ export default function WantedRowManage({ wanted, onChanged, onRemoved }: Props)
               Open saved link{host ? ` (${host})` : ""}
             </a>
           ) : null}
-          <button
-            type="button"
-            className="wantedRow__button"
-            onClick={() => {
-              setNote(wanted.note);
-              setError(null);
-              setEditing(true);
-            }}
-            disabled={busy !== null}
-            aria-label={`Edit the note on ${name}`}
-          >
-            {wanted.note ? "Edit note" : "Add a note"}
-          </button>
+          {onChanged ? (
+            <button
+              type="button"
+              className="wantedRow__button"
+              onClick={() => {
+                setNote(wanted.note);
+                setError(null);
+                setEditing(true);
+              }}
+              disabled={busy !== null}
+              aria-label={`Edit the note on ${name}`}
+            >
+              {wanted.note ? "Edit note" : "Add a note"}
+            </button>
+          ) : null}
           <button
             type="button"
             className="wantedRow__button"

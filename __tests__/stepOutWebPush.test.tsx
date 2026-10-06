@@ -179,3 +179,24 @@ describe("StepOutNudgePref in a browser tab", () => {
     expect(container.textContent).toContain("Notifications are blocked for this site.");
   });
 });
+
+describe("StepOutNudgePref inside the native app", () => {
+  afterEach(() => {
+    delete (window as { Capacitor?: unknown }).Capacitor;
+  });
+
+  it("offers no web push switch and says where Step Out works", async () => {
+    setUserAgent(SAFARI_IPHONE, 5);
+    (window as { Capacitor?: unknown }).Capacitor = { isNativePlatform: () => true };
+    await render();
+
+    expect(container.querySelector("[data-testid=step-out-native-note]")?.textContent).toContain(
+      "Step Out alerts are not available in the app yet; they work in Chrome, Edge or Firefox on the web.",
+    );
+    expect([...container.querySelectorAll("button")].some((b) => b.textContent?.includes("Turn Step Out on"))).toBe(
+      false,
+    );
+    expect(container.querySelector("[data-testid=step-out-ios-install-note]")).toBeNull();
+    expect(container.textContent).not.toContain("This browser cannot receive web push.");
+  });
+});

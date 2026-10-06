@@ -112,23 +112,26 @@ export default function SaveToListControl({
     if (open) void Promise.resolve().then(() => loadLists());
   }, [open, loadLists]);
 
+  const announce = useCallback((listType: string, held: string[]) => {
+    setSavedIn(held);
+    setToast(
+      held.includes(listType) ? savedToast(listType, handle) : `Removed from “${listType}”`,
+    );
+    window.setTimeout(() => setToast(null), 2000);
+  }, [handle]);
+
   const save = useCallback(
     async (listType: string) => {
       setBusy(true);
       try {
         const durable = await toggleSaveDurable(handle, venueId, listType, undefined, venueKind);
-        const held = listsHolding(venueId, durable);
-        setSavedIn(held);
         // The second press removes the save, so the toast says which happened.
-        setToast(
-          held.includes(listType) ? savedToast(listType, handle) : `Removed from “${listType}”`,
-        );
-        window.setTimeout(() => setToast(null), 2000);
+        announce(listType, listsHolding(venueId, durable));
       } finally {
         setBusy(false);
       }
     },
-    [handle, venueId, venueKind],
+    [handle, venueId, venueKind, announce],
   );
 
   const createAndSave = useCallback(async () => {
@@ -158,15 +161,20 @@ export default function SaveToListControl({
           /* the save below still works even if the registry write failed */
         }
       }
-      const durable = await toggleSaveDurable(handle, venueId, name, undefined, venueKind);
-      setSavedIn(listsHolding(venueId, durable));
+      // The save is a toggle, so a name that already holds this pub is left as
+      // it is rather than pressed a second time.
+      const held = savedIn.includes(name)
+        ? savedIn
+        : listsHolding(
+            venueId,
+            await toggleSaveDurable(handle, venueId, name, undefined, venueKind),
+          );
       setNewName("");
-      setToast(savedToast(name, handle));
-      window.setTimeout(() => setToast(null), 2000);
+      announce(name, held);
     } finally {
       setBusy(false);
     }
-  }, [handle, venueId, venueKind, newName, busy]);
+  }, [handle, venueId, venueKind, newName, busy, savedIn, announce]);
 
   if (!open) {
     return (

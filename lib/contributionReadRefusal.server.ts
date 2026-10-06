@@ -1,7 +1,7 @@
 import "server-only";
 
 import { jsonNoStore } from "@/lib/apiResponses";
-import { readContributionGateStatus } from "@/lib/contributionGateStatus";
+import { readContributionDoor } from "@/lib/contributionGateStatus";
 import type { ContributionIdentityResolution } from "@/lib/contributionIdentity.server";
 
 /**
@@ -23,12 +23,7 @@ import type { ContributionIdentityResolution } from "@/lib/contributionIdentity.
 export function contributionReadRefusalResponse(
   refusal: Extract<ContributionIdentityResolution, { ok: false }>,
 ): Response {
-  const gate = readContributionGateStatus(refusal.body.status);
-  const isDoor =
-    gate === "adult_check_required" ||
-    gate === "adult_check_failed" ||
-    gate === "onboarding_required";
   return jsonNoStore(refusal.body, {
-    status: isDoor ? 200 : refusal.httpStatus,
+    status: readContributionDoor(refusal.body) ? 200 : refusal.httpStatus,
   });
 }

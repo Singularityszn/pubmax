@@ -328,6 +328,7 @@ export default function WantedListBody(): React.JSX.Element {
                 <p className="wantedRow__name">{wanted.venueName || wantedPendingLabel(wanted.rawPaste)}</p>
                 <p className="wantedRow__meta">Done</p>
               </div>
+              <WantedRowManage wanted={wanted} onRemoved={handleRemoved} />
             </li>
           ))}
         </ul>

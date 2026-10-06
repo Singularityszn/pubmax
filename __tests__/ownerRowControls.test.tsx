@@ -183,6 +183,31 @@ describe("Wanted row controls", () => {
     expect(container.textContent).toContain("No open Wanted places yet.");
   });
 
+  it("removes a fulfilled row, which has no note to edit", async () => {
+    authedFetch.mockResolvedValue(
+      json({ wanteds: [wanted({ status: "fulfilled", fulfilledAt: "2026-10-06T21:00:00.000Z" })] }),
+    );
+    authedActionFetch.mockResolvedValue(json({ ok: true }));
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    await act(async () => {
+      root.render(createElement(WantedListBody));
+    });
+    await settle();
+
+    const fulfilled = container.querySelector("ul[aria-label='Fulfilled Wanted places']")!;
+    expect(fulfilled.textContent).toContain("Done");
+    expect([...fulfilled.querySelectorAll("button")].map((b) => b.textContent?.trim())).toEqual(["Remove"]);
+
+    await act(async () => {
+      button("Remove").click();
+    });
+    await settle();
+
+    const [, init] = authedActionFetch.mock.calls[0]! as [string, { body: string }];
+    expect(JSON.parse(init.body)).toEqual({ action: "delete", id: "wanted-1" });
+    expect(container.querySelector("ul[aria-label='Fulfilled Wanted places']")).toBeNull();
+  });
+
   it("says so, and keeps the row, when the removal fails", async () => {
     authedFetch.mockResolvedValue(json({ wanteds: [wanted()] }));
     authedActionFetch.mockResolvedValue(json({ error: "Storage is unavailable." }, 503));

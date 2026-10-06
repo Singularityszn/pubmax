@@ -13,6 +13,8 @@ import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { readContributionGateStatus } from "@/lib/contributionGateStatus";
 import { isUkBaseVenueId, type WantedDTO } from "@/lib/wanted";
 
+import { WANTED_GATE_COPY } from "./wantedGateCopy";
+
 import "./wanted.css";
 
 export default function SaveForNightButton({
@@ -29,10 +31,7 @@ export default function SaveForNightButton({
   /** Called when a tap makes this control the one that speaks. */
   onActivate?: () => void;
 }): React.JSX.Element {
-  const { requestContribution, contributionGateDialog } = useContributionGate({
-    adult: "Saving a Wanted place is for over-18s.",
-    handle: "Wanted places carry your public handle, so pick one first.",
-  });
+  const { requestContribution, contributionGateDialog } = useContributionGate(WANTED_GATE_COPY);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 

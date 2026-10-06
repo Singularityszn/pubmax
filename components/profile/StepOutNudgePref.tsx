@@ -66,6 +66,8 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
     needsHomeScreenInstall,
     () => false,
   );
+  // The native shell has no web push, and Step Out has no native push yet.
+  const inNativeApp = useSyncExternalStore(subscribeNoop, isNativeApp, () => false);
 
   useEffect(() => {
     if (!user) return;
@@ -234,7 +236,12 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
           to Home Screen, then open PUBMAXX from the icon before turning this on.
         </p>
       ) : null}
-      {gate ? (
+      {inNativeApp && !enabled ? (
+        <p className="accountHubNightProfile" data-testid="step-out-native-note">
+          Step Out alerts are not available in the app yet; they work in Chrome,
+          Edge or Firefox on the web.
+        </p>
+      ) : gate ? (
         <ContributionGateDoor
           status={gate}
           subject="turn Step Out on"

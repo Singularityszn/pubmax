@@ -21,6 +21,8 @@ import {
   type WantedSourcePlatform,
 } from "@/lib/wanted";
 
+import { WANTED_GATE_COPY } from "./wantedGateCopy";
+
 import "./wanted.css";
 
 type Props = {
@@ -69,11 +71,6 @@ function createAnonymousWanted(input: {
 
 // What the gate says when a save is refused for age or handle. Without it the
 // dialog would tell a person saving a pub that they are logging a drink price.
-const WANTED_GATE_COPY = {
-  adult: "Saving a Wanted place is for over-18s.",
-  handle: "Wanted places carry your public handle, so pick one first.",
-} as const;
-
 export default function WantedCapture({ onSaved, anonymous = false, prefill }: Props): React.JSX.Element {
   const { requestContribution, contributionGateDialog } = useContributionGate(WANTED_GATE_COPY);
   const [paste, setPaste] = useState(prefill?.venueName ?? "");
