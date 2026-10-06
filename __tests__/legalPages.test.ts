@@ -316,7 +316,7 @@ describe("legal content pages", () => {
       { name: "Arize", host: "otlp.arize.com", source: "lib/observability/arize.ts" },
       { name: "OpenRouter", host: "openrouter.ai", source: "lib/ask/modelLoop.ts" },
       { name: "TypeSafe", host: "api.typesafe.ai", source: "lib/ai/typesafe.server.ts" },
-      { name: "ElevenLabs", host: "api.elevenlabs.io", source: "lib/palElevenLabsChat.server.ts" },
+      { name: "ElevenLabs", host: "api.elevenlabs.io", source: "lib/palElevenLabsSignedUrl.server.ts" },
     ];
     for (const recipient of promptTextRecipients) {
       expect(thirdPartySection, `Missing recipient name ${recipient.name}`).toContain(

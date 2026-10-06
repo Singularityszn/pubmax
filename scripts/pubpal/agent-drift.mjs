@@ -25,7 +25,7 @@ function isRecord(value) {
  * named in `supersets` only has to contain the wanted entries, because a
  * provisioner PATCH keeps what the agent already sends.
  */
-export function subsetDrift(wanted, live, path = "", supersets = new Set()) {
+function subsetDrift(wanted, live, path = "", supersets = new Set()) {
   if (isRecord(wanted)) {
     if (!isRecord(live)) return [{ path, wanted, live }];
     return Object.entries(wanted).flatMap(([key, value]) =>

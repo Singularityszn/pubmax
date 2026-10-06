@@ -120,7 +120,7 @@ export type PalElevenLabsChatInput = {
   signal?: AbortSignal;
 };
 
-export type PalElevenLabsChatProgress = { type: "delta"; text: string } | { type: "reset" };
+type PalElevenLabsChatProgress = { type: "delta"; text: string } | { type: "reset" };
 
 export type PalElevenLabsChatOutcome =
   | {
