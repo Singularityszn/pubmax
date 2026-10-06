@@ -83,7 +83,7 @@ for (const size of SIZES) {
     // The location ask has its own screen and its own reason, and nothing has
     // asked the browser yet.
     await expect(page.getByRole("heading", { name: "Find the cheapest pint near you." })).toBeVisible();
-    await expect(page.getByText("We only use it to rank pubs nearby. Nothing is stored.")).toBeVisible();
+    await expect(page.getByText("We only use it to rank pubs nearby. Your location is never stored.")).toBeVisible();
     await expectTouchTarget(page.getByRole("button", { name: "Use my location" }));
     await saveShot(page, `web-4-location-${size.name}`);
 
