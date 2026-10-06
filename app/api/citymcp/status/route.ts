@@ -11,6 +11,7 @@
 import { publicApiError } from "@/lib/apiError";
 import {
   CityMcpError,
+  dedupeCityStatusSignals,
   fetchCityStatus,
   filterNightShapingSignals,
   trimSignals,
@@ -86,7 +87,9 @@ async function getHandler(request: Request): Promise<Response> {
   // Drop flight-side aviation noise (airline incidents / airport-terminal
   // stories) BEFORE trimming to the severity top-N, so the compact feed spends
   // its slots on things that actually shape getting around London tonight.
-  const nightShapingSignals = filterNightShapingSignals(status.signals);
+  // Then collapse repeats of one story, so a gig the upstream digest carries
+  // twice is one row and does not spend a second slot.
+  const nightShapingSignals = dedupeCityStatusSignals(filterNightShapingSignals(status.signals));
   const trimmedSignals = trimSignals(nightShapingSignals, SIGNAL_CAP);
   const trimmedLines = trimTubeLines(status.tubeLines);
 

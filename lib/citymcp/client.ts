@@ -1213,6 +1213,67 @@ export function filterNightShapingSignals(
   return signals.filter((signal) => !isAviationNoiseSignal(signal));
 }
 
+// ---------- De-duplication: one row per story ----------
+//
+// The upstream digest is assembled from several scrapes, so the same gig or
+// by-election arrives twice with the headline cased or worded a little
+// differently ("The Strokes Concert at The O2 Arena" and "The Strokes concert
+// at O2 Arena"), the second often without the source the first carried. Both
+// rows then render, which reads as a bug and spends a slot of the capped feed.
+
+const HEADLINE_STOP_WORDS: ReadonlySet<string> = new Set(["a", "an", "the", "at", "of", "in", "on", "and"]);
+const DUPLICATE_HEADLINE_OVERLAP = 0.75;
+
+function headlineTokens(headline: string | undefined): Set<string> {
+  const words = String(headline ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(" ")
+    .filter((word) => word.length > 0 && !HEADLINE_STOP_WORDS.has(word));
+  return new Set(words);
+}
+
+function sameStory(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
+  if (a.size === 0 || b.size === 0) return false;
+  let shared = 0;
+  for (const word of a) if (b.has(word)) shared += 1;
+  return shared / (a.size + b.size - shared) >= DUPLICATE_HEADLINE_OVERLAP;
+}
+
+/** How much a row can tell a reader: a source first, then a time, then where. */
+function signalSubstance(signal: CityStatusSignal): number {
+  return (
+    (signal.sourceUrl ? 4 : 0) +
+    (signal.timeWindow ? 2 : 0) +
+    (signal.areas && signal.areas.length > 0 ? 1 : 0)
+  );
+}
+
+/**
+ * Collapse rows that name the same story into one, keeping the row that says
+ * the most (a sourced row beats an unsourced one) in the position the story
+ * first appeared. Two rows are the same story when their headlines share at
+ * least three quarters of their words once case, punctuation and filler words
+ * are set aside. Pure, returns a new array, exported for tests + the status
+ * route.
+ */
+export function dedupeCityStatusSignals(
+  signals: readonly CityStatusSignal[] | undefined,
+): CityStatusSignal[] {
+  if (!Array.isArray(signals)) return [];
+  const kept: Array<{ signal: CityStatusSignal; tokens: Set<string> }> = [];
+  for (const signal of signals) {
+    const tokens = headlineTokens(signal.headline);
+    const twin = kept.find((entry) => sameStory(entry.tokens, tokens));
+    if (!twin) {
+      kept.push({ signal, tokens });
+    } else if (signalSubstance(signal) > signalSubstance(twin.signal)) {
+      twin.signal = signal;
+    }
+  }
+  return kept.map((entry) => entry.signal);
+}
+
 /**
  * Return the top-N signals by severity (major > notable > info > unknown),
  * preserving upstream order for equal severities. Used by the status route

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  dedupeCityStatusSignals,
   filterNightShapingSignals,
   isAviationNoiseSignal,
   type CityStatusSignal,
@@ -62,5 +63,55 @@ describe("filterNightShapingSignals", () => {
     filterNightShapingSignals(input);
     expect(input).toEqual(snapshot);
     expect(filterNightShapingSignals(undefined)).toEqual([]);
+  });
+});
+
+describe("dedupeCityStatusSignals", () => {
+  it("collapses headlines that differ only in case, punctuation and filler words", () => {
+    const rows = dedupeCityStatusSignals([
+      signal("The Strokes Concert at The O2 Arena"),
+      signal("The Strokes concert at O2 Arena"),
+      signal("Holborn and St Pancras By-Election"),
+      signal("Holborn and St Pancras by-election"),
+    ]);
+    expect(rows.map((row) => row.headline)).toEqual([
+      "The Strokes Concert at The O2 Arena",
+      "Holborn and St Pancras By-Election",
+    ]);
+  });
+
+  it("keeps the row that says the most, in the place the story first appeared", () => {
+    const rows = dedupeCityStatusSignals([
+      { headline: "The Strokes concert at O2 Arena" },
+      { headline: "Victoria line part closure" },
+      {
+        headline: "The Strokes Concert at The O2 Arena",
+        sourceUrl: "https://www.timeout.com/london/news/the-strokes-o2",
+        timeWindow: "18:30-22:45",
+      },
+    ]);
+    expect(rows.map((row) => row.headline)).toEqual([
+      "The Strokes Concert at The O2 Arena",
+      "Victoria line part closure",
+    ]);
+    expect(rows[0]?.sourceUrl).toContain("timeout.com");
+  });
+
+  it("keeps two different stories that share a few words", () => {
+    const rows = dedupeCityStatusSignals([
+      signal("Victoria line part closure"),
+      signal("Victoria line delayed"),
+      signal("Tube strike Monday"),
+      signal("Tube strike Tuesday"),
+    ]);
+    expect(rows).toHaveLength(4);
+  });
+
+  it("never merges rows with no headline words and does not mutate its input", () => {
+    const input = [signal(""), signal("")];
+    const copy = [...input];
+    expect(dedupeCityStatusSignals(input)).toHaveLength(2);
+    expect(input).toEqual(copy);
+    expect(dedupeCityStatusSignals(undefined)).toEqual([]);
   });
 });

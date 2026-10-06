@@ -954,6 +954,8 @@
   .mobileTflGroups li:first-child { border-top: 0; }
   .mobileTflGroups p { margin: 0; color: var(--color-text-soft); }
   .mobileTflGroups span { color: var(--color-text-muted); font-size: var(--text-xs); }
+  .mobileTflGroups .mobileTflSource { min-height: 44px; display: inline-flex; align-items: center; justify-self: start; color: var(--color-accent-ink); font-size: var(--text-xs); text-decoration: none; }
+  .mobileTflGroups .mobileTflSource:hover { text-decoration: underline; }
   .mobileSheetEmpty, .mobileSheetSkeleton { min-height: 180px; display: grid; place-items: center; align-content: center; gap: 8px; text-align: center; }
   .mobileSheetEmpty p { margin: 0; color: var(--color-text-soft); }
 
