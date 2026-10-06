@@ -93,6 +93,25 @@ describe("map drink default in the phone planner", () => {
     expect(inferNightContext(requests[0]!.query).context.drinkCategory).toBe("gin");
   });
 
+  it.each(["Soft drinks in Soho", "Coke in Soho", "Soda in Soho", "Root beer in Soho"])(
+    "keeps the explicit %s category with the Alcohol-free chip",
+    async (query) => {
+      await render(wine, query);
+      await act(async () => button("Alcohol-free").click());
+      await generate();
+      expect(requests).toHaveLength(1);
+      expect(requests[0]!.context).toMatchObject({ drinkCategory: "soft-drink", zeroProof: true });
+    },
+  );
+
+  it("does not turn a Wine request alcoholic when the Alcohol-free chip is selected", async () => {
+    await render(wine, "Wine in Soho");
+    await act(async () => button("Alcohol-free").click());
+    await generate();
+    expect(requests[0]!.context.zeroProof).toBe(true);
+    expect(requests[0]!.context).not.toHaveProperty("drinkCategory");
+  });
+
   it.each(["Sober in Soho", "No alcohol tonight"])("keeps %s ahead of the alcoholic map default", async (query) => {
     await render(wine, query);
     await generate();

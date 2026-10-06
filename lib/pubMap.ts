@@ -17,6 +17,7 @@ import {
 import { CATEGORY_META, type DrinkCategory } from "@/lib/drinks";
 import type { CategoryPriceIndexStatus, MapExperienceLens } from "@/lib/mapExperienceLens";
 import type { MapPlanDrinkSelection } from "@/lib/mapPlanDrinkPresentation";
+import type { NightContext } from "@/lib/nightPlanning";
 import type { MapOverlay, MapSheetKind, MapViewportSnapshot } from "@/lib/mobileShell";
 import { seedCrawlState } from "@/lib/crawlUrl";
 import { WALK_ROUTE_MAX_STOPS } from "@/lib/walkRoute";
@@ -49,6 +50,12 @@ import {
   eagerCuratedCrawlAltStyle,
   eagerCuratedCrawlAltStyleForBuiltIds,
 } from "@/lib/curatedCrawlHints";
+
+/** A specific soft drink satisfies zero-proof without widening to all alcohol-free drinks. */
+export function generatedMapDrinkLane(context: Pick<NightContext, "drinkCategory" | "zeroProof">): DrinkCategory {
+  if (context.zeroProof && context.drinkCategory !== "soft-drink") return "alcohol-free";
+  return context.drinkCategory ?? DEFAULT_DRINK_LANE;
+}
 
 // §4.5: did the page arrive with any crawl-shaping URL param (a shared/deep
 // link)? If any are present the arrival is intentional and we never onboard.

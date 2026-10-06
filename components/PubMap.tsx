@@ -604,6 +604,7 @@ import { readMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
 import { mapListOpenFromSearch } from "@/lib/mapListRoute";
 import {
   filtersForCuratedCrawl,
+  generatedMapDrinkLane,
   buildMapSeed,
   builtStopsAskedAfter,
   builtStopsNeedingHydration,
@@ -4762,7 +4763,7 @@ export default function PubMap({
     const ids = generated.stops.map((stop) => stop.venueId);
     changeExperienceLens("all");
     setPersonaLensId(null);
-    const lane = generated.context.zeroProof ? "alcohol-free" : generated.context.drinkCategory ?? DEFAULT_DRINK_LANE;
+    const lane = generatedMapDrinkLane(generated.context);
     if (lane !== DEFAULT_DRINK_LANE) setFavoritePintState(null);
     setFilters((current) => applyDrinkLane(current, lane, { clearRefinements: true }));
     if (lane === DEFAULT_DRINK_LANE) setAltStyle("pint");

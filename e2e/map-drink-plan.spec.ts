@@ -331,6 +331,111 @@ test("generated Gin replaces the previous Wine map context", async ({ page }, te
 });
 
 
+for (const scenario of [
+  { name: "the Wine map default", search: "drink=wine", query: "Soft drinks in Soho", alcoholFree: false, zeroProof: true },
+  { name: "the Beer map default", search: "", query: "Soft drinks in Soho", alcoholFree: false, zeroProof: true },
+  { name: "the Alcohol-free control", search: "drink=wine", query: "Coke in Soho", alcoholFree: true, zeroProof: true },
+  { name: "a location-only Soft drinks request", search: "drink=soft-drink", query: "Soho", alcoholFree: false, zeroProof: false },
+] as const) {
+  test(`generated Soft drinks respects ${scenario.name}`, async ({ page }, testInfo) => {
+    const intent = await openPhonePlanner(page, scenario.search);
+    await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill(scenario.query);
+    if (scenario.alcoholFree) {
+      const control = intent.getByRole("button", { name: "Alcohol-free", exact: true });
+      await control.click();
+      await expect(control).toHaveAttribute("aria-pressed", "true");
+    }
+    const generatedResponse = page.waitForResponse((response) =>
+      new URL(response.url()).pathname === "/api/plans/generate" && response.request().method() === "POST",
+    );
+    await intent.getByRole("button", { name: "Make a plan", exact: true }).click();
+    const response = await generatedResponse;
+    expect(response.status()).toBe(200);
+    const body = await response.json() as {
+      inferredContext: { drinkCategory: string | null; zeroProof: boolean };
+      stops: Array<{ venueId: string }>;
+    };
+    await testInfo.attach("soft-drink-response", { body: JSON.stringify(body), contentType: "application/json" });
+    const route = page.locator(".mapDrawer.left .routePanel");
+    await expect(route.locator(".routeList > li")).toHaveCount(2);
+    await testInfo.attach("soft-drink-activation", { body: await page.screenshot(), contentType: "image/png" });
+    expect(body.inferredContext.drinkCategory).toBe("soft-drink");
+    expect(body.inferredContext.zeroProof).toBe(scenario.zeroProof);
+    expect(body.stops).toHaveLength(2);
+    const sent = response.request().postDataJSON() as { context: Record<string, unknown> };
+    expect(sent.context.drinkCategory).toBe("soft-drink");
+    await expect(page).toHaveURL(/[?&]drink=soft-drink(?:&|$)/);
+    await expect(route.getByRole("heading", { name: "Soft drinks plan", exact: true })).toBeVisible();
+    await expect(route.locator(".routeMetrics")).toContainText("Not recorded");
+    await expect(route.locator(".routeList")).not.toContainText("pint stop");
+    await expect(route.getByRole("button", { name: "Save as story", exact: true })).toHaveCount(0);
+    await route.locator(".routeHeader").scrollIntoViewIfNeeded();
+    await testInfo.attach("soft-drink-plan", { body: await page.screenshot(), contentType: "image/png" });
+    await page.getByRole("button", { name: "Close planner", exact: true }).click();
+    await page.getByRole("button", { name: "Drink shown on the map: Soft drinks. Choose another drink", exact: true }).click();
+    const drinkSheet = page.locator('.mobileSheetPortal[data-sheet-kind="drink"]');
+    await expect(drinkSheet.getByRole("button", { name: "Soft drinks", exact: true })).toHaveAttribute("aria-pressed", "true");
+
+  });
+}
+
+test("generated Soft drinks shares ordered stops and exports its drink", async ({ page }, testInfo) => {
+  const intent = await openPhonePlanner(page);
+  await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill("Soft drinks in Soho");
+  const generatedResponse = page.waitForResponse((response) =>
+    new URL(response.url()).pathname === "/api/plans/generate" && response.request().method() === "POST",
+  );
+  await intent.getByRole("button", { name: "Make a plan", exact: true }).click();
+  const response = await generatedResponse;
+  expect(response.status()).toBe(200);
+  const body = await response.json() as {
+    inferredContext: { drinkCategory: string | null; zeroProof: boolean };
+    stops: Array<{ venueId: string }>;
+  };
+  expect(body.inferredContext).toMatchObject({ drinkCategory: "soft-drink", zeroProof: true });
+  expect(body.stops).toHaveLength(2);
+  const route = page.locator(".mapDrawer.left .routePanel");
+  await expect(route.locator(".routeList > li")).toHaveCount(2);
+  await expect(route.getByRole("heading", { name: "Soft drinks plan", exact: true })).toBeVisible();
+  await expect(route.locator(".routeMetrics")).toContainText("Not recorded");
+  const calendar = page.waitForEvent("download");
+  await route.getByRole("button", { name: "Add to calendar (.ics)", exact: true }).click();
+  const contents = await readFile((await (await calendar).path())!, "utf8");
+  expect(contents).toContain("SUMMARY:Soft drinks plan");
+  expect(contents).toContain("soft drink stop");
+  expect(contents).not.toContain("pint stop");
+  await route.getByRole("button", { name: "Start this crawl", exact: true }).click();
+  const progress = route.getByTestId("crawl-progress");
+  await progress.getByRole("button", { name: "Mark complete", exact: true }).click();
+  await expect(progress.getByRole("status").filter({ hasText: /^Crawl complete: 2\/2 stops$/ })).toHaveText("Crawl complete: 2/2 stops");
+  const shared = route.getByTestId("crawl-share-open");
+  const params = new URL((await shared.getAttribute("href"))!, "http://localhost").searchParams;
+  const stops = body.stops.map((stop) => stop.venueId).join(",");
+  expect(params.get("drink")).toBe("soft-drink");
+  expect(params.get("pubs")).toBe(stops);
+  await shared.click();
+  await page.reload();
+  const toggle = page.getByRole("button", { name: "Edit your crawl, 2 stops picked", exact: true });
+  await expect(async () => {
+    if (!(await route.isVisible())) await toggle.click();
+    await expect(route).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 30_000 });
+  await expect(route.getByRole("heading", { name: "Soft drinks plan", exact: true })).toBeVisible();
+  await expect(route.locator(".routeList > li")).toHaveCount(2);
+  await expect(route.locator(".routeMetrics")).toContainText("Not recorded");
+  await page.waitForTimeout(600);
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  const copyLink = route.getByRole("button", { name: "Copy a shareable link to this crawl", exact: true });
+  await route.locator(".routeHeader").scrollIntoViewIfNeeded();
+  await copyLink.click();
+  await expect(copyLink).toHaveText("Copied");
+  const copied = new URL(await page.evaluate(() => navigator.clipboard.readText()));
+  expect(copied.searchParams.get("drink")).toBe("soft-drink");
+  expect(copied.searchParams.get("pubs")).toBe(stops);
+  await expect(page.getByRole("button", { name: "Drink shown on the map: Soft drinks. Choose another drink", exact: true })).toHaveCount(1);
+  await testInfo.attach("soft-drink-reopened", { body: await page.screenshot(), contentType: "image/png" });
+});
+
 test("generated Alcohol-free replaces the previous Gin refinement", async ({ page }, testInfo) => {
   const intent = await openPhonePlanner(page, "drink=gin&brand=sipsmith");
   await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill("Alcohol-free in Soho");

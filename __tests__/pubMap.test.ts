@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest";
 
 import { WALK_ROUTE_MAX_STOPS } from "@/lib/walkRoute";
+import { DRINK_CATEGORIES } from "@/lib/drinks";
 
 import {
   hasCrawlArrivalParams,
+  generatedMapDrinkLane,
   crawlStopsFromPubIds,
   filtersForCuratedCrawl,
   buildMapSeed,
@@ -1326,5 +1328,27 @@ describe("plannerDefaultDrinkSelection", () => {
   it("keeps the map's own drink selection in every other view", () => {
     expect(plannerDefaultDrinkSelection("all", wine)).toBe(wine);
     expect(plannerDefaultDrinkSelection("food", undefined)).toBeUndefined();
+  });
+});
+
+describe("generated plan drink selection", () => {
+  it.each([true, false])("keeps Soft drinks with zeroProof=%s", (zeroProof) => {
+    expect(generatedMapDrinkLane({ drinkCategory: "soft-drink", zeroProof })).toBe("soft-drink");
+  });
+
+  it.each(DRINK_CATEGORIES.filter((category) => category !== "soft-drink"))(
+    "keeps a zero-proof %s context alcohol-free",
+    (drinkCategory) => {
+      expect(generatedMapDrinkLane({ drinkCategory, zeroProof: true })).toBe("alcohol-free");
+    },
+  );
+
+  it("keeps generic no-alcohol separate from a specific soft drink", () => {
+    expect(generatedMapDrinkLane({ drinkCategory: null, zeroProof: true })).toBe("alcohol-free");
+    expect(generatedMapDrinkLane({ drinkCategory: null, zeroProof: false })).toBe("beer");
+  });
+
+  it.each(DRINK_CATEGORIES)("preserves %s without a zero-proof override", (drinkCategory) => {
+    expect(generatedMapDrinkLane({ drinkCategory, zeroProof: false })).toBe(drinkCategory);
   });
 });
