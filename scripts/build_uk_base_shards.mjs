@@ -30,7 +30,9 @@
 // REMOVAL. A refresh that drops an OSM object drops its `venue-uk-…` id. Each
 // build compares the rows it publishes with the rows already published and
 // records every dropped id in public/data/uk_base_venue_id_aliases.json: the
-// same pub's new id, or a retired record (scripts/lib/ukBaseVenueIdAliases.mjs).
+// same pub's new id, the still-listed curated venue that owned the row, or a
+// retired record (scripts/lib/ukBaseVenueIdAliases.mjs). A dropped id left
+// resolving to nothing fails the build.
 //
 // PRICES. None. OSM is not a price source (data/osm/uk/README.md). A base pub
 // has no price by construction; it is the canvas the community prices in.
@@ -409,7 +411,12 @@ async function main() {
       totalBudgetBytes: TOTAL_BUDGET_BYTES,
     });
     const { superseded, retired } = previousRows
-      ? await recordUkBaseVenueIdAliases(ROOT, previousRows, nextRows)
+      ? await recordUkBaseVenueIdAliases(
+          ROOT,
+          previousRows,
+          nextRows,
+          new Set(curatedVenues.map((venue) => venue.id)),
+        )
       : { superseded: [], retired: [] };
 
     console.log(

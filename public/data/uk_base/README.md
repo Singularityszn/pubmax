@@ -53,11 +53,15 @@ already published and writes every dropped id to
 `public/data/uk_base_venue_id_aliases.json`
 ([`scripts/lib/ukBaseVenueIdAliases.mjs`](../../../scripts/lib/ukBaseVenueIdAliases.mjs)).
 The same pub redrawn as a new OSM object, under the same name within 50 m, is
-an alias to its new id. A pub with no successor is kept as a retired record
-with its name, address and last point, so a saved pub, a drop or a crawl stop
-still names it, noted as possibly closed, while the map no longer lists it.
-`lib/venueAliases.ts` reads the file beside the city alias files, and an id
-that comes back to OSM leaves it. Commit the file with the shards.
+an alias to its new id. A row a still-listed curated venue owned is an alias to
+that curated venue. A pub with neither is kept as a retired record with its
+name, address and last point, so a saved pub, a drop or a crawl stop still
+names it, noted as possibly closed, while the map no longer lists it. A build
+that would leave a dropped id resolving to nothing fails. `lib/venueAliases.ts`
+reads the file beside the city alias files, and an id that comes back to OSM
+leaves it. Every read keyed by a venue id (saves, drops, community prices,
+venue signals and provisional price marks) reads the rows stored under the
+venue's former ids too, through `storedIds()`. Commit the file with the shards.
 
 Community-price visibility binds to that same salted id. The settled viewport
 asks for marked ids only, then `lib/ukBasePubs.ts` adds the mark to in-memory

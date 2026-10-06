@@ -1,13 +1,14 @@
 {
   "version": 1,
   "generatedBy": "scripts/build_uk_base_shards.mjs",
-  "note": "supersededVenueId -> currentVenueId. A UK base id is the pub's OpenStreetMap ref, so it only moves when OSM deletes the object. Every shard build records each id it dropped here: under `aliases` when OSM redrew the same pub as a new object (the same name within 50 m), or under `retired` with its name, address and last point when the pub left OSM with no successor, so a stored reference to it still names that pub, noted as possibly closed, while it stays off the map. A stored reference resolves via lib/venueAliases.ts; no id is ever deleted silently.",
-  "aliasCount": 8,
+  "note": "supersededVenueId -> currentVenueId. A UK base id is the pub's OpenStreetMap ref, so it only moves when OSM deletes the object. Every shard build records each id it dropped here: under `aliases` when OSM redrew the same pub as a new object (the same name within 50 m) or when a still-listed curated venue owned the row, or under `retired` with its name, address and last point when the pub left OSM with no successor, so a stored reference to it still names that pub, noted as possibly closed, while it stays off the map. A stored reference resolves via lib/venueAliases.ts; no id is ever deleted silently.",
+  "aliasCount": 9,
   "aliases": {
     "venue-uk-n2140360931": "venue-uk-w1564937132",
     "venue-uk-n2245308130": "venue-uk-w1565157826",
     "venue-uk-n251025339": "venue-uk-w1420386829",
     "venue-uk-n267555188": "venue-uk-w1564737167",
+    "venue-uk-n269255191": "venue-sy8k64",
     "venue-uk-n29413368": "venue-uk-w1564017736",
     "venue-uk-n3131253805": "venue-uk-w1565211171",
     "venue-uk-n6415148485": "venue-uk-w962612597",
@@ -25,12 +26,6 @@
       "area": "High Street, SN10 2PN",
       "lat": 51.36327,
       "lng": -2.03103
-    },
-    "venue-uk-n269255191": {
-      "name": "The Sportsman",
-      "area": "78-102, Broadway, London, E15 1NG",
-      "lat": 51.54246,
-      "lng": 0.00283
     },
     "venue-uk-n3724522895": {
       "name": "The Horseshoe",
