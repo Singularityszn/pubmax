@@ -123,6 +123,8 @@ describe("inbox row unread after a thread read", () => {
     await settle();
     await settle();
     expect(fetches.waiting).toHaveLength(1);
+    const staleRead = fetches.waiting[0];
+    if (!staleRead) throw new Error("the first inbox read was not held");
 
     await act(async () => {
       announceMessagesRead();
@@ -131,7 +133,7 @@ describe("inbox row unread after a thread read", () => {
 
     // The read that started before the signal answers last, still saying 1.
     await act(async () => {
-      fetches.waiting[0](1);
+      staleRead(1);
     });
     await settle();
     for (const answer of fetches.waiting.slice(1)) {
