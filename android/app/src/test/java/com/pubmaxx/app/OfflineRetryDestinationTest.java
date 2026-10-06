@@ -233,9 +233,9 @@ public class OfflineRetryDestinationTest {
         OfflineRetryDestination policy = policy();
         policy.recordFailure(VENUE, true);
         policy.pageStarted(ORIGIN + "/auth/callback?code=secret");
-        policy.recordFailure(MARKED_LANDING, true);
+        policy.recordHttpFailure(MARKED_LANDING, true, 503);
         policy.pageStarted(MARKED_LANDING);
-        policy.recordFailure(MARKED_LANDING, true);
+        policy.recordHttpFailure(MARKED_LANDING, true, 503);
         policy.pageStarted(ERROR_PAGE);
         assertNull(policy.retryTarget(ERROR_PAGE, ORIGIN, true));
     }
