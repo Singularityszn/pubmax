@@ -110,5 +110,12 @@ describe.skipIf(skipReason !== null)("0177 reserves the handle you", () => {
     db().applyFile(ROLLBACK);
     expect(db().sql("select count(*) from public.profiles where lower(handle) in ('youth', 'rename_me')")).toBe("2");
     expect(claim(ROLLBACK_CLAIMER, "you")).toMatchObject({ ok: true, handle: "you" });
+    // Rename must be restored too, not only claim.
+    db().sql(
+      `delete from public.profile_handle_aliases where profile_id in (select id from public.profiles where user_id = '${ROLLBACK_CLAIMER}');
+       delete from public.profiles where user_id = '${ROLLBACK_CLAIMER}';`,
+    );
+    expect(claim(ROLLBACK_RENAMER, "rollback_base")).toMatchObject({ ok: true });
+    expect(rename(ROLLBACK_RENAMER, "you")).toMatchObject({ ok: true, handle: "you" });
   });
 });
