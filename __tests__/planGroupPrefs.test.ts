@@ -75,7 +75,7 @@ describe("plan group prefs store", () => {
           weatherShelterRequired: false,
         },
         mustHaveLabels: expect.arrayContaining([
-          "Budget: under GBP 6 pints",
+          "Budget: under £6 pints",
           "Zero-proof options needed",
           "Step-free access needed",
         ]),
@@ -99,14 +99,14 @@ describe("plan group prefs store", () => {
     expect(guest.overlap.mateCount).toBe(2);
     expect(guest.overlap.hardConstraints).toEqual({
       budgetBand: "under6",
-      budgetLabel: "under GBP 6 pints",
+      budgetLabel: "under £6 pints",
       zeroProofRequired: true,
       accessibilityRequired: true,
       weatherShelterRequired: true,
       sharedAtmosphereChips: ["cosy"],
     });
     expect(guest.overlap.mustHaveLabels).toEqual([
-      "Budget: under GBP 6 pints",
+      "Budget: under £6 pints",
       "Zero-proof options needed",
       "Step-free access needed",
       "Covered shelter needed",

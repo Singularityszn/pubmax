@@ -188,7 +188,6 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
     <section className="matchGroupPrefs" aria-labelledby="match-group-prefs-title">
       <div className="matchGroupPrefs__heading">
         <div>
-          <p className="matchGroupPrefs__eyebrow">Sort My Night P1</p>
           <h4 id="match-group-prefs-title">Match the group</h4>
         </div>
         <span>{shared ? "Shared with this plan" : "Not shared yet"}</span>

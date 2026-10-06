@@ -72,7 +72,7 @@ describe("group preferences", () => {
 
     expect(overlap.hardConstraints).toEqual({
       budgetBand: "under6",
-      budgetLabel: "under GBP 6 pints",
+      budgetLabel: "under £6 pints",
       zeroProofRequired: true,
       accessibilityRequired: true,
       weatherShelterRequired: true,
@@ -81,13 +81,13 @@ describe("group preferences", () => {
     expect(overlap.softScore).toBe(81);
     expect(overlap.scoreLabel).toBe("Strong overlap");
     expect(overlap.mustHaveLabels).toEqual([
-      "Budget: under GBP 6 pints",
+      "Budget: under £6 pints",
       "Zero-proof options needed",
       "Step-free access needed",
       "Covered shelter needed",
     ]);
     expect(overlap.summaryLabels).toEqual([
-      "Budget: under GBP 6 pints",
+      "Budget: under £6 pints",
       "Zero-proof options needed",
       "Step-free access needed",
       "Covered shelter needed",

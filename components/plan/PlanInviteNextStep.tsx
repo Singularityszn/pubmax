@@ -163,7 +163,7 @@ export default function PlanInviteNextStep({
     return (
       <div className="planInviteNext" id="share">
         <p className="planInviteNext__whatsapp planInviteNext__whatsapp--pending" role="status">
-          Invite tools need a crew session. Join the plan, then try again.
+          You&apos;re a guest on this plan. Join the crew to use the invite tools.
         </p>
       </div>
     );

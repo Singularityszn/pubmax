@@ -219,3 +219,10 @@ describe("whatsappShareHref", () => {
     );
   });
 });
+
+describe("buildPlanInviteShareText opener", () => {
+  it("starts with a capital even when handed a lower-case title", () => {
+    const text = buildPlanInviteShareText({ title: "a night out in Soho", stopCount: 3, startClock: null });
+    expect(text.startsWith("A night out in Soho")).toBe(true);
+  });
+});
