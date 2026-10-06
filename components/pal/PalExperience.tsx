@@ -713,7 +713,7 @@ export default function PalExperience() {
           <div className="palHomeCopy">
             <p className="palEyebrow">Your Pub Pal</p>
             <h1 id="pal-home-title">{pal.name}</h1>
-            <p>A {signalCopy[pal.appearance.signalAffinity].toLowerCase()} {pal.appearance.species} shaped around your night, with boundaries you control.</p>
+            <p>Your {signalCopy[pal.appearance.signalAffinity].toLowerCase()} {pal.appearance.species} shaped around your night, with boundaries you control.</p>
             <Link className="palPrimary" href="/plan">Plan with {pal.name}<ArrowRight size={18} /></Link>
             <PubPalVoice muted={pal.muted} onStateChange={setPalAnimationState} />
           </div>
