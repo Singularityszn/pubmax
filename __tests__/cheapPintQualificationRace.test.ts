@@ -33,17 +33,27 @@ vi.mock("@/lib/supabase", async (original) => ({
             return resolve({ data: snapshot, error: null });
           }
           state.writes++;
+          const base = {
+            enabled: false, subscription_token: null, last_sent_at: null,
+            created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+            cheap_pint_qualified: false, cheap_pint_enabled: false,
+            cheap_pint_declined: false, cheap_pint_sent_at: null,
+          };
+          let next: Row | null = state.row;
           if (operation === "upsert") {
-            const now = new Date().toISOString();
-            state.row = {
-              enabled: false, subscription_token: null, last_sent_at: null,
-              created_at: now, updated_at: now, cheap_pint_qualified: false,
-              cheap_pint_enabled: false, cheap_pint_declined: false, cheap_pint_sent_at: null,
-              ...state.row, ...patch,
-            };
+            next = { ...base, ...state.row, ...patch };
           } else if (state.row && filters.every(([key, value]) => state.row?.[key] === value)) {
-            state.row = { ...state.row, ...patch };
+            next = { ...state.row, ...patch };
+          } else {
+            // A conditional update that matched no row changes nothing and returns none.
+            return resolve({ data: null, error: null });
           }
+          // Migration 0111: a held token needs a preference that holds it, and none means no token.
+          const held = next?.enabled === true || next?.cheap_pint_enabled === true;
+          if (next && held !== (next.subscription_token !== null)) {
+            return resolve({ data: null, error: { message: "step_out_nudge_prefs_enabled_token_check" } });
+          }
+          state.row = next;
           return resolve({ data: state.row ? { ...state.row } : null, error: null });
         },
       };
@@ -189,15 +199,10 @@ describe("sibling preference writes do not replay an old read", () => {
       cheap_pint_enabled: true, cheap_pint_sent_at: SENT,
     });
   });
-  it("keeps a qualification and send stamp committed while a decline holds an old read", async () => {
-    Object.assign(state.row!, { enabled: true, cheap_pint_qualified: false });
-    await interleaveDuringRead(
-      () => stepOutNudgeStore().declineCheapPint(ACTOR),
-      async () => {
-        await qualifyCheapPintForAccountId("account-ken");
-        await stepOutNudgeStore().markCheapPintSent(ACTOR, SENT);
-      },
-    );
+  it("leaves qualification and the send stamp alone when a decline lands", async () => {
+    // The decline decides nothing from a read, so it has no stale copy to replay.
+    Object.assign(state.row!, { enabled: true, cheap_pint_qualified: true, cheap_pint_enabled: true, cheap_pint_sent_at: SENT });
+    await stepOutNudgeStore().declineCheapPint(ACTOR);
     expect(state.row).toMatchObject({
       enabled: true, subscription_token: "webpush:original", cheap_pint_qualified: true,
       cheap_pint_enabled: false, cheap_pint_declined: true, cheap_pint_sent_at: SENT,
@@ -210,5 +215,44 @@ describe("sibling preference writes do not replay an old read", () => {
       owner_actor: ACTOR, enabled: false, subscription_token: "webpush:fresh", last_sent_at: null,
       cheap_pint_qualified: true, cheap_pint_enabled: true, cheap_pint_declined: false, cheap_pint_sent_at: null,
     });
+  });
+});
+
+describe("shared token cleanup is decided in the statement", () => {
+  it("keeps the token when Step Out is withdrawn while the cheap-pint ping holds it", async () => {
+    Object.assign(state.row!, { enabled: true, cheap_pint_enabled: true });
+    await expect(stepOutNudgeStore().withdraw(ACTOR)).resolves.toMatchObject({ enabled: false });
+    expect(state.row).toMatchObject({ enabled: false, cheap_pint_enabled: true, subscription_token: "webpush:original" });
+  });
+  it("clears the token when Step Out is withdrawn and the cheap-pint ping is off", async () => {
+    Object.assign(state.row!, { enabled: true, cheap_pint_enabled: false });
+    await stepOutNudgeStore().withdraw(ACTOR);
+    expect(state.row).toMatchObject({ enabled: false, cheap_pint_enabled: false, subscription_token: null });
+  });
+  it("keeps the token when the cheap-pint ping is declined while Step Out holds it", async () => {
+    Object.assign(state.row!, { enabled: true, cheap_pint_enabled: true });
+    await stepOutNudgeStore().declineCheapPint(ACTOR);
+    expect(state.row).toMatchObject({ enabled: true, cheap_pint_enabled: false, cheap_pint_declined: true, subscription_token: "webpush:original" });
+  });
+  it("clears the token when the cheap-pint ping is declined and Step Out is off", async () => {
+    Object.assign(state.row!, { enabled: false, cheap_pint_enabled: true });
+    await stepOutNudgeStore().declineCheapPint(ACTOR);
+    expect(state.row).toMatchObject({ enabled: false, cheap_pint_enabled: false, cheap_pint_declined: true, subscription_token: null });
+  });
+  it("does not trip the enabled/token check when another tab opts in just before a withdrawal", async () => {
+    // The old read said the ping was off; the opt-in committed before the write landed.
+    Object.assign(state.row!, { enabled: true, cheap_pint_enabled: false });
+    const withdrawal = stepOutNudgeStore().withdraw(ACTOR);
+    Object.assign(state.row!, { cheap_pint_enabled: true });
+    await expect(withdrawal).resolves.toMatchObject({ enabled: false });
+    expect(state.row).toMatchObject({ enabled: false, cheap_pint_enabled: true, subscription_token: "webpush:original" });
+  });
+  it("creates a default-off row for a new owner on withdrawal and on decline", async () => {
+    state.row = null;
+    await stepOutNudgeStore().withdraw(ACTOR);
+    expect(state.row).toMatchObject({ owner_actor: ACTOR, enabled: false, subscription_token: null });
+    state.row = null;
+    await stepOutNudgeStore().declineCheapPint(ACTOR);
+    expect(state.row).toMatchObject({ owner_actor: ACTOR, cheap_pint_declined: true, subscription_token: null });
   });
 });
