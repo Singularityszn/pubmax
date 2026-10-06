@@ -1245,7 +1245,22 @@ function differentPlaceOrTime(a: CityStatusSignal, b: CityStatusSignal): boolean
   const areasA = (a.areas ?? []).map((area) => area.trim().toLowerCase());
   const areasB = new Set((b.areas ?? []).map((area) => area.trim().toLowerCase()));
   if (areasA.length > 0 && areasB.size > 0 && !areasA.some((area) => areasB.has(area))) return true;
-  return Boolean(a.timeWindow && b.timeWindow && a.timeWindow.trim() !== b.timeWindow.trim());
+  return Boolean(
+    a.timeWindow && b.timeWindow && a.timeWindow.trim().toLowerCase() !== b.timeWindow.trim().toLowerCase(),
+  );
+}
+
+/** Both copies' entries, the kept row's first, each place once whatever its case. */
+function unionPlaces(kept: readonly string[], other: readonly string[]): string[] {
+  const seen = new Set(kept.map((place) => place.trim().toLowerCase()));
+  const union = [...kept];
+  for (const place of other) {
+    const key = place.trim().toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    union.push(place);
+  }
+  return union;
 }
 
 /** How much a row can tell a reader: a source first, then a time, then where. */
@@ -1264,7 +1279,8 @@ function severityRank(signal: CityStatusSignal): number {
 /**
  * Collapse rows that name the same story into one, keeping the row that says
  * the most (a sourced row beats an unsourced one) at the highest severity
- * either copy carried, and any field only the other copy had, in the position the story first appeared. Two rows are
+ * either copy carried, any field only the other copy had and the places either
+ * copy named, in the position the story first appeared. Two rows are
  * the same story when their headlines share at least three quarters of their
  * words once case, punctuation and filler words are set aside, and they do not
  * name different areas or different times. Pure, returns a
@@ -1289,8 +1305,10 @@ export function dedupeCityStatusSignals(
     const other = fuller === signal ? twin.signal : signal;
     // The fuller row wins every field it has; a field only the other copy
     // carried (the explanation, the postcodes, the fetch time) is kept rather
-    // than lost with the discarded row.
+    // than lost with the discarded row, and both copies' places are kept.
     const merged: CityStatusSignal = { ...fuller, severity };
+    if (fuller.areas && other.areas) merged.areas = unionPlaces(fuller.areas, other.areas);
+    if (fuller.postcodes && other.postcodes) merged.postcodes = unionPlaces(fuller.postcodes, other.postcodes);
     for (const key of ["detail", "kind", "areas", "postcodes", "timeWindow", "sourceUrl", "fetchedAt"] as const) {
       if (merged[key] === undefined && other[key] !== undefined) {
         (merged as Record<string, unknown>)[key] = other[key];

@@ -136,14 +136,29 @@ describe("dedupeCityStatusSignals", () => {
 
   it("still merges one story told twice in the same area, or with one copy silent on where", () => {
     const rows = dedupeCityStatusSignals([
-      { headline: "Roadworks", areas: ["Camden", "Islington"] },
-      { headline: "Roadworks", areas: ["camden"], timeWindow: "tonight" },
+      { headline: "Roadworks", areas: ["Camden", "Islington"], postcodes: ["NW1", "N1"] },
+      { headline: "Roadworks", areas: ["camden"], postcodes: ["nw1", "NW5"], timeWindow: "tonight" },
       { headline: "Tube strike" },
       { headline: "Tube strike", areas: ["Zone 1"], timeWindow: "Monday" },
     ]);
     expect(rows).toEqual([
-      { headline: "Roadworks", areas: ["camden"], timeWindow: "tonight" },
+      {
+        headline: "Roadworks",
+        areas: ["camden", "Islington"],
+        postcodes: ["nw1", "NW5", "N1"],
+        timeWindow: "tonight",
+      },
       { headline: "Tube strike", areas: ["Zone 1"], timeWindow: "Monday" },
+    ]);
+  });
+
+  it("merges one story whose copies case the same time differently", () => {
+    const rows = dedupeCityStatusSignals([
+      { headline: "Tube strike", timeWindow: "Tonight" },
+      { headline: "Tube strike", timeWindow: "tonight ", sourceUrl: "https://tfl.gov.uk/tube-strike" },
+    ]);
+    expect(rows).toEqual([
+      { headline: "Tube strike", timeWindow: "tonight ", sourceUrl: "https://tfl.gov.uk/tube-strike" },
     ]);
   });
 
