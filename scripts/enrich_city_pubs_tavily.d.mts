@@ -33,8 +33,6 @@ export type CityCheckpoint = {
   totalQueriesSpent: number;
   totalCreditsSpent: number;
   prices: ManagedPrice[];
-  /** Every reading the committed data has held, so one a reviewer removed is not re-added. */
-  committedReadings: string[];
   pages: Array<Record<string, unknown>>;
   delegatedChains: Array<Record<string, unknown>>;
 };
@@ -73,8 +71,10 @@ export function resumeCheckpoint(
 
 export function reconcileWithCommitted(
   state: CityCheckpoint,
-  options: { committedPrices: ManagedPrice[]; rejectedRows: RejectedRow[] },
+  options: { committedPrices: ManagedPrice[]; rejectedRows: RejectedRow[]; mergedThrough: string | null },
 ): CityCheckpoint;
+
+export function newestMergedNight(reports: unknown[]): string | null;
 
 export function stalestFirst(pubs: OsmPub[], readAt: Record<string, string>): number[];
 
@@ -87,6 +87,8 @@ export function runCityPass(
     observedAt: string;
     committedPrices: ManagedPrice[];
     rejectedRows?: RejectedRow[];
+    /** The read time of the newest night whose PR merged, from the committed run reports. */
+    mergedThrough?: string | null;
     onState?: (state: CityCheckpoint) => void;
   },
 ): Promise<{ runResult: TavilyEnrichmentResult; state: CityCheckpoint }>;

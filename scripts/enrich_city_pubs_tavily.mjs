@@ -22,6 +22,7 @@
 import {
   existsSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   renameSync,
   writeFileSync,
@@ -155,9 +156,9 @@ export function rejectClosedPrRows(rejectedRows, { prUpdates, committedUpdates, 
 /**
  * The saved checkpoint when it still describes this city's pack, or a fresh
  * one. A changed pack or --reset restarts the walk rather than failing every
- * night. The prices and the readings already seen in the committed data carry
- * over, so a night that was paid for and not merged yet is not lost. A price
- * for a pub that left the pack does not carry over.
+ * night. The prices found so far carry over, so a night that was paid for and
+ * not merged yet is not lost. A price for a pub that left the pack does not
+ * carry over.
  */
 export function resumeCheckpoint(saved, { city, totalPubs, cityVenueKeys, observedAt, reset = false }) {
   if (
@@ -179,7 +180,6 @@ export function resumeCheckpoint(saved, { city, totalPubs, cityVenueKeys, observ
     prices: (Array.isArray(saved?.prices) ? saved.prices : []).filter((row) =>
       cityVenueKeys.has(row?.venueKey),
     ),
-    committedReadings: Array.isArray(saved?.committedReadings) ? saved.committedReadings : [],
     pages: [],
     delegatedChains: [],
   };
@@ -188,33 +188,33 @@ export function resumeCheckpoint(saved, { city, totalPubs, cityVenueKeys, observ
 /**
  * The prices a night writes, with the committed data as the source of truth.
  * Every committed row is kept as it stands, so a price corrected in review is
- * never overwritten. A checkpoint row is kept on top only while it is unmerged
- * and newer: a reading the committed data ever held is not re-added once a
- * reviewer removes it, a reading no newer than the committed one for that
- * drink is stale, and a rejected venue page is never written again.
+ * never overwritten. A checkpoint row is kept on top only while no merged
+ * night could have carried it: every nightly PR carries every unmerged row
+ * read up to that night, so a row read no later than the newest merged night
+ * and absent from the committed data was removed or corrected in review. A
+ * rejected venue page is never written again.
  */
-export function reconcileWithCommitted(state, { committedPrices, rejectedRows }) {
-  const committedReadings = new Set([
-    ...(state.committedReadings ?? []),
-    ...committedPrices.map(readingId),
-  ]);
-  const newestCommitted = new Map();
-  for (const row of committedPrices) {
-    const key = priceKey(row);
-    if (!(newestCommitted.get(key) >= row.observedAt)) newestCommitted.set(key, row.observedAt);
-  }
+export function reconcileWithCommitted(state, { committedPrices, rejectedRows, mergedThrough }) {
   const rejected = new Set(rejectedRows.map((row) => `${row.venueKey}|${row.sourceUrl}`));
   const unmerged = state.prices.filter(
     (row) =>
-      !committedReadings.has(readingId(row)) &&
-      !(newestCommitted.get(priceKey(row)) >= row.observedAt) &&
+      !(mergedThrough && row.observedAt <= mergedThrough) &&
       !rejected.has(`${row.venueKey}|${row.source?.url}`),
   );
-  return {
-    ...state,
-    committedReadings: [...committedReadings].sort(),
-    prices: mergeCanonicalPrices(committedPrices, unmerged),
-  };
+  return { ...state, prices: mergeCanonicalPrices(committedPrices, unmerged) };
+}
+
+/**
+ * The read time of the newest night whose PR merged: the newest run report in
+ * the committed data. A nightly PR always carries its own run report, so a
+ * report on the default branch means that night merged.
+ */
+export function newestMergedNight(reports) {
+  let newest = null;
+  for (const report of reports) {
+    if (typeof report?.observedAt === "string" && !(newest >= report.observedAt)) newest = report.observedAt;
+  }
+  return newest;
 }
 
 /**
@@ -277,6 +277,7 @@ export async function runCityPass({
   observedAt,
   committedPrices,
   rejectedRows = [],
+  mergedThrough = null,
   onState,
   ...options
 }) {
@@ -290,6 +291,7 @@ export async function runCityPass({
   const state = reconcileWithCommitted(mergeState(checkpoint, runResult, observedAt), {
     committedPrices,
     rejectedRows,
+    mergedThrough,
   });
   if (runResult.queriesSpent === 0 && runResult.outcomes.length < pubs.length) {
     throw new Error(
@@ -315,13 +317,14 @@ function readUpdates(filePath) {
   return existsSync(filePath) ? JSON.parse(readFileSync(filePath, "utf8")).updates ?? [] : [];
 }
 
-function writeEvidence(city, state, runResult, cityVenueKeys) {
+function writeEvidence(city, state, runResult, cityVenueKeys, observedAt) {
   const generatedAt = new Date().toISOString();
   const stamp = dateStamp(generatedAt);
   const report = {
     version: 1,
     city,
     generatedAt,
+    observedAt,
     totalPubs: state.totalPubs,
     stats: {
       pubsRead: Object.keys(state.readAt).length,
@@ -384,7 +387,13 @@ async function main() {
         `${leftPack} dropped because their pub left the pack.`,
     );
   }
-  const rejectedPath = path.join(REPORT_ROOT, args.city, "rejected.json");
+  const reportDir = path.join(REPORT_ROOT, args.city);
+  const mergedThrough = newestMergedNight(
+    (existsSync(reportDir) ? readdirSync(reportDir) : [])
+      .filter((name) => /^run_\d{8}\.json$/.test(name))
+      .map((name) => JSON.parse(readFileSync(path.join(reportDir, name), "utf8"))),
+  );
+  const rejectedPath = path.join(reportDir, "rejected.json");
   const rejectedRows = readRejectedRows(
     existsSync(rejectedPath) ? JSON.parse(readFileSync(rejectedPath, "utf8")) : undefined,
   );
@@ -405,6 +414,7 @@ async function main() {
     observedAt,
     committedPrices,
     rejectedRows,
+    mergedThrough,
     onState: (next) => {
       if (!args.dryRun) atomicWriteJson(statePath, next);
     },
@@ -412,7 +422,7 @@ async function main() {
 
   if (!args.dryRun) {
     atomicWriteJson(statePath, state);
-    writeEvidence(args.city, state, runResult, cityVenueKeys);
+    writeEvidence(args.city, state, runResult, cityVenueKeys, observedAt);
   }
 
   console.log(
