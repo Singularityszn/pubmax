@@ -49,6 +49,8 @@ const SKIP_DIR_NAMES = new Set([
   ".next",
   ".next-prod",
   ".git",
+  // Ignored scratch: other suites create and delete temp trees here mid-walk.
+  "test-results",
 ]);
 
 /** Lines that intentionally retain one-x spellings (not product prose). */
