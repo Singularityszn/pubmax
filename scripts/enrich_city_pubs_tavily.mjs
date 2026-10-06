@@ -19,6 +19,7 @@
  * existing chain harvesters and consume no Tavily queries.
  */
 
+import { execFileSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -151,6 +152,20 @@ export function rejectClosedPrRows(rejectedRows, { prUpdates, committedUpdates, 
     added.push({ venueKey: row.venueKey, sourceUrl: row.source.url, rejectedAt });
   }
   return [...rejectedRows, ...added];
+}
+
+/**
+ * The price updates a git ref holds, such as a closed nightly PR branch. The
+ * file grows past git's default 1 MiB pipe buffer after one night, so the
+ * buffer is raised well above it.
+ */
+export function readPriceUpdatesAt(ref, { cwd = ROOT } = {}) {
+  const latest = execFileSync("git", ["show", `${ref}:public/data/drink_price_updates/latest.json`], {
+    cwd,
+    encoding: "utf8",
+    maxBuffer: 256 * 1024 * 1024,
+  });
+  return JSON.parse(latest).updates ?? [];
 }
 
 /**

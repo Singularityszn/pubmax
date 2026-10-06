@@ -13,6 +13,7 @@ import {
   newestMergedNight,
   parseArgs,
   pruneManagedCityPrices,
+  readPriceUpdatesAt,
   readRejectedRows,
   rejectClosedPrRows,
   resumeCheckpoint,
@@ -355,6 +356,31 @@ describe("the nightly London pass keeps going and keeps what it found", () => {
     expect(readRejectedRows(undefined)).toEqual([]);
     expect(() => readRejectedRows({ version: 1, rows: [{ venueKey: "x" }] })).toThrow(/sourceUrl/);
     expect(() => readRejectedRows([])).toThrow(/version: 1/);
+  });
+
+  it("reads a closed PR branch whose prices pass git's default 1 MiB buffer", () => {
+    const repo = mkdtempSync(join(tmpdir(), "tavily-london-reject-"));
+    try {
+      const pubs = londonPubs(6000);
+      const updates = pubs.map((pub) => officialPrice(pub, "Guinness", 6));
+      const priceDir = join(repo, "public/data/drink_price_updates");
+      mkdirSync(priceDir, { recursive: true });
+      writeFileSync(join(priceDir, "latest.json"), JSON.stringify({ updates }, null, 2));
+      const git = (...args: string[]) =>
+        execFileSync("git", ["-c", "user.name=test", "-c", "user.email=test@example.com", "-c", "commit.gpgsign=false", ...args], {
+          cwd: repo,
+          env: { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1" },
+          stdio: "pipe",
+        });
+      git("init", "-b", "tavily-london/20261007");
+      git("add", ".");
+      git("commit", "-m", "night");
+
+      expect(readFileSync(join(priceDir, "latest.json")).length).toBeGreaterThan(1024 * 1024);
+      expect(readPriceUpdatesAt("tavily-london/20261007", { cwd: repo })).toEqual(updates);
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
   });
 
   it("reads the stalest pubs first and records when it read them", async () => {

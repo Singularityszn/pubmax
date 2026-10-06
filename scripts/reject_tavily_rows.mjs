@@ -10,13 +10,13 @@
  * closed PR added and the committed data does not hold is listed once.
  */
 
-import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
   loadCityPubs,
+  readPriceUpdatesAt,
   readRejectedRows,
   rejectClosedPrRows,
 } from "./enrich_city_pubs_tavily.mjs";
@@ -41,7 +41,7 @@ const rejectedPath = path.join(ROOT, "data", "enrichment", "tavily", city, "reje
 const before = readRejectedRows(
   existsSync(rejectedPath) ? JSON.parse(readFileSync(rejectedPath, "utf8")) : undefined,
 );
-const prUpdates = JSON.parse(execFileSync("git", ["show", `${ref}:${LATEST}`], { cwd: ROOT, encoding: "utf8" })).updates ?? [];
+const prUpdates = readPriceUpdatesAt(ref);
 const committedUpdates = JSON.parse(readFileSync(path.join(ROOT, LATEST), "utf8")).updates ?? [];
 const rows = rejectClosedPrRows(before, {
   prUpdates,
