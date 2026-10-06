@@ -2,8 +2,6 @@
 
 import { GlassWater, Route } from "lucide-react";
 import {
-  lazy,
-  Suspense,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -32,9 +30,13 @@ import type {
 } from "@/lib/mapExperienceLens";
 import { useSpringValue } from "@/lib/useSpringValue";
 import type { ZonePintIndex } from "@/lib/zones";
+import { lazyPanel } from "@/components/map/lazyPanel";
 import type { MapSearchSuggestProps } from "@/components/map/MapSearchSuggest";
 
-const MapSearchSuggest = lazy(() => import("@/components/map/MapSearchSuggest"));
+const MapSearchSuggest = lazyPanel(
+  () => import("@/components/map/MapSearchSuggest"),
+  "Search did not open. Check your signal.",
+);
 
 
 /**
@@ -373,9 +375,7 @@ export default function MapToolbar({
         {searchProps || searchContent ? (
           <div className="mapToolbarSearch">
             {searchProps ? (
-              <Suspense fallback={null}>
-                <MapSearchSuggest {...searchProps} />
-              </Suspense>
+              <MapSearchSuggest {...searchProps} />
             ) : searchContent}
           </div>
         ) : null}

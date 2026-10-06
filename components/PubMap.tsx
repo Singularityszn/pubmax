@@ -253,6 +253,7 @@ const ActiveRoundChip = dynamic(() => import("@/components/map/ActiveRoundChip")
 });
 import type { TabKey } from "@/components/map/VenueInspector";
 import type { VenueTabRequest } from "@/lib/venueInspectorTabs";
+import type { UkBaseRestoreFailure } from "@/components/map/pubmap/useUkBaseStreaming";
 import VenueSheetSkeleton from "@/components/map/VenueSheetSkeleton";
 // The panel is its own chunk, and on a throttled phone that chunk lands seconds
 // after the sheet opens. Without a fallback the sheet held the peek summary
@@ -398,7 +399,7 @@ import {
 } from "@/lib/cities";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import { pinsToSlimVenues, slimVenuesToPins } from "@/lib/slimPins";
-import { formatSelectionHint, parseSelectionHint } from "@/lib/mapSelectionHistory";
+import { formatSelectionHint } from "@/lib/mapSelectionHistory";
 import {
   isUkBaseId,
   type UkBasePub,
@@ -631,6 +632,8 @@ import {
   mapArrivalFrame,
   mapDrinkLensSelection,
   isRecordlessMapSelection,
+  ukBaseRestoreFailureNotice,
+  ukBaseRestoreFor,
   ukBaseSelectionSuccessor,
   mapSelectionFrame,
   mapPlaceContext,
@@ -1221,16 +1224,6 @@ export default function PubMap({
   // Freeze arrival search with the seed so fit-on-arrival does not flip when the
   // user later maps a route or the address bar syncs.
   const [arrivalSearch] = useState(() => currentSearch());
-  // A restored /map?sel=venue-uk-* arrival: the base pub's id plus the `at=`
-  // location hint the selecting tap wrote alongside sel. The id alone carries
-  // no coordinates and no shard cell, so without the hint an older link
-  // degrades honestly — selection ring only once the user zooms in, no sheet —
-  // rather than opening a guessed pub.
-  const [ukBaseRestore] = useState(() => {
-    if (!seed.selectedVenueId || !isUkBaseId(seed.selectedVenueId)) return null;
-    const hint = parseSelectionHint(currentSearch());
-    return hint ? { id: seed.selectedVenueId, ...hint } : null;
-  });
   // §4.5: did the page arrive with any crawl-shaping URL param (a shared/deep
   // link)? Captured ONCE at mount — useCrawlUrlSync starts writing mode/style back
   // to the URL after ~300ms, so re-reading location.search later would be wrong.
@@ -1321,6 +1314,15 @@ export default function PubMap({
         shouldOpenPlanningInitially,
       }),
     [arrivalSearchNow, cityId, mapResumeSeed, restoredMobileSession, seed],
+  );
+  // A restored /map?sel=venue-uk-* arrival: the base pub's id, plus the `at=`
+  // location hint the selecting tap wrote alongside sel when the link has one.
+  // The selection comes from the URL, the saved mobile session or the resume
+  // seed, and the session keeps the id alone, so the hint is optional:
+  // without it the cold restore asks /api/uk-base/[id] and an id nothing knows
+  // ends in the unknown-pub notice rather than a skeleton.
+  const [ukBaseRestore] = useState(() =>
+    ukBaseRestoreFor(restoredSession.selectedVenueId, currentSearch()),
   );
   const mapResumeSeedConsumedRef = useRef(false);
   // `loaded` means the slim map index has settled. Source datasets are not
@@ -3303,6 +3305,7 @@ export default function PubMap({
   const [selectedBasePub, setSelectedBasePub] = useState<UkBasePub | null>(null);
   // What is selected, and what that means for the sheet. A curated pin and a
   // tapped base pub fill the SAME drawer, so these five answers stay one read.
+  const selectedDetailStatus = detailStatusFor(selectedVenueId, detailById, detailStatusById);
   const mapSelection = useMemo(
     () =>
       mapSelectionFrame({
@@ -3313,10 +3316,12 @@ export default function PubMap({
         selectedLondonRestaurant,
         venueById,
         isPubVenue,
+        lookupFailed: selectedDetailStatus === "unavailable",
       }),
     [
       selectedBasePub,
       selectedCoffeeCafe,
+      selectedDetailStatus,
       selectedLondonRestaurant,
       selectedVenue,
       selectedVenueId,
@@ -3326,7 +3331,6 @@ export default function PubMap({
   const selectedVenueResolvable = mapSelection.resolvable;
   const selectedVenueIsPub = mapSelection.isPub;
   const selectedVenueLabels = venueSheetLabels(selectedVenue);
-  const selectedDetailStatus = detailStatusFor(selectedVenueId, detailById, detailStatusById);
   const selectedRetiredName = retiredSelectionNameFor(selectedVenueId, detailById);
 
   const venueIdByNormalisedName = useMemo(() => {
@@ -5123,6 +5127,22 @@ export default function PubMap({
     rejectSelection: rejectMapSelection,
     resolveSelection: resolveMapSelection,
   } = mapSurfaceTrail;
+
+  // The cold restore could not open the base pub a link named, and the sheet
+  // must never wait on a record that is not coming. A failed lookup is held the
+  // way a curated one is: the selection, its Back entry and `sel` stay, the
+  // sheet stays shut, and a reload asks again. An id the pack does not hold is
+  // the alias effect's below to settle, because a successor may still own it.
+  const handleUkBaseRestoreFailed = useCallback(
+    (reason: UkBaseRestoreFailure, requestedId: string) => {
+      setDetailStatusById((current) => new Map(current).set(requestedId, reason));
+      if (reason === "unavailable") {
+        setRetiredSelectionName(null);
+        setSelectionNotice(ukBaseRestoreFailureNotice(reason));
+      }
+    },
+    [],
+  );
   // A `venue-osm-` id that neither the coffee pilot nor the London restaurants
   // can open (off the coffee lens or off the restaurant layer, not held, or not
   // read) has no sheet to open: let it go rather than hold a skeleton.
@@ -5175,13 +5195,26 @@ export default function PubMap({
   const closeStory = useCallback(() => setActiveLandmarkId(""), []);
   const storyDrawerOpen = storyOpen && !planningOpen && !detailOpen;
 
+  const ukBaseRestoreMissing = selectedDetailStatus === "missing";
   useEffect(() => {
     if (!selectedVenueId || !isUkBaseId(selectedVenueId)) return;
     const requestedVenueId = selectedVenueId;
     let cancelled = false;
     void loadVenueAliasMaps().then((maps) => {
+      if (cancelled) return;
       const successor = ukBaseSelectionSuccessor(maps, requestedVenueId);
-      if (cancelled || !successor) return;
+      if (!successor) {
+        if (!ukBaseRestoreMissing) return;
+        if (!maps.read) {
+          handleUkBaseRestoreFailed("unavailable", requestedVenueId);
+          return;
+        }
+        setRetiredSelectionName(null);
+        setSelectionNotice(ukBaseRestoreFailureNotice("missing"));
+        rejectMapSelection(requestedVenueId);
+        setSelectedVenueId((current) => (current === requestedVenueId ? "" : current));
+        return;
+      }
       if (successor.kind === "curated") {
         resolveMapSelection(requestedVenueId, successor.venueId);
         setSelectedVenueId((current) =>
@@ -5197,7 +5230,13 @@ export default function PubMap({
     return () => {
       cancelled = true;
     };
-  }, [rejectMapSelection, resolveMapSelection, selectedVenueId]);
+  }, [
+    handleUkBaseRestoreFailed,
+    rejectMapSelection,
+    resolveMapSelection,
+    selectedVenueId,
+    ukBaseRestoreMissing,
+  ]);
 
   useEffect(() => {
     if (
@@ -6554,6 +6593,7 @@ export default function PubMap({
         onRenderedStateChange={handleRenderedMapStateChange}
         venueListOpen={mapListOpen}
         ukBaseRestore={ukBaseRestore}
+        onUkBaseRestoreFailed={handleUkBaseRestoreFailed}
         onRouteStopClick={selectVenue}
         onVenuePrefetch={prefetchVenueDetail}
         venueSignals={venueSignals}

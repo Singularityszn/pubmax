@@ -64,6 +64,111 @@ test.describe("unknown ?sel= honesty", () => {
     await expect(page.getByTestId("unknown-map-selection")).toHaveCount(0);
   });
 
+  test("a base pub link with no at= hint opens its sheet", async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.goto("/map?sel=venue-uk-n311153571");
+
+    await expect(venuePortal(page)).toBeVisible({ timeout: 45_000 });
+    await expect(venuePortal(page)).toContainText("The Red Lion");
+    await expect(page.getByText("Loading full venue details…")).toHaveCount(0);
+    await expect(page.getByTestId("unknown-map-selection")).toHaveCount(0);
+  });
+
+  test("an unknown base pub id ends in the quiet note, never a skeleton", async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.goto("/map?sel=venue-uk-n999999999999");
+
+    await expect(page.getByTestId("unknown-map-selection")).toContainText(
+      "That pub is not one we know.",
+      { timeout: 45_000 },
+    );
+    await expect(page.getByText("Loading full venue details…")).toHaveCount(0);
+    await expect.poll(() => new URL(page.url()).searchParams.has("sel")).toBe(false);
+  });
+
+  test("a base pub id the pack dropped still opens its successor when the aliases land late", async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    const droppedId = "venue-uk-n999999999998";
+    // The pack answers "not ours" at once; the alias files say where it went.
+    await page.route(
+      (url) => /^\/data\/(cities\/)?(uk_base_)?venue_id_aliases\.json$/.test(url.pathname),
+      async (route) => {
+        await new Promise((resolve) => setTimeout(resolve, 3_000));
+        await route.fulfill({
+          contentType: "application/json",
+          body: JSON.stringify({ aliases: { [droppedId]: CANONICAL_VENUE_ID } }),
+        });
+      },
+    );
+
+    await page.goto(`/map?sel=${droppedId}`);
+
+    await expect(venuePortal(page)).toBeVisible({ timeout: 45_000 });
+    await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe(
+      CANONICAL_VENUE_ID,
+    );
+    await expect(page.getByTestId("unknown-map-selection")).toHaveCount(0);
+  });
+
+  test("a dropped base pub id with unreadable aliases is held as a failed lookup", async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    const droppedId = "venue-uk-n999999999997";
+    await page.route(
+      (url) => /^\/data\/(cities\/)?(uk_base_)?venue_id_aliases\.json$/.test(url.pathname),
+      async (route) => {
+        await route.fulfill({ status: 503, body: "Service unavailable" });
+      },
+    );
+
+    await page.goto(`/map?sel=${droppedId}`);
+
+    await expect(page.getByTestId("map-selection-lookup-failed")).toContainText(
+      "We could not check that pub right now.",
+      { timeout: 45_000 },
+    );
+    await expect(page.getByTestId("unknown-map-selection")).toHaveCount(0);
+    await expect(page.getByText("Loading full venue details…")).toHaveCount(0);
+    expect(new URL(page.url()).searchParams.get("sel")).toBe(droppedId);
+  });
+
+  test("an unreadable base pack stays distinct from an unknown base pub", async ({ page }) => {
+    await page.route(
+      (url) => url.pathname === "/api/uk-base/venue-uk-n311153571",
+      async (route) => {
+        await route.fulfill({ status: 503, body: "Service unavailable" });
+      },
+    );
+
+    await page.goto("/map?sel=venue-uk-n311153571");
+
+    await expect(page.getByTestId("map-selection-lookup-failed")).toContainText(
+      "We could not check that pub right now.",
+      { timeout: 45_000 },
+    );
+    await expect(page.getByText("Loading full venue details…")).toHaveCount(0);
+    await expect(page.getByTestId("unknown-map-selection")).toHaveCount(0);
+    // Kept so a reload asks again; only a pub nothing knows leaves the address.
+    expect(new URL(page.url()).searchParams.get("sel")).toBe("venue-uk-n311153571");
+
+    // Back from another sheet lands on the held pub's entry, still shut.
+    const filters = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
+    await expect(async () => {
+      await page.getByRole("button", { name: /Filters/i }).click();
+      await expect(filters).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 20_000 });
+    await page.goBack();
+    await expect(filters).toHaveCount(0);
+    await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe(
+      "venue-uk-n311153571",
+    );
+    await expect(venuePortal(page)).toHaveCount(0);
+    await expect(page.getByText("Loading full venue details…")).toHaveCount(0);
+  });
+
   test("a failed lookup stays distinct from an unknown pub", async ({ page }) => {
     // Matched on the path: the sheet asks with a query string.
     await page.route(

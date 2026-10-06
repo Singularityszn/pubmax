@@ -27,6 +27,7 @@ import type { CoffeePilotStatus } from "@/lib/coffeePilot";
 import type { LondonRestaurantStatus } from "@/lib/londonRestaurants";
 import { isLondonVenueId } from "@/lib/londonVenueShards";
 import { isUkBaseId } from "@/lib/ukBasePubs";
+import { parseSelectionHint } from "@/lib/mapSelectionHistory";
 import type { VenueAliasMaps } from "@/lib/venueAliasMap";
 import {
   priceStandingFigure,
@@ -229,6 +230,32 @@ export function mapSelectionNotice(input: {
   if (input.detailStatus === "unavailable") return "lookup-failed";
   if (input.detailStatus === "retired") return "retired";
   return null;
+}
+
+/**
+ * A restored `?sel=venue-uk-*` arrival. The `at=` hint scopes the cold shard
+ * fetch to one cell and seeds the camera, but the id alone is enough to ask
+ * `/api/uk-base/[id]`: the map's own session restore and an old shared link
+ * both carry the id with no hint, and neither may be left on a skeleton.
+ */
+export type UkBaseRestore = {
+  id: string;
+  hint: { lat: number; lng: number } | null;
+};
+
+export function ukBaseRestoreFor(
+  selectedVenueId: string | null | undefined,
+  search: string,
+): UkBaseRestore | null {
+  if (!selectedVenueId || !isUkBaseId(selectedVenueId)) return null;
+  return { id: selectedVenueId, hint: parseSelectionHint(search) };
+}
+
+/** What a base pub the cold restore could not open tells the reader. */
+export function ukBaseRestoreFailureNotice(
+  reason: "missing" | "unavailable",
+): MapSelectionNotice {
+  return reason === "missing" ? "unknown" : "lookup-failed";
 }
 
 /** Visible copy for an unknown `?sel=` - empty-state voice, no plumbing. */
@@ -925,7 +952,9 @@ export function londonVenueSelection<Cafe, Restaurant>(input: {
  * one read.
  * A deep-linked `sel=` before the slim index resolves still counts as detail
  * open (`pendingDeepLinkSelection`) so the venue skeleton can mount while the
- * shard loads.
+ * shard loads. A base pub whose cold restore could not be answered has no
+ * record coming, so its selection holds with the sheet shut and the selection
+ * notice says what happened; a curated id keeps its skeleton for the index.
  */
 export type MapSelectionFrame = {
   selectedId: string | undefined;
@@ -947,6 +976,8 @@ export function mapSelectionFrame(input: {
   selectedLondonRestaurant?: { id: string } | null;
   venueById: ReadonlyMap<string, Venue>;
   isPubVenue: (venue: Venue) => boolean;
+  /** The selected id's lookup could not be answered (offline, 503). */
+  lookupFailed?: boolean;
 }): MapSelectionFrame {
   const { selectedVenueId, selectedVenue, selectedBasePub, venueById } = input;
   const basePubOpen = Boolean(selectedBasePub && selectedBasePub.id === selectedVenueId);
@@ -962,7 +993,8 @@ export function mapSelectionFrame(input: {
     !basePubOpen &&
     !coffeeCafeOpen &&
     !londonRestaurantOpen &&
-    !venueById.has(selectedVenueId);
+    !venueById.has(selectedVenueId) &&
+    !(input.lookupFailed && isUkBaseId(selectedVenueId));
   return {
     selectedId: selectedVenue?.id,
     resolvable: selectedVenueId ? venueById.has(selectedVenueId) : false,

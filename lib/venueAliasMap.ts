@@ -15,14 +15,22 @@ export type VenueAliasMaps = {
   aliases: ReadonlyMap<string, string>;
   /** The name of each pub that left the map with no successor, by its last id. */
   retiredNames: ReadonlyMap<string, string>;
+  /** False when an artifact could not be read: the maps are empty, not an answer. */
+  read: boolean;
 };
 
 let pending: Promise<VenueAliasMaps> | null = null;
 
 type AliasFileEntries = { aliases: Array<[string, string]>; retired: Array<[string, string]> };
 
+const ALIAS_READ_TIMEOUT_MS = 8_000;
+
 async function readAliasFile(file: string): Promise<AliasFileEntries> {
-  const response = await fetch(`/${file.replace(/^public\//, "")}`);
+  // Bounded: a stalled alias file must settle as unread, because callers hold a
+  // deep-link sheet open until this answers.
+  const response = await fetch(`/${file.replace(/^public\//, "")}`, {
+    signal: AbortSignal.timeout(ALIAS_READ_TIMEOUT_MS),
+  });
   if (!response.ok) {
     discardBody(response);
     throw new Error(`${file} answered ${response.status}`);
@@ -48,10 +56,15 @@ export function loadVenueAliasMaps(): Promise<VenueAliasMaps> {
     .then((files) => ({
       aliases: flattenVenueAliasChains(files.flatMap((file) => file.aliases)),
       retiredNames: new Map(files.flatMap((file) => file.retired)),
+      read: true,
     }))
     .catch(() => {
       pending = null;
-      return { aliases: new Map<string, string>(), retiredNames: new Map<string, string>() };
+      return {
+        aliases: new Map<string, string>(),
+        retiredNames: new Map<string, string>(),
+        read: false,
+      };
     });
   return pending;
 }

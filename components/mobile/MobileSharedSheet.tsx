@@ -125,11 +125,14 @@ export default function MobileSharedSheet({
   useEffect(() => {
     interruptAndSettleRef.current = interruptAndSettle;
   }, [interruptAndSettle]);
+  // A second pick settles where the host asked for it. A base pub asks for
+  // peek so the map stays live for the next pin; settling it to half inerted
+  // the map behind the sheet, and the third pin could not be reached.
   useEffect(() => {
     if (venueRevealSettleSequenceRef.current === venueRevealSettleSequence) return;
     venueRevealSettleSequenceRef.current = venueRevealSettleSequence;
-    settleToRest("half");
-  }, [settleToRest, venueRevealSettleSequence]);
+    settleToRest(requestedSnap ?? "half");
+  }, [requestedSnap, settleToRest, venueRevealSettleSequence]);
   const requestClose = useCallback(() => {
     requestDismiss(sheetRef.current?.getBoundingClientRect().height);
   }, [requestDismiss]);

@@ -167,7 +167,11 @@ import {
   type UkBasePub,
   type UkBaseStreamStatus,
 } from "@/lib/ukBasePubs";
-import { useUkBaseStreaming } from "@/components/map/pubmap/useUkBaseStreaming";
+import {
+  useUkBaseStreaming,
+  type UkBaseRestoreFailure,
+} from "@/components/map/pubmap/useUkBaseStreaming";
+import type { UkBaseRestore } from "@/lib/pubMap";
 import type { MapViewportSnapshot } from "@/lib/mobileShell";
 import {
   PAINT_WATCHDOG_INTERVAL_MS,
@@ -289,15 +293,21 @@ type PubMapCanvasProps = {
    */
   venueListOpen?: boolean;
   /**
-   * A restored `?sel=venue-uk-*` arrival: the base pub's id plus the `at=`
-   * location hint the selecting tap wrote alongside it. Seeds the selection
-   * camera (the id names no venue record, so nothing else knows where to fly)
-   * and asks the base stream to hand the whole record up once its cell loads,
-   * so the unverified sheet reopens like a curated ?sel= does. Null when the
-   * arrival named no base pub or the link carried no hint (older links
-   * degrade to the selection ring only).
+   * A restored `?sel=venue-uk-*` arrival: the base pub's id, plus the `at=`
+   * location hint the selecting tap wrote alongside it when the link has one.
+   * The hint seeds the selection camera (the id names no venue record, so
+   * nothing else knows where to fly) and scopes the cold fetch to one cell;
+   * without it the cold restore asks `/api/uk-base/[id]`. Either way the whole
+   * record is handed up, so the unverified sheet reopens like a curated ?sel=
+   * does. Null when the arrival named no base pub.
    */
-  ukBaseRestore?: { id: string; lat: number; lng: number } | null;
+  ukBaseRestore?: UkBaseRestore | null;
+  /**
+   * The cold restore could not open the base pub: the map holds an unreadable
+   * one with the could-not-check note, and settles an id the pack does not hold
+   * through the venue aliases.
+   */
+  onUkBaseRestoreFailed?: (reason: UkBaseRestoreFailure, requestedId: string) => void;
   onRouteStopClick: (id: string) => void;
   /** Speculative warm of `/api/venue/[id]` on press-start / hover intent. */
   onVenuePrefetch?: (id: string) => void;
@@ -672,6 +682,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     nationalBrowse,
     venueListOpen,
     ukBaseRestore,
+    onUkBaseRestoreFailed,
     onRouteStopClick,
     onVenuePrefetch,
     venueSignals,
@@ -993,14 +1004,18 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
 
   const onVenueClickRef = useRef(onVenueClick);
   const onUkBasePubClickRef = useRef<((pub: UkBasePub) => void) | undefined>(undefined);
+  const onUkBaseRestoreFailedRef = useRef(onUkBaseRestoreFailed);
   // The last base pub a tap resolved, so the selection camera has coordinates
   // for a pin that exists in no venue list. Keyed by id: a stale entry can
   // never move the camera for a different selection. Seeded from a restored
   // ?sel= arrival's `at=` hint so the selection fly-to works before (and
   // without) any tap.
   const ukBaseSelectionRef = useRef<{ id: string; center: [number, number] } | null>(
-    ukBaseRestore
-      ? { id: ukBaseRestore.id, center: [ukBaseRestore.lng, ukBaseRestore.lat] }
+    ukBaseRestore?.hint
+      ? {
+          id: ukBaseRestore.id,
+          center: [ukBaseRestore.hint.lng, ukBaseRestore.hint.lat],
+        }
       : null,
   );
   /** Resident base pubs for search/list selection fly-to (not a tap-resolved ref). */
@@ -1029,6 +1044,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
           onUkBasePubClick(pub);
         }
       : undefined;
+    onUkBaseRestoreFailedRef.current = onUkBaseRestoreFailed;
     onRouteStopClickRef.current = onRouteStopClick;
     onVenuePrefetchRef.current = onVenuePrefetch;
     onLandmarkSelectRef.current = onLandmarkSelect;
@@ -1040,6 +1056,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   }, [
     onVenueClick,
     onUkBasePubClick,
+    onUkBaseRestoreFailed,
     onRouteStopClick,
     onVenuePrefetch,
     onLandmarkSelect,
@@ -3735,13 +3752,27 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // once the camera is past UK_BASE_MIN_ZOOM. Deliberately separate from the
   // `pubs` effect above: nothing here touches the curated source, its clusters
   // or its payload.
+  const [restoredBasePubId, setRestoredBasePubId] = useState<string | null>(null);
   const handleRestoredBasePub = useCallback((pub: UkBasePub, requestedId: string) => {
     // Only reopen the sheet while the restored id is still the selection — a
     // slow shard must never steal a selection the user has already moved on
     // from. A re-mapped pub arrives under its current id, not the one asked for.
     if (selectedIdRef.current !== requestedId) return;
     onUkBasePubClickRef.current?.(pub);
+    // A link with no at= hint had no centre when the selection camera first ran,
+    // and nothing else it reads changes when the record lands. This is the one
+    // signal that tells it to run again with the coordinates.
+    setRestoredBasePubId(pub.id);
   }, []);
+  const handleUkBaseRestoreFailed = useCallback(
+    (reason: UkBaseRestoreFailure, requestedId: string) => {
+      // Same guard as the success path: a slow answer must not clear a pick the
+      // reader has already moved on to.
+      if (selectedIdRef.current !== requestedId) return;
+      onUkBaseRestoreFailedRef.current?.(reason, requestedId);
+    },
+    [],
+  );
   const drawableVenueIds = useMemo(
     () => new Set(venues.map((venue) => venue.id)),
     [venues],
@@ -3766,7 +3797,9 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     held: secondaryStreamsHeld,
     scopeKey: cityId,
     restoreId: ukBaseRestore?.id ?? null,
+    restoreHint: ukBaseRestore?.hint ?? null,
     onRestorePub: handleRestoredBasePub,
+    onRestoreFailed: handleUkBaseRestoreFailed,
   });
 
   useEffect(() => {
@@ -4284,7 +4317,14 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       moveToSelectedVenue,
       { waitForSheet: true },
     );
-  }, [selectedVenueId, selectedPresent, mapReady, cinematic, selectLandmark]);
+  }, [
+    selectedVenueId,
+    selectedPresent,
+    restoredBasePubId,
+    mapReady,
+    cinematic,
+    selectLandmark,
+  ]);
 
   // --- Story bands (issue #15) -------------------------------------------
   // Resolve the active band + its member pubs under the CURRENT (filtered)

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { Ellipsis, GlassWater, LocateFixed, LocateOff, MoonStar, Route, Search, SlidersHorizontal, TrainFront, X } from "lucide-react";
-import { lazy, Suspense } from "react";
 
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import CitySwitcher from "@/components/map/CitySwitcher";
@@ -15,9 +14,13 @@ import { DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 
 import "./mobileMapShell.css";
 
+import { lazyPanel } from "@/components/map/lazyPanel";
 import type { MapSearchSuggestProps } from "@/components/map/MapSearchSuggest";
 
-const MapSearchSuggest = lazy(() => import("@/components/map/MapSearchSuggest"));
+const MapSearchSuggest = lazyPanel(
+  () => import("@/components/map/MapSearchSuggest"),
+  "Search did not open. Check your signal.",
+);
 
 const CONTEXTUAL_SHEETS: readonly MapSheetKind[] = [
   "filters",
@@ -321,9 +324,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
         {overlay === "search" ? (
           <div className="mobileMapSearchRow">
             {searchProps ? (
-              <Suspense fallback={null}>
-                <MapSearchSuggest {...searchProps} />
-              </Suspense>
+              <MapSearchSuggest {...searchProps} />
             ) : searchContent}
           </div>
         ) : null}
@@ -408,9 +409,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
         {overlay === "search" ? (
           <div className="mobileMapSearchRow">
             {searchProps ? (
-              <Suspense fallback={null}>
-                <MapSearchSuggest {...searchProps} />
-              </Suspense>
+              <MapSearchSuggest {...searchProps} />
             ) : searchContent}
           </div>
         ) : null}
