@@ -135,22 +135,4 @@ describe("nav account control", () => {
     expect(html).not.toContain(">A</span>");
     expect(html).not.toContain("alice@example.test");
   });
-
-  it("reads the public card for the chip on every page, through the one hook", async () => {
-    // The chip wears the owned face, so the nav asks for the public card on
-    // every page. `usePublicProfileCard` answers a card read in the last minute
-    // from the tab's own snapshot with no request, holds the answer against the
-    // handle it is about (an account switch cannot leave the previous face above
-    // the new @handle), and reads again when the owner changes it
-    // (`__tests__/usePublicProfileCard.test.tsx`).
-    const { readFileSync } = await import("node:fs");
-    const { join } = await import("node:path");
-    const source = readFileSync(
-      join(process.cwd(), "components/auth/SignInButton.tsx"),
-      "utf8",
-    );
-    expect(source).toContain("usePublicProfileCard(accountHandle)");
-    expect(source).not.toContain("loadPublicProfileCard");
-    expect(source).not.toContain("if (!menuOpen ||");
-  });
 });

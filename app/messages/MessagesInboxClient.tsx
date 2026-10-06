@@ -20,7 +20,12 @@ import MessageAvatar from "@/components/messages/MessageAvatar";
 import MessagesNewGroup from "@/components/messages/MessagesNewGroup";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
-import { conversationRowHandle, conversationRowName, type ConversationDTO } from "@/lib/messages";
+import {
+  conversationRowHandle,
+  conversationRowMatches,
+  conversationRowName,
+  type ConversationDTO,
+} from "@/lib/messages";
 import { subscribeToInbox } from "@/lib/messagesRealtime";
 import { inboxTimeLabel } from "@/lib/messageTimeline";
 import { discardBody } from "@/lib/responseBody";
@@ -304,7 +309,7 @@ export default function MessagesInboxClient({
   const now = new Date();
   const searchQuery = inboxSearch.revision === accountRevision ? inboxSearch.query : "";
   const filteredConversations = conversations.filter((conversation) =>
-    conversationRowName(conversation, handle).toLowerCase().includes(searchQuery.trim().toLowerCase()),
+    conversationRowMatches(conversation, handle, searchQuery),
   );
   const openCompose = () => setComposeRevision(accountRevision);
 

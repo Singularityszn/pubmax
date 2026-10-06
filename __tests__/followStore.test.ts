@@ -164,3 +164,25 @@ describe("isolation across followers", () => {
     expect(await memoryFollowStore.isFollowing("ken", "sam")).toBe(false);
   });
 });
+
+describe("edgesWith — only the edges to the named handles", () => {
+  it("answers both directions for the named handles and nothing beyond them", async () => {
+    await memoryFollowStore.follow("ken", "sam");
+    await memoryFollowStore.follow("sam", "ken");
+    await memoryFollowStore.follow("ken", "lee");
+    await memoryFollowStore.follow("zoe", "ken");
+    await memoryFollowStore.follow("ken", "max");
+
+    const edges = await memoryFollowStore.edgesWith("ken", ["@Sam", "lee", "zoe", "nobody"]);
+    expect([...edges.following].sort()).toEqual(["lee", "sam"]);
+    expect([...edges.followers].sort()).toEqual(["sam", "zoe"]);
+  });
+
+  it("is empty for an unknown handle or an empty list", async () => {
+    await memoryFollowStore.follow("ken", "sam");
+    const unknown = await memoryFollowStore.edgesWith("nobody", ["sam"]);
+    expect(unknown.following.size + unknown.followers.size).toBe(0);
+    const none = await memoryFollowStore.edgesWith("ken", []);
+    expect(none.following.size + none.followers.size).toBe(0);
+  });
+});
