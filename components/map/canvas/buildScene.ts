@@ -90,7 +90,7 @@ export const UK_BASE_MIN_ZOOM = PIN_MIN_ZOOM;
 
 // A pub OSM maps with no name (UkBasePub.unnamed) is a bare "Pub" pin, and a
 // city full of them says nothing. They wait for street level, on a layer of
-// their own because a style filter cannot read the zoom.
+// their own because they wear the generic name rather than the units tag.
 export const UK_BASE_UNNAMED_MIN_ZOOM = 16;
 
 /** Every base pin that has a name; the unnamed ones ride `uk-base-unnamed-point`. */
@@ -99,11 +99,32 @@ const UK_BASE_NAMED_FILTER: maplibregl.ExpressionSpecification = [
   ["get", "unnamed"],
   true,
 ];
-const UK_BASE_UNNAMED_FILTER: maplibregl.ExpressionSpecification = [
-  "==",
-  ["get", "unnamed"],
-  true,
-];
+/**
+ * Every unnamed base pin the camera is close enough to draw: from street zoom,
+ * except the selected one, whose pin answers its sheet and ring at any zoom
+ * the base layer draws. MapLibre reads a filter's zoom at whole levels only,
+ * which is exactly a minzoom of UK_BASE_UNNAMED_MIN_ZOOM.
+ */
+export function ukBaseUnnamedFilter(
+  selectedId: string,
+): maplibregl.ExpressionSpecification {
+  return [
+    "all",
+    ["==", ["get", "unnamed"], true],
+    [
+      "any",
+      [">=", ["zoom"], UK_BASE_UNNAMED_MIN_ZOOM],
+      ["==", ["get", "id"], selectedId],
+    ],
+  ];
+}
+
+/** The provisional mark follows its unnamed pin, so it takes the same gate. */
+export function ukBaseUnnamedBadgeFilter(
+  selectedId: string,
+): maplibregl.ExpressionSpecification {
+  return ["all", ["get", "provisional"], ukBaseUnnamedFilter(selectedId)];
+}
 
 // Base pins are visibly second-class: roughly half a curated pin's footprint
 // and never fully opaque, so a street with both reads as "priced pubs, plus
@@ -964,14 +985,15 @@ export function buildUkBase(ctx: SceneCtx) {
     },
   });
   // A pub with no name: the base glyph and the generic "Pub" label, from
-  // street zoom only. It joins the same collision index as every base pin, so
-  // where a named pin or a curated one wants the room, the bare pin goes.
+  // street zoom only, unless it is the selected pub. It joins the same
+  // collision index as every base pin, so where a named pin or a curated one
+  // wants the room, the bare pin goes.
   addLayerOnce({
     id: "uk-base-unnamed-point",
     type: "symbol",
     source: "uk-base",
-    minzoom: UK_BASE_UNNAMED_MIN_ZOOM,
-    filter: UK_BASE_UNNAMED_FILTER,
+    minzoom: UK_BASE_MIN_ZOOM,
+    filter: ukBaseUnnamedFilter(selectedId),
     layout: {
       "icon-image": iconId("base", UK_BASE_ICON_KEY),
       "icon-size": UK_BASE_ICON_SIZE_EXPR,
@@ -1015,8 +1037,8 @@ export function buildUkBase(ctx: SceneCtx) {
     id: "uk-base-unnamed-provisional-badge",
     type: "circle",
     source: "uk-base",
-    minzoom: UK_BASE_UNNAMED_MIN_ZOOM,
-    filter: ["all", ["get", "provisional"], UK_BASE_UNNAMED_FILTER],
+    minzoom: UK_BASE_MIN_ZOOM,
+    filter: ukBaseUnnamedBadgeFilter(selectedId),
     paint: provisionalBadgePaint(
       tokens,
       dark,
