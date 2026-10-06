@@ -13,8 +13,10 @@ import {
   newestMergedNight,
   parseArgs,
   pruneManagedCityPrices,
+  readCorrectedRows,
   readPriceUpdatesAt,
   readRejectedRows,
+  recordCorrectedRows,
   rejectClosedPrRows,
   resumeCheckpoint,
   runCityPass,
@@ -174,6 +176,7 @@ async function night(
     committed?: Checkpoint["prices"];
     byPub?: Record<string, string>;
     rejectedRows?: Array<{ venueKey: string; sourceUrl: string }>;
+    correctedRows?: Array<{ venueKey: string; drinkName: string; category: string }>;
     mergedThrough?: string;
   },
 ) {
@@ -185,6 +188,7 @@ async function night(
     observedAt: options.observedAt,
     committedPrices: committedCityPrices(options.committed ?? [], cityKeys(pubs)),
     rejectedRows: options.rejectedRows ?? [],
+    correctedRows: options.correctedRows ?? [],
     mergedThrough: options.mergedThrough ?? null,
     fetchImpl: menus(options.byPub ?? {}),
   });
@@ -293,6 +297,87 @@ describe("the nightly London pass keeps going and keeps what it found", () => {
     const next = await night(pubs, first, { observedAt: NIGHT_2, committed: corrected, mergedThrough: NIGHT_1 });
 
     expect(next.prices).toEqual(corrected);
+  });
+
+  it("keeps a reviewer's correction when a pack reset makes the walk read the page again", async () => {
+    const pubs = londonPubs(2);
+    const first = await night(pubs, freshLondon(pubs), {
+      observedAt: NIGHT_1,
+      byPub: { "Independent Arms 1": "Neck Oil - Pint £6.50\nPale Ale - Pint £6.00" },
+    });
+    const committed = first.prices.map((row) =>
+      row.drinkName === "Neck Oil" ? { ...row, priceGbp: 9.99 } : row,
+    ) as Price[];
+    const correctedRows = recordCorrectedRows([], {
+      beforeUpdates: first.prices,
+      afterUpdates: committed,
+      cityVenueKeys: cityKeys(pubs),
+      correctedAt: NIGHT_2,
+    });
+
+    const packChanged = londonPubs(3);
+    const restarted = resumeCheckpoint(first, {
+      city: "london",
+      totalPubs: packChanged.length,
+      cityVenueKeys: cityKeys(packChanged),
+      observedAt: NIGHT_3,
+    });
+    const reread = { "Independent Arms 1": "Neck Oil - Pint £6.50\nPale Ale - Pint £6.20\nStout - Pint £7.00" };
+    const uncorrected = await night(packChanged, restarted, {
+      observedAt: NIGHT_3,
+      committed,
+      mergedThrough: NIGHT_1,
+      byPub: reread,
+    });
+    const next = await night(packChanged, restarted, {
+      observedAt: NIGHT_3,
+      committed,
+      mergedThrough: NIGHT_1,
+      correctedRows,
+      byPub: reread,
+    });
+
+    expect(correctedRows).toEqual([
+      { venueKey: venueKeyForOsmPub(defined(pubs[0])), drinkName: "Neck Oil", category: "beer", correctedAt: NIGHT_2 },
+    ]);
+    expect(restarted.readAt).toEqual({});
+    expect(priceRows(uncorrected)).toContainEqual(["independent arms 1", "Neck Oil", 6.5]);
+    expect(priceRows(next)).toEqual([
+      ["independent arms 1", "Neck Oil", 9.99],
+      ["independent arms 1", "Pale Ale", 6.2],
+      ["independent arms 1", "Stout", 7],
+    ]);
+  });
+
+  it("records each changed London price as corrected once, and nothing else", () => {
+    const pubs = londonPubs(3);
+    const neckOil = officialPrice(defined(pubs[0]), "Neck Oil", 6.5);
+    const guinness = officialPrice(defined(pubs[1]), "Guinness", 6.1);
+    const elsewhere = { ...officialPrice(defined(pubs[2]), "Bitter", 4.5), venueKey: "another city pub|x|53.00000|-2.00000" };
+    const already = { venueKey: guinness.venueKey, drinkName: "Guinness", category: "beer" };
+
+    const rows = recordCorrectedRows([already], {
+      beforeUpdates: [neckOil, guinness, elsewhere],
+      afterUpdates: [
+        { ...neckOil, drinkName: "NECK OIL", priceGbp: 9.99 },
+        { ...guinness, priceGbp: 7 },
+        { ...elsewhere, priceGbp: 5 },
+        officialPrice(defined(pubs[2]), "Stout", 7),
+      ],
+      cityVenueKeys: cityKeys(pubs),
+      correctedAt: OBSERVED_AT,
+    });
+
+    expect(rows).toEqual([
+      already,
+      { venueKey: neckOil.venueKey, drinkName: "NECK OIL", category: "beer", correctedAt: OBSERVED_AT },
+    ]);
+  });
+
+  it("refuses a malformed corrected list rather than writing past it", () => {
+    expect(readCorrectedRows(undefined)).toEqual([]);
+    expect(() => readCorrectedRows({ version: 1, rows: [{ venueKey: "x", drinkName: "y" }] })).toThrow(/category/);
+    expect(() => readCorrectedRows([])).toThrow(/version: 1/);
   });
 
   it("dates the newest merged night from the committed run reports", () => {

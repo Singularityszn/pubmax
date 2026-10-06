@@ -48,6 +48,20 @@ export function loadCityPubs(cityId: string): OsmPub[];
 
 export function readRejectedRows(value: unknown): RejectedRow[];
 
+export type CorrectedRow = { venueKey: string; drinkName: string; category: string; correctedAt?: string };
+
+export function readCorrectedRows(value: unknown): CorrectedRow[];
+
+export function recordCorrectedRows(
+  correctedRows: CorrectedRow[],
+  options: {
+    beforeUpdates: ManagedPrice[];
+    afterUpdates: ManagedPrice[];
+    cityVenueKeys: Set<string>;
+    correctedAt: string;
+  },
+): CorrectedRow[];
+
 /** The price updates a git ref holds, such as a closed nightly PR branch. */
 export function readPriceUpdatesAt(ref: string, options?: { cwd?: string }): ManagedPrice[];
 
@@ -74,7 +88,12 @@ export function resumeCheckpoint(
 
 export function reconcileWithCommitted(
   state: CityCheckpoint,
-  options: { committedPrices: ManagedPrice[]; rejectedRows: RejectedRow[]; mergedThrough: string | null },
+  options: {
+    committedPrices: ManagedPrice[];
+    rejectedRows: RejectedRow[];
+    correctedRows?: CorrectedRow[];
+    mergedThrough: string | null;
+  },
 ): CityCheckpoint;
 
 export function newestMergedNight(reports: unknown[]): string | null;
@@ -90,6 +109,8 @@ export function runCityPass(
     observedAt: string;
     committedPrices: ManagedPrice[];
     rejectedRows?: RejectedRow[];
+    /** Prices a reviewer corrected, which no reading overwrites. */
+    correctedRows?: CorrectedRow[];
     /** The read time of the newest night whose PR merged, from the committed run reports. */
     mergedThrough?: string | null;
     onState?: (state: CityCheckpoint) => void;
