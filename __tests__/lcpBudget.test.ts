@@ -22,6 +22,7 @@ import {
   formatRatchetTable,
   type RouteMeasurement,
 } from "@/lib/performanceBudgets";
+import { defined } from "@/__tests__/helpers/defined";
 
 /** The programme's target for the front door and its one primary action. */
 const FRONT_DOOR_CEILING_MS = 1500;
@@ -100,7 +101,7 @@ describe("lcpMs is a budgeted metric", () => {
   });
 
   it("fails a route that paints past its ceiling", () => {
-    const route = PERFORMANCE_BUDGETS.routes[0];
+    const route = defined(PERFORMANCE_BUDGETS.routes[0]);
     const measured = new Map<string, RouteMeasurement>([
       [
         route.path,
@@ -112,12 +113,12 @@ describe("lcpMs is a budgeted metric", () => {
         },
       ],
     ]);
-    const breaches = findBudgetBreaches([route], measured);
+    const breaches = findBudgetBreaches([defined(route)], measured);
     expect(breaches.map((breach) => breach.metric)).toEqual(["lcpMs"]);
   });
 
   it("passes a route that paints exactly on its ceiling", () => {
-    const route = PERFORMANCE_BUDGETS.routes[0];
+    const route = defined(PERFORMANCE_BUDGETS.routes[0]);
     const measured = new Map<string, RouteMeasurement>([
       [
         route.path,
@@ -129,7 +130,7 @@ describe("lcpMs is a budgeted metric", () => {
         },
       ],
     ]);
-    expect(findBudgetBreaches([route], measured)).toEqual([]);
+    expect(findBudgetBreaches([defined(route)], measured)).toEqual([]);
   });
 });
 
@@ -193,7 +194,7 @@ describe("/pal is budgeted at all", () => {
 // ceiling comes down because a person decided it should, with the measurement
 // in front of them.
 describe("the ratchet warning", () => {
-  const route = PERFORMANCE_BUDGETS.routes[0];
+  const route = defined(PERFORMANCE_BUDGETS.routes[0]);
 
   function measurement(over: Partial<RouteMeasurement> = {}): RouteMeasurement {
     return {
@@ -207,7 +208,7 @@ describe("the ratchet warning", () => {
 
   it("stays quiet when every ceiling is snug", () => {
     const measured = new Map([[route.path, measurement()]]);
-    expect(findRatchetCandidates([route], measured)).toEqual([]);
+    expect(findRatchetCandidates([defined(route)], measured)).toEqual([]);
     expect(formatRatchetTable([])).toBe("");
   });
 
@@ -215,9 +216,9 @@ describe("the ratchet warning", () => {
     const measured = new Map([
       [route.path, measurement({ lcpMs: Math.round(route.lcpMs * 0.5) })],
     ]);
-    const candidates = findRatchetCandidates([route], measured);
+    const candidates = findRatchetCandidates([defined(route)], measured);
     expect(candidates.map((candidate) => candidate.metric)).toEqual(["lcpMs"]);
-    expect(candidates[0].underBy).toBeGreaterThanOrEqual(15);
+    expect(defined(candidates[0]).underBy).toBeGreaterThanOrEqual(15);
     expect(formatRatchetTable(candidates)).toContain(route.path);
   });
 
@@ -226,13 +227,13 @@ describe("the ratchet warning", () => {
     const measured = new Map([
       [route.path, measurement({ lcpMs: Math.round(route.lcpMs * 0.9) })],
     ]);
-    expect(findRatchetCandidates([route], measured)).toEqual([]);
+    expect(findRatchetCandidates([defined(route)], measured)).toEqual([]);
   });
 
   it("never treats an unmeasured route as slack", () => {
     // That route is a BREACH, and findBudgetBreaches already says so.
-    expect(findRatchetCandidates([route], new Map())).toEqual([]);
-    expect(findBudgetBreaches([route], new Map()).length).toBeGreaterThan(0);
+    expect(findRatchetCandidates([defined(route)], new Map())).toEqual([]);
+    expect(findBudgetBreaches([defined(route)], new Map()).length).toBeGreaterThan(0);
   });
 
   it("banks nothing on its own: no writer touches the budget file", () => {

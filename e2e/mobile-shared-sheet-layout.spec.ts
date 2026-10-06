@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
 
+import { stubSocialAuthProviders } from "./helpers/authDoubles";
+
 const MOBILE_VIEWPORT = { width: 390, height: 844 };
 
 function stableVenueIdFromKey(key: string): string {
@@ -28,9 +30,6 @@ const ARNOS_ARMS_ID = stableVenueIdFromKey(
 // page that opens the realtime socket logs a DNS error unless the spec
 // answers for it.
 async function stubKeylessSupabase(page: Page): Promise<void> {
-  await page.route("**/_vercel/insights/script.js", (route) =>
-    route.fulfill({ status: 200, contentType: "application/javascript", body: "" }),
-  );
   await page.route("https://pubmaxx-e2e.supabase.co/**", (route) =>
     route.fulfill({
       status: 200,
@@ -43,6 +42,7 @@ async function stubKeylessSupabase(page: Page): Promise<void> {
     "wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket**",
     () => {},
   );
+  await stubSocialAuthProviders(page);
 }
 
 async function prepareMobilePage(page: Page, theme: "light" | "dark" = "light"): Promise<void> {

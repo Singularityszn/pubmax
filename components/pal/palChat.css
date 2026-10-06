@@ -581,6 +581,12 @@
   align-items: stretch;
 }
 
+.palChatProposalNote {
+  margin: -0.15rem 0 0.5rem;
+  font: 400 0.78rem/1.4 var(--font-body);
+  color: var(--ink-soft);
+}
+
 .palChatPlanHandoff {
   display: inline-flex;
   align-items: center;

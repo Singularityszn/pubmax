@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import PriceBadge from "@/components/PriceBadge";
+import { samePathWithQuery } from "@/lib/appLink";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown, Footprints, LocateFixed, MapPin, RotateCw } from "lucide-react";
@@ -389,7 +390,7 @@ export default function NearMeNow({
               );
               params.set("patch", next.id);
               const query = params.toString();
-              router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+              router.replace(samePathWithQuery(pathname, query), { scroll: false });
             } catch {
               // URL sync is best-effort — never block the answer.
             }

@@ -39,7 +39,7 @@ export function normalizeSiteHarvestLedgerRow(row: SiteHarvestLedgerRow): SiteHa
   const label = row.drinkLabel ?? row.drinkName;
   if (typeof label !== "string") return row;
   const match = PRINTED_MEASURE_SUFFIX.exec(label.trim());
-  const name = match?.[1].replace(/^[/|\s\u2013\u2014-]+/, "").trim();
+  const name = match?.[1]?.replace(/^[/|\s\u2013\u2014-]+/, "").trim();
   if (!match || !name) return row;
   return {
     ...row,

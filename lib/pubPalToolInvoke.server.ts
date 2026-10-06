@@ -99,6 +99,9 @@ export async function invokePubPalAskTool(input: {
     };
   }
 
+  if (!input.conversationId) {
+    console.warn("pub-pal-tool.uncorrelated", { toolName: input.toolName });
+  }
   const turn = input.conversationId
     ? await readPubPalToolTurn(input.conversationId)
     : null;
@@ -112,6 +115,19 @@ export async function invokePubPalAskTool(input: {
   const { fenced, sobrietyOnly } = await resolvePubPalFenceIntent(query, threadTurns);
   if (fenced) {
     const register = pubPalGetHomeRegisterAnswer("", sobrietyOnly);
+    if (input.conversationId) {
+      try {
+        await appendPubPalToolTurn(input.conversationId, {
+          hints: [register],
+          toolsUsed: [input.toolName],
+        });
+      } catch (error) {
+        console.warn("pub-pal-tool.fenced-append-failed", {
+          toolName: input.toolName,
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
     return {
       result: {
         ok: true,

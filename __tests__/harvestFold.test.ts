@@ -19,6 +19,7 @@ import {
 import { parseUkBaseShard } from "@/lib/ukBasePubs";
 import { slimVenueToPin } from "@/lib/slimPins";
 import { buildSeedMetadata } from "../scripts/harvest/uk-pubs/foldInput.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 const LORE_TEXT =
   "The Red Lion in Clapham has stood on the common since the eighteenth century.";
@@ -946,7 +947,7 @@ describe("heritageFactFromOverlay / public overlay", () => {
       menuUrl: "https://redlion.example/menu",
       matchedLore: { text: LORE_TEXT },
     });
-    expect(rows[0].matchedLore?.citations).toEqual([
+    expect(defined(rows[0]).matchedLore?.citations).toEqual([
       "https://history.example/red-lion-clapham",
     ]);
   });
@@ -974,7 +975,7 @@ describe("heritageFactFromOverlay / public overlay", () => {
       },
     ]);
 
-    expect(rows[0].website).toBe("https://redlion.example/");
+    expect(defined(rows[0]).website).toBe("https://redlion.example/");
     expect(parsePublicOverlay(rows[0])?.website).toBe("https://redlion.example/");
   });
 
@@ -997,8 +998,8 @@ describe("heritageFactFromOverlay / public overlay", () => {
       { osmId: "node/123", name: "The Red Lion", town: "Clapham", observations },
     ]);
 
-    expect(folded.menuUrl).toBe("https://redlion.example/menu");
-    expect(folded.sources).toEqual(["https://redlion.example/"]);
+    expect(defined(folded).menuUrl).toBe("https://redlion.example/menu");
+    expect(defined(folded).sources).toEqual(["https://redlion.example/"]);
   });
 
   it("preserves an explicit concatenated harvest field for serving to drop", () => {
@@ -1018,7 +1019,7 @@ describe("heritageFactFromOverlay / public overlay", () => {
       },
     ]);
 
-    expect(rows[0].website).toBe(
+    expect(defined(rows[0]).website).toBe(
       "https://theimperialpub.com, https://imperialarmschislehurst.co.uk",
     );
     expect(parsePublicOverlay(rows[0])?.website).toBeNull();

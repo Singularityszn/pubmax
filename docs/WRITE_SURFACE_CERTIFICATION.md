@@ -79,6 +79,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/check-ins`
 - `POST app/api/citymcp/journey`
 - `POST app/api/crawls`
+- `POST app/api/diary`
 - `POST app/api/drink-wall`
 - `POST app/api/events`
 - `POST app/api/heritage`
@@ -386,9 +387,9 @@ bodies.
 - **Moderation:** the queue reads only visible held posts and exposes no
   post-author identity. Approval or hide binds the current post and private media, keeps
   provenance, and appends the named staff action. The preview RPC returns an
-  object key only for media attached to a held post; the route exchanges it for
-  a short-lived signed URL. Neither action deletes the post, media audit, or tag
-  consent history.
+  object key only for media attached to a held post. The route returns private,
+  no-store image bytes after each permission check, without a signed redirect.
+  Neither action deletes the post, media audit, or tag consent history.
 - **Failure:** malformed requests return 400, stale held rows return 409, and
   missing migration, named staff authority, or storage failures return 503.
   Responses are private and no-store. No partial moderation result is
@@ -620,6 +621,36 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
   consequence-free: delete/503 the route and the preview's capture button fails
   soft to a quiet retry line while the alternative (nearest patch) still renders.
 
+### `app/api/diary` — the private Diary (Phase 1)
+
+- **Route / method:** `POST app/api/diary/route.ts` logs one visit: a pub, a
+  London calendar day, an optional half-star rating and an optional review of
+  at most 280 characters. The route also exports an owner-only `GET` list,
+  which is not a mutating verb. Entries are PRIVATE: the only visibility is
+  `private`, and no route reads another account's entries.
+- **Validation:** `validateDiaryEntryCreate` (`lib/diary.ts`). The venue name
+  is the canonical name the server resolves for the id, never a typed one. The
+  day is a bare `YYYY-MM-DD` that must be a real day, not in the future and
+  not before 2000. The rating is a half star from 1 to 5. A review is the
+  owner's private words: C0 and C1 control characters are stripped (tab and
+  newline stay) and the ends are trimmed, and nothing else changes. No copy filter
+  runs, and angle brackets and inner spacing are kept. Length is counted in
+  code points (`diaryReviewLength`), the same count the composer and the
+  CHECK's `length(review)` use, so an emoji is one character. A review over 280
+  characters answers 400, never a silent cut. An outage of the venue index
+  answers a retryable 503 `STORE_UNAVAILABLE`, never a 400 that reads as a bad
+  pub. The migration's CHECK
+  constraints (0174) hold the rating, review-length and earliest-day bounds.
+  The future-day bound is checked only by the route.
+- **Rate limit (boundary):** durable per-profile + hashed-IP `isLimited` with
+  key `diary:${owner.actor}:${ipHash}` - 429 `RATE_LIMITED` on exceed.
+- **Auth stance:** `resolveContributionIdentity` derives the owner from the
+  session, and the owner is the account's auth user id. A body owner or handle
+  is ignored. The row keys to `auth.users` with ON DELETE CASCADE, so deleting
+  the account deletes its diary. A second log of the same pub on
+  the same day answers 409 `DIARY_ENTRY_EXISTS`. A hard store failure answers
+  503, never a fake success.
+
 ### `app/api/visit-reports` — structured Visit Reports (route 66)
 
 - **Route / method:** `POST app/api/visit-reports/route.ts` (Wayfinder 3.4,
@@ -671,7 +702,12 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
   (`lib/visitReportsStore.ts`) — capture keeps working and becomes durable the
   moment the table lands, no code change (the same soft degradation area demand
   ships with). A hard durable-store write failure answers 503
-  `STORE_UNAVAILABLE` rather than a fake success. Disabling is consequence-free:
+  `STORE_UNAVAILABLE` rather than a fake success. The public `report` action is
+  the exception to the soft fallback: with a durable store configured it appends
+  its actor only through the service-role RPC `append_visit_report_report_actor`
+  (migration 0175). An RPC error, a missing RPC or a malformed result answers
+  retryable 503 `STORE_UNAVAILABLE` and never writes to process-memory. The
+  keyless in-memory store is unchanged. Disabling is consequence-free:
   delete/503 the route and the venue-sheet panel says it could not check rather
   than claiming no visits exist.
 - **V1 moderation gap:** the queue is manual and reactive. It has no automated
@@ -1296,7 +1332,11 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   human queue and never hides; `hide` and `restore` require `isModerator`.
   Hiding is reversible, keeps the row, its bytes and its report provenance, and
   removes the photo from the wall, the pages and the author's cap count
-  together. A flag after a keep re-opens a still-visible row.
+  together. A flag after a keep re-opens a still-visible row. With a durable
+  store configured, `report` appends its actor only through the service-role
+  RPC `append_venue_photo_report_actor` (migration 0175). An RPC error, a
+  missing RPC or a malformed result answers retryable 503 `STORE_UNAVAILABLE`
+  and never writes to process-memory. The keyless in-memory store is unchanged.
 - **Crosspost honesty:** "Also share to your feed" is a request, never a
   guarantee. The feed write goes through the existing Social post machinery
   behind `requireVerifiedSocialActor`, so the wall never buys a lane around

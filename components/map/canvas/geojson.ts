@@ -168,7 +168,7 @@ function pinDrinkKind(
     Boolean(venue.amenities.cocktails) ||
     Boolean(venue.filterHints?.amenities.cocktails);
   const hintCategories = venue.filterHints?.drinkCategories;
-  return venue.kind === "bar"
+  return venue.kind === "bar" || venue.kind === "club"
     ? "coupe"
     : venue.kind === "food"
       ? "skewer"

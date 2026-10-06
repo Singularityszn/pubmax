@@ -222,13 +222,13 @@ export default function ProfileImageCropper({
 
     const start = gestureRef.current;
     if (!start) return;
-    const ids = [...pointersRef.current.keys()].filter((id) => start.pointers.has(id));
-    if (ids.length === 0) return;
+    const [a, b] = [...pointersRef.current.keys()].filter((id) => start.pointers.has(id));
+    if (a === undefined) return;
 
-    if (ids.length === 1) {
-      const id = ids[0];
-      const from = start.pointers.get(id)!;
-      const to = pointersRef.current.get(id)!;
+    if (b === undefined) {
+      const from = start.pointers.get(a);
+      const to = pointersRef.current.get(a);
+      if (!from || !to) return;
       commit({
         scale: start.transform.scale,
         offsetX: start.transform.offsetX + (to.x - from.x),
@@ -237,11 +237,11 @@ export default function ProfileImageCropper({
       return;
     }
 
-    const [a, b] = ids;
-    const fromA = start.pointers.get(a)!;
-    const fromB = start.pointers.get(b)!;
-    const toA = pointersRef.current.get(a)!;
-    const toB = pointersRef.current.get(b)!;
+    const fromA = start.pointers.get(a);
+    const fromB = start.pointers.get(b);
+    const toA = pointersRef.current.get(a);
+    const toB = pointersRef.current.get(b);
+    if (!fromA || !fromB || !toA || !toB) return;
     const startSpread = Math.hypot(fromB.x - fromA.x, fromB.y - fromA.y);
     if (startSpread < 1) return;
     const spread = Math.hypot(toB.x - toA.x, toB.y - toA.y);

@@ -17,7 +17,7 @@ import {
 	preparePlanGeneration,
 	runAnchoredGeneration,
 } from "@/lib/planGeneration.server";
-import { planEvidenceWarning, planGenerationEvidenceGaps } from "@/lib/planGenerationRanking";
+import { planEvidenceWarning, planGenerationEvidenceGaps, planScoringDrinkCategory } from "@/lib/planGenerationRanking";
 import { selectPlanGenerationCandidates } from "@/lib/planGenerationSelection.server";
 import type { PlanConstraintReport, SelectedGroundedPlanStop } from "@/lib/planRouteOptimizer";
 import type { PlanningIntentSource } from "@/lib/planningIntent";
@@ -113,9 +113,11 @@ export async function POST(request: Request): Promise<Response> {
 	}
 	const requestedStopCount = normalizePlanStopCount(context.stopCount);
 	if (chosen.length < requestedStopCount) return publicApiError(`Not enough listed pubs in ${area.name} to build a ${requestedStopCount}-stop route yet.`, "GROUNDED_VENUES_INSUFFICIENT", 422, { details: { nightArea: area.slug, availableVenueCount: chosen.length, requestedStopCount } });
-	const pricePence = chosen.map(({ venue }, position) => groundedStops
-		? groundedStops[position].price.pence
-		: venue.cheapestPrice === null ? null : Math.round(venue.cheapestPrice * 100));
+	const pricePence = chosen.map(({ venue }, position) => {
+		const grounded = groundedStops?.[position];
+		if (grounded) return grounded.price.pence;
+		return venue.cheapestPrice === null ? null : Math.round(venue.cheapestPrice * 100);
+	});
 	const hasCompletePriceEvidence = planUsesPintPrices(context)
 		&& pricePence.every((price): price is number => price !== null);
 	const { contextEvidenceGaps, operationalEvidenceGaps } = planGenerationEvidenceGaps({
@@ -273,7 +275,7 @@ export async function POST(request: Request): Promise<Response> {
 	      ...(context.foodNeeds.length ? ["foodNeeds"] : []),
 			...(context.budgetLimitPence ? ["budgetLimitPence"] : []),
 			...(context.zeroProof ? ["zeroProof"] : []),
-			...(context.budget === "value" && !context.zeroProof && !planUsesPintPrices(context) ? ["drinkCategory"] : []),
+			...(planScoringDrinkCategory(context) && (context.budget === "value" || context.zeroProof) ? ["drinkCategory"] : []),
 			...(context.wetherspoonsPreferred ? ["wetherspoonsPreferred"] : []),
 			...(planningWeather ? ["weather"] : []),
 	    ],

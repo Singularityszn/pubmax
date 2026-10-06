@@ -8,13 +8,42 @@
 //   npm run harvest:pub-website-amenities
 //   npm run harvest:pub-website-amenities -- --limit 1
 //   npm run harvest:pub-website-amenities -- --restamp
+//   npm run harvest:pub-website-amenities -- --copy-skipped --locate --read-only
+//
+// --copy-skipped reads only the pubs the pub copy pack skipped for
+// insufficient stored facts, from the website OSM or the price dataset gives
+// them. --locate asks Firecrawl search for the own site of such a pub that has
+// none, and keeps a hit only when its host carries a distinctive word of the
+// pub's name. A located site, and a site only the price dataset gives, counts
+// only when the page states the pub's postcode, or its street when the
+// dataset address gives no postcode. With FIRECRAWL_API_KEY
+// set, a page the plain read could not get (timeout, failed connection, 429,
+// 5xx, or almost no text) is read once more through Firecrawl, after the same
+// robots and source checks. --firecrawl-requests caps those requests, default
+// HARVEST_CLI_REQUEST_BUDGET. --unwritten widens --copy-skipped to every pub
+// the copy pack holds no copy for, thin pubs first. --firecrawl-first reads a
+// page through Firecrawl before the plain read, while the request cap lasts,
+// except a PDF. --read-only stops after reading and keeps each
+// page's text under data-harvest/pub-website-amenities/pages, so a later run
+// sends the model those pages without reading them again.
 //
 // Every run lifts the earlier site stamps, then stamps the committed evidence
 // file onto the source dataset through the gate, so a rerun gives the same
 // dataset and a tightened gate takes stamps away. --restamp does only that: it
 // reads no checkpoint, fetches nothing and calls no model. A harvest adds this
-// run's pages to the committed evidence. Completed observations stay pending in
-// the checkpoint until both publication files are written.
+// run's pages to the committed evidence. A pub's observation stays "pending" in
+// the checkpoint, under one batch id, until the evidence file carrying that id
+// is written, so a run that stopped between the two retries from the checkpoint
+// with no fetch and no model call.
+//
+// A page or quote proven chain-wide stays in
+// data/amenities/london_pub_website_chain_pages.json, with every pub that has
+// read each page, whatever came of the read unless the page did not state the
+// pub's address, and every pub that has stated each quote. The harvest reads it before fetching and skips a pub whose page
+// is on it, every stamp goes through it, and a harvest adds its readers and
+// what they prove. A pub that kept no amenity, failed, or read a chain-wide
+// page never reaches the evidence file, so without the list a later run that
+// reads one of those pages or quotes alone would take it for the pub's own.
 //
 // Calls go to Vertex AI on project pubmaxx so the Google Cloud trial pays.
 // The Gemini Developer API answered 402 (AI Studio prepay depleted) and does
@@ -27,6 +56,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
+import { createFirecrawlClient, createHarvestBudget, HARVEST_CLI_REQUEST_BUDGET } from "../../../lib/harvest/firecrawl.ts";
 import { createRobotsChecker } from "../../../lib/harvest/robots.ts";
 import {
   harvestRedirectLanding,
@@ -39,24 +69,42 @@ import {
   PAGE_CHAR_CAP,
   PUB_WEBSITE_AMENITY_COLUMNS,
   PUB_WEBSITE_AMENITY_KEYS,
+  cachedPageRead,
+  firecrawlMayReread,
+  isChainPage,
   keepEvidencedAmenities,
+  locatedOwnSite,
+  siteOfAnotherPub,
+  withoutThinnerRereads,
+  pageOwners,
+  pageStatesAddress,
+  postcodeOf,
+  streetOf,
   liftSiteStamps,
   matchPubToVenue,
+  pageReadEntry,
+  mergeHarvestEvidence,
+  parseChainDenylist,
   parsePubAmenityModelJson,
   projectPubAmenitySpend,
   pubSpecificEvidence,
+  readExtraPage,
   spendFromTokenCounts,
   stampAmenityColumns,
 } from "../../../lib/harvest/pubWebsiteAmenities.ts";
 import { stableVenueIdFromKey, venueGroupingKey } from "../../../lib/venues.ts";
+import { ownSiteFor } from "../../lib/parallelVenueDiscovery.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../../..");
 const PUBS_PATH = path.join(ROOT, "data/osm/uk/uk_osm_pubs.json");
 const DATASET_PATH = path.join(ROOT, "public/data/pint_prices_app_dataset.json");
 const EVIDENCE_PATH = path.join(ROOT, "data/amenities/london_pub_website_evidence.json");
+const CHAIN_PAGES_PATH = path.join(ROOT, "data/amenities/london_pub_website_chain_pages.json");
 const CHECKPOINT_DIR = path.join(ROOT, "data-harvest/pub-website-amenities");
 const CHECKPOINT_PATH = path.join(CHECKPOINT_DIR, "checkpoint.json");
+const PAGES_DIR = path.join(CHECKPOINT_DIR, "pages");
+const COPY_PATH = path.join(ROOT, "data/venue_copy/london.json");
 
 const LAT_MIN = 51.26;
 const LAT_MAX = 51.72;
@@ -119,10 +167,10 @@ function sameHostLinks(html, pageUrl) {
   const base = new URL(pageUrl);
   const found = [];
   const seen = new Set();
-  for (const match of html.matchAll(/href\s*=\s*["']([^"'#]+)["']/gi)) {
+  for (const match of html.matchAll(/href\s*=\s*["']([^"'#]+)["']|\]\(([^)\s#]+)/gi)) {
     let next;
     try {
-      next = new URL(match[1], base);
+      next = new URL(match[1] ?? match[2], base);
     } catch {
       continue;
     }
@@ -214,6 +262,22 @@ function vertexUrl(model) {
   return `https://${host}/v1/projects/${VERTEX_PROJECT}/locations/${VERTEX_LOCATION}/publishers/google/models/${model}:generateContent`;
 }
 
+// Firecrawl search and scrape answered 429 at four seconds apart on this
+// plan; the workers share one slot so a burst never spends the run's request
+// budget on 429 retries. Once the budget is spent no slot is taken, so the
+// pubs left do not wait for requests that will never be sent.
+const FIRECRAWL_SPACING_MS = 6_000;
+let nextFirecrawlSlot = 0;
+
+async function paceFirecrawl(budget) {
+  if (budget.remaining() === 0) return false;
+  const now = Date.now();
+  const slot = Math.max(now, nextFirecrawlSlot);
+  nextFirecrawlSlot = slot + FIRECRAWL_SPACING_MS;
+  if (slot > now) await new Promise((resolve) => setTimeout(resolve, slot - now));
+  return true;
+}
+
 let nextModelSlot = 0;
 
 async function paceModelCall() {
@@ -265,14 +329,15 @@ async function askModel(pageText, attempt = 0) {
 function loadCheckpoint() {
   try {
     const parsed = JSON.parse(readFileSync(CHECKPOINT_PATH, "utf8"));
-    if (!parsed || typeof parsed !== "object") return { spentUsd: 0, byOsmId: {} };
+    if (!parsed || typeof parsed !== "object") return { spentUsd: 0, byOsmId: {}, located: {} };
     return {
       spentUsd: Number(parsed.spentUsd ?? 0),
       byOsmId: parsed.byOsmId && typeof parsed.byOsmId === "object" ? parsed.byOsmId : {},
+      located: parsed.located && typeof parsed.located === "object" ? parsed.located : {},
       pendingPublication: parsed.pendingPublication,
     };
   } catch (error) {
-    if (error?.code === "ENOENT") return { spentUsd: 0, byOsmId: {} };
+    if (error?.code === "ENOENT") return { spentUsd: 0, byOsmId: {}, located: {} };
     throw error;
   }
 }
@@ -306,26 +371,204 @@ function readEvidence() {
   }
 }
 
-/** Compare pages against other pubs, without counting this pub's sibling pages as pubs. */
-function pubSpecificPages(rows, ownership = []) {
-  const byHost = new Map();
-  for (const row of [...rows, ...ownership]) {
-    let host;
-    try {
-      host = new URL(row.sourceUrl).host.toLowerCase();
-    } catch {
-      continue;
+/** Why a recorded observation may not be published again, or null when it may. */
+function unrecoverableReason(entry, pub) {
+  const record = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+  const quotes = (value) => record(value) && Object.entries(value).every(([key, quote]) =>
+    PUB_WEBSITE_AMENITY_KEYS.includes(key) && typeof quote === "string");
+  const permitted = (url) => typeof url === "string" && isHarvestableOperatorUrl(url);
+  if (!pub) return "pub-no-longer-listed";
+  if (typeof entry.name !== "string" || entry.name !== pub.name) return "pub-name-changed";
+  if (entry.venueId !== pub.venueId) return "venue-mapping-changed";
+  if (entry.website !== undefined && entry.website !== pub.website) return "website-changed";
+  if (pub.website && !permitted(pub.website)) return "website-no-longer-permitted";
+  if (!permitted(entry.sourceUrl)) return "source-no-longer-permitted";
+  const day = entry.verifiedAt;
+  if (typeof day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return "bad-observation-date";
+  const date = new Date(`${day}T00:00:00Z`);
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== day) return "bad-observation-date";
+  if (day > new Date().toISOString().slice(0, 10)) return "observation-date-in-future";
+  if (!quotes(entry.amenities)) return "bad-amenities";
+  if (entry.pages !== undefined && (!Array.isArray(entry.pages) || !entry.pages.every((page) =>
+    record(page) && permitted(page.sourceUrl) && quotes(page.amenities)))) return "bad-pages";
+  return null;
+}
+
+const BATCH_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * The observations a stopped run left unpublished, and the batch they belong to.
+ * A batch is published when the evidence file carries its id, and then nothing
+ * is merged again. Otherwise each pending observation is merged again from the
+ * checkpoint, with the date it was made and the spend its batch started from.
+ * One that may not be published now is a finding: it is reported, counted in the
+ * evidence file's skip counts and never silently taken for published.
+ */
+function recoverPending(checkpoint, previous, currentPubs) {
+  const stored = checkpoint.pendingPublication;
+  const batchPublished = typeof stored?.id === "string" && BATCH_ID.test(stored.id) && stored.id === previous?.publicationBatchId;
+  const fresh = new Map();
+  const findings = [];
+  for (const [osmId, entry] of Object.entries(checkpoint.byOsmId)) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry) || entry.status === "read") continue;
+    if (entry.publication === "pending" && batchPublished) {
+      entry.publication = "published";
+    } else if (entry.publication === "pending" || (entry.publication === undefined && previous === null)) {
+      // Without an evidence file nothing was ever published, so an entry with no mark is pending too.
+      const reason = entry.status === "ok" ? unrecoverableReason(entry, currentPubs.get(osmId)) : null;
+      if (reason) {
+        entry.publication = "unrecoverable";
+        findings.push({ osmId, reason });
+        continue;
+      }
+      entry.publication = "pending";
+      fresh.set(osmId, entry);
+    } else if (entry.publication === undefined) {
+      // Existing publication may have deliberately removed this row.
+      entry.publication = "published";
     }
-    const bucket = byHost.get(host) ?? [];
-    bucket.push(row);
-    byHost.set(host, bucket);
   }
-  return [...byHost.values()].flatMap((bucket) => bucket.flatMap((row) => {
-    const others = bucket.filter((other) => other !== row && (!row.osmId || other.osmId !== row.osmId));
-    const kept = pubSpecificEvidence([row, ...others]).find((entry) =>
-      entry.osmId === row.osmId && entry.sourceUrl === row.sourceUrl);
-    return kept ? [kept] : [];
-  }));
+  const resumed = !batchPublished && Number.isFinite(stored?.spentUsd)
+    ? { spentUsd: stored.spentUsd, id: BATCH_ID.test(stored.id ?? "") ? stored.id : randomUUID() } : null;
+  return { fresh, findings, batch: resumed ?? (fresh.size > 0 ? newBatch(checkpoint.spentUsd) : null) };
+}
+
+/** A batch of observations not yet in the evidence file, with the spend it started from. */
+function newBatch(spentUsd) {
+  return { spentUsd, id: randomUUID() };
+}
+
+/** A pub with no checkpoint entry, or one whose page was kept for a model run that may now come. A malformed entry counts as an outcome. */
+function awaitsWork(byOsmId, osmId, readOnly) {
+  return !Object.hasOwn(byOsmId, osmId) || (!readOnly && byOsmId[osmId]?.status === "read");
+}
+
+function logProgress(done, total, byOsmId, spent) {
+  const kept = Object.values(byOsmId).filter((row) => row?.status === "ok" && Object.keys(row.amenities ?? {}).length > 0).length;
+  console.log(`progress ${done}/${total} kept=${kept} spentUsd=${spent.toFixed(4)}`);
+}
+
+/** The earlier evidence's spend plus what this run spent since its batch started. */
+function actualSpend(previous, spent, batchStartUsd) {
+  return Number(((previous?.actualSpendUsd ?? 0) + spent - batchStartUsd).toFixed(4));
+}
+
+/** An outcome waits in the batch until its evidence is written. A page only kept for a later model run is no outcome yet. */
+function markPending(done, osmId, fresh) {
+  if (!done || done.status === "read") return false;
+  done.publication = "pending";
+  fresh.set(osmId, done);
+  return true;
+}
+
+/** The batch's publication counter: one more than the evidence file it will replace. */
+function numberBatch(batch, previous) {
+  if (batch) batch.publications = (previous?.publications ?? 0) + 1;
+}
+
+/** Each pending observation the batch just published is published. */
+function markPublished(byOsmId) {
+  for (const entry of Object.values(byOsmId)) if (entry?.publication === "pending") entry.publication = "published";
+}
+
+/** Findings go to stderr and into the skip counts, so a refusal to republish is never silent. */
+function reportFindings(findings, skipCounts) {
+  for (const { osmId, reason } of findings) console.error(JSON.stringify({ finding: "unrecoverable-pending-observation", osmId, reason }));
+  if (findings.length > 0) skipCounts["unrecoverable-pending"] = (skipCounts["unrecoverable-pending"] ?? 0) + findings.length;
+}
+
+/** The counter and batch id this run's evidence carries: a pending batch's own, else the previous file's. */
+function publicationStamp(batch, previous) {
+  return batch
+    ? { publications: batch.publications, publicationBatchId: batch.id }
+    : { publications: previous?.publications, publicationBatchId: previous?.publicationBatchId };
+}
+
+/** The checkpoint's entries that are records. A hand-edited file may hold others, and none of them is a read. */
+function checkpointReads(byOsmId) {
+  return Object.entries(byOsmId).filter(([, entry]) => entry !== null && typeof entry === "object" && !Array.isArray(entry));
+}
+
+function runFlags() {
+  const limit = argValue("--limit") ? Number(argValue("--limit")) : null;
+  const firecrawlRequests = argValue("--firecrawl-requests") ? Number(argValue("--firecrawl-requests")) : HARVEST_CLI_REQUEST_BUDGET;
+  const flags = {
+    limit,
+    copySkipped: process.argv.includes("--copy-skipped"),
+    locate: process.argv.includes("--locate"),
+    readOnly: process.argv.includes("--read-only"),
+    unwritten: process.argv.includes("--unwritten"),
+    firecrawlFirst: process.argv.includes("--firecrawl-first"),
+    firecrawlRequests,
+  };
+  const refusal = limit !== null && (!Number.isInteger(limit) || limit < 1) ? "--limit needs a positive integer"
+    : !Number.isInteger(firecrawlRequests) || firecrawlRequests < 0 ? "--firecrawl-requests needs a whole number"
+      : (flags.locate || flags.unwritten) && !flags.copySkipped ? "--locate and --unwritten need --copy-skipped" : null;
+  if (refusal) {
+    console.error(refusal);
+    process.exit(1);
+  }
+  return flags;
+}
+
+/** How each pub of a read-only run ended, by status, reader and whether its site was located. */
+function readCounts(work, byOsmId) {
+  const counts = {};
+  for (const pub of work) {
+    const entry = byOsmId[pub.osmId];
+    const key = entry ? `${entry.status}${entry.reader ? `:${entry.reader}` : ""}${entry.located ? ":located" : ""}` : "not-reached";
+    counts[key] = (counts[key] ?? 0) + 1;
+  }
+  return counts;
+}
+
+/**
+ * The pubs the copy pack skipped for insufficient stored facts and whose own
+ * site has given no evidence yet. With `unwritten`, every other pub the pack
+ * holds no copy for follows: thin pubs whose site gave evidence, then pubs
+ * whose drafts failed review. Each takes the website OSM gives it, else the
+ * one the price dataset gives it, else none, and the postcode or street its
+ * dataset address states. A site OSM does not give it must state that address.
+ * A pub with a website comes first.
+ */
+function copySkippedPubs(dataset, anchors, londonSites, { unwritten = false } = {}) {
+  const copy = JSON.parse(readFileSync(COPY_PATH, "utf8"));
+  const reasons = new Map(Object.entries(copy.skipped ?? {}).map(([venueId, skip]) => [venueId, skip?.reason]));
+  const evidenced = new Set((readEvidence()?.rows ?? []).map((row) => row.venueId).filter(Boolean));
+  const siteByVenue = new Map();
+  for (const site of londonSites) if (site.venueId && !siteByVenue.has(site.venueId)) siteByVenue.set(site.venueId, site);
+  const rowsByVenue = new Map();
+  for (const row of dataset) {
+    const venueId = stableVenueIdFromKey(venueGroupingKey(row));
+    rowsByVenue.set(venueId, [...(rowsByVenue.get(venueId) ?? []), row]);
+  }
+  // Lower ranks are read first; a pub outside the scope has no rank.
+  const rank = (venueId) => {
+    const thin = reasons.get(venueId) === "insufficient-stored-facts";
+    if (thin && !evidenced.has(venueId)) return 0;
+    if (!unwritten || !reasons.has(venueId)) return null;
+    return thin ? 1 : 2;
+  };
+  const pubs = anchors
+    .filter((anchor) => rank(anchor.venueId) !== null)
+    .sort((a, b) => rank(a.venueId) - rank(b.venueId))
+    .map((anchor) => {
+      const rows = rowsByVenue.get(anchor.venueId) ?? [];
+      const site = siteByVenue.get(anchor.venueId);
+      const listed = rows.map((row) => String(row.website ?? "").trim()).find((url) => url.startsWith("http"));
+      return {
+        osmId: site?.osmId ?? `venue/${anchor.venueId}`,
+        name: anchor.name,
+        lat: anchor.lat,
+        lng: anchor.lng,
+        website: site?.website ?? listed ?? null,
+        needsAddress: !site,
+        venueId: anchor.venueId,
+        postcode: rows.map((row) => postcodeOf(String(row.address ?? ""))).find(Boolean) ?? null,
+        street: rows.map((row) => streetOf(String(row.address ?? ""))).find(Boolean) ?? null,
+      };
+    });
+  return [...pubs.filter((pub) => pub.website), ...pubs.filter((pub) => !pub.website)];
 }
 
 /**
@@ -334,7 +577,7 @@ function pubSpecificPages(rows, ownership = []) {
  * evidence, so a rerun changes nothing and a quote the gate now refuses loses
  * its stamp.
  */
-function stampDataset(evidenceRows) {
+function stampDataset(evidenceRows, chainPages) {
   const dataset = JSON.parse(readFileSync(DATASET_PATH, "utf8"));
   if (!Array.isArray(dataset)) throw new Error("expected a pint dataset array");
   const rowsByVenue = new Map();
@@ -346,9 +589,10 @@ function stampDataset(evidenceRows) {
     rowsByVenue.set(venueId, bucket);
   });
   const before = columnCoverage(dataset);
+  // A venue read through two pages is one stamped venue, and a row two pages stamp is one stamped row.
   const stampedRows = new Set();
   const stampedVenues = new Set();
-  for (const entry of pubSpecificPages(evidenceRows)) {
+  for (const entry of pubSpecificEvidence(evidenceRows, chainPages)) {
     if (!entry.venueId) continue;
     for (const index of rowsByVenue.get(entry.venueId) ?? []) {
       const result = stampAmenityColumns(dataset[index], entry.amenities);
@@ -377,17 +621,32 @@ function withStampFigures(evidence, previous, stamps) {
   };
 }
 
+/** The committed chain list. A missing file throws, because reading it as empty lets every chain page back in. */
+function readChainPages() {
+  return parseChainDenylist(JSON.parse(readFileSync(CHAIN_PAGES_PATH, "utf8")));
+}
+
+function writeChainPages(chainPages) {
+  mkdirSync(path.dirname(CHAIN_PAGES_PATH), { recursive: true });
+  writeFileAtomic(CHAIN_PAGES_PATH, `${JSON.stringify({ version: 1, ...chainPages }, null, 2)}\n`);
+}
+
+/** A file is either the old one or the new one, never half of the new one. */
+function writeFileAtomic(file, body) {
+  const temp = `${file}.tmp`;
+  writeFileSync(temp, body);
+  renameSync(temp, file);
+}
+
 function writeEvidence(evidence) {
   mkdirSync(path.dirname(EVIDENCE_PATH), { recursive: true });
-  const temp = `${EVIDENCE_PATH}.tmp`;
-  writeFileSync(temp, `${JSON.stringify(evidence, null, 2)}\n`);
-  renameSync(temp, EVIDENCE_PATH);
+  writeFileAtomic(EVIDENCE_PATH, `${JSON.stringify(evidence, null, 2)}\n`);
 }
 
 function restampFromEvidence() {
   const evidence = readEvidence();
   if (!evidence || !Array.isArray(evidence.rows)) throw new Error("no committed evidence file to restamp from");
-  const next = withStampFigures(evidence, evidence, stampDataset(evidence.rows));
+  const next = withStampFigures(evidence, evidence, stampDataset(evidence.rows, readChainPages()));
   writeEvidence(next);
   console.log(
     JSON.stringify({
@@ -399,114 +658,12 @@ function restampFromEvidence() {
   );
 }
 
-/** Validate recorded observations against current source permission and their original date. */
-function validObservation(entry, pub) {
-  const record = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
-  const quotes = (value) => record(value) && Object.entries(value).every(([key, quote]) =>
-    PUB_WEBSITE_AMENITY_KEYS.includes(key) && typeof quote === "string");
-  const permitted = (url) => typeof url === "string" && isHarvestableOperatorUrl(url);
-  if (!record(entry) || entry.status !== "ok" || !pub) return false;
-  if (typeof entry.name !== "string" || !entry.name.trim()) return false;
-  if (entry.website !== undefined && entry.website !== pub.website) return false;
-  if (!permitted(pub.website) || !permitted(entry.sourceUrl)) return false;
-  const day = entry.verifiedAt;
-  if (typeof day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return false;
-  const date = new Date(`${day}T00:00:00Z`);
-  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== day) return false;
-  if (day > new Date().toISOString().slice(0, 10) || !quotes(entry.amenities)) return false;
-  if (entry.pages !== undefined && (!Array.isArray(entry.pages) || !entry.pages.every((page) =>
-    record(page) && permitted(page.sourceUrl) && quotes(page.amenities)))) return false;
-  return true;
-}
-
-/** Positive facts require the original pub identity and venue mapping. */
-function recoverableObservation(entry, pub) {
-  return validObservation(entry, pub) && entry.name === pub.name && entry.venueId === pub.venueId;
-}
-
-/** Current OSM id and recorded website preserve exclusion across name or mapping changes. */
-function recoverableOwnership(entry, pub) {
-  if (!validObservation(entry, pub)) return false;
-  // Legacy records lack website continuity, so retain their strict identity fallback.
-  return entry.website === pub.website || recoverableObservation(entry, pub);
-}
-
-/** The committed evidence with this run's pages laid over it. */
-function mergeEvidence(previous, fresh, ownership) {
-  const skipCounts = { ...(previous?.skipCounts ?? {}) };
-  const candidates = (previous?.rows ?? []).filter((row) => !fresh.has(row.osmId));
-  for (const [osmId, entry] of fresh) {
-    if (entry.status !== "ok") {
-      const status = entry.status ?? "unknown";
-      skipCounts[status] = (skipCounts[status] ?? 0) + 1;
-      continue;
-    }
-    for (const page of entry.pages?.length ? entry.pages : [entry]) {
-      candidates.push({
-        osmId,
-        name: entry.name,
-        venueId: entry.venueId,
-        sourceUrl: page.sourceUrl,
-        verifiedAt: entry.verifiedAt,
-        amenities: page.amenities ?? {},
-      });
-    }
-  }
-  const rows = pubSpecificPages(candidates, ownership).sort((a, b) => a.osmId.localeCompare(b.osmId));
-  const keptPubs = new Set(rows.map((row) => row.osmId));
-  const unused = new Set(candidates.map((row) => row.osmId).filter((osmId) => !keptPubs.has(osmId))).size;
-  if (unused > 0) skipCounts.ok = (skipCounts.ok ?? 0) + unused;
-  return { rows, skipCounts };
-}
-
-/** Pending observations the evidence file does not carry yet, with the spend their batch started from. */
-function recoverPending(checkpoint, previous, currentPubs) {
-  const stored = checkpoint.pendingPublication;
-  const hasBatchId = typeof stored?.id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(stored.id);
-  // A counter-only legacy batch cannot prove that existing evidence published it.
-  if (stored && !hasBatchId && previous !== null) {
-    throw new Error("Cannot verify legacy pending publication against existing evidence; preserve checkpoint for operator recovery");
-  }
-  const batchPublished = hasBatchId && stored.id === previous?.publicationBatchId;
-  const fresh = new Map();
-  for (const [osmId, entry] of Object.entries(checkpoint.byOsmId)) {
-    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
-    if (entry.publication === "pending" && batchPublished) {
-      entry.publication = "published";
-    } else if (entry.publication === "pending" || (entry.publication === undefined && previous === null)) {
-      const recoverable = entry.status === "ok"
-        ? recoverableObservation(entry, currentPubs.get(osmId))
-        : typeof entry.status === "string";
-      if (!recoverable) continue;
-      entry.publication = "pending";
-      fresh.set(osmId, entry);
-    } else if (entry.publication === undefined) {
-      // Existing publication may have deliberately removed this legacy row.
-      entry.publication = "published";
-    }
-  }
-  const unpublished = !batchPublished && Number.isFinite(stored?.spentUsd)
-    ? { spentUsd: stored.spentUsd, id: hasBatchId ? stored.id : randomUUID() } : null;
-  return { fresh, batch: unpublished ?? (fresh.size > 0 ? { spentUsd: checkpoint.spentUsd, id: randomUUID() } : null) };
-}
-
-/** The counter and batch id this run's evidence carries: a pending batch's own, else the previous file's. */
-function publicationStamp(batch, previous) {
-  return batch
-    ? { publications: batch.publications, publicationBatchId: batch.id }
-    : { publications: previous?.publications, publicationBatchId: previous?.publicationBatchId };
-}
-
 async function main() {
   if (process.argv.includes("--restamp")) {
     restampFromEvidence();
     return;
   }
-  const limit = argValue("--limit") ? Number(argValue("--limit")) : null;
-  if (limit !== null && (!Number.isInteger(limit) || limit < 1)) {
-    console.error("--limit needs a positive integer");
-    process.exit(1);
-  }
+  const { limit, copySkipped, locate, readOnly, firecrawlRequests, unwritten, firecrawlFirst } = runFlags();
 
   const pubsDoc = JSON.parse(readFileSync(PUBS_PATH, "utf8"));
   const dataset = JSON.parse(readFileSync(DATASET_PATH, "utf8"));
@@ -528,7 +685,7 @@ async function main() {
     });
   }
 
-  const pubs = [];
+  const londonSites = [];
   for (const pub of pubsDoc.pubs) {
     const website = typeof pub.website === "string" ? pub.website.trim() : "";
     if (!website.startsWith("http")) continue;
@@ -541,9 +698,10 @@ async function main() {
       website,
     };
     const venue = matchPubToVenue(site, anchors);
-    pubs.push({ ...site, venueId: venue?.venueId ?? null });
+    londonSites.push({ ...site, venueId: venue?.venueId ?? null });
   }
-  pubs.sort((a, b) => Number(Boolean(b.venueId)) - Number(Boolean(a.venueId)) || a.osmId.localeCompare(b.osmId));
+  const pubs = copySkipped ? copySkippedPubs(dataset, anchors, londonSites, { unwritten }) : londonSites;
+  if (!copySkipped) pubs.sort((a, b) => Number(Boolean(b.venueId)) - Number(Boolean(a.venueId)) || a.osmId.localeCompare(b.osmId));
 
   const inputTokensPerCallCap = Math.ceil((PAGE_CHAR_CAP + PROMPT.length) / 4);
   const fullProjected = projectPubAmenitySpend({
@@ -587,12 +745,17 @@ async function main() {
   const startSpent = spent;
   const byOsmId = checkpoint.byOsmId;
   const previous = readEvidence();
-  const currentPubs = new Map(pubs.map((pub) => [pub.osmId, pub]));
+  const currentPubs = new Map([...londonSites, ...pubs].map((pub) => [pub.osmId, pub]));
   const recovered = recoverPending(checkpoint, previous, currentPubs);
   const fresh = recovered.fresh;
   let batch = recovered.batch;
   const robots = createRobotsChecker();
-  const queue = pubs.filter((pub) => !Object.hasOwn(byOsmId, pub.osmId));
+  const knownChainPages = readChainPages();
+  const located = checkpoint.located;
+  const firecrawl = createFirecrawlClient({ budget: createHarvestBudget(firecrawlRequests) });
+  // A pub whose page was read under --read-only waits in the checkpoint as
+  // "read" until a run that may call the model.
+  const queue = pubs.filter((pub) => (pub.website || locate) && awaitsWork(byOsmId, pub.osmId, readOnly));
   const work = limit === null ? queue : queue.slice(0, limit);
   let cursor = 0;
   let writeChain = Promise.resolve();
@@ -600,7 +763,7 @@ async function main() {
 
   const save = () => {
     writeChain = writeChain.then(() => {
-      const next = { spentUsd: spent, byOsmId, ...(batch ? { pendingPublication: batch } : {}) };
+      const next = { spentUsd: spent, byOsmId, located, ...(batch ? { pendingPublication: batch } : {}) };
       const temp = `${CHECKPOINT_PATH}.tmp`;
       writeFileSync(temp, JSON.stringify(next));
       renameSync(temp, CHECKPOINT_PATH);
@@ -608,91 +771,204 @@ async function main() {
     return writeChain;
   };
 
+  // A plain read first. A page the network or a script kept from it is read
+  // once more through Firecrawl, which returns markdown and no HTML.
+  // With --firecrawl-first a page is read through Firecrawl while its budget
+  // lasts, except a PDF, which Firecrawl bills per page; a Firecrawl failure
+  // falls back to the plain read.
+  async function scrapePage(url) {
+    if (!(await paceFirecrawl(firecrawl.budget))) return { ok: false, reason: "firecrawl-budget-exhausted" };
+    const scraped = await firecrawl.scrape(url, { onlyMainContent: false });
+    if (!scraped.ok) return { ok: false, reason: `firecrawl-${scraped.failure.reason}` };
+    const landing = harvestRedirectLanding(url, scraped.page.landedUrl);
+    if (landing.outcome === "refused") return { ok: false, reason: "redirect-refused" };
+    const status = scraped.page.statusCode;
+    if (status !== null && status >= 400) return { ok: false, reason: `http-${status}` };
+    const text = scraped.page.markdown.replace(/\s+/g, " ").trim().slice(0, MAX_BYTES);
+    return { ok: true, url: landing.url, html: scraped.page.markdown, text, reader: "firecrawl" };
+  }
+
+  // A Firecrawl page cached before its landing was recorded is asked again with
+  // a plain request that follows redirects and reads no body. A landing outside
+  // the source fence, one robots refuses, or one that cannot be checked leaves
+  // the cached text unused.
+  async function cachedFirecrawlLanding(url) {
+    let landed;
+    try {
+      const response = await fetch(url, {
+        redirect: "follow",
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        headers: { accept: "text/html,application/xhtml+xml", "user-agent": USER_AGENT },
+      });
+      await response.body?.cancel();
+      landed = response.url || url;
+    } catch {
+      return { status: "landing-unverified" };
+    }
+    const landing = harvestRedirectLanding(url, landed);
+    if (landing.outcome === "refused" || !isHarvestableOperatorUrl(landing.url)) return { status: "redirect-refused" };
+    if (isChainPage(landing.url, knownChainPages)) return { status: "chain-page" };
+    if (!(await robots(landing.url)).allowed) return { status: "robots-denied" };
+    return { url: landing.url };
+  }
+
+  async function readPage(url) {
+    if (firecrawlFirst && firecrawl && firecrawl.budget.remaining() > 0 && !/\.pdf$/i.test(new URL(url).pathname)) {
+      const scraped = await scrapePage(url);
+      if (scraped.ok) return scraped;
+    }
+    const plain = await readHtml(url);
+    if (!firecrawl || !firecrawlMayReread(plain)) return { ...plain, reader: "fetch" };
+    const scraped = await scrapePage(url);
+    if (scraped.ok || scraped.reason.startsWith("http-")) return scraped;
+    return plain.ok ? { ...plain, reader: "fetch" } : scraped;
+  }
+
+  // The own site of a pub with no website, found once and remembered. A search
+  // that failed or was refused for budget answers undefined, so the pub stays
+  // unread and a later run searches again.
+  async function locateSite(pub) {
+    if (Object.hasOwn(located, pub.osmId)) return located[pub.osmId];
+    if (!pub.postcode && !pub.street) return null;
+    if (!firecrawl || !(await paceFirecrawl(firecrawl.budget))) return undefined;
+    const where = pub.postcode ?? `"${pub.street.join(" ")}" London`;
+    const found = await firecrawl.search(`"${pub.name}" pub ${where}`, { limit: 5 });
+    if (!found.ok) return undefined;
+    located[pub.osmId] = locatedOwnSite(pub.name, found.results, {
+      chainPages: knownChainPages,
+      isHarvestable: isHarvestableOperatorUrl,
+      ownSite: (name, url) => ownSiteFor(name, url, { displayName: "London" }),
+    });
+    return located[pub.osmId];
+  }
+
+  // Pages other pubs have read: the committed evidence, this checkpoint and the chain list's readers.
+  const previousRows = readEvidence()?.rows ?? [];
+  const otherReads = () => pageOwners(previousRows, checkpointReads(byOsmId), knownChainPages);
+
+  const pagePath = (key) => path.join(PAGES_DIR, `${key.replace(/[^a-z0-9-]/gi, "_")}.json`);
+  const cachedPage = (key) => {
+    try {
+      return JSON.parse(readFileSync(pagePath(key), "utf8"));
+    } catch (error) {
+      if (error.code === "ENOENT") return null;
+      throw error;
+    }
+  };
+
+  async function readSite(pub) {
+    const website = pub.website ?? (locate ? await locateSite(pub) : null);
+    if (website === undefined) return { status: null };
+    if (!website) return { status: pub.website === null && locate ? "no-site-found" : "no-website" };
+    if (!isHarvestableOperatorUrl(website)) return { status: "refused-host" };
+    if (isChainPage(website, knownChainPages)) return { status: "chain-page" };
+    const permission = await robots(website);
+    if (!permission.allowed) return { status: permission.reason ?? "robots-denied" };
+    const home = await readPage(website);
+    if (!home.ok) return { status: home.reason };
+    if (isChainPage(home.url, knownChainPages)) return { status: "chain-page", sourceUrl: home.url };
+    const landedPermission = await robots(home.url);
+    if (!landedPermission.allowed) return { status: landedPermission.reason ?? "robots-denied" };
+    // The model reads one text of at most PAGE_CHAR_CAP characters. Each page keeps
+    // the part of it that came from that page, so a quote is checked against and
+    // cited to the page that states it.
+    const pages = [{ sourceUrl: home.url, text: home.text.slice(0, PAGE_CHAR_CAP) }];
+    const extraLinks = sameHostLinks(home.html, home.url);
+    for (const link of extraLinks.slice(0, 1)) {
+      const extra = await readExtraPage(link, {
+        chainPages: knownChainPages,
+        isHarvestable: isHarvestableOperatorUrl,
+        robots,
+        readHtml: readPage,
+      });
+      if (extra === null) continue;
+      pages.push({ sourceUrl: extra.url, text: extra.text.slice(0, Math.max(0, PAGE_CHAR_CAP - pages[0].text.length - 1)) });
+      break;
+    }
+    const text = pages.map((page) => page.text).join("\n");
+    if (text.length < 40) return { status: "empty-page", sourceUrl: home.url };
+    return { status: "read", sourceUrl: home.url, reader: home.reader, located: !pub.website, text, pages };
+  }
+
   async function one(pub) {
+    let sourceUrl;
     try {
     if (stopped || spent >= SPEND_STOP_USD) {
       stopped = true;
       return;
     }
-    if (!isHarvestableOperatorUrl(pub.website)) {
-      byOsmId[pub.osmId] = { status: "refused-host", venueId: pub.venueId };
+    const cachedFile = byOsmId[pub.osmId]?.status === "read" ? cachedPage(pub.osmId) : null;
+    let read = cachedPageRead(byOsmId[pub.osmId], () => cachedFile?.text ?? null);
+    const cached = read !== null;
+    // A page file written before pages were kept has the one text and one url.
+    if (cached) read = { ...read, pages: cachedFile.pages ?? [{ sourceUrl: read.sourceUrl, text: read.text }] };
+    if (!cached) {
+      read = await readSite(pub);
+      if (read.status === null) return;
+      if (read.status !== "read") {
+        byOsmId[pub.osmId] = { status: read.status, venueId: pub.venueId, ...(read.sourceUrl ? { sourceUrl: read.sourceUrl } : {}) };
+        return;
+      }
+    }
+    if (cached && read.reader === "firecrawl" && !read.landingChecked) {
+      const landing = await cachedFirecrawlLanding(read.sourceUrl);
+      if (landing.status) {
+        byOsmId[pub.osmId] = { status: landing.status, venueId: pub.venueId };
+        return;
+      }
+      read = { ...read, sourceUrl: landing.url, landingChecked: true, pages: [{ ...read.pages[0], sourceUrl: landing.url }, ...read.pages.slice(1)] };
+      byOsmId[pub.osmId] = { ...byOsmId[pub.osmId], sourceUrl: landing.url, landingChecked: true };
+    }
+    if (siteOfAnotherPub(read.sourceUrl, pub.osmId, otherReads())) {
+      byOsmId[pub.osmId] = { status: "site-of-another-pub", venueId: pub.venueId };
       return;
     }
-    const permission = await robots(pub.website);
-    if (!permission.allowed) {
-      byOsmId[pub.osmId] = { status: permission.reason ?? "robots-denied", venueId: pub.venueId };
+    if (pub.needsAddress && !pageStatesAddress(read.text, pub)) {
+      byOsmId[pub.osmId] = { status: pub.website ? "listed-site-unconfirmed" : "located-site-unconfirmed", venueId: pub.venueId, sourceUrl: read.sourceUrl };
       return;
     }
-    const home = await readHtml(pub.website);
-    if (!home.ok) {
-      byOsmId[pub.osmId] = { status: home.reason, venueId: pub.venueId };
-      return;
+    if (!cached) {
+      mkdirSync(PAGES_DIR, { recursive: true });
+      writeFileSync(pagePath(pub.osmId), JSON.stringify({ url: read.sourceUrl, reader: read.reader, readAt: new Date().toISOString(), text: read.text, pages: read.pages }));
+      byOsmId[pub.osmId] = pageReadEntry(pub, read);
+      if (readOnly) return;
     }
-    const landedPermission = await robots(home.url);
-    if (!landedPermission.allowed) {
-      byOsmId[pub.osmId] = { status: landedPermission.reason ?? "robots-denied", venueId: pub.venueId };
-      return;
-    }
-    const pages = [{ sourceUrl: home.url, text: home.text.slice(0, PAGE_CHAR_CAP) }];
-    let text = pages[0].text;
-    const extraLinks = sameHostLinks(home.html, home.url);
-    for (const link of extraLinks.slice(0, 1)) {
-      if (!isHarvestableOperatorUrl(link)) continue;
-      const extraPermission = await robots(link);
-      if (!extraPermission.allowed) continue;
-      const extra = await readHtml(link);
-      if (!extra.ok) continue;
-      const extraLandedPermission = await robots(extra.url);
-      if (!extraLandedPermission.allowed) continue;
-      const extraText = extra.text.slice(0, Math.max(0, PAGE_CHAR_CAP - text.length - 1));
-      pages.push({ sourceUrl: extra.url, text: extraText });
-      text = `${text}\n${extraText}`.slice(0, PAGE_CHAR_CAP);
-      break;
-    }
-    if (text.length < 40) {
-      byOsmId[pub.osmId] = { status: "empty-page", venueId: pub.venueId, sourceUrl: home.url };
-      return;
-    }
+    sourceUrl = read.sourceUrl;
+    const text = read.text;
     const result = await askModel(text);
     const cost = usageCost(result.body);
     spent += cost.usd;
     if (result.status === 429) {
-      byOsmId[pub.osmId] = { status: "quota", venueId: pub.venueId, usd: cost.usd };
+      byOsmId[pub.osmId] = { status: "quota", venueId: pub.venueId, sourceUrl, usd: cost.usd };
       return;
     }
     if (result.status !== 200) {
-      byOsmId[pub.osmId] = { status: `model-${result.status}`, venueId: pub.venueId, usd: cost.usd };
+      byOsmId[pub.osmId] = { status: `model-${result.status}`, venueId: pub.venueId, sourceUrl, usd: cost.usd };
       return;
     }
     const textOut = result.body?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("") ?? "";
     const parsed = parsePubAmenityModelJson(textOut);
     if (!parsed.ok) {
-      byOsmId[pub.osmId] = { status: parsed.reason, venueId: pub.venueId, sourceUrl: home.url, usd: cost.usd };
+      byOsmId[pub.osmId] = { status: parsed.reason, venueId: pub.venueId, sourceUrl, usd: cost.usd };
       return;
     }
-    const kept = {};
-    const evidencedPages = [];
-    for (const page of pages) {
-      const amenities = keepEvidencedAmenities(parsed.amenities, page.text);
-      Object.assign(kept, amenities);
-      // Empty pages still identify their owner when another pub cites them.
-      evidencedPages.push({ sourceUrl: page.sourceUrl, amenities });
-    }
+    // A quote counts for the page that states it, never for text spread across two pages.
+    // An empty page is kept: it still marks its pub as that page's reader.
+    const evidencedPages = read.pages.map((page) => ({ sourceUrl: page.sourceUrl, amenities: keepEvidencedAmenities(parsed.amenities, page.text) }));
     byOsmId[pub.osmId] = {
       status: "ok",
       venueId: pub.venueId,
       name: pub.name,
-      sourceUrl: home.url,
+      sourceUrl,
       verifiedAt: new Date().toISOString().slice(0, 10),
-      amenities: kept,
+      amenities: Object.assign({}, ...evidencedPages.map((page) => page.amenities)),
       pages: evidencedPages,
-      publication: "pending",
       website: pub.website,
       usd: cost.usd,
     };
     if (spent >= SPEND_STOP_USD) stopped = true;
     } catch {
-      byOsmId[pub.osmId] = { status: "error", venueId: pub.venueId };
+      byOsmId[pub.osmId] = { status: "error", venueId: pub.venueId, sourceUrl };
     }
   }
 
@@ -703,33 +979,29 @@ async function main() {
       if (index >= work.length) return;
       await one(work[index]);
       const done = byOsmId[work[index].osmId];
-      if (done) {
-        done.publication = "pending";
-        fresh.set(work[index].osmId, done);
-        batch ??= { spentUsd: startSpent, id: randomUUID() };
-      }
+      // A page kept for a later model run is not an outcome yet.
+      if (markPending(done, work[index].osmId, fresh)) batch ??= newBatch(startSpent);
       if ((index + 1) % 10 === 0) await save();
-      if ((index + 1) % 25 === 0) {
-        const kept = Object.values(byOsmId).filter((row) => row.status === "ok" && Object.keys(row.amenities ?? {}).length > 0).length;
-        console.log(`progress ${index + 1}/${work.length} kept=${kept} spentUsd=${spent.toFixed(4)}`);
-      }
+      if ((index + 1) % 25 === 0) logProgress(index + 1, work.length, byOsmId, spent);
     }
   });
   await Promise.all(workers);
-  if (batch) batch.publications = (previous?.publications ?? 0) + 1;
+  numberBatch(batch, previous);
   await save();
+  if (readOnly) {
+    console.log(JSON.stringify({ readOnly: true, pubs: work.length, firecrawlRequests: firecrawl?.budget.spent() ?? 0, counts: readCounts(work, byOsmId) }));
+    return;
+  }
 
-  // Published peers still own their permitted pages. Recover ownership only:
-  // removed quotes must never return from a published checkpoint.
-  const ownership = Object.entries(byOsmId).flatMap(([osmId, entry]) => {
-    if (!recoverableOwnership(entry, currentPubs.get(osmId))) return [];
-    return (entry.pages?.length ? entry.pages : [entry]).map((page) => ({
-      osmId,
-      sourceUrl: page.sourceUrl,
-      amenities: {},
-    }));
+  const { rows: evidenceRows, skipCounts, chainPages } = mergeHarvestEvidence({
+    previousRows: previous?.rows ?? [],
+    previousSkipCounts: previous?.skipCounts,
+    fresh: copySkipped ? withoutThinnerRereads(fresh, previous?.rows ?? []) : fresh,
+    checkpoint: Object.fromEntries(checkpointReads(byOsmId)),
+    knownChainPages,
   });
-  const { rows: evidenceRows, skipCounts } = mergeEvidence(previous, fresh, ownership);
+  reportFindings(recovered.findings, skipCounts);
+  writeChainPages(chainPages);
   const evidence = withStampFigures({
     version: 1,
     model: FLASH_LITE_SKU.model,
@@ -744,15 +1016,15 @@ async function main() {
       outputTokensPerCall: MAX_OUTPUT_TOKENS,
       spendUsd: Number(projected.toFixed(4)),
     },
-    actualSpendUsd: Number(((previous?.actualSpendUsd ?? 0) + spent - (batch?.spentUsd ?? startSpent)).toFixed(4)),
+    actualSpendUsd: actualSpend(previous, spent, batch?.spentUsd ?? startSpent),
     jobCapUsd: JOB_SPEND_CAP_USD,
     ...publicationStamp(batch, previous),
     skipCounts,
     rows: evidenceRows,
-  }, previous, stampDataset(evidenceRows));
+  }, previous, stampDataset(evidenceRows, chainPages));
   writeEvidence(evidence);
-  for (const [osmId] of fresh) byOsmId[osmId].publication = "published";
-  if (!Object.values(byOsmId).some((entry) => entry?.publication === "pending")) batch = null;
+  markPublished(byOsmId);
+  batch = null;
   await save();
   console.log(
     JSON.stringify({

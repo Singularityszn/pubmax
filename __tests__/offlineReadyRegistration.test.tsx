@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import OfflineReady, {
   OFFLINE_REGISTER_FALLBACK_DELAY_MS,
 } from "@/components/OfflineReady";
+import { defined } from "@/__tests__/helpers/defined";
 
 // GAP 8: the service worker is the whole offline story, and it used to be
 // armed by `pubmax:first-pins` alone - an event only components/PubMap.tsx
@@ -76,8 +77,8 @@ describe("OfflineReady registration", () => {
     });
 
     expect(register).toHaveBeenCalledTimes(1);
-    const url = register.mock.calls[0][0] as string;
-    expect(url).toBe("/sw.js?v=test-build-id&cache-policy=write-safe-v1");
+    const url = defined(register.mock.calls[0])[0] as string;
+    expect(url).toBe("/sw.js?v=test-build-id&cache-policy=plan-preview-safe-v2");
   });
 
   it("keeps the cold path clear: a loaded route has not registered before the fallback delay", async () => {

@@ -61,6 +61,8 @@ export function accessJwt(account: Account): string {
         email: account.email,
         exp: JWT_EXPIRY_SECONDS,
         role: "authenticated",
+        // An emailed-link session: the only kind an unowned callback accepts.
+        amr: [{ method: "otp", timestamp: JWT_EXPIRY_SECONDS - 3_600 }],
       }),
     ),
     base64url("e2e-signature"),
@@ -103,6 +105,24 @@ function accountForBearer(header: string | undefined): Account | null {
     if (token === accessJwt(account)) return account;
   }
   return null;
+}
+
+/**
+ * Answer the same-origin provider read (`/api/auth/providers`, #1942). The
+ * server reads Supabase's settings for the browser now, and the keyless e2e
+ * server's Supabase host is not routable, so unanswered the route is a 503 and
+ * every signed-out page logs a console error. Routing the Supabase host in the
+ * page no longer reaches that read; this is the boundary to stub instead. Every
+ * provider is off, which is what the old `{}` settings double said.
+ */
+export async function stubSocialAuthProviders(page: Page): Promise<void> {
+  await page.route("**/api/auth/providers**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ google: false, apple: false, microsoft: false }),
+    }),
+  );
 }
 
 export async function installAuthDoubles(
@@ -174,6 +194,8 @@ export async function installAuthDoubles(
       whichKey: WHICH_ACCOUNT_KEY,
     },
   );
+
+  await stubSocialAuthProviders(page);
 
   // GoTrue double.
   //

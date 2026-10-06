@@ -60,6 +60,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => ({
 
 import { venuePhotoStore } from "@/lib/venuePhotoStore";
 import { drinkWallServingKey, venuePhotoServingKey } from "@/lib/venuePhotos";
+import { defined } from "@/__tests__/helpers/defined";
 
 const PROFILE = "22222222-2222-4222-8222-222222222222";
 const VENUE = "venue-1f5ygjb";
@@ -86,7 +87,7 @@ describe("venue photo insert before 0158 is applied", () => {
     });
     expect(photo.wallCategory).toBe("pint");
     expect(supabase.inserted).toHaveLength(1);
-    expect(supabase.inserted[0].id).toBe(id);
+    expect(defined(supabase.inserted[0]).id).toBe(id);
   });
 
   it("refuses a city photo, which needs the 0158 columns, and names the migration", async () => {

@@ -6,6 +6,7 @@
 
 "use client";
 
+import { lastOf } from "@/lib/tuple";
 import { useEffect, useRef, useState } from "react";
 
 import Kicker from "@/components/ui/kicker";
@@ -20,7 +21,7 @@ import {
 
 import "./landingLondonCollage.css";
 
-const WIDEST = LONDON_COLLAGE_WIDTHS[LONDON_COLLAGE_WIDTHS.length - 1];
+const WIDEST = lastOf(LONDON_COLLAGE_WIDTHS);
 
 /** Phone strip tile width, tablet hero span, then the widest desktop span (2 of 5 columns). */
 const COLLAGE_SIZES =

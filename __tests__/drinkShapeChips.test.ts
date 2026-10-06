@@ -227,8 +227,7 @@ describe("CHIP_CATEGORIES outing lenses", () => {
 
 // The mobile filter sheet renders DrinkShapeChips without MapToolbar (a
 // desktop-only dynamic chunk), so the chip styles only reach a 390px viewport
-// if the component imports its stylesheet itself. Locked from source, the same
-// idiom as mapBannerStagingCss.test.ts.
+// if the component imports its stylesheet itself. Locked from source.
 describe("drink chip styling ships with the component", () => {
   const component = readFileSync(
     join(process.cwd(), "components/map/DrinkShapeChips.tsx"),

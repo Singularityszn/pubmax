@@ -134,12 +134,6 @@ test("installed PWA asks for the honest London brief only after a useful plan ac
   await installPwaPushRuntime(page);
   await installSuccessfulPlanRoute(page);
 
-  let registrationBody: unknown = null;
-  await page.route("**/api/push-tokens", async (route) => {
-    registrationBody = route.request().postDataJSON();
-    await route.fulfill({ status: 200, contentType: "application/json", body: "{\"ok\":true}" });
-  });
-
   await page.goto("/about");
   await page.evaluate(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -161,10 +155,15 @@ test("installed PWA asks for the honest London brief only after a useful plan ac
   await expect(page.getByText("Weather verdict and one sourced pick for tonight. No crew or personal alerts yet.")).toBeVisible();
   await expect(page.getByText("Get pinged when your crew votes or the get-in closes.")).toHaveCount(0);
 
+  const registration = page.waitForRequest(
+    (request) => request.method() === "POST" && new URL(request.url()).pathname === "/api/push-tokens",
+  );
   await webPrompt.getByRole("button", { name: "Enable" }).click();
   await expect(webPrompt).toHaveCount(0);
   expect(await page.evaluate(() => (window as unknown as { __webPushPermissionRequests: number }).__webPushPermissionRequests)).toBe(1);
-  expect(registrationBody).toMatchObject({ platform: "web", token: expect.stringMatching(/^webpush:/) });
+  const registrationRequest = await registration;
+  expect(registrationRequest.postDataJSON()).toMatchObject({ platform: "web", token: expect.stringMatching(/^webpush:/) });
+  expect((await registrationRequest.response())?.status()).toBe(200);
 
   await page.reload();
   await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible({ timeout: 30_000 });

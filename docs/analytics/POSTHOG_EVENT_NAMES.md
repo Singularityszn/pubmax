@@ -52,5 +52,5 @@ Authoritative registry and sanitization: `lib/analyticsEvents.ts`. This file is 
 
 ## Identity
 
-- Signed-in users: PostHog `identify` with Supabase `user.id` only (no email or handle).
-- Sign-out: `reset` then resume anonymous device id when consent remains granted.
+- The browser SDK never calls `identify`. Every browser event carries the consented `anon_` device id only, signed in or not.
+- Sign-in and sign-out do not touch the PostHog person. A later opt-in after an opt-out calls `reset` and resumes the new anonymous device id.

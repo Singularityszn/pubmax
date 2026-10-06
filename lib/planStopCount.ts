@@ -1,3 +1,5 @@
+import { lastOf } from "@/lib/tuple";
+
 /**
  * How many pub stops a Plan may hold. This ONE table is the whole vocabulary:
  * the picker offers it, the generator targets it, the grounding proof mints
@@ -12,7 +14,7 @@
 export const PLAN_STOP_COUNTS = [1, 2, 3, 4, 5, 6] as const;
 export type PlanStopCount = (typeof PLAN_STOP_COUNTS)[number];
 export const MIN_PLAN_STOP_COUNT = PLAN_STOP_COUNTS[0];
-export const MAX_PLAN_STOP_COUNT = PLAN_STOP_COUNTS[PLAN_STOP_COUNTS.length - 1];
+export const MAX_PLAN_STOP_COUNT = lastOf(PLAN_STOP_COUNTS);
 /** Explicitly 3, never the first row of the table: widening the floor may not move the default. */
 export const DEFAULT_PLAN_STOP_COUNT: PlanStopCount = 3;
 

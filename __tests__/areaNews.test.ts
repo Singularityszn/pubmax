@@ -79,7 +79,7 @@ describe("area_news.json dataset shape", () => {
 
   it("rejects an https URL without a hostname", () => {
     expect(validateAreaNewsEntry({
-      ...dataset.entries[0],
+      ...defined(dataset.entries[0]),
       sourceUrl: "https://",
     })).toEqual(expect.arrayContaining([
       expect.stringContaining("sourceUrl must be an https URL"),
@@ -148,6 +148,7 @@ describe("venueMatch integrity", () => {
 
 import { GET } from "@/app/api/area-news/route";
 import { __resetAreaNewsCache } from "@/lib/areaNews.server";
+import { defined } from "@/__tests__/helpers/defined";
 
 describe("GET /api/area-news", () => {
   it("returns capped, dated entries for an area", async () => {
@@ -199,10 +200,10 @@ describe("pure resolvers", () => {
   it("keeps only current facts and orders them newest first", () => {
     const now = Date.parse("2026-08-28T12:00:00Z");
     const entries: AreaNewsEntry[] = [
-      { ...FIXTURES[0], id: "old", observedAt: "2026-08-06" },
-      { ...FIXTURES[1], id: "new", observedAt: "2026-08-27" },
-      { ...FIXTURES[2], id: "boundary", observedAt: "2026-08-07" },
-      { ...FIXTURES[0], id: "future", observedAt: "2026-08-29" },
+      { ...defined(FIXTURES[0]), id: "old", observedAt: "2026-08-06" },
+      { ...defined(FIXTURES[1]), id: "new", observedAt: "2026-08-27" },
+      { ...defined(FIXTURES[2]), id: "boundary", observedAt: "2026-08-07" },
+      { ...defined(FIXTURES[0]), id: "future", observedAt: "2026-08-29" },
     ];
 
     expect(freshAreaNews(entries, { now }).map((entry) => entry.id)).toEqual([
@@ -213,15 +214,15 @@ describe("pure resolvers", () => {
 
   it("keeps distinct facts from one area and day", () => {
     const entries: AreaNewsEntry[] = [
-      { ...FIXTURES[0], id: "same-day-one", observedAt: "2026-08-27", title: "First opening" },
-      { ...FIXTURES[0], id: "same-day-two", observedAt: "2026-08-27", title: "Second opening" },
+      { ...defined(FIXTURES[0]), id: "same-day-one", observedAt: "2026-08-27", title: "First opening" },
+      { ...defined(FIXTURES[0]), id: "same-day-two", observedAt: "2026-08-27", title: "Second opening" },
     ];
 
     expect(freshAreaNews(entries, { now: Date.parse("2026-08-28T12:00:00Z") })).toHaveLength(2);
   });
 
   it("rejects impossible calendar dates before freshness filtering", () => {
-    const invalid = { ...FIXTURES[0], observedAt: "2026-02-31" };
+    const invalid = { ...defined(FIXTURES[0]), observedAt: "2026-02-31" };
     expect(validateAreaNewsEntry(invalid)).toEqual(expect.arrayContaining([
       expect.stringContaining("observedAt must be an ISO date"),
     ]));

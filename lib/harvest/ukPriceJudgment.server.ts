@@ -277,9 +277,12 @@ export async function readVenueDrinkPricesJudged(
       continue;
     }
 
-    for (let index = 0; index < verbatimBatch.length; index += 1) {
-      const raw = verbatimBatch[index];
+    for (const [index, raw] of verbatimBatch.entries()) {
       const probs = judged.probabilities[index];
+      if (!probs) {
+        drops.push("typesafe-judgment-malformed-answer");
+        continue;
+      }
       const outcome = applyJudgmentToCandidate(raw, probs, ctx);
       if (outcome.kept) kept.push(outcome.kept);
       drops.push(...outcome.drops);

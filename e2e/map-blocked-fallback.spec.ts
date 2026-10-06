@@ -1,7 +1,8 @@
-import { expect, test as base, type Page } from "@playwright/test";
+import { expect, test as base, type Locator, type Page } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 
 import { COMMUNITY_SHEET_FIXTURE_VENUE_ID } from "./helpers/communitySheetFixture";
+import { expectLayoutSettled } from "./helpers/layoutSettled";
 
 /**
  * F08/J33 - a blocked map still gets the reader to the venue.
@@ -96,6 +97,23 @@ async function blockMapLibrary(page: Page, chunk: string): Promise<() => number>
 }
 
 const fallback = (page: Page) => page.locator(".mapFallback");
+
+/**
+ * The class of whatever owns a control's centre point, read in ONE layout.
+ * Reading the box first and hit-testing in a later call measures two layouts:
+ * a city strip or venue rows landing in between move the control, and the
+ * stale point then lands on the card behind it. Callers wait for the control
+ * to rest first and then read once, so a real overlap is never polled away.
+ */
+const centreOwner = (control: Locator) =>
+  control.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    const owner = document.elementFromPoint(
+      box.x + box.width / 2,
+      box.y + box.height / 2,
+    );
+    return String(owner?.className ?? "none");
+  });
 const spilled = (page: Page) => page.getByText("Spilled.", { exact: true });
 
 /**
@@ -142,13 +160,8 @@ test.describe("a blocked map library keeps the pubs reachable", () => {
       // One retry control, and it is tappable rather than under other chrome.
       const retry = page.locator(".mapFallbackRetry");
       await expect(retry).toBeVisible();
-      const box = await retry.boundingBox();
-      expect(box).not.toBeNull();
-      const owner = await page.evaluate(
-        ([x, y]) => document.elementFromPoint(x, y)?.className ?? "none",
-        [box!.x + box!.width / 2, box!.y + box!.height / 2] as [number, number],
-      );
-      expect(String(owner)).toContain("mapFallbackRetry");
+      await expectLayoutSettled(retry);
+      expect(await centreOwner(retry)).toContain("mapFallbackRetry");
       // The heading and its one sentence are READ from below the phone chrome.
       // They used to sit behind the top bar: .mapFallback's phone padding-top
       // named a token nothing defines, so the whole calc() was dropped.
@@ -300,15 +313,10 @@ test.describe("a tile outage leaves a retry a thumb can reach", () => {
     const notice = page.locator(".mapSoftRetry");
     await expect(notice).toBeVisible({ timeout: 60_000 });
     const retry = notice.getByRole("button", { name: "Retry" });
-    const box = await retry.boundingBox();
-    expect(box).not.toBeNull();
     // Measured before the fix: BUTTON.mobilePlanActivation, the "Describe the
     // outing" bar, owned this point and swallowed the tap.
-    const owner = await page.evaluate(
-      ([x, y]) => document.elementFromPoint(x, y)?.className ?? "none",
-      [box!.x + box!.width / 2, box!.y + box!.height / 2] as [number, number],
-    );
-    expect(String(owner)).toContain("mapSoftRetryBtn");
+    await expectLayoutSettled(retry);
+    expect(await centreOwner(retry)).toContain("mapSoftRetryBtn");
     await shot(page, "after-tiles-blocked-390");
   });
 });

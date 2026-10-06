@@ -75,6 +75,7 @@ export default async function SpoonsValuePage() {
   const rows = pack.rows.map(toTableRow);
   const cuts = spoonsValueCuts(rows);
   const best = rows[0];
+  const worst = rows.at(-1);
   const pinned = rows.filter((row) => row.venueId).length;
 
   // A Dataset rather than an Article: the page IS the table, and the credit
@@ -121,13 +122,11 @@ export default async function SpoonsValuePage() {
             </a>
           }
         >
-          <p className="spoonsLede">
-            {spoonsValueLede(
-              rows[rows.length - 1].milliunits,
-              best.milliunits,
-              modalMilliunits,
-            )}
-          </p>
+          {best && worst ? (
+            <p className="spoonsLede">
+              {spoonsValueLede(worst.milliunits, best.milliunits, modalMilliunits)}
+            </p>
+          ) : null}
 
           <SpoonsValueTable
             rows={rows}

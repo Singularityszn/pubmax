@@ -276,6 +276,142 @@ describe("POST /api/plans/generate", () => {
     expect(result.prepared.candidates[0]?.reasons).toContain("corroborated community wine price £9.00");
   });
 
+  it("prepares a zero-proof Soft drinks request with matching corroborated prices instead of Alcohol-free evidence", async () => {
+    const now = Date.now();
+    loadConciergeVenuesMock.mockResolvedValueOnce([
+      generatedVenue("v1"),
+      generatedVenue("v2"),
+      generatedVenue("v3"),
+    ]);
+    categoryIndexMock.mockResolvedValueOnce({
+      prices: [
+        { venueId: "v1", drinkCategory: "alcohol-free", priceGbp: 1, submittedAt: now, source: "community", corroborations: 2 },
+        { venueId: "v2", drinkCategory: "soft-drink", priceGbp: 3, submittedAt: now, source: "community", corroborations: 2 },
+        { venueId: "v3", drinkCategory: "soft-drink", priceGbp: 1, submittedAt: now, source: "community", corroborations: 1 },
+      ],
+      truncated: false,
+      degraded: false,
+    });
+
+    const result = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query: "cheap soft drinks in Clapham for 2", context: { zeroProof: true, drinkCategory: "soft-drink" } }),
+    }), now);
+
+    if (!("prepared" in result)) throw new Error("Expected prepared Soft drinks search");
+    expect(result.prepared.context).toMatchObject({ drinkCategory: "soft-drink", zeroProof: true });
+    expect(result.prepared.candidates[0]?.venue.id).toBe("v2");
+    expect(result.prepared.candidates[0]?.selectedDrinkPrice).toMatchObject({ category: "soft-drink", priceGbp: 3 });
+    for (const id of ["v1", "v3"]) {
+      const candidate = result.prepared.candidates.find((row) => row.venue.id === id);
+      expect(candidate?.selectedDrinkPrice).toBeNull();
+      expect(candidate?.reasons.join(" ")).not.toMatch(/corroborated|pints from/i);
+    }
+  });
+
+  it("generates Soft drinks stops from matching evidence while preserving zero-proof money guards", async () => {
+    const now = Date.now();
+    loadConciergeVenuesMock.mockResolvedValueOnce([1, 2, 3, 4].map((n) => generatedVenue(`v${n}`)));
+    categoryIndexMock.mockResolvedValueOnce({
+      prices: [
+        { venueId: "v1", drinkCategory: "alcohol-free", priceGbp: 1, submittedAt: now, source: "community", corroborations: 2 },
+        { venueId: "v2", drinkCategory: "soft-drink", priceGbp: 3, submittedAt: now, source: "community", corroborations: 2 },
+        { venueId: "v3", drinkCategory: "soft-drink", priceGbp: 4, submittedAt: now, source: "community", corroborations: 2 },
+        { venueId: "v4", drinkCategory: "alcohol-free", priceGbp: 2, submittedAt: now, source: "community", corroborations: 2 },
+      ],
+      truncated: false,
+      degraded: false,
+    });
+
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query: "cheap soft drinks in Clapham for 2", context: { zeroProof: true, drinkCategory: "soft-drink", stopCount: 2 } }),
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.inferredContext).toMatchObject({ drinkCategory: "soft-drink", zeroProof: true });
+    expect(body.stops.map((stop: { venueId: string }) => stop.venueId).sort()).toEqual(["v2", "v3"]);
+    for (const stop of body.stops) {
+      expect(stop.reason).toMatch(/corroborated.*soft drinks price/i);
+      expect(stop.estimatedPintPricePence).toBeNull();
+      expect(stop.priceEvidence).toBeNull();
+      expect(stop.selectedDrinkPriceEvidence ?? null).toBeNull();
+    }
+    expect(body.budgetSummary).toMatchObject({ withinLimit: null, basis: "selected-drink-price-unavailable" });
+  });
+
+  it.each(["value", "standard", "treat"] as const)(
+    "reports drinkCategory in contextEffects for a %s zero-proof Soft drinks request",
+    async (budget) => {
+      const now = Date.now();
+      loadConciergeVenuesMock.mockResolvedValueOnce([1, 2, 3].map((n) => generatedVenue(`v${n}`)));
+      categoryIndexMock.mockResolvedValueOnce({
+        prices: [
+          { venueId: "v2", drinkCategory: "soft-drink", priceGbp: 3, submittedAt: now, source: "community", corroborations: 2 },
+        ],
+        truncated: false,
+        degraded: false,
+      });
+
+      const response = await POST(new Request("http://localhost/api/plans/generate", {
+        method: "POST",
+        body: JSON.stringify({ query: "soft drinks in Clapham for 2", context: { budget, zeroProof: true, drinkCategory: "soft-drink", stopCount: 2 } }),
+      }));
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.inferredContext).toMatchObject({ budget, drinkCategory: "soft-drink", zeroProof: true });
+      expect(body.contextEffects).toEqual(expect.arrayContaining(["zeroProof", "drinkCategory"]));
+    },
+  );
+
+  it.each([null, "beer", "wine", "gin"] as const)(
+    "does not report drinkCategory in contextEffects for a value zero-proof %s request",
+    async (drinkCategory) => {
+      loadConciergeVenuesMock.mockResolvedValueOnce([1, 2, 3].map((n) => generatedVenue(`v${n}`)));
+
+      const response = await POST(new Request("http://localhost/api/plans/generate", {
+        method: "POST",
+        body: JSON.stringify({ query: "cheap night in Clapham for 2", context: { budget: "value", zeroProof: true, drinkCategory, stopCount: 2 } }),
+      }));
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.inferredContext).toMatchObject({ zeroProof: true, drinkCategory });
+      expect(body.contextEffects).toContain("zeroProof");
+      expect(body.contextEffects).not.toContain("drinkCategory");
+    },
+  );
+
+  it("explains a value Soft drinks stop with one matching price reason and room for a second reason", async () => {
+    const now = Date.now();
+    loadConciergeVenuesMock.mockResolvedValueOnce([1, 2, 3, 4].map((n) => generatedVenue(`v${n}`, { hasStory: true })));
+    categoryIndexMock.mockResolvedValueOnce({
+      prices: [
+        { venueId: "v1", drinkCategory: "alcohol-free", priceGbp: 1, submittedAt: now, source: "community", corroborations: 2 },
+        { venueId: "v2", drinkCategory: "soft-drink", priceGbp: 3, submittedAt: now, source: "community", corroborations: 2 },
+        { venueId: "v3", drinkCategory: "soft-drink", priceGbp: 4, submittedAt: now, source: "community", corroborations: 2 },
+      ],
+      truncated: false,
+      degraded: false,
+    });
+
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query: "cheap soft drinks in a historic pub in Clapham for 2", context: { zeroProof: true, drinkCategory: "soft-drink", stopCount: 2 } }),
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.inferredContext).toMatchObject({ budget: "value", drinkCategory: "soft-drink", zeroProof: true });
+    expect(body.stops.map((stop: { venueId: string }) => stop.venueId).sort()).toEqual(["v2", "v3"]);
+    for (const stop of body.stops) {
+      expect(stop.reason.match(/soft drinks price/gi)).toHaveLength(1);
+      expect(stop.reason).toMatch(/corroborated community soft drinks price £\d\.\d{2}, historic character\.$/);
+    }
+  });
+
   it("carries trusted wine price evidence to selected stops and alternatives without inventing a serving", async () => {
     loadConciergeVenuesMock.mockResolvedValueOnce([
       generatedVenue("v1", { cheapestPrice: 4 }),

@@ -21,7 +21,12 @@ import { useViewerSession } from "@/components/auth/useViewerSession";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
-import { useFocusTrap } from "@/lib/useFocusTrap";
+import {
+  readOtherStrictModalFocusTrap,
+  serverStrictModalFocusTrap,
+  subscribeStrictModalFocusTrap,
+  useFocusTrap,
+} from "@/lib/useFocusTrap";
 import {
   IDENTITY_NUDGE_FIRST_PAINT_GRACE_MS,
   getIdentityNudgeClientSnapshot,
@@ -77,16 +82,23 @@ export default function IdentityNudge(): React.JSX.Element | null {
   // trigger can't slam a dialog over a page the instant it loads (belt-and-
   // braces with the pending TTL in lib/identityNudge.ts). setState only fires
   // from async callbacks (timer / one-shot listeners), never the effect body.
+  //
+  // A tap ends the grace once it has CLICKED, never on pointerdown. On
+  // pointerdown the sheet painted between press and release, its backdrop took
+  // the release, and the tap that ended the grace never reached its control:
+  // a guest with a Moment draft tapped Edit and got the sign-in sheet with no
+  // editor (e2e/moment-photo-editor.spec.ts). The window listener runs after
+  // the page's own click handlers, so the tap lands first.
   const [graced, setGraced] = useState(false);
   useEffect(() => {
     if (graced) return;
     const settle = () => setGraced(true);
     const timer = window.setTimeout(settle, IDENTITY_NUDGE_FIRST_PAINT_GRACE_MS);
-    window.addEventListener("pointerdown", settle, { once: true });
+    window.addEventListener("click", settle, { once: true });
     window.addEventListener("keydown", settle, { once: true });
     return () => {
       window.clearTimeout(timer);
-      window.removeEventListener("pointerdown", settle);
+      window.removeEventListener("click", settle);
       window.removeEventListener("keydown", settle);
     };
   }, [graced]);
@@ -95,7 +107,7 @@ export default function IdentityNudge(): React.JSX.Element | null {
   // snapshot, so a sign-in in another tab instantly hides the nudge. Nothing to
   // offer when auth is unconfigured — no dead buttons. The grace gate keeps it
   // off the first paint.
-  const canShow =
+  const eligible =
     Boolean(trigger) &&
     graced &&
     !loading &&
@@ -103,6 +115,21 @@ export default function IdentityNudge(): React.JSX.Element | null {
     viewerSession.signedOut &&
     configured &&
     hasPromptBudgetFor(IDENTITY_SURFACE);
+
+  // Never share the page with another strict modal. The tap that ends the
+  // grace is often the tap that opens one (Edit on a Moment opens the photo
+  // editor, a lazy chunk that mounts after the nudge has already opened), and
+  // two strict traps inert each other: the reader saw an inert editor over a
+  // sign-in sheet they could not reach. While any strict modal other than this
+  // one holds the page the nudge steps aside, and it comes back when that modal
+  // closes. A map-surface sheet or drawer is not a strict modal, so the nudge
+  // still covers it.
+  const otherStrictModalOpen = useSyncExternalStore(
+    subscribeStrictModalFocusTrap,
+    () => readOtherStrictModalFocusTrap(dialogRef.current),
+    serverStrictModalFocusTrap,
+  );
+  const canShow = eligible && !otherStrictModalOpen;
 
   // Claim the shared one-prompt-per-session budget at the moment it shows
   // (docs/PROMPT_ORCHESTRATION.md). Idempotent for this surface.

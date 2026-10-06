@@ -23,7 +23,7 @@ for (const city of ["manchester", "london"] as const) {
       await page.route("**/api/citymcp/status**", () => {
         throw new Error("a non-London map must not call live city status");
       });
-      await page.route("**/api/tfl/**", () => {
+      await page.route("**/api/tfl-disruption**", () => {
         throw new Error("a non-London map must not call TfL");
       });
     }

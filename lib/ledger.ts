@@ -173,7 +173,7 @@ export function redactHandle(raw: string | null | undefined): string {
   const initials = bare
     .split("_")
     .filter(Boolean)
-    .map((part) => `${part[0].toUpperCase()}.`)
+    .map((part) => `${part.charAt(0).toUpperCase()}.`)
     .join(" ");
   return initials || REDACTED_ANON_LABEL;
 }
@@ -193,13 +193,15 @@ export type RedactedFamilyEntry = Omit<FamilyTableEntry, "handle" | "note" | "pr
  * — the public page still shows the table's shape (how many stories, when),
  * just not their contents. Pure, so it is unit-testable with plain fixtures.
  */
+function redactFamilyTableEntry(entry: FamilyTableEntry): RedactedFamilyEntry {
+  const { note: _note, priceLabel: _price, ...safe } = entry;
+  void _note;
+  void _price;
+  return { ...safe, handle: redactHandle(entry.handle) };
+}
+
 export function redactFamilyTableEntries(entries: FamilyTableEntry[]): RedactedFamilyEntry[] {
-  return entries.map((entry) => {
-    const { note: _note, priceLabel: _price, ...safe } = entry;
-    void _note;
-    void _price;
-    return { ...safe, handle: redactHandle(entry.handle) };
-  });
+  return entries.map(redactFamilyTableEntry);
 }
 
 /** True when the viewer is the author of a legacy/family-table drop. */
@@ -226,7 +228,7 @@ export function resolveFamilyTableDisplay(
   return entries.map((entry) => {
     const sourceHandle = handleById.get(entry.id) ?? entry.handle;
     if (isFamilyTableOwner(sourceHandle, viewerHandle)) return entry;
-    return redactFamilyTableEntries([entry])[0];
+    return redactFamilyTableEntry(entry);
   });
 }
 

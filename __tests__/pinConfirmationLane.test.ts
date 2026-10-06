@@ -35,6 +35,7 @@ import {
   provisionalPriceDrop,
   type Venue,
 } from "@/lib/venues";
+import { defined } from "@/__tests__/helpers/defined";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const NOW = Date.parse("2026-09-04T20:00:00.000Z");
@@ -145,9 +146,9 @@ describe("the pin lane reads the server's confirmation", () => {
       new Map([[VENUE_ID, [drop({ handle: "Anonymous", confirmation: confirmation() })]]]),
       NOW,
     );
-    expect(merged.latestContributorPrice).toBe(4.5);
-    expect(merged.cheapestPrice).toBe(4.5);
-    expect(pinFor(merged).properties?.priceLabel).toBe("£4.50");
+    expect(defined(merged).latestContributorPrice).toBe(4.5);
+    expect(defined(merged).cheapestPrice).toBe(4.5);
+    expect(defined(pinFor(defined(merged))).properties?.priceLabel).toBe("£4.50");
   });
 
   it("stands the standing green over it, through the one decider", () => {
@@ -169,7 +170,7 @@ describe("the pin lane reads the server's confirmation", () => {
     const drops = confirmedPair();
     const [merged] = mergeVenueDrops([venue()], new Map([[VENUE_ID, drops]]), NOW);
     expect(authoritativePriceDrop(drops, NOW)).not.toBeNull();
-    expect(merged.latestContributorPrice).toBe(4.5);
+    expect(defined(merged).latestContributorPrice).toBe(4.5);
     expect(
       priceStandingFor({ confirmed: confirmedPriceInputFor(drops, NOW) }, NOW).standing,
     ).toBe("confirmed");
@@ -188,8 +189,8 @@ describe("what the confirmation lane still refuses", () => {
     expect(authoritativePriceDrop(drops, NOW)).toBeNull();
     expect(provisionalPriceDrop(drops, NOW)?.priceGbp).toBe(4.5);
     const [merged] = mergeVenueDrops([venue()], new Map([[VENUE_ID, drops]]), NOW);
-    expect(merged.latestContributorPrice).toBeNull();
-    expect(merged.cheapestPrice).toBeNull();
+    expect(defined(merged).latestContributorPrice).toBeNull();
+    expect(defined(merged).cheapestPrice).toBeNull();
     expect(
       priceStandingFor({ confirmed: confirmedPriceInputFor(drops, NOW) }, NOW).standing,
     ).toBe("none");
@@ -219,7 +220,7 @@ describe("what the confirmation lane still refuses", () => {
       priceStandingFor({ confirmed: confirmedPriceInputFor(drops, NOW) }, NOW).standing,
     ).toBe("none");
     // The row is still there, and still says what the drinker paid.
-    expect(drops[0].confirmation?.confirmationId).toBe("conf-1");
+    expect(defined(drops[0]).confirmation?.confirmationId).toBe("conf-1");
   });
 
   it("never lets a demo seed carry a confirmation onto the map", () => {

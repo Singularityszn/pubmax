@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import { momentHref } from "@/components/nav/navigationModel";
 import { preferredCityMapHref } from "@/lib/cityPreference";
 import { withPriceContributionIntent } from "@/lib/priceContributionIntent";
@@ -15,7 +16,7 @@ export type CreateFabAction = {
   label: string;
   /** `returnTo` is the live route WITH its query, so composing from
    *  /map?sel=venue-123 comes back to that pub rather than to a bare map. */
-  hrefFor: (returnTo: string) => string;
+  hrefFor: (returnTo: string) => Route;
 };
 
 /**
@@ -34,7 +35,7 @@ export function returnToFromLocation(
   return `${pathname}${location?.search ?? ""}`;
 }
 
-function categoryPriceHref(returnTo: string): string {
+function categoryPriceHref(returnTo: string): Route {
   const url = new URL(
     /^\/map(?:\/[^/?#]+)?(?:[?#]|$)/.test(returnTo)
       ? returnTo
@@ -43,7 +44,8 @@ function categoryPriceHref(returnTo: string): string {
   );
   url.searchParams.delete("log");
   url.searchParams.delete("price");
-  return withPriceContributionIntent(url.href);
+  // The base is always a /map path, and the intent param keeps it one.
+  return withPriceContributionIntent(url.href) as Route;
 }
 
 export const CREATE_FAB_ACTIONS: readonly CreateFabAction[] = [

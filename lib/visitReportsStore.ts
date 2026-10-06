@@ -7,7 +7,9 @@
 // 0046 and 0058 land (or on a schema-cache miss) local/preview paths fail soft
 // to the in-memory store so demos keep working. Deployed production fails closed: missing-schema
 // and hard write failures throw so the route answers 503 (house rule: degraded
-// dependency, never a fake success). Reads remain fail-soft.
+// dependency, never a fake success). Reads remain fail-soft. The durable
+// `report` is the exception: it needs the migration 0175 RPC and never falls
+// back to memory, so a missing RPC answers 503 on every path.
 //
 // Idempotent by construction: ONE report per handle per venue per night. A
 // re-submission for the same (venueId, handle, visitedAt) UPDATES the existing
@@ -23,12 +25,15 @@ import "server-only";
 
 import { randomUUID } from "crypto";
 
+
 import {
   admin,
   createFailSoftGuard,
   isUniqueViolation,
   onMissingDurableWrite,
+  rowUnderCurrentVenueId,
   selectStore,
+  whereVenueIdIn,
 } from "@/lib/storeBackend";
 import {
   cleanBusyness,
@@ -45,6 +50,7 @@ import {
 } from "@/lib/visitReports";
 import { dropWithdrawnAuthors, withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { authorRetiredAtFromRow } from "@/lib/retiredContributor";
+import { storedVenueIds } from "@/lib/venueAliases";
 import type {
   ContributionRecord,
   ContributionRecordReadResult,
@@ -159,9 +165,11 @@ function visitContributionRecord(report: VisitReport): ContributionRecord {
 const byId = new Map<string, VisitReport>();
 const idByNight = new Map<string, string>();
 
-function memoryUpsert(fields: VisitReportFields, now: number): VisitReport {
+async function memoryUpsert(fields: VisitReportFields, now: number): Promise<VisitReport> {
   const key = nightKey(fields.venueId, fields.handle, fields.visitedAt);
-  const existingId = idByNight.get(key);
+  const existingId = (await storedVenueIds(fields.venueId))
+    .map((venueId) => idByNight.get(nightKey(venueId, fields.handle, fields.visitedAt)))
+    .find((id) => id !== undefined);
   const createdAt = new Date(now).toISOString();
   if (existingId) {
     const prev = byId.get(existingId)!;
@@ -193,12 +201,13 @@ function memoryUpsert(fields: VisitReportFields, now: number): VisitReport {
 
 export const memoryVisitReportStore: VisitReportStore = {
   async create(fields, now = Date.now()) {
-    return toVisitReportDTO(memoryUpsert(fields, now));
+    return toVisitReportDTO(await memoryUpsert(fields, now));
   },
 
   async readForVenue(venueId) {
+    const venueIds = await storedVenueIds(venueId);
     const visible = Array.from(byId.values())
-      .filter((r) => r.venueId === venueId && r.status === "visible");
+      .filter((r) => venueIds.includes(r.venueId) && r.status === "visible");
     const reports = (await dropWithdrawnAuthors(visible, (r) => r.handle))
       .sort(byNewestVisit)
       .slice(0, MAX_VENUE_REPORTS)
@@ -336,15 +345,13 @@ function fromRow(row: Record<string, unknown>): VisitReport {
 }
 
 async function selectExistingId(fields: VisitReportFields): Promise<string | null> {
-  const { data, error } = await admin()
-    .from(TABLE)
-    .select("id")
-    .eq("venue_id", fields.venueId)
+  const venueIds = await storedVenueIds(fields.venueId);
+  const { data, error } = await whereVenueIdIn(admin().from(TABLE).select("id, venue_id"), venueIds)
     .eq("handle", fields.handle)
-    .eq("visited_at", fields.visitedAt)
-    .maybeSingle();
+    .eq("visited_at", fields.visitedAt);
   if (error) throw new Error(error.message);
-  return data ? String((data as { id: unknown }).id) : null;
+  const row = rowUnderCurrentVenueId((data ?? []) as { id: unknown; venue_id: unknown }[], venueIds);
+  return row ? String(row.id) : null;
 }
 
 async function updateFields(id: string, fields: VisitReportFields, createdAt: string): Promise<void> {
@@ -410,10 +417,10 @@ export const supabaseVisitReportStore: VisitReportStore = {
       message: "readForVenue failed - returning no reports",
       onError: () => ({ status: "degraded", reports: [] }),
       run: async () => {
-        const { data, error } = await admin()
-          .from(TABLE)
-          .select("*")
-          .eq("venue_id", venueId)
+        const { data, error } = await whereVenueIdIn(
+          admin().from(TABLE).select("*"),
+          await storedVenueIds(venueId),
+        )
           .eq("status", "visible")
           // Same two-key order as the memory store (see byNewestVisit): the
           // night first, the submission time only to break a tie.
@@ -496,52 +503,17 @@ export const supabaseVisitReportStore: VisitReportStore = {
   },
 
   async report(id, reason, actorHash) {
-    return guard<boolean>({
-      context: "report",
-      onSchemaMiss: () =>
-        onMissingDurableWrite({
-          storeTag: "visit-reports",
-          migrationHint: "apply migrations 0046 and 0058",
-          fallback: () => memoryVisitReportStore.report(id, reason, actorHash),
-        }),
-      // A report that can't be recorded should surface, not fake-succeed — but a
-      // read/no-row case returns false. Non-schema errors throw → route 503.
-      run: async () => {
-        const { data, error } = await admin()
-          .from(TABLE)
-          .select("id, status, report_count, report_actors")
-          .eq("id", id)
-          .maybeSingle();
-        if (error) throw new Error(error.message);
-        if (!data) return false;
-        const row = data as {
-          id: unknown;
-          status: unknown;
-          report_count: unknown;
-          report_actors: unknown;
-        };
-        const actors = Array.isArray(row.report_actors)
-          ? (row.report_actors as unknown[]).filter((a): a is string => typeof a === "string")
-          : [];
-        // Idempotent: a same-actor duplicate is a no-op (row unchanged).
-        if (actors.includes(actorHash)) return true;
-        const nextActors = [...actors, actorHash];
-        const { error: updateError } = await admin()
-          .from(TABLE)
-          .update({
-            report_actors: nextActors,
-            report_count: nextActors.length,
-            reported_at: new Date().toISOString(),
-            ...(reason ? { report_reason: reason } : {}),
-            // Re-open the row for review (see the memory store for the rule);
-            // the moderator note stays, so the prior decision is still on file.
-            ...(row.status === "visible" ? { moderated_at: null } : {}),
-          })
-          .eq("id", id);
-        if (updateError) throw new Error(updateError.message);
-        return true;
-      },
+    // The database owns actor uniqueness and reads the current moderation
+    // state under its row lock. A missing RPC must never acknowledge a flag
+    // through the former read-modify-write or process-memory fallback.
+    const { data, error } = await admin().rpc("append_visit_report_report_actor", {
+      p_id: id,
+      p_actor: actorHash,
+      p_reason: reason ?? null,
     });
+    if (error) throw new Error(error.message);
+    if (typeof data !== "boolean") throw new Error("Reporter storage returned an invalid result.");
+    return data;
   },
 
   async moderate(id, status, note) {

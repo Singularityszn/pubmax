@@ -23,7 +23,7 @@ export const SHEET_SNAP_FRACTIONS = {
 export type SheetSnap = keyof typeof SHEET_SNAP_FRACTIONS;
 
 // Ordered peek → full so callers can walk "the next snap up/down".
-export const SHEET_SNAP_ORDER: SheetSnap[] = ["peek", "half", "full"];
+export const SHEET_SNAP_ORDER = ["peek", "half", "full"] as const satisfies readonly SheetSnap[];
 
 /**
  * MapLibre easeTo `offset` (px) so a selected pub sits in the visible map band

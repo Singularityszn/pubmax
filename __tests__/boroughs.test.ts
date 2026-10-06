@@ -12,6 +12,7 @@ import {
   pubsInBorough,
 } from "@/lib/boroughs";
 import type { Venue } from "@/lib/venues";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The borough helpers only read name/cheapestPrice/primaryBorough/
 // visibleBoroughs (via leaderboard.venueArea), so a partial cast keeps the
@@ -107,7 +108,7 @@ describe("listBoroughs", () => {
     ];
     const list = listBoroughs(dup);
     expect(list).toHaveLength(1);
-    expect(list[0].pubCount).toBe(2);
+    expect(defined(list[0]).pubCount).toBe(2);
   });
 });
 

@@ -57,6 +57,7 @@ import {
   type MissionReceipt,
   type PriceEvidenceMissionReason,
 } from "@/lib/priceEvidenceMissions";
+import { scrollMotionBehavior } from "@/lib/scrollMotion";
 
 export type VenuePriceSubmitMission = {
   reason: PriceEvidenceMissionReason;
@@ -317,7 +318,7 @@ export default function VenuePriceSubmit({
       focusFrame = window.requestAnimationFrame(() => {
         priceInputRef.current?.scrollIntoView({
           block: "center",
-          behavior: "smooth",
+          behavior: scrollMotionBehavior(),
         });
         priceInputRef.current?.focus();
       });

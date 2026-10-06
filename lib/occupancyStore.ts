@@ -11,6 +11,7 @@ import { randomUUID } from "crypto";
 
 import { trimVenueId } from "@/lib/cleanVenueId";
 import { isDeployedProduction } from "@/lib/deploymentEnv";
+import { storedVenueIds } from "@/lib/venueAliases";
 import {
   admin,
   createDualBackendStore,
@@ -18,6 +19,7 @@ import {
   isMissingTableSchema,
   onMissingDurableWrite,
   runStoreOp,
+  whereVenueIdIn,
 } from "@/lib/storeBackend";
 import {
   OCCUPANCY_SOURCE,
@@ -108,11 +110,12 @@ export const memoryOccupancyStore: OccupancyStore = {
     if (!venueId) throw new Error("A venue is required.");
     if (!reporterUserId) throw new Error("A signed-in account is required.");
     const nowMs = input.now ?? Date.now();
+    const venueIds = await storedVenueIds(venueId);
     // A hidden row is never the retake target: reusing one would launder a
     // moderator hide into the account's next honest reading.
     const open = memoryReports.find(
       (row) =>
-        row.venueId === venueId &&
+        venueIds.includes(row.venueId) &&
         row.reporterUserId === reporterUserId &&
         !row.hiddenAt &&
         occupancyRetakeOpen(row.reportedAt, nowMs),
@@ -128,9 +131,9 @@ export const memoryOccupancyStore: OccupancyStore = {
   },
 
   async readNow(venueId, now) {
-    const id = trimVenueId(venueId);
+    const venueIds = await storedVenueIds(trimVenueId(venueId));
     return occupancyNowFromReports(
-      memoryReports.filter((row) => row.venueId === id),
+      memoryReports.filter((row) => venueIds.includes(row.venueId)),
       now ?? Date.now(),
     );
   },
@@ -292,10 +295,10 @@ export const supabaseOccupancyStore: OccupancyStore = {
       run: () =>
         withOccupancyColumns(async (select, moderated) => {
           const since = new Date(nowMs - 15 * 60 * 1000).toISOString();
-          let openQuery = admin()
-            .from(TABLE)
-            .select(select)
-            .eq("venue_id", venueId)
+          let openQuery = whereVenueIdIn(
+            admin().from(TABLE).select(select),
+            await storedVenueIds(venueId),
+          )
             .eq("reporter_user_id", reporterUserId);
           if (moderated) openQuery = openQuery.is("hidden_at", null);
           const { data: openRows, error: openError } = await openQuery
@@ -362,7 +365,10 @@ export const supabaseOccupancyStore: OccupancyStore = {
         withOccupancyColumns(async (select, moderated) => {
           // The row cap is a window over rows a reader may actually see, so a
           // hidden row may never spend one of the 200.
-          let query = admin().from(TABLE).select(select).eq("venue_id", id);
+          let query = whereVenueIdIn(
+            admin().from(TABLE).select(select),
+            await storedVenueIds(id),
+          );
           if (moderated) query = query.is("hidden_at", null);
           const { data, error } = await query
             .order("reported_at", { ascending: false })

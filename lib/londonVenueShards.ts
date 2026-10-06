@@ -53,6 +53,14 @@ export function isLondonVenueId(id: string): boolean {
   return id.startsWith(LONDON_VENUE_ID_PREFIX);
 }
 
+/** The `venue-osm-` id a tapped map feature carries, or null when it has none. */
+export function londonVenueIdFromFeature(feature: {
+  properties?: GeoJSON.GeoJsonProperties;
+}): string | null {
+  const id = feature.properties?.id;
+  return typeof id === "string" && isLondonVenueId(id) ? id : null;
+}
+
 /**
  * One shard row is a tuple, not an object, for the reason the base layer's is:
  * the bodies are machine-generated and fetched while the user pans.

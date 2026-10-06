@@ -15,6 +15,7 @@ import { resetUkPriceBundleForTests } from "@/lib/ukPriceBundle.server";
 import { isValidUkPriceBundleRow } from "@/lib/ukPriceBundle";
 import { venueFromDetailPayload } from "@/lib/venues";
 import type { SlimVenue } from "@/lib/venuesSlim";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = path.resolve(__dirname, "..");
 const SLIM_PATH = path.join(ROOT, "public", "data", "venues_slim.json");
@@ -49,12 +50,12 @@ describe("GET /api/venue/[id]", () => {
 
   it("returns full detail for a slim venue id", async () => {
     const seed = slim.find((venue) => venue.id === "venue-16pnwmm") ?? slim[0];
-    const res = await GET(new Request(`http://localhost/api/venue/${seed.id}`), ctx(seed.id));
+    const res = await GET(new Request(`http://localhost/api/venue/${defined(seed).id}`), ctx(defined(seed).id));
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body.venue.id).toBe(seed.id);
-    expect(body.venue.name).toBe(seed.name);
+    expect(body.venue.id).toBe(defined(seed).id);
+    expect(body.venue.name).toBe(defined(seed).name);
     expect(Array.isArray(body.venue.prices)).toBe(true);
     expect(body.venue.prices.length).toBeGreaterThan(0);
     expect(body.venue.address.length).toBeGreaterThan(0);
@@ -72,7 +73,7 @@ describe("GET /api/venue/[id]", () => {
     expect(priced, "the bundle must hold a beer row for this to mean anything").toBeTruthy();
 
     const seed = slim.find((venue) => venue.id === priced?.venueId) ?? slim[0];
-    const res = await GET(new Request(`http://localhost/api/venue/${seed.id}`), ctx(seed.id));
+    const res = await GET(new Request(`http://localhost/api/venue/${defined(seed).id}`), ctx(defined(seed).id));
     const body = await res.json();
     expect(res.status).toBe(200);
     expect(body.venue).toHaveProperty("bundlePrices");
@@ -200,13 +201,13 @@ describe("GET /api/venue/[id]", () => {
         version: 1,
         detailsFile: "venue_details.jsonl",
         count: 1,
-        venues: { [seed.id]: { offset: 0, length: 64 } },
+        venues: { [defined(seed).id]: { offset: 0, length: 64 } },
       }),
     );
     setVenueDetailIndexFileForTests(manifest);
     setVenueDetailRowsFileForTests(path.join(dir, "venue_details.jsonl"));
 
-    const res = await GET(new Request(`http://localhost/api/venue/${seed.id}`), ctx(seed.id));
+    const res = await GET(new Request(`http://localhost/api/venue/${defined(seed).id}`), ctx(defined(seed).id));
 
     expect(res.status).toBe(503);
     await expect(res.json()).resolves.toEqual({ error: "Venue details unavailable.", code: "UNAVAILABLE", retryable: true });

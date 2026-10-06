@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET } from "@/app/api/last-train/route";
 import { __resetLastTrainStableCache } from "@/lib/lastTrainStableCache.server";
+import { defined } from "@/__tests__/helpers/defined";
 
 const realFetch = global.fetch;
 const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
@@ -263,8 +264,8 @@ describe("GET /api/last-train", () => {
     }
 
     expect(responses.slice(0, 20).every((res) => res.status === 200)).toBe(true);
-    expect(responses[20].status).toBe(429);
-    expect(await responses[20].json()).toEqual({ error: "Too many requests, slow down.", code: "RATE_LIMITED", retryable: true });
+    expect(defined(responses[20]).status).toBe(429);
+    expect(await defined(responses[20]).json()).toEqual({ error: "Too many requests, slow down.", code: "RATE_LIMITED", retryable: true });
   });
 
   it("does not spend the live-request budget on stable prefetches", async () => {

@@ -7,6 +7,7 @@ const ROOT = path.resolve(import.meta.dirname, "..");
 const RUNNER = "scripts/harvest/pub-website-amenities/run.mjs";
 const DATASET = "public/data/pint_prices_app_dataset.json";
 const EVIDENCE = "data/amenities/london_pub_website_evidence.json";
+const CHAIN_PAGES = "data/amenities/london_pub_website_chain_pages.json";
 const CHECKPOINT = "data-harvest/pub-website-amenities/checkpoint.json";
 const SPORTS_QUOTE = "We show live sport on our TV screens.";
 const FOOD_QUOTE = "We serve freshly cooked meals every day.";
@@ -140,6 +141,9 @@ function createCli(
   cpSync(path.join(ROOT, RUNNER), path.join(root, RUNNER));
   chmodSync(path.join(root, RUNNER), 0o444);
   cpSync(path.join(ROOT, "lib"), path.join(root, "lib"), { recursive: true });
+  cpSync(path.join(ROOT, "scripts/lib"), path.join(root, "scripts/lib"), { recursive: true });
+  // The committed chain list is read before any page is fetched; scratch starts with none proven.
+  write(CHAIN_PAGES, { version: 1, pages: [], quotes: [], readers: {}, quoteReaders: [] });
   write("tsconfig.json", { compilerOptions: { baseUrl: ".", paths: { "@/*": ["./*"] } } });
   // An unrelated venues import reads this table. No project data enters scratch.
   write("public/data/price_bands/thresholds.json", { minSample: 30, all: null, cities: {} });
@@ -212,6 +216,13 @@ function runCli(
   return cli.output();
 }
 
+/** A fixture page that must exist. */
+function pageAt(pages: Record<string, Page>, url: string): Page {
+  const page = pages[url];
+  if (!page) throw new Error(`no fixture page ${url}`);
+  return page;
+}
+
 function pagesWithLinkedLanding(landing = LANDING, rules = "Allow: /"): Record<string, Page> {
   return {
     "https://first.example/robots.txt": { body: "User-agent: *\nAllow: /", type: "text/plain" },
@@ -258,7 +269,7 @@ describe("pub website amenities CLI permission and page citations", () => {
   it("rejects navigation text while retaining genuine linked-page evidence", () => {
     const pages = pagesWithLinkedLanding(EXTRA);
     const navigation = "Food and drinks Hotels About us Contact us Careers";
-    pages[HOME].body = `<p>${WELCOME}</p><nav>${navigation}</nav><a href="/sports">Sport</a>`;
+    pageAt(pages, HOME).body = `<p>${WELCOME}</p><nav>${navigation}</nav><a href="/sports">Sport</a>`;
     const { dataset, evidence } = runCli(pages, {
       food: { value: true, evidence: navigation },
       liveSports: { value: true, evidence: SPORTS_QUOTE },
@@ -269,7 +280,7 @@ describe("pub website amenities CLI permission and page citations", () => {
 
   it("restamps both permitted pages without network calls or changing prices and observation dates", () => {
     const pages = pagesWithLinkedLanding(EXTRA);
-    pages[HOME].body = `<p>${WELCOME} ${FOOD_QUOTE}</p><a href="/sports">Sport</a>`;
+    pageAt(pages, HOME).body = `<p>${WELCOME} ${FOOD_QUOTE}</p><a href="/sports">Sport</a>`;
     const { calls, dataset, evidence } = runCli(pages, {
       food: { value: true, evidence: FOOD_QUOTE },
       liveSports: { value: true, evidence: SPORTS_QUOTE },
@@ -293,7 +304,7 @@ describe("pub website amenities CLI permission and page citations", () => {
 
   it("keeps unique pub-page quotes but rejects a homepage shared by different pubs", () => {
     const pages = pagesWithLinkedLanding(EXTRA);
-    pages[HOME].body = `<p>${WELCOME} ${FOOD_QUOTE}</p><a href="/sports">Sport</a>`;
+    pageAt(pages, HOME).body = `<p>${WELCOME} ${FOOD_QUOTE}</p><a href="/sports">Sport</a>`;
     pages[SECOND_PUB] = { body: `<p>Welcome to Synthetic Second Pub. ${POOL_QUOTE}</p>` };
     const { dataset, evidence } = runCli(pages, {
       food: { value: true, evidence: FOOD_QUOTE },
@@ -310,7 +321,7 @@ describe("pub website amenities CLI permission and page citations", () => {
 
   it("retains homepage and linked-page quotes for one pub with their actual citations", () => {
     const pages = pagesWithLinkedLanding(EXTRA);
-    pages[HOME].body = `<p>${WELCOME} ${FOOD_QUOTE}</p><a href="/sports">Sport</a>`;
+    pageAt(pages, HOME).body = `<p>${WELCOME} ${FOOD_QUOTE}</p><a href="/sports">Sport</a>`;
     const { dataset, evidence } = runCli(pages, {
       food: { value: true, evidence: FOOD_QUOTE },
       liveSports: { value: true, evidence: SPORTS_QUOTE },
@@ -324,7 +335,7 @@ describe("pub website amenities CLI permission and page citations", () => {
 
   it("keeps a quote repeated on a shared-host homepage cited by its pub-specific linked page", () => {
     const pages = pagesWithLinkedLanding(EXTRA);
-    pages[HOME].body = `<p>${WELCOME} ${SPORTS_QUOTE}</p><a href="/sports">Sport</a>`;
+    pageAt(pages, HOME).body = `<p>${WELCOME} ${SPORTS_QUOTE}</p><a href="/sports">Sport</a>`;
     pages[SECOND_PUB] = { body: `<p>Welcome to Synthetic Second Pub. ${POOL_QUOTE}</p>` };
     const { dataset, evidence } = runCli(pages, {
       liveSports: { value: true, evidence: SPORTS_QUOTE },
@@ -352,7 +363,7 @@ describe("pub website amenities CLI permission and page citations", () => {
     const { calls, dataset, evidence } = runCli(pagesWithLinkedLanding(LANDING, "Disallow: /"));
     const modelCalls = calls.filter((call) => call.kind === "model");
     expect(modelCalls).toHaveLength(1);
-    expect(modelCalls[0].page).not.toContain(SPORTS_QUOTE);
+    expect(modelCalls[0]?.page).not.toContain(SPORTS_QUOTE);
     expect(calls).toContainEqual({ kind: "fetch", url: "https://landing.example/robots.txt" });
     expect(evidence.rows).toEqual([]);
     expect(dataset[0].live_sports).toBe("");
@@ -399,9 +410,9 @@ describe("pub website amenities CLI checkpoint publication", () => {
   it.each([
     { counter: "equal", publications: 5 },
     { counter: "different", publications: 7 },
-  ])("refuses legacy counter-only pending publication beside existing evidence at $counter counters", ({ publications }) => {
+  ])("retries a legacy counter-only pending batch beside unrelated evidence at $counter counters", ({ publications }) => {
     const pages = pagesWithLinkedLanding();
-    pages[HOME].body = `<p>${WELCOME} ${FOOD_QUOTE}</p><a href="/sports">Sport</a>`;
+    pageAt(pages, HOME).body = `<p>${WELCOME} ${FOOD_QUOTE}</p><a href="/sports">Sport</a>`;
     const cli = createCli(pages, {
       food: { value: true, evidence: FOOD_QUOTE },
       liveSports: { value: true, evidence: SPORTS_QUOTE },
@@ -426,37 +437,35 @@ describe("pub website amenities CLI checkpoint publication", () => {
     expect(pending.pendingPublication).toEqual({
       id: expect.stringMatching(UUID_V4), publications: 5, spentUsd: 0,
     });
-    expect(pending.spentUsd).toBeCloseTo(0.0003, 8);
-    expect(pending.byOsmId["node/synthetic-1"]).toMatchObject({
-      publication: "pending", verifiedAt: OBSERVED_AT,
-      amenities: { food: FOOD_QUOTE, liveSports: SPORTS_QUOTE },
-    });
     expect(cli.read(EVIDENCE)).toEqual(prior);
 
+    // A checkpoint from before batch ids names no batch, so no evidence file can acknowledge it.
     delete pending.pendingPublication.id;
     cli.write(CHECKPOINT, pending);
-    expect(cli.read(CHECKPOINT).pendingPublication).toEqual({ publications: 5, spentUsd: 0 });
     cli.write(EVIDENCE, {
       ...prior, publications, publicationBatchId: "39da3e1e-31fa-4ca7-8a74-2844d1c65cbb",
     });
     cli.write("fixture.json", {
       ...cli.read("fixture.json"), failure: null, pages: {}, now: "2026-10-04T12:00:00Z",
     });
-    const before = {
-      checkpoint: cli.readText(CHECKPOINT), evidence: cli.readText(EVIDENCE), dataset: cli.readText(DATASET),
-    };
-    const refused = cli.run();
-    expect(refused.status, refused.stderr).toBe(1);
-    expect(refused.stderr).toContain("Cannot verify legacy pending publication against existing evidence; preserve checkpoint for operator recovery");
+    const resumed = cli.run();
+    expect(resumed.status, resumed.stderr).toBe(0);
     expect(cli.calls()).toEqual([]);
-    expect(cli.readText(CHECKPOINT)).toBe(before.checkpoint);
-    expect(cli.readText(EVIDENCE)).toBe(before.evidence);
-    expect(cli.readText(DATASET)).toBe(before.dataset);
+    const { dataset, evidence } = cli.output();
+    expect(evidence).toMatchObject({
+      publications: publications + 1,
+      publicationBatchId: expect.stringMatching(UUID_V4),
+      actualSpendUsd: 1.2503,
+    });
+    expect(evidence.rows.map((row: EvidenceRow) => row.osmId)).toEqual(["node/synthetic-1", "node/synthetic-1", "node/unrelated"]);
+    expect(dataset[0]).toMatchObject({ food: "y", live_sports: "y" });
+    expect(cli.read(CHECKPOINT).byOsmId["node/synthetic-1"].publication).toBe("published");
+    expect(cli.read(CHECKPOINT).pendingPublication).toBeUndefined();
   });
 
   it("acknowledges an already published pending batch UUID without duplicate rows or spend", () => {
     const pages = pagesWithLinkedLanding();
-    pages[HOME].body = `<p>${WELCOME} ${FOOD_QUOTE}</p><a href="/sports">Sport</a>`;
+    pageAt(pages, HOME).body = `<p>${WELCOME} ${FOOD_QUOTE}</p><a href="/sports">Sport</a>`;
     const cli = createCli(pages, {
       food: { value: true, evidence: FOOD_QUOTE },
       liveSports: { value: true, evidence: SPORTS_QUOTE },
@@ -503,6 +512,7 @@ describe("pub website amenities CLI checkpoint publication", () => {
     expect(cli.read(EVIDENCE)).toEqual(published);
     expect(cli.read(CHECKPOINT)).toEqual({
       spentUsd: pending.spentUsd,
+      located: {},
       byOsmId: {
         ...pending.byOsmId,
         "node/synthetic-1": { ...pending.byOsmId["node/synthetic-1"], publication: "published" },
@@ -520,7 +530,7 @@ describe("pub website amenities CLI checkpoint publication", () => {
 
   it("recovers a paid pending batch when unrelated evidence has the same publication counter", () => {
     const pages = pagesWithLinkedLanding();
-    pages[HOME].body = `<p>${WELCOME} ${FOOD_QUOTE}</p><a href="/sports">Sport</a>`;
+    pageAt(pages, HOME).body = `<p>${WELCOME} ${FOOD_QUOTE}</p><a href="/sports">Sport</a>`;
     const cli = createCli(pages, {
       food: { value: true, evidence: FOOD_QUOTE },
       liveSports: { value: true, evidence: SPORTS_QUOTE },
@@ -653,9 +663,14 @@ describe("pub website amenities CLI checkpoint publication", () => {
     pubs.pubs[0].name = name;
     cli.write("data/osm/uk/uk_osm_pubs.json", pubs);
     cli.write("fixture.json", { ...cli.read("fixture.json"), failure: null, pages: {}, now: "2026-10-04T12:00:00Z" });
-    expect(cli.run().status).toBe(0);
-    expect(cli.output()).toMatchObject({ calls: [], dataset: [{ live_sports: "" }], evidence: { rows: [] } });
-    expect(cli.readText(CHECKPOINT)).toBe(checkpoint);
+    const resumed = cli.run();
+    expect(resumed.status, resumed.stderr).toBe(0);
+    expect(cli.output()).toMatchObject({ calls: [], dataset: [{ live_sports: "" }], evidence: { rows: [], skipCounts: { "unrecoverable-pending": 1 } } });
+    // The refusal is a finding: reported, counted and marked, never taken for published.
+    expect(resumed.stderr).toContain('"finding":"unrecoverable-pending-observation"');
+    expect(resumed.stderr).toContain('"reason":"pub-name-changed"');
+    expect(JSON.parse(checkpoint).byOsmId["node/synthetic-1"].publication).toBe("pending");
+    expect(cli.read(CHECKPOINT).byOsmId["node/synthetic-1"].publication).toBe("unrecoverable");
   });
 
   it.each([
@@ -728,7 +743,7 @@ describe("pub website amenities CLI checkpoint publication", () => {
     { operation: "write", path: `${CHECKPOINT}.tmp`, occurrence: 2 },
   ])("recovers both page citations across publication failure $operation $path", (failure) => {
     const pages = pagesWithLinkedLanding();
-    pages[HOME].body = `<p>${WELCOME} ${FOOD_QUOTE}</p><a href="/sports">Sport</a>`;
+    pageAt(pages, HOME).body = `<p>${WELCOME} ${FOOD_QUOTE}</p><a href="/sports">Sport</a>`;
     const cli = createCli(pages, {
       food: { value: true, evidence: FOOD_QUOTE },
       liveSports: { value: true, evidence: SPORTS_QUOTE },
@@ -765,7 +780,7 @@ describe("pub website amenities CLI checkpoint publication", () => {
       kind: "mixed-page positive",
       pages: () => {
         const pages = pagesWithLinkedLanding();
-        pages[HOME].body = `<p>${WELCOME} ${FOOD_QUOTE}</p><a href="/sports">Sport</a>`;
+        pageAt(pages, HOME).body = `<p>${WELCOME} ${FOOD_QUOTE}</p><a href="/sports">Sport</a>`;
         return pages;
       },
       amenities: { food: { value: true, evidence: FOOD_QUOTE }, liveSports: { value: true, evidence: SPORTS_QUOTE } },

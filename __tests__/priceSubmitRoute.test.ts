@@ -175,6 +175,7 @@ import { getVenueIndex } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { RECEIPT_REQUIRED_LINE, priceNeedsReceipt } from "@/lib/pintDropReceipt";
 import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
+import { defined } from "@/__tests__/helpers/defined";
 
 type PriceBody = {
   ok?: boolean;
@@ -1042,7 +1043,7 @@ describe("GET /api/price-submit", () => {
 
     const response = await GET(
       get(
-        `?scope=provisional-base&venueId=${encodeURIComponent(marked)}&venueId=${encodeURIComponent(empty)}`,
+        `?scope=provisional-base&venueId=${encodeURIComponent(defined(marked))}&venueId=${encodeURIComponent(defined(empty))}`,
       ),
     );
     expect(response.status).toBe(200);
@@ -1305,7 +1306,7 @@ describe("POST /api/price-submit corroboration", () => {
       .filter((venue) => isPubVenueKind(venue.kind))
       .map((venue) => venue.id);
     expect(ids.length).toBeGreaterThan(31 + offset);
-    return ids[ids.length - 1 - offset];
+    return defined(ids[ids.length - 1 - offset]);
   }
 
   it("answers a first report with one voice - the tap landed, the map did not move", async () => {
@@ -1488,7 +1489,7 @@ describe("POST /api/price-submit second-drinker confirmation", () => {
       .filter((venue) => isPubVenueKind(venue.kind))
       .map((venue) => venue.id);
     expect(ids.length).toBeGreaterThan(31 + offset);
-    return ids[ids.length - 1 - offset];
+    return defined(ids[ids.length - 1 - offset]);
   }
 
   type ConfirmationBody = PriceBody & {

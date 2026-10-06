@@ -11,6 +11,7 @@ import {
   softDrinkRowsFromMenuPdfLinks,
   softDrinkRowsFromPageText,
 } from "../scripts/lib/softDrinksMenuHarvest.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 const MBPLC_FIXTURE = readFileSync(
   join(process.cwd(), "__tests__/fixtures/harvest/mbplc-soft-drinks-snippet.md"),
@@ -25,7 +26,7 @@ describe("soft drinks menu harvest", () => {
       "Diet Coke",
       "Still Water",
     ]);
-    expect(rows[0].priceGbp).toBe(3.25);
+    expect(defined(rows[0]).priceGbp).toBe(3.25);
   });
 
   it("never keeps tap water as a priced product", () => {

@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import {
   enabledCityContainingPoint,
   type CityConfig,
@@ -17,7 +18,7 @@ export type CityChooserSearchResult =
       kind: "curated";
       name: string;
       description: string;
-      href: string;
+      href: Route;
       cityId: CityId;
       /** Navigation point — city map centre, or the matched place inside it. */
       lat: number;
@@ -27,7 +28,7 @@ export type CityChooserSearchResult =
       kind: "uncovered";
       name: string;
       description: string;
-      href: string;
+      href: Route;
       context: string;
       lat: number;
       lng: number;

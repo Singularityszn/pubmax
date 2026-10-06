@@ -4,6 +4,7 @@ import type { AskCard, AskProposal } from "@/lib/ask/types";
 import type { CityId } from "@/lib/cities";
 import type { PubPalFenceTurn } from "@/lib/pubPalLlmFence";
 import { isPubPalConversationId } from "@/lib/pubPalConversationId";
+import { PAL_SESSION_RECENT_TURNS, windowPalSessionTurns } from "@/lib/palSessionSummary";
 import {
   createDualBackendStore,
   createFailSoftGuard,
@@ -27,6 +28,8 @@ export type PubPalToolTurn = {
   query: string;
   cityId: CityId;
   turns: PubPalFenceTurn[];
+  /** The person's older lines in this session, rolled up. Never a fact source. */
+  summary: string;
   expiresAt: number;
   cards: AskCard[];
   proposals: AskProposal[];
@@ -34,12 +37,19 @@ export type PubPalToolTurn = {
   toolsUsed: string[];
 };
 
-type StoredTurn = PubPalToolTurn & { ownerId: string };
+/** Where the conversation is happening. Only a typed chat can show a confirm card. */
+type PubPalToolTurnSurface = "voice" | "text";
+
+type StoredTurn = PubPalToolTurn & { ownerId: string; surface: PubPalToolTurnSurface };
+
+export type PubPalToolTurnBinding = { ownerId: string; surface: PubPalToolTurnSurface };
 
 type PubPalToolTurnPayload = {
   query: string;
   cityId: CityId;
   turns: PubPalFenceTurn[];
+  summary?: string;
+  surface?: PubPalToolTurnSurface;
   cards: AskCard[];
   proposals: AskProposal[];
   hints: string[];
@@ -50,6 +60,7 @@ type OwnedWrite = {
   query: string;
   cityId: CityId;
   turns?: PubPalFenceTurn[];
+  summary?: string;
   cards?: AskCard[];
   proposals?: AskProposal[];
   hints?: string[];
@@ -64,6 +75,7 @@ function publicTurn(stored: StoredTurn): PubPalToolTurn {
     query: stored.query,
     cityId: stored.cityId,
     turns: stored.turns,
+    summary: stored.summary,
     expiresAt: stored.expiresAt,
     cards: stored.cards,
     proposals: stored.proposals,
@@ -82,11 +94,13 @@ function assertConversationId(conversationId: string): void {
   if (!isPubPalConversationId(conversationId)) throw new PubPalToolTurnAccessError();
 }
 
-function payloadFromTurn(turn: PubPalToolTurn): PubPalToolTurnPayload {
+function payloadFromTurn(turn: StoredTurn): PubPalToolTurnPayload {
   return {
     query: turn.query,
     cityId: turn.cityId,
     turns: turn.turns,
+    summary: turn.summary,
+    surface: turn.surface,
     cards: turn.cards,
     proposals: turn.proposals,
     hints: turn.hints,
@@ -102,27 +116,35 @@ function turnFromPayload(
   return {
     query: payload.query,
     cityId: payload.cityId,
-    turns: Array.isArray(payload.turns) ? payload.turns.slice(-6) : [],
+    turns: Array.isArray(payload.turns) ? payload.turns.slice(-PAL_SESSION_RECENT_TURNS) : [],
+    summary: typeof payload.summary === "string" ? payload.summary : "",
     expiresAt: expiresAtMs,
     cards: Array.isArray(payload.cards) ? payload.cards : [],
     proposals: Array.isArray(payload.proposals) ? payload.proposals : [],
     hints: Array.isArray(payload.hints) ? payload.hints : [],
     toolsUsed: Array.isArray(payload.toolsUsed) ? payload.toolsUsed : [],
     ownerId,
+    surface: payload.surface === "text" ? "text" : "voice",
   };
 }
 
 function mergeOwned(existing: StoredTurn | null, input: OwnedWrite, now: number): StoredTurn {
+  const session = windowPalSessionTurns(
+    input.summary ?? existing?.summary ?? "",
+    Array.isArray(input.turns) ? input.turns : existing?.turns ?? [],
+  );
   return {
     query: input.query,
     cityId: input.cityId,
-    turns: Array.isArray(input.turns) ? input.turns.slice(-6) : existing?.turns ?? [],
+    turns: session.turns,
+    summary: session.summary,
     expiresAt: now + PUB_PAL_TOOL_TURN_TTL_MS,
     cards: input.cards ?? existing?.cards ?? [],
     proposals: input.proposals ?? existing?.proposals ?? [],
     hints: input.hints ?? existing?.hints ?? [],
     toolsUsed: input.toolsUsed ?? existing?.toolsUsed ?? [],
     ownerId: input.ownerId,
+    surface: existing?.surface ?? "text",
   };
 }
 
@@ -131,6 +153,7 @@ type PubPalToolTurnStore = {
   register(conversationId: string, input: OwnedWrite): Promise<void>;
   read(conversationId: string): Promise<PubPalToolTurn | null>;
   readOwned(conversationId: string, ownerId: string): Promise<PubPalToolTurn | null>;
+  bindingOf(conversationId: string): Promise<PubPalToolTurnBinding | null>;
   touch(conversationId: string, ownerId: string): Promise<boolean>;
   appendOwnedUserTurn(
     conversationId: string,
@@ -165,12 +188,14 @@ const memoryPubPalToolTurnStore: PubPalToolTurnStore = {
       query: "",
       cityId,
       turns: [],
+      summary: "",
       expiresAt: now + PUB_PAL_TOOL_TURN_TTL_MS,
       cards: [],
       proposals: [],
       hints: [],
       toolsUsed: [],
       ownerId,
+      surface: "voice",
     });
   },
 
@@ -199,6 +224,13 @@ const memoryPubPalToolTurnStore: PubPalToolTurnStore = {
     return publicTurn(turn);
   },
 
+  async bindingOf(conversationId) {
+    if (!isPubPalConversationId(conversationId)) return null;
+    pruneMemory(Date.now());
+    const turn = memoryTurns.get(conversationId);
+    return turn ? { ownerId: turn.ownerId, surface: turn.surface } : null;
+  },
+
   async touch(conversationId, ownerId) {
     assertConversationId(conversationId);
     const now = Date.now();
@@ -215,7 +247,7 @@ const memoryPubPalToolTurnStore: PubPalToolTurnStore = {
     pruneMemory(now);
     const existing = memoryTurns.get(conversationId);
     if (!existing || existing.ownerId !== ownerId) return false;
-    existing.turns = [...existing.turns, turn].slice(-6);
+    existing.turns = [...existing.turns, turn].slice(-PAL_SESSION_RECENT_TURNS);
     if (turn.role === "user" && turn.content.trim()) existing.query = turn.content.trim();
     existing.cityId = cityId;
     existing.expiresAt = now + PUB_PAL_TOOL_TURN_TTL_MS;
@@ -264,7 +296,7 @@ async function purgeExpiredRows(): Promise<void> {
 type StoredLookup =
   | { status: "missing" }
   | { status: "unowned" }
-  | { status: "owned"; turn: StoredTurn };
+  | { status: "owned"; turn: StoredTurn; version: string };
 
 async function lookupStoredRow(conversationId: string): Promise<StoredLookup> {
   const { data, error } = await requireSupabaseAdmin()
@@ -282,6 +314,7 @@ async function lookupStoredRow(conversationId: string): Promise<StoredLookup> {
   return {
     status: "owned",
     turn: turnFromPayload(payload, new Date(row.expires_at).getTime(), row.owner_id),
+    version: row.expires_at,
   };
 }
 
@@ -303,6 +336,57 @@ async function writeStoredRow(conversationId: string, stored: StoredTurn): Promi
       { onConflict: "conversation_id" },
     );
   if (error) throw new Error(error.message);
+}
+
+/**
+ * Writes only when the row still carries the expiry it was read with. Every
+ * write moves the expiry, so a parallel tool's append cannot be overwritten
+ * by a stale read.
+ */
+async function writeStoredRowIfUnchanged(
+  conversationId: string,
+  stored: StoredTurn,
+  version: string,
+): Promise<boolean> {
+  const { data, error } = await requireSupabaseAdmin()
+    .from("pub_pal_tool_turns")
+    .update({
+      payload: payloadFromTurn(stored),
+      expires_at: new Date(stored.expiresAt).toISOString(),
+    })
+    .eq("conversation_id", conversationId)
+    .eq("expires_at", version)
+    .select("conversation_id");
+  if (error) throw new Error(error.message);
+  return Array.isArray(data) && data.length > 0;
+}
+
+const APPEND_ATTEMPTS = 5;
+
+/**
+ * Read the owned row, change it, and write it back only if no other writer
+ * moved it in between, retrying on a lost race. Every writer that runs during
+ * a live session goes through here, so a stale read never drops a tool's
+ * cards, hints or toolsUsed. Returns false when the row is not available to
+ * this writer.
+ */
+async function updateOwnedRow(
+  conversationId: string,
+  ownerId: string | null,
+  change: (existing: StoredTurn) => void,
+): Promise<boolean> {
+  for (let attempt = 0; attempt < APPEND_ATTEMPTS; attempt += 1) {
+    const lookup = await lookupStoredRow(conversationId);
+    if (lookup.status !== "owned") return false;
+    if (ownerId !== null && lookup.turn.ownerId !== ownerId) return false;
+    const existing = lookup.turn;
+    const readExpiry = existing.expiresAt;
+    change(existing);
+    // The expiry is the row version: every write must move it.
+    if (existing.expiresAt <= readExpiry) existing.expiresAt = readExpiry + 1;
+    if (await writeStoredRowIfUnchanged(conversationId, existing, lookup.version)) return true;
+  }
+  throw new Error("pub_pal_tool_turns write lost every race");
 }
 
 const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
@@ -329,12 +413,14 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
           query: "",
           cityId,
           turns: [],
+          summary: "",
           expiresAt: Date.now() + PUB_PAL_TOOL_TURN_TTL_MS,
           cards: [],
           proposals: [],
           hints: [],
           toolsUsed: [],
           ownerId,
+          surface: "voice",
         });
       },
     });
@@ -395,6 +481,26 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
     });
   },
 
+  async bindingOf(conversationId) {
+    if (!isPubPalConversationId(conversationId)) return null;
+    return guard<PubPalToolTurnBinding | null>({
+      context: "binding-of",
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: "pub-pal-tool-turn",
+          migrationHint: PUB_PAL_TOOL_TURN_MIGRATION_HINT,
+          fallback: () => memoryPubPalToolTurnStore.bindingOf(conversationId),
+          onProduction: async () => null,
+        }),
+      run: async () => {
+        const lookup = await lookupStoredRow(conversationId);
+        return lookup.status === "owned"
+          ? { ownerId: lookup.turn.ownerId, surface: lookup.turn.surface }
+          : null;
+      },
+    });
+  },
+
   async touch(conversationId, ownerId) {
     assertConversationId(conversationId);
     return guard<boolean>({
@@ -408,12 +514,9 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
         }),
       run: async () => {
         await purgeExpiredRows();
-        const lookup = await lookupStoredRow(conversationId);
-        if (lookup.status !== "owned" || lookup.turn.ownerId !== ownerId) return false;
-        const existing = lookup.turn;
-        existing.expiresAt = Date.now() + PUB_PAL_TOOL_TURN_TTL_MS;
-        await writeStoredRow(conversationId, existing);
-        return true;
+        return updateOwnedRow(conversationId, ownerId, (existing) => {
+          existing.expiresAt = Date.now() + PUB_PAL_TOOL_TURN_TTL_MS;
+        });
       },
     });
   },
@@ -432,15 +535,12 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
         }),
       run: async () => {
         await purgeExpiredRows();
-        const lookup = await lookupStoredRow(conversationId);
-        if (lookup.status !== "owned" || lookup.turn.ownerId !== ownerId) return false;
-        const existing = lookup.turn;
-        existing.turns = [...existing.turns, turn].slice(-6);
-        if (turn.role === "user" && turn.content.trim()) existing.query = turn.content.trim();
-        existing.cityId = cityId;
-        existing.expiresAt = Date.now() + PUB_PAL_TOOL_TURN_TTL_MS;
-        await writeStoredRow(conversationId, existing);
-        return true;
+        return updateOwnedRow(conversationId, ownerId, (existing) => {
+          existing.turns = [...existing.turns, turn].slice(-PAL_SESSION_RECENT_TURNS);
+          if (turn.role === "user" && turn.content.trim()) existing.query = turn.content.trim();
+          existing.cityId = cityId;
+          existing.expiresAt = Date.now() + PUB_PAL_TOOL_TURN_TTL_MS;
+        });
       },
     });
   },
@@ -455,18 +555,16 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
           fallback: () => memoryPubPalToolTurnStore.append(conversationId, patch),
         }),
       run: async () => {
-        const lookup = await lookupStoredRow(conversationId);
-        if (lookup.status !== "owned") return;
-        const existing = lookup.turn;
-        if (patch.cards?.length) existing.cards.push(...patch.cards);
-        if (patch.proposals?.length) existing.proposals.push(...patch.proposals);
-        if (patch.hints?.length) existing.hints.push(...patch.hints);
-        if (patch.toolsUsed?.length) {
-          for (const name of patch.toolsUsed) {
-            if (!existing.toolsUsed.includes(name)) existing.toolsUsed.push(name);
+        await updateOwnedRow(conversationId, null, (existing) => {
+          if (patch.cards?.length) existing.cards.push(...patch.cards);
+          if (patch.proposals?.length) existing.proposals.push(...patch.proposals);
+          if (patch.hints?.length) existing.hints.push(...patch.hints);
+          if (patch.toolsUsed?.length) {
+            for (const name of patch.toolsUsed) {
+              if (!existing.toolsUsed.includes(name)) existing.toolsUsed.push(name);
+            }
           }
-        }
-        await writeStoredRow(conversationId, existing);
+        });
       },
     });
   },
@@ -514,6 +612,13 @@ export async function readOwnedPubPalToolTurn(
   ownerId: string,
 ): Promise<PubPalToolTurn | null> {
   return pubPalToolTurnStore().readOwned(conversationId, ownerId);
+}
+
+/** The account that bound this live conversation and its surface, or null once it has expired or was never bound. */
+export async function readPubPalToolTurnBinding(
+  conversationId: string,
+): Promise<PubPalToolTurnBinding | null> {
+  return pubPalToolTurnStore().bindingOf(conversationId);
 }
 
 export async function touchPubPalToolTurn(

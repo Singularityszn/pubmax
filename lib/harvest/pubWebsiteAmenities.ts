@@ -133,19 +133,104 @@ const TELEVISED_SPORT =
 const POOL = /\bpool\b/i;
 const NOT_A_POOL_TABLE = /\b(?:charging|swimming|car\s*pool|pool\s*(?:side|party|parties|house))\b/i;
 const KARAOKE = /\bkar(?:aoke|oake)\b/i;
+/** Bare games or versus fixtures do not identify sport; require explicit sporting words. */
 const SPORT_SHOWN =
-  /\bsports?\b|\bsporting\b|\bmatch(?:es)?\b|\bmatch[\s-]?day\b|\bgame[\s-]?days?\b|\bgames?\b|\bfixtures?\b|\bfootball\b|\bfooty\b|\brugby\b|\bcricket\b|\bboxing\b|\bpremier league\b|\bchampions league\b|\bnations\b|\bworld cup\b|\binternationals\b|\bgaa\b|\bgaelic\b|\bwimbledon\b/i;
-const SPORT_VIEWING =
-  /\b(?:show(?:s|ing|n|cas(?:e|es|ing))?|watch(?:es|ing)?|screen(?:s|ed|ings?)?|tvs?|televised|broadcast(?:s|ing)?|catch(?:es|ing)?|playing|viewings?|projectors?)\b|\blive\s+(?:sports?|sporting|football|footy|rugby|cricket|gaelic|gaa|premier league|boxing)\b|\b(?:sky|tnt|bt)\s+sports?\b|\bsports?\s+(?:pub|bar)s?\b/i;
-/** Team fixture copy must explicitly invite live viewing; a bare "vs" is not sport. */
+  /\b(?:f1|formula\s*1)\b|\bsports?\b|\bsporting\b|\bmatch(?:es)?\b|\bmatch[\s-]?day\b|\bfixtures?\b|\bfootball\b|\bfooty\b|\brugby\b|\bcricket\b|\bboxing\b|\bpremier league\b|\bchampions league\b|\bnations\b|\bworld cup\b|\binternationals\b|\bgaa\b|\bgaelic\b|\bwimbledon\b/i;
+/** An explicit live team fixture invites viewing at the pub itself, so it names sport without a sport word (#1955). */
 const LIVE_TEAM_FIXTURE = /\bwatch\s+[a-z][a-z0-9 &'-]{0,60}\s+vs\s+[a-z][a-z0-9 &'-]{0,60}\s+live\b/i;
+/** A clause about a sister, other or nearby venue says nothing about this pub unless it also names this pub. */
+const OTHER_VENUE =
+  /\b(?:sister|other|another|neighbou?ring|nearby|partner|affiliated)\s+(?:venues?|pubs?|bars?|locations?|sites?|branch(?:es)?)\b/i;
+const THIS_VENUE = /\bhere\b|\b(?:this|the)\s+(?:venue|pub|bar)\b/i;
+const VIEWING_VERB = "showcas(?:e|es)|watch(?:es)?|catch(?:es)?";
+const FINITE_VIEWING_VERB = `shows?|screens?|broadcasts|${VIEWING_VERB}`;
+const VIEWING_PARTICIPLE = "show(?:n|ing|casing)|watching|screen(?:ed|ing)|televised|broadcast(?:ing)?|catching|playing";
+const SPORT_VIEWING = new RegExp(
+  `\\b(?:${FINITE_VIEWING_VERB}|${VIEWING_PARTICIPLE}|screenings?|tvs?|viewings?|projectors?)\\b|` +
+  "\\blive\\s+(?:sports?|sporting|football|footy|rugby|cricket|gaelic|gaa|premier league|boxing)\\b|" +
+  "\\b(?:sky|tnt|bt)\\s+sports?\\b|\\bsports?\\s+(?:pub|bar)s?\\b",
+  "i",
+);
+const SPORT_OBJECT =
+  "\\b(?:(?:sky|tnt|bt)\\s+sports?|(?:live\\s+)?(?:f1|formula\\s*1|sports?|sporting|football|footy|rugby|cricket|gaelic|gaa|premier league|boxing))\\b";
+const SPORT_OBJECTS = `${SPORT_OBJECT}(?:(?:\\s+(?:and|or)\\s+|\\s*,\\s*(?:(?:and|or)\\s+)?)${SPORT_OBJECT})*`;
+const BARE_SPORT_OBJECTS = new RegExp(`^\\s*${SPORT_OBJECTS}\\s*$`, "i");
+const SPORT_SUBJECT = new RegExp(`^\\s*${SPORT_OBJECT}`, "i");
+const SPORT_OBJECT_END = new RegExp(`${SPORT_OBJECT}\\s*$`, "i");
+const SPORT_ADJUNCT =
+  "(?:here|there|(?:(?:every|each|on|at|this|next)\\s+)?(?:(?:mon|tues|wednes|thurs|fri|satur|sun)days?|days?|nights?|weekends?|weeks?|mornings?|afternoons?|evenings?))\\b";
+/**
+ * A sport subject's own predicate after a comma-attached sports denial. Shows, screens and broadcasts
+ * are also nouns, so alone they never split the denial; such a remainder stays unconfirmed evidence,
+ * not a claim that the venue lacks sport.
+ */
+const SPORT_REMAINDER_PREDICATE = new RegExp(
+  `^\\s*${SPORT_OBJECT}((?:\\s+(?:and|or)\\s+${SPORT_OBJECT})*)\\s+(?:(?:is|are|isn'?t|aren'?t)\\b|(will)\\b|` +
+  `(?:(has|have)|${VIEWING_VERB})\\s+(?!${SPORT_ADJUNCT})(?:((?:on|in|at|from|for|with|of)\\b)|\\w))`,
+  "i",
+);
+const DENIED_SPORT_LIST = new RegExp(`\\b(?:no|without)\\s+${SPORT_OBJECTS}\\s*$`, "i");
+const CONTINUED_SPORT_LIST = new RegExp(`${SPORT_OBJECT}\\s*,\\s*${SPORT_OBJECT}\\s*$`, "i");
+const NO_SPORT_AVAILABILITY = new RegExp(
+  "\\b(?:(?:do\\s+not|don'?t|never|no\\s+longer)\\s+have\\s+(?:any\\s+|access\\s+to\\s+)?|" +
+  "(?:(?:are|is)\\s+not|'re\\s+not|aren'?t|isn'?t)\\s+subscribed\\s+to\\s+)" + SPORT_OBJECTS + "|" +
+  `${SPORT_OBJECTS}\\s+(?:(?:is|are)\\s+(?:unavailable|not\\s+available)|(?:isn'?t|aren'?t)\\s+available)\\b`,
+  "i",
+);
 const NO_SPORT_VIEWING = new RegExp(
   `\\b(?:no|without)\\s+(?:live\\s+|sky\\s+|tnt\\s+|bt\\s+)?(?:${SPORT_SHOWN.source}|\\b(?:screens?|screenings?|tvs?)\\b)|` +
-  `\\b(?:do\\s+not|don'?t|never)\\s+show\\s+(?:any\\s+)?(?:live\\s+)?(?:${SPORT_SHOWN.source})|` +
+  "\\b(?:do\\s+not|don'?t|never)\\s+(?:show(?:case)?|watch|broadcast|screen|catch|play)\\b|" +
+  "\\b(?:not|isn'?t|aren'?t)\\s+(?:being\\s+)?(?:shown|broadcast|screened|televised|used\\s+to\\s+(?:show|watch|broadcast|screen))\\b|" +
   "\\b(?:not|aren'?t|isn'?t)\\s+(?:a\\s+)?sports?\\s+(?:pub|bar)s?\\b",
   "i",
 );
 const NOT_SPORT_SHOWN = /\bbet(?:s|ting)?\b|sportsbook|taruhan|cá cược|\be-?sports\b/i;
+/** A new subject and predicate separate propositions; object lists stay intact. */
+const SPORT_CLAUSE_BOUNDARY = new RegExp(
+  "[.,;!?]|\\b(?:but|however|yet|although|while)\\b|" +
+  "(?<!\\b(?:do\\s+not|don'?t|never)\\s+\\w+\\s)\\band\\b(?=\\s+(?:screen|broadcast|show|watch|catch|play)\\b)|" +
+  "\\band\\b(?=\\s+(?:no|without|do\\s+not|don'?t|never|" +
+  "we\\s+(?:(?:do\\s+not|don'?t|never|no\\s+longer)\\s+)?(?:have|show|watch|broadcast|screen|catch|play)|" +
+  "we(?:\\s+are\\s+not|'re\\s+not|\\s+aren'?t)\\s+subscribed\\s+to|" +
+  "(?:[\\w'-]+\\s+)+(?:is|are|isn'?t|aren'?t)\\s+(?:not\\s+)?(?:being\\s+)?" +
+  "(?:unavailable|available|shown|broadcast|screened|televised|used\\s+to\\s+(?:show|watch|broadcast|screen)))\\b)",
+  "i",
+);
+
+/** Whether a sport subject after a denial has its own predicate; after no/without only a single subject with a clear finite verb does. */
+function sportRemainderHasPredicate(text: string, determiner: boolean): boolean {
+  const match = SPORT_REMAINDER_PREDICATE.exec(text);
+  if (!match) return false;
+  const [, conjoined, future, possessive, preposition] = match;
+  return determiner ? !conjoined && !future && !possessive && !preposition : !(conjoined && preposition);
+}
+
+/** A sport or provider list shares its following predicate; it is not a separate positive claim. */
+function sportClauses(quote: string): string[] {
+  const clauses: string[] = [];
+  let start = 0;
+  for (const boundary of quote.matchAll(new RegExp(SPORT_CLAUSE_BOUNDARY, "gi"))) {
+    const clause = quote.slice(start, boundary.index);
+    const next = boundary.index + boundary[0].length;
+    const following = quote.slice(next).replace(/^\s*(?:and|or)\s+/, "");
+    const list = clause.replace(/,\s*$/, "");
+    const continued = CONTINUED_SPORT_LIST.test(list);
+    if (
+      (boundary[0] === "and" || boundary[0] === ",") && SPORT_SUBJECT.test(following) &&
+      (BARE_SPORT_OBJECTS.test(list) ||
+        (DENIED_SPORT_LIST.test(list) &&
+          (boundary[0] === "and" || continued || !sportRemainderHasPredicate(quote.slice(next), true))) || (
+        boundary[0] === "," && SPORT_OBJECT_END.test(clause) &&
+        (NO_SPORT_AVAILABILITY.test(clause) || NO_SPORT_VIEWING.test(clause)) &&
+        (continued || !sportRemainderHasPredicate(following, false))
+      ))
+    ) continue;
+    clauses.push(clause);
+    start = next;
+  }
+  clauses.push(quote.slice(start));
+  return clauses;
+}
 const LIVE_MUSIC =
   /\blive\b[^.]{0,20}\b(?:music|bands?|gigs?|jazz|folk|blues|soul|funk|country|singers?|vocals|acts?|artists)\b|\bbands?\b|\bgigs?\b|\bjazz\b|\bfolk\b|\bblues\b|\bopen mic\b|\bsingers?\b|\bsings? live\b|\bchoir\b|\bjams?\b|\bacoustic\b|\btrad\b|\bseisi|\bconcerts?\b|\btribute show\b|\bmusic venues?\b|\bmusic (?:nights?|events?)\b/i;
 /** Drinks before or after an event somewhere else say nothing about what happens inside the pub. */
@@ -181,9 +266,10 @@ const AMENITY_STATEMENTS: Partial<Record<PubWebsiteAmenityKey, (quote: string) =
   food: (quote) => !SITE_NAVIGATION.test(quote),
   liveSports: (quote) =>
     !NOT_SPORT_SHOWN.test(quote) && !EVENT_ELSEWHERE.test(quote) &&
-    quote.split(/[.,;!?]|\b(?:but|however|yet|although|while)\b/i).some((clause) =>
+    sportClauses(quote).some((clause) =>
       (SPORT_SHOWN.test(clause) || LIVE_TEAM_FIXTURE.test(clause)) &&
-      SPORT_VIEWING.test(clause) && !NO_SPORT_VIEWING.test(clause),
+      SPORT_VIEWING.test(clause) && !NO_SPORT_VIEWING.test(clause) &&
+      !NO_SPORT_AVAILABILITY.test(clause) && !(OTHER_VENUE.test(clause) && !THIS_VENUE.test(clause)),
     ),
   liveMusic: (quote) => LIVE_MUSIC.test(quote) && !EVENT_ELSEWHERE.test(quote),
   pubQuiz: (quote) => QUIZ.test(quote) && !QUIZ_MACHINE.test(quote),
@@ -229,6 +315,7 @@ export function statedAmenities(
 }
 
 export type PubEvidenceRow = {
+  osmId: string;
   sourceUrl?: string;
   amenities?: Partial<Record<PubWebsiteAmenityKey, string>>;
 };
@@ -236,56 +323,339 @@ export type PubEvidenceRow = {
 function sourcePage(url: string): { host: string; page: string } | null {
   try {
     const parsed = new URL(url);
-    const host = parsed.host.toLowerCase();
+    // www.chain.example and chain.example are one site.
+    const host = parsed.host.toLowerCase().replace(/^www\./, "");
     return { host, page: `${host}${parsed.pathname.replace(/\/+$/, "")}` };
   } catch {
     return null;
   }
 }
 
-function countBy<T>(items: readonly T[], keyOf: (item: T) => string): Map<string, number> {
-  const counts = new Map<string, number>();
-  for (const item of items) counts.set(keyOf(item), (counts.get(keyOf(item)) ?? 0) + 1);
-  return counts;
+/** A page as the chain rule sees it: host without www and path, with no query, fragment or trailing slash. */
+function chainPageKey(url: string): string | null {
+  return sourcePage(url)?.page ?? null;
+}
+
+/** A page or host written by hand, with or without its scheme, read the way the chain rule reads a URL. */
+function writtenSource(written: unknown): { host: string; page: string } | null {
+  return typeof written === "string" && written ? sourcePage(`https://${written.replace(/^https?:\/\//i, "")}`) : null;
+}
+
+/** A quote one host repeats word for word for several pubs, stored folded. */
+type ChainQuote = { host: string; key: PubWebsiteAmenityKey; quote: string };
+
+/** A quote on one host and the pubs that have stated it. */
+type QuoteReaders = ChainQuote & { readers: string[] };
+
+/**
+ * Pages and quotes proven chain-wide, the pubs that have read each page and
+ * the pubs that have stated each quote. A harvest keeps only the pubs that
+ * pass the chain rule, and a pub that kept no amenity or failed never reaches
+ * the evidence file, so those pubs are gone from the next run's count. The
+ * committed list remembers every reader.
+ */
+export type ChainDenylist = {
+  pages: string[];
+  quotes: ChainQuote[];
+  readers: Record<string, string[]>;
+  quoteReaders: QuoteReaders[];
+};
+
+export const EMPTY_CHAIN_DENYLIST: ChainDenylist = { pages: [], quotes: [], readers: {}, quoteReaders: [] };
+
+const quoteId = (host: string, key: string, quote: string) => `${host}\u0000${key}\u0000${foldText(quote)}`;
+
+const isOsmIdList = (osmIds: unknown): osmIds is string[] =>
+  Array.isArray(osmIds) && osmIds.every((osmId) => typeof osmId === "string" && osmId);
+
+function parseChainQuote(item: unknown): ChainQuote {
+  const entry = (item ?? {}) as Record<string, unknown>;
+  const source = writtenSource(entry.host);
+  if (!source || source.page !== source.host || typeof entry.quote !== "string" || !KEY_SET.has(String(entry.key))) {
+    throw new Error("chain denylist quote needs host, amenity key and quote");
+  }
+  return { host: source.host, key: entry.key as PubWebsiteAmenityKey, quote: foldText(entry.quote) };
+}
+
+/** Read a committed denylist. A malformed file throws, because a silent empty list lets chain pages back in. */
+export function parseChainDenylist(data: unknown): ChainDenylist {
+  if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("chain denylist is not an object");
+  const record = data as Record<string, unknown>;
+  if (!Array.isArray(record.pages) || !Array.isArray(record.quotes) || !Array.isArray(record.quoteReaders)) {
+    throw new Error("chain denylist needs pages, quotes and quoteReaders arrays");
+  }
+  if (!record.readers || typeof record.readers !== "object" || Array.isArray(record.readers)) {
+    throw new Error("chain denylist needs a readers object");
+  }
+  const pages = record.pages.map((page) => {
+    const key = writtenSource(page)?.page;
+    if (!key) throw new Error("chain denylist page is not a page");
+    return key;
+  });
+  const quotes = record.quotes.map(parseChainQuote);
+  const readers: Record<string, string[]> = {};
+  for (const [page, osmIds] of Object.entries(record.readers as Record<string, unknown>)) {
+    const key = writtenSource(page)?.page;
+    if (!key || !isOsmIdList(osmIds)) throw new Error("chain denylist readers need a page and the osm ids that read it");
+    readers[key] = [...(readers[key] ?? []), ...osmIds];
+  }
+  const quoteReaders = record.quoteReaders.map((item) => {
+    const osmIds = (item as Record<string, unknown> | null)?.readers;
+    if (!isOsmIdList(osmIds)) throw new Error("chain denylist quote readers need the osm ids that stated the quote");
+    return { ...parseChainQuote(item), readers: osmIds };
+  });
+  return mergeChainDenylists(EMPTY_CHAIN_DENYLIST, { pages, quotes, readers, quoteReaders });
 }
 
 /**
- * Evidence that speaks for one pub. A chain-wide page describes the brand
- * rather than any one pub, so it goes: a page more than one pub points at once
- * its query, fragment and trailing slash are set aside, the home page of a host
- * several pubs share, and a quote repeated word for word across pubs on one
- * host. Every stamp, from a fresh harvest or from the committed evidence file,
- * goes through here.
+ * The pages the readers prove chain-wide: a page more than one pub has read,
+ * and the home page of a host whose pages more than one pub has read.
  */
-export function pubSpecificEvidence<T extends PubEvidenceRow>(
-  rows: readonly T[],
-): (T & { amenities: Partial<Record<PubWebsiteAmenityKey, string>> })[] {
-  const sourced = rows.flatMap((row) => {
+function pagesProvenByReaders(readers: Record<string, string[]>): string[] {
+  const hostOf = (page: string) => page.split("/")[0] ?? "";
+  const pubsPerHost = new Map<string, Set<string>>();
+  for (const [page, osmIds] of Object.entries(readers)) {
+    const pubs = pubsPerHost.get(hostOf(page)) ?? new Set<string>();
+    for (const osmId of osmIds) pubs.add(osmId);
+    pubsPerHost.set(hostOf(page), pubs);
+  }
+  return Object.entries(readers)
+    .filter(([page, osmIds]) => osmIds.length > 1 || (page === hostOf(page) && (pubsPerHost.get(page)?.size ?? 0) > 1))
+    .map(([page]) => page);
+}
+
+/** Both lists in one, deduplicated and sorted, so the committed file only changes when the proof does. */
+export function mergeChainDenylists(a: ChainDenylist, b: ChainDenylist): ChainDenylist {
+  const readers: Record<string, string[]> = {};
+  for (const page of [...new Set([...Object.keys(a.readers), ...Object.keys(b.readers)])].sort()) {
+    readers[page] = [...new Set([...(a.readers[page] ?? []), ...(b.readers[page] ?? [])])].sort();
+  }
+  const pages = [...new Set([...a.pages, ...b.pages, ...pagesProvenByReaders(readers)])].sort();
+  const quoteReaders = new Map<string, QuoteReaders>();
+  for (const entry of [...a.quoteReaders, ...b.quoteReaders]) {
+    const id = quoteId(entry.host, entry.key, entry.quote);
+    const seen = quoteReaders.get(id)?.readers ?? [];
+    quoteReaders.set(id, { ...entry, quote: foldText(entry.quote), readers: [...new Set([...seen, ...entry.readers])].sort() });
+  }
+  const quotes = new Map<string, ChainQuote>();
+  const provenByReaders = [...quoteReaders.values()].filter((entry) => entry.readers.length > 1);
+  for (const { host, key, quote } of [...a.quotes, ...b.quotes, ...provenByReaders]) {
+    quotes.set(quoteId(host, key, quote), { host, key, quote: foldText(quote) });
+  }
+  const byId = <T>(entries: Map<string, T>) =>
+    [...entries.entries()].sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0)).map(([, entry]) => entry);
+  return { pages, quotes: byId(quotes), readers, quoteReaders: byId(quoteReaders) };
+}
+
+/** Whether a URL is a page already proven chain-wide. The harvest asks this before it fetches. */
+export function isChainPage(url: string, denylist: ChainDenylist): boolean {
+  const page = chainPageKey(url);
+  return page !== null && denylist.pages.includes(page);
+}
+
+function sourcedRows<T extends PubEvidenceRow>(rows: readonly T[]) {
+  return rows.flatMap((row) => {
     const source = row.sourceUrl ? sourcePage(row.sourceUrl) : null;
     return source ? [{ row, ...source }] : [];
   });
-  const pubsPerPage = countBy(sourced, (item) => item.page);
-  const pubsPerHost = countBy(sourced, (item) => item.host);
-  const quoteKey = (host: string, key: string, quote: string) => `${host}\u0000${key}\u0000${foldText(quote)}`;
-  const pubsPerQuote = countBy(
-    sourced.flatMap(({ row, host }) =>
-      Object.entries(row.amenities ?? {}).map(([key, quote]) => quoteKey(host, key, String(quote))),
-    ),
-    (item) => item,
+}
+
+/**
+ * What these rows prove chain-wide. Each row is a pub that read its source
+ * page, with the quotes it stated if any. A page is proven once more than one
+ * pub has read it with its query, fragment and trailing slash set aside, the
+ * home page of a host once several pubs have read that host, and a quote once
+ * more than one pub on one host has stated it word for word.
+ */
+export function provenChainEvidence<T extends PubEvidenceRow>(rows: readonly T[]): ChainDenylist {
+  const sourced = sourcedRows(rows);
+  const readers: Record<string, string[]> = {};
+  for (const { row, page } of sourced) readers[page] = [...(readers[page] ?? []), row.osmId];
+  const quoteReaders = sourced.flatMap(({ row, host }) =>
+    (Object.entries(row.amenities ?? {}) as [PubWebsiteAmenityKey, string][]).map(([key, quote]) => ({
+      host,
+      key,
+      quote: String(quote),
+      readers: [row.osmId],
+    })),
   );
+  return mergeChainDenylists(EMPTY_CHAIN_DENYLIST, { pages: [], quotes: [], readers, quoteReaders });
+}
+
+/**
+ * Evidence that speaks for one pub. A chain-wide page or quote describes the
+ * brand rather than any one pub, so it goes, whether these rows prove it or
+ * the committed denylist already holds the proof from an earlier run. Every
+ * stamp, from a fresh harvest or from the committed evidence file, goes
+ * through here.
+ */
+export function pubSpecificEvidence<T extends PubEvidenceRow>(
+  rows: readonly T[],
+  denylist: ChainDenylist = EMPTY_CHAIN_DENYLIST,
+): (T & { amenities: Partial<Record<PubWebsiteAmenityKey, string>> })[] {
+  const chain = mergeChainDenylists(denylist, provenChainEvidence(rows));
+  const chainPages = new Set(chain.pages);
+  const chainQuotes = new Set(chain.quotes.map((entry) => quoteId(entry.host, entry.key, entry.quote)));
   const kept: (T & { amenities: Partial<Record<PubWebsiteAmenityKey, string>> })[] = [];
-  for (const { row, host, page } of sourced) {
-    if (pubsPerPage.get(page) !== 1) continue;
-    if (page === host && (pubsPerHost.get(host) ?? 0) > 1) continue;
+  for (const { row, host, page } of sourcedRows(rows)) {
+    if (chainPages.has(page)) continue;
     const ownQuotes: Partial<Record<PubWebsiteAmenityKey, string>> = {};
     for (const [key, quote] of Object.entries(row.amenities ?? {}) as [PubWebsiteAmenityKey, string][]) {
-      if (pubsPerQuote.get(quoteKey(host, key, quote)) === 1) ownQuotes[key] = quote;
+      if (!chainQuotes.has(quoteId(host, key, String(quote)))) ownQuotes[key] = quote;
     }
     const amenities = statedAmenities(ownQuotes);
     if (Object.keys(amenities).length === 0) continue;
     kept.push({ ...row, amenities });
   }
   return kept;
+}
+
+/** One pub's harvest outcome, as the checkpoint keeps it. */
+export type HarvestRead = {
+  status?: string;
+  name?: string;
+  venueId?: string | null;
+  sourceUrl?: string;
+  reader?: string;
+  located?: boolean;
+  landingChecked?: boolean;
+  verifiedAt?: string;
+  amenities?: Partial<Record<PubWebsiteAmenityKey, string>>;
+  /** Each page the pub's quotes came from, with the quotes that page itself states. */
+  pages?: { sourceUrl: string; amenities?: Partial<Record<PubWebsiteAmenityKey, string>> }[];
+};
+
+/**
+ * The checkpoint entry for a page read and kept for a later model run. A
+ * Firecrawl read had its landing fenced as it was read, so its landing is not
+ * asked again when the model run takes it up.
+ */
+export function pageReadEntry(
+  pub: { venueId: string | null; name: string },
+  read: { sourceUrl: string; reader: string; located?: boolean },
+): HarvestRead {
+  return {
+    status: "read",
+    venueId: pub.venueId,
+    name: pub.name,
+    sourceUrl: read.sourceUrl,
+    reader: read.reader,
+    located: read.located,
+    ...(read.reader === "firecrawl" ? { landingChecked: true } : {}),
+  };
+}
+
+/**
+ * A kept page read with its text, or null when the pub must be read again: the
+ * checkpoint holds no kept read for it, or its page text is gone.
+ */
+export function cachedPageRead(
+  entry: HarvestRead | undefined,
+  loadText: () => string | null,
+): (HarvestRead & { text: string }) | null {
+  if (entry?.status !== "read") return null;
+  const text = loadText();
+  return text === null ? null : { ...entry, text };
+}
+
+export type HarvestEvidenceRow = PubEvidenceRow & {
+  osmId: string;
+  name?: string;
+  venueId?: string | null;
+  verifiedAt?: string;
+};
+
+const UNCONFIRMED_SITE_STATUSES = new Set(["located-site-unconfirmed", "listed-site-unconfirmed"]);
+
+/** Whether a read owns the page it read: every read but one whose page did not state the pub's address. */
+function readOwnsPage(status: string | undefined): boolean {
+  return !UNCONFIRMED_SITE_STATUSES.has(status ?? "");
+}
+
+/**
+ * The committed evidence with this run's pages laid over it, and the chain
+ * list with every reader and what they prove. `fresh` is what this process
+ * read. `checkpoint` is every read the checkpoint holds, this process's and
+ * those of a run that stopped before it wrote the chain list, so a resumed
+ * harvest still counts the pubs it will not read again. Every pub that read a
+ * page is a reader, whatever came of the read, and its quotes count before
+ * the chain rule drops any of them. A page that did not state the pub's
+ * address was not that pub's, so its read proves nothing, and a dataset
+ * venue's read of a page that belongs to another pub is a duplicate of that
+ * pub's read.
+ */
+export function mergeHarvestEvidence(input: {
+  previousRows: readonly HarvestEvidenceRow[];
+  previousSkipCounts?: Record<string, number>;
+  fresh: ReadonlyMap<string, HarvestRead>;
+  checkpoint: Readonly<Record<string, HarvestRead>>;
+  knownChainPages: ChainDenylist;
+}): { rows: HarvestEvidenceRow[]; skipCounts: Record<string, number>; chainPages: ChainDenylist } {
+  const skipCounts = { ...(input.previousSkipCounts ?? {}) };
+  const candidates: HarvestEvidenceRow[] = input.previousRows.filter((row) => !input.fresh.has(row.osmId));
+  for (const [osmId, entry] of input.fresh) {
+    if (entry.status !== "ok") {
+      const status = entry.status ?? "unknown";
+      skipCounts[status] = (skipCounts[status] ?? 0) + 1;
+      continue;
+    }
+    // One row per page read, so a quote cites the page that states it and a
+    // page that stated nothing still counts its pub as a reader.
+    for (const page of entry.pages?.length ? entry.pages : [entry]) {
+      candidates.push({
+        osmId,
+        name: entry.name,
+        venueId: entry.venueId,
+        sourceUrl: page.sourceUrl,
+        verifiedAt: entry.verifiedAt,
+        amenities: page.amenities ?? {},
+      });
+    }
+  }
+  const allReads = [...new Map([...Object.entries(input.checkpoint), ...input.fresh]).entries()];
+  const ownedReads = allReads.flatMap(([osmId, entry]) =>
+    readOwnsPage(entry.status)
+      ? (entry.pages?.length ? entry.pages.filter((page) => typeof page?.sourceUrl === "string") : entry.sourceUrl ? [{ sourceUrl: entry.sourceUrl, amenities: entry.amenities }] : []).map(
+          (page) => ({ osmId, sourceUrl: page.sourceUrl, amenities: page.amenities ?? {} }),
+        )
+      : [],
+  );
+  const owners = pageOwners(input.previousRows, allReads, input.knownChainPages);
+  const notDuplicate = (read: { osmId: string; sourceUrl?: string }) =>
+    !read.sourceUrl || !siteOfAnotherPub(read.sourceUrl, read.osmId, owners);
+  const ownCandidates = candidates.filter(notDuplicate);
+  const chainPages = mergeChainDenylists(input.knownChainPages, provenChainEvidence([...ownCandidates, ...ownedReads.filter(notDuplicate)]));
+  const rows = pubSpecificEvidence(ownCandidates, chainPages).sort((a, b) => a.osmId.localeCompare(b.osmId));
+  const keptPubs = new Set(rows.map((row) => row.osmId));
+  const unused = new Set(candidates.map((row) => row.osmId).filter((osmId) => !keptPubs.has(osmId))).size;
+  if (unused > 0) skipCounts.ok = (skipCounts.ok ?? 0) + unused;
+  return { rows, skipCounts, chainPages };
+}
+
+export type PageRead = { ok: true; url: string; text: string } | { ok: false; reason: string };
+
+/**
+ * One extra page from a pub's site, with the URL it landed on, or null. A link
+ * is checked against the source policy and the chain list before it is
+ * fetched. The page it lands on is checked again against the chain list, the
+ * source policy and robots, because a pub's own `/menu` can redirect to a
+ * chain-wide page or to a host the harvest may not read.
+ */
+export async function readExtraPage(
+  link: string,
+  deps: {
+    chainPages: ChainDenylist;
+    isHarvestable: (url: string) => boolean;
+    robots: (url: string) => Promise<{ allowed: boolean }>;
+    readHtml: (url: string) => Promise<PageRead>;
+  },
+): Promise<{ url: string; text: string } | null> {
+  if (!deps.isHarvestable(link) || isChainPage(link, deps.chainPages)) return null;
+  if (!(await deps.robots(link)).allowed) return null;
+  const extra = await deps.readHtml(link);
+  if (!extra.ok || isChainPage(extra.url, deps.chainPages)) return null;
+  if (extra.url !== link && (!deps.isHarvestable(extra.url) || !(await deps.robots(extra.url)).allowed)) return null;
+  return { url: extra.url, text: extra.text };
 }
 
 /** Keep true values whose evidence is a quote from the page that states the amenity. Everything else goes. */
@@ -437,4 +807,164 @@ export function matchPubToVenue(
     if (!best || metres < best.metres) best = { venue, metres };
   }
   return best?.venue ?? null;
+}
+
+/** A page shorter than this after tags are stripped is read as a script-built page. */
+const THIN_PAGE_CHARS = 200;
+
+/**
+ * Whether a plain read may be asked again through Firecrawl. Only a read the
+ * network or a script-built page kept from us qualifies: a timeout, a failed
+ * connection, a 429 or 5xx, or a page with almost no text. A 401, 403 or 451 is
+ * the site refusing us, a 404 or 410 is gone, and a redirect off the source
+ * fence stays refused, so none of those is read another way.
+ */
+export function firecrawlMayReread(read: PageRead): boolean {
+  if (read.ok) return read.text.length < THIN_PAGE_CHARS;
+  if (read.reason === "timeout" || read.reason === "fetch-failed") return true;
+  const status = Number(/^http-(\d{3})$/.exec(read.reason)?.[1]);
+  return status === 429 || status >= 500;
+}
+
+const POSTCODE = /\b([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})\b/i;
+
+/** The full UK postcode an address states, normalised as "N1 9AA", or null. */
+export function postcodeOf(address: string): string | null {
+  const match = POSTCODE.exec(address);
+  return match ? `${match[1]} ${match[2]}`.toUpperCase() : null;
+}
+
+/** Whether page text states this postcode, with or without its space. */
+export function pageStatesPostcode(text: string, postcode: string): boolean {
+  const [outward, inward] = postcode.toUpperCase().split(" ");
+  return new RegExp(`\\b${outward}\\s*${inward}\\b`, "i").test(text);
+}
+
+/**
+ * The first search hit that can be this pub's own site: permitted by the
+ * source policy, not a chain-wide page, and on a host that carries a
+ * distinctive word of the pub's name. The page must still state the pub's
+ * postcode before anything read from it counts.
+ */
+export function locatedOwnSite(
+  name: string,
+  hits: readonly { url: string }[],
+  deps: {
+    chainPages: ChainDenylist;
+    isHarvestable: (url: string) => boolean;
+    ownSite: (name: string, url: string) => string | null;
+  },
+): string | null {
+  for (const { url } of hits) {
+    if (!deps.isHarvestable(url) || isChainPage(url, deps.chainPages)) continue;
+    if (deps.ownSite(name, url)) return url;
+  }
+  return null;
+}
+
+const STREET_SUFFIXES: Record<string, string> = {
+  st: "street", rd: "road", ln: "lane", ave: "avenue", sq: "square", pl: "place", ct: "court", cres: "crescent", gdns: "gardens", hwy: "highway",
+};
+
+/**
+ * The street an address names in its first part, without the house number,
+ * as words, or null when that part has fewer than two words. "10 James St,
+ * London" gives ["james", "street"].
+ */
+export function streetOf(address: string): string[] | null {
+  const first = address.split(",")[0]?.toLowerCase().replace(/^[\d\s\-–/a-z]{0,4}\d[a-z]?\b/, "") ?? "";
+  const words = first.match(/[a-z']+/g)?.map((word) => STREET_SUFFIXES[word] ?? word) ?? [];
+  return words.length >= 2 ? words : null;
+}
+
+/** Whether page text names this street, its suffix spelled out or abbreviated. */
+export function pageStatesStreet(text: string, street: readonly string[]): boolean {
+  const abbreviations = Object.fromEntries(Object.entries(STREET_SUFFIXES).map(([short, long]) => [long, short]));
+  const pattern = street
+    .map((word) => (abbreviations[word] ? `(?:${word}|${abbreviations[word]}\\.?)` : word.replace(/'/g, "['’]?")))
+    .join("\\s+");
+  return new RegExp(`\\b${pattern}\\b`, "i").test(text);
+}
+
+/**
+ * Every read that can own a page, for `siteOfAnotherPub`: the committed
+ * evidence, the checkpoint's reads with their status, and the chain list's
+ * readers that OSM gave a site, which never reach the evidence file when their
+ * read kept nothing. A dataset venue the chain list names as a reader is the
+ * duplicate the list must not stand on.
+ */
+export function pageOwners(
+  previousRows: readonly { osmId: string; sourceUrl?: string }[],
+  reads: Iterable<readonly [string, HarvestRead]>,
+  knownChainPages: ChainDenylist,
+): { osmId: string; sourceUrl?: string; status?: string }[] {
+  const listed = Object.entries(knownChainPages.readers).flatMap(([page, osmIds]) =>
+    osmIds.filter((osmId) => !isDatasetVenueRead(osmId)).map((osmId) => ({ osmId, sourceUrl: `https://${page}` })),
+  );
+  return [
+    ...previousRows,
+    ...[...reads].map(([osmId, entry]) => ({ osmId, sourceUrl: entry.sourceUrl, status: entry.status })),
+    ...listed,
+  ];
+}
+
+/** Whether a read is a price-dataset venue's, which OSM gives no site. */
+function isDatasetVenueRead(osmId: string): boolean {
+  return osmId.startsWith("venue/");
+}
+
+/**
+ * Whether page text states this address: its postcode when it has one, else
+ * its street. An address with neither is never stated.
+ */
+export function pageStatesAddress(
+  text: string,
+  address: { postcode: string | null; street: readonly string[] | null },
+): boolean {
+  if (address.postcode) return pageStatesPostcode(text, address.postcode);
+  return address.street !== null && pageStatesStreet(text, address.street);
+}
+
+/**
+ * Whether this page belongs to another pub. The price dataset can hold one pub
+ * twice under two spellings, and a read by the duplicate would prove the page,
+ * or a quote on it, chain-wide and withdraw the first pub's evidence. A page
+ * another pub has read is that pub's, and so is any page on a host exactly one
+ * other pub has read. A host two or more pubs read is a chain's, whose other
+ * pages the chain list already judges. A read owns its page unless the page did
+ * not state the pub's address. Only a dataset venue, keyed `venue/`, can read a
+ * page of another pub: a site OSM gives a pub is that pub's own.
+ */
+export function siteOfAnotherPub(
+  url: string,
+  osmId: string,
+  reads: readonly { osmId: string; sourceUrl?: string; status?: string }[],
+): boolean {
+  const target = sourcePage(url);
+  if (!target || !isDatasetVenueRead(osmId)) return false;
+  const others = reads.flatMap((read) => {
+    const source = read.osmId !== osmId && read.sourceUrl !== undefined && readOwnsPage(read.status) ? sourcePage(read.sourceUrl) : null;
+    return source ? [{ osmId: read.osmId, ...source }] : [];
+  });
+  if (others.some((read) => read.page === target.page)) return true;
+  return new Set(others.filter((read) => read.host === target.host).map((read) => read.osmId)).size === 1;
+}
+
+/**
+ * This run's reads without those that would make a pub's evidence thinner. A
+ * scoped harvest reads again pubs whose site already gave evidence, and a
+ * re-read that failed or kept fewer amenities leaves the earlier row in place.
+ */
+export function withoutThinnerRereads(
+  fresh: ReadonlyMap<string, HarvestRead>,
+  previousRows: readonly HarvestEvidenceRow[],
+): Map<string, HarvestRead> {
+  const previous = new Map(previousRows.map((row) => [row.osmId, Object.keys(row.amenities ?? {}).length]));
+  return new Map(
+    [...fresh].filter(([osmId, entry]) => {
+      const before = previous.get(osmId);
+      if (before === undefined) return true;
+      return entry.status === "ok" && Object.keys(entry.amenities ?? {}).length > before;
+    }),
+  );
 }

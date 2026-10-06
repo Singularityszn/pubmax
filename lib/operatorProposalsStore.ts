@@ -15,7 +15,8 @@ import "server-only";
 
 import { randomUUID } from "crypto";
 
-import { admin, createFailSoftGuard, selectStore } from "@/lib/storeBackend";
+import { admin, createFailSoftGuard, selectStore, whereVenueIdIn } from "@/lib/storeBackend";
+import { storedVenueIds } from "@/lib/venueAliases";
 import {
   toOperatorProposalDTO,
   type OperatorProposal,
@@ -77,8 +78,9 @@ export const memoryOperatorProposalStore: OperatorProposalStore = {
   },
 
   async listAcceptedForVenue(venueId) {
+    const venueIds = await storedVenueIds(venueId);
     return Array.from(byId.values())
-      .filter((p) => p.venueId === venueId && p.status === "accepted")
+      .filter((p) => venueIds.includes(p.venueId) && p.status === "accepted")
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .slice(0, MAX_PROPOSAL_ROWS);
   },
@@ -188,10 +190,10 @@ export const supabaseOperatorProposalStore: OperatorProposalStore = {
       message: "listAcceptedForVenue failed — returning none",
       onError: () => [],
       run: async () => {
-        const { data, error } = await admin()
-          .from(TABLE)
-          .select("*")
-          .eq("venue_id", venueId)
+        const { data, error } = await whereVenueIdIn(
+          admin().from(TABLE).select("*"),
+          await storedVenueIds(venueId),
+        )
           .eq("status", "accepted")
           .order("created_at", { ascending: false })
           .limit(MAX_PROPOSAL_ROWS);

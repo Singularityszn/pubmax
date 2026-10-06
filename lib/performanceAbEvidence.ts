@@ -790,10 +790,10 @@ export function formatAbTable(rows: readonly AbComparison[]): string {
   ]);
   const header = ["route", "metric", "ceiling", "branch", "base", "samples", "delta", "verdict"];
   const widths = header.map((cell, column) =>
-    Math.max(cell.length, ...body.map((line) => line[column].length)),
+    Math.max(cell.length, ...body.map((line) => (line[column] ?? "").length)),
   );
   const line = (cells: string[]) =>
-    cells.map((cell, column) => pad(cell, widths[column])).join("  ").trimEnd();
+    cells.map((cell, column) => pad(cell, widths[column] ?? 0)).join("  ").trimEnd();
   return [
     line(header),
     widths.map((width) => "-".repeat(width)).join("  "),

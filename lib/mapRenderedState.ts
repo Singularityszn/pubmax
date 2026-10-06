@@ -25,7 +25,12 @@ function priceMeaning(
   kind: unknown,
 ): MapRenderedPriceMeaning | null {
   if (kind === "pub") return "pint";
-  if (kind === "bar" || kind === "food" || kind === "restaurant") {
+  if (
+    kind === "bar" ||
+    kind === "club" ||
+    kind === "food" ||
+    kind === "restaurant"
+  ) {
     return "type-relative";
   }
   return null;

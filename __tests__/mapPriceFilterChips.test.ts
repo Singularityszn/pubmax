@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MapPriceFilterChips from "@/components/map/MapPriceFilterChips";
 import { initialFilters } from "@/components/map/ControlRail";
 import { NO_PINT_PRICE_CAP, type Filters } from "@/lib/venues";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The cap chips are a real control, so a click is the only honest proof: it
 // must write the cap AND close the Layers popover the way the retired corner
@@ -54,7 +55,7 @@ describe("MapPriceFilterChips", () => {
     });
 
     expect(onFiltersChange).toHaveBeenCalledTimes(1);
-    expect(onFiltersChange.mock.calls[0][0]).toMatchObject({ maxPrice: 5.5 });
+    expect(defined(onFiltersChange.mock.calls[0])[0]).toMatchObject({ maxPrice: 5.5 });
     expect(onPicked).toHaveBeenCalledTimes(1);
   });
 
@@ -72,7 +73,7 @@ describe("MapPriceFilterChips", () => {
       chip("≤ £7").click();
     });
 
-    expect(onFiltersChange.mock.calls[0][0]).toEqual({ ...held, maxPrice: 7 });
+    expect(defined(onFiltersChange.mock.calls[0])[0]).toEqual({ ...held, maxPrice: 7 });
   });
 
   it("presses exactly the cap that is in force, and reads Any as no cap", () => {

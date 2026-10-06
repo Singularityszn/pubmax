@@ -9,7 +9,7 @@ import DesktopRail from "@/components/desktop/DesktopRail";
 
 // Node-env unit test (no DOM): the host is a pure layout component, so
 // renderToStaticMarkup is enough to lock its slot contract, and the CSS is
-// asserted from source (the same idiom as activationChromeCss.test.ts).
+// asserted from source.
 
 const desktopRailCss = readFileSync(
   join(process.cwd(), "components/desktop/desktopRail.css"),

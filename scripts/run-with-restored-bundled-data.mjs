@@ -2,7 +2,10 @@
 
 import { spawnSync } from "node:child_process";
 
-import { restoreCommittedBundledData } from "./lib/committedBundledDataPaths.mjs";
+import {
+  restoreCommittedBundledData,
+  untrackedBundledData,
+} from "./lib/committedBundledDataPaths.mjs";
 
 const [, , command, ...args] = process.argv;
 
@@ -13,6 +16,8 @@ if (!command) {
 
 const executable = process.platform === "win32" && command === "npm" ? "npm.cmd" : command;
 
+const untrackedBefore = untrackedBundledData();
+
 let result;
 try {
   result = spawnSync(executable, args, {
@@ -21,7 +26,7 @@ try {
     stdio: "inherit",
   });
 } finally {
-  if (!restoreCommittedBundledData()) {
+  if (!restoreCommittedBundledData(process.cwd(), { untrackedBefore })) {
     console.error("Failed to restore committed bundled data from HEAD.");
     process.exit(1);
   }

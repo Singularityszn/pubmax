@@ -25,6 +25,7 @@ function BenchmarkFigures({ row }: { row: NationalPintBenchmark }) {
   const arc = nationalPintArc(row);
   if (!arc) {
     const [only] = row.figures;
+    if (!only) return null;
     return (
       <p className="nationalPintLine">
         <span className="nationalPintClause">

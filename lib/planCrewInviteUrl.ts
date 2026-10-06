@@ -3,6 +3,7 @@
 // #invite= so PlanCrew can POST /join without reopening the bare-UUID IDOR.
 // Collaboration one-use invites keep the same hash shape (PlanCollaborationPanel).
 
+import type { Route } from "next";
 import { isPlanId } from "@/lib/plan";
 
 /** Classic plans.invite_token (32 hex). Distinct from 64-hex collaboration invites. */
@@ -21,11 +22,11 @@ export function planCrewSharePath(
   planId: string,
   inviteToken: string,
   vibeSlug?: string | null,
-): string {
+): Route {
   if (!isPlanId(planId) || !isClassicPlanInviteToken(inviteToken)) {
-    return isPlanId(planId) ? `/plan/${planId}` : "/plan";
+    return isPlanId(planId) ? (`/plan/${planId}` as Route) : "/plan";
   }
   const token = inviteToken.trim().toLowerCase();
   const query = vibeSlug ? `?vibe=${encodeURIComponent(vibeSlug)}` : "";
-  return `/plan/${planId}${query}#invite=${encodeURIComponent(token)}`;
+  return `/plan/${planId}${query}#invite=${encodeURIComponent(token)}` as Route;
 }

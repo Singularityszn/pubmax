@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "observedAt": "2026-10-04T10:22:24.747Z",
+  "packs": {
+    "places_enrichment": {
+      "inputHash": "e1c02fe2c86eced553989daa194b41cfbf61556808c52f49a3bc34565f40b097",
+      "observedAt": "2026-10-04T10:22:24.747Z",
+      "spend": {
+        "capUsd": 85,
+        "attemptedCalls": 3053,
+        "usdPerThousand": 20,
+        "reservedUsd": 61.06,
+        "month": "2026-10",
+        "monthAttemptedCalls": 3053,
+        "monthReservedUsd": 61.06,
+        "runStartedAt": null,
+        "monthToDatePlacesRequestsBeforeRun": 15429,
+        "freeAllowanceAssumed": 0
+      },
+      "summary": {
+        "venues": 3053,
+        "hours": 2935,
+        "addresses": 3053,
+        "phones": 2807,
+        "websites": 2627,
+        "errors": 0
+      }
+    },
+    "places_enrichment_uk_cities": {
+      "inputHash": "b5f260fbf754c65520786ae40a5bd80dcb706ca323f33dd42b079f6dcee85954",
+      "observedAt": "2026-10-04T15:16:06.562Z",
+      "spend": {
+        "capUsd": 28,
+        "attemptedCalls": 1400,
+        "usdPerThousand": 20,
+        "reservedUsd": 28,
+        "month": "2026-10",
+        "monthAttemptedCalls": 1400,
+        "monthReservedUsd": 28,
+        "runStartedAt": null,
+        "monthToDatePlacesRequestsBeforeRun": 18482,
+        "freeAllowanceAssumed": 0
+      },
+      "summary": {
+        "venues": 1400,
+        "hours": 1334,
+        "addresses": 1400,
+        "phones": 1201,
+        "websites": 1057,
+        "errors": 0
+      }
+    }
+  }
+}

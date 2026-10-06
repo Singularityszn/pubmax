@@ -7,6 +7,9 @@
     var(--map-toolbar-resting-height, 181px) +
     82px
   );
+  /* The bottom of one desktop pill: the 44px .cityStatusBannerLink, the
+     banner's 6px padding and its 1px border on each side. */
+  --city-status-desktop-bottom: calc(var(--city-status-desktop-top) + 58px);
 }
 
 .cityStatusStack {

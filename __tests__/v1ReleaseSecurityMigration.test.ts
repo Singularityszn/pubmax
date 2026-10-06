@@ -9,6 +9,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 const MIGRATIONS_DIR = join(process.cwd(), "supabase/migrations");
 const ROLLBACK_DIR = join(MIGRATIONS_DIR, "rollback");
@@ -73,7 +74,7 @@ function applyPolicies(catalog: PolicyCatalog, sql: string): void {
       /^drop policy (?:if exists )?("[^"]+"|[a-z0-9_]+) on (?:public\.)?([a-z0-9_]+)/,
     );
     if (dropped) {
-      catalog.delete(policyKey(dropped[2], dropped[1].replaceAll('"', "")));
+      catalog.delete(policyKey(defined(dropped[2]), defined(dropped[1]).replaceAll('"', "")));
       continue;
     }
 
@@ -85,9 +86,9 @@ function applyPolicies(catalog: PolicyCatalog, sql: string): void {
     const roles =
       statement
         .match(/\sto\s+([a-z0-9_,\s]+?)(?=\susing\s|\swith\scheck\s|;)/)?.[1]
-        .split(",")
+        ?.split(",")
         .map((role) => role.trim()) ?? ["public"];
-    catalog.set(policyKey(created[2], created[1].replaceAll('"', "")), {
+    catalog.set(policyKey(defined(created[2]), defined(created[1]).replaceAll('"', "")), {
       command,
       roles,
       statement,
@@ -113,11 +114,11 @@ function applyPrivileges(catalog: PrivilegeCatalog, sql: string): void {
     );
     if (!parsed) continue;
     const [, operation, rawPrivileges, table, rawRoles] = parsed;
-    const privileges = rawPrivileges.split(",").map((privilege) => privilege.trim());
-    const roles = rawRoles.split(",").map((role) => role.trim());
+    const privileges = defined(rawPrivileges).split(",").map((privilege) => privilege.trim());
+    const roles = defined(rawRoles).split(",").map((role) => role.trim());
 
     for (const role of roles) {
-      const key = privilegeKey(role, table);
+      const key = privilegeKey(role, defined(table));
       const current = catalog.get(key) ?? new Set<string>();
       const expanded = privileges.includes("all") || privileges.includes("all privileges")
         ? [...SERVICE_PRIVILEGES]

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET } from "@/app/api/citymcp/buzz/route";
 import { resetCityBuzzCache } from "@/lib/citymcp/buzz";
+import { defined } from "@/__tests__/helpers/defined";
 
 const realFetch = global.fetch;
 // The route now rate-limits per IP (S2) before anything else. Vercel's vitest
@@ -154,8 +155,8 @@ describe("GET /api/citymcp/buzz", () => {
     }
 
     expect(responses.slice(0, 60).every((res) => res.status !== 429)).toBe(true);
-    expect(responses[60].status).toBe(429);
-    expect(await responses[60].json()).toEqual({
+    expect(defined(responses[60]).status).toBe(429);
+    expect(await defined(responses[60]).json()).toEqual({
       error: "Too many requests, slow down.",
       code: "RATE_LIMITED",
       retryable: true,

@@ -1,8 +1,9 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { LocateFixed } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import PriceBadge from "@/components/PriceBadge";
 import Kicker from "@/components/ui/kicker";
@@ -12,18 +13,23 @@ import { trackEvent } from "@/lib/analytics";
 import type { LandingCtaTarget } from "@/lib/analyticsEvents";
 import type { LegacyPintPrice } from "@/lib/drinks";
 import {
+  getTourSeenServerSnapshot,
+  getTourSeenSnapshot,
+  subscribeTour,
+} from "@/lib/firstRunTour";
+import {
   answerEvidenceFor,
   answerKicker,
   HERO_RAIL_SIZE,
   LANDING_FALLBACK_RECEIPT_HREF,
   LANDING_FALLBACK_RECEIPT_LABEL,
-  LANDING_PRIMARY_HREF,
   LANDING_PRIMARY_LABEL,
   LANDING_QUIET_DOORS,
   NEAR_ME_CONTROL_BUSY_LABEL,
   NEAR_ME_CONTROL_LABEL,
   NEAR_ME_FAILED_LINE,
   NEAR_ME_NOTHING_LINE,
+  landingPrimaryHref,
   pintDropDoorHref,
   railHeading,
   stillPriceLabel,
@@ -116,7 +122,7 @@ type Answer = {
   /** "a pint of Pravha" for the anchor; the slim index names no pint. */
   pintName: string | null;
   /** The pint's own drink page, when one publishes (lib/landingPubCard.ts). */
-  drinkHref: string | null;
+  drinkHref: Route | null;
   scope: LandingAnswerScope;
   walkMinutes?: number;
   evidence: Evidence;
@@ -219,6 +225,13 @@ export default function LandingHero({
   const [near, setNear] = useState<NearState>({ kind: "idle" });
   const generation = useRef(0);
   const hasCard = card !== null;
+  // The document ships the returning visitor's door (the server snapshot says
+  // seen), and the browser points a first-time visitor at the journey.
+  const seenOnboarding = useSyncExternalStore(
+    subscribeTour,
+    getTourSeenSnapshot,
+    getTourSeenServerSnapshot,
+  );
 
   // The swap. One generation counter keeps a slow first read from landing
   // over a later one. The ranker and the slim index load only here, so the
@@ -246,11 +259,11 @@ export default function LandingHero({
               position.coords.longitude,
               slim,
             );
-            if (ranked.scope === "none" || ranked.cards.length === 0) {
+            const [first, ...rest] = ranked.cards;
+            if (ranked.scope === "none" || !first) {
               fail(NEAR_ME_NOTHING_LINE);
               return;
             }
-            const [first, ...rest] = ranked.cards;
             setAnswer(nearAnswer(first, rest, ranked.scope, archive));
             setNear({ kind: "answered" });
             const controller = new AbortController();
@@ -292,11 +305,12 @@ export default function LandingHero({
       : {},
   );
   // The one filled action, and it is the same door whether or not a pub card
-  // stands behind the document: /near answers a stranger in one tap.
+  // stands behind the document: /near answers in one tap, with the first-run
+  // journey in front of it for a first-time visitor.
   const primary = (
     <Link
       prefetch={false}
-      href={LANDING_PRIMARY_HREF}
+      href={landingPrimaryHref(seenOnboarding)}
       onClick={() => trackLandingCta("near")}
     >
       {LANDING_PRIMARY_LABEL}

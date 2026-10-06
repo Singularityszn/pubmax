@@ -2,6 +2,8 @@ import { expect, test, type Locator, type Page, type TestInfo } from "@playwrigh
 
 import { formatObservedDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 
+import { stubSocialAuthProviders } from "./helpers/authDoubles";
+
 const AREA_SLUG = "victoria";
 const AREA_NAME = "Victoria";
 const BRAND_SLUG = "guinness";
@@ -90,9 +92,7 @@ async function setLandingState(page: Page, theme: Theme): Promise<void> {
       body: "{}",
     }),
   );
-  await page.route("**/_vercel/insights/script.js", (route) =>
-    route.fulfill({ status: 200, contentType: "application/javascript", body: "" }),
-  );
+  await stubSocialAuthProviders(page);
   await page.routeWebSocket("wss://pubmaxx-e2e.supabase.co/realtime/v1/websocket**", () => {});
   await page.addInitScript((nextTheme) => {
     localStorage.setItem("pubmax-theme", nextTheme);

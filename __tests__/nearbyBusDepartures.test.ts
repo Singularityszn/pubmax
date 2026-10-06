@@ -17,6 +17,7 @@ import {
   shouldPollBusDepartures,
   startBusDeparturesPoll,
 } from "@/lib/nearbyBusDepartures";
+import { defined } from "@/__tests__/helpers/defined";
 
 describe("freshBusPredictions", () => {
   const now = new Date("2026-07-28T22:40:00.000Z");
@@ -325,7 +326,7 @@ describe("startBusDeparturesPoll", () => {
 
     poll.stop();
 
-    expect(signals[0].aborted).toBe(true);
+    expect(defined(signals[0]).aborted).toBe(true);
     await vi.advanceTimersByTimeAsync(BUS_DEPARTURES_REFRESH_MS * 4);
     expect(ticks).toEqual([]);
     expect(signals).toHaveLength(1);
@@ -383,7 +384,7 @@ describe("startBusDeparturesPoll", () => {
     poll.refresh();
     expect(loads).toBe(1);
 
-    releases[0]();
+    defined(releases[0])();
     await vi.advanceTimersByTimeAsync(0);
     poll.refresh();
     expect(loads).toBe(2);

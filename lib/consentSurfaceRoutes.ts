@@ -45,7 +45,7 @@ export function routeCarriesConsentControl(
   pathname: string | null | undefined,
 ): boolean {
   if (typeof pathname !== "string") return false;
-  const path = pathname.split("?")[0].split("#")[0].replace(/\/+$/, "");
+  const path = (pathname.split(/[?#]/)[0] ?? "").replace(/\/+$/, "");
   if (path === "") return false;
   return (
     path === CONSENT_CONTROL_ROUTE_PREFIX

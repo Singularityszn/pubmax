@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import capacitorConfig from "../capacitor.config";
 import { BRAND_COLORS } from "@/lib/brandMark.mjs";
 import { NATIVE_SPLASH_CEILING_MS, releaseNativeSplashOnFirstPaint } from "@/lib/nativeSplash";
+import { defined } from "@/__tests__/helpers/defined";
 
 // THE APP OPENED ON A BLACK FIELD FOR TWENTY SECONDS.
 //
@@ -211,9 +212,9 @@ describe("the iOS plugin finds the storyboard it loads, and the OS never launche
     const [view] = childrenNamed(initial!, "view").filter((child) => child.getAttribute("key") === "view");
     expect(view, "the initial view controller has no view").toBeDefined();
 
-    const field = childrenNamed(view, "color").find((color) => color.getAttribute("key") === "backgroundColor");
+    const field = childrenNamed(defined(view), "color").find((color) => color.getAttribute("key") === "backgroundColor");
     expect(field?.getAttribute("name")).toBe("LaunchBackground");
-    const images = childrenNamed(view, "subviews")
+    const images = childrenNamed(defined(view), "subviews")
       .flatMap((subviews) => childrenNamed(subviews, "imageView"))
       .map((image) => image.getAttribute("image"));
     expect(images).toEqual(["LaunchMark"]);
@@ -221,7 +222,7 @@ describe("the iOS plugin finds the storyboard it loads, and the OS never launche
 
   it("is not named as the launch storyboard in Info.plist", () => {
     const [dict] = childrenNamed(xml("ios/App/App/Info.plist").documentElement, "dict");
-    const keys = childrenNamed(dict, "key").map((key) => key.textContent);
+    const keys = childrenNamed(defined(dict), "key").map((key) => key.textContent);
     expect(keys).toContain("UILaunchScreen");
     expect(keys).not.toContain("UILaunchStoryboardName");
   });
@@ -231,10 +232,10 @@ describe("the iOS plugin finds the storyboard it loads, and the OS never launche
     const objects = project.objects as Record<string, PbxDict>;
     const bundled = Object.values(objects)
       .filter((object) => object.isa === "PBXResourcesBuildPhase")
-      .flatMap((phase) => (phase.files as string[]).map((id) => objects[objects[id].fileRef as string]));
-    const storyboard = bundled.find((file) => file.name === "LaunchScreen.storyboard");
+      .flatMap((phase) => (phase.files as string[]).map((id) => objects[defined(objects[id]).fileRef as string]));
+    const storyboard = bundled.find((file) => defined(file).name === "LaunchScreen.storyboard");
     expect(storyboard?.isa).toBe("PBXVariantGroup");
-    const paths = (storyboard!.children as string[]).map((id) => objects[id].path);
+    const paths = (storyboard!.children as string[]).map((id) => defined(objects[id]).path);
     expect(paths).toEqual(["Base.lproj/LaunchScreen.storyboard"]);
   });
 });

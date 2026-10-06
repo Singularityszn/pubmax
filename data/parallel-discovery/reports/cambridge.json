@@ -1,0 +1,361 @@
+{
+  "city": "cambridge",
+  "districts": 5,
+  "slices": 20,
+  "slicesComplete": 20,
+  "incompleteSlices": [],
+  "skippedSources": [
+    {
+      "district": "CB1",
+      "category": "pub",
+      "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/411/show_comments/5",
+      "host": "www.beerintheevening.com",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-05T09:34:27.628Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-05T09:35:03.399Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-05T09:35:39.192Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        }
+      ],
+      "checkedAt": "2026-10-05T09:35:39.209Z"
+    },
+    {
+      "district": "CB3",
+      "category": "bar",
+      "url": "https://www.hyatt.com/hyatt-centric/en-US/stnct-hyatt-centric-cambridge/dining",
+      "host": "www.hyatt.com",
+      "kind": "robots",
+      "reason": "robots HTTP 429",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-05T09:34:11.528Z",
+          "reason": "robots-unreadable",
+          "evidence": "https://www.hyatt.com/robots.txt answered 429, so no permission can be read."
+        },
+        {
+          "at": "2026-10-05T09:34:16.956Z",
+          "reason": "robots-unreadable",
+          "evidence": "https://www.hyatt.com/robots.txt answered 429, so no permission can be read."
+        },
+        {
+          "at": "2026-10-05T09:34:22.362Z",
+          "reason": "robots-unreadable",
+          "evidence": "https://www.hyatt.com/robots.txt answered 429, so no permission can be read."
+        }
+      ],
+      "checkedAt": "2026-10-05T09:34:22.362Z"
+    }
+  ],
+  "filteredSources": [
+    {
+      "district": "CB2",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/05505974/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "CB2",
+      "category": "cocktail-bar",
+      "url": "https://us.trip.com/travel-guide/attraction/cambridge/90-cocktail-bar-61239026",
+      "host": "us.trip.com",
+      "reason": "travel aggregator"
+    },
+    {
+      "district": "CB2",
+      "category": "cocktail-bar",
+      "url": "https://www.stagecoachbus.com/promos-and-offers/east/daysoutbybusincambridge/eating-out-and-nightlife-in-cambridge",
+      "host": "www.stagecoachbus.com",
+      "reason": "transport operator"
+    },
+    {
+      "district": "CB3",
+      "category": "bar",
+      "url": "https://www.catering.admin.cam.ac.uk/cafes/occidente-kitchen-and-bar",
+      "host": "www.catering.admin.cam.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "CB3",
+      "category": "bar",
+      "url": "https://www.bas.ac.uk/contact",
+      "host": "www.bas.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "CB3",
+      "category": "cocktail-bar",
+      "url": "https://www.catering.admin.cam.ac.uk/cafes/occidente-kitchen-and-bar",
+      "host": "www.catering.admin.cam.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "CB3",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-cocktail-bartender-l-cambridge-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "CB3",
+      "category": "cocktail-bar",
+      "url": "https://www.rightmove.co.uk/properties/168923720",
+      "host": "www.rightmove.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "CB3",
+      "category": "cocktail-bar",
+      "url": "https://www.onthemarket.com/details/18115825",
+      "host": "www.onthemarket.com",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "CB3",
+      "category": "cocktail-bar",
+      "url": "https://www.kettlesyard.cam.ac.uk/plan-your-visit",
+      "host": "www.kettlesyard.cam.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "CB4",
+      "category": "pub",
+      "url": "https://www.stagecoachbus.com/promos-and-offers/east/daysoutbybusincambridge/eating-out-and-nightlife-in-cambridge",
+      "host": "www.stagecoachbus.com",
+      "reason": "transport operator"
+    },
+    {
+      "district": "CB4",
+      "category": "pub",
+      "url": "https://uk.indeed.com/q-wet-led-pub-manager-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "CB4",
+      "category": "pub",
+      "url": "https://www.rightmove.co.uk/properties/89310846",
+      "host": "www.rightmove.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "CB4",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-bar-staff-l-cambridge-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "CB4",
+      "category": "cocktail-bar",
+      "url": "https://www.stagecoachbus.com/promos-and-offers/east/daysoutbybusincambridge/eating-out-and-nightlife-in-cambridge",
+      "host": "www.stagecoachbus.com",
+      "reason": "transport operator"
+    },
+    {
+      "district": "CB5",
+      "category": "bar",
+      "url": "https://www.alumni.cam.ac.uk/benefits/camcard/the-royal-oak",
+      "host": "www.alumni.cam.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "CB5",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/11546702/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "CB5",
+      "category": "bar",
+      "url": "https://www.postcodearea.co.uk/postaltowns/cambridge/cb58ne",
+      "host": "www.postcodearea.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "CB5",
+      "category": "bar",
+      "url": "https://www.alumni.cam.ac.uk/benefits/camcard/the-varsity-hotel-spa-river-bar-steakhouse-and-grill",
+      "host": "www.alumni.cam.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "CB5",
+      "category": "cocktail-bar",
+      "url": "https://www.alumni.cam.ac.uk/benefits/camcard/university-arms-parkers-tavern",
+      "host": "www.alumni.cam.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "CB5",
+      "category": "cocktail-bar",
+      "url": "https://www.stagecoachbus.com/promos-and-offers/east/daysoutbybusincambridge/eating-out-and-nightlife-in-cambridge",
+      "host": "www.stagecoachbus.com",
+      "reason": "transport operator"
+    },
+    {
+      "district": "CB5",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-part-time-bar-jobs.html?start=10",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    }
+  ],
+  "taskRuns": 0,
+  "webSearches": 45,
+  "pagesRead": 198,
+  "researched": 7,
+  "added": 0,
+  "retained": [
+    {
+      "name": "Town & Gown",
+      "id": "venue-cam-1i2z8r5"
+    },
+    {
+      "name": "BrewBoard Taproom",
+      "id": "venue-cam-1li7ndy"
+    },
+    {
+      "name": "Cambridge Chop House",
+      "id": "venue-cam-16fjk2j"
+    },
+    {
+      "name": "Arts Picturehouse",
+      "id": "venue-cam-1009hl8"
+    }
+  ],
+  "totalAccepted": 4,
+  "repeats": 0,
+  "duplicates": [
+    {
+      "name": "Bath House",
+      "id": null,
+      "matchedName": "The Bath House",
+      "matchedId": "way/149032883"
+    },
+    {
+      "name": "Eagle",
+      "id": null,
+      "matchedName": "The Eagle",
+      "matchedId": "way/149032866"
+    },
+    {
+      "name": "Revolution",
+      "id": null,
+      "matchedName": "Revolution",
+      "matchedId": "node/20963376"
+    }
+  ],
+  "withdrawn": [],
+  "permissionRejected": 0,
+  "rejected": [
+    {
+      "name": "https://forums.ybw.com/misc/location-info?location=Live+in+Cambridge.",
+      "reason": "unreadable: landed outside the source fence"
+    },
+    {
+      "name": "https://www.thegreenmantrumpington.com",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g186225-d4309443-Reviews-The_Alma_Public_House-Cambridge_Cambridgeshire_England.html",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://crystalroof.co.uk/report/postcode/CB21BQ/overview",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://flatironsteak.co.uk/restaurant/cambridge",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://area360.uk/postcode/CB21HS",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.crosscountrytrains.co.uk/blog/food-and-drink/secret-cocktail-bars-in-cambridge",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://www.opentable.com/r/novi-cocktail-bar",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.thefork.co.uk/restaurants/cambridge-c666094/cocktail-bar-t2591",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://cambridge.cylex-uk.co.uk/newnham/cocktails.html",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.yelp.ca/search?cflt=bars&find_loc=Wheeler+St%2C+Cambridge+CB2+3QE",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.folkandhoney.co.uk/all-our-uk-gigs/venues?letter=t",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://flatironsteak.co.uk/restaurant/cambridge",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g186225-d1730347-Reviews-The_Red_Bull-Cambridge_Cambridgeshire_England.html",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://dutch.wheree.com",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://www.folkandhoney.co.uk/rest-of-the-uk/venues?letter=n&strana=2",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://the-folio-bar-kitchen.wheree.com",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://www.theploughfenditton.co.uk",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://thecornerhousepub.co",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.tripadvisor.com/Restaurant_Review-g186225-d33018740-Reviews-Byron_s_Bear-Cambridge_Cambridgeshire_England.html",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://m.yelp.ca/search?find_desc=Pubs&find_loc=6-8+Quayside%2C+Cambridge+CB5+8AB",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://thecornerhousepub.co",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=restaurants&find_loc=Cambridge+CB5+8HZ",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    }
+  ],
+  "outputPath": "data/cities/cambridge/parallel_venues.json"
+}

@@ -9,6 +9,7 @@ import {
   mintVerifiedAnalyticsToken,
   planDraftSavedEventToken,
 } from "@/lib/verifiedAnalytics.server";
+import { defined } from "@/__tests__/helpers/defined";
 
 const VITEST_PLAN_SIGNING_SECRET = process.env.PLAN_IDEMPOTENCY_SECRET;
 
@@ -61,7 +62,7 @@ describe("POST /api/events", () => {
     );
     expect(res.status).toBe(204);
     expect(log).toHaveBeenCalledTimes(1);
-    const line = log.mock.calls[0][0] as string;
+    const line = defined(log.mock.calls[0])[0] as string;
     expect(line).toContain("[pubmax-analytics]");
     expect(line).toContain('"kind":"gig"');
     expect(line).not.toContain("secret");

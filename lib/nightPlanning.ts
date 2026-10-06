@@ -68,8 +68,9 @@ const NUMBER_WORDS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4
 const WETHERSPOONS_QUERY_PATTERN = /\bwetherspoons?\b|\bspoons\b/i;
 
 function requestedDrinkCategory(query: string, zeroProof: boolean, reasons: ContextReason[]): DrinkCategory | null {
-  if (zeroProof) return null;
   const category = planRequestedDrinkCategory(query);
+  // Zero-proof intent hides alcoholic lanes, but an explicit Soft drinks request stays a specific choice.
+  if (zeroProof && category !== "soft-drink") return null;
   if (category) {
     reasons.push({ field: "drinkCategory", evidence: category, explanation: "Matched the requested drink category." });
   }
@@ -143,7 +144,7 @@ export function inferNightContext(rawQuery: unknown, now = new Date()): Inferred
   if (/\bfood\b/.test(lower) && !foodNeeds.includes("food")) foodNeeds.push("food");
   const accessibility = /wheelchair|step[- ]free|accessible/.test(lower) ? ["step-free"] : [];
   const transportConstraints = /tube/.test(lower) ? ["tube"] : /walk/.test(lower) ? ["walking"] : [];
-  const zeroProof = /zero[ -]?proof|alcohol[ -]?free|soft[ -]?drinks?|not drinking|sober|0\.0/.test(lower);
+  const zeroProof = /zero[ -]?proof|alcohol[ -]?free|\bno[ -]alcohol\b|soft[ -]?drinks?|not drinking|sober|0\.0/.test(lower);
   const drinkCategory = requestedDrinkCategory(query, zeroProof, reasons);
   const wetherspoonsPreferred = spoonsMentioned;
   if (wetherspoonsPreferred) {

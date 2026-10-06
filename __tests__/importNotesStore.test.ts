@@ -12,6 +12,7 @@ import {
   unloadImportNotesForTests,
   validateImportNote,
 } from "@/lib/importNotesStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 describe("importNotesStore", () => {
   let tmpDir: string;
@@ -45,7 +46,7 @@ describe("importNotesStore", () => {
     const note = enqueueImportNote(validated.note);
     expect(note.status).toBe("queued");
     expect(listImportNotes()).toHaveLength(1);
-    expect(listImportNotes()[0].body).toContain("example.com");
+    expect(defined(listImportNotes()[0]).body).toContain("example.com");
   });
 
   it("persists notes to disk and reloads after unload", () => {
@@ -57,12 +58,12 @@ describe("importNotesStore", () => {
     const raw = JSON.parse(readFileSync(persistPath, "utf8")) as {
       notes: { body: string }[];
     };
-    expect(raw.notes[0].body).toContain("persist-me");
+    expect(defined(raw.notes[0]).body).toContain("persist-me");
 
     unloadImportNotesForTests();
     const reloaded = listImportNotes();
     expect(reloaded).toHaveLength(1);
-    expect(reloaded[0].body).toContain("persist-me");
+    expect(defined(reloaded[0]).body).toContain("persist-me");
   });
 
   it("dismisses and restores notes", () => {
@@ -73,10 +74,10 @@ describe("importNotesStore", () => {
     expect(dismissImportNote(note.id)).toBe(true);
     expect(listImportNotes()).toHaveLength(0);
     expect(listImportNotes({ includeDismissed: true })).toHaveLength(1);
-    expect(listImportNotes({ includeDismissed: true })[0].status).toBe("dismissed");
+    expect(defined(listImportNotes({ includeDismissed: true })[0]).status).toBe("dismissed");
 
     expect(restoreImportNote(note.id)).toBe(true);
     expect(listImportNotes()).toHaveLength(1);
-    expect(listImportNotes()[0].status).toBe("queued");
+    expect(defined(listImportNotes()[0]).status).toBe("queued");
   });
 });

@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -31,7 +32,7 @@ export default function BoroughScreen({
   title: ReactNode;
   lede?: ReactNode;
   titleId: string;
-  mapHref: string;
+  mapHref: Route;
   mapLabel: string;
   /** The chapter's photograph. Absent on the index; see the note above. */
   photo?: ResolvedLandingPhoto;

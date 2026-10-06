@@ -19,6 +19,7 @@ export default function PlanDescribeFirst({
   onQueryChange,
   onPrefillQueryChange,
   initialQuery = "",
+  ready = true,
 }: {
   onSubmit: (query: string, stopCount?: PlanStopCount) => void;
   onGuideMeInstead: () => void;
@@ -27,6 +28,12 @@ export default function PlanDescribeFirst({
   onPrefillQueryChange?: (query: string) => void;
   /** Prefill from a confirmed Night OS Ask draft_plan proposal. */
   initialQuery?: string;
+  /**
+   * False on the server-painted form PlanComposer replaces once it hydrates.
+   * That form is thrown away with whatever was typed into it, so until the
+   * real one mounts the field reads only and no action is available.
+   */
+  ready?: boolean;
 }) {
   const [query, setQuery] = useState(initialQuery.slice(0, 500));
   const [stopCount, setStopCount] = useState<PlanStopCount>(normalizePlanStopCount(inferNightContext(initialQuery).context.stopCount));
@@ -74,12 +81,14 @@ export default function PlanDescribeFirst({
   }, [initialQuery, stopCountTouched, touched]);
 
   function submit(queryOverride = query) {
+    if (!ready) return;
     const trimmed = queryOverride.trim();
     if (!trimmed) return;
     onSubmit(trimmed, stopCount);
   }
 
   function submitChip(value: string) {
+    if (!ready) return;
     const chipInferredStopCount = normalizePlanStopCount(inferNightContext(value).context.stopCount);
     const hadTypedQuery = Boolean(query.trim());
     const resolved = resolveDescribeChipSubmit({
@@ -119,13 +128,18 @@ export default function PlanDescribeFirst({
         // field, which is the one thing left to do.
         <button
           type="button"
+          aria-disabled={ready ? undefined : true}
           onClick={() => query.trim() ? submit() : queryInput.current?.focus()}
         >
           Sort it
         </button>
       }
       secondary={
-        <button type="button" onClick={onGuideMeInstead}>
+        <button
+          type="button"
+          aria-disabled={ready ? undefined : true}
+          onClick={() => { if (ready) onGuideMeInstead(); }}
+        >
           Guide me instead
         </button>
       }
@@ -140,6 +154,7 @@ export default function PlanDescribeFirst({
           id="plan-describe-first-query"
           type="text"
           value={query}
+          readOnly={!ready}
           onChange={(event) => {
             setTouched(true);
             const value = event.target.value;
@@ -156,12 +171,13 @@ export default function PlanDescribeFirst({
       </div>
       <PlanStopCountPicker
         value={stopCount}
+        ready={ready}
         onChange={(next) => {
           setStopCountTouched(true);
           setStopCount(next);
         }}
       />
-      <WantedPlanChips onPick={submitChip} />
+      <WantedPlanChips ready={ready} onPick={submitChip} />
       <div className="planDescribeFirst__culture" role="group" aria-label="Culture Crawl">
         <p className="planDescribeFirst__cultureLead">{CULTURE_CRAWL_MISSION}</p>
         <div className="planDescribeFirst__cultureChips">
@@ -170,6 +186,7 @@ export default function PlanDescribeFirst({
               key={chip.id}
               type="button"
               className="planDescribeFirst__chip planDescribeFirst__chip--culture"
+              aria-disabled={ready ? undefined : true}
               onClick={() => submitChip(chip.query)}
             >
               {chip.label}
@@ -183,6 +200,7 @@ export default function PlanDescribeFirst({
             key={chip}
             type="button"
             className="planDescribeFirst__chip"
+            aria-disabled={ready ? undefined : true}
             onClick={() => submitChip(chip)}
           >
             {chip}

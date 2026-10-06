@@ -743,8 +743,21 @@
 }
 
 .profilePage .savedItemVenue {
+  width: fit-content;
+  color: inherit;
   font-weight: 600;
   font-size: 0.88rem;
+  text-decoration: none;
+}
+
+.profilePage .savedItemVenue:hover {
+  color: var(--color-accent-ink);
+}
+
+.profilePage .savedItemVenue:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 .profilePage .savedItemNote {
@@ -804,6 +817,35 @@
   color: var(--ink-soft);
   font-size: 0.84rem;
   font-variant-numeric: tabular-nums;
+}
+
+/* ── Followers and Following (/u/[handle]/people/[relation]) ─────────── */
+/* The way back is a quiet word, not a bare link: muted ink at rest, the
+   accent's ink on hover, and a 44px row so it is a real tap target. The list
+   below draws its own rule, so the page grid gap is tightened to match. */
+.profilePage .profilePeopleMain {
+  gap: var(--space-2);
+}
+
+.profilePage .profileBackLink {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 44px;
+  align-items: center;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.profilePage .profileBackLink:hover {
+  color: var(--color-accent-ink);
+}
+
+.profilePage .profileBackLink:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 /* ── Shareable saved-list detail ────────────────────────────────────── */
@@ -1055,10 +1097,6 @@
 
 .profilePage .profileCrawlMore:hover {
   border-color: var(--brass);
-}
-
-.profilePage .listDetailItems {
-  max-width: 760px;
 }
 
 /* ── Owner actions: edit toggle + claim ──────────────────────────────── */
@@ -2025,7 +2063,9 @@
 .accountHubPasswordChange > summary::after { content: "+"; color: var(--brass); font-family: var(--font-data); font-size: 1.1rem; }
 .accountHubPasswordChange[open] > summary { border-radius: 14px 14px 0 0; }
 .accountHubPasswordChange[open] > summary::after { content: "−"; }
-.accountHubPasswordChange > .accountHubPassword { margin-top: .5rem; border: 1px solid var(--line); border-radius: 14px; }
+.accountHubPasswordChange > .accountHubPassword { display: grid; gap: .65rem; padding: 1rem; border: 1px solid var(--line); border-top: 0; border-radius: 0 0 14px 14px; background: var(--panel-raised); }
+/* The summary already names the form, so its own heading is for screen readers only. */
+.accountHubPasswordChange > .accountHubPassword > h3 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .accountHubMerge { display: grid; gap: .65rem; margin: 0 0 .75rem; padding: 1rem; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-raised); }
 .accountHubMerge h3, .accountHubMerge p, .accountHubNightProfile { margin: 0; }
 .accountHubNightProfile { margin-bottom: .75rem; color: var(--ink-muted); }

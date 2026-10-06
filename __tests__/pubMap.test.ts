@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest";
 
 import { WALK_ROUTE_MAX_STOPS } from "@/lib/walkRoute";
+import { DRINK_CATEGORIES } from "@/lib/drinks";
 
 import {
   hasCrawlArrivalParams,
+  generatedMapDrinkLane,
   crawlStopsFromPubIds,
   filtersForCuratedCrawl,
   buildMapSeed,
@@ -23,13 +25,17 @@ import {
   ambientBannerLaneOpen,
   builtStopCountFor,
   coordinatedMapOverlay,
+  coffeePilotSelection,
   crawlJourneysWanted,
+  londonRestaurantSelection,
+  londonVenueSelection,
   drinkFiltersActiveFor,
   drinkIndexStatusFor,
   firstIdOf,
   mapArrivalFrame,
   mapDrinkLensSelection,
   mapPlaceContext,
+  isRecordlessMapSelection,
   mapSelectionFrame,
   mapShellClassName,
   mapSurfaceIdFor,
@@ -49,6 +55,9 @@ import {
   tonightLaneReadState,
   venueEntranceOvershootFor,
   type VenueDetailStatus,
+  plannerDefaultDrinkSelection,
+  routeDrinkLensCategory,
+  routeDrinkSelection,
 } from "@/lib/pubMap";
 import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { getCity } from "@/lib/cities";
@@ -137,6 +146,13 @@ describe("buildMapSeed", () => {
     expect(seed.routeMapped).toBe(false);
   });
 
+  it("restores explicit unrefined Beer shared stops without a selected Beer filter", () => {
+    const seed = buildMapSeed("?drink=beer&mode=build&pubs=venue-a,venue-b");
+    expect(seed.routeMapped).toBe(true);
+    expect(seed.filters.drinkCategory).toBe("");
+    expect(seed.filters.requireCocktails).toBe(false);
+  });
+
   it("plain arrival has no active crawl and an unmapped route", () => {
     const seed = buildMapSeed("");
     expect(seed.activeCrawl).toBeNull();
@@ -178,6 +194,23 @@ describe("builtStopsNeedingHydration", () => {
         askedIds: none,
       }),
     ).toEqual(["v2"]);
+  });
+
+  it("requests detail for a priced slim stop without its pint identity", () => {
+    const pins = new Map([["v1", makeVenue({ cheapestPrice: 6.15, cheapestPint: "", prices: [] })]]);
+    expect(builtStopsNeedingHydration({
+      venueDataReady: true, builtIds: ["v1"], venueById: pins, askedIds: none,
+    })).toEqual(["v1"]);
+  });
+
+  it("does not request a present unpriced stop or repeat a failed identity read", () => {
+    const pins = new Map([
+      ["v1", makeVenue({ cheapestPrice: 6.15, cheapestPint: "", prices: [] })],
+      ["v2", makeVenue({ id: "v2", cheapestPrice: null, cheapestPint: "", prices: [] })],
+    ]);
+    expect(builtStopsNeedingHydration({
+      venueDataReady: true, builtIds: ["v1", "v2"], venueById: pins, askedIds: new Set(["v1"]),
+    })).toEqual([]);
   });
 
   it("never asks twice for the same stop", () => {
@@ -992,6 +1025,60 @@ describe("mapSelectionFrame", () => {
     expect(answer.isPub).toBe(false);
   });
 
+  it("opens the SAME sheet for a Shoreditch pilot cafe once the cafes resolve it", () => {
+    const answer = mapSelectionFrame({
+      selectedVenueId: "venue-osm-w271641406",
+      selectedVenue: undefined,
+      selectedBasePub: null,
+      selectedCoffeeCafe: { id: "venue-osm-w271641406" },
+      venueById,
+      isPubVenue,
+    });
+    expect(answer.coffeeCafeOpen).toBe(true);
+    expect(answer.basePubOpen).toBe(false);
+    expect(answer.resolvable).toBe(false);
+    expect(answer.detailOpen).toBe(true);
+  });
+
+  it("retires a held cafe the moment it stops being the selection", () => {
+    const answer = mapSelectionFrame({
+      selectedVenueId: "v1",
+      selectedVenue: crown,
+      selectedBasePub: null,
+      selectedCoffeeCafe: { id: "venue-osm-w271641406" },
+      venueById,
+      isPubVenue,
+    });
+    expect(answer.coffeeCafeOpen).toBe(false);
+  });
+
+  it("opens the SAME sheet for a London restaurant once the pack resolves it", () => {
+    const answer = mapSelectionFrame({
+      selectedVenueId: "venue-osm-n25496840",
+      selectedVenue: undefined,
+      selectedBasePub: null,
+      selectedLondonRestaurant: { id: "venue-osm-n25496840" },
+      venueById,
+      isPubVenue,
+    });
+    expect(answer.londonRestaurantOpen).toBe(true);
+    expect(answer.coffeeCafeOpen).toBe(false);
+    expect(answer.resolvable).toBe(false);
+    expect(answer.detailOpen).toBe(true);
+  });
+
+  it("retires a held restaurant the moment it stops being the selection", () => {
+    const answer = mapSelectionFrame({
+      selectedVenueId: "v1",
+      selectedVenue: crown,
+      selectedBasePub: null,
+      selectedLondonRestaurant: { id: "venue-osm-n25496840" },
+      venueById,
+      isPubVenue,
+    });
+    expect(answer.londonRestaurantOpen).toBe(false);
+  });
+
   it("opens the detail sheet while a deep-linked sel waits on the slim index", () => {
     const answer = mapSelectionFrame({
       selectedVenueId: "v1",
@@ -1002,6 +1089,135 @@ describe("mapSelectionFrame", () => {
     });
     expect(answer.detailOpen).toBe(true);
     expect(answer.resolvable).toBe(false);
+  });
+});
+
+describe("coffeePilotSelection", () => {
+  const crosstown = { id: "venue-osm-w271641406" };
+  const byId = new Map([[crosstown.id, crosstown]]);
+
+  it("opens a pilot cafe while the coffee lens is on", () => {
+    expect(
+      coffeePilotSelection({ lensOn: true, selectedVenueId: crosstown.id, status: "ready", byId }),
+    ).toEqual({ cafe: crosstown, release: false });
+  });
+
+  it("closes the cafe sheet and lets the selection go when the reader leaves the coffee lens", () => {
+    expect(
+      coffeePilotSelection({ lensOn: false, selectedVenueId: crosstown.id, status: "ready", byId }),
+    ).toEqual({ cafe: null, release: true });
+  });
+
+  it("holds a cafe selection while the pilot is still being read", () => {
+    expect(
+      coffeePilotSelection({ lensOn: true, selectedVenueId: crosstown.id, status: "loading", byId: new Map() }),
+    ).toEqual({ cafe: null, release: false });
+  });
+
+  it("lets go of a cafe the settled read could not place", () => {
+    for (const status of ["ready", "failed"] as const) {
+      expect(
+        coffeePilotSelection({ lensOn: true, selectedVenueId: "venue-osm-n9", status, byId }),
+      ).toEqual({ cafe: null, release: true });
+    }
+  });
+
+  it("leaves every other selection alone", () => {
+    for (const selectedVenueId of ["", "v1", "venue-uk-9"]) {
+      expect(
+        coffeePilotSelection({ lensOn: false, selectedVenueId, status: "ready", byId }),
+      ).toEqual({ cafe: null, release: false });
+    }
+  });
+});
+
+describe("londonRestaurantSelection", () => {
+  const furnival = { id: "venue-osm-n25496840" };
+  const byId = new Map([[furnival.id, furnival]]);
+
+  it("opens a restaurant while its layer is shown", () => {
+    expect(
+      londonRestaurantSelection({ shown: true, selectedVenueId: furnival.id, status: "ready", byId }),
+    ).toEqual({ restaurant: furnival, release: false });
+  });
+
+  it("lets the selection go when the layer leaves the map", () => {
+    expect(
+      londonRestaurantSelection({ shown: false, selectedVenueId: furnival.id, status: "ready", byId }),
+    ).toEqual({ restaurant: null, release: true });
+  });
+
+  it("holds a restaurant selection while the pack is not read yet", () => {
+    for (const status of ["idle", "loading"] as const) {
+      expect(
+        londonRestaurantSelection({ shown: true, selectedVenueId: furnival.id, status, byId: new Map() }),
+      ).toEqual({ restaurant: null, release: false });
+    }
+  });
+
+  it("lets go of an id the settled read could not place", () => {
+    for (const status of ["ready", "failed"] as const) {
+      expect(
+        londonRestaurantSelection({ shown: true, selectedVenueId: "venue-osm-n9", status, byId }),
+      ).toEqual({ restaurant: null, release: true });
+    }
+  });
+
+  it("keeps a restaurant open off the coffee lens, because the map lets go only when both sources would", () => {
+    const pick = londonVenueSelection({
+      selectedVenueId: furnival.id,
+      coffee: { lensOn: false, status: "idle", byId: new Map() },
+      restaurants: { shown: true, status: "ready", byId },
+    });
+    expect(pick).toEqual({ cafe: null, restaurant: furnival, release: false });
+  });
+
+  it("opens a pilot cafe under the coffee lens while the restaurant layer is off the map", () => {
+    const crosstown = { id: "venue-osm-w271641406" };
+    const pick = londonVenueSelection({
+      selectedVenueId: crosstown.id,
+      coffee: { lensOn: true, status: "ready", byId: new Map([[crosstown.id, crosstown]]) },
+      restaurants: { shown: false, status: "idle", byId: new Map<string, { id: string }>() },
+    });
+    expect(pick).toEqual({ cafe: crosstown, restaurant: null, release: false });
+  });
+
+  it("lets a pilot cafe go off the coffee lens without waiting for the restaurant read", () => {
+    const crosstown = { id: "venue-osm-w271641406" };
+    for (const status of ["idle", "loading"] as const) {
+      const pick = londonVenueSelection({
+        selectedVenueId: crosstown.id,
+        coffee: { lensOn: false, status: "ready", byId: new Map([[crosstown.id, crosstown]]) },
+        restaurants: { shown: true, status, byId: new Map<string, { id: string }>() },
+      });
+      expect(pick).toEqual({ cafe: null, restaurant: null, release: true });
+    }
+  });
+
+  it("lets go of an id neither source can open", () => {
+    const pick = londonVenueSelection({
+      selectedVenueId: "venue-osm-n9",
+      coffee: { lensOn: false, status: "idle", byId: new Map() },
+      restaurants: { shown: true, status: "ready", byId },
+    });
+    expect(pick.release).toBe(true);
+  });
+
+  it("leaves every other selection alone", () => {
+    for (const selectedVenueId of ["", "v1", "venue-uk-9"]) {
+      expect(
+        londonRestaurantSelection({ shown: false, selectedVenueId, status: "ready", byId }),
+      ).toEqual({ restaurant: null, release: false });
+    }
+  });
+});
+
+describe("isRecordlessMapSelection", () => {
+  it("names the ids that have no /api/venue record", () => {
+    expect(isRecordlessMapSelection("venue-uk-9")).toBe(true);
+    expect(isRecordlessMapSelection("venue-osm-w271641406")).toBe(true);
+    expect(isRecordlessMapSelection("venue-1s7ucod")).toBe(false);
+    expect(isRecordlessMapSelection("bar-seed-library")).toBe(false);
   });
 });
 
@@ -1099,5 +1315,69 @@ describe("the phone planner and the pill read the crawl being built", () => {
     expect(phonePlannerOrder({ mobileViewport: true, mode: "build", builtCount: 0 })).toBe("describe-first");
     expect(phonePlannerOrder({ mobileViewport: true, mode: "suggest", builtCount: 2 })).toBe("describe-first");
     expect(phonePlannerOrder({ mobileViewport: false, mode: "build", builtCount: 2 })).toBe("describe-first");
+  });
+});
+
+describe("plannerDefaultDrinkSelection", () => {
+  const wine = { drinkCategory: "wine", drinkSubtype: "", drinkBrand: "" };
+
+  it("gives the No-alcohol view an Alcohol-free default", () => {
+    expect(plannerDefaultDrinkSelection("no-alcohol", undefined)).toEqual({
+      drinkCategory: "alcohol-free", drinkSubtype: "", drinkBrand: "",
+    });
+  });
+
+  it("keeps the map's own drink selection in every other view", () => {
+    expect(plannerDefaultDrinkSelection("all", wine)).toBe(wine);
+    expect(plannerDefaultDrinkSelection("food", undefined)).toBeUndefined();
+  });
+});
+
+describe("routeDrinkSelection", () => {
+  const wine = { drinkCategory: "wine", drinkSubtype: "", drinkBrand: "" };
+  const cleared = { drinkCategory: "", drinkSubtype: "", drinkBrand: "" };
+
+  it("reads the live filters in the All view", () => {
+    expect(routeDrinkSelection("all", wine, null)).toBe(wine);
+  });
+
+  it.each(["food", "no-alcohol"] as const)("keeps the held drink in the %s view", (lens) => {
+    expect(routeDrinkSelection(lens, cleared, wine)).toBe(wine);
+  });
+});
+
+describe("routeDrinkLensCategory", () => {
+  it.each(["wine", "soft-drink", "alcohol-free"])("prices a %s route from its own index", (drinkCategory) => {
+    expect(routeDrinkLensCategory({ drinkCategory, drinkSubtype: "", drinkBrand: "" })).toBe(drinkCategory);
+  });
+
+  it.each(["", "beer", "other", "not-a-drink"])("reads no category index for %j", (drinkCategory) => {
+    expect(routeDrinkLensCategory({ drinkCategory, drinkSubtype: "", drinkBrand: "" })).toBeNull();
+  });
+
+  it("reads none without a route drink", () => {
+    expect(routeDrinkLensCategory(undefined)).toBeNull();
+  });
+});
+
+describe("generated plan drink selection", () => {
+  it.each([true, false])("keeps Soft drinks with zeroProof=%s", (zeroProof) => {
+    expect(generatedMapDrinkLane({ drinkCategory: "soft-drink", zeroProof })).toBe("soft-drink");
+  });
+
+  it.each(DRINK_CATEGORIES.filter((category) => category !== "soft-drink"))(
+    "keeps a zero-proof %s context alcohol-free",
+    (drinkCategory) => {
+      expect(generatedMapDrinkLane({ drinkCategory, zeroProof: true })).toBe("alcohol-free");
+    },
+  );
+
+  it("keeps generic no-alcohol separate from a specific soft drink", () => {
+    expect(generatedMapDrinkLane({ drinkCategory: null, zeroProof: true })).toBe("alcohol-free");
+    expect(generatedMapDrinkLane({ drinkCategory: null, zeroProof: false })).toBe("beer");
+  });
+
+  it.each(DRINK_CATEGORIES)("preserves %s without a zero-proof override", (drinkCategory) => {
+    expect(generatedMapDrinkLane({ drinkCategory, zeroProof: false })).toBe(drinkCategory);
   });
 });

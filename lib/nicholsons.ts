@@ -295,11 +295,11 @@ export function matchNicholsonVenue(
       });
     }
   }
-  if (byWebsite.length === 1) return byWebsite[0];
+  if (byWebsite.length === 1) return byWebsite[0] ?? null;
   if (byWebsite.length > 1) {
     // Identical slug hits should share a key; otherwise refuse.
     const keys = new Set(byWebsite.map((m) => m.venueKey));
-    if (keys.size === 1) return byWebsite[0];
+    if (keys.size === 1) return byWebsite[0] ?? null;
     return null;
   }
 
@@ -344,9 +344,9 @@ export function matchNicholsonVenue(
       method: "fuzzy-name",
     });
   }
-  if (scored.length === 0) return null;
   scored.sort((a, b) => b.score - a.score);
   const top = scored[0];
+  if (!top) return null;
   const tie = scored[1];
   if (tie && tie.score === top.score && tie.venueKey !== top.venueKey) {
     return null;

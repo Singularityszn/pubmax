@@ -115,7 +115,9 @@ export type StopPair = {
 export function stopPairs(stops: LngLat[]): StopPair[] {
   const pairs: StopPair[] = [];
   for (let i = 0; i < stops.length - 1; i += 1) {
-    pairs.push({ fromIndex: i, toIndex: i + 1, from: stops[i], to: stops[i + 1] });
+    const from = stops[i];
+    const to = stops[i + 1];
+    if (from && to) pairs.push({ fromIndex: i, toIndex: i + 1, from, to });
   }
   return pairs;
 }
@@ -161,7 +163,9 @@ export function routeSource(legs: WalkLeg[]): WalkRouteSource {
 export function polylineDistanceKm(coordinates: LngLat[]): number {
   let km = 0;
   for (let i = 1; i < coordinates.length; i += 1) {
-    km += haversineKm(coordinates[i - 1], coordinates[i]);
+    const from = coordinates[i - 1];
+    const to = coordinates[i];
+    if (from && to) km += haversineKm(from, to);
   }
   return km;
 }

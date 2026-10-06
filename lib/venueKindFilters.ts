@@ -73,15 +73,18 @@ export function venueKindNoun(kind: VenueKind | undefined): string {
 }
 
 /**
- * The map's kind filter offers the CURATED kinds only. A kind that arrived with
- * the UK-wide OSM venue pack answers null, so `filterVenuesByKind` leaves it out
- * of a curated map view rather than showing it under a toggle nobody can reach.
- * Giving those kinds their own surface is a separate wave.
+ * The map's kind filter offers the CURATED kinds only. A club keeps its own
+ * label but shows and hides with the bars, because it is somewhere to drink and
+ * has no chip of its own. A kind that arrived with the UK-wide OSM venue pack
+ * answers null, so `filterVenuesByKind` leaves it out of a curated map view
+ * rather than showing it under a toggle nobody can reach. Giving those kinds
+ * their own surface is a separate wave.
  */
 function curatedVenueKind(
   kind: VenueKind | undefined,
 ): CuratedVenueKind | null {
   if (kind === "bar" || kind === "food" || kind === "restaurant") return kind;
+  if (kind === "club") return "bar";
   if (kind === undefined || kind === "pub") return "pub";
   return null;
 }

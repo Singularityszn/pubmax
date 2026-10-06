@@ -1,5 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -24,12 +26,15 @@ import {
   mergeClosedOsmRefs,
   osmRefFromLayerId,
   placesNameMatchesOsm,
+  placesRequestWithinBudget,
   restoreQuotasUntilVerified,
+  resumedDetailsBaseline,
   pubClosureVerdict,
   projectedPlacesSpendUsd,
   textQueryForOsmVenue,
   weeklyHoursFromPlacesPeriods,
 } from "@/lib/placesVerification";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = path.resolve(__dirname, "..");
 const FORBIDDEN_KEYS = [
@@ -303,7 +308,7 @@ describe("committed Places verification files", () => {
     expect(ignored.trim().split("\n")).toHaveLength(3);
   });
 
-  it("stores our fields only", () => {
+  it("keeps verdict-only verification files separate from the dated content lane", () => {
     for (const file of [
       "data/places_verification/london.json",
       "data/places_verification/closed_pubs.json",
@@ -344,15 +349,26 @@ describe("committed Places verification files", () => {
     const ledger = JSON.parse(
       readFileSync(path.join(ROOT, "data/places_verification/london.json"), "utf8"),
     ) as { pubs: Record<string, unknown>[]; summary: Record<string, number> };
-    const closed = JSON.parse(
-      readFileSync(path.join(ROOT, "data/places_verification/closed_pubs.json"), "utf8"),
-    ) as { osmRefs: string[]; curatedVenueIds: string[] };
     expect(ledger).not.toHaveProperty("closedForReview");
     for (const row of ledger.pubs) {
       expect(Object.keys(row).sort()).toEqual(["googlePlaceId", "venueId", "verifiedAt"]);
     }
-    expect(ledger.summary.closedPermanently).toBe(closed.osmRefs.length);
-    expect(closed.curatedVenueIds).toEqual([]);
+    expect(defined(ledger.summary.closedPermanently) + defined(ledger.summary.closedUnconfirmed))
+      .toBeLessThanOrEqual(defined(ledger.summary.pubsVerified));
+  });
+
+  it("keeps closed_pubs.json a sorted set of OSM refs and their curated owners", () => {
+    const closed = JSON.parse(
+      readFileSync(path.join(ROOT, "data/places_verification/closed_pubs.json"), "utf8"),
+    ) as { verifiedAt: string; osmRefs: string[]; curatedVenueIds: string[] };
+    const sortedSet = (values: string[]) => [...new Set(values)].sort();
+    expect(Object.keys(closed).sort()).toEqual(["curatedVenueIds", "osmRefs", "verifiedAt"]);
+    expect(closed.verifiedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(closed.osmRefs).toEqual(sortedSet(closed.osmRefs));
+    for (const ref of closed.osmRefs) expect(ref).toMatch(/^[nwr]\d+$/);
+    expect(closed.curatedVenueIds).toEqual(sortedSet(closed.curatedVenueIds));
+    for (const id of closed.curatedVenueIds) expect(id).toMatch(/^venue-/);
+    if (closed.osmRefs.length === 0) expect(closed.curatedVenueIds).toEqual([]);
   });
 });
 
@@ -415,5 +431,149 @@ describe("closed pubs stay hidden across a partial rerun", () => {
       expectedDetails: "60",
       attempt: async () => ({ search: "500", details: "500" }),
     })).rejects.toThrow(/mismatch/);
+  });
+});
+
+describe("a UK Details run resumes within its cap", () => {
+  it("resumes from the checkpoint baseline once monitoring counts the job's own attempts", () => {
+    const checkpoint = { checkpointPrior: 4130, checkpointAttempts: 12 };
+    expect(resumedDetailsBaseline({ measured: 4142, ...checkpoint })).toBe(4130);
+    expect(() => resumedDetailsBaseline({ measured: 4135, ...checkpoint })).toThrow(/checkpoint usage differs/);
+    expect(() => resumedDetailsBaseline({ measured: 4143, ...checkpoint })).toThrow(/checkpoint usage differs/);
+    expect(resumedDetailsBaseline({ measured: 4130 })).toBe(4130);
+  });
+
+  it("refuses lagged usage that can mask another client's requests", () => {
+    expect(() => resumedDetailsBaseline({
+      measured: 4700, // 4,130 baseline + 500 reflected own attempts + 70 foreign calls
+      checkpointPrior: 4130,
+      checkpointAttempts: 1000,
+    })).toThrow(/checkpoint usage differs/);
+  });
+
+  it("skips a venue when a retry would pass the cap instead of failing the job", async () => {
+    let reserved = 0;
+    const statuses: number[] = [];
+    await expect(placesRequestWithinBudget({
+      attempts: 4,
+      pace: async () => {},
+      reserve: () => {
+        if (reserved === 1) return false;
+        reserved += 1;
+        return true;
+      },
+      release: () => {},
+      send: async () => {
+        statuses.push(429);
+        return { status: 429, body: {} };
+      },
+      backoff: async () => {},
+    })).resolves.toBeNull();
+    expect(statuses).toEqual([429]);
+  });
+
+  it("records nothing for an attempt interrupted while it waits for its pacing slot", async () => {
+    let openSlot = () => {};
+    const slot = new Promise<void>((resolve) => {
+      openSlot = resolve;
+    });
+    let reserved = 0;
+    let sent = 0;
+    const request = placesRequestWithinBudget({
+      attempts: 4,
+      pace: () => slot,
+      reserve: () => {
+        reserved += 1;
+        return true;
+      },
+      release: () => {},
+      send: async () => {
+        sent += 1;
+        return { status: 200, body: { id: "p1" } };
+      },
+      backoff: async () => {},
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect({ reserved, sent }).toEqual({ reserved: 0, sent: 0 });
+    openSlot();
+    await expect(request).resolves.toEqual({ id: "p1" });
+    expect({ reserved, sent }).toEqual({ reserved: 1, sent: 1 });
+  });
+
+  it("releases an attempt whose connection was refused before the request was sent", async () => {
+    const closed = createServer();
+    await new Promise<void>((resolve) => closed.listen(0, "127.0.0.1", resolve));
+    const { port } = closed.address() as AddressInfo;
+    await new Promise((resolve) => closed.close(resolve));
+    let reserved = 0;
+    await expect(placesRequestWithinBudget({
+      attempts: 4,
+      pace: async () => {},
+      reserve: () => {
+        reserved += 1;
+        return true;
+      },
+      release: () => {
+        reserved -= 1;
+      },
+      send: async () => {
+        const response = await fetch(`http://127.0.0.1:${port}/`);
+        return { status: response.status, body: {} };
+      },
+      backoff: async () => {},
+    })).rejects.toThrow("fetch failed");
+    expect(reserved).toBe(0);
+  });
+
+  it("keeps an attempt reserved when a sent request times out", async () => {
+    const hanging = createServer(() => {});
+    await new Promise<void>((resolve) => hanging.listen(0, "127.0.0.1", resolve));
+    const { port } = hanging.address() as AddressInfo;
+    let reserved = 0;
+    try {
+      await expect(placesRequestWithinBudget({
+        attempts: 4,
+        pace: async () => {},
+        reserve: () => {
+          reserved += 1;
+          return true;
+        },
+        release: () => {
+          reserved -= 1;
+        },
+        send: async () => {
+          const response = await fetch(`http://127.0.0.1:${port}/`, { signal: AbortSignal.timeout(50) });
+          return { status: response.status, body: {} };
+        },
+        backoff: async () => {},
+      })).rejects.toThrow();
+      expect(reserved).toBe(1);
+    } finally {
+      hanging.closeAllConnections();
+      await new Promise((resolve) => hanging.close(resolve));
+    }
+  });
+
+  it("retries a throttled request and still fails on another HTTP error", async () => {
+    const replies: { status: number; body: { id?: string } }[] = [
+      { status: 503, body: {} },
+      { status: 200, body: { id: "p1" } },
+    ];
+    await expect(placesRequestWithinBudget({
+      attempts: 4,
+      pace: async () => {},
+      reserve: () => true,
+      release: () => {},
+      send: async () => replies.shift()!,
+      backoff: async () => {},
+    })).resolves.toEqual({ id: "p1" });
+    await expect(placesRequestWithinBudget({
+      attempts: 4,
+      pace: async () => {},
+      reserve: () => true,
+      release: () => {},
+      send: async () => ({ status: 500, body: {} }),
+      backoff: async () => {},
+    })).rejects.toThrow("Places HTTP 500");
   });
 });

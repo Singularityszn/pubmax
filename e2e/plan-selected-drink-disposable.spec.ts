@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
-import { describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeFirst";
+import { sortDescribeFirst } from "./helpers/planDescribeFirst";
 
 for (const journey of [
   { category: "wine", query: "Quiet wine in Clapham for 2, not pricey", name: "Disposable Wine", venueId: "venue-11e0hkh", pence: 675 },
@@ -20,11 +20,7 @@ for (const journey of [
       sessionStorage.removeItem("pubmax:plan-draft:v1");
     });
     expect((await page.goto("/plan"))?.status()).toBe(200);
-    await describeFirstQuery(page).fill(journey.query);
-    const generation = page.waitForResponse((response) => response.request().method() === "POST"
-      && new URL(response.url()).pathname === "/api/plans/generate");
-    await describeFirstSubmit(page).click();
-    const response = await generation;
+    const response = await sortDescribeFirst(page, journey.query);
     expect(response.status()).toBe(200);
     const generated = await response.json() as {
       inferredContext?: { drinkCategory?: string };

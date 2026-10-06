@@ -2,8 +2,9 @@
  * THE CLOSED LIST OF SUITES THAT NEED A REAL POSTGRESQL CLUSTER.
  *
  * One list, read three ways, because a proof owned by nobody is a proof that
- * runs nowhere: `npm run test:rls` runs exactly these, the `unit-tests` and
- * `coverage` jobs exclude exactly these (they install no cluster), and
+ * runs nowhere: `npm run test:rls` runs exactly these, `npm run coverage --
+ * --without-postgres` excludes exactly these (the CI unit shards install no
+ * cluster, and `npm run verify` runs them in `npm run test:rls`), and
  * `__tests__/postgresSuiteInventory.test.ts` fails when a suite starts a
  * cluster without joining the list. That fence is the fix for the day three
  * migration proofs landed in a job with no PostgreSQL and reported themselves
@@ -13,10 +14,13 @@
  * `__tests__/helpers/postgres` or `scripts/rls/session-harness.mjs`.
  */
 export const POSTGRES_BACKED_SUITES = Object.freeze([
+  "__tests__/accountHasPasswordEffective.test.ts",
   "__tests__/accountRemovalMigrationEffective.test.ts",
   "__tests__/accountRetentionLedgerMigrationEffective.test.ts",
   "__tests__/accountVisibilityMigrationEffective.test.ts",
   "__tests__/browserRoleGrantFence.test.ts",
+  "__tests__/communityPriceReportEffective.test.ts",
+  "__tests__/diaryEntriesMigrationEffective.test.ts",
   "__tests__/drinkWallRlsMigrationEffective.test.ts",
   "__tests__/foundingMembersMigration.test.ts",
   "__tests__/groupMessageThreadsMigrationEffective.test.ts",
@@ -49,10 +53,14 @@ export const POSTGRES_BACKED_SUITES = Object.freeze([
   "__tests__/postgresHarnessTimeouts.test.ts",
   "__tests__/postgresShmHarness.test.ts",
   "__tests__/priceTrustEventsMigrationEffective.test.ts",
+  "__tests__/pubPalVoiceMinutesEffective.test.ts",
   "__tests__/publicGrantSweepMigrationEffective.test.ts",
   "__tests__/publicWithdrawnProfilesMigrationEffective.test.ts",
   "__tests__/rateLimitExpiryMigration.test.ts",
+  "__tests__/referralRpcsEffective.test.ts",
+  "__tests__/renamePubmaxxHandleEffective.test.ts",
   "__tests__/rlsWave2Session.test.ts",
+  "__tests__/roundPriceLinesEffective.test.ts",
   "__tests__/socialComposerMigration.test.ts",
   "__tests__/socialCrewLegacyRoutesRls.test.ts",
   "__tests__/socialCrewMigration.test.ts",
@@ -60,6 +68,7 @@ export const POSTGRES_BACKED_SUITES = Object.freeze([
   "__tests__/socialInteractionsMigration.test.ts",
   "__tests__/socialPostsMigration.test.ts",
   "__tests__/supabaseHygieneMigrationEffective.test.ts",
+  "__tests__/venueVisitReportActorAppendMigrationEffective.test.ts",
   "__tests__/wantedPromotionMigrationEffective.test.ts",
   "__tests__/whatsOnListingsMigration.test.ts",
 ]);

@@ -14,12 +14,20 @@ import {
   type CityId,
   DEFAULT_CITY_ID,
 } from "@/lib/cities";
-import { CATEGORY_META, type DrinkCategory } from "@/lib/drinks";
+import { CATEGORY_META, isMapLensDrinkCategory, type DrinkCategory } from "@/lib/drinks";
 import type { CategoryPriceIndexStatus, MapExperienceLens } from "@/lib/mapExperienceLens";
+import type { MapPlanDrinkSelection } from "@/lib/mapPlanDrinkPresentation";
+import type { NightContext } from "@/lib/nightPlanning";
 import type { MapOverlay, MapSheetKind, MapViewportSnapshot } from "@/lib/mobileShell";
 import { seedCrawlState } from "@/lib/crawlUrl";
 import { WALK_ROUTE_MAX_STOPS } from "@/lib/walkRoute";
 import { isDrinkShapeArrival } from "@/lib/mapArrival";
+import { applyDrinkLane, DEFAULT_DRINK_LANE } from "@/lib/drinkLanes";
+import type { CoffeePilotStatus } from "@/lib/coffeePilot";
+import type { LondonRestaurantStatus } from "@/lib/londonRestaurants";
+import { isLondonVenueId } from "@/lib/londonVenueShards";
+import { isUkBaseId } from "@/lib/ukBasePubs";
+import type { VenueAliasMaps } from "@/lib/venueAliasMap";
 import {
   priceStandingFigure,
   priceStandingFor,
@@ -43,6 +51,12 @@ import {
   eagerCuratedCrawlAltStyle,
   eagerCuratedCrawlAltStyleForBuiltIds,
 } from "@/lib/curatedCrawlHints";
+
+/** A specific soft drink satisfies zero-proof without widening to all alcohol-free drinks. */
+export function generatedMapDrinkLane(context: Pick<NightContext, "drinkCategory" | "zeroProof">): DrinkCategory {
+  if (context.zeroProof && context.drinkCategory !== "soft-drink") return "alcohol-free";
+  return context.drinkCategory ?? DEFAULT_DRINK_LANE;
+}
 
 // §4.5: did the page arrive with any crawl-shaping URL param (a shared/deep
 // link)? If any are present the arrival is intentional and we never onboard.
@@ -102,12 +116,15 @@ export function buildMapSeed(search: string, _cityId: CityId = DEFAULT_CITY_ID):
   if (isDrinkShapeArrival(search)) {
     return { ...seeded, activeCrawl: null, routeMapped: false };
   }
+  const arrivalFilters = new URLSearchParams(search).get("drink") === DEFAULT_DRINK_LANE
+    ? applyDrinkLane(seeded.filters, DEFAULT_DRINK_LANE, { clearRefinements: true })
+    : seeded.filters;
   const hintedAltStyle =
     eagerCuratedCrawlAltStyle(seeded.crawlId) ??
     eagerCuratedCrawlAltStyleForBuiltIds(seeded.builtIds);
   return {
     ...seeded,
-    filters: filtersForCuratedCrawlHint(seeded.filters, hintedAltStyle),
+    filters: filtersForCuratedCrawlHint(arrivalFilters, hintedAltStyle),
     altStyle: hintedAltStyle ?? seeded.altStyle,
     activeCrawl: null,
     routeMapped: seeded.builtIds.length >= 2,
@@ -115,7 +132,8 @@ export function buildMapSeed(search: string, _cityId: CityId = DEFAULT_CITY_ID):
 }
 
 /**
- * The built stops a shared plan still owes a detail request.
+ * The built stops a shared plan still owes a detail request, including priced
+ * slim pins whose compact record cannot name the pint.
  *
  * Nothing is owed until the slim pack has settled: before that every id misses
  * `venueById`, so an unready map would request the whole plan over the same
@@ -137,7 +155,12 @@ export function builtStopsNeedingHydration({
   if (!venueDataReady) return [];
   return builtIds
     .slice(0, WALK_ROUTE_MAX_STOPS)
-    .filter((id) => Boolean(id) && !venueById.has(id) && !askedIds.has(id));
+    .filter((id) => {
+      if (!id || askedIds.has(id)) return false;
+      const venue = venueById.get(id);
+      return !venue || (typeof venue.cheapestPrice === "number"
+        && Number.isFinite(venue.cheapestPrice) && venue.cheapestPrice > 0 && !venue.cheapestPint);
+    });
 }
 
 export type BuiltStopHydrationResult = {
@@ -779,10 +802,126 @@ export function openingViewportFrom(
 }
 
 /**
+ * A map selection with no `/api/venue/[id]` record: a UK base pub or a London
+ * venue-layer place such as a Shoreditch pilot cafe or a London restaurant. The map hands its sheet
+ * the record it already holds, so fetching, prefetching or reporting the id as
+ * unknown would be a certain 404 worded as a missing pub.
+ */
+export function isRecordlessMapSelection(id: string): boolean {
+  return isUkBaseId(id) || isLondonVenueId(id);
+}
+
+export type UkBaseSelectionSuccessor =
+  | { kind: "curated"; venueId: string }
+  | { kind: "retired"; name: string };
+
+/**
+ * What a dropped UK base id opens instead of a base pin, or null when the base
+ * layer answers it (a live id, or one re-mapped to another base id). A row a
+ * still-listed curated venue owned opens that venue; a pub that left the map
+ * opens the notice that it may have closed.
+ */
+export function ukBaseSelectionSuccessor(
+  maps: VenueAliasMaps,
+  id: string,
+): UkBaseSelectionSuccessor | null {
+  if (!isUkBaseId(id)) return null;
+  const current = maps.aliases.get(id) ?? id;
+  if (!isUkBaseId(current)) return { kind: "curated", venueId: current };
+  const name = maps.retiredNames.get(current);
+  return name ? { kind: "retired", name } : null;
+}
+
+/** How far a London venue-layer source has got with its read. */
+type LondonLayerReadStatus = "idle" | "loading" | "ready" | "failed";
+
+/**
+ * The place one London venue-layer source opens for a selection, and whether
+ * that source would let the selection go. A source opens a place only while it
+ * is shown. A `venue-osm-` id it cannot place once its read has settled has no
+ * sheet to open from it.
+ */
+function londonLayerPick<Item>(input: {
+  shown: boolean;
+  selectedVenueId: string;
+  status: LondonLayerReadStatus;
+  byId: ReadonlyMap<string, Item>;
+}): { item: Item | null; release: boolean } {
+  if (!isLondonVenueId(input.selectedVenueId)) return { item: null, release: false };
+  const item = input.shown ? input.byId.get(input.selectedVenueId) ?? null : null;
+  const settled = input.status === "ready" || input.status === "failed";
+  return { item, release: !item && (!input.shown || settled) };
+}
+
+/**
+ * The Shoreditch pilot cafe a selection opens, and whether the selection should
+ * be let go. A cafe opens only while the coffee lens is on, so leaving the lens
+ * closes its sheet and the pint map stays the pint map. A `venue-osm-` id the
+ * pilot cannot place once its read has settled has no sheet to open either.
+ *
+ * `release` speaks for the pilot alone. A `venue-osm-` id may also be a London
+ * restaurant, so the map reads both through `londonVenueSelection`.
+ */
+export function coffeePilotSelection<Cafe>(input: {
+  lensOn: boolean;
+  selectedVenueId: string;
+  status: CoffeePilotStatus;
+  byId: ReadonlyMap<string, Cafe>;
+}): { cafe: Cafe | null; release: boolean } {
+  const pick = londonLayerPick({ ...input, shown: input.lensOn });
+  return { cafe: pick.item, release: pick.release };
+}
+
+/**
+ * The London restaurant a selection opens (lib/londonRestaurants.ts), and
+ * whether the restaurant layer would let the selection go. A restaurant opens
+ * only while its layer is shown, so hiding restaurants in the kind filter, or
+ * a view that takes the layer off the map, closes its sheet.
+ */
+export function londonRestaurantSelection<Restaurant>(input: {
+  shown: boolean;
+  selectedVenueId: string;
+  status: LondonRestaurantStatus;
+  byId: ReadonlyMap<string, Restaurant>;
+}): { restaurant: Restaurant | null; release: boolean } {
+  const pick = londonLayerPick(input);
+  return { restaurant: pick.item, release: pick.release };
+}
+
+/**
+ * The London venue-layer place a `venue-osm-` selection opens: a pilot cafe or
+ * a restaurant. The selection is let go only when EVERY London source would
+ * let it go, because an id one source cannot place may be the other's. An id
+ * the pilot already places is a cafe, so the restaurant read never holds it.
+ */
+export function londonVenueSelection<Cafe, Restaurant>(input: {
+  selectedVenueId: string;
+  coffee: { lensOn: boolean; status: CoffeePilotStatus; byId: ReadonlyMap<string, Cafe> };
+  restaurants: {
+    shown: boolean;
+    status: LondonRestaurantStatus;
+    byId: ReadonlyMap<string, Restaurant>;
+  };
+}): { cafe: Cafe | null; restaurant: Restaurant | null; release: boolean } {
+  const coffee = coffeePilotSelection({ ...input.coffee, selectedVenueId: input.selectedVenueId });
+  const restaurants = londonRestaurantSelection({
+    ...input.restaurants,
+    selectedVenueId: input.selectedVenueId,
+  });
+  const knownCafe = input.coffee.byId.has(input.selectedVenueId);
+  return {
+    cafe: coffee.cafe,
+    restaurant: restaurants.restaurant,
+    release: coffee.release && (knownCafe || restaurants.release),
+  };
+}
+
+/**
  * What is selected, and what that means for the sheet.
  *
- * A curated pin and a tapped UK base pub fill the SAME drawer, so every
- * open/close/snap path stays one path and these five answers stay one read.
+ * A curated pin, a tapped UK base pub, a coffee pilot cafe and a London
+ * restaurant fill the SAME drawer, so every open/close/snap path stays one path and these answers stay
+ * one read.
  * A deep-linked `sel=` before the slim index resolves still counts as detail
  * open (`pendingDeepLinkSelection`) so the venue skeleton can mount while the
  * shard loads.
@@ -792,6 +931,8 @@ export type MapSelectionFrame = {
   resolvable: boolean;
   isPub: boolean;
   basePubOpen: boolean;
+  coffeeCafeOpen: boolean;
+  londonRestaurantOpen: boolean;
   detailOpen: boolean;
 };
 
@@ -799,23 +940,41 @@ export function mapSelectionFrame(input: {
   selectedVenueId: string;
   selectedVenue: Venue | undefined;
   selectedBasePub: { id: string } | null;
+  /** The pilot cafe the selected id resolved to, once the cafes have loaded. */
+  selectedCoffeeCafe?: { id: string } | null;
+  /** The London restaurant the selected id resolved to, once the pack has loaded. */
+  selectedLondonRestaurant?: { id: string } | null;
   venueById: ReadonlyMap<string, Venue>;
   isPubVenue: (venue: Venue) => boolean;
 }): MapSelectionFrame {
   const { selectedVenueId, selectedVenue, selectedBasePub, venueById } = input;
   const basePubOpen = Boolean(selectedBasePub && selectedBasePub.id === selectedVenueId);
+  const coffeeCafeOpen = Boolean(
+    input.selectedCoffeeCafe && input.selectedCoffeeCafe.id === selectedVenueId,
+  );
+  const londonRestaurantOpen = Boolean(
+    input.selectedLondonRestaurant && input.selectedLondonRestaurant.id === selectedVenueId,
+  );
   const pendingDeepLinkSelection =
     Boolean(selectedVenueId) &&
     !selectedVenue &&
     !basePubOpen &&
+    !coffeeCafeOpen &&
+    !londonRestaurantOpen &&
     !venueById.has(selectedVenueId);
   return {
     selectedId: selectedVenue?.id,
     resolvable: selectedVenueId ? venueById.has(selectedVenueId) : false,
     isPub: selectedVenue ? input.isPubVenue(selectedVenue) : false,
     basePubOpen,
+    coffeeCafeOpen,
+    londonRestaurantOpen,
     detailOpen:
-      Boolean(selectedVenueId && selectedVenue) || basePubOpen || pendingDeepLinkSelection,
+      Boolean(selectedVenueId && selectedVenue) ||
+      basePubOpen ||
+      coffeeCafeOpen ||
+      londonRestaurantOpen ||
+      pendingDeepLinkSelection,
   };
 }
 
@@ -1006,4 +1165,41 @@ export function phonePlannerOrder(input: {
   return input.mobileViewport && input.mode === "build" && input.builtCount > 0
     ? "build-first"
     : "describe-first";
+}
+
+const NO_ALCOHOL_PLAN_DRINK_SELECTION: MapPlanDrinkSelection = {
+  drinkCategory: "alcohol-free",
+  drinkSubtype: "",
+  drinkBrand: "",
+};
+
+/** The No-alcohol view gives a location-only phone plan a zero-proof default. */
+export function plannerDefaultDrinkSelection(
+  lens: MapExperienceLens,
+  selection: MapPlanDrinkSelection | undefined,
+): MapPlanDrinkSelection | undefined {
+  return lens === "no-alcohol" ? NO_ALCOHOL_PLAN_DRINK_SELECTION : selection;
+}
+
+/**
+ * A view other than All stands the drink filters down, but a route keeps the
+ * drink it was planned with: the selection held on the way out of All.
+ */
+export function routeDrinkSelection(
+  lens: MapExperienceLens,
+  live: MapPlanDrinkSelection,
+  held: MapPlanDrinkSelection | null,
+): MapPlanDrinkSelection | undefined {
+  return lens === "all" ? live : held ?? undefined;
+}
+
+/**
+ * The cross-venue index a route's own drink is priced from. The view that
+ * owns the map does not decide it: a held Wine route still reads Wine reports.
+ */
+export function routeDrinkLensCategory(
+  selection: MapPlanDrinkSelection | undefined,
+): DrinkCategory | null {
+  const category = selection?.drinkCategory;
+  return isMapLensDrinkCategory(category) && category !== "beer" ? category : null;
 }

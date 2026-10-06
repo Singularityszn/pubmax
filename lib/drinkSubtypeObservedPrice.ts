@@ -4,6 +4,7 @@
 // Pure + browser-safe. Community rows stay category-wide; only menu text and
 // attributed drink-price updates can name a subtype.
 
+import type { Route } from "next";
 import type { DrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
 import {
   drinkSubtypeFamilyParentId,
@@ -248,7 +249,7 @@ export function drinkSubtypePricedMapHref(input: {
   subtypeId: string;
   venueId?: string | null;
   log?: boolean;
-}): string {
+}): Route {
   const params = new URLSearchParams();
   params.set("drink", "soft-drink");
   params.set("sub", input.subtypeId);

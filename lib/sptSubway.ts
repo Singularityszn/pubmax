@@ -12,6 +12,7 @@ import "server-only";
 import { readFileSync } from "fs";
 import path from "path";
 
+import { clockMinutes } from "@/lib/clock";
 import { haversineKm } from "@/lib/haversine";
 import type { LastRideResult } from "@/lib/lastRide";
 import {
@@ -262,9 +263,7 @@ export function computeSptSubwayLastRide(
 
   let minutesUntilLastTrain: number | null = null;
   for (const t of trains) {
-    const [h, m] = t.clock.split(":").map(Number);
-    const clockMinutes = h * 60 + m;
-    const mins = minutesUntilDeparture(clockMinutes, t.pastMidnight, nowMinutes);
+    const mins = minutesUntilDeparture(clockMinutes(t.clock), t.pastMidnight, nowMinutes);
     if (minutesUntilLastTrain === null || mins > minutesUntilLastTrain) {
       minutesUntilLastTrain = mins;
     }

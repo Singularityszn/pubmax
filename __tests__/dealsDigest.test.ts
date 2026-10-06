@@ -8,6 +8,7 @@ import {
   groupIdenticalDeals,
 } from "@/lib/dealsDigest";
 import type { WhatsOnRow } from "@/lib/whatsOn";
+import { defined } from "@/__tests__/helpers/defined";
 
 // A well-formed deal row; override any field per case. Distinct ids by default so
 // the stable tiebreaks are observable.
@@ -61,8 +62,8 @@ describe("groupIdenticalDeals", () => {
     );
     const digests = groupIdenticalDeals(rows);
     expect(digests).toHaveLength(1);
-    expect(digests[0].venueCount).toBe(5);
-    expect(digests[0].members).toHaveLength(5);
+    expect(defined(digests[0]).venueCount).toBe(5);
+    expect(defined(digests[0]).members).toHaveLength(5);
   });
 
   it("counts DISTINCT venues, not rows: a duplicate venue is not double counted", () => {
@@ -71,7 +72,7 @@ describe("groupIdenticalDeals", () => {
       makeRow({ venueId: "the-moon" }), // same venue twice
       makeRow({ venueId: "the-sun" }),
     ];
-    expect(groupIdenticalDeals(rows)[0].venueCount).toBe(2);
+    expect(defined(groupIdenticalDeals(rows)[0]).venueCount).toBe(2);
   });
 
   it("keys venues by placeName when a venueId is absent", () => {
@@ -80,7 +81,7 @@ describe("groupIdenticalDeals", () => {
       makeRow({ placeName: "the moon" }), // same venue by name, different case
       makeRow({ placeName: "The Sun" }),
     ];
-    expect(groupIdenticalDeals(rows)[0].venueCount).toBe(2);
+    expect(defined(groupIdenticalDeals(rows)[0]).venueCount).toBe(2);
   });
 
   it("orders members soonest-first and picks the soonest as display when no near point", () => {
@@ -88,7 +89,7 @@ describe("groupIdenticalDeals", () => {
       makeRow({ id: "late", placeName: "Late Pub", startsAt: "2026-07-18T21:00:00+01:00" }),
       makeRow({ id: "early", placeName: "Early Pub", startsAt: "2026-07-18T18:00:00+01:00" }),
     ];
-    const digest = groupIdenticalDeals(rows)[0];
+    const digest = defined(groupIdenticalDeals(rows)[0]);
     expect(digest.members.map((r) => r.id)).toEqual(["early", "late"]);
     expect(digest.display.id).toBe("early");
     expect(digest.nearestVenueName).toBe("Early Pub");
@@ -101,7 +102,7 @@ describe("groupIdenticalDeals", () => {
       makeRow({ id: "far", placeName: "The Far Arms", lat: 51.55, lng: -0.05, startsAt: "2026-07-18T18:00:00+01:00" }),
       makeRow({ id: "near", placeName: "The Piccadilly Hall", lat: 51.5101, lng: -0.1349, startsAt: "2026-07-18T21:00:00+01:00" }),
     ];
-    const digest = groupIdenticalDeals(rows, { near })[0];
+    const digest = defined(groupIdenticalDeals(rows, { near })[0]);
     // Nearest wins the display even though it starts later.
     expect(digest.display.id).toBe("near");
     expect(digest.nearestVenueName).toBe("The Piccadilly Hall");
@@ -114,7 +115,7 @@ describe("groupIdenticalDeals", () => {
       makeRow({ placeName: "B", confidence: "confirmed" }),
       makeRow({ placeName: "C", confidence: "listed" }),
     ];
-    expect(groupIdenticalDeals(rows)[0].topConfidence).toBe("confirmed");
+    expect(defined(groupIdenticalDeals(rows)[0]).topConfidence).toBe("confirmed");
   });
 
   it("keeps genuinely different deals in separate groups", () => {
@@ -141,8 +142,8 @@ describe("groupIdenticalDeals", () => {
     ];
     const digests = groupIdenticalDeals(rows);
     expect(digests).toHaveLength(1);
-    expect(digests[0].venueCount).toBe(1);
-    expect(digests[0].display.placeName).toBe("Good");
+    expect(defined(digests[0]).venueCount).toBe(1);
+    expect(defined(digests[0]).display.placeName).toBe("Good");
   });
 });
 
@@ -185,13 +186,13 @@ describe("digestSectionPicks (whole pipeline)", () => {
     );
     const picks = digestSectionPicks(rows, { limit: 3 });
     expect(picks).toHaveLength(1);
-    expect(picks[0].digest).toEqual({ venueCount: 5, nearestVenueName: "The Moon" });
+    expect(defined(picks[0]).digest).toEqual({ venueCount: 5, nearestVenueName: "The Moon" });
   });
 
   it("omits digest data for a single-venue pick", () => {
     const picks = digestSectionPicks([makeRow({ placeName: "The Only One" })], { limit: 3 });
     expect(picks).toHaveLength(1);
-    expect(picks[0].digest).toBeUndefined();
+    expect(defined(picks[0]).digest).toBeUndefined();
   });
 
   it("caps the section at the limit after grouping and diversity capping", () => {
