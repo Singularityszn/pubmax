@@ -364,17 +364,14 @@ const supabaseStepOutNudgeStore: StepOutNudgeStore = {
         const now = new Date().toISOString();
         const existing = (await readRow(ownerActor)) ?? blankRow(ownerActor, now);
         if (existing.cheapPintDeclined || existing.cheapPintSentAt) return existing;
+        // Write only the qualified flag. The read above can be stale by the time the
+        // upsert lands, so replaying its consent, subscription or send fields would
+        // undo a decline or a send stamp committed in between. Column defaults fill
+        // a brand-new row.
         return writeRow({
           owner_actor: ownerActor,
-          enabled: existing.enabled,
-          subscription_token: existing.subscriptionToken,
-          last_sent_at: existing.lastSentAt,
-          created_at: existing.createdAt,
           updated_at: now,
           cheap_pint_qualified: true,
-          cheap_pint_enabled: existing.cheapPintEnabled,
-          cheap_pint_declined: existing.cheapPintDeclined,
-          cheap_pint_sent_at: existing.cheapPintSentAt,
         });
       },
     });
