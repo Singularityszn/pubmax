@@ -101,7 +101,7 @@ Use when data is lost or corrupt. The target is either the production project
 3. Set the target through the standard variables, never on a command line:
    `export PGHOST=... PGPORT=5432 PGUSER=postgres PGDATABASE=postgres PGSSLMODE=require` and `read -s PGPASSWORD; export PGPASSWORD`.
 4. Restore. On a fresh project, restore everything. On the live project, restore only what was lost:
-   - Fresh or empty schema: `pg_restore --no-owner --no-privileges --exit-on-error --dbname "$PGDATABASE" <dump>`.
+   - Fresh or empty schema: `pg_restore --no-owner --no-privileges --dbname "$PGDATABASE" <dump> 2> restore.log`, then `grep -A1 'ERROR:' restore.log`. Do not add `--exit-on-error`: a fresh database already has the `public` schema (a fresh Supabase project also has `auth` and `storage`), so the dump's `CREATE SCHEMA` fails at once and nothing is restored. Every error in the log must say "already exists". Any other error means the restore is not complete.
    - One table: `pg_restore --no-owner --data-only --table <name> --schema public --dbname "$PGDATABASE" <dump>`.
    Supabase owns objects in `auth` and `storage`. If a restore of those schemas fails on ownership, restore `public` first, then load `auth.users` and `auth.identities` data-only.
 5. Check:
