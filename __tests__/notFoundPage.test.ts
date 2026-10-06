@@ -19,4 +19,12 @@ describe("branded 404", () => {
   it("keeps the copy free of em dashes", () => {
     expect(markup).not.toContain("—");
   });
+
+  it("follows the person's theme instead of committing to a dark surface", () => {
+    // It used to paint #fdfaf2 and --ink-deep in both themes, so the consent
+    // bar and tab bar sat light on top of it (QA journeys report F15).
+    expect(markup).not.toMatch(/#fdfaf2|rgba\(253, 250, 242|ink-deep/i);
+    expect(markup).toContain("background:var(--paper)");
+    expect(markup).toContain("color:var(--ink)");
+  });
 });
