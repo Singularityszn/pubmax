@@ -94,6 +94,20 @@ export function HarvestOverlayFields({ overlay }: { overlay: PublicHarvestOverla
   );
 }
 
+/** The heading, plus a note when OSM states the pub with no name. */
+function UnverifiedPubName({ pub }: { pub: UkBasePub }) {
+  return (
+    <>
+      <h2 className="unverifiedPubName">{pub.name}</h2>
+      {pub.unnamed ? (
+        <p className="unverifiedPubNameNote">
+          We don&rsquo;t know this pub&rsquo;s name yet.
+        </p>
+      ) : null}
+    </>
+  );
+}
+
 /** Google Places content is more than a pin, so only a pub without it says the pin is all we know. */
 function knownHereLead(placeNoun: string, venue: Venue): string {
   return venue.placesContent ? `We know this ${placeNoun} is here.` : `We know this ${placeNoun} is here, and that is all we know.`;
@@ -193,7 +207,7 @@ export default function UnverifiedPubSheet({
                 ? "Prices unread"
                 : "Checking community prices"}
         </span>
-        <h2 className="unverifiedPubName">{pub.name}</h2>
+        <UnverifiedPubName pub={pub} />
         {detailVenue.address ? (
           <p className="unverifiedPubAddress">
             <MapPin size={13} aria-hidden="true" />

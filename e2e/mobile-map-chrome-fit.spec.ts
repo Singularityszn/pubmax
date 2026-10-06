@@ -1098,6 +1098,9 @@ for (const viewport of VIEWPORTS) {
     // Route two, and the surface this case measures.
     const response = await page.goto("/out");
     expect(response?.status()).toBe(200);
+    // /out streams behind its loading skeleton, and until React swaps the page
+    // in the document holds the skeleton's tab bar and the page's own.
+    await expectStreamedPageSettled(page);
 
     const prompt = page.locator(".analyticsConsentPrompt");
     // Present, or this case would pass by measuring nothing.

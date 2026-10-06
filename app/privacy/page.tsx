@@ -26,7 +26,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "5 October 2026";
+const LAST_UPDATED = "6 October 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -162,12 +162,13 @@ export default function PrivacyPage() {
           short bio. A profile picture is an optional upload you choose: we
           store the normalised JPEG under our own private storage (not a
           hotlinked URL), strip embedded metadata before it is saved, and send
-          a short-lived signed copy to OpenAI for omni moderation before the
-          picture is publicly addressable. If that check is unavailable or
-          returns no usable decision, we refuse the upload and keep your
-          previous picture (or none). Readers may report a profile picture; a
-          report joins a private review queue and does not hide the picture on
-          its own. A named staff member must hide or restore it, and that
+          a short-lived signed copy to OpenAI for an advisory omni moderation
+          check before the picture is publicly addressable. If the check
+          refuses the picture, we refuse the upload and keep your previous
+          picture (or none). If the check cannot run or gives no usable
+          decision, the upload can proceed without scan approval. Readers may
+          report a profile picture; a report joins a private review queue and
+          does not hide the picture on its own. A named staff member must hide or restore it, and that
           decision keeps a private audit record. Hiding stops public delivery
           and never deletes the stored file or the report provenance. Removing
           the picture yourself, or deleting your account, removes the stored
@@ -814,6 +815,11 @@ export default function PrivacyPage() {
             reports you logged stay up with your handle taken off them, and we
             keep a private record, readable only by us, of which deleted account
             logged which of them.
+          </li>
+          <li>
+            <strong>Backups:</strong>{" "}data you delete, including a deleted
+            account, can remain in our backups for up to 8 weeks before it is
+            removed.
           </li>
           <li>
             <strong>Social account records:</strong>{" "}the private product account

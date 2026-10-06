@@ -49,6 +49,7 @@ import {
   buildUkOverpassQuery,
   chunkFileName,
   normalizeElements,
+  normalizeUnnamedElements,
 } from "./lib/ukOsmSeed.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -58,6 +59,10 @@ const UK_DIR = path.join(ROOT, "data", "osm", "uk");
 const RAW_DIR = path.join(UK_DIR, "raw");
 const MANIFEST_PATH = path.join(UK_DIR, "chunks.json");
 const DATASET_PATH = path.join(UK_DIR, "uk_osm_pubs.json");
+// `amenity=pub` elements with a position and no name tag. A separate pack, so no
+// reader of uk_osm_pubs.json ever meets a nameless pub; the UK base layer draws
+// them as bare pins (scripts/build_uk_base_shards.mjs).
+const UNNAMED_DATASET_PATH = path.join(UK_DIR, "uk_osm_unnamed_pubs.json");
 const DEDUPE_REPORT_PATH = path.join(UK_DIR, "dedupe_report.json");
 
 const CURATED_LONDON_SLIM = path.join(ROOT, "public", "data", "venues_slim.json");
@@ -332,6 +337,7 @@ async function main() {
   }
 
   const pubs = normalizeElements(allElements);
+  const unnamedPubs = normalizeUnnamedElements(allElements);
   const curatedEntries = await loadCuratedEntries();
   const { pubs: annotated, report } = annotateCuratedOverlap(pubs, curatedEntries);
 
@@ -349,12 +355,25 @@ async function main() {
     pubs: annotated,
   });
 
+  await writeCompact(UNNAMED_DATASET_PATH, {
+    source: "OpenStreetMap Overpass",
+    license: "ODbL",
+    attribution: "© OpenStreetMap contributors",
+    fetchedAt: new Date().toISOString(),
+    bbox: UK_BBOX,
+    taxonomy: UK_TAXONOMY,
+    areaFilter: "OSM relation 62149 (United Kingdom)",
+    count: unnamedPubs.length,
+    pubs: unnamedPubs,
+  });
+
   await writePretty(DEDUPE_REPORT_PATH, {
     generatedAt: new Date().toISOString(),
     ...report,
   });
 
   console.log(`\nwrote ${path.relative(ROOT, DATASET_PATH)} (${annotated.length} named pubs)`);
+  console.log(`wrote ${path.relative(ROOT, UNNAMED_DATASET_PATH)} (${unnamedPubs.length} unnamed pubs)`);
   console.log(`wrote ${path.relative(ROOT, DEDUPE_REPORT_PATH)}`);
   console.log(
     `overlap: ${report.matchedTotal} of ${report.ukPubs} already in curated/seeded data ` +

@@ -313,7 +313,7 @@ test.describe("Pub Pal live voice", () => {
           authorization: `Bearer ${bearer}`,
           "content-type": "application/json",
         },
-        data: { action: "release", durationSeconds: 0 },
+        data: { action: "release", conversationId: body.conversationId },
       });
     }
   });

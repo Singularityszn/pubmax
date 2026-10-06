@@ -1,6 +1,8 @@
 import { mkdirSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 
+import { expectStreamedPageSettled } from "./helpers/streamedPage";
+
 const WIDTHS = [320, 390, 430] as const;
 const SHOTS_DIR = "docs/screenshots/out-l1";
 
@@ -11,6 +13,14 @@ test.beforeEach(async ({ page }) => {
     window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
   });
 });
+
+// /out streams behind its loading skeleton, and until React swaps the page in
+// the document holds a second copy of it in a hidden segment, so every test id
+// matches twice. Every document load of /out waits for that window to close.
+async function gotoOut(page: Page) {
+  await page.goto("/out");
+  await expectStreamedPageSettled(page);
+}
 
 function primaryNav(page: Page) {
   return page.getByRole("navigation", { name: "Primary" });
@@ -73,7 +83,7 @@ for (const width of WIDTHS) {
       // Hold the lane to a ready-empty body so the chrome assertions do not
       // race the store, the same isolation the listings tests already use.
       await mockReadyEmptyOut(page);
-      await page.goto("/out");
+      await gotoOut(page);
       const out = primaryNav(page).getByRole("link", { name: "Out", exact: true });
       await expect(out).toBeVisible();
       await expect(out).toHaveAttribute("aria-current", "page");
@@ -146,12 +156,12 @@ for (const width of WIDTHS) {
       await createRow(page, "Post a moment").click();
       await page.waitForURL(/\/moment\?returnTo=/);
 
-      await page.goto("/out");
+      await gotoOut(page);
       await openCreateMenu(page);
       await createRow(page, "Log a price").click();
       await page.waitForURL(/\/map\?contribute=price/, { timeout: 45_000 });
 
-      await page.goto("/out");
+      await gotoOut(page);
       await openCreateMenu(page);
       await createRow(page, "Start a plan").click();
       await page.waitForURL(/\/plan$/);
@@ -205,7 +215,7 @@ test(
       }),
     );
 
-    await page.goto("/out");
+    await gotoOut(page);
     await expect(page.getByTestId("out-screen")).toBeVisible();
     await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
     // BOTH rows are real rows. The pub is a footnote on the row, not a filter.
@@ -264,7 +274,7 @@ test.describe("out supply honesty @390", () => {
       }),
     );
 
-    await page.goto("/out");
+    await gotoOut(page);
     await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
     // Four sourced listings, four rows. This is the walk-B4 shape.
     await expect(page.getByTestId("out-listing-row")).toHaveCount(4);
@@ -322,7 +332,7 @@ test.describe("out supply honesty @390", () => {
       }),
     );
 
-    await page.goto("/out");
+    await gotoOut(page);
     await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
     await expect(page.getByTestId("out-listing-row")).toHaveCount(25);
 
@@ -388,7 +398,7 @@ test.describe("out supply honesty @390", () => {
       }),
     );
 
-    await page.goto("/out");
+    await gotoOut(page);
     await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
     const row = page.getByTestId("out-listing-row");
     await expect(row).toHaveCount(1);
@@ -411,7 +421,7 @@ test.describe("out supply honesty @390", () => {
       }),
     );
 
-    await page.goto("/out");
+    await gotoOut(page);
     await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
     const notice = page.getByTestId("out-venue-match-notice");
     await expect(notice).toContainText(
@@ -443,7 +453,7 @@ test.describe("out supply honesty @390", () => {
       }),
     );
 
-    await page.goto("/out");
+    await gotoOut(page);
     await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
     await expect(page.getByText("No listings for this day yet.")).toBeVisible();
     await expect(page.getByTestId("out-venue-match-notice")).toHaveCount(0);
@@ -488,7 +498,7 @@ test("shows Open plans when one sendable plan exists", async ({ page }) => {
     }),
   );
 
-  await page.goto("/out");
+  await gotoOut(page);
   const plans = page.getByRole("region", { name: "Open plans" });
   await expect(plans).toBeVisible();
   await expect(plans.getByRole("heading", { name: "Camden crawl" })).toBeVisible();
@@ -549,7 +559,7 @@ test("pairs a pub beside a gig, named on the row and linked to its pin", async (
     }),
   );
 
-  await page.goto("/out");
+  await gotoOut(page);
   await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
 
   const row = page.getByTestId("out-listing-row");
@@ -604,7 +614,7 @@ test("starts each desktop listing group at the top of its grid row", async ({ pa
     }),
   );
 
-  await page.goto("/out");
+  await gotoOut(page);
   await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
 
   const maryleboneTop = await page
@@ -647,7 +657,7 @@ test("sets the desktop listing surface on the section title's own edge", async (
     }),
   );
 
-  await page.goto("/out");
+  await gotoOut(page);
   await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
   await expect(page.getByTestId("out-listing-row")).toHaveCount(25);
 
@@ -671,7 +681,7 @@ test.describe("out tab screenshots @390", () => {
   test("commits light and dark 390 frames", async ({ page }) => {
     mkdirSync(SHOTS_DIR, { recursive: true });
     await page.emulateMedia({ colorScheme: "light" });
-    await page.goto("/out");
+    await gotoOut(page);
     await expect(page.getByTestId("out-screen")).toBeVisible();
     await page.screenshot({ path: `${SHOTS_DIR}/out-390-light.png`, fullPage: false });
 

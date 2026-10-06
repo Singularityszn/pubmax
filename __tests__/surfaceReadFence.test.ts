@@ -81,6 +81,7 @@ const SURFACE_READ_EXEMPTIONS = [
   { path: "components/profile/OutTonightToggle.tsx", fetchCount: 1, reason: "presence read and toggle are live account actions" },
   { path: "components/ratings/ratingsClient.ts", fetchCount: 1, reason: "rating client is an additive detail read" },
   { path: "components/social/CreatorListsLane.tsx", fetchCount: 1, reason: "Social creator-list discovery is no-store" },
+  { path: "components/social/CrewsPanel.tsx", fetchCount: 1, reason: "retiring the unused plan after a refused crew is a no-store PATCH that must carry no account Authorization header" },
   { path: "components/social/FindYourLot.tsx", fetchCount: 1, reason: "Social discovery is no-store" },
   { path: "components/social/PublicCrewRouteClient.tsx", fetchCount: 1, reason: "public Open Crew preview is a no-store route with identity-scoped lifecycle guards" },
   { path: "components/visits/visitReportsClient.ts", fetchCount: 2, reason: "Visit Report reader and flag action have their own freshness and moderation lane" },

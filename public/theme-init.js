@@ -71,6 +71,14 @@
     // never rewritten.
     if (window.location.pathname !== "/") return;
 
+    // Keep callback inputs for AuthProvider. Match readAuthCallbackAttempt at root.
+    var callbackHash = new URLSearchParams((window.location.hash || "").slice(1));
+    var callbackQuery = new URLSearchParams(window.location.search || "");
+    if (
+      callbackQuery.get("_authCallback") === "1" ||
+      (callbackHash.get("access_token") && callbackHash.get("refresh_token"))
+    ) return;
+
     var session = window.sessionStorage;
     var local = window.localStorage;
     if (!session || !local) return;

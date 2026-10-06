@@ -123,7 +123,7 @@ function mutationRequest(url: string, method: string, body?: unknown): Request {
     method,
     headers: {
       ...(body === undefined ? {} : { "content-type": "application/json" }),
-      authorization: `Bearer ${HOST_CAPABILITY}`,
+      "x-plan-host-capability": HOST_CAPABILITY,
       "idempotency-key": IDEMPOTENCY_KEY,
     },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),

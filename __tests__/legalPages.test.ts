@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import PrivacyPage from "@/app/privacy/page";
 import TermsPage from "@/app/terms/page";
@@ -166,8 +166,15 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/Hiding stops public delivery/i);
     expect(privacy).toMatch(/never deletes the stored file/i);
     expect(privacy).toMatch(/Removing\s+the picture yourself[^]*removes the stored\s+file/i);
-    expect(terms).toMatch(/Profile pictures use the same OpenAI omni\s+moderation/i);
+    expect(terms).toMatch(/Profile pictures use an advisory OpenAI omni\s+moderation/i);
+    expect(terms).toMatch(/cannot run[^.]*upload can proceed\s+without scan approval/i);
     expect(terms).toMatch(/hiding never deletes\s+the stored file/i);
+    for (const text of [privacyText, termsText]) {
+      expect(text).toMatch(/advisory (OpenAI )?omni moderation/i);
+      expect(text).toMatch(/refuses[^.]*picture, we refuse the upload/i);
+      expect(text).toMatch(/cannot run or gives no usable decision, the upload can proceed without scan approval/i);
+    }
+    expect(privacyText).not.toMatch(/no usable decision, we refuse the upload/i);
   });
 
   it("discloses Social interactions, private saves, governance, and held derivatives", () => {
@@ -316,7 +323,6 @@ describe("legal content pages", () => {
       { name: "Arize", host: "otlp.arize.com", source: "lib/observability/arize.ts" },
       { name: "OpenRouter", host: "openrouter.ai", source: "lib/ask/modelLoop.ts" },
       { name: "TypeSafe", host: "api.typesafe.ai", source: "lib/ai/typesafe.server.ts" },
-      { name: "ElevenLabs", host: "api.elevenlabs.io", source: "lib/palElevenLabsChat.server.ts" },
     ];
     for (const recipient of promptTextRecipients) {
       expect(thirdPartySection, `Missing recipient name ${recipient.name}`).toContain(
@@ -324,6 +330,89 @@ describe("legal content pages", () => {
       );
       expect(read(recipient.source), `${recipient.source} no longer contacts ${recipient.host}`)
         .toContain(recipient.host);
+    }
+  });
+
+  it("names every host a typed Pub Pal ask reaches", async () => {
+    // Runs a real typed turn. The provider hands back a socket on the host the
+    // app asked for a signed URL, as ElevenLabs does, and every host that then
+    // receives the typed text, by request body or socket message, must be named.
+    const thirdPartySection =
+      privacy.match(/aria-labelledby="third"[\s\S]*?aria-labelledby="keep"/)?.[0] ?? "";
+    const query = "a quiet pub near the Lamb and Flag for six";
+    const signedUrlHosts = new Set<string>();
+    const promptHosts = new Set<string>();
+
+    class ProviderSocket {
+      private listeners: Record<string, Array<(event: unknown) => void>> = {};
+      private readonly url: URL;
+
+      constructor(url: string) {
+        this.url = new URL(url);
+        queueMicrotask(() => {
+          this.emit("open", {});
+          this.emit("conversation_initiation_metadata", {
+            conversation_initiation_metadata_event: {
+              conversation_id: this.url.searchParams.get("conversation_id"),
+            },
+          });
+        });
+      }
+
+      addEventListener(type: string, listener: (event: unknown) => void): void {
+        (this.listeners[type] ??= []).push(listener);
+      }
+
+      send(raw: string): void {
+        if (raw.includes(query)) promptHosts.add(this.url.host);
+        if ((JSON.parse(raw) as { type?: string }).type !== "user_message") return;
+        queueMicrotask(() => {
+          this.emit("agent_response", { agent_response_event: { agent_response: "Two quiet picks." } });
+          this.emit("agent_response_complete", {});
+        });
+      }
+
+      close(): void {}
+
+      private emit(type: string, event: Record<string, unknown>): void {
+        const listeners = type === "open" ? this.listeners.open : this.listeners.message;
+        const message = type === "open" ? event : { data: JSON.stringify({ type, ...event }) };
+        for (const listener of listeners ?? []) listener(message);
+      }
+    }
+
+    vi.stubEnv("ELEVENLABS_API_KEY", "test-key");
+    vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "agent-id");
+    vi.stubGlobal("WebSocket", ProviderSocket);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        const url = new URL(input instanceof Request ? input.url : String(input));
+        if (String(init?.body ?? "").includes(query)) promptHosts.add(url.host);
+        if (!url.pathname.endsWith("/get-signed-url")) return new Response(null, { status: 503 });
+        signedUrlHosts.add(url.host);
+        return Response.json({
+          signed_url: `wss://${url.host}/v1/convai/conversation?agent_id=agent-id&conversation_signature=sig&conversation_id=conv_legalfence01`,
+        });
+      }),
+    );
+    try {
+      const { runPalElevenLabsChatTurn } = await import("@/lib/palElevenLabsChat.server");
+      const outcome = await runPalElevenLabsChatTurn({
+        query,
+        ownerId: "11111111-1111-4111-8111-111111111111",
+      });
+      expect(outcome.ok).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+    }
+
+    expect([...signedUrlHosts]).toEqual(["api.elevenlabs.io"]);
+    expect(promptHosts.has("api.elevenlabs.io")).toBe(true);
+    expect(thirdPartySection, "Missing recipient name ElevenLabs").toContain("ElevenLabs");
+    for (const host of promptHosts) {
+      expect(thirdPartySection, `Missing recipient host ${host}`).toContain(host);
     }
   });
 

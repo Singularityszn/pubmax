@@ -3,6 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const PAL_GREETING = "Hello, I'm your Pub Pal. What kind of night are you planning?";
 const SOURCED_ANSWER = "Two Soho picks with listed pints under five pounds.";
 const CHECKING_LINE = "Let me check prices near Soho.";
+// The provider's real shape: `signed_url` alone, the conversation id inside its query.
+const SIGNED_URL =
+  "wss://api.elevenlabs.io/v1/convai/conversation?agent_id=agent-id&conversation_signature=sig&conversation_id=conv_regression01";
 
 type ScriptedEvent = { afterMs: number; event: Record<string, unknown> };
 
@@ -21,6 +24,17 @@ function toolResponse(id: string): Record<string, unknown> {
   return {
     type: "agent_tool_response",
     agent_tool_response: { tool_name: "search_venues", tool_call_id: id, is_error: false },
+  };
+}
+
+function responsePart(
+  type: "start" | "delta" | "stop",
+  text = "",
+  responseId = "resp_1",
+): Record<string, unknown> {
+  return {
+    type: "agent_chat_response_part",
+    text_response_part: { type, text, event_id: 1, response_id: responseId },
   };
 }
 
@@ -45,6 +59,12 @@ class MockElevenLabsWebSocket {
     void url;
     queueMicrotask(() => {
       this.emit("open", {});
+      this.emit("message", {
+        data: JSON.stringify({
+          type: "agent_chat_response_part",
+          text_response_part: { type: "delta", text: PAL_GREETING, event_id: 0, response_id: "greeting" },
+        }),
+      });
       this.emit("message", {
         data: JSON.stringify({
           type: "agent_response",
@@ -168,7 +188,7 @@ describe("runPalElevenLabsChatTurn", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
-        Response.json({ signed_url: "wss://convai.elevenlabs.io/mock-session" }),
+        Response.json({ signed_url: SIGNED_URL }),
       ),
     );
     vi.stubGlobal("WebSocket", MockElevenLabsWebSocket);
@@ -510,6 +530,120 @@ describe("runPalElevenLabsChatTurn", () => {
     expect(outcome).toMatchObject({ ok: true, message: SOURCED_ANSWER });
   });
 
+  describe("streaming the reply as the agent writes it", () => {
+    type Progress = { type: "delta"; text: string } | { type: "reset" };
+    const OWNER = "11111111-1111-4111-8111-111111111111";
+
+    it("passes each text part of a reply that used no tool, and still returns the whole answer", async () => {
+      const progress: Progress[] = [];
+      wsState.replyScript = [
+        { afterMs: 0, event: responsePart("start") },
+        { afterMs: 5, event: responsePart("delta", "Hello.") },
+        { afterMs: 5, event: responsePart("delta", " How can I help.") },
+        { afterMs: 5, event: responsePart("stop") },
+        { afterMs: 5, event: agentResponse("Hello. How can I help.") },
+        { afterMs: 5, event: responseComplete() },
+      ];
+
+      const outcome = await runPalElevenLabsChatTurn({
+        query: "Hello",
+        ownerId: OWNER,
+        onProgress: (event) => progress.push(event),
+      });
+
+      expect(progress).toEqual([
+        { type: "delta", text: "Hello." },
+        { type: "delta", text: " How can I help." },
+      ]);
+      expect(outcome).toMatchObject({ ok: true, message: "Hello. How can I help." });
+    });
+
+    it("clears a checking line when its tool runs, then streams the answer after it", async () => {
+      const progress: Progress[] = [];
+      wsState.storeFilled = false;
+      wsState.replyScript = [
+        { afterMs: 0, event: responsePart("start", "", "resp_1") },
+        { afterMs: 5, event: responsePart("delta", "Let me check prices near Soho.", "resp_1") },
+        { afterMs: 5, event: responsePart("stop", "", "resp_1") },
+        { afterMs: 5, event: agentResponse(CHECKING_LINE) },
+        { afterMs: 20, event: toolRequest("call_1") },
+        { afterMs: 300, event: toolResponse("call_1") },
+        { afterMs: 5, event: responsePart("start", "", "resp_2") },
+        { afterMs: 5, event: responsePart("delta", "Two Soho picks", "resp_2") },
+        { afterMs: 5, event: responsePart("delta", " with listed pints under five pounds.", "resp_2") },
+        { afterMs: 5, event: responsePart("stop", "", "resp_2") },
+        { afterMs: 5, event: agentResponse(SOURCED_ANSWER) },
+        { afterMs: 5, event: responseComplete() },
+      ];
+
+      const outcome = await runPalElevenLabsChatTurn({
+        query: "Which pubs near Soho have a pint under £5?",
+        ownerId: OWNER,
+        onProgress: (event) => progress.push(event),
+      });
+
+      expect(progress).toEqual([
+        { type: "delta", text: "Let me check prices near Soho." },
+        { type: "reset" },
+        { type: "delta", text: "Two Soho picks" },
+        { type: "delta", text: " with listed pints under five pounds." },
+      ]);
+      expect(outcome).toMatchObject({
+        ok: true,
+        message: SOURCED_ANSWER,
+        cards: [expect.objectContaining({ venueId: "london-a" })],
+      });
+    });
+
+    it("clears a reply that a newer reply replaces, even with no tool between", async () => {
+      const progress: Progress[] = [];
+      wsState.replyScript = [
+        { afterMs: 0, event: responsePart("start", "", "resp_1") },
+        { afterMs: 5, event: responsePart("delta", "First thought.", "resp_1") },
+        { afterMs: 5, event: agentResponse("First thought.") },
+        { afterMs: 50, event: responsePart("start", "", "resp_2") },
+        { afterMs: 5, event: responsePart("delta", SOURCED_ANSWER, "resp_2") },
+        { afterMs: 5, event: agentResponse(SOURCED_ANSWER) },
+      ];
+
+      const outcome = await runPalElevenLabsChatTurn({
+        query: "quiet pubs",
+        ownerId: OWNER,
+        onProgress: (event) => progress.push(event),
+      });
+
+      expect(progress).toEqual([
+        { type: "delta", text: "First thought." },
+        { type: "reset" },
+        { type: "delta", text: SOURCED_ANSWER },
+      ]);
+      expect(outcome).toMatchObject({ ok: true, message: SOURCED_ANSWER });
+    });
+
+    it("sends nothing for the greeting parts that arrive before the user's message", async () => {
+      const progress: Progress[] = [];
+      // The mock sends its greeting before the metadata. Parts for it must not stream.
+      const outcome = await runPalElevenLabsChatTurn({
+        query: "quiet pubs",
+        ownerId: OWNER,
+        onProgress: (event) => progress.push(event),
+      });
+
+      expect(progress).toEqual([]);
+      expect(outcome).toMatchObject({ ok: true, message: SOURCED_ANSWER });
+    });
+
+    it("ends the turn and closes the agent when the caller goes away", async () => {
+      const abort = new AbortController();
+      wsState.replyScript = [{ afterMs: 5_000, event: agentResponse(SOURCED_ANSWER) }];
+
+      const pending = runPalElevenLabsChatTurn({ query: "quiet pubs", ownerId: OWNER, signal: abort.signal });
+      setTimeout(() => abort.abort(), 50);
+
+      await expect(pending).resolves.toEqual({ ok: false, code: "TIMEOUT" });
+    });
+  });
+
   describe("on an agent that never sends agent_response_complete", () => {
     beforeEach(() => {
       vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
@@ -519,7 +653,7 @@ describe("runPalElevenLabsChatTurn", () => {
       vi.useRealTimers();
     });
 
-    it("returns the held tool reply before the browser's 25 s abort", async () => {
+    it("answers a tool turn once the reply has settled, without waiting for the turn end", async () => {
       wsState.storeFilled = false;
       wsState.replyScript = [
         { afterMs: 0, event: agentResponse(CHECKING_LINE) },
@@ -536,7 +670,7 @@ describe("runPalElevenLabsChatTurn", () => {
       void pending.then(() => {
         settled = true;
       });
-      await vi.advanceTimersByTimeAsync(21_000);
+      await vi.advanceTimersByTimeAsync(1_000);
       expect(settled).toBe(false);
       await vi.advanceTimersByTimeAsync(1_000);
       expect(settled).toBe(true);
@@ -545,7 +679,59 @@ describe("runPalElevenLabsChatTurn", () => {
         ok: true,
         message: SOURCED_ANSWER,
         conversationId: "conv_regression01",
+        cards: [expect.objectContaining({ venueId: "london-a" })],
       });
+    });
+
+    it("answers a reply that used no tool within the settle window, not after a 4 s card wait", async () => {
+      wsState.storeFilled = false;
+      wsState.replyScript = [{ afterMs: 0, event: agentResponse("Hello. How can I help.") }];
+
+      const pending = runPalElevenLabsChatTurn({
+        query: "Hello",
+        ownerId: "11111111-1111-4111-8111-111111111111",
+      });
+      await vi.advanceTimersByTimeAsync(1_500);
+
+      await expect(pending).resolves.toMatchObject({ ok: true, message: "Hello. How can I help." });
+    });
+
+    it("keeps waiting when a checking line is followed by a tool request inside the window", async () => {
+      wsState.storeFilled = false;
+      wsState.replyScript = [
+        { afterMs: 0, event: agentResponse(CHECKING_LINE) },
+        { afterMs: 1_000, event: toolRequest("call_1") },
+        { afterMs: 400, event: toolResponse("call_1") },
+        { afterMs: 50, event: agentResponse(SOURCED_ANSWER) },
+      ];
+
+      const pending = runPalElevenLabsChatTurn({
+        query: "Which pubs near Soho have a pint under £5?",
+        ownerId: "11111111-1111-4111-8111-111111111111",
+      });
+      await vi.advanceTimersByTimeAsync(4_000);
+
+      await expect(pending).resolves.toMatchObject({ ok: true, message: SOURCED_ANSWER });
+    });
+
+    it("finishes sooner once the turn-end event confirms the reply", async () => {
+      wsState.replyScript = [
+        { afterMs: 0, event: agentResponse(SOURCED_ANSWER) },
+        { afterMs: 10, event: responseComplete() },
+      ];
+
+      const pending = runPalElevenLabsChatTurn({
+        query: "Which pubs near Soho have a pint under £5?",
+        ownerId: "11111111-1111-4111-8111-111111111111",
+      });
+      let settled = false;
+      void pending.then(() => {
+        settled = true;
+      });
+      await vi.advanceTimersByTimeAsync(600);
+
+      expect(settled).toBe(true);
+      await expect(pending).resolves.toMatchObject({ ok: true, message: SOURCED_ANSWER });
     });
 
     it("times out rather than answer with a checking line when no reply follows its tool", async () => {
@@ -580,5 +766,52 @@ describe("runPalElevenLabsChatTurn", () => {
 
       await expect(pending).resolves.toEqual({ ok: false, code: "TIMEOUT" });
     });
+  });
+});
+
+describe("the signed URL a typed chat turn starts from", () => {
+  beforeEach(() => {
+    wsState.replyScript = null;
+    vi.stubEnv("ELEVENLABS_API_KEY", "test-key");
+    vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "agent-id");
+    vi.stubGlobal("WebSocket", MockElevenLabsWebSocket);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it("gives up on a provider that never answers instead of running past the route limit", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_url: unknown, init?: { signal?: AbortSignal }) =>
+          new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+          }),
+      ),
+    );
+
+    const pending = runPalElevenLabsChatTurn({
+      query: "quiet pubs",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+    await vi.advanceTimersByTimeAsync(8_500);
+
+    await expect(pending).resolves.toEqual({ ok: false, code: "PROVIDER_UNAVAILABLE" });
+  });
+
+  it("refuses a provider answer that holds no conversation id", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ signed_url: "wss://api.elevenlabs.io/v1/convai/conversation?agent_id=a" })),
+    );
+
+    await expect(
+      runPalElevenLabsChatTurn({ query: "quiet pubs", ownerId: "11111111-1111-4111-8111-111111111111" }),
+    ).resolves.toEqual({ ok: false, code: "PROVIDER_UNAVAILABLE" });
   });
 });

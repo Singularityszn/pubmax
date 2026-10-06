@@ -35,6 +35,7 @@ Full rules: [`docs/rules/app-api-contract-and-rate-limits.md`](../docs/rules/app
 - [The daily price cap has TWO enforcers, and it is a ROUTE's rule rather than the table's.](../docs/rules/app-api-contract-and-rate-limits.md#the-daily-price-cap-has-two-enforcers-and-it-is-a-route-s-rule-rather-than-the-t)
 - [An API error is one envelope, and every mutating route is rate limited.](../docs/rules/app-api-contract-and-rate-limits.md#an-api-error-is-one-envelope-and-every-mutating-route-is-rate-limited)
 - [AN UNKNOWN ADDRESS ANSWERS THE ENVELOPE, AND A DELETE STILL ANSWERS AFTER THE ACCOUNT HAS GONE.](../docs/rules/app-api-contract-and-rate-limits.md#an-unknown-address-answers-the-envelope-and-a-delete-still-answers-after-the-acc)
+- [THE HEALTH ROUTE ASKS THE DATABASE, AND AN UPTIME MONITOR READS ITS STATUS CODE.](../docs/rules/app-api-contract-and-rate-limits.md#the-health-route-asks-the-database-and-an-uptime-monitor-reads-its-status-code)
 
 ## Proxy, CSP, caching and file tracing
 

@@ -130,4 +130,113 @@ describe("POST /api/pub-pal/chat", () => {
     expect(response.status).toBe(429);
     expect(runPalElevenLabsChatTurn).not.toHaveBeenCalled();
   });
+
+  describe("when the caller asks for a stream", () => {
+    const STREAM_ACCEPT = "application/x-ndjson";
+
+    function streamRequest(body: unknown = { query: "Cheapest pint in Clapham?" }): Request {
+      return new Request("http://localhost/api/pub-pal/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: STREAM_ACCEPT },
+        body: JSON.stringify(body),
+      });
+    }
+
+    async function events(response: Response): Promise<Array<Record<string, unknown>>> {
+      return (await response.text())
+        .split("\n")
+        .filter(Boolean)
+        .map((line) => JSON.parse(line) as Record<string, unknown>);
+    }
+
+    it("streams the text as it is written and ends with the same body the JSON path returns", async () => {
+      authState.userId = "11111111-1111-4111-8111-111111111111";
+      const ok = {
+        ok: true as const,
+        message: "Two listed pints.",
+        cards: [],
+        proposals: [],
+        conversationId: "conv_chatroute01",
+        toolsUsed: ["cheapest_pint_near"],
+      };
+      vi.mocked(runPalElevenLabsChatTurn).mockImplementation(async (input) => {
+        input.onProgress?.({ type: "delta", text: "Two listed" });
+        input.onProgress?.({ type: "delta", text: " pints." });
+        return ok;
+      });
+
+      const response = await POST(streamRequest());
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-type")).toContain(STREAM_ACCEPT);
+      expect(response.headers.get("cache-control")).toContain("no-store");
+      const sent = await events(response);
+      expect(sent.slice(0, 2)).toEqual([
+        { type: "delta", text: "Two listed" },
+        { type: "delta", text: " pints." },
+      ]);
+      const jsonPath = await (async () => {
+        vi.mocked(runPalElevenLabsChatTurn).mockResolvedValue(ok);
+        return (
+          await POST(
+            new Request("http://localhost/api/pub-pal/chat", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ query: "Cheapest pint in Clapham?" }),
+            }),
+          )
+        ).json();
+      })();
+      expect(sent[2]).toEqual({ type: "final", body: jsonPath });
+    });
+
+    it("still refuses an anonymous caller with a JSON 401, before any stream opens", async () => {
+      const response = await POST(streamRequest());
+      expect(response.status).toBe(401);
+      expect(response.headers.get("content-type")).toContain("application/json");
+      expect(runPalElevenLabsChatTurn).not.toHaveBeenCalled();
+    });
+
+    it("still refuses a signed-in caller once the spend ceiling is closed", async () => {
+      authState.userId = "11111111-1111-4111-8111-111111111111";
+      vi.stubEnv("PUBMAX_PAID_SPEND_BUDGET_PUB_PAL_CHAT", "0");
+      const response = await POST(streamRequest());
+      expect(response.status).toBe(429);
+      expect(response.headers.get("content-type")).toContain("application/json");
+      expect(runPalElevenLabsChatTurn).not.toHaveBeenCalled();
+    });
+
+    it("answers the keyless path with one JSON body, never a stream", async () => {
+      vi.stubEnv("ELEVENLABS_API_KEY", "");
+      vi.stubGlobal("fetch", offlineFetch);
+      const response = await POST(streamRequest({ query: "Cheapest pint in Camden tonight", cityId: "london" }));
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-type")).toContain("application/json");
+      expect((await response.json()).answer).toMatch(/Cheapest listed pints in Camden/i);
+    });
+
+    it("sends an error event with the curated fallback when the turn fails after the stream began", async () => {
+      authState.userId = "11111111-1111-4111-8111-111111111111";
+      vi.mocked(runPalElevenLabsChatTurn).mockResolvedValue({ ok: false, code: "TIMEOUT" });
+      const sent = await events(await POST(streamRequest()));
+      expect(sent).toEqual([{ type: "error", error: PAL_ERROR_FALLBACK }]);
+    });
+
+    it("hands the turn a signal that aborts when the stream is cancelled", async () => {
+      authState.userId = "11111111-1111-4111-8111-111111111111";
+      let signal: AbortSignal | undefined;
+      vi.mocked(runPalElevenLabsChatTurn).mockImplementation(
+        (input) =>
+          new Promise((resolve) => {
+            signal = input.signal;
+            input.signal?.addEventListener("abort", () => resolve({ ok: false, code: "TIMEOUT" }));
+          }),
+      );
+
+      const response = await POST(streamRequest());
+      await response.body?.cancel();
+
+      expect(signal?.aborted).toBe(true);
+    });
+  });
 });
