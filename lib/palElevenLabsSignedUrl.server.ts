@@ -33,8 +33,7 @@ export async function fetchPalSignedConversation(input: {
       cache: "no-store",
     });
     if (!response.ok) return { ok: false, reason: "http" };
-    const payload = (await response.json()) as { signed_url?: unknown };
-    const signedUrl = typeof payload.signed_url === "string" ? payload.signed_url : "";
+    const signedUrl = signedUrlFromBody(await response.text());
     const conversationId = signedUrl ? conversationIdFromSignedUrl(signedUrl) : "";
     if (!signedUrl || !conversationId) return { ok: false, reason: "no_session" };
     return { ok: true, signedUrl, conversationId };
@@ -42,5 +41,14 @@ export async function fetchPalSignedConversation(input: {
     return { ok: false, reason: "unreachable" };
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+function signedUrlFromBody(body: string): string {
+  try {
+    const payload = JSON.parse(body) as { signed_url?: unknown } | null;
+    return typeof payload?.signed_url === "string" ? payload.signed_url : "";
+  } catch {
+    return "";
   }
 }

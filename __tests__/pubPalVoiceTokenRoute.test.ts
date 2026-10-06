@@ -399,6 +399,51 @@ describe("Pub Pal voice token route", () => {
     ]);
   });
 
+  it("reports a provider reply that is not JSON as no session, not a timeout", async () => {
+    voiceState.rpc.mockImplementation(async (name: string) => {
+      voiceState.events.push(name);
+      return { data: true, error: null };
+    });
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      voiceState.events.push("provider_allocation");
+      return new Response("<html>gateway</html>", { status: 200, headers: { "Content-Type": "text/html" } });
+    }));
+
+    const response = await POST(issueRequest());
+
+    expect(response.status).toBe(502);
+    expect(await response.json()).toMatchObject({
+      code: "PROVIDER_UNAVAILABLE",
+      error: "Voice service returned no session.",
+    });
+    expect(voiceState.events).toEqual([
+      "consume_pub_pal_voice_trial",
+      "provider_allocation",
+      "release_pub_pal_voice_trial",
+    ]);
+  });
+
+  it("reports a provider that cannot be reached as a timeout", async () => {
+    voiceState.rpc.mockImplementation(async (name: string) => {
+      voiceState.events.push(name);
+      return { data: true, error: null };
+    });
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      voiceState.events.push("provider_allocation");
+      throw new TypeError("fetch failed");
+    }));
+
+    const response = await POST(issueRequest());
+
+    expect(response.status).toBe(504);
+    expect(await response.json()).toMatchObject({ code: "PROVIDER_TIMEOUT" });
+    expect(voiceState.events).toEqual([
+      "consume_pub_pal_voice_trial",
+      "provider_allocation",
+      "release_pub_pal_voice_trial",
+    ]);
+  });
+
   it("releases the reservation when the conversation cannot be bound", async () => {
     voiceState.rpc.mockImplementation(async (name: string) => {
       voiceState.events.push(name);
