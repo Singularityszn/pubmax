@@ -249,6 +249,7 @@ const ActiveRoundChip = dynamic(() => import("@/components/map/ActiveRoundChip")
 });
 import type { TabKey } from "@/components/map/VenueInspector";
 import type { VenueTabRequest } from "@/lib/venueInspectorTabs";
+import type { UkBaseRestoreFailure } from "@/components/map/pubmap/useUkBaseStreaming";
 import VenueSheetSkeleton from "@/components/map/VenueSheetSkeleton";
 // The panel is its own chunk, and on a throttled phone that chunk lands seconds
 // after the sheet opens. Without a fallback the sheet held the peek summary
@@ -394,7 +395,7 @@ import {
 } from "@/lib/cities";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import { pinsToSlimVenues, slimVenuesToPins } from "@/lib/slimPins";
-import { formatSelectionHint, parseSelectionHint } from "@/lib/mapSelectionHistory";
+import { formatSelectionHint } from "@/lib/mapSelectionHistory";
 import {
   isUkBaseId,
   type UkBasePub,
@@ -627,6 +628,8 @@ import {
   mapArrivalFrame,
   mapDrinkLensSelection,
   isRecordlessMapSelection,
+  ukBaseRestoreFailureNotice,
+  ukBaseRestoreFor,
   ukBaseSelectionSuccessor,
   mapSelectionFrame,
   mapPlaceContext,
@@ -1217,16 +1220,6 @@ export default function PubMap({
   // Freeze arrival search with the seed so fit-on-arrival does not flip when the
   // user later maps a route or the address bar syncs.
   const [arrivalSearch] = useState(() => currentSearch());
-  // A restored /map?sel=venue-uk-* arrival: the base pub's id plus the `at=`
-  // location hint the selecting tap wrote alongside sel. The id alone carries
-  // no coordinates and no shard cell, so without the hint an older link
-  // degrades honestly — selection ring only once the user zooms in, no sheet —
-  // rather than opening a guessed pub.
-  const [ukBaseRestore] = useState(() => {
-    if (!seed.selectedVenueId || !isUkBaseId(seed.selectedVenueId)) return null;
-    const hint = parseSelectionHint(currentSearch());
-    return hint ? { id: seed.selectedVenueId, ...hint } : null;
-  });
   // §4.5: did the page arrive with any crawl-shaping URL param (a shared/deep
   // link)? Captured ONCE at mount — useCrawlUrlSync starts writing mode/style back
   // to the URL after ~300ms, so re-reading location.search later would be wrong.
@@ -1317,6 +1310,15 @@ export default function PubMap({
         shouldOpenPlanningInitially,
       }),
     [arrivalSearchNow, cityId, mapResumeSeed, restoredMobileSession, seed],
+  );
+  // A restored /map?sel=venue-uk-* arrival: the base pub's id, plus the `at=`
+  // location hint the selecting tap wrote alongside sel when the link has one.
+  // The selection comes from the URL, the saved mobile session or the resume
+  // seed, and the session keeps the id alone, so the hint is optional:
+  // without it the cold restore asks /api/uk-base/[id] and an id nothing knows
+  // ends in the unknown-pub notice rather than a skeleton.
+  const [ukBaseRestore] = useState(() =>
+    ukBaseRestoreFor(restoredSession.selectedVenueId, currentSearch()),
   );
   const mapResumeSeedConsumedRef = useRef(false);
   // `loaded` means the slim map index has settled. Source datasets are not
@@ -5116,6 +5118,18 @@ export default function PubMap({
     rejectSelection: rejectMapSelection,
     resolveSelection: resolveMapSelection,
   } = mapSurfaceTrail;
+
+  // The cold restore could not open the base pub a link named. Say so and drop
+  // the selection, so the sheet never waits on a record that is not coming.
+  const handleUkBaseRestoreFailed = useCallback(
+    (reason: UkBaseRestoreFailure, requestedId: string) => {
+      setRetiredSelectionName(null);
+      setSelectionNotice(ukBaseRestoreFailureNotice(reason));
+      rejectMapSelection(requestedId);
+      setSelectedVenueId((current) => (current === requestedId ? "" : current));
+    },
+    [rejectMapSelection],
+  );
   // A `venue-osm-` id that neither the coffee pilot nor the London restaurants
   // can open (off the coffee lens or off the restaurant layer, not held, or not
   // read) has no sheet to open: let it go rather than hold a skeleton.
@@ -6546,6 +6560,7 @@ export default function PubMap({
         onRenderedStateChange={handleRenderedMapStateChange}
         venueListOpen={mapListOpen}
         ukBaseRestore={ukBaseRestore}
+        onUkBaseRestoreFailed={handleUkBaseRestoreFailed}
         onRouteStopClick={selectVenue}
         onVenuePrefetch={prefetchVenueDetail}
         venueSignals={venueSignals}

@@ -89,7 +89,7 @@ type Options = {
   /** The restored pub, under its current id, and the id the arrival named. */
   onRestorePub?: (pub: UkBasePub, requestedId: string) => void;
   /** Fail closed: id not in the pack, or the pack could not be read. */
-  onRestoreFailed?: (reason: UkBaseRestoreFailure) => void;
+  onRestoreFailed?: (reason: UkBaseRestoreFailure, requestedId: string) => void;
 };
 
 /** Current UK base read state and pubs held by the padded map source. */
@@ -334,7 +334,7 @@ export function useUkBaseStreaming({
       }
       if (failure) {
         restoreIdRef.current = null;
-        onRestoreFailedRef.current?.(failure);
+        onRestoreFailedRef.current?.(failure, wanted);
       }
     });
     return () => {

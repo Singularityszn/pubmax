@@ -164,7 +164,11 @@ import {
   type UkBasePub,
   type UkBaseStreamStatus,
 } from "@/lib/ukBasePubs";
-import { useUkBaseStreaming } from "@/components/map/pubmap/useUkBaseStreaming";
+import {
+  useUkBaseStreaming,
+  type UkBaseRestoreFailure,
+} from "@/components/map/pubmap/useUkBaseStreaming";
+import type { UkBaseRestore } from "@/lib/pubMap";
 import type { MapViewportSnapshot } from "@/lib/mobileShell";
 import {
   PAINT_WATCHDOG_INTERVAL_MS,
@@ -289,7 +293,9 @@ type PubMapCanvasProps = {
    * arrival named no base pub or the link carried no hint (older links
    * degrade to the selection ring only).
    */
-  ukBaseRestore?: { id: string; lat: number; lng: number } | null;
+  ukBaseRestore?: UkBaseRestore | null;
+  /** The cold restore could not open the base pub; the map drops the selection. */
+  onUkBaseRestoreFailed?: (reason: UkBaseRestoreFailure, requestedId: string) => void;
   onRouteStopClick: (id: string) => void;
   /** Speculative warm of `/api/venue/[id]` on press-start / hover intent. */
   onVenuePrefetch?: (id: string) => void;
@@ -661,6 +667,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     onRenderedStateChange,
     venueListOpen,
     ukBaseRestore,
+    onUkBaseRestoreFailed,
     onRouteStopClick,
     onVenuePrefetch,
     venueSignals,
@@ -979,14 +986,18 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
 
   const onVenueClickRef = useRef(onVenueClick);
   const onUkBasePubClickRef = useRef<((pub: UkBasePub) => void) | undefined>(undefined);
+  const onUkBaseRestoreFailedRef = useRef(onUkBaseRestoreFailed);
   // The last base pub a tap resolved, so the selection camera has coordinates
   // for a pin that exists in no venue list. Keyed by id: a stale entry can
   // never move the camera for a different selection. Seeded from a restored
   // ?sel= arrival's `at=` hint so the selection fly-to works before (and
   // without) any tap.
   const ukBaseSelectionRef = useRef<{ id: string; center: [number, number] } | null>(
-    ukBaseRestore
-      ? { id: ukBaseRestore.id, center: [ukBaseRestore.lng, ukBaseRestore.lat] }
+    ukBaseRestore?.hint
+      ? {
+          id: ukBaseRestore.id,
+          center: [ukBaseRestore.hint.lng, ukBaseRestore.hint.lat],
+        }
       : null,
   );
   /** Resident base pubs for search/list selection fly-to (not a tap-resolved ref). */
@@ -1015,6 +1026,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
           onUkBasePubClick(pub);
         }
       : undefined;
+    onUkBaseRestoreFailedRef.current = onUkBaseRestoreFailed;
     onRouteStopClickRef.current = onRouteStopClick;
     onVenuePrefetchRef.current = onVenuePrefetch;
     onLandmarkSelectRef.current = onLandmarkSelect;
@@ -1026,6 +1038,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   }, [
     onVenueClick,
     onUkBasePubClick,
+    onUkBaseRestoreFailed,
     onRouteStopClick,
     onVenuePrefetch,
     onLandmarkSelect,
@@ -3716,6 +3729,15 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     if (selectedIdRef.current !== requestedId) return;
     onUkBasePubClickRef.current?.(pub);
   }, []);
+  const handleUkBaseRestoreFailed = useCallback(
+    (reason: UkBaseRestoreFailure, requestedId: string) => {
+      // Same guard as the success path: a slow answer must not clear a pick the
+      // reader has already moved on to.
+      if (selectedIdRef.current !== requestedId) return;
+      onUkBaseRestoreFailedRef.current?.(reason, requestedId);
+    },
+    [],
+  );
   const drawableVenueIds = useMemo(
     () => new Set(venues.map((venue) => venue.id)),
     [venues],
@@ -3740,7 +3762,9 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     held: secondaryStreamsHeld,
     scopeKey: cityId,
     restoreId: ukBaseRestore?.id ?? null,
+    restoreHint: ukBaseRestore?.hint ?? null,
     onRestorePub: handleRestoredBasePub,
+    onRestoreFailed: handleUkBaseRestoreFailed,
   });
 
   useEffect(() => {

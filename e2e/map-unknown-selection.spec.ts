@@ -64,6 +64,46 @@ test.describe("unknown ?sel= honesty", () => {
     await expect(page.getByTestId("unknown-map-selection")).toHaveCount(0);
   });
 
+  test("a base pub link with no at= hint opens its sheet", async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.goto("/map?sel=venue-uk-n311153571");
+
+    await expect(venuePortal(page)).toBeVisible({ timeout: 45_000 });
+    await expect(venuePortal(page)).toContainText("The Red Lion");
+    await expect(page.getByText("Loading full venue details…")).toHaveCount(0);
+    await expect(page.getByTestId("unknown-map-selection")).toHaveCount(0);
+  });
+
+  test("an unknown base pub id ends in the quiet note, never a skeleton", async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.goto("/map?sel=venue-uk-n999999999999");
+
+    await expect(page.getByTestId("unknown-map-selection")).toContainText(
+      "That pub is not one we know.",
+      { timeout: 45_000 },
+    );
+    await expect(page.getByText("Loading full venue details…")).toHaveCount(0);
+    await expect.poll(() => new URL(page.url()).searchParams.has("sel")).toBe(false);
+  });
+
+  test("an unreadable base pack stays distinct from an unknown base pub", async ({ page }) => {
+    await page.route(
+      (url) => url.pathname === "/api/uk-base/venue-uk-n311153571",
+      async (route) => {
+        await route.fulfill({ status: 503, body: "Service unavailable" });
+      },
+    );
+
+    await page.goto("/map?sel=venue-uk-n311153571");
+
+    await expect(page.getByTestId("map-selection-lookup-failed")).toContainText(
+      "We could not check that pub right now.",
+      { timeout: 45_000 },
+    );
+    await expect(page.getByText("Loading full venue details…")).toHaveCount(0);
+    await expect(page.getByTestId("unknown-map-selection")).toHaveCount(0);
+  });
+
   test("a failed lookup stays distinct from an unknown pub", async ({ page }) => {
     // Matched on the path: the sheet asks with a query string.
     await page.route(
