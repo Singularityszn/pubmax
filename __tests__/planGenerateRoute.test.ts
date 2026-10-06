@@ -341,6 +341,49 @@ describe("POST /api/plans/generate", () => {
     expect(body.budgetSummary).toMatchObject({ withinLimit: null, basis: "selected-drink-price-unavailable" });
   });
 
+  it.each(["value", "standard", "treat"] as const)(
+    "reports drinkCategory in contextEffects for a %s zero-proof Soft drinks request",
+    async (budget) => {
+      const now = Date.now();
+      loadConciergeVenuesMock.mockResolvedValueOnce([1, 2, 3].map((n) => generatedVenue(`v${n}`)));
+      categoryIndexMock.mockResolvedValueOnce({
+        prices: [
+          { venueId: "v2", drinkCategory: "soft-drink", priceGbp: 3, submittedAt: now, source: "community", corroborations: 2 },
+        ],
+        truncated: false,
+        degraded: false,
+      });
+
+      const response = await POST(new Request("http://localhost/api/plans/generate", {
+        method: "POST",
+        body: JSON.stringify({ query: "soft drinks in Clapham for 2", context: { budget, zeroProof: true, drinkCategory: "soft-drink", stopCount: 2 } }),
+      }));
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.inferredContext).toMatchObject({ budget, drinkCategory: "soft-drink", zeroProof: true });
+      expect(body.contextEffects).toEqual(expect.arrayContaining(["zeroProof", "drinkCategory"]));
+    },
+  );
+
+  it.each([null, "beer", "wine", "gin"] as const)(
+    "does not report drinkCategory in contextEffects for a value zero-proof %s request",
+    async (drinkCategory) => {
+      loadConciergeVenuesMock.mockResolvedValueOnce([1, 2, 3].map((n) => generatedVenue(`v${n}`)));
+
+      const response = await POST(new Request("http://localhost/api/plans/generate", {
+        method: "POST",
+        body: JSON.stringify({ query: "cheap night in Clapham for 2", context: { budget: "value", zeroProof: true, drinkCategory, stopCount: 2 } }),
+      }));
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.inferredContext).toMatchObject({ zeroProof: true, drinkCategory });
+      expect(body.contextEffects).toContain("zeroProof");
+      expect(body.contextEffects).not.toContain("drinkCategory");
+    },
+  );
+
   it("explains a value Soft drinks stop with one matching price reason and room for a second reason", async () => {
     const now = Date.now();
     loadConciergeVenuesMock.mockResolvedValueOnce([1, 2, 3, 4].map((n) => generatedVenue(`v${n}`, { hasStory: true })));
