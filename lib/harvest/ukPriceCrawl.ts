@@ -32,6 +32,7 @@
 // lib/harvest/sourcePolicy.ts and lib/harvest/robots.ts, asked live, before
 // anything here runs.
 
+import { COFFEE_HARVEST_WORD_PATTERN, coffeePriceLabelExcluded } from "@/lib/coffeePricePilot";
 import type { DrinkCategory } from "@/lib/drinks";
 import { parse, parseFragment, serializeOuter, type DefaultTreeAdapterTypes } from "parse5";
 
@@ -180,7 +181,7 @@ const CATEGORY_WORDS: ReadonlyArray<{ category: DrinkCategory; pattern: RegExp }
     category: "soft-drink",
     pattern: /\b(soft drink|coke|coca[- ]cola|pepsi|lemonade|j2o|fruit shoot|juice|squash|still water|sparkling water)\b/i,
   },
-  { category: "coffee", pattern: /\b(coffee|espresso|americano|cappuccino|latte|flat white|mocha)\b/i },
+  { category: "coffee", pattern: COFFEE_HARVEST_WORD_PATTERN },
 ];
 
 /**
@@ -749,6 +750,17 @@ function keylessPriceDropReason(
   return null;
 }
 
+/** Tea, water and affogato lines never file as coffee, whatever sits beside them. */
+function coffeeLineExcluded(
+  category: DrinkCategory,
+  drinkLabel: string | null | undefined,
+  text: string,
+  at: number,
+): boolean {
+  if (category !== "coffee") return false;
+  return coffeePriceLabelExcluded(drinkLabel ?? printedItemName(text, at)?.own);
+}
+
 /**
  * Keyless regex table for one £ figure already located on `text`.
  * Used for the default path and for a TypeSafe batch that failed mid-page.
@@ -799,6 +811,9 @@ function decideKeylessUkPriceAt(
     return { drop: "mixer-serve-not-one-drink" };
   }
   const category = decision.category;
+  if (coffeeLineExcluded(category, drinkLabel, text, at)) {
+    return { drop: "no-category-word-nearby" };
+  }
   const drop = keylessPriceDropReason(category, priceGbp, context);
   if (drop) return { drop };
   // A preceding item's printed measure cannot turn this item's pint into a

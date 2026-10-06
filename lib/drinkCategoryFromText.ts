@@ -159,6 +159,7 @@ const CATEGORY_KEYWORDS: Array<[DrinkCategory, string[]]> = [
       "espresso",
       "macchiato",
       "cortado",
+      "matcha",
     ],
   ],
   [
