@@ -52,12 +52,12 @@ public class OfflineRetryDestinationTest {
     }
 
     @Test
-    public void missingOrConsumedDestinationUsesTheConfiguredRoot() {
+    public void missingOrConsumedDestinationLeavesTheButtonsOwnNavigation() {
         OfflineRetryDestination policy = policy();
-        assertEquals(ORIGIN + "/", policy.retryTarget(ERROR_PAGE, ORIGIN, true));
+        assertNull(policy.retryTarget(ERROR_PAGE, ORIGIN, true));
         policy.recordFailure(VENUE, true);
         assertEquals(VENUE, policy.retryTarget(ERROR_PAGE, ORIGIN, true));
-        assertEquals(ORIGIN + "/", policy.retryTarget(ERROR_PAGE, ORIGIN, true));
+        assertNull(policy.retryTarget(ERROR_PAGE, ORIGIN, true));
     }
 
     @Test
@@ -70,11 +70,41 @@ public class OfflineRetryDestinationTest {
     }
 
     @Test
+    public void aServerErrorThatARetryCanFixKeepsTheFailedDestination() {
+        for (int status : new int[] { 500, 502, 503, 504, 408, 429 }) {
+            OfflineRetryDestination policy = policy();
+            policy.recordHttpFailure(VENUE, true, status);
+            assertEquals(VENUE, policy.retryTarget(ERROR_PAGE, ORIGIN, true));
+        }
+    }
+
+    @Test
+    public void aPermanentHttpErrorIsNeverRetried() {
+        for (int status : new int[] { 400, 401, 403, 404, 410 }) {
+            OfflineRetryDestination policy = policy();
+            policy.recordFailure(VENUE, true);
+            policy.pageStarted(ORIGIN + "/plan/deleted");
+            policy.recordHttpFailure(ORIGIN + "/plan/deleted", true, status);
+            policy.pageStarted(ORIGIN + "/plan/deleted");
+            policy.pageStarted(ERROR_PAGE);
+            assertNull(policy.retryTarget(ERROR_PAGE, ORIGIN, true));
+        }
+    }
+
+    @Test
+    public void aSubresourceHttpErrorDoesNotReplaceTheMainFrameDestination() {
+        OfflineRetryDestination policy = policy();
+        policy.recordFailure(VENUE, true);
+        policy.recordHttpFailure(ORIGIN + "/tile.png", false, 404);
+        assertEquals(VENUE, policy.retryTarget(ERROR_PAGE, ORIGIN, true));
+    }
+
+    @Test
     public void startingAnotherNavigationClearsTheOldFailure() {
         OfflineRetryDestination policy = policy();
         policy.recordFailure(VENUE, true);
         policy.pageStarted(ORIGIN + "/tonight");
-        assertEquals(ORIGIN + "/", policy.retryTarget(ERROR_PAGE, ORIGIN, true));
+        assertNull(policy.retryTarget(ERROR_PAGE, ORIGIN, true));
     }
 
     @Test
@@ -112,7 +142,7 @@ public class OfflineRetryDestinationTest {
         policy.pageStarted(ORIGIN + "/map#access_token=secret");
         policy.recordFailure(ORIGIN + "/map", true);
         policy.pageStarted(ERROR_PAGE);
-        assertEquals(ORIGIN + "/", policy.retryTarget(ERROR_PAGE, ORIGIN, true));
+        assertNull(policy.retryTarget(ERROR_PAGE, ORIGIN, true));
     }
 
     @Test
@@ -131,7 +161,7 @@ public class OfflineRetryDestinationTest {
             OfflineRetryDestination policy = policy();
             policy.recordFailure(VENUE, true);
             policy.recordFailure(url, true);
-            assertEquals(ORIGIN + "/", policy.retryTarget(ERROR_PAGE, ORIGIN, true));
+            assertNull(policy.retryTarget(ERROR_PAGE, ORIGIN, true));
         }
     }
 
@@ -155,7 +185,7 @@ public class OfflineRetryDestinationTest {
         }) {
             OfflineRetryDestination policy = policy();
             policy.recordFailure(ORIGIN + path, true);
-            assertEquals(ORIGIN + "/", policy.retryTarget(ERROR_PAGE, ORIGIN, true));
+            assertNull(policy.retryTarget(ERROR_PAGE, ORIGIN, true));
         }
     }
 
@@ -164,7 +194,7 @@ public class OfflineRetryDestinationTest {
         for (String query : new String[] { "?_authCallback=1", "?_AUTHCALLBACK=1", "?%5FauthCallback=1" }) {
             OfflineRetryDestination policy = policy();
             policy.recordFailure(ORIGIN + "/" + query, true);
-            assertEquals(ORIGIN + "/", policy.retryTarget(ERROR_PAGE, ORIGIN, true));
+            assertNull(policy.retryTarget(ERROR_PAGE, ORIGIN, true));
         }
     }
 
@@ -173,7 +203,7 @@ public class OfflineRetryDestinationTest {
         for (String query : new String[] { "?_authAttempt=attempt", "?_AUTHATTEMPT=attempt", "?%5FauthAttempt=attempt" }) {
             OfflineRetryDestination policy = policy();
             policy.recordFailure(ORIGIN + "/map" + query, true);
-            assertEquals(ORIGIN + "/", policy.retryTarget(ERROR_PAGE, ORIGIN, true));
+            assertNull(policy.retryTarget(ERROR_PAGE, ORIGIN, true));
         }
     }
 
@@ -184,7 +214,7 @@ public class OfflineRetryDestinationTest {
         }) {
             OfflineRetryDestination policy = policy();
             policy.recordFailure(ORIGIN + "/map" + query, true);
-            assertEquals(ORIGIN + "/", policy.retryTarget(ERROR_PAGE, ORIGIN, true));
+            assertNull(policy.retryTarget(ERROR_PAGE, ORIGIN, true));
         }
     }
 
@@ -195,7 +225,7 @@ public class OfflineRetryDestinationTest {
         policy.pageStarted(ORIGIN + "/auth/callback?code=secret");
         policy.recordFailure(MARKED_LANDING, true);
         policy.pageStarted(ERROR_PAGE);
-        assertEquals(ORIGIN + "/", policy.retryTarget(ERROR_PAGE, ORIGIN, true));
+        assertNull(policy.retryTarget(ERROR_PAGE, ORIGIN, true));
     }
 
     @Test
@@ -207,7 +237,7 @@ public class OfflineRetryDestinationTest {
         policy.pageStarted(MARKED_LANDING);
         policy.recordFailure(MARKED_LANDING, true);
         policy.pageStarted(ERROR_PAGE);
-        assertEquals(ORIGIN + "/", policy.retryTarget(ERROR_PAGE, ORIGIN, true));
+        assertNull(policy.retryTarget(ERROR_PAGE, ORIGIN, true));
     }
 
     @Test
@@ -217,7 +247,7 @@ public class OfflineRetryDestinationTest {
         policy.recordFailure(local + "/map?sel=example", true);
         assertEquals(local + "/map?sel=example", policy.retryTarget(ERROR_PAGE, ORIGIN, true));
         policy.recordFailure("http://10.0.2.2:3812/map", true);
-        assertEquals(local + "/", policy.retryTarget(ERROR_PAGE, ORIGIN, true));
+        assertNull(policy.retryTarget(ERROR_PAGE, ORIGIN, true));
     }
 
     @Test

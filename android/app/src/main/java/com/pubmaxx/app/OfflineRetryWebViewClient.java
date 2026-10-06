@@ -7,6 +7,7 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebView;
 import com.getcapacitor.Bridge;
 import com.getcapacitor.BridgeWebViewClient;
+import org.json.JSONObject;
 
 final class OfflineRetryWebViewClient extends BridgeWebViewClient {
     private final OfflineRetryDestination destination;
@@ -24,7 +25,7 @@ final class OfflineRetryWebViewClient extends BridgeWebViewClient {
 
     @Override
     public void onReceivedHttpError(WebView view, WebResourceRequest request, WebResourceResponse response) {
-        destination.recordFailure(request.getUrl().toString(), request.isForMainFrame());
+        destination.recordHttpFailure(request.getUrl().toString(), request.isForMainFrame(), response.getStatusCode());
         super.onReceivedHttpError(view, request, response);
     }
 
@@ -32,7 +33,7 @@ final class OfflineRetryWebViewClient extends BridgeWebViewClient {
     public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
         String target = destination.retryTarget(view.getUrl(), request.getUrl().toString(), request.isForMainFrame());
         if (target == null) return super.shouldOverrideUrlLoading(view, request);
-        view.loadUrl(target);
+        view.evaluateJavascript("location.replace(" + JSONObject.quote(target) + ")", null);
         return true;
     }
 

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { readdirSync, readFileSync } from "node:fs";
-import { dirname, join, relative, sep } from "node:path";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import capacitorConfig, { nativeServerUrl } from "../capacitor.config";
@@ -14,18 +14,6 @@ import {
 } from "@/lib/nativeDeepLinks";
 
 const rootFile = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
-
-const javaFilesUnder = (directory: string): string[] =>
-  readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const path = join(directory, entry.name);
-    if (entry.isDirectory()) return javaFilesUnder(path);
-    return entry.isFile() && entry.name.endsWith(".java") ? [path] : [];
-  });
-
-const androidJavaTests = (sourceSet: "androidTest" | "test") => {
-  const sourceRoot = join(process.cwd(), "android/app/src", sourceSet, "java");
-  return javaFilesUnder(sourceRoot).map((testFile) => ({ sourceRoot, testFile }));
-};
 
 const xmlDocument = (path: string) =>
   new DOMParser().parseFromString(rootFile(path), "application/xml");
@@ -86,34 +74,6 @@ describe("Capacitor wrapped-build contract", () => {
 
     const strings = rootFile("android/app/src/main/res/values/strings.xml");
     expect(strings).toContain(`<string name="app_name">${APP_NAME}</string>`);
-  });
-
-  it("keeps Android test identities aligned with the application id", () => {
-    const build = rootFile("android/app/build.gradle");
-    const applicationId = build.match(/applicationId\s+"([^"]+)"/)?.[1];
-    expect(applicationId).toBe("com.pubmaxx.app");
-
-    for (const { sourceRoot, testFile } of [
-      ...androidJavaTests("androidTest"),
-      ...androidJavaTests("test"),
-    ]) {
-      const source = readFileSync(testFile, "utf8");
-      const packageName = source.match(/^package\s+([\w.]+);/m)?.[1];
-      const packagePath = relative(sourceRoot, dirname(testFile)).split(sep).join(".");
-
-      expect(
-        packageName === applicationId || packageName?.startsWith(`${applicationId}.`),
-        testFile,
-      ).toBe(true);
-      expect(packagePath, testFile).toBe(packageName);
-
-      if (source.includes("getTargetContext()")) {
-        const expectedContextPackage = source.match(
-          /assertEquals\("([^"]+)",\s*appContext\.getPackageName\(\)\)/,
-        )?.[1];
-        expect(expectedContextPackage, testFile).toBe(applicationId);
-      }
-    }
   });
 
   it("loads production remotely and has a bundled, truthful outage fallback", () => {

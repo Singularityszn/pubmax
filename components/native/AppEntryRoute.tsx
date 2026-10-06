@@ -42,12 +42,14 @@ export default function AppEntryRoute(): null {
     if (handled.current) return;
     handled.current = true;
     // AuthProvider owns root callbacks before the shell can choose a destination.
-    if (readAuthCallbackAttempt(window.location.href)) return;
-    const decision = decideEntry(readEntryContext(pathname ?? "/"), entryFirstRunHref());
+    const decision = readAuthCallbackAttempt(window.location.href)
+      ? null
+      : decideEntry(readEntryContext(pathname ?? "/"), entryFirstRunHref());
     // The cold-start decision has now run for this session; every later arrival
     // at "/" (a deliberate in-app home tap) must stay on the landing page.
     // Stamp before acting so a slow route transition can't leave it unset.
     markSessionEntryConsumed();
+    if (!decision) return;
     if (decision.kind !== "route") {
       clearNativeFirstRunHandoff();
       return;

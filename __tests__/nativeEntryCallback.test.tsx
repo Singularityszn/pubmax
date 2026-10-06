@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AppEntryRoute from "@/components/native/AppEntryRoute";
 import { readAuthCallbackAttempt } from "@/lib/authRedirect";
 import { establishAuthCallbackSession } from "@/lib/authCallbackClient";
+import { SESSION_ENTRY_CONSUMED_KEY } from "@/lib/entryDecision";
 
 const { replace } = vi.hoisted(() => ({ replace: vi.fn() }));
 vi.mock("next/navigation", () => ({
@@ -50,7 +51,8 @@ describe.each([false, true])("native callback, previously routed=%s", (routed) =
       await act(() => root!.render(createElement(AppEntryRoute)));
     }
     expect(replace).not.toHaveBeenCalled();
-    expect(sessionStorage.length).toBe(0);
+    expect(sessionStorage.length).toBe(path === "React" ? 1 : 0);
+    expect(sessionStorage.getItem(SESSION_ENTRY_CONSUMED_KEY)).toBe(path === "React" ? "1" : null);
     expect(localStorage.getItem(routedKey)).toBe(routed ? "1" : null);
     expect(window.location.hash).toBe(fragment);
     const callback = readAuthCallbackAttempt(window.location.href);
@@ -78,9 +80,25 @@ describe.each([false, true])("native callback, previously routed=%s", (routed) =
       await act(() => root!.render(createElement(AppEntryRoute)));
     }
     expect(replace).not.toHaveBeenCalled();
-    expect(sessionStorage.length).toBe(0);
+    expect(sessionStorage.length).toBe(path === "React" ? 1 : 0);
+    expect(sessionStorage.getItem(SESSION_ENTRY_CONSUMED_KEY)).toBe(path === "React" ? "1" : null);
     expect(window.location.search).toBe(search);
     expect(readAuthCallbackAttempt(window.location.href)?.providerError).toBe(true);
+  });
+
+  it("counts a React callback boot as the session entry for a later home tap", async () => {
+    if (routed) localStorage.setItem(routedKey, "1");
+    window.history.replaceState(null, "", "/" + fragment);
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(() => root!.render(createElement(AppEntryRoute)));
+    await act(() => root!.unmount());
+    window.history.replaceState(null, "", "/");
+    root = createRoot(container);
+    await act(() => root!.render(createElement(AppEntryRoute)));
+    if (routed) expect(replace).not.toHaveBeenCalled();
+    else expect(replace).toHaveBeenCalledWith("/onboarding");
   });
 
   it("keeps ordinary React entry routing", async () => {

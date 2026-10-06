@@ -18,14 +18,12 @@ final class OfflineRetryDestination {
         "_authcallback", "_authattempt", "_referralsignupproof"
     );
     private final URI origin;
-    private final String root;
     private final String errorPage;
     private String failedDestination;
     private String navigationUrl;
 
     OfflineRetryDestination(String serverUrl, String errorPage) {
         origin = parse(serverUrl);
-        root = origin == null ? RETRY_BUTTON.toString() : origin.resolve("/").toString();
         this.errorPage = errorPage;
     }
 
@@ -35,11 +33,16 @@ final class OfflineRetryDestination {
         failedDestination = isSafe(destination) ? destination : null;
     }
 
+    void recordHttpFailure(String url, boolean mainFrame, int status) {
+        if (status >= 500 || status == 408 || status == 429) recordFailure(url, mainFrame);
+        else if (mainFrame) failedDestination = null;
+    }
+
     String retryTarget(String currentUrl, String requestedUrl, boolean mainFrame) {
         URI requested = parse(requestedUrl);
         if (!mainFrame || errorPage == null || !errorPage.equals(currentUrl)
             || !sameOrigin(RETRY_BUTTON, requested) || !isRoot(requested)) return null;
-        String target = failedDestination == null ? root : failedDestination;
+        String target = failedDestination;
         failedDestination = null;
         return target;
     }

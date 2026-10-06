@@ -18,11 +18,13 @@ later-session fallback after at least one healthy remote load.
 On Android, "Try again" returns to the page that failed, so a shared plan link
 opened with no signal is not lost. `OfflineRetryWebViewClient` records the one
 failed main-frame URL in memory and `OfflineRetryDestination` hands it back when
-the offline page asks for the site root. It never replays `/auth/callback`, the
-marked callback landing, or a URL that carries a credential parameter, and it
-falls back to the root when nothing safe is held. iOS does not do this yet: the
-shell has no seam that records the failed URL, so the same button there goes to
-the root.
+the offline page asks for the site root. The shell replaces the offline page
+with it, so Back never returns to a stale offline page. It holds only a network
+failure or an HTTP status a retry can fix (5xx, 408 or 429), never a page that
+is gone. It never replays `/auth/callback`, the marked callback landing, or a
+URL that carries a credential parameter. When nothing safe is held, the button
+goes to the root as before. iOS does not do this yet: the shell has no seam
+that records the failed URL, so the same button there goes to the root.
 
 ## Cold start
 
