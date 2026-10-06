@@ -148,3 +148,8 @@ data/places_verification/enrichment_uk_cities_extras_progress.json*
 data/places_enrichment_uk_cities.json.tmp
 data/places_enrichment_london_extras.json.tmp
 data/places_enrichment_uk_cities_extras.json.tmp
+
+# A database dump is private data and the repository is public.
+*.dump
+*.dump.partial
+/pubmax-backups/

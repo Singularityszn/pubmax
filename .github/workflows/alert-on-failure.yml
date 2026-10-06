@@ -1,0 +1,47 @@
+name: Alert on scheduled failure
+
+# A scheduled run is the one nobody is watching, so a failure tells somebody.
+# One workflow watches every scheduled workflow through workflow_run, so the
+# pull request workflows (Browser tests, Security CI) stay free of the secrets
+# context, which __tests__/ciRunnerIsolation.test.ts holds. This workflow checks
+# out nothing and runs no repository code: it only posts a link.
+#
+# The webhook is the PUBMAX_ALERT_WEBHOOK_URL repository secret, the same value
+# the app reads as an environment variable (lib/alertSink.ts). Without it the
+# job logs one line and passes. The URL is a credential: it is read only through
+# the environment and never printed. A scheduled workflow added later must be
+# named in `workflows` below; __tests__/alertSink.test.ts fails until it is.
+
+on:
+  workflow_run:
+    workflows:
+      - Browser tests
+      - Drink price refresh
+      - Performance
+      - Security CI
+      - Tavily London nightly
+      - Weather cache refresh
+    types: [completed]
+
+permissions: {}
+
+jobs:
+  alert:
+    name: Post to the alert webhook
+    if: >-
+      contains(fromJSON('["failure", "timed_out", "startup_failure"]'), github.event.workflow_run.conclusion) &&
+      github.event.workflow_run.event == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      ALERT_WEBHOOK_URL: ${{ secrets.PUBMAX_ALERT_WEBHOOK_URL }}
+      ALERT_TEXT: "[pubmax][ci] ${{ github.event.workflow_run.name }} failed: ${{ github.event.workflow_run.html_url }}"
+    steps:
+      - name: Post
+        run: |
+          if [ -z "$ALERT_WEBHOOK_URL" ]; then
+            echo "No alert webhook is configured."
+            exit 0
+          fi
+          jq -n --arg t "$ALERT_TEXT" '{content: $t, text: $t}' |
+            curl -fsS --max-time 20 -X POST -H 'content-type: application/json' --data @- "$ALERT_WEBHOOK_URL" > /dev/null

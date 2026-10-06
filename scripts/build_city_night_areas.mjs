@@ -91,7 +91,8 @@ function inBox(lat, lng, box) {
  * centre, radius and count with nobody asking for a new area.
  */
 export function isBasePubRow(row) {
-  return Array.isArray(row) && row.length === 6;
+  // An unnamed pub (name "") is a bare pin, not a member of a named area.
+  return Array.isArray(row) && row.length === 6 && String(row[1]) !== "";
 }
 
 async function loadBasePubs() {

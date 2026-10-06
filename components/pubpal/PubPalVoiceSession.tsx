@@ -58,6 +58,7 @@ type VoiceSessionAttempt = {
   cancelled: boolean;
   releaseRequired: boolean;
   released: boolean;
+  conversationId: string | null;
   sdkSessionStarted: boolean;
   connectedAt: number | null;
   capTimer: number | null;
@@ -95,12 +96,17 @@ async function syncVoiceToolTurn(input: {
   }
 }
 
-async function releaseVoiceSession(durationSeconds: number): Promise<void> {
+/**
+ * Tells the server a session ended. It names the conversation and nothing
+ * else: the allowance is settled from the provider's own record of the call,
+ * never from a figure the browser measures.
+ */
+async function releaseVoiceSession(conversationId: string | null): Promise<void> {
   try {
     const response = await authedActionFetch("/api/pub-pal/voice-token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "release", durationSeconds }),
+      body: JSON.stringify({ action: "release", ...(conversationId ? { conversationId } : {}) }),
     }, { requiresIdentity: true });
     discardBody(response);
   } catch {
@@ -141,13 +147,10 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
     }
     if (attempt.released) return;
     clearCapTimer(attempt);
-    const durationSeconds = attempt.connectedAt === null
-      ? 0
-      : Math.max(0, Math.round((Date.now() - attempt.connectedAt) / 1000));
     attempt.connectedAt = null;
     if (!attempt.releaseRequired) return;
     attempt.released = true;
-    await releaseVoiceSession(durationSeconds);
+    void releaseVoiceSession(attempt.conversationId);
   }, [clearCapTimer]);
 
   useEffect(() => {
@@ -205,6 +208,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
       cancelled: false,
       releaseRequired: false,
       released: false,
+      conversationId: null,
       sdkSessionStarted: false,
       connectedAt: null,
       capTimer: null,
@@ -226,6 +230,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
         const response = await authedActionFetch("/api/pub-pal/voice-token", { method: "POST" }, { requiresIdentity: true });
         if (response.ok) attempt.releaseRequired = true;
         const body = await response.json() as VoiceTokenResponse;
+        if (response.ok && body.conversationId) attempt.conversationId = body.conversationId;
         if (!response.ok || !body.signedUrl) {
           throw new PubPalVoiceStartError(
             errorMessageFrom(body, "Voice is unavailable. Use text instead."),

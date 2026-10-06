@@ -4,7 +4,17 @@ import { callerUserId } from "@/lib/authServer";
 import { runAsk } from "@/lib/ask/runAsk";
 import type { AskTurn } from "@/lib/ask/types";
 import { PAL_ERROR_FALLBACK } from "@/lib/palChat";
-import { runPalElevenLabsChatTurn } from "@/lib/palElevenLabsChat.server";
+import {
+  acceptsPalChatStream,
+  encodePalChatStreamEvent,
+  PAL_CHAT_STREAM_TYPE,
+  type PalChatStreamEvent,
+} from "@/lib/palChatStream";
+import {
+  runPalElevenLabsChatTurn,
+  type PalElevenLabsChatInput,
+  type PalElevenLabsChatOutcome,
+} from "@/lib/palElevenLabsChat.server";
 import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import { palVoiceConfigured } from "@/lib/pubPalVoiceConfig.server";
 import { isLimited } from "@/lib/pintDrops";
@@ -29,6 +39,72 @@ function normaliseTurns(raw: unknown): AskTurn[] {
     if (turns.length >= 6) break;
   }
   return turns;
+}
+
+function answerBody(outcome: Extract<PalElevenLabsChatOutcome, { ok: true }>) {
+  return {
+    answer: outcome.message,
+    cards: outcome.cards,
+    proposals: outcome.proposals,
+    sources: [],
+    status: "ready",
+    toolsUsed: outcome.toolsUsed,
+    conversationId: outcome.conversationId,
+  };
+}
+
+/**
+ * The same turn as the JSON path, sent as it is written. Everything that can
+ * refuse the ask (rate limit, sign-in, spend ceiling) has already answered with
+ * its normal JSON status before this runs, so a refusal never opens a stream.
+ * Only a failure after the stream began is an `error` event.
+ */
+function streamTurn(input: PalElevenLabsChatInput, request: Request): Response {
+  const encoder = new TextEncoder();
+  const abort = new AbortController();
+  request.signal.addEventListener("abort", () => abort.abort(), { once: true });
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const send = (event: PalChatStreamEvent) => {
+        try {
+          controller.enqueue(encoder.encode(encodePalChatStreamEvent(event)));
+        } catch {
+          // The reader has gone away.
+        }
+      };
+      try {
+        const outcome = await runPalElevenLabsChatTurn({
+          ...input,
+          signal: abort.signal,
+          onProgress: send,
+        });
+        send(
+          outcome.ok
+            ? { type: "final", body: answerBody(outcome) }
+            : { type: "error", error: PAL_ERROR_FALLBACK },
+        );
+      } catch (error) {
+        console.error("pub-pal-chat.stream_error", error);
+        send({ type: "error", error: PAL_ERROR_FALLBACK });
+      } finally {
+        try {
+          controller.close();
+        } catch {
+          // Already closed by the reader going away.
+        }
+      }
+    },
+    cancel() {
+      abort.abort();
+    },
+  });
+  return new Response(stream, {
+    headers: {
+      "Content-Type": `${PAL_CHAT_STREAM_TYPE}; charset=utf-8`,
+      "Cache-Control": "no-store, no-transform",
+      "X-Accel-Buffering": "no",
+    },
+  });
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -85,25 +161,20 @@ export async function POST(request: Request): Promise<Response> {
   const budgetRefusal = await paidSpendBudgetRefusal("pub-pal-chat");
   if (budgetRefusal) return budgetRefusal;
 
-  const outcome = await runPalElevenLabsChatTurn({
+  const turn: PalElevenLabsChatInput = {
     query,
     cityId: record.cityId,
     threadId: record.threadId,
-    fenceTurns: normaliseTurns(record.turns).filter((turn) => turn.role === "user"),
+    fenceTurns: normaliseTurns(record.turns).filter((item) => item.role === "user"),
     ownerId,
-  });
+  };
+  if (acceptsPalChatStream(request.headers.get("accept"))) return streamTurn(turn, request);
+
+  const outcome = await runPalElevenLabsChatTurn(turn);
 
   if (!outcome.ok) {
     return publicApiError(PAL_ERROR_FALLBACK, "UNAVAILABLE", 503, { retryable: true });
   }
 
-  return jsonNoStore({
-    answer: outcome.message,
-    cards: outcome.cards,
-    proposals: outcome.proposals,
-    sources: [],
-    status: "ready",
-    toolsUsed: outcome.toolsUsed,
-    conversationId: outcome.conversationId,
-  });
+  return jsonNoStore(answerBody(outcome));
 }

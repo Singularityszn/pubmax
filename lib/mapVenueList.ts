@@ -287,7 +287,10 @@ export function buildUkBasePubListModel(
     Number.isFinite(viewportCenter[1])
       ? { lng: viewportCenter[0], lat: viewportCenter[1] }
       : null;
-  const rows = pubs.map<UkBasePubListRow>((pub) => ({
+  // An unnamed pub is a bare pin, not a row: a list of "Pub" repeated down a
+  // street says nothing a reader can act on.
+  const listed = pubs.filter((pub) => !pub.unnamed);
+  const rows = listed.map<UkBasePubListRow>((pub) => ({
     id: pub.id,
     name: pub.name,
     priceLabel:
@@ -311,9 +314,9 @@ export function buildUkBasePubListModel(
   const bounded = rows.slice(0, Math.max(0, Math.floor(limit)));
   return {
     rows: bounded,
-    total: pubs.length,
+    total: listed.length,
     shown: bounded.length,
-    truncated: pubs.length > bounded.length,
+    truncated: listed.length > bounded.length,
   };
 }
 

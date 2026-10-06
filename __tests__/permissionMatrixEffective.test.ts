@@ -123,6 +123,10 @@ const DAVE_ACCOUNT = "d6d6d6d6-d6d6-4d6d-8d6d-d6d6d6d6d6d6";
  * a Crew would rewrite the state the Plan cells above are asserted against.
  */
 const CREW_PLAN_ID = "c7000000-0000-4000-8000-00000000000b";
+// The Plan's own host capability. It is never an account token: the client
+// sends the two in separate headers.
+const CREW_HOST_CAPABILITY = "pm-crew-plan-host-capability-alice";
+const CREW_HOST_HEADER = "x-plan-host-capability";
 const CREW_HOST_MEMBER_ID = "c7100000-0000-4000-8000-00000000000c";
 /** A conversation between Alice and Bob; Carol and Dave are outside it. */
 const CONVERSATION_ID = "f0000000-0000-4000-8000-00000000000d";
@@ -508,7 +512,7 @@ beforeAll(async () => {
     insert into public.plan_crew_members (
       id, plan_id, name, token_hash, user_id, status, joined_at, updated_at, can_collaborate
     ) values (
-      '${CREW_HOST_MEMBER_ID}', '${CREW_PLAN_ID}', 'Alice', '${hashPlanMemberToken(BEARER_ALICE)}',
+      '${CREW_HOST_MEMBER_ID}', '${CREW_PLAN_ID}', 'Alice', '${hashPlanMemberToken(CREW_HOST_CAPABILITY)}',
       '${ALICE}', 'in', now(), now(), true
     );
 
@@ -1489,7 +1493,7 @@ function expectNoDisclosure(body: unknown, secrets: readonly string[] = CREW_SEC
 
 function crewRequest(
   path: string,
-  options: { bearer?: string; body?: Record<string, unknown>; method?: string; key?: string } = {},
+  options: { bearer?: string; body?: Record<string, unknown>; method?: string; key?: string; headers?: Record<string, string> } = {},
 ): Request {
   // Every Crew write demands its own idempotency key, so one is minted per call
   // unless a cell is deliberately replaying.
@@ -1512,6 +1516,7 @@ describe("Social Crew: the owner builds it through the real doors", () => {
     const refused = await defined(handlers.createCrew)(
       crewRequest("/api/social/crews", {
         bearer: BEARER_DAVE,
+        headers: { [CREW_HOST_HEADER]: "pm-crew-plan-host-capability-dave" },
         body: { planId: CREW_PLAN_ID, visibility: "private" },
       }),
       context({}),
@@ -1525,6 +1530,7 @@ describe("Social Crew: the owner builds it through the real doors", () => {
     const created = await defined(handlers.createCrew)(
       crewRequest("/api/social/crews", {
         bearer: BEARER_ALICE,
+        headers: { [CREW_HOST_HEADER]: CREW_HOST_CAPABILITY },
         body: { planId: CREW_PLAN_ID, visibility: "private" },
       }),
       context({}),

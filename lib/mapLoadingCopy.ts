@@ -21,6 +21,8 @@ export type MapLoadingStage = {
   canvasReady: boolean;
   slimLoaded: boolean;
   slimPinCount: number;
+  /** `/map?uk=1` below the pub zoom gate, including after that reveal. */
+  pubsDeferredUntilZoom?: boolean;
 };
 
 /**
@@ -28,8 +30,12 @@ export type MapLoadingStage = {
  * above the phone breakpoint the canvas reveals on painted basemap tiles alone,
  * so a reveal that lands while the slim index is still in flight would lift the
  * frame onto a pub-free map. The index has to have answered as well.
+ *
+ * A national overview is the exception. Pubs are absent until the reader zooms
+ * in, so once that basemap reveal lands the frame leaves without an index.
  */
 export function mapLoadingHeld(stage: MapLoadingStage): boolean {
+  if (stage.pubsDeferredUntilZoom) return !stage.pinsRevealed;
   if (!stage.pinsRevealed) return true;
   return !stage.slimLoaded && stage.slimPinCount === 0;
 }

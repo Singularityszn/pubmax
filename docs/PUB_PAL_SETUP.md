@@ -98,15 +98,24 @@ proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url 
    staying silent until it returns. The four confirm tools (`propose_plan`,
    `propose_map_action`, `report_occupancy`, `propose_memory`) set `interruption_mode:
    "disable_during_tool_and_turn"` so the proposal is heard whole. Typed chat
-   answers on the first reply when the turn asks for no tool. Once a turn asks
-   for a tool, typed chat drops the checking lines. It returns a reply only
-   when that reply came after the last tool event and no tool is still
-   running, on `agent_response_complete`. The script adds that event and the
-   tool events to the agent's `conversation.client_events`, so the captain
-   re-runs `npm run pubpal:agent` to turn them on. On an agent without that
-   event, a tool turn ends at the 22-second server deadline, which falls
-   before the browser's 25-second abort, and returns the reply held under the
-   same rule, or a timeout.
+   answers when a reply has settled: no tool event followed it for 1.2 seconds,
+   or 0.4 seconds after `agent_response_complete` when the agent sends it. A
+   reply that came before a tool event is the checking line, so typed chat drops
+   it and waits for the reply after the tool. The script adds the tool events
+   and `agent_response_complete` to the agent's `conversation.client_events`,
+   so the captain re-runs `npm run pubpal:agent` to turn them on. Typed chat
+   works on an agent with or without them, so the deploy and the re-run can
+   happen in either order. One window stays open until the re-run: an agent
+   that sends no `agent_tool_request` cannot say a tool is still running, so a
+   slow tool's checking line that outlasts the settle window would be returned
+   as the answer. `npm run pubpal:agent -- --check` reports whether the live
+   agent matches this config.
+   Typed chat can also stream. A caller that sends `Accept: application/x-ndjson`
+   to `/api/pub-pal/chat` gets the answer text as the agent writes it
+   (`agent_chat_response_part`, which text-only mode always sends), then one
+   `final` line carrying the same body the JSON path returns, cards and
+   proposals included. Sign-in, the rate limit and the spend ceiling answer
+   before the stream opens. Any other caller still gets one JSON body.
    One more webhook, `recall_memories`, is Pal-only. It returns the memories the
    person confirmed or corrected (never `completed_plan` rows) for the account
    that opened the conversation, read from the server-side conversation binding
@@ -124,6 +133,12 @@ proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url 
 3. **Voices** and per-session `voice_id` overrides (unchanged).
 4. **House prompt**: call tools before any fact, never invent a price, propose
    then confirm, plain speech on get-home topics.
+5. **Signed-URL authentication** (`platform_settings.auth.enable_auth`): a
+   conversation starts only from a signed URL the app issued, after sign-in,
+   the voice cap and the spend ceiling. The agent id alone is refused.
+   ElevenLabs treats signed URLs and a hostname allowlist as exclusive methods,
+   so the script writes an empty `allowlist` and removes any list the agent
+   kept. The drift check reports a leftover list.
 
 On a first create the script prints the agent id. Put it on the deployment as
 `ELEVENLABS_PUB_PAL_AGENT_ID` and redeploy.
@@ -148,6 +163,11 @@ passes those paths so `script-src` can stay `'self'` plus the nonce. Do not put
 ## Checking it
 
 ```bash
+# Read-only drift check. It GETs the live agent and tools, compares them with
+# the config in this repo, prints each difference and exits 1 on any drift.
+# It needs ELEVENLABS_API_KEY and --base-url, and never needs the shared secret.
+npm run pubpal:agent -- --check --base-url https://pubmaxxing.com
+
 # Answers available, maxSessionSeconds, retention and mutationPolicy.
 # `available` turns true once `ELEVENLABS_API_KEY` and the agent id are set.
 curl -s https://pubmaxxing.com/api/pub-pal/voice-token | jq .
@@ -168,8 +188,15 @@ can be retried. Repeated taps while voice starts use the same attempt.
 
 `GET /api/pub-pal/voice-token` answers one boolean about this deployment's own
 configuration and reads no account, which is the whole reason the Pal can
-explain itself before the tap. `POST` still needs a signed-in caller and spends
-a metered minute (`lib/palVoiceMetering.ts`).
+explain itself before the tap. `POST` still needs a signed-in caller and prepays
+a three-minute grant (`lib/palVoiceMetering.ts`). The server settles that grant
+from the call length ElevenLabs records, never from a duration the browser
+sends. When the browser releases a session, the server asks ElevenLabs for up
+to five seconds until it reports the call ended. If the call is still running
+then, the grant stays charged at three minutes until the same account next
+asks for voice: that request settles it before the allowance check. A call
+ElevenLabs never reports as ended stays charged at three minutes. Migration
+`0176` must be applied before the deploy that calls it.
 
 ---
 

@@ -235,6 +235,8 @@ export default function PalChat() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [query, setQuery] = useState("");
   const [pending, setPending] = useState(false);
+  // The answer text so far while the Pal is still writing it, "" until it starts.
+  const [streamText, setStreamText] = useState("");
   const [knownVenueIds, setKnownVenueIds] = useState<ReadonlySet<string> | null>(null);
   const inputId = useId();
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -296,7 +298,7 @@ export default function PalChat() {
     const page = document.documentElement;
     if (page.scrollHeight <= window.innerHeight) return;
     window.scrollTo({ top: page.scrollHeight });
-  }, [entries, pending, keyboardInset]);
+  }, [entries, pending, streamText, keyboardInset]);
 
   const ask = useCallback(
     async (raw: string) => {
@@ -311,8 +313,9 @@ export default function PalChat() {
       setQuery("");
       setPending(true);
       trackEvent("concierge_ask");
-      const result = await sessionRef.current(text, DEFAULT_CITY_ID);
+      const result = await sessionRef.current(text, DEFAULT_CITY_ID, setStreamText);
       setPending(false);
+      setStreamText("");
       if (result === null) return; // superseded by a newer ask — do nothing
       if (result.status === "error") {
         setEntries((prev) => [
@@ -670,7 +673,16 @@ export default function PalChat() {
             );
           })}
 
-          {pending ? (
+          {pending && streamText ? (
+            // The answer as the Pal writes it. The cards and any proposal arrive
+            // with the finished answer, which replaces this bubble in place.
+            // It is not announced word by word: the finished answer is.
+            <div className="palChatRow palChatRow--pal">
+              <p className="palChatBubble" aria-live="off" aria-busy="true" data-testid="pal-streaming-answer">
+                {streamText}
+              </p>
+            </div>
+          ) : pending ? (
             <div className="palChatRow palChatRow--pal">
               <p className="palChatBubble palChatBubble--pending">
                 <span className="palChatDots" aria-hidden="true">
