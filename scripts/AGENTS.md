@@ -49,3 +49,4 @@ Full rules: [`docs/rules/scripts-deploys-and-uploads.md`](../docs/rules/scripts-
 - [A DEPLOY UPLOADS THE WORKING TREE, NOT THE COMMIT, so `.vercelignore` is what keeps it small.](../docs/rules/scripts-deploys-and-uploads.md#a-deploy-uploads-the-working-tree-not-the-commit-so-vercelignore-is-what-keeps-i)
 - [A DEPLOY NAMES ITS OWN COMMIT, AND A CLI DEPLOY HAS TO CARRY IT.](../docs/rules/scripts-deploys-and-uploads.md#a-deploy-names-its-own-commit-and-a-cli-deploy-has-to-carry-it)
 - [A PRODUCTION RELEASE IS ONE COMMAND, AND IT ENDS AT THE SMOKE VERDICT.](../docs/rules/scripts-deploys-and-uploads.md#a-production-release-is-one-command-and-it-ends-at-the-smoke-verdict)
+- [THE RELEASE REFUSES WHEN PRODUCTION LACKS A MIGRATION, AND THE CHECK COMPARES NAMES.](../docs/rules/scripts-deploys-and-uploads.md#the-release-refuses-when-production-lacks-a-migration-and-the-check-compares-names)

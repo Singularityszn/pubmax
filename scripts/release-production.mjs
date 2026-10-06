@@ -9,6 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { vercelCommand } from "./lib/vercelCli.mjs";
+import { checkMigrationLedger } from "./lib/migrationLedger.mjs";
 import { releaseProduction, ReleaseRefusal } from "./lib/releaseProduction.mjs";
 
 const projectRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -55,6 +56,19 @@ try {
     now: Date.now,
     sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
     say: (line) => console.log(`[release] ${line}`),
+    // Read-only. Production must already hold every migration this commit ships.
+    preflight: [
+      {
+        name: "production holds every migration in the repo",
+        run: async () => {
+          try {
+            await checkMigrationLedger({ say: (line) => console.log(`[ledger] ${line}`) });
+          } catch (error) {
+            throw new ReleaseRefusal(error instanceof Error ? error.message : String(error));
+          }
+        },
+      },
+    ],
   });
 } catch (error) {
   if (error instanceof ReleaseRefusal) {
