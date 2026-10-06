@@ -551,6 +551,8 @@ test("1440px planner hands ownership to venue and Back restores composed state",
 test("1440px Plan an outing takes ownership from an open venue", async ({
   page,
 }) => {
+  // A cold map gives the toolbar and the pub option up to 20 s each below.
+  test.setTimeout(90_000);
   await prepareDesktopMap(page);
   await stubCityStatus(page);
 
@@ -665,6 +667,8 @@ test("1440px loaded route opens its first venue without a deferred planner hando
 test("1440px reduced motion swaps desktop drawer ownership immediately", async ({
   page,
 }) => {
+  // A cold map gives the toolbar and the pub option up to 20 s each below.
+  test.setTimeout(90_000);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await prepareDesktopMap(page);
   await stubCityStatus(page);
@@ -707,6 +711,8 @@ for (const width of FIRST_RUN_BANNER_WIDTHS) {
   test(`${width}px first-run location prompt owns the map alone and the status rail waits`, async ({
     page,
   }) => {
+    // A cold map gives the location prompt and the status rail up to 20 s each below.
+    test.setTimeout(90_000);
     await page.setViewportSize({ width, height: DESKTOP.height });
     await page.addInitScript(() => {
       window.localStorage.clear();

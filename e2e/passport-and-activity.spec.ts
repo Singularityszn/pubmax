@@ -176,7 +176,9 @@ test.describe("notifications — bell + activity feed", () => {
     expect(response?.status()).toBe(200);
 
     const emptyNothingYet = page.locator(".emptyState");
-    const list = page.locator(".activityList");
+    // The loading skeleton paints an aria-hidden `.activityList` of its own, so
+    // only the settled feed counts as the populated outcome.
+    const list = page.locator(".activityList:not([aria-hidden='true'])");
     await expect
       .poll(async () => (await emptyNothingYet.count()) + (await list.count()))
       .toBeGreaterThan(0);
