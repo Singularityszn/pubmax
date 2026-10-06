@@ -1,4 +1,4 @@
-import { publicApiError } from "@/lib/apiError";
+import { authUnavailableError, publicApiError } from "@/lib/apiError";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { isLimited } from "@/lib/pintDrops";
 import { jsonNoStore } from "@/lib/apiResponses";
@@ -8,12 +8,7 @@ import { createNightMemory, listNightMemories } from "@/lib/nightMemoryStore";
 export async function GET(request: Request): Promise<Response> {
   const verification = await verifyCallerAuth(request);
   if (verification.status === "unavailable") {
-    return publicApiError(
-      "We could not check your sign-in. Try again.",
-      "AUTH_UNAVAILABLE",
-      503,
-      { retryable: true },
-    );
+    return authUnavailableError();
   }
   const ownerId = verification.status === "verified" ? verification.identity.id : null;
   return ownerId
@@ -29,12 +24,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const verification = await verifyCallerAuth(request);
   if (verification.status === "unavailable") {
-    return publicApiError(
-      "We could not check your sign-in. Try again.",
-      "AUTH_UNAVAILABLE",
-      503,
-      { retryable: true },
-    );
+    return authUnavailableError();
   }
   const ownerId = verification.status === "verified" ? verification.identity.id : null;
   if (!ownerId) return publicApiError("Sign in to create a Night Memory.", "UNAUTHENTICATED", 401);

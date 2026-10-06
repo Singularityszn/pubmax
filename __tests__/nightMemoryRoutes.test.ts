@@ -70,6 +70,8 @@ vi.mock("@/lib/authServer", () => ({
   },
 }));
 
+import { DELETE as REMOVE_MEMORY } from "@/app/api/night-memories/[id]/route";
+import { DELETE as REMOVE_MOMENT } from "@/app/api/night-moments/[id]/route";
 import { GET as LIST_MEMORIES, POST as CREATE_MEMORY } from "@/app/api/night-memories/route";
 import { GET as LIST_MOMENTS, POST as ADD_MEMORY_MOMENT } from "@/app/api/night-memories/[id]/moments/route";
 import { GET as LIST_STORIES, POST as CREATE_STORY } from "@/app/api/night-stories/route";
@@ -126,9 +128,17 @@ describe("Night Memory HTTP contract", () => {
         headers: { authorization: "Bearer host" },
         body: form,
       }), ctx("memory-id")),
+      REMOVE_MEMORY(new Request("http://localhost/api/night-memories/memory-id", {
+        method: "DELETE",
+        headers: { authorization: "Bearer host" },
+      }), ctx("memory-id")),
+      REMOVE_MOMENT(new Request("http://localhost/api/night-moments/moment-id", {
+        method: "DELETE",
+        headers: { authorization: "Bearer host" },
+      }), ctx("moment-id")),
     ]);
 
-    expect(responses.map((response) => response.status)).toEqual([503, 503, 503, 503]);
+    expect(responses.map((response) => response.status)).toEqual([503, 503, 503, 503, 503, 503]);
     for (const response of responses) {
       expect(response.headers.get("cache-control")).toBe("no-store");
       expect(await response.json()).toMatchObject({
@@ -165,9 +175,11 @@ describe("Night Memory HTTP contract", () => {
         headers,
         body: form,
       }), ctx("memory-id")),
+      REMOVE_MEMORY(new Request("http://localhost/api/night-memories/memory-id", { method: "DELETE", headers }), ctx("memory-id")),
+      REMOVE_MOMENT(new Request("http://localhost/api/night-moments/moment-id", { method: "DELETE", headers }), ctx("moment-id")),
     ]);
 
-    expect(responses.map((response) => response.status)).toEqual([401, 401, 401, 401]);
+    expect(responses.map((response) => response.status)).toEqual([401, 401, 401, 401, 401, 401]);
     for (const response of responses) {
       expect(response.headers.get("cache-control")).toBe("no-store");
       expect(await response.json()).toMatchObject({ code: "UNAUTHENTICATED", retryable: false });
@@ -225,10 +237,14 @@ describe("Night Memory HTTP contract", () => {
     expect(keepServerMemoryAfterRefusal(photoRefusal.status, refusalBody.code)).toBe(true);
   });
 
-  it("reports a missing Storage bucket as a retryable Moment upload failure", async () => {
+  it.each([
+    "Bucket not found",
+    "Photo storage is unavailable. Your draft is still on this device.",
+    "StorageApiError: signature verification failed for bucket venue-photos",
+  ])("answers a Storage failure (%s) with a fixed retryable 503 and no raw text", async (failure) => {
     const memoryResponse = await CREATE_MEMORY(auth("/api/night-memories", { title: "Friday orbit" }));
     const { memory } = await memoryResponse.json();
-    uploadState.failure = new Error("Bucket not found");
+    uploadState.failure = new Error(failure);
 
     const form = new FormData();
     form.set("photo", await validJpegFile());
@@ -244,7 +260,34 @@ describe("Night Memory HTTP contract", () => {
     expect(response.status).toBe(503);
     const body = await response.json();
     expect(body).toMatchObject({ code: "UNAVAILABLE", retryable: true });
+    expect(body.error).toBe("That photo could not be saved. Your draft is safe. Try again.");
+    expect(JSON.stringify(body)).not.toContain(failure);
     expect(keepServerMemoryAfterRefusal(response.status, body.code)).toBe(true);
+  });
+
+  it("answers a refusal about the photo file with a 400 that carries its reason", async () => {
+    const { PhotoRefusalError } = await import("@/lib/pintDropsStore");
+    const memoryResponse = await CREATE_MEMORY(auth("/api/night-memories", { title: "Friday orbit" }));
+    const { memory } = await memoryResponse.json();
+    uploadState.failure = new PhotoRefusalError("Photo must be a JPEG, PNG, or WebP image.");
+
+    const form = new FormData();
+    form.set("photo", await validJpegFile());
+    const response = await ADD_MEMORY_MOMENT(
+      new Request(`http://localhost/api/night-memories/${memory.id}/moments`, {
+        method: "POST",
+        headers: { authorization: "Bearer host" },
+        body: form,
+      }),
+      ctx(memory.id),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      code: "INVALID_REQUEST",
+      error: "Photo must be a JPEG, PNG, or WebP image.",
+      retryable: false,
+    });
   });
 
   it("does not accept a client-supplied Plan completion link without an ownership binding", async () => {
