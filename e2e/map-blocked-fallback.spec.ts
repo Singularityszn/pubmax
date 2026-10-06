@@ -283,13 +283,16 @@ test.describe("a blocked map library keeps the pubs reachable", () => {
     const blockedRequests = requests;
 
     blocking = false;
-    await page.locator(".mapFallbackRetry").click();
 
     // React caches a rejected lazy for ever, so a retry that reused it would
     // never touch the network again and the reader would be stuck on the card.
-    await expect
-      .poll(() => requests, { timeout: 45_000 })
-      .toBeGreaterThan(blockedRequests);
+    // The tap is retried rather than the wait lengthened: a card painted on the
+    // server is tappable before React attaches, and that tap is dropped without
+    // a trace (e2e/AGENTS.md, "a lone click is not a wait for hydration").
+    await expect(async () => {
+      await page.locator(".mapFallbackRetry").click();
+      await expect.poll(() => requests, { timeout: 5_000 }).toBeGreaterThan(blockedRequests);
+    }).toPass({ timeout: 45_000 });
     await expect(page.locator(".maplibreMap")).toBeVisible({ timeout: 45_000 });
     await expect(fallback(page)).toHaveCount(0);
   });
