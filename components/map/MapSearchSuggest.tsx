@@ -372,6 +372,9 @@ export default function MapSearchSuggest({
         activeIndexRef.current >= 0 && activeIndexRef.current < items.length
           ? activeIndexRef.current
           : -1;
+      if ((event.key === "ArrowDown" || event.key === "ArrowUp") && mode === "toolbar") {
+        setToolbarFocused(true);
+      }
       if (event.key === "ArrowDown" && items.length > 0) {
         event.preventDefault();
         chooseActiveIndex((eventActive + 1) % items.length);
@@ -575,10 +578,11 @@ export default function MapSearchSuggest({
         aria-activedescendant={safeActive >= 0 ? optionId(safeActive) : undefined}
         value={query}
         onChange={changeQuery}
-        onFocus={() => {
-          setToolbarFocused(true);
-          ensureSearchIndex();
-        }}
+        // Focus alone never opens the toolbar list. Closing a pub drawer hands
+        // focus back to this field, and the stale suggestions used to reopen
+        // over the map with it. Typing, a click or an arrow key opens it.
+        onFocus={ensureSearchIndex}
+        onClick={() => setToolbarFocused(true)}
         onBlur={() => {
           if (mode === "toolbar") setToolbarFocused(false);
         }}
