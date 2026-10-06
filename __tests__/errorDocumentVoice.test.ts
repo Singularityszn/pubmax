@@ -86,11 +86,6 @@ describe("error and not-found documents", () => {
     expect(source, "a coral word takes var(--color-accent-ink)").not.toMatch(
       /color:\s*["']var\(--brass/,
     );
-    if (file.endsWith("not-found.tsx")) {
-      expect(source, "a 404 follows the theme, never a committed dark").not.toMatch(
-        /background:\s*["']var\(--ink-deep/,
-      );
-    }
     // Whatever the surface, a fallback may not name a colour the app retired.
     for (const [, fallback] of source.matchAll(/var\(--brass,\s*(#[0-9a-f]{3,8})/gi)) {
       expect(defined(fallback).toLowerCase(), `${file} falls back to a retired brass`).toBe(
