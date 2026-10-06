@@ -10,9 +10,11 @@ import {
   createDualBackendStore,
   createFailSoftGuard,
   onMissingDurableWrite,
+  whereVenueIdIn,
 } from "@/lib/storeBackend";
 import type { Wanted, WantedDTO, WantedFields, WantedStatus } from "@/lib/wanted";
 import { cleanText } from "@/lib/textClean";
+import { storedVenueIds } from "@/lib/venueAliases";
 
 const TABLE = "wanteds";
 const MIGRATION_HINT = "apply migration 0093";
@@ -81,11 +83,12 @@ export const memoryWantedStore: WantedStore = {
   async fulfilForVenue(ownerActor, venueId, now = Date.now()) {
     if (!venueId) return [];
     const stamp = new Date(now).toISOString();
+    const venueIds = await storedVenueIds(venueId);
     const fulfilled: WantedDTO[] = [];
     for (const row of byId.values()) {
       if (row.ownerActor !== ownerActor) continue;
       if (row.status !== "open") continue;
-      if (row.venueId !== venueId) continue;
+      if (!venueIds.includes(row.venueId)) continue;
       row.status = "fulfilled";
       row.fulfilledAt = stamp;
       fulfilled.push(toDTO(row));
@@ -256,11 +259,10 @@ const supabaseWantedStore: WantedStore = {
           fallback: () => memoryWantedStore.fulfilForVenue(ownerActor, venueId, now),
         }),
       run: async () => {
-        const { data, error } = await admin()
-          .from(TABLE)
-          .update({ status: "fulfilled", fulfilled_at: stamp })
-          .eq("owner_actor", ownerActor)
-          .eq("venue_id", venueId)
+        const { data, error } = await whereVenueIdIn(
+          admin().from(TABLE).update({ status: "fulfilled", fulfilled_at: stamp }).eq("owner_actor", ownerActor),
+          await storedVenueIds(venueId),
+        )
           .eq("status", "open")
           .select("*");
         if (error) throw new Error(error.message);

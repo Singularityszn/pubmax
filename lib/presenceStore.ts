@@ -19,7 +19,8 @@ import "server-only";
 import { HANDLE_MAX } from "@/lib/handleNormalize";
 import { ambientPresenceRows } from "@/lib/ambientPresence";
 import { requireSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
-import { selectStore } from "@/lib/storeBackend";
+import { selectStore, whereVenueIdIn } from "@/lib/storeBackend";
+import { storedVenueIds } from "@/lib/venueAliases";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 import { PRESENCE_TTL_MS, type PresenceDTO, type PresenceInput } from "@/lib/presence";
 
@@ -101,13 +102,13 @@ function memoryMark(input: PresenceInput, now: number): void {
 // Optionally scoped to one venue. Returns the raw pre-enrichment rows; enrich()
 // adds the pub name + map link.
 function memoryRecent(
-  venueId: string | undefined,
+  venueIds: readonly string[] | undefined,
   now: number,
 ): { handle: string; venueId: string; at: string }[] {
   const live: { handle: string; venueId: string; expiresAt: number }[] = [];
   for (const row of memoryRows.values()) {
     if (row.expiresAt <= now) continue;
-    if (venueId && row.venueId !== venueId) continue;
+    if (venueIds && !venueIds.includes(row.venueId)) continue;
     live.push({ handle: row.handle, venueId: row.venueId, expiresAt: row.expiresAt });
   }
   // Newest-first: a fresher mark has a later expiry (created_at + fixed TTL), so
@@ -129,7 +130,9 @@ const memoryPresenceStore: PresenceStore = {
   async recent(venueId, now = Date.now()) {
     const scoped = venueId ? clean(venueId, MAX_VENUE_ID) : undefined;
     try {
-      return await enrich(memoryRecent(scoped, now));
+      return await enrich(
+        memoryRecent(scoped ? await storedVenueIds(scoped) : undefined, now),
+      );
     } catch (err) {
       console.warn(
         "[presence] read failed (strip degrades to empty):",
@@ -183,7 +186,7 @@ const supabasePresenceStore: PresenceStore = {
         .gt("expires_at", new Date(now).toISOString())
         .order("created_at", { ascending: false })
         .limit(MAX_PRESENCE);
-      if (scoped) query = query.eq("venue_id", scoped);
+      if (scoped) query = whereVenueIdIn(query, await storedVenueIds(scoped));
       const { data, error } = await query;
       if (error) throw new Error(error.message);
       const rows = ((data ?? []) as { handle: string; venue_id: string; created_at: string }[]).map(

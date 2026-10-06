@@ -30,6 +30,7 @@ import {
   type RatingValue,
 } from "@/lib/ratings";
 import { normalizeHandle } from "@/lib/profiles";
+import { loadVenueAliasResolver } from "@/lib/venueAliases";
 import {
   admin,
   createSchemaMissWarner,
@@ -89,7 +90,7 @@ function emptySummaries(refs: string[]): Record<string, RatingSummary> {
 function normalizeRatingRow(
   r: unknown,
   refColumn: string,
-): { ref: string; rating: number; createdAt: string } | null {
+): { ref: string; handle: string; rating: number; createdAt: string } | null {
   if (typeof r !== "object" || r === null) return null;
   const row = r as Record<string, unknown>;
   const ref = row[refColumn];
@@ -98,19 +99,38 @@ function normalizeRatingRow(
   if (typeof ref !== "string" || ref === "") return null;
   if (typeof rating !== "number" || !Number.isFinite(rating)) return null;
   if (typeof createdAt !== "string" || createdAt === "") return null;
-  return { ref, rating, createdAt };
+  return { ref, handle: typeof row.handle === "string" ? row.handle : "", rating, createdAt };
 }
 
-function groupRecords(
-  rows: Array<{ ref: string; rating: number; createdAt: string }>,
-): Map<string, RatingRecord[]> {
-  const byRef = new Map<string, RatingRecord[]>();
+/**
+ * Each requested ref with every ref its votes may be stored under, current
+ * first. A venue's votes follow its former ids; a drink ref is its own.
+ */
+async function storedRefsByRef(
+  kind: RatingKind,
+  refs: readonly string[],
+): Promise<Map<string, string[]>> {
+  if (kind !== "venue") return new Map(refs.map((ref) => [ref, [ref]]));
+  const aliases = await loadVenueAliasResolver();
+  return new Map(refs.map((ref) => [ref, aliases.storedIds(ref)]));
+}
+
+/** One vote per handle across a venue's stored refs, the freshest cast winning. */
+function newestVotePerHandle(
+  rows: Array<{ handle: string; rating: number; createdAt: string }>,
+): RatingRecord[] {
+  const byHandle = new Map<string, RatingRecord>();
+  const anonymous: RatingRecord[] = [];
   for (const row of rows) {
-    const list = byRef.get(row.ref) ?? [];
-    list.push({ rating: row.rating, createdAt: row.createdAt });
-    byRef.set(row.ref, list);
+    const vote = { rating: row.rating, createdAt: row.createdAt };
+    if (!row.handle) {
+      anonymous.push(vote);
+      continue;
+    }
+    const held = byHandle.get(row.handle);
+    if (!held || row.createdAt > held.createdAt) byHandle.set(row.handle, vote);
   }
-  return byRef;
+  return [...byHandle.values(), ...anonymous];
 }
 
 // ── Supabase implementation ──────────────────────────────────────────────────
@@ -146,25 +166,25 @@ const supabaseRatingsStore: RatingsStore = {
   async summaryFor(kind, refs) {
     if (refs.length === 0) return {};
     const { table, refColumn } = TABLES[kind];
+    const storedRefs = await storedRefsByRef(kind, refs);
     try {
       // Dynamic column → widen to `string` so the supabase-js typed-select
       // parser treats it as a plain projection (rows come back untyped, which
       // is exactly what the Record<string, unknown> mapping below expects).
-      const columns: string = `${refColumn}, rating, created_at`;
+      const columns: string = `${refColumn}, handle, rating, created_at`;
       const { data, error } = await admin()
         .from(table)
         .select(columns)
-        .in(refColumn, refs);
+        .in(refColumn, [...new Set([...storedRefs.values()].flat())]);
       if (error) throw new Error(error.message);
-      const byRef = groupRecords(
-        (data ?? [])
-          .map((r) => normalizeRatingRow(r, refColumn))
-          .filter((row): row is { ref: string; rating: number; createdAt: string } => row !== null),
-      );
+      const rows = (data ?? [])
+        .map((r) => normalizeRatingRow(r, refColumn))
+        .filter((row): row is NonNullable<ReturnType<typeof normalizeRatingRow>> => row !== null);
       const now = Date.now();
       const out: Record<string, RatingSummary> = {};
-      for (const ref of refs) {
-        out[ref] = aggregateRatings(byRef.get(ref) ?? [], { now });
+      for (const [ref, stored] of storedRefs) {
+        const votes = newestVotePerHandle(rows.filter((row) => stored.includes(row.ref)));
+        out[ref] = aggregateRatings(votes, { now });
       }
       return out;
     } catch (err) {
@@ -207,12 +227,16 @@ export const memoryRatingsStore: RatingsStore = {
 
   async summaryFor(kind, refs) {
     const now = Date.now();
+    const storedRefs = await storedRefsByRef(kind, refs);
     const out: Record<string, RatingSummary> = {};
-    for (const ref of refs) {
-      const votes = memoryVotes[kind].get(ref);
-      out[ref] = aggregateRatings(votes ? Array.from(votes.values()) : [], {
-        now,
-      });
+    for (const [ref, stored] of storedRefs) {
+      const rows = stored.flatMap((storedRef) =>
+        [...(memoryVotes[kind].get(storedRef)?.entries() ?? [])].map(([handle, vote]) => ({
+          handle,
+          ...vote,
+        })),
+      );
+      out[ref] = aggregateRatings(newestVotePerHandle(rows), { now });
     }
     return out;
   },
