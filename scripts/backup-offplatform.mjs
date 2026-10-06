@@ -2,14 +2,13 @@
 // npm run backup:offplatform - a pg_dump plus a sync of the pint-drops bucket,
 // written to a private directory on this machine, never into the repository.
 // The rules are scripts/lib/offPlatformBackup.mjs and the restore is
-// docs/DR_RUNBOOK.md. Nothing here schedules it: the captain decides when it runs.
+// docs/DR_RUNBOOK.md. scripts/install-backup-launchd.mjs schedules it weekly.
 //
 // Environment (never printed):
 //   PUBMAX_BACKUP_DB_URL        postgres:// connection string (session pooler or direct)
 //   SUPABASE_URL                project URL, for the bucket sync
 //   SUPABASE_SERVICE_ROLE_KEY   secret key, for the bucket sync
 //   PUBMAX_BACKUP_DIR           default ~/pubmax-backups
-//   PUBMAX_BACKUP_KEEP          dumps to keep, default 8
 //   PUBMAX_ALERT_WEBHOOK_URL    optional; a failure posts one line here
 // `--dry-run` prints the plan and touches nothing.
 
@@ -18,7 +17,6 @@ import {
   chmodSync,
   existsSync,
   mkdirSync,
-  readdirSync,
   renameSync,
   rmSync,
   statSync,
@@ -29,14 +27,13 @@ import os from "node:os";
 import path from "node:path";
 
 import {
-  bucketFilesToPrune,
   DEFAULT_BUCKET,
-  DEFAULT_KEEP,
   dumpFileName,
-  dumpsToPrune,
   listBucketObjects,
   pgDumpArgs,
   pgEnvFromUrl,
+  pruneBackupCopy,
+  RETENTION_WEEKS,
   safeObjectPath,
 } from "./lib/offPlatformBackup.mjs";
 
@@ -68,8 +65,6 @@ function gitTopLevel(directory) {
 
 async function runBackup() {
   const dir = path.resolve(env.PUBMAX_BACKUP_DIR?.trim() || path.join(os.homedir(), "pubmax-backups"));
-  const keepOverride = Number.parseInt(env.PUBMAX_BACKUP_KEEP ?? "", 10);
-  const keep = keepOverride > 0 ? keepOverride : DEFAULT_KEEP;
   const bucket = env.SUPABASE_STORAGE_BUCKET?.trim() || DEFAULT_BUCKET;
 
   // The repository is public: a backup under any git checkout could be committed.
@@ -87,7 +82,7 @@ async function runBackup() {
   const bucketRoot = path.join(dir, "bucket", bucket);
 
   console.log(`[backup] directory ${dir}`);
-  console.log(`[backup] dump ${path.basename(dumpFile)} from ${pgEnv.PGHOST}; bucket ${bucket}; keep ${keep}`);
+  console.log(`[backup] dump ${path.basename(dumpFile)} from ${pgEnv.PGHOST}; bucket ${bucket}; retention ${RETENTION_WEEKS} weeks`);
   if (dryRun) {
     console.log("[backup] dry run: nothing was read or written.");
     return;
@@ -119,7 +114,7 @@ async function runBackup() {
 
   // 2. The bucket. Objects are only added or replaced when their size changed.
   // Each one still in the bucket is stamped with this run's start, so an object
-  // deleted in production is kept until the dumps that knew it are pruned.
+  // deleted in production is kept only as long as the dumps that knew it.
   const objects = await listBucketObjects({ baseUrl, key, bucket });
   let fetched = 0;
   for (const object of objects) {
@@ -140,15 +135,11 @@ async function runBackup() {
   }
   console.log(`[backup] bucket ${bucket}: ${objects.length} objects, ${fetched} downloaded.`);
 
-  // 3. Retention. The newest `keep` dumps, and the bucket files they can name.
-  for (const file of dumpsToPrune(readdirSync(dir), keep)) rmSync(path.join(dir, file), { force: true });
-  const localFiles = readdirSync(bucketRoot, { recursive: true })
-    .map((relative) => path.join(bucketRoot, relative))
-    .filter((file) => statSync(file).isFile())
-    .map((file) => ({ path: file, lastSeenMs: statSync(file).mtimeMs }));
-  const stale = bucketFilesToPrune(localFiles, readdirSync(dir));
-  for (const file of stale) rmSync(file, { force: true });
-  console.log(`[backup] bucket copy: ${stale.length} files past retention removed.`);
+  // 3. Retention, by age. It runs only here, so the schedule keeps the window.
+  const pruned = pruneBackupCopy({ dir, bucketRoot, now: Date.now() });
+  console.log(
+    `[backup] past retention: ${pruned.dumps} dumps, ${pruned.files} bucket files, ${pruned.directories} folders removed.`,
+  );
   console.log("[backup] done.");
 }
 

@@ -1,21 +1,28 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  bucketFilesToPrune,
-  DEFAULT_KEEP,
   DUMP_SCHEMAS,
   dumpFileName,
-  dumpsToPrune,
-  dumpTakenAt,
   isInsideDirectory,
   listBucketObjects,
   pgDumpArgs,
   pgEnvFromUrl,
+  pruneBackupCopy,
+  RETENTION_WEEKS,
   safeObjectPath,
 } from "@/scripts/lib/offPlatformBackup.mjs";
 
@@ -47,37 +54,90 @@ describe("dump files", () => {
     expect(DUMP_SCHEMAS).toEqual(["public", "auth", "storage", "supabase_migrations"]);
     for (const schema of DUMP_SCHEMAS) expect(args).toContain(schema);
   });
-  it("prunes only old dumps and never another file", () => {
-    const files = [
-      "pubmax-20260901T000000Z.dump",
-      "pubmax-20260908T000000Z.dump",
-      "pubmax-20260915T000000Z.dump",
-      "notes.txt",
-      "bucket",
-      "pubmax-20260915T000000Z.dump.partial",
-    ];
-    expect(dumpsToPrune(files, 2)).toEqual(["pubmax-20260901T000000Z.dump"]);
-    expect(dumpsToPrune(files, DEFAULT_KEEP)).toEqual([]);
-  });
-  it("reads when a dump was taken from its name, and nothing from any other file", () => {
-    expect(dumpTakenAt(dumpFileName(new Date("2026-10-06T07:30:05.123Z")))).toBe(Date.parse("2026-10-06T07:30:05Z"));
-    expect(dumpTakenAt("pubmax-20261006T073005Z.dump.partial")).toBeNull();
-    expect(dumpTakenAt("notes.txt")).toBeNull();
-  });
 });
 
-describe("the bucket copy keeps nothing longer than the dumps", () => {
-  const kept = ["pubmax-20260908T000000Z.dump", "pubmax-20260915T000000Z.dump", "bucket", "notes.txt"];
-  it("prunes a file last seen before the oldest kept dump, and keeps one the kept dumps can name", () => {
-    const local = [
-      { path: "/b/gone-long-ago.jpg", lastSeenMs: Date.parse("2026-09-01T00:00:00Z") },
-      { path: "/b/seen-at-oldest-dump.jpg", lastSeenMs: Date.parse("2026-09-08T00:00:00.400Z") },
-      { path: "/b/still-in-bucket.jpg", lastSeenMs: Date.parse("2026-09-15T00:00:00.400Z") },
-    ];
-    expect(bucketFilesToPrune(local, kept)).toEqual(["/b/gone-long-ago.jpg"]);
+describe("pruneBackupCopy keeps nothing past 8 weeks, by age, on irregular runs", () => {
+  const now = Date.parse("2026-10-06T03:30:00Z");
+  let dir = "";
+  let bucketRoot = "";
+
+  beforeEach(() => {
+    dir = mkdtempSync(path.join(os.tmpdir(), "backup-prune-"));
+    bucketRoot = path.join(dir, "bucket", "pint-drops");
+    mkdirSync(bucketRoot, { recursive: true });
   });
-  it("prunes nothing when no dump is kept", () => {
-    expect(bucketFilesToPrune([{ path: "/b/a.jpg", lastSeenMs: 0 }], ["bucket"])).toEqual([]);
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  const run = (iso: string) => writeFileSync(path.join(dir, dumpFileName(new Date(iso))), "dump");
+  const object = (relative: string, lastSeenIso: string) => {
+    const file = path.join(bucketRoot, relative);
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, "photo");
+    const seen = new Date(lastSeenIso);
+    utimesSync(file, seen, seen);
+  };
+  const tree = (root: string) => (readdirSync(root, { recursive: true }) as string[]).sort();
+
+  it("is an 8 week window", () => {
+    expect(RETENTION_WEEKS).toBe(8);
+  });
+
+  it("deletes dumps past the window however many runs there were, and the photos and id folders only they named", () => {
+    for (const iso of ["2026-03-01T03:30:00Z", "2026-07-20T03:30:00Z", "2026-08-09T03:30:00Z", "2026-08-12T03:30:00Z", "2026-10-06T03:30:00Z"]) {
+      run(iso);
+    }
+    writeFileSync(path.join(dir, "notes.txt"), "mine");
+    writeFileSync(path.join(dir, "pubmax-20260301T033000Z.dump.partial"), "half");
+    object("profiles/account-a/1/a.jpg", "2026-03-01T03:30:00.400Z");
+    object("profiles/account-c/2/c.jpg", "2026-08-09T03:30:00.400Z");
+    object("profiles/account-b/1/b.jpg", "2026-08-12T03:30:00.400Z");
+    object("messages/conversation-1/m.jpg", "2026-10-06T03:30:00.400Z");
+
+    expect(pruneBackupCopy({ dir, bucketRoot, now })).toEqual({ dumps: 3, files: 2, directories: 4 });
+
+    expect(readdirSync(dir).sort()).toEqual([
+      "bucket",
+      "notes.txt",
+      "pubmax-20260301T033000Z.dump.partial",
+      "pubmax-20260812T033000Z.dump",
+      "pubmax-20261006T033000Z.dump",
+    ]);
+    expect(tree(bucketRoot)).toEqual(
+      [
+        "messages",
+        "messages/conversation-1",
+        "messages/conversation-1/m.jpg",
+        "profiles",
+        "profiles/account-b",
+        "profiles/account-b/1",
+        "profiles/account-b/1/b.jpg",
+      ].map((entry) => entry.split("/").join(path.sep)),
+    );
+  });
+
+  it("keeps the newest dump and the photos it names when the runs stopped long ago", () => {
+    run("2026-03-01T03:30:00Z");
+    run("2026-05-01T03:30:00Z");
+    object("old/a.jpg", "2026-03-01T03:30:00.400Z");
+    object("newest/b.jpg", "2026-05-01T03:30:00.400Z");
+
+    expect(pruneBackupCopy({ dir, bucketRoot, now })).toEqual({ dumps: 1, files: 1, directories: 1 });
+
+    expect(readdirSync(dir).sort()).toEqual(["bucket", "pubmax-20260501T033000Z.dump"]);
+    expect(tree(bucketRoot)).toEqual(["newest", path.join("newest", "b.jpg")]);
+  });
+
+  it("touches no bucket file and keeps the bucket folder when there is no dump", () => {
+    object("a.jpg", "2026-01-01T00:00:00Z");
+    expect(pruneBackupCopy({ dir, bucketRoot, now })).toEqual({ dumps: 0, files: 0, directories: 0 });
+    expect(tree(bucketRoot)).toEqual(["a.jpg"]);
+    rmSync(path.join(bucketRoot, "a.jpg"));
+    run("2026-10-06T03:30:00Z");
+    pruneBackupCopy({ dir, bucketRoot, now });
+    expect(existsSync(bucketRoot)).toBe(true);
   });
 });
 

@@ -33,6 +33,7 @@
     "coverage": "node scripts/run-coverage.mjs",
     "validate-data": "node scripts/prevalidate-data.mjs && node scripts/validate-data.mjs",
     "backup:offplatform": "node scripts/backup-offplatform.mjs",
+    "backup:install-launchd": "node scripts/install-backup-launchd.mjs",
     "check:freshness": "node scripts/check_freshness.mjs",
     "check:migration-ledger": "node scripts/check-migration-ledger.mjs",
     "build:pint-index-snapshot": "node --conditions=react-server --import tsx scripts/build_pint_index_snapshot.mjs",

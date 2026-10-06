@@ -26,18 +26,17 @@ Facts to start from:
 ### Take it
 
 The backup runs on the captain's Mac. It needs `pg_dump` and `pg_restore` at the
-server's major version or newer, and these variables in the environment that
-runs it (never in the repository):
+server's major version or newer, and these variables in
+`~/.config/pubmax/backup.env`, mode 0600 (never in the repository):
 
 - `PUBMAX_BACKUP_DB_URL`: a `postgres://` connection string for the project (Supabase dashboard, Connect, session pooler).
 - `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`: for the bucket sync.
 - `PUBMAX_BACKUP_DIR`: optional, default `~/pubmax-backups`. The script refuses a directory inside any git checkout.
-- `PUBMAX_BACKUP_KEEP`: optional, default 8. The number of dumps to keep.
 - `PUBMAX_ALERT_WEBHOOK_URL`: optional. A failed run posts one fixed line with no reason in it. The reason stays in the local log.
 
 ```sh
-npm run backup:offplatform -- --dry-run   # prints the plan and touches nothing
-npm run backup:offplatform
+node --env-file="$HOME/.config/pubmax/backup.env" scripts/backup-offplatform.mjs --dry-run   # prints the plan and touches nothing
+node --env-file="$HOME/.config/pubmax/backup.env" scripts/backup-offplatform.mjs
 ```
 
 It writes `pubmax-<UTC stamp>.dump` (custom format, mode 0600) with the `public`,
@@ -45,18 +44,32 @@ It writes `pubmax-<UTC stamp>.dump` (custom format, mode 0600) with the `public`
 `bucket/pint-drops/`. A dump becomes visible only after `pg_restore --list` finds
 table data in it.
 
-Nothing in the repository installs or schedules the backup. The captain decides
-when it runs and enables scheduling. The rest of this section assumes one run a
-week.
+### Schedule it
+
+The captain or firstmate runs the installer once, from the checkout the job
+should use:
+
+```sh
+npm run backup:install-launchd
+```
+
+It writes the launchd agent `~/Library/LaunchAgents/com.pubmax.backup.plist` and
+loads it. The agent runs the backup every Sunday at 03:30 with the variables
+from `backup.env`, and logs to `~/Library/Logs/pubmax-backup.log`. The installer
+refuses while `backup.env` is missing or open to other users. Running it again
+rewrites the same agent and reloads it, so run it again after the checkout moves.
 
 ### Retention
 
 The copy holds personal data: account emails, password hashes, profiles, Pint
-Drops and their photos. Nothing in it is kept forever.
+Drops and their photos. It is not encrypted. Nothing in it is kept longer than 8
+weeks, with one exception: the newest dump and the bucket files it names always
+stay, so a restore is always possible.
 
-- The newest 8 dumps are kept. At one run a week that is 8 weeks. Each run deletes older dumps.
-- The bucket copy follows the dumps. Each run stamps every file whose object is still in the bucket. A file whose object was deleted in production is removed when the oldest kept dump no longer knew it.
-- So a deleted account's rows and photos leave the copy about 8 weeks after the deletion, when the last dump that held them is pruned.
+- Each run deletes every dump older than 8 weeks, however many runs there were, except the newest.
+- The bucket copy follows the dumps. Each run stamps every file whose object is still in the bucket. A file whose object was deleted in production is removed when no kept dump is old enough to name it. A folder left empty is removed too, because the folder names are account and conversation ids.
+- Pruning happens only when the backup runs. The weekly schedule is what keeps the window at 8 weeks. If the backup stops running, nothing is pruned until it runs again.
+- So a deleted account's rows and photos leave the copy within 8 weeks of the deletion. The privacy page says so.
 
 Keep a second copy off the Mac. A free option is an encrypted archive on a
 personal cloud drive. `gpg --symmetric --cipher-algo AES256 <dump>` or an

@@ -1,5 +1,5 @@
-// The rules of the off-platform backup, free of I/O so they are tested without
-// a database. scripts/backup-offplatform.mjs does the work and docs/DR_RUNBOOK.md
+// The rules of the off-platform backup, free of network and database I/O so
+// they are tested without a database. scripts/backup-offplatform.mjs does the work and docs/DR_RUNBOOK.md
 // owns the restore.
 //
 // WHY IT EXISTS. Production is on the Supabase free plan: no daily backup, no
@@ -7,10 +7,14 @@
 // public, so a dump may never be a workflow artifact or a committed file. The
 // copy lives on the captain's Mac, outside every git checkout, written 0600.
 
+import { readdirSync, rmdirSync, rmSync, statSync } from "node:fs";
 import path from "node:path";
 
 export const DEFAULT_BUCKET = "pint-drops";
-export const DEFAULT_KEEP = 8;
+// Nothing in the copy is older than this, except the newest dump and the bucket
+// files it names, so a restore is always possible.
+export const RETENTION_WEEKS = 8;
+const RETENTION_MS = RETENTION_WEEKS * 7 * 24 * 60 * 60 * 1000;
 // Public data, the account table and what the auth schema needs to restore
 // sign-in, storage object rows, and the migration ledger.
 export const DUMP_SCHEMAS = ["public", "auth", "storage", "supabase_migrations"];
@@ -53,31 +57,57 @@ export function pgDumpArgs(outputFile) {
 const DUMP_NAME = /^pubmax-(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z\.dump$/;
 
 /** When a dump was taken, read from its name, or null for any other file. */
-export function dumpTakenAt(file) {
+function dumpTakenAt(file) {
   const match = DUMP_NAME.exec(file);
   if (!match) return null;
   const [year, month, day, hour, minute, second] = match.slice(1).map(Number);
   return Date.UTC(year, month - 1, day, hour, minute, second);
 }
 
-/** Dump files to delete so only the newest `keep` remain. Other files are never touched. */
-export function dumpsToPrune(files, keep = DEFAULT_KEEP) {
-  const dumps = files.filter((file) => dumpTakenAt(file) !== null).sort();
-  return dumps.slice(0, Math.max(0, dumps.length - keep));
-}
-
 /**
- * Bucket files to delete, so the bucket copy keeps nothing longer than the
- * dumps do. Each run stamps a file's mtime with the run's start while its object
- * is still in the bucket, so `lastSeenMs` is the last run that saw it. A file
- * last seen before the oldest kept dump belongs to no dump that remains, and it
- * goes with them. With no dump kept, nothing is pruned.
+ * Delete what is past retention, by age, however many runs there were.
+ *
+ * Dumps: every dump older than `RETENTION_WEEKS` goes, except the newest. Other
+ * files in `dir` are never touched.
+ *
+ * Bucket files: each run stamps a file's mtime with the run's start while its
+ * object is still in the bucket, so the mtime is the last run that saw it. A
+ * file last seen before the oldest kept dump belongs to no dump that remains,
+ * and it goes with them. With no dump at all, no bucket file is touched.
+ *
+ * Directories: an emptied directory under `bucketRoot` goes too, because the
+ * bucket's folder names are account, profile and conversation ids.
  */
-export function bucketFilesToPrune(localFiles, directoryFiles) {
-  const taken = directoryFiles.map(dumpTakenAt).filter((time) => time !== null);
-  if (taken.length === 0) return [];
-  const oldestKept = Math.min(...taken);
-  return localFiles.filter((file) => file.lastSeenMs < oldestKept).map((file) => file.path);
+export function pruneBackupCopy({ dir, bucketRoot, now }) {
+  const dumps = readdirSync(dir)
+    .filter((file) => dumpTakenAt(file) !== null)
+    .sort();
+  const newest = dumps.at(-1);
+  const expired = dumps.filter((file) => file !== newest && dumpTakenAt(file) < now - RETENTION_MS);
+  for (const file of expired) rmSync(path.join(dir, file), { force: true });
+
+  const kept = dumps.filter((file) => !expired.includes(file)).map(dumpTakenAt);
+  if (kept.length === 0) return { dumps: expired.length, files: 0, directories: 0 };
+  const oldestKept = Math.min(...kept);
+
+  const entries = readdirSync(bucketRoot, { recursive: true }).map((relative) => {
+    const entry = path.join(bucketRoot, relative);
+    return { entry, stat: statSync(entry) };
+  });
+  const files = entries.filter(({ stat }) => stat.isFile() && stat.mtimeMs < oldestKept);
+  for (const { entry } of files) rmSync(entry, { force: true });
+
+  let directories = 0;
+  const deepestFirst = entries
+    .filter(({ stat }) => stat.isDirectory())
+    .map(({ entry }) => entry)
+    .sort((a, b) => b.length - a.length);
+  for (const entry of deepestFirst) {
+    if (readdirSync(entry).length > 0) continue;
+    rmdirSync(entry);
+    directories += 1;
+  }
+  return { dumps: expired.length, files: files.length, directories };
 }
 
 /** True when `candidate` is `directory` itself or anything under it. */
