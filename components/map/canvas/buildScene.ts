@@ -88,6 +88,23 @@ export const CLUSTER_FILTER: maplibregl.FilterSpecification = ["has", "point_cou
 // the camera is at/above it (components/map/pubmap/useUkBaseStreaming.ts).
 export const UK_BASE_MIN_ZOOM = PIN_MIN_ZOOM;
 
+// A pub OSM maps with no name (UkBasePub.unnamed) is a bare "Pub" pin, and a
+// city full of them says nothing. They wait for street level, on a layer of
+// their own because a style filter cannot read the zoom.
+export const UK_BASE_UNNAMED_MIN_ZOOM = 16;
+
+/** Every base pin that has a name; the unnamed ones ride `uk-base-unnamed-point`. */
+const UK_BASE_NAMED_FILTER: maplibregl.ExpressionSpecification = [
+  "!=",
+  ["get", "unnamed"],
+  true,
+];
+const UK_BASE_UNNAMED_FILTER: maplibregl.ExpressionSpecification = [
+  "==",
+  ["get", "unnamed"],
+  true,
+];
+
 // Base pins are visibly second-class: roughly half a curated pin's footprint
 // and never fully opaque, so a street with both reads as "priced pubs, plus
 // some we know nothing about" rather than as two equal pin families.
@@ -906,6 +923,7 @@ export function buildUkBase(ctx: SceneCtx) {
     type: "symbol",
     source: "uk-base",
     minzoom: UK_BASE_MIN_ZOOM,
+    filter: UK_BASE_NAMED_FILTER,
     layout: {
       // A base pub draws the layer's own unpriced glyph, EXCEPT while the
       // Spoons value lens has stamped a band on it. Then it borrows the
@@ -945,12 +963,60 @@ export function buildUkBase(ctx: SceneCtx) {
       "text-halo-blur": 0.2,
     },
   });
+  // A pub with no name: the base glyph and the generic "Pub" label, from
+  // street zoom only. It joins the same collision index as every base pin, so
+  // where a named pin or a curated one wants the room, the bare pin goes.
+  addLayerOnce({
+    id: "uk-base-unnamed-point",
+    type: "symbol",
+    source: "uk-base",
+    minzoom: UK_BASE_UNNAMED_MIN_ZOOM,
+    filter: UK_BASE_UNNAMED_FILTER,
+    layout: {
+      "icon-image": iconId("base", UK_BASE_ICON_KEY),
+      "icon-size": UK_BASE_ICON_SIZE_EXPR,
+      "icon-allow-overlap": false,
+      "icon-ignore-placement": false,
+      "icon-padding": 3,
+      "text-field": ["get", "name"],
+      "text-font": textFont,
+      "text-size": PIN_PRICE_LABEL_SIZE_EXPR,
+      "text-anchor": "top",
+      "text-offset": PIN_PRICE_LABEL_OFFSET_EM,
+      "text-letter-spacing": 0.01,
+      "text-allow-overlap": false,
+      "text-ignore-placement": false,
+      "text-optional": true,
+      "text-padding": PIN_PRICE_LABEL_PADDING,
+    },
+    paint: {
+      "icon-opacity": UK_BASE_ICON_OPACITY,
+      "text-color": dark ? tokens.ink : tokens.inkDeep,
+      "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
+      "text-halo-width": PIN_PRICE_LABEL_HALO_WIDTH,
+      "text-halo-blur": 0.2,
+    },
+  });
+  // The provisional mark follows its pin, so an unnamed pub's waits for street
+  // zoom too and never floats over a pin that is not drawn.
   addLayerOnce({
     id: "uk-base-provisional-badge",
     type: "circle",
     source: "uk-base",
     minzoom: UK_BASE_MIN_ZOOM,
-    filter: ["get", "provisional"],
+    filter: ["all", ["get", "provisional"], UK_BASE_NAMED_FILTER],
+    paint: provisionalBadgePaint(
+      tokens,
+      dark,
+      UK_BASE_ICON_OPACITY,
+    ),
+  });
+  addLayerOnce({
+    id: "uk-base-unnamed-provisional-badge",
+    type: "circle",
+    source: "uk-base",
+    minzoom: UK_BASE_UNNAMED_MIN_ZOOM,
+    filter: ["all", ["get", "provisional"], UK_BASE_UNNAMED_FILTER],
     paint: provisionalBadgePaint(
       tokens,
       dark,

@@ -107,7 +107,8 @@ export function searchUkBasePubsByName(
   const matches: { tier: number; suggestion: UkBasePubSuggestion }[] = [];
   const seen = new Set<string>();
   for (const pub of input.pubs) {
-    if (!pub.name || seen.has(pub.id)) continue;
+    // An unnamed pub's "Pub" is a label, not a name a drinker can search for.
+    if (!pub.name || pub.unnamed || seen.has(pub.id)) continue;
     const tier = matchTier(pub.name, query);
     if (tier === null) continue;
     seen.add(pub.id);

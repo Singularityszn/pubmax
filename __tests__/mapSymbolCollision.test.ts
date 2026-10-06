@@ -22,6 +22,7 @@ import {
   UK_BASE_ICON_OPACITY,
   UK_BASE_ICON_SIZE_EXPR,
   UK_BASE_MIN_ZOOM,
+  UK_BASE_UNNAMED_MIN_ZOOM,
   type SceneCtx,
 } from "@/components/map/canvas/buildScene";
 import {
@@ -224,6 +225,60 @@ describe("UK base layer (unpriced, visually subordinate, never clustered)", () =
     expect(icon[3]).toBe("base:pub");
     expect(JSON.stringify(icon)).not.toContain('"bucket"');
     expect(JSON.stringify(icon)).not.toContain("price");
+  });
+});
+
+// A pub OSM maps with no name (lib/ukBasePubs.ts `unnamed`): a bare "Pub" pin
+// that waits for street zoom, so a city view carries only pins that say what
+// they are.
+describe("unnamed base pubs (street zoom only)", () => {
+  const { layers } = buildScenePieces();
+  const layout = (id: string) => (layers.get(id)?.layout ?? {}) as Record<string, unknown>;
+
+  it("draws on a layer of its own, from street zoom and not before", () => {
+    expect(UK_BASE_UNNAMED_MIN_ZOOM).toBeGreaterThan(UK_BASE_MIN_ZOOM);
+    expect(UK_BASE_UNNAMED_MIN_ZOOM).toBeGreaterThanOrEqual(16);
+    const layer = layers.get("uk-base-unnamed-point") as {
+      minzoom?: number;
+      source?: string;
+      filter?: unknown;
+    };
+    expect(layer.source).toBe("uk-base");
+    expect(layer.minzoom).toBe(UK_BASE_UNNAMED_MIN_ZOOM);
+    expect(layer.filter).toEqual(["==", ["get", "unnamed"], true]);
+  });
+
+  it("keeps the named layer's filter off every unnamed pub, so no pin draws at city zoom", () => {
+    expect(layers.get("uk-base-point")?.filter).toEqual(["!=", ["get", "unnamed"], true]);
+    expect((layers.get("uk-base-point") as { minzoom?: number }).minzoom).toBe(UK_BASE_MIN_ZOOM);
+  });
+
+  it("labels the pin with its generic name and collides like every other symbol", () => {
+    expect(layout("uk-base-unnamed-point")["text-field"]).toEqual(["get", "name"]);
+    expect(layout("uk-base-unnamed-point")["icon-image"]).toBe("base:pub");
+    expect(layout("uk-base-unnamed-point")["icon-allow-overlap"]).toBe(false);
+    expect(layout("uk-base-unnamed-point")["text-optional"]).toBe(true);
+  });
+
+  it("draws under the curated pins, which is also how it loses collisions", () => {
+    const ids = [...layers.keys()];
+    expect(ids.indexOf("uk-base-unnamed-point")).toBeLessThan(ids.indexOf("pubs-point"));
+    expect(ids.indexOf("uk-base-unnamed-point")).toBeLessThan(
+      ids.indexOf("uk-base-unnamed-provisional-badge"),
+    );
+  });
+
+  it("holds its provisional badge to the same street zoom as its pin", () => {
+    const badge = layers.get("uk-base-unnamed-provisional-badge") as {
+      minzoom?: number;
+      filter?: unknown;
+    };
+    expect(badge.minzoom).toBe(UK_BASE_UNNAMED_MIN_ZOOM);
+    expect(badge.filter).toEqual([
+      "all",
+      ["get", "provisional"],
+      ["==", ["get", "unnamed"], true],
+    ]);
   });
 });
 
@@ -463,7 +518,12 @@ describe("provisional-report badge (ungated visibility, zero authority)", () => 
     const baseBadge = layers.get("uk-base-provisional-badge")!;
     const basePaint = (baseBadge.paint ?? {}) as Record<string, unknown>;
     expect((baseBadge as { source?: string }).source).toBe("uk-base");
-    expect(baseBadge.filter).toEqual(["get", "provisional"]);
+    // Named pins only: an unnamed pub's badge rides its own street-zoom layer.
+    expect(baseBadge.filter).toEqual([
+      "all",
+      ["get", "provisional"],
+      ["!=", ["get", "unnamed"], true],
+    ]);
     expect((baseBadge as { minzoom?: number }).minzoom).toBe(
       UK_BASE_MIN_ZOOM,
     );

@@ -34,11 +34,16 @@ const SUCCESSOR_METERS = 50;
 // The area a retired pub with no address is answered under.
 const NO_ADDRESS_AREA = "United Kingdom";
 
+// What an unnamed pub's row (name "") is called when it departs, the same
+// label lib/ukBasePubs.ts draws it with. A retired record needs a name to
+// resolve, and "Pub" is true of it.
+const UNNAMED_PUB_LABEL = "Pub";
+
 /** A shard row `[osmRef, name, address, lat, lng, curatedVenueId, ...]` as the pub it names. */
 function rowPub(row) {
   return {
     osmId: String(row[0]),
-    name: String(row[1] ?? ""),
+    name: String(row[1] ?? "") || UNNAMED_PUB_LABEL,
     address: String(row[2] ?? ""),
     lat: Number(row[3]),
     lng: Number(row[4]),

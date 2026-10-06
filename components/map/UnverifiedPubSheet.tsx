@@ -194,6 +194,11 @@ export default function UnverifiedPubSheet({
                 : "Checking community prices"}
         </span>
         <h2 className="unverifiedPubName">{pub.name}</h2>
+        {pub.unnamed ? (
+          <p className="unverifiedPubNameNote">
+            We don&rsquo;t know this pub&rsquo;s name yet.
+          </p>
+        ) : null}
         {detailVenue.address ? (
           <p className="unverifiedPubAddress">
             <MapPin size={13} aria-hidden="true" />

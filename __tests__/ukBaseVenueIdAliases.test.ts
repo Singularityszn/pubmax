@@ -184,9 +184,9 @@ describe("planUkBaseVenueIdAliases and publishUkBaseWithAliases", () => {
 
   it("fails, writing nothing, when a dropped id would resolve to nothing", async () => {
     const root = aliasRoot();
-    const unnamed = row("n7", "", 51.5, -0.1);
+    const unplaced = row("n7", "Lost Arms", Number.NaN, -0.1);
     await expect(
-      recordUkBaseVenueIdAliases(root, [unnamed, bellNode], [bellWay], NO_CURATED),
+      recordUkBaseVenueIdAliases(root, [unplaced, bellNode], [bellWay], NO_CURATED),
     ).rejects.toThrow("venue-uk-n7");
     expect(aliasDoc(root)).toMatchObject({ aliases: {}, retired: {} });
   });

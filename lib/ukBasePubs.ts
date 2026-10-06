@@ -66,11 +66,24 @@ export const MAX_PROVISIONAL_BASE_VENUE_IDS = 64;
  */
 type UkBaseVenueKind = "pub" | "bar";
 
+/**
+ * What a pub OSM maps with no `name` tag is called on the map. It is a label,
+ * not a name: the sheet says the name is not known yet, and nothing that lists
+ * or searches pubs by name may ever read it as one.
+ */
+export const UNNAMED_PUB_LABEL = "Pub";
+
 /** A pub on the base layer. No price field exists: OSM is not a price source. */
 export type UkBasePub = {
   /** `venue-uk-<osm ref>`, e.g. `venue-uk-n251829660`. Stable across refreshes. */
   id: string;
+  /** The OSM name, or UNNAMED_PUB_LABEL when `unnamed` is set. */
   name: string;
+  /**
+   * Set only when OSM states a pub with no name. Absent on every named pub, so
+   * a named pub's record and its map feature are byte-for-byte what they were.
+   */
+  unnamed?: true;
   /** OSM address, or "" when the pack had none. Never invented. */
   address: string;
   lat: number;
@@ -105,8 +118,9 @@ function isShardRow(value: unknown): value is ShardRow {
     (value.length === 6 || (value.length === 7 && value[6] === "bar")) &&
     typeof value[0] === "string" &&
     value[0].length > 0 &&
+    // "" is an unnamed pub (see parseUkBaseShard); a bar always has its name.
     typeof value[1] === "string" &&
-    value[1].length > 0 &&
+    (value[1].length > 0 || value.length === 6) &&
     typeof value[2] === "string" &&
     typeof value[3] === "number" &&
     Number.isFinite(value[3]) &&
@@ -127,9 +141,11 @@ export function parseUkBaseShard(value: unknown): UkBasePub[] {
   const pubs: UkBasePub[] = [];
   for (const row of rows) {
     if (!isShardRow(row)) continue;
+    const unnamed = row[1].length === 0;
     pubs.push({
       id: ukBaseIdFor(row[0]),
-      name: row[1],
+      name: unnamed ? UNNAMED_PUB_LABEL : row[1],
+      ...(unnamed ? { unnamed: true as const } : {}),
       address: row[2],
       lat: row[3],
       lng: row[4],
@@ -565,6 +581,9 @@ export function ukBasePubsToGeoJSON(
           // `kind` at all, so the pin layers and every existing reader are
           // untouched by bars joining the source.
           ...(pub.kind === "bar" ? { kind: "bar" } : {}),
+          // Additive for the same reason: only a pub with no name carries it,
+          // and the layers read it to hold that pin back to street zoom.
+          ...(pub.unnamed ? { unnamed: true } : {}),
           ...(spoons && spoons.label
             ? { spoonsBucket: spoons.bucket, spoonsLabel: spoons.label }
             : {}),
@@ -593,7 +612,7 @@ export function ukBasePubFromFeature(feature: {
   const props = feature.properties;
   const geometry = feature.geometry;
   if (!props || geometry?.type !== "Point") return null;
-  const { id, name, address, curatedVenueId, kind } = props;
+  const { id, name, address, curatedVenueId, kind, unnamed } = props;
   if (typeof id !== "string" || !isUkBaseId(id)) return null;
   if (typeof name !== "string" || name.length === 0) return null;
   const lngLat = lngLatOf(geometry.coordinates);
@@ -602,6 +621,7 @@ export function ukBasePubFromFeature(feature: {
   return {
     id,
     name,
+    ...(unnamed === true ? { unnamed: true as const } : {}),
     address: typeof address === "string" ? address : "",
     lat,
     lng,
