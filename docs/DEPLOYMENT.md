@@ -390,6 +390,12 @@ Point a free external monitor at `https://pubmaxxing.com/api/health`, every 1 to
 
 The body is `{ "ok": true, "deploymentId": "dpl_...", "database": "ok" }`. The route reads one row of `rate_limits` and holds the answer for 15 seconds per instance, so a one-minute monitor costs the database little. Pin: `__tests__/healthRoute.test.ts`.
 
+### Alert webhook
+
+Set `PUBMAX_ALERT_WEBHOOK_URL` to an https Discord or Slack incoming-webhook URL, in the Vercel Production environment and as a GitHub repository secret of the same name. Treat it as a credential. With it unset, nothing is sent and nothing is logged about the missing value.
+
+The app posts every error-level `log()` event, `paid_spend.budget_spent`, the freshness audit's findings, the Social moderation backlog and the city enrichment queue alerts. Each source posts at most once per 15 minutes per instance, and at most 30 an hour. `.github/workflows/alert-on-failure.yml` watches every scheduled workflow and posts the run link when one fails. A new scheduled workflow must be added to its `workflows` list. Pin: `__tests__/alertSink.test.ts`.
+
 ### A preview built with production values, in one command
 
 ```sh

@@ -3,7 +3,8 @@
 // log-based alerting (monitors escalate error, not warn) and stays greppable —
 // the advisory warn nobody read is gone. It remains a deliberate seam so a later
 // push integration (Sol's push lane owns delivery: lib/push*, sw.js) can hang off
-// ONE place. This module MUST NOT send pushes.
+// ONE place. This module MUST NOT send pushes. It does hand the findings to the
+// operator alert webhook (lib/alertSink.ts), which is silent when none is set.
 //
 // TWO ALERTS, NOT ONE. A stale feed and an unmeasurable feed are different
 // incidents with different owners, and merging them is exactly how this alarm
@@ -18,6 +19,7 @@
 //                   feed hide behind an unreadable file.
 // Neither may ever be reported as fresh.
 
+import { sendAlert } from "@/lib/alertSink";
 import type { FreshnessResult } from "@/lib/freshness";
 
 type StaleFeedNotice = {
@@ -58,6 +60,14 @@ function logGroup(header: string, notices: readonly StaleFeedNotice[]): void {
   }
 }
 
+function alertText(findings: FreshnessFindings): string {
+  const lines = [
+    ...findings.stale.map((notice) => `stale ${notice.id}: ${notice.detail}`),
+    ...findings.unresolved.map((notice) => `unresolved ${notice.id}: ${notice.detail}`),
+  ];
+  return lines.join("\n");
+}
+
 /**
  * Report the audit's findings, stale and unresolved kept apart. Console-only by
  * design (structured line per feed so it is greppable in Vercel logs). Returns
@@ -88,6 +98,8 @@ export function notifyFreshnessFindings(
     findings.unresolved,
   );
 
-  // Seam marker: a later alerting integration delivers `findings` from here.
+  // The one delivery point. lib/alertSink.ts posts to PUBMAX_ALERT_WEBHOOK_URL
+  // and is silent when it is unset, so the console lines above stay the record.
+  sendAlert({ source: "freshness-audit", text: alertText(findings) });
   return findings;
 }

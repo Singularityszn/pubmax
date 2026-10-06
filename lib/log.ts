@@ -1,3 +1,4 @@
+import { ALERT_WARN_EVENTS, sendAlert } from "@/lib/alertSink";
 import { PRODUCTION_SECRET_ENV_NAMES } from "@/lib/productionSecretEnvNames";
 
 // Tiny structured logger (PRD §7.7). Emits ONE line of JSON per event so logs
@@ -134,6 +135,9 @@ function binaryByteLength(value: unknown): number | null {
  *                message, …). Redacted defensively; never pass secrets/PII/raw
  *                buffers even though redact() will catch the common shapes.
  * @param ts      timestamp override for deterministic tests (default Date.now())
+ *
+ * An error-level event, and the warn events in `ALERT_WARN_EVENTS`, are also
+ * posted to the alert webhook when one is configured (lib/alertSink.ts).
  */
 export function log(
   level: LogLevel,
@@ -151,4 +155,7 @@ export function log(
   const line = JSON.stringify(record);
   if (level === "error") console.error(line);
   else console.log(line);
+  // The line above is already redacted, so it is the text that may leave the
+  // process. lib/alertSink.ts is silent unless PUBMAX_ALERT_WEBHOOK_URL is set.
+  if (level === "error" || ALERT_WARN_EVENTS.has(event)) sendAlert({ source: event, text: line });
 }
