@@ -1,15 +1,15 @@
-// The nav's unread badge learns that a thread was read without waiting for its
-// next poll.
+// The nav's unread badge and the open thread's inbox row learn that a thread
+// was read without waiting for their next read.
 //
 // Reading a thread is what marks its messages read (the thread route does it in
 // the same GET), and the badge in the site nav is a separate surface that only
 // asked the inbox on focus and once a minute. So a reader who opened the one
 // unread thread went on seeing "1 unread" over a thread with nothing left in
-// it. The thread announces the read here and the nav asks again.
+// it. The thread announces the read here, and the nav and the inbox both listen.
 //
-// A window event rather than shared state: the two surfaces never render
-// together by design, they must not import each other, and a CustomEvent
-// carries no payload that could be mistaken for the count. Client only.
+// A window event rather than shared state: the surfaces must not import each
+// other, and an Event carries no payload that could be mistaken for the count.
+// Client only.
 
 export const MESSAGES_READ_EVENT = "pubmax:messages-read";
 
