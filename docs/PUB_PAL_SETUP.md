@@ -136,6 +136,9 @@ proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url 
 5. **Signed-URL authentication** (`platform_settings.auth.enable_auth`): a
    conversation starts only from a signed URL the app issued, after sign-in,
    the voice cap and the spend ceiling. The agent id alone is refused.
+   ElevenLabs treats signed URLs and a hostname allowlist as exclusive methods,
+   so the script writes an empty `allowlist` and removes any list the agent
+   kept. The drift check reports a leftover list.
 
 On a first create the script prints the agent id. Put it on the deployment as
 `ELEVENLABS_PUB_PAL_AGENT_ID` and redeploy.
