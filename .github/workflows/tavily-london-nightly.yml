@@ -1,0 +1,87 @@
+name: Tavily London nightly
+
+# Nightly bounded London pass (npm run enrich:city -- --city=london). It reads
+# official pub sites through Tavily and writes first-party listed prices, then
+# opens a PR for human review. It NEVER pushes to a protected branch.
+#
+# SPEND IS CAPPED IN CODE, NOT IN THIS FILE. scripts/lib/tavilyPubEnrichment.mjs
+# refuses more than 200 searches and 400 credits per run whatever the flags say,
+# so the most a night can cost is 200 x 2 credits x $0.008 = $3.20. See
+# docs/TAVILY_LONDON_NIGHTLY.md.
+#
+# TAVILY_API_KEY is a repo secret. The checkpoint lives in the gitignored
+# .tavily/enrichment/london.json, so this job restores it from the Actions cache
+# before the run and saves it after. A lost cache starts a fresh checkpoint from
+# the committed prices rather than failing the job.
+on:
+  schedule:
+    - cron: "30 2 * * *"
+  workflow_dispatch:
+
+# Nothing at the workflow level; the one job below asks for what it uses.
+permissions: {}
+
+concurrency:
+  group: tavily-london-nightly
+  cancel-in-progress: false
+
+jobs:
+  pass:
+    # This workflow does not run on pull_request, so a fork cannot read the
+    # job token or a repository secret. See docs/CI_RUNBOOK.md.
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write # push the review branch
+      pull-requests: write # open the review PR
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        timeout-minutes: 5
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: |
+          npm ci
+          npm run deps:install-scripts
+
+      - name: Restore the London cursor
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tavily/enrichment/london.json
+          key: tavily-london-cursor-${{ github.run_id }}
+          restore-keys: tavily-london-cursor-
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Run the capped London pass
+        env:
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+        run: npm run enrich:city -- --city=london --max-queries=200 --max-credits=400
+
+      # Saved even when a later step fails: the searches were already paid for,
+      # so losing the cursor would pay for the same pubs again tomorrow.
+      - name: Save the London cursor
+        if: ${{ !cancelled() }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tavily/enrichment/london.json
+          key: tavily-london-cursor-${{ github.run_id }}
+
+      # A bad file must never leave the runner, even on a review branch.
+      - name: Validate the written data
+        run: npm run validate-data
+
+      - name: Open the review PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/ci/with-git-token.sh scripts/ci/tavily-london-review-pr.sh

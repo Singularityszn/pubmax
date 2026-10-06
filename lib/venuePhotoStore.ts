@@ -29,8 +29,10 @@ import {
   createFailSoftGuard,
   onMissingDurableWrite,
   selectStore,
+  whereVenueIdIn,
 } from "@/lib/storeBackend";
 import { isDrinkCategory } from "@/lib/drinks";
+import { loadVenueAliasResolver, storedVenueIds } from "@/lib/venueAliases";
 import {
   isProfileTombstoned,
   profileStore,
@@ -80,6 +82,16 @@ type DrinkWallListQuery = {
   /** When set, only rows tied to these venues (near scope). */
   nearVenueIds?: readonly string[] | null;
 };
+
+/** The near scope widened to every id each venue's photos may be stored under. */
+async function withStoredNearVenueIds(query: DrinkWallListQuery): Promise<DrinkWallListQuery> {
+  if (!query.nearVenueIds) return query;
+  const aliases = await loadVenueAliasResolver();
+  return {
+    ...query,
+    nearVenueIds: [...new Set(query.nearVenueIds.flatMap((id) => aliases.storedIds(id)))],
+  };
+}
 
 function matchesDrinkWallQuery(row: VenuePhoto, query: DrinkWallListQuery): boolean {
   if (row.moderationState !== "approved") return false;
@@ -230,8 +242,14 @@ const memoryVenuePhotoStore: VenuePhotoStore = {
   async listForVenue(venueId, query = {}) {
     const limit = boundedLimit(query.limit);
     const cursor = parseVenuePhotoCursor(query.cursor);
+    const venueIds = await storedVenueIds(venueId);
     const rows = [...byId.values()]
-      .filter((row) => row.venueId === venueId && row.moderationState === "approved")
+      .filter(
+        (row) =>
+          row.venueId !== null &&
+          venueIds.includes(row.venueId) &&
+          row.moderationState === "approved",
+      )
       .filter((row) => (cursor ? isBeforeVenuePhotoCursor(row, cursor) : true))
       .sort(byNewestVenuePhoto)
       .slice(0, limit + 1);
@@ -239,11 +257,13 @@ const memoryVenuePhotoStore: VenuePhotoStore = {
   },
 
   async countForAuthorAtVenue(authorProfileId, venueId) {
+    const venueIds = await storedVenueIds(venueId);
     let count = 0;
     for (const row of byId.values()) {
       if (
         row.authorProfileId === authorProfileId &&
-        row.venueId === venueId &&
+        row.venueId !== null &&
+        venueIds.includes(row.venueId) &&
         row.moderationState === "approved"
       ) {
         count += 1;
@@ -305,8 +325,9 @@ const memoryVenuePhotoStore: VenuePhotoStore = {
   async listDrinkWall(query = {}) {
     const limit = boundedLimit(query.limit);
     const cursor = parseVenuePhotoCursor(query.cursor);
+    const scoped = await withStoredNearVenueIds(query);
     const rows = [...byId.values()]
-      .filter((row) => matchesDrinkWallQuery(row, query))
+      .filter((row) => matchesDrinkWallQuery(row, scoped))
       .filter((row) => (cursor ? isBeforeVenuePhotoCursor(row, cursor) : true))
       .sort(byNewestVenuePhoto)
       .slice(0, limit + 1);
@@ -439,10 +460,10 @@ const supabaseVenuePhotoStore: VenuePhotoStore = {
       message: "listForVenue failed - returning no photos",
       onError: () => ({ status: "degraded", photos: [], nextCursor: null }),
       run: async () => {
-        let request = admin()
-          .from(TABLE)
-          .select("*")
-          .eq("venue_id", venueId)
+        let request = whereVenueIdIn(
+          admin().from(TABLE).select("*"),
+          await storedVenueIds(venueId),
+        )
           .eq("moderation_state", "approved")
           .order("created_at", { ascending: false })
           .order("id", { ascending: false })
@@ -497,11 +518,10 @@ const supabaseVenuePhotoStore: VenuePhotoStore = {
         memoryVenuePhotoStore.countForAuthorAtVenue(authorProfileId, venueId),
       // No onError: a cap that cannot be counted must not read as room to spare.
       run: async () => {
-        const { count, error } = await admin()
-          .from(TABLE)
-          .select("id", { count: "exact", head: true })
-          .eq("author_profile_id", authorProfileId)
-          .eq("venue_id", venueId)
+        const { count, error } = await whereVenueIdIn(
+          admin().from(TABLE).select("id", { count: "exact", head: true }).eq("author_profile_id", authorProfileId),
+          await storedVenueIds(venueId),
+        )
           .eq("moderation_state", "approved");
         if (error) throw new Error(error.message);
         return typeof count === "number" && count > 0 ? count : 0;
@@ -620,7 +640,7 @@ const supabaseVenuePhotoStore: VenuePhotoStore = {
       message: "listDrinkWall failed - returning no photos",
       onError: () => ({ status: "degraded", photos: [], nextCursor: null }),
       run: async () => {
-        const near = query.nearVenueIds ?? null;
+        const near = (await withStoredNearVenueIds(query)).nearVenueIds ?? null;
         if (near !== null && near.length === 0) return toPage([], limit, query.viewerProfileId);
         let request = admin()
           .from(TABLE)

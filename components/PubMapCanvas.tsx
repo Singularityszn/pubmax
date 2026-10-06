@@ -64,6 +64,7 @@ import {
 } from "@/lib/mapCameraFocus";
 import {
   COMPASS_RESET_DURATION_MS,
+  cameraResetAvailable,
   compassResetLabel,
   compassResetTarget,
   mapIsOffHouseAttitude,
@@ -426,6 +427,12 @@ type PubMapCanvasProps = {
   poiHidden?: Record<PoiCategory, boolean>;
   onPoiHiddenChange?: (next: PoiHiddenChange) => void;
   hideLayersControl?: boolean;
+  /**
+   * Hands the owner the compass reset while the camera is off the city's
+   * designed attitude, and null once it is back. The phone has no Layers
+   * popover on the canvas, so its Layers tab runs the reset from here.
+   */
+  onCameraResetChange?: (reset: (() => void) | null) => void;
   /** Price key, price cap and list live in Layers, not as floating chrome. */
   layersReaderKey?: ReactNode;
   layersReaderPriceFilter?: (close: () => void) => ReactNode;
@@ -585,6 +592,7 @@ function withPubMapCanvasDefaults({
   userLocation = null,
   readerPosition = null,
   hideLayersControl = false,
+  onCameraResetChange,
   venueDataFailed = false,
   listOpen = false,
   listCount = 0,
@@ -624,6 +632,7 @@ function withPubMapCanvasDefaults({
     userLocation,
     readerPosition,
     hideLayersControl,
+    onCameraResetChange,
     venueDataFailed,
     listOpen,
     listCount,
@@ -691,6 +700,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     poiHidden: controlledPoiHidden,
     onPoiHiddenChange,
     hideLayersControl,
+    onCameraResetChange,
     layersReaderKey,
     layersReaderPriceFilter,
     onReloadVenueData,
@@ -3699,11 +3709,11 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // once the camera is past UK_BASE_MIN_ZOOM. Deliberately separate from the
   // `pubs` effect above: nothing here touches the curated source, its clusters
   // or its payload.
-  const handleRestoredBasePub = useCallback((pub: UkBasePub) => {
+  const handleRestoredBasePub = useCallback((pub: UkBasePub, requestedId: string) => {
     // Only reopen the sheet while the restored id is still the selection — a
     // slow shard must never steal a selection the user has already moved on
-    // from.
-    if (selectedIdRef.current !== pub.id) return;
+    // from. A re-mapped pub arrives under its current id, not the one asked for.
+    if (selectedIdRef.current !== requestedId) return;
     onUkBasePubClickRef.current?.(pub);
   }, []);
   const drawableVenueIds = useMemo(
@@ -4442,6 +4452,30 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     );
   };
 
+  // The compass, and the phone's Layers-tab Reset view: one action. It eases to
+  // the attitude the city opens on (lib/mapCompass.ts), and does nothing when
+  // the camera is already there.
+  const resetCameraAttitude = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const designed = getCity(cityId).mapView;
+    if (!mapIsOffHouseAttitude(map.getBearing(), map.getPitch(), designed)) return;
+    const target = compassResetTarget(designed);
+    map.easeTo({
+      bearing: target.bearing,
+      pitch: target.pitch,
+      duration: reducedRef.current ? 0 : COMPASS_RESET_DURATION_MS,
+      easing: easeOutCubic,
+    });
+  }, [cityId]);
+  const cameraOffAttitude = mapIsOffHouseAttitude(mapBearing, mapPitch, getCity(cityId).mapView);
+  useEffect(() => {
+    onCameraResetChange?.(
+      cameraResetAvailable(cameraOffAttitude, mapError !== null) ? resetCameraAttitude : null,
+    );
+    return () => onCameraResetChange?.(null);
+  }, [cameraOffAttitude, mapError, resetCameraAttitude, onCameraResetChange]);
+
   if (mapError) return renderMapErrorFallback(mapError);
 
   const canRecenter = route.length >= 2;
@@ -4466,19 +4500,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       <button
         type="button"
         className="mapCompassBtn"
-        onClick={() => {
-          const map = mapRef.current;
-          if (!map) return;
-          const designed = getCity(cityId).mapView;
-          if (!mapIsOffHouseAttitude(map.getBearing(), map.getPitch(), designed)) return;
-          const target = compassResetTarget(designed);
-          map.easeTo({
-            bearing: target.bearing,
-            pitch: target.pitch,
-            duration: reducedRef.current ? 0 : COMPASS_RESET_DURATION_MS,
-            easing: easeOutCubic,
-          });
-        }}
+        onClick={resetCameraAttitude}
         aria-label={compassResetLabel(cityDisplayName)}
         title={compassResetLabel(cityDisplayName)}
       >

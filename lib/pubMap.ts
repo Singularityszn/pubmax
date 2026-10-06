@@ -27,6 +27,7 @@ import type { CoffeePilotStatus } from "@/lib/coffeePilot";
 import type { LondonRestaurantStatus } from "@/lib/londonRestaurants";
 import { isLondonVenueId } from "@/lib/londonVenueShards";
 import { isUkBaseId } from "@/lib/ukBasePubs";
+import type { VenueAliasMaps } from "@/lib/venueAliasMap";
 import {
   priceStandingFigure,
   priceStandingFor,
@@ -808,6 +809,27 @@ export function openingViewportFrom(
  */
 export function isRecordlessMapSelection(id: string): boolean {
   return isUkBaseId(id) || isLondonVenueId(id);
+}
+
+export type UkBaseSelectionSuccessor =
+  | { kind: "curated"; venueId: string }
+  | { kind: "retired"; name: string };
+
+/**
+ * What a dropped UK base id opens instead of a base pin, or null when the base
+ * layer answers it (a live id, or one re-mapped to another base id). A row a
+ * still-listed curated venue owned opens that venue; a pub that left the map
+ * opens the notice that it may have closed.
+ */
+export function ukBaseSelectionSuccessor(
+  maps: VenueAliasMaps,
+  id: string,
+): UkBaseSelectionSuccessor | null {
+  if (!isUkBaseId(id)) return null;
+  const current = maps.aliases.get(id) ?? id;
+  if (!isUkBaseId(current)) return { kind: "curated", venueId: current };
+  const name = maps.retiredNames.get(current);
+  return name ? { kind: "retired", name } : null;
 }
 
 /** How far a London venue-layer source has got with its read. */

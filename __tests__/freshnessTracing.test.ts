@@ -28,6 +28,7 @@ import { describe, expect, it } from "vitest";
 
 import registry from "@/data/freshness_registry.json";
 import { freshnessArtifactIncludes } from "@/lib/freshnessTracing.mjs";
+import { VENUE_ALIASES_TRACING_INCLUDES } from "@/lib/venueAliasesFile.mjs";
 
 const FRESHNESS_ROUTES = ["/api/freshness", "/api/cron/freshness-audit"] as const;
 
@@ -39,6 +40,11 @@ const readArtifacts = (registry.datasets as RegistryDataset[])
   .filter(opensArtifact)
   .map((d) => d.artifact)
   .filter((a): a is string => typeof a === "string");
+
+// /api/freshness counts corroborated community prices, which groups each row
+// under the id its venue carries now through lib/venueAliases.ts, so the alias
+// maps ship with the freshness functions too.
+const aliasArtifacts = new Set<string>(VENUE_ALIASES_TRACING_INCLUDES);
 
 const unreadArtifacts = (registry.datasets as RegistryDataset[])
   .filter((d) => !opensArtifact(d))
@@ -85,7 +91,7 @@ describe("freshness artifact tracing", () => {
   });
 
   it("traces nothing a reader never opens, so the function stays small", () => {
-    const needed = new Set(readArtifacts.map((a) => `./${a}`));
+    const needed = new Set([...readArtifacts.map((a) => `./${a}`), ...aliasArtifacts]);
     expect(unreadArtifacts.length).toBeGreaterThan(0);
     for (const route of FRESHNESS_ROUTES) {
       const declared = includes?.[route] ?? [];
@@ -136,7 +142,9 @@ describe("freshness artifact tracing", () => {
     const derived = freshnessArtifactIncludes(registry);
     expect(derived).toEqual(readArtifacts.map((a) => `./${a}`));
     for (const route of FRESHNESS_ROUTES) {
-      expect(includes?.[route]).toEqual(derived);
+      expect(
+        (includes?.[route] ?? []).filter((path) => !aliasArtifacts.has(path)),
+      ).toEqual(derived);
     }
   });
 });
