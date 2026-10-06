@@ -101,6 +101,12 @@ export default function FirstRunOnboarding({
     };
   }, []);
 
+  // Each step is a new screen, so it opens at the top. Otherwise a short phone
+  // carries the last step's scroll and the progress bar and Skip start hidden.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [step]);
+
   const selectedCompanion = useMemo(
     () => FIRST_RUN_COMPANIONS.find((choice) => choice.id === companion) ?? null,
     [companion],
