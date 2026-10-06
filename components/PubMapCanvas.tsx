@@ -64,6 +64,7 @@ import {
 } from "@/lib/mapCameraFocus";
 import {
   COMPASS_RESET_DURATION_MS,
+  cameraResetAvailable,
   compassResetLabel,
   compassResetTarget,
   mapIsOffHouseAttitude,
@@ -4469,9 +4470,11 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   }, [cityId]);
   const cameraOffAttitude = mapIsOffHouseAttitude(mapBearing, mapPitch, getCity(cityId).mapView);
   useEffect(() => {
-    onCameraResetChange?.(cameraOffAttitude ? resetCameraAttitude : null);
+    onCameraResetChange?.(
+      cameraResetAvailable(cameraOffAttitude, mapError !== null) ? resetCameraAttitude : null,
+    );
     return () => onCameraResetChange?.(null);
-  }, [cameraOffAttitude, resetCameraAttitude, onCameraResetChange]);
+  }, [cameraOffAttitude, mapError, resetCameraAttitude, onCameraResetChange]);
 
   if (mapError) return renderMapErrorFallback(mapError);
 
