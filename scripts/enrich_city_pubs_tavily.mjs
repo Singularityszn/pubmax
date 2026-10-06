@@ -343,6 +343,10 @@ export async function runCityPass({
   ...options
 }) {
   const runResult = await runCityEnrichment({
+    // One pub's timeout or 429 is a fact about that pub. The failure is
+    // recorded as a "failed" outcome (and the pub stays stalest) while the
+    // night's remaining budget still reaches the pubs behind it.
+    onVenueError: () => "continue",
     ...options,
     pubs,
     indices: stalestFirst(pubs, checkpoint.readAt),

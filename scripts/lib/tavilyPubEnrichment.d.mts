@@ -72,7 +72,7 @@ export function mergeCanonicalPrices<T extends {
 export type VenueEnrichmentOutcome = {
   index: number;
   osmId: string;
-  status: "matched" | "empty" | "delegated" | "no-website" | "failed";
+  status: "matched" | "empty" | "delegated" | "no-website" | "refused-source" | "failed";
   error?: string;
 };
 

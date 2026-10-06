@@ -14,3 +14,5 @@ export function selectPromotions(
     limit?: unknown;
   },
 ): { picked: PromotionPick[]; eligible: number; limit: number };
+
+export function readPromotionLedger(ledgerPath: string): Promise<{ promotions?: Array<Record<string, unknown>> } | null>;

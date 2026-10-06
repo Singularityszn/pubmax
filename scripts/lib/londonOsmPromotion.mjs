@@ -15,6 +15,8 @@
 // WHAT ORDER. Round robin across boroughs, thinnest curated borough first, then
 // OSM id inside a borough. A plain sort by borough would spend the whole batch
 // on one borough, and the point of the batch is depth where London is thin.
+import { readFile } from "node:fs/promises";
+
 import { boroughNameForPoint } from "../../lib/londonBoroughPoint.mjs";
 import { classifyChainPub } from "./tavilyPubEnrichment.mjs";
 import { inGreaterLondon } from "./londonOsmDatasetRows.mjs";
@@ -96,4 +98,16 @@ export function selectPromotions(osmPubs, appRows, { boundaries, isDuplicate, li
     if (!tookAny) break;
   }
   return { picked, eligible, limit: cap };
+}
+
+/**
+ * The promotion ledger, or null when none exists yet. Only a MISSING file means
+ * "no promotions"; a corrupt or unreadable one throws, because swallowing it
+ * would make every promoted pub draw twice with nothing saying why.
+ */
+export async function readPromotionLedger(ledgerPath) {
+  return readFile(ledgerPath, "utf8").then(JSON.parse, (error) => {
+    if (error?.code === "ENOENT") return null;
+    throw error;
+  });
 }

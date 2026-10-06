@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -9,6 +10,7 @@ import {
 } from "@/scripts/lib/londonOsmDatasetRows.mjs";
 import {
   PROMOTION_BATCH_CAP,
+  readPromotionLedger,
   resolveBatchLimit,
   selectPromotions,
 } from "@/scripts/lib/londonOsmPromotion.mjs";
@@ -110,6 +112,22 @@ describe("the bounded London OSM promotion", () => {
     expect(row.comment).toContain("© OpenStreetMap contributors");
     expect(row.data_quality_notes).toBe("london_osm_promotion|osm_overpass|node/99|sourced");
     expect(indexAppDataset([row]).isDuplicate("node/99", "Other", 0, 0)).toBe(true);
+  });
+});
+
+describe("the promotion ledger reader", () => {
+  it("treats a missing ledger as no promotions and a corrupt one as an error", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "promotion-ledger-"));
+    try {
+      await expect(readPromotionLedger(join(dir, "absent.json"))).resolves.toBeNull();
+      writeFileSync(join(dir, "ok.json"), '{"promotions":[]}');
+      await expect(readPromotionLedger(join(dir, "ok.json"))).resolves.toEqual({ promotions: [] });
+      writeFileSync(join(dir, "corrupt.json"), "{not json");
+      await expect(readPromotionLedger(join(dir, "corrupt.json"))).rejects.toThrow();
+      await expect(readPromotionLedger(dir)).rejects.toThrow();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 
