@@ -381,6 +381,12 @@
 }
 
 .historicBoroughLink {
+  /* A 44px tap target that does not grow the card: the block padding is the hit
+     area and the equal negative margin gives the layout height back (the same
+     pattern as .analyticsConsentPrompt a). The link measured 324x19. */
+  display: block;
+  padding-block: 13px;
+  margin-block: -13px;
   font-weight: 700;
   font-size: 15px;
   color: var(--color-accent-ink);

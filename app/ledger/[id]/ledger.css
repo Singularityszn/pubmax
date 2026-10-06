@@ -27,7 +27,13 @@
 
 .ledgerHomeLink {
   display: inline-flex;
-  margin-bottom: 18px;
+  align-items: center;
+  /* 44px tap target: the 10px of padding above and below is taken back out of the
+     margins (the bottom one out of its 18px), so the masthead does not move. It
+     measured 108x26. */
+  padding-block: 10px;
+  margin-top: -10px;
+  margin-bottom: 8px;
   color: var(--ink);
   font-family: var(--serif);
   font-size: 1rem;
