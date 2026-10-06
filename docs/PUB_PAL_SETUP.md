@@ -133,6 +133,9 @@ proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url 
 3. **Voices** and per-session `voice_id` overrides (unchanged).
 4. **House prompt**: call tools before any fact, never invent a price, propose
    then confirm, plain speech on get-home topics.
+5. **Signed-URL authentication** (`platform_settings.auth.enable_auth`): a
+   conversation starts only from a signed URL the app issued, after sign-in,
+   the voice cap and the spend ceiling. The agent id alone is refused.
 
 On a first create the script prints the agent id. Put it on the deployment as
 `ELEVENLABS_PUB_PAL_AGENT_ID` and redeploy.
