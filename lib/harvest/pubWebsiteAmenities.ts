@@ -133,19 +133,104 @@ const TELEVISED_SPORT =
 const POOL = /\bpool\b/i;
 const NOT_A_POOL_TABLE = /\b(?:charging|swimming|car\s*pool|pool\s*(?:side|party|parties|house))\b/i;
 const KARAOKE = /\bkar(?:aoke|oake)\b/i;
+/** Bare games or versus fixtures do not identify sport; require explicit sporting words. */
 const SPORT_SHOWN =
-  /\bsports?\b|\bsporting\b|\bmatch(?:es)?\b|\bmatch[\s-]?day\b|\bgame[\s-]?days?\b|\bgames?\b|\bfixtures?\b|\bfootball\b|\bfooty\b|\brugby\b|\bcricket\b|\bboxing\b|\bpremier league\b|\bchampions league\b|\bnations\b|\bworld cup\b|\binternationals\b|\bgaa\b|\bgaelic\b|\bwimbledon\b/i;
-const SPORT_VIEWING =
-  /\b(?:show(?:s|ing|n|cas(?:e|es|ing))?|watch(?:es|ing)?|screen(?:s|ed|ings?)?|tvs?|televised|broadcast(?:s|ing)?|catch(?:es|ing)?|playing|viewings?|projectors?)\b|\blive\s+(?:sports?|sporting|football|footy|rugby|cricket|gaelic|gaa|premier league|boxing)\b|\b(?:sky|tnt|bt)\s+sports?\b|\bsports?\s+(?:pub|bar)s?\b/i;
-/** Team fixture copy must explicitly invite live viewing; a bare "vs" is not sport. */
+  /\b(?:f1|formula\s*1)\b|\bsports?\b|\bsporting\b|\bmatch(?:es)?\b|\bmatch[\s-]?day\b|\bfixtures?\b|\bfootball\b|\bfooty\b|\brugby\b|\bcricket\b|\bboxing\b|\bpremier league\b|\bchampions league\b|\bnations\b|\bworld cup\b|\binternationals\b|\bgaa\b|\bgaelic\b|\bwimbledon\b/i;
+/** An explicit live team fixture invites viewing at the pub itself, so it names sport without a sport word (#1955). */
 const LIVE_TEAM_FIXTURE = /\bwatch\s+[a-z][a-z0-9 &'-]{0,60}\s+vs\s+[a-z][a-z0-9 &'-]{0,60}\s+live\b/i;
+/** A clause about a sister, other or nearby venue says nothing about this pub unless it also names this pub. */
+const OTHER_VENUE =
+  /\b(?:sister|other|another|neighbou?ring|nearby|partner|affiliated)\s+(?:venues?|pubs?|bars?|locations?|sites?|branch(?:es)?)\b/i;
+const THIS_VENUE = /\bhere\b|\b(?:this|the)\s+(?:venue|pub|bar)\b/i;
+const VIEWING_VERB = "showcas(?:e|es)|watch(?:es)?|catch(?:es)?";
+const FINITE_VIEWING_VERB = `shows?|screens?|broadcasts|${VIEWING_VERB}`;
+const VIEWING_PARTICIPLE = "show(?:n|ing|casing)|watching|screen(?:ed|ing)|televised|broadcast(?:ing)?|catching|playing";
+const SPORT_VIEWING = new RegExp(
+  `\\b(?:${FINITE_VIEWING_VERB}|${VIEWING_PARTICIPLE}|screenings?|tvs?|viewings?|projectors?)\\b|` +
+  "\\blive\\s+(?:sports?|sporting|football|footy|rugby|cricket|gaelic|gaa|premier league|boxing)\\b|" +
+  "\\b(?:sky|tnt|bt)\\s+sports?\\b|\\bsports?\\s+(?:pub|bar)s?\\b",
+  "i",
+);
+const SPORT_OBJECT =
+  "\\b(?:(?:sky|tnt|bt)\\s+sports?|(?:live\\s+)?(?:f1|formula\\s*1|sports?|sporting|football|footy|rugby|cricket|gaelic|gaa|premier league|boxing))\\b";
+const SPORT_OBJECTS = `${SPORT_OBJECT}(?:(?:\\s+(?:and|or)\\s+|\\s*,\\s*(?:(?:and|or)\\s+)?)${SPORT_OBJECT})*`;
+const BARE_SPORT_OBJECTS = new RegExp(`^\\s*${SPORT_OBJECTS}\\s*$`, "i");
+const SPORT_SUBJECT = new RegExp(`^\\s*${SPORT_OBJECT}`, "i");
+const SPORT_OBJECT_END = new RegExp(`${SPORT_OBJECT}\\s*$`, "i");
+const SPORT_ADJUNCT =
+  "(?:here|there|(?:(?:every|each|on|at|this|next)\\s+)?(?:(?:mon|tues|wednes|thurs|fri|satur|sun)days?|days?|nights?|weekends?|weeks?|mornings?|afternoons?|evenings?))\\b";
+/**
+ * A sport subject's own predicate after a comma-attached sports denial. Shows, screens and broadcasts
+ * are also nouns, so alone they never split the denial; such a remainder stays unconfirmed evidence,
+ * not a claim that the venue lacks sport.
+ */
+const SPORT_REMAINDER_PREDICATE = new RegExp(
+  `^\\s*${SPORT_OBJECT}((?:\\s+(?:and|or)\\s+${SPORT_OBJECT})*)\\s+(?:(?:is|are|isn'?t|aren'?t)\\b|(will)\\b|` +
+  `(?:(has|have)|${VIEWING_VERB})\\s+(?!${SPORT_ADJUNCT})(?:((?:on|in|at|from|for|with|of)\\b)|\\w))`,
+  "i",
+);
+const DENIED_SPORT_LIST = new RegExp(`\\b(?:no|without)\\s+${SPORT_OBJECTS}\\s*$`, "i");
+const CONTINUED_SPORT_LIST = new RegExp(`${SPORT_OBJECT}\\s*,\\s*${SPORT_OBJECT}\\s*$`, "i");
+const NO_SPORT_AVAILABILITY = new RegExp(
+  "\\b(?:(?:do\\s+not|don'?t|never|no\\s+longer)\\s+have\\s+(?:any\\s+|access\\s+to\\s+)?|" +
+  "(?:(?:are|is)\\s+not|'re\\s+not|aren'?t|isn'?t)\\s+subscribed\\s+to\\s+)" + SPORT_OBJECTS + "|" +
+  `${SPORT_OBJECTS}\\s+(?:(?:is|are)\\s+(?:unavailable|not\\s+available)|(?:isn'?t|aren'?t)\\s+available)\\b`,
+  "i",
+);
 const NO_SPORT_VIEWING = new RegExp(
   `\\b(?:no|without)\\s+(?:live\\s+|sky\\s+|tnt\\s+|bt\\s+)?(?:${SPORT_SHOWN.source}|\\b(?:screens?|screenings?|tvs?)\\b)|` +
-  `\\b(?:do\\s+not|don'?t|never)\\s+show\\s+(?:any\\s+)?(?:live\\s+)?(?:${SPORT_SHOWN.source})|` +
+  "\\b(?:do\\s+not|don'?t|never)\\s+(?:show(?:case)?|watch|broadcast|screen|catch|play)\\b|" +
+  "\\b(?:not|isn'?t|aren'?t)\\s+(?:being\\s+)?(?:shown|broadcast|screened|televised|used\\s+to\\s+(?:show|watch|broadcast|screen))\\b|" +
   "\\b(?:not|aren'?t|isn'?t)\\s+(?:a\\s+)?sports?\\s+(?:pub|bar)s?\\b",
   "i",
 );
 const NOT_SPORT_SHOWN = /\bbet(?:s|ting)?\b|sportsbook|taruhan|cá cược|\be-?sports\b/i;
+/** A new subject and predicate separate propositions; object lists stay intact. */
+const SPORT_CLAUSE_BOUNDARY = new RegExp(
+  "[.,;!?]|\\b(?:but|however|yet|although|while)\\b|" +
+  "(?<!\\b(?:do\\s+not|don'?t|never)\\s+\\w+\\s)\\band\\b(?=\\s+(?:screen|broadcast|show|watch|catch|play)\\b)|" +
+  "\\band\\b(?=\\s+(?:no|without|do\\s+not|don'?t|never|" +
+  "we\\s+(?:(?:do\\s+not|don'?t|never|no\\s+longer)\\s+)?(?:have|show|watch|broadcast|screen|catch|play)|" +
+  "we(?:\\s+are\\s+not|'re\\s+not|\\s+aren'?t)\\s+subscribed\\s+to|" +
+  "(?:[\\w'-]+\\s+)+(?:is|are|isn'?t|aren'?t)\\s+(?:not\\s+)?(?:being\\s+)?" +
+  "(?:unavailable|available|shown|broadcast|screened|televised|used\\s+to\\s+(?:show|watch|broadcast|screen)))\\b)",
+  "i",
+);
+
+/** Whether a sport subject after a denial has its own predicate; after no/without only a single subject with a clear finite verb does. */
+function sportRemainderHasPredicate(text: string, determiner: boolean): boolean {
+  const match = SPORT_REMAINDER_PREDICATE.exec(text);
+  if (!match) return false;
+  const [, conjoined, future, possessive, preposition] = match;
+  return determiner ? !conjoined && !future && !possessive && !preposition : !(conjoined && preposition);
+}
+
+/** A sport or provider list shares its following predicate; it is not a separate positive claim. */
+function sportClauses(quote: string): string[] {
+  const clauses: string[] = [];
+  let start = 0;
+  for (const boundary of quote.matchAll(new RegExp(SPORT_CLAUSE_BOUNDARY, "gi"))) {
+    const clause = quote.slice(start, boundary.index);
+    const next = boundary.index + boundary[0].length;
+    const following = quote.slice(next).replace(/^\s*(?:and|or)\s+/, "");
+    const list = clause.replace(/,\s*$/, "");
+    const continued = CONTINUED_SPORT_LIST.test(list);
+    if (
+      (boundary[0] === "and" || boundary[0] === ",") && SPORT_SUBJECT.test(following) &&
+      (BARE_SPORT_OBJECTS.test(list) ||
+        (DENIED_SPORT_LIST.test(list) &&
+          (boundary[0] === "and" || continued || !sportRemainderHasPredicate(quote.slice(next), true))) || (
+        boundary[0] === "," && SPORT_OBJECT_END.test(clause) &&
+        (NO_SPORT_AVAILABILITY.test(clause) || NO_SPORT_VIEWING.test(clause)) &&
+        (continued || !sportRemainderHasPredicate(following, false))
+      ))
+    ) continue;
+    clauses.push(clause);
+    start = next;
+  }
+  clauses.push(quote.slice(start));
+  return clauses;
+}
 const LIVE_MUSIC =
   /\blive\b[^.]{0,20}\b(?:music|bands?|gigs?|jazz|folk|blues|soul|funk|country|singers?|vocals|acts?|artists)\b|\bbands?\b|\bgigs?\b|\bjazz\b|\bfolk\b|\bblues\b|\bopen mic\b|\bsingers?\b|\bsings? live\b|\bchoir\b|\bjams?\b|\bacoustic\b|\btrad\b|\bseisi|\bconcerts?\b|\btribute show\b|\bmusic venues?\b|\bmusic (?:nights?|events?)\b/i;
 /** Drinks before or after an event somewhere else say nothing about what happens inside the pub. */
@@ -181,9 +266,10 @@ const AMENITY_STATEMENTS: Partial<Record<PubWebsiteAmenityKey, (quote: string) =
   food: (quote) => !SITE_NAVIGATION.test(quote),
   liveSports: (quote) =>
     !NOT_SPORT_SHOWN.test(quote) && !EVENT_ELSEWHERE.test(quote) &&
-    quote.split(/[.,;!?]|\b(?:but|however|yet|although|while)\b/i).some((clause) =>
+    sportClauses(quote).some((clause) =>
       (SPORT_SHOWN.test(clause) || LIVE_TEAM_FIXTURE.test(clause)) &&
-      SPORT_VIEWING.test(clause) && !NO_SPORT_VIEWING.test(clause),
+      SPORT_VIEWING.test(clause) && !NO_SPORT_VIEWING.test(clause) &&
+      !NO_SPORT_AVAILABILITY.test(clause) && !(OTHER_VENUE.test(clause) && !THIS_VENUE.test(clause)),
     ),
   liveMusic: (quote) => LIVE_MUSIC.test(quote) && !EVENT_ELSEWHERE.test(quote),
   pubQuiz: (quote) => QUIZ.test(quote) && !QUIZ_MACHINE.test(quote),
