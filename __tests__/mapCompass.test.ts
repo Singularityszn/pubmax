@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   COMPASS_RESET_DURATION_MS,
   COMPASS_SETTLED_EPSILON,
+  cameraResetAvailable,
   compassResetLabel,
   compassResetTarget,
   mapIsOffHouseAttitude,
@@ -63,5 +64,17 @@ describe("compass copy and timing", () => {
   it("eases rather than jumping", () => {
     expect(COMPASS_RESET_DURATION_MS).toBeGreaterThan(0);
     expect(COMPASS_RESET_DURATION_MS).toBeLessThanOrEqual(700);
+  });
+});
+
+describe("cameraResetAvailable", () => {
+  it("offers the reset only on a live canvas that is off the city's attitude", () => {
+    expect(cameraResetAvailable(true, false)).toBe(true);
+    expect(cameraResetAvailable(false, false)).toBe(false);
+  });
+
+  it("withholds the reset once the canvas has failed, whatever the last attitude", () => {
+    expect(cameraResetAvailable(true, true)).toBe(false);
+    expect(cameraResetAvailable(false, true)).toBe(false);
   });
 });
