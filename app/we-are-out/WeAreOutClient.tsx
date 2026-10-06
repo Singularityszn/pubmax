@@ -139,6 +139,14 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = true }: Pr
               Choose a handle
             </Link>
           </section>
+        ) : !(viewerSession.signedIn && identityResolved && handle) ? (
+          // The session, or a signed-in account's handle, has not answered yet.
+          // Neither a form that would refuse on submit nor a door that names
+          // the viewer wrongly: a quiet, non-interactive wait.
+          <section className="weAreOutForm weAreOutDoor" role="status" aria-live="polite">
+            <p className="weAreOutDoneTitle">Checking your account.</p>
+            <p className="weAreOutPrivacy">One moment, then you can tell your lot.</p>
+          </section>
         ) : (
           <section className="weAreOutForm">
             <label className="weAreOutField">

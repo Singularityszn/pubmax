@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
 import {
   PLAN_DISTINCT_STOPS_ERROR,
+  PLAN_START_TIME_HINT,
   planLockHint,
   planLockValidationError,
   planStopCountLockError,
@@ -111,5 +112,13 @@ describe("Lock it in hint", () => {
   it("says nothing when ready or while a request is running", () => {
     expect(planLockHint({ validation: null, busy: false, distinctStops: true, stopCountError: null, routeStale: false, startTimeIsValid: true })).toBeNull();
     expect(planLockHint({ validation: nameOnly, busy: true, distinctStops: true, stopCountError: null, routeStale: false, startTimeIsValid: true })).toBeNull();
+  });
+});
+
+describe("start-time hint wiring", () => {
+  it("uses one shared sentence so the input can point at the same line", () => {
+    expect(PLAN_START_TIME_HINT).toBe("Choose a valid future start time.");
+    expect(planLockHint({ validation: null, busy: false, distinctStops: true, stopCountError: null, routeStale: false, startTimeIsValid: false }))
+      .toBe(PLAN_START_TIME_HINT);
   });
 });

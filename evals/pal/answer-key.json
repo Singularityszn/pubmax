@@ -187,8 +187,8 @@
     },
     "followup-cheaper-camden": {
       "minCards": 1,
-      "topVenueId": "venue-1gz2vse",
-      "topPrice": 4.5,
+      "topVenueId": "venue-1ar7s8w",
+      "topPrice": 4.8,
       "expectedTools": [
         "search_venues"
       ]

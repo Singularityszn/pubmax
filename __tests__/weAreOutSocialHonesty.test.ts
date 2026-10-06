@@ -142,12 +142,14 @@ describe("we-are-out signed-out and handle-less doors", () => {
     expect(host.querySelector("a.weAreOutDoorAction")?.getAttribute("href")).toBe("/u/you");
   });
 
-  it("paints no invitation until the session has answered", async () => {
+  it("paints no invitation and no form until the session has answered", async () => {
     viewer.phase = "unresolved";
     viewer.handle = null;
     await render();
     expect(host.querySelector("a.weAreOutDoorAction")).toBeNull();
-    expect(host.querySelector("select")).not.toBeNull();
+    expect(host.querySelector("select")).toBeNull();
+    expect(host.querySelector("button")).toBeNull();
+    expect(host.querySelector('[role="status"]')?.textContent).toContain("Checking your account.");
   });
 
   it("does not call an account handle-less before its identity resolves", async () => {
@@ -156,5 +158,7 @@ describe("we-are-out signed-out and handle-less doors", () => {
     viewer.identityResolved = false;
     await render();
     expect(host.querySelector("a.weAreOutDoorAction")).toBeNull();
+    expect(host.querySelector("select")).toBeNull();
+    expect(host.querySelector('[role="status"]')?.textContent).toContain("Checking your account.");
   });
 });

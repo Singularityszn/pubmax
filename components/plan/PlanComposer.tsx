@@ -764,6 +764,8 @@ export function planComposerVenueIndexPath(cityId?: CityId | null): string {
   return CITIES[cityId ?? DEFAULT_CITY_ID].slimVenuesPath;
 }
 
+export const PLAN_START_TIME_HINT = "Choose a valid future start time.";
+
 /**
  * The line under "Lock it in" while the button cannot be used yet. The button
  * stays tappable (aria-disabled) so the tap itself explains and moves focus;
@@ -790,7 +792,7 @@ export function planLockHint({
   if (!distinctStops) return PLAN_DISTINCT_STOPS_ERROR;
   if (stopCountError) return stopCountError;
   if (routeStale) return "Refresh the route before locking it in.";
-  if (!startTimeIsValid) return "Choose a valid future start time.";
+  if (!startTimeIsValid) return PLAN_START_TIME_HINT;
   return null;
 }
 
@@ -2269,7 +2271,7 @@ function PlanComposerForm({
       </div>
       <div className="planComposer__field">
         <label htmlFor="plan-time">{nightContext && !planUsesPintPrices(nightContext) ? "First stop" : "First pint"}</label>
-        <input id="plan-time" type="datetime-local" required value={startTime} onChange={(event) => updatePlanStartTime(event.target.value)} />
+        <input id="plan-time" type="datetime-local" required aria-invalid={lockHint === PLAN_START_TIME_HINT ? true : undefined} aria-describedby={lockHint === PLAN_START_TIME_HINT ? "plan-lock-hint" : undefined} value={startTime} onChange={(event) => updatePlanStartTime(event.target.value)} />
       </div>
 
       <fieldset className="planComposer__stops">

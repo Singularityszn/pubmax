@@ -197,8 +197,8 @@ describe("a pub the area circle alone finds", () => {
       { limit: 3, areaCircle: areaCircleForAsk("london", "Soho") },
     );
     const reasonsFor = (id: string) => ranked.find((row) => row.venue.id === id)?.reasons ?? [];
-    expect(reasonsFor("venue-s4j91a")).toEqual(["£5.40 is within budget", "Near Soho, 1.3 km"]);
-    expect(reasonsFor("venue-p7p18j")).toEqual(["£2.95 is within budget", "Near Soho, 1.2 km"]);
+    expect(reasonsFor("venue-s4j91a")).toEqual(["£5.40 is within budget", "Near Piccadilly & Soho, 1.3 km"]);
+    expect(reasonsFor("venue-p7p18j")).toEqual(["£2.95 is within budget", "Near Piccadilly & Soho, 1.2 km"]);
     expect(reasonsFor("venue-e1srzr")).toEqual(["£6.25 is within budget", "In Soho"]);
     expect(ranked.flatMap((row) => row.reasons).filter((reason) => reason === "In Soho")).toHaveLength(1);
   });
@@ -213,5 +213,45 @@ describe("a pub the area circle alone finds", () => {
       options,
     )[0]!;
     expect(inSoho.score - near.score).toBe(10);
+  });
+
+  it("keeps a pub the text names even when its geocode sits outside the radius", () => {
+    const farButNamed = venue({
+      id: "far-soho",
+      name: "The Edge of Soho",
+      lat: 51.53,
+      lng: -0.134,
+      cheapestPrice: 5,
+      searchText: "the edge of soho 1 some street soho",
+    });
+    const ranked = rankConciergeVenues(
+      [adamAndEve, farButNamed],
+      { mood: [], groupSize: 4, area: "Soho", maxPintPrice: 6.5 },
+      { limit: 3, areaCircle: areaCircleForAsk("london", "Soho") },
+    );
+    expect(ranked.map((row) => row.venue.id).sort()).toEqual(["far-soho", "venue-s4j91a"]);
+    expect(ranked.find((row) => row.venue.id === "far-soho")?.reasons).toContain("In Soho");
+  });
+
+  it("says Near and the distance on the card when the circle alone admitted the pub", async () => {
+    state.venues = [adamAndEve, threeTuns, shakespearesHead];
+    const result = await runAskTool("search_venues", {}, ctx("cheap pubs in Soho"));
+    const note = (id: string) => result.cards.find((card) => card.venueId === id)?.note ?? "";
+    expect(note("venue-s4j91a")).toBe("£5.40 is within budget \u00b7 Near Piccadilly & Soho, 1.3 km");
+    expect(result.cards.map((card) => card.venueId)).toContain("venue-e1srzr");
+    // A pub the area names needs no distance: it is in the area by its own data.
+    expect(note("venue-e1srzr")).not.toContain("Near");
+  });
+
+  it("measures and labels an alias from the canonical area's own centre", () => {
+    const circle = areaCircleForAsk("london", "Clapham Junction");
+    expect(circle?.label).toBe("Clapham");
+    const atCentre = venue({ id: "common", name: "The Common Arms", lat: circle!.lat, lng: circle!.lng, cheapestPrice: 5 });
+    const [row] = rankConciergeVenues(
+      [atCentre],
+      { mood: [], groupSize: 4, area: "Clapham Junction", maxPintPrice: 6 },
+      { limit: 1, areaCircle: circle },
+    );
+    expect(row?.nearAreaNote).toBe("Near Clapham, 0.0 km");
   });
 });
