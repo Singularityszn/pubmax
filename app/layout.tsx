@@ -28,6 +28,7 @@ import JsonLd from "@/components/seo/JsonLd";
 import { serializeInlineScriptJson } from "@/lib/inlineScriptJson";
 import DailyActivityPulse from "@/components/DailyActivityPulse";
 import EntryBootStamp from "@/components/native/EntryBootStamp";
+import ThemeAttribute from "@/components/ThemeAttribute";
 import A2HSTracking from "@/components/A2HSTracking";
 import AnalyticsConsentPrompt from "@/components/AnalyticsConsentPrompt";
 import PosthogPageviews from "@/components/PosthogPageviews";
@@ -407,6 +408,7 @@ export default async function RootLayout({
                     on the manifest start_url /tonight) can reach the landing page on
                     a wordmark tap instead of bouncing back to /tonight. */}
                 <EntryBootStamp />
+                <ThemeAttribute />
               </CommandPaletteProvider>
           </OptionalClerkProvider>
         ) : (
@@ -424,6 +426,7 @@ export default async function RootLayout({
               <DailyActivityPulse />
               <A2HSTracking />
               <EntryBootStamp />
+              <ThemeAttribute />
             </CommandPaletteProvider>
           </AuthProvider>
         )}

@@ -21,10 +21,10 @@
 export type ViewMode = "lock-in" | "ledger";
 
 /** localStorage key for the persisted view mode. Mirrors "pubmax-legacy". */
-const MODE_STORAGE_KEY = "pubmax-mode";
+export const MODE_STORAGE_KEY = "pubmax-mode";
 
 /** localStorage key Legacy Mode persists under — the flag Ledger composes. */
-const LEGACY_STORAGE_KEY = "pubmax-legacy";
+export const LEGACY_STORAGE_KEY = "pubmax-legacy";
 
 /** The default when nothing is stored: Lock-In (energetic, chaos-forward). */
 export const DEFAULT_MODE: ViewMode = "lock-in";

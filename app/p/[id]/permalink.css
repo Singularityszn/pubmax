@@ -251,6 +251,21 @@
   background: color-mix(in srgb, var(--ink-deep) 88%, var(--brass));
 }
 
+/* The primary is ink on paper in the light theme. Both tokens flip in dark, so
+   it would paint near-black text on a near-black fill. Dark wears the house
+   primary instead: coral with on-accent ink, as components/ui/button.css does. */
+html[data-theme="dark"] .permalink__primary {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+html[data-theme="dark"] .permalink__primary:hover {
+  background: var(--color-accent-strong);
+  border-color: var(--color-accent-strong);
+  color: var(--color-on-accent-strong);
+}
+
 .permalink__ghost {
   background: var(--panel-raised);
   color: var(--ink);

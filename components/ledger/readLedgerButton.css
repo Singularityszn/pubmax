@@ -28,6 +28,15 @@
   border-color: var(--ink-deep);
 }
 
+/* Pressed is ink on paper in the light theme. Both tokens flip in dark, so it
+   would paint near-black text on a near-black fill. Dark wears the house
+   primary instead: coral with on-accent ink, like the Ledger's other primaries. */
+html[data-theme="dark"] .ledgerReadButton[aria-pressed="true"] {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
 .ledgerReadButton:focus-visible {
   outline: 3px solid var(--brass);
   outline-offset: 2px;
