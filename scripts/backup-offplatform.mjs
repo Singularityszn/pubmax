@@ -33,7 +33,7 @@ import {
   pgDumpArgs,
   pgEnvFromUrl,
   pruneBackupCopy,
-  RETENTION_WEEKS,
+  PRUNE_AFTER_WEEKS,
   safeObjectPath,
 } from "./lib/offPlatformBackup.mjs";
 
@@ -82,7 +82,7 @@ async function runBackup() {
   const bucketRoot = path.join(dir, "bucket", bucket);
 
   console.log(`[backup] directory ${dir}`);
-  console.log(`[backup] dump ${path.basename(dumpFile)} from ${pgEnv.PGHOST}; bucket ${bucket}; retention ${RETENTION_WEEKS} weeks`);
+  console.log(`[backup] dump ${path.basename(dumpFile)} from ${pgEnv.PGHOST}; bucket ${bucket}; prune after ${PRUNE_AFTER_WEEKS} weeks`);
   if (dryRun) {
     console.log("[backup] dry run: nothing was read or written.");
     return;

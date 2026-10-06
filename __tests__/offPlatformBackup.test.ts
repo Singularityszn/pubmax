@@ -22,7 +22,7 @@ import {
   pgDumpArgs,
   pgEnvFromUrl,
   pruneBackupCopy,
-  RETENTION_WEEKS,
+  PRUNE_AFTER_WEEKS,
   safeObjectPath,
 } from "@/scripts/lib/offPlatformBackup.mjs";
 
@@ -56,7 +56,7 @@ describe("dump files", () => {
   });
 });
 
-describe("pruneBackupCopy keeps nothing past 8 weeks, by age, on irregular runs", () => {
+describe("pruneBackupCopy keeps no copy for 8 weeks, by age, on irregular runs", () => {
   const now = Date.parse("2026-10-06T03:30:00Z");
   let dir = "";
   let bucketRoot = "";
@@ -81,28 +81,27 @@ describe("pruneBackupCopy keeps nothing past 8 weeks, by age, on irregular runs"
   };
   const tree = (root: string) => (readdirSync(root, { recursive: true }) as string[]).sort();
 
-  it("is an 8 week window", () => {
-    expect(RETENTION_WEEKS).toBe(8);
+  it("prunes at 7 weeks, a week inside the 8 the privacy page promises", () => {
+    expect(PRUNE_AFTER_WEEKS).toBe(7);
   });
 
-  it("deletes dumps past the window however many runs there were, and the photos and id folders only they named", () => {
-    for (const iso of ["2026-03-01T03:30:00Z", "2026-07-20T03:30:00Z", "2026-08-09T03:30:00Z", "2026-08-12T03:30:00Z", "2026-10-06T03:30:00Z"]) {
+  it("deletes dumps past the window however many runs there were, killed partial dumps, and the photos and id folders only they named", () => {
+    for (const iso of ["2026-03-01T03:30:00Z", "2026-07-20T03:30:00Z", "2026-08-17T03:30:00Z", "2026-08-19T03:30:00Z", "2026-10-06T03:30:00Z"]) {
       run(iso);
     }
     writeFileSync(path.join(dir, "notes.txt"), "mine");
     writeFileSync(path.join(dir, "pubmax-20260301T033000Z.dump.partial"), "half");
     object("profiles/account-a/1/a.jpg", "2026-03-01T03:30:00.400Z");
-    object("profiles/account-c/2/c.jpg", "2026-08-09T03:30:00.400Z");
-    object("profiles/account-b/1/b.jpg", "2026-08-12T03:30:00.400Z");
+    object("profiles/account-c/2/c.jpg", "2026-08-17T03:30:00.400Z");
+    object("profiles/account-b/1/b.jpg", "2026-08-19T03:30:00.400Z");
     object("messages/conversation-1/m.jpg", "2026-10-06T03:30:00.400Z");
 
-    expect(pruneBackupCopy({ dir, bucketRoot, now })).toEqual({ dumps: 3, files: 2, directories: 4 });
+    expect(pruneBackupCopy({ dir, bucketRoot, now })).toEqual({ dumps: 4, files: 2, directories: 4 });
 
     expect(readdirSync(dir).sort()).toEqual([
       "bucket",
       "notes.txt",
-      "pubmax-20260301T033000Z.dump.partial",
-      "pubmax-20260812T033000Z.dump",
+      "pubmax-20260819T033000Z.dump",
       "pubmax-20261006T033000Z.dump",
     ]);
     expect(tree(bucketRoot)).toEqual(
@@ -115,6 +114,28 @@ describe("pruneBackupCopy keeps nothing past 8 weeks, by age, on irregular runs"
         "profiles/account-b/1",
         "profiles/account-b/1/b.jpg",
       ].map((entry) => entry.split("/").join(path.sep)),
+    );
+  });
+
+  it("removes a deleted account within 8 weeks when the run before its deletion fired late", () => {
+    const lateRun = "2026-08-09T11:00:00Z";
+    const deletedAt = Date.parse("2026-08-09T12:00:00Z");
+    run(lateRun);
+    for (const iso of ["2026-08-16", "2026-08-23", "2026-08-30", "2026-09-06", "2026-09-13", "2026-09-20", "2026-09-27", "2026-10-04"]) {
+      run(`${iso}T03:30:00Z`);
+    }
+    object("profiles/deleted-account/1/a.jpg", "2026-08-09T11:00:00.400Z");
+    object("profiles/live-account/1/b.jpg", "2026-10-04T03:30:00.400Z");
+    const sunday = Date.parse("2026-10-04T03:30:00Z");
+
+    pruneBackupCopy({ dir, bucketRoot, now: sunday });
+
+    expect(sunday - deletedAt).toBeLessThan(8 * 7 * 24 * 60 * 60 * 1000);
+    expect(readdirSync(dir)).not.toContain(dumpFileName(new Date(lateRun)));
+    expect(tree(bucketRoot)).toEqual(
+      ["profiles", "profiles/live-account", "profiles/live-account/1", "profiles/live-account/1/b.jpg"].map((entry) =>
+        entry.split("/").join(path.sep),
+      ),
     );
   });
 

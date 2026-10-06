@@ -100,11 +100,13 @@ describe("npm run backup:install-launchd", () => {
     expect(agent()).toMatchObject({
       Label: "com.pubmax.backup",
       ProgramArguments: [
-        expect.stringContaining("node"),
+        "/usr/bin/env",
+        "node",
         `--env-file=${envFile()}`,
         path.join(ROOT, "scripts", "backup-offplatform.mjs"),
       ],
       WorkingDirectory: ROOT,
+      EnvironmentVariables: { PATH: `${bin}:${process.env.PATH ?? ""}` },
       StartCalendarInterval: { Weekday: 0, Hour: 3, Minute: 30 },
       StandardOutPath: path.join(home, "Library", "Logs", "pubmax-backup.log"),
     });

@@ -816,8 +816,8 @@ export default function PrivacyPage() {
             logged which of them.
           </li>
           <li>
-            <strong>Backups:</strong>{" "}after you delete your account, its data
-            can stay in our private backup copy for up to 8 weeks before it is
+            <strong>Backups:</strong>{" "}data you delete, including a deleted
+            account, can remain in our backups for up to 8 weeks before it is
             removed.
           </li>
           <li>

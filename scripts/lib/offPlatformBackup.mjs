@@ -11,10 +11,12 @@ import { readdirSync, rmdirSync, rmSync, statSync } from "node:fs";
 import path from "node:path";
 
 export const DEFAULT_BUCKET = "pint-drops";
-// Nothing in the copy is older than this, except the newest dump and the bucket
-// files it names, so a restore is always possible.
-export const RETENTION_WEEKS = 8;
-const RETENTION_MS = RETENTION_WEEKS * 7 * 24 * 60 * 60 * 1000;
+// Each run deletes what is older than this, except the newest dump and the
+// bucket files it names, so a restore is always possible. It is a week inside
+// the 8 weeks the privacy page promises, so a weekly run that fires late, on a
+// Mac that woke late, still removes every copy before 8 weeks have passed.
+export const PRUNE_AFTER_WEEKS = 7;
+const PRUNE_AFTER_MS = PRUNE_AFTER_WEEKS * 7 * 24 * 60 * 60 * 1000;
 // Public data, the account table and what the auth schema needs to restore
 // sign-in, storage object rows, and the migration ledger.
 export const DUMP_SCHEMAS = ["public", "auth", "storage", "supabase_migrations"];
@@ -55,6 +57,7 @@ export function pgDumpArgs(outputFile) {
 }
 
 const DUMP_NAME = /^pubmax-(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z\.dump$/;
+const PARTIAL_DUMP_NAME = /^(pubmax-\d{8}T\d{6}Z\.dump)\.partial$/;
 
 /** When a dump was taken, read from its name, or null for any other file. */
 function dumpTakenAt(file) {
@@ -67,8 +70,9 @@ function dumpTakenAt(file) {
 /**
  * Delete what is past retention, by age, however many runs there were.
  *
- * Dumps: every dump older than `RETENTION_WEEKS` goes, except the newest. Other
- * files in `dir` are never touched.
+ * Dumps: every dump older than `PRUNE_AFTER_WEEKS` goes, except the newest. A
+ * partial dump older than the newest dump is a run that was killed, and it goes
+ * too. Other files in `dir` are never touched.
  *
  * Bucket files: each run stamps a file's mtime with the run's start while its
  * object is still in the bucket, so the mtime is the last run that saw it. A
@@ -83,11 +87,19 @@ export function pruneBackupCopy({ dir, bucketRoot, now }) {
     .filter((file) => dumpTakenAt(file) !== null)
     .sort();
   const newest = dumps.at(-1);
-  const expired = dumps.filter((file) => file !== newest && dumpTakenAt(file) < now - RETENTION_MS);
-  for (const file of expired) rmSync(path.join(dir, file), { force: true });
+  const expired = dumps.filter((file) => file !== newest && dumpTakenAt(file) < now - PRUNE_AFTER_MS);
+  const newestTakenAt = newest === undefined ? null : dumpTakenAt(newest);
+  const killed =
+    newestTakenAt === null
+      ? []
+      : readdirSync(dir).filter((file) => {
+          const match = PARTIAL_DUMP_NAME.exec(file);
+          return match !== null && dumpTakenAt(match[1]) < newestTakenAt;
+        });
+  for (const file of [...expired, ...killed]) rmSync(path.join(dir, file), { force: true });
 
   const kept = dumps.filter((file) => !expired.includes(file)).map(dumpTakenAt);
-  if (kept.length === 0) return { dumps: expired.length, files: 0, directories: 0 };
+  if (kept.length === 0) return { dumps: expired.length + killed.length, files: 0, directories: 0 };
   const oldestKept = Math.min(...kept);
 
   const entries = readdirSync(bucketRoot, { recursive: true }).map((relative) => {
@@ -107,7 +119,7 @@ export function pruneBackupCopy({ dir, bucketRoot, now }) {
     rmdirSync(entry);
     directories += 1;
   }
-  return { dumps: expired.length, files: files.length, directories };
+  return { dumps: expired.length + killed.length, files: files.length, directories };
 }
 
 /** True when `candidate` is `directory` itself or anything under it. */

@@ -4,7 +4,8 @@
 // checkout the job should use. Running it again rewrites the same agent and
 // reloads it, so it is safe to repeat after a pull or a move.
 //
-// The secrets stay out of the agent: the job reads them from
+// The agent finds node on the PATH captured here, never a versioned install
+// path that an upgrade removes. The secrets stay out of the agent: the job reads them from
 // ~/.config/pubmax/backup.env through `node --env-file`, and this script refuses
 // to install while that file is missing or readable by anyone but its owner.
 // docs/DR_RUNBOOK.md names the variables.
@@ -29,7 +30,8 @@ function xml(value) {
 
 function agentPlist() {
   const programArguments = [
-    process.execPath,
+    "/usr/bin/env",
+    "node",
     `--env-file=${envFile}`,
     path.join(checkout, "scripts", "backup-offplatform.mjs"),
   ];
