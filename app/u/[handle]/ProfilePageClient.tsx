@@ -1618,7 +1618,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     <div className="lp profilePage">
       <SiteNav active="profile" />
 
-      <main id="main" className="container profileMain">
+      <main id="main" className="container profileMain pageHidesCreateFab">
         {surfaceBody()}
         {surface === "identity-loading" || surface === "you-invitation" ? (
           <WantedList
