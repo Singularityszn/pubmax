@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import LandingFaq, { LANDING_FAQ } from "@/components/landing/LandingFaq";
+import { RECEIPT_REQUIRED_LINE } from "@/lib/pintDropReceipt";
 
 // The captain asked for an FAQ "where people understand how the app works and
 // everything" (7 Sep 2026). Six questions, one paragraph each, in the house
@@ -58,7 +59,9 @@ describe("the landing FAQ", () => {
     const answer = LANDING_FAQ.find((entry) => entry.id === "log-a-price")?.answer ?? "";
     expect(answer).toContain("optional");
     expect(answer).toContain("public");
-    expect(answer).toMatch(/photo of the bill or the pint/);
+    expect(answer).toContain(RECEIPT_REQUIRED_LINE);
+    expect(answer).toContain("A photo of the pint is optional.");
+    expect(answer).not.toMatch(/bill[^.]*optional/);
   });
 
   it("says prices are London's, because every listed price we hold is", () => {
