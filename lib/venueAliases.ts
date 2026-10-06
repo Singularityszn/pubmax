@@ -6,7 +6,7 @@ import path from "path";
 import { VENUE_ALIAS_FILES } from "@/lib/venueAliasesFile.mjs";
 
 // Venue-id alias resolution (D1). An id a reader may still hold can stop naming
-// a venue in two ways, and both are recorded as `oldId -> currentId`:
+// a venue in three ways, and each is recorded as `oldId -> currentId`:
 //
 //   * public/data/venue_id_aliases.json - the bundled London dataset collapses
 //     the same physical pub's duplicate lineages into one canonical venue id
