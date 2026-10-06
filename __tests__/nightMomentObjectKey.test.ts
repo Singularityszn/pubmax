@@ -13,12 +13,19 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
   return { ...actual, isSupabaseConfigured: () => false };
 });
-vi.mock("@/lib/authServer", () => ({
-  callerUserId: async (request: Request) => {
-    const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-    return token || null;
-  },
-}));
+vi.mock("@/lib/authServer", () => {
+  const bearer = (request: Request) =>
+    request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || null;
+  return {
+    callerUserId: async (request: Request) => bearer(request),
+    verifyCallerAuth: async (request: Request) => {
+      const id = bearer(request);
+      return id
+        ? { status: "verified" as const, identity: { id, email: null, createdAt: null } }
+        : { status: "absent" as const };
+    },
+  };
+});
 vi.mock("@/lib/pintDropsStore", () => ({
   deletePhotos: async (keys: string[]) => {
     removedKeys.push(...keys);

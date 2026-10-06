@@ -1,8 +1,8 @@
-import { publicApiError } from "@/lib/apiError";
+import { authUnavailableError, publicApiError } from "@/lib/apiError";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { isLimited } from "@/lib/pintDrops";
 import { jsonNoStore } from "@/lib/apiResponses";
-import { callerUserId } from "@/lib/authServer";
+import { verifyCallerAuth } from "@/lib/authServer";
 import { removeNightMomentPhoto } from "@/lib/nightMomentMedia";
 import { removeNightMemory } from "@/lib/nightMemoryStore";
 
@@ -22,8 +22,12 @@ export async function DELETE(request: Request, context: Context): Promise<Respon
     return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
-  const ownerId = await callerUserId(request);
-  if (!ownerId) return publicApiError("Sign in to remove a Night Memory.", "UNAUTHENTICATED", 401);
+  const verification = await verifyCallerAuth(request);
+  if (verification.status === "unavailable") return authUnavailableError();
+  if (verification.status !== "verified") {
+    return publicApiError("Sign in to remove a Night Memory.", "UNAUTHENTICATED", 401);
+  }
+  const ownerId = verification.identity.id;
   const { id } = await context.params;
   const removed = await removeNightMemory(ownerId, id);
   if (!removed.ok) {

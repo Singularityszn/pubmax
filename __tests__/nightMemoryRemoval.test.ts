@@ -15,9 +15,11 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   return { ...actual, isSupabaseConfigured: () => false };
 });
 vi.mock("@/lib/authServer", () => ({
-  callerUserId: async (request: Request) => {
-    const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-    return token || null;
+  verifyCallerAuth: async (request: Request) => {
+    const id = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+    return id
+      ? { status: "verified" as const, identity: { id, email: null, createdAt: null } }
+      : { status: "absent" as const };
   },
 }));
 
