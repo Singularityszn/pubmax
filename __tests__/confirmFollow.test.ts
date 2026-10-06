@@ -41,7 +41,7 @@ vi.mock("@/lib/authedFetch", () => ({
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 
 import ConfirmFollow from "@/components/social/ConfirmFollow";
-import { markAddLinkDoorTaken } from "@/lib/addLink";
+import { ADD_LINK_COPY, ADD_LINK_RECEIPT_BODY, markAddLinkDoorTaken } from "@/lib/addLink";
 
 function render(props: Record<string, unknown> = {}): string {
   return renderToStaticMarkup(
@@ -242,6 +242,7 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+  vi.unstubAllGlobals();
   if (root) {
     await commitReactWork(() => root?.unmount());
     root = null;
@@ -430,5 +431,95 @@ describe("ConfirmFollow", () => {
     expect(container?.textContent).not.toContain("A lot is mutual.");
     // The card still asks "Add @karan?"; the BUTTON that would retry is gone.
     expect(container?.textContent ?? "").not.toMatch(/Add @karan(?!\?)/);
+  });
+
+  describe("when the two already stand somewhere", () => {
+    function stubEdges(edges: { viewerFollowing: boolean; followsViewer: boolean } | "fail") {
+      const stub = vi.fn(async () =>
+        edges === "fail"
+          ? new Response("{}", { status: 500 })
+          : new Response(JSON.stringify(edges), {
+              status: 200,
+              headers: { "content-type": "application/json" },
+            }),
+      );
+      vi.stubGlobal("fetch", stub);
+      return stub;
+    }
+
+    async function openAddLink(props: Record<string, unknown> = {}): Promise<void> {
+      auth.user = { id: "account-a" };
+      viewer.handle = "viewer-a";
+      await commitReactWork(async () => {
+        root?.render(createElement(ConfirmFollow, { targetHandle: "karan", ...props }));
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+    }
+
+    it("tells a mate they are already each other's lot, with no Add to press", async () => {
+      const stub = stubEdges({ viewerFollowing: true, followsViewer: true });
+      mountEnvironment();
+      await openAddLink();
+
+      await vi.waitFor(() => {
+        expect(container?.textContent).toContain("@karan is in your lot.");
+      });
+      expect(container?.textContent).toContain(ADD_LINK_COPY.mates);
+      expect(container?.textContent).not.toContain("Add @karan");
+      expect(container?.textContent).not.toContain("Add @karan?");
+      expect(stub).toHaveBeenCalledWith(
+        "/api/profiles/karan?viewer=viewera",
+        expect.objectContaining({ cache: "no-store" }),
+      );
+      expect(followAction.request).not.toHaveBeenCalled();
+    });
+
+    it("shows the one-way receipt for somebody the viewer already added", async () => {
+      stubEdges({ viewerFollowing: true, followsViewer: false });
+      mountEnvironment();
+      await openAddLink();
+
+      await vi.waitFor(() => {
+        expect(container?.textContent).toContain("@karan is in your lot.");
+      });
+      expect(container?.textContent).toContain(ADD_LINK_RECEIPT_BODY);
+      expect(container?.textContent).not.toContain(ADD_LINK_COPY.mates);
+    });
+
+    it("offers to add back somebody who already added the viewer", async () => {
+      stubEdges({ viewerFollowing: false, followsViewer: true });
+      mountEnvironment();
+      await openAddLink();
+
+      await vi.waitFor(() => {
+        expect(container?.textContent).toContain("Add @karan back");
+      });
+      expect(container?.textContent).toContain(ADD_LINK_COPY.addedYou);
+      expect(container?.textContent).not.toContain("is in your lot.");
+    });
+
+    it("makes the pair mates, and says so, when the add lands on somebody who added them first", async () => {
+      stubEdges({ viewerFollowing: false, followsViewer: true });
+      const storage = mountEnvironment();
+      markAddLinkDoorTaken(storage, Date.now(), "karan");
+      await openAddLink({ auto: true });
+
+      await vi.waitFor(() => {
+        expect(container?.textContent).toContain(ADD_LINK_COPY.mates);
+      });
+      expect(container?.textContent).not.toContain(ADD_LINK_RECEIPT_BODY);
+    });
+
+    it("keeps the add on offer when the relation could not be read", async () => {
+      stubEdges("fail");
+      mountEnvironment();
+      await openAddLink();
+
+      await vi.waitFor(() => {
+        expect(container?.textContent).toContain("Add @karan");
+      });
+      expect(container?.textContent).not.toContain("is in your lot.");
+    });
   });
 });

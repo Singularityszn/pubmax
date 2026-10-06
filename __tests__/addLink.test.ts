@@ -11,6 +11,7 @@ import {
   ADD_LINK_SURFACE,
   addLinkCreateCta,
   addLinkDoors,
+  addLinkLanded,
   addLinkNextSteps,
   addLinkReceiptTitle,
   addLinkReturnTo,
@@ -193,6 +194,20 @@ describe("what the add surface says and reports", () => {
       expect(source).not.toMatch(/show up in Your lot/i);
       expect(source).not.toMatch(/nights, drops and check-ins/i);
     }
+  });
+
+  it("lands the add as mates only when they had already added the viewer", () => {
+    // A tap on somebody who added the viewer first completes the pair.
+    expect(addLinkLanded(true, "follows_you")).toBe("mates");
+    expect(addLinkLanded(true, "mates")).toBe("mates");
+    expect(addLinkLanded(true, "none")).toBe("following");
+    expect(addLinkLanded(true, null)).toBe("following");
+    // No tap: the two may already stand that way when the link opens.
+    expect(addLinkLanded(false, "mates")).toBe("mates");
+    expect(addLinkLanded(false, "following")).toBe("following");
+    expect(addLinkLanded(false, "follows_you")).toBeNull();
+    expect(addLinkLanded(false, "none")).toBeNull();
+    expect(addLinkLanded(false, null)).toBeNull();
   });
 
   it("keeps the house voice: no em dash, no exclamation", () => {

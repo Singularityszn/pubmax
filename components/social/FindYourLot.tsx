@@ -16,6 +16,13 @@ import {
   INVITE_LINK_FALLBACK_MESSAGE,
   offlineOrMessage,
 } from "@/lib/apiErrorMessage";
+import {
+  followActionLabel,
+  followPendingLabel,
+  followRelationHint,
+  isFollowRelation,
+  type FollowRelation,
+} from "@/lib/followRelation";
 import { discardBody } from "@/lib/responseBody";
 import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
@@ -30,6 +37,8 @@ type SearchMatch = {
   handle: string;
   displayName?: string;
   avatarUrl?: string;
+  /** What the signed-in viewer already is to this person. */
+  relation?: FollowRelation;
 };
 
 type FollowState = "idle" | "working" | "done" | "error";
@@ -103,8 +112,11 @@ export default function FindYourLot({
     debounceRef.current = setTimeout(() => {
       void (async () => {
         try {
+          // Naming the viewer lets the answer say who they already follow, so a
+          // mate is never offered a Follow they have already pressed.
+          const viewerQuery = viewer ? `&viewer=${encodeURIComponent(viewer)}` : "";
           const response = await fetch(
-            `/api/profiles/search?q=${encodeURIComponent(q)}`,
+            `/api/profiles/search?q=${encodeURIComponent(q)}${viewerQuery}`,
             { cache: "no-store" },
           );
           if (!response.ok) {
@@ -114,7 +126,14 @@ export default function FindYourLot({
             return;
           }
           const body = (await response.json()) as { matches?: SearchMatch[] };
-          setMatches(Array.isArray(body.matches) ? body.matches : []);
+          setMatches(
+            Array.isArray(body.matches)
+              ? body.matches.map((match) => ({
+                  ...match,
+                  relation: isFollowRelation(match.relation) ? match.relation : undefined,
+                }))
+              : [],
+          );
           setStatus("ready");
         } catch {
           setStatus("error");
@@ -125,7 +144,7 @@ export default function FindYourLot({
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, socialFriendsLaunchEnabled]);
+  }, [query, socialFriendsLaunchEnabled, viewer]);
 
   async function follow(handle: string) {
     if (!socialFriendsLaunchEnabled || !viewer) {
@@ -273,6 +292,16 @@ export default function FindYourLot({
           {matches.map((match) => {
             const followState = visibleFollowByHandle[match.handle] ?? "idle";
             const isSelf = viewer && match.handle === viewer;
+            // The edge the page was told about, moved on by a tap made since.
+            const startingRelation = match.relation ?? "none";
+            const relation: FollowRelation =
+              followState === "done"
+                ? startingRelation === "follows_you" || startingRelation === "mates"
+                  ? "mates"
+                  : "following"
+                : startingRelation;
+            const hint = followRelationHint(relation);
+            const alreadyFollowing = relation === "following" || relation === "mates";
             return (
               <li key={match.id} className="findLot__row">
                 <Link
@@ -294,6 +323,9 @@ export default function FindYourLot({
                     {match.displayName ? (
                       <span className="findLot__display">{match.displayName}</span>
                     ) : null}
+                    {hint && !isSelf ? (
+                      <span className="findLot__hint">{hint}</span>
+                    ) : null}
                   </span>
                 </Link>
                 {isSelf ? (
@@ -313,14 +345,12 @@ export default function FindYourLot({
                   <button
                     type="button"
                     className="findLot__follow"
-                    disabled={followState === "working" || followState === "done"}
+                    disabled={followState === "working" || alreadyFollowing}
                     onClick={() => void follow(match.handle)}
                   >
-                    {followState === "done"
-                      ? "Following"
-                      : followState === "working"
-                        ? "Adding…"
-                        : "Follow"}
+                    {followState === "working"
+                      ? followPendingLabel(relation)
+                      : followActionLabel(relation)}
                   </button>
                 )}
               </li>

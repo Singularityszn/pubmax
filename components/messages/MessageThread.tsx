@@ -52,6 +52,7 @@ import {
   GROUP_LEFT_LINE,
   groupMemberCountLine,
 } from "@/lib/messageGroupThread";
+import { announceMessagesRead } from "@/lib/messagesUnreadSignal";
 import type { MessagePollView, MessagePollWrite } from "@/lib/messagePoll";
 import {
   linkifyMentions,
@@ -63,6 +64,7 @@ import {
   type ConversationDTO,
   type MessageDTO,
   type ThreadIdentity,
+  unreadForViewer,
 } from "@/lib/messages";
 import { subscribeToMessages } from "@/lib/messagesRealtime";
 import {
@@ -306,6 +308,11 @@ function outboxMessage(
   };
 }
 
+/** The thread route marks what was waiting as read in the same read it answers. */
+function announceIfWaitingRead(messages: readonly MessageDTO[], viewer: string): void {
+  if (unreadForViewer(messages, viewer) > 0) announceMessagesRead();
+}
+
 export default function MessageThread({
   conversationId,
 }: {
@@ -492,6 +499,9 @@ export default function MessageThread({
         if (!stillCurrent()) return;
         land();
         const next = Array.isArray(body.messages) ? body.messages : [];
+        // The thread route marks what was waiting as read in this same read, so
+        // the nav's unread badge is told now instead of at its next poll.
+        announceIfWaitingRead(next, h);
         loadedForRef.current = requestKey;
         setViewRevision(requestKey);
         setMessages(next);
