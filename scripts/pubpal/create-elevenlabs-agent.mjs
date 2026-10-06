@@ -25,6 +25,10 @@
 // Usage:
 //   node scripts/pubpal/create-elevenlabs-agent.mjs --base-url https://pubmaxxing.com
 //   node scripts/pubpal/create-elevenlabs-agent.mjs --dry-run
+//   node scripts/pubpal/create-elevenlabs-agent.mjs --check --base-url https://pubmaxxing.com
+//
+// --check only reads: it GETs the live agent and tools, compares them with what
+// a real run would write, and exits 1 on any drift. Safe from any session.
 //
 // Reads .env.local / .env if present, so a local run needs no exported shell
 // variables. See docs/PUB_PAL_SETUP.md.
@@ -37,6 +41,7 @@ import { fileURLToPath } from "node:url";
 import { PUB_PAL_MEMORY_KINDS } from "../../lib/palMemoryKinds.mjs";
 import { PAL_VOICE_MAX_SESSION_SECONDS } from "../../lib/palVoiceCap.mjs";
 import { pubPalAgentSystemPrompt } from "../../lib/palVoicePrompt.mjs";
+import { agentDrift, formatDrift } from "./agent-drift.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const AGENT_CONFIG = JSON.parse(
@@ -294,6 +299,8 @@ function agentBody(toolIds) {
             first_message: true,
           },
           tts: { voice_id: true },
+          // Typed chat starts the same agent in text-only mode.
+          conversation: { text_only: true },
         },
       },
       privacy: {
@@ -416,19 +423,52 @@ async function findAgentByName(apiKey) {
   return hit?.agent_id ?? null;
 }
 
+/** Read-only: GETs only, so it cannot change the live agent. Exits 1 on drift. */
+async function checkAgent(apiKey, baseUrl) {
+  const agentId = process.env.ELEVENLABS_PUB_PAL_AGENT_ID?.trim() || (await findAgentByName(apiKey));
+  if (!agentId) fail(`No agent named ${AGENT_NAME} and ELEVENLABS_PUB_PAL_AGENT_ID is not set.`);
+  const liveAgent = await call("GET", `${API}/agents/${agentId}`, apiKey);
+  const liveTools = await listWorkspaceTools(apiKey);
+  const wantedTools = Object.fromEntries(
+    (AGENT_CONFIG.toolNames ?? []).map((name) => [name, webhookToolConfig(name, baseUrl, "unused")]),
+  );
+  const drifts = agentDrift({
+    liveAgent,
+    liveTools,
+    wantedAgent: agentBody([]).body,
+    wantedTools,
+  });
+  console.log(`Checked agent ${agentId} against this repo's config (read-only).`);
+  if (drifts.length === 0) {
+    console.log("✓ The live agent matches.");
+    return;
+  }
+  for (const drift of drifts) console.log(formatDrift(drift));
+  console.log(
+    `\n✗ ${drifts.length} difference${drifts.length === 1 ? "" : "s"}. The captain re-runs: npm run pubpal:agent -- --base-url ${baseUrl}`,
+  );
+  process.exit(1);
+}
+
 async function main() {
   loadDotEnv();
 
   const dryRun = process.argv.includes("--dry-run");
+  const check = process.argv.includes("--check");
   const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
   const secret = process.env.ELEVENLABS_LLM_SHARED_SECRET?.trim();
   const baseUrl = (arg("base-url", process.env.PUBMAX_BASE_URL ?? "")).trim().replace(/\/+$/, "");
 
   if (!dryRun && !apiKey) fail("ELEVENLABS_API_KEY is not set. See docs/PUB_PAL_SETUP.md.");
-  if (!secret) fail("ELEVENLABS_LLM_SHARED_SECRET is not set. Generate one: openssl rand -hex 32");
+  if (!secret && !check) fail("ELEVENLABS_LLM_SHARED_SECRET is not set. Generate one: openssl rand -hex 32");
   if (!baseUrl) fail("Pass --base-url https://your-deployment (or set PUBMAX_BASE_URL).");
   if (!/^https:\/\//.test(baseUrl) && !/^http:\/\/localhost/.test(baseUrl)) {
     fail(`--base-url must be https (or http://localhost for a tunnel test). Got: ${baseUrl}`);
+  }
+
+  if (check) {
+    await checkAgent(apiKey, baseUrl);
+    return;
   }
 
   const secretId = dryRun

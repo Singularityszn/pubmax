@@ -148,6 +148,11 @@ passes those paths so `script-src` can stay `'self'` plus the nonce. Do not put
 ## Checking it
 
 ```bash
+# Read-only drift check. It GETs the live agent and tools, compares them with
+# the config in this repo, prints each difference and exits 1 on any drift.
+# It needs ELEVENLABS_API_KEY and --base-url, and never needs the shared secret.
+npm run pubpal:agent -- --check --base-url https://pubmaxxing.com
+
 # Answers available, maxSessionSeconds, retention and mutationPolicy.
 # `available` turns true once `ELEVENLABS_API_KEY` and the agent id are set.
 curl -s https://pubmaxxing.com/api/pub-pal/voice-token | jq .

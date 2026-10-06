@@ -59,6 +59,12 @@ Map Ask on `/api/ask` and `/pal/chat` typed asks stay keyless without ElevenLabs
 | `ELEVENLABS_LLM_SHARED_SECRET` | **Server-only** secret for webhook tools at `/api/pub-pal/tools/{name}`. |
 | `ELEVENLABS_VOICE_*` | Per-species and onboarding voice ids (`lib/palElevenLabsVoice.ts`). See `docs/PUB_PAL_SETUP.md`. |
 
+**Deploy checklist for a change to Pub Pal.** The ElevenLabs agent is not part of the deploy, so check it beside the deploy:
+
+1. Run `npm run pubpal:agent -- --check --base-url https://pubmaxxing.com` with the ElevenLabs key set. It only reads the live agent and tools, prints every difference from the config in this repo, and exits 1 on any drift.
+2. If it reports drift, the captain re-runs `npm run pubpal:agent -- --base-url https://pubmaxxing.com`. Typed chat and voice start work with the agent either before or after the deploy, so the order does not matter.
+3. Run the check again and expect exit 0. After a re-run that turns authentication on, an unsigned WebSocket to the agent is refused.
+
 ### Optional — other integrations
 
 | Var | Purpose |

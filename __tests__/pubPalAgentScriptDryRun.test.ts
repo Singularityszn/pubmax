@@ -76,6 +76,7 @@ describe("pubpal:agent dry run", () => {
           conversation_config_override: {
             agent: { prompt: { prompt: boolean }; first_message: boolean };
             tts: { voice_id: boolean };
+            conversation: { text_only: boolean };
           };
         };
       };
@@ -103,6 +104,7 @@ describe("pubpal:agent dry run", () => {
     expect(body.platform_settings.overrides.conversation_config_override).toEqual({
       agent: { prompt: { prompt: false }, first_message: true },
       tts: { voice_id: true },
+      conversation: { text_only: true },
     });
   });
 
