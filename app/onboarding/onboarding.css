@@ -88,7 +88,7 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
 
 .firstRunProgress {
   display: grid;
-  grid-template-columns: repeat(2, 34px);
+  grid-template-columns: repeat(var(--first-run-steps, 2), 34px);
   gap: 7px;
 }
 
@@ -412,6 +412,211 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
   --shared-press-scale: 1;
 }
 
+/* THE QUESTIONS.
+   Every question after the London confirm is one sentence, the reason for it
+   and the choices. The hero h1 above is sized for two words, so a question
+   gets its own measure (lib/onboardingFlow.ts holds the copy). */
+.firstRunPanel h1.firstRunQuestion {
+  max-width: 17ch;
+  font-size: clamp(2rem, 3.4vw, 3.1rem);
+  line-height: 1;
+  letter-spacing: -0.045em;
+}
+
+.firstRunChoiceGrid {
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.firstRunChoice {
+  position: relative;
+  min-height: 56px;
+  padding: 10px 40px 10px 14px;
+  display: grid;
+  align-content: center;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel-raised);
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 750;
+  text-align: left;
+  cursor: pointer;
+}
+
+.firstRunChoice svg {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  color: var(--state-active-ink);
+  transform: translateY(-50%);
+}
+
+.firstRunChoice.isSelected {
+  border-color: var(--state-active-ink);
+  background: color-mix(in srgb, var(--brass) 11%, var(--panel-raised));
+}
+
+.firstRunPatchPicker {
+  margin-top: 16px;
+}
+
+.firstRunPatchLabel {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.firstRunPatchPicker .firstRunChoiceGrid {
+  margin-top: 10px;
+}
+
+.firstRunPatchGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.firstRunPatchGrid .firstRunChoice {
+  min-height: 48px;
+}
+
+.firstRunNote {
+  margin: 16px 0 0;
+  padding: 10px 13px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel-raised);
+  color: var(--ink);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.firstRunQuiet {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--state-active-ink);
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.firstRunQuietRow {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.firstRunFigureHero {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  padding: clamp(20px, 4vw, 48px);
+  background:
+    radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--brass) 22%, transparent), transparent 46%),
+    var(--ink-deep);
+  color: #f8f3eb;
+  text-align: center;
+}
+
+.firstRunFigure {
+  margin: 0;
+  font: 720 clamp(4rem, 12vw, 9rem)/0.9 var(--font-display);
+  letter-spacing: -0.06em;
+}
+
+.firstRunFigureHero > p:last-child {
+  max-width: 24ch;
+  margin: 0;
+  color: color-mix(in srgb, #f8f3eb 76%, transparent);
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.firstRunPintList {
+  margin: 22px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  list-style: none;
+}
+
+.firstRunPintList li {
+  min-height: 54px;
+  padding: 9px 13px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel-raised);
+}
+
+.firstRunPintList strong {
+  font-size: 0.9rem;
+}
+
+.firstRunPintList span {
+  grid-column: 1;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+}
+
+.firstRunPintList b {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  font: 700 1rem/1 var(--font-data);
+}
+
+.firstRunTrustNote {
+  margin-top: 12px;
+  text-align: left;
+}
+
+@media (max-width: 760px) {
+  .firstRunPanel h1.firstRunQuestion {
+    font-size: clamp(1.85rem, 8.4vw, 2.5rem);
+  }
+
+  .firstRunFigure {
+    font-size: clamp(3.4rem, 18vw, 5.2rem);
+  }
+
+  .firstRunChoiceGrid {
+    margin-top: 18px;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 360px) {
+  .firstRunChoiceGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .firstRunPatchGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .firstRunChoice:hover {
+    border-color: color-mix(in srgb, var(--brass) 62%, var(--line));
+  }
+
+  .firstRunQuiet:hover {
+    background: color-mix(in srgb, var(--brass) 7%, transparent);
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .firstRunPanelInner {
     animation: firstRunPanelIn 360ms var(--ease-out-strong) both;
@@ -527,7 +732,8 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
   }
 
   .firstRunProgress {
-    grid-template-columns: repeat(2, 28px);
+    grid-template-columns: repeat(var(--first-run-steps, 2), 24px);
+    gap: 5px;
   }
 
   .firstRunStage {
