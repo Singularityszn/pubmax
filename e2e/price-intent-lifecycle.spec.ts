@@ -36,10 +36,15 @@ async function openCreateLogAPrice(page: Page) {
 test("a consumed price intent retires on Home and Create starts another contribution", async ({ page }) => {
   await seedSignedIn(page, "A");
   await page.goto("/map/manchester?drink=wine&contribute=price");
-  await expect(page.locator(".logIntentNearbyBtn").first()).toBeVisible({ timeout: 45_000 });
-  await page.locator(".logIntentNearbyBtn").first().click();
+  const nearby = page.locator(".logIntentNearbyBtn").first();
+  await expect(nearby).toBeVisible({ timeout: 45_000 });
   const price = page.getByRole("textbox", { name: /Price of a wine at/ });
-  await expect(price).toBeVisible();
+  // A picker re-sort between press and release drops the tap, so only a
+  // dropped tap is retried (e2e/design-review-followups.spec.ts).
+  await expect(async () => {
+    if (await nearby.isVisible()) await nearby.click({ timeout: 2_000 });
+    await expect(price).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
   await expect.poll(() => contributeParam(page)).toBeNull();
 
   await venueSheet(page).locator(".surfaceNavHome").click();
@@ -48,8 +53,12 @@ test("a consumed price intent retires on Home and Create starts another contribu
   await expect(page.getByText(/Pick a pub to log a/)).toHaveCount(0);
 
   await openCreateLogAPrice(page);
-  await page.locator(".logIntentNearbyBtn").first().click();
-  await expect(price).toBeVisible();
+  // A picker re-sort between press and release drops the tap, so only a
+  // dropped tap is retried (e2e/design-review-followups.spec.ts).
+  await expect(async () => {
+    if (await nearby.isVisible()) await nearby.click({ timeout: 2_000 });
+    await expect(price).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
   await expect.poll(() => contributeParam(page)).toBeNull();
 });
 

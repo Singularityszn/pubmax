@@ -210,12 +210,14 @@ for (const viewport of WIDTHS) {
     const nearby = page.locator(".logIntentNearbyBtn").first();
     await expect(nearby).toBeVisible({ timeout: 45_000 });
     const priceStep = page.getByTestId("spill-price-step");
-    // The picker is a client-only dynamic chunk (PubMap's LogIntentFallback),
-    // so its buttons carry their handler from the first paint and one tap is
-    // enough. A tap that lands hides the picker while the venue opens, so a
-    // retried tap waits on a button that is gone.
-    await nearby.click();
-    await expect(priceStep).toBeVisible({ timeout: 25_000 });
+    // The picker paints from the first shards and re-sorts when the ring load
+    // brings nearer pubs. A re-sort between press and release lands the two on
+    // different rows, and the browser sends no click. So a dropped tap is
+    // retried. A tap that landed hides the picker, so it is never retried.
+    await expect(async () => {
+      if (await nearby.isVisible()) await nearby.click({ timeout: 2_000 });
+      await expect(priceStep).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 25_000 });
 
     const chips = priceStep.locator(".priceQuickAdds .priceChip");
     await expect(chips.first()).toBeVisible({ timeout: 15_000 });
