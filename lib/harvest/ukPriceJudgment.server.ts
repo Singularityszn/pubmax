@@ -13,7 +13,6 @@ import {
   type UkPriceJudgmentProbabilities,
 } from "@/lib/harvest/ukPriceJudgmentPolicy";
 import {
-  coffeeLineExcluded,
   drinkLabelFromPriceContext,
   findUkPriceCandidates,
   pageText,
@@ -172,9 +171,6 @@ function applyJudgmentToCandidate(
         raw.verbatim,
         priceAtInSnippet,
       ) ?? undefined;
-    if (coffeeLineExcluded(decision.category, drinkLabel, raw.snippet, priceAtInSnippet)) {
-      return { drops: ["no-category-word-nearby"] };
-    }
     return {
       kept: {
         priceGbp: raw.priceGbp,
