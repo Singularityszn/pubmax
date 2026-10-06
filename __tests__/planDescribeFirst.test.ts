@@ -63,10 +63,11 @@ describe("PlanDescribeFirst occasion chips", () => {
       "utf8",
     );
 
-    // Never disabled: with nothing typed, the one primary action puts the
-    // caret in the field, and the wizard stays one quiet link away.
+    // Never disabled: with nothing typed, the one primary action says what to
+    // type and puts the caret in the field (behaviour pinned in
+    // planSortAndLockHints.test.tsx), and the wizard stays one quiet link away.
     expect(source).not.toContain("disabled={!query.trim()}");
-    expect(source).toContain("query.trim() ? submit() : queryInput.current?.focus()");
+    expect(source).toContain("queryInput.current?.focus()");
     expect(source).toContain('secondary={');
     expect(source).toContain("Guide me instead");
   });

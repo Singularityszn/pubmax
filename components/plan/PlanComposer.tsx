@@ -764,6 +764,30 @@ export function planComposerVenueIndexPath(cityId?: CityId | null): string {
   return CITIES[cityId ?? DEFAULT_CITY_ID].slimVenuesPath;
 }
 
+/**
+ * The line under "Lock it in" while the button cannot be used yet. The button
+ * stays tappable (aria-disabled) so the tap itself explains and moves focus;
+ * this line says the same thing before the tap. Null once nothing is missing,
+ * and while a request is in flight the button's own label carries the state.
+ */
+export function planLockHint({
+  validation,
+  busy,
+  routeStale,
+  startTimeIsValid,
+}: {
+  validation: { message: string; focus: "name" | null } | null;
+  busy: boolean;
+  routeStale: boolean;
+  startTimeIsValid: boolean;
+}): string | null {
+  if (busy) return null;
+  if (validation) return validation.message;
+  if (routeStale) return "Refresh the route before locking it in.";
+  if (!startTimeIsValid) return "Choose a valid future start time.";
+  return null;
+}
+
 export function planLockValidationError({
   title,
   creatorName,
@@ -1407,6 +1431,17 @@ function PlanComposerForm({
       || matchingAnchorOnlyPlan
       || completeStops.length === normalizePlanStopCount(nightContext.stopCount)
     );
+
+  const lockHint = planLockHint({
+    validation: lockValidation,
+    busy: submitting || sorting,
+    routeStale,
+    startTimeIsValid,
+  });
+  // A button that is only waiting on the form stays tappable: the tap runs
+  // submit(), which names what is missing and moves focus to it. Only a request
+  // in flight really disables it.
+  const lockBusy = submitting || sorting;
 
   // The venue index behind the Stop name field's datalist. It is only ever read
   // by the composer's own stop rows (the datalist, the typed-name match in
@@ -2299,7 +2334,14 @@ function PlanComposerForm({
           action stands down while it is up, on the same terms as the consent
           card (components/nav/createFab.css). */}
       <div className="planComposer__lock">
-        <button className="planComposer__submit" type="submit" disabled={!canLockPlan}>{submitting ? "Locking it in…" : "Lock it in"}</button>
+        <button
+          className="planComposer__submit"
+          type="submit"
+          disabled={lockBusy}
+          aria-disabled={!lockBusy && !canLockPlan ? true : undefined}
+          aria-describedby={lockHint ? "plan-lock-hint" : undefined}
+        >{submitting ? "Locking it in…" : "Lock it in"}</button>
+        {lockHint ? <p id="plan-lock-hint" className="planComposer__lockHint">{lockHint}</p> : null}
         <p className="planComposer__trust">Anyone with the link can see the plan. Joining only asks for a name.</p>
       </div>
         </>
