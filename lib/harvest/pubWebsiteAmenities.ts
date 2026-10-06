@@ -140,7 +140,7 @@ const SPORT_SHOWN =
 const LIVE_TEAM_FIXTURE = /\bwatch\s+[a-z][a-z0-9 &'-]{0,60}\s+vs\s+[a-z][a-z0-9 &'-]{0,60}\s+live\b/i;
 /** A clause about a sister, other or nearby venue says nothing about this pub unless it also names this pub. */
 const OTHER_VENUE =
-  /\b(?:sister|other|neighbou?ring|nearby|partner|affiliated)\s+(?:venues?|pubs?|bars?|locations?|sites?|branch(?:es)?)\b/i;
+  /\b(?:sister|other|another|neighbou?ring|nearby|partner|affiliated)\s+(?:venues?|pubs?|bars?|locations?|sites?|branch(?:es)?)\b/i;
 const THIS_VENUE = /\bhere\b|\b(?:this|the)\s+(?:venue|pub|bar)\b/i;
 const VIEWING_VERB = "showcas(?:e|es)|watch(?:es)?|catch(?:es)?";
 const FINITE_VIEWING_VERB = `shows?|screens?|broadcasts|${VIEWING_VERB}`;
@@ -188,6 +188,7 @@ const NOT_SPORT_SHOWN = /\bbet(?:s|ting)?\b|sportsbook|taruhan|cá cược|\be-?
 /** A new subject and predicate separate propositions; object lists stay intact. */
 const SPORT_CLAUSE_BOUNDARY = new RegExp(
   "[.,;!?]|\\b(?:but|however|yet|although|while)\\b|" +
+  "(?<!\\b(?:do\\s+not|don'?t|never)\\s+\\w+\\s)\\band\\b(?=\\s+(?:screen|broadcast|show|watch|catch|play)\\b)|" +
   "\\band\\b(?=\\s+(?:no|without|do\\s+not|don'?t|never|" +
   "we\\s+(?:(?:do\\s+not|don'?t|never|no\\s+longer)\\s+)?(?:have|show|watch|broadcast|screen|catch|play)|" +
   "we(?:\\s+are\\s+not|'re\\s+not|\\s+aren'?t)\\s+subscribed\\s+to|" +

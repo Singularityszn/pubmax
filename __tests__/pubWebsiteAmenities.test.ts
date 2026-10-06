@@ -573,7 +573,23 @@ describe("sports evidence publication", () => {
     "No screens at this pub and our sister venue shows football",
     "We don't show football here, but our sister pub does show football on its TVs",
     "Football is shown at our other pubs.",
+    "No screens at this pub and football is shown at another venue",
+    "No screens here, but football is shown at another pub",
   ])("does not stamp this pub from a sister venue's sport: %s", (quote) => {
+    expectSportsPublication(quote, false);
+  });
+
+  it.each([
+    "We don't show films and screen live football.",
+    "We never show films and broadcast live rugby.",
+  ])("scopes an unrelated media denial to its own clause: %s", (quote) => {
+    expectSportsPublication(quote, true);
+  });
+
+  it.each([
+    "We don't show and screen football.",
+    "We don't show films and screen films.",
+  ])("keeps a denial over a coordinated bare verb: %s", (quote) => {
     expectSportsPublication(quote, false);
   });
 
