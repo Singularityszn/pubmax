@@ -586,7 +586,9 @@ function RoundMoneyGlance({
     >
       <div className="roundMoneyCell roundMoneyTurn">
         <span className="roundMoneyLabel">Up now</span>
-        <strong>{currentHandle ? `@${currentHandle}` : "Nobody yet"}</strong>
+        <strong title={currentHandle ? `@${currentHandle}` : undefined}>
+          {currentHandle ? `@${currentHandle}` : "Nobody yet"}
+        </strong>
         <small>{latestSpend ? "Next in the rotation" : "First round"}</small>
       </div>
       <div className="roundMoneyCell roundMoneyLatest">
