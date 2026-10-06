@@ -23,8 +23,14 @@ let pending: Promise<VenueAliasMaps> | null = null;
 
 type AliasFileEntries = { aliases: Array<[string, string]>; retired: Array<[string, string]> };
 
+const ALIAS_READ_TIMEOUT_MS = 8_000;
+
 async function readAliasFile(file: string): Promise<AliasFileEntries> {
-  const response = await fetch(`/${file.replace(/^public\//, "")}`);
+  // Bounded: a stalled alias file must settle as unread, because callers hold a
+  // deep-link sheet open until this answers.
+  const response = await fetch(`/${file.replace(/^public\//, "")}`, {
+    signal: AbortSignal.timeout(ALIAS_READ_TIMEOUT_MS),
+  });
   if (!response.ok) {
     discardBody(response);
     throw new Error(`${file} answered ${response.status}`);
