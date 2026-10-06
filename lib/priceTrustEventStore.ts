@@ -16,7 +16,7 @@ import {
   createFailSoftGuard,
   onMissingDurableWrite,
 } from "@/lib/storeBackend";
-import { loadVenueAliasResolver } from "@/lib/venueAliases";
+import { loadVenueAliasResolver, storedVenueIds } from "@/lib/venueAliases";
 
 const EVENTS_TABLE = "price_trust_events";
 const CREDITS_TABLE = "price_trust_credits";
@@ -72,11 +72,6 @@ async function eventsUnderCurrentIds(events: PriceTrustEvent[]): Promise<PriceTr
     const venueId = aliases.canonical(event.venueId);
     return venueId === event.venueId ? event : { ...event, venueId };
   });
-}
-
-/** Every id a venue's events may be stored under, current id first. */
-async function storedVenueIds(venueId: string): Promise<string[]> {
-  return (await loadVenueAliasResolver()).storedIds(cleanText(venueId, 64));
 }
 
 type VisibleImpact = {
@@ -336,7 +331,7 @@ export const memoryPriceTrustEventStore: PriceTrustEventStore = {
   },
 
   async liveEventsFor(venueId, category) {
-    const keys = await storedVenueIds(venueId);
+    const keys = await storedVenueIds(cleanText(venueId, 64));
     const events = memory.events.filter(
       (event) =>
         keys.includes(event.venueId) &&

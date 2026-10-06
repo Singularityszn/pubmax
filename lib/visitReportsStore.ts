@@ -29,6 +29,7 @@ import {
   isUniqueViolation,
   onMissingDurableWrite,
   selectStore,
+  whereVenueIdIn,
 } from "@/lib/storeBackend";
 import {
   cleanBusyness,
@@ -45,6 +46,7 @@ import {
 } from "@/lib/visitReports";
 import { dropWithdrawnAuthors, withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { authorRetiredAtFromRow } from "@/lib/retiredContributor";
+import { storedVenueIds } from "@/lib/venueAliases";
 import type {
   ContributionRecord,
   ContributionRecordReadResult,
@@ -159,9 +161,11 @@ function visitContributionRecord(report: VisitReport): ContributionRecord {
 const byId = new Map<string, VisitReport>();
 const idByNight = new Map<string, string>();
 
-function memoryUpsert(fields: VisitReportFields, now: number): VisitReport {
+async function memoryUpsert(fields: VisitReportFields, now: number): Promise<VisitReport> {
   const key = nightKey(fields.venueId, fields.handle, fields.visitedAt);
-  const existingId = idByNight.get(key);
+  const existingId = (await storedVenueIds(fields.venueId))
+    .map((venueId) => idByNight.get(nightKey(venueId, fields.handle, fields.visitedAt)))
+    .find((id) => id !== undefined);
   const createdAt = new Date(now).toISOString();
   if (existingId) {
     const prev = byId.get(existingId)!;
@@ -193,12 +197,13 @@ function memoryUpsert(fields: VisitReportFields, now: number): VisitReport {
 
 export const memoryVisitReportStore: VisitReportStore = {
   async create(fields, now = Date.now()) {
-    return toVisitReportDTO(memoryUpsert(fields, now));
+    return toVisitReportDTO(await memoryUpsert(fields, now));
   },
 
   async readForVenue(venueId) {
+    const venueIds = await storedVenueIds(venueId);
     const visible = Array.from(byId.values())
-      .filter((r) => r.venueId === venueId && r.status === "visible");
+      .filter((r) => venueIds.includes(r.venueId) && r.status === "visible");
     const reports = (await dropWithdrawnAuthors(visible, (r) => r.handle))
       .sort(byNewestVisit)
       .slice(0, MAX_VENUE_REPORTS)
@@ -336,12 +341,14 @@ function fromRow(row: Record<string, unknown>): VisitReport {
 }
 
 async function selectExistingId(fields: VisitReportFields): Promise<string | null> {
-  const { data, error } = await admin()
-    .from(TABLE)
-    .select("id")
-    .eq("venue_id", fields.venueId)
+  const { data, error } = await whereVenueIdIn(
+    admin().from(TABLE).select("id"),
+    await storedVenueIds(fields.venueId),
+  )
     .eq("handle", fields.handle)
     .eq("visited_at", fields.visitedAt)
+    .order("created_at", { ascending: true })
+    .limit(1)
     .maybeSingle();
   if (error) throw new Error(error.message);
   return data ? String((data as { id: unknown }).id) : null;
@@ -410,10 +417,10 @@ export const supabaseVisitReportStore: VisitReportStore = {
       message: "readForVenue failed - returning no reports",
       onError: () => ({ status: "degraded", reports: [] }),
       run: async () => {
-        const { data, error } = await admin()
-          .from(TABLE)
-          .select("*")
-          .eq("venue_id", venueId)
+        const { data, error } = await whereVenueIdIn(
+          admin().from(TABLE).select("*"),
+          await storedVenueIds(venueId),
+        )
           .eq("status", "visible")
           // Same two-key order as the memory store (see byNewestVisit): the
           // night first, the submission time only to break a tie.

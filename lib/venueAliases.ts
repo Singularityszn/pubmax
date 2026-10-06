@@ -123,6 +123,15 @@ export type VenueAliasResolver = {
   retired(id: string): RetiredVenue | null;
 };
 
+/**
+ * Every id a row about this venue may be stored under, current id first. The
+ * one rule every store read keyed by a venue id runs through, so a row written
+ * under a merged, superseded or dropped id is still read as the venue's own.
+ */
+export async function storedVenueIds(venueId: string): Promise<string[]> {
+  return (await loadVenueAliasResolver()).storedIds(venueId);
+}
+
 /** The retired pub this id names, or null. Null too when the alias files cannot be read. */
 export async function lookupRetiredVenue(id: string): Promise<RetiredVenue | null> {
   return (await loadVenueAliasResolver()).retired(id);

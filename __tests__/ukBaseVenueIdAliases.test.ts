@@ -19,6 +19,13 @@ import {
   submitCommunityVenueSignal,
 } from "@/lib/communityPriceStore";
 import { __resetMemoryPriceTrustEvents, priceTrustEventStore } from "@/lib/priceTrustEventStore";
+import { __resetMemoryOccupancyReports, memoryOccupancyStore } from "@/lib/occupancyStore";
+import { __resetPintDrops, addPintDrop } from "@/lib/pintDrops";
+import type { PintDrop } from "@/lib/pintDropShared";
+import { memoryPintDropStore } from "@/lib/pintDropsStore";
+import { __resetMemoryRatings, memoryRatingsStore } from "@/lib/ratingsStore";
+import { __resetVenueOperators, memoryVenueOperatorStore } from "@/lib/venueOperatorsStore";
+import { __resetVisitReports, memoryVisitReportStore } from "@/lib/visitReportsStore";
 import { __resetMemorySavedPubs, memorySavedPubsStore } from "@/lib/savedPubsStore";
 import { lookupUkBasePub, resetUkBaseIndexForTests } from "@/lib/ukBaseIndex";
 import { resetVenueAliasesForTests } from "@/lib/venueAliases";
@@ -400,5 +407,130 @@ describe("community reads follow a venue's former ids", () => {
     expect(live.events.map((event) => event.evidenceFingerprint)).toEqual([
       "bell-before-refresh",
     ]);
+  });
+});
+
+describe("every per-venue store read follows a venue's former ids", () => {
+  const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
+  const ORIGINAL_SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const NOW = Date.parse("2026-10-06T20:00:00.000Z");
+
+  beforeEach(() => {
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    resetVenueAliasesForTests();
+    __resetPintDrops();
+    __resetVisitReports();
+    __resetMemoryOccupancyReports();
+    __resetMemoryRatings();
+    __resetVenueOperators();
+  });
+
+  afterEach(() => {
+    if (ORIGINAL_SUPABASE_URL === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = ORIGINAL_SUPABASE_URL;
+    if (ORIGINAL_SUPABASE_SERVICE_ROLE_KEY === undefined) {
+      delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    } else {
+      process.env.SUPABASE_SERVICE_ROLE_KEY = ORIGINAL_SUPABASE_SERVICE_ROLE_KEY;
+    }
+  });
+
+  function bellDrop(overrides: Partial<PintDrop>): PintDrop {
+    return {
+      id: "drop-before-refresh",
+      venueId: THE_BELL.old,
+      handle: "drinker-a",
+      drink: "Bitter",
+      priceGbp: 5.4,
+      passedDownNote: "",
+      era: "",
+      provenance: "contributor",
+      status: "visible",
+      visibility: "public",
+      createdAt: new Date(NOW - 60_000).toISOString(),
+      ...overrides,
+    };
+  }
+
+  it("pairs a second reporter on the current id with a drop under the former id", async () => {
+    addPintDrop(bellDrop({}));
+    const candidates = await memoryPintDropStore.listConfirmationCandidates(THE_BELL.current);
+    expect(candidates.map((drop) => drop.id)).toEqual(["drop-before-refresh"]);
+  });
+
+  it("holds one priced drop per handle per day across the former and the current id", async () => {
+    addPintDrop(bellDrop({}));
+    expect(
+      await memoryPintDropStore.hasPricedDropToday(THE_BELL.current, "drinker-a", NOW),
+    ).toBe(true);
+  });
+
+  it("answers a live confirmation under a former id for the current id asked", async () => {
+    addPintDrop(
+      bellDrop({
+        confirmation: {
+          confirmationId: "conf-1",
+          basis: "second_reporter",
+          confirmedAt: new Date(NOW - 30_000).toISOString(),
+        },
+      } as Partial<PintDrop>),
+    );
+    const dated = await memoryPintDropStore.listConfirmedVenueIds([THE_BELL.current], NOW);
+    expect([...dated]).toEqual([THE_BELL.current]);
+  });
+
+  it("reads a visit report and keeps one report per night across the former id", async () => {
+    const fields = {
+      venueId: THE_BELL.old,
+      handle: "drinker-a",
+      visitedAt: "2026-10-05",
+      busyness: null,
+      noise: null,
+      seating: null,
+      serviceWait: null,
+      note: "before",
+    };
+    await memoryVisitReportStore.create(fields, NOW - 60_000);
+    await memoryVisitReportStore.create({ ...fields, venueId: THE_BELL.current, note: "after" }, NOW);
+    const read = await memoryVisitReportStore.readForVenue(THE_BELL.current);
+    expect(read.reports.map((report) => report.note)).toEqual(["after"]);
+  });
+
+  it("reads a crowd reading stored under the former id", async () => {
+    await memoryOccupancyStore.report({
+      venueId: THE_BELL.old,
+      level: "full",
+      reporterUserId: "user-a",
+      now: NOW - 60_000,
+    });
+    expect((await memoryOccupancyStore.readNow(THE_BELL.current, NOW)).now).toBe("full");
+  });
+
+  it("counts one rating per handle across the former and the current id", async () => {
+    await memoryRatingsStore.rate({ kind: "venue", ref: THE_BELL.old, handle: "drinker-a", rating: 2 });
+    await memoryRatingsStore.rate({ kind: "venue", ref: THE_BELL.current, handle: "drinker-b", rating: 4 });
+    await memoryRatingsStore.rate({ kind: "venue", ref: THE_BELL.current, handle: "drinker-a", rating: 5 });
+    const summaries = await memoryRatingsStore.summaryFor("venue", [THE_BELL.current]);
+    expect(summaries[THE_BELL.current]?.count).toBe(2);
+  });
+
+  it("finds an operator claim filed under the former id, and refreshes it rather than filing twice", async () => {
+    const first = await memoryVenueOperatorStore.claim({
+      accountId: "account-a",
+      venueId: THE_BELL.old,
+      evidenceKind: "phone",
+      evidenceNote: "before",
+    });
+    const second = await memoryVenueOperatorStore.claim({
+      accountId: "account-a",
+      venueId: THE_BELL.current,
+      evidenceKind: "phone",
+      evidenceNote: "after",
+    });
+    expect(second.id).toBe(first.id);
+    expect(
+      (await memoryVenueOperatorStore.getForAccountVenue("account-a", THE_BELL.current))?.id,
+    ).toBe(first.id);
   });
 });

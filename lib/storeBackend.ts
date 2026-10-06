@@ -91,6 +91,27 @@ export function admin(): SupabaseClient {
   return requireSupabaseAdmin();
 }
 
+type VenueIdFilterable = {
+  eq(column: string, value: string): unknown;
+  in(column: string, values: readonly string[]): unknown;
+};
+
+/**
+ * Narrow a query to rows stored under any of a venue's ids (lib/venueAliases.ts
+ * `storedVenueIds`, current id first). A venue with no former id keeps the
+ * equality filter it always had. Both filters return the same builder type, so
+ * the query keeps its own type.
+ */
+export function whereVenueIdIn<Q>(query: Q, venueIds: readonly string[]): Q {
+  const builder = query as unknown as VenueIdFilterable;
+  const [only] = venueIds;
+  return (
+    venueIds.length === 1 && only !== undefined
+      ? builder.eq("venue_id", only)
+      : builder.in("venue_id", venueIds)
+  ) as Q;
+}
+
 /** Postgres unique_violation (23505): a duplicate insert racing an existing
  *  row — the idempotent-success case for toggle/insert-if-absent writes. */
 export function isUniqueViolation(error: { code?: string } | null | undefined): boolean {

@@ -75,6 +75,9 @@ vi.mock("@/lib/supabase", () => {
       order() {
         return q;
       },
+      limit() {
+        return q;
+      },
       maybeSingle() {
         state.single = true;
         return Promise.resolve(result());

@@ -59,9 +59,12 @@ name, address and last point, so a saved pub, a drop or a crawl stop still
 names it, noted as possibly closed, while the map no longer lists it. A build
 that would leave a dropped id resolving to nothing fails. `lib/venueAliases.ts`
 reads the file beside the city alias files, and an id that comes back to OSM
-leaves it. Every read keyed by a venue id (saves, drops, community prices,
-venue signals and provisional price marks) reads the rows stored under the
-venue's former ids too, through `storedIds()`. Commit the file with the shards.
+leaves it. Every store read keyed by a venue id (saves, drops and their
+confirmations, community prices, venue signals, provisional price marks, price
+trust, crowd readings, ratings, photos, visit reports, weather tips, presence,
+wanted fulfilment, operator claims and operator proposals) reads
+the rows stored under the venue's former ids too, through `storedVenueIds()` in
+`lib/venueAliases.ts`. Commit the file with the shards.
 
 Community-price visibility binds to that same salted id. The settled viewport
 asks for marked ids only, then `lib/ukBasePubs.ts` adds the mark to in-memory
