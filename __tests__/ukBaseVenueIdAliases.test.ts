@@ -8,19 +8,25 @@ import { GET } from "@/app/api/uk-base/[id]/route";
 import { parseUkBaseRestoreResponse } from "@/components/map/pubmap/useUkBaseStreaming";
 import {
   __resetCommunityPrices,
+  countCorroboratedCommunityCategories,
+  findCommunityPriceObservation,
+  listCommunityPriceObservations,
+  readCommunityPriceCategoryIndex,
   readCommunityPricesWithStatus,
   readCommunityVenueSignalsWithStatus,
   readProvisionalCommunityPriceVenueIds,
   submitCommunityPrice,
   submitCommunityVenueSignal,
 } from "@/lib/communityPriceStore";
+import { __resetMemoryPriceTrustEvents, priceTrustEventStore } from "@/lib/priceTrustEventStore";
 import { __resetMemorySavedPubs, memorySavedPubsStore } from "@/lib/savedPubsStore";
 import { lookupUkBasePub, resetUkBaseIndexForTests } from "@/lib/ukBaseIndex";
 import { resetVenueAliasesForTests } from "@/lib/venueAliases";
 import { resolveStoredVenue } from "@/lib/venueIndex";
 import { resolveWritableVenueId } from "@/lib/venueWriteTarget.server";
 import {
-  recordUkBaseVenueIdAliases,
+  planUkBaseVenueIdAliases,
+  writeUkBaseVenueIdAliases,
   ukBaseIdDepartures,
 } from "../scripts/lib/ukBaseVenueIdAliases.mjs";
 
@@ -81,7 +87,17 @@ describe("ukBaseIdDepartures", () => {
   });
 });
 
-describe("recordUkBaseVenueIdAliases", () => {
+async function recordUkBaseVenueIdAliases(
+  root: string,
+  previousRows: unknown[][],
+  nextRows: unknown[][],
+  liveCuratedIds: ReadonlySet<string>,
+): Promise<void> {
+  const plan = await planUkBaseVenueIdAliases(root, previousRows, nextRows, liveCuratedIds);
+  if (plan.doc) await writeUkBaseVenueIdAliases(root, plan.doc);
+}
+
+describe("planUkBaseVenueIdAliases and writeUkBaseVenueIdAliases", () => {
   function aliasRoot(): string {
     const root = mkdtempSync(path.join(tmpdir(), "uk-base-aliases-"));
     mkdirSync(path.join(root, "public", "data"), { recursive: true });
@@ -140,6 +156,21 @@ describe("recordUkBaseVenueIdAliases", () => {
     expect(aliasDoc(root)).toEqual(
       expect.objectContaining({ aliases: { "venue-uk-n1": "venue-uk-w2" }, retired: {} }),
     );
+  });
+
+  it("plans the record without writing it, so a build can fail before it publishes", async () => {
+    const root = aliasRoot();
+    const plan = await planUkBaseVenueIdAliases(root, [bellNode], [bellWay], NO_CURATED);
+    expect(plan.doc).toMatchObject({ aliases: { "venue-uk-n1": "venue-uk-w2" } });
+    expect(aliasDoc(root)).toMatchObject({ aliases: {}, retired: {} });
+  });
+
+  it("fails on an alias file it cannot read, before anything is written", async () => {
+    const root = aliasRoot();
+    writeFileSync(path.join(root, "public", "data", "uk_base_venue_id_aliases.json"), "<<<<<<<");
+    await expect(
+      planUkBaseVenueIdAliases(root, [bellNode], [bellWay], NO_CURATED),
+    ).rejects.toThrow();
   });
 
   it("fails, writing nothing, when a dropped id would resolve to nothing", async () => {
@@ -260,10 +291,12 @@ describe("community reads follow a venue's former ids", () => {
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
     resetVenueAliasesForTests();
     __resetCommunityPrices();
+    __resetMemoryPriceTrustEvents();
   });
 
   afterEach(() => {
     __resetCommunityPrices();
+    __resetMemoryPriceTrustEvents();
     if (ORIGINAL_SUPABASE_URL === undefined) delete process.env.SUPABASE_URL;
     else process.env.SUPABASE_URL = ORIGINAL_SUPABASE_URL;
     if (ORIGINAL_SUPABASE_SERVICE_ROLE_KEY === undefined) {
@@ -317,5 +350,55 @@ describe("community reads follow a venue's former ids", () => {
     const read = await readCommunityPricesWithStatus(THE_BELL.old, 3_000);
     expect(read.prices).toHaveLength(1);
     expect(read.prices[0]).toMatchObject({ venueId: THE_BELL.current, corroborations: 2 });
+  });
+
+  async function twoDrinkersAcrossTheRemap(): Promise<void> {
+    await submitCommunityPrice(
+      { venueId: THE_BELL.old, drinkCategory: "beer", priceGbp: 5.4, actor: "a" },
+      1_000,
+    );
+    await submitCommunityPrice(
+      { venueId: THE_BELL.current, drinkCategory: "beer", priceGbp: 5.4, actor: "b" },
+      2_000,
+    );
+  }
+
+  it("publishes the map lens row under the current id, corroborated across both ids", async () => {
+    await twoDrinkersAcrossTheRemap();
+    const index = await readCommunityPriceCategoryIndex(["beer"], 3_000);
+    expect(index.prices).toHaveLength(1);
+    expect(index.prices[0]).toMatchObject({ venueId: THE_BELL.current, corroborations: 2 });
+  });
+
+  it("counts the remapped pub once in the corroborated roll-up", async () => {
+    await twoDrinkersAcrossTheRemap();
+    expect(await countCorroboratedCommunityCategories(3_000)).toMatchObject({ count: 1 });
+  });
+
+  it("hands the trust sync every observation of the pub, under its current id", async () => {
+    await twoDrinkersAcrossTheRemap();
+    const listed = await listCommunityPriceObservations(THE_BELL.current, "beer");
+    expect(listed.observations.map((row) => [row.actor, row.venueId]).sort()).toEqual([
+      ["a", THE_BELL.current],
+      ["b", THE_BELL.current],
+    ]);
+    const oldRow = listed.observations.find((row) => row.actor === "a");
+    const found = await findCommunityPriceObservation(oldRow?.id ?? "");
+    expect(found.observation?.venueId).toBe(THE_BELL.current);
+  });
+
+  it("finds a trust event recorded under a former id from the pub's current id", async () => {
+    await priceTrustEventStore().recordUnlock({
+      fingerprint: "bell-before-refresh",
+      venueId: THE_BELL.old,
+      category: "beer",
+      observationIds: ["obs-a", "obs-b"],
+      userIds: [],
+      now: 1_000,
+    });
+    const live = await priceTrustEventStore().liveEventsFor(THE_BELL.current, "beer");
+    expect(live.events.map((event) => event.evidenceFingerprint)).toEqual([
+      "bell-before-refresh",
+    ]);
   });
 });
