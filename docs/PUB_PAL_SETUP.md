@@ -98,15 +98,24 @@ proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url 
    staying silent until it returns. The four confirm tools (`propose_plan`,
    `propose_map_action`, `report_occupancy`, `propose_memory`) set `interruption_mode:
    "disable_during_tool_and_turn"` so the proposal is heard whole. Typed chat
-   answers on the first reply when the turn asks for no tool. Once a turn asks
-   for a tool, typed chat drops the checking lines. It returns a reply only
-   when that reply came after the last tool event and no tool is still
-   running, on `agent_response_complete`. The script adds that event and the
-   tool events to the agent's `conversation.client_events`, so the captain
-   re-runs `npm run pubpal:agent` to turn them on. On an agent without that
-   event, a tool turn ends at the 22-second server deadline, which falls
-   before the browser's 25-second abort, and returns the reply held under the
-   same rule, or a timeout.
+   answers when a reply has settled: no tool event followed it for 1.2 seconds,
+   or 0.4 seconds after `agent_response_complete` when the agent sends it. A
+   reply that came before a tool event is the checking line, so typed chat drops
+   it and waits for the reply after the tool. The script adds the tool events
+   and `agent_response_complete` to the agent's `conversation.client_events`,
+   so the captain re-runs `npm run pubpal:agent` to turn them on. Typed chat
+   works on an agent with or without them, so the deploy and the re-run can
+   happen in either order. One window stays open until the re-run: an agent
+   that sends no `agent_tool_request` cannot say a tool is still running, so a
+   slow tool's checking line that outlasts the settle window would be returned
+   as the answer. `npm run pubpal:agent -- --check` reports whether the live
+   agent matches this config.
+   Typed chat can also stream. A caller that sends `Accept: application/x-ndjson`
+   to `/api/pub-pal/chat` gets the answer text as the agent writes it
+   (`agent_chat_response_part`, which text-only mode always sends), then one
+   `final` line carrying the same body the JSON path returns, cards and
+   proposals included. Sign-in, the rate limit and the spend ceiling answer
+   before the stream opens. Any other caller still gets one JSON body.
    One more webhook, `recall_memories`, is Pal-only. It returns the memories the
    person confirmed or corrected (never `completed_plan` rows) for the account
    that opened the conversation, read from the server-side conversation binding

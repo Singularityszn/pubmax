@@ -29,7 +29,8 @@ globalThis.fetch = async (url, init = {}) => {
 };
 `;
 
-type Json = Record<string, any>;
+// The ElevenLabs agent JSON, read and edited by path in these fixtures.
+type Json = ReturnType<typeof JSON.parse>;
 
 const directories: string[] = [];
 
