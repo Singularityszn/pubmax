@@ -218,21 +218,30 @@ export function readPriceUpdatesAt(ref, { cwd = ROOT } = {}) {
   return JSON.parse(latest).updates ?? [];
 }
 
+function checkpointResumable(saved, { city, totalPubs, reset = false }) {
+  return (
+    !reset &&
+    saved?.version === CHECKPOINT_VERSION &&
+    saved.city === city &&
+    saved.totalPubs === totalPubs
+  );
+}
+
 /**
  * The saved checkpoint when it still describes this city's pack, or a fresh
  * one. A changed pack or --reset restarts the walk rather than failing every
  * night. The prices found so far carry over, so a night that was paid for and
  * not merged yet is not lost. A price for a pub that left the pack does not
- * carry over.
+ * carry over. A checkpoint saved before pubs' failed attempts were recorded
+ * resumes with none recorded.
  */
 export function resumeCheckpoint(saved, { city, totalPubs, cityVenueKeys, observedAt, reset = false }) {
-  if (
-    !reset &&
-    saved?.version === CHECKPOINT_VERSION &&
-    saved.city === city &&
-    saved.totalPubs === totalPubs
-  ) {
-    return saved;
+  if (checkpointResumable(saved, { city, totalPubs, reset })) {
+    return {
+      ...saved,
+      deferred: Array.isArray(saved.deferred) ? saved.deferred : [],
+      terminal: Array.isArray(saved.terminal) ? saved.terminal : [],
+    };
   }
   return {
     version: CHECKPOINT_VERSION,
@@ -497,7 +506,7 @@ async function main() {
     observedAt,
     reset: args.reset,
   });
-  if (saved && checkpoint !== saved) {
+  if (saved && !checkpointResumable(saved, { city: args.city, totalPubs: pubs.length, reset: args.reset })) {
     const leftPack = (saved.prices?.length ?? 0) - checkpoint.prices.length;
     console.log(
       `${args.city}: checkpoint restarted; ${checkpoint.prices.length} prices carried over, ` +

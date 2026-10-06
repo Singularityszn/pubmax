@@ -321,7 +321,7 @@ describe("the nightly London pass keeps going and keeps what it found", () => {
       prices: [unmerged, leftThePack],
     };
 
-    expect(resumeCheckpoint(saved, options)).toBe(saved);
+    expect(resumeCheckpoint(saved, options)).toEqual(saved);
     for (const restarted of [
       resumeCheckpoint({ ...saved, totalPubs: 4 }, options),
       resumeCheckpoint({ ...saved, version: 1 }, options),
@@ -330,6 +330,31 @@ describe("the nightly London pass keeps going and keeps what it found", () => {
     ]) {
       expect(restarted).toMatchObject({ readAt: {}, prices: [unmerged] });
     }
+  });
+
+  it("resumes a checkpoint saved before failed attempts were recorded", async () => {
+    const pubs = londonPubs(3);
+    const older: Record<string, unknown> = { ...freshLondon(pubs), readAt: { "node/1": OBSERVED_AT } };
+    delete older.deferred;
+    delete older.terminal;
+    const options = { city: "london", totalPubs: pubs.length, cityVenueKeys: cityKeys(pubs), observedAt: OBSERVED_AT };
+    const resumed = resumeCheckpoint(older, options);
+
+    expect(resumed).toMatchObject({ readAt: { "node/1": OBSERVED_AT }, deferred: [], terminal: [] });
+
+    const fetchImpl = billing(2);
+    const { state } = await runCityPass({
+      city: "london",
+      checkpoint: resumed,
+      pubs,
+      apiKey: "test-key",
+      observedAt: "2026-10-07T02:30:00.000Z",
+      committedPrices: [],
+      fetchImpl,
+    });
+
+    expect(searchedPubs(fetchImpl)).toEqual(["Independent Arms 2", "Independent Arms 3", "Independent Arms 1"]);
+    expect(state.deferred).toEqual([]);
   });
 
   const NIGHT_1 = "2026-10-06T02:30:00.000Z";
