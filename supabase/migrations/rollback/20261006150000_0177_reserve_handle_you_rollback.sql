@@ -113,11 +113,6 @@ revoke all on function public.claim_pubmaxx_handle(uuid, text)
 grant execute on function public.claim_pubmaxx_handle(uuid, text)
   to service_role;
 
-revoke all on function public.claim_pubmaxx_handle(uuid, text)
-  from public, anon, authenticated;
-grant execute on function public.claim_pubmaxx_handle(uuid, text)
-  to service_role;
-
 create or replace function public.rename_pubmaxx_handle(p_user_id uuid, p_handle text)
 returns jsonb
 language plpgsql

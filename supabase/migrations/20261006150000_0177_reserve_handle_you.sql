@@ -6,7 +6,9 @@
 -- gives the two RPCs that mint a handle the same refusal. Claim and rename
 -- are both redefined, because rename is the second door to the same name.
 -- Each body is byte-for-byte its latest definition (claim: 0152, rename: 0029)
--- plus `'you'` in the reserved list. Existing rows are NOT touched.
+-- plus `'you'` in the reserved list. No row held `you` on 6 Oct 2026
+-- (profiles and profile_handle_aliases both checked read-only), so nothing
+-- needed repair.
 -- Captain applies this migration. Rollback restores both bodies.
 
 begin;
@@ -115,11 +117,6 @@ exception when unique_violation then
     'error', 'That handle is already taken.');
 end;
 $$;
-revoke all on function public.claim_pubmaxx_handle(uuid, text)
-  from public, anon, authenticated;
-grant execute on function public.claim_pubmaxx_handle(uuid, text)
-  to service_role;
-
 revoke all on function public.claim_pubmaxx_handle(uuid, text)
   from public, anon, authenticated;
 grant execute on function public.claim_pubmaxx_handle(uuid, text)
