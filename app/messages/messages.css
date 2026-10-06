@@ -624,9 +624,12 @@ html[data-theme="dark"] .messageBubblePhoto {
     margin-top var(--duration-base, 0.18s) var(--ease-out);
 }
 
+/* Once shown, the meta line stops clipping so the Report button's hit area can
+   reach past its 32px box. */
 .messageRow[data-revealed] .messageMeta,
 .messageLine:focus-within .messageMeta {
   max-height: 2.5rem;
+  overflow: visible;
   opacity: 1;
   margin-top: 0.2rem;
 }
@@ -634,6 +637,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 @media (hover: hover) {
   .messageLine:hover .messageMeta {
     max-height: 2.5rem;
+    overflow: visible;
     opacity: 1;
     margin-top: 0.2rem;
   }
@@ -678,7 +682,11 @@ html[data-theme="dark"] .messageBubblePhoto {
 .messageReportBtn::after {
   content: "";
   position: absolute;
-  inset: -6px -4px;
+  top: 50%;
+  left: 50%;
+  width: max(100% + 8px, 44px);
+  height: max(100% + 12px, 44px);
+  transform: translate(-50%, -50%);
 }
 
 .messageReportBtn:hover {

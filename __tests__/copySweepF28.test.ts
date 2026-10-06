@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { drinkLensEmptyVenueNote } from "@/lib/mapExperienceLens";
@@ -7,8 +5,8 @@ import { outListingsSectionTitle, outWindowNoun } from "@/lib/outListings";
 import { historicCountLine } from "@/lib/pageFilters";
 
 // Copy findings from the signed-out QA sweep (F28): lines that contradicted the
-// screen around them, a range over nothing, and an offline page in a voice and
-// typeface the app does not use.
+// screen around them and a range over nothing. The offline page's face and dash
+// are measured in the browser (e2e/qa-sweep-css.spec.ts).
 
 describe("the absence line beside a price nobody logged", () => {
   it("keeps the plain line when no other price is shown", () => {
@@ -52,18 +50,5 @@ describe("the historic count line", () => {
     expect(historicCountLine({ firstShown: 1, lastShown: 3, matchingPubs: 3, totalPubs: 342 })).toBe(
       "Showing 1-3 of 3 matches",
     );
-  });
-});
-
-describe("public/offline.html", () => {
-  const html = readFileSync(join(process.cwd(), "public/offline.html"), "utf8");
-
-  it("uses no em dash, in any spelling", () => {
-    expect(html).not.toMatch(/—|&mdash;|&#8212;|&#x2014;/i);
-  });
-
-  it("uses the app's sans stack, not a serif face", () => {
-    expect(html).not.toMatch(/Georgia|Times New Roman/);
-    expect(html).toMatch(/font-family:\s*ui-sans-serif, system-ui/);
   });
 });
