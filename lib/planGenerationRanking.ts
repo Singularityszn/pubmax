@@ -1,13 +1,22 @@
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 import { formatGbp } from "@/lib/formatGbp";
 import { canAffectRoute, type NightSignalClaim } from "@/lib/nightSignalClaims";
-import { CATEGORY_META } from "@/lib/drinks";
+import { CATEGORY_META, type DrinkCategory } from "@/lib/drinks";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import type { NightContext } from "@/lib/nightPlanning";
 import type { PlanningWeather } from "@/lib/weatherSnapshots";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
 type ScoreAccumulator = { score: number; reasons: string[] };
+
+export function planScoringDrinkCategory(
+  context: Pick<NightContext, "drinkCategory" | "zeroProof">,
+): DrinkCategory | null {
+  const category = context.drinkCategory;
+  return category && category !== "beer" && (!context.zeroProof || category === "soft-drink")
+    ? category
+    : null;
+}
 
 function priceAndZeroProof(
   venue: ConciergeVenue,
@@ -17,9 +26,9 @@ function priceAndZeroProof(
 ): ScoreAccumulator {
   const reasons: string[] = [];
   let score = 0;
+  const category = planScoringDrinkCategory(context);
   if (context.budget === "value") {
-    const category = context.zeroProof ? null : context.drinkCategory;
-    if (category && category !== "beer") {
+    if (category) {
       const price = drinkLensPrices?.get(venue.id);
       if (price?.category === category && price.priceGbp > 0) {
         score += Math.min(5, 10 / price.priceGbp);
@@ -40,11 +49,14 @@ function priceAndZeroProof(
     // dataset amenity is a name-match guess, so it earns a weaker signal and
     // only when no corroborated price exists. A venue with neither stays
     // neutral - it never scores below a venue this style has no evidence on.
-    const naPrice = naLensPrices?.get(venue.id);
-    if (naPrice !== undefined) {
+    const explicitSoftDrink = category === "soft-drink";
+    const naPrice = explicitSoftDrink ? drinkLensPrices?.get(venue.id) : naLensPrices?.get(venue.id);
+    if (naPrice !== undefined && (!explicitSoftDrink || naPrice.category === category)) {
       score += 4;
-      reasons.push(`corroborated alcohol-free price from ${formatGbp(naPrice.priceGbp)}`);
-    } else if (venue.amenities.nonAlcoholic === true) {
+      reasons.push(explicitSoftDrink
+        ? `corroborated soft drinks price from ${formatGbp(naPrice.priceGbp)}`
+        : `corroborated alcohol-free price from ${formatGbp(naPrice.priceGbp)}`);
+    } else if (!explicitSoftDrink && venue.amenities.nonAlcoholic === true) {
       score += 1.5;
       reasons.push("confirmed alcohol-free option in the Venue Dataset");
     }
