@@ -86,7 +86,7 @@ function profileActor(profileId: string): string {
 }
 
 /** The profile row as the export reads it: the identity block plus the fields the account filled in. */
-export type AccountExportProfileRow = {
+type AccountExportProfileRow = {
   id: string;
   handle: string;
   displayName: string | null;

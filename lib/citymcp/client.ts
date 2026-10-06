@@ -1320,7 +1320,7 @@ function sameWord(a: string, b: string): boolean {
 }
 
 /** True when an event row's source link is readable and shares no word with the row. */
-export function hasUngroundedEventSource(signal: CityStatusSignal): boolean {
+function hasUngroundedEventSource(signal: CityStatusSignal): boolean {
   if (String(signal.kind ?? "").toLowerCase() !== "event") return false;
   if (!signal.sourceUrl) return false;
   const words = slugWords(signal.sourceUrl);
