@@ -27,15 +27,12 @@ import AccountMenu from "@/components/auth/AccountMenu";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import { hasSocialAuthProviders } from "@/lib/authProviderAvailability";
 import { providerHasAnswered } from "@/lib/authProviderRevision";
-import {
-  loadPublicProfileCard,
-  type PublicProfileCard,
-} from "@/components/auth/publicProfileCard";
+import { usePublicProfileCard } from "@/components/auth/usePublicProfileCard";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
 import { useDeviceAccounts } from "@/components/auth/useDeviceAccounts";
 import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
 import { trackEvent } from "@/lib/analytics";
-import { handleOnly } from "@/lib/handleDisplay";
+import { displayHandle, handleOnly } from "@/lib/handleDisplay";
 import { authAvatarInitials } from "@/lib/authAvatarInitials";
 import {
   ARRIVAL_FROM_PARAM,
@@ -96,12 +93,12 @@ function addAccountLoginHref(pathname: string | null): Route {
   return `/login?${params.toString()}`;
 }
 
-/** Best-effort initials for the avatar fallback when the IdP gives us no photo. */
 /**
  * What the nav may call this person, from the three sources that know: the
  * public profile they authored, the identity provider that signed them in, and
  * the handle they claimed. The email is the last resort for the trigger's
- * accessible name and never the card's name.
+ * accessible name and never the card's name, and never the letter on the chip:
+ * a person who claimed a handle is not the first letter of their login.
  */
 function accountIdentity(
   metadata: Record<string, unknown>,
@@ -118,7 +115,12 @@ function accountIdentity(
     || (typeof metadata.picture === "string" && metadata.picture)
     || "";
   return {
-    navName: providerName || email || "Signed in",
+    navName:
+      card?.displayName
+      || providerName
+      || (handle ? displayHandle(handle) : "")
+      || email
+      || "Signed in",
     cardName: card?.displayName || providerName || (handle ? handleOnly(handle) : "Your account"),
     avatar: card?.avatarUrl || providerAvatar,
   };
@@ -168,11 +170,6 @@ export default function SignInButton({
   const [error, setError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [phoneLogin, setPhoneLogin] = useState(false);
-  // The card plus the handle it is about, so a switch cannot leave the previous
-  // account's face above the new account's @handle.
-  const [card, setCard] = useState<(PublicProfileCard & { handle: string }) | null>(
-    null,
-  );
   const rootRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -271,24 +268,12 @@ export default function SignInButton({
   }, [menuOpen]);
 
   // The owned avatar and public display name come from the same public profile
-  // read the profile page uses, and only once the menu is actually opened.
-  // The nav renders on every page, and none of them owe a request for a card
-  // nobody looked at.
-  //
-  // The held card carries the HANDLE it is about, because a switch replaces the
-  // account under an open menu: a card keyed on "have we asked yet" kept the
-  // previous account's face and display name above the new account's @handle.
-  useEffect(() => {
-    if (!menuOpen || card?.handle === accountHandle || !accountHandle) return;
-    const handle = accountHandle;
-    const controller = new AbortController();
-    void (async () => {
-      const loaded = await loadPublicProfileCard(handle, controller.signal);
-      if (controller.signal.aborted || !loaded) return;
-      setCard({ handle, ...loaded });
-    })();
-    return () => controller.abort();
-  }, [accountHandle, card, menuOpen]);
+  // read the profile page uses. The chip wears the face and the card names the
+  // person, so both ask on every page: a card read in the last minute is
+  // answered from this tab's own snapshot, and the hook holds the answer against
+  // the handle it is about, so a switch cannot leave the previous account's face
+  // above the new account's @handle.
+  const card = usePublicProfileCard(accountHandle);
 
   const onSignInGoogle = useCallback(async () => {
     trackEvent("sign_in_initiated", { provider: "google" });
@@ -360,7 +345,7 @@ export default function SignInButton({
       (user.user_metadata ?? {}) as Record<string, unknown>,
       user.email,
       accountHandle,
-      card?.handle === accountHandle ? card : null,
+      card,
     );
     const avatarControl = avatar ? (
       // eslint-disable-next-line @next/next/no-img-element -- remote IdP avatar; no next/image loader configured for it

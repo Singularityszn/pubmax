@@ -31,6 +31,7 @@ import {
   normalizeGroupMembers,
 } from "@/lib/messageGroupThread";
 import { broadcastMessageSent, deferMessagesSignal } from "@/lib/messagesBroadcast.server";
+import { attachParticipantCards } from "@/lib/messageParticipantCards.server";
 import { messagesStore } from "@/lib/messagesStore";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { isLimited } from "@/lib/pintDrops";
@@ -79,7 +80,10 @@ export async function GET(request: Request): Promise<Response> {
   // were read travel together, and the surface words the difference.
   const inbox = await messagesStore().listConversations(handle);
   return jsonNoStore(
-    { conversations: inbox.conversations, status: inbox.status },
+    {
+      conversations: await attachParticipantCards(inbox.conversations),
+      status: inbox.status,
+    },
     { status: 200 },
   );
 }

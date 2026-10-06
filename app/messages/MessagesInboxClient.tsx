@@ -20,7 +20,7 @@ import MessageAvatar from "@/components/messages/MessageAvatar";
 import MessagesNewGroup from "@/components/messages/MessagesNewGroup";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
-import { conversationRowName, type ConversationDTO } from "@/lib/messages";
+import { conversationRowHandle, conversationRowName, type ConversationDTO } from "@/lib/messages";
 import { subscribeToInbox } from "@/lib/messagesRealtime";
 import { inboxTimeLabel } from "@/lib/messageTimeline";
 import { discardBody } from "@/lib/responseBody";
@@ -421,13 +421,23 @@ export default function MessagesInboxClient({
                     className="conversationLink"
                     aria-current={active ? "page" : undefined}
                   >
-                    <MessageAvatar handle={c.otherHandle} avatarUrl={c.otherAvatarUrl} size={56} />
+                    <MessageAvatar
+                      handle={c.otherHandle}
+                      avatarUrl={c.otherAvatarUrl}
+                      label={c.otherDisplayName}
+                      size={56}
+                    />
                     <div className="conversationBody">
                       {/* ONE naming rule for every kind (`conversationRowName`):
                           a DM is the other person, a group is its title or its
                           people, so the inbox and the thread head cannot each
                           invent a different name for one thread. */}
-                      <div className="conversationHandle">{conversationRowName(c, handle)}</div>
+                      <div className="conversationHandle">
+                        {conversationRowName(c, handle)}
+                        {conversationRowHandle(c) ? (
+                          <span className="conversationHandleSub">{conversationRowHandle(c)}</span>
+                        ) : null}
+                      </div>
                       <div className="conversationPreview">
                         {c.lastBody
                           ? `${c.lastFromMe ? "You: " : ""}${c.lastBody}`

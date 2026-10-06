@@ -300,6 +300,15 @@ html[data-theme="dark"] .messagesPage {
   white-space: nowrap;
 }
 
+/* The handle beside a display name. Quiet and on the same line, so the row stays
+   one name tall and still truncates as a unit. */
+.conversationHandleSub {
+  margin-left: 0.4em;
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
 .conversationPreview {
   font-size: 0.85rem;
   color: var(--muted);
@@ -1516,14 +1525,16 @@ html[data-theme="dark"] .messageBubblePhoto {
 /* ── group threads ────────────────────────────────────────────────────────── */
 /* A group's head carries its name and how many people are in it, stacked, so a
    long list of handles never pushes the count off the row. */
-.threadWithGroup {
+.threadWithGroup,
+.threadWithNames {
   display: flex;
   flex-direction: column;
   min-width: 0;
   line-height: 1.2;
 }
 
-.threadWithMembers {
+.threadWithMembers,
+.threadWithSub {
   font-size: 0.75rem;
   color: var(--muted);
   white-space: nowrap;

@@ -106,6 +106,47 @@ describe("the add-account door", () => {
     expect(html).not.toContain("authMagicLink");
   });
 
+  it("names the signed-in person once, with their handle, and prints the email once", () => {
+    authState.current = {
+      user: { email: "karan@example.test", user_metadata: { full_name: "Karan Mano" } },
+      handle: "karan_m",
+    };
+    const html = markup({ from: "/today" });
+
+    // Name, then the handle they are found by, then the login as plumbing.
+    expect(html).toContain('class="loginPageWho">Karan Mano<');
+    expect(html).toContain('class="loginPageHandle">@karan_m<');
+    expect(html.match(/karan@example\.test/g)).toHaveLength(1);
+    expect(html.indexOf("loginPageHandle")).toBeLessThan(html.indexOf("loginPageEmail"));
+  });
+
+  it("leads with the handle, not the email, for an account with no name", () => {
+    authState.current = {
+      user: { email: "karan@example.test", user_metadata: {} },
+      handle: "karan_m",
+    };
+    const html = markup({ from: "/today" });
+
+    expect(html).toContain('class="loginPageWho">@karan_m<');
+    // The handle is the name here, so it is not printed a second time.
+    expect(html).not.toContain("loginPageHandle");
+    expect(html.match(/karan@example\.test/g)).toHaveLength(1);
+    // The face letter comes from the handle, never from the login address.
+    expect(html).toContain(">K</span>");
+  });
+
+  it("falls back to the email only when there is neither a name nor a handle", () => {
+    authState.current = {
+      user: { email: "karan@example.test", user_metadata: {} },
+      handle: null,
+    };
+    const html = markup({ from: "/today" });
+
+    expect(html).toContain('class="loginPageWho">karan@example.test<');
+    // Once, not twice: the line under the name is for what the name is not.
+    expect(html.match(/karan@example\.test/g)).toHaveLength(1);
+  });
+
   it("is the ordinary sign-in page when nobody is signed in", () => {
     const html = markup({ addAccount: true });
 
