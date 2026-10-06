@@ -6245,6 +6245,22 @@ export type Database = {
           isSetofReturn: true;
         };
       };
+      append_venue_photo_report_actor: {
+        Args: {
+          p_id: string | null;
+          p_actor: string | null;
+          p_reason?: string | null;
+        };
+        Returns: boolean;
+      };
+      append_visit_report_report_actor: {
+        Args: {
+          p_id: string | null;
+          p_actor: string | null;
+          p_reason?: string | null;
+        };
+        Returns: boolean;
+      };
       charge_round_price_line: {
         Args: {
           p_actor: string | null;
