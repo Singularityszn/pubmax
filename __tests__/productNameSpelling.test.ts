@@ -44,11 +44,22 @@ const TEXT_EXTENSIONS = new Set([
   ".sh",
 ]);
 
+/**
+ * Build output and the scratch trees other tests write while this one runs.
+ * `test-results/` holds copies of `lib/` (pubWebsiteAmenitiesRunner) that are
+ * deleted mid-walk, so scanning it is both wrong and a race.
+ */
 const SKIP_DIR_NAMES = new Set([
   "node_modules",
   ".next",
   ".next-prod",
   ".git",
+  ".e2e",
+  "artifacts",
+  "blob-reports",
+  "coverage",
+  "playwright-report",
+  "test-results",
 ]);
 
 /** Lines that intentionally retain one-x spellings (not product prose). */
