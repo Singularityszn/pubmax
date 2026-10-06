@@ -58,8 +58,6 @@ type StartState = "idle" | "naming" | "working";
 
 type VenueMatch = { id: string; name: string; borough?: string };
 
-type StartAttempt = { inputs: string; planKey: string; crewKey: string };
-
 // The plan's own capability travels in the request body, and a plain `fetch`
 // sends no Authorization header, so the plan route cannot mistake an account
 // token for it.
@@ -123,7 +121,6 @@ export default function CrewsPanel({
   const [venue, setVenue] = useState<VenueMatch | null>(null);
   const [problem, setProblem] = useState("");
   const venueDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const startAttempt = useRef<StartAttempt | null>(null);
 
   useEffect(() => {
     if (!resolveAccess || !identityResolved) return;
@@ -226,17 +223,9 @@ export default function CrewsPanel({
       setProblem("Name the night, choose when it starts, and pick the first pub.");
       return;
     }
-    const inputs = JSON.stringify({ body, visibility });
-    if (startAttempt.current?.inputs !== inputs) {
-      startAttempt.current = {
-        inputs,
-        planKey: crewIdempotencyKey("crew-plan"),
-        crewKey: crewIdempotencyKey("crew-create"),
-      };
-    }
-    const { planKey, crewKey } = startAttempt.current;
     setStart("working");
     try {
+      const planKey = crewIdempotencyKey("crew-plan");
       const planResponse = await authedActionFetch("/api/plans", {
         method: "POST",
         credentials: "same-origin",
@@ -257,7 +246,7 @@ export default function CrewsPanel({
         credentials: "same-origin",
         headers: {
           "content-type": "application/json",
-          "idempotency-key": crewKey,
+          "idempotency-key": crewIdempotencyKey("crew-create"),
           [SOCIAL_CREW_HOST_CAPABILITY_HEADER]: memberToken,
         },
         body: JSON.stringify({ planId, visibility }),
@@ -268,17 +257,15 @@ export default function CrewsPanel({
       const outcome = parseCrewMutation(crewBody);
       if (!crewResponse.ok || !outcome?.crewId) {
         // A refusal (4xx) or a success that names no crew is definite, so the
-        // night made a moment ago is retired rather than left behind. A 5xx or
-        // a dropped call may have committed the crew, so that plan stays and a
-        // retry with the same inputs replays both keys instead of minting more.
+        // night made a moment ago is retired rather than left behind. Known
+        // limit: a 5xx or a dropped call may have committed the crew, so that
+        // plan stays, and a retry mints fresh keys and may leave it unused.
         if (crewResponse.status < 500) {
-          startAttempt.current = null;
           await abandonUnusedPlan(planId, memberToken);
         }
         throw new Error(errorMessageFrom(crewBody, "Could not start the crew."));
       }
 
-      startAttempt.current = null;
       setStart("idle");
       setName("");
       setVisibility(CREW_DEFAULT_VISIBILITY);

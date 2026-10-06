@@ -411,7 +411,8 @@ membership, current reciprocal follows, blocks, role, state, and revision.
 #### `app/api/social/crews` (route 81)
 
 `POST` binds one existing Planned Night. Creation alone reads the one-time
-legacy host capability from the `Authorization` bearer header. Body accepts
+legacy host capability from the `x-plan-host-capability` header, while
+`Authorization` carries the account access token. Body accepts
 only Plan ID and Crew visibility. Capability is never returned or stored.
 
 #### `app/api/social/crews/[crewId]` (route 82)
