@@ -94,6 +94,9 @@ import { overviewDisplayablePintGbp } from "@/lib/overviewDisplayablePint";
 import { confirmPintActionName } from "@/lib/pintDropSecondDrinker";
 import type { ZonePintIndex } from "@/lib/zones";
 
+/** The prompts on the overview sheet that take turns at one open slot. */
+type SheetPromptOwner = "list" | "night" | "presence" | "price";
+
 /**
  * The ranked evidence mission for THIS pub, read where the Overview decides
  * whether its composer is open. A mission for another venue, a read that has
@@ -870,6 +873,22 @@ export default function VenueOverviewTab({
   // The pub whose composer has already taken a price. Kept by venue id rather
   // than as a flag, so selecting another pub starts closed again.
   const [loggedVenueId, setLoggedVenueId] = useState<string | null>(null);
+  // Which one of the sheet's sign-in or save prompts is open. Tapping a second
+  // control hands the slot over, so two prompts never stack. Kept by venue id,
+  // like the line above, so selecting another pub starts with none open.
+  const [promptState, setPromptState] = useState<{
+    venueId: string;
+    owner: SheetPromptOwner | null;
+  }>({ venueId: venue.id, owner: null });
+  const promptOwner = promptState.venueId === venue.id ? promptState.owner : null;
+  const claimPrompt = (owner: SheetPromptOwner | null) =>
+    setPromptState({ venueId: venue.id, owner });
+  // The price door takes the slot too, so tapping it closes an open list picker
+  // or check-in reply rather than stacking under them.
+  const logTonightPrice = () => {
+    claimPrompt("price");
+    onLogTonightPrice();
+  };
   const composerOpen = overviewComposerOpen({
     focusRequest: priceFocusRequest,
     signInRequested: priceSignInRequested,
@@ -1063,7 +1082,7 @@ export default function VenueOverviewTab({
           laneLoggedPriceShown={laneLoggedPriceShown}
           inviteOwnedElsewhere={drinkInviteOwnedElsewhere}
           communityPrices={communityPrices}
-          onLogPrice={onLogTonightPrice}
+          onLogPrice={logTonightPrice}
           canLog={isPubVenue(venue)}
           priceRevealMotionClass={priceRevealMotionClass}
           revealRecord={revealRecord}
@@ -1145,7 +1164,9 @@ export default function VenueOverviewTab({
           latestPintDropAt={latestPintDropAt}
           focusRequest={priceFocusRequest}
           includeSignals={false}
-          open={composerOpen}
+          // The sign-in gate is one of the sheet's prompts: it folds away while
+          // the list picker or the check-in reply owns the slot.
+          open={composerOpen && (!priceSignInRequested || promptOwner === null || promptOwner === "price")}
           // The composer opens on the drink the map is under, so a cocktail map
           // does not ask a drinker to find cocktails again.
           laneCategory={leadLane}
@@ -1172,8 +1193,15 @@ export default function VenueOverviewTab({
         venueId={venue.id}
         venueName={venue.name}
         venueKind={venue.kind}
+        open={promptOwner === "list"}
+        onOpenChange={(open) => claimPrompt(open ? "list" : null)}
       />
-      <SaveForNightButton venueId={venue.id} venueName={venue.name} />
+      <SaveForNightButton
+        venueId={venue.id}
+        venueName={venue.name}
+        active={promptOwner === null || promptOwner === "night"}
+        onActivate={() => claimPrompt("night")}
+      />
       <div className="presenceHere">
         {presenceState === "here" ? (
           <p
@@ -1196,7 +1224,10 @@ export default function VenueOverviewTab({
           <button
             type="button"
             className="addStopBtn"
-            onClick={markPresenceHere}
+            onClick={() => {
+              claimPrompt("presence");
+              markPresenceHere();
+            }}
             disabled={presenceState === "sending"}
             aria-label={`Mark that you're at ${venue.name} tonight`}
             style={{
@@ -1210,7 +1241,7 @@ export default function VenueOverviewTab({
             {presenceState === "sending" ? "Checking in…" : "I'm here"}
           </button>
         )}
-        {presenceState === "no-handle" ? (
+        {presenceState === "no-handle" && promptOwner === "presence" ? (
           <p
             className="description muted"
             style={{ marginTop: "8px", fontSize: "0.82rem" }}

@@ -28,17 +28,38 @@ function readHandle(): string {
   return (safeLocalStorage()?.getItem(HANDLE_KEY) ?? "").trim();
 }
 
+/** With no handle the save lives in this browser only, so the line says so. */
+function savedToast(listType: string, handle: string): string {
+  return handle.trim()
+    ? `Saved to “${listType}”`
+    : `Saved to “${listType}” on this device`;
+}
+
 export default function SaveToListControl({
   venueId,
   venueName,
   venueKind,
+  open: openProp,
+  onOpenChange,
 }: {
   venueId: string;
   venueName?: string;
   venueKind?: VenueKind;
+  /** Lets the host keep one prompt open at a time. Left out, the control owns
+   *  its own open state. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }): React.JSX.Element {
   const [handle] = useState(readHandle);
-  const [open, setOpen] = useState(false);
+  const [openState, setOpenState] = useState(false);
+  const open = openProp ?? openState;
+  const setOpen = useCallback(
+    (next: boolean) => {
+      setOpenState(next);
+      onOpenChange?.(next);
+    },
+    [onOpenChange],
+  );
   const [customLists, setCustomLists] = useState<string[]>([]);
   const [newName, setNewName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -77,7 +98,7 @@ export default function SaveToListControl({
       setBusy(true);
       try {
         await toggleSaveDurable(handle, venueId, listType, undefined, venueKind);
-        setToast(`Saved to “${listType}”`);
+        setToast(savedToast(listType, handle));
         window.setTimeout(() => setToast(null), 2000);
       } finally {
         setBusy(false);
@@ -115,7 +136,7 @@ export default function SaveToListControl({
       }
       await toggleSaveDurable(handle, venueId, name, undefined, venueKind);
       setNewName("");
-      setToast(`Saved to “${name}”`);
+      setToast(savedToast(name, handle));
       window.setTimeout(() => setToast(null), 2000);
     } finally {
       setBusy(false);

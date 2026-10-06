@@ -13,14 +13,22 @@ import "./wanted.css";
 export default function SaveForNightButton({
   venueId,
   venueName,
+  active = true,
+  onActivate,
 }: {
   venueId: string;
   venueName: string;
+  /** False while another prompt on the sheet owns the slot, so only one reads
+   *  at a time. */
+  active?: boolean;
+  /** Called when a tap makes this control the one that speaks. */
+  onActivate?: () => void;
 }): React.JSX.Element {
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   async function save() {
+    onActivate?.();
     setBusy(true);
     setToast(null);
     try {
@@ -75,7 +83,7 @@ export default function SaveForNightButton({
       >
         {busy ? "Saving…" : "Save for a night"}
       </button>
-      {toast ? (
+      {toast && active ? (
         <p className="wantedCapture__status" role="status">
           {toast}
         </p>
