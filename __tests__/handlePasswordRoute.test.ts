@@ -76,10 +76,16 @@ describe("POST /api/auth/handle-password", () => {
     expect((await unknown.json()).error).toBe(HANDLE_PASSWORD_GENERIC_ERROR);
 
     resolveEmail.mockResolvedValueOnce("owner@example.com");
-    passwordGrant.mockResolvedValueOnce(null);
+    passwordGrant.mockResolvedValueOnce("invalid");
     const wrong = await POST(post({ handle: "karan", password: "secretpass" }));
     expect(wrong.status).toBe(401);
     expect((await wrong.json()).error).toBe(HANDLE_PASSWORD_GENERIC_ERROR);
+
+    resolveEmail.mockResolvedValueOnce("owner@example.com");
+    passwordGrant.mockResolvedValueOnce(null);
+    const failed = await POST(post({ handle: "karan", password: "secretpass" }));
+    expect(failed.status).toBe(401);
+    expect((await failed.json()).error).toBe(HANDLE_PASSWORD_GENERIC_ERROR);
   });
 
   it("answers a banned account with the same invalid-credentials body as an unknown handle", async () => {

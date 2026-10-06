@@ -10,6 +10,7 @@ import {
 } from "@/lib/authedFetch";
 import { ensureSupabaseBrowser } from "@/lib/authClient";
 import {
+  CURRENT_PASSWORD_WRONG_CODE,
   MIN_PASSWORD_LENGTH,
   PASSWORD_CHANGE_GENERIC_ERROR,
   PASSWORD_CURRENT_MISSING_ERROR,
@@ -143,16 +144,17 @@ export default function SetAccountPassword(): React.JSX.Element | null {
           }, { requiresIdentity: true },
         );
         if (!verification.ok) {
-          // A signed-in caller who is refused with a 401 typed the wrong current
-          // password. A 429 carries its own words; anything else is generic.
-          if (verification.status === 401) {
-            discardBody(verification);
+          // Only the route's own wrong-password code names the current password.
+          // A 429 carries its own words; anything else is generic.
+          const body: unknown = await verification.json().catch(() => null);
+          if (
+            verification.status === 401 &&
+            (body as { code?: unknown } | null)?.code === CURRENT_PASSWORD_WRONG_CODE
+          ) {
             setError(PASSWORD_CURRENT_WRONG_ERROR);
           } else if (verification.status === 429) {
-            const body = await verification.json().catch(() => null);
             setError(errorMessageFrom(body, PASSWORD_CHANGE_GENERIC_ERROR));
           } else {
-            discardBody(verification);
             setError(PASSWORD_CHANGE_GENERIC_ERROR);
           }
           return;

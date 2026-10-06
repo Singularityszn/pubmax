@@ -39,9 +39,13 @@ export const PASSWORD_CHANGE_GENERIC_ERROR =
 /**
  * The reader is signed in and typing their own password, so naming the wrong
  * field leaks nothing: the verify route is rate limited and refuses a caller
- * with no session before it reads the body.
+ * with no session before it reads the body. The route sends this only with
+ * CURRENT_PASSWORD_WRONG_CODE, when GoTrue itself refused the password. Every
+ * other refusal keeps the generic line.
  */
 export const PASSWORD_CURRENT_WRONG_ERROR = "That is not your current password.";
+
+export const CURRENT_PASSWORD_WRONG_CODE = "CURRENT_PASSWORD_WRONG";
 
 export const PASSWORD_UNCHANGED_ERROR =
   "That is your current password. Pick a different one.";

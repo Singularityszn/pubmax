@@ -1113,7 +1113,7 @@ export default function VenueOverviewTab({
           anchorStamp={anchorStamp}
           composerOpen={composerOpen}
           dropReadStatus={dropReadStatus}
-          onLogTonightPrice={onLogTonightPrice}
+          onLogTonightPrice={logTonightPrice}
           onConfirmPrice={onConfirmPrice}
           priceRevealMotionClass={
             drinkPriceRows?.length ? "" : priceRevealMotionClass

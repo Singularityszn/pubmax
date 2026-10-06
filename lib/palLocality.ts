@@ -84,6 +84,8 @@ function namedPlaceFromQuery(query: string): string | null {
     kept.push(word);
   }
   const name = kept.join(" ").trim();
+  // "in London" names the whole answer's scope, not a place we failed to find.
+  if (normalizeSearchText(name) === "london") return null;
   return name.length >= 3 ? name : null;
 }
 

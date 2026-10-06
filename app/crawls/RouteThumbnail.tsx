@@ -51,21 +51,31 @@ export default function RouteThumbnail({
     PAD + ((maxY - p[1] + yOffset) / span) * inner,
   ]);
   // Numbered pins are 14 units across. Two stops closer than that would paint one
-  // pin over the other's number, so a later pin steps away from an earlier one
-  // until their numbers can both be read. The line still joins the true points.
+  // pin over the other's number, so the two pins step apart until their numbers
+  // can both be read, and every pin stays whole inside the frame. The line still
+  // joins the true points.
   const pinCoords: [number, number][] = coords.map(([x, y]) => [x, y]);
   if (stopNumbers) {
     const MIN_GAP = 15;
-    for (let i = 1; i < pinCoords.length; i += 1) {
-      for (let j = 0; j < i; j += 1) {
-        const dx = pinCoords[i]![0] - pinCoords[j]![0];
-        const dy = pinCoords[i]![1] - pinCoords[j]![1];
-        const dist = Math.hypot(dx, dy);
-        if (dist >= MIN_GAP) continue;
-        const ux = dist > 0.01 ? dx / dist : Math.SQRT1_2;
-        const uy = dist > 0.01 ? dy / dist : Math.SQRT1_2;
-        pinCoords[i] = [pinCoords[j]![0] + ux * MIN_GAP, pinCoords[j]![1] + uy * MIN_GAP];
+    const PIN_R = 7;
+    const inFrame = (v: number) => Math.min(VIEW - PIN_R, Math.max(PIN_R, v));
+    for (let pass = 0; pass < 12; pass += 1) {
+      let moved = false;
+      for (let i = 1; i < pinCoords.length; i += 1) {
+        for (let j = 0; j < i; j += 1) {
+          const [xi, yi] = pinCoords[i]!;
+          const [xj, yj] = pinCoords[j]!;
+          const dist = Math.hypot(xi - xj, yi - yj);
+          if (dist >= MIN_GAP - 0.01) continue;
+          const ux = dist > 0.01 ? (xi - xj) / dist : Math.SQRT1_2;
+          const uy = dist > 0.01 ? (yi - yj) / dist : Math.SQRT1_2;
+          const push = (MIN_GAP - dist) / 2;
+          pinCoords[i] = [inFrame(xi + ux * push), inFrame(yi + uy * push)];
+          pinCoords[j] = [inFrame(xj - ux * push), inFrame(yj - uy * push)];
+          moved = true;
+        }
       }
+      if (!moved) break;
     }
   }
   const polylinePoints = coords.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");

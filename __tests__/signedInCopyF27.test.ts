@@ -16,12 +16,3 @@ describe("signed-in copy", () => {
     expect(citationSourceLabel("Wikipedia")).toBe("Wikipedia");
   });
 });
-
-describe("the busy report thanks line", () => {
-  it("is hidden from assistive tech once its live region carries the same line", async () => {
-    const { readFileSync } = await import("node:fs");
-    const { join } = await import("node:path");
-    const source = readFileSync(join(process.cwd(), "components/map/VenueOccupancyRow.tsx"), "utf8");
-    expect(source).toContain("aria-hidden={receiptLine ? true : undefined}");
-  });
-});

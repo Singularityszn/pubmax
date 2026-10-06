@@ -92,6 +92,14 @@ describe("a place the taxonomy cannot place", () => {
     expect(palLocalityLine(resolvePalLocality("cheap and lively", null))).toContain("No area set");
   });
 
+  it("never says it could not place London itself", () => {
+    const locality = resolvePalLocality("cheap pints in London tonight", null);
+    expect(locality.scope).toBe("london-wide");
+    expect(locality.unplaced).toBeUndefined();
+    expect(palLocalityLine(locality)).not.toMatch(/could not place/i);
+    expect(resolvePalLocality("pubs near London Wall", null).unplaced).toBe("London Wall");
+  });
+
   it("does not apply to an area the taxonomy does place", () => {
     expect(resolvePalLocality("pubs in Brixton", null).unplaced).toBeUndefined();
     expect(resolvePalLocality("pubs in Blackfriars", REMEMBERED_SOHO).unplaced).toBeUndefined();

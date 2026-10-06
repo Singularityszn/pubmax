@@ -1177,7 +1177,10 @@ commit.
   owner-bound `updateUser` call.
 - **Boundaries:** same-origin only, verified bearer required, and eight
   attempts per hashed IP per 15 minutes with fail-closed durable limiting.
-  Missing, short, or wrong current passwords share one 401 response.
+  A current password GoTrue itself refuses (`invalid_credentials`) answers
+  401 `CURRENT_PASSWORD_WRONG`, so the signed-in owner is told which field is
+  wrong. A missing or short password, no session, a ban and any upstream
+  failure share one generic 401 `INVALID_CREDENTIALS` response.
 - **Rollback / kill:** remove the route and make the password form use the
   create flow only. Existing password creation remains signed-in and
   owner-bound.

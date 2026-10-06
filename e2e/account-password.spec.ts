@@ -163,7 +163,7 @@ test("an account with no password is offered one, with the rules up front", asyn
   await expect(
     section.getByRole("heading", { name: "Create password" }),
   ).toBeVisible();
-  // Owed, so it takes the full row rather than sitting in a column.
+  // Owed, so it wears the brass border that marks it.
   await expect(section).toHaveClass(/accountHubPasswordOwed/);
 
   // The rules are read BEFORE typing, not discovered by failing.
@@ -198,6 +198,30 @@ test("an account with no password is offered one, with the rules up front", asyn
   await expect(disclosure.getByRole("status")).toBeVisible();
   await expect(disclosure.getByRole("status")).toContainText("Password saved");
   expect(counters.passwordWrites).toBe(1);
+});
+
+test("an owed password card takes a desktop column beside another card, not the whole row", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await installOwnedAccount(page, { hasPassword: false });
+
+  await page.goto(`/u/${HANDLE}`);
+  const section = page.locator("form.accountHubPassword.accountHubPasswordOwed");
+  await expect(section).toBeVisible();
+
+  const layout = await section.evaluate((card) => {
+    const grid = card.parentElement!;
+    const box = card.getBoundingClientRect();
+    const sharesRow = [...grid.children].some((other) => {
+      if (other === card) return false;
+      const otherBox = other.getBoundingClientRect();
+      return otherBox.height > 0 && Math.abs(otherBox.top - box.top) <= 2;
+    });
+    return { width: box.width, gridWidth: grid.getBoundingClientRect().width, sharesRow };
+  });
+  expect(layout.width).toBeLessThan(layout.gridWidth * 0.6);
+  expect(layout.sharesRow).toBe(true);
 });
 
 test("an account with a password keeps change collapsed until opened", async ({
@@ -277,12 +301,17 @@ test("a wrong current password and a reused password each name their fault", asy
       });
       return;
     }
+    // Only the route's own wrong-password code names the field. Any other 401
+    // (an expired session, an upstream timeout) keeps the generic line.
+    const wrong = body.currentPassword === "Wrong1pass!";
     await route.fulfill({
       status: 401,
       contentType: "application/json",
       body: JSON.stringify({
-        error: "Could not change your password. Try again.",
-        code: "INVALID_CREDENTIALS",
+        error: wrong
+          ? "That is not your current password."
+          : "Could not change your password. Try again.",
+        code: wrong ? "CURRENT_PASSWORD_WRONG" : "INVALID_CREDENTIALS",
       }),
     });
   });
@@ -317,6 +346,10 @@ test("a wrong current password and a reused password each name their fault", asy
   await form.getByLabel("Current password").fill("Wrong1pass!");
   await form.getByRole("button", { name: "Save password" }).click();
   await expect(form.getByRole("alert")).toHaveText("That is not your current password.");
+
+  await form.getByLabel("Current password").fill("Unchecked1pass!");
+  await form.getByRole("button", { name: "Save password" }).click();
+  await expect(form.getByRole("alert")).toHaveText("Could not change your password. Try again.");
 
   await form.getByLabel("Current password").fill("Right1pass!");
   await form.getByRole("button", { name: "Save password" }).click();

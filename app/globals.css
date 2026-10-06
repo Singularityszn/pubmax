@@ -4481,8 +4481,9 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 }
 
 /* The pill stays small on purpose (it is the quietest control in the row), but
-   its hit area reaches the 44px floor: the pseudo-element is the extra reach.
-   It measured 70x22. */
+   its hit area reaches the 44px floor on both axes: the pseudo-element is the
+   extra reach, centred on the pill. It measured 70x22, and a bare "Report"
+   label is narrower than 44px. */
 .reportBtn {
   position: relative;
 }
@@ -4490,7 +4491,11 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 .reportBtn::after {
   content: "";
   position: absolute;
-  inset: -11px -6px;
+  top: 50%;
+  left: 50%;
+  width: max(100% + 12px, 44px);
+  height: max(100% + 22px, 44px);
+  transform: translate(-50%, -50%);
 }
 
 /* ── Photo-backed composer ────────────────────────────────────────────── */
