@@ -162,12 +162,13 @@ export default function PrivacyPage() {
           short bio. A profile picture is an optional upload you choose: we
           store the normalised JPEG under our own private storage (not a
           hotlinked URL), strip embedded metadata before it is saved, and send
-          a short-lived signed copy to OpenAI for omni moderation before the
-          picture is publicly addressable. If that check is unavailable or
-          returns no usable decision, we refuse the upload and keep your
-          previous picture (or none). Readers may report a profile picture; a
-          report joins a private review queue and does not hide the picture on
-          its own. A named staff member must hide or restore it, and that
+          a short-lived signed copy to OpenAI for an advisory omni moderation
+          check before the picture is publicly addressable. If the check
+          refuses the picture, we refuse the upload and keep your previous
+          picture (or none). If the check cannot run or gives no usable
+          decision, the upload can proceed without scan approval. Readers may
+          report a profile picture; a report joins a private review queue and
+          does not hide the picture on its own. A named staff member must hide or restore it, and that
           decision keeps a private audit record. Hiding stops public delivery
           and never deletes the stored file or the report provenance. Removing
           the picture yourself, or deleting your account, removes the stored

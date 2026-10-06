@@ -19,6 +19,7 @@
 import { useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
+import { readAuthCallbackAttempt } from "@/lib/authRedirect";
 import { resetConsentWaitForEntryRewrite } from "@/lib/consentAnswerMoment";
 import {
   decideEntry,
@@ -40,11 +41,15 @@ export default function AppEntryRoute(): null {
   useEffect(() => {
     if (handled.current) return;
     handled.current = true;
-    const decision = decideEntry(readEntryContext(pathname ?? "/"), entryFirstRunHref());
+    // AuthProvider owns root callbacks before the shell can choose a destination.
+    const decision = readAuthCallbackAttempt(window.location.href)
+      ? null
+      : decideEntry(readEntryContext(pathname ?? "/"), entryFirstRunHref());
     // The cold-start decision has now run for this session; every later arrival
     // at "/" (a deliberate in-app home tap) must stay on the landing page.
     // Stamp before acting so a slow route transition can't leave it unset.
     markSessionEntryConsumed();
+    if (!decision) return;
     if (decision.kind !== "route") {
       clearNativeFirstRunHandoff();
       return;
