@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET } from "@/app/api/uk-base/[id]/route";
 import { parseUkBaseRestoreResponse } from "@/components/map/pubmap/useUkBaseStreaming";
@@ -30,6 +30,8 @@ import { __resetMemorySavedPubs, memorySavedPubsStore } from "@/lib/savedPubsSto
 import { lookupUkBasePub, resetUkBaseIndexForTests } from "@/lib/ukBaseIndex";
 import { resetVenueAliasesForTests } from "@/lib/venueAliases";
 import { resolveStoredVenue } from "@/lib/venueIndex";
+import { ukBaseSelectionSuccessor } from "@/lib/pubMap";
+import { loadVenueAliasMaps } from "@/lib/venueAliasMap";
 import { resolveWritableVenueId } from "@/lib/venueWriteTarget.server";
 import {
   planUkBaseVenueIdAliases,
@@ -532,5 +534,26 @@ describe("every per-venue store read follows a venue's former ids", () => {
     expect(
       (await memoryVenueOperatorStore.getForAccountVenue("account-a", THE_BELL.current))?.id,
     ).toBe(first.id);
+  });
+});
+
+describe("a shared /map?sel= link to a dropped base id", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("opens the curated owner, notes a closed pub, and leaves base remaps to the base layer", async () => {
+    vi.stubGlobal(
+      "fetch",
+      async (url: string) =>
+        new Response(readFileSync(path.join(process.cwd(), "public", url), "utf8"), { status: 200 }),
+    );
+    const maps = await loadVenueAliasMaps();
+    expect(ukBaseSelectionSuccessor(maps, THE_SPORTSMAN.base)).toEqual({
+      kind: "curated",
+      venueId: THE_SPORTSMAN.curated,
+    });
+    expect(ukBaseSelectionSuccessor(maps, CROSS_KEYS)).toEqual({ kind: "retired", name: "Cross Keys" });
+    expect(ukBaseSelectionSuccessor(maps, THE_BELL.old)).toBeNull();
+    expect(ukBaseSelectionSuccessor(maps, THE_BELL.current)).toBeNull();
+    expect(ukBaseSelectionSuccessor(maps, THE_SPORTSMAN.curated)).toBeNull();
   });
 });
