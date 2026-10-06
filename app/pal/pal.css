@@ -98,6 +98,8 @@
 }
 .palHomeCopy { position: relative; z-index: 1; max-width: 35rem; }
 .palHomeCopy h1 { font-size: clamp(4rem, 8vw, 8rem); line-height: .86; }
+/* Focus lands here once when the Pal is created (components/pal/PalExperience.tsx); it is a heading, not a control, so it wears no ring. */
+.palHomeCopy h1:focus { outline: none; }
 .palHomeCopy > p:not(.palEyebrow) { max-width: 33rem; margin-top: 1.5rem; color: var(--pal-soft); font-size: clamp(1rem, 1.5vw, 1.18rem); line-height: 1.65; }
 
 .palPrimary {

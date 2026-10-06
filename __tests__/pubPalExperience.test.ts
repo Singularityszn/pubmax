@@ -208,6 +208,125 @@ describe("Pub Pal home appearance description", () => {
   });
 });
 
+describe("Pub Pal setup for a signed-in account", () => {
+  const ownerId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const timestamp = "2026-10-04T12:00:00.000Z";
+  const pal: PubPal = {
+    id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    ownerId,
+    name: "Moss",
+    adultAttestedAt: timestamp,
+    appearance: DEFAULT_PAL_DRAFT.appearance,
+    personality: DEFAULT_PAL_DRAFT.personality,
+    voice: DEFAULT_PAL_DRAFT.voice,
+    muted: false,
+    hidden: false,
+    proposalPreferences: { memories: false, routes: true },
+    masteryPoints: 0,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+
+  beforeEach(() => {
+    // jsdom does not implement scrollTo; creating a Pal asks for the top.
+    vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+  });
+
+  async function renderSignedIn(adultOnFile: boolean): Promise<void> {
+    await act(async () => root?.unmount());
+    authState.current = { user: { id: ownerId }, loading: false, configured: true };
+    transport.request.mockImplementation(async (input, init) => {
+      if (input === "/api/pub-pal" && init?.method === "POST") return Response.json({ pal }, { status: 201 });
+      if (input === "/api/pub-pal") return Response.json({ pal: null, adultOnFile });
+      if (input === "/api/pub-pal/memories") return Response.json({ memories: [] });
+      throw new Error(`Unexpected Pal request: ${String(input)}`);
+    });
+    root = createRoot(container);
+    await act(async () => root?.render(createElement(PalExperience)));
+    await settle();
+    await act(async () => buttonContaining("Meet your Pub Pal").click());
+    await settle();
+  }
+
+  it("asks the 18+ question when the account has not answered it", async () => {
+    await renderSignedIn(false);
+
+    expect(container.textContent).toContain("1 of 5");
+    expect(container.textContent).toContain("The grown-up bit first.");
+    expect(container.querySelector("input[type=checkbox]")).not.toBeNull();
+  });
+
+  it("starts at the Pal, and counts four steps, when the account already answered as an adult", async () => {
+    await renderSignedIn(true);
+
+    // We ask once: the account's own answer stands, so there is no second tap.
+    expect(container.textContent).not.toContain("The grown-up bit first.");
+    expect(container.querySelector("input[type=checkbox]")).toBeNull();
+    expect(container.textContent).toContain("1 of 4");
+    expect(container.textContent).toContain("Who finds you?");
+
+    // Back from the first step leaves setup, it does not open the skipped one.
+    await act(async () => buttonContaining("Back").click());
+    await settle();
+    expect(container.textContent).toContain("Meet your Pub Pal");
+  });
+
+  it("sends the confirmation with the Pal when the question was skipped", async () => {
+    await renderSignedIn(true);
+    await act(async () => {
+      const name = container.querySelector<HTMLInputElement>("input[placeholder='Anything feels right']")!;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(name, "Moss");
+      name.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    for (let step = 0; step < 3; step += 1) {
+      await act(async () => buttonContaining("Continue").click());
+      await settle();
+    }
+    await act(async () => buttonContaining("Create my Pal").click());
+    await settle();
+
+    const create = transport.request.mock.calls.find(([, init]) => init?.method === "POST");
+    expect(JSON.parse(String(create?.[1]?.body))).toMatchObject({ adultConfirmed: true, name: "Moss" });
+  });
+
+  it("opens the new home screen at the top, on the Pal's name", async () => {
+    await renderSignedIn(true);
+    const scrollTo = vi.mocked(window.scrollTo);
+    await act(async () => {
+      const name = container.querySelector<HTMLInputElement>("input[placeholder='Anything feels right']")!;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(name, "Moss");
+      name.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    for (let step = 0; step < 3; step += 1) {
+      await act(async () => buttonContaining("Continue").click());
+      await settle();
+    }
+    await act(async () => buttonContaining("Create my Pal").click());
+    await settle();
+
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: "auto" });
+    expect(document.activeElement?.id).toBe("pal-home-title");
+  });
+
+  it("says the voice control allows voice, not that voice is available", async () => {
+    await act(async () => root?.unmount());
+    authState.current = { user: { id: ownerId }, loading: false, configured: true };
+    transport.request.mockImplementation(async (input) => {
+      if (input === "/api/pub-pal") return Response.json({ pal });
+      if (input === "/api/pub-pal/memories") return Response.json({ memories: [] });
+      throw new Error(`Unexpected Pal request: ${String(input)}`);
+    });
+    root = createRoot(container);
+    await act(async () => root?.render(createElement(PalExperience)));
+    await settle();
+
+    // Whether voice is switched on in this deployment is the hero card's claim,
+    // from the voice probe. This control is the person's own mute setting.
+    expect(container.textContent).toContain("Voice allowed");
+    expect(container.textContent).not.toContain("Voice available");
+  });
+});
+
 describe("Pub Pal control saving", () => {
   it("rolls a failed mute back and tells the reader the setting did not save", async () => {
     await act(async () => root?.unmount());
@@ -245,6 +364,6 @@ describe("Pub Pal control saving", () => {
     await settle();
 
     expect(container.querySelector('[role="alert"]')?.textContent).toBe("We couldn't save that Pal setting.");
-    expect(buttonContaining("Voice available").getAttribute("aria-pressed")).toBe("false");
+    expect(buttonContaining("Voice allowed").getAttribute("aria-pressed")).toBe("false");
   });
 });
