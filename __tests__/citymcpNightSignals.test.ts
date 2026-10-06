@@ -168,6 +168,17 @@ describe("unlinkUngroundedEventSignals", () => {
     ]);
   });
 
+  it("keeps an event whose link only shares a publisher's section folder, without the link", () => {
+    const jazz: CityStatusSignal = {
+      kind: "event",
+      headline: "Jazz music night at Ronnie Scott's",
+      sourceUrl: "https://www.timeout.com/london/music/the-best-gigs-in-london-this-week",
+    };
+    expect(unlinkUngroundedEventSignals([jazz])).toEqual([
+      { kind: "event", headline: "Jazz music night at Ronnie Scott's" },
+    ]);
+  });
+
   it("keeps the link when the slug names the story with a different ending", () => {
     const concert: CityStatusSignal = {
       kind: "event",

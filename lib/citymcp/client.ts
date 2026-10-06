@@ -1295,7 +1295,7 @@ export function dedupeCityStatusSignals(
 // The upstream digest sometimes attaches a link that has nothing to do with the
 // row (6 Oct 2026: a by-election row linked to a 2021 protest article, which
 // is the only thing "grounding" its sentence about police warnings). A link
-// whose readable path shares no word with the row's own headline grounds
+// whose readable slug shares no word with the row's own headline grounds
 // nothing, so the row keeps its place and loses only the link: it reads as an
 // unsourced CityMCP row rather than as sourced by somebody else's story. A
 // listing page ("things-to-do-in-london-this-weekend") grounds nothing either,
@@ -1307,6 +1307,7 @@ const SLUG_STOP_WORDS: ReadonlySet<string> = new Set([
   "news", "article", "articles", "london", "story", "live", "www", "html", "uk",
 ]);
 
+/** Words of the article slug, the last path segment, never a publisher's section folder ("/music/", "/culture/"). */
 function slugWords(url: string): string[] {
   let path: string;
   try {
@@ -1314,7 +1315,8 @@ function slugWords(url: string): string[] {
   } catch {
     return [];
   }
-  return path
+  const slug = path.split("/").filter((segment) => segment.length > 0).pop() ?? "";
+  return slug
     .toLowerCase()
     .split(/[^a-z]+/)
     .filter((word) => word.length >= 4 && !SLUG_STOP_WORDS.has(word));
