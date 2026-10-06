@@ -204,6 +204,12 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  /* The Drink group is a fieldset. Without these it wore the browser's own
+     groove border and inset padding. */
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 
 .venuePhotoComposerField label,
@@ -233,10 +239,12 @@
   cursor: pointer;
 }
 
+/* Selected is the launch accent wash, as on the map's chips, not a black pill. */
 .venuePhotoComposerTag[aria-pressed="true"] {
-  background: var(--ink, #241f1a);
-  color: var(--paper, #fff);
-  border-color: var(--ink, #241f1a);
+  background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised, #fff));
+  color: var(--tint-ink-accent, var(--ink));
+  border-color: var(--brass);
+  font-weight: 700;
 }
 
 .venuePhotoComposerCaption {
@@ -261,6 +269,8 @@
 .venuePhotoComposerShare input {
   width: 20px;
   height: 20px;
+  /* The native checkbox is browser blue otherwise. */
+  accent-color: var(--brass);
 }
 
 .venuePhotoComposerActions {

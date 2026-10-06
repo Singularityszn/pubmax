@@ -16,7 +16,9 @@
 .messagesPage {
   --messages-surface: var(--color-on-photo);
   --messages-soft-surface: color-mix(in srgb, var(--ink) 5%, var(--color-on-photo));
-  --messages-accent: var(--grape);
+  /* The launch accent, not violet: a sent message is the same brand colour as
+     every other primary on the page. */
+  --messages-accent: var(--brass);
   min-height: 100dvh;
   background: var(--messages-surface, var(--paper));
 }
@@ -24,7 +26,7 @@
 html[data-theme="dark"] .messagesPage {
   --messages-surface: var(--paper);
   --messages-soft-surface: var(--panel-raised);
-  --messages-accent: color-mix(in srgb, var(--grape) 70%, var(--ink-deep));
+  --messages-accent: var(--brass);
 }
 
 .messagesMain {
@@ -349,8 +351,8 @@ html[data-theme="dark"] .messagesPage {
   height: 1.25rem;
   padding: 0 0.4rem;
   border-radius: 999px;
-  background: var(--messages-accent, var(--grape));
-  color: var(--color-on-photo);
+  background: var(--messages-accent, var(--brass));
+  color: var(--color-on-accent, var(--ink-deep));
   font-size: 0.72rem;
   font-weight: 700;
   line-height: 1;
@@ -542,10 +544,10 @@ a.threadWith:hover {
   cursor: default;
 }
 
-/* Own messages use violet; received messages use the neutral surface. */
+/* Own messages use the launch accent; received messages use the neutral surface. */
 .messageBubbleMine {
-  background: var(--messages-accent, var(--grape));
-  color: var(--color-on-photo);
+  background: var(--messages-accent, var(--brass));
+  color: var(--color-on-accent, var(--ink-deep));
 }
 
 /* theirs: left, a panel fill and no edge */
@@ -1129,8 +1131,8 @@ html[data-theme="dark"] .messageBubblePhoto {
   padding: 0;
   border: none;
   border-radius: 50%;
-  background: var(--messages-accent, var(--grape));
-  color: var(--color-on-photo);
+  background: var(--messages-accent, var(--brass));
+  color: var(--color-on-accent, var(--ink-deep));
   cursor: pointer;
   transition:
     background-color var(--duration-fast) var(--ease-out),
@@ -1139,7 +1141,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 }
 
 .composerSend:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--messages-accent, var(--grape)) 85%, var(--ink-deep));
+  background: color-mix(in srgb, var(--messages-accent, var(--brass)) 85%, var(--ink-deep));
 }
 
 /* Press feedback owned here, so the shared press layer in app/globals.css
@@ -1352,7 +1354,9 @@ html[data-theme="dark"] .messageBubblePhoto {
     min-height: 32rem;
     overflow: hidden;
     border: 1px solid var(--line);
-    border-radius: 0;
+    /* Round like every other panel in the launch system; square corners made the
+       one surface that held the whole thread look unfinished. */
+    border-radius: var(--radius-lg, 18px);
     background: var(--messages-surface);
     box-shadow: none;
   }
@@ -1711,7 +1715,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 
 .messagesNewGroupResult[aria-pressed="true"] .messagesNewGroupResultCheck {
   border-color: transparent;
-  background: var(--messages-accent, var(--grape));
+  background: var(--messages-accent, var(--brass));
 }
 
 .messagesNewGroupResultName,
@@ -1768,8 +1772,8 @@ html[data-theme="dark"] .messageBubblePhoto {
   padding: 0 1rem;
   border: none;
   border-radius: 8px;
-  background: var(--messages-accent, var(--grape));
-  color: var(--color-on-photo);
+  background: var(--messages-accent, var(--brass));
+  color: var(--color-on-accent, var(--ink-deep));
   font: inherit;
   font-weight: 600;
   cursor: pointer;
