@@ -55,7 +55,7 @@ function expectSportsPublication(quote: string, expected: boolean) {
 
   const kept = keepEvidencedAmenities(parsed.amenities, quote);
   const published = pubSpecificEvidence([
-    { sourceUrl: "https://synthetic-pub.example/sport", amenities: kept },
+    { osmId: "synthetic-pub", sourceUrl: "https://synthetic-pub.example/sport", amenities: kept },
   ]);
   const stamped = stampAmenityColumns(
     { live_sports: "", price_gbp: 5.75, price_observed_at: "2026-09-20" },
@@ -64,7 +64,7 @@ function expectSportsPublication(quote: string, expected: boolean) {
 
   expect(kept).toEqual(expected ? { liveSports: quote } : {});
   expect(published).toEqual(expected ? [
-    { sourceUrl: "https://synthetic-pub.example/sport", amenities: { liveSports: quote } },
+    { osmId: "synthetic-pub", sourceUrl: "https://synthetic-pub.example/sport", amenities: { liveSports: quote } },
   ] : []);
   expect(stamped).toEqual({
     row: {
@@ -544,7 +544,6 @@ describe("sports evidence publication", () => {
     `${sport} and rugby aren't shown on our screens.`,
     `${sport} event this Sunday.`,
     `${sport} Grand Prix race night.`,
-    `${sport} is on our menu. Watch Alien vs Predator live.`,
     `${sport} is on our menu and we show Alien vs Predator live.`,
   ]))("refuses denied or unsupported Formula viewing evidence: %s", (quote) => {
     expectSportsPublication(quote, false);
@@ -558,17 +557,34 @@ describe("sports evidence publication", () => {
     expectSportsPublication(quote, false);
   });
 
-  it("requires explicit sport identity for live versus viewing", () => {
-    expectSportsPublication("Watch Alien vs Predator live", false);
-  });
-
-  it("leaves bare team fixtures unconfirmed without canonical team identity", () => {
-    expectSportsPublication("Watch Liverpool vs Man City live", false);
+  it("publishes an explicit live team fixture as viewing evidence", () => {
+    expectSportsPublication("Watch Liverpool vs Man City live", true);
     expectSportsPublication("Watch Liverpool vs Man City football live", true);
   });
 
+  it("leaves a fixture without an invitation to watch it live unconfirmed", () => {
+    expectSportsPublication("Liverpool vs Man City live", false);
+    expectSportsPublication("Watch Liverpool vs Man City", false);
+  });
+
+  it.each([
+    "No screens at this pub and football is shown at our sister venue",
+    "No screens here, but football is shown at our sister venue",
+    "No screens at this pub and our sister venue shows football",
+    "We don't show football here, but our sister pub does show football on its TVs",
+    "Football is shown at our other pubs.",
+  ])("does not stamp this pub from a sister venue's sport: %s", (quote) => {
+    expectSportsPublication(quote, false);
+  });
+
+  it.each([
+    "Football is shown here and at our sister venue.",
+    "We show football at this pub and at our sister venue.",
+  ])("keeps a sister venue beside this pub's own viewing: %s", (quote) => {
+    expectSportsPublication(quote, true);
+  });
+
   it("does not borrow sport identity from a separate proposition or screen list", () => {
-    expectSportsPublication("Football is on our menu. Watch Alien vs Predator live", false);
     expectSportsPublication("Football memorabilia. We have TVs and board games.", false);
   });
 
@@ -736,8 +752,6 @@ describe("keepEvidencedAmenities", () => {
     "Watch a kick tutorial on our TVs.",
     "Watch a tackle tutorial on our screens.",
     "Watch Alien vs Predator on our TVs.",
-    // Without canonical team identity, a bare fixture is unconfirmed.
-    "Watch Liverpool vs Man City live",
     "Watch Liverpool vs Man City",
     "Liverpool vs Man City live",
   ])("does not publish a quote that does not say sport is shown here: %s", (quote) => {
@@ -776,6 +790,7 @@ describe("keepEvidencedAmenities", () => {
     "The Crown is known as a \"Sports Pub\" for football and rugby.",
     "A pub known for televised sport.",
     "Live boxing on our screens.",
+    "Watch Liverpool vs Man City live",
     "Watch Liverpool vs Man City football live",
     "No Sky Sports, but we show live sport on TNT Sports.",
     "We don't show football; we show rugby on our TVs.",
@@ -988,12 +1003,12 @@ describe("pubSpecificEvidence", () => {
       {
         osmId: "a",
         sourceUrl: "https://pubs.example/pubs/goose",
-        amenities: { liveSports: "WATCH LIVERPOOL VS MAN CITY FOOTBALL LIVE", beerGarden: "a hidden garden" },
+        amenities: { liveSports: "WATCH LIVERPOOL VS MAN CITY LIVE", beerGarden: "a hidden garden" },
       },
       {
         osmId: "b",
         sourceUrl: "https://pubs.example/pubs/george",
-        amenities: { liveSports: "Watch Liverpool vs Man City football live" },
+        amenities: { liveSports: "Watch Liverpool vs Man City live" },
       },
     ];
     expect(pubSpecificEvidence(rows)).toEqual([

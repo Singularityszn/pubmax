@@ -136,6 +136,12 @@ const KARAOKE = /\bkar(?:aoke|oake)\b/i;
 /** Bare games or versus fixtures do not identify sport; require explicit sporting words. */
 const SPORT_SHOWN =
   /\b(?:f1|formula\s*1)\b|\bsports?\b|\bsporting\b|\bmatch(?:es)?\b|\bmatch[\s-]?day\b|\bfixtures?\b|\bfootball\b|\bfooty\b|\brugby\b|\bcricket\b|\bboxing\b|\bpremier league\b|\bchampions league\b|\bnations\b|\bworld cup\b|\binternationals\b|\bgaa\b|\bgaelic\b|\bwimbledon\b/i;
+/** An explicit live team fixture invites viewing at the pub itself, so it names sport without a sport word (#1955). */
+const LIVE_TEAM_FIXTURE = /\bwatch\s+[a-z][a-z0-9 &'-]{0,60}\s+vs\s+[a-z][a-z0-9 &'-]{0,60}\s+live\b/i;
+/** A clause about a sister, other or nearby venue says nothing about this pub unless it also names this pub. */
+const OTHER_VENUE =
+  /\b(?:sister|other|neighbou?ring|nearby|partner|affiliated)\s+(?:venues?|pubs?|bars?|locations?|sites?|branch(?:es)?)\b/i;
+const THIS_VENUE = /\bhere\b|\b(?:this|the)\s+(?:venue|pub|bar)\b/i;
 const VIEWING_VERB = "showcas(?:e|es)|watch(?:es)?|catch(?:es)?";
 const FINITE_VIEWING_VERB = `shows?|screens?|broadcasts|${VIEWING_VERB}`;
 const VIEWING_PARTICIPLE = "show(?:n|ing|casing)|watching|screen(?:ed|ing)|televised|broadcast(?:ing)?|catching|playing";
@@ -260,9 +266,9 @@ const AMENITY_STATEMENTS: Partial<Record<PubWebsiteAmenityKey, (quote: string) =
   liveSports: (quote) =>
     !NOT_SPORT_SHOWN.test(quote) && !EVENT_ELSEWHERE.test(quote) &&
     sportClauses(quote).some((clause) =>
-      SPORT_SHOWN.test(clause) &&
+      (SPORT_SHOWN.test(clause) || LIVE_TEAM_FIXTURE.test(clause)) &&
       SPORT_VIEWING.test(clause) && !NO_SPORT_VIEWING.test(clause) &&
-      !NO_SPORT_AVAILABILITY.test(clause),
+      !NO_SPORT_AVAILABILITY.test(clause) && !(OTHER_VENUE.test(clause) && !THIS_VENUE.test(clause)),
     ),
   liveMusic: (quote) => LIVE_MUSIC.test(quote) && !EVENT_ELSEWHERE.test(quote),
   pubQuiz: (quote) => QUIZ.test(quote) && !QUIZ_MACHINE.test(quote),
