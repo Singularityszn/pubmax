@@ -1,7 +1,9 @@
 import { isHarvestableOperatorUrl } from "../../lib/harvest/sourcePolicy.ts";
 import { extractPintPrices } from "../../lib/harvest/tavilyPintPrices.ts";
 
-export { extractPintPrices };
+import { classifyChainPub, hostMatches, hostnameOf, isChainHost } from "./chainPubClassifier.mjs";
+
+export { classifyChainPub, extractPintPrices };
 
 const TAVILY_SEARCH_URL = "https://api.tavily.com/search";
 const MAX_TAVILY_CALLS_PER_RUN = 200;
@@ -55,39 +57,6 @@ export const CITY_DEFINITIONS = Object.freeze({
   },
 });
 
-const CHAIN_DOMAINS = [
-  {
-    chain: "wetherspoons",
-    harvester: "scripts/fetch_wetherspoons_pubs.mjs",
-    domains: ["jdwetherspoon.com"],
-    operator: /\b(?:j\s*d\s*wetherspoon|wetherspoons?)\b/i,
-  },
-  {
-    chain: "greene-king",
-    harvester: "scripts/firecrawl_greene_king_prices.mjs",
-    domains: ["greeneking.co.uk"],
-    operator: /\bgreene king\b/i,
-  },
-  {
-    chain: "mitchells-and-butlers",
-    harvester: "scripts/firecrawl_mbplc_prices.mjs",
-    domains: [
-      "allbarone.co.uk",
-      "browns-restaurants.co.uk",
-      "emberinns.co.uk",
-      "harvester.co.uk",
-      "mbplc.com",
-      "millerandcarter.co.uk",
-      "nicholsonspubs.co.uk",
-      "oaksmiths.co.uk",
-      "sizzlingpubs.co.uk",
-      "stonehouserestaurants.co.uk",
-      "vintageinn.co.uk",
-    ],
-    operator: /\b(?:mitchells?\s*(?:&|and)\s*butlers|m&b)\b/i,
-  },
-];
-
 const FORBIDDEN_DISCOVERY_DOMAINS = [
   "beerintheevening.com",
   "camra.org.uk",
@@ -111,15 +80,6 @@ const FORBIDDEN_DISCOVERY_DOMAINS = [
 export const OFFICIAL_SITE_SOURCE_LICENCE =
   "All rights reserved - first-party publisher of its own pub menu; read-only, attributed price fact.";
 
-function hostnameOf(value) {
-  if (!value) return null;
-  try {
-    return new URL(value).hostname.toLowerCase().replace(/^www\./, "");
-  } catch {
-    return null;
-  }
-}
-
 function pathnameOf(value) {
   if (!value) return null;
   try {
@@ -127,10 +87,6 @@ function pathnameOf(value) {
   } catch {
     return null;
   }
-}
-
-function hostMatches(host, domain) {
-  return host === domain || host.endsWith(`.${domain}`);
 }
 
 function normaliseVenueKeyPart(value) {
@@ -144,20 +100,6 @@ export function venueKeyForOsmPub(pub) {
     Number(pub.lat).toFixed(5),
     Number(pub.lng).toFixed(5),
   ].join("|");
-}
-
-export function classifyChainPub(pub) {
-  const websiteHost = hostnameOf(pub?.website);
-  const ownership = `${pub?.operator ?? ""} ${pub?.brewery ?? ""} ${pub?.name ?? ""}`;
-  for (const definition of CHAIN_DOMAINS) {
-    if (
-      (websiteHost && definition.domains.some((domain) => hostMatches(websiteHost, domain))) ||
-      definition.operator.test(ownership)
-    ) {
-      return { chain: definition.chain, harvester: definition.harvester };
-    }
-  }
-  return null;
 }
 
 export function selectCityPubs(cityId, allPubs) {
@@ -201,9 +143,7 @@ function isForbiddenHost(host) {
 export function isOfficialResult(pub, result) {
   const resultHost = hostnameOf(result?.url);
   if (!resultHost || isForbiddenHost(resultHost)) return false;
-  if (CHAIN_DOMAINS.some((chain) => chain.domains.some((domain) => hostMatches(resultHost, domain)))) {
-    return false;
-  }
+  if (isChainHost(resultHost)) return false;
 
   const declaredHost = hostnameOf(pub?.website);
   return Boolean(

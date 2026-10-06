@@ -1,6 +1,8 @@
+import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
@@ -125,6 +127,31 @@ describe("the promotion ledger reader", () => {
       writeFileSync(join(dir, "corrupt.json"), "{not json");
       await expect(readPromotionLedger(join(dir, "corrupt.json"))).rejects.toThrow();
       await expect(readPromotionLedger(dir)).rejects.toThrow();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // `npm run build:uk-base` reads the ledger under plain `node`, with no tsx
+  // loader, so the module and everything it imports must load there too.
+  it("loads and reads a ledger under plain node, as build:uk-base runs it", () => {
+    const dir = mkdtempSync(join(tmpdir(), "promotion-ledger-plain-"));
+    try {
+      const ledgerPath = join(dir, "ledger.json");
+      writeFileSync(ledgerPath, '{"promotions":[{"osmId":"node/1"}]}');
+      const moduleUrl = pathToFileURL(join(ROOT, "scripts/lib/londonOsmPromotion.mjs")).href;
+      const script = `const { readPromotionLedger } = await import(${JSON.stringify(moduleUrl)});
+process.stdout.write(JSON.stringify(await readPromotionLedger(${JSON.stringify(ledgerPath)})));`;
+      const env = { ...process.env };
+      delete env.NODE_OPTIONS;
+      const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
+        cwd: ROOT,
+        encoding: "utf8",
+        env,
+      });
+      expect(result.stderr).toBe("");
+      expect(result.status).toBe(0);
+      expect(JSON.parse(result.stdout)).toEqual({ promotions: [{ osmId: "node/1" }] });
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
