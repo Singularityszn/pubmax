@@ -1,5 +1,5 @@
 // Avatar-fallback initials for a display name, shared by every auth surface
-// that shows a face-less avatar (LoginPage, SignInButton). First letter of
+// that shows a face-less avatar (LoginPage, SignInButton, AccountMenu). First letter of
 // the first word plus first letter of the last word (when there is more
 // than one), uppercased; "?" when there is nothing to initial.
 
