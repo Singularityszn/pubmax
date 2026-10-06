@@ -21,11 +21,16 @@ public class MainActivity extends BridgeActivity {
      * SplashScreen.hide() reaches nothing. iOS gives the page the bridge.
      *
      * So once the error page has loaded, the shell releases the splash itself.
+     *
+     * The same page's "Try again" goes to the site root, which would drop the
+     * reader's destination. OfflineRetryWebViewClient remembers the one failed
+     * main-frame URL and sends the retry back to it.
      */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         if (bridge == null) return;
+        bridge.setWebViewClient(new OfflineRetryWebViewClient(bridge));
         OfflineSplashRelease release = new OfflineSplashRelease(
             bridge::getErrorUrl,
             () -> bridge.callPluginMethod("SplashScreen", "hide", new ShellCall("SplashScreen", "hide"))
