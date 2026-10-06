@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { expectStreamedPageSettled } from "./helpers/streamedPage";
+
 // The Places tab: pick a city, set it, and prove the three surfaces that read
 // the stored city all open on it. The proof is the RENDERED app rather than the
 // store, because the preference is only useful in so far as Map, Out and Near
@@ -117,6 +119,8 @@ test.describe("places tab @390", () => {
       },
     );
     await page.goto("/out");
+    // /out streams behind its loading skeleton: wait for the hidden copy to go.
+    await expectStreamedPageSettled(page);
     await expect(page.getByTestId("out-screen")).toBeVisible();
     await expect.poll(() => outCity, { timeout: 20_000 }).toBe("manchester");
 
