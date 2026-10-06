@@ -308,8 +308,9 @@
   background: linear-gradient(
     180deg,
     color-mix(in srgb, var(--panel-raised) 4%, transparent) 0%,
-    color-mix(in srgb, var(--panel-raised) 18%, transparent) 62%,
-    color-mix(in srgb, var(--panel-raised) 72%, transparent) 100%
+    color-mix(in srgb, var(--panel-raised) 22%, transparent) 45%,
+    color-mix(in srgb, var(--panel-raised) 72%, transparent) 75%,
+    color-mix(in srgb, var(--panel-raised) 96%, transparent) 100%
   );
 }
 
