@@ -99,10 +99,10 @@ export function routeStopPlaceLabels(stops: readonly RouteStopPlace[]): string[]
     if (line && line !== street) candidates.push(`${line} · ${area}`);
 
     for (const candidate of candidates) {
-      const shared = siblings.some((i) => sameNameCandidates(stops[i]).includes(candidate));
+      const shared = siblings.some((i) => { const sibling = stops[i]; return sibling !== undefined && sameNameCandidates(sibling).includes(candidate); });
       if (!shared) return candidate;
     }
-    return candidates[candidates.length - 1];
+    return candidates.at(-1) ?? area;
   });
 }
 

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
 // Moderator gate — shared by app/api/admin/comments/route.ts and the moderator
 // branches of app/api/pint-drops/route.ts. The token may arrive via the
@@ -26,9 +26,22 @@ function safeTokenEqual(provided: string, expected: string): boolean {
   return timingSafeEqual(a, b);
 }
 
-/** Hex digest stored in the session cookie — never the raw ADMIN_TOKEN. */
-export function hashAdminSession(token: string): string {
-  return createHash("sha256").update(token).digest("hex");
+/** Versioned session: the signed issuance time bounds replay on the server. */
+export function mintAdminSession(token: string): string {
+  const payload = `v1.${Math.floor(Date.now() / 1000)}`;
+  return `${payload}.${createHmac("sha256", token).update(payload).digest("hex")}`;
+}
+
+function validAdminSession(value: string, token: string): boolean {
+  const match = /^(v1\.([0-9]{1,12}))\.([a-f0-9]{64})$/.exec(value);
+  if (!match) return false;
+  const [, payload, issuedAtText, signatureHex] = match;
+  if (payload === undefined || issuedAtText === undefined || signatureHex === undefined) return false;
+  const issuedAt = Number(issuedAtText);
+  const now = Math.floor(Date.now() / 1000);
+  if (issuedAt > now || now - issuedAt >= ADMIN_SESSION_MAX_AGE_SEC) return false;
+  const signature = createHmac("sha256", token).update(payload).digest("hex");
+  return safeTokenEqual(signatureHex, signature);
 }
 
 // The two credentials are read off a header list, never off a whole Request:
@@ -88,7 +101,7 @@ function hasModeratorCredential(headerList: ModeratorHeaders): boolean {
   if (headerToken && safeTokenEqual(headerToken, expected)) return true;
 
   const sessionValue = readAdminSessionCookie(headerList);
-  if (sessionValue && safeTokenEqual(sessionValue, hashAdminSession(expected))) return true;
+  if (sessionValue && validAdminSession(sessionValue, expected)) return true;
 
   return false;
 }

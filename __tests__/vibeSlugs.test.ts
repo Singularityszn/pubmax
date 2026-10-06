@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { isVibeSlug, shareVibeSlug, VIBE_CHIP_IDS, VIBE_CHIPS, VIBE_SLUGS } from "@/lib/vibeChips";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The seven ?vibe= share slugs are a LOCKED public contract (issue #438):
 // stamped plan links already live in group chats, so a renamed slug breaks
@@ -43,7 +44,7 @@ describe("vibe share slugs (locked public contract)", () => {
     const block = source.match(/const VIBE_STAMPS: Record<string, string> = \{([\s\S]*?)\};/);
     expect(block, "plan-card route no longer declares the VIBE_STAMPS literal").not.toBeNull();
     const stamps = Object.fromEntries(
-      [...block![1].matchAll(/"([^"]+)":\s*"([^"]+)"/g)].map((entry) => [entry[1], entry[2]]),
+      [...defined(block![1]).matchAll(/"([^"]+)":\s*"([^"]+)"/g)].map((entry) => [entry[1], entry[2]]),
     );
     const canonical = Object.fromEntries(
       VIBE_CHIPS.map((chip) => [VIBE_SLUGS[chip.id], chip.label]),

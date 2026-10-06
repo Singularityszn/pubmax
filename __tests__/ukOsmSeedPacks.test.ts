@@ -22,6 +22,7 @@ import {
   normalizeElements,
   type UkOsmPub,
 } from "../scripts/lib/ukOsmSeed.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = path.resolve(__dirname, "..");
 const UK_DIR = path.join(ROOT, "data", "osm", "uk");
@@ -54,12 +55,12 @@ describe("uk osm grid", () => {
     const grid = buildGrid();
     expect(grid.length).toBe(132);
 
-    const first = grid[0];
+    const first = defined(grid[0]);
     // Rounded, not UK_WEST + 1: the grid coordinates are cleaned of float drift
     // so chunk ids and query strings stay stable.
     expect(first.bbox).toEqual([49.8, -8.7, 50.8, -7.7]);
 
-    const last = grid[grid.length - 1];
+    const last = defined(grid[grid.length - 1]);
     expect(last.bbox[2]).toBe(UK_NORTH);
     expect(last.bbox[3]).toBe(UK_EAST);
 
@@ -73,10 +74,10 @@ describe("uk osm grid", () => {
       rows.set(chunk.row, [...(rows.get(chunk.row) ?? []), chunk]);
     }
     for (const cells of rows.values()) {
-      expect(cells[0].bbox[1]).toBe(UK_WEST);
-      expect(cells[cells.length - 1].bbox[3]).toBe(UK_EAST);
+      expect(defined(cells[0]).bbox[1]).toBe(UK_WEST);
+      expect(defined(cells[cells.length - 1]).bbox[3]).toBe(UK_EAST);
       for (let i = 1; i < cells.length; i += 1) {
-        expect(cells[i].bbox[1]).toBe(cells[i - 1].bbox[3]);
+        expect(defined(cells[i]).bbox[1]).toBe(defined(cells[i - 1]).bbox[3]);
       }
     }
   });
@@ -85,8 +86,8 @@ describe("uk osm grid", () => {
     const grid = buildGrid();
     const ids = new Set(grid.map((chunk) => chunk.id));
     expect(ids.size).toBe(grid.length);
-    expect(grid[0].id).toBe("lat49.80_lon-8.70");
-    expect(chunkFileName(grid[0])).toBe("chunk_lat49.80_lon-8.70.json");
+    expect(defined(grid[0]).id).toBe("lat49.80_lon-8.70");
+    expect(chunkFileName(defined(grid[0]))).toBe("chunk_lat49.80_lon-8.70.json");
   });
 
   it("supports finer steps for a heavier split", () => {
@@ -193,7 +194,7 @@ describe("uk osm normalization", () => {
       },
     );
 
-    expect(normalized.pubs[0].smoking).toEqual({
+    expect(defined(normalized.pubs[0]).smoking).toEqual({
       smoking: "outside",
       "smoking:outside": "isolated",
     });
@@ -285,7 +286,7 @@ describe("curated overlap", () => {
     const index = buildCuratedIndex([
       { source: "city:manchester", id: "node/100", name: "Totally Different Name", lat: 0, lng: 0, osmId: "node/100" },
     ]);
-    expect(matchCurated(london[0], index)).toEqual({
+    expect(matchCurated(defined(london[0]), index)).toEqual({
       source: "city:manchester",
       id: "node/100",
       matchType: "osm-id",
@@ -296,7 +297,7 @@ describe("curated overlap", () => {
     const index = buildCuratedIndex([
       { source: "curated-london-slim", id: "venue-xjf3n0", name: "The Arnos Arms", lat: 51.5163, lng: -0.132117 },
     ]);
-    const match = matchCurated(london[0], index);
+    const match = matchCurated(defined(london[0]), index);
     expect(match?.matchType).toBe("name-distance");
     expect(match?.id).toBe("venue-xjf3n0");
     expect(match?.distanceM).toBeLessThanOrEqual(CURATED_MATCH_RADIUS_M);
@@ -306,7 +307,7 @@ describe("curated overlap", () => {
     const index = buildCuratedIndex([
       { source: "curated-london-slim", id: "venue-far", name: "Arnos Arms", lat: 51.7, lng: -0.132117 },
     ]);
-    expect(matchCurated(london[0], index)).toBeNull();
+    expect(matchCurated(defined(london[0]), index)).toBeNull();
   });
 
   it("reports overlap counts per source and leaves unmatched pubs unannotated", () => {
@@ -322,8 +323,8 @@ describe("curated overlap", () => {
       { source: "city:glasgow", entries: 1, matched: 0 },
       { source: "curated-london-slim", entries: 1, matched: 1 },
     ]);
-    expect(pubs[0].curatedRef?.source).toBe("curated-london-slim");
-    expect(pubs[1].curatedRef).toBeUndefined();
+    expect(defined(pubs[0]).curatedRef?.source).toBe("curated-london-slim");
+    expect(defined(pubs[1]).curatedRef).toBeUndefined();
   });
 });
 

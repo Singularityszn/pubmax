@@ -296,11 +296,17 @@ export default function PalExperience() {
           },
         }
       : DEFAULT_PAL_DRAFT;
+    // The meeting screen paints before the owner settles, so "Meet your Pub
+    // Pal" can already have opened onboarding. On that first settle keep the
+    // viewer's choice; a later owner change still starts from the meeting.
+    const firstSettle = draftOwner === "";
     let cancelled = false;
     void Promise.resolve().then(() => {
       if (cancelled) return;
       setDraftOwner(owner);
-      setMode(restored ? "onboarding" : "meeting");
+      setMode((current) =>
+        restored || (firstSettle && current === "onboarding") ? "onboarding" : "meeting",
+      );
       setStep(restored?.step ?? 0);
       setDraft(restored?.draft ?? firstRunDraft);
       setPrivacy(restored?.privacy ?? DEFAULT_PRIVACY);
@@ -707,7 +713,7 @@ export default function PalExperience() {
           <div className="palHomeCopy">
             <p className="palEyebrow">Your Pub Pal</p>
             <h1 id="pal-home-title">{pal.name}</h1>
-            <p>A {signalCopy[pal.appearance.signalAffinity].toLowerCase()} {pal.appearance.species} shaped around your night, with boundaries you control.</p>
+            <p>Your {signalCopy[pal.appearance.signalAffinity].toLowerCase()} {pal.appearance.species} shaped around your night, with boundaries you control.</p>
             <Link className="palPrimary" href="/plan">Plan with {pal.name}<ArrowRight size={18} /></Link>
             <PubPalVoice muted={pal.muted} onStateChange={setPalAnimationState} />
           </div>
@@ -850,7 +856,7 @@ export default function PalExperience() {
               <RangeControl label="Energy" low="Calm" high="Chaotic" value={draft.personality.energy} onChange={(energy) => updatePersonality({ energy })} />
               <RangeControl label="Conversation" low="Concise" high="Storytelling" value={draft.personality.storytelling} onChange={(storytelling) => updatePersonality({ storytelling })} />
               <fieldset><legend>Voice</legend>
-              <div className="palChoiceList">{PAL_VOICES.map((voice) => <ChoiceButton key={voice} selected={draft.voice.id === voice} title={voice[0].toUpperCase() + voice.slice(1)} note={voiceCopy[voice]} onClick={() => setDraft((current) => ({ ...current, voice: { ...current.voice, id: voice } }))} />)}</div>
+              <div className="palChoiceList">{PAL_VOICES.map((voice) => <ChoiceButton key={voice} selected={draft.voice.id === voice} title={voice.charAt(0).toUpperCase() + voice.slice(1)} note={voiceCopy[voice]} onClick={() => setDraft((current) => ({ ...current, voice: { ...current.voice, id: voice } }))} />)}</div>
               </fieldset>
             </div>
           )}

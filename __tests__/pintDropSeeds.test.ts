@@ -10,6 +10,7 @@ import {
 import { listAllVisiblePintDrops, listVisiblePintDrops } from "@/lib/pintDrops";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import dataset from "../public/data/pint_prices_app_dataset.json";
+import { defined } from "@/__tests__/helpers/defined";
 
 const venues = groupVenuePrices(dataset as VenuePrice[]);
 const venueById = new Map(venues.map((venue) => [venue.id, venue]));
@@ -68,7 +69,7 @@ describe("demo Pint Drop seeds", () => {
     for (const drop of manchesterDemoPintDrops) {
       expect(all.some((d) => d.id === drop.id)).toBe(false);
     }
-    const first = londonDemoPintDrops[0];
+    const first = defined(londonDemoPintDrops[0]);
     expect(listVisiblePintDrops(first.venueId)).toContainEqual(first);
     expect(demoDropsFor(first.venueId)).toContainEqual(first);
     expect(demoDropsFor("venue-nope")).toEqual([]);

@@ -1,23 +1,20 @@
-# PostHog sampling (free tier)
+# PostHog browser SDK features
 
 Project: PostHog EU (pubmaxxing.com).
 
-## Session replay
+## Off: replay, heatmaps, surveys, identify and flags
 
-- **Sample rate:** `0.1` (10% of consented sessions), defined in `lib/posthog/posthogSampling.ts` as `POSTHOG_SESSION_RECORDING_SAMPLE_RATE`.
-- Replay only starts after analytics consent; the browser SDK uses the first-party `/ingest` proxy.
-- At ~60 monthly visitors this stays well inside PostHog's free replay allowance; raise the rate only after checking the PostHog usage dashboard.
+- Session replay, heatmaps, surveys and feature flags are off in `posthogBrowserConfig` (`lib/posthogClient.ts`). The privacy page promises all of them are off.
+- The browser SDK never calls `identify`. Every browser event carries the consented `anon_` device id only. A browser that a past release identified is reset to a fresh anonymous person when the SDK boots.
+- `before_send` (`sanitizePosthogEvent`) keeps only `$pageview`, `$web_vitals` and `$exception`. It cannot see the `/flags` request, so flags stay off at the config level.
+- Turning any of these on needs text masking, blocked message, admin and account surfaces, and a privacy page change in the same PR.
+- Fence: `__tests__/posthogSdkBoundary.test.ts` drives the real SDK with a stubbed fetch and a server config that switches every feature on.
 
 ## Product events
 
 - Named journeys use `trackEvent` → `/api/events` (closed registry in `lib/analyticsEvents.ts`).
 - Event names for dashboards: `docs/analytics/POSTHOG_EVENT_NAMES.md`.
 
-## Heatmaps
+## Source maps
 
-- Enabled via `capture_heatmaps` on the browser SDK (not full DOM autocapture).
-
-## Feature flags
-
-- Flags load with the browser SDK after consent (`advanced_disable_flags: false` in `lib/posthogClient.ts`). No product behaviour reads a flag yet.
-- To read a flag, use `useFeatureFlagEnabled` from `posthog-js/react` inside a `PostHogProvider` that receives the consented client. It returns `undefined` until consent is granted and flags load, so treat `undefined` as off.
+- Production builds ship no browser source maps. Browser exceptions carry only a safe error type and a redacted value, so a map would deobfuscate nothing.

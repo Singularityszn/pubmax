@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -36,7 +37,7 @@ const card: LandingPubCardData = {
   area: "City of London",
   priceGbp: 6.5,
   pintName: "a pint of Pravha",
-  drinkHref: "/drink/pravha",
+  drinkHref: "/drink/pravha" as Route,
   publisher: { label: "pint-prices.com", url: "https://www.pint-prices.com/pub/x" },
   observedOn: "2026-07-03",
   standing: "listed",

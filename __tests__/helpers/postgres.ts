@@ -25,7 +25,7 @@
  * of makes `startPostgres` throw, so a green run means the proofs really ran.
  */
 import { execFile, execFileSync, spawn } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -330,4 +330,61 @@ export async function startPostgres(
     releaseSlotHold();
     throw error;
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* The migrated cluster                                                */
+/* ------------------------------------------------------------------ */
+
+const SESSION_FIXTURE = join(process.cwd(), "scripts/rls/session-fixture.sql");
+const MIGRATIONS = join(process.cwd(), "supabase/migrations");
+
+/**
+ * A cluster holding the Supabase stand-in (`scripts/rls/session-fixture.sql`)
+ * and EVERY forward migration in production order, so a proof reads the
+ * function bodies, grants and policies production holds today rather than a
+ * hand-built shape.
+ */
+export async function startMigratedPostgres(
+  options: StartPostgresOptions = {},
+): Promise<PostgresSession> {
+  const session = await startPostgres(options);
+  try {
+    session.applyFile(SESSION_FIXTURE);
+    for (const name of readdirSync(MIGRATIONS)
+      .filter((candidate) => candidate.endsWith(".sql"))
+      .sort()) {
+      session.applyFile(join(MIGRATIONS, name));
+    }
+    return session;
+  } catch (error) {
+    await session.stop();
+    throw error;
+  }
+}
+
+/**
+ * One statement as `service_role`, the role the app's server client holds.
+ * A proof's successful calls go through this rather than the harness
+ * superuser, so a lost `service_role` grant fails the proof instead of
+ * passing under a role production never uses.
+ */
+export function asServiceRole(statement: string): string {
+  return `set role service_role; ${statement}`;
+}
+
+export type BrowserRole = "anon" | "authenticated";
+
+/**
+ * One statement as a browser role, the way PostgREST runs a call: the JWT
+ * subject in `request.jwt.claim.sub` (null for anon) and the role switched
+ * before the statement. Hand the result to `attempt` or `expectRefusal`.
+ */
+export function asBrowserRole(
+  role: BrowserRole,
+  sub: string | null,
+  statement: string,
+): string {
+  const claim = (sub ?? "").replaceAll("'", "''");
+  return `set request.jwt.claim.sub = '${claim}'; set role ${role}; ${statement}`;
 }

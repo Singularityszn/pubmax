@@ -20,6 +20,7 @@ type AuthCallbackUser = {
   id: string;
   email?: string | null;
   emailConfirmedAt?: string | null;
+  phoneConfirmedAt?: string | null;
 };
 
 type AuthCallbackUserLookup = (accessToken: string) => Promise<{
@@ -27,12 +28,14 @@ type AuthCallbackUserLookup = (accessToken: string) => Promise<{
   error: unknown;
 }>;
 
+function isTimestamp(value: string | null | undefined): boolean {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
 /** A verified email, otherwise no label. An unverified email is one the sender of the link can choose. */
 export function authCallbackConfirmationLabel(user: AuthCallbackUser): string | null {
   const email = user.email?.trim() ?? "";
-  const confirmed =
-    typeof user.emailConfirmedAt === "string" && user.emailConfirmedAt.trim().length > 0;
-  return email && confirmed ? email : null;
+  return email && isTimestamp(user.emailConfirmedAt) ? email : null;
 }
 
 export async function fetchAuthCallbackUser(
@@ -67,18 +70,29 @@ export async function fetchAuthCallbackUser(
   if (typeof body?.id !== "string" || !body.id) {
     return { data: { user: null }, error: new Error("Invalid identity") };
   }
-  const emailConfirmedAt =
-    typeof body.email_confirmed_at === "string" && body.email_confirmed_at.trim()
-      ? body.email_confirmed_at
-      : null;
+  const timestamp = (value: unknown) => typeof value === "string" && value.trim() ? value : null;
   return {
     data: { user: {
       id: body.id,
       email: typeof body.email === "string" ? body.email : null,
-      emailConfirmedAt,
+      emailConfirmedAt: timestamp(body.email_confirmed_at),
+      phoneConfirmedAt: timestamp(body.phone_confirmed_at),
     } },
     error: null,
   };
+}
+
+/** Decoded, NOT verified, access token claims. Callers verify the token with GoTrue. */
+function accessTokenClaims(accessToken: string): Record<string, unknown> | null {
+  try {
+    const parts = accessToken.split(".");
+    const payload = parts[1];
+    if (parts.length !== 3 || payload === undefined) return null;
+    const claims: unknown = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+    return claims && typeof claims === "object" ? claims as Record<string, unknown> : null;
+  } catch {
+    return null;
+  }
 }
 
 function expiredCallbackSubject(error: unknown, accessToken: string): string | null {
@@ -88,15 +102,33 @@ function expiredCallbackSubject(error: unknown, accessToken: string): string | n
     failure.status !== 403 || failure.code !== "bad_jwt" ||
     failure.message !== "invalid JWT: unable to parse or verify signature, token has invalid claims: token is expired"
   ) return null;
-  try {
-    const parts = accessToken.split(".");
-    if (parts.length !== 3) return null;
-    const claims = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
-    return typeof claims?.sub === "string" && claims.sub &&
-      typeof claims.exp === "number" && Number.isFinite(claims.exp) ? claims.sub : null;
-  } catch {
-    return null;
-  }
+  const claims = accessTokenClaims(accessToken);
+  return typeof claims?.sub === "string" && claims.sub &&
+    typeof claims.exp === "number" && Number.isFinite(claims.exp) ? claims.sub : null;
+}
+
+/**
+ * GoTrue `amr` methods of an emailed sign-in link. Only an emailed link can
+ * honestly land in a browser that never started the attempt. OAuth and a
+ * password always return to the browser that started them, so an unowned
+ * callback carrying one is somebody else's session handed over in a link.
+ */
+// A first sign-up confirmation link is an emailed link too.
+const EMAIL_LINK_AMR_METHODS = new Set(["magiclink", "email/signup"]);
+
+/**
+ * GoTrue records `otp` for an emailed link and for an SMS code alike. This app
+ * has no phone sign-in, so an emailed link's account has a confirmed email and
+ * no confirmed phone, and an SMS code's account always has a confirmed phone.
+ */
+function isEmailLinkSession(accessToken: string, user: AuthCallbackUser): boolean {
+  const amr = accessTokenClaims(accessToken)?.amr;
+  const emailOtp = isTimestamp(user.emailConfirmedAt) && !isTimestamp(user.phoneConfirmedAt);
+  return Array.isArray(amr) && amr.some((entry: unknown) => {
+    const method = entry && typeof entry === "object" ? (entry as { method?: unknown }).method : null;
+    return typeof method === "string" &&
+      (EMAIL_LINK_AMR_METHODS.has(method) || (method === "otp" && emailOtp));
+  });
 }
 
 export type PreparedAuthCallbackSession<SessionValue> =
@@ -135,11 +167,17 @@ export async function prepareAuthCallbackSession<SessionValue>(
     if (minted.status !== "minted") return { status: "verification-failed" };
     const refreshed = await getUser(minted.session.access_token);
     if (isGoTrueUserBannedError(refreshed.error)) return { status: "banned" };
-    const userId = refreshed.data.user?.id;
-    if (refreshed.error || !userId || originalUserId !== userId) {
+    const user = refreshed.data.user;
+    if (refreshed.error || !user?.id || originalUserId !== user.id) {
       return { status: "verification-failed" };
     }
-    const label = authCallbackConfirmationLabel(refreshed.data.user ?? { id: userId });
+    const userId = user.id;
+    // GoTrue just verified this minted token for the same account, so its
+    // claims are its own. Refresh keeps the session's original amr.
+    if (!isEmailLinkSession(minted.session.access_token, user)) {
+      return { status: "verification-failed" };
+    }
+    const label = authCallbackConfirmationLabel(user);
     const verifiedTokens = {
       accessToken: minted.session.access_token,
       refreshToken: minted.session.refresh_token,

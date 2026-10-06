@@ -19,6 +19,7 @@
 //   - a verified price is surfaced when we have one, never fabricated when we
 //     don't. No em dashes in any copy this module builds.
 
+import type { Route } from "next";
 import { estimateBusyness } from "@/lib/busyness";
 import { formatGbp } from "@/lib/formatGbp";
 import { isFeaturedHeritageSource, type HeritageFact } from "@/lib/heritageFacts";
@@ -82,7 +83,7 @@ type QuietPintRow = {
   /** "£4.80" when a verified price exists for this venue, else null. */
   priceLabel: string | null;
   /** Deep link to the venue on the map ({@link venueMapUrl}). */
-  mapHref: string;
+  mapHref: Route;
 };
 
 export type QuietPintModule = {
@@ -122,8 +123,7 @@ function bestSourcedFact(facts: readonly HeritageFact[]): HeritageFact | null {
       typeof fact.fact === "string" &&
       fact.fact.trim(),
   );
-  if (sourced.length === 0) return null;
-  return [...sourced].sort((a, b) => sourcePriority(a.source) - sourcePriority(b.source))[0];
+  return [...sourced].sort((a, b) => sourcePriority(a.source) - sourcePriority(b.source))[0] ?? null;
 }
 
 function londonWeekdayName(now: Date): string {

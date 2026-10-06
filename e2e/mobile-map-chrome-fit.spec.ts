@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { PRIMARY_NAV_ITEMS } from "../components/nav/navigationModel";
 import { PERFORMANCE_BUDGETS } from "../lib/performanceBudgets";
+import { expectStreamedPageSettled } from "./helpers/streamedPage";
 
 // Rendered geometry for the phone map chrome at 320, 390 and 430.
 //
@@ -641,9 +642,9 @@ for (const viewport of VIEWPORTS) {
     const arcButtons = arc.locator(".tonightArcChip");
     // Four, not five. The `Clubs` chip is gone (7 Sep 2026, walk finding B9):
     // it stood here permanently `aria-disabled`, explained by a `title` no
-    // phone shows, and it could never be enabled because `curatedVenueKind` in
-    // lib/venueKindFilters.ts answers null for a club, so `filterVenuesByKind`
-    // leaves clubs off the map entirely. The DESKTOP chrome cut is not what
+    // phone shows, and it could never be enabled. Clubs show with the Bars
+    // chip: `curatedVenueKind` in lib/venueKindFilters.ts files a club under
+    // the bars. The DESKTOP chrome cut is not what
     // moved this; the chip is one component (components/map/TonightArcChips.tsx)
     // read at both widths, and a chip nobody can press is not a chip.
     expect(await arcButtons.count()).toBe(4);
@@ -1022,6 +1023,8 @@ for (const viewport of VIEWPORTS) {
     }
 
     // And every one of them stays clear of the tab bar it parks above.
+    // boundingBox() does not wait for paint, so wait for the bar first.
+    await expect(page.locator(".mobileTabBar")).toBeVisible();
     const bar = await page.locator(".mobileTabBar").boundingBox();
     expect(bar).not.toBeNull();
     for (const box of boxes) {
@@ -1189,6 +1192,9 @@ for (const viewport of VIEWPORTS) {
 
     const response = await page.goto("/out");
     expect(response?.status()).toBe(200);
+    // /out streams behind its loading skeleton, and until React swaps the page
+    // in the document holds the skeleton's tab bar and the page's own.
+    await expectStreamedPageSettled(page);
 
     const create = page.getByTestId("create-fab");
     await expect(create).toBeVisible();
@@ -1198,6 +1204,8 @@ for (const viewport of VIEWPORTS) {
     expect(box!.height, "56px square").toBe(56);
     expect(box!.x + box!.width, "inside the viewport").toBeLessThanOrEqual(viewport.width);
 
+    // boundingBox() does not wait for paint, so wait for the bar first.
+    await expect(page.locator(".mobileTabBar")).toBeVisible();
     const bar = await page.locator(".mobileTabBar").boundingBox();
     expect(bar, "the tab bar has a box").not.toBeNull();
     expect(

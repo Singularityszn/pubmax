@@ -116,7 +116,7 @@ export function registrableLabel(host: string): string | null {
   const suffix = COMPOUND_SUFFIXES.find((candidate) => host.endsWith(`.${candidate}`));
   const withoutSuffix = suffix ? host.slice(0, -(suffix.length + 1)) : host.replace(/\.[a-z]+$/, "");
   const labels = withoutSuffix.split(".").filter(Boolean);
-  return labels.length > 0 ? labels[labels.length - 1] : null;
+  return labels.at(-1) ?? null;
 }
 
 /**
@@ -203,7 +203,7 @@ export function parseStatedOpeningHours(markdown: string): StatedOpeningHours {
 
     const closed = CLOSED_LINE.exec(line);
     if (closed) {
-      const days = daySpan(closed[1], closed[2]);
+      const days = daySpan(closed[1] ?? "", closed[2]);
       if (!days) continue;
       for (const day of days) {
         if (!stated.has(day)) hours[day] = [];
@@ -214,10 +214,10 @@ export function parseStatedOpeningHours(markdown: string): StatedOpeningHours {
 
     const match = HOURS_LINE.exec(line);
     if (!match) continue;
-    const days = daySpan(match[1], match[2]);
+    const days = daySpan(match[1] ?? "", match[2]);
     if (!days) continue;
-    const opens = parseStatedClock(match[3]);
-    const closes = parseStatedClock(match[4]);
+    const opens = parseStatedClock(match[3] ?? "");
+    const closes = parseStatedClock(match[4] ?? "");
     if (!opens || !closes) continue;
     const window: OpeningWindow = { opens, closes };
     for (const day of days) {
@@ -235,7 +235,7 @@ export function parseStatedOpeningHours(markdown: string): StatedOpeningHours {
     }
   }
 
-  const statedDays = [...stated].sort((a, b) => a - b).map((index) => WEEKDAY_NAMES[index]);
+  const statedDays = [...stated].sort((a, b) => a - b).flatMap((index) => WEEKDAY_NAMES[index] ?? []);
   return { hours, statedDays };
 }
 

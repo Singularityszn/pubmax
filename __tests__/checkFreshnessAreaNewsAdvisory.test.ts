@@ -7,22 +7,23 @@ import {
   evaluateFreshness,
   freshnessGateFailed,
 } from "@/scripts/check_freshness.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = process.cwd();
 
-describe("check:freshness area_news advisory", () => {
-  it("does not fail the gate when only area_news is stale", async () => {
+describe("check:freshness advisory lanes", () => {
+  it.each(["area_news", "google_places_content"])("does not fail the gate when only %s is stale", async (id) => {
     const now = new Date("2099-06-01T12:00:00.000Z");
     const base = JSON.parse(readFileSync(join(ROOT, "data/freshness_registry.json"), "utf8"));
-    const areaNews = base.datasets.find((d: { id: string }) => d.id === "area_news");
-    expect(areaNews).toBeDefined();
+    const advisory = base.datasets.find((d: { id: string }) => d.id === id);
+    expect(advisory).toBeDefined();
 
     const { results } = await evaluateFreshness({
-      registry: { version: base.version, datasets: [areaNews] },
+      registry: { version: base.version, datasets: [advisory] },
       now,
       rootDir: ROOT,
     });
-    expect(results[0].status).toBe("stale");
+    expect(defined(results[0]).status).toBe("stale");
     expect(freshnessGateFailed(results)).toBe(false);
   });
 
@@ -37,7 +38,7 @@ describe("check:freshness area_news advisory", () => {
       now,
       rootDir: ROOT,
     });
-    expect(results[0].status).toBe("stale");
+    expect(defined(results[0]).status).toBe("stale");
     expect(freshnessGateFailed(results)).toBe(true);
   });
 });

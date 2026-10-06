@@ -1,5 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 
+import { expectStreamedPageSettled } from "./helpers/streamedPage";
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -181,6 +183,9 @@ test("discover mobile price badges stay stable and inside the viewport", async (
 
   const response = await page.goto("/social?tab=discover");
   expect(response?.status()).toBe(200);
+  // /social streams behind loading.tsx, so until React swaps the hidden
+  // segment in the document holds two #cheap-title headings.
+  await expectStreamedPageSettled(page);
 
   await page.locator("#cheap-title").scrollIntoViewIfNeeded();
   const badges = page.locator(".leaderboard .priceBadge");

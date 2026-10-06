@@ -38,12 +38,13 @@ export function useLandmarkJourney(deps: {
   const startCrawlFromPubs = useCallback(
     (ids: string[]) => {
       const stops = crawlStopsFromPubIds(ids);
-      if (stops.length) {
+      const [firstStop] = stops;
+      if (firstStop) {
         setMode("build");
         setBuiltIds(stops);
         setRouteMapped(true);
         setActiveCrawl(null); // a landmark-seeded crawl isn't a curated one
-        showLoadedRoute(stops[0]);
+        showLoadedRoute(firstStop);
         dismissOnboarding();
       }
     },

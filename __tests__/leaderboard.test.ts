@@ -12,6 +12,7 @@ import {
 import { isoDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import { trustPillLabel } from "@/lib/trustPill";
 import type { Venue } from "@/lib/venues";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The ranking helpers read id/name/cheapestPrice/cheapestPint/primaryBorough/
 // visibleBoroughs and, since the board began wearing its trust label, the
@@ -83,8 +84,8 @@ describe("cheapestByArea", () => {
 
   it("falls back to UNKNOWN_AREA when a venue has no borough", () => {
     const venues = [v({ id: "x", name: "Nowhere", cheapestPrice: 4 })];
-    expect(venueArea(venues[0])).toBe(UNKNOWN_AREA);
-    expect(cheapestByArea(venues)[0].area).toBe(UNKNOWN_AREA);
+    expect(venueArea(defined(venues[0]))).toBe(UNKNOWN_AREA);
+    expect(defined(cheapestByArea(venues)[0]).area).toBe(UNKNOWN_AREA);
   });
 });
 
@@ -121,7 +122,7 @@ describe("the Cheap Pint Leaderboard says one thing per row", () => {
     );
     expect(budLightAt199).toHaveLength(1);
     // The cheapest pub still leads, and the tie is broken by name as before.
-    expect(rows[0].venue.name).toBe("The Fox on the Hill");
+    expect(defined(rows[0]).venue.name).toBe("The Fox on the Hill");
   });
 
   it("keeps a different drink at the same price", () => {
@@ -135,14 +136,14 @@ describe("the Cheap Pint Leaderboard says one thing per row", () => {
       (entry) => /moon/i.test(entry.venue.name) && entry.area === "Wandsworth",
     );
     expect(wandsworth).toHaveLength(1);
-    expect(leaderboardPubKey(v(OFFENDING_BOARD[6]))).toBe(
-      leaderboardPubKey(v(OFFENDING_BOARD[8])),
+    expect(leaderboardPubKey(v(defined(OFFENDING_BOARD[6])))).toBe(
+      leaderboardPubKey(v(defined(OFFENDING_BOARD[8]))),
     );
   });
 
   it("keeps two pubs of one name in two different areas apart", () => {
-    expect(leaderboardPubKey(v(OFFENDING_BOARD[8]))).not.toBe(
-      leaderboardPubKey(v(OFFENDING_BOARD[9])),
+    expect(leaderboardPubKey(v(defined(OFFENDING_BOARD[8])))).not.toBe(
+      leaderboardPubKey(v(defined(OFFENDING_BOARD[9]))),
     );
   });
 
@@ -180,7 +181,7 @@ describe("every row wears its trust label", () => {
 
   it("reads the same standing the landing answer card reads", () => {
     expect(leaderboardStandingFor(listedRow as never, COLLECTED)).toBe("listed");
-    expect(cheapestPints([listedRow], 10, COLLECTED)[0].standing).toBe("listed");
+    expect(defined(cheapestPints([listedRow], 10, COLLECTED)[0]).standing).toBe("listed");
     expect(trustPillLabel("listed")).toBe("Listed");
   });
 
@@ -225,6 +226,6 @@ describe("every row wears its trust label", () => {
     });
     const rows = cheapestPints([unpublishedCheaper, listedRow], 10, COLLECTED);
     expect(rows.map((entry) => entry.venue.id)).toEqual(["venue-gdlj1b"]);
-    expect(rows[0].standing).toBe("listed");
+    expect(defined(rows[0]).standing).toBe("listed");
   });
 });

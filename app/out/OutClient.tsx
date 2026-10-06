@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 
@@ -149,7 +150,7 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
       <Screen
         as="div"
         className="outScreen"
-        title="What’s on tonight."
+        title={`${outListingsSectionTitle(day).replace("'", "’")}.`}
         titleId="out-title"
         primary={
           <Link prefetch={false} href={OUT_MAP_WAY.href}>
@@ -165,7 +166,7 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
       <nav className="outDayChips" aria-label="When">
         {OUT_DAY_WINDOWS.map((windowKey) => {
           const selected = windowKey === day;
-          const href = windowKey === "tonight" ? "/out" : `/out?day=${windowKey}`;
+          const href: Route = windowKey === "tonight" ? "/out" : `/out?day=${windowKey}`;
           return (
             <Link prefetch={false}
               key={windowKey}

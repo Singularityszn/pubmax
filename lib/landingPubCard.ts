@@ -16,6 +16,7 @@
 // carry both a listed price and a history row. Deterministic, so the
 // prerendered document and its share card agree.
 
+import type { Route } from "next";
 import { buildDrinkBrandLanding, DRINK_BRAND_LANDING_CATALOG } from "@/lib/drinkBrandLanding";
 import { haystackMatchesBrand } from "@/lib/drinkBrands";
 import {
@@ -58,7 +59,7 @@ export type LandingPubCardData = {
    * that pint over its floor, else null and the name prints as plain text.
    * The same loader decides both, so the card can never link a 404.
    */
-  drinkHref: string | null;
+  drinkHref: Route | null;
   /** Who listed it, or null when the row names no publisher. */
   publisher: { label: string; url: string } | null;
   /** ISO day the publisher's own row was last read at its source, or null when no row records one. */
@@ -90,11 +91,11 @@ function pintLabel(venue: Venue): string {
   return `a pint of ${cased}`;
 }
 
-function drinkHrefFor(venue: Venue, venues: readonly Venue[]): string | null {
+function drinkHrefFor(venue: Venue, venues: readonly Venue[]): Route | null {
   const pint = venue.cheapestPint ?? "";
   const brand = DRINK_BRAND_LANDING_CATALOG.find((candidate) => haystackMatchesBrand(pint, candidate));
   if (!brand || !buildDrinkBrandLanding(brand.id, venues)) return null;
-  return `/drink/${encodeURIComponent(brand.id)}`;
+  return `/drink/${encodeURIComponent(brand.id)}` as Route;
 }
 
 /**
@@ -118,6 +119,7 @@ export function buildLandingPubCard(
   const chosen =
     preferred ??
     [...candidates].sort((a, b) => spanYears(history.get(b.id), b, now) - spanYears(history.get(a.id), a, now))[0];
+  if (!chosen) return null;
 
   const arc = venuePriceArc(history.get(chosen.id) ?? [], chosen.cheapestPrice, now);
   if (!arc || arc.nowGbp === null || arc.deltaGbp === null) return null;

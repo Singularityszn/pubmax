@@ -11,6 +11,7 @@ import {
   shouldRunMapLogIntent,
   LOG_NEARBY_MAX_KM,
 } from "@/lib/mapLogIntent";
+import { defined } from "@/__tests__/helpers/defined";
 
 describe("resolveMapLogIntent", () => {
   it("does nothing when the URL has no log intent", () => {
@@ -323,8 +324,8 @@ describe("buildLogNearbyCandidates", () => {
       origin,
     );
     expect(ranked.map((c) => c.id)).toEqual(["near", "mid", "far"]);
-    expect(ranked[0].distanceKm).toBeLessThan(ranked[1].distanceKm!);
-    expect(ranked[1].distanceKm).toBeLessThan(ranked[2].distanceKm!);
+    expect(defined(ranked[0]).distanceKm).toBeLessThan(defined(ranked[1]).distanceKm!);
+    expect(defined(ranked[1]).distanceKm).toBeLessThan(defined(ranked[2]).distanceKm!);
   });
 });
 

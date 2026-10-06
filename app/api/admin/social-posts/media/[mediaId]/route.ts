@@ -2,7 +2,7 @@ import { isModerator, moderatorStaffRoleId } from "@/lib/adminAuth";
 import { publicApiError } from "@/lib/apiError";
 import { isLimited } from "@/lib/pintDrops";
 import { socialPostConsentStore } from "@/lib/socialPostConsentStore";
-import { signSocialPhotoObject } from "@/lib/socialPostMedia.server";
+import { downloadUploadedImageObject } from "@/lib/uploadedImage.server";
 import { clientIp, hashIp } from "@/lib/supabase";
 import {
   isSocialFriendsLaunchEnabled,
@@ -43,13 +43,16 @@ export async function GET(request: Request, context: Context): Promise<Response>
   try {
     const objectKey = await socialPostConsentStore.adminMediaObjectKey(staffRoleId, mediaId);
     if (!objectKey) return missing();
-    const signedUrl = await signSocialPhotoObject(objectKey);
-    if (!signedUrl) return missing();
-    return new Response(null, {
-      status: 302,
+    // Staff and held-queue permission must govern each read, not a reusable URL.
+    const image = await downloadUploadedImageObject(objectKey);
+    if (!image) return missing();
+    return new Response(new Uint8Array(image.bytes), {
+      status: 200,
       headers: {
-        Location: signedUrl,
+        "Content-Type": image.contentType,
+        "Content-Length": String(image.bytes.byteLength),
         "Cache-Control": "private, no-store",
+        "X-Content-Type-Options": "nosniff",
       },
     });
   } catch {

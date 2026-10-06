@@ -1,0 +1,13 @@
+# Pub opening-hours check
+
+`npm run verify:pub-hours -- --dry-run` selects up to 2,000 pubs with verified place IDs in `london.json`. The command joins the current London shard manifest and orders pubs by distance from 51.5074,-0.1278, then venue ID. It prints projected spend without network calls. Unknown monthly usage earns no assumed free allowance, so this projection covers at most 1,000 paid calls for USD 20.
+
+`npm run verify:pub-hours -- --write` requires `GOOGLE_PLACES_API_KEY` in the command environment and authenticated gcloud for project pubmaxx. The command reads month-to-date Places request counts as a conservative upper bound on Enterprise usage. Total requests include free searches and Pro requests, so this count can underestimate available free credit. Monitoring can lag. Known calls from this job in the same UTC month are also reserved locally, including failed requests. A checkpoint from an earlier month reserves nothing. The CLI makes no automatic retries.
+
+USD 20 is the cumulative cap for the checkpoint, including resumed calls across days. The run prints its projection before changing quotas or sending Details requests. It restores and verifies the original daily quota overrides on completion, error, SIGINT, or SIGTERM. A repeated SIGINT or SIGTERM does not interrupt restoration. A forced process kill cannot run restoration and requires manual quota recovery.
+
+Stored hours come from our UK OSM pub snapshot, joined by exact OSM reference. Nonempty pub hours from our London desk snapshot take precedence. Missing or unparseable hours yield `unknown` without a Details request, and the budget counts only pubs with stored hours. The first live batch predates this rule and paid for some of those rows. These are stored OSM hours, not a claim that every pub currently shows hours in the product.
+
+The only Places field requested is `regularOpeningHours.periods`. Comparison uses weekly minute occupancy, including overnight, split, and 24-hour periods. Google hours exist only in memory. Files contain our venue ID, place ID, `match`, `mismatch`, or `unknown`, and the check time. No Google names, addresses, hours, reviews, or photos are stored. The command does not correct local hours.
+
+`pub_hours_london.json` contains verdicts, an input hash, and the request ledger. `pub_hours_review_london.json` lists mismatches for later correction from permitted first-party evidence. The input hash prevents resuming after local hours or venue selection changed. Spend is a conservative request-based estimate, not an invoice. A completed live batch proves Google verification. A dry run or fake-response test does not.

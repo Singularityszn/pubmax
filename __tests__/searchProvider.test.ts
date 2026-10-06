@@ -7,6 +7,7 @@ import {
   createSearchProvider,
   type SearchProviderDependencies,
 } from "@/lib/searchProvider.server";
+import { defined } from "@/__tests__/helpers/defined";
 
 const officialResult = {
   title: "Independent Arms drinks menu",
@@ -205,7 +206,7 @@ describe("search provider fallback", () => {
 
     const result = await provider.search({ query: "official menu" });
 
-    expect(result.results[0].url).toBe("https://independentarms.co.uk/menu");
+    expect(defined(result.results[0]).url).toBe("https://independentarms.co.uk/menu");
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("falling back to tavily"));
     expect(provider.stats().selectedProvider).toBe("tavily");
   });

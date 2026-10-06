@@ -140,11 +140,12 @@ export function outEmptyLane(input: {
   body: OutListingsBody | null;
   failed: boolean;
   pending: boolean;
-}): { lines: string[]; way: OutEmptyWay } | null {
+}): { lines: [string, ...string[]]; way: OutEmptyWay } | null {
   if (input.pending) return null;
   if (input.body && input.body.events.length > 0) return null;
-  const lines = outStatusLines({ body: input.body, failed: input.failed });
-  if (lines.length === 0) return null;
+  const [first, ...rest] = outStatusLines({ body: input.body, failed: input.failed });
+  if (first === undefined) return null;
+  const lines: [string, ...string[]] = [first, ...rest];
   const unreadable =
     input.failed || (input.body ? outListingsHealth(input.body).status === "degraded" : false);
   return { lines, way: unreadable ? "retry" : "map" };

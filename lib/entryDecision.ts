@@ -42,6 +42,7 @@
 // tests in the node vitest env; the thin live probes at the bottom are the
 // only globals readers, mirroring the lib/a2hsPrompt.ts snapshot idiom.
 
+import type { Route } from "next";
 import { readPreferredCity } from "@/lib/cityPreference";
 import { ONBOARDING_PATH } from "@/lib/firstRunRoute";
 import {
@@ -83,7 +84,7 @@ export type EntryContext = {
 
 export type EntryDecision =
   | { kind: "stay"; reason: "deep-link" | "web-default" | "session-revisit" }
-  | { kind: "route"; href: string; reason: "native-first-run" | "shell-cold-start" };
+  | { kind: "route"; href: Route; reason: "native-first-run" | "shell-cold-start" };
 
 /** Either app-shell signal — the surfaces that must never see the landing page. */
 export function isAppShell(ctx: Pick<EntryContext, "isNativeShell" | "isStandaloneDisplay">): boolean {
@@ -94,7 +95,7 @@ export function isAppShell(ctx: Pick<EntryContext, "isNativeShell" | "isStandalo
  * The single entry decision. Pure and total. `firstRunHref` stays injectable
  * for contract tests, while production always uses ONBOARDING_PATH.
  */
-export function decideEntry(ctx: EntryContext, firstRunHref: string = ONBOARDING_PATH): EntryDecision {
+export function decideEntry(ctx: EntryContext, firstRunHref: Route = ONBOARDING_PATH): EntryDecision {
   if (ctx.path !== "/") return { kind: "stay", reason: "deep-link" };
   if (ctx.isNativeShell && ctx.isNativeFirstRun) {
     return { kind: "route", href: firstRunHref, reason: "native-first-run" };
@@ -216,6 +217,6 @@ export function readEntryContext(path: string): EntryContext {
 }
 
 /** Live first-run target — the dedicated native onboarding route. */
-export function entryFirstRunHref(): string {
+export function entryFirstRunHref(): Route {
   return ONBOARDING_PATH;
 }

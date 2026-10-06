@@ -14,6 +14,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
@@ -93,7 +94,7 @@ describe("the privacy manifest agrees with the answers we publish", () => {
     }
     const found = [...manifest.matchAll(/<string>(NSPrivacyCollectedDataType\w+)<\/string>/g)]
       .map((match) => match[1])
-      .filter((type) => !type.startsWith("NSPrivacyCollectedDataTypePurpose"));
+      .filter((type) => !defined(type).startsWith("NSPrivacyCollectedDataTypePurpose"));
     expect(found).toEqual([...DECLARED]);
   });
 

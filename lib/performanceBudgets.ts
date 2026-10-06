@@ -580,10 +580,10 @@ function excess(value: number): string {
  */
 function table(header: readonly string[], rows: readonly string[][]): string {
   const widths = header.map((cell, column) =>
-    Math.max(cell.length, ...rows.map((row) => row[column].length)),
+    Math.max(cell.length, ...rows.map((row) => (row[column] ?? "").length)),
   );
   const line = (cells: readonly string[]) =>
-    cells.map((cell, column) => pad(cell, widths[column])).join("  ").trimEnd();
+    cells.map((cell, column) => pad(cell, widths[column] ?? 0)).join("  ").trimEnd();
   return [
     line(header),
     widths.map((width) => "-".repeat(width)).join("  "),
@@ -965,7 +965,8 @@ export function median(values: readonly number[]): number {
   if (values.length === 0) return Number.NaN;
   const sorted = [...values].sort((a, b) => a - b);
   const middle = Math.floor(sorted.length / 2);
+  const upper = sorted[middle] ?? Number.NaN;
   return sorted.length % 2 === 1
-    ? sorted[middle]
-    : (sorted[middle - 1] + sorted[middle]) / 2;
+    ? upper
+    : ((sorted[middle - 1] ?? Number.NaN) + upper) / 2;
 }

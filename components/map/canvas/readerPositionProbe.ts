@@ -1,6 +1,8 @@
 import type * as maplibregl from "maplibre-gl";
 import type { FeatureCollection, Point } from "geojson";
 
+import { lngLatOf } from "@/lib/geo";
+
 // For the browser suite: whether the reader dot layers exist and what the
 // user-location GeoJSON source holds right now. Unconditional in production,
 // like the camera and painted-pin probes beside it.
@@ -43,9 +45,9 @@ function firstPoint(
     (candidate) => candidate.geometry.type === "Point",
   );
   if (!feature) return null;
-  const [lng, lat] = feature.geometry.coordinates;
-  if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null;
-  return [lng, lat];
+  const lngLat = lngLatOf(feature.geometry.coordinates);
+  if (!lngLat || !lngLat.every(Number.isFinite)) return null;
+  return lngLat;
 }
 
 function renderedCoordinates(
@@ -54,9 +56,9 @@ function renderedCoordinates(
   const features = map.querySourceFeatures("user-location");
   const point = features.find((feature) => feature.geometry.type === "Point");
   if (!point || point.geometry.type !== "Point") return null;
-  const [lng, lat] = point.geometry.coordinates;
-  if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null;
-  return [lng, lat];
+  const lngLat = lngLatOf(point.geometry.coordinates);
+  if (!lngLat || !lngLat.every(Number.isFinite)) return null;
+  return lngLat;
 }
 
 /** Publishes reader-position layer and source state for the browser suite. */

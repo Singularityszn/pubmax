@@ -164,7 +164,10 @@ test.describe("landing hierarchy", () => {
       // ends above the tab bar, stays out of the create action's box, and a tap
       // on its centre lands on it rather than on a tab.
       if (viewport.width <= 640) {
-        const tabBar = await page.locator(".mobileTabBar").boundingBox();
+        const primaryNav = page.getByRole("navigation", { name: "Primary", exact: true });
+        await expect(primaryNav).toHaveCount(1);
+        await expect(primaryNav).toBeVisible();
+        const tabBar = await primaryNav.boundingBox();
         expect(tabBar).not.toBeNull();
         expect(box!.y + box!.height).toBeLessThanOrEqual(tabBar!.y);
         const create = await page.getByTestId("create-fab").boundingBox();

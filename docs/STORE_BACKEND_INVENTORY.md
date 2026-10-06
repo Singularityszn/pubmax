@@ -6,9 +6,9 @@ The inventory is descriptive, not a runtime registry.
 
 ## Current snapshot
 
-- The repository has 52 `lib/*Store.ts` modules.
-- 32 modules call `selectStore` directly.
-- 7 modules use `createDualBackendStore`.
+- The repository has 54 `lib/*Store.ts` modules.
+- 36 modules call `selectStore` directly.
+- 10 modules use `createDualBackendStore`.
 - 6 modules keep memory state on `globalThis` so it survives a development
   server reload. That state pattern is separate from backend selection.
 - The remaining modules use an explicit backend, a file or static data path,
@@ -50,6 +50,7 @@ silently stale.
 | communityPriceStore | factory-eligible, policy-heavy | Moderation, corroboration, venue signals, and Round source ownership. |
 | contributorLeaderboardStore | legacy-exception | Inline Supabase configuration check; durable aggregate read. |
 | crawlStoryStore | legacy-exception | Multiple inline Supabase configuration checks. |
+| diaryStore | factory-ready | Owner-scoped private Diary entries with shared backend selection. |
 | feedFreshnessStore | factory-ready | Pilot store; durable or memory freshness stamp. |
 | followStore | factory-ready | Directed follow graph with shared backend selection. |
 | harvestOverlayStore | factory-ready | Fold-written UK harvest overlays; one shared selector, with a `requireDurable` guard for the non-dry fold CLI. |
@@ -239,8 +240,9 @@ zero-argument selector before and after the factory wrapper, and its memory
 and Supabase implementations keep their existing fail-soft behavior.
 
 The current branch also has `createDualBackendStore` in
-`adultSelfAssertionStore`, `feedFreshnessStore`, `occupancyStore`,
-`priceTrustEventStore`, `stepOutNudgeStore`, `walkRouteStore`, and
+`adultSelfAssertionStore`, `diaryStore`, `feedFreshnessStore`,
+`harvestOverlayStore`, `occupancyStore`, `priceTrustEventStore`,
+`pubPalToolTurnStore`, `stepOutNudgeStore`, `walkRouteStore` and
 `wantedStore`. This inventory records that current state; it does not require
 other stores to migrate.
 
@@ -249,7 +251,8 @@ other stores to migrate.
 `scripts/check_review_scope.mjs` reports changed source, migration, generated,
 evidence, test, configuration, documentation, skill-pack, and other paths.
 It warns when a review crosses more than two runtime domains or more
-than 150 files. It fails only when generated or skill-pack paths are present.
+than 150 files. Its failing checks are owned by
+`docs/rules/scripts-ci-gates-and-audits.md`.
 Migration files remain in their own category and do not add a runtime domain.
 CI passes the pull request base and head SHAs to the script, so the report
 matches the reviewed diff rather than the checkout's default range.

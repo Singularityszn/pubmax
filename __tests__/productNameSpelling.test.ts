@@ -2,6 +2,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { extname, join } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = process.cwd();
 
@@ -130,8 +131,8 @@ function findMisspellings(relativePath: string): string[] {
   const lines = text.split("\n");
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    if (lineIsExplicitlyAllowed(relativePath, line)) continue;
-    if (MISSPELLING.test(line)) {
+    if (lineIsExplicitlyAllowed(relativePath, defined(line))) continue;
+    if (MISSPELLING.test(defined(line))) {
       hits.push(`${relativePath}:${i + 1}`);
     }
   }

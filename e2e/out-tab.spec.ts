@@ -79,12 +79,35 @@ for (const width of WIDTHS) {
       await expect(out).toHaveAttribute("aria-current", "page");
       await expect(page.getByTestId("out-screen")).toBeVisible();
       await expect(page.getByRole("heading", { name: "What’s on tonight." })).toBeVisible();
+      // /out is not a crawlable family yet: it duplicates /tonight's baseline
+      // rows, so it ships noindex with no canonical of its own. Read it on the
+      // server-rendered document a crawler gets, before any chip's client-side
+      // navigation can briefly leave the old page's metadata beside the new.
+      await expect.poll(() => page.locator('meta[name="robots"]').evaluateAll(
+        (tags) => tags.length > 0 && tags.every((tag) =>
+          tag.getAttribute("content")?.split(",").some(
+            (directive) => directive.trim().toLowerCase() === "noindex",
+          ),
+        ),
+      )).toBe(true);
+      await expect(page.locator('link[rel="canonical"]')).toHaveCount(0);
       // The day chips are LINKS, not radios: each is a destination, so they keep
       // the link role and say where they are with aria-current.
       const when = page.getByRole("navigation", { name: "When" });
       const tonightChip = when.getByRole("link", { name: "Tonight", exact: true });
       await expect(tonightChip).toBeVisible();
       await expect(tonightChip).toHaveAttribute("aria-current", "page");
+      await when.getByRole("link", { name: "Tomorrow", exact: true }).click();
+      await page.waitForURL(/\/out\?day=tomorrow$/);
+      await expect(
+        when.getByRole("link", { name: "Tomorrow", exact: true }),
+      ).toHaveAttribute("aria-current", "page");
+      await expect(
+        page.getByRole("heading", { level: 1, name: "What’s on tomorrow.", exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("heading", { level: 2, name: "What's on tomorrow", exact: true }),
+      ).toBeVisible();
       // Space activates a focused chip the way Enter does.
       const weekendChip = when.getByRole("link", { name: "Weekend", exact: true });
       await weekendChip.focus();
@@ -98,7 +121,16 @@ for (const width of WIDTHS) {
       await expect(
         page.getByRole("heading", { name: "What's on the weekend", exact: true }),
       ).toBeVisible();
-      await page.goto("/out");
+      await expect(
+        page.getByRole("heading", { level: 1, name: "What’s on the weekend.", exact: true }),
+      ).toBeVisible();
+      await tonightChip.focus();
+      await page.keyboard.press("Enter");
+      await page.waitForURL(/\/out$/);
+      await expect(tonightChip).toHaveAttribute("aria-current", "page");
+      await expect(
+        page.getByRole("heading", { level: 1, name: "What’s on tonight.", exact: true }),
+      ).toBeVisible();
 
       // Listings land first; open plans stay a quieter lane below.
       const listings = page.getByRole("region", { name: "What's on tonight" });
@@ -109,14 +141,6 @@ for (const width of WIDTHS) {
 
       // Open plans stays hidden when no sendable plan lands.
       await expect(page.getByRole("region", { name: "Open plans" })).toHaveCount(0);
-
-      // /out is not a crawlable family yet: it duplicates /tonight's baseline
-      // rows, so it ships noindex with no canonical of its own.
-      await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
-        "content",
-        /noindex/,
-      );
-      await expect(page.locator('link[rel="canonical"]')).toHaveCount(0);
 
       await openCreateMenu(page);
       await createRow(page, "Post a moment").click();

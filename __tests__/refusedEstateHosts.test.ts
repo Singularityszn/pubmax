@@ -10,6 +10,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { REFUSED_ESTATE_HOSTS, isHarvestableOperatorUrl } from "@/lib/harvest/sourcePolicy";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = join(__dirname, "..");
 
@@ -17,7 +18,7 @@ function literalListIn(file: string, name: string): string[] {
   const source = readFileSync(join(ROOT, file), "utf8");
   const match = new RegExp(`const ${name} = \\[([\\s\\S]*?)\\];`).exec(source);
   if (!match) throw new Error(`${file} no longer declares ${name}`);
-  return [...match[1].matchAll(/"([^"]+)"/g)].map((row) => row[1]).sort();
+  return [...defined(match[1]).matchAll(/"([^"]+)"/g)].map((row) => defined(row[1])).sort();
 }
 
 describe("the hosts a refused estate publishes on", () => {

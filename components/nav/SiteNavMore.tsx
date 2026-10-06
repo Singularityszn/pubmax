@@ -11,6 +11,7 @@
 // backdrop-filter + pill border-radius, which clips absolutely positioned
 // descendants (design-gate: Historic/Pal were cut off). Portaling escapes that.
 
+import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown } from "lucide-react";
@@ -55,7 +56,7 @@ export function siteNavMoreItems(socialLabel: string): SiteNavMoreItem[] {
 }
 
 type SiteNavMoreLinkItem = {
-  href: string;
+  href: Route;
   label: string;
   description: string;
   /** Path prefixes that mark this item current (defaults to href). */

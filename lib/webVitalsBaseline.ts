@@ -69,11 +69,12 @@ export const CORE_WEB_VITAL_TARGETS: Record<VitalMetric, number> = {
  * reached 3.17x one route's own median, so a tight fence here would be a fence
  * against the runner rather than against the code.
  */
+const PRODUCT_MS_TOLERANCE = { pct: 0.3, floor: 400 };
 const REGRESSION_TOLERANCE: Record<string, { pct: number; floor: number }> = {
   lcpMs: { pct: 0.3, floor: 250 },
   inpMs: { pct: 0.5, floor: 80 },
   cls: { pct: 0.5, floor: 0.03 },
-  productMs: { pct: 0.3, floor: 400 },
+  productMs: PRODUCT_MS_TOLERANCE,
 };
 
 /** How a run was taken: which emulated device, and whether the cache was cold. */
@@ -266,7 +267,7 @@ export type VitalsRegression = {
 
 /** The one place the allowance is computed, so the fence and its table agree. */
 export function regressionCeiling(metric: string, baseline: number): number {
-  const tolerance = REGRESSION_TOLERANCE[metric] ?? REGRESSION_TOLERANCE.productMs;
+  const tolerance = REGRESSION_TOLERANCE[metric] ?? PRODUCT_MS_TOLERANCE;
   return baseline + Math.max(baseline * tolerance.pct, tolerance.floor);
 }
 

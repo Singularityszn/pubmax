@@ -87,9 +87,10 @@ export function detectWhatsOnIntent(text: string): WhatsOnQuery | null {
     const dayMatch = text.match(
       /\b(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/i,
     );
-    if (dayMatch) {
+    const weekday = WEEKDAYS[dayMatch?.[1]?.toLowerCase() ?? ""];
+    if (weekday !== undefined) {
       query.window = "weekday";
-      query.weekday = WEEKDAYS[dayMatch[1].toLowerCase()];
+      query.weekday = weekday;
     }
   }
 

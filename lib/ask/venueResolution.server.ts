@@ -52,6 +52,6 @@ export async function matchVenueByName<T extends VenueNameMatchInput>(
   );
   if (!option) return null;
   const index = optionIndex(option);
-  if (index == null || index >= candidates.length) return null;
-  return candidates[index];
+  if (index == null) return null;
+  return candidates[index] ?? null;
 }

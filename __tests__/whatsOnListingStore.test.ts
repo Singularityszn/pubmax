@@ -7,6 +7,7 @@ import {
   whatsOnListingStore,
 } from "@/lib/whatsOnListingStore";
 import type { WhatsOnRow } from "@/lib/whatsOn";
+import { defined } from "@/__tests__/helpers/defined";
 
 type Row = Record<string, unknown> & { id: string; kind: string };
 
@@ -26,7 +27,7 @@ const db = vi.hoisted(() => ({
 // PostgREST's `payload->>key` column: the payload's field read as text.
 function payloadText(row: Row, field: string): unknown {
   const [column, key] = field.split("->>");
-  const value = row[column];
+  const value = row[defined(column)];
   return key ? (value as Record<string, unknown> | undefined)?.[key] : value;
 }
 
@@ -227,7 +228,7 @@ describe("supabaseWhatsOnListingStore", () => {
     expect(outcome).toEqual({ written: 1 });
     const snap = await supabaseWhatsOnListingStore.readAll();
     expect(snap.rows).toHaveLength(1);
-    expect(snap.rows[0].id).toBe("tm-1");
+    expect(defined(snap.rows[0]).id).toBe("tm-1");
   });
 
   it("uses the oldest durable kind generation for combined freshness", async () => {

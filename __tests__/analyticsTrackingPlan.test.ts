@@ -9,6 +9,7 @@ import {
   VENUE_SHEET_LAYERS,
   sanitizeEvent,
 } from "@/lib/analyticsEvents";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = process.cwd();
 const read = (relative: string): string => readFileSync(join(ROOT, relative), "utf8");
@@ -150,7 +151,7 @@ describe("the tracking plan document", () => {
     );
     const listed = [...catalogue.matchAll(/^\| `([a-z0-9_]+)` \|/gm)].map((match) => match[1]);
     expect(listed.length).toBeGreaterThan(50);
-    const unknown = listed.filter((name) => !(name in ANALYTICS_EVENTS));
+    const unknown = listed.filter((name) => !(defined(name) in ANALYTICS_EVENTS));
     expect(unknown, `catalogued events the registry does not hold: ${unknown.join(", ")}`)
       .toEqual([]);
   });

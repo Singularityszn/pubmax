@@ -4,9 +4,17 @@ import {
   applySelectionMute,
   clusterCircleColorExpr,
 } from "@/lib/mapBasemapTaste";
+import { CATEGORY_COLORS } from "@/lib/categoryColors";
 import { isTransitNetworkVisible } from "@/lib/poiToggleGroups";
 import { TRANSPORT_CATEGORIES, type PoiCategory } from "@/lib/pois";
-import { iconId, UK_BASE_ICON_KEY, type IconTokens } from "@/lib/mapIcons";
+import {
+  COFFEE_PILOT_ICON_KEY,
+  iconId,
+  UK_BASE_ICON_KEY,
+  venuePinIconKey,
+  type IconTokens,
+} from "@/lib/mapIcons";
+import { LONDON_RESTAURANT_MIN_ZOOM } from "@/lib/londonRestaurants";
 import { USER_LOCATION_ACCURACY_RADIUS_PX } from "@/lib/mapReaderPosition";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import {
@@ -16,6 +24,7 @@ import {
   registerMapIcons,
   GLOW_BASE_STROKE_OPACITY,
   GLOW_BASE_STROKE_WIDTH,
+  GLOW_SELECTED_STROKE_WIDTH,
   OSM_ATTRIBUTION,
   venuePinEdgeTokens,
 } from "./tokens";
@@ -57,6 +66,12 @@ import {
 // real pin and never hidden inside a cluster.
 export const PIN_MIN_ZOOM = 12;
 export const CLUSTER_MAX_ZOOM = 13;
+
+// The features the GL cluster disc and its count draw. Desktop donuts read the
+// same set and swap these layers' filter rather than their visibility: below
+// PIN_MIN_ZOOM they are the only layers on the `pubs` source, and MapLibre
+// unloads a source whose every layer is hidden.
+export const CLUSTER_FILTER: maplibregl.FilterSpecification = ["has", "point_count"];
 
 // The UK-wide unpriced base layer (lib/ukBasePubs.ts) shares PIN_MIN_ZOOM's
 // floor and nothing else. It is deliberately NOT part of the `pubs` source:
@@ -104,6 +119,15 @@ const UK_BASE_ICON_IMAGE_EXPR: maplibregl.ExpressionSpecification = [
     ["to-string", ["get", "spoonsBucket"]],
   ],
   iconId("base", UK_BASE_ICON_KEY),
+];
+
+/** A coffee pilot cafe's named-drink tag, from the same zoom as a price tag. */
+const COFFEE_PILOT_LABEL_EXPR: maplibregl.ExpressionSpecification = [
+  "step",
+  ["zoom"],
+  "",
+  PIN_PRICE_LABEL_MIN_ZOOM,
+  ["get", "label"],
 ];
 
 /** The base pin's units tag, blank on every pub outside the ranking. */
@@ -252,6 +276,10 @@ export type SceneCtx = {
   ukBaseData: GeoJSON.FeatureCollection;
   tonightData: GeoJSON.FeatureCollection;
   tonightVisible: boolean;
+  /** Shoreditch coffee pilot cafes, empty unless the coffee lane owns the map — see buildCoffeePilot. */
+  coffeePilotData: GeoJSON.FeatureCollection;
+  /** London restaurants, empty unless their layer is shown — see buildLondonRestaurants. */
+  londonRestaurantData: GeoJSON.FeatureCollection;
   selectedId: string;
   /** M2 — caller-owned store of pre-mute paint originals (layerId::prop → value)
    *  for the POI-at-initiation selection mute. Survives across builds via a ref;
@@ -517,6 +545,7 @@ function registerSceneIcons(ctx: SceneCtx) {
     // venuePinEdgeTokens: `paper` above resolves to a near-black in dark, so the
     // glasses' "light rim" was a black one against a near-black basemap.
     ...venuePinEdgeTokens(tokens, dark),
+    coffee: dark ? CATEGORY_COLORS.coffee.dark : CATEGORY_COLORS.coffee.light,
   };
   registerMapIcons(map, iconTokens);
   markPubmaxTiming("pubmax:map-icons-ready");
@@ -931,6 +960,132 @@ export function buildUkBase(ctx: SceneCtx) {
 }
 
 /**
+ * London restaurants that serve alcohol (lib/londonRestaurants.ts). The source
+ * is empty unless their layer is shown, which needs London, restaurants on in
+ * the kind filter and no drink lane or view other than food owning the map.
+ *
+ * A restaurant wears the curated restaurant's own fork, in the unpriced fill,
+ * at the base layer's size and opacity: it is the same kind of place as a
+ * curated restaurant pin, and as unpriced as a base pub. It takes the deal
+ * every symbol on this map takes. The icon is in the collision index, so where
+ * two restaurants would stack the second is not placed. It is added BEFORE the
+ * base pubs, so a base pub, and every curated pin above both, wins the
+ * collision and a restaurant never hides a pub.
+ */
+export const LONDON_RESTAURANT_ICON = iconId("drink", venuePinIconKey("fork", 3));
+
+export function buildLondonRestaurants(ctx: SceneCtx) {
+  const { map, tokens, dark, addLayerOnce, londonRestaurantData, selectedId } = ctx;
+  if (!map.getSource("london-restaurants")) {
+    // The restaurant's position and name are OpenStreetMap's (lib/londonVenueShards.ts).
+    map.addSource("london-restaurants", {
+      type: "geojson",
+      data: londonRestaurantData,
+      attribution: OSM_ATTRIBUTION,
+    });
+  }
+  addLayerOnce({
+    id: "london-restaurant-selected",
+    type: "circle",
+    source: "london-restaurants",
+    minzoom: LONDON_RESTAURANT_MIN_ZOOM,
+    filter: ["==", ["get", "id"], selectedId],
+    paint: {
+      "circle-color": "rgba(0,0,0,0)",
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 8, 17, 13],
+      "circle-stroke-color": tokens.brass,
+      "circle-stroke-width": 2,
+      "circle-stroke-opacity": dark ? 0.85 : 0.8,
+    },
+  });
+  addLayerOnce({
+    id: "london-restaurant-point",
+    type: "symbol",
+    source: "london-restaurants",
+    minzoom: LONDON_RESTAURANT_MIN_ZOOM,
+    layout: {
+      "icon-image": LONDON_RESTAURANT_ICON,
+      "icon-size": UK_BASE_ICON_SIZE_EXPR,
+      "icon-allow-overlap": false,
+      "icon-ignore-placement": false,
+      "icon-padding": 3,
+    },
+    paint: {
+      "icon-opacity": UK_BASE_ICON_OPACITY,
+    },
+  });
+}
+
+/**
+ * The Shoreditch coffee pilot's cafes (lib/coffeePilot.ts). The source is empty
+ * unless the coffee lane owns the map, so a pint reader's map is untouched.
+ *
+ * A cafe is a dot in the coffee hue, never a price band: the pilot holds a
+ * dozen cafes, which is no basis for calling one cheap. Its tag names the drink
+ * the figure is for, on the same deal as every price tag here: a real symbol in
+ * the collision index, and where it will not fit the TAG goes and the dot stays.
+ */
+export function buildCoffeePilot(ctx: SceneCtx) {
+  const { map, tokens, dark, textFont, addLayerOnce, coffeePilotData, selectedId } = ctx;
+  if (!map.getSource("coffee-pilot")) {
+    // The cafe's position and name are OpenStreetMap's (lib/londonVenueShards.ts).
+    map.addSource("coffee-pilot", {
+      type: "geojson",
+      data: coffeePilotData,
+      attribution: OSM_ATTRIBUTION,
+    });
+  }
+  addLayerOnce({
+    id: "coffee-pilot-selected",
+    type: "circle",
+    source: "coffee-pilot",
+    minzoom: PIN_MIN_ZOOM,
+    filter: ["==", ["get", "id"], selectedId],
+    paint: {
+      "circle-color": "rgba(0,0,0,0)",
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 9, 17, 14],
+      "circle-stroke-color": tokens.brass,
+      "circle-stroke-width": 2.4,
+      "circle-stroke-opacity": dark ? 0.9 : 0.85,
+    },
+  });
+  // One symbol carries the cafe and its tag, on the deal `uk-base-point`
+  // takes: the icon is in the collision index (no `*-allow-overlap`), so where
+  // two cafes would stack the second is not placed, and a tap can only land on
+  // a cafe the map actually drew. The tag is optional: where it will not fit
+  // the TAG goes and the cafe stays.
+  addLayerOnce({
+    id: "coffee-pilot-point",
+    type: "symbol",
+    source: "coffee-pilot",
+    minzoom: PIN_MIN_ZOOM,
+    layout: {
+      "icon-image": iconId("base", COFFEE_PILOT_ICON_KEY),
+      "icon-size": UK_BASE_ICON_SIZE_EXPR,
+      "icon-allow-overlap": false,
+      "icon-ignore-placement": false,
+      "icon-padding": 3,
+      "text-field": COFFEE_PILOT_LABEL_EXPR,
+      "text-font": textFont,
+      "text-size": PIN_PRICE_LABEL_SIZE_EXPR,
+      "text-anchor": "top",
+      "text-offset": PIN_PRICE_LABEL_OFFSET_EM,
+      "text-letter-spacing": 0.01,
+      "text-allow-overlap": false,
+      "text-ignore-placement": false,
+      "text-optional": true,
+      "text-padding": PIN_PRICE_LABEL_PADDING,
+    },
+    paint: {
+      "text-color": tokens.pricePlaqueInk,
+      "text-halo-color": tokens.pricePlaqueSurface,
+      "text-halo-width": PIN_PRICE_LABEL_HALO_WIDTH,
+      "text-halo-blur": 0.2,
+    },
+  });
+}
+
+/**
  * The reader's own position.
  *
  * It lives on the CANVAS, under the pub layers, and that ordering is the whole
@@ -1249,7 +1404,7 @@ export function buildPubs(ctx: SceneCtx) {
       "circle-color": "rgba(0,0,0,0)",
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 11, 15, 15],
       "circle-stroke-color": tokens.brass,
-      "circle-stroke-width": GLOW_BASE_STROKE_WIDTH,
+      "circle-stroke-width": selectedId ? GLOW_SELECTED_STROKE_WIDTH : GLOW_BASE_STROKE_WIDTH,
       "circle-stroke-opacity": GLOW_BASE_STROKE_OPACITY,
       "circle-stroke-width-transition": { duration: 0, delay: 0 },
       "circle-stroke-opacity-transition": { duration: 0, delay: 0 },
@@ -1319,7 +1474,7 @@ export function buildPubs(ctx: SceneCtx) {
     id: "clusters",
     type: "circle",
     source: "pubs",
-    filter: ["has", "point_count"],
+    filter: CLUSTER_FILTER,
     paint: {
       // Price-aware GL fallback. Desktop normally replaces these circles with
       // segmented donuts; phones and large cluster sets keep this layer, whose
@@ -1350,7 +1505,7 @@ export function buildPubs(ctx: SceneCtx) {
     id: "cluster-count",
     type: "symbol",
     source: "pubs",
-    filter: ["has", "point_count"],
+    filter: CLUSTER_FILTER,
     layout: {
       "text-field": ["get", "point_count_abbreviated"],
       "text-font": textFont,
@@ -1522,12 +1677,14 @@ export function assembleSceneCritical(ctx: SceneCtx) {
   registerSceneIcons(ctx);
   // BEFORE the pub layers on purpose — see buildUserLocation.
   buildUserLocation(ctx);
+  buildLondonRestaurants(ctx);
   buildUkBase(ctx);
   buildLandmarks(ctx);
   buildPois(ctx);
   buildRoute(ctx);
   buildBandCorridor(ctx);
   buildPubs(ctx);
+  buildCoffeePilot(ctx);
   buildRouteStops(ctx);
   applySelectionState(ctx);
 }

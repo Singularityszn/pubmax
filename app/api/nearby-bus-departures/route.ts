@@ -157,12 +157,13 @@ export async function GET(request: Request): Promise<Response> {
   if (arrivalsTimeoutMs < BUS_MIN_ATTEMPT_MS) return json(unavailable(now));
 
   const arrivals = await Promise.all(
-    stops.map((stop) =>
-      tflFetch<TflBusPrediction[]>(
+    stops.map(async (stop) => ({
+      stop,
+      outcome: await tflFetch<TflBusPrediction[]>(
         `/StopPoint/${encodeURIComponent(stopId(stop))}/Arrivals`,
         { timeoutMs: arrivalsTimeoutMs },
       ),
-    ),
+    })),
   );
 
   // The clock the predictions are judged against is read HERE, not at the top
@@ -170,9 +171,8 @@ export async function GET(request: Request): Promise<Response> {
   // measuring a TfL stamp against a timestamp from before those calls turns our
   // own latency into what looks like a source clock running ahead.
   const observedAt = new Date();
-  const stopResults = stops
-    .map((stop, index) => {
-      const outcome = arrivals[index];
+  const stopResults = arrivals
+    .map(({ stop, outcome }) => {
       // A stop we could not ask is dropped rather than shown empty: silence
       // from TfL is never evidence that no bus is coming.
       if (!outcome.ok || !Array.isArray(outcome.data)) return null;

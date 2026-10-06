@@ -26,6 +26,7 @@ import {
   isPubVenueKind,
 } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
+import { defined } from "@/__tests__/helpers/defined";
 
 const CELL = "51.50_-0.25";
 
@@ -109,7 +110,7 @@ describe("London venue manifest", () => {
 
   it("expands each cell id to a URL under its own prefix", () => {
     const parsed = parseLondonVenueManifest(manifest);
-    expect(parsed?.shards[0].url).toBe("/data/london_venues/packs/0123456789abcdef/51.50_-0.25.json");
+    expect(defined(parsed?.shards[0]).url).toBe("/data/london_venues/packs/0123456789abcdef/51.50_-0.25.json");
   });
 
   it("refuses a prefix that is not this layer's", () => {
@@ -190,16 +191,16 @@ describe("the published manifest speaks one bbox order", () => {
       shards: { id: string; bbox: number[] }[];
     };
     const [minLng, minLat, maxLng, maxLat] = manifest.bbox;
-    expect(minLng).toBeLessThan(maxLng);
-    expect(minLat).toBeLessThan(maxLat);
+    expect(minLng).toBeLessThan(defined(maxLng));
+    expect(minLat).toBeLessThan(defined(maxLat));
     expect(manifest.shards.length).toBeGreaterThan(0);
 
     for (const shardEntry of manifest.shards) {
       const [cellMinLng, cellMinLat, cellMaxLng, cellMaxLat] = shardEntry.bbox;
-      expect(cellMaxLng).toBeGreaterThan(minLng);
-      expect(cellMinLng).toBeLessThan(maxLng);
-      expect(cellMaxLat).toBeGreaterThan(minLat);
-      expect(cellMinLat).toBeLessThan(maxLat);
+      expect(cellMaxLng).toBeGreaterThan(defined(minLng));
+      expect(cellMinLng).toBeLessThan(defined(maxLng));
+      expect(cellMaxLat).toBeGreaterThan(defined(minLat));
+      expect(cellMinLat).toBeLessThan(defined(maxLat));
     }
   });
 
@@ -222,10 +223,10 @@ describe("the published manifest speaks one bbox order", () => {
       );
       expect(rows.length).toBeGreaterThan(0);
       for (const venue of rows) {
-        expect(venue.lng).toBeGreaterThanOrEqual(cellMinLng);
-        expect(venue.lng).toBeLessThanOrEqual(cellMaxLng);
-        expect(venue.lat).toBeGreaterThanOrEqual(cellMinLat);
-        expect(venue.lat).toBeLessThanOrEqual(cellMaxLat);
+        expect(venue.lng).toBeGreaterThanOrEqual(defined(cellMinLng));
+        expect(venue.lng).toBeLessThanOrEqual(defined(cellMaxLng));
+        expect(venue.lat).toBeGreaterThanOrEqual(defined(cellMinLat));
+        expect(venue.lat).toBeLessThanOrEqual(defined(cellMaxLat));
       }
     }
   });
@@ -241,7 +242,7 @@ describe("the layer stays out of every pub system", () => {
 
   it("carries no price field of any kind", () => {
     const [venue] = parseLondonVenueShard(shard([CAFE]));
-    expect(Object.keys(venue).sort()).toEqual(["address", "id", "kind", "lat", "lng", "name"]);
+    expect(Object.keys(defined(venue)).sort()).toEqual(["address", "id", "kind", "lat", "lng", "name"]);
   });
 
   it("holds work-spot kinds no pub surface will claim", () => {
@@ -291,8 +292,29 @@ describe("the shipped London layer", () => {
       ),
     ) as { london: { total: number; byKind: Record<string, number> } };
 
-    expect(census).toEqual(counts.london.byKind);
-    expect(venues.length).toBe(counts.london.total);
+    // Restaurants whose own website states alcohol join the OSM census as
+    // restaurants, except where an OSM pack already ships that element.
+    const shipped = new Set<string>();
+    for (const group of ["drink", "food", "work"]) {
+      const pack = JSON.parse(
+        readFileSync(path.join(__dirname, "..", "data", "osm", "uk", `uk_osm_venues_${group}.json`), "utf8"),
+      ) as { venues: Array<{ osmId: string }> };
+      for (const venue of pack.venues) shipped.add(venue.osmId);
+    }
+    const evidence = JSON.parse(
+      readFileSync(path.join(__dirname, "..", "data", "london_restaurant_drinks", "evidence.json"), "utf8"),
+    ) as { rows: Array<{ osmId: string }> };
+    const evidenced = evidence.rows.filter((row) => !shipped.has(row.osmId)).length;
+    const manifest = JSON.parse(readFileSync(publishedManifestPath, "utf8")) as {
+      restaurantDrinkEvidence: { count: number };
+    };
+    expect(manifest.restaurantDrinkEvidence.count).toBe(evidenced);
+
+    expect(census).toEqual({
+      ...counts.london.byKind,
+      restaurant: (counts.london.byKind.restaurant ?? 0) + evidenced,
+    });
+    expect(venues.length).toBe(counts.london.total + evidenced);
     // Ids are unique across the whole layer: a cell id formatted to too few
     // decimals used to collapse cells onto one another and merge their rows.
     expect(new Set(venues.map((venue) => venue.id)).size).toBe(venues.length);
@@ -305,9 +327,10 @@ describe("the shipped London layer", () => {
       defaultVenueKindVisibility(),
     );
     const shownKinds = new Set(shown.map((venue) => venue.kind));
-    expect([...shownKinds].sort()).toEqual(["bar", "food", "pub", "restaurant"]);
-    // Every kind the OSM widening added stays out of the curated view, and
-    // nothing but a pub answers the pub predicate.
+    // A club shows and hides with the bars (`curatedVenueKind`). Every other
+    // kind the OSM widening added stays out of the curated view, and nothing
+    // but a pub answers the pub predicate.
+    expect([...shownKinds].sort()).toEqual(["bar", "club", "food", "pub", "restaurant"]);
     for (const venue of venues) {
       if (isPubVenueKind(venue.kind)) expect(venue.kind).toBe("pub");
     }

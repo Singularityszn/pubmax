@@ -40,6 +40,7 @@ vi.mock("@/lib/planStore", () => ({
 
 import { POST as decisionPOST } from "@/app/api/plans/[id]/proposals/[proposalId]/decision/route";
 import { GET as nightSignalsGET } from "@/app/api/night-signals/route";
+import { defined } from "@/__tests__/helpers/defined";
 
 const PLAN_ID = "11111111-1111-4111-8111-111111111111";
 
@@ -67,7 +68,7 @@ describe("plan proposal decision hook", () => {
     expect(res.status).toBe(200);
     // The hook fired fire-and-forget, tagged with the decision reason.
     expect(notifyPlanUpdateMock).toHaveBeenCalledTimes(1);
-    expect(notifyPlanUpdateMock.mock.calls[0][0]).toMatchObject({
+    expect(defined(notifyPlanUpdateMock.mock.calls[0])[0]).toMatchObject({
       planId: PLAN_ID,
       reason: "proposal_accepted",
     });
@@ -83,7 +84,7 @@ describe("plan proposal decision hook", () => {
       { params: Promise.resolve({ id: PLAN_ID, proposalId: "prop-1" }) },
     );
     expect(res.status).toBe(200);
-    expect(notifyPlanUpdateMock.mock.calls[0][0]).toMatchObject({ reason: "proposal_rejected" });
+    expect(defined(notifyPlanUpdateMock.mock.calls[0])[0]).toMatchObject({ reason: "proposal_rejected" });
   });
 });
 
@@ -93,7 +94,7 @@ describe("night-signals broadcast hook", () => {
     expect(res.status).toBe(200);
     expect(maybeBroadcastMock).toHaveBeenCalledTimes(1);
     // Deduped by snapshot version — the first arg is the snapshot's generatedAt.
-    expect(typeof maybeBroadcastMock.mock.calls[0][0]).toBe("string");
+    expect(typeof defined(maybeBroadcastMock.mock.calls[0])[0]).toBe("string");
     const body = await res.json();
     expect(body).toHaveProperty("claims");
   });

@@ -72,6 +72,7 @@ vi.mock("@/lib/authedFetch", () => ({
 
 import MessagesNewGroup from "@/components/messages/MessagesNewGroup";
 import { RECIPIENT_SEARCH_DEBOUNCE_MS } from "@/components/messages/useMessageRecipientSearch";
+import { defined } from "@/__tests__/helpers/defined";
 
 type Recipient = { handle: string; displayName?: string; avatarUrl?: string };
 type PickerProps = {
@@ -350,13 +351,13 @@ describe("message recipient picker", () => {
       },
       "picker",
     );
-    expect(pending[0].signal?.aborted).toBe(true);
+    expect(defined(pending[0]).signal?.aborted).toBe(true);
 
     await typeInto(searchInput()!, "jane");
     await settle(RECIPIENT_SEARCH_DEBOUNCE_MS);
     expect(pending).toHaveLength(2);
     await act(async () => {
-      pending[1].resolve(
+      defined(pending[1]).resolve(
         Response.json({
           matches: [{ id: "profile-jane", handle: "jane", displayName: "Jane" }],
         }),
@@ -366,7 +367,7 @@ describe("message recipient picker", () => {
     expect(buttonNamed("Add @jane")).not.toBeNull();
 
     await act(async () => {
-      pending[0].resolve(
+      defined(pending[0]).resolve(
         Response.json({
           matches: [{ id: "profile-hari", handle: "hari", displayName: "Hari" }],
         }),
@@ -399,7 +400,7 @@ describe("message recipient picker", () => {
     expect(pending).toHaveLength(3);
 
     await act(async () => {
-      pending[2].resolve(
+      defined(pending[2]).resolve(
         Response.json({
           matches: [{ id: "profile-hannah", handle: "hannah", displayName: "Hannah" }],
         }),
@@ -409,7 +410,7 @@ describe("message recipient picker", () => {
     expect(buttonNamed("Add @hannah")).not.toBeNull();
 
     await act(async () => {
-      pending[0].resolve(
+      defined(pending[0]).resolve(
         Response.json({
           matches: [{ id: "profile-harriet", handle: "harriet", displayName: "Harriet" }],
         }),
@@ -417,7 +418,7 @@ describe("message recipient picker", () => {
     });
     await settle();
     await act(async () => {
-      pending[1].resolve(
+      defined(pending[1]).resolve(
         Response.json({
           matches: [{ id: "profile-hari", handle: "hari", displayName: "Hari" }],
         }),

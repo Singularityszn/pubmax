@@ -4,8 +4,8 @@
 // The user asks in natural language; the tool registry answers from
 // listed pubs, What's On, CityMCP, heritage, and prices. Cards keep provenance.
 // Proposals need an explicit Confirm (ADR 0006). In-thread turns may refine an
-// ask; durable Pal memory stays confirm-gated elsewhere. Web grounding stays
-// OFF (lib/palChat PAL_WEB_GROUNDING).
+// ask; durable Pal memory is written only by the person's own Confirm on a
+// memory card. Web grounding stays OFF (lib/palChat PAL_WEB_GROUNDING).
 
 import {
   useCallback,
@@ -31,6 +31,7 @@ import { captureAccountAuth } from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
 import type { AskProposal } from "@/lib/ask/types";
 import { occupancyReceiptLine } from "@/lib/occupancy";
+import { confirmPalMemoryProposal } from "@/lib/palMemoryConfirmClient";
 import { confirmOccupancyProposal } from "@/components/map/useVenueOccupancy";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { writeAskPlanDraft } from "@/lib/conciergeAskClient";
@@ -408,6 +409,43 @@ export default function PalChat() {
         ]);
         if (entryId) dismissProposal(entryId, proposal.id);
       })();
+      return;
+    }
+    if (proposal.kind === "remember_memory") {
+      void (async () => {
+        const result = await confirmPalMemoryProposal(
+          { id: proposal.id, memoryKind: proposal.memoryKind, value: proposal.value },
+          auth,
+        );
+        if (!result) return;
+        if (!result.ok && result.needsSignIn) {
+          router.push("/login?mode=signin&from=/pal/chat");
+          return;
+        }
+        if (!result.ok) {
+          setEntries((prev) => [
+            ...prev,
+            { kind: "error", id: nextId(), message: result.error },
+          ]);
+          return;
+        }
+        setEntries((prev) => [
+          ...prev,
+          {
+            kind: "answer",
+            id: nextId(),
+            answer: {
+              status: "answered",
+              message: `Saved. I will remember: ${proposal.value}`,
+              cards: [],
+            },
+            locality: null,
+            proposals: [],
+            recall: null,
+          },
+        ]);
+        if (entryId) dismissProposal(entryId, proposal.id);
+      })();
     }
   }, [auth, dismissProposal, nextId, openVenue, router]);
 
@@ -609,6 +647,11 @@ export default function PalChat() {
                       </li>
                     ))}
                   </ul>
+                ) : null}
+                {proposals.some((proposal) => proposal.kind === "remember_memory") ? (
+                  <p className="palChatProposalNote">
+                    A saved memory goes with each Pub Pal chat to ElevenLabs, which answers it. You can delete it on your Pal page.
+                  </p>
                 ) : null}
                 {answer.cards.length > 0 ? (
                   <ul className="palChatCards">

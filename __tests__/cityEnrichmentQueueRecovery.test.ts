@@ -32,6 +32,7 @@ import {
   cityEnrichmentCheckpointStore,
   resetCityEnrichmentCheckpointMemory,
 } from "@/lib/cityEnrichmentCheckpointStore.server";
+import { defined } from "@/__tests__/helpers/defined";
 
 /** 2026-07-26 is an Edinburgh night in the rotation. */
 const EDINBURGH_NIGHT = new Date("2026-07-26T03:15:00.000Z");
@@ -348,7 +349,7 @@ describe("the queue reports on itself", () => {
     await GET(req());
     const owed = (await edinburgh())!.deferred;
     expect(owed).toHaveLength(1);
-    const owedFrom = owed[0].firstFailedAt;
+    const owedFrom = defined(owed[0]).firstFailedAt;
 
     // Far enough on that the retries should have resolved this either way.
     // Two weeks on: past the alert threshold, and a whole number of weeks so

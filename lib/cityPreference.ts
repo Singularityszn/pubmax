@@ -4,6 +4,7 @@
 // the geolocation suggest banner write here so the next Map tab tap opens the
 // city the viewer last chose (or was near).
 
+import type { Route } from "next";
 import { getCity, parseCityId, type CityId } from "@/lib/cities";
 import { cityAwareMapPath, cityMapShareUrl } from "@/lib/cityMapHref";
 import { safeLocalStorage } from "@/lib/safeStorage";
@@ -78,7 +79,7 @@ export function clearPreferredCity(): void {
 }
 
 /** Canonical map path for a city (London stays `/map`). */
-export function mapHrefForCity(cityId: CityId | string | null | undefined): string {
+export function mapHrefForCity(cityId: CityId | string | null | undefined): Route {
   return cityMapShareUrl(cityId);
 }
 
@@ -103,6 +104,6 @@ export function subscribePreferredCity(onStoreChange: () => void): () => void {
  */
 export function preferredCityMapHref(
   query?: URLSearchParams | string | null,
-): string {
+): Route {
   return cityAwareMapPath(readPreferredCity(), query);
 }

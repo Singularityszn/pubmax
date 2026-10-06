@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useTransition } from "react";
 
+import { samePathWithQuery } from "@/lib/appLink";
 import type { HistoricFilterQuery } from "@/lib/pageFilters";
 
 const SORT_OPTIONS: { value: HistoricFilterQuery["sort"]; label: string }[] = [
@@ -34,7 +35,7 @@ export default function HistoricFilters({
   function navigate(next: HistoricFilterQuery): void {
     const query = queryFor(next);
     startTransition(() => {
-      router.push(query ? `${pathname}?${query}` : pathname);
+      router.push(samePathWithQuery(pathname, query));
     });
   }
 

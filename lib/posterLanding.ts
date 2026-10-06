@@ -1,3 +1,5 @@
+import type { Route } from "next";
+
 // Physical QR poster arrival (PLG Wave 2). Printed codes point at
 // `/?src=poster` (optional utm_* tags). The home route sends that arrival to
 // `/near` with the same campaign query kept, so a scan opens nearby prices
@@ -44,7 +46,7 @@ function appendKeptParams(
  * orientation line and analytics have a stable query flag even if the inbound
  * record was sparse.
  */
-export function posterNearHref(from: SearchParamRecord | URLSearchParams): string {
+export function posterNearHref(from: SearchParamRecord | URLSearchParams): Route {
   const out = new URLSearchParams();
   if (from instanceof URLSearchParams) {
     for (const [key, value] of from.entries()) {

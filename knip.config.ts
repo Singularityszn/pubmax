@@ -88,7 +88,7 @@ const config: KnipConfig = {
     // Manual evidence CLIs documented beside their proof output.
     "scripts/map-fix-shots.mjs",
     "scripts/report_borough_coverage.mjs",
-    // Named by docs/data/uk-osm-extract-2026-08-16.md as the ONE way to rewrite
+    // Named by docs/data/uk-osm-extract-2026-10-04.md as the ONE way to rewrite
     // that doc's figures ("Do not edit the figures by hand").
     "scripts/report_uk_venue_extract.mjs",
 
@@ -194,8 +194,8 @@ const config: KnipConfig = {
   ignoreDependencies: ["postcss", "playwright", "openai"],
   // System SysV IPC and process tools the postgres harness shells out to
   // (scripts/rls/postgresShm.mjs), and the Google Cloud CLI. The pub-website
-  // amenity harvest mints its Vertex token with it, and the Places verify job
-  // reads an access token from it (scripts/verify_london_places.mjs). They are
+  // amenity harvest mints its Vertex token with it, and the Places verify jobs
+  // read an access token from it (scripts/lib/googlePlacesQuota.mjs). They are
   // not npm binaries.
   ignoreBinaries: ["ipcs", "ipcrm", "ps", "gcloud"],
 };

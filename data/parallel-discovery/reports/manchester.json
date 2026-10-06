@@ -1,0 +1,2267 @@
+{
+  "city": "manchester",
+  "districts": 52,
+  "slices": 208,
+  "slicesComplete": 208,
+  "incompleteSlices": [],
+  "skippedSources": [
+    {
+      "district": "M1",
+      "category": "bar",
+      "url": "https://themollyhouse.com",
+      "host": "themollyhouse.com",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-05T09:34:19.616Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://themollyhouse.com/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-05T09:34:45.726Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://themollyhouse.com/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-05T09:35:12.240Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://themollyhouse.com/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-05T09:35:12.241Z"
+    },
+    {
+      "district": "M1",
+      "category": "cocktail-bar",
+      "url": "https://themollyhouse.com",
+      "host": "themollyhouse.com",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-05T09:34:19.616Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://themollyhouse.com/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-05T09:34:45.726Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://themollyhouse.com/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-05T09:35:12.240Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://themollyhouse.com/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-05T09:35:12.241Z"
+    },
+    {
+      "district": "M1",
+      "category": "restaurant",
+      "url": "https://themollyhouse.com",
+      "host": "themollyhouse.com",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-05T09:34:19.616Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://themollyhouse.com/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-05T09:34:45.726Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://themollyhouse.com/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-05T09:35:12.240Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://themollyhouse.com/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-05T09:35:12.241Z"
+    },
+    {
+      "district": "M4",
+      "category": "pub",
+      "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/289/show_comments/5",
+      "host": "www.beerintheevening.com",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-05T09:34:27.628Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-05T09:35:03.399Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-05T09:35:39.192Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        }
+      ],
+      "checkedAt": "2026-10-05T09:35:39.204Z"
+    },
+    {
+      "district": "M5",
+      "category": "pub",
+      "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/464/page/1/show_comments/5",
+      "host": "www.beerintheevening.com",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-05T09:34:27.628Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-05T09:35:03.399Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-05T09:35:39.192Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        }
+      ],
+      "checkedAt": "2026-10-05T09:35:39.204Z"
+    },
+    {
+      "district": "M12",
+      "category": "bar",
+      "url": "https://unlockmanchester.com/guide-articles/manchester-abc-drinks-ales-beers-and-cocktails",
+      "host": "unlockmanchester.com",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-05T09:33:59.510Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://unlockmanchester.com/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-05T09:34:05.336Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://unlockmanchester.com/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-05T09:34:11.143Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://unlockmanchester.com/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-05T09:34:11.143Z"
+    },
+    {
+      "district": "M12",
+      "category": "bar",
+      "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/113",
+      "host": "www.beerintheevening.com",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-05T09:34:27.628Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-05T09:35:03.399Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-05T09:35:39.192Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        }
+      ],
+      "checkedAt": "2026-10-05T09:35:39.210Z"
+    },
+    {
+      "district": "M13",
+      "category": "bar",
+      "url": "https://www.ticketline.co.uk/venue/manchester-union-bar",
+      "host": "www.ticketline.co.uk",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-05T09:33:59.583Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.ticketline.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-05T09:34:05.422Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.ticketline.co.uk/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-05T09:34:11.255Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.ticketline.co.uk/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-05T09:34:11.255Z"
+    },
+    {
+      "district": "M13",
+      "category": "restaurant",
+      "url": "https://www.manchesteracademy.net/venue/info",
+      "host": "www.manchesteracademy.net",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-05T09:33:59.700Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.manchesteracademy.net/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-05T09:34:05.599Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.manchesteracademy.net/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-05T09:34:11.423Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.manchesteracademy.net/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-05T09:34:11.423Z"
+    },
+    {
+      "district": "M15",
+      "category": "pub",
+      "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/255/page/1/show_comments/5",
+      "host": "www.beerintheevening.com",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-05T09:34:27.628Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-05T09:35:03.399Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-05T09:35:39.192Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        }
+      ],
+      "checkedAt": "2026-10-05T09:35:39.204Z"
+    },
+    {
+      "district": "M19",
+      "category": "pub",
+      "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/290",
+      "host": "www.beerintheevening.com",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-05T09:34:27.628Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-05T09:35:03.399Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-05T09:35:39.192Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        }
+      ],
+      "checkedAt": "2026-10-05T09:35:39.204Z"
+    },
+    {
+      "district": "M32",
+      "category": "cocktail-bar",
+      "url": "https://fovps.org.uk/the-tea-room",
+      "host": "fovps.org.uk",
+      "kind": "robots",
+      "reason": "robots HTTP 429",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-05T09:33:59.168Z",
+          "reason": "robots-unreadable",
+          "evidence": "https://fovps.org.uk/robots.txt answered 429, so no permission can be read."
+        },
+        {
+          "at": "2026-10-05T09:34:04.260Z",
+          "reason": "robots-unreadable",
+          "evidence": "https://fovps.org.uk/robots.txt answered 429, so no permission can be read."
+        },
+        {
+          "at": "2026-10-05T09:34:09.365Z",
+          "reason": "robots-unreadable",
+          "evidence": "https://fovps.org.uk/robots.txt answered 429, so no permission can be read."
+        }
+      ],
+      "checkedAt": "2026-10-05T09:34:09.365Z"
+    },
+    {
+      "district": "M43",
+      "category": "restaurant",
+      "url": "https://www.beerintheevening.com/pubs/results.shtml/tr/2067/page/42/show_comments/5",
+      "host": "www.beerintheevening.com",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-05T09:34:27.628Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-05T09:35:03.399Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        },
+        {
+          "at": "2026-10-05T09:35:39.192Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.beerintheevening.com/robots.txt could not be fetched (This operation was aborted)."
+        }
+      ],
+      "checkedAt": "2026-10-05T09:35:39.206Z"
+    }
+  ],
+  "filteredSources": [
+    {
+      "district": "M1",
+      "category": "bar",
+      "url": "https://www.manchester.gov.uk/online-directories/births-marriages-deaths-and-nationality-directories/marriages-and-civil-partnerships-directories/venues-licensed-to-hold-ceremonies/rain-bar",
+      "host": "www.manchester.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M1",
+      "category": "bar",
+      "url": "https://www.greatermanchester-ca.gov.uk/what-we-do/safer-and-stronger-communities/independent-custody-visitors",
+      "host": "www.greatermanchester-ca.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M1",
+      "category": "bar",
+      "url": "https://www.law.ac.uk/locations/manchester",
+      "host": "www.law.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M3",
+      "category": "bar",
+      "url": "https://us.trip.com/restaurant/united-kingdom/manchester/detail/the-mews-bar-and-charcuterie-135650223",
+      "host": "us.trip.com",
+      "reason": "travel aggregator"
+    },
+    {
+      "district": "M4",
+      "category": "pub",
+      "url": "https://www.hotels.com/go/england/best-pubs-manchester",
+      "host": "www.hotels.com",
+      "reason": "travel aggregator"
+    },
+    {
+      "district": "M4",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/06718117/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M5",
+      "category": "bar",
+      "url": "https://www.postcodearea.co.uk/postaltowns/manchester/m54rp",
+      "host": "www.postcodearea.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "M9",
+      "category": "bar",
+      "url": "https://democracy.manchester.gov.uk/documents/s59431/Appendix%201%20-%20Location%20plan%20and%20photo%20-%20PUBLISH.pdf",
+      "host": "democracy.manchester.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M11",
+      "category": "pub",
+      "url": "https://www.tmc.ac.uk/life-in-manchester/nightlife",
+      "host": "www.tmc.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M11",
+      "category": "bar",
+      "url": "https://www.manchester.gov.uk/online-directories/libraries-directories/libraries/all-libraries/beswick-library",
+      "host": "www.manchester.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M11",
+      "category": "restaurant",
+      "url": "https://democracy.manchester.gov.uk/documents/g3518/Public%20reports%20pack%2009th-Mar-2020%2010.10%20Licensing%20Sub%20Committee%20Hearing%20Panel.pdf?T=10",
+      "host": "democracy.manchester.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M12",
+      "category": "bar",
+      "url": "https://www.simplyhired.co.uk/search?q=bartender&l=m12%25205jg",
+      "host": "www.simplyhired.co.uk",
+      "reason": "job board"
+    },
+    {
+      "district": "M12",
+      "category": "bar",
+      "url": "https://uk.indeed.com/q-juice-bar-jobs.html?start=10",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "M13",
+      "category": "bar",
+      "url": "https://us.trip.com/moments/detail/manchester-588-133747910",
+      "host": "us.trip.com",
+      "reason": "travel aggregator"
+    },
+    {
+      "district": "M13",
+      "category": "bar",
+      "url": "https://www.rightmove.co.uk/estate-agents/find.html?locationIdentifier=POSTCODE%5E505350",
+      "host": "www.rightmove.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "M13",
+      "category": "bar",
+      "url": "https://uk.indeed.com/q-independent-coffee-shop-manager-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "M13",
+      "category": "bar",
+      "url": "https://www.streetcheck.co.uk/postcode/m130px",
+      "host": "www.streetcheck.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "M13",
+      "category": "bar",
+      "url": "https://www.rightmove.co.uk/estate-agents/find.html?locationIdentifier=POSTCODE%5E1139160",
+      "host": "www.rightmove.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "M13",
+      "category": "bar",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC1236935",
+      "host": "pmc.ncbi.nlm.nih.gov",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M13",
+      "category": "bar",
+      "url": "https://www.rncm.ac.uk/visit-us/food-and-drink",
+      "host": "www.rncm.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M13",
+      "category": "restaurant",
+      "url": "https://www.hospitality.manchester.ac.uk/thebeehive/thebeehive-menus",
+      "host": "www.hospitality.manchester.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M13",
+      "category": "restaurant",
+      "url": "https://democracy.manchester.gov.uk/documents/b1810/Supplemenary%20Agenda%20for%20the%20Licensing%20Sub%20Committee%20Hearing%20Panel%2007th-Jan-2019%2010.00%20Licensing%20Su.pdf?T=9",
+      "host": "democracy.manchester.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M14",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/04637463/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M14",
+      "category": "bar",
+      "url": "https://www.simplyhired.co.uk/search?q=bar&l=m14+6ad",
+      "host": "www.simplyhired.co.uk",
+      "reason": "job board"
+    },
+    {
+      "district": "M15",
+      "category": "bar",
+      "url": "https://www.simplyhired.co.uk/search?q=bar+work&l=manchester+m15+6bx",
+      "host": "www.simplyhired.co.uk",
+      "reason": "job board"
+    },
+    {
+      "district": "M15",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/11656529/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M16",
+      "category": "cocktail-bar",
+      "url": "https://www.limelighthealthhub.nhs.uk",
+      "host": "www.limelighthealthhub.nhs.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M18",
+      "category": "pub",
+      "url": "https://ratings.food.gov.uk/business/1894350",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M18",
+      "category": "pub",
+      "url": "https://www.simplyhired.co.uk/search?q=bar+staff&l=m18+8qq",
+      "host": "www.simplyhired.co.uk",
+      "reason": "job board"
+    },
+    {
+      "district": "M18",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-part-time-bar-staff-l-manchester-jobs.html?start=10",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "M18",
+      "category": "cocktail-bar",
+      "url": "https://jobs.manchester.gov.uk/vacancies/7703/facilities-officer.html",
+      "host": "jobs.manchester.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M19",
+      "category": "pub",
+      "url": "https://uk.indeed.com/q-cider-company-jobs.html?start=20",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "M19",
+      "category": "cocktail-bar",
+      "url": "https://democracy.manchester.gov.uk/documents/g2731/Public%20reports%20pack%2021st-Jan-2019%2010.00%20Licensing%20Sub%20Committee%20Hearing%20Panel.pdf?T=10",
+      "host": "democracy.manchester.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M19",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-part-time-bar-staff-l-manchester-jobs.html?start=10",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "M19",
+      "category": "cocktail-bar",
+      "url": "https://www.rightmove.co.uk/properties/92875209",
+      "host": "www.rightmove.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "M20",
+      "category": "pub",
+      "url": "https://www.postcodearea.co.uk/postaltowns/manchester/m206re",
+      "host": "www.postcodearea.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "M20",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/06990414/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M20",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/08582875/persons-with-significant-control",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M21",
+      "category": "pub",
+      "url": "https://democracy.manchester.gov.uk/documents/s54129/Appendix%206%20publish.pdf",
+      "host": "democracy.manchester.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M21",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/06823940",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M21",
+      "category": "cocktail-bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/12467884/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M22",
+      "category": "bar",
+      "url": "https://ratings.food.gov.uk/business/1819652/escape-bar-2-manchester",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M22",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/06442156/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M23",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/05873034/persons-with-significant-control",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M23",
+      "category": "pub",
+      "url": "https://us.trip.com/restaurant/united-kingdom/manchester/detail/the-firbank-pub-and-kitchen-27519368",
+      "host": "us.trip.com",
+      "reason": "travel aggregator"
+    },
+    {
+      "district": "M23",
+      "category": "bar",
+      "url": "https://ratings.food.gov.uk/business/1818724/the-firbank-pub-kitchen-manchester",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M23",
+      "category": "cocktail-bar",
+      "url": "https://www.gmmh.nhs.uk/home-based-treatment-teams-in-manchester",
+      "host": "www.gmmh.nhs.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M23",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-bpec-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "M24",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/08096746/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M24",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-personal-licence-holder-hospitality-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "M27",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/04557799/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M27",
+      "category": "bar",
+      "url": "https://manchesterfire.gov.uk/contact-us",
+      "host": "manchesterfire.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M30",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-cocktail-bartender-training-l-manchester-jobs.html?start=20",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "M30",
+      "category": "cocktail-bar",
+      "url": "https://www.simplyhired.co.uk/search?q=head+chef&l=m30+0sz",
+      "host": "www.simplyhired.co.uk",
+      "reason": "job board"
+    },
+    {
+      "district": "M32",
+      "category": "cocktail-bar",
+      "url": "https://www.daynurseries.co.uk/day_nursery_search_results.cfm/searchpostcode/M32",
+      "host": "www.daynurseries.co.uk",
+      "reason": "care or childcare directory"
+    },
+    {
+      "district": "M34",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/14352744/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M35",
+      "category": "pub",
+      "url": "https://www.rightmove.co.uk/properties/723056239306880",
+      "host": "www.rightmove.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "M35",
+      "category": "bar",
+      "url": "https://paforlalpaclive.oldham.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search?Column=OPR_PREM_ADDRESS&Direction=Descending&page=93",
+      "host": "paforlalpaclive.oldham.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M35",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/09312904/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M35",
+      "category": "restaurant",
+      "url": "https://paforlalpaclive.oldham.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search/209/Detail?LIC_ID=2306",
+      "host": "paforlalpaclive.oldham.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M40",
+      "category": "cocktail-bar",
+      "url": "https://democracy.manchester.gov.uk/documents/g4211/Public%20reports%20pack%2009th-Jan-2023%2010.00%20Licensing%20Sub%20Committee%20Hearing%20Panel.pdf?T=10",
+      "host": "democracy.manchester.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M41",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/officers/_P319s0mEJCtPeF1u9sHQaRbQhs/appointments",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M45",
+      "category": "pub",
+      "url": "https://licensing.bury.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search?Column=OPR_NAME&Direction=Ascending&page=5",
+      "host": "licensing.bury.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M45",
+      "category": "pub",
+      "url": "https://www.rightmove.co.uk/properties/773375765527953",
+      "host": "www.rightmove.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "M45",
+      "category": "cocktail-bar",
+      "url": "https://licensing.bury.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search?page=82&Column=OPR_PREM_ADDRESS&Direction=Descending",
+      "host": "licensing.bury.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "M45",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/m/jobs?q=Tapas+Restaurant",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "M60",
+      "category": "pub",
+      "url": "https://www.manchester.gov.uk/business-and-investment/starting-a-business/health-and-safety",
+      "host": "www.manchester.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "OL1",
+      "category": "bar",
+      "url": "https://paforlalpaclive.oldham.gov.uk/PAforLalpacLIVE/1/LicensingActPremises/Search?Column=OPR_NAME&Direction=Ascending&page=22",
+      "host": "paforlalpaclive.oldham.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "OL6",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/12320825/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "OL6",
+      "category": "bar",
+      "url": "https://uk.indeed.com/q-cash-in-hand-bar-l-manchester-m21-jobs.html?start=15",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "OL7",
+      "category": "pub",
+      "url": "https://www.waterloomedicalashton.nhs.uk/_common/getdocument?id=393828",
+      "host": "www.waterloomedicalashton.nhs.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "OL7",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/03776784/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "SK3",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/officers/qpUqEfeh1RJe89iIcAmT4mci4vg/appointments",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "SK6",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/11499194/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "SK6",
+      "category": "pub",
+      "url": "https://www.rightmove.co.uk/properties/92689956",
+      "host": "www.rightmove.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "SK7",
+      "category": "bar",
+      "url": "https://www.rightmove.co.uk/properties/91896276",
+      "host": "www.rightmove.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "SK7",
+      "category": "bar",
+      "url": "https://www.rightmove.co.uk/properties/759312543197872",
+      "host": "www.rightmove.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "SK16",
+      "category": "pub",
+      "url": "https://www.doogal.co.uk/ShowMap?postcode=SK16+4JU",
+      "host": "www.doogal.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "SK16",
+      "category": "bar",
+      "url": "https://www.doogal.co.uk/ShowMap?postcode=SK16+4JU",
+      "host": "www.doogal.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "WA15",
+      "category": "pub",
+      "url": "https://www.postcodearea.co.uk/postaltowns/warrington/wa158ee/pubs",
+      "host": "www.postcodearea.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "WA15",
+      "category": "bar",
+      "url": "https://www.postcodearea.co.uk/postaltowns/warrington/wa158ee/pubs",
+      "host": "www.postcodearea.co.uk",
+      "reason": "postcode or property lookup"
+    }
+  ],
+  "taskRuns": 0,
+  "webSearches": 380,
+  "pagesRead": 1050,
+  "researched": 143,
+  "added": 0,
+  "retained": [
+    {
+      "name": "Vero Moderno",
+      "id": "venue-mcr-18ruxxm"
+    },
+    {
+      "name": "Deli-Lama Cafe-Bar",
+      "id": "venue-mcr-kcp7ci"
+    },
+    {
+      "name": "Tangerine",
+      "id": "venue-mcr-1lrqa7h"
+    },
+    {
+      "name": "Shack",
+      "id": "venue-mcr-8xcpdj"
+    },
+    {
+      "name": "Old Fire Station",
+      "id": "venue-mcr-1f6d0d1"
+    },
+    {
+      "name": "Ukrainian Club",
+      "id": "venue-mcr-17sam8q"
+    },
+    {
+      "name": "Irish World Heritage Centre",
+      "id": "venue-mcr-17wwbfk"
+    },
+    {
+      "name": "Velopark Cafe",
+      "id": "venue-mcr-2mlxmv"
+    },
+    {
+      "name": "Manchester Union Brewery Tap",
+      "id": "venue-mcr-55die4"
+    },
+    {
+      "name": "9inety 6ix",
+      "id": "venue-mcr-1m6j34i"
+    },
+    {
+      "name": "Firbank Pub & Kitchen",
+      "id": "venue-mcr-v1581g"
+    },
+    {
+      "name": "Edgar Wood",
+      "id": "venue-mcr-oqqavb"
+    },
+    {
+      "name": "Roebuck",
+      "id": "venue-mcr-1b4tmsc"
+    },
+    {
+      "name": "Joiners Arms",
+      "id": "venue-mcr-j30rtl"
+    },
+    {
+      "name": "Monton Tap",
+      "id": "venue-mcr-1ouxp2m"
+    },
+    {
+      "name": "BrewChimp",
+      "id": "venue-mcr-u28b53"
+    },
+    {
+      "name": "Percy's",
+      "id": "venue-mcr-ud796n"
+    },
+    {
+      "name": "Vault 2",
+      "id": "venue-mcr-1b33plr"
+    },
+    {
+      "name": "Hatters Food & Drinks Hall",
+      "id": "venue-mcr-1rknt6h"
+    },
+    {
+      "name": "Queen Vic",
+      "id": "venue-mcr-1l60r8o"
+    },
+    {
+      "name": "Sun Inn",
+      "id": "venue-mcr-1n4thl8"
+    },
+    {
+      "name": "Queens Arms",
+      "id": "venue-mcr-6ad5bf"
+    },
+    {
+      "name": "Whittles",
+      "id": "venue-mcr-hat1lc"
+    },
+    {
+      "name": "Club Faith",
+      "id": "venue-mcr-pbewby"
+    },
+    {
+      "name": "Circus",
+      "id": "venue-mcr-1isw09m"
+    },
+    {
+      "name": "Billingtons",
+      "id": "venue-mcr-5nsmbs"
+    },
+    {
+      "name": "James Watts",
+      "id": "venue-mcr-1kmj7d5"
+    },
+    {
+      "name": "Brezo Lounge",
+      "id": "venue-mcr-rp20x6"
+    },
+    {
+      "name": "Crown Inn",
+      "id": "venue-mcr-lamvfp"
+    },
+    {
+      "name": "Rectory",
+      "id": "venue-mcr-7xp7wq"
+    },
+    {
+      "name": "Wobbly Stamp",
+      "id": "venue-mcr-18qj833"
+    },
+    {
+      "name": "Village Pub",
+      "id": "venue-mcr-157ruy1"
+    },
+    {
+      "name": "Astley Arms (Bottom)",
+      "id": "venue-mcr-18rfqdc"
+    }
+  ],
+  "totalAccepted": 33,
+  "repeats": 28,
+  "duplicates": [
+    {
+      "name": "Old Pint Pot",
+      "id": null,
+      "matchedName": "The Old Pint Pot",
+      "matchedId": "node/1982756226"
+    },
+    {
+      "name": "New Oxford",
+      "id": null,
+      "matchedName": "The New Oxford",
+      "matchedId": "node/1359418285"
+    },
+    {
+      "name": "Kings Arms",
+      "id": null,
+      "matchedName": "Kings Arms",
+      "matchedId": "node/331277232"
+    },
+    {
+      "name": "Black Friar",
+      "id": null,
+      "matchedName": "The Black Friar",
+      "matchedId": "way/1052533886"
+    },
+    {
+      "name": "Joule Mcr",
+      "id": null,
+      "matchedName": "Joule MCR",
+      "matchedId": "node/10174732605"
+    },
+    {
+      "name": "Egerton Arms Hotel",
+      "id": null,
+      "matchedName": "Egerton Arms",
+      "matchedId": "way/944457450"
+    },
+    {
+      "name": "Eagle Inn",
+      "id": null,
+      "matchedName": "Eagle Inn",
+      "matchedId": "node/2207129152"
+    },
+    {
+      "name": "Black Lion Hotel",
+      "id": null,
+      "matchedName": "The Black Lion Pub",
+      "matchedId": "node/3659125466"
+    },
+    {
+      "name": "High Street Tavern",
+      "id": null,
+      "matchedName": "High Street Tavern",
+      "matchedId": "node/5066958728"
+    },
+    {
+      "name": "Abel Heywood",
+      "id": null,
+      "matchedName": "Abel Heywood",
+      "matchedId": "node/12000992656"
+    },
+    {
+      "name": "Welcome Inn",
+      "id": null,
+      "matchedName": "Welcome Inn",
+      "matchedId": "way/781943957"
+    },
+    {
+      "name": "Mary D's Beamish Bar",
+      "id": null,
+      "matchedName": "Mary D's",
+      "matchedId": "node/1634679820"
+    },
+    {
+      "name": "Townley",
+      "id": null,
+      "matchedName": "The Townley",
+      "matchedId": "way/478975778"
+    },
+    {
+      "name": "Grove Inn",
+      "id": null,
+      "matchedName": "Grove Inn",
+      "matchedId": "node/11649065956"
+    },
+    {
+      "name": "Corner Shop",
+      "id": null,
+      "matchedName": "The Corner Shop",
+      "matchedId": "way/1126491825"
+    },
+    {
+      "name": "Strawberry Duck",
+      "id": null,
+      "matchedName": "Strawberry Duck",
+      "matchedId": "way/624670042"
+    },
+    {
+      "name": "Black Boy",
+      "id": null,
+      "matchedName": "The Black Boy",
+      "matchedId": "way/727920306"
+    },
+    {
+      "name": "Red Rose Inn",
+      "id": null,
+      "matchedName": "The Red Rose",
+      "matchedId": "way/727918567"
+    },
+    {
+      "name": "Albion Inn",
+      "id": null,
+      "matchedName": "Albion Inn",
+      "matchedId": "way/176677497"
+    },
+    {
+      "name": "Middleton Archer",
+      "id": null,
+      "matchedName": "Middleton Archer",
+      "matchedId": "way/176681506"
+    },
+    {
+      "name": "Oddfellows Arms",
+      "id": null,
+      "matchedName": "Oddfellows Arms",
+      "matchedId": "node/1870710805"
+    },
+    {
+      "name": "Lancashire Fold",
+      "id": null,
+      "matchedName": "Lancashire Fold",
+      "matchedId": "way/258790679"
+    },
+    {
+      "name": "Nags Head",
+      "id": null,
+      "matchedName": "Nag's Head",
+      "matchedId": "way/1115745084"
+    },
+    {
+      "name": "Grapes",
+      "id": null,
+      "matchedName": "The Grapes",
+      "matchedId": "way/1115745088"
+    },
+    {
+      "name": "Eccles Cross",
+      "id": null,
+      "matchedName": "The Eccles Cross",
+      "matchedId": "way/1115745073"
+    },
+    {
+      "name": "Duke of York",
+      "id": null,
+      "matchedName": "Duke Of York",
+      "matchedId": "way/1115745096"
+    },
+    {
+      "name": "Oddfellows Arms",
+      "id": null,
+      "matchedName": "Oddfellows Arms",
+      "matchedId": "way/185603701"
+    },
+    {
+      "name": "Station Bar",
+      "id": null,
+      "matchedName": "The Station Bar",
+      "matchedId": "way/1115745095"
+    },
+    {
+      "name": "Dog & Partridge",
+      "id": null,
+      "matchedName": "The Dog & Partridge",
+      "matchedId": "way/204127482"
+    },
+    {
+      "name": "Malt Dog",
+      "id": null,
+      "matchedName": "Malt Dog",
+      "matchedId": "node/13276510917"
+    },
+    {
+      "name": "Longford Tap",
+      "id": null,
+      "matchedName": "The Longford Tap",
+      "matchedId": "node/9275145236"
+    },
+    {
+      "name": "Gorse Hill",
+      "id": null,
+      "matchedName": "Gorse Hill",
+      "matchedId": "node/1282184377"
+    },
+    {
+      "name": "Quadrant",
+      "id": null,
+      "matchedName": "The Quadrant",
+      "matchedId": "node/748834700"
+    },
+    {
+      "name": "Red Lion",
+      "id": null,
+      "matchedName": "Red Lion",
+      "matchedId": "node/266971368"
+    },
+    {
+      "name": "Acres Inn",
+      "id": null,
+      "matchedName": "The Acres Inn",
+      "matchedId": "node/1289969049"
+    },
+    {
+      "name": "Toll Point",
+      "id": null,
+      "matchedName": "The Toll Point",
+      "matchedId": "node/1290036987"
+    },
+    {
+      "name": "Chapel House",
+      "id": null,
+      "matchedName": "The Chapel House",
+      "matchedId": "node/1289961238"
+    },
+    {
+      "name": "Jolly Hatters",
+      "id": null,
+      "matchedName": "The Jolly Hatters",
+      "matchedId": "way/688186625"
+    },
+    {
+      "name": "Coach & Horses",
+      "id": null,
+      "matchedName": "Coach and Horses",
+      "matchedId": "way/588658201"
+    },
+    {
+      "name": "Old Peg",
+      "id": null,
+      "matchedName": "Old Peg",
+      "matchedId": "way/587939960"
+    },
+    {
+      "name": "Dane Bank",
+      "id": null,
+      "matchedName": "The New Dane Bank Hotel",
+      "matchedId": "node/1290053382"
+    },
+    {
+      "name": "Bees Knees",
+      "id": null,
+      "matchedName": "Bees Knees",
+      "matchedId": "node/10276815603"
+    },
+    {
+      "name": "Old Bank",
+      "id": null,
+      "matchedName": "The Old Bank",
+      "matchedId": "node/10040533696"
+    },
+    {
+      "name": "Town Hall Tavern",
+      "id": null,
+      "matchedName": "Town Hall Tavern",
+      "matchedId": "node/10025046035"
+    },
+    {
+      "name": "Fox & Pine",
+      "id": null,
+      "matchedName": "Fox and Pine",
+      "matchedId": "way/1093989828"
+    },
+    {
+      "name": "Ashton Arms",
+      "id": null,
+      "matchedName": "The Ashton Arms Freehouse",
+      "matchedId": "node/286964235"
+    },
+    {
+      "name": "Up Steps Inn",
+      "id": null,
+      "matchedName": "The Up Steps Inn",
+      "matchedId": "node/3084282734"
+    },
+    {
+      "name": "George Tavern",
+      "id": null,
+      "matchedName": "The George Tavern",
+      "matchedId": "node/286964245"
+    },
+    {
+      "name": "George & Dragon",
+      "id": null,
+      "matchedName": "George & Dragon",
+      "matchedId": "way/237962059"
+    },
+    {
+      "name": "Ashlea",
+      "id": null,
+      "matchedName": "Ashlea",
+      "matchedId": "way/1136749722"
+    },
+    {
+      "name": "White Hart Tavern",
+      "id": null,
+      "matchedName": "White Hart",
+      "matchedId": "way/1080317421"
+    },
+    {
+      "name": "Red Lion",
+      "id": null,
+      "matchedName": "Red Lion",
+      "matchedId": "way/292496556"
+    },
+    {
+      "name": "Horse & Farrier",
+      "id": null,
+      "matchedName": "Horse & Farrier",
+      "matchedId": "way/547647720"
+    },
+    {
+      "name": "Moss Trooper",
+      "id": null,
+      "matchedName": "Moss Trooper",
+      "matchedId": "node/25475859"
+    },
+    {
+      "name": "Quarry Bank Inn",
+      "id": null,
+      "matchedName": "The Quarry Bank",
+      "matchedId": "way/142265627"
+    },
+    {
+      "name": "Stonemasons Arms",
+      "id": null,
+      "matchedName": "The Stonemasons Arms",
+      "matchedId": "way/142265629"
+    },
+    {
+      "name": "Gardeners Arms",
+      "id": null,
+      "matchedName": "Gardeners Arms",
+      "matchedId": "node/59981073"
+    }
+  ],
+  "withdrawn": [],
+  "permissionRejected": 0,
+  "rejected": [
+    {
+      "name": "https://m.yelp.com/search?cflt=pubs&find_loc=Gateway+House%2C+Manchester+M1+2GH%2C+United+Kingdom",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.ncp.co.uk/find-a-car-park/car-parks/manchester-chester-street",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://smartrental.com/en/wilson-manchester-gastro",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.opentable.com/r/second-floor-bar-and-brasserie-manchester",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.yelp.ca/search?cflt=bars&find_loc=94-98+Bloom+St%2C+Manchester+M1+3LY",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.theheadofsteam.co.uk/bars/manchesternq",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://theoasthouse.uk.com",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.millenniumhotels.com/en/manchester/the-lowry-hotel",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://mapcarta.com/N12003596216",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Sports+Bars+%26+Pubs&find_loc=87-91+Great+Ancoats+St%2C+Manchester+M4+5AG",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.cntraveller.com/article/best-pubs-manchester",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.reddit.com/r/manchester/comments/1t00jj/hey_rmanchester_ive_built_a_website_that_lists",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.reddit.com/r/manchester/comments/1t00jj/hey_rmanchester_ive_built_a_website_that_lists",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://caf-beermoth-craft-beer-bar.wheree.com/menu",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://www.folkandhoney.co.uk/rest-of-the-uk/venues?strana=57",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=restaurants&find_loc=Dyer+St%2C+Salford+M5+4TB%2C+United+Kingdom",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://salford-city-of-salford.cylex-uk.co.uk/bars-pubs?dst=blackfriars",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.folkandhoney.co.uk/rest-of-the-uk/venues?strana=57",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://ra.co/clubs/uk/manchester",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=213%2F215+Langworthy+Road%2C+Salford+M6+5PW&start=20",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://salford-city-of-salford.cylex-uk.co.uk/charlestown/beverages.html",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=belgian&find_loc=Langworthy+Rd%2C+Salford+M6+5PP",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.yelp.ca/search?cflt=pubs&find_loc=Manchester+M7+4SE",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=North+Street%2C+Manchester+M8+8RE&start=10",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://the-blind-tiger-1.wheree.com/menu",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=North+Street%2C+Manchester+M8+8RE&start=10",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=Heaton+Park+Rd%2C+Manchester+M9+0QS",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Restaurants&find_loc=Gorton+Road%2C+Manchester+M11+2DZ%2C+United+Kingdom",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://rs.locationshub.com/Home/LocationDetail?rsLocationId=119-10240768",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://m.yelp.ca/search?find_desc=Nightlife&find_loc=First+Floor+Raven+House%2C+113+Fairfield+Street%2C+Piccadilly%2C+Manchester+M12+6EL%2C+United+Kingdom",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://rs.locationshub.com/Home/LocationDetail?rsLocationId=119-10240835",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=Unit+35+Cariocca+Business+Park%2C+Manchester+M12+4AH%2C+United+Kingdom",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://crystalroof.co.uk/report/postcode/M126HE/overview",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://m.yelp.ca/search?find_desc=Nightlife&find_loc=First+Floor+Raven+House%2C+113+Fairfield+Street%2C+Piccadilly%2C+Manchester+M12+6EL%2C+United+Kingdom",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g187069-d719620-Reviews-Kro_Bar-Manchester_Greater_Manchester_England.html",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://crystalroof.co.uk/report/postcode/M130NN/overview",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://m.yelp.com/search?find_desc=night+clubs&find_loc=Unit+4+166+Plymouth+Grove%2C+Manchester+M13+0AF",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.ticketsource.com/aicafe/ai-cafe-v6-0/e-vzjrjv",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://m.yelp.com/search?cflt=restaurants&find_loc=Dickenson+Road%2C+Manchester+M13+0WQ%2C+United+Kingdom",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://ra.co/clubs/uk/manchester",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://crystalroof.co.uk/report/postcode/M144TB/overview",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=Gt+Man+M16",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://9inety6ix.co.uk",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.hyattrestaurants.com/en/manchester/bar/the-graduate-bar",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://ra.co/clubs/uk/manchester",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://www.opentable.com/r/the-liquor-store-first-street-manchester",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://ra.co/clubs/197216",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://crystalroof.co.uk/report/postcode/M160FE/overview",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://www.rover.com/uk/blog/top-7-dog-friendly-bars-manchester",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://oh-you-pretty-things-1.wheree.com",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://www.wheree.com/Pubs-c135-g2119474-Trafford",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://www.opentable.com/r/oh-you-pretty-things-trafford-centre",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=wine_bars&find_loc=Circle+Court%2C+Manchester+M17+1LB%2C+United+Kingdom",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://mapcarta.com/W343114318",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=106-108+Reddish+Lane%2C+Manchester+M18+7JL%2C+United+Kingdom",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://fredsalehouse.com",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://area360.uk/postcode/M192AF",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.unionlevenshulme.co.uk",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://mapcarta.com/N3874519170",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://m.yelp.com/search?cflt=bars&find_loc=Stockport+Rd%2C+Manchester+M19+3AW%2C+United+Kingdom",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://ra.co/clubs/uk/manchester",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=wine_bars&find_loc=Circle+Court%2C+Manchester+M17+1LB%2C+United+Kingdom",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Restaurants&find_loc=Unit+5+Sandfold+Lane%2C+Manchester+M19+3BJ%2C+United+Kingdom",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=pubs&find_loc=Burton+Rd%2C+Manchester+M20",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.thewoodstockarmsdidsbury.co.uk",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://south-manchester.u3asite.uk/u3a_venues/parrs-wood-inn",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.theheadofsteam.co.uk/bars/didsbury",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://hodgepodgedays.co.uk/category/didsbury",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.opentable.com/the-metropolitan",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=cocktailbars&find_loc=Chorlton-cum-Hardy%2C+Manchester",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.thewoodstockarmsdidsbury.co.uk",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.theheadofsteam.co.uk/bars/didsbury",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://m.yelp.ca/search?find_desc=Restaurants&find_loc=146-148+Burton+Road%2C+West+Didsbury%2C+Manchester+M20+1LH%2C+United+Kingdom",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_near=bar-4-eighty-manchester",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://philosophyinpubs.co.uk/venues/view/313735",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=restaurants&find_loc=137+Beech+Rd%2C+Manchester+M21+9DT%2C+United+Kingdom",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.opentable.com/r/bar-san-juan-manchester",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://m.yelp.com/search?find_desc=Nightlife&find_loc=419-421+Barlow+Moor+Road%2C+Chorlton%2C+Manchester+M21+8ER%2C+United+Kingdom",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.opentable.co.uk/r/proof-bar-and-kitchen-manchester",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=pubs&find_loc=Sunset+Ave%2C+Wythenshawe+M22",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.ubereats.com/gb/store/the-firbank-pub-%26-kitchen/uf9JiUxHSCiCtNygdOUbsw",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.findmypub.com/lease-tenancy-pubs/england/north+west/greater+manchester",
+      "reason": "unreadable: extract: 404 page not found"
+    },
+    {
+      "name": "Harbord Harbord",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "New Inn",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Jolly Carter",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Harbord Harbord",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "New Inn",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Jolly Carter",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "https://the-hideout-bar-eatery-prestwich.wheree.com",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=cocktailbars&find_loc=Prestwich%2C+Greater+Manchester",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://viscgo.com/contact",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.tripadvisor.co.uk/Restaurant_Review-g528792-d3192583-Reviews-Panama_Hatty_s_Grill-Prestwich_Bury_Greater_Manchester_England.html",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://www.ubereats.com/gb/store/r-bar-%26-bistro/7vq7f3hfTxG7Wsy8Ox0AaQ",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://enoteca-2.wheree.com/menu",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://www.opentable.com/r/edison-bar-manchester-2",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=209-211+Monton+Road%2C+Eccles+M30+9GA",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.opentable.co.uk/r/edison-bar-manchester-2",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=Gt+Man+M16",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://melville-1.wheree.com",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=wine_bars&find_loc=Circle+Court%2C+Manchester+M17+1LB%2C+United+Kingdom",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://m.yelp.com/search?find_desc=Nightlife&find_loc=Egerton+Street%2C+Denton%2C+Manchester+M34+3PB%2C+United+Kingdom",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://m.yelp.com/search?cflt=bars&find_loc=Greaves+Ave%2C+Failsworth+M35+0NA",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=pubs&find_loc=Wickentree+Lane%2C+Failsworth+M35",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://m.yelp.com/search?cflt=bars&find_loc=Greaves+Ave%2C+Failsworth+M35+0NA",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.admiraltaverns.co.uk/pubs/wheatsheaf-failsworth-2",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://m.yelp.com/search?cflt=bars&find_loc=Greaves+Ave%2C+Failsworth+M35+0NA",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://cousins.co.uk/estate-agents/manchester-city-centre",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.admiraltaverns.co.uk/newsarticles/take-a-look-inside-new-manchester-pub-following-220000-refurbishment",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=Unit+10+Brunswick+Mill+Bradford+Road%2C+Manchester+M40+7EZ%2C+United+Kingdom",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.opentable.com/r/vermilion",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=cocktailbars&find_loc=Prestwich%2C+Greater+Manchester",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "Nag's Head",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Lilys at Eden Square",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Bent Brook Hotel",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Three Barrels",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Bevano Lounge",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Prairie Schooner Taphouse",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Tim Bobbin",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Copper Hatch",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Auld Chimp",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Barking Dog",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Doctor Brown's",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=Lostock+Road%2C+Urmston+M41+0TD",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=Lostock+Road%2C+Urmston+M41+0TD",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=british&find_loc=Urmston+M41+5SQ",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://kelder-wines.wheree.com",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://uk.linkedin.com/in/louise-cook-926903167",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Restaurants&find_loc=19-23+Crofts+Bank+Rd%2C+Urmston+M41+0TZ",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.admiraltaverns.co.uk/newsarticles/take-a-look-inside-new-manchester-pub-following-240000-makeover",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://droylsden.cylex-uk.co.uk/company/friendship-inn-18673448.html",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://m.yelp.com/biz/strawberry-gardens-inn-manchester",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://beervisits.beer/pub-bar-visit/pv-england/135-pv-greater-manchester/1311-droylsden-greater-manchester-silly-country-bar-bottle-shop",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://streetscan.co.uk/postcode/m43-7rz",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://www.admiraltaverns.co.uk/newsarticles/take-a-look-inside-new-manchester-pub-following-240000-makeover",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://beervisits.beer/pub-bar-visit/pv-england/135-pv-greater-manchester/1311-droylsden-greater-manchester-silly-country-bar-bottle-shop",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.opentable.co.uk/r/industry-droylsden",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.opentable.co.uk/r/industry-droylsden",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://m.yelp.com/search?cflt=pubs&find_near=the-marble-arch-manchester&start=80",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://whitefield.cylex-uk.co.uk/bars-pubs",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://campotapasbar.com",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://campotapasbar.com",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Restaurants&find_loc=Bury+M26%2C+United+Kingdom",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://salford-city-of-salford.cylex-uk.co.uk/charlestown/beverages.html",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.thelowry.com/food-and-drink-4kk3",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=Gt+Man+M16",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.opentable.com/r/the-ivy-on-the-roof-manchester",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://oldham.cylex-uk.co.uk/bars-pubs",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Restaurants&find_loc=Acres%2C+Oldham+OL1+2RP%2C+United+Kingdom",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://ashton-under-lyne.cylex-uk.co.uk/function%20venues.html",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=7-13+Hazelhurst+Rd%2C+Ashton-under-Lyne+OL6+9AZ",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.hospitalityjobsuk.com/jobs/front-of-house-jobs/pubs-and-bars-jobs/greater-manchester/part-time-flexible",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://m.yelp.com/search?cflt=cocktailbars&find_loc=Ashton-under-Lyne+OL6+7JH%2C+United+Kingdom",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.egorestaurants.co.uk/restaurants/north-west/ashton-under-lyne",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://m.yelp.com/search?cflt=cocktailbars&find_loc=Ashton-under-Lyne+OL6+7JH%2C+United+Kingdom",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.opentable.com/r/village-pub-and-grill-manchester-ashton-ashton-under-lyne",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.village-hotels.co.uk/manchester-ashton",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.hotels.uk.com/uk/greater-manchester/hotels-in-tameside/village-hotel-manchester-ashton.ol7-0pg",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.travelweekly.com/Hotels/Ashton-Under-Lyne-England/Village-Hotel-Manchester-Ashton-p52988897",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.opentable.co.uk/r/village-pub-and-grill-manchester-ashton-ashton-under-lyne",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Restaurants&find_loc=Ashton-under-Lyne+OL7+0QN",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.opentable.co.uk/r/village-pub-and-grill-manchester-ashton-ashton-under-lyne",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://m.yelp.com/search?cflt=bars&find_loc=Oldham%2C+Manchester",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.opentable.com/r/filament-lounge-at-smokies-olham",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.opentable.co.uk/r/filament-lounge-at-smokies-olham",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://oldham.cylex-uk.co.uk/beer%20gardens.html",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://the-ace.wheree.com",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://ra.co/clubs/273948",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://historicengland.org.uk/campaigns/visit/walking-tours/historic-pub-walks-north-west-england/stockport",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=pubs&find_near=waterloo-hotel-stockport",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.yelp.ca/search?cflt=bars&find_loc=Merseyway%2C+Stockport+SK1",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.opentable.com/r/the-milliner-stockport",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://stockport.cylex-uk.co.uk/beer%20gardens.html",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=wine_bars&find_loc=Alpha+House%2C+4+Greek+Street%2C+Stockport%2C+Stockport+SK3+8AB%2C+United+Kingdom",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.theploughonthemoor.co.uk",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.eatdrinkmeet.co.uk/find-a-location/venue/stockport/the-plough-on-the-moor",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.opentable.co.uk/r/thoms-wine-bar-and-restaurant-stockport",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.thefork.co.uk/restaurants/stockport-c668205",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://historicengland.org.uk/campaigns/visit/walking-tours/historic-pub-walks-north-west-england/stockport",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://mapcarta.com/W258323421",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://absolueskin.ie/product-similar-image?17054239011370=",
+      "reason": "unreadable: extract: 404 page not found"
+    },
+    {
+      "name": "https://stockport.cylex-uk.co.uk/cocktail-bars?dst=heaton-norris",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=irish&find_loc=Reddish+Vale+Rd%2C+Stockport+SK5+7EU",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.midlandmarplebridge.co.uk",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.premiumcountrypubcollection.co.uk/northwest",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://hazel-grove.cylex-uk.co.uk/bars-pubs",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.opentable.com/r/bramhall-lounge-stockport",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=Manchester+SK7+4DJ%2C+United+Kingdom",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.lyyve.com/property/stockport/link-detached-house/stockport-1",
+      "reason": "unreadable: extract: 404 page not found"
+    },
+    {
+      "name": "https://cheadle.cylex-uk.co.uk/bars-pubs",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Gastropubs&find_loc=Cheadle+SK8",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.opentable.com/r/village-pub-and-grill-manchester-cheadle",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://m.yelp.com/search?cflt=bars&find_loc=8-10+Gatley+Rd%2C+Cheadle+SK8+1PY",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.village-hotels.co.uk/manchester-cheadle",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://dukinfield.cylex-uk.co.uk/bars-pubs",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://mapcarta.com/N2341896059",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "Astley Arms (Top)",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Commercial",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Angel",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Tame Valley",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Wheatsheaf",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Chapel House",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Masons Arms",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Lodge Hotel",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "https://streetscan.co.uk/postcode/sk16-4jw",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://www.cbre.co.uk/property-search/industrial-space/listings/details/GB-Plus-517520/land-at-crescent-road-ashton-under-lyne-greater-manchester-sk16-4hy",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://dukinfield.cylex-uk.co.uk/bars-pubs",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_near=dunham-massey-national-trust-altrincham",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://charliebrownsgastropubs.co.uk",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://timperley.cylex-uk.co.uk/bars-pubs",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://charliebrownsgastropubs.co.uk",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.opentable.com/r/victors-hale",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://altrincham.cylex-uk.co.uk/off-licence.html",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    }
+  ],
+  "outputPath": "data/cities/manchester/parallel_venues.json"
+}

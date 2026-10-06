@@ -53,7 +53,20 @@ intended. The amenity cells stamped from each pub's own website are layered too:
 the CSV does not carry them and the row-loss guard cannot see them, so after a
 re-export run `npm run harvest:pub-website-amenities -- --restamp`. It stamps
 `data/amenities/london_pub_website_evidence.json` back onto the dataset with no
-fetch and no model call; the script header owns the details.
+fetch and no model call; the script header owns the details. Pages and quotes
+proven chain-wide stay in `data/amenities/london_pub_website_chain_pages.json`,
+with every pub that has read each page or stated each quote, so a later
+harvest skips those pages, no stamp uses them and a page or quote seen by pubs
+on different runs is still proven.
+
+`data/amenities/london_pub_website_hours_dogs.json` holds the dog policy and
+opening hours that a pub's own page states, read from the page texts the
+amenity harvest kept, with no fetch and no model call
+(`npm run harvest:pub-website-hours-dogs`). Each row keeps the page, the day it
+was read and the passage that states each fact. The
+[product features](../README.md#features) describe their display.
+The [CLI header](../scripts/harvest/pub-website-amenities/hours-and-dogs.mjs)
+owns the checkpoint, carry-forward and publication rules.
 
 The 2026-09-04 re-collection read 964 pages with no errors and re-observed 2,624
 of the 2,788 priced rows (94.1%); 55 prices had moved. The other 164 priced rows
@@ -182,4 +195,4 @@ Six committed files are probed by hand often enough to write down. Paths are fro
 | `public/data/venues_slim.core.json`, `public/data/venues_slim.cell.*.json`, `public/data/cities/*/venues_slim.json`, `public/data/cities/*/venues_slim.core.json` | `{revision, rows}` | `id`, `name`, `lat`, `lng` | Same row pack as the index, without `generatedAt`. |
 | `public/data/venues_slim.manifest.json` | `{version, revision, grid, shards}` | shard: `id`, `core`, `partition`, `url`, `count`, `bbox` | The list is `shards`, not `files` or `cells`. `grid` is the step (`originLat`, `originLon`, `latStep`, `lonStep`), not the cells. A city manifest (`public/data/cities/*/venues_slim.manifest.json`) is `{version, revision, shards}` with no `grid`. |
 | `data/osm/uk/chunks.json` | object | `chunkStats` rows: `id`, `bbox`, `elements`, `timestamp` | `chunks` is a count, not an array. The cells are `chunkStats`. There is no `grid` key. |
-| `data/coffee_pilot/shoreditch.json` | `{version, area, checkedOn, rows}` | `venueId`, `venueName`, `drink`, `priceGbp`, `sourceUrl`, `observedAt`, `standing` | `rows` may be empty. `drink` is `flat white`, `latte` or `matcha latte`. `standing` is `listed`. No `cheapestPrice`. The map does not read this file. |
+| `data/coffee_pilot/shoreditch.json` | `{version, area, checkedOn, rows}` | `venueId`, `venueName`, `drink`, `priceGbp`, `sourceUrl`, `observedAt`, `standing` | `rows` may be empty. `drink` is `flat white`, `latte` or `matcha latte`. `standing` is `listed`. No `cheapestPrice`. The map's coffee lane reads it through `lib/coffeePilotLoader.ts` and draws each cafe with its own drinks; no pint surface reads it. |

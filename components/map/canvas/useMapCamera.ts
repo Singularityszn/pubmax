@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { MutableRefObject } from "react";
 import * as maplibregl from "maplibre-gl";
 import type { Venue } from "@/lib/venues";
@@ -247,7 +247,13 @@ export function useMapCamera(refs: CameraRefs) {
 
   useEffect(() => () => coordinator.dispose(), [coordinator]);
 
-  const cameraLanePending = useCallback(() => coordinator.pending(), [coordinator]);
+  // Near-me framing waits for the bottom sheet before it joins the lane (see
+  // whenBottomSheetSettles), so a move is owed during that wait as well.
+  const sheetWaitsRef = useRef(0);
+  const cameraLanePending = useCallback(
+    () => coordinator.pending() || sheetWaitsRef.current > 0,
+    [coordinator],
+  );
 
   // Explicit camera move for venue, route, and city navigation.
   const cinematic = useCallback((options: maplibregl.EaseToOptions, kind: CameraIntentKind = "venue") => {
@@ -352,7 +358,9 @@ export function useMapCamera(refs: CameraRefs) {
       const locationKey = `${location.lat.toFixed(4)},${location.lng.toFixed(4)}`;
       // One move, aimed at the band the reader actually ends up with. See
       // whenBottomSheetSettles for why this waits rather than aiming twice.
+      sheetWaitsRef.current += 1;
       whenBottomSheetSettles(container.top, (coverTop) => {
+        sheetWaitsRef.current -= 1;
         const band = mapVisibleBand({
           height: viewport.height,
           topInset: isPhone

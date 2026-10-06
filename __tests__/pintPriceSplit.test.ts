@@ -55,6 +55,7 @@ import {
   type SummaryDrop,
   type Venue,
 } from "@/lib/venues";
+import { defined } from "@/__tests__/helpers/defined";
 
 vi.mock("@/components/visits/VisitReportPanel", () => ({
   default: () => createElement("div", { "data-testid": "visit-report-peek" }),
@@ -153,7 +154,7 @@ function renderOverview(drops: SummaryDrop[]): string {
   const signal = pintTrustSignalFields(pintTrustFor(drops, NOW));
   return renderToStaticMarkup(
     createElement(VenueOverviewTab, {
-      venue: merged,
+      venue: defined(merged),
       tab: "overview",
       cityId: "london",
       mode: "suggest",
@@ -191,12 +192,12 @@ function renderOverview(drops: SummaryDrop[]): string {
 function peekChip(drops: SummaryDrop[]) {
   const [merged] = mergeVenueDrops([venue()], new Map([[VENUE_ID, drops]]), NOW);
   const signal = pintTrustSignalFields(pintTrustFor(drops, NOW));
-  const bundle = venueBundlePrices(merged);
+  const bundle = venueBundlePrices(defined(merged));
   return peekPriceChip(
     venuePriceLane(
-      merged,
+      defined(merged),
       signal.latestContributorPrice,
-      venueSourcedPrice(merged),
+      venueSourcedPrice(defined(merged)),
       bundle,
       dropLaneInput(signal.provisionalContributorPrice, signal.provisionalContributorAt),
       dropLaneInput(signal.agedContributorPrice, signal.agedContributorAt),
@@ -214,7 +215,7 @@ function pin(drops: SummaryDrop[]) {
     ...pintTrustSignalFields(pintTrustFor(drops, NOW)),
   };
   return pubsToGeoJSON(
-    [merged],
+    [defined(merged)],
     new Map([[VENUE_ID, signal]]),
     null,
     null,

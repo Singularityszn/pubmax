@@ -175,13 +175,7 @@ export default async function AboutPage() {
         titleId="about-title"
         lede={
           <>
-            You finish work, you want somewhere nearby that will not mug you:
-            a good pint, a coffee and a seat, food before the last train, or a
-            quiet room with mates who are not drinking. So you open Google Maps,
-            then another map, then reviews, then you&rsquo;re asking ChatGPT, and
-            an hour later you&rsquo;re back at the same place as last time. We
-            built PUBMAXX so you don&rsquo;t have to do that. One map. Real
-            prices with honest source status. The outing in one place.
+            Find a pub, check its listed prices and send your mates a plan.
           </>
         }
         primary={<Link prefetch={false} href="/map">Open the map</Link>}
@@ -197,68 +191,62 @@ export default async function AboutPage() {
           seen. Tap a pub and you see what a drink costs before you walk in.
         </p>
         <p className="aboutBody">
-          A first report can mark a pin straight away. Pin colour, list rows,
-          and cheapest buckets wait for a second independent drinker. Speed is
-          nice. A figure that survives a challenge is the product.
+          A first report can mark a pub straight away. Its price only changes
+          the pin colour and cheapest-price lists after a second independent
+          drinker confirms it.
         </p>
         <p className="aboutBody">
-          We kept the stories too. Most of these pubs have been pouring for a
-          century or two, and the good ones earned their walk. So we cite the
-          heritage, and we never make it up.
+          Pub histories come with references, so you can read where each story
+          came from.
         </p>
         <p className="aboutBody">
-          And we made it one link for the crew. You plan the outing, you send
-          it, everyone lands in the same place walking the same route. No
-          group-chat archaeology at half six.
+          Send your crew one plan link with the stops and walking route.
         </p>
         <p className="aboutBody">
-          One concrete night: after work you pick a cheap pint, or coffee and a
-          laptop at a Spoons, or food then a soft drink, or an alcohol-free
-          hang. Soft drink and alcohol-free prices share the same trust rules as
-          beer. Coffee joins that honesty once someone logs it. Food anchors
-          stay honest about their source and never masquerade as a pint on the
-          pin. A drinker pays for nothing.
+          Choose a cheap pint, coffee and a laptop at a Spoons, food then a
+          soft drink, or an alcohol-free hang. Soft drink and alcohol-free prices
+          share the same trust rules as beer. Coffee prices follow those rules
+          once someone logs one. Food listings name their source and stay
+          separate from pint prices. A drinker pays for nothing.
         </p>
         <p className="aboutBody">
-          Nobody pays to rank. Not ever. There&rsquo;s a wall in the code
-          between anyone&rsquo;s money and the prices you see. A sponsored thing
-          says so and sits in its own slot. The order of pubs on your map is
-          never for sale.
+          Nobody pays to rank. Sponsored listings are labelled and separate
+          from the price order.
         </p>
       </section>
 
       <section className="aboutSection" aria-labelledby="fights">
-        <h2 id="fights" className="aboutH2">What we refused to ship</h2>
+        <h2 id="fights" className="aboutH2">How we handle prices</h2>
         <ul className="aboutEthos">
           <li>
-            <strong>Every report as map truth.</strong> An uncorroborated price
-            can show on the pub&rsquo;s own sheet. It does not paint the pin
-            until a second independent drinker agrees inside the age window.
+            <strong>A price needs confirmation.</strong> A single report can
+            show on the pub&rsquo;s own page. It only sets the pin colour after
+            a second independent drinker agrees while the report is recent
+            enough.
           </li>
           <li>
-            <strong>Fake Wetherspoons prices.</strong> Their public web menus do
-            not yield per-pub drink prices today, so we refuse to invent them.
-            Identity and honest gaps beat a made-up board.
+            <strong>Wetherspoons prices.</strong> Their public web menus do
+            not yield per-pub drink prices today. Where we have no price,
+            we say so.
           </li>
           <li>
-            <strong>UK spray before London depth.</strong> We ship London first
-            with priced pubs you can plan around. A separate OpenStreetMap layer
-            shows more pubs across the country without pretending they carry the
-            same price truth.
+            <strong>Coverage varies by city.</strong> We started with listed
+            prices in London. OpenStreetMap adds pubs across the country, but
+            a pub on the map does not mean we hold its drink prices.
           </li>
           <li>
-            <strong>Paid placement in the price order.</strong> Sponsored slots
-            stay labelled and separate. Rank is not a product we sell.
+            <strong>The price order is not for sale.</strong> Sponsored slots
+            stay labelled and separate.
           </li>
           <li>
-            <strong>Guessing a publisher.</strong> Listed prices name and link
+            <strong>You can check the source.</strong> Listed prices name and link
             their publisher when recorded, and say when none is recorded. Cited
             pub stories link to their references.
           </li>
           <li>
-            <strong>Counting how much you drink.</strong> Rewards and rankings
-            do not. Your nights stay yours unless you choose to share them, and
-            you can browse without an account.
+            <strong>You choose what to share.</strong> Rewards and rankings
+            never depend on how much you drink. Your nights stay yours unless
+            you choose to share them, and you can browse without an account.
           </li>
         </ul>
       </section>
@@ -275,9 +263,7 @@ export default async function AboutPage() {
           >
             Karan Manoharan
           </a>
-          . We argue about corroboration versus speed, London depth versus a
-          thinner national map, and what a price is allowed to claim. Those
-          fights land in the product, not in a brand deck.
+          . Prices, sources and useful plans guide what we build.
         </p>
         <figure className="aboutFounderNote">
           <blockquote className="aboutFounderQuote">
@@ -316,8 +302,7 @@ export default async function AboutPage() {
           Across <strong>{fmtInt(stats.boroughsCovered)}</strong> London
           boroughs and neighbourhoods, the cheapest pint we&rsquo;ve logged is{" "}
           <span className="aboutPriceStamp">{cheapest}</span>. The dearest is{" "}
-          <span className="aboutPriceStamp">{dearest}</span>, and someone is
-          paying it. The average sits at{" "}
+          <span className="aboutPriceStamp">{dearest}</span>. The average sits at{" "}
           <span className="aboutPriceStamp">{average}</span>.
         </p>
       </section>

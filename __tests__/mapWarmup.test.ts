@@ -8,6 +8,7 @@ import {
   type MapCanvasWarmState,
   type MapWarmDeps,
 } from "@/lib/mapWarmup";
+import { defined } from "@/__tests__/helpers/defined";
 
 function makeDeps(overrides: Partial<MapWarmDeps> = {}) {
   const fetch = vi.fn<MapWarmDeps["fetch"]>(() => Promise.resolve({}));
@@ -120,7 +121,7 @@ describe("scheduleMapCanvasWarmup", () => {
 
     expect(callbacks).toHaveLength(1);
     expect(load).not.toHaveBeenCalled();
-    callbacks[0]();
+    defined(callbacks[0])();
     expect(load).toHaveBeenCalledTimes(1);
     await Promise.resolve();
     expect(state.status).toBe("loaded");
@@ -158,7 +159,7 @@ describe("scheduleMapCanvasWarmup", () => {
       state,
     });
     connection.saveData = true;
-    callbacks[0]();
+    defined(callbacks[0])();
 
     expect(load).not.toHaveBeenCalled();
     expect(state.status).toBe("idle");

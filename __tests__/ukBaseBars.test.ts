@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { parseUkBaseShard } from "@/lib/ukBasePubs";
 import { buildUkBasePubListModel } from "@/lib/mapVenueList";
 import { outerLondonOwnerForPub } from "@/lib/outerLondonOwnership.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The UK base layer carries `amenity=pub` AND `amenity=bar`. Both packs are
 // committed (data/osm/uk/VENUES.md), so these fences read the shipped files
@@ -139,6 +140,6 @@ describe("UK base rows", () => {
       ],
       null,
     );
-    expect(model.rows[0].priceLabel).toBe("Other bar · no listed price");
+    expect(defined(model.rows[0]).priceLabel).toBe("Other bar · no listed price");
   });
 });

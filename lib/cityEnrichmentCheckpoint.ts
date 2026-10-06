@@ -1,3 +1,5 @@
+import { lastOf } from "@/lib/tuple";
+
 // City enrichment checkpoint - the policy that makes the nightly enrichment
 // cron safe to fail and safe to retry.
 //
@@ -332,7 +334,7 @@ export function venueRetryDue(entry: DeferredVenue, now: number): boolean {
 /** The nominal step for this attempt: the CEILING of the jitter band. */
 export function backoffMsForAttempts(attempts: number): number {
   const step = Math.min(Math.max(attempts, 1), VENUE_RETRY_BACKOFF_MS.length) - 1;
-  return VENUE_RETRY_BACKOFF_MS[step];
+  return VENUE_RETRY_BACKOFF_MS[step] ?? lastOf(VENUE_RETRY_BACKOFF_MS);
 }
 
 /**
@@ -423,11 +425,13 @@ export type VenueFailureRecord = {
 /**
  * A venue whose search failed. It is DEFERRED with backoff until it has spent
  * `MAX_VENUE_ATTEMPTS`, then TERMINAL, which is a recorded refusal rather than
- * a disappearance: `requeueTerminalVenues` is the way back.
+ * a disappearance: `requeueTerminalVenues` is the way back. `maxVenues`
+ * bounds each list, and defaults to `MAX_DEFERRED_VENUES` and
+ * `MAX_TERMINAL_VENUES`.
  */
 export function recordVenueFailure(
   checkpoint: CityEnrichmentCheckpoint,
-  options: { osmId: string; error: string; now: number },
+  options: { osmId: string; error: string; now: number; maxVenues?: number },
 ): VenueFailureRecord {
   const existing = checkpoint.deferred.find((entry) => entry.osmId === options.osmId);
   const attempts = (existing?.attempts ?? 0) + 1;
@@ -446,7 +450,7 @@ export function recordVenueFailure(
             ...withoutOsmId(checkpoint.terminal, options.osmId),
             { osmId: options.osmId, attempts, lastError: options.error, failedAt: iso(options.now) },
           ],
-          MAX_TERMINAL_VENUES,
+          options.maxVenues ?? MAX_TERMINAL_VENUES,
         ),
         updatedAt: iso(options.now),
       },
@@ -469,7 +473,7 @@ export function recordVenueFailure(
             retryAfter: iso(options.now + jitteredBackoffMs(options.osmId, attempts)),
           },
         ],
-        MAX_DEFERRED_VENUES,
+        options.maxVenues ?? MAX_DEFERRED_VENUES,
       ),
       updatedAt: iso(options.now),
     },
@@ -504,11 +508,12 @@ export function advanceCursor(
 /**
  * The retry path a terminal failure is recorded with. An operator asks for one
  * venue by OSM id, or for all of them, and each returns to the deferred list
- * due immediately with its attempt count reset.
+ * due immediately with its attempt count reset. `maxVenues` bounds the
+ * deferred list, and defaults to `MAX_DEFERRED_VENUES`.
  */
 export function requeueTerminalVenues(
   checkpoint: CityEnrichmentCheckpoint,
-  options: { now: number; osmIds?: string[] },
+  options: { now: number; osmIds?: string[]; maxVenues?: number },
 ): { checkpoint: CityEnrichmentCheckpoint; requeued: string[] } {
   const wanted = options.osmIds?.length ? new Set(options.osmIds) : null;
   const moving = checkpoint.terminal.filter((entry) => !wanted || wanted.has(entry.osmId));
@@ -530,7 +535,7 @@ export function requeueTerminalVenues(
             retryAfter: iso(options.now),
           })),
         ],
-        MAX_DEFERRED_VENUES,
+        options.maxVenues ?? MAX_DEFERRED_VENUES,
       ),
       updatedAt: iso(options.now),
     },

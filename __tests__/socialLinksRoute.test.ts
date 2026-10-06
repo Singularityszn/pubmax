@@ -33,6 +33,7 @@ import { __resetMemoryPrivateIdentities } from "@/lib/privateIdentityStore";
 import { __resetMemoryProfiles } from "@/lib/profileStore";
 import { __resetMemorySocialConnections } from "@/lib/socialConnectionStore";
 import type { PublicSocialLink } from "@/lib/socialConnections";
+import { defined } from "@/__tests__/helpers/defined";
 
 function linkRequest(provider: string, value: string): [Request, { params: Promise<{ provider: string }> }] {
   return [
@@ -119,7 +120,7 @@ describe("linking a social", () => {
 
     const card = await readCard("night_person");
     expect(card.socialLinks).toHaveLength(1);
-    expect(card.socialLinks[0].profileUrl).toBe("https://x.com/second_handle");
+    expect(defined(card.socialLinks[0]).profileUrl).toBe("https://x.com/second_handle");
   });
 
   it("accepts every provider a person may link", async () => {

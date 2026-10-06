@@ -22,6 +22,7 @@ import {
   upsertStoryContributor,
 } from "@/lib/nightMemoryStore";
 import { __resetMemoryProfiles, profileStore } from "@/lib/profileStore";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Build a PUBLISHED, public Story with a Moment from the host AND a Moment from a
 // friend contributor whose identity ("@jordanx" / "Jordan") is also written into
@@ -86,7 +87,7 @@ describe("one-choke Story redaction (Wayfinder 5.5)", () => {
     expect(src).not.toBeNull();
     // Friend's Moment is gone; the host's Story survives with a scrubbed caption.
     expect(src!.moments.map((m) => m.id)).toEqual([hostMomentId]);
-    const hostCaption = src!.moments[0].caption;
+    const hostCaption = defined(src!.moments[0]).caption;
     expect(hostCaption).toBe("Great night with a friend and the crew");
     expect(JSON.stringify(src!.moments)).not.toMatch(/jordan/i);
     expect(JSON.stringify(src!.moments)).not.toContain("night-media/friend");
@@ -104,7 +105,7 @@ describe("one-choke Story redaction (Wayfinder 5.5)", () => {
     const src = await getPublishedRecapSource(storyId);
     expect(src!.story.publishedMomentIds).toContain(friendMomentId); // allowlist untouched
     expect(src!.moments.map((m) => m.id)).toEqual([hostMomentId]); // yet the Moment is redacted
-    expect(src!.moments[0].caption).toBe("Great night with a friend and the crew");
+    expect(defined(src!.moments[0]).caption).toBe("Great night with a friend and the crew");
   });
 
   it("OG / public projection: getNightStory(actorId=null) scrubs the departed identity from the title", async () => {

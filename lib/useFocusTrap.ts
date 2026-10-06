@@ -25,7 +25,8 @@ export function shouldEngageFocusTrap(input: {
 export type FocusTrapOutsidePolicy = "strict-modal" | "map-surface";
 
 const strictModalListeners = new Set<() => void>();
-let strictModalTrapCount = 0;
+/** The containers each strict-modal trap holds, so a modal can ask about the others. */
+const strictModalContainers = new Map<HTMLElement, number>();
 
 export function subscribeStrictModalFocusTrap(listener: () => void): () => void {
   strictModalListeners.add(listener);
@@ -33,7 +34,19 @@ export function subscribeStrictModalFocusTrap(listener: () => void): () => void 
 }
 
 export function readStrictModalFocusTrap(): boolean {
-  return strictModalTrapCount > 0;
+  return strictModalContainers.size > 0;
+}
+
+/**
+ * Whether a strict modal OTHER than `own` holds the page. A modal that must
+ * never stack on another strict one (two strict traps inert each other) asks
+ * this, because its own trap is a strict modal too.
+ */
+export function readOtherStrictModalFocusTrap(own: Element | null): boolean {
+  for (const container of strictModalContainers.keys()) {
+    if (container !== own) return true;
+  }
+  return false;
 }
 
 export function serverStrictModalFocusTrap(): boolean {
@@ -44,14 +57,16 @@ function publishStrictModalFocusTrap(): void {
   for (const listener of strictModalListeners) listener();
 }
 
-function claimStrictModalFocusTrap(): () => void {
-  strictModalTrapCount += 1;
+function claimStrictModalFocusTrap(container: HTMLElement): () => void {
+  strictModalContainers.set(container, (strictModalContainers.get(container) ?? 0) + 1);
   publishStrictModalFocusTrap();
   let active = true;
   return () => {
     if (!active) return;
     active = false;
-    strictModalTrapCount -= 1;
+    const claims = (strictModalContainers.get(container) ?? 1) - 1;
+    if (claims > 0) strictModalContainers.set(container, claims);
+    else strictModalContainers.delete(container);
     publishStrictModalFocusTrap();
   };
 }
@@ -271,12 +286,12 @@ export function nextTrapFocus(input: {
   const index = regions.findIndex((region) =>
     region.some((node) => node === input.active),
   );
-  if (index < 0) return null;
   const region = regions[index];
-  const edge = input.shift ? region[0] : region[region.length - 1];
+  if (!region) return null;
+  const edge = input.shift ? region[0] : region.at(-1);
   if (input.active !== edge) return null;
   const next = regions[(index + (input.shift ? regions.length - 1 : 1)) % regions.length];
-  return input.shift ? next[next.length - 1] : next[0];
+  return (input.shift ? next?.at(-1) : next?.[0]) ?? null;
 }
 
 function visibleFocusables(root: HTMLElement): HTMLElement[] {
@@ -360,7 +375,7 @@ export function useFocusTrap(
       ? subscribeStrictModalFocusTrap(reconcileTrap)
       : null;
     const releaseStrictModal =
-      outsidePolicy === "strict-modal" ? claimStrictModalFocusTrap() : null;
+      outsidePolicy === "strict-modal" ? claimStrictModalFocusTrap(container) : null;
 
     // An exempt surface can mount or leave while the trap holds: adding a
     // second stop from the drawer maps the route and mounts the chip. A node
@@ -413,7 +428,7 @@ export function useFocusTrap(
       if (!focusable.length) return;
       if (document.activeElement === container) {
         event.preventDefault();
-        (event.shiftKey ? focusable[focusable.length - 1] : focusable[0]).focus();
+        (event.shiftKey ? focusable.at(-1) : focusable[0])?.focus();
         return;
       }
       const next = nextTrapFocus({

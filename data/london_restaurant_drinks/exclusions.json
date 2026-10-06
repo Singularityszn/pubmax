@@ -1,0 +1,65 @@
+{
+  "meaning": "Restaurants a reviewer excluded by hand: the drink classifier accepted a quote from the restaurant own site, and the reviewer found the quote is about another venue, a shop or a class, not about this restaurant pouring. The harvest never makes an excluded osmId a candidate, and validateRestaurantDrinksPack refuses a pack that holds one, so build:london-venues and --check fail on it. A quote a rule can refuse belongs in the classifier, not here. Hand-written.",
+  "rows": [
+    {
+      "osmId": "node/14206419347",
+      "name": "Cicchetti",
+      "reason": "The quote is group-site navigation naming the Champagne Bar at Selfridges Trafford, another venue."
+    },
+    {
+      "osmId": "node/581005278",
+      "name": "Quality Chop House",
+      "reason": "The quote lists the group's other venues, one of them Quality Wines."
+    },
+    {
+      "osmId": "node/4321451979",
+      "name": "Café Chula",
+      "reason": "The quote describes 180 Club, a darts bar beside it, not the restaurant."
+    },
+    {
+      "osmId": "node/7176248885",
+      "name": "Henrietta Bistro",
+      "reason": "The quote names cocktails at Experimental Cocktail Club, another venue."
+    },
+    {
+      "osmId": "node/7006445047",
+      "name": "Lina Stores",
+      "reason": "The quote is about wine sold in the online shop."
+    },
+    {
+      "osmId": "node/13571496075",
+      "name": "Lina Stores",
+      "reason": "The quote is about wine sold in the online shop."
+    },
+    {
+      "osmId": "way/134065150",
+      "name": "Lina Stores",
+      "reason": "The quote is about wine sold in the online shop."
+    },
+    {
+      "osmId": "node/299615649",
+      "name": "Street Burger",
+      "reason": "The quote names cocktail-making masterclasses, not drinks poured."
+    },
+    {
+      "osmId": "way/697821712",
+      "name": "Drunch",
+      "reason": "The quote describes the speakeasy beneath Drunch Oxford Circus, not this St John's Wood restaurant."
+    },
+    {
+      "osmId": "node/1493424623",
+      "name": "Hush",
+      "reason": "The quote describes the lounge at the Holborn brasserie, a sister venue, not this Mayfair restaurant."
+    },
+    {
+      "osmId": "node/441698041",
+      "name": "EV",
+      "reason": "The quote describes Ev Bar, a separate bar to visit after dining at the restaurant, not the restaurant pouring."
+    },
+    {
+      "osmId": "way/1446396624",
+      "name": "DHE Chayakkada",
+      "reason": "The quote is a menu item, Kannur Cocktail, which names a Kerala drink, not alcohol."
+    }
+  ]
+}

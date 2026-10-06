@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildLandmarks,
+  buildLondonRestaurants,
   buildPois,
   buildPubs,
   buildUkBase,
@@ -11,6 +12,7 @@ import {
   CLUSTER_MAX_ZOOM,
   CLUSTER_RADIUS_PX,
   LANDMARK_ICON_PRIORITY_ZOOM,
+  LONDON_RESTAURANT_ICON,
   PIN_HALO_ENVELOPE_PX,
   PIN_MIN_ZOOM,
   PIN_PRICE_LABEL_PADDING,
@@ -34,7 +36,12 @@ import {
 } from "@/components/map/canvas/filters";
 import { landmarksToGeoJSON } from "@/components/map/canvas/geojson";
 import type { Landmark } from "@/lib/landmarks";
-import type { Tokens } from "@/components/map/canvas/tokens";
+import {
+  GLOW_BASE_STROKE_OPACITY,
+  GLOW_BASE_STROKE_WIDTH,
+  GLOW_SELECTED_STROKE_WIDTH,
+  type Tokens,
+} from "@/components/map/canvas/tokens";
 
 // The mobile map's density contract (owner report: "as you load the map all the
 // places are so grouped together … you can see they are so close and it's so
@@ -86,12 +93,15 @@ function buildScenePieces(selectedId = "") {
     ukBaseData: { type: "FeatureCollection", features: [] },
     tonightData: { type: "FeatureCollection", features: [] },
     tonightVisible: false,
+    coffeePilotData: { type: "FeatureCollection", features: [] },
+    londonRestaurantData: { type: "FeatureCollection", features: [] },
     selectedId,
     selectionMuteStore: new Map<string, unknown>(),
   } satisfies SceneCtx;
 
   buildLandmarks(ctx);
   buildPois(ctx);
+  buildLondonRestaurants(ctx);
   buildUkBase(ctx);
   buildPubs(ctx);
   return { layers, sources };
@@ -214,6 +224,50 @@ describe("UK base layer (unpriced, visually subordinate, never clustered)", () =
     expect(icon[3]).toBe("base:pub");
     expect(JSON.stringify(icon)).not.toContain('"bucket"');
     expect(JSON.stringify(icon)).not.toContain("price");
+  });
+});
+
+// The London restaurants (lib/londonRestaurants.ts): the curated restaurant's
+// fork in the unpriced fill, at the base layer's size, under every pub.
+describe("London restaurant layer (unpriced forks under every pub)", () => {
+  const { layers, sources } = buildScenePieces();
+  const layout = (id: string) => (layers.get(id)?.layout ?? {}) as Record<string, unknown>;
+
+  it("is its own source and is NOT clustered", () => {
+    expect(sources.get("london-restaurants")?.type).toBe("geojson");
+    expect(sources.get("london-restaurants")?.cluster).toBeUndefined();
+  });
+
+  it("only appears from the pin floor", () => {
+    expect((layers.get("london-restaurant-point") as { minzoom?: number }).minzoom).toBe(
+      PIN_MIN_ZOOM,
+    );
+  });
+
+  it("draws under the base pubs and the curated pins, so it loses every collision with a pub", () => {
+    const ids = [...layers.keys()];
+    expect(ids.indexOf("london-restaurant-point")).toBeLessThan(ids.indexOf("uk-base-point"));
+    expect(ids.indexOf("london-restaurant-point")).toBeLessThan(ids.indexOf("pubs-point"));
+  });
+
+  it("collides like every other symbol rather than stacking", () => {
+    expect(layout("london-restaurant-point")["icon-allow-overlap"]).toBe(false);
+    expect(layout("london-restaurant-point")["icon-ignore-placement"]).toBe(false);
+  });
+
+  it("wears the curated restaurant fork in the unpriced fill, at the base pin's size", () => {
+    expect(LONDON_RESTAURANT_ICON).toBe("drink:fork-3");
+    expect(layout("london-restaurant-point")["icon-image"]).toBe(LONDON_RESTAURANT_ICON);
+    expect(layout("london-restaurant-point")["icon-size"]).toEqual(UK_BASE_ICON_SIZE_EXPR);
+    expect(layers.get("london-restaurant-point")?.paint?.["icon-opacity"]).toBe(
+      UK_BASE_ICON_OPACITY,
+    );
+  });
+
+  it("prints no text and reads no price", () => {
+    expect(layout("london-restaurant-point")["text-field"]).toBeUndefined();
+    expect(JSON.stringify(layers.get("london-restaurant-point"))).not.toContain("price");
+    expect(JSON.stringify(layers.get("london-restaurant-point"))).not.toContain("bucket");
   });
 });
 
@@ -666,5 +720,21 @@ describe("landmarksToGeoJSON priority", () => {
     ] as unknown as readonly Landmark[];
     const collection = landmarksToGeoJSON(catalog);
     expect(collection.features.map((feature) => feature.properties?.priority)).toEqual([0, 1]);
+  });
+});
+
+// A theme swap rebuilds the scene while the RAF loop rests, so the rebuilt
+// selected ring must already be the static frame the loop rests on.
+describe("pubs-selected-glow is built on its rest frame", () => {
+  const glowPaint = (selectedId: string) =>
+    buildScenePieces(selectedId).layers.get("pubs-selected-glow")!.paint ?? {};
+
+  it("is the fatter selected ring when a pub is selected", () => {
+    expect(glowPaint("venue-abc")["circle-stroke-width"]).toBe(GLOW_SELECTED_STROKE_WIDTH);
+    expect(glowPaint("venue-abc")["circle-stroke-opacity"]).toBe(GLOW_BASE_STROKE_OPACITY);
+  });
+
+  it("is the base ring when nothing is selected", () => {
+    expect(glowPaint("")["circle-stroke-width"]).toBe(GLOW_BASE_STROKE_WIDTH);
   });
 });
