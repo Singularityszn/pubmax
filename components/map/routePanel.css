@@ -60,7 +60,10 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin: 0 0 12px;
+  /* The row follows the "Check last train" button, which has no bottom margin
+     of its own, so a 12px top margin gives the progress line its own space
+     instead of printing flush against that button. */
+  margin: 12px 0;
 }
 
 .crawlProgressStatus,
@@ -68,12 +71,15 @@
   margin: 0;
   font-size: 0.82rem;
   font-weight: 600;
-  color: var(--accent, #e0b34a);
+  /* --accent is not a token the app defines, so this fell back to a pale gold
+     that read at about 1.9:1 on the light sheet. --brass-ink is the accent as TEXT,
+     readable on both themes. */
+  color: var(--brass-ink);
 }
 
 .crawlProgressDone {
   padding: 8px 10px;
-  border: 1px solid color-mix(in srgb, var(--accent, #e0b34a) 40%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brass-ink) 40%, transparent);
   border-radius: 8px;
 }
 
