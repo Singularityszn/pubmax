@@ -117,6 +117,7 @@ describe("Plan generation ranking evidence", () => {
 
     expect(matching.score).toBeGreaterThan(wrong.score);
     expect(matching.reasons).toContain("corroborated community soft drinks price £3.00");
+    expect(matching.reasons.filter((reason) => /soft drinks price/i.test(reason))).toHaveLength(1);
     expect(wrong.reasons.join(" ")).not.toMatch(/corroborated|pints from/i);
     expect(matching.reasons.join(" ")).not.toMatch(/alcohol-free price|pints from/i);
   });

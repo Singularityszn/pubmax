@@ -27,11 +27,13 @@ function priceAndZeroProof(
   const reasons: string[] = [];
   let score = 0;
   const category = planScoringDrinkCategory(context);
+  let categoryPriceExplained = false;
   if (context.budget === "value") {
     if (category) {
       const price = drinkLensPrices?.get(venue.id);
       if (price?.category === category && price.priceGbp > 0) {
         score += Math.min(5, 10 / price.priceGbp);
+        categoryPriceExplained = true;
         reasons.push(`corroborated community ${CATEGORY_META[category].label.toLowerCase()} price ${formatGbp(price.priceGbp)}`);
       }
     } else if (!context.zeroProof) {
@@ -53,9 +55,8 @@ function priceAndZeroProof(
     const naPrice = explicitSoftDrink ? drinkLensPrices?.get(venue.id) : naLensPrices?.get(venue.id);
     if (naPrice !== undefined && (!explicitSoftDrink || naPrice.category === category)) {
       score += 4;
-      reasons.push(explicitSoftDrink
-        ? `corroborated soft drinks price from ${formatGbp(naPrice.priceGbp)}`
-        : `corroborated alcohol-free price from ${formatGbp(naPrice.priceGbp)}`);
+      if (!explicitSoftDrink) reasons.push(`corroborated alcohol-free price from ${formatGbp(naPrice.priceGbp)}`);
+      else if (!categoryPriceExplained) reasons.push(`corroborated soft drinks price from ${formatGbp(naPrice.priceGbp)}`);
     } else if (!explicitSoftDrink && venue.amenities.nonAlcoholic === true) {
       score += 1.5;
       reasons.push("confirmed alcohol-free option in the Venue Dataset");

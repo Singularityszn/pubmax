@@ -341,6 +341,34 @@ describe("POST /api/plans/generate", () => {
     expect(body.budgetSummary).toMatchObject({ withinLimit: null, basis: "selected-drink-price-unavailable" });
   });
 
+  it("explains a value Soft drinks stop with one matching price reason and room for a second reason", async () => {
+    const now = Date.now();
+    loadConciergeVenuesMock.mockResolvedValueOnce([1, 2, 3, 4].map((n) => generatedVenue(`v${n}`, { hasStory: true })));
+    categoryIndexMock.mockResolvedValueOnce({
+      prices: [
+        { venueId: "v1", drinkCategory: "alcohol-free", priceGbp: 1, submittedAt: now, source: "community", corroborations: 2 },
+        { venueId: "v2", drinkCategory: "soft-drink", priceGbp: 3, submittedAt: now, source: "community", corroborations: 2 },
+        { venueId: "v3", drinkCategory: "soft-drink", priceGbp: 4, submittedAt: now, source: "community", corroborations: 2 },
+      ],
+      truncated: false,
+      degraded: false,
+    });
+
+    const response = await POST(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query: "cheap soft drinks in a historic pub in Clapham for 2", context: { zeroProof: true, drinkCategory: "soft-drink", stopCount: 2 } }),
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.inferredContext).toMatchObject({ budget: "value", drinkCategory: "soft-drink", zeroProof: true });
+    expect(body.stops.map((stop: { venueId: string }) => stop.venueId).sort()).toEqual(["v2", "v3"]);
+    for (const stop of body.stops) {
+      expect(stop.reason.match(/soft drinks price/gi)).toHaveLength(1);
+      expect(stop.reason).toMatch(/corroborated community soft drinks price £\d\.\d{2}, historic character\.$/);
+    }
+  });
+
   it("carries trusted wine price evidence to selected stops and alternatives without inventing a serving", async () => {
     loadConciergeVenuesMock.mockResolvedValueOnce([
       generatedVenue("v1", { cheapestPrice: 4 }),
