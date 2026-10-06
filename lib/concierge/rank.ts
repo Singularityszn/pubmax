@@ -78,8 +78,10 @@ type RankingOptions = {
    * Where the asked-for area really is. A pub is filed under its borough, so
    * "Soho" (Westminster) matches only the few pubs whose text says Soho, and
    * the cheapest pubs a short walk from Soho Square never enter the pool. When
-   * the caller knows the area's centre and radius, a pub inside that circle is
-   * in the area. Omitted, the text rules below are unchanged.
+   * the caller knows the area's centre and radius, a pub inside that circle
+   * joins the pool. Only its own data puts a pub IN the area: one the circle
+   * alone finds is near it, and says how far. Omitted, the text rules below
+   * are unchanged.
    */
   areaCircle?: { lat: number; lng: number; radiusKm: number };
 };
@@ -132,7 +134,7 @@ function scoreOne(
   intent: ConciergeIntent,
   context: ConciergeContext,
   tonightEventKindsByVenue?: ReadonlyMap<string, ReadonlySet<WhatsOnKind>>,
-  insideAreaCircle = false,
+  areaCircleKm?: number,
 ): RankedConciergeVenue {
   let score = venue.canonical ? 1 : 0;
   const reasons: string[] = [];
@@ -144,11 +146,17 @@ function scoreOne(
   // line, so a leading "In Camden" note under a "Camden" place printed the
   // area twice, and the budget or mood reason it displaced says more.
   let areaReason: string | null = null;
-  if (requestedArea && !cityWideAreaAsk && (insideAreaCircle || venueArea.includes(requestedArea))) {
+  if (requestedArea && !cityWideAreaAsk && venueArea.includes(requestedArea)) {
     // Area is the strongest coordination constraint: a perfect mood match in
     // the wrong part of town is rarely useful for a same-evening plan.
     score += 30;
     areaReason = `In ${intent.area!.trim()}`;
+  } else if (requestedArea && !cityWideAreaAsk && areaCircleKm !== undefined) {
+    // Near, not in: worth less than a pub the area names, but by less than a
+    // pint within budget, so a cheap ask still prefers a priced pub nearby to
+    // an unpriced one inside.
+    score += 20;
+    areaReason = `Near ${intent.area!.trim()}, ${areaCircleKm.toFixed(1)} km`;
   }
 
   if (intent.maxPintPrice !== undefined) {
@@ -256,15 +264,15 @@ export function rankConciergeVenues(
   const organic = venues.filter((venue) => !venue.promoted);
   const requestedArea = normalise(intent.area ?? "");
   const circle = requestedArea && requestedArea !== "london" ? options.areaCircle : undefined;
-  const insideCircle = circle
-    ? organic.filter(
-        (venue) =>
-          haversineKm([circle.lng, circle.lat], [venue.lng, venue.lat]) <= circle.radiusKm,
-      )
-    : [];
-  const insideCircleIds = new Set(insideCircle.map((venue) => venue.id));
-  const eligible = insideCircle.length > 0
-    ? insideCircle
+  const circleKm = new Map<string, number>();
+  if (circle) {
+    for (const venue of organic) {
+      const km = haversineKm([circle.lng, circle.lat], [venue.lng, venue.lat]);
+      if (km <= circle.radiusKm) circleKm.set(venue.id, km);
+    }
+  }
+  const eligible = circleKm.size > 0
+    ? organic.filter((venue) => circleKm.has(venue.id))
     : requestedArea
       ? areaEligibleVenues(organic, requestedArea)
       : organic;
@@ -274,7 +282,7 @@ export function rankConciergeVenues(
       intent,
       options.context ?? {},
       options.tonightEventKindsByVenue,
-      insideCircleIds.has(venue.id),
+      circleKm.get(venue.id),
     ))
     .sort((left, right) => right.score - left.score || left.venue.id.localeCompare(right.venue.id, "en-GB"))
     .slice(0, limit);

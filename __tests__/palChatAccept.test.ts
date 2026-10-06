@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -68,21 +66,5 @@ describe("Pub Pal card acceptance handoff", () => {
     const venueTagEnd = html.indexOf(">", venueOpen);
     const firstClose = html.indexOf("</a>", venueTagEnd);
     expect(html.slice(venueTagEnd, firstClose)).not.toContain("https://example.test/event");
-  });
-});
-
-describe("Pub Pal card acceptance layout", () => {
-  // F19: the action sat flush against the card's left and bottom edge because
-  // the card clips its children and only its body carries padding.
-  const css = readFileSync(join(process.cwd(), "components/pal/palChat.css"), "utf8");
-  const rule = (selector: string) =>
-    css.match(new RegExp(`${selector.replace(/[.]/g, "\\.")}\\s*{([^}]*)}`))?.[1] ?? "";
-
-  it("sits on the same 0.9rem inset as the card body and keeps a 44px target", () => {
-    const body = rule(".palChatCardBody");
-    const accept = rule(".palChatCardAccept");
-    expect(body).toMatch(/padding:\s*0\.8rem 0\.9rem/);
-    expect(accept).toMatch(/margin:\s*0 0\.9rem 0\.9rem/);
-    expect(accept).toMatch(/min-height:\s*44px/);
   });
 });

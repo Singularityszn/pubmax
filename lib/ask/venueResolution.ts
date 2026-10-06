@@ -6,6 +6,9 @@
 
 import { choice } from "@typesafe-ai/sdk";
 
+import { NIGHT_AREAS } from "@/lib/nightAreas";
+import localityGazetteer from "@/public/data/london_localities.json";
+
 import {
   normalizeVenueIdentityName,
   significantNameTokens,
@@ -66,32 +69,64 @@ function wordsOnly(value: string): string {
     .trim();
 }
 
-/** A pub name this short is a common word, never a name worth finding in a sentence. */
-const MIN_NAME_IN_QUERY_LENGTH = 4;
+/** Place names of two or more words: night areas, their stations, London localities. */
+const PLACE_PHRASES = [
+  ...new Set(
+    [
+      ...NIGHT_AREAS.flatMap((area) => [area.name, ...area.aliases, ...area.transportAnchors]),
+      ...localityGazetteer.localities.map((locality) => locality.name),
+    ]
+      .map(wordsOnly)
+      .filter((phrase) => phrase.includes(" ")),
+  ),
+];
+
+/** Where ` phrase ` sits in a space-padded haystack, as [start, end). */
+function spansOf(haystack: string, phrase: string): Array<[number, number]> {
+  const needle = ` ${phrase} `;
+  const spans: Array<[number, number]> = [];
+  for (let at = haystack.indexOf(needle); at !== -1; at = haystack.indexOf(needle, at + 1)) {
+    spans.push([at, at + needle.length]);
+  }
+  return spans;
+}
 
 /**
  * The pub a whole sentence names ("How much is a pint at The Blackfriar?").
- * The keyless name matcher above asks whether the pub name contains the query,
+ * The keyless name matcher below asks whether the pub name contains the query,
  * which a sentence never satisfies. It is NOT folded into that matcher: a bare
  * name that is not listed ("The Crown & Sceptre") must not land on a shorter
- * listed pub ("The Crown"). Callers that hold the user's whole question use this
- * after the name matcher. The pub name must appear in the query as whole
- * words, with or without its leading "The". The longest name wins, and two
- * different pubs sharing that longest name are no answer at all.
+ * listed pub ("The Crown"). matchVenueByName runs it only for a caller that
+ * holds the user's whole question, and only when no model judged the query.
+ * The pub name must appear in the query as two or more whole words, with or
+ * without its leading "The": one word is a place word as often as a pub, so
+ * The Bridge is never found in "near London Bridge" nor The Kings in "Kings
+ * Cross". Nor may those words be only part of a longer place name the query
+ * holds: The Hill is not in "near Harrow on the Hill". The longest name wins,
+ * and two different pubs sharing that longest name are no answer at all.
  */
 export function matchVenueNameWithinQuery<T extends VenueNameMatchInput>(
   venues: readonly T[],
   query: string,
 ): T | null {
   const haystack = ` ${wordsOnly(query)} `;
+  const placeSpans = PLACE_PHRASES.flatMap((place) => spansOf(haystack, place));
+  const namedOutsidePlace = (name: string) =>
+    spansOf(haystack, name).some(
+      ([start, end]) =>
+        !placeSpans.some(
+          ([placeStart, placeEnd]) =>
+            placeStart <= start && end <= placeEnd && placeEnd - placeStart > end - start,
+        ),
+    );
   let best: T | null = null;
   let bestLength = 0;
   let tied = false;
   for (const venue of venues) {
     const full = wordsOnly(venue.name);
     for (const name of new Set([full, full.replace(/^the /, "")])) {
-      if (name.length < MIN_NAME_IN_QUERY_LENGTH) continue;
-      if (!haystack.includes(` ${name} `)) continue;
+      if (!name.includes(" ")) continue;
+      if (!namedOutsidePlace(name)) continue;
       if (name.length > bestLength) {
         best = venue;
         bestLength = name.length;

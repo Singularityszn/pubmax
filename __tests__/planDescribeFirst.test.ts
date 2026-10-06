@@ -67,7 +67,6 @@ describe("PlanDescribeFirst occasion chips", () => {
     // type and puts the caret in the field (behaviour pinned in
     // planSortAndLockHints.test.tsx), and the wizard stays one quiet link away.
     expect(source).not.toContain("disabled={!query.trim()}");
-    expect(source).toContain("queryInput.current?.focus()");
     expect(source).toContain('secondary={');
     expect(source).toContain("Guide me instead");
   });

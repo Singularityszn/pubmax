@@ -46,7 +46,6 @@ import {
   toolVenueDrinks,
 } from "@/lib/ask/conciergeTools.server";
 import { matchVenueByName } from "@/lib/ask/venueResolution.server";
-import { matchVenueNameWithinQuery } from "@/lib/ask/venueResolution";
 import type {
   AskProvenance,
   AskToolArgs,
@@ -254,8 +253,7 @@ async function toolVenueHeritage(
     const venues = await loadConciergeVenues(ctx.cityId);
     const hit =
       (id ? venues.find((v) => v.id === id) : null) ??
-      (await matchVenueByName(venues, ctx.query.replace(/\?+$/, ""))) ??
-      matchVenueNameWithinQuery(venues, ctx.query);
+      (await matchVenueByName(venues, ctx.query.replace(/\?+$/, ""), { wholeQuestion: true }));
     if (hit) {
       name = hit.name;
       id = hit.id;
@@ -338,8 +336,7 @@ async function toolVenuePrices(
   const venue =
     (venueIdArg ? venues.find((v) => v.id === venueIdArg) : null) ??
     (venueName ? await matchVenueByName(venues, venueName) : null) ??
-    (await matchVenueByName(venues, ctx.query)) ??
-    matchVenueNameWithinQuery(venues, ctx.query);
+    (await matchVenueByName(venues, ctx.query, { wholeQuestion: true }));
 
   if (!venue) {
     return {
