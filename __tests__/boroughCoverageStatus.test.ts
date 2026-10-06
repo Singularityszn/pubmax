@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -148,5 +151,13 @@ describe("boroughCoverageSummary", () => {
     if (summary.kind !== "shared") return;
     expect(summary.line).toContain("Every borough here");
     expect(summary.line).not.toMatch(/every London borough|all boroughs/i);
+  });
+});
+
+describe("the borough coverage link", () => {
+  it("is coloured by the accent-ink token, not the browser's default link blue", () => {
+    const css = readFileSync(join(process.cwd(), "components/pintindex/boroughCoverageStatus.css"), "utf8");
+    const rule = /\.boroughCoverageLink\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+    expect(rule).toMatch(/color:\s*var\(--color-accent-ink\)/);
   });
 });
