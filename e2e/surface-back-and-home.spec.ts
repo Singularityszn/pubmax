@@ -1,7 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { expectHydrated } from "./helpers/streamedPage";
-
 /**
  * No surface in this product is a dead end.
  *
@@ -64,30 +62,36 @@ async function openSheetFromTopBar(page: Page, label: string): Promise<void> {
 }
 
 /**
- * Open the planner from the layers sheet with ONE tap, once React has attached.
- * A control painted on the server is tappable before React attaches, so
- * Playwright's actionability check passes and the tap is dropped with nothing on
- * screen saying so (AGENTS.md, "A LONE CLICK IS NOT A WAIT FOR HYDRATION").
- * Retrying the tap instead was not safe: when the first tap landed late, the
- * retry opened a second planner on the trail, and Back then stepped from one
+ * Open the planner from the Layers section with ONE tap, then wait for the
+ * planner's body. The phone sheet is sized to its content and anchored to the
+ * bottom, and RoutePanel is a lazy chunk that mounts after the sheet opens. Until
+ * it lands the sheet is short, so its arrival moves the header, Back and Home
+ * included, and a tap begun before it ends on a different element and fires no
+ * click. Retrying the tap instead was not safe: when the first tap landed late,
+ * the retry opened a second planner on the trail, and Back then stepped from one
  * planner to the other instead of to the sheet that opened it.
  */
 async function openPlannerFromSheet(page: Page): Promise<void> {
-  const plan = page.getByRole("button", { name: "Plan an outing" }).first();
-  await expectHydrated(plan);
-  await plan.click();
+  await page.getByRole("button", { name: "Plan an outing" }).first().click();
   await expect(sheet(page)).toHaveAttribute("data-sheet-kind", "planner", {
     timeout: 30_000,
   });
+  await expect(sheet(page).locator(".routePanel")).toBeVisible();
 }
 
-/** Select the Layers section inside the map-controls sheet (hydration-safe tap). */
+/**
+ * Select the Layers section inside the map-controls sheet (hydration-safe tap),
+ * then wait for its lazy MapLayersControl. That chunk mounts after the section
+ * and grows the content-sized sheet upwards by several rows, so a "Plan an
+ * outing" tap begun before it pressed the button and released on the Rail chip.
+ */
 async function selectLayersTab(page: Page): Promise<void> {
   const layersTab = page.getByRole("tab", { name: "Layers" });
   await expect(async () => {
     await layersTab.click();
     await expect(layersTab).toHaveAttribute("aria-selected", "true", { timeout: 2_000 });
   }).toPass({ timeout: 20_000 });
+  await expect(sheet(page).locator(".mapLayersControl")).toBeVisible();
 }
 
 test.describe("every surface offers a way back and a way home", () => {
