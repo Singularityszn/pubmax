@@ -134,6 +134,30 @@ function amenityScore(venue: ConciergeVenue, mood: ConciergeMood): number {
   }
 }
 
+function areaFit(
+  venue: ConciergeVenue,
+  intent: ConciergeIntent,
+  areaCircleKm?: number,
+  areaLabel?: string,
+): { score: number; reason: string | null; nearAreaNote?: string } {
+  const requestedArea = normalise(intent.area ?? "");
+  if (!requestedArea || requestedArea === "london") return { score: 0, reason: null };
+  const venueArea = normalise(`${venue.area} ${venue.searchText ?? ""}`);
+  if (venueArea.includes(requestedArea)) {
+    // Area is the strongest coordination constraint: a perfect mood match in
+    // the wrong part of town is rarely useful for a same-evening plan.
+    return { score: 30, reason: `In ${intent.area!.trim()}` };
+  }
+  if (areaCircleKm !== undefined) {
+    // Near, not in: worth less than a pub the area names, but by less than a
+    // pint within budget, so a cheap ask still prefers a priced pub nearby to
+    // an unpriced one inside.
+    const nearAreaNote = `Near ${areaLabel ?? intent.area!.trim()}, ${areaCircleKm.toFixed(1)} km`;
+    return { score: 20, reason: nearAreaNote, nearAreaNote };
+  }
+  return { score: 0, reason: null };
+}
+
 function scoreOne(
   venue: ConciergeVenue,
   intent: ConciergeIntent,
@@ -145,27 +169,13 @@ function scoreOne(
   let score = venue.canonical ? 1 : 0;
   const reasons: string[] = [];
 
-  const requestedArea = normalise(intent.area ?? "");
-  const venueArea = normalise(`${venue.area} ${venue.searchText ?? ""}`);
-  const cityWideAreaAsk = requestedArea === "london";
   // The area reason joins LAST: a card already prints its area as the place
   // line, so a leading "In Camden" note under a "Camden" place printed the
   // area twice, and the budget or mood reason it displaced says more.
-  let areaReason: string | null = null;
-  let nearAreaNote: string | undefined;
-  if (requestedArea && !cityWideAreaAsk && venueArea.includes(requestedArea)) {
-    // Area is the strongest coordination constraint: a perfect mood match in
-    // the wrong part of town is rarely useful for a same-evening plan.
-    score += 30;
-    areaReason = `In ${intent.area!.trim()}`;
-  } else if (requestedArea && !cityWideAreaAsk && areaCircleKm !== undefined) {
-    // Near, not in: worth less than a pub the area names, but by less than a
-    // pint within budget, so a cheap ask still prefers a priced pub nearby to
-    // an unpriced one inside.
-    score += 20;
-    nearAreaNote = `Near ${areaLabel ?? intent.area!.trim()}, ${areaCircleKm.toFixed(1)} km`;
-    areaReason = nearAreaNote;
-  }
+  const area = areaFit(venue, intent, areaCircleKm, areaLabel);
+  score += area.score;
+  const areaReason = area.reason;
+  const nearAreaNote = area.nearAreaNote;
 
   if (intent.maxPintPrice !== undefined) {
     if (venue.cheapestPrice === null) {
