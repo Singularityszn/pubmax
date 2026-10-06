@@ -14,6 +14,7 @@
 
 import type { Route } from "next";
 import { profilePath } from "@/lib/appLink";
+import type { FollowRelation } from "@/lib/followRelation";
 import { arrivalDestination, type ArrivalIntent } from "@/lib/arrivalWelcome";
 import { displayHandle } from "@/lib/handleDisplay";
 import { safeInviteReturnTo } from "@/lib/inviteReturnTo";
@@ -252,6 +253,11 @@ export const ADD_LINK_COPY = {
    */
   lotMeans:
     "There is no feed of everybody's nights here yet. Being someone's lot is what opens a profile they have set to private.",
+  /** The line for a signed-in drinker whose friend has already added them. */
+  addedYou:
+    "They already added you. Add them back and you are each other's lot.",
+  /** The line under the receipt once both sides have added each other. */
+  mates: "You added each other. You are each other's lot.",
   /** While the add runs on arrival. */
   adding: "Adding them to your lot.",
   /** The session has not answered yet, so nobody is offered a door. */
@@ -287,6 +293,23 @@ export function addLinkReceiptTitle(handle: string, name?: string | null): strin
  */
 export const ADD_LINK_RECEIPT_BODY =
   "When they add you back, you are each other's lot.";
+
+/**
+ * Whether the add is on the books, and which kind. A tap that just landed it
+ * (`done`) makes the pair mates when they had already added the viewer, and the
+ * receipt has to say so rather than promise it. With no tap, the two may simply
+ * already stand that way when the link opens. Null means the add is still on
+ * offer.
+ */
+export function addLinkLanded(
+  tapDone: boolean,
+  relation: FollowRelation | null,
+): Extract<FollowRelation, "following" | "mates"> | null {
+  if (tapDone) {
+    return relation === "follows_you" || relation === "mates" ? "mates" : "following";
+  }
+  return relation === "following" || relation === "mates" ? relation : null;
+}
 
 export type AddLinkNextStep = { href: Route; label: string };
 
