@@ -575,6 +575,7 @@ import type { AreaSheetPlaceFocus } from "@/components/map/AreaSheet";
 import { parseLocalityGazetteer, type Locality } from "@/lib/localities";
 import type { MapSearchAreaOption } from "@/lib/mapSearchSuggest";
 import { getNightArea, getNightAreasForCity, nearestNightAreaForViewport, nearestRouteReadyNightArea, nightAreaForMapQuery, type NightArea } from "@/lib/nightAreas";
+import { clearPlannerHandoff, desktopHandoffMoves, readPlannerHandoff } from "@/lib/onboardingFlow";
 import { defaultPoiHiddenForViewport } from "@/lib/poiToggleGroups";
 import {
   defaultVenueKindVisibility,
@@ -4647,6 +4648,23 @@ export default function PubMap({
       moveMapCameraTo({ center: option.center, zoom: option.zoom ?? 14 }),
     [moveMapCameraTo],
   );
+
+  // The first-run journey's handoff. The phone planner reads it itself
+  // (MobilePlanActivation). The desktop map has no area picker or Max each, so
+  // the budget becomes the pint price cap and the patch becomes the camera.
+  const desktopHandoffAppliedRef = useRef(false);
+  useEffect(() => {
+    if (desktopHandoffAppliedRef.current || mobileViewport || !loaded || !isLondon) return;
+    const held = readPlannerHandoff();
+    if (!held) return;
+    desktopHandoffAppliedRef.current = true;
+    clearPlannerHandoff();
+    const { maxPrice, center } = desktopHandoffMoves(held);
+    queueMicrotask(() => {
+      if (maxPrice !== null) setFilters((current) => ({ ...current, maxPrice }));
+      if (center) moveMapCameraTo({ center, zoom: 14 });
+    });
+  }, [isLondon, loaded, mobileViewport, moveMapCameraTo]);
 
   // The Area sheet target set by a map-search select: a modelled area (shown
   // as-is) or an ad-hoc locality/borough ring. null = the Area button, which

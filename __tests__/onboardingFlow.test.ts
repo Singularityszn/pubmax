@@ -12,6 +12,7 @@ import {
   onboardingStepNumber,
   previousOnboardingStep,
   clearPlannerHandoff,
+  desktopHandoffMoves,
   readBudgetChoice,
   readPlannerHandoff,
   writeBudgetChoice,
@@ -180,5 +181,19 @@ describe("the planner handoff", () => {
     writePlannerHandoff({ patch: null, budget: "any" }, storage, 1);
     clearPlannerHandoff(storage);
     expect(readPlannerHandoff(storage, 2)).toBeNull();
+  });
+});
+
+describe("the desktop handoff", () => {
+  it("turns the budget into the pint cap and the patch into the camera", () => {
+    expect(desktopHandoffMoves({ patch: { lat: 51.5136, lng: -0.1365 }, budget: "five" })).toEqual({
+      maxPrice: 5,
+      center: [-0.1365, 51.5136],
+    });
+  });
+
+  it("moves nothing the journey did not give", () => {
+    expect(desktopHandoffMoves({ patch: null, budget: "any" })).toEqual({ maxPrice: null, center: null });
+    expect(desktopHandoffMoves({ patch: null, budget: null })).toEqual({ maxPrice: null, center: null });
   });
 });

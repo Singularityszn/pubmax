@@ -163,6 +163,21 @@ export function readPlannerHandoff(storage?: Storage | null, now = Date.now()): 
   }
 }
 
+/**
+ * What the desktop map takes from a handoff. It has no area picker or Max each
+ * field, so the budget becomes the pint price cap and the patch becomes the
+ * camera. Either is null when the journey did not give it.
+ */
+export function desktopHandoffMoves(handoff: PlannerHandoff): {
+  maxPrice: number | null;
+  center: [number, number] | null;
+} {
+  return {
+    maxPrice: handoff.budget ? budgetCeiling(handoff.budget) : null,
+    center: handoff.patch ? [handoff.patch.lng, handoff.patch.lat] : null,
+  };
+}
+
 export function clearPlannerHandoff(storage?: Storage | null): void {
   const store = storage ?? safeSessionStorage();
   if (!store) return;
