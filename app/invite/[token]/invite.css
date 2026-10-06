@@ -77,7 +77,9 @@
 /* Route thumbnail — a small square, framed like the pint-drop photo frame. */
 .invite__thumbFrame {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   margin: 0 0 20px;
   padding: 14px;
   border: 1px solid var(--line);
@@ -87,9 +89,24 @@
 
 .invite__thumb {
   width: 100%;
-  max-width: 220px;
+  max-width: 260px;
   height: auto;
   color: var(--brass);
+}
+
+/* The number sits on the filled brass pin, so it takes the dark ink the coral
+   buttons use rather than the paper colour, which is too pale on coral. */
+.invite__thumb .routeThumbnailNumber {
+  fill: var(--ink-deep, #16122a);
+  font-family: var(--font-body);
+}
+
+.invite__thumbNote {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
 }
 
 .invite__eyebrow {
