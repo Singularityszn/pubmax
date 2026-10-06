@@ -68,3 +68,32 @@ describe("palWalkLabel — honest distance", () => {
     expect(PAL_DISTANCE_UNKNOWN).toMatch(/not sourced/i);
   });
 });
+
+describe("a place the taxonomy cannot place", () => {
+  it("is named in the London-wide line instead of claiming no area was given", () => {
+    const locality = resolvePalLocality("Two cheap pubs in Blackfriars for a quiet pint", null);
+    expect(locality.scope).toBe("london-wide");
+    expect(locality.unplaced).toBe("Blackfriars");
+    const line = palLocalityLine(locality);
+    expect(line).toContain("Blackfriars");
+    expect(line).toMatch(/could not place/i);
+    expect(line).toMatch(/not ranked by distance/i);
+    expect(line).not.toMatch(/no area set/i);
+  });
+
+  it("keeps a multi-word name whole and stops at the next plain word", () => {
+    expect(resolvePalLocality("pints near Elephant and Castle tonight", null).unplaced).toBe(
+      "Elephant and Castle",
+    );
+  });
+
+  it("never mistakes a lower-case phrase for a place", () => {
+    expect(resolvePalLocality("something in the cheapest bracket", null).unplaced).toBeUndefined();
+    expect(palLocalityLine(resolvePalLocality("cheap and lively", null))).toContain("No area set");
+  });
+
+  it("does not apply to an area the taxonomy does place", () => {
+    expect(resolvePalLocality("pubs in Brixton", null).unplaced).toBeUndefined();
+    expect(resolvePalLocality("pubs in Blackfriars", REMEMBERED_SOHO).unplaced).toBeUndefined();
+  });
+});
