@@ -4,7 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 
 import { discardBody } from "@/lib/responseBody";
 import { safeLocalStorage } from "@/lib/safeStorage";
-import { toggleSaveDurable } from "@/lib/savedPubs";
+import {
+  fetchSavedForHandle,
+  getSaved,
+  toggleSaveDurable,
+  type SavedPubDTO,
+} from "@/lib/savedPubs";
 import {
   eligibleBuiltInListTypes,
   isListTypeEligibleForVenue,
@@ -33,6 +38,13 @@ function savedToast(listType: string, handle: string): string {
   return handle.trim()
     ? `Saved to "${listType}"`
     : `Saved to "${listType}" on this device`;
+}
+
+/** The lists this venue is in right now, from the server's fresh answer when
+ * there is one and this device's own store when there is not. */
+function listsHolding(venueId: string, durable: readonly SavedPubDTO[] | null): string[] {
+  const rows = durable ?? getSaved();
+  return rows.filter((row) => row.venueId === venueId).map((row) => row.listType);
 }
 
 export default function SaveToListControl({
@@ -64,6 +76,10 @@ export default function SaveToListControl({
   const [newName, setNewName] = useState("");
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  // WHICH LISTS HOLD THIS PUB. A chip is a switch, so it has to say which way it
+  // is set: pressing it a second time removes the save, and a chip that looked
+  // the same either way took the pub off a list with no sign it had.
+  const [savedIn, setSavedIn] = useState<string[]>(() => listsHolding(venueId, null));
 
   // Load the handle's custom lists lazily when the picker opens (cheap GET,
   // fail-soft to just the built-ins).
@@ -85,7 +101,10 @@ export default function SaveToListControl({
     } catch {
       // Offline / error — the built-ins are always available regardless.
     }
-  }, [handle]);
+    // What the server holds for this pub wins over this device's copy.
+    const durable = await fetchSavedForHandle(h);
+    if (durable) setSavedIn(listsHolding(venueId, durable));
+  }, [handle, venueId]);
 
   useEffect(() => {
     // Defer through a promise callback so setState never runs synchronously in
@@ -97,8 +116,13 @@ export default function SaveToListControl({
     async (listType: string) => {
       setBusy(true);
       try {
-        await toggleSaveDurable(handle, venueId, listType, undefined, venueKind);
-        setToast(savedToast(listType, handle));
+        const durable = await toggleSaveDurable(handle, venueId, listType, undefined, venueKind);
+        const held = listsHolding(venueId, durable);
+        setSavedIn(held);
+        // The second press removes the save, so the toast says which happened.
+        setToast(
+          held.includes(listType) ? savedToast(listType, handle) : `Removed from “${listType}”`,
+        );
         window.setTimeout(() => setToast(null), 2000);
       } finally {
         setBusy(false);
@@ -134,7 +158,8 @@ export default function SaveToListControl({
           /* the save below still works even if the registry write failed */
         }
       }
-      await toggleSaveDurable(handle, venueId, name, undefined, venueKind);
+      const durable = await toggleSaveDurable(handle, venueId, name, undefined, venueKind);
+      setSavedIn(listsHolding(venueId, durable));
       setNewName("");
       setToast(savedToast(name, handle));
       window.setTimeout(() => setToast(null), 2000);
@@ -161,6 +186,7 @@ export default function SaveToListControl({
             key={name}
             type="button"
             className="saveToListChip"
+            aria-pressed={savedIn.includes(name)}
             onClick={() => void save(name)}
             disabled={busy}
           >
