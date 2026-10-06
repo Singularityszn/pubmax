@@ -21,6 +21,8 @@ import {
 import {
   DIARY_EARLIEST_VISITED_ON,
   MAX_DIARY_REVIEW,
+  clampDiaryReviewInput,
+  diaryReviewLength,
   diaryVisitedOnLabel,
   latestDiaryVisitedOn,
 } from "@/lib/diary";
@@ -216,14 +218,13 @@ function VenueDiaryLog({ venueId, venueName }: DiaryLogPanelProps) {
               onChange={(event) =>
                 setDraft((current) => ({
                   ...current,
-                  review: event.target.value.slice(0, MAX_DIARY_REVIEW),
+                  review: clampDiaryReviewInput(event.target.value),
                 }))
               }
-              maxLength={MAX_DIARY_REVIEW}
               rows={3}
               placeholder="What do you want to remember about it?"
             />
-            <small>{MAX_DIARY_REVIEW - review.length} characters left</small>
+            <small>{MAX_DIARY_REVIEW - diaryReviewLength(review)} characters left</small>
           </label>
 
           <button

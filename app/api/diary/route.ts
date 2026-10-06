@@ -21,7 +21,7 @@ import { log } from "@/lib/log";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
-import { resolveVenue } from "@/lib/venueIndex";
+import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 
 export const runtime = "nodejs";
@@ -74,7 +74,16 @@ export async function POST(request: Request): Promise<Response> {
     });
   }
 
-  const venue = await resolveVenue(readString(body.venueId) ?? "");
+  const venueId = readString(body.venueId);
+  const lookup = venueId ? await lookupCanonicalVenue(venueId) : null;
+  // An outage of the venue index is not the drinker's mistake: say so, and let
+  // the client retry, rather than call a valid pub invalid.
+  if (lookup?.status === "unavailable") {
+    return publicApiError("Pubs are unavailable right now. Try again shortly.", "STORE_UNAVAILABLE", 503, {
+      retryable: true,
+    });
+  }
+  const venue = lookup?.status === "found" ? lookup.venue : null;
   if (!venue || !isPubVenueKind(venue.kind)) {
     return publicApiError("Pick a pub from the map.", "INVALID_DIARY_ENTRY", 400);
   }

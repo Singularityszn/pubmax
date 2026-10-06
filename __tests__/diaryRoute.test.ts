@@ -21,6 +21,19 @@ vi.mock("@/lib/contributionIdentity.server", () => ({
   resolveContributionIdentity: async () => identityState.resolution,
 }));
 
+const venueIndexState = vi.hoisted(() => ({ unavailable: false }));
+
+vi.mock("@/lib/venueIndex", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/venueIndex")>();
+  return {
+    ...actual,
+    lookupCanonicalVenue: async (id: string) =>
+      venueIndexState.unavailable
+        ? { status: "unavailable" as const, canonicalId: id }
+        : actual.lookupCanonicalVenue(id),
+  };
+});
+
 import { GET, POST } from "@/app/api/diary/route";
 import { londonDayKey } from "@/lib/pintContributions";
 import { __resetDiary } from "@/lib/diaryStore";
@@ -61,6 +74,7 @@ function signIn(actor: string, handle: string) {
 beforeEach(() => {
   __resetDiary();
   __resetPintDrops();
+  venueIndexState.unavailable = false;
   signIn(ALICE, "alice");
 });
 
@@ -151,6 +165,40 @@ describe("POST /api/diary", () => {
     expect(res.status).toBe(400);
     expect((await res.json()).code).toBe("INVALID_DIARY_ENTRY");
     expect((await (await GET(get())).json()).entries).toEqual([]);
+  });
+
+  it("answers a retryable 503, not a 400, when the venue index is unavailable", async () => {
+    venueIndexState.unavailable = true;
+    const res = await POST(post({ venueId: VENUE_ID, visitedOn: TODAY() }));
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.code).toBe("STORE_UNAVAILABLE");
+    expect(body.retryable).toBe(true);
+    venueIndexState.unavailable = false;
+    expect((await (await GET(get())).json()).entries).toEqual([]);
+    // The same request succeeds once the index is back: it was never the pub.
+    expect((await POST(post({ venueId: VENUE_ID, visitedOn: TODAY() }))).status).toBe(201);
+  });
+
+  it("still answers 400 for a pub the index genuinely does not know", async () => {
+    const res = await POST(post({ venueId: "venue-does-not-exist" }));
+    expect(res.status).toBe(400);
+  });
+
+  it("counts a review in code points: 280 emoji are accepted, 281 are refused", async () => {
+    const ok = await POST(post({ venueId: VENUE_ID, visitedOn: "2026-02-01", review: "🍺".repeat(280) }));
+    expect(ok.status).toBe(201);
+    expect([...(await ok.json()).entry.review]).toHaveLength(280);
+    const tooLong = await POST(post({ venueId: VENUE_ID, visitedOn: "2026-02-02", review: "🍺".repeat(281) }));
+    expect(tooLong.status).toBe(400);
+  });
+
+  it("stores a review as written, however it is punctuated", async () => {
+    for (const [i, review] of ["Best Guinness in Soho!", "Hidden gem, great garden.", "Pint <3, Guinness >> the Crown"].entries()) {
+      const res = await POST(post({ venueId: VENUE_ID, visitedOn: `2026-03-0${i + 1}`, review }));
+      expect(res.status).toBe(201);
+      expect((await res.json()).entry.review).toBe(review);
+    }
   });
 
   it("refuses a malformed body and a non-object body", async () => {

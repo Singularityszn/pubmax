@@ -90,6 +90,21 @@ export function resolveDiaryVisitedOn(value: unknown, now: Date = new Date()): s
   return trimmed;
 }
 
+/**
+ * A review's length in characters, counted as code points: the one rule the
+ * composer, the server and the database CHECK (`length(review)`) share, so an
+ * emoji is one character everywhere and never two.
+ */
+export function diaryReviewLength(review: string): number {
+  return [...review].length;
+}
+
+/** The first MAX_DIARY_REVIEW characters of what a person typed, cut on a code point. */
+export function clampDiaryReviewInput(typed: string): string {
+  const points = [...typed];
+  return points.length > MAX_DIARY_REVIEW ? points.slice(0, MAX_DIARY_REVIEW).join("") : typed;
+}
+
 /** Control characters a review drops. Tab and newline are spacing the owner typed. */
 const DIARY_REVIEW_CONTROL = /[\u0000-\u0008\u000B-\u001F\u007F]/g;
 
@@ -144,7 +159,7 @@ export function validateDiaryEntryCreate(
   }
 
   const review = cleanDiaryReview(input.review);
-  if ([...review].length > MAX_DIARY_REVIEW) {
+  if (diaryReviewLength(review) > MAX_DIARY_REVIEW) {
     return { ok: false, error: `Keep the review to ${MAX_DIARY_REVIEW} characters.` };
   }
 

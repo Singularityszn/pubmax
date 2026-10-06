@@ -131,7 +131,14 @@ test("log a visit from the pub sheet, see it on the profile, and a repeat is ref
   await stars.press("Enter");
   await expect(card.getByText("4.5 / 5")).toBeVisible();
 
-  await card.getByLabel("One short line").fill("Calm back room, good pint.");
+  // An emoji is one character here, as it is on the server: 200 of them leave 80.
+  const line = card.getByLabel("One short line");
+  await line.fill("🍺".repeat(200));
+  await expect(card.getByText("80 characters left")).toBeVisible();
+  await line.fill("🍺".repeat(300));
+  await expect(card.getByText("0 characters left")).toBeVisible();
+  expect([...(await line.inputValue())]).toHaveLength(280);
+  await line.fill("Calm back room, good pint.");
   await page.screenshot({ path: `${SHOTS}/diary-composer-390.png` });
   await card.getByTestId("diary-log-submit").click();
 

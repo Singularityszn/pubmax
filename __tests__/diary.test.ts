@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   DIARY_EARLIEST_VISITED_ON,
+  clampDiaryReviewInput,
+  diaryReviewLength,
   MAX_DIARY_REVIEW,
   compareDiaryEntries,
   diaryVisitedOnLabel,
@@ -164,5 +166,27 @@ describe("ordering and labels", () => {
   it("labels a London day as the calendar day it names", () => {
     expect(diaryVisitedOnLabel("2026-10-04")).toBe("Sun, 4 Oct 2026");
     expect(diaryVisitedOnLabel("not-a-day")).toBe("not-a-day");
+  });
+});
+
+describe("review length is counted in code points", () => {
+  it("counts an emoji once, as the server and the database do", () => {
+    expect(diaryReviewLength("🍺")).toBe(1);
+    expect(diaryReviewLength("a🍺b")).toBe(3);
+    expect("🍺".length).toBe(2);
+  });
+
+  it("clamps typed input on a code point, never through a surrogate pair", () => {
+    const typed = "🍺".repeat(MAX_DIARY_REVIEW + 20);
+    const clamped = clampDiaryReviewInput(typed);
+    expect(diaryReviewLength(clamped)).toBe(MAX_DIARY_REVIEW);
+    expect(clamped).toBe("🍺".repeat(MAX_DIARY_REVIEW));
+    expect(clampDiaryReviewInput("short")).toBe("short");
+  });
+
+  it("a clamped review always passes server validation", () => {
+    const clamped = clampDiaryReviewInput("🍺".repeat(500));
+    expect(create({ review: clamped }).ok).toBe(true);
+    expect(create({ review: `${clamped}🍺` }).ok).toBe(false);
   });
 });
