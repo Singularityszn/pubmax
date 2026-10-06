@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 // settle as "unread" instead of never answering (review of PR 2042).
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.resetModules();
@@ -12,6 +13,17 @@ afterEach(() => {
 describe("loadVenueAliasMaps", () => {
   it("settles as unread when an alias file stalls", async () => {
     vi.useFakeTimers();
+    // AbortSignal.timeout runs on the native clock, which fake timers do not
+    // move. Rebuild it on the faked setTimeout so the 8 second bound is spent
+    // by advanceTimersByTimeAsync instead of by waiting.
+    vi.spyOn(AbortSignal, "timeout").mockImplementation((ms: number) => {
+      const controller = new AbortController();
+      setTimeout(
+        () => controller.abort(new DOMException("timed out", "TimeoutError")),
+        ms,
+      );
+      return controller.signal;
+    });
     vi.stubGlobal(
       "fetch",
       vi.fn(
@@ -27,6 +39,7 @@ describe("loadVenueAliasMaps", () => {
     const answer = loadVenueAliasMaps();
     await vi.advanceTimersByTimeAsync(10_000);
     const maps = await answer;
+    expect(AbortSignal.timeout).toHaveBeenCalledWith(8_000);
     expect(maps.read).toBe(false);
     expect(maps.aliases.size).toBe(0);
   });
