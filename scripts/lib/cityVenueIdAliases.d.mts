@@ -2,6 +2,13 @@ export type CityVenueIdSuccession = { from: string; to: string };
 
 export type RetiredCityVenue = { id: string; name: string; area: string; lat: number; lng: number };
 
+export function venueIdDepartures<T extends Record<string, unknown>>(
+  idOf: (pub: T) => string,
+  previousPubs: ReadonlyArray<T>,
+  nextPubs: ReadonlyArray<T>,
+  successorMeters: number,
+): Array<{ pub: T; from: string; to: string | null }>;
+
 export function supersededCityVenueIds(
   cityId: string,
   previousPubs: ReadonlyArray<Record<string, unknown>>,

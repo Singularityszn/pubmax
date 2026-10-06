@@ -88,6 +88,7 @@ import {
   isUkBaseId,
   MAX_PROVISIONAL_BASE_VENUE_IDS,
 } from "@/lib/ukBasePubs";
+import { resolveCanonicalVenueId } from "@/lib/venueAliases";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import {
   resolveWritableVenueId,
@@ -570,7 +571,9 @@ export async function GET(request: Request): Promise<Response> {
     const venueId = (searchParams.get("venueId") ?? "").trim();
     if (!venueId) return jsonNoStore({ prices: [] }, { status: 200 });
     let priceVenueId = venueId;
-    if (!isUkBaseId(venueId)) {
+    if (isUkBaseId(venueId)) {
+      priceVenueId = await resolveCanonicalVenueId(venueId);
+    } else {
       const venueLookup = await lookupCanonicalVenue(venueId);
       if (venueLookup.status !== "found") {
         return jsonNoStore({ prices: [] }, { status: 200 });

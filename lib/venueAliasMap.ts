@@ -2,7 +2,7 @@
 //
 // lib/venueAliases.ts resolves a stored id on the server. A reference the
 // browser stored itself (a localStorage save) never reaches that seam, so the
-// client reads the same two public alias artifacts here and resolves its own
+// client reads the same public alias artifacts here and resolves its own
 // ids through them. Read once per page; a failed read answers as the identity
 // and is retried by the next caller.
 
