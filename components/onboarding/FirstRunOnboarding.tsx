@@ -229,20 +229,17 @@ export default function FirstRunOnboarding({
     });
   }, [beginAnswer]);
 
-  // Browser Back and Forward walk the steps the reader has seen. A step the
-  // reader reaches that way can name no answer that is not here: the result
-  // needs a place to read from, and leaving it drops any read still in flight,
-  // so coming back to an answer that never landed reads it again.
+  // Coming back to the result shows the answer this visit holds. With none
+  // (a reload, or a read dropped on the way back) the reader is asked again.
+  const resultStep: OnboardingStep = answer.status === "loading" ? "location" : "result";
+
+  // Browser Back and Forward walk the steps the reader has seen. Leaving a
+  // step drops any read still in flight.
   const stepHistory = useStepHistory(
     step,
     (next) => {
-      if (next === "result" && origin) {
-        if (answer.status === "loading") void readAnswer(origin);
-        else setStep("result");
-        return;
-      }
       beginAnswer();
-      setStep(next === "result" ? "location" : next);
+      setStep(next === "result" ? resultStep : next);
     },
     { steps: ONBOARDING_STEPS, first: "london" },
   );
@@ -500,7 +497,7 @@ export default function FirstRunOnboarding({
                 </p>
 
                 <div className="firstRunActions">
-                  <button type="button" className="firstRunBack pressable" onClick={() => goTo(previous)}>
+                  <button type="button" className="firstRunBack pressable" onClick={() => goTo(resultStep)}>
                     <ArrowLeft size={18} aria-hidden="true" /> Back
                   </button>
                   <button

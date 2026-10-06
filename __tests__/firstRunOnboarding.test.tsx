@@ -291,7 +291,7 @@ describe("first-run location ask", () => {
 });
 
 describe("first-run answers that arrive late or not at all", () => {
-  it("reads the answer again when Forward returns to one dropped by Back", async () => {
+  it("asks the question again when Forward returns to an answer dropped by Back", async () => {
     stubGeolocation((_ok, fail) =>
       fail({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError),
     );
@@ -306,9 +306,8 @@ describe("first-run answers that arrive late or not at all", () => {
     await browserForward();
     await settle();
 
-    expect(slim.load).toHaveBeenCalledTimes(2);
     expect(container.textContent).not.toContain("Working out your nearest pints.");
-    expect(container.textContent).toContain("The Crown");
+    expect(container.querySelector("h1")?.textContent).toBe("Find the cheapest pint near you.");
   });
 
   it("shows a venue read that came back incomplete as unavailable, with a retry that answers", async () => {
@@ -550,6 +549,50 @@ describe("first-run handoff to the planner", () => {
       patch: { lat: 51.5136, lng: -0.1365 },
       budget: "five",
     });
+  });
+
+  it("asks the location question again on Back after a reload on the companion step", async () => {
+    stubGeolocation((_ok, fail) =>
+      fail({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError),
+    );
+    await tap("Use London");
+    await tap("£5 or less");
+    await tap("Continue");
+    await tap("Use my location");
+    await tap("Soho");
+    await settle();
+    await tap("That looks right");
+    await act(async () => {
+      root?.unmount();
+    });
+    root = createRoot(container);
+    await act(async () => {
+      root?.render(createElement(FirstRunOnboarding, { reviewedAreas: [], skipHref: "/tonight", openPlanner }));
+    });
+
+    await tap("Back");
+    await historySettles();
+
+    expect(container.textContent).not.toContain("Working out your nearest pints.");
+    expect(container.querySelector("h1")?.textContent).toBe("Find the cheapest pint near you.");
+    // The question is the entry Back reached: one more Back is the budget.
+    await browserBack();
+    expect(container.querySelector("h1")?.textContent).toBe("What's a fair pint to you?");
+  });
+
+  it("returns to the answer on Back from the companion step", async () => {
+    stubGeolocation((_ok, fail) =>
+      fail({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError),
+    );
+    await reachLocation();
+    await tap("Use my location");
+    await tap("Soho");
+    await settle();
+    await tap("That looks right");
+    await tap("Back");
+    await historySettles();
+
+    expect(container.textContent).toContain("Cheapest listed around Soho");
   });
 
   it("hands over the budget alone after a located answer, and keeps no coordinates", async () => {
