@@ -660,6 +660,9 @@ html[data-theme="dark"] .messageBubblePhoto {
 .messageReportBtn {
   display: inline-flex;
   align-items: center;
+  /* 44px of hit area without growing the meta line: the box stays 32px and the
+     pseudo-element below reaches the rest. It measured 40x32. */
+  position: relative;
   min-height: 32px;
   padding: 0 0.15rem;
   background: none;
@@ -670,6 +673,12 @@ html[data-theme="dark"] .messageBubblePhoto {
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+.messageReportBtn::after {
+  content: "";
+  position: absolute;
+  inset: -6px -4px;
 }
 
 .messageReportBtn:hover {
