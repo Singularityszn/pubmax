@@ -46,18 +46,37 @@ describe("coffee pilot harvest fence", () => {
     ["Peppermint", 2.4],
     ["Herbal infusion", 2.4],
     ["Green", 2.4],
+    ["Chai latte", 3.6],
+    ["Turmeric latte", 3.6],
+    ["Earl Grey latte", 3.6],
     ["Affogato (vg) Vanilla ice cream, shot of hot espresso", 6],
   ])("refuses %s as a coffee price beside an espresso drink", (label, priceGbp) => {
     expect(coffeeRowsBesideAmericano(label, priceGbp)).toEqual([]);
     expect(coffeePriceLabelExcluded(label)).toBe(true);
   });
 
-  it.each(["Matcha", "Matcha green tea latte", "Americano, espresso and hot water", "Iced latte"])(
+  it.each([
+    "Matcha",
+    "Matcha latte",
+    "Matcha green tea latte",
+    "Dirty chai with espresso",
+    "Americano, espresso and hot water",
+    "Iced latte",
+  ])(
     "keeps %s as a coffee price",
     (label) => {
       expect(coffeePriceLabelExcluded(label)).toBe(false);
     },
   );
+
+  it("files a tea latte as not-coffee and a matcha latte as coffee", () => {
+    const rows = readVenueDrinkPrices(
+      "<p>Chai latte £3.60</p><p>Turmeric latte £3.70</p><p>Matcha latte £4.00</p>",
+    ).kept;
+    expect(
+      rows.filter((row) => row.category === "coffee").map(({ drinkLabel, priceGbp }) => ({ drinkLabel, priceGbp })),
+    ).toEqual([{ drinkLabel: "Matcha latte", priceGbp: 4 }]);
+  });
 
   it("does not widen the reader's coffee words beyond matcha", () => {
     const rows = readVenueDrinkPrices("<p>Macchiato £3.20</p><p>Cortado £3.40</p>").kept;
