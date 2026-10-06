@@ -18,7 +18,7 @@
 import { readFile } from "node:fs/promises";
 
 import { boroughNameForPoint } from "../../lib/londonBoroughPoint.mjs";
-import { classifyChainPub } from "./tavilyPubEnrichment.mjs";
+import { classifyChainPub } from "./chainPubClassifier.mjs";
 import { inGreaterLondon } from "./londonOsmDatasetRows.mjs";
 
 export const PROMOTION_BATCH_CAP = 300;
