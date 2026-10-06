@@ -23,11 +23,31 @@ A night that runs no search while a pub still waits for one fails the job. A gre
 
 ## State
 
-The checkpoint is the gitignored file `.tavily/enrichment/london.json`. It holds the last read time of each pub and every price found so far. The workflow restores it from the Actions cache before the run and saves it after the run.
+The checkpoint is the gitignored file `.tavily/enrichment/london.json`. It holds the last read time of each pub, every price found so far and every reading the committed data has held. The workflow restores it from the Actions cache before the run and saves it after the run.
 
-A lost cache, `--reset` or a changed UK OSM pack starts a fresh checkpoint. It does not fail the job. A fresh checkpoint starts from the London official-site prices already in `public/data/drink_price_updates/latest.json`, so a restart never deletes a reviewed price.
+A changed UK OSM pack or `--reset` restarts the walk. It does not fail the job. The prices found so far carry over, so a night that was paid for and not merged yet is not lost. A price for a pub that left the pack is dropped, and the run log counts it. A lost cache starts an empty checkpoint.
 
-Each review PR is therefore complete even when an earlier PR was not merged yet. When a pub's page is read again, its new rows replace its old rows.
+## The committed data is the source of truth
+
+Each night writes the London official-site prices in `public/data/drink_price_updates/latest.json` again. It applies these rules:
+
+1. Every committed row stays as it is. A price that a reviewer corrected is never overwritten by an older checkpoint row.
+2. A checkpoint row that the committed data held once and no longer holds is dropped. A reviewer can delete a merged row and it stays deleted.
+3. A checkpoint row that is not newer than the committed row for the same drink is dropped.
+4. A row whose pub and source URL are in `data/enrichment/tavily/london/rejected.json` is never written.
+5. Every other checkpoint row is unmerged evidence, and the PR carries it.
+
+Each review PR therefore holds every unmerged night, even when an earlier PR was not merged yet.
+
+## Reject rows
+
+To reject a whole nightly PR, close it. Then do these steps:
+
+1. Make a branch from the default branch.
+2. Run `npm run tavily:reject -- --city=london --ref=origin/tavily-london/<stamp>`.
+3. Commit `data/enrichment/tavily/london/rejected.json` and merge it.
+
+The command lists each pub page whose rows the closed PR added and the committed data does not hold. A closed PR also carries the unmerged rows of the nights before it, so close a PR only when you reject all of its new rows. To reject the rows of one pub page only, edit the PR. Remove those rows and add their `venueKey` and `sourceUrl` to `rejected.json` in the same PR.
 
 ## Evidence
 
