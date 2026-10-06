@@ -15,6 +15,7 @@ import {
   shouldMountVercelAnalytics,
 } from "@/components/ConsentAwareVercelAnalytics";
 import { consentAwareSpeedInsightsBeforeSend } from "@/components/ConsentAwareVercelSpeedInsights";
+import { defined } from "@/__tests__/helpers/defined";
 
 type FakeNavigator = Partial<Navigator> & {
   sendBeacon?: (url: string, data?: BodyInit | null) => boolean;
@@ -71,7 +72,7 @@ describe("trackEvent", () => {
     const beacon = (globalThis as { navigator: FakeNavigator }).navigator
       .sendBeacon as ReturnType<typeof vi.fn>;
     expect(beacon).toHaveBeenCalledTimes(1);
-    const [url, blob] = beacon.mock.calls[0];
+    const [url, blob] = defined(beacon.mock.calls[0]);
     expect(url).toBe("/api/events");
     expect(blob).toBeInstanceOf(Blob);
   });
@@ -274,7 +275,7 @@ describe("trackEvent", () => {
     const beacon = (globalThis as { navigator: FakeNavigator }).navigator
       .sendBeacon as ReturnType<typeof vi.fn>;
     expect(beacon).toHaveBeenCalledTimes(1);
-    const [url, blob] = beacon.mock.calls[0];
+    const [url, blob] = defined(beacon.mock.calls[0]);
     expect(url).toBe("/api/events");
     expect(blob).toBeInstanceOf(Blob);
   });

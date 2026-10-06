@@ -20,6 +20,7 @@ import {
   resolveEventDate,
 } from "@/lib/harvest/venueEvents";
 import { isValidWhatsOnRow, type WhatsOnRow } from "@/lib/whatsOn";
+import { defined } from "@/__tests__/helpers/defined";
 
 // The shape Wetherspoon's own Food & drink page publishes its club days in.
 const WETHERSPOON_PAGE = `
@@ -114,7 +115,7 @@ Available Monday-Friday 12pm-5pm
 Enjoy a selection of dishes from the Farmhouse Inns Weekday Set Menu.
 `);
     expect(deals).toHaveLength(1);
-    expect(deals[0].brand).toBe("Farmhouse Inns");
+    expect(defined(deals[0]).brand).toBe("Farmhouse Inns");
   });
 
   it("refuses a bare clock with no meridiem, because which 11 is a guess", () => {
@@ -159,20 +160,20 @@ describe("every harvested deal row is a valid What's-On row with provenance", ()
 
   it("fails the guard the moment provenance is missing", () => {
     const { deals } = parseChainDealDays(WETHERSPOON_PAGE);
-    const row = rowFor(deals[0]) as Record<string, unknown>;
+    const row = rowFor(defined(deals[0])) as Record<string, unknown>;
     delete row.source;
     expect(isValidWhatsOnRow(row, now)).toBe(false);
   });
 
   it("fails the guard when the source url is not a real link", () => {
     const { deals } = parseChainDealDays(WETHERSPOON_PAGE);
-    const row = { ...rowFor(deals[0]), source: { label: "Somewhere", url: "not-a-url" } };
+    const row = { ...rowFor(defined(deals[0])), source: { label: "Somewhere", url: "not-a-url" } };
     expect(isValidWhatsOnRow(row, now)).toBe(false);
   });
 
   it("fails the guard when observedAt is in the future", () => {
     const { deals } = parseChainDealDays(WETHERSPOON_PAGE);
-    const row = { ...rowFor(deals[0]), observedAt: "2027-01-01T00:00:00.000Z" };
+    const row = { ...rowFor(defined(deals[0])), observedAt: "2027-01-01T00:00:00.000Z" };
     expect(isValidWhatsOnRow(row, now)).toBe(false);
   });
 });
@@ -229,8 +230,8 @@ An evening of folk from a much-loved local band playing their own songs.
       now,
     );
     expect(events).toHaveLength(1);
-    expect(events[0].kind).toBe("quiz");
-    expect(events[0].startClock).toBe("20:00");
+    expect(defined(events[0]).kind).toBe("quiz");
+    expect(defined(events[0]).startClock).toBe("20:00");
     expect(drops).toEqual([{ title: "Live music: The Wanderers", reason: "no-time" }]);
   });
 

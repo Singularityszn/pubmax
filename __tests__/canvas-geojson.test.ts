@@ -21,6 +21,7 @@ import {
 } from "@/lib/venues";
 import type { StoryBand } from "@/lib/storyBands";
 import type { Landmark } from "@/lib/landmarks";
+import { defined } from "@/__tests__/helpers/defined";
 
 function makeVenue(overrides: Partial<Venue> = {}): Venue {
   return {
@@ -276,8 +277,9 @@ describe("pubsToGeoJSON", () => {
       priceBand: 2,
       cheapestPrice: 35,
     });
-    const [barFeature, foodFeature, restaurantFeature] = pubsToGeoJSON(
-      [bar, food, restaurant],
+    const club = makeVenue({ id: "club", kind: "club" });
+    const [barFeature, foodFeature, restaurantFeature, clubFeature] = pubsToGeoJSON(
+      [bar, food, restaurant, club],
       signals,
       null,
     ).features;
@@ -300,6 +302,10 @@ describe("pubsToGeoJSON", () => {
     });
     expect(String(restaurantFeature?.properties?.icon)).toContain("fork-2");
     expect("priceLabel" in (restaurantFeature?.properties ?? {})).toBe(false);
+    expect(clubFeature?.properties).toMatchObject({
+      kind: "club",
+      drinkKind: "coupe",
+    });
   });
 });
 
@@ -656,7 +662,7 @@ describe("pubsToGeoJSON Pint Drop trust gate (AGENTS.md pin law: an uncorroborat
     ]);
     const provisional = provisionalPintDropVenueIds(dropsByVenueId, NOW);
     return (
-      pubsToGeoJSON([merged], signals, null, null, null, provisional)
+      pubsToGeoJSON([defined(merged)], signals, null, null, null, provisional)
         .features[0]?.properties ?? {}
     );
   }

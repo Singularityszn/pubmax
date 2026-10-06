@@ -3,6 +3,7 @@ import { join, relative, sep } from "node:path";
 
 import postcss, { type Container } from "postcss";
 import { describe, expect, it } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 // THE FLOOR IS ONE RULE, AND THIS FENCE EXISTS BECAUSE IT WAS DELETED.
 //
@@ -122,14 +123,14 @@ function parseCssRules(css: string): CssRule[] {
 
 function whereTargets(selector: string): Set<string> {
   const match = /^:where\((.*)\)$/.exec(selector.trim());
-  return new Set(match ? splitOutsideParentheses(match[1], ",") : []);
+  return new Set(match ? splitOutsideParentheses(defined(match[1]), ",") : []);
 }
 
 function mediaQueryMatchesPhone(query: string, width: number): boolean {
   const normalized = query.trim().toLowerCase();
   if (/\bnot\b/.test(normalized) || /\b(?:print|speech)\b/.test(normalized)) return false;
 
-  const features = [...normalized.matchAll(/\(([^()]*)\)/g)].map((match) => match[1].trim());
+  const features = [...normalized.matchAll(/\(([^()]*)\)/g)].map((match) => defined(match[1]).trim());
   const residue = normalized
     .replace(/\([^()]*\)/g, " ")
     .replace(/\b(?:only|screen|all|and)\b/g, " ")
@@ -266,17 +267,17 @@ function typeSelectorTokens(selector: string): string[] {
   const stripped = stripSelectorNoise(selector);
   const tokens: string[] = [];
   for (let index = 0; index < stripped.length; ) {
-    if (!isIdentifierStart(stripped[index])) {
+    if (!isIdentifierStart(defined(stripped[index]))) {
       index += 1;
       continue;
     }
     const start = index;
     index += 1;
-    while (index < stripped.length && isIdentifierCharacter(stripped[index])) {
+    while (index < stripped.length && isIdentifierCharacter(defined(stripped[index]))) {
       index += 1;
     }
     const preceding = start === 0 ? "" : stripped[start - 1];
-    if (start === 0 || TYPE_SELECTOR_BOUNDARIES.has(preceding)) {
+    if (start === 0 || TYPE_SELECTOR_BOUNDARIES.has(defined(preceding))) {
       tokens.push(stripped.slice(start, index).toLowerCase());
     }
   }
@@ -298,7 +299,7 @@ function lengthLowerBound(value: string): LowerBoundProof {
   const length = /^([+-]?(?:\d+(?:\.\d*)?|\.\d+))(px|rem|em|pt)$/i.exec(normalized);
   if (length) {
     const amount = Number(length[1]);
-    const unit = length[2].toLowerCase();
+    const unit = defined(length[2]).toLowerCase();
     if (unit === "em") {
       return { resolved: false, reason: `${normalized} depends on an unknown parent size` };
     }
@@ -308,7 +309,7 @@ function lengthLowerBound(value: string): LowerBoundProof {
 
   const max = /^max\((.*)\)$/i.exec(normalized);
   if (max) {
-    const terms = splitOutsideParentheses(max[1], ",");
+    const terms = splitOutsideParentheses(defined(max[1]), ",");
     if (terms.length === 0) return { resolved: false, reason: "max() has no arguments" };
     const proofs = terms.map(lengthLowerBound);
     const safe = proofs.find((proof) => proof.resolved && proof.px >= FLOOR_PX);
@@ -328,11 +329,11 @@ function lengthLowerBound(value: string): LowerBoundProof {
 
   const clamp = /^clamp\((.*)\)$/i.exec(normalized);
   if (clamp) {
-    const terms = splitOutsideParentheses(clamp[1], ",");
+    const terms = splitOutsideParentheses(defined(clamp[1]), ",");
     if (terms.length !== 3) {
       return { resolved: false, reason: "clamp() must have three arguments" };
     }
-    const minimum = lengthLowerBound(terms[0]);
+    const minimum = lengthLowerBound(defined(terms[0]));
     if (!minimum.resolved) {
       return { resolved: false, reason: `clamp() minimum is unresolved: ${minimum.reason}` };
     }
@@ -366,7 +367,7 @@ function splitOutsideWhitespace(value: string): string[] {
     }
     if (character === "(") depth += 1;
     else if (character === ")") depth -= 1;
-    if (/\s/.test(character) && depth === 0) {
+    if (/\s/.test(defined(character)) && depth === 0) {
       if (token) tokens.push(token);
       token = "";
       continue;

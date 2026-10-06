@@ -11,6 +11,7 @@ import {
 } from "../lib/heritagePlaceConflict.mjs";
 import { LONDON_BOROUGHS } from "@/lib/boroughs";
 import { LONDON_BOROUGH_NAMES } from "../lib/londonBoroughNames.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 // F06. Heritage facts are keyed by pub NAME, and London has several of nearly
 // every name. One key therefore collects facts about several pubs, and the join
@@ -127,7 +128,7 @@ describe("similarly named pubs in different areas", () => {
     const { published, quarantined } = partitionFactsByPlace(FACTS, "Tower Hamlets");
     expect(published.map((f) => f.fact)).toEqual(["pub in Limehouse, London"]);
     expect(quarantined).toHaveLength(1);
-    expect(quarantined[0].conflict.stated).toBe("Wandsworth");
+    expect(defined(quarantined[0]).conflict.stated).toBe("Wandsworth");
   });
 
   it("withholds everything when no fact survives, rather than showing the wrong pub", () => {
@@ -153,7 +154,7 @@ describe("the shipped index keeps the three Cheshire Cheeses apart", () => {
 
   it("labels the Crutched Friars pub with the borough its own description names", () => {
     expect(crutchedFriars.borough).toBe("City of London");
-    expect(crutchedFriars.facts[0].fact).toContain("48 Crutched Friars");
+    expect(defined(crutchedFriars.facts[0]).fact).toContain("48 Crutched Friars");
   });
 
   it("leaves the Strand pub with only the fact that is about it", () => {

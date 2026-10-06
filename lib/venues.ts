@@ -158,6 +158,8 @@ export function isVenueKind(value: unknown): value is VenueKind {
 
 export type Venue = {
   placesContent?: import("@/lib/placesEnrichment").PlacesEnrichmentRecord;
+  /** Dog policy and opening hours the pub's own website states (lib/venueSiteFacts.ts). Absent is unknown. */
+  siteFacts?: import("@/lib/venueSiteFacts").VenueSiteFacts;
   openingHours?: import("@/lib/busyness").WeeklyOpeningHours;
   id: string;
   name: string;
@@ -599,10 +601,11 @@ export function stableVenueIdFromKey(key: string): string {
 }
 
 export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
-  const grouped = new Map<string, VenuePrice[]>();
+  const grouped = new Map<string, [VenuePrice, ...VenuePrice[]]>();
   for (const row of rows) {
     const key = venueGroupingKey(row);
-    grouped.set(key, [...(grouped.get(key) ?? []), row]);
+    const existing = grouped.get(key);
+    grouped.set(key, existing ? [...existing, row] : [row]);
   }
 
   return Array.from(grouped.entries()).map(([key, groupRows]) => {
@@ -615,7 +618,7 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
     // and gives nothing the pub served or charged (lib/priceRowEligibility.mjs).
     const prices = groupRows.filter(isLivePriceRow);
     const sortedPrices = sortedRows.filter(isLivePriceRow);
-    const first = sortedPrices[0] ?? sortedRows[0];
+    const first = sortedPrices[0] ?? sortedRows[0] ?? groupRows[0];
     const numericPrices = sortedPrices
       .map((price) => price.price_gbp)
       .filter((price): price is number => typeof price === "number");
@@ -1373,7 +1376,7 @@ export function buildCrawlRoute(
     const route: Venue[] = [seed];
 
     while (route.length < filters.stopCount) {
-      const last = route[route.length - 1];
+      const last = route.at(-1) ?? seed;
       const localCandidates = sorted
         .filter((venue) => !route.some((selected) => selected.id === venue.id))
         .map((venue) => {

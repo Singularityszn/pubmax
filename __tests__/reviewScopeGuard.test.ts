@@ -1,11 +1,14 @@
-import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 
 import {
   changedFilesFromGit,
+  ciFixChurn,
+  commitsFromGit,
+  KNOWN_FLAKE_SPECS,
   MAX_REVIEW_FILES,
   MAX_RUNTIME_DOMAINS,
   REVIEW_SCOPE_HINTS,
@@ -130,14 +133,17 @@ describe("review scope guard", () => {
       "public/data/historic_pubs.json",
       "data/persona_drinks.json",
     ];
-    expect(summarizeReviewScope(generated).forbidden).toEqual(
-      generated.sort().map((path) => ({ category: "generated", path })),
-    );
+    for (const path of generated) {
+      expect(summarizeReviewScope([path]).forbidden).toEqual([
+        { category: "generated", path },
+      ]);
+    }
 
     const curated = [
       "public/data/uk_base/README.md",
       "public/data/london_venues/README.md",
       "public/data/london_desks/README.md",
+      "public/data/london_restaurants/README.md",
       "public/data/drink_price_updates/latest.json",
       "public/data/heritage_cache.json",
     ];
@@ -178,6 +184,44 @@ describe("review scope guard", () => {
     expect(report.regeneratedLanes).toEqual(["venues_slim"]);
   });
 
+  it.each([
+    "public/data/venues_slim.json",
+    "public/data/cities/leeds/venues_slim.json",
+    "public/data/cities/glasgow/venues_slim.json",
+    "data/osm/outer_london_osm_pubs.json",
+    "data/cities/leeds/osm_pubs.json",
+    "lib/outerLondonOwnership.mjs",
+    "lib/cityVenueId.mjs",
+    "scripts/build_city_slim_index.mjs",
+    "scripts/fetch_city_osm_pubs.mjs",
+  ])("permits UK base ownership output when its input changes: %s", (input) => {
+    const outputs = [
+      "public/data/uk_base/manifest.json",
+      "public/data/uk_base/packs/520da468effa470f/51.50_-0.25.json",
+    ];
+    const report = summarizeReviewScope([input, ...outputs]);
+
+    expect(report.categories.regenerated).toEqual(expect.arrayContaining(outputs));
+    expect(report.regeneratedLanes).toContain("uk_base");
+    expect(report.forbidden.filter((file) => outputs.includes(file.path))).toEqual([]);
+  });
+
+  it.each([
+    "public/data/venues_slim.core.json",
+    "public/data/cities/leeds/venues_slim.core.json",
+    "public/data/cities/glasgow/venues_slim.manifest.json",
+    "data/cities/leeds/parallel_venues.json",
+  ])("refuses UK base output with an input its builder does not read: %s", (input) => {
+    const report = summarizeReviewScope([input, "public/data/uk_base/manifest.json"]);
+
+    expect(report.ok).toBe(false);
+    expect(report.regeneratedLanes).not.toContain("uk_base");
+    expect(report.forbidden).toContainEqual({
+      category: "generated",
+      path: "public/data/uk_base/manifest.json",
+    });
+  });
+
   it("permits city slim packs when the diff carries a city OSM pack", () => {
     const report = summarizeReviewScope([
       "data/cities/leeds/osm_pubs.json",
@@ -188,6 +232,112 @@ describe("review scope guard", () => {
     expect(report.ok).toBe(true);
     expect(report.categoryCounts).toEqual({ other: 1, regenerated: 2 });
     expect(report.regeneratedLanes).toEqual(["city_venues_slim"]);
+  });
+
+  it("permits city slim packs when the diff carries a city discovery pack", () => {
+    const report = summarizeReviewScope([
+      "data/cities/durham/parallel_venues.json",
+      "public/data/cities/durham/venues_slim.json",
+      "public/data/cities/durham/venues_slim.core.json",
+    ]);
+
+    expect(report.ok).toBe(true);
+    expect(report.forbidden).toEqual([]);
+    expect(report.regeneratedLanes).toEqual(["city_venues_slim"]);
+  });
+
+  it("permits city slim packs when the diff carries the discovery merge", () => {
+    const report = summarizeReviewScope([
+      "scripts/lib/parallelVenueDiscovery.mjs",
+      "public/data/cities/birmingham/venues_slim.json",
+    ]);
+
+    expect(report.ok).toBe(true);
+    expect(report.forbidden).toEqual([]);
+    expect(report.regeneratedLanes).toEqual(["city_venues_slim"]);
+  });
+
+  it("permits London venue shards when the diff carries the restaurant drinks evidence", () => {
+    const report = summarizeReviewScope([
+      "data/london_restaurant_drinks/evidence.json",
+      "public/data/london_venues/manifest.json",
+      "public/data/london_venues/packs/0123456789abcdef/51.500_-0.125.json",
+    ]);
+
+    expect(report.ok).toBe(true);
+    expect(report.forbidden).toEqual([]);
+    expect(report.regeneratedLanes).toEqual(["london_venues"]);
+  });
+
+  it("permits London venue shards when the diff carries the restaurant drinks exclusions", () => {
+    const report = summarizeReviewScope([
+      "data/london_restaurant_drinks/exclusions.json",
+      "public/data/london_venues/manifest.json",
+    ]);
+
+    expect(report.ok).toBe(true);
+    expect(report.regeneratedLanes).toEqual(["london_venues"]);
+  });
+
+  it("permits London venue shards and the desk pack when the diff carries the UK venue packs", () => {
+    const report = summarizeReviewScope([
+      "data/osm/uk/uk_osm_venues_drink.json",
+      "public/data/london_venues/manifest.json",
+      "public/data/london_venues/packs/0123456789abcdef/51.500_-0.125.json",
+      "public/data/london_desks/desks.json",
+    ]);
+
+    expect(report.ok).toBe(true);
+    expect(report.forbidden).toEqual([]);
+    expect(report.regeneratedLanes).toEqual(["london_venues", "london_desks"]);
+  });
+
+  it("refuses a London desk pack that nothing in the diff produced", () => {
+    const report = summarizeReviewScope([
+      "data/london_restaurant_drinks/evidence.json",
+      "public/data/london_desks/desks.json",
+    ]);
+
+    expect(report.ok).toBe(false);
+    expect(report.forbidden).toEqual([
+      { category: "generated", path: "public/data/london_desks/desks.json" },
+    ]);
+  });
+
+  it("permits the London restaurant pack when the diff carries its builder or the shards it is cut from", () => {
+    for (const producer of [
+      "scripts/build_london_restaurant_pack.mjs",
+      "public/data/london_venues/manifest.json",
+    ]) {
+      const report = summarizeReviewScope([
+        producer,
+        "public/data/london_restaurants/restaurants.json",
+      ]);
+      expect(report.forbidden).toEqual(
+        producer.startsWith("public/")
+          ? [{ category: "generated", path: producer }]
+          : [],
+      );
+      expect(report.regeneratedLanes).toContain("london_restaurants");
+    }
+  });
+
+  it("refuses a London restaurant pack that nothing in the diff produced", () => {
+    const report = summarizeReviewScope(["public/data/london_restaurants/restaurants.json"]);
+
+    expect(report.ok).toBe(false);
+    expect(report.forbidden).toEqual([
+      { category: "generated", path: "public/data/london_restaurants/restaurants.json" },
+    ]);
+  });
+
+  it("refuses London venue shards that nothing in the diff produced", () => {
+    const report = summarizeReviewScope(["public/data/london_venues/manifest.json"]);
+
+    expect(report.ok).toBe(false);
+    expect(report.forbidden).toEqual([
+      { category: "generated", path: "public/data/london_venues/manifest.json" },
+    ]);
   });
 
   it("permits the UK pub search index when the diff carries the UK OSM pack", () => {
@@ -493,6 +643,127 @@ describe("review scope guard", () => {
       expect(both.stderr).toBe(
         `${REVIEW_SCOPE_HINTS.generated}\n${REVIEW_SCOPE_HINTS["skill-pack"]}\n`,
       );
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("CI-step fix commits", () => {
+  it("flags bundled data and a known-flake spec in a no-mistakes(ci) commit", () => {
+    const churn = ciFixChurn([
+      {
+        sha: "ci",
+        subject: "no-mistakes(ci): Browser law pins failed",
+        paths: ["e2e/map-surface-history.spec.ts", "lib/plan.ts", "public/data/venues_slim.core.json"],
+      },
+    ]);
+
+    expect(churn).toEqual([
+      { sha: "ci", path: "e2e/map-surface-history.spec.ts", category: "ci-flake" },
+      { sha: "ci", path: "public/data/venues_slim.core.json", category: "ci-data" },
+    ]);
+  });
+
+  it("names only known-flake specs that exist", () => {
+    expect(KNOWN_FLAKE_SPECS).toContain("e2e/map-surface-history.spec.ts");
+    for (const spec of KNOWN_FLAKE_SPECS) expect(existsSync(join(process.cwd(), spec))).toBe(true);
+  });
+
+  it("leaves data-lane review and document fixes, other pipeline subjects, people and READMEs alone", () => {
+    expect(
+      ciFixChurn([
+        { sha: "review", subject: "no-mistakes(review): Rebuild shards", paths: ["public/data/venues_slim.json"] },
+        { sha: "doc", subject: "no-mistakes(document): Refresh docs", paths: ["public/data/uk_base/a.json"] },
+        {
+          sha: "test",
+          subject: "no-mistakes(test): Pin the flake",
+          paths: ["e2e/map-surface-history.spec.ts"],
+        },
+        { sha: "fallback", subject: "no-mistakes: apply agent fixes", paths: ["public/data/venues_slim.json"] },
+        { sha: "author", subject: "feat(data): add pubs", paths: ["public/data/venues_slim.json"] },
+        {
+          sha: "revert",
+          subject: 'Revert "no-mistakes(ci): Browser law pins failed"',
+          paths: ["public/data/venues_slim.json", "e2e/map-surface-history.spec.ts"],
+        },
+        {
+          sha: "ci-notes",
+          subject: "no-mistakes(ci): Correct price notes",
+          paths: ["public/data/uk_prices/README.md", "public/data/AGENTS.md"],
+        },
+      ]),
+    ).toEqual([]);
+  });
+
+  it("fails a --ci-commits run on CI churn a revert hid, and ignores it without the flag", () => {
+    const repo = mkdtempSync(join(tmpdir(), "pubmax-review-scope-ci-fix-"));
+    const git = (...args: string[]) =>
+      execFileSync("git", args, { cwd: repo, encoding: "utf8", stdio: "pipe" }).trim();
+    const scope = (base: string, head: string, ...flags: string[]) =>
+      spawnSync(
+        process.execPath,
+        [
+          join(process.cwd(), "scripts/check_review_scope.mjs"),
+          "--base",
+          base,
+          "--head",
+          head,
+          "--repo",
+          repo,
+          ...flags,
+        ],
+        { encoding: "utf8" },
+      );
+
+    try {
+      git("init", "-q");
+      git("config", "user.email", "review-scope@example.invalid");
+      git("config", "user.name", "Review Scope Test");
+      mkdirSync(join(repo, "public/data"), { recursive: true });
+      mkdirSync(join(repo, "e2e"), { recursive: true });
+      writeFileSync(join(repo, "public/data/venues_slim.json"), '{"revision":"local"}\n');
+      writeFileSync(join(repo, "e2e/map-surface-history.spec.ts"), "// spec\n");
+      git("add", ".");
+      git("commit", "-qm", "seed");
+      const base = git("rev-parse", "HEAD");
+
+      mkdirSync(join(repo, "scripts"), { recursive: true });
+      writeFileSync(join(repo, "scripts/build_slim_index.mjs"), "// fixed builder\n");
+      writeFileSync(join(repo, "public/data/venues_slim.json"), '{"revision":"rebuilt"}\n');
+      git("add", "-A");
+      git("commit", "-qm", "no-mistakes(review): Fix the slim builder and rebuild shards");
+      const reviewed = git("rev-parse", "HEAD");
+
+      const reviewOnly = scope(base, reviewed, "--ci-commits");
+      expect(reviewOnly.status).toBe(0);
+      expect(JSON.parse(reviewOnly.stdout).ciChurn).toEqual([]);
+
+      writeFileSync(join(repo, "public/data/venues_slim.json"), '{"revision":"746811cfdddc"}\n');
+      writeFileSync(join(repo, "e2e/map-surface-history.spec.ts"), "// retried\n");
+      git("commit", "-qam", "no-mistakes(ci): Browser law pins failed");
+      const churned = git("rev-parse", "HEAD");
+      git("revert", "--no-edit", churned);
+      const head = git("rev-parse", "HEAD");
+
+      expect(commitsFromGit(reviewed, head, repo).map((commit) => commit.paths)).toEqual([
+        ["e2e/map-surface-history.spec.ts", "public/data/venues_slim.json"],
+        ["e2e/map-surface-history.spec.ts", "public/data/venues_slim.json"],
+      ]);
+      expect(summarizeReviewScope(changedFilesFromGit(reviewed, head, repo)).ok).toBe(true);
+
+      const push = scope(base, head);
+      expect(push.status).toBe(0);
+      expect(JSON.parse(push.stdout).ciChurn).toEqual([]);
+      expect(push.stderr).toBe("");
+
+      const result = scope(base, head, "--ci-commits");
+      expect(result.status).toBe(1);
+      expect(JSON.parse(result.stdout).ciChurn).toEqual([
+        { sha: churned, path: "e2e/map-surface-history.spec.ts", category: "ci-flake" },
+        { sha: churned, path: "public/data/venues_slim.json", category: "ci-data" },
+      ]);
+      expect(result.stderr).toBe(`${REVIEW_SCOPE_HINTS["ci-data"]}\n${REVIEW_SCOPE_HINTS["ci-flake"]}\n`);
     } finally {
       rmSync(repo, { recursive: true, force: true });
     }

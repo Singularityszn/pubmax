@@ -45,9 +45,32 @@ snapshot into a city pack (`data/cities/README.md`). The shard builder then
 records the owning curated venue on each promoted row by exact OSM id, so the
 base pin is suppressed while the curated pin is drawable. Nothing is removed:
 a `venue-uk-*` id stays resolvable and its community prices stay reachable.
-REMOVING a base row is the step that still needs its identity work first, and
-that alias belongs in the flow that removes it, not in this generator
-speculatively.
+
+A refresh REMOVES a base row when OSM deletes the object, and the shard build
+is where that removal is published, so the build records the id's identity
+work in the same step. It compares the rows it publishes with the rows
+already published and writes every dropped id to
+`public/data/uk_base_venue_id_aliases.json`
+([`scripts/lib/ukBaseVenueIdAliases.mjs`](../../../scripts/lib/ukBaseVenueIdAliases.mjs)).
+The same pub redrawn as a new OSM object, under the same name within 50 m, is
+an alias to its new id. A row a still-listed curated venue owned is an alias to
+that curated venue. A pub with neither is kept as a retired record with its
+name, address and last point, so a saved pub, a drop or a crawl stop still
+names it, noted as possibly closed, while the map no longer lists it. A build
+that would leave a dropped id resolving to nothing fails. `lib/venueAliases.ts`
+reads the file beside the city alias files, and an id that comes back to OSM
+leaves it. Every store read keyed by a venue id (saves, drops and their
+confirmations, community prices, venue signals, provisional price marks, price
+trust, crowd readings, ratings, photos, visit reports, weather tips, presence,
+wanted fulfilment, operator claims and operator proposals) reads
+the rows stored under the venue's former ids too, through `storedVenueIds()` in
+`lib/venueAliases.ts`. The readers merge the three alias files into one map and
+point every id at the end of its chain through `flattenVenueAliasChains()` in
+`lib/venueAliasesFile.mjs`, so `A -> B -> C` reads `A -> C`. A cycle is refused:
+the build fails on one and a reader treats it as an unreadable alias set. The
+build stages the alias file and swaps it in only after the shards publish, so a
+failed publish leaves the old shards and the old aliases together. Commit the
+file with the shards.
 
 Community-price visibility binds to that same salted id. The settled viewport
 asks for marked ids only, then `lib/ukBasePubs.ts` adds the mark to in-memory

@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarClock, List, MapPinned, ShieldCheck, X } from "lucide-react";
+import { CalendarClock, List, MapPinned, Navigation2, ShieldCheck, X } from "lucide-react";
 import { formatGbp } from "@/lib/formatGbp";
 import { priceBand, priceBandAreaForVenue, priceBandClass } from "@/lib/priceBand";
 import dynamic from "next/dynamic";
@@ -85,6 +85,7 @@ import {
 } from "@/lib/nearMeLocation";
 import {
   buildMapVenueListModel,
+  buildLondonRestaurantListModel,
   buildUkBasePubListModel,
   type MapVenueListSortMode,
 } from "@/lib/mapVenueList";
@@ -265,6 +266,21 @@ const UnverifiedPubSheet = dynamic(
   () => import("@/components/map/UnverifiedPubSheet"),
   { ssr: false },
 );
+// Only ever mounted for a tapped Shoreditch coffee pilot cafe.
+const CoffeePilotSheet = dynamic(
+  () => import("@/components/map/CoffeePilotSheet"),
+  { ssr: false },
+);
+// Only ever mounted for a tapped London restaurant.
+const LondonRestaurantSheet = dynamic(
+  () => import("@/components/map/LondonRestaurantSheet"),
+  { ssr: false },
+);
+// Only ever mounted when the coffee lens could not read the pilot.
+const CoffeePilotLoadFailed = dynamic(
+  () => import("@/components/map/CoffeePilotLoadFailed"),
+  { ssr: false },
+);
 const MapToolbar = dynamic(() => import("@/components/map/MapToolbar"), {
   ssr: false,
 });
@@ -326,6 +342,7 @@ import { useSelParamSync } from "@/components/map/pubmap/useSelParamSync";
 import { useMapKeyboardShortcuts } from "@/components/map/pubmap/useMapKeyboardShortcuts";
 import { useLandmarkJourney } from "@/components/map/pubmap/useLandmarkJourney";
 import { useLogIntent } from "@/components/map/pubmap/useLogIntent";
+import { useLogIntentRevealScope } from "@/components/map/pubmap/useLogIntentRevealScope";
 import { MappedRouteChip } from "@/components/map/pubmap/MappedRouteChip";
 import { BandOnboardingChip } from "@/components/map/pubmap/BandOnboardingChip";
 const MapOnboardingOverlay = dynamic(
@@ -354,7 +371,7 @@ import {
 } from "@/lib/favoritePint";
 import { notifyCheapPintPingQualified } from "@/lib/cheapPintPingQualifyClient";
 import { canonicalizeStoredSaved, getSaved } from "@/lib/savedPubs";
-import { loadVenueAliasMap } from "@/lib/venueAliasMap";
+import { loadVenueAliasMap, loadVenueAliasMaps } from "@/lib/venueAliasMap";
 import { venuesInNearbyMembership } from "@/lib/mapNearbyMembership";
 import {
   createSlimShardLoader,
@@ -385,6 +402,19 @@ import {
 } from "@/lib/ukBasePubs";
 import { computeZonePintIndex } from "@/lib/zones";
 import { useCityStoryCatalog } from "@/components/map/useCityStoryCatalog";
+import {
+  useCoffeePilotCafes,
+  useReleaseLondonVenueSelection,
+} from "@/components/map/useCoffeePilotCafes";
+import { useLondonRestaurants, useStableRestaurantList } from "@/components/map/useLondonRestaurants";
+import {
+  londonRestaurantLayerShown,
+  londonRestaurantPackWanted,
+  londonRestaurantsPassingMapFilters,
+  londonRestaurantsWithoutCuratedTwin,
+  type LondonRestaurant,
+} from "@/lib/londonRestaurants";
+import type { CoffeePilotCafe } from "@/lib/coffeePilot";
 import { mapSeedNeedsCuratedCrawlLookup } from "@/lib/mapSeedCrawlPolicy";
 import { completeNeighbourhoodCountSlugs } from "@/lib/mapAreaPicker";
 const ZonePicker = dynamic(() => import("@/components/map/ZonePicker"), { ssr: false });
@@ -420,8 +450,7 @@ import {
 } from "@/lib/mapLogIntent";
 import {
   browserPrefersReducedMotion,
-  browserRevealTimers,
-  scheduleLogIntentReveal,
+  requestLogIntentReveal,
 } from "@/lib/logIntentReveal";
 import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
@@ -593,8 +622,11 @@ import {
   drinkIndexStatusFor,
   firstIdOf,
   crawlJourneysWanted,
+  londonVenueSelection,
   mapArrivalFrame,
   mapDrinkLensSelection,
+  isRecordlessMapSelection,
+  ukBaseSelectionSuccessor,
   mapSelectionFrame,
   mapPlaceContext,
   mapShellClassName,
@@ -818,6 +850,8 @@ const DESKTOP_RAIL_MEDIA_QUERY = "(min-width: 1024px)";
 const NO_LOCALITIES: Locality[] = [];
 /** A limited-coverage arrival searches no curated venues; UK places fill the gap. */
 const NO_SEARCH_VENUES: Venue[] = [];
+const NO_COFFEE_PILOT_CAFES: readonly CoffeePilotCafe[] = [];
+const NO_LONDON_RESTAURANTS: readonly LondonRestaurant[] = [];
 
 // Shard coverage is recomputed after every shard settles, so the held set is
 // replaced only when its membership really moved.
@@ -1044,6 +1078,13 @@ export default function PubMap({
   const [ukNationalBrowse] = useState(
     () => nationalBrowse || isUkNationalBrowse(currentSearch()),
   );
+  // The canvas hands over its camera reset only while the camera is off the
+  // city's attitude; the phone Layers tab always shows Reset view, disabled
+  // while it holds none.
+  const [cameraReset, setCameraReset] = useState<{ run: () => void } | null>(null);
+  const handleCameraResetChange = useCallback((run: (() => void) | null) => {
+    setCameraReset(run ? { run } : null);
+  }, []);
   // National gazetteer for map search (same places.json as the /places town search).
   // Loaded once when the reader types two characters or arrives on a national
   // / uncovered surface — never on every keystroke.
@@ -1355,6 +1396,10 @@ export default function PubMap({
   // bumps the attempt and the derived answer goes false with it, so nothing has
   // to reset this from inside an effect body.
   const [mapCanvasCeilingLapsedAttempt, setMapCanvasCeilingLapsedAttempt] =
+    useState<number | null>(null);
+  // The attempt whose canvas has built MapLibre. Its own watchdogs answer from
+  // there, so the shell's ceiling stops (lib/mapCanvasAvailability.ts).
+  const [mapCanvasWatchingAttempt, setMapCanvasWatchingAttempt] =
     useState<number | null>(null);
   // Bumped by the shell's own Retry. It keys a fresh lazy component AND a fresh
   // boundary, so a blocked chunk is genuinely re-requested rather than replayed
@@ -1781,6 +1826,7 @@ export default function PubMap({
     cityId: CityId;
     curatedVenueIds: string[];
     ukBasePubIds: string[];
+    londonRestaurantIds: string[];
   } | null>(null);
   const [renderedMapState, setRenderedMapState] =
     useState<MapRenderedState>(EMPTY_MAP_RENDERED_STATE);
@@ -1883,6 +1929,12 @@ export default function PubMap({
       loadDrinkCategoryIndex(mapDrinkLensCategory);
     }
   }, [loadDrinkCategoryIndex, mapDrinkLensCategory]);
+  // The Shoreditch coffee pilot (lib/coffeePilot.ts) draws its cafes while the
+  // coffee lane owns a London map, and resolves a selected `venue-osm-` id to
+  // its cafe, so a reloaded ?sel= link under the coffee lane still opens that
+  // cafe's sheet.
+  const coffeePilotLensOn = isLondon && mapDrinkLensCategory === "coffee";
+  const coffeePilot = useCoffeePilotCafes(coffeePilotLensOn);
   // Whichever cross-venue index is answering the map right now reports its own
   // completeness, so the price key never claims a read it did not finish.
   const drinkIndexStatus: CategoryPriceIndexStatus = useMemo(
@@ -2388,7 +2440,11 @@ export default function PubMap({
     moduleFailed: mapCanvasModuleFailed,
     canvasOwnsFailure: mapCanvasErrored,
     canvasReady: mapCanvasReady,
+    canvasWatching: mapCanvasWatchingAttempt === mapCanvasAttempt,
   });
+  const handleMapCanvasConstructed = useCallback(() => {
+    setMapCanvasWatchingAttempt(mapCanvasAttempt);
+  }, [mapCanvasAttempt]);
   const handleMapCanvasModuleFailed = useCallback(() => {
     setMapCanvasModuleFailed(true);
   }, []);
@@ -2402,8 +2458,8 @@ export default function PubMap({
   // The bounded readiness timeout. A canvas that never answers used to hold the
   // loading frame, and with it the whole phone shell, indefinitely: every other
   // watchdog is armed by the canvas itself, so a mount that never gets that far
-  // has nothing watching it. The clock runs only while the frame is genuinely
-  // held by a canvas that has said nothing, and it restarts with each attempt.
+  // has nothing watching it. mapCanvasCeilingArmed owns the construction
+  // handoff and stop conditions. Each attempt starts a fresh clock.
   useEffect(() => {
     if (!mapCanvasCeilingRunning) return;
     const attempt = mapCanvasAttempt;
@@ -2742,6 +2798,7 @@ export default function PubMap({
     (membership: {
       curatedVenueIds: string[];
       ukBasePubIds: string[];
+      londonRestaurantIds: string[];
     }) => {
       setVisibleVenueState({ cityId, ...membership });
     },
@@ -2945,6 +3002,71 @@ export default function PubMap({
     drinkLensPrices,
     experienceLensPrices,
   );
+  // The London restaurants (lib/londonRestaurants.ts): drawn while restaurants
+  // are on in the kind filter and no drink lane or view other than food owns
+  // the map, read once the pins have painted and the camera reaches the zoom
+  // they draw from, and resolved for a selected `venue-osm-` id so a reloaded
+  // ?sel= link still opens the restaurant's sheet.
+  const londonRestaurantsShown = londonRestaurantLayerShown({
+    isLondon,
+    restaurantKindVisible: venueKindVisibility.restaurant,
+    experienceLens,
+    lensOwnsMap: activeLensPrices !== null,
+  });
+  const londonRestaurantRead = useLondonRestaurants(
+    londonRestaurantPackWanted({
+      shown: londonRestaurantsShown,
+      held: secondaryStreamsHeld,
+      zoom: mapViewport.zoom,
+      selectedVenueId,
+      selectedIsCafe: coffeePilot.byId.has(selectedVenueId),
+    }),
+  );
+  // A `venue-osm-` selection is a pilot cafe or a London restaurant, and is let
+  // go only when neither can open it.
+  const londonPlacePick = londonVenueSelection({
+    selectedVenueId,
+    coffee: {
+      lensOn: coffeePilotLensOn,
+      status: coffeePilot.status,
+      byId: coffeePilot.byId,
+    },
+    restaurants: {
+      shown: londonRestaurantsShown,
+      status: londonRestaurantRead.status,
+      byId: londonRestaurantRead.byId,
+    },
+  });
+  const selectedCoffeeCafe = londonPlacePick.cafe;
+  const selectedLondonRestaurant = londonPlacePick.restaurant;
+  // The map's filters narrow the layer as they narrow curated pins, and a
+  // drawn curated venue owns its own place, so the OSM row beside it is not drawn.
+  const filteredLondonRestaurants = useMemo(
+    () =>
+      londonRestaurantsShown
+        ? londonRestaurantsWithoutCuratedTwin(
+            londonRestaurantsPassingMapFilters(londonRestaurantRead.restaurants, {
+              filters: effectiveMapFilters,
+              savedOnly,
+              nearMe: nearbyMapResultForView,
+              selectedVenueId,
+              curated: venues,
+            }),
+            canvasVenues,
+          )
+        : NO_LONDON_RESTAURANTS,
+    [
+      canvasVenues,
+      effectiveMapFilters,
+      londonRestaurantRead.restaurants,
+      londonRestaurantsShown,
+      nearbyMapResultForView,
+      savedOnly,
+      selectedVenueId,
+      venues,
+    ],
+  );
+  const drawnLondonRestaurants = useStableRestaurantList(filteredLondonRestaurants);
   const activeLensLabel = activeLensLabelFor(mapDrinkLensCategory, experienceLens);
   // The name a heading wears is not always the name a sentence wants: the
   // no-alcohol lens is titled with a negative, and "no no-alcohol price
@@ -3079,6 +3201,19 @@ export default function PubMap({
     },
     [cityId, mapViewport.center, renderedBasePubs, visibleVenueState],
   );
+  // The restaurant pins the canvas has in view, as List view rows: the canvas
+  // symbols have no DOM, so this is how a keyboard or screen-reader user
+  // reaches a restaurant.
+  const londonRestaurantListModel = useMemo(() => {
+    if (visibleVenueState?.cityId !== cityId) {
+      return buildLondonRestaurantListModel([], mapViewport.center);
+    }
+    const visibleIds = new Set(visibleVenueState.londonRestaurantIds);
+    return buildLondonRestaurantListModel(
+      drawnLondonRestaurants.filter((restaurant) => visibleIds.has(restaurant.id)),
+      mapViewport.center,
+    );
+  }, [cityId, drawnLondonRestaurants, mapViewport.center, visibleVenueState]);
   // The place the map is OVER, and whether it is off the curated city.
   // Base-led chrome: uncovered place, national browse, or pan past cityMaxBounds.
   const { mapContextName, outsideCuratedBounds, baseLedChrome } = mapPlaceContext({
@@ -3163,10 +3298,19 @@ export default function PubMap({
         selectedVenueId,
         selectedVenue,
         selectedBasePub,
+        selectedCoffeeCafe,
+        selectedLondonRestaurant,
         venueById,
         isPubVenue,
       }),
-    [selectedBasePub, selectedVenue, selectedVenueId, venueById],
+    [
+      selectedBasePub,
+      selectedCoffeeCafe,
+      selectedLondonRestaurant,
+      selectedVenue,
+      selectedVenueId,
+      venueById,
+    ],
   );
   const selectedVenueResolvable = mapSelection.resolvable;
   const selectedVenueIsPub = mapSelection.isPub;
@@ -3298,7 +3442,7 @@ export default function PubMap({
         }
       }
       // Base pubs have no /api/venue record; prefetching one is a certain 404.
-      if (!isUkBaseId(id)) prefetchVenue(id);
+      if (!isRecordlessMapSelection(id)) prefetchVenue(id);
       setTonightLaneOpen(false);
       setMapOverlay("none");
       claimMapDrawer("venue");
@@ -3315,7 +3459,7 @@ export default function PubMap({
       setSheetDragY(null);
       if (reducedMotion) {
         setVenueRevealRequest(null);
-      } else if (!isUkBaseId(id)) {
+      } else if (!isRecordlessMapSelection(id)) {
         const priceView = venueDrinkPriceView(
           communityPrices.byVenueId.get(id),
           experienceLens,
@@ -3378,6 +3522,8 @@ export default function PubMap({
   // derivation rather than by a state-sync effect: the record only ever shows
   // while it IS the selection.
   const basePubOpen = mapSelection.basePubOpen;
+  const coffeeCafeOpen = mapSelection.coffeeCafeOpen;
+  const londonRestaurantOpen = mapSelection.londonRestaurantOpen;
   // The sel entry's `at=` companion: a base pub's coordinates ride in the URL
   // because the id alone could not say which shard cell a shared/reloaded
   // link should stream. Empty for curated selections, which clears the param.
@@ -3480,7 +3626,8 @@ export default function PubMap({
       );
       setNearbyLoading(false);
       setPendingNearMeRequest(null);
-      if (ids.length === 0) {
+      const [first] = ids;
+      if (first === undefined) {
         setNearbyError("Nothing within reach matches those filters. Loosen one and the map fills back up.");
         return;
       }
@@ -3488,7 +3635,7 @@ export default function PubMap({
       setBuiltIds(ids);
       setRouteMapped(true);
       setActiveCrawl(null);
-      showLoadedRoute(ids[0]);
+      showLoadedRoute(first);
     };
     if (!loader) {
       return;
@@ -3946,7 +4093,9 @@ export default function PubMap({
       });
       if (move === "select-one") {
         // Fly to the one match and open its sheet (reuses the pin path).
-        selectVenue(filteredVenuesRef.current[0].id);
+        const [match] = filteredVenuesRef.current;
+        if (!match) return;
+        selectVenue(match.id);
       } else if (move === "fit-many") {
         // Frame the whole matched set so none stay hidden off-screen.
         setSearchFitToken((token) => token + 1);
@@ -4055,11 +4204,7 @@ export default function PubMap({
     // and focus stays put so raising the keyboard is the reader's own next move
     // (lib/logIntentReveal.ts owns the wait, the selector and the behaviour).
     if (typeof document !== "undefined") {
-      scheduleLogIntentReveal({
-        root: document,
-        reducedMotion: browserPrefersReducedMotion(),
-        timers: browserRevealTimers(),
-      });
+      requestLogIntentReveal(document, browserPrefersReducedMotion());
     }
   }, [closePlanning, dismissOnboarding, setComposerOpen, setSheetDragY, setSheetSnap]);
 
@@ -4373,6 +4518,7 @@ export default function PubMap({
   // The venue sheet is open for a curated venue OR for a tapped base pub; both
   // fill the same drawer/sheet, so every open/close/snap path stays one path.
   const detailOpen = mapSelection.detailOpen;
+  useLogIntentRevealScope(detailOpen, pintDrops.composerOpen);
   const activeNightArea = useMemo(() => nightAreaForMapQuery(cityId, filters.query) ??
     (!filters.query.trim() && plannedNightArea ? getNightArea(plannedNightArea) : null),
   [cityId, filters.query, plannedNightArea]);
@@ -4934,6 +5080,15 @@ export default function PubMap({
     rejectSelection: rejectMapSelection,
     resolveSelection: resolveMapSelection,
   } = mapSurfaceTrail;
+  // A `venue-osm-` id that neither the coffee pilot nor the London restaurants
+  // can open (off the coffee lens or off the restaurant layer, not held, or not
+  // read) has no sheet to open: let it go rather than hold a skeleton.
+  useReleaseLondonVenueSelection(
+    londonPlacePick.release,
+    selectedVenueId,
+    rejectMapSelection,
+    setSelectedVenueId,
+  );
   useLayoutEffect(() => {
     surfaceBackRef.current = mapSurfaceTrail.back;
     surfaceOpenRef.current = mapSurfaceTrail.open;
@@ -4978,7 +5133,37 @@ export default function PubMap({
   const storyDrawerOpen = storyOpen && !planningOpen && !detailOpen;
 
   useEffect(() => {
-    if (!selectedVenueId || detailById.has(selectedVenueId) || isUkBaseId(selectedVenueId)) return;
+    if (!selectedVenueId || !isUkBaseId(selectedVenueId)) return;
+    const requestedVenueId = selectedVenueId;
+    let cancelled = false;
+    void loadVenueAliasMaps().then((maps) => {
+      const successor = ukBaseSelectionSuccessor(maps, requestedVenueId);
+      if (cancelled || !successor) return;
+      if (successor.kind === "curated") {
+        resolveMapSelection(requestedVenueId, successor.venueId);
+        setSelectedVenueId((current) =>
+          current === requestedVenueId ? successor.venueId : current,
+        );
+        return;
+      }
+      setRetiredSelectionName(successor.name);
+      setSelectionNotice("retired");
+      rejectMapSelection(requestedVenueId);
+      setSelectedVenueId((current) => (current === requestedVenueId ? "" : current));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [rejectMapSelection, resolveMapSelection, selectedVenueId]);
+
+  useEffect(() => {
+    if (
+      !selectedVenueId ||
+      detailById.has(selectedVenueId) ||
+      isRecordlessMapSelection(selectedVenueId)
+    ) {
+      return;
+    }
     const requestedVenueId = selectedVenueId;
     let cancelled = false;
     warmVenueDetail(requestedVenueId).then((result) => {
@@ -5025,7 +5210,7 @@ export default function PubMap({
       loaded,
       selectedVenueId,
       resolvable: selectedVenueResolvable,
-      ukBase: isUkBaseId(selectedVenueId),
+      ukBase: isRecordlessMapSelection(selectedVenueId),
       detailStatus: selectedDetailStatus,
     });
     if (!notice) return;
@@ -5590,7 +5775,16 @@ export default function PubMap({
     );
   }
 
-  const venuePanel = renderVenuePanel();
+  // A London venue-layer place has its own sheet; everything else is a venue.
+  function renderSelectedPlacePanel() {
+    if (selectedCoffeeCafe) return <CoffeePilotSheet cafe={selectedCoffeeCafe} />;
+    if (selectedLondonRestaurant) {
+      return <LondonRestaurantSheet restaurant={selectedLondonRestaurant} />;
+    }
+    return renderVenuePanel();
+  }
+
+  const venuePanel = renderSelectedPlacePanel();
   const storyPanel = renderStoryPanel();
   const storyOnlyOpen = storyOpen && !detailOpen && !planningOpen;
 
@@ -5688,6 +5882,15 @@ export default function PubMap({
             <div><strong>Map appearance</strong><small>Theme changes preserve this view and its active sheet.</small></div>
             <ThemeToggle />
           </div>
+          <Button
+            variant="secondary"
+            className="w-full uiButton--start"
+            disabled={!cameraReset}
+            onClick={() => cameraReset?.run()}
+          >
+            <Navigation2 size={18} aria-hidden="true" />
+            Reset view
+          </Button>
           <MapLayersControl embedded poiHidden={poiHidden} onPoiHiddenChange={setPoiHidden} activeBandId={activeBandId} onBandChange={setActiveBandId} storyBands={cityStoryBands} cityId={cityId} />
         </TabsContent>
         {experienceLens === "all" ? (
@@ -6058,6 +6261,7 @@ export default function PubMap({
       <MapVenueList
         model={mapVenueListModel}
         ukBaseModel={ukBasePubListModel}
+        restaurantModel={londonRestaurantListModel}
         ukBaseStatus={ukBaseStatus}
         cityName={mapContextName}
         open={mapListOpen}
@@ -6227,6 +6431,23 @@ export default function PubMap({
     ) : null;
   }
 
+  function renderCoffeePilotLoadFailed() {
+    const visible =
+      coffeePilotLensOn &&
+      coffeePilot.status === "failed" &&
+      trimmedMapQuery.length === 0 &&
+      !mapLoadingActive &&
+      !mapCanvasUnavailable &&
+      !showMapArrivalCard &&
+      mapOverlay !== "search" &&
+      !mapSoftRetryActive &&
+      !detailOpen &&
+      !planningOpen &&
+      !storyOpen &&
+      !mapListOpen;
+    return visible ? <CoffeePilotLoadFailed onRetry={coffeePilot.retry} /> : null;
+  }
+
   /* The map itself. Full-bleed base layer; every panel slides in over it.
 
      When the canvas cannot be shown at all - its module never loaded, or it
@@ -6298,6 +6519,7 @@ export default function PubMap({
         initialLandmarkId={seed.landmarkId}
         onLandmarkSelect={handleLandmarkSelect}
         onMapReady={handleMapCanvasReady}
+        onMapConstructed={handleMapCanvasConstructed}
         onMapErrored={setMapCanvasErrored}
         mapView={openingViewport
           ? withCityCameraAttitude(openingViewport, city.mapView)
@@ -6307,6 +6529,7 @@ export default function PubMap({
         fitQueryOnArrival={shouldFitQueryVenuesOnArrival(arrivalSearch)}
         searchFitToken={searchFitToken}
         userLocation={userLocation}
+        nearMePending={nearbyLoading}
         readerPosition={readerPosition}
         poisPath={city.poisPath}
         secondaryStreamsHeld={secondaryStreamsHeld}
@@ -6317,16 +6540,21 @@ export default function PubMap({
         tonightOpportunities={tonightOpportunities}
         tonightOverlayVisible={isLondon && tonightOverlayVisible && !tonightDismissed}
         onTonightOpportunityClick={handleTonightOpportunityClick}
+        coffeePilotCafes={coffeePilotLensOn ? coffeePilot.cafes : NO_COFFEE_PILOT_CAFES}
+        londonRestaurants={drawnLondonRestaurants}
         poiHidden={poiHidden}
         onPoiHiddenChange={setPoiHidden}
         hideLayersControl={mobileViewport}
+        onCameraResetChange={handleCameraResetChange}
         layersReaderKey={desktopLayersReaderKey}
         layersReaderPriceFilter={desktopLayersPriceFilter}
         venueDataFailed={venueIndexFailed}
         onReloadVenueData={reloadVenueIndex}
         listOpen={mapListOpen}
         onListOpenChange={setMapListOpen}
-        listCount={mapVenueListModel.total + ukBasePubListModel.total}
+        listCount={
+          mapVenueListModel.total + ukBasePubListModel.total + londonRestaurantListModel.total
+        }
         onSoftRetryChange={setMapSoftRetryActive}
         focusPoint={areaFocus ?? openingLocationFocus}
         openingCameraSettled={openingCameraSettled({
@@ -6526,7 +6754,11 @@ export default function PubMap({
               detailOpen
                 ? basePubOpen
                   ? selectedBasePub?.name ?? "Pub detail"
-                  : selectedVenue?.name ?? selectedVenueLabels.detailLabel
+                  : coffeeCafeOpen
+                    ? selectedCoffeeCafe?.name ?? "Cafe"
+                    : londonRestaurantOpen
+                      ? selectedLondonRestaurant?.name ?? "Restaurant"
+                      : selectedVenue?.name ?? selectedVenueLabels.detailLabel
                 : planningOpen
                   ? "Plan an outing"
                   : activeLandmark?.name ?? "Landmark"
@@ -6676,7 +6908,13 @@ export default function PubMap({
             detailOpen && !(routeMappedActive && drawerSideLaneViewport) ? true : undefined
           }
           role={detailOpen ? "dialog" : undefined}
-          aria-label={detailOpen ? selectedVenueLabels.detailLabel : undefined}
+          // A base pub has no curated venue, so name it from its own OSM kind:
+          // a pub's sheet is "Pub detail" whichever record opened it.
+          aria-label={
+            detailOpen
+              ? venueSheetLabels(basePubOpen ? selectedBasePub : selectedVenue).detailLabel
+              : undefined
+          }
         >
           <div
             className="mapDrawerHead sheetDragHandle"
@@ -6740,6 +6978,7 @@ export default function PubMap({
         {renderMapLoadingChrome()}
         {renderMapCanvas()}
         {renderMapSearchEmptyState()}
+        {renderCoffeePilotLoadFailed()}
         {renderDesktopToolbar()}
         {renderDesktopMapOverlays()}
 

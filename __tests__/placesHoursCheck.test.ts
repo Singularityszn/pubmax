@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { checkHours, compareHours, planHoursCheck } from "../scripts/lib/placesHoursCheck";
+import { defined } from "@/__tests__/helpers/defined";
 
 describe("opening-hours verification", () => {
   it("spends the remaining free allowance then caps paid Details calls", () => {
@@ -27,8 +28,8 @@ describe("opening-hours verification", () => {
     });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(result.calls).toBe(1);
-    expect(result.rows[0].verdict).toBe("match");
-    expect(Object.keys(result.rows[0]).sort()).toEqual(["googlePlaceId", "venueId", "verdict", "verifiedAt"]);
+    expect(defined(result.rows[0]).verdict).toBe("match");
+    expect(Object.keys(defined(result.rows[0])).sort()).toEqual(["googlePlaceId", "venueId", "verdict", "verifiedAt"]);
     expect(snapshots[0]).toEqual({ rows: [], calls: 1 });
     expect(JSON.stringify(snapshots)).not.toMatch(/GOOGLE NAME|periods|20:00|fake-test-key/);
   });

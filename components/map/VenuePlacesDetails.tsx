@@ -88,7 +88,7 @@ export default function VenuePlacesDetails({ venue, links = false, websiteLink =
         {phoneHref ? <a href={phoneHref}>Call {venue.name}</a> : null}
         {websiteHref ? <a href={websiteHref} target="_blank" rel="noopener noreferrer">Pub website</a> : null}
       </div> : null}
-      {copied.length ? <small className="venuePlacesDetailsCredit">
+      {copied[0] && list ? <small className="venuePlacesDetailsCredit">
         {list.charAt(0).toUpperCase()}{list.slice(1)}: Google Places · Checked {checked(copied[0].observedAt)}
       </small> : null}
       {hours ? <details>

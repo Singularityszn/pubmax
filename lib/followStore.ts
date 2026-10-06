@@ -236,7 +236,7 @@ function makeMemoryFollowStore(profiles: ProfileStore): FollowStore {
       const handles: string[] = [];
       for (const key of memoryEdges) {
         const [from, to] = key.split(">");
-        if (from !== profile.id) continue;
+        if (from !== profile.id || to === undefined) continue;
         const h = memoryHandleById.get(to);
         if (h) handles.push(h);
       }
@@ -249,7 +249,7 @@ function makeMemoryFollowStore(profiles: ProfileStore): FollowStore {
       const handles: string[] = [];
       for (const key of memoryEdges) {
         const [from, to] = key.split(">");
-        if (to !== profile.id) continue;
+        if (to !== profile.id || from === undefined) continue;
         const h = memoryHandleById.get(from);
         if (h) handles.push(h);
       }

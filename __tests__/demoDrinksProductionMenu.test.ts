@@ -11,6 +11,7 @@ import { demoDrinkVenueIds } from "@/lib/drinkSeeds";
 import { parseDrinkPriceUpdates } from "@/lib/drinkPriceUpdates";
 import type { VenuePrice } from "@/lib/venues";
 import { venueMenuForInspector } from "@/lib/venueMenu";
+import { defined } from "@/__tests__/helpers/defined";
 
 // #1427. A menu prints what a publisher or a drinker put on record. A seeded
 // demo pour beside a real Pint Drop is the thing this file refuses, and the
@@ -102,7 +103,7 @@ describe("production menus carry no demo drink", () => {
   it("no menu renders the removed demo footer line, seeded rows or not", () => {
     process.env[DRINKS_FLAG] = "on";
     const seededVenueId = demoDrinkVenueIds[0];
-    const html = renderMenu(seededVenueId, [pintDropPrice()]);
+    const html = renderMenu(defined(seededVenueId), [pintDropPrice()]);
 
     // The opt-in path still labels each seeded row honestly.
     expect(html).toContain(">Demo<");

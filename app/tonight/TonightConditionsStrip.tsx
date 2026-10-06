@@ -7,10 +7,19 @@
 // near you with a pint under 6 quid." A stale reading prints its age instead of
 // the drink and venue sentences.
 //
-// Mirrors TonightGetHomeStrip's idiom exactly: fetch fires in an effect, state
-// only settles inside the async resolution/catch, an AbortController cancels on
-// unmount or origin change, and the strip renders NOTHING while loading, on
-// error, or when the server has nothing worth saying. No spinner, no empty card.
+// Mirrors TonightGetHomeStrip's idiom: fetch fires in an effect, state only
+// settles inside the async resolution, and an AbortController cancels on unmount
+// or origin change. No spinner, no empty card.
+//
+// ON TONIGHT THE STRIP HOLDS ITS OWN ROOM WHILE IT LOADS. It sits above the listings,
+// so a strip that rendered nothing and then arrived pushed the whole list down
+// by its own height: half of the 0.14 layout shift the browser suite measured on
+// a slow Tonight load (5 Oct 2026). While the read runs it paints an invisible
+// panel of the same box, sized in lines to the width it has (tonightConditions.css),
+// and the answer fills it. A read that fails says there is no reading, the same
+// line a reading-less answer gets, inside the same held room, so the room is
+// never left blank and nothing below it moves. Every other host (the feed's
+// desktop rail) renders nothing while loading or on a failed read.
 //
 // Server does all the data work (weather snapshot + venue index) behind
 // /api/tonight-conditions; this component only renders the strings it returns.
@@ -32,9 +41,10 @@ import "./tonightConditions.css";
 type Props = {
   origin?: { lat: number; lng: number } | null;
   /**
-   * The strip sits under the Day/Tonight switch on Tonight, so its drink line
-   * names tonight rather than the clock's part of the day. The summary stays
-   * the clock's for every other surface that reads it.
+   * Hosted on Tonight. The strip sits under the Day/Tonight switch there, so
+   * its drink line names tonight rather than the clock's part of the day, and
+   * it holds its room above the listings while the read runs or fails. The
+   * summary stays the clock's for every other surface that reads it.
    */
   tonightMode?: boolean;
 };
@@ -58,15 +68,35 @@ export default function TonightConditionsStrip({ origin, tonightMode = false }: 
         validate: (body) => Boolean(body && "summary" in body),
       },
       (body) => setSummary(body.summary ?? null),
-    );
+    ).then((applied) => {
+      // A failed first read has nothing to show, so it settles on the
+      // no-reading line. A failed refresh keeps the reading already shown.
+      if (tonightMode && applied === "failed" && !controller.signal.aborted) {
+        setSummary((held) => (held === undefined ? null : held));
+      }
+    });
     return () => controller.abort();
-  }, [lat, lng]);
+  }, [lat, lng, tonightMode]);
 
-  if (summary === undefined) return null;
+  if (summary === undefined) {
+    if (!tonightMode) return null;
+    return (
+      <div
+        className="tonightConditions tonightConditionsRoom tonightConditionsHold"
+        aria-hidden="true"
+      >
+        <CloudSun size={16} aria-hidden="true" className="tonightConditionsIcon" />
+        <p className="tonightConditionsCopy" />
+      </div>
+    );
+  }
 
   if (summary === null) {
     return (
-      <div className="tonightConditions" data-testid="tonight-conditions">
+      <div
+        className={tonightMode ? "tonightConditions tonightConditionsRoom" : "tonightConditions"}
+        data-testid="tonight-conditions"
+      >
         <CloudSun size={16} aria-hidden="true" className="tonightConditionsIcon" />
         <p className="tonightConditionsCopy">{NO_WEATHER_READING_LINE}</p>
       </div>

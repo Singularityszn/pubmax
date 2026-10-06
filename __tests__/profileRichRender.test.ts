@@ -17,6 +17,7 @@ import ProfileEditor from "@/components/profile/ProfileEditor";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import { buildPassport } from "@/lib/passport";
 import { UNCOUNTED_STAT, type Profile, type ProfileStats } from "@/lib/profiles";
+import { defined } from "@/__tests__/helpers/defined";
 
 type ViewerState = "loading" | "resolved";
 type HeaderProps = ComponentProps<typeof ProfileHeader> & { viewerState?: ViewerState };
@@ -282,7 +283,7 @@ describe("an unmeasured count never renders as zero", () => {
 
   function statValues(markup: string): string[] {
     return [...markup.matchAll(/class="(?:passportStatValue|profileStatValue)"[^>]*>([^<]*)</g)].map(
-      (match) => match[1],
+      (match) => defined(match[1]),
     );
   }
 

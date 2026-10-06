@@ -1,0 +1,269 @@
+{
+  "city": "durham",
+  "districts": 1,
+  "slices": 4,
+  "slicesComplete": 4,
+  "incompleteSlices": [],
+  "skippedSources": [],
+  "filteredSources": [
+    {
+      "district": "DH1",
+      "category": "bar",
+      "url": "https://ratings.food.gov.uk/business/1561724/bar-33",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "DH1",
+      "category": "bar",
+      "url": "https://www.stjohnsdurham.ac.uk/community/johns-bar",
+      "host": "www.stjohnsdurham.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "DH1",
+      "category": "bar",
+      "url": "https://democracy.durham.gov.uk/mgUserInfo.aspx?UID=171",
+      "host": "democracy.durham.gov.uk",
+      "reason": "public body or academic site"
+    }
+  ],
+  "taskRuns": 8,
+  "webSearches": 7,
+  "pagesRead": 35,
+  "researched": 49,
+  "added": 0,
+  "retained": [
+    {
+      "name": "Whitechurch",
+      "id": "venue-dur-n53aox"
+    },
+    {
+      "name": "John's Bar",
+      "id": "venue-dur-8ti4sg"
+    },
+    {
+      "name": "Cuth's Bar",
+      "id": "venue-dur-1q8gqaa"
+    },
+    {
+      "name": "Dunelm Club",
+      "id": "venue-dur-ftudml"
+    },
+    {
+      "name": "Cosy Club Durham",
+      "id": "venue-dur-n4gbj0"
+    },
+    {
+      "name": "Hotel Indigo Rotunda Bar",
+      "id": "venue-dur-1yx09tz"
+    },
+    {
+      "name": "Cast Iron Bar",
+      "id": "venue-dur-ocx10"
+    },
+    {
+      "name": "Turkish Kitchen Meze & Grill",
+      "id": "venue-dur-v0muyx"
+    }
+  ],
+  "totalAccepted": 8,
+  "repeats": 0,
+  "duplicates": [
+    {
+      "name": "Stonebridge Inn",
+      "id": null,
+      "matchedName": "Stonebridge Inn",
+      "matchedId": "way/433169889"
+    }
+  ],
+  "withdrawn": [],
+  "permissionRejected": 0,
+  "rejected": [
+    {
+      "name": "The Avenue",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Broomside Park",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Gilesgate Moor Hotel",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Bridge Hotel",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Jovial Monk",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Newton Grange",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Travellers Rest",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "https://www.thehalfmooninndurham.co.uk",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.theheadofsteam.co.uk/bars/durham",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "The Avenue Inn",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Ramside Hall",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Jimmy Allens",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Broomside Park",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Travellers Rest",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "https://prestigestudentliving.com/blog/top-8-nightclubs-you-need-to-visit-in-durham",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.thehalfmooninndurham.co.uk",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.theheadofsteam.co.uk/bars/durham",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=18C+Church+St%2C+Durham+DH1+3DQ",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "CoHo Durham",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Muztard Durham",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Turtle Bay",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Tango",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Curious Mr Fox",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Revolution Durham",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Brasserie Quartier",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Notch Americano",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "El Pincho",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Isla By Coarse",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Tango",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Holi and Bhang",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Tia’s Mexican",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Zizzi Durham",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Turtle Bay Durham",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Whitechurch",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Cellar Door",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Bistro Italiano",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Broomside Park",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Tortilla",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Nando’s Durham",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Fat Hippo Durham",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Nadon Thai Durham",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Rudy’s Pizza Napoletana Durham",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Zaap Thai Street Food Durham",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Akarsu Turkish Restaurant & Grill",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "isla",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Cosy Club Durham",
+      "reason": "missing-venue-specific-citation"
+    }
+  ],
+  "outputPath": "data/cities/durham/parallel_venues.json"
+}

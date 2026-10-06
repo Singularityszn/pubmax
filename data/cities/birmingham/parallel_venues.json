@@ -1,0 +1,4237 @@
+{
+  "city": "birmingham",
+  "source": "Parallel Task API; Tavily Search and Extract",
+  "observationMeaning": "Each row's observedAt is the date its Parallel research result, Tavily search page text or page read was retrieved; provider names the lane. Cached reruns retain that date. Not a claim that the venue is open tonight.",
+  "populationPriority": 1144900,
+  "populationSources": [
+    "https://www.ons.gov.uk/peoplepopulationandcommunity/populationandmigration/populationestimates/bulletins/populationandhouseholdestimatesenglandandwales/census2021",
+    "https://www.scotlandscensus.gov.uk/2022-reports/scotlands-census-2022-rounded-population-estimates/"
+  ],
+  "venues": [
+    {
+      "name": "Society Birmingham",
+      "kind": "bar",
+      "address": "One Colmore Square, Birmingham B4 6AA",
+      "postcode": "B4 6AA",
+      "locality": "Birmingham",
+      "website": "https://www.societybirmingham.com/",
+      "lat": 52.48262,
+      "lng": -1.89642,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.societybirmingham.com/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.societybirmingham.com/",
+          "excerpt": "society Birmingham"
+        },
+        {
+          "url": "https://www.societybirmingham.com/",
+          "excerpt": "ONE colmore square"
+        },
+        {
+          "url": "https://www.societybirmingham.com/",
+          "excerpt": "birmingham B4 6AA"
+        },
+        {
+          "url": "https://www.societybirmingham.com/",
+          "excerpt": "craft beer bar and cocktail bar."
+        }
+      ],
+      "observedAt": "2026-10-04T10:15:57.563Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B4%206AA",
+        "observedAt": "2026-10-04T10:15:57.629Z",
+        "postcode": "B4 6AA",
+        "quality": 1
+      },
+      "id": "venue-bhm-1erud0f",
+      "provider": "parallel"
+    },
+    {
+      "name": "Smoke + Ash Edgbaston Village",
+      "kind": "restaurant",
+      "address": "12 Greenfield Crescent, Edgbaston Village, Birmingham B15 3AU",
+      "postcode": "B15 3AU",
+      "locality": "Birmingham",
+      "website": "https://www.smokeandashpizza.co.uk/",
+      "lat": 52.469874,
+      "lng": -1.922181,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.smokeandashpizza.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.smokeandashpizza.co.uk/",
+          "excerpt": "Smoke + Ash Edgbaston Village"
+        },
+        {
+          "url": "https://www.smokeandashpizza.co.uk/",
+          "excerpt": "12 Greenfield Crescent, Edgbaston Village B15 3AU"
+        },
+        {
+          "url": "https://www.smokeandashpizza.co.uk/",
+          "excerpt": "quality wines + seasonal twists on classic cocktails."
+        }
+      ],
+      "observedAt": "2026-10-04T10:15:57.563Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B15%203AU",
+        "observedAt": "2026-10-04T10:15:57.651Z",
+        "postcode": "B15 3AU",
+        "quality": 1
+      },
+      "id": "venue-bhm-m8q2cy",
+      "provider": "parallel"
+    },
+    {
+      "name": "Byzantium Tapas Restaurant",
+      "kind": "restaurant",
+      "address": "11 York Road, Kings Heath, Birmingham B14 7SA",
+      "postcode": "B14 7SA",
+      "locality": "Birmingham",
+      "website": "https://www.byzantiumtapas.co.uk/",
+      "lat": 52.434395,
+      "lng": -1.893972,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.byzantiumtapas.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.byzantiumtapas.co.uk/",
+          "excerpt": "Byzantium Tapas Restaurant is easy to find."
+        },
+        {
+          "url": "https://www.byzantiumtapas.co.uk/",
+          "excerpt": "11 York Road, Kings Heath, Birmingham, England, B14 7SA"
+        },
+        {
+          "url": "https://www.byzantiumtapas.co.uk/",
+          "excerpt": "a fantastic selection of wines and cocktails to accompany your tapas"
+        }
+      ],
+      "observedAt": "2026-10-04T10:15:57.563Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B14%207SA",
+        "observedAt": "2026-10-04T10:15:57.676Z",
+        "postcode": "B14 7SA",
+        "quality": 1
+      },
+      "id": "venue-bhm-kj58hz",
+      "provider": "parallel"
+    },
+    {
+      "name": "Lulu Wild",
+      "kind": "restaurant",
+      "address": "Unit 7 & 8, The Waters Edge, Brindley Place, Birmingham B1 2HP",
+      "postcode": "B1 2HP",
+      "locality": "Birmingham",
+      "website": "https://luluwild.co.uk/",
+      "lat": 52.477741,
+      "lng": -1.911302,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://luluwild.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://luluwild.co.uk/",
+          "excerpt": "LULU WILD, UNIT 7 & 8 THE WATERS EDGE, BRINDLEY PLACE, BIRMINGHAM B1 2HP"
+        },
+        {
+          "url": "https://luluwild.co.uk/",
+          "excerpt": "Visit our Chinese bar Broad Street and try some of our tempting cocktails for yourself."
+        }
+      ],
+      "observedAt": "2026-10-04T10:15:57.563Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B1%202HP",
+        "observedAt": "2026-10-04T10:15:57.767Z",
+        "postcode": "B1 2HP",
+        "quality": 1
+      },
+      "id": "venue-bhm-kpiwyz",
+      "provider": "parallel"
+    },
+    {
+      "name": "Piccolino",
+      "kind": "restaurant",
+      "address": "9 Brindley Place, Birmingham B1 2HS",
+      "postcode": "B1 2HS",
+      "locality": "Birmingham",
+      "website": "http://piccolinorestaurants.com/our-restaurants/birmingham",
+      "lat": 52.477482,
+      "lng": -1.913172,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "http://piccolinorestaurants.com/our-restaurants/birmingham"
+      ],
+      "evidence": [
+        {
+          "url": "http://piccolinorestaurants.com/our-restaurants/birmingham",
+          "excerpt": "Located on Oozells Square in Birmingham, Piccolino boasts the finest ・ a fabulous cocktail bar."
+        },
+        {
+          "url": "http://piccolinorestaurants.com/our-restaurants/birmingham",
+          "excerpt": "Address 9 Brindley Place, Birmingham, B1 2HS."
+        }
+      ],
+      "observedAt": "2026-10-04T11:23:06.836Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B1%202HS",
+        "observedAt": "2026-10-04T11:23:06.970Z",
+        "postcode": "B1 2HS",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f9387ccc57c1cab5d",
+      "id": "venue-bhm-1li0nzy",
+      "provider": "parallel"
+    },
+    {
+      "name": "Chez Mal Brasserie & Bar",
+      "kind": "restaurant",
+      "address": "The Mailbox, 1 Wharfside Street, Birmingham B1 1RD",
+      "postcode": "B1 1RD",
+      "locality": "Birmingham",
+      "website": "https://www.malmaison.com/locations/birmingham/chez-mal-brasserie-bar",
+      "lat": 52.476809,
+      "lng": -1.903722,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.malmaison.com/locations/birmingham",
+        "https://www.malmaison.com/locations/birmingham/chez-mal-brasserie-bar/chez-mal-bar"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.malmaison.com/locations/birmingham",
+          "excerpt": "The Mailbox, 1 Wharfside Street, Birmingham, B1 1RD, United Kingdom"
+        },
+        {
+          "url": "https://www.malmaison.com/locations/birmingham",
+          "excerpt": "CHEZ MAL BRASSERIE & BAR"
+        },
+        {
+          "url": "https://www.malmaison.com/locations/birmingham/chez-mal-brasserie-bar/chez-mal-bar",
+          "excerpt": "Offering a range of drinks, including expertly mixed cocktails, superb wines, flavourful craft beers"
+        }
+      ],
+      "observedAt": "2026-10-04T11:37:21.180Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B1%201RD",
+        "observedAt": "2026-10-04T11:37:21.249Z",
+        "postcode": "B1 1RD",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fbebda88ced7916ac",
+      "id": "venue-bhm-1gksk42",
+      "provider": "parallel"
+    },
+    {
+      "name": "The Gin Vault",
+      "kind": "bar",
+      "address": "16 Gas Street, Birmingham B1 2JT",
+      "postcode": "B1 2JT",
+      "locality": "Birmingham",
+      "website": "https://www.theginvault.com/",
+      "lat": 52.476931,
+      "lng": -1.909964,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.theginvault.com/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.theginvault.com/",
+          "excerpt": "The Gin Vault Birmingham Cocktails Gins Craft Beers Spirits Tapas 045"
+        },
+        {
+          "url": "https://www.theginvault.com/",
+          "excerpt": "16 Gas Street Birmingham England United Kingdom B1 2JT"
+        },
+        {
+          "url": "https://www.theginvault.com/",
+          "excerpt": "Boasting 470+ _gins,_ Spirits, beer, cocktails & in-house tapas."
+        }
+      ],
+      "observedAt": "2026-10-04T11:23:05.435Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B1%202JT",
+        "observedAt": "2026-10-04T11:23:05.467Z",
+        "postcode": "B1 2JT",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fa0f642a854e27c60",
+      "id": "venue-bhm-j7ue7h",
+      "provider": "parallel"
+    },
+    {
+      "name": "1000 Trades",
+      "kind": "pub",
+      "address": "16 Frederick Street, Jewellery Quarter, Birmingham B1 3HE",
+      "postcode": "B1 3HE",
+      "locality": "Birmingham",
+      "website": "https://1000trades.org.uk/",
+      "lat": 52.484951,
+      "lng": -1.911361,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://1000trades.org.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://1000trades.org.uk/",
+          "excerpt": "1000 Trades JQ - A Birmingham pub"
+        },
+        {
+          "url": "https://1000trades.org.uk/",
+          "excerpt": "16 Frederick Street, Jewellery Quarter, Birmingham, B1 3HE"
+        },
+        {
+          "url": "https://1000trades.org.uk/",
+          "excerpt": "Fervently serving quality beer & food Independent neighbourhood bar and kitchen in the Jewellery Quarter, Birmingham"
+        }
+      ],
+      "observedAt": "2026-10-04T11:23:05.435Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B1%203HE",
+        "observedAt": "2026-10-04T11:23:05.496Z",
+        "postcode": "B1 3HE",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fa0f642a854e27c60",
+      "id": "venue-bhm-byyumv",
+      "provider": "parallel"
+    },
+    {
+      "name": "Aluna",
+      "kind": "bar",
+      "address": "128–130 The Mailbox, Wharfside Street, Birmingham B1 1RQ",
+      "postcode": "B1 1RQ",
+      "locality": "Birmingham",
+      "website": "https://aluna.uk.com/",
+      "lat": 52.475238,
+      "lng": -1.906154,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://aluna.uk.com/contact"
+      ],
+      "evidence": [
+        {
+          "url": "https://aluna.uk.com/contact",
+          "excerpt": "Contact Aluna Birmingham Address 128-130 The Mailbox, Wharfside Street, Birmingham, B1 1RQ"
+        },
+        {
+          "url": "https://aluna.uk.com/contact",
+          "excerpt": "Pan Asian dining, theatrical cocktails and a little snippet of magic for everyone who walks through our doors."
+        }
+      ],
+      "observedAt": "2026-10-04T11:32:06.173Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B1%201RQ",
+        "observedAt": "2026-10-04T11:32:06.256Z",
+        "postcode": "B1 1RQ",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fa9106d4afc1b5ff7",
+      "id": "venue-bhm-1m748zq",
+      "provider": "parallel"
+    },
+    {
+      "name": "Noel's Bar & Restaurant",
+      "kind": "restaurant",
+      "address": "22 Waterfront Walk, Birmingham B1 1SN",
+      "postcode": "B1 1SN",
+      "locality": "Birmingham",
+      "website": "https://noelsbar.co.uk/",
+      "lat": 52.475491,
+      "lng": -1.907523,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://noelsbar.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://noelsbar.co.uk/",
+          "excerpt": "Noel's Bar & Restaurant – Mediterranean Dining in Birmingham 22 Waterfront Walk, Birmingham B1 1SN."
+        },
+        {
+          "url": "https://noelsbar.co.uk/",
+          "excerpt": "Our bar offers a curated selection of signature cocktails, premium spirits, and fine wines"
+        }
+      ],
+      "observedAt": "2026-10-04T11:32:06.173Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B1%201SN",
+        "observedAt": "2026-10-04T11:32:06.280Z",
+        "postcode": "B1 1SN",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fa9106d4afc1b5ff7",
+      "id": "venue-bhm-1cnswoa",
+      "provider": "parallel"
+    },
+    {
+      "name": "Lucarelli Restaurant Birmingham Mailbox",
+      "kind": "restaurant",
+      "address": "117 Wharfside Street, The Mailbox, Birmingham, B1 1RF",
+      "postcode": "B1 1RF",
+      "locality": "Birmingham",
+      "website": "https://www.lucarellirestaurant.co.uk/lucarelli-restaurant-mailbox/",
+      "lat": 52.475939,
+      "lng": -1.905387,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.lucarellirestaurant.co.uk/lucarelli-restaurant-mailbox/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.lucarellirestaurant.co.uk/lucarelli-restaurant-mailbox/",
+          "excerpt": "Lucarelli Restaurant Birmingham Mailbox"
+        },
+        {
+          "url": "https://www.lucarellirestaurant.co.uk/lucarelli-restaurant-mailbox/",
+          "excerpt": "117 Wharfside Street, The Mailbox, Birmingham, B1 1RF"
+        },
+        {
+          "url": "https://www.lucarellirestaurant.co.uk/lucarelli-restaurant-mailbox/",
+          "excerpt": "Carefully selected Italian wines"
+        },
+        {
+          "url": "https://www.lucarellirestaurant.co.uk/lucarelli-restaurant-mailbox/",
+          "excerpt": "Cocktails and aperitivo options"
+        }
+      ],
+      "observedAt": "2026-10-04T11:22:33.927Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B1%201RF",
+        "observedAt": "2026-10-04T11:22:33.995Z",
+        "postcode": "B1 1RF",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f80f635891ce47c62",
+      "id": "venue-bhm-no7l6h",
+      "provider": "parallel"
+    },
+    {
+      "name": "Miller & Carter – The Mailbox",
+      "kind": "restaurant",
+      "address": "Wharfside Street, Birmingham, West Midlands B1 1RN",
+      "postcode": "B1 1RN",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.474879,
+      "lng": -1.907009,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://visitbirmingham.com/listing/miller-&-carter-the-mailbox/134662101"
+      ],
+      "evidence": [
+        {
+          "url": "https://visitbirmingham.com/listing/miller-&-carter-the-mailbox/134662101",
+          "excerpt": "Miller & Carter - the Mailbox"
+        },
+        {
+          "url": "https://visitbirmingham.com/listing/miller-&-carter-the-mailbox/134662101",
+          "excerpt": "Wharfside Street , BIRMINGHAM, West Midlands B1 1RN"
+        },
+        {
+          "url": "https://visitbirmingham.com/listing/miller-&-carter-the-mailbox/134662101",
+          "excerpt": "The drinks offering revolves around a superb wine list to suit every taste and pocket, complemented by a range of draught beer, and a wide selection of premium spirits and classic cocktails."
+        }
+      ],
+      "observedAt": "2026-10-04T11:24:04.406Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B1%201RN",
+        "observedAt": "2026-10-04T11:24:04.445Z",
+        "postcode": "B1 1RN",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fb3742b13f936cc85",
+      "id": "venue-bhm-5ugg8f",
+      "provider": "parallel"
+    },
+    {
+      "name": "Tonight Josephine Birmingham",
+      "kind": "bar",
+      "address": "12 Burlington Arcade, Stephenson Street, Birmingham B2 4BL",
+      "postcode": "B2 4BL",
+      "locality": "Birmingham",
+      "website": "https://www.tonightjosephine.co.uk/bars/birmingham",
+      "lat": 52.478729,
+      "lng": -1.898873,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.tonightjosephine.co.uk/bars/birmingham",
+        "https://www.tonightjosephine.co.uk/bars/birmingham/occasions/bottomless-brunch",
+        "https://www.tonightjosephine.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.tonightjosephine.co.uk/bars/birmingham",
+          "excerpt": "Welcome to Tonight Josephine Birmingham 12 Burlington Arcade, Birmingham, B24BL"
+        },
+        {
+          "url": "https://www.tonightjosephine.co.uk/bars/birmingham/occasions/bottomless-brunch",
+          "excerpt": "12 Burlington Arcade, Stephenson Street, Birmingham, Birmingham, B24BL, England"
+        },
+        {
+          "url": "https://www.tonightjosephine.co.uk/",
+          "excerpt": "Delicious cocktails and refreshing bubbles served up every day at your favourite bar."
+        }
+      ],
+      "observedAt": "2026-10-04T11:31:17.465Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B2%204BL",
+        "observedAt": "2026-10-04T11:31:03.106Z",
+        "postcode": "B2 4BL",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f8255a2382b63b788",
+      "id": "venue-bhm-1xfnku0",
+      "provider": "parallel"
+    },
+    {
+      "name": "Fumo Birmingham",
+      "kind": "bar",
+      "address": "1 Waterloo Street, Birmingham B2 5PG",
+      "postcode": "B2 5PG",
+      "locality": "Birmingham",
+      "website": "https://sancarlo.co.uk/",
+      "lat": 52.48042,
+      "lng": -1.899488,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://visitbirmingham.com/listing/san-carlo-fumo-birmingham/181509101"
+      ],
+      "evidence": [
+        {
+          "url": "https://visitbirmingham.com/listing/san-carlo-fumo-birmingham/181509101",
+          "excerpt": "San Carlo Fumo Birmingham"
+        },
+        {
+          "url": "https://visitbirmingham.com/listing/san-carlo-fumo-birmingham/181509101",
+          "excerpt": "1 Waterloo Street , Birmingham, B2 5PG"
+        },
+        {
+          "url": "https://visitbirmingham.com/listing/san-carlo-fumo-birmingham/181509101",
+          "excerpt": "a stylish, contemporary Italian restaurant, cocktail bar and late lounge"
+        }
+      ],
+      "observedAt": "2026-10-04T11:31:17.465Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B2%205PG",
+        "observedAt": "2026-10-04T11:31:17.525Z",
+        "postcode": "B2 5PG",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f8255a2382b63b788",
+      "id": "venue-bhm-1kun1ot",
+      "provider": "parallel"
+    },
+    {
+      "name": "Riva Blu Birmingham",
+      "kind": "restaurant",
+      "address": "61-63 Temple Row, Birmingham B2 5LS",
+      "postcode": "B2 5LS",
+      "locality": "Birmingham",
+      "website": "https://rivablu.co.uk/locations/birmingham",
+      "lat": 52.480481,
+      "lng": -1.897691,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://rivablu.co.uk/locations/birmingham"
+      ],
+      "evidence": [
+        {
+          "url": "https://rivablu.co.uk/locations/birmingham",
+          "excerpt": "Riva Blu Birmingham"
+        },
+        {
+          "url": "https://rivablu.co.uk/locations/birmingham",
+          "excerpt": "Address 61-63 Temple Row Birmingham B2 5LS"
+        },
+        {
+          "url": "https://rivablu.co.uk/locations/birmingham",
+          "excerpt": "It also boasts an open kitchen, cocktail bar & large alfresco terrace"
+        }
+      ],
+      "observedAt": "2026-10-04T11:37:51.076Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B2%205LS",
+        "observedAt": "2026-10-04T11:30:55.730Z",
+        "postcode": "B2 5LS",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415faead2266930f7ae6",
+      "id": "venue-bhm-qjb1ok",
+      "provider": "parallel"
+    },
+    {
+      "name": "Las Iguanas Temple Street",
+      "kind": "restaurant",
+      "address": "39-40 Temple Street, Birmingham, B2 5DP",
+      "postcode": "B2 5DP",
+      "locality": "Birmingham",
+      "website": "https://www.iguanas.co.uk/restaurants/birmingham-templest",
+      "lat": 52.480194,
+      "lng": -1.898811,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.iguanas.co.uk/restaurants/birmingham-templest"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.iguanas.co.uk/restaurants/birmingham-templest",
+          "excerpt": "Las Iguanas Temple Street is bringing bold Mexican and South American food as well as killer cocktails"
+        },
+        {
+          "url": "https://www.iguanas.co.uk/restaurants/birmingham-templest",
+          "excerpt": "39-40 Temple Street, Birmingham, B2 5DP"
+        }
+      ],
+      "observedAt": "2026-10-04T11:32:58.954Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B2%205DP",
+        "observedAt": "2026-10-04T11:30:55.707Z",
+        "postcode": "B2 5DP",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fafa1f9801446cbf5",
+      "id": "venue-bhm-3ujde2",
+      "provider": "parallel"
+    },
+    {
+      "name": "Cosy Club Birmingham",
+      "kind": "bar",
+      "address": "33 Bennetts Hill, Birmingham B2 5SN",
+      "postcode": "B2 5SN",
+      "locality": "Birmingham",
+      "website": "https://cosyclub.co.uk/location/birmingham-bennetts-hill",
+      "lat": 52.480501,
+      "lng": -1.900371,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://cosyclub.co.uk/location/birmingham-bennetts-hill"
+      ],
+      "evidence": [
+        {
+          "url": "https://cosyclub.co.uk/location/birmingham-bennetts-hill",
+          "excerpt": "Standing proudly on Bennett’s Hill, you’ll find Cosy Club Birmingham."
+        },
+        {
+          "url": "https://cosyclub.co.uk/location/birmingham-bennetts-hill",
+          "excerpt": "33 Bennetts Hill, Birmingham, B2 5SN"
+        },
+        {
+          "url": "https://cosyclub.co.uk/location/birmingham-bennetts-hill",
+          "excerpt": "expertly crafted cocktails"
+        }
+      ],
+      "observedAt": "2026-10-04T11:23:06.530Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B2%205SN",
+        "observedAt": "2026-10-04T11:23:06.553Z",
+        "postcode": "B2 5SN",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f809beae859fc8ee8",
+      "id": "venue-bhm-1bqf1d2",
+      "provider": "parallel"
+    },
+    {
+      "name": "The Oyster Club by Adam Stokes",
+      "kind": "restaurant",
+      "address": "43 Temple Street, Birmingham, B2 5DP",
+      "postcode": "B2 5DP",
+      "locality": "Birmingham",
+      "website": "https://www.the-oyster-club.co.uk/",
+      "lat": 52.480194,
+      "lng": -1.898811,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.the-oyster-club.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.the-oyster-club.co.uk/",
+          "excerpt": "The Oyster Club by Adam Stokes."
+        },
+        {
+          "url": "https://www.the-oyster-club.co.uk/",
+          "excerpt": "43 Temple Street, Birmingham, B2 5DP"
+        },
+        {
+          "url": "https://www.the-oyster-club.co.uk/",
+          "excerpt": "Our newly launched Drinks List features Premium Cocktails, 2 for 1 House Cocktails, Mocktails and spirits, beers and softs"
+        }
+      ],
+      "observedAt": "2026-10-04T11:30:55.677Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B2%205DP",
+        "observedAt": "2026-10-04T11:30:55.707Z",
+        "postcode": "B2 5DP",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fa8b531c2871fb307",
+      "id": "venue-bhm-177wc6c",
+      "provider": "parallel"
+    },
+    {
+      "name": "San Carlo, Birmingham",
+      "kind": "restaurant",
+      "address": "4 Temple St, Birmingham B2 5BN",
+      "postcode": "B2 5BN",
+      "locality": "Birmingham",
+      "website": "https://sancarlo.co.uk/restaurants/birmingham/san-carlo-birmingham",
+      "lat": 52.480231,
+      "lng": -1.8994,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://sancarlo.co.uk/restaurants/birmingham/san-carlo-birmingham"
+      ],
+      "evidence": [
+        {
+          "url": "https://sancarlo.co.uk/restaurants/birmingham/san-carlo-birmingham",
+          "excerpt": "San Carlo, Birmingham"
+        },
+        {
+          "url": "https://sancarlo.co.uk/restaurants/birmingham/san-carlo-birmingham",
+          "excerpt": "4 Temple St, Birmingham B2 5BN, UK"
+        },
+        {
+          "url": "https://sancarlo.co.uk/restaurants/birmingham/san-carlo-birmingham",
+          "excerpt": "With refined interiors, attentive service and a carefully curated Italian wine list, San Carlo continues to define fine dining in the city."
+        }
+      ],
+      "observedAt": "2026-10-04T11:30:55.677Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B2%205BN",
+        "observedAt": "2026-10-04T11:30:55.749Z",
+        "postcode": "B2 5BN",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fa8b531c2871fb307",
+      "id": "venue-bhm-oyjobp",
+      "provider": "parallel"
+    },
+    {
+      "name": "Albert’s Schloss Birmingham",
+      "kind": "bar",
+      "address": "One Chamberlain Square, Birmingham B3 3AX",
+      "postcode": "B3 3AX",
+      "locality": "Birmingham",
+      "website": "https://www.albertsschloss.com/location/birmingham",
+      "lat": 52.479849,
+      "lng": -1.904819,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.albertsschloss.com/location/birmingham"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.albertsschloss.com/location/birmingham",
+          "excerpt": "Albert’s Schloss Birmingham, One Chamberlain Square, Birmingham B3 3AX"
+        },
+        {
+          "url": "https://www.albertsschloss.com/location/birmingham",
+          "excerpt": "Our lively cocktail bar shakes up a dynamic list of Schloss original creations and timeless favourites."
+        }
+      ],
+      "observedAt": "2026-10-04T11:23:12.445Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B3%203AX",
+        "observedAt": "2026-10-04T11:23:12.482Z",
+        "postcode": "B3 3AX",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f88e68f5f7b5198ad",
+      "id": "venue-bhm-gm99yd",
+      "provider": "parallel"
+    },
+    {
+      "name": "Saint Paul’s House",
+      "kind": "bar",
+      "address": "15-20 St Paul’s Square, Jewellery Quarter, Birmingham B3 1QU",
+      "postcode": "B3 1QU",
+      "locality": "Birmingham",
+      "website": "https://saintpaulshouse.com/",
+      "lat": 52.484847,
+      "lng": -1.904779,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://saintpaulshouse.com/"
+      ],
+      "evidence": [
+        {
+          "url": "https://saintpaulshouse.com/",
+          "excerpt": "Saint Paul’s House is a boutique hotel, restaurant, bar and social workspace"
+        },
+        {
+          "url": "https://saintpaulshouse.com/",
+          "excerpt": "A: 15-20 St Paul’s Square, Jewellery Quarter, Birmingham B3 1QU"
+        },
+        {
+          "url": "https://saintpaulshouse.com/",
+          "excerpt": "A simple but well-executed cocktail menu is also available"
+        }
+      ],
+      "observedAt": "2026-10-04T11:23:12.445Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B3%201QU",
+        "observedAt": "2026-10-04T11:23:12.525Z",
+        "postcode": "B3 1QU",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f88e68f5f7b5198ad",
+      "id": "venue-bhm-1wqg66y",
+      "provider": "parallel"
+    },
+    {
+      "name": "Theatrix Birmingham",
+      "kind": "bar",
+      "address": "130 Colmore Row, Birmingham B3 3AP",
+      "postcode": "B3 3AP",
+      "locality": "Birmingham",
+      "website": "https://theatrixbirmingham.co.uk/",
+      "lat": 52.480107,
+      "lng": -1.901962,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://theatrixbirmingham.co.uk/contact",
+        "https://theatrixbirmingham.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://theatrixbirmingham.co.uk/contact",
+          "excerpt": "Theatrix Birmingham, 130 Colmore Row Birmingham B3 3AP"
+        },
+        {
+          "url": "https://theatrixbirmingham.co.uk/",
+          "excerpt": "COCKTAIL BAR FEATURING A ROOFTOP BAR IN BIRMINGHAM"
+        },
+        {
+          "url": "https://theatrixbirmingham.co.uk/",
+          "excerpt": "With our extensive drinks menu which boasts craft beers, cocktails, wines and soft drinks"
+        }
+      ],
+      "observedAt": "2026-10-04T11:23:12.445Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B3%203AP",
+        "observedAt": "2026-10-04T11:23:12.591Z",
+        "postcode": "B3 3AP",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f88e68f5f7b5198ad",
+      "id": "venue-bhm-3qyhl0",
+      "provider": "parallel"
+    },
+    {
+      "name": "The Rectory 180 Club",
+      "kind": "bar",
+      "address": "50-54 St Pauls Square, Birmingham B3 1QS",
+      "postcode": "B3 1QS",
+      "locality": "Birmingham",
+      "website": "https://www.therectorybirmingham.co.uk/",
+      "lat": 52.484516,
+      "lng": -1.906193,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.therectorybirmingham.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.therectorybirmingham.co.uk/",
+          "excerpt": "The Rectory 180 Club"
+        },
+        {
+          "url": "https://www.therectorybirmingham.co.uk/",
+          "excerpt": "The Rectory, 50-54 St Pauls Square Birmingham, B3 1QS"
+        },
+        {
+          "url": "https://www.therectorybirmingham.co.uk/",
+          "excerpt": "This two-floor Birmingham darts bar combines cutting-edge gameplay with expertly crafted cocktails"
+        }
+      ],
+      "observedAt": "2026-10-04T11:23:12.445Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B3%201QS",
+        "observedAt": "2026-10-04T11:23:12.635Z",
+        "postcode": "B3 1QS",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f88e68f5f7b5198ad",
+      "id": "venue-bhm-1p048v8",
+      "provider": "parallel"
+    },
+    {
+      "name": "The Rectory",
+      "kind": "bar",
+      "address": "50-54 St Pauls Square, Birmingham, B3 1QS",
+      "postcode": "B3 1QS",
+      "locality": "Birmingham",
+      "website": "https://www.therectorybirmingham.co.uk/",
+      "lat": 52.484516,
+      "lng": -1.906193,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.therectorybirmingham.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.therectorybirmingham.co.uk/",
+          "excerpt": "The Rectory, 50-54 St Pauls Square Birmingham, B3 1QS"
+        },
+        {
+          "url": "https://www.therectorybirmingham.co.uk/",
+          "excerpt": "expertly crafted cocktails"
+        }
+      ],
+      "observedAt": "2026-10-04T11:27:30.043Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B3%201QS",
+        "observedAt": "2026-10-04T11:23:12.635Z",
+        "postcode": "B3 1QS",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fb266bd2da8fc507f",
+      "id": "venue-bhm-1b3455j",
+      "provider": "parallel"
+    },
+    {
+      "name": "Saint Paul's Market",
+      "kind": "bar",
+      "address": "4 Mary Ann Street, Jewellery Quarter, Birmingham, B3 1RL",
+      "postcode": "B3 1RL",
+      "locality": "Birmingham",
+      "website": "https://www.saintpaulsmarket.co.uk/",
+      "lat": 52.485341,
+      "lng": -1.904292,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.saintpaulsmarket.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.saintpaulsmarket.co.uk/",
+          "excerpt": "Saint Paul's Market"
+        },
+        {
+          "url": "https://www.saintpaulsmarket.co.uk/",
+          "excerpt": "4 Mary Ann Street, Jewellery Quarter, Birmingham, B3 1RL"
+        },
+        {
+          "url": "https://www.saintpaulsmarket.co.uk/",
+          "excerpt": "Independent Traders Cocktails Craft beer DJ’s and live Music"
+        }
+      ],
+      "observedAt": "2026-10-04T11:27:30.043Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B3%201RL",
+        "observedAt": "2026-10-04T11:27:30.167Z",
+        "postcode": "B3 1RL",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fb266bd2da8fc507f",
+      "id": "venue-bhm-1ta8ymj",
+      "provider": "parallel"
+    },
+    {
+      "name": "Theatrix",
+      "kind": "restaurant",
+      "address": "130 Colmore Row, Birmingham B3 3AP",
+      "postcode": "B3 3AP",
+      "locality": "Birmingham",
+      "website": "https://theatrixbirmingham.co.uk/",
+      "lat": 52.480107,
+      "lng": -1.901962,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://theatrixbirmingham.co.uk/",
+        "https://theatrixbirmingham.co.uk/contact"
+      ],
+      "evidence": [
+        {
+          "url": "https://theatrixbirmingham.co.uk/",
+          "excerpt": "With our extensive drinks menu which boasts craft beers, cocktails, wines and soft drinks, everyone at Theatrix."
+        },
+        {
+          "url": "https://theatrixbirmingham.co.uk/contact",
+          "excerpt": "Address: Theatrix Birmingham, 130 Colmore Row Birmingham B3 3AP"
+        }
+      ],
+      "observedAt": "2026-10-04T11:30:34.727Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B3%203AP",
+        "observedAt": "2026-10-04T11:23:12.591Z",
+        "postcode": "B3 3AP",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fa93115968e82475e",
+      "id": "venue-bhm-k6f8r6",
+      "provider": "parallel"
+    },
+    {
+      "name": "24 Stories",
+      "kind": "restaurant",
+      "address": "103 Colmore Row, Birmingham B3 3AG",
+      "postcode": "B3 3AG",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.480943,
+      "lng": -1.901563,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://visitbirmingham.com/listing/24-stories/150657101/"
+      ],
+      "evidence": [
+        {
+          "url": "https://visitbirmingham.com/listing/24-stories/150657101/",
+          "excerpt": "24 Stories comprises a modern French restaurant located on the 24th floor of 103 Colmore Row, plus a Cocktail Bar"
+        },
+        {
+          "url": "https://visitbirmingham.com/listing/24-stories/150657101/",
+          "excerpt": "103 Colmore Row , Birmingham, West Midlands B3 3AG."
+        }
+      ],
+      "observedAt": "2026-10-04T11:35:43.867Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B3%203AG",
+        "observedAt": "2026-10-04T11:35:43.922Z",
+        "postcode": "B3 3AG",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415faa1b2cbfbc591c52",
+      "id": "venue-bhm-96iyii",
+      "provider": "parallel"
+    },
+    {
+      "name": "White Tower",
+      "kind": "pub",
+      "address": "126 Lawley Middleway, Boardsley, Birmingham, B4 7XP",
+      "postcode": "B4 7XP",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.483656,
+      "lng": -1.87994,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/white-tower-birmingham-121450"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/white-tower-birmingham-121450",
+          "excerpt": "White Tower, Birmingham - Traditional City-edge Pub"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/white-tower-birmingham-121450",
+          "excerpt": "126 Lawley Middleway, Boardsley, Birmingham, B4 7XP."
+        }
+      ],
+      "observedAt": "2026-10-04T11:30:45.184Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B4%207XP",
+        "observedAt": "2026-10-04T11:30:45.218Z",
+        "postcode": "B4 7XP",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f8441ef949edabaab",
+      "id": "venue-bhm-y387fz",
+      "provider": "parallel"
+    },
+    {
+      "name": "The Kerryman",
+      "kind": "pub",
+      "address": "81 Digbeth, Birmingham B5 6DY",
+      "postcode": "B5 6DY",
+      "locality": "Birmingham",
+      "website": "http://kerrymanbirmingham.com/",
+      "lat": 52.475662,
+      "lng": -1.887485,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "http://kerrymanbirmingham.com/contact"
+      ],
+      "evidence": [
+        {
+          "url": "http://kerrymanbirmingham.com/contact",
+          "excerpt": "The Kerryman\n81 Digbeth\nBirmingham\nB5 6DY"
+        },
+        {
+          "url": "http://kerrymanbirmingham.com/contact",
+          "excerpt": "Family Owned Irish Pub in Birmingham"
+        }
+      ],
+      "observedAt": "2026-10-04T11:30:49.239Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B5%206DY",
+        "observedAt": "2026-10-04T11:22:53.874Z",
+        "postcode": "B5 6DY",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fb4a375e21b828095",
+      "id": "venue-bhm-1ddvzw4",
+      "provider": "parallel"
+    },
+    {
+      "name": "Redcorc Bar",
+      "kind": "bar",
+      "address": "79A Digbeth, Birmingham, B5 6DY",
+      "postcode": "B5 6DY",
+      "locality": "Birmingham",
+      "website": "https://www.redcorc.co.uk/",
+      "lat": 52.475662,
+      "lng": -1.887485,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.redcorc.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.redcorc.co.uk/",
+          "excerpt": "Address Redcorc Bar79A DigbethBirmingham, B5 6DY"
+        },
+        {
+          "url": "https://www.redcorc.co.uk/",
+          "excerpt": "Expect a warm Irish welcome, a bar stocked with everything from craft beer to properly made cocktails"
+        }
+      ],
+      "observedAt": "2026-10-04T11:22:53.782Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B5%206DY",
+        "observedAt": "2026-10-04T11:22:53.874Z",
+        "postcode": "B5 6DY",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fa7ded360b08b9172",
+      "id": "venue-bhm-149m3ql",
+      "provider": "parallel"
+    },
+    {
+      "name": "The Loft",
+      "kind": "bar",
+      "address": "143 Bromsgrove St, Birmingham B5 6RG",
+      "postcode": "B5 6RG",
+      "locality": "Birmingham",
+      "website": "http://theloftbrum.co.uk/",
+      "lat": 52.47327,
+      "lng": -1.896162,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "http://theloftbrum.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "http://theloftbrum.co.uk/",
+          "excerpt": "Address 143 Bromsgrove St, Birmingham B5 6RG"
+        },
+        {
+          "url": "http://theloftbrum.co.uk/",
+          "excerpt": "The Loft specialises in Premium Spirits, cocktails and beer."
+        }
+      ],
+      "observedAt": "2026-10-04T11:33:51.834Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B5%206RG",
+        "observedAt": "2026-10-04T11:33:51.858Z",
+        "postcode": "B5 6RG",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f853983a47df88dc4",
+      "id": "venue-bhm-v0l7dk",
+      "provider": "parallel"
+    },
+    {
+      "name": "Vietnamese Street Kitchen",
+      "kind": "restaurant",
+      "address": "3 St Martin's Square, Bullring, Birmingham B5 4BW",
+      "postcode": "B5 4BW",
+      "locality": "Birmingham",
+      "website": "https://vietnamesestreetkitchen.com/",
+      "lat": 52.477322,
+      "lng": -1.893046,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://vietnamesestreetkitchen.com/"
+      ],
+      "evidence": [
+        {
+          "url": "https://vietnamesestreetkitchen.com/",
+          "excerpt": "Vietnamese Street Kitchen"
+        },
+        {
+          "url": "https://vietnamesestreetkitchen.com/",
+          "excerpt": "Address 3 St Martin's Square, Bullring, Birmingham B5 4BW"
+        },
+        {
+          "url": "https://vietnamesestreetkitchen.com/",
+          "excerpt": "Unlimited cocktails, beer, wine or fizz."
+        }
+      ],
+      "observedAt": "2026-10-04T11:30:54.316Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B5%204BW",
+        "observedAt": "2026-10-04T11:30:54.336Z",
+        "postcode": "B5 4BW",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f93cc9a3e77bccf25",
+      "id": "venue-bhm-1q1evep",
+      "provider": "parallel"
+    },
+    {
+      "name": "Bill’s Bullring",
+      "kind": "restaurant",
+      "address": "Bullring Shopping Centre, Birmingham B5 4BE",
+      "postcode": "B5 4BE",
+      "locality": "Birmingham",
+      "website": "https://bills-website.co.uk/restaurants/bullring",
+      "lat": 52.47762,
+      "lng": -1.894871,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://bills-website.co.uk/restaurants/bullring"
+      ],
+      "evidence": [
+        {
+          "url": "https://bills-website.co.uk/restaurants/bullring",
+          "excerpt": "Bill's Bullring Restaurant, Bullring Shopping Centre, Birmingham B5 4BE"
+        },
+        {
+          "url": "https://bills-website.co.uk/restaurants/bullring",
+          "excerpt": "Or, if you fancy a drink, grab one of our delicious cocktails."
+        }
+      ],
+      "observedAt": "2026-10-04T11:22:14.735Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B5%204BE",
+        "observedAt": "2026-10-04T11:22:14.837Z",
+        "postcode": "B5 4BE",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f868767b8475a33bd",
+      "id": "venue-bhm-1ygxo0w",
+      "provider": "parallel"
+    },
+    {
+      "name": "Aston Inn",
+      "kind": "pub",
+      "address": "Aston Hall Road, Aston, Birmingham B6 7JU",
+      "postcode": "B6 7JU",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.506999,
+      "lng": -1.875707,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/aston-west-midlands-761"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/aston-west-midlands-761",
+          "excerpt": "Aston Inn Pub , in Birmingham"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/place/aston-west-midlands-761",
+          "excerpt": "Aston Hall Road, Aston, Birmingham, B6 7JU"
+        }
+      ],
+      "observedAt": "2026-10-04T11:22:51.660Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B6%207JU",
+        "observedAt": "2026-10-04T11:22:36.395Z",
+        "postcode": "B6 7JU",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f991417ee6b4e1db8",
+      "id": "venue-bhm-eyua5j",
+      "provider": "parallel"
+    },
+    {
+      "name": "Digger Inn",
+      "kind": "pub",
+      "address": "Moor Lane, Witton, Birmingham, B6 7AE",
+      "postcode": "B6 7AE",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.525544,
+      "lng": -1.882891,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/digger-inn-birmingham-121443"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/digger-inn-birmingham-121443",
+          "excerpt": "Digger Inn, Birmingham"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/digger-inn-birmingham-121443",
+          "excerpt": "Community pub in Witton with garden, parking & event nights."
+        },
+        {
+          "url": "https://camra.org.uk/pubs/digger-inn-birmingham-121443",
+          "excerpt": "Moor Lane, Witton, Birmingham, B6 7AE"
+        }
+      ],
+      "observedAt": "2026-10-04T11:24:12.073Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B6%207AE",
+        "observedAt": "2026-10-04T11:24:12.120Z",
+        "postcode": "B6 7AE",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fa8df592e838f733e",
+      "id": "venue-bhm-ac39lm",
+      "provider": "parallel"
+    },
+    {
+      "name": "Sacred Heart Club",
+      "kind": "club",
+      "address": "28 Grange Road, Aston, Birmingham, B6 6LA",
+      "postcode": "B6 6LA",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.506466,
+      "lng": -1.891945,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/witton-west-midlands-19168"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/witton-west-midlands-19168",
+          "excerpt": "Sacred Heart Sacred Heart Club, in Birmingham Cask Ale 28 Grange Road, Aston, Birmingham, B6 6LA"
+        }
+      ],
+      "observedAt": "2026-10-04T11:24:12.073Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B6%206LA",
+        "observedAt": "2026-10-04T11:24:12.204Z",
+        "postcode": "B6 6LA",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fa8df592e838f733e",
+      "id": "venue-bhm-10k2xrv",
+      "provider": "parallel"
+    },
+    {
+      "name": "Christophers Lounge",
+      "kind": "bar",
+      "address": "Aston Road North, Aston, Birmingham, B6 4DT",
+      "postcode": "B6 4DT",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.495574,
+      "lng": -1.885903,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/christophers-lounge-birmingham-121410"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/christophers-lounge-birmingham-121410",
+          "excerpt": "Christophers Lounge, Birmingham"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/christophers-lounge-birmingham-121410",
+          "excerpt": "Aston Road North, Aston, Birmingham, B6 4DT"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/christophers-lounge-birmingham-121410",
+          "excerpt": "Jamaican bar and restaurant in the heart of Aston."
+        }
+      ],
+      "observedAt": "2026-10-04T11:22:36.202Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B6%204DT",
+        "observedAt": "2026-10-04T11:22:36.246Z",
+        "postcode": "B6 4DT",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fa67ae8a52bf8e5d9",
+      "id": "venue-bhm-1lhxms5",
+      "provider": "parallel"
+    },
+    {
+      "name": "Shanahans Motel & Sports Bar",
+      "kind": "pub",
+      "address": "127-129 Rocky Lane, Aston, Birmingham, B7 5EP",
+      "postcode": "B7 5EP",
+      "locality": "Birmingham",
+      "website": "http://www.shanahansuk.com/",
+      "lat": 52.496447,
+      "lng": -1.878182,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/shanahans-motel-sports-bar-birmingham-121406"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/shanahans-motel-sports-bar-birmingham-121406",
+          "excerpt": "Shanahans Motel & Sports Bar, Birmingham"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/shanahans-motel-sports-bar-birmingham-121406",
+          "excerpt": "127-129 Rocky Lane, Aston, Birmingham, B7 5EP"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/shanahans-motel-sports-bar-birmingham-121406",
+          "excerpt": "Irish hotel, bistro and sports bar"
+        }
+      ],
+      "observedAt": "2026-10-04T11:23:11.422Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B7%205EP",
+        "observedAt": "2026-10-04T11:22:41.971Z",
+        "postcode": "B7 5EP",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fbff13849b655b719",
+      "id": "venue-bhm-1bvnv31",
+      "provider": "parallel"
+    },
+    {
+      "name": "Shanahans B&B with Sports Bar",
+      "kind": "bar",
+      "address": "127-129 Rocky Lane, Nechells, Birmingham, B7 5EP",
+      "postcode": "B7 5EP",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.496447,
+      "lng": -1.878182,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://visitbirmingham.com/listing/shanahans-b%26b-with-sports-bar/128039101"
+      ],
+      "evidence": [
+        {
+          "url": "https://visitbirmingham.com/listing/shanahans-b%26b-with-sports-bar/128039101",
+          "excerpt": "Shanahans B&B with Sports Bar 127-129 Rocky Lane, Nechells , Birmingham, W Midlands B7 5EP"
+        },
+        {
+          "url": "https://visitbirmingham.com/listing/shanahans-b%26b-with-sports-bar/128039101",
+          "excerpt": "Shanahans B&B with Sports Bar features a restaurant, bar and free WiFi."
+        }
+      ],
+      "observedAt": "2026-10-04T11:23:12.629Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B7%205EP",
+        "observedAt": "2026-10-04T11:22:41.971Z",
+        "postcode": "B7 5EP",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fae0bf2ae06e035ee",
+      "id": "venue-bhm-2bzzrr",
+      "provider": "parallel"
+    },
+    {
+      "name": "Ward End Social Club",
+      "kind": "club",
+      "address": "10 St. Margarets Road, Ward End, Birmingham, B8 2BA",
+      "postcode": "B8 2BA",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.494433,
+      "lng": -1.833573,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/ward-end-social-club-birmingham-121635"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/ward-end-social-club-birmingham-121635",
+          "excerpt": "Operator: Ward End Social Club. 10 St. Margarets Road, Ward End, Birmingham, B8 2BA"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/ward-end-social-club-birmingham-121635",
+          "excerpt": "This is a club, which means that the bar may only be open to club members."
+        }
+      ],
+      "observedAt": "2026-10-04T11:34:56.907Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B8%202BA",
+        "observedAt": "2026-10-04T11:30:35.510Z",
+        "postcode": "B8 2BA",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f8d505a92b52459e3",
+      "id": "venue-bhm-ytynte",
+      "provider": "parallel"
+    },
+    {
+      "name": "Saltley Inn",
+      "kind": "pub",
+      "address": "37 Washwood Heath Road, Birmingham, B8 1RS",
+      "postcode": "B8 1RS",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.492504,
+      "lng": -1.857677,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://birmingham.camra.org.uk/viewnode.php?id=131203",
+        "https://camra.org.uk/pubs/saltley-inn-birmingham-121619"
+      ],
+      "evidence": [
+        {
+          "url": "https://birmingham.camra.org.uk/viewnode.php?id=131203",
+          "excerpt": "Saltley Inn 37 Washwood Heath Road Birmingham B8 1RS"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/saltley-inn-birmingham-121619",
+          "excerpt": "This Club serves 2 changing beers and 0 regular beers."
+        }
+      ],
+      "observedAt": "2026-10-04T11:22:17.873Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B8%201RS",
+        "observedAt": "2026-10-04T11:22:17.894Z",
+        "postcode": "B8 1RS",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f8b4ff76170c8d22f",
+      "id": "venue-bhm-2jpoyl",
+      "provider": "parallel"
+    },
+    {
+      "name": "Maitland Hall Club",
+      "kind": "club",
+      "address": "Maitland Hall, Washwood Heath Road, Ward End, Birmingham, B8 2HF",
+      "postcode": "B8 2HF",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.494768,
+      "lng": -1.835398,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/121636"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/121636",
+          "excerpt": "Maitland Hall Club, Birmingham"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/121636",
+          "excerpt": "Maitland Hall, Washwood Heath Road, Ward End, Birmingham, B8 2HF"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/121636",
+          "excerpt": "This is a club, which means that the bar may only be open to club members."
+        }
+      ],
+      "observedAt": "2026-10-04T11:23:52.219Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B8%202HF",
+        "observedAt": "2026-10-04T11:23:52.284Z",
+        "postcode": "B8 2HF",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fafd951e2aa15621c",
+      "id": "venue-bhm-1keopea",
+      "provider": "parallel"
+    },
+    {
+      "name": "Bainsy's Bar",
+      "kind": "pub",
+      "address": "35 Lower Dartmouth Street, Small Heath, Birmingham, B9 4LG",
+      "postcode": "B9 4LG",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.478705,
+      "lng": -1.873991,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/bainsys-bar-birmingham-121245"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/bainsys-bar-birmingham-121245",
+          "excerpt": "Bainsy's Bar, Birmingham - Traditional Fans' Pub"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/bainsys-bar-birmingham-121245",
+          "excerpt": "Traditional Small Heath pub popular with Birmingham City fans; Open 35 Lower Dartmouth Street, Small Heath, Birmingham, B9 4LG"
+        }
+      ],
+      "observedAt": "2026-10-04T11:32:49.252Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B9%204LG",
+        "observedAt": "2026-10-04T11:32:49.285Z",
+        "postcode": "B9 4LG",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fa3dcc6d0d5aa5136",
+      "id": "venue-bhm-1l19ado",
+      "provider": "parallel"
+    },
+    {
+      "name": "Sophy Digbeth",
+      "kind": "bar",
+      "address": "1 Gibb St, Deritend, Birmingham B9 4AA",
+      "postcode": "B9 4AA",
+      "locality": "Birmingham",
+      "website": "https://sophybirmingham.co.uk/",
+      "lat": 52.475443,
+      "lng": -1.884158,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://sophybirmingham.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://sophybirmingham.co.uk/",
+          "excerpt": "Location : 1 Gibb St, Deritend, Birmingham B9 4AA"
+        },
+        {
+          "url": "https://sophybirmingham.co.uk/",
+          "excerpt": "Digbeth Cocktail Bar & Club"
+        },
+        {
+          "url": "https://sophybirmingham.co.uk/",
+          "excerpt": "Sophy Digbeth is where Birmingham's artistic spirit meets luxury nightlife."
+        }
+      ],
+      "observedAt": "2026-10-04T11:22:38.297Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B9%204AA",
+        "observedAt": "2026-10-04T11:22:38.334Z",
+        "postcode": "B9 4AA",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f990f56d8ead7319e",
+      "id": "venue-bhm-4nv4xh",
+      "provider": "parallel"
+    },
+    {
+      "name": "Golf Fang Birmingham",
+      "kind": "bar",
+      "address": "Custard Factory, Gibb Street, Digbeth, Birmingham, B9 4AA",
+      "postcode": "B9 4AA",
+      "locality": "Birmingham",
+      "website": "https://golffang.co.uk/birmingham",
+      "lat": 52.475443,
+      "lng": -1.884158,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://golffang.co.uk/birmingham"
+      ],
+      "evidence": [
+        {
+          "url": "https://golffang.co.uk/birmingham",
+          "excerpt": "Golf Fang Birmingham, Custard Factory, Gibb Street, Digbeth, B9 4AA"
+        },
+        {
+          "url": "https://golffang.co.uk/birmingham",
+          "excerpt": "Cocktails, signature cocktails, draught beer and a huge range of spirits – including our own pale ale and cider on draught."
+        }
+      ],
+      "observedAt": "2026-10-04T11:34:35.709Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B9%204AA",
+        "observedAt": "2026-10-04T11:22:38.334Z",
+        "postcode": "B9 4AA",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fa6417b95238e7366",
+      "id": "venue-bhm-1xbcyca",
+      "provider": "parallel"
+    },
+    {
+      "name": "The Nest",
+      "kind": "bar",
+      "address": "Mockingbird House, The Custard Factory, Gibb St, Deritend, Birmingham B9 4AA",
+      "postcode": "B9 4AA",
+      "locality": "Birmingham",
+      "website": "https://mockingbirdcinema.com/MockingbirdCinema.dll/Page?m=m&p=1052464",
+      "lat": 52.475443,
+      "lng": -1.884158,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://mockingbirdcinema.com/MockingbirdCinema.dll/Page?m=m&p=1052464",
+        "https://mockingbirdcinema.com/MockingbirdCinema.dll/Page?m=m&p=95047&sp=95029"
+      ],
+      "evidence": [
+        {
+          "url": "https://mockingbirdcinema.com/MockingbirdCinema.dll/Page?m=m&p=1052464",
+          "excerpt": "The Nest is our bar and social space at Mockingbird Cinema — a relaxed spot for drinks, cocktails and good music in Digbeth, Birmingham."
+        },
+        {
+          "url": "https://mockingbirdcinema.com/MockingbirdCinema.dll/Page?m=m&p=95047&sp=95029",
+          "excerpt": "Address: The Mockingbird Cinema Mockingbird House The Custard Factory Gibb St, Deritend Birmingham B9 4AA"
+        }
+      ],
+      "observedAt": "2026-10-04T11:32:09.410Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B9%204AA",
+        "observedAt": "2026-10-04T11:22:38.334Z",
+        "postcode": "B9 4AA",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fbfe3f42718b0d129",
+      "id": "venue-bhm-1t9h9vl",
+      "provider": "parallel"
+    },
+    {
+      "name": "Mama Roux's",
+      "kind": "bar",
+      "address": "Lower Trinity Street, Digbeth, Birmingham, B9 4AG",
+      "postcode": "B9 4AG",
+      "locality": "Birmingham",
+      "website": "https://www.mamarouxs.co.uk/",
+      "lat": 52.47518,
+      "lng": -1.881848,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.mamarouxs.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.mamarouxs.co.uk/",
+          "excerpt": "Mama Roux's, Lower Trinity Street, Digbeth, Birmingham, B9 4AG."
+        },
+        {
+          "url": "https://www.mamarouxs.co.uk/",
+          "excerpt": "[DJs] [LIVE MUSIC] [PERFORMERS] [COCKTAILS]"
+        }
+      ],
+      "observedAt": "2026-10-04T11:23:39.187Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B9%204AG",
+        "observedAt": "2026-10-04T11:23:39.282Z",
+        "postcode": "B9 4AG",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f96a9cd9ac7860080",
+      "id": "venue-bhm-11u02mu",
+      "provider": "parallel"
+    },
+    {
+      "name": "670 Grams",
+      "kind": "restaurant",
+      "address": "4 Gibb St, Deritend, Birmingham, B9 4AA",
+      "postcode": "B9 4AA",
+      "locality": "Birmingham",
+      "website": "https://670grams.com/",
+      "lat": 52.475443,
+      "lng": -1.884158,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://670grams.com/menus/"
+      ],
+      "evidence": [
+        {
+          "url": "https://670grams.com/menus/",
+          "excerpt": "Kray Treadwell welcomes you to 670Grams Restaurant in the heart of Digbeths historic custard factory."
+        },
+        {
+          "url": "https://670grams.com/menus/",
+          "excerpt": "4 Gibb St, Deritend, Birmingham, B9 4AA"
+        },
+        {
+          "url": "https://670grams.com/menus/",
+          "excerpt": "Offering a small but perfectly formed wine list forever changing and evolving."
+        }
+      ],
+      "observedAt": "2026-10-04T11:31:12.053Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B9%204AA",
+        "observedAt": "2026-10-04T11:22:38.334Z",
+        "postcode": "B9 4AA",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fb594eccd1f7a24d3",
+      "id": "venue-bhm-1s3gdvb",
+      "provider": "parallel"
+    },
+    {
+      "name": "Tyseley Working Mens Club",
+      "kind": "bar",
+      "address": "573 Warwick Road, Tyseley, Birmingham, B11 2EX",
+      "postcode": "B11 2EX",
+      "locality": "Birmingham",
+      "website": "https://tyseleywmc.co.uk/",
+      "lat": 52.452905,
+      "lng": -1.844295,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://tyseleywmc.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://tyseleywmc.co.uk/",
+          "excerpt": "Tyseley Working Mens Club\n573 Warwick Road\nTyseley\nBirmingham\nB11 2EX"
+        },
+        {
+          "url": "https://tyseleywmc.co.uk/",
+          "excerpt": "we also show many of the major sporting events in our bar"
+        },
+        {
+          "url": "https://tyseleywmc.co.uk/",
+          "excerpt": "The Club takes pride in our drinks as we offer a consistently excellent pint"
+        }
+      ],
+      "observedAt": "2026-10-04T11:23:01.446Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B11%202EX",
+        "observedAt": "2026-10-04T11:23:01.485Z",
+        "postcode": "B11 2EX",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f82edc20324410cda",
+      "id": "venue-bhm-uchscy",
+      "provider": "parallel"
+    },
+    {
+      "name": "Midland Art Centre Arena Bar",
+      "kind": "bar",
+      "address": "Cannon Hill Park, Birmingham B12 9QH",
+      "postcode": "B12 9QH",
+      "locality": "Birmingham",
+      "website": "https://macbirmingham.co.uk/",
+      "lat": 52.452878,
+      "lng": -1.903832,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://birmingham.camra.org.uk/pubguide",
+        "https://macbirmingham.co.uk/food-and-drink"
+      ],
+      "evidence": [
+        {
+          "url": "https://birmingham.camra.org.uk/pubguide",
+          "excerpt": "Midland Art Centre Arena Bar Email ku.oc.stracam@ofni Telephone (0121) 446 3232 Cannon Hill Park Birmingham B12 9QH Closing times may vary according to what functions are on."
+        },
+        {
+          "url": "https://macbirmingham.co.uk/food-and-drink",
+          "excerpt": "Beer, Wine and Cider Explore our hand-picked range of craft beers, ales, wines and ciders, including locally brewed favourites."
+        }
+      ],
+      "observedAt": "2026-10-04T11:30:31.456Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B12%209QH",
+        "observedAt": "2026-10-04T11:30:31.573Z",
+        "postcode": "B12 9QH",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fae907df9005a3873",
+      "id": "venue-bhm-12a591q",
+      "provider": "parallel"
+    },
+    {
+      "name": "MAC Bar",
+      "kind": "bar",
+      "address": "Cannon Hill Park, Birmingham B12 9QH",
+      "postcode": "B12 9QH",
+      "locality": "Birmingham",
+      "website": "https://macbirmingham.co.uk/food-and-drink",
+      "lat": 52.452878,
+      "lng": -1.903832,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://macbirmingham.co.uk/food-and-drink"
+      ],
+      "evidence": [
+        {
+          "url": "https://macbirmingham.co.uk/food-and-drink",
+          "excerpt": "MAC Bar is a stylish spot to enjoy a pre- or post-show drink, located next to our Cinema and Main Theatre."
+        },
+        {
+          "url": "https://macbirmingham.co.uk/food-and-drink",
+          "excerpt": "Explore our hand-picked range of craft beers, ales, wines and ciders, including locally brewed favourites."
+        },
+        {
+          "url": "https://macbirmingham.co.uk/food-and-drink",
+          "excerpt": "Cannon Hill Park Birmingham B12 9QH"
+        }
+      ],
+      "observedAt": "2026-10-04T11:32:38.714Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B12%209QH",
+        "observedAt": "2026-10-04T11:30:31.573Z",
+        "postcode": "B12 9QH",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f8513f0045121101c",
+      "id": "venue-bhm-1yv4o13",
+      "provider": "parallel"
+    },
+    {
+      "name": "Kennedys Bar",
+      "kind": "pub",
+      "address": "93 Alcester Road, Moseley, Birmingham B13 8DD",
+      "postcode": "B13 8DD",
+      "locality": "Birmingham",
+      "website": "https://kennedysbar.co.uk/",
+      "lat": 52.447102,
+      "lng": -1.888396,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://kennedysbar.co.uk/about-us"
+      ],
+      "evidence": [
+        {
+          "url": "https://kennedysbar.co.uk/about-us",
+          "excerpt": "One Trick Pony Limited Trading as Kennedys Bar – 93 Alcester Road Moseley B13 8DD – mail@kennedysbar.co.uk"
+        },
+        {
+          "url": "https://kennedysbar.co.uk/about-us",
+          "excerpt": "Kennedys Bar is an independently owned, family-run bar built on a genuine love for great pubs and good company."
+        },
+        {
+          "url": "https://kennedysbar.co.uk/about-us",
+          "excerpt": "We serve hearty, well-loved food, pour a great pint, and create a lively atmosphere that brings people together."
+        }
+      ],
+      "observedAt": "2026-10-04T11:22:30.443Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B13%208DD",
+        "observedAt": "2026-10-04T11:22:30.512Z",
+        "postcode": "B13 8DD",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fadc5e7e545afaa6a",
+      "id": "venue-bhm-f476z3",
+      "provider": "parallel"
+    },
+    {
+      "name": "La Plancha",
+      "kind": "bar",
+      "address": "113 Alcester Road, Moseley Village, Birmingham B13 8DD",
+      "postcode": "B13 8DD",
+      "locality": "Birmingham",
+      "website": "http://laplancha.co.uk/",
+      "lat": 52.447102,
+      "lng": -1.888396,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "http://laplancha.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "http://laplancha.co.uk/",
+          "excerpt": "La Plancha · Restaurant & Bar"
+        },
+        {
+          "url": "http://laplancha.co.uk/",
+          "excerpt": "La Plancha 113 Alcester Road | Moseley Village | Birmingham | B13 8DD"
+        },
+        {
+          "url": "http://laplancha.co.uk/",
+          "excerpt": "Vibrant cocktails."
+        }
+      ],
+      "observedAt": "2026-10-04T11:22:30.443Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B13%208DD",
+        "observedAt": "2026-10-04T11:22:30.512Z",
+        "postcode": "B13 8DD",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fadc5e7e545afaa6a",
+      "id": "venue-bhm-1lzxjbg",
+      "provider": "parallel"
+    },
+    {
+      "name": "Sabai Sabai Moseley Village",
+      "kind": "restaurant",
+      "address": "25 Woodbridge Rd, Moseley, Birmingham, B13 8EH",
+      "postcode": "B13 8EH",
+      "locality": "Birmingham",
+      "website": "https://www.sabaisabai.com/moseley-village",
+      "lat": 52.448322,
+      "lng": -1.8862,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.sabaisabai.com/moseley-village"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.sabaisabai.com/moseley-village",
+          "excerpt": "Sabai Sabai Moseley Village 25 Woodbridge Rd, Moseley, Birmingham, B13 8EH"
+        },
+        {
+          "url": "https://www.sabaisabai.com/moseley-village",
+          "excerpt": "Wine List Wines from around the world View wine menu Drinks Menu Selection of spritz, beers and spirits"
+        }
+      ],
+      "observedAt": "2026-10-04T11:32:13.265Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B13%208EH",
+        "observedAt": "2026-10-04T11:32:12.422Z",
+        "postcode": "B13 8EH",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f90da9c9e54cf63c0",
+      "id": "venue-bhm-y35s5f",
+      "provider": "parallel"
+    },
+    {
+      "name": "Moseley All Services Club",
+      "kind": "club",
+      "address": "91 Church Road, Moseley, Birmingham B13 9EA",
+      "postcode": "B13 9EA",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.447196,
+      "lng": -1.883084,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/moseley-12232"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/moseley-12232",
+          "excerpt": "Moseley All Services Club Moseley All Services Club Club , in Moseley"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/place/moseley-12232",
+          "excerpt": "1 Regular Beer Cask Ale"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/place/moseley-12232",
+          "excerpt": "91 Church Road, Moseley, B13 9EA"
+        }
+      ],
+      "observedAt": "2026-10-04T11:37:42.016Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B13%209EA",
+        "observedAt": "2026-10-04T11:37:42.083Z",
+        "postcode": "B13 9EA",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fbd7f21d25bf734a5",
+      "id": "venue-bhm-kfoo3x",
+      "provider": "parallel"
+    },
+    {
+      "name": "Kings Heath Cricket & Sports Club",
+      "kind": "bar",
+      "address": "Charlton House, 247 Alcester Road South, Kings Heath, Birmingham, B14 6DT",
+      "postcode": "B14 6DT",
+      "locality": "Birmingham",
+      "website": "https://www.kingsheathsportsclub.com/",
+      "lat": 52.423731,
+      "lng": -1.891645,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://birmingham.camra.org.uk/pubguide",
+        "https://camra.org.uk/pubs/kings-heath-cricket-sports-club-birmingham-121127"
+      ],
+      "evidence": [
+        {
+          "url": "https://birmingham.camra.org.uk/pubguide",
+          "excerpt": "Kings Heath Cricket & Sports Club"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/kings-heath-cricket-sports-club-birmingham-121127",
+          "excerpt": "Charlton House, 247 Alcester Road South, Kings Heath, Birmingham, B14 6DT"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/kings-heath-cricket-sports-club-birmingham-121127",
+          "excerpt": "This Club serves 1 changing beer and 2 regular beers."
+        }
+      ],
+      "observedAt": "2026-10-04T11:36:08.503Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B14%206DT",
+        "observedAt": "2026-10-04T11:36:09.720Z",
+        "postcode": "B14 6DT",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f8eb1e78665224643",
+      "id": "venue-bhm-mboz83",
+      "provider": "parallel"
+    },
+    {
+      "name": "La Santé",
+      "kind": "bar",
+      "address": "Unit 1, Kings Court, Kings Heath, Birmingham B14 7JZ",
+      "postcode": "B14 7JZ",
+      "locality": "Birmingham",
+      "website": "https://www.lasante23.com/",
+      "lat": 52.435797,
+      "lng": -1.89291,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.lasante23.com/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.lasante23.com/",
+          "excerpt": "Welcome to La Santé, a small independent French Bistro & Wine Bar."
+        },
+        {
+          "url": "https://www.lasante23.com/",
+          "excerpt": "Unit 1, Kings Court, Kings Heath, Birmingham, B14 7JZ"
+        },
+        {
+          "url": "https://www.lasante23.com/",
+          "excerpt": "Our menu features classic bistro favourites, small plates to share, and a carefully chosen wine list"
+        }
+      ],
+      "observedAt": "2026-10-04T11:22:59.368Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B14%207JZ",
+        "observedAt": "2026-10-04T11:22:59.471Z",
+        "postcode": "B14 7JZ",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fa004f17d992af947",
+      "id": "venue-bhm-bayhtl",
+      "provider": "parallel"
+    },
+    {
+      "name": "Smoke + Ash Kings Heath",
+      "kind": "restaurant",
+      "address": "21 York Rd, King's Heath, Birmingham B14 7SA",
+      "postcode": "B14 7SA",
+      "locality": "Birmingham",
+      "website": "https://www.smokeandashpizza.co.uk/",
+      "lat": 52.434395,
+      "lng": -1.893972,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.smokeandashpizza.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.smokeandashpizza.co.uk/",
+          "excerpt": "Smoke + Ash Kings Heath"
+        },
+        {
+          "url": "https://www.smokeandashpizza.co.uk/",
+          "excerpt": "21 York Rd, King's Heath, Birmingham B14 7SA"
+        },
+        {
+          "url": "https://www.smokeandashpizza.co.uk/",
+          "excerpt": "Join us for cocktails, wine, and whisky before, after, or instead of pizza."
+        }
+      ],
+      "observedAt": "2026-10-04T11:22:59.368Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B14%207SA",
+        "observedAt": "2026-10-04T11:22:59.439Z",
+        "postcode": "B14 7SA",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fa004f17d992af947",
+      "id": "venue-bhm-7muxsg",
+      "provider": "parallel"
+    },
+    {
+      "name": "Boom Battle Bar Birmingham Broad Street",
+      "kind": "bar",
+      "address": "Unit 7, Five Ways, Broad Street, Birmingham B15 1DA",
+      "postcode": "B15 1DA",
+      "locality": "Birmingham",
+      "website": "https://boombattlebar.com/uk/birmingham-broad-street/",
+      "lat": 52.474445,
+      "lng": -1.915283,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://boombattlebar.com/uk/birmingham-broad-street/"
+      ],
+      "evidence": [
+        {
+          "url": "https://boombattlebar.com/uk/birmingham-broad-street/",
+          "excerpt": "BOOM BATTLE BAR BIRMINGHAM BROAD STREET"
+        },
+        {
+          "url": "https://boombattlebar.com/uk/birmingham-broad-street/",
+          "excerpt": "Unit 7, Five Ways Broad Street, Birmingham, B15 1DA."
+        },
+        {
+          "url": "https://boombattlebar.com/uk/birmingham-broad-street/",
+          "excerpt": "We’re now pouring £5 pints of BOOM Lager and £5 glasses of Prosecco."
+        }
+      ],
+      "observedAt": "2026-10-04T11:23:55.716Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B15%201DA",
+        "observedAt": "2026-10-04T11:23:06.161Z",
+        "postcode": "B15 1DA",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f9132dbf260ce5968",
+      "id": "venue-bhm-1w0eleg",
+      "provider": "parallel"
+    },
+    {
+      "name": "Peg & Grill",
+      "kind": "pub",
+      "address": "38 Bishopsgate St, Birmingham B15 1EJ",
+      "postcode": "B15 1EJ",
+      "locality": "Birmingham",
+      "website": "https://pegandgrill.co.uk/birmingham",
+      "lat": 52.473599,
+      "lng": -1.914417,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://pegandgrill.co.uk/birmingham",
+        "https://camra.org.uk/pubs/peg-grill-birmingham-121205"
+      ],
+      "evidence": [
+        {
+          "url": "https://pegandgrill.co.uk/birmingham",
+          "excerpt": "PEG & GRILL, BIRMINGHAM"
+        },
+        {
+          "url": "https://pegandgrill.co.uk/birmingham",
+          "excerpt": "38 Bishopsgate St Birmingham B15 1EJ"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/peg-grill-birmingham-121205",
+          "excerpt": "Indian bar and grill, just off Broad Street and Fiveways."
+        },
+        {
+          "url": "https://camra.org.uk/pubs/peg-grill-birmingham-121205",
+          "excerpt": "No real ale available but Doom Bar on keg."
+        }
+      ],
+      "observedAt": "2026-10-04T11:35:36.432Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B15%201EJ",
+        "observedAt": "2026-10-04T11:35:36.469Z",
+        "postcode": "B15 1EJ",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fb4886080d954a706",
+      "id": "venue-bhm-1fxxxpl",
+      "provider": "parallel"
+    },
+    {
+      "name": "1900 Restaurant and Bar",
+      "kind": "restaurant",
+      "address": "53 Edgbaston Park Road, Birmingham B15 2RS",
+      "postcode": "B15 2RS",
+      "locality": "Birmingham",
+      "website": "https://www.edgbastonparkhotel.com/dining",
+      "lat": 52.455277,
+      "lng": -1.927696,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.edgbastonparkhotel.com/dining"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.edgbastonparkhotel.com/dining",
+          "excerpt": "1900 Restaurant and Bar At Edgbaston Park Hotel"
+        },
+        {
+          "url": "https://www.edgbastonparkhotel.com/dining",
+          "excerpt": "53 Edgbaston Park Road, Birmingham B15 2RS United Kingdom"
+        },
+        {
+          "url": "https://www.edgbastonparkhotel.com/dining",
+          "excerpt": "Sip vegan and English wines, plus delicious non-alcoholic options."
+        }
+      ],
+      "observedAt": "2026-10-04T11:35:36.432Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B15%202RS",
+        "observedAt": "2026-10-04T11:35:36.530Z",
+        "postcode": "B15 2RS",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fb4886080d954a706",
+      "id": "venue-bhm-17uk68q",
+      "provider": "parallel"
+    },
+    {
+      "name": "Barbara’s Bier Haus",
+      "kind": "bar",
+      "address": "195–196 Broad Street, Birmingham B15 1SU",
+      "postcode": "B15 1SU",
+      "locality": "Birmingham",
+      "website": "https://barbarasbierhaus.co.uk/",
+      "lat": 52.475244,
+      "lng": -1.91381,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://barbarasbierhaus.co.uk/birmingham/friday-at-barbaras-birmingham/"
+      ],
+      "evidence": [
+        {
+          "url": "https://barbarasbierhaus.co.uk/birmingham/friday-at-barbaras-birmingham/",
+          "excerpt": "Friday Nights at Barbara’s Bier Haus"
+        },
+        {
+          "url": "https://barbarasbierhaus.co.uk/birmingham/friday-at-barbaras-birmingham/",
+          "excerpt": "195–196 Broad Street, Birmingham, B15 1SU"
+        },
+        {
+          "url": "https://barbarasbierhaus.co.uk/birmingham/friday-at-barbaras-birmingham/",
+          "excerpt": "beer, ciders, prosecco, wine, cocktails, towers, spirits"
+        }
+      ],
+      "observedAt": "2026-10-04T11:22:35.921Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B15%201SU",
+        "observedAt": "2026-10-04T11:22:36.059Z",
+        "postcode": "B15 1SU",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f9e71937e798e04c8",
+      "id": "venue-bhm-1hkkifg",
+      "provider": "parallel"
+    },
+    {
+      "name": "Edgbaston Golf Club",
+      "kind": "bar",
+      "address": "Church Road, Edgbaston, Birmingham B15 3TB",
+      "postcode": "B15 3TB",
+      "locality": "Birmingham",
+      "website": "https://www.edgbastongc.co.uk/",
+      "lat": 52.460989,
+      "lng": -1.918076,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.edgbastongc.co.uk/dining_at_edgbaston"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.edgbastongc.co.uk/dining_at_edgbaston",
+          "excerpt": "Edgbaston Golf Club Church Road, Edgbaston, Birmingham, B15 3TB"
+        },
+        {
+          "url": "https://www.edgbastongc.co.uk/dining_at_edgbaston",
+          "excerpt": "Both the Restaurant and the Bar Menu are available all day."
+        },
+        {
+          "url": "https://www.edgbastongc.co.uk/dining_at_edgbaston",
+          "excerpt": "The club offers an extensive wine menu, with over 30 bins hand selected by our Food and Beverage Team"
+        }
+      ],
+      "observedAt": "2026-10-04T11:22:35.921Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B15%203TB",
+        "observedAt": "2026-10-04T11:22:36.100Z",
+        "postcode": "B15 3TB",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f9e71937e798e04c8",
+      "id": "venue-bhm-89i9oi",
+      "provider": "parallel"
+    },
+    {
+      "name": "Varanasi Birmingham",
+      "kind": "restaurant",
+      "address": "184 Broad Street, Birmingham, B15 1DA",
+      "postcode": "B15 1DA",
+      "locality": "Birmingham",
+      "website": "https://varanasi.uk/birmingham/",
+      "lat": 52.474445,
+      "lng": -1.915283,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://varanasi.uk/birmingham/",
+        "https://varanasi.uk/birmingham/contact"
+      ],
+      "evidence": [
+        {
+          "url": "https://varanasi.uk/birmingham/",
+          "excerpt": "Cocktails at Varanasi Birmingham."
+        },
+        {
+          "url": "https://varanasi.uk/birmingham/contact",
+          "excerpt": "184 Broad Street, Birmingham, B15 1DA"
+        }
+      ],
+      "observedAt": "2026-10-04T11:30:45.978Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B15%201DA",
+        "observedAt": "2026-10-04T11:23:06.161Z",
+        "postcode": "B15 1DA",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fbceb0f880f4a5746",
+      "id": "venue-bhm-is4zwq",
+      "provider": "parallel"
+    },
+    {
+      "name": "1565 Bar & Terrace",
+      "kind": "bar",
+      "address": "Park Regis Birmingham, 160 Broad Street, Birmingham B15 1DT",
+      "postcode": "B15 1DT",
+      "locality": "Birmingham",
+      "website": "https://www.parkregisbirmingham.co.uk/",
+      "lat": 52.472936,
+      "lng": -1.916979,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.parkregisbirmingham.co.uk/wp-content/uploads/2023/04/Private-Dining-Brochure-V2.pdf",
+        "https://www.parkregisbirmingham.co.uk/compendium"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.parkregisbirmingham.co.uk/wp-content/uploads/2023/04/Private-Dining-Brochure-V2.pdf",
+          "excerpt": "We are home to 1565 Bar & Terrace which has an extensive menu of creative cocktails, food, and a range of luxury Afternoon Teas."
+        },
+        {
+          "url": "https://www.parkregisbirmingham.co.uk/compendium",
+          "excerpt": "Park Regis Birmingham 160 Broad Street B15 1DT"
+        }
+      ],
+      "observedAt": "2026-10-04T11:30:48.856Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B15%201DT",
+        "observedAt": "2026-10-04T11:30:48.884Z",
+        "postcode": "B15 1DT",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f900f272b1daa988f",
+      "id": "venue-bhm-lhdykc",
+      "provider": "parallel"
+    },
+    {
+      "name": "Birmingham Strathallan Hotel",
+      "kind": "bar",
+      "address": "225 Hagley Road, Birmingham, B16 9RY",
+      "postcode": "B16 9RY",
+      "locality": "Birmingham",
+      "website": "https://www.lghhm.com/hotel/birmingham-strathallan-hotel",
+      "lat": 52.472391,
+      "lng": -1.938047,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.lghhm.com/hotel/birmingham-strathallan-hotel"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.lghhm.com/hotel/birmingham-strathallan-hotel",
+          "excerpt": "Birmingham Strathallan Hotel With a lounge bar, restaurant, gym, and plenty of meetings and event spaces, 225 Hagley Road, Birmingham, B16 9RY"
+        }
+      ],
+      "observedAt": "2026-10-04T11:37:02.697Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B16%209RY",
+        "observedAt": "2026-10-04T11:37:02.751Z",
+        "postcode": "B16 9RY",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f9897bfb188142c88",
+      "id": "venue-bhm-yk9ds6",
+      "provider": "parallel"
+    },
+    {
+      "name": "Praza",
+      "kind": "restaurant",
+      "address": "94-96 Hagley Road, Edgbaston, Birmingham B16 8LU",
+      "postcode": "B16 8LU",
+      "locality": "Birmingham",
+      "website": "https://praza.co.uk/",
+      "lat": 52.471631,
+      "lng": -1.928155,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "http://praza.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "http://praza.co.uk/",
+          "excerpt": "94-96 Hagley Road, Edgbaston, Birmingham B16 8LU"
+        },
+        {
+          "url": "http://praza.co.uk/",
+          "excerpt": "COCKTAIL BAR Praza’s talented mixologists are dedicated to giving you the ultimate cocktail experience!"
+        }
+      ],
+      "observedAt": "2026-10-04T11:23:03.617Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B16%208LU",
+        "observedAt": "2026-10-04T11:23:03.643Z",
+        "postcode": "B16 8LU",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f8ecc1af92f5a7adf",
+      "id": "venue-bhm-1nrvsix",
+      "provider": "parallel"
+    },
+    {
+      "name": "Arco Lounge",
+      "kind": "pub",
+      "address": "147 High Street, Harborne, Birmingham, B17 9NP",
+      "postcode": "B17 9NP",
+      "locality": "Birmingham",
+      "website": "https://thelounges.co.uk/arco",
+      "lat": 52.459145,
+      "lng": -1.948602,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/harborne-7849"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/harborne-7849",
+          "excerpt": "Open ### Arco Lounge Pub"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/place/harborne-7849",
+          "excerpt": "147 High Street, Harborne, Birmingham, B17 9NP"
+        }
+      ],
+      "observedAt": "2026-10-04T11:30:58.291Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B17%209NP",
+        "observedAt": "2026-10-04T11:30:58.312Z",
+        "postcode": "B17 9NP",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fbb26f8c3d1f1183f",
+      "id": "venue-bhm-4hu6wi",
+      "provider": "parallel"
+    },
+    {
+      "name": "Buonissimo",
+      "kind": "restaurant",
+      "address": "1 Albany Road, Harborne, Birmingham B17 9JX",
+      "postcode": "B17 9JX",
+      "locality": "Birmingham",
+      "website": "https://www.buonissimorestaurant.com/",
+      "lat": 52.459164,
+      "lng": -1.950869,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.buonissimorestaurant.com/",
+        "https://www.buonissimorestaurant.com/drinks-menu"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.buonissimorestaurant.com/",
+          "excerpt": "Buonissimo Italian Restaurant 1 Albany Road Harborne Birmingham B17 9JX."
+        },
+        {
+          "url": "https://www.buonissimorestaurant.com/drinks-menu",
+          "excerpt": "Buonissimo Drinks Menu | Cocktails, Gins, Beers & More"
+        }
+      ],
+      "observedAt": "2026-10-04T11:33:03.475Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B17%209JX",
+        "observedAt": "2026-10-04T11:23:11.436Z",
+        "postcode": "B17 9JX",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fa64da8b5d5dda9c4",
+      "id": "venue-bhm-1ipeyfy",
+      "provider": "parallel"
+    },
+    {
+      "name": "Harborne Cricket Club",
+      "kind": "bar",
+      "address": "Old Church Avenue, Harborne, Birmingham, West Midlands, B17 0BE",
+      "postcode": "B17 0BE",
+      "locality": "Birmingham",
+      "website": "https://www.harborne-cc.co.uk/",
+      "lat": 52.454295,
+      "lng": -1.9586,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.harborne-cc.co.uk/",
+        "https://www.harborne-cc.co.uk/a/welcome-to-the-official-website-of-harborne-cricket-club-68994.html?page=3"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.harborne-cc.co.uk/",
+          "excerpt": "Harborne Cricket Club Harborne Cricket Club\nNews Teams Matches Media Shop Contact Information\nOld Church Avenue, Harborne, Birmingham, West Midlands, B17 0BE"
+        },
+        {
+          "url": "https://www.harborne-cc.co.uk/a/welcome-to-the-official-website-of-harborne-cricket-club-68994.html?page=3",
+          "excerpt": "Bar is open every day of the week"
+        }
+      ],
+      "observedAt": "2026-10-04T11:36:14.500Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B17%200BE",
+        "observedAt": "2026-10-04T11:36:14.524Z",
+        "postcode": "B17 0BE",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f8d76302b563db069",
+      "id": "venue-bhm-1nhc06d",
+      "provider": "parallel"
+    },
+    {
+      "name": "The Birdcage Harborne",
+      "kind": "bar",
+      "address": "186-196 High Street, Harborne, Birmingham, West Midlands, B17 9PP",
+      "postcode": "B17 9PP",
+      "locality": "Birmingham",
+      "website": "https://birdcageharborne.co.uk/",
+      "lat": 52.458606,
+      "lng": -1.949074,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://birdcageharborne.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://birdcageharborne.co.uk/",
+          "excerpt": "The Birdcage Harborne"
+        },
+        {
+          "url": "https://birdcageharborne.co.uk/",
+          "excerpt": "186-196 High Street, Harborne, Birmingham, West Midlands, B17 9PP"
+        },
+        {
+          "url": "https://birdcageharborne.co.uk/",
+          "excerpt": "beers, cocktails, spirits, and soft drinks"
+        }
+      ],
+      "observedAt": "2026-10-04T11:23:15.379Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B17%209PP",
+        "observedAt": "2026-10-04T11:23:11.261Z",
+        "postcode": "B17 9PP",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fa70658daf4d2cfb6",
+      "id": "venue-bhm-u8ikuc",
+      "provider": "parallel"
+    },
+    {
+      "name": "El Buen Gusto",
+      "kind": "restaurant",
+      "address": "73 High Street, Harborne, Birmingham, B17 9NS",
+      "postcode": "B17 9NS",
+      "locality": "Birmingham",
+      "website": "https://elbuengusto.co.uk/",
+      "lat": 52.46042,
+      "lng": -1.945348,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://elbuengusto.co.uk/drinks-list/"
+      ],
+      "evidence": [
+        {
+          "url": "https://elbuengusto.co.uk/drinks-list/",
+          "excerpt": "El Buen Gusto Harborne"
+        },
+        {
+          "url": "https://elbuengusto.co.uk/drinks-list/",
+          "excerpt": "73 High Street, Harborne, Birmingham, B17 9NS"
+        },
+        {
+          "url": "https://elbuengusto.co.uk/drinks-list/",
+          "excerpt": "Spanish beers and ciders, including gluten-free options"
+        }
+      ],
+      "observedAt": "2026-10-04T11:23:11.151Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B17%209NS",
+        "observedAt": "2026-10-04T11:23:11.213Z",
+        "postcode": "B17 9NS",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f86eb2acfb78e511d",
+      "id": "venue-bhm-xe1x1j",
+      "provider": "parallel"
+    },
+    {
+      "name": "Barsana - Harborne",
+      "kind": "restaurant",
+      "address": "69 High Street, Harborne, Birmingham B17 9NS",
+      "postcode": "B17 9NS",
+      "locality": "Birmingham",
+      "website": "https://barsanaharborne.co.uk/",
+      "lat": 52.46042,
+      "lng": -1.945348,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://barsanaharborne.co.uk/",
+        "https://barsanaharborne.co.uk/restaurant-radhe-foods-ltd-harborne-B17/menu"
+      ],
+      "evidence": [
+        {
+          "url": "https://barsanaharborne.co.uk/",
+          "excerpt": "Barsana - Harborne , 69 high Street, Harborne, United Kingdom, B17 9NS"
+        },
+        {
+          "url": "https://barsanaharborne.co.uk/restaurant-radhe-foods-ltd-harborne-B17/menu",
+          "excerpt": "Wines White Wine ALL OF OUR WINES ARE VEGAN FRIENDLY"
+        }
+      ],
+      "observedAt": "2026-10-04T11:30:47.036Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B17%209NS",
+        "observedAt": "2026-10-04T11:23:11.213Z",
+        "postcode": "B17 9NS",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fbd5931725995478d",
+      "id": "venue-bhm-13drftn",
+      "provider": "parallel"
+    },
+    {
+      "name": "Craft & Culture",
+      "kind": "bar",
+      "address": "70–80 Vyse Street, Birmingham B18 6HA",
+      "postcode": "B18 6HA",
+      "locality": "Birmingham",
+      "website": "https://www.birminghammuseums.org.uk/museum-of-the-jewellery-quarter/cafe",
+      "lat": 52.4904,
+      "lng": -1.912175,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.birminghammuseums.org.uk/museum-of-the-jewellery-quarter/cafe"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.birminghammuseums.org.uk/museum-of-the-jewellery-quarter/cafe",
+          "excerpt": "Craft & Culture, a new café bar and community space in the Museum of the Jewellery Quarter is now open."
+        },
+        {
+          "url": "https://www.birminghammuseums.org.uk/museum-of-the-jewellery-quarter/cafe",
+          "excerpt": "Located on the ground floor of the Museum of the Jewellery Quarter in 70-80 Vyse Street (B18 6HA)."
+        }
+      ],
+      "observedAt": "2026-10-04T11:30:42.686Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B18%206HA",
+        "observedAt": "2026-10-04T11:30:42.744Z",
+        "postcode": "B18 6HA",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fa7e6823bcbbf6f2c",
+      "id": "venue-bhm-fuqk5p",
+      "provider": "parallel"
+    },
+    {
+      "name": "African Village Restaurant and Late Bar",
+      "kind": "bar",
+      "address": "381 Farm St, Birmingham B19 2TX",
+      "postcode": "B19 2TX",
+      "locality": "Birmingham",
+      "website": "https://www.africanvillagebirmingham.co.uk/",
+      "lat": 52.49592,
+      "lng": -1.913107,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.africanvillagebirmingham.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.africanvillagebirmingham.co.uk/",
+          "excerpt": "African Village Restaurant and Late Bar"
+        },
+        {
+          "url": "https://www.africanvillagebirmingham.co.uk/",
+          "excerpt": "381 Farm St, Birmingham B19 2TX"
+        },
+        {
+          "url": "https://www.africanvillagebirmingham.co.uk/",
+          "excerpt": "The live music was incredible, the food was delicious, and the cocktails were on point."
+        },
+        {
+          "url": "https://www.africanvillagebirmingham.co.uk/",
+          "excerpt": "Open Tue–Thu : 1PM–12AM | Fri–Sun : 1PM–5AM | Birmingham B19"
+        }
+      ],
+      "observedAt": "2026-10-04T11:34:31.335Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B19%202TX",
+        "observedAt": "2026-10-04T11:34:31.365Z",
+        "postcode": "B19 2TX",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f97ba07cd68ad8f37",
+      "id": "venue-bhm-ol7k7s",
+      "provider": "parallel"
+    },
+    {
+      "name": "The Spot Lounge",
+      "kind": "bar",
+      "address": "38 Hampton Street, Birmingham B19 3LS",
+      "postcode": "B19 3LS",
+      "locality": "Birmingham",
+      "website": "https://thespotlounge.co.uk/",
+      "lat": 52.48845,
+      "lng": -1.902385,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://thespotlounge.co.uk/2026/09/06/opening-weekend-for-the-spot-lounge/"
+      ],
+      "evidence": [
+        {
+          "url": "https://thespotlounge.co.uk/2026/09/06/opening-weekend-for-the-spot-lounge/",
+          "excerpt": "The Spot Lounge, Afro kitchen and bar in the heart of Birmingham."
+        },
+        {
+          "url": "https://thespotlounge.co.uk/2026/09/06/opening-weekend-for-the-spot-lounge/",
+          "excerpt": "38 Hampton Street, Birmingham. B19 3LS"
+        },
+        {
+          "url": "https://thespotlounge.co.uk/2026/09/06/opening-weekend-for-the-spot-lounge/",
+          "excerpt": "And the Palm Wine Sgroppino, chilled palm wine folded into tamarind sorbet, is unlike anything else you’ll drink in this city."
+        }
+      ],
+      "observedAt": "2026-10-04T11:34:05.992Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B19%203LS",
+        "observedAt": "2026-10-04T11:34:06.563Z",
+        "postcode": "B19 3LS",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f9e8bf1a248d3c09f",
+      "id": "venue-bhm-1jemd5f",
+      "provider": "parallel"
+    },
+    {
+      "name": "Oscott Social Club",
+      "kind": "bar",
+      "address": "239 Witton Lodge Rd, Birmingham B23 5LX",
+      "postcode": "B23 5LX",
+      "locality": "Birmingham",
+      "website": "https://www.oscottsocialclub.co.uk/",
+      "lat": 52.537905,
+      "lng": -1.858678,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.oscottsocialclub.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.oscottsocialclub.co.uk/",
+          "excerpt": "Established in 1947 Oscott Social Club has played a prominent role in the community for many years, with functions and community activities, live sports on TV, snooker, darts and live music events."
+        },
+        {
+          "url": "https://www.oscottsocialclub.co.uk/",
+          "excerpt": "239 Witton Lodge Rd, Birmingham B23 5LX"
+        },
+        {
+          "url": "https://www.oscottsocialclub.co.uk/",
+          "excerpt": "We offer a great choice of beers, wines and spirits"
+        }
+      ],
+      "observedAt": "2026-10-04T11:30:37.391Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B23%205LX",
+        "observedAt": "2026-10-04T11:30:37.417Z",
+        "postcode": "B23 5LX",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f847a32713e217ca4",
+      "id": "venue-bhm-1dc20m3",
+      "provider": "parallel"
+    },
+    {
+      "name": "The Erdington Club",
+      "kind": "bar",
+      "address": "33 Sutton New Road, Birmingham B23 6TD",
+      "postcode": "B23 6TD",
+      "locality": "Birmingham",
+      "website": "https://the-erdington-club.ueniweb.com/",
+      "lat": 52.523732,
+      "lng": -1.84089,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://the-erdington-club.ueniweb.com/"
+      ],
+      "evidence": [
+        {
+          "url": "https://the-erdington-club.ueniweb.com/",
+          "excerpt": "The Erdington Club"
+        },
+        {
+          "url": "https://the-erdington-club.ueniweb.com/",
+          "excerpt": "33 Sutton New Road, Birmingham, B23 6TD"
+        },
+        {
+          "url": "https://the-erdington-club.ueniweb.com/",
+          "excerpt": "In our bar we have a juke box, pool table, darts and fruit machines, we have sky TV and 3 large screens, we have a wide rage of beverages"
+        }
+      ],
+      "observedAt": "2026-10-04T11:30:55.145Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B23%206TD",
+        "observedAt": "2026-10-04T11:30:55.171Z",
+        "postcode": "B23 6TD",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fb8e36d92b965ffe9",
+      "id": "venue-bhm-ml194a",
+      "provider": "parallel"
+    },
+    {
+      "name": "Church Tavern",
+      "kind": "pub",
+      "address": "196 High Street, Erdington, Birmingham, B23 6SJ",
+      "postcode": "B23 6SJ",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.522627,
+      "lng": -1.840953,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/church-tavern-birmingham-121358",
+        "https://camra.org.uk/pubs/place/tyburn-17778"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/church-tavern-birmingham-121358",
+          "excerpt": "Open daily 8:00am - 11:00pm; 196 High Street, Erdington, Birmingham, B23 6SJ."
+        },
+        {
+          "url": "https://camra.org.uk/pubs/place/tyburn-17778",
+          "excerpt": "Open ### Church Tavern Pub , in Birmingham Cask Ale not available 1.4 miles from you 196 High Street, Erdington, Birmingham, B23 6SJ"
+        }
+      ],
+      "observedAt": "2026-10-04T11:32:34.816Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B23%206SJ",
+        "observedAt": "2026-10-04T11:32:34.841Z",
+        "postcode": "B23 6SJ",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f9ebe585a2369bb70",
+      "id": "venue-bhm-15t2n9a",
+      "provider": "parallel"
+    },
+    {
+      "name": "The Crown Erdington",
+      "kind": "bar",
+      "address": "1069 Tyburn Road, Erdington, Birmingham, B24 0TH",
+      "postcode": "B24 0TH",
+      "locality": "Birmingham",
+      "website": "https://thecrownclubs.uk/venues/thecrownerdington/",
+      "lat": 52.519116,
+      "lng": -1.813362,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://thecrownclubs.uk/venues/thecrownerdington/",
+        "https://camra.org.uk/pubs/crown-social-club-birmingham-121594"
+      ],
+      "evidence": [
+        {
+          "url": "https://thecrownclubs.uk/venues/thecrownerdington/",
+          "excerpt": "The Crown Erdington"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/crown-social-club-birmingham-121594",
+          "excerpt": "1069 Tyburn Road, Erdington, Birmingham, B24 0TH"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/crown-social-club-birmingham-121594",
+          "excerpt": "This is a club, which means that the bar may be only open to members."
+        }
+      ],
+      "observedAt": "2026-10-04T11:23:54.503Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B24%200TH",
+        "observedAt": "2026-10-04T11:23:54.528Z",
+        "postcode": "B24 0TH",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fab646bbee86ac62d",
+      "id": "venue-bhm-8b93dn",
+      "provider": "parallel"
+    },
+    {
+      "name": "Erdington Conservative Club",
+      "kind": "club",
+      "address": "93 Orphanage Road, Erdington, Birmingham, B24 9HU",
+      "postcode": "B24 9HU",
+      "locality": "Birmingham",
+      "website": "https://www.erdingtonconservativeclub.co.uk/",
+      "lat": 52.526769,
+      "lng": -1.833391,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.erdingtonconservativeclub.co.uk/",
+        "https://camra.org.uk/pubs/erdington-conservative-club-birmingham-121569"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.erdingtonconservativeclub.co.uk/",
+          "excerpt": "Erdington Conservative Club"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/erdington-conservative-club-birmingham-121569",
+          "excerpt": "93 Orphanage Road, Erdington, Birmingham, B24 9HU"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/erdington-conservative-club-birmingham-121569",
+          "excerpt": "This is a club, which means that the bar may only be open to club members."
+        }
+      ],
+      "observedAt": "2026-10-04T11:23:54.503Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B24%209HU",
+        "observedAt": "2026-10-04T11:23:54.554Z",
+        "postcode": "B24 9HU",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fab646bbee86ac62d",
+      "id": "venue-bhm-4s5fi5",
+      "provider": "parallel"
+    },
+    {
+      "name": "Sheldon Marlborough Cricket Club",
+      "kind": "club",
+      "address": "Foliot Fields, Yardley, Birmingham, B25 8RF",
+      "postcode": "B25 8RF",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.4708,
+      "lng": -1.81108,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/sheldon-marlborough-cricket-club-birmingham-121305"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/sheldon-marlborough-cricket-club-birmingham-121305",
+          "excerpt": "Sheldon Marlborough Cricket Club, Birmingham Foliot Fields, Yardley, Birmingham, B25 8RF."
+        },
+        {
+          "url": "https://camra.org.uk/pubs/sheldon-marlborough-cricket-club-birmingham-121305",
+          "excerpt": "This is a club, which means that the bar may only be open to club members. family-friendly bar; serves one changing beer."
+        }
+      ],
+      "observedAt": "2026-10-04T11:32:40.964Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B25%208RF",
+        "observedAt": "2026-10-04T11:32:41.095Z",
+        "postcode": "B25 8RF",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fa503d0e5d75eddad",
+      "id": "venue-bhm-1oyth8y",
+      "provider": "parallel"
+    },
+    {
+      "name": "Yardley Ex Service Mens Club",
+      "kind": "club",
+      "address": "328 Yardley Road, Yardley, Birmingham, B25 8LT",
+      "postcode": "B25 8LT",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.46003,
+      "lng": -1.816704,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/yardley-ex-service-mens-club-birmingham-121583"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/yardley-ex-service-mens-club-birmingham-121583",
+          "excerpt": "Yardley Ex Service Mens Club, Birmingham"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/yardley-ex-service-mens-club-birmingham-121583",
+          "excerpt": "328 Yardley Road, Yardley, Birmingham, B25 8LT"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/yardley-ex-service-mens-club-birmingham-121583",
+          "excerpt": "This is a club, which means that the bar may be only open to members."
+        }
+      ],
+      "observedAt": "2026-10-04T11:24:09.119Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B25%208LT",
+        "observedAt": "2026-10-04T11:24:09.151Z",
+        "postcode": "B25 8LT",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f90bc1e87b7881925",
+      "id": "venue-bhm-1h6e58m",
+      "provider": "parallel"
+    },
+    {
+      "name": "Holiday Inn Express Birmingham - South A45",
+      "kind": "restaurant",
+      "address": "1270 Coventry Road, Birmingham, B25 8BJ",
+      "postcode": "B25 8BJ",
+      "locality": "Birmingham",
+      "website": "https://www.ihg.com/holidayinnexpress/hotels/gb/en/birmingham/bhxbs/hoteldetail",
+      "lat": 52.463012,
+      "lng": -1.826803,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.ihg.com/birmingham-united-kingdom",
+        "https://www.ihg.com/holidayinnexpress/hotels/us/en/birmingham/bhxbs/hoteldetail"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.ihg.com/birmingham-united-kingdom",
+          "excerpt": "Holiday Inn Express Birmingham - South A45 1270 Coventry Road Birmingham, B25 8BJ, United Kingdom"
+        },
+        {
+          "url": "https://www.ihg.com/holidayinnexpress/hotels/us/en/birmingham/bhxbs/hoteldetail",
+          "excerpt": "you can enjoy local beers and tasty pub food at the friendly lobby bar and restaurant."
+        }
+      ],
+      "observedAt": "2026-10-04T11:31:12.537Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B25%208BJ",
+        "observedAt": "2026-10-04T11:31:12.626Z",
+        "postcode": "B25 8BJ",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f865d651652e238f0",
+      "id": "venue-bhm-q2qdpo",
+      "provider": "parallel"
+    },
+    {
+      "name": "Pasta di Piazza",
+      "kind": "restaurant",
+      "address": "1091 Warwick Road, Acocks Green, Birmingham B27 6QT",
+      "postcode": "B27 6QT",
+      "locality": "Birmingham",
+      "website": "https://www.pastadipiazza.co.uk/",
+      "lat": 52.44754,
+      "lng": -1.826157,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.pastadipiazza.co.uk/drinks/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.pastadipiazza.co.uk/drinks/",
+          "excerpt": "Pasta di Piazza 1091 Warwick Road Acocks Green Birmingham B27 6QT"
+        },
+        {
+          "url": "https://www.pastadipiazza.co.uk/drinks/",
+          "excerpt": "Choose from a wide selection of hot and cold drinks, Gins, wine, beer, fizz and non-alcoholic options"
+        }
+      ],
+      "observedAt": "2026-10-04T11:24:00.438Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B27%206QT",
+        "observedAt": "2026-10-04T11:24:00.553Z",
+        "postcode": "B27 6QT",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f9b2d13c81b859fab",
+      "id": "venue-bhm-xhiwfs",
+      "provider": "parallel"
+    },
+    {
+      "name": "Boulevard",
+      "kind": "pub",
+      "address": "23 Olton Boulevard East, Acocks Green, Birmingham, B27 7RR",
+      "postcode": "B27 7RR",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.443587,
+      "lng": -1.834411,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/acocks-green-140"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/acocks-green-140",
+          "excerpt": "Boulevard. Pub · 0.0 · 23 Olton Boulevard East, Acocks Green, Birmingham, B27 7RR"
+        }
+      ],
+      "observedAt": "2026-10-04T11:24:16.066Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B27%207RR",
+        "observedAt": "2026-10-04T11:24:16.160Z",
+        "postcode": "B27 7RR",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f8361ed176ba4fa73",
+      "id": "venue-bhm-1fyauhs",
+      "provider": "parallel"
+    },
+    {
+      "name": "Grange Social Club",
+      "kind": "club",
+      "address": "11-13 Broad Road, Acocks Green, Birmingham, B27 7UZ",
+      "postcode": "B27 7UZ",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.447443,
+      "lng": -1.828056,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/grange-social-club-birmingham-121661"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/grange-social-club-birmingham-121661",
+          "excerpt": "Grange Social Club, Birmingham"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/grange-social-club-birmingham-121661",
+          "excerpt": "Grange Social Club 11-13 Broad Road, Acocks Green, Birmingham, B27 7UZ"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/grange-social-club-birmingham-121661",
+          "excerpt": "This is a club, which means that the bar may only be open to club members."
+        }
+      ],
+      "observedAt": "2026-10-04T11:25:38.653Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B27%207UZ",
+        "observedAt": "2026-10-04T11:25:38.676Z",
+        "postcode": "B27 7UZ",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fb40d451d951f794c",
+      "id": "venue-bhm-1t7l2kd",
+      "provider": "parallel"
+    },
+    {
+      "name": "Discobowl Acocks Green",
+      "kind": "bar",
+      "address": "Westley Road, Acocks Green, Birmingham B27 7UH",
+      "postcode": "B27 7UH",
+      "locality": "Birmingham",
+      "website": "https://discobowl.co.uk/acocks-green/",
+      "lat": 52.445678,
+      "lng": -1.826017,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://discobowl.co.uk/acocks-green/"
+      ],
+      "evidence": [
+        {
+          "url": "https://discobowl.co.uk/acocks-green/",
+          "excerpt": "Discobowl Acocks Green"
+        },
+        {
+          "url": "https://discobowl.co.uk/acocks-green/",
+          "excerpt": "Westley Road Acocks Green (near Solihull), Birmingham B27 7UH"
+        },
+        {
+          "url": "https://discobowl.co.uk/acocks-green/",
+          "excerpt": "BITES PIZZA COCKTAILS"
+        }
+      ],
+      "observedAt": "2026-10-04T11:25:38.653Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B27%207UH",
+        "observedAt": "2026-10-04T11:24:00.521Z",
+        "postcode": "B27 7UH",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fb40d451d951f794c",
+      "id": "venue-bhm-1r4y52t",
+      "provider": "parallel"
+    },
+    {
+      "name": "Pickle Club",
+      "kind": "club",
+      "address": "Roberts Road, Acocks Green, Birmingham B27 6NF",
+      "postcode": "B27 6NF",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.448595,
+      "lng": -1.816618,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/pickle-club-birmingham-121658"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/pickle-club-birmingham-121658",
+          "excerpt": "Pickle Club, Birmingham (Pickled Cabbage)"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/pickle-club-birmingham-121658",
+          "excerpt": "Roberts Road, Acocks Green, Birmingham, B27 6NF"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/pickle-club-birmingham-121658",
+          "excerpt": "This is a club, which means that the bar may be only open to members."
+        }
+      ],
+      "observedAt": "2026-10-04T11:27:05.354Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B27%206NF",
+        "observedAt": "2026-10-04T11:27:07.529Z",
+        "postcode": "B27 6NF",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fb0c3c3db044494a1",
+      "id": "venue-bhm-1bdtbei",
+      "provider": "parallel"
+    },
+    {
+      "name": "Hall Green H.G. Club",
+      "kind": "bar",
+      "address": "21a Doveridge Road, Hall Green, Birmingham, B28 0LS",
+      "postcode": "B28 0LS",
+      "locality": "Birmingham",
+      "website": "https://hallgreenhgclub.com/",
+      "lat": 52.420706,
+      "lng": -1.847201,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://hallgreenhgclub.com/"
+      ],
+      "evidence": [
+        {
+          "url": "https://hallgreenhgclub.com/",
+          "excerpt": "Hall Green H.G. Club 21a Doveridge Road Hall Green, Birmingham, B28 0LS"
+        },
+        {
+          "url": "https://hallgreenhgclub.com/",
+          "excerpt": "Join us to enjoy the social bar area"
+        }
+      ],
+      "observedAt": "2026-10-04T11:32:12.032Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B28%200LS",
+        "observedAt": "2026-10-04T11:32:12.621Z",
+        "postcode": "B28 0LS",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fa9be72235b59b3cf",
+      "id": "venue-bhm-9ix5to",
+      "provider": "parallel"
+    },
+    {
+      "name": "Weoley Castle Working Mens Club",
+      "kind": "club",
+      "address": "158 Barnes Hill, California, Birmingham, B29 5TY",
+      "postcode": "B29 5TY",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.440122,
+      "lng": -1.977545,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/weoley-castle-working-mens-club-birmingham-121637"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/weoley-castle-working-mens-club-birmingham-121637",
+          "excerpt": "Weoley Castle Working Mens Club, Birmingham"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/weoley-castle-working-mens-club-birmingham-121637",
+          "excerpt": "158 Barnes Hill, California, Birmingham, B29 5TY"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/weoley-castle-working-mens-club-birmingham-121637",
+          "excerpt": "This is a club, which means that the bar may only be open to club members."
+        }
+      ],
+      "observedAt": "2026-10-04T11:32:48.469Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B29%205TY",
+        "observedAt": "2026-10-04T11:32:48.577Z",
+        "postcode": "B29 5TY",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f966404ba31c16b2e",
+      "id": "venue-bhm-11adpjg",
+      "provider": "parallel"
+    },
+    {
+      "name": "Oba's Kitchen, Lounge, Bar & Games",
+      "kind": "bar",
+      "address": "648 Bristol Road, Selly Oak, Birmingham B29 6BJ",
+      "postcode": "B29 6BJ",
+      "locality": "Birmingham",
+      "website": "https://www.obashospitality.com/",
+      "lat": 52.44373,
+      "lng": -1.935777,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.obashospitality.com/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.obashospitality.com/",
+          "excerpt": "Oba's Kitchen, Lounge, Bar & Games"
+        },
+        {
+          "url": "https://www.obashospitality.com/",
+          "excerpt": "648 Bristol Road Sellyoak B29 6BJ Birmingham"
+        },
+        {
+          "url": "https://www.obashospitality.com/",
+          "excerpt": "Luxury Lounge & Bar VIP royal seating, signature cocktails, premium spirits & champagne on ice."
+        }
+      ],
+      "observedAt": "2026-10-04T11:35:37.380Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B29%206BJ",
+        "observedAt": "2026-10-04T11:30:47.519Z",
+        "postcode": "B29 6BJ",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fa2ab33f8599bbc66",
+      "id": "venue-bhm-t0m5nl",
+      "provider": "parallel"
+    },
+    {
+      "name": "Bournbrook & Selly Oak Club",
+      "kind": "club",
+      "address": "13a Hubert Road, Selly Oak, Birmingham B29 6DX",
+      "postcode": "B29 6DX",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.443495,
+      "lng": -1.934144,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/bournbrook-selly-oak-club-birmingham-121620"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/bournbrook-selly-oak-club-birmingham-121620",
+          "excerpt": "Bournbrook & Selly Oak Club, Birmingham"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/bournbrook-selly-oak-club-birmingham-121620",
+          "excerpt": "13a Hubert Road, Selly Oak, Birmingham, B29 6DX"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/bournbrook-selly-oak-club-birmingham-121620",
+          "excerpt": "This is a club, which means that the bar may only be open to club members."
+        }
+      ],
+      "observedAt": "2026-10-04T11:33:08.993Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B29%206DX",
+        "observedAt": "2026-10-04T11:33:09.565Z",
+        "postcode": "B29 6DX",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415faabf194fceda2e0e",
+      "id": "venue-bhm-4sqyw2",
+      "provider": "parallel"
+    },
+    {
+      "name": "The Station Inn",
+      "kind": "bar",
+      "address": "193 Station Road, Stechford, Birmingham, B33 8BB",
+      "postcode": "B33 8BB",
+      "locality": "Birmingham",
+      "website": "https://thestationinn.co.uk/",
+      "lat": 52.48262,
+      "lng": -1.809792,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://thestationinn.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://thestationinn.co.uk/",
+          "excerpt": "193 Station Road, Stechford, Birmingham, B33 8BB"
+        },
+        {
+          "url": "https://thestationinn.co.uk/",
+          "excerpt": "Our bar here at The Station Inn offers a range of top brands."
+        }
+      ],
+      "observedAt": "2026-10-04T11:30:34.471Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B33%208BB",
+        "observedAt": "2026-10-04T11:30:34.494Z",
+        "postcode": "B33 8BB",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fbab70665cdc5af22",
+      "id": "venue-bhm-lxgvbm",
+      "provider": "parallel"
+    },
+    {
+      "name": "Aston Manor Cricket Club",
+      "kind": "bar",
+      "address": "Church Road, Perry Barr, Birmingham B42 2LB",
+      "postcode": "B42 2LB",
+      "locality": "Birmingham",
+      "website": "https://astonmanorcricket.co.uk/",
+      "lat": 52.526664,
+      "lng": -1.898395,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://astonmanorcricket.co.uk/contact-us",
+        "https://astonmanorcricket.co.uk/club-house"
+      ],
+      "evidence": [
+        {
+          "url": "https://astonmanorcricket.co.uk/contact-us",
+          "excerpt": "Visit us at Aston Manor Cricket Club, Church Road, Perry Barr, B42 2LB,"
+        },
+        {
+          "url": "https://astonmanorcricket.co.uk/club-house",
+          "excerpt": "Aston Manor Cricket Club has a welcoming, comfortable and fully licensed bar that is open 7 days a week."
+        }
+      ],
+      "observedAt": "2026-10-04T11:24:50.553Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B42%202LB",
+        "observedAt": "2026-10-04T11:24:50.599Z",
+        "postcode": "B42 2LB",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fbb8a0ce0797c8a5d",
+      "id": "venue-bhm-u53wtp",
+      "provider": "parallel"
+    },
+    {
+      "name": "Great Barr Hotel",
+      "kind": "bar",
+      "address": "Pear Tree Drive, Great Barr, Birmingham B43 6HS",
+      "postcode": "B43 6HS",
+      "locality": "Birmingham",
+      "website": "https://www.thegreatbarrhotel.com/",
+      "lat": 52.54379,
+      "lng": -1.957971,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://walsall.camra.org.uk/pubguide",
+        "https://www.thegreatbarrhotel.com/"
+      ],
+      "evidence": [
+        {
+          "url": "https://walsall.camra.org.uk/pubguide",
+          "excerpt": "[Great Barr Hotel](https://walsall.camra.org.uk/viewnode.php?id=177917) Pear Tree Drive Great Barr B43 6HS"
+        },
+        {
+          "url": "https://www.thegreatbarrhotel.com/",
+          "excerpt": "With a stylish contemporary bar and dining facilities you’ll be left full and satisfied."
+        }
+      ],
+      "observedAt": "2026-10-04T11:25:15.001Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B43%206HS",
+        "observedAt": "2026-10-04T11:25:15.066Z",
+        "postcode": "B43 6HS",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fbdf24ad0c99d7313",
+      "id": "venue-bhm-18aknsz",
+      "provider": "parallel"
+    },
+    {
+      "name": "Great Barr Conservative Club",
+      "kind": "club",
+      "address": "6A Newton Road, Great Barr, Birmingham B43 6BN",
+      "postcode": "B43 6BN",
+      "locality": "Birmingham",
+      "website": "https://greatbarrcons.co.uk/",
+      "lat": 52.545487,
+      "lng": -1.934376,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://greatbarrcons.co.uk/",
+        "https://camra.org.uk/pubs/great-barr-conservative-club-great-barr-119769"
+      ],
+      "evidence": [
+        {
+          "url": "https://greatbarrcons.co.uk/",
+          "excerpt": "Great Barr Conservative Club 6A Newton Road, Great Barr"
+        },
+        {
+          "url": "https://greatbarrcons.co.uk/",
+          "excerpt": "Birmingham B43 6BN."
+        },
+        {
+          "url": "https://greatbarrcons.co.uk/",
+          "excerpt": "The club offers a range of facilities including a main bar"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/great-barr-conservative-club-great-barr-119769",
+          "excerpt": "Members' club in Great Barr with a large function room, snooker room (two tables) & 2 changing beers."
+        }
+      ],
+      "observedAt": "2026-10-04T11:26:53.635Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B43%206BN",
+        "observedAt": "2026-10-04T11:26:53.656Z",
+        "postcode": "B43 6BN",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fad5785eecfe05a9c",
+      "id": "venue-bhm-kc9iu2",
+      "provider": "parallel"
+    },
+    {
+      "name": "Special Spices",
+      "kind": "pub",
+      "address": "270 Newton Road, Great Barr, Birmingham B43 6QU",
+      "postcode": "B43 6QU",
+      "locality": "Birmingham",
+      "website": "http://special-spices.co.uk/",
+      "lat": 52.542459,
+      "lng": -1.957339,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "http://special-spices.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "http://special-spices.co.uk/",
+          "excerpt": "special spices desi pub great barr"
+        },
+        {
+          "url": "http://special-spices.co.uk/",
+          "excerpt": "270 Newton Road Great Barr Birmingham B43 6QU"
+        },
+        {
+          "url": "http://special-spices.co.uk/",
+          "excerpt": "Relax & have a few drinks while watching the live sports"
+        }
+      ],
+      "observedAt": "2026-10-04T11:34:46.927Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B43%206QU",
+        "observedAt": "2026-10-04T11:34:46.985Z",
+        "postcode": "B43 6QU",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f9b9e383df353cdcd",
+      "id": "venue-bhm-1dp4nd8",
+      "provider": "parallel"
+    },
+    {
+      "name": "Valley Bar",
+      "kind": "bar",
+      "address": "Tanhouse Ave, Great Barr, B43 5AB",
+      "postcode": "B43 5AB",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.535893,
+      "lng": -1.949384,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/valley-bar-great-barr-119761"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/valley-bar-great-barr-119761",
+          "excerpt": "Valley Bar, Great Barr"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/valley-bar-great-barr-119761",
+          "excerpt": "Community bar in an ex-British Legion in Great Barr"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/valley-bar-great-barr-119761",
+          "excerpt": "Tanhouse Ave, Great Barr, B43 5AB"
+        }
+      ],
+      "observedAt": "2026-10-04T11:34:46.927Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B43%205AB",
+        "observedAt": "2026-10-04T11:34:26.874Z",
+        "postcode": "B43 5AB",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f9b9e383df353cdcd",
+      "id": "venue-bhm-4hovxf",
+      "provider": "parallel"
+    },
+    {
+      "name": "Boars Head World Buffet",
+      "kind": "restaurant",
+      "address": "340 Aldridge Road, Perry Barr, Birmingham, B44 8BH",
+      "postcode": "B44 8BH",
+      "locality": "Birmingham",
+      "website": "https://boarsheadworldbuffet.co.uk/",
+      "lat": 52.530896,
+      "lng": -1.895717,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://boarsheadworldbuffet.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://boarsheadworldbuffet.co.uk/",
+          "excerpt": "Boars Head World Buffet"
+        },
+        {
+          "url": "https://boarsheadworldbuffet.co.uk/",
+          "excerpt": "selection of global wines, cocktails, and mocktails"
+        },
+        {
+          "url": "https://boarsheadworldbuffet.co.uk/",
+          "excerpt": "340 Aldridge Road Perry Barr, Birmingham B44 8BH"
+        }
+      ],
+      "observedAt": "2026-10-04T11:33:40.842Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B44%208BH",
+        "observedAt": "2026-10-04T11:33:40.895Z",
+        "postcode": "B44 8BH",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fb6dec97cd06b8c2d",
+      "id": "venue-bhm-boprhz",
+      "provider": "parallel"
+    },
+    {
+      "name": "No1 Public House",
+      "kind": "pub",
+      "address": "641 College Road, Kingstanding, Birmingham B44 0AT",
+      "postcode": "B44 0AT",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.542661,
+      "lng": -1.866773,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/no1-public-house-kingstanding-121611"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/no1-public-house-kingstanding-121611",
+          "excerpt": "No1 Public House, Kingstanding"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/no1-public-house-kingstanding-121611",
+          "excerpt": "641 College Road, Kingstanding, B44 0AT"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/no1-public-house-kingstanding-121611",
+          "excerpt": "Former social club converted to a pub."
+        }
+      ],
+      "observedAt": "2026-10-04T11:33:57.459Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B44%200AT",
+        "observedAt": "2026-10-04T11:33:57.517Z",
+        "postcode": "B44 0AT",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f9c62b55a2ad5dc13",
+      "id": "venue-bhm-1ro4064",
+      "provider": "parallel"
+    },
+    {
+      "name": "Aston Old Edwardians Rugby Club",
+      "kind": "club",
+      "address": "Sunnybank Avenue, Perry Common, Birmingham, B44 0HP",
+      "postcode": "B44 0HP",
+      "locality": "Birmingham",
+      "website": "https://www.pitchero.com/clubs/astonoldedwardians",
+      "lat": 52.537941,
+      "lng": -1.874144,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/aston-old-edwardians-rugby-club-birmingham-121522"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/aston-old-edwardians-rugby-club-birmingham-121522",
+          "excerpt": "Aston Old Edwardians Rugby Club, Birmingham"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/aston-old-edwardians-rugby-club-birmingham-121522",
+          "excerpt": "Sunnybank Avenue, Perry Common, Birmingham, B44 0HP"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/aston-old-edwardians-rugby-club-birmingham-121522",
+          "excerpt": "This is a club, which means that the bar may only be open to club members. Real Ale is put on at the weekend."
+        }
+      ],
+      "observedAt": "2026-10-04T11:36:41.618Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B44%200HP",
+        "observedAt": "2026-10-04T11:36:41.756Z",
+        "postcode": "B44 0HP",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f8bb6802e8044477e",
+      "id": "venue-bhm-146hkcn",
+      "provider": "parallel"
+    },
+    {
+      "name": "The Kingstanding Inn",
+      "kind": "pub",
+      "address": "72 Warren Farm Rd, Birmingham B44 0QN",
+      "postcode": "B44 0QN",
+      "locality": "Birmingham",
+      "website": "https://thekingstandinginn.co.uk/",
+      "lat": 52.543214,
+      "lng": -1.879039,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://thekingstandinginn.co.uk/welcome-to-the-kingstanding-inn"
+      ],
+      "evidence": [
+        {
+          "url": "https://thekingstandinginn.co.uk/welcome-to-the-kingstanding-inn",
+          "excerpt": "Welcome to The Kingstanding Inn"
+        },
+        {
+          "url": "https://thekingstandinginn.co.uk/welcome-to-the-kingstanding-inn",
+          "excerpt": "72 Warren Farm Rd, Birmingham B44 0QN"
+        },
+        {
+          "url": "https://thekingstandinginn.co.uk/welcome-to-the-kingstanding-inn",
+          "excerpt": "Our bar at the Kingstanding Inn offers a variety of popular refreshments, right when you need them!"
+        },
+        {
+          "url": "https://thekingstandinginn.co.uk/welcome-to-the-kingstanding-inn",
+          "excerpt": "From Wines and Beers, Premium Gin and Tonics, we can provide you the best drink to quench your thirst!"
+        }
+      ],
+      "observedAt": "2026-10-04T11:25:10.205Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B44%200QN",
+        "observedAt": "2026-10-04T11:25:10.232Z",
+        "postcode": "B44 0QN",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f9b7753e50abc7415",
+      "id": "venue-bhm-h653zn",
+      "provider": "parallel"
+    },
+    {
+      "name": "Craft Inn, Bearwood",
+      "kind": "bar",
+      "address": "608 Bearwood Road, Bearwood, B66 4BW",
+      "postcode": "B66 4BW",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.473177,
+      "lng": -1.968902,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/craft-inn-bearwood-146925"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/craft-inn-bearwood-146925",
+          "excerpt": "Craft Inn, Bearwood"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/craft-inn-bearwood-146925",
+          "excerpt": "608 Bearwood Road, Bearwood, B66 4BW"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/craft-inn-bearwood-146925",
+          "excerpt": "Craft bar selling predominantly keg and can-based products in addition to gins and spirits."
+        }
+      ],
+      "observedAt": "2026-10-04T11:25:26.943Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B66%204BW",
+        "observedAt": "2026-10-04T11:25:26.993Z",
+        "postcode": "B66 4BW",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415faca604d1a6f4c1a1",
+      "id": "venue-bhm-1x4uv1u",
+      "provider": "parallel"
+    },
+    {
+      "name": "Smethwick Labour Club",
+      "kind": "bar",
+      "address": "Coopers Lane, Smethwick B67 7DN",
+      "postcode": "B67 7DN",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.491904,
+      "lng": -1.972247,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/smethwick-15666"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/smethwick-15666",
+          "excerpt": "Smethwick Labour Club"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/place/smethwick-15666",
+          "excerpt": "Coopers Lane,, Smethwick, B67 7DN Beer."
+        }
+      ],
+      "observedAt": "2026-10-04T11:25:36.900Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B67%207DN",
+        "observedAt": "2026-10-04T11:25:36.984Z",
+        "postcode": "B67 7DN",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415faeaac4d0b8e8a028",
+      "id": "venue-bhm-1ijioos",
+      "provider": "parallel"
+    },
+    {
+      "name": "Zaalsha",
+      "kind": "restaurant",
+      "address": "22–24 Abbey Road, Bearwood, Birmingham B67 5RD",
+      "postcode": "B67 5RD",
+      "locality": "Birmingham",
+      "website": "https://zaalsha.com/",
+      "lat": 52.477368,
+      "lng": -1.975569,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://zaalsha.com/"
+      ],
+      "evidence": [
+        {
+          "url": "https://zaalsha.com/",
+          "excerpt": "Address 22 - 24 Abbey Road Bearwood, B67 5RD"
+        },
+        {
+          "url": "https://zaalsha.com/",
+          "excerpt": "Zaalsha is fully licensed, boasting a drinks menu which includes many fine wines and premium beers, expertly selected to complement the food we serve."
+        }
+      ],
+      "observedAt": "2026-10-04T11:25:30.254Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B67%205RD",
+        "observedAt": "2026-10-04T11:25:30.275Z",
+        "postcode": "B67 5RD",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fa1de9dbb0f42f2fc",
+      "id": "venue-bhm-13tnpcy",
+      "provider": "parallel"
+    },
+    {
+      "name": "Vine",
+      "kind": "pub",
+      "address": "152 Roebuck Street, West Bromwich, B70 6RD",
+      "postcode": "B70 6RD",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.509292,
+      "lng": -1.978645,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/location/52.510426/-1.992541"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/location/52.510426/-1.992541",
+          "excerpt": "Open ### Vine Pub , in West Bromwich 1 Regular, 2 Changing Beers"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/location/52.510426/-1.992541",
+          "excerpt": "152 Roebuck Street, West Bromwich, B70 6RD"
+        }
+      ],
+      "observedAt": "2026-10-04T11:26:37.444Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B70%206RD",
+        "observedAt": "2026-10-04T11:26:37.586Z",
+        "postcode": "B70 6RD",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f8e2f0528dddf99bf",
+      "id": "venue-bhm-19n5wp6",
+      "provider": "parallel"
+    },
+    {
+      "name": "The Vine Indian Grill and Curry Pub",
+      "kind": "pub",
+      "address": "152 Roebuck Street, West Bromwich, West Midlands, B70 6RD",
+      "postcode": "B70 6RD",
+      "locality": "Birmingham",
+      "website": "https://www.thevine.co.uk/",
+      "lat": 52.509292,
+      "lng": -1.978645,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "http://thevine.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "http://thevine.co.uk/",
+          "excerpt": "The Vine Indian Grill and Curry Pub"
+        },
+        {
+          "url": "http://thevine.co.uk/",
+          "excerpt": "152 Roebuck Street West Bromwich West Midlands B70 6RD"
+        },
+        {
+          "url": "http://thevine.co.uk/",
+          "excerpt": "Welcome to Indian grill & curry pub!"
+        }
+      ],
+      "observedAt": "2026-10-04T11:35:23.997Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B70%206RD",
+        "observedAt": "2026-10-04T11:26:37.586Z",
+        "postcode": "B70 6RD",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f81ad51587e834f62",
+      "id": "venue-bhm-5ile1c",
+      "provider": "parallel"
+    },
+    {
+      "name": "Verdo Lounge",
+      "kind": "bar",
+      "address": "430–432 Birmingham Road, Sutton Coldfield, B72 1YJ",
+      "postcode": "B72 1YJ",
+      "locality": "Birmingham",
+      "website": "https://thelounges.co.uk/verdo",
+      "lat": 52.535096,
+      "lng": -1.828007,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://thelounges.co.uk/verdo"
+      ],
+      "evidence": [
+        {
+          "url": "https://thelounges.co.uk/verdo",
+          "excerpt": "430-432 Birmingham Road Sutton Coldfield B72 1YJ"
+        },
+        {
+          "url": "https://thelounges.co.uk/verdo",
+          "excerpt": "Verdo Lounge is an informal, neighbourhood food-led café bar."
+        },
+        {
+          "url": "https://thelounges.co.uk/verdo",
+          "excerpt": "Enjoy three tapas and a glass of wine, a pint of Cruzcampo or a soft drink"
+        }
+      ],
+      "observedAt": "2026-10-04T11:36:13.914Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B72%201YJ",
+        "observedAt": "2026-10-04T11:36:13.978Z",
+        "postcode": "B72 1YJ",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f94e8efa82403d400",
+      "id": "venue-bhm-hyl478",
+      "provider": "parallel"
+    },
+    {
+      "name": "Franks",
+      "kind": "restaurant",
+      "address": "14 Boldmere Road, Sutton Coldfield, Birmingham, B73 5TD",
+      "postcode": "B73 5TD",
+      "locality": "Birmingham",
+      "website": "https://franksboldmere.com/",
+      "lat": 52.549876,
+      "lng": -1.841915,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://franksboldmere.com/"
+      ],
+      "evidence": [
+        {
+          "url": "https://franksboldmere.com/",
+          "excerpt": "Welcome to Franks, our family run Pizzeria in the heart of Boldmere."
+        },
+        {
+          "url": "https://franksboldmere.com/",
+          "excerpt": "We stock independent breweries, distilleries, and wines."
+        },
+        {
+          "url": "https://franksboldmere.com/",
+          "excerpt": "Franks 14 Boldmere Road, The Royal Town of Sutton Coldfield, Birmingham, Sutton Coldfield B73 5TD, UK"
+        }
+      ],
+      "observedAt": "2026-10-04T11:26:13.076Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B73%205TD",
+        "observedAt": "2026-10-04T11:26:13.126Z",
+        "postcode": "B73 5TD",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f936af3ac59eefd6e",
+      "id": "venue-bhm-awfbdr",
+      "provider": "parallel"
+    },
+    {
+      "name": "Olton Mere Sailing Club",
+      "kind": "club",
+      "address": "Warwick Road, Olton, Solihull, B92 7AN",
+      "postcode": "B92 7AN",
+      "locality": "Birmingham",
+      "website": "https://oltonmere.org.uk/",
+      "lat": 52.436061,
+      "lng": -1.804123,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://oltonmere.org.uk/club/club",
+        "https://solihull.camra.org.uk/pubguide"
+      ],
+      "evidence": [
+        {
+          "url": "https://oltonmere.org.uk/club/club",
+          "excerpt": "Olton Mere Sailing Club"
+        },
+        {
+          "url": "https://oltonmere.org.uk/club/club",
+          "excerpt": "Warwick Road Olton Solihull B92 7AN UK"
+        },
+        {
+          "url": "https://solihull.camra.org.uk/pubguide",
+          "excerpt": "Members sailing club with cask ale in the club house."
+        }
+      ],
+      "observedAt": "2026-10-04T11:37:12.111Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B92%207AN",
+        "observedAt": "2026-10-04T11:37:12.201Z",
+        "postcode": "B92 7AN",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f8b0007e0b2e6a492",
+      "id": "venue-bhm-1gg3rw7",
+      "provider": "parallel"
+    },
+    {
+      "name": "Courtyard",
+      "kind": "pub",
+      "address": "2 War Lane, Harborne B17 9RN",
+      "postcode": "B17 9RN",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.457621,
+      "lng": -1.958567,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/harborne-7849"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/harborne-7849",
+          "excerpt": "### Courtyard\n\nPub, in Harborne]\n\n2 Changing Beers\n\n \n\n**0.0** miles from you\n\n2 War Lane, Harborne, B17 9RN"
+        }
+      ],
+      "observedAt": "2026-10-04T13:23:39.731Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B17%209RN",
+        "observedAt": "2026-10-04T13:23:39.802Z",
+        "postcode": "B17 9RN",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-bhm-1o53pnh"
+    },
+    {
+      "name": "Birdcage",
+      "kind": "pub",
+      "address": "186-196 High Street, Harborne, Birmingham B17 9PP",
+      "postcode": "B17 9PP",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.458606,
+      "lng": -1.949074,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/harborne-7849"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/harborne-7849",
+          "excerpt": "### Birdcage\n\nIndependent Pub, in Birmingham]\n\n**Cask Ale not available**\n\n**0.4** miles from you\n\n186-196 High Street, Harborne, Birmingham, B17 9PP"
+        }
+      ],
+      "observedAt": "2026-10-04T13:23:39.731Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B17%209PP",
+        "observedAt": "2026-10-04T11:23:11.261Z",
+        "postcode": "B17 9PP",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-bhm-fzssgr"
+    },
+    {
+      "name": "Plough",
+      "kind": "pub",
+      "address": "21 High Street, Harborne, Birmingham B17 9NT",
+      "postcode": "B17 9NT",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.460977,
+      "lng": -1.943847,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/harborne-7849"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/harborne-7849",
+          "excerpt": "### Plough\n\nPub, in Birmingham]\n\n1 Regular, 1 Changing Beers\n\n \n\n**0.7** miles from you\n\n21 High Street, Harborne, Birmingham, B17 9NT"
+        }
+      ],
+      "observedAt": "2026-10-04T13:23:39.731Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B17%209NT",
+        "observedAt": "2026-10-04T13:23:39.956Z",
+        "postcode": "B17 9NT",
+        "quality": 1
+      },
+      "provider": "tavily",
+      "id": "venue-bhm-lt0ydp"
+    },
+    {
+      "name": "Avenue Bar Restaurant & Grill",
+      "kind": "pub",
+      "address": "151 Rolfe Street, Smethwick, B66 2AU",
+      "postcode": "B66 2AU",
+      "locality": "Birmingham",
+      "website": null,
+      "lat": 52.497224,
+      "lng": -1.963774,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/smethwick-15666",
+        "https://camra.org.uk/pubs/avenue-bar-restaurant-grill-smethwick-146742"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/smethwick-15666",
+          "excerpt": "Avenue Bar Restaurant & Grill Pub , in Smethwick"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/avenue-bar-restaurant-grill-smethwick-146742",
+          "excerpt": "151 Rolfe Street, Smethwick, B66 2AU"
+        }
+      ],
+      "observedAt": "2026-10-04T11:33:50.800Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B66%202AU",
+        "observedAt": "2026-10-04T11:33:51.375Z",
+        "postcode": "B66 2AU",
+        "quality": 1
+      },
+      "provider": "parallel",
+      "runId": "trun_ce5fd53e0016415faab6946f7c0436e2",
+      "id": "venue-bhm-gptg05"
+    },
+    {
+      "name": "De La Vies",
+      "kind": "restaurant",
+      "address": "2A Barnsley Road, Bearwood, Birmingham, B17 8ED",
+      "postcode": "B17 8ED",
+      "locality": "Birmingham",
+      "website": "https://www.delavies-group.com/",
+      "lat": 52.474327,
+      "lng": -1.966001,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.delavies-group.com/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.delavies-group.com/",
+          "excerpt": "2A Barnsley Road, Bearwood, Birmingham B17 8ED"
+        },
+        {
+          "url": "https://www.delavies-group.com/",
+          "excerpt": "we make everything here at De La Vies."
+        },
+        {
+          "url": "https://www.delavies-group.com/",
+          "excerpt": "We have designed our cocktail menu to ensure there is a drink for everyone and every mood."
+        }
+      ],
+      "observedAt": "2026-10-04T11:23:11.151Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/B17%208ED",
+        "observedAt": "2026-10-04T11:23:11.686Z",
+        "postcode": "B17 8ED",
+        "quality": 1
+      },
+      "provider": "parallel",
+      "runId": "trun_ce5fd53e0016415f86eb2acfb78e511d",
+      "id": "venue-bhm-37m3sc"
+    }
+  ]
+}

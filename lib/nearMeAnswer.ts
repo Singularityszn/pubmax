@@ -225,6 +225,23 @@ export function rankNearMe(
 }
 
 /**
+ * The listed prices of every priced pub inside the walkable ring, in no
+ * particular order. `rankNearMe` keeps only the few cheapest cards, so a count
+ * of "pubs under my budget" cannot be read off them: it needs the whole ring.
+ */
+export function pricedWithinWalk(
+  lat: number,
+  lng: number,
+  venues: PricedPoint[],
+  walkableRadiusKm: number = WALKABLE_RADIUS_KM,
+): number[] {
+  return venues
+    .filter(qualifies)
+    .filter((point) => haversineKm([lng, lat], [point.lng, point.lat]) <= walkableRadiusKm)
+    .map((point) => point.cheapestPrice as number);
+}
+
+/**
  * Borough-picker fallback (denied/unavailable geolocation): the cheapest priced
  * pubs in a chosen borough, cheapest first. No distance — there is no user fix —
  * so cards carry price only. Borough match is case-insensitive on the slim

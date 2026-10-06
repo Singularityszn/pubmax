@@ -1,10 +1,12 @@
 "use client";
 
+import type { Route as NextRoute } from "next";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Map, UserRound, Route, CalendarClock, Signpost, DoorOpen } from "lucide-react";
 import { useCallback, useMemo, useSyncExternalStore, type CSSProperties } from "react";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
+import { profilePath } from "@/lib/appLink";
 import { warmNavRoute } from "@/lib/mapWarmup";
 import {
   PRIMARY_NAV_ITEMS,
@@ -42,7 +44,7 @@ import "./mobileNav.css";
 
 type Tab = {
   key: PrimaryNavKey;
-  href: string;
+  href: NextRoute;
   label: string;
   Icon: typeof Map;
   /** The link's accessible name. The large text bucket hides the tab word
@@ -57,8 +59,8 @@ const warmedTabs = new Set<string>();
 // Map follows preferred city after mount, with /map as the server fallback.
 // Exported for the tab contract test.
 export function buildTabs(
-  youHref = "/u/you",
-  mapHref = "/map",
+  youHref: NextRoute = "/u/you" as NextRoute,
+  mapHref: NextRoute = "/map",
 ): Tab[] {
   const icons = {
     now: CalendarClock,
@@ -116,7 +118,7 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
   // navigation cost — the cold-tap 846ms prod median). Unknown identity takes
   // the sentinel: one extra hop beats naming the wrong person.
   const youHandle = useViewerHandle();
-  const youHref = youHandle ? `/u/${encodeURIComponent(youHandle)}` : "/u/you";
+  const youHref = youHandle ? profilePath(youHandle) : ("/u/you" as NextRoute);
   // The bar is fixed to the LAYOUT viewport, which no phone browser shrinks for
   // the keyboard, so it floats over whatever is being typed into. lib/softKeyboard.ts
   // owns the rule (a focused text field AND a shrunken visual viewport); here it
@@ -141,7 +143,7 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
   // wrong tab.
   const activeIndex = tabs.findIndex((tab) => isActive(pathname, tab));
   const warmTab = useCallback(
-    (href: string) => {
+    (href: NextRoute) => {
       warmNavRoute(router, href, warmedTabs);
     },
     [router],

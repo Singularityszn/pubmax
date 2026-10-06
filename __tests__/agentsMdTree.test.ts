@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { agentsMdFiles } from "./helpers/agentsMdTree";
+import { defined } from "@/__tests__/helpers/defined";
 
 // THE ROOT AGENTS.md IS AN INDEX, AND AN INDEX THAT HAS DRIFTED IS WORSE THAN NONE.
 //
@@ -57,7 +58,7 @@ function rootTablePointers(): string[] {
         match[1],
         "the table's label and its link must name one file",
       ).toBe(match[2]);
-      pointers.add(match[1]);
+      pointers.add(defined(match[1]));
     }
   }
 

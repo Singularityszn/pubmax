@@ -17,6 +17,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import EmptyState from "@/components/ui/empty-state";
+import { defined } from "@/__tests__/helpers/defined";
 
 // ── 1. Feed error/empty semantic distinction ───────────────────────────────
 
@@ -204,7 +205,7 @@ describe("Tonight filter chip active state", () => {
     // selected chip reads as clearly selected on mobile screens.
     const match = tonightCss.match(/\.tonightChip\[data-active="true"\]\s*\{([^}]+)\}/);
     expect(match).not.toBeNull();
-    const block = match![1];
+    const block = defined(match![1]);
     // Extract the brass percentage from border-color color-mix.
     const pctMatch = block.match(/border-color:\s*color-mix\(in srgb,\s*var\(--brass\)\s*(\d+)%/);
     expect(pctMatch).not.toBeNull();
@@ -215,7 +216,7 @@ describe("Tonight filter chip active state", () => {
   it('.tonightChip[data-active="true"] uses at least 18% brass fill', () => {
     const match = tonightCss.match(/\.tonightChip\[data-active="true"\]\s*\{([^}]+)\}/);
     expect(match).not.toBeNull();
-    const block = match![1];
+    const block = defined(match![1]);
     const bgMatch = block.match(/background:\s*color-mix\(in srgb,\s*var\(--brass\)\s*(\d+)%/);
     expect(bgMatch).not.toBeNull();
     const pct = Number(bgMatch![1]);
@@ -236,7 +237,7 @@ describe("Tonight filter chip active state", () => {
   it('.vibeChip[data-active="true"] uses at least 80% brass in its border', () => {
     const match = vibeChipsCss.match(/\.vibeChip\[data-active="true"\]\s*\{([^}]+)\}/);
     expect(match).not.toBeNull();
-    const block = match![1];
+    const block = defined(match![1]);
     const pctMatch = block.match(/border-color:\s*color-mix\(in srgb,\s*var\(--brass\)\s*(\d+)%/);
     expect(pctMatch).not.toBeNull();
     expect(Number(pctMatch![1])).toBeGreaterThanOrEqual(80);

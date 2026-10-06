@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -46,6 +47,7 @@ import {
   placesTownSearchUnavailableLine,
 } from "@/lib/places";
 import { normaliseUkPlaceQuery, type UkPlace } from "@/lib/ukPlaceSearch";
+import { defined } from "@/__tests__/helpers/defined";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => PLACES_PATH,
@@ -157,7 +159,7 @@ describe("Places city chooser", () => {
   it("matches city names from word starts rather than inside another name", () => {
     const rows = placesCityRows();
     expect(filterPlacesCityRows(rows, "Chester")).toEqual([]);
-    const row = { ...rows[0], name: "New Chester", tagline: "A city guide" };
+    const row = { ...defined(rows[0]), name: "New Chester", tagline: "A city guide" };
     expect(filterPlacesCityRows([row], "  CHEST  ")).toEqual([row]);
     expect(filterPlacesCityRows([row], "new chest")).toEqual([row]);
     expect(filterPlacesCityRows([row], "ester")).toEqual([]);
@@ -274,7 +276,7 @@ describe("Places sets the one city Map, Out and Near follow", () => {
     expect(readPreferredCity()).toBe("manchester");
     expect(window.localStorage.getItem(STORAGE_KEY)).toBe("manchester");
     expect(preferredCityMapHref()).toBe("/map/manchester");
-    expect(buildTabs("/u/you", preferredCityMapHref()).find(
+    expect(buildTabs("/u/you" as Route, preferredCityMapHref()).find(
       (tab) => tab.label === "Map",
     )?.href).toBe("/map/manchester");
   });
@@ -382,8 +384,8 @@ describe("Places answers a town the city list does not hold", () => {
   it("opens an unpriced town on its own base-map arrival", () => {
     const [result] = placesTownResults("Sheffield", TOWNS);
 
-    expect(result.kind).toBe("uncovered");
-    expect(result.href).toBe("/map?place=Sheffield&lat=53.3800941&lng=-1.4789213");
+    expect(defined(result).kind).toBe("uncovered");
+    expect(defined(result).href).toBe("/map?place=Sheffield&lat=53.3800941&lng=-1.4789213");
   });
 
   it("offers Chester without letting Manchester suppress or precede the town", () => {
@@ -410,8 +412,8 @@ describe("Places answers a town the city list does not hold", () => {
     // way, and the picker may not start calling it an unpriced elsewhere.
     const [result] = placesTownResults("Didsbury", TOWNS);
 
-    expect(result.kind).toBe("curated");
-    expect(result.href).toBe(mapHrefForCity("manchester"));
+    expect(defined(result).kind).toBe("curated");
+    expect(defined(result).href).toBe(mapHrefForCity("manchester"));
   });
 
   it("keeps the city rows as the answer when the query matched one", () => {
@@ -447,8 +449,8 @@ describe("Places answers a town the city list does not hold", () => {
     const [didsbury] = placesTownResults("Didsbury", TOWNS);
     const [sheffield] = placesTownResults("Sheffield", TOWNS);
 
-    expect(cityChooserResultBadge(didsbury.kind)).toBe("City guide");
-    expect(cityChooserResultBadge(sheffield.kind)).toBe("No prices yet");
+    expect(cityChooserResultBadge(defined(didsbury).kind)).toBe("City guide");
+    expect(cityChooserResultBadge(defined(sheffield).kind)).toBe("No prices yet");
   });
 
   it("tells two places of one name apart by their postcode area", () => {
@@ -469,8 +471,8 @@ describe("Places answers a town the city list does not hold", () => {
     // nothing for a postcode area to disambiguate.
     const [didsbury] = placesTownResults("Didsbury", TOWNS);
 
-    expect(didsbury.kind).toBe("curated");
-    expect(cityChooserResultContext(didsbury)).toBeNull();
+    expect(defined(didsbury).kind).toBe("curated");
+    expect(cityChooserResultContext(defined(didsbury))).toBeNull();
   });
 
   it("answers a failed index read by naming the button, not a list that is gone", () => {

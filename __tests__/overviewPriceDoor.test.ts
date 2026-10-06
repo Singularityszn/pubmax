@@ -49,6 +49,7 @@ import {
   type VenuePriceLane,
 } from "@/lib/venuePriceLane";
 import { mergeVenueDrops, type SummaryDrop, type Venue } from "@/lib/venues";
+import { defined } from "@/__tests__/helpers/defined";
 
 vi.mock("@/components/visits/VisitReportPanel", () => ({
   default: () => createElement("div", { "data-testid": "visit-report-peek" }),
@@ -185,7 +186,7 @@ function renderOverview(
   const signal = pintTrustSignalFields(pintTrustFor(drops, NOW));
   return renderToStaticMarkup(
     createElement(VenueOverviewTab, {
-      venue: merged,
+      venue: defined(merged),
       tab: "overview",
       cityId: "london",
       mode: "suggest",

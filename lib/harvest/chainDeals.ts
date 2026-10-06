@@ -153,7 +153,8 @@ function expandDayRange(from: string, to: string): WeekdayName[] | null {
   const days: WeekdayName[] = [];
   for (let step = 0; step < 7; step += 1) {
     const index = (start + step) % 7;
-    days.push(WEEKDAY_NAMES[index]);
+    const name = WEEKDAY_NAMES[index];
+    if (name) days.push(name);
     if (index === end) return days;
   }
   return null;
@@ -191,6 +192,7 @@ export function parseScheduleLine(line: string): ParsedSchedule | null {
   if (!match) return null;
 
   const [, firstDay, , secondDay, , rawStart, rawEnd] = match;
+  if (!firstDay) return null;
   const days = secondDay ? expandDayRange(firstDay, secondDay) : dayFromWord(firstDay);
   if (!days || days.length === 0) return null;
 
@@ -224,13 +226,13 @@ function isWindowOnlyLine(line: string): boolean {
   if (cleaned.length === 0 || cleaned.length > 40) return false;
   const match = WINDOW_ONLY_LINE.exec(cleaned);
   if (!match) return false;
-  return parseStatedClock(match[1]) !== null && parseStatedClock(match[2]) !== null;
+  return parseStatedClock(match[1] ?? "") !== null && parseStatedClock(match[2] ?? "") !== null;
 }
 
 function dayFromWord(word: string): WeekdayName[] | null {
   const index = weekdayIndexOf(word);
-  if (index === undefined) return null;
-  return [WEEKDAY_NAMES[index]];
+  const name = index === undefined ? undefined : WEEKDAY_NAMES[index];
+  return name ? [name] : null;
 }
 
 function brandNamedIn(text: string): string | null {
@@ -250,7 +252,7 @@ function splitHeadingBlocks(markdown: string): Block[] {
     const heading = /^#{2,4}\s+(.+?)\s*$/.exec(raw);
     if (heading) {
       if (current) blocks.push(current);
-      current = { title: heading[1].replace(/\*\*/g, "").trim(), lines: [] };
+      current = { title: (heading[1] ?? "").replace(/\*\*/g, "").trim(), lines: [] };
       continue;
     }
     if (current) current.lines.push(raw);
@@ -273,8 +275,8 @@ export function parseChainDealDays(markdown: string): ChainDealParse {
     const content = block.lines.filter((line) => !isStructuralLine(line));
     let schedule: ParsedSchedule | null = null;
     let scheduleAt = -1;
-    for (let index = 0; index < Math.min(content.length, SCHEDULE_LOOKAHEAD_LINES); index += 1) {
-      const parsed = parseScheduleLine(content[index]);
+    for (const [index, line] of content.slice(0, SCHEDULE_LOOKAHEAD_LINES).entries()) {
+      const parsed = parseScheduleLine(line);
       if (parsed) {
         schedule = parsed;
         scheduleAt = index;

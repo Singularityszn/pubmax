@@ -1,5 +1,9 @@
 .next/
 .next-*/
+# Next.js writes next-env.d.ts on every dev, build and typegen run, pointing it
+# at the active dist dir, so it is never committed. `npm run typecheck` runs
+# `next typegen` first to create it in a clean checkout.
+next-env.d.ts
 node_modules/
 # `out/` is the static-export build directory. It also matches every source
 # directory named `out`, so each one has to be un-ignored by hand or its files
@@ -30,6 +34,7 @@ evals/pal/scoreboard/
 evals/askRouterModel/scoreboard/
 artifacts/
 /coverage/
+/blob-reports/
 e2e/screenshots/
 .e2e/
 # public/vendor/ is BUILD-WRITTEN (lib/staticAssetPrefixes.mjs): `npm run dev`
@@ -42,6 +47,7 @@ data/generated/venue_detail_index.json
 data/generated/venue_details.jsonl
 public/data/wikidata_notable_pubs.json
 public/data/wikidata_notable_pubs.json.tmp
+public/data/.*.tmp
 data/editorial/poll-state.json
 data/osm/uk/**/.*.tmp
 data/places_verification/progress.json

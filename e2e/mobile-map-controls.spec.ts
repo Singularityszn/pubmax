@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { expectLayoutSettled } from "./helpers/layoutSettled";
+
 function watchPageErrors(page: Page): string[] {
   const errors: string[] = [];
   page.on("pageerror", (err) => errors.push(err.message));
@@ -10,18 +12,10 @@ async function expectTapTarget(
   locator: ReturnType<Page["locator"]>,
   label: string,
 ): Promise<void> {
-  await expect(locator).toBeVisible();
-  // A sheet and its panels scale in as they open, so the box is read once it
-  // stops moving: a chip caught mid-entry measures under its 44px rest size.
-  let previous = "";
-  await expect
-    .poll(async () => {
-      const current = JSON.stringify(await locator.boundingBox());
-      const settled = current === previous;
-      previous = current;
-      return settled;
-    })
-    .toBe(true);
+  // A sheet and its panels scale in as they open, so the box is read once the
+  // product says it is at rest: a chip caught mid-entry measures under its
+  // 44px rest size.
+  await expectLayoutSettled(locator);
   const box = await locator.boundingBox();
   expect(box, `${label} should have a layout box`).not.toBeNull();
   if (!box) return;

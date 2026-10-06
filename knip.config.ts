@@ -88,7 +88,7 @@ const config: KnipConfig = {
     // Manual evidence CLIs documented beside their proof output.
     "scripts/map-fix-shots.mjs",
     "scripts/report_borough_coverage.mjs",
-    // Named by docs/data/uk-osm-extract-2026-08-16.md as the ONE way to rewrite
+    // Named by docs/data/uk-osm-extract-2026-10-04.md as the ONE way to rewrite
     // that doc's figures ("Do not edit the figures by hand").
     "scripts/report_uk_venue_extract.mjs",
 

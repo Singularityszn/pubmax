@@ -10,6 +10,7 @@
 // no listed prices is not a city with no areas, and a reader who is told one
 // while the other is true has been misled about which half is missing.
 
+import type { Route } from "next";
 import {
   buildCityChooserSearchResults,
   TOWN_SEARCH_UNAVAILABLE_LEAD,
@@ -217,7 +218,7 @@ export function parsePlacesCityParam(
   return parseCityId(raw);
 }
 
-export function placesCityHref(cityId: CityId): string {
+export function placesCityHref(cityId: CityId): Route {
   return `${PLACES_PATH}?${PLACES_CITY_PARAM}=${encodeURIComponent(cityId)}`;
 }
 
@@ -253,7 +254,7 @@ export function placesCurrentCityLine(cityId: CityId): string {
 
 export const PLACES_LIST_SECONDARY_HREF = UK_NATIONAL_MAP_HREF;
 
-export type PlacesWay = { href: string; label: string };
+export type PlacesWay = { href: Route; label: string };
 
 /**
  * The two actions a city panel offers, in Screen order: the painted one first.
@@ -268,7 +269,7 @@ export type PlacesWay = { href: string; label: string };
  * them, and a screen that offers the same door twice reads as two doors.
  */
 export function placesCityActions(
-  mapHref: string,
+  mapHref: Route,
   isYours: boolean,
 ): { primary: PlacesWay | null; secondary: PlacesWay } {
   const map: PlacesWay = { href: mapHref, label: "Open the map" };

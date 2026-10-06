@@ -19,6 +19,7 @@ export async function resolveHarvestOverlayVenue(
   if (lookup.status === "unavailable") return { status: "unavailable" };
   if (lookup.status === "unknown") return { status: "unknown" };
   const venueIds = venueOsmIds(lookup.venue);
-  if (venueIds.length === 0) return { status: "unknown" };
-  return { status: "resolved", venueId: venueIds[0], venueIds, venue: lookup.venue };
+  const [first] = venueIds;
+  if (!first) return { status: "unknown" };
+  return { status: "resolved", venueId: first, venueIds, venue: lookup.venue };
 }

@@ -33,6 +33,7 @@ import EmptyState from "@/components/ui/empty-state";
 import { ACCOUNT_VISIBILITY_COPY } from "@/lib/accountVisibility";
 import { getAccessToken } from "@/lib/authClient";
 import { authedFetch } from "@/lib/authedFetch";
+import { readProviderIdentityRevision } from "@/lib/authProviderRevision";
 import { isLimitedProfileProjection } from "@/lib/profileVisibility";
 import {
   AUTHOR_CRAWL_LIST_DEFAULT_LIMIT,
@@ -93,6 +94,10 @@ const CrewsPanel = dynamic(
   () => import("@/components/social/CrewsPanel"),
   { ssr: false },
 );
+// The Diary list reads the owner-only API, so it loads only for the owner and
+// stays out of every other profile's first paint.
+const DiaryList = dynamic(() => import("@/components/diary/DiaryList"), { ssr: false });
+
 const ProfileTimeline = dynamic(
   () => import("@/components/profile/ProfileTimeline"),
   { ssr: false },
@@ -403,7 +408,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const isYouRoute = routeHandle === YOU_SENTINEL;
   const router = useRouter();
   const documentComplete = useDocumentComplete();
-  const { accountRevision, user, identityResolved, signOut } = useAuth();
+  const { accountRevision, user, identityResolved, loading: sessionLoading, signOut } = useAuth();
   const viewerSession = useViewerSession();
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const followKey = `${accountRevision}:${routeHandle}`;
@@ -424,10 +429,30 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const [state, setState] = useState<LoadState>("loading");
   // Saved venues render as DTOs (venue NAME + map url). Durable when this handle has
   // server-side saves (/api/saved-pubs); otherwise the localStorage fallback
-  // (savedByList) mapped into DTOs. Start empty so the server render and the
-  // client's first (hydration) paint match, then fill in after mount.
-  const [saved, setSaved] = useState<Partial<Record<ListType, SavedPubDTO[]>>>({});
-  const [followedLists, setFollowedLists] = useState<FollowedSavedListDTO[]>([]);
+  // (savedByList) mapped into DTOs. Null until this handle's read answers for
+  // this account, so the server render and the hydration paint match, neither
+  // claims the list is empty before anyone has asked, and a previous account's
+  // answer is never shown to the next one.
+  const [savedRead, setSavedRead] = useState<{
+    handle: string;
+    accountRevision: number;
+    groups: Partial<Record<ListType, SavedPubDTO[]>>;
+  } | null>(null);
+  const saved =
+    savedRead?.handle === routeHandle && savedRead.accountRevision === accountRevision
+      ? savedRead.groups
+      : null;
+  const [followedListsRead, setFollowedListsRead] = useState<{
+    handle: string;
+    accountRevision: number;
+    lists: FollowedSavedListDTO[];
+  } | null>(null);
+  const followedLists =
+    socialFriendsLaunchEnabled &&
+    followedListsRead?.handle === routeHandle &&
+    followedListsRead.accountRevision === accountRevision
+      ? followedListsRead.lists
+      : [];
   // The shared reader is the only place this surface may learn who is holding
   // the device. It returns null while identity is unresolved, so a cached
   // handle cannot name the previous account during session restore.
@@ -590,49 +615,54 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // Load this handle's saved venues: durable first (the API resolves real venue
   // names for the profile's handle), falling back to the viewer's localStorage
   // view mapped into DTOs. Done in an async callback (not the synchronous effect
-  // body) so hydration paints the empty server state first, then swaps in the
-  // saves — and so setState only runs in async work (react-hooks rule).
+  // body) so setState only runs in async work (react-hooks rule).
+  //
+  // The read is identity-bound, and restoring the session aborts every
+  // identity-bound request, so asking before the session settled got an aborted
+  // read that fell back to the local view and never asked again: an owner's
+  // full load said "No saved venues yet." It waits for the session to settle
+  // (never for the canonical handle, which may not come back), asks again when
+  // the account changes, and drops an answer whose account is gone.
   useEffect(() => {
+    if (sessionLoading) return;
     const controller = new AbortController();
     async function loadSaved() {
       const durable = routeHandle
         ? await fetchSavedForHandle(routeHandle, controller.signal)
         : null;
       if (controller.signal.aborted) return;
+      if (readProviderIdentityRevision() !== accountRevision) return;
       // Durable hit (even an empty list) is authoritative for this handle; only a
       // null (no handle / request failed) falls back to the local view.
-      setSaved(durable ? groupDTOsByList(durable) : localSavedDTOs());
+      setSavedRead({
+        handle: routeHandle,
+        accountRevision,
+        groups: durable ? groupDTOsByList(durable) : localSavedDTOs(),
+      });
     }
     void loadSaved();
     return () => controller.abort();
-  }, [routeHandle]);
+  }, [accountRevision, routeHandle, sessionLoading]);
 
   // Followed saved lists are public social context for this handle's saved view:
   // "Ken follows Sam's Date Night list" appears on /u/ken. Reads are fail-soft,
-  // matching the API contract, because followed lists are additive context.
+  // matching the API contract, because followed lists are additive context. The
+  // read is identity-bound like the saved venues above, so it waits for the
+  // session the same way.
   useEffect(() => {
-    let active = true;
-    if (!socialFriendsLaunchEnabled) {
-      void Promise.resolve().then(() => {
-        if (active) setFollowedLists([]);
-      });
-      return () => {
-        active = false;
-      };
-    }
+    if (!socialFriendsLaunchEnabled || sessionLoading) return;
     const controller = new AbortController();
     async function loadFollowedLists() {
       const lists = routeHandle
         ? await fetchFollowedListsForHandle(routeHandle, controller.signal)
         : [];
-      if (!controller.signal.aborted) setFollowedLists(lists);
+      if (controller.signal.aborted) return;
+      if (readProviderIdentityRevision() !== accountRevision) return;
+      setFollowedListsRead({ handle: routeHandle, accountRevision, lists });
     }
     void loadFollowedLists();
-    return () => {
-      active = false;
-      controller.abort();
-    };
-  }, [routeHandle, socialFriendsLaunchEnabled]);
+    return () => controller.abort();
+  }, [accountRevision, routeHandle, sessionLoading, socialFriendsLaunchEnabled]);
 
   // This handle's public crawls and their total (story 35 authorship), from one
   // read so the tile and the listing agree. Best-effort: a failure leaves an
@@ -1529,6 +1559,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                   known, so gating this on the sentinel alone left the
                   owner's own Wanted tab pointing at nothing. */}
               {isYouRoute || isOwnProfile ? <WantedList /> : null}
+
+              {isYouRoute || isOwnProfile ? <DiaryList /> : null}
 
               {/* Your crews, on your own page only. It resolves the Social
                   gate itself and renders nothing when Social is in

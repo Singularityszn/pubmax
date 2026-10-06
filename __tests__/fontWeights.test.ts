@@ -3,7 +3,7 @@
 // U5 of docs/plans/SITE_SPEED_2026-09-01.md. Three families load through
 // next/font: Space Grotesk and Inter as VARIABLE faces, which carry their whole
 // axis in one file and so have no unused weight to drop, and JetBrains Mono as
-// a static list.
+// a list of declared faces on its vendored file.
 //
 // That list carried 500, and CSS cannot reach it. The font-matching algorithm
 // searches UPWARD first for any target above 500, so every stamped rule in the
@@ -17,7 +17,30 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import postcss from "postcss";
+import { describe, expect, it, vi } from "vitest";
+
+const localFontCalls = vi.hoisted(
+  () => [] as Array<{
+    variable?: string;
+    src: Array<{ weight?: string }>;
+    declarations?: Array<{ prop: string; value: string }>;
+  }>,
+);
+
+vi.mock("server-only", () => ({}));
+vi.mock("next/font/google", () => {
+  const face = () => ({ className: "font-mock", variable: "--font-mock" });
+  return { Space_Grotesk: face, Inter: face };
+});
+vi.mock("next/font/local", () => ({
+  default: vi.fn((options: (typeof localFontCalls)[number]) => {
+    localFontCalls.push(options);
+    return { className: "font-mock", variable: "--font-mock" };
+  }),
+}));
+
+import "@/app/layout";
 
 const REPO_ROOT = join(__dirname, "..");
 const layout = readFileSync(join(REPO_ROOT, "app/layout.tsx"), "utf8");
@@ -66,7 +89,26 @@ function monoWeightTargets(): number[] {
 
 describe("the mono face carries only weights something asks for", () => {
   it("declares 400 and 700 and nothing between", () => {
-    expect(layout).toContain('weight: ["400", "700"]');
+    const mono = localFontCalls.find((options) => options.variable === "--font-data");
+    expect(mono?.src.map((face) => face.weight)).toEqual(["400", "700"]);
+  });
+
+  it("names its faces the family the --font-data token asks for", () => {
+    // next/font/local names a face after its const unless told otherwise, and
+    // the :root token wins the cascade over next/font's variable class. A name
+    // the token does not ask for leaves every numeral in the system monospace.
+    const root = postcss.parse(readFileSync(join(REPO_ROOT, "app/globals.css"), "utf8"));
+    let token = "";
+    root.walkRules(":root", (rule) => {
+      rule.walkDecls("--font-data", (decl) => {
+        token = decl.value;
+      });
+    });
+    const requested = (token.split(",")[0] ?? "").trim().replace(/^["']|["']$/g, "");
+    const mono = localFontCalls.find((options) => options.variable === "--font-data");
+    const family = mono?.declarations?.find((decl) => decl.prop === "font-family")?.value;
+    expect(requested).not.toBe("");
+    expect(family).toBe(requested);
   });
 
   it("has no shipped rule that could resolve to 500", () => {

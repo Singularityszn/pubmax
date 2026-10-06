@@ -387,7 +387,7 @@ function selectObservation(
   ref: ArchiveObservationRef,
   month: string,
   verb: string,
-): { ok: true; index: number } | { ok: false; reason: string } {
+): { ok: true; index: number; observation: PintIndexObservation } | { ok: false; reason: string } {
   const refuse = (reason: string) => ({ ok: false as const, reason });
   const forVenue = observations
     .map((observation, index) => ({ observation, index }))
@@ -418,13 +418,15 @@ function selectObservation(
   }
 
   if (ref.ordinal !== undefined && ref.ordinal !== null) {
-    if (!Number.isInteger(ref.ordinal) || ref.ordinal < 1 || ref.ordinal > candidates.length) {
+    const chosen = Number.isInteger(ref.ordinal) ? candidates[ref.ordinal - 1] : undefined;
+    if (!chosen) {
       return refuse(`${month} leaves ${candidates.length} observations for ${ref.venueId} to choose from, so the ordinal must be a whole number between 1 and ${candidates.length}`);
     }
-    return { ok: true, index: candidates[ref.ordinal - 1].index };
+    return { ok: true, ...chosen };
   }
 
-  if (candidates.length === 1) return { ok: true, index: candidates[0].index };
+  const [only] = candidates;
+  if (only && candidates.length === 1) return { ok: true, ...only };
 
   // More than one candidate: refuse, and say which discriminator would settle
   // it. A collision the fields cannot separate is its own case, not a claim
@@ -472,7 +474,7 @@ export function amendArchivedMonth(options: {
     const found = selectObservation(published, ref, month, "withdraw");
     if (!found.ok) return found;
     if (withdrawn.has(found.index)) {
-      return { ok: false, reason: `${month} withdraws ${ref.venueId} at ${published[found.index].observedAt} twice` };
+      return { ok: false, reason: `${month} withdraws ${ref.venueId} at ${found.observation.observedAt} twice` };
     }
     withdrawn.add(found.index);
   }
@@ -480,7 +482,7 @@ export function amendArchivedMonth(options: {
   for (const restatement of options.restate ?? []) {
     const found = selectObservation(published, restatement, month, "restate");
     if (!found.ok) return found;
-    const current = published[found.index];
+    const current = found.observation;
     if (!Number.isInteger(restatement.pricePence) || restatement.pricePence <= 0) {
       return { ok: false, reason: `restating ${restatement.venueId} at ${current.observedAt} needs a positive whole number of pence` };
     }

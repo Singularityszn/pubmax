@@ -2,12 +2,19 @@
 // loading state and the client-side dynamic PubMap fallback, so both transitions
 // use the same pitched-London held frame.
 //
+// Only the in-page fallback is a <main>: it holds PubMap's own place, and PubMap
+// paints the <main> that replaces it. The route-level frame is a named region.
+// On a document load React streams the page, in-page fallback and all, into a
+// hidden segment beside that frame and swaps it in later, so a <main> there
+// made two <main> elements in one document for that window.
+//
 // It's a pitched-London impression: a softly tilted map card with a Thames curve,
 // warm paper grain, and pulsing price-coloured dots (the same pint/amber/brick
 // idiom the real pins use). Continued seamlessly by PubMap's own .mapLoading
 // while the WebGL canvas style loads. All colour comes from existing tokens;
 // reduced-motion holds the dots still (see the .mapSkeleton rules in globals).
 
+import PintLoader from "@/components/ui/pint-loader";
 import { mapLoadingPrimaryLine } from "@/lib/mapLoadingCopy";
 
 // Dot positions are hand-placed to read as a loose scatter of London pubs, each
@@ -49,16 +56,21 @@ type MapLoadingSkeletonProps = {
    * line falls back to the cityless one rather than naming the wrong city.
    */
   cityDisplayName?: string;
+  /** The route-level frame, which stands in for a page that owns its <main>. */
+  routeLevel?: boolean;
 };
 
 export default function MapLoadingSkeleton({
   cityDisplayName = "",
+  routeLevel = false,
 }: MapLoadingSkeletonProps) {
+  const Frame = routeLevel ? "section" : "main";
   return (
-    <main id="main"
+    <Frame id="main"
       className="mapSkeleton"
       aria-busy="true"
       aria-describedby="mapSkeletonStatus"
+      aria-label={routeLevel ? "Loading map" : undefined}
       aria-live="polite"
     >
       <div className="mapSkeletonInner">
@@ -94,13 +106,13 @@ export default function MapLoadingSkeleton({
           ))}
         </svg>
         <div className="mapSkeletonCopy" id="mapSkeletonStatus" role="status">
-          <span aria-hidden="true" className="mapSkeletonSpinnerDot" />
+          <PintLoader size="sm" />
           <div>
             <h1>UK venue map</h1>
             <p>{mapLoadingPrimaryLine(cityDisplayName)}</p>
           </div>
         </div>
       </div>
-    </main>
+    </Frame>
   );
 }

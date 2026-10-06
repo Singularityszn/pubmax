@@ -68,6 +68,7 @@ import {
 } from "@/lib/planStore";
 import { planGroupPrefsStore } from "@/lib/planGroupPrefsStore";
 import { GET as READ_GROUP_PREFS } from "@/app/api/plans/[id]/group-prefs/route";
+import { defined } from "@/__tests__/helpers/defined";
 
 const PLAN_ID = "11111111-1111-4111-8111-111111111111";
 const OWNER_ACCOUNT_ID = "22222222-2222-4222-8222-222222222222";
@@ -159,8 +160,8 @@ describe("legacy Plan boundary for Social Crews", () => {
   });
 
   it("routes legacy status and context changes through one atomic RPC", async () => {
-    fixture.rows.plans[0].social_owner_account_id = null;
-    fixture.rows.plan_crew_members[0].token_hash = hashPlanMemberToken("host-token");
+    defined(fixture.rows.plans[0]).social_owner_account_id = null;
+    defined(fixture.rows.plan_crew_members[0]).token_hash = hashPlanMemberToken("host-token");
     fixture.rpcResult = { data: "ok", error: null };
     const context = {
       nightArea: "camden" as const,

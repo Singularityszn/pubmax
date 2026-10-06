@@ -995,7 +995,8 @@ pubs source, ask for the glyph range and place a symbol.
 
 **Until the pins have painted, the wire belongs to the pins.**
 `lib/mapFirstPinStreams.ts` owns it and names the closed set of held lanes: the
-slim shard rings, the UK base layer and the ambient POI overlay. Nothing is
+slim shard rings, the UK base layer, the ambient POI overlay and (added after
+this measurement) the London restaurant pack. Nothing is
 dropped and nothing new is fetched; the sides fill in the moment the map has
 something a thumb can hit. A hold is never a cage - a painted pin, the shell
 deciding there is no canvas at all, or the hold's own ceiling each end it, and

@@ -19,6 +19,7 @@ import {
   type WalkLeg,
 } from "@/lib/walkRoute";
 import { haversineKm } from "@/lib/haversine";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Two real central-London pub coordinates, [lng, lat].
 const A: LngLat = [-0.1005, 51.5136];
@@ -68,7 +69,7 @@ describe("stopPairs + straightLegs", () => {
     const legs = straightLegs([A, B, C]);
     expect(legs).toHaveLength(2);
     expect(legs[0]).toMatchObject({ fromIndex: 0, toIndex: 1, source: "straight" });
-    expect(legs[0].coordinates).toEqual(straightLegCoordinates(A, B));
+    expect(defined(legs[0]).coordinates).toEqual(straightLegCoordinates(A, B));
     expect(legs[1]).toMatchObject({ fromIndex: 1, toIndex: 2, source: "straight" });
   });
 
@@ -113,7 +114,7 @@ describe("legsToLineString", () => {
     const legs = straightLegs([A, B, C]);
     const fc = legsToLineString(legs);
     expect(fc.features).toHaveLength(1);
-    const feature = fc.features[0];
+    const feature = defined(fc.features[0]);
     expect(feature.geometry.type).toBe("LineString");
     expect(feature.properties).toEqual({ source: "straight" });
     expect((feature.geometry as GeoJSON.LineString).coordinates).toEqual([A, B, C]);
@@ -125,8 +126,8 @@ describe("legsToLineString", () => {
       { fromIndex: 1, toIndex: 2, coordinates: [B, C], source: "straight" },
     ];
     const fc = legsToLineString(legs);
-    expect(fc.features[0].properties).toEqual({ source: "straight" });
-    expect((fc.features[0].geometry as GeoJSON.LineString).coordinates).toEqual([
+    expect(defined(fc.features[0]).properties).toEqual({ source: "straight" });
+    expect((defined(fc.features[0]).geometry as GeoJSON.LineString).coordinates).toEqual([
       A,
       [-0.099, 51.5139],
       B,
@@ -165,8 +166,8 @@ describe("legDistances", () => {
     ];
     const distances = legDistances(legs);
     expect(distances[0]).toMatchObject({ fromIndex: 0, toIndex: 1, source: "ors" });
-    expect(distances[0].distanceKm).toBeCloseTo(polylineDistanceKm(legs[0].coordinates), 9);
+    expect(defined(distances[0]).distanceKm).toBeCloseTo(polylineDistanceKm(defined(legs[0]).coordinates), 9);
     expect(distances[1]).toMatchObject({ fromIndex: 1, toIndex: 2, source: "straight" });
-    expect(distances[1].distanceKm).toBeCloseTo(haversineKm(B, C), 9);
+    expect(defined(distances[1]).distanceKm).toBeCloseTo(haversineKm(B, C), 9);
   });
 });

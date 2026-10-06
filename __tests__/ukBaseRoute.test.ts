@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { GET } from "@/app/api/uk-base/[id]/route";
 import { resetUkBaseIndexForTests } from "@/lib/ukBaseIndex";
 import { parseUkBaseManifest, ukBaseIdFor } from "@/lib/ukBasePubs";
+import { defined } from "@/__tests__/helpers/defined";
 
 async function firstCommittedId(): Promise<string> {
   const manifestRaw = await fs.readFile(
@@ -15,11 +16,11 @@ async function firstCommittedId(): Promise<string> {
   const manifest = parseUkBaseManifest(JSON.parse(manifestRaw));
   if (!manifest) throw new Error("Committed UK base manifest is malformed");
   const shardRaw = await fs.readFile(
-    path.join(process.cwd(), "public", manifest.shards[0].url.replace(/^\//, "")),
+    path.join(process.cwd(), "public", defined(manifest.shards[0]).url.replace(/^\//, "")),
     "utf8",
   );
   const shard = JSON.parse(shardRaw) as { pubs: Array<[string, ...unknown[]]> };
-  return ukBaseIdFor(shard.pubs[0][0]);
+  return ukBaseIdFor(defined(shard.pubs[0])[0]);
 }
 
 beforeEach(() => {

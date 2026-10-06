@@ -56,6 +56,7 @@ vi.mock("@/components/social/SocialViewerState", async (importOriginal) => ({
 }));
 
 vi.mock("@/lib/authedFetch", () => ({
+  authedFetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init),
   authedActionFetch: vi.fn(),
 }));
 

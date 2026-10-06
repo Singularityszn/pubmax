@@ -24,9 +24,10 @@ import {
   isHarvestableOperatorUrl,
   REFUSED_ESTATE_HOSTS,
 } from "@/lib/harvest/sourcePolicy";
+import { defined } from "@/__tests__/helpers/defined";
 
 /** A host the table refuses on permission, used as the worked example below. */
-const REFUSED_ESTATE = REFUSED_ESTATE_HOSTS[0];
+const REFUSED_ESTATE = defined(REFUSED_ESTATE_HOSTS[0]);
 /** A pub's own site, which is first-party by definition and needs no table row. */
 const PERMITTED = "https://www.arnosarms.co.uk/menu";
 

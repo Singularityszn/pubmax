@@ -34,6 +34,7 @@ import {
   textQueryForOsmVenue,
   weeklyHoursFromPlacesPeriods,
 } from "@/lib/placesVerification";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = path.resolve(__dirname, "..");
 const FORBIDDEN_KEYS = [
@@ -352,8 +353,8 @@ describe("committed Places verification files", () => {
     for (const row of ledger.pubs) {
       expect(Object.keys(row).sort()).toEqual(["googlePlaceId", "venueId", "verifiedAt"]);
     }
-    expect(ledger.summary.closedPermanently + ledger.summary.closedUnconfirmed)
-      .toBeLessThanOrEqual(ledger.summary.pubsVerified);
+    expect(defined(ledger.summary.closedPermanently) + defined(ledger.summary.closedUnconfirmed))
+      .toBeLessThanOrEqual(defined(ledger.summary.pubsVerified));
   });
 
   it("keeps closed_pubs.json a sorted set of OSM refs and their curated owners", () => {

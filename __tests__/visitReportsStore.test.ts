@@ -12,6 +12,7 @@ import {
   supabaseVisitReportStore,
 } from "@/lib/visitReportsStore";
 import type { VisitReportFields } from "@/lib/visitReports";
+import { defined } from "@/__tests__/helpers/defined";
 
 type Row = Record<string, unknown>;
 
@@ -172,7 +173,7 @@ describe("memoryVisitReportStore", () => {
     const read = await memoryVisitReportStore.readForVenue("venue-1");
     expect(read.status).toBe("ready");
     expect(read.reports).toHaveLength(1);
-    expect(read.reports[0].busyness).toBe("steady");
+    expect(defined(read.reports[0]).busyness).toBe("steady");
   });
 
   it("is idempotent: one report per handle per venue per night (upsert in place)", async () => {
@@ -182,7 +183,7 @@ describe("memoryVisitReportStore", () => {
     expect(second.id).toBe(first.id);
     const read = await memoryVisitReportStore.readForVenue("venue-1");
     expect(read.reports).toHaveLength(1);
-    expect(read.reports[0].busyness).toBe("rammed");
+    expect(defined(read.reports[0]).busyness).toBe("rammed");
   });
 
   it("a different night is a distinct report", async () => {
@@ -227,7 +228,7 @@ describe("memoryVisitReportStore", () => {
     expect((await memoryVisitReportStore.readForVenue("venue-1")).reports).toHaveLength(1);
     const queue = await memoryVisitReportStore.listForReview();
     expect(queue.map((r) => r.id)).toContain(dto.id);
-    expect(queue[0].reportCount).toBe(2);
+    expect(defined(queue[0]).reportCount).toBe(2);
   });
 
   it("report on an unknown id is false", async () => {
@@ -270,7 +271,7 @@ describe("memoryVisitReportStore", () => {
     await memoryVisitReportStore.report(dto.id, "still wrong", "b");
     const queue = await memoryVisitReportStore.listForReview();
     expect(queue.map((r) => r.id)).toEqual([dto.id]);
-    expect(queue[0].moderatorNote).toBe("kept");
+    expect(defined(queue[0]).moderatorNote).toBe("kept");
   });
 
   it("leaves a hidden report decided however many times it is flagged", async () => {
@@ -322,18 +323,18 @@ describe("supabaseVisitReportStore", () => {
     expect(second.id).toBe(first.id);
     const read = await supabaseVisitReportStore.readForVenue("venue-1");
     expect(read.reports).toHaveLength(1);
-    expect(read.reports[0].busyness).toBe("rammed");
+    expect(defined(read.reports[0]).busyness).toBe("rammed");
   });
 
   it("report dedupes per actor and waits for a moderator decision", async () => {
     const dto = await supabaseVisitReportStore.create(fields());
     await supabaseVisitReportStore.report(dto.id, "spam", "a");
     await supabaseVisitReportStore.report(dto.id, "spam", "a"); // dup — no-op
-    expect((db.rows[0].report_count as number)).toBe(1);
-    expect(db.rows[0].status).toBe("visible");
+    expect((defined(db.rows[0]).report_count as number)).toBe(1);
+    expect(defined(db.rows[0]).status).toBe("visible");
     await supabaseVisitReportStore.report(dto.id, "spam", "b");
-    expect((db.rows[0].report_count as number)).toBe(2);
-    expect(db.rows[0].status).toBe("visible");
+    expect((defined(db.rows[0]).report_count as number)).toBe(2);
+    expect(defined(db.rows[0]).status).toBe("visible");
     expect((await supabaseVisitReportStore.readForVenue("venue-1")).reports).toHaveLength(1);
     expect(await supabaseVisitReportStore.listForReview()).toHaveLength(1);
   });
@@ -378,7 +379,7 @@ describe("supabaseVisitReportStore", () => {
     await supabaseVisitReportStore.moderate(dto.id, "hidden", "abuse");
     const hidden = await supabaseVisitReportStore.listHidden();
     expect(hidden.map((r) => r.id)).toEqual([dto.id]);
-    expect(hidden[0].moderatorNote).toBe("abuse");
+    expect(defined(hidden[0]).moderatorNote).toBe("abuse");
 
     await supabaseVisitReportStore.moderate(dto.id, "visible");
     expect(await supabaseVisitReportStore.listHidden()).toHaveLength(0);

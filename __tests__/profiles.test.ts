@@ -23,6 +23,7 @@ import {
   groupByList,
   type SavedPub,
 } from "@/lib/savedPubs";
+import { defined } from "@/__tests__/helpers/defined";
 
 function drop(overrides: Partial<ProfileDrop> = {}): ProfileDrop {
   return { handle: "someone", priceGbp: 5, venueId: "v1", ...overrides };
@@ -286,8 +287,8 @@ describe("upsertSaved / removeSaved — (venueId,listType) uniqueness", () => {
     const first = upsertSaved([], saved({ note: "old" }));
     const second = upsertSaved(first, saved({ note: "new", savedAt: "2026-02-02T00:00:00.000Z" }));
     expect(second).toHaveLength(1);
-    expect(second[0].note).toBe("new");
-    expect(second[0].savedAt).toBe("2026-02-02T00:00:00.000Z");
+    expect(defined(second[0]).note).toBe("new");
+    expect(defined(second[0]).savedAt).toBe("2026-02-02T00:00:00.000Z");
   });
 
   it("allows the same venue in different lists", () => {

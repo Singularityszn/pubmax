@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import { offlineOrMessage } from "@/lib/apiErrorMessage";
 
 import Link from "next/link";
@@ -84,7 +85,7 @@ function groupCompactCrawls(crawls: CuratedCrawl[]): [string, CuratedCrawl[]][] 
 // Reproduce a crawl on the map from a story's stop ids, matching the existing
 // share-URL format read by seedCrawlState (mode=build&pubs=id1,id2). Stops that
 // carry no venueId (e.g. a hand-authored story) just aren't planned back.
-function crawlMapHref(story: CrawlStory): string {
+function crawlMapHref(story: CrawlStory): Route {
   const ids = story.stops.map((stop) => stop.venueId).filter(Boolean);
   if (ids.length === 0) return "/map";
   const params = new URLSearchParams();
@@ -205,7 +206,7 @@ function CrawlsPageInner() {
             </p>
             <ul className="routePackChipRow">
               {routePacks.map((pack) => {
-                const browseHref = `/crawls?pack=${encodeURIComponent(pack.id)}`;
+                const browseHref: Route = `/crawls?pack=${encodeURIComponent(pack.id)}`;
                 const isBrowsing = activePackId === pack.id;
                 const n = pack.crawlIds.length;
                 return (

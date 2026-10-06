@@ -91,7 +91,7 @@ export type ScheduledCityEnrichment = TavilyEnrichmentResult & {
 type VenueOutcome = {
   index: number;
   osmId: string;
-  status: "matched" | "empty" | "delegated" | "no-website" | "failed";
+  status: "matched" | "empty" | "delegated" | "no-website" | "refused-source" | "failed";
   error?: string;
 };
 
@@ -241,7 +241,10 @@ function runCore(input: CoreRunInput): Promise<TavilyEnrichmentResult> {
   }) as Promise<TavilyEnrichmentResult>;
 }
 
-function mergeCityResults(primaryCity: string, runs: CityBatchResult[]): ScheduledCityEnrichment {
+function mergeCityResults(
+  primaryCity: string,
+  runs: readonly [CityBatchResult, ...CityBatchResult[]],
+): ScheduledCityEnrichment {
   const primary = runs.find((run) => run.city === primaryCity) ?? runs[0];
   const prices = runs.flatMap((run) => run.prices);
   const pages = runs.flatMap((run) => run.pages);
@@ -270,7 +273,7 @@ export async function runScheduledCityEnrichment(
   const now = options.now ?? Date.now();
   const maxQueries = options.maxQueries ?? SEARCH_CRON_QUERY_CAP;
   const epochDay = Math.floor(now / DAY_MS);
-  const primaryCity = CITY_ROTATION[epochDay % CITY_ROTATION.length];
+  const primaryCity = CITY_ROTATION[epochDay % CITY_ROTATION.length] ?? CITY_ROTATION[0];
   const allPubs = loadUkPubs();
   const cityRuns: ScheduledCityRunOutcome[] = [];
   const mergeableRuns: CityBatchResult[] = [];
@@ -321,6 +324,7 @@ export async function runScheduledCityEnrichment(
     const spilloverCities = CITY_ROTATION.filter((city) => city !== "bristol");
     for (let index = 0; index < spilloverCities.length && remainingBudget > 0; index += 1) {
       const city = spilloverCities[index];
+      if (!city) break;
       const citiesLeft = spilloverCities.length - index;
       const slice = Math.max(1, Math.ceil(remainingBudget / citiesLeft));
       const cap = Math.min(slice, remainingBudget);
@@ -369,9 +373,10 @@ export async function runScheduledCityEnrichment(
     throw error;
   }
 
+  const [firstRun, ...laterRuns] = mergeableRuns;
   const merged =
-    mergeableRuns.length > 0
-      ? mergeCityResults(primaryCity, mergeableRuns)
+    firstRun
+      ? mergeCityResults(primaryCity, [firstRun, ...laterRuns])
       : {
           city: primaryCity,
           primaryCity,

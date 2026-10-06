@@ -43,6 +43,7 @@ import {
   countsEqual,
 } from "@/components/map/canvas/donutClusters";
 import type { DonutCounts } from "@/lib/donutClusterGeometry";
+import { defined } from "@/__tests__/helpers/defined";
 
 // Pure helpers cover bucket coercion and SVG rebuilds. The fake map covers
 // listener lifecycle and source-snapshot authority, while the map E2E suite
@@ -106,6 +107,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
       getLayer: () => undefined,
       getZoom: () => 10,
       querySourceFeatures: (): unknown[] => [],
+      setFilter: vi.fn(),
       setLayoutProperty: vi.fn(),
     };
     return { map, handlers };
@@ -146,16 +148,16 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     const { map, handlers } = makeFakeMap();
     createDonutClusterSync(map as unknown as maplibregl.Map, () => {});
     const [moveend] = [...(handlers.get("moveend") ?? [])];
-    expect(() => moveend()).not.toThrow();
+    expect(() => defined(moveend)()).not.toThrow();
     // Guarded out before any layer toggle.
-    expect(map.setLayoutProperty).not.toHaveBeenCalled();
+    expect(map.setFilter).not.toHaveBeenCalled();
   });
 
   it("the style.load handler clears cleanly with no live markers", () => {
     const { map, handlers } = makeFakeMap();
     createDonutClusterSync(map as unknown as maplibregl.Map, () => {});
     const [onStyleLoad] = [...(handlers.get("style.load") ?? [])];
-    expect(() => onStyleLoad()).not.toThrow();
+    expect(() => defined(onStyleLoad)()).not.toThrow();
   });
 
   it("stays active through the whole 13.x band and deactivates only at CLUSTER_MAX_ZOOM + 1", () => {
@@ -171,7 +173,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
       map.querySourceFeatures = querySourceFeatures;
       createDonutClusterSync(map as unknown as maplibregl.Map, () => {});
       const [moveend] = [...(handlers.get("moveend") ?? [])];
-      moveend();
+      defined(moveend)();
       return querySourceFeatures;
     };
 
@@ -190,7 +192,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     });
 
     expect(map.on).not.toHaveBeenCalled();
-    expect(map.setLayoutProperty).not.toHaveBeenCalled();
+    expect(map.setFilter).not.toHaveBeenCalled();
   });
 
   it("retains active donuts for transient and non-content emptiness, then clears them when loaded content is empty", () => {
@@ -227,63 +229,50 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     const [render] = [...(handlers.get("render") ?? [])];
     const [sourcedata] = [...(handlers.get("sourcedata") ?? [])];
 
-    moveend();
+    defined(moveend)();
     expect(markerHarness.instances).toHaveLength(1);
-    expect(map.setLayoutProperty).toHaveBeenLastCalledWith(
-      "cluster-count",
-      "visibility",
-      "none",
-    );
+    expect(map.setFilter).toHaveBeenLastCalledWith("cluster-count", false);
 
     // MapLibre 6 can transiently return no source features during render even
     // though the settled camera still has clusters. That snapshot cannot hand
     // ownership back to the GL fallback or remove every active DOM marker.
-    render();
-    expect(markerHarness.instances[0].remove).not.toHaveBeenCalled();
-    expect(map.setLayoutProperty).toHaveBeenLastCalledWith(
-      "cluster-count",
-      "visibility",
-      "none",
-    );
+    defined(render)();
+    expect(defined(markerHarness.instances[0]).remove).not.toHaveBeenCalled();
+    expect(map.setFilter).toHaveBeenLastCalledWith("cluster-count", false);
 
-    sourcedata({
+    defined(sourcedata)({
       sourceId: "basemap",
       sourceDataType: "content",
       isSourceLoaded: true,
     });
-    sourcedata({
+    defined(sourcedata)({
       sourceId: "pubs",
       sourceDataType: "visibility",
       isSourceLoaded: true,
     });
-    sourcedata({
+    defined(sourcedata)({
       sourceId: "pubs",
       sourceDataType: "idle",
       isSourceLoaded: true,
     });
-    sourcedata({
+    defined(sourcedata)({
       sourceId: "pubs",
       sourceDataType: "content",
       isSourceLoaded: false,
     });
-    expect(markerHarness.instances[0].remove).not.toHaveBeenCalled();
-    expect(map.setLayoutProperty).toHaveBeenLastCalledWith(
-      "cluster-count",
-      "visibility",
-      "none",
-    );
+    expect(defined(markerHarness.instances[0]).remove).not.toHaveBeenCalled();
+    expect(map.setFilter).toHaveBeenLastCalledWith("cluster-count", false);
 
-    sourcedata({
+    defined(sourcedata)({
       sourceId: "pubs",
       sourceDataType: "content",
       isSourceLoaded: true,
     });
-    expect(markerHarness.instances[0].remove).toHaveBeenCalledOnce();
-    expect(map.setLayoutProperty).toHaveBeenLastCalledWith(
-      "cluster-count",
-      "visibility",
-      "visible",
-    );
+    expect(defined(markerHarness.instances[0]).remove).toHaveBeenCalledOnce();
+    expect(map.setFilter).toHaveBeenLastCalledWith("cluster-count", [
+      "has",
+      "point_count",
+    ]);
 
     sync.destroy();
     vi.unstubAllGlobals();
@@ -323,20 +312,57 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     const [render] = [...(handlers.get("render") ?? [])];
     const [sourcedata] = [...(handlers.get("sourcedata") ?? [])];
 
-    render();
+    defined(render)();
     expect(markerHarness.instances).toHaveLength(0);
 
-    sourcedata({
+    defined(sourcedata)({
       sourceId: "pubs",
       sourceDataType: "idle",
       isSourceLoaded: true,
     });
     expect(markerHarness.instances).toHaveLength(1);
-    expect(map.setLayoutProperty).toHaveBeenLastCalledWith(
-      "cluster-count",
-      "visibility",
-      "none",
+    expect(map.setFilter).toHaveBeenLastCalledWith("cluster-count", false);
+
+    sync.destroy();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("empties the GL cluster layers rather than hiding them, so the pubs source stays loaded", () => {
+    // Below PIN_MIN_ZOOM the cluster disc and its count are the only layers on
+    // the pubs source. Hidden, they left MapLibre with an unused source: it
+    // dropped the tiles, the next idle query found no clusters, every donut
+    // cleared and the discs came back, over and over on a still map.
+    stubMarkerDocument();
+
+    const { map, handlers } = makeFakeMap();
+    const cluster = {
+      properties: { cluster_id: 20, point_count: 2, b0: 1, b1: 1, b2: 0, b3: 0 },
+      geometry: { type: "Point", coordinates: [-2.2426, 53.4808] },
+    };
+    map.getSource = () => ({}) as never;
+    map.getLayer = () => ({}) as never;
+    map.querySourceFeatures = vi
+      .fn()
+      .mockReturnValueOnce([cluster])
+      .mockReturnValue([]);
+
+    const sync = createDonutClusterSync(
+      map as unknown as maplibregl.Map,
+      () => {},
     );
+    const [idle] = [...(handlers.get("idle") ?? [])];
+
+    defined(idle)();
+    expect(map.setFilter).toHaveBeenCalledWith("clusters", false);
+    expect(map.setFilter).toHaveBeenCalledWith("cluster-count", false);
+
+    defined(idle)();
+    expect(map.setFilter).toHaveBeenLastCalledWith("cluster-count", [
+      "has",
+      "point_count",
+    ]);
+    expect(map.setLayoutProperty).not.toHaveBeenCalled();
 
     sync.destroy();
     vi.unstubAllGlobals();
@@ -371,7 +397,7 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     const [idle] = [...(handlers.get("idle") ?? [])];
 
     expect(idle).toBeTypeOf("function");
-    idle();
+    defined(idle)();
     expect(markerHarness.instances).toHaveLength(1);
 
     sync.destroy();

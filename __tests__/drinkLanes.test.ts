@@ -18,6 +18,7 @@ import { SUBMITTABLE_DRINK_CATEGORIES } from "@/lib/communityPrice";
 import { CATEGORY_META, MAP_LENS_DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
 import type { CategoryPriceIndexStatus } from "@/lib/mapExperienceLens";
 import type { Filters } from "@/lib/venues";
+import { defined } from "@/__tests__/helpers/defined";
 
 function filters(overrides: Partial<Filters> = {}): Filters {
   return {
@@ -147,7 +148,7 @@ describe("orderVenueDrinkPrices", () => {
       "cocktail",
     );
     expect(rows.map((row) => row.category)).toEqual(["cocktail", "beer", "wine"]);
-    expect(rows[0].inActiveLane).toBe(true);
+    expect(defined(rows[0]).inActiveLane).toBe(true);
     expect(rows.slice(1).every((row) => row.inActiveLane === false)).toBe(true);
   });
 
@@ -172,7 +173,7 @@ describe("orderVenueDrinkPrices", () => {
       "beer",
     );
     expect(rows).toHaveLength(1);
-    expect(rows[0].price.priceGbp).toBe(6);
+    expect(defined(rows[0]).price.priceGbp).toBe(6);
   });
 
   it("answers nothing for a pub with no community prices", () => {

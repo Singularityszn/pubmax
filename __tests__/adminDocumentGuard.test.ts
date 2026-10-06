@@ -4,8 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   ADMIN_SESSION_COOKIE,
+  ADMIN_SESSION_MAX_AGE_SEC,
   canOpenAdminDocument,
-  hashAdminSession,
+  mintAdminSession,
   isModerator,
 } from "@/lib/adminAuth";
 
@@ -48,10 +49,11 @@ beforeEach(() => {
 afterEach(() => {
   if (ORIGINAL_ADMIN_TOKEN === undefined) delete process.env.ADMIN_TOKEN;
   else process.env.ADMIN_TOKEN = ORIGINAL_ADMIN_TOKEN;
+  vi.restoreAllMocks();
 });
 
 function moderatorCookie(token: string): string {
-  return `${ADMIN_SESSION_COOKIE}=${encodeURIComponent(hashAdminSession(token))}`;
+  return `${ADMIN_SESSION_COOKIE}=${encodeURIComponent(mintAdminSession(token))}`;
 }
 
 /** Next hands the page a sealed adapter, so the gate may only ever call `get`. */
@@ -70,7 +72,7 @@ describe("canOpenAdminDocument", () => {
     expect(canOpenAdminDocument(new Headers())).toBe(false);
   });
 
-  it("admits a header list whose cookie is the hashed token", () => {
+  it("admits a header list whose cookie is a live signed session", () => {
     process.env.ADMIN_TOKEN = "test-admin-secret";
     expect(
       canOpenAdminDocument(
@@ -117,6 +119,17 @@ describe("the admin document", () => {
     const html = renderToStaticMarkup(await AdminPage());
     expect(navigation.unauthorized).not.toHaveBeenCalled();
     expect(html).toContain("moderator console");
+  });
+
+  it("refuses an expired session before the console mounts", async () => {
+    process.env.ADMIN_TOKEN = "test-admin-secret";
+    const issuedAt = Date.parse("2026-10-04T12:00:00Z");
+    const clock = vi.spyOn(Date, "now").mockReturnValue(issuedAt);
+    incoming.headers = new Headers({ cookie: moderatorCookie("test-admin-secret") });
+    clock.mockReturnValue(issuedAt + ADMIN_SESSION_MAX_AGE_SEC * 1000);
+    const { default: AdminPage } = await import("@/app/admin/page");
+    await expect(AdminPage()).rejects.toThrow(/401/);
+    expect(navigation.unauthorized).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the token form on the 401 body, not the console", async () => {

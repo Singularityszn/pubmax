@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "generatedBy": "scripts/build_uk_base_shards.mjs",
+  "note": "supersededVenueId -> currentVenueId. A UK base id is the pub's OpenStreetMap ref, so it only moves when OSM deletes the object. Every shard build records each id it dropped here: under `aliases` when OSM redrew the same pub as a new object (the same name within 50 m) or when a still-listed curated venue owned the row, or under `retired` with its name, address and last point when the pub left OSM with no successor, so a stored reference to it still names that pub, noted as possibly closed, while it stays off the map. A stored reference resolves via lib/venueAliases.ts; no id is ever deleted silently.",
+  "aliasCount": 9,
+  "aliases": {
+    "venue-uk-n2140360931": "venue-uk-w1564937132",
+    "venue-uk-n2245308130": "venue-uk-w1565157826",
+    "venue-uk-n251025339": "venue-uk-w1420386829",
+    "venue-uk-n267555188": "venue-uk-w1564737167",
+    "venue-uk-n269255191": "venue-sy8k64",
+    "venue-uk-n29413368": "venue-uk-w1564017736",
+    "venue-uk-n3131253805": "venue-uk-w1565211171",
+    "venue-uk-n6415148485": "venue-uk-w962612597",
+    "venue-uk-w296601534": "venue-uk-n14246360658"
+  },
+  "retired": {
+    "venue-uk-n11226716385": {
+      "name": "Little Street Cellar",
+      "area": "United Kingdom",
+      "lat": 53.16344,
+      "lng": -2.21433
+    },
+    "venue-uk-n1377230368": {
+      "name": "Cross Keys",
+      "area": "High Street, SN10 2PN",
+      "lat": 51.36327,
+      "lng": -2.03103
+    },
+    "venue-uk-n3724522895": {
+      "name": "The Horseshoe",
+      "area": "81, George Street, Ayr, KA8 0AQ",
+      "lat": 55.46582,
+      "lng": -4.62494
+    },
+    "venue-uk-n472347414": {
+      "name": "The Clarendon",
+      "area": "44-46, Clarendon Avenue, Leamington Spa, CV32 4RZ",
+      "lat": 52.29363,
+      "lng": -1.53315
+    },
+    "venue-uk-n5200168681": {
+      "name": "Joe's Bar",
+      "area": "United Kingdom",
+      "lat": 54.92769,
+      "lng": -6.925
+    },
+    "venue-uk-n527244361": {
+      "name": "Farmers Arms (closed)",
+      "area": "Horse Road, HR8 1LS",
+      "lat": 52.06006,
+      "lng": -2.42225
+    },
+    "venue-uk-n6006171802": {
+      "name": "Bramley Farm",
+      "area": "United Kingdom",
+      "lat": 53.4051,
+      "lng": -2.36261
+    },
+    "venue-uk-n859244203": {
+      "name": "Horse and Jockey",
+      "area": "15, Jockey Bank, Telford, TF8 7PD",
+      "lat": 52.62909,
+      "lng": -2.4754
+    },
+    "venue-uk-w321670431": {
+      "name": "Boat Inn",
+      "area": "Main Street, Castleford, WF10 2BX",
+      "lat": 53.74061,
+      "lng": -1.36719
+    },
+    "venue-uk-w734898640": {
+      "name": "Blenheim House",
+      "area": "56, Main Street, Derby, DE65 6LP",
+      "lat": 52.8849,
+      "lng": -1.59995
+    }
+  }
+}

@@ -93,6 +93,34 @@ proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url 
 
 1. **Hosted LLM** (`gemini-2.5-flash-lite` by default) on the ElevenLabs plan.
 2. **Webhook tools** for the ADR 0014 allowlist (same handlers as `/api/ask`).
+   Each tool sets `pre_tool_speech: "force"` and `execution_mode: "immediate"`,
+   so the Pal says one short checking line while the tool runs instead of
+   staying silent until it returns. The four confirm tools (`propose_plan`,
+   `propose_map_action`, `report_occupancy`, `propose_memory`) set `interruption_mode:
+   "disable_during_tool_and_turn"` so the proposal is heard whole. Typed chat
+   answers on the first reply when the turn asks for no tool. Once a turn asks
+   for a tool, typed chat drops the checking lines. It returns a reply only
+   when that reply came after the last tool event and no tool is still
+   running, on `agent_response_complete`. The script adds that event and the
+   tool events to the agent's `conversation.client_events`, so the captain
+   re-runs `npm run pubpal:agent` to turn them on. On an agent without that
+   event, a tool turn ends at the 22-second server deadline, which falls
+   before the browser's 25-second abort, and returns the reply held under the
+   same rule, or a timeout.
+   One more webhook, `recall_memories`, is Pal-only. It returns the memories the
+   person confirmed or corrected (never `completed_plan` rows) for the account
+   that opened the conversation, read from the server-side conversation binding
+   and never from the request body. Typed chat puts the same lines ahead of the
+   ask on the server, or one line saying nothing is confirmed, so it does not
+   need the tool. A second Pal-only webhook, `propose_memory`, adds a memory card
+   to a typed chat for the bound account, only when that Pal has memory
+   proposals on. It refuses in a voice call, where no card can be shown. It
+   saves nothing: the memory exists once the person taps
+   Confirm, which posts to `POST /api/pub-pal/memories`. Typed chat also carries
+   a rolling session summary turn capped at 300 UTF-8 bytes, label included.
+   A byte-level BPE token always covers at least one byte, so the turn is at
+   most 300 tokens for any input. It is built only from the person's own older
+   asks and never used as a fact source.
 3. **Voices** and per-session `voice_id` overrides (unchanged).
 4. **House prompt**: call tools before any fact, never invent a price, propose
    then confirm, plain speech on get-home topics.
@@ -191,4 +219,6 @@ audio frames on the ElevenLabs WebSocket.
 
 - `docs/adr/0006-pub-pal-user-owned-digital-companion.md` - what a Pal may do
 - `docs/adr/0014-night-os-ask-agent.md` - the tool allowlist
+- `docs/adr/0016-pub-pal-confirmed-memory-recall.md` - what the Pal reads from
+  confirmed memories
 - `docs/VOICE.md` - how every line above had to read

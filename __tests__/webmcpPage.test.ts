@@ -11,6 +11,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import WebMcpNightBoard from "@/components/webmcp/WebMcpNightBoard";
+import { defined } from "@/__tests__/helpers/defined";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -79,7 +80,7 @@ describe("WebMCP Agent Night Board", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0];
+    const [url, init] = defined(fetchMock.mock.calls[0]);
     expect(url).toBe("/api/plans/generate");
     expect(JSON.parse(String(init?.body))).toEqual({ query: "Three pubs in Victoria" });
     expect(container.textContent).toContain("Revision 1");

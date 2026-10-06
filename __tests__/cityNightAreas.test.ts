@@ -26,6 +26,7 @@ import {
 } from "../scripts/build_city_night_areas.mjs";
 import { PLACE_NODE_CITIES } from "../scripts/fetch_city_place_nodes.mjs";
 import { isBasePubRow } from "../scripts/build_city_night_areas.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = path.resolve(__dirname, "..");
 
@@ -106,12 +107,12 @@ describe("derived city Night Areas", () => {
       });
 
       it("re-derives the same areas from the committed base layer", () => {
-        const derived = deriveCityAreas(cityId, CITY_BOUNDS[cityId], basePubs, placeNodes);
+        const derived = deriveCityAreas(cityId, defined(CITY_BOUNDS[cityId]), basePubs, placeNodes);
         expect(derived).toEqual(rows);
       });
 
       it("keeps every counted pub inside its own area", () => {
-        const box = CITY_BOUNDS[cityId];
+        const box = defined(CITY_BOUNDS[cityId]);
         const cityPubs = basePubs.filter(
           (pub) =>
             pub.lat >= box.latMin && pub.lat <= box.latMax &&

@@ -17,6 +17,7 @@
 //   junk token and silently filter every venue out.
 // Reword an ask only with the tests open.
 
+import type { Route } from "next";
 import type { WhatsOnKind } from "@/lib/whatsOn";
 import type { ConciergeMood } from "@/lib/concierge/rank";
 
@@ -138,7 +139,7 @@ export function vibeChipById(id: string): VibeChip | undefined {
 }
 
 /** Deep link that opens the Pub Pal with this chip's ask pre-fired. */
-export function palChatHref(chip: VibeChip): string {
+export function palChatHref(chip: VibeChip): Route {
   return `/pal/chat?ask=${encodeURIComponent(chip.ask)}`;
 }
 

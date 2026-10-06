@@ -33,6 +33,7 @@ import { join } from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { billFixtureFile } from "./helpers/billFixture";
+import { defined } from "@/__tests__/helpers/defined";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
@@ -343,6 +344,7 @@ beforeAll(async () => {
     messageThreadRoute,
     messagePhotoRoute,
     wantedRoute,
+    diaryRoute,
     savedPubsRoute,
     tagsRoute,
     profileRoute,
@@ -373,6 +375,7 @@ beforeAll(async () => {
     import("@/app/api/messages/[id]/route"),
     import("@/app/api/messages/[id]/photo/[messageId]/route"),
     import("@/app/api/wanted/route"),
+    import("@/app/api/diary/route"),
     import("@/app/api/saved-pubs/route"),
     import("@/app/api/social/tags/route"),
     import("@/app/api/profiles/[handle]/route"),
@@ -414,6 +417,8 @@ beforeAll(async () => {
     messagePhoto: messagePhotoRoute.GET as Handler,
     listWanted: wantedRoute.GET as unknown as Handler,
     writeWanted: wantedRoute.POST as unknown as Handler,
+    listDiary: diaryRoute.GET as unknown as Handler,
+    writeDiary: diaryRoute.POST as unknown as Handler,
     listSavedPubs: savedPubsRoute.GET as unknown as Handler,
     writeSavedPub: savedPubsRoute.POST as unknown as Handler,
     tagInbox: tagsRoute.GET as unknown as Handler,
@@ -594,7 +599,7 @@ function planStopOrder(): string {
 describe("private Plan: read", () => {
   it("anonymous, user B, and a bare Supabase bearer all get the preview and never the route", async () => {
     for (const bearer of [undefined, BEARER_BOB, BEARER_ALICE]) {
-      const response = await handlers.readPlan(
+      const response = await defined(handlers.readPlan)(
         request(`/api/plans/${PLAN_ID}`, { bearer }),
         context({ id: PLAN_ID }),
       );
@@ -606,7 +611,7 @@ describe("private Plan: read", () => {
   });
 
   it("the host's member capability is what opens the member state", async () => {
-    const response = await handlers.readPlan(
+    const response = await defined(handlers.readPlan)(
       request(`/api/plans/${PLAN_ID}`, { bearer: HOST_TOKEN }),
       context({ id: PLAN_ID }),
     );
@@ -621,7 +626,7 @@ describe("private Plan: read", () => {
   it("the get-in and recap views answer the preview to a stranger", async () => {
     for (const handler of [handlers.getin, handlers.recap]) {
       for (const bearer of [undefined, BEARER_BOB]) {
-        const response = await handler(
+        const response = await defined(handler)(
           request(`/api/plans/${PLAN_ID}/x`, { bearer }),
           context({ id: PLAN_ID }),
         );
@@ -634,7 +639,7 @@ describe("private Plan: read", () => {
   });
 
   it("the unfurler card renders for anyone and reads only the preview", async () => {
-    const response = await handlers.planCard(
+    const response = await defined(handlers.planCard)(
       request(`/api/plan-card?id=${PLAN_ID}`),
       context({}),
     );
@@ -675,7 +680,7 @@ describe("private Plan: write", () => {
     const revisionBefore = planRevision();
     const orderBefore = planStopOrder();
     for (const bearer of [undefined, BEARER_BOB]) {
-      const replaced = await handlers.updatePlan(
+      const replaced = await defined(handlers.updatePlan)(
         request(`/api/plans/${PLAN_ID}`, {
           method: "PATCH",
           bearer,
@@ -685,13 +690,13 @@ describe("private Plan: write", () => {
       );
       expect([400, 403]).toContain(replaced.status);
 
-      const rotated = await handlers.rotateInvite(
+      const rotated = await defined(handlers.rotateInvite)(
         request(`/api/plans/${PLAN_ID}/invite-rotate`, { bearer, body: {} }),
         context({ id: PLAN_ID }),
       );
       expect(rotated.status).toBe(403);
 
-      const presence = await handlers.presence(
+      const presence = await defined(handlers.presence)(
         request(`/api/plans/${PLAN_ID}/presence`, { bearer, body: { status: "here" } }),
         context({ id: PLAN_ID }),
       );
@@ -704,7 +709,7 @@ describe("private Plan: write", () => {
 
   it("the host's capability replaces the route (the control cell)", async () => {
     const revisionBefore = planRevision();
-    const replaced = await handlers.updatePlan(
+    const replaced = await defined(handlers.updatePlan)(
       request(`/api/plans/${PLAN_ID}`, {
         method: "PATCH",
         bearer: HOST_TOKEN,
@@ -714,7 +719,7 @@ describe("private Plan: write", () => {
     );
     expect(replaced.status, await replaced.text()).toBe(200);
     expect(planRevision()).toBe(revisionBefore + 1);
-    expect(planStopOrder()).toBe(REORDERED_ROUTE.map((stop) => stop.venueId).join(","));
+    expect(planStopOrder()).toBe(REORDERED_ROUTE.map((stop) => defined(stop).venueId).join(","));
   });
 
   it("at the table: no browser role may write a Plan row, its stops, or its crew", async () => {
@@ -748,7 +753,7 @@ describe("invite capability", () => {
   let guestToken = "";
 
   it("an invite token is not a member token: as a bearer it reads the preview and edits nothing", async () => {
-    const created = await handlers.createInvite(
+    const created = await defined(handlers.createInvite)(
       request(`/api/plans/${PLAN_ID}/invites`, {
         bearer: HOST_TOKEN,
         key: "matrix-invite-1",
@@ -761,7 +766,7 @@ describe("invite capability", () => {
     inviteToken = (await readJson<{ token: string }>(created)).token;
     expect(inviteToken).toBeTruthy();
 
-    const read = await handlers.readPlan(
+    const read = await defined(handlers.readPlan)(
       request(`/api/plans/${PLAN_ID}`, { bearer: inviteToken }),
       context({ id: PLAN_ID }),
     );
@@ -769,7 +774,7 @@ describe("invite capability", () => {
     expectPreview(await readJson<PreviewBody>(read));
 
     const revision = planRevision();
-    const edited = await handlers.updatePlan(
+    const edited = await defined(handlers.updatePlan)(
       request(`/api/plans/${PLAN_ID}`, {
         method: "PATCH",
         bearer: inviteToken,
@@ -782,7 +787,7 @@ describe("invite capability", () => {
   });
 
   it("user B redeems the invite into one seat bound to her account, and the seat is what opens the member view", async () => {
-    const joined = await handlers.join(
+    const joined = await defined(handlers.join)(
       request(`/api/plans/${PLAN_ID}/join`, {
         bearer: BEARER_BOB,
         key: "matrix-join-bob",
@@ -797,7 +802,7 @@ describe("invite capability", () => {
       `select count(*) from public.plan_crew_members where plan_id = '${PLAN_ID}' and user_id = '${BOB}' and membership_revoked_at is null`,
     )).toBe("1");
 
-    const member = await handlers.readPlan(
+    const member = await defined(handlers.readPlan)(
       request(`/api/plans/${PLAN_ID}`, { bearer: guestToken }),
       context({ id: PLAN_ID }),
     );
@@ -806,7 +811,7 @@ describe("invite capability", () => {
 
     // The account bearer alone is still the preview: capability, not identity,
     // is the Plan's read key (audit section 5 observed the same).
-    const bare = await handlers.readPlan(
+    const bare = await defined(handlers.readPlan)(
       request(`/api/plans/${PLAN_ID}`, { bearer: BEARER_BOB }),
       context({ id: PLAN_ID }),
     );
@@ -818,7 +823,7 @@ describe("invite capability", () => {
   });
 
   it("the invite is spent: a second redemption is refused, and one account holds one seat", async () => {
-    const replay = await handlers.join(
+    const replay = await defined(handlers.join)(
       request(`/api/plans/${PLAN_ID}/join`, {
         key: "matrix-join-replay",
         body: { name: "Again", inviteToken },
@@ -827,7 +832,7 @@ describe("invite capability", () => {
     );
     expect(replay.status).toBeGreaterThanOrEqual(400);
 
-    const fresh = await handlers.createInvite(
+    const fresh = await defined(handlers.createInvite)(
       request(`/api/plans/${PLAN_ID}/invites`, {
         bearer: HOST_TOKEN,
         key: "matrix-invite-2",
@@ -836,7 +841,7 @@ describe("invite capability", () => {
       context({ id: PLAN_ID }),
     );
     const second = (await readJson<{ token: string }>(fresh)).token;
-    const secondSeat = await handlers.join(
+    const secondSeat = await defined(handlers.join)(
       request(`/api/plans/${PLAN_ID}/join`, {
         bearer: BEARER_BOB,
         key: "matrix-join-bob-second-seat",
@@ -851,7 +856,7 @@ describe("invite capability", () => {
   });
 
   it("a guest capability may not rotate the invite link", async () => {
-    const rotated = await handlers.rotateInvite(
+    const rotated = await defined(handlers.rotateInvite)(
       request(`/api/plans/${PLAN_ID}/invite-rotate`, { bearer: guestToken, body: {} }),
       context({ id: PLAN_ID }),
     );
@@ -871,13 +876,13 @@ describe("invite capability", () => {
     `);
     expect(revoked.ok, revoked.err).toBe(true);
 
-    const read = await handlers.readPlan(
+    const read = await defined(handlers.readPlan)(
       request(`/api/plans/${PLAN_ID}`, { bearer: guestToken }),
       context({ id: PLAN_ID }),
     );
     expectPreview(await readJson<PreviewBody>(read));
 
-    const presence = await handlers.presence(
+    const presence = await defined(handlers.presence)(
       request(`/api/plans/${PLAN_ID}/presence`, { bearer: guestToken, body: { status: "here" } }),
       context({ id: PLAN_ID }),
     );
@@ -917,35 +922,35 @@ describe("private Night Memory, Moment and its object", () => {
   let bobMemory = "";
 
   it("the memory list is the caller's own: anonymous is refused, B sees none of A's, A sees hers", async () => {
-    const anonymous = await handlers.listMemories(request("/api/night-memories"), context({}));
+    const anonymous = await defined(handlers.listMemories)(request("/api/night-memories"), context({}));
     expect(anonymous.status).toBe(401);
 
-    const bob = await handlers.listMemories(request("/api/night-memories", { bearer: BEARER_BOB }), context({}));
+    const bob = await defined(handlers.listMemories)(request("/api/night-memories", { bearer: BEARER_BOB }), context({}));
     expect(bob.status).toBe(200);
     expect((await readJson<{ memories: Array<{ id: string }> }>(bob)).memories.map((row) => row.id))
       .not.toContain(ALICE_MEMORY);
 
-    const alice = await handlers.listMemories(request("/api/night-memories", { bearer: BEARER_ALICE }), context({}));
+    const alice = await defined(handlers.listMemories)(request("/api/night-memories", { bearer: BEARER_ALICE }), context({}));
     expect(alice.status).toBe(200);
     expect((await readJson<{ memories: Array<{ id: string }> }>(alice)).memories.map((row) => row.id))
       .toContain(ALICE_MEMORY);
   });
 
   it("A's Moments answer only to A, and B can neither read nor add to that Memory", async () => {
-    const anonymous = await handlers.listMoments(
+    const anonymous = await defined(handlers.listMoments)(
       request(`/api/night-memories/${ALICE_MEMORY}/moments`),
       context({ id: ALICE_MEMORY }),
     );
     expect(anonymous.status).toBe(401);
 
-    const bob = await handlers.listMoments(
+    const bob = await defined(handlers.listMoments)(
       request(`/api/night-memories/${ALICE_MEMORY}/moments`, { bearer: BEARER_BOB }),
       context({ id: ALICE_MEMORY }),
     );
     expect(bob.status).toBe(200);
     expect((await readJson<{ moments: unknown[] }>(bob)).moments).toEqual([]);
 
-    const alice = await handlers.listMoments(
+    const alice = await defined(handlers.listMoments)(
       request(`/api/night-memories/${ALICE_MEMORY}/moments`, { bearer: BEARER_ALICE }),
       context({ id: ALICE_MEMORY }),
     );
@@ -953,7 +958,7 @@ describe("private Night Memory, Moment and its object", () => {
     const mine = await readJson<{ moments: Array<{ id: string; mediaObjectKey?: string }> }>(alice);
     expect(mine.moments.map((row) => row.id)).toEqual([ALICE_MOMENT]);
 
-    const intruded = await handlers.addMoment(
+    const intruded = await defined(handlers.addMoment)(
       request(`/api/night-memories/${ALICE_MEMORY}/moments`, {
         bearer: BEARER_BOB,
         body: { kind: "event", caption: "not mine" },
@@ -965,7 +970,7 @@ describe("private Night Memory, Moment and its object", () => {
   });
 
   it("only the owner may describe a photo Moment", async () => {
-    const bob = await handlers.altText(
+    const bob = await defined(handlers.altText)(
       request(`/api/night-moments/${ALICE_MOMENT}/alt-text`, {
         method: "PATCH",
         bearer: BEARER_BOB,
@@ -976,7 +981,7 @@ describe("private Night Memory, Moment and its object", () => {
     expect(bob.status).toBe(403);
     expect(truth(`select coalesce(alt_text, '') from public.night_moments where id = '${ALICE_MOMENT}'`)).toBe("");
 
-    const alice = await handlers.altText(
+    const alice = await defined(handlers.altText)(
       request(`/api/night-moments/${ALICE_MOMENT}/alt-text`, {
         method: "PATCH",
         bearer: BEARER_ALICE,
@@ -988,7 +993,7 @@ describe("private Night Memory, Moment and its object", () => {
   });
 
   it("B can create her own Memory through the same door", async () => {
-    const created = await handlers.createMemory(
+    const created = await defined(handlers.createMemory)(
       request("/api/night-memories", { bearer: BEARER_BOB, body: { title: "Bob night" } }),
       context({}),
     );
@@ -1058,7 +1063,7 @@ async function submitPrice(
     // read as a broken permission rule (__tests__/helpers/billFixture.ts).
     form.set("receipt_photo", billFixtureFile());
   }
-  return handlers.priceSubmit(
+  return defined(handlers.priceSubmit)(
     request("/api/price-submit", { bearer, form }),
     context({}),
   );
@@ -1092,7 +1097,7 @@ describe("private profile card: read", () => {
   };
 
   async function readCard(bearer?: string): Promise<{ status: number; raw: string; body: CardBody }> {
-    const response = await handlers.readProfile(
+    const response = await defined(handlers.readProfile)(
       request(`/api/profiles/${PROFILE_HANDLE}`, bearer ? { bearer } : {}),
       context({ handle: PROFILE_HANDLE }),
     );
@@ -1101,7 +1106,7 @@ describe("private profile card: read", () => {
   }
 
   it("A authors her card through her own door, and every role reads it while it is public", async () => {
-    const authored = await handlers.writeProfile(
+    const authored = await defined(handlers.writeProfile)(
       request(`/api/profiles/${PROFILE_HANDLE}`, {
         bearer: BEARER_ALICE,
         method: "PATCH",
@@ -1125,7 +1130,7 @@ describe("private profile card: read", () => {
   });
 
   it("only A may turn her account private, and a stranger's attempt moves nothing", async () => {
-    const dave = await handlers.writeProfile(
+    const dave = await defined(handlers.writeProfile)(
       request(`/api/profiles/${PROFILE_HANDLE}`, {
         bearer: BEARER_DAVE,
         method: "PATCH",
@@ -1137,7 +1142,7 @@ describe("private profile card: read", () => {
     expect(truth(`select visibility from public.profiles where handle = '${PROFILE_HANDLE}'`))
       .toBe("public");
 
-    const alice = await handlers.writeProfile(
+    const alice = await defined(handlers.writeProfile)(
       request(`/api/profiles/${PROFILE_HANDLE}`, {
         bearer: BEARER_ALICE,
         method: "PATCH",
@@ -1227,7 +1232,7 @@ describe("private profile card: read", () => {
     );
     expect(server.ok, server.err).toBe(true);
 
-    const routed = await handlers.writeProfile(
+    const routed = await defined(handlers.writeProfile)(
       request(`/api/profiles/${PROFILE_HANDLE}`, {
         bearer: BEARER_ALICE,
         method: "PATCH",
@@ -1239,7 +1244,7 @@ describe("private profile card: read", () => {
   });
 
   it("A can turn it back, and the card is whole again", async () => {
-    const restored = await handlers.writeProfile(
+    const restored = await defined(handlers.writeProfile)(
       request(`/api/profiles/${PROFILE_HANDLE}`, {
         bearer: BEARER_ALICE,
         method: "PATCH",
@@ -1412,22 +1417,22 @@ describe("moderator actions", () => {
     );
     expect(aliceDrop).toMatch(/[0-9a-f-]{36}/);
     for (const bearer of [undefined, BEARER_ALICE, BEARER_BOB]) {
-      const confirmed = await handlers.pintDrops(
+      const confirmed = await defined(handlers.pintDrops)(
         request("/api/pint-drops", { bearer, body: { action: "confirm", id: aliceDrop } }),
         context({}),
       );
       expect(confirmed.status).toBe(403);
-      const restored = await handlers.pintDrops(
+      const restored = await defined(handlers.pintDrops)(
         request("/api/pint-drops", { bearer, body: { action: "restore", id: HIDDEN_DROP } }),
         context({}),
       );
       expect(restored.status).toBe(403);
-      const lane = await handlers.pintDropsRead(
+      const lane = await defined(handlers.pintDropsRead)(
         request("/api/pint-drops?status=hidden", { bearer }),
         context({}),
       );
       expect(lane.status).toBe(403);
-      const priceHide = await handlers.adminPrices(
+      const priceHide = await defined(handlers.adminPrices)(
         request("/api/admin/community-prices", { bearer, body: { action: "hide", id: HIDDEN_PRICE } }),
         context({}),
       );
@@ -1437,7 +1442,7 @@ describe("moderator actions", () => {
     expect(truth(`select confirmation_id is null from public.pint_drops where id = '${aliceDrop}'`)).toBe("true");
 
     // The real credential, and only it, opens the door.
-    const moderated = await handlers.pintDrops(
+    const moderated = await defined(handlers.pintDrops)(
       request("/api/pint-drops", {
         body: { action: "confirm", id: aliceDrop },
         headers: { "x-admin-token": MODERATOR_TOKEN },
@@ -1504,7 +1509,7 @@ describe("Social Crew: the owner builds it through the real doors", () => {
   it("only the account holding the Plan's host seat may raise a Crew over it", async () => {
     // Dave has an account and no seat: the create is not his to make, and the
     // Plan is untouched by the attempt.
-    const refused = await handlers.createCrew(
+    const refused = await defined(handlers.createCrew)(
       crewRequest("/api/social/crews", {
         bearer: BEARER_DAVE,
         body: { planId: CREW_PLAN_ID, visibility: "private" },
@@ -1517,7 +1522,7 @@ describe("Social Crew: the owner builds it through the real doors", () => {
       truth(`select social_owner_account_id is null from public.plans where id = '${CREW_PLAN_ID}'`),
     ).toBe("true");
 
-    const created = await handlers.createCrew(
+    const created = await defined(handlers.createCrew)(
       crewRequest("/api/social/crews", {
         bearer: BEARER_ALICE,
         body: { planId: CREW_PLAN_ID, visibility: "private" },
@@ -1531,7 +1536,7 @@ describe("Social Crew: the owner builds it through the real doors", () => {
   });
 
   it("the owner reads her Crew and every other role reads nothing", async () => {
-    const owner = await handlers.readCrew(
+    const owner = await defined(handlers.readCrew)(
       crewRequest(`/api/social/crews/${crew.id}`, { bearer: BEARER_ALICE }),
       context({ crewId: crew.id }),
     );
@@ -1541,7 +1546,7 @@ describe("Social Crew: the owner builds it through the real doors", () => {
     // three get the same answer, so the refusal cannot be read as a membership
     // oracle, and none of them carries the Crew's own words.
     for (const bearer of [undefined, BEARER_DAVE, BEARER_CAROL]) {
-      const response = await handlers.readCrew(
+      const response = await defined(handlers.readCrew)(
         crewRequest(`/api/social/crews/${crew.id}`, { bearer }),
         context({ crewId: crew.id }),
       );
@@ -1551,11 +1556,11 @@ describe("Social Crew: the owner builds it through the real doors", () => {
   });
 
   it("a Crew id that names nothing answers exactly as a Crew somebody else owns", async () => {
-    const unknown = await handlers.readCrew(
+    const unknown = await defined(handlers.readCrew)(
       crewRequest(`/api/social/crews/${UNKNOWN_ID}`, { bearer: BEARER_DAVE }),
       context({ crewId: UNKNOWN_ID }),
     );
-    const foreign = await handlers.readCrew(
+    const foreign = await defined(handlers.readCrew)(
       crewRequest(`/api/social/crews/${crew.id}`, { bearer: BEARER_DAVE }),
       context({ crewId: crew.id }),
     );
@@ -1565,7 +1570,7 @@ describe("Social Crew: the owner builds it through the real doors", () => {
 
 describe("Social Crew: invitation, acceptance and the block", () => {
   it("only the owner may invite, and a blocked account cannot be invited at all", async () => {
-    const byStranger = await handlers.inviteToCrew(
+    const byStranger = await defined(handlers.inviteToCrew)(
       crewRequest(`/api/social/crews/${crew.id}/invitations`, {
         bearer: BEARER_DAVE,
         body: { targetProfileId: DAVE_PROFILE },
@@ -1577,7 +1582,7 @@ describe("Social Crew: invitation, acceptance and the block", () => {
 
     // Carol is a mutual follower, so the block is the only thing left to
     // refuse her.
-    const blocked = await handlers.inviteToCrew(
+    const blocked = await defined(handlers.inviteToCrew)(
       crewRequest(`/api/social/crews/${crew.id}/invitations`, {
         bearer: BEARER_ALICE,
         body: { targetProfileId: CAROL_PROFILE },
@@ -1587,7 +1592,7 @@ describe("Social Crew: invitation, acceptance and the block", () => {
     expect(blocked.status).toBeGreaterThanOrEqual(400);
     expect(truth(`select count(*) from public.social_crew_invitations where crew_id = '${crew.id}'`)).toBe("0");
 
-    const invited = await handlers.inviteToCrew(
+    const invited = await defined(handlers.inviteToCrew)(
       crewRequest(`/api/social/crews/${crew.id}/invitations`, {
         bearer: BEARER_ALICE,
         body: { targetProfileId: BOB_PROFILE },
@@ -1603,7 +1608,7 @@ describe("Social Crew: invitation, acceptance and the block", () => {
   it("an invitation is the target's alone: nobody else may spend it, and holding one is not yet a read", async () => {
     // Dave is not the target. The invitation stays pending, so the refusal
     // cost the invitation nothing.
-    const stolen = await handlers.decideInvitation(
+    const stolen = await defined(handlers.decideInvitation)(
       crewRequest(`/api/social/crews/${crew.id}/invitations/${crew.bobInvitationId}`, {
         bearer: BEARER_DAVE,
         method: "PATCH",
@@ -1619,7 +1624,7 @@ describe("Social Crew: invitation, acceptance and the block", () => {
 
     // Bob holds the invitation and STILL reads nothing: an invitation is a way
     // in, never a view.
-    const beforeAccepting = await handlers.readCrew(
+    const beforeAccepting = await defined(handlers.readCrew)(
       crewRequest(`/api/social/crews/${crew.id}`, { bearer: BEARER_BOB }),
       context({ crewId: crew.id }),
     );
@@ -1628,7 +1633,7 @@ describe("Social Crew: invitation, acceptance and the block", () => {
   });
 
   it("the target accepts, and acceptance is what opens the read", async () => {
-    const accepted = await handlers.decideInvitation(
+    const accepted = await defined(handlers.decideInvitation)(
       crewRequest(`/api/social/crews/${crew.id}/invitations/${crew.bobInvitationId}`, {
         bearer: BEARER_BOB,
         method: "PATCH",
@@ -1638,7 +1643,7 @@ describe("Social Crew: invitation, acceptance and the block", () => {
     );
     expect(accepted.status, await accepted.clone().text()).toBe(200);
 
-    const read = await handlers.readCrew(
+    const read = await defined(handlers.readCrew)(
       crewRequest(`/api/social/crews/${crew.id}`, { bearer: BEARER_BOB }),
       context({ crewId: crew.id }),
     );
@@ -1653,7 +1658,7 @@ describe("Social Crew: invitation, acceptance and the block", () => {
     const before = truth(
       `select visibility from public.social_crews where id = '${crew.id}'`,
     );
-    const invited = await handlers.inviteToCrew(
+    const invited = await defined(handlers.inviteToCrew)(
       crewRequest(`/api/social/crews/${crew.id}/invitations`, {
         bearer: BEARER_BOB,
         body: { targetProfileId: DAVE_PROFILE },
@@ -1665,7 +1670,7 @@ describe("Social Crew: invitation, acceptance and the block", () => {
       truth(`select count(*) from public.social_crew_invitations where crew_id = '${crew.id}' and target_account_id = '${DAVE_ACCOUNT}'`),
     ).toBe("0");
 
-    const changed = await handlers.updateCrew(
+    const changed = await defined(handlers.updateCrew)(
       crewRequest(`/api/social/crews/${crew.id}`, {
         bearer: BEARER_BOB,
         method: "PATCH",
@@ -1680,7 +1685,7 @@ describe("Social Crew: invitation, acceptance and the block", () => {
 
 describe("Social Crew: the removed member", () => {
   it("removal takes the read away in the same instant, and the removed member cannot put himself back", async () => {
-    const removed = await handlers.removeCrewMember(
+    const removed = await defined(handlers.removeCrewMember)(
       crewRequest(`/api/social/crews/${crew.id}/members/${crew.bobMemberId}`, {
         bearer: BEARER_ALICE,
         method: "DELETE",
@@ -1692,7 +1697,7 @@ describe("Social Crew: the removed member", () => {
       truth(`select state from public.social_crew_members where id = '${crew.bobMemberId}'`),
     ).toBe("removed");
 
-    const read = await handlers.readCrew(
+    const read = await defined(handlers.readCrew)(
       crewRequest(`/api/social/crews/${crew.id}`, { bearer: BEARER_BOB }),
       context({ crewId: crew.id }),
     );
@@ -1700,7 +1705,7 @@ describe("Social Crew: the removed member", () => {
     expectNoDisclosure(await readJson(read));
 
     // The spent invitation is not a second door back in.
-    const replayed = await handlers.decideInvitation(
+    const replayed = await defined(handlers.decideInvitation)(
       crewRequest(`/api/social/crews/${crew.id}/invitations/${crew.bobInvitationId}`, {
         bearer: BEARER_BOB,
         method: "PATCH",
@@ -1747,7 +1752,7 @@ describe("Social Crew: at the table", () => {
 });
 describe("private conversation: read", () => {
   it("anonymous is refused the thread and told nothing about it", async () => {
-    const response = await handlers.readThread(
+    const response = await defined(handlers.readThread)(
       request(`/api/messages/${CONVERSATION_ID}?handle=alicepm`),
       context({ id: CONVERSATION_ID }),
     );
@@ -1760,7 +1765,7 @@ describe("private conversation: read", () => {
       [BEARER_ALICE, "alicepm"],
       [BEARER_BOB, "bobpm"],
     ] as const) {
-      const response = await handlers.readThread(
+      const response = await defined(handlers.readThread)(
         request(`/api/messages/${CONVERSATION_ID}?handle=${handle}`, { bearer }),
         context({ id: CONVERSATION_ID }),
       );
@@ -1780,7 +1785,7 @@ describe("private conversation: read", () => {
       [BEARER_DAVE, "davepm"],
       [BEARER_CAROL, "carolpm"],
     ] as const) {
-      const own = await handlers.readThread(
+      const own = await defined(handlers.readThread)(
         request(`/api/messages/${CONVERSATION_ID}?handle=${handle}`, { bearer }),
         context({ id: CONVERSATION_ID }),
       );
@@ -1790,7 +1795,7 @@ describe("private conversation: read", () => {
         expect(body.messages ?? []).toEqual([]);
       }
 
-      const impersonated = await handlers.readThread(
+      const impersonated = await defined(handlers.readThread)(
         request(`/api/messages/${CONVERSATION_ID}?handle=alicepm`, { bearer }),
         context({ id: CONVERSATION_ID }),
       );
@@ -1800,7 +1805,7 @@ describe("private conversation: read", () => {
   });
 
   it("a conversation id that names nothing reveals nothing to a participant either", async () => {
-    const response = await handlers.readThread(
+    const response = await defined(handlers.readThread)(
       request(`/api/messages/${UNKNOWN_ID}?handle=alicepm`, { bearer: BEARER_ALICE }),
       context({ id: UNKNOWN_ID }),
     );
@@ -1816,7 +1821,7 @@ describe("private conversation: read", () => {
     // only ever falls back to the asserted one for a caller with no linked
     // profile. So Dave naming Alice is not a refusal, it is Dave's own inbox,
     // and the cell that matters is that Alice's conversation is not in it.
-    const foreign = await handlers.inbox(
+    const foreign = await defined(handlers.inbox)(
       request("/api/messages?handle=alicepm", { bearer: BEARER_DAVE }),
       context({}),
     );
@@ -1827,7 +1832,7 @@ describe("private conversation: read", () => {
 
     // An anonymous caller asserting a CLAIMED handle is refused outright,
     // because the handle belongs to an account and no bearer names it.
-    const anonymous = await handlers.inbox(
+    const anonymous = await defined(handlers.inbox)(
       request("/api/messages?handle=alicepm"),
       context({}),
     );
@@ -1842,7 +1847,7 @@ describe("private conversation: write", () => {
       `select count(*) from public.messages where conversation_id = '${CONVERSATION_ID}'`,
     );
     for (const bearer of [undefined, BEARER_DAVE, BEARER_CAROL]) {
-      const response = await handlers.writeThread(
+      const response = await defined(handlers.writeThread)(
         request(`/api/messages/${CONVERSATION_ID}`, {
           bearer,
           body: { action: "send", handle: "alicepm", body: "written by an outsider" },
@@ -1917,7 +1922,7 @@ describe("message attachment: the photo's own door", () => {
       [BEARER_CAROL, "carolpm"],
       [BEARER_BOB, "bobpm"],
     ] as const) {
-      const response = await handlers.messagePhoto(
+      const response = await defined(handlers.messagePhoto)(
         request(`/api/messages/${CONVERSATION_ID}/photo/${ALICE_MESSAGE}?handle=${handle}`, { bearer }),
         context({ id: CONVERSATION_ID, messageId: ALICE_MESSAGE }),
       );
@@ -1927,7 +1932,7 @@ describe("message attachment: the photo's own door", () => {
   });
 
   it("a reported message loses its attachment, so the storage link stops answering its own participant", async () => {
-    const reported = await handlers.writeThread(
+    const reported = await defined(handlers.writeThread)(
       request(`/api/messages/${CONVERSATION_ID}`, {
         bearer: BEARER_BOB,
         body: { action: "report", handle: "bobpm", messageId: ALICE_MESSAGE },
@@ -1946,7 +1951,7 @@ describe("message attachment: the photo's own door", () => {
       truth(`select attachment_object_key from public.messages where id = '${ALICE_MESSAGE}'`),
     ).toBe(MESSAGE_PHOTO_OBJECT);
 
-    const thread = await handlers.readThread(
+    const thread = await defined(handlers.readThread)(
       request(`/api/messages/${CONVERSATION_ID}?handle=bobpm`, { bearer: BEARER_BOB }),
       context({ id: CONVERSATION_ID }),
     );
@@ -1959,7 +1964,7 @@ describe("message attachment: the photo's own door", () => {
 
 describe("saves: two lanes, two promises", () => {
   it("a Wanted is the owner's alone at the read and at the write", async () => {
-    const seeded = await handlers.writeWanted(
+    const seeded = await defined(handlers.writeWanted)(
       request("/api/wanted", {
         bearer: BEARER_ALICE,
         body: { venueId: PRICE_VENUE, venueName: "Venue Two", note: "Alice wants this" },
@@ -1969,22 +1974,66 @@ describe("saves: two lanes, two promises", () => {
     expect(seeded.status, await seeded.clone().text()).toBe(201);
 
     const owner = await readJson<{ wanteds?: { note?: string }[] }>(
-      await handlers.listWanted(request("/api/wanted", { bearer: BEARER_ALICE }), context({})),
+      await defined(handlers.listWanted)(request("/api/wanted", { bearer: BEARER_ALICE }), context({})),
     );
     expect(owner.wanteds?.some((wanted) => wanted.note === "Alice wants this")).toBe(true);
 
     // Anonymous is refused; every other signed-in account reads its OWN empty
     // list and never Alice's line.
-    const anonymous = await handlers.listWanted(request("/api/wanted"), context({}));
+    const anonymous = await defined(handlers.listWanted)(request("/api/wanted"), context({}));
     expect(anonymous.status).toBe(401);
     for (const bearer of [BEARER_BOB, BEARER_CAROL, BEARER_DAVE]) {
-      const response = await handlers.listWanted(request("/api/wanted", { bearer }), context({}));
+      const response = await defined(handlers.listWanted)(request("/api/wanted", { bearer }), context({}));
       expectNoDisclosure(await readJson(response), ["Alice wants this"]);
     }
   });
 
+  it("a Diary entry is the owner's alone at the read, the write and the table", async () => {
+    const seeded = await defined(handlers.writeDiary)(
+      request("/api/diary", {
+        bearer: BEARER_ALICE,
+        body: { venueId: PRICE_VENUE, visitedOn: "2026-09-01", rating: 4.5, review: "Alice diary line" },
+      }),
+      context({}),
+    );
+    expect(seeded.status, await seeded.clone().text()).toBe(201);
+    expect(
+      Number(truth(`select count(*) from public.diary_entries where owner_user_id = '${ALICE}'`)),
+    ).toBe(1);
+
+    const owner = await readJson<{ entries?: { review?: string }[] }>(
+      await defined(handlers.listDiary)(request("/api/diary", { bearer: BEARER_ALICE }), context({})),
+    );
+    expect(owner.entries?.some((entry) => entry.review === "Alice diary line")).toBe(true);
+
+    // The body names no owner: a second account that posts the same pub and day
+    // writes its OWN row, never Alice's, and cannot read hers.
+    const bobWrite = await defined(handlers.writeDiary)(
+      request("/api/diary", {
+        bearer: BEARER_BOB,
+        body: { venueId: PRICE_VENUE, visitedOn: "2026-09-01", ownerUserId: ALICE, owner_user_id: ALICE, review: "Bob diary line" },
+      }),
+      context({}),
+    );
+    expect(bobWrite.status, await bobWrite.clone().text()).toBe(201);
+    expect(
+      Number(truth(`select count(*) from public.diary_entries where owner_user_id = '${ALICE}'`)),
+    ).toBe(1);
+
+    const anonymous = await defined(handlers.listDiary)(request("/api/diary"), context({}));
+    expect(anonymous.status).toBe(401);
+    for (const bearer of [BEARER_CAROL, BEARER_DAVE]) {
+      const response = await defined(handlers.listDiary)(request("/api/diary", { bearer }), context({}));
+      expectNoDisclosure(await readJson(response), ["Alice diary line", "Bob diary line"]);
+    }
+    const bobRead = await readJson(
+      await defined(handlers.listDiary)(request("/api/diary", { bearer: BEARER_BOB }), context({})),
+    );
+    expectNoDisclosure(bobRead, ["Alice diary line"]);
+  });
+
   it("a saved-pub list is PUBLIC to read and gated to write, and the write gate holds", async () => {
-    const saved = await handlers.writeSavedPub(
+    const saved = await defined(handlers.writeSavedPub)(
       request("/api/saved-pubs", {
         bearer: BEARER_ALICE,
         body: { handle: "alicepm", venueId: PRICE_VENUE, listType: "favourites" },
@@ -1999,7 +2048,7 @@ describe("saves: two lanes, two promises", () => {
 
     // An anonymous caller asserting a CLAIMED handle is refused: the handle
     // belongs to an account and no bearer names it.
-    const anonymous = await handlers.writeSavedPub(
+    const anonymous = await defined(handlers.writeSavedPub)(
       request("/api/saved-pubs", {
         bearer: undefined,
         body: { handle: "alicepm", venueId: SECOND_PRICE_VENUE, listType: "favourites" },
@@ -2015,7 +2064,7 @@ describe("saves: two lanes, two promises", () => {
       [BEARER_BOB, BOB_PROFILE],
       [BEARER_DAVE, DAVE_PROFILE],
     ] as const) {
-      const response = await handlers.writeSavedPub(
+      const response = await defined(handlers.writeSavedPub)(
         request("/api/saved-pubs", {
           bearer,
           body: { handle: "alicepm", venueId: SECOND_PRICE_VENUE, listType: "favourites" },
@@ -2034,7 +2083,7 @@ describe("saves: two lanes, two promises", () => {
     // The READ is deliberately public: a saved list is printed on a public
     // profile. This cell records that as a decision rather than leaving it to
     // be discovered.
-    const stranger = await handlers.listSavedPubs(
+    const stranger = await defined(handlers.listSavedPubs)(
       request("/api/saved-pubs?handle=alicepm", { bearer: BEARER_DAVE }),
       context({}),
     );
@@ -2077,13 +2126,13 @@ describe("saves: two lanes, two promises", () => {
 
 describe("account export", () => {
   it("anonymous is refused the file", async () => {
-    const response = await handlers.exportAccount(request("/api/account/export"), context({}));
+    const response = await defined(handlers.exportAccount)(request("/api/account/export"), context({}));
     expect(response.status).toBe(401);
     expectNoDisclosure(await readJson(response));
   });
 
   it("the account exported is the one the bearer names, and no request field can move it", async () => {
-    const response = await handlers.exportAccount(
+    const response = await defined(handlers.exportAccount)(
       request(`/api/account/export?handle=alicepm&userId=${ALICE}`, { bearer: BEARER_DAVE }),
       context({}),
     );
@@ -2100,7 +2149,7 @@ describe("account export", () => {
 
 describe("guest: a device RSVP holds a capability, and a capability is not an identity", () => {
   it("the device seat opens the Plan it is a seat on", async () => {
-    const response = await handlers.readPlan(
+    const response = await defined(handlers.readPlan)(
       request(`/api/plans/${PLAN_ID}`, { bearer: GUEST_TOKEN }),
       context({ id: PLAN_ID }),
     );
@@ -2135,6 +2184,7 @@ describe("guest: a device RSVP holds a capability, and a capability is not an id
     for (const [handler, path] of [
       [handlers.inbox, "/api/messages"],
       [handlers.listWanted, "/api/wanted"],
+      [handlers.listDiary, "/api/diary"],
       [handlers.exportAccount, "/api/account/export"],
     ] as const) {
       const response = await (handler as Handler)(
@@ -2144,13 +2194,14 @@ describe("guest: a device RSVP holds a capability, and a capability is not an id
       expectNoDisclosure(await readJson(response.clone()), [
         ...CREW_SECRETS,
         "Alice wants this",
+        "Alice diary line",
       ]);
       // A capability that is not an identity is anonymous to every route that
       // asks who is calling, so each answers its own anonymous outcome.
       expect(response.status === 200 || response.status === 401).toBe(true);
     }
 
-    const deleted = await handlers.deleteAccount(
+    const deleted = await defined(handlers.deleteAccount)(
       request("/api/account", { method: "DELETE", bearer: GUEST_TOKEN, body: { userId: ALICE } }),
       context({}),
     );
@@ -2161,12 +2212,12 @@ describe("guest: a device RSVP holds a capability, and a capability is not an id
 
 describe("photo tags: the consent inbox is the tagged account's own", () => {
   it("anonymous is refused, and every signed-in account reads only its own lane", async () => {
-    const anonymous = await handlers.tagInbox(request("/api/social/tags?lane=proposed"), context({}));
+    const anonymous = await defined(handlers.tagInbox)(request("/api/social/tags?lane=proposed"), context({}));
     expect(anonymous.status).toBe(401);
     expectNoDisclosure(await readJson(anonymous));
 
     for (const bearer of [BEARER_ALICE, BEARER_DAVE]) {
-      const response = await handlers.tagInbox(
+      const response = await defined(handlers.tagInbox)(
         request("/api/social/tags?lane=proposed", { bearer }),
         context({}),
       );
@@ -2178,7 +2229,7 @@ describe("photo tags: the consent inbox is the tagged account's own", () => {
   it("the lane takes no actor parameter, so no caller can ask for somebody else's", async () => {
     // An unknown query key is refused outright rather than ignored, which is
     // what stops `?actor=` or `?profileId=` ever being read as an instruction.
-    const response = await handlers.tagInbox(
+    const response = await defined(handlers.tagInbox)(
       request(`/api/social/tags?lane=proposed&actor=${ALICE_PROFILE}`, { bearer: BEARER_DAVE }),
       context({}),
     );
@@ -2189,7 +2240,7 @@ describe("photo tags: the consent inbox is the tagged account's own", () => {
 
 describe("account deletion", () => {
   it("anonymous is refused and nothing is deleted", async () => {
-    const response = await handlers.deleteAccount(
+    const response = await defined(handlers.deleteAccount)(
       request("/api/account", { method: "DELETE", body: { userId: ALICE } }),
       context({}),
     );
@@ -2198,7 +2249,7 @@ describe("account deletion", () => {
   });
 
   it("the deleted account is the caller's own whatever the body names, and the other account's rows survive", async () => {
-    const response = await handlers.deleteAccount(
+    const response = await defined(handlers.deleteAccount)(
       request("/api/account", { method: "DELETE", bearer: BEARER_BOB, body: { userId: ALICE, handle: "alicepm" } }),
       context({}),
     );

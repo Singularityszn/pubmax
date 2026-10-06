@@ -1,0 +1,711 @@
+{
+  "city": "glasgow",
+  "source": "Parallel Task API; Tavily Search and Extract",
+  "observationMeaning": "Each row's observedAt is the date its Parallel research result, Tavily search page text or page read was retrieved; provider names the lane. Cached reruns retain that date. Not a claim that the venue is open tonight.",
+  "populationPriority": 620700,
+  "populationSources": [
+    "https://www.ons.gov.uk/peoplepopulationandcommunity/populationandmigration/populationestimates/bulletins/populationandhouseholdestimatesenglandandwales/census2021",
+    "https://www.scotlandscensus.gov.uk/2022-reports/scotlands-census-2022-rounded-population-estimates/"
+  ],
+  "venues": [
+    {
+      "name": "Bossa",
+      "kind": "bar",
+      "address": "69 Nithsdale Rd, Glasgow G41 2AJ",
+      "postcode": "G41 2AJ",
+      "locality": "Glasgow",
+      "website": "https://www.bossaglasgow.co.uk/",
+      "lat": 55.837109,
+      "lng": -4.272335,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.bossaglasgow.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.bossaglasgow.co.uk/",
+          "excerpt": "Bossa is not just a bar; it's an experience."
+        },
+        {
+          "url": "https://www.bossaglasgow.co.uk/",
+          "excerpt": "Beer | Cocktails | Artisan Pizza | Small Plates | Music"
+        },
+        {
+          "url": "https://www.bossaglasgow.co.uk/",
+          "excerpt": "69 Nithsdale Rd, Glasgow G41 2AJ,"
+        }
+      ],
+      "observedAt": "2026-10-04T10:19:20.806Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/G41%202AJ",
+        "observedAt": "2026-10-04T10:19:21.538Z",
+        "postcode": "G41 2AJ",
+        "quality": 1
+      },
+      "id": "venue-glw-1w0v1yx",
+      "provider": "parallel"
+    },
+    {
+      "name": "Cuvée West End Bar",
+      "kind": "bar",
+      "address": "Upstairs, 1 Lynedoch St, Glasgow G3 6EF",
+      "postcode": "G3 6EF",
+      "locality": "Glasgow",
+      "website": "https://cuveeglasgow.com/west-end/",
+      "lat": 55.868371,
+      "lng": -4.273618,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://cuveeglasgow.com/west-end/"
+      ],
+      "evidence": [
+        {
+          "url": "https://cuveeglasgow.com/west-end/",
+          "excerpt": "Cuvée West End Bar"
+        },
+        {
+          "url": "https://cuveeglasgow.com/west-end/",
+          "excerpt": "Cuvée West End Bar offers a warm, intimate space for Champagne, fine wine, cocktails, tapas and conversation inspired by the feel of a modern drawing room."
+        },
+        {
+          "url": "https://cuveeglasgow.com/west-end/",
+          "excerpt": "Upstairs, 1 Lynedoch St, Glasgow, G3 6EF"
+        }
+      ],
+      "observedAt": "2026-10-04T10:19:20.806Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/G3%206EF",
+        "observedAt": "2026-10-04T10:19:21.629Z",
+        "postcode": "G3 6EF",
+        "quality": 1
+      },
+      "id": "venue-glw-1ig1iaz",
+      "provider": "parallel"
+    },
+    {
+      "name": "The Finnieston Bar & Restaurant",
+      "kind": "bar",
+      "address": "1125 Argyle St, Glasgow G3 8ND",
+      "postcode": "G3 8ND",
+      "locality": "Glasgow",
+      "website": "https://www.thefinniestonbar.com/",
+      "lat": 55.864391,
+      "lng": -4.283725,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.thefinniestonbar.com/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.thefinniestonbar.com/",
+          "excerpt": "Celebrated & sustainable Scottish seafood restaurant & Glasgow's premier gin bar, located in the thriving heart of Finnieston."
+        },
+        {
+          "url": "https://www.thefinniestonbar.com/",
+          "excerpt": "Today, the building is home to The Finnieston Bar & Restaurant, serving up the very best in Scottish seafood and award winning cocktails, champagnes and beers."
+        },
+        {
+          "url": "https://www.thefinniestonbar.com/",
+          "excerpt": "1125 Argyle St, City Centre, Glasgow, G3 8ND"
+        }
+      ],
+      "observedAt": "2026-10-04T10:19:20.806Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/G3%208ND",
+        "observedAt": "2026-10-04T10:19:21.805Z",
+        "postcode": "G3 8ND",
+        "quality": 1
+      },
+      "id": "venue-glw-z557mg",
+      "provider": "parallel"
+    },
+    {
+      "name": "Poko Loko",
+      "kind": "bar",
+      "address": "69 Hutcheson St, Glasgow G1 1SH, UK",
+      "postcode": "G1 1SH",
+      "locality": "Glasgow",
+      "website": "https://pokoloko.co.uk/",
+      "lat": 55.859007,
+      "lng": -4.248142,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://pokoloko.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://pokoloko.co.uk/",
+          "excerpt": "Poko Loko is a vibrant tequila and taco bar located in the heart of Glasgow's Merchant City."
+        },
+        {
+          "url": "https://pokoloko.co.uk/",
+          "excerpt": "69 Hutcheson St, Glasgow G1 1SH, UK"
+        }
+      ],
+      "observedAt": "2026-10-04T11:28:35.161Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/G1%201SH",
+        "observedAt": "2026-10-04T11:28:35.215Z",
+        "postcode": "G1 1SH",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f83a0991e011b0c3b",
+      "id": "venue-glw-1wgwpjb",
+      "provider": "parallel"
+    },
+    {
+      "name": "Atlantic Bar & Brasserie",
+      "kind": "restaurant",
+      "address": "Lower Ground, 12-16 St Vincent Place, Glasgow G1 2EU",
+      "postcode": "G1 2EU",
+      "locality": "Glasgow",
+      "website": "https://www.atlanticbrasserie.co.uk/",
+      "lat": 55.861279,
+      "lng": -4.252636,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.atlanticbrasserie.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.atlanticbrasserie.co.uk/",
+          "excerpt": "ATLANTIC BAR & BRASSERIE"
+        },
+        {
+          "url": "https://www.atlanticbrasserie.co.uk/",
+          "excerpt": "Lower Ground, 12-16 St Vincent Place, Glasgow G1 2EU"
+        },
+        {
+          "url": "https://www.atlanticbrasserie.co.uk/",
+          "excerpt": "Come for lunch, stay for cocktails, linger over dinner and live jazz."
+        }
+      ],
+      "observedAt": "2026-10-04T11:28:35.161Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/G1%202EU",
+        "observedAt": "2026-10-04T11:28:35.240Z",
+        "postcode": "G1 2EU",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f83a0991e011b0c3b",
+      "id": "venue-glw-p8mmqn",
+      "provider": "parallel"
+    },
+    {
+      "name": "King Tut's Wah Wah Hut",
+      "kind": "pub",
+      "address": "272A St Vincent Street, Glasgow G2 5RL",
+      "postcode": "G2 5RL",
+      "locality": "Glasgow",
+      "website": null,
+      "lat": 55.862686,
+      "lng": -4.265103,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/station/charing-cross-glasgow-g2-4pr-664"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/station/charing-cross-glasgow-g2-4pr-664",
+          "excerpt": "Open ### King Tut's Wah Wah Hut Pub , in Glasgow"
+        },
+        {
+          "url": "https://camra.org.uk/pubs/station/charing-cross-glasgow-g2-4pr-664",
+          "excerpt": "272A St Vincent Street, City Centre, Glasgow, G2 5RL"
+        }
+      ],
+      "observedAt": "2026-10-04T11:28:27.394Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/G2%205RL",
+        "observedAt": "2026-10-04T11:28:27.447Z",
+        "postcode": "G2 5RL",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415faad2c014b4d27d51",
+      "id": "venue-glw-1ttk5oj",
+      "provider": "parallel"
+    },
+    {
+      "name": "Cask & Clyde",
+      "kind": "restaurant",
+      "address": "36 Cambridge Street, Glasgow G2 3HN",
+      "postcode": "G2 3HN",
+      "locality": "Glasgow",
+      "website": "https://www.hilton.com/en/hotels/glagwdi-doubletree-glasgow-central/dining/cask-and-clyde",
+      "lat": 55.86599,
+      "lng": -4.258918,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.hilton.com/en/hotels/glagwdi-doubletree-glasgow-central/dining/cask-and-clyde"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.hilton.com/en/hotels/glagwdi-doubletree-glasgow-central/dining/cask-and-clyde",
+          "excerpt": "DoubleTree by Hilton Glasgow Central\n36 Cambridge Street, Glasgow G2 3HN, United Kingdom"
+        },
+        {
+          "url": "https://www.hilton.com/en/hotels/glagwdi-doubletree-glasgow-central/dining/cask-and-clyde",
+          "excerpt": "For hotel guests and locals alike, Cask & Clyde is a place for everyone to visit, whether you are looking for cocktails, craft beers or just some good scran."
+        }
+      ],
+      "observedAt": "2026-10-04T11:28:16.809Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/G2%203HN",
+        "observedAt": "2026-10-04T11:28:16.836Z",
+        "postcode": "G2 3HN",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f82496b3ee19b9ad7",
+      "id": "venue-glw-1qot0be",
+      "provider": "parallel"
+    },
+    {
+      "name": "Porter & Rye",
+      "kind": "bar",
+      "address": "1131 Argyle St, Finnieston, Glasgow, G3 8ND",
+      "postcode": "G3 8ND",
+      "locality": "Glasgow",
+      "website": "https://porterandrye.com/",
+      "lat": 55.864391,
+      "lng": -4.283725,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://porterandrye.com/wine-and-cocktail-bar"
+      ],
+      "evidence": [
+        {
+          "url": "https://porterandrye.com/wine-and-cocktail-bar",
+          "excerpt": "© Copyright Porter & Rye"
+        },
+        {
+          "url": "https://porterandrye.com/wine-and-cocktail-bar",
+          "excerpt": "1131 Argyle St, Finnieston, Glasgow, G3 8ND"
+        },
+        {
+          "url": "https://porterandrye.com/wine-and-cocktail-bar",
+          "excerpt": "Reserve a seat at our bar to indulge in handcrafted cocktails and a thoughtfully curated selection of wines"
+        }
+      ],
+      "observedAt": "2026-10-04T11:35:37.385Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/G3%208ND",
+        "observedAt": "2026-10-04T11:35:37.408Z",
+        "postcode": "G3 8ND",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f822d6340f498b187",
+      "id": "venue-glw-1f8zhs8",
+      "provider": "parallel"
+    },
+    {
+      "name": "Five March",
+      "kind": "restaurant",
+      "address": "138–140 Elderslie Street, Glasgow G3 7JR",
+      "postcode": "G3 7JR",
+      "locality": "Glasgow",
+      "website": "https://fivemarch.co.uk/",
+      "lat": 55.866525,
+      "lng": -4.27669,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://fivemarch.co.uk/a-la-carte/"
+      ],
+      "evidence": [
+        {
+          "url": "https://fivemarch.co.uk/a-la-carte/",
+          "excerpt": "The Five March menu: sharing plates, à la carte, lunch, burger night, wine and cocktails in the heart of Glasgow"
+        },
+        {
+          "url": "https://fivemarch.co.uk/a-la-carte/",
+          "excerpt": "138–140 Elderslie Street, Glasgow, G3 7JR"
+        }
+      ],
+      "observedAt": "2026-10-04T11:35:37.382Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/G3%207JR",
+        "observedAt": "2026-10-04T11:35:37.406Z",
+        "postcode": "G3 7JR",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fab04b7a846922a8b",
+      "id": "venue-glw-151al08",
+      "provider": "parallel"
+    },
+    {
+      "name": "Gael & Grain",
+      "kind": "bar",
+      "address": "23 Sandyford Place, Glasgow, G3 7NG",
+      "postcode": "G3 7NG",
+      "locality": "Glasgow",
+      "website": "https://www.gaelandgrain.com/",
+      "lat": 55.86574,
+      "lng": -4.276852,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.gaelandgrain.com/gael-and-grain-events/back-to-all-events-all-in-for-glasgow-commonwealth-2026"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.gaelandgrain.com/gael-and-grain-events/back-to-all-events-all-in-for-glasgow-commonwealth-2026",
+          "excerpt": "Gael & Grain - Scottish Restaurant and Bar 23 Sandyford Place Glasgow, Scotland, G3 7NG United Kingdom"
+        }
+      ],
+      "observedAt": "2026-10-04T11:37:26.899Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/G3%207NG",
+        "observedAt": "2026-10-04T11:37:26.956Z",
+        "postcode": "G3 7NG",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fb00e7e3444d9c1e3",
+      "id": "venue-glw-1v8x3ko",
+      "provider": "parallel"
+    },
+    {
+      "name": "Sylvan",
+      "kind": "restaurant",
+      "address": "20 Woodlands Road, Glasgow G3 6UR",
+      "postcode": "G3 6UR",
+      "locality": "Glasgow",
+      "website": "https://www.sylvanglasgow.com/",
+      "lat": 55.868035,
+      "lng": -4.271824,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.sylvanglasgow.com/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.sylvanglasgow.com/",
+          "excerpt": "Sylvan Restaurant and Bar 20 Woodlands Road Glasgow G3 6UR"
+        },
+        {
+          "url": "https://www.sylvanglasgow.com/",
+          "excerpt": "fine, sustainable and natural wines; local beer and classic cocktails."
+        }
+      ],
+      "observedAt": "2026-10-04T11:35:37.403Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/G3%206UR",
+        "observedAt": "2026-10-04T11:35:37.448Z",
+        "postcode": "G3 6UR",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f8528a8039293311d",
+      "id": "venue-glw-81e1xe",
+      "provider": "parallel"
+    },
+    {
+      "name": "Whisky Mist Bar & Kitchen",
+      "kind": "bar",
+      "address": "Hilton Glasgow, 1 William Street, Glasgow G3 8HT",
+      "postcode": "G3 8HT",
+      "locality": "Glasgow",
+      "website": "https://www.hilton.com/en/hotels/glahitw-hilton-glasgow/dining/",
+      "lat": 55.861439,
+      "lng": -4.26885,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.hilton.com/en/hotels/glahitw-hilton-glasgow/dining/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.hilton.com/en/hotels/glahitw-hilton-glasgow/dining/",
+          "excerpt": "Hilton Glasgow 1 William Street, Glasgow G3 8HT, United Kingdom."
+        },
+        {
+          "url": "https://www.hilton.com/en/hotels/glahitw-hilton-glasgow/dining/",
+          "excerpt": "Whisky Mist Bar & Kitchen offering beautifully crafted cocktails, drinks and meals."
+        }
+      ],
+      "observedAt": "2026-10-04T11:35:37.403Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/G3%208HT",
+        "observedAt": "2026-10-04T11:35:37.488Z",
+        "postcode": "G3 8HT",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f8528a8039293311d",
+      "id": "venue-glw-2eo1ro",
+      "provider": "parallel"
+    },
+    {
+      "name": "The Kelvin",
+      "kind": "bar",
+      "address": "416 Great Western Rd, Glasgow G4 9HZ",
+      "postcode": "G4 9HZ",
+      "locality": "Glasgow",
+      "website": "https://www.thekelvinglasgow.com/",
+      "lat": 55.874238,
+      "lng": -4.277558,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.thekelvinglasgow.com/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.thekelvinglasgow.com/",
+          "excerpt": "A stylish new bar and restaurant featuring traditional Scottish cuisine, cocktails and whisky has arrived on Glasgow’s Great Western Road – introducing, The Kelvin."
+        },
+        {
+          "url": "https://www.thekelvinglasgow.com/",
+          "excerpt": "Location 416 Great Western Rd, Glasgow G4 9HZ"
+        }
+      ],
+      "observedAt": "2026-10-04T11:28:42.499Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/G4%209HZ",
+        "observedAt": "2026-10-04T11:28:42.553Z",
+        "postcode": "G4 9HZ",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fb2bf4714861355c8",
+      "id": "venue-glw-1vwfpmg",
+      "provider": "parallel"
+    },
+    {
+      "name": "The Jenny Burn",
+      "kind": "pub",
+      "address": "8 Clyde Gateway, Glasgow, G5 0BJ",
+      "postcode": "G5 0BJ",
+      "locality": "Glasgow",
+      "website": "https://www.jennyburnpub.co.uk/",
+      "lat": 55.838752,
+      "lng": -4.231225,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.jennyburnpub.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.jennyburnpub.co.uk/",
+          "excerpt": "WELCOME TO The Jenny Burn"
+        },
+        {
+          "url": "https://www.jennyburnpub.co.uk/",
+          "excerpt": "If you are looking for good food, good drinks and a relaxed atmosphere, then the Jenny Burn is the perfect pub for you."
+        },
+        {
+          "url": "https://www.jennyburnpub.co.uk/",
+          "excerpt": "8 Clyde Gateway, Glasgow, G5 0BJ"
+        }
+      ],
+      "observedAt": "2026-10-04T11:28:23.844Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/G5%200BJ",
+        "observedAt": "2026-10-04T11:28:23.916Z",
+        "postcode": "G5 0BJ",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fb735a760d0e73b87",
+      "id": "venue-glw-12qgst9",
+      "provider": "parallel"
+    },
+    {
+      "name": "Wunderbar West",
+      "kind": "bar",
+      "address": "59 Dumbarton Road, Glasgow G11 6PD",
+      "postcode": "G11 6PD",
+      "locality": "Glasgow",
+      "website": "https://wunderbarglasgow.com/",
+      "lat": 55.869826,
+      "lng": -4.296864,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://wunderbarglasgow.com/ballroom",
+        "https://wunderbarglasgow.com/"
+      ],
+      "evidence": [
+        {
+          "url": "https://wunderbarglasgow.com/ballroom",
+          "excerpt": "Wunderbar West 59 Dumbarton Road, Glasgow G11 6PD"
+        },
+        {
+          "url": "https://wunderbarglasgow.com/",
+          "excerpt": "our biers, live sports, cocktails, and live music."
+        }
+      ],
+      "observedAt": "2026-10-04T11:35:37.792Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/G11%206PD",
+        "observedAt": "2026-10-04T11:35:37.828Z",
+        "postcode": "G11 6PD",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fbb102ba611c57240",
+      "id": "venue-glw-1xftadp",
+      "provider": "parallel"
+    },
+    {
+      "name": "La Mesa Dumbarton Road",
+      "kind": "restaurant",
+      "address": "599-601 Dumbarton Road, Partick, Glasgow G11 6HY",
+      "postcode": "G11 6HY",
+      "locality": "Glasgow",
+      "website": null,
+      "lat": 55.870525,
+      "lng": -4.317557,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.squaremeal.co.uk/restaurants/la-mesa-dumbarton-road_29703"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.squaremeal.co.uk/restaurants/la-mesa-dumbarton-road_29703",
+          "excerpt": "La Mesa Dumbarton Road"
+        },
+        {
+          "url": "https://www.squaremeal.co.uk/restaurants/la-mesa-dumbarton-road_29703",
+          "excerpt": "599-601 Dumbarton Road, Partick, Glasgow, G11 6HY"
+        },
+        {
+          "url": "https://www.squaremeal.co.uk/restaurants/la-mesa-dumbarton-road_29703",
+          "excerpt": "The restaurant highlights authentic Mexican dishes alongside a wide selection of cocktails, particularly margaritas, which feature prominently on the menu."
+        }
+      ],
+      "observedAt": "2026-10-04T11:35:37.794Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/G11%206HY",
+        "observedAt": "2026-10-04T11:35:37.817Z",
+        "postcode": "G11 6HY",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f8c273f1399b45924",
+      "id": "venue-glw-1a55kbz",
+      "provider": "parallel"
+    },
+    {
+      "name": "Epicures",
+      "kind": "bar",
+      "address": "159 Hyndland Road, Glasgow, G12 9JA",
+      "postcode": "G12 9JA",
+      "locality": "Glasgow",
+      "website": "http://epicures.co.uk/",
+      "lat": 55.876765,
+      "lng": -4.305939,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "http://epicures.co.uk/"
+      ],
+      "evidence": [
+        {
+          "url": "http://epicures.co.uk/",
+          "excerpt": "Epicures 159 Hyndland Road Glasgow G12 9JA"
+        },
+        {
+          "url": "http://epicures.co.uk/",
+          "excerpt": "Wines served by Glass / Carafe / Bottle Selected Draughts + Bottles All your favourite Cocktails"
+        }
+      ],
+      "observedAt": "2026-10-04T11:35:38.028Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/G12%209JA",
+        "observedAt": "2026-10-04T11:35:38.053Z",
+        "postcode": "G12 9JA",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f9fe5583fbd356cda",
+      "id": "venue-glw-48nwk4",
+      "provider": "parallel"
+    },
+    {
+      "name": "The Left Bank",
+      "kind": "bar",
+      "address": "33–35 Gibson Street, Glasgow, G12 8NU",
+      "postcode": "G12 8NU",
+      "locality": "Glasgow",
+      "website": "http://www.theleftbank.co.uk/",
+      "lat": 55.872288,
+      "lng": -4.282415,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "http://theleftbank.co.uk/location"
+      ],
+      "evidence": [
+        {
+          "url": "http://theleftbank.co.uk/location",
+          "excerpt": "Location | the left bank bar & restaurant"
+        },
+        {
+          "url": "http://theleftbank.co.uk/location",
+          "excerpt": "The left bank, located at 33-35 gibson street, glasgow, g12 8nu - in the heart of the westend."
+        }
+      ],
+      "observedAt": "2026-10-04T11:35:38.028Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/G12%208NU",
+        "observedAt": "2026-10-04T11:35:38.077Z",
+        "postcode": "G12 8NU",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f9fe5583fbd356cda",
+      "id": "venue-glw-b7rg4t",
+      "provider": "parallel"
+    },
+    {
+      "name": "Tavern Bar",
+      "kind": "pub",
+      "address": "89-97 Westmuir Street, Parkhead, Glasgow, G31 5EU",
+      "postcode": "G31 5EU",
+      "locality": "Glasgow",
+      "website": null,
+      "lat": 55.851732,
+      "lng": -4.194152,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://camra.org.uk/pubs/place/parkhead-13448"
+      ],
+      "evidence": [
+        {
+          "url": "https://camra.org.uk/pubs/place/parkhead-13448",
+          "excerpt": "89-97 Westmuir Street, Parkhead, Glasgow, G31 5EU What Open Tavern Bar Pub, in Glasgow Cask Ale not available"
+        }
+      ],
+      "observedAt": "2026-10-04T11:35:39.053Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/G31%205EU",
+        "observedAt": "2026-10-04T11:35:39.082Z",
+        "postcode": "G31 5EU",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415fb9604790e0bffb96",
+      "id": "venue-glw-1dsyp0k",
+      "provider": "parallel"
+    },
+    {
+      "name": "The McMillan",
+      "kind": "restaurant",
+      "address": "862 Pollokshaws Road, Shawlands, Glasgow G41 2ET",
+      "postcode": "G41 2ET",
+      "locality": "Glasgow",
+      "website": "https://www.themcmillan.co.uk/",
+      "lat": 55.833179,
+      "lng": -4.276354,
+      "coordinatePrecision": "postcode-centroid",
+      "sourceUrls": [
+        "https://www.themcmillan.co.uk/",
+        "https://www.themcmillan.co.uk/offers"
+      ],
+      "evidence": [
+        {
+          "url": "https://www.themcmillan.co.uk/",
+          "excerpt": "Our bar hosts a wide range of spirits, a high quality wine list to compliment our menu."
+        },
+        {
+          "url": "https://www.themcmillan.co.uk/offers",
+          "excerpt": "The McMillan\n862 Pollokshaws Road\nShawlands, Glasgow G41 2ET"
+        }
+      ],
+      "observedAt": "2026-10-04T11:35:39.762Z",
+      "geocode": {
+        "url": "https://api.postcodes.io/postcodes/G41%202ET",
+        "observedAt": "2026-10-04T11:35:39.853Z",
+        "postcode": "G41 2ET",
+        "quality": 1
+      },
+      "runId": "trun_ce5fd53e0016415f915a9e81103eff69",
+      "id": "venue-glw-mfbz0j",
+      "provider": "parallel"
+    }
+  ]
+}

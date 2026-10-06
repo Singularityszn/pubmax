@@ -232,7 +232,7 @@ NightCrawlMode crew free-text names, and the anti-goal surfaces below
 handles).
 
 **Tests:** new `__tests__/avatarServeRoute.test.ts` (hidden/absent -> 404,
-cache headers); extend `__tests__/mobileChromeFit.test.ts` only if phone
+cache headers); extend `e2e/mobile-map-chrome-fit.spec.ts` only if phone
 row geometry changes; render tests for two representative sites; exclusion
 tests for ledger, anonymous, and unlinked-handle surfaces.
 

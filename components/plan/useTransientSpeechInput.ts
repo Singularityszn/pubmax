@@ -42,7 +42,7 @@ export function useTransientSpeechInput(value: string, onChange: (value: string)
       recognition.onresult = (event) => {
         let transcript = "";
         for (let index = event.resultIndex; index < event.results.length; index += 1) {
-          transcript += event.results[index]["0"].transcript;
+          transcript += event.results[index]?.[0]?.transcript ?? "";
         }
         onChange([baseRef.current, transcript.trim()].filter(Boolean).join(" "));
       };

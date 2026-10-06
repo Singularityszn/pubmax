@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import type { VenueMenuEnrichmentFile } from "@/lib/venueMenuEnrichment";
 import { isHttpUrl } from "@/lib/httpUrl";
+import { defined } from "@/__tests__/helpers/defined";
 
 const ENRICHMENT_PATH = join(
   process.cwd(),
@@ -35,7 +36,7 @@ describe("venue_menu_enrichment.json seed", () => {
 
     for (const id of ids) {
       expect(liveIds.has(id), `${id} missing from live dataset`).toBe(true);
-      const rec = file.venues[id];
+      const rec = defined(file.venues[id]);
       expect("orderUrl" in rec, `${id} must not seed invented orderUrl`).toBe(false);
       expect(typeof rec.menuUrl, `${id} menuUrl must be a string`).toBe("string");
       expect(isHttpUrl(rec.menuUrl ?? ""), `${id} menuUrl must be http(s)`).toBe(true);

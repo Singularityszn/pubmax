@@ -1,0 +1,2664 @@
+{
+  "city": "leeds",
+  "districts": 21,
+  "slices": 84,
+  "slicesComplete": 84,
+  "incompleteSlices": [],
+  "skippedSources": [
+    {
+      "district": "LS2",
+      "category": "pub",
+      "url": "https://www.datathistle.com/place/107285-revolution-leeds",
+      "host": "www.datathistle.com",
+      "kind": "robots",
+      "reason": "robots unreachable",
+      "attempts": 3,
+      "evidence": [
+        {
+          "at": "2026-10-05T09:33:57.892Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-05T09:34:03.783Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
+        },
+        {
+          "at": "2026-10-05T09:34:09.652Z",
+          "reason": "robots-unreachable",
+          "evidence": "https://www.datathistle.com/robots.txt could not be fetched (fetch failed)."
+        }
+      ],
+      "checkedAt": "2026-10-05T09:34:09.652Z"
+    },
+    {
+      "district": "LS5",
+      "category": "restaurant",
+      "url": "https://mindtrip.ai/restaurant/leeds-yorkshire/vesper-gate/re-Suu6nUAJ",
+      "host": "mindtrip.ai",
+      "outcome": "skipped",
+      "kind": "extract",
+      "reason": "Firecrawl scrape failed; the page answered HTTP 200",
+      "attempts": 1,
+      "evidence": {
+        "basic": "Firecrawl HTTP 500",
+        "probe": {
+          "status": 200,
+          "landed": "permitted",
+          "checkedAt": "2026-10-05T09:34:03.145Z"
+        }
+      },
+      "checkedAt": "2026-10-05T09:34:02.505Z"
+    }
+  ],
+  "filteredSources": [
+    {
+      "district": "LS2",
+      "category": "pub",
+      "url": "https://www.leedsconservatoire.ac.uk/student-life/facilities-resources/cafe-bar-rooftop-bar",
+      "host": "www.leedsconservatoire.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS6",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/07413062/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS6",
+      "category": "cocktail-bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/14838579/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS6",
+      "category": "cocktail-bar",
+      "url": "https://www.leedsbeckett.ac.uk/student-experience/life-in-leeds/the-students-guide-to-hyde-park",
+      "host": "www.leedsbeckett.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS8",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/09809532/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS8",
+      "category": "cocktail-bar",
+      "url": "https://www.simplyhired.co.uk/search?q=bar+staff&l=ls8+3jt&cursor=ABQAAf%2F%2FAAAAAAAAAAAAAAACXixomgAAAQ%3D%3D",
+      "host": "www.simplyhired.co.uk",
+      "reason": "job board"
+    },
+    {
+      "district": "LS9",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/00684800/filing-history?page=8",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS9",
+      "category": "pub",
+      "url": "https://www.rightmove.co.uk/properties/723055006176976",
+      "host": "www.rightmove.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "LS9",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-bar-staff-l-leeds-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "LS11",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/05239351/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS11",
+      "category": "bar",
+      "url": "https://www.rightmove.co.uk/properties/159842750",
+      "host": "www.rightmove.co.uk",
+      "reason": "postcode or property lookup"
+    },
+    {
+      "district": "LS12",
+      "category": "pub",
+      "url": "https://ratings.food.gov.uk/business/467056",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS12",
+      "category": "bar",
+      "url": "https://ratings.food.gov.uk/business/1177705/the-grand-valley-bar-and-kitchen-leeds/online-ratings",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS12",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/13354400/persons-with-significant-control",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS12",
+      "category": "bar",
+      "url": "https://active.leeds.gov.uk/our-centres/armley-leisure-centre",
+      "host": "active.leeds.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS15",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/07451074/filing-history",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS15",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-cocktail-bar-l-leeds-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "LS16",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/06853108/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS16",
+      "category": "pub",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/09180520/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS16",
+      "category": "pub",
+      "url": "https://uk.indeed.com/m/viewjob?jk=6e024e5db7061234&from=serp&tk=1jvm9a4bvh720801&xkcb=SoCI67M3g2anVC3zQZ0fbzkdCdPP",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "LS17",
+      "category": "bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/company/12113112/officers",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS17",
+      "category": "cocktail-bar",
+      "url": "https://find-and-update.company-information.service.gov.uk/officers/WwnjQeruGcIeBc3ITj2FaJ0_mtc/appointments",
+      "host": "find-and-update.company-information.service.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS17",
+      "category": "cocktail-bar",
+      "url": "https://www.simplyhired.co.uk/search?q=bartender&l=leeds&from=expandedQueriesLink&cursor=ABQAAwA8AAAAAAAAAAAAAAACYTb2rgEBAQ4F8f2b6672D9wq%2BRGqu2hmuaHsX8EIlYnbWxzTdueBFg%3D%3D",
+      "host": "www.simplyhired.co.uk",
+      "reason": "job board"
+    },
+    {
+      "district": "LS18",
+      "category": "pub",
+      "url": "https://ratings.food.gov.uk/business/en-GB/1202679",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS18",
+      "category": "pub",
+      "url": "https://www.leedstrinity.ac.uk/student-life/leeds-and-horsforth/take-a-look-around-horsforth",
+      "host": "www.leedstrinity.ac.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS26",
+      "category": "bar",
+      "url": "https://ratings.food.gov.uk/business/953885/tobias-bar-leeds",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS26",
+      "category": "bar",
+      "url": "https://active.leeds.gov.uk/our-centres/rothwell-leisure-centre",
+      "host": "active.leeds.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "LS26",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-cocktail-bar-l-leeds-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    },
+    {
+      "district": "WF3",
+      "category": "bar",
+      "url": "https://ratings.food.gov.uk/business/1582504/the-castle-inn-wakefield",
+      "host": "ratings.food.gov.uk",
+      "reason": "public body or academic site"
+    },
+    {
+      "district": "WF3",
+      "category": "bar",
+      "url": "https://www.simplyhired.co.uk/search?q=bar+staff&l=leeds+wf3+3bh",
+      "host": "www.simplyhired.co.uk",
+      "reason": "job board"
+    },
+    {
+      "district": "WF3",
+      "category": "cocktail-bar",
+      "url": "https://uk.indeed.com/q-bar-l-leeds-wf3-2as-jobs.html",
+      "host": "uk.indeed.com",
+      "reason": "job board"
+    }
+  ],
+  "taskRuns": 110,
+  "webSearches": 141,
+  "pagesRead": 500,
+  "researched": 506,
+  "added": 0,
+  "retained": [
+    {
+      "name": "Below Stairs",
+      "id": "venue-lds-vznuu"
+    },
+    {
+      "name": "Restaurant Bar & Grill Leeds",
+      "id": "venue-lds-111qh3y"
+    },
+    {
+      "name": "Rita's Leeds",
+      "id": "venue-lds-3f49ii"
+    },
+    {
+      "name": "The Cut & Craft Leeds",
+      "id": "venue-lds-1dzk9eh"
+    },
+    {
+      "name": "SALT Calls Landing",
+      "id": "venue-lds-fk8iy"
+    },
+    {
+      "name": "Napoleons Casino & Restaurant Leeds",
+      "id": "venue-lds-fmcfis"
+    },
+    {
+      "name": "Arcade Club Leeds",
+      "id": "venue-lds-bwtlmt"
+    },
+    {
+      "name": "The East Village",
+      "id": "venue-lds-117f590"
+    },
+    {
+      "name": "Victoria Social",
+      "id": "venue-lds-1pdaeje"
+    },
+    {
+      "name": "Kesar Restaurant & Bar",
+      "id": "venue-lds-1d6rbps"
+    },
+    {
+      "name": "No 14 Restaurant & Bar",
+      "id": "venue-lds-pvpq9q"
+    },
+    {
+      "name": "Nyla’s Chapel Allerton",
+      "id": "venue-lds-ko9y1z"
+    },
+    {
+      "name": "Chophaus",
+      "id": "venue-lds-4byeb"
+    },
+    {
+      "name": "Bar on Park Lane",
+      "id": "venue-lds-1ywwz2p"
+    },
+    {
+      "name": "The Clock Inn",
+      "id": "venue-lds-1jxoauc"
+    },
+    {
+      "name": "DMC Brewery & Taproom",
+      "id": "venue-lds-yqpcr0"
+    },
+    {
+      "name": "Brewery Wharf Tavern",
+      "id": "venue-lds-18i7pnx"
+    },
+    {
+      "name": "The Holbeck",
+      "id": "venue-lds-din2dl"
+    },
+    {
+      "name": "West Park Lounge",
+      "id": "venue-lds-xso151"
+    },
+    {
+      "name": "The Fishermans Lodge",
+      "id": "venue-lds-1dshprx"
+    },
+    {
+      "name": "Kasa Rosa",
+      "id": "venue-lds-eopqpi"
+    }
+  ],
+  "totalAccepted": 24,
+  "repeats": 6,
+  "duplicates": [
+    {
+      "name": "White Horse",
+      "id": null,
+      "matchedName": "The White Horse",
+      "matchedId": "way/670774978"
+    },
+    {
+      "name": "Middleton Conservative Club",
+      "id": null,
+      "matchedName": "Middleton Conservative Club",
+      "matchedId": "node/391625173"
+    },
+    {
+      "name": "The Canary",
+      "id": null,
+      "matchedName": "The Canary",
+      "matchedId": "way/992685555"
+    },
+    {
+      "name": "Old Red Lion",
+      "id": null,
+      "matchedName": "The Old Red Lion",
+      "matchedId": "node/2141116425"
+    },
+    {
+      "name": "Adel Tap",
+      "id": null,
+      "matchedName": "Adel Tap",
+      "matchedId": "node/14248780549"
+    }
+  ],
+  "withdrawn": [
+    {
+      "name": "Ego at The Wellington, Shadwell",
+      "id": "venue-lds-1k9wwyx",
+      "reason": "source-permission: insufficient permitted evidence",
+      "sources": [
+        {
+          "url": "https://www.egorestaurants.co.uk/restaurants/yorkshire/shadwell/drinks-menu",
+          "outcome": "refused",
+          "reason": "robots-unreadable",
+          "checkedAt": "2026-10-05T09:24:29.726Z"
+        },
+        {
+          "url": "https://www.egorestaurants.co.uk/restaurants/yorkshire/shadwell",
+          "outcome": "refused",
+          "reason": "robots-unreadable",
+          "checkedAt": "2026-10-05T09:24:29.726Z"
+        }
+      ]
+    }
+  ],
+  "permissionRejected": 1,
+  "rejected": [
+    {
+      "name": "Archie's Bar & Kitchen",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Bookseller's Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Turk's Head",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Headrow House",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Farrands",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Porco Rosso",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "NQ64",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The End Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Elbows on the Table",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Salon Madre",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Rita's Leeds",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Browns Leeds",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Cut & Craft",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Brasserie Blanc Leeds",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Good Luck Club",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Hoist House",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Headrow House",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Domino Club",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Tailors Gin",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The End",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Farrands Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Lost & Found Greek Street",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Nyla’s Briggate",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Browns Leeds",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Riva Blu",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Cut & Craft Leeds",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Dakota Leeds Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Banksia Bar and Restaurant",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Whitehall Restaurant & Bar",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Be At One Greek Street Leeds",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Las Iguanas Leeds",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Soap Factory",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Alchemist Trinity",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Banyan Leeds",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Azotea",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Turtle Bay Leeds",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "BLACKHOUSE Gastrobar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Rita's Beer Hall & Ballroom",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Gino D'Acampo",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Lock Kitchen & Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Lock Kitchen & Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Sky Lounge",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "LIVIN’Italy",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Archie’s Bar & Kitchen",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Farrands Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The End Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Be At One Greek Street",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Bar at Dakota Leeds",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Cut & Craft Leeds",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "CrowdedHouse",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Banksia",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Domino Club",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Tabula Rasa",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Behind Closed Doors",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Tattu Leeds",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Nyla’s Briggate",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Tiki Hideaway",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Headrow House",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Azotea",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Tailors Gin",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Restaurant Bar & Grill Leeds",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Mowgli Street Food Leeds",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Banyan Leeds",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Mirror Mirror",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Cosy Club Leeds",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "https://www.tripadvisor.com/Attraction_Review-g186411-d12723213-Reviews-Be_At_One_Leeds_Boar_Lane-Leeds_West_Yorkshire_England.html",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=cocktailbars&find_loc=4A+Harehills+Rd%2C+Leeds+LS8+5PB",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "The Banksia",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Farrands Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Tabula Rasa",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Whitehall Restaurant & Bar",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Bibis Italianissimo",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "San Carlo Leeds",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Riva Blu Leeds",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Blackhouse",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://www.theheadofsteam.co.uk/bars/leeds-park-row",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.yelp.ca/search?cflt=restaurants&find_loc=1+Whitehall+Quay%2C+Leeds+LS1+4HR%2C+United+Kingdom",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://leeds-list.com/page/57?attachment_id=",
+      "reason": "unreadable: page HTTP 410"
+    },
+    {
+      "name": "https://www.theheadofsteam.co.uk/bars/leeds-city-centre",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "Salt Calls Landing",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Cuthbert Brodrick",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Stick or Twist",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "The Key Club",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Uyare by Tharavadu",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://www.anationofshopkeepers.com",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.thepalaceleeds.co.uk",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.opentable.com/r/the-smithfield-leeds",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "Popworld Leeds",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Tabula Rasa",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Moods Leeds",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "UYARE",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Tabula Rasa",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Boom Battle Bar Leeds",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "UYARE by Tharavadu",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Habbibi",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Blind Tyger",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Moods Leeds",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Harvey Nichols Fourth Floor Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Jamrock",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Below Stairs",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://www.yelp.ca/search?cflt=bars&find_loc=Leeds+LS2",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "Jamrock",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Moods",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Habbibi",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Uyare",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Tabula Rasa",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Haftsin Restaurant",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Grosvenor Casino Leeds Westgate",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Viva Cuba",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Sheesh Mahal",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Viva Cuba",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Sheesh Mahal",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=cocktailbars&find_loc=4A+Harehills+Rd%2C+Leeds+LS8+5PB",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://en.tripadvisor.com.hk/Restaurant_Review-g186411-d24102916-Reviews-Dave_s_Pie_And_Ale_Shop-Leeds_West_Yorkshire_England.html",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "Viva Cuba",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Sheesh Mahal",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Melodie 71",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://mapcarta.com/W100530176",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "Melodie 71",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Melodie 71",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Boot & Rally",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Stone Green Social",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Terminus Tap Room & Bottle Shop",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Number 8",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Residence Bar Cafe | Kitchen",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Boot & Rally",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Number 8 Cocktails",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Residence Cafe Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "No14 Restaurant & Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Stone Green Social",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Hyde Cafe + Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "TADA Japanese Restaurant & Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "https://www.theheadofsteam.co.uk/bars/headingley",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.theoriginaloakleeds.co.uk",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://leedsliving.co.uk/food-drink/residence-74-now-open-in-headingley",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=Headingley%2C+Leeds%2C+West+Yorkshire",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "Residence Bar Cafe | Kitchen",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Hyde Cafe + Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Heaney & Mill",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Number 8",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "TADA",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Swine Bistro",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Manahatta Headingley",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Stone Green Social",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Cat's Pyjamas",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "De Baga",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://leedsliving.co.uk/food-drink/residence-74-now-open-in-headingley",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.yelp.ca/search?cflt=cocktailbars&find_loc=Cardigan+Rd%2C+Leeds+LS6+1LJ",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.theheadingleytapsleeds.co.uk",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.theheadofsteam.co.uk/bars/headingley",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://leeds-list.com/page/57?attachment_id=",
+      "reason": "unreadable: page HTTP 410"
+    },
+    {
+      "name": "https://the-east-village.wheree.com",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "No14 Restaurant & Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Cat's Pyjamas",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Swine Bistro",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Residence Bar/Cafe/Kitchen",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Tada",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Man Zen",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Bukhara",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Casa Alba Italian Restaurant",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Kesar Restaurant & Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Canned Heat",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Brew+Bao",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Nyla’s Chapel Allerton",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Cat’s Pyjamas Chapel Allerton",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Rasoi Stories",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Sukhothai Chapel Allerton",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Toby Carvery Chapel Allerton",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "De Baga Mehfil",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=49-51+Woodland+Ln%2C+Leeds+LS7+4QG",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=pubs&find_loc=Leeds+LS18",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://leeds-list.com/page/57?attachment_id=",
+      "reason": "unreadable: page HTTP 410"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=Regent+Street%2C+Leeds+LS7+4PE%2C+United+Kingdom",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "Nyla’s Chapel Allerton",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "MYTHOS Chapel Allerton",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Olive",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Pinche Pinche Mexican Restaurant",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Rasoi Stories",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Toby Carvery Chapel Allerton",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Sukhothai Chapel Allerton",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Rasoi Stories",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "De Baga Chapel Allerton",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Deliziosa",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Pinche Pinche",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Toby Carvery Chapel Allerton",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Cracovia Taste of Poland",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Rudy’s Pizza Napoletana – Chapel Allerton",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Cafe Bar El Born",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Hesco Lounge",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Olive Branch",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "https://www.deerparkleeds.co.uk",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=pubs&find_loc=109A+Roundhay+Road%2C+Leeds+LS8+5AJ",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://historicengland.org.uk/listing/the-list/list-entry/1375493",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://northleeds.mumbler.co.uk/eating-out-for-families/roundhay-oakwood",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=wine_bars&find_loc=Leeds+LS8+1QJ",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://m.yelp.com/search?cflt=pubs&find_loc=172%2C+Easterly+Road%2C+West+Yorkshire%2C+Leeds+LS8+3AD%2C+United+Kingdom",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "El Born",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Hesco Lounge",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Olive Branch",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Punjabi Heaven",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Flying Pizza",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Clock Inn",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Acapella",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Melbourne",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Cafe Bar El Born",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Hesco Lounge",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Melbourne",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Olive Branch",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "San Carlo Flying Pizza",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Bagaara Utsav",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=cocktailbars&find_loc=4A+Harehills+Rd%2C+Leeds+LS8+5PB",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://cafe-bar-el-born.wheree.com",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://www.yell.com/s/pub+restaurants-leeds-west+yorkshire.html",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=wine_bars&find_loc=Leeds+LS8+1QJ",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "Hesco Lounge",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Olive Branch",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Clock Inn",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "White Horse",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Piglove Brewing",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://mapcarta.com/N5457251548",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.yelp.ca/search?cflt=bars&find_loc=Ellerby+Rd%2C+Leeds+LS9+8LD",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.findmypub.com/lease-tenancy-pubs/england/yorkshire+and+the+humber/west+yorkshire/leeds",
+      "reason": "unreadable: extract: 404 page not found"
+    },
+    {
+      "name": "https://en.tripadvisor.com.hk/Restaurant_Review-g186411-d32750608-Reviews-Woodside_Neighbourhood_Bar_Eatery-Leeds_West_Yorkshire_England.html",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://www.thefork.com/restaurant/rambuttri-r866800",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "Kerala Canteen",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Sarto",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://en.tripadvisor.com.hk/Restaurant_Review-g186411-d32750608-Reviews-Woodside_Neighbourhood_Bar_Eatery-Leeds_West_Yorkshire_England.html",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "Aagrah Leeds City",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Kendells Bistro",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "https://www.yelp.ca/search?cflt=restaurants&find_loc=Foundry+Approach%2C+Leeds+LS9+6RX",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "The Tetley",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Brewery Wharf Tavern",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Canary",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Falconers Rest",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "PizzaExpress Leeds Dock",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://mapcarta.com/W34294410",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.theadelphileeds.co.uk",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://leeds-list.com/page/57?attachment_id=",
+      "reason": "unreadable: page HTTP 410"
+    },
+    {
+      "name": "The Canary",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Falconers Rest",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "The Tetley Pub",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "https://www.theadelphileeds.co.uk",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "Brewery Wharf Tavern",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Tetley",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Falconers Rest",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "https://www.theadelphileeds.co.uk",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=newamerican&find_loc=Junction+St%2C+Leeds+LS10+1ET",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "The Canary",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Tetley",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Ciao Bella",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Falconers Rest",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Holbeck",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Bianco Lounge",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Inkwell Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Holbeck Working Mens Club",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Inkwell Bar",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Golden Swan",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Domo Leeds",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=Beeston+Rd%2C+Leeds+LS11+8ND",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "Domo Leeds",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Holbeck",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Domo Leeds",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Bianco Lounge",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Escapologist",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "TGI Fridays Leeds White Rose",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Nando’s Leeds – White Rose",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=restaurants&find_loc=Unit+6+6+Crow+Nest+Drive+Beeston%2C+Leeds+LS11+8JP%2C+United+Kingdom",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "The Woodcock",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "New Farnley Cricket Club",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "https://www.reddit.com/r/Leeds/comments/vemtg6/ideas_for_pubs_and_best_isp_for_ls12_4qn_area",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=pubs&find_loc=Leeds+LS18",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.reddit.com/r/Leeds/comments/10zf8kn/any_opinions_on_wortleyls12",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "The Woodcock",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Beulah Bistro",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Farnley Sports & Social Club",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Nook",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://mapcarta.com/N6391203215",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.yelp.com/search?find_desc=Nightlife&find_loc=Whitehall+Rd%2C+Leeds+LS12+1HE",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.reddit.com/r/Leeds/comments/vemtg6/ideas_for_pubs_and_best_isp_for_ls12_4qn_area",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "The Grand Valley Bar & Kitchen",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Galleria",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Woodcock",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Bagaara",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "The Abbey Inn",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Acorn",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Against the Grain",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Beacon",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Rock Inn",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Rodley Barge",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "The Acorn",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Against the Grain",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Abbey Inn",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Oval Inn",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Rock Inn",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Rodley Social Club",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Bramley Working Mens Club",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Beacon",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Rodley Barge",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Against the Grain",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Rock Inn",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Oval Inn",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Against the Grain",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Rodley Barge",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Beacon",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Barnleigh",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Ephesus Restaurant",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "The Owl Inn",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Mexborough Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Inn at Scarcroft",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Fox",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Greens Leeds",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Greens Leeds",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Fox at Thorner",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Mexborough Arms",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Inn at Scarcroft",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "https://www.greensleeds.com",
+      "reason": "unreadable: extract: 404 page not found"
+    },
+    {
+      "name": "Greens Leeds",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Jinnah Leeds",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "https://ciao-bella-bar-restaurant.wheree.com",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "The Barnbow",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Devon",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Charles Henry Roe",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Barnbow Social Club",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Riva Blu",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Black Swan",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Gascoigne Arms",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "New Inn",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Locus Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Barnbow",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Charles Henry Roe",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "The Devon",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Bar Tat",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Thorpe Park Hotel & Spa Bar & Lounge",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Caballero Lounge",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Franco’s at Thorpe Park",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Cock Beck",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=39-41+Austhorpe+Rd%2C+Leeds+LS15+8BA",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://mapcarta.com/W330244135",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "Locus Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Barnbow",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "https://www.opentable.com/r/riva-blu-italian-restaurant-and-bar-leeds-the-springs-leeds",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=39-41+Austhorpe+Rd%2C+Leeds+LS15+8BA",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.yell.com/s/pub+restaurants-leeds-west+yorkshire.html",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.opentable.co.uk/r/riva-blu-italian-restaurant-and-bar-leeds-the-springs-leeds",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "The Buffers",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Charles Henry Roe",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Barnbow",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Out Out Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Colton Mill",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Locus Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Zorba's Bar and Grill",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Pintxos44",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Caballero Lounge",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Franco's Thorpe Park",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Riva Blu",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Wagamama Leeds The Springs",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Adel Tap",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Fox & Hounds, Bramhope",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Leeds Modernians Sports & Social Club",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "G-Wu",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Bottle Chop",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The New Inn",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "West Park Leeds Rugby Union Football Club",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Stables Pub",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Brasserie",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "https://northleeds.mumbler.co.uk/family-friendly-cafes-pubs-with-outside-play-areas-or-beer-gardens-in-leeds",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "The Fox & Hounds, Bramhope",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Stables Pub",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Leeds Modernians Sports & Social Club",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Bottle Chop",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Village Pub & Grill – Leeds North",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Adel Tap",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Dastaan Leeds",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Hickory’s Smokehouse Adel",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Adel Tap",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "West Park Lounge",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Stables Pub",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Fox & Hounds, Bramhope",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Olive Branch – Alwoodley",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Bingley Arms",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Duke of Wellington",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Old Star",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Old Leodiensian Community Amateur Sports Club",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "https://www.yelp.ca/search?cflt=restaurants&find_loc=Whinbrook+Cres%2C+Leeds+LS17+5PN",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.yell.com/s/pub+restaurants-leeds-west+yorkshire.html",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "Residence Moortown",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Ego at The Wellington, Shadwell",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "The Olive Branch Alwoodley",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=bars&find_loc=49-51+Woodland+Ln%2C+Leeds+LS7+4QG",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.yell.com/s/pub+restaurants-leeds-west+yorkshire.html",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://m.yelp.com/search?find_desc=bars&find_loc=Wike+Ridge+Ln%2C+Leeds+LS17+9JW",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "The Olive Branch – Alwoodley",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Ego at The Wellington, Shadwell",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Bingley Arms",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Gallio Leeds",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Duke of Wellington",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Residence Cafe Bar Moortown",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Amici Restaurant",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Beyond The Red Door",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Granville's Beer & Gin House",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Hocloco",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Horsforth Hotel",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Black Bull",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Brownlee Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Fleece",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Forge",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Hop Shack",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Malt Brewhouse",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Old Ball",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Old Kings Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Queens Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Tavern",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Three Swords",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Thomas Hardy's Irish Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Horsforth Brewery",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "Once Upon A Vine",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://mapcarta.com/W372433839",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://oldkingsarmsleeds.co.uk",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "https://www.theoldballleeds.co.uk",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "Beyond The Red Door",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Granville's Beer & Gin House",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Hive Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Hocloco",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Horsforth Hotel",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "StUdio",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Black Bull",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Brownlee Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Fleece",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Hop Shack",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Malt Brewhouse",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Old Ball",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Old Kings Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Queens Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Tavern",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Three Swords",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Thomas Hardy's Irish Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Horsforth Brewery",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Escape Restaurant & Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Beyond The Red Door",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Escape Restaurant & Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Hive Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Horsforth Brewery Taproom",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Malt Brewhouse",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Old Kings Arms",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Horsforth",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Beyond The Red Door",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Hoc Loco",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Horsforth",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Black Bull",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Brownlee Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Fleece",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Hop Shack",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Malt Brewhouse",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Old Ball",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Old Kings Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Queens Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Tavern",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Three Swords",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Thomas Hardy's Irish Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Horsforth Brewery Taproom",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Escape Restaurant & Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Bavette Bistro",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Forde",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Konak Meze Horsforth",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Miller & Carter Horsforth",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Agora",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Toby Carvery Horsforth",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Trattoria Il Forno",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=wine_bars&find_loc=City+of+Leeds+LS18+4BD",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "Winchester",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "New Inn",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Midland Hotel",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Two Pointers",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Boundary House",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Commercial",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://northleeds.mumbler.co.uk/family-friendly-cafes-pubs-with-outside-play-areas-or-beer-gardens-in-leeds",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "Two Pointers",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Midland Hotel",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "The Boundary House",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://www.opentable.com/r/toby-carvery-oulton-leeds",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://www.opentable.co.uk/r/the-boundary-house-leeds",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "Salto Espresso & Cocktails",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Remedy Cocktail Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://wanderboat.ai/restaurants/united-kingdom/leeds/remedy-cocktail-bar/vD2cQDLpRHCvKZN5qoMbvw",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://www.yelp.com/search?cflt=cocktailbars&find_loc=Dewsbury%2C+West+Yorkshire",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "https://coach-horses-rothwell.wheree.com",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://northleeds.mumbler.co.uk/category/eating-out",
+      "reason": "unreadable: robots refused (robots-unreadable)"
+    },
+    {
+      "name": "The Boundary House",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Two Pointers",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Midland Hotel",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Salto Espresso & Cocktails",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Bar 27",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Carriers Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Vault Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Tipsy Calf",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Dog House Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Rhythm & Rye",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Truth Hurts Brewery & Tap",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Morley Dashers",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Village Pub & Grill Leeds South",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "The Needless Inn",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Gildersome Conservative Club",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Vault Bar",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Rhythm & Rye",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Bar 27",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Tipsy Cow",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Gildersome Conservative Club",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Dog House Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Bacchus",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Village Pub & Grill Leeds South",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Sambuca Ristorante Morley",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Amici",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Toby Carvery Bruntcliffe",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Halfway House",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Carriers Arms",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Morley Dashers",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Nesso",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Rhythm & Rye",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Tipsy Cow",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://tipsy-calf.wheree.com",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "https://m.yelp.com/biz/old-griffin-head-leeds",
+      "reason": "unreadable: robots refused (robots-disallowed)"
+    },
+    {
+      "name": "Kasa Rosa",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Amici",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Nesso",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Vault Bar",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Village Pub & Grill – Leeds South",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Dog House Bar Morley",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Gardeners Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Graziers Inn",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Stanley Ferry",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Travellers",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Waggon & Horses",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Wheatsheaf",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "British Oak",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "New Scarborough Inn",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Hare & Hounds",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Bay Horse",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Bedford Arms",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "British Oak Tingley",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "The Stanley Ferry",
+      "reason": "missing-drinking-evidence"
+    },
+    {
+      "name": "The Sun",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Gardeners Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Graziers Inn",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Waggon & Horses",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Wheatsheaf",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "British Oak Tingley",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Gardeners Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Sun",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Wheatsheaf",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "Stanley Ferry",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "https://the-halfway-robin-hood.wheree.com",
+      "reason": "unreadable: source refused HTTP 403"
+    },
+    {
+      "name": "Hare & Hounds",
+      "reason": "citation-does-not-bind-name-and-address"
+    },
+    {
+      "name": "Stanley Ferry",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Gardeners Arms",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "The Sun",
+      "reason": "missing-venue-specific-citation"
+    },
+    {
+      "name": "British Oak Tingley",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "New Scarborough Inn",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Bay Horse",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "Bedford Arms",
+      "reason": "postcode-does-not-geocode-inside-city"
+    },
+    {
+      "name": "https://the-halfway-robin-hood.wheree.com",
+      "reason": "unreadable: source refused HTTP 403"
+    }
+  ],
+  "outputPath": "data/cities/leeds/parallel_venues.json"
+}

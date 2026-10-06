@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import {
   useCallback,
@@ -137,7 +138,7 @@ function SignedInCard({
   activeUserId: string | null;
   deviceAccounts: readonly DeviceAccountRecord[];
   onSwitchAccount: (userId: string) => Promise<DeviceAccountSwitchOutcome>;
-  addAccountHref: string;
+  addAccountHref: Route;
 }): React.JSX.Element {
   const avatar = avatarUrl(user);
   return (
@@ -553,7 +554,7 @@ export default function LoginPage({
    * was before, and this page is never a destination, so a bare /login visit
    * comes back to the signed-in card it started from.
    */
-  const addAccountHref = useMemo(() => {
+  const addAccountHref = useMemo((): Route => {
     const params = new URLSearchParams({ [LOGIN_ADD_ACCOUNT_PARAM]: "1" });
     if (from && from.startsWith("/")) params.set(ARRIVAL_FROM_PARAM, from);
     return `/login?${params.toString()}`;
