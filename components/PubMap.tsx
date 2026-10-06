@@ -2393,8 +2393,11 @@ export default function PubMap({
       canvasReady: mapCanvasReady,
       slimLoaded: loaded,
       slimPinCount: slimPins.length,
+      // /map?uk=1 never reads the curated index, so the frame waits on the
+      // basemap reveal alone.
+      pubsDeferredUntilZoom: ukNationalBrowse,
     }),
-    [pinsRevealed, mapCanvasReady, loaded, slimPins.length],
+    [pinsRevealed, mapCanvasReady, loaded, slimPins.length, ukNationalBrowse],
   );
   const mapLoadingProgress = mapLoadingProgressPercent(mapLoadingStage);
   const mapCanvasAvailabilityState = mapCanvasAvailability({
@@ -6533,6 +6536,7 @@ export default function PubMap({
         venues={canvasVenues}
         filteredVenueCount={canvasVenues.length}
         venueDataReady={loaded && loadedCityId === cityId}
+        nationalBrowse={ukNationalBrowse}
         // Clean first view stays route-free. Once the user maps a crawl, the
         // line remains visible even if the mobile planner closes.
         route={routeForMap}
