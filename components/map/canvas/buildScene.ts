@@ -1637,19 +1637,6 @@ export function buildRouteStops(ctx: SceneCtx) {
       "circle-stroke-width": 2.5,
     },
   });
-  addLayerOnce({
-    id: "route-stops-label",
-    type: "symbol",
-    source: "route-stops",
-    layout: {
-      "text-field": ["get", "label"],
-      "text-font": textFont,
-      "text-size": 13,
-      "text-allow-overlap": true,
-    },
-    // Stops are always dark-filled, so the label is the light-side token.
-    paint: { "text-color": dark ? tokens.ink : tokens.paper },
-  });
   // Pub-name plaque (owner bug: numbered discs alone don't say WHICH pub stop 2
   // is, while ordinary basemap POIs around them are labelled). Engraved-brass
   // text riding beside each numbered disc — a strong paper/ink halo carries it
@@ -1657,8 +1644,11 @@ export function buildRouteStops(ctx: SceneCtx) {
   // Collision-tolerant: text-variable-anchor lets the plaque flip side to dodge
   // neighbours and the default placement drops the odd label in a dense cluster
   // rather than smearing them all — the numbers (allow-overlap) always stay.
-  // Zoom-gated at 13.5: below that the whole route can sit in one thumb-width,
-  // so plaques would pile up; the discs carry the route until the user leans in.
+  // It is added BEFORE the numbers: MapLibre places the topmost symbol layer
+  // first, so the numbers take their discs' space and the names fit around
+  // them. Zoom-gated at 13.5: below that the whole route can sit in one
+  // thumb-width, so plaques would pile up; the discs carry the route until the
+  // user leans in.
   addLayerOnce({
     id: "route-stops-name",
     type: "symbol",
@@ -1681,6 +1671,25 @@ export function buildRouteStops(ctx: SceneCtx) {
       "text-halo-width": 2,
       "text-halo-blur": 0.4,
     },
+  });
+  addLayerOnce({
+    id: "route-stops-label",
+    type: "symbol",
+    source: "route-stops",
+    layout: {
+      "text-field": ["get", "label"],
+      "text-font": textFont,
+      "text-size": 13,
+      "text-allow-overlap": true,
+      // The stop discs are a circle layer, which takes no part in symbol
+      // collision. The number does, so padded out to the disc's radius it
+      // claims the whole disc, and a name that would cover another stop is
+      // dropped or flips side instead of sitting under that stop's disc (QA
+      // journeys F23). The number itself always shows (allow-overlap).
+      "text-padding": 9,
+    },
+    // Stops are always dark-filled, so the label is the light-side token.
+    paint: { "text-color": dark ? tokens.ink : tokens.paper },
   });
 }
 

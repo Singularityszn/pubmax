@@ -18,7 +18,11 @@ import FavoritePintPicker from "@/components/map/FavoritePintPicker";
 import PersonaLensPicker from "@/components/map/PersonaLensPicker";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
-import { activeDrinkLane, drinkLaneLabel } from "@/lib/drinkLanes";
+import {
+  activeDrinkLane,
+  DEFAULT_DRINK_LANE,
+  drinkLaneLabel,
+} from "@/lib/drinkLanes";
 import type { SpoonsValueLensState } from "@/lib/spoonsValue";
 import type { DrinkCategory } from "@/lib/drinks";
 import type { PersonaDrink } from "@/lib/personaDrinks";
@@ -28,6 +32,7 @@ import type {
   CategoryPriceIndexStatus,
   MapExperienceLens,
 } from "@/lib/mapExperienceLens";
+import { FOCUS_TRAP_EXEMPT_ATTRIBUTE } from "@/lib/useFocusTrap";
 import { useSpringValue } from "@/lib/useSpringValue";
 import type { ZonePintIndex } from "@/lib/zones";
 import { lazyPanel } from "@/components/map/lazyPanel";
@@ -124,6 +129,30 @@ function searchFoundNothing(input: {
     input.trimmedQuery !== "" &&
     input.filteredVenueCount === 0
   );
+}
+
+/**
+ * The resting pint lane writes no drinkCategory, so a Pints press in the tray
+ * is the tray's own to remember, and it shows the pint refinements for it.
+ */
+function trayChipFilters(filters: Filters, pintsPicked: boolean): Filters {
+  return pintsPicked && !filters.drinkCategory
+    ? { ...filters, drinkCategory: DEFAULT_DRINK_LANE }
+    : filters;
+}
+
+/**
+ * The pint category trayChipFilters lends the chips is not the reader's own:
+ * once no refinement rides on it, the Pints lane writes its empty category.
+ */
+function trayChipChange(next: Filters, pintsPicked: boolean): Filters {
+  return pintsPicked &&
+    next.drinkCategory === DEFAULT_DRINK_LANE &&
+    !next.drinkSubtype &&
+    !next.topShelfOnly &&
+    !next.drinkBrand
+    ? { ...next, drinkCategory: "" }
+    : next;
 }
 
 // Compact map chrome: search + Plan on the first row; drink lens / chips stay
@@ -253,6 +282,19 @@ export default function MapToolbar({
   // Same contract for the drink lane: closed at rest, and its control names the
   // lane so a map showing cocktail prices never looks like the pint map.
   const [laneOpen, setLaneOpen] = useState(false);
+  // The tray never rides a surface that has just opened. A pub drawer or the
+  // planner is the reader's next question, and the tray sat open over the
+  // mapped route until they closed it by hand. Adjusted while rendering, on the
+  // edge only, so a reader who reopens the tray beside an open drawer keeps it.
+  const openSurfaces =
+    (detailOpen ? 1 : 0) | (planningOpen ? 2 : 0) | (storyOpen ? 4 : 0);
+  const [surfacesWereOpen, setSurfacesWereOpen] = useState(openSurfaces);
+  if (openSurfaces !== surfacesWereOpen) {
+    setSurfacesWereOpen(openSurfaces);
+    if (openSurfaces & ~surfacesWereOpen) setLaneOpen(false);
+  }
+  // Reopening the tray starts at rest again (trayChipFilters).
+  const [pintsPicked, setPintsPicked] = useState(false);
   const toolbarRef = useRef<HTMLDivElement | null>(null);
   const {
     value: laneOffset,
@@ -359,6 +401,11 @@ export default function MapToolbar({
     <div
       ref={toolbarRef}
       className="mapToolbar"
+      // Beside the desktop drawer the bar sits in the lane the drawer leaves,
+      // drawn at full strength, so it takes clicks and Tab like it looks. It is
+      // an exempt surface of the drawer's focus trap (lib/useFocusTrap.ts).
+      // Below 1024px the drawer has no free lane for it and the trap keeps it.
+      {...(desktopLaneActive ? { [FOCUS_TRAP_EXEMPT_ATTRIBUTE]: "" } : null)}
       style={
         desktopLaneActive && laneOffset !== 0
           ? {
@@ -403,7 +450,10 @@ export default function MapToolbar({
             laneLabel={laneLabel}
             laneSelected={activeLane !== "beer"}
             open={laneOpen}
-            onToggle={() => setLaneOpen((open) => !open)}
+            onToggle={() => {
+              setLaneOpen((open) => !open);
+              setPintsPicked(false);
+            }}
           />
         ) : null}
 
@@ -447,7 +497,10 @@ export default function MapToolbar({
           <DrinkLanePicker
             lane={activeLane}
             status={drinkLaneStatus}
-            onChange={onDrinkLaneChange}
+            onChange={(lane) => {
+              setPintsPicked(lane === DEFAULT_DRINK_LANE);
+              onDrinkLaneChange(lane);
+            }}
           />
           <SpoonsValueLensControl
             on={spoonsValueOn}
@@ -463,7 +516,13 @@ export default function MapToolbar({
               onDrinkBrandChange={onDrinkBrandChange}
               className="mapToolbarDrinksLens"
             />
-            <DrinkShapeChips filters={filters} onFiltersChange={onFiltersChange} />
+            <DrinkShapeChips
+              filters={trayChipFilters(filters, pintsPicked)}
+              onFiltersChange={(next) =>
+                onFiltersChange(trayChipChange(next, pintsPicked))
+              }
+              categories={false}
+            />
             <div className="mapToolbarDrinksLens">
               <PersonaLensPicker
                 personaId={personaId}

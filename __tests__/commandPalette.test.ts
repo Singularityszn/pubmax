@@ -3,6 +3,8 @@ import { describe, it, expect } from "vitest";
 import { filterCommands, scoreCommand } from "@/components/command/commandFilter";
 import { commands } from "@/components/command/commands";
 import type { Command } from "@/components/command/types";
+import { PRIMARY_NAV_ITEMS } from "@/components/nav/navigationModel";
+import { SITE_NAV_MORE_LINKS } from "@/components/nav/SiteNavMore";
 
 // Minimal fixtures so ranking assertions are deterministic and independent of
 // the real registry's exact contents.
@@ -148,5 +150,65 @@ describe("real command registry", () => {
     expect(recordedPaths["action-pint-drop"]).toBe("/map?log=1");
     expect(recordedPaths["action-start-plan"]).toBe("/plan");
     expect(recordedPaths["action-build-crawl"]).toBe("/map");
+  });
+
+  // QA journeys F16: "histor" answered "No matches" because the palette listed
+  // ten pages and left out Historic, Near, Pal, Drink Wall, Places, Out and
+  // Tonight, which the nav and the More menu name.
+  function destination(command: Command): string {
+    let target = "";
+    command.run({
+      navigate: (href: string) => {
+        target = href;
+      },
+      close: () => {},
+      toggleTheme: () => {},
+    });
+    return target;
+  }
+
+  it("has a command for every destination the nav and the More menu name", () => {
+    const reachable = new Set(commands.map(destination));
+    const named = [
+      ...PRIMARY_NAV_ITEMS.map((item) => ({ label: item.label, href: item.href as string })),
+      ...SITE_NAV_MORE_LINKS.map((link) => ({ label: link.label, href: link.href as string })),
+    ];
+    for (const { label, href } of named) {
+      expect(reachable.has(href), `${label} (${href}) has no palette command`).toBe(true);
+    }
+  });
+
+  it("finds Historic for \"histor\" and opens /historic", () => {
+    const [first] = filterCommands(commands, "histor");
+    expect(first?.id).toBe("nav-historic");
+    expect(destination(first!)).toBe("/historic");
+  });
+
+  it("finds each page the More menu lists by its own label", () => {
+    for (const link of SITE_NAV_MORE_LINKS) {
+      // Social is renamed for the launch state at render time, so its label is
+      // matched by the registry's own word.
+      const query = link.href === "/social" ? "social" : link.label;
+      const hit = filterCommands(commands, query).find(
+        (command) => destination(command) === link.href,
+      );
+      expect(hit, `${link.label} is not found by its own label`).toBeTruthy();
+    }
+  });
+
+  it("finds Tonight, Places, Out, Near, Pal, Drink Wall and the Pint Index", () => {
+    const expected: Record<string, string> = {
+      tonight: "/tonight",
+      places: "/places",
+      out: "/out",
+      near: "/near",
+      pal: "/pal",
+      "drink wall": "/wall",
+      "pint index": "/pint-index",
+    };
+    for (const [query, href] of Object.entries(expected)) {
+      const [first] = filterCommands(commands, query);
+      expect(first && destination(first), `"${query}" opens ${href}`).toBe(href);
+    }
   });
 });
