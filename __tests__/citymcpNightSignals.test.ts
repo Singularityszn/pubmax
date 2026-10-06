@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   dedupeCityStatusSignals,
-  dropUngroundedEventSignals,
   filterNightShapingSignals,
   isAviationNoiseSignal,
+  unlinkUngroundedEventSignals,
   type CityStatusSignal,
 } from "@/lib/citymcp/client";
 
@@ -98,6 +98,27 @@ describe("dedupeCityStatusSignals", () => {
     expect(rows[0]?.sourceUrl).toContain("timeout.com");
   });
 
+  it("keeps the highest severity either copy carried", () => {
+    const rows = dedupeCityStatusSignals([
+      { headline: "The Strokes concert at O2 Arena", severity: "major" },
+      {
+        headline: "The Strokes Concert at The O2 Arena",
+        severity: "notable",
+        sourceUrl: "https://www.timeout.com/london/news/the-strokes-o2",
+      },
+      { headline: "Holborn and St Pancras By-Election", severity: "notable", timeWindow: "07:00-22:00" },
+      { headline: "Holborn and St Pancras by-election", severity: "info" },
+    ]);
+    expect(rows).toEqual([
+      {
+        headline: "The Strokes Concert at The O2 Arena",
+        severity: "major",
+        sourceUrl: "https://www.timeout.com/london/news/the-strokes-o2",
+      },
+      { headline: "Holborn and St Pancras By-Election", severity: "notable", timeWindow: "07:00-22:00" },
+    ]);
+  });
+
   it("keeps two different stories that share a few words", () => {
     const rows = dedupeCityStatusSignals([
       signal("Victoria line part closure"),
@@ -117,7 +138,7 @@ describe("dedupeCityStatusSignals", () => {
   });
 });
 
-describe("dropUngroundedEventSignals", () => {
+describe("unlinkUngroundedEventSignals", () => {
   const byElection: CityStatusSignal = {
     kind: "event",
     headline: "Holborn and St Pancras By-Election",
@@ -125,11 +146,38 @@ describe("dropUngroundedEventSignals", () => {
     sourceUrl: "https://www.standard.co.uk/news/london/protests-london-met-police-palestine-israel-b1299320.html",
   };
 
-  it("drops an event whose readable source link shares no word with its headline (F14)", () => {
-    expect(dropUngroundedEventSignals([byElection])).toEqual([]);
+  it("keeps an event whose readable source link shares no word with its headline, without the link (F14)", () => {
+    const [row] = unlinkUngroundedEventSignals([byElection]);
+    expect(row).toEqual({
+      kind: "event",
+      headline: "Holborn and St Pancras By-Election",
+      detail: "A by-election is taking place, with police warnings about protesters.",
+    });
+    expect(row).not.toHaveProperty("sourceUrl");
+    expect(byElection.sourceUrl).toContain("protests");
   });
 
-  it("keeps an event whose link names the story, an opaque id, no link, and non-events", () => {
+  it("keeps a real event a listing page carries, without the listing's link", () => {
+    const carnival: CityStatusSignal = {
+      kind: "event",
+      headline: "Notting Hill Carnival",
+      sourceUrl: "https://www.timeout.com/london/things-to-do/things-to-do-in-london-this-weekend",
+    };
+    expect(unlinkUngroundedEventSignals([carnival])).toEqual([
+      { kind: "event", headline: "Notting Hill Carnival" },
+    ]);
+  });
+
+  it("keeps the link when the slug names the story with a different ending", () => {
+    const concert: CityStatusSignal = {
+      kind: "event",
+      headline: "Royal Albert Hall concert",
+      sourceUrl: "https://www.timeout.com/london/music/concerts-this-autumn",
+    };
+    expect(unlinkUngroundedEventSignals([concert])).toEqual([concert]);
+  });
+
+  it("keeps an event whose link names the story, an opaque id, no link, and non-events untouched", () => {
     const strokes: CityStatusSignal = {
       kind: "event",
       headline: "The Strokes Concert at The O2 Arena",
@@ -142,7 +190,7 @@ describe("dropUngroundedEventSignals", () => {
     };
     const unsourced: CityStatusSignal = { kind: "event", headline: "A gig" };
     const alert: CityStatusSignal = { ...byElection, kind: "alert" };
-    const kept = dropUngroundedEventSignals([strokes, opaque, unsourced, alert]);
+    const kept = unlinkUngroundedEventSignals([strokes, opaque, unsourced, alert]);
     expect(kept).toEqual([strokes, opaque, unsourced, alert]);
   });
 });

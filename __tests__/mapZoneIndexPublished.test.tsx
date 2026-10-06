@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { createElement, isValidElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -21,8 +19,10 @@ vi.mock("next/dynamic", () => ({
 }));
 vi.mock("@/components/pintindex/PintIndexMapArrival", () => ({ default: () => null }));
 
+import MapArrivalPage from "@/app/map/arrival/page";
 import MapPage from "@/app/map/page";
 import PubMaxingShell from "@/components/PubMaxingShell";
+import { computeZonePintIndex, MIN_PRICED_VENUES, publishedOrLoadedZoneIndex } from "@/lib/zones";
 import { loadZonePintIndex } from "@/lib/zonePintIndex.server";
 
 function shellProps(page: ReactElement): Record<string, unknown> {
@@ -38,10 +38,16 @@ function shellProps(page: ReactElement): Record<string, unknown> {
 describe("the map's fare-zone medians are the published ones", () => {
   it("/map hands the shell the same roll-up /pint-index prints", async () => {
     const published = await loadZonePintIndex();
-    expect(published.rows.some((row) => row.enough)).toBe(true);
+    expect(published?.rows.some((row) => row.enough)).toBe(true);
 
     const props = shellProps((await MapPage()) as ReactElement);
     expect(props.zonePintIndex).toEqual(published);
+  });
+
+  it("the per-request arrival twin hands the shell the same roll-up", async () => {
+    const published = await loadZonePintIndex();
+    const page = await MapArrivalPage({ searchParams: Promise.resolve({ band: "cheap" }) });
+    expect(shellProps(page as ReactElement).zonePintIndex).toEqual(published);
   });
 
   it("the shell passes it on to the map untouched", async () => {
@@ -53,9 +59,20 @@ describe("the map's fare-zone medians are the published ones", () => {
     expect(seen.props[0]?.zonePintIndex).toBe(published);
   });
 
-  it("the map prefers the published index and the arrival twin passes it too", () => {
-    const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
-    expect(read("components/PubMap.tsx")).toMatch(/publishedOrLoadedZoneIndex\(zonePintIndex, pubVenues\)/);
-    expect(read("app/map/arrival/page.tsx")).toContain("zonePintIndex={zonePintIndex}");
+  it("the map prints the published index, and rolls up its loaded venues only without one", () => {
+    // Two loaded Zone 2 pubs: far short of a median on their own.
+    const loaded = [
+      { zone: 2, cheapestPrice: 5.75 },
+      { zone: 2, cheapestPrice: 5.65 },
+    ];
+    const published = computeZonePintIndex(
+      Array.from({ length: MIN_PRICED_VENUES }, () => ({ zone: 2, cheapestPrice: 6.1 })),
+    );
+
+    expect(publishedOrLoadedZoneIndex(published, loaded)).toBe(published);
+    expect(publishedOrLoadedZoneIndex(null, loaded)).toEqual(computeZonePintIndex(loaded));
+    expect(publishedOrLoadedZoneIndex(undefined, loaded).rows.find((row) => row.zone === 2)).toEqual(
+      expect.objectContaining({ pricedCount: 2, enough: false }),
+    );
   });
 });

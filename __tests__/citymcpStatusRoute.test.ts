@@ -143,6 +143,29 @@ describe("GET /api/citymcp/status", () => {
     for (const row of body.signals) expect(row.sourceUrl).toMatch(/^https:\/\//);
   });
 
+  it("keeps an event whose link is about another story, and drops only the link", async () => {
+    const signals = [
+      {
+        kind: "event",
+        headline: "Holborn and St Pancras By-Election",
+        severity: "notable",
+        sourceUrl: "https://www.standard.co.uk/news/london/protests-london-met-police-palestine-israel-b1299320.html",
+      },
+    ];
+    global.fetch = vi.fn(async () =>
+      new Response(
+        sseFrame({ jsonrpc: "2.0", id: 1, result: { structuredContent: { asOf: "2026-07-11T00:00:00Z", signals } } }),
+        { status: 200 },
+      ),
+    );
+
+    const res = await GET(new Request("http://localhost/api/citymcp/status"));
+    const body = await res.json();
+    expect(body.signals).toEqual([
+      { kind: "event", headline: "Holborn and St Pancras By-Election", severity: "notable" },
+    ]);
+  });
+
   it("forwards the borough parameter when short enough", async () => {
     global.fetch = vi.fn(async () =>
       new Response(

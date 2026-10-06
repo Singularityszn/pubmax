@@ -347,8 +347,14 @@ export async function buildAccountExport(
   now: Date = new Date(),
 ): Promise<AccountExport> {
   const exportedAt = now.toISOString();
-  const profile = await deps.profileForUser(userId).catch(() => null);
-  const handle = profile ? normalizeHandle(profile.handle) || null : null;
+  // Every profile- and handle-keyed lane awaits this inside its own read, so a
+  // profile read that failed marks each of them unavailable rather than empty:
+  // an account with no profile and one we could not look up are not one answer.
+  const owner = deps.profileForUser(userId).then((profile) => ({
+    profile,
+    handle: profile ? normalizeHandle(profile.handle) || null : null,
+  }));
+  owner.catch(() => undefined);
 
   const memories = await (async () => {
     try {
@@ -364,8 +370,9 @@ export async function buildAccountExport(
   })();
 
   const prices = await (async () => {
-    if (!profile) return boundedLane<AccountExportPrice>([]);
     try {
+      const { profile } = await owner;
+      if (!profile) return boundedLane<AccountExportPrice>([]);
       const read = await deps.prices(profileActor(profile.id), ACCOUNT_EXPORT_LANE_CAP + 1);
       if (read.degraded) return unavailableLane<AccountExportPrice>();
       return boundedLane(read.observations.map(exportPrice));
@@ -375,8 +382,9 @@ export async function buildAccountExport(
   })();
 
   const pintDrops = await (async () => {
-    if (!handle) return boundedLane<AccountExportPintDrop>([]);
     try {
+      const { handle } = await owner;
+      if (!handle) return boundedLane<AccountExportPintDrop>([]);
       return boundedLane((await deps.pintDrops(handle)).map(exportPintDrop));
     } catch {
       return unavailableLane<AccountExportPintDrop>();
@@ -384,8 +392,9 @@ export async function buildAccountExport(
   })();
 
   const messages = await (async () => {
-    if (!handle) return boundedLane<AccountExportConversation>([]);
     try {
+      const { handle } = await owner;
+      if (!handle) return boundedLane<AccountExportConversation>([]);
       const inbox = await deps.conversations(handle);
       // A DEGRADED inbox read may have missed conversations entirely, and a
       // portable copy that quietly omits a thread is a partial file handed over
@@ -437,23 +446,26 @@ export async function buildAccountExport(
   }));
 
   const visitReports = await lane<VisitReportDTO>(async () => {
+    const { handle } = await owner;
     if (!handle) return { degraded: false, items: [] };
     const read = await deps.visitReports(handle);
     return { degraded: read.status === "degraded", items: read.reports };
   });
 
   const wallPhotos = await lane<AccountExportWallPhoto>(async () => {
+    const { profile } = await owner;
     if (!profile) return { degraded: false, items: [] };
     const read = await deps.wallPhotos(profile.id);
     return { degraded: read.status === "degraded", items: read.photos.map(exportWallPhoto) };
   });
 
-  const profileLane = await lane<AccountExportProfile>(async () => ({
-    degraded: false,
-    items: profile ? [exportProfile(profile)] : [],
-  }));
+  const profileLane = await lane<AccountExportProfile>(async () => {
+    const { profile } = await owner;
+    return { degraded: false, items: profile ? [exportProfile(profile)] : [] };
+  });
 
   const socialPosts = await lane<AccountExportSocialPost>(async () => {
+    const { profile, handle } = await owner;
     if (!profile || !handle) return { degraded: false, items: [] };
     const posts = await deps.socialPosts(
       { accountId: userId, profileId: profile.id, handle },
@@ -477,6 +489,7 @@ export async function buildAccountExport(
   });
 
   const coverPhotos = await lane<AccountExportCoverPhoto>(async () => {
+    const { profile } = await owner;
     if (!profile) return { degraded: false, items: [] };
     const rows = await deps.coverPhotos(profile.id);
     return {
@@ -491,16 +504,19 @@ export async function buildAccountExport(
   });
 
   const checkIns = await lane<CheckIn>(async () => {
+    const { handle } = await owner;
     if (!handle) return { degraded: false, items: [] };
     return { degraded: false, items: await deps.checkIns(handle) };
   });
 
   const follows = await lane<string>(async () => {
+    const { handle } = await owner;
     if (!handle) return { degraded: false, items: [] };
     return { degraded: false, items: await deps.follows(handle) };
   });
 
   const savedPubs = await lane<SavedPubDTO>(async () => {
+    const { handle } = await owner;
     if (!handle) return { degraded: false, items: [] };
     const read = await deps.savedPubs(handle);
     return read.status === "ready"
@@ -509,6 +525,7 @@ export async function buildAccountExport(
   });
 
   const wanted = await lane<WantedDTO>(async () => {
+    const { profile } = await owner;
     if (!profile) return { degraded: false, items: [] };
     const read = await deps.wanted(profileActor(profile.id));
     return { degraded: read.status === "degraded", items: read.wanteds };
@@ -529,13 +546,15 @@ export async function buildAccountExport(
     return { degraded: false, items: row ? [row] : [] };
   });
 
+  const account = await owner.catch(() => ({ profile: null, handle: null }));
+
   return {
     version: ACCOUNT_EXPORT_VERSION,
     exportedAt,
     account: {
       userId,
-      handle,
-      displayName: profile?.displayName ?? null,
+      handle: account.handle,
+      displayName: account.profile?.displayName ?? null,
     },
     profile: profileLane,
     identity,

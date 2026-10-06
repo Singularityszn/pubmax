@@ -405,7 +405,7 @@ import {
   type UkBasePub,
   type UkBaseStreamStatus,
 } from "@/lib/ukBasePubs";
-import { computeZonePintIndex, type ZonePintIndex, type ZonePricedVenue } from "@/lib/zones";
+import { publishedOrLoadedZoneIndex, type ZonePintIndex } from "@/lib/zones";
 import { useCityStoryCatalog } from "@/components/map/useCityStoryCatalog";
 import {
   useCoffeePilotCafes,
@@ -1062,14 +1062,6 @@ function mapChipLabelFor(input: {
   return mapChosenArea && mapChosenArea.cityId === cityId
     ? mapChosenArea.label
     : ukPlaceArrival?.name ?? claimedArea?.name ?? mapContextName;
-}
-
-/** The published fare-zone medians when the page was handed them, else a roll-up of the venues loaded so far. */
-function publishedOrLoadedZoneIndex(
-  published: ZonePintIndex | null | undefined,
-  loaded: readonly ZonePricedVenue[],
-): ZonePintIndex {
-  return published ?? computeZonePintIndex(loaded);
 }
 
 export default function PubMap({

@@ -470,6 +470,39 @@ describe("buildAccountExport", () => {
     expect(document.socialPosts).toEqual({ status: "complete", truncated: false, items: [] });
   });
 
+  it("marks every profile- and handle-keyed lane unavailable when the profile read failed", async () => {
+    const document = await buildAccountExport(
+      USER,
+      fakeDeps({
+        profileForUser: async () => {
+          throw new Error("profiles unreadable");
+        },
+      }),
+      NOW,
+    );
+
+    expect(document.account).toEqual({ userId: USER, handle: null, displayName: null });
+    expect(unavailableExportLanes(document).sort()).toEqual(
+      [
+        "profile",
+        "prices",
+        "pintDrops",
+        "messages",
+        "visitReports",
+        "wallPhotos",
+        "socialPosts",
+        "coverPhotos",
+        "checkIns",
+        "follows",
+        "savedPubs",
+        "wanted",
+      ].sort(),
+    );
+    for (const lane of ["identity", "memories", "crowdReports", "diary", "socialLinks", "nightProfile"] as const) {
+      expect(document[lane].status).toBe("complete");
+    }
+  });
+
   it("carries a Drink Wall photo's category and the place its author typed", async () => {
     const cityPhoto = {
       ...wallPhoto,

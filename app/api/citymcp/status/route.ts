@@ -12,10 +12,10 @@ import { publicApiError } from "@/lib/apiError";
 import {
   CityMcpError,
   dedupeCityStatusSignals,
-  dropUngroundedEventSignals,
   fetchCityStatus,
   filterNightShapingSignals,
   trimSignals,
+  unlinkUngroundedEventSignals,
   type CityStatus,
   type CityStatusTubeLine,
 } from "@/lib/citymcp/client";
@@ -91,7 +91,7 @@ async function getHandler(request: Request): Promise<Response> {
   // Then collapse repeats of one story, so a gig the upstream digest carries
   // twice is one row and does not spend a second slot.
   const nightShapingSignals = dedupeCityStatusSignals(
-    dropUngroundedEventSignals(filterNightShapingSignals(status.signals)),
+    unlinkUngroundedEventSignals(filterNightShapingSignals(status.signals)),
   );
   const trimmedSignals = trimSignals(nightShapingSignals, SIGNAL_CAP);
   const trimmedLines = trimTubeLines(status.tubeLines);

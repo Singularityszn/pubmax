@@ -20,6 +20,7 @@ import { loadPintIndexArchive, loadPublicPintIndexSnapshotOrThrow } from "@/lib/
 import { loadGroupedVenues } from "@/lib/venueDataset";
 import { formatPrice } from "@/lib/venues";
 import { loadZonePintIndex } from "@/lib/zonePintIndex.server";
+import { computeZonePintIndex } from "@/lib/zones";
 import PintIndexScreen from "./PintIndexScreen";
 
 import "./pint-index.css";
@@ -147,7 +148,7 @@ export default async function PintIndexPage() {
             (a documented approximation, not an area boundary), then we take the
             median of every zone&rsquo;s listed cheapest pint.
           </p>
-          <ZonePintIndexStrip index={zoneIndex} />
+          <ZonePintIndexStrip index={zoneIndex ?? computeZonePintIndex([])} />
         </section>
 
         <PintIndexArrival

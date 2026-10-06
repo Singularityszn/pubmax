@@ -1249,10 +1249,14 @@ function signalSubstance(signal: CityStatusSignal): number {
   );
 }
 
+function severityRank(signal: CityStatusSignal): number {
+  return SEVERITY_ORDER[String(signal.severity ?? "").toLowerCase()] ?? 0;
+}
+
 /**
  * Collapse rows that name the same story into one, keeping the row that says
- * the most (a sourced row beats an unsourced one) in the position the story
- * first appeared. Two rows are the same story when their headlines share at
+ * the most (a sourced row beats an unsourced one) at the highest severity
+ * either copy carried, in the position the story first appeared. Two rows are the same story when their headlines share at
  * least three quarters of their words once case, punctuation and filler words
  * are set aside. Pure, returns a new array, exported for tests + the status
  * route.
@@ -1267,9 +1271,11 @@ export function dedupeCityStatusSignals(
     const twin = kept.find((entry) => sameStory(entry.tokens, tokens));
     if (!twin) {
       kept.push({ signal, tokens });
-    } else if (signalSubstance(signal) > signalSubstance(twin.signal)) {
-      twin.signal = signal;
+      continue;
     }
+    const severity = severityRank(signal) > severityRank(twin.signal) ? signal.severity : twin.signal.severity;
+    const fuller = signalSubstance(signal) > signalSubstance(twin.signal) ? signal : twin.signal;
+    twin.signal = fuller.severity === severity ? fuller : { ...fuller, severity };
   }
   return kept.map((entry) => entry.signal);
 }
@@ -1279,10 +1285,13 @@ export function dedupeCityStatusSignals(
 // The upstream digest sometimes attaches a link that has nothing to do with the
 // row (6 Oct 2026: a by-election row linked to a 2021 protest article, which
 // is the only thing "grounding" its sentence about police warnings). A link
-// whose readable path shares no word with the row's own headline or detail
-// grounds nothing, and an event row we cannot ground is dropped rather than
-// printed as sourced. A path with no readable words (an opaque id such as
-// "cv4g17kkxwj3o") says nothing either way, so it is trusted as before.
+// whose readable path shares no word with the row's own headline grounds
+// nothing, so the row keeps its place and loses only the link: it reads as an
+// unsourced CityMCP row rather than as sourced by somebody else's story. A
+// listing page ("things-to-do-in-london-this-weekend") grounds nothing either,
+// and the event it lists is still real. A path with no readable words (an
+// opaque id such as "cv4g17kkxwj3o") says nothing either way, so it is trusted
+// as before.
 
 const SLUG_STOP_WORDS: ReadonlySet<string> = new Set([
   "news", "article", "articles", "london", "story", "live", "www", "html", "uk",
@@ -1302,7 +1311,7 @@ function slugWords(url: string): string[] {
 }
 
 /** True when an event row's source link is readable and shares no word with the row. */
-export function isUngroundedEventSignal(signal: CityStatusSignal): boolean {
+export function hasUngroundedEventSource(signal: CityStatusSignal): boolean {
   if (String(signal.kind ?? "").toLowerCase() !== "event") return false;
   if (!signal.sourceUrl) return false;
   const words = slugWords(signal.sourceUrl);
@@ -1311,15 +1320,25 @@ export function isUngroundedEventSignal(signal: CityStatusSignal): boolean {
   // The headline only: the detail is the generated sentence the link is meant to
   // ground, so it cannot vouch for its own source.
   const headline = String(signal.headline ?? "").toLowerCase();
-  return !words.some((word) => headline.includes(word));
+  // A slug word may carry an ending its headline word does not ("concerts" for
+  // "concert"), so a headline word that starts it grounds it too.
+  const headlineWords = headline.split(/[^a-z]+/).filter((word) => word.length >= 4);
+  return !words.some(
+    (word) => headline.includes(word) || headlineWords.some((stem) => word.startsWith(stem)),
+  );
 }
 
-/** Drop event rows whose own source link is about something else. Pure, new array. */
-export function dropUngroundedEventSignals(
+/** Strip the source link from event rows whose link is about something else. Pure, new array. */
+export function unlinkUngroundedEventSignals(
   signals: readonly CityStatusSignal[] | undefined,
 ): CityStatusSignal[] {
   if (!Array.isArray(signals)) return [];
-  return signals.filter((signal) => !isUngroundedEventSignal(signal));
+  return signals.map((signal) => {
+    if (!hasUngroundedEventSource(signal)) return signal;
+    const unsourced = { ...signal };
+    delete unsourced.sourceUrl;
+    return unsourced;
+  });
 }
 
 /**
