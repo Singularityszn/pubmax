@@ -14,11 +14,14 @@ import { VENUE_ALIAS_FILES } from "@/lib/venueAliasesFile.mjs";
 //   * public/data/cities/venue_id_aliases.json - a city pack refresh re-derives
 //     a pub's id from its name, address and point, so an OSM edit to any of
 //     them supersedes the id (scripts/fetch_city_osm_pubs.mjs).
+//   * public/data/uk_base_venue_id_aliases.json - a UK base refresh that drops
+//     an OSM object drops its `venue-uk-*` id, and the same pub re-mapped as a
+//     new object carries a new one (scripts/build_uk_base_shards.mjs).
 //
 // Venue ids are referenced by pint drops, plans and saved lists, so a stored
 // reference to an old id must still resolve at every server-side
 // lookup-by-id seam, and a read keyed by the current id must still find what
-// was stored under an old one. A city pub that left OpenStreetMap with no
+// was stored under an old one. A city or base pub that left OpenStreetMap with no
 // successor is RETIRED: its alias file keeps its name, area and last point, so
 // a reference to it still names that pub while the map no longer lists it.
 //

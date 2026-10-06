@@ -16,7 +16,7 @@ import "server-only";
 // seats, and the venue sheet offers it on every kind, so that lane does not
 // narrow.
 
-import { getUkBaseIdIndex } from "@/lib/ukBaseIndex";
+import { currentUkBaseId, getUkBaseIdIndex } from "@/lib/ukBaseIndex";
 import { isUkBaseId } from "@/lib/ukBasePubs";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
@@ -34,12 +34,15 @@ export async function resolveWritableVenueId(
   opts?: { pubsOnly?: boolean },
 ): Promise<VenueWriteTarget> {
   if (isUkBaseId(venueId)) {
-    const ukBaseIndex = await getUkBaseIdIndex();
-    if (ukBaseIndex.status === "unavailable") {
+    const [currentId, ukBaseIndex] = await Promise.all([
+      currentUkBaseId(venueId),
+      getUkBaseIdIndex(),
+    ]);
+    if (!currentId || ukBaseIndex.status === "unavailable") {
       return { ok: false, status: 503, error: VENUES_UNAVAILABLE };
     }
-    return ukBaseIndex.ids.has(venueId)
-      ? { ok: true, venueId }
+    return ukBaseIndex.ids.has(currentId)
+      ? { ok: true, venueId: currentId }
       : { ok: false, status: 400, error: UNKNOWN_VENUE };
   }
 
