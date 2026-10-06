@@ -5,9 +5,11 @@
 // replaced by its building's way), or it left OSM. Pint drops, saved lists and
 // crawl stories store the id they were written under, so every shard build
 // records each dropped id here and lib/venueAliases.ts resolves it at read
-// time: to the same pub's new id, or, when there is no successor, to a RETIRED
-// record with its name, address and last point. Nothing is ever dropped from
-// this file: an id somebody stored stays resolvable.
+// time: to the same pub's new id, to the curated venue that owned the row when
+// that venue is still listed, or, when there is neither, to a RETIRED record
+// with its name, address and last point. Nothing is ever dropped from this
+// file: an id somebody stored stays resolvable, and a build that would leave a
+// dropped id resolving to nothing fails.
 
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -27,7 +29,7 @@ const SUCCESSOR_METERS = 50;
 // The area a retired pub with no address is answered under.
 const NO_ADDRESS_AREA = "United Kingdom";
 
-/** A shard row `[osmRef, name, address, lat, lng, ...]` as the pub it names. */
+/** A shard row `[osmRef, name, address, lat, lng, curatedVenueId, ...]` as the pub it names. */
 function rowPub(row) {
   return {
     osmId: String(row[0]),
@@ -35,7 +37,19 @@ function rowPub(row) {
     address: String(row[2] ?? ""),
     lat: Number(row[3]),
     lng: Number(row[4]),
+    curatedVenueId: String(row[5] ?? ""),
   };
+}
+
+function isResolvableRetired(record) {
+  return (
+    typeof record?.name === "string" &&
+    record.name !== "" &&
+    typeof record.area === "string" &&
+    record.area !== "" &&
+    Number.isFinite(record.lat) &&
+    Number.isFinite(record.lng)
+  );
 }
 
 function ukBaseIdOf(pub) {
@@ -44,33 +58,43 @@ function ukBaseIdOf(pub) {
 
 /**
  * Every base id the previous shard rows held and the next ones do not, with
- * the id the same pub carries now, or null when it left OSM.
+ * the id the same pub carries now: its new base id, else the still-listed
+ * curated venue that owned the row, else null when it left OSM.
  *
  * @param {ReadonlyArray<ReadonlyArray<unknown>>} previousRows
  * @param {ReadonlyArray<ReadonlyArray<unknown>>} nextRows
- * @returns {Array<{ pub: { osmId: string, name: string, address: string, lat: number, lng: number }, from: string, to: string | null }>}
+ * @param {ReadonlySet<string>} liveCuratedIds
+ * @returns {Array<{ pub: { osmId: string, name: string, address: string, lat: number, lng: number, curatedVenueId: string }, from: string, to: string | null }>}
  */
-export function ukBaseIdDepartures(previousRows, nextRows) {
+export function ukBaseIdDepartures(previousRows, nextRows, liveCuratedIds) {
   return venueIdDepartures(
     ukBaseIdOf,
     previousRows.map(rowPub),
     nextRows.map(rowPub),
     SUCCESSOR_METERS,
+  ).map((departure) =>
+    departure.to === null && liveCuratedIds.has(departure.pub.curatedVenueId)
+      ? { ...departure, to: departure.pub.curatedVenueId }
+      : departure,
   );
 }
 
 /**
  * Record the base ids a shard build dropped in the committed alias file. An
  * alias or retired record whose id the next rows serve again leaves the file,
- * so a live pub is never answered as another pub or as closed.
+ * so a live pub is never answered as another pub or as closed, and a retired
+ * id that gains an alias leaves the retired records. Throws, writing nothing,
+ * when a dropped id would resolve to neither an alias nor a readable retired
+ * record.
  *
  * @param {string} root repo root
  * @param {ReadonlyArray<ReadonlyArray<unknown>>} previousRows
  * @param {ReadonlyArray<ReadonlyArray<unknown>>} nextRows
+ * @param {ReadonlySet<string>} liveCuratedIds
  * @returns {Promise<{ superseded: Array<{ from: string, to: string }>, retired: Array<{ id: string }> }>}
  */
-export async function recordUkBaseVenueIdAliases(root, previousRows, nextRows) {
-  const departed = ukBaseIdDepartures(previousRows, nextRows);
+export async function recordUkBaseVenueIdAliases(root, previousRows, nextRows, liveCuratedIds) {
+  const departed = ukBaseIdDepartures(previousRows, nextRows, liveCuratedIds);
   const superseded = departed.flatMap(({ from, to }) => (to ? [{ from, to }] : []));
   const retired = departed.flatMap(({ pub, from, to }) =>
     to
@@ -102,6 +126,19 @@ export async function recordUkBaseVenueIdAliases(root, previousRows, nextRows) {
       ([from]) => !liveIds.has(from),
     ),
   );
+  const retiredRecords = Object.fromEntries(
+    Object.entries(mergeRetiredCityVenues(heldRetired, retired, liveIds)).filter(
+      ([id]) => !(id in aliases),
+    ),
+  );
+  const unresolved = departed
+    .map(({ from }) => from)
+    .filter((id) => !(id in aliases) && !isResolvableRetired(retiredRecords[id]));
+  if (unresolved.length > 0) {
+    throw new Error(
+      `${unresolved.length} dropped UK base id(s) would resolve to nothing: ${unresolved.join(", ")}`,
+    );
+  }
   await writeFile(
     file,
     `${JSON.stringify(
@@ -109,7 +146,7 @@ export async function recordUkBaseVenueIdAliases(root, previousRows, nextRows) {
         ...doc,
         aliasCount: Object.keys(aliases).length,
         aliases,
-        retired: mergeRetiredCityVenues(heldRetired, retired, liveIds),
+        retired: retiredRecords,
       },
       null,
       2,

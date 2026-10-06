@@ -84,6 +84,7 @@ import {
   roundPriceSourceStatus,
 } from "@/lib/roundsStore";
 import { MAX_PROVISIONAL_BASE_VENUE_IDS } from "@/lib/ukBasePubs";
+import { loadVenueAliasResolver } from "@/lib/venueAliases";
 import {
   admin,
   createFailSoftGuard,
@@ -203,11 +204,16 @@ export type CommunityPriceStore = {
    * first, each carrying its independent-submitter count (`corroborations`) so
    * the read path can apply the trust threshold. NEVER throws; `degraded`
    * distinguishes an unavailable durable read from an honest empty.
+   * `storedIds` is every id the venue's rows may be stored under, current id
+   * first; every row is answered under the current id.
    */
-  latestForVenue(venueId: string, now?: number): Promise<CommunityPriceReadResult>;
+  latestForVenue(
+    storedIds: readonly string[],
+    now?: number,
+  ): Promise<CommunityPriceReadResult>;
   /** Freshest report per venue-signal question with derived trust counts. */
   latestSignalsForVenue(
-    venueId: string,
+    storedIds: readonly string[],
     now?: number,
   ): Promise<CommunityVenueSignalReadResult>;
   /**
@@ -222,10 +228,11 @@ export type CommunityPriceStore = {
   /**
    * Which requested venues have a fresh beer report that has not earned price
    * authority. Returns ids only, so viewport visibility cannot leak a figure
-   * into the map's price merge.
+   * into the map's price merge. Each entry is one venue's stored ids, current
+   * id first, and a marked venue is answered by its current id.
    */
   latestProvisionalVenueIds(
-    venueIds: readonly string[],
+    storedIdGroups: ReadonlyArray<readonly string[]>,
     now?: number,
   ): Promise<ProvisionalVenueIdReadResult>;
   /**
@@ -766,6 +773,40 @@ const REVIEW_LIMIT = 100;
 const venues = new Map<string, StoredPrice[]>();
 const venueSignals = new Map<string, StoredVenueSignal[]>();
 
+/** One venue's cleaned stored ids, current id first. */
+type StoredKeys = readonly [current: string, ...former: string[]];
+
+/** A venue's cleaned stored ids, or null when its current id is unusable. */
+function storedKeys(storedIds: readonly string[]): StoredKeys | null {
+  const current = cleanVenueId(storedIds[0]);
+  if (!current) return null;
+  const former = storedIds.slice(1).map(cleanVenueId).filter((id) => id && id !== current);
+  return [current, ...new Set(former)];
+}
+
+/** Each venue's cleaned stored ids, one entry per current id, at most the provisional cap. */
+function storedKeyGroups(storedIdGroups: ReadonlyArray<readonly string[]>): StoredKeys[] {
+  const byCurrent = new Map<string, StoredKeys>();
+  for (const storedIds of storedIdGroups) {
+    const keys = storedKeys(storedIds);
+    if (keys && !byCurrent.has(keys[0])) byCurrent.set(keys[0], keys);
+  }
+  return [...byCurrent.values()].slice(0, MAX_PROVISIONAL_BASE_VENUE_IDS);
+}
+
+/** Every memory row stored under any of a venue's ids, answered under its current id. */
+function rowsUnder<T extends { venueId: string }>(
+  byVenue: ReadonlyMap<string, T[]>,
+  keys: StoredKeys,
+): T[] {
+  const [current] = keys;
+  return keys.flatMap((key) =>
+    (byVenue.get(key) ?? []).map((row) =>
+      row.venueId === current ? row : { ...row, venueId: current },
+    ),
+  );
+}
+
 /**
  * The stored observation with this id, price or venue signal, or null. A linear
  * scan on purpose: moderation is a handful of calls a day against a
@@ -996,20 +1037,20 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
     return { signal: publishedVenueSignal(stored) };
   },
 
-  async latestForVenue(venueId, now = Date.now()) {
-    const key = cleanVenueId(venueId);
-    if (!key) return { prices: [], degraded: false };
+  async latestForVenue(storedIds, now = Date.now()) {
+    const keys = storedKeys(storedIds);
+    if (!keys) return { prices: [], degraded: false };
     return {
-      prices: freshestPerCategory(venues.get(key) ?? [], now),
+      prices: freshestPerCategory(rowsUnder(venues, keys), now),
       degraded: false,
     };
   },
 
-  async latestSignalsForVenue(venueId, now = Date.now()) {
-    const key = cleanVenueId(venueId);
-    if (!key) return { signals: [], degraded: false };
+  async latestSignalsForVenue(storedIds, now = Date.now()) {
+    const keys = storedKeys(storedIds);
+    if (!keys) return { signals: [], degraded: false };
     return {
-      signals: freshestVenueSignals(venueSignals.get(key) ?? [], now),
+      signals: freshestVenueSignals(rowsUnder(venueSignals, keys), now),
       degraded: false,
     };
   },
@@ -1041,20 +1082,13 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
     );
   },
 
-  async latestProvisionalVenueIds(venueIds, now = Date.now()) {
-    const wanted = [
-      ...new Set(
-        venueIds
-          .map(cleanVenueId)
-          .filter(Boolean)
-          .slice(0, MAX_PROVISIONAL_BASE_VENUE_IDS),
-      ),
-    ];
-    if (wanted.length === 0) return { venueIds: [], degraded: false };
+  async latestProvisionalVenueIds(storedIdGroups, now = Date.now()) {
+    const groups = storedKeyGroups(storedIdGroups);
+    if (groups.length === 0) return { venueIds: [], degraded: false };
     return {
       venueIds: provisionalVenueIdsFromRows(
-        wanted.flatMap((venueId) => venues.get(venueId) ?? []),
-        wanted,
+        groups.flatMap((keys) => rowsUnder(venues, keys)),
+        groups.map(([current]) => current),
         now,
       ),
       degraded: false,
@@ -1271,7 +1305,7 @@ function rowsToCountableRows(rows: unknown): StoredPrice[] {
   return out;
 }
 
-async function selectVenuePrices(venueId: string, now: number): Promise<CommunityPrice[]> {
+async function selectVenuePrices(keys: StoredKeys, now: number): Promise<CommunityPrice[]> {
   // `actor` is selected ONLY to count independent submitters in
   // freshestPerCategory; it is dropped again by `published` and never crosses
   // the store boundary. Raw tokens stay API-side (migration 0054's RLS note).
@@ -1287,16 +1321,16 @@ async function selectVenuePrices(venueId: string, now: number): Promise<Communit
   const { data, error } = await admin()
     .from("community_prices")
     .select("id, drink_category, price_pennies, submitted_at, actor, contributor_handle, hidden_at, moderated_at, report_count")
-    .eq("venue_id", venueId)
+    .in("venue_id", keys)
     .not("drink_category", "is", null)
     .order("submitted_at", { ascending: false })
     .limit(VENUE_SCAN_ROWS);
   if (error) throw new Error(error.message);
-  return freshestPerCategory(rowsToPrices(data, venueId), now);
+  return freshestPerCategory(rowsToPrices(data, keys[0]), now);
 }
 
 async function selectVenueSignals(
-  venueId: string,
+  keys: StoredKeys,
   now: number,
 ): Promise<CommunityVenueSignal[]> {
   const { data, error } = await admin()
@@ -1304,12 +1338,12 @@ async function selectVenueSignals(
     .select(
       "id, signal_key, signal_value, submitted_at, actor, hidden_at, report_count",
     )
-    .eq("venue_id", venueId)
+    .in("venue_id", keys)
     .not("signal_key", "is", null)
     .order("submitted_at", { ascending: false })
     .limit(VENUE_SCAN_ROWS);
   if (error) throw new Error(error.message);
-  return freshestVenueSignals(rowsToVenueSignals(data, venueId), now);
+  return freshestVenueSignals(rowsToVenueSignals(data, keys[0]), now);
 }
 
 function contributorCountRows(rows: unknown): CommunityContributorCount[] {
@@ -1467,42 +1501,42 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
     });
   },
 
-  async latestForVenue(venueId, now = Date.now()) {
-    const key = cleanVenueId(venueId);
-    if (!key) return { prices: [], degraded: false };
+  async latestForVenue(storedIds, now = Date.now()) {
+    const keys = storedKeys(storedIds);
+    if (!keys) return { prices: [], degraded: false };
     // Explicit, like the write guard above: without it the result type is
     // inferred from `run` alone (degraded: false) and the degraded branches
     // stop type-checking.
     return guard<CommunityPriceReadResult>({
       context: "read",
       onSchemaMiss: async () => ({
-        prices: (await memoryCommunityPriceStore.latestForVenue(key, now)).prices,
+        prices: (await memoryCommunityPriceStore.latestForVenue(keys, now)).prices,
         degraded: true,
       }),
       message: "read failed - returning no community prices",
       onError: () => ({ prices: [], degraded: true }),
       run: async () => ({
-        prices: await selectVenuePrices(key, now),
+        prices: await selectVenuePrices(keys, now),
         degraded: false,
       }),
     });
   },
 
-  async latestSignalsForVenue(venueId, now = Date.now()) {
-    const key = cleanVenueId(venueId);
-    if (!key) return { signals: [], degraded: false };
+  async latestSignalsForVenue(storedIds, now = Date.now()) {
+    const keys = storedKeys(storedIds);
+    if (!keys) return { signals: [], degraded: false };
     return guard<CommunityVenueSignalReadResult>({
       context: "signal-read",
       onSchemaMiss: async () => ({
         signals: (
-          await memoryCommunityPriceStore.latestSignalsForVenue(key, now)
+          await memoryCommunityPriceStore.latestSignalsForVenue(keys, now)
         ).signals,
         degraded: true,
       }),
       message: "signal read failed - returning no venue signals",
       onError: () => ({ signals: [], degraded: true }),
       run: async () => ({
-        signals: await selectVenueSignals(key, now),
+        signals: await selectVenueSignals(keys, now),
         degraded: false,
       }),
     });
@@ -1558,21 +1592,17 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
     });
   },
 
-  async latestProvisionalVenueIds(venueIds, now = Date.now()) {
-    const wanted = [
-      ...new Set(
-        venueIds
-          .map(cleanVenueId)
-          .filter(Boolean)
-          .slice(0, MAX_PROVISIONAL_BASE_VENUE_IDS),
-      ),
-    ];
-    if (wanted.length === 0) return { venueIds: [], degraded: false };
+  async latestProvisionalVenueIds(storedIdGroups, now = Date.now()) {
+    const groups = storedKeyGroups(storedIdGroups);
+    if (groups.length === 0) return { venueIds: [], degraded: false };
+    const currentOf = new Map(
+      groups.flatMap((keys) => keys.map((key) => [key, keys[0]] as const)),
+    );
     return guard<ProvisionalVenueIdReadResult>({
       context: "provisional-venue-index",
       onSchemaMiss: async () => ({
         ...await memoryCommunityPriceStore.latestProvisionalVenueIds(
-          wanted,
+          groups,
           now,
         ),
         degraded: true,
@@ -1595,7 +1625,7 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
             .select(
               "id, venue_id, drink_category, price_pennies, submitted_at, actor, hidden_at, report_count",
             )
-            .in("venue_id", wanted)
+            .in("venue_id", [...currentOf.keys()])
             .eq("drink_category", "beer")
             .gte("submitted_at", since)
             .order("submitted_at", { ascending: false })
@@ -1613,8 +1643,11 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
         if (!complete) return { venueIds: [], degraded: true };
         return {
           venueIds: provisionalVenueIdsFromRows(
-            rowsToCountableRows(scanned),
-            wanted,
+            rowsToCountableRows(scanned).map((row) => ({
+              ...row,
+              venueId: currentOf.get(row.venueId) ?? row.venueId,
+            })),
+            groups.map(([current]) => current),
             now,
           ),
           degraded: false,
@@ -1965,11 +1998,12 @@ export function readCommunityPrices(
   return readCommunityPricesWithStatus(venueId, now).then((result) => result.prices);
 }
 
-export function readCommunityPricesWithStatus(
+export async function readCommunityPricesWithStatus(
   venueId: string,
   now: number = Date.now(),
 ): Promise<CommunityPriceReadResult> {
-  return communityPriceStore().latestForVenue(venueId, now);
+  const aliases = await loadVenueAliasResolver();
+  return communityPriceStore().latestForVenue(aliases.storedIds(venueId), now);
 }
 
 export function readCommunityVenueSignals(
@@ -1981,11 +2015,12 @@ export function readCommunityVenueSignals(
   );
 }
 
-export function readCommunityVenueSignalsWithStatus(
+export async function readCommunityVenueSignalsWithStatus(
   venueId: string,
   now: number = Date.now(),
 ): Promise<CommunityVenueSignalReadResult> {
-  return communityPriceStore().latestSignalsForVenue(venueId, now);
+  const aliases = await loadVenueAliasResolver();
+  return communityPriceStore().latestSignalsForVenue(aliases.storedIds(venueId), now);
 }
 
 export function listCommunityContributorCounts(
@@ -1994,11 +2029,15 @@ export function listCommunityContributorCounts(
   return communityPriceStore().listContributorCounts(limit);
 }
 
-export function readProvisionalCommunityPriceVenueIds(
+export async function readProvisionalCommunityPriceVenueIds(
   venueIds: readonly string[],
   now: number = Date.now(),
 ): Promise<ProvisionalVenueIdReadResult> {
-  return communityPriceStore().latestProvisionalVenueIds(venueIds, now);
+  const aliases = await loadVenueAliasResolver();
+  return communityPriceStore().latestProvisionalVenueIds(
+    venueIds.map((venueId) => aliases.storedIds(venueId)),
+    now,
+  );
 }
 
 // The category index is the one read here that is neither per-venue nor
