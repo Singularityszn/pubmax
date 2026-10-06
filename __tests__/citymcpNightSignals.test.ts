@@ -119,6 +119,34 @@ describe("dedupeCityStatusSignals", () => {
     ]);
   });
 
+  it("keeps one-headline rows apart when they name different areas or times", () => {
+    const rows = dedupeCityStatusSignals([
+      { headline: "Roadworks", areas: ["Camden"] },
+      { headline: "Roadworks", areas: ["Hackney"], timeWindow: "tonight" },
+      { headline: "Tube strike", timeWindow: "Monday" },
+      { headline: "Tube strike", timeWindow: "Tuesday" },
+    ]);
+    expect(rows).toEqual([
+      { headline: "Roadworks", areas: ["Camden"] },
+      { headline: "Roadworks", areas: ["Hackney"], timeWindow: "tonight" },
+      { headline: "Tube strike", timeWindow: "Monday" },
+      { headline: "Tube strike", timeWindow: "Tuesday" },
+    ]);
+  });
+
+  it("still merges one story told twice in the same area, or with one copy silent on where", () => {
+    const rows = dedupeCityStatusSignals([
+      { headline: "Roadworks", areas: ["Camden", "Islington"] },
+      { headline: "Roadworks", areas: ["camden"], timeWindow: "tonight" },
+      { headline: "Tube strike" },
+      { headline: "Tube strike", areas: ["Zone 1"], timeWindow: "Monday" },
+    ]);
+    expect(rows).toEqual([
+      { headline: "Roadworks", areas: ["camden"], timeWindow: "tonight" },
+      { headline: "Tube strike", areas: ["Zone 1"], timeWindow: "Monday" },
+    ]);
+  });
+
   it("keeps two different stories that share a few words", () => {
     const rows = dedupeCityStatusSignals([
       signal("Victoria line part closure"),
@@ -176,6 +204,29 @@ describe("unlinkUngroundedEventSignals", () => {
     };
     expect(unlinkUngroundedEventSignals([jazz])).toEqual([
       { kind: "event", headline: "Jazz music night at Ronnie Scott's" },
+    ]);
+  });
+
+  it("reads the slug past a trailing amp or index page, without the other story's link", () => {
+    const amp: CityStatusSignal = {
+      kind: "event",
+      headline: "West End musical opening night",
+      sourceUrl: "https://www.standard.co.uk/news/london/westminster-protest-arrests/amp",
+    };
+    const index: CityStatusSignal = {
+      kind: "event",
+      headline: "West End musical opening night",
+      sourceUrl: "https://www.standard.co.uk/news/westminster-protest-arrests/index.html",
+    };
+    const numbered: CityStatusSignal = {
+      kind: "event",
+      headline: "Royal Albert Hall concert",
+      sourceUrl: "https://www.timeout.com/london/music/concerts-this-autumn/123456",
+    };
+    expect(unlinkUngroundedEventSignals([amp, index, numbered])).toEqual([
+      { kind: "event", headline: "West End musical opening night" },
+      { kind: "event", headline: "West End musical opening night" },
+      numbered,
     ]);
   });
 

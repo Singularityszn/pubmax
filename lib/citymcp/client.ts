@@ -1233,11 +1233,19 @@ function headlineTokens(headline: string | undefined): Set<string> {
   return new Set(words);
 }
 
-function sameStory(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
+function sameHeadline(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
   if (a.size === 0 || b.size === 0) return false;
   let shared = 0;
   for (const word of a) if (b.has(word)) shared += 1;
   return shared / (a.size + b.size - shared) >= DUPLICATE_HEADLINE_OVERLAP;
+}
+
+/** Two rows that both say where, in places that do not meet, or both say when, at different times, are two stories. */
+function differentPlaceOrTime(a: CityStatusSignal, b: CityStatusSignal): boolean {
+  const areasA = (a.areas ?? []).map((area) => area.trim().toLowerCase());
+  const areasB = new Set((b.areas ?? []).map((area) => area.trim().toLowerCase()));
+  if (areasA.length > 0 && areasB.size > 0 && !areasA.some((area) => areasB.has(area))) return true;
+  return Boolean(a.timeWindow && b.timeWindow && a.timeWindow.trim() !== b.timeWindow.trim());
 }
 
 /** How much a row can tell a reader: a source first, then a time, then where. */
@@ -1258,7 +1266,8 @@ function severityRank(signal: CityStatusSignal): number {
  * the most (a sourced row beats an unsourced one) at the highest severity
  * either copy carried, and any field only the other copy had, in the position the story first appeared. Two rows are
  * the same story when their headlines share at least three quarters of their
- * words once case, punctuation and filler words are set aside. Pure, returns a
+ * words once case, punctuation and filler words are set aside, and they do not
+ * name different areas or different times. Pure, returns a
  * new array, exported for tests + the status route.
  */
 export function dedupeCityStatusSignals(
@@ -1268,7 +1277,9 @@ export function dedupeCityStatusSignals(
   const kept: Array<{ signal: CityStatusSignal; tokens: Set<string> }> = [];
   for (const signal of signals) {
     const tokens = headlineTokens(signal.headline);
-    const twin = kept.find((entry) => sameStory(entry.tokens, tokens));
+    const twin = kept.find(
+      (entry) => sameHeadline(entry.tokens, tokens) && !differentPlaceOrTime(entry.signal, signal),
+    );
     if (!twin) {
       kept.push({ signal, tokens });
       continue;
@@ -1304,10 +1315,21 @@ export function dedupeCityStatusSignals(
 // as before.
 
 const SLUG_STOP_WORDS: ReadonlySet<string> = new Set([
-  "news", "article", "articles", "london", "story", "live", "www", "html", "uk",
+  "news", "article", "articles", "london", "story", "live", "www", "html", "uk", "index",
 ]);
 
-/** Words of the article slug, the last path segment, never a publisher's section folder ("/music/", "/culture/"). */
+function segmentWords(segment: string): string[] {
+  return segment
+    .toLowerCase()
+    .split(/[^a-z]+/)
+    .filter((word) => word.length >= 4 && !SLUG_STOP_WORDS.has(word));
+}
+
+/**
+ * Words of the article slug: the last path segment with readable words, past a
+ * trailing "/amp", "/index.html" or numeric id, never a publisher's section
+ * folder ("/music/", "/culture/") above it.
+ */
 function slugWords(url: string): string[] {
   let path: string;
   try {
@@ -1315,11 +1337,8 @@ function slugWords(url: string): string[] {
   } catch {
     return [];
   }
-  const slug = path.split("/").filter((segment) => segment.length > 0).pop() ?? "";
-  return slug
-    .toLowerCase()
-    .split(/[^a-z]+/)
-    .filter((word) => word.length >= 4 && !SLUG_STOP_WORDS.has(word));
+  const segments = path.split("/").map(segmentWords).filter((words) => words.length > 0);
+  return segments.at(-1) ?? [];
 }
 
 const INFLECTION_ENDING = /^(?:s|es|d|ed|ing|er|ers)$/;
