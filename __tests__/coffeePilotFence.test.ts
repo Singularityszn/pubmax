@@ -19,6 +19,13 @@ import { readVenueDrinkPricesJudged } from "@/lib/harvest/ukPriceJudgment.server
 
 const MISFILED_ROWS = join(process.cwd(), "__tests__/fixtures/harvest/coffee-pilot-misfiled-rows.json");
 
+function coffeeRowsBesideAmericano(label: string, priceGbp: number) {
+  const html = `<p>Americano £3.00</p><p>${label} £${priceGbp.toFixed(2)}</p>`;
+  return readVenueDrinkPrices(html)
+    .kept.filter((row) => row.category === "coffee" && row.drinkLabel !== "Americano")
+    .map(({ drinkLabel, priceGbp: price }) => ({ drinkLabel, priceGbp: price }));
+}
+
 describe("coffee pilot harvest fence", () => {
   it("names matcha as coffee in free-text taxonomy", () => {
     expect(drinkCategoryFromText("Matcha")).toBe("coffee");
@@ -28,14 +35,33 @@ describe("coffee pilot harvest fence", () => {
   it.each([
     ["Highland Spring Water Sparkling", 1.5],
     ["Bottled Water", 2],
+    ["Water", 1.5],
+    ["Mineral Water", 1.5],
+    ["Coconut water", 2.5],
     ["Earl Grey Tea", 2.5],
     ["Tea", 2],
+    ["Earl Grey", 2.8],
+    ["English Breakfast", 2.6],
+    ["Chai", 2.9],
+    ["Peppermint", 2.4],
+    ["Herbal infusion", 2.4],
+    ["Green", 2.4],
     ["Affogato (vg) Vanilla ice cream, shot of hot espresso", 6],
-  ])("refuses %s as a coffee price", (label, priceGbp) => {
-    const html = `<p>${label} £${priceGbp.toFixed(2)}</p>`;
-    const reading = readVenueDrinkPrices(html);
-    expect(reading.kept.filter((row) => row.category === "coffee")).toEqual([]);
+  ])("refuses %s as a coffee price beside an espresso drink", (label, priceGbp) => {
+    expect(coffeeRowsBesideAmericano(label, priceGbp)).toEqual([]);
     expect(coffeePriceLabelExcluded(label)).toBe(true);
+  });
+
+  it.each(["Matcha", "Matcha green tea latte", "Americano, espresso and hot water", "Iced latte"])(
+    "keeps %s as a coffee price",
+    (label) => {
+      expect(coffeePriceLabelExcluded(label)).toBe(false);
+    },
+  );
+
+  it("does not widen the reader's coffee words beyond matcha", () => {
+    const rows = readVenueDrinkPrices("<p>Macchiato £3.20</p><p>Cortado £3.40</p>").kept;
+    expect(rows.filter((row) => row.category === "coffee")).toEqual([]);
   });
 
   it("refuses tea even when the next line names coffee", () => {
@@ -96,10 +122,7 @@ describe("coffee pilot misfiled rows fixture", () => {
     expect(rows.length).toBeGreaterThan(0);
     for (const row of rows) {
       expect(coffeePriceLabelExcluded(row.drinkLabel)).toBe(true);
-      const html = `<p>${row.drinkLabel} £${row.priceGbp.toFixed(2)}</p>`;
-      expect(
-        readVenueDrinkPrices(html).kept.some((kept) => kept.category === "coffee"),
-      ).toBe(false);
+      expect(coffeeRowsBesideAmericano(row.drinkLabel, row.priceGbp)).toEqual([]);
     }
   });
 });
