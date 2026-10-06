@@ -103,6 +103,10 @@
   .weAreOutDoor {
     text-align: center;
   }
+
+  .weAreOutDoor .weAreOutDoneActions {
+    justify-content: center;
+  }
 }
 
 /* The door's action is a link wearing the submit control's look. */
@@ -133,6 +137,8 @@
 
 .weAreOutDoneActions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 12px;
 }
 

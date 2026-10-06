@@ -19,6 +19,7 @@ const viewer = vi.hoisted(() => ({
   phase: "signed-in" as "signed-in" | "signed-out" | "unresolved",
   handle: "alice" as string | null,
   identityResolved: true,
+  retryIdentity: vi.fn(),
 }));
 vi.mock("@/components/auth/useViewerSession", () => ({
   useViewerSession: () => ({
@@ -32,7 +33,10 @@ vi.mock("@/components/auth/useViewerHandle", () => ({
   useViewerHandle: () => viewer.handle,
 }));
 vi.mock("@/components/auth/AuthProvider", () => ({
-  useAuth: () => ({ identityResolved: viewer.identityResolved }),
+  useAuth: () => ({
+    identityResolved: viewer.identityResolved,
+    retryIdentity: viewer.retryIdentity,
+  }),
 }));
 vi.mock("@/lib/authedFetch", () => ({
   authedActionFetch: vi.fn(),
@@ -89,6 +93,7 @@ beforeEach(() => {
   viewer.phase = "signed-in";
   viewer.handle = "alice";
   viewer.identityResolved = true;
+  viewer.retryIdentity.mockReset();
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
@@ -96,6 +101,7 @@ beforeEach(() => {
 
 afterEach(() => {
   act(() => root.unmount());
+  vi.useRealTimers();
   host.remove();
   vi.clearAllMocks();
 });
@@ -160,5 +166,67 @@ describe("we-are-out signed-out and handle-less doors", () => {
     expect(host.querySelector("a.weAreOutDoorAction")).toBeNull();
     expect(host.querySelector("select")).toBeNull();
     expect(host.querySelector('[role="status"]')?.textContent).toContain("Checking your account.");
+  });
+
+  // A failed identity read leaves the account unknown, and nothing reads it
+  // again on its own: the wait must not be a dead end.
+  it("offers Try again and the profile after a slow account check, and reads again", async () => {
+    vi.useFakeTimers();
+    viewer.phase = "signed-in";
+    viewer.handle = null;
+    viewer.identityResolved = false;
+    await render();
+    const tryAgain = () =>
+      [...host.querySelectorAll("button")].find((button) => button.textContent === "Try again");
+
+    await act(async () => {
+      vi.advanceTimersByTime(3_999);
+    });
+    expect(tryAgain()).toBeUndefined();
+    expect(host.querySelector('a[href="/u/you"]')).toBeNull();
+
+    await act(async () => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(host.querySelector('[role="status"]')?.textContent).toContain("Checking your account.");
+    expect(tryAgain()).toBeTruthy();
+    expect(host.querySelector('a[href="/u/you"]')?.textContent).toBe("Open your profile");
+    expect(host.querySelector("select")).toBeNull();
+
+    await act(async () => {
+      tryAgain()!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(viewer.retryIdentity).toHaveBeenCalledTimes(1);
+    expect(tryAgain()).toBeUndefined();
+    expect(host.textContent).toContain("One moment, then you can tell your lot.");
+
+    await act(async () => {
+      vi.advanceTimersByTime(4_000);
+    });
+    expect(tryAgain()).toBeTruthy();
+  });
+
+  it("opens the form once a retried read resolves the handle", async () => {
+    vi.useFakeTimers();
+    viewer.phase = "signed-in";
+    viewer.handle = null;
+    viewer.identityResolved = false;
+    await render();
+    await act(async () => {
+      vi.advanceTimersByTime(4_000);
+    });
+    viewer.retryIdentity.mockImplementation(() => {
+      viewer.handle = "alice";
+      viewer.identityResolved = true;
+    });
+    const tryAgain = [...host.querySelectorAll("button")].find(
+      (button) => button.textContent === "Try again",
+    );
+    await act(async () => {
+      tryAgain!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await render();
+    expect(host.querySelector("select")).toBeTruthy();
+    expect(host.querySelector('[role="status"]')).toBeNull();
   });
 });

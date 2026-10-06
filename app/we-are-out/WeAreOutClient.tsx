@@ -9,7 +9,7 @@
 // form never opens only to refuse on submit.
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
@@ -25,6 +25,9 @@ import { socialBoundaryCopy } from "@/lib/socialLaunch";
 
 type PostState = "idle" | "posting" | "done" | "error";
 
+/** How long the account check may run before the page offers a way on. */
+const IDENTITY_PENDING_GRACE_MS = 4_000;
+
 type Props = {
   /** Server-threaded friends-launch gate — client never reads env. */
   socialFriendsLaunchEnabled?: boolean;
@@ -36,7 +39,7 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = true }: Pr
   const handle = useViewerHandle() ?? "";
   // An account's handle is unknown until its identity resolves, which is not the
   // same as having none: the claim door waits for the answer.
-  const { identityResolved } = useAuth();
+  const { identityResolved, retryIdentity } = useAuth();
   const [areaSlug, setAreaSlug] = useState<string>("");
   const [note, setNote] = useState("");
   const [state, setState] = useState<PostState>("idle");
@@ -143,10 +146,7 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = true }: Pr
           // The session, or a signed-in account's handle, has not answered yet.
           // Neither a form that would refuse on submit nor a door that names
           // the viewer wrongly: a quiet, non-interactive wait.
-          <section className="weAreOutForm weAreOutDoor" role="status" aria-live="polite">
-            <p className="weAreOutDoneTitle">Checking your account.</p>
-            <p className="weAreOutPrivacy">One moment, then you can tell your lot.</p>
-          </section>
+          <IdentityPendingDoor onRetry={retryIdentity} />
         ) : (
           <section className="weAreOutForm">
             <label className="weAreOutField">
@@ -201,5 +201,46 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = true }: Pr
         )}
       </div>
     </main>
+  );
+}
+
+// A read that failed leaves the account unknown until something reads it again,
+// so the wait turns into a door after a few seconds: read again, or go to the
+// profile. Mounted only while waiting, so every wait starts quiet.
+function IdentityPendingDoor({ onRetry }: { onRetry: () => void }) {
+  const [slow, setSlow] = useState(false);
+
+  useEffect(() => {
+    if (slow) return;
+    const timer = window.setTimeout(() => setSlow(true), IDENTITY_PENDING_GRACE_MS);
+    return () => window.clearTimeout(timer);
+  }, [slow]);
+
+  return (
+    <section className="weAreOutForm weAreOutDoor" role="status" aria-live="polite">
+      <p className="weAreOutDoneTitle">Checking your account.</p>
+      {slow ? (
+        <>
+          <p className="weAreOutPrivacy">This is taking longer than it should.</p>
+          <div className="weAreOutDoneActions">
+            <button
+              type="button"
+              className="weAreOutSubmit weAreOutDoorAction"
+              onClick={() => {
+                setSlow(false);
+                onRetry();
+              }}
+            >
+              Try again
+            </button>
+            <Link className="feedDropCta" href="/u/you">
+              Open your profile
+            </Link>
+          </div>
+        </>
+      ) : (
+        <p className="weAreOutPrivacy">One moment, then you can tell your lot.</p>
+      )}
+    </section>
   );
 }

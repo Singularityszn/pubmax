@@ -115,6 +115,31 @@ describe("a pub named inside a sentence", () => {
     expect(result.ok).toBe(false);
   });
 
+  // Real listed pubs whose whole name is words any pub may carry.
+  const genericNamePubs = [
+    venue({ id: "venue-n4uctx", name: "Sports Bar", area: "Brent" }),
+    venue({ id: "venue-eh7e72", name: "Tap Room", area: "Haringey" }),
+    venue({ id: "venue-1c16fgz", name: "Brewery Tap", area: "Wandsworth" }),
+    venue({ id: "venue-1oc32ra", name: "The Old Brewery", area: "Greenwich", cheapestPrice: 5.75 }),
+  ];
+
+  it.each([
+    ["Sports Bar", "How much is a pint at a sports bar near Soho?"],
+    ["Tap Room", "is there a tap room near Camden"],
+    ["Brewery Tap", "how much is a pint at a brewery tap"],
+    ["The Old Brewery", "pint at the old brewery tonight"],
+  ])("finds no %s pub in %s", (name, question) => {
+    const pub = genericNamePubs.find((candidate) => candidate.name === name)!;
+    expect(matchVenueNameWithinQuery([pub], question)).toBeNull();
+  });
+
+  it("gives no listed price for a kind of pub named in a sentence", async () => {
+    state.venues = genericNamePubs;
+    const result = await runAskTool("venue_prices", {}, ctx("How much is a pint at a sports bar near Soho?"));
+    expect(result.ok).toBe(false);
+    expect(result.answerHint).toBe("Name a listed pub to check a price.");
+  });
+
   it("stays out of the bare-name matcher, so an unlisted name never lands on a shorter pub", () => {
     const crown = venue({ id: "c1", name: "The Crown" });
     expect(matchVenueByNameKeyless([blackfriar], "The Blackfriar")?.id).toBe("bf");

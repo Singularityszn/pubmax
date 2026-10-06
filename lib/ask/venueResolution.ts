@@ -84,6 +84,12 @@ const PLACE_PHRASES: readonly string[][] = [
   .map((phrase) => phrase.split(" "))
   .filter((words) => words.length > 1);
 
+/** Words any pub may carry: a name made only of these names no pub in particular. */
+const GENERIC_PUB_WORDS = new Set([
+  "the", "and", "ye", "olde", "old", "new", "bar", "pub", "tap", "room", "rooms",
+  "sports", "brewery", "arms", "inn", "tavern", "house", "hotel", "lounge",
+]);
+
 /** Every index where `phrase` starts as whole words inside `words`. */
 function startsOf(words: readonly string[], phrase: readonly string[]): number[] {
   const starts: number[] = [];
@@ -106,8 +112,10 @@ function startsOf(words: readonly string[], phrase: readonly string[]): number[]
  * past "The" share a word with a place name in the query at least as long:
  * The Kings is not in "near the Kings Cross station", nor The Hill in "Harrow
  * on the Hill", nor the Elephant and Castle pub in "near the Elephant and
- * Castle". Unsure is no answer. The longest name wins, and two different pubs
- * sharing that longest name are no answer at all.
+ * Castle". A name made only of words any pub may carry (Sports Bar, Tap
+ * Room, The Old Brewery) is never found: "a sports bar near Soho" asks for a
+ * kind of pub, not the one so named. Unsure is no answer. The longest name
+ * wins, and two different pubs sharing that longest name are no answer at all.
  */
 export function matchVenueNameWithinQuery<T extends VenueNameMatchInput>(
   venues: readonly T[],
@@ -130,6 +138,7 @@ export function matchVenueNameWithinQuery<T extends VenueNameMatchInput>(
   let tied = false;
   for (const venue of venues) {
     const full = wordsOnly(venue.name).split(" ");
+    if (full.every((word) => GENERIC_PUB_WORDS.has(word))) continue;
     const names = full[0] === "the" ? [full, full.slice(1)] : [full];
     for (const name of names) {
       if (name.length < 2) continue;
