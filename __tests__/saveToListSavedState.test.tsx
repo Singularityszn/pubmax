@@ -109,6 +109,30 @@ describe("SaveToListControl new list", () => {
     expect(container.querySelector(".saveToListToast")?.textContent).toBe("Saved to “Date Night”");
     expect(JSON.parse(window.localStorage.getItem("pubmax:savedPubs:v1") ?? "[]")).toHaveLength(1);
   });
+
+  it("matches the name as it is stored, so stray spaces neither mislabel nor remove the save", async () => {
+    await open();
+    const input = container.querySelector<HTMLInputElement>("input[aria-label='New list name']")!;
+    const create = async (value: string) => {
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, value);
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      await act(async () => {
+        container.querySelector<HTMLButtonElement>("button.saveToListCreate")!.click();
+      });
+    };
+
+    await create("Quiz  nights ");
+    expect(container.querySelector(".saveToListToast")?.textContent).toBe("Saved to “Quiz nights”");
+
+    await create(" Quiz nights");
+    expect(container.querySelector(".saveToListToast")?.textContent).toBe("Saved to “Quiz nights”");
+    const stored = JSON.parse(window.localStorage.getItem("pubmax:savedPubs:v1") ?? "[]") as {
+      listType: string;
+    }[];
+    expect(stored.map((row) => row.listType)).toEqual(["Quiz nights"]);
+  });
 });
 
 describe("SaveToListControl chips for a signed-in handle", () => {

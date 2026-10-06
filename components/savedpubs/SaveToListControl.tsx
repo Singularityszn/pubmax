@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { discardBody } from "@/lib/responseBody";
 import { safeLocalStorage } from "@/lib/safeStorage";
 import {
+  cleanListType,
   fetchSavedForHandle,
   getSaved,
   toggleSaveDurable,
@@ -135,7 +136,7 @@ export default function SaveToListControl({
   );
 
   const createAndSave = useCallback(async () => {
-    const name = newName.trim();
+    const name = cleanListType(newName);
     if (!name || busy) return;
     if (!isListTypeEligibleForVenue(name, venueKind)) {
       setToast("Pint lists are for pubs");

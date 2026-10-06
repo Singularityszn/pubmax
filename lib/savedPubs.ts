@@ -108,7 +108,7 @@ function hasStorage(): boolean {
 // bounded string is valid for the localStorage store. This keeps custom lists
 // (story 33) round-tripping through the signed-out fallback too.
 const MAX_LIST_TYPE = 60;
-function cleanListType(value: unknown): ListType {
+export function cleanListType(value: unknown): ListType {
   return cleanText(value, MAX_LIST_TYPE);
 }
 
