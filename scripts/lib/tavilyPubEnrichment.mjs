@@ -592,6 +592,7 @@ export async function runCityEnrichment({
       // A query was spent asking about THIS pub and no answer came back. That
       // outcome is recorded whatever the caller then decides about the run, or
       // the venue that ends a run is a venue nobody ever hears about again.
+      creditsSpent += dearestSearch;
       outcomes.push({
         index,
         osmId: pub.osmId,

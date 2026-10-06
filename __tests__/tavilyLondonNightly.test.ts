@@ -107,6 +107,47 @@ describe("the nightly London Tavily pass spends a bounded amount", () => {
     expect(result.queriesSpent).toBe(Math.floor(MAX_TAVILY_CREDITS_PER_RUN / credits));
   });
 
+  it("counts a failed search against the credit ceiling", async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response("{}", { status: 504 }));
+    const result = await runCityEnrichment({
+      city: "london",
+      pubs: londonPubs(50),
+      apiKey: "test-key",
+      maxCredits: 10,
+      observedAt: OBSERVED_AT,
+      fetchImpl,
+      onVenueError: () => "continue",
+    });
+
+    expect(result.creditsSpent).toBe(10);
+    expect(result.queriesSpent).toBe(10 / TAVILY_CREDITS_PER_SEARCH);
+    expect(fetchImpl).toHaveBeenCalledTimes(5);
+  });
+
+  it("reserves the dearest billed search for each failed search", async () => {
+    let calls = 0;
+    const fetchImpl = vi.fn<typeof fetch>(async () => {
+      calls += 1;
+      if (calls > 1) return new Response("{}", { status: 504 });
+      return new Response(JSON.stringify({ results: [], usage: { credits: 6 } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+    const result = await runCityEnrichment({
+      city: "london",
+      pubs: londonPubs(300),
+      apiKey: "test-key",
+      observedAt: OBSERVED_AT,
+      fetchImpl,
+      onVenueError: () => "continue",
+    });
+
+    expect(result.creditsSpent).toBeLessThanOrEqual(MAX_TAVILY_CREDITS_PER_RUN);
+    expect(result.queriesSpent).toBe(Math.floor(MAX_TAVILY_CREDITS_PER_RUN / 6));
+    expect(result.creditsSpent).toBe(result.queriesSpent * 6);
+  });
+
   it("sends no search for a website the source policy refuses", async () => {
     const pubs = [
       { ...defined(londonPubs(1)[0]), website: "https://user:secret@independentarms1.co.uk/" },
@@ -590,7 +631,24 @@ describe("the nightly London pass keeps going and keeps what it found", () => {
         committedPrices: [],
         fetchImpl: billing(2),
       }),
-    ).rejects.toThrow(/no search ran while 3 pubs were still due/);
+    ).rejects.toThrow(/no search succeeded while 3 pubs were still due/);
+  });
+
+  it("fails when every search it ran failed", async () => {
+    const pubs = londonPubs(3);
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response("{}", { status: 401 }));
+    await expect(
+      runCityPass({
+        city: "london",
+        checkpoint: freshLondon(pubs),
+        pubs,
+        apiKey: "revoked-key",
+        observedAt: OBSERVED_AT,
+        committedPrices: [],
+        fetchImpl,
+      }),
+    ).rejects.toThrow(/no search succeeded while 3 pubs were still due/);
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
   });
 
   it("passes a night with nothing to search", async () => {
