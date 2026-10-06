@@ -347,7 +347,7 @@ export default function PlanSummary({
   if (!state) {
     return (
       <section className="planSummary" aria-labelledby="plan-stops-title">
-        <div className="planSummary__heading">
+        <div className="planSummary__heading planSummary__heading--teaser">
           <p className="planPage__eyebrow">Start time · {initialPreview.startLabel}</p>
           <h2 id="plan-stops-title">The route</h2>
         </div>

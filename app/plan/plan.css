@@ -111,6 +111,9 @@
 
 .planSummary { min-height: 500px; padding: clamp(26px, 5vw, 52px); overflow: hidden; }
 .planSummary__heading { margin-left: 72px; }
+/* The teaser has no route rail to clear, so its heading lines up with the card's
+   own copy instead of sitting 72px (57px at 390) in. */
+.planSummary__heading.planSummary__heading--teaser { margin-left: 0; }
 .planSummary__headingRow { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .planSummary__edit,
 .planSummary__swap,
@@ -1127,6 +1130,7 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   .planSummary { padding: 26px 20px; }
   .planSummary__rail { left: 43px; top: 105px; }
   .planSummary__heading { margin-left: 57px; }
+  .planSummary__heading.planSummary__heading--teaser { margin-left: 0; }
   .planSummary__headingRow { align-items: flex-start; }
   .planSummary > .roundStarter { width: calc(100% - 44px); margin-left: 44px; }
   .planSummary__editor { margin-left: 0; }
