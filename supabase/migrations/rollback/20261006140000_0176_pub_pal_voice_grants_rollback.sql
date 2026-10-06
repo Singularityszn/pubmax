@@ -13,6 +13,7 @@ grant execute on function public.release_pub_pal_voice_trial(uuid, date) to serv
 grant execute on function public.record_pub_pal_voice_minutes(uuid, date, integer) to service_role;
 
 drop function if exists public.settle_pub_pal_voice_conversation(uuid, text, integer);
+drop function if exists public.issued_pub_pal_voice_conversations(uuid, date);
 drop function if exists public.link_pub_pal_voice_conversation(uuid, uuid, text);
 drop function if exists public.refund_pub_pal_voice_grant(uuid, uuid);
 drop function if exists public.prepay_pub_pal_voice_grant(uuid, date, uuid, integer, integer);

@@ -17,7 +17,10 @@ import { buildPalVoiceOverrides } from "@/lib/palVoiceOverrides";
 import { isPubPalConversationId } from "@/lib/pubPalConversationId";
 import { bindPubPalToolTurn } from "@/lib/pubPalToolTurnStore";
 import { palVoiceConfigured } from "@/lib/pubPalVoiceConfig.server";
-import { providerCallSeconds } from "@/lib/pubPalVoiceProviderDuration.server";
+import {
+  providerCallSeconds,
+  providerCallSecondsOnceEnded,
+} from "@/lib/pubPalVoiceProviderDuration.server";
 import { getPubPalResult } from "@/lib/pubPalStore";
 import { clientIp, hashIp, isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
@@ -110,11 +113,74 @@ async function refundVoiceGrant(
 }
 
 /**
+ * Settles one issued grant from the duration ElevenLabs recorded for its
+ * conversation, under the caller's own grant. False leaves it charged in full.
+ */
+async function settleConversation(
+  admin: ReturnType<typeof requireSupabaseAdmin>,
+  userId: string,
+  conversationId: string,
+  seconds: number,
+): Promise<boolean> {
+  try {
+    const { data, error } = await admin.rpc("settle_pub_pal_voice_conversation", {
+      p_owner_id: userId,
+      p_conversation_id: conversationId,
+      p_seconds: seconds,
+    });
+    if (error) {
+      log("error", "pub_pal.voice_settle_failed", {
+        ownerId: userId,
+        error: releaseErrorMessage(error),
+      });
+      return false;
+    }
+    return data === true;
+  } catch (error) {
+    log("error", "pub_pal.voice_settle_failed", {
+      ownerId: userId,
+      error: releaseErrorMessage(error),
+    });
+    return false;
+  }
+}
+
+/**
+ * Settles every grant of the owner's month that a release left issued, from
+ * the provider's own durations, so the allowance check sees what the calls
+ * really cost. A conversation ElevenLabs still cannot report stays charged.
+ */
+async function settleIssuedGrants(
+  admin: ReturnType<typeof requireSupabaseAdmin>,
+  userId: string,
+  usageMonth: string,
+  apiKey: string,
+): Promise<void> {
+  let conversationIds: string[];
+  try {
+    const { data, error } = await admin.rpc("issued_pub_pal_voice_conversations", {
+      p_owner_id: userId,
+      p_month: usageMonth,
+    });
+    if (error || !Array.isArray(data)) return;
+    conversationIds = data.filter(isPubPalConversationId);
+  } catch {
+    return;
+  }
+  await Promise.all(conversationIds.map(async (conversationId) => {
+    const seconds = await providerCallSeconds(conversationId, apiKey);
+    if (seconds !== null) await settleConversation(admin, userId, conversationId, seconds);
+  }));
+}
+
+/**
  * A session ended. The browser's say-so changes nothing: it names a
  * conversation, and the allowance is settled only from the duration ElevenLabs
- * recorded for that conversation, under the caller's own grant. While the call
- * is still running, or when the provider cannot be read, the prepaid grant
- * stays charged in full, and a later release can settle it.
+ * recorded for that conversation, under the caller's own grant. The browser
+ * releases as it hangs up, so the provider is asked for a few seconds until it
+ * reports the call ended. If it never does, or cannot be read, the grant stays
+ * issued and charged in full, and the owner's next voice-token request settles
+ * it before the allowance check.
  */
 async function handleRelease(
   request: Request,
@@ -134,29 +200,10 @@ async function handleRelease(
   const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
   if (!isSupabaseConfigured() || !apiKey || !isPubPalConversationId(conversationId)) return unsettled;
 
-  const seconds = await providerCallSeconds(conversationId, apiKey);
+  const seconds = await providerCallSecondsOnceEnded(conversationId, apiKey);
   if (seconds === null) return unsettled;
-  try {
-    const { data, error } = await requireSupabaseAdmin().rpc("settle_pub_pal_voice_conversation", {
-      p_owner_id: userId,
-      p_conversation_id: conversationId,
-      p_seconds: seconds,
-    });
-    if (error) {
-      log("error", "pub_pal.voice_settle_failed", {
-        ownerId: userId,
-        error: releaseErrorMessage(error),
-      });
-      return unsettled;
-    }
-    return jsonNoStore({ released: true, settled: data === true, remainingMinutes });
-  } catch (error) {
-    log("error", "pub_pal.voice_settle_failed", {
-      ownerId: userId,
-      error: releaseErrorMessage(error),
-    });
-    return unsettled;
-  }
+  const settled = await settleConversation(requireSupabaseAdmin(), userId, conversationId, seconds);
+  return jsonNoStore({ released: true, settled, remainingMinutes });
 }
 
 async function handleIssueToken(userId: string): Promise<Response> {
@@ -198,11 +245,12 @@ async function handleIssueToken(userId: string): Promise<Response> {
     });
   }
 
-  // The server pays for the whole session cap up front, before any provider
-  // call. Nothing the browser later reports moves this meter.
+  // The server pays for the whole session cap up front, before it asks the
+  // provider for a session. Nothing the browser later reports moves this meter.
   const grantId = randomUUID();
   const admin = supabaseConfigured ? requireSupabaseAdmin() : null;
   if (admin) {
+    await settleIssuedGrants(admin, userId, usageMonth, apiKey);
     try {
       const { data, error } = await admin.rpc("prepay_pub_pal_voice_grant", {
         p_owner_id: userId,

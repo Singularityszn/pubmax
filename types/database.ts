@@ -6848,6 +6848,13 @@ export type Database = {
         };
         Returns: Json;
       };
+      issued_pub_pal_voice_conversations: {
+        Args: {
+          p_owner_id: string | null;
+          p_month: string | null;
+        };
+        Returns: string[];
+      };
       join_plan_account_idempotent_atomic: {
         Args: {
           p_plan_id: string | null;

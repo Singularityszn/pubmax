@@ -150,7 +150,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
     attempt.connectedAt = null;
     if (!attempt.releaseRequired) return;
     attempt.released = true;
-    await releaseVoiceSession(attempt.conversationId);
+    void releaseVoiceSession(attempt.conversationId);
   }, [clearCapTimer]);
 
   useEffect(() => {

@@ -7,8 +7,9 @@
 // could start sessions for ever. This proof holds four things a unit test over
 // mocked RPCs cannot: the fault really reproduces on the pre-0176 catalog, the
 // route driven end to end over the real functions fills the allowance whatever
-// the browser says, the settle really reads only the provider's duration, and
-// the old client-trusted functions really are closed to every role.
+// the browser says, the settle really reads only the provider's duration (on
+// release, or before the owner's next session when the call was still running),
+// and the old client-trusted functions really are closed to every role.
 
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -82,8 +83,8 @@ vi.mock("@/lib/supabase", () => ({
         .map(([key, value]) =>
           `${key} => ${typeof value === "number" ? value : `'${String(value).replaceAll("'", "''")}'`}`)
         .join(", ");
-      const answer = harness.sql?.(`set role service_role; select public.${name}(${args})`);
-      return { data: answer === "t" ? true : answer === "f" ? false : answer, error: null };
+      const answer = harness.sql?.(`set role service_role; select to_json(public.${name}(${args}))`);
+      return { data: answer ? JSON.parse(answer) as unknown : null, error: null };
     },
   }),
 }));
@@ -121,14 +122,25 @@ async function issue(): Promise<Response> {
   return POST(new Request("http://localhost/api/pub-pal/voice-token", { method: "POST" }));
 }
 
+/** A release, with its wait for the provider to report the call ended played out on a fake clock. */
 async function release(body: Record<string, unknown>): Promise<Response> {
-  return POST(
-    new Request("http://localhost/api/pub-pal/voice-token", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "release", ...body }),
-    }),
-  );
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+  try {
+    let done = false;
+    const pending = POST(
+      new Request("http://localhost/api/pub-pal/voice-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "release", ...body }),
+      }),
+    ).finally(() => {
+      done = true;
+    });
+    while (!done) await vi.advanceTimersByTimeAsync(250);
+    return await pending;
+  } finally {
+    vi.useRealTimers();
+  }
 }
 
 function stubProvider(): void {
@@ -169,7 +181,7 @@ beforeAll(async () => {
   db().sql(`
     insert into auth.users (id) values
       ('${uuid(1)}'), ('${uuid(2)}'), ('${uuid(3)}'), ('${uuid(4)}'), ('${uuid(5)}'),
-      ('${uuid(6)}'), ('${uuid(7)}');
+      ('${uuid(6)}'), ('${uuid(7)}'), ('${uuid(8)}');
   `);
 }, 240_000);
 
@@ -217,8 +229,9 @@ describe.skipIf(skipReason !== null)("after 0176", () => {
     harness.userId = uuid(2);
     const statuses: number[] = [];
     // A caller who releases at once, claiming zero seconds, ten times and then
-    // some. The provider says the call is still running when it is asked, and a
-    // later, honest-looking release changes nothing for a grant it cannot read.
+    // some. The provider says every call is still running whenever it is asked,
+    // so neither the release nor the next request settles a grant: each stays
+    // charged at the cap.
     for (let i = 0; i < 14; i += 1) {
       const response = await issue();
       statuses.push(response.status);
@@ -283,6 +296,35 @@ describe.skipIf(skipReason !== null)("after 0176", () => {
     expect(grantRow(uuid(5), mine.conversationId)).toBe("issued|-");
   });
 
+  it("settles a grant the release left issued before the next session is admitted", async () => {
+    harness.userId = uuid(8);
+    const first = await (await issue()).json() as { conversationId: string };
+    // The browser releases as it hangs up and the provider still reports the
+    // call running for the whole settle window.
+    harness.conversations.set(first.conversationId, { status: "in-progress", seconds: 41 });
+    expect(await (await release({ conversationId: first.conversationId })).json())
+      .toMatchObject({ released: true, settled: false });
+    expect(grantRow(uuid(8), first.conversationId)).toBe("issued|-");
+    expect(usedMinutes(uuid(8))).toBe(PAL_VOICE_GRANT_MINUTES);
+
+    harness.conversations.set(first.conversationId, { status: "done", seconds: 41 });
+    const second = await issue();
+
+    expect(second.status).toBe(200);
+    expect(grantRow(uuid(8), first.conversationId)).toBe(`settled|${billableVoiceMinutes(41)}`);
+    expect(usedMinutes(uuid(8))).toBe(billableVoiceMinutes(41) + PAL_VOICE_GRANT_MINUTES);
+  });
+
+  it("lists only the owner's issued grants of that month", () => {
+    const owner = uuid(8);
+    const other = uuid(6);
+    const list = (who: string, when: string) =>
+      db().sql(call("issued_pub_pal_voice_conversations", `'${who}', date '${when}'`));
+    expect(list(owner, month)).toMatch(/^\{conv_grant\d{6}\}$/);
+    expect(list(other, month)).toBe("{}");
+    expect(list(owner, "2020-01-01")).toBe("{}");
+  });
+
   it("admits exactly the allowance when sessions start at once", async () => {
     const statements = Array.from({ length: 20 }, (_, i) =>
       asServiceRole(
@@ -337,6 +379,7 @@ describe.skipIf(skipReason !== null)("after 0176", () => {
       `select public.prepay_pub_pal_voice_grant('${uuid(1)}', date '${month}', '${uuid(2200)}', 3, 30)`,
       `select public.refund_pub_pal_voice_grant('${uuid(1)}', '${uuid(2200)}')`,
       `select public.link_pub_pal_voice_conversation('${uuid(1)}', '${uuid(2200)}', 'conv_browser0001')`,
+      `select public.issued_pub_pal_voice_conversations('${uuid(1)}', date '${month}')`,
       `select public.settle_pub_pal_voice_conversation('${uuid(1)}', 'conv_browser0001', 0)`,
     ]) {
       for (const [role, sub] of [["anon", null], ["authenticated", uuid(1)]] as const) {
@@ -360,7 +403,8 @@ describe.skipIf(skipReason !== null)("rollback 0176", () => {
         select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
         where n.nspname = 'public' and p.proname in (
           'prepay_pub_pal_voice_grant', 'refund_pub_pal_voice_grant',
-          'link_pub_pal_voice_conversation', 'settle_pub_pal_voice_conversation')
+          'link_pub_pal_voice_conversation', 'settle_pub_pal_voice_conversation',
+          'issued_pub_pal_voice_conversations')
       `),
     ).toBe("0");
     expect(db().sql(`select to_regclass('public.pub_pal_voice_grants') is null`)).toBe("t");
