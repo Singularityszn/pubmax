@@ -117,3 +117,17 @@ describe("SiteNav More overflow (Wave D2.2)", () => {
     expect(markup).not.toContain("—");
   });
 });
+
+describe("SiteNav stacking", () => {
+  it("is a positioned layer, so its Sign in popover is not covered by a page section", async () => {
+    const { readFileSync } = await import("node:fs");
+    const css = readFileSync("components/nav/siteNav.css", "utf8");
+    const rule = css.match(/\.siteNavBar:not\(\.siteNavBarFloating\)\s*\{[^}]*\}/)?.[0] ?? "";
+    // The bar is its own stacking context (backdrop-filter, named view
+    // transition). Left at z-index:auto it painted under any positioned
+    // section further down the page, such as the profile header, and clipped
+    // the popover that hangs below it (signed-in QA F08, 6 Oct 2026).
+    expect(rule).toMatch(/position:\s*relative/);
+    expect(rule).toMatch(/z-index:\s*var\(--z-float/);
+  });
+});
