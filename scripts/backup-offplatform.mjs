@@ -17,6 +17,7 @@ import {
   chmodSync,
   existsSync,
   mkdirSync,
+  readFileSync,
   renameSync,
   rmSync,
   statSync,
@@ -30,6 +31,7 @@ import {
   DEFAULT_BUCKET,
   dumpFileName,
   listBucketObjects,
+  objectNeedsDownload,
   pgDumpArgs,
   pgEnvFromUrl,
   pruneBackupCopy,
@@ -91,6 +93,10 @@ async function runBackup() {
   mkdirSync(bucketRoot, { recursive: true, mode: 0o700 });
   chmodSync(dir, 0o700);
 
+  // 0. Retention first. Pruning must not wait on a dump that may fail, so a
+  // database outage cannot keep expired personal data on this machine.
+  pruneBackupCopy({ dir, bucketRoot, now: Date.now() });
+
   // 1. The database. Written to a temporary name and renamed once verified, so a
   // killed run never leaves a truncated file that looks like a backup.
   const partial = `${dumpFile}.partial`;
@@ -116,10 +122,30 @@ async function runBackup() {
   // Each one still in the bucket is stamped with this run's start, so an object
   // deleted in production is kept only as long as the dumps that knew it.
   const objects = await listBucketObjects({ baseUrl, key, bucket });
+  // What each local file was when it was fetched, so a replacement under the
+  // same key and the same size is still noticed.
+  const versionsFile = path.join(dir, "bucket", `${bucket}.versions.json`);
+  let recorded = {};
+  try {
+    recorded = JSON.parse(readFileSync(versionsFile, "utf8"));
+  } catch {
+    recorded = {};
+  }
+  const versions = {};
   let fetched = 0;
   for (const object of objects) {
     const target = safeObjectPath(bucketRoot, object.path);
-    if (existsSync(target) && object.size !== null && statSync(target).size === object.size) {
+    const present = existsSync(target);
+    if (
+      !objectNeedsDownload({
+        exists: present,
+        localSize: present ? statSync(target).size : 0,
+        size: object.size,
+        version: object.version,
+        recordedVersion: recorded[object.path],
+      })
+    ) {
+      versions[object.path] = object.version;
       utimesSync(target, startedAt, startedAt);
       continue;
     }
@@ -129,10 +155,15 @@ async function runBackup() {
     });
     if (!response.ok) throw new Error(`Downloading ${object.path} answered ${response.status}.`);
     mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
-    writeFileSync(target, Buffer.from(await response.arrayBuffer()), { mode: 0o600 });
+    // Written beside the file and renamed, so a killed run never leaves half an image.
+    const incoming = `${target}.incoming`;
+    writeFileSync(incoming, Buffer.from(await response.arrayBuffer()), { mode: 0o600 });
+    renameSync(incoming, target);
     utimesSync(target, startedAt, startedAt);
+    versions[object.path] = object.version;
     fetched += 1;
   }
+  writeFileSync(versionsFile, JSON.stringify(versions), { mode: 0o600 });
   console.log(`[backup] bucket ${bucket}: ${objects.length} objects, ${fetched} downloaded.`);
 
   // 3. Retention, by age. It runs only here, so the schedule keeps the window.

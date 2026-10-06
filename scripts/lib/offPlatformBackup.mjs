@@ -149,12 +149,33 @@ export async function listBucketObjects({ baseUrl, key, bucket, fetchImpl = fetc
       for (const entry of page) {
         const full = prefix ? `${prefix}/${entry.name}` : entry.name;
         if (entry.id === null || entry.id === undefined) pending.push(full);
-        else found.push({ path: full, size: entry.metadata?.size ?? null });
+        else {
+          found.push({
+            path: full,
+            size: entry.metadata?.size ?? null,
+            // The object's identity. A replacement under the same key keeps its
+            // size more often than not, so size alone cannot say "unchanged".
+            version: entry.metadata?.eTag ?? entry.updated_at ?? null,
+          });
+        }
       }
       if (page.length < 100) break;
     }
   }
   return found.sort((a, b) => a.path.localeCompare(b.path));
+}
+
+/**
+ * Whether an object must be downloaded again. A file is trusted only when it
+ * exists, has the listed size, and the version the last run recorded for it is
+ * the version listed now. A version nobody can name is never trusted, because
+ * the shared upload path replaces objects in place (`upsert: true`).
+ */
+export function objectNeedsDownload({ exists, localSize, size, version, recordedVersion }) {
+  if (!exists) return true;
+  if (size !== null && localSize !== size) return true;
+  if (version === null || version === undefined) return true;
+  return recordedVersion !== version;
 }
 
 /** A bucket path that would escape its directory is refused rather than written. */

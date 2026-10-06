@@ -69,6 +69,7 @@ files it names always stay, so a restore is always possible.
 - Each run deletes every dump older than 7 weeks, however many runs there were, except the newest. The week of slack covers a weekly run that fires late because the Mac was asleep.
 - Each run also deletes a `.partial` file older than the newest dump. That is a run that was killed during `pg_dump`, and it holds the same personal data.
 - The bucket copy follows the dumps. Each run stamps every file whose object is still in the bucket. A file whose object was deleted in production is removed when no kept dump is old enough to name it. A folder left empty is removed too, because the folder names are account and conversation ids.
+- Each run prunes first, before the dump, so a failing dump or an unreachable database does not keep expired copies. A bucket file is fetched again when its recorded version (ETag) changes, even at the same size.
 - Pruning happens only when the backup runs. The weekly schedule is what keeps every copy under 8 weeks. If the backup stops running, nothing is pruned until it runs again.
 - So data deleted in production, a deleted account included, leaves the copy within 8 weeks of the deletion. The privacy page says so.
 

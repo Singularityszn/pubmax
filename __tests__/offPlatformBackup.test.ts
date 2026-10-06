@@ -19,6 +19,7 @@ import {
   dumpFileName,
   isInsideDirectory,
   listBucketObjects,
+  objectNeedsDownload,
   pgDumpArgs,
   pgEnvFromUrl,
   pruneBackupCopy,
@@ -176,17 +177,33 @@ describe("keeping a backup out of the repository", () => {
   });
 });
 
+describe("objectNeedsDownload", () => {
+  const same = { exists: true, localSize: 10, size: 10, version: '"v1"', recordedVersion: '"v1"' };
+  it("trusts a file only when its size and its recorded version both match", () => {
+    expect(objectNeedsDownload(same)).toBe(false);
+  });
+  it("downloads a replacement that kept the same size", () => {
+    expect(objectNeedsDownload({ ...same, version: '"v2"' })).toBe(true);
+  });
+  it("downloads a missing file, a resized file, an unrecorded file and an object with no version", () => {
+    expect(objectNeedsDownload({ ...same, exists: false })).toBe(true);
+    expect(objectNeedsDownload({ ...same, localSize: 9 })).toBe(true);
+    expect(objectNeedsDownload({ ...same, recordedVersion: undefined })).toBe(true);
+    expect(objectNeedsDownload({ ...same, version: null })).toBe(true);
+  });
+});
+
 describe("listBucketObjects", () => {
   it("walks folders and pages, and returns files only", async () => {
     const fetchImpl = vi.fn(async (_url: string, init: RequestInit) => {
       const { prefix, offset } = JSON.parse(String(init.body));
       if (prefix === "" && offset === 0) {
         return Response.json([
-          { name: "a.jpg", id: "1", metadata: { size: 10 } },
+          { name: "a.jpg", id: "1", metadata: { size: 10, eTag: '"abc"' } },
           { name: "folder", id: null },
         ]);
       }
-      if (prefix === "folder") return Response.json([{ name: "b.jpg", id: "2", metadata: { size: 20 } }]);
+      if (prefix === "folder") return Response.json([{ name: "b.jpg", id: "2", updated_at: "2026-10-01T00:00:00Z", metadata: { size: 20 } }]);
       return Response.json([]);
     });
     const objects = await listBucketObjects({
@@ -196,8 +213,8 @@ describe("listBucketObjects", () => {
       fetchImpl: fetchImpl as never,
     });
     expect(objects).toEqual([
-      { path: "a.jpg", size: 10 },
-      { path: "folder/b.jpg", size: 20 },
+      { path: "a.jpg", size: 10, version: '"abc"' },
+      { path: "folder/b.jpg", size: 20, version: "2026-10-01T00:00:00Z" },
     ]);
   });
   it("fails on an API error without echoing the key", async () => {

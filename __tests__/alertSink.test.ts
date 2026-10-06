@@ -229,9 +229,9 @@ describe("every scheduled workflow tells somebody when it fails", () => {
     expect(alert.on?.workflow_run?.types).toEqual(["completed"]);
   });
 
-  it("posts only for a scheduled failure, holds no permission and runs no repository code", () => {
+  it("posts only for a scheduled failure, timeout or startup failure, holds no permission and runs no repository code", () => {
     expect(job?.if?.replace(/\s+/g, " ").trim()).toBe(
-      "github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.event == 'schedule'",
+      "contains(fromJSON('[\"failure\", \"timed_out\", \"startup_failure\"]'), github.event.workflow_run.conclusion) && github.event.workflow_run.event == 'schedule'",
     );
     expect(alert.permissions).toEqual({});
     expect(job?.env?.ALERT_WEBHOOK_URL).toBe("${{ secrets.PUBMAX_ALERT_WEBHOOK_URL }}");

@@ -15,5 +15,12 @@ export function listBucketObjects(input: {
   key: string;
   bucket: string;
   fetchImpl?: typeof fetch;
-}): Promise<Array<{ path: string; size: number | null }>>;
+}): Promise<Array<{ path: string; size: number | null; version: string | null }>>;
+export function objectNeedsDownload(input: {
+  exists: boolean;
+  localSize: number;
+  size: number | null;
+  version: string | null | undefined;
+  recordedVersion: string | null | undefined;
+}): boolean;
 export function safeObjectPath(root: string, objectPath: string): string;
