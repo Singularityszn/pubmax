@@ -256,6 +256,21 @@ async function writeRow(row: Record<string, unknown>): Promise<StepOutNudgePref>
   return toDTO(data as DbRow);
 }
 
+/** Update one owner's row only while `where` still holds, in one statement. Returns
+ * the row, or null when no row matched. The condition runs in the database, so a
+ * decision read earlier cannot go stale before the write lands. */
+async function updateRowWhere(
+  ownerActor: string,
+  patch: Record<string, unknown>,
+  where: Record<string, unknown>,
+): Promise<StepOutNudgePref | null> {
+  let query = admin().from(TABLE).update(patch).eq("owner_actor", ownerActor);
+  for (const [column, value] of Object.entries(where)) query = query.eq(column, value);
+  const { data, error } = await query.select(SELECT_COLUMNS).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? toDTO(data as DbRow) : null;
+}
+
 const supabaseStepOutNudgeStore: StepOutNudgeStore = {
   async get(ownerActor) {
     return guard({
@@ -275,36 +290,45 @@ const supabaseStepOutNudgeStore: StepOutNudgeStore = {
           fallback: () => memoryStepOutNudgeStore.put(ownerActor, input),
         }),
       run: async () => {
-        const now = new Date().toISOString();
+        const updatedAt = new Date().toISOString();
+        if (!input.enabled) {
+          // The enabled/token CHECK needs the token gone once neither preference holds
+          // it. Decide that in the statement, not from a read: another tab can opt into
+          // the cheap-pint ping, or decline it, at any moment.
+          const cleared = await updateRowWhere(
+            ownerActor,
+            { enabled: false, subscription_token: null, updated_at: updatedAt },
+            { cheap_pint_enabled: false },
+          );
+          if (cleared) return cleared;
+          const kept = await updateRowWhere(
+            ownerActor,
+            { enabled: false, updated_at: updatedAt },
+            { cheap_pint_enabled: true },
+          );
+          if (kept) return kept;
+          // No row yet: the column defaults leave a valid default-off row.
+          return writeRow({ owner_actor: ownerActor, enabled: false, updated_at: updatedAt });
+        }
         const existingDto = await readRow(ownerActor);
-
-        let subscriptionToken =
-          input.subscriptionToken === undefined
-            ? (existingDto?.subscriptionToken ?? null)
-            : input.subscriptionToken;
-        if (!input.enabled && !existingDto?.cheapPintEnabled) {
-          subscriptionToken = null;
-        }
-        let lastSentAt = existingDto?.lastSentAt ?? null;
-        if (
-          input.enabled &&
-          subscriptionToken &&
-          subscriptionToken !== existingDto?.subscriptionToken
-        ) {
-          lastSentAt = null;
-        }
-        return writeRow({
+        // Write only the Step Out columns this toggle changes. Replaying the read's
+        // cheap-pint or send fields would undo a decline or a send stamp committed
+        // between the read and the upsert. Column defaults fill a brand-new row.
+        const row: Record<string, unknown> = {
           owner_actor: ownerActor,
-          enabled: input.enabled,
-          subscription_token: subscriptionToken,
-          last_sent_at: lastSentAt,
-          updated_at: now,
-          created_at: existingDto?.createdAt ?? now,
-          cheap_pint_qualified: existingDto?.cheapPintQualified ?? false,
-          cheap_pint_enabled: existingDto?.cheapPintEnabled ?? false,
-          cheap_pint_declined: existingDto?.cheapPintDeclined ?? false,
-          cheap_pint_sent_at: existingDto?.cheapPintSentAt ?? null,
-        });
+          enabled: true,
+          updated_at: updatedAt,
+        };
+        if (input.subscriptionToken !== undefined) {
+          row.subscription_token = input.subscriptionToken;
+          if (
+            input.subscriptionToken &&
+            input.subscriptionToken !== existingDto?.subscriptionToken
+          ) {
+            row.last_sent_at = null;
+          }
+        }
+        return writeRow(row);
       },
     });
   },
@@ -364,17 +388,14 @@ const supabaseStepOutNudgeStore: StepOutNudgeStore = {
         const now = new Date().toISOString();
         const existing = (await readRow(ownerActor)) ?? blankRow(ownerActor, now);
         if (existing.cheapPintDeclined || existing.cheapPintSentAt) return existing;
+        // Write only the qualified flag. The read above can be stale by the time the
+        // upsert lands, so replaying its consent, subscription or send fields would
+        // undo a decline or a send stamp committed in between. Column defaults fill
+        // a brand-new row.
         return writeRow({
           owner_actor: ownerActor,
-          enabled: existing.enabled,
-          subscription_token: existing.subscriptionToken,
-          last_sent_at: existing.lastSentAt,
-          created_at: existing.createdAt,
           updated_at: now,
           cheap_pint_qualified: true,
-          cheap_pint_enabled: existing.cheapPintEnabled,
-          cheap_pint_declined: existing.cheapPintDeclined,
-          cheap_pint_sent_at: existing.cheapPintSentAt,
         });
       },
     });
@@ -391,19 +412,15 @@ const supabaseStepOutNudgeStore: StepOutNudgeStore = {
             memoryStepOutNudgeStore.optInCheapPint(ownerActor, subscriptionToken),
         }),
       run: async () => {
-        const now = new Date().toISOString();
-        const existing = (await readRow(ownerActor)) ?? blankRow(ownerActor, now);
+        // The opt-in owns its consent flags and the token it binds, nothing else,
+        // so it needs no read and cannot replay a stale Step Out or send field.
         return writeRow({
           owner_actor: ownerActor,
-          enabled: existing.enabled,
           subscription_token: subscriptionToken,
-          last_sent_at: existing.lastSentAt,
-          created_at: existing.createdAt,
-          updated_at: now,
+          updated_at: new Date().toISOString(),
           cheap_pint_qualified: true,
           cheap_pint_enabled: true,
           cheap_pint_declined: false,
-          cheap_pint_sent_at: existing.cheapPintSentAt,
         });
       },
     });
@@ -419,26 +436,24 @@ const supabaseStepOutNudgeStore: StepOutNudgeStore = {
           fallback: () => memoryStepOutNudgeStore.declineCheapPint(ownerActor),
         }),
       run: async () => {
-        const now = new Date().toISOString();
-        const existing = (await readRow(ownerActor)) ?? blankRow(ownerActor, now);
-        const tokenAfter = keepsPushToken({
-          ...existing,
-          cheapPintEnabled: false,
-        })
-          ? existing.subscriptionToken
-          : null;
-        return writeRow({
-          owner_actor: ownerActor,
-          enabled: existing.enabled,
-          subscription_token: tokenAfter,
-          last_sent_at: existing.lastSentAt,
-          created_at: existing.createdAt,
-          updated_at: now,
-          cheap_pint_qualified: existing.cheapPintQualified,
+        const updatedAt = new Date().toISOString();
+        const decline = {
           cheap_pint_enabled: false,
           cheap_pint_declined: true,
-          cheap_pint_sent_at: existing.cheapPintSentAt,
-        });
+          updated_at: updatedAt,
+        };
+        // Write only the decline flags, so a qualification or send stamp committed
+        // meanwhile survives. The token goes only when Step Out no longer holds it,
+        // and the database decides that in the statement, not from an earlier read.
+        const cleared = await updateRowWhere(
+          ownerActor,
+          { ...decline, subscription_token: null },
+          { enabled: false },
+        );
+        if (cleared) return cleared;
+        const kept = await updateRowWhere(ownerActor, decline, { enabled: true });
+        if (kept) return kept;
+        return writeRow({ owner_actor: ownerActor, ...decline });
       },
     });
   },

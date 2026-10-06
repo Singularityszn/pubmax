@@ -1,7 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 
-async function installPwaPushRuntime(page: Page): Promise<void> {
-  await page.addInitScript(() => {
+async function installPwaPushRuntime(
+  page: Page,
+  options: { readyNeverSettles?: boolean } = {},
+): Promise<void> {
+  await page.addInitScript(({ readyNeverSettles }) => {
     const originalMatchMedia = window.matchMedia.bind(window);
     Object.defineProperty(window, "matchMedia", {
       configurable: true,
@@ -51,7 +54,9 @@ async function installPwaPushRuntime(page: Page): Promise<void> {
     Object.defineProperty(navigator, "serviceWorker", {
       configurable: true,
       value: {
-        ready: Promise.resolve(registration),
+        ready: readyNeverSettles
+          ? new Promise<ServiceWorkerRegistration>(() => undefined)
+          : Promise.resolve(registration),
         register: async () => registration,
       },
     });
@@ -59,7 +64,7 @@ async function installPwaPushRuntime(page: Page): Promise<void> {
       configurable: true,
       get: () => permissionRequests,
     });
-  });
+  }, options);
 }
 
 async function installSuccessfulPlanRoute(page: Page): Promise<void> {
@@ -168,4 +173,41 @@ test("installed PWA asks for the honest London brief only after a useful plan ac
   await page.reload();
   await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible({ timeout: 30_000 });
   await expect(webPrompt).toHaveCount(0);
+});
+
+test("installed PWA recovers when service-worker readiness never settles", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installPwaPushRuntime(page, { readyNeverSettles: true });
+  await installSuccessfulPlanRoute(page);
+
+  let registrationRequests = 0;
+  await page.route("**/api/push-tokens", async (route) => {
+    registrationRequests += 1;
+    await route.fulfill({ status: 200, contentType: "application/json", body: "{\"ok\":true}" });
+  });
+
+  await page.goto("/about");
+  await page.evaluate(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
+    window.localStorage.removeItem("pubmax:webPush:enabled:v1");
+    window.localStorage.removeItem("pubmax:webPush:dismissedSeq:v1");
+    window.localStorage.removeItem("pubmax:webPush:actionSeq:v1");
+    window.sessionStorage.clear();
+  });
+
+  await page.goto("/map?plan=1");
+  const webPrompt = page.getByRole("dialog", { name: "Get the London brief" });
+  await expect(page.getByRole("heading", { name: "Describe the outing" })).toBeVisible({ timeout: 30_000 });
+  await page.getByRole("button", { name: "Make a plan" }).click();
+  await expect(webPrompt).toBeVisible();
+
+  await webPrompt.getByRole("button", { name: "Enable" }).click();
+  await expect(webPrompt.getByRole("button", { name: "Enabling..." })).toBeDisabled();
+  await expect(webPrompt.getByText("Could not enable alerts. Try again.")).toBeVisible({
+    timeout: 15_000,
+  });
+  await expect(webPrompt.getByRole("button", { name: "Enable" })).toBeEnabled();
+  expect(registrationRequests).toBe(0);
 });
