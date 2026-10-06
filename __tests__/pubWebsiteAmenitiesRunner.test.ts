@@ -3,6 +3,8 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, ch
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { stableVenueIdFromKey, venueGroupingKey } from "../lib/venues";
+
 const ROOT = path.resolve(import.meta.dirname, "..");
 const RUNNER = "scripts/harvest/pub-website-amenities/run.mjs";
 const DATASET = "public/data/pint_prices_app_dataset.json";
@@ -950,6 +952,31 @@ describe("pub website amenities CLI checkpoint publication", () => {
     expect(calls).toEqual([]);
     expect(evidence.rows).toEqual([]);
     expect(dataset[0].live_sports).toBe("");
+  });
+
+  it("recovers an interrupted --copy-skipped observation in the default scope, where the pub carries its OSM name", () => {
+    const pages = pagesWithLinkedLanding();
+    pageAt(pages, HOME).body = `<p>${WELCOME} ${SPORTS_QUOTE}</p>`;
+    const cli = createCli(pages);
+    const pubs = cli.read("data/osm/uk/uk_osm_pubs.json");
+    pubs.pubs[0].name = "SYNTHETIC EXAMPLE PUB";
+    cli.write("data/osm/uk/uk_osm_pubs.json", pubs);
+    const venueId = stableVenueIdFromKey(venueGroupingKey(PRICE_ROW));
+    cli.write("data/venue_copy/london.json", { skipped: { [venueId]: { reason: "insufficient-stored-facts" } } });
+    cli.write("fixture.json", { ...cli.read("fixture.json"), failure: { operation: "rename", path: EVIDENCE } });
+    const interrupted = cli.run(["--copy-skipped", "--limit", "1"]);
+    expect(interrupted.status, interrupted.stderr).toBe(1);
+    // The copy-skipped list names the pub as the price dataset does.
+    expect(cli.read(CHECKPOINT).byOsmId["node/synthetic-1"]).toMatchObject({ publication: "pending", name: PRICE_ROW.pub_name });
+    cli.write("fixture.json", { ...cli.read("fixture.json"), failure: null, pages: {}, now: "2026-10-04T12:00:00Z" });
+    const resumed = cli.run();
+    expect(resumed.status, resumed.stderr).toBe(0);
+    expect(resumed.stderr).not.toContain("unrecoverable-pending-observation");
+    const { calls, dataset, evidence } = cli.output();
+    expect(calls).toEqual([]);
+    expect(evidence.rows).toEqual([expect.objectContaining({ sourceUrl: HOME, verifiedAt: OBSERVED_AT, amenities: { liveSports: SPORTS_QUOTE } })]);
+    expect(dataset[0].live_sports).toBe("y");
+    expect(cli.read(CHECKPOINT).byOsmId["node/synthetic-1"].publication).toBe("published");
   });
 
   it("recovers a dated legacy checkpoint only when published evidence file is absent", () => {

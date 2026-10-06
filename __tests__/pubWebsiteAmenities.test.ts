@@ -1671,4 +1671,17 @@ describe("scoped harvest guards", () => {
     fresh.set("node/1", { status: "ok", sourceUrl: "https://a.example/", amenities: { food: "serves food", pool: "a pool table", darts: "a dartboard" } });
     expect(withoutThinnerRereads(fresh, previous).has("node/1")).toBe(true);
   });
+
+  it("counts a pub's earlier amenities across every page row it holds", () => {
+    const previous = [
+      { osmId: "node/1", sourceUrl: "https://a.example/", amenities: { food: "serves food", pool: "a pool table" } },
+      { osmId: "node/1", sourceUrl: "https://a.example/sport", amenities: { liveSports: "live sport" } },
+    ];
+    const fresh = new Map<string, HarvestRead>([
+      ["node/1", { status: "ok", sourceUrl: "https://a.example/", amenities: { food: "serves food", pool: "a pool table" } }],
+    ]);
+    expect(withoutThinnerRereads(fresh, previous).has("node/1")).toBe(false);
+    fresh.set("node/1", { status: "ok", sourceUrl: "https://a.example/", amenities: { food: "serves food", pool: "a pool table", liveSports: "live sport", darts: "a dartboard" } });
+    expect(withoutThinnerRereads(fresh, previous).has("node/1")).toBe(true);
+  });
 });

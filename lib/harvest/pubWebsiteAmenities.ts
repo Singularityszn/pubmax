@@ -959,12 +959,16 @@ export function withoutThinnerRereads(
   fresh: ReadonlyMap<string, HarvestRead>,
   previousRows: readonly HarvestEvidenceRow[],
 ): Map<string, HarvestRead> {
-  const previous = new Map(previousRows.map((row) => [row.osmId, Object.keys(row.amenities ?? {}).length]));
+  // A pub holds one row per page it read, so its amenities are the union over its rows.
+  const previous = new Map<string, Set<string>>();
+  for (const row of previousRows) {
+    previous.set(row.osmId, new Set([...(previous.get(row.osmId) ?? []), ...Object.keys(row.amenities ?? {})]));
+  }
   return new Map(
     [...fresh].filter(([osmId, entry]) => {
       const before = previous.get(osmId);
       if (before === undefined) return true;
-      return entry.status === "ok" && Object.keys(entry.amenities ?? {}).length > before;
+      return entry.status === "ok" && Object.keys(entry.amenities ?? {}).length > before.size;
     }),
   );
 }

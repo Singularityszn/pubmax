@@ -51,7 +51,7 @@
 // an access token.
 
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
@@ -372,12 +372,32 @@ function readEvidence() {
 }
 
 /** Why a recorded observation may not be published again, or null when it may. */
-function unrecoverableReason(entry, pub) {
+function unrecoverableReason(entry, osmId, scopes) {
+  let reason = "pub-no-longer-listed";
+  for (const scope of scopes) {
+    for (const pub of scope().filter((candidate) => candidate.osmId === osmId)) {
+      reason = reasonAgainst(entry, pub);
+      if (reason === null) return null;
+    }
+  }
+  return reason;
+}
+
+/**
+ * The pub lists an observation could have been made for, whichever scope its run
+ * had: this run's list and the OSM sites first, the copy-skipped list only when
+ * they do not vouch for it.
+ */
+function recoveryScopes(londonSites, pubs, loadCopySkipped) {
+  let copySkipped;
+  return [() => londonSites, () => pubs, () => (copySkipped ??= loadCopySkipped())];
+}
+
+function reasonAgainst(entry, pub) {
   const record = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
   const quotes = (value) => record(value) && Object.entries(value).every(([key, quote]) =>
     PUB_WEBSITE_AMENITY_KEYS.includes(key) && typeof quote === "string");
   const permitted = (url) => typeof url === "string" && isHarvestableOperatorUrl(url);
-  if (!pub) return "pub-no-longer-listed";
   if (typeof entry.name !== "string" || entry.name !== pub.name) return "pub-name-changed";
   if (entry.venueId !== pub.venueId) return "venue-mapping-changed";
   if (entry.website !== undefined && entry.website !== pub.website) return "website-changed";
@@ -404,7 +424,7 @@ const BATCH_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
  * One that may not be published now is a finding: it is reported, counted in the
  * evidence file's skip counts and never silently taken for published.
  */
-function recoverPending(checkpoint, previous, currentPubs) {
+function recoverPending(checkpoint, previous, scopes) {
   const stored = checkpoint.pendingPublication;
   const batchPublished = typeof stored?.id === "string" && BATCH_ID.test(stored.id) && stored.id === previous?.publicationBatchId;
   const fresh = new Map();
@@ -415,7 +435,7 @@ function recoverPending(checkpoint, previous, currentPubs) {
       entry.publication = "published";
     } else if (entry.publication === "pending" || (entry.publication === undefined && previous === null)) {
       // Without an evidence file nothing was ever published, so an entry with no mark is pending too.
-      const reason = entry.status === "ok" ? unrecoverableReason(entry, currentPubs.get(osmId)) : null;
+      const reason = entry.status === "ok" ? unrecoverableReason(entry, osmId, scopes) : null;
       if (reason) {
         entry.publication = "unrecoverable";
         findings.push({ osmId, reason });
@@ -745,8 +765,9 @@ async function main() {
   const startSpent = spent;
   const byOsmId = checkpoint.byOsmId;
   const previous = readEvidence();
-  const currentPubs = new Map([...londonSites, ...pubs].map((pub) => [pub.osmId, pub]));
-  const recovered = recoverPending(checkpoint, previous, currentPubs);
+  // An interrupted run may have had the other scope, so each pending observation is checked against every scope's pubs.
+  const scopes = recoveryScopes(londonSites, pubs, () => (existsSync(COPY_PATH) ? copySkippedPubs(dataset, anchors, londonSites, { unwritten: true }) : []));
+  const recovered = recoverPending(checkpoint, previous, scopes);
   const fresh = recovered.fresh;
   let batch = recovered.batch;
   const robots = createRobotsChecker();
