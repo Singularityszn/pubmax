@@ -150,6 +150,20 @@
     transform: translateX(-50%);
   }
 
+  /* The arrival ask ("Cheapest pints near you?") is centred on the stage too,
+     so an open venue drawer cut its right half (and "Use my location" with it).
+     It takes the same drawer-aware centre and width as the banners above. */
+  body:has(.appShell.detail-open) .mapArrivalCard {
+    left: calc((100% - var(--desktop-venue-drawer-width)) / 2);
+    width: min(680px, calc(100% - var(--desktop-venue-drawer-width) - 32px));
+  }
+
+  body:has(.appShell.planning-open) .mapArrivalCard,
+  body:has(.appShell.story-open) .mapArrivalCard {
+    left: calc((100% + var(--desktop-planner-rail-width)) / 2);
+    width: min(680px, calc(100% - var(--desktop-planner-rail-width) - 32px));
+  }
+
   /* The two-lane arrangement a drawer used to need is GONE with the cascade
      above: the location prompt and the status rail can no longer be up
      together, so neither has to be re-berthed around the other and the
