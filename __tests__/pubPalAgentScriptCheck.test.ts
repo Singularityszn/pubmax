@@ -136,12 +136,13 @@ describe("pubpal:agent --check", () => {
     const missing = live.tools.findIndex((tool) => tool.tool_config.name === "recall_memories");
     live.tools.splice(missing, 1);
     live.agent.conversation_config.agent.prompt.tool_ids = live.tools.map((tool) => tool.id);
-    live.tools[0].tool_config.pre_tool_speech = "auto";
+    const first = live.tools[0] as Json;
+    first.tool_config.pre_tool_speech = "auto";
     live.agent.conversation_config.conversation.client_events = ["audio", "agent_response"];
     const result = check(live);
     expect(result.status).toBe(1);
     expect(result.output).toContain("tools.recall_memories: live missing");
-    expect(result.output).toContain(`tools.${live.tools[0].tool_config.name}.pre_tool_speech: live auto, wanted force`);
+    expect(result.output).toContain(`tools.${first.tool_config.name}.pre_tool_speech: live auto, wanted force`);
     expect(result.output).toContain("conversation_config.conversation.client_events");
   });
 
@@ -157,10 +158,8 @@ describe("pubpal:agent --check", () => {
 
   it("exits 1 when a tool the config does not name is attached to the agent", () => {
     const live = matchingLive();
-    live.tools.push({
-      id: "tool_extra",
-      tool_config: { ...live.tools[0].tool_config, name: "stray_tool" },
-    });
+    const first = live.tools[0] as Json;
+    live.tools.push({ id: "tool_extra", tool_config: { ...first.tool_config, name: "stray_tool" } });
     live.agent.conversation_config.agent.prompt.tool_ids.push("tool_extra");
     const result = check(live);
     expect(result.status).toBe(1);

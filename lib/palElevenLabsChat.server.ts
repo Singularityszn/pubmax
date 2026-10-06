@@ -9,6 +9,7 @@ import {
   type PalRecalledMemory,
 } from "@/lib/palConfirmedMemories.server";
 import { palSessionSummaryTurn, windowPalSessionTurns } from "@/lib/palSessionSummary";
+import { fetchPalSignedConversation } from "@/lib/palElevenLabsSignedUrl.server";
 import { isPubPalConversationId } from "@/lib/pubPalConversationId";
 import {
   pubPalGetHomeRegisterAnswer,
@@ -100,22 +101,6 @@ type AgentResponseEvent = {
   };
 };
 
-async function fetchSignedConversationUrl(apiKey: string, agentId: string): Promise<string> {
-  const url = new URL("https://api.elevenlabs.io/v1/convai/conversation/get-signed-url");
-  url.searchParams.set("agent_id", agentId);
-  url.searchParams.set("include_conversation_id", "true");
-  const response = await fetch(url, {
-    headers: { "xi-api-key": apiKey },
-    cache: "no-store",
-  });
-  if (!response.ok) {
-    throw new Error("PROVIDER_UNAVAILABLE");
-  }
-  const payload = (await response.json()) as { signed_url?: string };
-  if (!payload.signed_url) throw new Error("PROVIDER_UNAVAILABLE");
-  return payload.signed_url;
-}
-
 export type PalElevenLabsChatInput = {
   query: string;
   cityId?: unknown;
@@ -175,12 +160,9 @@ export async function runPalElevenLabsChatTurn(
   // Read from the signed-in owner's own Pal, never from the request body. It never rejects.
   const memoriesRead = readConfirmedPalMemories(input.ownerId);
 
-  let signedUrl: string;
-  try {
-    signedUrl = await fetchSignedConversationUrl(apiKey, agentId);
-  } catch {
-    return { ok: false, code: "PROVIDER_UNAVAILABLE" };
-  }
+  const session = await fetchPalSignedConversation({ apiKey, agentId });
+  if (!session.ok) return { ok: false, code: "PROVIDER_UNAVAILABLE" };
+  const signedUrl = session.signedUrl;
   const memories = await memoriesRead;
 
   return new Promise((resolve) => {

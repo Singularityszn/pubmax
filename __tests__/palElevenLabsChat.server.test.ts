@@ -3,6 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const PAL_GREETING = "Hello, I'm your Pub Pal. What kind of night are you planning?";
 const SOURCED_ANSWER = "Two Soho picks with listed pints under five pounds.";
 const CHECKING_LINE = "Let me check prices near Soho.";
+// The provider's real shape: `signed_url` alone, the conversation id inside its query.
+const SIGNED_URL =
+  "wss://api.elevenlabs.io/v1/convai/conversation?agent_id=agent-id&conversation_signature=sig&conversation_id=conv_regression01";
 
 type ScriptedEvent = { afterMs: number; event: Record<string, unknown> };
 
@@ -168,7 +171,7 @@ describe("runPalElevenLabsChatTurn", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
-        Response.json({ signed_url: "wss://convai.elevenlabs.io/mock-session" }),
+        Response.json({ signed_url: SIGNED_URL }),
       ),
     );
     vi.stubGlobal("WebSocket", MockElevenLabsWebSocket);
@@ -632,5 +635,52 @@ describe("runPalElevenLabsChatTurn", () => {
 
       await expect(pending).resolves.toEqual({ ok: false, code: "TIMEOUT" });
     });
+  });
+});
+
+describe("the signed URL a typed chat turn starts from", () => {
+  beforeEach(() => {
+    wsState.replyScript = null;
+    vi.stubEnv("ELEVENLABS_API_KEY", "test-key");
+    vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "agent-id");
+    vi.stubGlobal("WebSocket", MockElevenLabsWebSocket);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it("gives up on a provider that never answers instead of running past the route limit", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_url: unknown, init?: { signal?: AbortSignal }) =>
+          new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+          }),
+      ),
+    );
+
+    const pending = runPalElevenLabsChatTurn({
+      query: "quiet pubs",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+    await vi.advanceTimersByTimeAsync(8_500);
+
+    await expect(pending).resolves.toEqual({ ok: false, code: "PROVIDER_UNAVAILABLE" });
+  });
+
+  it("refuses a provider answer that holds no conversation id", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ signed_url: "wss://api.elevenlabs.io/v1/convai/conversation?agent_id=a" })),
+    );
+
+    await expect(
+      runPalElevenLabsChatTurn({ query: "quiet pubs", ownerId: "11111111-1111-4111-8111-111111111111" }),
+    ).resolves.toEqual({ ok: false, code: "PROVIDER_UNAVAILABLE" });
   });
 });
