@@ -2,6 +2,8 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { priceBand, priceBandAreaForVenue } from "../lib/priceBand";
 
+import { expectStreamedPageSettled } from "./helpers/streamedPage";
+
 async function setTheme(page: Page, theme: "light" | "dark"): Promise<void> {
   await page.addInitScript((nextTheme) => {
     window.localStorage.setItem("pubmax-theme", nextTheme);
@@ -161,6 +163,9 @@ test.describe("desktop taste wave 1", () => {
       // is the composer, not a retired feed empty.
       await page.goto("/social");
       await expect(page).toHaveURL(/\/social\/?$/);
+      // /social streams behind its loading skeleton, and until the stream
+      // settles the hidden segment holds a second copy of the Screen head.
+      await expectStreamedPageSettled(page);
       const storiesPrimary = page.locator("[data-primary-action]");
       await expect(storiesPrimary).toHaveCount(1);
       await expect(storiesPrimary.getByRole("link", { name: "Sign in" })).toBeVisible();
@@ -172,6 +177,7 @@ test.describe("desktop taste wave 1", () => {
       expect(boundaryStyle).not.toContain("dashed");
 
       await page.goto("/social?tab=discover");
+      await expectStreamedPageSettled(page);
       await expect(page.getByRole("heading", { name: "Historic London" })).toBeVisible();
       const actions = page.locator(".socialDiscoverBody .editorialLink").filter({ visible: true });
       const actionStyles = await actions.evaluateAll((links) =>

@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { expectStreamedPageSettled } from "./helpers/streamedPage";
+
 // THE PRODUCT ANSWERS FIRST, AND THE CONSENT CARD ARRIVES AFTER THE ANSWER.
 //
 // Captain's standing ask over PlanAstra section 3: the analytics consent card
@@ -87,11 +89,18 @@ function boxesOverlap(a: Box, b: Box): boolean {
   );
 }
 
-/** The first anchor on the page that really rendered, or null when none did. */
+/**
+ * The first anchor on the page that really rendered, or null when none did.
+ *
+ * A route behind a `loading.tsx` (/social here) paints its skeleton first and
+ * holds the page in a hidden segment, where every anchor measures no box. The
+ * stream is settled before the anchors are read, so the read is the page.
+ */
 async function firstAnchorBox(
   page: import("@playwright/test").Page,
   anchors: readonly string[],
 ): Promise<Box | null> {
+  await expectStreamedPageSettled(page);
   for (const selector of anchors) {
     const candidate = page.locator(selector).first();
     if (await candidate.count() === 0) continue;
