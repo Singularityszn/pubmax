@@ -47,49 +47,39 @@ function DesktopMap() {
   const drawerRef = useRef<HTMLElement | null>(null);
   const originRef = useRef<HTMLElement | null>(null);
   useFocusTrap(surface === "drawer", drawerRef, "map-surface", originRef);
-  return createElement(
-    "div",
-    null,
-    createElement(
-      "div",
-      { className: "mapToolbar", [FOCUS_TRAP_EXEMPT_ATTRIBUTE]: "" },
-      createElement(MapSearchSuggest, {
-        id: "mapSearchInput",
-        mode: "toolbar",
-        cityId: "london",
-        query,
-        onQueryChange: setQuery,
-        venues: [VENUE],
-        localities: [],
-        userLocation: null,
-        mapCenter: [-0.1276, 51.5072],
-        placeholder: "Search the map",
-        onSelectVenue: () => {
-          originRef.current = document.getElementById("mapSearchInput");
-          setSurface("drawer");
-        },
-        onFlyToArea: () => undefined,
-      }),
-      createElement(
-        "button",
-        { type: "button", className: "planBtn", onClick: () => setSurface("planner") },
-        "Plan an outing",
-      ),
-    ),
-    surface === "drawer"
-      ? createElement(
-          "aside",
-          { ref: drawerRef, className: "mapDrawer right open" },
-          createElement(
-            "button",
-            { type: "button", "aria-label": "Close", onClick: () => setSurface(null) },
-            "X",
-          ),
-        )
-      : null,
-    surface === "planner"
-      ? createElement("aside", { className: "mapDrawer left open" }, "Planner")
-      : null,
+  return (
+    <div>
+      <div className="mapToolbar" {...{ [FOCUS_TRAP_EXEMPT_ATTRIBUTE]: "" }}>
+        <MapSearchSuggest
+          id="mapSearchInput"
+          mode="toolbar"
+          cityId="london"
+          query={query}
+          onQueryChange={setQuery}
+          venues={[VENUE]}
+          localities={[]}
+          userLocation={null}
+          mapCenter={[-0.1276, 51.5072]}
+          placeholder="Search the map"
+          onSelectVenue={() => {
+            originRef.current = document.getElementById("mapSearchInput");
+            setSurface("drawer");
+          }}
+          onFlyToArea={() => undefined}
+        />
+        <button type="button" className="planBtn" onClick={() => setSurface("planner")}>
+          Plan an outing
+        </button>
+      </div>
+      {surface === "drawer" ? (
+        <aside ref={drawerRef} className="mapDrawer right open">
+          <button type="button" aria-label="Close" onClick={() => setSurface(null)}>
+            X
+          </button>
+        </aside>
+      ) : null}
+      {surface === "planner" ? <aside className="mapDrawer left open">Planner</aside> : null}
+    </div>
   );
 }
 
