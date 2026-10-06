@@ -25,12 +25,26 @@ import {
 const CHAT_TIMEOUT_MS = 22_000;
 const TOOL_TURN_WAIT_MS = 4_000;
 const TOOL_TURN_POLL_MS = 120;
+// A reply is the answer once this long has passed with no tool event after it.
+// The agent says its checking line, then asks for the tool within a beat, so a
+// quiet window this long separates the line from the answer. It is what ends a
+// turn on an agent that never sends agent_response_complete, so a deploy and an
+// agent re-run are safe in either order.
+const REPLY_SETTLE_MS = 1_200;
+// The turn-end event says the agent has finished speaking, so the window after
+// it only has to cover a tool request that trails it.
+const TURN_END_SETTLE_MS = 400;
 
 async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function waitForPubPalToolTurn(conversationId: string): Promise<PubPalToolTurn | null> {
+async function waitForPubPalToolTurn(
+  conversationId: string,
+  toolsRan: boolean,
+): Promise<PubPalToolTurn | null> {
+  // A reply that ran no tool has no cards to wait for.
+  if (!toolsRan) return readPubPalToolTurn(conversationId);
   const deadline = Date.now() + TOOL_TURN_WAIT_MS;
   while (Date.now() < deadline) {
     const peek = await readPubPalToolTurn(conversationId);
@@ -200,6 +214,20 @@ export async function runPalElevenLabsChatTurn(
         toolsUsed: turn?.toolsUsed ?? [],
       };
     };
+    let settleTimer: ReturnType<typeof setTimeout> | null = null;
+    const clearSettle = () => {
+      if (settleTimer) clearTimeout(settleTimer);
+      settleTimer = null;
+    };
+    // Finish on the latest reply once nothing has followed it for `ms`. A tool
+    // event or a newer reply in the window clears or re-arms this.
+    const armSettle = (ms: number) => {
+      clearSettle();
+      settleTimer = setTimeout(() => {
+        settleTimer = null;
+        if (!settled && latestReply && replyIsAnswer()) finishWithLatestReply();
+      }, ms);
+    };
     const timer = setTimeout(() => {
       if (settled) return;
       if (!latestReply || !replyIsAnswer()) {
@@ -220,6 +248,7 @@ export async function runPalElevenLabsChatTurn(
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      clearSettle();
       try {
         ws.close();
       } catch {
@@ -234,7 +263,7 @@ export async function runPalElevenLabsChatTurn(
       const events = toolEvents;
       void (async () => {
         try {
-          const turn = conversationId ? await waitForPubPalToolTurn(conversationId) : null;
+          const turn = conversationId ? await waitForPubPalToolTurn(conversationId, events > 0) : null;
           if (generation !== replyGeneration || events !== toolEvents) return;
           finish(answer(agentMessage, turn));
         } catch {
@@ -316,16 +345,19 @@ export async function runPalElevenLabsChatTurn(
 
       if (payload.type === "agent_response") {
         if (!userMessageSent) return;
-        latestReply = payload.agent_response_event?.agent_response?.trim() ?? "";
+        const reply = payload.agent_response_event?.agent_response?.trim() ?? "";
+        if (!reply) return;
+        latestReply = reply;
         replyGeneration += 1;
         replyToolEvents = toolEvents;
-        // Once a tool is asked for, only the turn end may finish it.
-        if (toolEvents === 0) finishWithLatestReply();
+        // The reply is the answer unless a tool event follows it in the window.
+        armSettle(REPLY_SETTLE_MS);
         return;
       }
 
       if (payload.type === "agent_tool_request") {
         if (!userMessageSent) return;
+        clearSettle();
         toolEvents += 1;
         pendingToolCalls.add(payload.agent_tool_request?.tool_call_id ?? "");
         return;
@@ -333,14 +365,15 @@ export async function runPalElevenLabsChatTurn(
 
       if (payload.type === "agent_tool_response") {
         if (!userMessageSent) return;
+        clearSettle();
         toolEvents += 1;
         pendingToolCalls.delete(payload.agent_tool_response?.tool_call_id ?? "");
         return;
       }
 
       if (payload.type === "agent_response_complete") {
-        if (!userMessageSent || !replyIsAnswer()) return;
-        finishWithLatestReply();
+        if (!userMessageSent || !latestReply || !replyIsAnswer()) return;
+        armSettle(TURN_END_SETTLE_MS);
       }
     });
 

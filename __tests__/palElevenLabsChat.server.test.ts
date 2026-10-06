@@ -519,7 +519,7 @@ describe("runPalElevenLabsChatTurn", () => {
       vi.useRealTimers();
     });
 
-    it("returns the held tool reply before the browser's 25 s abort", async () => {
+    it("answers a tool turn once the reply has settled, without waiting for the turn end", async () => {
       wsState.storeFilled = false;
       wsState.replyScript = [
         { afterMs: 0, event: agentResponse(CHECKING_LINE) },
@@ -536,7 +536,7 @@ describe("runPalElevenLabsChatTurn", () => {
       void pending.then(() => {
         settled = true;
       });
-      await vi.advanceTimersByTimeAsync(21_000);
+      await vi.advanceTimersByTimeAsync(1_000);
       expect(settled).toBe(false);
       await vi.advanceTimersByTimeAsync(1_000);
       expect(settled).toBe(true);
@@ -545,7 +545,59 @@ describe("runPalElevenLabsChatTurn", () => {
         ok: true,
         message: SOURCED_ANSWER,
         conversationId: "conv_regression01",
+        cards: [expect.objectContaining({ venueId: "london-a" })],
       });
+    });
+
+    it("answers a reply that used no tool within the settle window, not after a 4 s card wait", async () => {
+      wsState.storeFilled = false;
+      wsState.replyScript = [{ afterMs: 0, event: agentResponse("Hello. How can I help.") }];
+
+      const pending = runPalElevenLabsChatTurn({
+        query: "Hello",
+        ownerId: "11111111-1111-4111-8111-111111111111",
+      });
+      await vi.advanceTimersByTimeAsync(1_500);
+
+      await expect(pending).resolves.toMatchObject({ ok: true, message: "Hello. How can I help." });
+    });
+
+    it("keeps waiting when a checking line is followed by a tool request inside the window", async () => {
+      wsState.storeFilled = false;
+      wsState.replyScript = [
+        { afterMs: 0, event: agentResponse(CHECKING_LINE) },
+        { afterMs: 1_000, event: toolRequest("call_1") },
+        { afterMs: 400, event: toolResponse("call_1") },
+        { afterMs: 50, event: agentResponse(SOURCED_ANSWER) },
+      ];
+
+      const pending = runPalElevenLabsChatTurn({
+        query: "Which pubs near Soho have a pint under £5?",
+        ownerId: "11111111-1111-4111-8111-111111111111",
+      });
+      await vi.advanceTimersByTimeAsync(4_000);
+
+      await expect(pending).resolves.toMatchObject({ ok: true, message: SOURCED_ANSWER });
+    });
+
+    it("finishes sooner once the turn-end event confirms the reply", async () => {
+      wsState.replyScript = [
+        { afterMs: 0, event: agentResponse(SOURCED_ANSWER) },
+        { afterMs: 10, event: responseComplete() },
+      ];
+
+      const pending = runPalElevenLabsChatTurn({
+        query: "Which pubs near Soho have a pint under £5?",
+        ownerId: "11111111-1111-4111-8111-111111111111",
+      });
+      let settled = false;
+      void pending.then(() => {
+        settled = true;
+      });
+      await vi.advanceTimersByTimeAsync(600);
+
+      expect(settled).toBe(true);
+      await expect(pending).resolves.toMatchObject({ ok: true, message: SOURCED_ANSWER });
     });
 
     it("times out rather than answer with a checking line when no reply follows its tool", async () => {
