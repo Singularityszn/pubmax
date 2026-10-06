@@ -5119,13 +5119,15 @@ export default function PubMap({
     resolveSelection: resolveMapSelection,
   } = mapSurfaceTrail;
 
-  // The cold restore could not open the base pub a link named. Say so and drop
-  // the selection, so the sheet never waits on a record that is not coming.
+  // The cold restore could not open the base pub a link named. Say so and close
+  // the sheet, so it never waits on a record that is not coming. Only an id
+  // nothing knows leaves the address: a failed lookup keeps `sel`, the way a
+  // curated lookup does, so a reload asks again.
   const handleUkBaseRestoreFailed = useCallback(
     (reason: UkBaseRestoreFailure, requestedId: string) => {
       setRetiredSelectionName(null);
       setSelectionNotice(ukBaseRestoreFailureNotice(reason));
-      rejectMapSelection(requestedId);
+      if (reason === "missing") rejectMapSelection(requestedId);
       setSelectedVenueId((current) => (current === requestedId ? "" : current));
     },
     [rejectMapSelection],

@@ -89,6 +89,40 @@ describe("lazyPanel", () => {
     expect(el.querySelector("[data-testid=ready]")?.textContent).toBe("back");
   });
 
+  it("opens a reopened panel at once, without asking for its chunk again", async () => {
+    const load = vi.fn(() => Promise.resolve({ default: Ready }));
+    const Panel = lazyPanel<{ word: string }>(load, "Panel did not open.");
+    mount(createElement(Panel, { word: "first" }));
+    await flush();
+    act(() => root?.unmount());
+    host?.remove();
+
+    // No flush: a loaded panel must render in the opening commit, so a field
+    // that autofocuses inside it still runs within the tap that opened it.
+    const el = mount(createElement(Panel, { word: "again" }));
+    expect(el.querySelector("[data-testid=ready]")?.textContent).toBe("again");
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks for the import again when a panel that failed is opened again", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const load = vi
+      .fn<() => Promise<{ default: typeof Ready }>>()
+      .mockRejectedValueOnce(new Error("ChunkLoadError"))
+      .mockResolvedValue({ default: Ready });
+    const Panel = lazyPanel<{ word: string }>(load, "Panel did not open.");
+    mount(createElement(Panel, { word: "first" }));
+    await flush();
+    act(() => root?.unmount());
+    host?.remove();
+
+    const el = mount(createElement(Panel, { word: "reopened" }));
+    await flush();
+    expect(load).toHaveBeenCalledTimes(2);
+    expect(el.querySelector(".lazyPanelFailed")).toBeNull();
+    expect(el.querySelector("[data-testid=ready]")?.textContent).toBe("reopened");
+  });
+
   it("stays on the failure panel while the import keeps failing", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     const load = vi.fn(() => Promise.reject(new Error("ChunkLoadError")));

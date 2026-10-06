@@ -5,7 +5,6 @@ import {
   lazy,
   Suspense,
   useCallback,
-  useMemo,
   useState,
   type ComponentType,
   type ErrorInfo,
@@ -21,12 +20,14 @@ import "./lazyPanel.css";
 // module, and a rejected chunk reaches the nearest error boundary, which for the
 // map is app/error.tsx: one lost request replaced the whole screen with "Spilled."
 // and the next tap on the panel could only throw again. Here the boundary is the
-// panel's own, the fallback says what is missing, and Try again mounts a fresh
-// `lazy()` so the import is asked for again rather than read back from the cache.
+// panel's own and the fallback says what is missing. Every mount shares one
+// `lazy()`, so a panel that has loaded once opens at once; a failure swaps in a
+// fresh one, so Try again or the next open asks for the import again rather than
+// reading the rejection back from the cache.
 
 type Loader<P> = () => Promise<{ default: ComponentType<P> }>;
 
-type BoundaryProps = { fallback: ReactNode; children: ReactNode };
+type BoundaryProps = { fallback: ReactNode; onFailed: () => void; children: ReactNode };
 type BoundaryState = { failed: boolean };
 
 class PanelBoundary extends Component<BoundaryProps, BoundaryState> {
@@ -38,6 +39,7 @@ class PanelBoundary extends Component<BoundaryProps, BoundaryState> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[lazy panel]", error, info.componentStack);
+    this.props.onFailed();
   }
 
   render() {
@@ -49,15 +51,20 @@ export function lazyPanel<P extends object>(
   load: Loader<P>,
   failedLabel: string,
 ): ComponentType<P> {
+  let current = lazy(load);
+  const reload = () => {
+    current = lazy(load);
+  };
   function LazyPanel(props: P) {
-    // Each attempt owns its own lazy component and its own boundary (the key),
-    // so a retry starts from a clean cache and a clean error state.
+    // Each attempt owns its own boundary (the key), so a retry starts from a
+    // clean error state and renders the lazy component the failure swapped in.
     const [attempt, setAttempt] = useState(0);
-    const Panel = useMemo(() => lazy(load), [attempt]); // eslint-disable-line react-hooks/exhaustive-deps
-    const retry = useCallback(() => setAttempt((current) => current + 1), []);
+    const retry = useCallback(() => setAttempt((count) => count + 1), []);
+    const Panel = current;
     return (
       <PanelBoundary
         key={attempt}
+        onFailed={reload}
         fallback={
           <div className="lazyPanelFailed" role="alert">
             <span className="lazyPanelFailedCopy">{failedLabel}</span>

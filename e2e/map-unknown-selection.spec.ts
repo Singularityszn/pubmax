@@ -102,6 +102,8 @@ test.describe("unknown ?sel= honesty", () => {
     );
     await expect(page.getByText("Loading full venue details…")).toHaveCount(0);
     await expect(page.getByTestId("unknown-map-selection")).toHaveCount(0);
+    // Kept so a reload asks again; only a pub nothing knows leaves the address.
+    expect(new URL(page.url()).searchParams.get("sel")).toBe("venue-uk-n311153571");
   });
 
   test("a failed lookup stays distinct from an unknown pub", async ({ page }) => {
