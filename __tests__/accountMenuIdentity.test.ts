@@ -65,7 +65,13 @@ describe("account card", () => {
 
     const fallback = menuMarkup();
     expect(fallback).not.toContain("<img");
-    expect(fallback).toContain(">N</span>");
+    expect(fallback).toContain(">NO</span>");
+  });
+
+  it("wears the same initials as the nav chip, from the name", () => {
+    // The chip and the card sit on one screen, so one person wears one face.
+    expect(menuMarkup({ name: "Alice Smith", handle: "qa_alice" })).toContain(">AS</span>");
+    expect(menuMarkup({ name: "qa_finn", handle: "qa_finn" })).toContain(">Q</span>");
   });
 
   it("offers the three places a person goes, plus the way out", () => {
