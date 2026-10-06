@@ -408,6 +408,14 @@ describe("what a page states", () => {
     expect(readVenueDrinkPrices("<p>Chai latte £4.20</p>").kept).toEqual([]);
   });
 
+  it("never files a chai latte under the drink on the line above", () => {
+    const chaiRows = (html: string) =>
+      readVenueDrinkPrices(html).kept.filter((row) => row.priceGbp === 3.9);
+    expect(chaiRows("<p>Pint of Camden Hells £6.50</p><p>Chai latte £3.90</p>")).toEqual([]);
+    expect(chaiRows("<p>House red wine 175ml £7.50</p><p>Chai latte £3.90</p>")).toEqual([]);
+    expect(chaiRows("<p>Latte £3.40</p><p>Chai latte £3.90</p><p>Flat white £3.30</p>")).toEqual([]);
+  });
+
   it("knows a ginger ale is a soft drink and a measure is not a drink", () => {
     expect(categoryFor("Ginger Ale")).toBe("soft-drink");
     expect(categoryFor("Crabbies Alcoholic ginger beer 3.4%")).toBe("beer");
