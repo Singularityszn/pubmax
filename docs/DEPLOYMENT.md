@@ -366,6 +366,24 @@ Deploying from a Mac is fine because the build runs in Vercel's cloud. Never pas
 
 `docs/SOFT_LAUNCH_RUNBOOK.md` section 1.2 is the operator source for this command pair and the promotion mechanics behind it.
 
+### One release command
+
+```sh
+npm run release:prod
+```
+
+This is the way to ship to production. It runs these steps in order and stops at the first failure:
+
+1. It refuses a dirty tree, and a `HEAD` that is not the tip of `origin/main`. The smoke run is dispatched on `main`, so the released commit has to be that tip.
+2. It deploys with `scripts/deploy-vercel.mjs`, so the build stamps the commit.
+3. It reads `/api/version` on the new deployment, then runs `vercel promote`.
+4. It waits until `https://pubmaxxing.com/api/version` names the new deployment.
+5. It dispatches `.github/workflows/prod-smoke.yml` with `gh workflow run`, finds the run on the released commit, and waits with `gh run watch --exit-status`.
+
+A CLI deploy reports nothing to GitHub, so Vercel never starts the smoke suite for it. Before this command, nothing tested a release made from a Mac. A failed smoke run exits non-zero. The new deploy is already live at that point, so read the run, then fix forward or roll back with `vercel rollback`.
+
+The command needs `gh` signed in with permission to run workflows in `Singularityszn/pubmax`, and a Vercel CLI session (`PUBMAX_VERCEL_BIN` names an installed one). The ordered steps are `scripts/lib/releaseProduction.mjs`. Pin: `__tests__/releaseProduction.test.ts`.
+
 ### A preview built with production values, in one command
 
 ```sh

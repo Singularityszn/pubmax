@@ -48,3 +48,4 @@ Full rules: [`docs/rules/scripts-deploys-and-uploads.md`](../docs/rules/scripts-
 - [A `.vercelignore` REPLACES the `.gitignore` fallback, so a heavy directory absent from it is uploaded.](../docs/rules/scripts-deploys-and-uploads.md#a-vercelignore-replaces-the-gitignore-fallback-so-a-heavy-directory-absent-from-)
 - [A DEPLOY UPLOADS THE WORKING TREE, NOT THE COMMIT, so `.vercelignore` is what keeps it small.](../docs/rules/scripts-deploys-and-uploads.md#a-deploy-uploads-the-working-tree-not-the-commit-so-vercelignore-is-what-keeps-i)
 - [A DEPLOY NAMES ITS OWN COMMIT, AND A CLI DEPLOY HAS TO CARRY IT.](../docs/rules/scripts-deploys-and-uploads.md#a-deploy-names-its-own-commit-and-a-cli-deploy-has-to-carry-it)
+- [A PRODUCTION RELEASE IS ONE COMMAND, AND IT ENDS AT THE SMOKE VERDICT.](../docs/rules/scripts-deploys-and-uploads.md#a-production-release-is-one-command-and-it-ends-at-the-smoke-verdict)
