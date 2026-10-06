@@ -181,6 +181,10 @@ test("nav does not overflow at 390px — sign-in button never clips (GH #18)", a
   const response = await page.goto("/feed");
   expect(response?.status()).toBe(200);
 
+  // The route's loading skeleton carries its own SiteNav, and React swaps the
+  // real page in over it after load. Measure the page's nav, not the
+  // skeleton's, or the box can be read mid-swap and come back null.
+  await expect(page.locator(".routeLoadingShell")).toHaveCount(0);
   const nav = page.locator(".siteNavBar").first();
   await expect(nav).toBeVisible();
 

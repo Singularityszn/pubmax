@@ -38,6 +38,8 @@ const RESERVED_EXACT = new Set([
   "staff",
   "support",
   "system",
+  // `/u/you` and `handle=you` are the viewer's own alias, never an account.
+  "you",
 ]);
 const RESERVED_BRAND_PATTERN = /^(?:pubmaxx|pubmaxxing|pubmaxxer)[_-]?(?:admin|help|official|safety|staff|support)$/;
 const BLOCKED_TERMS = new Set(["fuck", "fucker", "nigger", "nigga"]);
