@@ -17,8 +17,8 @@ import { warmNavRoute } from "@/lib/mapWarmup";
 // answers this shape (components/nav/MobileTabBar.tsx): turn the automatic
 // prefetch off, and warm the ONE destination a pointer or a focus says is next.
 //
-// The seen-set is shared across every intent link in the session, so hovering a
-// chip twice costs one prefetch.
+// Intent links share a bounded history. Repeated intent costs one prefetch
+// while the destination remains in that history (lib/mapWarmup.ts).
 
 const warmed = new Set<string>();
 

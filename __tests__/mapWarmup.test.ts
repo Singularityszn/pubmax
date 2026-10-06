@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { Route } from "next";
 
 import {
   MAP_INTENT_WARM_PATHS,
@@ -222,8 +223,7 @@ describe("warmNavRoute", () => {
     warmNavRoute({ prefetch }, "/tonight", seen);
     warmNavRoute({ prefetch }, "/social", seen);
     warmNavRoute({ prefetch }, "/tonight", seen);
-    // A query and a fragment are both dropped: only the path is fetchable, and
-    // a hash-bearing prefetch key cost the landed URL its own fragment.
+    // Fragments do not reach the server. Queries select distinct route data.
     warmNavRoute({ prefetch }, "/u/night_owl#contribution-impact", seen);
     warmNavRoute({ prefetch }, "/u/night_owl", seen);
     warmNavRoute({ prefetch }, "/plan?occasion=quiet", seen);
@@ -231,21 +231,59 @@ describe("warmNavRoute", () => {
     expect(prefetch).toHaveBeenCalledWith("/u/night_owl");
     expect(prefetch).not.toHaveBeenCalledWith("/u/night_owl#contribution-impact");
     expect(prefetch).toHaveBeenCalledWith("/plan");
-    expect(prefetch).toHaveBeenCalledTimes(4);
+    expect(prefetch).toHaveBeenCalledWith("/plan?occasion=quiet");
+    expect(prefetch).toHaveBeenCalledTimes(5);
     expect(prefetch).toHaveBeenCalledWith("/tonight");
     expect(prefetch).toHaveBeenCalledWith("/social");
   });
 
+  it("keeps sibling query destinations distinct and ignores only fragments", async () => {
+    const { warmNavRoute } = await import("@/lib/mapWarmup");
+    const seen = new Set<string>();
+    const prefetch = vi.fn();
+    warmNavRoute({ prefetch }, "/social?tab=discover#main", seen);
+    warmNavRoute({ prefetch }, "/social?feed=nearby", seen);
+    warmNavRoute({ prefetch }, "/social?tab=discover#cards", seen);
+    expect(prefetch.mock.calls).toEqual([
+      ["/social?tab=discover"], ["/social?feed=nearby"],
+    ]);
+  });
+
+  it.each(["default", "caller"] as const)("bounds the %s route history and warms evicted destinations again", async (kind) => {
+    const { warmNavRoute, MAX_WARMED_ROUTES } = await import("@/lib/mapWarmup");
+    expect(MAX_WARMED_ROUTES).toBe(128);
+    const seen = kind === "caller" ? new Set<string>() : undefined;
+    const prefetch = vi.fn();
+    const href = (index: number) => `/plan?query=${kind}-${index}` as Route;
+    for (let index = 0; index <= MAX_WARMED_ROUTES; index++) {
+      warmNavRoute({ prefetch }, href(index), seen);
+    }
+    expect(prefetch).toHaveBeenCalledTimes(MAX_WARMED_ROUTES + 1);
+    if (seen) expect(seen.size).toBe(MAX_WARMED_ROUTES);
+    warmNavRoute({ prefetch }, href(MAX_WARMED_ROUTES), seen);
+    expect(prefetch).toHaveBeenCalledTimes(MAX_WARMED_ROUTES + 1);
+    warmNavRoute({ prefetch }, href(0), seen);
+    expect(prefetch).toHaveBeenLastCalledWith(href(0));
+    expect(prefetch).toHaveBeenCalledTimes(MAX_WARMED_ROUTES + 2);
+  });
+
+  it("does not prefetch a fragment-only destination", async () => {
+    const { warmNavRoute } = await import("@/lib/mapWarmup");
+    const prefetch = vi.fn();
+    warmNavRoute({ prefetch }, "#main", new Set());
+    expect(prefetch).not.toHaveBeenCalled();
+  });
 });
 
 describe("warmMapRoute", () => {
-  it("prefetches the route once and warms map data for /map", async () => {
+  it("prefetches distinct map queries without losing the bare map route", async () => {
     const { warmMapRoute } = await import("@/lib/mapWarmup");
     const seen = new Set<string>();
     const prefetch = vi.fn();
     warmMapRoute({ prefetch }, "/map?log=1", seen);
     warmMapRoute({ prefetch }, "/map", seen);
-    expect(prefetch).toHaveBeenCalledTimes(1);
+    expect(prefetch).toHaveBeenCalledTimes(2);
+    expect(prefetch).toHaveBeenCalledWith("/map?log=1");
     expect(prefetch).toHaveBeenCalledWith("/map");
     expect(seen.has("/map")).toBe(true);
   });
