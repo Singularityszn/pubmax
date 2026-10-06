@@ -1680,11 +1680,12 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   text-decoration-thickness: 2px;
 }
 
-/* The close button rides a sticky head whose backing fades to 38 percent, so over
-   the hero photograph and later over badges and cards it was a bare ring with
-   nothing behind it. It carries its own solid disc and a hairline, which stays
-   legible on any photograph at any scroll position. */
-.mapDrawerHead .surfaceNavHome {
+/* The venue drawer's close button rides a sticky head whose backing fades to 38
+   percent, so over the hero photograph and later over badges and cards it was a
+   bare ring with nothing behind it. It carries its own solid disc and a hairline,
+   which stays legible on any photograph at any scroll position. The planner has
+   no photograph, so its close stays quiet (components/ui/surfaceNav.css). */
+.mapDrawer.right .mapDrawerHead .surfaceNavHome {
   border: 1px solid var(--hairline, var(--line));
   background: color-mix(in srgb, var(--sheet-material-solid, var(--panel-raised)) 92%, transparent);
   box-shadow: var(--shadow-sm);
