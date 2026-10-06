@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { resolvedColour } from "./helpers/hitArea";
+
 // Handle + password, both halves.
 //
 // WHAT THIS CAN AND CANNOT REHEARSE: setting a password is the browser's own
@@ -222,6 +224,10 @@ test("an owed password card takes a desktop column beside another card, not the 
   });
   expect(layout.width).toBeLessThan(layout.gridWidth * 0.6);
   expect(layout.sharesRow).toBe(true);
+
+  // Prominent by its brass border rather than by spanning the row.
+  const border = await section.evaluate((card) => getComputedStyle(card).borderTopColor);
+  expect(border).toBe(await resolvedColour(page, "form.accountHubPassword", "var(--brass)"));
 });
 
 test("an account with a password keeps change collapsed until opened", async ({
