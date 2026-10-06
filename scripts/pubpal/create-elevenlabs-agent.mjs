@@ -14,7 +14,9 @@
 //   2. no voice recording, and zero retention on the provider side, plus the
 //      client events voice and typed chat read,
 //   3. a default voice, when one is set, plus greeting and voice-id overrides,
-//   4. the house first message and the propose-then-confirm rule (ADR 0006).
+//   4. the house first message and the propose-then-confirm rule (ADR 0006),
+//   5. signed-URL authentication, so a conversation starts only with a URL the
+//      sign-in, the voice cap and the spend budget handed out.
 //
 // Idempotent: with ELEVENLABS_PUB_PAL_AGENT_ID set it PATCHes that agent;
 // without one it looks for an agent of the same name before creating a new
@@ -282,6 +284,9 @@ function agentBody(toolIds) {
       ...(defaultVoice ? { tts: { voice_id: defaultVoice } } : {}),
     },
     platform_settings: {
+      // Without this the agent id alone starts a conversation, and the agent id
+      // is a query parameter in every signed URL the app hands out.
+      auth: { enable_auth: true },
       overrides: {
         conversation_config_override: {
           agent: {
@@ -391,6 +396,7 @@ function mergeAgentPatch(existingAgent, body) {
     platform_settings: {
       ...existingAgent.platform_settings,
       ...body.platform_settings,
+      auth: { ...existingAgent.platform_settings?.auth, ...body.platform_settings.auth },
       overrides: {
         ...existingAgent.platform_settings?.overrides,
         ...body.platform_settings.overrides,
