@@ -233,12 +233,13 @@ body:has(.mobileMapUtilityCorner) {
   }
 }
 
-.mobileTabBar {
+.mobileTabBar,
+.mobileTabBarClearance {
   display: none;
 }
 
 @media (max-width: 640px) {
-  body:has(.mobileTabBar):not(:has(.mapStage)) {
+  body:has(.mobileTabBar, .mobileTabBarClearance):not(:has(.mapStage)) {
     padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
   }
 

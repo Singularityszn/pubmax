@@ -4742,7 +4742,7 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
      the page reserves exactly that as foot padding, so Today, Plan, /pubs and
      /social actions end above it at every text size; the reserve is removed
      with the card. The token is the lane until the first measurement. */
-  body:has(.analyticsConsentPrompt):has(.mobileTabBar):not(:has(.mapStage)) {
+  body:has(.analyticsConsentPrompt):has(.mobileTabBar, .mobileTabBarClearance):not(:has(.mapStage)) {
     padding-bottom: calc(
       var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px)
         + var(--analytics-consent-reserve, var(--analytics-consent-mobile-clearance, 56px))
@@ -4751,7 +4751,7 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
 
   /* With no tab bar the card is the foot of the screen and its measured
      height already carries its home-indicator padding. */
-  body:has(.analyticsConsentPrompt):not(:has(.mobileTabBar)):not(:has(.mapStage)) {
+  body:has(.analyticsConsentPrompt):not(:has(.mobileTabBar, .mobileTabBarClearance)):not(:has(.mapStage)) {
     padding-bottom: var(
       --analytics-consent-reserve,
       calc(var(--analytics-consent-mobile-clearance, 56px) + max(12px, env(safe-area-inset-bottom)))
@@ -4785,7 +4785,7 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
      edge, because a docked strip that stops short of it is the floating panel
      again; the home-indicator inset is cleared by the card's OWN padding
      instead, so the two buttons never sit under the system gesture area. */
-  body:not(:has(.mobileTabBar)) .analyticsConsentPrompt {
+  body:not(:has(.mobileTabBar, .mobileTabBarClearance)) .analyticsConsentPrompt {
     bottom: 0;
     padding-bottom: max(6px, env(safe-area-inset-bottom));
   }
