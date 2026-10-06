@@ -6,6 +6,7 @@
 
 import { choice } from "@typesafe-ai/sdk";
 
+import stationZones from "@/data/tfl_station_zones.json";
 import { NIGHT_AREAS } from "@/lib/nightAreas";
 import localityGazetteer from "@/public/data/london_localities.json";
 
@@ -60,35 +61,36 @@ export function toVenueResolutionCandidate(
   };
 }
 
-/** Lower-case words only: curly and straight apostrophes drop, other marks split. */
+/** Lower-case words only: "&" reads as "and", apostrophes drop, other marks split. */
 function wordsOnly(value: string): string {
   return value
     .toLowerCase()
+    .replace(/&/g, " and ")
     .replace(/['\u2019\u2018]/g, "")
     .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim();
 }
 
-/** Place names of two or more words: night areas, their stations, London localities. */
-const PLACE_PHRASES = [
+/** Place names of two or more words: night areas, London localities, TfL stations. */
+const PLACE_PHRASES: readonly string[][] = [
   ...new Set(
     [
       ...NIGHT_AREAS.flatMap((area) => [area.name, ...area.aliases, ...area.transportAnchors]),
       ...localityGazetteer.localities.map((locality) => locality.name),
-    ]
-      .map(wordsOnly)
-      .filter((phrase) => phrase.includes(" ")),
+      ...stationZones.stations.map((station) => station.name),
+    ].map(wordsOnly),
   ),
-];
+]
+  .map((phrase) => phrase.split(" "))
+  .filter((words) => words.length > 1);
 
-/** Where ` phrase ` sits in a space-padded haystack, as [start, end). */
-function spansOf(haystack: string, phrase: string): Array<[number, number]> {
-  const needle = ` ${phrase} `;
-  const spans: Array<[number, number]> = [];
-  for (let at = haystack.indexOf(needle); at !== -1; at = haystack.indexOf(needle, at + 1)) {
-    spans.push([at, at + needle.length]);
+/** Every index where `phrase` starts as whole words inside `words`. */
+function startsOf(words: readonly string[], phrase: readonly string[]): number[] {
+  const starts: number[] = [];
+  for (let at = 0; at + phrase.length <= words.length; at++) {
+    if (phrase.every((word, offset) => words[at + offset] === word)) starts.push(at);
   }
-  return spans;
+  return starts;
 }
 
 /**
@@ -100,38 +102,44 @@ function spansOf(haystack: string, phrase: string): Array<[number, number]> {
  * holds the user's whole question, and only when no model judged the query.
  * The pub name must appear in the query as two or more whole words, with or
  * without its leading "The": one word is a place word as often as a pub, so
- * The Bridge is never found in "near London Bridge" nor The Kings in "Kings
- * Cross". Nor may those words be only part of a longer place name the query
- * holds: The Hill is not in "near Harrow on the Hill". The longest name wins,
- * and two different pubs sharing that longest name are no answer at all.
+ * The Bridge is never found in "near London Bridge". Nor may the name's words
+ * past "The" share a word with a place name in the query at least as long:
+ * The Kings is not in "near the Kings Cross station", nor The Hill in "Harrow
+ * on the Hill", nor the Elephant and Castle pub in "near the Elephant and
+ * Castle". Unsure is no answer. The longest name wins, and two different pubs
+ * sharing that longest name are no answer at all.
  */
 export function matchVenueNameWithinQuery<T extends VenueNameMatchInput>(
   venues: readonly T[],
   query: string,
 ): T | null {
-  const haystack = ` ${wordsOnly(query)} `;
-  const placeSpans = PLACE_PHRASES.flatMap((place) => spansOf(haystack, place));
-  const namedOutsidePlace = (name: string) =>
-    spansOf(haystack, name).some(
-      ([start, end]) =>
-        !placeSpans.some(
-          ([placeStart, placeEnd]) =>
-            placeStart <= start && end <= placeEnd && placeEnd - placeStart > end - start,
-        ),
-    );
+  const words = wordsOnly(query).split(" ");
+  const places = PLACE_PHRASES.flatMap((place) =>
+    startsOf(words, place).map((start) => [start, start + place.length] as const),
+  );
+  const namedOutsidePlace = (name: readonly string[]) =>
+    startsOf(words, name).some((start) => {
+      const from = name[0] === "the" ? start + 1 : start;
+      const to = start + name.length;
+      return !places.some(
+        ([placeFrom, placeTo]) => placeFrom < to && from < placeTo && placeTo - placeFrom >= to - from,
+      );
+    });
   let best: T | null = null;
   let bestLength = 0;
   let tied = false;
   for (const venue of venues) {
-    const full = wordsOnly(venue.name);
-    for (const name of new Set([full, full.replace(/^the /, "")])) {
-      if (!name.includes(" ")) continue;
+    const full = wordsOnly(venue.name).split(" ");
+    const names = full[0] === "the" ? [full, full.slice(1)] : [full];
+    for (const name of names) {
+      if (name.length < 2) continue;
       if (!namedOutsidePlace(name)) continue;
-      if (name.length > bestLength) {
+      const length = name.join(" ").length;
+      if (length > bestLength) {
         best = venue;
-        bestLength = name.length;
+        bestLength = length;
         tied = false;
-      } else if (name.length === bestLength && best && best.id !== venue.id) {
+      } else if (length === bestLength && best && best.id !== venue.id) {
         tied = true;
       }
     }

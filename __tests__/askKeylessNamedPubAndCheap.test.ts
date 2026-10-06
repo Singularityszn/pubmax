@@ -67,7 +67,7 @@ describe("a pub named inside a sentence", () => {
     expect(matchVenueNameWithinQuery([blackfriar], "pint at blackfriar tonight")).toBeNull();
   });
 
-  // Real listed pubs whose name is only part of a London place name.
+  // Real listed pubs whose name is part of, or is, a London place name.
   const placeWordPubs = [
     venue({ id: "venue-p99zi1", name: "The Bridge", area: "Richmond upon Thames", cheapestPrice: 5.55 }),
     venue({ id: "venue-k9vek2", name: "The Kings", area: "Islington", cheapestPrice: 4.4 }),
@@ -75,6 +75,7 @@ describe("a pub named inside a sentence", () => {
     venue({ id: "venue-1u69mia", name: "The Junction", area: "Islington", cheapestPrice: 6.4 }),
     venue({ id: "venue-1dre7k9", name: "The Holland", area: "Kensington and Chelsea", cheapestPrice: 7.5 }),
     venue({ id: "venue-87c76k", name: "The Hill", area: "Lewisham", cheapestPrice: 4.85 }),
+    venue({ id: "venue-1ep9lhe", name: "Elephant and Castle", area: "Greenwich", cheapestPrice: null }),
   ];
   const placeQuestions = [
     "How much is a pint near London Bridge",
@@ -83,6 +84,10 @@ describe("a pub named inside a sentence", () => {
     "How much is a pint around Clapham Junction",
     "How much is a pint in Holland Park",
     "How much is a pint near Harrow on the Hill",
+    "How much is a pint near the Kings Cross station",
+    "How much is a pint in the Holland Park area",
+    "How much is a pint near the London Bridge end",
+    "How much is a pint near the Elephant and Castle",
   ];
 
   it.each(placeQuestions)("finds no pub in the place name of %s", (question) => {
@@ -101,9 +106,12 @@ describe("a pub named inside a sentence", () => {
     expect(result.answerHint).toBe("Name a listed pub to check a price.");
   });
 
-  it("tells no pub's history for a question about Kings Cross", async () => {
+  it.each([
+    "tell me about the history of Kings Cross",
+    "tell me about the history of the Kings Cross area",
+  ])("tells no pub's history for %s", async (question) => {
     state.venues = placeWordPubs;
-    const result = await runAskTool("venue_heritage", {}, ctx("tell me about the history of Kings Cross"));
+    const result = await runAskTool("venue_heritage", {}, ctx(question));
     expect(result.ok).toBe(false);
   });
 
