@@ -117,6 +117,10 @@ export default function VenueOccupancyRow({
             .join(" ")
         }
         data-reveal-delay={revealDatedReading && !revealRecordLate ? "2" : undefined}
+        // The receipt is announced by the live region below. While it shows, the
+        // visible copy of the same line is hidden from assistive tech so a
+        // screen reader meets the thanks once, not twice.
+        aria-hidden={receiptLine ? true : undefined}
       >
         {shown}
       </p>
