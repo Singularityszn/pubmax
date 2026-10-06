@@ -516,7 +516,10 @@ export default function PalChat() {
           card: {
             name: card.name,
             cheapestPrice: card.cheapestPrice,
-            walkMinutes: card.walkMinutes ?? null,
+            // The ranker measured from the middle of the area, not from the
+            // reader, and nobody has shared where they are. "About 11 min on
+            // foot" would read as their walk, so the line names no minutes.
+            walkMinutes: null,
           },
         });
       })

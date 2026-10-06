@@ -26,6 +26,12 @@ export type PalLocality = {
   label: string;
   /** True only when a real area was resolved; false = London-wide, distance-unranked. */
   grounded: boolean;
+  /**
+   * A place the query named that the taxonomy cannot place ("Blackfriars").
+   * Only ever set on a London-wide answer, so the line can say it could not
+   * place the name instead of claiming that no area was given.
+   */
+  unplaced?: string;
 };
 
 /** Honest "no distance evidence" marker — never replaced with a fabricated number. */
@@ -51,6 +57,34 @@ function areaFromQuery(query: string): PlanningIntentArea {
     if (mentions(text, borough)) return { kind: "borough", name: borough };
   }
   return null;
+}
+
+/** Words that end a place name in "pubs in Blackfriars for a quiet pint". */
+const PLACE_PHRASE_STOP = new Set([
+  "for", "tonight", "today", "now", "with", "that", "which", "or", "please",
+  "under", "over", "after", "before", "on", "at", "near", "around",
+]);
+
+/**
+ * The place a query names after "in", "near", "around" or "by" when it is
+ * written as a proper noun ("Blackfriars", "Elephant and Castle"). The taxonomy
+ * knows only the night patches and boroughs, so this lets the answer say it
+ * could not place a name rather than claim none was given. Lower-case phrases
+ * are never taken: "in the cheapest" is not a place.
+ */
+function namedPlaceFromQuery(query: string): string | null {
+  const match = query.match(
+    /\b(?:in|near|around|by|close to)\s+(?:the\s+)?([A-Z][\p{L}'’-]*(?:\s+(?:and\s+|of\s+|the\s+)?[A-Z][\p{L}'’-]*){0,2})/u,
+  );
+  if (!match?.[1]) return null;
+  const words = match[1].split(/\s+/);
+  const kept: string[] = [];
+  for (const word of words) {
+    if (PLACE_PHRASE_STOP.has(word.toLowerCase())) break;
+    kept.push(word);
+  }
+  const name = kept.join(" ").trim();
+  return name.length >= 3 ? name : null;
 }
 
 /** Map the remembered-area store shape onto a canonical acceptance area. */
@@ -89,7 +123,14 @@ export function resolvePalLocality(
   if (fromRemembered) {
     return { scope: "remembered", area: fromRemembered, label: labelFor(fromRemembered), grounded: true };
   }
-  return { scope: "london-wide", area: null, label: "London", grounded: false };
+  const unplaced = namedPlaceFromQuery(query);
+  return {
+    scope: "london-wide",
+    area: null,
+    label: "London",
+    grounded: false,
+    ...(unplaced ? { unplaced } : {}),
+  };
 }
 
 /** House-voice locality line. Grounded answers name the area; London-wide is explicit. */
@@ -98,6 +139,9 @@ export function palLocalityLine(locality: PalLocality): string {
     return locality.scope === "query"
       ? `Grounded in ${locality.label}, the area you named.`
       : `Grounded around ${locality.label}, your remembered area.`;
+  }
+  if (locality.unplaced) {
+    return `Across London. We could not place \u201c${locality.unplaced}\u201d, so these are not ranked by distance.`;
   }
   return "Across London. No area set, so these are not ranked by distance.";
 }
