@@ -179,7 +179,7 @@ test("a worker-controlled shell never serves a stale /tonight while the network 
   await page.goto("/tonight");
   await orderInDom(page);
   const version = await page.evaluate(async (v) => {
-    await navigator.serviceWorker.register(`/sw.js?v=${v}&cache-policy=write-safe-v1`);
+    await navigator.serviceWorker.register(`/sw.js?v=${v}&cache-policy=plan-preview-safe-v2`);
     const ready = await navigator.serviceWorker.ready;
     return new URL(ready.active?.scriptURL ?? location.href).searchParams.get("v");
   }, PARITY_VERSION);

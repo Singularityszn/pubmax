@@ -41,7 +41,7 @@ function workerHarness(input: {
   const fakeSelf = {
     location: {
       href:
-        `https://pubmaxxing.com/sw.js?v=${input.workerVersion ?? "test"}&cache-policy=${input.workerPolicy ?? "write-safe-v1"}`,
+        `https://pubmaxxing.com/sw.js?v=${input.workerVersion ?? "test"}&cache-policy=${input.workerPolicy ?? "plan-preview-safe-v2"}`,
       origin: "https://pubmaxxing.com",
     },
     registration: {
@@ -81,6 +81,7 @@ function workerHarness(input: {
 function rolloutWorkerHarness(input: {
   entries: Record<string, Array<[string, Response]>>;
   rejectCurrentWrites?: boolean;
+  rejectDeletes?: boolean;
   importError?: Error;
   response?: Response;
 }) {
@@ -152,6 +153,7 @@ function rolloutWorkerHarness(input: {
           return [...entries.values()].map(({ request }) => request);
         },
         async delete(request: RequestInfo) {
+          if (input.rejectDeletes) return false;
           const url = new URL(
             typeof request === "string" ? request : request.url,
             "https://pubmaxxing.com",
@@ -164,6 +166,7 @@ function rolloutWorkerHarness(input: {
       return [...records.keys()];
     },
     async delete(name: string) {
+      if (input.rejectDeletes) return false;
       deletedCaches.push(name);
       return records.delete(name);
     },
@@ -172,7 +175,7 @@ function rolloutWorkerHarness(input: {
     caches: fakeCaches,
     location: {
       href:
-        "https://pubmaxxing.com/sw.js?v=target&cache-policy=write-safe-v1",
+        "https://pubmaxxing.com/sw.js?v=target&cache-policy=plan-preview-safe-v2",
       origin: "https://pubmaxxing.com",
     },
     registration: {
@@ -307,10 +310,21 @@ describe("service worker map cache", () => {
     expect(fakeSelf.skipWaiting).toHaveBeenCalledOnce();
   });
 
-  it("keeps later write-safe updates on the normal waiting path", async () => {
+  it("activates over the old write-safe worker that could cache private anchors", async () => {
     const { fakeSelf, listeners } = workerHarness({
       activeWorker:
         "https://pubmaxxing.com/sw.js?v=previous&cache-policy=write-safe-v1",
+    });
+
+    await Promise.all(dispatchLifecycle(listeners.get("install")!));
+
+    expect(fakeSelf.skipWaiting).toHaveBeenCalledOnce();
+  });
+
+  it("keeps later privacy-safe updates on the normal waiting path", async () => {
+    const { fakeSelf, listeners } = workerHarness({
+      activeWorker:
+        "https://pubmaxxing.com/sw.js?v=previous&cache-policy=plan-preview-safe-v2",
     });
 
     const lifetime = dispatchLifecycle(listeners.get("install")!);
@@ -557,11 +571,11 @@ describe("service worker map cache", () => {
     expect(response).toMatchObject({ status: 0, type: "error" });
   });
 
-  it("does not force takeover for future write-safe policy changes", async () => {
+  it("does not force takeover for future privacy-safe policy changes", async () => {
     const { fakeSelf, listeners } = workerHarness({
       activeWorker:
-        "https://pubmaxxing.com/sw.js?v=previous&cache-policy=write-safe-v1",
-      workerPolicy: "write-safe-v2",
+        "https://pubmaxxing.com/sw.js?v=previous&cache-policy=plan-preview-safe-v2",
+      workerPolicy: "plan-preview-safe-v3",
     });
 
     const lifetime = dispatchLifecycle(listeners.get("install")!);
@@ -606,7 +620,7 @@ describe("service worker map cache", () => {
             [TILE_URL, new Response("poisoned", { status: 503 })],
             ["/_next/static/chunks/legacy.js", staticResponse],
           ],
-          "pubmax-sw-plan-legacy-active": [
+          "pubmax-sw-preview-plan-v2-legacy-active": [
             ["/plan/offline-night", planResponse],
             ["/p/legacy-drop", new Response("legacy Pint Drop")],
           ],
@@ -630,9 +644,9 @@ describe("service worker map cache", () => {
     expect(records.get("pubmax-sw-shell-legacy-active")
       ?.has("https://pubmaxxing.com/p/legacy-drop")).toBe(false);
     expect(records.has("pubmax-sw-data-legacy-active")).toBe(true);
-    expect(records.has("pubmax-sw-plan-legacy-active")).toBe(true);
+    expect(records.has("pubmax-sw-preview-plan-v2-legacy-active")).toBe(true);
     expect(
-      records.get("pubmax-sw-plan-legacy-active")
+      records.get("pubmax-sw-preview-plan-v2-legacy-active")
         ?.has("https://pubmaxxing.com/p/legacy-drop"),
     ).toBe(false);
     expect(records.has("unrelated-cache")).toBe(true);
@@ -688,8 +702,8 @@ describe("service worker map cache", () => {
       rejectCurrentWrites,
       importError: importFails ? new Error("helper unavailable") : undefined,
       entries: {
-        "pubmax-sw-plan-target": [["/plan/current?old=1", currentPlan], ...excluded],
-        "pubmax-sw-plan-legacy-active": [["/plan/legacy?old=1", legacyPlan], ...excluded],
+        "pubmax-sw-preview-plan-v2-target": [["/plan/current?old=1", currentPlan], ...excluded],
+        "pubmax-sw-preview-plan-v2-legacy-active": [["/plan/legacy?old=1", legacyPlan], ...excluded],
         "pubmax-sw-shell-target": [defined(shells[0]), ...excluded],
         "pubmax-sw-shell-legacy-active": [...shells.slice(1), ...excluded],
       },
@@ -719,11 +733,11 @@ describe("service worker map cache", () => {
       }
     }
 
-    expect([...records.get("pubmax-sw-plan-target")!.keys()]).toEqual([
+    expect([...records.get("pubmax-sw-preview-plan-v2-target")!.keys()]).toEqual([
       `${origin}/plan/current?old=1`,
       ...(rejectCurrentWrites ? [] : [`${origin}/plan/legacy?old=1`]),
     ]);
-    expect([...(records.get("pubmax-sw-plan-legacy-active")?.keys() ?? [])]).toEqual(
+    expect([...(records.get("pubmax-sw-preview-plan-v2-legacy-active")?.keys() ?? [])]).toEqual(
       rejectCurrentWrites ? [`${origin}/plan/legacy?old=1`] : [],
     );
     expect([...records.get("pubmax-sw-shell-target")!.keys()]).toEqual(
@@ -765,7 +779,7 @@ describe("service worker map cache", () => {
     } as Request);
     expect(await plan.response).toBe(live);
     await Promise.all(plan.lifetime);
-    expect([...(records.get("pubmax-sw-plan-target")?.keys() ?? [])]).toEqual(
+    expect([...(records.get("pubmax-sw-preview-plan-v2-target")?.keys() ?? [])]).toEqual(
       importFails || rejectCurrentWrites ? [] : ["https://pubmaxxing.com/plan/night1"],
     );
   });
@@ -774,11 +788,11 @@ describe("service worker map cache", () => {
     const planResponse = new Response("offline plan preview");
     const { listeners, records } = rolloutWorkerHarness({
       entries: {
-        "pubmax-sw-plan-target": [
+        "pubmax-sw-preview-plan-v2-target": [
           ["/p/current-drop", new Response("current Pint Drop")],
           ["/plan/current/recap", new Response("current private recap")],
         ],
-        "pubmax-sw-plan-legacy-active": [
+        "pubmax-sw-preview-plan-v2-legacy-active": [
           ["/p/legacy-drop", new Response("legacy Pint Drop")],
           ["/plan/legacy/recap", new Response("legacy private recap")],
           ["/plan/offline-night", planResponse],
@@ -788,12 +802,12 @@ describe("service worker map cache", () => {
 
     await Promise.all(dispatchLifecycle(listeners.get("activate")!));
 
-    const current = records.get("pubmax-sw-plan-target");
+    const current = records.get("pubmax-sw-preview-plan-v2-target");
     expect([...current!.keys()]).toEqual([
       "https://pubmaxxing.com/plan/offline-night",
     ]);
     expect(
-      [...(records.get("pubmax-sw-plan-legacy-active")?.keys() ?? [])]
+      [...(records.get("pubmax-sw-preview-plan-v2-legacy-active")?.keys() ?? [])]
         .some((url) => url.includes("/p/") || url.includes("/recap")),
     ).toBe(false);
 
@@ -814,7 +828,7 @@ describe("service worker map cache", () => {
   it("purges an invalid current plan-cache entry without a legacy cache", async () => {
     const { listeners, records } = rolloutWorkerHarness({
       entries: {
-        "pubmax-sw-plan-target": [
+        "pubmax-sw-preview-plan-v2-target": [
           ["/p/old-drop", new Response("old Pint Drop")],
           ["/plan/offline-night", new Response("offline plan preview")],
         ],
@@ -823,7 +837,7 @@ describe("service worker map cache", () => {
 
     await Promise.all(dispatchLifecycle(listeners.get("activate")!));
 
-    expect([...records.get("pubmax-sw-plan-target")!.keys()]).toEqual([
+    expect([...records.get("pubmax-sw-preview-plan-v2-target")!.keys()]).toEqual([
       "https://pubmaxxing.com/plan/offline-night",
     ]);
   });
@@ -863,7 +877,7 @@ describe("service worker map cache", () => {
     expect(await navigation.response).toBe(pintDrop);
     await Promise.all(navigation.lifetime);
     expect(records.get("pubmax-sw-shell-target")?.size ?? 0).toBe(0);
-    expect(records.get("pubmax-sw-plan-target")?.size ?? 0).toBe(0);
+    expect(records.get("pubmax-sw-preview-plan-v2-target")?.size ?? 0).toBe(0);
   });
 
   it("purges Pint Drops from current and legacy shell caches on activation", async () => {
@@ -1132,4 +1146,86 @@ describe("service worker map cache", () => {
     expect(response.type).toBe("error");
     expect(response.status).toBe(0);
   });
+});
+
+describe("trusted Plan preview continuity", () => {
+  it.each([
+    { importFails: false, rejectCurrentWrites: false },
+    { importFails: false, rejectCurrentWrites: true },
+    { importFails: true, rejectCurrentWrites: false },
+    { importFails: true, rejectCurrentWrites: true },
+  ])("prefers trusted preview over unsafe old families with importFails=$importFails and rejectCurrentWrites=$rejectCurrentWrites", async ({ importFails, rejectCurrentWrites }) => {
+    const unsafe = new Response("venue-private-old-plan-cache");
+    const trusted = new Response("Public Plan preview: two stops at 19:00");
+    const { listeners, records } = rolloutWorkerHarness({
+      importError: importFails ? new Error("helper unavailable") : undefined,
+      rejectCurrentWrites,
+      rejectDeletes: true,
+      entries: {
+        "pubmax-sw-plan-target": [["/plan/shared?old=1", unsafe]],
+        "pubmax-sw-plan-legacy-active": [["/plan/shared?old=1", unsafe]],
+        "pubmax-sw-preview-plan-v2-previous": [["/plan/shared?trusted=1", trusted]],
+        "pubmax-sw-shell-target": [["/", new Response("Public landing shell")]],
+      },
+    });
+
+    for (const activate of [false, true]) {
+      if (activate) await Promise.all(dispatchLifecycle(listeners.get("activate")!));
+      const navigation = dispatchFetch(listeners.get("fetch")!, {
+        method: "GET",
+        mode: "navigate",
+        url: "https://pubmaxxing.com/plan/shared?account=B",
+      } as Request);
+      const response = (await navigation.response) as Response;
+      expect(response).toBe(trusted);
+      expect(await response.clone().text()).not.toContain("venue-private-old-plan-cache");
+      expect(records.get("pubmax-sw-plan-target")?.has("https://pubmaxxing.com/plan/shared?old=1"))
+        .toBe(true);
+    }
+  });
+});
+
+describe("old Plan navigation privacy", () => {
+  const cases = [false, true].flatMap((importFails) =>
+    [false, true].flatMap((rejectCurrentWrites) =>
+      ["pubmax-sw-plan-target", "pubmax-sw-plan-legacy-active"].flatMap((oldCache) =>
+        [false, true].map((activate) => ({ importFails, rejectCurrentWrites, oldCache, activate })),
+      ),
+    ),
+  );
+
+  it.each(cases)(
+    "withholds $oldCache HTML offline with activate=$activate, importFails=$importFails, rejectCurrentWrites=$rejectCurrentWrites and failed deletion",
+    async ({ oldCache, activate, importFails, rejectCurrentWrites }) => {
+      const privateAnchor = "venue-private-old-plan-cache";
+      const home = new Response("Public landing shell");
+      // Synthetic inline Flight marker models the bytes leaked by the old page.
+      // This checks real worker behavior, not Next serialization or account auth.
+      const oldHtml = new Response(
+        `<html><script>self.__next_f.push([1,'{"anchorVenueId":"${privateAnchor}"}'])</script></html>`,
+        { headers: { "Content-Type": "text/html" } },
+      );
+      const { listeners, records } = rolloutWorkerHarness({
+        importError: importFails ? new Error("helper unavailable") : undefined,
+        rejectCurrentWrites,
+        rejectDeletes: true,
+        entries: {
+          [oldCache]: [["/plan/private-night?old=1", oldHtml]],
+          "pubmax-sw-shell-target": [["/", home]],
+        },
+      });
+      // Cache deletion is best-effort. Privacy must hold when old bytes remain.
+      if (activate) await Promise.all(dispatchLifecycle(listeners.get("activate")!));
+      expect(records.get(oldCache)?.has("https://pubmaxxing.com/plan/private-night?old=1"))
+        .toBe(true);
+      const navigation = dispatchFetch(listeners.get("fetch")!, {
+        method: "GET",
+        mode: "navigate",
+        url: "https://pubmaxxing.com/plan/private-night?account=B",
+      } as Request);
+      const response = (await navigation.response) as Response;
+      expect(await response.clone().text()).not.toContain(privateAnchor);
+      expect(response).toBe(home);
+    },
+  );
 });
