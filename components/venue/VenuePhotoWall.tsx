@@ -25,7 +25,9 @@ import { categoryLabel } from "@/lib/drinks";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import FoundingMemberMark from "@/components/founding/FoundingMemberMark";
-import { authedFetch } from "@/lib/authedFetch";
+import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
+import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
+import { drinkWallRemoveConfirmLine } from "@/lib/drinkWall";
 import {
   venuePhotoAltText,
   venuePhotoWallEmptyLine,
@@ -74,6 +76,8 @@ export default function VenuePhotoWall({
   const [loaded, setLoaded] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
 
   // The panel is not remounted between pubs, so a stale wall could linger.
   // Adjust-state-during-render (the repo idiom) resets it when the venue
@@ -85,6 +89,8 @@ export default function VenuePhotoWall({
     setLoaded(false);
     setComposerOpen(false);
     setNote(null);
+    setRemovingId(null);
+    setRemoveError(null);
   }
 
   const load = useCallback(
@@ -132,6 +138,42 @@ export default function VenuePhotoWall({
   function loadMore(cursor: string): void {
     setLoading(true);
     void load(cursor);
+  }
+
+  // THE OWNER'S WAY OUT. A photo a person put on a pub's wall is theirs to take
+  // off it, and the one route that deletes it is the Drink Wall's own, so this
+  // wall asks it the same question the same way (a confirm, then the action).
+  async function remove(photo: VenuePhotoDTO): Promise<void> {
+    if (!window.confirm(drinkWallRemoveConfirmLine(photo))) return;
+    setRemovingId(photo.id);
+    setRemoveError(null);
+    try {
+      const response = await authedActionFetch(
+        "/api/venue-photos",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "delete", id: photo.id }),
+        },
+        { requiresIdentity: true },
+      );
+      if (!response.ok) {
+        const body: unknown = await response.json().catch(() => null);
+        setRemoveError(
+          offlineOrMessage(errorMessageFrom(body, "Could not remove that photo. Try again.")),
+        );
+        return;
+      }
+      setNote("Photo removed.");
+      setWall((current) => ({
+        ...current,
+        photos: current.photos.filter((item) => item.id !== photo.id),
+      }));
+    } catch {
+      setRemoveError(offlineOrMessage("Could not remove that photo. Try again."));
+    } finally {
+      setRemovingId(null);
+    }
   }
 
   const canPost = !configured || Boolean(user && handle);
@@ -187,6 +229,17 @@ export default function VenuePhotoWall({
                   />
                 ) : null}
               </figcaption>
+              {photo.ownedByViewer ? (
+                <button
+                  type="button"
+                  className="venuePhotoRemove"
+                  disabled={removingId === photo.id}
+                  aria-label={`Remove your photo of ${venueName}`}
+                  onClick={() => void remove(photo)}
+                >
+                  {removingId === photo.id ? "Removing…" : "Remove"}
+                </button>
+              ) : null}
             </figure>
           ))}
         </div>
@@ -206,6 +259,12 @@ export default function VenuePhotoWall({
       {note ? (
         <p className="venuePhotoWallStatus" role="status">
           {note}
+        </p>
+      ) : null}
+
+      {removeError ? (
+        <p className="venuePhotoWallStatus venuePhotoWallStatusErr" role="status">
+          {removeError}
         </p>
       ) : null}
 
