@@ -19,6 +19,7 @@ import { AlertTriangle, CloudRain, Info, Sun, TrainFront, X } from "lucide-react
 
 import { discardBody } from "@/lib/responseBody";
 import { firstHttp } from "@/lib/httpUrl";
+import { useStaggeredRead } from "@/lib/useStaggeredRead";
 
 
 type Weather = {
@@ -242,6 +243,8 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
   // each fresh fetch (setData below always starts collapsed).
   const [expanded, setExpanded] = useState(false);
   const aborted = useRef(false);
+  // An opening banner, not the first screen: it asks after the map has asked.
+  const ready = useStaggeredRead(1, "map");
 
   useEffect(() => {
     if (!expanded) return;
@@ -268,6 +271,7 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
       });
       return;
     }
+    if (!ready) return;
     const controller = new AbortController();
     (async () => {
       try {
@@ -294,7 +298,7 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
       aborted.current = true;
       controller.abort();
     };
-  }, [isLondon]);
+  }, [isLondon, ready]);
 
   if (!isLondon || dismissed || !data) return null;
   // If the API returned an error and no data, stay hidden — never block the

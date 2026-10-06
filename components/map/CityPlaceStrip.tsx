@@ -19,6 +19,7 @@
 // rule by deferring all writes through Promise.resolve().then().
 
 import { useEffect, useRef, useState } from "react";
+import { useStaggeredRead } from "@/lib/useStaggeredRead";
 import {
   ExternalLink,
   Info,
@@ -157,8 +158,10 @@ export default function CityPlaceStrip({
   // than racing into the newly-selected sheet.
   const generationRef = useRef(0);
 
+  const ready = useStaggeredRead(3, venueId);
+
   useEffect(() => {
-    if (!isLondon) return;
+    if (!ready || !isLondon) return;
     if (!venueName || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
     const generation = ++generationRef.current;
     // Reset immediately on venue change so the previous strip never lingers
@@ -206,7 +209,7 @@ export default function CityPlaceStrip({
     return () => {
       controller.abort();
     };
-  }, [isLondon, venueId, venueName, latitude, longitude, primaryBorough]);
+  }, [ready, isLondon, venueId, venueName, latitude, longitude, primaryBorough]);
 
   if (!isLondon || !enrichment) return null;
 

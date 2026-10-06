@@ -27,6 +27,7 @@ import {
 } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { emitIdentityHandleChanged, syncDeviceHandle } from "@/lib/identityClient";
+import { CURRENT_IDENTITY_PATH, readCurrentIdentity } from "@/lib/currentIdentityRead";
 import PrivateIdentityEditor from "@/components/identity/PrivateIdentityEditor";
 import SetAccountPassword from "@/components/auth/SetAccountPassword";
 import AccountExportCard from "@/components/profile/AccountExportCard";
@@ -261,12 +262,10 @@ function AccountHandleEditor({
     if (!identityResolved) return;
     active.current = true;
     const controller = new AbortController();
-    void accountBoundFetch(
-      auth,
-      "/api/identity/handle/current",
-      { signal: controller.signal },
-    ).then(async (response) => {
-      const body = await response.json().catch(() => null) as
+    void readCurrentIdentity(auth.userId, () =>
+      accountBoundFetch(auth, CURRENT_IDENTITY_PATH, {}),
+    ).then((response) => {
+      const body = response.body as
         | { handle?: string | null; error?: string }
         | null;
       if (controller.signal.aborted) return;

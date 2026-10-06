@@ -62,6 +62,7 @@ vi.mock("@/lib/promptBudget", async (importOriginal) => ({
 }));
 
 import CreatePasswordPrompt from "@/components/auth/CreatePasswordPrompt";
+import { forgetCurrentIdentityRead } from "@/lib/currentIdentityRead";
 import {
   PASSWORD_PROMPT_DESTINATION,
   passwordPromptAnsweredKey,
@@ -90,6 +91,8 @@ function notifyBudget(): void {
 }
 
 beforeEach(() => {
+  // The identity read is shared across surfaces for a moment (lib/currentIdentityRead.ts).
+  forgetCurrentIdentityRead();
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   authState.current = {
     configured: true,

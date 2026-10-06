@@ -5,6 +5,7 @@ import {
   DEFAULT_SURFACE_SNAPSHOT_MAX_AGE_MS,
   isSurfaceCacheable,
   loadSurfaceJson,
+  SURFACE_REQUEST_GRACE_MS,
   readSurfaceSnapshot,
   surfaceCacheSize,
   SURFACE_CACHE_DENIED_PREFIXES,
@@ -481,4 +482,127 @@ describe("persistent session snapshots", () => {
     expect(sessionStorage.length).toBe(0);
     expect(reloaded.readSurfaceSnapshot(key)).toBeUndefined();
   });
+});
+
+describe("a read the page already made", () => {
+  const key = "/api/whats-on?window=tonight&limit=60";
+  const answer = () =>
+    vi.fn<typeof fetch>().mockImplementation(async () => new Response(JSON.stringify({ rows: [1] })));
+
+  it("is not asked for again inside freshForMs, and is revalidated without it", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchImpl = answer();
+      await loadSurfaceJson(key, { fetchImpl, freshForMs: 5_000 }, () => {});
+      await expect(loadSurfaceJson(key, { fetchImpl, freshForMs: 5_000 }, () => {})).resolves.toBe("snapshot");
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+      // Past the window a held answer is revalidated, as it always was.
+      await vi.advanceTimersByTimeAsync(SURFACE_REQUEST_GRACE_MS + 1);
+      await loadSurfaceJson(key, { fetchImpl }, () => {});
+      expect(fetchImpl).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps a read nobody waits for on the wire for the grace window, and spends no retry on it", async () => {
+    vi.useFakeTimers();
+    try {
+      const gone = new AbortController();
+      let release: (response: Response) => void = () => {};
+      const fetchImpl = vi.fn<typeof fetch>().mockImplementation(
+        () => new Promise<Response>((resolve) => { release = resolve; }),
+      );
+      const first = loadSurfaceJson(key, { fetchImpl, signal: gone.signal }, () => {});
+      await vi.advanceTimersByTimeAsync(0);
+      gone.abort();
+      await first;
+      // The next surface arrives inside the window and joins the same read.
+      const applied: unknown[] = [];
+      const second = loadSurfaceJson(key, { fetchImpl }, (body) => { applied.push(body); });
+      await vi.advanceTimersByTimeAsync(SURFACE_REQUEST_GRACE_MS - 10);
+      release(new Response(JSON.stringify({ rows: [2] })));
+      await second;
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+      expect(applied).toEqual([{ rows: [2] }]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("hands an answer that landed with nobody waiting to the next surface", async () => {
+    vi.useFakeTimers();
+    try {
+      const gone = new AbortController();
+      let release: (response: Response) => void = () => {};
+      const fetchImpl = vi.fn<typeof fetch>().mockImplementation(
+        () => new Promise<Response>((resolve) => { release = resolve; }),
+      );
+      const first = loadSurfaceJson(key, { fetchImpl, signal: gone.signal }, () => {
+        throw new Error("a surface that left must not be applied");
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      // The surface leaves while the read is on the wire, and the read answers
+      // after it has gone.
+      gone.abort();
+      await first;
+      release(new Response(JSON.stringify({ rows: [3] })));
+      await vi.advanceTimersByTimeAsync(10);
+
+      const applied: unknown[] = [];
+      await loadSurfaceJson(key, { fetchImpl }, (body) => { applied.push(body); });
+      expect(applied).toEqual([{ rows: [3] }]);
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+      // Taken once: the next arrival after that asks the network.
+      clearSurfaceCache();
+      await vi.advanceTimersByTimeAsync(0);
+      const again = loadSurfaceJson(key, { fetchImpl }, () => {});
+      await vi.advanceTimersByTimeAsync(0);
+      release(new Response(JSON.stringify({ rows: [4] })));
+      await again;
+      expect(fetchImpl).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("aborts a read nobody joined once the grace window has passed", async () => {
+    vi.useFakeTimers();
+    try {
+      const gone = new AbortController();
+      let seen: AbortSignal | undefined;
+      const fetchImpl = vi.fn<typeof fetch>().mockImplementation((_input, init) => {
+        seen = init?.signal ?? undefined;
+        return new Promise<Response>(() => {});
+      });
+      const first = loadSurfaceJson(key, { fetchImpl, signal: gone.signal }, () => {});
+      await vi.advanceTimersByTimeAsync(0);
+      gone.abort();
+      await first;
+      expect(seen?.aborted).toBe(false);
+      await vi.advanceTimersByTimeAsync(SURFACE_REQUEST_GRACE_MS + 1);
+      expect(seen?.aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("is asked for again once it is older than freshForMs", async () => {
+    const fetchImpl = answer();
+    writeSurfaceSnapshot(key, { rows: [1] }, Date.now() - 6_000);
+    await loadSurfaceJson(key, { fetchImpl, freshForMs: 5_000 }, () => {});
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(Array.from({ length: 14 }, (_, ticks) => ticks))(
+    "shares one read with a surface that starts %i ticks after the first, even as it settles",
+    async (ticks) => {
+      const fetchImpl = answer();
+      const first = loadSurfaceJson(key, { fetchImpl, freshForMs: 5_000 }, () => {});
+      for (let tick = 0; tick < ticks; tick += 1) await Promise.resolve();
+      const second = loadSurfaceJson(key, { fetchImpl, freshForMs: 5_000 }, () => {});
+      await Promise.all([first, second]);
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+    },
+  );
 });

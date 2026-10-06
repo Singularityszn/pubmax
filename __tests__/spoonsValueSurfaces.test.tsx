@@ -281,7 +281,7 @@ describe("the lens costs a cold map nothing", () => {
     );
     expect(row).toContain("/api/spoons-value?venueId=");
     // Nothing on screen asks, so nothing asks the server.
-    expect(row).toMatch(/if \(!visible\) return;/);
+    expect(row).toMatch(/if \(!visible \|\| !ready\) return;/);
   });
 
   it("reads the slim lane and never the whole edition in a browser", () => {

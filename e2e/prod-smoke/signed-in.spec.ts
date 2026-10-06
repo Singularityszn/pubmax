@@ -1,7 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { describeFirstQuery, describeFirstSubmit } from "../helpers/planDescribeFirst";
-import { asReturningVisitor, evidence, watchPageErrors } from "./smokeSession";
+import { untilNoFirewallDeny, untilNot429 } from "./firewall";
+import { asReturningVisitor, evidence, watchFirewall, watchPageErrors } from "./smokeSession";
 
 // The signed-in half of the production smoke suite: one session for the
 // dedicated smoke account, walked through sign in, Pub Pal, a Plan, a saved
@@ -22,12 +23,14 @@ test.describe("signed-in journeys", () => {
 
   let page: Page;
   let assertNoPageErrors: () => void;
+  let firewall: ReturnType<typeof watchFirewall>;
   // What this run created, so afterAll can undo it even when a journey fails.
   const created: { plan?: { id: string; memberToken: string }; saved?: boolean } = {};
 
   test.beforeAll(async ({ browser }) => {
     const context = await browser.newContext();
     await asReturningVisitor(context);
+    firewall = watchFirewall(context);
     page = await context.newPage();
     assertNoPageErrors = watchPageErrors(page);
   });
@@ -214,14 +217,25 @@ test.describe("signed-in journeys", () => {
    * the profile loads, so the answer never depends on a half-loaded page.
    */
   async function hasSave(target: Page): Promise<boolean> {
-    const response = await target.request.get(`/api/saved-pubs?handle=${encodeURIComponent(HANDLE)}`);
+    const response = await untilNot429(
+      () => target.request.get(`/api/saved-pubs?handle=${encodeURIComponent(HANDLE)}`),
+      (answer) => ({ status: answer.status(), headers: answer.headers(), url: answer.url() }),
+    );
     expect(response.ok(), "read the saved list").toBe(true);
     const body = (await response.json()) as { saved: { venueId: string; listType: string }[] };
     return body.saved.some((row) => row.venueId === SAVE_VENUE.id && row.listType === SAVE_LIST);
   }
 
-  /** Tap the list chip once from the venue sheet. */
-  async function toggleSave(target: Page) {
+  /**
+   * Tap the list chip once from the venue sheet. The tap is repeated whole when
+   * the edge firewall denied a response during it: a deny never reached the app,
+   * so the save did not happen, and a second tap is the first one done properly.
+   */
+  function toggleSave(target: Page) {
+    return untilNoFirewallDeny(() => tapSaveChip(target), firewall.denies, undefined, undefined, "the save journey");
+  }
+
+  async function tapSaveChip(target: Page) {
     await target.goto(`/map?sel=${SAVE_VENUE.id}`);
     const sheet = target.getByRole("dialog", { name: "Pub detail" });
     await expect(sheet.getByRole("heading", { name: SAVE_VENUE.name })).toBeInViewport();
@@ -260,13 +274,21 @@ async function createPal(page: Page) {
 
 /** Plans have no delete: abandoning is the end state a host can choose. */
 async function abandonPlan(page: Page, plan: { id: string; memberToken: string }) {
-  const status = await page.evaluate(async ({ id, memberToken }) => {
-    const response = await fetch(`/api/plans/${id}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ status: "abandoned", memberToken }),
-    });
-    return response.status;
-  }, plan);
-  expect(status, `abandon Plan ${plan.id}`).toBe(200);
+  const answer = await untilNot429(
+    () =>
+      page.evaluate(async ({ id, memberToken }) => {
+        const response = await fetch(`/api/plans/${id}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ status: "abandoned", memberToken }),
+        });
+        return {
+          status: response.status,
+          headers: Object.fromEntries(response.headers.entries()),
+          url: response.url,
+        };
+      }, plan),
+    (value) => value,
+  );
+  expect(answer.status, `abandon Plan ${plan.id}`).toBe(200);
 }

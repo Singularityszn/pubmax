@@ -9,6 +9,7 @@ import {
   authedActionFetch,
 } from "@/lib/authedFetch";
 import { ensureSupabaseBrowser } from "@/lib/authClient";
+import { readAuthedIdentity } from "@/lib/currentIdentityRead";
 import {
   MIN_PASSWORD_LENGTH,
   PASSWORD_CHANGE_GENERIC_ERROR,
@@ -61,9 +62,8 @@ export default function SetAccountPassword(): React.JSX.Element | null {
     let cancelled = false;
     void (async () => {
       try {
-        const res = await authedActionFetch("/api/identity/handle/current", {}, { requiresIdentity: true });
+        const res = await readAuthedIdentity(user.id);
         if (!res.ok) {
-          discardBody(res);
           if (!cancelled) {
             setHasHandle(false);
             setHasPassword(null);
@@ -71,7 +71,7 @@ export default function SetAccountPassword(): React.JSX.Element | null {
           }
           return;
         }
-        const body = (await res.json().catch(() => ({}))) as {
+        const body = (res.body ?? {}) as {
           handle?: string | null;
           hasPassword?: boolean | null;
         };

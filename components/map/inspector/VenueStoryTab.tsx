@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { BookOpen, ExternalLink } from "lucide-react";
+import { useStaggeredRead } from "@/lib/useStaggeredRead";
 
 import { ClaimBadge } from "@/components/map/venueInspectorBits";
 import { discardBody } from "@/lib/responseBody";
@@ -74,7 +75,9 @@ export default function VenueStoryTab({
   // (never throws, never blocks the tab), and an AbortController both cancels
   // the in-flight fetch and guards against a stale venue's facts on venue switch.
   const [heritageFacts, setHeritageFacts] = useState<HeritageFact[]>([]);
+  const heritageReady = useStaggeredRead(3, venue.id);
   useEffect(() => {
+    if (!heritageReady) return;
     const controller = new AbortController();
     // Reset first so the previous venue's facts never flash on the new one.
     void Promise.resolve().then(() => {
@@ -103,7 +106,7 @@ export default function VenueStoryTab({
       }
     })();
     return () => controller.abort();
-  }, [venue.id, venue.name]);
+  }, [heritageReady, venue.id, venue.name]);
 
   return (
     <div

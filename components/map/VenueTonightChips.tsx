@@ -39,7 +39,7 @@ import {
 } from "@/lib/whatsOn";
 import { checkedLabel, WHATS_ON_KIND_META } from "@/lib/whatsOnBadges";
 import type { VenueRef } from "@/lib/tonight";
-import { loadSurfaceJson } from "@/lib/surfaceDataCache";
+import { loadSurfaceJson, SURFACE_JUST_READ_MS } from "@/lib/surfaceDataCache";
 
 // `asOf` is deliberately NOT read here. It is the freshest thing the whole
 // answer can show, and this line covers only the kinds at this one venue.
@@ -87,6 +87,7 @@ export default function VenueTonightChips(
         signal: controller.signal,
         init: { headers: { accept: "application/json" } },
         validate: (body) => Array.isArray(body?.rows),
+        freshForMs: SURFACE_JUST_READ_MS,
       },
       (body) => {
         const rows = Array.isArray(body.rows)

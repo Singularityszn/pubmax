@@ -19,6 +19,7 @@
 // No animation — trivially reduced-motion compliant.
 
 import { useEffect, useRef, useState } from "react";
+import { useStaggeredRead } from "@/lib/useStaggeredRead";
 import type { ReactNode } from "react";
 import { ExternalLink, Newspaper } from "lucide-react";
 
@@ -126,8 +127,10 @@ export default function VenueBuzz({
   // racing into the newly-selected sheet.
   const generationRef = useRef(0);
 
+  const ready = useStaggeredRead(3, venueId);
+
   useEffect(() => {
-    if (!isLondon) return;
+    if (!ready || !isLondon) return;
     if (!venueName || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
     const generation = ++generationRef.current;
     // Reset immediately on venue change so the previous pub's buzz never
@@ -172,7 +175,7 @@ export default function VenueBuzz({
     return () => {
       controller.abort();
     };
-  }, [isLondon, venueId, venueName, latitude, longitude, primaryBorough]);
+  }, [ready, isLondon, venueId, venueName, latitude, longitude, primaryBorough]);
 
   if (!isLondon || !buzz) return null;
   const mentions = buzz.mentions.filter((m) => isHttps(m.url));
