@@ -84,7 +84,7 @@ import {
   roundPriceSourceStatus,
 } from "@/lib/roundsStore";
 import { MAX_PROVISIONAL_BASE_VENUE_IDS } from "@/lib/ukBasePubs";
-import { loadVenueAliasResolver } from "@/lib/venueAliases";
+import { loadVenueAliasResolver, type VenueAliasResolver } from "@/lib/venueAliases";
 import {
   admin,
   createFailSoftGuard,
@@ -187,6 +187,9 @@ export type ModeratorCommunityPrice = ModeratorObservationBase &
       }
   );
 
+/** The id a stored venue id names now, so rows under a former id group with the venue. */
+type CanonicalVenueId = (venueId: string) => string;
+
 export type CommunityPriceStore = {
   /**
    * Record an observation and return it as stored. NEVER throws; a durable
@@ -223,6 +226,7 @@ export type CommunityPriceStore = {
    */
   latestForCategories(
     categories: readonly DrinkCategory[],
+    canonical: CanonicalVenueId,
     now?: number,
   ): Promise<CommunityPriceCategoryIndexResult>;
   /**
@@ -243,7 +247,10 @@ export type CommunityPriceStore = {
    * uses, so it can never report a category the map would refuse. NEVER
    * throws; `degraded` marks an unavailable durable read rather than a real 0.
    */
-  countCorroboratedCategories(now?: number): Promise<CorroboratedCategoryCount>;
+  countCorroboratedCategories(
+    canonical: CanonicalVenueId,
+    now?: number,
+  ): Promise<CorroboratedCategoryCount>;
   /**
    * Reader flag on one observation, price or venue signal. Records the reason
    * and counts the report; it NEVER hides by itself. False = unknown id. NEVER
@@ -644,7 +651,19 @@ function freshestPerCategory(allRows: StoredPrice[], now: number): CommunityPric
  * disagree about what counts. Grouping is by venue AND category because a pub
  * with a trusted pint and a trusted cocktail is two facts the map can paint.
  */
-function countCorroboratedIn(allRows: StoredPrice[], now: number): number {
+function underCurrentIds(rows: StoredPrice[], canonical: CanonicalVenueId): StoredPrice[] {
+  return rows.map((row) => {
+    const venueId = canonical(row.venueId);
+    return venueId === row.venueId ? row : { ...row, venueId };
+  });
+}
+
+function countCorroboratedIn(
+  storedRows: StoredPrice[],
+  canonical: CanonicalVenueId,
+  now: number,
+): number {
+  const allRows = underCurrentIds(storedRows, canonical);
   // Same rule as freshestPerCategory: a hidden observation cannot corroborate
   // anything, so it cannot keep a (venue, category) pair in this count either -
   // otherwise the roll-up would report a figure the map itself refuses.
@@ -667,7 +686,8 @@ function countCorroboratedIn(allRows: StoredPrice[], now: number): number {
 }
 
 function categoryIndexFromRows(
-  allRows: StoredPrice[],
+  storedRows: StoredPrice[],
+  canonical: CanonicalVenueId,
   categories: readonly DrinkCategory[],
   now: number,
   truncated: boolean,
@@ -675,7 +695,7 @@ function categoryIndexFromRows(
 ): CommunityPriceCategoryIndexResult {
   const wanted = new Set(categories);
   const groups = new Map<string, StoredPrice[]>();
-  for (const row of allRows) {
+  for (const row of underCurrentIds(storedRows, canonical)) {
     if (!wanted.has(row.drinkCategory) || !isWithinMaxAge(row, now)) continue;
     const held = groups.get(row.venueId);
     if (held) held.push(row);
@@ -1055,7 +1075,7 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
     };
   },
 
-  async latestForCategories(categories, now = Date.now()) {
+  async latestForCategories(categories, canonical, now = Date.now()) {
     const wanted = new Set(categories.filter(isDrinkCategory));
     if (wanted.size === 0) {
       return { prices: [], truncated: false, degraded: false };
@@ -1075,6 +1095,7 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
     }
     return categoryIndexFromRows(
       rows,
+      canonical,
       [...wanted],
       now,
       truncated,
@@ -1095,12 +1116,12 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
     };
   },
 
-  async countCorroboratedCategories(now = Date.now()) {
+  async countCorroboratedCategories(canonical, now = Date.now()) {
     const rows: StoredPrice[] = [];
     for (const venueRows of venues.values()) rows.push(...venueRows);
     const scanned = rows.slice(0, CORROBORATION_SCAN_ROWS);
     return {
-      count: countCorroboratedIn(scanned, now),
+      count: countCorroboratedIn(scanned, canonical, now),
       truncated: rows.length > scanned.length,
       degraded: false,
     };
@@ -1542,7 +1563,7 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
     });
   },
 
-  async latestForCategories(categories, now = Date.now()) {
+  async latestForCategories(categories, canonical, now = Date.now()) {
     const wanted = [...new Set(categories.filter(isDrinkCategory))];
     if (wanted.length === 0) {
       return { prices: [], truncated: false, degraded: false };
@@ -1550,7 +1571,7 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
     return guard<CommunityPriceCategoryIndexResult>({
       context: "category-index",
       onSchemaMiss: async () => ({
-        ...(await memoryCommunityPriceStore.latestForCategories(wanted, now)),
+        ...(await memoryCommunityPriceStore.latestForCategories(wanted, canonical, now)),
         degraded: true,
       }),
       message: "category index read failed - returning no community prices",
@@ -1583,6 +1604,7 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
         }
         return categoryIndexFromRows(
           rowsToCountableRows(scanned),
+          canonical,
           wanted,
           now,
           lastPageFull,
@@ -1656,12 +1678,12 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
     });
   },
 
-  async countCorroboratedCategories(now = Date.now()) {
+  async countCorroboratedCategories(canonical, now = Date.now()) {
     return guard<CorroboratedCategoryCount>({
       context: "corroborated-count",
       // A schema miss is not "zero corroborated prices" - it is the same
       // keyless/pre-migration world the memory store already answers for.
-      onSchemaMiss: () => memoryCommunityPriceStore.countCorroboratedCategories(now),
+      onSchemaMiss: () => memoryCommunityPriceStore.countCorroboratedCategories(canonical, now),
       message: "corroborated count failed - reporting degraded",
       onError: () => ({ count: 0, truncated: false, degraded: true }),
       run: async () => {
@@ -1693,7 +1715,7 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
         }
         const rows = rowsToCountableRows(scanned);
         return {
-          count: countCorroboratedIn(rows, now),
+          count: countCorroboratedIn(rows, canonical, now),
           truncated: lastPageFull,
           degraded: false,
         };
@@ -1984,10 +2006,11 @@ export function submitCommunityVenueSignal(
  * How many (venue, drink category) pairs the map is currently allowed to paint
  * a community price for - the contribution flywheel's real number. NEVER throws.
  */
-export function countCorroboratedCommunityCategories(
+export async function countCorroboratedCommunityCategories(
   now: number = Date.now(),
 ): Promise<CorroboratedCategoryCount> {
-  return communityPriceStore().countCorroboratedCategories(now);
+  const aliases = await loadVenueAliasResolver();
+  return communityPriceStore().countCorroboratedCategories(aliases.canonical, now);
 }
 
 /** The freshest community price per drink category at one venue. NEVER throws. */
@@ -2077,8 +2100,10 @@ export function readCommunityPriceCategoryIndex(
       categoryIndexMemo.delete(key);
     }
   };
-  const pending = communityPriceStore()
-    .latestForCategories(categories, now)
+  const pending = loadVenueAliasResolver()
+    .then((aliases) =>
+      communityPriceStore().latestForCategories(categories, aliases.canonical, now),
+    )
     .then((result) => {
       if (result.degraded) drop();
       return result;
@@ -2305,20 +2330,6 @@ async function durablePairPriceRows(
 }
 
 const observationReader = {
-  async listForVenueCategory(
-    venueId: string,
-    drinkCategory: DrinkCategory,
-  ): Promise<{ observations: CommunityPriceObservation[]; degraded: boolean }> {
-    const key = cleanVenueId(venueId);
-    if (!key || !isDrinkCategory(drinkCategory)) {
-      return { observations: [], degraded: false };
-    }
-    const rows = (venues.get(key) ?? [])
-      .map(observationFromStored)
-      .filter((row): row is CommunityPriceObservation => row !== null)
-      .filter((row) => row.drinkCategory === drinkCategory);
-    return { observations: rows, degraded: false };
-  },
   async listForPairs(
     pairs: readonly CommunityPriceObservationPair[],
   ): Promise<{ observations: CommunityPriceObservation[]; degraded: boolean }> {
@@ -2372,18 +2383,6 @@ const observationGuard = createFailSoftGuard({
 });
 
 const durableObservationReader = {
-  async listForVenueCategory(
-    venueId: string,
-    drinkCategory: DrinkCategory,
-  ): Promise<{ observations: CommunityPriceObservation[]; degraded: boolean }> {
-    const key = cleanVenueId(venueId);
-    if (!key || !isDrinkCategory(drinkCategory)) {
-      return { observations: [], degraded: false };
-    }
-    return durableObservationReader.listForPairs([
-      { venueId: key, drinkCategory },
-    ]);
-  },
   async listForPairs(
     pairs: readonly CommunityPriceObservationPair[],
   ): Promise<{ observations: CommunityPriceObservation[]; degraded: boolean }> {
@@ -2482,22 +2481,41 @@ function observations(): typeof observationReader {
   return selectStore(observationReader, durableObservationReader);
 }
 
+/** One observation under the id its venue carries now. */
+function underCurrentId(
+  observation: CommunityPriceObservation,
+  aliases: VenueAliasResolver,
+): CommunityPriceObservation {
+  const venueId = aliases.canonical(observation.venueId);
+  return venueId === observation.venueId ? observation : { ...observation, venueId };
+}
+
 export function listCommunityPriceObservations(
   venueId: string,
   drinkCategory: DrinkCategory,
 ): Promise<{ observations: CommunityPriceObservation[]; degraded: boolean }> {
-  return observations().listForVenueCategory(venueId, drinkCategory);
+  return listCommunityPriceObservationsForPairs([{ venueId, drinkCategory }]);
 }
 
 /**
- * Every observation for the wanted (venue, category) pairs in one bounded read.
- * `degraded` covers both a failed scan and a pair set past the cap, so a caller
- * never mistakes a short list for the whole one.
+ * Every observation for the wanted (venue, category) pairs in one bounded read,
+ * including those stored under a venue's former ids, each answered under the
+ * id the venue carries now. `degraded` covers both a failed scan and a pair set
+ * past the cap, so a caller never mistakes a short list for the whole one.
  */
-export function listCommunityPriceObservationsForPairs(
+export async function listCommunityPriceObservationsForPairs(
   pairs: readonly CommunityPriceObservationPair[],
 ): Promise<{ observations: CommunityPriceObservation[]; degraded: boolean }> {
-  return observations().listForPairs(pairs);
+  const aliases = await loadVenueAliasResolver();
+  const read = await observations().listForPairs(
+    pairs.flatMap(({ venueId, drinkCategory }) =>
+      aliases.storedIds(venueId).map((storedId) => ({ venueId: storedId, drinkCategory })),
+    ),
+  );
+  return {
+    ...read,
+    observations: read.observations.map((observation) => underCurrentId(observation, aliases)),
+  };
 }
 
 /**
@@ -2524,10 +2542,16 @@ export function listCommunityPriceObservationsForActor(
   return observations().listForActor(actor, limit);
 }
 
-export function findCommunityPriceObservation(
+export async function findCommunityPriceObservation(
   id: string,
 ): Promise<{ observation: CommunityPriceObservation | null; degraded: boolean }> {
-  return observations().findById(id);
+  const [aliases, found] = await Promise.all([
+    loadVenueAliasResolver(),
+    observations().findById(id),
+  ]);
+  return found.observation
+    ? { ...found, observation: underCurrentId(found.observation, aliases) }
+    : found;
 }
 
 /** Test-only: clear the in-memory observations between cases. */

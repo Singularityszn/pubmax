@@ -16,6 +16,7 @@ import {
   createFailSoftGuard,
   onMissingDurableWrite,
 } from "@/lib/storeBackend";
+import { loadVenueAliasResolver } from "@/lib/venueAliases";
 
 const EVENTS_TABLE = "price_trust_events";
 const CREDITS_TABLE = "price_trust_credits";
@@ -63,6 +64,20 @@ type RecordUnlockResult = {
   created: boolean;
   failed?: true;
 };
+
+/** Events under the id each venue carries now, so a former id pairs with its venue's reads. */
+async function eventsUnderCurrentIds(events: PriceTrustEvent[]): Promise<PriceTrustEvent[]> {
+  const aliases = await loadVenueAliasResolver();
+  return events.map((event) => {
+    const venueId = aliases.canonical(event.venueId);
+    return venueId === event.venueId ? event : { ...event, venueId };
+  });
+}
+
+/** Every id a venue's events may be stored under, current id first. */
+async function storedVenueIds(venueId: string): Promise<string[]> {
+  return (await loadVenueAliasResolver()).storedIds(cleanText(venueId, 64));
+}
 
 type VisibleImpact = {
   lifetimeTrustUnlocks: number;
@@ -321,10 +336,10 @@ export const memoryPriceTrustEventStore: PriceTrustEventStore = {
   },
 
   async liveEventsFor(venueId, category) {
-    const key = cleanText(venueId, 64);
+    const keys = await storedVenueIds(venueId);
     const events = memory.events.filter(
       (event) =>
-        event.venueId === key &&
+        keys.includes(event.venueId) &&
         event.category === category &&
         event.reversalOf === null &&
         !isReversed(event.id, memory.events),
@@ -383,7 +398,7 @@ export const memoryPriceTrustEventStore: PriceTrustEventStore = {
     return {
       lifetimeTrustUnlocks: unique.length,
       eventIds: unique,
-      events,
+      events: await eventsUnderCurrentIds(events),
       degraded: false,
     };
   },
@@ -831,7 +846,7 @@ export const supabasePriceTrustEventStore: PriceTrustEventStore = {
           .select(
             "id, evidence_fingerprint, venue_id, category, observation_ids, created_at, reversal_of",
           )
-          .eq("venue_id", key)
+          .in("venue_id", await storedVenueIds(key))
           .eq("category", category)
           .is("reversal_of", null);
         if (error) throw new Error(error.message);
@@ -953,7 +968,7 @@ export const supabasePriceTrustEventStore: PriceTrustEventStore = {
         return {
           lifetimeTrustUnlocks: live.length,
           eventIds: live.map((event) => event.id),
-          events: live,
+          events: await eventsUnderCurrentIds(live),
           degraded: false,
         };
       },

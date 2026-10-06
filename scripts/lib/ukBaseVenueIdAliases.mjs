@@ -80,20 +80,21 @@ export function ukBaseIdDepartures(previousRows, nextRows, liveCuratedIds) {
 }
 
 /**
- * Record the base ids a shard build dropped in the committed alias file. An
- * alias or retired record whose id the next rows serve again leaves the file,
- * so a live pub is never answered as another pub or as closed, and a retired
- * id that gains an alias leaves the retired records. Throws, writing nothing,
- * when a dropped id would resolve to neither an alias nor a readable retired
- * record.
+ * The committed alias file as it must read once the next rows are published.
+ * An alias or retired record whose id the next rows serve again leaves the
+ * file, so a live pub is never answered as another pub or as closed, and a
+ * retired id that gains an alias leaves the retired records. `doc` is null
+ * when the file needs no change. Throws when the file cannot be read or a
+ * dropped id would resolve to neither an alias nor a readable retired record,
+ * so a build plans this before it publishes anything.
  *
  * @param {string} root repo root
  * @param {ReadonlyArray<ReadonlyArray<unknown>>} previousRows
  * @param {ReadonlyArray<ReadonlyArray<unknown>>} nextRows
  * @param {ReadonlySet<string>} liveCuratedIds
- * @returns {Promise<{ superseded: Array<{ from: string, to: string }>, retired: Array<{ id: string }> }>}
+ * @returns {Promise<{ superseded: Array<{ from: string, to: string }>, retired: Array<{ id: string }>, doc: Record<string, unknown> | null }>}
  */
-export async function recordUkBaseVenueIdAliases(root, previousRows, nextRows, liveCuratedIds) {
+export async function planUkBaseVenueIdAliases(root, previousRows, nextRows, liveCuratedIds) {
   const departed = ukBaseIdDepartures(previousRows, nextRows, liveCuratedIds);
   const superseded = departed.flatMap(({ from, to }) => (to ? [{ from, to }] : []));
   const retired = departed.flatMap(({ pub, from, to }) =>
@@ -119,7 +120,7 @@ export async function recordUkBaseVenueIdAliases(root, previousRows, nextRows, l
     retired.length === 0 &&
     ![...Object.keys(heldAliases), ...Object.keys(heldRetired)].some((id) => liveIds.has(id))
   ) {
-    return { superseded, retired };
+    return { superseded, retired, doc: null };
   }
   const aliases = Object.fromEntries(
     Object.entries(mergeCityVenueIdAliases(heldAliases, superseded)).filter(
@@ -139,18 +140,22 @@ export async function recordUkBaseVenueIdAliases(root, previousRows, nextRows, l
       `${unresolved.length} dropped UK base id(s) would resolve to nothing: ${unresolved.join(", ")}`,
     );
   }
+  return {
+    superseded,
+    retired,
+    doc: { ...doc, aliasCount: Object.keys(aliases).length, aliases, retired: retiredRecords },
+  };
+}
+
+/**
+ * Write a planned alias file.
+ *
+ * @param {string} root repo root
+ * @param {Record<string, unknown>} doc
+ */
+export async function writeUkBaseVenueIdAliases(root, doc) {
   await writeFile(
-    file,
-    `${JSON.stringify(
-      {
-        ...doc,
-        aliasCount: Object.keys(aliases).length,
-        aliases,
-        retired: retiredRecords,
-      },
-      null,
-      2,
-    )}\n`,
+    path.join(root, UK_BASE_VENUE_ALIASES_FILE),
+    `${JSON.stringify(doc, null, 2)}\n`,
   );
-  return { superseded, retired };
 }

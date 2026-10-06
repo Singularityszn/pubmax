@@ -19,9 +19,18 @@ export function ukBaseIdDepartures(
   to: string | null;
 }>;
 
-export function recordUkBaseVenueIdAliases(
+export function planUkBaseVenueIdAliases(
   root: string,
   previousRows: ReadonlyArray<ReadonlyArray<unknown>>,
   nextRows: ReadonlyArray<ReadonlyArray<unknown>>,
   liveCuratedIds: ReadonlySet<string>,
-): Promise<{ superseded: UkBaseIdSuccession[]; retired: RetiredUkBaseVenue[] }>;
+): Promise<{
+  superseded: UkBaseIdSuccession[];
+  retired: RetiredUkBaseVenue[];
+  doc: Record<string, unknown> | null;
+}>;
+
+export function writeUkBaseVenueIdAliases(
+  root: string,
+  doc: Record<string, unknown>,
+): Promise<void>;
