@@ -377,7 +377,7 @@ vocabularies. The column here is the question the event exists to answer.
 |---|---|
 | `sign_in_initiated` | Which door a sign-in started at. |
 | `user_signed_up` | A sign-in landed within five minutes of the account's first verification (`confirmed_at`). |
-| `user_signed_in` | A session began. |
+| `user_signed_in` | A person signed in. A session restored on a page load does not count. |
 | `user_signed_out` | A session ended. |
 | `account_switched` | A device moved between accounts it already holds. |
 | `account_claimed` | A handle was claimed. |

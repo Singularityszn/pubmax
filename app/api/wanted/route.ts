@@ -1,6 +1,7 @@
-// Wanted Wave A — private list + create / delete / fulfil.
+// Wanted Wave A — private list + create / note / delete / fulfil.
 //
-//   GET                           → 200 { status, wanteds } (owner only)
+//   GET                           → 200 { status, wanteds } (owner only);
+//                                   200 { status, error } while an age or handle gate stands in front of it
 //   GET ?open=1                   → 200 { status, wanteds } open only
 //   POST { venueId, venueName, venueKind?, sourceUrl?, note?, rawPaste? }
 //                                 → 201 { wanted }
@@ -8,6 +9,8 @@
 //                                 → 201 { wanted } (unresolvable paste)
 //   POST { action: "fulfil", venueId }
 //                                 → 200 { fulfilled: WantedDTO[] }
+//   POST { action: "note", id, note? }
+//                                 → 200 { wanted } (the owner's own row, note changed)
 //   POST { action: "delete", id } → 200 { ok: true }
 //
 // Auth-gated via resolveContributionIdentity. Rate-limited. publicApiError

@@ -33,7 +33,6 @@ export const runtime = "nodejs";
 
 const CREATE_WINDOW_MS = 60_000;
 
-
 async function parseJson(request: Request): Promise<Record<string, unknown> | null> {
   try {
     const parsed = (await request.json()) as unknown;
