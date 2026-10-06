@@ -169,6 +169,12 @@ describe("legal content pages", () => {
     expect(terms).toMatch(/Profile pictures use an advisory OpenAI omni\s+moderation/i);
     expect(terms).toMatch(/cannot run[^.]*upload can proceed\s+without scan approval/i);
     expect(terms).toMatch(/hiding never deletes\s+the stored file/i);
+    for (const text of [privacyText, termsText]) {
+      expect(text).toMatch(/advisory (OpenAI )?omni moderation/i);
+      expect(text).toMatch(/refuses[^.]*picture, we refuse the upload/i);
+      expect(text).toMatch(/cannot run or gives no usable decision, the upload can proceed without scan approval/i);
+    }
+    expect(privacyText).not.toMatch(/no usable decision, we refuse the upload/i);
   });
 
   it("discloses Social interactions, private saves, governance, and held derivatives", () => {
