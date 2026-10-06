@@ -27,7 +27,7 @@ import "../../legal.css";
 const PAGE_TITLE = "Delete your account";
 const PAGE_DESCRIPTION =
   "How to delete your PUBMAXX account from inside the app, what is removed, and what stays.";
-const LAST_UPDATED = "4 September 2026";
+const LAST_UPDATED = "6 October 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -92,9 +92,8 @@ export default function AccountDeletePage() {
           ))}
         </ul>
         <p className="legalBody">
-          A price is an observation other drinkers rely on, so it stays on the
-          map under the handle that logged it. The handle itself is reserved for
-          good, which is what stops the record naming somebody else later.
+          A price is an observation other drinkers rely on, so it stays when its
+          author goes. Only the name leaves it.
         </p>
       </section>
 

@@ -9,6 +9,7 @@ import { resolveMapDisplayName } from "@/lib/mapDisplayName";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID, getCity } from "@/lib/cities";
 import type { UkPlaceMapArrival } from "@/lib/ukPlaceSearch";
+import type { ZonePintIndex } from "@/lib/zones";
 
 // next/dynamic hands its loading component no props, so the city the shell is
 // about reaches the held skeleton through context instead. The placeholder
@@ -86,12 +87,15 @@ type PubMaxingShellProps = {
   placeArrival?: UkPlaceMapArrival | null;
   /** Explicit UK-wide browse (`/map?uk=1`). Passed to PubMap as nationalBrowse. */
   ukNationalBrowse?: boolean;
+  /** The published fare-zone medians (`loadZonePintIndex`), so every surface prints one figure per zone. */
+  zonePintIndex?: ZonePintIndex | null;
 };
 
 export default function PubMaxingShell({
   cityId = DEFAULT_CITY_ID,
   placeArrival = null,
   ukNationalBrowse = false,
+  zonePintIndex = null,
 }: PubMaxingShellProps) {
   // Lazy initializer = runs exactly once, before the dynamic PubMap (ssr:false)
   // can possibly have mounted and read the sessionStorage flag.
@@ -133,6 +137,7 @@ export default function PubMaxingShell({
         cityId={cityId}
         placeArrival={placeArrival}
         nationalBrowse={ukNationalBrowse}
+        zonePintIndex={zonePintIndex}
       />
     </MapSkeletonCityContext.Provider>
   );

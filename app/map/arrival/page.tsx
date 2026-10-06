@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import PintIndexMapArrival from "@/components/pintindex/PintIndexMapArrival";
 import PubMaxingShell from "@/components/PubMaxingShell";
+import { loadZonePintIndex } from "@/lib/zonePintIndex.server";
 import { firstSearchParam, stopCountFromPubsParam } from "@/lib/cityShare";
 import { londonMapMetadata } from "@/lib/londonMapMetadata";
 import { resolveUkPlaceMapArrival } from "@/lib/ukPlaceIndex.server";
@@ -119,12 +120,14 @@ export default async function MapArrivalPage({
 }: MapArrivalPageProps) {
   const sp = searchParams ? await searchParams : undefined;
   const placeArrival = placeArrivalFor(sp);
+  const zonePintIndex = await loadZonePintIndex();
   return (
     <>
       <PubMaxingShell
         cityId="london"
         placeArrival={placeArrival}
         ukNationalBrowse={nationalBrowseFor(sp, placeArrival)}
+        zonePintIndex={zonePintIndex}
       />
       {/* Records that a Pint Index arrival reached the map. Renders nothing and
           owns no map state; it only reads its own arrival marker off the URL. */}

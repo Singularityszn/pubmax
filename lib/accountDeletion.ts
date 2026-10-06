@@ -12,6 +12,8 @@
 // away from the trigger it describes. Every line below is a statement the SQL
 // above actually makes true.
 
+import { ANON_HANDLE_LABEL } from "@/lib/pintDropShared";
+
 /** What the delete takes away. Each line is one thing the writer or the `0078` trigger drops. */
 export const ACCOUNT_DELETION_LEAVES: readonly string[] = [
   "Your sign-in. You will not be able to sign in with it again.",
@@ -24,7 +26,7 @@ export const ACCOUNT_DELETION_LEAVES: readonly string[] = [
 /** What the delete keeps, and why. Each line is a deliberate design decision. */
 export const ACCOUNT_DELETION_STAYS: readonly string[] = [
   "Your handle stays reserved, so nobody else can take it.",
-  "The prices you logged stay on the map, attributed to that handle.",
+  `The prices you logged stay on the map. Your handle comes off them and they read as from ${ANON_HANDLE_LABEL}.`,
   "A founding member number stays yours. It is never given to anybody else.",
 ];
 

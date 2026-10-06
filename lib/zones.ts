@@ -145,6 +145,14 @@ export function computeZonePintIndex(venues: readonly ZonePricedVenue[]): ZonePi
   return { rows, ranked, dearest, cheapest, taxGbp };
 }
 
+/** The published fare-zone medians when the page was handed them, else a roll-up of the venues loaded so far. */
+export function publishedOrLoadedZoneIndex(
+  published: ZonePintIndex | null | undefined,
+  loaded: readonly ZonePricedVenue[],
+): ZonePintIndex {
+  return published ?? computeZonePintIndex(loaded);
+}
+
 /**
  * One line for a zone that reads dearer than the zone inside it, when the
  * reason is on the page already.

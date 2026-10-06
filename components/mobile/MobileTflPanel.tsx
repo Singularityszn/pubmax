@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CalendarClock, Info, TrainFront } from "lucide-react";
 
+import { CITY_STATUS_UNSOURCED_LABEL, cityStatusSignalSource } from "@/lib/cityStatusSignalSource";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import { useReconnectRecovery } from "@/lib/useReconnectRecovery";
 import type { CityId } from "@/lib/cities";
 
-type Signal = { headline?: string; detail?: string; kind?: string; severity?: string; timeWindow?: string; areas?: string[] };
+type Signal = { headline?: string; detail?: string; kind?: string; severity?: string; timeWindow?: string; areas?: string[]; sourceUrl?: string };
 type TubeLine = { line?: string; status?: string; disruption?: string };
 type TflPayload = { asOf?: string | null; signals?: Signal[]; tubeLines?: TubeLine[]; error?: string };
 export type MobileTflStatus = { payload: TflPayload | null; failed: boolean; issueCount: number };
@@ -73,6 +74,15 @@ function freshness(asOf?: string | null): React.ReactNode {
   return <small className="mobileTflFreshness">Updated {parsed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</small>;
 }
 
+function SignalSource({ sourceUrl }: { sourceUrl?: string }) {
+  const source = cityStatusSignalSource(sourceUrl);
+  return source ? (
+    <a className="mobileTflSource" href={source.href} target="_blank" rel="noreferrer noopener">{source.label}</a>
+  ) : (
+    <span>{CITY_STATUS_UNSOURCED_LABEL}</span>
+  );
+}
+
 export default function MobileTflPanel({ status }: { status: MobileTflStatus }) {
   const { payload, failed } = status;
 
@@ -90,7 +100,7 @@ export default function MobileTflPanel({ status }: { status: MobileTflStatus }) 
     <div className="mobileTflGroups">
       {freshness(payload.asOf)}
       {disrupted.length ? <section><h3><TrainFront size={18} />Transport</h3><ul>{disrupted.map((line) => <li key={`${line.line}-${line.status}`}><strong>{line.line}</strong><span>{line.status}</span>{line.disruption ? <p>{line.disruption}</p> : null}</li>)}</ul></section> : null}
-      {grouped.map((group) => <section key={group.label}><h3>{group.label === "Events" ? <CalendarClock size={18} /> : <AlertTriangle size={18} />}{group.label}</h3><ul>{group.rows.map((signal, index) => <li key={`${signal.headline}-${index}`}><strong>{signal.headline}</strong>{signal.detail ? <p>{signal.detail}</p> : null}<span>{[signal.timeWindow, signal.areas?.join(", ")].filter(Boolean).join(" · ")}</span></li>)}</ul></section>)}
+      {grouped.map((group) => <section key={group.label}><h3>{group.label === "Events" ? <CalendarClock size={18} /> : <AlertTriangle size={18} />}{group.label}</h3><ul>{group.rows.map((signal, index) => <li key={`${signal.headline}-${index}`}><strong>{signal.headline}</strong>{signal.detail ? <p>{signal.detail}</p> : null}<span>{[signal.timeWindow, signal.areas?.join(", ")].filter(Boolean).join(" · ")}</span><SignalSource sourceUrl={signal.sourceUrl} /></li>)}</ul></section>)}
     </div>
   );
 }

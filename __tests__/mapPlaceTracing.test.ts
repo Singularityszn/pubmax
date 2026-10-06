@@ -29,10 +29,15 @@ import {
   UK_PLACE_INDEX_FILE,
   UK_PLACE_INDEX_TRACING_INCLUDE,
 } from "@/lib/ukPlaceIndexFile.mjs";
+import { venuePackIncludesFor } from "@/lib/cityVenuePacks.mjs";
 import { MAP_DOCUMENT_TWIN_PATH } from "@/lib/mapDocumentTwin";
 
 const MAP_ROUTE = MAP_DOCUMENT_TWIN_PATH;
 const PRERENDERED_MAP_ROUTE = "/map";
+// The fare-zone medians both map documents print, rolled up from the London
+// slim pack (lib/zonePintIndex.server.ts). /map revalidates, so its render runs
+// in a function too.
+const ZONE_PINT_INDEX_INCLUDES = venuePackIncludesFor(["london"]);
 const root = join(__dirname, "..");
 const readerSource = readFileSync(
   join(root, "lib/ukPlaceIndex.server.ts"),
@@ -65,10 +70,10 @@ describe("map place-index tracing", () => {
     expect(includes[MAP_ROUTE]).toContain(UK_PLACE_INDEX_TRACING_INCLUDE);
   });
 
-  it("leaves the prerendered /map with nothing to open", () => {
-    // A prerendered document reads nothing at request time, so a runtime data
+  it("gives the prerendered /map the zone index it rolls up and nothing else", () => {
+    // A prerendered document reads no place index, so any other runtime data
     // declaration on it would mean a per-request read had crept back in.
-    expect(includes?.[PRERENDERED_MAP_ROUTE]).toBeUndefined();
+    expect(includes?.[PRERENDERED_MAP_ROUTE]).toEqual(ZONE_PINT_INDEX_INCLUDES);
   });
 
   it("traces the file the reader actually reads", () => {
@@ -78,7 +83,9 @@ describe("map place-index tracing", () => {
   });
 
   it("traces nothing else into the arrival function", () => {
-    expect(includes[MAP_ROUTE]).toEqual([UK_PLACE_INDEX_TRACING_INCLUDE]);
+    expect([...(includes[MAP_ROUTE] ?? [])].sort()).toEqual(
+      [UK_PLACE_INDEX_TRACING_INCLUDE, ...ZONE_PINT_INDEX_INCLUDES].sort(),
+    );
   });
 
   it("keeps a failed read observable and retryable rather than cached empty", () => {

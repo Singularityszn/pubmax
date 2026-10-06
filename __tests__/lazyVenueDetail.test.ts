@@ -50,6 +50,15 @@ describe("mergeLazyDetailPins", () => {
     expect(mergeLazyDetailPins([slim], new Map([["venue-a", detail]]))).toEqual([detail]);
   });
 
+  it("keeps the pin's fare zone when the detail record carries none", () => {
+    const slim: Venue = { ...venue("venue-a", "Slim A"), zone: 4 };
+    const detail = venue("venue-a", "Detail A");
+
+    expect(mergeLazyDetailPins([slim], new Map([["venue-a", detail]]))).toEqual([
+      { ...detail, zone: 4 },
+    ]);
+  });
+
   it("keeps selected deep-link detail resolvable when the slim index cache is stale", () => {
     const slim = venue("venue-a", "Slim A");
     const detail = venue("venue-b", "Detail B");

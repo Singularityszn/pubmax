@@ -20,6 +20,7 @@ import { loadPintIndexArchive, loadPublicPintIndexSnapshotOrThrow } from "@/lib/
 import { loadGroupedVenues } from "@/lib/venueDataset";
 import { formatPrice } from "@/lib/venues";
 import { loadZonePintIndex } from "@/lib/zonePintIndex.server";
+import { computeZonePintIndex } from "@/lib/zones";
 import PintIndexScreen from "./PintIndexScreen";
 
 import "./pint-index.css";
@@ -115,7 +116,7 @@ export default async function PintIndexPage() {
             ? `Prices seen: ${formatPintIndexDate(window.start)} to ${formatPintIndexDate(window.end)}.`
             : undefined
         }
-        csvHref="/pint-index/data.csv"
+        csvHref={rows.length > 0 ? "/pint-index/data.csv" : undefined}
       >
         {summary.averageGbp !== null ? (
           <dl className="pintIndexStats">
@@ -147,7 +148,7 @@ export default async function PintIndexPage() {
             (a documented approximation, not an area boundary), then we take the
             median of every zone&rsquo;s listed cheapest pint.
           </p>
-          <ZonePintIndexStrip index={zoneIndex} />
+          <ZonePintIndexStrip index={zoneIndex ?? computeZonePintIndex([])} />
         </section>
 
         <PintIndexArrival
@@ -173,7 +174,9 @@ export default async function PintIndexPage() {
               caption="London boroughs ranked by average eligible pint price"
             />
           )}
-          <a className="pintIndexDownload" href="/pint-index/data.csv" download>Download current data (CSV) ↓</a>
+          {rows.length > 0 ? (
+            <a className="pintIndexDownload" href="/pint-index/data.csv" download>Download current data (CSV) ↓</a>
+          ) : null}
         </section>
 
         {dearestPint ? (
