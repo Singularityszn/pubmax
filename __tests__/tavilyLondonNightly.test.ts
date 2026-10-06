@@ -20,6 +20,7 @@ import {
   rejectClosedPrRows,
   resumeCheckpoint,
   runCityPass,
+  TERMINAL_VENUE_RETRY_MS,
 } from "@/scripts/enrich_city_pubs_tavily.mjs";
 import {
   MAX_TAVILY_CREDITS_PER_RUN,
@@ -147,6 +148,26 @@ describe("the nightly London Tavily pass spends a bounded amount", () => {
     expect(result.queriesSpent).toBe(Math.floor(MAX_TAVILY_CREDITS_PER_RUN / 6));
     expect(result.creditsSpent).toBe(result.queriesSpent * 6);
   });
+
+  it.each(["SEARCH_GATEWAY_BUDGET_EXHAUSTED", "SEARCH_PROVIDER_NOT_CONFIGURED"])(
+    "charges no credits for a search that never left (%s)",
+    async (code) => {
+      const search = vi.fn(async () => {
+        throw Object.assign(new Error("no request was sent"), { code });
+      });
+      const result = await runCityEnrichment({
+        city: "london",
+        pubs: londonPubs(3),
+        searchProvider: { search },
+        observedAt: OBSERVED_AT,
+        onVenueError: () => "continue",
+      });
+
+      expect(search).toHaveBeenCalledTimes(3);
+      expect(result.outcomes?.map((o: { status: string }) => o.status)).toEqual(["failed", "failed", "failed"]);
+      expect(result.creditsSpent).toBe(0);
+    },
+  );
 
   it("sends no search for a website the source policy refuses", async () => {
     const pubs = [
@@ -649,6 +670,102 @@ describe("the nightly London pass keeps going and keeps what it found", () => {
       }),
     ).rejects.toThrow(/no search succeeded while 3 pubs were still due/);
     expect(fetchImpl).toHaveBeenCalledTimes(3);
+  });
+
+  it("stops searching a pub whose search always fails after 3 attempts, and asks again after 30 days", async () => {
+    const pubs = londonPubs(3);
+    const ok = billing(2);
+    const fetchImpl = vi.fn<typeof fetch>(async (input, init) => {
+      if (String(init?.body).includes("Independent Arms 1")) return new Response("{}", { status: 504 });
+      return ok(input, init);
+    });
+    const night = (day: number) => new Date(Date.parse(OBSERVED_AT) + day * 24 * 60 * 60_000).toISOString();
+    let checkpoint = freshLondon(pubs);
+    const searchedOnNight: Array<Array<string | undefined>> = [];
+    for (const day of [0, 1, 2, 3, 4]) {
+      fetchImpl.mockClear();
+      const { state } = await runCityPass({
+        city: "london",
+        checkpoint,
+        pubs,
+        apiKey: "test-key",
+        observedAt: night(day),
+        committedPrices: [],
+        fetchImpl,
+      });
+      searchedOnNight.push(searchedPubs(fetchImpl));
+      checkpoint = state;
+    }
+
+    expect(searchedOnNight.map((names) => names.includes("Independent Arms 1"))).toEqual([true, true, true, false, false]);
+    expect(checkpoint.terminal.map((entry) => entry.osmId)).toEqual(["node/1"]);
+    expect(checkpoint.deferred).toEqual([]);
+
+    fetchImpl.mockClear();
+    const { state: later } = await runCityPass({
+      city: "london",
+      checkpoint,
+      pubs,
+      apiKey: "test-key",
+      observedAt: new Date(Date.parse(night(2)) + TERMINAL_VENUE_RETRY_MS).toISOString(),
+      committedPrices: [],
+      fetchImpl,
+    });
+
+    expect(searchedPubs(fetchImpl)[0]).toBe("Independent Arms 1");
+    expect(later.terminal).toEqual([]);
+    expect(later.deferred).toMatchObject([{ osmId: "node/1", attempts: 1 }]);
+  });
+
+  it("clears a pub's failed attempts when its search succeeds", async () => {
+    const pubs = londonPubs(3);
+    const ok = billing(2);
+    const failing = new Set([0, 2, 3]);
+    let nightIndex = 0;
+    const fetchImpl = vi.fn<typeof fetch>(async (input, init) => {
+      if (failing.has(nightIndex) && String(init?.body).includes("Independent Arms 1")) {
+        return new Response("{}", { status: 504 });
+      }
+      return ok(input, init);
+    });
+    let checkpoint = freshLondon(pubs);
+    const deferred: unknown[] = [];
+    for (nightIndex = 0; nightIndex < 4; nightIndex += 1) {
+      const { state } = await runCityPass({
+        city: "london",
+        checkpoint,
+        pubs,
+        apiKey: "test-key",
+        observedAt: new Date(Date.parse(OBSERVED_AT) + nightIndex * 24 * 60 * 60_000).toISOString(),
+        committedPrices: [],
+        fetchImpl,
+      });
+      deferred.push(state.deferred.map((entry) => entry.attempts));
+      checkpoint = state;
+    }
+
+    expect(deferred).toEqual([[1], [], [1], [2]]);
+    expect(checkpoint.terminal).toEqual([]);
+  });
+
+  it("charges no pub an attempt on a night where every search failed", async () => {
+    const pubs = londonPubs(3);
+    const checkpoint = freshLondon(pubs);
+    const states: Array<{ deferred: unknown[] }> = [];
+    await expect(
+      runCityPass({
+        city: "london",
+        checkpoint,
+        pubs,
+        apiKey: "revoked-key",
+        observedAt: OBSERVED_AT,
+        committedPrices: [],
+        fetchImpl: vi.fn<typeof fetch>(async () => new Response("{}", { status: 401 })),
+        onState: (state) => states.push(state),
+      }),
+    ).rejects.toThrow(/no search succeeded/);
+
+    expect(states.every((state) => state.deferred.length === 0)).toBe(true);
   });
 
   it("passes a night with nothing to search", async () => {

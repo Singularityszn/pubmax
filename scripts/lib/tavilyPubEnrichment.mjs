@@ -1,3 +1,4 @@
+import { runLevelFailure } from "../../lib/cityEnrichmentCheckpoint.ts";
 import { isHarvestableOperatorUrl } from "../../lib/harvest/sourcePolicy.ts";
 import { extractPintPrices } from "../../lib/harvest/tavilyPintPrices.ts";
 
@@ -532,7 +533,7 @@ export async function runCityEnrichment({
       // A query was spent asking about THIS pub and no answer came back. That
       // outcome is recorded whatever the caller then decides about the run, or
       // the venue that ends a run is a venue nobody ever hears about again.
-      creditsSpent += dearestSearch;
+      if (!runLevelFailure(error)) creditsSpent += dearestSearch;
       outcomes.push({
         index,
         osmId: pub.osmId,

@@ -33,6 +33,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  recordVenueFailure,
+  recordVenueSuccess,
+  requeueTerminalVenues,
+  venueRetryDue,
+} from "../lib/cityEnrichmentCheckpoint.ts";
+import {
   CITY_DEFINITIONS,
   MAX_TAVILY_CREDITS_PER_RUN,
   mergeCanonicalPrices,
@@ -50,6 +56,8 @@ const REPORT_ROOT = path.join(ROOT, "data", "enrichment", "tavily");
 const PRICE_DIR = path.join(ROOT, "public", "data", "drink_price_updates");
 const DEFAULT_MAX_QUERIES = 200;
 const MAX_TAVILY_QUERIES_PER_RUN = 200;
+/** How long a pub refused after its last failed attempt waits before it is asked again. */
+export const TERMINAL_VENUE_RETRY_MS = 30 * 24 * 60 * 60_000;
 
 function readArg(argv, name) {
   const equals = argv.find((arg) => arg.startsWith(`${name}=`));
@@ -232,6 +240,8 @@ export function resumeCheckpoint(saved, { city, totalPubs, cityVenueKeys, observ
     totalPubs,
     observedAt,
     readAt: {},
+    deferred: [],
+    terminal: [],
     totalQueriesSpent: 0,
     totalCreditsSpent: 0,
     prices: (Array.isArray(saved?.prices) ? saved.prices : []).filter((row) =>
@@ -296,6 +306,42 @@ function uniqueBy(rows, keyFor) {
   return [...byKey.values()];
 }
 
+/**
+ * The pubs a night may ask about, stalest first. A pub refused after
+ * MAX_VENUE_ATTEMPTS failed searches is held back until TERMINAL_VENUE_RETRY_MS
+ * has passed, then requeued with its attempts reset, so a fixed site recovers.
+ * A pub still inside its retry backoff waits for it.
+ */
+function dueVenues(checkpoint, pubs, now) {
+  const requeue = checkpoint.terminal
+    .filter((entry) => !(now - Date.parse(entry.failedAt) < TERMINAL_VENUE_RETRY_MS))
+    .map((entry) => entry.osmId);
+  const start = requeue.length
+    ? requeueTerminalVenues(checkpoint, { now, osmIds: requeue }).checkpoint
+    : checkpoint;
+  const held = new Set([
+    ...start.terminal.map((entry) => entry.osmId),
+    ...start.deferred.filter((entry) => !venueRetryDue(entry, now)).map((entry) => entry.osmId),
+  ]);
+  return {
+    start,
+    indices: stalestFirst(pubs, start.readAt).filter((index) => !held.has(String(pubs[index].osmId))),
+  };
+}
+
+function recordVenueOutcomes(state, outcomes, now) {
+  let next = state;
+  for (const outcome of outcomes) {
+    const osmId = String(outcome.osmId);
+    if (outcome.status === "failed") {
+      next = recordVenueFailure(next, { osmId, error: outcome.error ?? "unknown", now }).checkpoint;
+    } else if (outcome.status === "matched" || outcome.status === "empty") {
+      next = recordVenueSuccess(next, { osmId, now });
+    }
+  }
+  return next;
+}
+
 // A failed search is not a read, so that pub stays stalest and goes first next
 // time.
 function mergeState(base, progress, observedAt) {
@@ -328,8 +374,8 @@ function mergeState(base, progress, observedAt) {
 /**
  * One capped pass over a city, stalest pubs first, reconciled with the
  * committed data. A run in which no search succeeded while a pub was still
- * waiting for one throws, so a spent-out cap or a broken order is a red job
- * rather than a quiet green one.
+ * waiting for one throws, so a spent-out cap, a broken order or a dead key is
+ * a red job rather than a quiet green one, and charges no pub an attempt.
  */
 export async function runCityPass({
   checkpoint,
@@ -342,6 +388,8 @@ export async function runCityPass({
   onState,
   ...options
 }) {
+  const now = Date.parse(observedAt);
+  const { start, indices } = dueVenues(checkpoint, pubs, now);
   const runResult = await runCityEnrichment({
     // One pub's timeout or 429 is a fact about that pub. The failure is
     // recorded as a "failed" outcome (and the pub stays stalest) while the
@@ -349,26 +397,24 @@ export async function runCityPass({
     onVenueError: () => "continue",
     ...options,
     pubs,
-    indices: stalestFirst(pubs, checkpoint.readAt),
+    indices,
     observedAt,
-    onProgress: (progress) => onState?.(mergeState(checkpoint, progress, observedAt)),
-  });
-  const state = reconcileWithCommitted(mergeState(checkpoint, runResult, observedAt), {
-    committedPrices,
-    rejectedRows,
-    correctedRows,
-    mergedThrough,
+    onProgress: (progress) => onState?.(mergeState(start, progress, observedAt)),
   });
   const searched = runResult.outcomes.filter(
     (outcome) => outcome.status === "matched" || outcome.status === "empty",
   ).length;
   const due =
-    pubs.length - runResult.outcomes.filter((outcome) => outcome.status !== "failed").length;
+    indices.length - runResult.outcomes.filter((outcome) => outcome.status !== "failed").length;
   if (searched === 0 && due > 0) {
     throw new Error(
       `${options.city}: no search succeeded while ${due} pubs were still due.`,
     );
   }
+  const state = reconcileWithCommitted(
+    recordVenueOutcomes(mergeState(start, runResult, observedAt), runResult.outcomes, now),
+    { committedPrices, rejectedRows, correctedRows, mergedThrough },
+  );
   return { runResult, state };
 }
 

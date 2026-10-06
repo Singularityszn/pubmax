@@ -1,4 +1,8 @@
+import type { CityEnrichmentCheckpoint, DeferredVenue } from "../lib/cityEnrichmentCheckpoint.ts";
 import type { OsmPub, runCityEnrichment, TavilyEnrichmentResult } from "./lib/tavilyPubEnrichment.mjs";
+
+/** How long a pub refused after its last failed attempt waits before it is asked again. */
+export const TERMINAL_VENUE_RETRY_MS: number;
 
 export type EnrichmentCliArgs = {
   city: string;
@@ -30,6 +34,10 @@ export type CityCheckpoint = {
   observedAt: string;
   /** When each pub was last read, by OSM id. A failed search is not a read. */
   readAt: Record<string, string>;
+  /** Pubs whose last searches failed, owed a retry after backoff. */
+  deferred: DeferredVenue[];
+  /** Pubs refused after MAX_VENUE_ATTEMPTS failed searches, asked again after TERMINAL_VENUE_RETRY_MS. */
+  terminal: CityEnrichmentCheckpoint["terminal"];
   totalQueriesSpent: number;
   totalCreditsSpent: number;
   prices: ManagedPrice[];
