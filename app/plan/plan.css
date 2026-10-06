@@ -307,7 +307,10 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin: 22px 0 -4px 72px;
+  /* 44px tap target that does not move the layout: 14px of padding each side,
+     taken back out of the margins. It measured 141x16. */
+  padding-block: 14px;
+  margin: 8px 0 -18px 72px;
   color: var(--plan-accent-strong);
   font-weight: 700;
   font-size: 0.82rem;

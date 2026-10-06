@@ -4480,6 +4480,19 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   color: var(--brick);
 }
 
+/* The pill stays small on purpose (it is the quietest control in the row), but
+   its hit area reaches the 44px floor: the pseudo-element is the extra reach.
+   It measured 70x22. */
+.reportBtn {
+  position: relative;
+}
+
+.reportBtn::after {
+  content: "";
+  position: absolute;
+  inset: -11px -6px;
+}
+
 /* ── Photo-backed composer ────────────────────────────────────────────── */
 .photoRow {
   display: grid;

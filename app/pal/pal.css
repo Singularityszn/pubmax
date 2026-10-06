@@ -275,7 +275,8 @@
 .palControlGrid svg { color: var(--pal-accent); }
 .palControlGrid span { display: grid; gap: .2rem; }
 .palControlGrid small { color: var(--pal-soft); }
-.palDanger { border-color: rgba(255, 116, 136, .45) !important; color: #ffb1bc !important; }
+/* The destructive ink follows the theme (pale pink was fixed for a dark page and read as pink on cream in light). */
+.palDanger { border-color: color-mix(in srgb, var(--brick) 55%, var(--line)) !important; color: var(--tint-ink-negative, #ffb1bc) !important; }
 .palMemoryControls { width: min(84rem, 100%); margin: 4rem auto 0; padding-top: 3rem; border-top: 1px solid var(--pal-line); display: grid; gap: 1.2rem; }
 .palMemoryControls__header { display: flex; align-items: end; justify-content: space-between; gap: 1rem; }
 .palMemoryControls__header h2 { margin-top: .25rem; font-size: clamp(2rem, 4vw, 3.7rem); line-height: 1; }
@@ -289,7 +290,7 @@
 .palMemoryList__meta small { color: var(--pal-soft); text-transform: capitalize; }
 .palMemoryList > li > p { margin: 0; line-height: 1.5; }
 .palMemoryList__actions, .palMemoryList__edit > div { display: flex; flex-wrap: wrap; gap: .5rem; }
-.palMemoryList__actions .palDanger { border-color: rgba(255, 116, 136, .45); background: transparent; color: #ffb1bc; }
+.palMemoryList__actions .palDanger { border-color: color-mix(in srgb, var(--brick) 55%, var(--line)); background: transparent; color: var(--tint-ink-negative, #ffb1bc); }
 .palMemoryList__edit { display: grid; gap: .6rem; }
 .palMemoryList__edit label { display: grid; gap: .35rem; color: var(--pal-soft); font-size: .78rem; font-weight: 700; }
 .palMemoryList__edit textarea { width: 100%; min-height: 5.5rem; padding: .75rem; border: 1px solid var(--pal-line); border-radius: .7rem; background: var(--pal-night); color: var(--pal-paper); font: inherit; resize: vertical; }
