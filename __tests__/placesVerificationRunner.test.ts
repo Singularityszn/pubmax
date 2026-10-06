@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import {
   copyFileSync,
+  existsSync,
   mkdirSync,
   readFileSync,
   rmSync,
@@ -77,6 +78,7 @@ globalThis.fetch = async (input, init) => {
   if (url === "https://places.googleapis.com/v1/places/ChIJFixturePub0001") return response({ businessStatus: "OPERATIONAL", displayName: { text: "The Fixture Pub" } });
   if (url === "https://places.googleapis.com/v1/places/ChIJFixtureCafe0001") {
     if (process.env.FIXTURE_MIDNIGHT === "1") day = "2026-10-04";
+    if (process.env.FIXTURE_BACKWARD === "1") day = "2026-10-02";
     return response({ businessStatus: "OPERATIONAL", regularOpeningHours: { periods: [{ open: { day: 0, hour: 0, minute: 0 } }] } });
   }
   throw new Error("unexpected external request: " + url);
@@ -85,7 +87,7 @@ globalThis.fetch = async (input, init) => {
   return dir;
 }
 
-function runCli(dir: string, day: string, options: { noPlaces?: boolean; midnight?: boolean } = {}) {
+function runCli(dir: string, day: string, options: { noPlaces?: boolean; midnight?: boolean; backward?: boolean } = {}) {
   return spawnSync(process.execPath, ["--import", "tsx", "--import", "./fixture-boundary.mjs", "scripts/verify_london_places.mjs"], {
     cwd: dir,
     encoding: "utf8",
@@ -98,6 +100,7 @@ function runCli(dir: string, day: string, options: { noPlaces?: boolean; midnigh
       FIXTURE_DAY: day,
       FIXTURE_NO_PLACES: options.noPlaces ? "1" : "0",
       FIXTURE_MIDNIGHT: options.midnight ? "1" : "0",
+      FIXTURE_BACKWARD: options.backward ? "1" : "0",
       TZ: "UTC",
     },
   });
@@ -139,6 +142,14 @@ it("uses each row's actual observation day when details cross midnight", () => {
   expect(cafe.verifiedAt).toBe("2026-10-04");
   expect(london.verifiedAt).toBe("2026-10-04");
   expect(cafes.verifiedAt).toBe("2026-10-04");
+});
+
+it("refuses to publish a row observed after the final run day when the clock moves backward", () => {
+  const dir = setupFixture("backward-clock");
+  const result = runCli(dir, "2026-10-03", { backward: true });
+  expect(result.status, result.stderr).toBe(1);
+  expect(result.stderr).toMatch(/after run day 2026-10-02/);
+  expect(existsSync(path.join(dir, "data/places_verification/london.json"))).toBe(false);
 });
 
 it("keeps same-day details on the day they were read", () => {
