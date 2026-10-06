@@ -396,6 +396,18 @@ describe("what a page states", () => {
     expect(categoryFor("Espresso martini")).toBe("cocktail");
   });
 
+  it("files matcha as coffee and leaves tea lines out of it", () => {
+    expect(categoryFor("Matcha latte")).toBe("coffee");
+    expect(categoryFor("Matcha")).toBe("coffee");
+    expect(categoryFor("Latte")).toBe("coffee");
+    expect(categoryFor("Chai latte")).toBeNull();
+    expect(categoryFor("Tea latte")).toBeNull();
+    expect(readVenueDrinkPrices("<p>Matcha latte £4.20</p>").kept).toEqual([
+      expect.objectContaining({ category: "coffee", priceGbp: 4.2 }),
+    ]);
+    expect(readVenueDrinkPrices("<p>Chai latte £4.20</p>").kept).toEqual([]);
+  });
+
   it("knows a ginger ale is a soft drink and a measure is not a drink", () => {
     expect(categoryFor("Ginger Ale")).toBe("soft-drink");
     expect(categoryFor("Crabbies Alcoholic ginger beer 3.4%")).toBe("beer");
