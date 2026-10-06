@@ -1158,3 +1158,15 @@ export function plannerDefaultDrinkSelection(
 ): MapPlanDrinkSelection | undefined {
   return lens === "no-alcohol" ? NO_ALCOHOL_PLAN_DRINK_SELECTION : selection;
 }
+
+/**
+ * A view other than All stands the drink filters down, but a route keeps the
+ * drink it was planned with: the selection held on the way out of All.
+ */
+export function routeDrinkSelection(
+  lens: MapExperienceLens,
+  live: MapPlanDrinkSelection,
+  held: MapPlanDrinkSelection | null,
+): MapPlanDrinkSelection | undefined {
+  return lens === "all" ? live : held ?? undefined;
+}

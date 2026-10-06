@@ -56,6 +56,7 @@ import {
   venueEntranceOvershootFor,
   type VenueDetailStatus,
   plannerDefaultDrinkSelection,
+  routeDrinkSelection,
 } from "@/lib/pubMap";
 import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { getCity } from "@/lib/cities";
@@ -1328,6 +1329,19 @@ describe("plannerDefaultDrinkSelection", () => {
   it("keeps the map's own drink selection in every other view", () => {
     expect(plannerDefaultDrinkSelection("all", wine)).toBe(wine);
     expect(plannerDefaultDrinkSelection("food", undefined)).toBeUndefined();
+  });
+});
+
+describe("routeDrinkSelection", () => {
+  const wine = { drinkCategory: "wine", drinkSubtype: "", drinkBrand: "" };
+  const cleared = { drinkCategory: "", drinkSubtype: "", drinkBrand: "" };
+
+  it("reads the live filters in the All view", () => {
+    expect(routeDrinkSelection("all", wine, null)).toBe(wine);
+  });
+
+  it.each(["food", "no-alcohol"] as const)("keeps the held drink in the %s view", (lens) => {
+    expect(routeDrinkSelection(lens, cleared, wine)).toBe(wine);
   });
 });
 

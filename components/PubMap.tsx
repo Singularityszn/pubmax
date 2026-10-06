@@ -652,6 +652,7 @@ import {
   builtStopCountFor,
   phonePlannerOrder,
   plannerDefaultDrinkSelection,
+  routeDrinkSelection,
 } from "@/lib/pubMap";
 import { explicitMapIntent } from "@/lib/explicitMapIntent";
 import {
@@ -3745,6 +3746,8 @@ export default function PubMap({
     venueKindVisibility: VenueKindVisibility;
   };
   const experienceLensRestoreRef = useRef<ExperienceLensRestore | null>(null);
+  const [experienceLensHeldDrink, setExperienceLensHeldDrink] =
+    useState<ExperienceLensRestore | null>(null);
   const experienceLensLiveRef = useRef<ExperienceLensRestore>({
     drinkCategory: filters.drinkCategory,
     drinkBrand: filters.drinkBrand,
@@ -3782,6 +3785,7 @@ export default function PubMap({
       if (next === "all") {
         const saved = experienceLensRestoreRef.current;
         experienceLensRestoreRef.current = null;
+        setExperienceLensHeldDrink(null);
         if (!saved) return;
         setFilters((current) => ({
           ...current,
@@ -3802,6 +3806,7 @@ export default function PubMap({
       // not overwrite the snapshot with the stood-down state.
       if (!experienceLensRestoreRef.current) {
         experienceLensRestoreRef.current = experienceLensLiveRef.current;
+        setExperienceLensHeldDrink(experienceLensLiveRef.current);
       }
       setFavoritePintState(null);
       clearFavoritePint();
@@ -5491,7 +5496,7 @@ export default function PubMap({
         altStyle={altStyle}
         onAltStyleChange={setAltStyle}
         route={route}
-        drinkSelection={plannerDrinkSelection}
+        drinkSelection={routeDrinkSelection(experienceLens, filters, experienceLensHeldDrink)}
         drinkPrices={drinkLensPrices}
         drinkPriceStatus={drinkIndexStatus}
         filteredVenues={filteredPubVenues}

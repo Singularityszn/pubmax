@@ -409,11 +409,14 @@ test("generated Soft drinks shares ordered stops and exports its drink", async (
   await progress.getByRole("button", { name: "Mark complete", exact: true }).click();
   await expect(progress.getByRole("status").filter({ hasText: /^Crawl complete: 2\/2 stops$/ })).toHaveText("Crawl complete: 2/2 stops");
   const shared = route.getByTestId("crawl-share-open");
-  const params = new URL((await shared.getAttribute("href"))!, "http://localhost").searchParams;
+  const sharedUrl = new URL((await shared.getAttribute("href"))!, page.url()).href;
+  const params = new URL(sharedUrl).searchParams;
   const stops = body.stops.map((stop) => stop.venueId).join(",");
   expect(params.get("drink")).toBe("soft-drink");
   expect(params.get("pubs")).toBe(stops);
+  const landed = page.waitForURL(sharedUrl);
   await shared.click();
+  await landed;
   await page.reload();
   const toggle = page.getByRole("button", { name: "Edit your crawl, 2 stops picked", exact: true });
   await expect(async () => {
@@ -682,3 +685,58 @@ test("London dry gin plan keeps its proper name in stop counts and the calendar"
   expect(contents).toContain("London dry gin stop");
   expect(contents).not.toContain("london dry gin stop");
 });
+
+for (const scenario of [
+  { name: "Alcohol-free in the No alcohol view", query: "Alcohol-free in Soho", view: "No alcohol", drink: "alcohol-free", heading: "Alcohol-free plan" },
+  { name: "Wine in the Food view", query: "Soho", view: "Food", drink: "wine", heading: "Wine plan" },
+] as const) {
+  test(`generated ${scenario.name} keeps its drink and unknown money`, async ({ page }, testInfo) => {
+    const intent = await openPhonePlanner(page);
+    await intent.getByRole("textbox", { name: "Describe the outing", exact: true }).fill(scenario.query);
+    const generatedResponse = page.waitForResponse((response) =>
+      new URL(response.url()).pathname === "/api/plans/generate" && response.request().method() === "POST",
+    );
+    await intent.getByRole("button", { name: "Make a plan", exact: true }).click();
+    const response = await generatedResponse;
+    expect(response.status()).toBe(200);
+    const body = await response.json() as { stops: Array<{ venueId: string }> };
+    expect(body.stops).toHaveLength(2);
+    const route = page.locator(".mapDrawer.left .routePanel");
+    await expect(route.locator(".routeList > li")).toHaveCount(2);
+    await expect(route.getByRole("heading", { name: scenario.heading, exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Close planner", exact: true }).click();
+    await page.getByRole("button", { name: /^Filters/ }).click();
+    const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
+    const view = sheet.getByRole("group", { name: "Map view" }).getByRole("button", { name: scenario.view, exact: true });
+    await view.click();
+    await expect(view).toHaveAttribute("aria-pressed", "true");
+    await sheet.locator(".surfaceNavHome").click();
+    await expect(sheet).toHaveCount(0);
+    const toggle = page.getByRole("button", { name: "Edit active 2-stop plan", exact: true });
+    await expect(async () => {
+      if (!(await route.isVisible())) await toggle.click();
+      await expect(route).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 30_000 });
+    await expect(route.getByRole("heading", { name: scenario.heading, exact: true })).toBeVisible();
+    await expect(route.locator(".routeList > li")).toHaveCount(2);
+    await expect(route.locator(".routeMetrics")).toContainText("Not recorded");
+    await expect(route.locator(".routeMetrics")).not.toContainText("estimated round");
+    await expect(route).not.toContainText("pint stop");
+    await expect(route.locator(".routeList")).not.toContainText("AMSTEL");
+    await expect(route.getByRole("button", { name: "Save as story", exact: true })).toHaveCount(0);
+    await route.locator(".routeHeader").scrollIntoViewIfNeeded();
+    await testInfo.attach("generated-drink-other-view", { body: await page.screenshot(), contentType: "image/png" });
+    const calendar = page.waitForEvent("download");
+    await route.getByRole("button", { name: "Add to calendar (.ics)", exact: true }).click();
+    const contents = await readFile((await (await calendar).path())!, "utf8");
+    expect(contents).toContain(`SUMMARY:${scenario.heading}`);
+    expect(contents).not.toContain("pint stop");
+    await route.getByRole("button", { name: "Start this crawl", exact: true }).click();
+    const progress = route.getByTestId("crawl-progress");
+    await progress.getByRole("button", { name: "Mark complete", exact: true }).click();
+    await expect(progress.getByRole("status").filter({ hasText: /^Crawl complete: 2\/2 stops$/ })).toHaveText("Crawl complete: 2/2 stops");
+    const params = new URL((await route.getByTestId("crawl-share-open").getAttribute("href"))!, "http://localhost").searchParams;
+    expect(params.get("drink")).toBe(scenario.drink);
+    expect(params.get("pubs")).toBe(body.stops.map((stop) => stop.venueId).join(","));
+  });
+}
