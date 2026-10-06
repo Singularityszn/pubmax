@@ -83,7 +83,7 @@ export const BUDGET_QUESTION = {
 export const LOCATION_PRIMER = {
   title: "Find the cheapest pint near you.",
   why: "Your location lets us rank pubs by how far you'd walk for the price.",
-  privacy: "We only use it to rank pubs nearby. Nothing is stored.",
+  privacy: "We only use it to rank pubs nearby. Your location is never stored.",
 } as const;
 
 const BUDGET_KEY = "pubmax:onboarding:budget:v1";

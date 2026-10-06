@@ -206,7 +206,7 @@ describe("first-run location ask", () => {
     await reachLocation();
 
     expect(container.querySelector("h1")?.textContent).toBe("Find the cheapest pint near you.");
-    expect(container.textContent).toContain("We only use it to rank pubs nearby. Nothing is stored.");
+    expect(container.textContent).toContain("We only use it to rank pubs nearby. Your location is never stored.");
     // The ask has not been made yet.
     expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
   });
@@ -240,7 +240,7 @@ describe("first-run location ask", () => {
 
     expect(container.textContent).toContain("Cheapest listed around Soho");
     expect(container.querySelector("h1")?.textContent).toBe("£4.90 at The Crown.");
-    // "Nothing is stored" has to stay true: neither the fix nor the picked
+    // "Your location is never stored" has to stay true: neither the fix nor the picked
     // patch is written anywhere.
     expect(window.localStorage.getItem("pubmax:nightPatch:v1")).toBeNull();
     expect(JSON.stringify({ ...window.localStorage })).not.toMatch(/soho|51\.51/i);

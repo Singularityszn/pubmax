@@ -221,6 +221,17 @@ describe("first-run handoff in the phone planner", () => {
     await render(wine);
     expect(container.querySelector<HTMLInputElement>('input[placeholder="£"]')!.value).toBe("");
   });
+
+  it("keeps the carried budget on one pint per stop when the reader changes Stops", async () => {
+    writePlannerHandoff({ patch: null, budget: "five" });
+    await render(wine);
+    const stops = [...container.querySelectorAll<HTMLSelectElement>("select")].find((select) => [...select.options].some((option) => option.value === "5"))!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!.call(stops, "5");
+      stops.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(container.querySelector<HTMLInputElement>('input[placeholder="£"]')!.value).toBe("25");
+  });
 });
 
 describe("phone planner with no crawl-ready area", () => {

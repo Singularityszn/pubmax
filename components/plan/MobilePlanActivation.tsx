@@ -77,11 +77,7 @@ export function MobilePlanActivation({
       ? nearestRouteReadyNightArea(cityId, [held.patch.lng, held.patch.lat])
       : null;
     const ceiling = held?.budget ? budgetCeiling(held.budget) : null;
-    return {
-      area: patchArea?.slug ?? null,
-      // One listed pint per stop, the same basis the plan's budget line uses.
-      budgetLimit: ceiling ? String(ceiling * DEFAULT_PLAN_STOP_COUNT) : "",
-    };
+    return { area: patchArea?.slug ?? null, pintCeiling: ceiling };
   });
   const [area, setArea] = useState<NightAreaSlug | null>(handoff.area ?? initialNightArea);
   const [areaTouched, setAreaTouched] = useState(handoff.area !== null);
@@ -91,9 +87,14 @@ export function MobilePlanActivation({
   const [moodTouched, setMoodTouched] = useState(false);
   const [pace, setPace] = useState<(typeof PACES)[number]>("balanced pace");
   const [paceTouched, setPaceTouched] = useState(false);
-  const [budgetLimit, setBudgetLimit] = useState(handoff.budgetLimit);
+  // The journey's budget is a pint ceiling. Until the reader types their own
+  // Max each, it stands for one listed pint per stop, the same basis the plan's
+  // budget line uses, so it follows the Stops choice.
+  const [typedBudgetLimit, setTypedBudgetLimit] = useState<string | null>(null);
   const [groupSize, setGroupSize] = useState(4);
   const [stopCount, setStopCount] = useState<PlanStopCount>(DEFAULT_PLAN_STOP_COUNT);
+  const budgetLimit =
+    typedBudgetLimit ?? (handoff.pintCeiling ? String(handoff.pintCeiling * stopCount) : "");
   const [groupSizeTouched, setGroupSizeTouched] = useState(false);
   const [stepFree, setStepFree] = useState(false);
   const [zeroProof, setZeroProof] = useState(false);
@@ -270,7 +271,7 @@ export function MobilePlanActivation({
         <label>Time<select value={daypart} onChange={(event) => { setDaypartTouched(true); setDaypart(event.target.value as NightContext["daypart"]); }}><option value="daytime">Daytime</option><option value="after_work">After work</option><option value="evening">Evening</option><option value="late_night">Late night</option></select></label>
         <label>People<input type="number" min="1" max="30" value={groupSize} onChange={(event) => { setGroupSizeTouched(true); setGroupSize(Math.max(1, Math.min(30, Number(event.target.value) || 1))); }} /></label>
         <label>Stops<select value={stopCount} onChange={(event) => setStopCount(normalizePlanStopCount(Number(event.target.value)))}>{PLAN_STOP_COUNTS.map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
-        <label>Max each<input type="number" inputMode="decimal" min="5" max="500" value={budgetLimit} onChange={(event) => setBudgetLimit(event.target.value)} placeholder="£" /></label>
+        <label>Max each<input type="number" inputMode="decimal" min="5" max="500" value={budgetLimit} onChange={(event) => setTypedBudgetLimit(event.target.value)} placeholder="£" /></label>
       </div>
       <AreaNewsBlock
         area={area}
