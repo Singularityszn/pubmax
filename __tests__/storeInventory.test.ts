@@ -75,6 +75,7 @@ const STORE_INVENTORY: Record<string, StoreRow> = {
     inlineBranches: 6,
     reason: "Per-operation branching over two tables with fail-soft reads; no single interface to select.",
   },
+  "lib/diaryStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/feedFreshnessStore.ts": { class: "policy-heavy", selector: "selectStore" },
   "lib/followStore.ts": { class: "plain-dual-backend", selector: "selectStore" },
   "lib/freshnessStoreOverlay.ts": {
