@@ -26,14 +26,6 @@ export const PREVIEW_STOP_NAME_ANCHOR_OFFSET = [
   ["literal", ["left", [1.6, 0], "top-left", [-0.6, 2], "bottom-left", [-0.6, -2]]],
 ] satisfies maplibregl.ExpressionSpecification;
 
-/**
- * Stop discs are a circle layer, which takes no part in symbol collision. The
- * numbers do: padded out to the disc's radius, and placed before the names, a
- * stop number claims its whole disc, so a name that would cover another stop
- * is dropped instead. The numbers themselves always show (text-allow-overlap).
- */
-const PREVIEW_STOP_NUMBER_PADDING = 9;
-
 /** Route line + numbered stops on the live basemap — same layers as PubMapCanvas. */
 export function syncPlanRoutePreviewScene(
   map: maplibregl.Map,
@@ -103,12 +95,9 @@ export function syncPlanRoutePreviewScene(
   } satisfies SceneCtx;
   buildRoute(ctx);
   buildRouteStops(ctx);
-  if (map.getLayer("route-stops-label")) {
-    map.setLayoutProperty("route-stops-label", "text-padding", PREVIEW_STOP_NUMBER_PADDING);
-  }
   if (map.getLayer("route-stops-name")) {
-    // Below the numbers in the stack, so placement (top layer first) seats the numbers first.
-    map.moveLayer("route-stops-name", "route-stops-label");
+    // The numbers claim their discs and are placed before the names in
+    // buildRouteStops, which the card shares with the full map.
     map.setLayerZoomRange("route-stops-name", 10, 24);
     map.setLayoutProperty("route-stops-name", "text-variable-anchor-offset", PREVIEW_STOP_NAME_ANCHOR_OFFSET);
   }
