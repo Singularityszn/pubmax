@@ -5121,23 +5121,20 @@ export default function PubMap({
     resolveSelection: resolveMapSelection,
   } = mapSurfaceTrail;
 
-  // The cold restore could not open the base pub a link named. Say so, and
-  // never leave the sheet waiting on a record that is not coming. A failed
-  // lookup is held the way a curated one is: the selection, its Back entry and
-  // `sel` stay, the sheet stays shut, and a reload asks again. Only an id
-  // nothing knows is dropped.
+  // The cold restore could not open the base pub a link named, and the sheet
+  // must never wait on a record that is not coming. A failed lookup is held the
+  // way a curated one is: the selection, its Back entry and `sel` stay, the
+  // sheet stays shut, and a reload asks again. An id the pack does not hold is
+  // the alias effect's below to settle, because a successor may still own it.
   const handleUkBaseRestoreFailed = useCallback(
     (reason: UkBaseRestoreFailure, requestedId: string) => {
-      setRetiredSelectionName(null);
-      setSelectionNotice(ukBaseRestoreFailureNotice(reason));
+      setDetailStatusById((current) => new Map(current).set(requestedId, reason));
       if (reason === "unavailable") {
-        setDetailStatusById((current) => new Map(current).set(requestedId, "unavailable"));
-        return;
+        setRetiredSelectionName(null);
+        setSelectionNotice(ukBaseRestoreFailureNotice(reason));
       }
-      rejectMapSelection(requestedId);
-      setSelectedVenueId((current) => (current === requestedId ? "" : current));
     },
-    [rejectMapSelection],
+    [],
   );
   // A `venue-osm-` id that neither the coffee pilot nor the London restaurants
   // can open (off the coffee lens or off the restaurant layer, not held, or not
@@ -5191,13 +5188,22 @@ export default function PubMap({
   const closeStory = useCallback(() => setActiveLandmarkId(""), []);
   const storyDrawerOpen = storyOpen && !planningOpen && !detailOpen;
 
+  const ukBaseRestoreMissing = selectedDetailStatus === "missing";
   useEffect(() => {
     if (!selectedVenueId || !isUkBaseId(selectedVenueId)) return;
     const requestedVenueId = selectedVenueId;
     let cancelled = false;
     void loadVenueAliasMaps().then((maps) => {
+      if (cancelled) return;
       const successor = ukBaseSelectionSuccessor(maps, requestedVenueId);
-      if (cancelled || !successor) return;
+      if (!successor) {
+        if (!ukBaseRestoreMissing) return;
+        setRetiredSelectionName(null);
+        setSelectionNotice(ukBaseRestoreFailureNotice("missing"));
+        rejectMapSelection(requestedVenueId);
+        setSelectedVenueId((current) => (current === requestedVenueId ? "" : current));
+        return;
+      }
       if (successor.kind === "curated") {
         resolveMapSelection(requestedVenueId, successor.venueId);
         setSelectedVenueId((current) =>
@@ -5213,7 +5219,7 @@ export default function PubMap({
     return () => {
       cancelled = true;
     };
-  }, [rejectMapSelection, resolveMapSelection, selectedVenueId]);
+  }, [rejectMapSelection, resolveMapSelection, selectedVenueId, ukBaseRestoreMissing]);
 
   useEffect(() => {
     if (

@@ -86,6 +86,32 @@ test.describe("unknown ?sel= honesty", () => {
     await expect.poll(() => new URL(page.url()).searchParams.has("sel")).toBe(false);
   });
 
+  test("a base pub id the pack dropped still opens its successor when the aliases land late", async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    const droppedId = "venue-uk-n999999999998";
+    // The pack answers "not ours" at once; the alias files say where it went.
+    await page.route(
+      (url) => /^\/data\/(cities\/)?(uk_base_)?venue_id_aliases\.json$/.test(url.pathname),
+      async (route) => {
+        await new Promise((resolve) => setTimeout(resolve, 3_000));
+        await route.fulfill({
+          contentType: "application/json",
+          body: JSON.stringify({ aliases: { [droppedId]: CANONICAL_VENUE_ID } }),
+        });
+      },
+    );
+
+    await page.goto(`/map?sel=${droppedId}`);
+
+    await expect(venuePortal(page)).toBeVisible({ timeout: 45_000 });
+    await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe(
+      CANONICAL_VENUE_ID,
+    );
+    await expect(page.getByTestId("unknown-map-selection")).toHaveCount(0);
+  });
+
   test("an unreadable base pack stays distinct from an unknown base pub", async ({ page }) => {
     await page.route(
       (url) => url.pathname === "/api/uk-base/venue-uk-n311153571",

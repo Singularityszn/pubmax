@@ -1028,6 +1028,18 @@ describe("mapSelectionFrame", () => {
     ).toBe(true);
   });
 
+  it("keeps a curated deep link's skeleton open after a failed lookup, for the index to resolve", () => {
+    const answer = mapSelectionFrame({
+      selectedVenueId: "v2",
+      selectedVenue: undefined,
+      selectedBasePub: null,
+      venueById,
+      isPubVenue,
+      lookupFailed: true,
+    });
+    expect(answer.detailOpen).toBe(true);
+  });
+
   it("holds the sheet shut while nothing is selected", () => {
     const answer = mapSelectionFrame({
       selectedVenueId: "",
