@@ -32,6 +32,7 @@
     "shots:extended": "PUBMAX_E2E_KEYLESS=1 PW_SCREENSHOTS=1 PUBMAX_TRACKED_OUTPUTS=docs/screenshots node scripts/run-with-restored-next-env.mjs sh -c 'npm run build && base=$((30000 + ($$ % 10000))); i=0; for p in shots-390-light shots-430-light shots-1280-light shots-1440-light shots-390-dark shots-430-dark shots-1280-dark shots-1440-dark; do PW_PORT=$((base + i)) playwright test --workers=1 --project=$p || exit; i=$((i + 1)); done'",
     "coverage": "node scripts/run-coverage.mjs",
     "validate-data": "node scripts/prevalidate-data.mjs && node scripts/validate-data.mjs",
+    "backup:offplatform": "node scripts/backup-offplatform.mjs",
     "check:freshness": "node scripts/check_freshness.mjs",
     "check:migration-ledger": "node scripts/check-migration-ledger.mjs",
     "build:pint-index-snapshot": "node --conditions=react-server --import tsx scripts/build_pint_index_snapshot.mjs",

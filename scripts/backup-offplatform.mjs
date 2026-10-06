@@ -1,0 +1,141 @@
+#!/usr/bin/env node
+// npm run backup:offplatform - a pg_dump plus a sync of the pint-drops bucket,
+// written to a private directory on this machine, never into the repository.
+// The rules are scripts/lib/offPlatformBackup.mjs and the restore is
+// docs/DR_RUNBOOK.md. Run it from the Mac scheduler, weekly.
+//
+// Environment (never printed):
+//   PUBMAX_BACKUP_DB_URL        postgres:// connection string (session pooler or direct)
+//   SUPABASE_URL                project URL, for the bucket sync
+//   SUPABASE_SERVICE_ROLE_KEY   secret key, for the bucket sync
+//   PUBMAX_BACKUP_DIR           default ~/pubmax-backups
+//   PUBMAX_BACKUP_KEEP          dumps to keep, default 8
+//   PUBMAX_ALERT_WEBHOOK_URL    optional; a failure posts one line here
+// `--dry-run` prints the plan and touches nothing.
+
+import { execFileSync, spawnSync } from "node:child_process";
+import { chmodSync, existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
+import {
+  DEFAULT_BUCKET,
+  DEFAULT_KEEP,
+  dumpFileName,
+  dumpsToPrune,
+  isInsideDirectory,
+  listBucketObjects,
+  pgDumpArgs,
+  pgEnvFromUrl,
+  safeObjectPath,
+} from "./lib/offPlatformBackup.mjs";
+
+const dryRun = process.argv.includes("--dry-run");
+const env = process.env;
+
+function requireEnv(name) {
+  const value = env[name]?.trim();
+  if (!value) throw new Error(`${name} is not set.`);
+  return value;
+}
+
+function gitTopLevels(directory) {
+  try {
+    return execFileSync("git", ["-C", directory, "rev-parse", "--show-toplevel"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return null;
+  }
+}
+
+async function runBackup() {
+  const dir = path.resolve(env.PUBMAX_BACKUP_DIR?.trim() || path.join(os.homedir(), "pubmax-backups"));
+  const keep = Number.parseInt(env.PUBMAX_BACKUP_KEEP ?? "", 10) || DEFAULT_KEEP;
+  const bucket = env.SUPABASE_STORAGE_BUCKET?.trim() || DEFAULT_BUCKET;
+
+  // The repository is public: a backup under any git checkout could be committed.
+  const checkout = gitTopLevels(existsSync(dir) ? dir : path.dirname(dir));
+  if (checkout && isInsideDirectory(dir, checkout)) {
+    throw new Error("PUBMAX_BACKUP_DIR is inside a git checkout. Choose a directory outside every repository.");
+  }
+
+  const dbUrl = requireEnv("PUBMAX_BACKUP_DB_URL");
+  const pgEnv = pgEnvFromUrl(dbUrl);
+  const baseUrl = requireEnv("SUPABASE_URL").replace(/\/+$/, "");
+  const key = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
+  const dumpFile = path.join(dir, dumpFileName(new Date()));
+  const bucketRoot = path.join(dir, "bucket", bucket);
+
+  console.log(`[backup] directory ${dir}`);
+  console.log(`[backup] dump ${path.basename(dumpFile)} from ${pgEnv.PGHOST}; bucket ${bucket}; keep ${keep}`);
+  if (dryRun) {
+    console.log("[backup] dry run: nothing was read or written.");
+    return;
+  }
+
+  mkdirSync(bucketRoot, { recursive: true, mode: 0o700 });
+  chmodSync(dir, 0o700);
+
+  // 1. The database. Written to a temporary name and renamed once verified, so a
+  // killed run never leaves a truncated file that looks like a backup.
+  const partial = `${dumpFile}.partial`;
+  const dump = spawnSync("pg_dump", pgDumpArgs(partial), {
+    env: { ...env, ...pgEnv },
+    stdio: ["ignore", "inherit", "inherit"],
+  });
+  if (dump.error) throw new Error(`Could not run pg_dump: ${dump.error.message}`);
+  if (dump.status !== 0) {
+    rmSync(partial, { force: true });
+    throw new Error(`pg_dump exited ${dump.status}. Its client must be at least the server's major version.`);
+  }
+  const listing = spawnSync("pg_restore", ["--list", partial], { encoding: "utf8" });
+  if (listing.status !== 0 || !listing.stdout.includes("TABLE DATA")) {
+    rmSync(partial, { force: true });
+    throw new Error("The dump did not verify: pg_restore --list found no table data.");
+  }
+  chmodSync(partial, 0o600);
+  renameSync(partial, dumpFile);
+  console.log(`[backup] dump verified, ${statSync(dumpFile).size} bytes.`);
+
+  // 2. The bucket. Objects are only added or replaced when their size changed,
+  // and never deleted here: a backup that mirrors a deletion is not a backup.
+  const objects = await listBucketObjects({ baseUrl, key, bucket });
+  let fetched = 0;
+  for (const object of objects) {
+    const target = safeObjectPath(bucketRoot, object.path);
+    if (existsSync(target) && object.size !== null && statSync(target).size === object.size) continue;
+    const response = await fetch(`${baseUrl}/storage/v1/object/${bucket}/${object.path.split("/").map(encodeURIComponent).join("/")}`, {
+      headers: { authorization: `Bearer ${key}`, apikey: key },
+      signal: AbortSignal.timeout(60_000),
+    });
+    if (!response.ok) throw new Error(`Downloading ${object.path} answered ${response.status}.`);
+    mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
+    writeFileSync(target, Buffer.from(await response.arrayBuffer()), { mode: 0o600 });
+    fetched += 1;
+  }
+  console.log(`[backup] bucket ${bucket}: ${objects.length} objects, ${fetched} downloaded.`);
+
+  // 3. Retention.
+  for (const file of dumpsToPrune(readdirSync(dir), keep)) rmSync(path.join(dir, file), { force: true });
+  console.log("[backup] done.");
+}
+
+try {
+  await runBackup();
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`[backup] FAILED: ${message}`);
+  const webhook = env.PUBMAX_ALERT_WEBHOOK_URL?.trim();
+  if (webhook && !dryRun) {
+    const text = `[pubmax][backup] The off-platform backup failed: ${message}`.slice(0, 1500);
+    await fetch(webhook, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ content: text, text }),
+      signal: AbortSignal.timeout(10_000),
+    }).catch(() => undefined);
+  }
+  process.exit(1);
+}

@@ -50,3 +50,4 @@ Full rules: [`docs/rules/scripts-deploys-and-uploads.md`](../docs/rules/scripts-
 - [A DEPLOY NAMES ITS OWN COMMIT, AND A CLI DEPLOY HAS TO CARRY IT.](../docs/rules/scripts-deploys-and-uploads.md#a-deploy-names-its-own-commit-and-a-cli-deploy-has-to-carry-it)
 - [A PRODUCTION RELEASE IS ONE COMMAND, AND IT ENDS AT THE SMOKE VERDICT.](../docs/rules/scripts-deploys-and-uploads.md#a-production-release-is-one-command-and-it-ends-at-the-smoke-verdict)
 - [THE RELEASE REFUSES WHEN PRODUCTION LACKS A MIGRATION, AND THE CHECK COMPARES NAMES.](../docs/rules/scripts-deploys-and-uploads.md#the-release-refuses-when-production-lacks-a-migration-and-the-check-compares-names)
+- [THE ONLY DATABASE BACKUP IS A PRIVATE COPY ON THE CAPTAIN'S MAC, AND IT IS NEVER A WORKFLOW ARTIFACT.](../docs/rules/scripts-deploys-and-uploads.md#the-only-database-backup-is-a-private-copy-on-the-captain-s-mac)
