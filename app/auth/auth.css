@@ -163,7 +163,9 @@
 
 .authCallbackNotice {
   position: fixed;
-  top: max(1rem, env(safe-area-inset-top));
+  /* Below the floating nav pill (about 64px tall at 16px from the top). At 1rem
+     the notice sat on top of the nav links and hid them while it was up. */
+  top: calc(max(1rem, env(safe-area-inset-top)) + 4.75rem);
   left: 50%;
   z-index: var(--z-modal, 60);
   display: flex;
