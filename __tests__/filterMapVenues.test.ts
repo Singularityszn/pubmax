@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { filterMapVenues, withForcedVenue } from "@/lib/filterMapVenues";
+import {
+  filterMapVenues,
+  mapFiltersSuspendUkBasePubs,
+  withForcedVenue,
+} from "@/lib/filterMapVenues";
+import { ukBasePubsForDrawableVenues, type UkBasePub } from "@/lib/ukBasePubs";
 import { initialFilters } from "@/components/map/ControlRail";
 import type { Venue } from "@/lib/venues";
 import { buildDrinkHints } from "@/scripts/build_slim_index.mjs";
@@ -65,6 +70,62 @@ describe("filterMapVenues", () => {
     const result = filterMapVenues([slimPin()], filters, () => false);
     expect(result).toHaveLength(1);
     expect(result[0]?.id).toBe("venue-scraped");
+  });
+
+  it.each([
+    ["requireStepFree", "stepFree"],
+    ["requireAccessibleToilet", "accessibleToilet"],
+    ["requireSeatedService", "seatedService"],
+  ] as const)("%s includes only confirmed slim pins", (filter, facet) => {
+    const confirmed = slimPin({ id: "confirmed", accessibility: { [facet]: true } });
+    const negative = slimPin({ id: "negative", accessibility: { [facet]: false } });
+    const unknown = slimPin({ id: "unknown" });
+    expect(
+      filterMapVenues(
+        [confirmed, negative, unknown],
+        { ...initialFilters, [filter]: true },
+        () => false,
+      ),
+    ).toEqual([confirmed]);
+  });
+
+  describe("London step-free with the UK base layer", () => {
+    const confirmed = slimPin({ id: "venue-confirmed", accessibility: { stepFree: true } });
+    const unconfirmed = slimPin({ id: "venue-unconfirmed" });
+    const basePub = (id: string, curatedVenueId: string): UkBasePub => ({
+      id,
+      name: id,
+      address: "",
+      lat: 51.5,
+      lng: -0.1,
+      curatedVenueId,
+      kind: "pub",
+    });
+    const basePubs = [
+      basePub("venue-uk-n1", confirmed.id),
+      basePub("venue-uk-n2", unconfirmed.id),
+      basePub("venue-uk-n3", ""),
+    ];
+    const drawnBasePubIds = (filters: typeof initialFilters) => {
+      const venues = filterMapVenues([confirmed, unconfirmed], filters, () => false);
+      if (mapFiltersSuspendUkBasePubs(filters)) return [];
+      return ukBasePubsForDrawableVenues(
+        basePubs,
+        new Set(venues.map((venue) => venue.id)),
+      ).map((pub) => pub.id);
+    };
+
+    it.each(["requireStepFree", "requireAccessibleToilet", "requireSeatedService"] as const)(
+      "%s draws no base pub, because none has confirmed access",
+      (filter) => {
+        expect(drawnBasePubIds({ ...initialFilters, [filter]: true })).toEqual([]);
+      },
+    );
+
+    it("draws the base layer unchanged with no accessibility filter", () => {
+      expect(mapFiltersSuspendUkBasePubs(initialFilters)).toBe(false);
+      expect(drawnBasePubIds(initialFilters)).toEqual(["venue-uk-n3"]);
+    });
   });
 
   it("still respects price query on slim pins", () => {

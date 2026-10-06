@@ -100,6 +100,23 @@ export function venueRetrySettleNotice(outcome: VenueDataOutcome) {
 }
 
 /**
+ * A national overview below the pub zoom gate owes no curated index. Base
+ * pubs are absent until the reader zooms in, so a pending venue read is the
+ * camera, not a failed list.
+ */
+export function overviewSkipsVenueWait(input: {
+  nationalBrowse: boolean;
+  zoom: number;
+  minPubZoom: number;
+}): boolean {
+  return (
+    input.nationalBrowse &&
+    Number.isFinite(input.zoom) &&
+    input.zoom < input.minPubZoom
+  );
+}
+
+/**
  * The notice a readiness-ceiling reveal owes the reader, named after the signal
  * that actually missed. Blaming the background for a basemap that painted sends
  * the reader at a Retry that tears down a map already drawing, so a ceiling over
@@ -119,10 +136,13 @@ export function revealTimeoutNotice(
     venueData: VenueDataOutcome;
     filteredVenueCount: number;
     pinsPaintable: boolean;
+    /** Painted overview. Pending venue data is not a failed pub list. */
+    pubsDeferredUntilZoom?: boolean;
   },
 ): RevealTimeoutNotice | null {
   if (reason !== "timeout" || currentOwner === "errors") return null;
   if (!signals.basemapPainted) return BASEMAP_RETRY_NOTICE;
+  if (signals.pubsDeferredUntilZoom) return null;
   if (signals.venueData !== "ready") return VENUE_DATA_RETRY_NOTICE;
   // An empty filtered collection is a valid answer, not a paint failure.
   if (signals.filteredVenueCount === 0) return null;

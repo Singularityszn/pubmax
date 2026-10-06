@@ -102,6 +102,18 @@ describe("display helpers", () => {
 });
 
 describe("accessibilityFilterSummary — honest, non-broken framing", () => {
+  it.each(["stepFree", "accessibleToilet", "seatedService"] as const)(
+    "explains why pubs without confirmed details are excluded for %s",
+    (facet) => {
+      for (const count of [0, 3]) {
+        expect(accessibilityFilterSummary(
+          { ...EMPTY_ACCESSIBILITY_FILTERS, [facet]: true },
+          count,
+        )).toContain("Pubs without confirmed access details are left out.");
+      }
+    },
+  );
+
   it("returns null when no filter is active", () => {
     expect(accessibilityFilterSummary(EMPTY_ACCESSIBILITY_FILTERS, 0)).toBeNull();
     expect(anyAccessibilityFilterActive(EMPTY_ACCESSIBILITY_FILTERS)).toBe(false);

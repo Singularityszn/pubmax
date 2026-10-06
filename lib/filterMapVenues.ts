@@ -1,6 +1,7 @@
 // Map pin filtering for PubMap. Slim pins (prices: []) must stay visible through
 // filters whose evidence exists only after detail hydrates.
 
+import { anyAccessibilityFilterActive } from "@/lib/venueAccessibility";
 import { filterVenues, type Filters, type Venue } from "@/lib/venues";
 
 /**
@@ -21,9 +22,7 @@ export function filterMapVenues(
     requireLiveSports: false,
     requireWater: false,
     requireHeritage: false,
-    requireStepFree: false,
-    requireAccessibleToilet: false,
-    requireSeatedService: false,
+    // Accessibility requires confirmed evidence even before detail hydrates.
     // openNow stays on for slim pins: match uses name+coords, which slim rows have.
   };
 
@@ -40,6 +39,18 @@ export function filterMapVenues(
     ...filterVenues(slim, slimPinFilters, hasPintDrops, openNowState),
     ...filterVenues(hydrated, filters, hasPintDrops, openNowState),
   ];
+}
+
+/**
+ * UK base pubs carry no accessibility evidence, so an accessibility filter
+ * leaves none of them confirmed and the base layer must draw nothing.
+ */
+export function mapFiltersSuspendUkBasePubs(filters: Filters): boolean {
+  return anyAccessibilityFilterActive({
+    stepFree: filters.requireStepFree,
+    accessibleToilet: filters.requireAccessibleToilet,
+    seatedService: filters.requireSeatedService,
+  });
 }
 
 /** Keep a deep-linked / selected venue on the canvas even if filters exclude it. */

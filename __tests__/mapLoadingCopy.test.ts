@@ -108,6 +108,30 @@ describe("mapLoadingHeld", () => {
       mapLoadingHeld({ ...stage, pinsRevealed: true, slimPinCount: 40 }),
     ).toBe(false);
   });
+
+  // /map?uk=1. The country overview has no curated index to wait for. The
+  // frame leaves once the basemap reveal lands, and it stays down after that
+  // reveal even though the slim pin count is still zero.
+  it("lifts a national overview once the basemap reveal lands", () => {
+    expect(
+      mapLoadingHeld({ ...stage, pubsDeferredUntilZoom: true }),
+    ).toBe(true);
+    expect(
+      mapLoadingHeld({
+        ...stage,
+        canvasReady: true,
+        pubsDeferredUntilZoom: true,
+      }),
+    ).toBe(true);
+    expect(
+      mapLoadingHeld({
+        ...stage,
+        pinsRevealed: true,
+        canvasReady: true,
+        pubsDeferredUntilZoom: true,
+      }),
+    ).toBe(false);
+  });
 });
 
 describe("resolveMapDisplayName", () => {
