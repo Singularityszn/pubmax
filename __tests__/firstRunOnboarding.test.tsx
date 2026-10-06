@@ -23,7 +23,8 @@ vi.mock("@/lib/venuesSlim", () => ({ loadSlimVenuesForCityResult: slim.load }));
 
 import FirstRunOnboarding from "@/components/onboarding/FirstRunOnboarding";
 import { hasSeenTour } from "@/lib/firstRunTour";
-import { readBudgetChoice, readPlannerHandoff } from "@/lib/onboardingFlow";
+import { ONBOARDING_STEPS, readBudgetChoice, readPlannerHandoff } from "@/lib/onboardingFlow";
+import { readHistoryStep } from "@/lib/useStepHistory";
 
 let container: HTMLDivElement;
 let root: Root | null = null;
@@ -58,6 +59,27 @@ async function settle() {
     await Promise.resolve();
     await Promise.resolve();
   });
+}
+
+/** jsdom walks history on later tasks, so let each popstate land inside act. */
+async function historySettles() {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  });
+}
+
+async function browserBack() {
+  await act(async () => {
+    window.history.back();
+  });
+  await historySettles();
+}
+
+async function browserForward() {
+  await act(async () => {
+    window.history.forward();
+  });
+  await historySettles();
 }
 
 function stubGeolocation(impl: (ok: PositionCallback, fail: PositionErrorCallback) => void) {
@@ -160,12 +182,21 @@ describe("first-run budget question", () => {
     await tap("Continue");
     expect(container.querySelector("h1")?.textContent).toBe("Find the cheapest pint near you.");
 
-    await act(async () => {
-      window.history.back();
-      await new Promise((resolve) => setTimeout(resolve, 20));
-    });
+    await browserBack();
     expect(container.querySelector("h1")?.textContent).toBe("What's a fair pint to you?");
     expect(buttonContaining("£5 or less").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("leaves no later step behind browser Back after an in-app Back", async () => {
+    await tap("Use London");
+    await tap("£5 or less");
+    await tap("Continue");
+    await tap("Back");
+    await historySettles();
+    expect(container.querySelector("h1")?.textContent).toBe("What's a fair pint to you?");
+
+    await browserBack();
+    expect(container.querySelector("h1")?.textContent).toBe("London is ready.");
   });
 });
 
@@ -239,6 +270,10 @@ describe("first-run location ask", () => {
     expect(container.querySelector("h1")?.textContent).toBe("Find the cheapest pint near you.");
     expect(container.textContent).toContain("We don't list prices where you are yet. Pick a London patch.");
     expect(container.textContent).not.toContain("The Crown");
+
+    // The answer that never landed leaves no screen behind browser Back.
+    await browserBack();
+    expect(container.querySelector("h1")?.textContent).toBe("What's a fair pint to you?");
   });
 
   it("holds an honest empty answer when a picked patch has no priced pubs", async () => {
@@ -256,6 +291,26 @@ describe("first-run location ask", () => {
 });
 
 describe("first-run answers that arrive late or not at all", () => {
+  it("reads the answer again when Forward returns to one dropped by Back", async () => {
+    stubGeolocation((_ok, fail) =>
+      fail({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError),
+    );
+    slim.load.mockReturnValueOnce(new Promise(() => {}));
+    await reachLocation();
+    await tap("Use my location");
+    await tap("Soho");
+    expect(container.textContent).toContain("Working out your nearest pints.");
+
+    await browserBack();
+    expect(container.querySelector("h1")?.textContent).toBe("Find the cheapest pint near you.");
+    await browserForward();
+    await settle();
+
+    expect(slim.load).toHaveBeenCalledTimes(2);
+    expect(container.textContent).not.toContain("Working out your nearest pints.");
+    expect(container.textContent).toContain("The Crown");
+  });
+
   it("shows a venue read that came back incomplete as unavailable, with a retry that answers", async () => {
     slim.load.mockResolvedValueOnce({ rows: [], status: "unavailable" });
     stubGeolocation((ok) =>
@@ -310,6 +365,7 @@ describe("first-run answers that arrive late or not at all", () => {
     expect(container.textContent).not.toContain("near you");
 
     await tap("Change area");
+    await historySettles();
     expect(buttonContaining("Use my location").disabled).toBe(false);
   });
 
@@ -322,6 +378,7 @@ describe("first-run answers that arrive late or not at all", () => {
     await reachLocation();
     await tap("Use my location");
     await tap("Back");
+    await historySettles();
     expect(container.querySelector("h1")?.textContent).toBe("What's a fair pint to you?");
 
     await act(async () => {
@@ -345,6 +402,22 @@ describe("first-run skip", () => {
     expect(hasSeenTour()).toBe(true);
     expect(router.replace).toHaveBeenCalledWith("/near?locate=1");
   });
+
+  it("unwinds the steps it pushed before it leaves", async () => {
+    let stepWhenLeaving: string | null = "unset";
+    router.replace.mockImplementation(() => {
+      stepWhenLeaving = readHistoryStep(ONBOARDING_STEPS);
+    });
+    await tap("Use London");
+    await tap("£5 or less");
+    await tap("Continue");
+    await tap("Skip");
+    await historySettles();
+
+    expect(router.replace).toHaveBeenCalledWith("/near?locate=1");
+    // The entry the journey opened on: one Back from here is the page before.
+    expect(stepWhenLeaving).toBe("london");
+  });
 });
 
 describe("first-run result and companion choice", () => {
@@ -361,9 +434,16 @@ describe("first-run result and companion choice", () => {
     await reachResult();
 
     await tap("Change budget");
+    await historySettles();
     expect(container.querySelector("h1")?.textContent).toBe("What's a fair pint to you?");
     await tap("Continue");
     expect(container.querySelector("h1")?.textContent).toBe("Find the cheapest pint near you.");
+
+    // Change budget went back, so browser Back is the step before the budget.
+    await tap("Back");
+    await historySettles();
+    await browserBack();
+    expect(container.querySelector("h1")?.textContent).toBe("London is ready.");
   });
 
   it("preselects robin and enables planning when companion step opens", async () => {
@@ -385,9 +465,16 @@ describe("first-run result and companion choice", () => {
     const greyhoundImg = container.querySelector('img[alt="Pub Pal"]');
     expect(greyhoundImg?.getAttribute("src")).toContain("circuit-greyhound");
 
+    let stepWhenLeaving: string | null = "unset";
+    openPlanner.mockImplementation(() => {
+      stepWhenLeaving = readHistoryStep(ONBOARDING_STEPS);
+    });
     await tap("Plan my night");
+    await historySettles();
     expect(openPlanner).toHaveBeenCalledTimes(1);
     expect(router.push).not.toHaveBeenCalled();
+    // The steps the journey pushed are unwound before the planner opens.
+    expect(stepWhenLeaving).toBe("london");
   });
 
   it("moves the progress bar one step per screen", async () => {
@@ -428,6 +515,37 @@ describe("first-run handoff to the planner", () => {
     await tap("That looks right");
     await tap("Plan my night");
 
+    expect(readPlannerHandoff()).toEqual({
+      patch: { lat: 51.5136, lng: -0.1365 },
+      budget: "five",
+    });
+  });
+
+  it("still hands the planner the patch after a reload on the companion step", async () => {
+    stubGeolocation((_ok, fail) =>
+      fail({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError),
+    );
+    await tap("Use London");
+    await tap("£5 or less");
+    await tap("Continue");
+    await tap("Use my location");
+    await tap("Soho");
+    await settle();
+    await tap("That looks right");
+    await act(async () => {
+      root?.unmount();
+    });
+    // The same history entry survives a reload.
+    root = createRoot(container);
+    await act(async () => {
+      root?.render(createElement(FirstRunOnboarding, { reviewedAreas: [], skipHref: "/tonight", openPlanner }));
+    });
+    expect(container.querySelector("h1")?.textContent).toBe("Pick your Pub Pal.");
+
+    await tap("Plan my night");
+    await historySettles();
+
+    expect(openPlanner).toHaveBeenCalledTimes(1);
     expect(readPlannerHandoff()).toEqual({
       patch: { lat: 51.5136, lng: -0.1365 },
       budget: "five",

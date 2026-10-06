@@ -110,6 +110,35 @@ export function writeBudgetChoice(id: BudgetChoiceId, storage?: Storage | null):
   }
 }
 
+const PATCH_KEY = "pubmax:onboarding:patch:v1";
+
+/**
+ * The patch the reader chose, held for this tab so a reload on a later step
+ * still hands it to the planner. Null clears it: a located answer keeps no
+ * place at all.
+ */
+export function writeOnboardingPatch(id: string | null, storage?: Storage | null): void {
+  const store = storage ?? safeSessionStorage();
+  if (!store) return;
+  try {
+    if (id) store.setItem(PATCH_KEY, id);
+    else store.removeItem(PATCH_KEY);
+  } catch {
+    // Storage full or blocked: the patch still counts for this visit.
+  }
+}
+
+/** The held patch id, or null when none is held. */
+export function readOnboardingPatch(storage?: Storage | null): string | null {
+  const store = storage ?? safeSessionStorage();
+  if (!store) return null;
+  try {
+    return store.getItem(PATCH_KEY);
+  } catch {
+    return null;
+  }
+}
+
 const HANDOFF_KEY = "pubmax:onboarding:planner-handoff:v1";
 
 /**

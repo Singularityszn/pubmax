@@ -16,7 +16,8 @@ let root: Root;
 const handles: {
   setStep: (step: Step) => void;
   setEnabled: (enabled: boolean) => void;
-} = { setStep: () => {}, setEnabled: () => {} };
+  history: ReturnType<typeof useStepHistory> | null;
+} = { setStep: () => {}, setEnabled: () => {}, history: null };
 
 function Wizard() {
   const [step, setStep] = useState<Step>(() => readHistoryStep(STEPS) ?? "one");
@@ -25,7 +26,10 @@ function Wizard() {
     handles.setStep = setStep;
     handles.setEnabled = setEnabled;
   }, []);
-  useStepHistory(step, setStep, { steps: STEPS, first: "one", enabled });
+  const history = useStepHistory(step, setStep, { steps: STEPS, first: "one", enabled });
+  useEffect(() => {
+    handles.history = history;
+  }, [history]);
   return createElement("p", { id: "step" }, step);
 }
 
@@ -36,6 +40,12 @@ async function back() {
   await act(async () => {
     window.history.back();
     await new Promise((resolve) => setTimeout(resolve, 20));
+  });
+}
+
+async function settleHistory() {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 60));
   });
 }
 
@@ -103,5 +113,49 @@ describe("useStepHistory", () => {
     // The two stale entries and the opening entry are all skipped, so the
     // reader is on the page before the wizard.
     expect(window.location.pathname).toBe("/before");
+  });
+
+  it("goes back through the entries it pushed for an earlier step, so Back never returns to a later one", async () => {
+    await go("two");
+    await go("three");
+    const length = window.history.length;
+    await go("one");
+    await settleHistory();
+    expect(shown()).toBe("one");
+    expect(readHistoryStep(STEPS)).toBe("one");
+    expect(window.history.length).toBe(length);
+    expect(window.location.pathname).toBe("/wizard");
+
+    await go("two");
+    await go("one");
+    await settleHistory();
+    await back();
+    expect(window.location.pathname).toBe("/before");
+  });
+
+  it("steps back in place on the entry it opened on", async () => {
+    window.history.replaceState({ ...window.history.state, pubmaxStep: "three" }, "");
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await act(async () => root.render(createElement(Wizard)));
+    expect(shown()).toBe("three");
+    const length = window.history.length;
+
+    await go("two");
+    expect(shown()).toBe("two");
+    expect(window.history.length).toBe(length);
+    expect(readHistoryStep(STEPS)).toBe("two");
+  });
+
+  it("unwinds the entries it pushed before it leaves", async () => {
+    await go("two");
+    await go("three");
+    let stepWhenLeaving: Step | null = null;
+    await act(async () => handles.history!.leave(() => {
+      stepWhenLeaving = readHistoryStep(STEPS);
+    }));
+    await settleHistory();
+    expect(stepWhenLeaving).toBe("one");
+    expect(shown()).toBe("three");
   });
 });

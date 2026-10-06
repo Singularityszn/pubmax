@@ -1,12 +1,21 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 const HISTORY_KEY = "pubmaxStep";
+// How many entries the wizard pushed below this one. Zero is the entry it
+// opened on, which belongs to the page before the wizard as much as to it.
+const DEPTH_KEY = "pubmaxStepDepth";
 
 function recordedStep(state: unknown): unknown {
   if (typeof state !== "object" || state === null) return undefined;
   return (state as Record<string, unknown>)[HISTORY_KEY];
+}
+
+function recordedDepth(state: unknown): number {
+  if (typeof state !== "object" || state === null) return 0;
+  const depth = (state as Record<string, unknown>)[DEPTH_KEY];
+  return typeof depth === "number" && Number.isInteger(depth) && depth > 0 ? depth : 0;
 }
 
 /**
@@ -27,20 +36,30 @@ export function readHistoryStep<T extends string | number>(steps: readonly T[]):
  * that records it, and Back and Forward put the recorded step back. The URL
  * never changes, so nothing else about the route moves.
  *
+ * A move to an earlier step walks back through the entries instead of pushing
+ * one, so an in-app Back never leaves a later step waiting behind the
+ * browser's Back. On the entry the wizard opened on, the step changes in place.
+ *
  * `enabled` is true while the wizard is on screen. Once it is not, the entries
  * it pushed are stale, and a Back onto one would change nothing the reader can
  * see, so the hook keeps going back past them.
+ *
+ * The returned `leave` walks back through every entry the wizard pushed, then
+ * runs its callback, so a finished or skipped wizard is one Back from the page
+ * before it.
  */
 export function useStepHistory<T extends string | number>(
   step: T,
   setStep: (step: T) => void,
   options: { steps: readonly T[]; first: T; enabled?: boolean },
-): void {
+): { leave: (then: () => void) => void } {
   const { steps, first, enabled = true } = options;
   const setStepRef = useRef(setStep);
   const stepsRef = useRef(steps);
   const firstRef = useRef(first);
   const enabledRef = useRef(enabled);
+  const backTargetRef = useRef<{ target: T } | null>(null);
+  const leavingRef = useRef<(() => void) | null>(null);
   useEffect(() => {
     setStepRef.current = setStep;
     stepsRef.current = steps;
@@ -50,9 +69,30 @@ export function useStepHistory<T extends string | number>(
 
   useEffect(() => {
     const onPopState = (event: PopStateEvent) => {
+      const leaving = leavingRef.current;
+      if (leaving) {
+        leavingRef.current = null;
+        leaving();
+        return;
+      }
       const recorded = recordedStep(event.state);
       if (!enabledRef.current) {
         if (recorded !== undefined) window.history.back();
+        return;
+      }
+      const backTarget = backTargetRef.current;
+      if (backTarget) {
+        // The screen already shows the target. Walk on until an entry holds
+        // it, or an earlier step, or is the one the wizard opened on.
+        const order = stepsRef.current;
+        if (order.indexOf(recorded as T) > order.indexOf(backTarget.target) && recordedDepth(event.state) > 0) {
+          window.history.back();
+          return;
+        }
+        backTargetRef.current = null;
+        if (recorded !== backTarget.target) {
+          window.history.replaceState({ ...(event.state as object | null), [HISTORY_KEY]: backTarget.target }, "");
+        }
         return;
       }
       const next = stepsRef.current.find((candidate) => candidate === recorded) ?? firstRef.current;
@@ -64,15 +104,35 @@ export function useStepHistory<T extends string | number>(
 
   useEffect(() => {
     if (!enabled) return;
-    const recorded = recordedStep(window.history.state);
-    const state = { ...(window.history.state as object | null), [HISTORY_KEY]: step };
-    if (recorded === undefined) {
-      // The entry the wizard opened on. Marking it is what lets a Back from a
-      // finished wizard tell this entry from the page before it.
-      window.history.replaceState(state, "");
+    const current = window.history.state as object | null;
+    const recorded = recordedStep(current);
+    const depth = recordedDepth(current);
+    if (recorded === step) return;
+    const order = stepsRef.current;
+    const earlier = recorded !== undefined && order.indexOf(step) < order.indexOf(recorded as T);
+    if (earlier && depth > 0) {
+      backTargetRef.current = { target: step };
+      window.history.back();
       return;
     }
-    if (recorded === step) return;
-    window.history.pushState(state, "");
+    if (recorded === undefined || earlier) {
+      // The entry the wizard opened on. Marking it is what lets a Back from a
+      // finished wizard tell this entry from the page before it.
+      window.history.replaceState({ ...current, [HISTORY_KEY]: step, [DEPTH_KEY]: depth }, "");
+      return;
+    }
+    window.history.pushState({ ...current, [HISTORY_KEY]: step, [DEPTH_KEY]: depth + 1 }, "");
   }, [enabled, step]);
+
+  const leave = useCallback((then: () => void) => {
+    const depth = recordedDepth(window.history.state);
+    if (depth === 0) {
+      then();
+      return;
+    }
+    leavingRef.current = then;
+    window.history.go(-depth);
+  }, []);
+
+  return { leave };
 }

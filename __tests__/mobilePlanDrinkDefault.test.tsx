@@ -222,3 +222,32 @@ describe("first-run handoff in the phone planner", () => {
     expect(container.querySelector<HTMLInputElement>('input[placeholder="£"]')!.value).toBe("");
   });
 });
+
+describe("phone planner with no crawl-ready area", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("preselects nothing, even for the chosen patch, and asks the reader to pick", async () => {
+    // Every seeded area's review has lapsed, so none is crawl-ready.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2027-02-01T12:00:00.000Z"));
+    writePlannerHandoff({ patch: { lat: 51.5136, lng: -0.1365 }, budget: "five" });
+    await act(async () => root.render(createElement(MobilePlanActivation, {
+      cityId: "london", initialNightArea: null, defaultDrinkSelection: wine, onGenerated: vi.fn(),
+    })));
+
+    const area = container.querySelector<HTMLSelectElement>("select")!;
+    expect(area.value).toBe("");
+    await generate();
+    expect(requests).toHaveLength(0);
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe("Pick an area first.");
+
+    await act(async () => {
+      area.value = "piccadilly-soho";
+      area.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await generate();
+    expect(requests[0]!.context).toMatchObject({ nightArea: "piccadilly-soho" });
+  });
+});

@@ -109,6 +109,10 @@ describe("nearestRouteReadyNightArea", () => {
     expect(nearestRouteReadyNightArea("london", [-0.1365, 51.5136], now)?.slug).toBe("piccadilly-soho");
   });
 
+  it("answers nothing once every area's review has lapsed", () => {
+    expect(nearestRouteReadyNightArea("london", [-0.1365, 51.5136], new Date("2027-02-01T12:00:00.000Z"))).toBeNull();
+  });
+
   it("answers nothing for a bad centre", () => {
     expect(nearestRouteReadyNightArea("london", [Number.NaN, 51.5], now)).toBeNull();
   });

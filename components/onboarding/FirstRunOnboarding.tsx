@@ -40,7 +40,9 @@ import {
   onboardingStepNumber,
   previousOnboardingStep,
   readBudgetChoice,
+  readOnboardingPatch,
   writeBudgetChoice,
+  writeOnboardingPatch,
   writePlannerHandoff,
   type BudgetChoiceId,
   type OnboardingOrigin,
@@ -78,6 +80,11 @@ function openPlannerDocument(): void {
   window.location.assign(new URL("/map?plan=1", window.location.origin).href);
 }
 
+function patchOrigin(id: string | null): OnboardingOrigin | null {
+  const patch = NIGHT_PATCHES.find((candidate) => candidate.id === id);
+  return patch ? { kind: "patch", ...patch } : null;
+}
+
 export default function FirstRunOnboarding({
   reviewedAreas,
   skipHref,
@@ -100,7 +107,10 @@ export default function FirstRunOnboarding({
   const [budget, setBudget] = useState<BudgetChoiceId | null>(null);
   const [locateState, setLocateState] = useState<LocateState>("idle");
   const [showPatches, setShowPatches] = useState(false);
-  const [origin, setOrigin] = useState<OnboardingOrigin | null>(null);
+  // A reload keeps the patch the reader chose, so the planner still opens on it.
+  const [origin, setOrigin] = useState<OnboardingOrigin | null>(() =>
+    readHistoryStep(ONBOARDING_STEPS) ? patchOrigin(readOnboardingPatch()) : null,
+  );
   const [answer, setAnswer] = useState<Answer>({ status: "loading" });
   // A reader who taps a patch twice, picks a patch while the location prompt is
   // open, or backs out mid-read, must not see the older answer land over the
@@ -173,23 +183,12 @@ export default function FirstRunOnboarding({
     return ++answerGeneration.current;
   }, []);
 
-  // Browser Back and Forward walk the steps the reader has seen. A step the
-  // reader reaches that way can name no answer that is not here: the result
-  // needs a place to read from, and leaving it drops any read still in flight.
-  useStepHistory(
-    step,
-    (next) => {
-      if (next !== "result") beginAnswer();
-      setStep(next === "result" && !origin ? "location" : next);
-    },
-    { steps: ONBOARDING_STEPS, first: "london" },
-  );
-
   // Rank the priced pubs around `from` and move to the result. A read we could
   // not run is not an empty area: it is its own answer, with a retry.
   const readAnswer = useCallback(async (from: OnboardingOrigin) => {
     const generation = beginAnswer();
     setOrigin(from);
+    writeOnboardingPatch(from.kind === "patch" ? from.id : null);
     setAnswer({ status: "loading" });
     setStep("result");
     let read: SlimVenueLoadResult;
@@ -230,6 +229,24 @@ export default function FirstRunOnboarding({
     });
   }, [beginAnswer]);
 
+  // Browser Back and Forward walk the steps the reader has seen. A step the
+  // reader reaches that way can name no answer that is not here: the result
+  // needs a place to read from, and leaving it drops any read still in flight,
+  // so coming back to an answer that never landed reads it again.
+  const stepHistory = useStepHistory(
+    step,
+    (next) => {
+      if (next === "result" && origin) {
+        if (answer.status === "loading") void readAnswer(origin);
+        else setStep("result");
+        return;
+      }
+      beginAnswer();
+      setStep(next === "result" ? "location" : next);
+    },
+    { steps: ONBOARDING_STEPS, first: "london" },
+  );
+
   function locate() {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       setLocateState("unavailable");
@@ -258,16 +275,15 @@ export default function FirstRunOnboarding({
   }
 
   function pickPatch(id: string) {
-    const patch = NIGHT_PATCHES.find((candidate) => candidate.id === id);
-    if (!patch) return;
-    void readAnswer({ kind: "patch", ...patch });
+    const patch = patchOrigin(id);
+    if (patch) void readAnswer(patch);
   }
 
   function skipOnboarding() {
     markTourSeen();
     trackEvent("tour_complete", { completed: false });
     releaseTourPromptBudget();
-    router.replace(skipHref);
+    stepHistory.leave(() => router.replace(skipHref));
   }
 
   function startPlan() {
@@ -284,7 +300,7 @@ export default function FirstRunOnboarding({
       patch: origin?.kind === "patch" ? { lat: origin.lat, lng: origin.lng } : null,
       budget,
     });
-    openPlanner();
+    stepHistory.leave(openPlanner);
   }
 
   const stepNumber = onboardingStepNumber(step);

@@ -1068,6 +1068,27 @@ function mapChipLabelFor(input: {
     : ukPlaceArrival?.name ?? claimedArea?.name ?? mapContextName;
 }
 
+/**
+ * Whether a remembered area still names what the view shows. Until the map has
+ * settled somewhere new since the area was chosen, the choice has met no view
+ * yet (the camera is still flying to it), so it keeps the chip.
+ */
+function useRememberedAreaInView(
+  area: (Parameters<typeof rememberedAreaNamesView>[0] & { cityId: CityId; slug: string }) | null,
+  bounds: MapBounds | null,
+  viewCenter: [number, number],
+  viewer: UserLocation | null,
+): boolean {
+  const key = area ? `${area.cityId}:${area.slug}` : "";
+  const [seen, setSeen] = useState<{ key: string; bounds: MapBounds | null }>({ key: "", bounds: null });
+  if (seen.key !== key) {
+    setSeen({ key, bounds });
+  }
+  if (!area) return false;
+  const metAView = seen.key === key && seen.bounds !== bounds;
+  return !metAView || rememberedAreaNamesView(area, bounds, viewCenter, viewer);
+}
+
 export default function PubMap({
   cityId = DEFAULT_CITY_ID,
   placeArrival = null,
@@ -4573,10 +4594,11 @@ export default function PubMap({
   );
   // The phone planner opens on this area, so a view centred on an area we have
   // not checked falls to the nearest one a crawl can be planned in. An area the
-  // reader named themselves stays as named.
+  // reader named themselves stays as named. With no crawl-ready area at all the
+  // planner opens with none chosen.
   const phonePlanArea = useMemo(
-    () => activeNightArea ?? nearestRouteReadyNightArea(cityId, mapViewport.center) ?? suggestedPlanArea,
-    [activeNightArea, cityId, mapViewport.center, suggestedPlanArea],
+    () => activeNightArea ?? nearestRouteReadyNightArea(cityId, mapViewport.center),
+    [activeNightArea, cityId, mapViewport.center],
   );
   const venuesById = useMemo(
     () => new Map(filteredPubVenues.map((venue) => [venue.id, venue])),
@@ -5018,23 +5040,11 @@ export default function PubMap({
     runNearMe,
   ]);
 
-  // A remembered area names the chip only while the view is over it. Until the
-  // map has settled somewhere new since the area was chosen, the choice has met
-  // no view yet (the camera is still flying to it), so it keeps the chip.
-  const chosenAreaKey = mapChosenArea ? `${mapChosenArea.cityId}:${mapChosenArea.slug}` : "";
-  const [chosenAreaSeen, setChosenAreaSeen] = useState<{ key: string; bounds: MapBounds | null }>({
-    key: "",
-    bounds: null,
-  });
-  if (chosenAreaSeen.key !== chosenAreaKey) {
-    setChosenAreaSeen({ key: chosenAreaKey, bounds: mapBounds });
-  }
-  const chosenAreaMetAView = chosenAreaSeen.key === chosenAreaKey && chosenAreaSeen.bounds !== mapBounds;
+  // A remembered area names the chip only while the view is over it.
+  const mapChosenAreaInView = useRememberedAreaInView(mapChosenArea, mapBounds, mapViewport.center, userLocation);
   const mapChipLabel = mapChipLabelFor({
     mapChosenArea,
-    mapChosenAreaInView: mapChosenArea
-      ? !chosenAreaMetAView || rememberedAreaNamesView(mapChosenArea, mapBounds, mapViewport.center, userLocation)
-      : false,
+    mapChosenAreaInView,
     cityId,
     ukPlaceArrival,
     claimedArea,
@@ -5587,11 +5597,11 @@ export default function PubMap({
   // screen (verify-preview-4, J04); a crawl being built now leads the sheet.
   const plannerDrinkSelection = experienceLens === "all" ? filters : undefined;
   function renderPhoneDescribeForm() {
-    return mobileViewport && isLondon && phonePlanArea ? (
+    return mobileViewport && isLondon ? (
       <MobilePlanActivation
         key="phone-describe-form"
         cityId={cityId}
-        initialNightArea={phonePlanArea.slug}
+        initialNightArea={phonePlanArea?.slug ?? null}
         venuesById={venuesById}
         defaultDrinkSelection={plannerDefaultDrinkSelection(experienceLens, plannerDrinkSelection)}
         onGenerated={applyGeneratedMobilePlan}
