@@ -79,6 +79,14 @@ describe("ukBaseIdDepartures", () => {
     ]);
   });
 
+  it("never reads two unnamed pubs 50 m apart as one pub redrawn", () => {
+    const gone = row("n1", "", 51.5, -0.1);
+    const arrived = row("w2", "", 51.5003, -0.1);
+    expect(ukBaseIdDepartures([gone], [arrived], NO_CURATED)).toMatchObject([
+      { from: "venue-uk-n1", to: null },
+    ]);
+  });
+
   it("sends a row a still-listed curated venue owned to that venue, and only while it is listed", () => {
     const owned = row("n1", "The Sportsman", 51.54, 0.0, "", "venue-sy8k64");
     expect(ukBaseIdDepartures([owned], [], new Set(["venue-sy8k64"]))).toMatchObject([
@@ -158,6 +166,20 @@ describe("planUkBaseVenueIdAliases and publishUkBaseWithAliases", () => {
     expect(aliasDoc(root)).toMatchObject({ aliases: {}, retired: {} });
   });
 
+  it("retires a departed unnamed pub under the label Pub, so the build does not fail", async () => {
+    const root = aliasRoot();
+    await recordUkBaseVenueIdAliases(
+      root,
+      [row("n1", "", 51.5, -0.1, "North Road, Brighton")],
+      [],
+      NO_CURATED,
+    );
+    expect(aliasDoc(root)).toMatchObject({
+      aliases: {},
+      retired: { "venue-uk-n1": { name: "Pub", area: "North Road, Brighton" } },
+    });
+  });
+
   it("moves a retired id that gains an alias out of the retired records", async () => {
     const root = aliasRoot();
     await recordUkBaseVenueIdAliases(root, [bellNode], [], NO_CURATED);
@@ -184,9 +206,9 @@ describe("planUkBaseVenueIdAliases and publishUkBaseWithAliases", () => {
 
   it("fails, writing nothing, when a dropped id would resolve to nothing", async () => {
     const root = aliasRoot();
-    const unnamed = row("n7", "", 51.5, -0.1);
+    const unplaced = row("n7", "Lost Arms", Number.NaN, -0.1);
     await expect(
-      recordUkBaseVenueIdAliases(root, [unnamed, bellNode], [bellWay], NO_CURATED),
+      recordUkBaseVenueIdAliases(root, [unplaced, bellNode], [bellWay], NO_CURATED),
     ).rejects.toThrow("venue-uk-n7");
     expect(aliasDoc(root)).toMatchObject({ aliases: {}, retired: {} });
   });

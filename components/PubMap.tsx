@@ -60,7 +60,11 @@ import {
   typedSearchCameraMove,
   TYPED_SEARCH_MIN_QUERY,
 } from "@/lib/mapSearchCamera";
-import { filterMapVenues, withForcedVenue } from "@/lib/filterMapVenues";
+import {
+  filterMapVenues,
+  mapFiltersSuspendUkBasePubs,
+  withForcedVenue,
+} from "@/lib/filterMapVenues";
 import {
   OPEN_NOW_FILTER_CAPTION,
   openNowStatesForVenues,
@@ -2395,8 +2399,11 @@ export default function PubMap({
       canvasReady: mapCanvasReady,
       slimLoaded: loaded,
       slimPinCount: slimPins.length,
+      // /map?uk=1 never reads the curated index, so the frame waits on the
+      // basemap reveal alone.
+      pubsDeferredUntilZoom: ukNationalBrowse,
     }),
-    [pinsRevealed, mapCanvasReady, loaded, slimPins.length],
+    [pinsRevealed, mapCanvasReady, loaded, slimPins.length, ukNationalBrowse],
   );
   const mapLoadingProgress = mapLoadingProgressPercent(mapLoadingStage);
   const mapCanvasAvailabilityState = mapCanvasAvailability({
@@ -6572,6 +6579,7 @@ export default function PubMap({
         venues={canvasVenues}
         filteredVenueCount={canvasVenues.length}
         venueDataReady={loaded && loadedCityId === cityId}
+        nationalBrowse={ukNationalBrowse}
         // Clean first view stays route-free. Once the user maps a crawl, the
         // line remains visible even if the mobile planner closes.
         route={routeForMap}
@@ -6594,6 +6602,7 @@ export default function PubMap({
         whatsOnByVenue={whatsOnTonight.summary}
         provisionalVenueIds={provisionalVenueIds}
         lensPrices={activeLensPrices}
+        ukBaseSuspended={mapFiltersSuspendUkBasePubs(effectiveMapFilters)}
         spoonsValue={spoonsValueLane}
         lensNoun={activeLensNoun?.toLowerCase() ?? null}
         lensIndexStatus={drinkIndexStatus}

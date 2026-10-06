@@ -95,7 +95,7 @@ export default function RouteList({
               <p>
                 {drinkPresentation
                   ? mapPlanDrinkPriceDescription(drinkPresentation, venue.id, drinkPrices, drinkPriceStatus)
-                  : <>{formatPrice(signal?.latestContributorPrice ?? venue.cheapestPrice)} · {venue.cheapestPint}</>}
+                  : stopPriceLine(signal?.latestContributorPrice ?? venue.cheapestPrice, venue)}
               </p>
               <small>{placeLabels[index]}</small>
             </div>
@@ -131,4 +131,9 @@ export default function RouteList({
       })}
     </ol>
   );
+}
+
+function stopPriceLine(price: number | null, venue: Venue): string {
+  const pint = price === venue.cheapestPrice ? venue.cheapestPint : "";
+  return pint ? `${formatPrice(price)} · ${pint}` : formatPrice(price);
 }

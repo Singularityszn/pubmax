@@ -21,6 +21,8 @@ Effective RLS stays in `.github/workflows/rls-session.yml` (Postgres 16 + PostgR
 
 ### 1.2 Promote after deploy
 
+Ship to production with `npm run release:prod`. It deploys, promotes and waits for the production smoke run. `docs/DEPLOYMENT.md` "One release command" owns its steps. The pair below is the manual path that command wraps.
+
 This project does not auto-assign the production domain to every deploy. After a Vercel deploy, promote it explicitly:
 
 ```sh
@@ -28,7 +30,7 @@ vercel deploy
 vercel promote <deployment-url>
 ```
 
-Deploying from a Mac is fine because the build runs in Vercel's cloud. Never pass `--prebuilt` from a Mac: the locally built sharp binary is darwin-arm64 and crashes the linux runtime. `docs/DEPLOYMENT.md` documents why promotion is safe to use after a build: the promotion API points production traffic at an existing deployment and does not rebuild it. The exact `vercel deploy` / `vercel promote` command pair above is operator practice; it is not itself written down in `docs/DEPLOYMENT.md`, so treat this section as the source for it going forward.
+Deploying from a Mac is fine because the build runs in Vercel's cloud. Never pass `--prebuilt` from a Mac: the locally built sharp binary is darwin-arm64 and crashes the linux runtime. `docs/DEPLOYMENT.md` documents why promotion is safe to use after a build: the promotion API points production traffic at an existing deployment and does not rebuild it. The exact `vercel deploy` / `vercel promote` command pair above is operator practice, and this section is its source.
 
 After promotion, confirm both hosts serve the release:
 

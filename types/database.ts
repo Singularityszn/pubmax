@@ -3389,6 +3389,53 @@ export type Database = {
           },
         ];
       };
+      pub_pal_voice_grants: {
+        Row: {
+          id: string;
+          owner_id: string;
+          usage_month: string;
+          prepaid_minutes: number;
+          state: string;
+          conversation_id: string | null;
+          settled_seconds: number | null;
+          settled_minutes: number | null;
+          settled_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id: string;
+          owner_id: string;
+          usage_month: string;
+          prepaid_minutes: number;
+          state?: string;
+          conversation_id?: string | null;
+          settled_seconds?: number | null;
+          settled_minutes?: number | null;
+          settled_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          owner_id?: string;
+          usage_month?: string;
+          prepaid_minutes?: number;
+          state?: string;
+          conversation_id?: string | null;
+          settled_seconds?: number | null;
+          settled_minutes?: number | null;
+          settled_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pub_pal_voice_grants_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       pub_pal_voice_usage: {
         Row: {
           owner_id: string;
@@ -6801,6 +6848,13 @@ export type Database = {
         };
         Returns: Json;
       };
+      issued_pub_pal_voice_conversations: {
+        Args: {
+          p_owner_id: string | null;
+          p_month: string | null;
+        };
+        Returns: string[];
+      };
       join_plan_account_idempotent_atomic: {
         Args: {
           p_plan_id: string | null;
@@ -6847,6 +6901,14 @@ export type Database = {
           p_payload_digest: string | null;
         };
         Returns: Json;
+      };
+      link_pub_pal_voice_conversation: {
+        Args: {
+          p_owner_id: string | null;
+          p_grant_id: string | null;
+          p_conversation_id: string | null;
+        };
+        Returns: boolean;
       };
       list_open_social_crews: {
         Args: {
@@ -6949,6 +7011,23 @@ export type Database = {
         Args: {
           p_venue_id: string | null;
           p_city: string | null;
+        };
+        Returns: boolean;
+      };
+      owns_issued_pub_pal_voice_conversation: {
+        Args: {
+          p_owner_id: string | null;
+          p_conversation_id: string | null;
+        };
+        Returns: boolean;
+      };
+      prepay_pub_pal_voice_grant: {
+        Args: {
+          p_owner_id: string | null;
+          p_month: string | null;
+          p_grant_id: string | null;
+          p_minutes: number | null;
+          p_limit: number | null;
         };
         Returns: boolean;
       };
@@ -7450,6 +7529,13 @@ export type Database = {
         };
         Returns: string;
       };
+      refund_pub_pal_voice_grant: {
+        Args: {
+          p_owner_id: string | null;
+          p_grant_id: string | null;
+        };
+        Returns: boolean;
+      };
       release_pub_pal_voice_trial: {
         Args: {
           p_owner_id: string | null;
@@ -7666,6 +7752,14 @@ export type Database = {
           p_kind: string | null;
           p_active: boolean | null;
           p_actor_handle?: string | null;
+        };
+        Returns: boolean;
+      };
+      settle_pub_pal_voice_conversation: {
+        Args: {
+          p_owner_id: string | null;
+          p_conversation_id: string | null;
+          p_seconds: number | null;
         };
         Returns: boolean;
       };

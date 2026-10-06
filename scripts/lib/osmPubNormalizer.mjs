@@ -90,6 +90,38 @@ export function normalizeOsmPubElement(element, { fallbackCity = null } = {}) {
 }
 
 /**
+ * A pub OSM maps with a location and no `name` tag. `normalizeOsmPubElement`
+ * drops it, rightly, for every pack that lists a pub by name. The UK base layer
+ * still draws it as a bare pin (lib/ukBasePubs.ts), so this keeps only what a
+ * pin and its sheet need: the stable OSM id, the position and an address when
+ * OSM states one. Nothing here is a name, and none is invented.
+ *
+ * Returns null for a named element (that is `normalizeOsmPubElement`'s), for an
+ * element that is not `amenity=pub`, and for one with no usable position.
+ *
+ * @param {any} element raw Overpass node/way with tags and coordinates
+ * @returns {Record<string, unknown> | null}
+ */
+export function normalizeUnnamedOsmPubElement(element) {
+  const tags = element?.tags ?? {};
+  if (typeof tags.name === "string" && tags.name.trim()) return null;
+  if (tags.amenity !== "pub") return null;
+
+  const lat = Number(element.lat ?? element.center?.lat);
+  const lng = Number(element.lon ?? element.center?.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+  return {
+    osmId: `${element.type}/${element.id}`,
+    amenity: "pub",
+    lat,
+    lng,
+    address: buildAddress(tags, null),
+    postcode: tags["addr:postcode"] || null,
+  };
+}
+
+/**
  * Tags the work-spot vertical needs and a pub pack never carried. Kept as a
  * table so the UK venue pack and any later reader agree on what was retained,
  * and so a tag OSM does not state stays absent rather than becoming a guessed

@@ -26,7 +26,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "5 October 2026";
+const LAST_UPDATED = "6 October 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -815,6 +815,11 @@ export default function PrivacyPage() {
             reports you logged stay up with your handle taken off them, and we
             keep a private record, readable only by us, of which deleted account
             logged which of them.
+          </li>
+          <li>
+            <strong>Backups:</strong>{" "}data you delete, including a deleted
+            account, can remain in our backups for up to 8 weeks before it is
+            removed.
           </li>
           <li>
             <strong>Social account records:</strong>{" "}the private product account

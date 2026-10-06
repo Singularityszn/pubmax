@@ -203,6 +203,15 @@ describe("builtStopsNeedingHydration", () => {
     })).toEqual(["v1"]);
   });
 
+  it("does not request detail for a stop priced by a drop that names no drink", () => {
+    const pins = new Map([["v1", makeVenue({
+      cheapestPrice: 4.5, cheapestPint: "", latestContributorPrice: 4.5, prices: [],
+    })]]);
+    expect(builtStopsNeedingHydration({
+      venueDataReady: true, builtIds: ["v1"], venueById: pins, askedIds: none,
+    })).toEqual([]);
+  });
+
   it("does not request a present unpriced stop or repeat a failed identity read", () => {
     const pins = new Map([
       ["v1", makeVenue({ cheapestPrice: 6.15, cheapestPint: "", prices: [] })],

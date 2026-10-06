@@ -10,6 +10,8 @@
 // available so bars and late food never render as pint-priced pubs.
 
 import type { Venue } from "@/lib/venues";
+import { isNationalBaseVenueId, venueCityPrefix } from "@/lib/cityVenueIds";
+import { getVenueAccessibility } from "@/lib/venueAccessibilitySeeds";
 import type { SlimVenue } from "@/lib/venuesSlim";
 
 /**
@@ -56,6 +58,10 @@ export function slimVenueToPin(slim: SlimVenue): Venue {
     // before detail hydrates (undefined stays undefined — honestly unknown).
     ...(slim.zone !== undefined ? { zone: slim.zone } : {}),
     visibleBoroughs: slim.borough ? [slim.borough] : [],
+    // Existing curated access facts belong to legacy London pins only.
+    accessibility: venueCityPrefix(slim.id) === null && !isNationalBaseVenueId(slim.id)
+      ? getVenueAccessibility(slim.name, slim.borough)
+      : undefined,
     prices: [],
     cheapestPrice: slim.cheapestPrice,
     cheapestPint: "",

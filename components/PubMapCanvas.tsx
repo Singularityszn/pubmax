@@ -123,6 +123,8 @@ import {
   CLUSTER_FILL_OPACITY,
   CLUSTER_STROKE_OPACITY,
   UK_BASE_MIN_ZOOM,
+  ukBaseUnnamedBadgeFilter,
+  ukBaseUnnamedFilter,
   type SceneCtx,
 } from "@/components/map/canvas/buildScene";
 import { createDonutClusterSync, type DonutClusterSync } from "@/components/map/canvas/donutClusters";
@@ -132,6 +134,7 @@ import {
   createPinRevealCoordinator,
   pinRetryPendingNotice,
   pinRetrySpentNotice,
+  overviewSkipsVenueWait,
   revealTimeoutNotice,
   venueDataFailureNotice,
   venueRetryMayDispatch,
@@ -245,6 +248,11 @@ type PubMapCanvasProps = {
   filteredVenueCount?: number;
   /** Parent's slim venue read has settled for the active city. */
   venueDataReady: boolean;
+  /**
+   * `/map?uk=1`. The opening camera sits below the pub zoom gate, so a missing
+   * curated index is the overview, not a failed pub list.
+   */
+  nationalBrowse?: boolean;
   route: Venue[];
   selectedVenueId: string;
   onVenueClick: (id: string) => void;
@@ -323,6 +331,8 @@ type PubMapCanvasProps = {
   provisionalVenueIds?: ReadonlySet<string> | null;
   /** Dedicated no-alcohol or food figures, separate from pint signals. */
   lensPrices?: ReadonlyMap<string, MapLensPrice> | null;
+  /** A filter the unpriced UK base pubs cannot answer, such as confirmed access. */
+  ukBaseSuspended?: boolean;
   /**
    * A non-null lane means the Spoons value lens owns the map: the pins in the
    * ranking wear a value band and print the units the best £10 round holds.
@@ -669,6 +679,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     onUkBaseResidentPubsChange,
     onVisibleVenueIdsChange,
     onRenderedStateChange,
+    nationalBrowse,
     venueListOpen,
     ukBaseRestore,
     onUkBaseRestoreFailed,
@@ -680,6 +691,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     whatsOnByVenue,
     provisionalVenueIds,
     lensPrices,
+    ukBaseSuspended,
     spoonsValue,
     lensNoun,
     lensIndexStatus,
@@ -763,6 +775,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // Refs for camera/bounds + landmark seed so the MapLibre mount effect does not
   // tear down on parent re-renders that only change object identity.
   const mapViewRef = useRef(mapView);
+  const nationalBrowseRef = useRef(nationalBrowse === true);
   const maxBoundsRef = useRef(maxBounds);
   const cityBoundsRef = useRef(cityBounds);
   const cityViewRef = useRef(getCity(cityId).mapView);
@@ -770,12 +783,13 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   const showLandmarksRef = useRef(showLandmarks);
   useEffect(() => {
     mapViewRef.current = mapView;
+    nationalBrowseRef.current = nationalBrowse === true;
     maxBoundsRef.current = maxBounds;
     cityBoundsRef.current = cityBounds;
     cityViewRef.current = getCity(cityId).mapView;
     landmarksGeoJSONRef.current = landmarksGeoJSON;
     showLandmarksRef.current = showLandmarks;
-  }, [mapView, maxBounds, cityBounds, cityId, landmarksGeoJSON, showLandmarks]);
+  }, [mapView, nationalBrowse, maxBounds, cityBounds, cityId, landmarksGeoJSON, showLandmarks]);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const userCameraInteractionRef = useRef(false);
@@ -1933,6 +1947,15 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       if (!venueDataReadyRef.current || !map.getSource("pubs")) return false;
       return map.isSourceLoaded("pubs");
     };
+    // Country overview: nothing is owed until the reader zooms in. The phone
+    // otherwise waits on a curated index this camera deliberately never reads,
+    // then the ceiling calls that wait a failed pub list.
+    const pubsDeferredUntilZoom = () =>
+      overviewSkipsVenueWait({
+        nationalBrowse: nationalBrowseRef.current,
+        zoom: map.getZoom(),
+        minPubZoom: UK_BASE_MIN_ZOOM,
+      });
     // A pin-owned ceiling notice clears on its own signal, never the basemap's:
     // the background is already painted in that case, so a notice keyed on the
     // basemap would retire on the very next frame while the pub data was still
@@ -2121,12 +2144,14 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       pinRevealTimeoutMs: PIN_REVEAL_TIMEOUT_MS,
       readyCeilingMs: PIN_READY_CEILING_MS,
       hasBasemapPainted: () => basemapTileReadyForPaint,
-      hasPinsPaintable: () => !phoneFirstImpression || hasPinsPaintable(),
+      hasPinsPaintable: () =>
+        pubsDeferredUntilZoom() || !phoneFirstImpression || hasPinsPaintable(),
       // On a phone, local pub GeoJSON is the useful content that the reader
       // is waiting for. Do not hold its first painted frame behind remote
       // basemap tiles; tile failures still use their independent classifier
-      // and retry lane below.
-      requiresBasemapPaint: !phoneFirstImpression,
+      // and retry lane below. A national overview is the other way round:
+      // there are no pins to paint yet, so the frame waits on the basemap.
+      requiresBasemapPaint: nationalBrowseRef.current || !phoneFirstImpression,
       confirmVisibleFrameBeforeReveal: phoneFirstImpression,
       compositeConfirmFrames: phoneFirstImpression
         ? PHONE_PIN_COMPOSITE_CONFIRM_FRAMES
@@ -2167,6 +2192,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
               : "pending",
           filteredVenueCount: filteredVenueCountRef.current,
           pinsPaintable: hasPinsPaintable(),
+          pubsDeferredUntilZoom: pubsDeferredUntilZoom(),
         });
         if (timeoutNotice) {
           // Name the signal that missed. A painted basemap with missing pub
@@ -3759,7 +3785,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     spoonsValue,
     // A non-null lensPrices map is the one signal that an experience view owns
     // the map, the same one the curated pins read below.
-    suspended: lensPrices !== null,
+    suspended: lensPrices !== null || ukBaseSuspended === true,
     // HELD is not SUSPENDED: a suspended layer is emptied and answers so, while
     // a held one has simply not been asked for yet and starts the moment the
     // priced pins are on screen.
@@ -3985,6 +4011,16 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       // selected id drives it, so exactly one of the two ever matches.
       if (map.getLayer("uk-base-selected")) {
         map.setFilter("uk-base-selected", selectedFilter);
+      }
+      // An unnamed base pub waits for street zoom, except the selected one.
+      if (map.getLayer("uk-base-unnamed-point")) {
+        map.setFilter("uk-base-unnamed-point", ukBaseUnnamedFilter(selectedIdRef.current));
+      }
+      if (map.getLayer("uk-base-unnamed-provisional-badge")) {
+        map.setFilter(
+          "uk-base-unnamed-provisional-badge",
+          ukBaseUnnamedBadgeFilter(selectedIdRef.current),
+        );
       }
       // So does a Shoreditch pilot cafe: its `venue-osm-` id matches no pub.
       if (map.getLayer("coffee-pilot-selected")) {

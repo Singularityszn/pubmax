@@ -70,11 +70,13 @@ describe("pubpal:agent dry run", () => {
       }>;
       llm: string;
       platform_settings: {
+        auth: { enable_auth: boolean; allowlist: unknown[] };
         privacy: { retention_days: number; zero_retention_mode: boolean };
         overrides: {
           conversation_config_override: {
             agent: { prompt: { prompt: boolean }; first_message: boolean };
             tts: { voice_id: boolean };
+            conversation: { text_only: boolean };
           };
         };
       };
@@ -95,11 +97,14 @@ describe("pubpal:agent dry run", () => {
       "Never invent a pub, a price, an opening hour, or an event.",
     );
     expect(body.conversation_config.agent.prompt.prompt).not.toContain("{{");
+    // A conversation may start only with a signed URL, never with the agent id alone.
+    expect(body.platform_settings.auth).toEqual({ enable_auth: true, allowlist: [] });
     expect(body.platform_settings.privacy.retention_days).toBe(-1);
     expect(body.platform_settings.privacy.zero_retention_mode).toBe(true);
     expect(body.platform_settings.overrides.conversation_config_override).toEqual({
       agent: { prompt: { prompt: false }, first_message: true },
       tts: { voice_id: true },
+      conversation: { text_only: true },
     });
   });
 
