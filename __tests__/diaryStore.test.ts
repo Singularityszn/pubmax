@@ -8,12 +8,12 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 import type { DiaryEntryFields } from "@/lib/diary";
 import { __resetDiary, diaryStore, memoryDiaryStore } from "@/lib/diaryStore";
 
-const ALICE = "profile:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
-const BOB = "profile:bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+const ALICE = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const BOB = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
 function fields(overrides: Partial<DiaryEntryFields> = {}): DiaryEntryFields {
   return {
-    ownerActor: ALICE,
+    ownerUserId: ALICE,
     venueId: "venue-dove",
     venueName: "The Dove",
     visitedOn: "2026-10-04",
@@ -34,7 +34,7 @@ describe("diary store (memory backend)", () => {
     if (result.status !== "created") return;
     expect(result.entry.id).toMatch(/^[0-9a-f-]{36}$/);
     expect(result.entry.createdAt).toBe("2026-10-04T21:00:00.000Z");
-    expect(result.entry).toMatchObject({ ownerActor: ALICE, rating: 4.5, visibility: "private" });
+    expect(result.entry).toMatchObject({ ownerUserId: ALICE, rating: 4.5, visibility: "private" });
   });
 
   it("refuses a second log of the same pub on the same day for the same owner", async () => {
@@ -47,19 +47,19 @@ describe("diary store (memory backend)", () => {
     await memoryDiaryStore.create(fields());
     expect((await memoryDiaryStore.create(fields({ visitedOn: "2026-10-05" }))).status).toBe("created");
     expect((await memoryDiaryStore.create(fields({ venueId: "venue-x" }))).status).toBe("created");
-    expect((await memoryDiaryStore.create(fields({ ownerActor: BOB }))).status).toBe("created");
+    expect((await memoryDiaryStore.create(fields({ ownerUserId: BOB }))).status).toBe("created");
   });
 
   it("lists only the owner's entries, newest visit day first", async () => {
     await memoryDiaryStore.create(fields({ visitedOn: "2026-10-01", venueId: "a" }));
     await memoryDiaryStore.create(fields({ visitedOn: "2026-10-05", venueId: "b" }));
-    await memoryDiaryStore.create(fields({ ownerActor: BOB, venueId: "c", review: "Bob's" }));
+    await memoryDiaryStore.create(fields({ ownerUserId: BOB, venueId: "c", review: "Bob's" }));
     const alice = await memoryDiaryStore.listForOwner(ALICE);
     expect(alice.status).toBe("ready");
     expect(alice.entries.map((entry) => entry.venueId)).toEqual(["b", "a"]);
     const bob = await memoryDiaryStore.listForOwner(BOB);
     expect(bob.entries.map((entry) => entry.review)).toEqual(["Bob's"]);
-    expect((await memoryDiaryStore.listForOwner("profile:cccccccc-cccc-cccc-cccc-cccccccccccc")).entries).toEqual([]);
+    expect((await memoryDiaryStore.listForOwner("cccccccc-cccc-4ccc-8ccc-cccccccccccc")).entries).toEqual([]);
   });
 
   it("returns copies, so a caller cannot edit a stored entry", async () => {

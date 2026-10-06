@@ -7,11 +7,12 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 
 const ALICE = "profile:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const BOB = "profile:bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+const ALICE_ACCOUNT = "acct-alice";
 
 const identityState = vi.hoisted(() => ({
   resolution: {
     ok: true as const,
-    accountId: "acct-a",
+    accountId: "acct-alice",
     actor: "profile:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
     handle: "alice",
   } as import("@/lib/contributionIdentity.server").ContributionIdentityResolution,
@@ -90,7 +91,7 @@ describe("POST /api/diary", () => {
     expect(created.status).toBe(201);
     const { entry } = await created.json();
     expect(entry).toMatchObject({
-      ownerActor: ALICE,
+      ownerUserId: ALICE_ACCOUNT,
       venueId: VENUE_ID,
       venueName: VENUE_NAME,
       visitedOn: TODAY(),
@@ -222,9 +223,9 @@ describe("POST /api/diary", () => {
 
   it("ignores an owner or handle in the body: the session decides who owns the entry", async () => {
     const res = await POST(
-      post({ venueId: VENUE_ID, ownerActor: BOB, handle: "bob", owner_profile_id: BOB }),
+      post({ venueId: VENUE_ID, ownerUserId: "acct-bob", handle: "bob", owner_user_id: "acct-bob" }),
     );
-    expect((await res.json()).entry.ownerActor).toBe(ALICE);
+    expect((await res.json()).entry.ownerUserId).toBe(ALICE_ACCOUNT);
     signIn(BOB, "bob");
     expect((await (await GET(get())).json()).entries).toEqual([]);
   });

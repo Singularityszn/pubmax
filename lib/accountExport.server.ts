@@ -102,7 +102,7 @@ export type AccountExportDeps = {
   follows(handle: string): Promise<string[]>;
   savedPubs(handle: string): Promise<SavedPubsRead>;
   wanted(ownerActor: string): Promise<{ status: "ready" | "degraded"; wanteds: WantedDTO[] }>;
-  diary(ownerActor: string): Promise<{ status: "ready" | "degraded"; entries: DiaryEntryDTO[] }>;
+  diary(userId: string): Promise<{ status: "ready" | "degraded"; entries: DiaryEntryDTO[] }>;
   socialLinks(userId: string): Promise<PublicSocialConnection[]>;
   nightProfile(userId: string): Promise<NightProfile | null>;
   prices(
@@ -136,7 +136,7 @@ function storeDeps(): AccountExportDeps {
     follows: (handle) => followStore().listFollowing(handle),
     savedPubs: (handle) => savedPubsStore().readSaved({ handle }),
     wanted: (ownerActor) => wantedStore().listForOwner(ownerActor),
-    diary: (ownerActor) => diaryStore().listForOwner(ownerActor),
+    diary: (userId) => diaryStore().listForOwner(userId),
     async socialLinks(userId) {
       return (await socialConnectionStore().list(userId)).map(publicSocialConnection);
     },
@@ -408,8 +408,7 @@ export async function buildAccountExport(
   });
 
   const diary = await lane<DiaryEntryDTO>(async () => {
-    if (!profile) return { degraded: false, items: [] };
-    const read = await deps.diary(profileActor(profile.id));
+    const read = await deps.diary(userId);
     return { degraded: read.status === "degraded", items: read.entries };
   });
 

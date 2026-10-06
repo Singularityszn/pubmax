@@ -14,12 +14,12 @@ import {
 } from "@/lib/diary";
 
 const NOW = new Date("2026-10-06T12:00:00Z");
-const OWNER = "profile:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+const OWNER = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
 function create(overrides: Record<string, unknown> = {}) {
   return validateDiaryEntryCreate(
     {
-      ownerActor: OWNER,
+      ownerUserId: OWNER,
       venueId: "venue-dove",
       venueName: "The Dove",
       visitedOn: "2026-10-04",
@@ -63,7 +63,7 @@ describe("validateDiaryEntryCreate", () => {
     expect(result).toEqual({
       ok: true,
       value: {
-        ownerActor: OWNER,
+        ownerUserId: OWNER,
         venueId: "venue-dove",
         venueName: "The Dove",
         visitedOn: "2026-10-04",
@@ -94,7 +94,8 @@ describe("validateDiaryEntryCreate", () => {
   });
 
   it("refuses a missing owner, venue or name", () => {
-    expect(create({ ownerActor: "handle:alice" }).ok).toBe(false);
+    expect(create({ ownerUserId: "" }).ok).toBe(false);
+    expect(create({ ownerUserId: "   " }).ok).toBe(false);
     expect(create({ venueId: "" }).ok).toBe(false);
     expect(create({ venueName: "  " }).ok).toBe(false);
   });
@@ -138,15 +139,15 @@ describe("validateDiaryEntryCreate", () => {
     expect(create({ review: "🍺".repeat(MAX_DIARY_REVIEW + 1) }).ok).toBe(false);
   });
 
-  it("never accepts an owner from the body: only the ownerActor argument counts", () => {
-    const result = create({ owner: "profile:bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb" });
-    expect(result.ok && result.value.ownerActor).toBe(OWNER);
+  it("never accepts an owner from the body: only the ownerUserId argument counts", () => {
+    const result = create({ owner: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" });
+    expect(result.ok && result.value.ownerUserId).toBe(OWNER);
   });
 });
 
 describe("ordering and labels", () => {
   const base: Omit<DiaryEntry, "id" | "visitedOn" | "createdAt"> = {
-    ownerActor: OWNER,
+    ownerUserId: OWNER,
     venueId: "v",
     venueName: "V",
     rating: null,

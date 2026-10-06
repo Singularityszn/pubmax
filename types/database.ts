@@ -492,7 +492,7 @@ export type Database = {
       diary_entries: {
         Row: {
           id: string;
-          owner_profile_id: string;
+          owner_user_id: string;
           venue_id: string;
           venue_name: string;
           visited_on: string;
@@ -503,7 +503,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
-          owner_profile_id: string;
+          owner_user_id: string;
           venue_id: string;
           venue_name: string;
           visited_on: string;
@@ -514,7 +514,7 @@ export type Database = {
         };
         Update: {
           id?: string;
-          owner_profile_id?: string;
+          owner_user_id?: string;
           venue_id?: string;
           venue_name?: string;
           visited_on?: string;
@@ -525,10 +525,10 @@ export type Database = {
         };
         Relationships: [
           {
-            foreignKeyName: "diary_entries_owner_profile_id_fkey";
-            columns: ["owner_profile_id"];
+            foreignKeyName: "diary_entries_owner_user_id_fkey";
+            columns: ["owner_user_id"];
             isOneToOne: false;
-            referencedRelation: "profiles";
+            referencedRelation: "users";
             referencedColumns: ["id"];
           },
         ];

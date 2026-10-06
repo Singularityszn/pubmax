@@ -21,11 +21,11 @@ test.use({ viewport: { width: 390, height: 844 } });
 const SHOTS = runnerShotDir("pubmax-diary-phase1");
 const VENUE_ID = "venue-1f5ygjb";
 const VENUE_NAME = "The Bohemia";
-const OWNER = "profile:00000000-0000-4000-8000-0000000000a1";
+const OWNER = "00000000-0000-4000-8000-0000000000a1";
 
 type Entry = {
   id: string;
-  ownerActor: string;
+  ownerUserId: string;
   venueId: string;
   venueName: string;
   visitedOn: string;
@@ -63,7 +63,7 @@ async function serveDiary(page: Page): Promise<{ posts: Array<Record<string, unk
     }
     const entry: Entry = {
       id: `entry-${entries.length + 1}`,
-      ownerActor: OWNER,
+      ownerUserId: OWNER,
       venueId: String(body.venueId),
       venueName: VENUE_NAME,
       visitedOn,

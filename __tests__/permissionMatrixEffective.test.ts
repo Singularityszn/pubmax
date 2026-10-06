@@ -1998,7 +1998,7 @@ describe("saves: two lanes, two promises", () => {
     );
     expect(seeded.status, await seeded.clone().text()).toBe(201);
     expect(
-      Number(truth(`select count(*) from public.diary_entries where owner_profile_id = '${ALICE_PROFILE}'`)),
+      Number(truth(`select count(*) from public.diary_entries where owner_user_id = '${ALICE}'`)),
     ).toBe(1);
 
     const owner = await readJson<{ entries?: { review?: string }[] }>(
@@ -2011,13 +2011,13 @@ describe("saves: two lanes, two promises", () => {
     const bobWrite = await defined(handlers.writeDiary)(
       request("/api/diary", {
         bearer: BEARER_BOB,
-        body: { venueId: PRICE_VENUE, visitedOn: "2026-09-01", ownerActor: `profile:${ALICE_PROFILE}`, review: "Bob diary line" },
+        body: { venueId: PRICE_VENUE, visitedOn: "2026-09-01", ownerUserId: ALICE, owner_user_id: ALICE, review: "Bob diary line" },
       }),
       context({}),
     );
     expect(bobWrite.status, await bobWrite.clone().text()).toBe(201);
     expect(
-      Number(truth(`select count(*) from public.diary_entries where owner_profile_id = '${ALICE_PROFILE}'`)),
+      Number(truth(`select count(*) from public.diary_entries where owner_user_id = '${ALICE}'`)),
     ).toBe(1);
 
     const anonymous = await defined(handlers.listDiary)(request("/api/diary"), context({}));

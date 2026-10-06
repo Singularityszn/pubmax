@@ -4,8 +4,8 @@
 //   POST { venueId, visitedOn?, rating?, review? }
 //                                             -> 201 { entry }
 //
-// Account-bound and PRIVATE: the owner is the authenticated account's profile
-// actor, a body handle or owner field is ignored, and no route reads another
+// Account-bound and PRIVATE: the owner is the authenticated account's auth user
+// id, a body handle or owner field is ignored, and no route reads another
 // account's entries. The venue name is the canonical name the server resolves
 // for the id, never a client-typed one. A second log of the same pub on the
 // same London day answers 409. A write is durably RATE LIMITED and a hard
@@ -44,7 +44,7 @@ export async function GET(request: Request): Promise<Response> {
   if (!owner.ok) return jsonNoStore(owner.body, { status: owner.httpStatus });
 
   try {
-    const result = await diaryStore().listForOwner(owner.actor);
+    const result = await diaryStore().listForOwner(owner.accountId);
     return jsonNoStore(result, { status: 200 });
   } catch (err) {
     log("error", "diary.list_failed", {
@@ -89,7 +89,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const result = validateDiaryEntryCreate({
-    ownerActor: owner.actor,
+    ownerUserId: owner.accountId,
     venueId: venue.id,
     venueName: venue.name,
     visitedOn: body.visitedOn,

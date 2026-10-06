@@ -213,7 +213,7 @@ const wantedRow = {
 
 const diaryRow = {
   id: "diary-1",
-  ownerActor: `profile:${PROFILE}`,
+  ownerUserId: USER,
   venueId: "venue-xjf3n0",
   venueName: "The Blackfriar",
   visitedOn: "2026-09-04",
@@ -253,7 +253,7 @@ function fakeDeps(overrides: Partial<AccountExportDeps> = {}): AccountExportDeps
     follows: async () => ["bobpm"],
     savedPubs: async () => ({ status: "ready" as const, rows: [savedPub] }),
     wanted: async () => ({ status: "ready" as const, wanteds: [wantedRow] }),
-    diary: async () => ({ status: "ready" as const, entries: [diaryRow] }),
+    diary: async (userId) => ({ status: "ready" as const, entries: userId === USER ? [diaryRow] : [] }),
     socialLinks: async () => [socialLink],
     nightProfile: async () => nightProfileRow,
     prices: async () => ({ observations: [price], degraded: false }),

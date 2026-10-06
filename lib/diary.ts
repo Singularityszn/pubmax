@@ -36,8 +36,11 @@ type DiaryVisibility = "private";
 
 /** Validated fields the store persists (id and timestamps come from the store). */
 export type DiaryEntryFields = {
-  /** Stable profile actor (`profile:{uuid}`). Never a free-text handle. */
-  ownerActor: string;
+  /**
+   * The signing-in account's auth user id. The diary belongs to the account,
+   * so it leaves with it. Never a handle and never a request field.
+   */
+  ownerUserId: string;
   venueId: string;
   venueName: string;
   /** The London calendar day of the visit (YYYY-MM-DD). */
@@ -121,7 +124,7 @@ function cleanDiaryReview(value: unknown): string {
 
 export function validateDiaryEntryCreate(
   input: {
-    ownerActor: string;
+    ownerUserId: string;
     venueId?: unknown;
     venueName?: unknown;
     visitedOn?: unknown;
@@ -131,11 +134,8 @@ export function validateDiaryEntryCreate(
   },
   now: Date = new Date(),
 ): DiaryValidation {
-  const ownerActor =
-    typeof input.ownerActor === "string" && input.ownerActor.startsWith("profile:")
-      ? input.ownerActor
-      : "";
-  if (!ownerActor) {
+  const ownerUserId = typeof input.ownerUserId === "string" ? input.ownerUserId.trim() : "";
+  if (!ownerUserId) {
     return { ok: false, error: "Sign in to log a visit." };
   }
 
@@ -174,7 +174,7 @@ export function validateDiaryEntryCreate(
   return {
     ok: true,
     value: {
-      ownerActor,
+      ownerUserId,
       venueId,
       venueName,
       visitedOn,

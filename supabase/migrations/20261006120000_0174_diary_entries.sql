@@ -9,14 +9,18 @@
 -- 'private', the CHECK says so, and nothing reads a row for anyone but its
 -- owner. Friends and public arrive with their own policies and a migration.
 --
--- ONE ENTRY PER VENUE PER DAY. UNIQUE (owner_profile_id, venue_id,
+-- ONE ENTRY PER VENUE PER DAY. UNIQUE (owner_user_id, venue_id,
 -- visited_on) makes a diary read as nights and never as taps, and it is the
 -- race-proof half of the duplicate refusal the API also checks.
 --
--- OWNER-ONLY, AT THE ROW AND AT THE GRANT. The owner is a profile id, with
--- ON DELETE CASCADE, so a diary leaves with the account that wrote it and no
--- retired handle ever carries one. RLS is on. The browser roles may SELECT
--- their own rows through `pubmax_private.rls_owns_profile` and nothing else:
+-- A DIARY LEAVES WITH THE ACCOUNT. The owner is the auth user id, with ON
+-- DELETE CASCADE to `auth.users`. Account deletion deletes the auth row and
+-- only tombstones the profile (0078 and its restatements), so a profile key
+-- would outlive the account. Keyed to the auth user, deleting the account
+-- deletes every diary row it wrote, and the tombstone trigger needs no edit.
+--
+-- OWNER-ONLY, AT THE ROW AND AT THE GRANT. RLS is on. The browser roles may
+-- SELECT their own rows (`owner_user_id = auth.uid()`) and nothing else:
 -- 0170, 0171 and 0172 took browser writes off every table the app writes
 -- through the service role, and this table starts there. INSERT, UPDATE and
 -- DELETE belong to the service role behind `/api/diary`, which resolves the
@@ -28,7 +32,7 @@
 
 create table if not exists public.diary_entries (
   id               uuid primary key default gen_random_uuid(),
-  owner_profile_id uuid not null references public.profiles (id) on delete cascade,
+  owner_user_id    uuid not null references auth.users (id) on delete cascade,
   venue_id         text not null,
   venue_name       text not null,
   -- The London calendar day of the visit, not a timestamp.
@@ -51,11 +55,11 @@ create table if not exists public.diary_entries (
   constraint diary_entries_visibility_check
     check (visibility in ('private')),
   constraint diary_entries_one_per_venue_day
-    unique (owner_profile_id, venue_id, visited_on)
+    unique (owner_user_id, venue_id, visited_on)
 );
 
 create index if not exists diary_entries_owner_visited_idx
-  on public.diary_entries (owner_profile_id, visited_on desc, created_at desc);
+  on public.diary_entries (owner_user_id, visited_on desc, created_at desc);
 
 alter table public.diary_entries enable row level security;
 
@@ -68,7 +72,7 @@ create policy diary_entries_owner_select
   on public.diary_entries
   for select
   to authenticated
-  using (pubmax_private.rls_owns_profile(owner_profile_id));
+  using (owner_user_id = (select auth.uid()));
 
 drop policy if exists diary_entries_anon_deny on public.diary_entries;
 create policy diary_entries_anon_deny

@@ -1,6 +1,6 @@
 // Diary store - dual backend (process-memory + Supabase public.diary_entries).
-// Private to the owner actor. Service-role writes; RLS lets the owner SELECT
-// their own rows and nothing else (migration 0174).
+// Private to the owning account (its auth user id). Service-role writes; RLS
+// lets the owner SELECT their own rows and nothing else (migration 0174).
 
 import "server-only";
 
@@ -36,15 +36,11 @@ type DiaryListResult = {
 
 export type DiaryStore = {
   create(fields: DiaryEntryFields, now?: number): Promise<DiaryCreateResult>;
-  listForOwner(ownerActor: string): Promise<DiaryListResult>;
+  listForOwner(ownerUserId: string): Promise<DiaryListResult>;
 };
 
 function toDTO(row: DiaryEntry): DiaryEntryDTO {
   return { ...row };
-}
-
-function profileIdOf(ownerActor: string): string {
-  return ownerActor.startsWith("profile:") ? ownerActor.slice("profile:".length) : "";
 }
 
 // ── Memory ───────────────────────────────────────────────────────────────────
@@ -54,7 +50,7 @@ export const memoryDiaryStore: DiaryStore = {
   async create(fields, now = Date.now()) {
     for (const row of byId.values()) {
       if (
-        row.ownerActor === fields.ownerActor
+        row.ownerUserId === fields.ownerUserId
         && row.venueId === fields.venueId
         && row.visitedOn === fields.visitedOn
       ) {
@@ -70,9 +66,9 @@ export const memoryDiaryStore: DiaryStore = {
     return { status: "created", entry: toDTO(entry) };
   },
 
-  async listForOwner(ownerActor) {
+  async listForOwner(ownerUserId) {
     const entries = Array.from(byId.values())
-      .filter((row) => row.ownerActor === ownerActor)
+      .filter((row) => row.ownerUserId === ownerUserId)
       .sort(compareDiaryEntries)
       .map(toDTO);
     return { status: "ready", entries };
@@ -88,17 +84,17 @@ const { guard } = createFailSoftGuard({
 
 function fromRow(row: Record<string, unknown>): DiaryEntry | null {
   const id = typeof row.id === "string" ? row.id : "";
-  const profileId = typeof row.owner_profile_id === "string" ? row.owner_profile_id : "";
+  const ownerUserId = typeof row.owner_user_id === "string" ? row.owner_user_id : "";
   const venueId = typeof row.venue_id === "string" ? row.venue_id : "";
   const visitedOn = typeof row.visited_on === "string" ? row.visited_on.slice(0, 10) : "";
-  if (!id || !profileId || !venueId || !visitedOn) return null;
+  if (!id || !ownerUserId || !venueId || !visitedOn) return null;
   // numeric(2,1) comes back as a number or a string such as "4.5".
   const rating = row.rating === null || row.rating === undefined
     ? null
     : parseRating(Number(row.rating));
   return {
     id,
-    ownerActor: `profile:${profileId}`,
+    ownerUserId,
     venueId,
     venueName: typeof row.venue_name === "string" ? row.venue_name : "",
     visitedOn,
@@ -111,8 +107,6 @@ function fromRow(row: Record<string, unknown>): DiaryEntry | null {
 
 const supabaseDiaryStore: DiaryStore = {
   async create(fields, now = Date.now()) {
-    const profileId = profileIdOf(fields.ownerActor);
-    if (!profileId) throw new Error("diary owner is not a profile actor");
     return guard({
       context: "create",
       onSchemaMiss: () =>
@@ -125,7 +119,7 @@ const supabaseDiaryStore: DiaryStore = {
         const { data, error } = await admin()
           .from(TABLE)
           .insert({
-            owner_profile_id: profileId,
+            owner_user_id: fields.ownerUserId,
             venue_id: fields.venueId,
             venue_name: fields.venueName,
             visited_on: fields.visitedOn,
@@ -145,19 +139,17 @@ const supabaseDiaryStore: DiaryStore = {
     });
   },
 
-  async listForOwner(ownerActor) {
-    const profileId = profileIdOf(ownerActor);
-    if (!profileId) return { status: "ready", entries: [] };
+  async listForOwner(ownerUserId) {
     return guard({
       context: "list",
-      onSchemaMiss: async () => memoryDiaryStore.listForOwner(ownerActor),
+      onSchemaMiss: async () => memoryDiaryStore.listForOwner(ownerUserId),
       onError: async () => ({ status: "degraded" as const, entries: [] }),
       message: "list failed",
       run: async () => {
         const { data, error } = await admin()
           .from(TABLE)
           .select("*")
-          .eq("owner_profile_id", profileId)
+          .eq("owner_user_id", ownerUserId)
           .order("visited_on", { ascending: false })
           .order("created_at", { ascending: false });
         if (error) throw new Error(error.message);

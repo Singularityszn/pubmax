@@ -641,7 +641,9 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
 - **Rate limit (boundary):** durable per-profile + hashed-IP `isLimited` with
   key `diary:${owner.actor}:${ipHash}` - 429 `RATE_LIMITED` on exceed.
 - **Auth stance:** `resolveContributionIdentity` derives the owner from the
-  session. A body owner or handle is ignored. A second log of the same pub on
+  session, and the owner is the account's auth user id. A body owner or handle
+  is ignored. The row keys to `auth.users` with ON DELETE CASCADE, so deleting
+  the account deletes its diary. A second log of the same pub on
   the same day answers 409 `DIARY_ENTRY_EXISTS`. A hard store failure answers
   503, never a fake success.
 
