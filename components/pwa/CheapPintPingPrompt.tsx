@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { claimPromptBudget, hasPromptBudgetFor } from "@/lib/promptBudget";
@@ -28,10 +28,15 @@ export default function CheapPintPingPrompt(): React.JSX.Element | null {
     getCheapPintPingPromptServerSnapshot,
   );
   const canShow = visible && hasPromptBudgetFor(CHEAP_PINT_PING_PROMPT_SURFACE);
+  const registrationAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (canShow) claimPromptBudget(CHEAP_PINT_PING_PROMPT_SURFACE);
   }, [canShow]);
+
+  useEffect(() => () => {
+    registrationAbortRef.current?.abort();
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -55,9 +60,15 @@ export default function CheapPintPingPrompt(): React.JSX.Element | null {
 
   async function handleEnable() {
     if (pending) return;
+    const controller = new AbortController();
+    registrationAbortRef.current = controller;
     setPending(true);
     setError("");
-    const token = await registerWebPush();
+    const token = await registerWebPush(controller.signal);
+    if (registrationAbortRef.current === controller) {
+      registrationAbortRef.current = null;
+    }
+    if (controller.signal.aborted) return;
     if (!token) {
       setError(
         offlineOrMessage("Could not enable alerts. Try again.")

@@ -26,6 +26,9 @@
 }
 
 .storyNav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px; /* a tap target, not a 17px line of text */
   color: var(--ink-soft);
   text-decoration: none;
 }

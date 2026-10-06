@@ -1,10 +1,11 @@
 // Branded 404. Next's default not-found is an unstyled black page; any dead
 // link (a retired route, a mistyped path) landed there. This replaces it with a
-// calm, on-brand dark panel that carries the wordmark and points back to the
-// two places worth being: the map and tonight. Server component — no client
-// state, so it renders instantly inside the root layout. The dark surface is a
-// deliberate committed look that reads the same in both themes; the wordmark
-// inherits the light `color` set on the container.
+// calm, on-brand panel that carries the wordmark and points back to the two
+// places worth being: the map and tonight. Server component — no client state,
+// so it renders instantly inside the root layout. It follows the person's
+// theme like every other page. It used to commit to a dark surface in both
+// themes, which left the consent bar and the tab bar in light colours on top
+// of it (QA journeys report F15).
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -29,8 +30,8 @@ export default function NotFound() {
         display: "grid",
         placeItems: "center",
         padding: "24px",
-        background: "var(--ink-deep, #0f1c16)",
-        color: "#fdfaf2",
+        background: "var(--paper)",
+        color: "var(--ink)",
       }}
     >
       <div style={{ maxWidth: "34rem", textAlign: "center" }}>
@@ -39,19 +40,18 @@ export default function NotFound() {
             display: "inline-flex",
             fontSize: "1.6rem",
             marginBottom: "22px",
-            color: "#fdfaf2",
+            color: "var(--ink)",
           }}
         >
           <PubmaxxWordmark />
         </span>
         {/* Plain text with no border and no fill, so tight tracking and no
-            uppercase transform (docs/DESIGN_SYSTEM.md, caps policy). The
-            fallback used to be #c9a44a, the retired brass gold, which named a
-            colour the app has not shipped since coral took the accent. */}
+            uppercase transform (docs/DESIGN_SYSTEM.md, caps policy). Coral as
+            a word takes the ink token, which clears AA on the light ladder. */}
         <p
           style={{
             margin: "0 0 12px",
-            color: "var(--brass, #ff5a5f)",
+            color: "var(--color-accent-ink)",
             fontSize: "0.8rem",
             fontWeight: 700,
             letterSpacing: "0.01em",
@@ -72,7 +72,7 @@ export default function NotFound() {
         <p
           style={{
             margin: "0 0 28px",
-            color: "rgba(253, 250, 242, 0.72)",
+            color: "var(--ink-soft)",
             lineHeight: 1.6,
           }}
         >
@@ -102,8 +102,8 @@ export default function NotFound() {
               padding: "0 20px",
               borderRadius: "var(--control-radius, 14px)",
               border: "none",
-              background: "#fdfaf2",
-              color: "var(--ink-deep, #0f1c16)",
+              background: "var(--color-accent)",
+              color: "var(--color-on-accent)",
               textDecoration: "none",
               fontWeight: 600,
             }}
@@ -119,8 +119,8 @@ export default function NotFound() {
               alignItems: "center",
               padding: "0 20px",
               borderRadius: "var(--control-radius, 14px)",
-              border: "1px solid rgba(253, 250, 242, 0.3)",
-              color: "#fdfaf2",
+              border: "1px solid var(--line)",
+              color: "var(--ink)",
               textDecoration: "none",
               fontWeight: 600,
             }}
