@@ -123,6 +123,8 @@ import {
   CLUSTER_FILL_OPACITY,
   CLUSTER_STROKE_OPACITY,
   UK_BASE_MIN_ZOOM,
+  ukBaseUnnamedBadgeFilter,
+  ukBaseUnnamedFilter,
   type SceneCtx,
 } from "@/components/map/canvas/buildScene";
 import { createDonutClusterSync, type DonutClusterSync } from "@/components/map/canvas/donutClusters";
@@ -3957,6 +3959,16 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       // selected id drives it, so exactly one of the two ever matches.
       if (map.getLayer("uk-base-selected")) {
         map.setFilter("uk-base-selected", selectedFilter);
+      }
+      // An unnamed base pub waits for street zoom, except the selected one.
+      if (map.getLayer("uk-base-unnamed-point")) {
+        map.setFilter("uk-base-unnamed-point", ukBaseUnnamedFilter(selectedIdRef.current));
+      }
+      if (map.getLayer("uk-base-unnamed-provisional-badge")) {
+        map.setFilter(
+          "uk-base-unnamed-provisional-badge",
+          ukBaseUnnamedBadgeFilter(selectedIdRef.current),
+        );
       }
       // So does a Shoreditch pilot cafe: its `venue-osm-` id matches no pub.
       if (map.getLayer("coffee-pilot-selected")) {

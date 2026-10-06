@@ -88,6 +88,44 @@ export const CLUSTER_FILTER: maplibregl.FilterSpecification = ["has", "point_cou
 // the camera is at/above it (components/map/pubmap/useUkBaseStreaming.ts).
 export const UK_BASE_MIN_ZOOM = PIN_MIN_ZOOM;
 
+// A pub OSM maps with no name (UkBasePub.unnamed) is a bare "Pub" pin, and a
+// city full of them says nothing. They wait for street level, on a layer of
+// their own because they wear the generic name rather than the units tag.
+export const UK_BASE_UNNAMED_MIN_ZOOM = 16;
+
+/** Every base pin that has a name; the unnamed ones ride `uk-base-unnamed-point`. */
+const UK_BASE_NAMED_FILTER: maplibregl.ExpressionSpecification = [
+  "!=",
+  ["get", "unnamed"],
+  true,
+];
+/**
+ * Every unnamed base pin the camera is close enough to draw: from street zoom,
+ * except the selected one, whose pin answers its sheet and ring at any zoom
+ * the base layer draws. MapLibre reads a filter's zoom at whole levels only,
+ * which is exactly a minzoom of UK_BASE_UNNAMED_MIN_ZOOM.
+ */
+export function ukBaseUnnamedFilter(
+  selectedId: string,
+): maplibregl.ExpressionSpecification {
+  return [
+    "all",
+    ["==", ["get", "unnamed"], true],
+    [
+      "any",
+      [">=", ["zoom"], UK_BASE_UNNAMED_MIN_ZOOM],
+      ["==", ["get", "id"], selectedId],
+    ],
+  ];
+}
+
+/** The provisional mark follows its unnamed pin, so it takes the same gate. */
+export function ukBaseUnnamedBadgeFilter(
+  selectedId: string,
+): maplibregl.ExpressionSpecification {
+  return ["all", ["get", "provisional"], ukBaseUnnamedFilter(selectedId)];
+}
+
 // Base pins are visibly second-class: roughly half a curated pin's footprint
 // and never fully opaque, so a street with both reads as "priced pubs, plus
 // some we know nothing about" rather than as two equal pin families.
@@ -901,11 +939,48 @@ export function buildUkBase(ctx: SceneCtx) {
       "circle-stroke-opacity": dark ? 0.85 : 0.8,
     },
   });
+  // A pub with no name: the base glyph and the generic "Pub" label, from
+  // street zoom only, unless it is the selected pub. It joins the same
+  // collision index as every base pin. It is added BEFORE `uk-base-point`, and
+  // MapLibre places the topmost symbol layer first, so where a named base pin
+  // or a curated one wants the room, the bare pin goes.
+  addLayerOnce({
+    id: "uk-base-unnamed-point",
+    type: "symbol",
+    source: "uk-base",
+    minzoom: UK_BASE_MIN_ZOOM,
+    filter: ukBaseUnnamedFilter(selectedId),
+    layout: {
+      "icon-image": iconId("base", UK_BASE_ICON_KEY),
+      "icon-size": UK_BASE_ICON_SIZE_EXPR,
+      "icon-allow-overlap": false,
+      "icon-ignore-placement": false,
+      "icon-padding": 3,
+      "text-field": ["get", "name"],
+      "text-font": textFont,
+      "text-size": PIN_PRICE_LABEL_SIZE_EXPR,
+      "text-anchor": "top",
+      "text-offset": PIN_PRICE_LABEL_OFFSET_EM,
+      "text-letter-spacing": 0.01,
+      "text-allow-overlap": false,
+      "text-ignore-placement": false,
+      "text-optional": true,
+      "text-padding": PIN_PRICE_LABEL_PADDING,
+    },
+    paint: {
+      "icon-opacity": UK_BASE_ICON_OPACITY,
+      "text-color": dark ? tokens.ink : tokens.inkDeep,
+      "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
+      "text-halo-width": PIN_PRICE_LABEL_HALO_WIDTH,
+      "text-halo-blur": 0.2,
+    },
+  });
   addLayerOnce({
     id: "uk-base-point",
     type: "symbol",
     source: "uk-base",
     minzoom: UK_BASE_MIN_ZOOM,
+    filter: UK_BASE_NAMED_FILTER,
     layout: {
       // A base pub draws the layer's own unpriced glyph, EXCEPT while the
       // Spoons value lens has stamped a band on it. Then it borrows the
@@ -945,12 +1020,26 @@ export function buildUkBase(ctx: SceneCtx) {
       "text-halo-blur": 0.2,
     },
   });
+  // The provisional mark follows its pin, so an unnamed pub's waits for street
+  // zoom too and never floats over a pin that is not drawn.
   addLayerOnce({
     id: "uk-base-provisional-badge",
     type: "circle",
     source: "uk-base",
     minzoom: UK_BASE_MIN_ZOOM,
-    filter: ["get", "provisional"],
+    filter: ["all", ["get", "provisional"], UK_BASE_NAMED_FILTER],
+    paint: provisionalBadgePaint(
+      tokens,
+      dark,
+      UK_BASE_ICON_OPACITY,
+    ),
+  });
+  addLayerOnce({
+    id: "uk-base-unnamed-provisional-badge",
+    type: "circle",
+    source: "uk-base",
+    minzoom: UK_BASE_MIN_ZOOM,
+    filter: ukBaseUnnamedBadgeFilter(selectedId),
     paint: provisionalBadgePaint(
       tokens,
       dark,

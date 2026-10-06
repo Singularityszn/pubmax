@@ -151,9 +151,9 @@ function stubProvider(): void {
       if (url.includes("get-signed-url")) {
         harness.issued += 1;
         harness.lastConversationId = `conv_grant${String(harness.issued).padStart(6, "0")}`;
+        // The provider's real shape: one signed_url, the id inside its query.
         return Response.json({
-          signed_url: "wss://voice.example/session",
-          conversation_id: harness.lastConversationId,
+          signed_url: `wss://api.elevenlabs.io/v1/convai/conversation?agent_id=a&conversation_signature=s&conversation_id=${harness.lastConversationId}`,
         });
       }
       const id = decodeURIComponent(url.split("/conversations/")[1] ?? "");

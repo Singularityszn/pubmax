@@ -4,6 +4,7 @@ import { isLimited } from "@/lib/pintDrops";
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { log } from "@/lib/log";
+import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import {
   canPrepayVoiceGrant,
   PAL_VOICE_GRANT_MINUTES,
@@ -14,6 +15,7 @@ import {
 } from "@/lib/palVoiceMetering";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { buildPalVoiceOverrides } from "@/lib/palVoiceOverrides";
+import { fetchPalSignedConversation } from "@/lib/palElevenLabsSignedUrl.server";
 import { isPubPalConversationId } from "@/lib/pubPalConversationId";
 import { bindPubPalToolTurn } from "@/lib/pubPalToolTurnStore";
 import { palVoiceConfigured } from "@/lib/pubPalVoiceConfig.server";
@@ -309,35 +311,38 @@ async function handleIssueToken(userId: string): Promise<Response> {
     usage.set(userId, meter);
   }
 
+  // The deployment-wide ceiling comes AFTER the account's own allowance, so an
+  // account with no minutes left cannot spend the ceiling every account shares.
+  // A refusal hands the reservation back. Per-account minutes bound one person;
+  // this bounds the sum across every account.
+  const budgetRefusal = await paidSpendBudgetRefusal("pub-pal-voice");
+  if (budgetRefusal) {
+    await refundVoiceGrant(admin, userId, usageMonth, meter, grantId);
+    return budgetRefusal;
+  }
+
   const overrides = buildPalVoiceOverrides(pal);
 
   let providerAllocated = false;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8_000);
   try {
-    const url = new URL("https://api.elevenlabs.io/v1/convai/conversation/get-signed-url");
-    url.searchParams.set("agent_id", agentId);
-    url.searchParams.set("include_conversation_id", "true");
-    const response = await fetch(url, {
-      headers: { "xi-api-key": apiKey },
-      signal: controller.signal,
-      cache: "no-store",
-    });
-    if (!response.ok) {
-      return publicApiError("Voice service is temporarily unavailable.", "PROVIDER_UNAVAILABLE", 502, {
-        retryable: true,
-        compatibilityFields: { fallback: "text" },
-      });
+    const session = await fetchPalSignedConversation({ apiKey, agentId });
+    if (!session.ok) {
+      if (session.reason === "unreachable") {
+        return publicApiError("Voice service did not respond in time.", "PROVIDER_TIMEOUT", 504, {
+          retryable: true,
+          compatibilityFields: { fallback: "text" },
+        });
+      }
+      return publicApiError(
+        session.reason === "http"
+          ? "Voice service is temporarily unavailable."
+          : "Voice service returned no session.",
+        "PROVIDER_UNAVAILABLE",
+        502,
+        { retryable: true, compatibilityFields: { fallback: "text" } },
+      );
     }
-    const payload = await response.json() as { signed_url?: string; conversation_id?: string };
-    const conversationId =
-      typeof payload.conversation_id === "string" ? payload.conversation_id.trim() : "";
-    if (!payload.signed_url || !isPubPalConversationId(conversationId)) {
-      return publicApiError("Voice service returned no session.", "PROVIDER_UNAVAILABLE", 502, {
-        retryable: true,
-        compatibilityFields: { fallback: "text" },
-      });
-    }
+    const { signedUrl, conversationId } = session;
     try {
       await bindPubPalToolTurn(conversationId, userId, DEFAULT_CITY_ID);
     } catch {
@@ -370,7 +375,7 @@ async function handleIssueToken(userId: string): Promise<Response> {
     providerAllocated = true;
     const remainingMinutes = supabaseConfigured ? null : remainingVoiceMinutes(meter);
     return jsonNoStore({
-      signedUrl: payload.signed_url,
+      signedUrl,
       conversationId,
       connectionType: "websocket",
       overrides,
@@ -386,7 +391,6 @@ async function handleIssueToken(userId: string): Promise<Response> {
       compatibilityFields: { fallback: "text" },
     });
   } finally {
-    clearTimeout(timeout);
     if (!providerAllocated) {
       await refundVoiceGrant(admin, userId, usageMonth, meter, grantId);
     }

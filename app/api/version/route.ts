@@ -2,17 +2,10 @@ import { NextResponse } from "next/server";
 
 import { isCronAuthorized } from "@/lib/cronAuth";
 import { readBuildStamp } from "@/lib/buildInfo.mjs";
+import { currentDeploymentId } from "@/lib/deploymentEnv";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-
-function currentDeploymentId(): string | null {
-  const deploymentId =
-    process.env.NEXT_DEPLOYMENT_ID ??
-    process.env.VERCEL_DEPLOYMENT_ID ??
-    process.env.NEXT_PUBLIC_SW_VERSION;
-  return typeof deploymentId === "string" && deploymentId ? deploymentId : null;
-}
 
 // The commit the running code was built from, plus WHERE that answer came from
 // and WHEN the build ran. The values are decided in next.config.mjs and inlined

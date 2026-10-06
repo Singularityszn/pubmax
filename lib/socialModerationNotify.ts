@@ -6,12 +6,14 @@
 // a growing pending backlog and repeated/terminal moderation failures as their
 // own named finding - never as silence.
 //
-// Console-only today (same posture as lib/freshnessNotify): ERROR lines with a
-// distinct `[social-moderation][ALERT]` marker for log-based monitors. Returns
-// the findings so the cron response can echo them. MUST NOT send pushes.
+// ERROR lines with a distinct `[social-moderation][ALERT]` marker for log-based
+// monitors, plus one post to the operator webhook (lib/alertSink.ts, silent when
+// unset). Returns the findings so the cron response can echo them. MUST NOT send
+// pushes.
 
 import "server-only";
 
+import { sendAlert } from "@/lib/alertSink";
 import type { SocialPostModerationResult } from "@/lib/socialPostStore";
 import { checkRateLimitDurableDetailed } from "@/lib/supabase";
 
@@ -117,6 +119,13 @@ function logFindings(findings: readonly SocialModerationFinding[]): void {
         ` pending=${finding.pending} stranded=${finding.strandedTerminal}`,
     );
   }
+  // The caller's cooldown has already decided this alert is worth sending.
+  sendAlert({
+    source: "social-moderation",
+    text: findings
+      .map((finding) => `${finding.kind}: ${finding.detail} pending=${finding.pending} stranded=${finding.strandedTerminal}`)
+      .join("\n"),
+  });
 }
 
 function alertFingerprint(findings: readonly SocialModerationFinding[]): string {

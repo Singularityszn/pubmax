@@ -14,7 +14,9 @@
 //   2. no voice recording, and zero retention on the provider side, plus the
 //      client events voice and typed chat read,
 //   3. a default voice, when one is set, plus greeting and voice-id overrides,
-//   4. the house first message and the propose-then-confirm rule (ADR 0006).
+//   4. the house first message and the propose-then-confirm rule (ADR 0006),
+//   5. signed-URL authentication, so a conversation starts only with a URL the
+//      sign-in, the voice cap and the spend budget handed out.
 //
 // Idempotent: with ELEVENLABS_PUB_PAL_AGENT_ID set it PATCHes that agent;
 // without one it looks for an agent of the same name before creating a new
@@ -23,6 +25,10 @@
 // Usage:
 //   node scripts/pubpal/create-elevenlabs-agent.mjs --base-url https://pubmaxxing.com
 //   node scripts/pubpal/create-elevenlabs-agent.mjs --dry-run
+//   node scripts/pubpal/create-elevenlabs-agent.mjs --check --base-url https://pubmaxxing.com
+//
+// --check only reads: it GETs the live agent and tools, compares them with what
+// a real run would write, and exits 1 on any drift. Safe from any session.
 //
 // Reads .env.local / .env if present, so a local run needs no exported shell
 // variables. See docs/PUB_PAL_SETUP.md.
@@ -35,6 +41,7 @@ import { fileURLToPath } from "node:url";
 import { PUB_PAL_MEMORY_KINDS } from "../../lib/palMemoryKinds.mjs";
 import { PAL_VOICE_MAX_SESSION_SECONDS } from "../../lib/palVoiceCap.mjs";
 import { pubPalAgentSystemPrompt } from "../../lib/palVoicePrompt.mjs";
+import { agentDrift, formatDrift } from "./agent-drift.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const AGENT_CONFIG = JSON.parse(
@@ -282,6 +289,11 @@ function agentBody(toolIds) {
       ...(defaultVoice ? { tts: { voice_id: defaultVoice } } : {}),
     },
     platform_settings: {
+      // Without this the agent id alone starts a conversation, and the agent id
+      // is a query parameter in every signed URL the app hands out.
+      // ElevenLabs treats signed URLs and an allowlist as exclusive methods, so
+      // the empty allowlist replaces any hostname list the agent kept.
+      auth: { enable_auth: true, allowlist: [] },
       overrides: {
         conversation_config_override: {
           agent: {
@@ -289,6 +301,8 @@ function agentBody(toolIds) {
             first_message: true,
           },
           tts: { voice_id: true },
+          // Typed chat starts the same agent in text-only mode.
+          conversation: { text_only: true },
         },
       },
       privacy: {
@@ -391,6 +405,7 @@ function mergeAgentPatch(existingAgent, body) {
     platform_settings: {
       ...existingAgent.platform_settings,
       ...body.platform_settings,
+      auth: { ...existingAgent.platform_settings?.auth, ...body.platform_settings.auth },
       overrides: {
         ...existingAgent.platform_settings?.overrides,
         ...body.platform_settings.overrides,
@@ -403,6 +418,36 @@ function mergeAgentPatch(existingAgent, body) {
   };
 }
 
+/** The PATCH a run sends to an existing agent: the live agent with this repo's fields laid over it. */
+function agentPatch(currentAgent, toolIds) {
+  const conversationConfig = structuredClone(currentAgent.conversation_config ?? {});
+  conversationConfig.agent = {
+    ...(conversationConfig.agent ?? {}),
+    prompt: {
+      ...(conversationConfig.agent?.prompt ?? {}),
+      prompt: systemPrompt(),
+      llm: AGENT_CONFIG.llm,
+      custom_llm: null,
+      tool_ids: toolIds,
+    },
+    first_message:
+      conversationConfig.agent?.first_message ??
+      "Hello, I'm your Pub Pal. What kind of night are you planning?",
+    language: conversationConfig.agent?.language ?? "en",
+  };
+  delete conversationConfig.agent.prompt.custom_llm;
+  delete conversationConfig.agent.prompt.tools;
+  conversationConfig.conversation = {
+    ...(conversationConfig.conversation ?? {}),
+    max_duration_seconds: MAX_SESSION_SECONDS,
+    client_events: clientEvents(conversationConfig.conversation?.client_events),
+  };
+  return mergeAgentPatch(currentAgent, {
+    ...agentBody(toolIds).body,
+    conversation_config: conversationConfig,
+  });
+}
+
 async function findAgentByName(apiKey) {
   const listed = await call("GET", `${API}/agents?page_size=100`, apiKey);
   const rows = Array.isArray(listed.agents) ? listed.agents : [];
@@ -410,19 +455,60 @@ async function findAgentByName(apiKey) {
   return hit?.agent_id ?? null;
 }
 
+/** Read-only: GETs only, so it cannot change the live agent. Exits 1 on drift. */
+async function checkAgent(apiKey, baseUrl) {
+  const agentId = process.env.ELEVENLABS_PUB_PAL_AGENT_ID?.trim() || (await findAgentByName(apiKey));
+  if (!agentId) fail(`No agent named ${AGENT_NAME} and ELEVENLABS_PUB_PAL_AGENT_ID is not set.`);
+  const liveAgent = await call("GET", `${API}/agents/${agentId}`, apiKey);
+  const liveTools = await listWorkspaceTools(apiKey);
+  const secrets = await call("GET", SECRETS_API, apiKey);
+  const secretId =
+    (Array.isArray(secrets.secrets) ? secrets.secrets : []).find((row) => row?.name === LLM_SECRET_NAME)
+      ?.secret_id ?? null;
+  const wantedTools = Object.fromEntries(
+    (AGENT_CONFIG.toolNames ?? []).map((name) => [name, webhookToolConfig(name, baseUrl, "unused")]),
+  );
+  const liveToolIds = Object.keys(wantedTools)
+    .map((name) => liveTools.find((row) => row?.tool_config?.name === name)?.id)
+    .filter(Boolean);
+  const drifts = agentDrift({
+    liveAgent,
+    liveTools,
+    wantedAgent: agentPatch(liveAgent, liveToolIds),
+    wantedTools,
+    secret: { name: LLM_SECRET_NAME, id: secretId },
+  });
+  console.log(`Checked agent ${agentId} against this repo's config (read-only).`);
+  if (drifts.length === 0) {
+    console.log("✓ The live agent matches.");
+    return;
+  }
+  for (const drift of drifts) console.log(formatDrift(drift));
+  console.log(
+    `\n✗ ${drifts.length} difference${drifts.length === 1 ? "" : "s"}. The captain re-runs: npm run pubpal:agent -- --base-url ${baseUrl}`,
+  );
+  process.exit(1);
+}
+
 async function main() {
   loadDotEnv();
 
   const dryRun = process.argv.includes("--dry-run");
+  const check = process.argv.includes("--check");
   const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
   const secret = process.env.ELEVENLABS_LLM_SHARED_SECRET?.trim();
   const baseUrl = (arg("base-url", process.env.PUBMAX_BASE_URL ?? "")).trim().replace(/\/+$/, "");
 
   if (!dryRun && !apiKey) fail("ELEVENLABS_API_KEY is not set. See docs/PUB_PAL_SETUP.md.");
-  if (!secret) fail("ELEVENLABS_LLM_SHARED_SECRET is not set. Generate one: openssl rand -hex 32");
+  if (!secret && !check) fail("ELEVENLABS_LLM_SHARED_SECRET is not set. Generate one: openssl rand -hex 32");
   if (!baseUrl) fail("Pass --base-url https://your-deployment (or set PUBMAX_BASE_URL).");
   if (!/^https:\/\//.test(baseUrl) && !/^http:\/\/localhost/.test(baseUrl)) {
     fail(`--base-url must be https (or http://localhost for a tunnel test). Got: ${baseUrl}`);
+  }
+
+  if (check) {
+    await checkAgent(apiKey, baseUrl);
+    return;
   }
 
   const secretId = dryRun
@@ -445,33 +531,7 @@ async function main() {
 
   if (existing) {
     const currentAgent = await call("GET", `${API}/agents/${existing}`, apiKey);
-    const conversationConfig = structuredClone(currentAgent.conversation_config ?? {});
-    conversationConfig.agent = {
-      ...(conversationConfig.agent ?? {}),
-      prompt: {
-        ...(conversationConfig.agent?.prompt ?? {}),
-        prompt: systemPrompt(),
-        llm: AGENT_CONFIG.llm,
-        custom_llm: null,
-        tool_ids: toolIds,
-      },
-      first_message:
-        conversationConfig.agent?.first_message ??
-        "Hello, I'm your Pub Pal. What kind of night are you planning?",
-      language: conversationConfig.agent?.language ?? "en",
-    };
-    delete conversationConfig.agent.prompt.custom_llm;
-    delete conversationConfig.agent.prompt.tools;
-    conversationConfig.conversation = {
-      ...(conversationConfig.conversation ?? {}),
-      max_duration_seconds: MAX_SESSION_SECONDS,
-      client_events: clientEvents(conversationConfig.conversation?.client_events),
-    };
-    const patchBody = mergeAgentPatch(currentAgent, {
-      ...body,
-      conversation_config: conversationConfig,
-    });
-    await call("PATCH", `${API}/agents/${existing}`, apiKey, patchBody);
+    await call("PATCH", `${API}/agents/${existing}`, apiKey, agentPatch(currentAgent, toolIds));
     console.log(`✓ Updated agent ${existing}`);
     console.log(`  LLM: ${AGENT_CONFIG.llm}`);
     console.log(`  Webhook tools: ${toolIds.length}`);
