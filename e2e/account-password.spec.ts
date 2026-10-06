@@ -324,3 +324,11 @@ test("a wrong current password and a reused password each name their fault", asy
     "That is your current password. Pick a different one.",
   );
 });
+
+test("the create action steps aside on the profile page it used to cover", async ({ page }) => {
+  await installOwnedAccount(page, { hasPassword: true });
+  await page.goto(`/u/${HANDLE}`);
+  await expect(page.getByRole("heading", { name: "Your diary" })).toBeVisible();
+  // The floating + sat over the Pint Passport hero and the diary date at 390.
+  await expect(page.locator(".createFabRoot")).toBeHidden();
+});
