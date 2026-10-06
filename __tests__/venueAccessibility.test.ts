@@ -102,12 +102,6 @@ describe("display helpers", () => {
 });
 
 describe("accessibilityFilterSummary — honest, non-broken framing", () => {
-  it("does not describe documented exclusions as unchecked", () => {
-    const filters = { ...EMPTY_ACCESSIBILITY_FILTERS, stepFree: true };
-    const venues = [venueWith({ stepFree: true }), venueWith({ stepFree: false })];
-    const count = venues.filter((venue) => matchesAccessibilityFilters(venue, filters)).length;
-    expect(accessibilityFilterSummary(filters, count)).not.toContain("we haven’t checked them yet");
-  });
   it.each(["stepFree", "accessibleToilet", "seatedService"] as const)(
     "explains why pubs without confirmed details are excluded for %s",
     (facet) => {

@@ -60,7 +60,11 @@ import {
   typedSearchCameraMove,
   TYPED_SEARCH_MIN_QUERY,
 } from "@/lib/mapSearchCamera";
-import { filterMapVenues, withForcedVenue } from "@/lib/filterMapVenues";
+import {
+  filterMapVenues,
+  mapFiltersSuspendUkBasePubs,
+  withForcedVenue,
+} from "@/lib/filterMapVenues";
 import {
   OPEN_NOW_FILTER_CAPTION,
   openNowStatesForVenues,
@@ -6558,6 +6562,7 @@ export default function PubMap({
         whatsOnByVenue={whatsOnTonight.summary}
         provisionalVenueIds={provisionalVenueIds}
         lensPrices={activeLensPrices}
+        ukBaseSuspended={mapFiltersSuspendUkBasePubs(effectiveMapFilters)}
         spoonsValue={spoonsValueLane}
         lensNoun={activeLensNoun?.toLowerCase() ?? null}
         lensIndexStatus={drinkIndexStatus}
