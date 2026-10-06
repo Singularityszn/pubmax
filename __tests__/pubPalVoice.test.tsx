@@ -243,7 +243,7 @@ describe("Pub Pal voice controls", () => {
       "/api/pub-pal/voice-token",
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({ action: "release", durationSeconds: 0 }),
+        body: JSON.stringify({ action: "release" }),
       }),
       { requiresIdentity: true },
     ]);
@@ -354,7 +354,7 @@ describe("Pub Pal voice controls", () => {
       "/api/pub-pal/voice-token",
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({ action: "release", durationSeconds: 0 }),
+        body: JSON.stringify({ action: "release" }),
       }),
       { requiresIdentity: true },
     ]);
@@ -408,14 +408,7 @@ describe("Pub Pal voice controls", () => {
 
     expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
     const releaseRequest = defined(requests.authedActionFetch.mock.calls[1])[1] as RequestInit;
-    const releaseBody = JSON.parse(String(releaseRequest.body)) as {
-      action: string;
-      durationSeconds: number;
-    };
-    expect(releaseBody).toEqual({
-      action: "release",
-      durationSeconds: 1,
-    });
+    expect(JSON.parse(String(releaseRequest.body))).toEqual({ action: "release" });
     expect(stopTrack).toHaveBeenCalledOnce();
   });
 
@@ -474,12 +467,8 @@ describe("Pub Pal voice controls", () => {
     expect(voice.endSession).toHaveBeenCalledOnce();
     expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
     const releaseRequest = defined(requests.authedActionFetch.mock.calls[1])[1] as RequestInit;
-    const releaseBody = JSON.parse(String(releaseRequest.body)) as {
-      action: string;
-      durationSeconds: number;
-    };
-    expect(releaseBody.action).toBe("release");
-    expect(releaseBody.durationSeconds).toBeGreaterThan(0);
+    // The browser reports no duration: the server settles from the provider.
+    expect(JSON.parse(String(releaseRequest.body))).toEqual({ action: "release" });
 
     await act(async () => {
       session.onError?.(new Error("late socket failure"));
@@ -569,10 +558,7 @@ describe("Pub Pal voice controls", () => {
     });
     expect(requests.authedActionFetch).toHaveBeenCalledTimes(4);
     const releaseRequest = defined(requests.authedActionFetch.mock.calls[3])[1] as RequestInit;
-    expect(JSON.parse(String(releaseRequest.body))).toEqual({
-      action: "release",
-      durationSeconds: 1,
-    });
+    expect(JSON.parse(String(releaseRequest.body))).toEqual({ action: "release" });
     expect(stopTrackA).toHaveBeenCalledOnce();
     expect(stopTrackB).toHaveBeenCalledOnce();
   });
@@ -630,7 +616,7 @@ describe("Pub Pal voice controls", () => {
       "/api/pub-pal/voice-token",
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({ action: "release", durationSeconds: 0 }),
+        body: JSON.stringify({ action: "release" }),
       }),
       { requiresIdentity: true },
     ]);
