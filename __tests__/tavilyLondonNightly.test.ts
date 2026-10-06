@@ -10,6 +10,7 @@ import { defined } from "@/__tests__/helpers/defined";
 
 import {
   committedCityPrices,
+  newestMergedNight,
   parseArgs,
   pruneManagedCityPrices,
   readRejectedRows,
@@ -172,6 +173,7 @@ async function night(
     committed?: Checkpoint["prices"];
     byPub?: Record<string, string>;
     rejectedRows?: Array<{ venueKey: string; sourceUrl: string }>;
+    mergedThrough?: string;
   },
 ) {
   const { state } = await runCityPass({
@@ -182,6 +184,7 @@ async function night(
     observedAt: options.observedAt,
     committedPrices: committedCityPrices(options.committed ?? [], cityKeys(pubs)),
     rejectedRows: options.rejectedRows ?? [],
+    mergedThrough: options.mergedThrough ?? null,
     fetchImpl: menus(options.byPub ?? {}),
   });
   return state;
@@ -217,7 +220,6 @@ describe("the nightly London pass keeps going and keeps what it found", () => {
       ...freshLondon(pubs),
       readAt: { "node/1": OBSERVED_AT },
       prices: [unmerged, leftThePack],
-      committedReadings: ["a reading"],
     };
 
     expect(resumeCheckpoint(saved, options)).toBe(saved);
@@ -227,46 +229,76 @@ describe("the nightly London pass keeps going and keeps what it found", () => {
       resumeCheckpoint({ ...saved, city: "leeds" }, options),
       resumeCheckpoint(saved, { ...options, reset: true }),
     ]) {
-      expect(restarted).toMatchObject({ readAt: {}, prices: [unmerged], committedReadings: ["a reading"] });
+      expect(restarted).toMatchObject({ readAt: {}, prices: [unmerged] });
     }
   });
+
+  const NIGHT_1 = "2026-10-06T02:30:00.000Z";
+  const NIGHT_2 = "2026-10-07T02:30:00.000Z";
+  const NIGHT_3 = "2026-10-08T02:30:00.000Z";
 
   it("keeps an unmerged night in every later PR, and holds the committed copy once it merges", async () => {
     const pubs = londonPubs(2);
     const first = await night(pubs, freshLondon(pubs), {
-      observedAt: "2026-10-06T02:30:00.000Z",
+      observedAt: NIGHT_1,
       byPub: { "Independent Arms 1": "Neck Oil - Pint £6.80" },
     });
-    const second = await night(pubs, first, { observedAt: "2026-10-07T02:30:00.000Z" });
+    const second = await night(pubs, first, { observedAt: NIGHT_2 });
     const merged = second.prices;
-    const third = await night(pubs, second, { observedAt: "2026-10-08T02:30:00.000Z", committed: merged });
+    const third = await night(pubs, second, { observedAt: NIGHT_3, committed: merged, mergedThrough: NIGHT_2 });
 
     expect(priceRows(second)).toEqual([["independent arms 1", "Neck Oil", 6.8]]);
     expect(third.prices).toEqual(merged);
   });
 
-  it("does not re-add a merged row that a reviewer removed", async () => {
+  it("keeps a later unmerged night when an earlier one merges", async () => {
     const pubs = londonPubs(2);
     const first = await night(pubs, freshLondon(pubs), {
-      observedAt: "2026-10-06T02:30:00.000Z",
+      observedAt: NIGHT_1,
       byPub: { "Independent Arms 1": "Neck Oil - Pint £6.80" },
     });
-    const merged = await night(pubs, first, { observedAt: "2026-10-07T02:30:00.000Z", committed: first.prices });
-    const removed = await night(pubs, merged, { observedAt: "2026-10-08T02:30:00.000Z", committed: [] });
+    const second = await night(pubs, first, {
+      observedAt: NIGHT_2,
+      byPub: { "Independent Arms 2": "Guinness - Pint £6.10" },
+    });
+    const third = await night(pubs, second, { observedAt: NIGHT_3, committed: first.prices, mergedThrough: NIGHT_1 });
+
+    expect(priceRows(third)).toEqual([
+      ["independent arms 1", "Neck Oil", 6.8],
+      ["independent arms 2", "Guinness", 6.1],
+    ]);
+  });
+
+  it("does not re-add a row a reviewer removed, even when no night saw it merged", async () => {
+    const pubs = londonPubs(2);
+    const first = await night(pubs, freshLondon(pubs), {
+      observedAt: NIGHT_1,
+      byPub: { "Independent Arms 1": "Neck Oil - Pint £6.80" },
+    });
+    const removed = await night(pubs, first, { observedAt: NIGHT_2, committed: [], mergedThrough: NIGHT_1 });
+    const later = await night(pubs, removed, { observedAt: NIGHT_3, committed: [], mergedThrough: NIGHT_1 });
 
     expect(removed.prices).toEqual([]);
+    expect(later.prices).toEqual([]);
   });
 
   it("never overwrites a price a reviewer corrected with a stale checkpoint row", async () => {
     const pubs = londonPubs(2);
     const first = await night(pubs, freshLondon(pubs), {
-      observedAt: "2026-10-06T02:30:00.000Z",
+      observedAt: NIGHT_1,
       byPub: { "Independent Arms 1": "Neck Oil - Pint £6.80" },
     });
     const corrected = first.prices.map((row) => ({ ...row, priceGbp: 6.5 })) as Price[];
-    const next = await night(pubs, first, { observedAt: "2026-10-07T02:30:00.000Z", committed: corrected });
+    const next = await night(pubs, first, { observedAt: NIGHT_2, committed: corrected, mergedThrough: NIGHT_1 });
 
     expect(next.prices).toEqual(corrected);
+  });
+
+  it("dates the newest merged night from the committed run reports", () => {
+    expect(newestMergedNight([])).toBeNull();
+    expect(
+      newestMergedNight([{ observedAt: NIGHT_1 }, { generatedAt: NIGHT_3 }, { observedAt: NIGHT_2 }]),
+    ).toBe(NIGHT_2);
   });
 
   it("writes a newer reading over the committed one for review", async () => {
@@ -276,6 +308,7 @@ describe("the nightly London pass keeps going and keeps what it found", () => {
       observedAt: OBSERVED_AT,
       committed,
       byPub: { "Independent Arms 1": "Neck Oil - Pint £6.80" },
+      mergedThrough: "2026-09-01T02:30:00.000Z",
     });
 
     expect(priceRows(next)).toEqual([["independent arms 1", "Neck Oil", 6.8]]);
