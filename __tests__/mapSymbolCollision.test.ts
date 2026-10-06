@@ -1,3 +1,4 @@
+import { featureFilter } from "@maplibre/maplibre-gl-style-spec";
 import type * as maplibregl from "maplibre-gl";
 import { describe, expect, it } from "vitest";
 
@@ -22,6 +23,9 @@ import {
   UK_BASE_ICON_OPACITY,
   UK_BASE_ICON_SIZE_EXPR,
   UK_BASE_MIN_ZOOM,
+  UK_BASE_UNNAMED_MIN_ZOOM,
+  ukBaseUnnamedBadgeFilter,
+  ukBaseUnnamedFilter,
   type SceneCtx,
 } from "@/components/map/canvas/buildScene";
 import {
@@ -226,6 +230,119 @@ describe("UK base layer (unpriced, visually subordinate, never clustered)", () =
     expect(JSON.stringify(icon)).not.toContain("price");
   });
 });
+
+// A pub OSM maps with no name (lib/ukBasePubs.ts `unnamed`): a bare "Pub" pin
+// that waits for street zoom, so a city view carries only pins that say what
+// they are. The selected one is the exception: its pin answers its sheet.
+describe("unnamed base pubs (street zoom only)", () => {
+  const { layers } = buildScenePieces();
+  const layout = (id: string) => (layers.get(id)?.layout ?? {}) as Record<string, unknown>;
+
+  it("draws on a layer of its own, from street zoom and not before", () => {
+    expect(UK_BASE_UNNAMED_MIN_ZOOM).toBeGreaterThan(UK_BASE_MIN_ZOOM);
+    expect(UK_BASE_UNNAMED_MIN_ZOOM).toBeGreaterThanOrEqual(16);
+    expect((layers.get("uk-base-unnamed-point") as { source?: string }).source).toBe("uk-base");
+    const bare = baseFeature("venue-uk-w2", { unnamed: true });
+    expect(drawsAt(layers, "uk-base-unnamed-point", bare, UK_BASE_MIN_ZOOM)).toBe(false);
+    expect(drawsAt(layers, "uk-base-unnamed-point", bare, 15.9)).toBe(false);
+    expect(drawsAt(layers, "uk-base-unnamed-point", bare, UK_BASE_UNNAMED_MIN_ZOOM)).toBe(true);
+    expect(drawsAt(layers, "uk-base-unnamed-point", bare, 18)).toBe(true);
+    expect(
+      drawsAt(layers, "uk-base-unnamed-point", baseFeature("venue-uk-n1"), UK_BASE_UNNAMED_MIN_ZOOM),
+    ).toBe(false);
+  });
+
+  it("keeps the named layer's filter off every unnamed pub, so no pin draws at city zoom", () => {
+    const bare = baseFeature("venue-uk-w2", { unnamed: true });
+    for (const zoom of [UK_BASE_MIN_ZOOM, UK_BASE_UNNAMED_MIN_ZOOM]) {
+      expect(drawsAt(layers, "uk-base-point", bare, zoom)).toBe(false);
+      expect(drawsAt(layers, "uk-base-point", baseFeature("venue-uk-n1"), zoom)).toBe(true);
+    }
+  });
+
+  it("labels the pin with its generic name and collides like every other symbol", () => {
+    expect(layout("uk-base-unnamed-point")["text-field"]).toEqual(["get", "name"]);
+    expect(layout("uk-base-unnamed-point")["icon-image"]).toBe("base:pub");
+    expect(layout("uk-base-unnamed-point")["icon-allow-overlap"]).toBe(false);
+    expect(layout("uk-base-unnamed-point")["text-optional"]).toBe(true);
+  });
+
+  it("draws under the named base pins and the curated pins, which is also how it loses collisions", () => {
+    const ids = [...layers.keys()];
+    // MapLibre places the topmost symbol layer first: a bare "Pub" may never
+    // take the room a named pub wanted.
+    expect(ids.indexOf("uk-base-unnamed-point")).toBeLessThan(ids.indexOf("uk-base-point"));
+    expect(ids.indexOf("uk-base-unnamed-point")).toBeLessThan(ids.indexOf("pubs-point"));
+    expect(ids.indexOf("uk-base-unnamed-point")).toBeLessThan(
+      ids.indexOf("uk-base-unnamed-provisional-badge"),
+    );
+  });
+
+  it("holds its provisional badge to the same street zoom as its pin", () => {
+    const bare = baseFeature("venue-uk-w2", { unnamed: true, provisional: true });
+    for (const zoom of [UK_BASE_MIN_ZOOM, 15, UK_BASE_UNNAMED_MIN_ZOOM, 18]) {
+      expect(drawsAt(layers, "uk-base-unnamed-provisional-badge", bare, zoom)).toBe(
+        drawsAt(layers, "uk-base-unnamed-point", bare, zoom),
+      );
+    }
+    expect(drawsAt(layers, "uk-base-provisional-badge", bare, UK_BASE_UNNAMED_MIN_ZOOM)).toBe(
+      false,
+    );
+  });
+
+  it("draws a deep-linked unnamed pub's pin at the zoom the selection camera lands on", () => {
+    // `/map?sel=venue-uk-w2&at=...` builds the scene with that id selected,
+    // and the selection camera settles at zoom 14, under street zoom.
+    const deepLinked = buildScenePieces("venue-uk-w2").layers;
+    const selected = baseFeature("venue-uk-w2", { unnamed: true, provisional: true });
+    const neighbour = baseFeature("venue-uk-w3", { unnamed: true, provisional: true });
+    for (const zoom of [UK_BASE_MIN_ZOOM, 14]) {
+      expect(drawsAt(deepLinked, "uk-base-unnamed-point", selected, zoom)).toBe(true);
+      expect(drawsAt(deepLinked, "uk-base-unnamed-provisional-badge", selected, zoom)).toBe(true);
+      expect(drawsAt(deepLinked, "uk-base-selected", selected, zoom)).toBe(true);
+      expect(drawsAt(deepLinked, "uk-base-unnamed-point", neighbour, zoom)).toBe(false);
+      expect(drawsAt(deepLinked, "uk-base-unnamed-provisional-badge", neighbour, zoom)).toBe(false);
+    }
+    // The pin is on one layer only, so it never draws twice.
+    expect(drawsAt(deepLinked, "uk-base-point", selected, 14)).toBe(false);
+  });
+
+  it("tracks a later selection through the same filter the canvas sets", () => {
+    const bare = baseFeature("venue-uk-w2", { unnamed: true, provisional: true });
+    const evaluate = (filter: unknown, zoom: number) =>
+      featureFilter(filter as maplibregl.FilterSpecification, "canvas.setFilter").filter(
+        { zoom },
+        { type: 1, properties: bare.properties },
+      );
+    expect(evaluate(ukBaseUnnamedFilter("venue-uk-w2"), 14)).toBe(true);
+    expect(evaluate(ukBaseUnnamedBadgeFilter("venue-uk-w2"), 14)).toBe(true);
+    expect(evaluate(ukBaseUnnamedFilter(""), 14)).toBe(false);
+    expect(evaluate(ukBaseUnnamedBadgeFilter(""), 14)).toBe(false);
+  });
+});
+
+function baseFeature(id: string, extra: Record<string, unknown> = {}) {
+  return { properties: { id, name: extra.unnamed ? "Pub" : "The Anchor", ...extra } };
+}
+
+// Whether a built layer paints a feature at a zoom: the layer's own zoom range,
+// then its filter run through MapLibre's own filter compiler.
+function drawsAt(
+  layers: Map<string, BuiltLayer>,
+  id: string,
+  feature: { properties: Record<string, unknown> },
+  zoom: number,
+): boolean {
+  const layer = layers.get(id) as BuiltLayer & { minzoom?: number; maxzoom?: number };
+  if (!layer) throw new Error(`no layer ${id}`);
+  if (layer.minzoom !== undefined && zoom < layer.minzoom) return false;
+  if (layer.maxzoom !== undefined && zoom >= layer.maxzoom) return false;
+  if (layer.filter === undefined) return true;
+  return featureFilter(layer.filter as maplibregl.FilterSpecification, `${id}.filter`).filter(
+    { zoom },
+    { type: 1, properties: feature.properties },
+  );
+}
 
 // The London restaurants (lib/londonRestaurants.ts): the curated restaurant's
 // fork in the unpriced fill, at the base layer's size, under every pub.
@@ -463,7 +580,12 @@ describe("provisional-report badge (ungated visibility, zero authority)", () => 
     const baseBadge = layers.get("uk-base-provisional-badge")!;
     const basePaint = (baseBadge.paint ?? {}) as Record<string, unknown>;
     expect((baseBadge as { source?: string }).source).toBe("uk-base");
-    expect(baseBadge.filter).toEqual(["get", "provisional"]);
+    // Named pins only: an unnamed pub's badge rides its own street-zoom layer.
+    expect(baseBadge.filter).toEqual([
+      "all",
+      ["get", "provisional"],
+      ["!=", ["get", "unnamed"], true],
+    ]);
     expect((baseBadge as { minzoom?: number }).minzoom).toBe(
       UK_BASE_MIN_ZOOM,
     );

@@ -100,7 +100,7 @@ describe("parseUkBaseShard", () => {
     const pubs = parseUkBaseShard({
       pubs: [
         ["n1", "Good", "", 51.4, -0.1, ""],
-        ["n2", "", "", 51.4, -0.1, ""], // no name
+        ["n2", "", "", 51.4, -0.1, "", "bar"], // a bar with no name
         ["n3", "Bad coords", "", "51.4", -0.1, ""],
         ["n4", "Too short", 51.4],
         ["n5", "Bad owner", "", 51.4, -0.1, 42],
@@ -318,7 +318,7 @@ describe("createUkBaseLoader", () => {
         cell: "a",
         pubs: [
           ["n1", "The Anchor", "1 Dock Road", 51.42, -0.18, "venue-owner"],
-          ["w2", "", "", 51.44, -0.12, ""],
+          ["w2", "", "", 51.44, -0.12, "", "bar"],
         ],
       },
     ],
