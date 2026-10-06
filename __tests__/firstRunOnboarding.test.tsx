@@ -274,6 +274,13 @@ describe("first-run location ask", () => {
     // The answer that never landed leaves no screen behind browser Back.
     await browserBack();
     expect(container.querySelector("h1")?.textContent).toBe("What's a fair pint to you?");
+    // Forward reaches the question, and its entry, not the answer's.
+    await browserForward();
+    await browserForward();
+    expect(container.querySelector("h1")?.textContent).toBe("Find the cheapest pint near you.");
+    expect(readHistoryStep(ONBOARDING_STEPS)).toBe("location");
+    await browserBack();
+    expect(container.querySelector("h1")?.textContent).toBe("What's a fair pint to you?");
   });
 
   it("holds an honest empty answer when a picked patch has no priced pubs", async () => {
@@ -308,6 +315,10 @@ describe("first-run answers that arrive late or not at all", () => {
 
     expect(container.textContent).not.toContain("Working out your nearest pints.");
     expect(container.querySelector("h1")?.textContent).toBe("Find the cheapest pint near you.");
+    // History holds the step on screen, so the next Back is one step back.
+    expect(readHistoryStep(ONBOARDING_STEPS)).toBe("location");
+    await browserBack();
+    expect(container.querySelector("h1")?.textContent).toBe("What's a fair pint to you?");
   });
 
   it("shows a venue read that came back incomplete as unavailable, with a retry that answers", async () => {
@@ -576,6 +587,30 @@ describe("first-run handoff to the planner", () => {
     expect(container.textContent).not.toContain("Working out your nearest pints.");
     expect(container.querySelector("h1")?.textContent).toBe("Find the cheapest pint near you.");
     // The question is the entry Back reached: one more Back is the budget.
+    await browserBack();
+    expect(container.querySelector("h1")?.textContent).toBe("What's a fair pint to you?");
+  });
+
+  it("keeps browser Back one step back after a reload on the companion step", async () => {
+    stubGeolocation((_ok, fail) =>
+      fail({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError),
+    );
+    await reachLocation();
+    await tap("Use my location");
+    await tap("Soho");
+    await settle();
+    await tap("That looks right");
+    await act(async () => {
+      root?.unmount();
+    });
+    root = createRoot(container);
+    await act(async () => {
+      root?.render(createElement(FirstRunOnboarding, { reviewedAreas: [], skipHref: "/tonight", openPlanner }));
+    });
+
+    await browserBack();
+    expect(container.querySelector("h1")?.textContent).toBe("Find the cheapest pint near you.");
+    expect(readHistoryStep(ONBOARDING_STEPS)).toBe("location");
     await browserBack();
     expect(container.querySelector("h1")?.textContent).toBe("What's a fair pint to you?");
   });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const HISTORY_KEY = "pubmaxStep";
 // How many entries the wizard pushed below this one. Zero is the entry it
@@ -40,6 +40,9 @@ export function readHistoryStep<T extends string | number>(steps: readonly T[]):
  * one, so an in-app Back never leaves a later step waiting behind the
  * browser's Back. On the entry the wizard opened on, the step changes in place.
  *
+ * A Back or Forward onto a step the screen cannot show leaves the screen on
+ * the step it can, and the entry is brought into line the same way.
+ *
  * `enabled` is true while the wizard is on screen. Once it is not, the entries
  * it pushed are stale, and a Back onto one would change nothing the reader can
  * see, so the hook keeps going back past them.
@@ -60,6 +63,9 @@ export function useStepHistory<T extends string | number>(
   const enabledRef = useRef(enabled);
   const backTargetRef = useRef<{ target: T } | null>(null);
   const leavingRef = useRef<(() => void) | null>(null);
+  // Counts Back and Forward landings on the wizard's entries, so the entry is
+  // checked against the screen even when the step shown did not change.
+  const [landings, setLandings] = useState(0);
   useEffect(() => {
     setStepRef.current = setStep;
     stepsRef.current = steps;
@@ -96,6 +102,7 @@ export function useStepHistory<T extends string | number>(
         return;
       }
       const next = stepsRef.current.find((candidate) => candidate === recorded) ?? firstRef.current;
+      if (recorded !== undefined) setLandings((count) => count + 1);
       setStepRef.current(next);
     };
     window.addEventListener("popstate", onPopState);
@@ -122,7 +129,7 @@ export function useStepHistory<T extends string | number>(
       return;
     }
     window.history.pushState({ ...current, [HISTORY_KEY]: step, [DEPTH_KEY]: depth + 1 }, "");
-  }, [enabled, step]);
+  }, [enabled, step, landings]);
 
   const leave = useCallback((then: () => void) => {
     const depth = recordedDepth(window.history.state);
