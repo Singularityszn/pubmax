@@ -635,8 +635,9 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
   owner's private words: control characters are stripped (tab and newline
   stay) and the ends are trimmed, and nothing else changes. No copy filter
   runs, and angle brackets and inner spacing are kept. A review over 280
-  characters answers 400, never a silent cut. The migration's CHECK constraints (0174) hold the
-  same bounds.
+  characters answers 400, never a silent cut. The migration's CHECK
+  constraints (0174) hold the rating, review-length and earliest-day bounds.
+  The future-day bound is checked only by the route.
 - **Rate limit (boundary):** durable per-profile + hashed-IP `isLimited` with
   key `diary:${owner.actor}:${ipHash}` - 429 `RATE_LIMITED` on exceed.
 - **Auth stance:** `resolveContributionIdentity` derives the owner from the
