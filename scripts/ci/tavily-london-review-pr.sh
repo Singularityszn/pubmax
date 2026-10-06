@@ -11,7 +11,9 @@
 set -euo pipefail
 
 stamp="$(date -u +%Y%m%d)"
-branch="tavily-london/${stamp}"
+# One branch per run: a manual rerun on the same UTC day must not collide with the
+# scheduled run's branch or PR.
+branch="tavily-london/${stamp}-$(date -u +%H%M%S)"
 paths=(public/data/drink_price_updates data/enrichment/tavily/london)
 
 if [ -z "$(git status --porcelain -- "${paths[@]}")" ]; then

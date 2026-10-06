@@ -11,7 +11,7 @@ The code holds two ceilings. No flag can raise them.
 | Searches per run | 200 | `MAX_TAVILY_CALLS_PER_RUN` in `scripts/lib/tavilyPubEnrichment.mjs` |
 | Credits per run | 400 | `MAX_TAVILY_CREDITS_PER_RUN` in the same file |
 
-An advanced search costs 2 credits. The pay as you go price is $0.008 a credit. A full night costs 200 x 2 x $0.008 = **$3.20**. A 30 night month costs at most **$96**. The run asks before each search and stops when the next search would pass 400 credits. `--max-queries` and `--max-credits` can only lower the ceilings.
+An advanced search costs 2 credits. The pay as you go price is $0.008 a credit. A full night costs 200 x 2 x $0.008 = **$3.20**. A 30 night month costs at most **$96**. The run asks before each search and reserves the dearest search billed so far, never less than 2 credits. It stops when one more search like that would pass 400 credits, so a provider that bills 6 or 7 credits a search still cannot carry the run over the ceiling. `--max-queries` and `--max-credits` can only lower the ceilings.
 
 London holds 3,640 pubs in the UK OSM pack. 1,861 of them state a website. A pub with no website uses no query. One full walk takes about 10 nights.
 
@@ -80,3 +80,9 @@ A dry run still spends the searches. It only skips the writes.
 ## Related
 
 [`docs/TAVILY_NIGHTLY_PASS.md`](./TAVILY_NIGHTLY_PASS.md) describes the separate credit allowance pass that writes only a curation queue.
+
+## Source policy and failures
+
+A pub website that `isHarvestableOperatorUrl` refuses is never sent to Tavily as a search domain. The pub gets the outcome `refused-source` and no query is spent. A result URL the policy refuses is dropped. One pub's failed search (a timeout or a 429) is recorded as `failed`, the pub stays the stalest, and the night carries on with the next pub.
+
+The review PR script gives each run its own branch, `tavily-london/YYYYMMDD-HHMMSS`, so a manual rerun on the same UTC day never collides with the scheduled run.

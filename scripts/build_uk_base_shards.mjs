@@ -53,6 +53,7 @@ import {
   cellKey,
   cellBbox,
 } from "./lib/ukBaseGrid.mjs";
+import { readPromotionLedger } from "./lib/londonOsmPromotion.mjs";
 import { outerLondonOwnerForPub } from "../lib/outerLondonOwnership.mjs";
 import { publishStagedDirectory } from "./lib/atomicDirectoryPublish.mjs";
 import {
@@ -175,9 +176,7 @@ async function loadCuratedVenueOwners() {
   // exact identity, so the seed pack never has to be re-annotated or refetched
   // to stop a promoted pub drawing twice. The curated row is found by the same
   // name-and-distance rule the outer-London seed uses.
-  const ledger = await readFile(LONDON_PROMOTION_LEDGER_PATH, "utf8")
-    .then(JSON.parse)
-    .catch(() => null);
+  const ledger = await readPromotionLedger(LONDON_PROMOTION_LEDGER_PATH);
   for (const entry of Array.isArray(ledger?.promotions) ? ledger.promotions : []) {
     const venueId = outerLondonOwnerForPub(entry, londonVenues) ?? "";
     if (venueId) ownersByOsmId.set(String(entry.osmId), venueId);

@@ -1,3 +1,4 @@
+import { isHarvestableOperatorUrl } from "../../lib/harvest/sourcePolicy.ts";
 import { extractPintPrices } from "../../lib/harvest/tavilyPintPrices.ts";
 
 export { extractPintPrices };
@@ -331,6 +332,7 @@ function acceptedOfficialResults(pub, payload, hostCounts, observedAt) {
   return (Array.isArray(payload?.results) ? payload.results : []).filter(
     (result) =>
       isOfficialResult(pub, result) &&
+      isHarvestableOperatorUrl(result?.url) &&
       !isExplicitlyStaleResult(result, observedAt) &&
       ((hostCounts.get(declaredHost) ?? 0) <= 1 || resultMatchesDeclaredVenuePage(pub, result)),
   );
@@ -375,6 +377,12 @@ function unsearchableVenue(pub, index) {
   }
   if (!hostnameOf(pub.website)) {
     return { chain: null, outcome: { index, osmId: pub.osmId, status: "no-website" } };
+  }
+  // The source-policy fence stands in front of every harvested URL. A website
+  // the policy refuses (a refused estate, our own network, credentials in the
+  // URL) is never sent to the provider as a search domain, and no query is spent.
+  if (!isHarvestableOperatorUrl(pub.website)) {
+    return { chain: null, outcome: { index, osmId: pub.osmId, status: "refused-source" } };
   }
   return null;
 }
@@ -526,6 +534,11 @@ export async function runCityEnrichment({
   const hostCounts = countPubsByHost(pubs);
   let queriesSpent = 0;
   let creditsSpent = 0;
+  // The dearest search billed so far. Admission reserves this much, never less
+  // than the documented price, so a provider that bills more per search than
+  // TAVILY_CREDITS_PER_SEARCH cannot carry the run across the ceiling: the next
+  // search is only admitted when one more like the dearest still fits.
+  let dearestSearch = TAVILY_CREDITS_PER_SEARCH;
   const sequence = venueIndexSequence(pubs, startIndex, indices);
   let index = Math.max(0, Math.floor(Number(startIndex) || 0));
   let resolvedIndex = index;
@@ -555,8 +568,8 @@ export async function runCityEnrichment({
       continue;
     }
     if (queriesSpent >= queryCap) break;
-    // Ask before spending: the next search may bill TAVILY_CREDITS_PER_SEARCH.
-    if (creditsSpent + TAVILY_CREDITS_PER_SEARCH > creditCap) break;
+    // Ask before spending: the next search may bill as much as the dearest so far.
+    if (creditsSpent + dearestSearch > creditCap) break;
 
     queriesSpent += 1;
     let payload;
@@ -595,7 +608,9 @@ export async function runCityEnrichment({
     }
     await report();
     throwIfAborted(signal);
-    creditsSpent += Number(payload?.creditsSpent ?? payload?.usage?.credits) || 0;
+    const searchCredits = Number(payload?.creditsSpent ?? payload?.usage?.credits) || 0;
+    creditsSpent += searchCredits;
+    dearestSearch = Math.max(dearestSearch, searchCredits);
     const officialResults = acceptedOfficialResults(pub, payload, hostCounts, observedAt);
     const matchedPage = await selectBestOfficialPage(officialResults, pub);
 

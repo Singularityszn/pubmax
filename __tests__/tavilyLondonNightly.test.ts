@@ -94,6 +94,38 @@ describe("the nightly London Tavily pass spends a bounded amount", () => {
     expect(result.queriesSpent).toBe(80);
   });
 
+  it.each([6, 7])("never crosses the credit ceiling when a search bills %i credits", async (credits) => {
+    const result = await runCityEnrichment({
+      city: "london",
+      pubs: londonPubs(300),
+      apiKey: "test-key",
+      observedAt: OBSERVED_AT,
+      fetchImpl: billing(credits),
+    });
+
+    expect(result.creditsSpent).toBeLessThanOrEqual(MAX_TAVILY_CREDITS_PER_RUN);
+    expect(result.queriesSpent).toBe(Math.floor(MAX_TAVILY_CREDITS_PER_RUN / credits));
+  });
+
+  it("sends no search for a website the source policy refuses", async () => {
+    const pubs = [
+      { ...defined(londonPubs(1)[0]), website: "https://user:secret@independentarms1.co.uk/" },
+      { ...defined(londonPubs(2)[1]) },
+    ];
+    const fetchImpl = billing(2);
+    const result = await runCityEnrichment({
+      city: "london",
+      pubs,
+      apiKey: "test-key",
+      observedAt: OBSERVED_AT,
+      fetchImpl,
+    });
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(result.queriesSpent).toBe(1);
+    expect(result.outcomes?.[0]).toMatchObject({ osmId: "node/1", status: "refused-source" });
+  });
+
   it("lets a caller lower the credit ceiling and never raise it", async () => {
     const lowered = billing(2);
     const result = await runCityEnrichment({
@@ -495,6 +527,29 @@ describe("the nightly London pass keeps going and keeps what it found", () => {
     });
   });
 
+  it("keeps searching after one pub's search fails, and leaves that pub stalest", async () => {
+    const pubs = londonPubs(3);
+    const ok = billing(2);
+    const fetchImpl = vi.fn<typeof fetch>(async (input, init) => {
+      if (String(init?.body).includes("Independent Arms 1")) return new Response("{}", { status: 429 });
+      return ok(input, init);
+    });
+
+    const { runResult, state } = await runCityPass({
+      city: "london",
+      checkpoint: freshLondon(pubs),
+      pubs,
+      apiKey: "test-key",
+      observedAt: OBSERVED_AT,
+      committedPrices: [],
+      fetchImpl,
+    });
+
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+    expect(runResult.outcomes?.map((o: { status: string }) => o.status).sort()).toEqual(["empty", "empty", "failed"]);
+    expect(Object.keys(state.readAt).sort()).toEqual(["node/2", "node/3"]);
+  });
+
   it("starts the next pass by itself once every pub has been read", async () => {
     const pubs = londonPubs(250);
     let checkpoint = freshLondon(pubs);
@@ -688,10 +743,31 @@ describe("the London review PR script", () => {
     const heads = remoteHeads(work);
     expect(heads.find(([, ref]) => ref === "refs/heads/main")?.[0]).toBe(mainBefore);
     expect(heads.map(([, ref]) => ref)).toEqual(
-      expect.arrayContaining([expect.stringMatching(/^refs\/heads\/tavily-london\/\d{8}$/)]),
+      expect.arrayContaining([expect.stringMatching(/^refs\/heads\/tavily-london\/\d{8}-\d{6}$/)]),
     );
     expect(heads).toHaveLength(2);
     expect(readFileSync(join(dir, "gh.log"), "utf8")).toMatch(/^pr create /);
+  });
+
+  it("gives a same-day rerun its own branch instead of colliding with the first", async () => {
+    const { work, bin } = repo();
+    mkdirSync(join(work, "public/data/drink_price_updates"), { recursive: true });
+    const writeNight = (body: string) => {
+      mkdirSync(join(work, "public/data/drink_price_updates"), { recursive: true });
+      mkdirSync(join(work, "data/enrichment/tavily/london"), { recursive: true });
+      writeFileSync(join(work, "public/data/drink_price_updates/latest.json"), body);
+      writeFileSync(join(work, "data/enrichment/tavily/london/run_20261006.json"), body);
+    };
+    writeNight("{}\n");
+    runScript(work, bin);
+    git(work, "checkout", "main");
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+    writeNight('{"again":true}\n');
+
+    runScript(work, bin);
+
+    const branches = remoteHeads(work).map(([, ref]) => defined(ref)).filter((ref) => ref.includes("tavily-london/"));
+    expect(new Set(branches).size).toBe(2);
   });
 
   it("pushes nothing when the pass wrote nothing", () => {
