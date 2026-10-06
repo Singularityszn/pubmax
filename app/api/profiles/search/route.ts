@@ -4,7 +4,7 @@
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
-import { followStore } from "@/lib/followStore";
+import { followStore, type FollowEdges } from "@/lib/followStore";
 import { resolveFollowRelation, type FollowRelation } from "@/lib/followRelation";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
@@ -65,30 +65,26 @@ async function withRelations(
   viewer: string,
 ): Promise<PublicMatch[]> {
   if (!viewer || matches.length === 0) return matches;
-  let following: string[];
-  let followers: string[];
+  let edges: FollowEdges;
   try {
     if ((await withdrawnHandles([viewer])).has(viewer)) return matches;
-    const store = followStore();
-    [following, followers] = await Promise.all([
-      store.listFollowing(viewer),
-      store.listFollowers(viewer),
-    ]);
+    edges = await followStore().edgesWith(
+      viewer,
+      matches.map((match) => match.handle),
+    );
   } catch {
     // A follow state that could not be read is no state: the match still shows,
     // and its button says what it said before relations existed.
     return matches;
   }
-  const followed = new Set(following.map(normalizeHandle));
-  const followedBy = new Set(followers.map(normalizeHandle));
   return matches.map((match) =>
     match.handle === viewer
       ? match
       : {
           ...match,
           relation: resolveFollowRelation({
-            viewerFollowing: followed.has(match.handle),
-            followsViewer: followedBy.has(match.handle),
+            viewerFollowing: edges.following.has(match.handle),
+            followsViewer: edges.followers.has(match.handle),
           }),
         },
   );

@@ -10,6 +10,7 @@ import {
   MAX_MESSAGE_BODY,
   normalizePair,
   conversationRowHandle,
+  conversationRowMatches,
   conversationRowName,
   threadCardHandle,
   threadHeaderPrimaryLine,
@@ -225,6 +226,15 @@ describe("a person with a display name", () => {
     };
     expect(conversationRowName(group, "alice")).toBe("Friday");
     expect(conversationRowHandle(group)).toBeNull();
+  });
+
+  it("is found in the inbox search by the handle printed under the name", () => {
+    const named = { ...row, otherDisplayName: "Bob Baker" };
+    expect(conversationRowMatches(named, "alice", "qa_bob")).toBe(true);
+    expect(conversationRowMatches(named, "alice", "@QA")).toBe(true);
+    expect(conversationRowMatches(named, "alice", "baker")).toBe(true);
+    expect(conversationRowMatches(named, "alice", "")).toBe(true);
+    expect(conversationRowMatches(named, "alice", "carol")).toBe(false);
   });
 
   it("heads a direct thread with the name, and the handle under it", () => {

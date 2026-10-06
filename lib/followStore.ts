@@ -45,7 +45,24 @@ export type FollowStore = {
    * This — not a one-way follow — is the Social Loop's definition of a friend.
    */
   listMutuals(handle: string): Promise<string[]>;
+  /**
+   * The follow edges between this handle and ONLY the given handles: which of
+   * them it follows, and which of them follow it. Bounded by `others`, so a
+   * caller labelling a few rows never reads the whole graph. Empty sets for an
+   * unknown handle.
+   */
+  edgesWith(handle: string, others: readonly string[]): Promise<FollowEdges>;
 };
+
+export type FollowEdges = { following: Set<string>; followers: Set<string> };
+
+function emptyEdges(): FollowEdges {
+  return { following: new Set(), followers: new Set() };
+}
+
+function uniqueHandles(handles: readonly string[]): string[] {
+  return [...new Set(handles.map((h) => normalizeHandle(h)).filter(Boolean))];
+}
 
 // The mutual set is the intersection of who a handle follows and who follows it.
 // Shared by both backends so "your lot" means the same thing everywhere.
@@ -176,6 +193,39 @@ const supabaseFollowStore: FollowStore = {
     ]);
     return intersectHandles(following, followers);
   },
+
+  async edgesWith(handle, others) {
+    const wanted = uniqueHandles(others);
+    if (wanted.length === 0) return emptyEdges();
+    const profile = await supabaseProfileStore.getByHandle(handle);
+    if (!profile) return emptyEdges();
+    // Two bounded reads: the inner join filters each edge by the other side's
+    // handle, so only edges to the named handles ever come back.
+    const [out, back] = await Promise.all([
+      admin()
+        .from(TABLE)
+        .select("followee:followee_id!inner ( handle )")
+        .eq("follower_id", profile.id)
+        .in("followee.handle", wanted),
+      admin()
+        .from(TABLE)
+        .select("follower:follower_id!inner ( handle )")
+        .eq("followee_id", profile.id)
+        .in("follower.handle", wanted),
+    ]);
+    if (out.error) throw new Error(out.error.message);
+    if (back.error) throw new Error(back.error.message);
+    const edges = emptyEdges();
+    for (const row of (out.data ?? []) as { followee?: { handle?: unknown } | null }[]) {
+      const h = normalizeHandle(String(row.followee?.handle ?? ""));
+      if (h) edges.following.add(h);
+    }
+    for (const row of (back.data ?? []) as { follower?: { handle?: unknown } | null }[]) {
+      const h = normalizeHandle(String(row.follower?.handle ?? ""));
+      if (h) edges.followers.add(h);
+    }
+    return edges;
+  },
 };
 
 // ── In-memory implementation ─────────────────────────────────────────────────
@@ -261,6 +311,18 @@ function makeMemoryFollowStore(profiles: ProfileStore): FollowStore {
         this.listFollowers(handle),
       ]);
       return intersectHandles(following, followers);
+    },
+    async edgesWith(handle, others) {
+      const edges = emptyEdges();
+      const profile = await profiles.getByHandle(handle);
+      if (!profile) return edges;
+      for (const other of uniqueHandles(others)) {
+        const target = await profiles.getByHandle(other);
+        if (!target) continue;
+        if (memoryEdges.has(edgeKey(profile.id, target.id))) edges.following.add(other);
+        if (memoryEdges.has(edgeKey(target.id, profile.id))) edges.followers.add(other);
+      }
+      return edges;
     },
   };
 }

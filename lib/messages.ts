@@ -213,6 +213,22 @@ export function conversationRowHandle(conversation: ConversationDTO): string | n
     : null;
 }
 
+/**
+ * Does ONE inbox row answer a search? A row is found by every line it prints:
+ * the name, and the handle under it, so the handle a person can see always
+ * finds them.
+ */
+export function conversationRowMatches(
+  conversation: ConversationDTO,
+  viewer: string,
+  query: string,
+): boolean {
+  const needle = query.trim().toLowerCase();
+  return [conversationRowName(conversation, viewer), conversationRowHandle(conversation) ?? ""].some(
+    (line) => line.toLowerCase().includes(needle),
+  );
+}
+
 /** What a thread header knows after a thread read or an inbox fallback. */
 export type ThreadIdentity = {
   kind: ConversationKind;
