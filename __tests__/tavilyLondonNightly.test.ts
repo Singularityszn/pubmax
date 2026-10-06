@@ -12,6 +12,8 @@ import {
   committedCityPrices,
   parseArgs,
   pruneManagedCityPrices,
+  readRejectedRows,
+  rejectClosedPrRows,
   resumeCheckpoint,
   runCityPass,
 } from "@/scripts/enrich_city_pubs_tavily.mjs";
@@ -125,11 +127,13 @@ function officialPrice(pub: London[number], drinkName: string, priceGbp: number)
   };
 }
 
-function freshLondon(pubs: London, committed: ReturnType<typeof officialPrice>[] = []) {
+const cityKeys = (pubs: London) => new Set(pubs.map(venueKeyForOsmPub));
+
+function freshLondon(pubs: London) {
   return resumeCheckpoint(null, {
     city: "london",
     totalPubs: pubs.length,
-    committedPrices: committedCityPrices(committed, new Set(pubs.map(venueKeyForOsmPub))),
+    cityVenueKeys: cityKeys(pubs),
     observedAt: OBSERVED_AT,
   });
 }
@@ -142,50 +146,182 @@ function searchedPubs(fetchImpl: ReturnType<typeof billing>) {
   });
 }
 
+/** A search that finds each named pub's drinks page with the menu given for it. */
+function menus(byPub: Record<string, string>) {
+  return vi.fn<typeof fetch>(async (_url, init) => {
+    const name = /"(Independent Arms \d+)"/.exec(String(JSON.parse(String(init?.body)).query))?.[1] ?? "";
+    const n = name.replace("Independent Arms ", "");
+    const results = byPub[name]
+      ? [{ url: `https://independentarms${n}.co.uk/drinks`, raw_content: byPub[name] }]
+      : [];
+    return new Response(JSON.stringify({ results, usage: { credits: 2 } }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  });
+}
+
+type Checkpoint = Awaited<ReturnType<typeof runCityPass>>["state"];
+type Price = ReturnType<typeof officialPrice>;
+
+async function night(
+  pubs: London,
+  checkpoint: Checkpoint,
+  options: {
+    observedAt: string;
+    committed?: Checkpoint["prices"];
+    byPub?: Record<string, string>;
+    rejectedRows?: Array<{ venueKey: string; sourceUrl: string }>;
+  },
+) {
+  const { state } = await runCityPass({
+    city: "london",
+    checkpoint,
+    pubs,
+    apiKey: "test-key",
+    observedAt: options.observedAt,
+    committedPrices: committedCityPrices(options.committed ?? [], cityKeys(pubs)),
+    rejectedRows: options.rejectedRows ?? [],
+    fetchImpl: menus(options.byPub ?? {}),
+  });
+  return state;
+}
+
+const priceRows = (state: Checkpoint) =>
+  state.prices.map((row) => [row.venueKey.split("|")[0], row.drinkName, row.priceGbp]);
+
 describe("the nightly London pass keeps going and keeps what it found", () => {
   beforeEach(() => vi.stubEnv("TYPESAFE_API_KEY", ""));
   afterEach(() => vi.unstubAllEnvs());
 
-  it("starts a fresh checkpoint from the committed London prices, so a restart deletes none", async () => {
+  it("writes back every committed London price when the checkpoint is empty", async () => {
     const pubs = londonPubs(3);
     const reviewed = [officialPrice(defined(pubs[0]), "Guinness", 6.2), officialPrice(defined(pubs[2]), "Pale Ale", 5.8)];
     const elsewhere = { ...officialPrice(defined(pubs[1]), "Bitter", 4.5), venueKey: "another city pub|x|53.00000|-2.00000" };
     const latest = [...reviewed, elsewhere];
 
-    const { state } = await runCityPass({
-      city: "london",
-      checkpoint: freshLondon(pubs, latest),
-      pubs,
-      apiKey: "test-key",
-      maxQueries: 1,
-      observedAt: OBSERVED_AT,
-      fetchImpl: billing(2),
-    });
-    const written = mergeCanonicalPrices(
-      pruneManagedCityPrices(latest, new Set(pubs.map(venueKeyForOsmPub))),
-      state.prices,
-    );
+    const state = await night(pubs, freshLondon(pubs), { observedAt: OBSERVED_AT, committed: latest });
+    const written = mergeCanonicalPrices(pruneManagedCityPrices(latest, cityKeys(pubs)), state.prices);
 
     expect(state.prices).toEqual(reviewed);
     expect(written).toEqual(expect.arrayContaining(latest));
     expect(written).toHaveLength(latest.length);
   });
 
-  it("restarts rather than fails when the pack or the checkpoint format changed", () => {
+  it("restarts the walk rather than fails, and carries the prices found so far", () => {
     const pubs = londonPubs(3);
-    const reviewed = [officialPrice(defined(pubs[0]), "Guinness", 6.2)];
-    const options = {
-      city: "london",
-      totalPubs: pubs.length,
-      committedPrices: reviewed,
-      observedAt: OBSERVED_AT,
+    const unmerged = officialPrice(defined(pubs[0]), "Neck Oil", 6.8);
+    const leftThePack = { ...unmerged, venueKey: "closed pub|x|51.50000|-0.12000" };
+    const options = { city: "london", totalPubs: pubs.length, cityVenueKeys: cityKeys(pubs), observedAt: OBSERVED_AT };
+    const saved = {
+      ...freshLondon(pubs),
+      readAt: { "node/1": OBSERVED_AT },
+      prices: [unmerged, leftThePack],
+      committedReadings: ["a reading"],
     };
-    const saved = { ...freshLondon(pubs), readAt: { "node/1": OBSERVED_AT } };
 
     expect(resumeCheckpoint(saved, options)).toBe(saved);
-    for (const stale of [{ ...saved, totalPubs: 4 }, { ...saved, version: 1 }, { ...saved, city: "leeds" }]) {
-      expect(resumeCheckpoint(stale, options)).toMatchObject({ readAt: {}, prices: reviewed });
+    for (const restarted of [
+      resumeCheckpoint({ ...saved, totalPubs: 4 }, options),
+      resumeCheckpoint({ ...saved, version: 1 }, options),
+      resumeCheckpoint({ ...saved, city: "leeds" }, options),
+      resumeCheckpoint(saved, { ...options, reset: true }),
+    ]) {
+      expect(restarted).toMatchObject({ readAt: {}, prices: [unmerged], committedReadings: ["a reading"] });
     }
+  });
+
+  it("keeps an unmerged night in every later PR, and holds the committed copy once it merges", async () => {
+    const pubs = londonPubs(2);
+    const first = await night(pubs, freshLondon(pubs), {
+      observedAt: "2026-10-06T02:30:00.000Z",
+      byPub: { "Independent Arms 1": "Neck Oil - Pint £6.80" },
+    });
+    const second = await night(pubs, first, { observedAt: "2026-10-07T02:30:00.000Z" });
+    const merged = second.prices;
+    const third = await night(pubs, second, { observedAt: "2026-10-08T02:30:00.000Z", committed: merged });
+
+    expect(priceRows(second)).toEqual([["independent arms 1", "Neck Oil", 6.8]]);
+    expect(third.prices).toEqual(merged);
+  });
+
+  it("does not re-add a merged row that a reviewer removed", async () => {
+    const pubs = londonPubs(2);
+    const first = await night(pubs, freshLondon(pubs), {
+      observedAt: "2026-10-06T02:30:00.000Z",
+      byPub: { "Independent Arms 1": "Neck Oil - Pint £6.80" },
+    });
+    const merged = await night(pubs, first, { observedAt: "2026-10-07T02:30:00.000Z", committed: first.prices });
+    const removed = await night(pubs, merged, { observedAt: "2026-10-08T02:30:00.000Z", committed: [] });
+
+    expect(removed.prices).toEqual([]);
+  });
+
+  it("never overwrites a price a reviewer corrected with a stale checkpoint row", async () => {
+    const pubs = londonPubs(2);
+    const first = await night(pubs, freshLondon(pubs), {
+      observedAt: "2026-10-06T02:30:00.000Z",
+      byPub: { "Independent Arms 1": "Neck Oil - Pint £6.80" },
+    });
+    const corrected = first.prices.map((row) => ({ ...row, priceGbp: 6.5 })) as Price[];
+    const next = await night(pubs, first, { observedAt: "2026-10-07T02:30:00.000Z", committed: corrected });
+
+    expect(next.prices).toEqual(corrected);
+  });
+
+  it("writes a newer reading over the committed one for review", async () => {
+    const pubs = londonPubs(1);
+    const committed = [{ ...officialPrice(defined(pubs[0]), "Neck Oil", 6.2), source: { ...officialPrice(defined(pubs[0]), "Neck Oil", 6.2).source, url: "https://independentarms1.co.uk/drinks" } }];
+    const next = await night(pubs, freshLondon(pubs), {
+      observedAt: OBSERVED_AT,
+      committed,
+      byPub: { "Independent Arms 1": "Neck Oil - Pint £6.80" },
+    });
+
+    expect(priceRows(next)).toEqual([["independent arms 1", "Neck Oil", 6.8]]);
+  });
+
+  it("never writes a rejected page again, found tonight or held from an earlier night", async () => {
+    const pubs = londonPubs(2);
+    const byPub = { "Independent Arms 1": "Neck Oil - Pint £6.80", "Independent Arms 2": "Guinness - Pint £6.10" };
+    const first = await night(pubs, freshLondon(pubs), { observedAt: "2026-10-06T02:30:00.000Z", byPub });
+    const rejectedRows = [{ venueKey: venueKeyForOsmPub(defined(pubs[0])), sourceUrl: "https://independentarms1.co.uk/drinks" }];
+    const held = await night(pubs, first, { observedAt: "2026-10-07T02:30:00.000Z", rejectedRows });
+    const reread = await night(pubs, held, { observedAt: "2026-10-08T02:30:00.000Z", rejectedRows, byPub });
+
+    expect(priceRows(first)).toHaveLength(2);
+    expect(priceRows(held)).toEqual([["independent arms 2", "Guinness", 6.1]]);
+    expect(priceRows(reread)).toEqual([["independent arms 2", "Guinness", 6.1]]);
+  });
+
+  it("records a closed PR's new pages as rejected, once each", () => {
+    const pubs = londonPubs(3);
+    const onMain = officialPrice(defined(pubs[0]), "Guinness", 6.2);
+    const page = (pub: London[number], drinkName: string) => ({
+      ...officialPrice(pub, drinkName, 6),
+      source: { ...officialPrice(pub, drinkName, 6).source, url: `${pub.website}drinks` },
+      observedAt: OBSERVED_AT,
+    });
+    const elsewhere = { ...page(defined(pubs[1]), "Bitter"), venueKey: "another city pub|x|53.00000|-2.00000" };
+    const already = { venueKey: venueKeyForOsmPub(defined(pubs[2])), sourceUrl: `${defined(pubs[2]).website}drinks` };
+
+    const rows = rejectClosedPrRows([already], {
+      prUpdates: [onMain, page(defined(pubs[1]), "Bitter"), page(defined(pubs[1]), "Stout"), page(defined(pubs[2]), "Lager"), elsewhere],
+      committedUpdates: [onMain],
+      cityVenueKeys: cityKeys(pubs),
+      rejectedAt: OBSERVED_AT,
+    });
+
+    expect(rows).toEqual([
+      already,
+      { venueKey: venueKeyForOsmPub(defined(pubs[1])), sourceUrl: `${defined(pubs[1]).website}drinks`, rejectedAt: OBSERVED_AT },
+    ]);
+  });
+
+  it("refuses a malformed rejected list rather than writing past it", () => {
+    expect(readRejectedRows(undefined)).toEqual([]);
+    expect(() => readRejectedRows({ version: 1, rows: [{ venueKey: "x" }] })).toThrow(/sourceUrl/);
+    expect(() => readRejectedRows([])).toThrow(/version: 1/);
   });
 
   it("reads the stalest pubs first and records when it read them", async () => {
@@ -203,6 +339,7 @@ describe("the nightly London pass keeps going and keeps what it found", () => {
       apiKey: "test-key",
       maxQueries: 2,
       observedAt: OBSERVED_AT,
+      committedPrices: [],
       fetchImpl,
     });
 
@@ -226,6 +363,7 @@ describe("the nightly London pass keeps going and keeps what it found", () => {
         pubs,
         apiKey: "test-key",
         observedAt,
+        committedPrices: [],
         fetchImpl: billing(2),
       });
       spent.push(runResult.queriesSpent);
@@ -240,32 +378,6 @@ describe("the nightly London pass keeps going and keeps what it found", () => {
     expect(Object.values(checkpoint.readAt)).not.toContain(nights[0]);
   });
 
-  it("replaces a pub's old rows when its page is read again", async () => {
-    const pubs = londonPubs(1);
-    const checkpoint = freshLondon(pubs, [officialPrice(defined(pubs[0]), "Guinness", 6.2)]);
-    const fetchImpl = vi.fn<typeof fetch>(
-      async () =>
-        new Response(
-          JSON.stringify({
-            results: [{ url: `${defined(pubs[0]).website}drinks`, raw_content: "Neck Oil - Pint £6.80" }],
-            usage: { credits: 2 },
-          }),
-          { status: 200, headers: { "content-type": "application/json" } },
-        ),
-    );
-
-    const { state } = await runCityPass({
-      city: "london",
-      checkpoint,
-      pubs,
-      apiKey: "test-key",
-      observedAt: OBSERVED_AT,
-      fetchImpl,
-    });
-
-    expect(state.prices.map((row) => [row.drinkName, row.priceGbp])).toEqual([["Neck Oil", 6.8]]);
-  });
-
   it("fails when it searched nothing while a pub was still due", async () => {
     const pubs = londonPubs(3);
     await expect(
@@ -276,6 +388,7 @@ describe("the nightly London pass keeps going and keeps what it found", () => {
         apiKey: "test-key",
         maxCredits: 1,
         observedAt: OBSERVED_AT,
+        committedPrices: [],
         fetchImpl: billing(2),
       }),
     ).rejects.toThrow(/no search ran while 3 pubs were still due/);
@@ -289,6 +402,7 @@ describe("the nightly London pass keeps going and keeps what it found", () => {
       pubs,
       apiKey: "test-key",
       observedAt: OBSERVED_AT,
+      committedPrices: [],
       fetchImpl: billing(2),
     });
 

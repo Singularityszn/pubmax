@@ -25,4 +25,4 @@ git commit -m "chore(drink-prices): London Tavily pass ${stamp}"
 git push -u origin "$branch"
 gh pr create \
   --title "London Tavily pass ${stamp}" \
-  --body "Nightly bounded London pass: at most 200 Tavily searches and 400 credits (\$3.20), official pub sites only. Every price carries its first-party source, licence and read time. Review before merge."
+  --body "Nightly bounded London pass: at most 200 Tavily searches and 400 credits (\$3.20), official pub sites only. Every price carries its first-party source, licence and read time. Review before merge. To reject every row this PR adds, close it and run: npm run tavily:reject -- --city=london --ref=origin/${branch} on a branch from main, then merge data/enrichment/tavily/london/rejected.json. See docs/TAVILY_LONDON_NIGHTLY.md."

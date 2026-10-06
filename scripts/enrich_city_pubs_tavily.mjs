@@ -13,6 +13,8 @@
  * --max-credits can only lower them.
  *
  * TAVILY_API_KEY is required. Local progress lives in ignored .tavily/ state.
+ * --reset restarts the walk and keeps the prices found so far. Rows listed in
+ * data/enrichment/tavily/<city>/rejected.json are never written again.
  * Wetherspoons, Greene King, and Mitchells & Butlers pubs are delegated to the
  * existing chain harvesters and consume no Tavily queries.
  */
@@ -22,7 +24,6 @@ import {
   mkdirSync,
   readFileSync,
   renameSync,
-  rmSync,
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
@@ -89,25 +90,25 @@ function checkpointPath(city) {
   return path.join(CHECKPOINT_DIR, `${city}.json`);
 }
 
-function loadCityPubs(cityId) {
+export function loadCityPubs(cityId) {
   const pack = JSON.parse(readFileSync(UK_PACK_PATH, "utf8"));
   return selectCityPubs(cityId, Array.isArray(pack.pubs) ? pack.pubs : []);
 }
 
 // Version 2 replaced the one-way cursor with a read time per pub. A checkpoint
-// from another version, city or pack is not resumable, so it restarts.
+// from another version, city or pack is not resumable, so its walk restarts.
 const CHECKPOINT_VERSION = 2;
 
 function priceKey(row) {
   return `${row.venueKey}|${String(row.drinkName).toLowerCase()}|${row.category}`;
 }
 
-/**
- * The official-site prices this city already has on disk. A restarted
- * checkpoint starts from them, because the evidence write replaces every
- * managed price for the city with the checkpoint's own, and a checkpoint that
- * started empty would delete every reviewed price it had not re-read tonight.
- */
+/** One reading of one price: the same drink read on another night is another row. */
+function readingId(row) {
+  return `${priceKey(row)}|${row.observedAt}`;
+}
+
+/** The official-site prices this city holds in the committed data. */
 export function committedCityPrices(existing, cityVenueKeys) {
   return existing.filter(
     (row) =>
@@ -117,12 +118,50 @@ export function committedCityPrices(existing, cityVenueKeys) {
 }
 
 /**
- * The saved checkpoint when it still describes this city's pack, or a fresh
- * one seeded with the committed prices. A changed pack restarts the walk
- * rather than failing every night until someone deletes the file.
+ * The rows a reviewer rejected, from the committed `rejected.json` beside the
+ * run reports. Each entry is a venue key and a source URL, and no row matching
+ * one is ever written again.
  */
-export function resumeCheckpoint(saved, { city, totalPubs, committedPrices, observedAt }) {
+export function readRejectedRows(value) {
+  if (value === undefined) return [];
+  if (value?.version !== 1 || !Array.isArray(value.rows)) {
+    throw new Error("rejected.json must be { version: 1, rows: [...] }.");
+  }
+  for (const row of value.rows) {
+    if (typeof row?.venueKey !== "string" || typeof row?.sourceUrl !== "string") {
+      throw new Error("Every rejected row needs a venueKey and a sourceUrl.");
+    }
+  }
+  return value.rows;
+}
+
+/**
+ * The rejected list after a reviewer closes a nightly PR: every venue page
+ * whose rows the PR added and the committed data does not hold is added once.
+ */
+export function rejectClosedPrRows(rejectedRows, { prUpdates, committedUpdates, cityVenueKeys, rejectedAt }) {
+  const committed = new Set(committedCityPrices(committedUpdates, cityVenueKeys).map(readingId));
+  const seen = new Set(rejectedRows.map((row) => `${row.venueKey}|${row.sourceUrl}`));
+  const added = [];
+  for (const row of committedCityPrices(prUpdates, cityVenueKeys)) {
+    const id = `${row.venueKey}|${row.source.url}`;
+    if (committed.has(readingId(row)) || seen.has(id)) continue;
+    seen.add(id);
+    added.push({ venueKey: row.venueKey, sourceUrl: row.source.url, rejectedAt });
+  }
+  return [...rejectedRows, ...added];
+}
+
+/**
+ * The saved checkpoint when it still describes this city's pack, or a fresh
+ * one. A changed pack or --reset restarts the walk rather than failing every
+ * night. The prices and the readings already seen in the committed data carry
+ * over, so a night that was paid for and not merged yet is not lost. A price
+ * for a pub that left the pack does not carry over.
+ */
+export function resumeCheckpoint(saved, { city, totalPubs, cityVenueKeys, observedAt, reset = false }) {
   if (
+    !reset &&
     saved?.version === CHECKPOINT_VERSION &&
     saved.city === city &&
     saved.totalPubs === totalPubs
@@ -137,9 +176,44 @@ export function resumeCheckpoint(saved, { city, totalPubs, committedPrices, obse
     readAt: {},
     totalQueriesSpent: 0,
     totalCreditsSpent: 0,
-    prices: committedPrices,
+    prices: (Array.isArray(saved?.prices) ? saved.prices : []).filter((row) =>
+      cityVenueKeys.has(row?.venueKey),
+    ),
+    committedReadings: Array.isArray(saved?.committedReadings) ? saved.committedReadings : [],
     pages: [],
     delegatedChains: [],
+  };
+}
+
+/**
+ * The prices a night writes, with the committed data as the source of truth.
+ * Every committed row is kept as it stands, so a price corrected in review is
+ * never overwritten. A checkpoint row is kept on top only while it is unmerged
+ * and newer: a reading the committed data ever held is not re-added once a
+ * reviewer removes it, a reading no newer than the committed one for that
+ * drink is stale, and a rejected venue page is never written again.
+ */
+export function reconcileWithCommitted(state, { committedPrices, rejectedRows }) {
+  const committedReadings = new Set([
+    ...(state.committedReadings ?? []),
+    ...committedPrices.map(readingId),
+  ]);
+  const newestCommitted = new Map();
+  for (const row of committedPrices) {
+    const key = priceKey(row);
+    if (!(newestCommitted.get(key) >= row.observedAt)) newestCommitted.set(key, row.observedAt);
+  }
+  const rejected = new Set(rejectedRows.map((row) => `${row.venueKey}|${row.sourceUrl}`));
+  const unmerged = state.prices.filter(
+    (row) =>
+      !committedReadings.has(readingId(row)) &&
+      !(newestCommitted.get(priceKey(row)) >= row.observedAt) &&
+      !rejected.has(`${row.venueKey}|${row.source?.url}`),
+  );
+  return {
+    ...state,
+    committedReadings: [...committedReadings].sort(),
+    prices: mergeCanonicalPrices(committedPrices, unmerged),
   };
 }
 
@@ -163,23 +237,18 @@ function uniqueBy(rows, keyFor) {
 }
 
 // A failed search is not a read, so that pub stays stalest and goes first next
-// time. A pub matched again replaces its old rows, so a drink the page no
-// longer lists does not outlive the page.
+// time.
 function mergeState(base, progress, observedAt) {
   const readAt = { ...base.readAt };
   for (const outcome of progress.outcomes ?? []) {
     if (outcome.status !== "failed") readAt[outcome.osmId] = observedAt;
   }
-  const rematched = new Set(progress.pages.map((page) => page.venueKey));
   return {
     ...base,
     readAt,
     totalQueriesSpent: base.totalQueriesSpent + progress.queriesSpent,
     totalCreditsSpent: base.totalCreditsSpent + progress.creditsSpent,
-    prices: uniqueBy(
-      [...base.prices.filter((row) => !rematched.has(row.venueKey)), ...progress.prices],
-      priceKey,
-    ),
+    prices: uniqueBy([...base.prices, ...progress.prices], priceKey),
     pages: uniqueBy(
       [...base.pages, ...progress.pages],
       (row) => `${row.osmId}|${row.officialUrl}`,
@@ -197,11 +266,20 @@ function mergeState(base, progress, observedAt) {
 }
 
 /**
- * One capped pass over a city, stalest pubs first. A run that searched
- * nothing while a pub was still waiting for a search throws, so a spent-out
- * cap or a broken order is a red job rather than a quiet green one.
+ * One capped pass over a city, stalest pubs first, reconciled with the
+ * committed data. A run that searched nothing while a pub was still waiting
+ * for a search throws, so a spent-out cap or a broken order is a red job
+ * rather than a quiet green one.
  */
-export async function runCityPass({ checkpoint, pubs, observedAt, onState, ...options }) {
+export async function runCityPass({
+  checkpoint,
+  pubs,
+  observedAt,
+  committedPrices,
+  rejectedRows = [],
+  onState,
+  ...options
+}) {
   const runResult = await runCityEnrichment({
     ...options,
     pubs,
@@ -209,7 +287,10 @@ export async function runCityPass({ checkpoint, pubs, observedAt, onState, ...op
     observedAt,
     onProgress: (progress) => onState?.(mergeState(checkpoint, progress, observedAt)),
   });
-  const state = mergeState(checkpoint, runResult, observedAt);
+  const state = reconcileWithCommitted(mergeState(checkpoint, runResult, observedAt), {
+    committedPrices,
+    rejectedRows,
+  });
   if (runResult.queriesSpent === 0 && runResult.outcomes.length < pubs.length) {
     throw new Error(
       `${options.city}: no search ran while ${pubs.length - runResult.outcomes.length} pubs were still due.`,
@@ -287,20 +368,27 @@ async function main() {
   const pubs = loadCityPubs(args.city);
   const cityVenueKeys = new Set(pubs.map(venueKeyForOsmPub));
   const statePath = checkpointPath(args.city);
-  if (args.reset && existsSync(statePath)) rmSync(statePath);
   const observedAt = new Date().toISOString();
-  const checkpoint = resumeCheckpoint(
-    existsSync(statePath) ? JSON.parse(readFileSync(statePath, "utf8")) : null,
-    {
-      city: args.city,
-      totalPubs: pubs.length,
-      committedPrices: committedCityPrices(
-        readUpdates(path.join(PRICE_DIR, "latest.json")),
-        cityVenueKeys,
-      ),
-      observedAt,
-    },
+  const saved = existsSync(statePath) ? JSON.parse(readFileSync(statePath, "utf8")) : null;
+  const checkpoint = resumeCheckpoint(saved, {
+    city: args.city,
+    totalPubs: pubs.length,
+    cityVenueKeys,
+    observedAt,
+    reset: args.reset,
+  });
+  if (saved && checkpoint !== saved) {
+    const leftPack = (saved.prices?.length ?? 0) - checkpoint.prices.length;
+    console.log(
+      `${args.city}: checkpoint restarted; ${checkpoint.prices.length} prices carried over, ` +
+        `${leftPack} dropped because their pub left the pack.`,
+    );
+  }
+  const rejectedPath = path.join(REPORT_ROOT, args.city, "rejected.json");
+  const rejectedRows = readRejectedRows(
+    existsSync(rejectedPath) ? JSON.parse(readFileSync(rejectedPath, "utf8")) : undefined,
   );
+  const committedPrices = committedCityPrices(readUpdates(path.join(PRICE_DIR, "latest.json")), cityVenueKeys);
 
   console.log(
     `${args.city}: ${pubs.length} OSM pubs; ${Object.keys(checkpoint.readAt).length} read before; ` +
@@ -315,6 +403,8 @@ async function main() {
     maxQueries: args.maxQueries,
     maxCredits: args.maxCredits,
     observedAt,
+    committedPrices,
+    rejectedRows,
     onState: (next) => {
       if (!args.dryRun) atomicWriteJson(statePath, next);
     },

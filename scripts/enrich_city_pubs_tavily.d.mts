@@ -33,6 +33,8 @@ export type CityCheckpoint = {
   totalQueriesSpent: number;
   totalCreditsSpent: number;
   prices: ManagedPrice[];
+  /** Every reading the committed data has held, so one a reviewer removed is not re-added. */
+  committedReadings: string[];
   pages: Array<Record<string, unknown>>;
   delegatedChains: Array<Record<string, unknown>>;
 };
@@ -42,9 +44,36 @@ export function committedCityPrices<T extends ManagedPrice>(
   cityVenueKeys: Set<string>,
 ): T[];
 
+export type RejectedRow = { venueKey: string; sourceUrl: string; rejectedAt?: string };
+
+export function loadCityPubs(cityId: string): OsmPub[];
+
+export function readRejectedRows(value: unknown): RejectedRow[];
+
+export function rejectClosedPrRows(
+  rejectedRows: RejectedRow[],
+  options: {
+    prUpdates: ManagedPrice[];
+    committedUpdates: ManagedPrice[];
+    cityVenueKeys: Set<string>;
+    rejectedAt: string;
+  },
+): RejectedRow[];
+
 export function resumeCheckpoint(
   saved: unknown,
-  options: { city: string; totalPubs: number; committedPrices: ManagedPrice[]; observedAt: string },
+  options: {
+    city: string;
+    totalPubs: number;
+    cityVenueKeys: Set<string>;
+    observedAt: string;
+    reset?: boolean;
+  },
+): CityCheckpoint;
+
+export function reconcileWithCommitted(
+  state: CityCheckpoint,
+  options: { committedPrices: ManagedPrice[]; rejectedRows: RejectedRow[] },
 ): CityCheckpoint;
 
 export function stalestFirst(pubs: OsmPub[], readAt: Record<string, string>): number[];
@@ -56,6 +85,8 @@ export function runCityPass(
   > & {
     checkpoint: CityCheckpoint;
     observedAt: string;
+    committedPrices: ManagedPrice[];
+    rejectedRows?: RejectedRow[];
     onState?: (state: CityCheckpoint) => void;
   },
 ): Promise<{ runResult: TavilyEnrichmentResult; state: CityCheckpoint }>;

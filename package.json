@@ -73,6 +73,7 @@
     "android:run": "node scripts/android/run.mjs",
     "refresh:drink-prices": "node scripts/refresh_drink_prices.mjs",
     "enrich:city": "tsx scripts/enrich_city_pubs_tavily.mjs",
+    "tavily:reject": "tsx scripts/reject_tavily_rows.mjs",
     "evaluate:open-pubs": "node scripts/evaluate_open_pubs.mjs",
     "evaluate:open-pubs:london": "node scripts/evaluate_open_pubs.mjs --london",
     "whats-on-refresh": "node scripts/refresh_whats_on.mjs",
