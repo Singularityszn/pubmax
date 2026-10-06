@@ -90,6 +90,10 @@ function scrollingAncestor(node: HTMLElement): HTMLElement | null {
 
 function clearFocusedFieldAboveConsentCard(card: HTMLElement, focused: HTMLElement): void {
   if (card.contains(focused) || focused.closest(".mobileTabBar")) return;
+  // An open sheet hides the card (app/globals.css), and a hidden card covers
+  // nothing. Clearing its lane anyway scrolled the sheet between pointerdown
+  // and pointerup, so a tap on a control there landed on the line below it.
+  if (getComputedStyle(card).visibility === "hidden") return;
   const lane = card.getBoundingClientRect();
   const delta = Math.ceil(consentFocusScrollDelta(focused.getBoundingClientRect(), lane));
   if (delta <= 0) return;
