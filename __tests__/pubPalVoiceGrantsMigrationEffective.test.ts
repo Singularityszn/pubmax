@@ -287,10 +287,14 @@ describe.skipIf(skipReason !== null)("after 0176", () => {
     harness.conversations.set("conv_neverissued1", { status: "done", seconds: 0 });
 
     harness.userId = uuid(6);
+    const providerCalls = () => vi.mocked(fetch).mock.calls.length;
+    const before = providerCalls();
     expect(await (await release({ conversationId: mine.conversationId })).json())
       .toMatchObject({ settled: false });
     expect(await (await release({ conversationId: "conv_neverissued1" })).json())
       .toMatchObject({ settled: false });
+    // Neither release cost a provider request: the caller owns neither session.
+    expect(providerCalls()).toBe(before);
 
     expect(usedMinutes(uuid(5))).toBe(PAL_VOICE_GRANT_MINUTES);
     expect(grantRow(uuid(5), mine.conversationId)).toBe("issued|-");
@@ -336,7 +340,7 @@ describe.skipIf(skipReason !== null)("after 0176", () => {
     expect(db().sql(`select count(*) from public.pub_pal_voice_grants where owner_id = '${uuid(7)}'`)).toBe("10");
   });
 
-  it("refunds only a grant the server never handed out, once", () => {
+  it("refunds a grant only before it is settled, once, and only for its owner", () => {
     const owner = uuid(1);
     const grant = uuid(2000);
     expect(db().sql(call("prepay_pub_pal_voice_grant", `'${owner}', date '${month}', '${grant}', 3, 30`))).toBe("t");
@@ -350,12 +354,28 @@ describe.skipIf(skipReason !== null)("after 0176", () => {
     expect(db().sql(call("refund_pub_pal_voice_grant", `'${owner}', '${grant}'`))).toBe("f");
     expect(usedMinutes(owner)).toBe(0);
 
-    // Once linked to a conversation the grant is a URL in a browser: no refund.
+    // A link that committed with its reply lost leaves the grant issued, and the
+    // route's refund must still give the minutes back: no URL reached a browser.
     const linked = uuid(2001);
     db().sql(call("prepay_pub_pal_voice_grant", `'${owner}', date '${month}', '${linked}', 3, 30`));
     expect(db().sql(call("link_pub_pal_voice_conversation", `'${owner}', '${linked}', 'conv_refundtest1'`))).toBe("t");
-    expect(db().sql(call("refund_pub_pal_voice_grant", `'${owner}', '${linked}'`))).toBe("f");
-    expect(usedMinutes(owner)).toBe(3);
+    expect(db().sql(call("owns_issued_pub_pal_voice_conversation", `'${owner}', 'conv_refundtest1'`))).toBe("t");
+    expect(db().sql(call("refund_pub_pal_voice_grant", `'${owner}', '${linked}'`))).toBe("t");
+    expect(usedMinutes(owner)).toBe(0);
+    // A refunded grant is no longer issued, so it can be neither settled nor owned.
+    expect(db().sql(call("owns_issued_pub_pal_voice_conversation", `'${owner}', 'conv_refundtest1'`))).toBe("f");
+    expect(db().sql(call("settle_pub_pal_voice_conversation", `'${owner}', 'conv_refundtest1', 0`))).toBe("f");
+    expect(usedMinutes(owner)).toBe(0);
+
+    // A settled grant is never refunded: the call was real.
+    const settled = uuid(2002);
+    db().sql(call("prepay_pub_pal_voice_grant", `'${owner}', date '${month}', '${settled}', 3, 30`));
+    db().sql(call("link_pub_pal_voice_conversation", `'${owner}', '${settled}', 'conv_refundtest2'`));
+    expect(db().sql(call("settle_pub_pal_voice_conversation", `'${owner}', 'conv_refundtest2', 61`))).toBe("t");
+    expect(db().sql(call("refund_pub_pal_voice_grant", `'${owner}', '${settled}'`))).toBe("f");
+    expect(usedMinutes(owner)).toBe(2);
+    expect(db().sql(call("owns_issued_pub_pal_voice_conversation", `'${owner}', 'conv_refundtest2'`))).toBe("f");
+    expect(db().sql(call("owns_issued_pub_pal_voice_conversation", `'${uuid(2)}', 'conv_refundtest2'`))).toBe("f");
   });
 
   it("refuses a malformed month, minutes, conversation id or duration", () => {
@@ -380,6 +400,7 @@ describe.skipIf(skipReason !== null)("after 0176", () => {
       `select public.refund_pub_pal_voice_grant('${uuid(1)}', '${uuid(2200)}')`,
       `select public.link_pub_pal_voice_conversation('${uuid(1)}', '${uuid(2200)}', 'conv_browser0001')`,
       `select public.issued_pub_pal_voice_conversations('${uuid(1)}', date '${month}')`,
+      `select public.owns_issued_pub_pal_voice_conversation('${uuid(1)}', 'conv_browser0001')`,
       `select public.settle_pub_pal_voice_conversation('${uuid(1)}', 'conv_browser0001', 0)`,
     ]) {
       for (const [role, sub] of [["anon", null], ["authenticated", uuid(1)]] as const) {
@@ -404,7 +425,7 @@ describe.skipIf(skipReason !== null)("rollback 0176", () => {
         where n.nspname = 'public' and p.proname in (
           'prepay_pub_pal_voice_grant', 'refund_pub_pal_voice_grant',
           'link_pub_pal_voice_conversation', 'settle_pub_pal_voice_conversation',
-          'issued_pub_pal_voice_conversations')
+          'issued_pub_pal_voice_conversations', 'owns_issued_pub_pal_voice_conversation')
       `),
     ).toBe("0");
     expect(db().sql(`select to_regclass('public.pub_pal_voice_grants') is null`)).toBe("t");

@@ -76,8 +76,9 @@ function meterFor(userId: string, month: string): PalVoiceMeterState {
 
 /**
  * Gives back one prepaid grant after the SERVER failed before it handed a signed
- * URL to the browser. A grant that reached the browser is never refunded here:
- * `refund_pub_pal_voice_grant` refuses anything past 'reserved'.
+ * URL to the browser. Callers refund only on a path that returns no URL. The
+ * database refunds a 'reserved' grant, and an 'issued' one for the case where the
+ * link committed but its reply was lost. A settled grant is never refunded.
  */
 async function refundVoiceGrant(
   admin: ReturnType<typeof requireSupabaseAdmin> | null,
@@ -145,6 +146,23 @@ async function settleConversation(
   }
 }
 
+/** True only when the owner holds an issued, unsettled grant for the conversation. */
+async function ownsIssuedConversation(
+  admin: ReturnType<typeof requireSupabaseAdmin>,
+  userId: string,
+  conversationId: string,
+): Promise<boolean> {
+  try {
+    const { data, error } = await admin.rpc("owns_issued_pub_pal_voice_conversation", {
+      p_owner_id: userId,
+      p_conversation_id: conversationId,
+    });
+    return !error && data === true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Settles every grant of the owner's month that a release left issued, from
  * the provider's own durations, so the allowance check sees what the calls
@@ -200,9 +218,14 @@ async function handleRelease(
   const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
   if (!isSupabaseConfigured() || !apiKey || !isPubPalConversationId(conversationId)) return unsettled;
 
+  // Ask the provider only about a session this caller was issued, so a made-up
+  // conversation id costs a database read and never a provider request.
+  const admin = requireSupabaseAdmin();
+  if (!await ownsIssuedConversation(admin, userId, conversationId)) return unsettled;
+
   const seconds = await providerCallSecondsOnceEnded(conversationId, apiKey);
   if (seconds === null) return unsettled;
-  const settled = await settleConversation(requireSupabaseAdmin(), userId, conversationId, seconds);
+  const settled = await settleConversation(admin, userId, conversationId, seconds);
   return jsonNoStore({ released: true, settled, remainingMinutes });
 }
 
@@ -335,6 +358,8 @@ async function handleIssueToken(userId: string): Promise<Response> {
       } catch {
         linked = false;
       }
+      // An ambiguous link (committed, reply lost) lands here too: no URL is handed
+      // out, and the refund in `finally` covers a grant already marked issued.
       if (!linked) {
         return publicApiError("Voice service is temporarily unavailable.", "UNAVAILABLE", 503, {
           retryable: true,

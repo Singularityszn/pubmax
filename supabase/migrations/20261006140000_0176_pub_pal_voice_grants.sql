@@ -96,8 +96,11 @@ begin
 end;
 $$;
 
--- Server failure before a URL left the building. Only a 'reserved' grant can be
--- refunded, once, so a grant that reached a browser can never be taken back.
+-- Server failure before a URL left the building, once. A 'reserved' grant is
+-- refunded, and so is an 'issued' one: the route refunds an issued grant only
+-- when the link committed but its reply was lost, so no URL reached the browser.
+-- A settled or already refunded grant is never touched, and only service_role
+-- can call this.
 create function public.refund_pub_pal_voice_grant(
   p_owner_id uuid,
   p_grant_id uuid
@@ -111,7 +114,7 @@ declare
 begin
   update public.pub_pal_voice_grants
      set state = 'refunded'
-   where id = p_grant_id and owner_id = p_owner_id and state = 'reserved'
+   where id = p_grant_id and owner_id = p_owner_id and state in ('reserved', 'issued')
   returning * into grant_row;
   if not found then
     return false;
@@ -160,6 +163,24 @@ as $$
     from public.pub_pal_voice_grants
    where owner_id = p_owner_id and usage_month = p_month
      and state = 'issued' and conversation_id is not null;
+$$;
+
+-- Whether this owner holds an issued, still unsettled grant for the
+-- conversation, so a release asks the provider only about its own sessions.
+create function public.owns_issued_pub_pal_voice_conversation(
+  p_owner_id uuid,
+  p_conversation_id text
+) returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.pub_pal_voice_grants
+     where owner_id = p_owner_id and conversation_id = p_conversation_id
+       and state = 'issued'
+  );
 $$;
 
 -- Settles an issued grant from the provider's own duration, once. The charge is
@@ -215,6 +236,8 @@ revoke all on function public.link_pub_pal_voice_conversation(uuid, uuid, text)
   from public, anon, authenticated;
 revoke all on function public.issued_pub_pal_voice_conversations(uuid, date)
   from public, anon, authenticated;
+revoke all on function public.owns_issued_pub_pal_voice_conversation(uuid, text)
+  from public, anon, authenticated;
 revoke all on function public.settle_pub_pal_voice_conversation(uuid, text, integer)
   from public, anon, authenticated;
 grant execute on function public.prepay_pub_pal_voice_grant(uuid, date, uuid, integer, integer)
@@ -224,6 +247,8 @@ grant execute on function public.refund_pub_pal_voice_grant(uuid, uuid)
 grant execute on function public.link_pub_pal_voice_conversation(uuid, uuid, text)
   to service_role;
 grant execute on function public.issued_pub_pal_voice_conversations(uuid, date)
+  to service_role;
+grant execute on function public.owns_issued_pub_pal_voice_conversation(uuid, text)
   to service_role;
 grant execute on function public.settle_pub_pal_voice_conversation(uuid, text, integer)
   to service_role;

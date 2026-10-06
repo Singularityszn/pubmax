@@ -7014,6 +7014,13 @@ export type Database = {
         };
         Returns: boolean;
       };
+      owns_issued_pub_pal_voice_conversation: {
+        Args: {
+          p_owner_id: string | null;
+          p_conversation_id: string | null;
+        };
+        Returns: boolean;
+      };
       prepay_pub_pal_voice_grant: {
         Args: {
           p_owner_id: string | null;

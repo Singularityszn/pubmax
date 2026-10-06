@@ -83,6 +83,7 @@ const providerCall = (status: string, seconds: number | null) =>
     metadata: seconds === null ? {} : { call_duration_secs: seconds },
   }));
 
+const OWNS = "owns_issued_pub_pal_voice_conversation";
 const ISSUED = "issued_pub_pal_voice_conversations";
 
 /** One request, with the release's wait for the provider played out on a fake clock. */
@@ -320,7 +321,8 @@ describe("Pub Pal voice token route", () => {
       expect(await response.json()).toMatchObject({ released: true, settled: false });
     }
 
-    expect(voiceState.events).toEqual([]);
+    // Only the ownership read ran: the reported duration settled and refunded nothing.
+    expect(voiceState.events).toEqual(Array(7).fill(OWNS));
     for (const name of ["refund_pub_pal_voice_grant", "record_pub_pal_voice_minutes", "release_pub_pal_voice_trial"]) {
       expect(voiceState.rpc).not.toHaveBeenCalledWith(name, expect.anything());
     }
@@ -356,13 +358,14 @@ describe("Pub Pal voice token route", () => {
     { label: "is refused by the provider", fetch: () => vi.fn(async () => new Response(null, { status: 404 })) },
     { label: "cannot be read", fetch: () => vi.fn(async () => { throw new Error("offline"); }) },
   ])("leaves the prepaid grant charged when the provider call $label", async ({ fetch }) => {
+    voiceState.rpc.mockResolvedValue({ data: true, error: null });
     vi.stubGlobal("fetch", fetch());
 
     const { response, elapsedMs } = await postOnFakeClock(releaseRequest());
 
     expect(await response.json()).toMatchObject({ released: true, settled: false });
     expect(elapsedMs).toBeLessThanOrEqual(5_000);
-    expect(voiceState.rpc).not.toHaveBeenCalled();
+    expect(voiceState.rpc).not.toHaveBeenCalledWith("settle_pub_pal_voice_conversation", expect.anything());
   });
 
   it("settles a call the provider reports ended a moment after the browser hung up", async () => {
@@ -387,6 +390,7 @@ describe("Pub Pal voice token route", () => {
   });
 
   it("stops asking the provider once the settle window closes", async () => {
+    voiceState.rpc.mockResolvedValue({ data: true, error: null });
     const provider = providerCall("in-progress", 12);
     vi.stubGlobal("fetch", provider);
 
@@ -395,7 +399,7 @@ describe("Pub Pal voice token route", () => {
     expect(await response.json()).toMatchObject({ released: true, settled: false });
     expect(provider.mock.calls.length).toBeGreaterThan(1);
     expect(elapsedMs).toBeLessThanOrEqual(5_000);
-    expect(voiceState.rpc).not.toHaveBeenCalled();
+    expect(voiceState.rpc).not.toHaveBeenCalledWith("settle_pub_pal_voice_conversation", expect.anything());
   });
 
   it("settles the owner's issued grants from the provider before the allowance check", async () => {
@@ -471,7 +475,8 @@ describe("Pub Pal voice token route", () => {
 
   it("reports an unsettled release when the settle call fails", async () => {
     vi.stubGlobal("fetch", providerCall("done", 30));
-    voiceState.rpc.mockResolvedValue({ data: null, error: { message: "db down" } });
+    voiceState.rpc.mockImplementation(async (name: string) =>
+      name === OWNS ? { data: true, error: null } : { data: null, error: { message: "db down" } });
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
 
     const response = await POST(releaseRequest());
@@ -479,6 +484,25 @@ describe("Pub Pal voice token route", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ released: true, settled: false });
     expect(consoleError).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    { label: "holds no issued grant for it", rpc: async () => ({ data: false, error: null }) },
+    { label: "cannot be checked", rpc: async () => ({ data: null, error: { message: "db down" } }) },
+    { label: "throws on the check", rpc: async () => { throw new Error("db down"); } },
+  ])("never asks the provider about a conversation the caller $label", async ({ rpc }) => {
+    voiceState.rpc.mockImplementation(rpc);
+    const provider = providerCall("done", 5);
+    vi.stubGlobal("fetch", provider);
+
+    const response = await POST(releaseRequest({ conversationId: "conv_somebodyElse1" }));
+
+    expect(await response.json()).toMatchObject({ released: true, settled: false });
+    expect(voiceState.rpc).toHaveBeenCalledExactlyOnceWith(OWNS, {
+      p_owner_id: voiceState.userId,
+      p_conversation_id: "conv_somebodyElse1",
+    });
+    expect(provider).not.toHaveBeenCalled();
   });
 
   it("keyless: a release settles nothing and moves no meter", async () => {
