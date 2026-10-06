@@ -8,7 +8,7 @@ import { postgresSkipReason, startPostgres, type PostgresSession } from "./helpe
 
 const skipReason = postgresSkipReason();
 const MIGRATIONS = join(process.cwd(), "supabase/migrations");
-const NAME = "20261004233000_0174_venue_photo_and_visit_report_actor_append";
+const NAME = "20261006130000_0175_venue_photo_and_visit_report_actor_append";
 const FORWARD = join(MIGRATIONS, `${NAME}.sql`);
 const ROLLBACK = join(MIGRATIONS, "rollback", `${NAME}_rollback.sql`);
 const PROFILE = "10000000-0000-4000-8000-000000000174";
@@ -165,7 +165,7 @@ afterAll(async () => {
   await session?.stop();
 });
 
-describe.skipIf(skipReason !== null)("provisional 0174 atomic report actors", () => {
+describe.skipIf(skipReason !== null)("provisional 0175 atomic report actors", () => {
   it.each(TARGETS)("retains concurrent distinct and duplicate actors in $table", async (target) => {
     const results = await throughLockBarrier(target, [
       asService(target, "actor-a", "' first reason '"),

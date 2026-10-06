@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { paintedAmbientSurfaces } from "./helpers/ambientMapSurfaces";
+import { expectLayoutSettled } from "./helpers/layoutSettled";
 
 const DESKTOP = { width: 1440, height: 900 };
 const DESKTOP_WIDTHS = [1024, 1280, 1440, 1600] as const;
@@ -248,6 +249,8 @@ for (const width of DESKTOP_WIDTHS) {
   test(`${width}px open planner keeps toolbar search and Clear search beyond the rail edge`, async ({
     page,
   }) => {
+    // A cold map gives the toolbar and the rail up to 20 s each below.
+    test.setTimeout(90_000);
     await prepareDesktopMap(page, width);
     await stubCityStatus(page);
 
@@ -274,6 +277,9 @@ for (const width of DESKTOP_WIDTHS) {
         message: "planner rail has finished its slide to the viewport edge",
       })
       .toBeLessThanOrEqual(1);
+    // The rail's spring and the toolbar's shift are measured at rest.
+    await expectLayoutSettled(rail);
+    await expectLayoutSettled(toolbar);
 
     const [railBox, toolbarBox, searchBox, clearBox] = await Promise.all([
       renderedBox(rail, "planner rail"),
@@ -321,23 +327,30 @@ for (const width of DESKTOP_WIDTHS) {
 test("1440px planner hands ownership to venue and Back restores composed state", async ({
   page,
 }) => {
-  test.setTimeout(120_000);
+  // The venue list may take up to 90 s to finish counting on a slow runner,
+  // so the budget leaves room for that wait plus every step after it.
+  test.setTimeout(210_000);
   await prepareDesktopMap(page);
   await stubCityStatus(page);
 
-  const response = await page.goto("/map?desktop-drawer-exchange=1440", {
+  const response = await page.goto("/map?list=1&desktop-drawer-exchange=1440", {
     waitUntil: "domcontentloaded",
   });
   expect(response?.status()).toBe(200);
 
   const toolbar = page.locator(".mapToolbar");
   await expect(toolbar).toBeVisible({ timeout: 20_000 });
-  await page.getByRole("button", { name: /Map layers:/ }).click();
-  await page.getByRole("button", { name: "List view" }).click();
   const retargetVenue = page
     .locator(".mapVenueListItem")
     .filter({ hasNotText: "Three Sheets Soho" })
     .first();
+  // The list says "Counting them up…" until its rows have loaded, and a slow
+  // runner can spend longer than the row wait below on that read alone.
+  await expect(page.locator(".mapVenueListCount")).toBeVisible();
+  await expect(page.locator(".mapVenueListCount")).not.toHaveText(
+    "Counting them up…",
+    { timeout: 90_000 },
+  );
   await expect(retargetVenue).toHaveCount(1, { timeout: 20_000 });
   await toolbar
     .getByRole("button", { name: "Plan an outing" })
@@ -362,15 +375,39 @@ test("1440px planner hands ownership to venue and Back restores composed state",
     "toolbar before ownership change",
   );
   await captureDrawerExchange(page, "planner-open");
-  const ownershipChange = await firstVenueOption.evaluate((option) => {
-    const toolbar = document.querySelector<HTMLElement>(".mapToolbar");
-    if (!toolbar) throw new Error("desktop toolbar is missing");
-    const before = toolbar.getBoundingClientRect().x;
-    (option as HTMLElement).click();
-    return {
-      before,
-      after: toolbar.getBoundingClientRect().x,
+  // The venue is chosen with a REAL pointer tap, so Playwright checks that a
+  // reader can hit the option. The toolbar is read in the page on either side
+  // of React's handler: a capture listener on window before the tap, a bubble
+  // listener after it.
+  await page.evaluate(() => {
+    const toolbarX = () => {
+      const toolbar = document.querySelector<HTMLElement>(".mapToolbar");
+      if (!toolbar) throw new Error("desktop toolbar is missing");
+      return toolbar.getBoundingClientRect().x;
     };
+    const holder = window as unknown as {
+      __ownershipChange?: Promise<{ before: number; after: number }>;
+    };
+    holder.__ownershipChange = new Promise((resolve) => {
+      let before = 0;
+      window.addEventListener("click", () => (before = toolbarX()), {
+        capture: true,
+        once: true,
+      });
+      window.addEventListener(
+        "click",
+        () => resolve({ before, after: toolbarX() }),
+        { once: true },
+      );
+    });
+  });
+  await firstVenueOption.click();
+  const ownershipChange = await page.evaluate(() => {
+    const holder = window as unknown as {
+      __ownershipChange?: Promise<{ before: number; after: number }>;
+    };
+    if (!holder.__ownershipChange) throw new Error("tap probe was not armed");
+    return holder.__ownershipChange;
   });
   expect(
     Math.abs(ownershipChange.after - ownershipChange.before),
@@ -380,6 +417,13 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   // crossing rather than sampling after the spring has finished. Under load the
   // spring can finish before the first sample, so mid-exchange geometry is
   // asserted only when a crossing frame is caught.
+  //
+  // A crossing frame is one where the planner has covered less than 80% of its
+  // exit. Both drawers share one spring response (SpringDrawer), but the venue
+  // enters underdamped (SHEET_ENTRANCE_OVERSHOOT_DAMPING) and reaches its rest
+  // edge when the critically damped planner has covered about 88%, then
+  // overshoots left of it by about 18px. A tail frame of the planner's exit
+  // therefore finds the venue at or left of 800 in a correct exchange.
   let caughtMidExchange = false;
   let plannerMid: Awaited<ReturnType<typeof renderedBox>> | null = null;
   let venueMid: Awaited<ReturnType<typeof renderedBox>> | null = null;
@@ -393,7 +437,8 @@ test("1440px planner hands ownership to venue and Back restores composed state",
             renderedBox(venue, "moving venue"),
             renderedBox(toolbar, "moving toolbar"),
           ]);
-          const crossing = plannerBox.x < -1 && plannerBox.x > -plannerBox.width;
+          const crossing =
+            plannerBox.x < -1 && plannerBox.x > -plannerBox.width * 0.8;
           if (crossing) {
             plannerMid = plannerBox;
             venueMid = venueBox;
@@ -413,7 +458,7 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   }
   if (caughtMidExchange && plannerMid && venueMid && toolbarMid) {
     expect(plannerMid.x).toBeLessThan(0);
-    expect(plannerMid.x).toBeGreaterThan(-plannerMid.width);
+    expect(plannerMid.x).toBeGreaterThan(-plannerMid.width * 0.8);
     expect(venueMid.x).toBeGreaterThan(800);
     expect(venueMid.x).toBeLessThan(DESKTOP.width);
     await captureDrawerExchange(page, "mid-exchange");
@@ -452,12 +497,23 @@ test("1440px planner hands ownership to venue and Back restores composed state",
     venue.getByRole("heading", { name: retargetVenueName }).first(),
   ).toBeVisible({ timeout: 20_000 });
 
+  // The open state is measured at rest, once the venue spring and the
+  // toolbar's shift have both settled.
+  await expectLayoutSettled(venue);
+  await expectLayoutSettled(toolbar);
   const [mapAfter, venueOpen, toolbarOpen] = await Promise.all([
     renderedBox(mapStage, "map stage after exchange"),
     renderedBox(venue, "open venue drawer"),
     renderedBox(toolbar, "toolbar beside venue"),
   ]);
-  expect(venueOpen.x).toBeCloseTo(800, 0);
+  // At rest the venue drawer docks to the right edge at the width it publishes
+  // (venueSheet.css: --desktop-venue-drawer-width: min(640px, 46vw), so 800px
+  // at 1440). The custom property is an unresolved min(), so its resolved
+  // computed width is read instead of restating 640 here.
+  const venueRestX = await venue.evaluate(
+    (node) => window.innerWidth - Number.parseFloat(getComputedStyle(node).width),
+  );
+  expect(venueOpen.x).toBeCloseTo(venueRestX, 1);
   expect(toolbarOpen.x + toolbarOpen.width).toBeLessThanOrEqual(
     venueOpen.x - EDGE_GUTTER + SUBPIXEL_TOLERANCE,
   );

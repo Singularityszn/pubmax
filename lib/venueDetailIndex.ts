@@ -17,6 +17,8 @@ import { applyHarvestWebsiteMenu } from "@/lib/harvestFold";
 import { harvestOverlayStore } from "@/lib/harvestOverlayStore";
 import { enrichVenueForDetail } from "@/lib/venueMenuEnrichment";
 import { applyPlacesEnrichment } from "@/lib/venuePlacesEnrichment";
+import { applyVenueSiteFacts } from "@/lib/venueSiteFacts";
+import { siteFactsForVenue } from "@/lib/venueSiteFacts.server";
 import { placesRecordForVenue } from "@/lib/placesEnrichment.server";
 import { enrichVenueWithRecordCopy } from "@/lib/venueRecordCopy.server";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
@@ -242,19 +244,21 @@ async function getFallbackIndex(): Promise<Map<string, Venue>> {
           path.join(process.cwd(), "data", "famous_venues", file),
           "utf8",
         ),
-      ) as FamousVenueSeed[];
+      ) as Array<Omit<FamousVenueSeed, "anchor"> & { anchor?: FamousVenueSeed["anchor"] }>;
       for (const seed of seeds) {
+        const { anchor } = seed;
+        if (!anchor) continue;
         const slim: SlimVenue = {
           id: seed.id,
           name: seed.name,
           lat: seed.lat,
           lng: seed.lng,
-          cheapestPrice: seed.anchor.price,
+          cheapestPrice: anchor.price,
           borough: seed.borough,
           kind: seed.kind,
         };
         const venue = venueFromDetailArtifact(
-          { id: seed.id, famous: { seed, slim } },
+          { id: seed.id, famous: { seed: { ...seed, anchor }, slim } },
           seed.id,
         );
         if (venue) index.set(seed.id, venue);
@@ -360,8 +364,8 @@ export async function lookupVenueDetail(requestedId: string): Promise<VenueDetai
   const result = await lookupVenueDetailBase(requestedId);
   if (result.status !== "found") return result;
   const osmIds = cachedDetails.get(result.venue.id)?.overlayVenueIds ?? [];
-  const record = await placesRecordForVenue(result.venue.id, osmIds);
-  return { ...result, venue: applyPlacesEnrichment(result.venue, record) };
+  const [record, siteFacts] = await Promise.all([placesRecordForVenue(result.venue.id, osmIds), siteFactsForVenue(result.venue.id)]);
+  return { ...result, venue: applyPlacesEnrichment(applyVenueSiteFacts(result.venue, siteFacts), record) };
 }
 
 export async function getVenueDetail(requestedId: string): Promise<Venue | null> {

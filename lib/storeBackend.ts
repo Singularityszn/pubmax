@@ -91,6 +91,48 @@ export function admin(): SupabaseClient {
   return requireSupabaseAdmin();
 }
 
+type VenueIdFilterable = {
+  eq(column: string, value: string): unknown;
+  in(column: string, values: readonly string[]): unknown;
+};
+
+/**
+ * Narrow a query to rows stored under any of a venue's ids (lib/venueAliases.ts
+ * `storedVenueIds`, current id first). A venue with no former id keeps the
+ * equality filter it always had. Both filters return the same builder type, so
+ * the query keeps its own type.
+ */
+export function whereVenueIdIn<Q>(query: Q, venueIds: readonly string[]): Q {
+  const builder = query as unknown as VenueIdFilterable;
+  const [only] = venueIds;
+  return (
+    venueIds.length === 1 && only !== undefined
+      ? builder.eq("venue_id", only)
+      : builder.in("venue_id", venueIds)
+  ) as Q;
+}
+
+/**
+ * Of rows found across a venue's stored ids, the one under the earliest id, so
+ * a row under the current id wins over one under a former id. The rule the
+ * memory stores follow by walking `storedVenueIds` in order.
+ */
+export function rowUnderCurrentVenueId<R extends { venue_id?: unknown }>(
+  rows: readonly R[],
+  venueIds: readonly string[],
+): R | null {
+  let best: R | null = null;
+  let bestIndex = Number.POSITIVE_INFINITY;
+  for (const row of rows) {
+    const index = venueIds.indexOf(String(row.venue_id));
+    if (index !== -1 && index < bestIndex) {
+      best = row;
+      bestIndex = index;
+    }
+  }
+  return best;
+}
+
 /** Postgres unique_violation (23505): a duplicate insert racing an existing
  *  row — the idempotent-success case for toggle/insert-if-absent writes. */
 export function isUniqueViolation(error: { code?: string } | null | undefined): boolean {

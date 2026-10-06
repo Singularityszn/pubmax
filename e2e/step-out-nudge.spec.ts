@@ -129,13 +129,6 @@ async function installStepOutRoutes(page: Page): Promise<{ enabled: boolean }> {
       body: JSON.stringify({ handle: "step_out" }),
     });
   });
-  await page.route("**/api/push-tokens", async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ ok: true }),
-    });
-  });
   await page.route("**/api/step-out-nudge", async (route) => {
     const method = route.request().method();
     if (method === "GET") {
@@ -223,9 +216,15 @@ test.describe("Step Out weekly nudge opt-in (390x844)", () => {
       fullPage: true,
     });
 
+    const registration = page.waitForRequest(
+      (request) => request.method() === "POST" && new URL(request.url()).pathname === "/api/push-tokens",
+    );
     await panel.getByRole("button", { name: "Turn Step Out on" }).click();
     await expect(panel.getByText(/Step Out on/i)).toBeVisible({ timeout: 10_000 });
     expect(state.enabled).toBe(true);
+    const registrationRequest = await registration;
+    expect(registrationRequest.postDataJSON()).toMatchObject({ platform: "web", token: expect.stringMatching(/^webpush:/) });
+    expect((await registrationRequest.response())?.status()).toBe(200);
 
     await panel.getByRole("button", { name: "Turn Step Out off" }).click();
     await expect(panel.getByText(/Step Out off/i)).toBeVisible({ timeout: 10_000 });

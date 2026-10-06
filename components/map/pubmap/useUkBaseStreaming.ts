@@ -86,7 +86,8 @@ type Options = {
   restoreId?: string | null;
   /** Optional `at=` companion; scopes the cold shard fetch to one cell. */
   restoreHint?: UkBaseRestoreHint;
-  onRestorePub?: (pub: UkBasePub) => void;
+  /** The restored pub, under its current id, and the id the arrival named. */
+  onRestorePub?: (pub: UkBasePub, requestedId: string) => void;
   /** Fail closed: id not in the pack, or the pack could not be read. */
   onRestoreFailed?: (reason: UkBaseRestoreFailure) => void;
 };
@@ -153,17 +154,19 @@ export function invalidateUkBaseStreamToken(
 
 /**
  * Parse `/api/uk-base/[id]` JSON. Pure so cold-restore tests do not need a
- * network. Rejects anything that is not a well-formed base pub.
+ * network. Rejects anything that is not a well-formed base pub for the
+ * requested id, or for the id a refresh re-mapped it to (`formerId`).
  */
 export function parseUkBaseRestoreResponse(
   value: unknown,
   expectedId: string,
 ): UkBasePub | null {
   if (typeof value !== "object" || value === null) return null;
-  const pub = (value as { pub?: unknown }).pub;
+  const { pub, formerId } = value as { pub?: unknown; formerId?: unknown };
   if (typeof pub !== "object" || pub === null) return null;
   const row = pub as Record<string, unknown>;
-  if (typeof row.id !== "string" || row.id !== expectedId || !isUkBaseId(row.id)) {
+  const answersExpected = row.id === expectedId || formerId === expectedId;
+  if (typeof row.id !== "string" || !answersExpected || !isUkBaseId(row.id)) {
     return null;
   }
   if (typeof row.name !== "string" || row.name.length === 0) return null;
@@ -326,7 +329,7 @@ export function useUkBaseStreaming({
       if (restoreIdRef.current !== wanted) return;
       if (pub) {
         restoreIdRef.current = null;
-        onRestorePubRef.current?.(pub);
+        onRestorePubRef.current?.(pub, wanted);
         return;
       }
       if (failure) {
@@ -398,7 +401,7 @@ export function useUkBaseStreaming({
           const hit = drawablePubs.find((pub) => pub.id === wanted);
           if (!hit) return;
           restoreIdRef.current = null;
-          onRestorePubRef.current?.(hit);
+          onRestorePubRef.current?.(hit, wanted);
         });
     };
 

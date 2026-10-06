@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { expectLayoutSettled } from "./helpers/layoutSettled";
+
 // The B1 reproduction from the 7 Sep live walk (docs/proof/astra-live-walk/
 // report.md), turned into a fence.
 //
@@ -62,6 +64,11 @@ test.describe("the first-visit card and the pin field", () => {
         timeout: ARRIVAL_TIMEOUT_MS,
       })
       .toBeGreaterThan(0);
+
+    // The card arrives on a 160ms rise from 8px low. A box read mid-rise sits
+    // up to 8px under the card at rest, and a pin 3px below the resting card
+    // (373,635 and 144,635, about one run in ten) read as under it.
+    await expectLayoutSettled(card);
 
     // And the card leaves the upper map clear: it is one row docked low.
     // `boundingBox()` answers x/y/width/height and NOTHING else: reading `.top`

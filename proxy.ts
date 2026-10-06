@@ -325,11 +325,12 @@ export function securityProxy(request: NextRequest) {
       ),
     );
   }
-  // /onboarding is the native shell's one-time first-run surface and NOTHING
-  // else. `consumeNativeFirstRunHandoff` is native-only and session-scoped, so
-  // a web visit has always failed closed and replaced the URL with "/". It did
-  // that in the browser, after rendering and discarding a whole document: it
-  // was the worst LCP on the site at 4676 ms on Slow 4G, because the paint
+  // /onboarding is the native shell's one-time first-run surface, and the web
+  // reaches it only by a client navigation from the landing hero's primary
+  // (`?start=web`, lib/firstRunRoute.ts). `consumeNativeFirstRunHandoff` is
+  // native-only and session-scoped, so any other web visit has always failed
+  // closed and replaced the URL with "/". It did that in the browser, after
+  // rendering and discarding a whole document: it was the worst LCP on the site at 4676 ms on Slow 4G, because the paint
   // being measured was the homepage arriving after the bounce (Astra's live
   // walk, 7 Sep 2026, finding B6).
   //

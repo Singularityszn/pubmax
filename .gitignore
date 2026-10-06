@@ -47,6 +47,7 @@ data/generated/venue_detail_index.json
 data/generated/venue_details.jsonl
 public/data/wikidata_notable_pubs.json
 public/data/wikidata_notable_pubs.json.tmp
+public/data/.*.tmp
 data/editorial/poll-state.json
 data/osm/uk/**/.*.tmp
 data/places_verification/progress.json

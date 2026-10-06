@@ -509,6 +509,53 @@ for (const viewport of ONBOARDING_VIEWPORTS) {
   });
 }
 
+// THE QUESTIONS AFTER THE LONDON CONFIRM LIVE UNDER THE SAME CARD. The budget,
+// the location ask, the patch picker and the result each paint one primary, and
+// the card outranks every other prompt on a first launch, so every one of those
+// screens owes what the London screen owes above: the primary is on screen at
+// rest, clear of the card, and a tap at its centre reaches it. The patch picker
+// is the tall one, which is why it is walked at the short phones too.
+for (const viewport of ONBOARDING_VIEWPORTS) {
+  test(`consent never covers the first-run questions @${viewport.width}x${viewport.height}`, async ({ page }) => {
+    test.setTimeout(90_000);
+    await prepareFirstRunOnboarding(page, viewport);
+    await page.goto("/onboarding", { waitUntil: "domcontentloaded" });
+
+    const prompt = page.getByLabel("Anonymous analytics choice");
+    await expect(prompt).toBeVisible({ timeout: 30_000 });
+    await page.getByRole("button", { name: "Use London" }).click();
+
+    async function expectPrimaryClearOfCard(name: string) {
+      const primary = page.getByRole("button", { name });
+      await expect(primary).toBeVisible();
+      await expect(primary).toBeInViewport({ ratio: 1 });
+      const promptBox = await prompt.boundingBox();
+      const primaryBox = await primary.boundingBox();
+      expect(promptBox).not.toBeNull();
+      expect(primaryBox).not.toBeNull();
+      expect(boxesOverlap(promptBox!, primaryBox!)).toBe(false);
+      expect(await pointOwner(page, primaryBox!, ".firstRunPrimary")).toBe("control");
+    }
+
+    // Budget.
+    await expect(page.getByRole("heading", { name: "What's a fair pint to you?" })).toBeVisible();
+    await expectPrimaryClearOfCard("Continue");
+    await page.getByRole("button", { name: "£6 or less" }).click();
+    await page.getByRole("button", { name: "Continue" }).click();
+
+    // Location ask, then the picker it opens.
+    await expect(page.getByRole("heading", { name: "Find the cheapest pint near you." })).toBeVisible();
+    await expectPrimaryClearOfCard("Use my location");
+    await page.getByRole("button", { name: "Pick a London patch instead" }).click();
+    await expectPrimaryClearOfCard("Use my location");
+    await page.getByRole("button", { name: "Soho" }).click();
+
+    // Result.
+    await expect(page.getByRole("button", { name: "That looks right" })).toBeVisible({ timeout: 45_000 });
+    await expectPrimaryClearOfCard("That looks right");
+  });
+}
+
 // ONE CONSENT CONTROL ON ANY SCREEN, and on the signed-out profile that count
 // is ZERO. `/u/you` used to print a second Allow / No thanks pair inside its
 // own "On this device" panel while the route rule already withheld the docked

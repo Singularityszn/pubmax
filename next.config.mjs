@@ -200,8 +200,6 @@ const nextConfig = {
   typedRoutes: true,
   // Don't advertise the framework/version on dynamic responses.
   poweredByHeader: false,
-  // Browser source maps for PostHog error deobfuscation (no third-party upload).
-  productionBrowserSourceMaps: true,
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
   images: {
     qualities: [75, 78],

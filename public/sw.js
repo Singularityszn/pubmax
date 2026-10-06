@@ -6,7 +6,7 @@
  *  1. NEVER break a fresh deploy. Caches are keyed by a per-build VERSION
  *     (injected via the ?v= query on the registration URL — see
  *     components/OfflineReady.tsx and next.config.mjs). `activate` preserves
- *     valid offline entries and retires old caches only when safely covered.
+ *     trusted offline entries. See sw-plan-cache.js for Plan cache retirement.
  *  2. NEVER serve stale HTML for navigations. Navigations are network-first;
  *     the cache is only a fallback when the network is genuinely down.
  *  3. NEVER cache API responses (GET or POST). Last-train times and pint
@@ -28,14 +28,17 @@
 const WORKER_URL = new URL(self.location.href);
 const VERSION = WORKER_URL.searchParams.get("v")?.trim() || "local";
 const CACHE_POLICY = WORKER_URL.searchParams.get("cache-policy");
-const PRE_FIX_CACHE_POLICIES = new Set(["cache-write-coupled-v1"]);
+const PRE_FIX_CACHE_POLICIES = new Set(["cache-write-coupled-v1", "write-safe-v1"]);
 
 const PREFIX = "pubmax-sw-";
 const DATA_CACHE = `${PREFIX}data-${VERSION}`;
 const SWR_CACHE = `${PREFIX}swr-${VERSION}`;
 const SHELL_CACHE = `${PREFIX}shell-${VERSION}`;
 // Plan detail previews a crew opened earlier, so they reopen offline.
-const PLAN_CACHE = `${PREFIX}plan-${VERSION}`;
+// Older navigation HTML can contain a private anchor in its inline Flight.
+// A disjoint family prevents both migration and fallback from reading it.
+const PLAN_CACHE_PREFIX = `${PREFIX}preview-plan-v2-`;
+const PLAN_CACHE = `${PLAN_CACHE_PREFIX}${VERSION}`;
 const DATA_CACHE_FAMILY = {
   current: DATA_CACHE,
   prefix: `${PREFIX}data-`,
@@ -45,7 +48,7 @@ const CACHE_FAMILIES = [
   DATA_CACHE_FAMILY,
   { current: SWR_CACHE, prefix: `${PREFIX}swr-`, purgeTileHost: true },
   { current: SHELL_CACHE, prefix: `${PREFIX}shell-` },
-  { current: PLAN_CACHE, prefix: `${PREFIX}plan-` },
+  { current: PLAN_CACHE, prefix: PLAN_CACHE_PREFIX },
 ];
 
 // Only new plan-cache writes depend on this versioned helper. Keep eligibility,
@@ -94,7 +97,10 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    Promise.allSettled(CACHE_FAMILIES.map(migrateCacheFamily))
+    Promise.allSettled([
+      ...CACHE_FAMILIES.map(migrateCacheFamily),
+      retireLegacyPlanCaches(),
+    ])
       .then(() => self.clients.claim()),
   );
 });
@@ -111,6 +117,14 @@ function isPreFixActiveWorker() {
   } catch {
     return false;
   }
+}
+
+async function retireLegacyPlanCaches() {
+  const names = await caches.keys();
+  await Promise.allSettled(
+    names.filter((name) => name.startsWith(`${PREFIX}plan-`))
+      .map((name) => caches.delete(name)),
+  );
 }
 
 async function cacheFamilyNames(currentName) {

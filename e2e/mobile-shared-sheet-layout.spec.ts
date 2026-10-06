@@ -30,9 +30,6 @@ const ARNOS_ARMS_ID = stableVenueIdFromKey(
 // page that opens the realtime socket logs a DNS error unless the spec
 // answers for it.
 async function stubKeylessSupabase(page: Page): Promise<void> {
-  await page.route("**/_vercel/insights/script.js", (route) =>
-    route.fulfill({ status: 200, contentType: "application/javascript", body: "" }),
-  );
   await page.route("https://pubmaxx-e2e.supabase.co/**", (route) =>
     route.fulfill({
       status: 200,

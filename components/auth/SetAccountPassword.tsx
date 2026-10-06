@@ -43,6 +43,10 @@ export default function SetAccountPassword(): React.JSX.Element | null {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // A first password turns the card into the collapsed change form. It opens
+  // once on that save, so the confirmation is not hidden inside a closed
+  // disclosure. The person can still close it.
+  const [changeOpen, setChangeOpen] = useState(false);
   const hintId = useId();
 
   useEffect(() => {
@@ -153,6 +157,7 @@ export default function SetAccountPassword(): React.JSX.Element | null {
       setCurrentPassword("");
       setPassword("");
       setConfirm("");
+      setChangeOpen(true);
       setHasPassword(true);
       setMessage("Password saved. You can sign in with your handle next time.");
     } catch (error) {
@@ -245,7 +250,11 @@ export default function SetAccountPassword(): React.JSX.Element | null {
   );
 
   return hasPassword === true ? (
-    <details className="accountHubPasswordChange">
+    <details
+      className="accountHubPasswordChange"
+      open={changeOpen}
+      onToggle={(event) => setChangeOpen(event.currentTarget.open)}
+    >
       <summary>Change password</summary>
       {passwordForm}
     </details>

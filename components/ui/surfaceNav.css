@@ -11,9 +11,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  /* 44px is the tap floor this product measures against
-     (__tests__/mobileChromeFit.test.ts). Both controls take the same box on
-     every surface, so a reader's thumb learns one target. */
+  /* 44px is the tap floor this product measures against. Both controls take
+     the same box on every surface, so a reader's thumb learns one target. */
   width: 44px;
   height: 44px;
   padding: 0;

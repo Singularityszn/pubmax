@@ -59,6 +59,15 @@ with every pub that has read each page or stated each quote, so a later
 harvest skips those pages, no stamp uses them and a page or quote seen by pubs
 on different runs is still proven.
 
+`data/amenities/london_pub_website_hours_dogs.json` holds the dog policy and
+opening hours that a pub's own page states, read from the page texts the
+amenity harvest kept, with no fetch and no model call
+(`npm run harvest:pub-website-hours-dogs`). Each row keeps the page, the day it
+was read and the passage that states each fact. The
+[product features](../README.md#features) describe their display.
+The [CLI header](../scripts/harvest/pub-website-amenities/hours-and-dogs.mjs)
+owns the checkpoint, carry-forward and publication rules.
+
 The 2026-09-04 re-collection read 964 pages with no errors and re-observed 2,624
 of the 2,788 priced rows (94.1%); 55 prices had moved. The other 164 priced rows
 keep the figures they held: 67 of them (the outer-London gazetteer and OSM rows)

@@ -233,19 +233,17 @@ describe("schema-level report", () => {
 
   it("reports 0161-0168 missing when later labels were applied under other versions", () => {
     const lines: string[] = [];
-    // Labels after 0172 are applied under their own version. They also sit
-    // after the gap, so they are out of order too.
-    const laterLabels: string[] = [];
+    // Every label after the gap is applied, so each one is out of order. A new
+    // migration joins that list rather than breaking the expected output.
+    const later = new Set<string>();
     for (const name of listMigrations()) {
       const label = labelOf(name);
       const number = label ? Number(label) : null;
+      if (label && number !== null && number >= 169) later.add(label);
       if (number !== null && number >= 161 && number <= 168) continue;
       if (number !== null && number >= 169 && number <= 172) {
         lines.push(`19990101010101_${label}_applied_under_another_version`);
         continue;
-      }
-      if (label && number !== null && number > 172 && !laterLabels.includes(label)) {
-        laterLabels.push(label);
       }
       const version = versionOf(name);
       if (version) lines.push(version);
@@ -274,11 +272,7 @@ describe("schema-level report", () => {
         "0167",
         "0168",
         "out-of-order:",
-        "0169",
-        "0170",
-        "0171",
-        "0172",
-        ...laterLabels,
+        ...[...later].sort(),
         "",
       ].join("\n"),
     );

@@ -14,7 +14,7 @@ test.describe.configure({ mode: "serial" });
 // has to be THIS script: once the route below is lifted, every /map load
 // registers it, so a target at any other URL is replaced by a second rollout
 // during the reload, which purges the target's tiles while the map is drawing.
-const APP_WORKER_URL = "/sw.js?v=local&cache-policy=write-safe-v1";
+const APP_WORKER_URL = "/sw.js?v=local&cache-policy=plan-preview-safe-v2";
 
 // The basemap is served locally. The workers cache, purge and serve planet
 // tile URLs on the tile host, which is what this spec is about; what is drawn
@@ -235,7 +235,7 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
       const version = new URL(activeScriptUrl).searchParams.get("v");
       const cacheNames = {
         data: `pubmax-sw-data-${version}`,
-        plan: `pubmax-sw-plan-${version}`,
+        plan: `pubmax-sw-preview-plan-v2-${version}`,
         shell: `pubmax-sw-shell-${version}`,
         swr: `pubmax-sw-swr-${version}`,
       };
@@ -409,7 +409,7 @@ test("target worker replaces the pre-fix controller and purges poisoned tiles", 
       }
       return {
         data: await matchFamily("data", "/data/legacy-offline.json"),
-        plan: await matchFamily("plan", "/plan/legacy-offline"),
+        plan: await matchFamily("preview-plan-v2", "/plan/legacy-offline"),
         poisoned: await matchFamily("swr", poisonedTileUrl),
         shell: await matchFamily("shell", "/offline.html"),
         staticAsset: await matchFamily(

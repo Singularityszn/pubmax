@@ -138,6 +138,8 @@ const NOT_REPO_PATHS = new Set([
   "public/data/pint_index/<YYYY-MM>.json",
   // Next configuration property, not a repository path.
   "experimental.staleTimes",
+  // Next module specifier named in the router-cache entry, not a repository path.
+  "next/headers",
   // Next router method named in the /onboarding entry, not a repository path.
   "router.replace",
   // Playwright page methods named in the A/B entry, not repository paths.

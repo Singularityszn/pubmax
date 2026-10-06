@@ -98,7 +98,9 @@ async function installOwnedAccount(
       body: JSON.stringify({
         handle: HANDLE,
         foundingMemberNumber: null,
-        hasPassword: options.hasPassword,
+        // The server answers true once the owner has set one (0173), and the
+        // hub reads it again when GoTrue reports the updated user.
+        hasPassword: counters.passwordWrites > 0 ? true : options.hasPassword,
       }),
     });
   });
@@ -189,7 +191,12 @@ test("an account with no password is offered one, with the rules up front", asyn
   await section.getByLabel("Confirm password").fill("Pubmaxx1!");
   await section.getByRole("button", { name: "Save password" }).click();
 
-  await expect(section.getByRole("status")).toContainText("Password saved");
+  // The card becomes the change disclosure, opened once so the confirmation
+  // is read rather than folded away.
+  const disclosure = page.locator("details.accountHubPasswordChange");
+  await expect(disclosure).toHaveAttribute("open", "");
+  await expect(disclosure.getByRole("status")).toBeVisible();
+  await expect(disclosure.getByRole("status")).toContainText("Password saved");
   expect(counters.passwordWrites).toBe(1);
 });
 

@@ -8,7 +8,7 @@
 // to the in-memory store so demos keep working. Deployed production fails closed: missing-schema
 // and hard write failures throw so the route answers 503 (house rule: degraded
 // dependency, never a fake success). Reads remain fail-soft. The durable
-// `report` is the exception: it needs the migration 0174 RPC and never falls
+// `report` is the exception: it needs the migration 0175 RPC and never falls
 // back to memory, so a missing RPC answers 503 on every path.
 //
 // Idempotent by construction: ONE report per handle per venue per night. A
@@ -25,14 +25,15 @@ import "server-only";
 
 import { randomUUID } from "crypto";
 
-import { requireSupabaseAdmin } from "@/lib/supabase";
 
 import {
   admin,
   createFailSoftGuard,
   isUniqueViolation,
   onMissingDurableWrite,
+  rowUnderCurrentVenueId,
   selectStore,
+  whereVenueIdIn,
 } from "@/lib/storeBackend";
 import {
   cleanBusyness,
@@ -49,6 +50,7 @@ import {
 } from "@/lib/visitReports";
 import { dropWithdrawnAuthors, withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { authorRetiredAtFromRow } from "@/lib/retiredContributor";
+import { storedVenueIds } from "@/lib/venueAliases";
 import type {
   ContributionRecord,
   ContributionRecordReadResult,
@@ -163,9 +165,11 @@ function visitContributionRecord(report: VisitReport): ContributionRecord {
 const byId = new Map<string, VisitReport>();
 const idByNight = new Map<string, string>();
 
-function memoryUpsert(fields: VisitReportFields, now: number): VisitReport {
+async function memoryUpsert(fields: VisitReportFields, now: number): Promise<VisitReport> {
   const key = nightKey(fields.venueId, fields.handle, fields.visitedAt);
-  const existingId = idByNight.get(key);
+  const existingId = (await storedVenueIds(fields.venueId))
+    .map((venueId) => idByNight.get(nightKey(venueId, fields.handle, fields.visitedAt)))
+    .find((id) => id !== undefined);
   const createdAt = new Date(now).toISOString();
   if (existingId) {
     const prev = byId.get(existingId)!;
@@ -197,12 +201,13 @@ function memoryUpsert(fields: VisitReportFields, now: number): VisitReport {
 
 export const memoryVisitReportStore: VisitReportStore = {
   async create(fields, now = Date.now()) {
-    return toVisitReportDTO(memoryUpsert(fields, now));
+    return toVisitReportDTO(await memoryUpsert(fields, now));
   },
 
   async readForVenue(venueId) {
+    const venueIds = await storedVenueIds(venueId);
     const visible = Array.from(byId.values())
-      .filter((r) => r.venueId === venueId && r.status === "visible");
+      .filter((r) => venueIds.includes(r.venueId) && r.status === "visible");
     const reports = (await dropWithdrawnAuthors(visible, (r) => r.handle))
       .sort(byNewestVisit)
       .slice(0, MAX_VENUE_REPORTS)
@@ -340,15 +345,13 @@ function fromRow(row: Record<string, unknown>): VisitReport {
 }
 
 async function selectExistingId(fields: VisitReportFields): Promise<string | null> {
-  const { data, error } = await admin()
-    .from(TABLE)
-    .select("id")
-    .eq("venue_id", fields.venueId)
+  const venueIds = await storedVenueIds(fields.venueId);
+  const { data, error } = await whereVenueIdIn(admin().from(TABLE).select("id, venue_id"), venueIds)
     .eq("handle", fields.handle)
-    .eq("visited_at", fields.visitedAt)
-    .maybeSingle();
+    .eq("visited_at", fields.visitedAt);
   if (error) throw new Error(error.message);
-  return data ? String((data as { id: unknown }).id) : null;
+  const row = rowUnderCurrentVenueId((data ?? []) as { id: unknown; venue_id: unknown }[], venueIds);
+  return row ? String(row.id) : null;
 }
 
 async function updateFields(id: string, fields: VisitReportFields, createdAt: string): Promise<void> {
@@ -414,10 +417,10 @@ export const supabaseVisitReportStore: VisitReportStore = {
       message: "readForVenue failed - returning no reports",
       onError: () => ({ status: "degraded", reports: [] }),
       run: async () => {
-        const { data, error } = await admin()
-          .from(TABLE)
-          .select("*")
-          .eq("venue_id", venueId)
+        const { data, error } = await whereVenueIdIn(
+          admin().from(TABLE).select("*"),
+          await storedVenueIds(venueId),
+        )
           .eq("status", "visible")
           // Same two-key order as the memory store (see byNewestVisit): the
           // night first, the submission time only to break a tie.
@@ -503,7 +506,7 @@ export const supabaseVisitReportStore: VisitReportStore = {
     // The database owns actor uniqueness and reads the current moderation
     // state under its row lock. A missing RPC must never acknowledge a flag
     // through the former read-modify-write or process-memory fallback.
-    const { data, error } = await requireSupabaseAdmin().rpc("append_visit_report_report_actor", {
+    const { data, error } = await admin().rpc("append_visit_report_report_actor", {
       p_id: id,
       p_actor: actorHash,
       p_reason: reason ?? null,

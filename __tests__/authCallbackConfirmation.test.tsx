@@ -3,6 +3,8 @@ import { act, createElement, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { accessTokenWithMethod } from "./helpers/authTokens";
+
 const harness = vi.hoisted(() => ({
   setSession: vi.fn(),
   bootstrap: vi.fn(),
@@ -24,7 +26,6 @@ vi.mock("@/components/auth/ArrivalWelcome", () => ({ default: () => null }));
 vi.mock("@/components/identity/AccountOnboarding", () => ({ default: () => null }));
 vi.mock("@/components/identity/IdentityNudge", () => ({ default: () => null }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
-vi.mock("@/lib/posthog/posthogPerson", () => ({ syncPosthogPersonIdentity: vi.fn() }));
 vi.mock("@/lib/authClient", () => ({
   isAuthConfigured: () => true,
   ensureSupabaseBrowser: async () => ({
@@ -130,7 +131,7 @@ beforeEach(() => {
   });
   harness.mintSession.mockResolvedValue({
     status: "minted",
-    session: { access_token: "synthetic-access", refresh_token: "synthetic-refresh" },
+    session: { access_token: accessTokenWithMethod("synthetic-access"), refresh_token: "synthetic-refresh" },
   });
   container = document.createElement("div");
   document.body.append(container);
@@ -274,6 +275,10 @@ describe("unowned auth callback confirmation", () => {
     harness.getUser.mockResolvedValue({
       data: { user: { id: "account-a", email: "victim@example.com" } },
       error: null,
+    });
+    harness.mintSession.mockResolvedValue({
+      status: "minted",
+      session: { access_token: accessTokenWithMethod("synthetic-access", "magiclink"), refresh_token: "synthetic-refresh" },
     });
     harness.setSession.mockResolvedValue({
       data: {

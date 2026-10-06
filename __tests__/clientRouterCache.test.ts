@@ -1,5 +1,12 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+
+import { ESLint } from "eslint";
 import type { NextConfig } from "next";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import { missingExceptionPages, PER_SESSION_SERVER_PAGES } from "@/lib/routerCacheFence.mjs";
 
 // The client Router Cache window (experimental.staleTimes in next.config.mjs)
 // is what makes a return to a tab instant: the browser reuses a route it
@@ -9,6 +16,8 @@ import { describe, expect, it } from "vitest";
 // It is only safe while no page server-renders per-account content and no
 // surface expects a server re-render after a write. The window below is the
 // one derived from those two invariants, so moving it means re-deriving it.
+// `npm run lint` holds both invariants over the tree (eslint.config.mjs, rules
+// from lib/routerCacheFence.mjs); this file proves those rules fire.
 
 /** The ceiling this window may take without a fresh argument for it. */
 const MAX_STALE_SECONDS = 300;
@@ -35,4 +44,420 @@ describe("the router cache window", () => {
       expect(seconds).toBeLessThanOrEqual(MAX_STALE_SECONDS);
     },
   );
+});
+
+const eslint = new ESLint({ cwd: process.cwd() });
+
+/**
+ * The rule ids the repository lint config reports for `code` saved at `file`.
+ * A fixture that does not parse throws, so a negative assertion cannot pass on
+ * a file no rule ever read.
+ */
+async function lintRules(file: string, code: string): Promise<string[]> {
+  const results = await eslint.lintText(code, { filePath: path.resolve(file) });
+  const messages = results.flatMap((result) => result.messages);
+  const fatal = messages.find((message) => message.fatal);
+  if (fatal) throw new Error(`${file} did not parse: ${fatal.message}`);
+  return messages.flatMap((message) => (message.ruleId ? [message.ruleId] : []));
+}
+
+const CREDENTIAL_READ = "router-cache/credential-read";
+const STALE_EXCEPTION = "router-cache/stale-exception";
+
+const COOKIE_PAGE = `import { cookies } from "next/headers";
+
+export default async function Page() {
+  const jar = await cookies();
+  return <p>{jar.get("sb-account")?.value}</p>;
+}
+`;
+
+const DRAFT_MODE_PAGE = `import { draftMode } from "next/headers";
+
+export default async function Page() {
+  const { isEnabled } = await draftMode();
+  return <p>{String(isEnabled)}</p>;
+}
+`;
+
+const DYNAMIC_COOKIE_PAGE = `export default async function Page() {
+  const { cookies } = await import("next/headers");
+  const jar = await cookies();
+  return <p>{jar.get("sb-account")?.value}</p>;
+}
+`;
+
+const CREDENTIAL_GATE_PAGE = `import { headers } from "next/headers";
+
+import { canOpenAdminDocument } from "@/lib/adminAuth";
+
+export default async function Page() {
+  return <p>{String(await canOpenAdminDocument(await headers()))}</p>;
+}
+`;
+
+const AUTHORIZATION_PAGE = `import { headers } from "next/headers";
+
+export default async function Page() {
+  const auth = (await headers()).get("authorization");
+  return <p>{auth ? "signed in" : "anonymous"}</p>;
+}
+`;
+
+const CAPITALISED_AUTHORIZATION_PAGE = `import { headers } from "next/headers";
+
+export default async function Page() {
+  const h = await headers();
+  return <p>{h.get("Authorization") ? "signed in" : "anonymous"}</p>;
+}
+`;
+
+const COOKIE_HEADER_PAGE = `import { headers } from "next/headers";
+
+export default async function Page() {
+  const h = await headers();
+  return <p>{h.get("cookie")?.includes("sb-") ? "signed in" : "anonymous"}</p>;
+}
+`;
+
+const COOKIE_HEADER_PRESENCE_PAGE = `import { headers } from "next/headers";
+
+export default async function Page() {
+  const h = await headers();
+  return <p>{h.has("cookie") ? "signed in" : "anonymous"}</p>;
+}
+`;
+
+// lib/pintDropViewer reads no header itself; lib/authServer, which it imports, reads Authorization.
+const PINT_DROP_VIEWER_PAGE = `import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
+
+export default async function Page() {
+  const viewer = await resolveViewerContextFromRequest(new Request("http://localhost/p"));
+  return <p>{viewer ? "friend" : "anonymous"}</p>;
+}
+`;
+
+const AUTH_SERVER_HELPER_PAGE = `import { headers } from "next/headers";
+
+import { callerUserId } from "@/lib/authServer";
+
+export default async function Page() {
+  const request = new Request("http://localhost/x", { headers: await headers() });
+  return <p>{(await callerUserId(request)) ?? "anonymous"}</p>;
+}
+`;
+
+// lib/messageAuth reads no credential itself; it imports lib/authServer, which does.
+const TRANSITIVE_HELPER_PAGE = `import * as messageAuth from "@/lib/messageAuth";
+
+export default async function Page() {
+  return <p>{Object.keys(messageAuth).length}</p>;
+}
+`;
+
+const TYPE_ONLY_HELPER_PAGE = `import type { ResolvedViewer } from "@/lib/pintDropViewer";
+
+export default function Page({ viewer }: { viewer?: ResolvedViewer }) {
+  return <p>{viewer ? "friend" : "anonymous"}</p>;
+}
+`;
+
+const CREDENTIAL_ROUTE = `import { cookies, headers } from "next/headers";
+
+export async function GET() {
+  const jar = await cookies();
+  const h = await headers();
+  return Response.json({
+    v: jar.get("x")?.value,
+    signedIn: Boolean(h.get("authorization") ?? h.get("cookie")),
+  });
+}
+`;
+
+const NONCE_PAGE = `import { headers } from "next/headers";
+
+export default async function Page() {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+  return <script nonce={nonce} />;
+}
+`;
+
+function refreshingComponent(imports: string, body: string): string {
+  return `"use client";
+
+${imports}
+
+export default function SaveButton() {
+${body}
+}
+`;
+}
+
+const NAVIGATION = 'import { useRouter } from "next/navigation";';
+
+/** Each spelling of a refresh on the next/navigation router. */
+const REFRESHING_COMPONENTS: Array<[string, string]> = [
+  [
+    "a router named router",
+    refreshingComponent(NAVIGATION, `  const router = useRouter();
+  return <button onClick={() => router.refresh()}>Save</button>;`),
+  ],
+  [
+    "a router under another name",
+    refreshingComponent(NAVIGATION, `  const navigation = useRouter();
+  return <button onClick={() => navigation.refresh()}>Save</button>;`),
+  ],
+  [
+    "the hook's return value",
+    refreshingComponent(NAVIGATION, `  return <button onClick={() => useRouter().refresh()}>Save</button>;`),
+  ],
+  [
+    "a destructured refresh",
+    refreshingComponent(NAVIGATION, `  const { refresh } = useRouter();
+  return <button onClick={() => refresh()}>Save</button>;`),
+  ],
+  [
+    "a router copied into another binding",
+    refreshingComponent(NAVIGATION, `  const router = useRouter();
+  const again = router;
+  return <button onClick={() => again?.refresh()}>Save</button>;`),
+  ],
+  [
+    "a renamed hook",
+    refreshingComponent('import { useRouter as useNavigation } from "next/navigation";', `  const nav = useNavigation();
+  return <button onClick={() => nav["refresh"]()}>Save</button>;`),
+  ],
+  [
+    "the hook through a namespace import",
+    refreshingComponent('import * as navigation from "next/navigation";', `  const nav = navigation.useRouter();
+  return <button onClick={() => nav.refresh()}>Save</button>;`),
+  ],
+];
+
+/** A router that reaches the code through a parameter, a prop or an object, never a useRouter() call here. */
+const PASSED_ROUTERS: Array<[string, string]> = [
+  [
+    "a router parameter",
+    `export function afterSave(router: { refresh(): void }) {
+  router.refresh();
+}
+`,
+  ],
+  [
+    "a router prop",
+    refreshingComponent("", `  return <button onClick={() => router.refresh()}>Save</button>;`).replace(
+      "SaveButton()",
+      "SaveButton({ router }: { router: { refresh(): void } })",
+    ),
+  ],
+  [
+    "a router on the props object",
+    refreshingComponent("", `  return <button onClick={() => props.router?.refresh()}>Save</button>;`).replace(
+      "SaveButton()",
+      "SaveButton(props: { router: { refresh(): void } })",
+    ),
+  ],
+  [
+    "a router held as an object property",
+    `export function afterSave(deps: { appRouter: { refresh(): void } }) {
+  deps.appRouter.refresh();
+}
+`,
+  ],
+];
+
+const UNRELATED_REFRESH = refreshingComponent(NAVIGATION, `  const router = useRouter();
+  const poll = { refresh() {} };
+  const pollRef = { current: { refresh() {} } as { refresh(): void } | null };
+  return <button onClick={() => { poll.refresh(); pollRef.current?.refresh(); router.push("/"); }}>Save</button>;`);
+
+/**
+ * The fixtures that open each credential door, keyed by the door an exception
+ * may argue: a page reads it directly or through a module it imports.
+ */
+const DOOR_PAGES: Record<string, Array<[how: string, code: string]>> = {
+  "cookies()": [["directly", COOKIE_PAGE]],
+  "draftMode()": [["directly", DRAFT_MODE_PAGE]],
+  "the Authorization header": [
+    ["directly", AUTHORIZATION_PAGE],
+    ["through @/lib/pintDropViewer", PINT_DROP_VIEWER_PAGE],
+  ],
+  "the Cookie header": [
+    ["directly", COOKIE_HEADER_PAGE],
+    ["through @/lib/adminAuth", CREDENTIAL_GATE_PAGE],
+  ],
+};
+
+const EXCEPTIONS = Object.entries(PER_SESSION_SERVER_PAGES).flatMap(([file, { doors }]) =>
+  doors.flatMap((door) => {
+    const pages = DOOR_PAGES[door];
+    if (pages === undefined) throw new Error(`no fixture reads ${door}`);
+    return pages.map(([how, code]) => [file, door, how, code] as const);
+  }),
+);
+
+const UNARGUED_DOORS = Object.entries(PER_SESSION_SERVER_PAGES).flatMap(([file, { doors }]) =>
+  Object.entries(DOOR_PAGES)
+    .filter(([door]) => !doors.includes(door))
+    .flatMap(([door, pages]) => pages.map(([how, code]) => [file, door, how, code] as const)),
+);
+
+describe("invariant 1 - no page renders per-account content on the server", () => {
+  it.each([
+    ["cookies()", COOKIE_PAGE],
+    ["draftMode()", DRAFT_MODE_PAGE],
+    ["cookies() through a dynamic import", DYNAMIC_COOKIE_PAGE],
+    ["a credential gate module", CREDENTIAL_GATE_PAGE],
+    ["the authorization header", AUTHORIZATION_PAGE],
+    ["the Authorization header", CAPITALISED_AUTHORIZATION_PAGE],
+    ["the cookie header", COOKIE_HEADER_PAGE],
+    ["whether the cookie header is present", COOKIE_HEADER_PRESENCE_PAGE],
+    ["a credential helper", AUTH_SERVER_HELPER_PAGE],
+    ["a module that imports a credential helper", TRANSITIVE_HELPER_PAGE],
+  ])("refuses a server page that reads %s", async (_door, code) => {
+    expect(await lintRules("app/fence-fixture/page.tsx", code)).toContain(CREDENTIAL_READ);
+  });
+
+  it("leaves the per-request nonce read alone", async () => {
+    const rules = await lintRules("app/fence-fixture/page.tsx", NONCE_PAGE);
+
+    expect(rules).not.toContain(CREDENTIAL_READ);
+    expect(rules).not.toContain(STALE_EXCEPTION);
+  });
+
+  it("leaves a type-only import of a credential helper alone", async () => {
+    expect(await lintRules("app/fence-fixture/page.tsx", TYPE_ONLY_HELPER_PAGE)).not.toContain(
+      CREDENTIAL_READ,
+    );
+  });
+
+  it("leaves API routes alone, since the router cache never holds them", async () => {
+    expect(await lintRules("app/api/fence-fixture/route.ts", CREDENTIAL_ROUTE)).not.toContain(
+      CREDENTIAL_READ,
+    );
+  });
+
+  it.each(EXCEPTIONS)("lets the argued exception %s read %s %s", async (file, _door, _how, code) => {
+    expect(await lintRules(file, code)).not.toContain(CREDENTIAL_READ);
+  });
+
+  it.each(UNARGUED_DOORS)(
+    "still refuses the argued exception %s reading %s %s",
+    async (file, _door, _how, code) => {
+      expect(await lintRules(file, code)).toContain(CREDENTIAL_READ);
+    },
+  );
+
+  it.each(Object.keys(PER_SESSION_SERVER_PAGES))(
+    "reports the argued exception %s as stale once it stops reading the credential",
+    async (file) => {
+      expect(await lintRules(file, NONCE_PAGE)).toContain(STALE_EXCEPTION);
+    },
+  );
+});
+
+describe("following a page's imports", () => {
+  const FIXTURE_PAGE = "app/fence-fixture/page.tsx";
+  let dir = "";
+  /** The specifier a fixture page uses to import `name` from the scratch directory. */
+  const from = (name: string) =>
+    path.relative(path.resolve(path.dirname(FIXTURE_PAGE)), path.join(dir, name)).split(path.sep).join("/");
+  const importing = (name: string) => `import * as helper from "${from(name)}";
+
+export default function Page() {
+  return <p>{Object.keys(helper).length}</p>;
+}
+`;
+
+  beforeAll(() => {
+    dir = mkdtempSync(path.join(tmpdir(), "router-cache-fence-"));
+    const cookieRead = 'export const signedIn = (h: Headers) => h.has("cookie");\n';
+    for (const [file, code] of Object.entries({
+      "index-js/index.js": 'export const signedIn = (h) => h.has("cookie");\n',
+      "index-mjs/index.mjs": 'export const signedIn = (h) => h.has("cookie");\n',
+      "widget.jsx": 'export const Badge = ({ h }) => <b>{h.get("cookie")}</b>;\n',
+      "jsx-in-js.js": 'export const Badge = ({ h }) => <b>{h.get("cookie")}</b>;\n',
+      "typed.ts": cookieRead,
+      "dynamic.ts":
+        'export async function account() {\n  const { cookies } = await import("next/headers");\n  return (await cookies()).get("sb-account")?.value;\n}\n',
+      "reexport.ts": 'export { cookies } from "next/headers";\n',
+      "reexport-renamed.ts": 'export { draftMode as preview } from "next/headers";\n',
+      "reexport-all.ts": 'export * from "next/headers";\n',
+      "reexport-namespace.ts": 'export * as request from "next/headers";\n',
+      "broken.ts": "export const = ;\n",
+    })) {
+      const target = path.join(dir, file);
+      mkdirSync(path.dirname(target), { recursive: true });
+      writeFileSync(target, code);
+    }
+  });
+
+  afterAll(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it.each([
+    "index-js",
+    "index-mjs",
+    "widget",
+    "jsx-in-js",
+    "typed",
+    "dynamic",
+    "reexport",
+    "reexport-renamed",
+    "reexport-all",
+    "reexport-namespace",
+  ])(
+    "refuses a page whose import %s reaches a credential read",
+    async (name) => {
+      expect(await lintRules(FIXTURE_PAGE, importing(name))).toContain(CREDENTIAL_READ);
+    },
+  );
+
+  it("fails the lint run on a module it cannot parse, rather than counting it clean", async () => {
+    await expect(lintRules(FIXTURE_PAGE, importing("broken"))).rejects.toThrow(
+      /router-cache fence could not parse .*broken\.ts/,
+    );
+  });
+});
+
+describe("the argued exception list", () => {
+  it("names only pages that exist", () => {
+    expect(missingExceptionPages()).toEqual([]);
+  });
+
+  it("reports an entry whose page is gone, so a later page at that path cannot inherit it", () => {
+    expect(
+      missingExceptionPages({
+        "app/admin/page.tsx": { doors: ["the credential helper @/lib/adminAuth"], reason: "kept" },
+        "app/fence-fixture/gone/page.tsx": { doors: ["cookies()"], reason: "removed" },
+      }),
+    ).toEqual(["app/fence-fixture/gone/page.tsx"]);
+  });
+});
+
+const ROUTER_REFRESH = "router-cache/no-router-refresh";
+
+describe("invariant 2 - no surface expects the server to re-render after a write", () => {
+  it.each(
+    ["components/FenceFixture.tsx", "app/fence-fixture/SaveButton.tsx"].flatMap((file) =>
+      [...REFRESHING_COMPONENTS, ...PASSED_ROUTERS].map(([spelling, code]) => [spelling, file, code] as const),
+    ),
+  )("refuses a refresh through %s in %s", async (_spelling, file, code) => {
+    expect(await lintRules(file, code)).toContain(ROUTER_REFRESH);
+  });
+
+  it("reports a refresh once when both the binding and the router's name reach it", async () => {
+    const code = refreshingComponent(NAVIGATION, `  const router = useRouter();
+  return <button onClick={() => router.refresh()}>Save</button>;`);
+    const rules = await lintRules("components/FenceFixture.tsx", code);
+
+    expect(rules.filter((rule) => rule === ROUTER_REFRESH)).toHaveLength(1);
+  });
+
+  it("leaves a refresh on anything but the router alone", async () => {
+    expect(await lintRules("components/FenceFixture.tsx", UNRELATED_REFRESH)).not.toContain(
+      ROUTER_REFRESH,
+    );
+  });
 });

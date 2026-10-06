@@ -344,6 +344,7 @@ beforeAll(async () => {
     messageThreadRoute,
     messagePhotoRoute,
     wantedRoute,
+    diaryRoute,
     savedPubsRoute,
     tagsRoute,
     profileRoute,
@@ -374,6 +375,7 @@ beforeAll(async () => {
     import("@/app/api/messages/[id]/route"),
     import("@/app/api/messages/[id]/photo/[messageId]/route"),
     import("@/app/api/wanted/route"),
+    import("@/app/api/diary/route"),
     import("@/app/api/saved-pubs/route"),
     import("@/app/api/social/tags/route"),
     import("@/app/api/profiles/[handle]/route"),
@@ -415,6 +417,8 @@ beforeAll(async () => {
     messagePhoto: messagePhotoRoute.GET as Handler,
     listWanted: wantedRoute.GET as unknown as Handler,
     writeWanted: wantedRoute.POST as unknown as Handler,
+    listDiary: diaryRoute.GET as unknown as Handler,
+    writeDiary: diaryRoute.POST as unknown as Handler,
     listSavedPubs: savedPubsRoute.GET as unknown as Handler,
     writeSavedPub: savedPubsRoute.POST as unknown as Handler,
     tagInbox: tagsRoute.GET as unknown as Handler,
@@ -1984,6 +1988,50 @@ describe("saves: two lanes, two promises", () => {
     }
   });
 
+  it("a Diary entry is the owner's alone at the read, the write and the table", async () => {
+    const seeded = await defined(handlers.writeDiary)(
+      request("/api/diary", {
+        bearer: BEARER_ALICE,
+        body: { venueId: PRICE_VENUE, visitedOn: "2026-09-01", rating: 4.5, review: "Alice diary line" },
+      }),
+      context({}),
+    );
+    expect(seeded.status, await seeded.clone().text()).toBe(201);
+    expect(
+      Number(truth(`select count(*) from public.diary_entries where owner_user_id = '${ALICE}'`)),
+    ).toBe(1);
+
+    const owner = await readJson<{ entries?: { review?: string }[] }>(
+      await defined(handlers.listDiary)(request("/api/diary", { bearer: BEARER_ALICE }), context({})),
+    );
+    expect(owner.entries?.some((entry) => entry.review === "Alice diary line")).toBe(true);
+
+    // The body names no owner: a second account that posts the same pub and day
+    // writes its OWN row, never Alice's, and cannot read hers.
+    const bobWrite = await defined(handlers.writeDiary)(
+      request("/api/diary", {
+        bearer: BEARER_BOB,
+        body: { venueId: PRICE_VENUE, visitedOn: "2026-09-01", ownerUserId: ALICE, owner_user_id: ALICE, review: "Bob diary line" },
+      }),
+      context({}),
+    );
+    expect(bobWrite.status, await bobWrite.clone().text()).toBe(201);
+    expect(
+      Number(truth(`select count(*) from public.diary_entries where owner_user_id = '${ALICE}'`)),
+    ).toBe(1);
+
+    const anonymous = await defined(handlers.listDiary)(request("/api/diary"), context({}));
+    expect(anonymous.status).toBe(401);
+    for (const bearer of [BEARER_CAROL, BEARER_DAVE]) {
+      const response = await defined(handlers.listDiary)(request("/api/diary", { bearer }), context({}));
+      expectNoDisclosure(await readJson(response), ["Alice diary line", "Bob diary line"]);
+    }
+    const bobRead = await readJson(
+      await defined(handlers.listDiary)(request("/api/diary", { bearer: BEARER_BOB }), context({})),
+    );
+    expectNoDisclosure(bobRead, ["Alice diary line"]);
+  });
+
   it("a saved-pub list is PUBLIC to read and gated to write, and the write gate holds", async () => {
     const saved = await defined(handlers.writeSavedPub)(
       request("/api/saved-pubs", {
@@ -2136,6 +2184,7 @@ describe("guest: a device RSVP holds a capability, and a capability is not an id
     for (const [handler, path] of [
       [handlers.inbox, "/api/messages"],
       [handlers.listWanted, "/api/wanted"],
+      [handlers.listDiary, "/api/diary"],
       [handlers.exportAccount, "/api/account/export"],
     ] as const) {
       const response = await (handler as Handler)(
@@ -2145,6 +2194,7 @@ describe("guest: a device RSVP holds a capability, and a capability is not an id
       expectNoDisclosure(await readJson(response.clone()), [
         ...CREW_SECRETS,
         "Alice wants this",
+        "Alice diary line",
       ]);
       // A capability that is not an identity is anonymous to every route that
       // asks who is calling, so each answers its own anonymous outcome.

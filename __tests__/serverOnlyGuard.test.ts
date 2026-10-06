@@ -56,6 +56,13 @@ const SERVER_IO_EXEMPTIONS = {
     reason: "Reads source files while Next configuration builds tracing includes.",
     removeWhen: "Tracing metadata no longer reads project files.",
   },
+  "lib/routerCacheFence.mjs": {
+    capabilities: ["node-runtime"],
+    kind: "config",
+    consumers: ["eslint.config.mjs", "__tests__/clientRouterCache.test.ts"],
+    reason: "ESLint loads it to follow a page's imports to the credential reads they reach.",
+    removeWhen: "The router-cache fence no longer reads project files.",
+  },
   "lib/siteHarvestLedgerCore.ts": {
     capabilities: ["node-runtime"],
     kind: "config",

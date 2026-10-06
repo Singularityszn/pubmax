@@ -210,12 +210,12 @@ for (const viewport of WIDTHS) {
     const nearby = page.locator(".logIntentNearbyBtn").first();
     await expect(nearby).toBeVisible({ timeout: 45_000 });
     const priceStep = page.getByTestId("spill-price-step");
-    // A control painted on the server is tappable before React attaches, so the
-    // tap is retried rather than the assertion after it made harder.
-    await expect(async () => {
-      await nearby.click();
-      await expect(priceStep).toBeVisible({ timeout: 2_000 });
-    }).toPass({ timeout: 25_000 });
+    // The picker is a client-only dynamic chunk (PubMap's LogIntentFallback),
+    // so its buttons carry their handler from the first paint and one tap is
+    // enough. A tap that lands hides the picker while the venue opens, so a
+    // retried tap waits on a button that is gone.
+    await nearby.click();
+    await expect(priceStep).toBeVisible({ timeout: 25_000 });
 
     const chips = priceStep.locator(".priceQuickAdds .priceChip");
     await expect(chips.first()).toBeVisible({ timeout: 15_000 });
