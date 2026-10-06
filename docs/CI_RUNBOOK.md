@@ -95,7 +95,7 @@ repository secret.
 
 Job `timeout-minutes` values in `ci.yml`, `e2e.yml`, `rls-session.yml`, and the Playwright jobs in `performance.yml` stay at the ceilings already set for those jobs (about 2× the p95 measured on the previous runners), with floors on the freshness gate (20 minutes) and Coverage (30 minutes). Do not raise one to hide a slow hosted run; see `perf/AGENTS.md`. `security-ci.yml` uses fixed ceilings (10, 15, and 45 minutes for zizmor, osv-scanner, and Semgrep).
 
-Browser law pins and the two `performance.yml` jobs keep `--workers=1`. The nightly full suite runs as four shards. Each keeps Playwright's default worker count, which `playwright.config.ts` leaves unset when `CI` is set, and a hosted macOS runner resolves that to one worker.
+Browser law pins, the three browser layout-pin shards and the two `performance.yml` jobs keep `--workers=1`. The layout pins run on every pull request as three shards, because they alone hold the layout that source-text unit tests once pinned. The nightly full suite runs as four shards. Each keeps Playwright's default worker count, which `playwright.config.ts` leaves unset when `CI` is set, and a hosted macOS runner resolves that to one worker.
 
 Each workflow has its own concurrency group. A newer pull request head supersedes that pull request's older runs of the same workflow, so rerun the latest workflow run for the current head. Main pushes, the nightly browser suite and manual dispatches never cancel. There is no repo-wide group and no shared browser queue.
 
@@ -152,6 +152,6 @@ gh run list --workflow self-hosted-probe.yml --limit 1
 | Drink price PR | `drink-price-refresh.yml` |
 | London Tavily pass PR | `tavily-london-nightly.yml` (see `docs/TAVILY_LONDON_NIGHTLY.md`) |
 | Performance budgets | `performance.yml` |
-| Browser law pins + nightly suite | `e2e.yml` |
+| Browser law pins, layout pins + nightly suite | `e2e.yml` |
 
 See also `docs/CRON_PLANE_RUNBOOK.md` and `docs/teach.md` (local pre-push hook).

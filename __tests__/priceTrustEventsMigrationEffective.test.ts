@@ -1,5 +1,4 @@
-// Effective proof for 0108. The shape pins live in
-// priceTrustEventsMigration.test.ts; this file APPLIES the migration to a real
+// Effective proof for 0108. This file APPLIES the migration to a real
 // PostgreSQL 16 and exercises both tables as the three Supabase roles, because
 // "service-role only", "one credit per account per unlock" and "a reversal is a
 // new row" are claims about what the database does, and only the database can

@@ -4,10 +4,10 @@
 .saveToListToggle {
   /* Thumb-sized on a phone: this opens the whole save-to-list panel, and at
      30px tall it was the smallest hit target on the venue sheet. The 44px is
-     the --control-height floor written where __tests__/mobileChromeFit.test.ts
-     reads it; the rest of the control is the ONE row of --control-* tokens
-     (app/globals.css), because this button wore an 8px box at 13px/600 beside
-     a sheet whose every other text button is 14px at 0.86rem/700. */
+     the --control-height floor; the rest of the control is the ONE row of
+     --control-* tokens (app/globals.css), because this button wore an 8px box
+     at 13px/600 beside a sheet whose every other text button is 14px at
+     0.86rem/700. */
   display: inline-flex;
   align-items: center;
   justify-content: center;
