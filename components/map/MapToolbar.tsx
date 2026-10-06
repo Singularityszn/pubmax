@@ -141,6 +141,20 @@ function trayChipFilters(filters: Filters, pintsPicked: boolean): Filters {
     : filters;
 }
 
+/**
+ * The pint category trayChipFilters lends the chips is not the reader's own:
+ * once no refinement rides on it, the Pints lane writes its empty category.
+ */
+function trayChipChange(next: Filters, pintsPicked: boolean): Filters {
+  return pintsPicked &&
+    next.drinkCategory === DEFAULT_DRINK_LANE &&
+    !next.drinkSubtype &&
+    !next.topShelfOnly &&
+    !next.drinkBrand
+    ? { ...next, drinkCategory: "" }
+    : next;
+}
+
 // Compact map chrome: search + Plan on the first row; drink lens / chips stay
 // behind an optional expand so phones keep map mid-field free.
 type MapToolbarProps = {
@@ -504,7 +518,9 @@ export default function MapToolbar({
             />
             <DrinkShapeChips
               filters={trayChipFilters(filters, pintsPicked)}
-              onFiltersChange={onFiltersChange}
+              onFiltersChange={(next) =>
+                onFiltersChange(trayChipChange(next, pintsPicked))
+              }
               categories={false}
             />
             <div className="mapToolbarDrinksLens">

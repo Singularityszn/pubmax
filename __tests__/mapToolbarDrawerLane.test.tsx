@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, createElement, useState } from "react";
+import { act, createElement, useEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -158,8 +158,13 @@ describe("the bar beside the desktop drawer", () => {
 
 // QA journeys F24. The tray offers each drink once, as the lane picker's text
 // tabs, and still reaches what the chosen drink adds.
+let filtersSeen: Filters = initialFilters;
+
 function StatefulToolbar() {
   const [filters, setFilters] = useState<Filters>(initialFilters);
+  useEffect(() => {
+    filtersSeen = filters;
+  });
   return createElement(
     MapToolbar,
     props({
@@ -178,6 +183,14 @@ function laneTab(label: string): HTMLButtonElement {
   ].find((button) => button.textContent === label);
   if (!tab) throw new Error(`no ${label} tab`);
   return tab;
+}
+
+function refinement(label: string): HTMLButtonElement {
+  const chip = [
+    ...host.querySelectorAll<HTMLButtonElement>(".drinkSubtypeChip"),
+  ].find((button) => button.textContent === label);
+  if (!chip) throw new Error(`no ${label} refinement`);
+  return chip;
 }
 
 const pintRefinements = () => host.querySelector(".drinkSubtypeChips") !== null;
@@ -204,6 +217,21 @@ describe("the drink tray's choices", () => {
     act(() => laneTab("Pints").click());
     expect(pintRefinements()).toBe(true);
     expect(topShelf()).toBe(true);
+  });
+
+  it("returns the filters to rest when a pint refinement is pressed off again", () => {
+    act(() => drinkButton().click());
+    act(() => laneTab("Pints").click());
+    act(() => refinement("IPA").click());
+    expect(filtersSeen).toMatchObject({ drinkCategory: "beer", drinkSubtype: "beer-ipa" });
+    act(() => refinement("IPA").click());
+    expect(filtersSeen).toEqual(initialFilters);
+
+    act(() => refinement("Top shelf").click());
+    expect(filtersSeen).toMatchObject({ drinkCategory: "beer", topShelfOnly: true });
+    act(() => refinement("Top shelf").click());
+    expect(filtersSeen).toEqual(initialFilters);
+    expect(pintRefinements()).toBe(true);
   });
 
   it("drops the pint refinements for another lane and when the tray reopens", () => {
