@@ -25,11 +25,12 @@ vi.mock("@/lib/supabase", () => {
       op: "select" | "insert" | "update" | null;
       insertRow: Row | null;
       patch: Row | null;
-      filters: { col: string; value: unknown }[];
+      filters: { col: string; value?: unknown; values?: readonly unknown[] }[];
       single: boolean;
     } = { op: null, insertRow: null, patch: null, filters: [], single: false };
 
-    const matches = (r: Row) => state.filters.every((f) => r[f.col] === f.value);
+    const matches = (r: Row) =>
+      state.filters.every((f) => (f.values ? f.values.includes(r[f.col]) : r[f.col] === f.value));
 
     const result = () => {
       if (db.schemaMiss) return { data: null, error: { message: TABLE_MISSING } };
@@ -72,10 +73,11 @@ vi.mock("@/lib/supabase", () => {
         state.filters.push({ col, value });
         return q;
       },
-      order() {
+      in(col: string, values: readonly unknown[]) {
+        state.filters.push({ col, values });
         return q;
       },
-      limit() {
+      order() {
         return q;
       },
       maybeSingle() {
@@ -213,6 +215,31 @@ describe("supabaseVenueOperatorStore", () => {
 
     expect(await supabaseVenueOperatorStore.getForAccountVenue("acct-1", "venue-1")).not.toBeNull();
     expect(await supabaseVenueOperatorStore.isVerifiedOperator("acct-1", "venue-1")).toBe(true);
+  });
+
+  it("answers a venue by its current id's claim, never an older one under a former id", async () => {
+    // The Sportsman, E15: its base row's id now aliases to the curated venue.
+    const claimRow = (id: string, venueId: string, state: string, createdAt: string) => ({
+      id,
+      account_id: "acct-1",
+      venue_id: venueId,
+      verification_state: state,
+      evidence_kind: "phone",
+      evidence_note: "",
+      created_at: createdAt,
+    });
+    db.rows = [
+      claimRow("base-claim", "venue-uk-n269255191", "rejected", "2026-09-01T00:00:00.000Z"),
+      claimRow("curated-claim", "venue-sy8k64", "verified", "2026-10-01T00:00:00.000Z"),
+    ];
+    expect(await supabaseVenueOperatorStore.isVerifiedOperator("acct-1", "venue-sy8k64")).toBe(true);
+    expect(
+      (await supabaseVenueOperatorStore.getForAccountVenue("acct-1", "venue-uk-n269255191"))?.id,
+    ).toBe("curated-claim");
+    db.rows = db.rows.map((row) =>
+      row.id === "curated-claim" ? { ...row, verification_state: "revoked" } : { ...row, verification_state: "verified" },
+    );
+    expect(await supabaseVenueOperatorStore.isVerifiedOperator("acct-1", "venue-sy8k64")).toBe(false);
   });
 
   it("isVerifiedOperator fails closed (false) on a read wobble", async () => {

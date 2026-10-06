@@ -23,6 +23,7 @@ import {
   createFailSoftGuard,
   isUniqueViolation,
   onMissingDurableWrite,
+  rowUnderCurrentVenueId,
   selectStore,
   whereVenueIdIn,
 } from "@/lib/storeBackend";
@@ -175,15 +176,14 @@ function fromRow(row: Record<string, unknown>): OperatorClaim {
 }
 
 async function selectByPair(accountId: string, venueId: string): Promise<OperatorClaim | null> {
+  const venueIds = await storedVenueIds(venueId);
   const { data, error } = await whereVenueIdIn(
     admin().from(TABLE).select("*").eq("account_id", accountId),
-    await storedVenueIds(venueId),
-  )
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+    venueIds,
+  );
   if (error) throw new Error(error.message);
-  return data ? fromRow(data as Record<string, unknown>) : null;
+  const row = rowUnderCurrentVenueId((data ?? []) as Record<string, unknown>[], venueIds);
+  return row ? fromRow(row) : null;
 }
 
 async function reopenExisting(id: string, fields: OperatorClaimFields): Promise<void> {
