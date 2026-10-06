@@ -42,6 +42,12 @@ export type RoundStarterProps = {
   /** Fires after a successful start when staying on the map (chip can light immediately). */
   onRoundStarted?: (code: string) => void;
   className?: string;
+  /**
+   * Mark the submit as the screen's one primary action (the launch-screen
+   * marker). Only a route that is itself the start door passes it, as /rounds
+   * does. Every embedded use sits beside a page that already has a primary.
+   */
+  primaryAction?: boolean;
 };
 
 /**
@@ -56,6 +62,7 @@ export default function RoundStarter({
   stayOnMap,
   onRoundStarted,
   className,
+  primaryAction = false,
 }: RoundStarterProps): React.JSX.Element {
   const router = useRouter();
   const {
@@ -231,6 +238,7 @@ export default function RoundStarter({
         <button
           type="submit"
           className="crawlPrimaryBtn"
+          data-primary-action={primaryAction ? "" : undefined}
           disabled={busy || authLoading}
         >
           <Users size={16} aria-hidden="true" />{" "}

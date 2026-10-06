@@ -13,6 +13,27 @@ vi.mock("@/components/nav/SiteNav", () => ({
   default: () => createElement("nav", null, "site nav"),
 }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
+
+// The viewer the page sees: the door it paints depends on who is in front of it.
+const viewer = vi.hoisted(() => ({
+  phase: "signed-in" as "signed-in" | "signed-out" | "unresolved",
+  handle: "alice" as string | null,
+  identityResolved: true,
+}));
+vi.mock("@/components/auth/useViewerSession", () => ({
+  useViewerSession: () => ({
+    phase: viewer.phase,
+    signedIn: viewer.phase === "signed-in",
+    signedOut: viewer.phase === "signed-out",
+    unresolved: viewer.phase === "unresolved",
+  }),
+}));
+vi.mock("@/components/auth/useViewerHandle", () => ({
+  useViewerHandle: () => viewer.handle,
+}));
+vi.mock("@/components/auth/AuthProvider", () => ({
+  useAuth: () => ({ identityResolved: viewer.identityResolved }),
+}));
 vi.mock("@/lib/authedFetch", () => ({
   authedActionFetch: vi.fn(),
 }));
@@ -31,7 +52,6 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 async function completeCheckIn(socialFriendsLaunchEnabled?: boolean): Promise<void> {
-  window.localStorage.setItem("pubmax_handle", "alice");
   vi.mocked(authedActionFetch).mockResolvedValue(jsonResponse({ ok: true }));
   await act(async () => {
     root.render(createElement(WeAreOutClient, { socialFriendsLaunchEnabled }));
@@ -66,6 +86,9 @@ async function renderRollback(): Promise<void> {
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   window.localStorage.clear();
+  viewer.phase = "signed-in";
+  viewer.handle = "alice";
+  viewer.identityResolved = true;
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
@@ -86,5 +109,52 @@ describe("we-are-out Social honesty", () => {
   it("uses Memories for completed check-ins during rollback", async () => {
     await renderRollback();
     expect(host.querySelector('a[href="/u/you#night-memories"]')?.textContent).toContain("Open Memories");
+  });
+});
+
+// F18: signed out, the full form opened and only a submit answered "Choose a
+// handle in your account first." with no way to act on it.
+describe("we-are-out signed-out and handle-less doors", () => {
+  async function render(): Promise<void> {
+    await act(async () => {
+      root.render(createElement(WeAreOutClient, { socialFriendsLaunchEnabled: true }));
+      await Promise.resolve();
+    });
+  }
+
+  it("shows a sign-in door in place of the form, returning to /we-are-out", async () => {
+    viewer.phase = "signed-out";
+    viewer.handle = null;
+    await render();
+    expect(host.querySelector("select")).toBeNull();
+    expect(host.textContent).toContain("Sign in to tell your lot.");
+    const door = host.querySelector<HTMLAnchorElement>("a.weAreOutDoorAction");
+    expect(door?.getAttribute("href")).toBe("/login?from=%2Fwe-are-out");
+    expect(host.querySelector('[role="alert"]')).toBeNull();
+  });
+
+  it("shows a claim-a-handle door for an account with no handle", async () => {
+    viewer.phase = "signed-in";
+    viewer.handle = null;
+    await render();
+    expect(host.querySelector("select")).toBeNull();
+    expect(host.textContent).toContain("Choose a handle first.");
+    expect(host.querySelector("a.weAreOutDoorAction")?.getAttribute("href")).toBe("/u/you");
+  });
+
+  it("paints no invitation until the session has answered", async () => {
+    viewer.phase = "unresolved";
+    viewer.handle = null;
+    await render();
+    expect(host.querySelector("a.weAreOutDoorAction")).toBeNull();
+    expect(host.querySelector("select")).not.toBeNull();
+  });
+
+  it("does not call an account handle-less before its identity resolves", async () => {
+    viewer.phase = "signed-in";
+    viewer.handle = null;
+    viewer.identityResolved = false;
+    await render();
+    expect(host.querySelector("a.weAreOutDoorAction")).toBeNull();
   });
 });

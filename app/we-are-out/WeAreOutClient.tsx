@@ -3,16 +3,20 @@
 // "We're out" check-in composer (Social Loop v1). A deliberately tiny surface:
 // pick an AREA (never a coordinate), optionally add a line, post. Visible to your
 // lot (mutual follows) only — the copy says so plainly. Auto-expires after 12h.
-// No email/password: the author is the localStorage handle (same identity that
-// drops a pint), read after mount so SSR + hydration agree.
+// No email/password: the author is the viewer's own handle (useViewerHandle, the
+// one owner of that rule). A signed-out viewer meets a sign-in door in place of
+// the form, and an account with no handle yet meets a door to claim one, so the
+// form never opens only to refuse on submit.
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
+import { useViewerHandle } from "@/components/auth/useViewerHandle";
+import { useViewerSession } from "@/components/auth/useViewerSession";
 import SiteNav from "@/components/nav/SiteNav";
 import { trackEvent } from "@/lib/analytics";
 import { getNightAreasForCity } from "@/lib/nightAreas";
-import { normalizeHandle } from "@/lib/profiles";
 import "../feed/feed.css";
 import "./we-are-out.css";
 import { authedActionFetch } from "@/lib/authedFetch";
@@ -28,25 +32,15 @@ type Props = {
 
 export default function WeAreOutClient({ socialFriendsLaunchEnabled = true }: Props) {
   const areas = useMemo(() => getNightAreasForCity("london"), []);
-  const [handle, setHandle] = useState("");
+  const viewerSession = useViewerSession();
+  const handle = useViewerHandle() ?? "";
+  // An account's handle is unknown until its identity resolves, which is not the
+  // same as having none: the claim door waits for the answer.
+  const { identityResolved } = useAuth();
   const [areaSlug, setAreaSlug] = useState<string>("");
   const [note, setNote] = useState("");
   const [state, setState] = useState<PostState>("idle");
   const [error, setError] = useState("");
-
-  // Read the viewer's handle after mount (the server can't see localStorage).
-  // setState fires from a microtask (never the sync effect body) per
-  // react-hooks/set-state-in-effect — the house pattern on /feed.
-  useEffect(() => {
-    void Promise.resolve().then(() => {
-      try {
-        const stored = normalizeHandle(window.localStorage.getItem("pubmax_handle") ?? "");
-        if (stored) setHandle(stored);
-      } catch {
-        // Storage disabled — the form prompts to claim a handle on submit.
-      }
-    });
-  }, []);
 
   if (!socialFriendsLaunchEnabled) {
     return (
@@ -119,6 +113,31 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = true }: Pr
                 </Link>
               )}
             </div>
+          </section>
+        ) : viewerSession.signedOut ? (
+          <section className="weAreOutForm weAreOutDoor" aria-labelledby="we-are-out-door-title">
+            <p id="we-are-out-door-title" className="weAreOutDoneTitle">
+              Sign in to tell your lot.
+            </p>
+            <p className="weAreOutPrivacy">
+              A check-in goes to friends who follow you back, so it needs your
+              account. Area only, never your exact spot.
+            </p>
+            <Link className="weAreOutSubmit weAreOutDoorAction" href="/login?from=%2Fwe-are-out">
+              Sign in
+            </Link>
+          </section>
+        ) : viewerSession.signedIn && identityResolved && !handle ? (
+          <section className="weAreOutForm weAreOutDoor" aria-labelledby="we-are-out-door-title">
+            <p id="we-are-out-door-title" className="weAreOutDoneTitle">
+              Choose a handle first.
+            </p>
+            <p className="weAreOutPrivacy">
+              Your lot sees a check-in under your handle. Pick one, then come back.
+            </p>
+            <Link className="weAreOutSubmit weAreOutDoorAction" href="/u/you">
+              Choose a handle
+            </Link>
           </section>
         ) : (
           <section className="weAreOutForm">

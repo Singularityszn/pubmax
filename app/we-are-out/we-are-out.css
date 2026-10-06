@@ -97,6 +97,23 @@
   cursor: pointer;
 }
 
+/* The page's head is centred below the desktop pair, so the door reads as one
+   with it there; the desktop card keeps the left edge the header leads on. */
+@media (max-width: 1023px) {
+  .weAreOutDoor {
+    text-align: center;
+  }
+}
+
+/* The door's action is a link wearing the submit control's look. */
+.weAreOutDoorAction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 24px;
+  text-decoration: none;
+}
+
 .weAreOutSubmit:disabled {
   opacity: 0.6;
   cursor: default;
