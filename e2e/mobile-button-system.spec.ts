@@ -625,12 +625,11 @@ for (const width of [320, 390] as const) {
 }
 
 // (10) The compose action's lane, for the cells a scroll carries under it:
-// the "Your PUBMAXX" heading on /u/you (its box ran to x 351 under a control at
-// x 322) and the "Cheapest pint" column on a borough table (head text 272 to
-// 357). The cell is scrolled to the control's own band, and its content box
-// must end before the control starts.
+// the "Cheapest pint" column on a borough table (head text 272 to 357). The
+// cell is scrolled to the control's own band, and its content box must end
+// before the control starts. The profile page hides the control, so it has no
+// lane (e2e/account-password.spec.ts).
 const COMPOSE_LANE_CELLS = [
-  { route: "/u/you", cells: ".accountHub > .profileSectionKicker, .accountHub > h2" },
   { route: "/borough/southwark", cells: ".boroughPriceHead, .boroughPriceCell" },
 ] as const;
 
