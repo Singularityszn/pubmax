@@ -756,7 +756,7 @@ for (const scenario of [
     const contents = await readFile((await (await calendar).path())!, "utf8");
     expect(contents).toContain(`SUMMARY:${scenario.heading}`);
     expect(contents).not.toContain("pint stop");
-    await page.waitForTimeout(600);
+    await expect(page).toHaveURL((url) => !url.searchParams.has("drink") && url.searchParams.get("pubs") === stops.join(","));
     await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
     const copyLink = route.getByRole("button", { name: "Copy a shareable link to this crawl", exact: true });
     await copyLink.click();
