@@ -30,6 +30,27 @@
   animation: nativePushPromptFadeIn var(--duration-slow) var(--ease-out-strong) both;
 }
 
+/* On a phone the tab bar is fixed at the foot of the screen and paints above
+   this layer (--z-tabbar is higher than --z-overlay-top), so a card parked on
+   bottom: 0 sat UNDER the bar and its buttons could not be tapped. Where a bar
+   is mounted the card rests on the bar's own top edge instead, the lane the
+   analytics consent card already uses (app/globals.css). The bar's
+   home-indicator inset moves into the lift, so the card keeps its plain gap. */
+@media (max-width: 640px) {
+  body:has(.mobileTabBar) .nativePushPrompt {
+    bottom: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px));
+    padding-bottom: var(--space-3);
+  }
+
+  /* The bar slides away while a sheet or the keyboard owns the foot. The card
+     follows it down rather than hovering over an empty lane. */
+  body:has(.mobileTabBar.isKeyboardHidden) .nativePushPrompt,
+  body:has(.appShell.detail-open, .appShell.planning-open, .nightCrawl) .nativePushPrompt {
+    bottom: 0;
+    padding-bottom: max(var(--space-4), env(safe-area-inset-bottom));
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .nativePushPrompt__card {
     animation-name: nativePushPromptSlideIn;
