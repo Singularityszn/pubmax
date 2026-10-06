@@ -115,7 +115,7 @@ export default async function PintIndexPage() {
             ? `Prices seen: ${formatPintIndexDate(window.start)} to ${formatPintIndexDate(window.end)}.`
             : undefined
         }
-        csvHref="/pint-index/data.csv"
+        csvHref={rows.length > 0 ? "/pint-index/data.csv" : undefined}
       >
         {summary.averageGbp !== null ? (
           <dl className="pintIndexStats">
@@ -173,7 +173,9 @@ export default async function PintIndexPage() {
               caption="London boroughs ranked by average eligible pint price"
             />
           )}
-          <a className="pintIndexDownload" href="/pint-index/data.csv" download>Download current data (CSV) ↓</a>
+          {rows.length > 0 ? (
+            <a className="pintIndexDownload" href="/pint-index/data.csv" download>Download current data (CSV) ↓</a>
+          ) : null}
         </section>
 
         {dearestPint ? (
