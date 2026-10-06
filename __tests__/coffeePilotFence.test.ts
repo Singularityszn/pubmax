@@ -31,9 +31,23 @@ describe("coffee pilot harvest fence", () => {
     ["<h2>Tea & Coffee</h2><p>Filter coffee £3.00</p>", [3]],
     ["<h2>Espresso bar</h2><p>Tea £2.00</p><p>Flat white £3.50</p>", [3.5]],
     ["<h2>Espresso & more</h2><p>Bottled water £1.80</p><p>Mocha £3.90</p>", [3.9]],
-  ])("judges the item's own line, not the heading above it: %s", (html, prices) => {
+    ["<h2>Coffee & Tea</h2><p>Flat white £3.50</p>", [3.5]],
+    ["<h2>Coffee & Tea</h2><p>Earl Grey Tea £2.50</p><p>Flat white £3.50</p>", [3.5]],
+    ["<h2>Coffee & Tea</h2><p>Latte</p><p>£3.80</p>", [3.8]],
+  ])("judges the item name, not the heading above it: %s", (html, prices) => {
     const coffee = readVenueDrinkPrices(html).kept.filter((row) => row.category === "coffee");
     expect(coffee.map((row) => row.priceGbp).sort()).toEqual(prices);
+  });
+
+  it.each([
+    ["Affogato", "Vanilla ice cream, shot of espresso", 4.5],
+    ["Chai latte", "Spiced, steamed milk", 3.6],
+    ["Earl Grey", "Bergamot, black", 2.8],
+    ["Mineral water", "Still or sparkling", 1.5],
+  ])("judges the name line %s above a description-and-price line", (name, description, priceGbp) => {
+    const html = `<p>Americano £3.00</p><p>${name}</p><p>${description} £${priceGbp.toFixed(2)}</p>`;
+    const coffee = readVenueDrinkPrices(html).kept.filter((row) => row.category === "coffee");
+    expect(coffee.map((row) => row.priceGbp)).toEqual([3]);
   });
 
   it.each([

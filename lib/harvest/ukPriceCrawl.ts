@@ -32,7 +32,11 @@
 // lib/harvest/sourcePolicy.ts and lib/harvest/robots.ts, asked live, before
 // anything here runs.
 
-import { COFFEE_HARVEST_WORD_PATTERN, coffeePriceLabelExcluded } from "@/lib/coffeePricePilot";
+import {
+  COFFEE_HARVEST_WORD_PATTERN,
+  coffeePriceItemExcluded,
+  coffeePriceLabelExcluded,
+} from "@/lib/coffeePricePilot";
 import type { DrinkCategory } from "@/lib/drinks";
 import { parse, parseFragment, serializeOuter, type DefaultTreeAdapterTypes } from "parse5";
 
@@ -761,7 +765,9 @@ export function coffeeLineExcluded(
   at: number,
 ): boolean {
   if (category !== "coffee") return false;
-  return coffeePriceLabelExcluded(printedItemName(text, at)?.own || drinkLabel);
+  const item = printedItemName(text, at);
+  if (!item) return coffeePriceLabelExcluded(drinkLabel);
+  return coffeePriceItemExcluded([item.own, ...[...item.preceding].reverse()]);
 }
 
 /**
