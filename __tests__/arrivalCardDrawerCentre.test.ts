@@ -17,3 +17,13 @@ describe("map arrival card beside a desktop drawer", () => {
     expect(css).toMatch(/body:has\(\.appShell\.planning-open\) \.mapArrivalCard/);
   });
 });
+
+describe("map drawer close button backing", () => {
+  const sheet = readFileSync(join(process.cwd(), "components/map/venueSheet.css"), "utf8");
+
+  it("has its own disc so it never floats bare over the hero photograph", () => {
+    expect(sheet).toMatch(
+      /\.mapDrawerHead \.surfaceNavHome \{[^}]*background: color-mix\(in srgb, var\(--sheet-material-solid[^}]*box-shadow: var\(--shadow-sm\)/,
+    );
+  });
+});
