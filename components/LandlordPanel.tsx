@@ -5,6 +5,7 @@ import { BookOpen, MessageCircle, Send, Sparkles } from "lucide-react";
 import { discardBody } from "@/lib/responseBody";
 import { venueKindNoun } from "@/lib/venueKindFilters";
 import type { VenueKind } from "@/lib/venues";
+import { citationSourceLabel } from "@/lib/citationSourceLabel";
 
 type Context = {
   era?: string;
@@ -147,12 +148,12 @@ export default function LandlordPanel(props: {
                       rel="noreferrer"
                     >
                       <BookOpen size={11} />
-                      {c.source}
+                      {citationSourceLabel(c.source)}
                     </a>
                   ) : (
                     <span key={`${c.source}-${i}`} className="citationChip">
                       <BookOpen size={11} />
-                      {c.source}
+                      {citationSourceLabel(c.source)}
                     </span>
                   ),
                 )}
