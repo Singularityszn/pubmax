@@ -89,6 +89,7 @@ const NOT_REPO_PATHS = new Set([
   "lib/**/*.server.ts",
   // Member name, not a repository path.
   "AuthProvider.updateSession",
+  "FollowStore.edgesWith",
   // Span attribute keys named in the model-call tracing entry, not repository paths.
   "metadata.route",
   "gen_ai.agent.name",
