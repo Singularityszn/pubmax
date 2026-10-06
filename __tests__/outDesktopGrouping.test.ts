@@ -263,7 +263,7 @@ describe("outVenueMatchNotice", () => {
 
   it("names the window the chip asked for and sends the other days to the map", () => {
     expect(outVenueMatchNotice([unmatched], "weekend", "unavailable")?.line).toContain(
-      "the weekend's 1 listing",
+      "this weekend's 1 listing",
     );
     expect(outVenueMatchNotice([unmatched], "weekend", "unavailable")?.way).toEqual({
       href: "/map",

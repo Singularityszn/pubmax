@@ -125,7 +125,7 @@ describe("MapExperienceLens", () => {
       "utf8",
     );
     expect(drinkPrices).toContain(
-      "drinkLensEmptyVenueNote(laneNoun, readStatus)",
+      "drinkLensEmptyVenueNote(laneNoun, readStatus, priceShownFromAnotherLane)",
     );
     // And the no-alcohol view keeps the joined noun rather than naming one of
     // its two categories and hiding the other.

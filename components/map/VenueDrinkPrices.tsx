@@ -51,6 +51,7 @@ export default function VenueDrinkPrices({
   laneNoun,
   readStatus,
   laneLoggedPriceShown = false,
+  priceShownFromAnotherLane = false,
   inviteOwnedElsewhere = false,
   communityPrices,
   onLogPrice,
@@ -78,6 +79,12 @@ export default function VenueDrinkPrices({
    * time, because one pub may never offer the same price twice.
    */
   laneLoggedPriceShown?: boolean;
+  /**
+   * True when the price area below prints a figure nobody logged here (listed,
+   * sourced or baseline). The absence line then says "by a drinker", so it never
+   * reads as denying the price beside it.
+   */
+  priceShownFromAnotherLane?: boolean;
   /**
    * True when the Overview's price area below already renders the ONE price
    * door for this pub, or the composer that door opens is on screen. The
@@ -109,7 +116,7 @@ export default function VenueDrinkPrices({
   const laneEmptyNote =
     laneRow || laneLoggedPriceShown
       ? null
-      : drinkLensEmptyVenueNote(laneNoun, readStatus);
+      : drinkLensEmptyVenueNote(laneNoun, readStatus, priceShownFromAnotherLane);
   const invite =
     laneRow || laneLoggedPriceShown || !canLog || inviteOwnedElsewhere
       ? null

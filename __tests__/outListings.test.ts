@@ -156,7 +156,7 @@ describe("out listings empty line", () => {
     // "Nothing listed for tonight" over the Weekend chip is a claim about the
     // wrong day.
     expect(outListingsEmptyLine("ready", "tomorrow")).toMatch(/tomorrow/i);
-    expect(outListingsEmptyLine("ready", "weekend")).toMatch(/the weekend/i);
+    expect(outListingsEmptyLine("ready", "weekend")).toMatch(/this weekend/i);
     expect(outListingsEmptyLine("ready", "weekend")).not.toMatch(/tonight/i);
   });
 
@@ -198,7 +198,7 @@ describe("what the listings heading may say", () => {
   it("names the window the reader asked for", () => {
     expect(outListingsSectionTitle("tonight")).toBe("What's on tonight");
     expect(outListingsSectionTitle("tomorrow")).toBe("What's on tomorrow");
-    expect(outListingsSectionTitle("weekend")).toBe("What's on the weekend");
+    expect(outListingsSectionTitle("weekend")).toBe("What's on this weekend");
   });
 
   it("agrees with the empty line about which window it is listing", () => {
