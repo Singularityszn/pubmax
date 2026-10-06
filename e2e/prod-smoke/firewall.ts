@@ -34,10 +34,15 @@ function header(headers: HeaderReader, name: string): string | undefined {
   return key === undefined ? undefined : bag[key];
 }
 
-/** Did the platform's firewall, rather than the app, refuse this response? */
-export function isFirewallDeny(response: { status: number; headers: HeaderReader }): boolean {
-  const mitigated = header(response.headers, FIREWALL_HEADER);
-  return response.status === 429 && mitigated !== undefined && mitigated !== "";
+/**
+ * Did the platform's firewall, rather than the app, refuse this response?
+ *
+ * The header alone says so, whatever the status: a deny action answers 403, a
+ * rate-limit rule answers 429, and the app sets neither header. Only `deny` is
+ * a refusal; `challenge` and the log-only values are not.
+ */
+export function isFirewallDeny(response: { headers: HeaderReader }): boolean {
+  return header(response.headers, FIREWALL_HEADER)?.toLowerCase() === "deny";
 }
 
 /** Is this a refusal worth another try: any 429, the platform's or the app's. */
@@ -69,8 +74,10 @@ type Answer = { status: number; headers: HeaderReader; url: string };
  * reads the status, headers and URL off whatever `attempt` returns, because
  * Playwright's APIResponse and a fetch Response expose them differently.
  *
- * Resolves with the first answer that is not a 429. When every try is a 429 it
- * throws `FirewallDenyError` if the last was the platform's deny, and otherwise
+ * Resolves with the first answer that is not a 429. A deny that is not a 429
+ * (the firewall's 403) is not retried: it is the platform's answer to this
+ * request, so it throws `FirewallDenyError` at once. When every try is a 429 it
+ * throws the same error if the last was the platform's deny, and otherwise
  * returns that last answer so the caller's own assertion reports the app's 429.
  */
 export async function untilNot429<T>(
@@ -81,7 +88,11 @@ export async function untilNot429<T>(
 ): Promise<T> {
   let value = await attempt();
   for (const pause of backoffMs) {
-    if (!isRetryable429(describe(value))) return value;
+    const answer = describe(value);
+    if (!isRetryable429(answer)) {
+      if (isFirewallDeny(answer)) throw new FirewallDenyError(answer.url, 1);
+      return value;
+    }
     await sleep(pause);
     value = await attempt();
   }

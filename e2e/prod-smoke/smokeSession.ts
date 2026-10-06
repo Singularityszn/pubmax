@@ -73,7 +73,7 @@ export async function evidence(page: Page, name: string): Promise<void> {
 export function watchFirewall(context: BrowserContext): { denies: () => number } {
   let count = 0;
   context.on("response", (response) => {
-    if (!isFirewallDeny({ status: response.status(), headers: response.headers() })) return;
+    if (!isFirewallDeny({ headers: response.headers() })) return;
     count += 1;
     try {
       test.info().annotations.push({

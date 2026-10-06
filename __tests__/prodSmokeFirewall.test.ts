@@ -14,21 +14,27 @@ import {
 
 const deny = { status: 429, headers: { [FIREWALL_HEADER]: "deny" }, url: "https://x/api/saved-pubs" };
 const appLimit = { status: 429, headers: {}, url: "https://x/api/saved-pubs" };
+const forbidden = { status: 403, headers: { [FIREWALL_HEADER]: "deny" }, url: "https://x/api/saved-pubs" };
 const ok = { status: 200, headers: {}, url: "https://x/api/saved-pubs" };
 type Answer = typeof ok;
 const noSleep = vi.fn<(ms: number) => Promise<void>>(async () => {});
 const asAnswer = (value: Answer): Answer => value;
 
 describe("isFirewallDeny", () => {
-  it("is true only for a 429 that carries the platform header", () => {
+  it("is true for the platform's deny at any status, and false without it", () => {
     expect(isFirewallDeny(deny)).toBe(true);
+    expect(isFirewallDeny(forbidden)).toBe(true);
     expect(isFirewallDeny(appLimit)).toBe(false);
-    expect(isFirewallDeny({ status: 200, headers: { [FIREWALL_HEADER]: "deny" } })).toBe(false);
+    expect(isFirewallDeny(ok)).toBe(false);
+  });
+
+  it("is false for a mitigation that is not a deny", () => {
+    expect(isFirewallDeny({ headers: { [FIREWALL_HEADER]: "challenge" } })).toBe(false);
   });
 
   it("reads the header whatever its case", () => {
-    expect(isFirewallDeny({ status: 429, headers: { "X-Vercel-Mitigated": "deny" } })).toBe(true);
-    expect(isFirewallDeny({ status: 429, headers: new Headers({ [FIREWALL_HEADER]: "deny" }) })).toBe(true);
+    expect(isFirewallDeny({ headers: { "X-Vercel-Mitigated": "deny" } })).toBe(true);
+    expect(isFirewallDeny({ headers: new Headers({ [FIREWALL_HEADER]: "deny" }) })).toBe(true);
   });
 });
 
@@ -47,6 +53,15 @@ describe("untilNot429", () => {
     expect(failure).toBeInstanceOf(FirewallDenyError);
     expect((failure as Error).message).toMatch(/^INFRASTRUCTURE: Vercel's edge firewall denied/);
     expect(attempt).toHaveBeenCalledTimes(4);
+  });
+
+  it("reports a 403 deny at once, without retrying it", async () => {
+    const attempt = vi.fn<() => Promise<Answer>>().mockResolvedValue(forbidden);
+    const sleep = vi.fn<(ms: number) => Promise<void>>(async () => {});
+    const failure = await untilNot429(attempt, asAnswer, sleep).catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(FirewallDenyError);
+    expect(attempt).toHaveBeenCalledTimes(1);
+    expect(sleep).not.toHaveBeenCalled();
   });
 
   it("hands back the app's own 429 so the caller's assertion reports it", async () => {

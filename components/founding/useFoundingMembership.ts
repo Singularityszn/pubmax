@@ -53,7 +53,9 @@ export function useFoundingMembership(): FoundingMembership {
     let live = true;
     void readAuthedIdentity(userId)
       .then((answer) => {
-        if (!answer.ok) return null;
+        // A refused or limited read proves nothing about this account, so it
+        // takes the same road as a thrown one and the surface stays loading.
+        if (!answer.ok) throw new Error(`identity read answered ${answer.status}`);
         return answer.body as { foundingMemberNumber?: unknown } | null;
       })
       .then((body) => {

@@ -95,6 +95,10 @@ export default function VenueHygiene({ venueId, venueName, address }: Props) {
     })();
 
     return () => {
+      // The effect that ends here owned this generation. Retiring it now, not
+      // when the next pub's read starts after its phase delay, is what stops a
+      // write the old pub had already queued from landing under the new one.
+      generationRef.current += 1;
       controller.abort();
     };
   }, [ready, venueId, venueName, address]);

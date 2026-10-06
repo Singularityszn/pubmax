@@ -50,13 +50,35 @@ export function forgetCurrentIdentityRead(): void {
   held = null;
 }
 
+// Writing the server's own handle onto the device announces a device identity
+// change, and that announcement would drop the very answer the write came from.
+let keeping = 0;
+
+/**
+ * Run `write`, which stores what the shared read just said, without the
+ * announcement it makes dropping that read. Used for the one write that follows
+ * the canonical read; an identity change from anywhere else still drops it.
+ */
+export function keepCurrentIdentityReadDuring<T>(write: () => T): T {
+  keeping += 1;
+  try {
+    return write();
+  } finally {
+    keeping -= 1;
+  }
+}
+
+function forgetUnlessKept(): void {
+  if (keeping === 0) forgetCurrentIdentityRead();
+}
+
 // The window the listeners are attached to, rather than a latched boolean, so
 // they rebind where the global is replaced (a test, a navigation in a shell).
 let boundWindow: unknown = null;
 function bindBoundaries(): void {
   if (typeof window === "undefined" || boundWindow === window) return;
   boundWindow = window;
-  subscribeDeviceIdentity(forgetCurrentIdentityRead);
+  subscribeDeviceIdentity(forgetUnlessKept);
   // The string is spelled out rather than imported: lib/identityClient.ts
   // imports this module, and the event name is part of its public contract.
   window.addEventListener("pubmaxx:identity-handle-changed", forgetCurrentIdentityRead);

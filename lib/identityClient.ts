@@ -12,6 +12,7 @@ import {
 } from "@/lib/deviceAccountIdentity";
 import {
   CURRENT_IDENTITY_PATH,
+  keepCurrentIdentityReadDuring,
   readCurrentIdentity,
 } from "@/lib/currentIdentityRead";
 import { discardBody } from "@/lib/responseBody";
@@ -139,7 +140,7 @@ export async function resolveCanonicalIdentity(
     typeof body?.handle === "string" ? normalizeHandle(body.handle) : "";
   if (!handle) return { ok: true, identity: null };
   clearClaimedRoundAnonymousHandle(handle, storage);
-  syncDeviceHandle(storage, handle);
+  keepCurrentIdentityReadDuring(() => syncDeviceHandle(storage, handle));
   return {
     ok: true,
     identity: { ownerId: auth.userId, handle },

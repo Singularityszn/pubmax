@@ -61,6 +61,21 @@ describe("useStaggeredRead", () => {
     expect(seen()).toBe(true);
   });
 
+  it("waits again when a venue is reopened: A, then B, then A is a new arrival at A", () => {
+    render(2, "venue-a");
+    act(() => vi.advanceTimersByTime(READ_PHASE_DELAY_MS[2]));
+    expect(seen()).toBe(true);
+    render(2, "venue-b");
+    act(() => vi.advanceTimersByTime(READ_PHASE_DELAY_MS[2] - 100));
+    expect(seen()).toBe(false);
+    render(2, "venue-a");
+    expect(seen()).toBe(false);
+    act(() => vi.advanceTimersByTime(READ_PHASE_DELAY_MS[2] - 1));
+    expect(seen()).toBe(false);
+    act(() => vi.advanceTimersByTime(1));
+    expect(seen()).toBe(true);
+  });
+
   it("orders the phases and keeps the last one short enough to land before a scroll", () => {
     expect([...READ_PHASE_DELAY_MS]).toEqual([...READ_PHASE_DELAY_MS].sort((a, b) => a - b));
     expect(Math.max(...READ_PHASE_DELAY_MS)).toBeLessThanOrEqual(2_000);

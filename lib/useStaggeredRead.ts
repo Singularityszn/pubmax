@@ -27,14 +27,19 @@ export type ReadPhase = 0 | 1 | 2 | 3;
  * lower panels on the second pub's clock.
  */
 export function useStaggeredRead(phase: ReadPhase, scope: string): boolean {
-  const [readyFor, setReadyFor] = useState<string | null>(null);
+  // Ready is a fact about ONE arrival at a scope, not about the scope's name:
+  // A, then B, then A again is a new arrival at A and waits again. The scope is
+  // adopted during render, so the render that shows the new scope can never see
+  // the last scope's readiness.
+  const [arrival, setArrival] = useState({ scope, ready: false });
+  if (arrival.scope !== scope) setArrival({ scope, ready: false });
   useEffect(() => {
     if (phase === 0) return;
     const timer = setTimeout(
-      () => setReadyFor(scope),
+      () => setArrival((current) => (current.scope === scope ? { scope, ready: true } : current)),
       READ_PHASE_DELAY_MS[phase],
     );
     return () => clearTimeout(timer);
   }, [phase, scope]);
-  return phase === 0 || readyFor === scope;
+  return phase === 0 || (arrival.scope === scope && arrival.ready);
 }

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CURRENT_IDENTITY_READ_MS,
   forgetCurrentIdentityRead,
+  keepCurrentIdentityReadDuring,
   readCurrentIdentity,
 } from "@/lib/currentIdentityRead";
 import {
@@ -58,6 +59,17 @@ describe("readCurrentIdentity", () => {
     const load = vi.fn(answer());
     await readCurrentIdentity("user-1", load);
     window.dispatchEvent(new Event("pubmaxx:identity-handle-changed"));
+    await readCurrentIdentity("user-1", load);
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the answer across the write that stores what it said, but not across any other identity change", async () => {
+    const load = vi.fn(answer());
+    await readCurrentIdentity("user-1", load);
+    keepCurrentIdentityReadDuring(() => window.dispatchEvent(new Event("pubmax:device-identity-changed")));
+    await readCurrentIdentity("user-1", load);
+    expect(load).toHaveBeenCalledTimes(1);
+    window.dispatchEvent(new Event("pubmax:device-identity-changed"));
     await readCurrentIdentity("user-1", load);
     expect(load).toHaveBeenCalledTimes(2);
   });
