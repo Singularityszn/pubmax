@@ -1,0 +1,125 @@
+name: Production smoke
+
+# Real journeys against the live site after every production deploy, with
+# nothing mocked. e2e/prod-smoke/README.md is the runbook, including how the
+# smoke account behind SMOKE_USER_HANDLE and SMOKE_USER_PASSWORD is made.
+#
+# Vercel's Git integration reports each deploy to GitHub as a deployment, so a
+# successful Production deployment status starts this run. A CLI deploy
+# reports nothing to GitHub: dispatch this workflow by hand after one.
+
+on:
+  deployment_status:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Two deploys in a row queue their runs: the smoke account holds one
+  # session, and two runs would race each other's cleanup. Every other
+  # deployment status (Preview, pending) gets a group of its own, so it can
+  # never cancel a smoke run that is waiting in the queue.
+  group: >-
+    ${{ (github.event_name == 'workflow_dispatch' ||
+    (github.event.deployment_status.state == 'success' &&
+    startsWith(github.event.deployment.environment, 'Production'))) &&
+    github.workflow || format('{0}-{1}', github.workflow, github.run_id) }}
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    name: Production smoke
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' &&
+       startsWith(github.event.deployment.environment, 'Production'))
+    # The browser suites run on macOS, where the map's SwiftShader context is
+    # proven (e2e.yml).
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # Test the commit that was deployed, not whatever main is now.
+          ref: ${{ github.event.deployment.sha || github.sha }}
+
+      - name: Setup Node
+        timeout-minutes: 5
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm run deps:install-scripts
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      # The live origin always serves the newest deploy, while this run checked
+      # out one commit. Compare Vercel deployment ids: the deployment's own URL
+      # and the live origin both answer /api/version without credentials. A
+      # newer deploy already serving production makes this run moot, because
+      # that deploy's own run tests it.
+      - name: Check the live site serves this deployment
+        id: bound
+        env:
+          DEPLOYMENT_URL: ${{ github.event.deployment_status.environment_url }}
+        run: |
+          live=$(curl -fsS --max-time 30 https://pubmaxxing.com/api/version | jq -r '.deploymentId // empty')
+          if [ -z "$live" ]; then echo "::error::https://pubmaxxing.com/api/version named no deployment"; exit 1; fi
+          echo "live=$live" >> "$GITHUB_OUTPUT"
+          if [ -z "$DEPLOYMENT_URL" ]; then
+            echo "Dispatched run: testing $live with the dispatched ref."
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! printf '%s' "$DEPLOYMENT_URL" | grep -Eq '^https://[a-z0-9-]+\.vercel\.app$'; then
+            echo "::error::Unexpected deployment URL: $DEPLOYMENT_URL"; exit 1
+          fi
+          mine=$(curl -fsS --max-time 30 "$DEPLOYMENT_URL/api/version" | jq -r '.deploymentId // empty')
+          if [ "$mine" = "$live" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Production now serves $live, not this deployment ($mine). Skipping: the newer deploy's run tests it."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run the production smoke suite
+        if: steps.bound.outputs.run == 'true'
+        env:
+          # Pinned, so the smoke account's secrets only ever go to the live site.
+          SMOKE_BASE_URL: https://pubmaxxing.com
+          SMOKE_USER_HANDLE: ${{ secrets.SMOKE_USER_HANDLE }}
+          SMOKE_USER_PASSWORD: ${{ secrets.SMOKE_USER_PASSWORD }}
+          # A missing secret fails the run rather than skipping the signed-in half.
+          SMOKE_REQUIRE_SIGN_IN: "1"
+        run: npx playwright test --config=playwright.prod-smoke.config.ts
+
+      # A deploy that lands mid-run moves the live origin under the suite, so
+      # its verdict no longer belongs to the commit checked out here.
+      - name: Check production did not move during the run
+        if: ${{ !cancelled() && steps.bound.outputs.run == 'true' }}
+        env:
+          LIVE_BEFORE: ${{ steps.bound.outputs.live }}
+        run: |
+          live=$(curl -fsS --max-time 30 https://pubmaxxing.com/api/version | jq -r '.deploymentId // empty')
+          if [ "$live" != "$LIVE_BEFORE" ]; then
+            echo "::error::Production moved from $LIVE_BEFORE to $live during the run, so this verdict is not this deployment's. The newer deploy's run decides."
+            exit 1
+          fi
+
+      - name: Upload the report and screenshots
+        if: ${{ !cancelled() && steps.bound.outputs.run == 'true' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: prod-smoke-${{ github.run_id }}
+          path: |
+            playwright-report/prod-smoke
+            test-results/prod-smoke
+          retention-days: 14
