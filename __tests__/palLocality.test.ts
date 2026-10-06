@@ -97,7 +97,23 @@ describe("a place the taxonomy cannot place", () => {
     expect(locality.scope).toBe("london-wide");
     expect(locality.unplaced).toBeUndefined();
     expect(palLocalityLine(locality)).not.toMatch(/could not place/i);
-    expect(resolvePalLocality("pubs near London Wall", null).unplaced).toBe("London Wall");
+    for (const query of [
+      "cheap pints in Central London",
+      "quiet pubs in East London",
+      "pubs near London Wall",
+    ]) {
+      const wide = resolvePalLocality(query, null);
+      expect(wide.unplaced, query).toBeUndefined();
+      expect(palLocalityLine(wide), query).not.toMatch(/could not place/i);
+    }
+  });
+
+  it("never reads a brewery or owner after \"by\" as a place", () => {
+    for (const query of ["cheap pubs run by Young's", "pubs owned by Sam Smith's"]) {
+      const wide = resolvePalLocality(query, null);
+      expect(wide.unplaced, query).toBeUndefined();
+      expect(palLocalityLine(wide), query).not.toMatch(/could not place/i);
+    }
   });
 
   it("does not apply to an area the taxonomy does place", () => {
