@@ -6,9 +6,9 @@ The inventory is descriptive, not a runtime registry.
 
 ## Current snapshot
 
-- The repository has 53 `lib/*Store.ts` modules.
-- 32 modules call `selectStore` directly.
-- 8 modules use `createDualBackendStore`.
+- The repository has 54 `lib/*Store.ts` modules.
+- 36 modules call `selectStore` directly.
+- 10 modules use `createDualBackendStore`.
 - 6 modules keep memory state on `globalThis` so it survives a development
   server reload. That state pattern is separate from backend selection.
 - The remaining modules use an explicit backend, a file or static data path,
@@ -240,9 +240,10 @@ zero-argument selector before and after the factory wrapper, and its memory
 and Supabase implementations keep their existing fail-soft behavior.
 
 The current branch also has `createDualBackendStore` in
-`adultSelfAssertionStore`, `feedFreshnessStore`, `occupancyStore`,
-`priceTrustEventStore`, `stepOutNudgeStore`, `walkRouteStore`, `wantedStore`,
-and `diaryStore`. This inventory records that current state; it does not require
+`adultSelfAssertionStore`, `diaryStore`, `feedFreshnessStore`,
+`harvestOverlayStore`, `occupancyStore`, `priceTrustEventStore`,
+`pubPalToolTurnStore`, `stepOutNudgeStore`, `walkRouteStore` and
+`wantedStore`. This inventory records that current state; it does not require
 other stores to migrate.
 
 ## Review-scope guard
