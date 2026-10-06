@@ -626,9 +626,16 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
 
 - **Route / method:** `POST app/api/diary/route.ts` logs one visit: a pub, a
   London calendar day, an optional half-star rating and an optional review of
-  at most 280 characters. The route also exports an owner-only `GET` list,
-  which is not a mutating verb. Entries are PRIVATE: the only visibility is
-  `private`, and no route reads another account's entries.
+  at most 280 characters. The same `POST` carries two owner-only actions on an
+  entry the account already wrote: `action: "update"` corrects its day, stars or
+  review (`validateDiaryEntryEdit`, the same bounds as logging it) and
+  `action: "delete"` removes it. Both find the row by its id AND the session's
+  account, so another account's entry answers 404 exactly as a missing one
+  does, and a correction that lands on a pub and day already logged answers 409
+  `DIARY_ENTRY_EXISTS`. The route also exports an owner-only `GET` list, which
+  is not a mutating verb, and which answers an unmet age or handle gate as
+  `{ status, error }` at 200 rather than a 409. Entries are PRIVATE: the only
+  visibility is `private`, and no route reads another account's entries.
 - **Validation:** `validateDiaryEntryCreate` (`lib/diary.ts`). The venue name
   is the canonical name the server resolves for the id, never a typed one. The
   day is a bare `YYYY-MM-DD` that must be a real day, not in the future and
@@ -644,7 +651,8 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
   constraints (0174) hold the rating, review-length and earliest-day bounds.
   The future-day bound is checked only by the route.
 - **Rate limit (boundary):** durable per-profile + hashed-IP `isLimited` with
-  key `diary:${owner.actor}:${ipHash}` - 429 `RATE_LIMITED` on exceed.
+  key `diary:${owner.actor}:${ipHash}` - 429 `RATE_LIMITED` on exceed. Logging,
+  correcting and removing an entry share this one budget.
 - **Auth stance:** `resolveContributionIdentity` derives the owner from the
   session, and the owner is the account's auth user id. A body owner or handle
   is ignored. The row keys to `auth.users` with ON DELETE CASCADE, so deleting

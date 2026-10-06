@@ -237,6 +237,27 @@ export async function POST(request: Request): Promise<Response> {
     }
   }
 
+  if (action === "note") {
+    const id = readString(body.id);
+    if (!id) {
+      return publicApiError("Wanted place not found.", "NOT_FOUND", 404);
+    }
+    try {
+      const wanted = await wantedStore().updateNote(owner.contributor.actor, id, readString(body.note) ?? "");
+      return wanted
+        ? jsonNoStore({ wanted }, { status: 200 })
+        : publicApiError("Wanted place not found.", "NOT_FOUND", 404);
+    } catch (err) {
+      log("error", "wanteds.note_failed", {
+        route: "POST /api/wanted",
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return publicApiError("Storage is unavailable.", "STORE_UNAVAILABLE", 503, {
+        retryable: true,
+      });
+    }
+  }
+
   const pending = action === "pending";
   const result = validateWantedCreate({
     ownerActor: owner.contributor.actor,

@@ -138,6 +138,30 @@ describe("GET/POST /api/wanted", () => {
     expect((await created.json()).status).toBe("adult_check_required");
   });
 
+  it("lets the owner correct the note on a row, and nobody else", async () => {
+    const created = await POST(
+      post({ venueId: "venue-dove", venueName: "The Dove", venueKind: "curated", note: "Back room" }),
+    );
+    const { wanted } = await created.json();
+
+    const edited = await POST(post({ action: "note", id: wanted.id, note: "Ask for the snug" }));
+    expect(edited.status).toBe(200);
+    expect((await edited.json()).wanted).toMatchObject({ id: wanted.id, note: "Ask for the snug" });
+    expect((await (await GET(get())).json()).wanteds[0].note).toBe("Ask for the snug");
+
+    const cleared = await POST(post({ action: "note", id: wanted.id, note: "" }));
+    expect((await cleared.json()).wanted.note).toBe("");
+
+    contributionIdentityState.resolution = {
+      ok: true,
+      accountId: "acct-b",
+      actor: "profile:bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+      handle: "bob",
+    };
+    const stranger = await POST(post({ action: "note", id: wanted.id, note: "Mine" }));
+    expect(stranger.status).toBe(404);
+  });
+
   it("creates and lists a Wanted for the owner only", async () => {
     const created = await POST(
       post({

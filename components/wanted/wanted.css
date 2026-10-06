@@ -184,6 +184,64 @@
   grid-column: 1 / -1;
 }
 
+/* The owner's own controls on a row: the link they kept, the note, the way off
+   the list. Plain bordered buttons on the control tokens, never a second filled
+   call to action beside the row's map link. */
+.wantedRow__manage {
+  display: grid;
+  grid-column: 1 / -1;
+  min-width: 0;
+  gap: 0.5rem;
+}
+
+.wantedRow__buttons {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.wantedRow__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--control-height, 44px);
+  min-width: 44px;
+  padding: 0 var(--control-pad-x, 16px);
+  border: 1px solid var(--line, rgba(0, 0, 0, 0.14));
+  border-radius: var(--control-radius, 14px);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight, 700);
+  line-height: 1.15;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.wantedRow__button--primary {
+  border-color: var(--brass, #b08d57);
+  background: var(--brass, #b08d57);
+  color: var(--color-on-accent, #fff);
+}
+
+.wantedRow__button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.wantedRow__noteEdit {
+  display: grid;
+  min-width: 0;
+  gap: 0.5rem;
+}
+
+.wantedRow__noteLabel {
+  color: var(--muted, var(--ink-soft, #5c5346));
+  font-size: 0.8rem;
+}
+
 .wantedPromotion label {
   display: grid;
   gap: 0.25rem;

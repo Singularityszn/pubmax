@@ -83,6 +83,95 @@ afterEach(() => vi.restoreAllMocks());
 
 const TODAY = () => londonDayKey(new Date());
 
+describe("POST /api/diary actions on an existing entry", () => {
+  async function log(body: Record<string, unknown> = {}) {
+    const res = await POST(post({ venueId: VENUE_ID, visitedOn: TODAY(), rating: 3, review: "First go.", ...body }));
+    expect(res.status).toBe(201);
+    return (await res.json()).entry as { id: string };
+  }
+
+  it("corrects the stars, the words and the day of the owner's own entry", async () => {
+    const entry = await log();
+    const res = await POST(
+      post({ action: "update", id: entry.id, rating: 4.5, review: "Better on a second visit.", visitedOn: "2026-01-02" }),
+    );
+    expect(res.status).toBe(200);
+    expect((await res.json()).entry).toMatchObject({
+      id: entry.id,
+      venueId: VENUE_ID,
+      rating: 4.5,
+      review: "Better on a second visit.",
+      visitedOn: "2026-01-02",
+    });
+    const list = await (await GET(get())).json();
+    expect(list.entries).toHaveLength(1);
+    expect(list.entries[0]).toMatchObject({ rating: 4.5, visitedOn: "2026-01-02" });
+  });
+
+  it("leaves what a correction does not name alone, and clears the stars with null", async () => {
+    const entry = await log();
+    const res = await POST(post({ action: "update", id: entry.id, rating: null }));
+    expect(res.status).toBe(200);
+    expect((await res.json()).entry).toMatchObject({ rating: null, review: "First go.", visitedOn: TODAY() });
+  });
+
+  it.each([
+    ["nothing to change", {}],
+    ["a future day", { visitedOn: "2999-01-01" }],
+    ["an off-scale rating", { rating: 4.2 }],
+    ["a long review", { review: "x".repeat(281) }],
+  ])("refuses a correction with %s", async (_label, change) => {
+    const entry = await log();
+    const res = await POST(post({ action: "update", id: entry.id, ...change }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe("INVALID_DIARY_ENTRY");
+  });
+
+  it("refuses a correction that lands on a pub and day already logged", async () => {
+    await log({ visitedOn: "2026-01-02" });
+    const entry = await log({ visitedOn: "2026-01-03" });
+    const res = await POST(post({ action: "update", id: entry.id, visitedOn: "2026-01-02" }));
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe("DIARY_ENTRY_EXISTS");
+  });
+
+  it("removes the owner's own entry, and a second removal is a 404", async () => {
+    const entry = await log();
+    const removed = await POST(post({ action: "delete", id: entry.id }));
+    expect(removed.status).toBe(200);
+    expect(await removed.json()).toEqual({ ok: true });
+    expect((await (await GET(get())).json()).entries).toEqual([]);
+    expect((await POST(post({ action: "delete", id: entry.id }))).status).toBe(404);
+  });
+
+  it("answers another account's entry exactly as a missing one, for a correction and a removal", async () => {
+    const entry = await log();
+    signIn(BOB, "bob");
+
+    const edit = await POST(post({ action: "update", id: entry.id, review: "Mine now." }));
+    const remove = await POST(post({ action: "delete", id: entry.id }));
+    expect(edit.status).toBe(404);
+    expect(remove.status).toBe(404);
+
+    signIn(ALICE, "alice");
+    const list = await (await GET(get())).json();
+    expect(list.entries).toHaveLength(1);
+    expect(list.entries[0]).toMatchObject({ id: entry.id, review: "First go." });
+  });
+
+  it("does not run an action for a signed-out caller", async () => {
+    const entry = await log();
+    identityState.resolution = {
+      ok: false,
+      body: { status: "sign_in_required", error: "Sign in to contribute." },
+      httpStatus: 401,
+    };
+    expect((await POST(post({ action: "delete", id: entry.id }))).status).toBe(401);
+    signIn(ALICE, "alice");
+    expect((await (await GET(get())).json()).entries).toHaveLength(1);
+  });
+});
+
 describe("GET /api/diary behind a gate", () => {
   it("answers the age gate as data at 200 and still refuses the write with 409", async () => {
     identityState.resolution = {

@@ -6,6 +6,8 @@ import {
   splitWantedPaste,
   validateWantedCreate,
   wantedFulfilledLine,
+  wantedLinkHost,
+  wantedLinkHref,
   wantedPendingLabel,
 } from "@/lib/wanted";
 
@@ -122,5 +124,33 @@ describe("Wanted public-list eligibility", () => {
     expect(isWantedPromotable({ ...resolved, status: "fulfilled" })).toBe(false);
     expect(isWantedPromotable({ ...resolved, promotedListType: "Want to Visit" }))
       .toBe(false);
+  });
+});
+
+describe("wantedLinkHref", () => {
+  it("opens a plain http or https link the owner saved", () => {
+    expect(wantedLinkHref("https://www.instagram.com/reel/abc123/")).toBe(
+      "https://www.instagram.com/reel/abc123/",
+    );
+    expect(wantedLinkHref("http://example.com/pub")).toBe("http://example.com/pub");
+    expect(wantedLinkHost("https://www.instagram.com/reel/abc123/")).toBe("instagram.com");
+  });
+
+  it.each([
+    "javascript:alert(1)",
+    "data:text/html,<script>alert(1)</script>",
+    "ftp://example.com/pub",
+    "https://user:pass@evil.example/phish",
+    "not a url",
+    "",
+    "   ",
+  ])("does not open %j", (value) => {
+    expect(wantedLinkHref(value)).toBeNull();
+    expect(wantedLinkHost(value)).toBe("");
+  });
+
+  it("does not open a value that is not text", () => {
+    expect(wantedLinkHref(undefined)).toBeNull();
+    expect(wantedLinkHref(42)).toBeNull();
   });
 });
