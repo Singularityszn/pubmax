@@ -3,7 +3,7 @@
  * Record a closed nightly Tavily PR's rows as rejected, so no later night
  * writes them again.
  *
- *   npm run tavily:reject -- --city=london --ref=origin/tavily-london/20261006
+ *   npm run tavily:reject -- --city=london --ref=origin/tavily-london/20261006-023012
  *
  * Run it on a branch from the default branch, then commit and merge
  * data/enrichment/tavily/<city>/rejected.json. Every venue page whose rows the
