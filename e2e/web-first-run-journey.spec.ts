@@ -154,6 +154,20 @@ test.describe("with location refused", () => {
   });
 });
 
+test("on a short phone each step opens at the top with the progress bar and Skip in view", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await openJourneyFromTheApp(page);
+  const useLondon = page.getByRole("button", { name: "Use London" });
+  await useLondon.scrollIntoViewIfNeeded();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+  await useLondon.click();
+
+  await expect(page.getByRole("heading", { name: "What's a fair pint to you?" })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  await expect(page.getByRole("progressbar", { name: "Onboarding progress" })).toBeInViewport({ ratio: 1 });
+  await expect(page.getByRole("button", { name: "Skip" })).toBeInViewport({ ratio: 1 });
+});
+
 test("a typed visit is still turned away, and the start mark alone does not let a stranger in", async ({ page }) => {
   await page.goto("/onboarding?start=web");
   await expect(page).toHaveURL(/\/$/);

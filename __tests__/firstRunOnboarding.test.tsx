@@ -74,6 +74,8 @@ async function reachLocation() {
 beforeEach(async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   window.localStorage.clear();
+  // jsdom has no layout to scroll; the spy records where each step asked to open.
+  vi.spyOn(window, "scrollTo").mockImplementation(() => {});
   slim.load.mockResolvedValue({ rows: SOHO_PUBS, status: "ready" });
   container = document.createElement("div");
   document.body.append(container);
@@ -351,5 +353,20 @@ describe("first-run result and companion choice", () => {
     await tap("Use London");
     expect(bar()?.getAttribute("aria-valuenow")).toBe("2");
     expect(bar()?.getAttribute("aria-valuemax")).toBe("5");
+  });
+
+  it("opens each new step at the top, whatever the last one was scrolled to", async () => {
+    const scrollTo = vi.mocked(window.scrollTo);
+    scrollTo.mockClear();
+    await tap("Use London");
+    expect(scrollTo).toHaveBeenCalledWith(0, 0);
+
+    // A choice on the same step is not a new screen and keeps the reader put.
+    scrollTo.mockClear();
+    await tap("£6 or less");
+    expect(scrollTo).not.toHaveBeenCalled();
+
+    await tap("Continue");
+    expect(scrollTo).toHaveBeenCalledWith(0, 0);
   });
 });

@@ -274,6 +274,11 @@ test("Skip releases onboarding budget for the next Plan but never prompts on reb
   await page.goto("/map?plan=1");
   await expect(page.getByRole("heading", { name: "Describe the outing" })).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "Make a plan" }).click();
+  // The plan has to land before Escape: closing the planner mid-generation
+  // drops the qualifying action, so no ask is armed for the next route.
+  await expect.poll(() => page.evaluate(
+    () => window.localStorage.getItem("pubmax:nativePush:actionSeq:v1"),
+  )).toBe("1");
   await expectPushAskOnNextRoute(page);
 
   await relaunchNativeShell(page);
