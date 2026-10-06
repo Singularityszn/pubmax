@@ -117,7 +117,7 @@ describe("POST /api/diary", () => {
     expect(entry.review).toBe("");
   });
 
-  it.each(["Best Guinness in Soho!", "Hidden gem, great garden.", "Pint <3, Guinness >> the Crown"])(
+  it.each(["Best Guinness in Soho!", "Hidden gem, great garden.", "Pint <3, Guinness >> the Crown", "Cracking 🍺🍻 back room 👍🏽"])(
     "stores the review %s exactly as written",
     async (review) => {
       const res = await POST(post({ venueId: VENUE_ID, review }));
@@ -200,6 +200,14 @@ describe("POST /api/diary", () => {
       expect(res.status).toBe(201);
       expect((await res.json()).entry.review).toBe(review);
     }
+  });
+
+  it("stores a review without a C1 control character such as U+0085", async () => {
+    const res = await POST(post({ venueId: VENUE_ID, review: "Good pint\u0085back room 🍺" }));
+    expect(res.status).toBe(201);
+    expect((await res.json()).entry.review).toBe("Good pintback room 🍺");
+    const list = await (await GET(get())).json();
+    expect(list.entries.map((row: { review: string }) => row.review)).toEqual(["Good pintback room 🍺"]);
   });
 
   it("refuses a malformed body and a non-object body", async () => {

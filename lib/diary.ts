@@ -109,7 +109,7 @@ export function clampDiaryReviewInput(typed: string): string {
 }
 
 /** Control characters a review drops. Tab and newline are spacing the owner typed. */
-const DIARY_REVIEW_CONTROL = /[\u0000-\u0008\u000B-\u001F\u007F]/g;
+const DIARY_REVIEW_CONTROL = /[\u0000-\u0008\u000B-\u001F\u007F-\u009F]/g;
 
 /**
  * Clean a review. It is the owner's own private words, so it is kept as typed:

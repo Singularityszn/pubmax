@@ -121,6 +121,7 @@ describe("validateDiaryEntryCreate", () => {
     "Hidden gem, great garden.",
     "Pint <3, Guinness >> the Crown",
     "Back room:\n  quiet,\tcalm.",
+    "Cracking 🍺🍻 back room 👍🏽",
   ])(
     "stores the review %s exactly as written",
     (review) => {
@@ -132,6 +133,11 @@ describe("validateDiaryEntryCreate", () => {
   it("strips control characters and trims the ends of a review, nothing more", () => {
     const result = create({ review: "  Good\u0000 pint\r\nby the fire\u007F  " });
     expect(result.ok && result.value.review).toBe("Good pint\nby the fire");
+  });
+
+  it("strips C1 control characters such as U+0085 and keeps tab and newline", () => {
+    const result = create({ review: "Good pint\u0085back room\u0080\u009F\tby the fire\n🍺" });
+    expect(result.ok && result.value.review).toBe("Good pintback room\tby the fire\n🍺");
   });
 
   it("counts the review cap in characters, so emoji fit up to 280", () => {

@@ -632,8 +632,8 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
   is the canonical name the server resolves for the id, never a typed one. The
   day is a bare `YYYY-MM-DD` that must be a real day, not in the future and
   not before 2000. The rating is a half star from 1 to 5. A review is the
-  owner's private words: control characters are stripped (tab and newline
-  stay) and the ends are trimmed, and nothing else changes. No copy filter
+  owner's private words: C0 and C1 control characters are stripped (tab and
+  newline stay) and the ends are trimmed, and nothing else changes. No copy filter
   runs, and angle brackets and inner spacing are kept. A review over 280
   characters answers 400, never a silent cut. The migration's CHECK
   constraints (0174) hold the rating, review-length and earliest-day bounds.
