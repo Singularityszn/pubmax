@@ -565,6 +565,7 @@ import {
 import {
   areaSheetOpenDelay,
   areaClaimedByViewport,
+  rememberedAreaNamesView,
   areaUnderCentre,
   planAreaSelect,
   type AreaDistanceFrom,
@@ -1046,20 +1047,22 @@ function activeLensNounFor(
 /**
  * The name the top bar is allowed to print.
  *
- * A remembered chosen area wins, then the arrival's own place name, then the
- * claim the VIEW earned (areaClaimedByViewport answers null for a view over no
+ * A remembered chosen area wins while the view is still over it, then the
+ * arrival's own place name, then the claim the VIEW earned (areaClaimedByViewport answers null for a view over no
  * single area), and the city name is the fallback. It lives here because
  * __tests__/ukPlaceMapArrival.test.ts pins this chain to this file.
  */
 function mapChipLabelFor(input: {
   mapChosenArea: { cityId: CityId; label: string } | null;
+  /** Whether the remembered area still names what the view shows. */
+  mapChosenAreaInView: boolean;
   cityId: CityId;
   ukPlaceArrival: { name: string } | null;
   claimedArea: { name: string } | null | undefined;
   mapContextName: string;
 }): string {
-  const { mapChosenArea, cityId, ukPlaceArrival, claimedArea, mapContextName } = input;
-  return mapChosenArea && mapChosenArea.cityId === cityId
+  const { mapChosenArea, mapChosenAreaInView, cityId, ukPlaceArrival, claimedArea, mapContextName } = input;
+  return mapChosenArea && mapChosenAreaInView && mapChosenArea.cityId === cityId
     ? mapChosenArea.label
     : ukPlaceArrival?.name ?? claimedArea?.name ?? mapContextName;
 }
@@ -4997,8 +5000,23 @@ export default function PubMap({
     runNearMe,
   ]);
 
+  // A remembered area names the chip only while the view is over it. Until the
+  // map has settled somewhere new since the area was chosen, the choice has met
+  // no view yet (the camera is still flying to it), so it keeps the chip.
+  const chosenAreaKey = mapChosenArea ? `${mapChosenArea.cityId}:${mapChosenArea.slug}` : "";
+  const [chosenAreaSeen, setChosenAreaSeen] = useState<{ key: string; bounds: MapBounds | null }>({
+    key: "",
+    bounds: null,
+  });
+  if (chosenAreaSeen.key !== chosenAreaKey) {
+    setChosenAreaSeen({ key: chosenAreaKey, bounds: mapBounds });
+  }
+  const chosenAreaMetAView = chosenAreaSeen.key === chosenAreaKey && chosenAreaSeen.bounds !== mapBounds;
   const mapChipLabel = mapChipLabelFor({
     mapChosenArea,
+    mapChosenAreaInView: mapChosenArea
+      ? !chosenAreaMetAView || rememberedAreaNamesView(mapChosenArea, mapBounds, mapViewport.center, userLocation)
+      : false,
     cityId,
     ukPlaceArrival,
     claimedArea,

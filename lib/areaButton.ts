@@ -595,3 +595,41 @@ export function planAreaSelect(
     openSheet: "area",
   };
 }
+
+/**
+ * How close to the middle of the view a remembered area's centre must sit,
+ * measured as a share of the view's own reach. A wide desktop view holds
+ * places a long way from where the reader is looking, so "in view" alone would
+ * keep Islington on the chip over a Soho pub three kilometres away.
+ */
+const REMEMBERED_AREA_CENTRAL_SHARE = 0.4;
+
+/**
+ * Whether a remembered area may still name the view. A remembered named place
+ * is a claim about what is on screen, so it holds only while its own centre is
+ * in view and near the middle of it; a reader who pans or jumps to a crawl, a
+ * pub or another town no longer sees it. A "near me" marker keeps no point, so
+ * it holds while the reader's live fix, when this session has one, is in view.
+ * The city row holds always. With no usable bounds yet (before the first
+ * settle) the remembered label stands, so the chip does not flash the city name
+ * on arrival.
+ */
+export function rememberedAreaNamesView(
+  remembered: { kind: string; center?: readonly [number, number] },
+  bounds: MapBounds | null | undefined,
+  viewCenter: [number, number],
+  viewer?: { lat: number; lng: number } | null,
+): boolean {
+  if (!bounds || !boundsAreUsable(bounds)) return true;
+  if (remembered.kind === "city") return true;
+  const inView = (lng: number, lat: number) =>
+    lng >= bounds.west && lng <= bounds.east && lat >= bounds.south && lat <= bounds.north;
+  if (remembered.kind === "near-me") return viewer ? inView(viewer.lng, viewer.lat) : true;
+  if (!remembered.center) return true;
+  const [lng, lat] = remembered.center;
+  if (!inView(lng, lat)) return false;
+  return (
+    haversineKm(viewCenter, [lng, lat]) <=
+    viewReachKm(viewCenter, bounds) * REMEMBERED_AREA_CENTRAL_SHARE
+  );
+}
