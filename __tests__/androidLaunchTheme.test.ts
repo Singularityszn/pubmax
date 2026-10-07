@@ -68,6 +68,11 @@ describe("the window behind the WebView is the page's paper", () => {
     expect(app).toContain('<item name="android:windowBackground">@color/pubmaxx_window_background</item>');
   });
 
+  it("has explicit page colours for a choice that differs from Android night mode", () => {
+    expect(colorValue(read(COLORS), "pubmaxx_page_light")).toBe(colorValue(read(COLORS), "pubmaxx_window_background"));
+    expect(colorValue(read(COLORS), "pubmaxx_page_dark")).toBe(colorValue(read(NIGHT_COLORS), "pubmaxx_window_background"));
+  });
+
   it("is the page's light paper by day and its dark paper by night", () => {
     // The page's paper is the body remap in app/globals.css (the :root value is
     // the light map's own floor), and the offline stub restates the same value
