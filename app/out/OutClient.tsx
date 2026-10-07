@@ -47,6 +47,19 @@ const DAY_LABEL: Record<OutDayWindow, string> = {
   weekend: "Weekend",
 };
 
+function OutListingCount({ count, lead }: { count: number; lead: ReturnType<typeof outListingLead> }) {
+  if (count === 0) return null;
+  const matchedCount = lead.split ? lead.matched.length : null;
+  return (
+    <p className="outStatus" data-testid="out-listing-count">
+      {count} {count === 1 ? "listing" : "listings"} shown.
+      {matchedCount !== null ? (
+        <> {matchedCount} linked to {matchedCount === 1 ? "a venue" : "venues"} on our map.</>
+      ) : null}
+    </p>
+  );
+}
+
 export default function OutClient({ day }: { day: OutDayWindow }) {
   // Out follows the city Places set. The server snapshot is null, so the first
   // paint asks for London and the browser's own answer takes over after mount:
@@ -186,6 +199,10 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
         <h2 id="out-listings-heading" className="outSectionTitle">
           {outListingsSectionTitle(day)}
         </h2>
+        <OutListingCount
+          count={listingRows.length}
+          lead={lead}
+        />
         {pending ? <ListingsSkeleton /> : null}
         {emptyLane ? (
           <div

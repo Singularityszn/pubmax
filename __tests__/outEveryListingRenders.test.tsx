@@ -85,11 +85,11 @@ function body(rows: WhatsOnRow[]): OutResponse {
 let container: HTMLDivElement;
 let root: Root | null = null;
 
-async function renderOut(rows: WhatsOnRow[], day: "tonight" | "tomorrow" | "weekend" = "tonight") {
+async function renderOut(rows: WhatsOnRow[], day: "tonight" | "tomorrow" | "weekend" = "tonight", venueMatch: OutResponse["venueMatch"] = "ready") {
   vi.stubGlobal(
     "fetch",
     vi.fn(async () =>
-      new Response(JSON.stringify(body(rows)), {
+      new Response(JSON.stringify({ ...body(rows), venueMatch }), {
         status: 200,
         headers: { "content-type": "application/json" },
       }),
@@ -148,6 +148,27 @@ describe("a night of unmatched listings renders rows, not an empty state", () =>
     expect(container.querySelector("h1#out-title")?.textContent).toBe(heading);
     const selectedChip = container.querySelector('.outDayChips a[aria-current="page"]');
     expect(selectedChip?.textContent).toBe(label);
+  });
+
+  it("counts listings shown separately from their map links", async () => {
+    await renderOut([
+      { ...unmatchedRow(0), venueId: "venue-4xlgb0" },
+      unmatchedRow(1),
+      unmatchedRow(2),
+    ]);
+
+    expect(container.querySelector('[data-testid="out-listing-count"]')?.textContent).toBe(
+      "3 listings shown. 1 linked to a venue on our map.",
+    );
+    expect(container.querySelectorAll('[data-testid="out-listing-row"]')).toHaveLength(3);
+  });
+
+  it("does not count venue links when the match could not run", async () => {
+    await renderOut([{ ...unmatchedRow(0), venueId: "venue-4xlgb0" }], "tonight", "unavailable");
+
+    expect(container.querySelector('[data-testid="out-listing-count"]')?.textContent).toBe(
+      "1 listing shown.",
+    );
   });
 
   it("prints all 148 sourced listings as real rows", async () => {
