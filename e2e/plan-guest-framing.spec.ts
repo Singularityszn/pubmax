@@ -31,6 +31,10 @@ test("a guest on a plan sees guest wording and clean copy", async ({ page, reque
   await expect(page.getByText("You're a guest on this plan. Join the crew to use the invite tools.")).toBeVisible();
   await expect(page.getByText("Invite tools need a crew session")).toHaveCount(0);
   await expect(page.getByText("Sort My Night P1")).toHaveCount(0);
+  // A guest holds no crew list, so the "Who's in" card paints no count disc.
+  const crewHeading = page.locator(".planCrew__heading");
+  await expect(crewHeading.getByRole("heading", { name: "Who’s in" })).toBeVisible();
+  await expect(crewHeading.locator(":scope > span")).toHaveCount(0);
 
   await page.goto(`/plan/${id}#invite=${token}`);
   await page.getByRole("button", { name: /I.m in/ }).click();

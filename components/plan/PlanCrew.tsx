@@ -339,7 +339,7 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
     <section className="planCrew" aria-labelledby="plan-crew-title">
       <div className="planCrew__heading">
         <div><p className="planPage__eyebrow">The crew</p><h2 id="plan-crew-title">Who&rsquo;s in</h2></div>
-        <span>{crew.length || ""}</span>
+        {crew.length > 0 ? <span>{crew.length}</span> : null}
       </div>
 
       {!sessionReady && !memberToken ? (
