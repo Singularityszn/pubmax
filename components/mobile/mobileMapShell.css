@@ -417,9 +417,8 @@
   }
   .mobileMapTonightChipLabel {
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: normal;
+    line-height: var(--leading-snug);
   }
   .mobileMapTonightChipCount {
     min-width: 1.2rem;
