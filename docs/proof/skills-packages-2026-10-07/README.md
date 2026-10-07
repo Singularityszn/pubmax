@@ -14,7 +14,7 @@ Next.js moves from 16.3.8 to 16.4.0. MapLibre moves from 6.11.2 to 6.13.0. Capac
 - `NEXT_DIST_DIR=.next-prod npm run build` passed on Next.js 16.4.0.
 - `npm audit --omit=dev` reported zero advisories. The full audit reported five dependency-path findings caused by one `braces` advisory in the development lint chain. The registry's latest `braces` is 3.0.3, which is still affected. npm's suggested downgrade to Next.js 14 was not applied.
 - Later on 7 Oct, npm published patch releases of `ai`, `@ai-sdk/otel`, `effect`, `@supabase/supabase-js` and the four Capacitor 8 core packages. This change includes them. `npm outdated` now reports only the deliberate TypeScript 6 compatibility pin.
-- With that final package set, `NEXT_DIST_DIR=.next-prod npm run build`, `npm run typecheck`, the native unit tests and `npm run ios:build` passed. `npm audit --omit=dev` found no vulnerabilities. `npm run android:build` did not run, because this machine has no JDK 21.
+- With that final package set, `NEXT_DIST_DIR=.next-prod npm run build`, `npm run typecheck`, the native unit tests and `npm run ios:build` passed. `npm audit --omit=dev` found no vulnerabilities. `npm run android:build` passed with JDK 21.0.12.1 set through `JAVA_HOME`, running `assembleDebug` and `testDebugUnitTest`. It wrote a debug APK without Firebase push, because `google-services.json` is not in this tree.
 - `e2e/map-arrival-card-pins.spec.ts` passed 30 of 30 runs, two tests repeated 15 times with no retries. A temporary copy that put `inert` on the map canvas wrapper failed, because no tappable pin remained.
 
 ## Live review
