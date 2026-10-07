@@ -132,6 +132,11 @@
     left: var(--mobile-map-stack-left);
     right: auto;
     bottom: calc(var(--float-stack-top-plan) + 10px);
+    /* The berth moves when the card arrives after load. The reduced-motion
+       duration in globals.css turns the default `all` into a live `bottom`
+       transition, and until the next frame lands the credit sat on the bare
+       pill's berth, inside the card. */
+    transition-property: none;
   }
 
   .appShell .mapStage .maplibregl-ctrl-bottom-right .maplibregl-ctrl {
@@ -812,6 +817,10 @@
   }
   body:has(.mapPeek[data-dragging="true"]) .createFabRoot {
     opacity: 0;
+  }
+  /* The root never takes taps; the control opts back in, so the opt-in is
+     what has to go (createFab.css). */
+  body:has(.mapPeek[data-dragging="true"]) .createFabRoot :is(.createFab, .createFabMenu) {
     pointer-events: none;
   }
   @media (prefers-reduced-motion: reduce) {

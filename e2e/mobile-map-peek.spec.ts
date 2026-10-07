@@ -283,7 +283,8 @@ for (const reducedMotion of ["reduce", "no-preference"] as const) {
     expect(Math.abs((await cardBox(page)).y - box.y)).toBeLessThan(1);
     const fab = page.locator(".createFabRoot");
     await expect(fab).toHaveCSS("opacity", "1", { timeout: 5_000 });
-    await expect(fab).not.toHaveCSS("pointer-events", "none");
+    // The root never takes taps (createFab.css); the button opts back in.
+    await expect(fab.locator(".createFab")).not.toHaveCSS("pointer-events", "none");
   });
 
   test(`a short pull follows the finger and springs back without opening anything (${reducedMotion})`, async ({
@@ -308,6 +309,16 @@ for (const reducedMotion of ["reduce", "no-preference"] as const) {
     // in another stacking context, so the card cannot pass over it).
     const fab = page.locator(".createFabRoot");
     await expect(fab).toHaveCSS("opacity", "0", { timeout: 5_000 });
+    // Gone means no hit target either: a tap at its centre misses it.
+    const fabHit = await fab.locator(".createFab").evaluate((button) => {
+      const rect = button.getBoundingClientRect();
+      const hit = document.elementFromPoint(
+        rect.left + rect.width / 2,
+        rect.top + rect.height / 2,
+      );
+      return !!hit && button.contains(hit);
+    });
+    expect(fabHit).toBe(false);
     // 1:1 with the finger while it is held (30px up), within a frame of slack.
     const held = await cardBox(page);
     expect(rest.y - held.y).toBeGreaterThan(24);
@@ -415,11 +426,13 @@ test("the first-visit ask offers both answers side by side, and an answer holds 
 });
 
 test("safe-area insets keep the card above the tab bar and under no notch", async ({ page }) => {
-  await openMap(page);
+  // Set before the page loads. Set after it, the inset failed to reach the
+  // topbar in about half of runs on a loaded host (measured 10, not 47).
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("Emulation.setSafeAreaInsetsOverride", {
     insets: { top: 47, bottom: 34, left: 0, right: 0 },
   });
+  await openMap(page);
   await answeredCard(page);
   const card = await cardBox(page);
   const bar = await page.locator(".mobileTabBar").boundingBox();
