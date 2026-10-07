@@ -101,8 +101,14 @@ test("the card names the cheapest listed pub in view, and the door rides inside 
 test("tapping the answer opens that pub, and the card stands down behind its sheet", async ({ page }) => {
   await openMap(page);
   const card = await answeredCard(page);
-  const name = (await card.locator(".mapPeekName").innerText()).trim();
-  await card.locator(".mapPeekAnswer").click();
+  // Read the name and tap in ONE synchronous step: the answer can move with
+  // the view, and the pub it opens must be the one it said at the tap.
+  const name = await card.locator(".mapPeekAnswer").evaluate((button) => {
+    const said = button.querySelector(".mapPeekName")?.textContent?.trim() ?? "";
+    (button as HTMLButtonElement).click();
+    return said;
+  });
+  expect(name.length).toBeGreaterThan(0);
   await expect(page.locator(".mobileSharedSheet").first()).toBeVisible({ timeout: 30_000 });
   await expect(page.locator(".mobileSharedSheet").first()).toContainText(name);
   // Hidden, not unmounted: the map-edge column must not jump behind the sheet.
@@ -157,6 +163,10 @@ for (const reducedMotion of ["reduce", "no-preference"] as const) {
       await send("touchMove", from.y - step * 5);
       await new Promise((resolve) => setTimeout(resolve, 16));
     }
+    // The Create action steps out of the card's way while it travels (it lives
+    // in another stacking context, so the card cannot pass over it).
+    const fab = page.locator(".createFabRoot");
+    await expect(fab).toHaveCSS("opacity", "0", { timeout: 5_000 });
     // 1:1 with the finger while it is held (30px up), within a frame of slack.
     const held = await cardBox(page);
     expect(rest.y - held.y).toBeGreaterThan(24);
@@ -168,6 +178,7 @@ for (const reducedMotion of ["reduce", "no-preference"] as const) {
       .toBeLessThan(1);
     await expect(page.locator(".mapVenueList--open")).toHaveCount(0);
     await expect(card).toBeVisible();
+    await expect(fab).toHaveCSS("opacity", "1", { timeout: 5_000 });
   });
 }
 
