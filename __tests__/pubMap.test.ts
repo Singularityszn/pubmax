@@ -1424,11 +1424,6 @@ describe("generated plan drink selection", () => {
 describe("map pins during search", () => {
   it("keeps price and story filters while a reader edits a pub name", () => {
     const filters = { ...initialFilters, query: "Ice Wharf", maxPrice: 5, requireHeritage: true };
-    expect(mapPinFilters(filters, true)).toEqual({ ...filters, query: "" });
-  });
-
-  it("applies the query after search closes", () => {
-    const filters = { ...initialFilters, query: "Ice Wharf" };
-    expect(mapPinFilters(filters, false)).toBe(filters);
+    expect(mapPinFilters(filters)).toEqual({ ...filters, query: "" });
   });
 });

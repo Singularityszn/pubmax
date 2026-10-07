@@ -41,7 +41,7 @@ export const TONIGHT_LISTINGS_LABEL = "Tonight listings";
 export type TonightChipModel = {
   label: typeof TONIGHT_LISTINGS_LABEL;
   count: number;
-  /** Screen-reader detail, e.g. "Tonight: 3 listings" or "... near you". */
+  /** Screen-reader detail, e.g. "Tonight listings: 3" or "... near you". */
   ariaLabel: string;
 };
 
@@ -165,9 +165,6 @@ export function buildTonightChip(
   return {
     label: TONIGHT_LISTINGS_LABEL,
     count,
-    ariaLabel:
-      count === 1
-        ? `Tonight: 1 listing${nearSuffix}`
-        : `Tonight: ${count} listings${nearSuffix}`,
+    ariaLabel: `${TONIGHT_LISTINGS_LABEL}: ${count}${nearSuffix}`,
   };
 }

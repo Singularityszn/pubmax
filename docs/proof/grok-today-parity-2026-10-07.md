@@ -33,4 +33,12 @@ The browser parity journey runs keyless against the committed suggestions. It do
 
 The combined branch's existing `TonightHypedPubs` row reservation clears the phone create action. This lane reuses that renderer and does not reserve a second outer lane. Final phone screenshots must come from the combined build.
 
+## Weather card overlap
+
+The combined keyless production build reproduced a further defect at 390 by 626 pixels. Browser text rectangles showed the create action over the weather card title and its empty-state sentence.
+
+The weather card now takes the existing `createFabLane` reservation. It adds no new spacing token. The rendered Today regression now checks the weather card text with the pub suggestion rows.
+
+The final production-build evidence for this correction is captured with the combined branch run. This record does not claim that result.
+
 Local evidence is under `artifacts/today-parity/` in this lane's worktree. `today-before.yml` records the keyless Before reading. `today-before-phone.png` shows that prior surface from the original browser session. The production After capture uses a fresh browser context.
