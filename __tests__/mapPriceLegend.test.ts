@@ -5,6 +5,7 @@ import {
   drinkLensPriceNoun,
   NO_ALCOHOL_LENS_PRICE_NOUN,
 } from "@/lib/mapExperienceLens";
+import { DONUT_BADGE_MIN } from "@/lib/donutClusterGeometry";
 import { mapPriceLegend } from "@/lib/mapPriceLegend";
 import { SPOONS_VALUE_RESPONSIBLE_LINE } from "@/lib/spoonsValue";
 
@@ -347,9 +348,12 @@ describe("map key inventory", () => {
     });
 
     // The default view's disc prints the cheapest listed price, with the venue
-    // count as the small number on its rim.
+    // count as the small number on its rim from DONUT_BADGE_MIN venues up.
     expect(legend.cluster?.note).toContain("When a pub in it lists a pint price, the figure is the cheapest one");
-    expect(legend.cluster?.note).toContain("small number is how many venues");
+    expect(DONUT_BADGE_MIN).toBe(10);
+    expect(legend.cluster?.note).toContain(
+      "a cluster of ten or more venues shows how many as a small number on the rim",
+    );
     // A coloured disc with no listed pint prints its count too, so the count is
     // never tied to a grey ring.
     expect(legend.cluster?.note).toContain("Otherwise the figure is the venue count.");
