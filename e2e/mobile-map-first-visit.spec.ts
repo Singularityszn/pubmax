@@ -86,8 +86,16 @@ for (const viewport of VIEWPORTS) {
     expect(leadBox!.height).toBeGreaterThan(8);
     expect(leadBox!.y + leadBox!.height).toBeLessThanOrEqual(arrivalBox!.y + arrivalBox!.height);
     expect(arrivalBox!.y + arrivalBox!.height / 2).toBeGreaterThan(viewport.height / 2);
-    await expect(arrival.getByRole("button", { name: "Use my location" })).toBeVisible();
-    await expect(arrival.getByRole("button", { name: "Choose an area" })).toBeHidden();
+    // Both answers are visible side by side: the filled primary and the quiet
+    // "Choose an area" beside it, on one row.
+    const useMine = arrival.getByRole("button", { name: "Use my location" });
+    const chooseArea = arrival.getByRole("button", { name: "Choose an area" });
+    await expect(useMine).toBeVisible();
+    await expect(chooseArea).toBeVisible();
+    const [mineBox, areaBox] = [(await useMine.boundingBox())!, (await chooseArea.boundingBox())!];
+    expect(Math.abs(mineBox.y - areaBox.y)).toBeLessThan(2);
+    expect(mineBox.height).toBeGreaterThanOrEqual(44);
+    expect(areaBox.height).toBeGreaterThanOrEqual(44);
 
     // One banner at a time: every ambient banner waits for the answer.
     for (const banner of [
