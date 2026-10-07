@@ -19,7 +19,7 @@ Next.js moves from 16.3.8 to 16.4.0. MapLibre moves from 6.11.2 to 6.13.0. The a
 
 Computer Use checked pubmaxxing.com at desktop 1440 × 900 and mobile 390 × 844. The review covered the landing page, map search and venue sheet, Tonight, Out, the stored plan preview, Pub Pal, and the signed-in profile.
 
-A desktop Pub Pal shortcut covered the venue drawer's Share action. A DOM hit check at Share's center returned the Pal link. The CSS change hides the floating shortcut while a desktop map drawer is open. Local Computer Use verification confirmed that Share receives its center-point hit, the shortcut is hidden while the drawer is open, and it returns after the drawer closes and map banner staging permits it.
+A desktop Pub Pal shortcut covered the venue drawer's Share action. A DOM hit check at Share's center returned the Pal link. The CSS change hides the floating shortcut only while the desktop right venue drawer is open. The left planner and landmark story drawers sit on the opposite edge and keep the shortcut. Local Computer Use verification confirmed that Share receives its center-point hit, the shortcut is hidden while the drawer is open, and it returns after the drawer closes and map banner staging permits it.
 
 ![Production desktop Share action covered by Nova](desktop-share-before.png)
 

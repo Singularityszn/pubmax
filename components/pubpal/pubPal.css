@@ -176,7 +176,7 @@
     bottom: 22px;
   }
   /* The venue drawer owns its action bar while it is open. */
-  body:has(.mapDrawer.open) .palSummon {
+  body:has(.mapDrawer.right.open) .palSummon {
     display: none;
   }
 }
