@@ -53,9 +53,10 @@
 // lib/cities.ts still has that city enabled, and a second copy of the city list
 // here would be a second place for it to be wrong. AppEntryRoute decides that
 // one exactly as before, one paint later. The static /app-entry document has no
-// React, so there a stored city takes rule 4 and opens /tonight. It never
-// stamps the first-run mark, so a person who later clears the city still sees
-// onboarding.
+// React, so there any stored city value takes rule 4 and opens /tonight. Tonight
+// reads the value through readPreferredCity(), so a disabled or unparseable
+// city falls back to London. It never stamps the first-run mark, so a person
+// who later clears the city still sees onboarding.
 //
 // __tests__/nativeShellEntry.test.ts runs THIS FILE against a window of its
 // own, which is why every reference below goes through `window`.
@@ -121,11 +122,9 @@
     // path in components/native/AppEntryRoute.tsx is still mounted and still
     // takes the same decision, one paint later.
   } finally {
-    // A static document has no React fallback. Preserve callback inputs and
-    // let the root decide any launch this script could not.
-    if (appEntry && !routed) {
-      window.location.replace("/" + (window.location.search || "") + (window.location.hash || ""));
-    }
+    // A static document has no React fallback. Let the root decide any launch
+    // this script could not.
+    if (appEntry && !routed) window.location.replace("/");
   }
 })();
 

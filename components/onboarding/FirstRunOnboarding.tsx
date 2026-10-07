@@ -1,16 +1,10 @@
 "use client";
 
 import type { Route } from "next";
-import Image, { type ImageLoaderProps } from "next/image";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, MapPinned, ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
-// The photo fills a phone-width strip or the smaller desktop grid column.
-// Cap its density at 1200px rather than downloading 1920px for a 402pt slot.
-function onboardingPhotoLoader({ src, width, quality }: ImageLoaderProps): string {
-  return `/_next/image?url=${encodeURIComponent(src)}&w=${Math.min(width, 1200)}&q=${quality ?? 75}`;
-}
 
 import {
   BudgetPanel,
@@ -57,6 +51,12 @@ import {
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 import { readHistoryStep, useStepHistory } from "@/lib/useStepHistory";
 import { loadSlimVenuesForCityResult, type SlimVenueLoadResult } from "@/lib/venuesSlim";
+
+// A phone draws the photo as a short, darkened full-width band, so its slot is
+// held to 400px and a 3x phone picks the 1200px candidate rather than 1920px.
+// Wider phone layouts and the desktop column keep their real width at any DPR.
+const ONBOARDING_PHOTO_SIZES =
+  "(max-width: 440px) min(100vw, 400px), (max-width: 760px) 100vw, min(51.5vw, calc(100vw - 420px))";
 
 type ReviewedArea = {
   name: string;
@@ -381,11 +381,10 @@ export default function FirstRunOnboarding({
             <figure className="firstRunLondonPhoto">
               <Image
                 src="/landing/hero-thames.jpg"
-                loader={onboardingPhotoLoader}
                 alt="London and the Thames viewed from above"
                 fill
                 priority
-                sizes="(max-width: 760px) 100vw, min(51.5vw, calc(100vw - 420px))"
+                sizes={ONBOARDING_PHOTO_SIZES}
               />
               <figcaption>
                 {step === "location"

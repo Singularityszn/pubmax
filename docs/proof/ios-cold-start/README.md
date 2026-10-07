@@ -3,11 +3,13 @@
 Lane B addresses QA findings F03 and F18. The native shell now starts at the
 static `/app-entry` document. That document loads only the shared entry script
 and replaces itself with onboarding or Tonight. It contains no React assets,
-fonts, stylesheets, or landing image preloads. Its HTML body is 345 bytes.
+fonts, stylesheets, or landing image preloads. Its HTML body is 391 bytes,
+including a refresh that hands the launch to the root if the script never runs.
 The entry uses a new script version to bypass cached homepage entry code.
 
-The onboarding photo now requests at most 1200 pixels. Its `sizes` value follows
-the full-width phone strip and the desktop grid column.
+On a phone, the onboarding photo now requests at most 1200 pixels. Its `sizes`
+value holds the phone band to a 400px slot. Wider layouts and the desktop grid
+column keep their real width, so a retina desktop still gets the 1920px image.
 
 ## Simulator results
 

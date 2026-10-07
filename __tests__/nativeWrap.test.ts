@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -81,7 +81,7 @@ describe("Capacitor wrapped-build contract", () => {
     expect(capacitorConfig.server?.appStartPath).toBe("app-entry");
     expect(capacitorConfig.server?.allowNavigation).toBeUndefined();
     // iOS requires the start path in webDir even when it loads a remote URL.
-    expect(rootFile("native/web-stub/app-entry")).toContain("<!doctype html>");
+    expect(existsSync(join(process.cwd(), capacitorConfig.webDir!, capacitorConfig.server!.appStartPath!))).toBe(true);
   });
 
   it("uses the canonical app name on both native install surfaces", () => {

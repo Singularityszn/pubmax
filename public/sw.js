@@ -484,6 +484,11 @@ async function handleNavigation(event, request, url) {
     }
     return response;
   } catch {
+    // The native entry document is never shelved, and the cached root served
+    // under its URL would read as a deep link. Hand it to the root ladder.
+    if (url.pathname === "/app-entry") {
+      return Response.redirect(new URL("/", url).href, 302);
+    }
     // Offline, a plan detail page reopens from its cached preview before the
     // generic shell ladder. Member details still require their live API.
     const plan = await matchPlanNavigationAcrossCaches(url);

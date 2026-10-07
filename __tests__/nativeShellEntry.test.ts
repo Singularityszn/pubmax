@@ -77,8 +77,6 @@ function runEntryInit(options: {
   pathname?: string;
   session?: Record<string, string>;
   local?: Record<string, string>;
-  search?: string;
-  hash?: string;
   storageUnavailable?: boolean;
 }): RunResult {
   const replaced: string[] = [];
@@ -91,8 +89,6 @@ function runEntryInit(options: {
         : { isNativePlatform: () => options.native !== false },
     location: {
       pathname: options.pathname ?? "/",
-      search: options.search ?? "",
-      hash: options.hash ?? "",
       replace: (href: string) => void replaced.push(href),
     },
     sessionStorage: options.storageUnavailable ? undefined : session,
@@ -128,6 +124,18 @@ describe("the native shell's pre-render entry decision", () => {
     expect(local.getItem(NATIVE_FIRST_RUN_ROUTED_KEY)).toBeNull();
   });
 
+  it("opens Tonight from app-entry for a disabled or unparseable stored city", () => {
+    // Tonight reads the value through readPreferredCity(), which answers null
+    // for these, so the city-aware chrome falls back to London.
+    for (const stored of ["atlantis", "{not json", ""]) {
+      const { replaced, local } = runEntryInit({
+        pathname: "/app-entry", local: { [PREFERRED_CITY_KEY]: stored },
+      });
+      expect(replaced).toEqual([SHELL_START_PATH]);
+      expect(local.getItem(NATIVE_FIRST_RUN_ROUTED_KEY)).toBeNull();
+    }
+  });
+
   it("opens Tonight from app-entry for a stored city even if the session stamp survives", () => {
     const { replaced, local } = runEntryInit({
       pathname: "/app-entry",
@@ -141,12 +149,6 @@ describe("the native shell's pre-render entry decision", () => {
   it("leaves the static document when storage or the bridge is unavailable", () => {
     expect(runEntryInit({ pathname: "/app-entry", storageUnavailable: true }).replaced).toEqual(["/"]);
     expect(runEntryInit({ pathname: "/app-entry", native: false }).replaced).toEqual(["/"]);
-  });
-
-  it("preserves auth callback inputs when handing the entry back to the root", () => {
-    const search = "?_authCallback=1&from=%2Fu%2Fyou";
-    const hash = "#access_token=fixture&refresh_token=fixture";
-    expect(runEntryInit({ pathname: "/app-entry", search, hash }).replaced).toEqual([`/${search}${hash}`]);
   });
 
   it("sends a post-first-run cold start straight to Tonight", () => {
