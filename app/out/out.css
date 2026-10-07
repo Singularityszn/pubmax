@@ -62,9 +62,9 @@
   text-decoration: none;
 }
 
-/* At a large phone text size the three days stop sharing one row. Each chip
-   keeps its word whole and wraps to a new row instead, and the frame stops
-   being a pill once it holds more than one row. */
+/* At a large phone text size a day may wrap onto a new row rather than split
+   its word. The frame and the chips then share one rounded-rectangle corner,
+   inset by the frame's 2px padding, so one row and several rows read alike. */
 html[data-text-scale="large"] .outDayChips {
   display: flex;
   flex-wrap: wrap;
@@ -73,6 +73,7 @@ html[data-text-scale="large"] .outDayChips {
 
 html[data-text-scale="large"] .outDayChip {
   flex: 1 1 auto;
+  border-radius: calc(var(--radius-lg) - 2px);
 }
 
 .outDayChip[aria-current="page"] {

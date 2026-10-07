@@ -31,7 +31,7 @@
 import { detectImageKind } from "@/lib/imageSafety";
 import { MOMENT_PHOTO_TYPES } from "@/lib/momentPhotoEditor";
 import { isLikelyHeic } from "@/lib/profileImagePicker";
-import { UPLOAD_PHOTO_MAX_BYTES, UPLOAD_PHOTO_MAX_LABEL } from "@/lib/uploadBodyLimit";
+import { UPLOAD_PHOTO_MAX_BYTES, UPLOAD_PHOTO_MAX_LABEL, uploadPhotoSizeLabel } from "@/lib/uploadBodyLimit";
 
 /** The most the composer will try to open. Above this a phone is not the source. */
 export const MOMENT_PICK_MAX_BYTES = 30 * 1024 * 1024;
@@ -126,7 +126,7 @@ export function momentPickerHint(isPhone: boolean): readonly string[] {
 }
 
 export function momentPhotoTooLargeLine(): string {
-  return `That photo is over ${Math.round(MOMENT_PICK_MAX_BYTES / (1024 * 1024))} MB. Choose a smaller one.`;
+  return `That photo is over ${uploadPhotoSizeLabel(MOMENT_PICK_MAX_BYTES)}. Choose a smaller one.`;
 }
 
 export const MOMENT_PHOTO_FIT_FAILED_LINE =

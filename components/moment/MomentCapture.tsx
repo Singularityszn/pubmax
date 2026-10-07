@@ -664,9 +664,8 @@ export default function MomentCapture(): React.JSX.Element {
                 )}
                 <strong>{pickerPrimary}</strong>
                 <span>
-                  {pickerSecondary.map((line, index) => (
+                  {pickerSecondary.map((line) => (
                     <span className="momentMediaPickerLine" key={line}>
-                      {index > 0 ? <br /> : null}
                       {line}
                     </span>
                   ))}

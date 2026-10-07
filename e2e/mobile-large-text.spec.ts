@@ -71,9 +71,16 @@ for (const scale of [1.3, 1.5, 2]) {
       document.documentElement.style.fontSize = `${fontScale * 100}%`;
       document.documentElement.setAttribute("data-text-scale", "large");
     }, scale);
+    const applyScale = async () => {
+      await page.evaluate((fontScale) => {
+        document.documentElement.style.fontSize = `${fontScale * 100}%`;
+        document.documentElement.setAttribute("data-text-scale", "large");
+      }, scale);
+      await page.evaluate(() => document.fonts.ready);
+    };
     await page.goto("/out");
     await expect(page.locator(".outDayChip")).toHaveCount(3);
-    await page.evaluate(() => document.fonts.ready);
+    await applyScale();
     const chips = await page.locator(".outDayChip").evaluateAll((elements) => elements.map((element) => {
       const range = document.createRange();
       range.selectNodeContents(element);
@@ -85,7 +92,11 @@ for (const scale of [1.3, 1.5, 2]) {
     await page.goto("/moment");
     const hint = page.locator(".momentMediaPickerLine").filter({ hasText: "MB" });
     await expect(hint).toHaveCount(1);
+    await applyScale();
     const figure = await hint.evaluate((element) => {
+      const lineCount = (range: Range) => new Set([...range.getClientRects()].map((box) => Math.round(box.top))).size;
+      const whole = document.createRange();
+      whole.selectNodeContents(element);
       const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
       for (let node = walker.nextNode(); node; node = walker.nextNode()) {
         const match = /\d+(?:\.\d)?\s*MB/.exec(node.textContent ?? "");
@@ -93,12 +104,12 @@ for (const scale of [1.3, 1.5, 2]) {
         const range = document.createRange();
         range.setStart(node, match.index);
         range.setEnd(node, match.index + match[0].length);
-        const lines = new Set([...range.getClientRects()].map((box) => Math.round(box.top))).size;
-        return { text: match[0], lines };
+        return { text: match[0], lines: lineCount(range), hintLines: lineCount(whole) };
       }
       return null;
     });
-    expect(figure).toEqual({ text: "4\u00a0MB", lines: 1 });
+    expect(figure).toMatchObject({ text: "4\u00a0MB", lines: 1 });
+    if (scale === 2) expect(figure!.hintLines).toBeGreaterThan(1);
   });
 }
 

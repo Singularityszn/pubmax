@@ -20,8 +20,8 @@ The routes are `/tonight`, `/places`, `/out`, `/plan`, `/u/qa_android`, `/map`, 
 | --- | --- | --- | --- |
 | Owner profile | 588px | 412px | Action minimum widths and content-sized grids now fit the available width. Stats and profile tabs adapt to large text. |
 | Places | 538px | 412px | The search grid now permits its input to shrink. |
-| Out | 466px | 412px | At large text sizes the day chips wrap onto new rows. Each day name stays whole. |
-| Moment | 425px | 412px | The photo-picker grid shrinks and its guidance wraps. A no-break space keeps "4 MB" on one line. |
+| Out | 466px | 412px | At large text sizes the day chips wrap onto new rows. Each day name stays whole. The frame and chips share one corner radius on one row or several. |
+| Moment | 425px | 412px | The photo-picker grid shrinks. Each guidance line wraps as a balanced block, and a no-break space keeps "4 MB" together. The picker type is set in rem, so it follows the text size. |
 
 | Before | After |
 | --- | --- |
@@ -32,7 +32,7 @@ The routes are `/tonight`, `/places`, `/out`, `/plan`, `/u/qa_android`, `/map`, 
 
 The Out after shot and the [Moment picker after shot](moment-picker-after.png) come from the review round.
 No Android emulator was available for that round, so both are Chromium captures with the Android native-shell stub at 412px and scale 2.0.
-Chromium has no WebView text zoom, so the picker capture doubles the picker's pixel-sized text by hand.
+Each capture sets the root font size to 200% and `data-text-scale="large"` after the page loads. No page style was changed by hand.
 
 ## Controls and type
 
@@ -54,6 +54,7 @@ The [profile at scale 1.5](profile-1.5-after.png) also shows equal action height
 
 `e2e/mobile-large-text.spec.ts` checks 30 route and scale combinations, three word-integrity cases, six owner-profile layouts, touch targets, and five small-text routes.
 The word-integrity cases check that each day chip and the photo-size figure stay on one line at scales 1.3, 1.5, and 2.0.
+At scale 2.0 the case also requires the photo-size hint to wrap, so the figure check runs on a real wrapped line.
 The touch test checks all ten visible header and tab controls and both checkbox label targets.
 It opens Filters and toggles Saved only through the rendered controls.
 
