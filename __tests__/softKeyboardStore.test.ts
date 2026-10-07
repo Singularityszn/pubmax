@@ -158,7 +158,7 @@ describe("what the keyboard store listens to", () => {
     off();
   });
 
-  it("holds the keyboard through a landscape-to-portrait rotation until it closes or the field blurs", () => {
+  it("holds the keyboard through rotations both ways until it closes or the field blurs", () => {
     platform.android = true;
     Object.assign(window, { innerWidth: LAYOUT_HEIGHT, innerHeight: 360 });
     setViewportHeight(360);
@@ -182,6 +182,14 @@ describe("what the keyboard store listens to", () => {
     resize(390, WITH_KEYBOARD);
     expect(readSoftKeyboardOpen()).toBe(true);
     resize(LAYOUT_HEIGHT, 200);
+    expect(readSoftKeyboardOpen()).toBe(true);
+    resize(LAYOUT_HEIGHT, 240);
+    expect(readSoftKeyboardOpen()).toBe(true);
+    resize(LAYOUT_HEIGHT, 360);
+    expect(readSoftKeyboardOpen()).toBe(false);
+    resize(LAYOUT_HEIGHT, 200);
+    expect(readSoftKeyboardOpen()).toBe(true);
+    resize(390, WITH_KEYBOARD);
     expect(readSoftKeyboardOpen()).toBe(true);
     activeElement = { tagName: "BODY" };
     fire(documentHandlers, "focusout");
