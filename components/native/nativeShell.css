@@ -103,7 +103,8 @@
   }
 
   [data-native-shell][data-text-scale="large"] .siteNavBell svg,
-  [data-native-shell][data-text-scale="large"] .siteNavBar .themeToggle svg {
+  [data-native-shell][data-text-scale="large"] .siteNavBar .themeToggle svg,
+  [data-native-shell][data-text-scale="large"] .siteNavBar .authCompactTrigger svg {
     width: 1.25rem;
     height: 1.25rem;
   }

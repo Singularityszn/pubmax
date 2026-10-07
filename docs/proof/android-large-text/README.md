@@ -71,6 +71,30 @@ After the review fixes, all 45 cases in the spec passed again against a fresh pr
 The unit suite passed 20,997 tests, with one existing skip. The database suites passed 554 tests and 10 cleanup tests.
 Lint reported no errors. Types, coverage, conditional-skip checks, freshness, install-script policy, and dependency audit passed.
 
+## Sign-in icon follow-up
+
+The signed-out sign-in icon stayed at 16px while its neighbouring header icons grew with the text size.
+The native large-text selector now includes the compact sign-in SVG.
+Six browser regressions check all four header icons on Android and iOS native-shell stubs.
+All six failed before the correction and passed after it.
+
+| Text scale | Sign-in before | All four icons after |
+| --- | --- | --- |
+| 1.3 | 16px | 26px |
+| 1.5 | 16px | 30px |
+| 2.0 | 16px | 40px |
+
+| Before at scale 2.0 | After at scale 2.0 |
+| --- | --- |
+| ![Sign-in icon before](sign-in-icon-before.png) | ![Sign-in icon after](sign-in-icon-after.png) |
+
+These header captures use Chromium with the Android native-shell stub at 412px.
+Both captures use the shipped CSS from separate production builds.
+The tests set the root font size and the native large-text attribute after hydration.
+The full large-text suite passed all 51 cases after the correction, including the 30 route overflow cases.
+`npm run verify:no-mistakes` passed again after the correction.
+The iOS regressions use Chromium at 390px and do not establish physical iPhone Dynamic Type behaviour.
+
 ## Reproduction
 
 Run the browser assertions with the repository's production Playwright server:

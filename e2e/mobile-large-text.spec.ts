@@ -115,6 +115,36 @@ for (const scale of [1.3, 1.5, 2]) {
 
 for (const platform of ["android", "ios"] as const) {
   for (const scale of [1.3, 1.5, 2]) {
+    test(`${platform} signed-out header icons scale together at ${scale}x text`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width: platform === "android" ? 412 : 390, height: 844 });
+      await installNativeShell(page, platform);
+      await installAuthDoubles(page);
+      await page.goto("/places");
+      await expect(page.locator("html")).toHaveAttribute("data-native-shell", platform);
+      const header = page.locator(".siteNavBar");
+      await expect(header.getByRole("link", { name: "Sign in", exact: true })).toBeVisible();
+      await expect(header.locator('[data-auth-resolved="true"]')).toBeVisible();
+      await page.evaluate((fontScale) => {
+        document.documentElement.style.fontSize = `${fontScale * 100}%`;
+        document.documentElement.setAttribute("data-text-scale", "large");
+      }, scale);
+      await page.evaluate(() => document.fonts.ready);
+      const screenshot = testInfo.outputPath("signed-out-header.png");
+      await header.screenshot({ path: screenshot });
+      await testInfo.attach("signed-out header", { path: screenshot, contentType: "image/png" });
+      const icons = header.locator(".siteNavBell svg:visible, .themeToggle svg:visible, .authCompactTrigger svg:visible");
+      await expect(icons).toHaveCount(4);
+      for (const size of await icons.evaluateAll((elements) => elements.map((element) => {
+        const box = element.getBoundingClientRect();
+        return { width: box.width, height: box.height };
+      }))) {
+        expect(size.width).toBeCloseTo(20 * scale);
+        expect(size.height).toBeCloseTo(20 * scale);
+      }
+    });
+  }
+
+  for (const scale of [1.3, 1.5, 2]) {
     test(`${platform} owner profile reflows at ${scale}x text`, async ({ page }) => {
       const width = platform === "android" ? 412 : 390;
       await page.setViewportSize({ width, height: 844 });
