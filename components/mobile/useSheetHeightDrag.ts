@@ -46,17 +46,22 @@ function rubberband(overshoot: number, dimension: number): number {
   );
 }
 
-// What a resting sheet must always show: its header, its footer and the
-// body's own padding, plus the sheet's border.
-function sheetChromeHeight(sheet: HTMLElement | null | undefined): number {
+// What a resting sheet must always show: its header and footer, the body's
+// own padding and the sheet's border. A sheet with a command bar in its footer
+// peeks at exactly its header and that bar, so no body row is ever cut.
+function sheetChrome(sheet: HTMLElement | null | undefined): { chromePx: number; barsPx: number | null } {
   const body = sheet?.querySelector<HTMLElement>(":scope > .mobileSharedSheetBody");
-  if (!sheet || !body) return 0;
+  const footer = sheet?.querySelector<HTMLElement>(":scope > .mobileSharedSheetFooter");
+  if (!sheet || !body) return { chromePx: 0, barsPx: null };
   const { paddingTop, paddingBottom } = getComputedStyle(body);
-  let height = sheet.offsetHeight - sheet.clientHeight + Number.parseFloat(paddingTop) + Number.parseFloat(paddingBottom);
+  let bars = sheet.offsetHeight - sheet.clientHeight;
   for (const child of sheet.children) {
-    if (child !== body) height += (child as HTMLElement).offsetHeight;
+    if (child !== body) bars += (child as HTMLElement).offsetHeight;
   }
-  return height;
+  return {
+    chromePx: bars + Number.parseFloat(paddingTop) + Number.parseFloat(paddingBottom),
+    barsPx: footer && footer.offsetHeight > 0 ? bars : null,
+  };
 }
 
 function presentHeight(raw: number, fullCap: number): number {
@@ -107,7 +112,9 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
     const viewport = typeof window === "undefined" ? 0 : window.innerHeight;
     const portal = typeof document === "undefined" ? null : document.querySelector(".mobileSheetPortal");
     const dock = portal && !readSoftKeyboardOpen() ? Number.parseFloat(getComputedStyle(portal).bottom) || 0 : 0;
-    return sheetSnapCaps(viewport, dock, sheetChromeHeight(portal?.querySelector<HTMLElement>(".mobileSharedSheet")));
+    const { chromePx, barsPx } = sheetChrome(portal?.querySelector<HTMLElement>(".mobileSharedSheet"));
+    const caps = sheetSnapCaps(viewport, dock, chromePx);
+    return barsPx === null ? caps : { ...caps, peek: barsPx };
   }, []);
 
   // Both of these SPRING the height, so the entrance's transform stands down

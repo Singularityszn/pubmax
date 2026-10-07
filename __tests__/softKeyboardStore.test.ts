@@ -133,6 +133,31 @@ describe("what the keyboard store listens to", () => {
     off();
   });
 
+  it("keeps the Android baseline through a rotation with the keyboard up, then re-bases once it closes", () => {
+    platform.android = true;
+    const [, off] = subscribe();
+    activeElement = textInput();
+    fire(documentHandlers, "focusin");
+    vi.runAllTimers();
+    window.innerHeight = WITH_KEYBOARD;
+    setViewportHeight(WITH_KEYBOARD);
+    fire(viewportHandlers, "resize");
+    expect(readSoftKeyboardOpen()).toBe(true);
+    Object.assign(window, { innerWidth: LAYOUT_HEIGHT, innerHeight: 200 });
+    setViewportHeight(200);
+    fire(viewportHandlers, "resize");
+    expect(readSoftKeyboardOpen()).toBe(true);
+    window.innerHeight = 360;
+    setViewportHeight(360);
+    fire(viewportHandlers, "resize");
+    expect(readSoftKeyboardOpen()).toBe(false);
+    window.innerHeight = 200;
+    setViewportHeight(200);
+    fire(viewportHandlers, "resize");
+    expect(readSoftKeyboardOpen()).toBe(true);
+    off();
+  });
+
   it("takes the Android baseline from the unfocused window, not the tallest one seen", () => {
     platform.android = true;
     const [, off] = subscribe();
