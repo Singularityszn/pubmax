@@ -7,7 +7,7 @@
 	     Connect, and a disagreement between the two is a review finding, so
 	     the six entries below are the same six the doc declares, in the
 	     same order, with the same linked/tracking answers.
-	     __tests__/iosPrivacyManifest.test.ts holds them to each other. -->
+	     __tests__/iosCapabilities.test.ts holds them to each other. -->
 	<key>NSPrivacyTracking</key>
 	<false/>
 	<!-- No advertising SDK, no ad identifier, no cross-app tracking, so there
@@ -47,7 +47,9 @@
 		<dict>
 			<!-- Pub Pal voice streams the microphone to ElevenLabs while a
 			     person talks to it (components/pubpal/PubPalVoiceSession.tsx).
-			     The audio is not kept. -->
+			     PUBMAXXING stores no audio. ElevenLabs keeps it under its
+			     default retention (retention: "provider_default" from
+			     app/api/pub-pal/voice-token/route.ts). -->
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeAudioData</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
