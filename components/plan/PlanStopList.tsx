@@ -343,7 +343,10 @@ export default function PlanStopList({
                     <StopFinder
                       label={`Find a pub for stop ${index + 1}`}
                       byValue={byValue}
-                      onPick={(venue) => onPick(stop.key, venue)}
+                      onPick={(venue) => {
+                        focusAfter.current = stop.key;
+                        onPick(stop.key, venue);
+                      }}
                     />
                     {removable ? (
                     <button

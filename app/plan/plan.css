@@ -1955,7 +1955,8 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
 }
 
 /* Wide screens: the route reads left to right. Heading and cards on the left,
-   the map beside them and kept in view while the cards are worked. */
+   the map beside them and kept in view while the cards are worked. The map
+   takes the row the heading lands on, whatever full-width notes come first. */
 @media (min-width: 1024px) {
   .planComposer[data-result="true"] > .planResult,
   .planComposer[data-result="true"] > .planComposer__stops {
@@ -1964,7 +1965,7 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   .planComposer[data-result="true"] > .planRouteMiniMap,
   .planComposer[data-result="true"] > [data-testid="plan-route-strip-pending"] {
     grid-column: 2;
-    grid-row: 1 / span 2;
+    grid-row: span 2;
     align-self: start;
     position: sticky;
     top: calc(var(--space-12) * 2);

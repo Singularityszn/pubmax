@@ -240,6 +240,34 @@ describe("PlanStopList", () => {
     expect(scroll.defaultPrevented).toBe(false);
   });
 
+  it("hands focus to the card a keyboard pick turns the finder into", async () => {
+    const venue = { id: "venue-anchor", name: "The Anchor" };
+    const empty: DraftStop = { key: 4, venueId: "", venueName: "", alternatives: [] };
+    const props = await mount({ stops: [generated, empty], venues: [venue] });
+    const finder = host!.querySelector<HTMLInputElement>(".planStop__find")!;
+    finder.focus();
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(finder, "The Ancho");
+      finder.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText" }));
+      finder.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    });
+    expect(props.onPick).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(finder);
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(finder, "The Anchor");
+      finder.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText" }));
+      finder.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    });
+    expect(props.onPick).toHaveBeenCalledWith(4, venue);
+    await act(async () => {
+      root!.render(createElement(PlanStopList, {
+        ...props,
+        stops: [generated, { key: 4, venueId: venue.id, venueName: venue.name, alternatives: [] }],
+      }));
+    });
+    expect(document.activeElement).toBe(cards()[1]!.querySelector(".planStop__open"));
+  });
+
   it("lets a quick swipe that came to rest before lifting settle shut", async () => {
     reduceMotion();
     await mount({ stops: [generated, picked] });

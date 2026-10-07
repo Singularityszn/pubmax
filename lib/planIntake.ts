@@ -289,21 +289,23 @@ function londonNightOf(parts: LondonDateTimeParts): number {
 
 /**
  * Where a London datetime-local value falls against the night out running now:
- * how many nights ahead it is, the weekday of its night (0 = Sunday), and
- * whether the time itself has already passed. Null when it is not a real London time.
+ * how many nights ahead it is, the calendar day of its night (a UTC midnight),
+ * and whether the time has already passed. Past is the lock's own reading of
+ * the time (`londonDateTimeInputToIso` after now), so a repeated hour when the
+ * clocks go back is past only when the lock would refuse it. Null when it is
+ * not a real London time.
  */
 export function londonNightsAhead(
   value: string,
   now = new Date(),
-): { nights: number; weekday: number; past: boolean } | null {
+): { nights: number; night: Date; past: boolean } | null {
   const parts = parseLondonInput(value);
-  const startIso = parts ? londonDateTimeInputToIso(value) : null;
-  if (!parts || !startIso) return null;
+  if (!parts || !londonDateTimeInputToIso(value)) return null;
   const night = londonNightOf(parts);
   return {
     nights: Math.round((night - londonNightOf(londonParts(now))) / DAY_MS),
-    weekday: new Date(night).getUTCDay(),
-    past: Date.parse(startIso) < now.getTime(),
+    night: new Date(night),
+    past: londonDateTimeInputToIso(value, now) === null,
   };
 }
 

@@ -114,10 +114,6 @@ test.describe("the Plan result is a route", () => {
   });
 });
 
-// Real touch input over CDP (Playwright has no swipe): a pointer that reports
-// itself as touch, so the card's own long-press lift and swipe-to-remove run
-// exactly as they do on a phone. The pointer media are forced coarse because
-// emulated touch alone leaves the page reading (hover: hover).
 for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 }]) {
   test.describe(`the Tune details scrim at ${viewport.width}px`, () => {
     test.use({ viewport });
@@ -137,6 +133,10 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 
   });
 }
 
+// Real touch input over CDP (Playwright has no swipe): a pointer that reports
+// itself as touch, so the card's own long-press lift and swipe-to-remove run
+// exactly as they do on a phone. The pointer media are forced coarse because
+// emulated touch alone leaves the page reading (hover: hover).
 test.describe("the stop cards under a thumb", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 

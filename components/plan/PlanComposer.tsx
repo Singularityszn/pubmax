@@ -722,14 +722,14 @@ export function errorMessageFromBody(body: unknown, fallback: string): string {
   return raw === PLAN_INTAKE_CONFLICT_SERVER ? PLAN_INTAKE_CONFLICT_READER : raw;
 }
 
+const NO_VENUES_MATCHED = "No venues matched that ask. Try a nearby area or a broader mood.";
+
 /**
  * An anchor conflict answers HTTP 200 with no Stops, so the empty-route branch
  * would otherwise print "No venues matched that ask" over the server's own
  * sentence about the accepted pub. The server sentence is the only one that
  * names what is actually in the way, so it wins whenever the outcome says so.
  */
-const NO_VENUES_MATCHED = "No venues matched that ask. Try a nearby area or a broader mood.";
-
 export function anchorConflictMessage(body: unknown): string | null {
   if (!body || typeof body !== "object") return null;
   const payload = body as { outcome?: unknown; message?: unknown };

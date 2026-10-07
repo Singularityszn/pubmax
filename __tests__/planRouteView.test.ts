@@ -113,6 +113,20 @@ describe("the heading", () => {
     expect(heading("evening", "Clapham", "2026-03-29T01:30", "2026-03-28T23:50:00Z")).toBe("Tonight in Clapham");
   });
 
+  it("adds the date once the weekday alone would read as this week's", () => {
+    expect(heading("evening", "Clapham", "2026-10-13T19:00", "2026-10-07T11:00:00Z")).toBe("Tuesday night in Clapham");
+    expect(heading("evening", "Clapham", "2026-10-14T19:00", "2026-10-07T11:00:00Z")).toBe("Wednesday night in Clapham, 14 Oct");
+    expect(heading("daytime", "Soho", "2026-10-17T13:00", "2026-10-07T11:00:00Z")).toBe("Saturday in Soho, 17 Oct");
+    // The early hours keep the evening before's date as well as its weekday.
+    expect(heading("evening", "Clapham", "2026-10-15T01:00", "2026-10-07T11:00:00Z")).toBe("Wednesday night in Clapham, 14 Oct");
+  });
+
+  it("reads the repeated hour when the clocks go back the way the lock does", () => {
+    // 00:45 UTC on 25 Oct is 01:45 BST; 01:30 still comes round again at 01:30 GMT.
+    expect(heading("evening", "Clapham", "2026-10-25T01:30", "2026-10-25T00:45:00Z")).toBe("Tonight in Clapham");
+    expect(heading("evening", "Clapham", "2026-10-25T01:30", "2026-10-25T01:45:00Z")).toBe("Your night in Clapham");
+  });
+
   it("names only the night for a start that has already passed", () => {
     expect(heading("evening", "Clapham", "2026-10-07T19:00", "2026-10-08T12:00:00Z")).toBe("Your night in Clapham");
     expect(heading("evening", "Clapham", "2026-10-07T19:00", "2026-10-07T18:01:00Z")).toBe("Your night in Clapham");

@@ -129,12 +129,15 @@ export function priceKindLabel(kind: RouteViewStop["priceKind"]): string | null 
 }
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/** Past this many nights ahead a weekday alone reads as this week's, so the date rides with it. */
+const WEEKDAY_ALONE_NIGHTS = 6;
 
 /**
  * The page's heading: where and when, in the product's own words. When is the
  * start time's night against tonight's, a night running until 05:00 London: the
- * same night by its daypart, then tomorrow, then the weekday. A start that has
- * already passed is just the night.
+ * same night by its daypart, then tomorrow, then the weekday, with the date
+ * once it is more than a week away. A start that has already passed is just the night.
  */
 export function routeHeading(input: {
   daypart: string | null | undefined;
@@ -146,8 +149,10 @@ export function routeHeading(input: {
   const daytime = input.daypart === "daytime";
   const ahead = londonNightsAhead(input.startInput, input.now);
   if (ahead?.past) return `Your night in ${input.areaName}`;
-  const when = !ahead || ahead.nights <= 0
-    ? daytime ? "Today" : "Tonight"
-    : `${ahead.nights === 1 ? "Tomorrow" : WEEKDAYS[ahead.weekday]}${daytime ? "" : " night"}`;
-  return `${when} in ${input.areaName}`;
+  if (!ahead || ahead.nights <= 0) return `${daytime ? "Today" : "Tonight"} in ${input.areaName}`;
+  const when = `${ahead.nights === 1 ? "Tomorrow" : WEEKDAYS[ahead.night.getUTCDay()]}${daytime ? "" : " night"}`;
+  const date = ahead.nights > WEEKDAY_ALONE_NIGHTS
+    ? `, ${ahead.night.getUTCDate()} ${MONTHS[ahead.night.getUTCMonth()]}`
+    : "";
+  return `${when} in ${input.areaName}${date}`;
 }
