@@ -48,18 +48,19 @@ function listsHolding(venueId: string, durable: readonly SavedPubDTO[] | null): 
   return rows.filter((row) => row.venueId === venueId).map((row) => row.listType);
 }
 
-/** The lists holding this pub after a press of `listType`, or null when the
- * server's answer does not show the press took. The saves route answers a failed
- * write with the list as it was, so only an answer that moved the way the press
- * asked is trusted, and it moves this one chip, never the others. */
+/** The lists holding this pub after a press of `listType` that asked for
+ * `wanted`, or null when the server's answer does not show the press took. The
+ * saves route answers a failed write with the list as it was, so only an answer
+ * that moved the way the press asked is trusted, and it moves this one chip,
+ * never the others. */
 function afterPress(
   savedIn: readonly string[],
   venueId: string,
   listType: string,
+  wanted: boolean,
   durable: readonly SavedPubDTO[] | null,
 ): string[] | null {
   if (!durable) return listsHolding(venueId, null);
-  const wanted = !savedIn.includes(listType);
   const held = durable.some((row) => row.venueId === venueId && row.listType === listType);
   if (held !== wanted) return null;
   const others = savedIn.filter((name) => name !== listType);
@@ -109,6 +110,12 @@ export default function SaveToListControl({
     setSavedIn(listsHolding(venueId, null));
     setToast(null);
   }
+  // For a handle, a press is judged against what the SERVER held before it, so
+  // the chips wait until the server's membership for this pub has landed. This
+  // device's copy may be missing a save made elsewhere, and a press judged
+  // against it would report a removal that worked as a failure.
+  const [serverVenueId, setServerVenueId] = useState<string | null>(null);
+  const ready = !handle || serverVenueId === venueId;
   // Which membership read may still land. A press (or a venue change) bumps it,
   // so an answer that was asked before the press cannot overwrite the newer one.
   const membershipRead = useRef(0);
@@ -146,8 +153,12 @@ export default function SaveToListControl({
     // asked whether or not the list registry answered, and its answer is
     // dropped if a press or another venue came first.
     const durable = await fetchSavedForHandle(h);
-    if (durable && membershipRead.current === read) {
+    if (membershipRead.current !== read) return;
+    if (durable) {
       setSavedIn(listsHolding(venueId, durable));
+      setServerVenueId(venueId);
+    } else {
+      setToast("Could not load your lists. Close and open again.");
     }
   }, [handle, venueId]);
 
@@ -175,9 +186,17 @@ export default function SaveToListControl({
       membershipRead.current += 1;
       setBusy(true);
       try {
-        const durable = await toggleSaveDurable(handle, venueId, listType, undefined, venueKind);
+        const wanted = !savedIn.includes(listType);
+        const durable = await toggleSaveDurable(
+          handle,
+          venueId,
+          listType,
+          undefined,
+          venueKind,
+          wanted,
+        );
         // The second press removes the save, so the toast says which happened.
-        announce(venueId, listType, afterPress(savedIn, venueId, listType, durable));
+        announce(venueId, listType, afterPress(savedIn, venueId, listType, wanted, durable));
       } finally {
         setBusy(false);
       }
@@ -187,7 +206,7 @@ export default function SaveToListControl({
 
   const createAndSave = useCallback(async () => {
     const name = cleanListType(newName);
-    if (!name || busy) return;
+    if (!name || busy || !ready) return;
     membershipRead.current += 1;
     if (!isListTypeEligibleForVenue(name, venueKind)) {
       setToast("Pint lists are for pubs");
@@ -221,14 +240,15 @@ export default function SaveToListControl({
             savedIn,
             venueId,
             name,
-            await toggleSaveDurable(handle, venueId, name, undefined, venueKind),
+            true,
+            await toggleSaveDurable(handle, venueId, name, undefined, venueKind, true),
           );
       setNewName("");
       announce(venueId, name, held);
     } finally {
       setBusy(false);
     }
-  }, [handle, venueId, venueKind, newName, busy, savedIn, announce]);
+  }, [handle, venueId, venueKind, newName, busy, ready, savedIn, announce]);
 
   if (!open) {
     return (
@@ -250,7 +270,7 @@ export default function SaveToListControl({
             className="saveToListChip"
             aria-pressed={savedIn.includes(name)}
             onClick={() => void save(name)}
-            disabled={busy}
+            disabled={busy || !ready}
           >
             {name}
           </button>
@@ -270,7 +290,7 @@ export default function SaveToListControl({
           type="button"
           className="saveToListCreate"
           onClick={() => void createAndSave()}
-          disabled={busy || !newName.trim()}
+          disabled={busy || !ready || !newName.trim()}
         >
           Create &amp; save
         </button>

@@ -398,6 +398,12 @@ export async function fetchFollowedListsForHandle(
  * localStorage so a later signed-out read still reflects it, and returning the
  * fresh DTO list. With no handle (or on any failure) it toggles the local store
  * only and returns null — the caller then reads the local view. Never throws.
+ *
+ * `expectHeld` is whether the caller KNOWS the press should leave the save in
+ * place, from the server's own state before it. The route answers a failed write
+ * with the list as it was, so only an answer that moved that way proves the
+ * toggle, and only then is this device's entry for the pub and list brought into
+ * line with it. Any other answer leaves the local store as the toggle left it.
  */
 export async function toggleSaveDurable(
   handle: string,
@@ -405,6 +411,7 @@ export async function toggleSaveDurable(
   listType: ListType,
   note?: string,
   venueKind?: VenueKind,
+  expectHeld?: boolean,
 ): Promise<SavedPubDTO[] | null> {
   const cleanedListType = cleanListType(listType);
   if (
@@ -427,7 +434,24 @@ export async function toggleSaveDurable(
       discardBody(res);
       return null;
     }
-    return parseDTOs(await res.json());
+    const durable = parseDTOs(await res.json());
+    const held = durable.find(
+      (row) => row.venueId === venueId && row.listType === cleanedListType,
+    );
+    if (expectHeld !== undefined && Boolean(held) === expectHeld) {
+      const local = getSaved();
+      write(
+        held
+          ? upsertSaved(local, {
+              venueId,
+              listType: cleanedListType,
+              ...(held.note ? { note: held.note } : {}),
+              savedAt: held.savedAt,
+            })
+          : removeSaved(local, venueId, cleanedListType),
+      );
+    }
+    return durable;
   } catch {
     return null;
   }
