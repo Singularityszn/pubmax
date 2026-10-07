@@ -183,12 +183,14 @@ export default function PlanStopList({
     const stop = stops[index];
     return Boolean(stop && removable && isCard(stop, index) && !removeDisabled(stop, index));
   };
-  const openKey = stops.some((stop, index) => stop.key === revealedKey && swipeable(index)) ? revealedKey : null;
+  if (revealedKey !== null && !stops.some((stop, index) => stop.key === revealedKey && swipeable(index))) {
+    setRevealedKey(null);
+  }
   const listRef = useRef<HTMLOListElement | null>(null);
   const gestures = useStopGestures({
     list: listRef,
     onReorder,
-    revealedKey: openKey,
+    revealedKey,
     keys,
     onReveal: setRevealedKey,
     firstLocked,
@@ -259,7 +261,7 @@ export default function PlanStopList({
               className="planComposer__stop planStop"
               data-stop-key={stop.key}
               data-lifted={lifted ? "true" : undefined}
-              data-revealed={openKey === stop.key ? "true" : undefined}
+              data-revealed={revealedKey === stop.key ? "true" : undefined}
             >
               {index > 0 ? (
                 <div className="planStop__walk" aria-hidden={minutes === null ? true : undefined}>
@@ -310,8 +312,8 @@ export default function PlanStopList({
                       className="planStop__swap planComposer__swap"
                       type="button"
                       data-stop-action
-                      onClick={(event) => {
-                        if (!stop.venueName.trim() && event.detail === 0) focusAfter.current = stop.key;
+                      onClick={() => {
+                        if (!stop.venueName.trim()) focusAfter.current = stop.key;
                         onSwap(stop.key);
                       }}
                       disabled={swapDisabled(stop, index)}

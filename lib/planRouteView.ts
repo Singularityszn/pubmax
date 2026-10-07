@@ -7,7 +7,7 @@
 // figure, and a walk that was timed for a different neighbour prints nothing
 // until the map has measured the new one.
 
-import { londonDaysAhead } from "@/lib/planIntake";
+import { londonNightsAhead } from "@/lib/planIntake";
 import { legMinutes } from "@/lib/routeLegs";
 import type { WalkLegDistance } from "@/lib/walkRoute";
 
@@ -132,8 +132,9 @@ const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Frida
 
 /**
  * The page's heading: where and when, in the product's own words. When is the
- * start time's London date against today's: the same day by its daypart, then
- * tomorrow, then the weekday.
+ * start time's night against tonight's, a night running until 05:00 London: the
+ * same night by its daypart, then tomorrow, then the weekday. A start that has
+ * already passed is just the night.
  */
 export function routeHeading(input: {
   daypart: string | null | undefined;
@@ -143,9 +144,10 @@ export function routeHeading(input: {
 }): string {
   if (!input.areaName) return "Your route";
   const daytime = input.daypart === "daytime";
-  const ahead = londonDaysAhead(input.startInput, input.now);
-  const when = !ahead || ahead.days <= 0
+  const ahead = londonNightsAhead(input.startInput, input.now);
+  if (ahead?.past) return `Your night in ${input.areaName}`;
+  const when = !ahead || ahead.nights <= 0
     ? daytime ? "Today" : "Tonight"
-    : `${ahead.days === 1 ? "Tomorrow" : WEEKDAYS[ahead.weekday]}${daytime ? "" : " night"}`;
+    : `${ahead.nights === 1 ? "Tomorrow" : WEEKDAYS[ahead.weekday]}${daytime ? "" : " night"}`;
   return `${when} in ${input.areaName}`;
 }

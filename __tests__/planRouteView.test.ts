@@ -90,15 +90,33 @@ describe("the heading", () => {
     expect(heading("daytime", "Soho", "2026-10-11T13:00", "2026-10-07T12:00:00Z")).toBe("Sunday in Soho");
   });
 
-  it("counts days on London's calendar, across midnight and the clock changes", () => {
-    // 23:30 UTC on 7 Oct is already 00:30 on 8 Oct in London (BST).
-    expect(heading("evening", "Clapham", "2026-10-08T19:00", "2026-10-07T23:30:00Z")).toBe("Tonight in Clapham");
-    // The clocks go back on 25 Oct: 23:30 UTC on the 25th is 23:30 in London (GMT).
+  it("runs a night until 05:00 London, so the early hours belong to the evening before", () => {
+    // 23:50 on Friday 9 Oct (BST) with a 00:15 start: the same night out.
+    expect(heading("evening", "Clapham", "2026-10-10T00:15", "2026-10-09T22:50:00Z")).toBe("Tonight in Clapham");
+    // From Wednesday noon, 04:59 on Saturday is still Friday night; 05:00 is Saturday's.
+    expect(heading("evening", "Clapham", "2026-10-10T04:59", "2026-10-07T11:00:00Z")).toBe("Friday night in Clapham");
+    expect(heading("evening", "Clapham", "2026-10-10T05:00", "2026-10-07T11:00:00Z")).toBe("Saturday night in Clapham");
+    // 00:30 BST on 8 Oct is still the night of the 7th, so the 8th's evening is tomorrow.
+    expect(heading("evening", "Clapham", "2026-10-08T19:00", "2026-10-07T23:30:00Z")).toBe("Tomorrow night in Clapham");
+    expect(heading("evening", "Clapham", "2026-10-08T01:00", "2026-10-07T23:30:00Z")).toBe("Tonight in Clapham");
+  });
+
+  it("counts nights on London's clock across both clock changes", () => {
+    // Back on 25 Oct: 23:50 UTC on the 24th is 00:50 BST on the 25th, and 01:30 is
+    // the repeated hour, still Saturday's night.
+    expect(heading("evening", "Clapham", "2026-10-25T01:30", "2026-10-24T23:50:00Z")).toBe("Tonight in Clapham");
     expect(heading("evening", "Clapham", "2026-10-26T19:00", "2026-10-25T23:30:00Z")).toBe("Tomorrow night in Clapham");
-    // The clocks go forward on 29 Mar: 23:30 UTC on the 28th is 23:30 GMT, the 29th is tomorrow.
+    // Forward on 29 Mar: 23:50 GMT on Saturday the 28th, with a 00:30 start.
+    expect(heading("evening", "Clapham", "2026-03-29T00:30", "2026-03-28T23:50:00Z")).toBe("Tonight in Clapham");
     expect(heading("evening", "Clapham", "2026-03-29T19:00", "2026-03-28T23:30:00Z")).toBe("Tomorrow night in Clapham");
-    // 23:30 UTC on the 29th is 00:30 BST on the 30th.
-    expect(heading("evening", "Clapham", "2026-03-30T19:00", "2026-03-29T23:30:00Z")).toBe("Tonight in Clapham");
+    // 01:30 on the 29th never happens in London, so the daypart's word stands.
+    expect(heading("evening", "Clapham", "2026-03-29T01:30", "2026-03-28T23:50:00Z")).toBe("Tonight in Clapham");
+  });
+
+  it("names only the night for a start that has already passed", () => {
+    expect(heading("evening", "Clapham", "2026-10-07T19:00", "2026-10-08T12:00:00Z")).toBe("Your night in Clapham");
+    expect(heading("evening", "Clapham", "2026-10-07T19:00", "2026-10-07T18:01:00Z")).toBe("Your night in Clapham");
+    expect(heading("evening", "Clapham", "2026-10-07T19:00", "2026-10-07T17:59:00Z")).toBe("Tonight in Clapham");
   });
 
   it("keeps the daypart's word for a start that is not a real time", () => {

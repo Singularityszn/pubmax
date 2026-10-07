@@ -168,6 +168,55 @@ describe("PlanStopList", () => {
     expect(cards()[0]!.dataset.revealed).toBeUndefined();
   });
 
+  it("does not open a tray again by itself when a stop is added after a remove", async () => {
+    reduceMotion();
+    const empty: DraftStop = { key: 2, venueId: "", venueName: "", alternatives: [] };
+    const added: DraftStop = { key: 3, venueId: "", venueName: "", alternatives: [] };
+    const props = await mount({ stops: [generated, empty] });
+    await swipe(cards()[0]!, [{ x: 180, t: 10 }, { x: 60, t: 20 }], 30);
+    expect(cards()[0]!.dataset.revealed).toBe("true");
+    await act(async () => {
+      root!.render(createElement(PlanStopList, { ...props, stops: [generated], removable: false }));
+    });
+    await act(async () => {
+      root!.render(createElement(PlanStopList, { ...props, stops: [generated, added], removable: true }));
+    });
+    expect(cards()[0]!.dataset.revealed).toBeUndefined();
+  });
+
+  it("does not open a tray again by itself when its stop is locked and then unlocked", async () => {
+    reduceMotion();
+    const props = await mount({ stops: [generated, picked] });
+    await swipe(cards()[0]!, [{ x: 180, t: 10 }, { x: 60, t: 20 }], 30);
+    expect(cards()[0]!.dataset.revealed).toBe("true");
+    await act(async () => {
+      root!.render(createElement(PlanStopList, { ...props, removeDisabled: (_stop, index) => index === 0 }));
+    });
+    expect(cards()[0]!.dataset.revealed).toBeUndefined();
+    await act(async () => {
+      root!.render(createElement(PlanStopList, { ...props, removeDisabled: () => false }));
+    });
+    expect(cards()[0]!.dataset.revealed).toBeUndefined();
+  });
+
+  it.each([1, 0])("moves focus into the finder a Swap leaves behind (click detail %i)", async (detail) => {
+    const unnamed: DraftStop = { key: 1, venueId: "venue-uk-unindexed", venueName: "", alternatives: [] };
+    const props = await mount({ stops: [unnamed, picked], heldVenueId: unnamed.venueId, swapDisabled: () => false });
+    await act(async () => {
+      cards()[0]!.querySelector<HTMLButtonElement>(".planStop__swap")!
+        .dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail }));
+    });
+    expect(props.onSwap).toHaveBeenCalledWith(1);
+    await act(async () => {
+      root!.render(createElement(PlanStopList, {
+        ...props,
+        heldVenueId: null,
+        stops: [{ key: 1, venueId: "", venueName: "", alternatives: [] }, picked],
+      }));
+    });
+    expect(document.activeElement).toBe(cards()[0]!.querySelector(".planStop__find"));
+  });
+
   it("lets a quick swipe that came to rest before lifting settle shut", async () => {
     reduceMotion();
     await mount({ stops: [generated, picked] });

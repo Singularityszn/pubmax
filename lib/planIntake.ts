@@ -280,21 +280,30 @@ export function londonDateTimeInputFromIso(value: string): string | null {
   return londonInput(londonParts(new Date(timestamp)));
 }
 
+/** A night out in London runs until this hour, so an early-hours time belongs to the evening before. */
+const LONDON_NIGHT_ENDS_HOUR = 5;
+
+function londonNightOf(parts: LondonDateTimeParts): number {
+  return Date.UTC(parts.year, parts.month - 1, parts.day) - (parts.hour < LONDON_NIGHT_ENDS_HOUR ? DAY_MS : 0);
+}
+
 /**
- * How many London calendar days a London datetime-local value sits after today,
- * and its weekday (0 = Sunday). Null when the value is not a real date.
+ * Where a London datetime-local value falls against the night out running now:
+ * how many nights ahead it is, the weekday of its night (0 = Sunday), and
+ * whether the time itself has already passed. Null when it is not a real London time.
  */
-export function londonDaysAhead(
+export function londonNightsAhead(
   value: string,
   now = new Date(),
-): { days: number; weekday: number } | null {
+): { nights: number; weekday: number; past: boolean } | null {
   const parts = parseLondonInput(value);
-  if (!parts) return null;
-  const today = londonParts(now);
-  const day = Date.UTC(parts.year, parts.month - 1, parts.day);
+  const startIso = parts ? londonDateTimeInputToIso(value) : null;
+  if (!parts || !startIso) return null;
+  const night = londonNightOf(parts);
   return {
-    days: Math.round((day - Date.UTC(today.year, today.month - 1, today.day)) / DAY_MS),
-    weekday: new Date(day).getUTCDay(),
+    nights: Math.round((night - londonNightOf(londonParts(now))) / DAY_MS),
+    weekday: new Date(night).getUTCDay(),
+    past: Date.parse(startIso) < now.getTime(),
   };
 }
 
