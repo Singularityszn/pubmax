@@ -122,6 +122,8 @@ export function normalizePois(data: unknown): Poi[] {
 
 export const LONDON_POIS_PATH = "/data/london_pois.json";
 
+const pendingPoiReads = new Map<string, Promise<Poi[]>>();
+
 /**
  * Fetches a POI dataset from an explicit public path (client-side).
  * Malformed rows are filtered out so callers always get a clean Poi[].
@@ -131,6 +133,22 @@ export async function loadPoisFromPath(
   path: string | null | undefined,
 ): Promise<Poi[]> {
   if (!path) return [];
+  if (typeof window === "undefined") return readPoisFromPath(path);
+  const existing = pendingPoiReads.get(path);
+  if (existing) return existing;
+
+  // The map and route panel share a read while it is active. Later reads
+  // still reach fetch, so the browser and service worker own freshness.
+  const pending = readPoisFromPath(path);
+  pendingPoiReads.set(path, pending);
+  const clear = () => {
+    if (pendingPoiReads.get(path) === pending) pendingPoiReads.delete(path);
+  };
+  void pending.then(clear, clear);
+  return pending;
+}
+
+async function readPoisFromPath(path: string): Promise<Poi[]> {
   const response = await fetch(path);
   if (!response.ok) {
     discardBody(response);
