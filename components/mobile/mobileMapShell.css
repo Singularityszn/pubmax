@@ -597,7 +597,13 @@
        the page or pan the map behind it. */
     touch-action: none;
   }
-  .mapPeek[data-dragging="true"] { will-change: transform; }
+  /* While it is held or settling the card rises through the Create action's
+     berth, so it passes OVER it (still under the sheet portal, which is above
+     both). At rest it never touches it. */
+  .mapPeek[data-dragging="true"] {
+    z-index: calc(var(--z-float-action) + 1);
+    will-change: transform;
+  }
   /* The grabber is a cue, not a control: the List button beside the answer is
      the operable way in, and the card answers the pull anywhere. */
   .mapPeekGrab {
