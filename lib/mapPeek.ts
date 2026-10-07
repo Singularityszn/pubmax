@@ -13,7 +13,7 @@ import { walkMinutesFromKm } from "@/lib/walkMinutes";
 /** Past this the figure is a guess about a long trip, so the walk is left off. */
 export const MAP_PEEK_MAX_WALK_MINUTES = 30;
 
-export type MapPeekAnswer = {
+type MapPeekAnswer = {
   venueId: string;
   name: string;
   priceGbp: number;

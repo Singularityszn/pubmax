@@ -17,7 +17,7 @@ export const MAP_FIRST_VISIT_ARRIVAL_KEY = "pubmax:map-first-visit-arrival:v1";
  * ask may be made once more, because a location question a reader waved away in
  * their first minute is worth putting to them again when they come back.
  */
-export const MAP_FIRST_VISIT_ARRIVAL_QUIET_MS = 30 * 24 * 60 * 60 * 1000;
+const MAP_FIRST_VISIT_ARRIVAL_QUIET_MS = 30 * 24 * 60 * 60 * 1000;
 const DISMISSED_PREFIX = "dismissed:";
 const CHANGE_EVENT = "pubmax:map-first-visit-arrival";
 

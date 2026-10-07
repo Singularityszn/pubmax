@@ -182,6 +182,40 @@ function MapChipRow({
   );
 }
 
+/**
+ * The foot of the map: the bottom card with the plan door inside it when the
+ * map has an answer for the view, the door alone when it has none. The card
+ * stays mounted while something else covers the foot (the door child leaves,
+ * the card is not painted), because the map-edge column is derived from it.
+ */
+function MapFoot({
+  peek,
+  onPeekOpenVenue,
+  onPeekOpenList,
+  doorVisible,
+  door,
+}: {
+  peek: MapPeekModel | null;
+  onPeekOpenVenue?: (venueId: string) => void;
+  onPeekOpenList?: () => void;
+  doorVisible: boolean;
+  door: React.ReactNode;
+}) {
+  if (peek && onPeekOpenVenue && onPeekOpenList) {
+    return (
+      <MapPeekSheet
+        model={peek}
+        onOpenVenue={onPeekOpenVenue}
+        onOpenList={onPeekOpenList}
+        covered={!doorVisible}
+      >
+        {doorVisible ? door : null}
+      </MapPeekSheet>
+    );
+  }
+  return doorVisible ? <>{door}</> : null;
+}
+
 export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, limitedCoverage, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tflCount, tflUrgentCount = 0, tflStatus, peek = null, onPeekOpenVenue, onPeekOpenList, priceLabel, drinkFiltersActive, drinkLaneLabel, drinkLaneSelected, experienceFilterLabel, priceCapActive, zoneActive, savedOnlyActive = false, openNowActive, planOpen, planActive, planStopCount, builtStopCount = 0, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchProps, searchContent, filtersContent, drinkContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent, chooseAreaContent, chooseAreaOpening = false, sheetsEnabled = true }: {
   cityId?: CityId;
   cityLabel: string;
@@ -486,18 +520,13 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
           onNearMe={onNearMe}
         />
       ) : null}
-      {peek && onPeekOpenVenue && onPeekOpenList ? (
-        <MapPeekSheet
-          model={peek}
-          onOpenVenue={onPeekOpenVenue}
-          onOpenList={onPeekOpenList}
-          covered={!planDoorVisible}
-        >
-          {planDoorVisible ? planDoor : null}
-        </MapPeekSheet>
-      ) : planDoorVisible ? (
-        planDoor
-      ) : null}
+      <MapFoot
+        peek={peek}
+        onPeekOpenVenue={onPeekOpenVenue}
+        onPeekOpenList={onPeekOpenList}
+        doorVisible={planDoorVisible}
+        door={planDoor}
+      />
       <Sheet kind={sheetKind} title={openingHeading?.title ?? (sheetKind ? MAP_SHEET_TITLES[sheetKind] ?? "Map controls" : "Map controls")} kicker={openingHeading?.kicker} initialSnap={sheetKind && FULL_HEIGHT_SHEETS.includes(sheetKind) ? "full" : "half"} onClose={onHome} backLabel={backLabel} onBack={onBack}>{sheetContent}</Sheet>
     </>
   );
