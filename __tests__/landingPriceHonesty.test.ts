@@ -1,7 +1,11 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 import { describe, expect, it } from "vitest";
+
+import LandingFaq from "@/components/landing/LandingFaq";
 
 // The landing may only claim what the price data supports. Every price row
 // in the curated index carries the same collection stamp; a named publisher
@@ -17,10 +21,9 @@ const cardSource = readFileSync(
   join(process.cwd(), "components/landing/LandingHero.tsx"),
   "utf8",
 );
-const faqCopy = readFileSync(
-  join(process.cwd(), "components/landing/LandingFaq.tsx"),
-  "utf8",
-);
+const faqText = renderToStaticMarkup(createElement(LandingFaq))
+  .replace(/<[^>]+>/g, " ")
+  .replace(/&#x27;/g, "'");
 
 // Comment lines are not copy; strip them so a note about a banned phrase is
 // not read as the phrase. JSX text wraps across source lines, so whitespace
@@ -68,8 +71,8 @@ describe("landing price honesty", () => {
     expect(worth).not.toContain("data-primary-action");
     expect(worth).not.toMatch(/href="\/plan"/);
     // The gap sentence moved to the questions, and it is still said once.
-    expect(faqCopy).toContain("We'd rather leave a gap than invent a figure.");
-    expect(faqCopy.match(/We'd rather leave a gap than invent a figure\./g)).toHaveLength(1);
+    expect(faqText).toContain("We'd rather leave a gap than invent a figure.");
+    expect(faqText.match(/We'd rather leave a gap than invent a figure\./g)).toHaveLength(1);
   });
 
   it("stays out of the marketing register", () => {
