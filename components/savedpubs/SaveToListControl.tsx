@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { discardBody } from "@/lib/responseBody";
 import { safeLocalStorage } from "@/lib/safeStorage";
@@ -81,30 +81,52 @@ export default function SaveToListControl({
   // is set: pressing it a second time removes the save, and a chip that looked
   // the same either way took the pub off a list with no sign it had.
   const [savedIn, setSavedIn] = useState<string[]>(() => listsHolding(venueId, null));
+  // The inspector reuses this control as it moves from pub to pub, so the
+  // membership it holds belongs to ONE venue. A new venue starts from this
+  // device's own answer for it (adjust-state-during-render, the repo idiom),
+  // never from the pub before: a signed-out reader has no server read to fix it.
+  const [membershipVenueId, setMembershipVenueId] = useState(venueId);
+  if (membershipVenueId !== venueId) {
+    setMembershipVenueId(venueId);
+    setSavedIn(listsHolding(venueId, null));
+    setToast(null);
+  }
+  // Which membership read may still land. A press (or a venue change) bumps it,
+  // so an answer that was asked before the press cannot overwrite the newer one.
+  const membershipRead = useRef(0);
+  useEffect(() => {
+    // Another pub: whatever was asked for the last one must not land on this one.
+    membershipRead.current += 1;
+  }, [venueId]);
 
   // Load the handle's custom lists lazily when the picker opens (cheap GET,
   // fail-soft to just the built-ins).
   const loadLists = useCallback(async () => {
     const h = handle.trim();
     if (!h) return;
+    const read = ++membershipRead.current;
     try {
       const res = await authedFetch(
         `/api/saved-pubs?handle=${encodeURIComponent(h)}&lists=1`,
         {},
         { requiresIdentity: true },
       );
-      if (!res.ok) {
+      if (res.ok) {
+        const body = (await res.json()) as { lists?: string[] };
+        setCustomLists(Array.isArray(body.lists) ? body.lists : []);
+      } else {
         discardBody(res);
-        return;
       }
-      const body = (await res.json()) as { lists?: string[] };
-      setCustomLists(Array.isArray(body.lists) ? body.lists : []);
     } catch {
       // Offline / error — the built-ins are always available regardless.
     }
-    // What the server holds for this pub wins over this device's copy.
+    // What the server holds for this pub wins over this device's copy. It is
+    // asked whether or not the list registry answered, and its answer is
+    // dropped if a press or another venue came first.
     const durable = await fetchSavedForHandle(h);
-    if (durable) setSavedIn(listsHolding(venueId, durable));
+    if (durable && membershipRead.current === read) {
+      setSavedIn(listsHolding(venueId, durable));
+    }
   }, [handle, venueId]);
 
   useEffect(() => {
@@ -123,6 +145,7 @@ export default function SaveToListControl({
 
   const save = useCallback(
     async (listType: string) => {
+      membershipRead.current += 1;
       setBusy(true);
       try {
         const durable = await toggleSaveDurable(handle, venueId, listType, undefined, venueKind);
@@ -138,6 +161,7 @@ export default function SaveToListControl({
   const createAndSave = useCallback(async () => {
     const name = cleanListType(newName);
     if (!name || busy) return;
+    membershipRead.current += 1;
     if (!isListTypeEligibleForVenue(name, venueKind)) {
       setToast("Pint lists are for pubs");
       window.setTimeout(() => setToast(null), 2000);

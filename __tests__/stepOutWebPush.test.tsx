@@ -191,12 +191,50 @@ describe("StepOutNudgePref inside the native app", () => {
     await render();
 
     expect(container.querySelector("[data-testid=step-out-native-note]")?.textContent).toContain(
-      "Step Out alerts are not available in the app yet; they work in Chrome, Edge or Firefox on the web.",
+      "Step Out alerts are not available in the app yet; they work on the web in Chrome, Edge or Firefox on a computer or an Android phone, or from the Home Screen on an iPhone.",
     );
     expect([...container.querySelectorAll("button")].some((b) => b.textContent?.includes("Turn Step Out on"))).toBe(
       false,
     );
     expect(container.querySelector("[data-testid=step-out-ios-install-note]")).toBeNull();
     expect(container.textContent).not.toContain("This browser cannot receive web push.");
+  });
+});
+
+describe("StepOutNudgePref across an account change", () => {
+  it("does not show the previous account's age door to the next account", async () => {
+    setUserAgent(CHROME_DESKTOP);
+    signedInAuth.user = { id: "user-1" };
+    authedActionFetch.mockReset().mockImplementation(async () =>
+      new Response(
+        JSON.stringify({
+          status: "adult_check_required",
+          error: "Confirm you are 18 or over before contributing.",
+        }),
+        { status: 200 },
+      ),
+    );
+    await render();
+    expect(container.querySelector(".contributionGateDoor")).not.toBeNull();
+
+    // Another account signs in without this component remounting, and its read
+    // carries no gate.
+    signedInAuth.user = { id: "user-2" };
+    authedActionFetch.mockReset().mockImplementation(async () =>
+      new Response(
+        JSON.stringify({ enabled: false, lastSentAt: null, canSend: false, maxPerWeek: 1 }),
+        { status: 200 },
+      ),
+    );
+    await act(async () => {
+      root.render(createElement(StepOutNudgePref));
+    });
+    await act(async () => {
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(container.querySelector(".contributionGateDoor")).toBeNull();
+    expect(turnOn()).toBeDefined();
+    signedInAuth.user = { id: "user-1" };
   });
 });

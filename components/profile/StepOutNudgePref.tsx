@@ -68,6 +68,16 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
   );
   // The native shell has no web push, and Step Out has no native push yet.
   const inNativeApp = useSyncExternalStore(subscribeNoop, isNativeApp, () => false);
+  // The door belongs to the account that was asked. A sign-out and another
+  // sign-in leaves this component mounted, so it starts clean for a new account
+  // (adjust-state-during-render, the repo idiom) rather than showing the last
+  // person's gate.
+  const [gateOwnerId, setGateOwnerId] = useState(user?.id ?? null);
+  if (gateOwnerId !== (user?.id ?? null)) {
+    setGateOwnerId(user?.id ?? null);
+    setGate(null);
+    setPref(null);
+  }
 
   useEffect(() => {
     if (!user) return;
@@ -86,6 +96,8 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
           setPref({ enabled: false, lastSentAt: null, canSend: false, maxPerWeek: 1 });
           return;
         }
+        // An answer with no gate in it replaces a stale one.
+        setGate(null);
         setPref({
           enabled: body.enabled === true,
           lastSentAt: typeof body.lastSentAt === "string" ? body.lastSentAt : null,
@@ -238,8 +250,9 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
       ) : null}
       {inNativeApp && !enabled ? (
         <p className="accountHubNightProfile" data-testid="step-out-native-note">
-          Step Out alerts are not available in the app yet; they work in Chrome,
-          Edge or Firefox on the web.
+          Step Out alerts are not available in the app yet; they work on the web
+          in Chrome, Edge or Firefox on a computer or an Android phone, or from
+          the Home Screen on an iPhone.
         </p>
       ) : gate ? (
         <ContributionGateDoor

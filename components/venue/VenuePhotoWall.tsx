@@ -82,9 +82,13 @@ export default function VenuePhotoWall({
   // The panel is not remounted between pubs, so a stale wall could linger.
   // Adjust-state-during-render (the repo idiom) resets it when the venue
   // changes - never an effect.
-  const [wallVenueId, setWallVenueId] = useState(venueId);
-  if (wallVenueId !== venueId) {
-    setWallVenueId(venueId);
+  // The wall is also the VIEWER's: `ownedByViewer` (and so Remove) was decided by
+  // the read that fetched it, so an in-place sign-out or account switch resets
+  // and refetches it exactly as a new pub does.
+  const viewerId = user?.id ?? "";
+  const [wallKey, setWallKey] = useState(`${venueId}:${viewerId}`);
+  if (wallKey !== `${venueId}:${viewerId}`) {
+    setWallKey(`${venueId}:${viewerId}`);
     setWall(EMPTY);
     setLoaded(false);
     setComposerOpen(false);
@@ -144,6 +148,7 @@ export default function VenuePhotoWall({
   // off it, and the one route that deletes it is the Drink Wall's own, so this
   // wall asks it the same question the same way (a confirm, then the action).
   async function remove(photo: VenuePhotoDTO): Promise<void> {
+    if (removingId !== null) return;
     if (!window.confirm(drinkWallRemoveConfirmLine(photo))) return;
     setRemovingId(photo.id);
     setRemoveError(null);
@@ -233,7 +238,7 @@ export default function VenuePhotoWall({
                 <button
                   type="button"
                   className="venuePhotoRemove"
-                  disabled={removingId === photo.id}
+                  disabled={removingId !== null}
                   aria-label={`Remove your photo of ${venueName}`}
                   onClick={() => void remove(photo)}
                 >

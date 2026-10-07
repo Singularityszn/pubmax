@@ -182,3 +182,98 @@ describe("SaveToListControl chips for a signed-in handle", () => {
     );
   });
 });
+
+describe("SaveToListControl as the inspector moves between pubs", () => {
+  async function rerenderWith(venueId: string): Promise<void> {
+    await act(async () => {
+      root.render(createElement(SaveToListControl, { venueId, venueName: "Next pub" }));
+    });
+  }
+
+  it("starts the next pub from its own membership, not the last pub's", async () => {
+    await open();
+    await act(async () => {
+      chip("Date Night").click();
+    });
+    expect(chip("Date Night").getAttribute("aria-pressed")).toBe("true");
+
+    await rerenderWith("venue-2");
+
+    // venue-2 is in no list, so nothing is pressed, and "Create & save" with the
+    // name venue-1 holds would write for venue-2 rather than skip it.
+    expect(
+      [...container.querySelectorAll("button.saveToListChip")].every(
+        (c) => c.getAttribute("aria-pressed") === "false",
+      ),
+    ).toBe(true);
+  });
+
+  it("drops a membership answer that was asked before a press", async () => {
+    window.localStorage.setItem("pubmax_handle", "mia");
+    const row = (listType: string) => ({
+      venueId: "venue-1",
+      venueName: "The Lamb",
+      venueMapUrl: "/map?sel=venue-1",
+      listType,
+      savedAt: "2026-10-06T10:00:00.000Z",
+    });
+    let release: (value: Response) => void = () => undefined;
+    const slowRead = new Promise<Response>((resolve) => {
+      release = resolve;
+    });
+    let reads = 0;
+    authedFetch.mockImplementation(async (input: string, init?: { method?: string }) => {
+      if (input.includes("lists=1")) return new Response(JSON.stringify({ lists: [] }), { status: 200 });
+      if (init?.method === "POST") return new Response(JSON.stringify({ saved: [row("Date Night")] }), { status: 200 });
+      reads += 1;
+      return slowRead;
+    });
+
+    await open();
+    await act(async () => {
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
+    expect(reads).toBe(1);
+
+    await act(async () => {
+      chip("Date Night").click();
+    });
+    expect(chip("Date Night").getAttribute("aria-pressed")).toBe("true");
+
+    // The opening read finally answers with the OLD membership (nothing saved).
+    await act(async () => {
+      release(new Response(JSON.stringify({ saved: [] }), { status: 200 }));
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(chip("Date Night").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("still asks the server for membership when the list registry answers an error", async () => {
+    window.localStorage.setItem("pubmax_handle", "mia");
+    authedFetch.mockImplementation(async (input: string) => {
+      if (input.includes("lists=1")) return new Response("no", { status: 500 });
+      return new Response(
+        JSON.stringify({
+          saved: [
+            {
+              venueId: "venue-1",
+              venueName: "The Lamb",
+              venueMapUrl: "/map?sel=venue-1",
+              listType: "Date Night",
+              savedAt: "2026-10-06T10:00:00.000Z",
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    });
+
+    await open();
+    await act(async () => {
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(chip("Date Night").getAttribute("aria-pressed")).toBe("true");
+  });
+});

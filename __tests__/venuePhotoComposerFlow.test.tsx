@@ -33,8 +33,9 @@ vi.mock("@/components/profile/ProfileImageCropper", () => ({
     ),
 }));
 
+const viewer = vi.hoisted(() => ({ auth: { user: { id: "user-1" }, handle: "mia", configured: true } }));
 vi.mock("@/components/auth/AuthProvider", () => ({
-  useAuth: () => ({ user: { id: "user-1" }, handle: "mia", configured: true }),
+  useAuth: () => viewer.auth,
 }));
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/map" }));
@@ -273,5 +274,82 @@ describe("VenuePhotoWall owner control", () => {
 
     expect(authedActionFetch).not.toHaveBeenCalled();
     expect(container.querySelectorAll(".venuePhotoTile")).toHaveLength(1);
+  });
+
+  it("reads the wall again for the next account after an in-place switch", async () => {
+    viewer.auth = { user: { id: "user-1" }, handle: "mia", configured: true };
+    authedFetch.mockImplementation(async () =>
+      new Response(
+        JSON.stringify({ photos: [photo("mine", true)], nextCursor: null, status: "ready" }),
+        { status: 200 },
+      ),
+    );
+    await act(async () => {
+      root.render(createElement(VenuePhotoWall, { venueId: "venue-1", venueName: "The Lamb" }));
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(container.querySelectorAll(".venuePhotoRemove")).toHaveLength(1);
+    const readsBefore = authedFetch.mock.calls.length;
+
+    // Another account, same mounted wall: the photo is no longer theirs.
+    viewer.auth = { user: { id: "user-2" }, handle: "zed", configured: true };
+    authedFetch.mockImplementation(async () =>
+      new Response(
+        JSON.stringify({ photos: [photo("mine", false)], nextCursor: null, status: "ready" }),
+        { status: 200 },
+      ),
+    );
+    await act(async () => {
+      root.render(createElement(VenuePhotoWall, { venueId: "venue-1", venueName: "The Lamb" }));
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(authedFetch.mock.calls.length).toBeGreaterThan(readsBefore);
+    expect(container.querySelectorAll(".venuePhotoRemove")).toHaveLength(0);
+    viewer.auth = { user: { id: "user-1" }, handle: "mia", configured: true };
+  });
+
+  it("keeps every Remove disabled while one removal is in flight", async () => {
+    authedFetch.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          photos: [photo("a", true), photo("b", true)],
+          nextCursor: null,
+          status: "ready",
+        }),
+        { status: 200 },
+      ),
+    );
+    let finish: (value: Response) => void = () => undefined;
+    authedActionFetch.mockImplementation(() => new Promise<Response>((resolve) => { finish = resolve; }));
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    await act(async () => {
+      root.render(createElement(VenuePhotoWall, { venueId: "venue-1", venueName: "The Lamb" }));
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const [first, second] = [...container.querySelectorAll<HTMLButtonElement>(".venuePhotoRemove")];
+    await act(async () => {
+      first!.click();
+    });
+    expect(second!.disabled).toBe(true);
+    await act(async () => {
+      second!.click();
+    });
+    expect(authedActionFetch).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      finish(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+      await Promise.resolve();
+    });
   });
 });
