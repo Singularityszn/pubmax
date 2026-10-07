@@ -29,7 +29,7 @@ import { rubberband, springTo } from "@/lib/springAnimate";
 //   - The drop settles on a spring (response 0.3, damping 0.8: the release
 //     carried momentum, so a little give is right) from the card's live offset
 //     and velocity. Nothing is ever restarted from the target.
-//   - The one haptic is `selection-kept`, on a drop that changed the order.
+//   - A changed order uses `selection-kept` after a drop or a keyboard reorder.
 //     Crossing a slot ticks nothing: a haptic is for a kept action, never for
 //     movement.
 //   - Reduced motion: no spring, the card lands at once.

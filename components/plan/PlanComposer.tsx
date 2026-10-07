@@ -121,12 +121,10 @@ import {
   type PlanIntakeDraft,
 } from "@/lib/planIntake";
 
-// The result's own parts load when a route first arrives, never with the
-// describe-first page every visitor opens: /plan carries a JS ceiling
-// (perf/route-budgets.json) and a stranger on it has no route to show yet.
-// Their styles are route CSS (the Plan result block at the end of
-// app/plan/plan.css), so the header never paints bare while a chunk is on its
-// way and the page makes no extra stylesheet request for them.
+// These parts load when the composer renders them. The describe-first arrival
+// does not need them and must meet the JS ceiling in perf/route-budgets.json.
+// The stop-list and provenance styles live in app/plan/plan.css, so their
+// layout is ready before their chunks arrive. Tune details loads its own CSS.
 const PlanStopList = dynamic(() => import("@/components/plan/PlanStopList"), {
   ssr: false,
   loading: () => <div className="planStops__placeholder" aria-hidden="true" />,
@@ -1517,9 +1515,9 @@ function PlanComposerForm({
     planIntake.completed
     || stops.length > 0
     || Boolean(recoveredDraft || recoveredRouteDraft || heldVenueId);
-  // A route is on the page. Then the page IS the route: the header, the map
-  // strip and the stop cards come first, and every setting sits behind
-  // "Tune details" instead of in front of the answer.
+  // The route comes before the request controls in result mode. "Tune details"
+  // holds the description, context and templates. Name and start-time fields
+  // stay below the cards for locking the plan.
   const resultMode = composerVisible && routeSorted && stops.length > 0;
   // An unresolved Stop 1 carries an empty name on purpose, and an empty string
   // is not nullish, so it must be dropped here or the summary prints a blank
@@ -1585,7 +1583,7 @@ function PlanComposerForm({
   // in flight really disables it.
   const lockBusy = submitting || sorting;
 
-  // The venue index behind the Stop name field's datalist. It is only ever read
+  // The venue index behind the pub finder's datalist. It is only ever read
   // by the composer's own stop rows (the datalist, the pub finder's match, and
   // the held pub's name), so it is asked for only once the
   // composer is on screen. `/plan` opens on describe-first at every width, and

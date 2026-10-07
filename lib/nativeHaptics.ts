@@ -39,7 +39,7 @@ import { isNativeApp } from "@/lib/nativePlatform";
 export type HapticOccasion =
   /** A figure, a photo or a report the person contributed landed. */
   | "contribution-kept"
-  /** A toggle the person owns flipped on: saved, checked in, joined. */
+  /** A selection or route-order change was kept: saved, checked in, joined, reordered. */
   | "selection-kept"
   /** A destructive or undoing tap landed: removed, left, cleared. */
   | "selection-released"
