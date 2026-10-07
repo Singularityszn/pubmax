@@ -55,9 +55,13 @@ At 390, with and without the consent strip, the credit spans x 12-56 and the sho
 
 ![Open credit at 320 after, with the text and Near me clear](phone-320-credit-expanded-after.png)
 
-A later production-build check found the attribution button clipping the shortcut's lower corner. A first fix at bottom 42px still covered the Layers button and, with the consent strip shown, the attribution button and the strip. On desktop map routes the shortcut now sits 8px above the 44px Layers button: bottom 86px normally, and the consent clearance plus 106px with the strip. It hides while the Layers panel is open, because the panel rises through that space. Other desktop routes retain the 22px position. The phone floating stack keeps its existing positions.
+A later production-build check found the attribution button clipping the shortcut's lower corner. A first fix at bottom 42px still covered the Layers button and, with the consent strip shown, the attribution button and the strip. The same check found two older attribution collisions. At 641 without the strip, expanded attribution wraps to two lines and the Layers button covered its collapse button. At 390 the phone shortcut covered the collapsed OpenStreetMap credit once the plan pill mounted, so a tap on the credit opened Pub Pal.
 
-A fresh production build was measured with a saved Pub Pal at 641, 1144 and 1440 × 900. At 1440 the shortcut spans y 762-814 above Layers at 822-866 and attribution at 866-890. With the consent strip it spans y 670-722 above Layers at 730-774, attribution at 794-818 and the strip at 844-900. At 1144 and 1440 a point hit at the center of each control reached that control, in both states and with attribution expanded. The 641 width showed the same vertical gaps. At 641 without the strip, expanded attribution wraps to two lines and the Layers button covers its collapse button. That predates this change and the shortcut does not touch it. At 1144 and 1440 the shortcut stays clear and tappable beside the left planner and story drawers, and it returns when the right venue drawer closes. At 641 both left drawers become full-width sheets above it. Share received its own center-point hit at all three widths. At 390 the shortcut covers the collapsed OpenStreetMap credit once the plan pill mounts. That also predates this change, which leaves the phone layout as it was.
+The desktop map now publishes one Layers berth in `app/globals.css`. Layers sits 54px up, which clears two-line expanded attribution and its 10px margin. With the consent strip it sits at the consent clearance plus 54px. The shortcut reads the same berth and sits 8px above the 44px Layers button. It hides while the Layers panel is open, because the panel rises through that space. Other desktop routes retain the 22px position. On the phone map the shortcut starts one gap to the right of the 44px credit, and it hides while the credit is expanded across that band. The plan pill, Near me and create positions are unchanged.
+
+A fresh production build was measured with a saved Pub Pal at 641, 1144 and 1440 × 900 and at 390 × 844. At every desktop width the shortcut spans y 742-794 above Layers at 802-846 and attribution at 866-890. With the consent strip it spans y 670-722 above Layers at 730-774, attribution at 794-818 and the strip at 844-900. A point hit at the center of the shortcut, Layers and the attribution button reached that control at all three widths, in both states, with attribution collapsed and expanded. At 641 the expanded attribution's collapse button now receives its own hit. At 1144 and 1440 the shortcut stays clear and tappable beside the left planner and story drawers. At 641 both left drawers are full-width sheets that sit above the shortcut, as before. At all three widths the shortcut returns when the right venue drawer closes, and Share receives its own center-point hit.
+
+At 390, with and without the consent strip, the credit spans x 12-56 and the shortcut x 68-314 on the same row. A tap on the credit expands it, and its first link receives its own hit. A second tap collapses it and the shortcut returns.
 
 ![Desktop map corner before, with the shortcut over Layers](desktop-corner-noconsent-before.png)
 
@@ -66,6 +70,18 @@ A fresh production build was measured with a saved Pub Pal at 641, 1144 and 1440
 ![Desktop map corner with the consent strip before](desktop-corner-consent-before.png)
 
 ![Desktop map corner with the consent strip after](desktop-corner-consent-after.png)
+
+![Expanded attribution at 641 before, with its collapse button under Layers](desktop-641-attribution-expanded-before.png)
+
+![Expanded attribution at 641 after, with Layers above it](desktop-641-attribution-expanded-after.png)
+
+![Phone map before, with the shortcut over the collapsed credit](phone-credit-collapsed-before.png)
+
+![Phone map after, with the credit beside the shortcut](phone-credit-collapsed-after.png)
+
+![Phone map before, with the shortcut over the expanded credit](phone-credit-expanded-before.png)
+
+![Phone map after, with the expanded credit clear](phone-credit-expanded-after.png)
 
 ![Production desktop Share action covered by Nova](desktop-share-before.png)
 
