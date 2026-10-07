@@ -33,7 +33,7 @@ function anchorProofError(reason: PlanGroundingRejectionV2): { message: string; 
     case "expired":
       return { message: "The grounding proof expired. Regenerate the Route and lock it in again.", code: "PLAN_ANCHOR_PROOF_EXPIRED" };
     case "route-mismatch":
-      return { message: "The submitted Stops do not match the grounded Route.", code: "PLAN_ANCHOR_PROOF_ROUTE_MISMATCH" };
+      return { message: "These stops no longer match the planned route. Draft the route again.", code: "PLAN_ANCHOR_PROOF_ROUTE_MISMATCH" };
     case "operation-mismatch":
       return { message: "The grounding proof was issued for a different operation.", code: "PLAN_ANCHOR_PROOF_OPERATION_MISMATCH" };
     default:

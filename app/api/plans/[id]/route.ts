@@ -28,7 +28,7 @@ function upgradeProofError(reason: PlanGroundingRejectionV2): { message: string;
   switch (reason) {
     case "missing": return { message: "Include the grounding proof from generation.", code: "PLAN_ANCHOR_PROOF_MISSING" };
     case "expired": return { message: "The grounding proof expired. Regenerate the Route and lock it in again.", code: "PLAN_ANCHOR_PROOF_EXPIRED" };
-    case "route-mismatch": return { message: "The submitted Stops do not match the grounded Route.", code: "PLAN_ANCHOR_PROOF_ROUTE_MISMATCH" };
+    case "route-mismatch": return { message: "These stops no longer match the planned route. Draft the route again.", code: "PLAN_ANCHOR_PROOF_ROUTE_MISMATCH" };
     case "operation-mismatch": return { message: "The grounding proof was issued for a different operation.", code: "PLAN_ANCHOR_PROOF_OPERATION_MISMATCH" };
     default: return { message: "That saved route could not be checked.", code: "PLAN_ANCHOR_PROOF_INVALID" };
   }

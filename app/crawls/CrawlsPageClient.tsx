@@ -36,10 +36,10 @@ function startLandmarkName(crawl: CuratedCrawl): string | undefined {
 }
 
 // Turn a camelCase CrawlStyle ("writerTrail") into a human badge label
-// ("Writer Trail"). Single-word styles ("heritage") just get capitalised.
+// ("Writer trail"). Single-word styles ("heritage") just get capitalised.
 function styleLabel(style: string): string {
   return style
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/([a-z])([A-Z])/g, (_, lower: string, upper: string) => `${lower} ${upper.toLowerCase()}`)
     .replace(/^./, (char) => char.toUpperCase());
 }
 

@@ -552,7 +552,7 @@ export function usePintDrops(
         text:
           authConfigured && !signedIn
             ? "Sign in to post a Pint Drop."
-            : "Finish setting your PUBMAXX Handle before posting.",
+            : "Finish setting your PUBMAXX handle before posting.",
       });
       return;
     }
