@@ -25,7 +25,7 @@
 import { useEffect, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
-import { authedActionFetch } from "@/lib/authedFetch";
+import { readAuthedIdentity } from "@/lib/currentIdentityRead";
 import { parseFoundingMemberNumber } from "@/lib/foundingMembers";
 
 export type FoundingMembership =
@@ -38,7 +38,13 @@ const OUTSIDER: FoundingMembership = { state: "outsider", number: null };
 
 export function useFoundingMembership(): FoundingMembership {
   const { user, identityResolved } = useAuth();
-  const [membership, setMembership] = useState<FoundingMembership>(LOADING);
+  // The answer is held WITH the account it is about, so the render that shows a
+  // new account can never wear the last account's number while its own read is
+  // still on the way.
+  const [snapshot, setSnapshot] = useState<{
+    userId: string | null;
+    membership: FoundingMembership;
+  }>({ userId: null, membership: LOADING });
   const userId = user?.id ?? null;
 
   useEffect(() => {
@@ -46,22 +52,25 @@ export function useFoundingMembership(): FoundingMembership {
       // A signed-out reader is not an outsider, they are simply nobody here.
       // An unresolved session is not an outsider either: only a settled
       // identity may say "no number", and only about itself.
-      const timer = window.setTimeout(() => setMembership(LOADING), 0);
+      const timer = window.setTimeout(() => setSnapshot({ userId: null, membership: LOADING }), 0);
       return () => window.clearTimeout(timer);
     }
     const controller = new AbortController();
     let live = true;
-    void authedActionFetch("/api/identity/handle/current", { signal: controller.signal }, { requiresIdentity: true })
-      .then(async (response) => {
-        if (!response.ok) return null;
-        return (await response.json().catch(() => null)) as
-          | { foundingMemberNumber?: unknown }
-          | null;
+    void readAuthedIdentity(userId)
+      .then((answer) => {
+        // A refused or limited read proves nothing about this account, so it
+        // takes the same road as a thrown one and the surface stays loading.
+        if (!answer.ok) throw new Error(`identity read answered ${answer.status}`);
+        return answer.body as { foundingMemberNumber?: unknown } | null;
       })
       .then((body) => {
         if (!live || controller.signal.aborted) return;
         const number = parseFoundingMemberNumber(body?.foundingMemberNumber);
-        setMembership(number === null ? OUTSIDER : { state: "member", number });
+        setSnapshot({
+          userId,
+          membership: number === null ? OUTSIDER : { state: "member", number },
+        });
       })
       .catch(() => {
         // A read that failed proves nothing. Staying in "loading" keeps the
@@ -74,5 +83,5 @@ export function useFoundingMembership(): FoundingMembership {
     };
   }, [identityResolved, userId]);
 
-  return membership;
+  return snapshot.userId === userId && identityResolved ? snapshot.membership : LOADING;
 }

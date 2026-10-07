@@ -30,6 +30,7 @@ import ArrivalWelcome from "@/components/auth/ArrivalWelcome";
 import AccountOnboarding from "@/components/identity/AccountOnboarding";
 import IdentityNudge from "@/components/identity/IdentityNudge";
 import { markArrival, takeChosenIntent } from "@/lib/arrivalWelcome";
+import { forgetCurrentIdentityRead } from "@/lib/currentIdentityRead";
 import { oauthOpensInSystemBrowser, openOAuthInSystemBrowser } from "@/lib/nativeOAuth";
 import {
   accountComposerAuth,
@@ -109,6 +110,8 @@ import {
 import {
   clearPersistedSession,
   persistSessionForResume,
+  markResumePersisted,
+  resumeAlreadyPersisted,
   requestResumeLink,
   type ResumeHint,
 } from "@/lib/authSessionResumeClient";
@@ -219,15 +222,23 @@ function scrubLingeringBrowserAuthCallback(): void {
 async function persistSessionWithRetry(
   auth: { getSession: () => Promise<{ data: { session: Session | null } }> },
   session: Session,
+  options: { skipIfRecent?: boolean } = {},
 ): Promise<void> {
+  const storage = browserLocalStorage();
+  // A page load re-reads a session whose token the cookie already holds. That
+  // is not a reason to spend the endpoint's per-IP budget again.
+  if (options.skipIfRecent && resumeAlreadyPersisted(storage, session)) return;
   const outcome = await persistSessionForResume(session);
+  if (outcome === "stored") markResumePersisted(storage, session);
   if (outcome !== "unauthenticated") return;
   const refreshed = await auth
     .getSession()
     .then(({ data }) => data.session ?? null)
     .catch(() => null);
   if (!refreshed || refreshed.access_token === session.access_token) return;
-  await persistSessionForResume(refreshed);
+  if ((await persistSessionForResume(refreshed)) === "stored") {
+    markResumePersisted(storage, refreshed);
+  }
 }
 
 async function prepareAuthCallback(
@@ -604,6 +615,12 @@ export function AuthProvider({
       // the ONLY place these setStates run — never the effect body.
       const registration = supabase.auth.onAuthStateChange((event, nextSession) => {
         if (!active) return;
+        // A refresh or the first read changes nothing about who this is. Any
+        // other event may have (a new password, another sign-in), so the page's
+        // shared identity read is dropped and the next surface asks again.
+        if (event !== "TOKEN_REFRESHED" && event !== "INITIAL_SESSION") {
+          forgetCurrentIdentityRead();
+        }
         const signedIn = updateSession(nextSession ?? null, event);
         // INITIAL_SESSION with no local session is only the beginning of a
         // cold boot. The durable cookie still needs to be checked before the
@@ -641,7 +658,9 @@ export function AuthProvider({
             event === "TOKEN_REFRESHED" ||
             event === "INITIAL_SESSION"
           ) {
-            void persistSessionWithRetry(supabase.auth, nextSession);
+            void persistSessionWithRetry(supabase.auth, nextSession, {
+              skipIfRecent: event === "INITIAL_SESSION",
+            });
           }
         }
         if (event === "SIGNED_IN" && nextSession?.user) {

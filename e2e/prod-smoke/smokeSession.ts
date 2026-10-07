@@ -1,5 +1,7 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
+import { FIREWALL_HEADER, isFirewallDeny } from "./firewall";
+
 /**
  * Shared seams for the production smoke suite. Nothing here doubles the
  * network: these only put a browser into the state a returning visitor's
@@ -59,4 +61,28 @@ export async function evidence(page: Page, name: string): Promise<void> {
   const path = testInfo.outputPath(`${name}.png`);
   await page.screenshot({ path });
   await testInfo.attach(name, { path, contentType: "image/png" });
+}
+
+/**
+ * Count the responses Vercel's edge firewall denied, on every page of this
+ * context. A deny never reaches the app, so no assertion about the page can
+ * explain it: the run has to say so itself. `denies()` is the running count,
+ * and each deny is annotated on the test that was running, so the report names
+ * the infrastructure and not the journey.
+ */
+export function watchFirewall(context: BrowserContext): { denies: () => number } {
+  let count = 0;
+  context.on("response", (response) => {
+    if (!isFirewallDeny({ headers: response.headers() })) return;
+    count += 1;
+    try {
+      test.info().annotations.push({
+        type: "infrastructure",
+        description: `${FIREWALL_HEADER} deny on ${response.request().method()} ${new URL(response.url()).pathname}`,
+      });
+    } catch {
+      // A response that lands between tests has no test to annotate.
+    }
+  });
+  return { denies: () => count };
 }

@@ -11,6 +11,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ShieldCheck } from "lucide-react";
+import { useStaggeredRead } from "@/lib/useStaggeredRead";
 
 import { discardBody } from "@/lib/responseBody";
 
@@ -60,10 +61,19 @@ function formatRatedMonth(iso: string | null): string | null {
 
 export default function VenueHygiene({ venueId, venueName, address }: Props) {
   const [rating, setRating] = useState<HygieneRating | null>(null);
+  // Which pub the held rating is ABOUT. Adopted during render, so the wait
+  // before the next pub's read never shows the previous pub's rating.
+  const [ratingFor, setRatingFor] = useState(venueId);
+  if (ratingFor !== venueId) {
+    setRatingFor(venueId);
+    setRating(null);
+  }
   const generationRef = useRef(0);
+  // Below the first screen: starts after the sheet has painted.
+  const ready = useStaggeredRead(2, venueId);
 
   useEffect(() => {
-    if (!venueName || !address) return;
+    if (!ready || !venueName || !address) return;
     const generation = ++generationRef.current;
     // Reset immediately on venue change so the previous pub's rating never
     // lingers (React 19: defer the setState off the effect body).
@@ -85,9 +95,13 @@ export default function VenueHygiene({ venueId, venueName, address }: Props) {
     })();
 
     return () => {
+      // The effect that ends here owned this generation. Retiring it now, not
+      // when the next pub's read starts after its phase delay, is what stops a
+      // write the old pub had already queued from landing under the new one.
+      generationRef.current += 1;
       controller.abort();
     };
-  }, [venueId, venueName, address]);
+  }, [ready, venueId, venueName, address]);
 
   if (!rating) return null;
 

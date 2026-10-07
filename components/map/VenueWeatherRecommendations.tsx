@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, CloudSun } from "lucide-react";
+import { useStaggeredRead } from "@/lib/useStaggeredRead";
 import Link from "next/link";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 
@@ -297,14 +298,16 @@ export default function VenueWeatherRecommendations({
     [venueId],
   );
 
+  const ready = useStaggeredRead(3, venueId);
   useEffect(() => {
+    if (!ready) return;
     const controller = new AbortController();
     async function begin() {
       await loadRecommendations(controller.signal);
     }
     void begin();
     return () => controller.abort();
-  }, [loadRecommendations]);
+  }, [ready, loadRecommendations]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

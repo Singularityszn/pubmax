@@ -11,7 +11,7 @@ import {
 } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
-import { authedActionFetch } from "@/lib/authedFetch";
+import { readAuthedIdentity } from "@/lib/currentIdentityRead";
 import {
   claimPromptBudget,
   hasPromptBudgetFor,
@@ -32,7 +32,6 @@ import {
   shouldOfferPasswordPrompt,
   subscribePasswordPrompt,
 } from "@/lib/passwordPrompt";
-import { discardBody } from "@/lib/responseBody";
 import "@/components/native/nativePushPrompt.css";
 
 /**
@@ -88,12 +87,11 @@ export default function CreatePasswordPrompt(): React.JSX.Element | null {
     const controller = new AbortController();
     void (async () => {
       try {
-        const res = await authedActionFetch("/api/identity/handle/current", {
-          signal: controller.signal,
-        }, { requiresIdentity: true });
+        // One read per page, shared with every other surface that asks who
+        // this is (lib/currentIdentityRead.ts), so it carries no signal of its
+        // own: this effect checks its own below.
+        const res = await readAuthedIdentity(user.id);
         if (!res.ok) {
-          // Between learning a status and leaving, the body is let go.
-          discardBody(res);
           if (!controller.signal.aborted) {
             setHandle(null);
             setHasPassword(null);
@@ -101,7 +99,7 @@ export default function CreatePasswordPrompt(): React.JSX.Element | null {
           }
           return;
         }
-        const body = (await res.json().catch(() => ({}))) as {
+        const body = (res.body ?? {}) as {
           handle?: string | null;
           hasPassword?: boolean | null;
         };

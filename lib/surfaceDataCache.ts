@@ -230,6 +230,7 @@ function bindIdentityBoundary(): void {
   if (storage) pruneOldPersistentNamespaces(storage);
   subscribeDeviceIdentity(() => {
     store.clear();
+    dropAbandonedRequests();
     clearPersistentSurfaceCache();
   });
 }
@@ -249,15 +250,27 @@ export function readSurfaceSnapshot<T>(
   maxAgeMs: number = DEFAULT_SURFACE_SNAPSHOT_MAX_AGE_MS,
   now: number = Date.now(),
 ): T | undefined {
+  return readSurfaceEntry<T>(key, maxAgeMs, now)?.value;
+}
+
+function readSurfaceEntry<T>(
+  key: string,
+  maxAgeMs: number,
+  now: number,
+): { value: T; storedAt: number } | undefined {
   assertCacheable(key);
   if (!inBrowser()) return undefined;
   bindIdentityBoundary();
   const entry = store.get(key);
   if (entry) {
-    if (now - entry.storedAt <= maxAgeMs) return entry.value as T;
+    if (now - entry.storedAt <= maxAgeMs) {
+      return { value: entry.value as T, storedAt: entry.storedAt };
+    }
     store.delete(key);
   }
-  return readPersistentSurfaceSnapshot<T>(key, maxAgeMs, now);
+  const persisted = readPersistentSurfaceSnapshot<T>(key, maxAgeMs, now);
+  if (persisted === undefined) return undefined;
+  return { value: persisted, storedAt: store.get(key)?.storedAt ?? now };
 }
 
 /** Hold this answer for the next arrival on the surface that read it. */
@@ -275,6 +288,7 @@ export function writeSurfaceSnapshot<T>(
 
 /** The account boundary, and the test seam. */
 export function clearSurfaceCache(): void {
+  dropAbandonedRequests();
   store.clear();
   clearPersistentSurfaceCache();
 }
@@ -306,7 +320,25 @@ type InFlightRequest = {
   promise: Promise<unknown | undefined>;
   controller: AbortController;
   joiners: number;
+  /** Nobody is waiting, but the read is held for the grace window. */
+  abandoned: boolean;
+  /** The read has answered, or failed to. */
+  settled: boolean;
+  /** Some caller took the answer, so there is nothing left to hand on. */
+  consumed: boolean;
+  graceTimer: ReturnType<typeof setTimeout> | null;
 };
+
+/**
+ * How long a read nobody is waiting for stays on the wire. A surface that
+ * unmounts and remounts in the same arrival (a shell that swaps layout once the
+ * viewport is known) used to cancel its read and ask again a few milliseconds
+ * later: on a venue sheet that was the same GETs sent twice, the first set
+ * cancelled in flight. Inside this window the next surface to ask joins the
+ * read instead. An abandoned read still spends no retry, and past the window it
+ * is aborted exactly as before.
+ */
+export const SURFACE_REQUEST_GRACE_MS = 1_000;
 
 const inFlight = new Map<string, InFlightRequest>();
 
@@ -317,6 +349,16 @@ export type LoadSurfaceJsonOptions<T = unknown> = {
   fetchImpl?: typeof fetch;
   validate?: (value: T) => boolean;
   /**
+   * An answer read this recently is still the answer, so it is applied and the
+   * network is not asked again. Without it a held answer always revalidates,
+   * which is right for a tab someone returns to and wasteful for the second
+   * surface of the SAME page load: two panels that read one URL a beat apart
+   * made two requests, because the first had already answered and left nothing
+   * in flight to join. Unset revalidates, unless a read finished moments ago
+   * and is still within SURFACE_REQUEST_GRACE_MS.
+   */
+  freshForMs?: number;
+  /**
    * Start a new request even when one for this key is already in flight, instead
    * of joining it. For a read that exists BECAUSE the answer just changed: the
    * request already on the wire was sent before the change and may carry the
@@ -325,6 +367,9 @@ export type LoadSurfaceJsonOptions<T = unknown> = {
    */
   fresh?: boolean;
 };
+
+/** A read this young was made by the page that is still loading. */
+export const SURFACE_JUST_READ_MS = 5_000;
 
 /**
  * Stale-while-revalidate for one surface read.
@@ -355,7 +400,13 @@ export async function loadSurfaceJson<T>(
   await Promise.resolve();
   if (requestSignal?.aborted) return applied;
 
-  const held = readSurfaceSnapshot<T>(key, maxAgeMs);
+  const heldEntry = readSurfaceEntry<T>(
+    key,
+    maxAgeMs ?? DEFAULT_SURFACE_SNAPSHOT_MAX_AGE_MS,
+    Date.now(),
+  );
+  const held = heldEntry?.value;
+  let justRead = false;
   if (held !== undefined && !requestSignal?.aborted) {
     let valid = true;
     if (validate) {
@@ -368,12 +419,16 @@ export async function loadSurfaceJson<T>(
     if (valid) {
       applied = "snapshot";
       apply(held, "snapshot");
+      justRead =
+        options.freshForMs !== undefined &&
+        heldEntry !== undefined &&
+        Date.now() - heldEntry.storedAt <= options.freshForMs;
     } else {
       forgetSurfaceSnapshot(key);
     }
   }
 
-  if (requestSignal?.aborted) return applied;
+  if (requestSignal?.aborted || justRead) return applied;
   const request = joinSurfaceRequest(key, options);
   // Release on the caller's own abort as well as on settle, so an unmount
   // still takes a read off the wire the moment nobody is left waiting for it.
@@ -386,7 +441,11 @@ export async function loadSurfaceJson<T>(
   requestSignal?.addEventListener("abort", release, { once: true });
   let body: T | undefined;
   try {
-    body = (await request.promise) as T | undefined;
+    // A caller that leaves stops waiting at once. The read itself may live on
+    // for the grace window, so its settling is no longer the caller's cue.
+    body = (await untilAborted(request.promise, requestSignal)) as T | undefined;
+    // Taken before the release below, which is what lets the read leave the map.
+    if (body !== undefined && !requestSignal?.aborted) request.consumed = true;
   } finally {
     requestSignal?.removeEventListener("abort", release);
     release();
@@ -418,26 +477,90 @@ function joinSurfaceRequest<T>(
   const existing = options.fresh ? undefined : inFlight.get(key);
   if (existing) {
     existing.joiners += 1;
+    existing.abandoned = false;
+    if (existing.graceTimer) clearTimeout(existing.graceTimer);
+    existing.graceTimer = null;
     return existing;
   }
   const controller = new AbortController();
   const entry: InFlightRequest = {
     controller,
     joiners: 1,
-    promise: runSurfaceRequest(key, options, controller.signal).finally(() => {
-      if (inFlight.get(key) === entry) inFlight.delete(key);
-    }),
+    abandoned: false,
+    settled: false,
+    consumed: false,
+    graceTimer: null,
+    promise: Promise.resolve(undefined),
   };
+  // A read that answered while somebody was waiting is theirs, and leaves the
+  // map when the last of them does (releaseSurfaceRequest). A read that answered
+  // while NOBODY was waiting is the case the grace window exists for: the next
+  // surface to ask takes it. A read that did not answer is dropped at once, so a
+  // retry always reaches the network.
+  entry.promise = runSurfaceRequest(key, options, controller.signal, () => entry.abandoned).then(
+    (body) => {
+      entry.settled = true;
+      if (body === undefined && inFlight.get(key) === entry) inFlight.delete(key);
+      return body;
+    },
+  );
   inFlight.set(key, entry);
   return entry;
 }
 
-/** One joiner has stopped waiting; the last one out aborts the read. */
+function untilAborted<V>(promise: Promise<V>, signal: AbortSignal | undefined): Promise<V | undefined> {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.resolve(undefined);
+  return new Promise<V | undefined>((resolve, reject) => {
+    const onAbort = () => resolve(undefined);
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    );
+  });
+}
+
+/**
+ * End every read nobody is waiting for. The account boundary does this so a
+ * settled answer held for the grace window never reaches the next account, and
+ * so does the test seam.
+ */
+function dropAbandonedRequests(): void {
+  for (const [key, request] of inFlight) {
+    if (!request.abandoned) continue;
+    if (request.graceTimer) clearTimeout(request.graceTimer);
+    request.graceTimer = null;
+    inFlight.delete(key);
+    request.controller.abort();
+  }
+}
+
+/** One joiner has stopped waiting; the last one out starts the grace window. */
 function releaseSurfaceRequest(key: string, request: InFlightRequest): void {
   request.joiners -= 1;
   if (request.joiners > 0) return;
-  if (inFlight.get(key) === request) inFlight.delete(key);
-  request.controller.abort();
+  if (request.settled && request.consumed) {
+    // Answered, and taken: nothing is left to hold or to cancel.
+    if (request.graceTimer) clearTimeout(request.graceTimer);
+    request.graceTimer = null;
+    if (inFlight.get(key) === request) inFlight.delete(key);
+    return;
+  }
+  request.abandoned = true;
+  if (request.graceTimer) clearTimeout(request.graceTimer);
+  request.graceTimer = setTimeout(() => {
+    request.graceTimer = null;
+    if (!request.abandoned) return;
+    if (inFlight.get(key) === request) inFlight.delete(key);
+    request.controller.abort();
+  }, SURFACE_REQUEST_GRACE_MS);
 }
 
 /**
@@ -451,29 +574,33 @@ async function runSurfaceRequest<T>(
   key: string,
   options: LoadSurfaceJsonOptions<T>,
   signal: AbortSignal,
+  abandoned: () => boolean,
 ): Promise<T | undefined> {
   const { init, fetchImpl, validate } = options;
   const doFetch = fetchImpl ?? fetch;
+  // A read nobody is waiting for does not spend a retry: the attempt in flight
+  // may finish, and a second would only be for an answer no one asked for.
+  const stopped = () => signal.aborted || abandoned();
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    if (signal.aborted) return undefined;
+    if (stopped()) return undefined;
     try {
       const response = await doFetch(key, { ...init, signal });
       if (!response.ok) {
         const retryable = isTransientResponse(response);
         discardBody(response);
-        if (retryable && attempt === 0 && await waitUnlessAborted(SURFACE_CACHE_RETRY_BACKOFF_MS, signal)) continue;
+        if (retryable && attempt === 0 && await waitUnlessAborted(SURFACE_CACHE_RETRY_BACKOFF_MS, signal) && !stopped()) continue;
         return undefined;
       }
       const body = (await response.json()) as T;
       if (signal.aborted) return undefined;
       if (validate && !validate(body)) {
-        if (attempt === 0 && await waitUnlessAborted(SURFACE_CACHE_RETRY_BACKOFF_MS, signal)) continue;
+        if (attempt === 0 && await waitUnlessAborted(SURFACE_CACHE_RETRY_BACKOFF_MS, signal) && !stopped()) continue;
         return undefined;
       }
       return body;
     } catch {
       if (signal.aborted) return undefined;
-      if (attempt === 0 && await waitUnlessAborted(SURFACE_CACHE_RETRY_BACKOFF_MS, signal)) continue;
+      if (attempt === 0 && await waitUnlessAborted(SURFACE_CACHE_RETRY_BACKOFF_MS, signal) && !stopped()) continue;
       // Aborted, offline, or a blip. A surface that already showed a real
       // answer keeps it; one that showed nothing reports the failure to its
       // caller.

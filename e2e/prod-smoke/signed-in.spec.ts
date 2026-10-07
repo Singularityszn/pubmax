@@ -1,7 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { describeFirstQuery, describeFirstSubmit } from "../helpers/planDescribeFirst";
-import { asReturningVisitor, evidence, watchPageErrors } from "./smokeSession";
+import { untilNoFirewallDeny, untilNot429 } from "./firewall";
+import { asReturningVisitor, evidence, watchFirewall, watchPageErrors } from "./smokeSession";
 
 // The signed-in half of the production smoke suite: one session for the
 // dedicated smoke account, walked through sign in, Pub Pal, a Plan, a saved
@@ -22,12 +23,14 @@ test.describe("signed-in journeys", () => {
 
   let page: Page;
   let assertNoPageErrors: () => void;
+  let firewall: ReturnType<typeof watchFirewall>;
   // What this run created, so afterAll can undo it even when a journey fails.
   const created: { plan?: { id: string; memberToken: string }; saved?: boolean } = {};
 
   test.beforeAll(async ({ browser }) => {
     const context = await browser.newContext();
     await asReturningVisitor(context);
+    firewall = watchFirewall(context);
     page = await context.newPage();
     assertNoPageErrors = watchPageErrors(page);
   });
@@ -40,7 +43,7 @@ test.describe("signed-in journeys", () => {
         if (created.plan) await abandonPlan(page, created.plan);
       },
       async () => {
-        if (created.saved && (await hasSave(page))) await toggleSave(page);
+        if (created.saved) await setSave(page, false);
       },
     ];
     for (const undo of undos) {
@@ -156,9 +159,9 @@ test.describe("signed-in journeys", () => {
   test("saves a venue to a list", async () => {
     // A run that died before its cleanup leaves the save behind, and the
     // control toggles, so remove that save before this run saves again.
-    if (await hasSave(page)) await toggleSave(page);
+    await setSave(page, false);
     created.saved = true;
-    await toggleSave(page);
+    await setSave(page, true);
     // POST /api/saved-pubs answers 200 even when the write fails, so read the
     // list back to prove the save landed.
     expect(await hasSave(page), "the save is on the list").toBe(true);
@@ -178,7 +181,7 @@ test.describe("signed-in journeys", () => {
   test("removes the save", async () => {
     // Undo here, while the session is still signed in: afterAll runs after
     // sign-out, when the save control can no longer write.
-    await toggleSave(page);
+    await setSave(page, false);
     expect(await hasSave(page), "the save is removed").toBe(false);
     created.saved = false;
   });
@@ -214,14 +217,35 @@ test.describe("signed-in journeys", () => {
    * the profile loads, so the answer never depends on a half-loaded page.
    */
   async function hasSave(target: Page): Promise<boolean> {
-    const response = await target.request.get(`/api/saved-pubs?handle=${encodeURIComponent(HANDLE)}`);
+    const response = await untilNot429(
+      () => target.request.get(`/api/saved-pubs?handle=${encodeURIComponent(HANDLE)}`),
+      (answer) => ({ status: answer.status(), headers: answer.headers(), url: answer.url() }),
+    );
     expect(response.ok(), "read the saved list").toBe(true);
     const body = (await response.json()) as { saved: { venueId: string; listType: string }[] };
     return body.saved.some((row) => row.venueId === SAVE_VENUE.id && row.listType === SAVE_LIST);
   }
 
-  /** Tap the list chip once from the venue sheet. */
-  async function toggleSave(target: Page) {
+  /**
+   * Bring the smoke venue's save to `want`, tapping the list chip only when the
+   * list says otherwise. The step is repeated whole when the edge firewall
+   * denied any response during it, and each try reads the list first, so a tap
+   * that landed beside an unrelated deny is never undone by a second tap.
+   */
+  function setSave(target: Page, want: boolean) {
+    return untilNoFirewallDeny(
+      async () => {
+        if ((await hasSave(target)) === want) return;
+        await tapSaveChip(target);
+      },
+      firewall.denies,
+      undefined,
+      undefined,
+      "the save journey",
+    );
+  }
+
+  async function tapSaveChip(target: Page) {
     await target.goto(`/map?sel=${SAVE_VENUE.id}`);
     const sheet = target.getByRole("dialog", { name: "Pub detail" });
     await expect(sheet.getByRole("heading", { name: SAVE_VENUE.name })).toBeInViewport();
@@ -260,13 +284,21 @@ async function createPal(page: Page) {
 
 /** Plans have no delete: abandoning is the end state a host can choose. */
 async function abandonPlan(page: Page, plan: { id: string; memberToken: string }) {
-  const status = await page.evaluate(async ({ id, memberToken }) => {
-    const response = await fetch(`/api/plans/${id}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ status: "abandoned", memberToken }),
-    });
-    return response.status;
-  }, plan);
-  expect(status, `abandon Plan ${plan.id}`).toBe(200);
+  const answer = await untilNot429(
+    () =>
+      page.evaluate(async ({ id, memberToken }) => {
+        const response = await fetch(`/api/plans/${id}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ status: "abandoned", memberToken }),
+        });
+        return {
+          status: response.status,
+          headers: Object.fromEntries(response.headers.entries()),
+          url: response.url,
+        };
+      }, plan),
+    (value) => value,
+  );
+  expect(answer.status, `abandon Plan ${plan.id}`).toBe(200);
 }

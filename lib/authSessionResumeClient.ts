@@ -107,6 +107,72 @@ export async function persistSessionForResume(
   }
 }
 
+// The cookie only changes when the refresh token does, and its 30-day window
+// only needs extending now and then. Persisting on every page load spent one
+// write of /api/auth/session's 60-per-hour budget per IP per load, so a shared
+// pub or office address ran out and its sign-ins stopped being durable.
+const PERSISTED_KEY = "pubmax:resume-persisted:v1";
+
+/** Re-extend the cookie's window at most this often when the token is unchanged. */
+export const RESUME_REEXTEND_MS = 12 * 60 * 60 * 1000;
+
+// A short fingerprint, so the marker never holds the token itself.
+function tokenFingerprint(refreshToken: string): string {
+  let hash = 5381;
+  for (let index = 0; index < refreshToken.length; index += 1) {
+    hash = ((hash * 33) ^ refreshToken.charCodeAt(index)) >>> 0;
+  }
+  return `${refreshToken.length}:${hash.toString(36)}`;
+}
+
+/**
+ * Is the cookie already holding this exact session's token, written recently?
+ * A new sign-in or a rotated token is never "already persisted", so those still
+ * write at once. Unreadable storage answers no, and the write goes ahead.
+ */
+export function resumeAlreadyPersisted(
+  storage: Pick<Storage, "getItem"> | null,
+  session: { user: { id: string }; refresh_token: string },
+  now: number = Date.now(),
+): boolean {
+  if (!storage) return false;
+  try {
+    const raw = storage.getItem(PERSISTED_KEY);
+    if (!raw) return false;
+    const marker = JSON.parse(raw) as { userId?: unknown; token?: unknown; at?: unknown };
+    return (
+      marker.userId === session.user.id &&
+      marker.token === tokenFingerprint(session.refresh_token) &&
+      typeof marker.at === "number" &&
+      now - marker.at >= 0 &&
+      now - marker.at < RESUME_REEXTEND_MS
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** Remember that the cookie now holds this session's token. */
+export function markResumePersisted(
+  storage: Pick<Storage, "setItem"> | null,
+  session: { user: { id: string }; refresh_token: string },
+  now: number = Date.now(),
+): void {
+  if (!storage) return;
+  try {
+    storage.setItem(
+      PERSISTED_KEY,
+      JSON.stringify({
+        userId: session.user.id,
+        token: tokenFingerprint(session.refresh_token),
+        at: now,
+      }),
+    );
+  } catch {
+    // Without the marker the next load simply writes again.
+  }
+}
+
 /** Exchange the durable cookie for a fresh session after storage loss. */
 export async function redeemPersistedSession(
   fetchImpl: FetchLike = fetch,

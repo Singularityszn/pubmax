@@ -21,7 +21,7 @@ import {
   isGardenWeather,
   type GardenWeatherInput,
 } from "@/lib/gardenWeather";
-import { loadSurfaceJson } from "@/lib/surfaceDataCache";
+import { loadSurfaceJson, SURFACE_JUST_READ_MS } from "@/lib/surfaceDataCache";
 
 import "./gardenTonightCard.css";
 
@@ -96,6 +96,7 @@ export default function GardenTonightCard() {
           signal: controller.signal,
           init: { headers: { accept: "application/json" } },
           validate: (body) => Boolean(body && "weather" in body),
+          freshForMs: SURFACE_JUST_READ_MS,
         },
         (body) => {
           statusBox.value = body;

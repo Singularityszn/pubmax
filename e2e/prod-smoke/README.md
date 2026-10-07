@@ -35,6 +35,28 @@ before the run ends, and `afterAll` undoes it again when a journey fails partway
   setup a new user meets. Every later run finds it and goes straight to the
   message box.
 
+### A firewall deny is infrastructure, not a failed journey
+
+On 6 October 2026 the save journey failed with a 429 that never reached the
+app. The response carried `x-vercel-mitigated: deny`, a header only Vercel's
+edge firewall sets. The app's own rate limit answers a 429 without it. The run
+had fired about 25 parallel API reads in one second from one runner IP, and the
+firewall refused that burst and then unrelated routes for several seconds.
+
+`firewall.ts` gives the suite two rules:
+
+- **A 429 is retried with a pause.** The API reads (`hasSave`, abandoning the
+  Plan) retry up to three times, after 2 s, 4 s and 8 s. The save step repeats
+  whole when a deny landed while it ran. Each try reads the list first and taps
+  only when the save is not yet where the journey wants it, so a tap that
+  landed beside an unrelated deny is never undone.
+- **A deny that outlasts the retries fails as `INFRASTRUCTURE`.** The error names
+  Vercel's edge firewall and the URL, and every deny is annotated on its test as
+  `infrastructure`, so the report does not read it as a defect in the page.
+
+The app's own 429 is retried the same way and, if it persists, is returned to
+the journey's assertion unchanged.
+
 ### A defect the suite found
 
 On 5 October 2026 the suite found that a full load of the owner's own

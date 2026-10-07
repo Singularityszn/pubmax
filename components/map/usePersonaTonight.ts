@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
 
 import type { DrinkCategory } from "@/lib/drinks";
 import { drinkCategoryForSuggestion } from "@/lib/personaTonightCategories";
-import { loadSurfaceJson } from "@/lib/surfaceDataCache";
+import { loadSurfaceJson, SURFACE_JUST_READ_MS } from "@/lib/surfaceDataCache";
 
 type ConditionsResponse = {
   summary?: {
@@ -58,6 +58,7 @@ export function useTonightLaneCue(enabled: boolean): TonightLaneCue {
         signal: controller.signal,
         init: { headers: { accept: "application/json" } },
         validate: (body) => Boolean(body && "summary" in body),
+        freshForMs: SURFACE_JUST_READ_MS,
       },
       (body) => {
         const next: TonightLaneCue = {

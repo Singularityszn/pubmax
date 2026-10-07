@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
+import { useStaggeredRead } from "@/lib/useStaggeredRead";
 
 type ApiResponse = {
   opportunities?: ThingsToDoOpportunity[];
@@ -20,6 +21,10 @@ export function useTonightOpportunities(enabled: boolean): {
   const [opportunities, setOpportunities] = useState<ThingsToDoOpportunity[]>([]);
   const [status, setStatus] = useState<"idle" | "ready" | "hidden">("idle");
 
+  // The lane under the map, not the first screen: it starts after the map and
+  // the sheet have asked for what they need to paint.
+  const ready = useStaggeredRead(1, "map");
+
   useEffect(() => {
     if (!enabled) {
       Promise.resolve().then(() => {
@@ -29,6 +34,7 @@ export function useTonightOpportunities(enabled: boolean): {
       return;
     }
 
+    if (!ready) return;
     const controller = new AbortController();
     void loadSurfaceJson<ApiResponse>(
       "/api/citymcp/things-to-do?window=tonight&limit=8",
@@ -58,7 +64,7 @@ export function useTonightOpportunities(enabled: boolean): {
     });
 
     return () => controller.abort();
-  }, [enabled]);
+  }, [enabled, ready]);
 
   return { opportunities, status };
 }

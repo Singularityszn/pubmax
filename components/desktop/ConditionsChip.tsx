@@ -18,7 +18,7 @@ import { CloudSun } from "lucide-react";
 
 import type { TonightConditionsSummary } from "@/lib/tonightConditions";
 import { NO_WEATHER_READING_LINE, shortDrinkVerdict } from "@/lib/conditionsFormat";
-import { loadSurfaceJson } from "@/lib/surfaceDataCache";
+import { loadSurfaceJson, SURFACE_JUST_READ_MS } from "@/lib/surfaceDataCache";
 
 import "./conditionsChip.css";
 
@@ -34,6 +34,7 @@ export default function ConditionsChip() {
       {
         signal: controller.signal,
         validate: (body) => Boolean(body && "summary" in body),
+        freshForMs: SURFACE_JUST_READ_MS,
       },
       (body) => setSummary(body.summary ?? null),
     ).then((outcome) => {

@@ -40,7 +40,6 @@ const SURFACE_READ_EXEMPTIONS = [
   { path: "components/landing/PintDropStrip.tsx", fetchCount: 1, reason: "landing contribution strip has anonymous demo fallback semantics" },
   { path: "components/map/ActiveRoundChip.tsx", fetchCount: 1, reason: "active round is a live plan interaction" },
   { path: "components/map/CityPlaceStrip.tsx", fetchCount: 1, reason: "place enrichment is an interactive map read; the place SEARCH beside it moved to lib/cityPlaceSearch.ts, which VenueBuzz shares so one sheet asks once" },
-  { path: "components/map/CityStatusBanner.tsx", fetchCount: 1, reason: "map status is an optional provider status lane" },
   { path: "components/map/CitySuggestBanner.tsx", fetchCount: 1, reason: "map search suggestion is an interactive pack read" },
   { path: "components/map/NearbyBusDepartures.tsx", fetchCount: 1, reason: "nearby transport is live and location-scoped" },
   { path: "components/map/UnverifiedPubSheet.tsx", fetchCount: 1, reason: "harvest overlay is an additive lazy read for one unverified pub sheet and never paints a reload surface" },

@@ -18,7 +18,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { coarsenViewerPoint } from "@/lib/geo";
-import { loadSurfaceJson } from "@/lib/surfaceDataCache";
+import { loadSurfaceJson, SURFACE_JUST_READ_MS } from "@/lib/surfaceDataCache";
 import {
   EMPTY_KIND_OBSERVED_AT,
   isValidWhatsOnRow,
@@ -159,6 +159,7 @@ export async function loadWhatsOnTonight(
     {
       signal: opts.signal,
       maxAgeMs: opts.maxAgeMs,
+      freshForMs: SURFACE_JUST_READ_MS,
       init: { headers: { accept: "application/json" } },
       fetchImpl,
       validate: (body) => Boolean(

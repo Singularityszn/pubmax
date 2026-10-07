@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CalendarClock, Info, TrainFront } from "lucide-react";
 
 import { CITY_STATUS_UNSOURCED_LABEL, cityStatusSignalSource } from "@/lib/cityStatusSignalSource";
-import { loadSurfaceJson } from "@/lib/surfaceDataCache";
+import { loadSurfaceJson, SURFACE_JUST_READ_MS } from "@/lib/surfaceDataCache";
 import { useReconnectRecovery } from "@/lib/useReconnectRecovery";
 import type { CityId } from "@/lib/cities";
 
@@ -42,6 +42,7 @@ export function useMobileTflStatus(cityId: CityId): MobileTflStatus {
         init: { headers: { accept: "application/json" } },
         maxAgeMs: TFL_STATUS_MAX_AGE_MS,
         validate: (value) => Boolean(value && typeof value === "object"),
+        freshForMs: SURFACE_JUST_READ_MS,
       },
       (value) => {
         setPayload(value);
