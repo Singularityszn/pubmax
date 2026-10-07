@@ -8,6 +8,9 @@ test("Today offers Tonight's sourced pub suggestions and marks the Day segment",
   await page.addInitScript(() => {
     localStorage.clear();
     sessionStorage.clear();
+    // The consent card owns the create action's lane, so the action stands
+    // down until it is answered. Answer it, as the config's returning visitor.
+    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
     localStorage.setItem("pubmax-tour-v1-done", "1");
   });
   await page.goto("/tonight");
