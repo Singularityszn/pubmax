@@ -422,16 +422,17 @@ function drinkCluster(
 }
 
 /**
- * A disc prints a price only from a pub's pint price, so a map whose bands are
- * all type-relative (no pub with a pint price) has discs that print counts.
+ * A disc prints a price only where a pin in the scene says one
+ * (`clusterPrices`), so a coloured map with no sayable price (type-relative
+ * bands only, or pubs painted by a demo seed) has discs that print counts.
  */
 function defaultCluster(
   buckets: readonly MapRenderedPriceBucket[],
-  hasPintPrices: boolean,
+  clusterPrices: boolean,
 ): MapKeyCluster | null {
   if (buckets.length === 0) return null;
   if (buckets.some((bucket) => bucket !== 3)) {
-    return hasPintPrices ? PRICE_CLUSTER : countCluster(COUNT_CLUSTER_NOTE);
+    return clusterPrices ? PRICE_CLUSTER : countCluster(COUNT_CLUSTER_NOTE);
   }
   return countCluster(
     "Clusters stay grey because no current venue has a known map price. The number is every venue in the cluster.",
@@ -479,7 +480,7 @@ function spoonsRenderedRows(
 export function mapPriceLegend(
   context: MapPriceLegendContext,
 ): MapPriceLegendModel {
-  const { priceBands, storyColour } = context.renderedState;
+  const { priceBands, storyColour, clusterPrices } = context.renderedState;
   const priceBuckets = renderedBuckets(priceBands);
   if (context.kind === "spoons") {
     const rows = spoonsRenderedRows(priceBands, context.modalMilliunits);
@@ -593,7 +594,7 @@ export function mapPriceLegend(
         hint: "Show pubs at or under this pint price.",
       },
       {
-        cluster: defaultCluster(priceBuckets, hasPintPrices),
+        cluster: defaultCluster(priceBuckets, clusterPrices),
         shapes: MAP_SHAPES,
         marks: mapMarks(
           "A recent pint report. On a listed pub in the standard pint view, a second independent drinker reporting a similar price can set the pin's band. A UK base pub keeps only the dot.",
@@ -617,7 +618,7 @@ export function mapPriceLegend(
         hint: "Each venue pin is low, middle, or high within its own type.",
       },
       {
-        cluster: defaultCluster(priceBuckets, hasPintPrices),
+        cluster: defaultCluster(priceBuckets, clusterPrices),
         shapes: MAP_SHAPES,
         marks: mapMarks(
           "A recent pint report. It doesn't set a non-pub venue's band. A UK base pub keeps only the dot.",
@@ -658,7 +659,7 @@ export function mapPriceLegend(
         "Pub pins use pint thresholds. Each other venue pin is low, middle, or high within its own type.",
     },
     {
-      cluster: defaultCluster(priceBuckets, hasPintPrices),
+      cluster: defaultCluster(priceBuckets, clusterPrices),
       shapes: MAP_SHAPES,
       marks: mapMarks(
         "A recent pint report. On a listed pub in the standard pint view, a second independent drinker reporting a similar price can set the pin's band. A UK base pub keeps only the dot.",

@@ -16,11 +16,13 @@ const ALL_RENDERED_STATE = {
     { meaning: "pint", bucket: 3 },
   ] as const,
   storyColour: null,
+  clusterPrices: false,
 };
 
 const UNKNOWN_RENDERED_STATE = {
   priceBands: [{ meaning: "pint", bucket: 3 }] as const,
   storyColour: null,
+  clusterPrices: false,
 };
 
 describe("mapPriceLegend", () => {
@@ -39,6 +41,7 @@ describe("mapPriceLegend", () => {
           { meaning: "type-relative", bucket: 3 },
         ],
         storyColour: null,
+        clusterPrices: false,
       },
     });
 
@@ -78,6 +81,7 @@ describe("mapPriceLegend", () => {
           { meaning: "type-relative", bucket: 3 },
         ],
         storyColour: null,
+        clusterPrices: false,
       },
     });
     expect(legend.rows.map((row) => row.label)).toEqual([
@@ -99,6 +103,7 @@ describe("mapPriceLegend", () => {
           { meaning: "type-relative", bucket: 0 },
         ],
         storyColour: null,
+        clusterPrices: false,
       },
     });
 
@@ -119,6 +124,7 @@ describe("mapPriceLegend", () => {
           { meaning: "type-relative", bucket: 3 },
         ],
         storyColour: null,
+        clusterPrices: false,
       },
     });
 
@@ -289,6 +295,7 @@ describe("mapPriceLegend colour rows under a failed read", () => {
           { meaning: "pint", bucket: 3 },
         ],
         storyColour: null,
+        clusterPrices: false,
       },
     });
 
@@ -335,6 +342,7 @@ describe("map key inventory", () => {
       renderedState: {
         priceBands: ALL_RENDERED_STATE.priceBands,
         storyColour: "#d99f45",
+        clusterPrices: true,
       },
     });
 
@@ -441,6 +449,7 @@ describe("map key inventory", () => {
           { meaning: "spoons", bucket: 3 },
         ],
         storyColour: null,
+        clusterPrices: false,
       },
     });
     expect(legend.title).toBe("Spoons value key");
@@ -469,6 +478,7 @@ describe("map key inventory", () => {
       renderedState: {
         priceBands: [{ meaning: "spoons", bucket: 3 }],
         storyColour: null,
+        clusterPrices: false,
       },
     });
     expect(legend.rows).toEqual([

@@ -18,6 +18,7 @@ describe("MapKey", () => {
       { meaning: "pint", bucket: 3 },
     ] as const,
     storyColour: null,
+    clusterPrices: false,
   };
   const html = renderToStaticMarkup(
     createElement(MapKey, {
@@ -34,6 +35,7 @@ describe("MapKey", () => {
         renderedState: {
           ...renderedState,
           storyColour: "#d99f45",
+          clusterPrices: false,
         },
       }),
     }),
@@ -133,10 +135,22 @@ describe("MapKey cluster sample", () => {
       sampleFor(
         mapPriceLegend({
           kind: "default",
-          renderedState: { priceBands: pintBands, storyColour: null },
+          renderedState: { priceBands: pintBands, storyColour: null, clusterPrices: true },
         }),
       ),
     ).toBe("£4");
+  });
+
+  it("shows a venue count on a coloured default map where no pin says a price", () => {
+    // A demo seed paints a pub's band without giving its disc a figure.
+    expect(
+      sampleFor(
+        mapPriceLegend({
+          kind: "default",
+          renderedState: { priceBands: pintBands, storyColour: null, clusterPrices: false },
+        }),
+      ),
+    ).toBe("12");
   });
 
   it("shows a venue count in the drink lens, where every disc prints its count", () => {
@@ -147,7 +161,7 @@ describe("MapKey cluster sample", () => {
           label: "Whisky",
           noun: "Whisky",
           status: "ready",
-          renderedState: { priceBands: pintBands, storyColour: null },
+          renderedState: { priceBands: pintBands, storyColour: null, clusterPrices: false },
         }),
       ),
     ).toBe("12");
@@ -165,6 +179,7 @@ describe("MapKey cluster sample", () => {
               { meaning: "spoons", bucket: 3 },
             ],
             storyColour: null,
+            clusterPrices: false,
           },
         }),
       ),
@@ -176,7 +191,7 @@ describe("MapKey cluster sample", () => {
       sampleFor(
         mapPriceLegend({
           kind: "food",
-          renderedState: { priceBands: [{ meaning: "pint", bucket: 3 }], storyColour: null },
+          renderedState: { priceBands: [{ meaning: "pint", bucket: 3 }], storyColour: null, clusterPrices: false },
         }),
       ),
     ).toBe("12");
@@ -190,6 +205,7 @@ describe("MapKey cluster sample", () => {
               { meaning: "type-relative", bucket: 3 },
             ],
             storyColour: null,
+            clusterPrices: false,
           },
         }),
       ),
