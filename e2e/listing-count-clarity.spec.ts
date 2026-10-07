@@ -40,6 +40,18 @@ test("the phone map names listing rows and keeps the label readable", async ({ p
       contentWidth: element.scrollWidth,
     }));
     expect(bounds.contentWidth).toBeLessThanOrEqual(bounds.width);
+    // The longer label must not squeeze its neighbour: the drink lane keeps
+    // every letter and the row stays one height.
+    const drink = page.locator(".mobileMapDrinkChipLabel");
+    await expect(drink).toHaveText("Pints");
+    const drinkBounds = await drink.evaluate((element) => ({
+      width: element.clientWidth,
+      contentWidth: element.scrollWidth,
+    }));
+    expect(drinkBounds.contentWidth, `drink label at ${width}px`).toBeLessThanOrEqual(drinkBounds.width);
+    const heights = await page.locator(".mobileMapChipRow > button").evaluateAll((buttons) =>
+      buttons.map((button) => Math.round(button.getBoundingClientRect().height)));
+    expect(new Set(heights).size, `chip heights at ${width}px: ${heights.join(", ")}`).toBe(1);
   }
 });
 

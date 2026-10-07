@@ -489,13 +489,13 @@
   }
 
   /* The drink the map is under. It never scrolls away and it never truncates
-     to a fragment: a lane label is the name of the prices on the pins, so it
-     shrinks its own padding before it gives up a letter. */
+     to a fragment: a lane label is the name of the prices on the pins, so the
+     Tonight chip beside it wraps its label before this chip gives up a letter. */
   .mobileMapDrinkChip {
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    flex: 0 1 auto;
+    flex: 0 0 auto;
     min-width: 0;
     min-height: 44px;
     padding: 6px 14px;
