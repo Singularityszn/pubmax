@@ -79,8 +79,8 @@ export function crawlStopsFromPubIds(ids: string[]): string[] {
 }
 
 /** Keep the map's pins while the reader edits a search, with other filters intact. */
-export function mapPinFilters(filters: Filters, searchActive: boolean): Filters {
-  return searchActive && filters.query ? { ...filters, query: "" } : filters;
+export function mapPinFilters(filters: Filters): Filters {
+  return filters.query ? { ...filters, query: "" } : filters;
 }
 
 // Issue #31: fold a curated crawl's style choices onto the current filters. A

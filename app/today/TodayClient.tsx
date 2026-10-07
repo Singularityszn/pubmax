@@ -127,7 +127,7 @@ const LENS_ICON = {
 function WeatherCard({ weather }: { weather: WeatherBrief | null }) {
   const LensIcon = weather ? LENS_ICON[weather.venueLens] : CloudSun;
   return (
-    <section className="todayCard" aria-labelledby="today-weather-title" data-testid="today-weather">
+    <section className="todayCard createFabLane" aria-labelledby="today-weather-title" data-testid="today-weather">
       <div className="todayCardHead">
         <span className="todayCardIcon" aria-hidden="true">
           <LensIcon size={18} />

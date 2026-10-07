@@ -20,7 +20,7 @@ It leaves source selection, grouping, matching, caps, and datasets unchanged.
 ## Change
 
 The map chip now says `Tonight listings` beside its existing row count.
-The phone accessible name says `Tonight: 3 listings` for three rows.
+The phone accessible name says `Tonight listings: 3` for three rows. It keeps the visible label inside the name.
 Its location qualifier still follows the existing read context.
 The phone label wraps at narrow widths. It stays fully readable at 320 pixels.
 

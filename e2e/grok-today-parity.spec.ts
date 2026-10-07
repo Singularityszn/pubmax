@@ -37,7 +37,7 @@ test("Today offers Tonight's sourced pub suggestions and marks the Day segment",
   const coveredText = await page.evaluate(() => {
     const fab = document.querySelector(".createFab")!.getBoundingClientRect();
     const covered: string[] = [];
-    for (const row of document.querySelectorAll(".tonightHypedRow")) {
+    for (const row of document.querySelectorAll('.tonightHypedRow, [data-testid="today-weather"]')) {
       const walker = document.createTreeWalker(row, NodeFilter.SHOW_TEXT);
       while (walker.nextNode()) {
         const node = walker.currentNode;
@@ -52,6 +52,6 @@ test("Today offers Tonight's sourced pub suggestions and marks the Day segment",
     }
     return covered;
   });
-  expect(coveredText, "Today pub text covered by the create action").toEqual([]);
+  expect(coveredText, "Today text covered by the create action").toEqual([]);
   await page.screenshot({ path: "artifacts/today-parity/today-after-phone.png", fullPage: true });
 });

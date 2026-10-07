@@ -3019,9 +3019,9 @@ export default function PubMap({
     [filteredVenues],
   );
 
-  const pinFilterKey = JSON.stringify(mapPinFilters(effectiveMapFilters, true));
+  const pinFilterKey = JSON.stringify(mapPinFilters(effectiveMapFilters));
   // eslint-disable-next-line react-hooks/exhaustive-deps -- the key includes every non-query filter
-  const pinFilters = useMemo(() => mapPinFilters(effectiveMapFilters, true), [pinFilterKey]);
+  const pinFilters = useMemo(() => mapPinFilters(effectiveMapFilters), [pinFilterKey]);
   const mapSearchActive = mapSearchFieldFocused || mapOverlay === "search";
   const searchPinVenues = useMemo(() => {
     if (!mapSearchActive) return null;
