@@ -15,6 +15,17 @@ The new focus regression failed before the callback fix because a keyboard state
 
 All 72 focused unit tests passed. All five production browser regressions passed. They cover widths 320, 412 and 430, complete caption visibility, bounded filter content, the final drink row, actual dock hit ownership, reachable tabs, planner Enter, outside menu dismissal and composer routes. The native app instrumentation suite passed both tests on WebView 133 and WebView 157.
 
+## Venue sheet detents above the dock
+
+Every map sheet now stops above the dock. Only the full snap gives up the dock's height, so its top edge stays where it was. Peek and half keep their viewport fractions. Peek and half also grow to fit the sheet's header and footer. At 320x568 the venue command bar wraps to two rows, which a 125px peek clipped before this change. The venue footer has a 12px bottom gutter, because the portal already reserves the safe-area inset.
+
+`e2e/mobile-shared-sheet-layout.spec.ts` holds the header and footer inside the sheet and the sheet inside the viewport at every detent and both sizes. It ran against a production build in desktop Chrome.
+
+| Size | Peek | Half | Full |
+| --- | --- | --- | --- |
+| 390x844 | [peek](after/venue-peek-390x844.png) | [half](after/venue-half-390x844.png) | [full](after/venue-full-390x844.png) |
+| 320x568 | [peek](after/venue-peek-320x568.png) | [half](after/venue-half-320x568.png) | [full](after/venue-full-320x568.png) |
+
 ## Open proof gaps and follow-up
 
 The native filter screenshots still show partial caption and border painting despite complete DOM bounds. [WebView 133](after/filters-webview133.png) and [WebView 157](after/filters-webview157.png) retain that visual gap. Browser screenshots paint both correctly. Native paint diagnostics produced inconsistent results, and the private emulator disappeared after instrumentation. Firstmate authorised stopping native proof after the final rig attempt. Physical-device confirmation remains necessary for A16. These screenshots do not establish that its native paint defect is fixed.

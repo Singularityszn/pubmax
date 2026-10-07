@@ -69,6 +69,7 @@ beforeEach(() => {
     },
   });
   vi.stubGlobal("window", {
+    innerWidth: 390,
     innerHeight: LAYOUT_HEIGHT,
     visualViewport: { height: LAYOUT_HEIGHT, ...fakeListeners(viewportHandlers) },
   });
@@ -109,6 +110,40 @@ describe("what the keyboard store listens to", () => {
     fire(viewportHandlers, "resize");
     expect(readSoftKeyboardOpen()).toBe(false);
     offAgain();
+  });
+
+  it("re-bases the Android height after a rotation so a focused field alone keeps the chrome", () => {
+    platform.android = true;
+    const [, off] = subscribe();
+    activeElement = textInput();
+    fire(documentHandlers, "focusin");
+    vi.runAllTimers();
+    Object.assign(window, { innerWidth: LAYOUT_HEIGHT, innerHeight: 360 });
+    setViewportHeight(360);
+    fire(viewportHandlers, "resize");
+    expect(readSoftKeyboardOpen()).toBe(false);
+    window.innerHeight = 200;
+    setViewportHeight(200);
+    fire(viewportHandlers, "resize");
+    expect(readSoftKeyboardOpen()).toBe(true);
+    window.innerHeight = 360;
+    setViewportHeight(360);
+    fire(viewportHandlers, "resize");
+    expect(readSoftKeyboardOpen()).toBe(false);
+    off();
+  });
+
+  it("takes the Android baseline from the unfocused window, not the tallest one seen", () => {
+    platform.android = true;
+    const [, off] = subscribe();
+    window.innerHeight = 600;
+    setViewportHeight(600);
+    fire(viewportHandlers, "resize");
+    activeElement = textInput();
+    fire(documentHandlers, "focusin");
+    vi.runAllTimers();
+    expect(readSoftKeyboardOpen()).toBe(false);
+    off();
   });
 
   it("does not treat a resized desktop window with a focused field as a keyboard", () => {

@@ -65,6 +65,32 @@ describe("useSheetHeightDrag under a shrinking layout viewport", () => {
     expect(probe.snapshot!.sheetHeight! + 64).toBeLessThan(568);
   });
 
+  it("raises peek to the sheet's header and footer, and follows them when they grow", async () => {
+    setViewport(568, 320);
+    const portal = document.body.appendChild(document.createElement("div"));
+    portal.className = "mobileSheetPortal";
+    portal.style.bottom = "64px";
+    const sheet = portal.appendChild(document.createElement("section"));
+    sheet.className = "mobileSharedSheet";
+    const height = (element: HTMLElement, px: number) =>
+      Object.defineProperty(element, "offsetHeight", { configurable: true, value: px });
+    height(sheet.appendChild(document.createElement("header")), 64);
+    const body = sheet.appendChild(document.createElement("div"));
+    body.className = "mobileSharedSheetBody";
+    body.style.padding = "8px 16px";
+    const footer = sheet.appendChild(document.createElement("div"));
+    height(footer, 0);
+    const probe = await mount();
+
+    await act(async () => probe.snapshot!.openAtSnap("peek"));
+    expect(probe.snapshot!.sheetHeight).toBe(sheetSnapCaps(568, 64).peek);
+
+    height(footer, 121);
+    await act(async () => probe.snapshot!.recapToViewport());
+    expect(probe.snapshot!.sheetHeight).toBe(64 + 16 + 121);
+    expect(probe.snapshot!.settling).toBe(false);
+  });
+
   it("re-caps an open sheet to the new viewport, jumping rather than springing", async () => {
     setViewport(773);
     const probe = await mount();

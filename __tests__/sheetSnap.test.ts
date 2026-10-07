@@ -278,11 +278,19 @@ describe("sheetSnapCaps — per-snap cap heights (bottom-anchored model)", () =>
     expect(caps.half).toBeGreaterThan(caps.peek);
   });
 
-  it("subtracts the dock clearance and never goes negative", () => {
-    const caps = sheetSnapCaps(800, 100);
-    expect(caps.half).toBeCloseTo(800 * SHEET_SNAP_FRACTIONS.half - 100);
-    // A dock taller than the peek fraction clamps peek to 0 rather than negative.
-    expect(sheetSnapCaps(800, 100_000).peek).toBe(0);
+  it("takes the dock clearance from full alone, keeping its top edge, and never goes negative", () => {
+    const caps = sheetSnapCaps(844, 98);
+    expect(caps.peek).toBeCloseTo(844 * SHEET_SNAP_FRACTIONS.peek);
+    expect(caps.half).toBeCloseTo(844 * SHEET_SNAP_FRACTIONS.half);
+    expect(844 - 98 - caps.full).toBeCloseTo(844 * (1 - SHEET_SNAP_FRACTIONS.full));
+    expect(sheetSnapCaps(800, 100_000).full).toBe(0);
+  });
+
+  it("never rests peek or half below the sheet's own header and footer", () => {
+    const caps = sheetSnapCaps(568, 64, 201);
+    expect(caps.peek).toBe(201);
+    expect(caps.half).toBeCloseTo(568 * SHEET_SNAP_FRACTIONS.half);
+    expect(caps.full).toBeCloseTo(568 * SHEET_SNAP_FRACTIONS.full - 64);
   });
 });
 

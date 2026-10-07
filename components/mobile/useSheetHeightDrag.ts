@@ -27,6 +27,7 @@ export interface SheetHeightDrag {
   settleToRest: (snap?: SheetSnap) => void;
   openAtSnap: (snap: SheetSnap) => void;
   requestDismiss: (presentedHeight?: number) => void;
+  recapToViewport: () => void;
   sheetHeight: number;
   dragging: boolean;
   settling: boolean;
@@ -43,6 +44,19 @@ function rubberband(overshoot: number, dimension: number): number {
     (overshoot * dimension * RUBBERBAND_CONSTANT) /
     (dimension + RUBBERBAND_CONSTANT * overshoot)
   );
+}
+
+// What a resting sheet must always show: its header, its footer and the
+// body's own padding, plus the sheet's border.
+function sheetChromeHeight(sheet: HTMLElement | null | undefined): number {
+  const body = sheet?.querySelector<HTMLElement>(":scope > .mobileSharedSheetBody");
+  if (!sheet || !body) return 0;
+  const { paddingTop, paddingBottom } = getComputedStyle(body);
+  let height = sheet.offsetHeight - sheet.clientHeight + Number.parseFloat(paddingTop) + Number.parseFloat(paddingBottom);
+  for (const child of sheet.children) {
+    if (child !== body) height += (child as HTMLElement).offsetHeight;
+  }
+  return height;
 }
 
 function presentHeight(raw: number, fullCap: number): number {
@@ -93,7 +107,7 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
     const viewport = typeof window === "undefined" ? 0 : window.innerHeight;
     const portal = typeof document === "undefined" ? null : document.querySelector(".mobileSheetPortal");
     const dock = portal && !readSoftKeyboardOpen() ? Number.parseFloat(getComputedStyle(portal).bottom) || 0 : 0;
-    return sheetSnapCaps(viewport, dock);
+    return sheetSnapCaps(viewport, dock, sheetChromeHeight(portal?.querySelector<HTMLElement>(".mobileSharedSheet")));
   }, []);
 
   // Both of these SPRING the height, so the entrance's transform stands down
@@ -169,30 +183,32 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
     sheetHeightRef.current = sheetHeight;
     sheetSnapRef.current = sheetSnap;
   }, [sheetHeight, sheetSnap]);
+  // The sheet's own header and footer can grow too (the venue command bar lands
+  // after the sheet opens), so MobileSharedSheet calls this when they resize.
+  const recapToViewport = useCallback(() => {
+    if (dragRef.current?.active) return;
+    if (sheetHeightRef.current <= 0) return;
+    const cap = capsForViewport()[sheetSnapRef.current];
+    if (Math.abs(cap - sheetHeightRef.current) < 1) return;
+    stop();
+    jumpTo(cap);
+    const focused = document.activeElement;
+    if (focused && isTextEntryElement(focused)) {
+      window.requestAnimationFrame(() => {
+        if (document.activeElement === focused) {
+          focused.scrollIntoView({ block: "nearest" });
+        }
+      });
+    }
+  }, [capsForViewport, jumpTo, stop]);
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const onResize = () => {
-      if (dragRef.current?.active) return;
-      if (sheetHeightRef.current <= 0) return;
-      const cap = capsForViewport()[sheetSnapRef.current];
-      if (Math.abs(cap - sheetHeightRef.current) < 1) return;
-      stop();
-      jumpTo(cap);
-      const focused = document.activeElement;
-      if (focused && isTextEntryElement(focused)) {
-        window.requestAnimationFrame(() => {
-          if (document.activeElement === focused) {
-            focused.scrollIntoView({ block: "nearest" });
-          }
-        });
-      }
-    };
-    window.addEventListener("resize", onResize);
+    window.addEventListener("resize", recapToViewport);
     // The keyboard can withdraw the dock after the viewport resize event.
     // Re-cap after that React commit too, using the portal's actual clearance.
-    onResize();
-    return () => window.removeEventListener("resize", onResize);
-  }, [capsForViewport, jumpTo, keyboardOpen, stop]);
+    recapToViewport();
+    return () => window.removeEventListener("resize", recapToViewport);
+  }, [keyboardOpen, recapToViewport]);
 
   const dismissWithVelocity = useCallback(
     (velocityPxPerMillisecond: number, presentedHeight?: number) => {
@@ -238,12 +254,10 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
       setEntering(false);
       const startHeight = drawer.getBoundingClientRect().height;
       jumpTo(startHeight);
-      const dockPx =
-        Number.parseFloat(window.getComputedStyle(drawer).bottom) || 0;
       dragRef.current = {
         startClientY: event.clientY,
         startHeight,
-        caps: sheetSnapCaps(window.innerHeight, dockPx),
+        caps: capsForViewport(),
         startSnap: sheetSnap,
         lastY: event.clientY,
         lastTime: performance.now(),
@@ -253,7 +267,7 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
       event.currentTarget.setPointerCapture(event.pointerId);
       setDragging(true);
     },
-    [gestureEnabled, jumpTo, sheetSnap, stop],
+    [capsForViewport, gestureEnabled, jumpTo, sheetSnap, stop],
   );
 
   const onSheetDragMove = useCallback(
@@ -326,6 +340,7 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
     settleToRest,
     openAtSnap,
     requestDismiss,
+    recapToViewport,
     sheetHeight,
     dragging,
     settling,

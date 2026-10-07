@@ -109,6 +109,7 @@ export default function MobileSharedSheet({
     settleToRest,
     openAtSnap,
     requestDismiss,
+    recapToViewport,
     sheetHeight,
     entering,
     dragging,
@@ -189,6 +190,16 @@ export default function MobileSharedSheet({
       previousFocus.current?.focus({ preventScroll: true });
     };
   }, [initialSnap, kind, openAtSnap, requestEscape]);
+
+  useEffect(() => {
+    const sheet = sheetRef.current;
+    if (!kind || !sheet || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(recapToViewport);
+    for (const part of sheet.querySelectorAll(":scope > .mobileSharedSheetHeader, :scope > .mobileSharedSheetFooter")) {
+      observer.observe(part);
+    }
+    return () => observer.disconnect();
+  }, [footerEl, kind, recapToViewport]);
 
   // PubMap/MobileMapShell can request a snap change (e.g. a content-tab tap
   // expands the venue sheet to full). Only re-applies on change.
