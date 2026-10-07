@@ -1694,7 +1694,7 @@ export function buildPubs(ctx: SceneCtx) {
   // Three circles and two labels, in this order from the bottom: the casing
   // (ink, so the edge against every basemap tone does not depend on the band),
   // the disc (paper fill, band ring), the figure, and the count on the rim.
-  const discRadius = (outer: number) => outer - CLUSTER_CASING_PX - CLUSTER_RING_PX / 2;
+  const discRadius = (outer: number) => outer - CLUSTER_CASING_PX - CLUSTER_RING_PX;
   const clusterRadiusByZoom = (casing: boolean): maplibregl.ExpressionSpecification => [
     "step",
     ["zoom"],

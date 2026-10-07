@@ -947,29 +947,27 @@ describe("cluster disc (paper, ring, cheapest price)", () => {
     expect(CLUSTER_RING_PX).toBe(3);
   });
 
-  it("is one of two sizes by zoom, never by count, and the casing is the outer edge", () => {
-    expect(CLUSTER_MAX_RADIUS_PX * 2).toBe(44);
-    expect(CLUSTER_MIN_RADIUS_PX * 2).toBe(36);
-    expect(CLUSTER_DISC_SMALL_FROM_ZOOM).toBe(13);
-    const casing = paint("clusters-casing")["circle-radius"];
-    expect(casing).toEqual([
-      "step",
-      ["zoom"],
-      CLUSTER_MAX_RADIUS_PX,
-      CLUSTER_DISC_SMALL_FROM_ZOOM,
-      CLUSTER_MIN_RADIUS_PX,
-    ]);
-    // The disc is inset by the casing and half its own ring, so ring plus casing
-    // end exactly on the outer radius the casing states.
-    const inset = CLUSTER_CASING_PX + CLUSTER_RING_PX / 2;
-    expect(paint("clusters")["circle-radius"]).toEqual([
-      "step",
-      ["zoom"],
-      CLUSTER_MAX_RADIUS_PX - inset,
-      CLUSTER_DISC_SMALL_FROM_ZOOM,
-      CLUSTER_MIN_RADIUS_PX - inset,
-    ]);
-    expect(JSON.stringify(paint("clusters"))).not.toContain("point_count");
+  it.each([
+    { zoom: 12, outer: 22 },
+    { zoom: 13, outer: 18 },
+  ])("keeps a 1.25px casing outside the ring at z$zoom, regardless of count", ({ zoom, outer }) => {
+    const compileRadius = (id: string) => {
+      const compiled = createExpression(paint(id)["circle-radius"], `${id}.paint.circle-radius`);
+      if (compiled.result !== "success") throw new Error(`${id} radius did not compile`);
+      return compiled.value;
+    };
+    const casing = compileRadius("clusters-casing");
+    const disc = compileRadius("clusters");
+    const stroke = Number(paint("clusters")["circle-stroke-width"]);
+    for (const point_count of [3, 999, 1500]) {
+      const feature = { type: 1, properties: { point_count } } as never;
+      const casingRadius = Number(casing.evaluate({ zoom } as never, feature));
+      const fillRadius = Number(disc.evaluate({ zoom } as never, feature));
+      // MapLibre adds the full stroke width outside circle-radius.
+      const ringOuter = fillRadius + stroke;
+      expect(casingRadius).toBe(outer);
+      expect(casingRadius - ringOuter).toBeCloseTo(1.25);
+    }
   });
 
   it("prints the cheapest price, or the count where no pub in the disc says one", () => {
