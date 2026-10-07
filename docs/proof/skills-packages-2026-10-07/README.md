@@ -21,7 +21,17 @@ Computer Use checked pubmaxxing.com at desktop 1440 × 900 and mobile 390 × 844
 
 A desktop Pub Pal shortcut covered the venue drawer's Share action. A DOM hit check at Share's center returned the Pal link. The CSS change hides the floating shortcut only while the desktop right venue drawer is open. The left planner and landmark story drawers sit on the opposite edge and keep the shortcut. Local Computer Use verification confirmed that Share receives its center-point hit, the shortcut is hidden while the drawer is open, and it returns after the drawer closes and map banner staging permits it.
 
-A later production-build check found the attribution button clipping the shortcut's lower corner. The desktop map shortcut now reserves 42px below it. This leaves an 8px gap above the collapsed 24px attribution control and its 10px bottom margin. Other desktop routes retain the 22px position. The phone floating stack keeps its existing positions.
+A later production-build check found the attribution button clipping the shortcut's lower corner. A first fix at bottom 42px still covered the Layers button and, with the consent strip shown, the attribution button and the strip. On desktop map routes the shortcut now sits 8px above the 44px Layers button: bottom 86px normally, and the consent clearance plus 106px with the strip. It hides while the Layers panel is open, because the panel rises through that space. Other desktop routes retain the 22px position. The phone floating stack keeps its existing positions.
+
+A fresh production build was measured with a saved Pub Pal at 641, 1144 and 1440 × 900. At 1440 the shortcut spans y 762-814 above Layers at 822-866 and attribution at 866-890. With the consent strip it spans y 670-722 above Layers at 730-774, attribution at 794-818 and the strip at 844-900. At 1144 and 1440 a point hit at the center of each control reached that control, in both states and with attribution expanded. The 641 width showed the same vertical gaps. At 641 without the strip, expanded attribution wraps to two lines and the Layers button covers its collapse button. That predates this change and the shortcut does not touch it. At 1144 and 1440 the shortcut stays clear and tappable beside the left planner and story drawers, and it returns when the right venue drawer closes. At 641 both left drawers become full-width sheets above it. Share received its own center-point hit at all three widths. At 390 the shortcut covers the collapsed OpenStreetMap credit once the plan pill mounts. That also predates this change, which leaves the phone layout as it was.
+
+![Desktop map corner before, with the shortcut over Layers](desktop-corner-noconsent-before.png)
+
+![Desktop map corner after, with the shortcut above Layers](desktop-corner-noconsent-after.png)
+
+![Desktop map corner with the consent strip before](desktop-corner-consent-before.png)
+
+![Desktop map corner with the consent strip after](desktop-corner-consent-after.png)
 
 ![Production desktop Share action covered by Nova](desktop-share-before.png)
 

@@ -34,7 +34,7 @@ Write the set down before building, one line each, named the way the product tal
 
 A scratch route inside the app holds the real component, imported from the project and untouched. The route inherits the app's layout, fonts, global styles and providers for free.
 
-Where the framework splits server from client components, the page is client code, `"use client"` in Next. Otherwise fixture data can silently vanish crossing that boundary, and the page renders empty.
+Where the framework splits server from client components, the page follows the target's side of that split. In Next, a `"use client"` page cannot import a Server Component. For a Server Component target, keep the page a Server Component: it awaits its `searchParams` prop, reads `__state` and renders the real component with that state's fixtures. Only the switcher is a client component. For a Client Component target, the page may be client code, or a Server Component that passes serializable fixtures as props. Either way, fixture data can silently vanish crossing that boundary, and the page renders empty, so check that it arrives.
 
 Render one instance in a container as wide as the component is in production. The container, the fixtures and the switcher are everything the page adds, with no fonts, styles or themes of its own. Keep the page, its fixtures and its switcher in one folder, such as `/states/audit-log`, so removal is one delete.
 
