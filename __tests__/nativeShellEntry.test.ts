@@ -64,7 +64,6 @@ function memoryStorage(seed: Record<string, string> = {}): Storage {
 
 type RunResult = {
   replaced: string[];
-  steps: string[];
   session: Storage;
   local: Storage;
 };
@@ -81,7 +80,6 @@ function runEntryInit(options: {
   storageUnavailable?: boolean;
 }): RunResult {
   const replaced: string[] = [];
-  const steps: string[] = [];
   const session = memoryStorage(options.session ?? {});
   const local = memoryStorage(options.local ?? {});
   const win = {
@@ -91,17 +89,13 @@ function runEntryInit(options: {
         : { isNativePlatform: () => options.native !== false },
     location: {
       pathname: options.pathname ?? "/",
-      replace: (href: string) => {
-        replaced.push(href);
-        steps.push(`replace ${href}`);
-      },
+      replace: (href: string) => void replaced.push(href),
     },
-    stop: () => void steps.push("stop"),
     sessionStorage: options.storageUnavailable ? undefined : session,
     localStorage: local,
   };
   new Function("window", ENTRY_INIT_SOURCE)(win);
-  return { replaced, steps, session, local };
+  return { replaced, session, local };
 }
 
 describe("the native shell's pre-render entry decision", () => {
@@ -155,21 +149,6 @@ describe("the native shell's pre-render entry decision", () => {
   it("leaves the static document when storage or the bridge is unavailable", () => {
     expect(runEntryInit({ pathname: "/app-entry", storageUnavailable: true }).replaced).toEqual(["/"]);
     expect(runEntryInit({ pathname: "/app-entry", native: false }).replaced).toEqual(["/"]);
-  });
-
-  it("stops the entry document's parser before it routes, so its refresh never runs", () => {
-    expect(runEntryInit({ pathname: "/app-entry" }).steps).toEqual(["stop", `replace ${ONBOARDING_PATH}`]);
-    expect(runEntryInit({
-      pathname: "/app-entry", local: { [NATIVE_FIRST_RUN_ROUTED_KEY]: "1" },
-    }).steps).toEqual(["stop", `replace ${SHELL_START_PATH}`]);
-    expect(runEntryInit({ pathname: "/app-entry", native: false }).steps).toEqual(["stop", "replace /"]);
-    expect(runEntryInit({ pathname: "/app-entry", storageUnavailable: true }).steps).toEqual(["stop", "replace /"]);
-  });
-
-  it("never stops a root document", () => {
-    expect(runEntryInit({ local: { [NATIVE_FIRST_RUN_ROUTED_KEY]: "1" } }).steps)
-      .toEqual([`replace ${SHELL_START_PATH}`]);
-    expect(runEntryInit({ native: false }).steps).toEqual([]);
   });
 
   it("sends a post-first-run cold start straight to Tonight", () => {
