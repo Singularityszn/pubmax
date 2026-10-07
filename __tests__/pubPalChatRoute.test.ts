@@ -109,6 +109,52 @@ describe("POST /api/pub-pal/chat", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it.each(["hi how are you", "hi 👋", "morning", "sup", "hey hey", "hey pubpal", "ok thanks", "pubs"])(
+    "asks for an area, mood or budget instead of listing unranked pubs for keyless %s",
+    async (query) => {
+      vi.stubEnv("ELEVENLABS_API_KEY", "");
+      vi.stubGlobal("fetch", offlineFetch);
+      const response = await POST(
+        new Request("http://localhost/api/pub-pal/chat", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ query, cityId: "london" }),
+        }),
+      );
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({
+        answer: "Tell me an area, a mood or a budget and I'll find you a pub.",
+        cards: [],
+        proposals: [],
+        sources: [],
+        status: "ready",
+        toolsUsed: [],
+      });
+      expect(runPalElevenLabsChatTurn).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    ["hi pal pubs near Angel", /Angel|Islington/i],
+    ["hey, somewhere quiet", /./],
+    ["hi, cheap pubs", /./],
+  ])("still lists pubs for keyless %s", async (query, place) => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    const response = await POST(
+      new Request("http://localhost/api/pub-pal/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ query, cityId: "london" }),
+      }),
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.toolsUsed).toEqual(["search_venues"]);
+    expect(body.cards.length).toBeGreaterThan(0);
+    expect(body.cards[0].place).toMatch(place);
+  });
+
   it.each([
     ["hi, what's on in Camden tonight?", "whats_on", /Camden/i],
     ["thanks, how busy is Soho?", "tonight_now", /no live crowd reading/i],
