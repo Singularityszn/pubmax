@@ -6,7 +6,10 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { writePreferredCity } from "@/lib/cityPreference";
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/places" }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/places",
+  useRouter: () => ({ prefetch: () => {} }),
+}));
 vi.mock("next/link", async () => {
   const { forwardRef, createElement } = await import("react");
   return {
