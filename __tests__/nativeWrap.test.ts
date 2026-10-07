@@ -7,6 +7,8 @@ import { describe, expect, it } from "vitest";
 import capacitorConfig, { nativeServerUrl } from "../capacitor.config";
 import { APP_NAME } from "@/lib/brandNaming";
 import { BRAND_COLORS } from "@/lib/brandMark.mjs";
+import { plistRoot } from "@/__tests__/helpers/plist";
+import { pbxprojRoot, type PbxDict, type PbxValue } from "@/__tests__/helpers/pbxproj";
 import {
   NATIVE_DEEP_LINK_EXACT_PATHS,
   NATIVE_DEEP_LINK_PATH_PREFIXES,
@@ -29,80 +31,6 @@ const androidJavaTests = (sourceSet: "androidTest" | "test") => {
 
 const xmlDocument = (path: string) =>
   new DOMParser().parseFromString(rootFile(path), "application/xml");
-
-type PlistValue = string | number | boolean | PlistValue[] | { [key: string]: PlistValue };
-
-/** One XML plist element as the value it declares. */
-function plistValue(element: Element): PlistValue {
-  const children = [...element.children];
-  switch (element.tagName) {
-    case "dict":
-      return Object.fromEntries(
-        children.flatMap((child, index) =>
-          child.tagName === "key" && children[index + 1]
-            ? [[child.textContent ?? "", plistValue(children[index + 1] as Element)]]
-            : [],
-        ),
-      );
-    case "array":
-      return children.map(plistValue);
-    case "integer":
-    case "real":
-      return Number(element.textContent);
-    case "true":
-      return true;
-    case "false":
-      return false;
-    default:
-      return element.textContent ?? "";
-  }
-}
-
-function plistRoot(path: string): Record<string, PlistValue> {
-  const dict = xmlDocument(path).querySelector("plist > dict");
-  if (!dict) throw new Error(`${path} has no root dict`);
-  return plistValue(dict) as Record<string, PlistValue>;
-}
-
-type PbxValue = string | PbxValue[] | PbxDict;
-type PbxDict = { [key: string]: PbxValue };
-
-/** An old-style ASCII plist such as project.pbxproj, as the value it declares. */
-function pbxprojRoot(path: string): PbxDict {
-  const tokens = (
-    rootFile(path).match(/\/\*[\s\S]*?\*\/|\/\/[^\n]*|"(?:\\.|[^"\\])*"|[{}()=;,]|[^\s{}()=;,"]+/g) ?? []
-  ).filter((token) => !token.startsWith("/*") && !token.startsWith("//"));
-  let at = 0;
-  const expectToken = (want: string) => {
-    if (tokens[at++] !== want) throw new Error(`${path}: expected "${want}" at token ${at - 1}`);
-  };
-  const value = (): PbxValue => {
-    const token = tokens[at++];
-    if (token === undefined) throw new Error(`${path}: ended early`);
-    if (token === "{") {
-      const dict: PbxDict = {};
-      while (tokens[at] !== "}") {
-        const key = value() as string;
-        expectToken("=");
-        dict[key] = value();
-        expectToken(";");
-      }
-      at++;
-      return dict;
-    }
-    if (token === "(") {
-      const list: PbxValue[] = [];
-      while (tokens[at] !== ")") {
-        list.push(value());
-        if (tokens[at] === ",") at++;
-      }
-      at++;
-      return list;
-    }
-    return token.startsWith('"') ? (JSON.parse(token) as string) : token;
-  };
-  return value() as PbxDict;
-}
 
 const ANDROID_RES = join(process.cwd(), "android/app/src/main/res");
 
@@ -295,6 +223,26 @@ describe("Capacitor wrapped-build contract", () => {
     expect(compiled).toContain("SceneDelegate.swift");
   });
 
+  it("declares microphone access on both native platforms", () => {
+    const microphoneUsage = plistRoot("ios/App/App/Info.plist").NSMicrophoneUsageDescription;
+    expect(typeof microphoneUsage).toBe("string");
+    expect(String(microphoneUsage).trim()).not.toBe("");
+
+    const manifest = xmlDocument("android/app/src/main/AndroidManifest.xml");
+    const declared = (tag: string) => [...manifest.documentElement.getElementsByTagName(tag)];
+    const permissions = new Set(
+      declared("uses-permission").map((node) => node.getAttribute("android:name")),
+    );
+    expect(permissions).toContain("android.permission.RECORD_AUDIO");
+    expect(permissions).toContain("android.permission.MODIFY_AUDIO_SETTINGS");
+
+    const microphone = declared("uses-feature").find(
+      (node) => node.getAttribute("android:name") === "android.hardware.microphone",
+    );
+    expect(microphone, "AndroidManifest.xml declares no microphone feature").toBeDefined();
+    expect(microphone?.getAttribute("android:required")).toBe("false");
+  });
+
   it("answers export compliance in the build, not by hand on every upload", () => {
     // Absent this key App Store Connect marks EVERY uploaded build "Missing
     // Compliance" and holds it out of TestFlight and review until somebody
@@ -403,15 +351,21 @@ describe("Capacitor wrapped-build contract", () => {
   });
 
   it("uses the canonical app name in iOS permission explanations", () => {
-    const info = rootFile("ios/App/App/Info.plist");
-    expect(info).toContain(
-      `<string>${APP_NAME} uses the camera so you can photograph a price board, a pub, or your own night.</string>`,
+    const info = plistRoot("ios/App/App/Info.plist");
+    expect(info.NSCameraUsageDescription).toBe(
+      `${APP_NAME} uses the camera so you can photograph a price board, a pub, or your own night.`,
     );
-    expect(info).toContain(
-      `<string>${APP_NAME} uses your location while the app is open to find nearby pubs and calculate walk times.</string>`,
+    expect(info.NSLocationWhenInUseUsageDescription).toBe(
+      `${APP_NAME} uses your location while the app is open to find nearby pubs and calculate walk times.`,
     );
-    expect(info).toContain(
-      `<string>${APP_NAME} opens your photo library so you can choose a photo you have already taken.</string>`,
+    expect(info.NSMicrophoneUsageDescription).toBe(
+      `${APP_NAME} uses your microphone only while you talk to Pub Pal or dictate a note or a plan.`,
+    );
+    expect(info.NSPhotoLibraryUsageDescription).toBe(
+      `${APP_NAME} opens your photo library so you can choose a photo you have already taken.`,
+    );
+    expect(info.NSSpeechRecognitionUsageDescription).toBe(
+      `${APP_NAME} uses speech recognition only while you dictate a note or a plan.`,
     );
   });
 

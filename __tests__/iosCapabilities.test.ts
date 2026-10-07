@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 // The two capabilities the shell cannot work without, and the manifest Apple
 // reads before it accepts a build.
 //
@@ -14,7 +16,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { defined } from "@/__tests__/helpers/defined";
+import { plistRoot, type PlistValue } from "@/__tests__/helpers/plist";
+import { pbxprojRoot, type PbxDict, type PbxValue } from "@/__tests__/helpers/pbxproj";
 
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
@@ -76,41 +79,50 @@ describe("the iOS project declares its capabilities", () => {
 });
 
 describe("the privacy manifest agrees with the answers we publish", () => {
-  const manifest = read(MANIFEST);
+  const manifest = plistRoot(MANIFEST);
   const readiness = read("docs/STORE_READINESS.md");
 
-  /** The five things section 5 says the app collects. */
-  const DECLARED = [
-    "NSPrivacyCollectedDataTypeEmailAddress",
-    "NSPrivacyCollectedDataTypePhotosorVideos",
-    "NSPrivacyCollectedDataTypeDeviceID",
-    "NSPrivacyCollectedDataTypeProductInteraction",
-    "NSPrivacyCollectedDataTypePreciseLocation",
-  ] as const;
+  const APP_FUNCTIONALITY = "NSPrivacyCollectedDataTypePurposeAppFunctionality";
+  const ANALYTICS = "NSPrivacyCollectedDataTypePurposeAnalytics";
 
-  it("declares each collected type once and nothing else", () => {
-    for (const type of DECLARED) {
-      expect(manifest, type).toContain(`<string>${type}</string>`);
-    }
-    const found = [...manifest.matchAll(/<string>(NSPrivacyCollectedDataType\w+)<\/string>/g)]
-      .map((match) => match[1])
-      .filter((type) => !defined(type).startsWith("NSPrivacyCollectedDataTypePurpose"));
-    expect(found).toEqual([...DECLARED]);
+  /** The six things section 5 says the app collects, in the App Privacy label's order. */
+  const DECLARED = [
+    { type: "NSPrivacyCollectedDataTypeEmailAddress", linked: true, tracking: false, purposes: [APP_FUNCTIONALITY] },
+    { type: "NSPrivacyCollectedDataTypePhotosorVideos", linked: true, tracking: false, purposes: [APP_FUNCTIONALITY] },
+    { type: "NSPrivacyCollectedDataTypeAudioData", linked: true, tracking: false, purposes: [APP_FUNCTIONALITY] },
+    { type: "NSPrivacyCollectedDataTypeDeviceID", linked: false, tracking: false, purposes: [APP_FUNCTIONALITY] },
+    { type: "NSPrivacyCollectedDataTypeProductInteraction", linked: false, tracking: false, purposes: [ANALYTICS] },
+    { type: "NSPrivacyCollectedDataTypePreciseLocation", linked: false, tracking: false, purposes: [APP_FUNCTIONALITY] },
+  ];
+
+  const collected = (manifest.NSPrivacyCollectedDataTypes as Array<Record<string, PlistValue>>).map(
+    (entry) => ({
+      type: entry.NSPrivacyCollectedDataType,
+      linked: entry.NSPrivacyCollectedDataTypeLinked,
+      tracking: entry.NSPrivacyCollectedDataTypeTracking,
+      purposes: entry.NSPrivacyCollectedDataTypePurposes,
+    }),
+  );
+
+  it("declares each collected type once, with its answers, and nothing else", () => {
+    expect(collected).toEqual(DECLARED);
   });
 
   it("says the app tracks nobody, in both places that can say it", () => {
-    expect(manifest).toContain("<key>NSPrivacyTracking</key>\n\t<false/>");
-    expect(manifest).toContain("<key>NSPrivacyTrackingDomains</key>\n\t<array/>");
-    expect(manifest).not.toContain("NSPrivacyCollectedDataTypeTracking</key>\n\t\t\t<true/>");
+    expect(manifest.NSPrivacyTracking).toBe(false);
+    expect(manifest.NSPrivacyTrackingDomains).toEqual([]);
+    expect(collected.filter((entry) => entry.tracking !== false)).toEqual([]);
     // The doc has to be able to say the same thing.
     expect(readiness).toContain("**Data Used to Track You:** None.");
   });
 
   it("keeps analytics the only thing collected for analytics", () => {
-    const analytics = [
-      ...manifest.matchAll(/NSPrivacyCollectedDataTypePurposeAnalytics/g),
-    ];
-    expect(analytics).toHaveLength(1);
+    const analytics = collected.filter(
+      (entry) => Array.isArray(entry.purposes) && entry.purposes.includes(ANALYTICS),
+    );
+    expect(analytics.map((entry) => entry.type)).toEqual([
+      "NSPrivacyCollectedDataTypeProductInteraction",
+    ]);
   });
 
   it("speaks only for the app target's own code", () => {
@@ -118,13 +130,34 @@ describe("the privacy manifest agrees with the answers we publish", () => {
     // required-reason API.
     // Capacitor declares its own in its own package, and a manifest may only
     // speak for the code it ships with.
-    expect(manifest).toContain("<key>NSPrivacyAccessedAPITypes</key>\n\t<array/>");
+    expect(manifest.NSPrivacyAccessedAPITypes).toEqual([]);
   });
 
   it("is copied into the bundle, not just present in the tree", () => {
-    // A manifest Xcode never copies is a manifest Apple never sees, and the
-    // upload check reports it as absent.
-    expect(read(PROJECT)).toContain("/* PrivacyInfo.xcprivacy in Resources */");
+    const project = pbxprojRoot(PROJECT);
+    const objects = project.objects as PbxDict;
+    const object = (id: PbxValue | undefined): PbxDict => {
+      if (typeof id !== "string") throw new Error("Expected a PBX object reference");
+      const referenced = objects[id];
+      if (typeof referenced !== "object" || Array.isArray(referenced)) {
+        throw new Error(`Expected a PBX object for ${id}`);
+      }
+      return referenced;
+    };
+    const targets = object(project.rootObject).targets as PbxValue[];
+    const app = targets.map(object).find(
+      (target) => target.isa === "PBXNativeTarget" && target.name === "App",
+    );
+    expect(app).toBeDefined();
+    const resources = (app!.buildPhases as PbxValue[])
+      .map(object)
+      .filter((phase) => phase.isa === "PBXResourcesBuildPhase")
+      .flatMap((phase) => (phase.files as PbxValue[]).map(object))
+      .filter((file) => file.isa === "PBXBuildFile")
+      .map((file) => object(file.fileRef))
+      .filter((file) => file.isa === "PBXFileReference")
+      .map((file) => file.path);
+    expect(resources).toContain("PrivacyInfo.xcprivacy");
   });
 });
 

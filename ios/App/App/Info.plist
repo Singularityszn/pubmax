@@ -51,8 +51,12 @@
 	<string>PUBMAXXING uses the camera so you can photograph a price board, a pub, or your own night.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>PUBMAXXING uses your location while the app is open to find nearby pubs and calculate walk times.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>PUBMAXXING uses your microphone only while you talk to Pub Pal or dictate a note or a plan.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>PUBMAXXING opens your photo library so you can choose a photo you have already taken.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>PUBMAXXING uses speech recognition only while you dictate a note or a plan.</string>
 	<!-- The UIScene lifecycle. iOS 27 crashes at launch (EXC_BREAKPOINT in
 	     UIKitCore, NoSceneLifecycleAdoption) for an app without this manifest.
 	     One scene, built from Main.storyboard and driven by SceneDelegate.swift.

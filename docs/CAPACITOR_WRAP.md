@@ -133,6 +133,7 @@ to a plain fetch of the same URL.
 | iOS capabilities (push, associated domains) | `ios/App/App/App.entitlements`, referenced by both build configurations |
 | iOS privacy manifest | `ios/App/App/PrivacyInfo.xcprivacy` (mirrors STORE_READINESS section 5) |
 | Foreground location declarations | `ios/App/App/Info.plist`, `android/app/src/main/AndroidManifest.xml` |
+| Microphone and speech declarations | `ios/App/App/Info.plist` (`NSMicrophoneUsageDescription` for Pub Pal voice and for note and plan dictation, `NSSpeechRecognitionUsageDescription` for dictation), `android/app/src/main/AndroidManifest.xml` (`RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`, and microphone hardware not required) |
 | Launch splash release | `lib/nativeSplash.ts`, mounted by `components/native/NativeShellChrome.tsx`; `MainActivity` for the Android offline page (see "Cold start") |
 | Native system-bar seam | `lib/nativeSystemBars.ts`, mounted by `components/native/NativeSystemBars.tsx` |
 | Universal/app-link route seam | `lib/nativeDeepLinks.ts`, mounted by `components/native/NativeDeepLinks.tsx` |
