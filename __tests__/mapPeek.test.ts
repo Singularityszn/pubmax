@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { buildMapPeek, MAP_PEEK_MAX_WALK_MINUTES, mapPeekSummary } from "@/lib/mapPeek";
 import { buildMapVenueListModel } from "@/lib/mapVenueList";
-import type { MapLensPrice } from "@/lib/mapExperienceLens";
+import { lensPriceForVenue, type MapLensPrice } from "@/lib/mapExperienceLens";
 import type { Venue } from "@/lib/venues";
 
 function pub(overrides: Partial<Venue> & { id: string }): Venue {
@@ -130,6 +130,62 @@ describe("buildMapPeek", () => {
         });
       });
     }
+
+    it("under the food lens, wearing the anchor once over its own figure", () => {
+      const venues = [
+        pub({ id: "doner", name: "Maroush", kind: restaurant, cheapestPrice: 8.5, anchorLabel: "Large lamb doner", anchorObservedAt: "2026-09-01T00:00:00Z", anchorSourceUrl: "https://maroush.example/menu" }),
+        pub({ id: "bistro", name: "Bistro", kind: restaurant, cheapestPrice: 12, ...ANCHOR_PROVENANCE }),
+      ];
+      const lensPrices = new Map(
+        venues.flatMap((venue) => {
+          const price = lensPriceForVenue(venue, "food", new Map());
+          return price ? [[venue.id, price] as const] : [];
+        }),
+      );
+      expect(lensPrices.size).toBe(2);
+      const peek = buildMapPeek({ ready: true, venues, lensPrices });
+      const list = buildMapVenueListModel(venues, [-0.12, 51.5], undefined, lensPrices, "Food", "ready", "cheapest");
+      const first = list.rows[0];
+      expect(peek).toMatchObject({
+        answer: { venueId: "doner", priceLabel: "£8.50", anchor: { label: "Large lamb doner" } },
+      });
+      expect(peek).toMatchObject({
+        answer: { venueId: first?.id, priceLabel: first?.priceLabel, anchor: first?.anchor },
+      });
+      const spoken = mapPeekSummary(peek);
+      expect(spoken.match(/Large lamb doner/g)).toHaveLength(1);
+      expect(spoken).toMatch(/^Cheapest in this view: Large lamb doner · £8\.50 \(.+ · maroush\.example\) at Maroush$/);
+    });
+
+    it("under the no-alcohol lens, never pinning a community figure to an anchor's label", () => {
+      const venues = [
+        pub({ id: "bistro", name: "Bistro", kind: restaurant, cheapestPrice: 12, ...ANCHOR_PROVENANCE }),
+        pub({ id: "p", name: "The Pub", cheapestPrice: 5 }),
+      ];
+      const community: MapLensPrice = {
+        venueId: "bistro",
+        category: null,
+        categoryLabel: "No alcohol",
+        priceGbp: 3,
+        source: "community",
+      };
+      const lensPrices = new Map(
+        venues.flatMap((venue) => {
+          const price = lensPriceForVenue(venue, "no-alcohol", new Map([["bistro", community]]));
+          return price ? [[venue.id, price] as const] : [];
+        }),
+      );
+      const peek = buildMapPeek({ ready: true, venues, lensPrices });
+      const list = buildMapVenueListModel(venues, [-0.12, 51.5], undefined, lensPrices, "No alcohol", "ready", "cheapest");
+      const first = list.rows[0];
+      expect(peek).toMatchObject({
+        answer: { venueId: "bistro", priceLabel: "No alcohol · £3.00", anchor: null },
+      });
+      expect(peek).toMatchObject({
+        answer: { venueId: first?.id, priceLabel: first?.priceLabel, anchor: first?.anchor },
+      });
+      expect(mapPeekSummary(peek)).toBe("Cheapest in this view: No alcohol · £3.00 at Bistro");
+    });
 
     it("under a drink lens, with the lens wording on both", () => {
       const venues = [

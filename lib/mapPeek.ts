@@ -1,7 +1,7 @@
 import { formatGbp } from "@/lib/formatGbp";
 import { haversineKm } from "@/lib/haversine";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
-import { mapVenueListCheapest, mapVenueListLensPriceLabel } from "@/lib/mapVenueList";
+import { mapVenueListCheapest, mapVenueListLensPrice } from "@/lib/mapVenueList";
 import { compactVenueAnchor, type CompactVenueAnchor } from "@/lib/venueAnchorPresentation";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
@@ -19,13 +19,13 @@ type MapPeekAnswer = {
   venueId: string;
   name: string;
   priceGbp: number;
-  /** The figure as List view's row prints it: "£X" for the pint default, and
-   *  "<category> · £X" under a drink lens, so a cocktail answer never reads as
-   *  a pint. */
+  /** The figure as List view's row prints it: "£X" for the pint default and
+   *  for an anchor's own figure, and "<category> · £X" for any other lens
+   *  figure, so a cocktail answer never reads as a pint. */
   priceLabel: string;
-  /** The provenance a non-pub anchor wears on List view's row, or null. The
-   *  card renders it through the same CompactVenuePrice, so a set-lunch figure
-   *  never reads as the pint answer. */
+  /** The anchor the figure belongs to, as List view's row wears it, or null.
+   *  The card renders it through the same CompactVenuePrice, so a set-lunch
+   *  figure never reads as the pint answer. */
   anchor: CompactVenueAnchor | null;
   isPub: boolean;
   /** Whole walking minutes from the reader's own fix, or null without one. */
@@ -62,6 +62,10 @@ export function buildMapPeek(input: {
   if (!cheapest) return { status: "none" };
   const { venue, priceGbp } = cheapest;
   const lensPrice = input.lensPrices?.get(venue.id) ?? null;
+  const anchor = compactVenueAnchor(venue);
+  const price = lensPrice
+    ? mapVenueListLensPrice(lensPrice, anchor)
+    : { priceLabel: formatGbp(priceGbp), anchor };
   let walkMinutes: number | null = null;
   const reader = input.reader;
   if (reader && Number.isFinite(reader.lat) && Number.isFinite(reader.lng)) {
@@ -76,8 +80,7 @@ export function buildMapPeek(input: {
       venueId: venue.id,
       name: venue.name,
       priceGbp,
-      priceLabel: lensPrice ? mapVenueListLensPriceLabel(lensPrice) : formatGbp(priceGbp),
-      anchor: compactVenueAnchor(venue),
+      ...price,
       isPub: isPubVenueKind(venue.kind),
       walkMinutes,
     },

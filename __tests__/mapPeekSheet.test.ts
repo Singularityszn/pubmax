@@ -99,7 +99,7 @@ describe("the bottom card's three honest states", () => {
       createElement(CompactVenuePrice, { priceLabel: "£4.00", anchor, className: "mapPeekPrice", provenanceClassName: "mapPeekProvenance" }),
     );
     expect(html).toContain(row);
-    expect(html).toContain("Set lunch · £4.00");
+    expect(html.replace(/<[^>]+>/g, "")).toContain("Set lunch · £4.00");
     expect(html).toContain(
       'aria-label="Cheapest in this view: Set lunch · £4.00 (Sep · example.com) at Bistro. Open this venue"',
     );
