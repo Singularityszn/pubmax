@@ -37,7 +37,7 @@ export type MapKeyEntry = {
  * wears. The sample is a price only where a disc on the map can print one, so
  * the key never shows a figure no cluster can.
  */
-export type MapKeyCluster = {
+type MapKeyCluster = {
   note: string;
   sample: string;
 };
@@ -87,15 +87,15 @@ export type MapPriceLegendContext = (
 // Where no pub in it lists a price the figure is the count, whatever colour the
 // ring is: a bar's band or a demo seed paints a ring without listing a pint.
 const PRICE_CLUSTER_NOTE =
-  "The ring on a cluster shows the price bands inside it, or on a phone the most common known one. Grey means none has a known map price. When a pub in it lists a pint price, the figure is the cheapest one, and a cluster of ten or more venues shows how many as a small number on the rim. Otherwise the figure is the venue count.";
+  "The ring on a cluster shows the price bands inside it: split where there is room, otherwise the most common known one. Grey means none has a known map price. When a pub in it lists a pint price, the figure is the cheapest one, and a cluster of ten or more venues shows how many as a small number on the rim. Otherwise the figure is the venue count.";
 
 // Where no pub lists a PINT price on a disc (a drink view, or a map of non-pub
 // venues only), the disc says its count and the ring keeps the bands.
 const COUNT_CLUSTER_NOTE =
-  "The ring on a cluster shows the price bands inside it, or on a phone the most common known one. Grey means none has a known map price. The number is every venue in the cluster.";
+  "The ring on a cluster shows the price bands inside it: split where there is room, otherwise the most common known one. Grey means none has a known map price. The number is every venue in the cluster.";
 
 const SPOONS_CLUSTER_NOTE =
-  "The ring on a cluster shows the value bands inside it, or on a phone the most common one. Grey means no pub in it is in the ranking. The number is every venue in the cluster.";
+  "The ring on a cluster shows the value bands inside it: split where there is room, otherwise the most common one. Grey means no pub in it is in the ranking. The number is every venue in the cluster.";
 
 const SPOONS_EMPTY_CLUSTER_NOTE =
   "Clusters stay grey because no pub in view is in the ranking. The number is every venue in the cluster.";

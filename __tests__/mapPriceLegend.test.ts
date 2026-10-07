@@ -359,6 +359,9 @@ describe("map key inventory", () => {
     expect(legend.cluster?.note).toContain("Otherwise the figure is the venue count.");
     expect(legend.cluster?.note).not.toMatch(/Grey[^.]*venue count/);
     expect(legend.cluster?.note).toContain("most common known one");
+    // A desktop past DONUT_CAP clusters draws solid GL rings too, so the solid
+    // ring is never told as a phone-only reading.
+    expect(legend.cluster?.note).not.toContain("phone");
     expect(legend.shapes?.map((row) => row.id)).toEqual([
       "pub-drink",
       "bar",
