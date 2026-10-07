@@ -11,7 +11,7 @@ import {
   type MapLensPrice,
 } from "@/lib/mapExperienceLens";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
-import { compactVenueAnchor } from "@/lib/venueAnchorPresentation";
+import { compactVenueAnchor, type CompactVenueAnchor } from "@/lib/venueAnchorPresentation";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 
 type MapVenueListVenueSignals = ReadonlyMap<
@@ -137,9 +137,23 @@ function mapVenueListPintPrice(
     : null;
 }
 
-/** A lens row's figure, worn with the drink it is for: "<category> · £X". */
-export function mapVenueListLensPriceLabel(lensPrice: MapLensPrice): string {
-  return `${lensPrice.categoryLabel} · ${formatGbp(lensPrice.priceGbp)}`;
+/**
+ * A lens figure as a row wears it. A sourced anchor's figure is the anchor's
+ * own, so it wears the anchor (whose label already names it) over the bare
+ * figure. Any other lens figure wears the drink it is for, "<category> · £X",
+ * and no anchor, because the anchor's label and source are not its evidence.
+ */
+export function mapVenueListLensPrice(
+  lensPrice: MapLensPrice,
+  anchor: CompactVenueAnchor | null,
+): { priceLabel: string; anchor: CompactVenueAnchor | null } {
+  if (lensPrice.source === "sourced-anchor" && anchor) {
+    return { priceLabel: formatGbp(lensPrice.priceGbp), anchor };
+  }
+  return {
+    priceLabel: `${lensPrice.categoryLabel} · ${formatGbp(lensPrice.priceGbp)}`,
+    anchor: null,
+  };
 }
 
 function mapVenueListPintPriceLabel(
@@ -219,7 +233,9 @@ export function buildMapVenueListModel(
           const lensPrice = lensPrices.get(row.id);
           return {
             ...row,
-            priceLabel: lensPrice ? mapVenueListLensPriceLabel(lensPrice) : unknownLabel,
+            ...(lensPrice
+              ? mapVenueListLensPrice(lensPrice, row.anchor)
+              : { priceLabel: unknownLabel, anchor: null }),
             priceBand:
               lensPrice && lensPrice.category === "beer"
                 ? priceBand(lensPrice.priceGbp, priceBandAreaForVenue(row.id))

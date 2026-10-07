@@ -98,6 +98,48 @@ test("the card names the cheapest listed pub in view, and the door rides inside 
   expect(doorBox!.y + doorBox!.height).toBeLessThan(box.y + box.height);
 });
 
+for (const width of [320, 390]) {
+  test(`${width}px a long anchor answer keeps the figure whole and the name readable inside the card`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: PHONE.height });
+    await openMap(page);
+    const card = await answeredCard(page);
+    // The card's own markup for the longest anchors in the data, laid out in
+    // the same synchronous step that measures it, so a re-render cannot race it.
+    const layout = await card.evaluate((element) => {
+      const line = element.querySelector<HTMLElement>(".mapPeekLine")!;
+      line.innerHTML =
+        '<span class="mapPeekPrice"><span><span class="compactVenuePriceAnchor">Three Sheets seasonal cocktail · </span>£12.00</span>' +
+        '<small class="mapPeekProvenance">Sep · threesheets-bar.com</small></span>' +
+        '<span class="mapPeekName">The Marquis of Granby and Coach House</span>' +
+        '<span class="mapPeekWalk">12 min walk</span>';
+      const box = (selector: string) => element.querySelector<HTMLElement>(selector)!.getBoundingClientRect();
+      const answer = box(".mapPeekAnswer");
+      const figure = document.createRange();
+      const priceInner = element.querySelector(".mapPeekPrice > span")!;
+      figure.selectNodeContents(priceInner.lastChild!);
+      const figureRect = figure.getBoundingClientRect();
+      return {
+        card: element.getBoundingClientRect().height,
+        answer: { left: answer.left, right: answer.right, top: answer.top, bottom: answer.bottom },
+        figure: { left: figureRect.left, right: figureRect.right, width: figureRect.width },
+        name: box(".mapPeekName"),
+        walk: box(".mapPeekWalk"),
+        lineScroll: line.scrollWidth - line.clientWidth,
+      };
+    });
+    expect(layout.card).toBeCloseTo(112, 0);
+    expect(layout.figure.width, "the figure is drawn").toBeGreaterThan(30);
+    expect(layout.figure.left).toBeGreaterThanOrEqual(layout.answer.left);
+    expect(layout.figure.right, "the figure stays inside the answer").toBeLessThanOrEqual(layout.answer.right);
+    expect(layout.name.width, "the name keeps room to be read").toBeGreaterThanOrEqual(30);
+    expect(layout.walk.right, "nothing spills past the answer").toBeLessThanOrEqual(layout.answer.right + 0.5);
+    expect(layout.name.bottom).toBeLessThanOrEqual(layout.answer.bottom);
+    expect(layout.lineScroll, "the line never overflows").toBeLessThanOrEqual(1);
+  });
+}
+
 test("tapping the answer opens that pub, and the card stands down behind its sheet", async ({ page }) => {
   await openMap(page);
   const card = await answeredCard(page);
