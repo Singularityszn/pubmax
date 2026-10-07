@@ -52,7 +52,8 @@ Onboarding readability has browser proof with its required first-run handoff. Di
 
 The [profile at scale 1.5](profile-1.5-after.png) also shows equal action heights when one label wraps.
 
-`e2e/mobile-large-text.spec.ts` checks 30 route and scale combinations, three word-integrity cases, six owner-profile layouts, touch targets, and five small-text routes.
+`e2e/mobile-large-text.spec.ts` checks 30 route and scale combinations, three map-badge cases, three word-integrity cases, six header-icon cases, six owner-profile layouts, touch targets, and five small-text routes.
+The map-badge cases enlarge the count-badge text by each scale, as Android text zoom does, and require each figure to stay inside its badge.
 The word-integrity cases check that each day chip and the photo-size figure stay on one line at scales 1.3, 1.5, and 2.0.
 At scale 2.0 the case also requires the photo-size hint to wrap, so the figure check runs on a real wrapped line.
 The touch test checks all ten visible header and tab controls and both checkbox label targets.
