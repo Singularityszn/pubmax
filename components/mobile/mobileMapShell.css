@@ -787,9 +787,9 @@
     bottom: calc(var(--plan-activation-bottom) - var(--map-peek-frame));
     z-index: var(--z-map-toolbar);
     box-sizing: border-box;
-    height: var(--map-peek-h);
+    min-height: var(--map-peek-h);
     display: grid;
-    grid-template-rows: var(--map-peek-row-h) auto;
+    grid-template-rows: minmax(var(--map-peek-row-h), auto) auto;
     row-gap: 4px;
     align-content: end;
     padding: var(--map-peek-frame);
@@ -840,7 +840,7 @@
   .mapPeekAnswer {
     display: grid;
     align-content: center;
-    gap: 2px;
+    gap: 0;
     min-width: 0;
     min-height: var(--map-peek-row-h);
     margin: 0;
@@ -865,31 +865,27 @@
   .mapPeekAnswer:focus-visible,
   .mapPeekList:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
   /* The eyebrow row also carries what the figure is for (an anchor's label
-     or a lens category, whose provenance is in the accessible name), on its
-     own short line above the figure, so the line below never has to squeeze
-     it out. The "Cheapest in this view" prefix gives way first, so a lens
-     category prints whole; only an anchor label longer than 9em ellipsizes. */
+     or a lens category, whose provenance is in the accessible name), above
+     the figure, so the line below never has to squeeze it out. Neither part
+     is ever cut short: where the two do not fit on one line the label wraps
+     to its own line under "Cheapest in this view". The line heights are set
+     so that two eyebrow lines and the figure line fill the 44px answer row
+     exactly; only an anchor label too long for a line of its own grows the
+     card, upward, rather than paint over the door. */
   .mapPeekEyebrow {
     display: flex;
-    gap: 4px;
+    flex-wrap: wrap;
+    column-gap: 4px;
     min-width: 0;
-    white-space: nowrap;
     font-size: .75rem;
-    line-height: 1rem;
+    line-height: .875rem;
     font-weight: 500;
     letter-spacing: .01em;
     color: var(--color-text-muted);
   }
-  .mapPeekEyebrow > span:first-child,
+  .mapPeekEyebrow > span:first-child { white-space: nowrap; }
   .mapPeekLabel {
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .mapPeekEyebrow > span:first-child { flex: 0 1 auto; }
-  .mapPeekLabel {
-    flex: 0 0 auto;
-    max-width: 9em;
     font-weight: 700;
     color: var(--color-text);
   }
@@ -898,7 +894,8 @@
     align-items: baseline;
     gap: 8px;
     min-width: 0;
-    line-height: 1.25rem;
+    height: 1rem;
+    line-height: 1rem;
   }
   /* The line is the figure, the name and the walk, each a direct flex item.
      The figure and the walk never shrink; the name gives way with an

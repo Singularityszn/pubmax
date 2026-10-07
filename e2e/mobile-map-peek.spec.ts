@@ -99,10 +99,13 @@ test("the card names the cheapest listed pub in view, and the door rides inside 
 });
 
 // The label (an anchor's, or a lens category) rides the eyebrow row above the
-// figure, so a walk time can never squeeze it to nothing. A pint answer has no
-// label. One map load per width; every label and walk variant is laid into the
-// same card and measured in turn.
-const LAYOUT_LABELS = ["Three Sheets seasonal cocktail", "Cocktails", "Alcohol-free", "No alcohol", null];
+// figure, so a walk time can never squeeze it to nothing, and nothing on the
+// eyebrow is ever cut short: where "Cheapest in this view" and the label do
+// not fit on one line, the label wraps to its own line under it. A pint answer
+// has no label. One map load per width; every label and walk variant is laid
+// into the same card and measured in turn.
+const ANCHOR_LABEL = "Three Sheets seasonal cocktail";
+const LAYOUT_LABELS = [ANCHOR_LABEL, "Alcohol-free", "Soft drinks", "Cocktails", null];
 for (const width of [320, 360, 390]) {
   test(`${width}px every label, with and without a walk, keeps the label, the figure and the name inside the card`, async ({
     page,
@@ -137,10 +140,17 @@ for (const width of [320, 360, 390]) {
               };
             };
             const answer = element.querySelector<HTMLElement>(".mapPeekAnswer")!;
+            const prefix = eyebrow.firstElementChild as HTMLElement;
+            const labelElement = eyebrow.querySelector<HTMLElement>(".mapPeekLabel");
             return {
               card: element.getBoundingClientRect().height,
               answer: rect(answer)!,
-              label: rect(eyebrow.querySelector<HTMLElement>(".mapPeekLabel")),
+              door: rect(element.querySelector<HTMLElement>(".mobilePlanActivation")),
+              prefix: rect(prefix)!,
+              label: rect(labelElement),
+              ellipsis: [prefix, labelElement].some(
+                (part) => part !== null && getComputedStyle(part).textOverflow === "ellipsis",
+              ),
               figure: rect(line.querySelector<HTMLElement>(".mapPeekPrice"))!,
               name: rect(line.querySelector<HTMLElement>(".mapPeekName"))!,
               walk: rect(line.querySelector<HTMLElement>(".mapPeekWalk")),
@@ -150,17 +160,27 @@ for (const width of [320, 360, 390]) {
           },
           { lineLabel: label, withWalk: walk },
         );
-        expect(layout.card, variant).toBeCloseTo(112, 0);
+        if (label === ANCHOR_LABEL) {
+          expect(layout.card, `${variant}: only a long anchor may grow the card`).toBeGreaterThanOrEqual(111.5);
+        } else {
+          expect(layout.card, variant).toBeCloseTo(112, 0);
+        }
+        if (layout.door) {
+          expect(layout.answer.bottom, `${variant}: the answer never paints over the door`).toBeLessThanOrEqual(layout.door.top + 0.5);
+        }
+        expect(layout.ellipsis, `${variant}: no eyebrow text is ellipsed`).toBe(false);
+        expect(layout.prefix.clipped, `${variant}: "Cheapest in this view" is printed whole`).toBe(false);
         expect(layout.eyebrowScroll, `${variant}: the eyebrow row never overflows`).toBeLessThanOrEqual(1);
         expect(layout.lineScroll, `${variant}: the line never overflows`).toBeLessThanOrEqual(1);
         if (label === null) {
           expect(layout.label, `${variant}: a pint answer has no label`).toBeNull();
         } else {
-          expect(layout.label!.width, `${variant}: the label never shrinks to nothing`).toBeGreaterThanOrEqual(40);
+          expect(layout.label!.clipped, `${variant}: the label is printed whole`).toBe(false);
           expect(layout.label!.right, variant).toBeLessThanOrEqual(layout.answer.right + 0.5);
           expect(layout.label!.bottom, `${variant}: the label sits above the figure`).toBeLessThanOrEqual(layout.figure.top + 1);
-          if (label.length <= 12) {
-            expect(layout.label!.clipped, `${variant}: a lens category is printed whole`).toBe(false);
+          const sameLine = Math.abs(layout.label!.top - layout.prefix.top) <= 1;
+          if (!sameLine) {
+            expect(layout.label!.top, `${variant}: a wrapped label starts on the line under the prefix`).toBeGreaterThanOrEqual(layout.prefix.bottom - 1);
           }
         }
         expect(layout.figure.clipped, `${variant}: the figure is never clipped`).toBe(false);
