@@ -76,29 +76,43 @@ const TIME_WORDS = new Set([
   "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
   "christmas", "xmas", "easter", "halloween", "valentine", "year", "eve", "day",
   "night", "weekend", "tonight", "today", "tomorrow", "morning", "afternoon",
-  "evening", "midnight",
+  "evening", "midnight", "nye",
 ]);
 
 /** Holidays whose first word is no time word on its own: "New Year", not "New Cross". */
 const HOLIDAY_PHRASES = new Set(["new year", "boxing day", "bonfire night"]);
 
+/** The word as the time lists spell it: "Year's", "Years" and "Fridays" stem to "year" and "friday". */
 function timeStem(word: string): string {
-  return word.toLowerCase().replace(/['’]s$/, "");
+  const stem = word.toLowerCase().replace(/['’]s$/, "");
+  const singular = stem.replace(/s$/, "");
+  return TIME_WORDS.has(singular) ? singular : stem;
 }
 
+/** "London", "Central London", "East London": the whole city, which is London-wide, not a place. */
+const LONDON_SCOPE = /^(?:(?:central|north|south|east|west|greater)\s+)?london$/;
+
 /**
- * The place a query names after "in", "near", "around" or "close to" when it is
- * written as a proper noun ("Blackfriars", "Elephant and Castle"). The taxonomy
- * knows only the night patches and boroughs, so this lets the answer say it
- * could not place a name rather than claim none was given. Lower-case phrases
- * are never taken: "in the cheapest" is not a place.
+ * The first place a query names after "in", "near", "around" or "close to" when
+ * it is written as a proper noun ("Blackfriars", "Elephant and Castle"). The
+ * taxonomy knows only the night patches and boroughs, so this lets the answer
+ * say it could not place a name rather than claim none was given. Lower-case
+ * phrases are never taken: "in the cheapest" is not a place. A phrase that names
+ * only a time ("in December") is skipped for the next one.
  */
 function namedPlaceFromQuery(query: string): string | null {
-  const match = query.match(
-    /\b(?:in|near|around|close to)\s+(?:the\s+)?([A-Z][\p{L}'’-]*(?:\s+(?:and\s+|of\s+|the\s+)?[A-Z][\p{L}'’-]*){0,2})/u,
-  );
-  if (!match?.[1]) return null;
-  const words = match[1].split(/\s+/);
+  for (const match of query.matchAll(
+    /\b(?:in|near|around|close to)\s+(?:the\s+)?([A-Z][\p{L}'’-]*(?:\s+(?:and\s+|of\s+|the\s+)?[A-Z][\p{L}'’-]*){0,2})/gu,
+  )) {
+    const name = match[1] ? placeBeforeTime(match[1]) : null;
+    if (name) return name;
+  }
+  return null;
+}
+
+/** The capitalised words of a phrase up to its first stop, time or holiday word. */
+function placeBeforeTime(phrase: string): string | null {
+  const words = phrase.split(/\s+/);
   const kept: string[] = [];
   for (const [index, word] of words.entries()) {
     const stem = timeStem(word);
@@ -113,9 +127,6 @@ function namedPlaceFromQuery(query: string): string | null {
     kept.push(word);
   }
   const name = kept.join(" ").trim();
-  // "in London" or "in East London" names the whole answer's scope, not a
-  // place we failed to find.
-  if (/\blondon\b/.test(normalizeSearchText(name))) return null;
   return name.length >= 3 ? name : null;
 }
 
@@ -153,9 +164,12 @@ export function resolvePalLocality(
   }
   // A place the reader named that the taxonomy cannot place beats the remembered
   // area: grounding "pubs in Blackfriars" in a remembered Soho would hand the
-  // planner a stale area for the pub they chose.
-  const unplaced = namedPlaceFromQuery(query);
-  const fromRemembered = unplaced ? null : areaFromRemembered(remembered);
+  // planner a stale area for the pub they chose. "In London" beats it too, but
+  // is the London-wide answer the reader asked for, not a place we missed.
+  const named = namedPlaceFromQuery(query);
+  const unplaced =
+    named && !LONDON_SCOPE.test(normalizeSearchText(named)) ? named : undefined;
+  const fromRemembered = named ? null : areaFromRemembered(remembered);
   if (fromRemembered) {
     return { scope: "remembered", area: fromRemembered, label: labelFor(fromRemembered), grounded: true };
   }

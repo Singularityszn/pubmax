@@ -624,20 +624,16 @@ html[data-theme="dark"] .messageBubblePhoto {
     margin-top var(--duration-base, 0.18s) var(--ease-out);
 }
 
-/* Once shown, the meta line stops clipping so the Report button's hit area can
-   reach past its 32px box. */
 .messageRow[data-revealed] .messageMeta,
 .messageLine:focus-within .messageMeta {
-  max-height: 2.5rem;
-  overflow: visible;
+  max-height: 2.75rem;
   opacity: 1;
   margin-top: 0.2rem;
 }
 
 @media (hover: hover) {
   .messageLine:hover .messageMeta {
-    max-height: 2.5rem;
-    overflow: visible;
+    max-height: 2.75rem;
     opacity: 1;
     margin-top: 0.2rem;
   }
@@ -664,10 +660,11 @@ html[data-theme="dark"] .messageBubblePhoto {
 .messageReportBtn {
   display: inline-flex;
   align-items: center;
-  /* 44px of hit area without growing the meta line: the box stays 32px and the
-     pseudo-element below reaches the rest. It measured 40x32. */
-  position: relative;
-  min-height: 32px;
+  /* The 44px floor sits in the meta line's own box, so a tap on the next bubble
+     never lands on this one's Report. */
+  min-height: 44px;
+  min-width: 44px;
+  justify-content: center;
   padding: 0 0.15rem;
   background: none;
   border: none;
@@ -677,16 +674,6 @@ html[data-theme="dark"] .messageBubblePhoto {
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 2px;
-}
-
-.messageReportBtn::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: max(100% + 8px, 44px);
-  height: max(100% + 12px, 44px);
-  transform: translate(-50%, -50%);
 }
 
 .messageReportBtn:hover {

@@ -326,14 +326,25 @@ for (const viewport of VIEWPORTS) {
       expect(painted.color).toBe(await resolvedColour(page, ".messagesPage", "var(--color-on-accent)"));
     });
 
-    test("the Report button reaches 44px of hit area without growing its line", async ({ page }) => {
+    test("the Report button reaches 44px of hit area without covering a bubble", async ({ page }) => {
       await measureBubbles(page);
       // The meta line is folded until the bubble is tapped.
       await page.locator("#short-theirs").evaluate((row) => row.setAttribute("data-revealed", ""));
       const area = await measureHitArea(page.locator("#short-theirs .messageReportBtn"));
-      expect(area.boxHeight).toBeLessThan(44);
       expect(area.hitHeight).toBeGreaterThanOrEqual(44);
       expect(area.hitWidth).toBeGreaterThanOrEqual(44);
+      // A tap on the edge of its own bubble or the next one never files a report.
+      const landsOnReport = await page.evaluate(() => {
+        const report = document.querySelector("#short-theirs .messageReportBtn")!;
+        const own = document.querySelector("#short-theirs .messageBubble")!.getBoundingClientRect();
+        const next = document.getElementById("long-mine")!.getBoundingClientRect();
+        const x = report.getBoundingClientRect().left + 4;
+        return [
+          [x, own.bottom - 1],
+          [x, next.top + 1],
+        ].map(([px, py]) => report.contains(document.elementFromPoint(px, py)));
+      });
+      expect(landsOnReport).toEqual([false, false]);
     });
 
     if (viewport.width >= 1024) {

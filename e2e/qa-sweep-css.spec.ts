@@ -47,6 +47,29 @@ test.describe("44px hit areas at 390", () => {
     expect(area.hitWidth).toBeGreaterThanOrEqual(44);
   });
 
+  test("a Report pill's reach never covers the control above or below it", async ({ page }) => {
+    await page.goto("/founders");
+    await inject(
+      page,
+      `<button type="button" id="qa-above" style="display:block;width:100%;height:44px">Above</button>
+      <p style="margin:0"><button type="button" class="reportBtn">Report</button></p>
+      <button type="button" id="qa-below" style="display:block;width:100%;height:44px">Below</button>`,
+    );
+    const area = await measureHitArea(page.locator("#qa-probe .reportBtn"));
+    expect(area.hitHeight).toBeGreaterThanOrEqual(44);
+    const lands = await page.evaluate(() => {
+      const pill = document.querySelector("#qa-probe .reportBtn")!.getBoundingClientRect();
+      const x = pill.left + pill.width / 2;
+      const above = document.getElementById("qa-above")!.getBoundingClientRect();
+      const below = document.getElementById("qa-below")!.getBoundingClientRect();
+      return [
+        document.elementFromPoint(x, above.bottom - 1)?.id,
+        document.elementFromPoint(x, below.top + 1)?.id,
+      ];
+    });
+    expect(lands).toEqual(["qa-above", "qa-below"]);
+  });
+
   test("a founders row is one tap target for its handle", async ({ page }) => {
     await page.goto("/founders");
     await inject(
