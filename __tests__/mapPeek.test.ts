@@ -87,7 +87,10 @@ describe("buildMapPeek", () => {
         pub({ id: "p", cheapestPrice: 5.2 }),
       ],
     });
-    expect(anchored).toMatchObject({ answer: { venueId: "anchor", priceLabel: "£4.00" } });
+    expect(anchored).toMatchObject({
+      answer: { venueId: "anchor", priceLabel: "£4.00", anchor: { label: "Set lunch" }, isPub: false },
+    });
+    expect(mapPeekSummary(anchored)).toMatch(/^Cheapest in this view: Set lunch · £4\.00 \(.+ · example\.com\) at Pub anchor$/);
   });
 
   describe("agrees with the first row of List view's cheapest sort", () => {
@@ -122,7 +125,9 @@ describe("buildMapPeek", () => {
         const peek = buildMapPeek({ ready: true, venues });
         const list = buildMapVenueListModel(venues, [-0.12, 51.5], undefined, null, undefined, "ready", "cheapest");
         const first = list.rows[0];
-        expect(peek).toMatchObject({ answer: { venueId: first?.id, priceLabel: first?.priceLabel } });
+        expect(peek).toMatchObject({
+          answer: { venueId: first?.id, priceLabel: first?.priceLabel, anchor: first?.anchor },
+        });
       });
     }
 
@@ -141,7 +146,9 @@ describe("buildMapPeek", () => {
       expect(peek).toMatchObject({
         answer: { venueId: "bar", priceGbp: 8.5, priceLabel: "Cocktail · £8.50" },
       });
-      expect(peek).toMatchObject({ answer: { venueId: first?.id, priceLabel: first?.priceLabel } });
+      expect(peek).toMatchObject({
+        answer: { venueId: first?.id, priceLabel: first?.priceLabel, anchor: first?.anchor },
+      });
       expect(mapPeekSummary(peek)).toBe("Cheapest in this view: Cocktail · £8.50 at The Bar");
     });
   });
@@ -185,7 +192,7 @@ describe("mapPeekSummary", () => {
     expect(
       mapPeekSummary({
         status: "answer",
-        answer: { venueId: "a", name: "The Three Tuns", priceGbp: 2.95, priceLabel: "£2.95", walkMinutes: 6 },
+        answer: { venueId: "a", name: "The Three Tuns", priceGbp: 2.95, priceLabel: "£2.95", anchor: null, isPub: true, walkMinutes: 6 },
       }),
     ).toBe("Cheapest in this view: £2.95 at The Three Tuns, 6 minute walk");
   });

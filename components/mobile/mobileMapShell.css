@@ -153,6 +153,14 @@
     );
   }
 
+  /* A stored Pub Pal parks its pill on this same left lane, one gap above the
+     plan member and above the map's controls, so the credit climbs over the
+     pill rather than sit under it where no tap reaches it. The pill's own
+     berth already follows the consent card, so this outranks that rule. */
+  body:has(.mobilePlanActivation):has(.palSummon) .appShell .mapStage .maplibregl-ctrl-bottom-right {
+    bottom: calc(var(--float-stack-top-pal) + 10px);
+  }
+
   .appShell .mapStage .maplibregl-ctrl-attrib.maplibregl-compact {
     box-sizing: border-box;
     max-width: calc(100vw - 24px);
@@ -755,6 +763,13 @@
     font-size: 1rem;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
+  }
+  .mapPeekProvenance {
+    margin-left: 6px;
+    font-family: var(--font-body);
+    font-size: .75rem;
+    font-weight: 500;
+    color: var(--color-text-muted);
   }
   .mapPeekName {
     min-width: 0;
