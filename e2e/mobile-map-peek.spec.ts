@@ -99,45 +99,56 @@ test("the card names the cheapest listed pub in view, and the door rides inside 
 });
 
 for (const width of [320, 390]) {
-  test(`${width}px a long anchor answer keeps the figure whole and the name readable inside the card`, async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width, height: PHONE.height });
-    await openMap(page);
-    const card = await answeredCard(page);
-    // The card's own markup for the longest anchors in the data, laid out in
-    // the same synchronous step that measures it, so a re-render cannot race it.
-    const layout = await card.evaluate((element) => {
-      const line = element.querySelector<HTMLElement>(".mapPeekLine")!;
-      line.innerHTML =
-        '<span class="mapPeekPrice"><span><span class="compactVenuePriceAnchor">Three Sheets seasonal cocktail · </span>£12.00</span>' +
-        '<small class="mapPeekProvenance">Sep · threesheets-bar.com</small></span>' +
-        '<span class="mapPeekName">The Marquis of Granby and Coach House</span>' +
-        '<span class="mapPeekWalk">12 min walk</span>';
-      const box = (selector: string) => element.querySelector<HTMLElement>(selector)!.getBoundingClientRect();
-      const answer = box(".mapPeekAnswer");
-      const figure = document.createRange();
-      const priceInner = element.querySelector(".mapPeekPrice > span")!;
-      figure.selectNodeContents(priceInner.lastChild!);
-      const figureRect = figure.getBoundingClientRect();
-      return {
-        card: element.getBoundingClientRect().height,
-        answer: { left: answer.left, right: answer.right, top: answer.top, bottom: answer.bottom },
-        figure: { left: figureRect.left, right: figureRect.right, width: figureRect.width },
-        name: box(".mapPeekName"),
-        walk: box(".mapPeekWalk"),
-        lineScroll: line.scrollWidth - line.clientWidth,
-      };
+  for (const label of ["Three Sheets seasonal cocktail", "No alcohol"]) {
+    test(`${width}px "${label}" with a walk keeps the figure whole and the name readable inside the card`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: PHONE.height });
+      await openMap(page);
+      const card = await answeredCard(page);
+      // The card's own line markup for a long label, a long name and a walk,
+      // laid out in the same synchronous step that measures it, so a re-render
+      // cannot race it.
+      const layout = await card.evaluate((element, lineLabel) => {
+        const line = element.querySelector<HTMLElement>(".mapPeekLine")!;
+        line.innerHTML =
+          `<span class="mapPeekLabel">${lineLabel} ·</span>` +
+          '<span class="mapPeekPrice">£12.00</span>' +
+          '<span class="mapPeekName">The Marquis of Granby and Coach House</span>' +
+          '<span class="mapPeekWalk">12 min walk</span>';
+        const rect = (selector: string) => {
+          const found = element.querySelector<HTMLElement>(selector)!;
+          const box = found.getBoundingClientRect();
+          return {
+            left: box.left,
+            right: box.right,
+            top: box.top,
+            bottom: box.bottom,
+            width: box.width,
+            clipped: found.scrollWidth > found.clientWidth + 1,
+          };
+        };
+        return {
+          card: element.getBoundingClientRect().height,
+          answer: rect(".mapPeekAnswer"),
+          figure: rect(".mapPeekPrice"),
+          name: rect(".mapPeekName"),
+          walk: rect(".mapPeekWalk"),
+          lineScroll: line.scrollWidth - line.clientWidth,
+        };
+      }, label);
+      expect(layout.card).toBeCloseTo(112, 0);
+      expect(layout.figure.clipped, "the figure is never clipped").toBe(false);
+      expect(layout.figure.width, "the figure is drawn").toBeGreaterThan(30);
+      expect(layout.figure.left).toBeGreaterThanOrEqual(layout.answer.left);
+      expect(layout.figure.right, "the figure stays inside the answer").toBeLessThanOrEqual(layout.answer.right);
+      expect(layout.name.width, "the name keeps room to be read").toBeGreaterThanOrEqual(30);
+      expect(layout.name.left, "the name follows the figure").toBeGreaterThanOrEqual(layout.figure.right);
+      expect(layout.walk.right, "nothing spills past the answer").toBeLessThanOrEqual(layout.answer.right + 0.5);
+      expect(layout.name.bottom).toBeLessThanOrEqual(layout.answer.bottom);
+      expect(layout.lineScroll, "the line never overflows").toBeLessThanOrEqual(1);
     });
-    expect(layout.card).toBeCloseTo(112, 0);
-    expect(layout.figure.width, "the figure is drawn").toBeGreaterThan(30);
-    expect(layout.figure.left).toBeGreaterThanOrEqual(layout.answer.left);
-    expect(layout.figure.right, "the figure stays inside the answer").toBeLessThanOrEqual(layout.answer.right);
-    expect(layout.name.width, "the name keeps room to be read").toBeGreaterThanOrEqual(30);
-    expect(layout.walk.right, "nothing spills past the answer").toBeLessThanOrEqual(layout.answer.right + 0.5);
-    expect(layout.name.bottom).toBeLessThanOrEqual(layout.answer.bottom);
-    expect(layout.lineScroll, "the line never overflows").toBeLessThanOrEqual(1);
-  });
+  }
 }
 
 test("tapping the answer opens that pub, and the card stands down behind its sheet", async ({ page }) => {

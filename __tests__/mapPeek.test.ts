@@ -88,7 +88,14 @@ describe("buildMapPeek", () => {
       ],
     });
     expect(anchored).toMatchObject({
-      answer: { venueId: "anchor", priceLabel: "£4.00", anchor: { label: "Set lunch" }, isPub: false },
+      answer: {
+        venueId: "anchor",
+        priceLabel: "£4.00",
+        anchor: { label: "Set lunch" },
+        isPub: false,
+        lineLabel: "Set lunch",
+        figureLabel: "£4.00",
+      },
     });
     expect(mapPeekSummary(anchored)).toMatch(/^Cheapest in this view: Set lunch · £4\.00 \(.+ · example\.com\) at Pub anchor$/);
   });
@@ -147,7 +154,13 @@ describe("buildMapPeek", () => {
       const list = buildMapVenueListModel(venues, [-0.12, 51.5], undefined, lensPrices, "Food", "ready", "cheapest");
       const first = list.rows[0];
       expect(peek).toMatchObject({
-        answer: { venueId: "doner", priceLabel: "£8.50", anchor: { label: "Large lamb doner" } },
+        answer: {
+          venueId: "doner",
+          priceLabel: "£8.50",
+          anchor: { label: "Large lamb doner" },
+          lineLabel: "Large lamb doner",
+          figureLabel: "£8.50",
+        },
       });
       expect(peek).toMatchObject({
         answer: { venueId: first?.id, priceLabel: first?.priceLabel, anchor: first?.anchor },
@@ -179,7 +192,13 @@ describe("buildMapPeek", () => {
       const list = buildMapVenueListModel(venues, [-0.12, 51.5], undefined, lensPrices, "No alcohol", "ready", "cheapest");
       const first = list.rows[0];
       expect(peek).toMatchObject({
-        answer: { venueId: "bistro", priceLabel: "No alcohol · £3.00", anchor: null },
+        answer: {
+          venueId: "bistro",
+          priceLabel: "No alcohol · £3.00",
+          anchor: null,
+          lineLabel: "No alcohol",
+          figureLabel: "£3.00",
+        },
       });
       expect(peek).toMatchObject({
         answer: { venueId: first?.id, priceLabel: first?.priceLabel, anchor: first?.anchor },
@@ -248,7 +267,7 @@ describe("mapPeekSummary", () => {
     expect(
       mapPeekSummary({
         status: "answer",
-        answer: { venueId: "a", name: "The Three Tuns", priceGbp: 2.95, priceLabel: "£2.95", anchor: null, isPub: true, walkMinutes: 6 },
+        answer: { venueId: "a", name: "The Three Tuns", priceGbp: 2.95, priceLabel: "£2.95", anchor: null, isPub: true, lineLabel: null, figureLabel: "£2.95", walkMinutes: 6 },
       }),
     ).toBe("Cheapest in this view: £2.95 at The Three Tuns, 6 minute walk");
   });
