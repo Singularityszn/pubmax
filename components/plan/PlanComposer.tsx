@@ -237,7 +237,7 @@ export function pickedPlanStop(stop: DraftStop, venue: PlanVenueOption): DraftSt
 const PLAN_ROUTE_DRAFT_KEY = "pubmaxx:plan-route-draft:v1";
 
 /** The area and daypart a route was sorted for, which a later edit to the night does not move. */
-export type RouteNight = Pick<Partial<NightContext>, "nightArea" | "daypart">;
+type RouteNight = Pick<Partial<NightContext>, "nightArea" | "daypart">;
 
 export type StoredRouteDraft = {
   stops: DraftStop[];
