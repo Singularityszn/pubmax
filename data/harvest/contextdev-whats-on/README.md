@@ -31,5 +31,11 @@ npm run harvest:contextdev-whats-on -- --refresh --publish
 ```
 
 The initial harvest reserves 50 credits plus ten monitor baselines.
-The saved plan bounds total spending even when the account refills.
+The saved plan records the original allowance.
 `--publish` also works without a key when the raw observations and state remain available.
+
+The `proof/` directory contains the dataset counts and production-build browser captures.
+The desktop captures use 1440 by 1000 pixels. The phone captures use 500 by 844 pixels.
+The venue sheet shows the published opening hours and their observation date.
+The Tonight captures show the current empty state after midnight on 8 October.
+They do not prove that the future event cards rendered. The reader tests cover those records and the expired-event filter.
