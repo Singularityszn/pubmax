@@ -525,6 +525,21 @@
   box-shadow: 0 18px 40px color-mix(in srgb, var(--ink-deep) 22%, transparent);
 }
 
+/* The popover's own z-index is trapped inside its host bar, which is a stacking
+   context (backdrop-filter, or a page's own z-index). While the bar holds an open
+   menu, lift the whole bar to the modal layer so nothing floating under the bar
+   paints over the menu: the sign-in greeting sits one step lower, at
+   --z-modal - 1 (components/auth/arrivalWelcome.css). The floating map bar is
+   already fixed at --z-modal. */
+.siteNavBar:not(.siteNavBarFloating):has(.authMenu) {
+  position: relative;
+  z-index: var(--z-modal);
+}
+
+.lpNav:has(.authMenu) {
+  z-index: var(--z-modal);
+}
+
 @keyframes authMenuRise {
   from {
     opacity: 0;
