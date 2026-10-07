@@ -54,6 +54,17 @@ test("area picks clear the text filter before priced pins paint", async ({ page 
   await whitechapel.click();
 
   await expect(page).toHaveURL((url) => url.searchParams.get("q") === null);
+  // The pick opens the This area sheet once the camera settles. At that snap
+  // its backdrop covers the whole canvas, and the painted-pin probe counts only
+  // marks no app chrome covers. Close the sheet the way a reader would before
+  // asking which pins the map is painting.
+  const areaSheet = page.getByRole("dialog", { name: "This area" });
+  await expect(areaSheet).toBeVisible({ timeout: 20_000 });
+  await expect(areaSheet.getByRole("heading", { name: "Cheapest pints in Whitechapel" })).toBeVisible();
+  await areaSheet.getByRole("button", { name: "Close and return to the map" }).click();
+  await expect(areaSheet).toBeHidden();
+  await expect(page.getByRole("button", { name: "Dismiss This area backdrop" })).toBeHidden();
+
   await expect(
     page.getByRole("button", { name: /Map area: Whitechapel/i }),
   ).toBeVisible({ timeout: 20_000 });
