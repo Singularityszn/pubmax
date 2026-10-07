@@ -41,8 +41,8 @@ vi.mock("@/components/auth/useViewerSession", () => ({
   },
 }));
 vi.mock("@/lib/authedFetch", () => ({ authedFetch }));
-// WantedCapture reaches the contribution gate dialog, whose sign-in door pulls
-// in SignInButton, and that file imports next/dynamic. This file replaces
+// The Wanted list's age door shares the contribution gate dialog's module,
+// which pulls in SignInButton, and that file imports next/dynamic. This file replaces
 // next/dynamic with a factory that awaits WantedListBody, so the real
 // SignInButton would wait on a factory that is waiting on it. The door is not
 // under test here.

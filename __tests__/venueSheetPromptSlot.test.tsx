@@ -17,7 +17,7 @@ const signedIn = {
 const auth = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => auth.current }));
 vi.mock("@/components/auth/authContext", () => ({ useAuth: () => auth.current }));
-vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
+vi.mock("@/components/auth/SignInButton", () => ({ default: () => "[sign-in control]" }));
 
 import SaveToListControl from "@/components/savedpubs/SaveToListControl";
 import SaveForNightButton from "@/components/wanted/SaveForNightButton";
@@ -78,9 +78,11 @@ describe("SaveForNightButton prompt slot", () => {
     await flush();
     expect(onActivate).toHaveBeenCalledTimes(1);
     expect(container.textContent).toContain("Sign in to save for a night.");
+    // A signed-in account whose token expired is not offered a second sign-in.
+    expect(container.textContent).not.toContain("[sign-in control]");
   });
 
-  it("claims the slot on tap when signed out, though the sign-in door stands in front", async () => {
+  it("claims the slot on tap when signed out and offers the sign-in control", async () => {
     auth.current = { user: null, contributionAuth: null, invalidateContributionAuth: () => {} };
     const onActivate = vi.fn();
     await renderNight(true, onActivate);
@@ -89,10 +91,10 @@ describe("SaveForNightButton prompt slot", () => {
     });
     await flush();
     expect(onActivate).toHaveBeenCalledTimes(1);
-    expect(authedActionFetch).not.toHaveBeenCalled();
-    expect(document.querySelector("#contribution-gate-title")?.textContent).toBe(
-      "Sign in to contribute",
-    );
+    // Wanted is private, so the public-contribution dialog never stands in front.
+    expect(document.querySelector("#contribution-gate-title")).toBeNull();
+    expect(container.textContent).toContain("Sign in to save for a night.");
+    expect(container.textContent).toContain("[sign-in control]");
   });
 
   it("hides its reply while another prompt owns the slot", async () => {

@@ -33,25 +33,12 @@ import "./contributionGate.css";
 /** The dialog answers the gate, so it speaks the gate's own vocabulary. */
 export type ContributionGateDialogMode = ContributionGateStatus;
 
-/**
- * What the gate says it is FOR. The age default is the general line; a surface
- * that is not a price (Wanted) names its own action so the dialog never tells a
- * person they are logging a drink price when they are saving a pub.
- */
-export type ContributionGateCopy = {
-  /** The age sentence, such as "Saving a Wanted place is for over-18s." */
-  adult?: string;
-  /** The handle sentence, such as "Wanted places carry your public handle, so pick one first." */
-  handle?: string;
-};
-
 type ContributionGateDialogProps = {
   mode: ContributionGateDialogMode;
   error: string | null;
   onClose: () => void;
   /** Called once the one tap is recorded, so the held action can run. */
   onAsserted?: () => void;
-  copy?: ContributionGateCopy;
 };
 
 /**
@@ -121,7 +108,6 @@ export function ContributionGateDialog({
   error,
   onClose,
   onAsserted,
-  copy,
 }: ContributionGateDialogProps): React.JSX.Element {
   // A blocking dialog owes a keyboard way out. This one had a close button and
   // nothing else, so a reader who reached it with the keyboard had to tab to
@@ -151,9 +137,7 @@ export function ContributionGateDialog({
             <p className="contributionGateEyebrow">Age check</p>
             <h2 id="contribution-gate-title">Confirm your age</h2>
             <p>
-              {copy?.adult
-                ? `${copy.adult} One tap records it, and we ask once.`
-                : "This is for over-18s. One tap records it, and we ask once."}
+              This is for over-18s. One tap records it, and we ask once.
             </p>
             <AdultCheck onAsserted={onAsserted} />
           </>
@@ -172,8 +156,8 @@ export function ContributionGateDialog({
             <p className="contributionGateEyebrow">Handle needed</p>
             <h2 id="contribution-gate-title">Choose your handle</h2>
             <p>
-              {copy?.handle ??
-                "Contributions carry your public handle, so pick one before you log a price."}
+              Contributions carry your public handle, so pick one before you
+              log a price.
             </p>
             <Link
               className="contributionGatePrimary"
@@ -333,7 +317,7 @@ export function contributionGateReducer(
   };
 }
 
-export function useContributionGate(copy?: ContributionGateCopy): {
+export function useContributionGate(): {
   requestContribution: (action: PendingContribution) => Promise<void>;
   contributionGateDialog: React.JSX.Element | null;
 } {
@@ -407,7 +391,6 @@ export function useContributionGate(copy?: ContributionGateCopy): {
           error={gate.error}
           onClose={() => resetGate(userId)}
           onAsserted={resumeAfterAssertion}
-          {...(copy ? { copy } : {})}
         />
       ) : null,
   };

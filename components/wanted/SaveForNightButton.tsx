@@ -2,18 +2,15 @@
 
 import { useState } from "react";
 
-import {
-  useContributionGate,
-  type ContributionActionResult,
-} from "@/components/identity/ContributionGateDialog";
+import { useAuth } from "@/components/auth/AuthProvider";
+import SignInButton from "@/components/auth/SignInButton";
+import ContributionGateDoor from "@/components/identity/ContributionGateDoor";
 import { trackEvent } from "@/lib/analytics";
 import { haptic } from "@/lib/nativeHaptics";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
-import { readContributionGateStatus } from "@/lib/contributionGateStatus";
+import { readContributionDoor, type ContributionDoorStatus } from "@/lib/contributionGateStatus";
 import { isUkBaseVenueId, type WantedDTO } from "@/lib/wanted";
-
-import { WANTED_GATE_COPY } from "./wantedGateCopy";
 
 import "./wanted.css";
 
@@ -31,15 +28,16 @@ export default function SaveForNightButton({
   /** Called when a tap makes this control the one that speaks. */
   onActivate?: () => void;
 }): React.JSX.Element {
-  const { requestContribution, contributionGateDialog } = useContributionGate(WANTED_GATE_COPY);
+  const { user } = useAuth();
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [door, setDoor] = useState<ContributionDoorStatus | null>(null);
 
-  // Returns the gate's own status when the age or handle gate refused, so the
-  // dialog can stand in front of the save and run it again once the tap is in.
-  async function save(): Promise<ContributionActionResult> {
+  async function save() {
+    onActivate?.();
     setBusy(true);
     setToast(null);
+    setDoor(null);
     try {
       const res = await authedActionFetch("/api/wanted", {
         method: "POST",
@@ -57,12 +55,10 @@ export default function SaveForNightButton({
         status?: string;
       };
       if (!res.ok || !body.wanted) {
-        const gate = readContributionGateStatus(body.status);
-        if (gate && gate !== "sign_in_required") {
-          haptic("action-refused");
-          return { status: gate, error: errorMessageFrom(body, "Could not save for a night.") };
-        }
-        if (gate === "sign_in_required") {
+        const gate = readContributionDoor(body);
+        if (gate) {
+          setDoor(gate);
+        } else if (body.status === "sign_in_required") {
           setToast("Sign in to save for a night.");
         } else {
           setToast(errorMessageFrom(body, "Could not save for a night."));
@@ -89,11 +85,7 @@ export default function SaveForNightButton({
       <button
         type="button"
         className="wantedSaveBtn"
-        onClick={() => {
-          // The tap claims the slot even when a gate stands in front of the save.
-          onActivate?.();
-          void requestContribution(save);
-        }}
+        onClick={() => void save()}
         disabled={busy}
         aria-label={`Save ${venueName} for a night`}
       >
@@ -104,7 +96,14 @@ export default function SaveForNightButton({
           {toast}
         </p>
       ) : null}
-      {contributionGateDialog}
+      {toast && active && !user ? <SignInButton /> : null}
+      {door && active ? (
+        <ContributionGateDoor
+          status={door}
+          subject="save for a night"
+          onAsserted={() => void save()}
+        />
+      ) : null}
     </div>
   );
 }

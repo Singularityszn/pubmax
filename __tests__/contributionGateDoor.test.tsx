@@ -198,12 +198,7 @@ describe("Diary list behind the age gate", () => {
 });
 
 describe("Wanted capture behind the age gate", () => {
-  it("puts the dialog in front of the save, says what it is for, and saves after the tap", async () => {
-    auth.current = {
-      ...auth.current,
-      contributionAuth: { userId: "user-1" },
-      invalidateContributionAuth: vi.fn(),
-    } as typeof auth.current;
+  it("puts the door under the save, says what it is for, and saves after the tap", async () => {
     const dove = {
       id: "wanted-1",
       ownerActor: "profile:1",
@@ -283,21 +278,19 @@ describe("Wanted capture behind the age gate", () => {
     });
     await settle();
 
-    // The dialog is portalled to the body and names the Wanted save, not a price.
-    const dialog = document.body.querySelector(".contributionGate");
-    expect(dialog?.textContent).toContain("Saving a Wanted place is for over-18s.");
-    expect(dialog?.textContent).not.toContain("drink price");
+    // A private list is not a public contribution: no dialog, no handle claim.
+    expect(document.body.querySelector(".contributionGate")).toBeNull();
+    expect(container.textContent).toContain("Confirm you are 18 or over to save a Wanted place.");
+    expect(container.textContent).not.toContain("public handle");
     expect(onSaved).not.toHaveBeenCalled();
 
     await act(async () => {
-      [...document.body.querySelectorAll<HTMLButtonElement>(".contributionGate button")]
-        .find((candidate) => candidate.textContent?.trim() === "I'm 18 or over")!
-        .click();
+      button("I'm 18 or over")!.click();
     });
     await settle();
 
     expect(posts).toBe(2);
     expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ id: "wanted-1" }));
-    expect(document.body.querySelector(".contributionGate")).toBeNull();
+    expect(container.querySelector(".contributionGateDoor")).toBeNull();
   });
 });
