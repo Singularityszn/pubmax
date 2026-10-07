@@ -19,6 +19,8 @@ import { LONDON_RESTAURANT_MIN_ZOOM } from "@/lib/londonRestaurants";
 import { USER_LOCATION_ACCURACY_RADIUS_PX } from "@/lib/mapReaderPosition";
 import {
   DONUT_CASING_PX,
+  DONUT_FIGURE_MAX_LENGTH,
+  donutFigureFontSize,
   DONUT_OUTER_RADIUS_LARGE,
   DONUT_OUTER_RADIUS_SMALL,
   DONUT_RING_PX,
@@ -208,8 +210,15 @@ export const CLUSTER_DISC_SMALL_FROM_ZOOM = DONUT_SMALL_FROM_ZOOM;
 // basemap tone whatever its band ring is, and the ring that sits inside it.
 export const CLUSTER_CASING_PX = DONUT_CASING_PX;
 export const CLUSTER_RING_PX = DONUT_RING_PX;
-/** The disc figure's text size in px below CLUSTER_DISC_SMALL_FROM_ZOOM. */
-const CLUSTER_FIGURE_SIZE_PX = 12;
+/** The disc figure's text size in px on a disc this size: the donut's own fit
+ *  rule, stepped on the figure's length so a long price stays inside the ring. */
+const clusterFigureSizeExpr = (outer: number): maplibregl.ExpressionSpecification => {
+  const stops: number[] = [];
+  for (let length = 2; length <= DONUT_FIGURE_MAX_LENGTH; length++) {
+    stops.push(length, donutFigureFontSize(length, outer));
+  }
+  return ["step", ["length", CLUSTER_FIGURE_EXPR], donutFigureFontSize(1, outer), ...stops];
+};
 /** The rim count's text size in px, which is also the em its offset is in. */
 const CLUSTER_COUNT_BADGE_SIZE_PX = 10;
 
@@ -223,8 +232,9 @@ export const CLUSTER_STROKE_OPACITY = 1;
 // this the disc is invisible to placement and neighbouring labels (landmark
 // names, basemap POIs) happily land on top of it. Padding the figure's box out
 // from its half-height to the widest disc's outer radius makes the whole
-// marker reserve its space.
-export const CLUSTER_COLLISION_PADDING = CLUSTER_MAX_RADIUS_PX - CLUSTER_FIGURE_SIZE_PX / 2;
+// marker reserve its space, even when the longest figure has stepped down.
+export const CLUSTER_COLLISION_PADDING =
+  CLUSTER_MAX_RADIUS_PX - donutFigureFontSize(DONUT_FIGURE_MAX_LENGTH, CLUSTER_MAX_RADIUS_PX) / 2;
 
 // The provisional-report badge: the small dot that rides at a pin's upper right
 // when someone has logged tonight's pint price there and it is still one report
@@ -1736,7 +1746,13 @@ export function buildPubs(ctx: SceneCtx) {
       // price. See CLUSTER_FIGURE_EXPR for why that figure is the pins' own.
       "text-field": CLUSTER_FIGURE_EXPR,
       "text-font": textFont,
-      "text-size": ["step", ["zoom"], CLUSTER_FIGURE_SIZE_PX, CLUSTER_DISC_SMALL_FROM_ZOOM, 11],
+      "text-size": [
+        "step",
+        ["zoom"],
+        clusterFigureSizeExpr(CLUSTER_MAX_RADIUS_PX),
+        CLUSTER_DISC_SMALL_FROM_ZOOM,
+        clusterFigureSizeExpr(CLUSTER_MIN_RADIUS_PX),
+      ],
       "text-letter-spacing": 0.01,
       // A disc without its number is worse than a tight fit, so the figure
       // always draws - but it is NOT invisible to placement: its padded box

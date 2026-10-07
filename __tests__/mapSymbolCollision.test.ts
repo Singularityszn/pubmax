@@ -444,12 +444,51 @@ describe("symbol collision policy", () => {
     // count's padded box is what keeps other labels off the disc.
     expect(count["text-ignore-placement"]).toBe(false);
     expect(count["text-padding"]).toBe(CLUSTER_COLLISION_PADDING);
-    // The figure's padded box reaches the widest disc's edge, so no label can
-    // land on the top or bottom of the disc.
-    const figureSize = (count["text-size"] as unknown[])[2] as number;
-    expect(figureSize / 2 + CLUSTER_COLLISION_PADDING).toBeGreaterThanOrEqual(
-      CLUSTER_MAX_RADIUS_PX,
-    );
+  });
+
+  it("fits the widest figure inside the ring and reserves the disc at both sizes", () => {
+    const count = layout("cluster-count");
+    const compile = (value: unknown, type: "string" | "number") => {
+      const compiled = createExpression(value as never, {
+        type,
+        "property-type": "data-constant",
+        expression: { interpolated: type === "number", parameters: ["zoom", "feature"] },
+      } as never);
+      if (compiled.result !== "success") throw new Error(`cluster-count ${type} did not compile`);
+      return compiled.value;
+    };
+    const field = compile(count["text-field"], "string");
+    const size = compile(count["text-size"], "number");
+    // Noto Sans Bold and Montserrat Medium advance no further than 0.6em a glyph
+    // on average, so a label's width is at most its length times 0.6 times its size.
+    const ADVANCE_EM = 0.6;
+    const discs = [
+      { zoom: CLUSTER_DISC_SMALL_FROM_ZOOM - 1, outer: CLUSTER_MAX_RADIUS_PX },
+      { zoom: CLUSTER_DISC_SMALL_FROM_ZOOM + 1, outer: CLUSTER_MIN_RADIUS_PX },
+    ];
+    const clusters = [
+      { minPrice: 12.5, point_count_abbreviated: "94" },
+      { minPrice: 5.5, point_count_abbreviated: "94" },
+      { minPrice: 6, point_count_abbreviated: "3" },
+      { minPrice: CLUSTER_PRICE_NONE, point_count_abbreviated: "1.5k" },
+      { minPrice: CLUSTER_PRICE_NONE, point_count_abbreviated: "94" },
+    ];
+    for (const { zoom, outer } of discs) {
+      const paper = 2 * (outer - CLUSTER_CASING_PX - CLUSTER_RING_PX);
+      for (const properties of clusters) {
+        const feature = { type: 1, properties } as never;
+        const label = String(field.evaluate({ zoom } as never, feature));
+        const px = Number(size.evaluate({ zoom } as never, feature));
+        expect(label.length * ADVANCE_EM * px, `${label} at z${zoom}`).toBeLessThan(paper);
+        // The figure's padded box reaches the disc's edge, so no label can land
+        // on the top or bottom of the disc.
+        expect(px / 2 + CLUSTER_COLLISION_PADDING).toBeGreaterThanOrEqual(outer);
+      }
+    }
+    // A short figure keeps the full size: only a long one steps down.
+    const short = { type: 1, properties: { minPrice: 6, point_count_abbreviated: "3" } } as never;
+    expect(size.evaluate({ zoom: CLUSTER_DISC_SMALL_FROM_ZOOM - 1 } as never, short)).toBe(12);
+    expect(size.evaluate({ zoom: CLUSTER_DISC_SMALL_FROM_ZOOM + 1 } as never, short)).toBe(11);
   });
 
   it("drops crowded landmark names rather than overprinting them", () => {
