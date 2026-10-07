@@ -4610,6 +4610,12 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 :root {
   --analytics-consent-clearance: 72px;
   --analytics-consent-mobile-clearance: 3.5rem;
+  /* The desktop map's Layers berth, read by Layers (mapLayersControl.css) and
+     by the Pub Pal shortcut parked one gap above it (pubPal.css). The 54px
+     clears attribution expanded onto two lines at 641px and its 10px margin. */
+  --map-layers-fab-h: 44px;
+  --map-layers-attrib-clearance: 54px;
+  --map-layers-bottom: var(--map-layers-attrib-clearance);
 }
 
 /* DOCKED, NEVER FLOATING. The card used to be an inset, blurred, shadowed
@@ -4748,6 +4754,12 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
      consent strip instead of adding a scrollable foot to the document. */
   body:has(.analyticsConsentPrompt) .appShell .mapStage .maplibregl-ctrl-bottom-right {
     bottom: var(--analytics-consent-clearance, 72px);
+  }
+
+  body:has(.analyticsConsentPrompt) {
+    --map-layers-bottom: calc(
+      var(--analytics-consent-clearance, 72px) + var(--map-layers-attrib-clearance)
+    );
   }
 
   body:has(.analyticsConsentPrompt) .mapSoftRetry {
