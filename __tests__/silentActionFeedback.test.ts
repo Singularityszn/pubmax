@@ -85,7 +85,7 @@ describe("silent user action feedback fence", () => {
     expect(train).toContain('caught.name === "AbortError"');
     expect(train).toContain("Couldn&apos;t open the share. Try again.");
     expect(install).toContain("installError");
-    expect(install).toContain("Could not start installation. Try again.");
+    expect(install).toContain("Couldn't start the install. Try again.");
     expect(photo).toContain("Could not open photo. Try again.");
     expect(photo).toContain('role="status"');
   });
@@ -109,7 +109,7 @@ describe("silent user action feedback fence", () => {
   it("keeps optimistic preference toggles honest when saving rolls back", () => {
     const pal = source("components/pal/PalExperience.tsx");
 
-    expect(pal).toContain("Pal control update could not be saved.");
+    expect(pal).toContain("We couldn't save that Pal setting.");
     expect(pal).toContain('setPalAnimationState("error")');
   });
 });

@@ -80,7 +80,7 @@ function tractionStats(s: AboutStats): Stat[] {
     {
       value: fmtInt(s.pubsTracked),
       label: "pubs tracked",
-      note: "each one carrying a price on record",
+      note: "each with a price on record",
     },
     {
       value: fmtInt(s.pintPricesObserved),
@@ -225,14 +225,14 @@ export default async function AboutPage() {
             enough.
           </li>
           <li>
-            <strong>Wetherspoons prices.</strong> Their public web menus do
-            not yield per-pub drink prices today. Where we have no price,
-            we say so.
+            <strong>Wetherspoons prices.</strong> Their public web menus don&rsquo;t
+            give per-pub drink prices today. Where we have no price, we say
+            so.
           </li>
           <li>
             <strong>Coverage varies by city.</strong> We started with listed
             prices in London. OpenStreetMap adds pubs across the country, but
-            a pub on the map does not mean we hold its drink prices.
+            a pub on the map doesn&rsquo;t mean we hold its drink prices.
           </li>
           <li>
             <strong>The price order is not for sale.</strong> Sponsored slots
@@ -263,7 +263,7 @@ export default async function AboutPage() {
           >
             Karan Manoharan
           </a>
-          . Prices, sources and useful plans guide what we build.
+          .
         </p>
         <figure className="aboutFounderNote">
           <blockquote className="aboutFounderQuote">
@@ -302,7 +302,7 @@ export default async function AboutPage() {
           Across <strong>{fmtInt(stats.boroughsCovered)}</strong> London
           boroughs and neighbourhoods, the cheapest pint we&rsquo;ve logged is{" "}
           <span className="aboutPriceStamp">{cheapest}</span>. The dearest is{" "}
-          <span className="aboutPriceStamp">{dearest}</span>. The average sits at{" "}
+          <span className="aboutPriceStamp">{dearest}</span>. The average is{" "}
           <span className="aboutPriceStamp">{average}</span>.
         </p>
       </section>
@@ -457,7 +457,7 @@ export default async function AboutPage() {
             </a>
             . Each listed fact links to its official list entry.
           </li>
-          <li>Heritage narrative is cited from Wikipedia and Wikidata.</li>
+          <li>Pub histories cite Wikipedia and Wikidata.</li>
           <li>Mapping data is &copy; OpenStreetMap contributors.</li>
         </ul>
       </section>

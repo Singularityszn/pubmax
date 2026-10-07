@@ -75,7 +75,7 @@ export function strangerSavingLine(averages: PintPriceAverages | null): string |
   if (!averages) return null;
   const gap = savingPerPintGbp(averages);
   if (gap < 0.05) return null;
-  return `The average listed pint across ${averages.sampleSize.toLocaleString("en-GB")} London pubs is ${formatGbp(averages.averageGbp)}. In the cheapest third it is ${formatGbp(averages.cheapAverageGbp)}. That is ${formatGbp(gap)} a pint you keep.`;
+  return `The average listed pint across ${averages.sampleSize.toLocaleString("en-GB")} London pubs is ${formatGbp(averages.averageGbp)}. In the cheapest third it's ${formatGbp(averages.cheapAverageGbp)}. That's ${formatGbp(gap)} a pint you keep.`;
 }
 
 /** One price a reader logged, with the pub it was logged at. */
@@ -117,7 +117,7 @@ export function readerSavings(
 export function readerSavingLine(savings: ReaderSavings): string | null {
   if (savings.pints < 1 || savings.savedGbp < 0.05) return null;
   const pints = savings.pints === 1 ? "1 pint" : `${savings.pints} pints`;
-  return `You have kept ${formatGbp(savings.savedGbp)} over ${pints} you logged under the London average.`;
+  return `You've kept ${formatGbp(savings.savedGbp)} over ${pints} you logged under the London average.`;
 }
 
 function round2(value: number): number {

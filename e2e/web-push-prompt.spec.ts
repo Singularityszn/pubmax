@@ -157,13 +157,13 @@ test("installed PWA asks for the honest London brief only after a useful plan ac
 
   await page.getByRole("button", { name: "Make a plan" }).click();
   await expect(webPrompt).toBeVisible();
-  await expect(page.getByText("Weather verdict and one sourced pick for tonight. No crew or personal alerts yet.")).toBeVisible();
+  await expect(page.getByText("The weather verdict and one sourced pick for tonight. No crew or personal alerts yet.")).toBeVisible();
   await expect(page.getByText("Get pinged when your crew votes or the get-in closes.")).toHaveCount(0);
 
   const registration = page.waitForRequest(
     (request) => request.method() === "POST" && new URL(request.url()).pathname === "/api/push-tokens",
   );
-  await webPrompt.getByRole("button", { name: "Enable" }).click();
+  await webPrompt.getByRole("button", { name: "Turn on" }).click();
   await expect(webPrompt).toHaveCount(0);
   expect(await page.evaluate(() => (window as unknown as { __webPushPermissionRequests: number }).__webPushPermissionRequests)).toBe(1);
   const registrationRequest = await registration;
@@ -203,11 +203,11 @@ test("installed PWA recovers when service-worker readiness never settles", async
   await page.getByRole("button", { name: "Make a plan" }).click();
   await expect(webPrompt).toBeVisible();
 
-  await webPrompt.getByRole("button", { name: "Enable" }).click();
-  await expect(webPrompt.getByRole("button", { name: "Enabling..." })).toBeDisabled();
-  await expect(webPrompt.getByText("Could not enable alerts. Try again.")).toBeVisible({
+  await webPrompt.getByRole("button", { name: "Turn on" }).click();
+  await expect(webPrompt.getByRole("button", { name: "Turning on…" })).toBeDisabled();
+  await expect(webPrompt.getByText("Couldn't turn on alerts. Try again.")).toBeVisible({
     timeout: 15_000,
   });
-  await expect(webPrompt.getByRole("button", { name: "Enable" })).toBeEnabled();
+  await expect(webPrompt.getByRole("button", { name: "Turn on" })).toBeEnabled();
   expect(registrationRequests).toBe(0);
 });

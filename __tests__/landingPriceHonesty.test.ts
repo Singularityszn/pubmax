@@ -68,8 +68,8 @@ describe("landing price honesty", () => {
     expect(worth).not.toContain("data-primary-action");
     expect(worth).not.toMatch(/href="\/plan"/);
     // The gap sentence moved to the questions, and it is still said once.
-    expect(faqCopy).toContain("We would rather leave a gap than invent a figure.");
-    expect(faqCopy.match(/We would rather leave a gap than invent a figure\./g)).toHaveLength(1);
+    expect(faqCopy).toContain("We'd rather leave a gap than invent a figure.");
+    expect(faqCopy.match(/We'd rather leave a gap than invent a figure\./g)).toHaveLength(1);
   });
 
   it("stays out of the marketing register", () => {
