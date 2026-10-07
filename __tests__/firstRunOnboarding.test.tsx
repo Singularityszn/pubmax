@@ -28,6 +28,7 @@ vi.mock("@/lib/nativePlatform", () => ({
 
 import FirstRunOnboarding from "@/components/onboarding/FirstRunOnboarding";
 import { hasSeenTour } from "@/lib/firstRunTour";
+import { NATIVE_FIRST_RUN_PATCH_KEY, NATIVE_FIRST_RUN_STEP_KEY } from "@/lib/nativeFirstRun";
 import { ONBOARDING_STEPS, readBudgetChoice, readPlannerHandoff } from "@/lib/onboardingFlow";
 import { readHistoryStep } from "@/lib/useStepHistory";
 import { decideEntry, readEntryContext } from "@/lib/entryDecision";
@@ -162,7 +163,7 @@ describe("interrupted native onboarding", () => {
 
     await relaunch();
     expect(container.querySelector("h1")?.textContent).toBe("Find the cheapest pint near you.");
-    expect(window.localStorage.getItem("pubmax:nativeFirstRun:step:v1")).toBe("location");
+    expect(window.localStorage.getItem(NATIVE_FIRST_RUN_STEP_KEY)).toBe("location");
   });
 
   it("keeps the companion choice on relaunch, and Plan my night completes the journey", async () => {
@@ -180,7 +181,7 @@ describe("interrupted native onboarding", () => {
     await tap("Plan my night");
     expect(openPlanner).toHaveBeenCalledOnce();
     expect(readPlannerHandoff()?.patch).toEqual({ lat: 51.5136, lng: -0.1365 });
-    expect(window.localStorage.getItem("pubmax:nativeFirstRun:patch:v1")).toBeNull();
+    expect(window.localStorage.getItem(NATIVE_FIRST_RUN_PATCH_KEY)).toBeNull();
     expect(decideEntry(readEntryContext("/"))).toEqual({
       kind: "route", href: "/tonight", reason: "shell-cold-start",
     });
