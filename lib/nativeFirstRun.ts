@@ -21,6 +21,8 @@ export const NATIVE_FIRST_RUN_ROUTED_KEY = "pubmax:nativeFirstRun:routed:v1";
 const STORAGE_KEY = NATIVE_FIRST_RUN_ROUTED_KEY;
 /** Only the unfinished step is durable. Location coordinates are never stored here. */
 export const NATIVE_FIRST_RUN_STEP_KEY = "pubmax:nativeFirstRun:step:v1";
+/** The id of the patch an unfinished journey chose. Never coordinates. */
+export const NATIVE_FIRST_RUN_PATCH_KEY = "pubmax:nativeFirstRun:patch:v1";
 /**
  * The one-time onboarding eligibility slot. Exported for the same reason as
  * NATIVE_FIRST_RUN_ROUTED_KEY: the entry block in public/theme-init.js takes the
@@ -79,6 +81,7 @@ export function markNativeFirstRunRouted(): void {
   try {
     window.localStorage.setItem(STORAGE_KEY, "1");
     window.localStorage.removeItem(NATIVE_FIRST_RUN_STEP_KEY);
+    window.localStorage.removeItem(NATIVE_FIRST_RUN_PATCH_KEY);
   } catch {
     // Storage full / disabled / private mode — degrade silently; worst case
     // is a second no-op check next launch, never a loop (isNativeApp() +
@@ -106,6 +109,30 @@ export function rememberNativeFirstRunStep(step: OnboardingStep): void {
     if (store.getItem(STORAGE_KEY) !== "1") store.setItem(NATIVE_FIRST_RUN_STEP_KEY, step);
   } catch {
     // Storage unavailable. The journey remains usable in this session.
+  }
+}
+
+/** Read the patch id an unfinished journey chose. The onboarding UI validates it. */
+export function readNativeFirstRunPatch(): string | null {
+  const store = safeLocalStorage();
+  if (!store) return null;
+  try {
+    return store.getItem(STORAGE_KEY) === "1" ? null : store.getItem(NATIVE_FIRST_RUN_PATCH_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** Record the chosen patch id for the native journey. Null clears it: a located answer keeps no place. */
+export function rememberNativeFirstRunPatch(id: string | null): void {
+  if (!isNativeApp()) return;
+  const store = safeLocalStorage();
+  if (!store) return;
+  try {
+    if (id && store.getItem(STORAGE_KEY) !== "1") store.setItem(NATIVE_FIRST_RUN_PATCH_KEY, id);
+    else store.removeItem(NATIVE_FIRST_RUN_PATCH_KEY);
+  } catch {
+    // Storage unavailable. The patch still counts for this session.
   }
 }
 

@@ -347,6 +347,11 @@ body:has(.analyticsConsentPrompt) .firstRunOnboarding {
   background: var(--paper);
 }
 
+/* The consent lane already clears the home indicator. */
+body:has(.analyticsConsentPrompt) .firstRunActions {
+  padding-bottom: 12px;
+}
+
 .firstRunActionsInner {
   width: min(100%, 35rem);
   margin-inline: auto;
@@ -646,20 +651,16 @@ body:has(.analyticsConsentPrompt) .firstRunOnboarding {
 }
 
 @media (max-width: 760px) {
+  /* The surface is exactly the viewport and scrolls its own stage, so the foot
+     padding the tab bar and consent lanes add to the body would be dead window
+     scroll that pushes the top bar off screen. Those lane rules stack up to
+     three pseudo-classes, so this wins outright rather than by specificity. */
   body:has(.firstRunOnboarding) {
-    padding-bottom: 0;
+    padding-bottom: 0 !important;
   }
 
   body:has(.firstRunOnboarding) .mobileTabBar {
     display: none;
-  }
-
-  /* The surface is its own scroller now, so the foot padding globals.css adds
-     for the card would be dead space below a page that no longer scrolls. It
-     needs the second :has() to outrank that rule, which carries one of its
-     own. */
-  body:has(.firstRunOnboarding):has(.analyticsConsentPrompt) {
-    padding-bottom: 0;
   }
 
   /* The card is taller on a phone, where the sentence wraps and the two
@@ -783,8 +784,7 @@ body:has(.analyticsConsentPrompt) .firstRunOnboarding {
 
 /* Short screens give the photograph less space and keep every question scrollable. */
 @media (max-width: 760px) and (max-height: 700px) {
-  .firstRunStage,
-  .firstRunOnboarding[data-stage="companion"] .firstRunStage {
+  .firstRunStage {
     grid-template-rows: minmax(100px, 18dvh) auto;
   }
 

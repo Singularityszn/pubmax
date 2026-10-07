@@ -42,21 +42,22 @@
 //
 //   - rule 4, `shell-cold-start`: the first-run mark is present, so this is an
 //     ordinary later launch and it lands on /tonight.
-//   - rule 2, `native-first-run`: NEITHER the first-run mark NOR a stored city
-//     value exists. `shouldRouteNativeFirstRun` needs `readPreferredCity()` to
-//     answer null, and with no stored value at all that answer is null under
-//     every possible enabled-city table in lib/cities.ts. So this reads the
-//     ABSENCE of the key and never its contents, and forks no table.
+//   - rule 2, `native-first-run`: the first-run mark is absent, and EITHER an
+//     unfinished step is stored OR no city value is stored. An unfinished
+//     journey resumes whatever city it stored. With no stored city value at
+//     all, `readPreferredCity()` answers null under every possible
+//     enabled-city table in lib/cities.ts. So this reads the ABSENCE of the
+//     city key and never its contents, and forks no table.
 //
-// The ONE case left to the client at the root is a stored city value with the
-// first-run mark absent. Whether that value counts depends on whether
-// lib/cities.ts still has that city enabled, and a second copy of the city list
-// here would be a second place for it to be wrong. AppEntryRoute decides that
-// one exactly as before, one paint later. The static /app-entry document has no
-// React, so there any stored city value takes rule 4 and opens /tonight. Tonight
-// reads the value through readPreferredCity(), so a disabled or unparseable
-// city falls back to London. It never stamps the first-run mark, so a person
-// who later clears the city still sees onboarding.
+// The ONE case left to the client at the root is a stored city value with
+// neither the first-run mark nor an unfinished step. Whether that value counts
+// depends on whether lib/cities.ts still has that city enabled, and a second
+// copy of the city list here would be a second place for it to be wrong.
+// AppEntryRoute decides that one exactly as before, one paint later. The static
+// /app-entry document has no React, so there that case takes rule 4 and opens
+// /tonight. Tonight reads the value through readPreferredCity(), so a disabled
+// or unparseable city falls back to London. It never stamps the first-run mark,
+// so a person who later clears the city still sees onboarding.
 //
 // __tests__/nativeShellEntry.test.ts runs THIS FILE against a window of its
 // own, which is why every reference below goes through `window`.

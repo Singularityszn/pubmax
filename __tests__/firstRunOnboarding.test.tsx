@@ -179,6 +179,8 @@ describe("interrupted native onboarding", () => {
     expect(buttonContaining("Black Cat").getAttribute("aria-pressed")).toBe("true");
     await tap("Plan my night");
     expect(openPlanner).toHaveBeenCalledOnce();
+    expect(readPlannerHandoff()?.patch).toEqual({ lat: 51.5136, lng: -0.1365 });
+    expect(window.localStorage.getItem("pubmax:nativeFirstRun:patch:v1")).toBeNull();
     expect(decideEntry(readEntryContext("/"))).toEqual({
       kind: "route", href: "/tonight", reason: "shell-cold-start",
     });

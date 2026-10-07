@@ -54,7 +54,7 @@ import { isNativeApp } from "@/lib/nativePlatform";
 
 /** Where every post-first-run shell open lands (owner-locked, issue #439). */
 export const SHELL_START_PATH = "/tonight";
-/** The native shell's one-time first-run surface (owner-locked, issue #441).
+/** The native shell's first-run surface, resumed until Skip or Plan my night (owner-locked, issue #441).
  *  Held in a leaf so proxy.ts can read the path without this module's imports. */
 export { ONBOARDING_PATH };
 
@@ -66,8 +66,9 @@ export type EntryContext = {
   /** Installed-PWA standalone launch (display-mode / navigator.standalone). */
   isStandaloneDisplay: boolean;
   /**
-   * Genuine native first-run per the lib/nativeFirstRun.ts gate (native
-   * shell, never routed before, no persisted city preference). Always false
+   * Native first-run per the lib/nativeFirstRun.ts gate (native shell, not
+   * finished or skipped, and either an unfinished journey or no persisted
+   * city preference). Always false
    * outside the native shell — the gate enforces it, and decideEntry guards
    * it again so a spurious flag can never send a PWA to onboarding.
    */

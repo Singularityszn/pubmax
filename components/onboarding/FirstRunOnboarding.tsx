@@ -34,7 +34,9 @@ import {
 import { NIGHT_PATCHES } from "@/lib/nightPatches";
 import {
   markNativeFirstRunRouted,
+  readNativeFirstRunPatch,
   readNativeFirstRunStep,
+  rememberNativeFirstRunPatch,
   rememberNativeFirstRunStep,
 } from "@/lib/nativeFirstRun";
 import { isNativeApp } from "@/lib/nativePlatform";
@@ -121,10 +123,12 @@ export default function FirstRunOnboarding({
   const [budget, setBudget] = useState<BudgetChoiceId | null>(null);
   const [locateState, setLocateState] = useState<LocateState>("idle");
   const [showPatches, setShowPatches] = useState(false);
-  // A reload keeps the patch the reader chose, so the planner still opens on it.
-  const [origin, setOrigin] = useState<OnboardingOrigin | null>(() =>
-    readHistoryStep(ONBOARDING_STEPS) ? patchOrigin(readOnboardingPatch()) : null,
-  );
+  // A reload or a native relaunch keeps the patch the reader chose, so the
+  // planner still opens on it.
+  const [origin, setOrigin] = useState<OnboardingOrigin | null>(() => {
+    if (readHistoryStep(ONBOARDING_STEPS)) return patchOrigin(readOnboardingPatch());
+    return isNativeApp() ? patchOrigin(readNativeFirstRunPatch()) : null;
+  });
   const [answer, setAnswer] = useState<Answer>({ status: "loading" });
   // A reader who taps a patch twice, picks a patch while the location prompt is
   // open, or backs out mid-read, must not see the older answer land over the
@@ -204,6 +208,7 @@ export default function FirstRunOnboarding({
     const generation = beginAnswer();
     setOrigin(from);
     writeOnboardingPatch(from.kind === "patch" ? from.id : null);
+    rememberNativeFirstRunPatch(from.kind === "patch" ? from.id : null);
     setAnswer({ status: "loading" });
     setStep("result");
     let read: SlimVenueLoadResult;

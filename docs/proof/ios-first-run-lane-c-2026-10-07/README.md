@@ -40,6 +40,25 @@ Validation results:
   Data validation, lint, schema types, TypeScript, ChatGPT map checks, Knip, skip checks, freshness and audit passed.
   Three durable feeds remain unmeasurable without credentials. The freshness check does not report them fresh.
 
+## Review fixes
+
+A review of the after captures found four more defects. A new production build fixed and re-measured them.
+The [after-review](after-review/) folder and [after-review-geometry.json](after-review-geometry.json) hold the new evidence.
+The earlier `after/` captures stay unchanged for comparison.
+
+| Defect | Fix | Evidence |
+| --- | --- | --- |
+| The SE companion hero clipped its sentence and the Pal portrait. | The companion row keeps its 176 px floor on short screens. | [SE light](after-review/se-light-relaunch-companion.png) and [SE dark](after-review/se-dark-relaunch-companion.png) show the whole sentence and portrait. |
+| A relaunch at companion lost the chosen patch, so the planner opened without the area. | The patch id, never coordinates, is kept in localStorage until Skip or Plan my night. | The unit relaunch test reads the planner handoff. Each capture run ends with no stored patch after Plan my night. |
+| The body kept 64 px of tab bar padding under the surface. The window could scroll the top bar off screen. | The onboarding body has no foot padding on phones. | `windowScrollSlack` is 0 in all 36 measurements. |
+| The action bar added the home indicator inset above the consent card a second time. | The action bar keeps 12 px of bottom padding while the card is visible. | With a 34 px bottom inset on the Pro, the bar ends 6 px above the [consent card](after-review/17pro-light-consent-london.png). |
+
+All five steps were checked again on both devices and in both themes. The checks also cover denied location and both relaunch points.
+No hero clips its content. No measurement shows horizontal overflow.
+Every primary is 50 px high, except the SE consent captures. There the short-screen consent rule sets 44 px.
+The Pro consent captures used Chrome's safe-area override with 62 px at the top and 34 px at the bottom.
+In the `companion` captures, the stage is scrolled after the Pal tap. The `relaunch-companion` captures show it at rest.
+
 Two existing native push journeys still fail at the expected `Know when tonight changes` dialog on Tonight:
 
 - `native first run hands one useful Plan to the contextual push ask`.
