@@ -8,6 +8,7 @@ import {
   cleanListType,
   fetchSavedForHandle,
   getSaved,
+  pressProven,
   toggleSaveDurable,
   type SavedPubDTO,
 } from "@/lib/savedPubs";
@@ -49,22 +50,22 @@ function listsHolding(venueId: string, durable: readonly SavedPubDTO[] | null): 
 }
 
 /** The lists holding this pub after a press of `listType` that asked for
- * `wanted`, or null when the server's answer does not show the press took. The
- * saves route answers a failed write with the list as it was, so only an answer
- * that moved the way the press asked is trusted, and it moves this one chip,
- * never the others. */
+ * `wanted`, or null when the press cannot be confirmed. A signed-out press has
+ * only this device's store to answer it. A signed-in press is confirmed only by
+ * a server answer that proves it, and then it moves this one chip, never the
+ * others. */
 function afterPress(
+  signedIn: boolean,
   savedIn: readonly string[],
   venueId: string,
   listType: string,
   wanted: boolean,
   durable: readonly SavedPubDTO[] | null,
 ): string[] | null {
-  if (!durable) return listsHolding(venueId, null);
-  const held = durable.some((row) => row.venueId === venueId && row.listType === listType);
-  if (held !== wanted) return null;
+  if (!signedIn) return listsHolding(venueId, null);
+  if (!durable || !pressProven(durable, venueId, listType, wanted)) return null;
   const others = savedIn.filter((name) => name !== listType);
-  return held ? [...others, listType] : others;
+  return wanted ? [...others, listType] : others;
 }
 
 export default function SaveToListControl({
@@ -173,7 +174,7 @@ export default function SaveToListControl({
     if (held) setSavedIn(held);
     setToast(
       !held
-        ? `Could not update “${listType}”. Try again.`
+        ? "Could not confirm that just now."
         : held.includes(listType)
           ? savedToast(listType, handle)
           : `Removed from “${listType}”`,
@@ -196,7 +197,11 @@ export default function SaveToListControl({
           wanted,
         );
         // The second press removes the save, so the toast says which happened.
-        announce(venueId, listType, afterPress(savedIn, venueId, listType, wanted, durable));
+        announce(
+          venueId,
+          listType,
+          afterPress(Boolean(handle), savedIn, venueId, listType, wanted, durable),
+        );
       } finally {
         setBusy(false);
       }
@@ -237,6 +242,7 @@ export default function SaveToListControl({
       const held = savedIn.includes(name)
         ? savedIn
         : afterPress(
+            Boolean(handle),
             savedIn,
             venueId,
             name,

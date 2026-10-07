@@ -350,10 +350,26 @@ describe("SaveToListControl as the inspector moves between pubs", () => {
     // The server already holds Date Night for this pub and this device does not.
     // The device store toggles first (adds it), the server toggle removes it, and
     // the device must end up without it, or a signed-out read shows a removed save.
+    // The answer still holds another save, so it is a real read, not an empty one.
     window.localStorage.setItem("pubmax_handle", "mia");
     authedFetch.mockImplementation(async (input: string, init?: { method?: string }) => {
       if (input.includes("lists=1")) return new Response(JSON.stringify({ lists: [] }), { status: 200 });
-      if (init?.method === "POST") return new Response(JSON.stringify({ saved: [] }), { status: 200 });
+      if (init?.method === "POST") {
+        return new Response(
+          JSON.stringify({
+            saved: [
+              {
+                venueId: "venue-2",
+                venueName: "The Swan",
+                venueMapUrl: "/map?sel=venue-2",
+                listType: "Date Night",
+                savedAt: "2026-10-06T10:00:00.000Z",
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
       return new Response(
         JSON.stringify({
           saved: [
@@ -403,7 +419,7 @@ describe("SaveToListControl as the inspector moves between pubs", () => {
     });
 
     expect(container.querySelector(".saveToListToast")?.textContent).toBe(
-      "Could not update “Date Night”. Try again.",
+      "Could not confirm that just now.",
     );
     expect(chip("Date Night").getAttribute("aria-pressed")).toBe("false");
     const stored = JSON.parse(window.localStorage.getItem("pubmax:savedPubs:v1") ?? "[]") as {
@@ -436,9 +452,104 @@ describe("SaveToListControl as the inspector moves between pubs", () => {
     });
 
     expect(container.querySelector(".saveToListToast")?.textContent).toBe(
-      "Could not update “Date Night”. Try again.",
+      "Could not confirm that just now.",
     );
     expect(chip("Date Night").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  const lambRow = (listType: string) => ({
+    venueId: "venue-1",
+    venueName: "The Lamb",
+    venueMapUrl: "/map?sel=venue-1",
+    listType,
+    savedAt: "2026-10-06T10:00:00.000Z",
+  });
+  const storedPairs = () =>
+    (
+      JSON.parse(window.localStorage.getItem("pubmax:savedPubs:v1") ?? "[]") as {
+        venueId: string;
+        listType: string;
+      }[]
+    ).map((row) => `${row.venueId}/${row.listType}`);
+  async function openSignedIn(
+    serverHolds: string[],
+    answerPost: () => Response,
+  ): Promise<void> {
+    window.localStorage.setItem("pubmax_handle", "mia");
+    authedFetch.mockImplementation(async (input: string, init?: { method?: string }) => {
+      if (input.includes("lists=1")) return new Response(JSON.stringify({ lists: [] }), { status: 200 });
+      if (init?.method === "POST") return answerPost();
+      return new Response(JSON.stringify({ saved: serverHolds.map(lambRow) }), { status: 200 });
+    });
+    await open();
+    await act(async () => {
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
+  }
+
+  it("brings this device's store into line when the server's answer proves an add", async () => {
+    // This device holds Date Night and the server does not, so the device toggle
+    // removes it while the server adds it.
+    window.localStorage.setItem(
+      "pubmax:savedPubs:v1",
+      JSON.stringify([{ venueId: "venue-1", listType: "Date Night", savedAt: "2026-10-06T10:00:00.000Z" }]),
+    );
+    await openSignedIn([], () =>
+      new Response(JSON.stringify({ saved: [lambRow("Date Night")] }), { status: 200 }),
+    );
+    expect(chip("Date Night").getAttribute("aria-pressed")).toBe("false");
+    await act(async () => {
+      chip("Date Night").click();
+    });
+
+    expect(container.querySelector(".saveToListToast")?.textContent).toBe("Saved to “Date Night”");
+    expect(chip("Date Night").getAttribute("aria-pressed")).toBe("true");
+    expect(storedPairs()).toEqual(["venue-1/Date Night"]);
+  });
+
+  it("never takes an empty answer as proof of a removal", async () => {
+    // The route answers an unreadable store with an empty list at 200.
+    await openSignedIn(["Date Night"], () => new Response(JSON.stringify({ saved: [] }), { status: 200 }));
+    await act(async () => {
+      chip("Date Night").click();
+    });
+
+    expect(container.querySelector(".saveToListToast")?.textContent).toBe(
+      "Could not confirm that just now.",
+    );
+    expect(chip("Date Night").getAttribute("aria-pressed")).toBe("true");
+    // Not brought into line: the device store keeps what its own toggle did.
+    expect(storedPairs()).toEqual(["venue-1/Date Night"]);
+  });
+
+  it("does not label a refused press from this device's store", async () => {
+    // The server holds Date Night and this device does not, so the device toggle
+    // ADDS it. The server refuses (rate limit), and nothing changed there.
+    await openSignedIn(["Date Night"], () => new Response("slow down", { status: 429 }));
+    await act(async () => {
+      chip("Date Night").click();
+    });
+
+    expect(container.querySelector(".saveToListToast")?.textContent).toBe(
+      "Could not confirm that just now.",
+    );
+    expect(chip("Date Night").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("does not call a refused new-list save saved", async () => {
+    await openSignedIn([], () => new Response("slow down", { status: 429 }));
+    const input = container.querySelector<HTMLInputElement>("input[aria-label='New list name']")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "Quiz nights");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>("button.saveToListCreate")!.click();
+    });
+
+    expect(container.querySelector(".saveToListToast")?.textContent).toBe(
+      "Could not confirm that just now.",
+    );
   });
 
   it("ignores the answer of a save that was started for the previous pub", async () => {
