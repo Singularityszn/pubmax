@@ -122,11 +122,14 @@ export function resolvePalLocality(
   if (fromQuery) {
     return { scope: "query", area: fromQuery, label: labelFor(fromQuery), grounded: true };
   }
-  const fromRemembered = areaFromRemembered(remembered);
+  // A place the reader named that the taxonomy cannot place beats the remembered
+  // area: grounding "pubs in Blackfriars" in a remembered Soho would hand the
+  // planner a stale area for the pub they chose.
+  const unplaced = namedPlaceFromQuery(query);
+  const fromRemembered = unplaced ? null : areaFromRemembered(remembered);
   if (fromRemembered) {
     return { scope: "remembered", area: fromRemembered, label: labelFor(fromRemembered), grounded: true };
   }
-  const unplaced = namedPlaceFromQuery(query);
   return {
     scope: "london-wide",
     area: null,
