@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { authedActionFetch } from "@/lib/authedFetch";
 import type { ConversationDTO } from "@/lib/messages";
+import { subscribeMessagesRead } from "@/lib/messagesUnreadSignal";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
 import { safeLocalStorage } from "@/lib/safeStorage";
@@ -73,9 +74,12 @@ export default function MessagesLink(): React.JSX.Element {
     void Promise.resolve().then(() => refresh());
     const onFocus = () => void refresh();
     window.addEventListener("focus", onFocus);
+    // A thread that was just read says so, so the badge drops at once.
+    const unsubscribeRead = subscribeMessagesRead(onFocus);
     const interval = window.setInterval(() => void refresh(), POLL_MS);
     return () => {
       window.removeEventListener("focus", onFocus);
+      unsubscribeRead();
       window.clearInterval(interval);
       abortRef.current?.abort();
     };

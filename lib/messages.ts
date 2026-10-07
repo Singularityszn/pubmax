@@ -161,6 +161,9 @@ export type ConversationDTO = {
   /** The other participant's face, when the read carries one. Optional by
    *  design: the inbox draws a monogram without it. */
   otherAvatarUrl?: string;
+  /** The other participant's public display name, when they set one. Direct
+   *  rows only: a group is named by its title or its people. */
+  otherDisplayName?: string;
   /** `direct` when absent, so a pre-group body reads correctly. */
   kind?: ConversationKind;
   /** A group's own name, when it was given one. Absent on a direct row. */
@@ -189,12 +192,40 @@ export function conversationRowName(
   viewer: string,
 ): string {
   if ((conversation.kind ?? "direct") !== "group") {
-    return `@${conversation.otherHandle}`;
+    return conversation.otherDisplayName?.trim() || `@${conversation.otherHandle}`;
   }
   return groupThreadName(
     conversation.title ?? null,
     conversation.memberHandles ?? [],
     viewer,
+  );
+}
+
+/**
+ * The handle printed UNDER a name, so a person with a display name is still
+ * known by the handle they are found by. Null when the name line already IS the
+ * handle (no display name) and for a group, which has no single handle.
+ */
+export function conversationRowHandle(conversation: ConversationDTO): string | null {
+  if ((conversation.kind ?? "direct") === "group") return null;
+  return conversation.otherDisplayName?.trim() && conversation.otherHandle
+    ? `@${conversation.otherHandle}`
+    : null;
+}
+
+/**
+ * Does ONE inbox row answer a search? A row is found by every line it prints:
+ * the name, and the handle under it, so the handle a person can see always
+ * finds them.
+ */
+export function conversationRowMatches(
+  conversation: ConversationDTO,
+  viewer: string,
+  query: string,
+): boolean {
+  const needle = query.trim().toLowerCase();
+  return [conversationRowName(conversation, viewer), conversationRowHandle(conversation) ?? ""].some(
+    (line) => line.toLowerCase().includes(needle),
   );
 }
 
@@ -261,12 +292,33 @@ export function threadHeaderPrimaryLine(
   identity: ThreadIdentity | null,
   otherHandle: string,
   viewer: string,
+  displayName?: string | null,
 ): string | null {
   if (identity?.kind === "group") {
     return groupThreadName(identity.title, identity.members, viewer);
   }
   const handle = normalizeHandle(otherHandle);
-  return handle ? `@${handle}` : null;
+  if (!handle) return null;
+  return displayName?.trim() || `@${handle}`;
+}
+
+/** Whose public card a thread header wears: the other person, never a group. */
+export function threadCardHandle(
+  identity: ThreadIdentity | null,
+  otherHandle: string,
+): string | null {
+  return identity?.kind === "group" ? null : otherHandle || null;
+}
+
+/** The handle under a direct thread's name, when the name is not the handle. */
+export function threadHeaderSecondaryLine(
+  identity: ThreadIdentity | null,
+  otherHandle: string,
+  displayName?: string | null,
+): string | null {
+  if (identity?.kind === "group") return null;
+  const handle = normalizeHandle(otherHandle);
+  return handle && displayName?.trim() ? `@${handle}` : null;
 }
 
 /**

@@ -21,6 +21,7 @@ import MessageAttachmentPicker, {
   type MessageAttachKind,
   type MessageAttachmentPickerHandle,
 } from "@/components/messages/MessageAttachmentPicker";
+import { usePublicProfileCard } from "@/components/auth/usePublicProfileCard";
 import MessageAvatar from "@/components/messages/MessageAvatar";
 import MessageContactCard from "@/components/messages/MessageContactCard";
 import MessageContactPicker from "@/components/messages/MessageContactPicker";
@@ -52,17 +53,21 @@ import {
   GROUP_LEFT_LINE,
   groupMemberCountLine,
 } from "@/lib/messageGroupThread";
+import { announceMessagesRead } from "@/lib/messagesUnreadSignal";
 import type { MessagePollView, MessagePollWrite } from "@/lib/messagePoll";
 import {
   linkifyMentions,
   MAX_MESSAGE_BODY,
   otherHandleFromThreadIdentity,
   threadHeaderPrimaryLine,
+  threadCardHandle,
+  threadHeaderSecondaryLine,
   threadIdentityFromInboxRow,
   threadIdentityFromWire,
   type ConversationDTO,
   type MessageDTO,
   type ThreadIdentity,
+  unreadForViewer,
 } from "@/lib/messages";
 import { subscribeToMessages } from "@/lib/messagesRealtime";
 import {
@@ -306,6 +311,11 @@ function outboxMessage(
   };
 }
 
+/** The thread route marks what was waiting as read in the same read it answers. */
+function announceIfWaitingRead(messages: readonly MessageDTO[], viewer: string): void {
+  if (unreadForViewer(messages, viewer) > 0) announceMessagesRead();
+}
+
 export default function MessageThread({
   conversationId,
 }: {
@@ -327,6 +337,9 @@ export default function MessageThread({
   const [cropping, setCropping] = useState<File | null>(null);
   const [picking, setPicking] = useState<OpenPicker>(null);
   const [identity, setIdentity] = useState<ThreadIdentity | null>(null);
+  // The other person's own face and name. A group is not a person, so it asks
+  // for nobody; a direct thread falls back to the handle until the card lands.
+  const card = usePublicProfileCard(threadCardHandle(identity, otherHandle));
   const [mobileAttachOpen, setMobileAttachOpen] = useState(false);
   const [revealedId, setRevealedId] = useState<string | null>(null);
   const listRef = useRef<HTMLUListElement | null>(null);
@@ -492,6 +505,9 @@ export default function MessageThread({
         if (!stillCurrent()) return;
         land();
         const next = Array.isArray(body.messages) ? body.messages : [];
+        // The thread route marks what was waiting as read in this same read, so
+        // the nav's unread badge is told now instead of at its next poll.
+        announceIfWaitingRead(next, h);
         loadedForRef.current = requestKey;
         setViewRevision(requestKey);
         setMessages(next);
@@ -966,7 +982,8 @@ export default function MessageThread({
   // ONE naming rule for every kind (`threadHeaderPrimaryLine`), the same one
   // the inbox row reads through `conversationRowName`: a direct thread is the
   // other person, a group is its title or its people. Null is the neutral word.
-  const threadName = threadHeaderPrimaryLine(identity, otherHandle, handle);
+  const threadName = threadHeaderPrimaryLine(identity, otherHandle, handle, card?.displayName);
+  const threadHandle = threadHeaderSecondaryLine(identity, otherHandle, card?.displayName);
 
   /** Whichever picker is open, in the composer dock. One at a time, by design. */
   function renderPicker(): React.JSX.Element | null {
@@ -1037,8 +1054,16 @@ export default function MessageThread({
     if (threadName) {
       return (
         <Link href={`/u/${encodeURIComponent(otherHandle)}`} className="threadWith">
-          <MessageAvatar handle={otherHandle} size={36} />
-          <span className="threadWithHandle">{threadName}</span>
+          <MessageAvatar
+            handle={otherHandle}
+            avatarUrl={card?.avatarUrl}
+            label={card?.displayName}
+            size={36}
+          />
+          <span className="threadWithNames">
+            <span className="threadWithHandle">{threadName}</span>
+            {threadHandle ? <span className="threadWithSub">{threadHandle}</span> : null}
+          </span>
         </Link>
       );
     }
@@ -1077,7 +1102,14 @@ export default function MessageThread({
         <ul className="threadMessages" ref={listRef}>
           {timeline.length === 0 ? (
             <li className="threadEmpty" aria-live="polite">
-              {otherHandle ? <MessageAvatar handle={otherHandle} size={72} /> : null}
+              {otherHandle ? (
+                <MessageAvatar
+                  handle={otherHandle}
+                  avatarUrl={card?.avatarUrl}
+                  label={card?.displayName}
+                  size={72}
+                />
+              ) : null}
               <p className="threadEmptyTitle">
                 {threadName ?? "Nothing here yet."}
               </p>

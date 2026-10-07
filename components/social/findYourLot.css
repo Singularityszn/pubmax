@@ -100,6 +100,11 @@
   overflow-wrap: anywhere;
 }
 
+.findLot__hint {
+  font-size: var(--text-xs);
+  color: var(--muted, var(--ink-soft));
+}
+
 /* This control is a <button> for a signed-in drinker and a <Link> for everyone
    else, so the box has to hold both: an anchor keeps its underline and sits at
    the top-left of a 44px tall box, which read as a second text field under the

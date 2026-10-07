@@ -14,6 +14,8 @@ import {
 import { LogIn } from "lucide-react";
 
 import AccountDeviceControls from "@/components/auth/AccountDeviceControls";
+import type { PublicProfileCard } from "@/components/auth/publicProfileCard";
+import { usePublicProfileCard } from "@/components/auth/usePublicProfileCard";
 import { useAuth, type SignOutScope } from "@/components/auth/AuthProvider";
 import { hasSocialAuthProviders } from "@/lib/authProviderAvailability";
 import { useDeviceAccounts } from "@/components/auth/useDeviceAccounts";
@@ -43,6 +45,7 @@ import {
   loginPageHeadCopy,
 } from "@/lib/loginPageFraming";
 import { authAvatarInitials } from "@/lib/authAvatarInitials";
+import { displayHandle } from "@/lib/handleDisplay";
 
 import "@/app/auth/auth.css";
 import "./loginPage.css";
@@ -87,14 +90,26 @@ const DOORS: Record<
   },
 };
 
-function displayName(user: {
-  email?: string | null;
-  user_metadata?: Record<string, unknown> | null;
-}): string {
+/**
+ * What the signed-in card calls this person: the name on their public profile,
+ * then the one their identity provider gave, then the handle they claimed. The
+ * email is a last resort and never the card's name; it is printed once, under
+ * the name, as account plumbing.
+ */
+function displayName(
+  user: {
+    email?: string | null;
+    user_metadata?: Record<string, unknown> | null;
+  },
+  card: PublicProfileCard | null,
+  handle: string | null,
+): string {
   const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
   return (
+    card?.displayName ||
     (typeof meta.full_name === "string" && meta.full_name) ||
     (typeof meta.name === "string" && meta.name) ||
+    (handle ? displayHandle(handle) : "") ||
     user.email ||
     "Signed in"
   );
@@ -140,7 +155,12 @@ function SignedInCard({
   onSwitchAccount: (userId: string) => Promise<DeviceAccountSwitchOutcome>;
   addAccountHref: Route;
 }): React.JSX.Element {
-  const avatar = avatarUrl(user);
+  const card = usePublicProfileCard(handle);
+  const avatar = card?.avatarUrl || avatarUrl(user);
+  const name = displayName(user, card, handle);
+  // The handle is how people find them, so it sits under a name that is not it.
+  const handleLine = handle && name !== displayHandle(handle) ? displayHandle(handle) : null;
+  const emailLine = user.email && name !== user.email ? user.email : null;
   return (
     <section className="loginPageSignedIn" aria-label="Signed-in account">
       <div className="loginPageIdentity">
@@ -155,12 +175,13 @@ function SignedInCard({
           />
         ) : (
           <span className="authAvatarFallback loginPageAvatar" aria-hidden="true">
-            {authAvatarInitials(displayName(user))}
+            {authAvatarInitials(name)}
           </span>
         )}
         <div className="loginPageIdentityText">
-          <p className="loginPageWho">{displayName(user)}</p>
-          {user.email ? <p className="loginPageEmail">{user.email}</p> : null}
+          <p className="loginPageWho">{name}</p>
+          {handleLine ? <p className="loginPageHandle">{handleLine}</p> : null}
+          {emailLine ? <p className="loginPageEmail">{emailLine}</p> : null}
         </div>
       </div>
       {/* The map and the profile are the head's primary and secondary; the

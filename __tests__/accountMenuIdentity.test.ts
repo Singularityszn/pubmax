@@ -65,7 +65,13 @@ describe("account card", () => {
 
     const fallback = menuMarkup();
     expect(fallback).not.toContain("<img");
-    expect(fallback).toContain(">N</span>");
+    expect(fallback).toContain(">NO</span>");
+  });
+
+  it("wears the same initials as the nav chip, from the name", () => {
+    // The chip and the card sit on one screen, so one person wears one face.
+    expect(menuMarkup({ name: "Alice Smith", handle: "qa_alice" })).toContain(">AS</span>");
+    expect(menuMarkup({ name: "qa_finn", handle: "qa_finn" })).toContain(">Q</span>");
   });
 
   it("offers the three places a person goes, plus the way out", () => {
@@ -120,23 +126,19 @@ describe("nav account control", () => {
     expect(html).not.toContain("Your profile");
   });
 
-  it("asks for the owned avatar only once someone opens the menu", async () => {
-    // SiteNav renders on every page. None of them owe a profile request for a
-    // card nobody looked at.
-    //
-    // The held card is keyed on its HANDLE rather than on "have we asked yet",
-    // because an account switch replaces the account under an open menu: keyed
-    // on the flag alone, the previous account's face and display name stayed
-    // above the new account's @handle.
-    const { readFileSync } = await import("node:fs");
-    const { join } = await import("node:path");
-    const source = readFileSync(
-      join(process.cwd(), "components/auth/SignInButton.tsx"),
-      "utf8",
-    );
-    expect(source).toContain(
-      "if (!menuOpen || card?.handle === accountHandle || !accountHandle) return;",
-    );
-    expect(source).toContain("card?.handle === accountHandle ? card : null");
+  it("names the chip from the person, and never from the first letter of their login", () => {
+    authState.current = {
+      ...session,
+      user: { email: "alice@example.test", user_metadata: {} },
+      handle: "qa_alice",
+    };
+    const html = renderToStaticMarkup(createElement(SignInButton, { compact: true }));
+
+    // No profile card has landed yet: the claimed handle stands in, so the chip
+    // reads Q for qa_alice and the label is the handle, never the email.
+    expect(html).toContain("Account options for @qa_alice");
+    expect(html).toContain(">Q</span>");
+    expect(html).not.toContain(">A</span>");
+    expect(html).not.toContain("alice@example.test");
   });
 });
