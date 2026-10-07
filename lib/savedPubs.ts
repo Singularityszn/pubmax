@@ -394,31 +394,10 @@ export async function fetchFollowedListsForHandle(
 }
 
 /**
- * Whether the saves route's answer to a press PROVES the press took. The route
- * answers a failed write at 200 with the list as it was, or with an empty list
- * when it cannot read, so an add is proven only by an answer that holds the pub
- * on that list, and a removal only by a non-empty answer that lacks it.
- */
-export function pressProven(
-  durable: readonly SavedPubDTO[],
-  venueId: string,
-  listType: ListType,
-  expectHeld: boolean,
-): boolean {
-  const held = durable.some((row) => row.venueId === venueId && row.listType === listType);
-  return expectHeld ? held : !held && durable.length > 0;
-}
-
-/**
  * Durable toggle: POST to the API when a handle exists, mirroring the change into
  * localStorage so a later signed-out read still reflects it, and returning the
  * fresh DTO list. With no handle (or on any failure) it toggles the local store
  * only and returns null — the caller then reads the local view. Never throws.
- *
- * `expectHeld` is whether the caller KNOWS the press should leave the save in
- * place, from the server's own state before it. Only an answer that proves the
- * press (pressProven) brings this device's entry for the pub and list into line
- * with it. Any other answer leaves the local store as the toggle left it.
  */
 export async function toggleSaveDurable(
   handle: string,
@@ -426,7 +405,6 @@ export async function toggleSaveDurable(
   listType: ListType,
   note?: string,
   venueKind?: VenueKind,
-  expectHeld?: boolean,
 ): Promise<SavedPubDTO[] | null> {
   const cleanedListType = cleanListType(listType);
   if (
@@ -449,24 +427,7 @@ export async function toggleSaveDurable(
       discardBody(res);
       return null;
     }
-    const durable = parseDTOs(await res.json());
-    if (expectHeld !== undefined && pressProven(durable, venueId, cleanedListType, expectHeld)) {
-      const held = durable.find(
-        (row) => row.venueId === venueId && row.listType === cleanedListType,
-      );
-      const local = getSaved();
-      write(
-        held
-          ? upsertSaved(local, {
-              venueId,
-              listType: cleanedListType,
-              ...(held.note ? { note: held.note } : {}),
-              savedAt: held.savedAt,
-            })
-          : removeSaved(local, venueId, cleanedListType),
-      );
-    }
-    return durable;
+    return parseDTOs(await res.json());
   } catch {
     return null;
   }

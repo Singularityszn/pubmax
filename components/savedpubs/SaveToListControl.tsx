@@ -8,7 +8,6 @@ import {
   cleanListType,
   fetchSavedForHandle,
   getSaved,
-  pressProven,
   toggleSaveDurable,
   type SavedPubDTO,
 } from "@/lib/savedPubs";
@@ -51,9 +50,10 @@ function listsHolding(venueId: string, durable: readonly SavedPubDTO[] | null): 
 
 /** The lists holding this pub after a press of `listType` that asked for
  * `wanted`, or null when the press cannot be confirmed. A signed-out press has
- * only this device's store to answer it. A signed-in press is confirmed only by
- * a server answer that proves it, and then it moves this one chip, never the
- * others. */
+ * only this device's store to answer it. A signed-in press is judged against
+ * the server's own state before it, so it is confirmed only by a server answer
+ * that moved that way (the route answers a failed write with the list as it
+ * was), and then it moves this one chip, never the others. */
 function afterPress(
   signedIn: boolean,
   savedIn: readonly string[],
@@ -63,7 +63,9 @@ function afterPress(
   durable: readonly SavedPubDTO[] | null,
 ): string[] | null {
   if (!signedIn) return listsHolding(venueId, null);
-  if (!durable || !pressProven(durable, venueId, listType, wanted)) return null;
+  if (!durable) return null;
+  const held = durable.some((row) => row.venueId === venueId && row.listType === listType);
+  if (held !== wanted) return null;
   const others = savedIn.filter((name) => name !== listType);
   return wanted ? [...others, listType] : others;
 }
@@ -188,14 +190,7 @@ export default function SaveToListControl({
       setBusy(true);
       try {
         const wanted = !savedIn.includes(listType);
-        const durable = await toggleSaveDurable(
-          handle,
-          venueId,
-          listType,
-          undefined,
-          venueKind,
-          wanted,
-        );
+        const durable = await toggleSaveDurable(handle, venueId, listType, undefined, venueKind);
         // The second press removes the save, so the toast says which happened.
         announce(
           venueId,
@@ -247,7 +242,7 @@ export default function SaveToListControl({
             venueId,
             name,
             true,
-            await toggleSaveDurable(handle, venueId, name, undefined, venueKind, true),
+            await toggleSaveDurable(handle, venueId, name, undefined, venueKind),
           );
       setNewName("");
       announce(venueId, name, held);

@@ -346,63 +346,6 @@ describe("SaveToListControl as the inspector moves between pubs", () => {
     expect(chip("Date Night").getAttribute("aria-pressed")).toBe("true");
   });
 
-  it("brings this device's store into line with the server after a toggle that disagreed", async () => {
-    // The server already holds Date Night for this pub and this device does not.
-    // The device store toggles first (adds it), the server toggle removes it, and
-    // the device must end up without it, or a signed-out read shows a removed save.
-    // The answer still holds another save, so it is a real read, not an empty one.
-    window.localStorage.setItem("pubmax_handle", "mia");
-    authedFetch.mockImplementation(async (input: string, init?: { method?: string }) => {
-      if (input.includes("lists=1")) return new Response(JSON.stringify({ lists: [] }), { status: 200 });
-      if (init?.method === "POST") {
-        return new Response(
-          JSON.stringify({
-            saved: [
-              {
-                venueId: "venue-2",
-                venueName: "The Swan",
-                venueMapUrl: "/map?sel=venue-2",
-                listType: "Date Night",
-                savedAt: "2026-10-06T10:00:00.000Z",
-              },
-            ],
-          }),
-          { status: 200 },
-        );
-      }
-      return new Response(
-        JSON.stringify({
-          saved: [
-            {
-              venueId: "venue-1",
-              venueName: "The Lamb",
-              venueMapUrl: "/map?sel=venue-1",
-              listType: "Date Night",
-              savedAt: "2026-10-06T10:00:00.000Z",
-            },
-          ],
-        }),
-        { status: 200 },
-      );
-    });
-    await open();
-    await act(async () => {
-      await new Promise<void>((resolve) => setTimeout(resolve, 0));
-    });
-    await act(async () => {
-      chip("Date Night").click();
-    });
-
-    expect(container.querySelector(".saveToListToast")?.textContent).toBe(
-      "Removed from “Date Night”",
-    );
-    const stored = JSON.parse(window.localStorage.getItem("pubmax:savedPubs:v1") ?? "[]") as {
-      venueId: string;
-      listType: string;
-    }[];
-    expect(stored.some((row) => row.venueId === "venue-1" && row.listType === "Date Night")).toBe(false);
-  });
-
   it("does not call a failed save a removal, and keeps this device's save, when the server answers the list unchanged", async () => {
     // The saves route answers a failed write with 200 and the list as it was.
     window.localStorage.setItem("pubmax_handle", "mia");
@@ -464,13 +407,6 @@ describe("SaveToListControl as the inspector moves between pubs", () => {
     listType,
     savedAt: "2026-10-06T10:00:00.000Z",
   });
-  const storedPairs = () =>
-    (
-      JSON.parse(window.localStorage.getItem("pubmax:savedPubs:v1") ?? "[]") as {
-        venueId: string;
-        listType: string;
-      }[]
-    ).map((row) => `${row.venueId}/${row.listType}`);
   async function openSignedIn(
     serverHolds: string[],
     answerPost: () => Response,
@@ -487,39 +423,17 @@ describe("SaveToListControl as the inspector moves between pubs", () => {
     });
   }
 
-  it("brings this device's store into line when the server's answer proves an add", async () => {
-    // This device holds Date Night and the server does not, so the device toggle
-    // removes it while the server adds it.
-    window.localStorage.setItem(
-      "pubmax:savedPubs:v1",
-      JSON.stringify([{ venueId: "venue-1", listType: "Date Night", savedAt: "2026-10-06T10:00:00.000Z" }]),
-    );
-    await openSignedIn([], () =>
-      new Response(JSON.stringify({ saved: [lambRow("Date Night")] }), { status: 200 }),
-    );
-    expect(chip("Date Night").getAttribute("aria-pressed")).toBe("false");
-    await act(async () => {
-      chip("Date Night").click();
-    });
-
-    expect(container.querySelector(".saveToListToast")?.textContent).toBe("Saved to “Date Night”");
-    expect(chip("Date Night").getAttribute("aria-pressed")).toBe("true");
-    expect(storedPairs()).toEqual(["venue-1/Date Night"]);
-  });
-
-  it("never takes an empty answer as proof of a removal", async () => {
-    // The route answers an unreadable store with an empty list at 200.
+  it("lets a person unsave their only save, though the server then answers an empty list", async () => {
     await openSignedIn(["Date Night"], () => new Response(JSON.stringify({ saved: [] }), { status: 200 }));
+    expect(chip("Date Night").getAttribute("aria-pressed")).toBe("true");
     await act(async () => {
       chip("Date Night").click();
     });
 
     expect(container.querySelector(".saveToListToast")?.textContent).toBe(
-      "Could not confirm that just now.",
+      "Removed from “Date Night”",
     );
-    expect(chip("Date Night").getAttribute("aria-pressed")).toBe("true");
-    // Not brought into line: the device store keeps what its own toggle did.
-    expect(storedPairs()).toEqual(["venue-1/Date Night"]);
+    expect(chip("Date Night").getAttribute("aria-pressed")).toBe("false");
   });
 
   it("does not label a refused press from this device's store", async () => {
