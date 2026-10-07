@@ -136,7 +136,14 @@ describe("the privacy manifest agrees with the answers we publish", () => {
   it("is copied into the bundle, not just present in the tree", () => {
     const project = pbxprojRoot(PROJECT);
     const objects = project.objects as PbxDict;
-    const object = (id: PbxValue) => objects[id as string] as PbxDict;
+    const object = (id: PbxValue | undefined): PbxDict => {
+      if (typeof id !== "string") throw new Error("Expected a PBX object reference");
+      const referenced = objects[id];
+      if (typeof referenced !== "object" || Array.isArray(referenced)) {
+        throw new Error(`Expected a PBX object for ${id}`);
+      }
+      return referenced;
+    };
     const targets = object(project.rootObject).targets as PbxValue[];
     const app = targets.map(object).find(
       (target) => target.isa === "PBXNativeTarget" && target.name === "App",
