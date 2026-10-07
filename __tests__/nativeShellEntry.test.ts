@@ -105,7 +105,8 @@ describe("the native shell's pre-render entry decision", () => {
     const { replaced, session, local } = runEntryInit({ pathname: "/app-entry" });
     expect(replaced).toEqual([ONBOARDING_PATH]);
     expect(session.getItem(NATIVE_FIRST_RUN_HANDOFF_KEY)).toMatch(/^\d+$/);
-    expect(local.getItem(NATIVE_FIRST_RUN_ROUTED_KEY)).toBe("1");
+    expect(local.getItem(NATIVE_FIRST_RUN_ROUTED_KEY)).toBeNull();
+    expect(local.getItem(NATIVE_FIRST_RUN_STEP_KEY)).toBe("london");
   });
 
   it("opens Tonight on a returning app-entry boot even if the session stamp survives", () => {
