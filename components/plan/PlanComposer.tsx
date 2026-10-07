@@ -550,7 +550,7 @@ export function nightAreaSelectorGroups(now = new Date()): NightAreaSelectorGrou
 }
 
 export function nightAreaOptionLabel(area: NightArea, disabled: boolean): string {
-  return disabled || !isNightAreaRouteReady(area) ? `${area.name} - not crawl-ready yet` : area.name;
+  return disabled || !isNightAreaRouteReady(area) ? `${area.name}, not crawl-ready yet` : area.name;
 }
 
 export function nightAreaMapHref(area: NightArea): import("next").Route {
@@ -560,9 +560,9 @@ export function nightAreaMapHref(area: NightArea): import("next").Route {
 export const PLAN_INTAKE_CONFLICT_SERVER =
   "Plan intake skipped steps conflict with supplied answers.";
 export const PLAN_INTAKE_CONFLICT_READER =
-  "The earlier route is still here - start again or keep it";
+  "The earlier route is still here. Start again or keep it.";
 export const PLAN_INTAKE_CONFLICT_NO_ROUTE =
-  "That answer clashed with an earlier step - start again from the first question";
+  "That answer clashed with an earlier step. Start again from the first question.";
 export function releasedAcceptanceStatus(input: {
   venueName: string | null;
   routeStale: boolean;
@@ -891,7 +891,7 @@ export function nightAreaCoverageSummary(
   if (isNightAreaRouteReady(area, now)) {
     return {
       label: "Route-ready",
-      detail: "Crawls can be planned here now.",
+      detail: "You can plan a crawl here now.",
       tone: "ready",
     };
   }
@@ -968,9 +968,9 @@ function conciergeStatusText(
   unsupportedPatch: NightPatch | null,
   note: string,
 ): string {
-  if (sorting) return "Planning your outing, checking confidence and picking stops we can back up.";
+  if (sorting) return "Planning your outing and picking stops we can back up.";
   if (unsupportedPatch) {
-    return `${unsupportedPatch.label} is saved. Exact Plan generation is not available for this patch yet. Pick another area to build the route now.`;
+    return `${unsupportedPatch.label} is saved. We can't build an exact route for this patch yet. Pick another area to build the route now.`;
   }
   return note;
 }
@@ -1817,7 +1817,7 @@ function PlanComposerForm({
     );
     setSorting(true);
     setError("");
-    setRouteStatus("Refreshing the route, rechecking every stop against your updated night.");
+    setRouteStatus("Refreshing the route and rechecking every stop for your updated night.");
     let responseStatus: number | null = null;
     try {
       const response = await fetch("/api/plans/generate", {
@@ -1891,7 +1891,7 @@ function PlanComposerForm({
         trackEvent("night_description_submitted", { area: body.inferredContext.nightArea ?? "", daypart: body.inferredContext.daypart });
       }
     } catch (caught) {
-      const message = caught instanceof Error ? caught.message : "The concierge could not sort this one.";
+      const message = caught instanceof Error ? caught.message : "PUBMAXX could not sort this one.";
       // planGenerationFailureStatus is the ONE owner of this sentence, so the
       // error notice cannot tell a reader with no route on screen that "the
       // earlier route is still here".
@@ -2155,7 +2155,7 @@ function PlanComposerForm({
       <section className="planComposer__templates" aria-labelledby="plan-templates-title">
         <h2 id="plan-templates-title">Need a starting point?</h2>
         <p className="planComposer__templatesLead">
-          Optional occasion prompts fill the description. Still editable.
+          Pick a prompt to fill in the description. You can still edit it.
         </p>
         {usualLot ? (
           <div className="planComposer__usualLot" data-testid="plan-usual-lot">

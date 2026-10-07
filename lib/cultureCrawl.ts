@@ -110,10 +110,10 @@ export const CULTURE_CRAWL_CHIPS: ReadonlyArray<{
   query: string;
 }> = [
   { id: "gallery-pint", label: "Gallery then a pint", query: "gallery then a pint in Soho for 2" },
-  { id: "market-kebab", label: "Market wander + kebab", query: "market wander then a kebab in Camden for 3" },
+  { id: "market-kebab", label: "Market wander then a kebab", query: "market wander then a kebab in Camden for 3" },
   {
     id: "river-historic",
-    label: "River walk + historic pub",
+    label: "River walk then a historic pub",
     query: "riverside then a historic pub in Bermondsey for 2",
   },
   { id: "sights-quiet", label: "Sights then a quiet one", query: "sights then a quiet one in Victoria for 2" },
@@ -124,7 +124,7 @@ export const CULTURE_CRAWL_MISSION = "Out of the house. Something to see first, 
 
 /** Said when a lane has nothing near the route. Scarcity, not a dead end. */
 export const CULTURE_WAYPOINT_NONE_NOTE =
-  "Nothing near this route we can point you to yet. The pubs below still stand.";
+  "Nothing near this route we can point you to yet. You can still walk the pubs below.";
 
 /**
  * Said beside every waypoint we DO find. The POI layer holds a name, a category

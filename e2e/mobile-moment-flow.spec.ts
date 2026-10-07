@@ -31,7 +31,7 @@ test.describe("mobile Moment journey", () => {
     expect(navBox).not.toBeNull();
     expect((captureBox?.y ?? 0) + (captureBox?.height ?? 0)).toBeLessThan(navBox?.y ?? Number.POSITIVE_INFINITY);
 
-    const caption = page.getByPlaceholder("One line you will still remember next year.");
+    const caption = page.getByPlaceholder("One line you'll still remember next year.");
     await caption.fill("We followed the music and found the tiny room upstairs.");
     await expect(page.getByText("Your draft stays on this device until you save it.")).toBeVisible();
     await page.waitForTimeout(450);

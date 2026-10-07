@@ -130,7 +130,7 @@ test("the editor opens on the stored route, a save clears the draft, and a secon
   expect(await pendingDraft(page, planId)).not.toBeNull();
 
   await page.getByRole("button", { name: "Save route changes" }).click();
-  await expect(statusLine(page)).toHaveText("Route saved. The new order is now canonical.");
+  await expect(statusLine(page)).toHaveText("Route saved. The new order is the plan's route now.");
   await expect(alertLine(page)).toHaveCount(0);
   expect(await pendingDraft(page, planId)).toBeNull();
   expect((await storedStops(api, planId)).names).toEqual([ARNOS.venueName, BOHEMIA.venueName, GEORGE.venueName]);
@@ -151,7 +151,7 @@ test("the editor opens on the stored route, a save clears the draft, and a secon
   await page.getByRole("button", { name: `Swap stop 2, currently ${BOHEMIA.venueName}` }).click();
   await expect(editorStops(page)).toHaveText([ARNOS.venueName, ELEPHANT.venueName, GEORGE.venueName]);
   await page.getByRole("button", { name: "Save route changes" }).click();
-  await expect(statusLine(page)).toHaveText("Route saved. The new order is now canonical.");
+  await expect(statusLine(page)).toHaveText("Route saved. The new order is the plan's route now.");
 
   // George, saved a moment ago, survives the second save.
   const final = await storedStops(api, planId);
@@ -261,7 +261,7 @@ test("a triple-clicked Save sends one PATCH and leaves one line on screen", asyn
     control.click();
     control.click();
   });
-  await expect(statusLine(page)).toHaveText("Route saved. The new order is now canonical.");
+  await expect(statusLine(page)).toHaveText("Route saved. The new order is the plan's route now.");
   await expect(alertLine(page)).toHaveCount(0);
   await expect(editorLines(page)).toHaveCount(1);
   expect(patches).toHaveLength(1);

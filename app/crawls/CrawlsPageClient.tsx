@@ -185,7 +185,7 @@ function CrawlsPageInner() {
           kicker="Crawls"
           title="Pub stories mapped into walks."
           titleId="crawlsHeading"
-          lede="A Crawl Story is a shareable poster of a London pub crawl, the stops, the prices, the vibe. Here are a few listed routes worth the walk. Pick one, or start your own on the map."
+          lede="A Crawl Story is a poster of a London pub crawl that you can share, with its stops, prices and vibe. Here are a few listed routes worth the walk. Pick one, or start your own on the map."
           primary={
             <Link
               prefetch={false}

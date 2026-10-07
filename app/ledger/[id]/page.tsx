@@ -352,7 +352,7 @@ export default async function LedgerPage({ params, searchParams }: PageProps) {
       </header>
 
       <p className="ledgerLaneNote">
-        Public notes appear in the logbook; Legacy notes are kept for the Family Table below.
+        Public notes go in the logbook. Legacy notes stay at the Family Table below.
       </p>
 
       {claims.length > 0 ? (

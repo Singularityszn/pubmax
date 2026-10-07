@@ -193,7 +193,7 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
         <span>{shared ? "Shared with this plan" : "Not shared yet"}</span>
       </div>
       <p className="matchGroupPrefs__intro">
-        Pick a budget, a vibe and optional needs. Saved picks are shared with everyone on this plan.
+        Pick a budget, a vibe and optional needs. Everyone on this plan sees the picks you save.
       </p>
 
       <div className="matchGroupPrefs__field">
@@ -240,7 +240,7 @@ export default function MatchGroupPrefs({ planId, memberId, memberToken, isHost 
           disabled={pending}
           onClick={() => void save({ zeroProof: !zeroProof })}
         >
-          Zero-proof needed
+          Alcohol-free needed
         </button>
         <button
           type="button"
