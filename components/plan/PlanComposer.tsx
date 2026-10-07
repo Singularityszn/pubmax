@@ -608,12 +608,16 @@ export function parsePlanRouteDraft(raw: string | null): StoredRouteDraft | null
     const value = JSON.parse(raw) as Partial<StoredRouteDraft>;
     const stops = routeStopsFromGenerated(value.stops);
     if (!stops.length) return null;
+    const nightContext = cleanNightContext(value.nightContext) ?? null;
+    const routeStale = value.routeStale === true;
     return {
       stops,
-      nightContext: cleanNightContext(value.nightContext) ?? null,
-      routeNight: routeNightOf(cleanNightContextPatch(value.routeNight)),
+      nightContext,
+      routeNight: value.routeNight === undefined && !routeStale
+        ? routeNightOf(nightContext)
+        : routeNightOf(cleanNightContextPatch(value.routeNight)),
       routeRevision: cleanRouteRevision(value.routeRevision),
-      routeStale: value.routeStale === true,
+      routeStale,
       groundingProof: typeof value.groundingProof === "string" && value.groundingProof.length <= 8_000
         ? value.groundingProof
         : null,

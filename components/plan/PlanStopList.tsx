@@ -63,8 +63,8 @@ function finderOptions(venues: readonly PlanVenueOption[]): FinderOption[] {
 
 /**
  * The pub finder an added stop shows until a pub is chosen. Typing only types:
- * a pub is chosen from the list, or by Enter or leaving the field on a name
- * that is one pub's alone, so a name that begins a longer one can be typed past.
+ * a pub is chosen from the list, or by Enter on a name that is one pub's alone,
+ * so a name that begins a longer one can be typed past.
  */
 function StopFinder({
   label,
@@ -99,7 +99,6 @@ function StopFinder({
         event.preventDefault();
         choose(text);
       }}
-      onBlur={() => choose(text)}
     />
   );
 }

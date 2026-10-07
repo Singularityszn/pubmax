@@ -10,6 +10,7 @@ import {
   swapDraftStop,
   type DraftStop,
 } from "@/components/plan/PlanComposer";
+import { inferNightContext } from "@/lib/nightPlanning";
 
 const wire = (venueId: string, walk: number | null, pence: number | null, withSource = true) => ({
   venueId,
@@ -37,6 +38,15 @@ describe("the generator's timing and price ride on the stop", () => {
     // C still remembers it was timed from B, so it will not print a walk after nothing.
     expect(draft?.stops[0]).not.toHaveProperty("walkingMinutesFromPrevious");
     expect(draft?.stops[2]).toMatchObject({ walkFromVenueId: "a", walkingMinutesFromPrevious: 4 });
+  });
+
+  it("reads the route's night from a draft saved before the route kept its own", () => {
+    const nightContext = inferNightContext("Quiet in Clapham for 4").context;
+    const legacy = (routeStale: boolean) => parsePlanRouteDraft(JSON.stringify({ stops: stops(), nightContext, routeRevision: null, routeStale }));
+    expect(legacy(false)?.routeNight).toEqual({ nightArea: "clapham", daypart: nightContext.daypart });
+    expect(legacy(true)?.routeNight).toBeNull();
+    const kept = parsePlanRouteDraft(JSON.stringify({ stops: stops(), nightContext, routeNight: { nightArea: "victoria" }, routeRevision: null, routeStale: false }));
+    expect(kept?.routeNight).toEqual({ nightArea: "victoria" });
   });
 
   it("refuses a walk or a price that is not a real number", () => {

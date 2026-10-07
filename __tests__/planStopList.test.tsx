@@ -171,6 +171,25 @@ describe("PlanStopList", () => {
     expect(props.onPick).toHaveBeenLastCalledWith(4, venues[0]);
   });
 
+  it("lets a half-filled finder row be removed without choosing the typed pub", async () => {
+    const venues = [{ id: "anchor", name: "Anchor" }];
+    const empty: DraftStop = { key: 4, venueId: "", venueName: "", alternatives: [] };
+    const props = await mount({ stops: [generated, empty], venues });
+    const finder = host!.querySelector<HTMLInputElement>(".planStop__find")!;
+    finder.focus();
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(finder, "Anchor");
+      finder.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText" }));
+    });
+    const drop = host!.querySelector<HTMLButtonElement>(".planStop__drop")!;
+    await act(async () => {
+      drop.focus();
+      drop.click();
+    });
+    expect(props.onPick).not.toHaveBeenCalled();
+    expect(props.onRemove).toHaveBeenCalledWith(4);
+  });
+
   it("keeps keyboard focus on a moved stop, and on the neighbour of a removed one", async () => {
     function Harness() {
       const [stops, setStops] = useState<DraftStop[]>([generated, picked, third]);
