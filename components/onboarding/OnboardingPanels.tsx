@@ -5,7 +5,7 @@
 // one painted primary, the shape docs/design/LAUNCH_SCREENS.md asks of a
 // screen. State lives in FirstRunOnboarding; these only paint and report taps.
 
-import { ArrowLeft, ArrowRight, Check, LocateFixed, ShieldCheck } from "lucide-react";
+import { Check, ShieldCheck } from "lucide-react";
 
 import { NEAR_PRICE_TRUST_CAPTION } from "@/lib/nearPriceTrust";
 import {
@@ -28,24 +28,12 @@ function PrivacyLine({ children }: { children: string }) {
   );
 }
 
-function BackButton({ onBack }: { onBack: () => void }) {
-  return (
-    <button type="button" className="firstRunBack pressable" onClick={onBack}>
-      <ArrowLeft size={18} aria-hidden="true" /> Back
-    </button>
-  );
-}
-
 export function BudgetPanel({
   budget,
   onChoose,
-  onBack,
-  onContinue,
 }: {
   budget: BudgetChoiceId | null;
   onChoose: (id: BudgetChoiceId) => void;
-  onBack: () => void;
-  onContinue: () => void;
 }) {
   return (
     <>
@@ -72,18 +60,6 @@ export function BudgetPanel({
       </div>
 
       <PrivacyLine>{BUDGET_QUESTION.privacy}</PrivacyLine>
-
-      <div className="firstRunActions">
-        <BackButton onBack={onBack} />
-        <button
-          type="button"
-          className="firstRunPrimary pressable"
-          disabled={!budget}
-          onClick={onContinue}
-        >
-          Continue <ArrowRight size={18} aria-hidden="true" />
-        </button>
-      </div>
     </>
   );
 }
@@ -99,19 +75,14 @@ const LOCATE_NOTE: Record<Exclude<LocateState, "idle" | "requesting">, string> =
 export function LocationPanel({
   state,
   showPatches,
-  onLocate,
   onShowPatches,
   onPickPatch,
-  onBack,
 }: {
   state: LocateState;
   showPatches: boolean;
-  onLocate: () => void;
   onShowPatches: () => void;
   onPickPatch: (id: string) => void;
-  onBack: () => void;
 }) {
-  const requesting = state === "requesting";
   return (
     <>
       <p className="firstRunEyebrow">Near you</p>
@@ -125,18 +96,6 @@ export function LocationPanel({
         </p>
       ) : null}
 
-      <div className="firstRunActions">
-        <BackButton onBack={onBack} />
-        <button
-          type="button"
-          className="firstRunPrimary pressable"
-          disabled={requesting}
-          onClick={onLocate}
-        >
-          <LocateFixed size={18} aria-hidden="true" />
-          {requesting ? "Finding your location…" : "Use my location"}
-        </button>
-      </div>
       {showPatches ? (
         <div className="firstRunPatchPicker">
           <p className="firstRunPatchLabel" id="firstRunPatchLabel">
@@ -187,8 +146,6 @@ export function ResultPanel({
   result,
   areaLabel,
   budgetLabel,
-  onConfirm,
-  onRetry,
   onChangeBudget,
   onChangeArea,
 }: {
@@ -197,8 +154,6 @@ export function ResultPanel({
   /** "near you" for a located read, or the patch the reader picked. */
   areaLabel: string;
   budgetLabel: string | null;
-  onConfirm: () => void;
-  onRetry: () => void;
   onChangeBudget: () => void;
   onChangeArea: () => void;
 }) {
@@ -219,11 +174,6 @@ export function ResultPanel({
         <p className="firstRunEyebrow">Your answer</p>
         <h1 className="firstRunQuestion">We couldn&rsquo;t load prices just now.</h1>
         <p className="firstRunLead">Check your connection and try again.</p>
-        <div className="firstRunActions firstRunActionsSingle">
-          <button type="button" className="firstRunPrimary pressable" onClick={onRetry}>
-            Try again <ArrowRight size={18} aria-hidden="true" />
-          </button>
-        </div>
         <div className="firstRunQuietRow">
           <button type="button" className="firstRunQuiet pressable" onClick={onChangeArea}>
             Change area
@@ -240,11 +190,6 @@ export function ResultPanel({
         <p className="firstRunEyebrow">Your answer</p>
         <h1 className="firstRunQuestion">No listed prices {areaLabel} yet.</h1>
         <p className="firstRunLead">Pick another London patch and we&rsquo;ll look there.</p>
-        <div className="firstRunActions firstRunActionsSingle">
-          <button type="button" className="firstRunPrimary pressable" onClick={onChangeArea}>
-            Pick a patch <ArrowRight size={18} aria-hidden="true" />
-          </button>
-        </div>
       </>
     );
   }
@@ -277,11 +222,6 @@ export function ResultPanel({
       ) : null}
       <p className="firstRunPermissionNote firstRunTrustNote">{NEAR_PRICE_TRUST_CAPTION}</p>
 
-      <div className="firstRunActions firstRunActionsSingle">
-        <button type="button" className="firstRunPrimary pressable" onClick={onConfirm}>
-          That looks right <ArrowRight size={18} aria-hidden="true" />
-        </button>
-      </div>
       <div className="firstRunQuietRow">
         <button type="button" className="firstRunQuiet pressable" onClick={onChangeBudget}>
           Change budget

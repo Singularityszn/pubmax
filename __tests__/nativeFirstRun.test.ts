@@ -74,6 +74,13 @@ describe("shouldRouteNativeFirstRun", () => {
       }),
     ).toBe(false);
   });
+
+  it("resumes a started journey despite the city choice, but never on the web or after completion", () => {
+    const state = { isNative: true, alreadyRouted: false, hasCityPreference: true, inProgress: true };
+    expect(shouldRouteNativeFirstRun(state)).toBe(true);
+    expect(shouldRouteNativeFirstRun({ ...state, isNative: false })).toBe(false);
+    expect(shouldRouteNativeFirstRun({ ...state, alreadyRouted: true })).toBe(false);
+  });
 });
 
 describe("native first-run eligibility handoff", () => {

@@ -40,6 +40,7 @@ import {
 import {
   NATIVE_FIRST_RUN_HANDOFF_KEY,
   NATIVE_FIRST_RUN_ROUTED_KEY,
+  NATIVE_FIRST_RUN_STEP_KEY,
 } from "@/lib/nativeFirstRun";
 
 const rootFile = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
@@ -163,6 +164,18 @@ describe("the native shell's pre-render entry decision", () => {
     expect(session.getItem(SESSION_ENTRY_CONSUMED_KEY)).toBe("1");
   });
 
+  it("resumes unfinished onboarding after a new session, even with London already chosen", () => {
+    const { replaced, session } = runEntryInit({
+      local: {
+        [NATIVE_FIRST_RUN_STEP_KEY]: "location",
+        [PREFERRED_CITY_KEY]: "london",
+      },
+    });
+
+    expect(replaced).toEqual([ONBOARDING_PATH]);
+    expect(session.getItem(NATIVE_FIRST_RUN_HANDOFF_KEY)).toMatch(/^\d+$/);
+  });
+
   it("does nothing at all in a browser", () => {
     const { replaced, session } = runEntryInit({
       native: false,
@@ -209,7 +222,8 @@ describe("the native shell's pre-render entry decision", () => {
     // The onboarding route is guarded by a session handoff, so the script has
     // to issue the same eligibility AppEntryRoute would have issued.
     expect(session.getItem(NATIVE_FIRST_RUN_HANDOFF_KEY)).toMatch(/^\d+$/);
-    expect(local.getItem(NATIVE_FIRST_RUN_ROUTED_KEY)).toBe("1");
+    expect(local.getItem(NATIVE_FIRST_RUN_ROUTED_KEY)).toBeNull();
+    expect(local.getItem(NATIVE_FIRST_RUN_STEP_KEY)).toBe("london");
   });
 
   it("leaves a stored city to the client, which owns the enabled-city table", () => {

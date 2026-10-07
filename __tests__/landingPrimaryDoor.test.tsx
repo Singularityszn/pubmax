@@ -21,7 +21,8 @@ vi.mock("next/image", () => ({
 }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/nativePlatform", () => ({ isNativeApp: () => shell.native }));
-vi.mock("@/lib/nativeFirstRun", () => ({
+vi.mock("@/lib/nativeFirstRun", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/nativeFirstRun")>(),
   consumeNativeFirstRunHandoff: () => shell.handoff,
 }));
 

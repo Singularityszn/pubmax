@@ -94,22 +94,22 @@
     if (!appEntry && session.getItem("pubmax:entryDecision:consumed:v1") === "1") return;
 
     if (local.getItem("pubmax:nativeFirstRun:routed:v1") !== "1") {
-      // At the root, a stored city is left to AppEntryRoute (see above). The
-      // static entry document has no React to defer to, so it takes rule 4.
-      if (local.getItem("pubmax:preferredCity:v1") !== null) {
-        if (!appEntry) return;
-      } else {
+      var unfinishedStep = local.getItem("pubmax:nativeFirstRun:step:v1");
+      if (unfinishedStep !== null || local.getItem("pubmax:preferredCity:v1") === null) {
         // Rule 2. The onboarding route is guarded by a session handoff, so the
-        // same eligibility AppEntryRoute would have issued is issued here. Both
-        // marks are stamped BEFORE navigating, exactly as that component does, so
-        // a slow transition can never leave a flag unset and fire twice.
+        // same eligibility AppEntryRoute would have issued is issued here. The
+        // unfinished step is durable before navigating. Only an explicit
+        // Skip or Plan my night marks the journey complete.
         session.setItem("pubmax:nativeFirstRun:handoff:v1", String(Date.now()));
-        local.setItem("pubmax:nativeFirstRun:routed:v1", "1");
+        if (unfinishedStep === null) local.setItem("pubmax:nativeFirstRun:step:v1", "london");
         session.setItem("pubmax:entryDecision:consumed:v1", "1");
         routed = true;
         window.location.replace("/onboarding");
         return;
       }
+      // At the root, a stored city is left to AppEntryRoute (see above). The
+      // static entry document has no React to defer to, so it takes rule 4.
+      if (!appEntry) return;
     }
 
     // Rule 4. Stamp before navigating, exactly as AppEntryRoute does, so a slow

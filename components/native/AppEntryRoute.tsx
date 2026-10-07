@@ -30,8 +30,8 @@ import {
 } from "@/lib/entryDecision";
 import {
   clearNativeFirstRunHandoff,
+  beginNativeFirstRun,
   issueNativeFirstRunHandoff,
-  markNativeFirstRunRouted,
 } from "@/lib/nativeFirstRun";
 
 export default function AppEntryRoute(): null {
@@ -65,9 +65,9 @@ export default function AppEntryRoute(): null {
     resetConsentWaitForEntryRewrite(decision.href);
     if (decision.reason === "native-first-run") {
       // Eligibility is carried out-of-URL and consumed by the guarded route.
-      // Mark first so a slow transition can never double-fire on another boot.
+      // Persist the unfinished journey before navigating, so a relaunch resumes it.
       issueNativeFirstRunHandoff();
-      markNativeFirstRunRouted();
+      beginNativeFirstRun();
     } else {
       clearNativeFirstRunHandoff();
     }
