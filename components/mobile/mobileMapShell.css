@@ -229,7 +229,7 @@
        cuts the name is worse than one that never claimed it. The 360px rule
        below is what three controls plus a whole name cost on the narrowest
        phone. */
-    grid-template-columns: auto minmax(0, 1fr) 44px 44px 44px;
+    grid-template-columns: auto minmax(0, 1fr) repeat(3, var(--control-height, 44px));
     align-items: center;
     gap: 2px;
     /* Vertical padding 3px (was 4px): 44px control row + 3+3 padding + 1+1
@@ -263,20 +263,20 @@
     /* The base-pub arrival still renders brand, area, and Search. Keep its
        three children in explicit tracks so the implicit column cannot push
        Search outside the viewport while the first-visit card owns the map. */
-    grid-template-columns: minmax(64px, 1fr) minmax(0, 1fr) 44px;
+    grid-template-columns: minmax(64px, 1fr) minmax(0, 1fr) var(--control-height, 44px);
   }
 
   /* The wordmark is a real link home, so it gets a real hit target: the text is
      14px tall, the tappable box is the full 44px bar row. */
-  .mobileMapBrand { display: inline-flex; align-items: center; min-width: 0; min-height: 44px; color: var(--color-text); font-size: .7rem; white-space: nowrap; text-decoration: none; }
+  .mobileMapBrand { display: inline-flex; align-items: center; min-width: 0; min-height: var(--control-height, 44px); color: var(--color-text); font-size: .7rem; white-space: nowrap; text-decoration: none; }
 
   /* 320px is the narrowest phone this app is measured on, and three controls
      plus a readable place name is what it holds. The wordmark yields its
      column there: a truncated place name would leave the map claiming a name
      nobody can read, and the reader is already inside the app. */
   @media (max-width: 360px) {
-    .mobileMapTopbar { grid-template-columns: minmax(0, 1fr) 44px 44px 44px; }
-    .mobileMapTopbar.mobileMapTopbarLimited { grid-template-columns: minmax(0, 1fr) 44px; }
+    .mobileMapTopbar { grid-template-columns: minmax(0, 1fr) repeat(3, var(--control-height, 44px)); }
+    .mobileMapTopbar.mobileMapTopbarLimited { grid-template-columns: minmax(0, 1fr) var(--control-height, 44px); }
     .mobileMapBrand { display: none; }
   }
   .mobileMapBrand .pubmaxxWordmark { max-width: 100%; font-size: inherit; }
@@ -423,7 +423,7 @@
   }
   .mobileMapTonightChipCount {
     min-width: 1.2rem;
-    height: 1.2rem;
+    min-height: 1.2rem;
     display: grid;
     place-items: center;
     padding: 0 5px;
@@ -432,7 +432,7 @@
     background: var(--panel-raised);
     color: var(--ink);
     font-family: var(--font-data);
-    font-size: 0.62rem;
+    font-size: var(--text-2xs);
   }
 
   /* The refinement count on the Filters control. The button's accessible name
@@ -451,7 +451,7 @@
     background: var(--panel-raised);
     color: var(--ink);
     font-family: var(--font-data);
-    font-size: .62rem;
+    font-size: var(--text-2xs);
   }
 
   /* The map edge owns the two controls the bar cannot hold: TfL at the top,
@@ -524,13 +524,14 @@
     width: auto;
     padding-inline: 7px;
   }
-  .mobileMapCornerSuffix { font-size: .62rem; font-weight: 700; margin-left: 2px; }
+  .mobileMapCornerSuffix { font-size: var(--text-2xs); font-weight: 700; margin-left: 2px; }
   .mobileMapCornerBadge {
     position: absolute;
     top: -4px;
     right: -4px;
     min-width: 1.15rem;
-    height: 1.15rem;
+    min-height: 1.15rem;
+    padding: 2px 3px;
     display: grid;
     place-items: center;
     border-radius: 999px;
@@ -538,7 +539,7 @@
     background: var(--panel-raised);
     color: var(--ink);
     font-family: var(--font-data);
-    font-size: .64rem;
+    font-size: var(--text-2xs);
   }
 
   /* Near me could not place the reader, and the phone now says so. The chip
@@ -641,7 +642,7 @@
   .mobilePlanActivation:active { transform: scale(.98); --shared-press-scale: 1; }
   .mobilePlanActivation > span { display: grid; text-align: left; line-height: 1.05; }
   .mobilePlanActivation strong { font-size: var(--text-sm); font-weight: 800; white-space: nowrap; }
-  .mobilePlanActivation small { margin-top: 3px; font-size: .66rem; font-weight: 700; opacity: .78; }
+  .mobilePlanActivation small { margin-top: 3px; font-size: var(--text-2xs); font-weight: 700; opacity: .78; }
   .mobilePlanActivation.isActive { background: var(--color-surface-raised); color: var(--color-accent-ink); }
   .mobilePlanActivation:disabled { cursor: wait; opacity: .72; }
 
@@ -894,8 +895,8 @@
   .mobilePlannerEndings > div[data-recommended="true"] { border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-border)); }
   .mobilePlannerEndings span { display: grid; gap: 2px; }
   .mobilePlannerEndings strong { color: var(--color-text); font-size: var(--text-xs); }
-  .mobilePlannerEndings small { color: var(--color-accent); font-size: 0.625rem; font-weight: 800; }
-  .mobilePlannerEndings p { margin: 5px 0 0; color: var(--color-text-soft); font-size: 0.625rem; line-height: 1.3; overflow-wrap: anywhere; }
+  .mobilePlannerEndings small { color: var(--color-accent); font-size: var(--text-2xs); font-weight: 800; }
+  .mobilePlannerEndings p { margin: 5px 0 0; color: var(--color-text-soft); font-size: var(--text-2xs); line-height: 1.3; overflow-wrap: anywhere; }
   .mobileMapFilters .drinkShapeChips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .mobileMapFilters .drinkShapeChip { min-height: 52px; width: 100%; justify-content: center; }
   /* Refinement chips stay a wrapping strip in the sheet — a second 3-col grid

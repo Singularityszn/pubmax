@@ -61,7 +61,8 @@
   text-align: center;
   gap: var(--space-2);
   min-height: 52px;
-  min-width: 14rem;
+  min-width: min(14rem, 100%);
+  max-width: 100%;
   padding: 0 var(--space-5);
   border: 1px solid transparent;
   border-radius: var(--control-radius);
@@ -71,7 +72,8 @@
   font-size: var(--text-base);
   font-weight: 700;
   text-decoration: none;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
   cursor: pointer;
   transition: background-color var(--duration-fast) var(--ease-out);
 }

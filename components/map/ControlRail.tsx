@@ -355,7 +355,7 @@ export default function ControlRail({
         </div>
         <label
           aria-label={SAVED_ONLY_ARIA_LABEL}
-          style={{ minHeight: 44 }}
+          style={{ minHeight: "var(--control-height, 44px)" }}
         >
           <input
             type="checkbox"
