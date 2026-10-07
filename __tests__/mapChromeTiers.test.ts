@@ -120,7 +120,7 @@ describe("isUrgentTubeStatus", () => {
   });
 
   it("leaves routine statuses to the sheet", () => {
-    for (const status of ["Good Service", "Minor Delays", "Planned Closure", "Special Service", undefined]) {
+    for (const status of ["Good Service", "Minor Delays", "Planned Closure", "Service Closed", "Special Service", undefined]) {
       expect(isUrgentTubeStatus(status), String(status)).toBe(false);
     }
   });

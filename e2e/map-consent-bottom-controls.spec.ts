@@ -126,17 +126,10 @@ for (const width of [390, 768, 1440]) {
       expect(documentSize.stageBottom).toBeCloseTo(documentSize.viewportHeight, 0);
       await page.screenshot({ path: testInfo.outputPath(`map-controls-${width}-consent-${consent}.png`) });
 
-      if (width === 390) {
-        // The phone map does not paint the credit control (three resting
-        // layers); its copy is under the Key in More map controls, checked
-        // below once that sheet is open.
-        await expect(page.locator(".maplibregl-ctrl-attrib-button")).toBeHidden();
-      } else {
-        await expectClearControl(page, page.locator(".maplibregl-ctrl-attrib-button"), consentTop);
-        await page.locator(".maplibregl-ctrl-attrib-button").click();
-        await expect(page.locator(".maplibregl-ctrl-attrib-inner")).toBeVisible();
-        await page.locator(".maplibregl-ctrl-attrib-button").click();
-      }
+      await expectClearControl(page, page.locator(".maplibregl-ctrl-attrib-button"), consentTop);
+      await page.locator(".maplibregl-ctrl-attrib-button").click();
+      await expect(page.locator(".maplibregl-ctrl-attrib-inner")).toBeVisible();
+      await page.locator(".maplibregl-ctrl-attrib-button").click();
       if (width === 390) {
         const more = page.getByRole("button", { name: "More map controls" });
         await expectClearControl(page, more, consentTop);
