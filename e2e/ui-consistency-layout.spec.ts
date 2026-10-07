@@ -421,8 +421,13 @@ async function assertMapFirstVisitPhoneNoticeLayout(
     ".mobilePlanActivation",
   );
 
+  // The credit is not painted on a phone any more (it is the first copy in
+  // More map controls, under the Key), so it cannot be covered. If it ever
+  // returns to the map, it must still clear the notice.
   const overlap =
-    notice && credit
+    notice && !credit
+      ? 0
+      : notice && credit
       ? round(
           Math.max(
             0,
@@ -436,7 +441,7 @@ async function assertMapFirstVisitPhoneNoticeLayout(
     viewport.width,
     "analytics notice leaves map credit reachable",
     Number.isFinite(overlap) && overlap === 0,
-    `notice ${notice?.top}-${notice?.bottom}px; credit ${credit?.top}-${credit?.bottom}px; overlap ${overlap}px`,
+    `notice ${notice?.top}-${notice?.bottom}px; credit ${credit ? `${credit.top}-${credit.bottom}px` : "not painted on a phone"}; overlap ${overlap}px`,
   );
 
   const planOverlap =
@@ -523,9 +528,17 @@ async function measureSurfaceAssertions(
     // Venue-type chips live in the Filters popover
     // (components/map/MapVenueKindFilter.tsx). The bars that share an edge
     // are the nav and the toolbar.
+    // On a phone the foot of the map is the bottom card once the first-visit ask
+    // is answered, with the plan door inside it. The door alone stands there
+    // only while the ask is up.
     const names =
       viewport.width <= 640
-        ? ["mobile map topbar", "Describe the outing"]
+        ? [
+            "mobile map topbar",
+            panels.some((candidate) => candidate.name === "bottom card")
+              ? "bottom card"
+              : "Describe the outing",
+          ]
         : ["desktop map navigation", "desktop map toolbar"];
     const stack = names
       .map((name) => panels.find((candidate) => candidate.name === name))
@@ -631,18 +644,15 @@ async function verifyPostCaptureInteractions(
   ) {
     return;
   }
-  const creditButton = page.locator(".maplibregl-ctrl-attrib-button").first();
-  await creditButton.click();
+  // The credit left the phone map's resting layers: its licence copy is the
+  // first thing in More map controls (e2e/mobile-map-peek.spec.ts opens it).
   assertMeasured(
     assertions,
     surface,
     viewport.width,
-    "map credit expands",
-    await page
-      .locator(".maplibregl-ctrl-attrib-inner")
-      .first()
-      .isVisible(),
-    "expanded attribution is visible",
+    "map credit control is not painted on the phone map",
+    await page.locator(".maplibregl-ctrl-attrib-button").first().isHidden(),
+    "the compact (i) is hidden below 641px",
   );
   if (firstVisitPrompt?.kind !== "analytics consent") return;
   await page.getByRole("button", { name: "No thanks" }).click();
@@ -779,6 +789,7 @@ async function captureSurface(
     panel(page, "mobile map topbar", ".mobileMapTopbar"),
     panel(page, "Tonight Arc panel", ".tonightArcChips"),
     panel(page, "Describe the outing", ".mobilePlanActivation"),
+    panel(page, "bottom card", ".mapPeek"),
     panel(page, "analytics notice", ".analyticsConsentPrompt"),
     panel(page, "desktop map navigation", ".siteNavBarFloating"),
     panel(page, "desktop map toolbar", ".mapToolbar"),
