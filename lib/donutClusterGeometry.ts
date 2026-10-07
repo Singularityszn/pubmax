@@ -122,6 +122,19 @@ export const DONUT_CASING_PX = 1.25;
 export const DONUT_RING_PX = 3;
 /** Fewer pubs than this and the disc wears no count on its rim. */
 export const DONUT_BADGE_MIN = 10;
+/** The figure is set in --font-data (JetBrains Mono), where every glyph
+ *  advances 600/1000 of an em, and it keeps this much paper clear each side. */
+const DONUT_FIGURE_ADVANCE_EM = 0.6;
+const DONUT_FIGURE_INSET_PX = 1;
+
+/** The figure's size: 12px on the 44px disc and 11px on the 36px one, stepped
+ *  down when a long label ("£12.50") would otherwise run across the ring. */
+function donutFigureFontSize(label: string, outerRadius: number): number {
+  const base = outerRadius >= DONUT_OUTER_RADIUS_LARGE ? 12 : 11;
+  const paper = 2 * (outerRadius - DONUT_CASING_PX - DONUT_RING_PX - DONUT_FIGURE_INSET_PX);
+  const fit = paper / (label.length * DONUT_FIGURE_ADVANCE_EM);
+  return Math.min(base, Math.floor(fit * 10) / 10);
+}
 
 /** Builds the full marker SVG markup (string in, string out - pure) for a
  *  cluster: a paper disc with an ink casing, the price-band mix as a 3px ring,
@@ -135,8 +148,8 @@ export function buildDonutMarkerSvg(params: DonutMarkerSvgParams): string {
   const discRadius = outerRadius - DONUT_CASING_PX;
   const size = outerRadius * 2;
   const segments = buildDonutStrokeSegments(params.counts, params.colors, ringRadius);
-  const fontSize = outerRadius >= 22 ? 12 : 11;
   const label = params.figure ?? formatDonutCount(total);
+  const fontSize = donutFigureFontSize(label, outerRadius);
   const badge =
     params.figure !== null && total >= DONUT_BADGE_MIN ? formatDonutCount(total) : null;
   const segmentMarkup = segments

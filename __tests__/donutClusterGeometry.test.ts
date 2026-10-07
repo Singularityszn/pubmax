@@ -4,6 +4,8 @@ import {
   buildDonutMarkerSvg,
   buildDonutStrokeSegments,
   DONUT_BADGE_MIN,
+  DONUT_CASING_PX,
+  DONUT_RING_PX,
   donutOuterRadius,
   donutTotal,
   formatDonutCount,
@@ -145,6 +147,27 @@ describe("buildDonutMarkerSvg", () => {
     const unpriced = buildDonutMarkerSvg(params({ counts: [60, 20, 14, 0], figure: null }));
     expect(unpriced).toMatch(/data-role="figure">94</);
     expect(unpriced).not.toContain('data-role="count"');
+  });
+
+  it("fits the widest price inside the paper within the ring, at both disc sizes", () => {
+    // The figure is set in JetBrains Mono, whose every glyph advances 600/1000
+    // of an em, so a label's width is its length times 0.6 times its size.
+    // Measured live, a fixed 11px "£5.50" was 33px across 27.5px of paper.
+    const ADVANCE_EM = 0.6;
+    const figureWidth = (svg: string, label: string) => {
+      const size = Number(/font-size="([\d.]+)"[^>]*data-role="figure"/.exec(svg)?.[1]);
+      return label.length * ADVANCE_EM * size;
+    };
+    for (const outerRadius of [22, 18]) {
+      const paper = 2 * (outerRadius - DONUT_CASING_PX - DONUT_RING_PX);
+      for (const label of ["£12.50", "£5.50", "1.5k", "94"]) {
+        const svg = buildDonutMarkerSvg(params({ outerRadius, figure: label }));
+        expect(figureWidth(svg, label)).toBeLessThan(paper);
+      }
+    }
+    // A short figure keeps the full size: only a long one steps down.
+    const count = buildDonutMarkerSvg(params({ outerRadius: 22, counts: [60, 20, 14, 0] }));
+    expect(count).toMatch(/font-size="12"[^>]*data-role="figure">94</);
   });
 
   it("is the size the radius says, 44px and 36px", () => {
