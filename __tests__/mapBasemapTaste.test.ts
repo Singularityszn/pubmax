@@ -12,7 +12,13 @@ import {
   tameNumericShieldFilters,
   withAlpha,
 } from "@/lib/mapBasemapTaste";
-import { applySelectionState, type SceneCtx } from "@/components/map/canvas/buildScene";
+import {
+  applySelectionState,
+  assembleSceneDeferred,
+  buildPubs,
+  type SceneCtx,
+} from "@/components/map/canvas/buildScene";
+import type { Tokens } from "@/components/map/canvas/tokens";
 import { defined } from "@/__tests__/helpers/defined";
 
 function channels(hex: string): [number, number, number] {
@@ -403,7 +409,7 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     const layers = [
       { id: "poi_label", type: "symbol" },
       { id: "poi_name", type: "symbol" },
-      { id: "pois-label", type: "symbol" },
+      { id: "pois_label", type: "symbol" },
       { id: "poi-name", type: "symbol" },
       // A non-POI id can contain `poi` as part of another token.
       { id: "point_bar_label", type: "symbol" },
@@ -412,7 +418,7 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
       { id: "poi_bars_label", type: "symbol" },
       { id: "poi_beer_name", type: "symbol" },
       { id: "poi_brewery_name", type: "symbol" },
-      { id: "pois-pubs-label", type: "symbol" },
+      { id: "pois_pubs_label", type: "symbol" },
       { id: "poi_breweries_name", type: "symbol" },
     ];
     const map = {
@@ -431,7 +437,7 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     for (const generic of [
       "poi_label",
       "poi_name",
-      "pois-label",
+      "pois_label",
       "poi-name",
       "point_bar_label",
     ]) {
@@ -448,7 +454,7 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
       "poi_bars_label",
       "poi_beer_name",
       "poi_brewery_name",
-      "pois-pubs-label",
+      "pois_pubs_label",
       "poi_breweries_name",
     ]) {
       expect(
@@ -969,5 +975,71 @@ describe("style.load recapture path (applySelectionState, buildScene.ts)", () =>
     applySelectionMute(map, false, store);
     expect(defined(paint["pois-transport-minor"])["icon-opacity"]).toBe(0.7);
     expect(store.size).toBe(0);
+  });
+});
+
+describe("deferred scene taste (assembleSceneDeferred, buildScene.ts)", () => {
+  // The taste pass runs after the pub layers exist. It must retint the stock
+  // basemap's labels and leave the scene's own symbol layers as they were
+  // built: `pubs-point-selected` reads as `poi` to the label heuristic.
+  function buildThenDefer(dark: boolean) {
+    const themeTokens = dark ? darkTokens : tokens;
+    type Layer = { id: string; type: string; paint: Record<string, unknown> };
+    const layers = new Map<string, Layer>([
+      ["poi_label", { id: "poi_label", type: "symbol", paint: {} }],
+    ]);
+    const map = {
+      getSource: () => undefined,
+      addSource: () => {},
+      getLayer: (id: string) => layers.get(id),
+      getStyle: () => ({ layers: [...layers.values()] }),
+      getPaintProperty: (id: string, prop: string) => layers.get(id)?.paint[prop],
+      setPaintProperty: (id: string, prop: string, value: unknown) => {
+        const layer = layers.get(id);
+        if (!layer) throw new Error(`no layer ${id}`);
+        layer.paint[prop] = value;
+      },
+      setLayoutProperty: () => {},
+      setSky: () => {},
+    };
+    const ctx = {
+      map,
+      tokens: new Proxy(themeTokens, {
+        get: (target, key) =>
+          key === "priceStampTiltDeg"
+            ? -1.5
+            : ((target as Record<string | symbol, unknown>)[key] ?? "#000000"),
+      }) as unknown as Tokens,
+      dark,
+      textFont: ["Noto Sans Regular"],
+      addLayerOnce: ((layer: Layer) =>
+        layers.set(layer.id, { ...layer, paint: { ...layer.paint } })) as SceneCtx["addLayerOnce"],
+      poiHidden: {},
+      transitLinesPath: null,
+      pubsData: { type: "FeatureCollection", features: [] },
+      tonightData: { type: "FeatureCollection", features: [] },
+      tonightVisible: false,
+      selectedId: "venue-1",
+      selectionMuteStore: new Map<string, unknown>(),
+    } as unknown as SceneCtx;
+
+    buildPubs(ctx);
+    const built = structuredClone(defined(layers.get("pubs-point-selected")).paint);
+    assembleSceneDeferred(ctx);
+    return { themeTokens, built, layers };
+  }
+
+  it.each([false, true])("keeps the selected price tag inverted (dark: %s)", (dark) => {
+    const { themeTokens, built, layers } = buildThenDefer(dark);
+    const paint = defined(layers.get("pubs-point-selected")).paint;
+
+    expect(paint["text-color"]).toBe(dark ? themeTokens.inkDeep : themeTokens.paper);
+    expect(paint["text-halo-color"]).toBe(dark ? themeTokens.ink : themeTokens.inkDeep);
+    expect(paint["text-opacity"]).toBe(1);
+    expect(paint).toEqual(built);
+    // The pass did run: the basemap's own POI label took the theme's ink.
+    expect(defined(layers.get("poi_label")).paint["text-color"]).toBe(
+      dark ? themeTokens.ink : themeTokens.inkDeep,
+    );
   });
 });

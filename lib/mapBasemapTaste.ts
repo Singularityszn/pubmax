@@ -136,7 +136,7 @@ function isNeighbourhoodPlaceLabel(id: string): boolean {
 
 /** Drink-category tokens that make a basemap POI layer a PUB layer. Plural and
  *  compound spellings are listed because basemaps disagree (`poi_pub_label`,
- *  `pois-pubs-label`, `poi_breweries_name`), and token matching is whole-word so
+ *  `pois_pubs_label`, `poi_breweries_name`), and token matching is whole-word so
  *  `poi_barber_label` never reads as `bar`. */
 const PUB_POI_LABEL_TOKENS = new Set([
   "pub",
@@ -154,7 +154,7 @@ const PUB_POI_LABEL_TOKENS = new Set([
 
 /** A drink-category token is REQUIRED, never inferred from the layer's shape.
  *  CARTO and OpenFreeMap both ship ONE generic POI layer (`poi_label`,
- *  `poi_name`, `pois-label`) carrying every category at once, so the old
+ *  `poi_name`, `pois_label`) carrying every category at once, so the old
  *  `pois?[-_](label|name)` fallback handed barbers, bus stops and cash machines
  *  the pub opacity and pub text sizing reserved for drinking venues. Once this
  *  drink-token gate exists, that fallback is unreachable and is deleted. Same
@@ -528,6 +528,9 @@ function paintDiscoveredLayers(
   for (const layer of map.getStyle().layers ?? []) {
     if (KNOWN_LAYER_IDS.has(layer.id)) continue;
     const id = layer.id.toLowerCase();
+    // The scene's own layers carry their own paint. The deferred taste pass
+    // runs after they are added, and `pubs-point` alone reads as `poi`.
+    if (isAppLayer(id)) continue;
     if (layer.type === "fill") {
       paintDiscoveredFill(map, layer.id, id, palette, dark);
     } else if (layer.type === "line") {
@@ -587,8 +590,9 @@ export function muteOpacityExpr(original: unknown, opacity: number): unknown {
   return ["min", original ?? 1, opacity];
 }
 
-// Our own scene layers carry these prefixes; the basemap classifier skips them
-// so it only ever matches genuinely baked (stock-style) symbol layers.
+// Our own scene layers carry these prefixes; the basemap taste and the
+// selection-mute classifier skip them so they only ever touch genuinely baked
+// (stock-style) layers.
 const APP_LAYER_PREFIXES = [
   "pubs-",
   "pois-",
@@ -600,6 +604,10 @@ const APP_LAYER_PREFIXES = [
   "buildings-",
   "band-",
 ];
+
+function isAppLayer(lowerId: string): boolean {
+  return APP_LAYER_PREFIXES.some((p) => lowerId.startsWith(p));
+}
 
 // Baked symbol layers whose text/icons are transit roundels, POI labels, or
 // street-name labels/shields — the exact furniture the owner rule wants gone on
@@ -614,7 +622,7 @@ const BASEMAP_MUTE_ID_RE =
 export function isBasemapSelectionMuteLayer(id: string, type?: string): boolean {
   if (type !== "symbol") return false;
   const s = id.toLowerCase();
-  if (APP_LAYER_PREFIXES.some((p) => s.startsWith(p))) return false;
+  if (isAppLayer(s)) return false;
   return BASEMAP_MUTE_ID_RE.test(s);
 }
 
