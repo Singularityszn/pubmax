@@ -296,17 +296,23 @@ describe("Capacitor wrapped-build contract", () => {
   });
 
   it("declares microphone access on both native platforms", () => {
-    const info = rootFile("ios/App/App/Info.plist");
-    expect(info).toMatch(
-      /<key>NSMicrophoneUsageDescription<\/key>\s*<string>[^<\s][^<]+<\/string>/,
-    );
+    const microphoneUsage = plistRoot("ios/App/App/Info.plist").NSMicrophoneUsageDescription;
+    expect(typeof microphoneUsage).toBe("string");
+    expect(String(microphoneUsage).trim()).not.toBe("");
 
-    const manifest = rootFile("android/app/src/main/AndroidManifest.xml");
-    expect(manifest).toContain('android.permission.RECORD_AUDIO');
-    expect(manifest).toContain('android.permission.MODIFY_AUDIO_SETTINGS');
-    expect(manifest).toMatch(
-      /<uses-feature\s+android:name="android.hardware.microphone"\s+android:required="false"\s*\/>/,
+    const manifest = xmlDocument("android/app/src/main/AndroidManifest.xml");
+    const declared = (tag: string) => [...manifest.documentElement.getElementsByTagName(tag)];
+    const permissions = new Set(
+      declared("uses-permission").map((node) => node.getAttribute("android:name")),
     );
+    expect(permissions).toContain("android.permission.RECORD_AUDIO");
+    expect(permissions).toContain("android.permission.MODIFY_AUDIO_SETTINGS");
+
+    const microphone = declared("uses-feature").find(
+      (node) => node.getAttribute("android:name") === "android.hardware.microphone",
+    );
+    expect(microphone, "AndroidManifest.xml declares no microphone feature").toBeDefined();
+    expect(microphone?.getAttribute("android:required")).toBe("false");
   });
 
   it("answers export compliance in the build, not by hand on every upload", () => {
