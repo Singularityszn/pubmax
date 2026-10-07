@@ -7,7 +7,7 @@ import { cleanNightContext } from "@/lib/nightPlanning";
 import {
   readPlanGroundingClaims,
   verifyAnchoredPlanGroundingProofV2,
-  type PlanGroundingRejectionV2,
+  planGroundingRejectionError,
 } from "@/lib/planGrounding.server";
 import { planMemberCapability } from "@/lib/planMemberCapability";
 import { planSigningUnavailableResponse } from "@/lib/planSigningHttp.server";
@@ -22,17 +22,6 @@ import { isPlanStopCount, PLAN_STOP_COUNT_RANGE_SENTENCE } from "@/lib/planStopC
 
 assertServerEnv();
 type Context = { params: Promise<{ id: string }> };
-
-/** Every V2 proof rejection on an upgrade is an explicit 422. */
-function upgradeProofError(reason: PlanGroundingRejectionV2): { message: string; code: string } {
-  switch (reason) {
-    case "missing": return { message: "Include the grounding proof from generation.", code: "PLAN_ANCHOR_PROOF_MISSING" };
-    case "expired": return { message: "The grounding proof expired. Regenerate the Route and lock it in again.", code: "PLAN_ANCHOR_PROOF_EXPIRED" };
-    case "route-mismatch": return { message: "These stops no longer match the planned route. Draft the route again.", code: "PLAN_ANCHOR_PROOF_ROUTE_MISMATCH" };
-    case "operation-mismatch": return { message: "The grounding proof was issued for a different operation.", code: "PLAN_ANCHOR_PROOF_OPERATION_MISMATCH" };
-    default: return { message: "That saved route could not be checked.", code: "PLAN_ANCHOR_PROOF_INVALID" };
-  }
-}
 
 type AnchoredUpgrade = { done: Response } | { groundedUpgrade: boolean; upgradeAnchored: boolean };
 
@@ -65,7 +54,7 @@ function checkAnchoredUpgrade(
   }
   const verdict = verifyAnchoredPlanGroundingProofV2(groundingProof, routeVenueIds, operationKey);
   if (!verdict.ok) {
-    const mapped = upgradeProofError(verdict.reason);
+    const mapped = planGroundingRejectionError(verdict.reason);
     return { done: publicApiError(mapped.message, mapped.code, 422) };
   }
   if (verdict.outcome !== "route") {

@@ -14,7 +14,7 @@ import {
   verifyAnchoredPlanGroundingProofV2,
   verifyPlanGroundingProof,
   wasPlanGroundedAtCreation,
-  type PlanGroundingRejectionV2,
+  planGroundingRejectionError,
 } from "@/lib/planGrounding.server";
 import { planSigningPreflightResponse, planSigningUnavailableResponse } from "@/lib/planSigningHttp.server";
 import { attachPlanMemberSession } from "@/lib/planMemberCapability";
@@ -24,22 +24,6 @@ import { clientIp, hashIp } from "@/lib/supabase";
 import { planAcceptedEventTokens, planDraftSavedEventToken, planLoopEventTokens } from "@/lib/verifiedAnalytics.server";
 
 assertServerEnv();
-
-/** Every V2 proof rejection is an explicit 422; the reason drives the code/message. */
-function anchorProofError(reason: PlanGroundingRejectionV2): { message: string; code: string } {
-  switch (reason) {
-    case "missing":
-      return { message: "Include the grounding proof from generation.", code: "PLAN_ANCHOR_PROOF_MISSING" };
-    case "expired":
-      return { message: "The grounding proof expired. Regenerate the Route and lock it in again.", code: "PLAN_ANCHOR_PROOF_EXPIRED" };
-    case "route-mismatch":
-      return { message: "These stops no longer match the planned route. Draft the route again.", code: "PLAN_ANCHOR_PROOF_ROUTE_MISMATCH" };
-    case "operation-mismatch":
-      return { message: "The grounding proof was issued for a different operation.", code: "PLAN_ANCHOR_PROOF_OPERATION_MISMATCH" };
-    default:
-      return { message: "That saved route could not be checked.", code: "PLAN_ANCHOR_PROOF_INVALID" };
-  }
-}
 
 function createEventTokens(input: {
   anchor: ReturnType<typeof cleanPlanAnchor>;
@@ -152,7 +136,7 @@ export async function POST(request: Request): Promise<Response> {
   if (anchor) {
     const verdict = verifyAnchoredPlanGroundingProofV2(body.groundingProof, acceptedVenueIds, idempotencyKey);
     if (!verdict.ok) {
-      const mapped = anchorProofError(verdict.reason);
+      const mapped = planGroundingRejectionError(verdict.reason);
       return publicApiError(mapped.message, mapped.code, 422);
     }
     if (verdict.outcome !== anchor.outcome) {
