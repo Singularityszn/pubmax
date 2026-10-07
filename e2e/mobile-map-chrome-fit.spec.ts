@@ -990,6 +990,8 @@ const FLOATING_RIGHT_EDGE = [
   { name: "plan activation", selector: ".mobilePlanActivation" },
   { name: "locate FAB", selector: ".mobileMapLocateFab" },
   { name: "TfL control", selector: ".mobileMapTflButton" },
+  // The credit (i) parks on the left lane the Pub Pal pill shares.
+  { name: "map credit", selector: ".maplibregl-ctrl-attrib" },
 ] as const;
 
 // Members that MUST be measured, or the sweep would pass by shrinking rather
@@ -1000,6 +1002,7 @@ const REQUIRED_MEMBERS = [
   "Pub Pal pill",
   "plan activation",
   "locate FAB",
+  "map credit",
 ] as const;
 
 async function seedAnsweredConsentAndPal(page: Page, consentVisible = false): Promise<void> {
@@ -1089,6 +1092,18 @@ for (const viewport of VIEWPORTS) {
         ).toBe(false);
       }
     }
+    // The credit is never under the pill: its toggle takes its own tap.
+    const creditHit = await page
+      .locator(".maplibregl-ctrl-attrib-button")
+      .evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        const hit = document.elementFromPoint(
+          rect.left + rect.width / 2,
+          rect.top + rect.height / 2,
+        );
+        return hit ? element.contains(hit) : false;
+      });
+    expect(creditHit, "the credit (i) takes its own tap beside the Pub Pal pill").toBe(true);
     // The create action is the member this stack was built for, so its own
     // clearance is asserted separately and is never waived.
     const createAction = boxes.find((box) => box.name === "create action")!;

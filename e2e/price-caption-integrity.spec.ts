@@ -456,6 +456,8 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
     expect(geometry!.chip.bottom).toBeLessThanOrEqual(geometry!.tab.y);
     expect(geometry!.chip.height / geometry!.map.height).toBeLessThan(0.3);
 
+    const attribution = page.locator(".maplibregl-ctrl-attrib");
+    await expect(attribution).toBeVisible();
     const centreHit = (control: Locator) =>
       control.evaluate((element) => {
         const rect = element.getBoundingClientRect();
@@ -469,13 +471,42 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
           hit: hit ? `${hit.tagName.toLowerCase()}.${hit.getAttribute("class") ?? ""}` : "none",
         };
       });
+    const attributionToggle = attribution.locator(".maplibregl-ctrl-attrib-button");
+    await expect(attributionToggle).toBeVisible();
+    expect(await centreHit(attributionToggle), "Toggle attribution takes its own tap").toMatchObject({
+      own: true,
+      nearMe: false,
+    });
     expect(
       await centreHit(chip.getByRole("button", { name: "Dismiss Place story intro" })),
       "Dismiss Place story intro takes its own tap",
     ).toMatchObject({ own: true, nearMe: false });
-    // The credit is not a floating control on a phone: it is the first copy in
-    // More map controls, under the Key, and it carries the same pub-data line.
-    await expect(page.locator(".maplibregl-ctrl-attrib-button")).toBeHidden();
+    // The credit is a control on the phone map, under the chip and clear of the
+    // tab bar, and the same pub-data line is also under the Key below.
+    const attributionInner = attribution.locator(".maplibregl-ctrl-attrib-inner");
+    if (!(await attributionInner.isVisible())) {
+      await attributionToggle.click();
+    }
+    await expect(attributionInner).toBeVisible();
+    await expect(attributionInner).toContainText(OSM_PUB_ATTRIBUTION);
+    const attributionState = await attributionInner.evaluate((element) => {
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return {
+        text: element.textContent,
+        display: style.display,
+        visibility: style.visibility,
+        opacity: style.opacity,
+        top: rect.top,
+        bottom: rect.bottom,
+      };
+    });
+    expect(attributionState.text).toContain(OSM_PUB_ATTRIBUTION);
+    expect(attributionState.display).not.toBe("none");
+    expect(attributionState.visibility).toBe("visible");
+    expect(Number(attributionState.opacity)).toBeGreaterThan(0);
+    expect(attributionState.top).toBeGreaterThanOrEqual(geometry!.chip.bottom);
+    expect(attributionState.bottom).toBeLessThanOrEqual(geometry!.tab.y);
 
     await page.getByRole("button", { name: "More map controls" }).click();
     const layersSheet = page.locator(

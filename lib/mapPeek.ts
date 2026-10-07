@@ -2,6 +2,8 @@ import { formatGbp } from "@/lib/formatGbp";
 import { haversineKm } from "@/lib/haversine";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import { mapVenueListCheapest, mapVenueListLensPriceLabel } from "@/lib/mapVenueList";
+import { compactVenueAnchor, type CompactVenueAnchor } from "@/lib/venueAnchorPresentation";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
 import { walkMinutesFromKm } from "@/lib/walkMinutes";
 
@@ -21,6 +23,11 @@ type MapPeekAnswer = {
    *  "<category> · £X" under a drink lens, so a cocktail answer never reads as
    *  a pint. */
   priceLabel: string;
+  /** The provenance a non-pub anchor wears on List view's row, or null. The
+   *  card renders it through the same CompactVenuePrice, so a set-lunch figure
+   *  never reads as the pint answer. */
+  anchor: CompactVenueAnchor | null;
+  isPub: boolean;
   /** Whole walking minutes from the reader's own fix, or null without one. */
   walkMinutes: number | null;
 };
@@ -70,6 +77,8 @@ export function buildMapPeek(input: {
       name: venue.name,
       priceGbp,
       priceLabel: lensPrice ? mapVenueListLensPriceLabel(lensPrice) : formatGbp(priceGbp),
+      anchor: compactVenueAnchor(venue),
+      isPub: isPubVenueKind(venue.kind),
       walkMinutes,
     },
   };
@@ -82,5 +91,8 @@ export function mapPeekSummary(model: MapPeekModel): string {
   const { answer } = model;
   const walk =
     answer.walkMinutes === null ? "" : `, ${answer.walkMinutes} minute walk`;
-  return `Cheapest in this view: ${answer.priceLabel} at ${answer.name}${walk}`;
+  const price = answer.anchor
+    ? `${answer.anchor.label} · ${answer.priceLabel} (${answer.anchor.observedLabel} · ${answer.anchor.sourceLabel})`
+    : answer.priceLabel;
+  return `Cheapest in this view: ${price} at ${answer.name}${walk}`;
 }
