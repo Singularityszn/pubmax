@@ -155,12 +155,22 @@ describe("a named place the taxonomy cannot place, with a remembered area", () =
       "pubs near Blackfriars Friday night",
       "a pint in Blackfriars Saturday",
       "drinks around Blackfriars December",
+      "pubs near Blackfriars New Year",
+      "pubs in Blackfriars Boxing Day",
+      "a pint near Blackfriars Bonfire Night",
+      "drinks around Blackfriars New Year's",
     ]) {
       const locality = resolvePalLocality(query, REMEMBERED_SOHO);
       expect(locality.scope, query).toBe("london-wide");
       expect(locality.area, query).toBeNull();
       expect(locality.unplaced, query).toBe("Blackfriars");
     }
+  });
+
+  it("takes a place whose first word also opens a holiday", () => {
+    expect(resolvePalLocality("pubs near New Malden", REMEMBERED_SOHO).unplaced).toBe(
+      "New Malden",
+    );
   });
 
   it("still uses the remembered area when the query names no place", () => {

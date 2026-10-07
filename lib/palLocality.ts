@@ -79,8 +79,8 @@ const TIME_WORDS = new Set([
   "evening", "midnight",
 ]);
 
-/** Time words that close a holiday name, so the words before them are a when too: "New Year", "Boxing Day". */
-const HOLIDAY_TAIL = new Set(["year", "eve", "day", "night"]);
+/** Holidays whose first word is no time word on its own: "New Year", not "New Cross". */
+const HOLIDAY_PHRASES = new Set(["new year", "boxing day", "bonfire night"]);
 
 function timeStem(word: string): string {
   return word.toLowerCase().replace(/['’]s$/, "");
@@ -100,11 +100,14 @@ function namedPlaceFromQuery(query: string): string | null {
   if (!match?.[1]) return null;
   const words = match[1].split(/\s+/);
   const kept: string[] = [];
-  for (const word of words) {
-    if (PLACE_PHRASE_STOP.has(word.toLowerCase())) break;
+  for (const [index, word] of words.entries()) {
     const stem = timeStem(word);
-    if (TIME_WORDS.has(stem)) {
-      if (HOLIDAY_TAIL.has(stem)) kept.length = 0;
+    const next = words[index + 1];
+    if (
+      PLACE_PHRASE_STOP.has(stem) ||
+      TIME_WORDS.has(stem) ||
+      (next !== undefined && HOLIDAY_PHRASES.has(`${stem} ${timeStem(next)}`))
+    ) {
       break;
     }
     kept.push(word);
