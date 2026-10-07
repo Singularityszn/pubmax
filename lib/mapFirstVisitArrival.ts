@@ -11,6 +11,14 @@ import { searchHasExplicitMapIntent } from "@/lib/explicitMapIntent";
 import { safeLocalStorage } from "@/lib/safeStorage";
 
 export const MAP_FIRST_VISIT_ARRIVAL_KEY = "pubmax:map-first-visit-arrival:v1";
+/**
+ * How long an answer to the ask holds. Any answer counts: a tap on either
+ * button, the close, or the reader's own first move on the map. After this the
+ * ask may be made once more, because a location question a reader waved away in
+ * their first minute is worth putting to them again when they come back.
+ */
+export const MAP_FIRST_VISIT_ARRIVAL_QUIET_MS = 30 * 24 * 60 * 60 * 1000;
+const DISMISSED_PREFIX = "dismissed:";
 const CHANGE_EVENT = "pubmax:map-first-visit-arrival";
 
 function resolveStorage(storage?: Storage | null): Storage | null {
@@ -44,13 +52,27 @@ export function searchSuppressesMapFirstVisitArrival(search: string): boolean {
   );
 }
 
+/**
+ * Whether the ask has been answered inside its quiet window.
+ *
+ * The stored value is `dismissed:<epoch ms>`. A bare `dismissed` is the value
+ * every earlier build wrote: it carries no date, so it never expires, rather
+ * than putting the ask back in front of every existing reader on one deploy.
+ * An unreadable date is treated as answered, never as a reason to ask again.
+ */
 export function hasDismissedMapFirstVisitArrival(
   storage?: Storage | null,
+  now: number = Date.now(),
 ): boolean {
   const store = resolveStorage(storage);
   if (!store) return true;
   try {
-    return store.getItem(MAP_FIRST_VISIT_ARRIVAL_KEY) === "dismissed";
+    const raw = store.getItem(MAP_FIRST_VISIT_ARRIVAL_KEY);
+    if (raw === null) return false;
+    if (!raw.startsWith(DISMISSED_PREFIX)) return raw === "dismissed";
+    const answeredAt = Number(raw.slice(DISMISSED_PREFIX.length));
+    if (!Number.isFinite(answeredAt)) return true;
+    return now - answeredAt < MAP_FIRST_VISIT_ARRIVAL_QUIET_MS;
   } catch {
     return true;
   }
@@ -75,11 +97,14 @@ export function dismissMapFirstVisitArrivalOnMapUse(): void {
   dismissMapFirstVisitArrival();
 }
 
-export function dismissMapFirstVisitArrival(storage?: Storage | null): void {
+export function dismissMapFirstVisitArrival(
+  storage?: Storage | null,
+  now: number = Date.now(),
+): void {
   const store = resolveStorage(storage);
   if (!store) return;
   try {
-    store.setItem(MAP_FIRST_VISIT_ARRIVAL_KEY, "dismissed");
+    store.setItem(MAP_FIRST_VISIT_ARRIVAL_KEY, `${DISMISSED_PREFIX}${now}`);
     notifyChange();
   } catch {
     // Storage full / private mode — degrade silently.

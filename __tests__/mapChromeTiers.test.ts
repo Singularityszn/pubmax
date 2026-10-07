@@ -5,6 +5,7 @@ import {
   buildNearMeChip,
   buildTflCorner,
   buildTonightChip,
+  isUrgentTubeStatus,
 } from "@/lib/mapChromeTiers";
 
 describe("buildNearMeChip", () => {
@@ -86,15 +87,45 @@ describe("buildTflCorner", () => {
   it("keeps the compact status vocabulary from the old chip", () => {
     expect(buildTflCorner("clear", 0)).toMatchObject({ statusSuffix: "OK", badge: null });
     expect(buildTflCorner("unavailable", 0).statusSuffix).toBe("?");
-    expect(buildTflCorner("issues", 15)).toMatchObject({ statusSuffix: null, badge: 15 });
+    expect(buildTflCorner("issues", 15)).toMatchObject({ statusSuffix: null });
     expect(buildTflCorner("checking", 0)).toMatchObject({ statusSuffix: null, badge: null });
+  });
+
+  it("badges only what is urgent, so routine updates leave a bare glyph", () => {
+    // Fifteen routine updates used to read as a red 15 on the map's resting
+    // edge, which said nothing about what to do. The count is in the sheet.
+    expect(buildTflCorner("issues", 15).badge).toBeNull();
+    expect(buildTflCorner("issues", 15, 0).badge).toBeNull();
+    expect(buildTflCorner("issues", 15, 2).badge).toBe(2);
+    expect(buildTflCorner("clear", 0, 3).badge).toBeNull();
   });
 
   it("aria labels carry the status meaning", () => {
     expect(buildTflCorner("issues", 15).ariaLabel).toBe("TfL live: 15 updates");
+    expect(buildTflCorner("issues", 15, 2).ariaLabel).toBe(
+      "TfL live: 2 lines badly disrupted, 15 updates",
+    );
+    expect(buildTflCorner("issues", 4, 1).ariaLabel).toBe(
+      "TfL live: 1 line badly disrupted, 4 updates",
+    );
     expect(buildTflCorner("clear", 3).ariaLabel).toBe("TfL live: lines running well");
   });
 });
+
+describe("isUrgentTubeStatus", () => {
+  it("is the words TfL uses when a line is not simply slow", () => {
+    for (const status of ["Severe Delays", "Part Suspended", "Suspended", "Part Closure", "Closed"]) {
+      expect(isUrgentTubeStatus(status), status).toBe(true);
+    }
+  });
+
+  it("leaves routine statuses to the sheet", () => {
+    for (const status of ["Good Service", "Minor Delays", "Planned Closure", "Special Service", undefined]) {
+      expect(isUrgentTubeStatus(status), String(status)).toBe(false);
+    }
+  });
+});
+
 
 describe("buildTonightChip", () => {
   it("stays silent when What's On has nothing to open", () => {
