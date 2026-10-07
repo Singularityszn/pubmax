@@ -6107,7 +6107,7 @@ export default function PubMap({
             map to this device's saved pubs. Empty state when nothing is
             saved yet points at Save on a pub sheet. */}
         <section className="toggles mobileMapSavedOnly">
-          <label aria-label={SAVED_ONLY_ARIA_LABEL} style={{ minHeight: 44 }}>
+          <label aria-label={SAVED_ONLY_ARIA_LABEL} style={{ minHeight: "var(--control-height, 44px)" }}>
             <input
               type="checkbox"
               checked={savedOnly}

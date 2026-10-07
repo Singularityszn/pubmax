@@ -115,7 +115,7 @@
 
 .dealsTonightSource {
   margin-top: 0.2rem;
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
   font-weight: 700;
   color: color-mix(in srgb, var(--ink-soft) 80%, var(--brass));
 }

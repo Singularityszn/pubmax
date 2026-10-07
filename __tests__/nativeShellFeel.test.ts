@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import postcss from "postcss";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 // The two halves of "this is an app, not a wrapped website": a haptic
@@ -135,11 +136,10 @@ describe("the native document stylesheet", () => {
   );
 
   it("scopes every rule to the native attribute, so the web is untouched", () => {
-    const selectors = css
-      .split("}")
-      .map((block) => block.split("{")[0] ?? "")
-      .map((selector) => selector.replace(/\/\*[\s\S]*?\*\//g, "").trim())
-      .filter(Boolean);
+    const selectors: string[] = [];
+    postcss.parse(css).walkRules((rule) => {
+      selectors.push(...rule.selectors);
+    });
     expect(selectors.length).toBeGreaterThan(0);
     for (const selector of selectors) {
       expect(selector, selector).toContain(`[${NATIVE_SHELL_ATTRIBUTE}]`);

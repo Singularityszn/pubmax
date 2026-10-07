@@ -217,7 +217,7 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
 .firstRunEyebrow {
   margin: 0 0 14px;
   color: var(--state-active-ink);
-  font: 700 0.68rem/1 var(--font-data);
+  font: 700 var(--text-2xs)/1 var(--font-data);
   letter-spacing: 0.01em;
 }
 

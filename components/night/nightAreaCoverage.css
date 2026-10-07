@@ -175,7 +175,7 @@
   border: 1px solid var(--line);
   border-radius: 999px;
   color: var(--ink-soft);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   font-weight: 800;
   letter-spacing: 0.02em;
   line-height: 1;

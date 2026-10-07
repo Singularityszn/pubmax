@@ -277,9 +277,9 @@
   /* — Type scale: a deliberate step system (~1.22 ratio) rather than ad-hoc
        rem values. Existing components keep their own literal sizes (unchanged
        per-component); new work should reach for these.
-       --text-2xs is defined ONCE here (0.68rem). The only redefinition is the
+       --text-2xs is defined ONCE here (0.75rem). The only redefinition is the
        scoped html[data-legacy="1"] a11y bump below — never a second root value. */
-  --text-2xs: 0.68rem;
+  --text-2xs: 0.75rem;
   --text-xs: 0.76rem;
   --text-sm: 0.85rem;
   --text-base: 1rem;

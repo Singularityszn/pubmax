@@ -4,7 +4,7 @@
    components/native/NativeShellChrome.tsx sets only after isNativeApp()
    answers true. The web document never matches, so a browser visit renders
    byte-identically to before this file existed. That is the whole containment
-   story: no media query, no user-agent sniff, one attribute.
+   story: one attribute scopes every selector, including phone media queries.
 
    What this fixes is the handful of WebView behaviours that read as "somebody
    wrapped a website" the first time a thumb touches the glass. They are
@@ -35,10 +35,78 @@
    that e2e/mobile-map-chrome-fit.spec.ts measures. */
 
 [data-native-shell] {
+  --control-height: 48px;
   /* The document itself stops bouncing; inner scrollers keep theirs. */
   overscroll-behavior: none;
   /* iOS momentum inside the panes that do scroll. */
   -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 640px) {
+  [data-native-shell] {
+    /* One 48px control row, 6px padding and a 2px frame. */
+    --topbar-h: 56px;
+    --mobile-map-bar-h: 56px;
+  }
+
+  [data-native-shell] :is(.siteNavBrand, .siteNavBell, .siteNavBar .themeToggle, .siteNavBar .authCompactTrigger) {
+    min-height: var(--control-height);
+    height: auto;
+  }
+
+  [data-native-shell] :is(.siteNavBell, .siteNavBar .themeToggle, .siteNavBar .authCompactTrigger) {
+    width: var(--control-height);
+    min-width: var(--control-height);
+    padding-inline: 0;
+  }
+
+  [data-native-shell] .mobileTab {
+    min-height: var(--control-height);
+  }
+
+  [data-native-shell] .mobileTabIcon {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  [data-native-shell] .mobileTabIcon svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  [data-native-shell][data-text-scale="large"] {
+    /* Two control rows and the 6px flex gap. */
+    --topbar-h: 110px;
+    --tabbar-h: 72px;
+  }
+
+  [data-native-shell][data-text-scale="large"] .siteNavBar {
+    flex-wrap: wrap;
+    border-radius: var(--radius-lg);
+  }
+
+  [data-native-shell][data-text-scale="large"] .siteNavBrand {
+    flex-basis: 100%;
+    min-width: 0;
+    max-width: 100%;
+    justify-content: flex-start;
+    font-size: 1.02rem;
+  }
+
+  [data-native-shell][data-text-scale="large"] .siteNavActions {
+    margin-left: auto;
+  }
+
+  [data-native-shell] :is(.arrivalWelcomeDismiss, .screenSecondary > a, .screenSecondary > button) {
+    min-width: var(--control-height);
+    min-height: var(--control-height);
+  }
+
+  [data-native-shell][data-text-scale="large"] .siteNavBell svg,
+  [data-native-shell][data-text-scale="large"] .siteNavBar .themeToggle svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
 }
 
 [data-native-shell] body {

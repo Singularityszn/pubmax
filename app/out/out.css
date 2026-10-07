@@ -34,7 +34,7 @@
 
 .outDayChips {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 2px;
   width: 100%;
   min-height: 44px;
@@ -51,7 +51,10 @@
   align-items: center;
   justify-content: center;
   min-height: 44px;
-  padding: 0 10px;
+  min-width: 0;
+  padding: 6px 10px;
+  text-align: center;
+  overflow-wrap: anywhere;
   border-radius: var(--radius-pill, 999px);
   color: var(--ink-soft);
   font-family: var(--font-display);

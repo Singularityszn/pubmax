@@ -39,7 +39,7 @@
   margin: 0;
   padding: 0.35rem 0.55rem 0.45rem;
   color: var(--ink-soft);
-  font-size: 0.68rem;
+  font-size: var(--text-2xs);
   font-weight: 600;
 }
 
@@ -51,7 +51,7 @@
   border-radius: 999px;
   background: color-mix(in srgb, var(--ink-deep) 70%, transparent);
   color: #fff;
-  font-size: 0.62rem;
+  font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: 0.02em;
   pointer-events: none;

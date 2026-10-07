@@ -362,7 +362,7 @@ as a stamp, it may keep caps.
 ### Type scale
 
 ```
---text-2xs   0.68rem     eyebrows, micro-labels
+--text-2xs   0.75rem     eyebrows, micro-labels
 --text-xs    0.76rem     chip/tag text
 --text-sm    0.85rem     secondary body copy
 --text-base  1rem        default body
