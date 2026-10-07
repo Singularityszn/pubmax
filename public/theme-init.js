@@ -63,6 +63,7 @@
 // ---------------------------------------------------------------------------
 (function () {
   var appEntry = window.location.pathname === "/app-entry";
+  if (appEntry) window.stop();
   var routed = false;
   try {
     var capacitor = window.Capacitor;

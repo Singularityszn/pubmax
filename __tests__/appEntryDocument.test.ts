@@ -22,7 +22,7 @@ describe("the static app-entry document", () => {
     const refresh = document.querySelector('meta[http-equiv="refresh"]');
     const script = document.querySelector("script");
     expect(refresh?.getAttribute("content")).toBe("2;url=/");
-    // Declared first, so the script's own location.replace supersedes it.
-    expect(refresh!.compareDocumentPosition(script!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Declared after the script, which stops the parser before it routes.
+    expect(script!.compareDocumentPosition(refresh!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

@@ -2,8 +2,9 @@
 // The shared pre-paint script owns the decision and falls back to the root
 // when the bridge or storage is unavailable.
 // Use a fresh script URL so an upgraded shell cannot reuse the root-only script.
-// The refresh comes first so the script's own replace supersedes it. It only
-// fires when the script never runs, and hands the launch to the root.
+// The script stops this document's parser before it routes, so the refresh
+// after it is never parsed and cannot race a slow navigation. It exists only
+// when the script never runs, and then hands the launch to the root.
 export const dynamic = "force-static";
 
 export function GET(): Response {
@@ -14,8 +15,8 @@ export function GET(): Response {
 <meta name="robots" content="noindex, nofollow">
 <meta name="color-scheme" content="dark">
 <title>PUBMAXXING</title>
-<meta http-equiv="refresh" content="2;url=/">
 <script src="/theme-init.js?v=entry-v1"></script>
+<meta http-equiv="refresh" content="2;url=/">
 </head><body></body></html>`, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
