@@ -380,7 +380,7 @@ export default function PublicCrewRouteClient({
     return (
       <Shell>
         <section className="crews__notice" role="status">
-          <h1>This crew isn't open to you.</h1>
+          <h1>This crew isn&apos;t open to you.</h1>
           <Link className="crews__button" href="/social">
             Back to Social
           </Link>

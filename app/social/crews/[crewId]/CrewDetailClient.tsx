@@ -518,9 +518,9 @@ export default function CrewDetailClient({
     if (status === "missing") {
       return (
         <section className="crews__notice" role="status">
-          <h1>This crew isn't open to you.</h1>
+          <h1>This crew isn&apos;t open to you.</h1>
           <p className="crews__muted">
-            Only the people on the night and the host's mates can see a crew.
+            Only the people on the night and the host&apos;s mates can see a crew.
             Ask them for a link.
           </p>
           <Link className="crews__button" href="/social">
@@ -581,7 +581,7 @@ export default function CrewDetailClient({
             </section>
           ) : crew.joinRequestState === "pending" ? (
             <section className="crews__notice" role="status">
-              <p>You've asked to join. The host decides.</p>
+              <p>You&apos;ve asked to join. The host decides.</p>
               <button
                 type="button"
                 className="crews__button"

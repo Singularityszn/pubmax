@@ -327,7 +327,7 @@ export default function PeopleDirectory({
         </div>
       ) : status === "error" ? (
         <div className="peopleDir__notice" role="alert">
-          <p>Couldn't load the directory. That's us, not you.</p>
+          <p>Couldn&apos;t load the directory. That&apos;s us, not you.</p>
           <button
             type="button"
             className="peopleDir__button"
