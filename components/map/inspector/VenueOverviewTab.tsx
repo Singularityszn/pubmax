@@ -33,6 +33,7 @@ import { isPubVenue } from "@/lib/venueKindFilters";
 import {
   AGED_PRICE_LINE,
   PROVISIONAL_PRICE_LINE,
+  PRICE_PENDING_LINE,
   baselineTrustCaption,
   venueBundlePrices,
   venuePriceLane,
@@ -408,7 +409,7 @@ function VenuePriceSummary({
 }) {
   const chromeRevealClass = priceRevealMotionClass || undefined;
   if (isPubVenue(venue) && venuePriceFallbackPending(lane, priceReadStatus, dropReadStatus)) {
-    return <div className="contributorPrice" role="status">Checking prices…</div>;
+    return <div className="contributorPrice" role="status">{PRICE_PENDING_LINE}</div>;
   }
   // ONE decider. This surface hands over the confirmation lane it owns and
   // reads back a standing; the listed and modelled lanes reach the same call

@@ -28,6 +28,8 @@ import type { VenueDropReadStatus } from "@/lib/venueDropRead";
  */
 export const PROVISIONAL_PRICE_LINE = "Logged once, needs a second drinker";
 
+export const PRICE_PENDING_LINE = "Checking prices…";
+
 /**
  * The ONE line an AGED report prints. Captain's cut 5 Sept 2026: a drop past
  * the authority window is still a visible public drop, printed dated in the

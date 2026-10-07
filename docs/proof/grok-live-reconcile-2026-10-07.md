@@ -25,6 +25,8 @@ Vercel reports the latest main production attempt, `dpl_9RgG1n4yRNtY6CrbCan9bLt4
 
 The independent standards review found a non-pub loading regression in the first patch. A rendered café test reproduced it. The pending price label now applies only to pubs. The search filter policy also moved into `lib/pubMap.ts`.
 
+The publication review found repeated pin filtering during typing and duplicated loading copy. The pin pipeline now memoizes every non-query filter, and both price surfaces use one shared pending line. These corrections passed 216 focused tests.
+
 ## Other findings
 
 | Finding | Current evidence | Status |
