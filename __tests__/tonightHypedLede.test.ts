@@ -167,6 +167,15 @@ describe("the tonight lede, hydrated", () => {
     expect(lede).not.toContain("Ticketmaster");
   });
 
+  it("does not call the city quiet beside pub suggestions", async () => {
+    await mount({ hypedPubs: HYPED });
+    expect(container.textContent).not.toContain("Quiet one tonight");
+    expect(container.textContent).not.toContain("city’s having a quiet one tonight");
+    expect(container.querySelector('[data-tonight-provenance="whats-on"]')?.textContent)
+      .not.toContain("Quiet night");
+    expect(ledeText()).toContain("No confirmed events listed tonight");
+  });
+
   it("shows the chain supply under the lede, under the chain's own name", async () => {
     await mount({ hypedPubs: HYPED });
     const chains = container.querySelector('[data-testid="tonight-chain-lanes"]');

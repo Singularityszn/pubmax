@@ -194,6 +194,24 @@ test.describe("one Map surface history owner", () => {
       .toEqual({ query: null, selectedVenueId: null });
   });
 
+  test("a bare phone map does not reopen the last inspected pub", async ({ page }) => {
+    await prepareMap(page, PHONE);
+    const selectedId = "venue-1kpe609";
+    const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+    await openMap(page, `/map?sel=${selectedId}`);
+    await expect(sheet).toBeVisible();
+    await expect.poll(() => page.evaluate(() => {
+      const held = localStorage.getItem("pubmaxx.mobile-map-session.v1");
+      return held ? JSON.parse(held).selectedVenueId : null;
+    })).toBe(selectedId);
+    await page.goto("/today");
+    await openMap(page);
+    await expect(sheet).toHaveCount(0);
+    expect(new URL(page.url()).searchParams.get("sel")).toBeNull();
+    await openMap(page, `/map?sel=${selectedId}`);
+    await expect(sheet).toBeVisible();
+  });
+
   test("loaded crawl browser Back restores populated planner", async ({ page }) => {
     test.setTimeout(180_000);
     await page.setViewportSize(DESKTOP);
