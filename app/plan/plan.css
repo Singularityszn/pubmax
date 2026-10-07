@@ -1811,13 +1811,15 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   font-weight: 750;
   cursor: pointer;
   touch-action: manipulation;
-  visibility: hidden;
+  opacity: 0;
 }
 .planStops .planStop[data-swipe="true"] .planStop__remove,
-.planStops .planStop[data-revealed="true"] .planStop__remove {
-  visibility: visible;
+.planStops .planStop[data-revealed="true"] .planStop__remove,
+.planStops .planStop__remove:focus-visible {
+  opacity: 1;
 }
-.planStops .planStop[data-revealed="true"] .planStop__surface {
+.planStops .planStop[data-revealed="true"] .planStop__surface,
+.planStops .planStop:has(.planStop__remove:focus-visible) .planStop__surface {
   transform: translate3d(calc(var(--stop-tray) * -1), 0, 0);
 }
 
@@ -1839,7 +1841,7 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
     border: 1px solid var(--line);
     background: transparent;
     color: var(--ink-soft);
-    visibility: visible;
+    opacity: 1;
     align-self: center;
     min-height: var(--control-height);
     border-radius: var(--control-radius);
@@ -1913,24 +1915,8 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
 }
 .planComposer[data-result="true"] .planComposer__submit {
   min-height: 52px;
-  display: grid;
-  place-items: center;
   touch-action: manipulation;
 }
-.planLock__text {
-  grid-area: 1 / 1;
-  opacity: 0;
-  filter: blur(2px);
-  transition:
-    opacity 160ms var(--ease-out),
-    filter 160ms var(--ease-out);
-}
-.planLock__text[data-on="true"] {
-  opacity: 1;
-  filter: none;
-}
-
-
 
 /* A new route cross-fades in (opacity only). Reduced motion keeps the fade,
    shorter, and drops everything that travels. */
@@ -1943,9 +1929,6 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
 @media (prefers-reduced-motion: reduce) {
   .planStops__list[data-fresh="true"] {
     animation-duration: 120ms;
-  }
-  .planLock__text {
-    filter: none;
   }
   .planStops .planStop[data-drag-role="neighbour"] {
     transition: none;

@@ -234,31 +234,6 @@ export function pickedPlanStop(stop: DraftStop, venue: PlanVenueOption): DraftSt
   };
 }
 
-export function editedPlanStop(input: {
-  stop: DraftStop;
-  venueName: string;
-  venues: readonly PlanVenueOption[];
-  heldVenueId?: string | null;
-}): { stop: DraftStop; preservesAcceptedAuthority: boolean } {
-  const match = input.venues.find((venue) => venue.name.toLocaleLowerCase() === input.venueName.trim().toLocaleLowerCase());
-  const accepted = input.stop.key === 1
-    && Boolean(input.heldVenueId)
-    && input.stop.venueId === input.heldVenueId;
-  const preservesAcceptedAuthority = accepted && (!match || match.id === input.heldVenueId);
-  return {
-    stop: {
-      ...input.stop,
-      venueName: input.venueName,
-      venueId: preservesAcceptedAuthority ? input.stop.venueId : match?.id ?? "",
-      reason: preservesAcceptedAuthority || match?.id === input.stop.venueId ? input.stop.reason : undefined,
-      selectedDrinkPriceEvidence: preservesAcceptedAuthority || match?.id === input.stop.venueId
-        ? input.stop.selectedDrinkPriceEvidence : undefined,
-      ...(preservesAcceptedAuthority || match?.id === input.stop.venueId ? {} : NO_TIMING_OR_PRICE),
-      alternatives: [],
-    },
-    preservesAcceptedAuthority,
-  };
-}
 const PLAN_ROUTE_DRAFT_KEY = "pubmaxx:plan-route-draft:v1";
 
 export type StoredRouteDraft = {
@@ -1411,6 +1386,8 @@ function PlanComposerForm({
   // chip tap the route status element only mounts with the same commit that
   // carries the new stops.
   const [routeRevealTick, setRouteRevealTick] = useState(0);
+  // The route as it arrived, by its pubs in order: the strip draws it once.
+  const [routeDrawKey, setRouteDrawKey] = useState<string | null>(null);
   useEffect(() => {
     if (routeRevealTick === 0) return;
     revealPlanRouteStatus();
@@ -1474,9 +1451,6 @@ function PlanComposerForm({
   const [planAnchor, setPlanAnchor] = useState(routeDraftFields.planAnchor);
   const [sorting, setSorting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  // Set once the plan exists, and never cleared: the page is about to be left
-  // for the plan's own, and `finally` below must not give the button back.
-  const [locked, setLocked] = useState(false);
   const [tuneOpen, setTuneOpen] = useState(false);
   // Walk minutes the browser measured between stops, merged over the route's
   // life so a reorder re-times a leg the generator never walked.
@@ -1592,8 +1566,8 @@ function PlanComposerForm({
   const lockBusy = submitting || sorting;
 
   // The venue index behind the Stop name field's datalist. It is only ever read
-  // by the composer's own stop rows (the datalist, the typed-name match in
-  // editedPlanStop, and the held pub's name), so it is asked for only once the
+  // by the composer's own stop rows (the datalist, the pub finder's match, and
+  // the held pub's name), so it is asked for only once the
   // composer is on screen. `/plan` opens on describe-first at every width, and
   // measured on the audit's phone rig that arrival spent 1821 KB on two reads
   // of a 911 KB index for a control it had not drawn: 1821 KB of the route's
@@ -2047,6 +2021,7 @@ function PlanComposerForm({
       setConciergeNote(`${planStopCountPhrase(suggested.length)} we can stand behind, shaped by the outing you set below.`);
       setRouteStatus("Route refreshed. Review the preview, then lock it in when it feels right.");
       setRouteRevealTick((tick) => tick + 1);
+      setRouteDrawKey(suggested.map((stop) => stop.venueId).join(">"));
       if (body.inferredContext) {
         trackEvent("night_description_submitted", { area: body.inferredContext.nightArea ?? "", daypart: body.inferredContext.daypart });
       }
@@ -2183,7 +2158,6 @@ function PlanComposerForm({
       clearPlanIntakeDraft();
       clearPersistentPlanMutationKey("create", operationKey);
       haptic("plan-locked");
-      setLocked(true);
       router.push(`/plan/${planId}#share`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The plan could not be created.");
@@ -2464,7 +2438,7 @@ function PlanComposerForm({
         stops={stripStops}
         mapHref={buildCrawlMapHref(stripStops.map((stop) => stop.venueId))}
         variant="strip"
-        drawKey={routeRevealTick > 0 ? `route-${routeRevealTick}` : undefined}
+        drawKey={routeDrawKey ?? undefined}
         onLegs={onMeasuredLegs}
       />
   ) : null;
@@ -2553,13 +2527,10 @@ function PlanComposerForm({
         <button
           className="planComposer__submit"
           type="submit"
-          disabled={lockBusy || locked}
+          disabled={lockBusy}
           aria-disabled={!lockBusy && !canLockPlan ? true : undefined}
           aria-describedby={lockHint ? "plan-lock-hint" : undefined}
-        >
-          <span className="planLock__text" data-on={locked ? undefined : "true"} aria-hidden={locked ? true : undefined}>{submitting ? "Locking it in…" : "Lock it in"}</span>
-          <span className="planLock__text planLock__text--done" data-on={locked ? "true" : undefined} aria-hidden={locked ? undefined : true}>Locked. Share the link</span>
-        </button>
+        >{submitting ? "Locking it in…" : "Lock it in"}</button>
         {lockHint ? <p id="plan-lock-hint" className="planComposer__lockHint">{lockHint}</p> : null}
         <p className="planComposer__trust">Anyone with the link can see the plan. Joining only asks for a name.</p>
       </div>

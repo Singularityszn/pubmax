@@ -9,6 +9,7 @@ import {
   type MouseEvent,
   type PointerEvent,
 } from "react";
+import { flushSync } from "react-dom";
 
 import { haptic } from "@/lib/nativeHaptics";
 import { dropIndex, reorderShifts, type StopSlot } from "@/lib/planStopReorder";
@@ -68,6 +69,7 @@ export function useStopGestures({
   keys,
   onReveal,
   firstLocked,
+  refreshKey,
 }: {
   onReorder: (from: number, to: number) => void;
   revealedKey: number | null;
@@ -75,11 +77,14 @@ export function useStopGestures({
   onReveal: (key: number | null) => void;
   /** A held pub is Stop 1 for good: it never lifts and nothing lands above it. */
   firstLocked: boolean;
+  /** A new route remounts every card, so a gesture on the old ones is dropped. */
+  refreshKey: number;
 }) {
   const [liftedIndex, setLiftedIndex] = useState<number | null>(null);
   const items = useRef<Array<HTMLElement | null>>([]);
   const gesture = useRef<Gesture | null>(null);
   const cancelSpring = useRef<() => void>(() => {});
+  const releasePointer = useRef<() => void>(() => {});
   const swallowClick = useRef(false);
   const callbacks = useRef({ onReorder, onReveal, revealedKey, keys, firstLocked });
   useEffect(() => {
@@ -99,13 +104,19 @@ export function useStopGestures({
     }
   }, []);
 
-  useEffect(() => {
-    const cancelRunning = cancelSpring.current;
-    return () => {
-      cancelRunning();
-      window.removeEventListener("touchmove", blockScroll);
-    };
+  // The end of a gesture is heard on the window, so a pointer that leaves its
+  // card, or a card that leaves the page, still ends it.
+  const abandon = useCallback(() => {
+    const current = gesture.current;
+    if (current?.holdTimer) clearTimeout(current.holdTimer);
+    gesture.current = null;
+    cancelSpring.current();
+    releasePointer.current();
+    window.removeEventListener("touchmove", blockScroll);
+    setLiftedIndex(null);
   }, [blockScroll]);
+
+  useEffect(() => abandon, [refreshKey, abandon]);
 
   const lift = useCallback((current: Gesture) => {
     current.mode = "drag";
@@ -145,12 +156,15 @@ export function useStopGestures({
       },
       () => {
         gesture.current = null;
+        const moved = commit && to !== current.index;
+        // The new order commits in this frame, so the cards never paint back
+        // in their old places with their transforms gone.
+        flushSync(() => {
+          setLiftedIndex(null);
+          if (moved) callbacks.current.onReorder(current.index, to);
+        });
         clearTransforms();
-        setLiftedIndex(null);
-        if (commit && to !== current.index) {
-          callbacks.current.onReorder(current.index, to);
-          haptic("selection-kept");
-        }
+        if (moved) haptic("selection-kept");
       },
     );
   }, [blockScroll, clearTransforms]);
@@ -177,6 +191,23 @@ export function useStopGestures({
       },
     );
   }, []);
+
+  const end = useCallback((event: globalThis.PointerEvent, cancelled: boolean) => {
+    const current = gesture.current;
+    if (!current || current.pointerId !== event.pointerId) return;
+    if (current.holdTimer) clearTimeout(current.holdTimer);
+    current.holdTimer = null;
+    if (current.mode === "pending") {
+      gesture.current = null;
+      return;
+    }
+    swallowClick.current = true;
+    setTimeout(() => {
+      swallowClick.current = false;
+    }, 0);
+    if (current.mode === "drag") settleDrag(current, !cancelled);
+    else settleSwipe(current);
+  }, [settleDrag, settleSwipe]);
 
   const onPointerDown = useCallback((index: number) => (event: PointerEvent<HTMLElement>) => {
     if (gesture.current) return;
@@ -205,13 +236,27 @@ export function useStopGestures({
     };
     current.liftable = liftable;
     gesture.current = current;
+    releasePointer.current();
+    function release() {
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", finish);
+      if (releasePointer.current === release) releasePointer.current = () => {};
+    }
+    function finish(pointer: globalThis.PointerEvent) {
+      if (pointer.pointerId !== current.pointerId) return;
+      release();
+      end(pointer, pointer.type === "pointercancel");
+    }
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("pointercancel", finish);
+    releasePointer.current = release;
     if (event.pointerType !== "mouse" && liftable) {
       current.holdTimer = setTimeout(() => {
         current.holdTimer = null;
         if (gesture.current === current && current.mode === "pending") lift(current);
       }, HOLD_MS);
     }
-  }, [lift]);
+  }, [end, lift]);
 
   const onPointerMove = useCallback((event: PointerEvent<HTMLElement>) => {
     const current = gesture.current;
@@ -282,26 +327,6 @@ export function useStopGestures({
     }
   }, [lift]);
 
-  const end = useCallback((event: PointerEvent<HTMLElement>, cancelled: boolean) => {
-    const current = gesture.current;
-    if (!current || current.pointerId !== event.pointerId) return;
-    if (current.holdTimer) clearTimeout(current.holdTimer);
-    current.holdTimer = null;
-    if (current.mode === "pending") {
-      gesture.current = null;
-      return;
-    }
-    swallowClick.current = true;
-    setTimeout(() => {
-      swallowClick.current = false;
-    }, 0);
-    if (current.mode === "drag") settleDrag(current, !cancelled);
-    else settleSwipe(current);
-  }, [settleDrag, settleSwipe]);
-
-  const onPointerUp = useCallback((event: PointerEvent<HTMLElement>) => end(event, false), [end]);
-  const onPointerCancel = useCallback((event: PointerEvent<HTMLElement>) => end(event, true), [end]);
-
   const onClickCapture = useCallback((index: number) => (event: MouseEvent<HTMLElement>) => {
     if (swallowClick.current) {
       event.preventDefault();
@@ -331,5 +356,5 @@ export function useStopGestures({
     items.current[index] = element;
   }, []);
 
-  return { liftedIndex, itemRef, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onClickCapture, onKeyDown };
+  return { liftedIndex, itemRef, onPointerDown, onPointerMove, onClickCapture, onKeyDown };
 }

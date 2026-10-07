@@ -46,6 +46,12 @@ export default function PlanTuneSheet({
   const drag = useRef<{ pointerId: number; startY: number; offset: number; lastY: number; lastT: number; velocity: number } | null>(null);
   const cancelSpring = useRef<() => void>(() => {});
   const [closing, setClosing] = useState(false);
+  // Every opening starts at the half detent, wherever the last one was left.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setDetent("half");
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -58,8 +64,8 @@ export default function PlanTuneSheet({
   useDismissOnEscape(open, onClose, sheetRef);
 
   useEffect(() => {
-    const cancel = cancelSpring.current;
-    return () => cancel();
+    const spring = cancelSpring;
+    return () => spring.current();
   }, []);
 
   const write = useCallback((value: number) => {

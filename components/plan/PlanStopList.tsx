@@ -29,10 +29,19 @@ function stampFor(stop: DraftStop): { text: string; bandClass: string } | null {
   return { text: formatPenceFixed(pence), bandClass: priceBandClass(band) };
 }
 
+/**
+ * The area is the route's, so it is printed only on a stop the generator placed
+ * there (one that still carries its walk or price). A pub the reader picked or
+ * swapped in may sit anywhere in the city.
+ */
 function metaFor(stop: DraftStop, areaName: string | null): string {
   const drink = stop.selectedDrinkPriceEvidence;
   const trust = drink ? `${categoryLabel(drink.category)} price` : priceKindLabel(stop.priceKind);
-  return [areaName, trust].filter(Boolean).join(" · ");
+  const placed = stop.walkFromVenueId !== undefined
+    || stop.walkingMinutesFromPrevious !== undefined
+    || stop.estimatedPintPricePence !== undefined
+    || stop.priceKind !== undefined;
+  return [placed ? areaName : null, trust].filter(Boolean).join(" · ");
 }
 
 /** The pub finder an added stop shows until a pub is chosen. */
@@ -113,7 +122,7 @@ export default function PlanStopList({
   const [revealedKey, setRevealedKey] = useState<number | null>(null);
   const keys = useMemo(() => stops.map((stop) => stop.key), [stops]);
   const firstLocked = Boolean(heldVenueId) && stops[0]?.venueId === heldVenueId;
-  const gestures = useStopGestures({ onReorder, revealedKey, keys, onReveal: setRevealedKey, firstLocked });
+  const gestures = useStopGestures({ onReorder, revealedKey, keys, onReveal: setRevealedKey, firstLocked, refreshKey });
   const byName = useMemo(
     () => new Map(venues.map((venue) => [venue.name.toLocaleLowerCase(), venue])),
     [venues],
@@ -158,13 +167,11 @@ export default function PlanStopList({
                     className="planStop__surface"
                     onPointerDown={gestures.onPointerDown(index)}
                     onPointerMove={gestures.onPointerMove}
-                    onPointerUp={gestures.onPointerUp}
-                    onPointerCancel={gestures.onPointerCancel}
                     onClickCapture={gestures.onClickCapture(index)}
                     onKeyDown={(event) => {
                       if (!(event.target as HTMLElement).closest(".planStop__open")) return;
                       gestures.onKeyDown(index, stops.length)(event);
-                      if (event.key === "Delete" && removable && !removeDisabled(stop, index) && !event.defaultPrevented) {
+                      if ((event.key === "Delete" || event.key === "Backspace") && removable && !removeDisabled(stop, index) && !event.defaultPrevented) {
                         event.preventDefault();
                         onRemove(stop.key);
                       }
@@ -177,7 +184,7 @@ export default function PlanStopList({
                         href={venueMapUrl(stop.venueId)}
                         prefetch={false}
                         draggable={false}
-                        aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown Delete"
+                        aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown Delete Backspace"
                         aria-description="Press and hold to drag to a new place. Alt and the arrow keys move it. Delete removes it."
                       >
                         <span className="planStop__name">{stop.venueName}</span>

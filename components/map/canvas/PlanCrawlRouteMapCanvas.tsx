@@ -43,14 +43,15 @@ function fitPreviewRoute(map: maplibregl.Map, stopCoords: LngLat[], lineCoords: 
 }
 
 /**
- * Route keys already drawn in this tab. A route draws itself ONCE: the strip
- * remounts whenever the stops change (a reorder, a swap), and that must not
- * replay the draw for a route the reader has already watched arrive.
+ * Routes already drawn in this tab, keyed by their pubs in arrival order. A
+ * route draws itself ONCE: the strip remounts whenever the stops change (a
+ * reorder, a swap), and that must not replay the draw for a route the reader
+ * has already watched arrive.
  */
 const drawnRouteKeys = new Set<string>();
 
 export type PlanCrawlRouteMapCanvasProps = {
-  /** Set only for a route that has just arrived. Same key, never drawn twice. */
+  /** The arrived route's pubs in order. Same key, never drawn twice. */
   drawKey?: string;
   stopCoords: LngLat[];
   routeLine: GeoJSON.FeatureCollection;
