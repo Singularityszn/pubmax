@@ -159,9 +159,14 @@ test.describe("desktop taste wave 1", () => {
       // primary (the Sign in door, in the Screen head). The boundary under
       // it prints its line alone: no second link to the same page. Coral fill
       // is the composer, not a retired feed empty.
+      //
+      // Count the PAINTED primaries. /social streams its body behind
+      // loading.tsx, and when the auth answer reaches that still-pending
+      // boundary React renders it on the client. The server's copy (its
+      // pre-auth "Post") then lands late as a hidden orphan nobody sees.
       await page.goto("/social");
       await expect(page).toHaveURL(/\/social\/?$/);
-      const storiesPrimary = page.locator("[data-primary-action]");
+      const storiesPrimary = page.locator("[data-primary-action]").filter({ visible: true });
       await expect(storiesPrimary).toHaveCount(1);
       await expect(storiesPrimary.getByRole("link", { name: "Sign in" })).toBeVisible();
       await expect(page.getByRole("status").getByText("Sign in to use Social.")).toBeVisible();

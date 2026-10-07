@@ -283,7 +283,9 @@ test.describe("out supply honesty @390", () => {
     }
     await expect(page.locator(".outListingPubPair--absent")).toHaveCount(4);
     // The primary is a product action. A listing title never wears the fill.
-    const primary = page.locator("[data-primary-action] a");
+    // Only the painted one counts: /out streams behind loading.tsx and can
+    // leave the server's copy behind as a hidden orphan.
+    const primary = page.locator("[data-primary-action] a").filter({ visible: true });
     await expect(primary).toHaveText("Open the map");
     await expect(primary).toHaveAttribute("href", "/map");
     const credit = page.getByTestId("out-listing-credit");
@@ -336,10 +338,10 @@ test.describe("out supply honesty @390", () => {
     await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
     await expect(page.getByTestId("out-listing-row")).toHaveCount(25);
 
-    const primary = page.locator("[data-primary-action] a");
+    const primary = page.locator("[data-primary-action] a").filter({ visible: true });
     await expect(primary).toHaveCount(1);
     await expect(primary).toHaveText("Open the map");
-    await expect(page.locator("[data-primary-action]")).not.toContainText("Burlesque");
+    await expect(page.locator("[data-primary-action]").filter({ visible: true })).not.toContainText("Burlesque");
 
     const lead = page.getByTestId("out-honest-empty");
     await expect(lead).toContainText("We couldn’t match any of tonight’s 25 listings to a pub on our map.");
@@ -458,7 +460,7 @@ test.describe("out supply honesty @390", () => {
     await expect(page.getByText("No listings for this day yet.")).toBeVisible();
     await expect(page.getByTestId("out-venue-match-notice")).toHaveCount(0);
     // With no listings, the map is still the primary.
-    await expect(page.locator("[data-primary-action] a")).toHaveText("Open the map");
+    await expect(page.locator("[data-primary-action] a").filter({ visible: true })).toHaveText("Open the map");
   });
 });
 
