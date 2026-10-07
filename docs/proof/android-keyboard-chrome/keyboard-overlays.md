@@ -17,9 +17,9 @@ All 72 focused unit tests passed. All five production browser regressions passed
 
 ## Venue sheet detents above the dock
 
-Every map sheet now stops above the dock. Only the full snap gives up the dock's height, so its top edge stays where it was. Peek and half keep their viewport fractions. Peek and half also grow to fit the sheet's header and footer. At 320x568 the venue command bar wraps to two rows, which a 125px peek clipped before this change. The venue footer has a 12px bottom gutter, because the portal already reserves the safe-area inset.
+Every map sheet now stops above the dock. Only the full snap gives up the dock's height, so its top edge stays where it was. Half keeps its viewport fraction and grows to fit the sheet's header and footer. The venue sheet peeks at its header and command bar only, and its body is hidden there, so no row is cut. At 320x568 the venue command bar wraps to two rows, which a 125px peek clipped before this change. The venue footer has a 12px bottom gutter, because the portal already reserves the safe-area inset.
 
-`e2e/mobile-shared-sheet-layout.spec.ts` holds the header and footer inside the sheet and the sheet inside the viewport at every detent and both sizes. It ran against a production build in desktop Chrome.
+`e2e/mobile-shared-sheet-layout.spec.ts` holds the header and footer inside the sheet and the sheet inside the viewport at every detent and both sizes. At peek it also holds the body hidden and closed. It ran against a production build in desktop Chrome.
 
 | Size | Peek | Half | Full |
 | --- | --- | --- | --- |

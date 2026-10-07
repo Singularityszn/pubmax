@@ -65,7 +65,7 @@ describe("useSheetHeightDrag under a shrinking layout viewport", () => {
     expect(probe.snapshot!.sheetHeight! + 64).toBeLessThan(568);
   });
 
-  it("raises peek to the sheet's header and footer, and follows them when they grow", async () => {
+  it("peeks at exactly the header and command bar once the footer holds one", async () => {
     setViewport(568, 320);
     const portal = document.body.appendChild(document.createElement("div"));
     portal.className = "mobileSheetPortal";
@@ -79,6 +79,7 @@ describe("useSheetHeightDrag under a shrinking layout viewport", () => {
     body.className = "mobileSharedSheetBody";
     body.style.padding = "8px 16px";
     const footer = sheet.appendChild(document.createElement("div"));
+    footer.className = "mobileSharedSheetFooter";
     height(footer, 0);
     const probe = await mount();
 
@@ -87,7 +88,7 @@ describe("useSheetHeightDrag under a shrinking layout viewport", () => {
 
     height(footer, 121);
     await act(async () => probe.snapshot!.recapToViewport());
-    expect(probe.snapshot!.sheetHeight).toBe(64 + 16 + 121);
+    expect(probe.snapshot!.sheetHeight).toBe(64 + 121);
     expect(probe.snapshot!.settling).toBe(false);
   });
 

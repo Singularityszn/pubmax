@@ -814,6 +814,15 @@
        under the footer (Book a table / Share, #1533). */
     scroll-padding-bottom: 12px;
   }
+  /* The venue sheet peeks at its header and command bar alone
+     (useSheetHeightDrag sizes it so). The body gives up its padding so it
+     closes to nothing, and hides at rest so no cut row shows. */
+  .mobileSharedSheet.right.sheet-peek > .mobileSharedSheetBody {
+    padding-block: 0;
+  }
+  .mobileSharedSheet.right.sheet-peek:not(.sheet-dragging):not(.sheet-settling) > .mobileSharedSheetBody {
+    visibility: hidden;
+  }
   /* THE LOADING PANEL FILLS THE SHEET. This box is content-driven under
      `max-height: var(--sheet-cap)`, so while the venue panel's own chunk was in
      flight the sheet hugged the peek summary alone — 107px measured on the
