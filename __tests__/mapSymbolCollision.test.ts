@@ -467,11 +467,12 @@ describe("symbol collision policy", () => {
       { zoom: CLUSTER_DISC_SMALL_FROM_ZOOM + 1, outer: CLUSTER_MIN_RADIUS_PX },
     ];
     const clusters = [
-      { minPrice: 12.5, point_count_abbreviated: "94" },
-      { minPrice: 5.5, point_count_abbreviated: "94" },
-      { minPrice: 6, point_count_abbreviated: "3" },
+      { minPrice: 12.5, point_count_abbreviated: 94 },
+      { minPrice: 5.5, point_count_abbreviated: 94 },
+      { minPrice: 6, point_count_abbreviated: 3 },
       { minPrice: CLUSTER_PRICE_NONE, point_count_abbreviated: "1.5k" },
-      { minPrice: CLUSTER_PRICE_NONE, point_count_abbreviated: "94" },
+      { minPrice: CLUSTER_PRICE_NONE, point_count_abbreviated: 94 },
+      { minPrice: CLUSTER_PRICE_NONE, point_count_abbreviated: 999 },
     ];
     for (const { zoom, outer } of discs) {
       const paper = 2 * (outer - CLUSTER_CASING_PX - CLUSTER_RING_PX);
@@ -486,7 +487,7 @@ describe("symbol collision policy", () => {
       }
     }
     // A short figure keeps the full size: only a long one steps down.
-    const short = { type: 1, properties: { minPrice: 6, point_count_abbreviated: "3" } } as never;
+    const short = { type: 1, properties: { minPrice: 6, point_count_abbreviated: 3 } } as never;
     expect(size.evaluate({ zoom: CLUSTER_DISC_SMALL_FROM_ZOOM - 1 } as never, short)).toBe(12);
     expect(size.evaluate({ zoom: CLUSTER_DISC_SMALL_FROM_ZOOM + 1 } as never, short)).toBe(11);
   });

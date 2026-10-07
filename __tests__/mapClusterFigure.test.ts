@@ -25,14 +25,14 @@ describe("CLUSTER_FIGURE_EXPR", () => {
   it.each([3.2, 5.4, 5.45, 6, 12.5, 4.95, 5.405, 6.999, 0.5, 10])(
     "writes %s the way a pin writes it",
     (price) => {
-      expect(figureFor({ minPrice: price, point_count_abbreviated: "94" })).toBe(
+      expect(figureFor({ minPrice: price, point_count_abbreviated: 94 })).toBe(
         formatPinPriceLabel(price),
       );
     },
   );
 
   it("prints the count where no pub in the cluster says a price", () => {
-    expect(figureFor({ minPrice: CLUSTER_PRICE_NONE, point_count_abbreviated: "94" })).toBe("94");
+    expect(figureFor({ minPrice: CLUSTER_PRICE_NONE, point_count_abbreviated: 94 })).toBe("94");
     expect(figureFor({ point_count_abbreviated: "1.5k" })).toBe("1.5k");
   });
 
@@ -53,7 +53,7 @@ describe("CLUSTER_FIGURE_EXPR", () => {
       expect(new Intl.NumberFormat(undefined, { minimumFractionDigits: 2 }).format(5.4)).toBe(
         "5,40",
       );
-      expect(figureFor({ minPrice: 5.4, point_count_abbreviated: "94" })).toBe(
+      expect(figureFor({ minPrice: 5.4, point_count_abbreviated: 94 })).toBe(
         formatPinPriceLabel(5.4),
       );
     });
