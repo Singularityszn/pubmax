@@ -168,12 +168,12 @@ describe("Pub Pal first meeting and onboarding", () => {
 
 describe("Pub Pal home appearance description", () => {
   it.each([
-    ["beer", "Your amber robin shaped around your night, with boundaries you control."],
-    ["gin", "Your crystal robin shaped around your night, with boundaries you control."],
-    ["rum", "Your copper robin shaped around your night, with boundaries you control."],
-    ["whisky", "Your faceted robin shaped around your night, with boundaries you control."],
-    ["brandy", "Your polished robin shaped around your night, with boundaries you control."],
-    ["vodka", "Your ice robin shaped around your night, with boundaries you control."],
+    ["beer", "Your amber robin, set up for your nights out. You decide what it can do."],
+    ["gin", "Your crystal robin, set up for your nights out. You decide what it can do."],
+    ["rum", "Your copper robin, set up for your nights out. You decide what it can do."],
+    ["whisky", "Your faceted robin, set up for your nights out. You decide what it can do."],
+    ["brandy", "Your polished robin, set up for your nights out. You decide what it can do."],
+    ["vodka", "Your ice robin, set up for your nights out. You decide what it can do."],
   ] as const)("describes a %s Pal without an incorrect indefinite article", async (signalAffinity, description) => {
     await act(async () => root?.unmount());
     const ownerId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";

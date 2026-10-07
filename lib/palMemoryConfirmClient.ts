@@ -6,7 +6,7 @@ import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { discardBody } from "@/lib/responseBody";
 import type { PubPalMemoryKind } from "@/lib/palMemoryKinds.mjs";
 
-const SAVE_FAILED = "Could not save that memory.";
+const SAVE_FAILED = "Couldn't save that memory.";
 
 type ConfirmOutcome = { ok: true } | { ok: false; error: string; needsSignIn?: boolean };
 

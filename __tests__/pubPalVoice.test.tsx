@@ -255,8 +255,8 @@ describe("Pub Pal voice controls", () => {
   });
 
   it.each([
-    [429, "VOICE_ALLOWANCE_USED", "Your trial voice allowance is used for this month."],
-    [503, "UNAVAILABLE", "Voice is not configured yet."],
+    [429, "VOICE_ALLOWANCE_USED", "You've used this month's trial voice allowance."],
+    [503, "UNAVAILABLE", "Voice isn't set up yet."],
   ])("does not release a parsed non-ok grant response (%s)", async (status, code, error) => {
     const stopTrack = vi.fn();
     getUserMedia.mockResolvedValueOnce({

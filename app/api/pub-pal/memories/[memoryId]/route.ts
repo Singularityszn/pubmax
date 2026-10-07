@@ -26,8 +26,8 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
   const result = await updatePalMemoryResult(ownerId, memoryId, body);
   if (result.ok) return jsonNoStore({ memory: result.value });
   return result.error === "error"
-    ? publicApiError("Pal memory could not be updated.", "PAL_MEMORY_STORE_UNAVAILABLE", 503, { retryable: true })
-    : publicApiError("Pal memory was not found or the correction is empty.", "PAL_MEMORY_NOT_FOUND", 404);
+    ? publicApiError("We couldn't update that memory.", "PAL_MEMORY_STORE_UNAVAILABLE", 503, { retryable: true })
+    : publicApiError("We couldn't find that memory, or the correction is empty.", "PAL_MEMORY_NOT_FOUND", 404);
 }
 
 export async function DELETE(request: Request, context: Context): Promise<Response> {
@@ -42,6 +42,6 @@ export async function DELETE(request: Request, context: Context): Promise<Respon
   const result = await deletePalMemoryResult(ownerId, memoryId);
   if (result.ok) return jsonNoStore({ deleted: true });
   return result.error === "error"
-    ? publicApiError("Pal memory could not be deleted.", "PAL_MEMORY_STORE_UNAVAILABLE", 503, { retryable: true })
+    ? publicApiError("We couldn't delete that memory.", "PAL_MEMORY_STORE_UNAVAILABLE", 503, { retryable: true })
     : publicApiError("Pal memory not found.", "PAL_MEMORY_NOT_FOUND", 404);
 }

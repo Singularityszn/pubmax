@@ -439,7 +439,7 @@ export default function PalChat() {
             id: nextId(),
             answer: {
               status: "answered",
-              message: `Saved. I will remember: ${proposal.value}`,
+              message: `Saved. I'll remember: ${proposal.value}`,
               cards: [],
             },
             locality: null,
@@ -554,7 +554,7 @@ export default function PalChat() {
         }
         title={"What's the night?"}
         titleId="pal-chat-title"
-        lede="Straight answers from what we have actually seen. Every card keeps its source. No made-up venues, prices, or events."
+        lede="Straight answers from what we've actually seen. Every card shows its source. No made-up venues, prices or events."
         secondary={<Link prefetch={false} href="/pal">Back to your Pub Pal</Link>}
       >
 
@@ -693,7 +693,7 @@ export default function PalChat() {
                   <i />
                   <i />
                 </span>
-                <span className="palChatSr">Checking what is on record</span>
+                <span className="palChatSr">Checking what&apos;s on record</span>
               </p>
             </div>
           ) : null}

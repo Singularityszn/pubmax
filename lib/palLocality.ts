@@ -188,16 +188,16 @@ export function resolvePalLocality(
 export function palLocalityLine(locality: PalLocality): string {
   if (locality.grounded) {
     return locality.scope === "query"
-      ? `Grounded in ${locality.label}, the area you named.`
-      : `Grounded around ${locality.label}, your remembered area.`;
+      ? `In ${locality.label}, the area you named.`
+      : `Around ${locality.label}, the area you last picked.`;
   }
   if (locality.unplaced) {
-    return `Across London. We could not place \u201c${locality.unplaced}\u201d, so these are not ranked by distance.`;
+    return `Across London. We couldn't place "${locality.unplaced}", so these aren't ranked by distance.`;
   }
   if (locality.askedLondon) {
     return "Across London, as you asked, not ranked by distance.";
   }
-  return "Across London. No area set, so these are not ranked by distance.";
+  return "Across London. No area set, so these aren't ranked by distance.";
 }
 
 /**
