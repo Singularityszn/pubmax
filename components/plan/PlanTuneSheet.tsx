@@ -58,6 +58,7 @@ export default function PlanTuneSheet({
     moved: boolean;
   } | null>(null);
   const live = useRef(0);
+  const pressedOutside = useRef(false);
   const cancelSpring = useRef<() => void>(() => {});
   const [closing, setClosing] = useState(false);
   // Every opening starts at the half detent, wherever the last one was left.
@@ -163,8 +164,18 @@ export default function PlanTuneSheet({
   if (!open || typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="planTune" data-detent={detent} data-closing={closing ? "true" : undefined}>
-      <button type="button" className="planTune__scrim" tabIndex={-1} aria-label={`Close ${title}`} onClick={onClose} />
+    <div
+      className="planTune"
+      data-detent={detent}
+      data-closing={closing ? "true" : undefined}
+      onPointerDown={(event) => {
+        pressedOutside.current = !sheetRef.current?.contains(event.target as Node);
+      }}
+      onClick={(event) => {
+        if (pressedOutside.current && !sheetRef.current?.contains(event.target as Node)) onClose();
+      }}
+    >
+      <div className="planTune__scrim" aria-hidden="true" />
       <section
         ref={sheetRef}
         className="planTune__sheet"

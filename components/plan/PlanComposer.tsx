@@ -728,6 +728,8 @@ export function errorMessageFromBody(body: unknown, fallback: string): string {
  * sentence about the accepted pub. The server sentence is the only one that
  * names what is actually in the way, so it wins whenever the outcome says so.
  */
+const NO_VENUES_MATCHED = "No venues matched that ask. Try a nearby area or a broader mood.";
+
 export function anchorConflictMessage(body: unknown): string | null {
   if (!body || typeof body !== "object") return null;
   const payload = body as { outcome?: unknown; message?: unknown };
@@ -2070,13 +2072,15 @@ function PlanComposerForm({
         // Answered 200 with no Stops on purpose: the kept pub is what is in the
         // way, and only the server knows which check refused it.
         setConciergeNote(anchorConflict);
+        setRouteStatus(anchorConflict);
         return;
       }
       const suggested = routeStopsFromGenerated(body.stops, body.alternatives);
       if (!suggested.length) {
         // Zero matches is guidance, not failure (friction sweep follow-up 9):
         // the polite status slot, never the red error banner.
-        setConciergeNote("No venues matched that ask. Try a nearby area or a broader mood.");
+        setConciergeNote(NO_VENUES_MATCHED);
+        setRouteStatus(NO_VENUES_MATCHED);
         return;
       }
       setStops(suggested);

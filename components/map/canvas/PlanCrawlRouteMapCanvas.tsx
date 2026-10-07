@@ -44,9 +44,9 @@ function fitPreviewRoute(map: maplibregl.Map, stopCoords: LngLat[], lineCoords: 
 
 /**
  * Routes already drawn in this tab, keyed by their pubs in arrival order. A
- * route draws itself ONCE: the strip remounts whenever the stops change (a
- * reorder, a swap), and that must not replay the draw for a route the reader
- * has already watched arrive.
+ * route draws itself ONCE: a strip that remounts, a theme swap or a new key on
+ * the same map must not replay the draw for a route the reader has already
+ * watched arrive.
  */
 const drawnRouteKeys = new Set<string>();
 
@@ -73,6 +73,7 @@ export default function PlanCrawlRouteMapCanvas({
   const routeRef = useRef({ stopCoords, routeLine, routeStops, lineCoords });
   const drawKeyRef = useRef(drawKey);
   const drawingRef = useRef(false);
+  const drawRef = useRef<() => void>(() => {});
   const themeRef = useRef<"light" | "dark">(
     document.documentElement.dataset.theme === "dark" ? "dark" : "light",
   );
@@ -121,6 +122,7 @@ export default function PlanCrawlRouteMapCanvas({
       const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       if (!key || reduced || drawnRouteKeys.has(key)) return false;
       drawnRouteKeys.add(key);
+      cancelAnimationFrame(drawFrame);
       drawingRef.current = true;
       // The scene was just built with the whole line. Take it back before the
       // first frame so the finished route never flashes ahead of its own draw.
@@ -156,6 +158,9 @@ export default function PlanCrawlRouteMapCanvas({
 
     map.on("load", paintRoute);
     if (map.loaded()) paintRoute();
+    drawRef.current = () => {
+      if (map.getSource("route-line")) drawRouteOnce();
+    };
 
     const onTheme = () => {
       const next = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
@@ -171,6 +176,7 @@ export default function PlanCrawlRouteMapCanvas({
     });
 
     return () => {
+      drawRef.current = () => {};
       cancelAnimationFrame(drawFrame);
       drawingRef.current = false;
       themeObserver.disconnect();
@@ -189,6 +195,11 @@ export default function PlanCrawlRouteMapCanvas({
     if (!drawingRef.current) syncPlanRoutePreviewScene(map, routeLine, routeStops);
     fitPreviewRoute(map, stopCoords, lineCoords);
   }, [stopCoords, routeLine, routeStops, lineCoords]);
+
+  useEffect(() => {
+    drawKeyRef.current = drawKey;
+    drawRef.current();
+  }, [drawKey]);
 
   return (
     <div

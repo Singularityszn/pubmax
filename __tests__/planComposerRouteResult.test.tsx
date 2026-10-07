@@ -206,6 +206,34 @@ describe("sorting again from Tune details", () => {
   });
 });
 
+describe("a refresh that comes back with no route", () => {
+  it.each([
+    ["no pubs match", { stops: [] }, "No venues matched that ask. Try a nearby area or a broader mood."],
+    ["the kept pub is in the way", { outcome: "anchor-conflict", message: "That pub is shut at that time." }, "That pub is shut at that time."],
+  ])("keeps the route and says why when %s", async (_case, answer, said) => {
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4");
+    await openTune();
+    fetchMock.mockImplementation(async (input) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      return new Response(JSON.stringify(url.includes("/api/plans/generate") ? answer : []), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+
+    await sortAgainFromTune();
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+    await settle();
+
+    expect(document.querySelector("[role='dialog']")).toBeNull();
+    expect(document.querySelector("#plan-route-status")?.textContent).toBe(said);
+    expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(["Pub A", "Pub B"]);
+  });
+});
+
 describe("an accepted place the venue index has no name for", () => {
   const HELD = "venue-held";
 

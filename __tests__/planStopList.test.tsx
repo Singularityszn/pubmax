@@ -217,6 +217,29 @@ describe("PlanStopList", () => {
     expect(document.activeElement).toBe(cards()[0]!.querySelector(".planStop__find"));
   });
 
+  it("ignores a mouse that keeps moving while a dropped card settles", async () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({ matches: false, media: query }));
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      const li = this.closest("li");
+      const index = li?.parentElement ? [...li.parentElement.children].indexOf(li) : 0;
+      return { top: index * 80, height: 72, bottom: index * 80 + 72, left: 0, right: 300, width: 300, x: 0, y: index * 80, toJSON: () => ({}) } as DOMRect;
+    });
+    await mount();
+    const surface = cards()[0]!.querySelector<HTMLElement>(".planStop__surface")!;
+    await act(async () => {
+      pointer("pointerdown", surface, { clientX: 10, clientY: 10, timeStamp: 0 });
+      pointer("pointermove", surface, { clientX: 10, clientY: 100, timeStamp: 10 });
+      pointer("pointerup", window, { clientX: 10, clientY: 100, timeStamp: 20 });
+    });
+    const neighbour = cards()[1]!.style.transform;
+    pointer("pointermove", surface, { clientX: 10, clientY: 400, timeStamp: 30 });
+    expect(cards()[0]!.style.transform).not.toBe("translate3d(0, 390px, 0)");
+    expect(cards()[1]!.style.transform).toBe(neighbour);
+    const scroll = new Event("touchmove", { bubbles: true, cancelable: true });
+    surface.dispatchEvent(scroll);
+    expect(scroll.defaultPrevented).toBe(false);
+  });
+
   it("lets a quick swipe that came to rest before lifting settle shut", async () => {
     reduceMotion();
     await mount({ stops: [generated, picked] });

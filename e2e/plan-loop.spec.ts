@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { sortDescribeFirst } from "./helpers/planDescribeFirst";
-import { setFirstPintIn } from "./helpers/planFirstPint";
+import { pinLondonEvening, setFirstPintIn } from "./helpers/planFirstPint";
 
 
 test("concierge picks become a public Plan that a mate joins with only a name", async ({
@@ -25,6 +25,7 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
     // dismissing it here is what a returning visitor already carries.
     window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
   });
+  await pinLondonEvening(page);
   await page.goto("/plan");
   await expect(page.getByRole("heading", { name: "Describe the outing. We’ll put it in order." })).toBeVisible();
   await expect

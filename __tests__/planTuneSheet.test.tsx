@@ -162,4 +162,27 @@ describe("PlanTuneSheet", () => {
     expect(onClose).not.toHaveBeenCalled();
     expect(sheet()).not.toBeNull();
   });
+
+  it("closes on a press that starts and ends outside the sheet, as on the dimmed scrim", async () => {
+    media();
+    const { onClose } = await openSheet();
+    const wrapper = document.querySelector<HTMLElement>(".planTune")!;
+    await act(async () => {
+      pointer("pointerdown", wrapper, 10);
+      wrapper.click();
+    });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays open when a press inside the sheet is let go over the scrim", async () => {
+    media();
+    const { onClose } = await openSheet();
+    const wrapper = document.querySelector<HTMLElement>(".planTune")!;
+    await act(async () => {
+      pointer("pointerdown", document.querySelector(".planTune__body p")!, 400);
+      wrapper.click();
+      sheet()!.click();
+    });
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });

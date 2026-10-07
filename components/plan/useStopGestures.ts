@@ -44,7 +44,7 @@ const GLIDE: SpringConfig = { response: 0.3, dampingRatio: 1 };
 /** How far the card slides to show Remove. Matches `--stop-tray` in the CSS. */
 const STOP_TRAY_PX = 96;
 
-type Mode = "pending" | "drag" | "swipe";
+type Mode = "pending" | "drag" | "swipe" | "settling";
 
 type Gesture = {
   liftable: boolean;
@@ -226,7 +226,9 @@ export function useStopGestures({
       swallowClick.current = false;
     }, 0);
     current.velocity = releaseVelocity(current.velocity, current.lastTime, event.timeStamp);
-    if (current.mode === "drag") settleDrag(current, !cancelled);
+    const mode = current.mode;
+    current.mode = "settling";
+    if (mode === "drag") settleDrag(current, !cancelled);
     else settleSwipe(current);
   }, [settleDrag, settleSwipe]);
 
@@ -281,7 +283,7 @@ export function useStopGestures({
 
   const onPointerMove = useCallback((event: PointerEvent<HTMLElement>) => {
     const current = gesture.current;
-    if (!current || current.pointerId !== event.pointerId) return;
+    if (!current || current.pointerId !== event.pointerId || current.mode === "settling") return;
     const dx = event.clientX - current.startX;
     const dy = event.clientY - current.startY;
 

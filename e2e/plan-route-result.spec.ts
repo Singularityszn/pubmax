@@ -118,6 +118,25 @@ test.describe("the Plan result is a route", () => {
 // itself as touch, so the card's own long-press lift and swipe-to-remove run
 // exactly as they do on a phone. The pointer media are forced coarse because
 // emulated touch alone leaves the page reading (hover: hover).
+for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 }]) {
+  test.describe(`the Tune details scrim at ${viewport.width}px`, () => {
+    test.use({ viewport });
+
+    test("a tap on the dimmed page closes the sheet while its trap holds the page inert", async ({ page }) => {
+      await sortARoute(page);
+      await page.getByRole("button", { name: "Tune details" }).click();
+      const sheet = page.getByRole("dialog", { name: "Tune details" });
+      await expect(sheet).toBeVisible();
+      await expect.poll(() => page.locator(".planTune__scrim").evaluate((node) => (node as HTMLElement).inert)).toBe(true);
+      // The real hit test: the point is over the scrim, which is inert, so the
+      // press lands on the sheet's wrapper beneath it.
+      expect(await page.evaluate(() => document.elementFromPoint(8, 8)?.className)).toBe("planTune");
+      await page.mouse.click(8, 8);
+      await expect(sheet).toBeHidden();
+    });
+  });
+}
+
 test.describe("the stop cards under a thumb", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
