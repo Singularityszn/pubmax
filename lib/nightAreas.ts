@@ -301,6 +301,28 @@ export function nearestNightAreaForViewport(cityId: CityId, center: [number, num
     })[0] ?? null;
 }
 
+/**
+ * The nearest area a crawl can be planned in. A planner that opens with an
+ * area already chosen must never pick one the app itself calls not crawl-ready,
+ * so a default area comes from here and not from `nearestNightAreaForViewport`.
+ * Null when the city has no route-ready area at all.
+ */
+export function nearestRouteReadyNightArea(
+  cityId: CityId,
+  center: [number, number],
+  now = new Date(),
+): NightArea | null {
+  const [lng, lat] = center;
+  if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null;
+  return getNightAreasForCity(cityId)
+    .filter((area) => isNightAreaRouteReady(area, now))
+    .map((area) => ({
+      area,
+      distance: Math.hypot((area.centre.lat - lat) * 111, (area.centre.lng - lng) * 70),
+    }))
+    .sort((left, right) => left.distance - right.distance)[0]?.area ?? null;
+}
+
 export function nightAreaForMapQuery(cityId: CityId, query: string): NightArea | null {
   const normalized = query.trim().toLocaleLowerCase().replace(/\s+/g, " ");
   if (!normalized) return null;

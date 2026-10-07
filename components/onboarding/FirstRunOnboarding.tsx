@@ -40,12 +40,16 @@ import {
   onboardingStepNumber,
   previousOnboardingStep,
   readBudgetChoice,
+  readOnboardingPatch,
   writeBudgetChoice,
+  writeOnboardingPatch,
+  writePlannerHandoff,
   type BudgetChoiceId,
   type OnboardingOrigin,
   type OnboardingStep,
 } from "@/lib/onboardingFlow";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
+import { readHistoryStep, useStepHistory } from "@/lib/useStepHistory";
 import { loadSlimVenuesForCityResult, type SlimVenueLoadResult } from "@/lib/venuesSlim";
 
 type ReviewedArea = {
@@ -66,21 +70,47 @@ const GEO_OPTIONS: PositionOptions = {
   maximumAge: 60_000,
 };
 
+/**
+ * The map reads its arrival query once, when it mounts. A client navigation
+ * can mount it before the address bar holds `?plan=1`, so the planner stayed
+ * shut and the handoff below was never read. A document load always carries
+ * the query, so this one step leaves the app router.
+ */
+function openPlannerDocument(): void {
+  window.location.assign(new URL("/map?plan=1", window.location.origin).href);
+}
+
+function patchOrigin(id: string | null): OnboardingOrigin | null {
+  const patch = NIGHT_PATCHES.find((candidate) => candidate.id === id);
+  return patch ? { kind: "patch", ...patch } : null;
+}
+
 export default function FirstRunOnboarding({
   reviewedAreas,
   skipHref,
+  openPlanner = openPlannerDocument,
 }: {
   reviewedAreas: ReviewedArea[];
   /** Where Skip lands: where the reader was going before the journey. */
   skipHref: Route;
+  /** How "Plan my night" reaches the planner. Tests replace the page load. */
+  openPlanner?: () => void;
 }) {
   const router = useRouter();
-  const [step, setStep] = useState<OnboardingStep>("london");
+  // A reload lands on the step the reader was on. The answer screen is rebuilt
+  // from a read that is gone, so a reload there goes back to the question.
+  const [step, setStep] = useState<OnboardingStep>(() => {
+    const recorded = readHistoryStep(ONBOARDING_STEPS);
+    return recorded === "result" ? "location" : (recorded ?? "london");
+  });
   const [companion, setCompanion] = useState<FirstRunCompanion>("robin");
   const [budget, setBudget] = useState<BudgetChoiceId | null>(null);
   const [locateState, setLocateState] = useState<LocateState>("idle");
   const [showPatches, setShowPatches] = useState(false);
-  const [origin, setOrigin] = useState<OnboardingOrigin | null>(null);
+  // A reload keeps the patch the reader chose, so the planner still opens on it.
+  const [origin, setOrigin] = useState<OnboardingOrigin | null>(() =>
+    readHistoryStep(ONBOARDING_STEPS) ? patchOrigin(readOnboardingPatch()) : null,
+  );
   const [answer, setAnswer] = useState<Answer>({ status: "loading" });
   // A reader who taps a patch twice, picks a patch while the location prompt is
   // open, or backs out mid-read, must not see the older answer land over the
@@ -158,6 +188,7 @@ export default function FirstRunOnboarding({
   const readAnswer = useCallback(async (from: OnboardingOrigin) => {
     const generation = beginAnswer();
     setOrigin(from);
+    writeOnboardingPatch(from.kind === "patch" ? from.id : null);
     setAnswer({ status: "loading" });
     setStep("result");
     let read: SlimVenueLoadResult;
@@ -198,6 +229,21 @@ export default function FirstRunOnboarding({
     });
   }, [beginAnswer]);
 
+  // Coming back to the result shows the answer this visit holds. With none
+  // (a reload, or a read dropped on the way back) the reader is asked again.
+  const resultStep: OnboardingStep = answer.status === "loading" ? "location" : "result";
+
+  // Browser Back and Forward walk the steps the reader has seen. Leaving a
+  // step drops any read still in flight.
+  const stepHistory = useStepHistory(
+    step,
+    (next) => {
+      beginAnswer();
+      setStep(next === "result" ? resultStep : next);
+    },
+    { steps: ONBOARDING_STEPS, first: "london" },
+  );
+
   function locate() {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       setLocateState("unavailable");
@@ -226,16 +272,15 @@ export default function FirstRunOnboarding({
   }
 
   function pickPatch(id: string) {
-    const patch = NIGHT_PATCHES.find((candidate) => candidate.id === id);
-    if (!patch) return;
-    void readAnswer({ kind: "patch", ...patch });
+    const patch = patchOrigin(id);
+    if (patch) void readAnswer(patch);
   }
 
   function skipOnboarding() {
     markTourSeen();
     trackEvent("tour_complete", { completed: false });
     releaseTourPromptBudget();
-    router.replace(skipHref);
+    stepHistory.leave(() => router.replace(skipHref));
   }
 
   function startPlan() {
@@ -247,7 +292,12 @@ export default function FirstRunOnboarding({
     // Onboarding and push never overlap. The route generator is the first
     // action allowed to arm the native permission explainer.
     releaseTourPromptBudget();
-    router.push("/map?plan=1");
+    // The planner opens on the patch and budget the reader just gave.
+    writePlannerHandoff({
+      patch: origin?.kind === "patch" ? { lat: origin.lat, lng: origin.lng } : null,
+      budget,
+    });
+    stepHistory.leave(openPlanner);
   }
 
   const stepNumber = onboardingStepNumber(step);
@@ -447,7 +497,7 @@ export default function FirstRunOnboarding({
                 </p>
 
                 <div className="firstRunActions">
-                  <button type="button" className="firstRunBack pressable" onClick={() => goTo(previous)}>
+                  <button type="button" className="firstRunBack pressable" onClick={() => goTo(resultStep)}>
                     <ArrowLeft size={18} aria-hidden="true" /> Back
                   </button>
                   <button

@@ -17,11 +17,13 @@
 // because the listed price on a card is the cheapest pint, and nothing the
 // reader chose would change it.
 //
-// Storage follows lib/firstRunTour.ts: localStorage, SSR-safe, silent when
-// storage is blocked. Nothing here is sent anywhere.
+// Storage follows lib/firstRunTour.ts: SSR-safe and silent when storage is
+// blocked. The budget is in localStorage. The chosen patch and the planner
+// handoff are held in sessionStorage for this tab only. Nothing here is sent
+// anywhere.
 
 import { WALKABLE_RADIUS_KM, walkMinutesFromKm, type NearMeCard } from "@/lib/nearMeAnswer";
-import { safeLocalStorage } from "@/lib/safeStorage";
+import { safeLocalStorage, safeSessionStorage } from "@/lib/safeStorage";
 
 /** The steps in the order a reader meets them. */
 export const ONBOARDING_STEPS = [
@@ -83,7 +85,7 @@ export const BUDGET_QUESTION = {
 export const LOCATION_PRIMER = {
   title: "Find the cheapest pint near you.",
   why: "Your location lets us rank pubs by how far you'd walk for the price.",
-  privacy: "We only use it to rank pubs nearby. Nothing is stored.",
+  privacy: "We only use it to rank pubs nearby. Your location is never stored.",
 } as const;
 
 const BUDGET_KEY = "pubmax:onboarding:budget:v1";
@@ -107,6 +109,113 @@ export function writeBudgetChoice(id: BudgetChoiceId, storage?: Storage | null):
     store.setItem(BUDGET_KEY, id);
   } catch {
     // Storage full or blocked: the answer still counts for this visit.
+  }
+}
+
+const PATCH_KEY = "pubmax:onboarding:patch:v1";
+
+/**
+ * The patch the reader chose, held for this tab so a reload on a later step
+ * still hands it to the planner. Null clears it: a located answer keeps no
+ * place at all.
+ */
+export function writeOnboardingPatch(id: string | null, storage?: Storage | null): void {
+  const store = storage ?? safeSessionStorage();
+  if (!store) return;
+  try {
+    if (id) store.setItem(PATCH_KEY, id);
+    else store.removeItem(PATCH_KEY);
+  } catch {
+    // Storage full or blocked: the patch still counts for this visit.
+  }
+}
+
+/** The held patch id, or null when none is held. */
+export function readOnboardingPatch(storage?: Storage | null): string | null {
+  const store = storage ?? safeSessionStorage();
+  if (!store) return null;
+  try {
+    return store.getItem(PATCH_KEY);
+  } catch {
+    return null;
+  }
+}
+
+const HANDOFF_KEY = "pubmax:onboarding:planner-handoff:v1";
+
+/**
+ * What the planner takes from the journey: the patch the reader chose and the
+ * budget they gave. A located reader's coordinates are never kept, so a
+ * located answer hands over its budget alone.
+ */
+export type PlannerHandoff = {
+  patch: { lat: number; lng: number } | null;
+  budget: BudgetChoiceId | null;
+};
+
+/** A handoff the planner never opened for is stale after this long. */
+const HANDOFF_MAX_AGE_MS = 10 * 60_000;
+
+/** Held for this tab only and read once by the planner the journey opens. */
+export function writePlannerHandoff(
+  handoff: PlannerHandoff,
+  storage?: Storage | null,
+  now = Date.now(),
+): void {
+  const store = storage ?? safeSessionStorage();
+  if (!store) return;
+  try {
+    store.setItem(HANDOFF_KEY, JSON.stringify({ ...handoff, at: now }));
+  } catch {
+    // Storage full or blocked: the planner opens on its own defaults.
+  }
+}
+
+/** The handoff, or null when none is held or it does not parse. Does not clear it. */
+export function readPlannerHandoff(storage?: Storage | null, now = Date.now()): PlannerHandoff | null {
+  const store = storage ?? safeSessionStorage();
+  if (!store) return null;
+  try {
+    const raw = store.getItem(HANDOFF_KEY);
+    if (!raw) return null;
+    const value = JSON.parse(raw) as { patch?: { lat?: unknown; lng?: unknown } | null; budget?: unknown; at?: unknown };
+    if (typeof value.at !== "number" || now - value.at > HANDOFF_MAX_AGE_MS) return null;
+    const lat = value.patch?.lat;
+    const lng = value.patch?.lng;
+    return {
+      patch:
+        typeof lat === "number" && typeof lng === "number" && Number.isFinite(lat) && Number.isFinite(lng)
+          ? { lat, lng }
+          : null,
+      budget: isBudgetChoiceId(value.budget) ? value.budget : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * What the desktop map takes from a handoff. It has no area picker or Max each
+ * field, so the budget becomes the pint price cap and the patch becomes the
+ * camera. Either is null when the journey did not give it.
+ */
+export function desktopHandoffMoves(handoff: PlannerHandoff): {
+  maxPrice: number | null;
+  center: [number, number] | null;
+} {
+  return {
+    maxPrice: handoff.budget ? budgetCeiling(handoff.budget) : null,
+    center: handoff.patch ? [handoff.patch.lng, handoff.patch.lat] : null,
+  };
+}
+
+export function clearPlannerHandoff(storage?: Storage | null): void {
+  const store = storage ?? safeSessionStorage();
+  if (!store) return;
+  try {
+    store.removeItem(HANDOFF_KEY);
+  } catch {
+    // Nothing to clear when storage is blocked.
   }
 }
 

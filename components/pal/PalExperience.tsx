@@ -47,6 +47,7 @@ import { Button } from "@/components/ui/button";
 import Screen from "@/components/ui/screen";
 import { setActivePlanPalContext } from "@/lib/activePlan";
 import { readFirstRunCompanion } from "@/lib/firstRunTour";
+import { useStepHistory } from "@/lib/useStepHistory";
 
 const STORAGE_KEY = "pubmax_pub_pal_v1";
 const PRIVACY_KEY = "pubmax_pub_pal_privacy_v1";
@@ -245,6 +246,8 @@ export function PalMeetingScreen({
   );
 }
 
+const PAL_SETUP_STEPS = [0, 1, 2, 3, 4] as const;
+
 export default function PalExperience() {
   const { user, loading, configured } = useAuth();
   const palViewerSession = useViewerSession();
@@ -314,14 +317,25 @@ export default function PalExperience() {
     return () => { cancelled = true; };
   }, [anonymousOwner, draftOwner, loading, user]);
 
+  // Browser Back walks the five setup steps instead of leaving /pal. The draft
+  // above keeps the choices either way.
+  useStepHistory(step, setStep, { steps: PAL_SETUP_STEPS, first: 0, enabled: mode === "onboarding" });
+
   useEffect(() => {
     if (mode !== "onboarding" || !draftOwner) return;
-    const timer = window.setTimeout(() => writePalOnboardingDraft(draftOwner, {
+    const save = () => writePalOnboardingDraft(draftOwner, {
       step: Math.max(0, Math.min(4, step)) as 0 | 1 | 2 | 3 | 4,
       draft,
       privacy,
-    }), 200);
-    return () => window.clearTimeout(timer);
+    });
+    const timer = window.setTimeout(save, 200);
+    // A reload inside the 200 ms wait would restore a stale step, so the page
+    // leaving writes the draft at once.
+    window.addEventListener("pagehide", save);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("pagehide", save);
+    };
   }, [draft, draftOwner, mode, privacy, step]);
 
   useEffect(() => {

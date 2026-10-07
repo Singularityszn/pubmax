@@ -13,6 +13,7 @@ import {
   formatAreaDistance,
   LOCALITY_RADIUS_KM,
   planAreaSelect,
+  rememberedAreaNamesView,
   type AreaDistanceFrom,
   type AreaElsewhereOption,
 } from "@/lib/areaButton";
@@ -425,5 +426,41 @@ describe("area rows under an incomplete drink read", () => {
       "partial",
     );
     expect(defined(partial[0]).priceLabel).toBe("no whisky price in what we read");
+  });
+});
+
+describe("rememberedAreaNamesView - a remembered area names only what is on screen", () => {
+  // A phone-sized view around Soho.
+  const soho = { west: -0.145, east: -0.128, south: 51.508, north: 51.518 };
+  const sohoCentre: [number, number] = [-0.1365, 51.5130];
+  const islington = { kind: "night-area", center: [-0.104, 51.534] as const };
+
+  it("drops a named area once the view has moved off it", () => {
+    expect(rememberedAreaNamesView(islington, soho, sohoCentre)).toBe(false);
+  });
+
+  it("keeps a named area while the view is centred on it", () => {
+    const over = { west: -0.12, east: -0.09, south: 51.525, north: 51.545 };
+    expect(rememberedAreaNamesView(islington, over, [-0.105, 51.535])).toBe(true);
+  });
+
+  it("drops a named area that a wide view holds far from its middle", () => {
+    // A desktop view over Soho that reaches Islington's centre at its far corner.
+    const wide = { west: -0.17, east: -0.09, south: 51.495, north: 51.54 };
+    expect(rememberedAreaNamesView(islington, wide, [-0.1315, 51.5175])).toBe(false);
+  });
+
+  it("keeps the label before the first settle, so the chip does not flash", () => {
+    expect(rememberedAreaNamesView(islington, null, sohoCentre)).toBe(true);
+  });
+
+  it("keeps near-me while the live fix is in view and drops it when the view leaves", () => {
+    expect(rememberedAreaNamesView({ kind: "near-me" }, soho, sohoCentre, { lat: 51.5136, lng: -0.1365 })).toBe(true);
+    expect(rememberedAreaNamesView({ kind: "near-me" }, soho, sohoCentre, { lat: 52.63, lng: 1.29 })).toBe(false);
+    expect(rememberedAreaNamesView({ kind: "near-me" }, soho, sohoCentre, null)).toBe(true);
+  });
+
+  it("always keeps the city row", () => {
+    expect(rememberedAreaNamesView({ kind: "city" }, soho, sohoCentre)).toBe(true);
   });
 });

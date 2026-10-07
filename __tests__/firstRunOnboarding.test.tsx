@@ -23,10 +23,13 @@ vi.mock("@/lib/venuesSlim", () => ({ loadSlimVenuesForCityResult: slim.load }));
 
 import FirstRunOnboarding from "@/components/onboarding/FirstRunOnboarding";
 import { hasSeenTour } from "@/lib/firstRunTour";
-import { readBudgetChoice } from "@/lib/onboardingFlow";
+import { ONBOARDING_STEPS, readBudgetChoice, readPlannerHandoff } from "@/lib/onboardingFlow";
+import { readHistoryStep } from "@/lib/useStepHistory";
 
 let container: HTMLDivElement;
 let root: Root | null = null;
+// "Plan my night" leaves the app router for a document load; the spy stands in.
+const openPlanner = vi.fn();
 
 // Pubs around Soho (51.5136, -0.1365), cheapest first by price. Three sit inside
 // the walkable ring so the answer is not widened.
@@ -58,6 +61,27 @@ async function settle() {
   });
 }
 
+/** jsdom walks history on later tasks, so let each popstate land inside act. */
+async function historySettles() {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  });
+}
+
+async function browserBack() {
+  await act(async () => {
+    window.history.back();
+  });
+  await historySettles();
+}
+
+async function browserForward() {
+  await act(async () => {
+    window.history.forward();
+  });
+  await historySettles();
+}
+
 function stubGeolocation(impl: (ok: PositionCallback, fail: PositionErrorCallback) => void) {
   Object.defineProperty(navigator, "geolocation", {
     configurable: true,
@@ -74,6 +98,8 @@ async function reachLocation() {
 beforeEach(async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   window.localStorage.clear();
+  window.sessionStorage.clear();
+  window.history.replaceState(null, "", "/");
   // jsdom has no layout to scroll; the spy records where each step asked to open.
   vi.spyOn(window, "scrollTo").mockImplementation(() => {});
   slim.load.mockResolvedValue({ rows: SOHO_PUBS, status: "ready" });
@@ -85,6 +111,7 @@ beforeEach(async () => {
       createElement(FirstRunOnboarding, {
         reviewedAreas: [{ name: "Clapham", transportAnchor: "Clapham North" }],
         skipHref: "/near?locate=1",
+        openPlanner,
       }),
     );
   });
@@ -122,6 +149,8 @@ describe("first-run budget question", () => {
     await act(async () => {
       root?.unmount();
     });
+    // A visit of its own is a new history entry, not a reload of this one.
+    window.history.replaceState(null, "", "/");
     root = createRoot(container);
     await act(async () => {
       root?.render(createElement(FirstRunOnboarding, { reviewedAreas: [], skipHref: "/tonight" }));
@@ -129,6 +158,45 @@ describe("first-run budget question", () => {
     await tap("Use London");
 
     expect(buttonContaining("£7 or less").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("reopens on the step the reader was on after a reload, with the answer kept", async () => {
+    await tap("Use London");
+    await tap("£5 or less");
+    await act(async () => {
+      root?.unmount();
+    });
+    // The same history entry survives a reload.
+    root = createRoot(container);
+    await act(async () => {
+      root?.render(createElement(FirstRunOnboarding, { reviewedAreas: [], skipHref: "/tonight" }));
+    });
+
+    expect(container.querySelector("h1")?.textContent).toBe("What's a fair pint to you?");
+    expect(buttonContaining("£5 or less").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("sends browser Back one step back, not out of the journey", async () => {
+    await tap("Use London");
+    await tap("£5 or less");
+    await tap("Continue");
+    expect(container.querySelector("h1")?.textContent).toBe("Find the cheapest pint near you.");
+
+    await browserBack();
+    expect(container.querySelector("h1")?.textContent).toBe("What's a fair pint to you?");
+    expect(buttonContaining("£5 or less").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("leaves no later step behind browser Back after an in-app Back", async () => {
+    await tap("Use London");
+    await tap("£5 or less");
+    await tap("Continue");
+    await tap("Back");
+    await historySettles();
+    expect(container.querySelector("h1")?.textContent).toBe("What's a fair pint to you?");
+
+    await browserBack();
+    expect(container.querySelector("h1")?.textContent).toBe("London is ready.");
   });
 });
 
@@ -138,7 +206,7 @@ describe("first-run location ask", () => {
     await reachLocation();
 
     expect(container.querySelector("h1")?.textContent).toBe("Find the cheapest pint near you.");
-    expect(container.textContent).toContain("We only use it to rank pubs nearby. Nothing is stored.");
+    expect(container.textContent).toContain("We only use it to rank pubs nearby. Your location is never stored.");
     // The ask has not been made yet.
     expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
   });
@@ -172,7 +240,7 @@ describe("first-run location ask", () => {
 
     expect(container.textContent).toContain("Cheapest listed around Soho");
     expect(container.querySelector("h1")?.textContent).toBe("£4.90 at The Crown.");
-    // "Nothing is stored" has to stay true: neither the fix nor the picked
+    // "Your location is never stored" has to stay true: neither the fix nor the picked
     // patch is written anywhere.
     expect(window.localStorage.getItem("pubmax:nightPatch:v1")).toBeNull();
     expect(JSON.stringify({ ...window.localStorage })).not.toMatch(/soho|51\.51/i);
@@ -202,6 +270,17 @@ describe("first-run location ask", () => {
     expect(container.querySelector("h1")?.textContent).toBe("Find the cheapest pint near you.");
     expect(container.textContent).toContain("We don't list prices where you are yet. Pick a London patch.");
     expect(container.textContent).not.toContain("The Crown");
+
+    // The answer that never landed leaves no screen behind browser Back.
+    await browserBack();
+    expect(container.querySelector("h1")?.textContent).toBe("What's a fair pint to you?");
+    // Forward reaches the question, and its entry, not the answer's.
+    await browserForward();
+    await browserForward();
+    expect(container.querySelector("h1")?.textContent).toBe("Find the cheapest pint near you.");
+    expect(readHistoryStep(ONBOARDING_STEPS)).toBe("location");
+    await browserBack();
+    expect(container.querySelector("h1")?.textContent).toBe("What's a fair pint to you?");
   });
 
   it("holds an honest empty answer when a picked patch has no priced pubs", async () => {
@@ -219,6 +298,29 @@ describe("first-run location ask", () => {
 });
 
 describe("first-run answers that arrive late or not at all", () => {
+  it("asks the question again when Forward returns to an answer dropped by Back", async () => {
+    stubGeolocation((_ok, fail) =>
+      fail({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError),
+    );
+    slim.load.mockReturnValueOnce(new Promise(() => {}));
+    await reachLocation();
+    await tap("Use my location");
+    await tap("Soho");
+    expect(container.textContent).toContain("Working out your nearest pints.");
+
+    await browserBack();
+    expect(container.querySelector("h1")?.textContent).toBe("Find the cheapest pint near you.");
+    await browserForward();
+    await settle();
+
+    expect(container.textContent).not.toContain("Working out your nearest pints.");
+    expect(container.querySelector("h1")?.textContent).toBe("Find the cheapest pint near you.");
+    // History holds the step on screen, so the next Back is one step back.
+    expect(readHistoryStep(ONBOARDING_STEPS)).toBe("location");
+    await browserBack();
+    expect(container.querySelector("h1")?.textContent).toBe("What's a fair pint to you?");
+  });
+
   it("shows a venue read that came back incomplete as unavailable, with a retry that answers", async () => {
     slim.load.mockResolvedValueOnce({ rows: [], status: "unavailable" });
     stubGeolocation((ok) =>
@@ -273,6 +375,7 @@ describe("first-run answers that arrive late or not at all", () => {
     expect(container.textContent).not.toContain("near you");
 
     await tap("Change area");
+    await historySettles();
     expect(buttonContaining("Use my location").disabled).toBe(false);
   });
 
@@ -285,6 +388,7 @@ describe("first-run answers that arrive late or not at all", () => {
     await reachLocation();
     await tap("Use my location");
     await tap("Back");
+    await historySettles();
     expect(container.querySelector("h1")?.textContent).toBe("What's a fair pint to you?");
 
     await act(async () => {
@@ -308,6 +412,22 @@ describe("first-run skip", () => {
     expect(hasSeenTour()).toBe(true);
     expect(router.replace).toHaveBeenCalledWith("/near?locate=1");
   });
+
+  it("unwinds the steps it pushed before it leaves", async () => {
+    let stepWhenLeaving: string | null = "unset";
+    router.replace.mockImplementation(() => {
+      stepWhenLeaving = readHistoryStep(ONBOARDING_STEPS);
+    });
+    await tap("Use London");
+    await tap("£5 or less");
+    await tap("Continue");
+    await tap("Skip");
+    await historySettles();
+
+    expect(router.replace).toHaveBeenCalledWith("/near?locate=1");
+    // The entry the journey opened on: one Back from here is the page before.
+    expect(stepWhenLeaving).toBe("london");
+  });
 });
 
 describe("first-run result and companion choice", () => {
@@ -324,9 +444,16 @@ describe("first-run result and companion choice", () => {
     await reachResult();
 
     await tap("Change budget");
+    await historySettles();
     expect(container.querySelector("h1")?.textContent).toBe("What's a fair pint to you?");
     await tap("Continue");
     expect(container.querySelector("h1")?.textContent).toBe("Find the cheapest pint near you.");
+
+    // Change budget went back, so browser Back is the step before the budget.
+    await tap("Back");
+    await historySettles();
+    await browserBack();
+    expect(container.querySelector("h1")?.textContent).toBe("London is ready.");
   });
 
   it("preselects robin and enables planning when companion step opens", async () => {
@@ -348,8 +475,16 @@ describe("first-run result and companion choice", () => {
     const greyhoundImg = container.querySelector('img[alt="Pub Pal"]');
     expect(greyhoundImg?.getAttribute("src")).toContain("circuit-greyhound");
 
+    let stepWhenLeaving: string | null = "unset";
+    openPlanner.mockImplementation(() => {
+      stepWhenLeaving = readHistoryStep(ONBOARDING_STEPS);
+    });
     await tap("Plan my night");
-    expect(router.push).toHaveBeenCalledWith("/map?plan=1");
+    await historySettles();
+    expect(openPlanner).toHaveBeenCalledTimes(1);
+    expect(router.push).not.toHaveBeenCalled();
+    // The steps the journey pushed are unwound before the planner opens.
+    expect(stepWhenLeaving).toBe("london");
   });
 
   it("moves the progress bar one step per screen", async () => {
@@ -373,5 +508,140 @@ describe("first-run result and companion choice", () => {
 
     await tap("Continue");
     expect(scrollTo).toHaveBeenCalledWith(0, 0);
+  });
+});
+
+describe("first-run handoff to the planner", () => {
+  it("hands the planner the patch and the budget the reader chose", async () => {
+    stubGeolocation((_ok, fail) =>
+      fail({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError),
+    );
+    await tap("Use London");
+    await tap("£5 or less");
+    await tap("Continue");
+    await tap("Use my location");
+    await tap("Soho");
+    await settle();
+    await tap("That looks right");
+    await tap("Plan my night");
+
+    expect(readPlannerHandoff()).toEqual({
+      patch: { lat: 51.5136, lng: -0.1365 },
+      budget: "five",
+    });
+  });
+
+  it("still hands the planner the patch after a reload on the companion step", async () => {
+    stubGeolocation((_ok, fail) =>
+      fail({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError),
+    );
+    await tap("Use London");
+    await tap("£5 or less");
+    await tap("Continue");
+    await tap("Use my location");
+    await tap("Soho");
+    await settle();
+    await tap("That looks right");
+    await act(async () => {
+      root?.unmount();
+    });
+    // The same history entry survives a reload.
+    root = createRoot(container);
+    await act(async () => {
+      root?.render(createElement(FirstRunOnboarding, { reviewedAreas: [], skipHref: "/tonight", openPlanner }));
+    });
+    expect(container.querySelector("h1")?.textContent).toBe("Pick your Pub Pal.");
+
+    await tap("Plan my night");
+    await historySettles();
+
+    expect(openPlanner).toHaveBeenCalledTimes(1);
+    expect(readPlannerHandoff()).toEqual({
+      patch: { lat: 51.5136, lng: -0.1365 },
+      budget: "five",
+    });
+  });
+
+  it("asks the location question again on Back after a reload on the companion step", async () => {
+    stubGeolocation((_ok, fail) =>
+      fail({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError),
+    );
+    await tap("Use London");
+    await tap("£5 or less");
+    await tap("Continue");
+    await tap("Use my location");
+    await tap("Soho");
+    await settle();
+    await tap("That looks right");
+    await act(async () => {
+      root?.unmount();
+    });
+    root = createRoot(container);
+    await act(async () => {
+      root?.render(createElement(FirstRunOnboarding, { reviewedAreas: [], skipHref: "/tonight", openPlanner }));
+    });
+
+    await tap("Back");
+    await historySettles();
+
+    expect(container.textContent).not.toContain("Working out your nearest pints.");
+    expect(container.querySelector("h1")?.textContent).toBe("Find the cheapest pint near you.");
+    // The question is the entry Back reached: one more Back is the budget.
+    await browserBack();
+    expect(container.querySelector("h1")?.textContent).toBe("What's a fair pint to you?");
+  });
+
+  it("keeps browser Back one step back after a reload on the companion step", async () => {
+    stubGeolocation((_ok, fail) =>
+      fail({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError),
+    );
+    await reachLocation();
+    await tap("Use my location");
+    await tap("Soho");
+    await settle();
+    await tap("That looks right");
+    await act(async () => {
+      root?.unmount();
+    });
+    root = createRoot(container);
+    await act(async () => {
+      root?.render(createElement(FirstRunOnboarding, { reviewedAreas: [], skipHref: "/tonight", openPlanner }));
+    });
+
+    await browserBack();
+    expect(container.querySelector("h1")?.textContent).toBe("Find the cheapest pint near you.");
+    expect(readHistoryStep(ONBOARDING_STEPS)).toBe("location");
+    await browserBack();
+    expect(container.querySelector("h1")?.textContent).toBe("What's a fair pint to you?");
+  });
+
+  it("returns to the answer on Back from the companion step", async () => {
+    stubGeolocation((_ok, fail) =>
+      fail({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError),
+    );
+    await reachLocation();
+    await tap("Use my location");
+    await tap("Soho");
+    await settle();
+    await tap("That looks right");
+    await tap("Back");
+    await historySettles();
+
+    expect(container.textContent).toContain("Cheapest listed around Soho");
+  });
+
+  it("hands over the budget alone after a located answer, and keeps no coordinates", async () => {
+    stubGeolocation((ok) =>
+      ok({ coords: { latitude: 51.5136, longitude: -0.1365 } } as GeolocationPosition),
+    );
+    await tap("Use London");
+    await tap("£7 or less");
+    await tap("Continue");
+    await tap("Use my location");
+    await settle();
+    await tap("That looks right");
+    await tap("Plan my night");
+
+    expect(readPlannerHandoff()).toEqual({ patch: null, budget: "seven" });
   });
 });
