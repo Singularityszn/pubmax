@@ -100,12 +100,16 @@ function scheduleOnly(line: string): boolean {
   return /\d|day\b/.test(text) && !dateRange && /^[\s|,&\-\u2013.']*$/.test(rest);
 }
 
+const PAIRING = /\s+v(?:s\.?)?\s+/i;
+const clockOnly = (line: string) => /^\s*(?:\d{1,2}(?:[:.]\d{2})?\s*(?:am|pm)|\d{1,2}:\d{2})\s*$/i.test(plainText(line));
+
 const statesDate = (line: string) => new RegExp(`\\b\\d{1,2}(?:st|nd|rd|th)?\\s+(?:${MONTH_WORDS})\\b`, "i").test(line);
 
 /**
  * Cards are headings and list items with the lines under them. A run of
  * date and clock lines directly above a heading belongs to that heading when
- * it opens a section's first dated item or continues a list of such items.
+ * it opens a section's first dated fixture or continues a list of such items.
+ * A deeper heading that names no fixture leaves the run with its parent.
  * A later item that states only its clock keeps the list's last stated day.
  */
 function listingCards(markdown: string): { title: string; text: string; markdown: string; happyHourParent: string | null }[] {
@@ -114,13 +118,23 @@ function listingCards(markdown: string): { title: string; text: string; markdown
   let run: string[] = [];
   let lastLevel = 0;
   let datedList = null as { level: number; day: string | null } | null;
+  let opened = null as { parent: { lines: string[] }; child: { title: string; lines: string[] }; run: string[] } | null;
   const flush = () => {
     cards.at(-1)?.lines.push(...run);
     run = [];
   };
+  const settleOpened = () => {
+    if (opened && ![opened.child.title, ...opened.child.lines.slice(opened.run.length)].some((item) => PAIRING.test(plainText(item)))) {
+      opened.child.lines.splice(0, opened.run.length);
+      opened.parent.lines.push(...opened.run);
+      datedList = null;
+    }
+    opened = null;
+  };
   for (const line of markdown.split(/\r?\n/)) {
     const heading = /^\s*(?:[-*]\s+)?(#{1,6})\s+(.+)$/.exec(line);
     if (heading) {
+      settleOpened();
       const title = plainText(heading[2]!).trim();
       const level = heading[1]!.length;
       if (happyHour && level <= happyHour.level) happyHour = null;
@@ -131,15 +145,18 @@ function listingCards(markdown: string): { title: string; text: string; markdown
       const namesSchedule = Boolean(eventKindFrom(title)) && !run.some(statesDate) && run.some((item) => /^(?:every\s+)?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i.test(item.trim()) && resolveEventClock(item));
       let lines: string[] = [];
       if (run.length && (opensList || continuesList || namesSchedule)) {
-        const day = run.find(statesDate) ?? (continuesList ? datedList!.day : null);
+        const day = run.find(statesDate) ?? (continuesList && run.every(clockOnly) ? datedList!.day : null);
         lines = day && !run.includes(day) ? [day, ...run] : run;
         datedList = { level, day };
+        if (opensList && !continuesList && !namesSchedule && cards.length) opened = { parent: cards.at(-1)!, child: { title, lines }, run: [...lines] };
         run = [];
       } else {
         flush();
         datedList = null;
       }
-      cards.push({ title, lines, happyHourParent: happyHour && level > happyHour.level ? happyHour.title : null });
+      const card = { title, lines, happyHourParent: happyHour && level > happyHour.level ? happyHour.title : null };
+      if (opened) opened.child = card;
+      cards.push(card);
       lastLevel = level;
     }
     else if (!happyHour && /^\s*[-*]\s+/.test(line)) {
@@ -159,6 +176,7 @@ function listingCards(markdown: string): { title: string; text: string; markdown
     }
   }
   flush();
+  settleOpened();
   return cards.filter((card) => !card.navigation).map((card) => {
     const lines = card.lines.slice(0, 5);
     return { title: card.title, text: plainText([card.title, ...lines].join("\n")), markdown: `## ${card.title}\n${lines.join("\n")}`, happyHourParent: card.happyHourParent };
@@ -178,11 +196,24 @@ function happyHourCards(cards: ReturnType<typeof listingCards>): string {
   }).join("\n");
 }
 
-/** A card that names more than one kind takes its kind only from the clause that states its clock. */
-function clockStatesKind(clauses: string[], clock: string, kind: WhatsOnRow["kind"]): boolean {
+/**
+ * A card that names more than one kind takes its kind from the clause that
+ * states its clock. A clock clause that names no kind belongs to the heading.
+ */
+function clockStatesKind(clauses: string[], clock: string, kind: WhatsOnRow["kind"], heading: string): boolean {
   if (new Set(clauses.map(eventKindFrom).filter(Boolean)).size <= 1) return true;
   const stated = new Set(clauses.filter((clause) => resolveEventClock(clause) === clock).map(eventKindFrom).filter(Boolean));
-  return stated.size === 1 && stated.has(kind);
+  return stated.size === 0 ? eventKindFrom(heading) === kind : stated.size === 1 && stated.has(kind);
+}
+
+/**
+ * This harvest counts its own requests, so an account refill cannot reopen its
+ * allowance. A saved state from before that count proves its spend only by a
+ * balance no higher than the start. Otherwise the allowance counts as spent.
+ */
+export function harvestCredits(plan: { creditsAtStart: number; maxCredits: number }, state: { creditsSpent?: number; creditsAfter?: number }, creditsRemaining: number, reserve: number) {
+  const spent = state.creditsSpent ?? (state.creditsAfter !== undefined && state.creditsAfter <= plan.creditsAtStart ? plan.creditsAtStart - state.creditsAfter : plan.maxCredits);
+  return { spent, available: Math.min(creditsRemaining - reserve, plan.maxCredits - spent) };
 }
 
 /** Greene King's timed fixtures come from its FANZO partner, so they are not the pub's own listing. */
@@ -246,7 +277,7 @@ export function readPubWhatsOn(pub: WhatsOnPub, markdown: string, sourceUrl: str
     }
     // Plural weekday headings and explicit "every/each" statements name weekly slots.
     const clauses = lines.flatMap((line) => line.split(/(?<=[.!?])\s+(?=[A-Z])/));
-    if (!clockStatesKind(clauses, clock, kind)) {
+    if (!clockStatesKind(clauses, clock, kind, card.title)) {
       drops.push({ title: card.title, reason: "mixed-kinds" });
       continue;
     }
@@ -270,8 +301,7 @@ export function readPubWhatsOn(pub: WhatsOnPub, markdown: string, sourceUrl: str
       const date = `${event.date.year}-${String(event.date.month).padStart(2, "0")}-${String(event.date.day).padStart(2, "0")}`;
       const startsAt = londonWallClockToIso(date, clock);
       if (!startsAt) continue;
-      const pairing = /\s+v(?:s\.?)?\s+/i;
-      const fixture = lines.slice(1).find((line) => pairing.test(line) && !pairing.test(event.title));
+      const fixture = lines.slice(1).find((line) => PAIRING.test(line) && !PAIRING.test(event.title));
       const title = event.kind === "sport" && fixture ? `${event.title}: ${fixture}` : event.title;
       keep({ ...base, id: `own-site-${pageKey(`${pub.osmId}|${title}|${startsAt}`)}`, kind: event.kind, title, startsAt, timeEvidence: card.text });
     }

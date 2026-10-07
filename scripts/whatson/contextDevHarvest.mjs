@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 import { contextDevUsage, createContextDevBudget, scrapeMarkdown } from "../../lib/contextDev.ts";
-import { ambiguousPubWebsites, discoverWhatsOnPages, isPartnerFixturePage, isPubPage, mergeOwnSiteListings, pageKey, plainText, readPubWhatsOn } from "../../lib/harvest/contextDevWhatsOn.ts";
+import { ambiguousPubWebsites, discoverWhatsOnPages, harvestCredits, isPartnerFixturePage, isPubPage, mergeOwnSiteListings, pageKey, plainText, readPubWhatsOn } from "../../lib/harvest/contextDevWhatsOn.ts";
 import { siteFactsRows } from "../../lib/harvest/pubSiteHoursAndDogs.ts";
 import { isChainPage, matchPubToVenue, parseChainDenylist } from "../../lib/harvest/pubWebsiteAmenities.ts";
 import { createRobotsChecker } from "../../lib/harvest/robots.ts";
@@ -72,13 +72,12 @@ function plan(credits) {
 async function harvest(limit) {
   const document = read(PLAN);
   const balance = await usage();
-  const state = existsSync(STATE) ? read(STATE) : { creditsBefore: balance.creditsRemaining, reads: [], pending: document.candidates.map((pub) => ({ pub, url: pub.website, depth: 0 })) };
+  const state = existsSync(STATE) ? read(STATE) : { creditsBefore: balance.creditsRemaining, creditsSpent: 0, reads: [], pending: document.candidates.map((pub) => ({ pub, url: pub.website, depth: 0 })) };
+  state.creditsSpent = harvestCredits(document, state, balance.creditsRemaining, RESERVE).spent;
   const completed = new Set(state.reads.map((entry) => entry.url));
   let sent = 0;
   while (state.pending.length && sent < limit) {
-    const current = await usage();
-    const available = Math.min(current.creditsRemaining - RESERVE,
-      document.maxCredits - (document.creditsAtStart - current.creditsRemaining));
+    const { available } = harvestCredits(document, state, (await usage()).creditsRemaining, RESERVE);
     if (available <= 0) break;
     const batch = [];
     while (state.pending.length && batch.length < Math.min(1, available, limit - sent)) {
@@ -96,6 +95,7 @@ async function harvest(limit) {
       let result = await scrapeMarkdown(task.url, { robots, budget, maxAgeMs: 0, maxAttempts: 2 });
       if (result.status === "error" && result.error.code === "RATE_LIMITED") {
         state.pending.unshift(task);
+        state.creditsSpent += budget.spent();
         write(STATE, state);
         throw new Error("Serial request still rate limited after bounded backoff; harvest stopped.");
       }
@@ -106,6 +106,7 @@ async function harvest(limit) {
       results.push(entry);
     }
     sent += batch.length;
+    state.creditsSpent += budget.spent();
     for (const entry of results) {
       state.reads.push({ pub: entry.pub, url: entry.url, observedAt: entry.observedAt, status: entry.result.status, reason: entry.result.error?.code });
       if (entry.result.status === "ok" && entry.depth < 2) {
@@ -165,7 +166,7 @@ function publish() {
     hoursDoc.counts = { rows: hoursDoc.rows.length, dogsWelcome: hoursDoc.rows.filter((row) => row.dogs?.policy === "welcome").length, dogsNotAllowed: hoursDoc.rows.filter((row) => row.dogs?.policy === "not-allowed").length, hours: hoursDoc.rows.filter((row) => row.hours).length, withVenueId: hoursDoc.rows.filter((row) => row.venueId).length };
     write(hoursPath, hoursDoc);
   }
-  const report = { assembledAt: new Date().toISOString(), creditsAtStart: read(PLAN).creditsAtStart, creditsUsed: read(PLAN).creditsAtStart - state.creditsAfter, creditsLeft: state.creditsAfter, venuesRead: new Set(state.reads.filter((row) => row.status === "ok").map((row) => row.pub.osmId)).size, pagesRead: state.reads.filter((row) => row.status === "ok").length, eventsPublished: published.filter((row) => row.kind !== "deal").length, happyHoursPublished: published.filter((row) => row.kind === "deal").length, hoursPublished: hoursDoc.rows.filter((row) => row.hours && Object.hasOwn(reads, row.osmId) && row.sourceUrl === reads[row.osmId].sourceUrl && row.readOn === hoursByPub.get(row.osmId).page.readAt.slice(0, 10)).length, conflictingHoursPages: [...conflictedHours], remainingCandidates: state.pending.length, observations };
+  const report = { assembledAt: new Date().toISOString(), creditsAtStart: read(PLAN).creditsAtStart, creditsUsed: harvestCredits(read(PLAN), state, state.creditsAfter, RESERVE).spent, creditsLeft: state.creditsAfter, venuesRead: new Set(state.reads.filter((row) => row.status === "ok").map((row) => row.pub.osmId)).size, pagesRead: state.reads.filter((row) => row.status === "ok").length, eventsPublished: published.filter((row) => row.kind !== "deal").length, happyHoursPublished: published.filter((row) => row.kind === "deal").length, hoursPublished: hoursDoc.rows.filter((row) => row.hours && Object.hasOwn(reads, row.osmId) && row.sourceUrl === reads[row.osmId].sourceUrl && row.readOn === hoursByPub.get(row.osmId).page.readAt.slice(0, 10)).length, conflictingHoursPages: [...conflictedHours], remainingCandidates: state.pending.length, observations };
   write(path.join(REPORT, "report.json"), report);
   console.log(JSON.stringify({ ...report, observations: undefined }));
 }

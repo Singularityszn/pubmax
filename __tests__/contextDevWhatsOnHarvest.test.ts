@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { contextDevUsage } from "@/lib/contextDev";
-import { ambiguousPubWebsites, discoverWhatsOnPages, isPartnerFixturePage, mergeOwnSiteListings, readPubWhatsOn } from "@/lib/harvest/contextDevWhatsOn";
+import { ambiguousPubWebsites, discoverWhatsOnPages, harvestCredits, isPartnerFixturePage, mergeOwnSiteListings, readPubWhatsOn } from "@/lib/harvest/contextDevWhatsOn";
 
 const pub = { osmId: "node/1", name: "The Crown", venueId: "venue-crown", lat: 51.51, lng: -0.12, website: "https://crown.example/" };
 const observedAt = "2026-10-07T09:00:00.000Z";
@@ -150,6 +150,26 @@ describe("London pub own-site harvest", () => {
     expect(readPubWhatsOn(pub, "# Events\n13 \\-27 October 9.30am\n### Pub Quiz\nOctober 13th & 27th launch our brand new quiz\n", pub.website, observedAt).rows).toEqual([]);
   });
 
+  it("keeps an event's own date and time when a deeper About or Details heading follows", () => {
+    const quiz = readPubWhatsOn(pub, "# Quiz Night\nThursday 15 October\n8pm\n## About\nJoin us for the pub quiz\n", pub.website, observedAt);
+    expect(quiz.rows.map((row) => [row.kind, row.title, row.startsAt])).toEqual([["quiz", "Quiz Night", "2026-10-15T20:00:00+01:00"]]);
+    const jazz = readPubWhatsOn(pub, "## Live Music: The Jazz Trio\nSaturday 17 October 9pm\n### Details\nFree entry\n", pub.website, observedAt);
+    expect(jazz.rows.map((row) => [row.kind, row.title, row.startsAt])).toEqual([["music", "Live Music: The Jazz Trio", "2026-10-17T21:00:00+01:00"]]);
+  });
+
+  it("does not carry a fixture list's day into a weekly listing", () => {
+    const text = "## Fixtures\nSaturday 10 October\n12:30PM\n### Premier League: Arsenal vs Leeds\nArsenal\nEvery Friday\n9pm\n### Pub Quiz\nOur weekly quiz\n";
+    expect(readPubWhatsOn(pub, text, pub.website, observedAt).rows.map((row) => [row.title, row.startsAt])).toEqual([
+      ["Premier League: Arsenal vs Leeds", "2026-10-10T12:30:00+01:00"],
+      ["Pub Quiz", "2026-10-09T21:00:00+01:00"],
+    ]);
+  });
+
+  it("gives an unqualified clock to the heading's kind when the description mentions another kind", () => {
+    const result = readPubWhatsOn(pub, "## Pub Quiz\nEvery Tuesday at 8pm. Prizes include tickets to our live music night.\n", pub.website, observedAt);
+    expect(result.rows.map((row) => [row.kind, row.title, row.startsAt])).toEqual([["quiz", "Pub Quiz", "2026-10-13T20:00:00+01:00"]]);
+  });
+
   it("does not give a section heading its first fixture's time", () => {
     const text = "## Watch live rugby with us\n\nSaturday 17 October\n\n8:00PM\n\n### Rugby Union: European Challenge Cup\n\nScarlets **vs** Newcastle Red Bulls\n";
     expect(readPubWhatsOn(pub, text, pub.website, observedAt).rows).toEqual([]);
@@ -216,6 +236,20 @@ describe("London pub own-site harvest", () => {
   it("advances a cached weekly slot without claiming another source observation", () => {
     const result = readPubWhatsOn(pub, "## Pub Quiz\nEvery Thursday at 8pm\n", pub.website, observedAt, "2026-10-16T09:00:00.000Z");
     expect(result.rows).toMatchObject([{ startsAt: "2026-10-22T20:00:00+01:00", observedAt }]);
+  });
+});
+
+describe("Context.dev harvest allowance", () => {
+  const plan = { creditsAtStart: 1000, maxCredits: 950 };
+
+  it("keeps the completed 950-credit harvest closed after a 1,000-credit refill", () => {
+    expect(harvestCredits(plan, { creditsAfter: 50 }, 1050, 50)).toEqual({ spent: 950, available: 0 });
+    expect(harvestCredits(plan, { creditsSpent: 950, creditsAfter: 1050 }, 1050, 50)).toEqual({ spent: 950, available: 0 });
+  });
+
+  it("counts this harvest's own requests and never reports negative spending", () => {
+    expect(harvestCredits(plan, { creditsSpent: 100, creditsAfter: 1050 }, 1050, 50)).toEqual({ spent: 100, available: 850 });
+    expect(harvestCredits(plan, { creditsAfter: 1050 }, 1050, 50)).toEqual({ spent: 950, available: 0 });
   });
 });
 
