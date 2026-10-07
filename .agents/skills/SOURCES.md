@@ -48,7 +48,7 @@ Upstream `SKILL.md` trees were copied flat, one directory per skill. Plugin test
 ### Leonxlnx/taste-skill
 
 - Repo: https://github.com/Leonxlnx/taste-skill
-- Commit: `ce26fc25c0e5e8cab638f883de62d9a86ee5e45b` (`main`)
+- Commit: `e3c92037548e3e49bea8e6b906c99a8549654e71` (`main`)
 - Checked 4 Oct 2026. All thirteen installed skill trees match this tip.
 
 Directory name, then frontmatter `name` when it differs:
@@ -72,10 +72,10 @@ Directory name, then frontmatter `name` when it differs:
 ### jakubkrehel/skills
 
 - Repo: https://github.com/jakubkrehel/skills
-- Commit: `267330e1adfc66a718fb65fa6918c1f06d0a689e` (`main`)
-- Checked 2 Oct 2026. This is still the upstream tip.
+- Commit: `d574cc8a576dc24256ad38268b8d03d86724a1b3` (`main`)
+- Refreshed 7 Oct 2026. The installed trees match this tip. `state-machine` was added because `variant` now refers to it.
 
-`better-accessibility`, `better-colors`, `better-interface`, `better-layout`, `better-typography`, `better-ui`, `better-writing`, `break`, `explain-interface`, `interface-review`, `variant`.
+`better-accessibility`, `better-colors`, `better-interface`, `better-layout`, `better-typography`, `better-ui`, `better-writing`, `break`, `explain-interface`, `interface-review`, `variant`, `state-machine`.
 
 ### gnurio/refactoring-ui-plugin
 
@@ -105,7 +105,7 @@ These were already in the tree. Refreshed 2 Oct 2026 to the upstream tips below.
 ### maplibre/maplibre-agent-skills
 
 - Repo: https://github.com/maplibre/maplibre-agent-skills
-- Commit: `bc6a884a6b6b08936cf917b26092463e5d22e180` (`main`)
+- Commit: `fa618af49728952f7aeca842ad93f51b9b530018` (`main`)
 
 Refreshed: `maplibre-source-wiring`, `maplibre-terrain-rendering`, `maplibre-tile-sources`, `maplibre-v6-migration`.
 
@@ -129,7 +129,7 @@ A last30days run on 2 Oct 2026 (Reddit, YouTube, Hacker News, GitHub, Digg) rank
 ### supabase/agent-skills
 
 - Repo: https://github.com/supabase/agent-skills
-- Commit: `544bfc56c89afe2b87b20017a59b2c6e9502a1fb` (`main`)
+- Commit: `c9be0e931b7930f7d02126d04774d904c381e7d7` (`main`)
 
 `supabase`, `supabase-postgres-best-practices`.
 
@@ -152,7 +152,7 @@ Left upstream: `deploy-to-vercel` (the machine already has `deploy-with-vercel`)
 ### elevenlabs/skills
 
 - Repo: https://github.com/elevenlabs/skills
-- Commit: `81f1eafc65c9219ab4aa305d81ffc552a6f43f9d` (`main`)
+- Commit: `25bd9ad1c31af658fba6cc7d8ec1f1e2a715c049` (`main`)
 
 `elevenlabs-agents` is the upstream `agents` skill. The directory and the frontmatter `name` are `elevenlabs-agents` so this copy does not register as a generic agents skill. Also `text-to-speech`, `speech-to-text`, `speech-engine`.
 
@@ -163,7 +163,7 @@ Left upstream: `dubbing`, `music`, `sound-effects`, `voice-changer`, `voice-isol
 ### PostHog/skills
 
 - Repo: https://github.com/PostHog/skills
-- Commit: `188417f71b1e67765ce814118bce9f79d8a1a393` (`main`)
+- Commit: `8321fc1dab05b8f3dfdb6d6b5c76c097b99b8677` (`main`)
 
 `integration-nextjs-app-router`, `feature-flags-nextjs`, `error-tracking-nextjs`.
 
@@ -190,3 +190,7 @@ Same commit as the MapLibre refresh above. `maplibre-cartography`, `maplibre-fon
 Anthropic `frontend-design` is installed in the canonical machine-wide skill root at `~/.agents/skills/frontend-design`, exposed to Codex. Source: [anthropics/skills](https://github.com/anthropics/skills), commit `8a1541c4a3ffa5a20a5a91de0dcf3f0bab1d1ef4`. Claude already provides this skill through its enabled synced plugin, so no second Claude copy was added.
 
 `docs/DESIGN_SYSTEM.md` and `docs/VOICE.md` remain authoritative for this project. Upstream design skills do not replace project tokens, brand identity, price semantics or copy laws.
+
+## Maintenance check, 7 Oct 2026
+
+All eleven documented upstream repositories were checked at their default branch tips. The installed Jakub skills, MapLibre cartography and glyph guidance, and ElevenLabs streaming references were refreshed. Other installed trees have no upstream content changes. Existing namespace changes, install guards, removed sibling links, and the Vercel scope fix remain. Upstream CHANGELOG.md files were not modified. The three PUBMAXX-specific skills have no upstream.

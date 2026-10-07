@@ -175,6 +175,10 @@
   .palSummon {
     bottom: 22px;
   }
+  /* The venue drawer owns its action bar while it is open. */
+  body:has(.mapDrawer.open) .palSummon {
+    display: none;
+  }
 }
 @media (prefers-reduced-transparency: reduce) {
   .palSummon {
