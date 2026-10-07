@@ -64,7 +64,7 @@ export default function PubsFilters({
       <div
         className="pubsFilters"
         role="group"
-        aria-label="Filter by scrape source"
+        aria-label="Filter by pub chain"
         aria-busy={pending}
       >
         {FILTERS.map((item) => {

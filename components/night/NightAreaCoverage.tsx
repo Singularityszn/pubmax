@@ -185,7 +185,7 @@ export default function NightAreaCoverage() {
           <span className="nightAreaCoverage__detailsMeta">{areas.length} areas</span>
         </summary>
         <p className="nightAreaCoverage__detailsIntro">
-          “See the pubs” just opens the map for a browse. It won’t turn an area into a
+          &quot;See the pubs&quot; just opens the map for a browse. It won’t turn an area into a
           planned crawl until its prices are fresh.
         </p>
         <ul className="nightAreaCoverage__list" aria-label="All area coverage">

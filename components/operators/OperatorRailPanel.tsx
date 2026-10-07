@@ -191,13 +191,13 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
           ) : !signedIn ? (
             <p className="operatorRailBody">
               Sign in with the account that runs {venueName}, then send a claim.
-              Claims must be approved before proposal tools open.
+              Once we approve your claim, you can propose updates.
             </p>
           ) : !checked ? (
             <p className="operatorRailBody">Checking your status…</p>
           ) : state === "pending" ? (
             <p className="operatorRailBody" role="status">
-              {`Claim under review. We're checking that you run ${venueName} and will open the proposal tools once it is approved.`}
+              {`Claim under review. We're checking that you run ${venueName}. Once we approve it, you can propose updates.`}
             </p>
           ) : state === "verified" ? (
             <div className="operatorRailForm">
@@ -298,7 +298,7 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
                 </p>
               ) : (
                 <p className="operatorRailBody">
-                  Tell us how we can check that you run {venueName}. Approval is required before proposal tools open.
+                  Tell us how we can check that you run {venueName}. Once we approve your claim, you can propose updates.
                 </p>
               )}
               <label className="operatorRailField">

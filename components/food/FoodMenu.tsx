@@ -106,7 +106,7 @@ export default function FoodMenu({ items, venueName }: FoodMenuProps) {
         />
       ))}
       <p className="drinkMenuFootnote">
-        Every dish carries its source · Prices from first-party menus, not a live till feed.
+        Every dish shows its source. Prices come from the venue&rsquo;s own published menu, not a live till feed.
       </p>
     </div>
   );

@@ -50,6 +50,6 @@ async function lead(placesContent: unknown) {
 
 it("drops the all-we-know clause only once Google Places content has arrived", async () => {
   const record = placesEnrichmentRecord(pub.id, "ChIJVerified123", { formattedAddress: "1 High Street, London" }, new Date().toISOString());
-  expect(await lead(record)).toBe("We know this pub is here. Nobody has logged what a drink costs - be the first.");
-  expect(await lead(undefined)).toBe("We know this pub is here, and that is all we know. Nobody has logged what a drink costs - be the first.");
+  expect(await lead(record)).toBe("We know this pub is here. Nobody has logged what a drink costs. Be the first.");
+  expect(await lead(undefined)).toBe("We know this pub is here, and that is all we know. Nobody has logged what a drink costs. Be the first.");
 });

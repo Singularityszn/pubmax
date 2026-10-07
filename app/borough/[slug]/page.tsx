@@ -374,8 +374,8 @@ export default async function BoroughPage({ params }: PageProps) {
               Story pubs in {name}
             </h2>
             <p className="boroughSectionDek">
-              {storyPubs.length} {storyPubs.length === 1 ? "pub" : "pubs"} here carry a heritage
-              note or a passed-down story. Each offers a reason to detour beyond price.
+              {storyPubs.length} {storyPubs.length === 1 ? "pub here has" : "pubs here have"} a heritage
+              note or a passed-down story. Each is worth a detour for more than the price.
             </p>
             <ul className="boroughChipList" aria-label={`Story pubs in ${name}`}>
               {storyPubs.map((pub) => (

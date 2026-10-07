@@ -86,7 +86,7 @@ export default function TodayQuietPintCard({ module }: Props) {
 
       <p className="todayCardFootRow">
         <span className="todayProvenance">
-          Quiet reads the usual pattern for the hour, not the door.
+          Quiet is the usual pattern for this hour, not a live count.
         </span>
         <Link href="/historic" className={TODAY_TEXT_BUTTON_CLASS}>
           More historic pubs

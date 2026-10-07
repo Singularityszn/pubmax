@@ -301,11 +301,11 @@ function WantedOpenList({
               <p className="wantedRow__name">{title}</p>
               <p className="wantedRow__meta">
                 {wanted.venueKind === "uk_base"
-                  ? "UK pub · mark only, no invented pint price"
+                  ? "UK pub · no pint price on record"
                   : wanted.venueKind === "pending"
                     ? "Still matching"
                     : "On the priced map"}
-                {wanted.sourceUrl ? " · link saved as provenance" : ""}
+                {wanted.sourceUrl ? " · source link saved" : ""}
                 {wanted.note ? ` · ${wanted.note}` : ""}
               </p>
             </div>

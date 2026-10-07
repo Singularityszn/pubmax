@@ -371,7 +371,7 @@ test("bounds user-entered search identity while keeping fixed qualifiers visible
   const query = status.locator(".mapToolbarSearchQuery");
   const qualifier = status.locator(".mapToolbarSearchQualifier");
   await expect(query).toHaveText(LONG_QUERY.trim());
-  await expect(qualifier).toHaveText("’ with your current filters.");
+  await expect(qualifier).toHaveText("' with your current filters.");
 
   const queryGeometry = await query.evaluate((node) => {
     const style = getComputedStyle(node);

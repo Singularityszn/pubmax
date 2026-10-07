@@ -586,7 +586,7 @@ export function DiscoverBody({
         aria-labelledby="rivalry-title"
       >
         <h2 id="rivalry-title" className="discoverSectionTitle">
-          UK city energy
+          UK cities, ranked
         </h2>
         <p className="discoverSectionDek">
           Cities ranked on Pint Drops, crawl packs, and how much ground we
@@ -659,7 +659,7 @@ export function DiscoverBody({
       {status === "error" || status === "idle" || status === "loading" || entries.length > 0 ? (
         <section className="discoverSection" aria-labelledby="cheap-title">
           <h2 id="cheap-title" className="discoverSectionTitle">
-            Cheap Pint Leaderboard
+            Cheap pint leaderboard
           </h2>
           <p className="discoverSectionDek">
             Lowest listed pint prices, separate from the recently logged
@@ -688,7 +688,7 @@ export function DiscoverBody({
       {status === "error" || status === "idle" || status === "loading" || thenVsNow.length > 0 ? (
         <section className="discoverSection" aria-labelledby="thenVsNow-title">
           <h2 id="thenVsNow-title" className="discoverSectionTitle">
-            Then vs Now
+            Then vs now
           </h2>
           <p className="discoverSectionDek">
             Latest community-reported pint against the earlier price on
