@@ -227,8 +227,10 @@ The iOS 27.0 simulator does not enforce this: the same build without the
 manifest launches there, so a simulator launch cannot prove the fix. The
 source fence in `__tests__/nativeWrap.test.ts` holds it instead.
 
-The app now follows Capacitor 8.5's own migration (`npx cap migrate`, template
-in `@capacitor/cli`):
+The Info.plist manifest and the AppDelegate `configurationForConnecting` method
+follow Capacitor 8.5's `npx cap migrate` output (template in `@capacitor/cli`).
+The SceneDelegate does not: the CLI template builds the window by hand, and
+this app lets the `Main` storyboard build it instead.
 
 - `ios/App/App/Info.plist` carries `UIApplicationSceneManifest`: one scene
   (multiple scenes off), storyboard `Main`, delegate
