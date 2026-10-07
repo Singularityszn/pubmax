@@ -87,28 +87,33 @@ export function softKeyboardOpen(evidence: SoftKeyboardEvidence): boolean {
   return layout - visual >= layout * SOFT_KEYBOARD_MIN_SHRINK_RATIO;
 }
 
-/** Read the live evidence out of the document. Browser only. */
-function readEvidence(): SoftKeyboardEvidence {
+/** Read the live answer out of the document. Browser only. */
+function readOpen(): boolean {
   const visual = window.visualViewport;
   const focused = isTextEntryElement(document.activeElement);
-  // Android's inset handling resizes both viewports. With no field focused the
-  // view is unobscured, so that reading is the baseline. A focused field keeps
-  // it. After a width change (a rotation or a resized window) it keeps it only
-  // while the keyboard stays up, and takes the new height once it closes.
-  const android = nativePlatform() === "android";
-  if (android) {
-    const widthChanged = window.innerWidth !== nativeLayoutWidth;
-    const keyboardGone = !open || window.innerHeight > nativeLastHeight;
-    const reBase = !focused || (widthChanged && keyboardGone);
-    nativeLayoutHeight = reBase ? window.innerHeight : Math.max(nativeLayoutHeight, window.innerHeight);
-    if (reBase) nativeLayoutWidth = window.innerWidth;
-    nativeLastHeight = window.innerHeight;
-  }
-  return {
+  const evidence: SoftKeyboardEvidence = {
     textEntryFocused: focused && (visual?.scale ?? 1) === 1,
     visualViewportHeight: visual ? visual.height : Number.NaN,
-    layoutViewportHeight: android ? nativeLayoutHeight : window.innerHeight,
+    layoutViewportHeight: window.innerHeight,
   };
+  if (nativePlatform() !== "android") return softKeyboardOpen(evidence);
+  // Android's inset handling resizes both viewports. With no field focused the
+  // view is unobscured, so that reading is the baseline, and a focused field
+  // keeps it. A width change (a rotation or a resized window) with the keyboard
+  // up leaves no baseline for the new shape, so the answer holds until the
+  // field blurs or the height rises by a keyboard at the new width.
+  const { innerWidth: width, innerHeight: height } = window;
+  nativeLowestHeight = width === nativeLowestWidth ? Math.min(nativeLowestHeight, height) : height;
+  nativeLowestWidth = width;
+  const keyboardClosed = height - nativeLowestHeight >= height * SOFT_KEYBOARD_MIN_SHRINK_RATIO;
+  if (!focused || (width !== nativeLayoutWidth && (!open || keyboardClosed))) {
+    nativeLayoutHeight = height;
+    nativeLayoutWidth = width;
+    nativeLowestHeight = height;
+  }
+  if (width !== nativeLayoutWidth) return open;
+  nativeLayoutHeight = Math.max(nativeLayoutHeight, height);
+  return softKeyboardOpen({ ...evidence, layoutViewportHeight: nativeLayoutHeight });
 }
 
 // useSyncExternalStore requires a cached snapshot: recomputing from the DOM on
@@ -117,11 +122,12 @@ function readEvidence(): SoftKeyboardEvidence {
 let open = false;
 let nativeLayoutHeight = 0;
 let nativeLayoutWidth = 0;
-let nativeLastHeight = 0;
+let nativeLowestHeight = 0;
+let nativeLowestWidth = 0;
 const listeners = new Set<() => void>();
 
 function refresh(): void {
-  const next = softKeyboardOpen(readEvidence());
+  const next = readOpen();
   if (next === open) return;
   open = next;
   for (const listener of listeners) listener();
@@ -189,6 +195,7 @@ export function subscribeSoftKeyboard(onStoreChange: () => void): () => void {
     open = false;
     nativeLayoutHeight = 0;
     nativeLayoutWidth = 0;
-    nativeLastHeight = 0;
+    nativeLowestHeight = 0;
+    nativeLowestWidth = 0;
   };
 }
