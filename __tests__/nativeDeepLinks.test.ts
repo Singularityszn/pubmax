@@ -1,9 +1,9 @@
+// @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { isNativeApp } from "@/lib/nativePlatform";
 import {
   NATIVE_URL_SCHEME,
-  activateNativeDeepLinks,
   nativeDeepLinkPath,
 } from "@/lib/nativeDeepLinks";
 
@@ -22,8 +22,12 @@ vi.mock("@capacitor/app", () => ({
 }));
 
 const native = vi.mocked(isNativeApp);
+let activateNativeDeepLinks: typeof import("@/lib/nativeDeepLinks").activateNativeDeepLinks;
 
-beforeEach(() => {
+beforeEach(async () => {
+  vi.resetModules();
+  sessionStorage.clear();
+  ({ activateNativeDeepLinks } = await import("@/lib/nativeDeepLinks"));
   vi.clearAllMocks();
   native.mockReturnValue(true);
   appMocks.getLaunchUrl.mockResolvedValue(undefined);
@@ -148,6 +152,55 @@ describe("activateNativeDeepLinks", () => {
 
     cleanup();
     expect(appMocks.remove).toHaveBeenCalledOnce();
+  });
+
+  it("does not replay the cold link after a full document navigation", async () => {
+    appMocks.addListener.mockResolvedValue({ remove: appMocks.remove });
+    appMocks.getLaunchUrl.mockResolvedValue({ url: "pubmaxx://map?sel=venue-1" });
+    const navigate = vi.fn();
+    const cleanup = await activateNativeDeepLinks(navigate);
+    expect(navigate).toHaveBeenCalledExactlyOnceWith("/map?sel=venue-1");
+    cleanup();
+
+    // A document reload loses the module but retains the WebView session.
+    vi.resetModules();
+    const reloaded = await import("@/lib/nativeDeepLinks");
+    const nextNavigate = vi.fn();
+    const nextCleanup = await reloaded.activateNativeDeepLinks(nextNavigate);
+    expect(nextNavigate).not.toHaveBeenCalled();
+    expect(appMocks.getLaunchUrl).toHaveBeenCalledOnce();
+    nextCleanup();
+  });
+
+  it("still routes repeated and new warm links after the launch was consumed", async () => {
+    let onOpen: ((event: { url: string }) => void) | undefined;
+    appMocks.addListener.mockImplementation(async (_event, callback) => {
+      onOpen = callback;
+      return { remove: appMocks.remove };
+    });
+    appMocks.getLaunchUrl.mockResolvedValue({ url: "pubmaxx://map?sel=venue-1" });
+    const coldCleanup = await activateNativeDeepLinks(vi.fn());
+    coldCleanup();
+    vi.resetModules();
+    const reloaded = await import("@/lib/nativeDeepLinks");
+    const navigate = vi.fn();
+    const cleanup = await reloaded.activateNativeDeepLinks(navigate);
+    onOpen?.({ url: "pubmaxx://map?sel=venue-1" });
+    onOpen?.({ url: "pubmaxx://tonight" });
+    expect(navigate.mock.calls).toEqual([["/map?sel=venue-1"], ["/tonight"]]);
+    cleanup();
+  });
+
+  it("consumes a launch once when activations overlap", async () => {
+    appMocks.addListener.mockResolvedValue({ remove: appMocks.remove });
+    appMocks.getLaunchUrl.mockResolvedValue({ url: "pubmaxx://tonight" });
+    const navigate = vi.fn();
+    const cleanups = await Promise.all([
+      activateNativeDeepLinks(navigate),
+      activateNativeDeepLinks(navigate),
+    ]);
+    expect(navigate).toHaveBeenCalledExactlyOnceWith("/tonight");
+    cleanups.forEach((cleanup) => cleanup());
   });
 
   it("fails soft if the native plugin is unavailable", async () => {
