@@ -105,20 +105,49 @@ export function buildFiltersChip(input: {
   };
 }
 
-export function buildTflCorner(status: TflStatus, count: number): CornerUtilityModel {
+/**
+ * A tube line the reader should hear about before they set out: the words
+ * TfL uses when a line is not simply running slowly. Minor delays and PLANNED
+ * closures (the overnight and weekend works every line has) are in the sheet,
+ * not on the map.
+ */
+export function isUrgentTubeStatus(status: string | undefined): boolean {
+  const text = status?.toLowerCase() ?? "";
+  if (text.includes("planned")) return false;
+  return (
+    text.includes("severe") ||
+    text.includes("suspended") ||
+    text.includes("closed") ||
+    text.includes("closure")
+  );
+}
+
+/**
+ * The map-edge TfL control. Its badge answers one question, whether anything
+ * is urgent, so a resting map of four routine updates shows a bare glyph. The
+ * full count stays in the accessible name and in the sheet it opens.
+ */
+export function buildTflCorner(
+  status: TflStatus,
+  count: number,
+  urgentCount = 0,
+): CornerUtilityModel {
   const statusSuffix = status === "clear" ? "OK" : status === "unavailable" ? "?" : null;
+  const urgent = status === "issues" && urgentCount > 0 ? urgentCount : 0;
   return {
     id: "tfl",
     statusSuffix,
-    badge: count > 0 ? count : null,
+    badge: urgent > 0 ? urgent : null,
     ariaLabel:
       status === "clear"
         ? "TfL live: lines running well"
         : status === "unavailable"
           ? "TfL live: status unavailable"
-          : count > 0
-            ? `TfL live: ${count} updates`
-            : "TfL live",
+          : urgent > 0
+            ? `TfL live: ${urgent} ${urgent === 1 ? "line" : "lines"} badly disrupted, ${count} updates`
+            : count > 0
+              ? `TfL live: ${count} updates`
+              : "TfL live",
   };
 }
 

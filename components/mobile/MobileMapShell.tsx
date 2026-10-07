@@ -1,16 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { Ellipsis, GlassWater, LocateFixed, LocateOff, MoonStar, Route, Search, SlidersHorizontal, TrainFront, X } from "lucide-react";
+import { Ellipsis, GlassWater, LocateFixed, LocateOff, Route, Search, SlidersHorizontal, TrainFront, X } from "lucide-react";
 
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import CitySwitcher from "@/components/map/CitySwitcher";
 import { IconButton } from "@/components/ui/icon-button";
 import { Sheet } from "@/components/ui/sheet";
-import { buildFiltersChip, buildNearMeChip, buildTflCorner, buildTonightChip, type CornerUtilityModel, type PrimaryChipModel, type TonightChipModel } from "@/lib/mapChromeTiers";
+import { buildFiltersChip, buildNearMeChip, buildTflCorner, type CornerUtilityModel, type PrimaryChipModel } from "@/lib/mapChromeTiers";
+import type { MapPeekModel } from "@/lib/mapPeek";
 import { CHOOSE_AREA_OPENING_HEADING, MAP_SHEET_TITLES, type MapOverlay, type MapSheetKind } from "@/lib/mobileShell";
 import { planActivationPill } from "@/lib/planActivationPill";
 import { DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
+
+import MapPeekSheet from "./MapPeekSheet";
 
 import "./mobileMapShell.css";
 
@@ -107,8 +110,9 @@ function tflCornerForCity(
   cityId: CityId,
   status: "checking" | "clear" | "issues" | "unavailable",
   count: number,
+  urgentCount: number,
 ): CornerUtilityModel | null {
-  return cityId === "london" ? buildTflCorner(status, count) : null;
+  return cityId === "london" ? buildTflCorner(status, count, urgentCount) : null;
 }
 
 /** The sheets that open at full height; every other kind opens at half. */
@@ -132,14 +136,15 @@ function sheetBodyFor(
 }
 
 /**
- * ONE docked lane under the one bar, shared by both chips, so the phone chrome
- * still costs a bar plus a single 44px row however many chips it earns.
- *
- * Left: the drink the map is under, always named, because a map showing
+ * ONE docked lane under the one bar, holding the one chip the map owes a
+ * reader: the drink the map is under, always named, because a map showing
  * cocktail prices must never look like the pint map and that choice may not be
  * buried two taps inside a refinement drawer.
- * Right (P5 cold-start): What's On listings earn a one-tap path into the
- * Tonight sheet, and a quiet night simply leaves that half empty.
+ *
+ * What's On used to take the right half of this row as a second chip. It is a
+ * lens now, one row down in the Filters sheet, because the tab bar already
+ * leads with Tonight and the map's resting budget is three layers (top bar,
+ * this row, the bottom card).
  *
  * The row stops short of the published map-edge lane so TfL never swallows a
  * chip's taps (components/mobile/mobileMapShell.css).
@@ -148,17 +153,14 @@ function MapChipRow({
   overlay,
   drinkLaneLabel,
   drinkLaneSelected,
-  tonightChip,
   onOpen,
 }: {
   overlay: MapOverlay;
   drinkLaneLabel: string;
   drinkLaneSelected: boolean;
-  tonightChip: TonightChipModel | null;
   onOpen: (overlay: MapOverlay) => void;
 }) {
   const drinkOpen = overlay === "drink";
-  const tonightOpen = overlay === "tonight";
   return (
     <div className="mobileMapChipRow">
       <button
@@ -176,29 +178,11 @@ function MapChipRow({
         <GlassWater size={15} aria-hidden="true" />
         <span className="mobileMapDrinkChipLabel">{drinkLaneLabel}</span>
       </button>
-      {tonightChip ? (
-        <button
-          type="button"
-          className={
-            tonightOpen ? "mobileMapTonightChip isActive" : "mobileMapTonightChip"
-          }
-          aria-label={tonightChip.ariaLabel}
-          aria-expanded={tonightOpen}
-          aria-pressed={tonightOpen}
-          onClick={() => onOpen("tonight")}
-        >
-          <MoonStar size={15} aria-hidden="true" />
-          <span className="mobileMapTonightChipLabel">{tonightChip.label}</span>
-          <span className="mobileMapTonightChipCount" aria-hidden="true">
-            {tonightChip.count}
-          </span>
-        </button>
-      ) : null}
     </div>
   );
 }
 
-export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, limitedCoverage, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tonightCount, tonightNearReader, tflCount, tflStatus, priceLabel, drinkFiltersActive, drinkLaneLabel, drinkLaneSelected, experienceFilterLabel, priceCapActive, zoneActive, savedOnlyActive = false, openNowActive, planOpen, planActive, planStopCount, builtStopCount = 0, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchProps, searchContent, filtersContent, drinkContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent, chooseAreaContent, chooseAreaOpening = false, sheetsEnabled = true }: {
+export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, limitedCoverage, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tflCount, tflUrgentCount = 0, tflStatus, peek = null, onPeekOpenVenue, onPeekOpenList, priceLabel, drinkFiltersActive, drinkLaneLabel, drinkLaneSelected, experienceFilterLabel, priceCapActive, zoneActive, savedOnlyActive = false, openNowActive, planOpen, planActive, planStopCount, builtStopCount = 0, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchProps, searchContent, filtersContent, drinkContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent, chooseAreaContent, chooseAreaOpening = false, sheetsEnabled = true }: {
   cityId?: CityId;
   cityLabel: string;
   /** Base-pub-only arrival: omit city-guide controls that cannot answer here. */
@@ -226,17 +210,9 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
   /** Clears that message, so the map is never left holding a stale reason. */
   onDismissNearMeError: () => void;
   nearbyCount: number;
-  /**
-   * What's On listings ready for the phone cold-start chip. Zero (or a quiet
-   * night) keeps the chip off the map; a positive count opens overlay "tonight".
-   */
-  tonightCount: number;
-  /**
-   * Whether that count was fetched with a reader location (the /api/whats-on
-   * near= seam). City-wide cold-start must not claim "near you".
-   */
-  tonightNearReader: boolean;
   tflCount: number;
+  /** Tube lines the reader should hear about first. The badge only ever shows these. */
+  tflUrgentCount?: number;
   tflStatus: "checking" | "clear" | "issues" | "unavailable";
   priceLabel: string;
   drinkFiltersActive: boolean;
@@ -258,6 +234,16 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
   /** Stops picked by hand on this map while no route is mapped yet. */
   builtStopCount?: number;
   planInteractive: boolean;
+  /**
+   * The bottom card's answer for the settled view, or null when the card has no
+   * business there (a pub or a story is open, or the map is not the reader's).
+   * Null leaves the plan door standing alone at its own berth.
+   */
+  peek?: MapPeekModel | null;
+  /** Opens the pub the card names. */
+  onPeekOpenVenue?: (venueId: string) => void;
+  /** Opens List view, from the card's List control or an upward pull on it. */
+  onPeekOpenList?: () => void;
   venueListOpen: boolean;
   bandNoticeOpen: boolean;
   onPlan: () => void;
@@ -348,10 +334,27 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
     savedOnlyActive,
     openNowActive,
   });
-  const tflCorner = tflCornerForCity(cityId, tflStatus, tflCount);
-  const tonightChip = buildTonightChip(tonightCount, tonightNearReader);
+  const tflCorner = tflCornerForCity(cityId, tflStatus, tflCount, tflUrgentCount);
   const planPill = planActivationPill({ planActive, planStopCount, builtStopCount });
   const sheetKind = contextualSheetKind(overlay, sheetsEnabled, cityId);
+  // The plan door and the bottom card it rides in stand down for everything
+  // that takes the foot of the map: a sheet, the planner, List view, a story.
+  const planDoorVisible = overlay === "none" && !planOpen && !venueListOpen && !bandNoticeOpen;
+  const planDoor = (
+    <button
+      type="button"
+      className={`mobilePlanActivation${planPill.active ? " isActive" : ""}`}
+      aria-label={planPill.label}
+      disabled={!planInteractive}
+      onClick={onPlan}
+    >
+      <Route size={19} aria-hidden="true" />
+      <span>
+        <strong>{planPill.strong}</strong>
+        {planPill.small ? <small>{planPill.small}</small> : null}
+      </span>
+    </button>
+  );
   const sheetContent = sheetBodyFor(sheetKind, {
     filters: filtersContent,
     drink: drinkContent,
@@ -436,7 +439,6 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
             overlay={overlay}
             drinkLaneLabel={drinkLaneLabel}
             drinkLaneSelected={drinkLaneSelected}
-            tonightChip={tonightChip}
             onOpen={set}
           />
         )}
@@ -484,20 +486,14 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
           onNearMe={onNearMe}
         />
       ) : null}
-      {overlay === "none" && !planOpen && !venueListOpen && !bandNoticeOpen ? (
-        <button
-          type="button"
-          className={`mobilePlanActivation${planPill.active ? " isActive" : ""}`}
-          aria-label={planPill.label}
-          disabled={!planInteractive}
-          onClick={onPlan}
-        >
-          <Route size={19} aria-hidden="true" />
-          <span>
-            <strong>{planPill.strong}</strong>
-            {planPill.small ? <small>{planPill.small}</small> : null}
-          </span>
-        </button>
+      {planDoorVisible ? (
+        peek && onPeekOpenVenue && onPeekOpenList ? (
+          <MapPeekSheet model={peek} onOpenVenue={onPeekOpenVenue} onOpenList={onPeekOpenList}>
+            {planDoor}
+          </MapPeekSheet>
+        ) : (
+          planDoor
+        )
       ) : null}
       <Sheet kind={sheetKind} title={openingHeading?.title ?? (sheetKind ? MAP_SHEET_TITLES[sheetKind] ?? "Map controls" : "Map controls")} kicker={openingHeading?.kicker} initialSnap={sheetKind && FULL_HEIGHT_SHEETS.includes(sheetKind) ? "full" : "half"} onClose={onHome} backLabel={backLabel} onBack={onBack}>{sheetContent}</Sheet>
     </>
