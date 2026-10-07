@@ -16,6 +16,18 @@ const LANDMARK_INTERACTION_LAYERS = [
   "landmarks-label",
 ] as const;
 
+// The disc's casing and the count on its rim stand on the `clusters` circle's
+// own edge and overhang it, so a tap on the outer part of either is a tap on the
+// cluster. All three carry the same `cluster_id`.
+const CLUSTER_RIM_LAYERS = ["cluster-count-badge", "clusters-casing"] as const;
+function clusterHitOf<T>(byLayer: ReadonlyMap<string, T>): T | undefined {
+  for (const layer of ["clusters", ...CLUSTER_RIM_LAYERS] as const) {
+    const hit = byLayer.get(layer);
+    if (hit) return hit;
+  }
+  return undefined;
+}
+
 // Pub-first hit testing: a single map click queries pubs/route stops before
 // landmarks/POIs so dense central London taps open a pub sheet, not a
 // landmark card that happened to sit under the same finger.
@@ -32,6 +44,7 @@ export const PUB_FIRST_LAYERS = [
   "route-stops",
   "tonight-point",
   "clusters",
+  ...CLUSTER_RIM_LAYERS,
   "coffee-pilot-point",
   "uk-base-point",
   "uk-base-unnamed-point",
@@ -117,7 +130,7 @@ export function wireClickRouting(map: maplibregl.Map, deps: ClickDeps) {
       return;
     }
 
-    const clusterHit = byLayer.get("clusters");
+    const clusterHit = clusterHitOf(byLayer);
     if (clusterHit) {
       const clusterId = clusterHit.properties?.cluster_id;
       const source = map.getSource("pubs") as maplibregl.GeoJSONSource;
@@ -255,6 +268,7 @@ export function wireCursor(map: maplibregl.Map) {
     "pubs-price-pill",
     "pubs-point-selected",
     "clusters",
+    ...CLUSTER_RIM_LAYERS,
     "route-stops",
     "tonight-point",
     "coffee-pilot-point",
