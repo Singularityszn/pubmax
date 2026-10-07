@@ -154,8 +154,9 @@ describe("the card is one surface with one budget", () => {
     expect(rule).toContain("touch-action: none;");
   });
 
-  it("rises over the Create action while held, and still under the sheet portal", () => {
-    expect(shell).toContain('.mapPeek[data-dragging="true"] {\n    z-index: calc(var(--z-float-action) + 1);');
+  it("steps the Create action aside while it travels, by opacity alone", () => {
+    expect(shell).toContain('body:has(.mapPeek[data-dragging="true"]) .createFabRoot {\n    opacity: 0;\n    pointer-events: none;');
+    expect(shell).toMatch(/body:has\(\.mapPeek\) \.createFabRoot \{\n    transition: opacity 160ms/);
   });
 
   it("stands down under a sheet and the consent card, and never fires a haptic", () => {
