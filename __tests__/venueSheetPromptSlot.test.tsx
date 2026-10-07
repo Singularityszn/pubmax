@@ -120,6 +120,36 @@ describe("SaveForNightButton prompt slot", () => {
     expect(container.textContent).not.toContain("[sign-in control]");
   });
 
+  it("explains a session failure and lets the viewer retry the save", async () => {
+    auth.current = {
+      user: null,
+      identityResolved: false,
+      handle: null,
+      providerAuthState: "unresolved",
+    };
+    authedActionFetch.mockRejectedValueOnce(new Error("Still waking your session. Try again."));
+    await renderNight(true);
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>(".wantedSaveBtn")!.click();
+    });
+    await flush();
+    expect(container.querySelector('[role="status"]')?.textContent).toBe(
+      "Could not save. Check your connection and try again.",
+    );
+    expect(container.textContent).not.toContain("[sign-in control]");
+    const retry = Array.from(container.querySelectorAll("button"))
+      .find((button) => button.textContent === "Try again");
+    expect(retry).toBeDefined();
+
+    auth.current = { ...signedIn, identityResolved: true, handle: "mia" };
+    authedActionFetch.mockResolvedValueOnce(Response.json({ wanted: { venueKind: "curated" } }));
+    await renderNight(true);
+    await act(async () => retry!.click());
+    await flush();
+    expect(container.querySelector('[role="status"]')?.textContent).toBe("Saved for a night.");
+    expect(container.textContent).not.toContain("Try again");
+  });
+
   it("shows a signed-in account with no handle the handle door instead of a failing save", async () => {
     auth.current = { user: { id: "user-1" }, identityResolved: true, handle: null };
     await renderNight(true);

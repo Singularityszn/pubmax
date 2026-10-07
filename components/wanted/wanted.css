@@ -293,6 +293,10 @@
   margin-top: 0.65rem;
 }
 
+.wantedSaveWrap .authOptions {
+  margin-inline: 0;
+}
+
 .wantedPlanChips {
   display: flex;
   flex-wrap: wrap;

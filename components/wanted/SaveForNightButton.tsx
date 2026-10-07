@@ -16,6 +16,8 @@ import { isUkBaseVenueId, type WantedDTO } from "@/lib/wanted";
 
 import "./wanted.css";
 
+const SAVE_RETRY_MESSAGE = "Could not save. Check your connection and try again.";
+
 export default function SaveForNightButton({
   venueId,
   venueName,
@@ -36,9 +38,11 @@ export default function SaveForNightButton({
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [door, setDoor] = useState<ContributionDoorStatus | null>(null);
+  const [canRetry, setCanRetry] = useState(false);
 
   function tap() {
     onActivate?.();
+    setCanRetry(false);
     if (viewerSession.signedOut) {
       setDoor(null);
       setToast("Sign in to save for a night.");
@@ -79,7 +83,8 @@ export default function SaveForNightButton({
         } else if (body.status === "sign_in_required") {
           setToast("Sign in to save for a night.");
         } else {
-          setToast(errorMessageFrom(body, "Could not save for a night."));
+          setToast(errorMessageFrom(body, SAVE_RETRY_MESSAGE));
+          setCanRetry(true);
         }
         haptic("action-refused");
         return;
@@ -92,7 +97,8 @@ export default function SaveForNightButton({
       setToast("Saved for a night.");
       window.setTimeout(() => setToast(null), 2500);
     } catch {
-      setToast("Could not save for a night.");
+      setToast(SAVE_RETRY_MESSAGE);
+      setCanRetry(true);
     } finally {
       setBusy(false);
     }
@@ -115,6 +121,11 @@ export default function SaveForNightButton({
         </p>
       ) : null}
       {toast && active && viewerSession.signedOut ? <SignInButton /> : null}
+      {canRetry && active ? (
+        <button type="button" className="wantedCapture__secondary" onClick={tap} disabled={busy}>
+          Try again
+        </button>
+      ) : null}
       {door && active ? (
         <ContributionGateDoor
           status={door}
