@@ -176,6 +176,9 @@ export default function PlanStopList({
   }
   const keys = useMemo(() => stops.map((stop) => stop.key), [stops]);
   const firstLocked = Boolean(heldVenueId) && stops[0]?.venueId === heldVenueId;
+  const isCard = (stop: DraftStop, index: number) => Boolean(
+    stop.venueId.trim() && (stop.venueName.trim() || (index === 0 && stop.venueId === heldVenueId)),
+  );
   const gestures = useStopGestures({ onReorder, revealedKey, keys, onReveal: setRevealedKey, firstLocked, refreshKey });
   const options = useMemo(() => finderOptions(venues), [venues]);
   const byValue = useMemo(
@@ -214,9 +217,9 @@ export default function PlanStopList({
         aria-label="Stops, in walking order"
       >
         {stops.map((stop, index) => {
-          const resolved = Boolean(stop.venueId.trim());
+          const resolved = isCard(stop, index);
           const previous = stops[index - 1];
-          const minutes = previous && previous.venueId && resolved
+          const minutes = previous && isCard(previous, index - 1) && resolved
             ? walkMinutesBetween(previous, stop, measured)
             : null;
           const stamp = stampFor(stop);

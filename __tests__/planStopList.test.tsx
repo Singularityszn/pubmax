@@ -96,6 +96,13 @@ describe("PlanStopList", () => {
     expect(props.onSwap).toHaveBeenCalledWith(1);
   });
 
+  it("shows an unnamed venue that is no longer held as a pub finder", async () => {
+    const released: DraftStop = { key: 1, venueId: "venue-uk-unindexed", venueName: "", alternatives: [] };
+    await mount({ stops: [released, picked], heldVenueId: null });
+    expect(cards()[0]!.querySelector(".planStop__open")).toBeNull();
+    expect(cards()[0]!.querySelector(".planStop__find")?.getAttribute("aria-label")).toBe("Find a pub for stop 1");
+  });
+
   it("prints the route's area only on stops the generator placed there", async () => {
     await mount();
     const meta = cards().map((card) => card.querySelector(".planStop__meta")?.textContent ?? null);

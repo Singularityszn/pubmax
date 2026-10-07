@@ -1865,8 +1865,21 @@ function PlanComposerForm({
     return index === 0 && Boolean(heldVenueId) && stop.venueId === heldVenueId && !isUnnamedHeldStop(stop, index);
   }
 
+  function clearUnnamedHeldStop(key: number, index: number) {
+    applyStopIdentityMutation(
+      stops.map((stop) => stop.key === key ? { key, venueId: "", venueName: "", alternatives: [] } : stop),
+      `Find a pub for stop ${index + 1}. Refresh the route before locking.`,
+      { release: true },
+    );
+  }
+
   function releaseAcceptance() {
     focusPlanRouteStatus();
+    const first = stops[0];
+    if (first && isUnnamedHeldStop(first, 0)) {
+      clearUnnamedHeldStop(first.key, 0);
+      return;
+    }
     dropAcceptance();
     setRouteStatus(releasedAcceptanceStatus({
       venueName: acceptedVenueName,
@@ -1933,11 +1946,7 @@ function PlanComposerForm({
     const index = stops.findIndex((stop) => stop.key === key);
     const current = stops[index];
     if (current && isUnnamedHeldStop(current, index)) {
-      applyStopIdentityMutation(
-        stops.map((stop) => stop.key === key ? { key, venueId: "", venueName: "", alternatives: [] } : stop),
-        `Find a pub for stop ${index + 1}. Refresh the route before locking.`,
-        { release: true },
-      );
+      clearUnnamedHeldStop(key, index);
       return;
     }
     if (!current?.alternatives.length) return;

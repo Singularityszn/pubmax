@@ -226,6 +226,32 @@ describe("an accepted place the venue index has no name for", () => {
     expect(document.querySelector("#plan-route-status")?.textContent).toBe("Stop chosen. Refresh the route before locking.");
   });
 
+  it("releases a held place that is not a pub into a pub finder, and the next pick is kept", async () => {
+    holdAcceptedPlace();
+    serveIndex([
+      { id: HELD, name: "The Cocktail Den", kind: "bar" },
+      { id: "venue-anchor", name: "The Anchor", kind: "pub" },
+    ]);
+    await mountComposer();
+    expect(stopNames()).toEqual(["Your chosen place"]);
+
+    await click([...document.querySelectorAll<HTMLButtonElement>("button")].find((node) => node.textContent === "Release this pub")!);
+
+    expect(stopNames()).toEqual(["Find a pub for stop 1"]);
+    expect(panel()).toBeNull();
+    expect(readPlanningIntent()).toBeNull();
+
+    const finder = firstStop().querySelector<HTMLInputElement>(".planStop__find")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(finder, "The Anchor");
+      finder.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertReplacementText" }));
+    });
+    await settle();
+
+    expect(stopNames()).toEqual(["The Anchor"]);
+    expect(document.querySelector("#plan-route-status")?.textContent).toBe("Stop chosen. Refresh the route before locking.");
+  });
+
   it("removes a held place that is not a pub, and the acceptance goes with it", async () => {
     holdAcceptedPlace();
     serveIndex([{ id: HELD, name: "The Cocktail Den", kind: "bar" }]);
