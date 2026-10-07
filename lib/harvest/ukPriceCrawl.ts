@@ -727,10 +727,12 @@ function categoryDecisionFromLabel(
     })) return "item-name-ambiguous";
   }
   const decision = categoryDecisionFor(drinkLabel, drinkLabel.length);
-  // A named soda or tea latte with no category word is not evidence that a
+  // A named soda, tea or chai with no category word is not evidence that a
   // neighbouring item's beer, wine, spirit or coffee word belongs to this price.
   if (!decision) {
-    return /\b(?:soda|(?:chai|tea)\s+latte)\b/i.test(drinkLabel) ? "no-category-word-nearby" : null;
+    return /\b(?:soda|tea|chai)\b/i.test(drinkLabel) && !/\biced\s+tea\b/i.test(drinkLabel)
+      ? "no-category-word-nearby"
+      : null;
   }
   // "Vodka Cranberry Juice" is a spirit-and-mixer serve like the `with` lines
   // above: two drinks, one figure, and never the price of a soft drink.

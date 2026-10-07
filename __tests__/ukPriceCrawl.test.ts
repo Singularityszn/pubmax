@@ -406,6 +406,12 @@ describe("what a page states", () => {
       expect.objectContaining({ category: "coffee", priceGbp: 4.2 }),
     ]);
     expect(readVenueDrinkPrices("<p>Chai latte £4.20</p>").kept).toEqual([]);
+    // A named tea after a matcha or espresso line must not borrow its category.
+    for (const above of ["Matcha £3.60", "Espresso £2.80"]) {
+      expect(
+        readVenueDrinkPrices(`<p>${above}</p>\n<p>Earl Grey tea £2.50</p>`).kept.map((row) => row.priceGbp),
+      ).toEqual([Number(above.slice(-4))]);
+    }
   });
 
   it("never files a chai latte under the drink on the line above", () => {
