@@ -94,9 +94,16 @@
     // an in-app tap on the wordmark and it stays on the landing page.
     if (!appEntry && session.getItem("pubmax:entryDecision:consumed:v1") === "1") return;
 
-    if (local.getItem("pubmax:nativeFirstRun:routed:v1") !== "1") {
+    // Earlier releases stamped the routed mark when routing STARTED. It means
+    // finished only beside the tour mark those releases wrote on Skip or Plan my
+    // night. Alone it is a journey that started at the first step and resumes.
+    var legacyRouted = local.getItem("pubmax:nativeFirstRun:routed:v1") === "1";
+    var tourSeen =
+      local.getItem("pubmax-tour-v2-done") === "1" ||
+      local.getItem("pubmax-tour-v1-done") === "1";
+    if (local.getItem("pubmax:nativeFirstRun:done:v2") !== "1" && !(legacyRouted && tourSeen)) {
       var unfinishedStep = local.getItem("pubmax:nativeFirstRun:step:v1");
-      if (unfinishedStep !== null || local.getItem("pubmax:preferredCity:v1") === null) {
+      if (unfinishedStep !== null || legacyRouted || local.getItem("pubmax:preferredCity:v1") === null) {
         // Rule 2. The onboarding route is guarded by a session handoff, so the
         // same eligibility AppEntryRoute would have issued is issued here. The
         // unfinished step is durable before navigating. Only an explicit

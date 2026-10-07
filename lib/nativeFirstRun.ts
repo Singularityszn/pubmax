@@ -7,6 +7,7 @@
 // isNative flag threaded through shouldRouteNativeFirstRun is sourced from
 // isNativeApp() (lib/nativePlatform.ts), the only Capacitor-detection seam.
 
+import { hasSeenTour } from "@/lib/firstRunTour";
 import { isNativeApp } from "@/lib/nativePlatform";
 import { safeLocalStorage, safeSessionStorage } from "@/lib/safeStorage";
 import type { OnboardingStep } from "@/lib/onboardingFlow";
@@ -17,15 +18,20 @@ import type { OnboardingStep } from "@/lib/onboardingFlow";
  * React exists,
  * to tell a first launch from every later one.
  */
-export const NATIVE_FIRST_RUN_ROUTED_KEY = "pubmax:nativeFirstRun:routed:v1";
-const STORAGE_KEY = NATIVE_FIRST_RUN_ROUTED_KEY;
+export const NATIVE_FIRST_RUN_DONE_KEY = "pubmax:nativeFirstRun:done:v2";
+/**
+ * Earlier releases wrote this mark when routing STARTED, so alone it proves only
+ * that a journey began. Those releases also wrote the tour mark on Skip and Plan
+ * my night, so the pair means finished. Without the tour mark the journey resumes.
+ */
+export const NATIVE_FIRST_RUN_LEGACY_ROUTED_KEY = "pubmax:nativeFirstRun:routed:v1";
 /** Only the unfinished step is durable. Location coordinates are never stored here. */
 export const NATIVE_FIRST_RUN_STEP_KEY = "pubmax:nativeFirstRun:step:v1";
 /** The id of the patch an unfinished journey chose. Never coordinates. */
 export const NATIVE_FIRST_RUN_PATCH_KEY = "pubmax:nativeFirstRun:patch:v1";
 /**
  * The one-time onboarding eligibility slot. Exported for the same reason as
- * NATIVE_FIRST_RUN_ROUTED_KEY: the entry block in public/theme-init.js takes the
+ * NATIVE_FIRST_RUN_DONE_KEY: the entry block in public/theme-init.js takes the
  * first-run branch itself and has to issue the same handoff the guarded route
  * consumes, one paint earlier.
  */
@@ -36,6 +42,13 @@ export const NATIVE_FIRST_RUN_HANDOFF_MAX_AGE_MS = 5 * 60 * 1000;
 
 function hasStorage(): boolean {
   return safeLocalStorage() !== null;
+}
+
+function isNativeFirstRunDone(store: Storage): boolean {
+  return (
+    store.getItem(NATIVE_FIRST_RUN_DONE_KEY) === "1" ||
+    (store.getItem(NATIVE_FIRST_RUN_LEGACY_ROUTED_KEY) === "1" && hasSeenTour())
+  );
 }
 
 function resolveSessionStorage(storage?: Storage | null): Storage | null {
@@ -67,9 +80,10 @@ export function shouldRouteNativeFirstRun(state: NativeFirstRunState): boolean {
 
 /** Whether onboarding was explicitly finished or skipped on this device. */
 function hasRoutedNativeFirstRun(): boolean {
-  if (!hasStorage()) return true;
+  const store = safeLocalStorage();
+  if (!store) return true;
   try {
-    return window.localStorage.getItem(STORAGE_KEY) === "1";
+    return isNativeFirstRunDone(store);
   } catch {
     return true;
   }
@@ -79,7 +93,7 @@ function hasRoutedNativeFirstRun(): boolean {
 export function markNativeFirstRunRouted(): void {
   if (!hasStorage()) return;
   try {
-    window.localStorage.setItem(STORAGE_KEY, "1");
+    window.localStorage.setItem(NATIVE_FIRST_RUN_DONE_KEY, "1");
     window.localStorage.removeItem(NATIVE_FIRST_RUN_STEP_KEY);
     window.localStorage.removeItem(NATIVE_FIRST_RUN_PATCH_KEY);
   } catch {
@@ -89,12 +103,18 @@ export function markNativeFirstRunRouted(): void {
   }
 }
 
-/** Read an unfinished step. The onboarding UI validates it against its step vocabulary. */
+/**
+ * Read an unfinished step. The onboarding UI validates it against its step vocabulary.
+ * A journey an earlier release started stored no step, so it resumes at the first one.
+ */
 export function readNativeFirstRunStep(): string | null {
   const store = safeLocalStorage();
   if (!store) return null;
   try {
-    return store.getItem(STORAGE_KEY) === "1" ? null : store.getItem(NATIVE_FIRST_RUN_STEP_KEY);
+    if (isNativeFirstRunDone(store)) return null;
+    const step = store.getItem(NATIVE_FIRST_RUN_STEP_KEY);
+    if (step !== null) return step;
+    return store.getItem(NATIVE_FIRST_RUN_LEGACY_ROUTED_KEY) === "1" ? "london" : null;
   } catch {
     return null;
   }
@@ -106,7 +126,7 @@ export function rememberNativeFirstRunStep(step: OnboardingStep): void {
   const store = safeLocalStorage();
   if (!store) return;
   try {
-    if (store.getItem(STORAGE_KEY) !== "1") store.setItem(NATIVE_FIRST_RUN_STEP_KEY, step);
+    if (!isNativeFirstRunDone(store)) store.setItem(NATIVE_FIRST_RUN_STEP_KEY, step);
   } catch {
     // Storage unavailable. The journey remains usable in this session.
   }
@@ -117,7 +137,7 @@ export function readNativeFirstRunPatch(): string | null {
   const store = safeLocalStorage();
   if (!store) return null;
   try {
-    return store.getItem(STORAGE_KEY) === "1" ? null : store.getItem(NATIVE_FIRST_RUN_PATCH_KEY);
+    return isNativeFirstRunDone(store) ? null : store.getItem(NATIVE_FIRST_RUN_PATCH_KEY);
   } catch {
     return null;
   }
@@ -129,7 +149,7 @@ export function rememberNativeFirstRunPatch(id: string | null): void {
   const store = safeLocalStorage();
   if (!store) return;
   try {
-    if (id && store.getItem(STORAGE_KEY) !== "1") store.setItem(NATIVE_FIRST_RUN_PATCH_KEY, id);
+    if (id && !isNativeFirstRunDone(store)) store.setItem(NATIVE_FIRST_RUN_PATCH_KEY, id);
     else store.removeItem(NATIVE_FIRST_RUN_PATCH_KEY);
   } catch {
     // Storage unavailable. The patch still counts for this session.
