@@ -61,13 +61,14 @@ function areaFromQuery(query: string): PlanningIntentArea {
 
 /** Words that end a place name in "pubs in Blackfriars for a quiet pint". */
 const PLACE_PHRASE_STOP = new Set([
-  "for", "tonight", "today", "now", "with", "that", "which", "or", "please",
+  "for", "now", "with", "that", "which", "or", "please",
   "under", "over", "after", "before", "on", "at", "near", "around",
 ]);
 
 /**
- * Months, weekdays, holidays and times of day. A name holding one of these is
- * a when, not a where: "in December", "around Christmas", "in New Year".
+ * Months, weekdays, holidays and times of day. Each one ends a place name the
+ * way PLACE_PHRASE_STOP does: "in December" names no place, and "near
+ * Blackfriars Friday night" names Blackfriars.
  */
 const TIME_WORDS = new Set([
   "january", "february", "march", "april", "may", "june", "july", "august",
@@ -78,8 +79,11 @@ const TIME_WORDS = new Set([
   "evening", "midnight",
 ]);
 
-function isTimeWord(word: string): boolean {
-  return TIME_WORDS.has(word.toLowerCase().replace(/['’]s$/, ""));
+/** Time words that close a holiday name, so the words before them are a when too: "New Year", "Boxing Day". */
+const HOLIDAY_TAIL = new Set(["year", "eve", "day", "night"]);
+
+function timeStem(word: string): string {
+  return word.toLowerCase().replace(/['’]s$/, "");
 }
 
 /**
@@ -98,9 +102,13 @@ function namedPlaceFromQuery(query: string): string | null {
   const kept: string[] = [];
   for (const word of words) {
     if (PLACE_PHRASE_STOP.has(word.toLowerCase())) break;
+    const stem = timeStem(word);
+    if (TIME_WORDS.has(stem)) {
+      if (HOLIDAY_TAIL.has(stem)) kept.length = 0;
+      break;
+    }
     kept.push(word);
   }
-  if (kept.some(isTimeWord)) return null;
   const name = kept.join(" ").trim();
   // "in London" or "in East London" names the whole answer's scope, not a
   // place we failed to find.

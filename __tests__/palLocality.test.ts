@@ -139,12 +139,27 @@ describe("a named place the taxonomy cannot place, with a remembered area", () =
       "a quiet pint in New Year",
       "cheap pints near Friday night",
       "somewhere open in the Weekend",
+      "pubs open around Boxing Day",
+      "a pint near Bonfire Night",
     ]) {
       const locality = resolvePalLocality(query, REMEMBERED_SOHO);
       expect(locality.scope, query).toBe("remembered");
       expect(locality.area, query).toEqual({ kind: "night-patch", id: "soho" });
       expect(locality.unplaced, query).toBeUndefined();
       expect(palLocalityLine(locality), query).toBe("Grounded around Soho, your remembered area.");
+    }
+  });
+
+  it("keeps the place named before a time word and drops the time", () => {
+    for (const query of [
+      "pubs near Blackfriars Friday night",
+      "a pint in Blackfriars Saturday",
+      "drinks around Blackfriars December",
+    ]) {
+      const locality = resolvePalLocality(query, REMEMBERED_SOHO);
+      expect(locality.scope, query).toBe("london-wide");
+      expect(locality.area, query).toBeNull();
+      expect(locality.unplaced, query).toBe("Blackfriars");
     }
   });
 
