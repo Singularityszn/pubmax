@@ -280,7 +280,7 @@ describe("Pub Pal setup for a signed-in account", () => {
     // opened on. Neither may show the hidden step, and Back must not push a
     // replacement entry.
     await act(async () => {
-      const name = container.querySelector<HTMLInputElement>("input[placeholder='Anything feels right']")!;
+      const name = container.querySelector<HTMLInputElement>("input[placeholder='Any name you like']")!;
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(name, "Moss");
       name.dispatchEvent(new Event("input", { bubbles: true }));
     });
@@ -304,7 +304,7 @@ describe("Pub Pal setup for a signed-in account", () => {
   it("sends the confirmation with the Pal when the question was skipped", async () => {
     await renderSignedIn(true);
     await act(async () => {
-      const name = container.querySelector<HTMLInputElement>("input[placeholder='Anything feels right']")!;
+      const name = container.querySelector<HTMLInputElement>("input[placeholder='Any name you like']")!;
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(name, "Moss");
       name.dispatchEvent(new Event("input", { bubbles: true }));
     });
@@ -323,7 +323,7 @@ describe("Pub Pal setup for a signed-in account", () => {
     await renderSignedIn(true);
     const scrollTo = vi.mocked(window.scrollTo);
     await act(async () => {
-      const name = container.querySelector<HTMLInputElement>("input[placeholder='Anything feels right']")!;
+      const name = container.querySelector<HTMLInputElement>("input[placeholder='Any name you like']")!;
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(name, "Moss");
       name.dispatchEvent(new Event("input", { bubbles: true }));
     });

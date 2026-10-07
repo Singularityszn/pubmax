@@ -198,7 +198,7 @@ export default function SaveToListControl({
         ? "Could not confirm that just now."
         : held.includes(listType)
           ? savedToast(listType, handle)
-          : `Removed from “${listType}”`,
+          : `Removed from "${listType}"`,
     );
     window.setTimeout(() => setToast(null), 2000);
   }, [handle]);
