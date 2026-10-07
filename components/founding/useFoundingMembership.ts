@@ -38,7 +38,13 @@ const OUTSIDER: FoundingMembership = { state: "outsider", number: null };
 
 export function useFoundingMembership(): FoundingMembership {
   const { user, identityResolved } = useAuth();
-  const [membership, setMembership] = useState<FoundingMembership>(LOADING);
+  // The answer is held WITH the account it is about, so the render that shows a
+  // new account can never wear the last account's number while its own read is
+  // still on the way.
+  const [snapshot, setSnapshot] = useState<{
+    userId: string | null;
+    membership: FoundingMembership;
+  }>({ userId: null, membership: LOADING });
   const userId = user?.id ?? null;
 
   useEffect(() => {
@@ -46,7 +52,7 @@ export function useFoundingMembership(): FoundingMembership {
       // A signed-out reader is not an outsider, they are simply nobody here.
       // An unresolved session is not an outsider either: only a settled
       // identity may say "no number", and only about itself.
-      const timer = window.setTimeout(() => setMembership(LOADING), 0);
+      const timer = window.setTimeout(() => setSnapshot({ userId: null, membership: LOADING }), 0);
       return () => window.clearTimeout(timer);
     }
     const controller = new AbortController();
@@ -61,7 +67,10 @@ export function useFoundingMembership(): FoundingMembership {
       .then((body) => {
         if (!live || controller.signal.aborted) return;
         const number = parseFoundingMemberNumber(body?.foundingMemberNumber);
-        setMembership(number === null ? OUTSIDER : { state: "member", number });
+        setSnapshot({
+          userId,
+          membership: number === null ? OUTSIDER : { state: "member", number },
+        });
       })
       .catch(() => {
         // A read that failed proves nothing. Staying in "loading" keeps the
@@ -74,5 +83,5 @@ export function useFoundingMembership(): FoundingMembership {
     };
   }, [identityResolved, userId]);
 
-  return membership;
+  return snapshot.userId === userId && identityResolved ? snapshot.membership : LOADING;
 }
