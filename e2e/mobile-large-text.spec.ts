@@ -26,6 +26,58 @@ test.beforeEach(async ({ page }) => {
 });
 
 for (const scale of [1.3, 1.5, 2]) {
+  test(`Android ${scale}x native text zoom keeps map figures inside their badges`, async ({ page }) => {
+    await page.setViewportSize({ width: 412, height: 840 });
+    await installNativeShell(page, "android");
+    await page.route("**/api/citymcp/status", (route) => route.fulfill({
+      json: { signals: [{ headline: "Transport update", kind: "transport" }] },
+    }));
+    const observedAt = new Date().toISOString();
+    await page.route("**/api/whats-on**", (route) => route.fulfill({
+      json: {
+        rows: [{
+          id: "large-text-quiz", venueId: "venue-xjf3n0", placeName: "The Arnos Arms",
+          kind: "quiz", title: "Pub quiz", startsAt: new Date(Date.now() + 3_600_000).toISOString(),
+          source: { label: "Question One", url: "https://questionone.com/" },
+          observedAt, confidence: "listed",
+        }],
+        asOf: observedAt, sourceObservedAt: observedAt, sourceFreshnessKind: "dataset-generated",
+      },
+    }));
+    await page.goto("/map");
+    await expect(page.locator("html")).toHaveAttribute("data-native-shell", "android");
+    const badges = page.locator(".mobileMapTonightChipCount, .mobileMapTflButton .mobileMapCornerBadge");
+    await expect(badges).toHaveCount(2);
+    for (const badge of await badges.all()) await expect(badge).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    const geometry = await badges.evaluateAll((elements, fontScale) => elements.map((element) => {
+      const badge = element as HTMLElement;
+      const style = getComputedStyle(badge);
+      // Chromium has no WebView text zoom. Enlarge text alone, leaving rem
+      // geometry unchanged, as Android does with the system font setting.
+      badge.style.fontSize = `${parseFloat(style.fontSize) * fontScale}px`;
+      if (style.lineHeight !== "normal") {
+        badge.style.lineHeight = `${parseFloat(style.lineHeight) * fontScale}px`;
+      }
+      const range = document.createRange();
+      range.selectNodeContents(badge);
+      const box = badge.getBoundingClientRect();
+      const text = range.getBoundingClientRect();
+      return {
+        label: badge.className, font: parseFloat(getComputedStyle(badge).fontSize),
+        top: box.top, bottom: box.bottom, left: box.left, right: box.right,
+        textTop: text.top, textBottom: text.bottom, textLeft: text.left, textRight: text.right,
+      };
+    }), scale);
+    for (const box of geometry) {
+      expect(box.font, box.label).toBeCloseTo(12 * scale);
+      expect(box.textTop, box.label).toBeGreaterThanOrEqual(box.top - 1);
+      expect(box.textBottom, box.label).toBeLessThanOrEqual(box.bottom + 1);
+      expect(box.textLeft, box.label).toBeGreaterThanOrEqual(box.left - 1);
+      expect(box.textRight, box.label).toBeLessThanOrEqual(box.right + 1);
+    }
+  });
+
   for (const route of CORE_ROUTES) {
     test(`Android ${scale}x text keeps ${route} inside the phone`, async ({ page }) => {
       await page.setViewportSize({ width: 412, height: 840 });
@@ -225,7 +277,7 @@ test("Android chrome and checkbox labels have 48px touch targets", async ({ page
   await page.goto("/pal");
   await expect(async () => {
     await page.getByRole("button", { name: "Meet your Pub Pal" }).click();
-    await expect(page.getByText("I confirm I’m 18 or over")).toBeVisible({ timeout: 1_000 });
+    await expect(page.getByRole("checkbox", { name: /^I confirm I'm 18 or over/ })).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: 20_000 });
   const adult = page.locator(".palToggleRow").filter({ hasText: "I confirm" });
   const adultBox = await adult.boundingBox();

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement } from "react";
+import { act, createElement, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -45,7 +45,8 @@ function photo(size: number): File {
 }
 
 function DropProbe() {
-  drops = usePintDrops();
+  const state = usePintDrops();
+  useEffect(() => { drops = state; }, [state]);
   return null;
 }
 
