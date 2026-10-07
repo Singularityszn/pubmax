@@ -70,6 +70,7 @@ export function useStopGestures({
   keys,
   onReveal,
   firstLocked,
+  removable,
   refreshKey,
 }: {
   onReorder: (from: number, to: number) => void;
@@ -78,6 +79,8 @@ export function useStopGestures({
   onReveal: (key: number | null) => void;
   /** A held pub is Stop 1 for good: it never lifts and nothing lands above it. */
   firstLocked: boolean;
+  /** Whether a card has a Remove to show. Without one there is nothing to swipe to. */
+  removable: boolean;
   /** A new route remounts every card, so a gesture on the old ones is dropped. */
   refreshKey: number;
 }) {
@@ -87,10 +90,10 @@ export function useStopGestures({
   const cancelSpring = useRef<() => void>(() => {});
   const releasePointer = useRef<() => void>(() => {});
   const swallowClick = useRef(false);
-  const callbacks = useRef({ onReorder, onReveal, revealedKey, keys, firstLocked });
+  const callbacks = useRef({ onReorder, onReveal, revealedKey, keys, firstLocked, removable });
   useEffect(() => {
-    callbacks.current = { onReorder, onReveal, revealedKey, keys, firstLocked };
-  }, [onReorder, onReveal, revealedKey, keys, firstLocked]);
+    callbacks.current = { onReorder, onReveal, revealedKey, keys, firstLocked, removable };
+  }, [onReorder, onReveal, revealedKey, keys, firstLocked, removable]);
 
   const blockScroll = useCallback((event: TouchEvent) => {
     if (gesture.current?.mode === "drag" && event.cancelable) event.preventDefault();
@@ -127,7 +130,7 @@ export function useStopGestures({
   const lift = useCallback((current: Gesture) => {
     current.mode = "drag";
     current.slots = items.current.map((element) => {
-      const rect = element?.getBoundingClientRect();
+      const rect = (element?.querySelector<HTMLElement>(".planStop__card") ?? element)?.getBoundingClientRect();
       return { top: rect?.top ?? 0, height: rect?.height ?? 0 };
     });
     current.target = current.index;
@@ -150,6 +153,10 @@ export function useStopGestures({
     const to = commit ? current.target : current.index;
     const shifts = reorderShifts(current.slots, current.index, to);
     const rest = shifts[current.index] ?? 0;
+    for (const [index, other] of items.current.entries()) {
+      if (!other || index === current.index) continue;
+      other.style.transform = shifts[index] ? `translate3d(0, ${shifts[index]}px, 0)` : "";
+    }
     // Momentum decides the landing only through the slot the card is over; the
     // spring then carries the release velocity into it.
     cancelSpring.current = springTo(
@@ -278,7 +285,7 @@ export function useStopGestures({
         if (Math.hypot(dx, dy) > TOUCH_SLOP) {
           if (current.holdTimer) clearTimeout(current.holdTimer);
           current.holdTimer = null;
-          if (Math.abs(dx) > Math.abs(dy)) {
+          if (Math.abs(dx) > Math.abs(dy) && callbacks.current.removable) {
             current.mode = "swipe";
             items.current[current.index]?.setAttribute("data-swipe", "true");
             current.lastPosition = event.clientX;

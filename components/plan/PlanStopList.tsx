@@ -179,7 +179,7 @@ export default function PlanStopList({
   const isCard = (stop: DraftStop, index: number) => Boolean(
     stop.venueId.trim() && (stop.venueName.trim() || (index === 0 && stop.venueId === heldVenueId)),
   );
-  const gestures = useStopGestures({ onReorder, revealedKey, keys, onReveal: setRevealedKey, firstLocked, refreshKey });
+  const gestures = useStopGestures({ onReorder, revealedKey, keys, onReveal: setRevealedKey, firstLocked, removable, refreshKey });
   const options = useMemo(() => finderOptions(venues), [venues]);
   const byValue = useMemo(
     () => new Map(options.map((option) => [option.value.toLocaleLowerCase(), option.venue])),

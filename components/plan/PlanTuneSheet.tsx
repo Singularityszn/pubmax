@@ -51,6 +51,10 @@ export default function PlanTuneSheet({
   if (open !== wasOpen) {
     setWasOpen(open);
     if (open) setDetent("half");
+    else {
+      setDragging(false);
+      setClosing(false);
+    }
   }
 
   useEffect(() => {
@@ -64,9 +68,13 @@ export default function PlanTuneSheet({
   useDismissOnEscape(open, onClose, sheetRef);
 
   useEffect(() => {
+    if (!open) return;
     const spring = cancelSpring;
-    return () => spring.current();
-  }, []);
+    return () => {
+      spring.current();
+      drag.current = null;
+    };
+  }, [open]);
 
   const write = useCallback((value: number) => {
     if (sheetRef.current) sheetRef.current.style.transform = value === 0 ? "" : `translate3d(0, ${value}px, 0)`;

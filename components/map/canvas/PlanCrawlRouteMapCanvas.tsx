@@ -136,7 +136,7 @@ export default function PlanCrawlRouteMapCanvas({
         const progress = (now - started) / ROUTE_DRAW_MS;
         if (progress >= 1) {
           drawingRef.current = false;
-          source.setData(routeRef.current.routeLine);
+          syncPlanRoutePreviewScene(map, routeRef.current.routeLine, routeRef.current.routeStops);
           return;
         }
         source.setData(partialRouteLine(routeRef.current.routeLine, easeInOutCubic(progress)));

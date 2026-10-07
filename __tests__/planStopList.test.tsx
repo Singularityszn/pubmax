@@ -103,6 +103,39 @@ describe("PlanStopList", () => {
     expect(cards()[0]!.querySelector(".planStop__find")?.getAttribute("aria-label")).toBe("Find a pub for stop 1");
   });
 
+  it("does not swipe open a tray on a route with nothing to remove", async () => {
+    await mount({ stops: [generated], removable: false });
+    const surface = cards()[0]!.querySelector<HTMLElement>(".planStop__surface")!;
+    await act(async () => {
+      pointer("pointerdown", surface, { clientX: 200, clientY: 10 }, "touch");
+      pointer("pointermove", surface, { clientX: 150, clientY: 10 }, "touch");
+      pointer("pointermove", surface, { clientX: 60, clientY: 10 }, "touch");
+      pointer("pointerup", window, { clientX: 60, clientY: 10 }, "touch");
+    });
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 50)); });
+    expect(cards()[0]!.dataset.revealed).toBeUndefined();
+    expect(surface.style.transform).toBe("");
+  });
+
+  it("returns the other cards to their places when a drag is cancelled", async () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({ matches: false, media: query }));
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      const li = this.closest("li");
+      const index = li?.parentElement ? [...li.parentElement.children].indexOf(li) : 0;
+      return { top: index * 80, height: 72, bottom: index * 80 + 72, left: 0, right: 300, width: 300, x: 0, y: index * 80, toJSON: () => ({}) } as DOMRect;
+    });
+    await mount();
+    const surface = cards()[1]!.querySelector<HTMLElement>(".planStop__surface")!;
+    await act(async () => {
+      pointer("pointerdown", surface, { clientX: 10, clientY: 100 });
+      pointer("pointermove", surface, { clientX: 10, clientY: 190 });
+    });
+    expect(cards()[2]!.style.transform).not.toBe("");
+    pointer("pointercancel", window, { clientX: 10, clientY: 190 });
+    expect(cards()[1]!.dataset.dragRole).toBe("lifted");
+    expect(cards()[2]!.style.transform).toBe("");
+  });
+
   it("prints the route's area only on stops the generator placed there", async () => {
     await mount();
     const meta = cards().map((card) => card.querySelector(".planStop__meta")?.textContent ?? null);

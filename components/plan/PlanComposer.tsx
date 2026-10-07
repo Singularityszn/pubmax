@@ -1290,6 +1290,10 @@ function PlanComposerForm({
   const [acceptanceReleased, setAcceptanceReleased] = useState(false);
   const handoff = acceptanceReleased ? null : hydratedHandoff;
   const heldVenueId = handoff?.heldVenueId ?? null;
+  const liveHeldVenueId = useRef(heldVenueId);
+  useEffect(() => {
+    liveHeldVenueId.current = heldVenueId;
+  }, [heldVenueId]);
   const draftFields = initialComposerDraftFields(handoff, recoveredDraft);
   const [title, setTitle] = useState(draftFields.title);
   const [creatorName, setCreatorName] = useState(draftFields.creatorName);
@@ -1408,12 +1412,18 @@ function PlanComposerForm({
   const [routeRevealTick, setRouteRevealTick] = useState(0);
   // The route as it arrived, by its pubs in order: the strip draws it once.
   const [routeDrawKey, setRouteDrawKey] = useState<string | null>(null);
+  const [tuneOpen, setTuneOpen] = useState(false);
+  const revealedTick = useRef(0);
   useEffect(() => {
-    if (routeRevealTick === 0) return;
-    revealPlanRouteStatus();
+    if (routeRevealTick === revealedTick.current) return;
     // The sheet was how this route was asked for; the route is the answer.
-    void Promise.resolve().then(() => setTuneOpen(false));
-  }, [routeRevealTick]);
+    if (tuneOpen) {
+      void Promise.resolve().then(() => setTuneOpen(false));
+      return;
+    }
+    revealedTick.current = routeRevealTick;
+    revealPlanRouteStatus();
+  }, [routeRevealTick, tuneOpen]);
 
   // The host name is public (the plan, the share card, the unfurler), so it
   // waits for the live session rather than taking whatever is to hand: until
@@ -1472,7 +1482,6 @@ function PlanComposerForm({
   const [planAnchor, setPlanAnchor] = useState(routeDraftFields.planAnchor);
   const [sorting, setSorting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [tuneOpen, setTuneOpen] = useState(false);
   // Walk minutes the browser measured between stops, merged over the route's
   // life so a reorder re-times a leg the generator never walked.
   const [measured, setMeasured] = useState<MeasuredLegMinutes>(() => new Map());
@@ -1606,7 +1615,7 @@ function PlanComposerForm({
         const nextVenues = planVenueOptions(rows);
         setVenues(nextVenues);
         setVenueIndexStatus("read");
-        const acceptedVenueId = hydratedHandoff?.heldVenueId;
+        const acceptedVenueId = liveHeldVenueId.current;
         if (!acceptedVenueId) return;
         const accepted = nextVenues.find((venue) => venue.id === acceptedVenueId);
         if (!accepted) return;
@@ -1622,7 +1631,7 @@ function PlanComposerForm({
         if (active) setVenueIndexStatus("failed");
       });
     return () => { active = false; };
-  }, [composerVisible, acceptedCityId, hydratedHandoff?.heldVenueId, venueIndexRead]);
+  }, [composerVisible, acceptedCityId, venueIndexRead]);
 
   useEffect(() => {
     if (recoveredDraft) trackEvent("draft_recovered", { kind: "plan", surface: "plan" });
@@ -2094,6 +2103,7 @@ function PlanComposerForm({
       setError(failureStatus);
       setRouteStale(true);
       setRouteStatus(failureStatus);
+      setTuneOpen(false);
     } finally {
       setSorting(false);
     }

@@ -8,6 +8,7 @@
 // until the map has measured the new one.
 
 import { legMinutes } from "@/lib/routeLegs";
+import type { WalkLegDistance } from "@/lib/walkRoute";
 
 export type RouteViewStop = {
   venueId: string;
@@ -27,13 +28,17 @@ export function legKey(fromVenueId: string, toVenueId: string): string {
   return `${fromVenueId}>${toVenueId}`;
 }
 
-/** `/api/walk-route` legs, indexed by position, mapped onto the stops they join. */
+/**
+ * `/api/walk-route` legs, indexed by position, mapped onto the stops they join.
+ * Only a routed leg is a measured walk: a straight-line one is not printed as one.
+ */
 export function measuredLegMinutes(
   venueIds: readonly string[],
-  legs: ReadonlyArray<{ fromIndex: number; toIndex: number; distanceKm: number }>,
+  legs: readonly WalkLegDistance[],
 ): MeasuredLegMinutes {
   const out = new Map<string, number>();
   for (const leg of legs) {
+    if (leg.source !== "ors") continue;
     const from = venueIds[leg.fromIndex];
     const to = venueIds[leg.toIndex];
     if (!from || !to || !Number.isFinite(leg.distanceKm) || leg.distanceKm <= 0) continue;

@@ -46,7 +46,7 @@ test("blank Plan opens on describe-first, with the wizard reachable behind Guide
   await expect(
     page.getByRole("heading", { name: "Where should the night happen?" }),
   ).toHaveCount(0);
-  await expect(page.getByLabel("Venue name")).toHaveCount(0);
+  await expect(page.locator(".planStops input")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Lock it in" })).toHaveCount(0);
 
   await page.waitForLoadState("networkidle");
@@ -56,7 +56,7 @@ test("blank Plan opens on describe-first, with the wizard reachable behind Guide
     page.getByRole("heading", { name: "Where should the night happen?" }),
   ).toBeVisible();
   await expect(page.getByRole("heading", { name: DESCRIBE_FIRST_HEADING })).toHaveCount(0);
-  await expect(page.getByLabel("Venue name")).toHaveCount(0);
+  await expect(page.locator(".planStops input")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Lock it in" })).toHaveCount(0);
 });
 

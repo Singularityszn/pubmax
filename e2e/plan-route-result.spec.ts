@@ -56,7 +56,7 @@ test.describe("the Plan result is a route", () => {
 
     await expect(page.getByRole("heading", { level: 2, name: /^(Tonight|Today) in Clapham$/ })).toBeVisible();
     await expect(page.getByTestId("plan-route-summary")).toHaveText("3 stops · £17.40 each · 9 min walk");
-    await expect(page.getByLabel("Venue name")).toHaveCount(0);
+    await expect(page.locator(".planStops input")).toHaveCount(0);
 
     const cards = page.locator(".planComposer__stop");
     await expect(cards).toHaveCount(3);
@@ -91,8 +91,7 @@ test.describe("the Plan result is a route", () => {
     await page.locator(".planStop__open").nth(1).focus();
     await page.keyboard.press("Alt+ArrowUp");
     await expect(page.locator(".planStop__name")).toHaveText(["The Bohemia", "Arnos Arms", "The Elephant Inn"]);
-    // Same venues, same proof: the route is still lockable, and the walk the
-    // generator timed for a different neighbour is not printed as if it fit.
+    // Same venues, same proof: the route is still lockable.
     await expect(page.locator(".planComposer__routeStale")).toHaveCount(0);
     await expect(page.locator("#plan-route-status")).toContainText("moved to place 1");
   });
@@ -110,7 +109,7 @@ test.describe("the Plan result is a route", () => {
     await page.getByRole("button", { name: "Add another stop" }).click();
     const finder = page.getByLabel("Find a pub for stop 4");
     await expect(finder).toBeVisible();
-    await expect(page.getByLabel("Venue name")).toHaveCount(0);
+    await expect(page.locator(".planStops input")).toHaveCount(1);
   });
 });
 
@@ -181,8 +180,7 @@ test.describe("the stop cards under a thumb", () => {
     await touch("touchStart", x, y);
     for (let step = 1; step <= 10; step += 1) await touch("touchMove", x, y - step * 12);
     await touch("touchEnd", 0, 0);
-    await page.waitForTimeout(200);
-    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(before);
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(before);
     await expect(page.locator(".planStop__name")).toHaveText(["Arnos Arms", "The Bohemia", "The Elephant Inn"]);
   });
 });

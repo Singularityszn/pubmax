@@ -158,6 +158,51 @@ describe("the Plan result", () => {
   });
 });
 
+async function openTune(): Promise<void> {
+  const tune = [...document.querySelectorAll("button")].find((button) => button.textContent?.includes("Tune details"))!;
+  await act(async () => { tune.click(); });
+  await vi.waitFor(() => {
+    if (!document.querySelector("[role='dialog'] #plan-concierge-query")) throw new Error("Tune details has not mounted");
+  }, { timeout: 4000 });
+}
+
+async function sortAgainFromTune(): Promise<void> {
+  const again = [...document.querySelectorAll<HTMLButtonElement>("[role='dialog'] button")].find((button) => button.textContent === "Sort it again")!;
+  await act(async () => { again.click(); });
+  await settle();
+  await settle();
+}
+
+describe("sorting again from Tune details", () => {
+  it("closes the sheet and lands focus on the new route's status", async () => {
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4");
+    await openTune();
+
+    await sortAgainFromTune();
+
+    expect(document.querySelector("[role='dialog']")).toBeNull();
+    expect(document.activeElement?.id).toBe("plan-route-status");
+  });
+
+  it("closes the sheet on a failed sort, so the failure is not hidden behind it", async () => {
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4");
+    await openTune();
+    fetchMock.mockImplementation(async (input) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      return url.includes("/api/plans/generate")
+        ? new Response(JSON.stringify({ error: { message: "Generator down" } }), { status: 500, headers: { "content-type": "application/json" } })
+        : new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
+    });
+
+    await sortAgainFromTune();
+
+    expect(document.querySelector("[role='dialog']")).toBeNull();
+    expect(document.querySelector("#plan-composer .planComposer__error[role='alert']")).not.toBeNull();
+  });
+});
+
 describe("an accepted place the venue index has no name for", () => {
   const HELD = "venue-held";
 
@@ -303,6 +348,29 @@ describe("an accepted place the venue index has no name for", () => {
     expect(button("The Held Arms is the accepted Stop 1. Swap is not available.").disabled).toBe(true);
     expect(panel()?.textContent).toContain("The Held Arms");
     expect(readPlanningIntent()?.acceptedVenueId).toBe(HELD);
+  });
+
+  it("keeps a pub released while the index was still loading released when the index arrives", async () => {
+    holdAcceptedPlace();
+    const path = planComposerVenueIndexPath("london");
+    let deliver: ((response: Response) => void) | null = null;
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>(async (input) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url !== path) return new Response("{}", { status: 404 });
+      return new Promise<Response>((resolve) => { deliver = resolve; });
+    }));
+    await mountComposer();
+
+    await click([...document.querySelectorAll<HTMLButtonElement>("button")].find((node) => node.textContent === "Release this pub")!);
+    expect(stopNames()).toEqual(["Find a pub for stop 1"]);
+
+    await act(async () => {
+      deliver!(new Response(JSON.stringify([{ id: HELD, name: "The Held Arms" }]), { status: 200, headers: { "content-type": "application/json" } }));
+    });
+    await settle();
+
+    expect(stopNames()).toEqual(["Find a pub for stop 1"]);
+    expect(panel()).toBeNull();
   });
 
   it("says when the venue index did not load, and a retry names the held pub and keeps it held", async () => {

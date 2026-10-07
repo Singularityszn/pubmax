@@ -52,14 +52,20 @@ describe("the walk between two stops", () => {
   });
 
   it("falls back to the walk the map measured for exactly this pair", () => {
-    const measured = measuredLegMinutes(["a", "c"], [{ fromIndex: 0, toIndex: 1, distanceKm: 0.7 }]);
+    const measured = measuredLegMinutes(["a", "c"], [{ fromIndex: 0, toIndex: 1, distanceKm: 0.7, source: "ors" }]);
     expect(measured.get(legKey("a", "c"))).toBe(9);
     expect(walkMinutesBetween(A, C, measured)).toBe(9);
   });
 
   it("ignores legs with no distance", () => {
-    const measured = measuredLegMinutes(["a", "b"], [{ fromIndex: 0, toIndex: 1, distanceKm: 0 }]);
+    const measured = measuredLegMinutes(["a", "b"], [{ fromIndex: 0, toIndex: 1, distanceKm: 0, source: "ors" }]);
     expect(measured.size).toBe(0);
+  });
+
+  it("never prints a straight-line leg as a measured walk", () => {
+    const measured = measuredLegMinutes(["a", "c"], [{ fromIndex: 0, toIndex: 1, distanceKm: 0.7, source: "straight" }]);
+    expect(measured.size).toBe(0);
+    expect(walkMinutesBetween(A, C, measured)).toBeNull();
   });
 
   it("drops the walk total as soon as one leg cannot be timed", () => {

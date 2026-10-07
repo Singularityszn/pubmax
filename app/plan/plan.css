@@ -1658,6 +1658,9 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   display: block;
   gap: 0;
 }
+.planStops .planStop[data-drag-role] > .planStop__walk {
+  visibility: hidden;
+}
 .planStops .planStop[data-drag-role="neighbour"] {
   transition: transform 200ms var(--ease-out-strong);
 }
@@ -1665,7 +1668,7 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   transition: none;
 }
 
-.planStops .planStop__walk {
+.planStops .planStop > .planStop__walk {
   position: relative;
   display: flex;
   align-items: center;
