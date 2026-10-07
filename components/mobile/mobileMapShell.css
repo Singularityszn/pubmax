@@ -144,6 +144,15 @@
     bottom: var(--mobile-map-dock-clearance);
   }
 
+  /* Open, the credit keeps clear of the collapse button and the create action,
+     so it runs to three lines: taller than that berth under the chip. It
+     settles one gap lower, onto the tab-bar lane, so its first line clears
+     the chip. The consent card owns that lane while it shows. */
+  body:has(.bandOnboardingChip):not(:has(.analyticsConsentPrompt))
+    .appShell .mapStage .maplibregl-ctrl-bottom-right .maplibregl-ctrl-attrib.maplibregl-compact-show {
+    margin-bottom: calc(-1 * var(--float-stack-gap));
+  }
+
   body:has(.analyticsConsentPrompt) .appShell .mapStage .maplibregl-ctrl-bottom-right {
     /* The expandable OSM credit keeps its own berth over the disclosure docked
        on the tab bar, and steps up only when larger text grows the card past it.
