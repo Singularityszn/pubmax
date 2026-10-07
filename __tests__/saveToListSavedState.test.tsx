@@ -59,7 +59,7 @@ describe("SaveToListControl chips", () => {
       chip("Want to Visit").click();
     });
     expect(chip("Want to Visit").getAttribute("aria-pressed")).toBe("true");
-    expect(container.querySelector(".saveToListToast")?.textContent).toBe("Saved to “Want to Visit”");
+    expect(container.querySelector(".saveToListToast")?.textContent).toBe("Saved to “Want to Visit” on this device");
     // A neighbouring chip is untouched.
     expect(chip("Date Night").getAttribute("aria-pressed")).toBe("false");
 
@@ -106,7 +106,7 @@ describe("SaveToListControl new list", () => {
     });
 
     expect(chip("Date Night").getAttribute("aria-pressed")).toBe("true");
-    expect(container.querySelector(".saveToListToast")?.textContent).toBe("Saved to “Date Night”");
+    expect(container.querySelector(".saveToListToast")?.textContent).toBe("Saved to “Date Night” on this device");
     expect(JSON.parse(window.localStorage.getItem("pubmax:savedPubs:v1") ?? "[]")).toHaveLength(1);
   });
 
@@ -124,10 +124,10 @@ describe("SaveToListControl new list", () => {
     };
 
     await create("Quiz  nights ");
-    expect(container.querySelector(".saveToListToast")?.textContent).toBe("Saved to “Quiz nights”");
+    expect(container.querySelector(".saveToListToast")?.textContent).toBe("Saved to “Quiz nights” on this device");
 
     await create(" Quiz nights");
-    expect(container.querySelector(".saveToListToast")?.textContent).toBe("Saved to “Quiz nights”");
+    expect(container.querySelector(".saveToListToast")?.textContent).toBe("Saved to “Quiz nights” on this device");
     const stored = JSON.parse(window.localStorage.getItem("pubmax:savedPubs:v1") ?? "[]") as {
       listType: string;
     }[];

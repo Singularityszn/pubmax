@@ -8,6 +8,15 @@ vi.mock("@/lib/authedFetch", () => ({
   authedActionFetch,
   authedFetch: vi.fn(),
 }));
+// Signed in by default, so the save reaches the server and its 401 is the reply.
+const signedIn = {
+  user: { id: "user-1" },
+  contributionAuth: { userId: "user-1" },
+  invalidateContributionAuth: () => {},
+};
+const auth = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
+vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => auth.current }));
+vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
 
 import SaveToListControl from "@/components/savedpubs/SaveToListControl";
 import SaveForNightButton from "@/components/wanted/SaveForNightButton";
@@ -31,6 +40,7 @@ async function flush(): Promise<void> {
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   window.localStorage.clear();
+  auth.current = signedIn;
   authedActionFetch.mockReset().mockResolvedValue(
     Response.json({ status: "sign_in_required" }, { status: 401 }),
   );
@@ -67,6 +77,21 @@ describe("SaveForNightButton prompt slot", () => {
     await flush();
     expect(onActivate).toHaveBeenCalledTimes(1);
     expect(container.textContent).toContain("Sign in to save for a night.");
+  });
+
+  it("claims the slot on tap when signed out, though the sign-in door stands in front", async () => {
+    auth.current = { user: null, contributionAuth: null, invalidateContributionAuth: () => {} };
+    const onActivate = vi.fn();
+    await renderNight(true, onActivate);
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>(".wantedSaveBtn")!.click();
+    });
+    await flush();
+    expect(onActivate).toHaveBeenCalledTimes(1);
+    expect(authedActionFetch).not.toHaveBeenCalled();
+    expect(document.querySelector("#contribution-gate-title")?.textContent).toBe(
+      "Sign in to contribute",
+    );
   });
 
   it("hides its reply while another prompt owns the slot", async () => {

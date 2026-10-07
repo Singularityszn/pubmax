@@ -38,7 +38,6 @@ export default function SaveForNightButton({
   // Returns the gate's own status when the age or handle gate refused, so the
   // dialog can stand in front of the save and run it again once the tap is in.
   async function save(): Promise<ContributionActionResult> {
-    onActivate?.();
     setBusy(true);
     setToast(null);
     try {
@@ -90,7 +89,11 @@ export default function SaveForNightButton({
       <button
         type="button"
         className="wantedSaveBtn"
-        onClick={() => void requestContribution(save)}
+        onClick={() => {
+          // The tap claims the slot even when a gate stands in front of the save.
+          onActivate?.();
+          void requestContribution(save);
+        }}
         disabled={busy}
         aria-label={`Save ${venueName} for a night`}
       >
