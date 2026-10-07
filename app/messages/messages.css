@@ -626,14 +626,14 @@ html[data-theme="dark"] .messageBubblePhoto {
 
 .messageRow[data-revealed] .messageMeta,
 .messageLine:focus-within .messageMeta {
-  max-height: 2.75rem;
+  max-height: max(2.75rem, 44px);
   opacity: 1;
   margin-top: 0.2rem;
 }
 
 @media (hover: hover) {
   .messageLine:hover .messageMeta {
-    max-height: 2.75rem;
+    max-height: max(2.75rem, 44px);
     opacity: 1;
     margin-top: 0.2rem;
   }

@@ -52,7 +52,7 @@ test.describe("44px hit areas at 390", () => {
     await inject(
       page,
       `<button type="button" id="qa-above" style="display:block;width:100%;height:44px">Above</button>
-      <p style="margin:0"><button type="button" class="reportBtn">Report</button></p>
+      <p class="venueOccupancyFlag" style="margin:0"><button type="button" class="reportBtn">Report</button></p>
       <button type="button" id="qa-below" style="display:block;width:100%;height:44px">Below</button>`,
     );
     const area = await measureHitArea(page.locator("#qa-probe .reportBtn"));

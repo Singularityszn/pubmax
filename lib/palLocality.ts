@@ -32,6 +32,8 @@ export type PalLocality = {
    * place the name instead of claiming that no area was given.
    */
   unplaced?: string;
+  /** The reader asked for London itself ("in London"), so London-wide is their answer, not a gap. */
+  askedLondon?: boolean;
 };
 
 /** Honest "no distance evidence" marker — never replaced with a fabricated number. */
@@ -93,21 +95,22 @@ function timeStem(word: string): string {
 const LONDON_SCOPE = /^(?:(?:central|north|south|east|west|greater)\s+)?london$/;
 
 /**
- * The first place a query names after "in", "near", "around" or "close to" when
- * it is written as a proper noun ("Blackfriars", "Elephant and Castle"). The
- * taxonomy knows only the night patches and boroughs, so this lets the answer
- * say it could not place a name rather than claim none was given. Lower-case
- * phrases are never taken: "in the cheapest" is not a place. A phrase that names
- * only a time ("in December") is skipped for the next one.
+ * Every place a query names after "in", "near", "around" or "close to" when it
+ * is written as a proper noun ("Blackfriars", "Elephant and Castle"), in order.
+ * The taxonomy knows only the night patches and boroughs, so this lets the
+ * answer say it could not place a name rather than claim none was given.
+ * Lower-case phrases are never taken: "in the cheapest" is not a place. A
+ * phrase that names only a time ("in December") names nothing.
  */
-function namedPlaceFromQuery(query: string): string | null {
+function namedPlacesFromQuery(query: string): string[] {
+  const names: string[] = [];
   for (const match of query.matchAll(
     /\b(?:in|near|around|close to)\s+(?:the\s+)?([A-Z][\p{L}'’-]*(?:\s+(?:and\s+|of\s+|the\s+)?[A-Z][\p{L}'’-]*){0,2})/gu,
   )) {
     const name = match[1] ? placeBeforeTime(match[1]) : null;
-    if (name) return name;
+    if (name) names.push(name);
   }
-  return null;
+  return names;
 }
 
 /** The capitalised words of a phrase up to its first stop, time or holiday word. */
@@ -166,10 +169,9 @@ export function resolvePalLocality(
   // area: grounding "pubs in Blackfriars" in a remembered Soho would hand the
   // planner a stale area for the pub they chose. "In London" beats it too, but
   // is the London-wide answer the reader asked for, not a place we missed.
-  const named = namedPlaceFromQuery(query);
-  const unplaced =
-    named && !LONDON_SCOPE.test(normalizeSearchText(named)) ? named : undefined;
-  const fromRemembered = named ? null : areaFromRemembered(remembered);
+  const named = namedPlacesFromQuery(query);
+  const unplaced = named.find((name) => !LONDON_SCOPE.test(normalizeSearchText(name)));
+  const fromRemembered = named.length > 0 ? null : areaFromRemembered(remembered);
   if (fromRemembered) {
     return { scope: "remembered", area: fromRemembered, label: labelFor(fromRemembered), grounded: true };
   }
@@ -178,7 +180,7 @@ export function resolvePalLocality(
     area: null,
     label: "London",
     grounded: false,
-    ...(unplaced ? { unplaced } : {}),
+    ...(unplaced ? { unplaced } : named.length > 0 ? { askedLondon: true } : {}),
   };
 }
 
@@ -191,6 +193,9 @@ export function palLocalityLine(locality: PalLocality): string {
   }
   if (locality.unplaced) {
     return `Across London. We could not place \u201c${locality.unplaced}\u201d, so these are not ranked by distance.`;
+  }
+  if (locality.askedLondon) {
+    return "Across London, as you asked, not ranked by distance.";
   }
   return "Across London. No area set, so these are not ranked by distance.";
 }
