@@ -65,7 +65,8 @@ The voice opener already asks "What kind of night are you planning?", so that re
 A later provider run proved it. After the opener, `hi` got "Hi. What kind of night are you planning?" in all 7 runs.
 The model ignored a rule that only applied the reply when it had not yet asked the question.
 The prompt now never asks that question in reply to a greeting.
-A greeting alone gets "Hey. Where are you heading tonight?" in typed chat and in voice.
+A greeting alone gets "Hey. Where are you heading tonight?" from the agent in typed chat and in voice.
+Keyless typed chat does not use the agent. Its route answers social turns itself, as `docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md` records.
 If the agent has already asked where they are heading, it acknowledges briefly and waits.
 
 Known follow-up: memory recall order remains inconsistent on the first substantive request.
