@@ -411,7 +411,7 @@ test("390px the lens narrows which venue types the sheet offers", async ({
 });
 
 for (const width of [390, 320]) {
-  test(`${width}px the map credit is not a floating control, and its full copy is under the Key`, async ({
+  test(`${width}px map attribution opens fully above the bottom card`, async ({
     page,
   }) => {
     test.setTimeout(90_000);
@@ -419,12 +419,78 @@ for (const width of [390, 320]) {
     const response = await page.goto("/map");
     expect(response?.status()).toBe(200);
 
-    // MapLibre's compact (i) stays mounted (customAttribution) but is not
-    // painted on a phone: the map rests on three layers.
+    const attribution = page.locator(".maplibregl-ctrl-attrib");
+    await expect(attribution).toBeVisible({ timeout: 45_000 });
+    await expect(attribution).toHaveClass(/maplibregl-compact/);
+    const collapsedBox = await attribution.boundingBox();
+    expect(collapsedBox).not.toBeNull();
+    expect(collapsedBox!.width).toBeLessThanOrEqual(44);
+    expect(collapsedBox!.height).toBeLessThanOrEqual(44);
+
+    await attribution.locator(".maplibregl-ctrl-attrib-button").click();
+    const fullCredit = attribution.locator(".maplibregl-ctrl-attrib-inner");
+    await expect(fullCredit).toBeVisible();
+    await expect(fullCredit).toContainText(
+      "Pub data © OpenStreetMap contributors (ODbL)",
+    );
+    await expect(fullCredit).toContainText("OpenFreeMap");
+    await expect(fullCredit).toContainText("OpenMapTiles");
+    await expect(fullCredit).toContainText("Data from OpenStreetMap");
+
+    await expect(page.getByRole("button", { name: "Describe the outing" })).toBeVisible();
+    const geometry = await page.evaluate(() => {
+      const attributionElement = document.querySelector<HTMLElement>(
+        ".maplibregl-ctrl-attrib",
+      );
+      const inner = document.querySelector<HTMLElement>(
+        ".maplibregl-ctrl-attrib-inner",
+      );
+      // The foot of the map: the bottom card, or the plan door alone while the
+      // card is not up.
+      const foot =
+        document.querySelector<HTMLElement>(".mapPeek") ??
+        document.querySelector<HTMLElement>(".mobilePlanActivation");
+      if (!attributionElement || !inner || !foot) return null;
+      const attributionRect = attributionElement.getBoundingClientRect();
+      const style = getComputedStyle(inner);
+      return {
+        attribution: {
+          left: attributionRect.left,
+          right: attributionRect.right,
+          bottom: attributionRect.bottom,
+        },
+        inner: {
+          clientWidth: inner.clientWidth,
+          scrollWidth: inner.scrollWidth,
+          textOverflow: style.textOverflow,
+          whiteSpace: style.whiteSpace,
+          text: inner.textContent?.trim() ?? "",
+        },
+        footTop: foot.getBoundingClientRect().top,
+      };
+    });
+    expect(geometry).not.toBeNull();
+    expect(geometry!.attribution.left).toBeGreaterThanOrEqual(0);
+    expect(geometry!.attribution.right).toBeLessThanOrEqual(width);
+    expect(geometry!.attribution.bottom).toBeLessThanOrEqual(geometry!.footTop);
+    expect(geometry!.inner.scrollWidth).toBeLessThanOrEqual(
+      geometry!.inner.clientWidth + 1,
+    );
+    expect(geometry!.inner.textOverflow).not.toBe("ellipsis");
+    expect(geometry!.inner.whiteSpace).toBe("normal");
+    expect(geometry!.inner.text).not.toContain("…");
+  });
+
+  test(`${width}px the map credit is also whole copy under the Key`, async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width, height: 844 });
+    const response = await page.goto("/map");
+    expect(response?.status()).toBe(200);
     await expect(page.getByRole("button", { name: "Describe the outing" })).toBeVisible({
       timeout: 45_000,
     });
-    await expect(page.locator(".maplibregl-ctrl-attrib-button")).toBeHidden();
 
     await page.getByRole("button", { name: "More map controls" }).click();
     const credits = page.locator(".mobileMapCredits");
@@ -433,6 +499,14 @@ for (const width of [390, 320]) {
     await expect(credits).toContainText("OpenFreeMap");
     await expect(credits).toContainText("OpenMapTiles");
     await expect(credits).toContainText("Data from OpenStreetMap");
+    // The Key comes first; the credit sits under it in the same tab.
+    const underTheKey = await credits.evaluate((element) => {
+      const key = element.parentElement?.querySelector(".mapKey");
+      return Boolean(
+        key && key.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING,
+      );
+    });
+    expect(underTheKey, "the credit sits under the Key").toBe(true);
 
     // Whole copy: never clipped, never ellipsed, inside the viewport.
     const geometry = await credits.evaluate((element) => {

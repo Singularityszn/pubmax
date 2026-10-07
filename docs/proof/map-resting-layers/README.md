@@ -9,11 +9,13 @@ Built from `3bc62e232` (before) and this branch (after) as keyless production bu
 | | Before | After |
 | --- | --- | --- |
 | Floating bands | top bar, drink chip, On tonight chip, plan pill | top bar, drink chip, bottom card (the plan door is inside it) |
-| Round map-edge controls | TfL (with count), credit (i), Near me, Create | TfL (count only when a line is badly disrupted), Near me, Create |
-| Floating pieces in all | 8, and 9 while the ask is up | 6, and the ask replaces the card while it is up |
+| Round map controls | TfL (with count), credit (i), Near me, Create | TfL (count only when a line is badly disrupted), Near me, Create, and the credit (i) on the left edge above the card |
+| Floating pieces in all | 8, and 9 while the ask is up | 7, and the ask replaces the card while it is up |
 | Resting layers (bands) | 4 | 3 |
 
 `e2e/mobile-map-chrome-fit.spec.ts` ("the resting map is three layers") counts the bands and the edge controls at 320, 390 and 430.
+
+The phone "after" sheets were taken before the credit (i) went back on the map, so they do not show it. The licence credit stays on the phone map by decision; its berth above the card is proven in `e2e/drink-chip-controls.spec.ts` and `e2e/mobile-map-chrome-fit.spec.ts`.
 
 ## Sheets
 

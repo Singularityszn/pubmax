@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { buildMapPeek, MAP_PEEK_MAX_WALK_MINUTES, mapPeekSummary } from "@/lib/mapPeek";
 import { buildMapVenueListModel } from "@/lib/mapVenueList";
+import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import type { Venue } from "@/lib/venues";
 
 function pub(overrides: Partial<Venue> & { id: string }): Venue {
@@ -23,7 +24,7 @@ describe("buildMapPeek", () => {
       .toEqual({ status: "loading" });
   });
 
-  it("is honest-empty when no pub in view carries a price", () => {
+  it("is honest-empty when nothing in view carries a price", () => {
     expect(buildMapPeek({ ready: true, venues: [pub({ id: "a" }), pub({ id: "b" })] }))
       .toEqual({ status: "none" });
     expect(buildMapPeek({ ready: true, venues: [] })).toEqual({ status: "none" });
@@ -64,27 +65,85 @@ describe("buildMapPeek", () => {
     expect(first).toMatchObject({ answer: { name: "Anchor" } });
   });
 
-  it("never lets a non-pub win the pint default", () => {
-    const model = buildMapPeek({
+  const ANCHOR_PROVENANCE = {
+    anchorLabel: "Set lunch",
+    anchorObservedAt: "2026-09-01T00:00:00Z",
+    anchorSourceUrl: "https://example.com/menu",
+  };
+
+  it("ranks a non-pub only as List view does: a bare figure never, a provenance-complete anchor on its price", () => {
+    const bare = buildMapPeek({
       ready: true,
       venues: [
         pub({ id: "shop", kind: "restaurant" as Venue["kind"], cheapestPrice: 1 }),
         pub({ id: "p", cheapestPrice: 4 }),
       ],
     });
-    expect(model).toMatchObject({ answer: { venueId: "p" } });
+    expect(bare).toMatchObject({ answer: { venueId: "p" } });
+    const anchored = buildMapPeek({
+      ready: true,
+      venues: [
+        pub({ id: "anchor", kind: "restaurant" as Venue["kind"], cheapestPrice: 4, ...ANCHOR_PROVENANCE }),
+        pub({ id: "p", cheapestPrice: 5.2 }),
+      ],
+    });
+    expect(anchored).toMatchObject({ answer: { venueId: "anchor", priceLabel: "£4.00" } });
   });
 
-  it("agrees with the first row of List view's cheapest sort", () => {
-    const venues = [
-      pub({ id: "a", name: "A", cheapestPrice: 6 }),
-      pub({ id: "b", name: "B", cheapestPrice: 3.1 }),
-      pub({ id: "c", name: "C", cheapestPrice: 4.4 }),
-      pub({ id: "d", name: "D" }),
-    ];
-    const peek = buildMapPeek({ ready: true, venues });
-    const list = buildMapVenueListModel(venues, [-0.12, 51.5], undefined, null, undefined, "ready", "cheapest");
-    expect(peek).toMatchObject({ answer: { venueId: list.rows[0]?.id } });
+  describe("agrees with the first row of List view's cheapest sort", () => {
+    const restaurant = "restaurant" as Venue["kind"];
+    const mixes: Record<string, Venue[]> = {
+      "pubs only": [
+        pub({ id: "a", name: "A", cheapestPrice: 6 }),
+        pub({ id: "b", name: "B", cheapestPrice: 3.1 }),
+        pub({ id: "c", name: "C", cheapestPrice: 4.4 }),
+        pub({ id: "d", name: "D" }),
+      ],
+      "an anchor under every pub": [
+        pub({ id: "anchor", name: "Bistro", kind: restaurant, cheapestPrice: 4, ...ANCHOR_PROVENANCE }),
+        pub({ id: "p", name: "The Pub", cheapestPrice: 5.2 }),
+      ],
+      "a pub under the anchor": [
+        pub({ id: "anchor", name: "Bistro", kind: restaurant, cheapestPrice: 6, ...ANCHOR_PROVENANCE }),
+        pub({ id: "p", name: "The Pub", cheapestPrice: 5.2 }),
+      ],
+      "a bare non-pub figure under every pub": [
+        pub({ id: "bare", name: "Cafe", kind: restaurant, cheapestPrice: 1 }),
+        pub({ id: "p", name: "The Pub", cheapestPrice: 5.2 }),
+      ],
+      "an anchor tied with a pub": [
+        pub({ id: "anchor", name: "Bistro", kind: restaurant, cheapestPrice: 5, ...ANCHOR_PROVENANCE }),
+        pub({ id: "p", name: "Alehouse", cheapestPrice: 5 }),
+      ],
+    };
+
+    for (const [label, venues] of Object.entries(mixes)) {
+      it(label, () => {
+        const peek = buildMapPeek({ ready: true, venues });
+        const list = buildMapVenueListModel(venues, [-0.12, 51.5], undefined, null, undefined, "ready", "cheapest");
+        const first = list.rows[0];
+        expect(peek).toMatchObject({ answer: { venueId: first?.id, priceLabel: first?.priceLabel } });
+      });
+    }
+
+    it("under a drink lens, with the lens wording on both", () => {
+      const venues = [
+        pub({ id: "bar", name: "The Bar", kind: "bar" as Venue["kind"] }),
+        pub({ id: "p", name: "The Pub", cheapestPrice: 3 }),
+      ];
+      const lensPrices = new Map<string, MapLensPrice>([
+        ["bar", { venueId: "bar", category: null, categoryLabel: "Cocktail", priceGbp: 8.5, source: "community" }],
+        ["p", { venueId: "p", category: null, categoryLabel: "Cocktail", priceGbp: 9, source: "community" }],
+      ]);
+      const peek = buildMapPeek({ ready: true, venues, lensPrices });
+      const list = buildMapVenueListModel(venues, [-0.12, 51.5], undefined, lensPrices, "Cocktail", "ready", "cheapest");
+      const first = list.rows[0];
+      expect(peek).toMatchObject({
+        answer: { venueId: "bar", priceGbp: 8.5, priceLabel: "Cocktail · £8.50" },
+      });
+      expect(peek).toMatchObject({ answer: { venueId: first?.id, priceLabel: first?.priceLabel } });
+      expect(mapPeekSummary(peek)).toBe("Cheapest in this view: Cocktail · £8.50 at The Bar");
+    });
   });
 
   describe("walk time", () => {

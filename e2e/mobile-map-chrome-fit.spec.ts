@@ -361,13 +361,16 @@ async function tapRenderedCentre(
 /**
  * What floats over the phone map at rest, by what the reader can SEE: a box
  * with area, not `display: none`, not `visibility: hidden`. Bands are the
- * full-width surfaces (the bar, the chip row, the bottom card); the edge column
- * is the round controls on the right.
+ * full-width surfaces (the bar, the chip row, the bottom card); the edge
+ * controls are the round map controls: TfL, Near me and the Create action on
+ * the right, and the map credit (i) on the left.
  */
 async function restingLayers(page: Page): Promise<{
   bands: string[];
   edge: string[];
-  credit: boolean;
+  credit: Rect | null;
+  card: Rect | null;
+  locate: Rect | null;
   arrival: boolean;
   tonightChip: boolean;
 }> {
@@ -395,10 +398,19 @@ async function restingLayers(page: Page): Promise<{
     if (painted(".mobileMapTflButton").length) edge.push("tfl");
     if (painted(".mobileMapLocateFab").length) edge.push("locate");
     if (painted(".createFab").length) edge.push("create");
+    if (painted(".maplibregl-ctrl-attrib-button").length) edge.push("credit");
+    const box = (selector: string) => {
+      const [element] = painted(selector);
+      if (!element) return null;
+      const rect = element.getBoundingClientRect();
+      return { top: rect.top, right: rect.right, bottom: rect.bottom, left: rect.left, width: rect.width, height: rect.height };
+    };
     return {
       bands,
       edge,
-      credit: painted(".maplibregl-ctrl-bottom-right").length > 0,
+      credit: box(".maplibregl-ctrl-attrib"),
+      card: box(".mapPeek"),
+      locate: box(".mobileMapLocateFab"),
       arrival: painted(".mapArrivalCard").length > 0,
       tonightChip: painted(".mobileMapTonightChip").length > 0,
     };
@@ -597,14 +609,21 @@ for (const viewport of VIEWPORTS) {
       "card",
     ]);
     expect(layers.bands.length, "at most three resting layers").toBeLessThanOrEqual(3);
-    // The credit control, the Tonight chip and the first-visit ask are not
-    // painted at rest.
-    expect(layers.credit, "the credit (i) is not painted on a phone").toBe(false);
+    // The Tonight chip and the first-visit ask are not painted at rest.
     expect(layers.arrival, "the first-visit ask is answered").toBe(false);
     expect(layers.tonightChip, "no Tonight chip").toBe(false);
-    // The round map-edge controls: TfL, Near me and the Create action. Nothing
-    // else floats on the right edge.
-    expect(layers.edge.sort()).toEqual(["create", "locate", "tfl"]);
+    // The round map controls: TfL, Near me and the Create action on the right,
+    // and the credit (i) on the left. It is a control like Near me, not a band.
+    expect(layers.edge.sort()).toEqual(["create", "credit", "locate", "tfl"]);
+    const { credit, card, locate } = layers;
+    expect(credit, "the credit (i) is painted on the map").not.toBeNull();
+    expect(card).not.toBeNull();
+    expect(locate).not.toBeNull();
+    expect(credit!.width, "the collapsed credit is one 44px circle").toBeLessThanOrEqual(44);
+    expect(credit!.height).toBeLessThanOrEqual(44);
+    expect(credit!.left, "on the left edge").toBeGreaterThanOrEqual(0);
+    expect(credit!.bottom, "above the bottom card").toBeLessThanOrEqual(card!.top);
+    expect(credit!.right, "clear of the map-edge column").toBeLessThanOrEqual(locate!.left);
   });
 
   test(`${viewport.width}px What's On is a lens at the head of the Filters sheet`, async ({

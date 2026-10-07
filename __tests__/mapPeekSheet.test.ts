@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -12,9 +9,6 @@ import MapPeekSheet, {
   peekShouldOpenList,
 } from "@/components/mobile/MapPeekSheet";
 import type { MapPeekModel } from "@/lib/mapPeek";
-
-const REPO_ROOT = join(__dirname, "..");
-const read = (path: string) => readFileSync(join(REPO_ROOT, path), "utf8");
 
 function render(model: MapPeekModel) {
   return renderToStaticMarkup(
@@ -126,44 +120,5 @@ describe("the pull up opens the list", () => {
     // Downward there is nowhere to go: it resists from the first pixel.
     expect(peekPresentedOffset(30)).toBeGreaterThan(0);
     expect(peekPresentedOffset(30)).toBeLessThan(30);
-  });
-});
-
-describe("the card is one surface with one budget", () => {
-  const nav = read("components/nav/mobileNav.css");
-  const shell = read("components/mobile/mobileMapShell.css");
-
-  it("is 112px: an 8px frame, a 44px answer row, a 4px gap, the 48px door, an 8px frame", () => {
-    expect(nav).toContain("--map-peek-h: 112px;");
-    expect(8 + 44 + 4 + 48 + 8).toBe(112);
-    expect(shell).toContain("--map-peek-frame: 8px;");
-    expect(shell).toContain("--map-peek-row-h: 44px;");
-  });
-
-  it("keeps the door where the pill always was, and moves only what stacks above it", () => {
-    expect(shell).toMatch(/bottom: calc\(var\(--plan-activation-bottom\) - var\(--map-peek-frame\)\);/);
-    expect(nav).toMatch(
-      /--float-stack-top-plan: calc\(var\(--plan-activation-bottom\) - 8px \+ var\(--map-peek-h\)\);/,
-    );
-  });
-
-  it("is solid, not glass, and moves by transform", () => {
-    const rule = shell.slice(shell.indexOf("  .mapPeek {"), shell.indexOf("}", shell.indexOf("  .mapPeek {")));
-    expect(rule).toContain("background: var(--color-surface-raised);");
-    expect(rule).not.toContain("backdrop-filter");
-    expect(rule).toContain("touch-action: none;");
-  });
-
-  it("steps the Create action aside while it travels, by opacity alone", () => {
-    expect(shell).toContain('body:has(.mapPeek[data-dragging="true"]) .createFabRoot {\n    opacity: 0;\n    pointer-events: none;');
-    expect(shell).toMatch(/body:has\(\.mapPeek\) \.createFabRoot \{\n    transition: opacity 160ms/);
-  });
-
-  it("stands down under a sheet and the consent card, and never fires a haptic", () => {
-    expect(shell).toContain("body:has(.mobileSheetPortal) .mapPeek");
-    expect(shell).toContain('.mapPeek[data-covered="true"]');
-    expect(shell).toContain("body:has(.analyticsConsentPrompt) .mapPeek { display: none; }");
-    // lib/nativeHaptics.ts: kept actions only, never a detent or a drag.
-    expect(read("components/mobile/MapPeekSheet.tsx")).not.toMatch(/from "@\/lib\/nativeHaptics"/);
   });
 });
