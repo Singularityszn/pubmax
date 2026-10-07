@@ -24,9 +24,14 @@ type MapPeekAnswer = {
    *  figure, so a cocktail answer never reads as a pint. */
   priceLabel: string;
   /** The anchor the figure belongs to, as List view's row wears it, or null.
-   *  The card renders it through the same CompactVenuePrice, so a set-lunch
-   *  figure never reads as the pint answer. */
+   *  Its provenance is spoken in the card's accessible name. */
   anchor: CompactVenueAnchor | null;
+  /** What the one-line card prints before the figure, so a set-lunch or a
+   *  cocktail figure never reads as the pint answer: the anchor's label, the
+   *  lens category, or null for a pint. */
+  lineLabel: string | null;
+  /** The bare figure, "£X", which the card never shortens. */
+  figureLabel: string;
   isPub: boolean;
   /** Whole walking minutes from the reader's own fix, or null without one. */
   walkMinutes: number | null;
@@ -81,6 +86,8 @@ export function buildMapPeek(input: {
       name: venue.name,
       priceGbp,
       ...price,
+      lineLabel: price.anchor?.label ?? lensPrice?.categoryLabel ?? null,
+      figureLabel: formatGbp(priceGbp),
       isPub: isPubVenueKind(venue.kind),
       walkMinutes,
     },

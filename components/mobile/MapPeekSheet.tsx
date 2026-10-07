@@ -3,7 +3,6 @@
 import { useCallback, useRef } from "react";
 import { ChevronUp } from "lucide-react";
 
-import CompactVenuePrice from "@/components/map/CompactVenuePrice";
 import { mapPeekSummary, type MapPeekModel } from "@/lib/mapPeek";
 import { useSpringValue } from "@/lib/useSpringValue";
 
@@ -213,12 +212,10 @@ export default function MapPeekSheet({
           >
             <span className="mapPeekEyebrow">Cheapest in this view</span>
             <span className="mapPeekLine">
-              <CompactVenuePrice
-                priceLabel={model.answer.priceLabel}
-                anchor={model.answer.anchor}
-                className="mapPeekPrice"
-                provenanceClassName="mapPeekProvenance"
-              />
+              {model.answer.lineLabel !== null ? (
+                <span className="mapPeekLabel">{model.answer.lineLabel} ·</span>
+              ) : null}
+              <span className="mapPeekPrice">{model.answer.figureLabel}</span>
               <span className="mapPeekName">{model.answer.name}</span>
               {model.answer.walkMinutes !== null ? (
                 <span className="mapPeekWalk">{model.answer.walkMinutes} min walk</span>

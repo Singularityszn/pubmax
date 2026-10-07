@@ -8,7 +8,6 @@ import MapPeekSheet, {
   peekPresentedOffset,
   peekShouldOpenList,
 } from "@/components/mobile/MapPeekSheet";
-import CompactVenuePrice from "@/components/map/CompactVenuePrice";
 import type { MapPeekModel } from "@/lib/mapPeek";
 
 function render(model: MapPeekModel) {
@@ -30,6 +29,8 @@ const ANSWER: MapPeekModel = {
     priceLabel: "£2.95",
     anchor: null,
     isPub: true,
+    lineLabel: null,
+    figureLabel: "£2.95",
     walkMinutes: 6,
   },
 };
@@ -89,17 +90,23 @@ describe("the bottom card's three honest states", () => {
     expect(render(ANSWER)).not.toContain("data-covered");
   });
 
-  it("wears a non-pub anchor exactly as List view's row does", () => {
+  it("labels a non-pub anchor's figure on the line and speaks its provenance", () => {
     const anchor = { label: "Set lunch", observedLabel: "Sep", sourceLabel: "example.com", sourceUrl: "https://example.com/menu" };
     const html = render({
       status: "answer",
-      answer: { venueId: "bistro", name: "Bistro", priceGbp: 4, priceLabel: "£4.00", anchor, isPub: false, walkMinutes: null },
+      answer: {
+        venueId: "bistro",
+        name: "Bistro",
+        priceGbp: 4,
+        priceLabel: "£4.00",
+        anchor,
+        isPub: false,
+        lineLabel: "Set lunch",
+        figureLabel: "£4.00",
+        walkMinutes: null,
+      },
     });
-    const row = renderToStaticMarkup(
-      createElement(CompactVenuePrice, { priceLabel: "£4.00", anchor, className: "mapPeekPrice", provenanceClassName: "mapPeekProvenance" }),
-    );
-    expect(html).toContain(row);
-    expect(html.replace(/<[^>]+>/g, "")).toContain("Set lunch · £4.00");
+    expect(html).toContain('<span class="mapPeekLabel">Set lunch ·</span><span class="mapPeekPrice">£4.00</span>');
     expect(html).toContain(
       'aria-label="Cheapest in this view: Set lunch · £4.00 (Sep · example.com) at Bistro. Open this venue"',
     );
