@@ -70,6 +70,7 @@ import {
 import {
   OPEN_NOW_FILTER_CAPTION,
   openNowStatesForVenues,
+  type OpenNowState,
 } from "@/lib/openNow";
 import {
   loadWetherspoonsDirectory,
@@ -1072,6 +1073,49 @@ function mapChipLabelFor(input: {
   return mapChosenArea && mapChosenAreaInView && mapChosenArea.cityId === cityId
     ? mapChosenArea.label
     : ukPlaceArrival?.name ?? claimedArea?.name ?? mapContextName;
+}
+
+/**
+ * The venues the map pins. While a search field holds the caret or the search
+ * overlay is open, the pins keep every filter but the query, so a half-typed
+ * name never empties the map. Otherwise they are the filtered venues.
+ */
+function useSearchStablePinVenues({
+  searchFieldFocused,
+  mapOverlay,
+  venues,
+  mapFilters,
+  venueSignals,
+  openNowStateById,
+  savedOnly,
+  savedIds,
+  filteredVenues,
+}: {
+  searchFieldFocused: boolean;
+  mapOverlay: MapOverlay;
+  venues: readonly Venue[];
+  mapFilters: Filters;
+  venueSignals: ReadonlyMap<string, { hasPintDrops: boolean }>;
+  openNowStateById: ReadonlyMap<string, OpenNowState> | null;
+  savedOnly: boolean;
+  savedIds: ReadonlySet<string>;
+  filteredVenues: Venue[];
+}): Venue[] {
+  const pinFilterKey = JSON.stringify(mapPinFilters(mapFilters));
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the key includes every non-query filter
+  const pinFilters = useMemo(() => mapPinFilters(mapFilters), [pinFilterKey]);
+  const searchActive = searchFieldFocused || mapOverlay === "search";
+  const searchPinVenues = useMemo(() => {
+    if (!searchActive) return null;
+    const candidates = filterMapVenues(
+      venues,
+      pinFilters,
+      (id) => Boolean(venueSignals.get(id)?.hasPintDrops),
+      (id) => openNowStateById?.get(id) ?? "unknown",
+    );
+    return savedOnly ? candidates.filter((venue) => savedIds.has(venue.id)) : candidates;
+  }, [searchActive, openNowStateById, pinFilters, savedIds, savedOnly, venues, venueSignals]);
+  return searchPinVenues ?? filteredVenues;
 }
 
 /**
@@ -3080,21 +3124,17 @@ export default function PubMap({
     [filteredVenues],
   );
 
-  const pinFilterKey = JSON.stringify(mapPinFilters(effectiveMapFilters));
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- the key includes every non-query filter
-  const pinFilters = useMemo(() => mapPinFilters(effectiveMapFilters), [pinFilterKey]);
-  const mapSearchActive = mapSearchFieldFocused || mapOverlay === "search";
-  const searchPinVenues = useMemo(() => {
-    if (!mapSearchActive) return null;
-    const candidates = filterMapVenues(
-      venues,
-      pinFilters,
-      (id) => Boolean(venueSignals.get(id)?.hasPintDrops),
-      (id) => openNowStateById?.get(id) ?? "unknown",
-    );
-    return savedOnly ? candidates.filter((venue) => savedIds.has(venue.id)) : candidates;
-  }, [mapSearchActive, openNowStateById, pinFilters, savedIds, savedOnly, venues, venueSignals]);
-  const pinVenues = searchPinVenues ?? filteredVenues;
+  const pinVenues = useSearchStablePinVenues({
+    searchFieldFocused: mapSearchFieldFocused,
+    mapOverlay,
+    venues,
+    mapFilters: effectiveMapFilters,
+    venueSignals,
+    openNowStateById,
+    savedOnly,
+    savedIds,
+    filteredVenues,
+  });
 
   const nearbyMapResultForView = useMemo(() => {
     if (!nearbyMapResult) return null;

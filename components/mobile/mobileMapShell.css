@@ -520,6 +520,13 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  .mobileMapDrinkChip > svg { flex-shrink: 0; }
+  @media (max-width: 360px) {
+    .mobileMapDrinkChip {
+      padding-inline: var(--space-1);
+      gap: var(--space-1);
+    }
+  }
   /* The refinement count on the Filters control. The button's accessible name
      already names the active refinements, so this is a decorative mark. */
   .mobileMapFiltersButton { position: relative; }
