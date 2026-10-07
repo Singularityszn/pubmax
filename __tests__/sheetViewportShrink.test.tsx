@@ -54,6 +54,17 @@ async function mount(): Promise<Probe> {
 }
 
 describe("useSheetHeightDrag under a shrinking layout viewport", () => {
+  it("keeps a full sheet below the top edge while reserving the primary dock", async () => {
+    setViewport(568);
+    const portal = document.body.appendChild(document.createElement("div"));
+    portal.className = "mobileSheetPortal";
+    portal.style.bottom = "64px";
+    const probe = await mount();
+    await act(async () => probe.snapshot!.openAtSnap("full"));
+    expect(probe.snapshot!.sheetHeight).toBe(sheetSnapCaps(568, 64).full);
+    expect(probe.snapshot!.sheetHeight! + 64).toBeLessThan(568);
+  });
+
   it("re-caps an open sheet to the new viewport, jumping rather than springing", async () => {
     setViewport(773);
     const probe = await mount();

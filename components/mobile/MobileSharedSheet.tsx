@@ -262,7 +262,8 @@ export default function MobileSharedSheet({
         }
         className={`mapDrawer mobileSharedSheet ${kind === "venue" ? "right" : kind === "planner" ? "left" : "contextual"} open sheet-${sheetSnap}${dragging ? " sheet-dragging" : ""}${settling ? " sheet-settling" : ""}${entering ? " sheet-entering" : ""}`}
         role={sheetModal ? "dialog" : undefined}
-        aria-modal={sheetModal ? "true" : undefined}
+        // Primary navigation stays reachable outside this map surface. A
+        // strict modal elsewhere owns aria-modal and withdraws those tabs.
         aria-labelledby={titleId}
         tabIndex={-1}
         style={sectionStyle}

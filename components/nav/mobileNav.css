@@ -283,8 +283,6 @@ body:has(.mobileMapUtilityCorner) {
       transform var(--duration-base) var(--ease-out);
   }
 
-  body:has(.appShell.detail-open) .mobileTabBar,
-  body:has(.appShell.planning-open) .mobileTabBar,
   /* Night mode (components/plan/NightCrawlMode.tsx) is a fixed, full-screen
      surface with its own way out; the bar under it owned the centre of its
      lowest button, "Get me home", at 320x568 (verify-preview-4 RED 2). */
@@ -294,8 +292,21 @@ body:has(.mobileMapUtilityCorner) {
     transform: translateY(110%);
   }
 
-  /* The on-screen keyboard. The bar is fixed to the LAYOUT viewport, which no
-     phone browser shrinks for the keyboard, so it otherwise floats on top of
+  /* The sheet stops at the dock's reserved height. Cover the remaining band
+     with a solid surface, including the gap above the floating tab pill. */
+  body:has(.mobileSheetPortal) .mobileTabBar::before {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
+    background: var(--sheet-material-solid);
+    z-index: -1;
+    pointer-events: auto;
+  }
+
+  /* The on-screen keyboard. Android's native shell shrinks the layout
+     viewport too, so a fixed bar otherwise floats on top of
      the field being typed into - the captain's screenshot was the six tabs
      sitting over the password form. MobileTabBar writes this class from
      lib/softKeyboard.ts, which needs a focused text field AND a shrunken visual

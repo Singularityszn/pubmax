@@ -71,7 +71,7 @@ export const CREATE_FAB_ACTIONS: readonly CreateFabAction[] = [
  * mistyped, and `/pal/chat`, threads and plan pages hide it from their own
  * markup.
  */
-const CREATE_FAB_HIDDEN_PATHS: readonly string[] = ["/pal", "/login"];
+const CREATE_FAB_HIDDEN_PATHS: readonly string[] = ["/pal", "/login", "/moment", "/plan"];
 
 export function createFabVisible(pathname: string): boolean {
   return !CREATE_FAB_HIDDEN_PATHS.includes(pathname);

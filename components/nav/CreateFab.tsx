@@ -126,6 +126,15 @@ function CreateFabContent({ routerReturnTo }: { routerReturnTo: string }) {
       inert={chromeWithdrawn || undefined}
     >
       {menuOpen ? (
+        <button
+          className="createFabScrim"
+          type="button"
+          aria-label="Close create menu"
+          tabIndex={-1}
+          onClick={close}
+        />
+      ) : null}
+      {menuOpen ? (
         // Three ordinary links behind a disclosure, NOT an ARIA menu: role="menu"
         // promises arrow-key roving and a focus move on open, and a promise the
         // keyboard does not keep is worse than the plain shape.
@@ -151,7 +160,7 @@ function CreateFabContent({ routerReturnTo }: { routerReturnTo: string }) {
         type="button"
         className="createFab"
         data-testid="create-fab"
-        aria-label="Create"
+        aria-label={menuOpen ? "Close create menu" : "Create"}
         aria-expanded={menuOpen}
         aria-controls={menuOpen ? menuId : undefined}
         tabIndex={chromeWithdrawn ? -1 : undefined}

@@ -25,6 +25,7 @@ import {
   subscribeSoftKeyboard,
 } from "@/lib/softKeyboard";
 import {
+  FOCUS_TRAP_EXEMPT_ATTRIBUTE,
   readStrictModalFocusTrap,
   serverStrictModalFocusTrap,
   subscribeStrictModalFocusTrap,
@@ -158,6 +159,7 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
       className={"mobileTabBar" + (keyboardOpen ? " isKeyboardHidden" : "")}
       role="navigation"
       aria-label="Primary"
+      {...{ [FOCUS_TRAP_EXEMPT_ATTRIBUTE]: "" }}
       // Hidden from the reader means hidden from a screen reader too: a bar
       // that has slid off the bottom of the screen must not still be a tab stop
       // above the keyboard.

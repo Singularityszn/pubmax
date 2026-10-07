@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import {
   resolveSheetHeightSnap,
@@ -8,7 +8,7 @@ import {
   sheetSnapCaps,
   type SheetSnap,
 } from "@/lib/sheetSnap";
-import { isTextEntryElement } from "@/lib/softKeyboard";
+import { isTextEntryElement, readSoftKeyboardOpen, serverSoftKeyboardOpen, subscribeSoftKeyboard } from "@/lib/softKeyboard";
 import { useSpringValue } from "@/lib/useSpringValue";
 
 // Drag gesture for the bottom-anchored portal sheet. Pointer travel controls
@@ -54,6 +54,7 @@ function presentHeight(raw: number, fullCap: number): number {
 }
 
 export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
+  const keyboardOpen = useSyncExternalStore(subscribeSoftKeyboard, readSoftKeyboardOpen, serverSoftKeyboardOpen);
   const [sheetSnap, setRestingSnap] = useState<SheetSnap>("half");
   const [dragging, setDragging] = useState(false);
   const [entering, setEntering] = useState(false);
@@ -88,14 +89,12 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
     [],
   );
 
-  const capsForViewport = useCallback(
-    () =>
-      sheetSnapCaps(
-        typeof window === "undefined" ? 0 : window.innerHeight,
-        0,
-      ),
-    [],
-  );
+  const capsForViewport = useCallback(() => {
+    const viewport = typeof window === "undefined" ? 0 : window.innerHeight;
+    const portal = typeof document === "undefined" ? null : document.querySelector(".mobileSheetPortal");
+    const dock = portal && !readSoftKeyboardOpen() ? Number.parseFloat(getComputedStyle(portal).bottom) || 0 : 0;
+    return sheetSnapCaps(viewport, dock);
+  }, []);
 
   // Both of these SPRING the height, so the entrance's transform stands down
   // first: a sheet sliding up while its box grows is two travels at once.
@@ -189,8 +188,11 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
       }
     };
     window.addEventListener("resize", onResize);
+    // The keyboard can withdraw the dock after the viewport resize event.
+    // Re-cap after that React commit too, using the portal's actual clearance.
+    onResize();
     return () => window.removeEventListener("resize", onResize);
-  }, [capsForViewport, jumpTo, stop]);
+  }, [capsForViewport, jumpTo, keyboardOpen, stop]);
 
   const dismissWithVelocity = useCallback(
     (velocityPxPerMillisecond: number, presentedHeight?: number) => {
