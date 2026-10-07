@@ -398,7 +398,7 @@ describe("Capacitor wrapped-build contract", () => {
       `${APP_NAME} uses your location while the app is open to find nearby pubs and calculate walk times.`,
     );
     expect(info.NSMicrophoneUsageDescription).toBe(
-      `${APP_NAME} uses your microphone only while you talk to Pub Pal.`,
+      `${APP_NAME} uses your microphone only while you talk to Pub Pal or dictate a note or a plan.`,
     );
     expect(info.NSPhotoLibraryUsageDescription).toBe(
       `${APP_NAME} opens your photo library so you can choose a photo you have already taken.`,
