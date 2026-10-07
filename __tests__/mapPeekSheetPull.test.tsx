@@ -14,6 +14,8 @@ const ANSWER: MapPeekModel = {
     name: "The Three Tuns",
     priceGbp: 2.95,
     priceLabel: "£2.95",
+    anchor: null,
+    isPub: true,
     walkMinutes: null,
   },
 };

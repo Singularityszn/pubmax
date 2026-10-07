@@ -8,6 +8,7 @@ import MapPeekSheet, {
   peekPresentedOffset,
   peekShouldOpenList,
 } from "@/components/mobile/MapPeekSheet";
+import CompactVenuePrice from "@/components/map/CompactVenuePrice";
 import type { MapPeekModel } from "@/lib/mapPeek";
 
 function render(model: MapPeekModel) {
@@ -27,6 +28,8 @@ const ANSWER: MapPeekModel = {
     name: "The Three Tuns",
     priceGbp: 2.95,
     priceLabel: "£2.95",
+    anchor: null,
+    isPub: true,
     walkMinutes: 6,
   },
 };
@@ -84,6 +87,22 @@ describe("the bottom card's three honest states", () => {
     expect(html).toContain('data-covered="true"');
     expect(html).not.toContain("mobilePlanActivation");
     expect(render(ANSWER)).not.toContain("data-covered");
+  });
+
+  it("wears a non-pub anchor exactly as List view's row does", () => {
+    const anchor = { label: "Set lunch", observedLabel: "Sep", sourceLabel: "example.com", sourceUrl: "https://example.com/menu" };
+    const html = render({
+      status: "answer",
+      answer: { venueId: "bistro", name: "Bistro", priceGbp: 4, priceLabel: "£4.00", anchor, isPub: false, walkMinutes: null },
+    });
+    const row = renderToStaticMarkup(
+      createElement(CompactVenuePrice, { priceLabel: "£4.00", anchor, className: "mapPeekPrice", provenanceClassName: "mapPeekProvenance" }),
+    );
+    expect(html).toContain(row);
+    expect(html).toContain("Set lunch · £4.00");
+    expect(html).toContain(
+      'aria-label="Cheapest in this view: Set lunch · £4.00 (Sep · example.com) at Bistro. Open this venue"',
+    );
   });
 
   it("offers the list as a real, named button as well as the pull", () => {

@@ -85,7 +85,7 @@ test("the card names the cheapest listed pub in view, and the door rides inside 
   await openMap(page);
   const card = await answeredCard(page);
   await expect(card.getByText("Cheapest in this view", { exact: true })).toBeVisible();
-  await expect(card.locator(".mapPeekPrice")).toHaveText(/^£\d+\.\d{2}$/);
+  await expect(card.locator(".mapPeekPrice")).toHaveText(/£\d+\.\d{2}/);
   await expect(card.locator(".mapPeekName")).not.toBeEmpty();
   // One surface: the plan door is a child and keeps its own label and 48px.
   const door = card.getByRole("button", { name: "Describe the outing" });
@@ -120,7 +120,8 @@ test("tapping the answer opens that pub, and the card stands down behind its she
 test("List opens List view sorted cheapest, and its first row is the card's own answer", async ({ page }) => {
   await openMap(page);
   const card = await answeredCard(page);
-  const price = (await card.locator(".mapPeekPrice").innerText()).trim();
+  const price = (await card.locator(".mapPeekPrice").innerText()).match(/£\d+\.\d{2}/)?.[0] ?? "";
+  expect(price).not.toBe("");
   const name = (await card.locator(".mapPeekName").innerText()).trim();
   await card.getByRole("button", { name: "Show the pubs in this view as a list" }).click();
   const list = page.locator(".mapVenueList--open");
