@@ -64,9 +64,10 @@ could-not-check notice, so a reload asks again (`ukBaseRestoreFor` and
 ## First-visit arrival card
 
 After the pins reveal, a first visit to the map shows one arrival card
-(`components/map/MapArrivalCard.tsx`). It is shown once per device, and the
-dismissal is kept in `localStorage` under
-`pubmax:map-first-visit-arrival:v1`.
+(`components/map/MapArrivalCard.tsx`). Any answer holds it back on that
+device for 30 days. The answer is kept in `localStorage` under
+`pubmax:map-first-visit-arrival:v1` as `dismissed:<epoch ms>`; the bare
+`dismissed` that earlier builds wrote never expires (`lib/mapFirstVisitArrival.ts`).
 
 `searchSuppressesMapFirstVisitArrival` (`lib/mapFirstVisitArrival.ts`) holds
 the card back for an arrival that already has its own question. It is
