@@ -2442,7 +2442,7 @@ export default function AdminClient() {
           {operatorClaims.length === 0 ? (
             <div className="admin-empty">
               <strong>No pending claims</strong>
-              <span>Check claims outside PUBMAXX by checking the email domain, ringing the bar or reading the document.</span>
+              <span>Confirm a claim outside PUBMAXX. Check the email domain, ring the bar or read the document.</span>
             </div>
           ) : (
             <div className="admin-list">

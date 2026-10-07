@@ -149,7 +149,7 @@ export function NightProfileControls({
       <div>
         <p className="profileSectionKicker">Night Profile</p>
         <h3 id="night-profile-title">How you like to go out.</h3>
-        <p>Used to shape editable plans. Precise location and voice transcripts are never saved here.</p>
+        <p>We use this to shape plans you can edit. We never save your precise location or voice transcripts here.</p>
       </div>
       <div className="accountHubNightProfileGrid">
         <label>City<select disabled={disabled} value={profile.cityId} onChange={(event) => {
@@ -346,7 +346,7 @@ function AccountHandleEditor({
         required
       />
       <Button variant="secondary" type="submit">Rename handle</Button>
-      <small>Renames are limited to once every 30 days. Old links keep working.</small>
+      <small>You can rename once every 30 days. Old links keep working.</small>
       {message ? <small role="status">{message}</small> : null}
     </form>
   );
@@ -431,7 +431,7 @@ export default function PubmaxxAccountHub() {
       <h3>Optional usage analytics</h3>
       {analyticsConsent === null ? (
         <>
-          <p>Help improve journeys with a persistent device ID, standard browser details and allow-listed product events. This is optional and can be withdrawn here.</p>
+          <p>Help us see which parts of the app work, using a persistent device ID, standard browser details and allow-listed product events. It's optional, and you can withdraw it here.</p>
           <div className="accountHubActions">
             <Button variant="secondary" type="button" onClick={() => updateAnalyticsConsent(true)}>Allow</Button>
             <Button variant="secondary" type="button" onClick={() => updateAnalyticsConsent(false)}>No thanks</Button>
@@ -775,7 +775,7 @@ export default function PubmaxxAccountHub() {
       <p className="profileSectionKicker createFabLane">Your PUBMAXX</p>
       <h2 className="createFabLane">On this device</h2>
       <div className="accountHubSignIn">
-        <p>An account claims a handle, connects profiles, and keeps private Night Memories. What is saved on this device is only brought to an account after you review it.</p>
+        <p>With an account you claim a handle, connect profiles and keep private Night Memories. Nothing saved on this device moves to an account until you review it.</p>
       </div>
       {deviceNightProfile ? <DeviceNightProfileReadout profile={deviceNightProfile} /> : null}
       {/* ONE CONSENT CONTROL ON ANY SCREEN. The signed-out panel used to carry

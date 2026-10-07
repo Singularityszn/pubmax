@@ -128,7 +128,7 @@ describe("SaveToListControl prompt slot", () => {
     });
     await flush();
     expect(container.querySelector(".saveToListToast")?.textContent).toMatch(
-      /^Saved to “.+” on this device$/,
+      /^Saved to ".+" on this device$/,
     );
   });
 });

@@ -187,8 +187,8 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
       <p>
         Step Out sends at most one place-bound push a week when something is
         owed to you: a Wanted pub near your patch, an open Soft Plan for tonight,
-        or a sourced deal ending soon. Off by default. Never streak language or
-        drink-more pressure.
+        or a sourced deal ending soon. Off by default. No streaks, and no
+        pressure to drink more.
       </p>
       {needsInstall ? (
         <p className="accountHubNightProfile" data-testid="step-out-ios-install-note">

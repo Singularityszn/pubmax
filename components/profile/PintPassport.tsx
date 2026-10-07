@@ -103,7 +103,7 @@ export default function PintPassport({
           </p>
           <p className="passportFirstRunCopy">
             {isOwn
-              ? "In this city, a blank one takes discipline. Every pint you log stamps a page: pubs visited, boroughs crossed, beers tried, the cheapest pint you've found. Start collecting your nights."
+              ? "In this city, a blank one takes discipline. Every pint you log stamps a page: pubs visited, boroughs crossed, beers tried, the cheapest pint you've found."
               : "No pints logged here yet. When they are, this page fills with pubs, boroughs, beers and badges."}
           </p>
           {isOwn ? (

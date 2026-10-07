@@ -153,7 +153,7 @@ export default function OutTonightToggle({ handle }: Props) {
       <section className="beaconCard" aria-labelledby="beacon-title">
         <p className="beaconKicker" id="beacon-title">Out tonight</p>
         <p className="beaconOnLine">
-          {areaName ? `You’re out tonight in ${areaName}.` : "You’re out tonight."}
+          {areaName ? `You're out tonight in ${areaName}.` : "You're out tonight."}
         </p>
         <p className="beaconPrivacy">
           Only your crew can see this. It switches off on its own in twelve hours.
