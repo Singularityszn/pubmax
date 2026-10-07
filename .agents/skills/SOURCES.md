@@ -49,7 +49,7 @@ Upstream `SKILL.md` trees were copied flat, one directory per skill. Plugin test
 
 - Repo: https://github.com/Leonxlnx/taste-skill
 - Commit: `e3c92037548e3e49bea8e6b906c99a8549654e71` (`main`)
-- Checked 4 Oct 2026. All thirteen installed skill trees match this tip.
+- Checked 7 Oct 2026. All thirteen installed skill trees match this tip.
 
 Directory name, then frontmatter `name` when it differs:
 
