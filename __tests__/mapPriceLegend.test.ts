@@ -348,8 +348,12 @@ describe("map key inventory", () => {
 
     // The default view's disc prints the cheapest listed price, with the venue
     // count as the small number on its rim.
-    expect(legend.cluster?.note).toContain("cheapest price a pub in it lists");
+    expect(legend.cluster?.note).toContain("When a pub in it lists a pint price, the figure is the cheapest one");
     expect(legend.cluster?.note).toContain("small number is how many venues");
+    // A coloured disc with no listed pint prints its count too, so the count is
+    // never tied to a grey ring.
+    expect(legend.cluster?.note).toContain("Otherwise the figure is the venue count.");
+    expect(legend.cluster?.note).not.toMatch(/Grey[^.]*venue count/);
     expect(legend.cluster?.note).toContain("most common known one");
     expect(legend.shapes?.map((row) => row.id)).toEqual([
       "pub-drink",
