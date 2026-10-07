@@ -111,6 +111,61 @@ describe("GET /api/citymcp/status", () => {
     expect(headlines).not.toContain("Heathrow baggage system down");
   });
 
+  it("collapses a story the upstream digest carries twice, keeping the sourced row", async () => {
+    // The shapes production returned on 6 Oct 2026 (public QA finding F14): the
+    // second copy of each story is cased differently and carries no source.
+    const signals = [
+      {
+        kind: "event",
+        headline: "The Strokes Concert at The O2 Arena",
+        severity: "major",
+        timeWindow: "18:30-22:45",
+        sourceUrl: "https://www.timeout.com/london/news/the-strokes-o2",
+      },
+      { kind: "event", headline: "Holborn and St Pancras By-Election", severity: "notable", sourceUrl: "https://example.com/holborn-st-pancras-by-election" },
+      { kind: "event", headline: "The Strokes concert at O2 Arena", severity: "notable" },
+      { kind: "event", headline: "Holborn and St Pancras by-election", severity: "notable" },
+    ];
+    global.fetch = vi.fn(async () =>
+      new Response(
+        sseFrame({ jsonrpc: "2.0", id: 1, result: { structuredContent: { asOf: "2026-07-11T00:00:00Z", signals } } }),
+        { status: 200 },
+      ),
+    );
+
+    const res = await GET(new Request("http://localhost/api/citymcp/status"));
+    const body = await res.json();
+    expect(body.signals).toHaveLength(2);
+    expect(body.signals.map((s: { headline: string }) => s.headline)).toEqual([
+      "The Strokes Concert at The O2 Arena",
+      "Holborn and St Pancras By-Election",
+    ]);
+    for (const row of body.signals) expect(row.sourceUrl).toMatch(/^https:\/\//);
+  });
+
+  it("keeps an event whose link is about another story, and drops only the link", async () => {
+    const signals = [
+      {
+        kind: "event",
+        headline: "Holborn and St Pancras By-Election",
+        severity: "notable",
+        sourceUrl: "https://www.standard.co.uk/news/london/protests-london-met-police-palestine-israel-b1299320.html",
+      },
+    ];
+    global.fetch = vi.fn(async () =>
+      new Response(
+        sseFrame({ jsonrpc: "2.0", id: 1, result: { structuredContent: { asOf: "2026-07-11T00:00:00Z", signals } } }),
+        { status: 200 },
+      ),
+    );
+
+    const res = await GET(new Request("http://localhost/api/citymcp/status"));
+    const body = await res.json();
+    expect(body.signals).toEqual([
+      { kind: "event", headline: "Holborn and St Pancras By-Election", severity: "notable" },
+    ]);
+  });
+
   it("forwards the borough parameter when short enough", async () => {
     global.fetch = vi.fn(async () =>
       new Response(

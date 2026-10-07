@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   getNightArea,
   isNightAreaRouteReady,
+  nearestRouteReadyNightArea,
   publicNightAreaCoverage,
   tryGetNightArea,
   validateNightAreaCatalogue,
@@ -85,5 +86,34 @@ describe("Night Area catalogue", () => {
     expect(tryGetNightArea(null)).toBeNull();
     expect(tryGetNightArea(undefined)).toBeNull();
     expect(tryGetNightArea("")).toBeNull();
+  });
+});
+
+describe("nearestRouteReadyNightArea", () => {
+  const now = new Date("2026-07-13T12:00:00.000Z");
+
+  it("never answers with an area the app calls not crawl-ready", () => {
+    // King's Cross is the nearest area to the default London centre and is not ready.
+    const kingsCross = getNightArea("kings-cross");
+    expect(isNightAreaRouteReady(kingsCross, now)).toBe(false);
+    const found = nearestRouteReadyNightArea(
+      "london",
+      [kingsCross.centre.lng, kingsCross.centre.lat],
+      now,
+    );
+    expect(found).not.toBeNull();
+    expect(isNightAreaRouteReady(found!, now)).toBe(true);
+  });
+
+  it("answers Soho for the Soho patch", () => {
+    expect(nearestRouteReadyNightArea("london", [-0.1365, 51.5136], now)?.slug).toBe("piccadilly-soho");
+  });
+
+  it("answers nothing once every area's review has lapsed", () => {
+    expect(nearestRouteReadyNightArea("london", [-0.1365, 51.5136], new Date("2027-02-01T12:00:00.000Z"))).toBeNull();
+  });
+
+  it("answers nothing for a bad centre", () => {
+    expect(nearestRouteReadyNightArea("london", [Number.NaN, 51.5], now)).toBeNull();
   });
 });

@@ -12,7 +12,8 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { useTransientSpeechInput } from "@/components/plan/useTransientSpeechInput";
 import AreaNewsBlock from "@/components/areanews/AreaNewsBlock";
 import type { CityId } from "@/lib/cities";
-import { getNightAreasForCity, type NightAreaSlug } from "@/lib/nightAreas";
+import { getNightAreasForCity, nearestRouteReadyNightArea, type NightAreaSlug } from "@/lib/nightAreas";
+import { budgetCeiling, clearPlannerHandoff, readPlannerHandoff } from "@/lib/onboardingFlow";
 import { inferNightContext, type NightContext } from "@/lib/nightPlanning";
 import type { PlanBudgetSummary, PlanEndingRecommendation, PlanningConfidence, PlanRouteTotals } from "@/lib/planIntelligence";
 import type { MapGeneratedRouteResponse } from "@/lib/mapRouteTransfer";
@@ -59,7 +60,8 @@ export function MobilePlanActivation({
   onGenerated,
 }: {
   cityId: CityId;
-  initialNightArea: NightAreaSlug;
+  /** Null when no area is crawl-ready, so the reader picks one. */
+  initialNightArea: NightAreaSlug | null;
   venuesById?: ReadonlyMap<string, Venue>;
   defaultDrinkSelection?: MapPlanDrinkSelection;
   onGenerated: (plan: GeneratedMobilePlan) => void;
@@ -67,17 +69,32 @@ export function MobilePlanActivation({
   const { user } = useAuth();
   const areas = getNightAreasForCity(cityId);
   const [query, setQuery] = useState("");
-  const [area, setArea] = useState<NightAreaSlug>(initialNightArea);
-  const [areaTouched, setAreaTouched] = useState(false);
+  // The first-run journey leaves the patch and budget the reader gave. They
+  // are read once here and cleared in the effect below.
+  const [handoff] = useState(() => {
+    const held = readPlannerHandoff();
+    const patchArea = held?.patch
+      ? nearestRouteReadyNightArea(cityId, [held.patch.lng, held.patch.lat])
+      : null;
+    const ceiling = held?.budget ? budgetCeiling(held.budget) : null;
+    return { area: patchArea?.slug ?? null, pintCeiling: ceiling };
+  });
+  const [area, setArea] = useState<NightAreaSlug | null>(handoff.area ?? initialNightArea);
+  const [areaTouched, setAreaTouched] = useState(handoff.area !== null);
   const [daypart, setDaypart] = useState<NightContext["daypart"]>("evening");
   const [daypartTouched, setDaypartTouched] = useState(false);
   const [mood, setMood] = useState<(typeof MOODS)[number]>("lively");
   const [moodTouched, setMoodTouched] = useState(false);
   const [pace, setPace] = useState<(typeof PACES)[number]>("balanced pace");
   const [paceTouched, setPaceTouched] = useState(false);
-  const [budgetLimit, setBudgetLimit] = useState("");
+  // The journey's budget is a pint ceiling. Until the reader types their own
+  // Max each, it stands for one listed pint per stop, the same basis the plan's
+  // budget line uses, so it follows the Stops choice.
+  const [typedBudgetLimit, setTypedBudgetLimit] = useState<string | null>(null);
   const [groupSize, setGroupSize] = useState(4);
   const [stopCount, setStopCount] = useState<PlanStopCount>(DEFAULT_PLAN_STOP_COUNT);
+  const budgetLimit =
+    typedBudgetLimit ?? (handoff.pintCeiling ? String(handoff.pintCeiling * stopCount) : "");
   const [groupSizeTouched, setGroupSizeTouched] = useState(false);
   const [stepFree, setStepFree] = useState(false);
   const [zeroProof, setZeroProof] = useState(false);
@@ -94,6 +111,10 @@ export function MobilePlanActivation({
   const routeUpgradeRef = useRef<AbortController | null>(null);
   const requestRef = useRef<AbortController | null>(null);
   const speech = useTransientSpeechInput(query, setQuery);
+
+  useEffect(() => {
+    clearPlannerHandoff();
+  }, []);
 
   useEffect(() => () => {
     requestRef.current?.abort();
@@ -116,6 +137,15 @@ export function MobilePlanActivation({
     return () => controller.abort();
   }, [cityId]);
 
+  // With no area chosen and none named in the outing, there is nowhere to plan.
+  function requestPlan() {
+    if (!area && !inferNightContext(query).context.nightArea) {
+      setError("Pick an area first.");
+      return;
+    }
+    void generate();
+  }
+
   async function generate() {
     if (requestRef.current) return;
     const controller = new AbortController();
@@ -132,7 +162,7 @@ export function MobilePlanActivation({
         ...(paceTouched ? [pace] : []),
       ];
       const context: Partial<NightContext> = {
-        ...(areaTouched || !inferredQuery.nightArea ? { nightArea: area } : {}),
+        ...(area && (areaTouched || !inferredQuery.nightArea) ? { nightArea: area } : {}),
         ...(daypartTouched || !queryFields.has("daypart") ? { daypart } : {}),
         ...(groupSizeTouched || !queryFields.has("groupSize") ? {
           partyType: groupSize === 1 ? "solo" as const : "friends" as const,
@@ -237,15 +267,15 @@ export function MobilePlanActivation({
         {speech.error ? <small role="status">{speech.error}</small> : null}
       </div>
       <div className="mobilePlannerIntentGrid">
-        <label>Area<select value={area} onChange={(event) => { setAreaTouched(true); setArea(event.target.value as NightAreaSlug); }}>{areas.map((nightArea) => <option key={nightArea.slug} value={nightArea.slug}>{nightArea.name}</option>)}</select></label>
+        <label>Area<select value={area ?? ""} onChange={(event) => { setAreaTouched(true); setArea(event.target.value as NightAreaSlug); }}>{area ? null : <option value="" disabled>Pick an area</option>}{areas.map((nightArea) => <option key={nightArea.slug} value={nightArea.slug}>{nightArea.name}</option>)}</select></label>
         <label>Time<select value={daypart} onChange={(event) => { setDaypartTouched(true); setDaypart(event.target.value as NightContext["daypart"]); }}><option value="daytime">Daytime</option><option value="after_work">After work</option><option value="evening">Evening</option><option value="late_night">Late night</option></select></label>
         <label>People<input type="number" min="1" max="30" value={groupSize} onChange={(event) => { setGroupSizeTouched(true); setGroupSize(Math.max(1, Math.min(30, Number(event.target.value) || 1))); }} /></label>
         <label>Stops<select value={stopCount} onChange={(event) => setStopCount(normalizePlanStopCount(Number(event.target.value)))}>{PLAN_STOP_COUNTS.map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
-        <label>Max each<input type="number" inputMode="decimal" min="5" max="500" value={budgetLimit} onChange={(event) => setBudgetLimit(event.target.value)} placeholder="£" /></label>
+        <label>Max each<input type="number" inputMode="decimal" min="5" max="500" value={budgetLimit} onChange={(event) => setTypedBudgetLimit(event.target.value)} placeholder="£" /></label>
       </div>
       <AreaNewsBlock
         area={area}
-        areaLabel={areas.find((nightArea) => nightArea.slug === area)?.name ?? area}
+        areaLabel={areas.find((nightArea) => nightArea.slug === area)?.name ?? area ?? ""}
       />
       <div className="mobilePlannerIntentChips" role="group" aria-label="Outing mood">
         {MOODS.map((value) => <Chip key={value} aria-pressed={moodTouched && mood === value} onClick={() => { setMoodTouched(true); setMood(value); }}>{value}</Chip>)}
@@ -259,7 +289,7 @@ export function MobilePlanActivation({
             The chip names the drink the way the rest of the app does. */}
         <Chip aria-pressed={zeroProof} onClick={() => setZeroProof((current) => !current)}>Alcohol-free</Chip>
       </div>
-      <Button type="button" size="large" className="w-full" disabled={loading} aria-busy={loading} onClick={() => void generate()}>{loading ? <span className="mobilePlannerIntentPending"><PubmaxxLoadingEmber size={15} />Planning…</span> : "Make a plan"}</Button>
+      <Button type="button" size="large" className="w-full" disabled={loading} aria-busy={loading} onClick={requestPlan}>{loading ? <span className="mobilePlannerIntentPending"><PubmaxxLoadingEmber size={15} />Planning…</span> : "Make a plan"}</Button>
       {error ? <p className="mobilePlannerIntentError" role="alert">{error}</p> : null}
       {result ? (
         <div className="mobilePlannerResult" role="status">

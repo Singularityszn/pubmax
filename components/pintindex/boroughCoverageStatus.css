@@ -50,6 +50,9 @@
 }
 
 .boroughCoverageLink {
+  /* An accent word is --color-accent-ink, never the browser's default link
+     blue, which painted rgb(0, 0, 238) on both themes before this. */
+  color: var(--color-accent-ink);
   font-size: 0.9rem;
   text-decoration: underline;
   text-underline-offset: 0.15em;

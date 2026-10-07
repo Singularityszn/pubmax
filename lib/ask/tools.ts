@@ -8,6 +8,7 @@ import {
   type CommunityPrice,
 } from "@/lib/communityPrice";
 import { readCommunityPricesWithStatus } from "@/lib/communityPriceStore";
+import { areaCircleForAsk } from "@/lib/concierge/areaCircle";
 import { parseConciergeIntent } from "@/lib/concierge/intent";
 import {
   rankConciergeVenues,
@@ -74,6 +75,17 @@ function directoryProvenance(): AskProvenance {
   return { label: "On record", kind: "directory" };
 }
 
+// The card's one-line note: the lead reason, plus "Near <area>, N km" whenever
+// the area circle alone made the pub eligible, so a widened pick says why.
+function rankedNote(
+  ranked: { reasons: string[]; nearAreaNote?: string },
+  fallback = "",
+): string {
+  return [ranked.reasons[0] ?? fallback, ranked.nearAreaNote]
+    .filter((part, index, all): part is string => Boolean(part) && all.indexOf(part) === index)
+    .join(" · ");
+}
+
 function venueCard(
   venue: ConciergeVenue,
   note: string,
@@ -100,9 +112,12 @@ async function toolSearchVenues(
   try {
     const parsed = await parseConciergeIntent(query, { skipModel: true });
     const venues = await loadConciergeVenues(ctx.cityId);
-    const ranked = rankConciergeVenues(venues, parsed.intent, { limit });
-    const cards = ranked.map(({ venue, reasons }) =>
-      venueCard(venue, reasons[0] ?? "", venue.id),
+    const ranked = rankConciergeVenues(venues, parsed.intent, {
+      limit,
+      areaCircle: areaCircleForAsk(ctx.cityId, parsed.intent.area),
+    });
+    const cards = ranked.map((row) =>
+      venueCard(row.venue, rankedNote(row), row.venue.id),
     );
     const proposals: AskProposal[] = cards
       .filter((c) => c.venueId)
@@ -249,7 +264,7 @@ async function toolVenueHeritage(
     const venues = await loadConciergeVenues(ctx.cityId);
     const hit =
       (id ? venues.find((v) => v.id === id) : null) ??
-      (await matchVenueByName(venues, ctx.query.replace(/\?+$/, "")));
+      (await matchVenueByName(venues, ctx.query.replace(/\?+$/, ""), { wholeQuestion: true }));
     if (hit) {
       name = hit.name;
       id = hit.id;
@@ -332,7 +347,7 @@ async function toolVenuePrices(
   const venue =
     (venueIdArg ? venues.find((v) => v.id === venueIdArg) : null) ??
     (venueName ? await matchVenueByName(venues, venueName) : null) ??
-    (await matchVenueByName(venues, ctx.query));
+    (await matchVenueByName(venues, ctx.query, { wholeQuestion: true }));
 
   if (!venue) {
     return {
@@ -673,23 +688,26 @@ async function toolProposePlan(
   try {
     const parsed = await parseConciergeIntent(query, { skipModel: true });
     const venues = await loadConciergeVenues(ctx.cityId);
-    const ranked = rankConciergeVenues(venues, parsed.intent, { limit: 3 });
+    const ranked = rankConciergeVenues(venues, parsed.intent, {
+      limit: 3,
+      areaCircle: areaCircleForAsk(ctx.cityId, parsed.intent.area),
+    });
     if (ranked.length < 3) {
       return {
         ok: false,
         tool: "propose_plan",
         data: { intent: parsed.intent },
         provenance: [directoryProvenance()],
-        cards: ranked.map(({ venue, reasons }) =>
-          venueCard(venue, reasons[0] ?? ""),
+        cards: ranked.map((row) =>
+          venueCard(row.venue, rankedNote(row)),
         ),
         proposals: [],
         answerHint:
           "No three-stop route meets that ask with the information available.",
       };
     }
-    const cards = ranked.map(({ venue, reasons }, index) =>
-      venueCard(venue, `Stop ${index + 1}: ${reasons[0] ?? "Listed pick"}`),
+    const cards = ranked.map((row, index) =>
+      venueCard(row.venue, `Stop ${index + 1}: ${rankedNote(row, "Listed pick")}`),
     );
     const stopIds = cards.map((c) => c.venueId);
     const stopNames = cards.map((c) => c.title);

@@ -17,6 +17,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, CloudRain, Info, Sun, TrainFront, X } from "lucide-react";
 
+import { CITY_STATUS_UNSOURCED_LABEL, cityStatusSignalSource } from "@/lib/cityStatusSignalSource";
 import { loadSurfaceJson, SURFACE_JUST_READ_MS } from "@/lib/surfaceDataCache";
 import { firstHttp } from "@/lib/httpUrl";
 import { useStaggeredRead } from "@/lib/useStaggeredRead";
@@ -425,7 +426,7 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
               <h4 className="cityStatusSignalGroupLabel">{group.label}</h4>
               <ul className="cityStatusSignalList">
                 {group.signals.map((s, i) => {
-                  const href = firstHttp(s.sourceUrl) || undefined;
+                  const source = cityStatusSignalSource(s.sourceUrl);
                   return (
                     <li className="cityStatusSignalRow" key={`${group.kind}-${i}`}>
                       <span className="cityStatusSignalRowIcon" aria-hidden="true">
@@ -442,12 +443,12 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
                           </p>
                         ) : null}
                         <p className="cityStatusSignalRowSource">
-                          {href ? (
-                            <a href={href} target="_blank" rel="noreferrer noopener">
-                              CityMCP source ↗
+                          {source ? (
+                            <a href={source.href} target="_blank" rel="noreferrer noopener">
+                              {source.label}
                             </a>
                           ) : (
-                            <span>CityMCP</span>
+                            <span>{CITY_STATUS_UNSOURCED_LABEL}</span>
                           )}
                         </p>
                       </div>

@@ -57,6 +57,8 @@ export async function generateMetadata({ params }: EditionPageProps): Promise<Me
 }
 
 function datasetJsonLd(edition: ArchivedPintIndexSnapshot, boroughCount: number, pubCount: number) {
+  // An edition that published no rows has nothing to download, so it advertises
+  // no distribution rather than a file that holds only the header row.
   const { month, revision, publishedAt } = edition.archive;
   const label = pintIndexMonthLabel(month);
   return {
@@ -78,11 +80,15 @@ function datasetJsonLd(edition: ArchivedPintIndexSnapshot, boroughCount: number,
     measurementTechnique: "Confirmed Pint Drops, official pub or brewery sources, and explicitly licensed open datasets with observed-at dates; classified by London borough point-in-polygon boundaries.",
     variableMeasured: "Observed pint price in GBP, aggregated per London borough",
     isBasedOn: `${SITE_URL}/pint-index`,
-    distribution: [{
-      "@type": "DataDownload",
-      encodingFormat: "text/csv",
-      contentUrl: `${SITE_URL}/pint-index/${month}/data.csv`,
-    }],
+    ...(pubCount > 0
+      ? {
+          distribution: [{
+            "@type": "DataDownload",
+            encodingFormat: "text/csv",
+            contentUrl: `${SITE_URL}/pint-index/${month}/data.csv`,
+          }],
+        }
+      : {}),
   };
 }
 
@@ -107,7 +113,7 @@ export default async function PintIndexEditionPage({ params }: EditionPageProps)
       <PintIndexScreen
         title={`London pint prices, ${label}`}
         lede={`Frozen on ${formatPintIndexDate(publishedAt)}. These figures stay put whatever the live index says next month.`}
-        csvHref={`/pint-index/${month}/data.csv`}
+        csvHref={rows.length > 0 ? `/pint-index/${month}/data.csv` : undefined}
       >
         {summary.averageGbp !== null ? (
           <dl className="pintIndexStats">
@@ -156,9 +162,11 @@ export default async function PintIndexEditionPage({ params }: EditionPageProps)
               caption={`London boroughs ranked by average published pint price, ${label}`}
             />
           )}
-          <a className="pintIndexDownload" href={`/pint-index/${month}/data.csv`} download>
-            Download {label} (CSV) ↓
-          </a>
+          {rows.length > 0 ? (
+            <a className="pintIndexDownload" href={`/pint-index/${month}/data.csv`} download>
+              Download {label} (CSV) ↓
+            </a>
+          ) : null}
         </section>
 
         {/* The expensive end of this month, frozen with the rest of it. The live

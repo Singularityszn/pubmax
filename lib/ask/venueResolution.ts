@@ -6,6 +6,10 @@
 
 import { choice } from "@typesafe-ai/sdk";
 
+import stationZones from "@/data/tfl_station_zones.json";
+import { NIGHT_AREAS } from "@/lib/nightAreas";
+import localityGazetteer from "@/public/data/london_localities.json";
+
 import {
   normalizeVenueIdentityName,
   significantNameTokens,
@@ -55,6 +59,101 @@ export function toVenueResolutionCandidate(
     area: venue.area,
     address: venueResolutionAddress(venue),
   };
+}
+
+/** Lower-case words only: "&" reads as "and", apostrophes drop, other marks split. */
+function wordsOnly(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/['\u2019\u2018]/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+}
+
+/** Place names of two or more words: night areas, London localities, TfL stations. */
+const PLACE_PHRASES: readonly string[][] = [
+  ...new Set(
+    [
+      ...NIGHT_AREAS.flatMap((area) => [area.name, ...area.aliases, ...area.transportAnchors]),
+      ...localityGazetteer.localities.map((locality) => locality.name),
+      ...stationZones.stations.map((station) => station.name),
+    ].map(wordsOnly),
+  ),
+]
+  .map((phrase) => phrase.split(" "))
+  .filter((words) => words.length > 1);
+
+/** Words any pub may carry: a name made only of these names no pub in particular. */
+const GENERIC_PUB_WORDS = new Set([
+  "the", "and", "ye", "olde", "old", "new", "bar", "pub", "tap", "room", "rooms",
+  "sports", "brewery", "arms", "inn", "tavern", "house", "hotel", "lounge",
+]);
+
+/** Every index where `phrase` starts as whole words inside `words`. */
+function startsOf(words: readonly string[], phrase: readonly string[]): number[] {
+  const starts: number[] = [];
+  for (let at = 0; at + phrase.length <= words.length; at++) {
+    if (phrase.every((word, offset) => words[at + offset] === word)) starts.push(at);
+  }
+  return starts;
+}
+
+/**
+ * The pub a whole sentence names ("How much is a pint at The Blackfriar?").
+ * The keyless name matcher below asks whether the pub name contains the query,
+ * which a sentence never satisfies. It is NOT folded into that matcher: a bare
+ * name that is not listed ("The Crown & Sceptre") must not land on a shorter
+ * listed pub ("The Crown"). matchVenueByName runs it only for a caller that
+ * holds the user's whole question, and only when no model judged the query.
+ * The pub name must appear in the query as two or more whole words, with or
+ * without its leading "The": one word is a place word as often as a pub, so
+ * The Bridge is never found in "near London Bridge". Nor may the name's words
+ * past "The" share a word with a place name in the query at least as long:
+ * The Kings is not in "near the Kings Cross station", nor The Hill in "Harrow
+ * on the Hill", nor the Elephant and Castle pub in "near the Elephant and
+ * Castle". A name made only of words any pub may carry (Sports Bar, Tap
+ * Room, The Old Brewery) is never found: "a sports bar near Soho" asks for a
+ * kind of pub, not the one so named. Unsure is no answer. The longest name
+ * wins, and two different pubs sharing that longest name are no answer at all.
+ */
+export function matchVenueNameWithinQuery<T extends VenueNameMatchInput>(
+  venues: readonly T[],
+  query: string,
+): T | null {
+  const words = wordsOnly(query).split(" ");
+  const places = PLACE_PHRASES.flatMap((place) =>
+    startsOf(words, place).map((start) => [start, start + place.length] as const),
+  );
+  const namedOutsidePlace = (name: readonly string[]) =>
+    startsOf(words, name).some((start) => {
+      const from = name[0] === "the" ? start + 1 : start;
+      const to = start + name.length;
+      return !places.some(
+        ([placeFrom, placeTo]) => placeFrom < to && from < placeTo && placeTo - placeFrom >= to - from,
+      );
+    });
+  let best: T | null = null;
+  let bestLength = 0;
+  let tied = false;
+  for (const venue of venues) {
+    const full = wordsOnly(venue.name).split(" ");
+    if (full.every((word) => GENERIC_PUB_WORDS.has(word))) continue;
+    const names = full[0] === "the" ? [full, full.slice(1)] : [full];
+    for (const name of names) {
+      if (name.length < 2) continue;
+      if (!namedOutsidePlace(name)) continue;
+      const length = name.join(" ").length;
+      if (length > bestLength) {
+        best = venue;
+        bestLength = length;
+        tied = false;
+      } else if (length === bestLength && best && best.id !== venue.id) {
+        tied = true;
+      }
+    }
+  }
+  return tied ? null : best;
 }
 
 /** Keyless fallback: exact, then startsWith, then includes. Array order breaks ties. */

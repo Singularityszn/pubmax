@@ -1213,6 +1213,190 @@ export function filterNightShapingSignals(
   return signals.filter((signal) => !isAviationNoiseSignal(signal));
 }
 
+// ---------- De-duplication: one row per story ----------
+//
+// The upstream digest is assembled from several scrapes, so the same gig or
+// by-election arrives twice with the headline cased or worded a little
+// differently ("The Strokes Concert at The O2 Arena" and "The Strokes concert
+// at O2 Arena"), the second often without the source the first carried. Both
+// rows then render, which reads as a bug and spends a slot of the capped feed.
+
+const HEADLINE_STOP_WORDS: ReadonlySet<string> = new Set(["a", "an", "the", "at", "of", "in", "on", "and"]);
+const DUPLICATE_HEADLINE_OVERLAP = 0.75;
+
+function headlineTokens(headline: string | undefined): Set<string> {
+  const words = String(headline ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(" ")
+    .filter((word) => word.length > 0 && !HEADLINE_STOP_WORDS.has(word));
+  return new Set(words);
+}
+
+function sameHeadline(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
+  if (a.size === 0 || b.size === 0) return false;
+  let shared = 0;
+  for (const word of a) if (b.has(word)) shared += 1;
+  return shared / (a.size + b.size - shared) >= DUPLICATE_HEADLINE_OVERLAP;
+}
+
+/** Two rows that both say where, in places that do not meet, or both say when, at different times, are two stories. */
+function differentPlaceOrTime(a: CityStatusSignal, b: CityStatusSignal): boolean {
+  const areasA = (a.areas ?? []).map((area) => area.trim().toLowerCase());
+  const areasB = new Set((b.areas ?? []).map((area) => area.trim().toLowerCase()));
+  if (areasA.length > 0 && areasB.size > 0 && !areasA.some((area) => areasB.has(area))) return true;
+  return Boolean(
+    a.timeWindow && b.timeWindow && a.timeWindow.trim().toLowerCase() !== b.timeWindow.trim().toLowerCase(),
+  );
+}
+
+/** Both copies' entries, the kept row's first, each place once whatever its case. */
+function unionPlaces(kept: readonly string[], other: readonly string[]): string[] {
+  const seen = new Set(kept.map((place) => place.trim().toLowerCase()));
+  const union = [...kept];
+  for (const place of other) {
+    const key = place.trim().toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    union.push(place);
+  }
+  return union;
+}
+
+/** How much a row can tell a reader: a source first, then a time, then where. */
+function signalSubstance(signal: CityStatusSignal): number {
+  return (
+    (signal.sourceUrl ? 4 : 0) +
+    (signal.timeWindow ? 2 : 0) +
+    (signal.areas && signal.areas.length > 0 ? 1 : 0)
+  );
+}
+
+function severityRank(signal: CityStatusSignal): number {
+  return SEVERITY_ORDER[String(signal.severity ?? "").toLowerCase()] ?? 0;
+}
+
+/**
+ * Collapse rows that name the same story into one, keeping the row that says
+ * the most (a sourced row beats an unsourced one) at the highest severity
+ * either copy carried, any field only the other copy had and the places either
+ * copy named, in the position the story first appeared. Two rows are
+ * the same story when their headlines share at least three quarters of their
+ * words once case, punctuation and filler words are set aside, and they do not
+ * name different areas or different times. Pure, returns a
+ * new array, exported for tests + the status route.
+ */
+export function dedupeCityStatusSignals(
+  signals: readonly CityStatusSignal[] | undefined,
+): CityStatusSignal[] {
+  if (!Array.isArray(signals)) return [];
+  const kept: Array<{ signal: CityStatusSignal; tokens: Set<string> }> = [];
+  for (const signal of signals) {
+    const tokens = headlineTokens(signal.headline);
+    const twin = kept.find(
+      (entry) => sameHeadline(entry.tokens, tokens) && !differentPlaceOrTime(entry.signal, signal),
+    );
+    if (!twin) {
+      kept.push({ signal, tokens });
+      continue;
+    }
+    const severity = severityRank(signal) > severityRank(twin.signal) ? signal.severity : twin.signal.severity;
+    const fuller = signalSubstance(signal) > signalSubstance(twin.signal) ? signal : twin.signal;
+    const other = fuller === signal ? twin.signal : signal;
+    // The fuller row wins every field it has; a field only the other copy
+    // carried (the explanation, the postcodes, the fetch time) is kept rather
+    // than lost with the discarded row, and both copies' places are kept.
+    const merged: CityStatusSignal = { ...fuller, severity };
+    if (fuller.areas && other.areas) merged.areas = unionPlaces(fuller.areas, other.areas);
+    if (fuller.postcodes && other.postcodes) merged.postcodes = unionPlaces(fuller.postcodes, other.postcodes);
+    for (const key of ["detail", "kind", "areas", "postcodes", "timeWindow", "sourceUrl", "fetchedAt"] as const) {
+      if (merged[key] === undefined && other[key] !== undefined) {
+        (merged as Record<string, unknown>)[key] = other[key];
+      }
+    }
+    twin.signal = merged;
+  }
+  return kept.map((entry) => entry.signal);
+}
+
+// ---------- Grounding: an event row must not wear another story's source ----------
+//
+// The upstream digest sometimes attaches a link that has nothing to do with the
+// row (6 Oct 2026: a by-election row linked to a 2021 protest article, which
+// is the only thing "grounding" its sentence about police warnings). A link
+// whose readable slug shares no word with the row's own headline grounds
+// nothing, so the row keeps its place and loses only the link: it reads as an
+// unsourced CityMCP row rather than as sourced by somebody else's story. A
+// listing page ("things-to-do-in-london-this-weekend") grounds nothing either,
+// and the event it lists is still real. A path with no readable words (an
+// opaque id such as "cv4g17kkxwj3o") says nothing either way, so it is trusted
+// as before.
+
+const SLUG_STOP_WORDS: ReadonlySet<string> = new Set([
+  "news", "article", "articles", "london", "story", "live", "www", "html", "uk", "index",
+]);
+
+function segmentWords(segment: string): string[] {
+  return segment
+    .toLowerCase()
+    .split(/[^a-z]+/)
+    .filter((word) => word.length >= 4 && !SLUG_STOP_WORDS.has(word));
+}
+
+/**
+ * Words of the article slug: the last path segment with readable words, past a
+ * trailing "/amp", "/index.html" or numeric id, never a publisher's section
+ * folder ("/music/", "/culture/") above it.
+ */
+function slugWords(url: string): string[] {
+  let path: string;
+  try {
+    path = new URL(url).pathname;
+  } catch {
+    return [];
+  }
+  const segments = path.split("/").map(segmentWords).filter((words) => words.length > 0);
+  return segments.at(-1) ?? [];
+}
+
+const INFLECTION_ENDING = /^(?:s|es|d|ed|ing|er|ers)$/;
+
+/** One word, or one word with an inflection ending ("concert" and "concerts"), never a longer word that starts the same ("west" and "westminster"). */
+function sameWord(a: string, b: string): boolean {
+  if (a === b) return true;
+  const [stem, longer] = a.length < b.length ? [a, b] : [b, a];
+  return stem.length >= 3 && longer.startsWith(stem) && INFLECTION_ENDING.test(longer.slice(stem.length));
+}
+
+/** True when an event row's source link is readable and shares no word with the row. */
+function hasUngroundedEventSource(signal: CityStatusSignal): boolean {
+  if (String(signal.kind ?? "").toLowerCase() !== "event") return false;
+  if (!signal.sourceUrl) return false;
+  const words = slugWords(signal.sourceUrl);
+  // Fewer than two readable words is an opaque id, not a claim about the story.
+  if (words.length < 2) return false;
+  // The headline only: the detail is the generated sentence the link is meant to
+  // ground, so it cannot vouch for its own source.
+  const headlineWords = String(signal.headline ?? "")
+    .toLowerCase()
+    .split(/[^a-z]+/)
+    .filter((word) => word.length > 0);
+  return !words.some((word) => headlineWords.some((headlineWord) => sameWord(word, headlineWord)));
+}
+
+/** Strip the source link from event rows whose link is about something else. Pure, new array. */
+export function unlinkUngroundedEventSignals(
+  signals: readonly CityStatusSignal[] | undefined,
+): CityStatusSignal[] {
+  if (!Array.isArray(signals)) return [];
+  return signals.map((signal) => {
+    if (!hasUngroundedEventSource(signal)) return signal;
+    const unsourced = { ...signal };
+    delete unsourced.sourceUrl;
+    return unsourced;
+  });
+}
+
 /**
  * Return the top-N signals by severity (major > notable > info > unknown),
  * preserving upstream order for equal severities. Used by the status route

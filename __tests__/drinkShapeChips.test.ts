@@ -1,9 +1,11 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import {
+import DrinkShapeChips, {
   CHIP_CATEGORIES,
   nextDrinkShapeFilters,
   nextDrinkSubtypeFilters,
@@ -292,5 +294,27 @@ describe("drink chip styling ships with the component", () => {
     expect(css).toMatch(
       /html\[data-theme="dark"\]\s+\.drinkShapeChip\s*\{[^}]*color:\s*var\(--ink-soft\)/,
     );
+  });
+});
+
+// QA journeys F24. The desktop tray sits under the drink-lane picker, which
+// offers the same drinks as text tabs, so it asks for the refinements only.
+describe("DrinkShapeChips without the category strip", () => {
+  const draw = (overrides: Partial<Filters>, categories: boolean) =>
+    renderToStaticMarkup(
+      createElement(DrinkShapeChips, {
+        filters: filters(overrides),
+        onFiltersChange: () => undefined,
+        categories,
+      }),
+    );
+
+  it("draws the category strip by default and on a phone sheet", () => {
+    expect(draw({}, true)).toContain("Filter by drink shape");
+  });
+
+  it("draws nothing at rest, where the lane picker already offers every drink", () => {
+    expect(draw({}, false)).toBe("");
+    expect(draw({ drinkCategory: "wine" }, false)).toBe("");
   });
 });

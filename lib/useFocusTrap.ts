@@ -419,7 +419,15 @@ export function useFocusTrap(
           })
         : null;
     for (const sibling of siblings) {
-      observer?.observe(sibling, { childList: true, subtree: true });
+      // The marker itself can flip on a node that stays mounted (the desktop
+      // toolbar is exempt from 1024px, and a resize crosses that line while a
+      // drawer is open), so the attribute is watched as well as the tree.
+      observer?.observe(sibling, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: [FOCUS_TRAP_EXEMPT_ATTRIBUTE],
+      });
     }
 
     const onTab = (event: KeyboardEvent) => {

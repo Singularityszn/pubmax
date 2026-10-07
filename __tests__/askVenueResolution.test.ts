@@ -178,6 +178,16 @@ describe("Ask TypeSafe venue resolution on recorded fixtures", () => {
     const hit = await matchVenueByName(VENUE_RESOLUTION_POOL, "Crown");
     expect(hit).toBeNull();
   });
+
+  it("keeps a judged none for a whole question that names a listed pub", async () => {
+    mockChoice(NONE_OPTION, { none: 0.9, c0: 0.1 });
+    const hit = await matchVenueByName(
+      VENUE_RESOLUTION_POOL,
+      "How much is a pint at The Druids Head?",
+      { wholeQuestion: true },
+    );
+    expect(hit).toBeNull();
+  });
 });
 
 describe("Ask venue resolution without TypeSafe key", () => {
@@ -194,6 +204,15 @@ describe("Ask venue resolution without TypeSafe key", () => {
     );
     await expect(matchVenueByName(VENUE_RESOLUTION_POOL, "quiet garden")).resolves.toBeNull();
     await expect(matchVenueByName(VENUE_RESOLUTION_POOL, "")).resolves.toBeNull();
+  });
+
+  it("finds a pub named inside a whole question only when asked to", async () => {
+    vi.mocked(systemOne).mockResolvedValue(null);
+    const question = "How much is a pint at The Druids Head?";
+    await expect(
+      matchVenueByName(VENUE_RESOLUTION_POOL, question, { wholeQuestion: true }),
+    ).resolves.toMatchObject({ id: "venue-druids-head" });
+    await expect(matchVenueByName(VENUE_RESOLUTION_POOL, question)).resolves.toBeNull();
   });
 });
 

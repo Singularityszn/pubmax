@@ -62,9 +62,16 @@ leak into the client.
     and human-readable `timeEvidence` independently, without inferring one from
     the requested window. Use `resetThingsToDoCache()` in tests.
 - **`GET /api/citymcp/status`** — returns `{ asOf, weather?, tubeLines?, signals[] }`
-  trimmed for UI: tube "Good Service" lines are dropped, and signals are capped
-  to the top 6 by severity (major > notable > info). Always fail-soft: any
-  upstream failure returns 200 with `{ error, signals: [] }`.
+  trimmed for UI: tube "Good Service" lines are dropped. Signals pass through
+  `filterNightShapingSignals` (aviation noise out), `unlinkUngroundedEventSignals`
+  (an event row whose readable article slug, never a section folder, shares no
+  headline word keeps its row and loses only the link) and
+  `dedupeCityStatusSignals` (one row per story, at the higher severity, with
+  both copies' places; rows naming different areas or times stay apart), then
+  are capped to the top 8 by severity
+  (major > notable > info). Always fail-soft: any upstream failure returns 200
+  with `{ error, signals: [] }`. The source line under each signal is
+  `lib/cityStatusSignalSource.ts`, shared by the banner and the phone panel.
 - **`GET /api/citymcp/places?q=...&limit=5`** — thin place rows for
   `search_places`. Validates `q` (non-empty, ≤ 200 chars) and returns 400
   otherwise; upstream failures fail-soft to 200 with `{ places: [], error }`.

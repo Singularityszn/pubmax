@@ -237,7 +237,9 @@ describe("launch routes (group d) carry one primary action", () => {
   it("/rounds carries one primary action", () => {
     const rendered = renderToStaticMarkup(createElement(RoundsIndex));
     expect(primaryCount(rendered)).toBe(1);
-    expect(rendered).toMatch(/data-primary-action=""><a[^>]*href="\/map"[^>]*>Start a round<\/a>/);
+    // F18: the primary is the starter's own submit, not a link to the map.
+    expect(rendered).toMatch(/<button[^>]*data-primary-action=""[^>]*>[\s\S]*Start a Round<\/button>/);
+    expect(rendered).not.toMatch(/<a[^>]*href="\/map"[^>]*>Start a round<\/a>/);
     expect(rendered).toContain('class="emptyStateTitle">Join with a link');
   });
 

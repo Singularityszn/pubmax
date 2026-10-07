@@ -324,3 +324,33 @@ describe("Social post backend selection", () => {
     }
   });
 });
+
+describe("Social post owner list (the account export's read)", () => {
+  it("lists only the owner's own posts, newest first, whatever their visibility", async () => {
+    let tick = 0;
+    const store = createMemorySocialPostStore({ now: () => new Date(Date.UTC(2026, 8, 1, 12, tick++)) });
+    const first = await store.create(alice, fields({ body: "First", visibility: "private" }));
+    await store.create(bob, fields({ body: "Bob's" }));
+    const third = await store.create(alice, fields({ body: "Third", visibility: "friends" }));
+
+    const mine = await store.listOwned(alice, 10);
+    expect(mine.map((post) => post.id)).toEqual([third.id, first.id]);
+    expect(mine.map((post) => post.visibility)).toEqual(["friends", "private"]);
+    expect(await store.listOwned(carol, 10)).toEqual([]);
+  });
+
+  it("honours the limit and leaves out a post the author removed", async () => {
+    let tick = 0;
+    const store = createMemorySocialPostStore({ now: () => new Date(Date.UTC(2026, 8, 1, 12, tick++)) });
+    const first = await store.create(alice, fields({ body: "First" }));
+    const second = await store.create(alice, fields({ body: "Second" }));
+    await store.create(alice, fields({ body: "Third" }));
+
+    expect(await store.listOwned(alice, 2)).toHaveLength(2);
+    await store.remove(second.id, alice, 0, "remove-key-owner-list");
+    const rest = await store.listOwned(alice, 10);
+    expect(rest.map((post) => post.body)).toEqual(["Third", "First"]);
+    expect(rest.map((post) => post.id)).not.toContain(second.id);
+    expect(rest.map((post) => post.id)).toContain(first.id);
+  });
+});

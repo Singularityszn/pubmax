@@ -258,9 +258,9 @@ describe("launch routes (group c) carry one primary action", () => {
     expect(rendered).toMatch(
       /class="screenPrimary" data-primary-action=""><a[^>]*href="\/map"[^>]*>Open the map<\/a>/,
     );
-    expect(rendered).toMatch(
-      /class="screenSecondary"><a[^>]*href="\/pint-index\/data\.csv"[^>]*>Download the CSV<\/a>/,
-    );
+    // The checked-in snapshot has no rows yet, so there is no CSV door to offer.
+    // `__tests__/pintIndexDownloadDoor.test.tsx` holds the populated side.
+    expect(rendered).not.toContain("Download the CSV");
   });
 
   it("/pint-index/[month] carries one primary action (2026-06)", async () => {
@@ -271,9 +271,7 @@ describe("launch routes (group c) carry one primary action", () => {
     expect(rendered).toMatch(
       /class="screenPrimary" data-primary-action=""><a[^>]*href="\/map"[^>]*>Open the map<\/a>/,
     );
-    expect(rendered).toMatch(
-      /class="screenSecondary"><a[^>]*href="\/pint-index\/2026-06\/data\.csv"[^>]*>Download the CSV<\/a>/,
-    );
+    expect(rendered).not.toContain("Download the CSV");
     expect(rendered).toContain("These figures stay put");
   });
 });

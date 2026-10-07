@@ -125,6 +125,13 @@ export type SocialPostStore = {
   remove(id: string, actor: SocialPostActor, expectedMutationVersion: number, idempotencyKey: string): Promise<boolean>;
   read(id: string, viewer: SocialPostActor): Promise<SocialPostDTO | null>;
   readOwned(id: string, owner: SocialPostActor): Promise<SocialPostDTO | null>;
+  /**
+   * Every post this account still has, newest first, at most `limit`: its own
+   * outbox, whatever the visibility, moderation state or a moderator's hide.
+   * A post the author removed is gone and is not listed. This is the owner's
+   * read behind the account export and nothing else may serve a viewer with it.
+   */
+  listOwned(owner: SocialPostActor, limit: number): Promise<SocialPostDTO[]>;
   readServerProjection(id: string, viewer: SocialPostActor): Promise<SocialPostServerProjection | null>;
   feed(viewer: SocialPostActor, input: SocialPostFeedInput): Promise<SocialPostFeedPage>;
   processModerationQueue(
@@ -522,6 +529,13 @@ export function createMemorySocialPostStore(options: {
         ? socialPostDTO(post, { exactVenue: true, viewerProfileId: owner.profileId })
         : null;
     },
+    async listOwned(owner, limit) {
+      return [...rows.values()]
+        .filter((post) => post.authorProfileId === owner.profileId && post.status !== "removed")
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id))
+        .slice(0, limit)
+        .map((post) => socialPostDTO(post, { exactVenue: true, viewerProfileId: owner.profileId }));
+    },
     async readServerProjection(id, viewer) {
       const post = rows.get(id);
       if (!post) return null;
@@ -818,6 +832,22 @@ export const supabaseSocialPostStore: SocialPostStore = {
         viewerProfileId: owner.profileId,
       });
     }, () => memorySocialPostStore.readOwned(id, owner), false);
+  },
+  async listOwned(owner, limit) {
+    return durableOrMemory(async () => {
+      const { data, error } = await requireSupabaseAdmin()
+        .from("social_posts")
+        .select("*")
+        .eq("author_profile_id", owner.profileId)
+        .neq("status", "removed")
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return (data ?? []).map((row) =>
+        socialPostDTO(socialPostFromRow(row), { exactVenue: true, viewerProfileId: owner.profileId }),
+      );
+    }, () => memorySocialPostStore.listOwned(owner, limit), false);
   },
   async readServerProjection(id, viewer) {
     return durableOrMemory(async () => {

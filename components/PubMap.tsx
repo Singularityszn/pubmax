@@ -405,7 +405,7 @@ import {
   type UkBasePub,
   type UkBaseStreamStatus,
 } from "@/lib/ukBasePubs";
-import { computeZonePintIndex } from "@/lib/zones";
+import { publishedOrLoadedZoneIndex, type ZonePintIndex } from "@/lib/zones";
 import { useCityStoryCatalog } from "@/components/map/useCityStoryCatalog";
 import {
   useCoffeePilotCafes,
@@ -565,6 +565,7 @@ import {
 import {
   areaSheetOpenDelay,
   areaClaimedByViewport,
+  rememberedAreaNamesView,
   areaUnderCentre,
   planAreaSelect,
   type AreaDistanceFrom,
@@ -573,7 +574,8 @@ import {
 import type { AreaSheetPlaceFocus } from "@/components/map/AreaSheet";
 import { parseLocalityGazetteer, type Locality } from "@/lib/localities";
 import type { MapSearchAreaOption } from "@/lib/mapSearchSuggest";
-import { getNightArea, getNightAreasForCity, nearestNightAreaForViewport, nightAreaForMapQuery, type NightArea } from "@/lib/nightAreas";
+import { getNightArea, getNightAreasForCity, nearestNightAreaForViewport, nearestRouteReadyNightArea, nightAreaForMapQuery, type NightArea } from "@/lib/nightAreas";
+import { clearPlannerHandoff, desktopHandoffMoves, readPlannerHandoff } from "@/lib/onboardingFlow";
 import { defaultPoiHiddenForViewport } from "@/lib/poiToggleGroups";
 import {
   defaultVenueKindVisibility,
@@ -1046,28 +1048,52 @@ function activeLensNounFor(
 /**
  * The name the top bar is allowed to print.
  *
- * A remembered chosen area wins, then the arrival's own place name, then the
- * claim the VIEW earned (areaClaimedByViewport answers null for a view over no
+ * A remembered chosen area wins while the view is still over it, then the
+ * arrival's own place name, then the claim the VIEW earned (areaClaimedByViewport answers null for a view over no
  * single area), and the city name is the fallback. It lives here because
  * __tests__/ukPlaceMapArrival.test.ts pins this chain to this file.
  */
 function mapChipLabelFor(input: {
   mapChosenArea: { cityId: CityId; label: string } | null;
+  /** Whether the remembered area still names what the view shows. */
+  mapChosenAreaInView: boolean;
   cityId: CityId;
   ukPlaceArrival: { name: string } | null;
   claimedArea: { name: string } | null | undefined;
   mapContextName: string;
 }): string {
-  const { mapChosenArea, cityId, ukPlaceArrival, claimedArea, mapContextName } = input;
-  return mapChosenArea && mapChosenArea.cityId === cityId
+  const { mapChosenArea, mapChosenAreaInView, cityId, ukPlaceArrival, claimedArea, mapContextName } = input;
+  return mapChosenArea && mapChosenAreaInView && mapChosenArea.cityId === cityId
     ? mapChosenArea.label
     : ukPlaceArrival?.name ?? claimedArea?.name ?? mapContextName;
+}
+
+/**
+ * Whether a remembered area still names what the view shows. Until the map has
+ * settled somewhere new since the area was chosen, the choice has met no view
+ * yet (the camera is still flying to it), so it keeps the chip.
+ */
+function useRememberedAreaInView(
+  area: (Parameters<typeof rememberedAreaNamesView>[0] & { cityId: CityId; slug: string }) | null,
+  bounds: MapBounds | null,
+  viewCenter: [number, number],
+  viewer: UserLocation | null,
+): boolean {
+  const key = area ? `${area.cityId}:${area.slug}` : "";
+  const [seen, setSeen] = useState<{ key: string; bounds: MapBounds | null }>({ key: "", bounds: null });
+  if (seen.key !== key) {
+    setSeen({ key, bounds });
+  }
+  if (!area) return false;
+  const metAView = seen.key === key && seen.bounds !== bounds;
+  return !metAView || rememberedAreaNamesView(area, bounds, viewCenter, viewer);
 }
 
 export default function PubMap({
   cityId = DEFAULT_CITY_ID,
   placeArrival = null,
   nationalBrowse = false,
+  zonePintIndex,
 }: {
   cityId?: CityId;
   /**
@@ -1083,6 +1109,12 @@ export default function PubMap({
    * appear once the camera crosses the base zoom gate. Never invents prices.
    */
   nationalBrowse?: boolean;
+  /**
+   * The published fare-zone medians, rolled up server-side from the whole slim
+   * index (`loadZonePintIndex`), the same figures /pint-index prints. Absent,
+   * the map falls back to the venues it has loaded so far.
+   */
+  zonePintIndex?: ZonePintIndex | null;
 }) {
   const city = getCity(cityId);
   const [ukPlaceArrival] = useState(() => placeArrival);
@@ -2916,10 +2948,15 @@ export default function PubMap({
       });
     });
   }, [builtIds, cityId, loaded, loadedCityId, venueById]);
-  // Zone pint index (nearest-station fare zone medians) for the zone picker.
-  // Computed off the full venue set so the strip's numbers don't shift as the
-  // user filters — it's a stable "here's the lay of the land" reference.
-  const zoneIndex = useMemo(() => computeZonePintIndex(pubVenues), [pubVenues]);
+  // Zone pint index (nearest-station fare zone medians) for the zone picker and
+  // the venue sheet's area compare. The published index covers every priced pub,
+  // so the strip's numbers do not shift as the user filters, pans or waits for
+  // more venues to load, and they match /pint-index. The loaded venues are only
+  // the fallback for a page that was handed no published index.
+  const zoneIndex = useMemo(
+    () => publishedOrLoadedZoneIndex(zonePintIndex, pubVenues),
+    [zonePintIndex, pubVenues],
+  );
   // Base narrowing: the existing filter pipeline (story filters, price, query,
   // pint-drops). Favorite-pint re-prices inside PubMapCanvas and never changes
   // membership, so it isn't part of this set.
@@ -4567,6 +4604,14 @@ export default function PubMap({
     () => activeNightArea ?? nearestNightAreaForViewport(cityId, mapViewport.center),
     [activeNightArea, cityId, mapViewport.center],
   );
+  // The phone planner opens on this area, so a view centred on an area we have
+  // not checked falls to the nearest one a crawl can be planned in. An area the
+  // reader named themselves stays as named. With no crawl-ready area at all the
+  // planner opens with none chosen.
+  const phonePlanArea = useMemo(
+    () => activeNightArea ?? nearestRouteReadyNightArea(cityId, mapViewport.center),
+    [activeNightArea, cityId, mapViewport.center],
+  );
   const venuesById = useMemo(
     () => new Map(filteredPubVenues.map((venue) => [venue.id, venue])),
     [filteredPubVenues],
@@ -4637,6 +4682,23 @@ export default function PubMap({
       moveMapCameraTo({ center: option.center, zoom: option.zoom ?? 14 }),
     [moveMapCameraTo],
   );
+
+  // The first-run journey's handoff. The phone planner reads it itself
+  // (MobilePlanActivation). The desktop map has no area picker or Max each, so
+  // the budget becomes the pint price cap and the patch becomes the camera.
+  const desktopHandoffAppliedRef = useRef(false);
+  useEffect(() => {
+    if (desktopHandoffAppliedRef.current || mobileViewport || !loaded || !isLondon) return;
+    const held = readPlannerHandoff();
+    if (!held) return;
+    desktopHandoffAppliedRef.current = true;
+    clearPlannerHandoff();
+    const { maxPrice, center } = desktopHandoffMoves(held);
+    queueMicrotask(() => {
+      if (maxPrice !== null) setFilters((current) => ({ ...current, maxPrice }));
+      if (center) moveMapCameraTo({ center, zoom: 14 });
+    });
+  }, [isLondon, loaded, mobileViewport, moveMapCameraTo]);
 
   // The Area sheet target set by a map-search select: a modelled area (shown
   // as-is) or an ad-hoc locality/borough ring. null = the Area button, which
@@ -4990,8 +5052,11 @@ export default function PubMap({
     runNearMe,
   ]);
 
+  // A remembered area names the chip only while the view is over it.
+  const mapChosenAreaInView = useRememberedAreaInView(mapChosenArea, mapBounds, mapViewport.center, userLocation);
   const mapChipLabel = mapChipLabelFor({
     mapChosenArea,
+    mapChosenAreaInView,
     cityId,
     ukPlaceArrival,
     claimedArea,
@@ -5544,11 +5609,11 @@ export default function PubMap({
   // screen (verify-preview-4, J04); a crawl being built now leads the sheet.
   const plannerDrinkSelection = experienceLens === "all" ? filters : undefined;
   function renderPhoneDescribeForm() {
-    return mobileViewport && isLondon && suggestedPlanArea ? (
+    return mobileViewport && isLondon ? (
       <MobilePlanActivation
         key="phone-describe-form"
         cityId={cityId}
-        initialNightArea={suggestedPlanArea.slug}
+        initialNightArea={phonePlanArea?.slug ?? null}
         venuesById={venuesById}
         defaultDrinkSelection={plannerDefaultDrinkSelection(experienceLens, plannerDrinkSelection)}
         onGenerated={applyGeneratedMobilePlan}
@@ -6994,10 +7059,14 @@ export default function PubMap({
             (sheetDragY !== null ? " sheet-dragging" : "")
           }
           aria-hidden={!detailOpen}
-          // Not modal while the mapped-route chip is live beside it: that chip
-          // is an exempt surface of the drawer's focus trap.
+          // Not modal while a map control is live beside it: the desktop
+          // toolbar from 1024px, and the mapped-route chip in the side lane.
+          // Both are exempt surfaces of the drawer's focus trap.
           aria-modal={
-            detailOpen && !(routeMappedActive && drawerSideLaneViewport) ? true : undefined
+            detailOpen &&
+            !(railViewport || (routeMappedActive && drawerSideLaneViewport))
+              ? true
+              : undefined
           }
           role={detailOpen ? "dialog" : undefined}
           // A base pub has no curated venue, so name it from its own OSM kind:

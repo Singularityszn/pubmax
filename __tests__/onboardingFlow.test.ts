@@ -11,8 +11,12 @@ import {
   onboardingResult,
   onboardingStepNumber,
   previousOnboardingStep,
+  clearPlannerHandoff,
+  desktopHandoffMoves,
   readBudgetChoice,
+  readPlannerHandoff,
   writeBudgetChoice,
+  writePlannerHandoff,
 } from "@/lib/onboardingFlow";
 
 function memoryStorage(initial: Record<string, string> = {}): Storage {
@@ -145,5 +149,51 @@ describe("the web start mark", () => {
     expect(webOnboardingStartRequested("")).toBe(false);
     expect(webOnboardingStartRequested("?start=1")).toBe(false);
     expect(webOnboardingStartRequested("?utm_source=poster")).toBe(false);
+  });
+});
+
+describe("the planner handoff", () => {
+  it("round-trips a patch and a budget", () => {
+    const storage = memoryStorage();
+    writePlannerHandoff({ patch: { lat: 51.5136, lng: -0.1365 }, budget: "five" }, storage, 1000);
+    expect(readPlannerHandoff(storage, 2000)).toEqual({
+      patch: { lat: 51.5136, lng: -0.1365 },
+      budget: "five",
+    });
+  });
+
+  it("drops a handoff the planner never opened for", () => {
+    const storage = memoryStorage();
+    writePlannerHandoff({ patch: null, budget: "six" }, storage, 0);
+    expect(readPlannerHandoff(storage, 11 * 60_000)).toBeNull();
+  });
+
+  it("reads garbage, a bad budget and a bad patch as nothing", () => {
+    expect(readPlannerHandoff(memoryStorage({ "pubmax:onboarding:planner-handoff:v1": "{" }))).toBeNull();
+    const storage = memoryStorage({
+      "pubmax:onboarding:planner-handoff:v1": JSON.stringify({ patch: { lat: "x", lng: 1 }, budget: "ten", at: 5 }),
+    });
+    expect(readPlannerHandoff(storage, 6)).toEqual({ patch: null, budget: null });
+  });
+
+  it("clears once read", () => {
+    const storage = memoryStorage();
+    writePlannerHandoff({ patch: null, budget: "any" }, storage, 1);
+    clearPlannerHandoff(storage);
+    expect(readPlannerHandoff(storage, 2)).toBeNull();
+  });
+});
+
+describe("the desktop handoff", () => {
+  it("turns the budget into the pint cap and the patch into the camera", () => {
+    expect(desktopHandoffMoves({ patch: { lat: 51.5136, lng: -0.1365 }, budget: "five" })).toEqual({
+      maxPrice: 5,
+      center: [-0.1365, 51.5136],
+    });
+  });
+
+  it("moves nothing the journey did not give", () => {
+    expect(desktopHandoffMoves({ patch: null, budget: "any" })).toEqual({ maxPrice: null, center: null });
+    expect(desktopHandoffMoves({ patch: null, budget: null })).toEqual({ maxPrice: null, center: null });
   });
 });

@@ -764,6 +764,49 @@ export function planComposerVenueIndexPath(cityId?: CityId | null): string {
   return CITIES[cityId ?? DEFAULT_CITY_ID].slimVenuesPath;
 }
 
+export const PLAN_START_TIME_HINT = "Choose a valid future start time.";
+
+/**
+ * The line under "Lock it in" while the button cannot be used yet. The button
+ * stays tappable (aria-disabled) so the tap itself explains and moves focus;
+ * this line says the same thing before the tap. Null once nothing is missing,
+ * and while a request is in flight the button's own label carries the state.
+ */
+export function planLockHint({
+  validation,
+  busy,
+  distinctStops,
+  stopCountError,
+  routeStale,
+  startTimeIsValid,
+}: {
+  validation: { message: string; focus: "name" | null } | null;
+  busy: boolean;
+  distinctStops: boolean;
+  stopCountError: string | null;
+  routeStale: boolean;
+  startTimeIsValid: boolean;
+}): string | null {
+  if (busy) return null;
+  if (validation) return validation.message;
+  if (!distinctStops) return PLAN_DISTINCT_STOPS_ERROR;
+  if (stopCountError) return stopCountError;
+  if (routeStale) return "Refresh the route before locking it in.";
+  if (!startTimeIsValid) return PLAN_START_TIME_HINT;
+  return null;
+}
+
+export const PLAN_DISTINCT_STOPS_ERROR = "Choose distinct venues for every stop.";
+
+/** A generated plan locks only with the stop count it was generated for. */
+export function planStopCountLockError(
+  requiredStopCount: unknown,
+  completeStopCount: number,
+): string | null {
+  if (completeStopCount === normalizePlanStopCount(requiredStopCount)) return null;
+  return `A generated ${planOutingNoun(requiredStopCount)} needs exactly ${planStopCountPhrase(requiredStopCount)} we can stand behind before you lock it in.`;
+}
+
 export function planLockValidationError({
   title,
   creatorName,
@@ -1394,6 +1437,10 @@ function PlanComposerForm({
     singleStopVenueId: completeStops.length === 1 ? completeStops[0]?.venueId : null,
     planAnchor,
   });
+  const distinctStops = new Set(completeStopIds).size === completeStopIds.length;
+  const stopCountError = nightContext && !matchingAnchorOnlyPlan
+    ? planStopCountLockError(nightContext.stopCount, completeStops.length)
+    : null;
   const canLockPlan =
     composerVisible &&
     !submitting &&
@@ -1401,12 +1448,21 @@ function PlanComposerForm({
     !routeStale &&
     lockValidation === null &&
     startTimeIsValid &&
-    new Set(completeStopIds).size === completeStopIds.length &&
-    (
-      !nightContext
-      || matchingAnchorOnlyPlan
-      || completeStops.length === normalizePlanStopCount(nightContext.stopCount)
-    );
+    distinctStops &&
+    stopCountError === null;
+
+  const lockHint = planLockHint({
+    validation: lockValidation,
+    busy: submitting || sorting,
+    distinctStops,
+    stopCountError,
+    routeStale,
+    startTimeIsValid,
+  });
+  // A button that is only waiting on the form stays tappable: the tap runs
+  // submit(), which names what is missing and moves focus to it. Only a request
+  // in flight really disables it.
+  const lockBusy = submitting || sorting;
 
   // The venue index behind the Stop name field's datalist. It is only ever read
   // by the composer's own stop rows (the datalist, the typed-name match in
@@ -1866,16 +1922,12 @@ function PlanComposerForm({
       if (validationError.focus === "name") nameInputRef.current?.focus();
       return;
     }
-    if (new Set(completeStops.map((stop) => stop.venueId)).size !== completeStops.length) {
-      setError("Choose distinct venues for every stop.");
+    if (!distinctStops) {
+      setError(PLAN_DISTINCT_STOPS_ERROR);
       return;
     }
-    if (
-      nightContext
-      && !matchingAnchorOnlyPlan
-      && completeStops.length !== normalizePlanStopCount(nightContext.stopCount)
-    ) {
-      setError(`A generated ${planOutingNoun(nightContext.stopCount)} needs exactly ${planStopCountPhrase(nightContext.stopCount)} we can stand behind before you lock it in.`);
+    if (stopCountError) {
+      setError(stopCountError);
       return;
     }
     if (routeStale) {
@@ -2219,7 +2271,7 @@ function PlanComposerForm({
       </div>
       <div className="planComposer__field">
         <label htmlFor="plan-time">{nightContext && !planUsesPintPrices(nightContext) ? "First stop" : "First pint"}</label>
-        <input id="plan-time" type="datetime-local" required value={startTime} onChange={(event) => updatePlanStartTime(event.target.value)} />
+        <input id="plan-time" type="datetime-local" required aria-invalid={lockHint === PLAN_START_TIME_HINT ? true : undefined} aria-describedby={lockHint === PLAN_START_TIME_HINT ? "plan-lock-hint" : undefined} value={startTime} onChange={(event) => updatePlanStartTime(event.target.value)} />
       </div>
 
       <fieldset className="planComposer__stops">
@@ -2299,7 +2351,14 @@ function PlanComposerForm({
           action stands down while it is up, on the same terms as the consent
           card (components/nav/createFab.css). */}
       <div className="planComposer__lock">
-        <button className="planComposer__submit" type="submit" disabled={!canLockPlan}>{submitting ? "Locking it in…" : "Lock it in"}</button>
+        <button
+          className="planComposer__submit"
+          type="submit"
+          disabled={lockBusy}
+          aria-disabled={!lockBusy && !canLockPlan ? true : undefined}
+          aria-describedby={lockHint ? "plan-lock-hint" : undefined}
+        >{submitting ? "Locking it in…" : "Lock it in"}</button>
+        {lockHint ? <p id="plan-lock-hint" className="planComposer__lockHint">{lockHint}</p> : null}
         <p className="planComposer__trust">Anyone with the link can see the plan. Joining only asks for a name.</p>
       </div>
         </>

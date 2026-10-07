@@ -873,6 +873,8 @@
   .mobilePlannerIntentInput small { color: var(--color-text-muted); }
   .mobilePlannerIntentGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .mobilePlannerIntentGrid label { min-width: 0; }
+  /* The area name is the longest value in the form ("Piccadilly & Soho"). In half a row it clipped to "Piccadilly & So". */
+  .mobilePlannerIntentGrid label:first-child { grid-column: 1 / -1; }
   .mobilePlannerIntentGrid input,
   .mobilePlannerIntentGrid select { width: 100%; box-sizing: border-box; }
   .mobilePlannerIntentGrid input, .mobilePlannerIntentGrid select { min-width: 0; min-height: 44px; padding: 0 10px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface-raised); color: var(--color-text); font: inherit; }
@@ -954,6 +956,8 @@
   .mobileTflGroups li:first-child { border-top: 0; }
   .mobileTflGroups p { margin: 0; color: var(--color-text-soft); }
   .mobileTflGroups span { color: var(--color-text-muted); font-size: var(--text-xs); }
+  .mobileTflGroups .mobileTflSource { min-height: 44px; display: inline-flex; align-items: center; justify-self: start; color: var(--color-accent-ink); font-size: var(--text-xs); text-decoration: none; }
+  .mobileTflGroups .mobileTflSource:hover { text-decoration: underline; }
   .mobileSheetEmpty, .mobileSheetSkeleton { min-height: 180px; display: grid; place-items: center; align-content: center; gap: 8px; text-align: center; }
   .mobileSheetEmpty p { margin: 0; color: var(--color-text-soft); }
 
