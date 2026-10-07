@@ -53,6 +53,7 @@ import {
   venueBundlePrices,
   venuePriceLane,
   venuePriceFallbackPending,
+  PRICE_PENDING_LINE,
   venueSourcedPrice,
 } from "@/lib/venuePriceLane";
 import { dropLaneInput, splitLaneInput } from "@/lib/pintTrust";
@@ -1412,8 +1413,7 @@ export default function PubMap({
   );
   // A restored /map?sel=venue-uk-* arrival: the base pub's id, plus the `at=`
   // location hint the selecting tap wrote alongside sel when the link has one.
-  // The selection comes from the URL, the saved mobile session or the resume
-  // seed, and the session keeps the id alone, so the hint is optional:
+  // The selection comes from the URL or a resume seed. The hint is optional:
   // without it the cold restore asks /api/uk-base/[id] and an id nothing knows
   // ends in the unknown-pub notice rather than a skeleton.
   const [ukBaseRestore] = useState(() =>
@@ -3080,9 +3080,12 @@ export default function PubMap({
     [filteredVenues],
   );
 
-  const pinVenues = useMemo(() => {
-    const pinFilters = mapPinFilters(effectiveMapFilters, mapSearchFieldFocused || mapOverlay === "search");
-    if (pinFilters === effectiveMapFilters) return filteredVenues;
+  const pinFilterKey = JSON.stringify(mapPinFilters(effectiveMapFilters, true));
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the key includes every non-query filter
+  const pinFilters = useMemo(() => mapPinFilters(effectiveMapFilters, true), [pinFilterKey]);
+  const mapSearchActive = mapSearchFieldFocused || mapOverlay === "search";
+  const searchPinVenues = useMemo(() => {
+    if (!mapSearchActive) return null;
     const candidates = filterMapVenues(
       venues,
       pinFilters,
@@ -3090,7 +3093,8 @@ export default function PubMap({
       (id) => openNowStateById?.get(id) ?? "unknown",
     );
     return savedOnly ? candidates.filter((venue) => savedIds.has(venue.id)) : candidates;
-  }, [effectiveMapFilters, filteredVenues, mapOverlay, mapSearchFieldFocused, openNowStateById, savedIds, savedOnly, venues, venueSignals]);
+  }, [mapSearchActive, openNowStateById, pinFilters, savedIds, savedOnly, venues, venueSignals]);
+  const pinVenues = searchPinVenues ?? filteredVenues;
 
   const nearbyMapResultForView = useMemo(() => {
     if (!nearbyMapResult) return null;
@@ -5827,7 +5831,7 @@ export default function PubMap({
     return (
       <div className="mobileVenuePeekSummary" aria-label={selectedVenueLabels.summaryLabel}>
         {pricePending ? (
-          <span role="status">Checking prices…</span>
+          <span role="status">{PRICE_PENDING_LINE}</span>
         ) : activeLensPrices !== null ? (
           <span>
             {selectedLensPrice ? (
