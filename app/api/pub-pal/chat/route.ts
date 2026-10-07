@@ -139,10 +139,27 @@ export async function POST(request: Request): Promise<Response> {
   // tools as /api/ask, and they never call OpenRouter.
   if (!palVoiceConfigured()) {
     try {
+      const turns = normaliseTurns(record.turns);
+      const greeting = /^(?:hi|hello|hey)[.!?\s]*$/i.test(query);
+      const thanks = /^(?:thanks|thank you|cheers)[.!?\s]*$/i.test(query);
+      if (greeting || thanks) {
+        return jsonNoStore({
+          answer: thanks
+            ? "You're welcome."
+            : turns.some((turn) => turn.role === "assistant")
+              ? "Hey."
+              : "Hi. What kind of night are you planning?",
+          cards: [],
+          proposals: [],
+          sources: [],
+          status: "ready",
+          toolsUsed: [],
+        });
+      }
       const answer = await runAsk({
         query,
         cityId: record.cityId,
-        turns: normaliseTurns(record.turns),
+        turns,
         skipModel: true,
         traceRoute: "api/pub-pal/chat",
       });
