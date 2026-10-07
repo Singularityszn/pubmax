@@ -1,12 +1,12 @@
 import { formatGbp } from "@/lib/formatGbp";
 import { haversineKm } from "@/lib/haversine";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
-import { mapVenueListCheapest } from "@/lib/mapVenueList";
+import { mapVenueListCheapest, mapVenueListLensPriceLabel } from "@/lib/mapVenueList";
 import type { Venue } from "@/lib/venues";
 import { walkMinutesFromKm } from "@/lib/walkMinutes";
 
-// The phone map's resting answer: the cheapest listed price among the pubs the
-// reader can see, one line under the map. A pure leaf so the peek card, its
+// The phone map's resting answer: the cheapest listed price among the venues
+// the reader can see, one line under the map. A pure leaf so the peek card, its
 // tests and List view's first row all read the same ranking
 // (lib/mapVenueList.ts, mapVenueListCheapest).
 
@@ -17,6 +17,9 @@ type MapPeekAnswer = {
   venueId: string;
   name: string;
   priceGbp: number;
+  /** The figure as List view's row prints it: "£X" for the pint default, and
+   *  "<category> · £X" under a drink lens, so a cocktail answer never reads as
+   *  a pint. */
   priceLabel: string;
   /** Whole walking minutes from the reader's own fix, or null without one. */
   walkMinutes: number | null;
@@ -24,7 +27,7 @@ type MapPeekAnswer = {
 
 /**
  * Loading: the map has not yet said what is in view, so no claim is made.
- * None: it has, and no pub in view carries a price. Both keep the card's
+ * None: it has, and nothing in view carries a price. Both keep the card's
  * footprint, because a card that appears late moves every control above it.
  */
 export type MapPeekModel =
@@ -35,7 +38,7 @@ export type MapPeekModel =
 export function buildMapPeek(input: {
   /** The visible-venue projection has landed for this city. */
   ready: boolean;
-  /** The kind-filtered pubs inside the settled view. */
+  /** The kind-filtered venues inside the settled view. */
   venues: readonly Venue[];
   /** Active drink lens prices, or null for the pint default. */
   lensPrices?: ReadonlyMap<string, MapLensPrice> | null;
@@ -51,6 +54,7 @@ export function buildMapPeek(input: {
   );
   if (!cheapest) return { status: "none" };
   const { venue, priceGbp } = cheapest;
+  const lensPrice = input.lensPrices?.get(venue.id) ?? null;
   let walkMinutes: number | null = null;
   const reader = input.reader;
   if (reader && Number.isFinite(reader.lat) && Number.isFinite(reader.lng)) {
@@ -65,7 +69,7 @@ export function buildMapPeek(input: {
       venueId: venue.id,
       name: venue.name,
       priceGbp,
-      priceLabel: formatGbp(priceGbp),
+      priceLabel: lensPrice ? mapVenueListLensPriceLabel(lensPrice) : formatGbp(priceGbp),
       walkMinutes,
     },
   };

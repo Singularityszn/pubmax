@@ -108,12 +108,13 @@ export function buildFiltersChip(input: {
 /**
  * A tube line the reader should hear about before they set out: the words
  * TfL uses when a line is not simply running slowly. Minor delays and PLANNED
- * closures (the overnight and weekend works every line has) are in the sheet,
- * not on the map.
+ * closures (the overnight and weekend works every line has) and "Service
+ * Closed" (every line that has finished for the night) are in the sheet, not on
+ * the map.
  */
 export function isUrgentTubeStatus(status: string | undefined): boolean {
   const text = status?.toLowerCase() ?? "";
-  if (text.includes("planned")) return false;
+  if (text.includes("planned") || text.includes("service closed")) return false;
   return (
     text.includes("severe") ||
     text.includes("suspended") ||

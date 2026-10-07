@@ -143,6 +143,17 @@ for (const reducedMotion of ["reduce", "no-preference"] as const) {
     const from = { x: box.x + box.width / 2, y: box.y + 22 };
     await touchDrag(cdp, from, { x: from.x, y: from.y - 120 });
     await expect(page.locator(".mapVenueList--open")).toBeVisible({ timeout: 10_000 });
+    // Closing the list finds the card home, not parked where the finger left
+    // it, and the Create action back and tappable.
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".mapVenueList--open")).toHaveCount(0);
+    const card = page.locator(".mapPeek");
+    await expect(card).toBeVisible();
+    await expect(card).not.toHaveAttribute("data-dragging", "true");
+    expect(Math.abs((await cardBox(page)).y - box.y)).toBeLessThan(1);
+    const fab = page.locator(".createFabRoot");
+    await expect(fab).toHaveCSS("opacity", "1", { timeout: 5_000 });
+    await expect(fab).not.toHaveCSS("pointer-events", "none");
   });
 
   test(`a short pull follows the finger and springs back without opening anything (${reducedMotion})`, async ({
@@ -228,9 +239,9 @@ test("a tap on the door still plans, and a drag that starts on it does not", asy
   await expect(page.locator(".mobilePlannerSheet, .planComposer")).toHaveCount(0);
 });
 
-test("the credit moved into More map controls, under the Key", async ({ page }) => {
+test("the credit is a control on the map and copy under the Key", async ({ page }) => {
   await openMap(page);
-  await expect(page.locator(".maplibregl-ctrl-attrib-button")).toBeHidden();
+  await expect(page.locator(".maplibregl-ctrl-attrib-button")).toBeVisible();
   await page.locator(".mobileMapTopbar").getByRole("button", { name: "More map controls" }).click();
   const credits = page.locator(".mobileMapCredits");
   await expect(credits).toBeVisible({ timeout: 20_000 });

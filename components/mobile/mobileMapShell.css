@@ -116,16 +116,91 @@
     display: none;
   }
 
-  /* THE CREDIT LEAVES THE PHONE MAP'S RESTING LAYERS. MapLibre's compact (i)
-     was a fourth floating control in the bottom band, above the plan door, and
-     the map rests on three layers (the bar, the chip row, the bottom card).
-     The licence text is not removed: it is the first thing in More map
-     controls > Key (components/PubMap.tsx, MapCredits), the same copy the
-     control carried (OSM_ATTRIBUTION), and the control stays mounted so every
-     style swap and city keeps its customAttribution. From 641px the desktop
-     map still draws it where it always did. */
   .appShell .mapStage .maplibregl-ctrl-bottom-right {
-    display: none;
+    /* MapLibre's compact info control is a map control like Near me, not a
+       resting band: one 44px circle on the LEFT edge, one gap above the plan
+       member's top edge, which is the bottom card's top while the card is up.
+       The right edge is the map-edge column's berth (--map-corner-bottom), and
+       the Near me FAB painted over the credit and took every tap meant for the
+       OpenStreetMap licence. Opening the full credit grows up from this same
+       berth, so licence text never paints through the card beneath it. The
+       same copy is also the first thing under the Key in More map controls. */
+    left: var(--mobile-map-stack-left);
+    right: auto;
+    bottom: calc(var(--float-stack-top-plan) + 10px);
+  }
+
+  .appShell .mapStage .maplibregl-ctrl-bottom-right .maplibregl-ctrl {
+    float: left;
+    margin: 10px 0;
+  }
+
+  /* A Place story chip stands the plan action down and takes the band above
+     it, so the credit steps down into the plan action's own berth under the
+     chip rather than hide behind it. Ordered before the consent rule at equal
+     specificity, so the consent card's lifted berth still wins. */
+  body:has(.bandOnboardingChip) .appShell .mapStage .maplibregl-ctrl-bottom-right {
+    bottom: var(--mobile-map-dock-clearance);
+  }
+
+  body:has(.analyticsConsentPrompt) .appShell .mapStage .maplibregl-ctrl-bottom-right {
+    /* The expandable OSM credit keeps its own berth over the disclosure docked
+       on the tab bar, and steps up only when larger text grows the card past it.
+       e2e/ui-consistency-layout.spec.ts owns the rendered collision proof. */
+    bottom: max(
+      calc(var(--mobile-map-dock-clearance) + 68px),
+      calc(var(--mobile-map-dock-clearance) + var(--analytics-consent-reserve, var(--analytics-consent-mobile-clearance, 56px)))
+    );
+  }
+
+  .appShell .mapStage .maplibregl-ctrl-attrib.maplibregl-compact {
+    box-sizing: border-box;
+    max-width: calc(100vw - 24px);
+  }
+
+  .appShell .mapStage .maplibregl-ctrl-attrib-inner {
+    max-width: 100%;
+    overflow-wrap: normal;
+    text-overflow: clip;
+    white-space: normal;
+  }
+
+  /* COLLAPSED, the credit is one control and it takes this lane's own shape:
+     a 44px circle on the raised surface, exactly like the compass below it.
+     MapLibre ships it as a 24x20 white sliver, so a button raised to the tap
+     floor overflowed its own container and read as a white blob. */
+  .appShell .mapStage
+    .maplibregl-ctrl-attrib.maplibregl-compact:not(.maplibregl-compact-show) {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    border: 1px solid var(--ink-soft);
+    border-radius: 50%;
+    background: var(--color-surface-raised);
+    box-shadow: var(--map-overlay-shadow-tight);
+  }
+
+  .appShell .mapStage .maplibregl-ctrl-attrib-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    box-sizing: border-box;
+    /* The glyph is a 24px background SVG and MapLibre never constrains its
+       repeat, because its own button is 24px too. Raising the button to the
+       44px tap floor therefore TILED it 2 x 2, and four stacked info glyphs on
+       a white blob read as a rendering defect rather than a control. */
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 24px 24px;
+    background-color: transparent;
+    border-radius: 50%;
   }
 
   /* Portal sheets sit outside .appShell. Hide map-owned controls while one is
@@ -355,8 +430,8 @@
   .mobileMapTonightLensText small { font-size: .8125rem; color: var(--color-text-muted); }
   .mobileMapTonightLensChevron { flex: 0 0 auto; color: var(--color-text-muted); }
 
-  /* The licence line that used to ride the map as a floating (i). It is body
-     copy in the Key tab, selectable and linked, never an icon-only control. */
+  /* The licence line in the Key tab, beside the map's own (i): body copy,
+     selectable and linked, never an icon-only control. */
   .mobileMapCredits {
     display: grid;
     gap: 6px;

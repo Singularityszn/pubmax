@@ -166,13 +166,15 @@ export default function MapPeekSheet({
       const velocity = paused ? 0 : drag.velocity;
       if (!cancelled && peekShouldOpenList(upward, velocity)) {
         // The list takes the surface; the card stands down behind it. Settling
-        // first would draw the card dropping back under a list rising over it.
+        // first would draw the card dropping back under a list rising over it,
+        // so it goes home in the same commit that covers it.
+        jumpTo(0);
         onOpenList();
         return;
       }
       animateTo(0, { velocity: -velocity * 1000, dampingRatio: 1 });
     },
-    [animateTo, onOpenList],
+    [animateTo, jumpTo, onOpenList],
   );
 
   // A drag that began on a button must not end as that button's click.
