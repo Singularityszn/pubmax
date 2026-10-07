@@ -757,22 +757,42 @@
     min-width: 0;
     line-height: 1.25rem;
   }
+  /* The line is one row inside the 44px answer row. The figure never shrinks
+     or clips; an anchor's label and provenance give way first, then the name,
+     each with an ellipsis, and the name always keeps room to be read. */
   .mapPeekPrice {
-    flex: 0 0 auto;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    flex: 0 8 auto;
     font-family: var(--font-data);
     font-size: 1rem;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .mapPeekPrice > span { display: flex; align-items: baseline; }
+  .mapPeekPrice .compactVenuePriceAnchor,
+  .mapPeekProvenance {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .mapPeekPrice .compactVenuePriceAnchor {
+    font-family: var(--font-body);
+    font-size: .875rem;
+    font-weight: 600;
+    white-space: pre;
   }
   .mapPeekProvenance {
-    margin-left: 6px;
     font-family: var(--font-body);
     font-size: .75rem;
     font-weight: 500;
     color: var(--color-text-muted);
   }
   .mapPeekName {
-    min-width: 0;
+    flex: 0 1 auto;
+    min-width: 3em;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

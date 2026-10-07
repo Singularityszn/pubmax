@@ -32,7 +32,8 @@ export default function CompactVenuePrice({
   return (
     <span className={className}>
       <span>
-        {anchor.label} · <Figure label={priceLabel} band={band} />
+        <span className="compactVenuePriceAnchor">{anchor.label} · </span>
+        <Figure label={priceLabel} band={band} />
       </span>
       <small className={provenanceClassName}>
         {anchor.observedLabel} · {anchor.sourceLabel}
