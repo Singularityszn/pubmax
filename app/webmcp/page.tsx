@@ -11,7 +11,7 @@ import "./webmcp.css";
 // follow for its own reason (captain decision 2026-08-15).
 export const metadata: Metadata = {
   title: "Agent Night Board · PUBMAXX",
-  description: "Build one grounded London Crawl Route with a person and a browser agent.",
+  description: "Plan one London pub crawl from checked prices, with a person and a browser agent.",
   alternates: { canonical: "/webmcp" },
   robots: {
     index: false,
