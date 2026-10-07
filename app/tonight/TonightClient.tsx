@@ -446,8 +446,9 @@ export default function TonightClient({
         outEvents,
         whatsOnChecked: checked,
         outObservedAt: outBody?.observedAt,
+        pubSuggestionCount: hypedPubs?.length ?? 0,
       }),
-    [grouped, outEvents, outBody, checked],
+    [grouped, outEvents, outBody, checked, hypedPubs?.length],
   );
   // A lane that could not answer is named beside the cards, not only in place
   // of them: a degraded Out answer still carrying Ticketmaster rows makes the
@@ -567,7 +568,7 @@ export default function TonightClient({
         state={listingsState}
         note={listingsNote}
         noteOffersRetry={noteOffersRetry}
-        emptyLead={tonightEmptyLead(status, outAnswer)}
+        emptyLead={tonightEmptyLead(status, outAnswer, hypedPubs?.length ?? 0)}
         heldRowCount={primaryListingRows.length}
         context={picksContext}
         onRetry={retryListings}
@@ -968,9 +969,9 @@ export default function TonightClient({
       ) : null}
 
       {thinNight ? (
-        <section className="tonightQuiet" aria-label="While it's quiet">
+        <section className="tonightQuiet" aria-label="More ways to plan tonight">
           <p className="tonightQuietLede">
-            Quiet one tonight. Still worth a look:
+            More ways to plan tonight:
           </p>
           <ul className="tonightQuietList">
             {QUIET_ALTERNATIVES.map((alt) => {

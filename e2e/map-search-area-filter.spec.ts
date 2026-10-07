@@ -28,6 +28,10 @@ test("area picks clear the text filter before priced pins paint", async ({ page 
     }),
   );
 
+  await page.route("**/api/area-news?**", (route) =>
+    route.fulfill({ status: 503, contentType: "application/json", body: "{}" }),
+  );
+
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
   await expect(page.locator(".mapCanvasWrap")).toBeVisible({ timeout: 45_000 });
@@ -74,4 +78,5 @@ test("area picks clear the text filter before priced pins paint", async ({ page 
   // The curated venue collection is the priced pin lane; a non-zero settled
   // collection plus a painted mark proves the Whitechapel pins returned.
   await expect(page.locator(".mapSoftRetry")).toHaveCount(0);
+  await expect(page.getByText("Area updates are unavailable right now.", { exact: true })).toBeHidden();
 });

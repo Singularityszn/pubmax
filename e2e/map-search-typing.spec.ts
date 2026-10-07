@@ -67,6 +67,9 @@ test("typing a whole pub name keeps the field and leaves the camera still", asyn
   await expect.poll(() => readCamera(page), { timeout: 20_000 }).not.toBeNull();
   const before = await readCamera(page);
   expect(before).not.toBeNull();
+  const canvas = page.locator(".mapCanvasWrap");
+  const pinCountBefore = Number(await canvas.getAttribute("data-venue-count"));
+  expect(pinCountBefore).toBeGreaterThan(0);
 
   for (const character of PUB_NAME) {
     await field.press(character === " " ? "Space" : character, { delay: 20 });
@@ -74,6 +77,8 @@ test("typing a whole pub name keeps the field and leaves the camera still", asyn
     // The field survives every keystroke, caret included.
     await expect(field).toBeVisible();
     await expect(field).toBeFocused();
+    expect(Number(await canvas.getAttribute("data-venue-count")))
+      .toBeGreaterThanOrEqual(pinCountBefore);
   }
 
   // Every character the reader typed is still in the field.
