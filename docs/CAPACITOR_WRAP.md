@@ -237,8 +237,8 @@ in `@capacitor/cli`):
   forwards `willConnectTo`, `openURLContexts` and `continue userActivity` to
   Capacitor's `SceneDelegateProxy`. A cold-start `pubmaxx://` link or universal
   link is queued by the proxy until the bridge view has appeared. The
-  storyboard already builds the window, so the delegate builds one only when
-  `window` is `nil`, and the bridge is never created twice.
+  storyboard `Main` builds the window and its bridge, so the delegate never
+  builds one by hand.
 - `AppDelegate.swift` hands each scene its delegate class
   (`configurationForConnecting`) and keeps the APNs token forwarding. Its
   `application(_:open:options:)` and `application(_:continue:restorationHandler:)`

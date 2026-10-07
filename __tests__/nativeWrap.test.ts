@@ -249,8 +249,6 @@ describe("Capacitor wrapped-build contract", () => {
     expect(scene).toContain("SceneDelegateProxy.shared.scene(scene, openURLContexts: URLContexts)");
     expect(scene).toContain("continue userActivity: NSUserActivity");
     expect(scene).toContain("SceneDelegateProxy.shared.scene(scene, continue: userActivity)");
-    // Never build a second bridge beside the one the storyboard made.
-    expect(scene).toContain("if window == nil");
 
     const project = rootFile("ios/App/App.xcodeproj/project.pbxproj");
     expect(project).toContain("SceneDelegate.swift in Sources");
