@@ -41,9 +41,11 @@
 // lib/entryDecision.ts's `decideEntry` are decidable from storage alone:
 //
 //   - rule 4, `shell-cold-start`: the first-run mark is present, so this is an
-//     ordinary later launch and it lands on /tonight.
+//     ordinary later launch and it lands on /tonight. The mark is the done mark,
+//     or an earlier release's routed mark beside a tour mark.
 //   - rule 2, `native-first-run`: the first-run mark is absent, and EITHER an
-//     unfinished step is stored OR no city value is stored. An unfinished
+//     unfinished step is stored, an earlier release's routed mark stands alone,
+//     OR no city value is stored. An unfinished
 //     journey resumes whatever city it stored. With no stored city value at
 //     all, `readPreferredCity()` answers null under every possible
 //     enabled-city table in lib/cities.ts. So this reads the ABSENCE of the
