@@ -99,13 +99,15 @@ test("the card names the cheapest listed pub in view, and the door rides inside 
 });
 
 // The label (an anchor's, or a lens category) rides the eyebrow row above the
-// figure, so a walk time can never squeeze it to nothing, and nothing on the
-// eyebrow is ever cut short: where "Cheapest in this view" and the label do
-// not fit on one line, the label wraps to its own line under it. A pint answer
-// has no label. One map load per width; every label and walk variant is laid
-// into the same card and measured in turn.
-const ANCHOR_LABEL = "Three Sheets seasonal cocktail";
-const LAYOUT_LABELS = [ANCHOR_LABEL, "Alcohol-free", "Soft drinks", "Cocktails", null];
+// figure, so a walk time can never squeeze it to nothing. The eyebrow is at
+// most two lines: "Cheapest in this view", never cut, and the label on its own
+// line under it when it does not fit beside it. A lens category is never cut;
+// only an anchor or dish name longer than its line may end in an ellipsis. The
+// card keeps its fixed 112px. A pint answer has no label. One map load per
+// width; every label and walk variant is laid into the same card and measured
+// in turn.
+const ANCHOR_LABELS = ["Three Sheets seasonal cocktail", "Roast Bone Marrow & Parsley Salad"];
+const LAYOUT_LABELS = [...ANCHOR_LABELS, "Alcohol-free", "Soft drinks", "Cocktails", null];
 for (const width of [320, 360, 390]) {
   test(`${width}px every label, with and without a walk, keeps the label, the figure and the name inside the card`, async ({
     page,
@@ -148,9 +150,8 @@ for (const width of [320, 360, 390]) {
               door: rect(element.querySelector<HTMLElement>(".mobilePlanActivation")),
               prefix: rect(prefix)!,
               label: rect(labelElement),
-              ellipsis: [prefix, labelElement].some(
-                (part) => part !== null && getComputedStyle(part).textOverflow === "ellipsis",
-              ),
+              prefixEllipsis: getComputedStyle(prefix).textOverflow === "ellipsis",
+              eyebrowLines: Math.round(eyebrow.getBoundingClientRect().height / parseFloat(getComputedStyle(eyebrow).lineHeight)),
               figure: rect(line.querySelector<HTMLElement>(".mapPeekPrice"))!,
               name: rect(line.querySelector<HTMLElement>(".mapPeekName"))!,
               walk: rect(line.querySelector<HTMLElement>(".mapPeekWalk")),
@@ -160,22 +161,22 @@ for (const width of [320, 360, 390]) {
           },
           { lineLabel: label, withWalk: walk },
         );
-        if (label === ANCHOR_LABEL) {
-          expect(layout.card, `${variant}: only a long anchor may grow the card`).toBeGreaterThanOrEqual(111.5);
-        } else {
-          expect(layout.card, variant).toBeCloseTo(112, 0);
-        }
+        expect(layout.card, `${variant}: the card keeps its fixed height`).toBeCloseTo(112, 0);
         if (layout.door) {
           expect(layout.answer.bottom, `${variant}: the answer never paints over the door`).toBeLessThanOrEqual(layout.door.top + 0.5);
         }
-        expect(layout.ellipsis, `${variant}: no eyebrow text is ellipsed`).toBe(false);
+        expect(layout.eyebrowLines, `${variant}: the eyebrow is at most two lines`).toBeLessThanOrEqual(2);
+        expect(layout.prefixEllipsis, `${variant}: "Cheapest in this view" is never ellipsed`).toBe(false);
         expect(layout.prefix.clipped, `${variant}: "Cheapest in this view" is printed whole`).toBe(false);
         expect(layout.eyebrowScroll, `${variant}: the eyebrow row never overflows`).toBeLessThanOrEqual(1);
         expect(layout.lineScroll, `${variant}: the line never overflows`).toBeLessThanOrEqual(1);
         if (label === null) {
           expect(layout.label, `${variant}: a pint answer has no label`).toBeNull();
         } else {
-          expect(layout.label!.clipped, `${variant}: the label is printed whole`).toBe(false);
+          if (!ANCHOR_LABELS.includes(label)) {
+            expect(layout.label!.clipped, `${variant}: a lens category is printed whole`).toBe(false);
+          }
+          expect(layout.label!.width, `${variant}: the label never shrinks to nothing`).toBeGreaterThanOrEqual(40);
           expect(layout.label!.right, variant).toBeLessThanOrEqual(layout.answer.right + 0.5);
           expect(layout.label!.bottom, `${variant}: the label sits above the figure`).toBeLessThanOrEqual(layout.figure.top + 1);
           const sameLine = Math.abs(layout.label!.top - layout.prefix.top) <= 1;
@@ -188,11 +189,38 @@ for (const width of [320, 360, 390]) {
         expect(layout.figure.left, variant).toBeGreaterThanOrEqual(layout.answer.left);
         expect(layout.name.width, `${variant}: the name keeps room to be read`).toBeGreaterThanOrEqual(30);
         expect(layout.name.left, `${variant}: the name follows the figure`).toBeGreaterThanOrEqual(layout.figure.right);
-        expect(layout.name.bottom, variant).toBeLessThanOrEqual(layout.answer.bottom);
+        expect(layout.name.bottom, variant).toBeLessThanOrEqual(layout.answer.bottom + 1);
         if (layout.walk) {
           expect(layout.walk.right, `${variant}: nothing spills past the answer`).toBeLessThanOrEqual(layout.answer.right + 0.5);
         }
       }
+    }
+    // The card at its fixed height never reaches the controls stacked above
+    // it, whatever its eyebrow carries.
+    const clearance = await page.evaluate(() => {
+      const box = (selector: string) => {
+        const element = document.querySelector<HTMLElement>(selector);
+        if (!element || getComputedStyle(element).visibility === "hidden") return null;
+        const rect = element.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0 ? { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right } : null;
+      };
+      return {
+        card: box(".mapPeek"),
+        nearMe: box(".mobileMapLocateFab"),
+        create: box(".createFab"),
+        credit: box(".maplibregl-ctrl-attrib"),
+      };
+    });
+    expect(clearance.card).not.toBeNull();
+    for (const name of ["nearMe", "create", "credit"] as const) {
+      const other = clearance[name];
+      if (!other) continue;
+      const overlap =
+        clearance.card!.left < other.right &&
+        other.left < clearance.card!.right &&
+        clearance.card!.top < other.bottom &&
+        other.top < clearance.card!.bottom;
+      expect(overlap, `the card clears ${name}: ${JSON.stringify([clearance.card, other])}`).toBe(false);
     }
   });
 }

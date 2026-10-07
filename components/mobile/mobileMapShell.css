@@ -666,9 +666,9 @@
     bottom: calc(var(--plan-activation-bottom) - var(--map-peek-frame));
     z-index: var(--z-map-toolbar);
     box-sizing: border-box;
-    min-height: var(--map-peek-h);
+    height: var(--map-peek-h);
     display: grid;
-    grid-template-rows: minmax(var(--map-peek-row-h), auto) auto;
+    grid-template-rows: var(--map-peek-row-h) auto;
     row-gap: 4px;
     align-content: end;
     padding: var(--map-peek-frame);
@@ -745,12 +745,14 @@
   .mapPeekList:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
   /* The eyebrow row also carries what the figure is for (an anchor's label
      or a lens category, whose provenance is in the accessible name), above
-     the figure, so the line below never has to squeeze it out. Neither part
-     is ever cut short: where the two do not fit on one line the label wraps
-     to its own line under "Cheapest in this view". The line heights are set
-     so that two eyebrow lines and the figure line fill the 44px answer row
-     exactly; only an anchor label too long for a line of its own grows the
-     card, upward, rather than paint over the door. */
+     the figure, so the line below never has to squeeze it out. It is at most
+     two lines: "Cheapest in this view", never cut, and where the label does
+     not fit beside it, the label on its own line under it. A lens category
+     always fits that line whole; only an anchor or dish name longer than the
+     line ends in an ellipsis there (its full name is in the accessible name
+     and the venue sheet). The line heights are set so that two eyebrow lines
+     and the figure line fill the 44px answer row exactly, and the card keeps
+     its fixed height. */
   .mapPeekEyebrow {
     display: flex;
     flex-wrap: wrap;
@@ -765,6 +767,9 @@
   .mapPeekEyebrow > span:first-child { white-space: nowrap; }
   .mapPeekLabel {
     min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-weight: 700;
     color: var(--color-text);
   }
