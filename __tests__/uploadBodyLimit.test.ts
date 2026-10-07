@@ -46,7 +46,7 @@ describe("one photo on the wire fits inside the function's own body limit", () =
   it("is the number the platform documents, in the platform's own megabytes", () => {
     expect(FUNCTION_REQUEST_BODY_LIMIT_BYTES).toBe(4_500_000);
     expect(UPLOAD_PHOTO_MAX_BYTES).toBe(4 * 1024 * 1024);
-    expect(UPLOAD_PHOTO_MAX_LABEL).toBe("4 MB");
+    expect(UPLOAD_PHOTO_MAX_LABEL).toBe("4\u00a0MB");
   });
 
   it("answers the fit question at the boundary", () => {

@@ -115,9 +115,9 @@ const MOMENT_PICKER_RESIZE_LINE = `Photos over ${UPLOAD_PHOTO_MAX_LABEL} are res
 
 /**
  * What the composer says under the picker, at each width: one sentence per
- * line, so a figure is never split from its unit at a wrap and the last line
- * is never an orphaned clause. The phone names the sheet; the desk names the
- * types and the other way in.
+ * line, so the last line is never an orphaned clause. The size label keeps
+ * its figure on its unit at a wrap. The phone names the sheet; the desk names
+ * the types and the other way in.
  */
 export function momentPickerHint(isPhone: boolean): readonly string[] {
   return isPhone

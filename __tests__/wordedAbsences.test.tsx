@@ -180,7 +180,7 @@ describe("a photo the platform will refuse is refused here, by size, in the brow
   });
 
   it("prints a figure a reader can act on, not the wrong one", () => {
-    expect(UPLOAD_PHOTO_MAX_LABEL).toBe("4 MB");
+    expect(UPLOAD_PHOTO_MAX_LABEL).toBe("4\u00a0MB");
     for (const file of [
       "components/map/usePintDrops.ts",
       "components/map/VenuePriceSubmit.tsx",

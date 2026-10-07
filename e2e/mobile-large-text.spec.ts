@@ -63,6 +63,45 @@ for (const scale of [1.3, 1.5, 2]) {
   }
 }
 
+for (const scale of [1.3, 1.5, 2]) {
+  test(`Android ${scale}x text keeps day words and the photo size whole`, async ({ page }) => {
+    await page.setViewportSize({ width: 412, height: 840 });
+    await installNativeShell(page, "android");
+    await page.addInitScript((fontScale) => {
+      document.documentElement.style.fontSize = `${fontScale * 100}%`;
+      document.documentElement.setAttribute("data-text-scale", "large");
+    }, scale);
+    await page.goto("/out");
+    await expect(page.locator(".outDayChip")).toHaveCount(3);
+    await page.evaluate(() => document.fonts.ready);
+    const chips = await page.locator(".outDayChip").evaluateAll((elements) => elements.map((element) => {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      const lines = new Set([...range.getClientRects()].map((box) => Math.round(box.top))).size;
+      return { text: element.textContent, lines };
+    }));
+    for (const chip of chips) expect(chip, chip.text ?? "").toMatchObject({ lines: 1 });
+
+    await page.goto("/moment");
+    const hint = page.locator(".momentMediaPickerLine").filter({ hasText: "MB" });
+    await expect(hint).toHaveCount(1);
+    const figure = await hint.evaluate((element) => {
+      const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const match = /\d+(?:\.\d)?\s*MB/.exec(node.textContent ?? "");
+        if (!match) continue;
+        const range = document.createRange();
+        range.setStart(node, match.index);
+        range.setEnd(node, match.index + match[0].length);
+        const lines = new Set([...range.getClientRects()].map((box) => Math.round(box.top))).size;
+        return { text: match[0], lines };
+      }
+      return null;
+    });
+    expect(figure).toEqual({ text: "4\u00a0MB", lines: 1 });
+  });
+}
+
 for (const platform of ["android", "ios"] as const) {
   for (const scale of [1.3, 1.5, 2]) {
     test(`${platform} owner profile reflows at ${scale}x text`, async ({ page }) => {
