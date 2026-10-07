@@ -31,8 +31,8 @@ function readHandle(): string {
 /** With no handle the save lives in this browser only, so the line says so. */
 function savedToast(listType: string, handle: string): string {
   return handle.trim()
-    ? `Saved to “${listType}”`
-    : `Saved to “${listType}” on this device`;
+    ? `Saved to "${listType}"`
+    : `Saved to "${listType}" on this device`;
 }
 
 export default function SaveToListControl({

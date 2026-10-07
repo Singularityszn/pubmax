@@ -65,8 +65,8 @@ export default function VenuePintsTab({
           {hasDemoDrops ? (
             <div className="demoDataNote">
               <span>Demo data</span>
-              Example Pint Drops are seeded for the walkthrough. Live contributions use the same
-              flow.
+              These are example Pint Drops for the walkthrough. Real ones work the same
+              way.
             </div>
           ) : null}
           {composerOpen ? null : (

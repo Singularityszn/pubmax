@@ -57,7 +57,7 @@ export default function RouteHeader({
     <>
       <div className="routeHeader">
         <div>
-          <p className="eyebrow">{mode === "build" ? "Your Plan" : "Suggested Plan"}</p>
+          <p className="eyebrow">{mode === "build" ? "Your plan" : "Suggested plan"}</p>
           <h2>
             {drinkLabel ? crawlName || `${drinkLabel} plan` : mode === "build"
               ? crawlName || "Hand-built plan"

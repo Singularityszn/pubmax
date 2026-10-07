@@ -389,7 +389,7 @@ export default function FirstRunOnboarding({
               <figcaption>
                 {step === "location"
                   ? "Every pint near you, cheapest first."
-                  : "London, with the route home kept in view."}
+                  : "London, and your way home from it."}
               </figcaption>
             </figure>
           )}
@@ -402,7 +402,7 @@ export default function FirstRunOnboarding({
                 <p className="firstRunEyebrow">Your city</p>
                 <h1>London is ready.</h1>
                 <p className="firstRunLead">
-                  Start with checked routes, listed pint prices, and a clear way home.
+                  Start in an area we&rsquo;ve checked, with listed pint prices and a way home.
                 </p>
 
                 <div className="firstRunAreaList" aria-label="Reviewed London route areas">

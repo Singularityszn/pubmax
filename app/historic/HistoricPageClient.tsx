@@ -65,7 +65,7 @@ export default function HistoricPageClient({
         as="section"
         className="historicScreen"
         kicker="Historic pubs"
-        title={<>London&rsquo;s Historic Pubs</>}
+        title={<>London&rsquo;s historic pubs</>}
         titleId="historicHeading"
         lede={
           <>

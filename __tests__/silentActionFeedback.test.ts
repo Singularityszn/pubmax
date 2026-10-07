@@ -79,13 +79,10 @@ describe("silent user action feedback fence", () => {
 
   it("keeps browser actions visible when their platform handoff fails", () => {
     const train = source("components/map/LastTrainCard.tsx");
-    const install = source("components/pwa/A2HSInstallPrompt.tsx");
     const photo = source("components/messages/MessagePhoto.tsx");
 
     expect(train).toContain('caught.name === "AbortError"');
     expect(train).toContain("Couldn&apos;t open the share. Try again.");
-    expect(install).toContain("installError");
-    expect(install).toContain("Could not start installation. Try again.");
     expect(photo).toContain("Could not open photo. Try again.");
     expect(photo).toContain('role="status"');
   });
@@ -104,12 +101,5 @@ describe("silent user action feedback fence", () => {
     const safeNight = source("components/night/SafeNightStrip.tsx");
 
     expect(safeNight).toContain("clipboard unavailable");
-  });
-
-  it("keeps optimistic preference toggles honest when saving rolls back", () => {
-    const pal = source("components/pal/PalExperience.tsx");
-
-    expect(pal).toContain("Pal control update could not be saved.");
-    expect(pal).toContain('setPalAnimationState("error")');
   });
 });

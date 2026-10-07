@@ -43,7 +43,7 @@ export default function LeaderboardTable({
   if (entries.length === 0) {
     return (
       <p className="discoverEmpty" role="status">
-        No priced pints to rank just yet. Check back once the taps report in.
+        No priced pints to rank yet. The table fills in as prices come in.
       </p>
     );
   }

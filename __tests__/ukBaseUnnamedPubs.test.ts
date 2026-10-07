@@ -164,7 +164,7 @@ describe("the unnamed pub's sheet", () => {
     expect(html).toContain("unverifiedPubName");
     expect(html).toContain(">Pub</h2>");
     expect(html).toContain("We don’t know this pub’s name yet.");
-    expect(html).toContain("be the first");
+    expect(html).toContain("Be the first");
   });
 
   it("says nothing of the sort on a named pub", () => {

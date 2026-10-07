@@ -47,7 +47,7 @@ export type TodayWeatherFacts = {
  */
 export function todayAnswer(weather: TodayWeatherFacts | null, stamp: string): LandingAnswer {
   if (!weather) {
-    return { line: "We could not read today's London weather just now.", stamp, measured: false };
+    return { line: "We couldn't read today's London weather just now.", stamp, measured: false };
   }
   return { line: weather.factsLine, stamp, measured: !weather.stale };
 }
@@ -73,7 +73,7 @@ export type TonightListingFacts = {
  */
 export function tonightAnswer(listings: TonightListingFacts, stamp: string): LandingAnswer {
   if (listings.unread) {
-    return { line: "We could not reach tonight's listings just now.", stamp, measured: false };
+    return { line: "We couldn't reach tonight's listings just now.", stamp, measured: false };
   }
   if (listings.count >= 1) {
     const things = listings.count === 1 ? "1 thing" : `${listings.count} things`;

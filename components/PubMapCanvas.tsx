@@ -3124,7 +3124,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
           // No gesture in the words: the same rule the five notices in
           // components/map/canvas/pinRevealCoordinator.ts carry, because this
           // one is read at 1440 with a mouse too.
-          message: "The map lost its graphics. Try again to reload the basemap.",
+          message: "The map lost its graphics. Try again to reload the map.",
         });
       });
     };

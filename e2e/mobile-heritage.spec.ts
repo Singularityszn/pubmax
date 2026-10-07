@@ -14,7 +14,7 @@ test("mobile historic index and detail stay provenance-honest and map-linked", a
   expect(indexResponse?.status()).toBe(200);
 
   await expect(
-    page.getByRole("heading", { name: "London’s Historic Pubs" }),
+    page.getByRole("heading", { name: "London’s historic pubs" }),
   ).toBeVisible();
   await expect(page.getByText(/cited from Wikipedia and Wikidata/i)).toBeVisible();
   await expect(

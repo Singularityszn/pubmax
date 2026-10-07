@@ -54,8 +54,8 @@ describe("Culture Crawl chips", () => {
   it("ships the four step-out labels the mission names", () => {
     expect(CULTURE_CRAWL_CHIPS.map((chip) => chip.label)).toEqual([
       "Gallery then a pint",
-      "Market wander + kebab",
-      "River walk + historic pub",
+      "Market wander then a kebab",
+      "River walk then a historic pub",
       "Sights then a quiet one",
     ]);
   });

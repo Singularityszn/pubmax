@@ -327,7 +327,7 @@ describe("rendering — honest, email-safe", () => {
       renderWeeklyDigestText(digest),
     ]) {
       expect(rendered).toContain(
-        "Source links appear beside prices and events when available.",
+        "We link the source beside a price or event when we have one.",
       );
       expect(rendered).not.toContain(
         "Every price and event names where it came from.",

@@ -71,7 +71,7 @@ export default function CheapPintPingPrompt(): React.JSX.Element | null {
     if (controller.signal.aborted) return;
     if (!token) {
       setError(
-        offlineOrMessage("Could not enable alerts. Try again.")
+        offlineOrMessage("Couldn't turn on alerts. Try again.")
       );
       setPending(false);
       return;
@@ -82,7 +82,7 @@ export default function CheapPintPingPrompt(): React.JSX.Element | null {
     }, { requiresIdentity: true });
     const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
     if (!response.ok) {
-      setError(errorMessageFrom(body, "Could not save that choice. Try again."));
+      setError(errorMessageFrom(body, "Couldn't save that choice. Try again."));
       setPending(false);
       return;
     }
@@ -100,7 +100,7 @@ export default function CheapPintPingPrompt(): React.JSX.Element | null {
     }, { requiresIdentity: true });
     if (!response.ok) {
       const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-      setError(errorMessageFrom(body, "Could not save that choice. Try again."));
+      setError(errorMessageFrom(body, "Couldn't save that choice. Try again."));
       setPending(false);
       return;
     }
@@ -121,7 +121,7 @@ export default function CheapPintPingPrompt(): React.JSX.Element | null {
           Weekday cheap-pint ping?
         </p>
         <p id="cheap-pint-ping-body" className="nativePushPrompt__body">
-          One push at 5pm on a weekday with a listed cheap pint near where your night starts. Ask once. No follow-ups.
+          One push at 5pm on a weekday with a listed cheap pint near where your night starts. We&rsquo;ll only ask once.
         </p>
         {error ? (
           <p className="nativePushPrompt__error" role="status">
@@ -143,7 +143,7 @@ export default function CheapPintPingPrompt(): React.JSX.Element | null {
             onClick={() => void handleEnable()}
             disabled={pending}
           >
-            {pending ? "Saving..." : "Yes, ping me"}
+            {pending ? "Saving…" : "Yes, ping me"}
           </button>
         </div>
       </div>

@@ -691,8 +691,8 @@ export default function MomentCapture(): React.JSX.Element {
             <fieldset className="momentAltText">
               <legend>Describe each photo</legend>
               <p className="momentAltText__hint">
-                Describe the photo for someone who cannot see it. One clear line
-                each. It is what a screen reader reads aloud when you publish.
+                Describe the photo for someone who cannot see it. Write one clear line
+                for each. A screen reader reads it aloud when you publish.
               </p>
               {draft.media.map((item, index) => (
                 <label className="momentAltText__row" key={`alt-${item.id}`}>
@@ -722,7 +722,7 @@ export default function MomentCapture(): React.JSX.Element {
                 onChange={(event) => update({ caption: event.target.value })}
                 maxLength={500}
                 rows={4}
-                placeholder="One line you will still remember next year."
+                placeholder="One line you'll still remember next year."
               />
             </label>
             <div className="momentFieldPair">
@@ -751,7 +751,7 @@ export default function MomentCapture(): React.JSX.Element {
             </button>
           ) : viewerSession.unresolved ? null : (
             <div className="momentSignIn">
-              <p>Sign in when you are ready to keep this Moment across devices.</p>
+              <p>Sign in when you&apos;re ready to keep this Moment across devices.</p>
               <SignInButton />
             </div>
           )}
@@ -776,7 +776,7 @@ export default function MomentCapture(): React.JSX.Element {
         {savedMemoryId ? (
           <section className="momentSaved" aria-labelledby="moment-saved-title">
             <h2 id="moment-saved-title">Saved. Still yours.</h2>
-            <p>Add more Moments, choose which to include, and shape a Story when you are ready.</p>
+            <p>Add more Moments, choose which to include, and shape a Story when you&apos;re ready.</p>
             <div className="momentSavedActions">
               <Link href="/u/you#night-memories" className="momentSavedPrimary">Build your Story</Link>
               <Link href="/tonight" className="momentSavedSecondary">Back to Tonight</Link>

@@ -53,7 +53,7 @@ export default async function BoroughIndexPage() {
         titleId="boroughHeading"
         lede={
           <>
-            Nobody says &ldquo;let&rsquo;s go to the pub in Greater London.&rdquo;
+            Nobody says &quot;let&rsquo;s go to the pub in Greater London.&quot;
             They say Camden, or Soho, or Hackney. Pick a borough and see its pubs
             ranked by the cheapest pint on the map.
           </>

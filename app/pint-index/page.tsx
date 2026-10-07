@@ -69,7 +69,7 @@ function datasetJsonLd(snapshot: PintIndexSnapshot, boroughCount: number, pubCou
     isAccessibleForFree: true,
     dateModified: snapshot.generatedAt,
     temporalCoverage: `${snapshot.observationWindow.start}/${snapshot.observationWindow.end}`,
-    measurementTechnique: "Confirmed Pint Drops, official pub or brewery sources, and licensed open datasets with price dates; assigned to London boroughs from map boundaries.",
+    measurementTechnique: "Confirmed Pint Drops, official pub or brewery sources, and licensed open datasets with price dates, assigned to London boroughs from map boundaries.",
     variableMeasured: "Pint price in GBP, grouped by London borough",
     distribution: [{
       "@type": "DataDownload",
@@ -143,7 +143,7 @@ export default async function PintIndexPage() {
         <section className="pintIndexSection" aria-labelledby="zoneHeading">
           <h2 id="zoneHeading" className="pintIndexSectionTitle">The Zone pint index</h2>
           <p className="pintIndexNote">
-            A pint in Zone 1 costs more than Zone 3. Here is by how much. Each pub
+            A pint in Zone 1 costs more than Zone 3. Here&rsquo;s how much more. Each pub
             is placed in its <strong>nearest station&rsquo;s</strong>{" "}TfL fare zone
             (a documented approximation, not an area boundary), then we take the
             median of every zone&rsquo;s listed cheapest pint.
@@ -214,9 +214,9 @@ export default async function PintIndexPage() {
           <p className="pintIndexNote pintIndexMethodLede">Only prices with a public source and date are published. Older map-only prices stay out.</p>
           <div className="pintIndexProse">
             <p><strong>What counts.</strong> Community submissions, a pub or brewery&rsquo;s own published material, and properly licensed open data may enter the public Index only with a public source URL and price date.</p>
-            <p><strong>Boroughs.</strong> We place coordinates inside versioned Greater London boundary shapes. A point outside every shape gets no borough; we never assign it to an arbitrary nearby one.</p>
+            <p><strong>Boroughs.</strong> We place coordinates inside versioned Greater London boundary shapes. A point outside every shape gets no borough. We never assign it to an arbitrary nearby one.</p>
             <p><strong>What stays out.</strong> The map may still use an older price baseline. Those rows stay out of this public Index, its CSV and its structured data.</p>
-            <p><strong>Dates.</strong> Price dates come from the source record. Build time and file modification time are never presented as when a price was seen.</p>
+            <p><strong>Dates.</strong> Price dates come from the source record. We never present build time or file modification time as when a price was seen.</p>
           </div>
         </section>
 

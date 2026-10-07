@@ -83,7 +83,7 @@ describe("map drink default in the phone planner", () => {
     await generate();
     expect(requests).toHaveLength(1);
     expect(requests[0]!.context.drinkCategory).toBe("wine");
-    expect(container.querySelector(".mobilePlannerConfidence")?.textContent).toContain("Selected-drink servings are not recorded.");
+    expect(container.querySelector(".mobilePlannerConfidence")?.textContent).toContain("We don't have recorded prices for the drink you picked.");
     expect(container.querySelector(".mobilePlannerConfidence")?.textContent).not.toContain("one recorded pint");
   });
 

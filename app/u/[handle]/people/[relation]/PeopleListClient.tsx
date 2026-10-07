@@ -161,7 +161,7 @@ export default function PeopleListClient({
         </div>
       ) : status === "error" ? (
         <div className="peopleDir__notice" role="alert">
-          <p>{offline ? OFFLINE_ERROR : "Could not load this list. That is us, not you."}</p>
+          <p>{offline ? OFFLINE_ERROR : "Could not load this list. That's on us, not you."}</p>
           <button
             type="button"
             className="peopleDir__button"

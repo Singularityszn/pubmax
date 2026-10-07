@@ -142,7 +142,7 @@ export default function PlanVibe({ planId, initialTally }: { planId: string; ini
       <h2 id="plan-vibe-title">What&rsquo;s the vibe?</h2>
       {canVote ? (
         <>
-          <p className="planVibe__lede">One vote each. Tap another chip to change yours; the winner stamps the share card.</p>
+          <p className="planVibe__lede">One vote each. Tap another chip to change yours. The winner goes on the share card.</p>
           <div className="planVibe__row" role="group" aria-label="Vote the night's vibe">
             {VIBE_CHIPS.map((chip) => (
               <button

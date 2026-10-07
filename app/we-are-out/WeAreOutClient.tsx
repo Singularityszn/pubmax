@@ -79,7 +79,7 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = true }: Pr
         body: JSON.stringify({ handle, areaSlug, note, visibility: "friends" }),
       }, { requiresIdentity: true });
       const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(errorMessageFrom(data, "Could not post that."));
+      if (!res.ok) throw new Error(errorMessageFrom(data, "Couldn't post that."));
       trackEvent("check_in_created");
       setState("done");
     } catch (err) {
@@ -196,7 +196,7 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = true }: Pr
               disabled={state === "posting"}
               onClick={post}
             >
-              {state === "posting" ? "Posting." : "I'm here"}
+              {state === "posting" ? "Posting…" : "I'm here"}
             </button>
           </section>
         )}

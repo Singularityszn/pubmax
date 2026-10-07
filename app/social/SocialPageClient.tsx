@@ -941,8 +941,8 @@ function SocialPageAccountState({
               ) : posts.length === 0 ? (
                 <div className="socialFeedEmpty" role="status">
                   <EmptyState title="No posts here yet.">
-                    Find your lot: search a handle or send an invite. Nights from
-                    mutuals land here.
+                    Search a handle or send an invite to find your lot. Nights
+                    from mutuals land here.
                   </EmptyState>
                   {/* The search-and-invite surface is the rail's, once. */}
                   <PeopleDirectory myHandle={viewerHandle} />

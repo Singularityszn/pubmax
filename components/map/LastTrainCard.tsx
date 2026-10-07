@@ -166,7 +166,7 @@ export function provenanceCopyForDepartures(
   const hasLiveDepartures = (departures ?? []).some((d) => d.live);
   return hasLiveDepartures
     ? "Live departures from TfL; last train uses the timetable."
-    : "Scheduled times from TfL - not a live feed.";
+    : "Scheduled times from TfL, not a live feed.";
 }
 
 export function provenanceCopyForResult(

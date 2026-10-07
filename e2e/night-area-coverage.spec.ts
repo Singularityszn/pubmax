@@ -95,7 +95,7 @@ test("mobile planner announces concierge progress while it finds a route", async
   await expect(concierge).toHaveAttribute("aria-busy", "true");
   await expect(page.getByRole("button", { name: "Planning…" })).toBeDisabled();
   await expect(page.locator("#plan-concierge-status")).toContainText(
-    "checking confidence and picking stops we can back up",
+    "picking stops we can back up",
   );
   releaseGenerate();
   await expect(page.locator(".planComposer__error")).toContainText("The planner is unavailable right now.");

@@ -76,7 +76,7 @@ describe("plan group prefs store", () => {
         },
         mustHaveLabels: expect.arrayContaining([
           "Budget: under £6 pints",
-          "Zero-proof options needed",
+          "Alcohol-free options needed",
           "Step-free access needed",
         ]),
       },
@@ -107,7 +107,7 @@ describe("plan group prefs store", () => {
     });
     expect(guest.overlap.mustHaveLabels).toEqual([
       "Budget: under £6 pints",
-      "Zero-proof options needed",
+      "Alcohol-free options needed",
       "Step-free access needed",
       "Covered shelter needed",
     ]);

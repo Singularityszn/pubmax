@@ -51,7 +51,7 @@ export default function WebPushPrompt(): React.JSX.Element | null {
         markWebPushPromptEnabled();
       } else {
         setError(
-          offlineOrMessage("Could not enable alerts. Try again.")
+          offlineOrMessage("Couldn't turn on alerts. Try again.")
         );
       }
     } finally {
@@ -75,7 +75,7 @@ export default function WebPushPrompt(): React.JSX.Element | null {
           Get the London brief
         </p>
         <p id="web-push-prompt-body" className="nativePushPrompt__body">
-          Weather verdict and one sourced pick for tonight. No crew or personal alerts yet.
+          The weather verdict and one sourced pick for tonight. No crew or personal alerts yet.
         </p>
         {error ? (
           <p className="nativePushPrompt__error" role="status">
@@ -97,7 +97,7 @@ export default function WebPushPrompt(): React.JSX.Element | null {
             onClick={() => void handleEnable()}
             disabled={pending}
           >
-            {pending ? "Enabling..." : "Enable"}
+            {pending ? "Turning on…" : "Turn on"}
           </button>
         </div>
       </div>

@@ -143,14 +143,14 @@ test("verified composer preserves failed photo draft, records consent choices, a
   let dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("textbox", { name: "Write post", exact: true })).toBeFocused();
   await dialog.getByRole("textbox", { name: "Write post", exact: true }).fill("Photo draft survives reload");
-  const venueCombobox = dialog.getByRole("combobox", { name: "Venue - Friends only" });
+  const venueCombobox = dialog.getByRole("combobox", { name: "Venue, friends only" });
   await venueCombobox.fill("Proof");
   await expect(venueCombobox).toHaveAttribute("aria-expanded", "true");
   await expect(dialog.getByRole("listbox", { name: "Venue results" })).toBeVisible();
-  await expect(dialog.getByRole("status")).toContainText("1 Venue found");
+  await expect(dialog.getByRole("status")).toContainText("1 venue found");
   await venueCombobox.press("ArrowDown");
   await venueCombobox.press("Enter");
-  await expect(dialog.getByLabel("Selected Venue")).toContainText("The Proof Arms");
+  await expect(dialog.getByLabel("Selected venue")).toContainText("The Proof Arms");
   await dialog.getByLabel("Post type").selectOption("feature_request");
   await dialog.getByLabel("Add photo", { exact: true }).setInputFiles({ name: "proof.jpg", mimeType: "image/jpeg", buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9]) });
   await expect(dialog.getByRole("img", { name: "Selected photo preview" })).toBeVisible();
@@ -191,7 +191,7 @@ test("verified composer preserves failed photo draft, records consent choices, a
 
   await page.getByRole("button", { name: "Edit post" }).click();
   dialog = page.getByRole("dialog");
-  await expect(dialog.getByLabel("Selected Venue")).toContainText("The Proof Arms");
+  await expect(dialog.getByLabel("Selected venue")).toContainText("The Proof Arms");
   await expect(dialog.getByRole("button", { name: "Remove venue" })).toBeVisible();
   await expect(dialog.getByLabel("Photo description")).toHaveValue("Friends outside");
   await dialog.getByLabel("Add photo", { exact: true }).setInputFiles({ name: "replacement.jpg", mimeType: "image/jpeg", buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9]) });
@@ -215,7 +215,7 @@ test("verified composer preserves failed photo draft, records consent choices, a
   await page.getByRole("button", { name: "Edit post" }).click();
   dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("textbox", { name: "Write post", exact: true })).toHaveValue("Changed in another tab");
-  await expect(dialog.getByLabel("Selected Venue")).toBeVisible();
+  await expect(dialog.getByLabel("Selected venue")).toBeVisible();
   await expect(dialog.getByLabel("Photo description")).toHaveValue("Friends outside");
   await dialog.getByRole("button", { name: "Remove photo" }).click();
   await dialog.getByRole("button", { name: "Save" }).click();

@@ -187,7 +187,7 @@ describe("NightCrawlMode failed action reconciliation", () => {
     expect(harness.clearMutationKey).not.toHaveBeenCalled();
     // note state slot (useState index 3) holds the pending copy
     expect(harness.stateValues[3]).toEqual({
-      text: "Held on this phone. We will try again when you have signal.",
+      text: "Held on this phone. We'll try again when you've got signal.",
       tone: "pending",
     });
     expect(String((harness.stateValues[3] as { text: string }).text)).not.toMatch(/will sync/i);

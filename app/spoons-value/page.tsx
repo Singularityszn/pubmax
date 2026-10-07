@@ -149,8 +149,8 @@ export default async function SpoonsValuePage() {
             </p>
             <p>
               Wetherspoon publishes no drink prices on its website, so we hold none of
-              our own for these pubs. That is why this lane is credited rather than
-              measured here, and why nothing on it touches a pint price, a pin colour
+              our own for these pubs. That&rsquo;s why we credit this ranking rather
+              than measure it here, and why nothing on it touches a pint price, a pin colour
               or the Pint Index.
             </p>
           </section>

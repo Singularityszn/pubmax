@@ -58,7 +58,7 @@ describe("Clerk account controls", () => {
 
     expect(html).toContain("Clerk session");
     expect(html).toContain("PUBMAXX User ID");
-    expect(html).toContain("PUBMAXX Handle");
+    expect(html).toContain("PUBMAXX handle");
     expect(html).not.toContain("Signed in to your PUBMAXX account");
   });
 });

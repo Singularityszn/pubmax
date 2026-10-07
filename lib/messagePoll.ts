@@ -187,7 +187,7 @@ export const POLL_ATTACH_LABEL = "Attach poll";
 export const POLL_INVALID_LINE =
   "A poll needs a question and at least two different answers.";
 export const POLL_VOTE_FAILED_LINE = "Couldn't record that answer. Try again.";
-export const POLL_UNREADABLE_LINE = "This poll will not open just now.";
+export const POLL_UNREADABLE_LINE = "This poll won't open just now.";
 
 /** The tally line under a poll. Says nothing about WHO, by design (rule 2). */
 export function pollTotalLine(totalVotes: number): string {

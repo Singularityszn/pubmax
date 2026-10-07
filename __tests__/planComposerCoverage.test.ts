@@ -438,7 +438,7 @@ describe("PlanComposer Night Area coverage states", () => {
 
     expect(notReady).toMatchObject({ disabled: false });
     expect(barnes).toBeDefined();
-    expect(nightAreaOptionLabel(barnes!, false)).toBe("Barnes - not crawl-ready yet");
+    expect(nightAreaOptionLabel(barnes!, false)).toBe("Barnes, not crawl-ready yet");
   });
 
   it("turns the structured route gate response into useful error copy", () => {

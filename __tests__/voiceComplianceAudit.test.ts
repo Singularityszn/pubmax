@@ -489,7 +489,7 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
     ]);
     const notReady = groups[1]?.areas.find((area) => area.slug === "barnes");
     expect(notReady).toBeDefined();
-    expect(nightAreaOptionLabel(notReady!, false)).toBe("Barnes - not crawl-ready yet");
+    expect(nightAreaOptionLabel(notReady!, false)).toBe("Barnes, not crawl-ready yet");
   });
 
   it("keeps the Plan result and Pub Pal free of product-speak", () => {

@@ -263,7 +263,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
       }
       setOptimistic((previous) => ({ ...previous, ...restored }));
       setNote({
-        text: "Held on this phone. We will try again when you have signal.",
+        text: "Held on this phone. We'll try again when you've got signal.",
         tone: "pending",
       });
     });
@@ -559,7 +559,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
 
       <a className="nightCrawl__escape" href={TFL_JOURNEY_PLANNER} target="_blank" rel="noreferrer">
         <span aria-hidden="true">&#9166;</span> Get me home
-        <small>last train + cab</small>
+        <small>last train or a cab</small>
       </a>
     </section>
   );

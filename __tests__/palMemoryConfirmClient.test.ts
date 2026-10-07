@@ -53,7 +53,7 @@ describe("Pal memory card on the client", () => {
 
   it("reports a refused save so the card stays and nothing is claimed", async () => {
     const refused = vi.fn(async () =>
-      Response.json({ error: "Pal memory could not be saved." }, { status: 503 }),
+      Response.json({ error: "We couldn't save that memory." }, { status: 503 }),
     );
     const result = await confirmPalMemoryProposal(card("card-4"), AUTH, refused);
     expect(result).toMatchObject({ ok: false });
@@ -74,7 +74,7 @@ describe("Pal memory card on the client", () => {
     expect(await confirmPalMemoryProposal(card("card-5"), AUTH, slow)).toBeNull();
     expect(slow).toHaveBeenCalledTimes(1);
 
-    const failing = vi.fn<typeof fetch>(async () => Response.json({ error: "Pal memory could not be saved." }, { status: 503 }));
+    const failing = vi.fn<typeof fetch>(async () => Response.json({ error: "We couldn't save that memory." }, { status: 503 }));
     expect(await confirmPalMemoryProposal(card("card-6"), AUTH, failing)).toMatchObject({ ok: false });
     const recovered = vi.fn<typeof fetch>(async () => Response.json({ memory: { id: "m-6" } }, { status: 201 }));
     expect(await confirmPalMemoryProposal(card("card-6"), AUTH, recovered)).toEqual({ ok: true });
