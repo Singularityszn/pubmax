@@ -316,6 +316,14 @@ export type LoadSurfaceJsonOptions<T = unknown> = {
   maxAgeMs?: number;
   fetchImpl?: typeof fetch;
   validate?: (value: T) => boolean;
+  /**
+   * Start a new request even when one for this key is already in flight, instead
+   * of joining it. For a read that exists BECAUSE the answer just changed: the
+   * request already on the wire was sent before the change and may carry the
+   * old answer. The caller aborts its own earlier read so the old answer is
+   * never applied or held.
+   */
+  fresh?: boolean;
 };
 
 /**
@@ -407,7 +415,7 @@ function joinSurfaceRequest<T>(
   key: string,
   options: LoadSurfaceJsonOptions<T>,
 ): InFlightRequest {
-  const existing = inFlight.get(key);
+  const existing = options.fresh ? undefined : inFlight.get(key);
   if (existing) {
     existing.joiners += 1;
     return existing;

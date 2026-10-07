@@ -24,6 +24,16 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => {
   };
 });
 
+const withdrawn = vi.hoisted(() => ({ handles: new Set<string>() }));
+vi.mock("@/lib/accountPublicAccess.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/accountPublicAccess.server")>();
+  return {
+    ...actual,
+    withdrawnHandles: async (handles: readonly string[]) =>
+      new Set(handles.filter((handle) => withdrawn.handles.has(handle))),
+  };
+});
+
 const searchState = vi.hoisted(() => ({
   rows: [] as Array<{
     id: string;
@@ -49,14 +59,20 @@ vi.mock("@/lib/profileStore", async (importOriginal) => {
 });
 
 import { GET } from "@/app/api/profiles/search/route";
+import { __resetMemoryFollows, memoryFollowStore } from "@/lib/followStore";
 
-function search(q: string): Promise<Response> {
-  return GET(new Request(`http://localhost/api/profiles/search?q=${encodeURIComponent(q)}`));
+function search(q: string, viewer?: string): Promise<Response> {
+  const viewerQuery = viewer ? `&viewer=${encodeURIComponent(viewer)}` : "";
+  return GET(
+    new Request(`http://localhost/api/profiles/search?q=${encodeURIComponent(q)}${viewerQuery}`),
+  );
 }
 
 beforeEach(() => {
   limitState.limited = false;
   searchState.rows = [];
+  withdrawn.handles.clear();
+  __resetMemoryFollows();
 });
 
 describe("GET /api/profiles/search", () => {
@@ -138,6 +154,61 @@ describe("GET /api/profiles/search", () => {
     expect(body.matches.map((m: { handle: string }) => m.handle)).toEqual([
       "samson",
     ]);
+  });
+});
+
+describe("GET /api/profiles/search with a viewer", () => {
+  const rows = ["sammate", "samfollowing", "samfans", "samnone", "sam"].map((handle) => ({
+    id: `p-${handle}`,
+    handle,
+    userId: `user-${handle}`,
+  }));
+
+  async function relations(viewer?: string): Promise<Record<string, unknown>> {
+    const res = await search("sam", viewer);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { matches: Array<{ handle: string; relation?: unknown }> };
+    return Object.fromEntries(body.matches.map((match) => [match.handle, match.relation]));
+  }
+
+  it("says where each match stands with the viewer, so a mate is not offered a Follow", async () => {
+    searchState.rows = rows;
+    await memoryFollowStore.follow("viewer", "sammate");
+    await memoryFollowStore.follow("sammate", "viewer");
+    await memoryFollowStore.follow("viewer", "samfollowing");
+    await memoryFollowStore.follow("samfans", "viewer");
+
+    expect(await relations("viewer")).toEqual({
+      sammate: "mates",
+      samfollowing: "following",
+      samfans: "follows_you",
+      samnone: "none",
+      sam: "none",
+    });
+  });
+
+  it("leaves the viewer's own row without a relation", async () => {
+    searchState.rows = rows;
+    expect((await relations("sam")).sam).toBeUndefined();
+  });
+
+  it("carries no relation when nobody is named", async () => {
+    searchState.rows = rows;
+    await memoryFollowStore.follow("viewer", "sammate");
+    expect(Object.values(await relations())).toEqual([
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ]);
+  });
+
+  it("answers a withdrawn viewer like one who never existed", async () => {
+    searchState.rows = rows;
+    await memoryFollowStore.follow("viewer", "sammate");
+    withdrawn.handles.add("viewer");
+    expect(Object.values(await relations("viewer")).every((relation) => relation === undefined)).toBe(true);
   });
 });
 

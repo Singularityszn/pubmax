@@ -187,13 +187,48 @@
 }
 
 .socialPostMeta {
-  justify-content: space-between;
   color: var(--ink-soft);
   font-size: 0.8125rem;
 }
 
+/* Face and handle sit together on the left and the time on the right. With
+   three flex children and space-between the handle used to float to the middle
+   of the card. */
+.socialPostMeta time {
+  margin-left: auto;
+}
+
+/* The author's face: a circle, photo or initial, the size the header gives it. */
+.socialPostAvatar {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+span.socialPostAvatar {
+  display: inline-grid;
+  place-items: center;
+  background: var(--panel-raised);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
 .socialPostMeta strong {
   color: var(--ink);
+}
+
+.socialPostMeta strong a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.socialPostMeta strong a:hover {
+  text-decoration: underline;
 }
 
 .socialPostBody {

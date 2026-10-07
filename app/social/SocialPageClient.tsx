@@ -24,6 +24,7 @@ import {
 import EmptyState from "@/components/ui/empty-state";
 import Screen from "@/components/ui/screen";
 import { ADULT_SELF_ASSERTION_ACTION } from "@/lib/adultGate";
+import { profilePath } from "@/lib/appLink";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { subscribeDeviceIdentity } from "@/lib/deviceAccountIdentity";
 import type { CityRivalryEntry } from "@/lib/cityRivalry";
@@ -240,7 +241,11 @@ export function SocialPostCard({ post, canEdit = false, draftScope, onEdited }: 
           imageClassName="socialPostAvatar"
           size={32}
         />
-        <strong>@{post.author.handle}</strong>
+        <strong>
+          <Link prefetch={false} href={profilePath(post.author.handle)}>
+            @{post.author.handle}
+          </Link>
+        </strong>
         {when ? <time dateTime={post.createdAt}>{when}</time> : null}
       </header>
       {post.kind === "feature_request" ? (

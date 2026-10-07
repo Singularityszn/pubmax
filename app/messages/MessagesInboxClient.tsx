@@ -20,8 +20,14 @@ import MessageAvatar from "@/components/messages/MessageAvatar";
 import MessagesNewGroup from "@/components/messages/MessagesNewGroup";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
-import { conversationRowName, type ConversationDTO } from "@/lib/messages";
+import {
+  conversationRowHandle,
+  conversationRowMatches,
+  conversationRowName,
+  type ConversationDTO,
+} from "@/lib/messages";
 import { subscribeToInbox } from "@/lib/messagesRealtime";
+import { subscribeMessagesRead } from "@/lib/messagesUnreadSignal";
 import { inboxTimeLabel } from "@/lib/messageTimeline";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
@@ -298,13 +304,31 @@ export default function MessagesInboxClient({
     return subscribeToInbox(handle, () => void refresh(), { poll: () => void refresh() });
   }, [refresh, handle, paneHidden, handleNotOwned]);
 
+  // The open thread announces when it marks its messages read, and the nav
+  // badge drops at once. Its row here drops its pill on the same signal, so the
+  // two never disagree on one screen while the next inbox read is still away.
+  // A read already in flight may have been answered before the mark-read, so
+  // the signal also starts a fresh read that supersedes it: the stale answer is
+  // dropped instead of putting the pill back.
+  useEffect(() => {
+    if (!activeConversationId) return;
+    return subscribeMessagesRead(() => {
+      setConversations((rows) =>
+        rows.some((c) => c.id === activeConversationId && (c.unread ?? 0) > 0)
+          ? rows.map((c) => (c.id === activeConversationId ? { ...c, unread: 0 } : c))
+          : rows,
+      );
+      void refresh(undefined, true);
+    });
+  }, [activeConversationId, refresh]);
+
   const accountDataReady = loadedRevision === accountRevision;
   // One clock for the whole list per render, so every row's time is measured
   // from the same instant.
   const now = new Date();
   const searchQuery = inboxSearch.revision === accountRevision ? inboxSearch.query : "";
   const filteredConversations = conversations.filter((conversation) =>
-    conversationRowName(conversation, handle).toLowerCase().includes(searchQuery.trim().toLowerCase()),
+    conversationRowMatches(conversation, handle, searchQuery),
   );
   const openCompose = () => setComposeRevision(accountRevision);
 
@@ -421,13 +445,23 @@ export default function MessagesInboxClient({
                     className="conversationLink"
                     aria-current={active ? "page" : undefined}
                   >
-                    <MessageAvatar handle={c.otherHandle} avatarUrl={c.otherAvatarUrl} size={56} />
+                    <MessageAvatar
+                      handle={c.otherHandle}
+                      avatarUrl={c.otherAvatarUrl}
+                      label={c.otherDisplayName}
+                      size={56}
+                    />
                     <div className="conversationBody">
                       {/* ONE naming rule for every kind (`conversationRowName`):
                           a DM is the other person, a group is its title or its
                           people, so the inbox and the thread head cannot each
                           invent a different name for one thread. */}
-                      <div className="conversationHandle">{conversationRowName(c, handle)}</div>
+                      <div className="conversationHandle">
+                        {conversationRowName(c, handle)}
+                        {conversationRowHandle(c) ? (
+                          <span className="conversationHandleSub">{conversationRowHandle(c)}</span>
+                        ) : null}
+                      </div>
                       <div className="conversationPreview">
                         {c.lastBody
                           ? `${c.lastFromMe ? "You: " : ""}${c.lastBody}`

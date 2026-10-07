@@ -36,6 +36,7 @@ import {
   ADD_LINK_RECEIPT_BODY,
   ADD_LINK_SURFACE,
   addLinkCreateCta,
+  addLinkLanded,
   addLinkDoors,
   addLinkNextSteps,
   addLinkReceiptTitle,
@@ -45,6 +46,8 @@ import {
   peekAddLinkDoorTaken,
   shouldAutoAdd,
 } from "@/lib/addLink";
+import type { FollowRelation } from "@/lib/followRelation";
+import { useAddRelation } from "@/components/social/useAddRelation";
 import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
 import { authedActionFetch } from "@/lib/authedFetch";
@@ -122,17 +125,36 @@ async function performAdd(
  * down while the add is in flight, since the one thing that line is about is
  * what happens next.
  */
-function AddOfferBody({ state }: { state: FollowState }) {
+function AddOfferBody({
+  state,
+  relation,
+}: {
+  state: FollowState;
+  relation: FollowRelation | null;
+}) {
   if (state === "gone") return null;
   if (state === "working") {
     return <p className="confirmFollowBody">{ADD_LINK_COPY.adding}</p>;
   }
   return (
     <>
-      <p className="confirmFollowBody">{ADD_LINK_COPY.signedIn}</p>
+      <p className="confirmFollowBody">
+        {relation === "follows_you" ? ADD_LINK_COPY.addedYou : ADD_LINK_COPY.signedIn}
+      </p>
       <p className="confirmFollowMeta">{ADD_LINK_COPY.lotMeans}</p>
     </>
   );
+}
+
+function addButtonLabel(
+  state: FollowState,
+  relation: FollowRelation | null,
+  target: string,
+): string {
+  if (state === "working") return "Adding.";
+  return relation === "follows_you"
+    ? `Add ${displayHandle(target)} back`
+    : `Add ${displayHandle(target)}`;
 }
 
 export default function ConfirmFollow({
@@ -166,6 +188,14 @@ export default function ConfirmFollow({
     hasAccount &&
     Boolean(viewerHandle) &&
     normalizeHandle(viewerHandle ?? "") === target;
+  // What the two of them already are. A mate is never invited to add somebody
+  // they have already added.
+  const { relation, loading: relationLoading } = useAddRelation({
+    accountId,
+    viewerHandle,
+    target,
+    enabled: socialFriendsLaunchEnabled && !isSelf,
+  });
   const shareUrl =
     typeof window !== "undefined" ? `${window.location.origin}/add/${target}` : `/add/${target}`;
   const doors = addLinkDoors(target);
@@ -315,12 +345,18 @@ export default function ConfirmFollow({
     );
   }
 
-  if (state === "done") {
+  // The add is on the books: a tap just landed it, or the two already stood
+  // that way when the link opened.
+  const landed = addLinkLanded(state === "done", relation);
+
+  if (landed) {
     return (
       <section className="confirmFollow" role="status">
         <p className="confirmFollowEyebrow">{ADD_LINK_COPY.eyebrow}</p>
         <h1 className="confirmFollowTitle">{addLinkReceiptTitle(target, name)}</h1>
-        <p className="confirmFollowBody">{ADD_LINK_RECEIPT_BODY}</p>
+        <p className="confirmFollowBody">
+          {landed === "mates" ? ADD_LINK_COPY.mates : ADD_LINK_RECEIPT_BODY}
+        </p>
         <p className="confirmFollowMeta">{ADD_LINK_COPY.lotMeans}</p>
         <ul className="confirmFollowNext">
           {addLinkNextSteps(target).map((step, index) => (
@@ -409,16 +445,16 @@ export default function ConfirmFollow({
   return (
     <section className="confirmFollow" aria-label={`Add ${displayHandle(target)}`}>
       {card}
-      <AddOfferBody state={state} />
+      <AddOfferBody state={state} relation={relation} />
       {errorLine}
       {state === "gone" ? null : (
         <button
           type="button"
           className="confirmFollowPrimary"
-          disabled={state === "working"}
+          disabled={state === "working" || relationLoading}
           onClick={() => void addToLot(viewerHandle)}
         >
-          {state === "working" ? "Adding." : `Add ${displayHandle(target)}`}
+          {addButtonLabel(state, relation, target)}
         </button>
       )}
       <Link className="confirmFollowGhost" href="/social">
