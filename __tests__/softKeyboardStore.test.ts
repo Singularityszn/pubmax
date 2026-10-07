@@ -158,6 +158,38 @@ describe("what the keyboard store listens to", () => {
     off();
   });
 
+  it("holds the keyboard through a landscape-to-portrait rotation until it closes or the field blurs", () => {
+    platform.android = true;
+    Object.assign(window, { innerWidth: LAYOUT_HEIGHT, innerHeight: 360 });
+    setViewportHeight(360);
+    const [, off] = subscribe();
+    activeElement = textInput();
+    fire(documentHandlers, "focusin");
+    vi.runAllTimers();
+    const resize = (width: number, height: number) => {
+      Object.assign(window, { innerWidth: width, innerHeight: height });
+      setViewportHeight(height);
+      fire(viewportHandlers, "resize");
+    };
+    resize(LAYOUT_HEIGHT, 200);
+    expect(readSoftKeyboardOpen()).toBe(true);
+    resize(390, WITH_KEYBOARD);
+    expect(readSoftKeyboardOpen()).toBe(true);
+    resize(390, WITH_KEYBOARD + 40);
+    expect(readSoftKeyboardOpen()).toBe(true);
+    resize(390, LAYOUT_HEIGHT);
+    expect(readSoftKeyboardOpen()).toBe(false);
+    resize(390, WITH_KEYBOARD);
+    expect(readSoftKeyboardOpen()).toBe(true);
+    resize(LAYOUT_HEIGHT, 200);
+    expect(readSoftKeyboardOpen()).toBe(true);
+    activeElement = { tagName: "BODY" };
+    fire(documentHandlers, "focusout");
+    vi.runAllTimers();
+    expect(readSoftKeyboardOpen()).toBe(false);
+    off();
+  });
+
   it("takes the Android baseline from the unfocused window, not the tallest one seen", () => {
     platform.android = true;
     const [, off] = subscribe();
