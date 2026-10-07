@@ -82,6 +82,7 @@ import {
   releaseAcceptedPlanContext,
   resolveComposerHydration,
   seedProvisionalStop1,
+  UNRESOLVED_ACCEPTED_STOP_LABEL,
   UNRESOLVED_ACCEPTED_VENUE_LABEL,
   UNRESOLVED_ACCEPTED_VENUE_NAME,
   type ComposerHydration,
@@ -1297,6 +1298,8 @@ function PlanComposerForm({
     initialComposerStops(recoveredRouteDraft, recoveredDraft, handoff),
   );
   const [venues, setVenues] = useState<PlanVenueOption[]>([]);
+  const [venueIndexRead, setVenueIndexRead] = useState(0);
+  const [venueIndexFailed, setVenueIndexFailed] = useState(false);
   const pathname = usePathname();
   const [urlPrefill] = useState(() =>
     canPersist ? describeAskFromLocation() : NO_URL_PREFILL,
@@ -1594,11 +1597,15 @@ function PlanComposerForm({
     if (!composerVisible) return;
     let active = true;
     fetch(planComposerVenueIndexPath(acceptedCityId))
-      .then((response) => response.json())
+      .then((response) => {
+        if (!response.ok) throw new Error(`Venue index read failed with ${response.status}`);
+        return response.json();
+      })
       .then((rows: unknown) => {
         if (!active) return;
         const nextVenues = planVenueOptions(rows);
         setVenues(nextVenues);
+        setVenueIndexFailed(false);
         const acceptedVenueId = hydratedHandoff?.heldVenueId;
         if (!acceptedVenueId) return;
         const accepted = nextVenues.find((venue) => venue.id === acceptedVenueId);
@@ -1611,9 +1618,11 @@ function PlanComposerForm({
             : stop
         )));
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (active) setVenueIndexFailed(true);
+      });
     return () => { active = false; };
-  }, [composerVisible, acceptedCityId, hydratedHandoff?.heldVenueId]);
+  }, [composerVisible, acceptedCityId, hydratedHandoff?.heldVenueId, venueIndexRead]);
 
   useEffect(() => {
     if (recoveredDraft) trackEvent("draft_recovered", { kind: "plan", surface: "plan" });
@@ -1801,12 +1810,13 @@ function PlanComposerForm({
   function applyStopIdentityMutation(
     nextStops: DraftStop[],
     status: string,
-    options: { reorder?: boolean; settledStatus?: string } = {},
+    options: { reorder?: boolean; settledStatus?: string; release?: boolean } = {},
   ): boolean {
+    const release = Boolean(options.release && heldVenueId);
     const mutation = composerRouteMutation({
       currentStops: stops,
       nextStops,
-      heldVenueId,
+      heldVenueId: release ? null : heldVenueId,
       groundingProof,
       createOperationKey,
       planAnchor,
@@ -1833,11 +1843,11 @@ function PlanComposerForm({
     }
     if (mutation.routeStale) setRouteStatus(status);
     else if (options.settledStatus) setRouteStatus(options.settledStatus);
+    if (release) dropAcceptance();
     return true;
   }
 
-  function releaseAcceptance() {
-    focusPlanRouteStatus();
+  function dropAcceptance() {
     releaseAcceptedPlanContext({
       planDraft: canPersist ? safeSessionStorage() : null,
       routeDraft: canPersist ? safeLocalStorage() : null,
@@ -1845,6 +1855,19 @@ function PlanComposerForm({
     setPlanAnchor(null);
     setGroundingProof(null);
     setAcceptanceReleased(true);
+  }
+
+  function isUnnamedHeldStop(stop: DraftStop, index: number): boolean {
+    return index === 0 && Boolean(heldVenueId) && stop.venueId === heldVenueId && !stop.venueName.trim();
+  }
+
+  function isLockedHeldStop(stop: DraftStop, index: number): boolean {
+    return index === 0 && Boolean(heldVenueId) && stop.venueId === heldVenueId && !isUnnamedHeldStop(stop, index);
+  }
+
+  function releaseAcceptance() {
+    focusPlanRouteStatus();
+    dropAcceptance();
     setRouteStatus(releasedAcceptanceStatus({
       venueName: acceptedVenueName,
       routeStale,
@@ -1868,6 +1891,7 @@ function PlanComposerForm({
     const removed = applyStopIdentityMutation(
       stops.filter((stop) => stop.key !== key),
       `Stop ${index + 1} removed. Refresh the route before locking.`,
+      { release: isUnnamedHeldStop(stops[index]!, index) },
     );
     if (removed) haptic("selection-released");
   }
@@ -1906,7 +1930,16 @@ function PlanComposerForm({
   }
 
   function swapStop(key: number) {
-    const current = stops.find((stop) => stop.key === key);
+    const index = stops.findIndex((stop) => stop.key === key);
+    const current = stops[index];
+    if (current && isUnnamedHeldStop(current, index)) {
+      applyStopIdentityMutation(
+        stops.map((stop) => stop.key === key ? { key, venueId: "", venueName: "", alternatives: [] } : stop),
+        `Find a pub for stop ${index + 1}. Refresh the route before locking.`,
+        { release: true },
+      );
+      return;
+    }
     if (!current?.alternatives.length) return;
     const usedByOtherStops = new Set(stops.filter((stop) => stop.key !== key).map((stop) => stop.venueId));
     const next = swapDraftStop(current, usedByOtherStops);
@@ -2421,6 +2454,12 @@ function PlanComposerForm({
       <legend className={resultMode ? "planComposer__srOnly" : undefined}>The {planOutingNoun(stops.length)} <span className="planComposer__previewLabel">{routeRevision === null ? "Preview" : `Preview · revision ${routeRevision}`}</span></legend>
       {resultMode ? null : routeStatusLine}
       <PlanCultureOpener opener={cultureOpener} />
+      {venueIndexFailed ? (
+        <p className="planComposer__error planStops__indexError" role="alert">
+          The pub list did not load.
+          <button type="button" onClick={() => setVenueIndexRead((read) => read + 1)}>Try again</button>
+        </p>
+      ) : null}
       <PlanStopList
         stops={stops}
         areaName={areaName}
@@ -2430,18 +2469,19 @@ function PlanComposerForm({
         canAdd={stops.length < MAX_PLAN_STOP_COUNT}
         refreshKey={routeRevealTick}
         removable={stops.length > 1}
-        swapLabel={(stop, index) => index === 0 && heldVenueId === stop.venueId
+        swapLabel={(stop, index) => isLockedHeldStop(stop, index)
           ? acceptedStop1SwapLabel(stop.venueName)
-          : stop.alternatives.length > 0
-            ? `Swap stop ${index + 1}, currently ${stop.venueName}`
-            : `No alternatives for stop ${index + 1}`}
-        swapDisabled={(stop, index) => Boolean(
-          (index === 0 && heldVenueId === stop.venueId) || stop.alternatives.length === 0,
-        )}
-        removeLabel={(stop, index) => index === 0 && heldVenueId === stop.venueId
+          : isUnnamedHeldStop(stop, index)
+            ? `Swap stop ${index + 1}, currently ${UNRESOLVED_ACCEPTED_STOP_LABEL.toLocaleLowerCase()}`
+            : stop.alternatives.length > 0
+              ? `Swap stop ${index + 1}, currently ${stop.venueName}`
+              : `No alternatives for stop ${index + 1}`}
+        swapDisabled={(stop, index) => isLockedHeldStop(stop, index)
+          || (!isUnnamedHeldStop(stop, index) && stop.alternatives.length === 0)}
+        removeLabel={(stop, index) => isLockedHeldStop(stop, index)
           ? acceptedStop1RemoveLabel(stop.venueName)
           : `Remove stop ${index + 1}`}
-        removeDisabled={(stop, index) => index === 0 && heldVenueId === stop.venueId}
+        removeDisabled={isLockedHeldStop}
         onSwap={swapStop}
         onRemove={removeStop}
         onPick={pickVenue}

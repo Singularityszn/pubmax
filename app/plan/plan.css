@@ -1887,6 +1887,22 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   width: 100%;
   margin: 0;
 }
+.planStops__indexError {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.planStops__indexError button {
+  min-height: 44px;
+  padding: 8px 13px;
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius, 14px);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
 
 /* Press feedback (scale 0.97 on pointer-down, 130ms strong ease-out) is the
    global button rule in app/globals.css; nothing here restates it. */

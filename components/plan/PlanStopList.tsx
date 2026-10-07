@@ -7,6 +7,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { DraftStop } from "@/components/plan/PlanComposer";
 import { useStopGestures } from "@/components/plan/useStopGestures";
 import { categoryLabel } from "@/lib/drinks";
+import { UNRESOLVED_ACCEPTED_STOP_LABEL } from "@/lib/planComposerHandoff";
 import { priceBand, priceBandAreaForVenue, priceBandClass } from "@/lib/priceBand";
 import {
   formatPenceFixed,
@@ -213,7 +214,7 @@ export default function PlanStopList({
         aria-label="Stops, in walking order"
       >
         {stops.map((stop, index) => {
-          const resolved = Boolean(stop.venueId.trim() && stop.venueName.trim());
+          const resolved = Boolean(stop.venueId.trim());
           const previous = stops[index - 1];
           const minutes = previous && previous.venueId && resolved
             ? walkMinutesBetween(previous, stop, measured)
@@ -267,7 +268,7 @@ export default function PlanStopList({
                         aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown Delete Backspace"
                         aria-description="Press and hold to drag to a new place. Alt and the arrow keys move it. Delete removes it."
                       >
-                        <span className="planStop__name">{stop.venueName}</span>
+                        <span className="planStop__name">{stop.venueName.trim() || UNRESOLVED_ACCEPTED_STOP_LABEL}</span>
                       </Link>
                       {meta ? <span className="planStop__meta">{meta}</span> : null}
                       {drinkLine ? <small className="planComposer__stopReason">{drinkLine}</small> : null}
@@ -279,7 +280,10 @@ export default function PlanStopList({
                       className="planStop__swap planComposer__swap"
                       type="button"
                       data-stop-action
-                      onClick={() => onSwap(stop.key)}
+                      onClick={() => {
+                        if (!stop.venueName.trim()) focusAfter.current = stop.key;
+                        onSwap(stop.key);
+                      }}
                       disabled={swapDisabled(stop, index)}
                       aria-label={swapLabel(stop, index)}
                       title={stop.alternatives.length > 0 ? `${stop.alternatives.length} other pubs` : undefined}

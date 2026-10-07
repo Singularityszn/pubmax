@@ -84,19 +84,16 @@ function pointer(type: string, target: EventTarget, init: { clientX?: number; cl
 }
 
 describe("PlanStopList", () => {
-  it.each(["", "   "])("keeps an unnamed accepted venue in the pub finder (%j)", async (venueName) => {
+  it.each(["", "   "])("shows an unnamed accepted venue as a card, never a finder (%j)", async (venueName) => {
     const accepted: DraftStop = { key: 1, venueId: "venue-uk-unindexed", venueName, alternatives: [] };
-    const venue = { id: "anchor", name: "Anchor" };
-    const props = await mount({ stops: [accepted], heldVenueId: accepted.venueId, venues: [venue], removeDisabled: () => true });
-    const finder = host!.querySelector<HTMLInputElement>("input[aria-label='Find a pub for stop 1']");
-    expect(finder).not.toBeNull();
-    expect(cards()[0]!.querySelector(".planStop__open")).toBeNull();
+    const props = await mount({ stops: [accepted, picked], heldVenueId: accepted.venueId, swapDisabled: () => false });
+    const card = cards()[0]!;
+    expect(card.querySelector(".planStop__find")).toBeNull();
+    expect(card.querySelector(".planStop__name")?.textContent).toBe("Your chosen place");
     await act(async () => {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(finder, "Anchor");
-      finder!.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText" }));
-      finder!.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+      card.querySelector<HTMLButtonElement>(".planStop__swap")!.click();
     });
-    expect(props.onPick).toHaveBeenCalledWith(1, venue);
+    expect(props.onSwap).toHaveBeenCalledWith(1);
   });
 
   it("prints the route's area only on stops the generator placed there", async () => {
