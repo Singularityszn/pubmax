@@ -223,9 +223,13 @@ iOS 27 refuses to launch an app that has not adopted the UIScene lifecycle. A
 free personal-team build of main on an iPhone 17 Pro Max (iOS 27.2) crashed at
 launch with `EXC_BREAKPOINT` in UIKitCore
 `___UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption_block_invoke`.
-The iOS 27.0 simulator does not enforce this: the same build without the
-manifest launches there, so a simulator launch cannot prove the fix. The
-source fence in `__tests__/nativeWrap.test.ts` holds it instead.
+The iOS 27.0 simulator enforces it too: a build of the commit before this fix
+(no scene manifest) dies at launch there with the same `EXC_BREAKPOINT`
+(SIGTRAP), and the fixed build launches and renders the site. Reproduce it by
+building the base commit and launching it. Stripping the manifest from an
+already built `App.app` and reinstalling it launched normally in one manual
+check, so that shortcut proves nothing. The source fence in
+`__tests__/nativeWrap.test.ts` also holds the manifest and the delegate files.
 
 The Info.plist manifest follows Capacitor 8.5's `npx cap migrate` output
 (template in `@capacitor/cli`). The delegates do not. The CLI template's
@@ -250,16 +254,18 @@ because the manifest already names the delegate class.
 
 Proof, iPhone 17 simulator on iOS 27.0 (Xcode 27.0), `npm run ios:build`:
 
-- Cold launch: the site loads, and the status bar and safe area are intact.
+- Base commit: crashes at launch with the UIKitCore NoSceneLifecycleAdoption
+  `EXC_BREAKPOINT`. The fixed build launches, stays running and renders the
+  site, with the status bar and safe area intact.
 - Background and foreground: launching Settings and then the app resumes the
   same process, and the scene moves `Background` then `ForegroundInactive`
   then active.
-- `pubmaxx://` link: `xcrun simctl openurl` stops at the system "Open in
-  PUBMAXXING?" prompt, and tapping it needs UI automation this lane may not use.
-  The unit test holds only the manifest, so the forwarding still needs a
-  device pass.
-- No iOS 26 simulator runtime is installed on this Mac, so the iOS 26 pass is
-  open.
+- `pubmaxx://` links: a warm link and a cold-start link both navigated the
+  WebView to `/map` through `SceneDelegate`, and a refused link
+  (`pubmaxx://evil/path`) opened while running was ignored. `xcrun simctl
+  openurl` stops at the system "Open in PUBMAXXING?" prompt, which needs a tap.
+- Not run: the free personal-team build on a physical iPhone (iOS 27.2), and
+  iOS 26, because no iOS 26 simulator runtime is installed on this Mac.
 - Push token forwarding and the entitlements are unchanged, and still need a
   signed device (step 10).
 
