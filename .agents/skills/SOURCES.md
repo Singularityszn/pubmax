@@ -100,12 +100,13 @@ Dropped, because they sit outside that UI scope or duplicate the machine-wide se
 
 ## MapLibre and Capacitor refreshes
 
-These were already in the tree. Refreshed 2 Oct 2026 to the upstream tips below. `debugging-capacitor` keeps three local guards the upstream file does not: debug-only WebView and cleartext flags, ATS exceptions never committed, and no `rm -rf node_modules` in a shared worktree unless someone asks.
+These were already in the tree. Each repo below records its refresh date and upstream tip. `debugging-capacitor` keeps three local guards the upstream file does not: debug-only WebView and cleartext flags, ATS exceptions never committed, and no `rm -rf node_modules` in a shared worktree unless someone asks.
 
 ### maplibre/maplibre-agent-skills
 
 - Repo: https://github.com/maplibre/maplibre-agent-skills
 - Commit: `fa618af49728952f7aeca842ad93f51b9b530018` (`main`)
+- Refreshed 7 Oct 2026.
 
 Refreshed: `maplibre-source-wiring`, `maplibre-terrain-rendering`, `maplibre-tile-sources`, `maplibre-v6-migration`.
 
@@ -117,6 +118,7 @@ Left upstream: `maplibre-pmtiles-patterns` (this app does not host PMTiles), `ma
 
 - Repo: https://github.com/Cap-go/capgo-skills
 - Commit: `c0afb73c859a85c35c8d03d3dc9afdee5fe78d30` (`main`)
+- Refreshed 2 Oct 2026.
 
 Refreshed: `debugging-capacitor`.
 
@@ -130,6 +132,7 @@ A last30days run on 2 Oct 2026 (Reddit, YouTube, Hacker News, GitHub, Digg) rank
 
 - Repo: https://github.com/supabase/agent-skills
 - Commit: `c9be0e931b7930f7d02126d04774d904c381e7d7` (`main`)
+- Checked 7 Oct 2026. This is the upstream tip.
 
 `supabase`, `supabase-postgres-best-practices`.
 
@@ -153,6 +156,7 @@ Left upstream: `deploy-to-vercel` (the machine already has `deploy-with-vercel`)
 
 - Repo: https://github.com/elevenlabs/skills
 - Commit: `25bd9ad1c31af658fba6cc7d8ec1f1e2a715c049` (`main`)
+- Refreshed 7 Oct 2026.
 
 `elevenlabs-agents` is the upstream `agents` skill. The directory and the frontmatter `name` are `elevenlabs-agents` so this copy does not register as a generic agents skill. Also `text-to-speech`, `speech-to-text`, `speech-engine`.
 
@@ -164,6 +168,7 @@ Left upstream: `dubbing`, `music`, `sound-effects`, `voice-changer`, `voice-isol
 
 - Repo: https://github.com/PostHog/skills
 - Commit: `8321fc1dab05b8f3dfdb6d6b5c76c097b99b8677` (`main`)
+- Checked 7 Oct 2026. This is the upstream tip.
 
 `integration-nextjs-app-router`, `feature-flags-nextjs`, `error-tracking-nextjs`.
 
