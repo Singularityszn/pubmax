@@ -12,12 +12,15 @@ import {
 } from "@/components/plan/PlanComposer";
 import { inferNightContext } from "@/lib/nightPlanning";
 
-const wire = (venueId: string, walk: number | null, pence: number | null, withSource = true) => ({
+const wire = (venueId: string, walk: number | null, pence: number | null, withSource = true, routed = true) => ({
   venueId,
   venueName: venueId.toUpperCase(),
   walkingMinutesFromPrevious: walk,
   estimatedPintPricePence: pence,
   priceEvidence: { pence, source: withSource ? { label: "Pub list", url: "https://example.com", observedAt: "2026-10-02" } : null, confidenceState: "fresh" },
+  operationalEvidence: {
+    transportBasis: routed ? "openrouteservice foot-walking route duration" : "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg",
+  },
 });
 
 const stops = (): DraftStop[] => routeStopsFromGenerated([wire("a", null, 560), wire("b", 4, 520), wire("c", 5, 660, false)]);
@@ -28,6 +31,14 @@ describe("the generator's timing and price ride on the stop", () => {
     expect(a).not.toHaveProperty("walkingMinutesFromPrevious");
     expect(b).toMatchObject({ walkingMinutesFromPrevious: 4, walkFromVenueId: "a", estimatedPintPricePence: 520, priceKind: "listed" });
     expect(c).toMatchObject({ walkingMinutesFromPrevious: 5, walkFromVenueId: "b", estimatedPintPricePence: 660, priceKind: "estimated" });
+  });
+
+  it("prints only a walk that was routed on foot, before and after a reorder", () => {
+    const keyless = routeStopsFromGenerated([wire("a", null, 560, true, false), wire("b", 4, 520, true, false), wire("c", 5, 660, true, false)]);
+    expect(keyless.map((stop) => stop.walkingMinutesFromPrevious)).toEqual([undefined, undefined, undefined]);
+    const [a, b, c] = keyless as [DraftStop, DraftStop, DraftStop];
+    const draft = parsePlanRouteDraft(JSON.stringify({ stops: [c, a, b], nightContext: null, routeRevision: null, routeStale: false }));
+    expect(draft?.stops.map((stop) => stop.walkingMinutesFromPrevious)).toEqual([undefined, undefined, undefined]);
   });
 
   it("reads a stored draft with its own neighbour, so a reorder survives a reload", () => {

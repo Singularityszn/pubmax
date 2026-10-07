@@ -6,8 +6,8 @@ import { expect, test, type Page } from "@playwright/test";
 // venue name into: a stop is a venue record, not a string.
 //
 // The generator is stubbed so the figures are known: three listed pubs, with
-// their walking minutes and pint prices, exactly as /api/plans/generate sends
-// them. Prices 5.60 + 5.20 + 6.60 = 17.40, walks 4 + 5 = 9.
+// their routed walking minutes and pint prices, exactly as /api/plans/generate
+// sends them. Prices 5.60 + 5.20 + 6.60 = 17.40, walks 4 + 5 = 9.
 
 const STOPS = [
   { venueId: "venue-xjf3n0", venueName: "Arnos Arms", walkingMinutesFromPrevious: null, estimatedPintPricePence: 560 },
@@ -18,6 +18,7 @@ const STOPS = [
   position,
   priceEvidence: { pence: stop.estimatedPintPricePence, source: { label: "Pub list", url: "https://example.com", observedAt: "2026-10-02" }, confidenceState: "fresh" },
   reason: "Close to the heart of the area.",
+  operationalEvidence: { transportBasis: "openrouteservice foot-walking route duration" },
   alternatives: [],
 }));
 
@@ -54,7 +55,7 @@ test.describe("the Plan result is a route", () => {
   test("heading, one summary line, three cards, two walks, and no venue-name field", async ({ page }) => {
     await sortARoute(page);
 
-    await expect(page.getByRole("heading", { level: 2, name: /^(Tonight|Today) in Clapham$/ })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: /^(Tonight|Today|Tomorrow night) in Clapham$/ })).toBeVisible();
     await expect(page.getByTestId("plan-route-summary")).toHaveText("3 stops · £17.40 each · 9 min walk");
     await expect(page.locator(".planStops input")).toHaveCount(0);
 

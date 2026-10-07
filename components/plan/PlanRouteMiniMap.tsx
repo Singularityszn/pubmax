@@ -74,6 +74,28 @@ async function fetchStopCoords(
 
 type DrawnRoute = { line: LngLat[]; source: RouteSource };
 
+/**
+ * The same located pubs in a new order, so a reorder redraws the map it has
+ * rather than locating every stop again. Null when any stop is not one of them.
+ */
+function reorderedRoute(
+  resolved: ResolvedPlanCrawlRoute | null,
+  stops: readonly PlanCrawlRouteStop[],
+): ResolvedPlanCrawlRoute | null {
+  if (!resolved || stops.length !== resolved.venueIds.length) return null;
+  const from = stops.map((stop) => resolved.venueIds.indexOf(stop.venueId));
+  const same = from.every((index, position) => (
+    index >= 0 && from.indexOf(index) === position && resolved.names[index] === stops[position]!.venueName
+  ));
+  if (!same) return null;
+  return {
+    coords: from.map((index) => resolved.coords[index]!),
+    names: from.map((index) => resolved.names[index]!),
+    venueIds: from.map((index) => resolved.venueIds[index]!),
+    area: resolved.area,
+  };
+}
+
 export default function PlanRouteMiniMap({
   stops,
   mapHref,
@@ -112,6 +134,18 @@ export default function PlanRouteMiniMap({
       // Deferred out of the effect body (react-hooks/set-state-in-effect).
       void Promise.resolve().then(() => setNoWebGl(true));
       return;
+    }
+    const local = reorderedRoute(resolved, stops);
+    if (local) {
+      let current = true;
+      void Promise.resolve().then(() => {
+        if (!current) return;
+        setResolved(local);
+        setResolvedKey(stopsKey);
+        setDrawn({ line: local.coords, source: "straight" });
+        setDrawnKey(stopsKey);
+      });
+      return () => { current = false; };
     }
     const controller = new AbortController();
     void fetchStopCoords(stops, controller.signal).then((next) => {
@@ -163,8 +197,17 @@ export default function PlanRouteMiniMap({
     return () => controller.abort();
   }, [resolved, resolvedKey, stopsKey]);
 
-  const activeResolved = resolvedKey === stopsKey ? resolved : null;
-  const activeDrawn = drawnKey === stopsKey ? drawn : null;
+  const reordered = useMemo(
+    () => (resolvedKey === stopsKey ? null : reorderedRoute(resolved, stops)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [resolved, resolvedKey, stopsKey],
+  );
+  const reorderedLine = useMemo<DrawnRoute | null>(
+    () => (reordered ? { line: reordered.coords, source: "straight" } : null),
+    [reordered],
+  );
+  const activeResolved = resolvedKey === stopsKey ? resolved : reordered;
+  const activeDrawn = drawnKey === stopsKey ? drawn : reorderedLine;
 
   const geo = useMemo(() => {
     if (!activeResolved || !activeDrawn) return null;

@@ -9,13 +9,14 @@ import {
   type KeyboardEvent,
   type MouseEvent,
   type PointerEvent,
+  type RefObject,
 } from "react";
 import { flushSync } from "react-dom";
 
 import { haptic } from "@/lib/nativeHaptics";
 import { dropIndex, reorderShifts, type StopSlot } from "@/lib/planStopReorder";
 import { projectMomentum, type SpringConfig } from "@/lib/springMotion";
-import { rubberband, springTo } from "@/lib/springAnimate";
+import { releaseVelocity, rubberband, springTo } from "@/lib/springAnimate";
 
 // What a Stop card does under a thumb or a mouse: lift and reorder, or swipe to
 // show Remove. Both write straight to the element's transform while the finger
@@ -65,14 +66,17 @@ type Gesture = {
 };
 
 export function useStopGestures({
+  list,
   onReorder,
   revealedKey,
   keys,
   onReveal,
   firstLocked,
-  removable,
+  swipeable,
   refreshKey,
 }: {
+  /** The list the cards sit in. Its touch handling is in place before any touch starts. */
+  list: RefObject<HTMLElement | null>;
   onReorder: (from: number, to: number) => void;
   revealedKey: number | null;
   keys: readonly number[];
@@ -80,7 +84,7 @@ export function useStopGestures({
   /** A held pub is Stop 1 for good: it never lifts and nothing lands above it. */
   firstLocked: boolean;
   /** Whether a card has a Remove to show. Without one there is nothing to swipe to. */
-  removable: boolean;
+  swipeable: (index: number) => boolean;
   /** A new route remounts every card, so a gesture on the old ones is dropped. */
   refreshKey: number;
 }) {
@@ -90,14 +94,20 @@ export function useStopGestures({
   const cancelSpring = useRef<() => void>(() => {});
   const releasePointer = useRef<() => void>(() => {});
   const swallowClick = useRef(false);
-  const callbacks = useRef({ onReorder, onReveal, revealedKey, keys, firstLocked, removable });
+  const callbacks = useRef({ onReorder, onReveal, revealedKey, keys, firstLocked, swipeable });
   useEffect(() => {
-    callbacks.current = { onReorder, onReveal, revealedKey, keys, firstLocked, removable };
-  }, [onReorder, onReveal, revealedKey, keys, firstLocked, removable]);
+    callbacks.current = { onReorder, onReveal, revealedKey, keys, firstLocked, swipeable };
+  }, [onReorder, onReveal, revealedKey, keys, firstLocked, swipeable]);
 
-  const blockScroll = useCallback((event: TouchEvent) => {
-    if (gesture.current?.mode === "drag" && event.cancelable) event.preventDefault();
-  }, []);
+  useEffect(() => {
+    const node = list.current;
+    if (!node) return;
+    const blockScroll = (event: TouchEvent) => {
+      if (gesture.current?.mode === "drag" && event.cancelable) event.preventDefault();
+    };
+    node.addEventListener("touchmove", blockScroll, { passive: false });
+    return () => node.removeEventListener("touchmove", blockScroll);
+  }, [list, refreshKey]);
 
   const clearTransforms = useCallback(() => {
     for (const element of items.current) {
@@ -116,9 +126,8 @@ export function useStopGestures({
     gesture.current = null;
     cancelSpring.current();
     releasePointer.current();
-    window.removeEventListener("touchmove", blockScroll);
     setLiftedIndex(null);
-  }, [blockScroll]);
+  }, []);
 
   useEffect(() => abandon, [refreshKey, abandon]);
 
@@ -139,16 +148,14 @@ export function useStopGestures({
     } catch {
       /* the pointer is already gone */
     }
-    window.addEventListener("touchmove", blockScroll, { passive: false });
     setLiftedIndex(current.index);
     for (const [index, element] of items.current.entries()) {
       element?.setAttribute("data-drag-role", index === current.index ? "lifted" : "neighbour");
     }
     items.current[current.index]?.style.setProperty("z-index", "3");
-  }, [blockScroll]);
+  }, []);
 
   const settleDrag = useCallback((current: Gesture, commit: boolean) => {
-    window.removeEventListener("touchmove", blockScroll);
     const element = items.current[current.index];
     const to = commit ? current.target : current.index;
     const shifts = reorderShifts(current.slots, current.index, to);
@@ -180,7 +187,7 @@ export function useStopGestures({
         if (moved) haptic("selection-kept");
       },
     );
-  }, [blockScroll, clearTransforms]);
+  }, [clearTransforms]);
 
   const settleSwipe = useCallback((current: Gesture) => {
     const surface = current.surface;
@@ -218,6 +225,7 @@ export function useStopGestures({
     setTimeout(() => {
       swallowClick.current = false;
     }, 0);
+    current.velocity = releaseVelocity(current.velocity, current.lastTime, event.timeStamp);
     if (current.mode === "drag") settleDrag(current, !cancelled);
     else settleSwipe(current);
   }, [settleDrag, settleSwipe]);
@@ -285,7 +293,7 @@ export function useStopGestures({
         if (Math.hypot(dx, dy) > TOUCH_SLOP) {
           if (current.holdTimer) clearTimeout(current.holdTimer);
           current.holdTimer = null;
-          if (Math.abs(dx) > Math.abs(dy) && callbacks.current.removable) {
+          if (Math.abs(dx) > Math.abs(dy) && callbacks.current.swipeable(current.index)) {
             current.mode = "swipe";
             items.current[current.index]?.setAttribute("data-swipe", "true");
             current.lastPosition = event.clientX;
@@ -355,6 +363,11 @@ export function useStopGestures({
     }
   }, []);
 
+  const onContextMenu = useCallback((event: MouseEvent<HTMLElement>) => {
+    const current = gesture.current;
+    if (current?.mode === "drag" && current.pointerType !== "mouse") event.preventDefault();
+  }, []);
+
   const onKeyDown = useCallback((index: number, count: number) => (event: KeyboardEvent<HTMLElement>) => {
     if (!event.altKey || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) return;
     const to = event.key === "ArrowUp" ? index - 1 : index + 1;
@@ -369,5 +382,5 @@ export function useStopGestures({
     items.current[index] = element;
   }, []);
 
-  return { liftedIndex, itemRef, onPointerDown, onPointerMove, onClickCapture, onKeyDown };
+  return { liftedIndex, itemRef, onPointerDown, onPointerMove, onClickCapture, onContextMenu, onKeyDown };
 }

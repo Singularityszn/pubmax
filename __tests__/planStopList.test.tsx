@@ -74,13 +74,26 @@ function cards(): HTMLLIElement[] {
   return [...host!.querySelectorAll<HTMLLIElement>("li.planStop")];
 }
 
-function pointer(type: string, target: EventTarget, init: { clientX?: number; clientY?: number }, pointerType = "mouse") {
-  const event = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, ...init });
+function pointer(type: string, target: EventTarget, init: { clientX?: number; clientY?: number; timeStamp?: number }, pointerType = "mouse") {
+  const { timeStamp, ...coords } = init;
+  const event = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, ...coords });
   Object.defineProperties(event, {
     pointerId: { value: 1 },
     pointerType: { value: pointerType },
+    ...(timeStamp === undefined ? {} : { timeStamp: { value: timeStamp } }),
   });
   target.dispatchEvent(event);
+}
+
+const reduceMotion = () => vi.stubGlobal("matchMedia", (query: string) => ({ matches: query.includes("reduce"), media: query }));
+
+async function swipe(card: HTMLElement, steps: Array<{ x: number; t: number }>, releaseAt: number) {
+  const surface = card.querySelector<HTMLElement>(".planStop__surface")!;
+  await act(async () => {
+    pointer("pointerdown", surface, { clientX: 200, clientY: 10, timeStamp: 0 }, "touch");
+    for (const step of steps) pointer("pointermove", surface, { clientX: step.x, clientY: 10, timeStamp: step.t }, "touch");
+    pointer("pointerup", window, { clientX: steps.at(-1)!.x, clientY: 10, timeStamp: releaseAt }, "touch");
+  });
 }
 
 describe("PlanStopList", () => {
@@ -134,6 +147,101 @@ describe("PlanStopList", () => {
     pointer("pointercancel", window, { clientX: 10, clientY: 190 });
     expect(cards()[1]!.dataset.dragRole).toBe("lifted");
     expect(cards()[2]!.style.transform).toBe("");
+  });
+
+  it("never swipes a held first stop open onto a Remove it cannot use", async () => {
+    reduceMotion();
+    const held: DraftStop = { ...generated, venueId: "venue-held" };
+    await mount({ stops: [held, picked], heldVenueId: held.venueId, removeDisabled: (_stop, index) => index === 0 });
+    await swipe(cards()[0]!, [{ x: 180, t: 10 }, { x: 60, t: 20 }], 30);
+    expect(cards()[0]!.dataset.revealed).toBeUndefined();
+  });
+
+  it("closes an open tray once nothing is left to remove", async () => {
+    reduceMotion();
+    const props = await mount({ stops: [generated, picked] });
+    await swipe(cards()[0]!, [{ x: 180, t: 10 }, { x: 60, t: 20 }], 30);
+    expect(cards()[0]!.dataset.revealed).toBe("true");
+    await act(async () => {
+      root!.render(createElement(PlanStopList, { ...props, stops: [generated], removable: false }));
+    });
+    expect(cards()[0]!.dataset.revealed).toBeUndefined();
+  });
+
+  it("lets a quick swipe that came to rest before lifting settle shut", async () => {
+    reduceMotion();
+    await mount({ stops: [generated, picked] });
+    await swipe(cards()[0]!, [{ x: 190, t: 10 }, { x: 175, t: 15 }, { x: 160, t: 20 }], 400);
+    expect(cards()[0]!.dataset.revealed).toBeUndefined();
+  });
+
+  it("moves focus to the neighbour only when the keyboard removed the stop", async () => {
+    const empty: DraftStop = { key: 4, venueId: "", venueName: "", alternatives: [] };
+    const press = async (detail: number) => {
+      const props = await mount({ stops: [generated, empty, third] });
+      await act(async () => {
+        cards()[0]!.querySelector<HTMLButtonElement>(".planStop__remove")!
+          .dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail }));
+      });
+      expect(props.onRemove).toHaveBeenCalledWith(1);
+      await act(async () => {
+        root!.render(createElement(PlanStopList, { ...props, stops: [empty, third] }));
+      });
+      const focused = document.activeElement === host!.querySelector(".planStop__find");
+      await act(async () => root!.unmount());
+      root = null;
+      host!.remove();
+      return focused;
+    };
+    expect(await press(1)).toBe(false);
+    expect(await press(0)).toBe(true);
+  });
+
+  it("announces only the keys that will do something on each card", async () => {
+    const held: DraftStop = { ...generated, venueId: "venue-held" };
+    await mount({ stops: [held, picked, third], heldVenueId: held.venueId, removeDisabled: (_stop, index) => index === 0 });
+    const link = (index: number) => cards()[index]!.querySelector(".planStop__open")!;
+    expect(link(0).getAttribute("aria-keyshortcuts")).toBeNull();
+    expect(link(0).getAttribute("aria-description")).toBeNull();
+    expect(link(1).getAttribute("aria-keyshortcuts")).toBe("Alt+ArrowDown Delete Backspace");
+    expect(link(2).getAttribute("aria-keyshortcuts")).toBe("Alt+ArrowUp Delete Backspace");
+    await act(async () => root!.unmount());
+    root = null;
+    host!.remove();
+    await mount({ stops: [generated], removable: false });
+    expect(link(0).getAttribute("aria-keyshortcuts")).toBeNull();
+    expect(link(0).getAttribute("aria-description")).toBeNull();
+  });
+
+  it("holds the page still during a touch drag from a listener that was there before the touch", async () => {
+    const added = vi.spyOn(HTMLOListElement.prototype, "addEventListener");
+    await mount();
+    expect(added).toHaveBeenCalledWith("touchmove", expect.any(Function), { passive: false });
+    const surface = cards()[1]!.querySelector<HTMLElement>(".planStop__surface")!;
+    const move = () => {
+      const event = new Event("touchmove", { bubbles: true, cancelable: true });
+      surface.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    expect(move()).toBe(false);
+    vi.useFakeTimers();
+    await act(async () => {
+      pointer("pointerdown", surface, { clientX: 10, clientY: 10 }, "touch");
+      vi.advanceTimersByTime(400);
+    });
+    vi.useRealTimers();
+    expect(cards()[1]!.dataset.lifted).toBe("true");
+    expect(move()).toBe(true);
+    const menu = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+    surface.querySelector(".planStop__open")!.dispatchEvent(menu);
+    expect(menu.defaultPrevented).toBe(true);
+  });
+
+  it("leaves a mouse's link menu alone", async () => {
+    await mount();
+    const menu = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+    cards()[1]!.querySelector(".planStop__open")!.dispatchEvent(menu);
+    expect(menu.defaultPrevented).toBe(false);
   });
 
   it("prints the route's area only on stops the generator placed there", async () => {

@@ -5,7 +5,7 @@
 
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
@@ -134,6 +134,9 @@ describe("the Plan result", () => {
   });
 
   it("keeps the area the route was sorted for when the night's area is changed", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-07T12:00:00Z"));
+    onTestFinished(() => { vi.useRealTimers(); });
     await mountComposer();
     await sortIt("Quiet in Clapham for 4");
     const heading = () => document.querySelector("#plan-result-title")?.textContent;

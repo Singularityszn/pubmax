@@ -73,8 +73,8 @@
   place-items: center;
   border: 0;
   background: transparent;
-  cursor: pointer;
-  touch-action: manipulation;
+  cursor: grab;
+  touch-action: none;
 }
 .planTune__grab span {
   width: 40px;

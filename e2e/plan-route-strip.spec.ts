@@ -42,5 +42,15 @@ for (const theme of ["light", "dark"] as const) {
     const cardBox = await page.locator(".planStop__surface").first().boundingBox();
     expect(stripBox!.height).toBeGreaterThanOrEqual(200);
     expect(cardBox!.y).toBeGreaterThan(stripBox!.y + stripBox!.height - 1);
+
+    // A reorder re-routes the same map: the canvas is kept, never torn down to
+    // the pending placeholder and rebuilt.
+    await strip.locator(".maplibregl-canvas").evaluate((canvas) => { (canvas as HTMLElement).dataset.kept = "yes"; });
+    await page.locator(".planStop__open").nth(1).focus();
+    await page.keyboard.press("Alt+ArrowUp");
+    await expect(page.locator(".planStop__name")).toHaveText(["The Bohemia", "Arnos Arms", "The Elephant Inn"]);
+    await expect(page.getByTestId("plan-route-strip-pending")).toHaveCount(0);
+    await expect(strip.locator('.maplibregl-canvas[data-kept="yes"]')).toBeVisible();
+    await expect(strip).toContainText("Walking route between The Bohemia, Arnos Arms, The Elephant Inn.", { timeout: 15_000 });
   });
 }

@@ -280,6 +280,24 @@ export function londonDateTimeInputFromIso(value: string): string | null {
   return londonInput(londonParts(new Date(timestamp)));
 }
 
+/**
+ * How many London calendar days a London datetime-local value sits after today,
+ * and its weekday (0 = Sunday). Null when the value is not a real date.
+ */
+export function londonDaysAhead(
+  value: string,
+  now = new Date(),
+): { days: number; weekday: number } | null {
+  const parts = parseLondonInput(value);
+  if (!parts) return null;
+  const today = londonParts(now);
+  const day = Date.UTC(parts.year, parts.month - 1, parts.day);
+  return {
+    days: Math.round((day - Date.UTC(today.year, today.month - 1, today.day)) / DAY_MS),
+    weekday: new Date(day).getUTCDay(),
+  };
+}
+
 /** Resolve the displayed London wall time without letting a stale exact handoff bypass the future check. */
 export function resolveFutureLondonStartIso(
   value: string,

@@ -7,6 +7,7 @@
 // figure, and a walk that was timed for a different neighbour prints nothing
 // until the map has measured the new one.
 
+import { londonDaysAhead } from "@/lib/planIntake";
 import { legMinutes } from "@/lib/routeLegs";
 import type { WalkLegDistance } from "@/lib/walkRoute";
 
@@ -42,8 +43,8 @@ export function measuredLegMinutes(
     const from = venueIds[leg.fromIndex];
     const to = venueIds[leg.toIndex];
     if (!from || !to || !Number.isFinite(leg.distanceKm) || leg.distanceKm <= 0) continue;
-    // The generator times a leg with this same function, so a measured walk and a
-    // generated one never differ by their rounding.
+    // Timed from the routed distance at walking pace. The generator times its own
+    // routed leg from the router's duration, so the two can differ by a minute.
     out.set(legKey(from, to), legMinutes(leg.distanceKm));
   }
   return out;
@@ -127,8 +128,24 @@ export function priceKindLabel(kind: RouteViewStop["priceKind"]): string | null 
   return null;
 }
 
-/** The page's heading: where and when, in the product's own words. */
-export function routeHeading(daypart: string | null | undefined, areaName: string | null): string {
-  if (!areaName) return "Your route";
-  return `${daypart === "daytime" ? "Today" : "Tonight"} in ${areaName}`;
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/**
+ * The page's heading: where and when, in the product's own words. When is the
+ * start time's London date against today's: the same day by its daypart, then
+ * tomorrow, then the weekday.
+ */
+export function routeHeading(input: {
+  daypart: string | null | undefined;
+  areaName: string | null;
+  startInput: string;
+  now?: Date;
+}): string {
+  if (!input.areaName) return "Your route";
+  const daytime = input.daypart === "daytime";
+  const ahead = londonDaysAhead(input.startInput, input.now);
+  const when = !ahead || ahead.days <= 0
+    ? daytime ? "Today" : "Tonight"
+    : `${ahead.days === 1 ? "Tomorrow" : WEEKDAYS[ahead.weekday]}${daytime ? "" : " night"}`;
+  return `${when} in ${input.areaName}`;
 }

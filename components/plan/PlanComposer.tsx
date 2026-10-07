@@ -24,6 +24,7 @@ import { buildCrawlMapHref } from "@/lib/crawlUrl";
 import { haptic } from "@/lib/nativeHaptics";
 import { moveItem } from "@/lib/planStopReorder";
 import { measuredLegMinutes, routeHeading, routeSummaryLine, type MeasuredLegMinutes } from "@/lib/planRouteView";
+import { ROUTED_WALK_TRANSPORT_BASIS } from "@/lib/routeLegs";
 import type { WalkLegDistance } from "@/lib/walkRoute";
 import { discardBody } from "@/lib/responseBody";
 import { laneSourceFromSearch, trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
@@ -448,7 +449,12 @@ function routeAlternatives(value: unknown): RouteAlternative[] {
   });
 }
 
-/** What the generator timed and priced for one stop, read defensively off the wire or a stored draft. */
+/**
+ * What the generator timed and priced for one stop, read defensively off the
+ * wire or a stored draft. A walk is kept only when it was routed on foot: the
+ * wire says so in its transport basis, and a stored draft only ever saved one
+ * (with the stop it was walked from). A straight-line estimate is not a walk.
+ */
 function generatedStopTiming(
   row: {
     walkingMinutesFromPrevious?: unknown;
@@ -456,16 +462,22 @@ function generatedStopTiming(
     estimatedPintPricePence?: unknown;
     priceEvidence?: unknown;
     priceKind?: unknown;
+    operationalEvidence?: unknown;
   },
   previousCandidate: unknown,
   index: number,
 ): Pick<DraftStop, "walkingMinutesFromPrevious" | "walkFromVenueId" | "estimatedPintPricePence" | "priceKind"> {
   const previous = previousCandidate as { venueId?: unknown } | undefined;
-  const walkFromVenueId = typeof row.walkFromVenueId === "string" && row.walkFromVenueId.trim()
-    ? row.walkFromVenueId.trim()
-    : typeof previous?.venueId === "string" && previous.venueId.trim() ? previous.venueId.trim() : undefined;
+  const stored = typeof row.walkFromVenueId === "string" && row.walkFromVenueId.trim()
+    ? row.walkFromVenueId.trim() : undefined;
+  const routed = Boolean(stored) || (
+    Boolean(row.operationalEvidence) && typeof row.operationalEvidence === "object"
+    && (row.operationalEvidence as { transportBasis?: unknown }).transportBasis === ROUTED_WALK_TRANSPORT_BASIS
+  );
+  const walkFromVenueId = stored
+    ?? (typeof previous?.venueId === "string" && previous.venueId.trim() ? previous.venueId.trim() : undefined);
   const minutes = row.walkingMinutesFromPrevious;
-  const walkMinutes = typeof minutes === "number" && Number.isFinite(minutes) && minutes >= 0 && minutes <= 600
+  const walkMinutes = routed && typeof minutes === "number" && Number.isFinite(minutes) && minutes >= 0 && minutes <= 600
     ? Math.round(minutes) : null;
   const pence = row.estimatedPintPricePence;
   const pricePence = typeof pence === "number" && Number.isSafeInteger(pence) && pence > 0 && pence <= 100_000
@@ -507,6 +519,7 @@ export function routeStopsFromGenerated(value: unknown, alternativePool?: unknow
       estimatedPintPricePence?: unknown;
       priceEvidence?: unknown;
       priceKind?: unknown;
+      operationalEvidence?: unknown;
       alternatives?: unknown;
       options?: unknown;
     };
@@ -2086,7 +2099,7 @@ function PlanComposerForm({
       markPalRouteActivation();
       trackEvent("plan_started");
       trackEvent("plan_generated", { stops: suggested.length, grounded });
-      setConciergeNote(`${planStopCountPhrase(suggested.length)} we can stand behind, shaped by the outing you set below.`);
+      setConciergeNote(`${planStopCountPhrase(suggested.length)} we can stand behind, shaped by the outing you set.`);
       setRouteStatus("Route refreshed. Review the preview, then lock it in when it feels right.");
       setRouteRevealTick((tick) => tick + 1);
       setRouteDrawKey(suggested.map((stop) => stop.venueId).join(">"));
@@ -2527,7 +2540,7 @@ function PlanComposerForm({
   const resultHeader = (
     <section className="planResult" aria-labelledby="plan-result-title">
       <div className="planResult__top">
-        <h2 id="plan-result-title" className="planResult__title">{routeHeading(routeNight?.daypart, areaName)}</h2>
+        <h2 id="plan-result-title" className="planResult__title">{routeHeading({ daypart: routeNight?.daypart, areaName, startInput: startTime })}</h2>
         <button type="button" className="planResult__tune" aria-haspopup="dialog" onClick={() => setTuneOpen(true)}>
           <SlidersHorizontal size={16} aria-hidden="true" /> <span className="planResult__tuneLabel">Tune details</span>
         </button>

@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 import "./planTuneSheet.css";
-import { springTo } from "@/lib/springAnimate";
+import { releaseVelocity, springTo } from "@/lib/springAnimate";
 import type { SpringConfig } from "@/lib/springMotion";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { useFocusTrap } from "@/lib/useFocusTrap";
@@ -24,6 +24,10 @@ const GLIDE: SpringConfig = { response: 0.3, dampingRatio: 1 };
 const DISMISS_PX = 110;
 const DISMISS_VELOCITY = 0.5;
 const EXPAND_PX = 60;
+/** Movement before a press on the header becomes a drag, so the grab handle still takes a tap. */
+const DRAG_SLOP = 4;
+/** The width at which the sheet is a centred dialog (planTuneSheet.css), which does not drag. */
+const DIALOG_QUERY = "(min-width: 641px)";
 
 type Detent = "half" | "full";
 
@@ -43,7 +47,17 @@ export default function PlanTuneSheet({
   const originRef = useRef<HTMLElement | null>(null);
   const [detent, setDetent] = useState<Detent>("half");
   const [dragging, setDragging] = useState(false);
-  const drag = useRef<{ pointerId: number; startY: number; offset: number; lastY: number; lastT: number; velocity: number } | null>(null);
+  const drag = useRef<{
+    pointerId: number;
+    downY: number;
+    startY: number;
+    offset: number;
+    lastY: number;
+    lastT: number;
+    velocity: number;
+    moved: boolean;
+  } | null>(null);
+  const live = useRef(0);
   const cancelSpring = useRef<() => void>(() => {});
   const [closing, setClosing] = useState(false);
   // Every opening starts at the half detent, wherever the last one was left.
@@ -73,30 +87,45 @@ export default function PlanTuneSheet({
     return () => {
       spring.current();
       drag.current = null;
+      live.current = 0;
     };
   }, [open]);
 
   const write = useCallback((value: number) => {
+    live.current = value;
     if (sheetRef.current) sheetRef.current.style.transform = value === 0 ? "" : `translate3d(0, ${value}px, 0)`;
   }, []);
 
   const onPointerDown = (event: PointerEvent<HTMLElement>) => {
-    if ((event.target as HTMLElement).closest("button")) return;
+    if ((event.target as HTMLElement).closest(".planTune__close")) return;
+    if (window.matchMedia?.(DIALOG_QUERY).matches) return;
     cancelSpring.current();
+    setClosing(false);
+    const from = live.current;
     drag.current = {
       pointerId: event.pointerId,
-      startY: event.clientY,
-      offset: 0,
+      downY: event.clientY,
+      startY: event.clientY - (from < 0 ? from / 0.25 : from),
+      offset: from,
       lastY: event.clientY,
       lastT: event.timeStamp,
       velocity: 0,
+      moved: false,
     };
-    event.currentTarget.setPointerCapture(event.pointerId);
-    setDragging(true);
   };
   const onPointerMove = (event: PointerEvent<HTMLElement>) => {
     const current = drag.current;
     if (!current || current.pointerId !== event.pointerId) return;
+    if (!current.moved) {
+      if (Math.abs(event.clientY - current.downY) <= DRAG_SLOP) return;
+      current.moved = true;
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch {
+        /* the pointer is already gone */
+      }
+      setDragging(true);
+    }
     const dy = event.clientY - current.startY;
     const elapsed = event.timeStamp - current.lastT;
     if (elapsed > 0) current.velocity = current.velocity * 0.6 + ((event.clientY - current.lastY) / elapsed) * 0.4;
@@ -110,12 +139,17 @@ export default function PlanTuneSheet({
     const current = drag.current;
     if (!current || current.pointerId !== event.pointerId) return;
     drag.current = null;
+    if (!current.moved) {
+      if (current.offset !== 0) cancelSpring.current = springTo(current.offset, 0, 0, GLIDE, write, () => write(0));
+      return;
+    }
     setDragging(false);
+    const velocity = releaseVelocity(current.velocity, current.lastT, event.timeStamp);
     const height = sheetRef.current?.getBoundingClientRect().height ?? 600;
-    const dismiss = current.offset > DISMISS_PX || current.velocity > DISMISS_VELOCITY;
+    const dismiss = current.offset > DISMISS_PX || velocity > DISMISS_VELOCITY;
     if (dismiss) {
       setClosing(true);
-      cancelSpring.current = springTo(current.offset, current.velocity * 1000, height, GLIDE, write, () => {
+      cancelSpring.current = springTo(current.offset, velocity * 1000, height, GLIDE, write, () => {
         setClosing(false);
         write(0);
         onClose();
@@ -123,7 +157,7 @@ export default function PlanTuneSheet({
       return;
     }
     if (current.offset < -EXPAND_PX * 0.25 && detent === "half") setDetent("full");
-    cancelSpring.current = springTo(current.offset, current.velocity * 1000, 0, GLIDE, write, () => write(0));
+    cancelSpring.current = springTo(current.offset, velocity * 1000, 0, GLIDE, write, () => write(0));
   };
 
   if (!open || typeof document === "undefined") return null;

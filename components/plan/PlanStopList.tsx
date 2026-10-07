@@ -179,7 +179,22 @@ export default function PlanStopList({
   const isCard = (stop: DraftStop, index: number) => Boolean(
     stop.venueId.trim() && (stop.venueName.trim() || (index === 0 && stop.venueId === heldVenueId)),
   );
-  const gestures = useStopGestures({ onReorder, revealedKey, keys, onReveal: setRevealedKey, firstLocked, removable, refreshKey });
+  const swipeable = (index: number) => {
+    const stop = stops[index];
+    return Boolean(stop && removable && isCard(stop, index) && !removeDisabled(stop, index));
+  };
+  const openKey = stops.some((stop, index) => stop.key === revealedKey && swipeable(index)) ? revealedKey : null;
+  const listRef = useRef<HTMLOListElement | null>(null);
+  const gestures = useStopGestures({
+    list: listRef,
+    onReorder,
+    revealedKey: openKey,
+    keys,
+    onReveal: setRevealedKey,
+    firstLocked,
+    swipeable,
+    refreshKey,
+  });
   const options = useMemo(() => finderOptions(venues), [venues]);
   const byValue = useMemo(
     () => new Map(options.map((option) => [option.value.toLocaleLowerCase(), option.venue])),
@@ -188,7 +203,6 @@ export default function PlanStopList({
   // A card the keyboard moved or removed leaves the page or moves in it, which
   // drops focus to the document. Focus goes back to that card, or to the
   // neighbour that takes a removed card's place.
-  const listRef = useRef<HTMLOListElement | null>(null);
   const focusAfter = useRef<number | null>(null);
   useLayoutEffect(() => {
     const key = focusAfter.current;
@@ -199,13 +213,14 @@ export default function PlanStopList({
       ?.querySelector<HTMLElement>(".planStop__open, .planStop__find")
       ?.focus();
   }, [stops]);
-  const remove = (index: number) => {
+  const remove = (index: number, byKeyboard: boolean) => {
     const key = stops[index]?.key;
     if (key === undefined) return;
-    focusAfter.current = (stops[index + 1] ?? stops[index - 1])?.key ?? null;
+    focusAfter.current = byKeyboard ? (stops[index + 1] ?? stops[index - 1])?.key ?? null : null;
     if (revealedKey === key) setRevealedKey(null);
     onRemove(key);
   };
+  const lowest = firstLocked ? 1 : 0;
 
   return (
     <div className="planStops">
@@ -226,6 +241,17 @@ export default function PlanStopList({
           const drinkLine = selectedDrinkPriceDescription(stop.selectedDrinkPriceEvidence);
           const meta = metaFor(stop, areaName);
           const lifted = gestures.liftedIndex === index;
+          const movable = index >= lowest && stops.length - lowest > 1;
+          const canDelete = removable && !removeDisabled(stop, index);
+          const shortcuts = [
+            movable && index > lowest ? "Alt+ArrowUp" : null,
+            movable && index < stops.length - 1 ? "Alt+ArrowDown" : null,
+            canDelete ? "Delete Backspace" : null,
+          ].filter(Boolean).join(" ");
+          const howTo = [
+            movable ? "Press and hold to drag to a new place. Alt and the arrow keys move it." : null,
+            canDelete ? "Delete removes it." : null,
+          ].filter(Boolean).join(" ");
           return (
             <li
               key={stop.key}
@@ -233,7 +259,7 @@ export default function PlanStopList({
               className="planComposer__stop planStop"
               data-stop-key={stop.key}
               data-lifted={lifted ? "true" : undefined}
-              data-revealed={revealedKey === stop.key ? "true" : undefined}
+              data-revealed={openKey === stop.key ? "true" : undefined}
             >
               {index > 0 ? (
                 <div className="planStop__walk" aria-hidden={minutes === null ? true : undefined}>
@@ -248,6 +274,7 @@ export default function PlanStopList({
                     onPointerDown={gestures.onPointerDown(index)}
                     onPointerMove={gestures.onPointerMove}
                     onClickCapture={gestures.onClickCapture(index)}
+                    onContextMenu={gestures.onContextMenu}
                     onKeyDown={(event) => {
                       if (!(event.target as HTMLElement).closest(".planStop__open")) return;
                       gestures.onKeyDown(index, stops.length)(event);
@@ -255,9 +282,9 @@ export default function PlanStopList({
                         focusAfter.current = stop.key;
                         return;
                       }
-                      if ((event.key === "Delete" || event.key === "Backspace") && removable && !removeDisabled(stop, index)) {
+                      if ((event.key === "Delete" || event.key === "Backspace") && canDelete) {
                         event.preventDefault();
-                        remove(index);
+                        remove(index, true);
                       }
                     }}
                   >
@@ -268,8 +295,8 @@ export default function PlanStopList({
                         href={venueMapUrl(stop.venueId)}
                         prefetch={false}
                         draggable={false}
-                        aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown Delete Backspace"
-                        aria-description="Press and hold to drag to a new place. Alt and the arrow keys move it. Delete removes it."
+                        aria-keyshortcuts={shortcuts || undefined}
+                        aria-description={howTo || undefined}
                       >
                         <span className="planStop__name">{stop.venueName.trim() || UNRESOLVED_ACCEPTED_STOP_LABEL}</span>
                       </Link>
@@ -283,8 +310,8 @@ export default function PlanStopList({
                       className="planStop__swap planComposer__swap"
                       type="button"
                       data-stop-action
-                      onClick={() => {
-                        if (!stop.venueName.trim()) focusAfter.current = stop.key;
+                      onClick={(event) => {
+                        if (!stop.venueName.trim() && event.detail === 0) focusAfter.current = stop.key;
                         onSwap(stop.key);
                       }}
                       disabled={swapDisabled(stop, index)}
@@ -299,7 +326,7 @@ export default function PlanStopList({
                     className="planStop__remove planComposer__remove"
                     type="button"
                     data-stop-action
-                    onClick={() => remove(index)}
+                    onClick={(event) => remove(index, event.detail === 0)}
                     disabled={removeDisabled(stop, index)}
                     aria-label={removeLabel(stop, index)}
                   >
@@ -321,7 +348,7 @@ export default function PlanStopList({
                       className="planStop__drop planComposer__remove"
                       type="button"
                       data-stop-action
-                      onClick={() => remove(index)}
+                      onClick={(event) => remove(index, event.detail === 0)}
                       disabled={removeDisabled(stop, index)}
                       aria-label={removeLabel(stop, index)}
                     >
