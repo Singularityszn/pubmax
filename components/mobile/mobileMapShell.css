@@ -42,6 +42,10 @@
     );
     --mobile-map-stack-left: 12px;
     --mobile-map-stack-right: 12px;
+    /* The collapsed OpenStreetMap credit's 44px circle (below) at the left of
+       the band above the plan pill. The Pub Pal pill in that band starts
+       beside it (pubPal.css). */
+    --mobile-map-credit-size: 44px;
   }
 
   .mobileMapChrome {
