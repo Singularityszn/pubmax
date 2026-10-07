@@ -36,6 +36,7 @@ import {
   baselineTrustCaption,
   venueBundlePrices,
   venuePriceLane,
+  venuePriceFallbackPending,
   venuePriceLaneIsDrinkerLog,
   venuePriceLaneObservedGbp,
   type DisputedPriceInput,
@@ -88,6 +89,7 @@ import { anchorMonthLabel } from "@/lib/venueAnchorPresentation";
 import {
   NO_ALCOHOL_LENS_PRICE_NOUN,
   type MapExperienceLens,
+  type VenuePriceReadStatus,
 } from "@/lib/mapExperienceLens";
 import { drinkLaneNoun, venueDrinkPriceView } from "@/lib/drinkLanes";
 import { type DrinkCategory } from "@/lib/drinks";
@@ -379,6 +381,7 @@ function VenuePriceSummary({
   anchorStamp,
   composerOpen,
   dropReadStatus,
+  priceReadStatus,
   onLogTonightPrice,
   onConfirmPrice,
   priceRevealMotionClass = "",
@@ -396,6 +399,7 @@ function VenuePriceSummary({
   /** Where this pub's own Pint Drop read got to. A failed read may not be
    *  worded as a pub with no price on it (review finding F-8). */
   dropReadStatus?: VenueDropReadStatus;
+  priceReadStatus: VenuePriceReadStatus;
   onLogTonightPrice: () => void;
   /** The second drinker's door: opens the Pint Drop composer seeded with the
    *  logged-once figure (lib/pintDropSecondDrinker.ts). */
@@ -403,6 +407,9 @@ function VenuePriceSummary({
   priceRevealMotionClass?: string;
 }) {
   const chromeRevealClass = priceRevealMotionClass || undefined;
+  if (isPubVenue(venue) && venuePriceFallbackPending(lane, priceReadStatus, dropReadStatus)) {
+    return <div className="contributorPrice" role="status">Checking prices…</div>;
+  }
   // ONE decider. This surface hands over the confirmation lane it owns and
   // reads back a standing; the listed and modelled lanes reach the same call
   // through their own owner rather than through a second judgement here.
@@ -1097,6 +1104,7 @@ export default function VenueOverviewTab({
           anchorStamp={anchorStamp}
           composerOpen={composerOpen}
           dropReadStatus={dropReadStatus}
+          priceReadStatus={venueReadStatus}
           onLogTonightPrice={logTonightPrice}
           onConfirmPrice={onConfirmPrice}
           priceRevealMotionClass={
