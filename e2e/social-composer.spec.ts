@@ -147,7 +147,7 @@ test("verified composer preserves failed photo draft, records consent choices, a
   await venueCombobox.fill("Proof");
   await expect(venueCombobox).toHaveAttribute("aria-expanded", "true");
   await expect(dialog.getByRole("listbox", { name: "Venue results" })).toBeVisible();
-  await expect(dialog.getByRole("status")).toContainText("1 Venue found");
+  await expect(dialog.getByRole("status")).toContainText("1 venue found");
   await venueCombobox.press("ArrowDown");
   await venueCombobox.press("Enter");
   await expect(dialog.getByLabel("Selected venue")).toContainText("The Proof Arms");
