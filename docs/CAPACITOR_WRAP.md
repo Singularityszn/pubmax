@@ -8,8 +8,9 @@ shells run in **remote-URL mode**: `capacitor.config.ts` points
 sibling navigation against `server.url` as a URL prefix. This static document runs
 the entry decision and replaces itself with onboarding or Tonight before the
 WKWebView loads any React or landing assets. A launch with any stored city
-value and no first-run mark opens Tonight. Tonight reads that value through
-`readPreferredCity()`, so a disabled or unparseable city falls back to London.
+value, no first-run mark and no unfinished step opens Tonight. Tonight reads
+that value through `readPreferredCity()`, so a disabled or unparseable city
+falls back to London.
 If the entry script never runs, the document's refresh hands the launch to the
 root after two seconds. Offline, the service worker redirects `/app-entry` to
 the root, so the root's cached document and entry decision own it. Older

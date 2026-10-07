@@ -6,7 +6,7 @@
 // lib/entryDecision.ts owns the whole policy (deep links bypass,
 // shell cold-starts land on /tonight, native first-run opens onboarding,
 // browser visits keep the landing page); this component only snapshots the
-// live context, applies the decision, and persists the first-run mark.
+// live context, applies the decision, and records the unfinished first-run step.
 //
 // Owner amendment (2026-07-21, amends #439): the decision fires only on the
 // session's FIRST arrival at "/". We stamp the per-session flag
@@ -30,8 +30,8 @@ import {
 } from "@/lib/entryDecision";
 import {
   clearNativeFirstRunHandoff,
+  beginNativeFirstRun,
   issueNativeFirstRunHandoff,
-  markNativeFirstRunRouted,
 } from "@/lib/nativeFirstRun";
 
 export default function AppEntryRoute(): null {
@@ -65,9 +65,9 @@ export default function AppEntryRoute(): null {
     resetConsentWaitForEntryRewrite(decision.href);
     if (decision.reason === "native-first-run") {
       // Eligibility is carried out-of-URL and consumed by the guarded route.
-      // Mark first so a slow transition can never double-fire on another boot.
+      // Persist the unfinished journey before navigating, so a relaunch resumes it.
       issueNativeFirstRunHandoff();
-      markNativeFirstRunRouted();
+      beginNativeFirstRun();
     } else {
       clearNativeFirstRunHandoff();
     }

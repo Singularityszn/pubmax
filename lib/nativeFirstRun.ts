@@ -1,37 +1,37 @@
-// Native-shell first-run routing gate — decides whether the Capacitor app's
-// very first launch should skip the web landing page and open the dedicated
-// onboarding route. Every later root launch is owned by lib/entryDecision.ts
-// and lands on /tonight.
-//
-// Older remote-URL binaries load the site root. New binaries use /app-entry,
-// which runs the same pre-paint script without a landing document. Otherwise a
-// first-time native user would land on the marketing page built
-// for organic web traffic. We only want that ONE redirect, ONE time, and
-// only for a genuinely first-time viewer: if the viewer already has a
-// preferred-city choice persisted (lib/cityPreference.ts) they have state —
-// either they picked a city on web before installing, or a previous native
-// session already ran this redirect and they since chose a city — so we must
-// not clobber it or bounce them again.
+// Native first launches open onboarding. Interrupted journeys resume until
+// the reader taps Skip or Plan my night. Completed journeys open Tonight.
+// An existing city choice bypasses onboarding unless a journey is unfinished.
 //
 // Storage mirrors the lib/firstRunTour.ts idiom: localStorage-backed,
 // SSR-safe, no-op when storage is unavailable. Never routes on the web — the
 // isNative flag threaded through shouldRouteNativeFirstRun is sourced from
 // isNativeApp() (lib/nativePlatform.ts), the only Capacitor-detection seam.
 
+import { hasSeenTour } from "@/lib/firstRunTour";
 import { isNativeApp } from "@/lib/nativePlatform";
 import { safeLocalStorage, safeSessionStorage } from "@/lib/safeStorage";
+import type { OnboardingStep } from "@/lib/onboardingFlow";
 
 /**
- * The device mark that says the one-time first-run redirect has already gone.
+ * The device mark that says onboarding was explicitly finished or skipped.
  * Exported because the entry block in public/theme-init.js reads it before
  * React exists,
  * to tell a first launch from every later one.
  */
-export const NATIVE_FIRST_RUN_ROUTED_KEY = "pubmax:nativeFirstRun:routed:v1";
-const STORAGE_KEY = NATIVE_FIRST_RUN_ROUTED_KEY;
+export const NATIVE_FIRST_RUN_DONE_KEY = "pubmax:nativeFirstRun:done:v2";
+/**
+ * Earlier releases wrote this mark when routing STARTED, so alone it proves only
+ * that a journey began. Those releases also wrote the tour mark on Skip and Plan
+ * my night, so the pair means finished. Without the tour mark the journey resumes.
+ */
+export const NATIVE_FIRST_RUN_LEGACY_ROUTED_KEY = "pubmax:nativeFirstRun:routed:v1";
+/** Only the unfinished step is durable. Location coordinates are never stored here. */
+export const NATIVE_FIRST_RUN_STEP_KEY = "pubmax:nativeFirstRun:step:v1";
+/** The id of the patch an unfinished journey chose. Never coordinates. */
+export const NATIVE_FIRST_RUN_PATCH_KEY = "pubmax:nativeFirstRun:patch:v1";
 /**
  * The one-time onboarding eligibility slot. Exported for the same reason as
- * NATIVE_FIRST_RUN_ROUTED_KEY: the entry block in public/theme-init.js takes the
+ * NATIVE_FIRST_RUN_DONE_KEY: the entry block in public/theme-init.js takes the
  * first-run branch itself and has to issue the same handoff the guarded route
  * consumes, one paint earlier.
  */
@@ -44,6 +44,13 @@ function hasStorage(): boolean {
   return safeLocalStorage() !== null;
 }
 
+function isNativeFirstRunDone(store: Storage): boolean {
+  return (
+    store.getItem(NATIVE_FIRST_RUN_DONE_KEY) === "1" ||
+    (store.getItem(NATIVE_FIRST_RUN_LEGACY_ROUTED_KEY) === "1" && hasSeenTour())
+  );
+}
+
 function resolveSessionStorage(storage?: Storage | null): Storage | null {
   return storage ?? safeSessionStorage();
 }
@@ -51,44 +58,107 @@ function resolveSessionStorage(storage?: Storage | null): Storage | null {
 export type NativeFirstRunState = {
   /** Native shell only — always false (never route) on web/SSR. */
   isNative: boolean;
-  /** This redirect has already run once (this device/install). */
+  /** Onboarding was explicitly finished or skipped on this device. */
   alreadyRouted: boolean;
   /** Viewer already has a preferred-city choice persisted — has state. */
   hasCityPreference: boolean;
+  /** A native journey started but has not been explicitly finished or skipped. */
+  inProgress?: boolean;
 };
 
 /**
  * Pure gate function — exported for unit testing. No storage/DOM access.
- * Routes to onboarding only on a genuinely first native launch with no
- * existing city-preference state, and only once ever.
+ * Routes a new native viewer or an unfinished native journey to onboarding.
  */
 export function shouldRouteNativeFirstRun(state: NativeFirstRunState): boolean {
   if (!state.isNative) return false;
   if (state.alreadyRouted) return false;
+  if (state.inProgress) return true;
   if (state.hasCityPreference) return false;
   return true;
 }
 
-/** Whether the native first-run redirect has already fired on this device. */
+/** Whether onboarding was explicitly finished or skipped on this device. */
 function hasRoutedNativeFirstRun(): boolean {
-  if (!hasStorage()) return true;
+  const store = safeLocalStorage();
+  if (!store) return true;
   try {
-    return window.localStorage.getItem(STORAGE_KEY) === "1";
+    return isNativeFirstRunDone(store);
   } catch {
     return true;
   }
 }
 
-/** Persist that the native first-run redirect has fired. No-op on SSR/storage failure. */
+/** Record explicit completion or Skip. No-op on SSR/storage failure. */
 export function markNativeFirstRunRouted(): void {
   if (!hasStorage()) return;
   try {
-    window.localStorage.setItem(STORAGE_KEY, "1");
+    window.localStorage.setItem(NATIVE_FIRST_RUN_DONE_KEY, "1");
+    window.localStorage.removeItem(NATIVE_FIRST_RUN_STEP_KEY);
+    window.localStorage.removeItem(NATIVE_FIRST_RUN_PATCH_KEY);
   } catch {
     // Storage full / disabled / private mode — degrade silently; worst case
-    // is a second no-op check next launch, never a loop (isNativeApp() +
-    // hasCityPreference still gate it, and the redirect target is idempotent).
+    // is that the next launch resumes the journey again, never a loop
+    // (isNativeApp() still gates it, and the redirect target is idempotent).
   }
+}
+
+/**
+ * Read an unfinished step. The onboarding UI validates it against its step vocabulary.
+ * A journey an earlier release started stored no step, so it resumes at the first one.
+ */
+export function readNativeFirstRunStep(): string | null {
+  const store = safeLocalStorage();
+  if (!store) return null;
+  try {
+    if (isNativeFirstRunDone(store)) return null;
+    const step = store.getItem(NATIVE_FIRST_RUN_STEP_KEY);
+    if (step !== null) return step;
+    return store.getItem(NATIVE_FIRST_RUN_LEGACY_ROUTED_KEY) === "1" ? "london" : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Record progress only for the native journey, until Skip or Plan my night completes it. */
+export function rememberNativeFirstRunStep(step: OnboardingStep): void {
+  if (!isNativeApp()) return;
+  const store = safeLocalStorage();
+  if (!store) return;
+  try {
+    if (!isNativeFirstRunDone(store)) store.setItem(NATIVE_FIRST_RUN_STEP_KEY, step);
+  } catch {
+    // Storage unavailable. The journey remains usable in this session.
+  }
+}
+
+/** Read the patch id an unfinished journey chose. The onboarding UI validates it. */
+export function readNativeFirstRunPatch(): string | null {
+  const store = safeLocalStorage();
+  if (!store) return null;
+  try {
+    return isNativeFirstRunDone(store) ? null : store.getItem(NATIVE_FIRST_RUN_PATCH_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** Record the chosen patch id for the native journey. Null clears it: a located answer keeps no place. */
+export function rememberNativeFirstRunPatch(id: string | null): void {
+  if (!isNativeApp()) return;
+  const store = safeLocalStorage();
+  if (!store) return;
+  try {
+    if (id && !isNativeFirstRunDone(store)) store.setItem(NATIVE_FIRST_RUN_PATCH_KEY, id);
+    else store.removeItem(NATIVE_FIRST_RUN_PATCH_KEY);
+  } catch {
+    // Storage unavailable. The patch still counts for this session.
+  }
+}
+
+/** Start a journey without overwriting the step an interrupted launch left behind. */
+export function beginNativeFirstRun(): void {
+  if (readNativeFirstRunStep() === null) rememberNativeFirstRunStep("london");
 }
 
 /**
@@ -153,5 +223,6 @@ export function getNativeFirstRunSnapshot(hasCityPreference: boolean): NativeFir
     isNative: isNativeApp(),
     alreadyRouted: hasRoutedNativeFirstRun(),
     hasCityPreference,
+    inProgress: readNativeFirstRunStep() !== null,
   };
 }

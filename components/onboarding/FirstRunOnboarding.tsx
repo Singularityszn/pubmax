@@ -3,7 +3,7 @@
 import type { Route } from "next";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Check, MapPinned, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, LocateFixed, MapPinned, ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
@@ -32,6 +32,14 @@ import {
   type NearMeCard,
 } from "@/lib/nearMeAnswer";
 import { NIGHT_PATCHES } from "@/lib/nightPatches";
+import {
+  markNativeFirstRunRouted,
+  readNativeFirstRunPatch,
+  readNativeFirstRunStep,
+  rememberNativeFirstRunPatch,
+  rememberNativeFirstRunStep,
+} from "@/lib/nativeFirstRun";
+import { isNativeApp } from "@/lib/nativePlatform";
 import {
   BUDGET_CHOICES,
   ONBOARDING_STEPS,
@@ -91,6 +99,36 @@ function patchOrigin(id: string | null): OnboardingOrigin | null {
   return patch ? { kind: "patch", ...patch } : null;
 }
 
+/** The pinned action bar's one primary, named for the step it advances. */
+function primaryActionLabel(
+  step: OnboardingStep,
+  locateState: LocateState,
+  answer: Answer,
+  hasBest: boolean,
+): string {
+  if (step === "london") return "Use London";
+  if (step === "budget") return "Continue";
+  if (step === "location") return locateState === "requesting" ? "Finding your location…" : "Use my location";
+  if (step === "companion") return "Plan my night";
+  if (answer.status === "loading") return "Checking prices…";
+  if (answer.status === "unavailable") return "Try again";
+  if (answer.status === "empty" || !hasBest) return "Pick a patch";
+  return "That looks right";
+}
+
+function primaryActionDisabled(
+  step: OnboardingStep,
+  locateState: LocateState,
+  answer: Answer,
+  hasBudget: boolean,
+  hasCompanion: boolean,
+): boolean {
+  return (step === "budget" && !hasBudget)
+    || (step === "location" && locateState === "requesting")
+    || (step === "companion" && !hasCompanion)
+    || (step === "result" && answer.status === "loading");
+}
+
 export default function FirstRunOnboarding({
   reviewedAreas,
   skipHref,
@@ -106,17 +144,21 @@ export default function FirstRunOnboarding({
   // A reload lands on the step the reader was on. The answer screen is rebuilt
   // from a read that is gone, so a reload there goes back to the question.
   const [step, setStep] = useState<OnboardingStep>(() => {
-    const recorded = readHistoryStep(ONBOARDING_STEPS);
+    const pending = isNativeApp() ? readNativeFirstRunStep() : null;
+    const recorded = readHistoryStep(ONBOARDING_STEPS)
+      ?? ONBOARDING_STEPS.find((candidate) => candidate === pending);
     return recorded === "result" ? "location" : (recorded ?? "london");
   });
   const [companion, setCompanion] = useState<FirstRunCompanion>("robin");
   const [budget, setBudget] = useState<BudgetChoiceId | null>(null);
   const [locateState, setLocateState] = useState<LocateState>("idle");
   const [showPatches, setShowPatches] = useState(false);
-  // A reload keeps the patch the reader chose, so the planner still opens on it.
-  const [origin, setOrigin] = useState<OnboardingOrigin | null>(() =>
-    readHistoryStep(ONBOARDING_STEPS) ? patchOrigin(readOnboardingPatch()) : null,
-  );
+  // A reload or a native relaunch keeps the patch the reader chose, so the
+  // planner still opens on it.
+  const [origin, setOrigin] = useState<OnboardingOrigin | null>(() => {
+    if (readHistoryStep(ONBOARDING_STEPS)) return patchOrigin(readOnboardingPatch());
+    return isNativeApp() ? patchOrigin(readNativeFirstRunPatch()) : null;
+  });
   const [answer, setAnswer] = useState<Answer>({ status: "loading" });
   // A reader who taps a patch twice, picks a patch while the location prompt is
   // open, or backs out mid-read, must not see the older answer land over the
@@ -141,6 +183,7 @@ export default function FirstRunOnboarding({
   // carries the last step's scroll and the progress bar and Skip start hidden.
   useEffect(() => {
     window.scrollTo(0, 0);
+    rememberNativeFirstRunStep(step);
   }, [step]);
 
   const selectedCompanion = useMemo(
@@ -195,6 +238,7 @@ export default function FirstRunOnboarding({
     const generation = beginAnswer();
     setOrigin(from);
     writeOnboardingPatch(from.kind === "patch" ? from.id : null);
+    rememberNativeFirstRunPatch(from.kind === "patch" ? from.id : null);
     setAnswer({ status: "loading" });
     setStep("result");
     let read: SlimVenueLoadResult;
@@ -283,6 +327,7 @@ export default function FirstRunOnboarding({
   }
 
   function skipOnboarding() {
+    if (isNativeApp()) markNativeFirstRunRouted();
     markTourSeen();
     trackEvent("tour_complete", { completed: false });
     releaseTourPromptBudget();
@@ -293,6 +338,7 @@ export default function FirstRunOnboarding({
     if (!companion) return;
     writePreferredCity("london");
     writeFirstRunCompanion(companion);
+    if (isNativeApp()) markNativeFirstRunRouted();
     markTourSeen();
     trackEvent("tour_complete", { completed: true });
     // Onboarding and push never overlap. The route generator is the first
@@ -310,6 +356,28 @@ export default function FirstRunOnboarding({
   const previous = previousOnboardingStep(step);
   const areaLabel =
     origin?.kind === "patch" ? `around ${origin.label}` : "near you";
+
+  function changeArea() {
+    beginAnswer();
+    setShowPatches(true);
+    setStep("location");
+  }
+
+  function advance() {
+    if (step === "london") confirmLondon();
+    else if (step === "budget") goTo(nextOnboardingStep("budget"));
+    else if (step === "location") locate();
+    else if (step === "companion") startPlan();
+    else if (answer.status === "unavailable") {
+      if (origin) void readAnswer(origin);
+      else changeArea();
+    } else if (answer.status === "empty" || !result?.best) changeArea();
+    else goTo(nextOnboardingStep("result"));
+  }
+
+  const primaryLabel = primaryActionLabel(step, locateState, answer, Boolean(result?.best));
+  const primaryDisabled = primaryActionDisabled(step, locateState, answer, budget !== null, Boolean(companion));
+  const hasBack = step !== "london" && step !== "result";
 
   return (
     <main
@@ -421,11 +489,6 @@ export default function FirstRunOnboarding({
                   ))}
                 </div>
 
-                <div className="firstRunActions firstRunActionsSingle">
-                  <button type="button" className="firstRunPrimary pressable" onClick={confirmLondon}>
-                    Use London <ArrowRight size={18} aria-hidden="true" />
-                  </button>
-                </div>
               </>
             ) : null}
 
@@ -433,8 +496,6 @@ export default function FirstRunOnboarding({
               <BudgetPanel
                 budget={budget}
                 onChoose={chooseBudget}
-                onBack={() => goTo(previous)}
-                onContinue={() => goTo(nextOnboardingStep("budget"))}
               />
             ) : null}
 
@@ -442,13 +503,8 @@ export default function FirstRunOnboarding({
               <LocationPanel
                 state={locateState}
                 showPatches={showPatches}
-                onLocate={locate}
                 onShowPatches={() => setShowPatches(true)}
                 onPickPatch={pickPatch}
-                onBack={() => {
-                  beginAnswer();
-                  goTo(previous);
-                }}
               />
             ) : null}
 
@@ -458,15 +514,8 @@ export default function FirstRunOnboarding({
                 result={result}
                 areaLabel={areaLabel}
                 budgetLabel={budgetChoice?.ceiling ? budgetChoice.label : null}
-                onConfirm={() => goTo(nextOnboardingStep("result"))}
-                onRetry={() => {
-                  if (origin) void readAnswer(origin);
-                }}
                 onChangeBudget={() => setStep("budget")}
-                onChangeArea={() => {
-                  setShowPatches(true);
-                  setStep("location");
-                }}
+                onChangeArea={changeArea}
               />
             ) : null}
 
@@ -502,19 +551,6 @@ export default function FirstRunOnboarding({
                   You can name, tweak, or skip your Pal later.
                 </p>
 
-                <div className="firstRunActions">
-                  <button type="button" className="firstRunBack pressable" onClick={() => goTo(resultStep)}>
-                    <ArrowLeft size={18} aria-hidden="true" /> Back
-                  </button>
-                  <button
-                    type="button"
-                    className="firstRunPrimary pressable"
-                    disabled={!companion}
-                    onClick={startPlan}
-                  >
-                    Plan my night <ArrowRight size={18} aria-hidden="true" />
-                  </button>
-                </div>
                 <p className="firstRunPermissionNote">
                   We won&rsquo;t ask about notifications until your first night&rsquo;s sorted.
                 </p>
@@ -523,6 +559,23 @@ export default function FirstRunOnboarding({
           </div>
         </section>
       </div>
+      <footer className="firstRunActions" aria-label="Onboarding actions">
+        <div className={`firstRunActionsInner${hasBack ? "" : " firstRunActionsSingle"}`}>
+          {hasBack ? (
+            <button type="button" className="firstRunBack pressable" onClick={() => {
+              beginAnswer();
+              goTo(step === "companion" ? resultStep : previous);
+            }}>
+              <ArrowLeft size={18} aria-hidden="true" /> Back
+            </button>
+          ) : null}
+          <button type="button" className="firstRunPrimary pressable" disabled={primaryDisabled} onClick={advance}>
+            {step === "location" ? <LocateFixed size={18} aria-hidden="true" /> : null}
+            {primaryLabel}
+            {step !== "location" ? <ArrowRight size={18} aria-hidden="true" /> : null}
+          </button>
+        </div>
+      </footer>
     </main>
   );
 }

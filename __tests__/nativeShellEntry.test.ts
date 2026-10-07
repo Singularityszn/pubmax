@@ -39,7 +39,8 @@ import {
 } from "@/lib/consentAnswerMoment";
 import {
   NATIVE_FIRST_RUN_HANDOFF_KEY,
-  NATIVE_FIRST_RUN_ROUTED_KEY,
+  NATIVE_FIRST_RUN_DONE_KEY,
+  NATIVE_FIRST_RUN_STEP_KEY,
 } from "@/lib/nativeFirstRun";
 
 const rootFile = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
@@ -104,13 +105,14 @@ describe("the native shell's pre-render entry decision", () => {
     const { replaced, session, local } = runEntryInit({ pathname: "/app-entry" });
     expect(replaced).toEqual([ONBOARDING_PATH]);
     expect(session.getItem(NATIVE_FIRST_RUN_HANDOFF_KEY)).toMatch(/^\d+$/);
-    expect(local.getItem(NATIVE_FIRST_RUN_ROUTED_KEY)).toBe("1");
+    expect(local.getItem(NATIVE_FIRST_RUN_DONE_KEY)).toBeNull();
+    expect(local.getItem(NATIVE_FIRST_RUN_STEP_KEY)).toBe("london");
   });
 
   it("opens Tonight on a returning app-entry boot even if the session stamp survives", () => {
     expect(runEntryInit({
       pathname: "/app-entry",
-      local: { [NATIVE_FIRST_RUN_ROUTED_KEY]: "1" },
+      local: { [NATIVE_FIRST_RUN_DONE_KEY]: "1" },
       session: { [SESSION_ENTRY_CONSUMED_KEY]: "1" },
     }).replaced).toEqual([SHELL_START_PATH]);
   });
@@ -122,7 +124,7 @@ describe("the native shell's pre-render entry decision", () => {
     expect(replaced).toEqual([SHELL_START_PATH]);
     expect(session.getItem(SESSION_ENTRY_CONSUMED_KEY)).toBe("1");
     expect(session.getItem(NATIVE_FIRST_RUN_HANDOFF_KEY)).toBeNull();
-    expect(local.getItem(NATIVE_FIRST_RUN_ROUTED_KEY)).toBeNull();
+    expect(local.getItem(NATIVE_FIRST_RUN_DONE_KEY)).toBeNull();
   });
 
   it("opens Tonight from app-entry for a disabled or unparseable stored city", () => {
@@ -133,7 +135,7 @@ describe("the native shell's pre-render entry decision", () => {
         pathname: "/app-entry", local: { [PREFERRED_CITY_KEY]: stored },
       });
       expect(replaced).toEqual([SHELL_START_PATH]);
-      expect(local.getItem(NATIVE_FIRST_RUN_ROUTED_KEY)).toBeNull();
+      expect(local.getItem(NATIVE_FIRST_RUN_DONE_KEY)).toBeNull();
     }
   });
 
@@ -144,7 +146,7 @@ describe("the native shell's pre-render entry decision", () => {
       session: { [SESSION_ENTRY_CONSUMED_KEY]: "1" },
     });
     expect(replaced).toEqual([SHELL_START_PATH]);
-    expect(local.getItem(NATIVE_FIRST_RUN_ROUTED_KEY)).toBeNull();
+    expect(local.getItem(NATIVE_FIRST_RUN_DONE_KEY)).toBeNull();
   });
 
   it("leaves the static document when storage or the bridge is unavailable", () => {
@@ -154,7 +156,7 @@ describe("the native shell's pre-render entry decision", () => {
 
   it("sends a post-first-run cold start straight to Tonight", () => {
     const { replaced, session } = runEntryInit({
-      local: { [NATIVE_FIRST_RUN_ROUTED_KEY]: "1" },
+      local: { [NATIVE_FIRST_RUN_DONE_KEY]: "1" },
     });
 
     expect(replaced).toEqual([SHELL_START_PATH]);
@@ -163,10 +165,22 @@ describe("the native shell's pre-render entry decision", () => {
     expect(session.getItem(SESSION_ENTRY_CONSUMED_KEY)).toBe("1");
   });
 
+  it("resumes unfinished onboarding after a new session, even with London already chosen", () => {
+    const { replaced, session } = runEntryInit({
+      local: {
+        [NATIVE_FIRST_RUN_STEP_KEY]: "location",
+        [PREFERRED_CITY_KEY]: "london",
+      },
+    });
+
+    expect(replaced).toEqual([ONBOARDING_PATH]);
+    expect(session.getItem(NATIVE_FIRST_RUN_HANDOFF_KEY)).toMatch(/^\d+$/);
+  });
+
   it("does nothing at all in a browser", () => {
     const { replaced, session } = runEntryInit({
       native: false,
-      local: { [NATIVE_FIRST_RUN_ROUTED_KEY]: "1" },
+      local: { [NATIVE_FIRST_RUN_DONE_KEY]: "1" },
     });
 
     expect(replaced).toEqual([]);
@@ -176,7 +190,7 @@ describe("the native shell's pre-render entry decision", () => {
   it("never rewrites a deep link", () => {
     const { replaced } = runEntryInit({
       pathname: "/map",
-      local: { [NATIVE_FIRST_RUN_ROUTED_KEY]: "1" },
+      local: { [NATIVE_FIRST_RUN_DONE_KEY]: "1" },
     });
 
     expect(replaced).toEqual([]);
@@ -185,7 +199,7 @@ describe("the native shell's pre-render entry decision", () => {
   it("leaves a later in-session arrival at the root on the landing page", () => {
     const { replaced } = runEntryInit({
       session: { [SESSION_ENTRY_CONSUMED_KEY]: "1" },
-      local: { [NATIVE_FIRST_RUN_ROUTED_KEY]: "1" },
+      local: { [NATIVE_FIRST_RUN_DONE_KEY]: "1" },
     });
 
     expect(replaced).toEqual([]);
@@ -209,7 +223,8 @@ describe("the native shell's pre-render entry decision", () => {
     // The onboarding route is guarded by a session handoff, so the script has
     // to issue the same eligibility AppEntryRoute would have issued.
     expect(session.getItem(NATIVE_FIRST_RUN_HANDOFF_KEY)).toMatch(/^\d+$/);
-    expect(local.getItem(NATIVE_FIRST_RUN_ROUTED_KEY)).toBe("1");
+    expect(local.getItem(NATIVE_FIRST_RUN_DONE_KEY)).toBeNull();
+    expect(local.getItem(NATIVE_FIRST_RUN_STEP_KEY)).toBe("london");
   });
 
   it("leaves a stored city to the client, which owns the enabled-city table", () => {
@@ -224,7 +239,7 @@ describe("the native shell's pre-render entry decision", () => {
     expect(replaced).toEqual([]);
     expect(session.getItem(SESSION_ENTRY_CONSUMED_KEY)).toBeNull();
     expect(session.getItem(NATIVE_FIRST_RUN_HANDOFF_KEY)).toBeNull();
-    expect(local.getItem(NATIVE_FIRST_RUN_ROUTED_KEY)).toBeNull();
+    expect(local.getItem(NATIVE_FIRST_RUN_DONE_KEY)).toBeNull();
   });
 
   it("costs the website nothing, because it rides a script every route already loads", () => {
@@ -264,7 +279,7 @@ describe("the native shell's pre-render entry decision", () => {
   it("reads the same keys and destination the TypeScript seams own", () => {
     for (const literal of [
       SESSION_ENTRY_CONSUMED_KEY,
-      NATIVE_FIRST_RUN_ROUTED_KEY,
+      NATIVE_FIRST_RUN_DONE_KEY,
       NATIVE_FIRST_RUN_HANDOFF_KEY,
       PREFERRED_CITY_KEY,
       SHELL_START_PATH,

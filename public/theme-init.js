@@ -41,22 +41,25 @@
 // lib/entryDecision.ts's `decideEntry` are decidable from storage alone:
 //
 //   - rule 4, `shell-cold-start`: the first-run mark is present, so this is an
-//     ordinary later launch and it lands on /tonight.
-//   - rule 2, `native-first-run`: NEITHER the first-run mark NOR a stored city
-//     value exists. `shouldRouteNativeFirstRun` needs `readPreferredCity()` to
-//     answer null, and with no stored value at all that answer is null under
-//     every possible enabled-city table in lib/cities.ts. So this reads the
-//     ABSENCE of the key and never its contents, and forks no table.
+//     ordinary later launch and it lands on /tonight. The mark is the done mark,
+//     or an earlier release's routed mark beside a tour mark.
+//   - rule 2, `native-first-run`: the first-run mark is absent, and EITHER an
+//     unfinished step is stored, an earlier release's routed mark stands alone,
+//     OR no city value is stored. An unfinished
+//     journey resumes whatever city it stored. With no stored city value at
+//     all, `readPreferredCity()` answers null under every possible
+//     enabled-city table in lib/cities.ts. So this reads the ABSENCE of the
+//     city key and never its contents, and forks no table.
 //
-// The ONE case left to the client at the root is a stored city value with the
-// first-run mark absent. Whether that value counts depends on whether
-// lib/cities.ts still has that city enabled, and a second copy of the city list
-// here would be a second place for it to be wrong. AppEntryRoute decides that
-// one exactly as before, one paint later. The static /app-entry document has no
-// React, so there any stored city value takes rule 4 and opens /tonight. Tonight
-// reads the value through readPreferredCity(), so a disabled or unparseable
-// city falls back to London. It never stamps the first-run mark, so a person
-// who later clears the city still sees onboarding.
+// The ONE case left to the client at the root is a stored city value with
+// neither the first-run mark nor an unfinished step. Whether that value counts
+// depends on whether lib/cities.ts still has that city enabled, and a second
+// copy of the city list here would be a second place for it to be wrong.
+// AppEntryRoute decides that one exactly as before, one paint later. The static
+// /app-entry document has no React, so there that case takes rule 4 and opens
+// /tonight. Tonight reads the value through readPreferredCity(), so a disabled
+// or unparseable city falls back to London. It never stamps the first-run mark,
+// so a person who later clears the city still sees onboarding.
 //
 // __tests__/nativeShellEntry.test.ts runs THIS FILE against a window of its
 // own, which is why every reference below goes through `window`.
@@ -93,23 +96,30 @@
     // an in-app tap on the wordmark and it stays on the landing page.
     if (!appEntry && session.getItem("pubmax:entryDecision:consumed:v1") === "1") return;
 
-    if (local.getItem("pubmax:nativeFirstRun:routed:v1") !== "1") {
-      // At the root, a stored city is left to AppEntryRoute (see above). The
-      // static entry document has no React to defer to, so it takes rule 4.
-      if (local.getItem("pubmax:preferredCity:v1") !== null) {
-        if (!appEntry) return;
-      } else {
+    // Earlier releases stamped the routed mark when routing STARTED. It means
+    // finished only beside the tour mark those releases wrote on Skip or Plan my
+    // night. Alone it is a journey that started at the first step and resumes.
+    var legacyRouted = local.getItem("pubmax:nativeFirstRun:routed:v1") === "1";
+    var tourSeen =
+      local.getItem("pubmax-tour-v2-done") === "1" ||
+      local.getItem("pubmax-tour-v1-done") === "1";
+    if (local.getItem("pubmax:nativeFirstRun:done:v2") !== "1" && !(legacyRouted && tourSeen)) {
+      var unfinishedStep = local.getItem("pubmax:nativeFirstRun:step:v1");
+      if (unfinishedStep !== null || legacyRouted || local.getItem("pubmax:preferredCity:v1") === null) {
         // Rule 2. The onboarding route is guarded by a session handoff, so the
-        // same eligibility AppEntryRoute would have issued is issued here. Both
-        // marks are stamped BEFORE navigating, exactly as that component does, so
-        // a slow transition can never leave a flag unset and fire twice.
+        // same eligibility AppEntryRoute would have issued is issued here. The
+        // unfinished step is durable before navigating. Only an explicit
+        // Skip or Plan my night marks the journey complete.
         session.setItem("pubmax:nativeFirstRun:handoff:v1", String(Date.now()));
-        local.setItem("pubmax:nativeFirstRun:routed:v1", "1");
+        if (unfinishedStep === null) local.setItem("pubmax:nativeFirstRun:step:v1", "london");
         session.setItem("pubmax:entryDecision:consumed:v1", "1");
         routed = true;
         window.location.replace("/onboarding");
         return;
       }
+      // At the root, a stored city is left to AppEntryRoute (see above). The
+      // static entry document has no React to defer to, so it takes rule 4.
+      if (!appEntry) return;
     }
 
     // Rule 4. Stamp before navigating, exactly as AppEntryRoute does, so a slow

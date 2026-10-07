@@ -1,6 +1,9 @@
 .firstRunOnboarding {
-  min-height: 100dvh;
-  overflow-x: clip;
+  height: 100dvh;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: var(--paper);
   color: var(--ink);
 }
@@ -9,24 +12,7 @@
   min-height: 100dvh;
 }
 
-/* THE CONSENT LANE.
-   ---------------------------------------------------------------------------
-   The analytics choice outranks every other prompt (analyticsChoiceHasPriority,
-   lib/promptBudget.ts), so on a first launch its card is on screen over this
-   surface. That priority is right and is not what changes here. The geometry
-   was wrong: .firstRunStage is sized to the viewport, so its last rows sit
-   exactly where a fixed bottom card lands, and the foot padding globals.css
-   reserves on an ordinary page cannot lift a block that is explicitly
-   viewport-height. On the iPhone 17 Pro simulator that put the card across the
-   reviewed-area rows and the "Use London" button.
-
-   The fix is containment, not a nudge: while the card is mounted this surface
-   becomes its own scroller, ending where the card's lane begins. Nothing can
-   pass under the card at any scroll position, which a nudge alone cannot
-   promise. The lane is the length globals.css publishes plus the same bottom
-   berth the card itself takes, so the two cannot drift; nothing here restates
-   either number. Take the card away and every declaration below stops
-   matching, so the surface is byte-identical to before. */
+/* Reserve the consent card lane. The stage scrolls above the shared action bar. */
 :root {
   --first-run-consent-lane: calc(
     var(--analytics-consent-clearance) + max(12px, env(safe-area-inset-bottom, 0px))
@@ -36,14 +22,6 @@
 body:has(.analyticsConsentPrompt) .firstRunOnboarding {
   height: calc(100dvh - var(--first-run-consent-lane));
   min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
-body:has(.analyticsConsentPrompt) .firstRunStage {
-  min-height: calc(
-    100dvh - 68px - env(safe-area-inset-top, 0px) - var(--first-run-consent-lane)
-  );
 }
 
 .firstRunOnboarding,
@@ -64,6 +42,7 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
 }
 
 .firstRunTopbar {
+  flex: 0 0 auto;
   min-height: calc(68px + env(safe-area-inset-top, 0px));
   padding: env(safe-area-inset-top, 0px) clamp(18px, 3vw, 40px) 0;
   display: grid;
@@ -122,7 +101,10 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
 }
 
 .firstRunStage {
-  min-height: calc(100dvh - 68px - env(safe-area-inset-top, 0px));
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   display: grid;
   grid-template-columns: minmax(0, 1.03fr) minmax(420px, 0.97fr);
 }
@@ -355,7 +337,24 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
 }
 
 .firstRunActions {
-  margin-top: 24px;
+  flex: 0 0 auto;
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  padding: 12px clamp(34px, 5vw, 72px) calc(12px + env(safe-area-inset-bottom, 0px));
+  padding-left: calc(51.5% + clamp(34px, 5vw, 72px));
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+}
+
+/* The consent lane already clears the home indicator. */
+body:has(.analyticsConsentPrompt) .firstRunActions {
+  padding-bottom: 12px;
+}
+
+.firstRunActionsInner {
+  width: min(100%, 35rem);
+  margin-inline: auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -652,20 +651,16 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
 }
 
 @media (max-width: 760px) {
+  /* The surface is exactly the viewport and scrolls its own stage, so the foot
+     padding the tab bar and consent lanes add to the body would be dead window
+     scroll that pushes the top bar off screen. Those lane rules stack up to
+     three pseudo-classes, so this wins outright rather than by specificity. */
   body:has(.firstRunOnboarding) {
-    padding-bottom: 0;
+    padding-bottom: 0 !important;
   }
 
   body:has(.firstRunOnboarding) .mobileTabBar {
     display: none;
-  }
-
-  /* The surface is its own scroller now, so the foot padding globals.css adds
-     for the card would be dead space below a page that no longer scrolls. It
-     needs the second :has() to outrank that rule, which carries one of its
-     own. */
-  body:has(.firstRunOnboarding):has(.analyticsConsentPrompt) {
-    padding-bottom: 0;
   }
 
   /* The card is taller on a phone, where the sentence wraps and the two
@@ -678,22 +673,7 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
     );
   }
 
-  body:has(.analyticsConsentPrompt) .firstRunStage {
-    min-height: calc(
-      100dvh - 62px - env(safe-area-inset-top, 0px) - var(--first-run-consent-lane)
-    );
-  }
-
-  /* THE PHOTOGRAPH IS WHAT YIELDS.
-     Containment alone only promises that nothing passes UNDER the card. It
-     does not promise the reader can still SEE the rows and the one action,
-     and on a 390pt phone it did not: the surface ended at 704px with the
-     "Use London" button laid out at 768px, inside a scroller a phone draws no
-     bar for. So the stage stops giving the picture a share of the viewport
-     and gives it the space the panel does not need, floored at nothing. The
-     panel keeps its own height at every width, which is what puts the
-     reviewed areas and the primary action back on screen at rest. Take the
-     card away and this stops matching, so the designed 31dvh band returns. */
+  /* With consent visible, the photograph yields before the question and actions. */
   body:has(.analyticsConsentPrompt) .firstRunStage,
   body:has(.analyticsConsentPrompt)
     .firstRunOnboarding[data-stage="companion"] .firstRunStage {
@@ -718,10 +698,6 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
     margin-top: 14px;
   }
 
-  body:has(.analyticsConsentPrompt) .firstRunActions {
-    margin-top: 14px;
-  }
-
   .firstRunTopbar {
     min-height: calc(62px + env(safe-area-inset-top, 0px));
     padding-inline: 16px;
@@ -737,7 +713,6 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
   }
 
   .firstRunStage {
-    min-height: calc(100dvh - 62px - env(safe-area-inset-top, 0px));
     grid-template-columns: 1fr;
     grid-template-rows: minmax(186px, 31dvh) auto;
   }
@@ -748,7 +723,7 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
 
   .firstRunPanel {
     align-items: start;
-    padding: 28px max(18px, env(safe-area-inset-left, 0px)) max(28px, env(safe-area-inset-bottom, 0px));
+    padding: 28px max(18px, env(safe-area-inset-left, 0px)) 28px;
   }
 
   .firstRunPanel h1 {
@@ -803,37 +778,20 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
   }
 
   .firstRunActions {
-    margin-top: 20px;
-  }
-
-  /* THE PAL STEP KEEPS ITS ONE ACTION ON SCREEN.
-     Seven Pals stand the grid taller than a phone: at 390x844 "Plan my night"
-     sat half under the fold with nothing saying the page scrolled. The action
-     row sticks to the foot, as the short-phone rule below does for the London
-     step, and the grid scrolls up behind it. */
-  .firstRunOnboarding[data-stage="companion"] .firstRunActions {
-    position: sticky;
-    bottom: 0;
-    z-index: 1;
-    margin-inline: -4px;
-    padding: 10px 4px max(12px, env(safe-area-inset-bottom, 0px));
-    background: var(--paper);
+    padding-inline: max(18px, env(safe-area-inset-left, 0px)) max(18px, env(safe-area-inset-right, 0px));
   }
 }
 
-/* THE SHORT PHONE.
-   Containment and a yielding photograph put the rows and the one action back
-   on screen at 844 tall. At 568 and 640 tall (verify-preview-4 check 7: the
-   first-generation SE height, and the 360x640 tier) the lane-reduced surface
-   is 428 and 500px tall against a panel laid out at 553px, so "Use London"
-   sat past the surface's end, at y 545 under a card at y 440 to 556, inside
-   a scroller a phone draws no bar for. Two things change while the card is
-   up on a short phone, and only then. The panel's rhythm compresses: one-line
-   heading, tighter lead and list, two-line rows. And the action row is STICKY
-   to the surface's foot, so the one primary action is on screen at every
-   scroll position and the rows scroll up behind it, never under the card.
-   Answer the card and every rule here stops matching. */
+/* Short screens give the photograph less space and keep every question scrollable. */
 @media (max-width: 760px) and (max-height: 700px) {
+  .firstRunStage {
+    grid-template-rows: minmax(100px, 18dvh) auto;
+  }
+
+  .firstRunPanel {
+    padding-block: 18px;
+  }
+
   body:has(.analyticsConsentPrompt) .firstRunPanel {
     padding-top: 8px;
     padding-bottom: 0;
@@ -889,15 +847,6 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
     content: "\00A0\00B7\00A0";
   }
 
-  body:has(.analyticsConsentPrompt) .firstRunActions {
-    position: sticky;
-    bottom: 0;
-    z-index: 1;
-    margin-top: 6px;
-    padding: 6px 0 max(8px, env(safe-area-inset-bottom, 0px));
-    background: var(--paper);
-  }
-
   body:has(.analyticsConsentPrompt) .firstRunPrimary {
     min-height: 44px;
   }
@@ -918,7 +867,7 @@ body:has(.analyticsConsentPrompt) .firstRunStage {
     grid-template-columns: 1fr;
   }
 
-  .firstRunActions {
+  .firstRunActionsInner {
     align-items: stretch;
   }
 
