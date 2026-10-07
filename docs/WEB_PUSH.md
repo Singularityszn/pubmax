@@ -81,6 +81,7 @@ and a recognized path:
 | Google FCM | `fcm.googleapis.com` | `/fcm/send/<token>` or `/wp/<token>` |
 | Mozilla Autopush | `updates.push.services.mozilla.com` | `/wpush/<token>` |
 | Apple Web Push | `web.push.apple.com` | `/<token>` |
+| Microsoft WNS (Edge) | one label under `notify.windows.com` | `/w/?token=<token>` |
 
 The Google endpoint forms are documented by the
 [Chrome Web Push guide](https://developer.chrome.com/blog/push-notifications-on-the-open-web)
@@ -89,6 +90,11 @@ Mozilla production host/path by the
 [Autopush HTTP API](https://mozilla-services.github.io/autopush-rs/http.html),
 and Apple documents using the endpoint returned by the subscription in
 [Sending web push notifications](https://developer.apple.com/documentation/usernotifications/sending-web-push-notifications-in-web-apps-and-browsers).
+
+Edge subscribes through Windows Push Notification Services, whose regional
+host varies (for example `wns2-par02p.notify.windows.com`). That row is the one
+bounded pattern: exactly one DNS label before `notify.windows.com`, the fixed
+`/w/` path and a non-empty `token` query (`lib/webPushSubscription.ts`).
 
 Do not replace the exact hosts with suffix or wildcard matching. IP literals,
 localhost, arbitrary hosts, credentials, fragments, non-HTTPS schemes, and
