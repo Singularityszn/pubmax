@@ -667,21 +667,9 @@
        venue sheet and a second pin tap never reaches the canvas. */
     pointer-events: none;
   }
-  /* A venue or planner sheet hides the tab bar (mobileNav.css), so there is
-     no bar to stop above. Held at the bar's berth, the sheet floated ~250px
-     up over live map and the command bar clipped the last row (#1533).
-     The shell class is the long-term owner; the portal's own kind is the
-     synchronous signal, because the sheet mounts before every reader has
-     painted detail-open on .appShell. A landmark story keeps the tab bar in
-     its own lane, so its sheet keeps the berth above it. */
-  .mobileSheetPortal:is(
-    [data-sheet-kind="venue"],
-    [data-sheet-kind="planner"]
-  ),
-  body:has(.appShell.detail-open) .mobileSheetPortal,
-  body:has(.appShell.planning-open) .mobileSheetPortal {
-    bottom: 0;
-  }
+  body:has(.mobileTabBar.isKeyboardHidden) .mobileSheetPortal { bottom: 0; }
+  /* Every map sheet leaves the primary destinations reachable. The dock
+     paints its full reserved band, so live map cannot peek between them. */
   .mobileSheetScrim {
     position: absolute;
     inset: 0;
@@ -810,11 +798,10 @@
     overflow-y: auto;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
-    /* No footer (contextual + planner): the body is the last element, so its end
-       reserves the safe-area inset and NOTHING more — the last content pixel sits
-       exactly the safe-area above the sheet's visible bottom edge (no dock band).
-       The 8px top keeps a hair below the header/grabber. */
-    padding: 8px 16px env(safe-area-inset-bottom, 0px);
+    /* The portal reserves the dock below the sheet. Keep the final body row
+       clear of the sheet edge and make focus scrolling use the same gutter. */
+    padding: 8px 16px 16px;
+    scroll-padding-block: 8px 16px;
   }
   /* Venue (right): the footer owns the bottom edge + safe-area, so the body only
      needs a small gutter separating its content from the command bar (this gutter
@@ -850,7 +837,9 @@
   .mobileSharedSheetFooter { flex: 0 0 auto; }
   .mobileSharedSheetFooter:empty { display: none; }
 
-  .mobileMapFilters { display: grid; gap: 18px; }
+  .mobileMapFilters { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .mobileMapSavedOnly label { min-width: 0; width: 100%; box-sizing: border-box; }
+  .mobileMapSavedOnly input[type="checkbox"] { width: 24px; height: 24px; }
   /* Saved only — same checkbox field as the desktop ControlRail. Empty note
      sits under the toggle when the device has nothing saved yet. */
   .mobileMapSavedOnlyEmpty { display: grid; gap: 10px; padding: 4px 0 0; }
@@ -897,7 +886,7 @@
   .mobilePlannerEndings small { color: var(--color-accent); font-size: 0.625rem; font-weight: 800; }
   .mobilePlannerEndings p { margin: 5px 0 0; color: var(--color-text-soft); font-size: 0.625rem; line-height: 1.3; overflow-wrap: anywhere; }
   .mobileMapFilters .drinkShapeChips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-  .mobileMapFilters .drinkShapeChip { min-height: 52px; width: 100%; justify-content: center; }
+  .mobileMapFilters .drinkShapeChip { min-height: 52px; width: 100%; justify-content: center; border: 1px solid var(--color-border-soft); background: var(--color-surface-raised); border-radius: var(--radius); }
   /* Refinement chips stay a wrapping strip in the sheet — a second 3-col grid
      would read as a peer of the category choice rather than a child of it. */
   .mobileMapFilters .drinkSubtypeChips { flex-wrap: wrap; overflow-x: visible; }

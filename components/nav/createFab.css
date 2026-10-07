@@ -38,7 +38,8 @@
      reach a descendant that says `auto`, which left the FAB invisible, slid into
      the tab-bar lane, and still tappable while the keyboard was up. */
   .createFab,
-  .createFabMenu {
+  .createFabMenu,
+  .createFabScrim {
     pointer-events: auto;
   }
 
@@ -109,6 +110,24 @@
     transition: transform var(--duration-press, 0.13s) var(--ease-out);
   }
 
+  .createFabScrim {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    border: 0;
+    background: color-mix(in srgb, var(--ink-deep) 12%, transparent);
+    cursor: pointer;
+    animation: createFabScrimIn 160ms var(--ease-out);
+  }
+
+  @keyframes createFabScrimIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .createFab svg { transition: transform 160ms var(--ease-out); }
+  .createFab[aria-expanded="true"] svg { transform: rotate(45deg); }
+
   /* The emphasized action owns its own press, so it opts OUT of the shared
      scale by name. Taking both would compose to ~0.94, firmer than the 0.97
      this control is specified at. */
@@ -176,6 +195,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .createFab svg { transition: none; }
+  .createFabScrim { animation: none; }
   .createFab:active {
     --shared-press-scale: 1;
     transform: scale(1);
