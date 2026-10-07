@@ -153,9 +153,9 @@ export function buildTflCorner(
 }
 
 /**
- * Cold-start Tonight entry for the phone map. Honest empty: no chip when the
+ * Cold-start Tonight entry for the phone map. Honest empty: no lens when the
  * What's On spine has nothing to show, so a quiet night never advertises a
- * dead door. The shell mounts this under the one top bar, never inside it.
+ * dead door. It heads the phone Filters sheet, never the resting map.
  */
 export function buildTonightChip(
   rowCount: number,
