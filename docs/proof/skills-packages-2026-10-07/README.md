@@ -1,6 +1,6 @@
 # Skills and packages, 7 Oct 2026
 
-This maintenance change updates 31 direct application dependency requirements and two MCP map dependencies. It refreshes 57 project skill files and adds the upstream `state-machine` skill required by the refreshed `variant` guidance.
+This maintenance change updates 31 direct application dependency requirements and two MCP map dependencies. It refreshes 58 project skill files and adds the upstream `state-machine` skill required by the refreshed `variant` guidance.
 
 ## Compatibility and provenance
 
@@ -13,7 +13,7 @@ Next.js moves from 16.3.8 to 16.4.0. MapLibre moves from 6.11.2 to 6.13.0. The a
 - `npm run verify` passed. The coverage suite passed 20,997 tests, with one deliberate skip. PostgreSQL session checks passed 554 tests. Harness hygiene checks passed 10 tests.
 - `NEXT_DIST_DIR=.next-prod npm run build` passed on Next.js 16.4.0.
 - `npm audit --omit=dev` reported zero advisories. The full audit reported five dependency-path findings caused by one `braces` advisory in the development lint chain. The registry's latest `braces` is 3.0.3, which is still affected. npm's suggested downgrade to Next.js 14 was not applied.
-- `npm outdated` reports only the deliberate TypeScript 6 compatibility pin.
+- At the package refresh, `npm outdated` reported only the deliberate TypeScript 6 compatibility pin. Later on 7 Oct, npm published patch releases of `ai`, `@ai-sdk/otel`, `effect`, `@supabase/supabase-js` and the four Capacitor 8 core packages. This change does not include them.
 
 ## Live review
 
