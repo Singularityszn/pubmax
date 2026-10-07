@@ -184,7 +184,7 @@ describe("Capacitor wrapped-build contract", () => {
     });
   });
 
-  it("preserves iOS camera permissions, APNs forwarding, and universal-link forwarding", () => {
+  it("preserves iOS camera permissions, APNs forwarding, and scene-based link forwarding", () => {
     const info = rootFile("ios/App/App/Info.plist");
     expect(info).toContain("NSCameraUsageDescription");
     expect(info).toContain("NSPhotoLibraryUsageDescription");
@@ -193,13 +193,68 @@ describe("Capacitor wrapped-build contract", () => {
     const delegate = rootFile("ios/App/App/AppDelegate.swift");
     expect(delegate).toContain("capacitorDidRegisterForRemoteNotifications");
     expect(delegate).toContain("capacitorDidFailToRegisterForRemoteNotifications");
-    expect(delegate).toContain("continue userActivity: NSUserActivity");
-    expect(delegate).toContain("ApplicationDelegateProxy.shared.application");
+    // URL opens and universal links no longer reach AppDelegate: with a scene
+    // manifest UIKit stops calling application(_:open:) and
+    // application(_:continue:), so a forward left there would be dead code that
+    // reads as if links worked. SceneDelegate owns them (next test).
+    expect(delegate).not.toContain("open url: URL");
+    expect(delegate).not.toContain("continue userActivity");
 
     expect(rootFile("ios/App/CapApp-SPM/Package.swift")).toContain("CapacitorApp");
     expect(rootFile("android/app/capacitor.build.gradle")).toContain(
       "implementation project(':capacitor-app')",
     );
+  });
+
+  it("adopts the UIScene lifecycle that iOS 27 requires, and forwards every link through it", () => {
+    // iOS 27 refuses an app with no scene manifest: a free personal-team build
+    // on an iPhone 17 Pro Max (iOS 27.2) died at launch with EXC_BREAKPOINT in
+    // UIKitCore ___UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption.
+    // The iOS 27.0 simulator does not enforce it, so a simulator launch cannot
+    // catch this; the source has to. The shape is Capacitor 8.5's own
+    // (`npx cap migrate`): one scene, built from Main.storyboard, whose delegate
+    // is the module's SceneDelegate.
+    const info = plistRoot("ios/App/App/Info.plist");
+    expect(info.UIApplicationSceneManifest).toEqual({
+      UIApplicationSupportsMultipleScenes: false,
+      UISceneConfigurations: {
+        UIWindowSceneSessionRoleApplication: [
+          {
+            UISceneConfigurationName: "Default Configuration",
+            UISceneDelegateClassName: "$(PRODUCT_MODULE_NAME).SceneDelegate",
+            UISceneStoryboardFile: "Main",
+          },
+        ],
+      },
+    });
+
+    // The storyboard the manifest names must still hold the Capacitor bridge.
+    expect(rootFile("ios/App/App/Base.lproj/Main.storyboard")).toContain(
+      'customClass="CAPBridgeViewController"',
+    );
+
+    // AppDelegate hands the scene its delegate class.
+    const appDelegate = rootFile("ios/App/App/AppDelegate.swift");
+    expect(appDelegate).toContain("configurationForConnecting connectingSceneSession");
+    expect(appDelegate).toContain("config.delegateClass = SceneDelegate.self");
+
+    // SceneDelegate sits in its own file, is compiled into the App target, and
+    // forwards the three entries Capacitor's App plugin listens to: the cold
+    // start (queued until the bridge has appeared), a custom-scheme open
+    // (pubmaxx://) and a universal link (applinks:pubmaxxing.com).
+    const scene = rootFile("ios/App/App/SceneDelegate.swift");
+    expect(scene).toContain("class SceneDelegate: UIResponder, UIWindowSceneDelegate");
+    expect(scene).toContain("SceneDelegateProxy.shared.scene(scene, willConnectTo: session, options: connectionOptions)");
+    expect(scene).toContain("openURLContexts URLContexts: Set<UIOpenURLContext>");
+    expect(scene).toContain("SceneDelegateProxy.shared.scene(scene, openURLContexts: URLContexts)");
+    expect(scene).toContain("continue userActivity: NSUserActivity");
+    expect(scene).toContain("SceneDelegateProxy.shared.scene(scene, continue: userActivity)");
+    // Never build a second bridge beside the one the storyboard made.
+    expect(scene).toContain("if window == nil");
+
+    const project = rootFile("ios/App/App.xcodeproj/project.pbxproj");
+    expect(project).toContain("SceneDelegate.swift in Sources");
+    expect(project).toContain("path = SceneDelegate.swift;");
   });
 
   it("answers export compliance in the build, not by hand on every upload", () => {

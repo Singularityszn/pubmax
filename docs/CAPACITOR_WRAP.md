@@ -191,8 +191,9 @@ carries no iOS simulator runtime (`xcrun simctl list runtimes` is empty), so
 this project: Xcode 26.6, iOS 26.5 runtime, iPhone 17 Pro simulator, 2026-09-04.
 
 Before sync, hash or copy intentional native files (`AppDelegate.swift`,
-`Info.plist`, `AndroidManifest.xml`, and `MainActivity.java`), then compare them
-afterward. The 2026-07-20 Gate Z refresh did this and sync preserved all four;
+`SceneDelegate.swift`, `Info.plist`, `AndroidManifest.xml`, and
+`MainActivity.java`), then compare them afterward. The 2026-07-20 Gate Z
+refresh did this for four of them and sync preserved all four;
 see `docs/screenshots/WRAPPED_BUILD_GATE_Z_2026-07-20.md`.
 
 ### Reviewing a local build in the shells
@@ -215,6 +216,47 @@ shipped binary changes and `__tests__/nativeWrap.test.ts` holds the unset case
 to `https://pubmaxxing.com`. Run a plain `npx cap sync` before building anything
 you intend to distribute. Proof captured this way says so in its README, because
 a shot of a local build is not a shot of production.
+
+### The UIScene lifecycle (iOS 27)
+
+iOS 27 refuses to launch an app that has not adopted the UIScene lifecycle. A
+free personal-team build of main on an iPhone 17 Pro Max (iOS 27.2) crashed at
+launch with `EXC_BREAKPOINT` in UIKitCore
+`___UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption_block_invoke`.
+The iOS 27.0 simulator does not enforce this: the same build without the
+manifest launches there, so a simulator launch cannot prove the fix. The
+source fence in `__tests__/nativeWrap.test.ts` holds it instead.
+
+The app now follows Capacitor 8.5's own migration (`npx cap migrate`, template
+in `@capacitor/cli`):
+
+- `ios/App/App/Info.plist` carries `UIApplicationSceneManifest`: one scene
+  (multiple scenes off), storyboard `Main`, delegate
+  `$(PRODUCT_MODULE_NAME).SceneDelegate`.
+- `ios/App/App/SceneDelegate.swift` is its own file in the App target. It
+  forwards `willConnectTo`, `openURLContexts` and `continue userActivity` to
+  Capacitor's `SceneDelegateProxy`. A cold-start `pubmaxx://` link or universal
+  link is queued by the proxy until the bridge view has appeared. The
+  storyboard already builds the window, so the delegate builds one only when
+  `window` is `nil`, and the bridge is never created twice.
+- `AppDelegate.swift` hands each scene its delegate class
+  (`configurationForConnecting`) and keeps the APNs token forwarding. Its
+  `application(_:open:options:)` and `application(_:continue:restorationHandler:)`
+  forwards are deleted: with a scene manifest UIKit never calls them.
+
+Proof, iPhone 17 simulator on iOS 27.0 (Xcode 27.0), `npm run ios:build`:
+
+- Cold launch: the site loads, and the status bar and safe area are intact.
+- Background and foreground: launching Settings and then the app resumes the
+  same process, and the scene moves `Background` then `ForegroundInactive`
+  then active.
+- `pubmaxx://` link: `xcrun simctl openurl` stops at the system "Open in
+  PUBMAXXING?" prompt, and tapping it needs UI automation this lane may not use.
+  The forwarding is held by the unit test and still needs a device pass.
+- No iOS 26 simulator runtime is installed on this Mac, so the iOS 26 pass is
+  open.
+- Push token forwarding and the entitlements are unchanged, and still need a
+  signed device (step 10).
 
 ## Remaining manual steps (need Apple developer access)
 
