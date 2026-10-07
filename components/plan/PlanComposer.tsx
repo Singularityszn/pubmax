@@ -1299,7 +1299,7 @@ function PlanComposerForm({
   );
   const [venues, setVenues] = useState<PlanVenueOption[]>([]);
   const [venueIndexRead, setVenueIndexRead] = useState(0);
-  const [venueIndexFailed, setVenueIndexFailed] = useState(false);
+  const [venueIndexStatus, setVenueIndexStatus] = useState<"reading" | "read" | "failed">("reading");
   const pathname = usePathname();
   const [urlPrefill] = useState(() =>
     canPersist ? describeAskFromLocation() : NO_URL_PREFILL,
@@ -1605,7 +1605,7 @@ function PlanComposerForm({
         if (!active) return;
         const nextVenues = planVenueOptions(rows);
         setVenues(nextVenues);
-        setVenueIndexFailed(false);
+        setVenueIndexStatus("read");
         const acceptedVenueId = hydratedHandoff?.heldVenueId;
         if (!acceptedVenueId) return;
         const accepted = nextVenues.find((venue) => venue.id === acceptedVenueId);
@@ -1619,7 +1619,7 @@ function PlanComposerForm({
         )));
       })
       .catch(() => {
-        if (active) setVenueIndexFailed(true);
+        if (active) setVenueIndexStatus("failed");
       });
     return () => { active = false; };
   }, [composerVisible, acceptedCityId, hydratedHandoff?.heldVenueId, venueIndexRead]);
@@ -1858,7 +1858,7 @@ function PlanComposerForm({
   }
 
   function isUnnamedHeldStop(stop: DraftStop, index: number): boolean {
-    return index === 0 && Boolean(heldVenueId) && stop.venueId === heldVenueId && !stop.venueName.trim();
+    return venueIndexStatus !== "reading" && index === 0 && Boolean(heldVenueId) && stop.venueId === heldVenueId && !stop.venueName.trim();
   }
 
   function isLockedHeldStop(stop: DraftStop, index: number): boolean {
@@ -2463,10 +2463,16 @@ function PlanComposerForm({
       <legend className={resultMode ? "planComposer__srOnly" : undefined}>The {planOutingNoun(stops.length)} <span className="planComposer__previewLabel">{routeRevision === null ? "Preview" : `Preview · revision ${routeRevision}`}</span></legend>
       {resultMode ? null : routeStatusLine}
       <PlanCultureOpener opener={cultureOpener} />
-      {venueIndexFailed ? (
+      {venueIndexStatus === "failed" ? (
         <p className="planComposer__error planStops__indexError" role="alert">
           The pub list did not load.
-          <button type="button" onClick={() => setVenueIndexRead((read) => read + 1)}>Try again</button>
+          <button
+            type="button"
+            onClick={() => {
+              setVenueIndexStatus("reading");
+              setVenueIndexRead((read) => read + 1);
+            }}
+          >Try again</button>
         </p>
       ) : null}
       <PlanStopList
@@ -2479,7 +2485,7 @@ function PlanComposerForm({
         refreshKey={routeRevealTick}
         removable={stops.length > 1}
         swapLabel={(stop, index) => isLockedHeldStop(stop, index)
-          ? acceptedStop1SwapLabel(stop.venueName)
+          ? acceptedStop1SwapLabel(stop.venueName.trim() || UNRESOLVED_ACCEPTED_STOP_LABEL)
           : isUnnamedHeldStop(stop, index)
             ? `Swap stop ${index + 1}, currently ${UNRESOLVED_ACCEPTED_STOP_LABEL.toLocaleLowerCase()}`
             : stop.alternatives.length > 0
@@ -2488,7 +2494,7 @@ function PlanComposerForm({
         swapDisabled={(stop, index) => isLockedHeldStop(stop, index)
           || (!isUnnamedHeldStop(stop, index) && stop.alternatives.length === 0)}
         removeLabel={(stop, index) => isLockedHeldStop(stop, index)
-          ? acceptedStop1RemoveLabel(stop.venueName)
+          ? acceptedStop1RemoveLabel(stop.venueName.trim() || UNRESOLVED_ACCEPTED_STOP_LABEL)
           : `Remove stop ${index + 1}`}
         removeDisabled={isLockedHeldStop}
         onSwap={swapStop}

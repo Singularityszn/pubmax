@@ -269,6 +269,42 @@ describe("an accepted place the venue index has no name for", () => {
     expect(document.querySelector("#plan-route-status")?.textContent).toBe("Stop 1 removed. Refresh the route before locking.");
   });
 
+  it("keeps the held place locked while the venue index is still being read", async () => {
+    holdAcceptedPlace();
+    const path = planComposerVenueIndexPath("london");
+    let deliver: ((response: Response) => void) | null = null;
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>(async (input) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url !== path) return new Response("{}", { status: 404 });
+      return new Promise<Response>((resolve) => { deliver = resolve; });
+    }));
+    await mountComposer();
+    await click([...document.querySelectorAll<HTMLButtonElement>("button")].find((node) => node.textContent === "Add another stop")!);
+
+    expect(stopNames()).toEqual(["Your chosen place", "Find a pub for stop 2"]);
+    const swap = button("Your chosen place is the accepted Stop 1. Swap is not available.");
+    const remove = button("Your chosen place is the accepted Stop 1. Remove is not available.");
+    expect(swap.disabled).toBe(true);
+    expect(remove.disabled).toBe(true);
+    await act(async () => {
+      firstStop().querySelector<HTMLElement>(".planStop__open")!
+        .dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true, cancelable: true }));
+    });
+    await settle();
+    expect(stopNames()).toEqual(["Your chosen place", "Find a pub for stop 2"]);
+
+    expect(deliver).not.toBeNull();
+    await act(async () => {
+      deliver!(new Response(JSON.stringify([{ id: HELD, name: "The Held Arms" }]), { status: 200, headers: { "content-type": "application/json" } }));
+    });
+    await settle();
+
+    expect(stopNames()).toEqual(["The Held Arms", "Find a pub for stop 2"]);
+    expect(button("The Held Arms is the accepted Stop 1. Swap is not available.").disabled).toBe(true);
+    expect(panel()?.textContent).toContain("The Held Arms");
+    expect(readPlanningIntent()?.acceptedVenueId).toBe(HELD);
+  });
+
   it("says when the venue index did not load, and a retry names the held pub and keeps it held", async () => {
     holdAcceptedPlace();
     serveIndex(503, [{ id: HELD, name: "The Held Arms" }]);
