@@ -55,38 +55,6 @@ At 390, with and without the consent strip, the credit spans x 12-56 and the sho
 
 ![Open credit at 320 after, with the text and Near me clear](phone-320-credit-expanded-after.png)
 
-A later production-build check found the attribution button clipping the shortcut's lower corner. A first fix at bottom 42px still covered the Layers button and, with the consent strip shown, the attribution button and the strip. The same check found two older attribution collisions. At 641 without the strip, expanded attribution wraps to two lines and the Layers button covered its collapse button. At 390 the phone shortcut covered the collapsed OpenStreetMap credit once the plan pill mounted, so a tap on the credit opened Pub Pal. Once open, the phone credit ran its last words under its 44px collapse button, because MapLibre reserves 28px for its own 24px button. At 320 the open credit also ran 8px onto Near me.
-
-The desktop map now publishes one Layers berth in `app/globals.css`. Layers sits 54px up, which clears two-line expanded attribution and its 10px margin. With the consent strip it sits at the consent clearance plus 54px. The shortcut reads the same berth and sits 8px above the 44px Layers button. It hides while the Layers panel is open, because the panel rises through that space. Other desktop routes retain the 22px position. On the phone map the credit and the shortcut read one published credit size. The shortcut starts one gap to the right of the credit, and it hides while the credit is expanded across that band. The open credit reserves the collapse button's 44px plus 4px at its right edge and stops short of the map-edge lane. The plan pill, Near me and create positions are unchanged.
-
-A fresh production build was measured with a saved Pub Pal at 641, 1144 and 1440 × 900 and at 390 × 844. At every desktop width the shortcut spans y 742-794 above Layers at 802-846 and attribution at 866-890. With the consent strip it spans y 670-722 above Layers at 730-774, attribution at 794-818 and the strip at 844-900. A point hit at the center of the shortcut, Layers and the attribution button reached that control at all three widths, in both states, with attribution collapsed and expanded. At 641 the expanded attribution's collapse button now receives its own hit. At 1144 and 1440 the shortcut stays clear and tappable beside the left planner and story drawers. At 641 both left drawers are full-width sheets that sit above the shortcut, as before. At all three widths the shortcut returns when the right venue drawer closes, and Share receives its own center-point hit.
-
-At 390, with and without the consent strip, the credit spans x 12-56 and the shortcut x 68-314 on the same row. Open, the credit spans x 12-322 and y 626-690, with its collapse button at x 278-322. No line of text sits under that button, and Near me at x 326-378 stays clear. At 320 the credit spans x 12-56 beside the shortcut at x 68-244. Open, it spans x 12-252 and y 330-414, clear of Near me at x 256-308, y 306-358. At both widths a tap on the credit opens it, its links receive their own hits, and a second tap closes it and the shortcut returns. `e2e/mobile-map-chrome-fit.spec.ts` now renders this at 320, 390 and 430: the 44px tap floor, the centre hits, every link, no text under the button, and Near me kept clear.
-
-![Desktop map corner before, with the shortcut over Layers](desktop-corner-noconsent-before.png)
-
-![Desktop map corner after, with the shortcut above Layers](desktop-corner-noconsent-after.png)
-
-![Desktop map corner with the consent strip before](desktop-corner-consent-before.png)
-
-![Desktop map corner with the consent strip after](desktop-corner-consent-after.png)
-
-![Expanded attribution at 641 before, with its collapse button under Layers](desktop-641-attribution-expanded-before.png)
-
-![Expanded attribution at 641 after, with Layers above it](desktop-641-attribution-expanded-after.png)
-
-![Phone map before, with the shortcut over the collapsed credit](phone-credit-collapsed-before.png)
-
-![Phone map after, with the credit beside the shortcut](phone-credit-collapsed-after.png)
-
-![Phone map before, with the shortcut over the expanded credit](phone-credit-expanded-before.png)
-
-![Phone map after, with the expanded credit clear of the shortcut and its collapse button](phone-credit-expanded-after.png)
-
-![Open credit at 320 before, with text under the collapse button and the credit on Near me](phone-320-credit-expanded-before.png)
-
-![Open credit at 320 after, with the text and Near me clear](phone-320-credit-expanded-after.png)
-
 ![Production desktop Share action covered by Nova](desktop-share-before.png)
 
 ![Local desktop Share action after the fix, in the fresh session’s default light theme](desktop-share-after.png)
