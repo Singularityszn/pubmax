@@ -31,7 +31,7 @@ test("the phone map names listing rows and keeps the label readable", async ({ p
   for (const width of [320, 390, 430]) {
     await page.setViewportSize({ width, height: 844 });
     await page.goto("/map");
-    const chip = page.getByRole("button", { name: "Tonight: 3 listings", exact: true });
+    const chip = page.getByRole("button", { name: "Tonight listings: 3", exact: true });
     await expect(chip).toBeVisible({ timeout: 30_000 });
     await expect(chip).toContainText("Tonight listings");
     const label = chip.locator(".mobileMapTonightChipLabel");

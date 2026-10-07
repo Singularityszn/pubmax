@@ -181,14 +181,14 @@ describe("Phone Tonight cold-start chip", () => {
   it("opens the Tonight sheet from one labelled chip when listings exist", () => {
     const html = renderShell({ tonightCount: 4 });
     expect(html).toContain("mobileMapTonightChip");
-    expect(html).toContain('aria-label="Tonight: 4 listings"');
+    expect(html).toContain('aria-label="Tonight listings: 4"');
     expect(html).toContain("Tonight listings");
     expect(html).toContain(">4<");
   });
 
   it("claims near you only when the count was fetched with reader location", () => {
     const html = renderShell({ tonightCount: 4, tonightNearReader: true });
-    expect(html).toContain('aria-label="Tonight: 4 listings near you"');
+    expect(html).toContain('aria-label="Tonight listings: 4 near you"');
   });
 });
 
