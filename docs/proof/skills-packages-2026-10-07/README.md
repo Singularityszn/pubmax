@@ -55,6 +55,8 @@ At 390, with and without the consent strip, the credit spans x 12-56 and the sho
 
 ![Open credit at 320 after, with the text and Near me clear](phone-320-credit-expanded-after.png)
 
+A later production-build check found the attribution button clipping the shortcut's lower corner. The desktop map shortcut now reserves 42px below it. This leaves an 8px gap above the collapsed 24px attribution control and its 10px bottom margin. Other desktop routes retain the 22px position. The phone floating stack keeps its existing positions.
+
 ![Production desktop Share action covered by Nova](desktop-share-before.png)
 
 ![Local desktop Share action after the fix, in the fresh session’s default light theme](desktop-share-after.png)
