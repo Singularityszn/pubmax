@@ -59,6 +59,13 @@ The provider results are in [provider-before.json](provider-before.json) and [pr
 The assertion requires social replies with no tools and at most 25 words. Each greeting must use the short reply shown above.
 The Camden request must call `whats_on` or `tonight_now`.
 
+These snapshots are historical evidence. `provider-after.json` exercised the prompt in commit `3b393586d`.
+That prompt required one exact greeting reply in every context. The voice-shaped probes did not include the voice opener.
+The prompt now depends on context, because the voice opener already asks "What kind of night are you planning?".
+If the agent has not asked that question, a greeting alone still gets the short reply shown above.
+If the agent has asked it, a greeting gets a short acknowledgement that moves forward, or the agent waits.
+No provider run has exercised the context-dependent prompt.
+
 Known follow-up: memory recall order remains inconsistent on the first substantive request.
 The final typed probe recalled preferences before `whats_on`, despite the supplied empty-memory context.
 The voice-shaped probe called `whats_on` without recalling preferences.
