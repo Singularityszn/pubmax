@@ -100,18 +100,19 @@ test("the card names the cheapest listed pub in view, and the door rides inside 
 
 // The label (an anchor's, or a lens category) rides the eyebrow row above the
 // figure, so a walk time can never squeeze it to nothing. A pint answer has no
-// label.
+// label. One map load per width; every label and walk variant is laid into the
+// same card and measured in turn.
+const LAYOUT_LABELS = ["Three Sheets seasonal cocktail", "Cocktails", "Alcohol-free", "No alcohol", null];
 for (const width of [320, 360, 390]) {
-  for (const label of ["Three Sheets seasonal cocktail", "Cocktail", "No alcohol", null]) {
-    for (const walk of [true, false]) {
-      test(`${width}px ${label ?? "pint"} ${walk ? "with" : "without"} a walk keeps the label, the figure and the name inside the card`, async ({
-        page,
-      }) => {
-        await page.setViewportSize({ width, height: PHONE.height });
-        await openMap(page);
-        const card = await answeredCard(page);
-        // The card's own markup for this answer, laid out in the same
-        // synchronous step that measures it, so a re-render cannot race it.
+  test(`${width}px every label, with and without a walk, keeps the label, the figure and the name inside the card`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: PHONE.height });
+    await openMap(page);
+    const card = await answeredCard(page);
+    for (const label of LAYOUT_LABELS) {
+      for (const walk of [true, false]) {
+        const variant = `${label ?? "pint"} ${walk ? "with" : "without"} a walk`;
         const layout = await card.evaluate(
           (element, { lineLabel, withWalk }) => {
             const eyebrow = element.querySelector<HTMLElement>(".mapPeekAnswer .mapPeekEyebrow")!;
@@ -149,31 +150,31 @@ for (const width of [320, 360, 390]) {
           },
           { lineLabel: label, withWalk: walk },
         );
-        expect(layout.card).toBeCloseTo(112, 0);
-        expect(layout.eyebrowScroll, "the eyebrow row never overflows").toBeLessThanOrEqual(1);
-        expect(layout.lineScroll, "the line never overflows").toBeLessThanOrEqual(1);
+        expect(layout.card, variant).toBeCloseTo(112, 0);
+        expect(layout.eyebrowScroll, `${variant}: the eyebrow row never overflows`).toBeLessThanOrEqual(1);
+        expect(layout.lineScroll, `${variant}: the line never overflows`).toBeLessThanOrEqual(1);
         if (label === null) {
-          expect(layout.label, "a pint answer has no label").toBeNull();
+          expect(layout.label, `${variant}: a pint answer has no label`).toBeNull();
         } else {
-          expect(layout.label!.width, "the label never shrinks to nothing").toBeGreaterThanOrEqual(40);
-          expect(layout.label!.right).toBeLessThanOrEqual(layout.answer.right + 0.5);
-          expect(layout.label!.bottom, "the label sits above the figure").toBeLessThanOrEqual(layout.figure.top + 1);
-          if (label.length <= 10) {
-            expect(layout.label!.clipped, `"${label}" is printed whole`).toBe(false);
+          expect(layout.label!.width, `${variant}: the label never shrinks to nothing`).toBeGreaterThanOrEqual(40);
+          expect(layout.label!.right, variant).toBeLessThanOrEqual(layout.answer.right + 0.5);
+          expect(layout.label!.bottom, `${variant}: the label sits above the figure`).toBeLessThanOrEqual(layout.figure.top + 1);
+          if (label.length <= 12) {
+            expect(layout.label!.clipped, `${variant}: a lens category is printed whole`).toBe(false);
           }
         }
-        expect(layout.figure.clipped, "the figure is never clipped").toBe(false);
-        expect(layout.figure.width, "the figure is drawn").toBeGreaterThan(30);
-        expect(layout.figure.left).toBeGreaterThanOrEqual(layout.answer.left);
-        expect(layout.name.width, "the name keeps room to be read").toBeGreaterThanOrEqual(30);
-        expect(layout.name.left, "the name follows the figure").toBeGreaterThanOrEqual(layout.figure.right);
-        expect(layout.name.bottom).toBeLessThanOrEqual(layout.answer.bottom);
+        expect(layout.figure.clipped, `${variant}: the figure is never clipped`).toBe(false);
+        expect(layout.figure.width, `${variant}: the figure is drawn`).toBeGreaterThan(30);
+        expect(layout.figure.left, variant).toBeGreaterThanOrEqual(layout.answer.left);
+        expect(layout.name.width, `${variant}: the name keeps room to be read`).toBeGreaterThanOrEqual(30);
+        expect(layout.name.left, `${variant}: the name follows the figure`).toBeGreaterThanOrEqual(layout.figure.right);
+        expect(layout.name.bottom, variant).toBeLessThanOrEqual(layout.answer.bottom);
         if (layout.walk) {
-          expect(layout.walk.right, "nothing spills past the answer").toBeLessThanOrEqual(layout.answer.right + 0.5);
+          expect(layout.walk.right, `${variant}: nothing spills past the answer`).toBeLessThanOrEqual(layout.answer.right + 0.5);
         }
-      });
+      }
     }
-  }
+  });
 }
 
 test("tapping the answer opens that pub, and the card stands down behind its sheet", async ({ page }) => {

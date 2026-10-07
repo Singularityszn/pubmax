@@ -867,7 +867,8 @@
   /* The eyebrow row also carries what the figure is for (an anchor's label
      or a lens category, whose provenance is in the accessible name), on its
      own short line above the figure, so the line below never has to squeeze
-     it out. It keeps a floor and ellipsizes past it. */
+     it out. The "Cheapest in this view" prefix gives way first, so a lens
+     category prints whole; only an anchor label longer than 9em ellipsizes. */
   .mapPeekEyebrow {
     display: flex;
     gap: 4px;
@@ -879,12 +880,16 @@
     letter-spacing: .01em;
     color: var(--color-text-muted);
   }
-  .mapPeekEyebrow > span:first-child { flex: 0 0 auto; }
+  .mapPeekEyebrow > span:first-child,
   .mapPeekLabel {
-    flex: 0 1 auto;
-    min-width: 4em;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+  .mapPeekEyebrow > span:first-child { flex: 0 1 auto; }
+  .mapPeekLabel {
+    flex: 0 0 auto;
+    max-width: 9em;
     font-weight: 700;
     color: var(--color-text);
   }
