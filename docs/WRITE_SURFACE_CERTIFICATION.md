@@ -469,8 +469,9 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
 ### `app/api/push-tokens` — native/web push registration (route 61)
 
 - **Route / method:** `POST app/api/push-tokens/route.ts` (Capacitor shell via
-  `lib/nativePush.ts`; installed web app via the explicitly-invoked
-  `lib/webPush.ts`, never on boot).
+  `lib/nativePush.ts`; supported web browser via the explicitly-invoked
+  `lib/webPush.ts`, never on boot). Browser requirements live in
+  [the web push runbook](WEB_PUSH.md#step-out-weekly-nudge).
 - **Validation:** `validatePushToken` (`lib/pushTokenStore.ts`) — trimmed
   non-empty `token` ≤ 2048 chars, `platform` ∈ {`ios`, `android`, `web`}; web
   values must decode to a PushSubscription with bounded browser-generated

@@ -6,9 +6,9 @@
 // person pressed save and was told no. A list is different. Opening your own
 // profile reads Wanted, Diary and the nudge settings, and an account that has
 // not tapped "I'm 18 or over" has nothing to hold yet. Those reads answer the
-// gate as data (`lib/contributionIdentity.server.ts`,
-// `contributionReadRefusalResponse`), and the surface puts this door in the
-// list's place: one sentence, and the one tap when a tap is the way through.
+// gate as data (`lib/contributionReadRefusal.server.ts`). The surface puts this
+// door in the list's place: one sentence, and the one tap when a tap is the
+// way through.
 //
 // It records the tap through the same hook and the same route as the dialog,
 // and it never offers a tap the server would not honour: an account whose date

@@ -100,7 +100,7 @@ export type ContributionDoorStatus = Extract<
 
 /**
  * The door a 200 read of the caller's own record is standing at, or nothing.
- * `lib/contributionIdentity.server.ts` answers a gated read as
+ * `lib/contributionReadRefusal.server.ts` answers a gated read as
  * `{ status, error }` at 200 so the browser logs no error for a list a new
  * account has no way to hold yet. A surface that reads such a body asks this
  * before it reads the list, and shows its door where the list would be.

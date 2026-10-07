@@ -29,7 +29,10 @@ Separate from the city-wide daily brief. Step Out is **opt-in, default OFF**,
 at most one place-bound push per week per subscription. Preference storage is
 migration `0094` (`step_out_nudge_prefs`); delivery still uses the existing
 web-push rails (`push_tokens` / VAPID). The You → Notifications control binds
-the preference to a web subscription after Home Screen install on iPhone.
+the preference to a web subscription in a supported browser tab on a computer
+or Android phone. An iPhone or iPad requires Home Screen install first. The
+native app does not offer Step Out alerts yet. A browser with notifications
+blocked directs the person to its site settings before another attempt.
 
 Operator / cron:
 
@@ -73,10 +76,10 @@ external URLs fall back to `/today`.
 
 A browser-provided subscription endpoint becomes an outbound server request in
 the VAPID provider, so it is treated as a stored-SSRF boundary. Registration,
-storage, and delivery all require HTTPS on the default TLS port, an exact host,
-and a recognized path:
+storage, and delivery all require HTTPS on the default TLS port, an allowed
+host, and a recognized path:
 
-| Browser service | Exact host | Accepted path |
+| Browser service | Allowed host | Accepted path |
 | --- | --- | --- |
 | Google FCM | `fcm.googleapis.com` | `/fcm/send/<token>` or `/wp/<token>` |
 | Mozilla Autopush | `updates.push.services.mozilla.com` | `/wpush/<token>` |
@@ -96,8 +99,10 @@ host varies (for example `wns2-par02p.notify.windows.com`). That row is the one
 bounded pattern: exactly one DNS label before `notify.windows.com`, the fixed
 `/w/` path and a non-empty `token` query (`lib/webPushSubscription.ts`).
 
-Do not replace the exact hosts with suffix or wildcard matching. IP literals,
-localhost, arbitrary hosts, credentials, fragments, non-HTTPS schemes, and
-custom ports stay rejected. Supporting a new push service requires primary
+Keep exact host matching for Google, Mozilla and Apple. Only WNS uses the
+bounded host pattern above. Do not broaden it to arbitrary suffix or wildcard
+matching. IP literals, localhost, arbitrary hosts, credentials, fragments,
+non-HTTPS schemes, and custom ports stay rejected. Supporting a new push
+service requires primary
 browser/vendor evidence plus acceptance and rejection tests at the codec,
 route/store, and provider-send boundaries.
