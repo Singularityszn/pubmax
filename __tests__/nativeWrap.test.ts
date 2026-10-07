@@ -8,6 +8,7 @@ import capacitorConfig, { nativeServerUrl } from "../capacitor.config";
 import { APP_NAME } from "@/lib/brandNaming";
 import { BRAND_COLORS } from "@/lib/brandMark.mjs";
 import { plistRoot } from "@/__tests__/helpers/plist";
+import { pbxprojRoot, type PbxDict, type PbxValue } from "@/__tests__/helpers/pbxproj";
 import {
   NATIVE_DEEP_LINK_EXACT_PATHS,
   NATIVE_DEEP_LINK_PATH_PREFIXES,
@@ -30,46 +31,6 @@ const androidJavaTests = (sourceSet: "androidTest" | "test") => {
 
 const xmlDocument = (path: string) =>
   new DOMParser().parseFromString(rootFile(path), "application/xml");
-
-type PbxValue = string | PbxValue[] | PbxDict;
-type PbxDict = { [key: string]: PbxValue };
-
-/** An old-style ASCII plist such as project.pbxproj, as the value it declares. */
-function pbxprojRoot(path: string): PbxDict {
-  const tokens = (
-    rootFile(path).match(/\/\*[\s\S]*?\*\/|\/\/[^\n]*|"(?:\\.|[^"\\])*"|[{}()=;,]|[^\s{}()=;,"]+/g) ?? []
-  ).filter((token) => !token.startsWith("/*") && !token.startsWith("//"));
-  let at = 0;
-  const expectToken = (want: string) => {
-    if (tokens[at++] !== want) throw new Error(`${path}: expected "${want}" at token ${at - 1}`);
-  };
-  const value = (): PbxValue => {
-    const token = tokens[at++];
-    if (token === undefined) throw new Error(`${path}: ended early`);
-    if (token === "{") {
-      const dict: PbxDict = {};
-      while (tokens[at] !== "}") {
-        const key = value() as string;
-        expectToken("=");
-        dict[key] = value();
-        expectToken(";");
-      }
-      at++;
-      return dict;
-    }
-    if (token === "(") {
-      const list: PbxValue[] = [];
-      while (tokens[at] !== ")") {
-        list.push(value());
-        if (tokens[at] === ",") at++;
-      }
-      at++;
-      return list;
-    }
-    return token.startsWith('"') ? (JSON.parse(token) as string) : token;
-  };
-  return value() as PbxDict;
-}
 
 const ANDROID_RES = join(process.cwd(), "android/app/src/main/res");
 

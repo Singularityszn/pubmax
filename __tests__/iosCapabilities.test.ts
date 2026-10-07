@@ -17,6 +17,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { plistRoot, type PlistValue } from "@/__tests__/helpers/plist";
+import { pbxprojRoot, type PbxDict, type PbxValue } from "@/__tests__/helpers/pbxproj";
 
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
@@ -133,9 +134,23 @@ describe("the privacy manifest agrees with the answers we publish", () => {
   });
 
   it("is copied into the bundle, not just present in the tree", () => {
-    // A manifest Xcode never copies is a manifest Apple never sees, and the
-    // upload check reports it as absent.
-    expect(read(PROJECT)).toContain("/* PrivacyInfo.xcprivacy in Resources */");
+    const project = pbxprojRoot(PROJECT);
+    const objects = project.objects as PbxDict;
+    const object = (id: PbxValue) => objects[id as string] as PbxDict;
+    const targets = object(project.rootObject).targets as PbxValue[];
+    const app = targets.map(object).find(
+      (target) => target.isa === "PBXNativeTarget" && target.name === "App",
+    );
+    expect(app).toBeDefined();
+    const resources = (app!.buildPhases as PbxValue[])
+      .map(object)
+      .filter((phase) => phase.isa === "PBXResourcesBuildPhase")
+      .flatMap((phase) => (phase.files as PbxValue[]).map(object))
+      .filter((file) => file.isa === "PBXBuildFile")
+      .map((file) => object(file.fileRef))
+      .filter((file) => file.isa === "PBXFileReference")
+      .map((file) => file.path);
+    expect(resources).toContain("PrivacyInfo.xcprivacy");
   });
 });
 
