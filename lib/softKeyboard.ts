@@ -93,12 +93,16 @@ function readEvidence(): SoftKeyboardEvidence {
   const focused = isTextEntryElement(document.activeElement);
   // Android's inset handling resizes both viewports. With no field focused the
   // view is unobscured, so that reading is the baseline. A focused field keeps
-  // it unless the width changed, which is a rotation or a resized window.
+  // it. After a width change (a rotation or a resized window) it keeps it only
+  // while the keyboard stays up, and takes the new height once it closes.
   const android = nativePlatform() === "android";
   if (android) {
-    const sameWindow = focused && window.innerWidth === nativeLayoutWidth;
-    nativeLayoutHeight = sameWindow ? Math.max(nativeLayoutHeight, window.innerHeight) : window.innerHeight;
-    nativeLayoutWidth = window.innerWidth;
+    const widthChanged = window.innerWidth !== nativeLayoutWidth;
+    const keyboardGone = !open || window.innerHeight > nativeLastHeight;
+    const reBase = !focused || (widthChanged && keyboardGone);
+    nativeLayoutHeight = reBase ? window.innerHeight : Math.max(nativeLayoutHeight, window.innerHeight);
+    if (reBase) nativeLayoutWidth = window.innerWidth;
+    nativeLastHeight = window.innerHeight;
   }
   return {
     textEntryFocused: focused && (visual?.scale ?? 1) === 1,
@@ -113,6 +117,7 @@ function readEvidence(): SoftKeyboardEvidence {
 let open = false;
 let nativeLayoutHeight = 0;
 let nativeLayoutWidth = 0;
+let nativeLastHeight = 0;
 const listeners = new Set<() => void>();
 
 function refresh(): void {
@@ -184,5 +189,6 @@ export function subscribeSoftKeyboard(onStoreChange: () => void): () => void {
     open = false;
     nativeLayoutHeight = 0;
     nativeLayoutWidth = 0;
+    nativeLastHeight = 0;
   };
 }
