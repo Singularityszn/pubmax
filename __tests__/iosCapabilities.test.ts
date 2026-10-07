@@ -114,7 +114,8 @@ describe("the privacy manifest agrees with the answers we publish", () => {
   });
 
   it("speaks only for the app target's own code", () => {
-    // The AppDelegate and two storyboards call no required-reason API.
+    // The AppDelegate, the SceneDelegate and two storyboards call no
+    // required-reason API.
     // Capacitor declares its own in its own package, and a manifest may only
     // speak for the code it ships with.
     expect(manifest).toContain("<key>NSPrivacyAccessedAPITypes</key>\n\t<array/>");

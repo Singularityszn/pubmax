@@ -89,8 +89,8 @@
 			</array>
 		</dict>
 	</array>
-	<!-- Required-reason APIs. The app target is an AppDelegate and two
-	     storyboards: it calls none of them itself. Capacitor's own frameworks
+	<!-- Required-reason APIs. The app target is an AppDelegate, a
+	     SceneDelegate and two storyboards: it calls none of them itself. Capacitor's own frameworks
 	     declare their use in their own manifests, which ship inside those
 	     packages (node_modules/@capacitor/ios/Capacitor/Capacitor/PrivacyInfo.xcprivacy),
 	     and a manifest may only speak for the code it belongs to. -->

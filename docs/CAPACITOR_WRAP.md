@@ -201,8 +201,9 @@ carries no iOS simulator runtime (`xcrun simctl list runtimes` is empty), so
 this project: Xcode 26.6, iOS 26.5 runtime, iPhone 17 Pro simulator, 2026-09-04.
 
 Before sync, hash or copy intentional native files (`AppDelegate.swift`,
-`Info.plist`, `AndroidManifest.xml`, and `MainActivity.java`), then compare them
-afterward. The 2026-07-20 Gate Z refresh did this and sync preserved all four;
+`SceneDelegate.swift`, `Info.plist`, `AndroidManifest.xml`, and
+`MainActivity.java`), then compare them afterward. The 2026-07-20 Gate Z
+refresh did this for four of them and sync preserved all four;
 see `docs/screenshots/WRAPPED_BUILD_GATE_Z_2026-07-20.md`.
 
 ### Reviewing a local build in the shells
@@ -225,6 +226,58 @@ shipped binary changes and `__tests__/nativeWrap.test.ts` holds the unset case
 to `https://pubmaxxing.com`. Run a plain `npx cap sync` before building anything
 you intend to distribute. Proof captured this way says so in its README, because
 a shot of a local build is not a shot of production.
+
+### The UIScene lifecycle (iOS 27)
+
+iOS 27 refuses to launch an app that has not adopted the UIScene lifecycle. A
+free personal-team build of main on an iPhone 17 Pro Max (iOS 27.2) crashed at
+launch with `EXC_BREAKPOINT` in UIKitCore
+`___UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption_block_invoke`.
+The iOS 27.0 simulator enforces it too: a build of the commit before this fix
+(no scene manifest) dies at launch there with the same `EXC_BREAKPOINT`
+(SIGTRAP), and the fixed build launches and renders the site. Reproduce it by
+building the base commit and launching it. Stripping the manifest from an
+already built `App.app` and reinstalling it launched normally in one manual
+check, so that shortcut proves nothing. The source fence in
+`__tests__/nativeWrap.test.ts` also holds the manifest and the delegate files.
+
+The Info.plist manifest follows Capacitor 8.5's `npx cap migrate` output
+(template in `@capacitor/cli`). The delegates do not. The CLI template's
+SceneDelegate builds the window by hand, and this app lets the `Main` storyboard
+build it instead. The CLI template's AppDelegate also returns the scene
+configuration from `configurationForConnecting`, and this app leaves that out
+because the manifest already names the delegate class.
+
+- `ios/App/App/Info.plist` carries `UIApplicationSceneManifest`: one scene
+  (multiple scenes off), storyboard `Main`, delegate
+  `$(PRODUCT_MODULE_NAME).SceneDelegate`.
+- `ios/App/App/SceneDelegate.swift` is its own file in the App target. It
+  forwards `willConnectTo`, `openURLContexts` and `continue userActivity` to
+  Capacitor's `SceneDelegateProxy`. A cold-start `pubmaxx://` link or universal
+  link is queued by the proxy until the bridge view has appeared. The
+  storyboard `Main` builds the window and its bridge, so the delegate never
+  builds one by hand.
+- `AppDelegate.swift` keeps the APNs token forwarding. UIKit reads the scene
+  delegate class from the manifest's `UISceneDelegateClassName`. The
+  `application(_:open:options:)` and `application(_:continue:restorationHandler:)`
+  forwards are deleted: with a scene manifest UIKit never calls them.
+
+Proof, iPhone 17 simulator on iOS 27.0 (Xcode 27.0), `npm run ios:build`:
+
+- Base commit: crashes at launch with the UIKitCore NoSceneLifecycleAdoption
+  `EXC_BREAKPOINT`. The fixed build launches, stays running and renders the
+  site, with the status bar and safe area intact.
+- Background and foreground: launching Settings and then the app resumes the
+  same process, and the scene moves `Background` then `ForegroundInactive`
+  then active.
+- `pubmaxx://` links: a warm link and a cold-start link both navigated the
+  WebView to `/map` through `SceneDelegate`, and a refused link
+  (`pubmaxx://evil/path`) opened while running was ignored. `xcrun simctl
+  openurl` stops at the system "Open in PUBMAXXING?" prompt, which needs a tap.
+- Not run: the free personal-team build on a physical iPhone (iOS 27.2), and
+  iOS 26, because no iOS 26 simulator runtime is installed on this Mac.
+- Push token forwarding and the entitlements are unchanged, and still need a
+  signed device (step 10).
 
 ## Remaining manual steps (need Apple developer access)
 
