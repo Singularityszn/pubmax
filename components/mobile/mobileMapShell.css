@@ -695,8 +695,8 @@
      viewport bottom within the portal (bottom:0) — the portal itself stops above
      the primary tab bar (see .mobileSheetPortal), so NO --mobile-map-dock-clearance
      is reserved inside the sheet (that phantom band was the five-patch void).
-     The only reserved bottom space is the safe-area inset,
-     carried on the last element (footer for venue, body for the others). */
+     The portal's own bottom offset already carries the safe-area inset, so the
+     last element (footer for venue, body for the others) keeps a plain gutter. */
   /* The sheet takes focus on open so assistive technology lands inside it, but
      it is a container, not a control, so it never draws a focus ring of its
      own. The controls inside keep theirs. */
@@ -803,7 +803,7 @@
     padding: 8px 16px 16px;
     scroll-padding-block: 8px 16px;
   }
-  /* Venue (right): the footer owns the bottom edge + safe-area, so the body only
+  /* Venue (right): the footer owns the bottom edge, so the body only
      needs a small gutter separating its content from the command bar (this gutter
      is between content and footer, not the sheet's bottom edge). */
   .mobileSharedSheet.right .mobileSharedSheetBody {
