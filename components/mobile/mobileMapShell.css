@@ -597,12 +597,21 @@
        the page or pan the map behind it. */
     touch-action: none;
   }
-  /* While it is held or settling the card rises through the Create action's
-     berth, so it passes OVER it (still under the sheet portal, which is above
-     both). At rest it never touches it. */
-  .mapPeek[data-dragging="true"] {
-    z-index: calc(var(--z-float-action) + 1);
-    will-change: transform;
+  /* While it is held or settling the card travels through the Create action's
+     berth, and that action lives in a different stacking context from the map
+     chrome, so the card cannot pass over it. It steps aside instead: it fades
+     out while the card moves and back in once the card is home. Opacity only,
+     and never a hit target while it is gone. */
+  .mapPeek[data-dragging="true"] { will-change: transform; }
+  body:has(.mapPeek) .createFabRoot {
+    transition: opacity 160ms var(--ease-out-strong, cubic-bezier(0.23, 1, 0.32, 1));
+  }
+  body:has(.mapPeek[data-dragging="true"]) .createFabRoot {
+    opacity: 0;
+    pointer-events: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    body:has(.mapPeek) .createFabRoot { transition: none; }
   }
   /* The grabber is a cue, not a control: the List button beside the answer is
      the operable way in, and the card answers the pull anywhere. */
