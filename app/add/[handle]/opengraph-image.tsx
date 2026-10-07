@@ -124,7 +124,7 @@ export default async function Image({ params }: PageProps) {
               display: "flex",
             }}
           >
-            You have been added
+            You've been added
           </div>
           <div
             style={{

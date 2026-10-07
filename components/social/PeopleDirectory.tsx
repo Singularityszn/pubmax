@@ -314,8 +314,8 @@ export default function PeopleDirectory({
       </h2>
       {allFollowed ? null : (
         <p className="peopleDir__body">
-          Everyone here chose a public handle. Follow a few; a lot forms when
-          they follow you back.
+          Everyone here chose a public handle. Follow a few. They become your
+          lot when they follow you back.
         </p>
       )}
 
@@ -327,7 +327,7 @@ export default function PeopleDirectory({
         </div>
       ) : status === "error" ? (
         <div className="peopleDir__notice" role="alert">
-          <p>Could not load the directory. That is us, not you.</p>
+          <p>Couldn't load the directory. That's us, not you.</p>
           <button
             type="button"
             className="peopleDir__button"

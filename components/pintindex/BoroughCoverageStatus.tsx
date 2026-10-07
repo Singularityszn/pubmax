@@ -34,7 +34,7 @@ export default function BoroughCoverageStatus({
       </h2>
       <p className="boroughCoverageDek">
         These lines count corroborated people-logged pints only. Grey pins
-        still mean we do not yet have the second voice.
+        still mean nobody else has backed up that price yet.
       </p>
       {summary.kind === "shared" ? (
         <>

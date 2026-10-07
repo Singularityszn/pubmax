@@ -352,7 +352,7 @@ export default function CrewDetailClient({
         unknown
       > | null;
       if (!response.ok) {
-        throw new Error(errorMessageFrom(body, "That did not go through."));
+        throw new Error(errorMessageFrom(body, "That didn't go through."));
       }
       return body;
     },
@@ -369,7 +369,7 @@ export default function CrewDetailClient({
       } catch (error) {
         setProblem({
           identityKey,
-          text: error instanceof Error ? error.message : "That did not go through.",
+          text: error instanceof Error ? error.message : "That didn't go through.",
         });
       } finally {
         setBusy(false);
@@ -391,7 +391,7 @@ export default function CrewDetailClient({
       }
       setNotice({
         identityKey,
-        text: "You are in. Your lot grew by everybody already on this night.",
+        text: "You're in. Everybody already on this night is now in your lot.",
       });
       setAttempt((value) => value + 1);
     });
@@ -518,10 +518,10 @@ export default function CrewDetailClient({
     if (status === "missing") {
       return (
         <section className="crews__notice" role="status">
-          <h1>This crew is not open to you.</h1>
+          <h1>This crew isn't open to you.</h1>
           <p className="crews__muted">
-            A crew is visible to the people on the night and to mates of the
-            host. Ask them for a link.
+            Only the people on the night and the host's mates can see a crew.
+            Ask them for a link.
           </p>
           <Link className="crews__button" href="/social">
             Back to Social
@@ -581,7 +581,7 @@ export default function CrewDetailClient({
             </section>
           ) : crew.joinRequestState === "pending" ? (
             <section className="crews__notice" role="status">
-              <p>You have asked to join. The host decides.</p>
+              <p>You've asked to join. The host decides.</p>
               <button
                 type="button"
                 className="crews__button"

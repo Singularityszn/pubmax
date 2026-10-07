@@ -69,7 +69,7 @@ export function followRelationHint(relation: FollowRelation): string | null {
     case "mates":
       return "You follow each other";
     case "following":
-      return "They have not followed back yet";
+      return "They haven't followed back yet";
     case "follows_you":
       return "Follows you";
     case "none":
@@ -94,7 +94,7 @@ export function followActionDescription(
 ): string {
   switch (relation) {
     case "mates":
-      return `Stop following @${handle}. You would no longer be mates.`;
+      return `Stop following @${handle}. You'd no longer be mates.`;
     case "following":
       return `Stop following @${handle}.`;
     case "follows_you":

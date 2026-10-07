@@ -353,12 +353,12 @@ export const MESSAGE_EVENT_PICK_LABEL = "Which plan?";
 export const MESSAGE_EVENT_PICK_PLACEHOLDER = "Paste a plan link";
 
 export const MESSAGE_PHOTO_REFUSED_LINE =
-  "That photo did not pass our checks. Choose another.";
+  "That photo didn't pass our checks. Choose another.";
 
 export const MESSAGE_PHOTO_FAILED_LINE = "Could not send that photo. Try again.";
 
 /** A photo whose bytes would not come back. Says so, and stays out of the way. */
-export const MESSAGE_PHOTO_UNREADABLE_LINE = "This photo will not open just now.";
+export const MESSAGE_PHOTO_UNREADABLE_LINE = "This photo won't open just now.";
 
 /**
  * What an inbox row says when the last message was a picture or a pub and

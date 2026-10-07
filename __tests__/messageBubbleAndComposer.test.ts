@@ -169,7 +169,7 @@ describe("mobile message attachment picker", () => {
     ];
     for (const poll of unreadable) {
       const markup = renderToStaticMarkup(createElement(MessagePollCard, { poll }));
-      expect(markup).toContain(POLL_UNREADABLE_LINE);
+      expect(markup).toContain(POLL_UNREADABLE_LINE.replace("'", "&#x27;"));
       expect(markup).not.toContain("messagePollQuestion");
     }
   });
