@@ -48,6 +48,24 @@ function listsHolding(venueId: string, durable: readonly SavedPubDTO[] | null): 
   return rows.filter((row) => row.venueId === venueId).map((row) => row.listType);
 }
 
+/** The lists holding this pub after a press of `listType`, or null when the
+ * server's answer does not show the press took. The saves route answers a failed
+ * write with the list as it was, so only an answer that moved the way the press
+ * asked is trusted, and it moves this one chip, never the others. */
+function afterPress(
+  savedIn: readonly string[],
+  venueId: string,
+  listType: string,
+  durable: readonly SavedPubDTO[] | null,
+): string[] | null {
+  if (!durable) return listsHolding(venueId, null);
+  const wanted = !savedIn.includes(listType);
+  const held = durable.some((row) => row.venueId === venueId && row.listType === listType);
+  if (held !== wanted) return null;
+  const others = savedIn.filter((name) => name !== listType);
+  return held ? [...others, listType] : others;
+}
+
 export default function SaveToListControl({
   venueId,
   venueName,
@@ -139,11 +157,15 @@ export default function SaveToListControl({
     if (open) void Promise.resolve().then(() => loadLists());
   }, [open, loadLists]);
 
-  const announce = useCallback((forVenue: string, listType: string, held: string[]) => {
+  const announce = useCallback((forVenue: string, listType: string, held: string[] | null) => {
     if (currentVenue.current !== forVenue) return;
-    setSavedIn(held);
+    if (held) setSavedIn(held);
     setToast(
-      held.includes(listType) ? savedToast(listType, handle) : `Removed from “${listType}”`,
+      !held
+        ? `Could not update “${listType}”. Try again.`
+        : held.includes(listType)
+          ? savedToast(listType, handle)
+          : `Removed from “${listType}”`,
     );
     window.setTimeout(() => setToast(null), 2000);
   }, [handle]);
@@ -155,12 +177,12 @@ export default function SaveToListControl({
       try {
         const durable = await toggleSaveDurable(handle, venueId, listType, undefined, venueKind);
         // The second press removes the save, so the toast says which happened.
-        announce(venueId, listType, listsHolding(venueId, durable));
+        announce(venueId, listType, afterPress(savedIn, venueId, listType, durable));
       } finally {
         setBusy(false);
       }
     },
-    [handle, venueId, venueKind, announce],
+    [handle, venueId, venueKind, savedIn, announce],
   );
 
   const createAndSave = useCallback(async () => {
@@ -195,8 +217,10 @@ export default function SaveToListControl({
       // it is rather than pressed a second time.
       const held = savedIn.includes(name)
         ? savedIn
-        : listsHolding(
+        : afterPress(
+            savedIn,
             venueId,
+            name,
             await toggleSaveDurable(handle, venueId, name, undefined, venueKind),
           );
       setNewName("");

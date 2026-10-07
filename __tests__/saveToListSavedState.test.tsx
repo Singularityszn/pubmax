@@ -277,26 +277,58 @@ describe("SaveToListControl as the inspector moves between pubs", () => {
     expect(chip("Date Night").getAttribute("aria-pressed")).toBe("true");
   });
 
-  it("brings this device's store into line with the server after a toggle that disagreed", async () => {
-    // The server already holds Date Night for this pub and this device does not.
-    // The device store toggles first (adds it), the server toggle removes it, and
-    // the device must end up without it, or a signed-out read shows a removed save.
+  it("does not call a failed save a removal, and keeps this device's save, when the server answers the list unchanged", async () => {
+    // The saves route answers a failed write with 200 and the list as it was.
     window.localStorage.setItem("pubmax_handle", "mia");
-    authedFetch.mockImplementation(async (input: string, init?: { method?: string }) => {
+    authedFetch.mockImplementation(async (input: string) => {
       if (input.includes("lists=1")) return new Response(JSON.stringify({ lists: [] }), { status: 200 });
-      if (init?.method === "POST") return new Response(JSON.stringify({ saved: [] }), { status: 200 });
       return new Response(JSON.stringify({ saved: [] }), { status: 200 });
     });
     await open();
     await act(async () => {
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
+    await act(async () => {
       chip("Date Night").click();
     });
 
+    expect(container.querySelector(".saveToListToast")?.textContent).toBe(
+      "Could not update “Date Night”. Try again.",
+    );
+    expect(chip("Date Night").getAttribute("aria-pressed")).toBe("false");
     const stored = JSON.parse(window.localStorage.getItem("pubmax:savedPubs:v1") ?? "[]") as {
       venueId: string;
       listType: string;
     }[];
-    expect(stored.some((row) => row.venueId === "venue-1" && row.listType === "Date Night")).toBe(false);
+    expect(stored.some((row) => row.venueId === "venue-1" && row.listType === "Date Night")).toBe(true);
+  });
+
+  it("does not call a failed removal a save when the server answers the list unchanged", async () => {
+    window.localStorage.setItem("pubmax_handle", "mia");
+    const held = {
+      venueId: "venue-1",
+      venueName: "The Lamb",
+      venueMapUrl: "/map?sel=venue-1",
+      listType: "Date Night",
+      savedAt: "2026-10-06T10:00:00.000Z",
+    };
+    authedFetch.mockImplementation(async (input: string) => {
+      if (input.includes("lists=1")) return new Response(JSON.stringify({ lists: [] }), { status: 200 });
+      return new Response(JSON.stringify({ saved: [held] }), { status: 200 });
+    });
+    await open();
+    await act(async () => {
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
+    expect(chip("Date Night").getAttribute("aria-pressed")).toBe("true");
+    await act(async () => {
+      chip("Date Night").click();
+    });
+
+    expect(container.querySelector(".saveToListToast")?.textContent).toBe(
+      "Could not update “Date Night”. Try again.",
+    );
+    expect(chip("Date Night").getAttribute("aria-pressed")).toBe("true");
   });
 
   it("ignores the answer of a save that was started for the previous pub", async () => {
