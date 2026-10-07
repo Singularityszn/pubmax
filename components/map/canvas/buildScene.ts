@@ -209,7 +209,7 @@ export const CLUSTER_DISC_SMALL_FROM_ZOOM = DONUT_SMALL_FROM_ZOOM;
 export const CLUSTER_CASING_PX = DONUT_CASING_PX;
 export const CLUSTER_RING_PX = DONUT_RING_PX;
 /** The rim count's text size in px, which is also the em its offset is in. */
-export const CLUSTER_COUNT_BADGE_SIZE_PX = 10;
+const CLUSTER_COUNT_BADGE_SIZE_PX = 10;
 
 // `clusters` / `cluster-count` resting paint. Named because the entrance ramp
 // (PubMapCanvas) fades from 0 up to exactly these values and must restore them.
