@@ -472,6 +472,76 @@ export async function scrapeMarkdown(
   );
 }
 
+/** Read the account before an authorized harvest. This endpoint costs no credits. */
+export async function contextDevUsage(options: ContextDevCallOptions = {}) {
+  const apiKey = contextDevApiKey(options.env ?? process.env);
+  if (!apiKey) return { status: "not-configured" as const };
+  const client = contextDevClient(apiKey, options);
+  return withRetries(() => attempt(
+    () => client.get<{ credits_remaining: number; next_refill: unknown }>("/org/usage", {}),
+    (body) => Number.isInteger(body.credits_remaining) && body.credits_remaining >= 0
+      ? { status: "ok" as const, creditsRemaining: body.credits_remaining, nextRefill: body.next_refill }
+      : null,
+    "Usage returned no credit balance.",
+  ), options);
+}
+
+/** The allowance is read before allocating this harvest's monitors. */
+export async function contextDevMonitorLimits(options: ContextDevCallOptions = {}) {
+  const apiKey = contextDevApiKey(options.env ?? process.env);
+  if (!apiKey) return { status: "not-configured" as const };
+  const client = contextDevClient(apiKey, options);
+  return withRetries(() => attempt(
+    () => client.monitors.getLimits(),
+    (body) => Number.isInteger(body.monitors_limit) && Number.isInteger(body.monitors_used)
+      ? { status: "ok" as const, limit: body.monitors_limit, used: body.monitors_used }
+      : null,
+    "Monitor limits returned no allowance.",
+  ), options);
+}
+
+/** A weekly exact-text monitor. Its baseline and each scheduled check cost one credit. */
+export async function createPageMonitor(url: string, name: string, options: ContextDevCallOptions = {}) {
+  return guardedCall(url, options, (client) => attempt(
+    () => client.monitors.create({ name, target: { type: "page", url }, change_detection: { type: "exact" }, schedule: { type: "interval", frequency: 7, unit: "days" } }),
+    (body) => body.id ? { status: "ok" as const, id: body.id, initialRunId: body.initial_run_id } : null,
+    "Monitor returned no id.",
+  ));
+}
+
+/** Poll one owned monitor's changes. Polling costs no credits. */
+async function pageMonitorChanges(url: string, id: string, options: ContextDevCallOptions = {}) {
+  return guardedCall(url, options, (client) => attempt(
+    () => client.monitors.listChanges(id, { limit: 100 }),
+    (body) => Array.isArray(body.data) ? { status: "ok" as const, changes: body.data, hasMore: body.has_more } : null,
+    "Monitor returned no changes list.",
+  ));
+}
+
+/** Read an owned monitor's baseline outcome before starting another capture. */
+export async function pageMonitorRun(url: string, id: string, runId: string, options: ContextDevCallOptions = {}) {
+  return guardedCall(url, options, (client) => attempt(
+    () => client.monitors.retrieveRun(runId, { monitor_id: id }),
+    (body) => body.id ? { status: "ok" as const, runStatus: body.status, creditsCharged: body.credits_charged, error: body.error } : null,
+    "Monitor returned no run outcome.",
+  ));
+}
+
+/** Only a new provider change permits another fresh read. An unchanged page keeps its observation date. */
+export async function refreshChangedPage(url: string, id: string, seenChanges: readonly string[], options: ContextDevCallOptions = {}) {
+  const changes = await pageMonitorChanges(url, id, { ...options, budget: undefined });
+  if (changes.status !== "ok") return changes;
+  const unseen = changes.changes.filter((change) => !seenChanges.includes(change.id));
+  if (!unseen.length) return { status: "unchanged" as const };
+  if (unseen.some((change) => change.url !== url)) return {
+    status: "error" as const,
+    error: { code: "MONITOR_TARGET_MISMATCH", message: "Monitor change does not name the watched page.", retryable: false },
+  };
+  const page = await scrapeMarkdown(url, { ...options, maxAgeMs: 0 });
+  if (page.status !== "ok") return page;
+  return { ...page, observedAt: new Date().toISOString(), changeIds: unseen.map((change) => change.id) };
+}
+
 /** Scrape one page to HTML. 1 credit. */
 export async function scrapeHtml(
   url: string,

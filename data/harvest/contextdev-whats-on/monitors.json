@@ -1,0 +1,176 @@
+{
+  "schedule": "every 7 days",
+  "detection": "exact",
+  "monitors": [
+    {
+      "pub": {
+        "osmId": "way/148155199",
+        "name": "The Globe",
+        "lat": 51.5219345,
+        "lng": -0.1570068,
+        "website": "https://www.greeneking.co.uk/pubs/greater-london/globe",
+        "venueId": null
+      },
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/globe/sports/fixtures",
+      "cacheUrl": "https://www.greeneking.co.uk/pubs/greater-london/globe/sports/fixtures",
+      "id": "mon_1d35b68d61fe4d839a4b689df79b6e86",
+      "initialRunId": "run_6488b550d70142bbbbb2f945fb9b6040",
+      "createdAt": "2026-10-07T22:55:45.445Z",
+      "seenChangeIds": [],
+      "baselineStatus": "completed"
+    },
+    {
+      "pub": {
+        "osmId": "way/550447429",
+        "name": "The Golden Fleece",
+        "lat": 51.5547787,
+        "lng": 0.0420502,
+        "website": "https://www.greeneking.co.uk/pubs/greater-london/golden-fleece",
+        "venueId": "venue-fgxk7q"
+      },
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/golden-fleece/sports/fixtures",
+      "cacheUrl": "https://www.greeneking.co.uk/pubs/greater-london/golden-fleece/sports/fixtures",
+      "id": "mon_67bd91ab00fa4cd6bb8dcf717f0b4138",
+      "initialRunId": "run_ead3347d2dcf41b1997f0346fbebaf72",
+      "createdAt": "2026-10-07T22:55:53.755Z",
+      "seenChangeIds": [],
+      "baselineStatus": "completed"
+    },
+    {
+      "pub": {
+        "osmId": "node/375792331",
+        "name": "Dickens Tavern",
+        "lat": 51.5157797,
+        "lng": -0.1745199,
+        "website": "https://www.greeneking.co.uk/pubs/greater-london/dickens-tavern",
+        "venueId": "venue-4mu1cp"
+      },
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/dickens-tavern/sports/fixtures",
+      "cacheUrl": "https://www.greeneking.co.uk/pubs/greater-london/dickens-tavern/sports/fixtures",
+      "id": "mon_2878c87829084adb8844d310775c05ec",
+      "initialRunId": "run_2dba6aebfb6841aab9ff7eee1bb8b113",
+      "createdAt": "2026-10-07T22:56:02.017Z",
+      "seenChangeIds": [],
+      "baselineStatus": "completed"
+    },
+    {
+      "pub": {
+        "osmId": "way/686252742",
+        "name": "Allsop Arms",
+        "lat": 51.5223268,
+        "lng": -0.1601521,
+        "website": "https://www.greeneking.co.uk/pubs/greater-london/allsop-arms",
+        "venueId": "venue-cvh9yq"
+      },
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/allsop-arms/sports/fixtures",
+      "cacheUrl": "https://www.greeneking.co.uk/pubs/greater-london/allsop-arms/sports/fixtures",
+      "id": "mon_f4540f694d884e689b00bbaec64c1bef",
+      "initialRunId": "run_e099690b50c7459f8c56dfc457766d6c",
+      "createdAt": "2026-10-07T22:56:19.757Z",
+      "seenChangeIds": [],
+      "baselineStatus": "completed"
+    },
+    {
+      "pub": {
+        "osmId": "node/90272342",
+        "name": "Fox Under The Hill",
+        "lat": 51.4738476,
+        "lng": 0.039705,
+        "website": "https://www.greeneking.co.uk/pubs/greater-london/fox-under-the-hill",
+        "venueId": "venue-1vagdvl"
+      },
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/fox-under-the-hill/sports/fixtures",
+      "cacheUrl": "https://www.greeneking.co.uk/pubs/greater-london/fox-under-the-hill/sports/fixtures",
+      "id": "mon_e21092c461bd4d68a0c1fedc61adc2ae",
+      "initialRunId": "run_bc003d15ce0a4657ae489079da4b9ea4",
+      "createdAt": "2026-10-07T22:56:28.805Z",
+      "seenChangeIds": [],
+      "baselineStatus": "completed"
+    },
+    {
+      "pub": {
+        "osmId": "way/681581511",
+        "name": "The County Arms",
+        "lat": 51.6073654,
+        "lng": 0.0006745,
+        "website": "https://www.greeneking.co.uk/pubs/greater-london/county-arms",
+        "venueId": "venue-ugr6l6"
+      },
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/county-arms/sports/fixtures",
+      "cacheUrl": "https://www.greeneking.co.uk/pubs/greater-london/county-arms/sports/fixtures",
+      "id": "mon_5ab09eb93a0042f8bb91093ee6f494d8",
+      "initialRunId": "run_db146000eef14e02a9c8ba24c94b0567",
+      "createdAt": "2026-10-07T22:56:36.788Z",
+      "seenChangeIds": [],
+      "baselineStatus": "completed"
+    },
+    {
+      "pub": {
+        "osmId": "way/113115182",
+        "name": "Grafton Arms",
+        "lat": 51.4974684,
+        "lng": -0.1341079,
+        "website": "https://www.greeneking.co.uk/pubs/greater-london/grafton-arms",
+        "venueId": null
+      },
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/grafton-arms/sports/fixtures",
+      "cacheUrl": "https://www.greeneking.co.uk/pubs/greater-london/grafton-arms/sports/fixtures",
+      "id": "mon_9ae453b3f11943c38445abb1e93b97b6",
+      "initialRunId": "run_dd5e65c13a514ce6991a5ead6db84e1e",
+      "createdAt": "2026-10-07T22:56:45.008Z",
+      "seenChangeIds": [],
+      "baselineStatus": "completed"
+    },
+    {
+      "pub": {
+        "osmId": "node/3223507051",
+        "name": "Travellers Tavern",
+        "lat": 51.4929364,
+        "lng": -0.1488249,
+        "website": "https://www.greeneking.co.uk/pubs/greater-london/travellers-tavern",
+        "venueId": null
+      },
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/travellers-tavern/sports/fixtures",
+      "cacheUrl": "https://www.greeneking.co.uk/pubs/greater-london/travellers-tavern/sports/fixtures",
+      "id": "mon_cea6d1484d8a4b28b257c3e33fb56a6a",
+      "initialRunId": "run_9bca186b007c4e18ad665f569609a25a",
+      "createdAt": "2026-10-07T22:56:52.945Z",
+      "seenChangeIds": [],
+      "baselineStatus": "completed"
+    },
+    {
+      "pub": {
+        "osmId": "way/761312030",
+        "name": "Kings Head",
+        "lat": 51.5123734,
+        "lng": -0.1891188,
+        "website": "https://www.greeneking.co.uk/pubs/greater-london/kings-head",
+        "venueId": null
+      },
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/kings-head/sports/fixtures",
+      "cacheUrl": "https://www.greeneking.co.uk/pubs/greater-london/kings-head/sports/fixtures",
+      "id": "mon_7f62334df538466ca740325e514b6798",
+      "initialRunId": "run_0152f389526a4d46b3a996ced3c2fdd8",
+      "createdAt": "2026-10-07T22:57:01.105Z",
+      "seenChangeIds": [],
+      "baselineStatus": "completed"
+    },
+    {
+      "pub": {
+        "osmId": "way/107155373",
+        "name": "Phoenix",
+        "lat": 51.512317,
+        "lng": -0.1898887,
+        "website": "https://www.greeneking.co.uk/pubs/greater-london/phoenix",
+        "venueId": null
+      },
+      "url": "https://www.greeneking.co.uk/pubs/greater-london/phoenix/sports/fixtures",
+      "cacheUrl": "https://www.greeneking.co.uk/pubs/greater-london/phoenix/sports/fixtures",
+      "id": "mon_5bf9814abcb545eca4c3abeb46eca4d2",
+      "initialRunId": "run_a518117f60ea47f482c81a2d55ed5f65",
+      "createdAt": "2026-10-07T22:57:09.126Z",
+      "seenChangeIds": [],
+      "baselineStatus": "completed"
+    }
+  ]
+}
