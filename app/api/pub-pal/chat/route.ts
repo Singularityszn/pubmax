@@ -1,7 +1,7 @@
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
-import { refineRoutedAskQuery } from "@/lib/ask/router";
+import { refineRoutedAskQuery, socialTurnKind } from "@/lib/ask/router";
 import { runAsk } from "@/lib/ask/runAsk";
 import type { AskTurn } from "@/lib/ask/types";
 import { parseConciergeIntent } from "@/lib/concierge/intent";
@@ -143,19 +143,10 @@ export async function POST(request: Request): Promise<Response> {
   if (!palVoiceConfigured()) {
     try {
       const turns = normaliseTurns(record.turns);
-      // A social turn is only a greeting or thanks, with at most a form of
-      // address after it. Anything that also asks for something routes to tools.
-      const greeting =
-        /^(?:hi|hello|hey|hiya|heya|yo|howdy|evening|good (?:morning|afternoon|evening))(?:[\s,]+(?:there|pal|pub pal|mate|all|everyone))?[.!?\s]*$/i.test(
-          query,
-        );
-      const thanks =
-        /^(?:thanks|thank you|thx|ty|ta|cheers|many thanks)(?:\s+(?:so much|a lot|very much|loads))?(?:[\s,]+(?:pal|pub pal|mate))?[.!?\s]*$/i.test(
-          query,
-        );
-      if (greeting || thanks) {
+      const social = socialTurnKind(query);
+      if (social) {
         return jsonNoStore({
-          answer: thanks
+          answer: social === "thanks"
             ? "You're welcome."
             : turns.some((turn) => turn.role === "assistant")
               ? "Hey."

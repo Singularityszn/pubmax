@@ -156,6 +156,73 @@ describe("POST /api/pub-pal/chat", () => {
   });
 
   it.each([
+    ["hi", "Soho"],
+    ["hello", "Camden"],
+    ["hi", "Shoreditch"],
+    ["thanks", "Soho"],
+  ])("lists the same pubs for %s then %s as for the area alone", async (greeting, area) => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    const first = await POST(
+      new Request("http://localhost/api/pub-pal/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ query: greeting, cityId: "london" }),
+      }),
+    );
+    const opener = await first.json();
+    const response = await POST(
+      new Request("http://localhost/api/pub-pal/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          query: area,
+          cityId: "london",
+          turns: [
+            { role: "user", content: greeting },
+            { role: "assistant", content: opener.answer },
+          ],
+        }),
+      }),
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    const cold = await POST(
+      new Request("http://localhost/api/pub-pal/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ query: area, cityId: "london" }),
+      }),
+    );
+    expect(body.toolsUsed).toEqual(["search_venues"]);
+    expect(body.cards.length).toBeGreaterThan(0);
+    expect(body).toEqual(await cold.json());
+  });
+
+  it("keeps the prior area for a keyless short refinement", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    const response = await POST(
+      new Request("http://localhost/api/pub-pal/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          query: "somewhere quiet",
+          cityId: "london",
+          turns: [
+            { role: "user", content: "pubs in Camden" },
+            { role: "assistant", content: "Here are some pubs in Camden." },
+          ],
+        }),
+      }),
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.cards.length).toBeGreaterThan(0);
+    for (const card of body.cards) expect(card.place).toMatch(/Camden/i);
+  });
+
+  it.each([
     ["hi, what's on in Camden tonight?", "whats_on", /Camden/i],
     ["thanks, how busy is Soho?", "tonight_now", /no live crowd reading/i],
     ["hi there, what's on in Camden tonight?", "whats_on", /Camden/i],
