@@ -1,6 +1,7 @@
 import type { Route } from "next";
 import { getCity, parseCityId } from "@/lib/cities";
 import { takeEarlyWarmJson } from "@/lib/mapEarlyWarm";
+import { MAP_DATA_REVISION } from "@/lib/mapDataRevision";
 
 type MapWarmConnection = {
   saveData?: boolean;
@@ -41,6 +42,11 @@ export const MAP_INTENT_WARM_PATHS = [
 const BLOCKED_EFFECTIVE_TYPES = new Set(["slow-2g", "2g"]);
 const sessionSeen = new Set<string>();
 
+function venueWarmRequestPath(path: string): string {
+  if (MAP_DATA_REVISION === "local" || !/\/venues_slim(?:\.core|\.manifest)?\.json$/.test(path)) return path;
+  return `${path}?v=${encodeURIComponent(MAP_DATA_REVISION)}`;
+}
+
 /**
  * Split by what the paths are FOR: the venue index is what makes pins exist on
  * the first frame; POIs and transit lines are overlays the canvas deliberately
@@ -69,7 +75,7 @@ function mapWarmPathsFor(href: string): { venueIndex: string[]; overlays: string
 /** Slim (+ optional POI/transit) paths to warm for a map href. */
 export function warmPathsForMapHref(href: string): readonly string[] {
   const { venueIndex, overlays } = mapWarmPathsFor(href);
-  return [...venueIndex, ...overlays];
+  return [...venueIndex.map(venueWarmRequestPath), ...overlays];
 }
 
 export function shouldWarmMapIntent(nav: unknown): boolean {
@@ -94,9 +100,10 @@ export function warmMapIntentData({
 }: MapWarmDeps): void {
   if (!shouldWarmMapIntent(nav)) return;
 
-  for (const path of paths) {
+  for (const assetPath of paths) {
+    const path = venueWarmRequestPath(assetPath);
     if (seen?.has(path)) continue;
-    if (takeEarlyWarmJson(path) !== undefined) {
+    if (takeEarlyWarmJson(assetPath.split("?")[0] ?? assetPath) !== undefined) {
       seen?.add(path);
       continue;
     }
