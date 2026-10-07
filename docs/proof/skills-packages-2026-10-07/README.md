@@ -21,7 +21,7 @@ Next.js moves from 16.3.8 to 16.4.0. MapLibre moves from 6.11.2 to 6.13.0. Capac
 
 Computer Use checked pubmaxxing.com at desktop 1440 × 900 and mobile 390 × 844. The review covered the landing page, map search and venue sheet, Tonight, Out, the stored plan preview, Pub Pal, and the signed-in profile.
 
-A desktop Pub Pal shortcut covered the venue drawer's Share action. A DOM hit check at Share's center returned the Pal link. The CSS change hides the floating shortcut only while the desktop right venue drawer is open. The left planner and landmark story drawers sit on the opposite edge and keep the shortcut. Local Computer Use verification confirmed that Share receives its center-point hit, the shortcut is hidden while the drawer is open, and it returns after the drawer closes and map banner staging permits it.
+A desktop Pub Pal shortcut covered the venue drawer's Share action. A DOM hit check at Share's centre returned the Pal link. The final drawer and spacing checks are recorded below, including the full-width sheets at 641px.
 
 A later production-build check found the attribution button clipping the shortcut's lower corner. A first fix at bottom 42px still covered the Layers button and, with the consent strip shown, the attribution button and the strip. The same check found two older attribution collisions. At 641 without the strip, expanded attribution wraps to two lines and the Layers button covered its collapse button. At 390 the phone shortcut covered the collapsed OpenStreetMap credit once the plan pill mounted, so a tap on the credit opened Pub Pal. Once open, the phone credit ran its last words under its 44px collapse button, because MapLibre reserves 28px for its own 24px button. At 320 the open credit also ran 8px onto Near me.
 
