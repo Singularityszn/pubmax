@@ -211,7 +211,9 @@ for (const width of [320, 360, 390]) {
         credit: box(".maplibregl-ctrl-attrib"),
       };
     });
-    expect(clearance.card).not.toBeNull();
+    expect(clearance.card, "the card is painted").not.toBeNull();
+    expect(clearance.nearMe, "Near me is painted").not.toBeNull();
+    expect(clearance.create, "the Create action is painted").not.toBeNull();
     for (const name of ["nearMe", "create", "credit"] as const) {
       const other = clearance[name];
       if (!other) continue;
