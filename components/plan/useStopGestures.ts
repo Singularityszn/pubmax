@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type KeyboardEvent,
@@ -118,6 +119,11 @@ export function useStopGestures({
 
   useEffect(() => abandon, [refreshKey, abandon]);
 
+  // A card that left the list leaves its slot behind; only live cards are measured.
+  useLayoutEffect(() => {
+    items.current.length = keys.length;
+  }, [keys]);
+
   const lift = useCallback((current: Gesture) => {
     current.mode = "drag";
     current.slots = items.current.map((element) => {
@@ -185,9 +191,9 @@ export function useStopGestures({
       },
       () => {
         gesture.current = null;
+        flushSync(() => callbacks.current.onReveal(open ? key : null));
         surface.style.transform = "";
         items.current[current.index]?.removeAttribute("data-swipe");
-        callbacks.current.onReveal(open ? key : null);
       },
     );
   }, []);

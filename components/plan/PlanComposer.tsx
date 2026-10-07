@@ -50,7 +50,7 @@ import {
   planVenueOptions,
   type PlanVenueOption,
 } from "@/lib/planVenueOptions";
-import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
+import { cleanNightContext, cleanNightContextPatch, type NightContext } from "@/lib/nightPlanning";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
 import { categoryLabel, DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
 import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
@@ -236,9 +236,13 @@ export function pickedPlanStop(stop: DraftStop, venue: PlanVenueOption): DraftSt
 
 const PLAN_ROUTE_DRAFT_KEY = "pubmaxx:plan-route-draft:v1";
 
+/** The area and daypart a route was sorted for, which a later edit to the night does not move. */
+export type RouteNight = Pick<Partial<NightContext>, "nightArea" | "daypart">;
+
 export type StoredRouteDraft = {
   stops: DraftStop[];
   nightContext: NightContext | null;
+  routeNight: RouteNight | null;
   routeRevision: RouteRevision | null;
   routeStale: boolean;
   groundingProof: string | null;
@@ -590,6 +594,14 @@ export function applyPlanStopCount(
   };
 }
 
+function routeNightOf(context: Partial<NightContext> | null): RouteNight | null {
+  if (!context?.nightArea && !context?.daypart) return null;
+  return {
+    ...(context.nightArea ? { nightArea: context.nightArea } : {}),
+    ...(context.daypart ? { daypart: context.daypart } : {}),
+  };
+}
+
 export function parsePlanRouteDraft(raw: string | null): StoredRouteDraft | null {
   if (!raw || raw.length > 30_000) return null;
   try {
@@ -599,6 +611,7 @@ export function parsePlanRouteDraft(raw: string | null): StoredRouteDraft | null
     return {
       stops,
       nightContext: cleanNightContext(value.nightContext) ?? null,
+      routeNight: routeNightOf(cleanNightContextPatch(value.routeNight)),
       routeRevision: cleanRouteRevision(value.routeRevision),
       routeStale: value.routeStale === true,
       groundingProof: typeof value.groundingProof === "string" && value.groundingProof.length <= 8_000
@@ -1182,6 +1195,7 @@ function initialComposerStops(
 
 type ComposerRouteDraftFields = {
   nightContext: NightContext | null;
+  routeNight: RouteNight | null;
   routeRevision: RouteRevision | null;
   routeStale: boolean;
   groundingProof: string | null;
@@ -1195,6 +1209,7 @@ function initialComposerRouteDraft(
 ): ComposerRouteDraftFields {
   return {
     nightContext: recoveredRouteDraft?.nightContext ?? null,
+    routeNight: recoveredRouteDraft?.routeNight ?? null,
     routeRevision: recoveredRouteDraft?.routeRevision ?? null,
     routeStale: recoveredRouteDraft?.routeStale ?? false,
     groundingProof: recoveredRouteDraft?.groundingProof ?? null,
@@ -1438,6 +1453,7 @@ function PlanComposerForm({
   const [nightContext, setNightContext] = useState<NightContext | null>(routeDraftFields.nightContext);
   const [explicitNightContext, setExplicitNightContext] = useState<Partial<NightContext>>({});
   const [routeRevision, setRouteRevision] = useState<RouteRevision | null>(routeDraftFields.routeRevision);
+  const [routeNight, setRouteNight] = useState<RouteNight | null>(routeDraftFields.routeNight);
   const [routeStale, setRouteStale] = useState(routeDraftFields.routeStale);
   // WHETHER THE GENERATOR HAS ANSWERED, which is the moment the page's one
   // painted primary becomes `Lock it in` and the concierge control above steps
@@ -1625,6 +1641,7 @@ function PlanComposerForm({
       safeLocalStorage()?.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({
         stops,
         nightContext,
+        routeNight,
         routeRevision,
         routeStale,
         groundingProof,
@@ -1634,7 +1651,7 @@ function PlanComposerForm({
     } catch {
       // A blocked localStorage should not make the route editor unusable.
     }
-  }, [canPersist, createOperationKey, groundingProof, nightContext, planAnchor, routeRevision, routeStale, stops]);
+  }, [canPersist, createOperationKey, groundingProof, nightContext, planAnchor, routeNight, routeRevision, routeStale, stops]);
 
   useEffect(() => {
     if (planIntake === initialPlanIntakeRef.current) return;
@@ -2000,16 +2017,14 @@ function PlanComposerForm({
       setRouteSorted(true);
       setCultureOpener(cleanCultureOpener(body.cultureOpener));
       const grounded = isGroundedGeneratedRoute(body, suggested);
-      if (body.inferredContext) {
-        const inferredContext = body.inferredContext as NightContext;
-        const reconciled = reconcileGeneratedNightContext(
-          inferredContext,
-          submittedContext,
-          suggested.length,
-        );
+      const reconciled = body.inferredContext
+        ? reconcileGeneratedNightContext(body.inferredContext as NightContext, submittedContext, suggested.length)
+        : null;
+      if (reconciled) {
         setNightContext(reconciled);
         if (!user) writeDeviceNightContext(reconciled);
       }
+      setRouteNight(routeNightOf(reconciled ?? submittedContext));
       setRouteRevision(routeRevisionFromState(body));
       setRouteStale(false);
       setGroundingProof(typeof body.groundingProof === "string" ? body.groundingProof : null);
@@ -2395,7 +2410,7 @@ function PlanComposerForm({
     </>
   );
 
-  const areaName = nightContext?.nightArea ? getNightArea(nightContext.nightArea)?.name ?? null : null;
+  const areaName = routeNight?.nightArea ? getNightArea(routeNight.nightArea)?.name ?? null : null;
   const viewStops = completeStops;
   const summaryLine = routeSummaryLine(viewStops, measured);
   const stripStops = viewStops.map((stop, position) => ({ venueId: stop.venueId, venueName: stop.venueName, position }));
@@ -2445,7 +2460,7 @@ function PlanComposerForm({
   const resultHeader = (
     <section className="planResult" aria-labelledby="plan-result-title">
       <div className="planResult__top">
-        <h2 id="plan-result-title" className="planResult__title">{routeHeading(nightContext?.daypart, areaName)}</h2>
+        <h2 id="plan-result-title" className="planResult__title">{routeHeading(routeNight?.daypart, areaName)}</h2>
         <button type="button" className="planResult__tune" aria-haspopup="dialog" onClick={() => setTuneOpen(true)}>
           <SlidersHorizontal size={16} aria-hidden="true" /> <span className="planResult__tuneLabel">Tune details</span>
         </button>

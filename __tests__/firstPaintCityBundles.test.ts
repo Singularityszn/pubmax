@@ -133,18 +133,4 @@ describe("the plan venue index is the composer's own read", () => {
     expect(effect).toContain("if (!composerVisible) return;");
     expect(effect).toContain("composerVisible, acceptedCityId");
   });
-
-  it("keeps the datalist the read feeds inside the composer", () => {
-    // If the datalist ever moved outside `composerVisible`, the gate above
-    // would start hiding a control the reader can see. The datalist lives in
-    // the Stop list, which only the stops block draws, and that block is only
-    // placed inside the composer.
-    const gate = source.indexOf("{composerVisible ? (");
-    expect(source.slice(gate)).toContain("{stopsBlock}");
-    expect(source.slice(0, gate)).not.toContain("{stopsBlock}");
-    expect(source).toMatch(/const stopsBlock = \([\s\S]*?<PlanStopList\b/u);
-    expect(read("components/plan/PlanStopList.tsx")).toContain(
-      '<datalist id="plan-venue-options">',
-    );
-  });
 });

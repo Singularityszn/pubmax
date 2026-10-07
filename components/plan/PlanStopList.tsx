@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ArrowLeftRight } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type { DraftStop } from "@/components/plan/PlanComposer";
 import { useStopGestures } from "@/components/plan/useStopGestures";
@@ -41,17 +41,45 @@ function metaFor(stop: DraftStop, areaName: string | null): string {
   return [stop.reason ? areaName : null, trust].filter(Boolean).join(" · ");
 }
 
-/** The pub finder an added stop shows until a pub is chosen. */
+type FinderOption = { value: string; venue: PlanVenueOption };
+
+/**
+ * One datalist option per pub. A name that more than one pub carries is told
+ * apart by its address, so choosing an option picks that pub and no other.
+ */
+function finderOptions(venues: readonly PlanVenueOption[]): FinderOption[] {
+  const named = new Map<string, number>();
+  for (const venue of venues) {
+    const name = venue.name.toLocaleLowerCase();
+    named.set(name, (named.get(name) ?? 0) + 1);
+  }
+  return venues.map((venue) => ({
+    venue,
+    value: (named.get(venue.name.toLocaleLowerCase()) ?? 0) > 1 && venue.address
+      ? `${venue.name}, ${venue.address}`
+      : venue.name,
+  }));
+}
+
+/**
+ * The pub finder an added stop shows until a pub is chosen. Typing only types:
+ * a pub is chosen from the list, or by Enter or leaving the field on a name
+ * that is one pub's alone, so a name that begins a longer one can be typed past.
+ */
 function StopFinder({
   label,
-  byName,
+  byValue,
   onPick,
 }: {
   label: string;
-  byName: ReadonlyMap<string, PlanVenueOption>;
+  byValue: ReadonlyMap<string, PlanVenueOption>;
   onPick: (venue: PlanVenueOption) => void;
 }) {
   const [text, setText] = useState("");
+  const choose = (value: string) => {
+    const match = byValue.get(value.trim().toLocaleLowerCase());
+    if (match) onPick(match);
+  };
   return (
     <input
       className="planStop__find"
@@ -63,9 +91,15 @@ function StopFinder({
       placeholder="Find a pub"
       onChange={(event) => {
         setText(event.target.value);
-        const match = byName.get(event.target.value.trim().toLocaleLowerCase());
-        if (match) onPick(match);
+        const { inputType } = event.nativeEvent as InputEvent;
+        if (!inputType || inputType === "insertReplacementText") choose(event.target.value);
       }}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        choose(text);
+      }}
+      onBlur={() => choose(text)}
     />
   );
 }
@@ -120,14 +154,40 @@ export default function PlanStopList({
   const keys = useMemo(() => stops.map((stop) => stop.key), [stops]);
   const firstLocked = Boolean(heldVenueId) && stops[0]?.venueId === heldVenueId;
   const gestures = useStopGestures({ onReorder, revealedKey, keys, onReveal: setRevealedKey, firstLocked, refreshKey });
-  const byName = useMemo(
-    () => new Map(venues.map((venue) => [venue.name.toLocaleLowerCase(), venue])),
-    [venues],
-  );
+  const options = useMemo(() => finderOptions(venues), [venues]);
+  const byValue = useMemo(() => {
+    const map = new Map<string, PlanVenueOption>();
+    for (const option of options) {
+      const value = option.value.toLocaleLowerCase();
+      if (!map.has(value)) map.set(value, option.venue);
+    }
+    return map;
+  }, [options]);
+  // A card the keyboard moved or removed leaves the page or moves in it, which
+  // drops focus to the document. Focus goes back to that card, or to the
+  // neighbour that takes a removed card's place.
+  const listRef = useRef<HTMLOListElement | null>(null);
+  const focusAfter = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    const key = focusAfter.current;
+    if (key === null) return;
+    focusAfter.current = null;
+    listRef.current
+      ?.querySelector(`[data-stop-key="${key}"]`)
+      ?.querySelector<HTMLElement>(".planStop__open, .planStop__find")
+      ?.focus();
+  }, [stops]);
+  const remove = (index: number) => {
+    const key = stops[index]?.key;
+    if (key === undefined) return;
+    focusAfter.current = (stops[index + 1] ?? stops[index - 1])?.key ?? null;
+    onRemove(key);
+  };
 
   return (
     <div className="planStops">
       <ol
+        ref={listRef}
         key={refreshKey}
         className="planStops__list"
         data-fresh={refreshKey > 0 ? "true" : undefined}
@@ -168,9 +228,13 @@ export default function PlanStopList({
                     onKeyDown={(event) => {
                       if (!(event.target as HTMLElement).closest(".planStop__open")) return;
                       gestures.onKeyDown(index, stops.length)(event);
-                      if ((event.key === "Delete" || event.key === "Backspace") && removable && !removeDisabled(stop, index) && !event.defaultPrevented) {
+                      if (event.defaultPrevented) {
+                        focusAfter.current = stop.key;
+                        return;
+                      }
+                      if ((event.key === "Delete" || event.key === "Backspace") && removable && !removeDisabled(stop, index)) {
                         event.preventDefault();
-                        onRemove(stop.key);
+                        remove(index);
                       }
                     }}
                   >
@@ -211,7 +275,7 @@ export default function PlanStopList({
                     data-stop-action
                     onClick={() => {
                       setRevealedKey(null);
-                      onRemove(stop.key);
+                      remove(index);
                     }}
                     disabled={removeDisabled(stop, index)}
                     aria-label={removeLabel(stop, index)}
@@ -226,7 +290,7 @@ export default function PlanStopList({
                     <span className="planStop__badge" aria-hidden="true">{index + 1}</span>
                     <StopFinder
                       label={`Find a pub for stop ${index + 1}`}
-                      byName={byName}
+                      byValue={byValue}
                       onPick={(venue) => onPick(stop.key, venue)}
                     />
                     {removable ? (
@@ -234,7 +298,7 @@ export default function PlanStopList({
                       className="planStop__drop planComposer__remove"
                       type="button"
                       data-stop-action
-                      onClick={() => onRemove(stop.key)}
+                      onClick={() => remove(index)}
                       disabled={removeDisabled(stop, index)}
                       aria-label={removeLabel(stop, index)}
                     >
@@ -249,7 +313,9 @@ export default function PlanStopList({
         })}
       </ol>
       <datalist id="plan-venue-options">
-        {venues.map((venue) => <option key={venue.id} value={venue.name}>{venue.address}</option>)}
+        {options.map(({ value, venue }) => (
+          <option key={venue.id} value={value}>{value === venue.name ? venue.address : null}</option>
+        ))}
       </datalist>
       <button className="planComposer__add planStops__add" type="button" disabled={!canAdd} onClick={onAdd}>
         Add another stop
