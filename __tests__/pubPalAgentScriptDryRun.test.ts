@@ -67,7 +67,7 @@ describe("pubpal:agent dry run", () => {
       body.webhook_tools.map((tool: { name: string; description: string }) => [tool.name, tool]),
     );
     expect(tools.get("tonight_now")?.description).toBe(
-      "Use only when the person explicitly asks which sourced events or listings run now, tonight, or later. Do not use for greetings or message labels. Never claim live crowd levels.",
+      "Use only for explicit questions about sourced events or listings running now, tonight, or later, or how busy a pub or area is. Do not use for greetings or message labels. For crowd questions, explain that no live crowd reading exists. Never claim live crowd levels.",
     );
     expect(tools.get("recall_memories")?.description).toContain("first substantive request");
     expect(body.platform_settings.privacy.delete_transcript_and_pii).toBe(true);

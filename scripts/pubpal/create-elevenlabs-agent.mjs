@@ -75,7 +75,7 @@ const TOOL_DESCRIPTIONS = {
   cheapest_pint_near:
     "Cheapest listed pints around a named pub or London area. Never uses the reader's GPS.",
   tonight_now:
-    "Use only when the person explicitly asks which sourced events or listings run now, tonight, or later. Do not use for greetings or message labels. Never claim live crowd levels.",
+    "Use only for explicit questions about sourced events or listings running now, tonight, or later, or how busy a pub or area is. Do not use for greetings or message labels. For crowd questions, explain that no live crowd reading exists. Never claim live crowd levels.",
   venue_drinks:
     "Every drink logged at one listed pub with provenance. Never invents figures.",
   find_desk:
