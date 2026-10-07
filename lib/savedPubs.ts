@@ -397,7 +397,8 @@ export async function fetchFollowedListsForHandle(
  * Durable toggle: POST to the API when a handle exists, mirroring the change into
  * localStorage so a later signed-out read still reflects it, and returning the
  * fresh DTO list. With no handle (or on any failure) it toggles the local store
- * only and returns null — the caller then reads the local view. Never throws.
+ * only and returns null. With no handle the caller reads the local view; with a
+ * handle, null means the press is unconfirmed. Never throws.
  */
 export async function toggleSaveDurable(
   handle: string,
