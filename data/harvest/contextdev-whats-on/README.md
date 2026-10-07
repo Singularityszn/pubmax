@@ -3,22 +3,32 @@
 `scripts/whatson/contextDevHarvest.mjs` reads permitted OSM-stated pub websites, then follows their published events, offers, and contact links.
 The reader checks the existing source policy and live robots rules before each paid request.
 It makes one request at a time and reads at most four pages per venue.
+The harvest is a one-shot read. It has no provider monitor and no refresh command.
 
 `plan.json` records the candidates and credit allowance before the harvest.
 `report.json` records page outcomes, source URLs, observation dates, content hashes, rejected records, publication counts, and the remaining balance.
 Raw Markdown and resumable state remain in the ignored `data-harvest/contextdev-whats-on/` directory.
 
 The publisher writes events and happy-hour slots into `public/data/whats_on/events_london.json`.
-It writes matched opening hours into `data/amenities/london_pub_website_hours_dogs.json`.
-Every fact keeps its source and observation date. The existing readers control freshness and exclude expired listings.
-Ambiguous shared websites, conflicting hours, unsupported schedules, and records without stated times produce no facts.
+A successful read of a page replaces every row that the lane held from that page.
+A held row whose time has passed leaves the file.
+The events refresh and the venue events harvest keep the current own-site rows when they rewrite the file.
+
+Greene King timed fixtures come from its FANZO partner through gated booking links, so they are not first-party.
+The reader does not publish them. The Greene King live-sport attribute row stays as it is.
+
+The publisher writes matched opening hours into `data/amenities/london_pub_website_hours_dogs.json`.
+It applies the amenity writer's rules to the old and new rows together.
+A page that also states a dog policy publishes that policy beside the hours, as the amenity writer does.
+An hours passage that more than one pub on one host states is the chain's, so no row keeps it.
+A row read on a later day stays when the other writer reads an older page for the same pub.
 Hours do not replace a row with a dog-policy observation because both fields share one source and date.
 
-`monitors.json` records this harvest's ten provider monitors and completed baselines.
-The provider checks those pages weekly. Each page check costs one credit.
-The refresh command requests fresh Markdown only after an unseen provider change.
-An unchanged page keeps its original observation date.
-The refresh command requires an operator to run it. Remote monitors do not publish product data themselves.
+Every fact keeps its source and observation date. The existing readers control freshness and exclude expired listings.
+Ambiguous shared websites, conflicting hours, unsupported schedules, and records without stated times produce no facts.
+
+`monitor-deletions.json` records the deletion of the ten provider monitors that an earlier version of this harvest created.
+It lists each monitor ID, its page, the confirmation that the provider no longer holds it, and the live balance. It stores no secret.
 
 The caller supplies `CONTEXT_DEV_API_KEY` through the environment.
 The commands are:
@@ -26,16 +36,13 @@ The commands are:
 ```sh
 npm run harvest:contextdev-whats-on -- --plan
 npm run harvest:contextdev-whats-on -- --read --limit=100
-npm run harvest:contextdev-whats-on -- --monitor
-npm run harvest:contextdev-whats-on -- --refresh --publish
+npm run harvest:contextdev-whats-on -- --publish
 ```
 
-The initial harvest reserves 50 credits plus ten monitor baselines.
-The saved plan records the original allowance.
+The harvest reserves 50 credits.
+The saved plan records the original allowance, and a second `--plan` keeps it.
 `--publish` also works without a key when the raw observations and state remain available.
 
-The `proof/` directory contains the dataset counts and production-build browser captures.
-The desktop captures use 1440 by 1000 pixels. The phone captures use 500 by 844 pixels.
-The venue sheet shows the published opening hours and their observation date.
-The Tonight captures show the current empty state after midnight on 8 October.
-They do not prove that the future event cards rendered. The reader tests cover those records and the expired-event filter.
+`proof/data-before-after.json` contains the dataset counts after the final publish.
+`proof/venue-hours-response.json` contains the venue response that shows published opening hours.
+The browser captures are in [`docs/proof/contextdev-whats-on/`](../../../docs/proof/contextdev-whats-on/README.md).

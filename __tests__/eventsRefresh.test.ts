@@ -444,6 +444,48 @@ describe("runEventsRefresh end to end", () => {
     expect(commonRan).toBe(true);
   });
 
+  it("keeps the current own-site harvest rows and lets a passed one go", async () => {
+    // The own-site harvest has its own writer and names each pub's site as its
+    // source, so no label carry selects its rows.
+    const outPath = temporaryOutPath();
+    const ownSite = (id: string, startsAt: string) => ({
+      id,
+      placeName: "The Crown",
+      kind: "quiz",
+      startsAt,
+      title: "Pub quiz",
+      source: { label: "The Crown website", url: "https://crown.example/" },
+      observedAt: "2026-08-15T09:00:00.000Z",
+      confidence: "listed",
+    });
+    writeFileSync(
+      outPath,
+      JSON.stringify({
+        generatedAt: "2026-08-15T09:00:00.000Z",
+        kind: "events",
+        region: "greater-london",
+        rows: [ownSite("own-site-next", "2026-08-20T20:00:00+01:00"), ownSite("own-site-past", "2026-08-15T20:00:00+01:00")],
+      }),
+    );
+
+    const result = await runEventsRefresh({
+      argv: ["node", "eventsRefresh.mjs"],
+      env: { TICKETMASTER_API_KEY: "test-key" },
+      nowMs: NOW_MS,
+      fetchImpl: (async () => ticketmasterResponse()) as unknown as typeof fetch,
+      outPath,
+      loadVenueIndex: () => null,
+      log: () => {},
+      logError: () => {},
+    });
+
+    expect(result.provider.wrote).toBe(true);
+    const rows: { id: string; source: { label: string } }[] = JSON.parse(readFileSync(outPath, "utf8")).rows;
+    expect(rows.map((row) => row.id)).toContain("own-site-next");
+    expect(rows.map((row) => row.id)).not.toContain("own-site-past");
+    expect(rows.filter((row) => row.source.label === "Ticketmaster")).toHaveLength(1);
+  });
+
   it("still refuses to clobber when held Common rows are the only rows left", async () => {
     // The guard counts the rows THIS run fetched. Held Common rows are merged
     // afterwards, so one carried-over listing can never keep the count non-zero

@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 
 import { londonWallClockToIso } from "../../scripts/whatson/dealsRefresh.mjs";
 import { nextWeeklyOccurrence } from "../../scripts/whatson/quizParsers.mjs";
+import { currentOwnSiteRows } from "../whatson/eventNormalise.mjs";
 import { isValidWhatsOnRow } from "../whatsOnRowShape.mjs";
 import type { WhatsOnRow } from "../whatsOn.ts";
 import { parseChainDealDays, WEEKDAY_NAMES } from "./chainDeals.ts";
@@ -35,10 +36,11 @@ export function ambiguousPubWebsites(pubs: WhatsOnPub[]): Set<string> {
   }).map((pub) => pub.website));
 }
 
-/** Replace only this lane's records from sources whose complete read succeeded. */
-export function mergeOwnSiteListings(previous: WhatsOnRow[], observations: { sourceUrl: string; rows: WhatsOnRow[]; complete: boolean }[]): WhatsOnRow[] {
-  const replaced = new Set(observations.filter((entry) => entry.complete).map((entry) => entry.sourceUrl));
-  const rows = new Map(previous.filter((row) => !row.id.startsWith("own-site-") || !replaced.has(row.source.url)).map((row) => [row.id, row]));
+/** A successful read replaces every row this lane held from its page. A held row whose time has passed leaves. */
+export function mergeOwnSiteListings(previous: WhatsOnRow[], observations: { sourceUrl: string; rows: WhatsOnRow[] }[], nowMs: number): WhatsOnRow[] {
+  const replaced = new Set(observations.map((entry) => entry.sourceUrl));
+  const held = currentOwnSiteRows(previous, nowMs).filter((row) => !replaced.has(row.source.url));
+  const rows = new Map([...previous.filter((row) => !row.id.startsWith("own-site-")), ...held].map((row) => [row.id, row]));
   for (const entry of observations) for (const row of entry.rows) rows.set(row.id, row);
   return [...rows.values()];
 }
@@ -68,9 +70,9 @@ export function discoverWhatsOnPages(markdown: string, website: string): string[
   return [...found];
 }
 
-function plainText(markdown: string): string {
+export function plainText(markdown: string): string {
   return markdown.replace(/!\[[^\]]*\]\([^)]*\)/g, " ").replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
-    .replace(/^[\s#*|]+/gm, "").replace(/\*+/g, "");
+    .replace(/^[\s#*|]+/gm, "").replace(/\*+/g, "").replace(/\\([\\`*_{}[\]()#+\-.!|>~])/g, "$1");
 }
 
 function listingCards(markdown: string): { title: string; text: string; markdown: string; happyHourParent: string | null }[] {
@@ -127,17 +129,7 @@ export function readPubWhatsOn(pub: WhatsOnPub, markdown: string, sourceUrl: str
   const now = Date.parse(observedAt);
   const serviceNow = Date.parse(asOf);
   if (!Number.isFinite(now) || !Number.isFinite(serviceNow) || serviceNow < now || !isPubPage(sourceUrl, pub.website)) throw new Error("Invalid pub observation");
-  // These fixture cards have no headings. Their own booking link supplies the stated year.
-  const fixtures = markdown.replace(/([^\n#]+)\n+\d{1,2}[A-Z][a-z]{2}\d{1,2} [A-Z][a-z]{2}\n+([A-Za-z]{3},[^\n]+)\n+([^\n]+)\n+VS\n+([^\n]+)\n+\[Book a table\]\(([^)]+)\)/g,
-    (original, competition: string, time: string, home: string, away: string, booking: string) => {
-      if (eventKindFrom(competition) !== "sport" || !isPubPage(booking, pub.website)) return original;
-      const date = new URL(booking).searchParams.get("date");
-      if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return original;
-      const day = new Date(`${date}T12:00:00Z`);
-      const stated = `${day.getUTCDate()} ${day.toLocaleString("en-GB", { month: "long", timeZone: "UTC" })} ${day.getUTCFullYear()}`;
-      return `## ${competition.trim()}: ${home.trim()} vs ${away.trim()}\n${stated}\n${time}\n`;
-    });
-  const cards = listingCards(fixtures);
+  const cards = listingCards(markdown);
   const drops: { title: string; reason: string }[] = [];
   const rows: WhatsOnRow[] = [];
   const base = { placeName: pub.name, lat: pub.lat, lng: pub.lng, ...(pub.venueId ? { venueId: pub.venueId } : {}), source: { label: `${pub.name} website`, url: sourceUrl }, observedAt, confidence: "listed" as const };
@@ -209,7 +201,8 @@ export function readPubWhatsOn(pub: WhatsOnPub, markdown: string, sourceUrl: str
       const date = `${event.date.year}-${String(event.date.month).padStart(2, "0")}-${String(event.date.day).padStart(2, "0")}`;
       const startsAt = londonWallClockToIso(date, clock);
       if (!startsAt) continue;
-      const fixture = lines.slice(1).find((line) => /\s+v(?:s\.?)?\s+/i.test(line));
+      const pairing = /\s+v(?:s\.?)?\s+/i;
+      const fixture = lines.slice(1).find((line) => pairing.test(line) && !pairing.test(event.title));
       const title = event.kind === "sport" && fixture ? `${event.title}: ${fixture}` : event.title;
       keep({ ...base, id: `own-site-${pageKey(`${pub.osmId}|${title}|${startsAt}`)}`, kind: event.kind, title, startsAt, timeEvidence: card.text });
     }

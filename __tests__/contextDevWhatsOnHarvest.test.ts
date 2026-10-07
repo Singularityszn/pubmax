@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { contextDevUsage, createContextDevBudget, createPageMonitor, refreshChangedPage } from "@/lib/contextDev";
+import { contextDevUsage } from "@/lib/contextDev";
 import { ambiguousPubWebsites, discoverWhatsOnPages, mergeOwnSiteListings, readPubWhatsOn } from "@/lib/harvest/contextDevWhatsOn";
 
 const pub = { osmId: "node/1", name: "The Crown", venueId: "venue-crown", lat: 51.51, lng: -0.12, website: "https://crown.example/" };
@@ -73,11 +73,23 @@ describe("London pub own-site harvest", () => {
     expect(result.rows).toHaveLength(1);
   });
 
-  it("reads each complete sport fixture instead of publishing its month heading", () => {
-    const text = "## October (2)\nPremier League\n10Oct10 Oct\nSat, 12:30pm\nArsenal\nVS\nLeeds\n[Book a table](https://crown.example/book?date=2026-10-10)\nPremier League\n11Oct11 Oct\nSun, 04:30pm\nLiverpool\nVS\nMan City\n[Book a table](https://crown.example/book?date=2026-10-11)";
+  it("publishes no partner fixture whose date only its gated booking link states", () => {
+    const text = "## October (2)\nPremier League\n10Oct10 Oct\nSat, 12:30pm\nArsenal\nVS\nLeeds\n[Book a table](https://crown.example/book?sportId=1&date=2026-10-10)\nPremier League\n11Oct11 Oct\nSun, 04:30pm\nLiverpool\nVS\nMan City\n[Book a table](https://crown.example/book?sportId=2&date=2026-10-11)";
     const result = readPubWhatsOn(pub, text, pub.website, observedAt);
-    expect(result.rows.map((row) => row.title)).toEqual(["Premier League: Arsenal vs Leeds", "Premier League: Liverpool vs Man City"]);
-    expect(result.rows.map((row) => row.startsAt)).toEqual(["2026-10-10T12:30:00+01:00", "2026-10-11T16:30:00+01:00"]);
+    expect(result.rows).toEqual([]);
+    expect(result.drops).toContainEqual({ title: "October (2)", reason: "incomplete-fixture" });
+  });
+
+  it("names a fixture once and drops its booking sentence when the heading already states it", () => {
+    const text = "Premier League\n\n#### Premier League: Arsenal vs Leeds United\n\nSat 10 October 2026 12:30pm KO All Venues\n\nArsenal vs Leeds United live at The Crown on TNT Sports. Reserve your table for the match.\n";
+    expect(readPubWhatsOn(pub, text, pub.website, observedAt).rows.map((row) => row.title)).toEqual(["Premier League: Arsenal vs Leeds United"]);
+    const plain = readPubWhatsOn(pub, "## Premier League\nSat 10 October 2026 12:30pm\nArsenal vs Leeds United\n", pub.website, observedAt);
+    expect(plain.rows.map((row) => row.title)).toEqual(["Premier League: Arsenal vs Leeds United"]);
+  });
+
+  it("publishes a title without the page's Markdown escapes", () => {
+    const result = readPubWhatsOn(pub, "**Upcoming October events**\n\n- **Every Tuesday**\\- **Pub Quiz** 8pm - £2 CASH to play\n", pub.website, observedAt);
+    expect(result.rows).toMatchObject([{ kind: "quiz", title: "Every Tuesday- Pub Quiz 8pm - £2 CASH to play", startsAt: "2026-10-13T20:00:00+01:00" }]);
   });
 
   it("rejects another named venue and sign-up times without a stated performance start", () => {
@@ -104,11 +116,25 @@ describe("London pub own-site harvest", () => {
     expect(result.rows.every((row) => row.startsAt?.includes("T12:00:"))).toBe(true);
   });
 
-  it("removes a cancelled listing after a complete new read and preserves unrelated sources", () => {
+  it("removes a cancelled listing after a new read and preserves unrelated sources", () => {
     const previous = readPubWhatsOn(pub, "## Pub quiz\nThursday 8 October 2026\n8pm\n", pub.website, observedAt).rows;
     const unrelated = { ...previous[0]!, id: "curated-1", source: { label: "Another publisher", url: "https://another.example/" } };
-    expect(mergeOwnSiteListings([...previous, unrelated], [{ sourceUrl: pub.website, rows: [], complete: true }])).toEqual([unrelated]);
-    expect(mergeOwnSiteListings(previous, [{ sourceUrl: pub.website, rows: [], complete: false }])).toEqual(previous);
+    expect(mergeOwnSiteListings([...previous, unrelated], [{ sourceUrl: pub.website, rows: [] }], Date.parse(observedAt))).toEqual([unrelated]);
+    expect(mergeOwnSiteListings(previous, [], Date.parse(observedAt))).toEqual(previous);
+  });
+
+  it("moves a rescheduled kickoff from a page that also drops records, instead of listing both times", () => {
+    const page = (time: string) => `## October (1)\nPremier League\n## Live sport: Arsenal v Leeds\nSaturday 10 October 2026\nKick-off ${time}\n`;
+    const before = readPubWhatsOn(pub, page("3pm"), pub.website, observedAt);
+    const after = readPubWhatsOn(pub, page("5:30pm"), pub.website, "2026-10-08T09:00:00.000Z");
+    expect(after.drops).not.toEqual([]);
+    const merged = mergeOwnSiteListings(before.rows, [{ sourceUrl: pub.website, rows: after.rows }], Date.parse("2026-10-08T09:00:00.000Z"));
+    expect(merged.map((row) => row.startsAt)).toEqual(["2026-10-10T17:30:00+01:00"]);
+  });
+
+  it("lets a held listing go once its time has passed", () => {
+    const held = readPubWhatsOn(pub, "## Pub quiz\nThursday 8 October 2026\n8pm\n", pub.website, observedAt).rows;
+    expect(mergeOwnSiteListings(held, [], Date.parse("2026-10-09T09:00:00.000Z"))).toEqual([]);
   });
 
   it("advances a cached weekly slot without claiming another source observation", () => {
@@ -117,25 +143,9 @@ describe("London pub own-site harvest", () => {
   });
 });
 
-describe("Context.dev account and monitors", () => {
+describe("Context.dev account", () => {
   it("reads the live credit balance without spending a scrape credit", async () => {
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ credits_remaining: 73, period: null, next_refill: null }), { headers: { "content-type": "application/json" } }));
     expect(await contextDevUsage({ env: { CONTEXT_DEV_API_KEY: "test", NODE_ENV: "test" }, fetchImpl })).toMatchObject({ status: "ok", creditsRemaining: 73 });
-  });
-
-  it("refuses a monitor before calling the provider when robots denies the page", async () => {
-    const fetchImpl = vi.fn();
-    const result = await createPageMonitor(pub.website, "Crown events", { env: { CONTEXT_DEV_API_KEY: "test", NODE_ENV: "test" }, robots: async () => ({ allowed: false, reason: "robots-disallowed", evidence: "Disallow: /" }), fetchImpl });
-    expect(result).toMatchObject({ status: "error", error: { code: "ROBOTS_REFUSED" } });
-    expect(fetchImpl).not.toHaveBeenCalled();
-  });
-
-  it("does not scrape or restamp a monitored page when the provider reports no new changes", async () => {
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ data: [{ id: "change-1", url: pub.website }], has_more: false }), { headers: { "content-type": "application/json" } }));
-    const budget = createContextDevBudget(1);
-    const result = await refreshChangedPage(pub.website, "monitor-1", ["change-1"], { env: { CONTEXT_DEV_API_KEY: "test", NODE_ENV: "test" }, robots: async () => ({ allowed: true, reason: "allowed", evidence: "Allow: /" }), fetchImpl, budget });
-    expect(result).toEqual({ status: "unchanged" });
-    expect(fetchImpl).toHaveBeenCalledTimes(1);
-    expect(budget.spent()).toBe(0);
   });
 });

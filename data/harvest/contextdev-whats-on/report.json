@@ -1,18 +1,17 @@
 {
-  "assembledAt": "2026-10-07T23:04:06.675Z",
+  "assembledAt": "2026-10-07T23:37:27.080Z",
   "creditsAtStart": 1000,
   "creditsUsed": 950,
   "creditsLeft": 50,
   "venuesRead": 312,
   "pagesRead": 862,
-  "eventsPublished": 4212,
+  "eventsPublished": 99,
   "happyHoursPublished": 10,
-  "hoursPublished": 152,
+  "hoursPublished": 139,
   "conflictingHoursPages": [
     "way/284934739",
     "way/195649317"
   ],
-  "monitors": 10,
   "remainingCandidates": 1316,
   "observations": [
     {
@@ -322,7 +321,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/allsop-arms/sports/fixtures",
       "contentSha256": "8e9cce08ab8410d7ae6c49dcdd6f48bc4aa20caf2f72be532427f8c9e06f5bcb",
-      "events": 105,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -335,32 +334,20 @@
           "reason": "other-venue"
         },
         {
-          "title": "UEFA Champions League: Man City vs Paris",
-          "reason": "conflicting-dates"
+          "title": "October (42)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Bayern Munich vs Arsenal",
-          "reason": "conflicting-dates"
+          "title": "November (40)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: RB Leipzig vs Man City",
-          "reason": "conflicting-dates"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Club Brugge vs Liverpool",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Real Madrid",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Betis vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Slavia Prague vs Aston Villa",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Filter",
@@ -518,7 +505,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/three-crowns/sports/fixtures",
       "contentSha256": "eaba0c6adb64cc181fc7d3e9bc232d52cecd6cdc2baee9c05f65a2ac34dadb84",
-      "events": 100,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -531,40 +518,16 @@
           "reason": "other-venue"
         },
         {
-          "title": "Premier League: Arsenal vs Leeds",
-          "reason": "ambiguous-time"
+          "title": "November (40)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Man United vs Tottenham",
-          "reason": "conflicting-dates"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Man City vs Paris",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Aston Villa vs Viking",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: RB Leipzig vs Man City",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Club Brugge vs Liverpool",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Real Madrid",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Man United vs Bayern Munich",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Slavia Prague vs Aston Villa",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",
@@ -658,7 +621,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/leicester-arms/sports/fixtures",
       "contentSha256": "c663a3eb2db06693cd2ad29032e9af6d10aa86bffa519125525e9c788895b3d8",
-      "events": 103,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -671,52 +634,12 @@
           "reason": "other-venue"
         },
         {
-          "title": "Premier League: Arsenal vs Leeds",
-          "reason": "ambiguous-time"
+          "title": "November (73)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Man United vs Tottenham",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Aston Villa vs Viking",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Sunderland vs Leeds",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: RB Leipzig vs Man City",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Nottingham Forest vs Man City",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Ipswich vs Bournemouth",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Man United vs Aston Villa",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Newcastle vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Real Madrid",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Lens vs Man City",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Slavia Prague vs Aston Villa",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",
@@ -810,7 +733,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/globe/sports/fixtures",
       "contentSha256": "6da92e78020aa6373104a554577a01c6bb7cf4a80b5d10a9c9e94f78c8e547bd",
-      "events": 124,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -823,124 +746,16 @@
           "reason": "other-venue"
         },
         {
-          "title": "Premier League: Arsenal vs Leeds",
-          "reason": "ambiguous-time"
+          "title": "January (36)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Crystal Palace vs Nottingham Forest",
-          "reason": "ambiguous-time"
+          "title": "February (3)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Liverpool vs Man City",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Galatasaray vs Barcelona",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Roma vs Real Madrid",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Newcastle vs Aston Villa",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Bournemouth vs Sunderland",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Nottingham Forest vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Real Madrid vs RB Leipzig",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Ipswich vs Nottingham Forest",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Aston Villa vs Man City",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Welsh Premier League: Barry Town vs Haverfordwest County",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Chelsea vs Tottenham",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Sunderland vs Leeds",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Aston Villa vs Fulham",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Leeds vs Tottenham",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Nottingham Forest vs Man City",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Brighton vs Brentford",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Man United vs Aston Villa",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Man City vs Fulham",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Man United",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Paris vs Roma",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Nottingham Forest vs Chelsea",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Ipswich vs Aston Villa",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Sunderland vs Tottenham",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Arsenal vs Man City",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: PSV vs Atl Madrid",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Man United vs Bayern Munich",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Man City vs Sporting Lisbon",
-          "reason": "conflicting-dates"
+          "title": "March (2)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",
@@ -1034,7 +849,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/old-swan/sports/fixtures",
       "contentSha256": "d76286684185a811d47204e0d3cadf72ce1cc6552ea263f67d4e8cd669d0d34e",
-      "events": 101,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -1047,68 +862,20 @@
           "reason": "other-venue"
         },
         {
-          "title": "Premier League: Crystal Palace vs Nottingham Forest",
-          "reason": "ambiguous-time"
+          "title": "October (50)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Liverpool vs Man City",
-          "reason": "ambiguous-time"
+          "title": "November (45)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Man City vs Paris",
-          "reason": "conflicting-dates"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Bournemouth vs Sunderland",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Nottingham Forest vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Bayern Munich vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Chelsea vs Tottenham",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Sunderland vs Leeds",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: RB Leipzig vs Man City",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Man United vs Aston Villa",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Man United",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Club Brugge vs Liverpool",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Liverpool vs Porto",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Lens vs Man City",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Slavia Prague vs Aston Villa",
-          "reason": "conflicting-dates"
+          "title": "January (32)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Filter",
@@ -1782,7 +1549,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/silver-cross/sports/fixtures",
       "contentSha256": "6d36a507e99f5fed7439d98aec4607b922e171482de0a0c06a82a70d4d75c9ca",
-      "events": 90,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -1795,116 +1562,12 @@
           "reason": "other-venue"
         },
         {
-          "title": "Premier League: Arsenal vs Leeds",
-          "reason": "ambiguous-time"
+          "title": "November (86)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Man United vs Tottenham",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Crystal Palace vs Nottingham Forest",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Man City",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Aston Villa vs Fenerbahce",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Leeds vs Man United",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Nottingham Forest vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Bayern Munich vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Chelsea vs Tottenham",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Sunderland vs Leeds",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Slavia Prague vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Leeds vs Tottenham",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Nottingham Forest vs Man City",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Crystal Palace vs Liverpool",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Man United vs Aston Villa",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Newcastle vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Man United",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Club Brugge vs Liverpool",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Nottingham Forest vs Chelsea",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Ipswich vs Aston Villa",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Aston Villa vs Paris",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Real Madrid",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Aston Villa vs Leeds",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Crystal Palace vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Man United vs Newcastle",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Lens vs Man City",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Villarreal vs Man United",
-          "reason": "conflicting-dates"
+          "title": "February (1)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",
@@ -2050,7 +1713,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/ye-olde-cock-tavern/sports/fixtures",
       "contentSha256": "1f0f082ffa196d0ff602dc09131ee9cbc4fd19a036de2548a21a44555bef889d",
-      "events": 101,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -2063,40 +1726,16 @@
           "reason": "other-venue"
         },
         {
-          "title": "Premier League: Man United vs Tottenham",
-          "reason": "conflicting-dates"
+          "title": "November (38)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Hull City vs Everton",
-          "reason": "ambiguous-time"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Bayern Munich vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Sunderland vs Leeds",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: RB Leipzig vs Man City",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Sporting Lisbon vs Man United",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Liverpool vs Porto",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Man United vs Bayern Munich",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Slavia Prague vs Aston Villa",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",
@@ -2242,7 +1881,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/friend-at-hand/sports/fixtures",
       "contentSha256": "30bd151be41073acc9dca0deefb3ca541a38d03df870b3ea694eb8173ee4dd48",
-      "events": 96,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -2255,84 +1894,12 @@
           "reason": "other-venue"
         },
         {
-          "title": "Premier League: Arsenal vs Leeds",
-          "reason": "ambiguous-time"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Man United vs Tottenham",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Crystal Palace vs Nottingham Forest",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Man City",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Man City vs Paris",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Newcastle vs Aston Villa",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Leeds vs Man United",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Nottingham Forest vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Aston Villa vs Viking",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Ipswich vs Nottingham Forest",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Chelsea vs Tottenham",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Sunderland vs Leeds",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Slavia Prague vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Man United vs Aston Villa",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Man United",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Sporting Lisbon vs Man United",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Real Madrid",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Man United vs Bayern Munich",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Man City vs Sporting Lisbon",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",
@@ -2478,7 +2045,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/ye-olde-london/sports/fixtures",
       "contentSha256": "f39b84f8804c332820ca11cd9c07b87ff8a9b08843c2488b14df6aba1b66dfb5",
-      "events": 104,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -2491,36 +2058,16 @@
           "reason": "other-venue"
         },
         {
-          "title": "Premier League: Man United vs Tottenham",
-          "reason": "conflicting-dates"
+          "title": "November (40)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Man City vs Paris",
-          "reason": "conflicting-dates"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Bayern Munich vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Slavia Prague vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Club Brugge vs Liverpool",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Liverpool vs Porto",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Lens vs Man City",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Sabah FC (Aze)",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",
@@ -2626,7 +2173,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/brewmaster/sports/fixtures",
       "contentSha256": "f8a22552b73adbaff313c8b49c18e542927e729a00984e2d4a708bba57639731",
-      "events": 1,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -2637,18 +2184,6 @@
         {
           "title": "Watch live sport at the Brewmaster St James's",
           "reason": "other-venue"
-        },
-        {
-          "title": "Premier League: Arsenal vs Leeds",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Man United vs Tottenham",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Liverpool vs Man City",
-          "reason": "ambiguous-time"
         },
         {
           "title": "Filter",
@@ -2798,7 +2333,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/fountains-abbey/sports/fixtures",
       "contentSha256": "6108dd71bed3ec5f55f8c3f1cbbe62d518297dcd990a47668f26ae29b3bd45d5",
-      "events": 94,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -2811,76 +2346,16 @@
           "reason": "other-venue"
         },
         {
-          "title": "Premier League: Man United vs Tottenham",
-          "reason": "conflicting-dates"
+          "title": "November (44)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Crystal Palace vs Nottingham Forest",
-          "reason": "ambiguous-time"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Liverpool vs Man City",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: LASK Linz vs Liverpool",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Aston Villa vs Fenerbahce",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Brighton vs Crystal Palace",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Nottingham Forest vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Aston Villa vs Viking",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Chelsea vs Tottenham",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Sunderland vs Leeds",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Slavia Prague vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Man United vs Aston Villa",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Man United",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Club Brugge vs Liverpool",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Real Madrid",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Lens vs Man City",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Sabah FC (Aze)",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",
@@ -3078,7 +2553,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/dickens-tavern/sports/fixtures",
       "contentSha256": "51093afdc65534a1dfec7f073be1da8d77ff187997b1c97a89a3998c4dda632d",
-      "events": 106,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -3091,48 +2566,24 @@
           "reason": "other-venue"
         },
         {
-          "title": "Premier League: Arsenal vs Leeds",
-          "reason": "ambiguous-time"
+          "title": "November (42)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Man United vs Tottenham",
-          "reason": "conflicting-dates"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Aston Villa vs Fenerbahce",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Bayern Munich vs Arsenal",
-          "reason": "conflicting-dates"
+          "title": "February (3)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: RB Leipzig vs Man City",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Man United vs Aston Villa",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Man City vs Fulham",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Club Brugge vs Liverpool",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Real Madrid",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Man United vs Bayern Munich",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Liverpool vs Lens",
-          "reason": "conflicting-dates"
+          "title": "March (2)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",
@@ -3325,7 +2776,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/north-london-tavern/sports/fixtures",
       "contentSha256": "165c0f888cc8db5b770dcd1a4ae03e653997e4ec9dbabf219fa565d3c91353f6",
-      "events": 91,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -3338,96 +2789,12 @@
           "reason": "other-venue"
         },
         {
-          "title": "Premier League: Arsenal vs Leeds",
-          "reason": "ambiguous-time"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Man United vs Tottenham",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Hull City vs Everton",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Man City",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Coventry vs Newcastle",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Viking vs Bayern Munich",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: LASK Linz vs Liverpool",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Man City vs Paris",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Everton vs Chelsea",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Brighton vs Crystal Palace",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Nottingham Forest vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Tottenham vs Coventry",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Real Madrid vs RB Leipzig",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Chelsea vs Tottenham",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Sunderland vs Leeds",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Chelsea vs Man United",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Slavia Prague vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Man United vs Aston Villa",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Club Brugge vs Liverpool",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Liverpool vs Porto",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Betis vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Man City vs Sporting Lisbon",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",
@@ -3577,7 +2944,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/yacht/sports/fixtures",
       "contentSha256": "4e47c5a07c98dee27ca03bc056a206522561c9cd3a99894fe46e3f168ff3344c",
-      "events": 101,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -3590,48 +2957,16 @@
           "reason": "other-venue"
         },
         {
-          "title": "Premier League: Hull City vs Everton",
-          "reason": "ambiguous-time"
+          "title": "November (40)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Liverpool vs Man City",
-          "reason": "ambiguous-time"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Coventry vs Newcastle",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Aston Villa vs Fenerbahce",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Newcastle vs Aston Villa",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Aston Villa vs Viking",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Slavia Prague vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Sporting Lisbon vs Man United",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Real Madrid",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Man United vs Bayern Munich",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Sabah FC (Aze)",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",
@@ -3777,7 +3112,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/fox-under-the-hill/sports/fixtures",
       "contentSha256": "bf5016b30c5caf112ff61091a3b0b5d35c3f6b1da07ec916ba04d606818e3843",
-      "events": 105,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -3790,32 +3125,20 @@
           "reason": "other-venue"
         },
         {
-          "title": "UEFA Champions League: Man City vs Paris",
-          "reason": "conflicting-dates"
+          "title": "October (42)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Aston Villa vs Viking",
-          "reason": "conflicting-dates"
+          "title": "November (40)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: RB Leipzig vs Man City",
-          "reason": "conflicting-dates"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Club Brugge vs Liverpool",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Liverpool vs Porto",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Lens vs Man City",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Slavia Prague vs Aston Villa",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Filter",
@@ -3973,7 +3296,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/golden-fleece/sports/fixtures",
       "contentSha256": "9fc875d5392879fe9721d2c5ba78ad343938a5335708e0414ffcd0f425873edd",
-      "events": 107,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -3986,44 +3309,28 @@
           "reason": "other-venue"
         },
         {
-          "title": "UEFA Champions League: Man City vs Paris",
-          "reason": "conflicting-dates"
+          "title": "October (42)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Bayern Munich vs Arsenal",
-          "reason": "conflicting-dates"
+          "title": "November (43)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Slavia Prague vs Arsenal",
-          "reason": "conflicting-dates"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Sunderland vs Chelsea",
-          "reason": "ambiguous-time"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Man United vs Aston Villa",
-          "reason": "conflicting-dates"
+          "title": "February (3)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Man City vs Fulham",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Club Brugge vs Liverpool",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Real Madrid",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Betis vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Liverpool vs Lens",
-          "reason": "conflicting-dates"
+          "title": "March (2)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Filter",
@@ -4137,7 +3444,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/county-arms/sports/fixtures",
       "contentSha256": "a34b697f60e44d0ecfe49cf8450b16a12e79cc7562c49eb3fe5db4e47e47caaa",
-      "events": 105,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -4150,32 +3457,20 @@
           "reason": "other-venue"
         },
         {
-          "title": "UEFA Champions League: Aston Villa vs Fenerbahce",
-          "reason": "conflicting-dates"
+          "title": "October (42)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Bayern Munich vs Arsenal",
-          "reason": "conflicting-dates"
+          "title": "November (40)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: RB Leipzig vs Man City",
-          "reason": "conflicting-dates"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Club Brugge vs Liverpool",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Real Madrid",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Lens vs Man City",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Sabah FC (Aze)",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Filter",
@@ -4301,7 +3596,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/maple-leaf/sports/fixtures",
       "contentSha256": "abe4c8ca4984896d1512a9711f4477510b764ccec06258fe1691273c87cbf383",
-      "events": 82,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -4314,120 +3609,12 @@
           "reason": "other-venue"
         },
         {
-          "title": "Premier League: Arsenal vs Leeds",
-          "reason": "ambiguous-time"
+          "title": "December (32)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Man United vs Tottenham",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Crystal Palace vs Nottingham Forest",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Man City",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: LASK Linz vs Liverpool",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Man City vs Paris",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Everton vs Chelsea",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Newcastle vs Aston Villa",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Brighton vs Crystal Palace",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Nottingham Forest vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Aston Villa vs Viking",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Ipswich vs Nottingham Forest",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Chelsea vs Tottenham",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Sunderland vs Leeds",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Chelsea vs Man United",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Tottenham vs Crystal Palace",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Aston Villa vs Fulham",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: RB Leipzig vs Man City",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Nottingham Forest vs Man City",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Ipswich vs Bournemouth",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Man United vs Aston Villa",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Man City vs Fulham",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Newcastle vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Man United",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Club Brugge vs Liverpool",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Liverpool vs Porto",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Betis vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Slavia Prague vs Aston Villa",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",
@@ -4573,7 +3760,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/prince-of-wales/sports/fixtures",
       "contentSha256": "5118d89ed451ec2c44e8b006f8b8848170efc19453e3e4521c16088e38d972fe",
-      "events": 96,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -4586,68 +3773,20 @@
           "reason": "other-venue"
         },
         {
-          "title": "Premier League: Crystal Palace vs Nottingham Forest",
-          "reason": "ambiguous-time"
+          "title": "October (48)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Liverpool vs Man City",
-          "reason": "ambiguous-time"
+          "title": "November (44)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Aston Villa vs Fenerbahce",
-          "reason": "conflicting-dates"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Bournemouth vs Sunderland",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Nottingham Forest vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Aston Villa vs Viking",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Chelsea vs Tottenham",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Sunderland vs Leeds",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: RB Leipzig vs Man City",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Man United vs Aston Villa",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Man United",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Sporting Lisbon vs Man United",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Liverpool vs Porto",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Man United vs Bayern Munich",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Man City vs Sporting Lisbon",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Filter",
@@ -4797,7 +3936,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/plough/sports/fixtures",
       "contentSha256": "5c9a2fecf67241099d1ff5096d88a0743a629a3e4171920cdbeba13bc78fd740",
-      "events": 96,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -4810,68 +3949,16 @@
           "reason": "other-venue"
         },
         {
-          "title": "Premier League: Hull City vs Everton",
-          "reason": "ambiguous-time"
+          "title": "November (44)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Liverpool vs Man City",
-          "reason": "ambiguous-time"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Man City vs Paris",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Bournemouth vs Sunderland",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Nottingham Forest vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Bayern Munich vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Chelsea vs Tottenham",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Sunderland vs Leeds",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Slavia Prague vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Man United vs Aston Villa",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Man United",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Club Brugge vs Liverpool",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Real Madrid",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Man United vs Bayern Munich",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Sabah FC (Aze)",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",
@@ -5083,7 +4170,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/imperial/sports/fixtures",
       "contentSha256": "286b7082f8b894d36aa5be65225d654d814f91b0c5b964df4a10b0db6df5633b",
-      "events": 100,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -5096,44 +4183,16 @@
           "reason": "other-venue"
         },
         {
-          "title": "Premier League: Arsenal vs Leeds",
-          "reason": "ambiguous-time"
+          "title": "November (40)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Man United vs Tottenham",
-          "reason": "conflicting-dates"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Liverpool vs Man City",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Man City vs Paris",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Bayern Munich vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Slavia Prague vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Club Brugge vs Liverpool",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Liverpool vs Porto",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Man United vs Bayern Munich",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Sabah FC (Aze)",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",
@@ -5279,7 +4338,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/golden-lion/sports/fixtures",
       "contentSha256": "b50149d7c1e817535c4347ba43e67e0c0d26d6150f98f80d46364da0f27e655d",
-      "events": 100,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -5292,60 +4351,16 @@
           "reason": "other-venue"
         },
         {
-          "title": "Premier League: Arsenal vs Leeds",
-          "reason": "ambiguous-time"
+          "title": "November (40)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Man United vs Tottenham",
-          "reason": "conflicting-dates"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Liverpool vs Man City",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Aston Villa vs Fenerbahce",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Nottingham Forest vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Bayern Munich vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Ipswich vs Nottingham Forest",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Chelsea vs Tottenham",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Sunderland vs Leeds",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: RB Leipzig vs Man City",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Sporting Lisbon vs Man United",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Liverpool vs Porto",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Betis vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Sabah FC (Aze)",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",
@@ -5547,7 +4562,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/rising-sun/sports/fixtures",
       "contentSha256": "bc44d9d93bc17a343801db536527f737c2e461d6e4cea06b7f0253944fe462de",
-      "events": 82,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -5560,144 +4575,8 @@
           "reason": "other-venue"
         },
         {
-          "title": "Premier League: Arsenal vs Leeds",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Man United vs Tottenham",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Crystal Palace vs Nottingham Forest",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Man City",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Sabah FC (Aze) vs Slavia Prague",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Atl Madrid vs Man United",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Bodo/Glimt vs Borussia Dortmund",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Everton vs Chelsea",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Newcastle vs Aston Villa",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Leeds vs Man United",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Nottingham Forest vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Bayern Munich vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Ipswich vs Nottingham Forest",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Chelsea vs Tottenham",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Sunderland vs Leeds",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Chelsea vs Man United",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Aston Villa vs Fulham",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: RB Leipzig vs Man City",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Everton vs Coventry",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Leeds vs Tottenham",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Nottingham Forest vs Man City",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Ipswich vs Bournemouth",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Man United vs Aston Villa",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Man City vs Fulham",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Newcastle vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Man United",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Sporting Lisbon vs Man United",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Nottingham Forest vs Chelsea",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Ipswich vs Aston Villa",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Everton vs Liverpool",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Arsenal vs Man City",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Real Madrid",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Betis vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Villarreal vs Man United",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",
@@ -5847,7 +4726,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/old-star/sports/fixtures",
       "contentSha256": "4653b0e22c4d61a7d30fba57148e6ae60480e88aab78e3a6a5da90dabeb8546b",
-      "events": 96,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -5860,68 +4739,20 @@
           "reason": "other-venue"
         },
         {
-          "title": "Premier League: Man United vs Tottenham",
-          "reason": "conflicting-dates"
+          "title": "October (56)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Man City vs Paris",
-          "reason": "conflicting-dates"
+          "title": "November (44)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Newcastle vs Aston Villa",
-          "reason": "conflicting-dates"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Man City vs AEK",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Bayern Munich vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Chelsea vs Tottenham",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Sunderland vs Leeds",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Liverpool vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Slavia Prague vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Leeds vs Tottenham",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Crystal Palace vs Liverpool",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Man United vs Aston Villa",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Club Brugge vs Liverpool",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Liverpool vs Porto",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Man United vs Bayern Munich",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Liverpool vs Lens",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",
@@ -6067,7 +4898,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/fitzrovia/sports/fixtures",
       "contentSha256": "57114e6ca019396e76454701782b0641f0fb0a8d63d784cb58661ab331cf3ae3",
-      "events": 103,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -6080,68 +4911,16 @@
           "reason": "other-venue"
         },
         {
-          "title": "Premier League: Arsenal vs Leeds",
-          "reason": "ambiguous-time"
+          "title": "November (41)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Man United vs Tottenham",
-          "reason": "conflicting-dates"
+          "title": "December (27)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Crystal Palace vs Nottingham Forest",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Man City",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Aston Villa vs Fenerbahce",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Newcastle vs Aston Villa",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Nottingham Forest vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Aston Villa vs Viking",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Aston Villa vs Man City",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Chelsea vs Tottenham",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Sunderland vs Leeds",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: RB Leipzig vs Man City",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Club Brugge vs Liverpool",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Liverpool vs Porto",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Lens vs Man City",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Roma vs Lille",
-          "reason": "conflicting-dates"
+          "title": "January (32)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",
@@ -6287,7 +5066,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/adam-and-eve/sports/fixtures",
       "contentSha256": "6582f6190689a305e0cae3ec1d33690befe81e5ec2caef26cf12114196619380",
-      "events": 100,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -6300,52 +5079,12 @@
           "reason": "other-venue"
         },
         {
-          "title": "UEFA Champions League: LASK Linz vs Liverpool",
-          "reason": "ambiguous-time"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Aston Villa vs Fenerbahce",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Newcastle vs Aston Villa",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Aston Villa vs Viking",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Ipswich vs Nottingham Forest",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Chelsea vs Tottenham",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Sunderland vs Leeds",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: RB Leipzig vs Man City",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Club Brugge vs Liverpool",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Real Madrid",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Man United vs Bayern Munich",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Liverpool vs Lens",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",
@@ -6491,7 +5230,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/grafton-arms/sports/fixtures",
       "contentSha256": "9ce8a8977c4aced251ba38f1f622ecad2a9acd020a2c0542951c8efa9548fed6",
-      "events": 105,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -6504,32 +5243,16 @@
           "reason": "other-venue"
         },
         {
-          "title": "UEFA Champions League: Man City vs Paris",
-          "reason": "conflicting-dates"
+          "title": "November (40)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Bayern Munich vs Arsenal",
-          "reason": "conflicting-dates"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: RB Leipzig vs Man City",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Sporting Lisbon vs Man United",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Real Madrid",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Man United vs Bayern Munich",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Sabah FC (Aze)",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",
@@ -6675,7 +5398,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/shakespeares-head/sports/fixtures",
       "contentSha256": "26bde295653e06315232462e9d45db4d0b1613501106576b8392dbd08574af05",
-      "events": 80,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -6688,16 +5411,12 @@
           "reason": "other-venue"
         },
         {
-          "title": "Premier League: Man United vs Tottenham",
-          "reason": "conflicting-dates"
+          "title": "November (21)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Betis vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Liverpool vs Lens",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Filter",
@@ -6899,7 +5618,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/lord-raglan/sports/fixtures",
       "contentSha256": "0454e87471a65141f6fa69324b16641ba68c8780b150ead344a176a8f3e7c148",
-      "events": 88,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -6912,52 +5631,16 @@
           "reason": "other-venue"
         },
         {
-          "title": "Premier League: Arsenal vs Leeds",
-          "reason": "ambiguous-time"
+          "title": "November (42)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Man United vs Tottenham",
-          "reason": "conflicting-dates"
+          "title": "December (17)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Man City vs Paris",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Aston Villa vs Viking",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: RB Leipzig vs Man City",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Leeds vs Tottenham",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Ipswich vs Bournemouth",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Man United vs Aston Villa",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Club Brugge vs Liverpool",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Liverpool vs Porto",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Lens vs Man City",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Sabah FC (Aze)",
-          "reason": "conflicting-dates"
+          "title": "January (26)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Filter",
@@ -7111,7 +5794,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/shakespeare/sports/fixtures",
       "contentSha256": "b0d2b3d70a01b66da7bb59c22f596176d035306374e10f9e1ae73078fdcb6d58",
-      "events": 12,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -7122,26 +5805,6 @@
         {
           "title": "Watch live sport at the Shakespeare Victoria",
           "reason": "other-venue"
-        },
-        {
-          "title": "Premier League: Man United vs Tottenham",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Coventry vs Newcastle",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Everton vs Chelsea",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Tottenham vs Coventry",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Man United vs Bournemouth",
-          "reason": "conflicting-dates"
         },
         {
           "title": "Six Nations",
@@ -7291,7 +5954,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/travellers-tavern/sports/fixtures",
       "contentSha256": "67cb3fd254e8d6cddaa00c2ed7d91eee260215cd468d15f220b5136b8aebdd8b",
-      "events": 105,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -7304,32 +5967,20 @@
           "reason": "other-venue"
         },
         {
-          "title": "UEFA Champions League: Aston Villa vs Fenerbahce",
-          "reason": "conflicting-dates"
+          "title": "October (42)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Bayern Munich vs Arsenal",
-          "reason": "conflicting-dates"
+          "title": "November (40)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: RB Leipzig vs Man City",
-          "reason": "conflicting-dates"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Club Brugge vs Liverpool",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Liverpool vs Porto",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Man United vs Bayern Munich",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Slavia Prague vs Aston Villa",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Filter",
@@ -7471,7 +6122,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/three-tuns/sports/fixtures",
       "contentSha256": "3a16e81c9f3dba6ac70ec4a6fc12e5d8f6884183742d4bcb48f2f52e9d2dfbf5",
-      "events": 96,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -7484,40 +6135,16 @@
           "reason": "other-venue"
         },
         {
-          "title": "Premier League: Man United vs Tottenham",
-          "reason": "conflicting-dates"
+          "title": "November (40)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Liverpool vs Man City",
-          "reason": "ambiguous-time"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Man City vs Paris",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Bayern Munich vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Slavia Prague vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Sporting Lisbon vs Man United",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Real Madrid",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Betis vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Villarreal vs Man United",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",
@@ -7663,7 +6290,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/gloucester-arms/sports/fixtures",
       "contentSha256": "2ce01a3fa9df2c0457770bf11a622a6dfb0a2b71ef724166be41a6f9a02f7427",
-      "events": 94,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -7676,76 +6303,16 @@
           "reason": "other-venue"
         },
         {
-          "title": "Premier League: Arsenal vs Leeds",
-          "reason": "ambiguous-time"
+          "title": "November (44)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Man United vs Tottenham",
-          "reason": "conflicting-dates"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Hull City vs Everton",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Man City",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Aston Villa vs Fenerbahce",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Bournemouth vs Sunderland",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Nottingham Forest vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Bayern Munich vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Chelsea vs Tottenham",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Sunderland vs Leeds",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: RB Leipzig vs Man City",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Man United vs Aston Villa",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Man United",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Club Brugge vs Liverpool",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Liverpool vs Porto",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Man United vs Bayern Munich",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Villarreal vs Man United",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",
@@ -7891,7 +6458,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/junction/sports/fixtures",
       "contentSha256": "6102831caedb994c1b6497acca7bf72d7ef8e6db7d4294a42bf1d92430d978e4",
-      "events": 90,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -7904,112 +6471,20 @@
           "reason": "other-venue"
         },
         {
-          "title": "Premier League: Arsenal vs Leeds",
-          "reason": "ambiguous-time"
+          "title": "November (62)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Hull City vs Everton",
-          "reason": "ambiguous-time"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Liverpool vs Man City",
-          "reason": "ambiguous-time"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: LASK Linz vs Liverpool",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Aston Villa vs Fenerbahce",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Everton vs Chelsea",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Brighton vs Crystal Palace",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Nottingham Forest vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Bayern Munich vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Aston Villa vs Man City",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Brighton",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Sunderland vs Leeds",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Chelsea vs Man United",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Aston Villa vs Fulham",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Slavia Prague vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Everton vs Coventry",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Leeds vs Tottenham",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Nottingham Forest vs Man City",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Brighton vs Brentford",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Man United vs Aston Villa",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Man City vs Fulham",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Newcastle vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Sporting Lisbon vs Man United",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Real Madrid",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Man United vs Bayern Munich",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Man City vs Sporting Lisbon",
-          "reason": "conflicting-dates"
+          "title": "February (4)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",
@@ -8203,7 +6678,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/kings-head/sports/fixtures",
       "contentSha256": "af94b9c1322cbd0899188f9c7710e62ec3ff06b702062de62d01d162030e295a",
-      "events": 105,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -8216,32 +6691,16 @@
           "reason": "other-venue"
         },
         {
-          "title": "UEFA Champions League: Man City vs Paris",
-          "reason": "conflicting-dates"
+          "title": "November (40)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Aston Villa vs Viking",
-          "reason": "conflicting-dates"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: RB Leipzig vs Man City",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Sporting Lisbon vs Man United",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Real Madrid",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Lens vs Man City",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Liverpool vs Lens",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",
@@ -8387,7 +6846,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/phoenix/sports/fixtures",
       "contentSha256": "3f0f4b17f772a0d09b6641c87c9823b3b138bd0d21cddd76579bca170bae0160",
-      "events": 105,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -8400,32 +6859,20 @@
           "reason": "other-venue"
         },
         {
-          "title": "UEFA Champions League: Man City vs Paris",
-          "reason": "conflicting-dates"
+          "title": "October (42)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Aston Villa vs Viking",
-          "reason": "conflicting-dates"
+          "title": "November (40)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Slavia Prague vs Arsenal",
-          "reason": "conflicting-dates"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Sporting Lisbon vs Man United",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Liverpool vs Porto",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Betis vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Slavia Prague vs Aston Villa",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Filter",
@@ -8575,7 +7022,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/greyhound/sports/fixtures",
       "contentSha256": "a660216d436334e7db7851cf61fb3229ca95c8c4576adfacd201fbd47ccf7dad",
-      "events": 37,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -8588,32 +7035,16 @@
           "reason": "other-venue"
         },
         {
-          "title": "UEFA Champions League: Man City vs Paris",
-          "reason": "conflicting-dates"
+          "title": "November (20)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Aston Villa vs Viking",
-          "reason": "conflicting-dates"
+          "title": "December (11)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: RB Leipzig vs Man City",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Sporting Lisbon vs Man United",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Real Madrid",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Man United vs Bayern Munich",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Liverpool vs Lens",
-          "reason": "conflicting-dates"
+          "title": "January (17)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",
@@ -8759,7 +7190,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/butchers-hook/sports/fixtures",
       "contentSha256": "1d758640b4895b91f68dee159853b3c6b4c6698aaa51babdb7883ddd26a9270d",
-      "events": 105,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -8772,32 +7203,20 @@
           "reason": "other-venue"
         },
         {
-          "title": "UEFA Champions League: Man City vs Paris",
-          "reason": "conflicting-dates"
+          "title": "October (42)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Aston Villa vs Viking",
-          "reason": "conflicting-dates"
+          "title": "November (40)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Slavia Prague vs Arsenal",
-          "reason": "conflicting-dates"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Club Brugge vs Liverpool",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Real Madrid",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Lens vs Man City",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Slavia Prague vs Aston Villa",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Filter",
@@ -9091,7 +7510,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/kings-head-tooting/sports/fixtures",
       "contentSha256": "5212d8203081b3e300c578006c26f310f65577d2e38419c43bb7970f133b408b",
-      "events": 99,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -9104,116 +7523,8 @@
           "reason": "other-venue"
         },
         {
-          "title": "Premier League: Crystal Palace vs Nottingham Forest",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Man City",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Man City vs Paris",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Brighton vs Crystal Palace",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Nottingham Forest vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Real Madrid vs RB Leipzig",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Ipswich vs Nottingham Forest",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Aston Villa vs Man City",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Chelsea vs Tottenham",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Sunderland vs Leeds",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Aston Villa vs Fulham",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: RB Leipzig vs Man City",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Everton vs Coventry",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Leeds vs Tottenham",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Nottingham Forest vs Man City",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Man United vs Aston Villa",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Man City vs Fulham",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Newcastle vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Man United",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Club Brugge vs Liverpool",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Nottingham Forest vs Chelsea",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Ipswich vs Aston Villa",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Borussia Dortmund vs Inter",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Coventry vs Chelsea",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Crystal Palace vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Man United vs Bayern Munich",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Man City vs Sporting Lisbon",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",
@@ -9415,7 +7726,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/old-fields/sports/fixtures",
       "contentSha256": "dcc94640a74873f57189f3c031fdddc25890015ed0bb71bab8ac6827fe10e892",
-      "events": 103,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -9428,56 +7739,20 @@
           "reason": "other-venue"
         },
         {
-          "title": "UEFA Champions League: Bayern Munich vs Arsenal",
-          "reason": "conflicting-dates"
+          "title": "October (63)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Sunderland vs Leeds",
-          "reason": "conflicting-dates"
+          "title": "November (59)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Aston Villa vs Fulham",
-          "reason": "ambiguous-time"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Liverpool vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Slavia Prague vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Everton vs Coventry",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Leeds vs Tottenham",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Nottingham Forest vs Man City",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Crystal Palace vs Liverpool",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Club Brugge vs Liverpool",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Real Madrid",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Man United vs Bayern Munich",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Sabah FC (Aze)",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",
@@ -9627,7 +7902,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/pavilion/sports/fixtures",
       "contentSha256": "9c53df7080c05a0112f4679f152d4432a0737965dc720f0e8e6c9ea38a728543",
-      "events": 104,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -9640,36 +7915,16 @@
           "reason": "other-venue"
         },
         {
-          "title": "UEFA Champions League: Aston Villa vs Fenerbahce",
-          "reason": "conflicting-dates"
+          "title": "November (41)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: Aston Villa vs Viking",
-          "reason": "conflicting-dates"
+          "title": "December (27)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "UEFA Champions League: RB Leipzig vs Man City",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Man United vs Aston Villa",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Club Brugge vs Liverpool",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Real Madrid",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Man United vs Bayern Munich",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Villarreal vs Man United",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",
@@ -11388,7 +9643,7 @@
           "reason": "no-time"
         },
         {
-          "title": "Live Sport\\\\ \\\\ Live Sport",
+          "title": "Live Sport\\ \\ Live Sport",
           "reason": "no-time"
         }
       ]
@@ -12336,7 +10591,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/blue-posts-st-james-s/sports/fixtures",
       "contentSha256": "23ea3ac6ac4ff178df96090fe52449ca671cb1145ea4f1a33c50fc18fef73a98",
-      "events": 94,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -12349,80 +10604,16 @@
           "reason": "other-venue"
         },
         {
-          "title": "Premier League: Arsenal vs Leeds",
-          "reason": "ambiguous-time"
+          "title": "November (44)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Man United vs Tottenham",
-          "reason": "conflicting-dates"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Hull City vs Everton",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Man City",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Coventry vs Newcastle",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: LASK Linz vs Liverpool",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Leeds vs Man United",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Nottingham Forest vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Bayern Munich vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Chelsea vs Tottenham",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Sunderland vs Leeds",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Slavia Prague vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Man United vs Aston Villa",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Liverpool vs Man United",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Sporting Lisbon vs Man United",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Liverpool vs Porto",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Betis vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Slavia Prague vs Aston Villa",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",
@@ -14158,7 +12349,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/victoria/sports/fixtures",
       "contentSha256": "4ca2a4796bc9dfe8c8fe58856c6943ccb22583aa6a13f5de2db004f7bb19bfc9",
-      "events": 100,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -14171,80 +12362,16 @@
           "reason": "other-venue"
         },
         {
-          "title": "Premier League: Man United vs Tottenham",
-          "reason": "conflicting-dates"
+          "title": "November (40)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Liverpool vs Man City",
-          "reason": "ambiguous-time"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Coventry vs Newcastle",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Lens vs Sporting Lisbon",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Aston Villa vs Fenerbahce",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Everton vs Chelsea",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Newcastle vs Aston Villa",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Nottingham Forest vs Arsenal",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Liverpool vs Villarreal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Real Madrid vs RB Leipzig",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Ipswich vs Nottingham Forest",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Aston Villa vs Man City",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "Premier League: Chelsea vs Tottenham",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "Premier League: Sunderland vs Leeds",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: RB Leipzig vs Man City",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Club Brugge vs Liverpool",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Liverpool vs Porto",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Man United vs Bayern Munich",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Man City vs Sporting Lisbon",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",
@@ -23601,7 +21728,7 @@
       "status": "ok",
       "finalUrl": "https://www.greeneking.co.uk/pubs/greater-london/salt-quay/sports/fixtures",
       "contentSha256": "1be24b4b76760cd2a515fe5ecd6b90b57154dd364d883a042702c034d83d64e0",
-      "events": 102,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -23614,44 +21741,16 @@
           "reason": "other-venue"
         },
         {
-          "title": "Premier League: Arsenal vs Leeds",
-          "reason": "ambiguous-time"
+          "title": "November (40)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Man United vs Tottenham",
-          "reason": "conflicting-dates"
+          "title": "December (26)",
+          "reason": "incomplete-fixture"
         },
         {
-          "title": "Premier League: Crystal Palace vs Nottingham Forest",
-          "reason": "ambiguous-time"
-        },
-        {
-          "title": "UEFA Champions League: Man City vs Paris",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Aston Villa vs Viking",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Slavia Prague vs Arsenal",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Sporting Lisbon vs Man United",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Real Madrid",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Man United vs Bayern Munich",
-          "reason": "conflicting-dates"
-        },
-        {
-          "title": "UEFA Champions League: Arsenal vs Sabah FC (Aze)",
-          "reason": "conflicting-dates"
+          "title": "January (30)",
+          "reason": "incomplete-fixture"
         },
         {
           "title": "Six Nations",

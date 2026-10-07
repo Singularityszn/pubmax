@@ -352,6 +352,14 @@ describe("publishing over committed rows", () => {
     expect(shared.skipCounts["chain-dogs-passage"]).toBe(2);
   });
 
+  it("keeps a committed row that another writer read on a later day than the kept page", () => {
+    const later = { ...committedRow("node/1", "https://one.example/whats-on"), readOn: "2026-10-07" };
+    const held = publish([later]);
+    expect(held.rows.find((row) => row.osmId === "node/1")).toEqual(later);
+    expect(held.skipCounts["kept-unsettled"]).toBe(1);
+    expect(publish([{ ...later, readOn: "2026-10-05" }]).rows.find((row) => row.osmId === "node/1")).toMatchObject({ sourceUrl: "https://one.example/" });
+  });
+
   it("refuses a checkpoint with no finished read when facts are committed", () => {
     const readOnly = { "node/2": reads["node/2"]! };
     expect(publish([committedRow("node/9")], readOnly).refusal).toMatch(/no finished read/);
