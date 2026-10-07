@@ -362,7 +362,7 @@ export default function WantedCapture({ onSaved, anonymous = false, prefill }: P
       {door ? (
         <ContributionGateDoor
           status={door.status}
-          subject="save a Wanted place"
+          subject="keep a Wanted list"
           onAsserted={door.retry}
         />
       ) : null}

@@ -60,7 +60,7 @@ export default function ContributionGateDoor({
     return (
       <div className="contributionGateDoor" role="status">
         <EmptyState
-          title={`Choose a public handle to ${subject}.`}
+          title={`Choose a handle to ${subject}.`}
           action={<Link href={HANDLE_CLAIM_NEXT}>Choose a handle</Link>}
         />
       </div>

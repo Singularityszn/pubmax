@@ -137,7 +137,7 @@ describe("Wanted list behind the age gate", () => {
     });
     await settle();
 
-    expect(container.textContent).toContain("Choose a public handle to keep a Wanted list.");
+    expect(container.textContent).toContain("Choose a handle to keep a Wanted list.");
     expect(container.querySelector("a")?.textContent).toBe("Choose a handle");
   });
 });
@@ -280,7 +280,7 @@ describe("Wanted capture behind the age gate", () => {
 
     // A private list is not a public contribution: no dialog, no handle claim.
     expect(document.body.querySelector(".contributionGate")).toBeNull();
-    expect(container.textContent).toContain("Confirm you are 18 or over to save a Wanted place.");
+    expect(container.textContent).toContain("Confirm you are 18 or over to keep a Wanted list.");
     expect(container.textContent).not.toContain("public handle");
     expect(onSaved).not.toHaveBeenCalled();
 

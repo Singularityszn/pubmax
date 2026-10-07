@@ -156,8 +156,7 @@ export function ContributionGateDialog({
             <p className="contributionGateEyebrow">Handle needed</p>
             <h2 id="contribution-gate-title">Choose your handle</h2>
             <p>
-              Contributions carry your public handle, so pick one before you
-              log a price.
+              Pick a handle before you log a price.
             </p>
             <Link
               className="contributionGatePrimary"

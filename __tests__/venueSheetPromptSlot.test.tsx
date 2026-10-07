@@ -82,8 +82,8 @@ describe("SaveForNightButton prompt slot", () => {
     expect(container.textContent).not.toContain("[sign-in control]");
   });
 
-  it("claims the slot on tap when signed out and offers the sign-in control", async () => {
-    auth.current = { user: null, contributionAuth: null, invalidateContributionAuth: () => {} };
+  it("claims the slot on tap when signed out and offers the sign-in control first", async () => {
+    auth.current = { user: null, identityResolved: true, handle: null };
     const onActivate = vi.fn();
     await renderNight(true, onActivate);
     await act(async () => {
@@ -93,8 +93,21 @@ describe("SaveForNightButton prompt slot", () => {
     expect(onActivate).toHaveBeenCalledTimes(1);
     // Wanted is private, so the public-contribution dialog never stands in front.
     expect(document.querySelector("#contribution-gate-title")).toBeNull();
+    expect(authedActionFetch).not.toHaveBeenCalled();
     expect(container.textContent).toContain("Sign in to save for a night.");
     expect(container.textContent).toContain("[sign-in control]");
+  });
+
+  it("shows a signed-in account with no handle the handle door instead of a failing save", async () => {
+    auth.current = { user: { id: "user-1" }, identityResolved: true, handle: null };
+    await renderNight(true);
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>(".wantedSaveBtn")!.click();
+    });
+    await flush();
+    expect(authedActionFetch).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("Choose a handle to keep a Wanted list.");
+    expect(container.textContent).not.toContain("public handle");
   });
 
   it("hides its reply while another prompt owns the slot", async () => {
