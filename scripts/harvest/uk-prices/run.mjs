@@ -236,7 +236,7 @@ async function fetchText(url) {
 }
 
 /** The pubs the committed snapshot states a website for, grouped by host. */
-function candidateHosts({ londonOnly = false } = {}) {
+export function candidateHosts({ londonOnly = false } = {}) {
   const snapshot = JSON.parse(readFileSync(OSM_PUBS, "utf8"));
   const pubs = Array.isArray(snapshot) ? snapshot : (snapshot.pubs ?? []);
   const byHost = new Map();
@@ -558,7 +558,7 @@ function seedOverlayMenuUrls(hosts, overlayCrawlable) {
   return { overlaySeeded, overlayOnUnknownHost };
 }
 
-function appendPriceRows(entry, rows) {
+export function appendPriceRows(entry, rows) {
   const observedAt = new Date().toISOString();
   const lines = [];
   // A host with no pub attached is a chain source read for its own sake;
@@ -588,6 +588,8 @@ function appendPriceRows(entry, rows) {
           observedAt,
           pubsOnHost: entry.pubs.length,
           linesOnPage: row.linesOnPage,
+          // Only a lane other than the served reader stamps its own name.
+          ...(row.reader ? { reader: row.reader } : {}),
         }),
       );
     }
@@ -806,4 +808,8 @@ async function main() {
   if (!DRY_RUN) console.log(`  report → ${path.relative(ROOT, REPORT_PATH)}`);
 }
 
-await main();
+// Importable by the Context.dev batch lane, which reuses the host grouping and
+// the row writer above, so only a direct run starts the crawl.
+if (import.meta.url === `file://${process.argv[1]}`) {
+  await main();
+}

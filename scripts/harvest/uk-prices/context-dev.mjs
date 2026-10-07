@@ -111,6 +111,8 @@ export function createContextDevPriceReader(options = {}) {
         outcome: refusal ? "refused" : "fetch-failed",
         rows: [],
         reason: result.error.code,
+        // The batch lane reads this to tell a spent account from a bad page.
+        ...(result.error.statusCode ? { statusCode: result.error.statusCode } : {}),
         evidence: result.error.message,
       };
     }
