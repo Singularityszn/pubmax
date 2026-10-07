@@ -863,6 +863,27 @@ describe("service worker map cache", () => {
     }
   });
 
+  it("hands an offline native entry to the root ladder instead of the cached root", async () => {
+    const home = new Response("offline home");
+    const { listeners } = rolloutWorkerHarness({
+      entries: { "pubmax-sw-shell-target": [["/", home]] },
+    });
+
+    const entry = dispatchFetch(
+      listeners.get("fetch")!,
+      { method: "GET", mode: "navigate", url: "https://pubmaxxing.com/app-entry" } as Request,
+    );
+    const redirect = await entry.response as Response;
+    expect(redirect.status).toBe(302);
+    expect(redirect.headers.get("location")).toBe("https://pubmaxxing.com/");
+
+    const root = dispatchFetch(
+      listeners.get("fetch")!,
+      { method: "GET", mode: "navigate", url: "https://pubmaxxing.com/" } as Request,
+    );
+    expect(await root.response).toBe(home);
+  });
+
   it("does not admit a network Pint Drop into shell or plan caches", async () => {
     const pintDrop = new Response("live Pint Drop");
     const { listeners, records } = rolloutWorkerHarness({

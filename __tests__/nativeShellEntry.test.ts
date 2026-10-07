@@ -2,9 +2,10 @@
 
 // THE SHELL'S COLD START, DECIDED BEFORE THE LANDING PAGE RENDERS.
 //
-// capacitor.config.ts is a remote-URL wrap, so a native launch always opens the
-// site ROOT and lib/entryDecision.ts rewrites it from the client. That rewrite
-// runs in an effect, which means the landing page has already been rendered and
+// capacitor.config.ts is a remote-URL wrap. Newer binaries start at the static
+// /app-entry document through server.appStartPath. Older binaries open the site
+// ROOT, where lib/entryDecision.ts rewrites the launch from the client. That
+// rewrite runs in an effect, which means the landing page has already been rendered and
 // painted by the time it fires: measured on the iPhone 17 Pro simulator against
 // production on 7 September 2026, the landing painted at 7.9s and the first-run
 // screen replaced it at 9.2s (docs/proof/mobile-shells-refresh/). The reader's
@@ -77,6 +78,7 @@ function runEntryInit(options: {
   pathname?: string;
   session?: Record<string, string>;
   local?: Record<string, string>;
+  storageUnavailable?: boolean;
 }): RunResult {
   const replaced: string[] = [];
   const session = memoryStorage(options.session ?? {});
@@ -90,7 +92,7 @@ function runEntryInit(options: {
       pathname: options.pathname ?? "/",
       replace: (href: string) => void replaced.push(href),
     },
-    sessionStorage: session,
+    sessionStorage: options.storageUnavailable ? undefined : session,
     localStorage: local,
   };
   new Function("window", ENTRY_INIT_SOURCE)(win);
@@ -98,6 +100,58 @@ function runEntryInit(options: {
 }
 
 describe("the native shell's pre-render entry decision", () => {
+  it("routes a fresh install from the lightweight entry document with a handoff", () => {
+    const { replaced, session, local } = runEntryInit({ pathname: "/app-entry" });
+    expect(replaced).toEqual([ONBOARDING_PATH]);
+    expect(session.getItem(NATIVE_FIRST_RUN_HANDOFF_KEY)).toMatch(/^\d+$/);
+    expect(local.getItem(NATIVE_FIRST_RUN_ROUTED_KEY)).toBe("1");
+  });
+
+  it("opens Tonight on a returning app-entry boot even if the session stamp survives", () => {
+    expect(runEntryInit({
+      pathname: "/app-entry",
+      local: { [NATIVE_FIRST_RUN_ROUTED_KEY]: "1" },
+      session: { [SESSION_ENTRY_CONSUMED_KEY]: "1" },
+    }).replaced).toEqual([SHELL_START_PATH]);
+  });
+
+  it("opens Tonight from app-entry for a stored city without stamping first-run", () => {
+    const { replaced, session, local } = runEntryInit({
+      pathname: "/app-entry", local: { [PREFERRED_CITY_KEY]: "london" },
+    });
+    expect(replaced).toEqual([SHELL_START_PATH]);
+    expect(session.getItem(SESSION_ENTRY_CONSUMED_KEY)).toBe("1");
+    expect(session.getItem(NATIVE_FIRST_RUN_HANDOFF_KEY)).toBeNull();
+    expect(local.getItem(NATIVE_FIRST_RUN_ROUTED_KEY)).toBeNull();
+  });
+
+  it("opens Tonight from app-entry for a disabled or unparseable stored city", () => {
+    // Tonight reads the value through readPreferredCity(), which answers null
+    // for these, so the city-aware chrome falls back to London.
+    for (const stored of ["atlantis", "{not json", ""]) {
+      const { replaced, local } = runEntryInit({
+        pathname: "/app-entry", local: { [PREFERRED_CITY_KEY]: stored },
+      });
+      expect(replaced).toEqual([SHELL_START_PATH]);
+      expect(local.getItem(NATIVE_FIRST_RUN_ROUTED_KEY)).toBeNull();
+    }
+  });
+
+  it("opens Tonight from app-entry for a stored city even if the session stamp survives", () => {
+    const { replaced, local } = runEntryInit({
+      pathname: "/app-entry",
+      local: { [PREFERRED_CITY_KEY]: "london" },
+      session: { [SESSION_ENTRY_CONSUMED_KEY]: "1" },
+    });
+    expect(replaced).toEqual([SHELL_START_PATH]);
+    expect(local.getItem(NATIVE_FIRST_RUN_ROUTED_KEY)).toBeNull();
+  });
+
+  it("leaves the static document when storage or the bridge is unavailable", () => {
+    expect(runEntryInit({ pathname: "/app-entry", storageUnavailable: true }).replaced).toEqual(["/"]);
+    expect(runEntryInit({ pathname: "/app-entry", native: false }).replaced).toEqual(["/"]);
+  });
+
   it("sends a post-first-run cold start straight to Tonight", () => {
     const { replaced, session } = runEntryInit({
       local: { [NATIVE_FIRST_RUN_ROUTED_KEY]: "1" },

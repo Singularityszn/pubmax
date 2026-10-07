@@ -30,7 +30,7 @@
 //      and destroys the activity, which costs two things: no predictive-back
 //      animation ever plays (this app targets SDK 36, where predictive back is
 //      on by default), and the next launch is a full COLD start. The shell is
-//      remote-URL mode over a two-file stub (capacitor.config.ts), so a cold
+//      remote-URL mode over a tiny stub (capacitor.config.ts), so a cold
 //      start is a complete network fetch of the production document plus the
 //      JS plus the map shards - perf/route-budgets.json puts /map pins on
 //      screen at 2713 ms AFTER the document arrives. Destroying the process on

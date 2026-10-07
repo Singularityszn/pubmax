@@ -20,7 +20,8 @@
 //
 // "App shell" here means either signal, probed through existing seams only:
 //   - the Capacitor native wrap (lib/nativePlatform.ts isNativeApp(); the
-//     remote-URL wrap in capacitor.config.ts always loads the site root), or
+//     older remote-URL binaries load the site root; newer ones start at the
+//     static "/app-entry" document, decided by public/theme-init.js alone), or
 //   - an installed PWA running standalone (display-mode media query or the
 //     iOS navigator.standalone flag, same signals lib/a2hsPrompt.ts reads).
 //

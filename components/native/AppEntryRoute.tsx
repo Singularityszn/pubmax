@@ -1,8 +1,9 @@
 "use client";
 
 // Mounted only on the homepage (app/page.tsx) — the route the Capacitor
-// remote-URL wrap always opens first and the only route the entry decision
-// may rewrite. lib/entryDecision.ts owns the whole policy (deep links bypass,
+// older remote-URL binaries open first. New binaries use the static /app-entry
+// document and keep this component as the storage fallback.
+// lib/entryDecision.ts owns the whole policy (deep links bypass,
 // shell cold-starts land on /tonight, native first-run opens onboarding,
 // browser visits keep the landing page); this component only snapshots the
 // live context, applies the decision, and persists the first-run mark.

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -76,6 +76,14 @@ function androidResourceXml(dir = ANDROID_RES, prefix = ""): string[] {
 }
 
 describe("Capacitor wrapped-build contract", () => {
+  it("starts at app-entry while keeping sibling routes inside the app origin", () => {
+    expect(capacitorConfig.server?.url).toBe("https://pubmaxxing.com/");
+    expect(capacitorConfig.server?.appStartPath).toBe("app-entry");
+    expect(capacitorConfig.server?.allowNavigation).toBeUndefined();
+    // iOS requires the start path in webDir even when it loads a remote URL.
+    expect(existsSync(join(process.cwd(), capacitorConfig.webDir!, capacitorConfig.server!.appStartPath!))).toBe(true);
+  });
+
   it("uses the canonical app name on both native install surfaces", () => {
     expect(capacitorConfig.appName).toBe(APP_NAME);
 
@@ -166,7 +174,10 @@ describe("Capacitor wrapped-build contract", () => {
     expect(nativeServerUrl({})).toBe("https://pubmaxxing.com/");
     expect(nativeServerUrl({ PUBMAX_NATIVE_SERVER_URL: "   " })).toBe("https://pubmaxxing.com/");
     expect(nativeServerUrl({ PUBMAX_NATIVE_SERVER_URL: "http://10.0.2.2:3811" })).toBe(
-      "http://10.0.2.2:3811",
+      "http://10.0.2.2:3811/",
+    );
+    expect(nativeServerUrl({ PUBMAX_NATIVE_SERVER_URL: "http://localhost:3811/" })).toBe(
+      "http://localhost:3811/",
     );
     // The committed config must be the production one: the generated
     // capacitor.config.json files are untracked, so this is the only copy a

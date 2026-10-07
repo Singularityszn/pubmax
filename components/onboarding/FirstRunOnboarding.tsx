@@ -52,6 +52,12 @@ import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 import { readHistoryStep, useStepHistory } from "@/lib/useStepHistory";
 import { loadSlimVenuesForCityResult, type SlimVenueLoadResult } from "@/lib/venuesSlim";
 
+// A phone draws the photo as a short, darkened full-width band, so its slot is
+// held to 400px and a 3x phone picks the 1200px candidate rather than 1920px.
+// Wider phone layouts and the desktop column keep their real width at any DPR.
+const ONBOARDING_PHOTO_SIZES =
+  "(max-width: 440px) min(100vw, 400px), (max-width: 760px) 100vw, min(51.5vw, calc(100vw - 420px))";
+
 type ReviewedArea = {
   name: string;
   transportAnchor: string;
@@ -378,7 +384,7 @@ export default function FirstRunOnboarding({
                 alt="London and the Thames viewed from above"
                 fill
                 priority
-                sizes="(max-width: 760px) 100vw, 52vw"
+                sizes={ONBOARDING_PHOTO_SIZES}
               />
               <figcaption>
                 {step === "location"

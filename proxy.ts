@@ -337,7 +337,8 @@ export function securityProxy(request: NextRequest) {
   // The shell reaches this route two ways, and neither is turned away:
   //
   //   1. A fresh install decides its entry before first paint in
-  //      public/theme-init.js and calls `window.location.replace` from "/".
+  //      public/theme-init.js and calls `window.location.replace` from
+  //      "/app-entry" (or "/" in an older installed binary).
   //      That is a DOCUMENT request, but this origin's own page started it.
   //      Turning it away sent every fresh install to the landing page with the
   //      first-run mark already stamped, so onboarding never ran (14 Sep 2026).

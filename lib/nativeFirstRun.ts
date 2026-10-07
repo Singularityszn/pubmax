@@ -3,8 +3,9 @@
 // onboarding route. Every later root launch is owned by lib/entryDecision.ts
 // and lands on /tonight.
 //
-// The remote-URL wrap (capacitor.config.ts) always loads the site root, so a
-// first-time native user would otherwise land on the marketing page built
+// Older remote-URL binaries load the site root. New binaries use /app-entry,
+// which runs the same pre-paint script without a landing document. Otherwise a
+// first-time native user would land on the marketing page built
 // for organic web traffic. We only want that ONE redirect, ONE time, and
 // only for a genuinely first-time viewer: if the viewer already has a
 // preferred-city choice persisted (lib/cityPreference.ts) they have state —
