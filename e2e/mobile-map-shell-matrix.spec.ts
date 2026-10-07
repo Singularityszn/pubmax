@@ -236,6 +236,36 @@ test("venue selection opens exactly one coordinated sheet", async ({ page }) => 
   await expect(page.locator(".mobileSharedSheet")).toHaveClass(/sheet-full/);
 });
 
+test("TfL badges a badly disrupted line, and only that", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+  await page.route("**/api/citymcp/status**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        asOf: "2026-07-15T21:05:00.000Z",
+        signals: [],
+        tubeLines: [
+          { line: "Central", status: "Minor delays" },
+          { line: "Victoria", status: "Severe delays", disruption: "Signal failure" },
+          { line: "Jubilee", status: "Planned closure" },
+        ],
+      }),
+    }),
+  );
+  await page.goto("/map");
+  const tflChip = page.getByRole("button", { name: /TfL/ });
+  await expect(tflChip.locator(".mobileMapCornerBadge")).toHaveText("1");
+  await expect(tflChip).toHaveAttribute(
+    "aria-label",
+    "TfL live: 1 line badly disrupted, 3 updates",
+  );
+});
+
 test("TfL status is fresh in the rail before its grouped sheet opens", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => {
@@ -261,7 +291,10 @@ test("TfL status is fresh in the rail before its grouped sheet opens", async ({ 
 
   await page.goto("/map");
   const tflChip = page.getByRole("button", { name: /TfL/ });
-  await expect(tflChip).toContainText("3");
+  // Three routine updates are in the accessible name and the sheet, never a
+  // badge: a number on the resting map says something is urgent.
+  await expect(tflChip).toHaveAttribute("aria-label", "TfL live: 3 updates");
+  await expect(tflChip.locator(".mobileMapCornerBadge")).toHaveCount(0);
   expect(statusRequests).toBe(1);
   await expect(page.locator('.mobileSheetPortal[data-sheet-kind="tfl"]')).toHaveCount(0);
 
