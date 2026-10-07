@@ -14,7 +14,7 @@
 // pair rather than either half.
 //
 // The bar is hidden by TRANSFORM alone (components/nav/mobileNav.css, the same
-// idiom the open-sheet rule already uses). Nothing here touches the body's
+// idiom the night-mode rule already uses). Nothing here touches the body's
 // bottom padding: that clearance is reserved for the bar's own height, and
 // dropping it while the keyboard is open would reflow the page underneath the
 // caret - the layout jump this fix exists to avoid.
@@ -90,12 +90,18 @@ export function softKeyboardOpen(evidence: SoftKeyboardEvidence): boolean {
 /** Read the live evidence out of the document. Browser only. */
 function readEvidence(): SoftKeyboardEvidence {
   const visual = window.visualViewport;
-  // Android's inset handling resizes both viewports. Remember the unobscured
-  // layout height instead of comparing two equally shrunken values.
+  const focused = isTextEntryElement(document.activeElement);
+  // Android's inset handling resizes both viewports. With no field focused the
+  // view is unobscured, so that reading is the baseline. A focused field keeps
+  // it unless the width changed, which is a rotation or a resized window.
   const android = nativePlatform() === "android";
-  if (android) nativeLayoutHeight = Math.max(nativeLayoutHeight, window.innerHeight);
+  if (android) {
+    const sameWindow = focused && window.innerWidth === nativeLayoutWidth;
+    nativeLayoutHeight = sameWindow ? Math.max(nativeLayoutHeight, window.innerHeight) : window.innerHeight;
+    nativeLayoutWidth = window.innerWidth;
+  }
   return {
-    textEntryFocused: isTextEntryElement(document.activeElement) && (visual?.scale ?? 1) === 1,
+    textEntryFocused: focused && (visual?.scale ?? 1) === 1,
     visualViewportHeight: visual ? visual.height : Number.NaN,
     layoutViewportHeight: android ? nativeLayoutHeight : window.innerHeight,
   };
@@ -106,6 +112,7 @@ function readEvidence(): SoftKeyboardEvidence {
 // are the only writers.
 let open = false;
 let nativeLayoutHeight = 0;
+let nativeLayoutWidth = 0;
 const listeners = new Set<() => void>();
 
 function refresh(): void {
@@ -176,5 +183,6 @@ export function subscribeSoftKeyboard(onStoreChange: () => void): () => void {
     // would hide it for the next mount with no keyboard on screen.
     open = false;
     nativeLayoutHeight = 0;
+    nativeLayoutWidth = 0;
   };
 }

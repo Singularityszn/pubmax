@@ -660,15 +660,15 @@
    here the bar just resets to an in-flow strip: no position, no offsets, no
    reserved-height var. It rides 1:1 with the sheet on drag/snap because it IS in
    the sheet's flow, and never scrolls under the tabs because it sits below the
-   scroll body, not inside it. The last content pixel (the bar's own bottom) sits
-   exactly the safe-area inset above the sheet's visible bottom edge — no dock
-   band. The legacy 641–768 inline drawer keeps the sticky bar rules above
+   scroll body, not inside it. The portal already reserves the dock and its
+   safe-area inset below the sheet, so the bar keeps a plain 12px gutter above
+   the sheet's visible bottom edge. The legacy 641–768 inline drawer keeps the sticky bar rules above
    (`:not(.mobileSharedSheet)`); this only touches the ≤640 portal footer. */
 @media (max-width: 640px) {
   .mobileSharedSheetFooter .venueSheetStickyBar {
     position: static;
     margin: 0;
-    padding: 12px 16px calc(env(safe-area-inset-bottom, 0px));
+    padding: 12px 16px;
     border-top: 1px solid color-mix(in srgb, var(--brass) 28%, var(--line));
     /* Solid surface: the bar sits below the scrollport now, so the old scrim
        gradient (for content bleeding under a sticky bar) is unnecessary. */
