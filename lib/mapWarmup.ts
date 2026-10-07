@@ -204,6 +204,11 @@ export function warmNavRoute<T extends string>(
   // Route is itself a Route.
   const prefetchHref = href.split("#")[0] as Route | undefined;
   if (!prefetchHref) return;
+  if (
+    typeof window !== "undefined" &&
+    window.location &&
+    prefetchHref === `${window.location.pathname}${window.location.search}`
+  ) return;
   const pathname = prefetchHref.split("?")[0] ?? prefetchHref;
   const isMapRoute = pathname === "/map" || pathname.startsWith("/map/");
   if (isMapRoute) warmMapCanvasModule();
