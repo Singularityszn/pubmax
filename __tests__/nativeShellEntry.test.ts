@@ -118,12 +118,23 @@ describe("the native shell's pre-render entry decision", () => {
     }).replaced).toEqual([SHELL_START_PATH]);
   });
 
-  it("lets React resolve a stored city without issuing an onboarding handoff", () => {
+  it("opens Tonight from app-entry for a stored city without stamping first-run", () => {
     const { replaced, session, local } = runEntryInit({
       pathname: "/app-entry", local: { [PREFERRED_CITY_KEY]: "london" },
     });
-    expect(replaced).toEqual(["/"]);
+    expect(replaced).toEqual([SHELL_START_PATH]);
+    expect(session.getItem(SESSION_ENTRY_CONSUMED_KEY)).toBe("1");
     expect(session.getItem(NATIVE_FIRST_RUN_HANDOFF_KEY)).toBeNull();
+    expect(local.getItem(NATIVE_FIRST_RUN_ROUTED_KEY)).toBeNull();
+  });
+
+  it("opens Tonight from app-entry for a stored city even if the session stamp survives", () => {
+    const { replaced, local } = runEntryInit({
+      pathname: "/app-entry",
+      local: { [PREFERRED_CITY_KEY]: "london" },
+      session: { [SESSION_ENTRY_CONSUMED_KEY]: "1" },
+    });
+    expect(replaced).toEqual([SHELL_START_PATH]);
     expect(local.getItem(NATIVE_FIRST_RUN_ROUTED_KEY)).toBeNull();
   });
 

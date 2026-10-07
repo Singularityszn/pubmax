@@ -174,7 +174,10 @@ describe("Capacitor wrapped-build contract", () => {
     expect(nativeServerUrl({})).toBe("https://pubmaxxing.com/");
     expect(nativeServerUrl({ PUBMAX_NATIVE_SERVER_URL: "   " })).toBe("https://pubmaxxing.com/");
     expect(nativeServerUrl({ PUBMAX_NATIVE_SERVER_URL: "http://10.0.2.2:3811" })).toBe(
-      "http://10.0.2.2:3811",
+      "http://10.0.2.2:3811/",
+    );
+    expect(nativeServerUrl({ PUBMAX_NATIVE_SERVER_URL: "http://localhost:3811/" })).toBe(
+      "http://localhost:3811/",
     );
     // The committed config must be the production one: the generated
     // capacitor.config.json files are untracked, so this is the only copy a

@@ -43,23 +43,6 @@ const WEB_ROOT: EntryContext = {
 };
 
 describe("decideEntry", () => {
-  it("treats the app-entry document as a shell entry rather than a deep link", () => {
-    expect(decideEntry({ ...WEB_ROOT, path: "/app-entry", isNativeShell: true })).toEqual({
-      kind: "route", href: SHELL_START_PATH, reason: "shell-cold-start",
-    });
-  });
-
-  it("keeps an app-entry boot out of the deep-link session stamp", () => {
-    const storage = makeMemoryStorage();
-    expect(consumeDeepLinkBootEntry("/app-entry", storage)).toBe(false);
-    expect(hasConsumedSessionEntry(storage)).toBe(false);
-  });
-
-  it("routes a returning app-entry boot even when its session stamp survives", () => {
-    expect(decideEntry({ ...WEB_ROOT, path: "/app-entry", isNativeShell: true, sessionEntryConsumed: true }))
-      .toEqual({ kind: "route", href: SHELL_START_PATH, reason: "shell-cold-start" });
-  });
-
   it("locks the shell start surface to /tonight", () => {
     expect(SHELL_START_PATH).toBe("/tonight");
   });

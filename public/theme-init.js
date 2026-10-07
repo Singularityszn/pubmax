@@ -48,11 +48,14 @@
 //     every possible enabled-city table in lib/cities.ts. So this reads the
 //     ABSENCE of the key and never its contents, and forks no table.
 //
-// The ONE case left to the client is a stored city value with the first-run
-// mark absent. Whether that value counts depends on whether lib/cities.ts still
-// has that city enabled, and a second copy of the city list here would be a
-// second place for it to be wrong. AppEntryRoute decides that one exactly as
-// before, one paint later.
+// The ONE case left to the client at the root is a stored city value with the
+// first-run mark absent. Whether that value counts depends on whether
+// lib/cities.ts still has that city enabled, and a second copy of the city list
+// here would be a second place for it to be wrong. AppEntryRoute decides that
+// one exactly as before, one paint later. The static /app-entry document has no
+// React, so there a stored city takes rule 4 and opens /tonight. It never
+// stamps the first-run mark, so a person who later clears the city still sees
+// onboarding.
 //
 // __tests__/nativeShellEntry.test.ts runs THIS FILE against a window of its
 // own, which is why every reference below goes through `window`.
@@ -90,18 +93,22 @@
     if (!appEntry && session.getItem("pubmax:entryDecision:consumed:v1") === "1") return;
 
     if (local.getItem("pubmax:nativeFirstRun:routed:v1") !== "1") {
-      // A stored city is the one thing this file may not judge (see above).
-      if (local.getItem("pubmax:preferredCity:v1") !== null) return;
-      // Rule 2. The onboarding route is guarded by a session handoff, so the
-      // same eligibility AppEntryRoute would have issued is issued here. Both
-      // marks are stamped BEFORE navigating, exactly as that component does, so
-      // a slow transition can never leave a flag unset and fire twice.
-      session.setItem("pubmax:nativeFirstRun:handoff:v1", String(Date.now()));
-      local.setItem("pubmax:nativeFirstRun:routed:v1", "1");
-      session.setItem("pubmax:entryDecision:consumed:v1", "1");
-      routed = true;
-      window.location.replace("/onboarding");
-      return;
+      // At the root, a stored city is left to AppEntryRoute (see above). The
+      // static entry document has no React to defer to, so it takes rule 4.
+      if (local.getItem("pubmax:preferredCity:v1") !== null) {
+        if (!appEntry) return;
+      } else {
+        // Rule 2. The onboarding route is guarded by a session handoff, so the
+        // same eligibility AppEntryRoute would have issued is issued here. Both
+        // marks are stamped BEFORE navigating, exactly as that component does, so
+        // a slow transition can never leave a flag unset and fire twice.
+        session.setItem("pubmax:nativeFirstRun:handoff:v1", String(Date.now()));
+        local.setItem("pubmax:nativeFirstRun:routed:v1", "1");
+        session.setItem("pubmax:entryDecision:consumed:v1", "1");
+        routed = true;
+        window.location.replace("/onboarding");
+        return;
+      }
     }
 
     // Rule 4. Stamp before navigating, exactly as AppEntryRoute does, so a slow
@@ -115,7 +122,7 @@
     // takes the same decision, one paint later.
   } finally {
     // A static document has no React fallback. Preserve callback inputs and
-    // let the root decide any case that needs the enabled-city table or React.
+    // let the root decide any launch this script could not.
     if (appEntry && !routed) {
       window.location.replace("/" + (window.location.search || "") + (window.location.hash || ""));
     }

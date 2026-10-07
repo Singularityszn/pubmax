@@ -1,6 +1,6 @@
 // This document bypasses the React layout and its speculative asset fetches.
 // The shared pre-paint script owns the decision and falls back to the root
-// when storage or an existing city needs the React entry seam.
+// when the bridge or storage is unavailable, or for an auth callback.
 // Use a fresh script URL so an upgraded shell cannot reuse the root-only script.
 export const dynamic = "force-static";
 

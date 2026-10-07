@@ -65,7 +65,7 @@ loads the remote document, not the bundled placeholder.
 
 The onboarding proxy guard accepts the same-origin navigation from the entry
 document. Tests also cover the older WebView referrer fallback, stored-city
-fallback, unavailable storage, auth callback inputs, returning launches,
+launches, unavailable storage, auth callback inputs, returning launches,
 deep links, and deliberate visits to the homepage.
 
 The web route must be available before binaries with the new start path ship.

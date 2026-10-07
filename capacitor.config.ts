@@ -24,13 +24,15 @@ export const PRODUCTION_SERVER_URL = "https://pubmaxxing.com/";
  * absent on every CI and store build, and `__tests__/nativeWrap.test.ts` holds
  * the unset case to production. `cleartext` follows the scheme rather than
  * being a second switch, because an http origin with it off is a blank
- * WebView on Android and nothing on screen says why.
+ * WebView on Android and nothing on screen says why. The origin always ends
+ * in "/" because Android appends `appStartPath` to it as a plain string.
  */
 export function nativeServerUrl(
   env: Record<string, string | undefined> = process.env,
 ): string {
   const local = env.PUBMAX_NATIVE_SERVER_URL?.trim();
-  return local ? local : PRODUCTION_SERVER_URL;
+  if (!local) return PRODUCTION_SERVER_URL;
+  return local.endsWith("/") ? local : `${local}/`;
 }
 
 const serverUrl = nativeServerUrl();

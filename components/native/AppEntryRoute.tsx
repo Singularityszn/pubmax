@@ -2,7 +2,7 @@
 
 // Mounted only on the homepage (app/page.tsx) — the route the Capacitor
 // older remote-URL binaries open first. New binaries use the static /app-entry
-// document and keep this component as the storage/city fallback.
+// document and keep this component as the storage fallback.
 // lib/entryDecision.ts owns the whole policy (deep links bypass,
 // shell cold-starts land on /tonight, native first-run opens onboarding,
 // browser visits keep the landing page); this component only snapshots the
