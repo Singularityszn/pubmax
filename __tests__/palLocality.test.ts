@@ -118,6 +118,23 @@ describe("a place the taxonomy cannot place", () => {
 
   it("does not apply to an area the taxonomy does place", () => {
     expect(resolvePalLocality("pubs in Brixton", null).unplaced).toBeUndefined();
-    expect(resolvePalLocality("pubs in Blackfriars", REMEMBERED_SOHO).unplaced).toBeUndefined();
+    expect(resolvePalLocality("pubs in Brixton", REMEMBERED_SOHO).unplaced).toBeUndefined();
+  });
+});
+
+describe("a named place the taxonomy cannot place, with a remembered area", () => {
+  it("beats the remembered area instead of inheriting it", () => {
+    const locality = resolvePalLocality("pubs in Blackfriars", REMEMBERED_SOHO);
+    expect(locality.scope).toBe("london-wide");
+    expect(locality.area).toBeNull();
+    expect(locality.grounded).toBe(false);
+    expect(locality.unplaced).toBe("Blackfriars");
+    expect(palLocalityLine(locality)).toContain("Blackfriars");
+  });
+
+  it("still uses the remembered area when the query names no place", () => {
+    const locality = resolvePalLocality("somewhere cheap and quiet", REMEMBERED_SOHO);
+    expect(locality.scope).toBe("remembered");
+    expect(locality.area).toEqual({ kind: "night-patch", id: "soho" });
   });
 });
