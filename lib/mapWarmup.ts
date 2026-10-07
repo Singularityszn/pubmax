@@ -42,6 +42,9 @@ export const MAP_INTENT_WARM_PATHS = [
 const BLOCKED_EFFECTIVE_TYPES = new Set(["slow-2g", "2g"]);
 const sessionSeen = new Set<string>();
 
+// The foreground venue loaders read the London manifest/core and city monoliths
+// under a `?v=<revision>` key, so a warm must use the same URL to be reused.
+// Local builds and overlay paths keep their bare keys.
 function venueWarmRequestPath(path: string): string {
   if (MAP_DATA_REVISION === "local" || !/\/venues_slim(?:\.core|\.manifest)?\.json$/.test(path)) return path;
   return `${path}?v=${encodeURIComponent(MAP_DATA_REVISION)}`;
@@ -188,6 +191,8 @@ export type MapRoutePrefetcher = {
 /**
  * Prefetch each retained App Router href once. Map destinations also warm
  * the slim venue (+ POI/transit) payloads the canvas will request next.
+ * The exact current path and query are skipped, so intent on the active link
+ * schedules no canvas warm, data warm or warmed-route entry.
  * Best-effort only — navigation never depends on success.
  */
 export function warmNavRoute<T extends string>(
