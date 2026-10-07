@@ -209,6 +209,10 @@ export function createDonutClusterSync(
       const minPrice = readMinPrice(feature.properties, CLUSTER_PRICE_NONE);
       const figure = minPrice === null ? null : formatPinPriceLabel(minPrice);
       const look = `${outerRadius}|${figure ?? ""}|${textColor}|${casingColor}|${tokens.panelRaised}`;
+      const label =
+        figure === null
+          ? `${donutTotal(counts)} pubs, tap to zoom in`
+          : `${donutTotal(counts)} pubs, cheapest ${figure}, tap to zoom in`;
       const [lng, lat] = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
       const existing = markers.get(clusterId);
       if (existing) {
@@ -219,6 +223,7 @@ export function createDonutClusterSync(
         if (!countsEqual(existing.counts, counts) || existing.look !== look) {
           existing.counts = counts;
           existing.look = look;
+          existing.el.setAttribute("aria-label", label);
           existing.el.innerHTML = markup(counts, figure);
         }
         continue;
@@ -227,12 +232,7 @@ export function createDonutClusterSync(
       el.className = "donut-cluster-marker";
       el.style.cursor = "pointer";
       el.setAttribute("role", "button");
-      el.setAttribute(
-        "aria-label",
-        figure === null
-          ? `${donutTotal(counts)} pubs, tap to zoom in`
-          : `${donutTotal(counts)} pubs, cheapest ${figure}, tap to zoom in`,
-      );
+      el.setAttribute("aria-label", label);
       el.innerHTML = markup(counts, figure);
       el.addEventListener("click", (event) => {
         event.stopPropagation();

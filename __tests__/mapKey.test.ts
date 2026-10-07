@@ -100,7 +100,7 @@ describe("MapKey", () => {
       ariaLabel: "Sparse key",
       title: "Sparse key",
       hint: "No declared states.",
-      clusterNote: null,
+      cluster: null,
       shapes: [],
       marks: [],
       routeMarks: [],
@@ -115,5 +115,84 @@ describe("MapKey", () => {
     // the legend's declared rows/shapes/marks/routes - only the conditional
     // per-legend detail sections are gated here.
     expect(sparseHtml).not.toContain('class="mapKeyDetails"');
+  });
+});
+
+describe("MapKey cluster sample", () => {
+  const sampleFor = (legend: MapPriceLegendModel) =>
+    renderToStaticMarkup(createElement(MapKey, { legend })).match(
+      /class="mapKeyClusterSample"[^>]*>([^<]*)</,
+    )?.[1];
+  const pintBands = [
+    { meaning: "pint", bucket: 0 },
+    { meaning: "pint", bucket: 3 },
+  ] as const;
+
+  it("shows a price in the default lens, where a disc prints the cheapest pint", () => {
+    expect(
+      sampleFor(
+        mapPriceLegend({
+          kind: "default",
+          renderedState: { priceBands: pintBands, storyColour: null },
+        }),
+      ),
+    ).toBe("£4");
+  });
+
+  it("shows a venue count in the drink lens, where every disc prints its count", () => {
+    expect(
+      sampleFor(
+        mapPriceLegend({
+          kind: "drink",
+          label: "Whisky",
+          noun: "Whisky",
+          status: "ready",
+          renderedState: { priceBands: pintBands, storyColour: null },
+        }),
+      ),
+    ).toBe("12");
+  });
+
+  it("shows a venue count in the Spoons lens, where every disc prints its count", () => {
+    expect(
+      sampleFor(
+        mapPriceLegend({
+          kind: "spoons",
+          modalMilliunits: 12_785,
+          renderedState: {
+            priceBands: [
+              { meaning: "spoons", bucket: 0 },
+              { meaning: "spoons", bucket: 3 },
+            ],
+            storyColour: null,
+          },
+        }),
+      ),
+    ).toBe("12");
+  });
+
+  it("shows a venue count in the food view and on a map with no pub pint price", () => {
+    expect(
+      sampleFor(
+        mapPriceLegend({
+          kind: "food",
+          renderedState: { priceBands: [{ meaning: "pint", bucket: 3 }], storyColour: null },
+        }),
+      ),
+    ).toBe("12");
+    expect(
+      sampleFor(
+        mapPriceLegend({
+          kind: "default",
+          renderedState: {
+            priceBands: [
+              { meaning: "type-relative", bucket: 0 },
+              { meaning: "type-relative", bucket: 3 },
+            ],
+            storyColour: null,
+          },
+        }),
+      ),
+    ).toBe("12");
   });
 });

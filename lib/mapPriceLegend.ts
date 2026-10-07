@@ -32,6 +32,16 @@ export type MapKeyEntry = {
   colour?: string;
 };
 
+/**
+ * How the key explains a cluster disc: its note, and the figure its sample disc
+ * wears. The sample is a price only where a disc on the map can print one, so
+ * the key never shows a figure no cluster can.
+ */
+export type MapKeyCluster = {
+  note: string;
+  sample: string;
+};
+
 export type MapPriceLegendModel = {
   rows: MapPriceLegendRow[];
   /** Whether a maximum-pint-price cap belongs beside this key. */
@@ -39,7 +49,7 @@ export type MapPriceLegendModel = {
   ariaLabel: string;
   title: string;
   hint: string;
-  clusterNote: string | null;
+  cluster: MapKeyCluster | null;
   shapes: MapKeyEntry[];
   marks: MapKeyEntry[];
   routeMarks: MapKeyEntry[];
@@ -77,9 +87,9 @@ export type MapPriceLegendContext = (
 const PRICE_CLUSTER_NOTE =
   "The ring on a cluster shows the price bands inside it, or on a phone the most common known one. The figure is the cheapest price a pub in it lists, and the small number is how many venues. Grey means none has a known map price, and the figure is then the venue count.";
 
-// Under a drink view no pub lists a PINT price on a disc, so the disc says its
-// count and the ring keeps the drink's bands.
-const DRINK_CLUSTER_NOTE =
+// Where no pub lists a PINT price on a disc (a drink view, or a map of non-pub
+// venues only), the disc says its count and the ring keeps the bands.
+const COUNT_CLUSTER_NOTE =
   "The ring on a cluster shows the price bands inside it, or on a phone the most common known one. Grey means none has a known map price. The number is every venue in the cluster.";
 
 const SPOONS_CLUSTER_NOTE =
@@ -90,6 +100,12 @@ const SPOONS_EMPTY_CLUSTER_NOTE =
 
 const FOOD_CLUSTER_NOTE =
   "Food clusters stay grey because food prices do not colour this map. The number is every venue in the cluster.";
+
+const PRICE_CLUSTER: MapKeyCluster = { note: PRICE_CLUSTER_NOTE, sample: "£4" };
+
+function countCluster(note: string): MapKeyCluster {
+  return { note, sample: "12" };
+}
 
 const MAP_SHAPES: MapKeyEntry[] = [
   {
@@ -298,7 +314,7 @@ function renderedBuckets(
 
 type MapKeyDeclarations = Pick<
   MapPriceLegendModel,
-  "clusterNote" | "shapes" | "marks" | "routeMarks" | "noAlcoholNote" | "priceCapFilter"
+  "cluster" | "shapes" | "marks" | "routeMarks" | "noAlcoholNote" | "priceCapFilter"
 >;
 
 function declaredLegend(
@@ -308,7 +324,7 @@ function declaredLegend(
   return {
     ...legend,
     priceCapFilter: true,
-    clusterNote: null,
+    cluster: null,
     shapes: [],
     marks: [],
     routeMarks: [],
@@ -388,25 +404,38 @@ function drinkHint(
   return `Pin colours follow trusted ${drink} prices. Pubs without one stay unknown.`;
 }
 
-function drinkClusterNote(
+function drinkCluster(
   drink: string,
   status: CategoryPriceIndexStatus,
   buckets: readonly MapRenderedPriceBucket[],
-): string | null {
+): MapKeyCluster | null {
   if (buckets.length === 0) return null;
-  if (buckets.some((bucket) => bucket !== 3)) return DRINK_CLUSTER_NOTE;
+  if (buckets.some((bucket) => bucket !== 3)) return countCluster(COUNT_CLUSTER_NOTE);
   if (status === "degraded") {
-    return `Clusters stay grey because ${drink} prices could not be read just now. The number is every venue in the cluster.`;
+    return countCluster(
+      `Clusters stay grey because ${drink} prices could not be read just now. The number is every venue in the cluster.`,
+    );
   }
-  return `Clusters stay grey because no current venue has a trusted ${drink} price. The number is every venue in the cluster.`;
+  return countCluster(
+    `Clusters stay grey because no current venue has a trusted ${drink} price. The number is every venue in the cluster.`,
+  );
 }
 
-function defaultClusterNote(
+/**
+ * A disc prints a price only from a pub's pint price, so a map whose bands are
+ * all type-relative (no pub with a pint price) has discs that print counts.
+ */
+function defaultCluster(
   buckets: readonly MapRenderedPriceBucket[],
-): string | null {
+  hasPintPrices: boolean,
+): MapKeyCluster | null {
   if (buckets.length === 0) return null;
-  if (buckets.some((bucket) => bucket !== 3)) return PRICE_CLUSTER_NOTE;
-  return "Clusters stay grey because no current venue has a known map price. The number is every venue in the cluster.";
+  if (buckets.some((bucket) => bucket !== 3)) {
+    return hasPintPrices ? PRICE_CLUSTER : countCluster(COUNT_CLUSTER_NOTE);
+  }
+  return countCluster(
+    "Clusters stay grey because no current venue has a known map price. The number is every venue in the cluster.",
+  );
 }
 
 /**
@@ -469,12 +498,12 @@ export function mapPriceLegend(
         // The cap chips filter on PINT PRICE, which is not what these pins are
         // painted by, so the key does not offer them under this lens.
         priceCapFilter: false,
-        clusterNote:
+        cluster:
           rows.length === 0
             ? null
-            : hasRankedBand
-              ? SPOONS_CLUSTER_NOTE
-              : SPOONS_EMPTY_CLUSTER_NOTE,
+            : countCluster(
+                hasRankedBand ? SPOONS_CLUSTER_NOTE : SPOONS_EMPTY_CLUSTER_NOTE,
+              ),
         shapes: MAP_SHAPES,
         marks: mapMarks(
           "A recent pint report. It doesn't set a pin's value band. A UK base pub keeps only the dot.",
@@ -503,8 +532,8 @@ export function mapPriceLegend(
           "Pins and clusters stay grey. Any sourced menu prices stay on venue cards and sheets.",
       },
       {
-        clusterNote:
-          priceBuckets.length === 0 ? null : FOOD_CLUSTER_NOTE,
+        cluster:
+          priceBuckets.length === 0 ? null : countCluster(FOOD_CLUSTER_NOTE),
         shapes: MAP_SHAPES,
         marks: mapMarks(
           "A recent pint report. It doesn't set a food pin's colour. A UK base pub keeps only the dot.",
@@ -533,7 +562,7 @@ export function mapPriceLegend(
         hint: drinkHint(drink, context.status, hasKnownBand),
       },
       {
-        clusterNote: drinkClusterNote(
+        cluster: drinkCluster(
           drink,
           context.status,
           priceBuckets,
@@ -564,7 +593,7 @@ export function mapPriceLegend(
         hint: "Show pubs at or under this pint price.",
       },
       {
-        clusterNote: defaultClusterNote(priceBuckets),
+        cluster: defaultCluster(priceBuckets, hasPintPrices),
         shapes: MAP_SHAPES,
         marks: mapMarks(
           "A recent pint report. On a listed pub in the standard pint view, a second independent drinker reporting a similar price can set the pin's band. A UK base pub keeps only the dot.",
@@ -588,7 +617,7 @@ export function mapPriceLegend(
         hint: "Each venue pin is low, middle, or high within its own type.",
       },
       {
-        clusterNote: defaultClusterNote(priceBuckets),
+        cluster: defaultCluster(priceBuckets, hasPintPrices),
         shapes: MAP_SHAPES,
         marks: mapMarks(
           "A recent pint report. It doesn't set a non-pub venue's band. A UK base pub keeps only the dot.",
@@ -608,7 +637,7 @@ export function mapPriceLegend(
         hint: "No venue price colours are currently drawn.",
       },
       {
-        clusterNote: null,
+        cluster: null,
         shapes: MAP_SHAPES,
         marks: mapMarks(
           "A recent pint report. A UK base pub keeps only the dot.",
@@ -629,7 +658,7 @@ export function mapPriceLegend(
         "Pub pins use pint thresholds. Each other venue pin is low, middle, or high within its own type.",
     },
     {
-      clusterNote: defaultClusterNote(priceBuckets),
+      cluster: defaultCluster(priceBuckets, hasPintPrices),
       shapes: MAP_SHAPES,
       marks: mapMarks(
         "A recent pint report. On a listed pub in the standard pint view, a second independent drinker reporting a similar price can set the pin's band. A UK base pub keeps only the dot.",

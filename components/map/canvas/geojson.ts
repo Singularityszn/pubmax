@@ -189,7 +189,7 @@ function pinDrinkKind(
  * It is the pin tag's own base figure (`sourcedPrice`) while no lens owns the
  * map, and nothing else, so a cluster can never say a number that none of its
  * pins would print. The figure is kept as given: formatting (pounds, pence) is
- * the label expression's job, in `clusterPriceLabelExpr`.
+ * the label expression's job, in `CLUSTER_FIGURE_EXPR` (./filters).
  */
 function clusterPriceFor(
   sourcedPrice: number | null,

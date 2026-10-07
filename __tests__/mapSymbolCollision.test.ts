@@ -444,7 +444,12 @@ describe("symbol collision policy", () => {
     // count's padded box is what keeps other labels off the disc.
     expect(count["text-ignore-placement"]).toBe(false);
     expect(count["text-padding"]).toBe(CLUSTER_COLLISION_PADDING);
-    expect(CLUSTER_COLLISION_PADDING).toBe(10);
+    // The figure's padded box reaches the widest disc's edge, so no label can
+    // land on the top or bottom of the disc.
+    const figureSize = (count["text-size"] as unknown[])[2] as number;
+    expect(figureSize / 2 + CLUSTER_COLLISION_PADDING).toBeGreaterThanOrEqual(
+      CLUSTER_MAX_RADIUS_PX,
+    );
   });
 
   it("drops crowded landmark names rather than overprinting them", () => {
@@ -1025,7 +1030,11 @@ describe("price pill (the priced pin's mark from street zoom)", () => {
     const pill = layout("pubs-price-pill");
     expect(pill["icon-text-fit"]).toBe("both");
     expect(pill["text-field"]).toEqual(["get", "priceLabel"]);
-    expect(pill["icon-image"]).toEqual(["concat", "pill:bucket-", ["to-string", ["get", "bucket"]]]);
+    expect(pill["icon-image"]).toEqual([
+      "concat",
+      "pill:bucket-",
+      ["to-string", ["coalesce", ["get", "spoonsBucket"], ["get", "bucket"]]],
+    ]);
     expect(JSON.stringify(pill["text-field"])).not.toContain("lensPrice");
   });
 

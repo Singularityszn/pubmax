@@ -208,6 +208,8 @@ export const CLUSTER_DISC_SMALL_FROM_ZOOM = DONUT_SMALL_FROM_ZOOM;
 // basemap tone whatever its band ring is, and the ring that sits inside it.
 export const CLUSTER_CASING_PX = DONUT_CASING_PX;
 export const CLUSTER_RING_PX = DONUT_RING_PX;
+/** The disc figure's text size in px below CLUSTER_DISC_SMALL_FROM_ZOOM. */
+const CLUSTER_FIGURE_SIZE_PX = 12;
 /** The rim count's text size in px, which is also the em its offset is in. */
 const CLUSTER_COUNT_BADGE_SIZE_PX = 10;
 
@@ -219,9 +221,10 @@ export const CLUSTER_STROKE_OPACITY = 1;
 // Collision padding, in pixels, added around the cluster count's text box. A
 // circle layer contributes NOTHING to MapLibre's collision index, so without
 // this the disc is invisible to placement and neighbouring labels (landmark
-// names, basemap POIs) happily land on top of it. Padding the count's box out
-// to roughly the disc footprint makes the whole marker reserve its space.
-export const CLUSTER_COLLISION_PADDING = 10;
+// names, basemap POIs) happily land on top of it. Padding the figure's box out
+// from its half-height to the widest disc's outer radius makes the whole
+// marker reserve its space.
+export const CLUSTER_COLLISION_PADDING = CLUSTER_MAX_RADIUS_PX - CLUSTER_FIGURE_SIZE_PX / 2;
 
 // The provisional-report badge: the small dot that rides at a pin's upper right
 // when someone has logged tonight's pint price there and it is still one report
@@ -1513,7 +1516,7 @@ export function buildPubs(ctx: SceneCtx) {
       "icon-image": [
         "concat",
         iconId("pill", PILL_ICON_KEY_PREFIX),
-        ["to-string", ["get", "bucket"]],
+        ["to-string", ["coalesce", ["get", "spoonsBucket"], ["get", "bucket"]]],
       ],
       "icon-text-fit": "both",
       // The pill's own nine-slice already holds the padding (its content box
@@ -1733,11 +1736,11 @@ export function buildPubs(ctx: SceneCtx) {
       // price. See CLUSTER_FIGURE_EXPR for why that figure is the pins' own.
       "text-field": CLUSTER_FIGURE_EXPR,
       "text-font": textFont,
-      "text-size": ["step", ["zoom"], 12, CLUSTER_DISC_SMALL_FROM_ZOOM, 11],
+      "text-size": ["step", ["zoom"], CLUSTER_FIGURE_SIZE_PX, CLUSTER_DISC_SMALL_FROM_ZOOM, 11],
       "text-letter-spacing": 0.01,
       // A disc without its number is worse than a tight fit, so the figure
       // always draws - but it is NOT invisible to placement: its padded box
-      // (CLUSTER_COLLISION_PADDING ≈ the disc footprint) is what makes every
+      // (CLUSTER_COLLISION_PADDING reaches the disc edge) is what makes every
       // other label on the map, ours and the basemap's, keep off the disc.
       "text-allow-overlap": true,
       "text-ignore-placement": false,

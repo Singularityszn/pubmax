@@ -275,7 +275,7 @@ export const CLUSTER_FIGURE_EXPR: maplibregl.ExpressionSpecification = (() => {
       [
         "concat",
         "£",
-        ["number-format", pounds, { "min-fraction-digits": 2, "max-fraction-digits": 2 }],
+        ["number-format", pounds, { locale: "en-GB", "min-fraction-digits": 2, "max-fraction-digits": 2 }],
       ],
     ],
     ["get", "point_count_abbreviated"],

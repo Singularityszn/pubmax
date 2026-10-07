@@ -344,7 +344,7 @@ export function venuePinEdgeTokens(
  * hairline is what edges it against the basemap: ink in light, cream ink in
  * dark, because a plaque that is close to the ground in luminance (a cream pill
  * on pale paper land, a dark panel on near-black land) has nothing else.
- * __tests__/mapPinBandContrast.test.ts holds the number.
+ * __tests__/mapClusterContrast.test.ts holds the number.
  */
 export function pricePillTokens(
   tokens: Pick<Tokens, "ink" | "pricePlaqueSurface">,

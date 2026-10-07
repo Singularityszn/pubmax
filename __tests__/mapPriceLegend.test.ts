@@ -213,10 +213,10 @@ describe("mapPriceLegend", () => {
     });
     expect(degraded.hint).toContain("could not read");
     expect(degraded.hint).not.toContain("trusted whisky prices");
-    expect(degraded.clusterNote).toBe(
+    expect(degraded.cluster?.note).toBe(
       "Clusters stay grey because whisky prices could not be read just now. The number is every venue in the cluster.",
     );
-    expect(degraded.clusterNote).not.toContain("none has");
+    expect(degraded.cluster?.note).not.toContain("none has");
     expect(degraded.hint).not.toBe(
       mapPriceLegend({
         kind: "drink",
@@ -268,10 +268,10 @@ describe("mapPriceLegend", () => {
     expect(legend.hint).toContain("sourced menu prices stay on venue cards");
     expect(legend.hint).not.toContain(priceBandLegendLabel("cheap", { city: "london" }));
     expect(legend.hint).not.toContain("trusted food prices");
-    expect(legend.clusterNote).toBe(
+    expect(legend.cluster?.note).toBe(
       "Food clusters stay grey because food prices do not colour this map. The number is every venue in the cluster.",
     );
-    expect(legend.clusterNote).not.toContain("price band");
+    expect(legend.cluster?.note).not.toContain("price band");
     expect(legend.noAlcoholNote).toBeNull();
   });
 });
@@ -295,9 +295,9 @@ describe("mapPriceLegend colour rows under a failed read", () => {
     expect(degraded.rows.map((row) => row.tone)).toEqual(["amber", "grey"]);
     expect(degraded.hint).toContain("already loaded");
     expect(degraded.hint).not.toContain("no pub is coloured");
-    expect(degraded.clusterNote).toContain("most common known one");
+    expect(degraded.cluster?.note).toContain("most common known one");
     // A drink view prints no pint figure on a disc, so its note never claims one.
-    expect(degraded.clusterNote).not.toContain("cheapest");
+    expect(degraded.cluster?.note).not.toContain("cheapest");
   });
 
   it("keeps only the unknown band when no category price could be read", () => {
@@ -340,9 +340,9 @@ describe("map key inventory", () => {
 
     // The default view's disc prints the cheapest listed price, with the venue
     // count as the small number on its rim.
-    expect(legend.clusterNote).toContain("cheapest price a pub in it lists");
-    expect(legend.clusterNote).toContain("small number is how many venues");
-    expect(legend.clusterNote).toContain("most common known one");
+    expect(legend.cluster?.note).toContain("cheapest price a pub in it lists");
+    expect(legend.cluster?.note).toContain("small number is how many venues");
+    expect(legend.cluster?.note).toContain("most common known one");
     expect(legend.shapes?.map((row) => row.id)).toEqual([
       "pub-drink",
       "bar",
@@ -452,7 +452,7 @@ describe("map key inventory", () => {
     ]);
     expect(legend.hint).toContain("not a pint price");
     expect(legend.hint).toContain(SPOONS_VALUE_RESPONSIBLE_LINE);
-    expect(legend.clusterNote).toContain("value bands");
+    expect(legend.cluster?.note).toContain("value bands");
     expect(legend.priceCapFilter).toBe(false);
     expect(legend.noAlcoholNote).toBeNull();
     expect(
@@ -474,7 +474,7 @@ describe("map key inventory", () => {
     expect(legend.rows).toEqual([
       { label: "Not in the ranking", symbol: "?", tone: "grey" },
     ]);
-    expect(legend.clusterNote).toBe(
+    expect(legend.cluster?.note).toBe(
       "Clusters stay grey because no pub in view is in the ranking. The number is every venue in the cluster.",
     );
   });

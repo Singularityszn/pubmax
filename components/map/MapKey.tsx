@@ -98,14 +98,14 @@ export default function MapKey({
         </details>
       </section>
 
-      {legend.clusterNote ? (
+      {legend.cluster ? (
         <section className="mapKeySection" aria-labelledby="mapKeyClusterHeading">
           <h3 id="mapKeyClusterHeading">Clusters</h3>
           <div className="mapKeyClusterRow">
             <span className="mapKeyClusterSample" aria-hidden="true">
-              £4
+              {legend.cluster.sample}
             </span>
-            <p>{legend.clusterNote}</p>
+            <p>{legend.cluster.note}</p>
           </div>
         </section>
       ) : null}

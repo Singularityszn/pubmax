@@ -1,5 +1,5 @@
 import { createExpression } from "@maplibre/maplibre-gl-style-spec";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
   CLUSTER_FIGURE_EXPR,
@@ -34,5 +34,28 @@ describe("CLUSTER_FIGURE_EXPR", () => {
   it("prints the count where no pub in the cluster says a price", () => {
     expect(figureFor({ minPrice: CLUSTER_PRICE_NONE, point_count_abbreviated: "94" })).toBe("94");
     expect(figureFor({ point_count_abbreviated: "1.5k" })).toBe("1.5k");
+  });
+
+  describe("under a reader whose default locale writes a decimal comma", () => {
+    const RealNumberFormat = Intl.NumberFormat;
+    afterEach(() => {
+      Intl.NumberFormat = RealNumberFormat;
+    });
+
+    it("still writes the pence the way a pin does", () => {
+      Intl.NumberFormat = function (
+        locales?: string | string[],
+        options?: Intl.NumberFormatOptions,
+      ) {
+        const unset = locales === undefined || (Array.isArray(locales) && locales.length === 0);
+        return new RealNumberFormat(unset ? "de-DE" : locales, options);
+      } as unknown as typeof Intl.NumberFormat;
+      expect(new Intl.NumberFormat(undefined, { minimumFractionDigits: 2 }).format(5.4)).toBe(
+        "5,40",
+      );
+      expect(figureFor({ minPrice: 5.4, point_count_abbreviated: "94" })).toBe(
+        formatPinPriceLabel(5.4),
+      );
+    });
   });
 });
