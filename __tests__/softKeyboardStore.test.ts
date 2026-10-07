@@ -10,6 +10,9 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const platform = vi.hoisted(() => ({ android: false }));
+vi.mock("@/lib/nativePlatform", () => ({ nativePlatform: () => platform.android ? "android" : null }));
+
 import {
   readSoftKeyboardOpen,
   subscribeSoftKeyboard,
@@ -54,6 +57,7 @@ function setViewportHeight(height: number): void {
 }
 
 beforeEach(() => {
+  platform.android = false;
   vi.useFakeTimers();
   documentHandlers = new Map();
   viewportHandlers = new Map();
@@ -85,6 +89,40 @@ function subscribe(): [{ count: number }, () => void] {
 }
 
 describe("what the keyboard store listens to", () => {
+  it("hides chrome when Android resizes both viewports for the software keyboard", () => {
+    platform.android = true;
+    const [, off] = subscribe();
+    activeElement = textInput();
+    fire(documentHandlers, "focusin");
+    vi.runAllTimers();
+    window.innerHeight = WITH_KEYBOARD;
+    setViewportHeight(WITH_KEYBOARD);
+    fire(viewportHandlers, "resize");
+    try {
+      expect(readSoftKeyboardOpen()).toBe(true);
+    } finally {
+      off();
+    }
+    window.innerHeight = LAYOUT_HEIGHT;
+    setViewportHeight(LAYOUT_HEIGHT);
+    const [, offAgain] = subscribe();
+    fire(viewportHandlers, "resize");
+    expect(readSoftKeyboardOpen()).toBe(false);
+    offAgain();
+  });
+
+  it("does not treat a resized desktop window with a focused field as a keyboard", () => {
+    const [, off] = subscribe();
+    activeElement = textInput();
+    fire(documentHandlers, "focusin");
+    vi.runAllTimers();
+    window.innerHeight = WITH_KEYBOARD;
+    setViewportHeight(WITH_KEYBOARD);
+    fire(viewportHandlers, "resize");
+    expect(readSoftKeyboardOpen()).toBe(false);
+    off();
+  });
+
   it("takes the caret from the document and the height from the visual viewport", () => {
     const [, off] = subscribe();
     expect([...documentHandlers.keys()].sort()).toEqual(["focusin", "focusout"]);

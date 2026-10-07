@@ -165,6 +165,7 @@ describe("what the tab bar renders for each answer", () => {
     expect(navTag(markup)).not.toContain("isKeyboardHidden");
     expect(navTag(markup)).not.toContain("aria-hidden");
     expect(navTag(markup)).not.toMatch(/\binert\b/);
+    expect(navTag(markup)).toContain("data-focus-trap-exempt");
     expect(markup).toContain("Tonight");
   });
 
