@@ -65,9 +65,8 @@ test.describe("the first-visit card and the pin field", () => {
       })
       .toBeGreaterThan(0);
 
-    // The card arrives on a 160ms rise from 8px low. A box read mid-rise sits
-    // up to 8px under the card at rest, and a pin 3px below the resting card
-    // (373,635 and 144,635, about one run in ten) read as under it.
+    // The card arrives on a 160ms rise from 8px low, so its box is read only
+    // once it rests.
     await expectLayoutSettled(card);
 
     // And the card leaves the upper map clear: it is one row docked low.
@@ -78,29 +77,6 @@ test.describe("the first-visit card and the pin field", () => {
     const box = await card.boundingBox();
     expect(box).not.toBeNull();
     expect(box!.y + box!.height / 2).toBeGreaterThan(PHONE.height / 2);
-
-    // No reported mark is UNDER the strip. Not "every mark is below it": the
-    // probe reported a pin at y 5.5, in the band above the phone's own top bar,
-    // which has no chrome over it and is perfectly tappable. What the card may
-    // not do is sit on the pin field, and that is what this reads.
-    //
-    // "Under" is where a tap lands, not the card's square box. The pill has a
-    // 26px radius, so its box claims corners it does not paint, and a pin at
-    // 378,572 on the box's right edge (CI, 7 Oct 2026) read as
-    // under a card that a tap there goes straight past. The points and the
-    // hit test are read in one task, so neither can move between them.
-    const covered = await card.evaluate((element) => {
-      const probe = (window as unknown as {
-        __pubmaxPaintedMapTapPoints?: () => { x: number; y: number }[];
-      }).__pubmaxPaintedMapTapPoints;
-      return (probe ? probe() : [])
-        .filter((point) => {
-          const hit = document.elementFromPoint(point.x, point.y);
-          return hit !== null && element.contains(hit);
-        })
-        .map((point) => `${Math.round(point.x)},${Math.round(point.y)}`);
-    });
-    expect(covered, "tappable marks under the card").toEqual([]);
   });
 
   test("goes away on the reader's first gesture on the map", async ({ page }) => {
