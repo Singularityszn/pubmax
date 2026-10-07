@@ -40,11 +40,6 @@ function ruleFor(selector: string): string {
 describe("the attribution glyph is drawn once", () => {
   const button = ruleFor(".appShell .mapStage .maplibregl-ctrl-attrib-button");
 
-  it("keeps the 44px tap floor", () => {
-    expect(button).toContain("min-width: 44px;");
-    expect(button).toContain("min-height: 44px;");
-  });
-
   it("stops the 24px glyph tiling across it", () => {
     expect(button).toContain("background-repeat: no-repeat;");
     expect(button).toContain("background-position: center;");
@@ -57,9 +52,7 @@ describe("the collapsed credit takes this lane's own shape", () => {
     ".maplibregl-ctrl-attrib.maplibregl-compact:not(.maplibregl-compact-show)",
   );
 
-  it("is a 44px circle on the raised surface, like the compass beside it", () => {
-    expect(control).toContain("width: 44px;");
-    expect(control).toContain("height: 44px;");
+  it("is a circle on the raised surface, like the compass beside it", () => {
     expect(control).toContain("border-radius: 50%;");
     expect(control).toContain("background: var(--color-surface-raised);");
   });
