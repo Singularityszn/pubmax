@@ -45,6 +45,21 @@
 			</array>
 		</dict>
 		<dict>
+			<!-- Pub Pal voice streams the microphone to ElevenLabs while a
+			     person talks to it (components/pubpal/PubPalVoiceSession.tsx).
+			     The audio is not kept. -->
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeAudioData</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
 			<!-- The APNs device token, stored with no identity column
 			     (lib/pushTokenStore.ts, migrations 0039 + 0046). -->
 			<key>NSPrivacyCollectedDataType</key>
@@ -81,21 +96,6 @@
 			<string>NSPrivacyCollectedDataTypePreciseLocation</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
 			<false/>
-			<key>NSPrivacyCollectedDataTypeTracking</key>
-			<false/>
-			<key>NSPrivacyCollectedDataTypePurposes</key>
-			<array>
-				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
-			</array>
-		</dict>
-		<dict>
-			<!-- Pub Pal voice streams the microphone to ElevenLabs while a
-			     person talks to it (components/pubpal/PubPalVoiceSession.tsx).
-			     The audio is not kept. -->
-			<key>NSPrivacyCollectedDataType</key>
-			<string>NSPrivacyCollectedDataTypeAudioData</string>
-			<key>NSPrivacyCollectedDataTypeLinked</key>
-			<true/>
 			<key>NSPrivacyCollectedDataTypeTracking</key>
 			<false/>
 			<key>NSPrivacyCollectedDataTypePurposes</key>

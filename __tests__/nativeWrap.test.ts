@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import capacitorConfig, { nativeServerUrl } from "../capacitor.config";
 import { APP_NAME } from "@/lib/brandNaming";
 import { BRAND_COLORS } from "@/lib/brandMark.mjs";
+import { plistRoot } from "@/__tests__/helpers/plist";
 import {
   NATIVE_DEEP_LINK_EXACT_PATHS,
   NATIVE_DEEP_LINK_PATH_PREFIXES,
@@ -29,40 +30,6 @@ const androidJavaTests = (sourceSet: "androidTest" | "test") => {
 
 const xmlDocument = (path: string) =>
   new DOMParser().parseFromString(rootFile(path), "application/xml");
-
-type PlistValue = string | number | boolean | PlistValue[] | { [key: string]: PlistValue };
-
-/** One XML plist element as the value it declares. */
-function plistValue(element: Element): PlistValue {
-  const children = [...element.children];
-  switch (element.tagName) {
-    case "dict":
-      return Object.fromEntries(
-        children.flatMap((child, index) =>
-          child.tagName === "key" && children[index + 1]
-            ? [[child.textContent ?? "", plistValue(children[index + 1] as Element)]]
-            : [],
-        ),
-      );
-    case "array":
-      return children.map(plistValue);
-    case "integer":
-    case "real":
-      return Number(element.textContent);
-    case "true":
-      return true;
-    case "false":
-      return false;
-    default:
-      return element.textContent ?? "";
-  }
-}
-
-function plistRoot(path: string): Record<string, PlistValue> {
-  const dict = xmlDocument(path).querySelector("plist > dict");
-  if (!dict) throw new Error(`${path} has no root dict`);
-  return plistValue(dict) as Record<string, PlistValue>;
-}
 
 type PbxValue = string | PbxValue[] | PbxDict;
 type PbxDict = { [key: string]: PbxValue };
