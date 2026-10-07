@@ -132,6 +132,22 @@ describe("a named place the taxonomy cannot place, with a remembered area", () =
     expect(palLocalityLine(locality)).toContain("Blackfriars");
   });
 
+  it("keeps the remembered area when the phrase names a time, not a place", () => {
+    for (const query of [
+      "Christmas pub crawl in December",
+      "pubs around Christmas",
+      "a quiet pint in New Year",
+      "cheap pints near Friday night",
+      "somewhere open in the Weekend",
+    ]) {
+      const locality = resolvePalLocality(query, REMEMBERED_SOHO);
+      expect(locality.scope, query).toBe("remembered");
+      expect(locality.area, query).toEqual({ kind: "night-patch", id: "soho" });
+      expect(locality.unplaced, query).toBeUndefined();
+      expect(palLocalityLine(locality), query).toBe("Grounded around Soho, your remembered area.");
+    }
+  });
+
   it("still uses the remembered area when the query names no place", () => {
     const locality = resolvePalLocality("somewhere cheap and quiet", REMEMBERED_SOHO);
     expect(locality.scope).toBe("remembered");

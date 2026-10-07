@@ -66,6 +66,23 @@ const PLACE_PHRASE_STOP = new Set([
 ]);
 
 /**
+ * Months, weekdays, holidays and times of day. A name holding one of these is
+ * a when, not a where: "in December", "around Christmas", "in New Year".
+ */
+const TIME_WORDS = new Set([
+  "january", "february", "march", "april", "may", "june", "july", "august",
+  "september", "october", "november", "december",
+  "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+  "christmas", "xmas", "easter", "halloween", "valentine", "year", "eve", "day",
+  "night", "weekend", "tonight", "today", "tomorrow", "morning", "afternoon",
+  "evening", "midnight",
+]);
+
+function isTimeWord(word: string): boolean {
+  return TIME_WORDS.has(word.toLowerCase().replace(/['’]s$/, ""));
+}
+
+/**
  * The place a query names after "in", "near", "around" or "close to" when it is
  * written as a proper noun ("Blackfriars", "Elephant and Castle"). The taxonomy
  * knows only the night patches and boroughs, so this lets the answer say it
@@ -83,6 +100,7 @@ function namedPlaceFromQuery(query: string): string | null {
     if (PLACE_PHRASE_STOP.has(word.toLowerCase())) break;
     kept.push(word);
   }
+  if (kept.some(isTimeWord)) return null;
   const name = kept.join(" ").trim();
   // "in London" or "in East London" names the whole answer's scope, not a
   // place we failed to find.

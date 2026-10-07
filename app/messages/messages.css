@@ -1727,7 +1727,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   height: 22px;
   border: 1px solid var(--line);
   border-radius: 50%;
-  color: var(--color-on-photo);
+  color: var(--color-on-accent, var(--ink-deep));
 }
 
 .messagesNewGroupResult[aria-pressed="true"] .messagesNewGroupResultCheck {
