@@ -118,11 +118,18 @@ test("the sign-in greeting never covers the open account menu at 390px", async (
         return hit === null || !control.contains(hit);
       })
       .map((control) => control.textContent?.trim() ?? control.className);
-    return { covered, overlaps, menuOwnsOverlap: hit !== null && element.contains(hit) };
+    return {
+      covered,
+      overlaps,
+      menuOwnsOverlap: hit !== null && element.contains(hit),
+      greetingVisible: greeting.checkVisibility({ visibilityProperty: true })
+        && greetingBox.width > 0 && greetingBox.height > 0,
+      greetingLeaving: greeting.hasAttribute("data-leaving"),
+    };
   });
   // The greeting was still on screen, not leaving, when the menu was read.
-  await expect(greeting).toBeVisible();
-  await expect(greeting).not.toHaveAttribute("data-leaving");
+  expect(coverage.greetingVisible).toBe(true);
+  expect(coverage.greetingLeaving).toBe(false);
   expect(coverage.covered).toEqual([]);
   expect(coverage.overlaps).toBe(true);
   expect(coverage.menuOwnsOverlap).toBe(true);
