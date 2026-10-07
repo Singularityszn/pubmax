@@ -4,6 +4,7 @@ import { expect, test } from "@playwright/test";
 // proves their rendered parity, not a live event-provider read.
 test("Today offers Tonight's sourced pub suggestions and marks the Day segment", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 626 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
     localStorage.clear();
     sessionStorage.clear();
@@ -32,5 +33,25 @@ test("Today offers Tonight's sourced pub suggestions and marks the Day segment",
   )).toEqual(tonightCredits);
   await expect(page.getByTestId("today-picks")).not.toContainText("Nothing on tonight's list yet.");
   await expect(page.getByTestId("today-picks").getByRole("link", { name: "See everything on tonight" })).toHaveAttribute("href", "/tonight");
+  await expect(page.locator(".createFab")).toBeVisible();
+  const coveredText = await page.evaluate(() => {
+    const fab = document.querySelector(".createFab")!.getBoundingClientRect();
+    const covered: string[] = [];
+    for (const row of document.querySelectorAll(".tonightHypedRow")) {
+      const walker = document.createTreeWalker(row, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        const node = walker.currentNode;
+        if (!node.textContent?.trim()) continue;
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        if ([...range.getClientRects()].some((rect) =>
+          rect.left < fab.right && rect.right > fab.left &&
+          rect.top < fab.bottom && rect.bottom > fab.top,
+        )) covered.push(node.textContent.trim());
+      }
+    }
+    return covered;
+  });
+  expect(coveredText, "Today pub text covered by the create action").toEqual([]);
   await page.screenshot({ path: "artifacts/today-parity/today-after-phone.png", fullPage: true });
 });
