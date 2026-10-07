@@ -611,7 +611,7 @@ import { currentSurface, homeActionLabel, type SurfaceEntry } from "@/lib/surfac
 import { readMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
 import { mapListOpenFromSearch } from "@/lib/mapListRoute";
 import { buildTonightChip } from "@/lib/mapChromeTiers";
-import { buildMapPeek } from "@/lib/mapPeek";
+import { buildMapPeek, type MapPeekModel } from "@/lib/mapPeek";
 import {
   filtersForCuratedCrawl,
   generatedMapDrinkLane,
@@ -1090,6 +1090,62 @@ function useRememberedAreaInView(
   if (!area) return false;
   const metAView = seen.key === key && seen.bounds !== bounds;
   return !metAView || rememberedAreaNamesView(area, bounds, viewCenter, viewer);
+}
+
+/**
+ * The phone map's resting answer: the cheapest listed price among the pubs in
+ * the settled view, ranked by the same stack as List view's cheapest sort.
+ * `ready` follows the projection landing for THIS city, so a map that has not
+ * said what it is showing claims nothing. The first-visit arrival card holds
+ * the same berth, so the peek steps aside while it shows.
+ */
+function useMapPeek(
+  input: Omit<Parameters<typeof buildMapPeek>[0], "ready"> & {
+    cityId: CityId;
+    projection: { cityId: CityId } | null;
+    hidden: boolean;
+  },
+): MapPeekModel | null {
+  const { cityId, projection, hidden, venues, lensPrices, venueSignals, reader } = input;
+  const ready = projection?.cityId === cityId;
+  const peek = useMemo(
+    () => buildMapPeek({ ready, venues, lensPrices, venueSignals, reader }),
+    [lensPrices, reader, ready, venueSignals, venues],
+  );
+  return hidden ? null : peek;
+}
+
+/**
+ * What's On is a lens on the night, one row down from the map: the chip that
+ * used to sit beside the drink lane is gone so the phone map rests on three
+ * layers. It heads the phone Filters sheet and opens the same Tonight sheet.
+ */
+function MobileMapTonightLens({
+  rowCount,
+  nearReader,
+  onOpen,
+}: {
+  rowCount: number;
+  nearReader: boolean;
+  onOpen: () => void;
+}) {
+  const tonightLens = buildTonightChip(rowCount, nearReader);
+  if (!tonightLens) return null;
+  return (
+    <button
+      type="button"
+      className="mobileMapTonightLens"
+      aria-label={tonightLens.ariaLabel}
+      onClick={onOpen}
+    >
+      <CalendarClock size={18} aria-hidden="true" />
+      <span className="mobileMapTonightLensText">
+        <strong>{tonightLens.label}</strong>
+        <small>{tonightLens.count} {tonightLens.count === 1 ? "listing" : "listings"}{nearReader ? " near you" : " in London"}</small>
+      </span>
+      <ChevronRight size={18} aria-hidden="true" className="mobileMapTonightLensChevron" />
+    </button>
+  );
 }
 
 export default function PubMap({
@@ -3204,28 +3260,15 @@ export default function PubMap({
       venueSignals,
     ],
   );
-  // The phone map's resting answer: the cheapest listed price among the pubs in
-  // the settled view, ranked by the same stack as List view's cheapest sort.
-  // `ready` follows the projection landing for THIS city, so a map that has not
-  // said what it is showing claims nothing.
-  const mapPeek = useMemo(
-    () =>
-      buildMapPeek({
-        ready: visibleVenueState?.cityId === cityId,
-        venues: mapVenueListVenues,
-        lensPrices: activeLensPrices,
-        venueSignals,
-        reader: userLocation,
-      }),
-    [
-      activeLensPrices,
-      cityId,
-      mapVenueListVenues,
-      userLocation,
-      venueSignals,
-      visibleVenueState?.cityId,
-    ],
-  );
+  const mapPeek = useMapPeek({
+    cityId,
+    projection: visibleVenueState,
+    hidden: showMapArrivalCard,
+    venues: mapVenueListVenues,
+    lensPrices: activeLensPrices,
+    venueSignals,
+    reader: userLocation,
+  });
   const [renderedBasePubs, setRenderedBasePubs] = useState<UkBasePub[]>([]);
   const [ukBaseStatus, setUkBaseStatus] =
     useState<UkBaseStreamStatus>("loading");
@@ -6120,28 +6163,15 @@ export default function PubMap({
   }
 
   /* The phone's Filters sheet. The desktop reads all of this off the toolbar and the rail. */
-  const tonightLens = buildTonightChip(whatsOnTonight.rows.length, userLocation != null);
-
   function renderMobileFiltersPanel() {
     return (
       <div className="mobileMapFilters">
-        {/* What's On is a lens on the night, one row down from the map: the
-            chip that used to sit beside the drink lane is gone so the phone map
-            rests on three layers. It opens the same Tonight sheet. */}
-        {isLondon && tonightLens ? (
-          <button
-            type="button"
-            className="mobileMapTonightLens"
-            aria-label={tonightLens.ariaLabel}
-            onClick={() => changeMapOverlay("tonight")}
-          >
-            <CalendarClock size={18} aria-hidden="true" />
-            <span className="mobileMapTonightLensText">
-              <strong>{tonightLens.label}</strong>
-              <small>{tonightLens.count} {tonightLens.count === 1 ? "listing" : "listings"}{userLocation ? " near you" : " in London"}</small>
-            </span>
-            <ChevronRight size={18} aria-hidden="true" className="mobileMapTonightLensChevron" />
-          </button>
+        {isLondon ? (
+          <MobileMapTonightLens
+            rowCount={whatsOnTonight.rows.length}
+            nearReader={userLocation != null}
+            onOpen={() => changeMapOverlay("tonight")}
+          />
         ) : null}
         <MapExperienceLensControl
           lens={experienceLens}
@@ -6332,7 +6362,7 @@ export default function PubMap({
         venueListOpen={mapListOpen}
         bandNoticeOpen={showBandChip}
         onPlan={openPlanning}
-        peek={showMapArrivalCard ? null : mapPeek}
+        peek={mapPeek}
         onPeekOpenVenue={selectVenue}
         onPeekOpenList={openVenueListFromPeek}
         searchProps={{
