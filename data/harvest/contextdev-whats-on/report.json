@@ -1,11 +1,11 @@
 {
-  "assembledAt": "2026-10-07T23:37:27.080Z",
+  "assembledAt": "2026-10-07T23:50:22.487Z",
   "creditsAtStart": 1000,
   "creditsUsed": 950,
   "creditsLeft": 50,
   "venuesRead": 312,
   "pagesRead": 862,
-  "eventsPublished": 99,
+  "eventsPublished": 124,
   "happyHoursPublished": 10,
   "hoursPublished": 139,
   "conflictingHoursPages": [
@@ -7336,7 +7336,7 @@
         },
         {
           "title": "THE BIG SATURDAY NIGHT GIG",
-          "reason": "ambiguous-time"
+          "reason": "no-date"
         },
         {
           "title": "Pub Quiz Peckham: Thursday Quiz Nights at Skehan’s",
@@ -7384,7 +7384,7 @@
         },
         {
           "title": "THE BIG SATURDAY NIGHT GIG",
-          "reason": "ambiguous-time"
+          "reason": "no-date"
         }
       ]
     },
@@ -7424,7 +7424,7 @@
         },
         {
           "title": "THE BIG SATURDAY NIGHT GIG",
-          "reason": "ambiguous-time"
+          "reason": "no-date"
         }
       ]
     },
@@ -8863,7 +8863,7 @@
       "status": "ok",
       "finalUrl": "https://www.wellingtonhotelwaterloo.co.uk/live-sport",
       "contentSha256": "170e0e7f1dfd5151b9943623d3eae0933a0c10ced89b594830b32bdf568c39ce",
-      "events": 9,
+      "events": 35,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -8874,110 +8874,6 @@
         {
           "title": "Live Sport",
           "reason": "no-time"
-        },
-        {
-          "title": "Football: Premier League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: Premier League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: Premier League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: Premier League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: Premier League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: Premier League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: Premier League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: Premier League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: Premier League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: Premier League",
-          "reason": "no-date"
         },
         {
           "title": "Live Sport",
@@ -8999,7 +8895,7 @@
       "status": "ok",
       "finalUrl": "https://www.wellingtonhotelwaterloo.co.uk/live-sport/football",
       "contentSha256": "6e7e5198f83d1fe60c0bf5fdf9a1ca531ea9809ea01e7e56aaa934e254d4437a",
-      "events": 8,
+      "events": 35,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -9040,114 +8936,6 @@
           "reason": "no-time"
         },
         {
-          "title": "Football: Premier League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: Premier League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: Premier League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: Premier League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: Premier League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: Premier League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: Premier League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: Premier League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: Premier League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: Premier League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: Premier League",
-          "reason": "no-time"
-        },
-        {
           "title": "Live Sport",
           "reason": "no-time"
         }
@@ -9167,7 +8955,7 @@
       "status": "ok",
       "finalUrl": "https://www.wellingtonhotelwaterloo.co.uk/live-sport/rugby",
       "contentSha256": "9f2e4e13d37a69aeaea291a087eb8235dc3d89ce23827eeb35cb0776acae56f0",
-      "events": 1,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -9197,6 +8985,10 @@
         },
         {
           "title": "Guinness Six Nations",
+          "reason": "no-time"
+        },
+        {
+          "title": "Watch live rugby with us",
           "reason": "no-time"
         },
         {
@@ -9640,7 +9432,7 @@
       "drops": [
         {
           "title": "Pub Quiz",
-          "reason": "no-time"
+          "reason": "ambiguous-time"
         },
         {
           "title": "Live Sport\\ \\ Live Sport",
@@ -11764,7 +11556,7 @@
       "status": "ok",
       "finalUrl": "https://www.thetrinity.co.uk/live-sport",
       "contentSha256": "70975b6a212d72cb03b8358363288e2d213f269ba513083f559a72c030f2286d",
-      "events": 1,
+      "events": 4,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -11777,30 +11569,6 @@
           "reason": "no-time"
         },
         {
-          "title": "Football: Premier League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Rugby Union: Six Nations (M)",
-          "reason": "no-date"
-        },
-        {
-          "title": "Rugby Union: Six Nations (M)",
-          "reason": "no-stated-year"
-        },
-        {
-          "title": "Rugby Union: Six Nations (M)",
-          "reason": "no-date"
-        },
-        {
           "title": "Rugby Union: Six Nations (M)",
           "reason": "no-stated-year"
         },
@@ -11810,7 +11578,7 @@
         },
         {
           "title": "Rugby Union: Six Nations (M)",
-          "reason": "no-date"
+          "reason": "no-stated-year"
         },
         {
           "title": "Rugby Union: Six Nations (M)",
@@ -11826,7 +11594,7 @@
         },
         {
           "title": "Rugby Union: Six Nations (M)",
-          "reason": "no-date"
+          "reason": "no-stated-year"
         },
         {
           "title": "Rugby Union: Six Nations (M)",
@@ -11834,15 +11602,27 @@
         },
         {
           "title": "Rugby Union: Six Nations (M)",
-          "reason": "no-date"
+          "reason": "no-stated-year"
         },
         {
           "title": "Rugby Union: Six Nations (M)",
-          "reason": "no-date"
+          "reason": "no-stated-year"
         },
         {
           "title": "Rugby Union: Six Nations (M)",
-          "reason": "no-time"
+          "reason": "no-stated-year"
+        },
+        {
+          "title": "Rugby Union: Six Nations (M)",
+          "reason": "no-stated-year"
+        },
+        {
+          "title": "Rugby Union: Six Nations (M)",
+          "reason": "no-stated-year"
+        },
+        {
+          "title": "Rugby Union: Six Nations (M)",
+          "reason": "no-stated-year"
         },
         {
           "title": "Live sport",
@@ -11864,7 +11644,7 @@
       "status": "ok",
       "finalUrl": "https://www.thetrinity.co.uk/live-sport/football",
       "contentSha256": "46cd812d6ce24a77468e046d3e143f02d5e722115d5f8ec740cbc420e5693937",
-      "events": 1,
+      "events": 4,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -11901,18 +11681,6 @@
           "reason": "no-time"
         },
         {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-date"
-        },
-        {
-          "title": "Football: UEFA Champions League",
-          "reason": "no-time"
-        },
-        {
           "title": "Live sport",
           "reason": "no-time"
         }
@@ -11932,7 +11700,7 @@
       "status": "ok",
       "finalUrl": "https://www.thetrinity.co.uk/live-sport/rugby",
       "contentSha256": "4a1e413ff1cb9a9fd775933072d63d72ba319e9188bf1a0319871810c1843e57",
-      "events": 1,
+      "events": 0,
       "happyHours": 0,
       "openingHours": false,
       "drops": [
@@ -11965,60 +11733,64 @@
           "reason": "no-time"
         },
         {
-          "title": "Rugby Union: Six Nations (M)",
-          "reason": "no-date"
-        },
-        {
-          "title": "Rugby Union: Six Nations (M)",
-          "reason": "no-stated-year"
-        },
-        {
-          "title": "Rugby Union: Six Nations (M)",
-          "reason": "no-date"
-        },
-        {
-          "title": "Rugby Union: Six Nations (M)",
-          "reason": "no-stated-year"
-        },
-        {
-          "title": "Rugby Union: Six Nations (M)",
-          "reason": "no-stated-year"
-        },
-        {
-          "title": "Rugby Union: Six Nations (M)",
-          "reason": "no-date"
-        },
-        {
-          "title": "Rugby Union: Six Nations (M)",
-          "reason": "no-stated-year"
-        },
-        {
-          "title": "Rugby Union: Six Nations (M)",
-          "reason": "no-stated-year"
-        },
-        {
-          "title": "Rugby Union: Six Nations (M)",
-          "reason": "no-stated-year"
-        },
-        {
-          "title": "Rugby Union: Six Nations (M)",
-          "reason": "no-date"
-        },
-        {
-          "title": "Rugby Union: Six Nations (M)",
-          "reason": "no-stated-year"
-        },
-        {
-          "title": "Rugby Union: Six Nations (M)",
-          "reason": "no-date"
-        },
-        {
-          "title": "Rugby Union: Six Nations (M)",
-          "reason": "no-date"
-        },
-        {
-          "title": "Rugby Union: Six Nations (M)",
+          "title": "Watch live rugby with us",
           "reason": "no-time"
+        },
+        {
+          "title": "Rugby Union: Six Nations (M)",
+          "reason": "no-stated-year"
+        },
+        {
+          "title": "Rugby Union: Six Nations (M)",
+          "reason": "no-stated-year"
+        },
+        {
+          "title": "Rugby Union: Six Nations (M)",
+          "reason": "no-stated-year"
+        },
+        {
+          "title": "Rugby Union: Six Nations (M)",
+          "reason": "no-stated-year"
+        },
+        {
+          "title": "Rugby Union: Six Nations (M)",
+          "reason": "no-stated-year"
+        },
+        {
+          "title": "Rugby Union: Six Nations (M)",
+          "reason": "no-stated-year"
+        },
+        {
+          "title": "Rugby Union: Six Nations (M)",
+          "reason": "no-stated-year"
+        },
+        {
+          "title": "Rugby Union: Six Nations (M)",
+          "reason": "no-stated-year"
+        },
+        {
+          "title": "Rugby Union: Six Nations (M)",
+          "reason": "no-stated-year"
+        },
+        {
+          "title": "Rugby Union: Six Nations (M)",
+          "reason": "no-stated-year"
+        },
+        {
+          "title": "Rugby Union: Six Nations (M)",
+          "reason": "no-stated-year"
+        },
+        {
+          "title": "Rugby Union: Six Nations (M)",
+          "reason": "no-stated-year"
+        },
+        {
+          "title": "Rugby Union: Six Nations (M)",
+          "reason": "no-stated-year"
+        },
+        {
+          "title": "Rugby Union: Six Nations (M)",
+          "reason": "no-stated-year"
         },
         {
           "title": "Live sport",
@@ -23489,7 +23261,7 @@
       "openingHours": false,
       "drops": [
         {
-          "title": "QUIZ NIGHT",
+          "title": "LIVE SPORT",
           "reason": "no-time"
         }
       ]

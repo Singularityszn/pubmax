@@ -12,6 +12,8 @@ Raw Markdown and resumable state remain in the ignored `data-harvest/contextdev-
 The publisher writes events and happy-hour slots into `public/data/whats_on/events_london.json`.
 A successful read of a page replaces every row that the lane held from that page.
 A held row whose time has passed leaves the file.
+A slot that several pages of one pub list publishes once. A sport slot is also its fixture, because a pub screens several fixtures at once.
+A run of date and clock lines directly above a listing heading dates that listing, as fixture lists lay them out.
 The events refresh and the venue events harvest keep the current own-site rows when they rewrite the file.
 
 Greene King timed fixtures come from its FANZO partner through gated booking links, so they are not first-party.

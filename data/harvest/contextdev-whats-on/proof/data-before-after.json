@@ -1,17 +1,17 @@
 {
-  "observedAt": "2026-10-07T23:34:15.309Z",
+  "observedAt": "2026-10-07T23:49:50.091Z",
   "before": {
     "bundledEvents": 27,
     "ownSiteEvents": 0,
     "hoursRows": 176
   },
   "after": {
-    "bundledEvents": 136,
+    "bundledEvents": 161,
     "ownSiteKinds": {
-      "quiz": 21,
+      "quiz": 22,
       "deal": 10,
-      "music": 20,
-      "sport": 58
+      "music": 19,
+      "sport": 83
     },
     "hoursRows": 297,
     "pastOwnSiteEvents": 0

@@ -36,12 +36,25 @@ export function ambiguousPubWebsites(pubs: WhatsOnPub[]): Set<string> {
   }).map((pub) => pub.website));
 }
 
-/** A successful read replaces every row this lane held from its page. A held row whose time has passed leaves. */
-export function mergeOwnSiteListings(previous: WhatsOnRow[], observations: { sourceUrl: string; rows: WhatsOnRow[] }[], nowMs: number): WhatsOnRow[] {
+/**
+ * A successful read replaces every row this lane held from its page. A held row
+ * whose time has passed leaves. One pub's slot that several of its pages list
+ * publishes once, from the first page that lists it. A pub screens several
+ * fixtures at once, so a sport slot is also its fixture.
+ */
+export function mergeOwnSiteListings(previous: WhatsOnRow[], observations: { sourceUrl: string; osmId: string; rows: WhatsOnRow[] }[], nowMs: number): WhatsOnRow[] {
   const replaced = new Set(observations.map((entry) => entry.sourceUrl));
   const held = currentOwnSiteRows(previous, nowMs).filter((row) => !replaced.has(row.source.url));
   const rows = new Map([...previous.filter((row) => !row.id.startsWith("own-site-")), ...held].map((row) => [row.id, row]));
-  for (const entry of observations) for (const row of entry.rows) rows.set(row.id, row);
+  const claimed = new Map<string, string>();
+  for (const entry of observations) {
+    for (const row of entry.rows) {
+      const slot = `${entry.osmId}|${row.kind}|${row.startsAt}${row.kind === "sport" ? `|${row.title}` : ""}`;
+      if ((claimed.get(slot) ?? entry.sourceUrl) !== entry.sourceUrl) continue;
+      claimed.set(slot, entry.sourceUrl);
+      rows.set(row.id, row);
+    }
+  }
   return [...rows.values()];
 }
 
@@ -75,36 +88,77 @@ export function plainText(markdown: string): string {
     .replace(/^[\s#*|]+/gm, "").replace(/\*+/g, "").replace(/\\([\\`*_{}[\]()#+\-.!|>~])/g, "$1");
 }
 
+const MONTH_WORDS = "jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?";
+const DAY_WORDS = "(?:mon|tues?|wed(?:nes)?|thu(?:rs?)?|fri|sat(?:ur)?|sun)(?:day)?s?";
+
+/** A line that states only days, dates and clocks, with no words of its own. */
+function scheduleOnly(line: string): boolean {
+  const text = plainText(line).toLowerCase();
+  const rest = text.replace(/\b\d{1,2}(?:[:.]\d{2})?\s*(?:am|pm)\b|\b\d{1,2}:\d{2}\b/g, " ")
+    .replace(new RegExp(`\\b(?:every|each|and|from|at|${DAY_WORDS}|${MONTH_WORDS}|\\d{1,2}(?:st|nd|rd|th)?|\\d{4})\\b`, "g"), " ");
+  const dateRange = new RegExp(`\\d(?:st|nd|rd|th)?\\s*[-\u2013]\\s*\\d{1,2}(?:st|nd|rd|th)?\\s+(?:${MONTH_WORDS})\\b`).test(text);
+  return /\d|day\b/.test(text) && !dateRange && /^[\s|,&\-\u2013.']*$/.test(rest);
+}
+
+const statesDate = (line: string) => new RegExp(`\\b\\d{1,2}(?:st|nd|rd|th)?\\s+(?:${MONTH_WORDS})\\b`, "i").test(line);
+
+/**
+ * Cards are headings and list items with the lines under them. A run of
+ * date and clock lines directly above a heading belongs to that heading when
+ * it opens a section's first dated item or continues a list of such items.
+ * A later item that states only its clock keeps the list's last stated day.
+ */
 function listingCards(markdown: string): { title: string; text: string; markdown: string; happyHourParent: string | null }[] {
   const cards: { title: string; lines: string[]; happyHourParent: string | null; navigation?: boolean }[] = [];
   let happyHour: { title: string; level: number } | null = null;
-  let precedingSchedule: string | null = null;
-  const lines = markdown.split(/\r?\n/);
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index]!;
+  let run: string[] = [];
+  let lastLevel = 0;
+  let datedList = null as { level: number; day: string | null } | null;
+  const flush = () => {
+    cards.at(-1)?.lines.push(...run);
+    run = [];
+  };
+  for (const line of markdown.split(/\r?\n/)) {
     const heading = /^\s*(?:[-*]\s+)?(#{1,6})\s+(.+)$/.exec(line);
     if (heading) {
       const title = plainText(heading[2]!).trim();
       const level = heading[1]!.length;
       if (happyHour && level <= happyHour.level) happyHour = null;
       if (/\bhappy\s+hours?\b/i.test(title)) happyHour = { title, level };
-      cards.push({ title, lines: precedingSchedule ? [precedingSchedule] : [], happyHourParent: happyHour && level > happyHour.level ? happyHour.title : null });
-      precedingSchedule = null;
+      const opensList = lastLevel < level && run.some(statesDate);
+      const continuesList = datedList?.level === level;
+      // An undated weekday-and-clock line above a named listing is that listing's weekly schedule.
+      const namesSchedule = Boolean(eventKindFrom(title)) && !run.some(statesDate) && run.some((item) => /^(?:every\s+)?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i.test(item.trim()) && resolveEventClock(item));
+      let lines: string[] = [];
+      if (run.length && (opensList || continuesList || namesSchedule)) {
+        const day = run.find(statesDate) ?? (continuesList ? datedList!.day : null);
+        lines = day && !run.includes(day) ? [day, ...run] : run;
+        datedList = { level, day };
+        run = [];
+      } else {
+        flush();
+        datedList = null;
+      }
+      cards.push({ title, lines, happyHourParent: happyHour && level > happyHour.level ? happyHour.title : null });
+      lastLevel = level;
     }
     else if (!happyHour && /^\s*[-*]\s+/.test(line)) {
       // Each list item owns its schedule. A neighbouring offer cannot date a quiz.
+      flush();
       const title = plainText(line.replace(/^\s*[-*]\s+/, "")).trim();
       const navigation = /^(?:Google Calendar|ICS)(?:\s+(?:Google Calendar|ICS))*$/i.test(title);
       cards.push({ title, lines: [], happyHourParent: null, navigation });
-      precedingSchedule = null;
     }
     else if (line.trim() && !/^\s*!\[|^\s*\[[^\]]+\]\([^)]*\)\s*$/.test(line)) {
-      const next = lines.slice(index + 1).find((candidate) => candidate.trim());
-      if (/^(?:every\s+)?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i.test(line.trim()) &&
-          resolveEventClock(line) && next && /^\s*#{1,6}\s+/.test(next) && eventKindFrom(plainText(next))) precedingSchedule = line;
-      else cards.at(-1)?.lines.push(line);
+      if (scheduleOnly(line)) run.push(line);
+      else {
+        flush();
+        if (datedList && statesDate(line)) datedList.day = null;
+        cards.at(-1)?.lines.push(line);
+      }
     }
   }
+  flush();
   return cards.filter((card) => !card.navigation).map((card) => {
     const lines = card.lines.slice(0, 5);
     return { title: card.title, text: plainText([card.title, ...lines].join("\n")), markdown: `## ${card.title}\n${lines.join("\n")}`, happyHourParent: card.happyHourParent };
@@ -124,6 +178,19 @@ function happyHourCards(cards: ReturnType<typeof listingCards>): string {
   }).join("\n");
 }
 
+/** A card that names more than one kind takes its kind only from the clause that states its clock. */
+function clockStatesKind(clauses: string[], clock: string, kind: WhatsOnRow["kind"]): boolean {
+  if (new Set(clauses.map(eventKindFrom).filter(Boolean)).size <= 1) return true;
+  const stated = new Set(clauses.filter((clause) => resolveEventClock(clause) === clock).map(eventKindFrom).filter(Boolean));
+  return stated.size === 1 && stated.has(kind);
+}
+
+/** Greene King's timed fixtures come from its FANZO partner, so they are not the pub's own listing. */
+export function isPartnerFixturePage(url: string): boolean {
+  const page = new URL(url);
+  return page.hostname.replace(/^www\./, "") === "greeneking.co.uk" && /\/sports\/fixtures\/?$/.test(page.pathname);
+}
+
 /** Parse the existing listing and hours shapes from one fresh own-site read. */
 export function readPubWhatsOn(pub: WhatsOnPub, markdown: string, sourceUrl: string, observedAt: string, asOf = observedAt) {
   const now = Date.parse(observedAt);
@@ -141,7 +208,7 @@ export function readPubWhatsOn(pub: WhatsOnPub, markdown: string, sourceUrl: str
     const named = lines.find((line) => line.length <= 80 && eventKindFrom(line));
     const kind = named ? eventKindFrom(named) : null;
     if (!kind) continue;
-    if (/^(?:january|february|march|april|may|june|july|august|september|october|november|december)\b/i.test(card.title)) {
+    if (/^(?:january|february|march|april|may|june|july|august|september|october|november|december)\s*\(\d+\)$/i.test(card.title)) {
       drops.push({ title: card.title, reason: "incomplete-fixture" });
       continue;
     }
@@ -179,16 +246,18 @@ export function readPubWhatsOn(pub: WhatsOnPub, markdown: string, sourceUrl: str
     }
     // Plural weekday headings and explicit "every/each" statements name weekly slots.
     const clauses = lines.flatMap((line) => line.split(/(?<=[.!?])\s+(?=[A-Z])/));
+    if (!clockStatesKind(clauses, clock, kind)) {
+      drops.push({ title: card.title, reason: "mixed-kinds" });
+      continue;
+    }
     const weeklyLines = clauses.filter((line) => /\b(?:every|each)\s+(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b|\b(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)s\b/i.test(line));
     const weeklyDays = WEEKDAY_NAMES.filter((day) => weeklyLines.some((line) => new RegExp(`\\b${day}s?\\b`, "i").test(line)));
     const days = weeklyDays.filter((day) => weeklyDays.length === 1 || clauses.some((line) => new RegExp(`\\b${day}s?\\b`, "i").test(line) && resolveEventClock(line) === clock));
     if (days.length && !/\b\d{1,2}(?:st|nd|rd|th)?\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(card.text)) {
-      if (clock) {
-        for (const day of days) {
-          const startsAt = nextWeeklyOccurrence(day, clock, asOf);
-          if (startsAt) keep({ ...base, id: `own-site-${pageKey(`${pub.osmId}|${named}|${startsAt}`)}`, kind, title: eventKindFrom(card.title) ? card.title : named!, startsAt, timeEvidence: card.text });
-        }
-      } else drops.push({ title: card.title, reason: "no-time" });
+      for (const day of days) {
+        const startsAt = nextWeeklyOccurrence(day, clock, asOf);
+        if (startsAt) keep({ ...base, id: `own-site-${pageKey(`${pub.osmId}|${named}|${startsAt}`)}`, kind, title: eventKindFrom(card.title) ? card.title : named!, startsAt, timeEvidence: card.text });
+      }
       continue;
     }
     const parsed = parseVenueEventListings(card.markdown, now);

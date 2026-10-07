@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { contextDevUsage } from "@/lib/contextDev";
-import { ambiguousPubWebsites, discoverWhatsOnPages, mergeOwnSiteListings, readPubWhatsOn } from "@/lib/harvest/contextDevWhatsOn";
+import { ambiguousPubWebsites, discoverWhatsOnPages, isPartnerFixturePage, mergeOwnSiteListings, readPubWhatsOn } from "@/lib/harvest/contextDevWhatsOn";
 
 const pub = { osmId: "node/1", name: "The Crown", venueId: "venue-crown", lat: 51.51, lng: -0.12, website: "https://crown.example/" };
 const observedAt = "2026-10-07T09:00:00.000Z";
@@ -116,10 +116,86 @@ describe("London pub own-site harvest", () => {
     expect(result.rows.every((row) => row.startsAt?.includes("T12:00:"))).toBe(true);
   });
 
+  it("dates each fixture from the date and clock lines above its own heading", () => {
+    const text = [
+      "## Watch football with us", "Friday 9 October", "8:00PM",
+      "### Football: EFL Championship", "West Ham **vs** QPR", "[Book now](https://book.example/1)",
+      "Saturday 10 October", "12:30PM",
+      "### Football: Premier League", "Arsenal **vs** Leeds", "[Book now](https://book.example/2)",
+      "5:30PM",
+      "### Football: Premier League", "Man United **vs** Tottenham", "[Book now](https://book.example/3)",
+      "Sunday 11 October", "12:00PM",
+      "### Football: Premier League", "Liverpool **vs** Man City", "[Book now](https://book.example/4)",
+    ].join("\n\n");
+    expect(readPubWhatsOn(pub, text, pub.website, observedAt).rows.map((row) => [row.title, row.startsAt])).toEqual([
+      ["Football: Premier League: Arsenal vs Leeds", "2026-10-10T12:30:00+01:00"],
+      ["Football: Premier League: Man United vs Tottenham", "2026-10-10T17:30:00+01:00"],
+      ["Football: Premier League: Liverpool vs Man City", "2026-10-11T12:00:00+01:00"],
+    ]);
+  });
+
+  it("dates each fixture from its own lines when no booking link closes the previous card", () => {
+    const text = "## What's coming up\nShow me:\nFriday 9 October\n7:45PM\n### Premier League: Spurs vs Leeds\nSpurs\nLeeds\nSaturday 10 October\n12:30PM\n### Premier League: Arsenal vs Leeds\nArsenal\nLeeds\n";
+    expect(readPubWhatsOn(pub, text, pub.website, observedAt).rows.map((row) => [row.title, row.startsAt])).toEqual([
+      ["Premier League: Spurs vs Leeds", "2026-10-09T19:45:00+01:00"],
+      ["Premier League: Arsenal vs Leeds", "2026-10-10T12:30:00+01:00"],
+    ]);
+  });
+
+  it("does not carry a list's day past a later stated date or into a date range", () => {
+    const text = "## Fixtures\nSaturday 10 October\n2:10PM\n### Premier League: Arsenal vs Leeds\nArsenal\nSaturday 6 February '27\n2:10PM\n### Premier League: Spurs vs Leeds\nSpurs\n";
+    expect(readPubWhatsOn(pub, text, pub.website, observedAt).rows.map((row) => [row.title, row.startsAt])).toEqual([
+      ["Premier League: Arsenal vs Leeds", "2026-10-10T14:10:00+01:00"],
+    ]);
+    expect(readPubWhatsOn(pub, "# Events\n13 \\-27 October 9.30am\n### Pub Quiz\nOctober 13th & 27th launch our brand new quiz\n", pub.website, observedAt).rows).toEqual([]);
+  });
+
+  it("does not give a section heading its first fixture's time", () => {
+    const text = "## Watch live rugby with us\n\nSaturday 17 October\n\n8:00PM\n\n### Rugby Union: European Challenge Cup\n\nScarlets **vs** Newcastle Red Bulls\n";
+    expect(readPubWhatsOn(pub, text, pub.website, observedAt).rows).toEqual([]);
+  });
+
+  it("keeps a quiz paragraph's start time with the quiz instead of the sport heading below it", () => {
+    const text = "### QUIZ NIGHT\n\nTHURSDAY NIGHTS\n\nEvery Thursday night the Quiz-Masters run a general knowledge quiz. Start time is 9:15pm but arrive early.\n\n### LIVE SPORT\n\nWEEKDAYS & WEEKENDS\n\nWe have Sky Sports and BT Sport - showing all the latest games\n";
+    expect(readPubWhatsOn(pub, text, pub.website, observedAt).rows.map((row) => [row.kind, row.title, row.startsAt])).toEqual([
+      ["quiz", "QUIZ NIGHT", "2026-10-08T21:15:00+01:00"],
+    ]);
+  });
+
+  it("does not give one kind the clock another kind states in a shared section", () => {
+    const result = readPubWhatsOn(pub, "## Entertainment\nLive sport on every screen.\nPub quiz every Thursday, starts at 8pm.\n", pub.website, observedAt);
+    expect(result.rows).toEqual([]);
+    expect(result.drops).toContainEqual({ title: "Entertainment", reason: "mixed-kinds" });
+  });
+
+  it("publishes a first-party listing whose title starts with a month", () => {
+    const result = readPubWhatsOn(pub, "## October Pub Quiz\nThursday 15 October 2026\nStarts at 8pm\n", pub.website, observedAt);
+    expect(result.rows).toMatchObject([{ kind: "quiz", title: "October Pub Quiz", startsAt: "2026-10-15T20:00:00+01:00" }]);
+  });
+
+  it("names only Greene King's partner fixture pages as partner fixtures", () => {
+    expect(isPartnerFixturePage("https://www.greeneking.co.uk/pubs/greater-london/allsop-arms/sports/fixtures")).toBe(true);
+    expect(isPartnerFixturePage("https://www.greeneking.co.uk/pubs/greater-london/allsop-arms/whats-on")).toBe(false);
+    expect(isPartnerFixturePage("https://wolfpackbars.com/sports/fixtures")).toBe(false);
+  });
+
+  it("publishes one pub's slot once when two of its pages list it", () => {
+    const home = readPubWhatsOn(pub, "## Live Music from 7pm\nEvery Sunday evening, live music from 7pm.\n", pub.website, observedAt).rows;
+    const page = `${pub.website}live-music`;
+    const music = readPubWhatsOn(pub, "## Live Music Every Sunday\nFrom 7pm, in the heart of Soho.\n", page, observedAt).rows;
+    expect(home).toHaveLength(1);
+    expect(music).toHaveLength(1);
+    const merged = mergeOwnSiteListings([], [{ sourceUrl: pub.website, osmId: pub.osmId, rows: home }, { sourceUrl: page, osmId: pub.osmId, rows: music }], Date.parse(observedAt));
+    expect(merged.map((row) => [row.title, row.source.url])).toEqual([["Live Music from 7pm", pub.website]]);
+    const fixtures = readPubWhatsOn(pub, "## Premier League: Hull vs Everton\nSunday 11 October 2026 2pm\n## Premier League: Palace vs Forest\nSunday 11 October 2026 2pm\n", page, observedAt).rows;
+    const screened = mergeOwnSiteListings([], [{ sourceUrl: pub.website, osmId: pub.osmId, rows: fixtures.slice(1) }, { sourceUrl: page, osmId: pub.osmId, rows: fixtures }], Date.parse(observedAt));
+    expect(screened.map((row) => row.title).sort()).toEqual(["Premier League: Hull vs Everton", "Premier League: Palace vs Forest"]);
+  });
+
   it("removes a cancelled listing after a new read and preserves unrelated sources", () => {
     const previous = readPubWhatsOn(pub, "## Pub quiz\nThursday 8 October 2026\n8pm\n", pub.website, observedAt).rows;
     const unrelated = { ...previous[0]!, id: "curated-1", source: { label: "Another publisher", url: "https://another.example/" } };
-    expect(mergeOwnSiteListings([...previous, unrelated], [{ sourceUrl: pub.website, rows: [] }], Date.parse(observedAt))).toEqual([unrelated]);
+    expect(mergeOwnSiteListings([...previous, unrelated], [{ sourceUrl: pub.website, osmId: pub.osmId, rows: [] }], Date.parse(observedAt))).toEqual([unrelated]);
     expect(mergeOwnSiteListings(previous, [], Date.parse(observedAt))).toEqual(previous);
   });
 
@@ -128,7 +204,7 @@ describe("London pub own-site harvest", () => {
     const before = readPubWhatsOn(pub, page("3pm"), pub.website, observedAt);
     const after = readPubWhatsOn(pub, page("5:30pm"), pub.website, "2026-10-08T09:00:00.000Z");
     expect(after.drops).not.toEqual([]);
-    const merged = mergeOwnSiteListings(before.rows, [{ sourceUrl: pub.website, rows: after.rows }], Date.parse("2026-10-08T09:00:00.000Z"));
+    const merged = mergeOwnSiteListings(before.rows, [{ sourceUrl: pub.website, osmId: pub.osmId, rows: after.rows }], Date.parse("2026-10-08T09:00:00.000Z"));
     expect(merged.map((row) => row.startsAt)).toEqual(["2026-10-10T17:30:00+01:00"]);
   });
 

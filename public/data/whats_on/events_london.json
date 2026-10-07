@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-07T19:31:57.300Z",
+  "generatedAt": "2026-10-07T19:31:55.426Z",
   "kind": "events",
   "region": "greater-london",
   "city": "london",
@@ -613,23 +613,6 @@
       "timeEvidence": "Live Music from 7pm\nEvery Sunday evening, the Queens Head comes alive. From 7pm, live music fills the room, no booking needed, no cover charge. Just a proper Soho pub doing what it does best."
     },
     {
-      "placeName": "The Queen's Head",
-      "lat": 51.5108129,
-      "lng": -0.1353585,
-      "venueId": "venue-122cuu1",
-      "source": {
-        "label": "The Queen's Head website",
-        "url": "https://www.queensheadpiccadilly.com/live-music.php"
-      },
-      "observedAt": "2026-10-07T18:28:17.341Z",
-      "confidence": "listed",
-      "id": "own-site-8992213dda600b48a57b86b2",
-      "kind": "music",
-      "title": "Live Music Every Sunday",
-      "startsAt": "2026-10-11T19:00:00+01:00",
-      "timeEvidence": "Live Music Every Sunday\nFrom 7pm, in the heart of Soho. No booking needed.\nBook a Table Find Us\n🎵"
-    },
-    {
       "placeName": "Shuffleboard Bar London",
       "lat": 51.5264877,
       "lng": -0.1243374,
@@ -829,9 +812,9 @@
       "lng": -0.0494654,
       "source": {
         "label": "Skehans website",
-        "url": "https://skehans.com/whats-on/"
+        "url": "https://skehans.com/"
       },
-      "observedAt": "2026-10-07T18:39:14.140Z",
+      "observedAt": "2026-10-07T18:39:09.121Z",
       "confidence": "listed",
       "id": "own-site-226dc3f9fe5c83b2914a58bd",
       "kind": "quiz",
@@ -846,134 +829,15 @@
       "venueId": "venue-13b8v6f",
       "source": {
         "label": "The Wellington website",
-        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport/football"
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
       },
-      "observedAt": "2026-10-07T18:42:17.741Z",
+      "observedAt": "2026-10-07T18:42:14.812Z",
       "confidence": "listed",
-      "id": "own-site-24d95b92f6e43d8b23784d4d",
+      "id": "own-site-3988b4e70baa77e77c898d0c",
       "kind": "sport",
-      "title": "Football: Premier League: Man United vs Tottenham",
-      "startsAt": "2026-10-11T12:00:00+01:00",
-      "timeEvidence": "Football: Premier League\nMan United vs Tottenham\nMan United\nTottenham\nSunday 11 October\n12:00PM"
-    },
-    {
-      "placeName": "The Wellington",
-      "lat": 51.5036385,
-      "lng": -0.111312,
-      "venueId": "venue-13b8v6f",
-      "source": {
-        "label": "The Wellington website",
-        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport/football"
-      },
-      "observedAt": "2026-10-07T18:42:17.741Z",
-      "confidence": "listed",
-      "id": "own-site-1fef5f9328ea22c9c58f8395",
-      "kind": "sport",
-      "title": "Football: Premier League: Liverpool vs Man City",
-      "startsAt": "2026-10-12T20:00:00+01:00",
-      "timeEvidence": "Football: Premier League\nLiverpool vs Man City\nLiverpool\nMan City\nMonday 12 October\n8:00PM"
-    },
-    {
-      "placeName": "The Wellington",
-      "lat": 51.5036385,
-      "lng": -0.111312,
-      "venueId": "venue-13b8v6f",
-      "source": {
-        "label": "The Wellington website",
-        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport/football"
-      },
-      "observedAt": "2026-10-07T18:42:17.741Z",
-      "confidence": "listed",
-      "id": "own-site-9f4177b4925c363703cefefe",
-      "kind": "sport",
-      "title": "Football: Premier League: Coventry vs Newcastle",
-      "startsAt": "2026-10-13T17:45:00+01:00",
-      "timeEvidence": "Football: Premier League\nCoventry vs Newcastle\nCoventry\nNewcastle\nTuesday 13 October\n5:45PM"
-    },
-    {
-      "placeName": "The Wellington",
-      "lat": 51.5036385,
-      "lng": -0.111312,
-      "venueId": "venue-13b8v6f",
-      "source": {
-        "label": "The Wellington website",
-        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport/football"
-      },
-      "observedAt": "2026-10-07T18:42:17.741Z",
-      "confidence": "listed",
-      "id": "own-site-678328860419320c8bb3011a",
-      "kind": "sport",
-      "title": "Football: UEFA Champions League: Inter vs Club Brugge",
-      "startsAt": "2026-10-14T17:45:00+01:00",
-      "timeEvidence": "Football: UEFA Champions League\nInter vs Club Brugge\nInter\nClub Brugge\nWednesday 14 October\n5:45PM"
-    },
-    {
-      "placeName": "The Wellington",
-      "lat": 51.5036385,
-      "lng": -0.111312,
-      "venueId": "venue-13b8v6f",
-      "source": {
-        "label": "The Wellington website",
-        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport/football"
-      },
-      "observedAt": "2026-10-07T18:42:17.741Z",
-      "confidence": "listed",
-      "id": "own-site-dd879b9411add58e8ad25c34",
-      "kind": "sport",
-      "title": "Football: Premier League: Tottenham vs Coventry",
-      "startsAt": "2026-10-20T17:45:00+01:00",
-      "timeEvidence": "Football: Premier League\nTottenham vs Coventry\nTottenham\nCoventry\nTuesday 20 October\n5:45PM"
-    },
-    {
-      "placeName": "The Wellington",
-      "lat": 51.5036385,
-      "lng": -0.111312,
-      "venueId": "venue-13b8v6f",
-      "source": {
-        "label": "The Wellington website",
-        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport/football"
-      },
-      "observedAt": "2026-10-07T18:42:17.741Z",
-      "confidence": "listed",
-      "id": "own-site-104018f46c9f140ccd1f3da8",
-      "kind": "sport",
-      "title": "Football: UEFA Champions League: Liverpool vs Villarreal",
-      "startsAt": "2026-10-21T17:45:00+01:00",
-      "timeEvidence": "Football: UEFA Champions League\nLiverpool vs Villarreal\nLiverpool\nVillarreal\nWednesday 21 October\n5:45PM"
-    },
-    {
-      "placeName": "The Wellington",
-      "lat": 51.5036385,
-      "lng": -0.111312,
-      "venueId": "venue-13b8v6f",
-      "source": {
-        "label": "The Wellington website",
-        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport/football"
-      },
-      "observedAt": "2026-10-07T18:42:17.741Z",
-      "confidence": "listed",
-      "id": "own-site-fba1870ca333d8864c34bed9",
-      "kind": "sport",
-      "title": "Football: UEFA Champions League: Inter vs Shakhtar",
-      "startsAt": "2026-10-22T17:45:00+01:00",
-      "timeEvidence": "Football: UEFA Champions League\nInter vs Shakhtar\nInter\nShakhtar\nThursday 22 October\n5:45PM"
-    },
-    {
-      "placeName": "The Wellington",
-      "lat": 51.5036385,
-      "lng": -0.111312,
-      "venueId": "venue-13b8v6f",
-      "source": {
-        "label": "The Wellington website",
-        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport/football"
-      },
-      "observedAt": "2026-10-07T18:42:17.741Z",
-      "confidence": "listed",
-      "id": "own-site-40ffe7804c91c3d3c00dbb0b",
-      "kind": "sport",
-      "title": "Football: Premier League: Ipswich vs Nottingham Forest",
-      "startsAt": "2026-10-24T12:30:00+01:00",
-      "timeEvidence": "Football: Premier League\nIpswich vs Nottingham Forest\nIpswich\nNottingham Forest\nSaturday 24 October\n12:30PM"
+      "title": "Football: Premier League: Arsenal vs Leeds",
+      "startsAt": "2026-10-10T12:30:00+01:00",
+      "timeEvidence": "Football: Premier League\nSaturday 10 October\n12:30PM\nArsenal vs Leeds\nArsenal\nLeeds"
     },
     {
       "placeName": "The Wellington",
@@ -986,11 +850,11 @@
       },
       "observedAt": "2026-10-07T18:42:14.812Z",
       "confidence": "listed",
-      "id": "own-site-b3099067fa03df77b317a363",
+      "id": "own-site-66f73f309463fb2521ef3aaf",
       "kind": "sport",
-      "title": "Football: Premier League: Chelsea vs Tottenham",
-      "startsAt": "2026-11-08T15:10:00+00:00",
-      "timeEvidence": "Football: Premier League\nChelsea vs Tottenham\nChelsea\nTottenham\nSunday 8 November\n3:10PM"
+      "title": "Football: Premier League: Man United vs Tottenham",
+      "startsAt": "2026-10-10T17:30:00+01:00",
+      "timeEvidence": "Football: Premier League\nSaturday 10 October\n5:30PM\nMan United vs Tottenham\nMan United\nTottenham"
     },
     {
       "placeName": "The Wellington",
@@ -999,15 +863,559 @@
       "venueId": "venue-13b8v6f",
       "source": {
         "label": "The Wellington website",
-        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport/rugby"
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
       },
-      "observedAt": "2026-10-07T18:42:20.537Z",
+      "observedAt": "2026-10-07T18:42:14.812Z",
       "confidence": "listed",
-      "id": "own-site-c4d011db70e4c1e20bcb32de",
+      "id": "own-site-7cadcf79be7010e6d8943611",
       "kind": "sport",
-      "title": "Watch live rugby with us",
-      "startsAt": "2026-10-17T20:00:00+01:00",
-      "timeEvidence": "Watch live rugby with us\nSaturday 17 October\n8:00PM"
+      "title": "Football: Premier League: Crystal Palace vs Nottingham Forest",
+      "startsAt": "2026-10-11T14:00:00+01:00",
+      "timeEvidence": "Football: Premier League\nSunday 11 October\n2:00PM\nCrystal Palace vs Nottingham Forest\nCrystal Palace\nNottingham Forest"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-a5d5cc413b574f73e6144ca1",
+      "kind": "sport",
+      "title": "Football: Premier League: Hull City vs Everton",
+      "startsAt": "2026-10-11T14:00:00+01:00",
+      "timeEvidence": "Football: Premier League\nSunday 11 October\n2:00PM\nHull City vs Everton\nHull City\nEverton"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-78d12736b99bf7747bdaf0cb",
+      "kind": "sport",
+      "title": "Football: Premier League: Liverpool vs Man City",
+      "startsAt": "2026-10-11T16:30:00+01:00",
+      "timeEvidence": "Football: Premier League\nSunday 11 October\n4:30PM\nLiverpool vs Man City\nLiverpool\nMan City"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-bcb8e8928bb5aa52cb1609d4",
+      "kind": "sport",
+      "title": "Football: Premier League: Coventry vs Newcastle",
+      "startsAt": "2026-10-12T20:00:00+01:00",
+      "timeEvidence": "Football: Premier League\nMonday 12 October\n8:00PM\nCoventry vs Newcastle\nCoventry\nNewcastle"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-67984d436545d2295891c2f6",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Lens vs Sporting Lisbon",
+      "startsAt": "2026-10-13T17:45:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nTuesday 13 October\n5:45PM\nLens vs Sporting Lisbon\nLens\nSporting Lisbon"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-cc051b85315b9cec4602a6e3",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Sabah FC (Aze) vs Slavia Prague",
+      "startsAt": "2026-10-13T17:45:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nTuesday 13 October\n5:45PM\nSabah FC (Aze) vs Slavia Prague\nSabah FC (Aze)\nSlavia Prague"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-30bd7ccc05043555cf8a831e",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Atl Madrid vs Man United",
+      "startsAt": "2026-10-13T20:00:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nTuesday 13 October\n8:00PM\nAtl Madrid vs Man United\nAtl Madrid\nMan United"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-ab669e4020cf14b6b4dab5c0",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Arsenal vs Lille",
+      "startsAt": "2026-10-13T20:00:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nTuesday 13 October\n8:00PM\nArsenal vs Lille\nArsenal\nLille"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-f28eb21857bdeb4e93ff11e0",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Inter vs Club Brugge",
+      "startsAt": "2026-10-13T20:00:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nTuesday 13 October\n8:00PM\nInter vs Club Brugge\nInter\nClub Brugge"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-51ad1527ee1a77897c40092d",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: LASK Linz vs Liverpool",
+      "startsAt": "2026-10-14T17:45:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nWednesday 14 October\n5:45PM\nLASK Linz vs Liverpool\nLASK Linz\nLiverpool"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-df43b6b5d0d7bad5661c8772",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Feyenoord vs Como",
+      "startsAt": "2026-10-14T17:45:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nWednesday 14 October\n5:45PM\nFeyenoord vs Como\nFeyenoord\nComo"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-f01430c8ebd45db73c027b24",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Aston Villa vs Fenerbahce",
+      "startsAt": "2026-10-14T20:00:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nWednesday 14 October\n8:00PM\nAston Villa vs Fenerbahce\nAston Villa\nFenerbahce"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-42463e32d2b36e659d531384",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Man City vs Paris",
+      "startsAt": "2026-10-14T20:00:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nWednesday 14 October\n8:00PM\nMan City vs Paris\nMan City\nParis"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-132b018bf2a2378f686a3e9b",
+      "kind": "sport",
+      "title": "Football: Premier League: Everton vs Chelsea",
+      "startsAt": "2026-10-17T12:30:00+01:00",
+      "timeEvidence": "Football: Premier League\nSaturday 17 October\n12:30PM\nEverton vs Chelsea\nEverton\nChelsea"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-9dae11040019950d3a2bf34b",
+      "kind": "sport",
+      "title": "Football: Premier League: Newcastle vs Aston Villa",
+      "startsAt": "2026-10-17T17:30:00+01:00",
+      "timeEvidence": "Football: Premier League\nSaturday 17 October\n5:30PM\nNewcastle vs Aston Villa\nNewcastle\nAston Villa"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-a8cc5c7c8482f488ae23ef69",
+      "kind": "sport",
+      "title": "Football: Premier League: Bournemouth vs Sunderland",
+      "startsAt": "2026-10-18T14:00:00+01:00",
+      "timeEvidence": "Football: Premier League\nSunday 18 October\n2:00PM\nBournemouth vs Sunderland\nBournemouth\nSunderland"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-3db00aa2056da5eb9e0b9516",
+      "kind": "sport",
+      "title": "Football: Premier League: Leeds vs Man United",
+      "startsAt": "2026-10-18T14:00:00+01:00",
+      "timeEvidence": "Football: Premier League\nSunday 18 October\n2:00PM\nLeeds vs Man United\nLeeds\nMan United"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-cdfff310a5c88c6ee163f1d8",
+      "kind": "sport",
+      "title": "Football: Premier League: Brighton vs Crystal Palace",
+      "startsAt": "2026-10-18T14:00:00+01:00",
+      "timeEvidence": "Football: Premier League\nSunday 18 October\n2:00PM\nBrighton vs Crystal Palace\nBrighton\nCrystal Palace"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-069f2ec214e0cbf7a01eb6b2",
+      "kind": "sport",
+      "title": "Football: Premier League: Nottingham Forest vs Arsenal",
+      "startsAt": "2026-10-18T16:30:00+01:00",
+      "timeEvidence": "Football: Premier League\nSunday 18 October\n4:30PM\nNottingham Forest vs Arsenal\nNottingham Forest\nArsenal"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-f99c8e6089c2cd95c0dc1fae",
+      "kind": "sport",
+      "title": "Football: Premier League: Tottenham vs Coventry",
+      "startsAt": "2026-10-19T20:00:00+01:00",
+      "timeEvidence": "Football: Premier League\nMonday 19 October\n8:00PM\nTottenham vs Coventry\nTottenham\nCoventry"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-56f9da3cd1875ebd102775d8",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Sabah FC (Aze) vs Borussia Dortmund",
+      "startsAt": "2026-10-20T17:45:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nTuesday 20 October\n5:45PM\nSabah FC (Aze) vs Borussia Dortmund\nSabah FC (Aze)\nBorussia Dortmund"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-7d7ca923e1f13aa3c3b5598c",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Fenerbahce vs Slavia Prague",
+      "startsAt": "2026-10-20T17:45:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nTuesday 20 October\n5:45PM\nFenerbahce vs Slavia Prague\nFenerbahce\nSlavia Prague"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-0b6f56cf0d505d15d1474dd6",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Man City vs AEK",
+      "startsAt": "2026-10-20T20:00:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nTuesday 20 October\n8:00PM\nMan City vs AEK\nMan City\nAEK"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-bcf9af7f767855ce24900a67",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Paris vs Barcelona",
+      "startsAt": "2026-10-20T20:00:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nTuesday 20 October\n8:00PM\nParis vs Barcelona\nParis\nBarcelona"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-a096a917c81d2cd324a9e479",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Liverpool vs Villarreal",
+      "startsAt": "2026-10-20T20:00:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nTuesday 20 October\n8:00PM\nLiverpool vs Villarreal\nLiverpool\nVillarreal"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-2a472282b329a516d0f3b05b",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Lille vs Galatasaray",
+      "startsAt": "2026-10-21T17:45:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nWednesday 21 October\n5:45PM\nLille vs Galatasaray\nLille\nGalatasaray"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-10b2894150ef4158faf34c23",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Como vs Man United",
+      "startsAt": "2026-10-21T17:45:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nWednesday 21 October\n5:45PM\nComo vs Man United\nComo\nMan United"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-f59d09469c1cc0ffa3ff077a",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Bayern Munich vs Arsenal",
+      "startsAt": "2026-10-21T20:00:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nWednesday 21 October\n8:00PM\nBayern Munich vs Arsenal\nBayern Munich\nArsenal"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-7f1f725a181738f4f7b9aebd",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Real Madrid vs RB Leipzig",
+      "startsAt": "2026-10-21T20:00:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nWednesday 21 October\n8:00PM\nReal Madrid vs RB Leipzig\nReal Madrid\nRB Leipzig"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-761c80a0958b3e4d335f0d5d",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Inter vs Shakhtar",
+      "startsAt": "2026-10-21T20:00:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nWednesday 21 October\n8:00PM\nInter vs Shakhtar\nInter\nShakhtar"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-9d37f0e070362eed592950f2",
+      "kind": "sport",
+      "title": "Football: Premier League: Ipswich vs Nottingham Forest",
+      "startsAt": "2026-10-23T20:00:00+01:00",
+      "timeEvidence": "Football: Premier League\nFriday 23 October\n8:00PM\nIpswich vs Nottingham Forest\nIpswich\nNottingham Forest"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-50827f4afca8757be5453535",
+      "kind": "sport",
+      "title": "Football: Premier League: Aston Villa vs Man City",
+      "startsAt": "2026-10-24T12:30:00+01:00",
+      "timeEvidence": "Football: Premier League\nSaturday 24 October\n12:30PM\nAston Villa vs Man City\nAston Villa\nMan City"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-1d1fce7dea5ec843d925a3f9",
+      "kind": "sport",
+      "title": "Football: Premier League: Chelsea vs Tottenham",
+      "startsAt": "2026-10-24T17:30:00+01:00",
+      "timeEvidence": "Football: Premier League\nSaturday 24 October\n5:30PM\nChelsea vs Tottenham\nChelsea\nTottenham"
     },
     {
       "placeName": "The Mad Hatter Hotel",
@@ -1173,28 +1581,11 @@
       },
       "observedAt": "2026-10-07T18:49:57.960Z",
       "confidence": "listed",
-      "id": "own-site-bfd55618d7e2c82f54df1313",
-      "kind": "sport",
-      "title": "Football: UEFA Champions League: Arsenal vs Lille",
-      "startsAt": "2026-11-06T20:10:00+00:00",
-      "timeEvidence": "Football: UEFA Champions League\nArsenal vs Lille\nArsenal\nLille\nFriday 6 November\n8:10PM"
-    },
-    {
-      "placeName": "The Trinity",
-      "lat": 51.5010925,
-      "lng": -0.0937912,
-      "venueId": "venue-183bstc",
-      "source": {
-        "label": "The Trinity website",
-        "url": "https://www.thetrinity.co.uk/live-sport/football"
-      },
-      "observedAt": "2026-10-07T18:50:00.671Z",
-      "confidence": "listed",
-      "id": "own-site-92bdd6ed6187d5cad90f1461",
+      "id": "own-site-047e9bdac3a618cfe9cdd13a",
       "kind": "sport",
       "title": "Football: Premier League: Arsenal vs Leeds",
-      "startsAt": "2026-10-11T12:00:00+01:00",
-      "timeEvidence": "Football: Premier League\nArsenal vs Leeds\nArsenal\nLeeds\nSunday 11 October\n12:00PM"
+      "startsAt": "2026-10-10T12:30:00+01:00",
+      "timeEvidence": "Football: Premier League\nSaturday 10 October\n12:30PM\nArsenal vs Leeds\nArsenal\nLeeds"
     },
     {
       "placeName": "The Trinity",
@@ -1203,15 +1594,49 @@
       "venueId": "venue-183bstc",
       "source": {
         "label": "The Trinity website",
-        "url": "https://www.thetrinity.co.uk/live-sport/rugby"
+        "url": "https://www.thetrinity.co.uk/live-sport"
       },
-      "observedAt": "2026-10-07T18:50:03.989Z",
+      "observedAt": "2026-10-07T18:49:57.960Z",
       "confidence": "listed",
-      "id": "own-site-c35ba5f194d4a5f880b78a3c",
+      "id": "own-site-57aa43d326a5703443567bd6",
       "kind": "sport",
-      "title": "Watch live rugby with us",
-      "startsAt": "2026-10-09T19:45:00+01:00",
-      "timeEvidence": "Watch live rugby with us\nFriday 9 October\n7:45PM"
+      "title": "Football: UEFA Champions League: Lens vs Sporting Lisbon",
+      "startsAt": "2026-10-13T17:45:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nTuesday 13 October\n5:45PM\nLens vs Sporting Lisbon\nLens\nSporting Lisbon"
+    },
+    {
+      "placeName": "The Trinity",
+      "lat": 51.5010925,
+      "lng": -0.0937912,
+      "venueId": "venue-183bstc",
+      "source": {
+        "label": "The Trinity website",
+        "url": "https://www.thetrinity.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:49:57.960Z",
+      "confidence": "listed",
+      "id": "own-site-c89262d0284e64123cc52fe8",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Sabah FC (Aze) vs Slavia Prague",
+      "startsAt": "2026-10-13T17:45:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nTuesday 13 October\n5:45PM\nSabah FC (Aze) vs Slavia Prague\nSabah FC (Aze)\nSlavia Prague"
+    },
+    {
+      "placeName": "The Trinity",
+      "lat": 51.5010925,
+      "lng": -0.0937912,
+      "venueId": "venue-183bstc",
+      "source": {
+        "label": "The Trinity website",
+        "url": "https://www.thetrinity.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:49:57.960Z",
+      "confidence": "listed",
+      "id": "own-site-b412dd029e3636d56ba1ef80",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Arsenal vs Lille",
+      "startsAt": "2026-10-13T20:00:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nTuesday 13 October\n8:00PM\nArsenal vs Lille\nArsenal\nLille"
     },
     {
       "placeName": "The Roebuck",
@@ -1237,9 +1662,9 @@
       "venueId": "venue-kyvgg5",
       "source": {
         "label": "The Hanbury website",
-        "url": "https://www.thehanbury.co.uk/events/pub-quiz/"
+        "url": "https://www.thehanbury.co.uk/"
       },
-      "observedAt": "2026-10-07T18:57:04.898Z",
+      "observedAt": "2026-10-07T18:56:58.074Z",
       "confidence": "listed",
       "id": "own-site-c15033cc5fecb49b0777bb53",
       "kind": "music",
@@ -1254,9 +1679,9 @@
       "venueId": "venue-kyvgg5",
       "source": {
         "label": "The Hanbury website",
-        "url": "https://www.thehanbury.co.uk/events/pub-quiz/"
+        "url": "https://www.thehanbury.co.uk/"
       },
-      "observedAt": "2026-10-07T18:57:04.898Z",
+      "observedAt": "2026-10-07T18:56:58.074Z",
       "confidence": "listed",
       "id": "own-site-cc096248d5316952a1414afb",
       "kind": "music",
@@ -1271,9 +1696,9 @@
       "venueId": "venue-kyvgg5",
       "source": {
         "label": "The Hanbury website",
-        "url": "https://www.thehanbury.co.uk/events/pub-quiz/"
+        "url": "https://www.thehanbury.co.uk/"
       },
-      "observedAt": "2026-10-07T18:57:04.898Z",
+      "observedAt": "2026-10-07T18:56:58.074Z",
       "confidence": "listed",
       "id": "own-site-428c547753a368762b3f00e2",
       "kind": "quiz",
@@ -1972,11 +2397,11 @@
       },
       "observedAt": "2026-10-07T19:23:09.531Z",
       "confidence": "listed",
-      "id": "own-site-221afd317d3b7a476a727d61",
-      "kind": "sport",
-      "title": "LIVE SPORT",
+      "id": "own-site-58332c6ff198eb036cfe1fd0",
+      "kind": "quiz",
+      "title": "QUIZ NIGHT",
       "startsAt": "2026-10-08T21:15:00+01:00",
-      "timeEvidence": "LIVE SPORT\nEvery Thursday night Marcus and David, the Quiz-Masters, run a general knowledge quiz to test the very best. Start time is 9:15pm but arrive early, with a jackpot question worth anything up to £500, every quiz night is a busy night.   \nWEEKDAYS & WEEKENDS\nWe have Sky Sports and BT Sport - showing all the latest games"
+      "timeEvidence": "QUIZ NIGHT\nTHURSDAY NIGHTS\nEvery Thursday night Marcus and David, the Quiz-Masters, run a general knowledge quiz to test the very best. Start time is 9:15pm but arrive early, with a jackpot question worth anything up to £500, every quiz night is a busy night.   "
     },
     {
       "placeName": "Wolfpack",
@@ -1985,15 +2410,15 @@
       "venueId": "venue-3svb24",
       "source": {
         "label": "Wolfpack website",
-        "url": "https://wolfpackbars.com/events"
+        "url": "https://wolfpackbars.com/"
       },
-      "observedAt": "2026-10-07T19:23:41.287Z",
+      "observedAt": "2026-10-07T19:23:38.579Z",
       "confidence": "listed",
       "id": "own-site-f5b56f7239258fd71c54a893",
       "kind": "sport",
       "title": "Premier League: Arsenal vs Leeds United",
       "startsAt": "2026-10-10T12:30:00+01:00",
-      "timeEvidence": "Premier League: Arsenal vs Leeds United\nSat 10 October 2026 12:30pm KO All Venues\nArsenal vs Leeds United live at Wolfpack on TNT Sports. Reserve your table for the match.\n⚽\nPremier League"
+      "timeEvidence": "Premier League: Arsenal vs Leeds United\nSat 10 October 2026 · 12:30pm KO\nArsenal vs Leeds United live at Wolfpack on TNT Sports. Reserve your table for the match.\n📍 All Venues\nBook Fast"
     },
     {
       "placeName": "Wolfpack",
@@ -2002,15 +2427,15 @@
       "venueId": "venue-3svb24",
       "source": {
         "label": "Wolfpack website",
-        "url": "https://wolfpackbars.com/events"
+        "url": "https://wolfpackbars.com/"
       },
-      "observedAt": "2026-10-07T19:23:41.287Z",
+      "observedAt": "2026-10-07T19:23:38.579Z",
       "confidence": "listed",
       "id": "own-site-ed1e08481fb5711d4f9a6cee",
       "kind": "sport",
       "title": "Premier League: Manchester United vs Tottenham Hotspur",
       "startsAt": "2026-10-10T17:30:00+01:00",
-      "timeEvidence": "Premier League: Manchester United vs Tottenham Hotspur\nBook Fast\nSat 10 October 2026 5:30pm KO All Venues\nManchester United vs Tottenham Hotspur live at Wolfpack on Sky Sports. Reserve your table for the match.\n⚽\nPremier League"
+      "timeEvidence": "Premier League: Manchester United vs Tottenham Hotspur\nSat 10 October 2026 · 5:30pm KO\nManchester United vs Tottenham Hotspur live at Wolfpack on Sky Sports. Reserve your table for the match.\n📍 All Venues\nBook for the Match See All Events\nEvents & Private Hire"
     },
     {
       "placeName": "Wolfpack",
@@ -2308,9 +2733,9 @@
       "venueId": "venue-816uzg",
       "source": {
         "label": "The Alliance website",
-        "url": "https://locipubs.com/alliance/whats-on/"
+        "url": "https://locipubs.com/alliance/category/whats-on/"
       },
-      "observedAt": "2026-10-07T19:29:17.271Z",
+      "observedAt": "2026-10-07T19:29:11.557Z",
       "confidence": "listed",
       "id": "own-site-2aeb941a62c94bc30948ed75",
       "kind": "quiz",
@@ -2376,9 +2801,9 @@
       "venueId": "venue-1dqfi1i",
       "source": {
         "label": "Sylvan Post website",
-        "url": "https://sylvanpost.co.uk/whats-on/"
+        "url": "https://sylvanpost.co.uk/"
       },
-      "observedAt": "2026-10-07T19:31:57.300Z",
+      "observedAt": "2026-10-07T19:31:55.426Z",
       "confidence": "listed",
       "id": "own-site-ee4f907c8b14793a98723d49",
       "kind": "quiz",

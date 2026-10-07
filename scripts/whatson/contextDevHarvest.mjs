@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 import { contextDevUsage, createContextDevBudget, scrapeMarkdown } from "../../lib/contextDev.ts";
-import { ambiguousPubWebsites, discoverWhatsOnPages, isPubPage, mergeOwnSiteListings, pageKey, plainText, readPubWhatsOn } from "../../lib/harvest/contextDevWhatsOn.ts";
+import { ambiguousPubWebsites, discoverWhatsOnPages, isPartnerFixturePage, isPubPage, mergeOwnSiteListings, pageKey, plainText, readPubWhatsOn } from "../../lib/harvest/contextDevWhatsOn.ts";
 import { siteFactsRows } from "../../lib/harvest/pubSiteHoursAndDogs.ts";
 import { isChainPage, matchPubToVenue, parseChainDenylist } from "../../lib/harvest/pubWebsiteAmenities.ts";
 import { createRobotsChecker } from "../../lib/harvest/robots.ts";
@@ -125,7 +125,6 @@ async function harvest(limit) {
 function publish() {
   const state = read(STATE);
   const asOf = new Date().toISOString();
-  const rows = new Map();
   const hoursByPub = new Map();
   const conflictedHours = new Set();
   const listings = [];
@@ -135,8 +134,8 @@ function publish() {
     if (entry.result.status !== "ok") { observations.push(summary); continue; }
     if (ambiguousSites.has(entry.pub.website)) { observations.push({ ...summary, reason: "AMBIGUOUS_SHARED_SITE", published: false }); continue; }
     const facts = readPubWhatsOn(entry.pub, entry.result.markdown, entry.result.url, entry.observedAt, asOf);
-    listings.push({ sourceUrl: entry.result.url, rows: facts.rows });
-    for (const row of facts.rows) rows.set(row.id, row);
+    const listed = isPartnerFixturePage(entry.result.url) ? [] : facts.rows;
+    listings.push({ sourceUrl: entry.result.url, osmId: entry.pub.osmId, rows: listed });
     if (facts.hours && entry.pub.venueId && !conflictedHours.has(entry.pub.osmId)) {
       const held = hoursByPub.get(entry.pub.osmId);
       const conflict = held && Object.entries(facts.hours.hours).some(([day, windows]) => held.hours.hours[day] && JSON.stringify(held.hours.hours[day]) !== JSON.stringify(windows));
@@ -144,13 +143,13 @@ function publish() {
       else if (!held || facts.hours.statedDays.length > held.hours.statedDays.length)
         hoursByPub.set(entry.pub.osmId, { read: { status: "ok", name: entry.pub.name, venueId: entry.pub.venueId, sourceUrl: entry.result.url }, page: { text: plainText(entry.result.markdown), readAt: entry.observedAt }, hours: facts.hours });
     }
-    observations.push({ ...summary, finalUrl: entry.result.url, contentSha256: createHash("sha256").update(entry.result.markdown).digest("hex"), events: facts.rows.filter((row) => row.kind !== "deal").length, happyHours: facts.rows.filter((row) => row.kind === "deal").length, openingHours: Boolean(facts.hours), drops: facts.drops });
+    observations.push({ ...summary, finalUrl: entry.result.url, contentSha256: createHash("sha256").update(entry.result.markdown).digest("hex"), events: listed.filter((row) => row.kind !== "deal").length, happyHours: listed.filter((row) => row.kind === "deal").length, openingHours: Boolean(facts.hours), drops: facts.drops });
   }
   const whatsOnPath = path.join(ROOT, "public/data/whats_on/events_london.json");
   const held = read(whatsOnPath);
   const previous = Array.isArray(held) ? held : held.rows;
-  const newRows = [...rows.values()];
   const merged = mergeOwnSiteListings(previous, listings, Date.parse(asOf));
+  const published = merged.filter((row) => row.id.startsWith("own-site-"));
   const generatedAt = [held.generatedAt, ...merged.map((row) => row.observedAt)].filter(Boolean).sort().at(-1);
   write(whatsOnPath, { ...(Array.isArray(held) ? { version: 1 } : held), generatedAt, rows: merged });
   const hoursPath = path.join(ROOT, "data/amenities/london_pub_website_hours_dogs.json");
@@ -166,7 +165,7 @@ function publish() {
     hoursDoc.counts = { rows: hoursDoc.rows.length, dogsWelcome: hoursDoc.rows.filter((row) => row.dogs?.policy === "welcome").length, dogsNotAllowed: hoursDoc.rows.filter((row) => row.dogs?.policy === "not-allowed").length, hours: hoursDoc.rows.filter((row) => row.hours).length, withVenueId: hoursDoc.rows.filter((row) => row.venueId).length };
     write(hoursPath, hoursDoc);
   }
-  const report = { assembledAt: new Date().toISOString(), creditsAtStart: read(PLAN).creditsAtStart, creditsUsed: read(PLAN).creditsAtStart - state.creditsAfter, creditsLeft: state.creditsAfter, venuesRead: new Set(state.reads.filter((row) => row.status === "ok").map((row) => row.pub.osmId)).size, pagesRead: state.reads.filter((row) => row.status === "ok").length, eventsPublished: newRows.filter((row) => row.kind !== "deal").length, happyHoursPublished: newRows.filter((row) => row.kind === "deal").length, hoursPublished: hoursDoc.rows.filter((row) => row.hours && Object.hasOwn(reads, row.osmId) && row.sourceUrl === reads[row.osmId].sourceUrl && row.readOn === hoursByPub.get(row.osmId).page.readAt.slice(0, 10)).length, conflictingHoursPages: [...conflictedHours], remainingCandidates: state.pending.length, observations };
+  const report = { assembledAt: new Date().toISOString(), creditsAtStart: read(PLAN).creditsAtStart, creditsUsed: read(PLAN).creditsAtStart - state.creditsAfter, creditsLeft: state.creditsAfter, venuesRead: new Set(state.reads.filter((row) => row.status === "ok").map((row) => row.pub.osmId)).size, pagesRead: state.reads.filter((row) => row.status === "ok").length, eventsPublished: published.filter((row) => row.kind !== "deal").length, happyHoursPublished: published.filter((row) => row.kind === "deal").length, hoursPublished: hoursDoc.rows.filter((row) => row.hours && Object.hasOwn(reads, row.osmId) && row.sourceUrl === reads[row.osmId].sourceUrl && row.readOn === hoursByPub.get(row.osmId).page.readAt.slice(0, 10)).length, conflictingHoursPages: [...conflictedHours], remainingCandidates: state.pending.length, observations };
   write(path.join(REPORT, "report.json"), report);
   console.log(JSON.stringify({ ...report, observations: undefined }));
 }
