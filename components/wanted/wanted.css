@@ -85,6 +85,15 @@
   color: var(--ink);
 }
 
+/* The map link is an <a> in the row's action grid: centre its label like the
+   row's buttons and keep it to its own width rather than the grid's. */
+.wantedRow__map {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: start;
+}
+
 /* On the venue Overview the one painted control is the price door
    (lib/pintTrust.ts, overviewPriceDoor), so this save wears the plain
    secondary surface beside "Save to a list" rather than a second brass fill. */

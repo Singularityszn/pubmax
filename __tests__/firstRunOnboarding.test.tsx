@@ -61,11 +61,27 @@ async function settle() {
   });
 }
 
-/** jsdom walks history on later tasks, so let each popstate land inside act. */
+/**
+ * jsdom walks history on later tasks, so let each popstate land inside act.
+ * A landing on a step the screen cannot show sends a corrective Back from an
+ * effect, and that effect runs as act exits. On a loaded machine the first
+ * popstate and the end of the wait fire in one timer pass, so one fixed wait
+ * can end before the corrective Back is even queued. Wait until a whole
+ * window passes with no popstate.
+ */
 async function historySettles() {
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 50));
-  });
+  for (;;) {
+    let moved = false;
+    const onPopState = () => {
+      moved = true;
+    };
+    window.addEventListener("popstate", onPopState);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    window.removeEventListener("popstate", onPopState);
+    if (!moved) return;
+  }
 }
 
 async function browserBack() {
