@@ -31,17 +31,14 @@ function stampFor(stop: DraftStop): { text: string; bandClass: string } | null {
 
 /**
  * The area is the route's, so it is printed only on a stop the generator placed
- * there (one that still carries its walk or price). A pub the reader picked or
- * swapped in may sit anywhere in the city.
+ * there. Every generated stop carries the generator's `reason` (how far it sits
+ * from the area centre); a pub the reader picked or swapped in carries none and
+ * may sit anywhere in the city.
  */
 function metaFor(stop: DraftStop, areaName: string | null): string {
   const drink = stop.selectedDrinkPriceEvidence;
   const trust = drink ? `${categoryLabel(drink.category)} price` : priceKindLabel(stop.priceKind);
-  const placed = stop.walkFromVenueId !== undefined
-    || stop.walkingMinutesFromPrevious !== undefined
-    || stop.estimatedPintPricePence !== undefined
-    || stop.priceKind !== undefined;
-  return [placed ? areaName : null, trust].filter(Boolean).join(" · ");
+  return [stop.reason ? areaName : null, trust].filter(Boolean).join(" · ");
 }
 
 /** The pub finder an added stop shows until a pub is chosen. */

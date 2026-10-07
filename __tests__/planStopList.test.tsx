@@ -21,13 +21,20 @@ const generated: DraftStop = {
   key: 1,
   venueId: "venue-one",
   venueName: "The Windmill",
-  walkingMinutesFromPrevious: null,
+  reason: "Close to the heart of the area.",
   estimatedPintPricePence: 620,
   priceKind: "listed",
   alternatives: [],
 };
 const picked: DraftStop = { key: 2, venueId: "venue-two", venueName: "Holborn Arms", alternatives: [] };
-const third: DraftStop = { ...generated, key: 3, venueId: "venue-three", venueName: "The Bread and Roses" };
+const third: DraftStop = {
+  ...generated,
+  key: 3,
+  venueId: "venue-three",
+  venueName: "The Bread and Roses",
+  walkingMinutesFromPrevious: 6,
+  walkFromVenueId: "venue-two",
+};
 
 async function mount(overrides: Partial<PlanStopListProps> = {}) {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -78,6 +85,13 @@ describe("PlanStopList", () => {
     await mount();
     const meta = cards().map((card) => card.querySelector(".planStop__meta")?.textContent ?? null);
     expect(meta).toEqual(["Clapham · Listed price", null, "Clapham · Listed price"]);
+  });
+
+  it("prints the area on an unpriced first stop the generator placed", async () => {
+    const unpriced: DraftStop = { key: 1, venueId: "venue-one", venueName: "The Windmill", reason: "Close to the heart of the area.", alternatives: [] };
+    await mount({ stops: [unpriced, picked] });
+    const meta = cards().map((card) => card.querySelector(".planStop__meta")?.textContent ?? null);
+    expect(meta).toEqual(["Clapham", null]);
   });
 
   it("removes a focused stop with Backspace as well as Delete", async () => {
