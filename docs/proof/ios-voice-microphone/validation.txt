@@ -1,0 +1,29 @@
+Recorded on 7 October 2026 after the worker resumed.
+
+Command: npm run verify:no-mistakes
+Every npm run verify check completed successfully.
+Coverage: 1777 files passed, 1 skipped. 20998 tests passed, 1 skipped.
+PostgreSQL: 57 files passed. 554 tests passed.
+Shared-memory harness: 1 file passed. 10 tests passed.
+Lint, database types, TypeScript, map tests, deadcode, E2E skip gate,
+freshness, install-script allowlist and resilient audit passed.
+Wrapper exit: 1, because macOS denied access to the shared Git metadata
+when the wrapper attempted its final bundled-data cleanup.
+
+Firstmate confirmed that Full Disk Access was restored.
+Command: node scripts/run-with-restored-bundled-data.mjs node -e 'process.exit(0)'
+Exit: 0. Bundled-data cleanup completed, and Git status showed only task changes.
+
+Command: npx vitest run __tests__/nativeWrap.test.ts __tests__/pubPalVoiceSession.test.ts
+Exit: 0.
+Test Files: 2 passed (2).
+Tests: 30 passed (30).
+
+Command: plutil -lint ios/App/App/Info.plist
+Exit: 0. Info.plist: OK.
+
+Command: xmllint --noout android/app/src/main/AndroidManifest.xml
+Exit: 0.
+
+Command: git diff --check
+Exit: 0.

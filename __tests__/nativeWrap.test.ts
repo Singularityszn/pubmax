@@ -295,6 +295,20 @@ describe("Capacitor wrapped-build contract", () => {
     expect(compiled).toContain("SceneDelegate.swift");
   });
 
+  it("declares microphone access on both native platforms", () => {
+    const info = rootFile("ios/App/App/Info.plist");
+    expect(info).toMatch(
+      /<key>NSMicrophoneUsageDescription<\/key>\s*<string>[^<\s][^<]+<\/string>/,
+    );
+
+    const manifest = rootFile("android/app/src/main/AndroidManifest.xml");
+    expect(manifest).toContain('android.permission.RECORD_AUDIO');
+    expect(manifest).toContain('android.permission.MODIFY_AUDIO_SETTINGS');
+    expect(manifest).toMatch(
+      /<uses-feature\s+android:name="android.hardware.microphone"\s+android:required="false"\s*\/>/,
+    );
+  });
+
   it("answers export compliance in the build, not by hand on every upload", () => {
     // Absent this key App Store Connect marks EVERY uploaded build "Missing
     // Compliance" and holds it out of TestFlight and review until somebody

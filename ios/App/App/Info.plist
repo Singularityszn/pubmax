@@ -51,6 +51,8 @@
 	<string>PUBMAXXING uses the camera so you can photograph a price board, a pub, or your own night.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>PUBMAXXING uses your location while the app is open to find nearby pubs and calculate walk times.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Pub Pal uses your microphone when you start a voice chat.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>PUBMAXXING opens your photo library so you can choose a photo you have already taken.</string>
 	<!-- The UIScene lifecycle. iOS 27 crashes at launch (EXC_BREAKPOINT in

@@ -1,0 +1,10 @@
+Command: npx vitest run __tests__/nativeWrap.test.ts
+
+Before:
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ Test Files  1 failed (1)
+      Tests  1 failed | 26 passed (27)
+
+After:
+ Test Files  1 passed (1)
+      Tests  27 passed (27)
