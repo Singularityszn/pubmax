@@ -256,7 +256,8 @@ Proof, iPhone 17 simulator on iOS 27.0 (Xcode 27.0), `npm run ios:build`:
   then active.
 - `pubmaxx://` link: `xcrun simctl openurl` stops at the system "Open in
   PUBMAXXING?" prompt, and tapping it needs UI automation this lane may not use.
-  The forwarding is held by the unit test and still needs a device pass.
+  The unit test holds only the manifest, so the forwarding still needs a
+  device pass.
 - No iOS 26 simulator runtime is installed on this Mac, so the iOS 26 pass is
   open.
 - Push token forwarding and the entitlements are unchanged, and still need a
