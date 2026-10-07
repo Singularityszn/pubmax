@@ -34,13 +34,23 @@ Validation results:
 - The five focused unit suites passed all 84 tests.
 - The production device/theme matrix passed all eight checks.
 - The final production build completed with exit code 0.
-- The existing onboarding layout checks passed at 390x844 in light and dark.
-- The wider native push journey failed because its expected contextual push dialog did not appear on Tonight.
-- The first full verification run passed 20,995 tests. Seven harvest fixture tests failed after concurrent Playwright output cleanup removed their files.
-- Browser output now uses a separate artifacts directory.
-- The second full verification run passed data validation, lint, schema types, TypeScript and the ChatGPT map tests.
-  It stopped at Knip with `EPERM` reading the shared Git directory's `info/exclude` file.
-  Its bundled-data restoration also reported that it could not resolve `HEAD`.
-  A later Git read in this worktree resolved `HEAD`, and the tracked data remained unchanged.
+- Thirteen existing onboarding journeys passed, including the short-screen scroller regression and light/dark layout checks.
+- `npm run verify:no-mistakes` completed with exit code 0 after Full Disk Access was restored.
+  Its unit run passed 21,002 tests with one existing skip. PostgreSQL checks passed 564 tests.
+  Data validation, lint, schema types, TypeScript, ChatGPT map checks, Knip, skip checks, freshness and audit passed.
+  Three durable feeds remain unmeasurable without credentials. The freshness check does not report them fresh.
 
-Full verification is incomplete. The shared Git permission problem needs supervisor handling.
+Two existing native push journeys still fail at the expected `Know when tonight changes` dialog on Tonight:
+
+- `native first run hands one useful Plan to the contextual push ask`.
+- `Skip releases onboarding budget for the next Plan but never prompts on reboot`.
+
+Both fail identically on a production build of `origin/main` at `3bc62e232be88dcbfa564ecb01970aba68afa9de`.
+The comparison used the same installed Chrome, port, native shell stub and keyless server settings.
+Both journeys reach Tonight before the shared assertion at `e2e/mobile-first-run-onboarding.spec.ts:57` times out.
+See the [baseline output](push-main.txt), [Lane C Plan output](push-plan-lane-c.txt) and [Lane C Skip output](push-skip-lane-c.txt).
+This evidence establishes a baseline failure. It does not establish that the native push journeys pass.
+
+Earlier verification attempts failed after concurrent Playwright output cleanup removed unit fixtures,
+then at a shared Git `info/exclude` permission error. Browser output now has a separate artifacts directory.
+The final verification retry passed after the permission repair. Tracked datasets remained unchanged.
