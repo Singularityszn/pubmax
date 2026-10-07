@@ -205,8 +205,8 @@ describe("runPalElevenLabsChatTurn", () => {
   });
 
   it.each([
-    ["hi", "Hi. What kind of night are you planning?"],
-    ["hello", "Hi. What kind of night are you planning?"],
+    ["hi", "Hey. Where are you heading tonight?"],
+    ["hello", "Hey. Where are you heading tonight?"],
     ["thanks", "You're welcome."],
   ])("returns a short provider reply for %s without factual cards or tools", async (query, reply) => {
     wsState.storeFilled = false;

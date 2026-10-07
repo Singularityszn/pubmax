@@ -47,14 +47,13 @@ describe("pubpal:agent dry run", () => {
     const body = JSON.parse(printed.slice(printed.indexOf("{"), printed.lastIndexOf("}") + 1));
     const prompt: string = body.conversation_config.agent.prompt.prompt;
     expect(prompt).toContain(
-      "If the person only greets you, reply briefly. Never repeat a question you have already asked in this conversation.",
+      "If the person only greets you, reply with one short line that moves forward: Hey. Where are you heading tonight?",
     );
     expect(prompt).toContain(
-      "If you have not yet asked about their night, reply to a greeting alone with: Hi. What kind of night are you planning?",
+      "Never repeat a question you have already asked in this conversation. If you already asked where they are heading, acknowledge briefly and wait for them to say more.",
     );
-    expect(prompt).toContain(
-      "If you already asked what kind of night they are planning, acknowledge the greeting and move forward, such as: Hey. Where are you heading tonight? Or wait for them to say more.",
-    );
+    // The voice opener already asks this question, so no greeting rule may make the agent ask it again.
+    expect(prompt).not.toContain("What kind of night are you planning?");
     expect(prompt).toContain("Do not call any tool for a greeting alone. Do not infer a request for listings.");
     expect(prompt).toContain("For thanks alone, reply briefly without a tool.");
     expect(prompt).toContain("Use a factual tool only when the person asks for the information that tool provides.");

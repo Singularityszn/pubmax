@@ -61,10 +61,12 @@ The Camden request must call `whats_on` or `tonight_now`.
 
 These snapshots are historical evidence. `provider-after.json` exercised the prompt in commit `3b393586d`.
 That prompt required one exact greeting reply in every context. The voice-shaped probes did not include the voice opener.
-The prompt now depends on context, because the voice opener already asks "What kind of night are you planning?".
-If the agent has not asked that question, a greeting alone still gets the short reply shown above.
-If the agent has asked it, a greeting gets a short acknowledgement that moves forward, or the agent waits.
-No provider run has exercised the context-dependent prompt.
+The voice opener already asks "What kind of night are you planning?", so that reply repeated the opener in voice.
+A later provider run proved it. After the opener, `hi` got "Hi. What kind of night are you planning?" in all 7 runs.
+The model ignored a rule that only applied the reply when it had not yet asked the question.
+The prompt now never asks that question in reply to a greeting.
+A greeting alone gets "Hey. Where are you heading tonight?" in typed chat and in voice.
+If the agent has already asked where they are heading, it acknowledges briefly and waits.
 
 Known follow-up: memory recall order remains inconsistent on the first substantive request.
 The final typed probe recalled preferences before `whats_on`, despite the supplied empty-memory context.
