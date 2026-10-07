@@ -200,8 +200,10 @@ so failed batches recover the decision for the same item.
   and `0.00%` tokens qualify; `4.0%`, `10.0%` and `0.5%` do not.
   Explicit alcohol-free wording also qualifies. Otherwise, the reader uses the
   nearest recognised category word in the name, then the surrounding text.
-  Juice names identify soft drinks. A soda name with no recognised category is
-  dropped instead of borrowing a neighbouring drink's category.
+  Juice names identify soft drinks, and matcha files as coffee. A chai latte
+  or tea latte is not coffee. A soda, tea or chai name (other than iced tea)
+  with no recognised category is dropped instead of borrowing a neighbouring
+  drink's category.
   Named cocktails such as "Negroni on tap" and "Espresso Martini on draught"
   keep their cocktail category. When the priced line has no early cocktail or
   zero-strength title, a conflicting cocktail or zero-strength title on a

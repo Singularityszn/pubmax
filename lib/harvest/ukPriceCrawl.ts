@@ -129,6 +129,14 @@ const ZERO_ALCOHOL_MARKER = /(?<![\w.,])0(?:\.0+)?\s*%(?![\d.])/i;
 const SOFT_DRINK_WEARING_A_BEER_WORD = /\b(ginger\s+(ale|beer)|bitter\s+lemon|root\s+beer|dandelion\s*(and|&)\s*burdock)\b/i;
 
 /**
+ * The words that file a line as coffee. `matcha` is here because a matcha latte
+ * is sold beside the coffees. `latte` after `chai` or `tea` is a tea line, so
+ * "Chai latte" never files as coffee.
+ */
+const COFFEE_HARVEST_WORD_PATTERN =
+  /\b(coffee|espresso|americano|cappuccino|(?<!\b(?:chai|tea)\s)latte|flat white|mocha|matcha)\b/i;
+
+/**
  * The vocabulary that names a category, strongest signal first. The order is
  * the order these are TESTED in, so a phrase that belongs to two lanes lands in
  * the narrower one: "alcohol-free lager" is alcohol-free before it is beer, and
@@ -180,7 +188,7 @@ const CATEGORY_WORDS: ReadonlyArray<{ category: DrinkCategory; pattern: RegExp }
     category: "soft-drink",
     pattern: /\b(soft drink|coke|coca[- ]cola|pepsi|lemonade|j2o|fruit shoot|juice|squash|still water|sparkling water)\b/i,
   },
-  { category: "coffee", pattern: /\b(coffee|espresso|americano|cappuccino|latte|flat white|mocha)\b/i },
+  { category: "coffee", pattern: COFFEE_HARVEST_WORD_PATTERN },
 ];
 
 /**
@@ -719,9 +727,13 @@ function categoryDecisionFromLabel(
     })) return "item-name-ambiguous";
   }
   const decision = categoryDecisionFor(drinkLabel, drinkLabel.length);
-  // A named soda with no alcoholic word is not evidence that a neighbouring
-  // item's beer, wine or spirit word belongs to this price.
-  if (!decision) return /\bsoda\b/i.test(drinkLabel) ? "no-category-word-nearby" : null;
+  // A named soda, tea or chai with no category word is not evidence that a
+  // neighbouring item's beer, wine, spirit or coffee word belongs to this price.
+  if (!decision) {
+    return /\b(?:soda|tea|chai)\b/i.test(drinkLabel) && !/\biced\s+tea\b/i.test(drinkLabel)
+      ? "no-category-word-nearby"
+      : null;
+  }
   // "Vodka Cranberry Juice" is a spirit-and-mixer serve like the `with` lines
   // above: two drinks, one figure, and never the price of a soft drink.
   if (decision.category === "soft-drink") {

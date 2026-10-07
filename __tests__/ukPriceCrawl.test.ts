@@ -396,6 +396,32 @@ describe("what a page states", () => {
     expect(categoryFor("Espresso martini")).toBe("cocktail");
   });
 
+  it("files matcha as coffee and leaves tea lines out of it", () => {
+    expect(categoryFor("Matcha latte")).toBe("coffee");
+    expect(categoryFor("Matcha")).toBe("coffee");
+    expect(categoryFor("Latte")).toBe("coffee");
+    expect(categoryFor("Chai latte")).toBeNull();
+    expect(categoryFor("Tea latte")).toBeNull();
+    expect(readVenueDrinkPrices("<p>Matcha latte £4.20</p>").kept).toEqual([
+      expect.objectContaining({ category: "coffee", priceGbp: 4.2 }),
+    ]);
+    expect(readVenueDrinkPrices("<p>Chai latte £4.20</p>").kept).toEqual([]);
+    // A named tea after a matcha or espresso line must not borrow its category.
+    for (const above of ["Matcha £3.60", "Espresso £2.80"]) {
+      expect(
+        readVenueDrinkPrices(`<p>${above}</p>\n<p>Earl Grey tea £2.50</p>`).kept.map((row) => row.priceGbp),
+      ).toEqual([Number(above.slice(-4))]);
+    }
+  });
+
+  it("never files a chai latte under the drink on the line above", () => {
+    const chaiRows = (html: string) =>
+      readVenueDrinkPrices(html).kept.filter((row) => row.priceGbp === 3.9);
+    expect(chaiRows("<p>Pint of Camden Hells £6.50</p><p>Chai latte £3.90</p>")).toEqual([]);
+    expect(chaiRows("<p>House red wine 175ml £7.50</p><p>Chai latte £3.90</p>")).toEqual([]);
+    expect(chaiRows("<p>Latte £3.40</p><p>Chai latte £3.90</p><p>Flat white £3.30</p>")).toEqual([]);
+  });
+
   it("knows a ginger ale is a soft drink and a measure is not a drink", () => {
     expect(categoryFor("Ginger Ale")).toBe("soft-drink");
     expect(categoryFor("Crabbies Alcoholic ginger beer 3.4%")).toBe("beer");

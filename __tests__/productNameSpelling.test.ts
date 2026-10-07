@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { lstatSync, readFileSync, readdirSync, type Stats } from "node:fs";
 import { extname, join } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -70,6 +70,32 @@ const SKIP_ROOT_DIR_NAMES = new Set([
   "test-results",
 ]);
 
+/**
+ * Other tests create and remove scratch entries under the scanned trees while
+ * this walk runs (scriptGeo's `scripts/.locality-symlink-*`), so an entry listed
+ * a moment ago can be gone by the time it is read. An entry that vanished
+ * mid-walk is not product prose, so it is skipped. Symlinks are not followed:
+ * the tree has none of its own, and a scratch link can be removed between
+ * collecting it and reading it.
+ */
+function statIfPresent(abs: string): Stats | undefined {
+  try {
+    return lstatSync(abs);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw error;
+  }
+}
+
+function listIfPresent(absoluteDir: string): string[] {
+  try {
+    return readdirSync(absoluteDir);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw error;
+  }
+}
+
 function skipsDirectory(relativeDir: string, entry: string): boolean {
   return (
     SKIP_DIR_NAMES.has(entry) || (relativeDir === "" && SKIP_ROOT_DIR_NAMES.has(entry))
@@ -102,27 +128,29 @@ function lineIsExplicitlyAllowed(relativePath: string, line: string): boolean {
 
 function collectAgentsAndReadmes(relativeDir: string, out: Set<string>): void {
   const absoluteDir = relativeDir ? join(ROOT, relativeDir) : ROOT;
-  for (const entry of readdirSync(absoluteDir)) {
+  for (const entry of listIfPresent(absoluteDir)) {
     if (skipsDirectory(relativeDir, entry)) continue;
     const rel = relativeDir ? `${relativeDir}/${entry}` : entry;
     const abs = join(absoluteDir, entry);
-    const stat = statSync(abs);
+    const stat = statIfPresent(abs);
+    if (!stat) continue;
     if (stat.isDirectory()) {
       collectAgentsAndReadmes(rel, out);
       continue;
     }
-    if (entry === "AGENTS.md" || entry === "README.md") {
+    if (stat.isFile() && (entry === "AGENTS.md" || entry === "README.md")) {
       out.add(rel);
     }
   }
 }
 
 function walkFiles(absoluteDir: string, relativeDir: string, out: string[]): void {
-  for (const entry of readdirSync(absoluteDir)) {
+  for (const entry of listIfPresent(absoluteDir)) {
     if (skipsDirectory(relativeDir, entry)) continue;
     const abs = join(absoluteDir, entry);
     const rel = relativeDir ? `${relativeDir}/${entry}` : entry;
-    const stat = statSync(abs);
+    const stat = statIfPresent(abs);
+    if (!stat) continue;
     if (stat.isDirectory()) {
       walkFiles(abs, rel, out);
       continue;
