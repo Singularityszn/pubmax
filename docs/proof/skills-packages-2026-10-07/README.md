@@ -21,6 +21,8 @@ Computer Use checked pubmaxxing.com at desktop 1440 × 900 and mobile 390 × 844
 
 A desktop Pub Pal shortcut covered the venue drawer's Share action. A DOM hit check at Share's center returned the Pal link. The CSS change hides the floating shortcut only while the desktop right venue drawer is open. The left planner and landmark story drawers sit on the opposite edge and keep the shortcut. Local Computer Use verification confirmed that Share receives its center-point hit, the shortcut is hidden while the drawer is open, and it returns after the drawer closes and map banner staging permits it.
 
+A later production-build check found the attribution button clipping the shortcut's lower corner. The desktop map shortcut now reserves 42px below it. This leaves an 8px gap above the collapsed 24px attribution control and its 10px bottom margin. Other desktop routes retain the 22px position. The phone floating stack keeps its existing positions.
+
 ![Production desktop Share action covered by Nova](desktop-share-before.png)
 
 ![Local desktop Share action after the fix, in the fresh session’s default light theme](desktop-share-after.png)
