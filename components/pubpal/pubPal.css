@@ -175,6 +175,10 @@
   .palSummon {
     bottom: 22px;
   }
+  /* Keep an 8px gap above the map's 24px attribution control and 10px bottom margin. */
+  body:has(.mapStage) .palSummon {
+    bottom: 42px;
+  }
   /* The venue drawer owns its action bar while it is open. */
   body:has(.mapDrawer.right.open) .palSummon {
     display: none;
