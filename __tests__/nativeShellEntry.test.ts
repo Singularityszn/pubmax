@@ -2,9 +2,10 @@
 
 // THE SHELL'S COLD START, DECIDED BEFORE THE LANDING PAGE RENDERS.
 //
-// capacitor.config.ts is a remote-URL wrap, so a native launch always opens the
-// site ROOT and lib/entryDecision.ts rewrites it from the client. That rewrite
-// runs in an effect, which means the landing page has already been rendered and
+// capacitor.config.ts is a remote-URL wrap. Newer binaries start at the static
+// /app-entry document through server.appStartPath. Older binaries open the site
+// ROOT, where lib/entryDecision.ts rewrites the launch from the client. That
+// rewrite runs in an effect, which means the landing page has already been rendered and
 // painted by the time it fires: measured on the iPhone 17 Pro simulator against
 // production on 7 September 2026, the landing painted at 7.9s and the first-run
 // screen replaced it at 9.2s (docs/proof/mobile-shells-refresh/). The reader's
