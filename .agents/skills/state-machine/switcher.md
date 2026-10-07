@@ -1,41 +1,41 @@
-# The picker
+# The switcher
 
-The control that switches variants. It sits over the thing being judged, so build the spec below and leave it alone.
+The control that switches states. It sits over the thing being judged, so build the spec below and leave it alone.
 
 ## Deliberately outside the design system
 
-Never style the picker with the project's tokens, fonts or colors. One that looks native to the product becomes part of what you are looking at.
+Never style the switcher with the project's tokens, fonts or colors. One that looks native to the product becomes part of what you are looking at.
 
 One dark neutral surface, the system font stack and no project variables. It does not follow the theme, because dark reads as chrome over both light and dark pages.
 
 ## Behavior
 
-- It sets a `__variant` search param and reads the active variant back from it. The URL is the source of truth, so every variant is a link.
-- Left and right arrows step through the variants. Number keys 1–9 jump to the first nine directly.
-- `H` hides and shows the picker, for screenshots and screen recordings.
+- It sets a `__state` search param and reads the active state back from it. The URL is the source of truth, so every state is a link.
+- Left and right arrows step through the states. Number keys 1–9 jump to the first nine directly.
+- `H` hides and shows the switcher, for screenshots and screen recordings.
 - Key handling ignores events with a modifier key, events already `defaultPrevented` and events from inputs, textareas, selects and contenteditable elements.
 - The active button carries `aria-pressed="true"`, and the container carries a label.
 - Switching is instant, with no transition, and keeps the scroll position.
-- The active variant does not reset on resize. Never render the picker conditionally on viewport width.
+- The active state does not reset on resize. Never render the switcher conditionally on viewport width.
 
 ## Structure
 
-One button per variant, in the order **Name the axis before writing code** listed them.
+One button per state, in the order **Find the states in the code** listed them.
 
 ```html
-<nav class="variant-picker" aria-label="Variants">
-  <button type="button" data-variant="quiet" aria-pressed="true">Quiet</button>
-  <button type="button" data-variant="editorial" aria-pressed="false">Editorial</button>
-  <button type="button" data-variant="dense" aria-pressed="false">Dense</button>
+<nav class="state-switcher" aria-label="States">
+  <button type="button" data-state="loading" aria-pressed="false">Loading</button>
+  <button type="button" data-state="empty" aria-pressed="true">Empty</button>
+  <button type="button" data-state="enterprise" aria-pressed="false">Enterprise</button>
 </nav>
 ```
 
 ## Placement and styling
 
-Fixed, bottom centre, above everything the page can stack. On a narrow viewport it stays 16px from each edge and scrolls sideways, so every variant stays reachable. Arrow keys scroll the active button into view. Where the piece sits at the bottom of the viewport, move the picker to top centre and say so.
+Fixed, bottom centre, above everything the page can stack. On a narrow viewport it stays 16px from each edge and scrolls sideways, so every state stays reachable. Arrow keys scroll the active button into view. Where the component sits at the bottom of the viewport, move the switcher to top centre and say so.
 
 ```css
-.variant-picker {
+.state-switcher {
   all: unset;
   position: fixed;
   bottom: max(24px, env(safe-area-inset-bottom));
@@ -55,7 +55,7 @@ Fixed, bottom centre, above everything the page can stack. On a narrow viewport 
   user-select: none;
 }
 
-.variant-picker button {
+.state-switcher button {
   all: unset;
   flex: none;
   padding: 7px 14px;
@@ -65,16 +65,16 @@ Fixed, bottom centre, above everything the page can stack. On a narrow viewport 
   cursor: pointer;
 }
 
-.variant-picker button:hover {
+.state-switcher button:hover {
   color: rgb(255 255 255 / 0.85);
 }
 
-.variant-picker button[aria-pressed="true"] {
+.state-switcher button[aria-pressed="true"] {
   background: rgb(255 255 255 / 0.14);
   color: rgb(255 255 255);
 }
 
-.variant-picker button:focus-visible {
+.state-switcher button:focus-visible {
   outline: 2px solid rgb(255 255 255 / 0.7);
   outline-offset: 2px;
 }
