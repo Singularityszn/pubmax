@@ -44,6 +44,21 @@ describe("POST /api/pub-pal/chat", () => {
     ["thanks", "You're welcome."],
     [" HELLO! ", "Hi. What kind of night are you planning?"],
     ["Thank you.", "You're welcome."],
+    ["hi there", "Hi. What kind of night are you planning?"],
+    ["hey there", "Hi. What kind of night are you planning?"],
+    ["hello there", "Hi. What kind of night are you planning?"],
+    ["hiya", "Hi. What kind of night are you planning?"],
+    ["heya", "Hi. What kind of night are you planning?"],
+    ["yo", "Hi. What kind of night are you planning?"],
+    ["hi pal", "Hi. What kind of night are you planning?"],
+    ["Hello, Pub Pal!", "Hi. What kind of night are you planning?"],
+    ["good evening", "Hi. What kind of night are you planning?"],
+    ["evening", "Hi. What kind of night are you planning?"],
+    ["thx", "You're welcome."],
+    ["ty", "You're welcome."],
+    ["thanks a lot", "You're welcome."],
+    ["thank you so much!", "You're welcome."],
+    ["cheers mate", "You're welcome."],
   ])("answers keyless %s briefly without factual tools", async (query, answer) => {
     vi.stubEnv("ELEVENLABS_API_KEY", "");
     const fetchMock = vi.fn(offlineFetch);
@@ -97,6 +112,8 @@ describe("POST /api/pub-pal/chat", () => {
   it.each([
     ["hi, what's on in Camden tonight?", "whats_on", /Camden/i],
     ["thanks, how busy is Soho?", "tonight_now", /no live crowd reading/i],
+    ["hi there, what's on in Camden tonight?", "whats_on", /Camden/i],
+    ["cheers mate, how busy is Soho?", "tonight_now", /no live crowd reading/i],
   ])("keeps factual routing for keyless %s", async (query, tool, answer) => {
     vi.stubEnv("ELEVENLABS_API_KEY", "");
     vi.stubGlobal("fetch", offlineFetch);

@@ -609,7 +609,13 @@ export default function PalChat() {
                     {recall.line}
                   </p>
                 ) : null}
-                {locality ? (
+                {/* The line scopes the cards or a place the reader named. A reply
+                    with neither, such as a greeting, has nothing to scope. */}
+                {locality &&
+                (answer.cards.length > 0 ||
+                  locality.scope === "query" ||
+                  locality.unplaced ||
+                  locality.askedLondon) ? (
                   <p className="palChatLocality" role="note">
                     {palLocalityLine(locality)}
                   </p>
