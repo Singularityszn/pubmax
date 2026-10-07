@@ -106,7 +106,11 @@ describe("the bottom card's three honest states", () => {
         walkMinutes: null,
       },
     });
-    expect(html).toContain('<span class="mapPeekLabel">Set lunch ·</span><span class="mapPeekPrice">£4.00</span>');
+    expect(html).toContain(
+      '<span class="mapPeekEyebrow"><span>Cheapest in this view</span><span class="mapPeekLabel">· Set lunch</span></span>',
+    );
+    expect(html).toContain('<span class="mapPeekLine"><span class="mapPeekPrice">£4.00</span>');
+    expect(render(ANSWER)).not.toContain("mapPeekLabel");
     expect(html).toContain(
       'aria-label="Cheapest in this view: Set lunch · £4.00 (Sep · example.com) at Bistro. Open this venue"',
     );

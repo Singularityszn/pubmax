@@ -210,11 +210,13 @@ export default function MapPeekSheet({
             aria-label={`${summary}. Open this ${model.answer.isPub ? "pub" : "venue"}`}
             onClick={() => onOpenVenue(model.answer.venueId)}
           >
-            <span className="mapPeekEyebrow">Cheapest in this view</span>
-            <span className="mapPeekLine">
+            <span className="mapPeekEyebrow">
+              <span>Cheapest in this view</span>
               {model.answer.lineLabel !== null ? (
-                <span className="mapPeekLabel">{model.answer.lineLabel} ·</span>
+                <span className="mapPeekLabel">· {model.answer.lineLabel}</span>
               ) : null}
+            </span>
+            <span className="mapPeekLine">
               <span className="mapPeekPrice">{model.answer.figureLabel}</span>
               <span className="mapPeekName">{model.answer.name}</span>
               {model.answer.walkMinutes !== null ? (
