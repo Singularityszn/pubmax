@@ -213,7 +213,7 @@ export default function PlanStopList({
         aria-label="Stops, in walking order"
       >
         {stops.map((stop, index) => {
-          const resolved = Boolean(stop.venueId.trim());
+          const resolved = Boolean(stop.venueId.trim() && stop.venueName.trim());
           const previous = stops[index - 1];
           const minutes = previous && previous.venueId && resolved
             ? walkMinutesBetween(previous, stop, measured)
