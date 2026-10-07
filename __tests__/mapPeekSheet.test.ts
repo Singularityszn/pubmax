@@ -154,6 +154,10 @@ describe("the card is one surface with one budget", () => {
     expect(rule).toContain("touch-action: none;");
   });
 
+  it("rises over the Create action while held, and still under the sheet portal", () => {
+    expect(shell).toContain('.mapPeek[data-dragging="true"] {\n    z-index: calc(var(--z-float-action) + 1);');
+  });
+
   it("stands down under a sheet and the consent card, and never fires a haptic", () => {
     expect(shell).toContain("body:has(.mobileSheetPortal) .mapPeek");
     expect(shell).toContain('.mapPeek[data-covered="true"]');
