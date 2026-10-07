@@ -67,8 +67,6 @@ function shellProps(overrides: Record<string, unknown> = {}) {
     nearMeError: null,
     onDismissNearMeError: vi.fn(),
     nearbyCount: 0,
-    tonightCount: 0,
-    tonightNearReader: false,
     tflCount: 0,
     tflStatus: "clear" as const,
     priceLabel: "Any price",

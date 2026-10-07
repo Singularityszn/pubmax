@@ -276,6 +276,37 @@ function sortMapVenueListRowsCheapest(
   });
 }
 
+/**
+ * The one priced pub in view the map would put first on a cheapest sort, with
+ * the figure it ranked on. Same stack as List view's "cheapest" order (drink
+ * lens price alone, else the pint authority via venueSignals), so the peek
+ * answer and the first row of the list can never disagree. A non-pub anchor is
+ * not a pint and may not win the pint default; a lens price may belong to any
+ * kind that serves the drink. Null when nothing in view carries a price.
+ */
+export function mapVenueListCheapest(
+  venues: readonly Venue[],
+  lensPrices: ReadonlyMap<string, MapLensPrice> | null = null,
+  venueSignals: MapVenueListVenueSignals | null = null,
+): { venue: Venue; priceGbp: number } | null {
+  let best: { venue: Venue; priceGbp: number } | null = null;
+  for (const venue of venues) {
+    if (lensPrices === null && !isPubVenueKind(venue.kind)) continue;
+    const priceGbp = mapVenueListSortPrice(venue, lensPrices, venueSignals);
+    if (priceGbp === null) continue;
+    if (
+      best === null ||
+      priceGbp < best.priceGbp ||
+      (priceGbp === best.priceGbp &&
+        (venue.name.localeCompare(best.venue.name) ||
+          venue.id.localeCompare(best.venue.id)) < 0)
+    ) {
+      best = { venue, priceGbp };
+    }
+  }
+  return best;
+}
+
 export function buildUkBasePubListModel(
   pubs: UkBasePub[],
   viewportCenter: [number, number] | null,

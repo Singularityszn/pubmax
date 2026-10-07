@@ -60,7 +60,45 @@ describe("mapFirstVisitArrival", () => {
         storage,
       }),
     ).toBe(false);
-    expect(storage.getItem(MAP_FIRST_VISIT_ARRIVAL_KEY)).toBe("dismissed");
+    expect(storage.getItem(MAP_FIRST_VISIT_ARRIVAL_KEY)).toMatch(/^dismissed:\d+$/);
+  });
+
+  describe("the 30 day quiet window", () => {
+    const DAY = 24 * 60 * 60 * 1000;
+    const answeredAt = Date.UTC(2026, 9, 1, 12);
+
+    it("holds for 30 days after any answer, then lets the ask be made once more", () => {
+      const storage = makeMemoryStorage();
+      dismissMapFirstVisitArrival(storage, answeredAt);
+      expect(storage.getItem(MAP_FIRST_VISIT_ARRIVAL_KEY)).toBe(`dismissed:${answeredAt}`);
+      expect(hasDismissedMapFirstVisitArrival(storage, answeredAt + 29 * DAY)).toBe(true);
+      expect(hasDismissedMapFirstVisitArrival(storage, answeredAt + 30 * DAY)).toBe(false);
+      expect(
+        shouldShowMapFirstVisitArrival({
+          pinsRevealed: true,
+          search: "",
+          storage,
+        }),
+      ).toBe(false);
+    });
+
+    it("never expires the bare value every earlier build wrote", () => {
+      const storage = makeMemoryStorage();
+      storage.setItem(MAP_FIRST_VISIT_ARRIVAL_KEY, "dismissed");
+      expect(hasDismissedMapFirstVisitArrival(storage, answeredAt + 400 * DAY)).toBe(true);
+    });
+
+    it("reads an unreadable date as answered, never as a reason to ask again", () => {
+      const storage = makeMemoryStorage();
+      storage.setItem(MAP_FIRST_VISIT_ARRIVAL_KEY, "dismissed:soon");
+      expect(hasDismissedMapFirstVisitArrival(storage, answeredAt)).toBe(true);
+    });
+
+    it("treats a date in the future as inside the window", () => {
+      const storage = makeMemoryStorage();
+      dismissMapFirstVisitArrival(storage, answeredAt + 5 * DAY);
+      expect(hasDismissedMapFirstVisitArrival(storage, answeredAt)).toBe(true);
+    });
   });
 
   it("stands down while a recovery toast owns the surface, and returns after", () => {

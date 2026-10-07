@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarClock, List, MapPinned, Navigation2, ShieldCheck, X } from "lucide-react";
+import { CalendarClock, ChevronRight, List, MapPinned, Navigation2, ShieldCheck, X } from "lucide-react";
 import { formatGbp } from "@/lib/formatGbp";
 import { priceBand, priceBandAreaForVenue, priceBandClass } from "@/lib/priceBand";
 import dynamic from "next/dynamic";
@@ -196,6 +196,7 @@ const DrinkShapeChips = dynamic(() => import("@/components/map/DrinkShapeChips")
   ssr: false,
 });
 const MapKey = dynamic(() => import("@/components/map/MapKey"), { ssr: false });
+const MapCredits = dynamic(() => import("@/components/map/MapCredits"), { ssr: false });
 const MapPriceFilterChips = dynamic(() => import("@/components/map/MapPriceFilterChips"), {
   ssr: false,
 });
@@ -609,6 +610,8 @@ import { landmarkAreaLine, nightAreaContaining } from "@/lib/landmarkArea";
 import { currentSurface, homeActionLabel, type SurfaceEntry } from "@/lib/surfaceStack";
 import { readMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
 import { mapListOpenFromSearch } from "@/lib/mapListRoute";
+import { buildTonightChip } from "@/lib/mapChromeTiers";
+import { buildMapPeek } from "@/lib/mapPeek";
 import {
   filtersForCuratedCrawl,
   generatedMapDrinkLane,
@@ -3201,6 +3204,28 @@ export default function PubMap({
       venueSignals,
     ],
   );
+  // The phone map's resting answer: the cheapest listed price among the pubs in
+  // the settled view, ranked by the same stack as List view's cheapest sort.
+  // `ready` follows the projection landing for THIS city, so a map that has not
+  // said what it is showing claims nothing.
+  const mapPeek = useMemo(
+    () =>
+      buildMapPeek({
+        ready: visibleVenueState?.cityId === cityId,
+        venues: mapVenueListVenues,
+        lensPrices: activeLensPrices,
+        venueSignals,
+        reader: userLocation,
+      }),
+    [
+      activeLensPrices,
+      cityId,
+      mapVenueListVenues,
+      userLocation,
+      venueSignals,
+      visibleVenueState?.cityId,
+    ],
+  );
   const [renderedBasePubs, setRenderedBasePubs] = useState<UkBasePub[]>([]);
   const [ukBaseStatus, setUkBaseStatus] =
     useState<UkBaseStreamStatus>("loading");
@@ -4931,6 +4956,13 @@ export default function PubMap({
     setMapOverlay(next);
   }, [clearAreaSheetTimer, clearLogIntent, closeComposer, hasCategoryPriceIntent, setPlanningOpen]);
 
+  // The bottom card's way into the list: it answers "cheapest in this view",
+  // so the list it opens leads with the same ranking.
+  const openVenueListFromPeek = useCallback(() => {
+    setMapListSortMode("cheapest");
+    setMapListOpen(true);
+  }, []);
+
   const openChooseArea = useCallback((locationNote?: string | null, openingFlow = false) => {
     setChooseAreaLocationNote(locationNote ?? null);
     // The sheet takes the sentence, so the floating alert lets go of it: two
@@ -5984,6 +6016,7 @@ export default function PubMap({
         </TabsList>
         <TabsContent value="key" className="mobileLayersPanel">
           <MapKey legend={activePriceLegend} />
+          <MapCredits />
         </TabsContent>
         <TabsContent value="layers" className="mobileLayersPanel">
           <div className="mobileLayerShortcuts">
@@ -6087,9 +6120,29 @@ export default function PubMap({
   }
 
   /* The phone's Filters sheet. The desktop reads all of this off the toolbar and the rail. */
+  const tonightLens = buildTonightChip(whatsOnTonight.rows.length, userLocation != null);
+
   function renderMobileFiltersPanel() {
     return (
       <div className="mobileMapFilters">
+        {/* What's On is a lens on the night, one row down from the map: the
+            chip that used to sit beside the drink lane is gone so the phone map
+            rests on three layers. It opens the same Tonight sheet. */}
+        {isLondon && tonightLens ? (
+          <button
+            type="button"
+            className="mobileMapTonightLens"
+            aria-label={tonightLens.ariaLabel}
+            onClick={() => changeMapOverlay("tonight")}
+          >
+            <CalendarClock size={18} aria-hidden="true" />
+            <span className="mobileMapTonightLensText">
+              <strong>{tonightLens.label}</strong>
+              <small>{tonightLens.count} {tonightLens.count === 1 ? "listing" : "listings"}{userLocation ? " near you" : " in London"}</small>
+            </span>
+            <ChevronRight size={18} aria-hidden="true" className="mobileMapTonightLensChevron" />
+          </button>
+        ) : null}
         <MapExperienceLensControl
           lens={experienceLens}
           allSelected={!drinkFiltersActive}
@@ -6245,9 +6298,8 @@ export default function PubMap({
         nearMeError={nearbyError}
         onDismissNearMeError={() => setNearbyError(null)}
         nearbyCount={nearbyMapResultForView?.venueIds.length ?? 0}
-        tonightCount={whatsOnTonight.rows.length}
-        tonightNearReader={userLocation != null}
         tflCount={tflStatus.issueCount}
+        tflUrgentCount={tflStatus.urgentCount}
         tflStatus={tflStatus.failed ? "unavailable" : !tflStatus.payload ? "checking" : tflStatus.issueCount ? "issues" : "clear"}
         priceLabel={filters.maxPrice < NO_PINT_PRICE_CAP ? `≤${formatGbp(filters.maxPrice)}` : "Price"}
         drinkFiltersActive={drinkFiltersActive}
@@ -6280,6 +6332,9 @@ export default function PubMap({
         venueListOpen={mapListOpen}
         bandNoticeOpen={showBandChip}
         onPlan={openPlanning}
+        peek={showMapArrivalCard ? null : mapPeek}
+        onPeekOpenVenue={selectVenue}
+        onPeekOpenList={openVenueListFromPeek}
         searchProps={{
           ...sharedMapSearchProps,
           id: "mobileMapSearchInput",
