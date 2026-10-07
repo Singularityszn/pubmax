@@ -5,7 +5,7 @@
 	<!-- The machine-readable half of docs/STORE_READINESS.md section 5. Apple
 	     reads this file and the App Privacy answers typed into App Store
 	     Connect, and a disagreement between the two is a review finding, so
-	     the five entries below are the same five the doc declares, in the
+	     the six entries below are the same six the doc declares, in the
 	     same order, with the same linked/tracking answers.
 	     __tests__/iosPrivacyManifest.test.ts holds them to each other. -->
 	<key>NSPrivacyTracking</key>
@@ -81,6 +81,21 @@
 			<string>NSPrivacyCollectedDataTypePreciseLocation</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
 			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<!-- Pub Pal voice streams the microphone to ElevenLabs while a
+			     person talks to it (components/pubpal/PubPalVoiceSession.tsx).
+			     The audio is not kept. -->
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeAudioData</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
 			<key>NSPrivacyCollectedDataTypeTracking</key>
 			<false/>
 			<key>NSPrivacyCollectedDataTypePurposes</key>

@@ -423,15 +423,21 @@ describe("Capacitor wrapped-build contract", () => {
   });
 
   it("uses the canonical app name in iOS permission explanations", () => {
-    const info = rootFile("ios/App/App/Info.plist");
-    expect(info).toContain(
-      `<string>${APP_NAME} uses the camera so you can photograph a price board, a pub, or your own night.</string>`,
+    const info = plistRoot("ios/App/App/Info.plist");
+    expect(info.NSCameraUsageDescription).toBe(
+      `${APP_NAME} uses the camera so you can photograph a price board, a pub, or your own night.`,
     );
-    expect(info).toContain(
-      `<string>${APP_NAME} uses your location while the app is open to find nearby pubs and calculate walk times.</string>`,
+    expect(info.NSLocationWhenInUseUsageDescription).toBe(
+      `${APP_NAME} uses your location while the app is open to find nearby pubs and calculate walk times.`,
     );
-    expect(info).toContain(
-      `<string>${APP_NAME} opens your photo library so you can choose a photo you have already taken.</string>`,
+    expect(info.NSMicrophoneUsageDescription).toBe(
+      `${APP_NAME} uses your microphone only while you talk to Pub Pal.`,
+    );
+    expect(info.NSPhotoLibraryUsageDescription).toBe(
+      `${APP_NAME} opens your photo library so you can choose a photo you have already taken.`,
+    );
+    expect(info.NSSpeechRecognitionUsageDescription).toBe(
+      `${APP_NAME} uses speech recognition only while you dictate a note or a plan.`,
     );
   });
 

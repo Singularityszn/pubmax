@@ -18,6 +18,9 @@ iOS 27.0.
 After adding the explanation, the same native permission request displayed
 [the system microphone prompt](after-permission-prompt.png). The built plist
 contained `Pub Pal uses your microphone when you start a voice chat.`
+Review later changed the wording to the `APP_NAME` form, `PUBMAXXING uses your
+microphone only while you talk to Pub Pal.` The key is the same, so the crash
+proof still holds. The new wording was not captured on the simulator.
 
 After `simctl privacy ... grant microphone com.pubmaxx.app` and a relaunch,
 the permission callback returned `true`. [The capture log](after-capture.txt)

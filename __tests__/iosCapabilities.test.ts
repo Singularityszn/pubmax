@@ -79,13 +79,14 @@ describe("the privacy manifest agrees with the answers we publish", () => {
   const manifest = read(MANIFEST);
   const readiness = read("docs/STORE_READINESS.md");
 
-  /** The five things section 5 says the app collects. */
+  /** The six things section 5 says the app collects. */
   const DECLARED = [
     "NSPrivacyCollectedDataTypeEmailAddress",
     "NSPrivacyCollectedDataTypePhotosorVideos",
     "NSPrivacyCollectedDataTypeDeviceID",
     "NSPrivacyCollectedDataTypeProductInteraction",
     "NSPrivacyCollectedDataTypePreciseLocation",
+    "NSPrivacyCollectedDataTypeAudioData",
   ] as const;
 
   it("declares each collected type once and nothing else", () => {
