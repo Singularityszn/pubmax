@@ -83,7 +83,12 @@ describe("SaveForNightButton prompt slot", () => {
   });
 
   it("claims the slot on tap when signed out and offers the sign-in control first", async () => {
-    auth.current = { user: null, identityResolved: true, handle: null };
+    auth.current = {
+      user: null,
+      identityResolved: true,
+      handle: null,
+      providerAuthState: "signed-out",
+    };
     const onActivate = vi.fn();
     await renderNight(true, onActivate);
     await act(async () => {
@@ -96,6 +101,23 @@ describe("SaveForNightButton prompt slot", () => {
     expect(authedActionFetch).not.toHaveBeenCalled();
     expect(container.textContent).toContain("Sign in to save for a night.");
     expect(container.textContent).toContain("[sign-in control]");
+  });
+
+  it("does not offer sign-in while the live session has not answered", async () => {
+    auth.current = {
+      user: null,
+      identityResolved: true,
+      handle: null,
+      providerAuthState: "unresolved",
+    };
+    await renderNight(true);
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>(".wantedSaveBtn")!.click();
+    });
+    await flush();
+    // The tap asks the server, which answers sign_in_required for this mock.
+    expect(authedActionFetch).toHaveBeenCalledTimes(1);
+    expect(container.textContent).not.toContain("[sign-in control]");
   });
 
   it("shows a signed-in account with no handle the handle door instead of a failing save", async () => {

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import SignInButton from "@/components/auth/SignInButton";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
+import { useViewerSession } from "@/components/auth/useViewerSession";
 import ContributionGateDoor from "@/components/identity/ContributionGateDoor";
 import { trackEvent } from "@/lib/analytics";
 import { haptic } from "@/lib/nativeHaptics";
@@ -29,7 +30,8 @@ export default function SaveForNightButton({
   /** Called when a tap makes this control the one that speaks. */
   onActivate?: () => void;
 }): React.JSX.Element {
-  const { user, identityResolved } = useAuth();
+  const { identityResolved } = useAuth();
+  const viewerSession = useViewerSession();
   const handle = useViewerHandle();
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -37,12 +39,12 @@ export default function SaveForNightButton({
 
   function tap() {
     onActivate?.();
-    if (identityResolved && !user) {
+    if (viewerSession.signedOut) {
       setDoor(null);
       setToast("Sign in to save for a night.");
       return;
     }
-    if (identityResolved && !handle) {
+    if (viewerSession.signedIn && identityResolved && !handle) {
       setToast(null);
       setDoor("onboarding_required");
       return;
@@ -112,7 +114,7 @@ export default function SaveForNightButton({
           {toast}
         </p>
       ) : null}
-      {toast && active && !user ? <SignInButton /> : null}
+      {toast && active && viewerSession.signedOut ? <SignInButton /> : null}
       {door && active ? (
         <ContributionGateDoor
           status={door}
