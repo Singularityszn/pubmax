@@ -327,7 +327,7 @@ Declare the following. Everything else: Not Collected.
 - **Precise location:** Collected, optional, processed ephemerally, purpose App functionality, not used for tracking. Full GPS precision stays on the device; only the three-decimal point leaves it. In the Data safety flow, identify the ephemeral processing and current service-provider or user-initiated transfers exactly as the form asks.
 - **Personal info > Email address:** Collected, not shared, optional, purpose App functionality. Encrypted in transit. Account deletion removes the sign-in address; other erasure requests use the public contact in `lib/siteContact.mjs`.
 - **Photos and videos:** Collected, purpose App functionality. Answer **shared: yes** for pub wall and Drink Wall photos. A wall photo is PUBLIC by design: it appears on that pub's page and on `/wall` when it is in the city grid, and the pub-wall composer offers a crosspost to the public feed. Saying "not shared publicly by default" would be a wrong answer on the form, not a cautious one. Moment drafts stay on the device and are collected only on publish.
-- **Audio > Voice or sound recordings:** Collected, not shared, optional, purpose App functionality. Pub Pal voice streams the microphone to ElevenLabs as a service provider while the user talks to it. PUBMAXXING stores no audio. The checked-in agent config requests no voice recording and zero retention, but the live ElevenLabs settings are unverified. Do not answer "processed ephemerally" until the live settings are confirmed to keep nothing before submission.
+- **Audio > Voice or sound recordings:** Collected, not shared, optional, purpose App functionality. Do not answer "processed ephemerally" unless the live provider settings confirm no retention. See this section's Audio (voice) row for the check.
 - **App activity > Product interaction:** Collected, not shared, optional (opt-in), purpose Analytics. Encrypted in transit.
 - **Device or other IDs:** Collected (push token), not shared, purpose App functionality.
 - **Is all data encrypted in transit?** Yes (HTTPS only, the shell loads `https://pubmaxxing.com`).
@@ -996,12 +996,8 @@ not tick any band under 18 and do not opt into Designed for Families.
 - **Photos and videos > Photos:** collected AND **shared**. Purpose: App
   functionality. A pub wall photo is public by design, so "shared" is the honest
   answer here and "not shared" would be a wrong one.
-- **Audio > Voice or sound recordings:** collected, not shared. Optional.
-  Purpose: App functionality. Pub Pal voice streams the microphone to
-  ElevenLabs as a service provider. PUBMAXXING stores no audio. The checked-in
-  agent config requests no voice recording and zero retention, but the live
-  ElevenLabs settings are unverified. Confirm them first, and do not tick
-  "processed ephemerally" unless they keep nothing.
+- **Audio > Voice or sound recordings:** use the Google Play Data safety
+  answers in section 5, including the required check of live provider retention.
 - **App activity > App interactions:** collected, not shared. Optional, because
   analytics are opt-in and default off. Purpose: Analytics.
 - **Device or other IDs:** collected, not shared. Purpose: App functionality

@@ -20,7 +20,7 @@ Progression unlocks only cosmetics, animation, home objects, reactions, and city
 
 - Pal creation requires an authenticated account and an 18+ attestation without storing a full birth date.
 - Users control creative identity and privacy, but cannot disable factuality, moderation, legal, or safety constraints.
-- Voice credentials stay server-side. Voice recording is off, but ElevenLabs may
-  retain conversation data under its default policy (`retention: provider_default`
-  on `/api/pub-pal/voice-token`). Raw audio and transcripts are never Pal memory.
+- Voice credentials stay server-side. Raw audio and transcripts are never Pal memory.
+  [STORE_READINESS section 5](../STORE_READINESS.md#5-privacy-questionnaire-answers)
+  owns the provider privacy settings and live verification requirements.
 - Futuristic brand expression lives in the interface, map, motion, and Pub Pal. Humanoid Night Signals are not part of the production experience.

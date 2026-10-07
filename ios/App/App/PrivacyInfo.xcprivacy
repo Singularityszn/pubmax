@@ -47,9 +47,8 @@
 		<dict>
 			<!-- Pub Pal voice streams the microphone to ElevenLabs while a
 			     person talks to it (components/pubpal/PubPalVoiceSession.tsx).
-			     PUBMAXXING stores no audio. The provider retention settings
-			     requested in scripts/pubpal/create-elevenlabs-agent.mjs are
-			     not verified against the live agent. -->
+			     Provider retention and live verification requirements are in
+			     docs/STORE_READINESS.md section 5, Audio (voice). -->
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeAudioData</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
