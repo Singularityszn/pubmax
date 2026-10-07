@@ -105,7 +105,8 @@ function readOpen(): boolean {
   const { innerWidth: width, innerHeight: height } = window;
   nativeLowestHeight = width === nativeLowestWidth ? Math.min(nativeLowestHeight, height) : height;
   nativeLowestWidth = width;
-  const keyboardClosed = height - nativeLowestHeight >= height * SOFT_KEYBOARD_MIN_SHRINK_RATIO;
+  const keyboardClosed =
+    height - nativeLowestHeight >= Math.max(height, nativeLayoutHeight) * SOFT_KEYBOARD_MIN_SHRINK_RATIO;
   if (!focused || (width !== nativeLayoutWidth && (!open || keyboardClosed))) {
     nativeLayoutHeight = height;
     nativeLayoutWidth = width;
