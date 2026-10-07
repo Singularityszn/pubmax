@@ -48,8 +48,8 @@ Upstream `SKILL.md` trees were copied flat, one directory per skill. Plugin test
 ### Leonxlnx/taste-skill
 
 - Repo: https://github.com/Leonxlnx/taste-skill
-- Commit: `e3c92037548e3e49bea8e6b906c99a8549654e71` (`main`)
-- Checked 7 Oct 2026. All thirteen installed skill trees match this tip.
+- Commit: `b482f7a970abb98c4108d4a9f761e458c64cefc8` (`main`)
+- Checked 7 Oct 2026. All thirteen installed skill trees match this tip. It changes only the upstream README and an image after `e3c92037548e3e49bea8e6b906c99a8549654e71`.
 
 Directory name, then frontmatter `name` when it differs:
 
@@ -157,7 +157,7 @@ Left upstream: `deploy-to-vercel` (the machine already has `deploy-with-vercel`)
 ### elevenlabs/skills
 
 - Repo: https://github.com/elevenlabs/skills
-- Commit: `25bd9ad1c31af658fba6cc7d8ec1f1e2a715c049` (`main`)
+- Commit: `1d08a4a250cff67cc8056ec31587c031ecb06d2f` (`main`)
 - Refreshed 7 Oct 2026.
 
 `elevenlabs-agents` is the upstream `agents` skill. The directory and the frontmatter `name` are `elevenlabs-agents` so this copy does not register as a generic agents skill. Also `text-to-speech`, `speech-to-text`, `speech-engine`.
@@ -169,8 +169,8 @@ Left upstream: `dubbing`, `music`, `sound-effects`, `voice-changer`, `voice-isol
 ### PostHog/skills
 
 - Repo: https://github.com/PostHog/skills
-- Commit: `8321fc1dab05b8f3dfdb6d6b5c76c097b99b8677` (`main`)
-- Checked 7 Oct 2026. This is the upstream tip.
+- Commit: `175a8488f84a3708d18c7b7e4e676b0de649047d` (`main`)
+- Checked 7 Oct 2026. The three installed skill trees match this tip. It changes only other PostHog skills after `8321fc1dab05b8f3dfdb6d6b5c76c097b99b8677`.
 
 `integration-nextjs-app-router`, `feature-flags-nextjs`, `error-tracking-nextjs`.
 
@@ -200,4 +200,4 @@ Anthropic `frontend-design` is installed in the canonical machine-wide skill roo
 
 ## Maintenance check, 7 Oct 2026
 
-All eleven documented upstream repositories were checked at their default branch tips. The installed Jakub skills, MapLibre cartography and glyph guidance, and ElevenLabs `elevenlabs-agents` configuration and client-tool references, `speech-engine` SDK references, and `text-to-speech` skill, installation, streaming and voice-settings references were refreshed. Other installed trees have no upstream content changes. Existing namespace changes, install guards, removed sibling links, and the Vercel scope fix remain. The added `state-machine` skill keeps a local Next.js server-boundary guard. Upstream CHANGELOG.md files were not modified. The three PUBMAXX-specific skills have no upstream.
+All eleven documented upstream repositories were checked at their default branch tips. The installed Jakub skills, MapLibre cartography and glyph guidance, and ElevenLabs `elevenlabs-agents` skill, configuration and client-tool references, `speech-engine` SDK references, and `text-to-speech` skill, installation, streaming and voice-settings references were refreshed. Other installed trees have no upstream content changes. Existing namespace changes, install guards, removed sibling links, and the Vercel scope fix remain. The added `state-machine` skill keeps a local Next.js server-boundary guard. Upstream CHANGELOG.md files were not modified. The three PUBMAXX-specific skills have no upstream.
