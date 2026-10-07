@@ -76,6 +76,14 @@ function androidResourceXml(dir = ANDROID_RES, prefix = ""): string[] {
 }
 
 describe("Capacitor wrapped-build contract", () => {
+  it("starts at app-entry while keeping sibling routes inside the app origin", () => {
+    expect(capacitorConfig.server?.url).toBe("https://pubmaxxing.com/");
+    expect(capacitorConfig.server?.appStartPath).toBe("app-entry");
+    expect(capacitorConfig.server?.allowNavigation).toBeUndefined();
+    // iOS requires the start path in webDir even when it loads a remote URL.
+    expect(rootFile("native/web-stub/app-entry")).toContain("<!doctype html>");
+  });
+
   it("uses the canonical app name on both native install surfaces", () => {
     expect(capacitorConfig.appName).toBe(APP_NAME);
 

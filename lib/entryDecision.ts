@@ -1,5 +1,5 @@
 // Entry-decision seam — the ONE place that decides which surface the app
-// starts on when it boots at the site root ("/"). Owner-locked (issue #439):
+// starts on when it boots at "/app-entry" or the site root ("/"). Owner-locked (issue #439):
 // the wrapped app COLD-STARTS on /tonight after first-run; a genuine native
 // first-run opens the dedicated onboarding.
 //
@@ -9,7 +9,8 @@
 // But a deliberate in-app navigation to "/" (e.g. tapping the PUBMAXXING
 // wordmark, SiteNav.tsx href="/") must now REACH the landing page — the Home
 // Screen that shows how the app works. So the entry decision only fires on the
-// session's FIRST arrival at "/" (the cold start); every later arrival stays.
+// session's FIRST arrival at "/" (an older binary's cold start). The static
+// "/app-entry" document always starts the shell, while later root arrivals stay.
 //
 // The "already decided this session" signal is a per-session flag persisted in
 // sessionStorage through the seam at the bottom (markSessionEntryConsumed /
@@ -20,12 +21,12 @@
 //
 // "App shell" here means either signal, probed through existing seams only:
 //   - the Capacitor native wrap (lib/nativePlatform.ts isNativeApp(); the
-//     remote-URL wrap in capacitor.config.ts always loads the site root), or
+//     remote-URL wrap in capacitor.config.ts loads "/app-entry"), or
 //   - an installed PWA running standalone (display-mode media query or the
 //     iOS navigator.standalone flag, same signals lib/a2hsPrompt.ts reads).
 //
 // Decision precedence (contract-tested in __tests__/entryDecision.test.ts):
-//   1. Deep link — any path other than "/" is an explicit destination (share
+//   1. Deep link: any path other than "/" or "/app-entry" is an explicit destination (share
 //      link, push click-through, universal link) and bypasses the decision
 //      untouched, shell or not. The decision NEVER rewrites a deep link.
 //   2. Native first-run at the root — a genuine native first-run opens the
@@ -58,7 +59,7 @@ export const SHELL_START_PATH = "/tonight";
 export { ONBOARDING_PATH };
 
 export type EntryContext = {
-  /** Pathname at boot (no query/hash) — "/" is the only decided route. */
+  /** Pathname at boot (no query/hash). Only "/" and "/app-entry" are decided. */
   path: string;
   /** Inside the Capacitor native shell (lib/nativePlatform.ts seam). */
   isNativeShell: boolean;
@@ -96,14 +97,14 @@ export function isAppShell(ctx: Pick<EntryContext, "isNativeShell" | "isStandalo
  * for contract tests, while production always uses ONBOARDING_PATH.
  */
 export function decideEntry(ctx: EntryContext, firstRunHref: Route = ONBOARDING_PATH): EntryDecision {
-  if (ctx.path !== "/") return { kind: "stay", reason: "deep-link" };
+  if (ctx.path !== "/" && ctx.path !== "/app-entry") return { kind: "stay", reason: "deep-link" };
   if (ctx.isNativeShell && ctx.isNativeFirstRun) {
     return { kind: "route", href: firstRunHref, reason: "native-first-run" };
   }
   // Owner amendment (2026-07-21): the cold-start decision fires once per
   // session. Once it has run, a later arrival at "/" — the in-app home tap —
   // stays on the landing page, shell or not.
-  if (ctx.sessionEntryConsumed) return { kind: "stay", reason: "session-revisit" };
+  if (ctx.sessionEntryConsumed && ctx.path !== "/app-entry") return { kind: "stay", reason: "session-revisit" };
   if (isAppShell(ctx)) {
     return { kind: "route", href: SHELL_START_PATH, reason: "shell-cold-start" };
   }
@@ -194,11 +195,12 @@ export function markSessionEntryConsumed(storage?: Storage | null): void {
  * this session's entry decision (precedence rule 1: deep links bypass), so it
  * must consume the session entry too. Root boots stay entirely with
  * AppEntryRoute — stamping first at "/" would corrupt the cold-start read.
- * Returns whether the flag was stamped (false at "/"), so contract tests can
+ * The static entry document also owns its own stamp. Returns whether the flag
+ * was stamped (false at "/" and "/app-entry"), so contract tests can
  * assert both sides.
  */
 export function consumeDeepLinkBootEntry(path: string, storage?: Storage | null): boolean {
-  if (path === "/") return false;
+  if (path === "/" || path === "/app-entry") return false;
   markSessionEntryConsumed(storage);
   return true;
 }

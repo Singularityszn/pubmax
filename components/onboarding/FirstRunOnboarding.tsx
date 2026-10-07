@@ -1,10 +1,16 @@
 "use client";
 
 import type { Route } from "next";
-import Image from "next/image";
+import Image, { type ImageLoaderProps } from "next/image";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, MapPinned, ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+// The photo fills a phone-width strip or the smaller desktop grid column.
+// Cap its density at 1200px rather than downloading 1920px for a 402pt slot.
+function onboardingPhotoLoader({ src, width, quality }: ImageLoaderProps): string {
+  return `/_next/image?url=${encodeURIComponent(src)}&w=${Math.min(width, 1200)}&q=${quality ?? 75}`;
+}
 
 import {
   BudgetPanel,
@@ -375,10 +381,11 @@ export default function FirstRunOnboarding({
             <figure className="firstRunLondonPhoto">
               <Image
                 src="/landing/hero-thames.jpg"
+                loader={onboardingPhotoLoader}
                 alt="London and the Thames viewed from above"
                 fill
                 priority
-                sizes="(max-width: 760px) 100vw, 52vw"
+                sizes="(max-width: 760px) 100vw, min(51.5vw, calc(100vw - 420px))"
               />
               <figcaption>
                 {step === "location"

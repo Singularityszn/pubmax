@@ -3,9 +3,15 @@
 PUBMAXXING ships to the App Store as a Capacitor shell around the production PWA.
 The Next.js app is **server-rendered** — there is no static export — so the
 shells run in **remote-URL mode**: `capacitor.config.ts` points
-`server.url` at `https://pubmaxxing.com` and the WKWebView loads the live site.
-Do not attempt `next export`; `webDir: "native/web-stub"` (a two-file
-placeholder page) exists only to satisfy the CLI's copy step and is never
+`server.url` at `https://pubmaxxing.com/` and `server.appStartPath` at
+`app-entry`. The origin must stay at the root because Capacitor iOS checks
+sibling navigation against `server.url` as a URL prefix. This static document runs
+the entry decision and replaces itself with onboarding or Tonight before the
+WKWebView loads any React or landing assets. A stored-city case that needs the
+enabled-city table returns to the root's React decision. Older binaries still
+enter through the root's pre-paint script.
+Do not attempt `next export`; `webDir: "native/web-stub"` is a small
+stub directory that satisfies the CLI's copy step and the local start-file check. It is never
 served during a healthy launch — pointing webDir at `public/` would bake its ~6 MB of
 datasets/screenshots into the iOS binary as dead weight, so don't.
 

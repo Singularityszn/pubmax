@@ -77,6 +77,9 @@ function runEntryInit(options: {
   pathname?: string;
   session?: Record<string, string>;
   local?: Record<string, string>;
+  search?: string;
+  hash?: string;
+  storageUnavailable?: boolean;
 }): RunResult {
   const replaced: string[] = [];
   const session = memoryStorage(options.session ?? {});
@@ -88,9 +91,11 @@ function runEntryInit(options: {
         : { isNativePlatform: () => options.native !== false },
     location: {
       pathname: options.pathname ?? "/",
+      search: options.search ?? "",
+      hash: options.hash ?? "",
       replace: (href: string) => void replaced.push(href),
     },
-    sessionStorage: session,
+    sessionStorage: options.storageUnavailable ? undefined : session,
     localStorage: local,
   };
   new Function("window", ENTRY_INIT_SOURCE)(win);
@@ -98,6 +103,41 @@ function runEntryInit(options: {
 }
 
 describe("the native shell's pre-render entry decision", () => {
+  it("routes a fresh install from the lightweight entry document with a handoff", () => {
+    const { replaced, session, local } = runEntryInit({ pathname: "/app-entry" });
+    expect(replaced).toEqual([ONBOARDING_PATH]);
+    expect(session.getItem(NATIVE_FIRST_RUN_HANDOFF_KEY)).toMatch(/^\d+$/);
+    expect(local.getItem(NATIVE_FIRST_RUN_ROUTED_KEY)).toBe("1");
+  });
+
+  it("opens Tonight on a returning app-entry boot even if the session stamp survives", () => {
+    expect(runEntryInit({
+      pathname: "/app-entry",
+      local: { [NATIVE_FIRST_RUN_ROUTED_KEY]: "1" },
+      session: { [SESSION_ENTRY_CONSUMED_KEY]: "1" },
+    }).replaced).toEqual([SHELL_START_PATH]);
+  });
+
+  it("lets React resolve a stored city without issuing an onboarding handoff", () => {
+    const { replaced, session, local } = runEntryInit({
+      pathname: "/app-entry", local: { [PREFERRED_CITY_KEY]: "london" },
+    });
+    expect(replaced).toEqual(["/"]);
+    expect(session.getItem(NATIVE_FIRST_RUN_HANDOFF_KEY)).toBeNull();
+    expect(local.getItem(NATIVE_FIRST_RUN_ROUTED_KEY)).toBeNull();
+  });
+
+  it("leaves the static document when storage or the bridge is unavailable", () => {
+    expect(runEntryInit({ pathname: "/app-entry", storageUnavailable: true }).replaced).toEqual(["/"]);
+    expect(runEntryInit({ pathname: "/app-entry", native: false }).replaced).toEqual(["/"]);
+  });
+
+  it("preserves auth callback inputs when handing the entry back to the root", () => {
+    const search = "?_authCallback=1&from=%2Fu%2Fyou";
+    const hash = "#access_token=fixture&refresh_token=fixture";
+    expect(runEntryInit({ pathname: "/app-entry", search, hash }).replaced).toEqual([`/${search}${hash}`]);
+  });
+
   it("sends a post-first-run cold start straight to Tonight", () => {
     const { replaced, session } = runEntryInit({
       local: { [NATIVE_FIRST_RUN_ROUTED_KEY]: "1" },
