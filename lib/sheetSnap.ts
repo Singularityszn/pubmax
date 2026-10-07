@@ -284,16 +284,21 @@ export function sheetClosedTranslateY(
 export type SheetSnapCaps = Record<SheetSnap, number>;
 
 /**
- * Per-snap cap heights (px) for the bottom-anchored sheet: the snap's fraction
- * of the viewport MINUS `dockPx`, the sheet box's bottom offset from the viewport
- * bottom (the rebuilt phone sheet anchors at bottom:0, so the hook passes 0 and
- * the caps are the plain `<fraction>dvh` used in mobileMapShell.css; the param
- * keeps the resolver correct if the anchor ever grows a safe-area/dock offset).
+ * Per-snap cap heights (px) for the bottom-anchored sheet. Peek and half are
+ * the plain `<fraction>dvh` used in mobileMapShell.css, raised to `chromePx`
+ * (the sheet's header, footer and body padding) so neither clips the sheet's
+ * own controls. `dockPx` is how far the sheet's bottom edge sits above the
+ * viewport bottom (the portal stops above the primary dock), and only full
+ * gives it up: its top edge stays where a bottom:0 full sheet would put it, so
+ * the strip of map above it never closes.
  */
-export function sheetSnapCaps(viewportHeight: number, dockPx: number): SheetSnapCaps {
-  const cap = (snap: SheetSnap) =>
-    Math.max(0, viewportHeight * SHEET_SNAP_FRACTIONS[snap] - dockPx);
-  return { peek: cap("peek"), half: cap("half"), full: cap("full") };
+export function sheetSnapCaps(viewportHeight: number, dockPx: number, chromePx = 0): SheetSnapCaps {
+  const cap = (snap: SheetSnap) => Math.max(viewportHeight * SHEET_SNAP_FRACTIONS[snap], chromePx);
+  return {
+    peek: cap("peek"),
+    half: cap("half"),
+    full: Math.max(0, viewportHeight * SHEET_SNAP_FRACTIONS.full - dockPx),
+  };
 }
 
 export type ResolveHeightSnapInput = {
