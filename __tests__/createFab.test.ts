@@ -191,6 +191,10 @@ describe("what the create action renders for each keyboard answer", () => {
     expect(await renderFab(false, "/")).toContain("createFabRoot");
   });
 
+  it.each(["/moment", "/plan"])("leaves the compose screen %s clear", async (path) => {
+    expect(await renderFab(false, path)).not.toContain("createFabRoot");
+  });
+
   it("keeps the control inert after a strict modal outlives the keyboard", async () => {
     const markup = await renderFab(false, "/out", "", true);
     expect(rootTag(markup)).not.toContain("isKeyboardHidden");
