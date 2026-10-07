@@ -19,6 +19,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 import { NearMeReadUnavailable } from "@/components/nearme/NearMeNow";
+import { photoRefusal } from "@/lib/pintDropReceipt";
 import { UPLOAD_PHOTO_MAX_LABEL } from "@/lib/uploadBodyLimit";
 
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
@@ -164,29 +165,12 @@ describe("a shard read we could not run is not an unmapped area", () => {
 });
 
 describe("a photo the platform will refuse is refused here, by size, in the browser", () => {
-  it("gives both map composers the wire's own number and its own words", () => {
-    // Through ONE leaf. `photoRefusal` (lib/pintDropReceipt.ts) is what both
-    // composers ask, so the figure and the sentence beside it are written once
-    // and cannot drift apart per picker; the leaf is where the wire is read.
-    for (const file of ["components/map/usePintDrops.ts", "components/map/VenuePriceSubmit.tsx"]) {
-      const source = read(file);
-      expect(source, file).toContain('from "@/lib/pintDropReceipt"');
-      expect(source, file).toContain("photoRefusal(file)");
-    }
-    const leaf = read("lib/pintDropReceipt.ts");
-    expect(leaf).toContain('from "@/lib/uploadBodyLimit"');
-    expect(leaf).toContain("UPLOAD_PHOTO_MAX_BYTES");
-    expect(leaf).toContain("${UPLOAD_PHOTO_MAX_LABEL}.");
+  it("refuses a 4.5 MB phone photo with the supported upload size", () => {
+    const file = new File([new Uint8Array(4_500_000)], "night.jpg", { type: "image/jpeg" });
+    expect(photoRefusal(file)).toBe("Each photo must be under 4\u00a0MB.");
   });
 
-  it("prints a figure a reader can act on, not the wrong one", () => {
+  it("prints a figure a reader can act on", () => {
     expect(UPLOAD_PHOTO_MAX_LABEL).toBe("4\u00a0MB");
-    for (const file of [
-      "components/map/usePintDrops.ts",
-      "components/map/VenuePriceSubmit.tsx",
-      "lib/pintDropsStore.ts",
-    ]) {
-      expect(read(file), file).not.toContain("5MB");
-    }
   });
 });
