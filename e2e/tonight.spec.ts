@@ -32,6 +32,12 @@ async function mockReadyEmptyOut(page: Page) {
   );
 }
 
+async function expectNoEventsWithPubSuggestions(page: Page) {
+  await expect(page.getByTestId("tonight-hyped-row").first()).toBeVisible();
+  await expect(page.locator(".tonightStatus").filter({ hasText: "No confirmed events listed tonight." })).toBeVisible();
+  await expect(page.getByText(/having a quiet one tonight/i)).toHaveCount(0);
+}
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -274,15 +280,14 @@ test("a failed listings request can be retried", async ({ page }) => {
   await page.goto("/tonight");
   await page.getByRole("button", { name: "Retry listings" }).click();
   // The retry succeeded and returned no rows, so both lanes answered with
-  // nothing: an empty night, not an error, and said in the empty state's own
-  // sentence rather than left as a silent room.
+  // no events. Sourced pub suggestions still prevent a quiet-city claim.
   await expect(page.getByTestId("tonight-screen")).toHaveAttribute(
     "data-listings-status",
     "empty",
   );
-  await expect(page.getByText(/having a quiet one tonight/i)).toBeVisible();
+  await expectNoEventsWithPubSuggestions(page);
   await expect(page.locator('[data-tonight-provenance="whats-on"]')).toHaveText(
-    /^Quiet night · /,
+    /^No events listed · /,
   );
   expect(requests).toBe(2);
 });
@@ -393,7 +398,7 @@ function ticketmasterOnlyRows(now = Date.now()) {
   ];
 }
 
-test("leads with the quiet-night sentence when the whole feed is Ticketmaster", async ({
+test("scopes the empty answer to events when the whole feed is Ticketmaster", async ({
   page,
 }) => {
   const rows = ticketmasterOnlyRows();
@@ -436,9 +441,9 @@ test("leads with the quiet-night sentence when the whole feed is Ticketmaster", 
     "data-listings-status",
     "empty",
   );
-  await expect(page.getByText(/having a quiet one tonight/i)).toBeVisible();
+  await expectNoEventsWithPubSuggestions(page);
   await expect(page.locator('[data-tonight-provenance="whats-on"]')).toHaveText(
-    /^Quiet night · /,
+    /^No events listed · /,
   );
 
   // No Ticketmaster title reaches the first screen, whatever kind it arrived as.
@@ -487,7 +492,7 @@ test("does not promote Out theatre rows when What's-On answered empty", async ({
     page.getByRole("heading", { name: "A Night at the Playhouse" }),
   ).toHaveCount(0);
   await expect(page.getByTestId("tonight-screen")).toHaveAttribute("data-listings-status", "empty");
-  await expect(page.getByText(/having a quiet one tonight/i)).toBeVisible();
+  await expectNoEventsWithPubSuggestions(page);
 });
 
 test("a degraded Out lane still names itself beside the cards it did return", async ({
@@ -675,7 +680,7 @@ test("the first screen leads with the pub, not a JDW deal or a Ticketmaster even
   );
 });
 
-test("a night of only excluded rows reads as the honest quiet night", async ({ page }) => {
+test("a night of only excluded rows keeps pub suggestions and an event-scoped empty answer", async ({ page }) => {
   const now = Date.now();
   await mockTonightSpine(page, [jdwCurryClub(now)]);
   await page.route("**/api/out?**", (route) =>
@@ -699,7 +704,7 @@ test("a night of only excluded rows reads as the honest quiet night", async ({ p
     "data-listings-status",
     "empty",
   );
-  await expect(page.getByText(/having a quiet one tonight/i)).toBeVisible();
+  await expectNoEventsWithPubSuggestions(page);
   // Scoped to the lede region on purpose (#1627, app/AGENTS.md). The
   // Wetherspoon block below it still carries the JDW row under the chain's own
   // name, and taking it off the page would drop a real deal; what the contract
