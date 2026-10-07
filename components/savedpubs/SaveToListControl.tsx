@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useAuth } from "@/components/auth/authContext";
 import { discardBody } from "@/lib/responseBody";
 import { safeLocalStorage } from "@/lib/safeStorage";
 import {
@@ -85,7 +86,8 @@ export default function SaveToListControl({
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }): React.JSX.Element {
-  const [handle] = useState(readHandle);
+  const { user } = useAuth();
+  const [handle, setHandle] = useState(readHandle);
   const [openState, setOpenState] = useState(false);
   const open = openProp ?? openState;
   const setOpen = useCallback(
@@ -119,6 +121,20 @@ export default function SaveToListControl({
   // against it would report a removal that worked as a failure.
   const [serverVenueId, setServerVenueId] = useState<string | null>(null);
   const ready = !handle || serverVenueId === venueId;
+  // An in-place account switch leaves this control mounted (and its picker
+  // open). Its handle, membership and list registry belong to the account that
+  // was signed in, so a different account starts from its own handle and this
+  // device's answer, and the server read for it runs again.
+  const accountKey = user?.id ?? "";
+  const [membershipAccountKey, setMembershipAccountKey] = useState(accountKey);
+  if (membershipAccountKey !== accountKey) {
+    setMembershipAccountKey(accountKey);
+    setHandle(readHandle());
+    setSavedIn(listsHolding(venueId, null));
+    setCustomLists([]);
+    setServerVenueId(null);
+    setToast(null);
+  }
   // Which membership read may still land. A press (or a venue change) bumps it,
   // so an answer that was asked before the press cannot overwrite the newer one.
   const membershipRead = useRef(0);
@@ -130,6 +146,10 @@ export default function SaveToListControl({
     membershipRead.current += 1;
     currentVenue.current = venueId;
   }, [venueId]);
+  useEffect(() => {
+    // Another account: nor may an answer that was asked for the last one.
+    membershipRead.current += 1;
+  }, [accountKey]);
 
   // Load the handle's custom lists lazily when the picker opens (cheap GET,
   // fail-soft to just the built-ins).

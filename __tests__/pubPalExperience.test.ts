@@ -274,19 +274,31 @@ describe("Pub Pal setup for a signed-in account", () => {
   it("does not let browser Back restore the hidden 18+ step", async () => {
     await renderSignedIn(true);
     expect(container.textContent).toContain("Who finds you?");
+
+    // Walk forward one step, then use the real browser Back twice. The first
+    // lands on the first visible step, the second on the entry the wizard
+    // opened on. Neither may show the hidden step, and Back must not push a
+    // replacement entry.
+    await act(async () => {
+      const name = container.querySelector<HTMLInputElement>("input[placeholder='Anything feels right']")!;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(name, "Moss");
+      name.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => buttonContaining("Continue").click());
+    await settle();
+    expect(container.textContent).not.toContain("Who finds you?");
     const entries = window.history.length;
 
-    // A history entry recorded on step 0 (from before the account's answer was
-    // known) is landed on. The wizard stays on the first VISIBLE step.
-    window.history.replaceState({ pubmaxStep: 0, pubmaxStepDepth: 1 }, "");
-    await act(async () => {
-      window.dispatchEvent(new PopStateEvent("popstate", { state: { pubmaxStep: 0, pubmaxStepDepth: 1 } }));
-    });
-    await settle();
+    for (let press = 0; press < 2; press += 1) {
+      await act(async () => {
+        window.history.back();
+      });
+      await settle();
+      expect(container.textContent).not.toContain("The grown-up bit first.");
+    }
 
     expect(container.textContent).toContain("Who finds you?");
-    expect(container.textContent).not.toContain("The grown-up bit first.");
-    expect(window.history.length).toBeLessThanOrEqual(entries + 1);
+    expect(window.history.length).toBeLessThanOrEqual(entries);
   });
 
   it("sends the confirmation with the Pal when the question was skipped", async () => {
