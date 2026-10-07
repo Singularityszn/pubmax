@@ -1,0 +1,229 @@
+{
+  "path": "/map?mode=build&pubs=venue-1ufn31x%2Cvenue-1t8siin%2Cvenue-xiesdn%2Cvenue-phqazo%2Cvenue-15i2wst&crawl=victorian-soho&style=heritage",
+  "delayMs": 7500,
+  "method": "Real curated crawl, then click Plan an outing. Desktop1440x1000 DPR1 CPU4 Fast4G75ms. Cold cache. Both arms intercept the exact committed POI bytes with the recorded delay to reproduce a slow pending read. Three samples. No first-pin speed claim.",
+  "rows": [
+    {
+      "pins": 127,
+      "marks": [
+        {
+          "name": "pubmax:map-constructed",
+          "at": 3978.0999999996275
+        },
+        {
+          "name": "pubmax:map-chunk-ready",
+          "at": 4000.0999999996275
+        },
+        {
+          "name": "pubmax:first-pins",
+          "at": 4532.799999998882
+        },
+        {
+          "name": "pubmax:slim-venues-ready",
+          "at": 4532.9000000003725
+        },
+        {
+          "name": "pubmax:map-style-load",
+          "at": 4579.0999999996275
+        },
+        {
+          "name": "pubmax:map-icons-ready",
+          "at": 7485.699999999255
+        },
+        {
+          "name": "pubmax:map-scene-built",
+          "at": 7536.4000000003725
+        },
+        {
+          "name": "pubmax:pubs-source-loaded",
+          "at": 7699.799999998882
+        },
+        {
+          "name": "pubmax:camera-intent:route",
+          "at": 8115.199999999255
+        },
+        {
+          "name": "pubmax:pins-visible",
+          "at": 10536.900000000373
+        },
+        {
+          "name": "pubmax:pin-entrance-settled",
+          "at": 14022.5
+        }
+      ],
+      "panelText": "Your plan\n\nVictorian Soho\n\nFive Dean Street–era snugs the old Soho hands drank in. Pass the round on to whoever's next.\n\nCopy link\nPint\nFood\nCoffee\nMocktail\n£31.00\nestimated round\n0.4 km\nstraight-line, between stops\n7 min\nwalking, straight-line\n6 min\nTfL between stops\n5\npint stops\n2\nstory pubs\n0\nby water\n0\nwriter picks\n Reverse route\nWalk\nRun\n7 min walk total · 0.4 km, straight-line\nMapped on London\n0.4 km, 7 min walk, straight-line.\nHide line\n\nInvite friends to walk this plan as a Round.\n\nThe Round · group crawl\nInvite friends to this plan\n\nTurn this plan into a Round. Friends join with a short code, and the stops are already queued.\n\nStart Round\nAdd to calendar (.ics)Check last train at final stop\nStart this crawl\nSave as story\n1\nThe Nellie Dean\n\n£6.10 · HEINEKEN\n\nWestminster\nDirections\n2 min walk · 0.1 km, straight-line\n\nOn the way: Berwick Street\n\n2\nThe Crown & Two Chairmen\n\n£6.75 · ESTRELLA\n\nWestminster\nDirections\n1 min walk · 0.0 km, straight-line\n\nOn the way: Berwick Street, Phoenix Garden\n\n3\nThe Dog & Duck\n\n£6.05 · AMSTEL\n\nWestminster\nDirections\n2 min walk · 0.2 km, straight-line\n\nOn the way: Phoenix Garden, Seven Dials, London\n\n4\nThe Coach & Horses\n\n£5.70 · AMSTEL\n\nWestminster\nDirections\n2 min walk · 0.1 km, straight-line\n\nOn the way: Phoenix Garden, Seven Dials, London\n\n5\nGolden Lion (Soho)\n\n£6.40 · GUINNESS\n\nWestminster\nDirections\nAdd stops\n\nEvery pub that fits your filters, in a list you can use from the keyboard. You don’t need the map. Search or filter to narrow the list.\n\nBradley’s Spanish Bar\n£6.00 · Westminster\nAdd\nBrewmaster\n£6.50 · Westminster\nAdd\nCoach & Horses\n£6.15 · Westminster\nAdd\nCrown (Covent Garden)\n£6.45 · Camden\nAdd\nDuke of York\n£6.15 · Westminster\nAdd\nFinery\n£6.50 · Westminster\nAdd\nFitzrovia\n£6.35 · Camden\nAdd\nGreen Man\n£6.15 · Camden\nAdd\nMasons Arms (Mayfair)\n£6.00 · Westminster\nAdd\nMuseum Tavern\n£6.15 · Camden\nAdd\nPlough\n£6.15 · Camden\nAdd\nRising Sun\n£6.15 · Camden\nAdd\nRound Table\n£6.30 · Westminster\nAdd\nShakespeares Head (Soho)\n£6.25 · Westminster\nAdd\nThe Albany\n£7.15 · Westminster\nAdd\nThe Cavendish\n£8.44 · Westminster\nAdd\nThe College Arms\n£7.40 · Camden\nAdd\nThe Court\n£6.60 · Westminster\nAdd\nThe Duke of Argyll\n£6.40 · Westminster\nAdd\nThe Glasshouse Stores\n£6.40 · Westminster\nAdd\nThe King and Queen\n£6.40 · Westminster\nAdd\nThe Lucky Saint\n£6.20 · Westminster\nAdd\nThe Lyric\n£6.20 · Westminster\nAdd\nThe Marquis Cornwallis\n£6.20 · Camden\nAdd\nThe Montagu pyke (Wetherspoons)\n£6.13 · Westminster\nAdd\nThe Royal George\n£6.60 · Westminster\nAdd\nThe Stags Head\n£5.95 · Westminster\nAdd\nThe Toucan,\n£6.50 · Westminster\nAdd\nTwo Brewers\n£6.15 · Camden\nAdd\nWheatsheaf\n£8.10 · Camden\nAdd\nWhite Swan\n£7.05 · Westminster\nAdd\nYorkshire Grey\n£6.35 · Westminster\nAdd\nBlue Posts\n£6.50 · Westminster\nAdd\nCoach & Horse (Mayfair)\n£6.55 · Westminster\nAdd\nGarrick Arms\n£6.35 · Westminster\nAdd\nGlass Blower (Piccadilly)\n£6.35 · Westminster\nAdd\nHippodrome Casino\n£7.31 · Westminster\nAdd\nImperial\n£6.35 · Westminster\nAdd\nKings Arms (Mayfair)\n£6.50 · Westminster\nAdd\nLeicester Arms (Piccadilly)\n£6.35 · Westminster\nAdd\nShowing 40 of 719. Narrow the search to see more.",
+      "poiResources": [
+        {
+          "start": 8644.5,
+          "duration": 7504,
+          "bytes": 97488
+        },
+        {
+          "start": 13612,
+          "duration": 7509.4000000003725,
+          "bytes": 97488
+        }
+      ],
+      "requestCount": 2,
+      "completedReads": 2,
+      "reads": [
+        {
+          "requestedAt": 1791405668907,
+          "url": "http://localhost:34731/data/london_pois.json"
+        },
+        {
+          "requestedAt": 1791405673879,
+          "url": "http://localhost:34731/data/london_pois.json"
+        }
+      ]
+    },
+    {
+      "pins": 127,
+      "marks": [
+        {
+          "name": "pubmax:map-constructed",
+          "at": 1977.9000000003725
+        },
+        {
+          "name": "pubmax:map-chunk-ready",
+          "at": 1998.300000000745
+        },
+        {
+          "name": "pubmax:map-style-load",
+          "at": 2218.7000000011176
+        },
+        {
+          "name": "pubmax:map-icons-ready",
+          "at": 2544.9000000003725
+        },
+        {
+          "name": "pubmax:map-scene-built",
+          "at": 2590.300000000745
+        },
+        {
+          "name": "pubmax:first-pins",
+          "at": 2689.2000000011176
+        },
+        {
+          "name": "pubmax:slim-venues-ready",
+          "at": 2689.60000000149
+        },
+        {
+          "name": "pubmax:camera-intent:route",
+          "at": 2717
+        },
+        {
+          "name": "pubmax:pubs-source-loaded",
+          "at": 3190.2000000011176
+        },
+        {
+          "name": "pubmax:pins-visible",
+          "at": 5589.9000000003725
+        },
+        {
+          "name": "pubmax:pin-entrance-settled",
+          "at": 9179.5
+        }
+      ],
+      "panelText": "Your plan\n\nVictorian Soho\n\nFive Dean Street–era snugs the old Soho hands drank in. Pass the round on to whoever's next.\n\nCopy link\nPint\nFood\nCoffee\nMocktail\n£31.00\nestimated round\n0.4 km\nstraight-line, between stops\n7 min\nwalking, straight-line\n6 min\nTfL between stops\n5\npint stops\n2\nstory pubs\n0\nby water\n0\nwriter picks\n Reverse route\nWalk\nRun\n7 min walk total · 0.4 km, straight-line\nMapped on London\n0.4 km, 7 min walk, straight-line.\nHide line\n\nInvite friends to walk this plan as a Round.\n\nThe Round · group crawl\nInvite friends to this plan\n\nTurn this plan into a Round. Friends join with a short code, and the stops are already queued.\n\nStart Round\nAdd to calendar (.ics)Check last train at final stop\nStart this crawl\nSave as story\n1\nThe Nellie Dean\n\n£6.10 · HEINEKEN\n\nWestminster\nDirections\n2 min walk · 0.1 km, straight-line\n\nOn the way: Berwick Street\n\n2\nThe Crown & Two Chairmen\n\n£6.75 · ESTRELLA\n\nWestminster\nDirections\n1 min walk · 0.0 km, straight-line\n\nOn the way: Berwick Street, Phoenix Garden\n\n3\nThe Dog & Duck\n\n£6.05 · AMSTEL\n\nWestminster\nDirections\n2 min walk · 0.2 km, straight-line\n\nOn the way: Phoenix Garden, Seven Dials, London\n\n4\nThe Coach & Horses\n\n£5.70 · AMSTEL\n\nWestminster\nDirections\n2 min walk · 0.1 km, straight-line\n\nOn the way: Phoenix Garden, Seven Dials, London\n\n5\nGolden Lion (Soho)\n\n£6.40 · GUINNESS\n\nWestminster\nDirections\nAdd stops\n\nEvery pub that fits your filters, in a list you can use from the keyboard. You don’t need the map. Search or filter to narrow the list.\n\nBradley’s Spanish Bar\n£6.00 · Westminster\nAdd\nBrewmaster\n£6.50 · Westminster\nAdd\nCoach & Horses\n£6.15 · Westminster\nAdd\nCrown (Covent Garden)\n£6.45 · Camden\nAdd\nDuke of York\n£6.15 · Westminster\nAdd\nFinery\n£6.50 · Westminster\nAdd\nFitzrovia\n£6.35 · Camden\nAdd\nGreen Man\n£6.15 · Camden\nAdd\nMasons Arms (Mayfair)\n£6.00 · Westminster\nAdd\nMuseum Tavern\n£6.15 · Camden\nAdd\nPlough\n£6.15 · Camden\nAdd\nRising Sun\n£6.15 · Camden\nAdd\nRound Table\n£6.30 · Westminster\nAdd\nShakespeares Head (Soho)\n£6.25 · Westminster\nAdd\nThe Albany\n£7.15 · Westminster\nAdd\nThe Cavendish\n£8.44 · Westminster\nAdd\nThe College Arms\n£7.40 · Camden\nAdd\nThe Court\n£6.60 · Westminster\nAdd\nThe Duke of Argyll\n£6.40 · Westminster\nAdd\nThe Glasshouse Stores\n£6.40 · Westminster\nAdd\nThe King and Queen\n£6.40 · Westminster\nAdd\nThe Lucky Saint\n£6.20 · Westminster\nAdd\nThe Lyric\n£6.20 · Westminster\nAdd\nThe Marquis Cornwallis\n£6.20 · Camden\nAdd\nThe Montagu pyke (Wetherspoons)\n£6.13 · Westminster\nAdd\nThe Royal George\n£6.60 · Westminster\nAdd\nThe Stags Head\n£5.95 · Westminster\nAdd\nThe Toucan,\n£6.50 · Westminster\nAdd\nTwo Brewers\n£6.15 · Camden\nAdd\nWheatsheaf\n£8.10 · Camden\nAdd\nWhite Swan\n£7.05 · Westminster\nAdd\nYorkshire Grey\n£6.35 · Westminster\nAdd\nBlue Posts\n£6.50 · Westminster\nAdd\nCoach & Horse (Mayfair)\n£6.55 · Westminster\nAdd\nGarrick Arms\n£6.35 · Westminster\nAdd\nGlass Blower (Piccadilly)\n£6.35 · Westminster\nAdd\nHippodrome Casino\n£7.31 · Westminster\nAdd\nImperial\n£6.35 · Westminster\nAdd\nKings Arms (Mayfair)\n£6.50 · Westminster\nAdd\nLeicester Arms (Piccadilly)\n£6.35 · Westminster\nAdd\nShowing 40 of 719. Narrow the search to see more.",
+      "poiResources": [
+        {
+          "start": 3913.7000000011176,
+          "duration": 7505.9000000003725,
+          "bytes": 97488
+        },
+        {
+          "start": 8812.5,
+          "duration": 7507.300000000745,
+          "bytes": 97488
+        }
+      ],
+      "requestCount": 2,
+      "completedReads": 2,
+      "reads": [
+        {
+          "requestedAt": 1791405686936,
+          "url": "http://localhost:34731/data/london_pois.json"
+        },
+        {
+          "requestedAt": 1791405691837,
+          "url": "http://localhost:34731/data/london_pois.json"
+        }
+      ]
+    },
+    {
+      "pins": 127,
+      "marks": [
+        {
+          "name": "pubmax:map-constructed",
+          "at": 2365.0999999996275
+        },
+        {
+          "name": "pubmax:map-chunk-ready",
+          "at": 2384.0999999996275
+        },
+        {
+          "name": "pubmax:map-style-load",
+          "at": 2646.4000000003725
+        },
+        {
+          "name": "pubmax:first-pins",
+          "at": 2683.2999999988824
+        },
+        {
+          "name": "pubmax:slim-venues-ready",
+          "at": 2683.9000000003725
+        },
+        {
+          "name": "pubmax:map-icons-ready",
+          "at": 3446.4000000003725
+        },
+        {
+          "name": "pubmax:map-scene-built",
+          "at": 3497.699999999255
+        },
+        {
+          "name": "pubmax:camera-intent:route",
+          "at": 3635
+        },
+        {
+          "name": "pubmax:pubs-source-loaded",
+          "at": 3898.4000000003725
+        },
+        {
+          "name": "pubmax:pins-visible",
+          "at": 6498.299999998882
+        },
+        {
+          "name": "pubmax:pin-entrance-settled",
+          "at": 10042.400000000373
+        }
+      ],
+      "panelText": "Your plan\n\nVictorian Soho\n\nFive Dean Street–era snugs the old Soho hands drank in. Pass the round on to whoever's next.\n\nCopy link\nPint\nFood\nCoffee\nMocktail\n£31.00\nestimated round\n0.4 km\nstraight-line, between stops\n7 min\nwalking, straight-line\n6 min\nTfL between stops\n5\npint stops\n2\nstory pubs\n0\nby water\n0\nwriter picks\n Reverse route\nWalk\nRun\n7 min walk total · 0.4 km, straight-line\nMapped on London\n0.4 km, 7 min walk, straight-line.\nHide line\n\nInvite friends to walk this plan as a Round.\n\nThe Round · group crawl\nInvite friends to this plan\n\nTurn this plan into a Round. Friends join with a short code, and the stops are already queued.\n\nStart Round\nAdd to calendar (.ics)Check last train at final stop\nStart this crawl\nSave as story\n1\nThe Nellie Dean\n\n£6.10 · HEINEKEN\n\nWestminster\nDirections\n2 min walk · 0.1 km, straight-line\n\nOn the way: Berwick Street\n\n2\nThe Crown & Two Chairmen\n\n£6.75 · ESTRELLA\n\nWestminster\nDirections\n1 min walk · 0.0 km, straight-line\n\nOn the way: Berwick Street, Phoenix Garden\n\n3\nThe Dog & Duck\n\n£6.05 · AMSTEL\n\nWestminster\nDirections\n2 min walk · 0.2 km, straight-line\n\nOn the way: Phoenix Garden, Seven Dials, London\n\n4\nThe Coach & Horses\n\n£5.70 · AMSTEL\n\nWestminster\nDirections\n2 min walk · 0.1 km, straight-line\n\nOn the way: Phoenix Garden, Seven Dials, London\n\n5\nGolden Lion (Soho)\n\n£6.40 · GUINNESS\n\nWestminster\nDirections\nAdd stops\n\nEvery pub that fits your filters, in a list you can use from the keyboard. You don’t need the map. Search or filter to narrow the list.\n\nBradley’s Spanish Bar\n£6.00 · Westminster\nAdd\nBrewmaster\n£6.50 · Westminster\nAdd\nCoach & Horses\n£6.15 · Westminster\nAdd\nCrown (Covent Garden)\n£6.45 · Camden\nAdd\nDuke of York\n£6.15 · Westminster\nAdd\nFinery\n£6.50 · Westminster\nAdd\nFitzrovia\n£6.35 · Camden\nAdd\nGreen Man\n£6.15 · Camden\nAdd\nMasons Arms (Mayfair)\n£6.00 · Westminster\nAdd\nMuseum Tavern\n£6.15 · Camden\nAdd\nPlough\n£6.15 · Camden\nAdd\nRising Sun\n£6.15 · Camden\nAdd\nRound Table\n£6.30 · Westminster\nAdd\nShakespeares Head (Soho)\n£6.25 · Westminster\nAdd\nThe Albany\n£7.15 · Westminster\nAdd\nThe Cavendish\n£8.44 · Westminster\nAdd\nThe College Arms\n£7.40 · Camden\nAdd\nThe Court\n£6.60 · Westminster\nAdd\nThe Duke of Argyll\n£6.40 · Westminster\nAdd\nThe Glasshouse Stores\n£6.40 · Westminster\nAdd\nThe King and Queen\n£6.40 · Westminster\nAdd\nThe Lucky Saint\n£6.20 · Westminster\nAdd\nThe Lyric\n£6.20 · Westminster\nAdd\nThe Marquis Cornwallis\n£6.20 · Camden\nAdd\nThe Montagu pyke (Wetherspoons)\n£6.13 · Westminster\nAdd\nThe Royal George\n£6.60 · Westminster\nAdd\nThe Stags Head\n£5.95 · Westminster\nAdd\nThe Toucan,\n£6.50 · Westminster\nAdd\nTwo Brewers\n£6.15 · Camden\nAdd\nWheatsheaf\n£8.10 · Camden\nAdd\nWhite Swan\n£7.05 · Westminster\nAdd\nYorkshire Grey\n£6.35 · Westminster\nAdd\nBlue Posts\n£6.50 · Westminster\nAdd\nCoach & Horse (Mayfair)\n£6.55 · Westminster\nAdd\nGarrick Arms\n£6.35 · Westminster\nAdd\nGlass Blower (Piccadilly)\n£6.35 · Westminster\nAdd\nHippodrome Casino\n£7.31 · Westminster\nAdd\nImperial\n£6.35 · Westminster\nAdd\nKings Arms (Mayfair)\n£6.50 · Westminster\nAdd\nLeicester Arms (Piccadilly)\n£6.35 · Westminster\nAdd\nShowing 40 of 719. Narrow the search to see more.",
+      "poiResources": [
+        {
+          "start": 4920.699999999255,
+          "duration": 7504.700000001118,
+          "bytes": 97488
+        },
+        {
+          "start": 9588.199999999255,
+          "duration": 7509.200000001118,
+          "bytes": 97488
+        }
+      ],
+      "requestCount": 2,
+      "completedReads": 2,
+      "reads": [
+        {
+          "requestedAt": 1791405705476,
+          "url": "http://localhost:34731/data/london_pois.json"
+        },
+        {
+          "requestedAt": 1791405710147,
+          "url": "http://localhost:34731/data/london_pois.json"
+        }
+      ]
+    }
+  ]
+}

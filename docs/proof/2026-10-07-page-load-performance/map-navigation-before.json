@@ -1,0 +1,219 @@
+{
+  "baseURL": "http://localhost:34731",
+  "browser": "154.0.8037.93",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "cpuThrottle": 4,
+  "network": {
+    "latencyMs": 150,
+    "downloadBytesPerSecond": 200000,
+    "uploadBytesPerSecond": 93750
+  },
+  "hoverLeadMs": 800,
+  "samples": [
+    {
+      "sample": 1,
+      "clickToFirstPinMs": 8214,
+      "proof": {
+        "paintedPinCount": 2,
+        "marks": [
+          {
+            "name": "pubmax:map-chunk-ready",
+            "startTime": 9096
+          },
+          {
+            "name": "pubmax:first-pins",
+            "startTime": 10169
+          },
+          {
+            "name": "pubmax:slim-venues-ready",
+            "startTime": 10170
+          },
+          {
+            "name": "pubmax:map-constructed",
+            "startTime": 10880
+          },
+          {
+            "name": "pubmax:map-style-load",
+            "startTime": 11197
+          },
+          {
+            "name": "pubmax:map-icons-ready",
+            "startTime": 11679
+          },
+          {
+            "name": "pubmax:map-scene-built",
+            "startTime": 11726
+          },
+          {
+            "name": "pubmax:camera-intent:opening-location",
+            "startTime": 11773
+          },
+          {
+            "name": "pubmax:pubs-source-loaded",
+            "startTime": 12446
+          },
+          {
+            "name": "pubmax:camera-intent:arrival",
+            "startTime": 12745
+          },
+          {
+            "name": "pubmax:pins-visible",
+            "startTime": 14729
+          }
+        ]
+      },
+      "requests": [
+        {
+          "phase": "navigation",
+          "path": "/map",
+          "query": "?_rsc=JD_kRS_bJcM9eWd4",
+          "time": 1791404090416
+        },
+        {
+          "phase": "navigation",
+          "path": "/data/venues_slim.core.json",
+          "query": "",
+          "time": 1791404092883
+        }
+      ]
+    },
+    {
+      "sample": 2,
+      "clickToFirstPinMs": 7747,
+      "proof": {
+        "paintedPinCount": 2,
+        "marks": [
+          {
+            "name": "pubmax:map-chunk-ready",
+            "startTime": 9070
+          },
+          {
+            "name": "pubmax:first-pins",
+            "startTime": 10177
+          },
+          {
+            "name": "pubmax:slim-venues-ready",
+            "startTime": 10177
+          },
+          {
+            "name": "pubmax:map-constructed",
+            "startTime": 10782
+          },
+          {
+            "name": "pubmax:map-style-load",
+            "startTime": 11054
+          },
+          {
+            "name": "pubmax:map-icons-ready",
+            "startTime": 11221
+          },
+          {
+            "name": "pubmax:map-scene-built",
+            "startTime": 11255
+          },
+          {
+            "name": "pubmax:camera-intent:opening-location",
+            "startTime": 11319
+          },
+          {
+            "name": "pubmax:camera-intent:arrival",
+            "startTime": 12311
+          },
+          {
+            "name": "pubmax:pubs-source-loaded",
+            "startTime": 12360
+          },
+          {
+            "name": "pubmax:pins-visible",
+            "startTime": 14256
+          }
+        ]
+      },
+      "requests": [
+        {
+          "phase": "navigation",
+          "path": "/map",
+          "query": "?_rsc=JD_kRS_bJcM9eWd4",
+          "time": 1791404105467
+        },
+        {
+          "phase": "navigation",
+          "path": "/data/venues_slim.core.json",
+          "query": "",
+          "time": 1791404107918
+        }
+      ]
+    },
+    {
+      "sample": 3,
+      "clickToFirstPinMs": 7869,
+      "proof": {
+        "paintedPinCount": 2,
+        "marks": [
+          {
+            "name": "pubmax:map-chunk-ready",
+            "startTime": 9067
+          },
+          {
+            "name": "pubmax:first-pins",
+            "startTime": 10155
+          },
+          {
+            "name": "pubmax:slim-venues-ready",
+            "startTime": 10155
+          },
+          {
+            "name": "pubmax:map-constructed",
+            "startTime": 10836
+          },
+          {
+            "name": "pubmax:map-style-load",
+            "startTime": 11166
+          },
+          {
+            "name": "pubmax:map-icons-ready",
+            "startTime": 11332
+          },
+          {
+            "name": "pubmax:map-scene-built",
+            "startTime": 11370
+          },
+          {
+            "name": "pubmax:camera-intent:opening-location",
+            "startTime": 11414
+          },
+          {
+            "name": "pubmax:pubs-source-loaded",
+            "startTime": 12423
+          },
+          {
+            "name": "pubmax:camera-intent:arrival",
+            "startTime": 12498
+          },
+          {
+            "name": "pubmax:pins-visible",
+            "startTime": 14370
+          }
+        ]
+      },
+      "requests": [
+        {
+          "phase": "navigation",
+          "path": "/map",
+          "query": "?_rsc=JD_kRS_bJcM9eWd4",
+          "time": 1791404120046
+        },
+        {
+          "phase": "navigation",
+          "path": "/data/venues_slim.core.json",
+          "query": "",
+          "time": 1791404122515
+        }
+      ]
+    }
+  ],
+  "medianClickToFirstPinMs": 7869
+}
