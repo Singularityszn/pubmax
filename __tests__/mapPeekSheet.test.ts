@@ -78,6 +78,20 @@ describe("the bottom card's three honest states", () => {
     }
   });
 
+  it("stays mounted but covered when something else owns the foot of the map", () => {
+    const html = renderToStaticMarkup(
+      createElement(MapPeekSheet, {
+        model: ANSWER,
+        onOpenVenue: vi.fn(),
+        onOpenList: vi.fn(),
+        covered: true,
+      }),
+    );
+    expect(html).toContain('data-covered="true"');
+    expect(html).not.toContain("mobilePlanActivation");
+    expect(render(ANSWER)).not.toContain("data-covered");
+  });
+
   it("offers the list as a real, named button as well as the pull", () => {
     const html = render(ANSWER);
     expect(html).toContain('aria-label="Show the pubs in this view as a list"');
@@ -142,6 +156,7 @@ describe("the card is one surface with one budget", () => {
 
   it("stands down under a sheet and the consent card, and never fires a haptic", () => {
     expect(shell).toContain("body:has(.mobileSheetPortal) .mapPeek");
+    expect(shell).toContain('.mapPeek[data-covered="true"]');
     expect(shell).toContain("body:has(.analyticsConsentPrompt) .mapPeek { display: none; }");
     // lib/nativeHaptics.ts: kept actions only, never a detent or a drag.
     expect(read("components/mobile/MapPeekSheet.tsx")).not.toMatch(/from "@\/lib\/nativeHaptics"/);

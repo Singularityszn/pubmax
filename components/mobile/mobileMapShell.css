@@ -756,6 +756,14 @@
     cursor: pointer;
   }
   .mapPeekAnswer.isQuiet { cursor: default; }
+  /* Press feedback on pointer-down, a tint rather than a scale: the row is wide
+     and text-led, and a scaled line of copy reads as the text shaking. */
+  .mapPeekAnswer {
+    transition: background-color var(--duration-press, 130ms) var(--ease-out-strong, cubic-bezier(0.23, 1, 0.32, 1));
+  }
+  .mapPeekAnswer:not(.isQuiet):active {
+    background: color-mix(in srgb, var(--color-text) 7%, transparent);
+  }
   .mapPeekAnswer:focus-visible,
   .mapPeekList:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
   .mapPeekEyebrow {
@@ -814,6 +822,7 @@
     font-weight: 700;
     cursor: pointer;
   }
+  .mapPeekList { transition: transform var(--duration-press, 130ms) var(--ease-out-strong, cubic-bezier(0.23, 1, 0.32, 1)); }
   .mapPeekList:active { transform: scale(.97); --shared-press-scale: 1; }
   /* The plan door inside the card: same button, same 48px, recessed one step
      so the card reads as one surface with one primary reading order. */
@@ -827,9 +836,12 @@
     box-shadow: none;
     background: var(--panel);
   }
-  /* A pub or a story sheet takes the foot of the map. The card stays mounted so
-     the map-edge column does not jump behind the sheet, and is simply not
-     painted or hit. */
+  /* A pub, a story, a sheet or the list takes the foot of the map. The card
+     stays mounted so the map-edge column does not jump behind it, and is simply
+     not painted or hit (data-covered, from the shell, covers every overlay the
+     plan door already stood down for; the selectors cover a pub or story sheet
+     the shell does not know about). */
+  .mapPeek[data-covered="true"],
   body:has(.appShell.detail-open) .mapPeek,
   body:has(.mobileSheetPortal) .mapPeek {
     visibility: hidden;

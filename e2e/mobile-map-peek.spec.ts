@@ -69,6 +69,15 @@ async function answeredCard(page: Page) {
   const card = page.locator(".mapPeek");
   await expect(card).toBeVisible({ timeout: 45_000 });
   await expect(card).toHaveAttribute("data-state", "answer", { timeout: 45_000 });
+  // The arrival turn and the first settled view can change which pub is
+  // cheapest in view once. Wait for two identical reads a beat apart.
+  let last = "";
+  await expect(async () => {
+    const now = (await card.locator(".mapPeekAnswer").innerText()).trim();
+    const stable = now === last;
+    last = now;
+    expect(stable, "the answer has stopped changing").toBe(true);
+  }).toPass({ timeout: 30_000, intervals: [1_500] });
   return card;
 }
 
@@ -99,6 +108,7 @@ test("tapping the answer opens that pub, and the card stands down behind its she
   // Hidden, not unmounted: the map-edge column must not jump behind the sheet.
   await expect(card).toBeHidden();
   await expect(card).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Describe the outing" })).toHaveCount(0);
 });
 
 test("List opens List view sorted cheapest, and its first row is the card's own answer", async ({ page }) => {
@@ -113,8 +123,9 @@ test("List opens List view sorted cheapest, and its first row is the card's own 
   const first = list.locator(".mapVenueListItem").first();
   await expect(first).toContainText(name);
   await expect(first).toContainText(price);
-  // The door and the card leave with it: nothing floats over the list.
-  await expect(card).toHaveCount(0);
+  // Nothing floats over the list: the card is covered, not painted or hit.
+  await expect(card).toBeHidden();
+  await expect(page.getByRole("button", { name: "Describe the outing" })).toHaveCount(0);
 });
 
 for (const reducedMotion of ["reduce", "no-preference"] as const) {
@@ -163,11 +174,30 @@ for (const reducedMotion of ["reduce", "no-preference"] as const) {
 test("a flick opens the list even when the distance is short", async ({ page }) => {
   await openMap(page);
   await answeredCard(page);
-  const cdp = await page.context().newCDPSession(page);
-  const box = await cardBox(page);
-  const from = { x: box.x + box.width / 2, y: box.y + 22 };
-  // 36px in four frames of 8ms is about 1.1 px/ms, over the 0.5 flick line.
-  await touchDrag(cdp, from, { x: from.x, y: from.y - 36 }, { steps: 4, stepMs: 8 });
+  // Pointer events dispatched back to back in the page: 44px (under the 56px
+  // commit distance) in about a frame is a flick however slow the runner's
+  // compositor is. A CDP touch drag cannot promise that, because the browser
+  // aligns touch moves to frames, and SwiftShader frames are slow.
+  await page.locator(".mapPeek").evaluate((card) => {
+    const rect = card.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + 22;
+    const fire = (type: string, dy: number) =>
+      card.dispatchEvent(
+        new PointerEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          pointerId: 7,
+          pointerType: "touch",
+          isPrimary: true,
+          clientX: x,
+          clientY: y - dy,
+        }),
+      );
+    fire("pointerdown", 0);
+    for (const dy of [12, 24, 36, 44]) fire("pointermove", dy);
+    fire("pointerup", 44);
+  });
   await expect(page.locator(".mapVenueList--open")).toBeVisible({ timeout: 10_000 });
 });
 

@@ -71,13 +71,21 @@ export default function MapPeekSheet({
   model,
   onOpenVenue,
   onOpenList,
+  covered = false,
   children,
 }: {
   model: MapPeekModel;
   onOpenVenue: (venueId: string) => void;
   onOpenList: () => void;
-  /** The plan door. It stays a real button with its own label and geometry. */
-  children: React.ReactNode;
+  /**
+   * Something else owns the foot of the map (a pub, a sheet, the list). The
+   * card stays MOUNTED and is simply not painted or hit, because the map-edge
+   * column and the Pub Pal berth are derived from its presence and would
+   * otherwise jump behind the sheet that is opening.
+   */
+  covered?: boolean;
+  /** The plan door, or nothing while the card is covered. */
+  children?: React.ReactNode;
 }) {
   const { value: offset, running, animateTo, jumpTo, stop } = useSpringValue(0, {
     response: 0.34,
@@ -114,7 +122,12 @@ export default function MapPeekSheet({
         if (-dy < DRAG_SLOP_PX) return;
         drag.active = true;
         draggedRef.current = true;
-        event.currentTarget.setPointerCapture(event.pointerId);
+        try {
+          event.currentTarget.setPointerCapture(event.pointerId);
+        } catch {
+          // The pointer is already gone (cancelled, or a synthetic event): the
+          // drag still tracks off the card's own move events.
+        }
       }
       event.preventDefault();
       const now = performance.now();
@@ -136,8 +149,12 @@ export default function MapPeekSheet({
       if (!drag || event.pointerId !== drag.pointerId) return;
       dragRef.current = null;
       if (!drag.active) return;
-      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-        event.currentTarget.releasePointerCapture(event.pointerId);
+      try {
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+          event.currentTarget.releasePointerCapture(event.pointerId);
+        }
+      } catch {
+        // Nothing to release.
       }
       // The click that follows a drag's pointerup is the drag's, and is
       // swallowed; the flag clears after it so a later keyboard click is not.
@@ -173,6 +190,7 @@ export default function MapPeekSheet({
       className="mapPeek"
       aria-label="Cheapest in this view"
       data-state={model.status}
+      data-covered={covered ? "true" : undefined}
       data-dragging={running || offset !== 0 ? "true" : undefined}
       style={offset !== 0 ? { transform: `translate3d(0, ${offset}px, 0)` } : undefined}
       onPointerDown={onPointerDown}
