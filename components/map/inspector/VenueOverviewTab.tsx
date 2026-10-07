@@ -83,6 +83,7 @@ import type { JourneyPoint } from "@/lib/venueJourney";
 import type { CrawlMode } from "@/components/map/ControlRail";
 import type { TabKey } from "@/lib/venueInspectorTabs";
 import type { PresenceState } from "./usePresence";
+import { useSheetPromptSlot } from "./useSheetPromptSlot";
 import { anchorMonthLabel } from "@/lib/venueAnchorPresentation";
 import {
   NO_ALCOHOL_LENS_PRICE_NOUN,
@@ -178,7 +179,11 @@ function overviewPriceAreaReach(
   experienceLens: MapExperienceLens,
   drinkLensCategory: DrinkCategory | null | undefined,
   lane: VenuePriceLane | null,
-): { showsPriceSummary: boolean; laneLoggedPriceShown: boolean } {
+): {
+  showsPriceSummary: boolean;
+  laneLoggedPriceShown: boolean;
+  priceShownFromAnotherLane: boolean;
+} {
   const showsPriceSummary =
     !drinkLensCategory &&
     (experienceLens !== "no-alcohol" ||
@@ -192,6 +197,10 @@ function overviewPriceAreaReach(
     showsPriceSummary,
     laneLoggedPriceShown:
       showsPriceSummary && lane !== null && venuePriceLaneIsDrinkerLog(lane),
+    // A price is on screen but no drinker logged it: the absence line beside it
+    // has to say which kind of absence it is.
+    priceShownFromAnotherLane:
+      showsPriceSummary && lane !== null && !venuePriceLaneIsDrinkerLog(lane),
   };
 }
 
@@ -870,6 +879,8 @@ export default function VenueOverviewTab({
   // The pub whose composer has already taken a price. Kept by venue id rather
   // than as a flag, so selecting another pub starts closed again.
   const [loggedVenueId, setLoggedVenueId] = useState<string | null>(null);
+  const promptSlot = useSheetPromptSlot(venue.id, onLogTonightPrice);
+  const { logTonightPrice } = promptSlot;
   const composerOpen = overviewComposerOpen({
     focusRequest: priceFocusRequest,
     signInRequested: priceSignInRequested,
@@ -927,7 +938,7 @@ export default function VenueOverviewTab({
     agedPrice,
     disputedPrice,
   );
-  const { showsPriceSummary, laneLoggedPriceShown } = overviewPriceAreaReach(
+  const { showsPriceSummary, laneLoggedPriceShown, priceShownFromAnotherLane } = overviewPriceAreaReach(
     venue,
     experienceLens,
     drinkLensCategory,
@@ -1061,9 +1072,10 @@ export default function VenueOverviewTab({
           laneNoun={leadLaneNoun}
           readStatus={venueReadStatus}
           laneLoggedPriceShown={laneLoggedPriceShown}
+          priceShownFromAnotherLane={priceShownFromAnotherLane}
           inviteOwnedElsewhere={drinkInviteOwnedElsewhere}
           communityPrices={communityPrices}
-          onLogPrice={onLogTonightPrice}
+          onLogPrice={logTonightPrice}
           canLog={isPubVenue(venue)}
           priceRevealMotionClass={priceRevealMotionClass}
           revealRecord={revealRecord}
@@ -1085,7 +1097,7 @@ export default function VenueOverviewTab({
           anchorStamp={anchorStamp}
           composerOpen={composerOpen}
           dropReadStatus={dropReadStatus}
-          onLogTonightPrice={onLogTonightPrice}
+          onLogTonightPrice={logTonightPrice}
           onConfirmPrice={onConfirmPrice}
           priceRevealMotionClass={
             drinkPriceRows?.length ? "" : priceRevealMotionClass
@@ -1145,7 +1157,7 @@ export default function VenueOverviewTab({
           latestPintDropAt={latestPintDropAt}
           focusRequest={priceFocusRequest}
           includeSignals={false}
-          open={composerOpen}
+          open={composerOpen && promptSlot.priceGateOpen(priceSignInRequested)}
           // The composer opens on the drink the map is under, so a cocktail map
           // does not ask a drinker to find cocktails again.
           laneCategory={leadLane}
@@ -1172,8 +1184,15 @@ export default function VenueOverviewTab({
         venueId={venue.id}
         venueName={venue.name}
         venueKind={venue.kind}
+        open={promptSlot.owner === "list"}
+        onOpenChange={(open) => promptSlot.claim(open ? "list" : null)}
       />
-      <SaveForNightButton venueId={venue.id} venueName={venue.name} />
+      <SaveForNightButton
+        venueId={venue.id}
+        venueName={venue.name}
+        active={promptSlot.allows("night")}
+        onActivate={() => promptSlot.claim("night")}
+      />
       <div className="presenceHere">
         {presenceState === "here" ? (
           <p
@@ -1196,7 +1215,10 @@ export default function VenueOverviewTab({
           <button
             type="button"
             className="addStopBtn"
-            onClick={markPresenceHere}
+            onClick={() => {
+              promptSlot.claim("presence");
+              markPresenceHere();
+            }}
             disabled={presenceState === "sending"}
             aria-label={`Mark that you're at ${venue.name} tonight`}
             style={{
@@ -1210,12 +1232,16 @@ export default function VenueOverviewTab({
             {presenceState === "sending" ? "Checking in…" : "I'm here"}
           </button>
         )}
-        {presenceState === "no-handle" ? (
+        {presenceState === "no-handle" && promptSlot.owner === "presence" ? (
           <p
             className="description muted"
             style={{ marginTop: "8px", fontSize: "0.82rem" }}
           >
-            Claim a handle to check in. <Link href="/u/you">Set yours</Link>.
+            Claim a handle to check in.{" "}
+            <Link href="/u/you" className="sheetPromptLink">
+              Set yours
+            </Link>
+            .
           </p>
         ) : null}
       </div>

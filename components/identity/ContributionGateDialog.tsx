@@ -124,8 +124,7 @@ export function ContributionGateDialog({
             <p className="contributionGateEyebrow">Age check</p>
             <h2 id="contribution-gate-title">Confirm your age</h2>
             <p>
-              Logging a drink price is for over-18s. One tap records it, and we
-              ask once.
+              This is for over-18s. One tap records it, and we ask once.
             </p>
             <AdultCheck onAsserted={onAsserted} />
           </>

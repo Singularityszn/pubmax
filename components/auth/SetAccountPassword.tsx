@@ -11,10 +11,15 @@ import {
 import { ensureSupabaseBrowser } from "@/lib/authClient";
 import { readAuthedIdentity } from "@/lib/currentIdentityRead";
 import {
+  CURRENT_PASSWORD_WRONG_CODE,
   MIN_PASSWORD_LENGTH,
   PASSWORD_CHANGE_GENERIC_ERROR,
+  PASSWORD_CURRENT_MISSING_ERROR,
+  PASSWORD_CURRENT_WRONG_ERROR,
   checkPassword,
+  passwordUpdateErrorMessage,
 } from "@/lib/passwordPolicy";
+import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { discardBody } from "@/lib/responseBody";
 import { Button } from "@/components/ui/button";
 
@@ -118,7 +123,7 @@ export default function SetAccountPassword(): React.JSX.Element | null {
       return;
     }
     if (hasPassword === true && !currentPassword) {
-      setError(PASSWORD_CHANGE_GENERIC_ERROR);
+      setError(PASSWORD_CURRENT_MISSING_ERROR);
       return;
     }
 
@@ -139,17 +144,29 @@ export default function SetAccountPassword(): React.JSX.Element | null {
           }, { requiresIdentity: true },
         );
         if (!verification.ok) {
-          discardBody(verification);
-          setError(PASSWORD_CHANGE_GENERIC_ERROR);
+          // Only the route's own wrong-password code names the current password.
+          // A 429 carries its own words; anything else is generic.
+          const body: unknown = await verification.json().catch(() => null);
+          if (
+            verification.status === 401 &&
+            (body as { code?: unknown } | null)?.code === CURRENT_PASSWORD_WRONG_CODE
+          ) {
+            setError(PASSWORD_CURRENT_WRONG_ERROR);
+          } else if (verification.status === 429) {
+            setError(errorMessageFrom(body, PASSWORD_CHANGE_GENERIC_ERROR));
+          } else {
+            setError(PASSWORD_CHANGE_GENERIC_ERROR);
+          }
           return;
         }
         await verification.json().catch(() => null);
       }
       const { error: updateError } = await supabase.auth.updateUser({ password });
       if (updateError) {
+        const named = passwordUpdateErrorMessage(updateError);
         setError(
-          hasPassword === true
-            ? PASSWORD_CHANGE_GENERIC_ERROR
+          named !== PASSWORD_CHANGE_GENERIC_ERROR || hasPassword === true
+            ? named
             : "Could not set your password. Try again.",
         );
         return;
@@ -188,8 +205,11 @@ export default function SetAccountPassword(): React.JSX.Element | null {
       method="post"
       autoComplete="on"
       onSubmit={onSubmit}
+      aria-label={hasPassword === true ? heading : undefined}
     >
-      <h3>{heading}</h3>
+      {/* The change form sits under a summary that already says "Change
+          password", so repeating it as a heading printed it twice. */}
+      {hasPassword === true ? null : <h3>{heading}</h3>}
       <p>{intro}</p>
       {hasPassword === true ? (
         <label>

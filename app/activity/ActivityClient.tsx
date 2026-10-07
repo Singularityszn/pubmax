@@ -211,7 +211,7 @@ export default function ActivityClient(): React.JSX.Element {
         as="main"
         id="main"
         className="activity"
-        kicker="Activity"
+        kicker="Your people"
         title="Activity"
         titleId="activity-title"
         lede="Who followed you, cheered a pint, left a comment, or saved your crawl."

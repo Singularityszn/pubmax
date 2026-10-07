@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 // DAG L16. The acceptance handoff used to sit behind PUBMAX_PAL_HANDOFF, which
-// no deployment ever set, so the "Use this venue" affordance and the locality
+// no deployment ever set, so the "Use this pub" affordance and the locality
 // line were dark. The flag is retired and the handoff is the only behaviour.
 //
 // The handoff link and copy are pinned in __tests__/palChatAccept.test.ts. This
@@ -18,7 +18,7 @@ test("Pal chat mounts and carries the handoff way back", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Plan with the Pal" })).toHaveCount(0);
 });
 
-test("Use this venue sits inside the card on the body's inset with a 44px target", async ({ page }) => {
+test("Use this pub sits inside the card on the body's inset with a 44px target", async ({ page }) => {
   // F19: the action sat flush against the card's left and bottom edge.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route("**/api/pub-pal/chat", async (route) => {
@@ -53,7 +53,7 @@ test("Use this venue sits inside the card on the body's inset with a 44px target
   await page.getByRole("button", { name: "Ask" }).click();
 
   const card = page.locator(".palChatCard").first();
-  const accept = card.getByRole("link", { name: "Use this venue" });
+  const accept = card.getByRole("link", { name: "Use this pub" });
   await expect(accept).toBeVisible();
   const cardBox = (await card.boundingBox())!;
   const acceptBox = (await accept.boundingBox())!;

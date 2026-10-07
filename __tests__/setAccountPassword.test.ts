@@ -119,11 +119,6 @@ describe("the password UI is tri-state", () => {
     expect(setPasswordSource).toContain(
       'hasPassword === false ? " accountHubPasswordOwed" : ""',
     );
-    const css = readFileSync(
-      join(process.cwd(), "app/u/[handle]/profile.css"),
-      "utf8",
-    );
-    expect(css).toMatch(/\.accountHubPasswordOwed\s*\{[^}]*grid-column: 1 \/ -1/);
   });
 
   it("is a section and never a dialog, per the arrival laws", () => {

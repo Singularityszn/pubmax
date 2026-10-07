@@ -26,6 +26,7 @@ import {
   venueStatusBadge,
 } from "@/lib/historicFilter";
 import {
+  historicCountLine,
   historicIndexHref,
   INDEX_PAGE_SIZE,
   type HistoricFilterQuery,
@@ -85,9 +86,7 @@ export default function HistoricPageClient({
             <HistoricFilters boroughs={boroughs} filters={filters} />
 
             <p className="historicCount" role="status" aria-live="polite">
-              {matchingPubs === totalPubs
-                ? `Showing ${firstShown}-${lastShown} of ${totalPubs} pubs`
-                : `Showing ${firstShown}-${lastShown} of ${matchingPubs} matches`}
+              {historicCountLine({ firstShown, lastShown, matchingPubs, totalPubs })}
             </p>
 
             {pubs.length === 0 ? (

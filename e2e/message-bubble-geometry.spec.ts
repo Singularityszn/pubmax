@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { measureHitArea, resolvedColour } from "./helpers/hitArea";
+
 // The bubble the first live DM on production drew wrong.
 //
 // An outgoing "Yo!!" rendered one character per line at 390px, because
@@ -312,6 +314,48 @@ for (const viewport of VIEWPORTS) {
       expect(Math.abs(measured["short-mine"].right - measured["short-mine"].rowRight)).toBeLessThanOrEqual(1);
       expect(measured["short-theirs"].right).toBeLessThan(measured["short-theirs"].rowRight - 10);
     });
+
+    test("a sent bubble wears the launch accent with accent ink", async ({ page }) => {
+      await measureBubbles(page);
+      const bubble = page.locator("#short-mine .messageBubble");
+      const painted = await bubble.evaluate((el) => {
+        const style = getComputedStyle(el);
+        return { background: style.backgroundColor, color: style.color };
+      });
+      expect(painted.background).toBe(await resolvedColour(page, ".messagesPage", "var(--brass)"));
+      expect(painted.color).toBe(await resolvedColour(page, ".messagesPage", "var(--color-on-accent)"));
+    });
+
+    test("the Report button reaches 44px of hit area without covering a bubble", async ({ page }) => {
+      await measureBubbles(page);
+      // The meta line is folded until the bubble is tapped.
+      await page.locator("#short-theirs").evaluate((row) => row.setAttribute("data-revealed", ""));
+      const area = await measureHitArea(page.locator("#short-theirs .messageReportBtn"));
+      expect(area.hitHeight).toBeGreaterThanOrEqual(44);
+      expect(area.hitWidth).toBeGreaterThanOrEqual(44);
+      // A tap on the edge of its own bubble or the next one never files a report.
+      const landsOnReport = await page.evaluate(() => {
+        const report = document.querySelector("#short-theirs .messageReportBtn")!;
+        const own = document.querySelector("#short-theirs .messageBubble")!.getBoundingClientRect();
+        const next = document.getElementById("long-mine")!.getBoundingClientRect();
+        const x = report.getBoundingClientRect().left + 4;
+        return [
+          [x, own.bottom - 1],
+          [x, next.top + 1],
+        ].map(([px, py]) => report.contains(document.elementFromPoint(px, py)));
+      });
+      expect(landsOnReport).toEqual([false, false]);
+    });
+
+    if (viewport.width >= 1024) {
+      test("the desktop thread panel has round corners", async ({ page }) => {
+        const radius = await page
+          .locator(".messagesSplit")
+          .first()
+          .evaluate((el) => parseFloat(getComputedStyle(el).borderTopLeftRadius));
+        expect(radius).toBeGreaterThan(0);
+      });
+    }
 
     test("the document never scrolls sideways with a link in the thread", async ({ page }) => {
       await measureBubbles(page);

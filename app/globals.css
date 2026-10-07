@@ -4480,6 +4480,35 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   color: var(--brick);
 }
 
+/* The pill stays small on purpose (it is the quietest control in the row), but
+   its hit area reaches the 44px floor on both axes: the pseudo-element is the
+   extra reach, centred on the pill. It measured 70x22, and a bare "Report"
+   label is narrower than 44px. The reach's 100% is the pill's padding box, so
+   the 24px covers its 1px borders and adds 11px above and below. */
+.reportBtn {
+  position: relative;
+  box-sizing: border-box;
+  min-height: 22px;
+}
+
+.reportBtn::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: max(100% + 12px, 44px);
+  height: calc(100% + 24px);
+  transform: translate(-50%, -50%);
+}
+
+/* Where a pill sits right under another control (the crowd taps) or between
+   price rows, its block margin holds those 11px so a tap there never files a
+   report. */
+.venueOccupancyFlag .reportBtn,
+.venueDrinkPriceRow .reportBtn {
+  margin-block: 11px;
+}
+
 /* ── Photo-backed composer ────────────────────────────────────────────── */
 .photoRow {
   display: grid;

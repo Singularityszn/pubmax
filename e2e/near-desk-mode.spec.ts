@@ -78,6 +78,25 @@ test.describe("near desk mode", () => {
     expect(errors).toEqual([]);
   });
 
+  test("a shared patch link opens in Pint even when Desk is remembered", async ({ page }) => {
+    const errors = watchErrors(page);
+    await prepareReturningVisitor(page);
+    // Someone who used Desk once: the remembered mode must not rewrite a link
+    // that names its own content.
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmax:near-mode:v1", "desk");
+    });
+    await page.goto("/near?patch=soho");
+    await expect(page.getByRole("radio", { name: "Pint" })).toHaveAttribute("aria-checked", "true");
+    await expect(page.locator("section.nmn")).toBeVisible();
+    await expect(page).not.toHaveURL(/mode=desk/);
+
+    // The bare page still honours the choice.
+    await page.goto("/near");
+    await expect(page.getByRole("radio", { name: "Desk" })).toHaveAttribute("aria-checked", "true");
+    expect(errors).toEqual([]);
+  });
+
   test("captures light and dark desk answers at 390", async ({ page }) => {
     mkdirSync(SHOTS_DIR, { recursive: true });
     await prepareReturningVisitor(page);

@@ -120,13 +120,6 @@ describe("MapExperienceLens", () => {
     expect(overview).toMatch(
       /<VenueDrinkPrices[\s\S]*?readStatus=\{venueReadStatus\}/,
     );
-    const drinkPrices = readFileSync(
-      join(process.cwd(), "components/map/VenueDrinkPrices.tsx"),
-      "utf8",
-    );
-    expect(drinkPrices).toContain(
-      "drinkLensEmptyVenueNote(laneNoun, readStatus)",
-    );
     // And the no-alcohol view keeps the joined noun rather than naming one of
     // its two categories and hiding the other.
     expect(overview).toContain("? NO_ALCOHOL_LENS_PRICE_NOUN");

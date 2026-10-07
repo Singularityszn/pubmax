@@ -62,22 +62,34 @@ describe("POST /api/auth/change-password/verify", () => {
     expect(passwordGrant).toHaveBeenCalledWith("owner@example.com", "Oldpass1!");
   });
 
-  it("uses one generic failure for wrong, short, and missing current passwords", async () => {
-    passwordGrant.mockResolvedValue(null);
+  it("names a wrong current password only when GoTrue refused the password itself", async () => {
+    passwordGrant.mockResolvedValue("invalid");
 
-    const wrong = await POST(request({ currentPassword: "Wrongpass1!" }));
+    const response = await POST(request({ currentPassword: "Wrongpass1!" }));
+
+    expect(response.status).toBe(401);
+    expect(await response.json()).toMatchObject({
+      code: "CURRENT_PASSWORD_WRONG",
+      error: "That is not your current password.",
+    });
+  });
+
+  it("uses one generic failure for an upstream failure, a ban, short and missing passwords", async () => {
+    passwordGrant.mockResolvedValueOnce(null).mockResolvedValueOnce("banned");
+
+    const upstream = await POST(request({ currentPassword: "Rightpass1!" }));
+    const banned = await POST(request({ currentPassword: "Rightpass1!" }));
     const short = await POST(request({ currentPassword: "short" }));
     const missing = await POST(request({}));
 
-    expect(wrong.status).toBe(401);
-    expect(short.status).toBe(401);
-    expect(missing.status).toBe(401);
-    const bodies = await Promise.all(
-      [wrong, short, missing].map((response) => response.json()),
-    );
-    expect(bodies[0]).toEqual(bodies[1]);
-    expect(bodies[1]).toEqual(bodies[2]);
-    expect(passwordGrant).toHaveBeenCalledTimes(1);
+    const responses = [upstream, banned, short, missing];
+    expect(responses.map((response) => response.status)).toEqual([401, 401, 401, 401]);
+    const bodies = await Promise.all(responses.map((response) => response.json()));
+    for (const body of bodies) {
+      expect(body).toEqual(bodies[0]);
+      expect(body.code).toBe("INVALID_CREDENTIALS");
+    }
+    expect(passwordGrant).toHaveBeenCalledTimes(2);
   });
 
   it("never accepts a body account identity", async () => {
@@ -104,6 +116,7 @@ describe("POST /api/auth/change-password/verify", () => {
     const response = await POST(request({ currentPassword: "Oldpass1!" }));
 
     expect(response.status).toBe(401);
+    expect((await response.json()).code).toBe("INVALID_CREDENTIALS");
     expect(passwordGrant).not.toHaveBeenCalled();
   });
 

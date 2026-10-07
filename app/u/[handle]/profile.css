@@ -308,8 +308,9 @@
   background: linear-gradient(
     180deg,
     color-mix(in srgb, var(--panel-raised) 4%, transparent) 0%,
-    color-mix(in srgb, var(--panel-raised) 18%, transparent) 62%,
-    color-mix(in srgb, var(--panel-raised) 72%, transparent) 100%
+    color-mix(in srgb, var(--panel-raised) 22%, transparent) 45%,
+    color-mix(in srgb, var(--panel-raised) 72%, transparent) 75%,
+    color-mix(in srgb, var(--panel-raised) 96%, transparent) 100%
   );
 }
 
@@ -1230,7 +1231,9 @@
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  background: var(--panel);
+  /* --paper, not --panel: the group around the field is --panel, so the field
+     had the same fill as its container and read as flat. */
+  background: var(--paper);
   color: var(--ink);
   font: inherit;
   font-size: 0.95rem;
@@ -2055,7 +2058,8 @@
    (the arrival laws), and never prominent on a read that could not answer. */
 .accountHubPassword h3, .accountHubPassword p { margin: 0; }
 .accountHubPassword label { display: grid; gap: .35rem; color: var(--ink-muted); font-size: .8rem; font-weight: 700; }
-.accountHubGrid .accountHubPasswordOwed { grid-column: 1 / -1; border: 1px solid var(--brass); }
+/* An owed password sits in the free column beside the private details, with the brass border to mark it. Spanning the row left that column empty. */
+.accountHubGrid .accountHubPasswordOwed { border: 1px solid var(--brass); }
 .accountHubPasswordError { color: var(--brick); }
 .accountHubGrid .accountHubPasswordChange { display: block; padding: 0; background: transparent; }
 .accountHubPasswordChange > summary { display: flex; min-height: 44px; align-items: center; justify-content: space-between; padding: .65rem 1rem; border: 1px solid var(--line); border-radius: 14px; background: var(--panel-raised); color: var(--ink); cursor: pointer; font-weight: 700; list-style: none; }

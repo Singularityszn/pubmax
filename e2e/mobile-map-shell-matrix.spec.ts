@@ -168,6 +168,13 @@ for (const viewport of VIEWPORTS) {
       await layersTab.click();
       const toggle = page.getByRole("button", { name: `Switch to ${theme === "light" ? "dark" : "light"} theme` });
       await expect(toggle).toBeVisible();
+      // The map layers group is a dynamic chunk (components/PubMap.tsx) fetched
+      // when this tab first renders, and its Place stories chips grow the sheet
+      // to its cap when they land. Two equal reads before then are not a
+      // settled sheet, so wait for the chips.
+      await expect(
+        page.getByRole("group", { name: "Place stories" }).getByRole("button").first(),
+      ).toBeVisible();
       await expect(page.locator(".mobileSharedSheet")).not.toHaveClass(/sheet-entering/);
       const sheetBefore = await settledBox(page.locator(".mobileSharedSheet"));
       expect(sheetBefore?.x).toBe(0);

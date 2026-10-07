@@ -46,6 +46,12 @@ test("public invite page renders a Plan and accepts a handle-free RSVP", async (
   await expect(page.locator(".invite__title")).toHaveText(PLAN_TITLE);
   await expect(page.locator(".invite__eyebrow")).toContainText(HOST_NAME);
   await expect(page.locator(".invite__stop")).toHaveCount(3);
+  // The route preview is a labelled diagram, not a bare grey box: each pin
+  // carries its stop number and a caption says it is straight lines.
+  await expect(page.locator(".invite__thumb text")).toHaveText(["1", "2", "3"]);
+  await expect(page.locator(".invite__thumbNote")).toHaveText(
+    "Straight lines between stops, not a walking route.",
+  );
   for (const venue of venues) {
     await expect(page.locator(".invite__stop", { hasText: venue.name })).toBeVisible();
   }

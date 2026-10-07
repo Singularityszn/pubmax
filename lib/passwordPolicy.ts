@@ -28,9 +28,47 @@ export const PASSWORD_POLICY_ERROR =
 /** Sign-in says nothing about WHICH half was wrong. */
 export const HANDLE_PASSWORD_GENERIC_ERROR = "Handle or password is wrong.";
 
-/** Change-password verification names no field when proof fails. */
+/**
+ * Change-password failure with no known cause: a dropped connection, a refused
+ * write. A failure that HAS a cause says it (below), because "Try again" over a
+ * wrong current password sends the reader round the same loop.
+ */
 export const PASSWORD_CHANGE_GENERIC_ERROR =
   "Could not change your password. Try again.";
+
+/**
+ * The reader is signed in and typing their own password, so naming the wrong
+ * field leaks nothing: the verify route is rate limited and refuses a caller
+ * with no session before it reads the body. The route sends this only with
+ * CURRENT_PASSWORD_WRONG_CODE, when GoTrue itself refused the password. Every
+ * other refusal keeps the generic line.
+ */
+export const PASSWORD_CURRENT_WRONG_ERROR = "That is not your current password.";
+
+export const CURRENT_PASSWORD_WRONG_CODE = "CURRENT_PASSWORD_WRONG";
+
+export const PASSWORD_UNCHANGED_ERROR =
+  "That is your current password. Pick a different one.";
+
+export const PASSWORD_CURRENT_MISSING_ERROR = "Enter your current password.";
+
+/**
+ * What a refused `updateUser({ password })` says. GoTrue answers a password
+ * that matches the current one with `same_password` and one that fails its own
+ * strength rules with `weak_password`. Anything else is the generic line.
+ */
+export function passwordUpdateErrorMessage(error: {
+  code?: string | null;
+  message?: string | null;
+}): string {
+  const code = error.code ?? "";
+  const message = (error.message ?? "").toLowerCase();
+  if (code === "same_password" || /different from the old password/.test(message)) {
+    return PASSWORD_UNCHANGED_ERROR;
+  }
+  if (code === "weak_password") return PASSWORD_POLICY_ERROR;
+  return PASSWORD_CHANGE_GENERIC_ERROR;
+}
 
 type PasswordRuleId = "length" | "capital" | "number" | "special";
 

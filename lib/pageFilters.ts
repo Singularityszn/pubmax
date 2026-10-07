@@ -117,3 +117,25 @@ export function clientFilterPayloadBytes(value: unknown): number {
   if (typeof TextEncoder === "undefined") return json.length;
   return new TextEncoder().encode(json).byteLength;
 }
+
+/**
+ * The count line above the historic list. A filter that matches nothing used to
+ * print "Showing 0-0 of 0 matches", a range over nothing. It says how many of
+ * the whole list match instead.
+ */
+export function historicCountLine({
+  firstShown,
+  lastShown,
+  matchingPubs,
+  totalPubs,
+}: {
+  firstShown: number;
+  lastShown: number;
+  matchingPubs: number;
+  totalPubs: number;
+}): string {
+  if (matchingPubs === 0) return `0 of ${totalPubs} pubs match`;
+  return matchingPubs === totalPubs
+    ? `Showing ${firstShown}-${lastShown} of ${totalPubs} pubs`
+    : `Showing ${firstShown}-${lastShown} of ${matchingPubs} matches`;
+}

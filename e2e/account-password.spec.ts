@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { resolvedColour } from "./helpers/hitArea";
+
 // Handle + password, both halves.
 //
 // WHAT THIS CAN AND CANNOT REHEARSE: setting a password is the browser's own
@@ -163,7 +165,7 @@ test("an account with no password is offered one, with the rules up front", asyn
   await expect(
     section.getByRole("heading", { name: "Create password" }),
   ).toBeVisible();
-  // Owed, so it takes the full row rather than sitting in a column.
+  // Owed, so it wears the brass border that marks it.
   await expect(section).toHaveClass(/accountHubPasswordOwed/);
 
   // The rules are read BEFORE typing, not discovered by failing.
@@ -200,6 +202,34 @@ test("an account with no password is offered one, with the rules up front", asyn
   expect(counters.passwordWrites).toBe(1);
 });
 
+test("an owed password card takes a desktop column beside another card, not the whole row", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await installOwnedAccount(page, { hasPassword: false });
+
+  await page.goto(`/u/${HANDLE}`);
+  const section = page.locator("form.accountHubPassword.accountHubPasswordOwed");
+  await expect(section).toBeVisible();
+
+  const layout = await section.evaluate((card) => {
+    const grid = card.parentElement!;
+    const box = card.getBoundingClientRect();
+    const sharesRow = [...grid.children].some((other) => {
+      if (other === card) return false;
+      const otherBox = other.getBoundingClientRect();
+      return otherBox.height > 0 && Math.abs(otherBox.top - box.top) <= 2;
+    });
+    return { width: box.width, gridWidth: grid.getBoundingClientRect().width, sharesRow };
+  });
+  expect(layout.width).toBeLessThan(layout.gridWidth * 0.6);
+  expect(layout.sharesRow).toBe(true);
+
+  // Prominent by its brass border rather than by spanning the row.
+  const border = await section.evaluate((card) => getComputedStyle(card).borderTopColor);
+  expect(border).toBe(await resolvedColour(page, "form.accountHubPassword", "var(--brass)"));
+});
+
 test("an account with a password keeps change collapsed until opened", async ({
   page,
 }) => {
@@ -230,4 +260,114 @@ test("a read that could not answer names neither state", async ({ page }) => {
   await expect(page.locator(".accountHubPassword")).toHaveCount(0);
   await expect(page.getByText("Create password", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Change password", { exact: true })).toHaveCount(0);
+});
+
+test("the create-password ask rests above the tab bar, so its buttons can be tapped", async ({
+  page,
+}) => {
+  await installOwnedAccount(page, { hasPassword: false });
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmaxx:analytics-consent:v1", "granted");
+    window.localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
+  });
+
+  await page.goto("/tonight");
+  const card = page.getByRole("dialog", { name: "Add a password?" });
+  await expect(card).toBeVisible();
+
+  const [cardBox, barBox] = await Promise.all([
+    card.boundingBox(),
+    page.locator(".mobileTabBar").boundingBox(),
+  ]);
+  expect(cardBox).not.toBeNull();
+  expect(barBox).not.toBeNull();
+  // The card ends above the bar's top edge rather than under it.
+  expect(cardBox!.y + cardBox!.height).toBeLessThanOrEqual(barBox!.y + 1);
+
+  // And the answer is reachable: the topmost element at the button's centre is
+  // the button itself, not a tab.
+  const accept = card.getByRole("link", { name: "Add one" });
+  const acceptBox = (await accept.boundingBox())!;
+  const topmostIsAccept = await accept.evaluate(
+    (el, point) => el.contains(document.elementFromPoint(point.x, point.y)),
+    { x: acceptBox.x + acceptBox.width / 2, y: acceptBox.y + acceptBox.height / 2 },
+  );
+  expect(topmostIsAccept).toBe(true);
+});
+
+test("a wrong current password and a reused password each name their fault", async ({ page }) => {
+  await installOwnedAccount(page, { hasPassword: true });
+  await page.route("**/api/auth/change-password/verify", async (route) => {
+    const body = JSON.parse(route.request().postData() ?? "{}") as { currentPassword?: string };
+    if (body.currentPassword === "Right1pass!") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ verified: true }),
+      });
+      return;
+    }
+    // Only the route's own wrong-password code names the field. Any other 401
+    // (an expired session, an upstream timeout) keeps the generic line.
+    const wrong = body.currentPassword === "Wrong1pass!";
+    await route.fulfill({
+      status: 401,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: wrong
+          ? "That is not your current password."
+          : "Could not change your password. Try again.",
+        code: wrong ? "CURRENT_PASSWORD_WRONG" : "INVALID_CREDENTIALS",
+      }),
+    });
+  });
+  // GoTrue's answer to a new password that equals the current one.
+  await page.route("https://pubmaxx-e2e.supabase.co/auth/v1/user", async (route) => {
+    if (route.request().method() === "PUT") {
+      await route.fulfill({
+        status: 422,
+        contentType: "application/json",
+        headers: { "access-control-allow-origin": "*" },
+        body: JSON.stringify({
+          code: 422,
+          error_code: "same_password",
+          msg: "New password should be different from the old password.",
+        }),
+      });
+      return;
+    }
+    await route.fallback();
+  });
+
+  await page.goto(`/u/${HANDLE}`);
+  const disclosure = page.locator("details.accountHubPasswordChange");
+  await disclosure.locator("summary").click();
+  // The summary names the form once: no second heading repeats it.
+  await expect(disclosure.getByRole("heading", { name: "Change password" })).toHaveCount(0);
+
+  const form = disclosure.locator("form.accountHubPassword");
+  await form.getByLabel("New password").fill("Pubmaxx1!");
+  await form.getByLabel("Confirm password").fill("Pubmaxx1!");
+
+  await form.getByLabel("Current password").fill("Wrong1pass!");
+  await form.getByRole("button", { name: "Save password" }).click();
+  await expect(form.getByRole("alert")).toHaveText("That is not your current password.");
+
+  await form.getByLabel("Current password").fill("Unchecked1pass!");
+  await form.getByRole("button", { name: "Save password" }).click();
+  await expect(form.getByRole("alert")).toHaveText("Could not change your password. Try again.");
+
+  await form.getByLabel("Current password").fill("Right1pass!");
+  await form.getByRole("button", { name: "Save password" }).click();
+  await expect(form.getByRole("alert")).toHaveText(
+    "That is your current password. Pick a different one.",
+  );
+});
+
+test("the create action steps aside on the profile page it used to cover", async ({ page }) => {
+  await installOwnedAccount(page, { hasPassword: true });
+  await page.goto(`/u/${HANDLE}`);
+  await expect(page.getByRole("heading", { name: "Your diary" })).toBeVisible();
+  // The floating + sat over the Pint Passport hero and the diary date at 390.
+  await expect(page.locator(".createFabRoot")).toBeHidden();
 });

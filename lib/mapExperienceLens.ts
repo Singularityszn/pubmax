@@ -354,8 +354,18 @@ export function drinkLensPriceNoun(category: DrinkCategory): string {
 export function drinkLensEmptyVenueNote(
   drinkNoun: string,
   status: VenuePriceReadStatus,
+  /**
+   * True when the sheet already prints a listed, sourced or baseline price for
+   * this pub. "No beer price logged here yet" then read as denying the figure
+   * beside it, so the line names the one thing it is true of: no drinker has
+   * logged one.
+   */
+  priceShownFromAnotherLane = false,
 ): string {
   if (status === "ready") {
+    if (priceShownFromAnotherLane) {
+      return `No ${drinkNoun} price logged by a drinker here yet.`;
+    }
     return `${drinkLensUnknownSentence(drinkNoun, status)} here yet.`;
   }
   if (status === "degraded") {

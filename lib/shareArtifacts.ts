@@ -89,7 +89,9 @@ export type PlanInviteShareInput = {
 
 export function buildPlanInviteShareText(input: PlanInviteShareInput): string {
   const { title, stopCount, startClock, spendBand } = input;
-  const parts = [title, countNoun(stopCount, "stop")];
+  // A message opens with a capital: the plan page passes "a night out in Soho".
+  const opener = title.charAt(0).toUpperCase() + title.slice(1);
+  const parts = [opener, countNoun(stopCount, "stop")];
   if (startClock) parts.push(`starts ${startClock}`);
   if (spendBand) parts.push(formatPlanInviteSpendBand(spendBand));
   return `${parts.join(" · ")}. Open the link and tap I'm in.`;

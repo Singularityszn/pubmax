@@ -156,8 +156,31 @@ describe("signInWithEmailPassword", () => {
 
     await expect(
       signInWithEmailPassword("owner@example.com", "Pubmaxx1!"),
-    ).resolves.toBeNull();
+    ).resolves.toBe("invalid");
     expect(refused.bodyUsed).toBe(true);
+  });
+
+  it("answers null, not invalid, when GoTrue fails for any other reason", async () => {
+    const { signInWithEmailPassword } = await import("@/lib/handlePasswordSignIn");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({ code: 500, msg: "Internal server error" }, { status: 500 }),
+      ),
+    );
+    await expect(
+      signInWithEmailPassword("owner@example.com", "Pubmaxx1!"),
+    ).resolves.toBeNull();
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new DOMException("The operation timed out.", "TimeoutError");
+      }),
+    );
+    await expect(
+      signInWithEmailPassword("owner@example.com", "Pubmaxx1!"),
+    ).resolves.toBeNull();
   });
 
   it("answers banned when GoTrue refuses a banned account", async () => {

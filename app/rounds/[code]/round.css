@@ -162,6 +162,15 @@
 
 .roundMoneyTurn strong {
   font-family: var(--font-display, serif);
+  /* A handle is one unit. With overflow-wrap: anywhere, "@qa_scout" broke its
+     last letter onto a second line at 390px. It now stays on one line, a size
+     down so a normal handle fits whole, and a long one ends in an ellipsis (the
+     full handle is in the title). */
+  font-size: clamp(17px, 4.6vw, 28px);
+  overflow: hidden;
+  overflow-wrap: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .roundMoneyLatest > strong:not(.roundMoneyEmpty) {

@@ -86,7 +86,7 @@ describe("VOICE.md compliance audit", () => {
       /Contributions carry your public handle, so pick one before you\s+log a price\./,
     );
     expect(contributionGate).toMatch(
-      /Logging a drink price is for over-18s\./,
+      /This is for over-18s\. One tap records it, and we ask\s+once\./,
     );
     expect(contributionGate).not.toMatch(/date of birth/i);
     expect(contributionGate).not.toContain("account-owned");

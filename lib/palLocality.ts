@@ -26,6 +26,14 @@ export type PalLocality = {
   label: string;
   /** True only when a real area was resolved; false = London-wide, distance-unranked. */
   grounded: boolean;
+  /**
+   * A place the query named that the taxonomy cannot place ("Blackfriars").
+   * Only ever set on a London-wide answer, so the line can say it could not
+   * place the name instead of claiming that no area was given.
+   */
+  unplaced?: string;
+  /** The reader asked for London itself ("in London"), so London-wide is their answer, not a gap. */
+  askedLondon?: boolean;
 };
 
 /** Honest "no distance evidence" marker — never replaced with a fabricated number. */
@@ -51,6 +59,78 @@ function areaFromQuery(query: string): PlanningIntentArea {
     if (mentions(text, borough)) return { kind: "borough", name: borough };
   }
   return null;
+}
+
+/** Words that end a place name in "pubs in Blackfriars for a quiet pint". */
+const PLACE_PHRASE_STOP = new Set([
+  "for", "now", "with", "that", "which", "or", "please",
+  "under", "over", "after", "before", "on", "at", "near", "around",
+]);
+
+/**
+ * Months, weekdays, holidays and times of day. Each one ends a place name the
+ * way PLACE_PHRASE_STOP does: "in December" names no place, and "near
+ * Blackfriars Friday night" names Blackfriars.
+ */
+const TIME_WORDS = new Set([
+  "january", "february", "march", "april", "may", "june", "july", "august",
+  "september", "october", "november", "december",
+  "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+  "christmas", "xmas", "easter", "halloween", "valentine", "year", "eve", "day",
+  "night", "weekend", "tonight", "today", "tomorrow", "morning", "afternoon",
+  "evening", "midnight", "nye",
+]);
+
+/** Holidays whose first word is no time word on its own: "New Year", not "New Cross". */
+const HOLIDAY_PHRASES = new Set(["new year", "boxing day", "bonfire night"]);
+
+/** The word as the time lists spell it: "Year's", "Years" and "Fridays" stem to "year" and "friday". */
+function timeStem(word: string): string {
+  const stem = word.toLowerCase().replace(/['’]s$/, "");
+  const singular = stem.replace(/s$/, "");
+  return TIME_WORDS.has(singular) ? singular : stem;
+}
+
+/** "London", "Central London", "East London": the whole city, which is London-wide, not a place. */
+const LONDON_SCOPE = /^(?:(?:central|north|south|east|west|greater)\s+)?london$/;
+
+/**
+ * Every place a query names after "in", "near", "around" or "close to" when it
+ * is written as a proper noun ("Blackfriars", "Elephant and Castle"), in order.
+ * The taxonomy knows only the night patches and boroughs, so this lets the
+ * answer say it could not place a name rather than claim none was given.
+ * Lower-case phrases are never taken: "in the cheapest" is not a place. A
+ * phrase that names only a time ("in December") names nothing.
+ */
+function namedPlacesFromQuery(query: string): string[] {
+  const names: string[] = [];
+  for (const match of query.matchAll(
+    /\b(?:in|near|around|close to)\s+(?:the\s+)?([A-Z][\p{L}'’-]*(?:\s+(?:and\s+|of\s+|the\s+)?[A-Z][\p{L}'’-]*){0,2})/gu,
+  )) {
+    const name = match[1] ? placeBeforeTime(match[1]) : null;
+    if (name) names.push(name);
+  }
+  return names;
+}
+
+/** The capitalised words of a phrase up to its first stop, time or holiday word. */
+function placeBeforeTime(phrase: string): string | null {
+  const words = phrase.split(/\s+/);
+  const kept: string[] = [];
+  for (const [index, word] of words.entries()) {
+    const stem = timeStem(word);
+    const next = words[index + 1];
+    if (
+      PLACE_PHRASE_STOP.has(stem) ||
+      TIME_WORDS.has(stem) ||
+      (next !== undefined && HOLIDAY_PHRASES.has(`${stem} ${timeStem(next)}`))
+    ) {
+      break;
+    }
+    kept.push(word);
+  }
+  const name = kept.join(" ").trim();
+  return name.length >= 3 ? name : null;
 }
 
 /** Map the remembered-area store shape onto a canonical acceptance area. */
@@ -85,11 +165,23 @@ export function resolvePalLocality(
   if (fromQuery) {
     return { scope: "query", area: fromQuery, label: labelFor(fromQuery), grounded: true };
   }
-  const fromRemembered = areaFromRemembered(remembered);
+  // A place the reader named that the taxonomy cannot place beats the remembered
+  // area: grounding "pubs in Blackfriars" in a remembered Soho would hand the
+  // planner a stale area for the pub they chose. "In London" beats it too, but
+  // is the London-wide answer the reader asked for, not a place we missed.
+  const named = namedPlacesFromQuery(query);
+  const unplaced = named.find((name) => !LONDON_SCOPE.test(normalizeSearchText(name)));
+  const fromRemembered = named.length > 0 ? null : areaFromRemembered(remembered);
   if (fromRemembered) {
     return { scope: "remembered", area: fromRemembered, label: labelFor(fromRemembered), grounded: true };
   }
-  return { scope: "london-wide", area: null, label: "London", grounded: false };
+  return {
+    scope: "london-wide",
+    area: null,
+    label: "London",
+    grounded: false,
+    ...(unplaced ? { unplaced } : named.length > 0 ? { askedLondon: true } : {}),
+  };
 }
 
 /** House-voice locality line. Grounded answers name the area; London-wide is explicit. */
@@ -98,6 +190,12 @@ export function palLocalityLine(locality: PalLocality): string {
     return locality.scope === "query"
       ? `Grounded in ${locality.label}, the area you named.`
       : `Grounded around ${locality.label}, your remembered area.`;
+  }
+  if (locality.unplaced) {
+    return `Across London. We could not place \u201c${locality.unplaced}\u201d, so these are not ranked by distance.`;
+  }
+  if (locality.askedLondon) {
+    return "Across London, as you asked, not ranked by distance.";
   }
   return "Across London. No area set, so these are not ranked by distance.";
 }

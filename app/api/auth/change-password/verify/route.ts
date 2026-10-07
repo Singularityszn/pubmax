@@ -2,8 +2,10 @@ import { publicApiError } from "@/lib/apiError";
 import { callerAuthIdentity } from "@/lib/authServer";
 import { jsonNoStore } from "@/lib/apiResponses";
 import {
+  CURRENT_PASSWORD_WRONG_CODE,
   MIN_PASSWORD_LENGTH,
   PASSWORD_CHANGE_GENERIC_ERROR,
+  PASSWORD_CURRENT_WRONG_ERROR,
 } from "@/lib/passwordPolicy";
 import { isLimited } from "@/lib/pintDrops";
 import { signInWithEmailPassword } from "@/lib/handlePasswordSignIn";
@@ -58,7 +60,10 @@ export async function POST(request: Request): Promise<Response> {
   if (currentPassword.length < MIN_PASSWORD_LENGTH) return invalidPassword();
 
   const session = await signInWithEmailPassword(identity.email, currentPassword);
-  if (!session) return invalidPassword();
+  if (session === "invalid") {
+    return publicApiError(PASSWORD_CURRENT_WRONG_ERROR, CURRENT_PASSWORD_WRONG_CODE, 401);
+  }
+  if (session === "banned" || !session) return invalidPassword();
 
   // The password grant is used only as proof of the old password. Its tokens
   // are deliberately discarded. The browser keeps using its existing session

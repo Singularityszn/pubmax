@@ -126,6 +126,16 @@ export function parseNearModeParam(raw: string | null | undefined): NearMode | n
   return null;
 }
 
+/**
+ * Whether the URL itself names what the page shows: a patch, a locate request
+ * or a poster scan. Such a link is shared, so it has to read the same for every
+ * visitor. The remembered mode is a convenience for the bare `/near` only; it
+ * may not turn `/near?patch=soho` into Desk for one person and Pint for another.
+ */
+export function nearUrlNamesContent(params: Pick<URLSearchParams, "get">): boolean {
+  return ["patch", "locate", "src"].some((key) => params.get(key) !== null);
+}
+
 export function resolveNearMode(
   param: string | null | undefined,
   remembered: string | null | undefined,
