@@ -1,10 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/authContext";
-import { subscribeDeviceIdentity } from "@/lib/deviceAccountIdentity";
-import { readDeviceHandle } from "@/lib/identityClaimClient";
+import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { discardBody } from "@/lib/responseBody";
 import {
   cleanListType,
@@ -26,14 +25,10 @@ import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
 // self-contained island: it shows the eligible built-in lists PLUS the viewer's
 // own custom lists, lets them file a venue under any of them, and lets them
 // create a new named list inline.
-// A signed-in account is known by its own canonical handle, a signed-out viewer
-// by this device's `pubmax_handle`; with no handle the built-in save still lives
-// in localStorage via toggleSaveDurable's fallback, but custom lists need a
-// handle to persist server-side.
-
-function serverHandle(): string {
-  return "";
-}
+// The handle is the viewer's own (useViewerHandle); with no handle, or while an
+// account's handle is still unknown, the built-in save still lives in
+// localStorage via toggleSaveDurable's fallback, but custom lists need a handle
+// to persist server-side.
 
 /** With no handle the save lives in this browser only, so the line says so. */
 function savedToast(listType: string, handle: string): string {
@@ -86,13 +81,8 @@ export default function SaveToListControl({
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }): React.JSX.Element {
-  const { user, loading, identityResolved, handle: accountHandle } = useAuth();
-  const deviceHandle = useSyncExternalStore(subscribeDeviceIdentity, readDeviceHandle, serverHandle);
-  // Until the live session's identity has been read, nobody is named: the
-  // device copy is where the previous account's handle lives, and an account
-  // switch clears it before the next account's handle lands.
-  const identityKnown = user ? identityResolved : !loading;
-  const handle = !identityKnown ? "" : user ? (accountHandle ?? "") : deviceHandle;
+  const { user } = useAuth();
+  const handle = useViewerHandle() ?? "";
   const [openState, setOpenState] = useState(false);
   const open = openProp ?? openState;
   const setOpen = useCallback(
@@ -115,7 +105,7 @@ export default function SaveToListControl({
   // device's copy may be missing a save made elsewhere, and a press judged
   // against it would report a removal that worked as a failure.
   const [serverVenueId, setServerVenueId] = useState<string | null>(null);
-  const ready = identityKnown && (!handle || serverVenueId === venueId);
+  const ready = !handle || serverVenueId === venueId;
   // The inspector reuses this control as it moves from pub to pub, so the
   // membership it holds belongs to ONE venue. A new venue starts from this
   // device's own answer for it (adjust-state-during-render, the repo idiom),

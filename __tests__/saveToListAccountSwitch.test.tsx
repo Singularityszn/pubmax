@@ -8,8 +8,9 @@ import SaveToListControl from "@/components/savedpubs/SaveToListControl";
 // An in-place account switch leaves the save-to-list control mounted with its
 // picker open. It must not keep showing the previous account's pressed chips,
 // and it must read the new account's membership once that account's handle has
-// been read. The inspector also reuses the control from pub to pub, so a pub it
-// returns to is read from the server again before a chip can be pressed.
+// been read. Until then, or if that read never lands, it saves on this device.
+// The inspector also reuses the control from pub to pub, so a pub it returns to
+// is read from the server again before a chip can be pressed.
 
 const authedFetch = vi.hoisted(() => vi.fn());
 const authedActionFetch = vi.hoisted(() => vi.fn());
@@ -92,14 +93,13 @@ describe("SaveToListControl across an account change", () => {
     expect(chip("Date Night").getAttribute("aria-pressed")).toBe("true");
 
     // Another account signs in on this device and the picker is still open.
-    // The switch publishes the new user first; its handle is read after.
+    // The switch publishes the new user first; its own handle is read after.
     Object.assign(session, { user: { id: "user-2" }, identityResolved: false, handle: null });
     await act(async () => {
       root.render(createElement(SaveToListControl, { venueId: "venue-1", venueName: "The Lamb" }));
     });
     await settle();
     expect(chip("Date Night").getAttribute("aria-pressed")).toBe("false");
-    expect(chip("Date Night").disabled).toBe(true);
 
     Object.assign(session, { identityResolved: true, handle: "zed" });
     await act(async () => {
@@ -111,6 +111,34 @@ describe("SaveToListControl across an account change", () => {
     expect(reads.some((url) => url.includes("handle=zed"))).toBe(true);
     expect(chip("Date Night").getAttribute("aria-pressed")).toBe("false");
     expect(chip("Date Night").disabled).toBe(false);
+  });
+});
+
+describe("SaveToListControl while the account's handle is unknown", () => {
+  it("saves on this device when the identity read has not landed", async () => {
+    window.localStorage.setItem("pubmax_handle", "mia");
+    Object.assign(session, { identityResolved: false, handle: null });
+
+    await act(async () => {
+      root.render(createElement(SaveToListControl, { venueId: "venue-1", venueName: "The Lamb" }));
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>("button.saveToListToggle")!.click();
+    });
+    await settle();
+    expect(chip("Date Night").disabled).toBe(false);
+
+    await act(async () => {
+      chip("Date Night").click();
+    });
+    await settle();
+
+    expect(chip("Date Night").getAttribute("aria-pressed")).toBe("true");
+    expect(container.querySelector(".saveToListToast")?.textContent).toBe(
+      "Saved to “Date Night” on this device",
+    );
+    expect(authedFetch).not.toHaveBeenCalled();
+    expect(authedActionFetch).not.toHaveBeenCalled();
   });
 });
 

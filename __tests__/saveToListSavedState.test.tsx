@@ -12,6 +12,10 @@ import SaveToListControl from "@/components/savedpubs/SaveToListControl";
 const authedFetch = vi.hoisted(() => vi.fn());
 const authedActionFetch = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/authedFetch", () => ({ authedFetch, authedActionFetch }));
+// A settled signed-out reader: this device's handle is theirs.
+vi.mock("@/components/auth/authContext", () => ({
+  useAuth: () => ({ user: null, loading: false, identityResolved: true, handle: null }),
+}));
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
   .IS_REACT_ACT_ENVIRONMENT = true;
