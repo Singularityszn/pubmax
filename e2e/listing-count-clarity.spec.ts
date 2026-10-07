@@ -55,6 +55,78 @@ test("the phone map names listing rows and keeps the label readable", async ({ p
   }
 });
 
+test("the longest drink lanes keep a three-digit Tonight count whole on a 320px phone", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("pubmax-tour-v1-done", "1");
+    localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+  });
+  await page.route("**/api/whats-on?**", (route) => route.fulfill({
+    json: { rows: Array.from({ length: 132 }, (_, index) => listing(index)), asOf: null },
+  }));
+
+  const lanes = [
+    { drink: "beer", label: "Pints" },
+    { drink: "soft-drink", label: "Soft drinks" },
+    { drink: "alcohol-free", label: "Alcohol-free" },
+  ];
+  for (const width of [320, 360]) {
+    await page.setViewportSize({ width, height: 844 });
+    for (const lane of lanes) {
+      const where = `${lane.drink} at ${width}px`;
+      await page.goto(`/map?drink=${lane.drink}`);
+      const chip = page.getByRole("button", { name: "Tonight listings: 132", exact: true });
+      await expect(chip, where).toBeVisible({ timeout: 30_000 });
+      await expect(page.locator(".mobileMapDrinkChipLabel"), where).toHaveText(lane.label);
+      await expect(chip.locator(".mobileMapTonightChipCount"), where).toHaveText("132");
+      const parts = await page.evaluate(() => {
+        const read = (selector: string) => {
+          const element = document.querySelector(selector);
+          if (!element) return null;
+          const rect = element.getBoundingClientRect();
+          return {
+            left: rect.left,
+            right: rect.right,
+            width: rect.width,
+            height: rect.height,
+            clientWidth: element.clientWidth,
+            scrollWidth: element.scrollWidth,
+          };
+        };
+        return {
+          drink: read(".mobileMapDrinkChip"),
+          drinkLabel: read(".mobileMapDrinkChipLabel"),
+          drinkIcon: read(".mobileMapDrinkChip > svg"),
+          tonight: read(".mobileMapTonightChip"),
+          label: read(".mobileMapTonightChipLabel"),
+          moon: read(".mobileMapTonightChip > svg"),
+          count: read(".mobileMapTonightChipCount"),
+          tfl: read(".mobileMapTflButton"),
+        };
+      });
+      const { drink, drinkLabel, drinkIcon, tonight, label, moon, count, tfl } = parts;
+      if (!drink || !drinkLabel || !drinkIcon || !tonight || !label || !moon || !count) {
+        throw new Error(`chip parts missing for ${where}: ${JSON.stringify(parts)}`);
+      }
+      // Every word and the whole count are on screen: nothing clips or squeezes.
+      expect(drinkLabel.scrollWidth, `drink label, ${where}`).toBeLessThanOrEqual(drinkLabel.clientWidth);
+      expect(label.scrollWidth, `Tonight label, ${where}`).toBeLessThanOrEqual(label.clientWidth);
+      expect(count.scrollWidth, `count badge, ${where}`).toBeLessThanOrEqual(count.clientWidth);
+      expect(label.right, `Tonight label runs under the count, ${where}`).toBeLessThanOrEqual(count.left);
+      expect(Math.round(drinkIcon.width), `glass icon, ${where}`).toBe(15);
+      expect(Math.round(moon.width), `moon icon, ${where}`).toBe(15);
+      // Both controls keep the 44px tap floor and stop short of the TfL lane.
+      expect(Math.round(drink.height), `drink chip height, ${where}`).toBe(44);
+      expect(Math.round(tonight.height), `Tonight chip height, ${where}`).toBe(44);
+      expect(tonight.right, `Tonight chip inside the viewport, ${where}`).toBeLessThanOrEqual(width);
+      if (tfl) {
+        expect(tonight.right, `Tonight chip clear of TfL, ${where}`).toBeLessThanOrEqual(tfl.left);
+      }
+    }
+  }
+});
+
 test("Out distinguishes listings shown from their accepted venue links", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route("**/api/out?**", (route) => route.fulfill({

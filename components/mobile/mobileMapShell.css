@@ -416,11 +416,26 @@
     background: color-mix(in srgb, var(--amber, #d3a44a) 16%, var(--color-surface-raised));
   }
   /* On the narrowest phones the label takes two lines, so it sets tight to
-     keep the chip on the row's 44px height (--mobile-map-chip-row-h). */
+     keep the chip on the row's 44px height (--mobile-map-chip-row-h). It never
+     narrows past its longest word, so "Tonight" cannot run under the count. */
   .mobileMapTonightChipLabel {
-    min-width: 0;
+    min-width: min-content;
     white-space: normal;
     line-height: var(--leading-tight);
+  }
+  /* The icons and the count keep their natural width: the label wraps, they
+     never squeeze. */
+  .mobileMapDrinkChip > svg,
+  .mobileMapTonightChip > svg,
+  .mobileMapTonightChipCount { flex-shrink: 0; }
+  /* At 320px a long lane name (Alcohol-free, Soft drinks) beside a three-digit
+     Tonight count needs the chips' inner spacing on the 4px step to fit whole. */
+  @media (max-width: 360px) {
+    .mobileMapDrinkChip,
+    .mobileMapTonightChip {
+      padding-inline: var(--space-1);
+      gap: var(--space-1);
+    }
   }
   .mobileMapTonightChipCount {
     min-width: 1.2rem;
