@@ -757,41 +757,32 @@
     min-width: 0;
     line-height: 1.25rem;
   }
-  /* The line is one row inside the 44px answer row. The figure never shrinks
-     or clips; an anchor's label and provenance give way first, then the name,
-     each with an ellipsis, and the name always keeps room to be read. */
+  /* The line is one row inside the 44px answer row, and every part of it is a
+     direct flex item. The figure never shrinks. The name gives way first, down
+     to the room it needs to be read, then the label before the figure (an
+     anchor's or a lens category, whose provenance is in the accessible name),
+     each with an ellipsis. */
+  .mapPeekLabel {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 7em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: .875rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+  }
   .mapPeekPrice {
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
-    flex: 0 8 auto;
+    flex: 0 0 auto;
     font-family: var(--font-data);
     font-size: 1rem;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
-  .mapPeekPrice > span { display: flex; align-items: baseline; }
-  .mapPeekPrice .compactVenuePriceAnchor,
-  .mapPeekProvenance {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .mapPeekPrice .compactVenuePriceAnchor {
-    font-family: var(--font-body);
-    font-size: .875rem;
-    font-weight: 600;
-    white-space: pre;
-  }
-  .mapPeekProvenance {
-    font-family: var(--font-body);
-    font-size: .75rem;
-    font-weight: 500;
-    color: var(--color-text-muted);
-  }
   .mapPeekName {
-    flex: 0 1 auto;
+    flex: 0 100 auto;
     min-width: 3em;
     overflow: hidden;
     text-overflow: ellipsis;

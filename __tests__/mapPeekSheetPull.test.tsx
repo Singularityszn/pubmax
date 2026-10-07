@@ -16,6 +16,8 @@ const ANSWER: MapPeekModel = {
     priceLabel: "£2.95",
     anchor: null,
     isPub: true,
+    lineLabel: null,
+    figureLabel: "£2.95",
     walkMinutes: null,
   },
 };
