@@ -50,6 +50,7 @@ type ProbeWindow = Window & {
 // a point that hits either of these opens the venue sheet.
 const PIN_LAYERS = [
   "pubs-point-selected",
+  "pubs-price-pill",
   "pubs-point",
   "uk-base-selected",
   "uk-base-point",

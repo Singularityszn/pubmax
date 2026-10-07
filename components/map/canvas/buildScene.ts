@@ -2,7 +2,7 @@ import type * as maplibregl from "maplibre-gl";
 import {
   applyBasemapTaste,
   applySelectionMute,
-  clusterCircleColorExpr,
+  clusterRingColorExpr,
 } from "@/lib/mapBasemapTaste";
 import { CATEGORY_COLORS } from "@/lib/categoryColors";
 import { isTransitNetworkVisible } from "@/lib/poiToggleGroups";
@@ -10,12 +10,20 @@ import { TRANSPORT_CATEGORIES, type PoiCategory } from "@/lib/pois";
 import {
   COFFEE_PILOT_ICON_KEY,
   iconId,
+  PILL_ICON_KEY_PREFIX,
   UK_BASE_ICON_KEY,
   venuePinIconKey,
   type IconTokens,
 } from "@/lib/mapIcons";
 import { LONDON_RESTAURANT_MIN_ZOOM } from "@/lib/londonRestaurants";
 import { USER_LOCATION_ACCURACY_RADIUS_PX } from "@/lib/mapReaderPosition";
+import {
+  DONUT_CASING_PX,
+  DONUT_OUTER_RADIUS_LARGE,
+  DONUT_OUTER_RADIUS_SMALL,
+  DONUT_RING_PX,
+  DONUT_SMALL_FROM_ZOOM,
+} from "@/lib/donutClusterGeometry";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import {
   type Tokens,
@@ -26,6 +34,7 @@ import {
   GLOW_BASE_STROKE_WIDTH,
   GLOW_SELECTED_STROKE_WIDTH,
   OSM_ATTRIBUTION,
+  pricePillTokens,
   venuePinEdgeTokens,
 } from "./tokens";
 import {
@@ -39,6 +48,10 @@ import {
   pubIconOpacityExpr,
   pinSortKeyExpr,
   pinPriceLabelExpr,
+  pricePillFilter,
+  CLUSTER_COUNT_BADGE_FILTER,
+  CLUSTER_FIGURE_EXPR,
+  CLUSTER_PRICE_NONE,
   PIN_ICON_SIZE_EXPR,
   PIN_PRICE_LABEL_MIN_ZOOM,
   SELECTED_PIN_PRICE_LABEL_EXPR,
@@ -178,10 +191,25 @@ const UK_BASE_SPOONS_LABEL_EXPR: maplibregl.ExpressionSpecification = [
 ];
 
 // Supercluster grouping radius in screen pixels. Sized off the widest cluster
-// disc this scene draws (radius 20 + stroke, see the `clusters` layer) so two
-// discs can never touch on a 390px-wide phone, with margin for the count label.
+// disc this scene draws (CLUSTER_MAX_RADIUS_PX, ring and casing included) so two
+// discs can never touch on a 390px-wide phone, with margin for the figure.
 export const CLUSTER_RADIUS_PX = 56;
-export const CLUSTER_MAX_RADIUS_PX = 20;
+
+// A cluster disc is one size per zoom band, not one per count: it answers
+// "where is the cheap pint", so its figure is the price and the count is the
+// small number on its rim. 44px up to the last whole zoom the source clusters
+// below the street band, 36px from CLUSTER_DISC_SMALL_FROM_ZOOM on, where the
+// discs thin out and a smaller one keeps the street under it readable. These
+// are the OUTER radii, casing included.
+export const CLUSTER_MAX_RADIUS_PX = DONUT_OUTER_RADIUS_LARGE;
+export const CLUSTER_MIN_RADIUS_PX = DONUT_OUTER_RADIUS_SMALL;
+export const CLUSTER_DISC_SMALL_FROM_ZOOM = DONUT_SMALL_FROM_ZOOM;
+// The hairline of ink round the outside, so the disc edges against every
+// basemap tone whatever its band ring is, and the ring that sits inside it.
+export const CLUSTER_CASING_PX = DONUT_CASING_PX;
+export const CLUSTER_RING_PX = DONUT_RING_PX;
+/** The rim count's text size in px, which is also the em its offset is in. */
+export const CLUSTER_COUNT_BADGE_SIZE_PX = 10;
 
 // `clusters` / `cluster-count` resting paint. Named because the entrance ramp
 // (PubMapCanvas) fades from 0 up to exactly these values and must restore them.
@@ -284,11 +312,48 @@ export const PIN_PRICE_LABEL_PADDING = 4;
 /** The plaque halo behind a pin tag, shared by the curated and base layers. */
 const PIN_PRICE_LABEL_HALO_WIDTH = 2.1;
 
+// The pill's text, in px. 12 at the first zoom it draws, 13 by street level.
+const PIN_PRICE_PILL_TEXT_SIZE_EXPR: maplibregl.ExpressionSpecification = [
+  "interpolate",
+  ["linear"],
+  ["zoom"],
+  PIN_PRICE_LABEL_MIN_ZOOM,
+  12,
+  16.5,
+  13,
+];
+// [top, right, bottom, left] px added round the text's rectangle on top of the
+// image's own content box.
+const PIN_PRICE_PILL_FIT_PADDING: [number, number, number, number] = [1, 0, 1, 0];
+
 // Zoom at/above which curated landmark pictograms stop yielding to other
 // symbols. Below it a landmark icon gives way where a pub cluster or pin
 // already occupies the spot; at/above it (the landmark-inspector camera flies
 // to 15) the curated icon is the hero and always draws.
 export const LANDMARK_ICON_PRIORITY_ZOOM = 14;
+
+// A landmark is information about the place, not a mark to find a pint by, so
+// it sits at 22px (0.73 of the 30px box) from the overview to street level and
+// grows only into the landmark inspector's band: LANDMARK_ICON_PRIORITY_ZOOM
+// is where the camera lands when a reader taps one on purpose, and there the
+// pictogram is the hero (Piccadilly Circus must read like the London Eye). It
+// used to be 0.9 at z12 and 1.35 at z15, 27px and 40px, which out-weighed the
+// 28px pins the map exists to show.
+export const LANDMARK_ICON_SIZE_PX = 22;
+export const LANDMARK_INSPECTOR_ICON_SIZE_PX = 36;
+const LANDMARK_ICON_SIZE_EXPR: maplibregl.ExpressionSpecification = [
+  "interpolate",
+  ["linear"],
+  ["zoom"],
+  9,
+  (LANDMARK_ICON_SIZE_PX * 0.8) / 30,
+  11,
+  LANDMARK_ICON_SIZE_PX / 30,
+  LANDMARK_ICON_PRIORITY_ZOOM,
+  LANDMARK_ICON_SIZE_PX / 30,
+  15,
+  LANDMARK_INSPECTOR_ICON_SIZE_PX / 30,
+];
 const FIRST_PUB_LAYER_ID = "pubs-drops-halo";
 
 export type SceneCtx = {
@@ -583,6 +648,7 @@ function registerSceneIcons(ctx: SceneCtx) {
     // venuePinEdgeTokens: `paper` above resolves to a near-black in dark, so the
     // glasses' "light rim" was a black one against a near-black basemap.
     ...venuePinEdgeTokens(tokens, dark),
+    ...pricePillTokens(tokens),
     coffee: dark ? CATEGORY_COLORS.coffee.dark : CATEGORY_COLORS.coffee.light,
   };
   registerMapIcons(map, iconTokens);
@@ -677,19 +743,7 @@ export function buildLandmarks(ctx: SceneCtx) {
     layout: {
       "icon-image": ["get", "icon"],
       // Grow hard into inspector zoom so the pin is the hero, not basemap massing.
-      "icon-size": [
-        "interpolate",
-        ["linear"],
-        ["zoom"],
-        9,
-        0.55,
-        12,
-        0.9,
-        15,
-        1.35,
-        17,
-        1.5,
-      ],
+      "icon-size": LANDMARK_ICON_SIZE_EXPR,
       // Collision policy (owner mobile audit: "the names of the places are so
       // close it looks janky"). Below the inspector band a landmark icon yields
       // where a pub cluster/pin already holds the spot; from
@@ -1266,6 +1320,12 @@ export function buildPubs(ctx: SceneCtx) {
         s1: ["+", ["case", ["==", ["get", "spoonsBucket"], 1], 1, 0]],
         s2: ["+", ["case", ["==", ["get", "spoonsBucket"], 2], 1, 0]],
         s3: ["+", ["case", ["==", ["get", "spoonsBucket"], 3], 1, 0]],
+        // The cheapest sayable price inside the cluster, which is the figure
+        // its disc prints. `clusterPrice` is stamped by geojson.ts only where
+        // the pin itself would print the same number, and a pub that says
+        // nothing contributes CLUSTER_PRICE_NONE so the `min` has a value to
+        // start from; a cluster still at that figure prints its count.
+        minPrice: ["min", ["coalesce", ["get", "clusterPrice"], CLUSTER_PRICE_NONE]],
       },
     });
   }
@@ -1430,6 +1490,55 @@ export function buildPubs(ctx: SceneCtx) {
       "text-opacity-transition": { duration: 250, delay: 0 },
     },
   });
+  // THE PRICE PILL. From PIN_PRICE_LABEL_MIN_ZOOM a priced pub's mark is its
+  // price on a pill, with the band as a 3px foot (lib/mapIcons.ts, the pill
+  // section). It is the pin ABOVE the glass in the layer stack, so MapLibre
+  // places it first; the glass (and the tag hung under it) then collide with
+  // the pill that stands on the very same point and drop, and where the pill
+  // finds no room the glass places as it always did. A pub is therefore never
+  // lost to make its price fit, which is the rule the tag on `pubs-point` was
+  // written to keep.
+  //
+  // Same collision deal as every other symbol (nothing here ignores
+  // placement), same priority as the glass (pinSortKeyExpr), same dimming
+  // (pubIconOpacityExpr). The selected pub is filtered out: it keeps its
+  // enlarged glass, its glow and its own tag on `pubs-point-selected`.
+  addLayerOnce({
+    id: "pubs-price-pill",
+    type: "symbol",
+    source: "pubs",
+    minzoom: PIN_PRICE_LABEL_MIN_ZOOM,
+    filter: pricePillFilter(selectedId, bandMemberIds),
+    layout: {
+      "icon-image": [
+        "concat",
+        iconId("pill", PILL_ICON_KEY_PREFIX),
+        ["to-string", ["get", "bucket"]],
+      ],
+      "icon-text-fit": "both",
+      // The pill's own nine-slice already holds the padding (its content box
+      // is inset 8px / 5px), so this only trues the height up to 26px.
+      "icon-text-fit-padding": PIN_PRICE_PILL_FIT_PADDING,
+      "icon-allow-overlap": false,
+      "icon-ignore-placement": false,
+      "icon-padding": 2,
+      "symbol-sort-key": pinSortKeyExpr(selectedId),
+      "text-field": ["get", "priceLabel"],
+      "text-font": textFont,
+      "text-size": PIN_PRICE_PILL_TEXT_SIZE_EXPR,
+      "text-letter-spacing": 0.01,
+      "text-allow-overlap": false,
+      "text-ignore-placement": false,
+      "text-padding": 0,
+    },
+    paint: {
+      "icon-opacity": pubIconOpacityExpr(selectedId),
+      "icon-opacity-transition": { duration: 250, delay: 0 },
+      "text-color": tokens.pricePlaqueInk,
+      "text-opacity": pubIconOpacityExpr(selectedId),
+      "text-opacity-transition": { duration: 250, delay: 0 },
+    },
+  });
   // The selected pin, drawn again on its own layer with overlap allowed —
   // `icon-allow-overlap` is data-constant in the style spec, so the base layer
   // above cannot exempt one feature. This layer carries exactly one feature
@@ -1471,8 +1580,12 @@ export function buildPubs(ctx: SceneCtx) {
     },
     paint: {
       "icon-opacity": 1,
-      "text-color": tokens.pricePlaqueInk,
-      "text-halo-color": tokens.pricePlaqueSurface,
+      // The selected pub's tag is the one INVERTED figure on the map: paper on
+      // ink, where every other tag is ink on paper. It is the pill the selected
+      // pub does not get (its enlarged glass and its glow are the selection),
+      // and the inversion is what says "this is the one you are on".
+      "text-color": dark ? tokens.inkDeep : tokens.paper,
+      "text-halo-color": dark ? tokens.ink : tokens.inkDeep,
       "text-halo-width": PIN_PRICE_LABEL_HALO_WIDTH,
       "text-halo-blur": 0.2,
       "text-opacity": 1,
@@ -1559,30 +1672,50 @@ export function buildPubs(ctx: SceneCtx) {
     ],
     paint: confirmedBadgePaint(tokens, dark, pubIconOpacityExpr(selectedId)),
   });
+  // A cluster is a PAPER disc wearing a band ring and the cheapest price in it.
+  // The band used to be the fill, which painted every dear pocket of London in
+  // the coral that owns the Plan CTA (DESIGN.md, One Accent Rule: `--brick`
+  // shares the coral family) and made the map read as a warning. A ring is a
+  // hint the figure can contradict, a fill was a verdict.
+  //
+  // Three circles and two labels, in this order from the bottom: the casing
+  // (ink, so the edge against every basemap tone does not depend on the band),
+  // the disc (paper fill, band ring), the figure, and the count on the rim.
+  const discRadius = (outer: number) => outer - CLUSTER_CASING_PX - CLUSTER_RING_PX / 2;
+  const clusterRadiusByZoom = (casing: boolean): maplibregl.ExpressionSpecification => [
+    "step",
+    ["zoom"],
+    casing ? CLUSTER_MAX_RADIUS_PX : discRadius(CLUSTER_MAX_RADIUS_PX),
+    CLUSTER_DISC_SMALL_FROM_ZOOM,
+    casing ? CLUSTER_MIN_RADIUS_PX : discRadius(CLUSTER_MIN_RADIUS_PX),
+  ];
+  addLayerOnce({
+    id: "clusters-casing",
+    type: "circle",
+    source: "pubs",
+    filter: CLUSTER_FILTER,
+    paint: {
+      "circle-color": dark ? tokens.ink : tokens.inkDeep,
+      "circle-radius": clusterRadiusByZoom(true),
+      "circle-opacity": CLUSTER_FILL_OPACITY,
+      "circle-opacity-transition": { duration: 0, delay: 0 },
+    },
+  });
   addLayerOnce({
     id: "clusters",
     type: "circle",
     source: "pubs",
     filter: CLUSTER_FILTER,
     paint: {
-      // Price-aware GL fallback. Desktop normally replaces these circles with
+      // Price-aware GL disc. Desktop normally replaces these circles with
       // segmented donuts; phones and large cluster sets keep this layer, whose
-      // fill follows the most common known price band in b0..b2. Grey means no
-      // known price. Radius still carries density, and the count stays literal.
-      "circle-color": clusterCircleColorExpr(tokens, dark) as maplibregl.ExpressionSpecification,
-      "circle-stroke-color": tokens.panelRaised,
-      "circle-stroke-width": ["step", ["get", "point_count"], 1.75, 40, 2, 100, 2.25],
+      // ring follows the most common known price band in b0..b2. Grey means no
+      // known price. Radius no longer carries density: the count is on the rim.
+      "circle-color": tokens.panelRaised,
+      "circle-stroke-color": clusterRingColorExpr(tokens) as maplibregl.ExpressionSpecification,
+      "circle-stroke-width": CLUSTER_RING_PX,
       "circle-stroke-opacity": CLUSTER_STROKE_OPACITY,
-      "circle-radius": [
-        "step",
-        ["get", "point_count"],
-        11,
-        25,
-        15,
-        100,
-        CLUSTER_MAX_RADIUS_PX,
-      ],
-      "circle-blur": ["step", ["get", "point_count"], 0.02, 40, 0.05, 100, 0.08],
+      "circle-radius": clusterRadiusByZoom(false),
       "circle-opacity": CLUSTER_FILL_OPACITY,
       // The entrance ramp fades these in from 0 (PubMapCanvas); a transition
       // here would fight those per-frame writes exactly like the pin ramp's.
@@ -1596,24 +1729,60 @@ export function buildPubs(ctx: SceneCtx) {
     source: "pubs",
     filter: CLUSTER_FILTER,
     layout: {
-      "text-field": ["get", "point_count_abbreviated"],
+      // The cheapest price in the disc, or its count where no pub in it says a
+      // price. See CLUSTER_FIGURE_EXPR for why that figure is the pins' own.
+      "text-field": CLUSTER_FIGURE_EXPR,
       "text-font": textFont,
-      "text-size": ["step", ["get", "point_count"], 10, 25, 11, 100, 12],
-      "text-letter-spacing": 0.02,
-      // A disc without its number is worse than a tight fit, so the count
-      // always draws — but it is NOT invisible to placement: its padded box
+      "text-size": ["step", ["zoom"], 12, CLUSTER_DISC_SMALL_FROM_ZOOM, 11],
+      "text-letter-spacing": 0.01,
+      // A disc without its number is worse than a tight fit, so the figure
+      // always draws - but it is NOT invisible to placement: its padded box
       // (CLUSTER_COLLISION_PADDING ≈ the disc footprint) is what makes every
       // other label on the map, ours and the basemap's, keep off the disc.
       "text-allow-overlap": true,
       "text-ignore-placement": false,
       "text-padding": CLUSTER_COLLISION_PADDING,
-      // Denser clusters win a contested spot.
-      "symbol-sort-key": ["-", 0, ["get", "point_count"]],
+      // The cheaper disc wins a contested spot. A disc with no price sorts
+      // last, because a count is the weaker answer to this map's question.
+      "symbol-sort-key": ["coalesce", ["get", "minPrice"], CLUSTER_PRICE_NONE],
     },
     paint: {
       "text-color": dark ? tokens.ink : tokens.inkDeep,
       "text-halo-color": withAlpha(tokens.panelRaised, 0.75),
       "text-halo-width": 1,
+      "text-opacity": 1,
+      "text-opacity-transition": { duration: 0, delay: 0 },
+    },
+  });
+  // The count, on the rim at the upper right, once the disc is wearing a price.
+  // A count over nine only: "3" beside a price says less than the disc does.
+  const rimOffset = (outer: number): [number, number] => {
+    const em = (outer - CLUSTER_CASING_PX - CLUSTER_RING_PX / 2) * Math.SQRT1_2 / CLUSTER_COUNT_BADGE_SIZE_PX;
+    return [Number(em.toFixed(3)), Number((-em).toFixed(3))];
+  };
+  addLayerOnce({
+    id: "cluster-count-badge",
+    type: "symbol",
+    source: "pubs",
+    filter: CLUSTER_COUNT_BADGE_FILTER,
+    layout: {
+      "text-field": ["get", "point_count_abbreviated"],
+      "text-font": textFont,
+      "text-size": CLUSTER_COUNT_BADGE_SIZE_PX,
+      "text-offset": [
+        "step",
+        ["zoom"],
+        ["literal", rimOffset(CLUSTER_MAX_RADIUS_PX)],
+        CLUSTER_DISC_SMALL_FROM_ZOOM,
+        ["literal", rimOffset(CLUSTER_MIN_RADIUS_PX)],
+      ] as unknown as maplibregl.ExpressionSpecification,
+      "text-allow-overlap": true,
+      "text-ignore-placement": false,
+    },
+    paint: {
+      "text-color": dark ? tokens.ink : tokens.inkDeep,
+      "text-halo-color": tokens.panelRaised,
+      "text-halo-width": 2,
       "text-opacity": 1,
       "text-opacity-transition": { duration: 0, delay: 0 },
     },

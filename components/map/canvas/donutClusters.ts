@@ -1,6 +1,14 @@
 import * as maplibregl from "maplibre-gl";
 import type { GeoJSONFeature } from "maplibre-gl";
-import { buildDonutMarkerSvg, donutTotal, type DonutCounts } from "@/lib/donutClusterGeometry";
+import {
+  buildDonutMarkerSvg,
+  donutOuterRadius,
+  donutTotal,
+  readMinPrice,
+  type DonutCounts,
+} from "@/lib/donutClusterGeometry";
+import { CLUSTER_COUNT_BADGE_FILTER, CLUSTER_PRICE_NONE } from "./filters";
+import { formatPinPriceLabel } from "./geojson";
 import { readTokens } from "./tokens";
 import { CLUSTER_FILTER, CLUSTER_MAX_ZOOM } from "./buildScene";
 
@@ -60,7 +68,20 @@ type MarkerEntry = {
   marker: maplibregl.Marker;
   el: HTMLDivElement;
   counts: DonutCounts;
+  /** The marker's own drawing, so a change of figure or size rebuilds it and
+   *  a mere move does not. */
+  look: string;
 };
+
+// The GL layers a donut stands in for, each with the filter it wears while it
+// is showing. The figure comes last on purpose: it is the one a test and a
+// reader both treat as "the" cluster layer.
+const GL_CLUSTER_LAYERS: ReadonlyArray<readonly [string, maplibregl.FilterSpecification]> = [
+  ["clusters-casing", CLUSTER_FILTER],
+  ["clusters", CLUSTER_FILTER],
+  ["cluster-count-badge", CLUSTER_COUNT_BADGE_FILTER],
+  ["cluster-count", CLUSTER_FILTER],
+];
 
 export type DonutClusterSync = {
   /** Detach every listener + marker. Safe to call once, from the same
@@ -88,8 +109,8 @@ export function createDonutClusterSync(
   let lastRenderAt = 0;
 
   const setLegacyLayersVisible = (visible: boolean) => {
-    for (const id of ["clusters", "cluster-count"]) {
-      if (map.getLayer(id)) map.setFilter(id, visible ? CLUSTER_FILTER : false);
+    for (const [id, filter] of GL_CLUSTER_LAYERS) {
+      if (map.getLayer(id)) map.setFilter(id, visible ? filter : false);
     }
   };
 
@@ -165,24 +186,40 @@ export function createDonutClusterSync(
     const dark = document.documentElement.dataset.theme === "dark";
     const colors = BUCKET_COLOR_KEYS.map((key) => tokens[key]);
     const textColor = dark ? tokens.ink : tokens.inkDeep;
+    const casingColor = dark ? tokens.ink : tokens.inkDeep;
+    const outerRadius = donutOuterRadius(map.getZoom());
+    const markup = (counts: DonutCounts, figure: string | null) =>
+      buildDonutMarkerSvg({
+        counts,
+        colors,
+        discColor: tokens.panelRaised,
+        casingColor,
+        trackColor: tokens.muted,
+        textColor,
+        outerRadius,
+        figure,
+      });
     const seen = new Set<number>();
     for (const [clusterId, feature] of byId) {
       seen.add(clusterId);
       const counts = readCounts(feature.properties);
+      // The cheapest price any pub in the disc says, written the way a pin
+      // writes one. Under the Spoons value lens no pub carries one, so the disc
+      // prints its count, exactly as the GL layer does.
+      const minPrice = readMinPrice(feature.properties, CLUSTER_PRICE_NONE);
+      const figure = minPrice === null ? null : formatPinPriceLabel(minPrice);
+      const look = `${outerRadius}|${figure ?? ""}|${textColor}|${casingColor}|${tokens.panelRaised}`;
       const [lng, lat] = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
       const existing = markers.get(clusterId);
       if (existing) {
         existing.marker.setLngLat([lng, lat]);
-        // Perf guardrail: rebuild the SVG only when this cluster's counts
-        // actually changed — position updates are cheap setLngLat calls.
-        if (!countsEqual(existing.counts, counts)) {
+        // Perf guardrail: rebuild the SVG only when this cluster's counts,
+        // figure or size actually changed - position updates are cheap
+        // setLngLat calls.
+        if (!countsEqual(existing.counts, counts) || existing.look !== look) {
           existing.counts = counts;
-          existing.el.innerHTML = buildDonutMarkerSvg({
-            counts,
-            colors,
-            ringColor: tokens.panelRaised,
-            textColor,
-          });
+          existing.look = look;
+          existing.el.innerHTML = markup(counts, figure);
         }
         continue;
       }
@@ -190,19 +227,19 @@ export function createDonutClusterSync(
       el.className = "donut-cluster-marker";
       el.style.cursor = "pointer";
       el.setAttribute("role", "button");
-      el.setAttribute("aria-label", `${donutTotal(counts)} pubs, tap to zoom in`);
-      el.innerHTML = buildDonutMarkerSvg({
-        counts,
-        colors,
-        ringColor: tokens.panelRaised,
-        textColor,
-      });
+      el.setAttribute(
+        "aria-label",
+        figure === null
+          ? `${donutTotal(counts)} pubs, tap to zoom in`
+          : `${donutTotal(counts)} pubs, cheapest ${figure}, tap to zoom in`,
+      );
+      el.innerHTML = markup(counts, figure);
       el.addEventListener("click", (event) => {
         event.stopPropagation();
         handleClusterClick(clusterId, [lng, lat]);
       });
       const marker = new maplibregl.Marker({ element: el }).setLngLat([lng, lat]).addTo(map);
-      markers.set(clusterId, { marker, el, counts });
+      markers.set(clusterId, { marker, el, counts, look });
     }
     for (const [id, entry] of markers) {
       if (!seen.has(id)) {

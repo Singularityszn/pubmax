@@ -103,7 +103,7 @@ export default function MapKey({
           <h3 id="mapKeyClusterHeading">Clusters</h3>
           <div className="mapKeyClusterRow">
             <span className="mapKeyClusterSample" aria-hidden="true">
-              #
+              £4
             </span>
             <p>{legend.clusterNote}</p>
           </div>

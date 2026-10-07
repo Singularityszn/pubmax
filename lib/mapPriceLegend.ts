@@ -71,11 +71,19 @@ export type MapPriceLegendContext = (
 ) &
   MapPriceLegendMapState;
 
+// A cluster is a paper disc: the ring is the price band, the figure is the
+// cheapest price a pub in it lists and the small number is the venue count.
+// Where no pub in it lists a price the figure is the count and the ring is grey.
 const PRICE_CLUSTER_NOTE =
-  "A split cluster ring shows the mix of price bands inside it. A solid cluster uses the most common known price band. Grey means none has a known map price. The number is every venue in the cluster.";
+  "The ring on a cluster shows the price bands inside it, or on a phone the most common known one. The figure is the cheapest price a pub in it lists, and the small number is how many venues. Grey means none has a known map price, and the figure is then the venue count.";
+
+// Under a drink view no pub lists a PINT price on a disc, so the disc says its
+// count and the ring keeps the drink's bands.
+const DRINK_CLUSTER_NOTE =
+  "The ring on a cluster shows the price bands inside it, or on a phone the most common known one. Grey means none has a known map price. The number is every venue in the cluster.";
 
 const SPOONS_CLUSTER_NOTE =
-  "A split cluster ring shows the mix of value bands inside it. A solid cluster uses the most common band. Grey means no pub in it is in the ranking. The number is every venue in the cluster.";
+  "The ring on a cluster shows the value bands inside it, or on a phone the most common one. Grey means no pub in it is in the ranking. The number is every venue in the cluster.";
 
 const SPOONS_EMPTY_CLUSTER_NOTE =
   "Clusters stay grey because no pub in view is in the ranking. The number is every venue in the cluster.";
@@ -386,7 +394,7 @@ function drinkClusterNote(
   buckets: readonly MapRenderedPriceBucket[],
 ): string | null {
   if (buckets.length === 0) return null;
-  if (buckets.some((bucket) => bucket !== 3)) return PRICE_CLUSTER_NOTE;
+  if (buckets.some((bucket) => bucket !== 3)) return DRINK_CLUSTER_NOTE;
   if (status === "degraded") {
     return `Clusters stay grey because ${drink} prices could not be read just now. The number is every venue in the cluster.`;
   }

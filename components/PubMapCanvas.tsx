@@ -105,7 +105,7 @@ import {
   TONIGHT_OPPORTUNITY_LAYERS, pubIconOpacityExpr, selectedGlowPaint,
   ambientMotionLevel, ambientMotionResting, routeLineShowsDash,
   pinEntranceIconOpacityExpr,
-  selectedPinIconSizeExpr, selectedPinFilter, pinSortKeyExpr, pinPriceLabelExpr,
+  selectedPinIconSizeExpr, selectedPinFilter, pinSortKeyExpr, pinPriceLabelExpr, pricePillFilter,
   clusterEntranceProgress,
 } from "@/components/map/canvas/filters";
 import {
@@ -567,12 +567,15 @@ const PUB_PIN_LAYERS = [
   "pubs-whatson-badge",
   "band-members-halo",
   "pubs-point",
+  "pubs-price-pill",
   "pubs-point-selected",
   "pubs-selected-glow",
   "pubs-selected",
   "pubs-provisional-badge",
+  "clusters-casing",
   "clusters",
   "cluster-count",
+  "cluster-count-badge",
 ] as const;
 
 // Every optional prop with its default applied. The defaults live here, not in
@@ -2538,6 +2541,19 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
           PIN_ENTRANCE_RAMP_MS,
         ),
       );
+      // The price pill is the pin's own mark from street zoom, so it rides the
+      // same stagger as the glass it stands over.
+      if (map.getLayer("pubs-price-pill")) {
+        const pillOpacity = pinEntranceIconOpacityExpr(
+          elapsedMs,
+          selectedId,
+          PIN_ENTRANCE_BUCKETS,
+          PIN_ENTRANCE_STAGGER_MS,
+          PIN_ENTRANCE_RAMP_MS,
+        );
+        map.setPaintProperty("pubs-price-pill", "icon-opacity", pillOpacity);
+        map.setPaintProperty("pubs-price-pill", "text-opacity", pillOpacity);
+      }
       // City zoom shows clusters, not pins, so without this the entrance the
       // owner actually sees on a phone was no entrance at all — every disc
       // snapped in at full strength the moment the gate lifted. One shared
@@ -2552,8 +2568,14 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         map.setPaintProperty("clusters", "circle-opacity", CLUSTER_FILL_OPACITY * progress);
         map.setPaintProperty("clusters", "circle-stroke-opacity", CLUSTER_STROKE_OPACITY * progress);
       }
+      if (map.getLayer("clusters-casing")) {
+        map.setPaintProperty("clusters-casing", "circle-opacity", CLUSTER_FILL_OPACITY * progress);
+      }
       if (map.getLayer("cluster-count")) {
         map.setPaintProperty("cluster-count", "text-opacity", progress);
+      }
+      if (map.getLayer("cluster-count-badge")) {
+        map.setPaintProperty("cluster-count-badge", "text-opacity", progress);
       }
     };
     // Restores the static baseline (buildScene's own expressions) and
@@ -2593,6 +2615,13 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         map.setPaintProperty("pubs-point", "icon-opacity", pubIconOpacityExpr(selectedIdRef.current));
         map.setPaintProperty("pubs-point", "text-opacity", pubIconOpacityExpr(selectedIdRef.current));
       }
+      if (map.getLayer("pubs-price-pill")) {
+        for (const property of ["icon-opacity-transition", "text-opacity-transition"] as const) {
+          map.setPaintProperty("pubs-price-pill", property, { duration: 250, delay: 0 });
+        }
+        map.setPaintProperty("pubs-price-pill", "icon-opacity", pubIconOpacityExpr(selectedIdRef.current));
+        map.setPaintProperty("pubs-price-pill", "text-opacity", pubIconOpacityExpr(selectedIdRef.current));
+      }
       markPinEntranceSettled();
     };
     // Fired once per mount, when the tile-paint coordinator first flips the pub
@@ -2624,6 +2653,11 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       }, PIN_ENTRANCE_SETTLE_CEILING_MS);
       map.setPaintProperty("pubs-point", "icon-opacity-transition", { duration: 0, delay: 0 });
       map.setPaintProperty("pubs-point", "text-opacity-transition", { duration: 0, delay: 0 });
+      if (map.getLayer("pubs-price-pill")) {
+        for (const property of ["icon-opacity-transition", "text-opacity-transition"] as const) {
+          map.setPaintProperty("pubs-price-pill", property, { duration: 0, delay: 0 });
+        }
+      }
       // Paint t=0 synchronously so there's no one-frame flash of full-size,
       // full-opacity pins before the RAF loop's next tick picks up the ramp.
       applyPinEntranceFrame(0);
@@ -4069,6 +4103,17 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
           pinSortKeyExpr(selectedIdRef.current),
         );
       }
+      // The price pill steps aside for the selected pub the same way its tag
+      // does, and dims with the rest of the pins while a venue is selected.
+      if (map.getLayer("pubs-price-pill")) {
+        map.setFilter(
+          "pubs-price-pill",
+          pricePillFilter(selectedIdRef.current, bandMemberIdsRef.current),
+        );
+        map.setPaintProperty("pubs-price-pill", "icon-opacity", pubIconOpacityExpr(selectedIdRef.current));
+        map.setPaintProperty("pubs-price-pill", "text-opacity", pubIconOpacityExpr(selectedIdRef.current));
+        map.setLayoutProperty("pubs-price-pill", "symbol-sort-key", pinSortKeyExpr(selectedIdRef.current));
+      }
       // The overlap exemption lives on the dedicated selected-pin layer
       // (icon-allow-overlap is data-constant, so pubs-point itself cannot
       // exempt one feature): re-point its filter and keep its size in step
@@ -4362,6 +4407,13 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
           if (bandColour) {
             map.setPaintProperty("band-members-halo", "circle-stroke-color", bandColour);
           }
+        }
+        // A band member keeps its glass and its halo, so it is not a pill.
+        if (map.getLayer("pubs-price-pill")) {
+          map.setFilter(
+            "pubs-price-pill",
+            pricePillFilter(selectedIdRef.current, bandMemberIdsRef.current),
+          );
         }
         if (map.getLayer("band-corridor") && bandColour) {
           map.setPaintProperty("band-corridor", "line-color", bandColour);

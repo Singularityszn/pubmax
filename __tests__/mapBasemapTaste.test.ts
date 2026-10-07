@@ -4,7 +4,7 @@ import {
   applyBasemapTaste,
   applySelectionMute,
   buildPalette,
-  clusterCircleColorExpr,
+  clusterRingColorExpr,
   isBasemapSelectionMuteLayer,
   mixHex,
   muteOpacityExpr,
@@ -608,8 +608,8 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     expect(paints.some(([id]) => id === "custom_road_layer")).toBe(true);
   });
 
-  it("colours fallback clusters by their most common known pint-price band", () => {
-    const expr = clusterCircleColorExpr(tokens, false) as unknown[];
+  it("rings fallback clusters by their most common known pint-price band", () => {
+    const expr = clusterRingColorExpr(tokens) as unknown[];
     const serialized = JSON.stringify(expr);
 
     expect(expr[0]).toBe("case");
@@ -617,59 +617,61 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     expect(serialized).toContain('"b1"');
     expect(serialized).toContain('"b2"');
     expect(serialized).not.toContain('"point_count"');
-    expect(serialized).toContain("47, 143, 91"); // pint rgb
-    expect(serialized).toContain("217, 159, 69"); // amber
-    expect(serialized).toContain("209, 99, 83"); // brick
-    expect(serialized).toContain("107, 114, 106"); // no known price
+    expect(serialized).toContain(tokens.pint);
+    expect(serialized).toContain(tokens.amber);
+    expect(serialized).toContain(tokens.brick);
+    expect(serialized).toContain(tokens.muted); // no known price
+    // A ring, never a fill: every colour is opaque, so none carries an alpha.
+    expect(serialized).not.toContain("rgba");
   });
 
   it.each([
     {
       name: "cheap wins a three-way tie",
       properties: { b0: 2, b1: 2, b2: 2 },
-      expected: withAlpha(tokens.pint, 0.9),
+      expected: tokens.pint,
     },
     {
       name: "middle wins a middle-dear tie",
       properties: { b0: 0, b1: 3, b2: 3 },
-      expected: withAlpha(tokens.amber, 0.92),
+      expected: tokens.amber,
     },
     {
       name: "dear wins when it has the largest count",
       properties: { b0: 1, b1: 2, b2: 4 },
-      expected: withAlpha(tokens.brick, 0.88),
+      expected: tokens.brick,
     },
     {
       name: "unknown pubs do not outvote a known band",
       properties: { b0: 1, b1: 0, b2: 0, b3: 99 },
-      expected: withAlpha(tokens.pint, 0.9),
+      expected: tokens.pint,
     },
     {
       name: "all unknown is grey",
       properties: { b0: 0, b1: 0, b2: 0, b3: 12 },
-      expected: withAlpha(tokens.muted, 0.84),
+      expected: tokens.muted,
     },
     {
       name: "missing counts are grey",
       properties: {},
-      expected: withAlpha(tokens.muted, 0.84),
+      expected: tokens.muted,
     },
     {
       // Under the Spoons value lens the disc counts the lens's own band, so a
       // ring of pubs painted by units can never be coloured by their prices.
       name: "the lens's own bands win once its counts are there",
       properties: { b0: 9, b1: 0, b2: 0, b3: 0, s0: 0, s1: 0, s2: 2, s3: 7 },
-      expected: withAlpha(tokens.brick, 0.88),
+      expected: tokens.brick,
     },
     {
       name: "a cluster with nothing in the ranking is grey under the lens",
       properties: { b0: 9, b1: 0, b2: 0, b3: 0, s0: 0, s1: 0, s2: 0, s3: 9 },
-      expected: withAlpha(tokens.muted, 0.84),
+      expected: tokens.muted,
     },
   ])("$name", ({ properties, expected }) => {
     expect(
       evaluateClusterExpression(
-        clusterCircleColorExpr(tokens, false),
+        clusterRingColorExpr(tokens),
         properties,
       ),
     ).toBe(expected);

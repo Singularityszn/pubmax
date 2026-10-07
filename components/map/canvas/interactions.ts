@@ -27,6 +27,7 @@ const LANDMARK_INTERACTION_LAYERS = [
 // them.
 export const PUB_FIRST_LAYERS = [
   "pubs-point-selected",
+  "pubs-price-pill",
   "pubs-point",
   "route-stops",
   "tonight-point",
@@ -40,6 +41,17 @@ export const PUB_FIRST_LAYERS = [
   "pois-transport-major",
   "pois-transport-minor",
 ] as const;
+
+// A pill and the glass under it are the same pub, and the ordinary layers beat
+// the selected one (see the comment where this is called).
+const PUB_HIT_LAYERS = ["pubs-price-pill", "pubs-point", "pubs-point-selected"] as const;
+function pubHitOf<T>(byLayer: ReadonlyMap<string, T>): T | undefined {
+  for (const layer of PUB_HIT_LAYERS) {
+    const hit = byLayer.get(layer);
+    if (hit) return hit;
+  }
+  return undefined;
+}
 
 type ClickDeps = {
   selectLandmark: (landmark: Landmark | null) => void;
@@ -84,7 +96,7 @@ export function wireClickRouting(map: maplibregl.Map, deps: ClickDeps) {
     // The selected layer redraws one pin with a larger hit box. When that box
     // overlaps another visible pin, use the ordinary layer's hit first so a
     // tap resolves to the pin under its point rather than the prior selection.
-    const pubHit = byLayer.get("pubs-point") ?? byLayer.get("pubs-point-selected");
+    const pubHit = pubHitOf(byLayer);
     if (pubHit) {
       const id = pubHit.properties?.id;
       if (typeof id !== "string") return;
@@ -205,7 +217,7 @@ export function wireHoverPrefetch(
     if (typeof id !== "string") return;
     onVenuePrefetchRef.current?.(id);
   };
-  for (const layer of ["pubs-point", "route-stops"] as const) {
+  for (const layer of ["pubs-point", "pubs-price-pill", "route-stops"] as const) {
     map.on("mouseenter", layer, prefetchFromEvent);
     map.on("mousedown", layer, prefetchFromEvent);
     map.on("touchstart", layer, prefetchFromEvent);
@@ -230,7 +242,7 @@ export function wirePubHover(
     if (typeof id !== "string" || typeof name !== "string") return;
     setHoveredVenue({ id, name, x: event.point.x, y: event.point.y });
   };
-  for (const layer of ["pubs-point", "pubs-point-selected"] as const) {
+  for (const layer of ["pubs-point", "pubs-price-pill", "pubs-point-selected"] as const) {
     map.on("mouseenter", layer, onPubHover);
     map.on("mousemove", layer, onPubHover);
     map.on("mouseleave", layer, () => setHoveredVenue(null));
@@ -240,6 +252,7 @@ export function wirePubHover(
 export function wireCursor(map: maplibregl.Map) {
   for (const layer of [
     "pubs-point",
+    "pubs-price-pill",
     "pubs-point-selected",
     "clusters",
     "route-stops",

@@ -335,6 +335,26 @@ export function venuePinEdgeTokens(
   return { pinRim: tokens.ink, pinCasing: tokens.inkDeep };
 }
 
+/**
+ * The price pill's body and hairline, per theme.
+ *
+ * The body is the plaque surface the price tag has always stood on (the same
+ * `--price-plaque-surface` PriceBadge uses) and its figure is the plaque ink, so
+ * the pill is the tag the map already had with a pill's edge round it. The
+ * hairline is what edges it against the basemap: ink in light, cream ink in
+ * dark, because a plaque that is close to the ground in luminance (a cream pill
+ * on pale paper land, a dark panel on near-black land) has nothing else.
+ * __tests__/mapPinBandContrast.test.ts holds the number.
+ */
+export function pricePillTokens(
+  tokens: Pick<Tokens, "ink" | "pricePlaqueSurface">,
+): Pick<IconTokens, "pillSurface" | "pillRim"> {
+  return {
+    pillSurface: tokens.pricePlaqueSurface,
+    pillRim: withAlpha(tokens.ink, 0.9),
+  };
+}
+
 export function withAlpha(hex: string, alpha: number): string {
   const digits = /^#([0-9a-f]{6})$/i.exec(hex.trim())?.[1];
   if (!digits) return hex;
@@ -349,6 +369,17 @@ export function registerMapIcons(map: maplibregl.Map, tokens: IconTokens) {
   for (const spec of MAP_ICON_SPECS) {
     const id = iconId(spec.ns, spec.key);
     if (map.hasImage(id)) map.removeImage(id);
-    map.addImage(id, rasterize(spec, tokens), { pixelRatio: 2 });
+    const stretch = spec.stretch;
+    map.addImage(id, rasterize(spec, tokens), {
+      pixelRatio: 2,
+      ...(stretch
+        ? {
+            // MapLibre reads these in image pixels, the spec states them in CSS px.
+            stretchX: stretch.x.map(([from, to]) => [from * 2, to * 2] as [number, number]),
+            stretchY: stretch.y.map(([from, to]) => [from * 2, to * 2] as [number, number]),
+            content: stretch.content.map((n) => n * 2) as [number, number, number, number],
+          }
+        : {}),
+    });
   }
 }

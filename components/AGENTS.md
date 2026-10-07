@@ -16,6 +16,7 @@ Full rules: [`docs/rules/components-map-canvas-and-pins.md`](../docs/rules/compo
 - [A god component is decomposed IN PLACE, because the map's own tests read its SOURCE.](../docs/rules/components-map-canvas-and-pins.md#a-god-component-is-decomposed-in-place-because-the-map-s-own-tests-read-its-sour)
 - [A pin's COLOUR may be a hint; a pin's FIGURE may not.](../docs/rules/components-map-canvas-and-pins.md#a-pin-s-colour-may-be-a-hint-a-pin-s-figure-may-not)
 - [A pin's fill says the price; its EDGE is what makes it findable, and dark mode needs two tones for that.](../docs/rules/components-map-canvas-and-pins.md#a-pin-s-fill-says-the-price-its-edge-is-what-makes-it-findable-and-dark-mode-nee)
+- [A CLUSTER IS A PAPER DISC WITH A BAND RING AND THE CHEAPEST PRICE, AND A PRICED PIN IS A PILL FROM STREET ZOOM.](../docs/rules/components-map-canvas-and-pins.md#a-cluster-is-a-paper-disc-with-a-band-ring-and-the-cheapest-price-and-a-priced-p)
 - [The live Pint Index arrival must full-load the map.](../docs/rules/components-map-canvas-and-pins.md#the-live-pint-index-arrival-must-full-load-the-map)
 - [A MAP THAT NEVER MOUNTS IS THE SHELL'S PROBLEM, AND NOTHING ON /map MAY WAIT FOR IT FOR EVER.](../docs/rules/components-map-canvas-and-pins.md#a-map-that-never-mounts-is-the-shell-s-problem-and-nothing-on-map-may-wait-for-i)
 

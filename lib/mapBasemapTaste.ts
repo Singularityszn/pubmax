@@ -696,19 +696,25 @@ type ClusterPriceTokens = Pick<
 };
 
 /**
- * Fallback cluster fill by the most common KNOWN price band inside it.
+ * A cluster disc's RING colour: the most common KNOWN price band inside it.
  *
- * Desktop normally replaces this circle with a segmented donut. Phones and
- * large cluster sets keep the GL circle, so its fill must answer the same
- * price question rather than changing meaning to venue density. Unknown pubs
- * do not outvote known prices; grey means the cluster has no known price.
+ * The disc itself is paper (`--panel-raised`) and its figure is the cheapest
+ * price in it, so the band is a hint drawn as a ring and never a fill. A fill
+ * is what made a cluster of dear pubs read as the Plan CTA: `--brick` shares
+ * the coral family (DESIGN.md, One Accent Rule). Opaque, because a ring that
+ * bleeds into the paper loses the 3:1 the casing beside it needs.
+ *
+ * Desktop normally replaces this circle with a segmented donut that rings the
+ * whole mix. Phones and large cluster sets keep the GL circle, whose ring
+ * answers the same price question rather than changing meaning to venue
+ * density. Unknown pubs do not outvote known prices; grey means the cluster
+ * has no known price.
  */
-export function clusterCircleColorExpr(
+export function clusterRingColorExpr(
   tokens: ClusterPriceTokens,
-  dark: boolean,
 ): unknown {
   const count = (key: string) => ["coalesce", ["get", key], 0];
-  // THE DISC COUNTS WHAT ITS OWN PINS ARE PAINTED BY. s0..s3 accumulate the
+  // THE RING COUNTS WHAT ITS OWN PINS ARE PAINTED BY. s0..s3 accumulate the
   // Spoons value lens's band (buildScene's clusterProperties) and are all zero
   // while the lens is off, because the feature property they read is absent
   // then. Under the lens every curated pin carries one, so a non-zero s-total
@@ -734,11 +740,11 @@ export function clusterCircleColorExpr(
   return [
     "case",
     ["all", [">", cheap, 0], [">=", cheap, middle], [">=", cheap, dear]],
-    withAlpha(tokens.pint, dark ? 0.96 : 0.9),
+    tokens.pint,
     ["all", [">", middle, 0], [">", middle, cheap], [">=", middle, dear]],
-    withAlpha(tokens.amber, dark ? 0.96 : 0.92),
+    tokens.amber,
     ["all", [">", dear, 0], [">", dear, cheap], [">", dear, middle]],
-    withAlpha(tokens.brick, dark ? 0.94 : 0.88),
-    withAlpha(tokens.muted, dark ? 0.78 : 0.84),
+    tokens.brick,
+    tokens.muted,
   ];
 }
