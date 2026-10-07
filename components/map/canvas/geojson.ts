@@ -183,6 +183,23 @@ function pinDrinkKind(
               : "pint";
 }
 
+/**
+ * The price a cluster may count this pub's toward "cheapest here", or null.
+ *
+ * It is the pin tag's own base figure (`sourcedPrice`) while no lens owns the
+ * map, and nothing else, so a cluster can never say a number that none of its
+ * pins would print. The figure is kept as given: formatting (pounds, pence) is
+ * the label expression's job, in `CLUSTER_FIGURE_EXPR` (./filters).
+ */
+function clusterPriceFor(
+  sourcedPrice: number | null,
+  lensActive: boolean,
+  spoonsValue: SpoonsValuePinLane | null,
+): number | null {
+  if (lensActive || spoonsValue) return null;
+  return formatPinPriceLabel(sourcedPrice) === null ? null : sourcedPrice;
+}
+
 function pinBucketAndTag(args: {
   venue: Venue;
   signals: VenueSignal | undefined;
@@ -302,6 +319,7 @@ export function pubsToGeoJSON(
         spoonsValue,
       });
       const drinkKind = pinDrinkKind(venue, drinkCategory, lensPrice);
+      const clusterPrice = clusterPriceFor(sourcedPrice, lensActive, spoonsValue);
       const scraped = Boolean(
         venue.filterHints?.scraped ||
         venue.sourceDatasets?.some((source) =>
@@ -353,6 +371,13 @@ export function pubsToGeoJSON(
           // Non-pint figures always carry their drink name in the same string.
           // A bare whisky or soft-drink number would masquerade as a pint.
           ...(tag.label ? { priceLabel: tag.label } : {}),
+          // The figure a CLUSTER may call its cheapest (`minPrice` in
+          // buildScene's clusterProperties). The same sayable price the pin's
+          // own tag prints and nothing wider: no lens figure (a category price
+          // is not a pint), no Spoons round, no modelled estimate and no demo
+          // seed. ABSENT, never 0 or null, so the reduce reads it as "this pub
+          // says nothing" and a cluster of silent pubs shows its count instead.
+          ...(clusterPrice === null ? {} : { clusterPrice }),
           // The standing this pub's price holds. ABSENT rather than "none" when
           // nothing was passed, so ["has","standing"] separates "we were not
           // asked" from "we looked and there is nothing", the way `whatsOn`

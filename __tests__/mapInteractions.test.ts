@@ -159,3 +159,50 @@ describe("venue pin interactions", () => {
     ]);
   });
 });
+
+describe("cluster rim interactions", () => {
+  // The casing and the count on the rim overhang the `clusters` circle, so the
+  // outer part of the visible disc must still open the cluster.
+  function clickWith(layerId: string) {
+    let clickHandler: ((event: { point: { x: number; y: number } }) => void) | undefined;
+    const expansion = vi.fn(() => Promise.resolve(14));
+    const map = {
+      on: vi.fn((event: string, handler: typeof clickHandler) => {
+        if (event === "click") clickHandler = handler;
+      }),
+      getLayer: vi.fn(() => ({})),
+      getSource: vi.fn(() => ({ getClusterExpansionZoom: expansion })),
+      queryRenderedFeatures: vi.fn(() => [{
+        layer: { id: layerId },
+        properties: { cluster_id: 7 },
+        geometry: { type: "Point", coordinates: [-0.12, 51.5] },
+      }]),
+      getZoom: vi.fn(() => 12),
+    };
+    wireClickRouting(map as never, {
+      selectLandmark: vi.fn(),
+      setHoveredVenue: vi.fn(),
+      setActivePoi: vi.fn(),
+      onVenueClickRef: { current: vi.fn() },
+      onUkBasePubClickRef: { current: vi.fn() },
+      onRouteStopClickRef: { current: vi.fn() },
+      onTonightOpportunityClickRef: { current: vi.fn() },
+      cityLandmarksRef: { current: [] },
+      tonightOpportunitiesRef: { current: [] },
+      cinematic: vi.fn(),
+    });
+    clickHandler?.({ point: { x: 1, y: 1 } });
+    return { expansion, map };
+  }
+
+  it.each(["clusters", "cluster-count-badge", "clusters-casing"])(
+    "a tap that lands only on %s expands the cluster",
+    (layerId) => {
+      const { expansion, map } = clickWith(layerId);
+      expect(expansion).toHaveBeenCalledWith(7);
+      // And the query asked for that layer, so a real tap can reach it.
+      const asked = (map.queryRenderedFeatures.mock.calls[0] as unknown[])[1] as { layers: string[] };
+      expect(asked.layers).toContain(layerId);
+    },
+  );
+});

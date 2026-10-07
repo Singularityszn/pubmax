@@ -1,4 +1,4 @@
-import { featureFilter } from "@maplibre/maplibre-gl-style-spec";
+import { createExpression, featureFilter } from "@maplibre/maplibre-gl-style-spec";
 import type * as maplibregl from "maplibre-gl";
 import { describe, expect, it } from "vitest";
 
@@ -8,8 +8,14 @@ import {
   buildPois,
   buildPubs,
   buildUkBase,
+  CLUSTER_CASING_PX,
   CLUSTER_COLLISION_PADDING,
+  CLUSTER_DISC_SMALL_FROM_ZOOM,
   CLUSTER_MAX_RADIUS_PX,
+  CLUSTER_MIN_RADIUS_PX,
+  CLUSTER_RING_PX,
+  LANDMARK_ICON_SIZE_PX,
+  LANDMARK_INSPECTOR_ICON_SIZE_PX,
   CLUSTER_MAX_ZOOM,
   CLUSTER_RADIUS_PX,
   LANDMARK_ICON_PRIORITY_ZOOM,
@@ -29,7 +35,11 @@ import {
   type SceneCtx,
 } from "@/components/map/canvas/buildScene";
 import {
+  CLUSTER_COUNT_BADGE_FILTER,
+  CLUSTER_FIGURE_EXPR,
+  CLUSTER_PRICE_NONE,
   clusterEntranceProgress,
+  pricePillFilter,
   pinSortKeyExpr,
   pinPriceLabelExpr,
   PIN_ICON_SIZE_EXPR,
@@ -155,9 +165,10 @@ describe("pub clustering density (scales to a UK-wide source)", () => {
   });
 
   it("groups wider than the widest cluster disc so two discs cannot touch", () => {
-    // `clusters` circle-radius tops out at the exported maximum (+ stroke) — a grouping radius
-    // under that diameter would let neighbouring discs overlap.
-    expect(CLUSTER_MAX_RADIUS_PX).toBe(20);
+    // The disc's OUTER radius, casing included, tops out at the exported
+    // maximum - a grouping radius under that diameter would let neighbouring
+    // discs overlap.
+    expect(CLUSTER_MAX_RADIUS_PX).toBe(22);
     expect(CLUSTER_RADIUS_PX).toBeGreaterThan(2 * CLUSTER_MAX_RADIUS_PX);
   });
 });
@@ -433,7 +444,52 @@ describe("symbol collision policy", () => {
     // count's padded box is what keeps other labels off the disc.
     expect(count["text-ignore-placement"]).toBe(false);
     expect(count["text-padding"]).toBe(CLUSTER_COLLISION_PADDING);
-    expect(CLUSTER_COLLISION_PADDING).toBe(10);
+  });
+
+  it("fits the widest figure inside the ring and reserves the disc at both sizes", () => {
+    const count = layout("cluster-count");
+    const compile = (value: unknown, type: "string" | "number") => {
+      const compiled = createExpression(value as never, {
+        type,
+        "property-type": "data-constant",
+        expression: { interpolated: type === "number", parameters: ["zoom", "feature"] },
+      } as never);
+      if (compiled.result !== "success") throw new Error(`cluster-count ${type} did not compile`);
+      return compiled.value;
+    };
+    const field = compile(count["text-field"], "string");
+    const size = compile(count["text-size"], "number");
+    // Noto Sans Bold and Montserrat Medium advance no further than 0.6em a glyph
+    // on average, so a label's width is at most its length times 0.6 times its size.
+    const ADVANCE_EM = 0.6;
+    const discs = [
+      { zoom: CLUSTER_DISC_SMALL_FROM_ZOOM - 1, outer: CLUSTER_MAX_RADIUS_PX },
+      { zoom: CLUSTER_DISC_SMALL_FROM_ZOOM + 1, outer: CLUSTER_MIN_RADIUS_PX },
+    ];
+    const clusters = [
+      { minPrice: 12.5, point_count_abbreviated: 94 },
+      { minPrice: 5.5, point_count_abbreviated: 94 },
+      { minPrice: 6, point_count_abbreviated: 3 },
+      { minPrice: CLUSTER_PRICE_NONE, point_count_abbreviated: "1.5k" },
+      { minPrice: CLUSTER_PRICE_NONE, point_count_abbreviated: 94 },
+      { minPrice: CLUSTER_PRICE_NONE, point_count_abbreviated: 999 },
+    ];
+    for (const { zoom, outer } of discs) {
+      const paper = 2 * (outer - CLUSTER_CASING_PX - CLUSTER_RING_PX);
+      for (const properties of clusters) {
+        const feature = { type: 1, properties } as never;
+        const label = String(field.evaluate({ zoom } as never, feature));
+        const px = Number(size.evaluate({ zoom } as never, feature));
+        expect(label.length * ADVANCE_EM * px, `${label} at z${zoom}`).toBeLessThan(paper);
+        // The figure's padded box reaches the disc's edge, so no label can land
+        // on the top or bottom of the disc.
+        expect(px / 2 + CLUSTER_COLLISION_PADDING).toBeGreaterThanOrEqual(outer);
+      }
+    }
+    // A short figure keeps the full size: only a long one steps down.
+    const short = { type: 1, properties: { minPrice: 6, point_count_abbreviated: 3 } } as never;
+    expect(size.evaluate({ zoom: CLUSTER_DISC_SMALL_FROM_ZOOM - 1 } as never, short)).toBe(12);
+    expect(size.evaluate({ zoom: CLUSTER_DISC_SMALL_FROM_ZOOM + 1 } as never, short)).toBe(11);
   });
 
   it("drops crowded landmark names rather than overprinting them", () => {
@@ -858,5 +914,226 @@ describe("pubs-selected-glow is built on its rest frame", () => {
 
   it("is the base ring when nothing is selected", () => {
     expect(glowPaint("")["circle-stroke-width"]).toBe(GLOW_BASE_STROKE_WIDTH);
+  });
+});
+
+
+// A cluster is a paper disc wearing a band ring and the cheapest price inside it.
+// The band used to be the fill, which painted every dear pocket of London in the
+// coral that owns the Plan CTA.
+describe("cluster disc (paper, ring, cheapest price)", () => {
+  const { layers, sources } = buildScenePieces();
+  const layout = (id: string) => (layers.get(id)?.layout ?? {}) as Record<string, unknown>;
+  const paint = (id: string) => (layers.get(id)?.paint ?? {}) as Record<string, unknown>;
+
+  it("stacks casing, disc, count and rim count in that order, each over the last", () => {
+    const ids = [...layers.keys()];
+    const at = (id: string) => ids.indexOf(id);
+    expect(at("clusters-casing")).toBeGreaterThan(-1);
+    expect(at("clusters-casing")).toBeLessThan(at("clusters"));
+    expect(at("clusters")).toBeLessThan(at("cluster-count"));
+    expect(at("cluster-count")).toBeLessThan(at("cluster-count-badge"));
+  });
+
+  it("fills the disc with paper and puts the band on the ring alone", () => {
+    const disc = paint("clusters");
+    // A constant, never a data expression: no price band can reach a fill.
+    expect(typeof disc["circle-color"]).toBe("string");
+    expect(JSON.stringify(disc["circle-color"])).not.toContain("b0");
+    // The ring is where the band lives, and it is the price band's own tokens.
+    const ring = JSON.stringify(disc["circle-stroke-color"]);
+    for (const key of ["b0", "b1", "b2"]) expect(ring).toContain(`"${key}"`);
+    expect(disc["circle-stroke-width"]).toBe(CLUSTER_RING_PX);
+    expect(CLUSTER_RING_PX).toBe(3);
+  });
+
+  it.each([
+    { zoom: 12, outer: 22 },
+    { zoom: 13, outer: 18 },
+  ])("keeps a 1.25px casing outside the ring at z$zoom, regardless of count", ({ zoom, outer }) => {
+    const compileRadius = (id: string) => {
+      const compiled = createExpression(paint(id)["circle-radius"], `${id}.paint.circle-radius`);
+      if (compiled.result !== "success") throw new Error(`${id} radius did not compile`);
+      return compiled.value;
+    };
+    const casing = compileRadius("clusters-casing");
+    const disc = compileRadius("clusters");
+    const stroke = Number(paint("clusters")["circle-stroke-width"]);
+    for (const point_count of [3, 999, 1500]) {
+      const feature = { type: 1, properties: { point_count } } as never;
+      const casingRadius = Number(casing.evaluate({ zoom } as never, feature));
+      const fillRadius = Number(disc.evaluate({ zoom } as never, feature));
+      // MapLibre adds the full stroke width outside circle-radius.
+      const ringOuter = fillRadius + stroke;
+      expect(casingRadius).toBe(outer);
+      expect(casingRadius - ringOuter).toBeCloseTo(1.25);
+    }
+  });
+
+  it("prints the cheapest price, or the count where no pub in the disc says one", () => {
+    expect(layout("cluster-count")["text-field"]).toEqual(CLUSTER_FIGURE_EXPR);
+    // The cheaper disc wins a contested spot; a count is the weaker answer.
+    expect(layout("cluster-count")["symbol-sort-key"]).toEqual([
+      "coalesce",
+      ["get", "minPrice"],
+      CLUSTER_PRICE_NONE,
+    ]);
+  });
+
+  it("reduces the cheapest price on the source itself, with no client-side pass", () => {
+    const props = (sources.get("pubs")?.clusterProperties ?? {}) as Record<string, unknown[]>;
+    expect(props.minPrice).toEqual([
+      "min",
+      ["coalesce", ["get", "clusterPrice"], CLUSTER_PRICE_NONE],
+    ]);
+    // The band counts the ring reads are untouched.
+    for (const key of ["b0", "b1", "b2", "b3", "s0", "s1", "s2", "s3"]) {
+      expect(props[key]?.[0]).toBe("+");
+    }
+  });
+
+  it("wears the count on the rim only once the disc has a price and ten pubs", () => {
+    expect(layers.get("cluster-count-badge")?.filter).toEqual(CLUSTER_COUNT_BADGE_FILTER);
+    const badge = layout("cluster-count-badge");
+    expect(badge["text-field"]).toEqual(["get", "point_count_abbreviated"]);
+    expect(badge["text-size"]).toBe(10);
+    // Never invisible to placement, like every other app symbol.
+    expect(badge["text-ignore-placement"]).toBe(false);
+    const filter = featureFilter(CLUSTER_COUNT_BADGE_FILTER, "cluster-count-badge.filter").filter;
+    const at = (point_count: number, minPrice: number) =>
+      filter({ zoom: 12 }, { type: 1, properties: { point_count, minPrice } } as never);
+    expect(at(94, 3.2)).toBe(true);
+    expect(at(10, 3.2)).toBe(true);
+    expect(at(9, 3.2)).toBe(false);
+    expect(at(94, CLUSTER_PRICE_NONE)).toBe(false);
+  });
+
+  it("still ignores nothing: the figure reserves the disc's space", () => {
+    const count = layout("cluster-count");
+    expect(count["text-allow-overlap"]).toBe(true);
+    expect(count["text-ignore-placement"]).toBe(false);
+    expect(count["text-padding"]).toBe(CLUSTER_COLLISION_PADDING);
+  });
+});
+
+describe("price pill (the priced pin's mark from street zoom)", () => {
+  const { layers } = buildScenePieces();
+  const layout = (id: string) => (layers.get(id)?.layout ?? {}) as Record<string, unknown>;
+  const paint = (id: string) => (layers.get(id)?.paint ?? {}) as Record<string, unknown>;
+
+  it("sits above the glass and below the selected pin, so it places first of the unselected", () => {
+    const ids = [...layers.keys()];
+    expect(ids.indexOf("pubs-price-pill")).toBeGreaterThan(ids.indexOf("pubs-point"));
+    expect(ids.indexOf("pubs-price-pill")).toBeLessThan(ids.indexOf("pubs-point-selected"));
+  });
+
+  it("starts at the zoom the tag always has, and only for a pub that says a price", () => {
+    const pill = layers.get("pubs-price-pill") as BuiltLayer & { minzoom?: number };
+    expect(pill.minzoom).toBe(PIN_PRICE_LABEL_MIN_ZOOM);
+    expect(pill.filter).toEqual(pricePillFilter(""));
+    const matches = (selectedId: string, properties: Record<string, unknown>) =>
+      featureFilter(pricePillFilter(selectedId), "pubs-price-pill.filter").filter(
+        { zoom: 15 },
+        { type: 1, properties } as never,
+      );
+    expect(matches("", { id: "a", priceLabel: "£5.40" })).toBe(true);
+    // No sayable price, no pill: the glass keeps the pub.
+    expect(matches("", { id: "a" })).toBe(false);
+    expect(matches("", { id: "a", point_count: 9, priceLabel: "£5.40" })).toBe(false);
+    // The selected pub keeps its own enlarged glass and tag.
+    expect(matches("a", { id: "a", priceLabel: "£5.40" })).toBe(false);
+    expect(matches("a", { id: "b", priceLabel: "£5.40" })).toBe(true);
+  });
+
+  it("is not a pill for a pub wearing a mark, so no signal is lost to a shape", () => {
+    // Each of these rides on or round the 28px glass, and a 48px pill would
+    // bury it (or sit a dot over the figure). The pub keeps glass and tag.
+    const plain = { id: "a", priceLabel: "£5.40", drops: false, provisional: false };
+    const matches = (properties: Record<string, unknown>, band: string[] = []) =>
+      featureFilter(pricePillFilter("", band), "pubs-price-pill.filter").filter(
+        { zoom: 15 },
+        { type: 1, properties } as never,
+      );
+    expect(matches(plain)).toBe(true);
+    expect(matches({ ...plain, drops: true })).toBe(false);
+    expect(matches({ ...plain, provisional: true })).toBe(false);
+    expect(matches({ ...plain, standing: "confirmed" })).toBe(false);
+    expect(matches({ ...plain, standing: "listed" })).toBe(true);
+    expect(matches({ ...plain, whatsOn: "quiz" })).toBe(false);
+    expect(matches(plain, ["a"])).toBe(false);
+    expect(matches(plain, ["b"])).toBe(true);
+  });
+
+  it("fits the pill to the figure, from the one property the tag reads", () => {
+    const pill = layout("pubs-price-pill");
+    expect(pill["icon-text-fit"]).toBe("both");
+    expect(pill["text-field"]).toEqual(["get", "priceLabel"]);
+    expect(pill["icon-image"]).toEqual([
+      "concat",
+      "pill:bucket-",
+      ["to-string", ["coalesce", ["get", "spoonsBucket"], ["get", "bucket"]]],
+    ]);
+    expect(JSON.stringify(pill["text-field"])).not.toContain("lensPrice");
+  });
+
+  it("collides like every other symbol and takes the glass's own priority", () => {
+    const pill = layout("pubs-price-pill");
+    expect(pill["icon-allow-overlap"]).toBe(false);
+    expect(pill["icon-ignore-placement"]).toBe(false);
+    expect(pill["text-allow-overlap"]).toBe(false);
+    expect(pill["text-ignore-placement"]).toBe(false);
+    expect(pill["symbol-sort-key"]).toEqual(pinSortKeyExpr(""));
+    // It is never optional: a pill without its figure is a blank pill.
+    expect(pill["text-optional"]).toBeUndefined();
+    expect(pill["icon-optional"]).toBeUndefined();
+  });
+
+  it("leaves the glass and its tag in place beneath it as the fallback", () => {
+    // Where the pill finds no room the glass places as it always did, so the
+    // glass layer keeps its own price tag and its own collision deal.
+    expect(layout("pubs-point")["text-field"]).toEqual(pinPriceLabelExpr(""));
+    expect(layout("pubs-point")["icon-allow-overlap"]).toBe(false);
+  });
+
+  it("dims with its own pin and keeps its figure a constant, never a band colour", () => {
+    const pill = paint("pubs-price-pill");
+    expect(pill["icon-opacity"]).toEqual(pubIconOpacityExpr(""));
+    expect(pill["text-opacity"]).toEqual(pubIconOpacityExpr(""));
+    expect(typeof pill["text-color"]).toBe("string");
+    expect(JSON.stringify(pill)).not.toContain("bucket");
+  });
+
+  it("inverts the selected pub's tag to paper on ink instead", () => {
+    const selected = paint("pubs-point-selected");
+    expect(typeof selected["text-color"]).toBe("string");
+    expect(typeof selected["text-halo-color"]).toBe("string");
+  });
+});
+
+describe("landmark pictogram size", () => {
+  const { layers } = buildScenePieces();
+  const size = (zoom: number) => {
+    const expression = layers.get("landmarks-icon")?.layout?.["icon-size"] as unknown[];
+    const compiled = createExpression(expression as never, {
+      type: "number",
+      "property-type": "data-constant",
+      expression: { interpolated: true, parameters: ["zoom"] },
+    } as never);
+    if (compiled.result !== "success") throw new Error("icon-size did not compile");
+    return Number(compiled.value.evaluate({ zoom } as never)) * 30;
+  };
+
+  it("sits at 22px from the overview to the inspector band", () => {
+    expect(LANDMARK_ICON_SIZE_PX).toBe(22);
+    for (const zoom of [11, 12, 13, LANDMARK_ICON_PRIORITY_ZOOM]) {
+      expect(size(zoom)).toBeCloseTo(LANDMARK_ICON_SIZE_PX, 5);
+    }
+    // And never out-weighs the 28px pins the map exists to show.
+    expect(size(9.5)).toBeLessThanOrEqual(LANDMARK_ICON_SIZE_PX);
+  });
+
+  it("grows only into the landmark inspector's band, where the pictogram is the hero", () => {
+    expect(size(15)).toBeCloseTo(LANDMARK_INSPECTOR_ICON_SIZE_PX, 5);
+    expect(size(17)).toBeCloseTo(LANDMARK_INSPECTOR_ICON_SIZE_PX, 5);
   });
 });

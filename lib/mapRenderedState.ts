@@ -8,11 +8,18 @@ export type MapRenderedPriceBand = Readonly<{
 export type MapRenderedState = Readonly<{
   priceBands: readonly MapRenderedPriceBand[];
   storyColour: string | null;
+  /**
+   * Whether any pin in the scene carries a figure a cluster disc can print
+   * (`clusterPrice`). A coloured band does not imply one: a demo seed or a
+   * type-relative band paints a pin without giving its disc a price.
+   */
+  clusterPrices: boolean;
 }>;
 
 export const EMPTY_MAP_RENDERED_STATE: MapRenderedState = {
   priceBands: [],
   storyColour: null,
+  clusterPrices: false,
 };
 
 function isMapRenderedPriceBucket(
@@ -78,6 +85,9 @@ export function deriveMapRenderedState<Tokens extends { brass: string }>(
         : typeof tokenValue === "string" && tokenValue.trim()
           ? tokenValue
           : tokens.brass,
+    clusterPrices: pubsData.features.some(
+      (feature) => typeof feature.properties?.clusterPrice === "number",
+    ),
   };
 }
 
@@ -87,6 +97,7 @@ export function sameMapRenderedState(
 ): boolean {
   return (
     left.storyColour === right.storyColour &&
+    left.clusterPrices === right.clusterPrices &&
     left.priceBands.length === right.priceBands.length &&
     left.priceBands.every(
       (band, index) =>

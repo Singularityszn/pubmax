@@ -722,3 +722,72 @@ describe("pubsToGeoJSON Pint Drop trust gate (AGENTS.md pin law: an uncorroborat
     expect("priceLabel" in props).toBe(false);
   });
 });
+
+// A cluster disc prints the CHEAPEST price its pubs say, which is a claim about
+// those pubs exactly as a pin's tag is. So `clusterPrice` is stamped from the
+// same sayable figure the tag prints and from nothing wider.
+describe("pubsToGeoJSON clusterPrice (a cluster may only say what a pin would)", () => {
+  const noSignals = new Map<string, VenueSignal>();
+  const propsOf = (
+    venue: Venue,
+    signals = noSignals,
+    lensPrices: Parameters<typeof pubsToGeoJSON>[6] = null,
+  ) =>
+    pubsToGeoJSON([venue], signals, null, null, null, null, lensPrices)
+      .features[0]?.properties ?? {};
+
+  it("is the pin's own sayable price, as a number", () => {
+    const props = propsOf(makeVenue({ id: "curated", cheapestPrice: 5.4 }));
+    expect(props.clusterPrice).toBe(5.4);
+    expect(props.priceLabel).toBe(formatPinPriceLabel(props.clusterPrice));
+  });
+
+  it("follows a contributor price the way the pin's tag does", () => {
+    const signals = new Map<string, VenueSignal>([
+      ["logged", { hasPintDrops: true, latestContributorPrice: 4.8 }],
+    ]);
+    expect(
+      propsOf(makeVenue({ id: "logged", cheapestPrice: 6 }), signals).clusterPrice,
+    ).toBe(4.8);
+  });
+
+  it("is ABSENT, never 0 or null, for a pub that says nothing", () => {
+    const props = propsOf(makeVenue({ id: "silent", cheapestPrice: null }));
+    expect("clusterPrice" in props).toBe(false);
+  });
+
+  it("never lets a demo seed claim a cheapest price", () => {
+    const signals = new Map<string, VenueSignal>([
+      ["seeded", { hasPintDrops: true, latestContributorPrice: null, latestDemoPrice: 5.2 }],
+    ]);
+    const props = propsOf(makeVenue({ id: "seeded", cheapestPrice: null }), signals);
+    // The seed may tint the pin; it may not name a price on a disc.
+    expect(props.bucket).toBe(priceBucket(5.2));
+    expect("clusterPrice" in props).toBe(false);
+  });
+
+  it("never lets an anchor price pass as a pint", () => {
+    // A famous bar's cheapestPrice is a £25 house cocktail, which a disc
+    // printing "cheapest £25" would call the cheap pint.
+    const props = propsOf(makeVenue({ id: "bar", kind: "bar", cheapestPrice: 25 }));
+    expect("priceLabel" in props).toBe(false);
+    expect("clusterPrice" in props).toBe(false);
+  });
+
+  it("stays silent while a drink lens owns the map, because a category price is not a pint", () => {
+    const venue = makeVenue({ id: "lensed", cheapestPrice: 5.4 });
+    const lensPrices = new Map([
+      ["lensed", {
+        venueId: "lensed",
+        category: "wine" as const,
+        categoryLabel: "Wine",
+        priceGbp: 7,
+        submittedAt: 2_000,
+        source: "community" as const,
+      }],
+    ]);
+    expect("clusterPrice" in propsOf(venue, noSignals, lensPrices)).toBe(false);
+    // An empty lens still means a view owns the map.
+    expect("clusterPrice" in propsOf(venue, noSignals, new Map())).toBe(false);
+  });
+});

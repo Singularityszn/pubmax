@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 
+import { defined } from "@/__tests__/helpers/defined";
+
 import {
   MAP_ICON_SPECS,
   LANDMARK_ICON_KEYS,
@@ -7,8 +9,13 @@ import {
   UNPRICED_PIN_FILL,
   VENUE_PIN_EDGE_WIDTH,
   VENUE_PIN_ICON_KEYS,
+  PILL_BAND_PX,
+  PILL_BOX,
+  PILL_ICON_KEY_PREFIX,
+  PILL_STRETCH,
   drinkPinKindFromCategories,
   iconId,
+  pillIconKey,
   venuePinIconKey,
   type IconSpec,
   type IconTokens,
@@ -186,7 +193,7 @@ describe("MAP_ICON_SPECS registry", () => {
 
   it("every spec has a valid namespace, a draw function, and a positive size", () => {
     for (const spec of MAP_ICON_SPECS) {
-      expect(["lm", "tfl", "drink", "base"], `${spec.key} ns`).toContain(
+      expect(["lm", "tfl", "drink", "base", "pill"], `${spec.key} ns`).toContain(
         spec.ns,
       );
       expect(typeof spec.draw, `${spec.key} draw`).toBe("function");
@@ -384,6 +391,80 @@ describe("spec.draw (recording stub)", () => {
       delete (ctx as unknown as { roundRect?: unknown }).roundRect;
       expect(() => spec.draw(ctx, TOKENS)).not.toThrow();
       expect(tallies.paths, `${spec.key} fallback path ops`).toBeGreaterThan(0);
+    }
+  });
+});
+
+
+describe("price pill (ns: pill)", () => {
+  const PILL_TOKENS: IconTokens = {
+    ...TOKENS,
+    pillSurface: "#f4ead5",
+    pillRim: "rgba(23, 23, 26, 0.7)",
+  };
+  const pills = MAP_ICON_SPECS.filter((spec) => spec.ns === "pill");
+
+  it("has one image per price band, keyed the way the layer's expression builds the id", () => {
+    expect(pills.map((spec) => spec.key)).toEqual([0, 1, 2, 3].map(pillIconKey));
+    expect(iconId("pill", pillIconKey(2))).toBe(`pill:${PILL_ICON_KEY_PREFIX}2`);
+  });
+
+  it("is a 40x26 box, not a square, and states its nine-slice inside it", () => {
+    for (const spec of pills) {
+      expect(spec.size, `${spec.key} width`).toBe(PILL_BOX.width);
+      expect(spec.height, `${spec.key} height`).toBe(PILL_BOX.height);
+      expect(spec.stretch, `${spec.key} stretch`).toBe(PILL_STRETCH);
+    }
+    const [x0, x1] = defined(PILL_STRETCH.x[0]);
+    const [y0, y1] = defined(PILL_STRETCH.y[0]);
+    const [left, top, right, bottom] = PILL_STRETCH.content;
+    // The caps hold the 8px corner radius, so the stretch may not begin sooner.
+    expect(x0).toBeGreaterThanOrEqual(8);
+    expect(y0).toBeGreaterThanOrEqual(8);
+    expect(x1).toBeLessThanOrEqual(PILL_BOX.width - 8);
+    expect(y1).toBeLessThanOrEqual(PILL_BOX.height - PILL_BAND_PX - 4);
+    // The text's rectangle sits inside the box and inside the stretchable run.
+    expect(left).toBeLessThan(right);
+    expect(top).toBeLessThan(bottom);
+    expect(right).toBeLessThanOrEqual(PILL_BOX.width);
+    expect(bottom).toBeLessThanOrEqual(PILL_BOX.height - PILL_BAND_PX);
+  });
+
+  it("paints the plaque surface, then the band as its foot, then the rim", () => {
+    for (const bucket of [0, 1, 2] as const) {
+      const spec = pills.find((s) => s.key === pillIconKey(bucket))!;
+      const painted = exercise(spec, PILL_TOKENS);
+      // body first, band second; a stroke for the rim and none for anything else.
+      expect(painted.fillStyles.slice(0, 2), `bucket ${bucket}`).toEqual([
+        PILL_TOKENS.pillSurface,
+        [PILL_TOKENS.pint, PILL_TOKENS.amber, PILL_TOKENS.brick][bucket],
+      ]);
+      expect(painted.strokeStyles).toEqual([PILL_TOKENS.pillRim]);
+    }
+  });
+
+  it("gives an unpriced pub the neutral foot, never a price band's", () => {
+    const spec = pills.find((s) => s.key === pillIconKey(3))!;
+    expect(exercise(spec, PILL_TOKENS).fillStyles[1]).toBe(UNPRICED_PIN_FILL);
+  });
+
+  it("falls back to paper and ink when a theme publishes no pill tokens", () => {
+    const spec = pills.find((s) => s.key === pillIconKey(0))!;
+    const painted = exercise(spec, TOKENS);
+    expect(painted.fillStyles[0]).toBe(TOKENS.paper);
+    expect(painted.strokeStyles).toEqual([TOKENS.ink]);
+  });
+});
+
+describe("landmark pad", () => {
+  it("wears the River ring while the TfL marks keep the ink pad", () => {
+    const strokes = (key: string, ns: "lm" | "tfl") =>
+      exercise(MAP_ICON_SPECS.find((s) => s.ns === ns && s.key === key)!).strokeStyles;
+    for (const key of REQUIRED_LANDMARK_KEYS) {
+      expect(strokes(key, "lm")[0], `${key} pad ring`).toBe(TOKENS.river);
+    }
+    for (const key of REQUIRED_TFL_KEYS) {
+      expect(strokes(key, "tfl")[0], `${key} pad ring`).toBe(TOKENS.ink);
     }
   });
 });

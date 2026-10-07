@@ -41,14 +41,38 @@ export type IconTokens = {
   /** The coffee category hue (lib/categoryColors.ts) for the coffee pilot pin. */
   coffee?: string;
   pinCasing?: string;
+  /**
+   * The price pill's body and its hairline edge (ns "pill"). Optional like the
+   * pin edge tokens above: a caller that omits them gets the paper and ink the
+   * rest of the icon set is already drawn from.
+   */
+  pillSurface?: string;
+  pillRim?: string;
 };
 
-export type IconNamespace = "lm" | "tfl" | "drink" | "base";
+export type IconNamespace = "lm" | "tfl" | "drink" | "base" | "pill";
+
+/**
+ * MapLibre's nine-slice for a stretchable image (`addImage` options), in CSS
+ * pixels of the spec's own box: the runs that may stretch on each axis and the
+ * rectangle `icon-text-fit` fits the text into. `registerMapIcons` scales these
+ * by the pixel ratio, because MapLibre reads them in image pixels.
+ */
+export type IconStretch = {
+  x: readonly (readonly [number, number])[];
+  y: readonly (readonly [number, number])[];
+  /** left, top, right, bottom of the text's rectangle. */
+  content: readonly [number, number, number, number];
+};
 
 export type IconSpec = {
   key: string; // e.g. "clock-tower", "underground", "pint-0"
-  ns: IconNamespace; // "lm" | "tfl" | "drink"
+  ns: IconNamespace; // "lm" | "tfl" | "drink" | "base" | "pill"
   size: number; // intended CSS px of the icon box (e.g. 30)
+  /** Overrides `size` as the box height. Only the stretchable pill is not square. */
+  height?: number;
+  /** Set only on an image `icon-text-fit` stretches around its text. */
+  stretch?: IconStretch;
   // Draw into a size×size box in CSS-pixel coordinates (the caller applies the
   // pixelRatio scale before calling draw, so draw uses 0..size coords).
   draw: (ctx: CanvasRenderingContext2D, t: IconTokens) => void;
@@ -120,19 +144,33 @@ function drawPad(
   ctx: CanvasRenderingContext2D,
   size: number,
   t: IconTokens,
+  ring: string = t.ink,
 ): void {
   const cx = size / 2;
   const cy = size / 2;
   const r = size / 2 - STROKE * 0.6;
   ctx.save();
   ctx.fillStyle = t.paper;
-  ctx.strokeStyle = t.ink;
+  ctx.strokeStyle = ring;
   ctx.lineWidth = STROKE * 0.7;
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
   ctx.restore();
+}
+
+// A landmark's pad wears the River ring, not the ink one. A landmark is
+// information about the place, not a pub and not a price, and River is the
+// token DESIGN.md gives information ("River Info"); the ink ring it had was the
+// same weight as the glass pins it competes with. The TfL marks keep the ink
+// pad, because their brand colours are fixed and only the pad adapts.
+function drawLandmarkPad(
+  ctx: CanvasRenderingContext2D,
+  size: number,
+  t: IconTokens,
+): void {
+  drawPad(ctx, size, t, t.river);
 }
 
 // Apply the shared chunky landmark styling: filled silhouette in the accent colour
@@ -164,7 +202,7 @@ function fillStroke(ctx: CanvasRenderingContext2D): void {
 // Big Ben / Elizabeth Tower: a tall narrow tower, a clock-face circle near the top,
 // topped by a pointed spire.
 function drawClockTower(ctx: CanvasRenderingContext2D, t: IconTokens): void {
-  drawPad(ctx, BOX, t);
+  drawLandmarkPad(ctx, BOX, t);
   setLandmarkStyle(ctx, t, true);
   const cx = BOX / 2;
   const bodyW = BOX * 0.26;
@@ -196,7 +234,7 @@ function drawClockTower(ctx: CanvasRenderingContext2D, t: IconTokens): void {
 
 // St Paul's: a wide dome carrying a small cross/lantern, over a colonnade base.
 function drawDome(ctx: CanvasRenderingContext2D, t: IconTokens): void {
-  drawPad(ctx, BOX, t);
+  drawLandmarkPad(ctx, BOX, t);
   setLandmarkStyle(ctx, t, true);
   const cx = BOX / 2;
   const baseTop = BOX * 0.62;
@@ -230,7 +268,7 @@ function drawDome(ctx: CanvasRenderingContext2D, t: IconTokens): void {
 // Tower Bridge: two square towers joined by a horizontal deck with a suspension
 // curve slung between them.
 function drawTwinTowers(ctx: CanvasRenderingContext2D, t: IconTokens): void {
-  drawPad(ctx, BOX, t);
+  drawLandmarkPad(ctx, BOX, t);
   setLandmarkStyle(ctx, t, true);
   const towerW = BOX * 0.18;
   const towerTop = BOX * 0.26;
@@ -275,7 +313,7 @@ function drawTwinTowers(ctx: CanvasRenderingContext2D, t: IconTokens): void {
 
 // The Shard: a tall tapered glass spike — a narrow, slightly asymmetric sliver.
 function drawShard(ctx: CanvasRenderingContext2D, t: IconTokens): void {
-  drawPad(ctx, BOX, t);
+  drawLandmarkPad(ctx, BOX, t);
   setLandmarkStyle(ctx, t, true);
   const cx = BOX / 2;
   ctx.beginPath();
@@ -293,7 +331,7 @@ function drawShard(ctx: CanvasRenderingContext2D, t: IconTokens): void {
 
 // London Eye: a spoked wheel over a small base.
 function drawWheel(ctx: CanvasRenderingContext2D, t: IconTokens): void {
-  drawPad(ctx, BOX, t);
+  drawLandmarkPad(ctx, BOX, t);
   setLandmarkStyle(ctx, t, true);
   const cx = BOX / 2;
   const cy = BOX * 0.44;
@@ -327,7 +365,7 @@ function drawWheel(ctx: CanvasRenderingContext2D, t: IconTokens): void {
 // The Gherkin (30 St Mary Axe): a rounded bullet/egg tower with a diagonal
 // crosshatch grid to echo its lattice facade.
 function drawGherkin(ctx: CanvasRenderingContext2D, t: IconTokens): void {
-  drawPad(ctx, BOX, t);
+  drawLandmarkPad(ctx, BOX, t);
   setLandmarkStyle(ctx, t, true);
   const cx = BOX / 2;
   const top = BOX * 0.16;
@@ -364,7 +402,7 @@ function drawGherkin(ctx: CanvasRenderingContext2D, t: IconTokens): void {
 
 // Nelson's Column / The Monument: a slender column on a stepped base with a cap.
 function drawColumn(ctx: CanvasRenderingContext2D, t: IconTokens): void {
-  drawPad(ctx, BOX, t);
+  drawLandmarkPad(ctx, BOX, t);
   setLandmarkStyle(ctx, t, true);
   const cx = BOX / 2;
   const shaftW = BOX * 0.12;
@@ -415,7 +453,7 @@ function drawColumn(ctx: CanvasRenderingContext2D, t: IconTokens): void {
 // Generic grand civic building (museums / halls): a pediment triangle over a row
 // of columns.
 function drawCivic(ctx: CanvasRenderingContext2D, t: IconTokens): void {
-  drawPad(ctx, BOX, t);
+  drawLandmarkPad(ctx, BOX, t);
   setLandmarkStyle(ctx, t, true);
   const cx = BOX / 2;
   const halfW = BOX * 0.3;
@@ -460,7 +498,7 @@ function drawCivic(ctx: CanvasRenderingContext2D, t: IconTokens): void {
 
 // Tower of London: a square Norman keep with four corner turrets.
 function drawKeep(ctx: CanvasRenderingContext2D, t: IconTokens): void {
-  drawPad(ctx, BOX, t);
+  drawLandmarkPad(ctx, BOX, t);
   setLandmarkStyle(ctx, t, true);
   const cx = BOX / 2;
   const bodyW = BOX * 0.44;
@@ -512,7 +550,7 @@ function drawKeep(ctx: CanvasRenderingContext2D, t: IconTokens): void {
 
 // Market / hall (e.g. Borough Market): a gabled roofline with a stall awning.
 function drawMarket(ctx: CanvasRenderingContext2D, t: IconTokens): void {
-  drawPad(ctx, BOX, t);
+  drawLandmarkPad(ctx, BOX, t);
   setLandmarkStyle(ctx, t, true);
   const cx = BOX / 2;
   const halfW = BOX * 0.32;
@@ -552,7 +590,7 @@ function drawMarket(ctx: CanvasRenderingContext2D, t: IconTokens): void {
 
 // Camden Lock: a little humped bridge arch over horizontal water lines.
 function drawCanal(ctx: CanvasRenderingContext2D, t: IconTokens): void {
-  drawPad(ctx, BOX, t);
+  drawLandmarkPad(ctx, BOX, t);
   setLandmarkStyle(ctx, t, true);
   const cx = BOX / 2;
   const deckY = BOX * 0.44;
@@ -596,7 +634,7 @@ function drawCanal(ctx: CanvasRenderingContext2D, t: IconTokens): void {
 
 // Cutty Sark / Greenwich: a three-mast sailing-ship silhouette over a hull.
 function drawShip(ctx: CanvasRenderingContext2D, t: IconTokens): void {
-  drawPad(ctx, BOX, t);
+  drawLandmarkPad(ctx, BOX, t);
   setLandmarkStyle(ctx, t, true);
   const cx = BOX / 2;
   // Hull.
@@ -627,7 +665,7 @@ function drawShip(ctx: CanvasRenderingContext2D, t: IconTokens): void {
 
 // Battersea Power Station: a rectangular block with four tall chimneys.
 function drawChimneys(ctx: CanvasRenderingContext2D, t: IconTokens): void {
-  drawPad(ctx, BOX, t);
+  drawLandmarkPad(ctx, BOX, t);
   setLandmarkStyle(ctx, t, true);
   const cx = BOX / 2;
   const bodyW = BOX * 0.5;
@@ -1145,6 +1183,13 @@ const VENUE_PIN_KINDS: VenuePinKind[] = [
 ];
 const DRINK_BUCKETS = [0, 1, 2, 3] as const;
 
+/** The pill image's key is this prefix and the band: `bucket-0` .. `bucket-3`. */
+export const PILL_ICON_KEY_PREFIX = "bucket-";
+
+export function pillIconKey(bucket: number): string {
+  return `${PILL_ICON_KEY_PREFIX}${bucket}`;
+}
+
 export function venuePinIconKey(kind: VenuePinKind, bucket: number): string {
   const b = bucket >= 0 && bucket <= 3 ? bucket : 3;
   return `${kind}-${b}`;
@@ -1294,6 +1339,59 @@ function drawBasePub(ctx: CanvasRenderingContext2D, t: IconTokens): void {
 }
 
 // ---------------------------------------------------------------------------
+// The price pill (ns: "pill"). From PIN_PRICE_LABEL_MIN_ZOOM a priced pub's
+// mark is its price on a pill, as a street of prices reads faster than a street
+// of glasses with numbers hung under them. The GLASS stays drawn beneath it on
+// `pubs-point`: where the pill cannot find room the glass takes the spot, so a
+// pub is never lost to make its price fit.
+//
+// Colour: the body is the plaque surface the price tag has always used, and the
+// band is a 3px foot inside the rim, because the band is a hint and the figure
+// is the claim. One image per band, because an icon's colour is not a data
+// property. There is no tail: a pill is centred on its pub like the glass is,
+// so the painted-pin probe, the hit box and the camera all keep one answer to
+// "where is this pub" and a tail would give them a second.
+// ---------------------------------------------------------------------------
+
+/** The pill's box in CSS px. The text's rectangle below sets the real size. */
+export const PILL_BOX = { width: 40, height: 26 } as const;
+const PILL_RADIUS = 8;
+/** The band's foot, in px, drawn inside the rim. */
+export const PILL_BAND_PX = 3;
+/**
+ * The nine-slice. Corners are PILL_RADIUS wide, so each cap is 10px, and the
+ * foot stays inside the bottom cap so a stretched pill keeps a 3px band.
+ */
+export const PILL_STRETCH: IconStretch = {
+  x: [[10, 30]],
+  y: [[10, 16]],
+  content: [8, 5, 32, 21],
+};
+
+function makePillDraw(bucket: number) {
+  return (ctx: CanvasRenderingContext2D, t: IconTokens): void => {
+    const { width, height } = PILL_BOX;
+    const body = t.pillSurface ?? t.paper;
+    const rim = t.pillRim ?? t.ink;
+    ctx.save();
+    roundRectPath(ctx, 0.5, 0.5, width - 1, height - 1, PILL_RADIUS);
+    ctx.fillStyle = body;
+    ctx.fill();
+    // The foot, clipped to the body so it follows the corners.
+    ctx.save();
+    ctx.clip();
+    ctx.fillStyle = priceFill(t, bucket);
+    ctx.fillRect(0, height - PILL_BAND_PX - 0.5, width, PILL_BAND_PX + 0.5);
+    ctx.restore();
+    roundRectPath(ctx, 0.5, 0.5, width - 1, height - 1, PILL_RADIUS);
+    ctx.strokeStyle = rim;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
+  };
+}
+
+// ---------------------------------------------------------------------------
 // The registry. `MAP_ICON_SPECS` is the single ordered list the caller iterates
 // to register every icon via `map.addImage(iconId(ns, key), rasterize(spec, …))`.
 // ---------------------------------------------------------------------------
@@ -1326,6 +1424,15 @@ export const MAP_ICON_SPECS: IconSpec[] = [
       draw: makeVenuePinDraw(kind, bucket),
     })),
   ),
+  // The price pill, one per band.
+  ...DRINK_BUCKETS.map((bucket): IconSpec => ({
+    key: pillIconKey(bucket),
+    ns: "pill",
+    size: PILL_BOX.width,
+    height: PILL_BOX.height,
+    stretch: PILL_STRETCH,
+    draw: makePillDraw(bucket),
+  })),
   // The unpriced UK base layer's single glyph.
   { key: UK_BASE_ICON_KEY, ns: "base", size: BOX, draw: drawBasePub },
   // The coffee pilot cafe's single glyph.
@@ -1364,7 +1471,7 @@ export function rasterize(
 ): ImageData {
   const c = document.createElement("canvas");
   c.width = spec.size * pixelRatio;
-  c.height = spec.size * pixelRatio;
+  c.height = (spec.height ?? spec.size) * pixelRatio;
   const ctx = c.getContext("2d");
   if (!ctx)
     throw new Error("mapIcons.rasterize: 2D canvas context unavailable");
