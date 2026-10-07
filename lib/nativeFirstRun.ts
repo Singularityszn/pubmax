@@ -84,8 +84,8 @@ export function markNativeFirstRunRouted(): void {
     window.localStorage.removeItem(NATIVE_FIRST_RUN_PATCH_KEY);
   } catch {
     // Storage full / disabled / private mode — degrade silently; worst case
-    // is a second no-op check next launch, never a loop (isNativeApp() +
-    // hasCityPreference still gate it, and the redirect target is idempotent).
+    // is that the next launch resumes the journey again, never a loop
+    // (isNativeApp() still gates it, and the redirect target is idempotent).
   }
 }
 

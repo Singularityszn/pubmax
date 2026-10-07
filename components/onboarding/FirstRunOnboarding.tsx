@@ -99,6 +99,36 @@ function patchOrigin(id: string | null): OnboardingOrigin | null {
   return patch ? { kind: "patch", ...patch } : null;
 }
 
+/** The pinned action bar's one primary, named for the step it advances. */
+function primaryActionLabel(
+  step: OnboardingStep,
+  locateState: LocateState,
+  answer: Answer,
+  hasBest: boolean,
+): string {
+  if (step === "london") return "Use London";
+  if (step === "budget") return "Continue";
+  if (step === "location") return locateState === "requesting" ? "Finding your location…" : "Use my location";
+  if (step === "companion") return "Plan my night";
+  if (answer.status === "loading") return "Checking prices…";
+  if (answer.status === "unavailable") return "Try again";
+  if (answer.status === "empty" || !hasBest) return "Pick a patch";
+  return "That looks right";
+}
+
+function primaryActionDisabled(
+  step: OnboardingStep,
+  locateState: LocateState,
+  answer: Answer,
+  hasBudget: boolean,
+  hasCompanion: boolean,
+): boolean {
+  return (step === "budget" && !hasBudget)
+    || (step === "location" && locateState === "requesting")
+    || (step === "companion" && !hasCompanion)
+    || (step === "result" && answer.status === "loading");
+}
+
 export default function FirstRunOnboarding({
   reviewedAreas,
   skipHref,
@@ -345,18 +375,8 @@ export default function FirstRunOnboarding({
     else goTo(nextOnboardingStep("result"));
   }
 
-  const primaryLabel = step === "london" ? "Use London"
-    : step === "budget" ? "Continue"
-    : step === "location" ? (locateState === "requesting" ? "Finding your location…" : "Use my location")
-    : step === "companion" ? "Plan my night"
-    : answer.status === "loading" ? "Checking prices…"
-    : answer.status === "unavailable" ? "Try again"
-    : answer.status === "empty" || !result?.best ? "Pick a patch"
-    : "That looks right";
-  const primaryDisabled = (step === "budget" && !budget)
-    || (step === "location" && locateState === "requesting")
-    || (step === "companion" && !companion)
-    || (step === "result" && answer.status === "loading");
+  const primaryLabel = primaryActionLabel(step, locateState, answer, Boolean(result?.best));
+  const primaryDisabled = primaryActionDisabled(step, locateState, answer, budget !== null, Boolean(companion));
   const hasBack = step !== "london" && step !== "result";
 
   return (

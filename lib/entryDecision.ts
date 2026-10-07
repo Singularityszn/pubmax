@@ -29,8 +29,8 @@
 //   1. Deep link — any path other than "/" is an explicit destination (share
 //      link, push click-through, universal link) and bypasses the decision
 //      untouched, shell or not. The decision NEVER rewrites a deep link.
-//   2. Native first-run at the root — a genuine native first-run opens the
-//      dedicated onboarding (lib/nativeFirstRun.ts gate, native shell only).
+//   2. Native first-run at the root — a new or unfinished native first run
+//      opens the dedicated onboarding (lib/nativeFirstRun.ts gate, native shell only).
 //      Precedence UNCHANGED by the 2026-07-21 amendment.
 //   3. Session revisit — the cold-start decision already ran this session, so a
 //      later arrival at "/" (in-app home tap) stays on the landing page, shell

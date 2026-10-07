@@ -1,4 +1,4 @@
-// Where the native shell's one-time first-run surface lives.
+// Where the native shell's first-run surface lives.
 //
 // A LEAF, importing nothing, because two very different readers need this one
 // string. `lib/entryDecision.ts` re-exports it and owns the decision to send a

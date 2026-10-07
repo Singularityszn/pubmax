@@ -1,9 +1,10 @@
 "use client";
 
 // The question and answer panels of the first-run journey (lib/onboardingFlow.ts
-// names the steps and the copy). Each panel is one question with its reason and
-// one painted primary, the shape docs/design/LAUNCH_SCREENS.md asks of a
-// screen. State lives in FirstRunOnboarding; these only paint and report taps.
+// names the steps and the copy). Each panel is one question with its reason.
+// The one painted primary, the shape docs/design/LAUNCH_SCREENS.md asks of a
+// screen, sits in FirstRunOnboarding's pinned action bar. State lives there too;
+// these only paint and report taps.
 
 import { Check, ShieldCheck } from "lucide-react";
 
