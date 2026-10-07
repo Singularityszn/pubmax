@@ -45,4 +45,4 @@ The connector's create-deployment arguments do not expose that checkbox. Its `fo
 
 The repository's [signable-preview requirements](../DEPLOYMENT.md#a-preview-a-verifier-can-sign-in-to) prohibit test writes to production. Existing preview variable names do not waive that requirement. Local test doubles cannot prove a real hosted sign-in or confirmation.
 
-This lane made no application changes, production writes, migrations, promotions, or project-setting changes. The application fixes and their local browser evidence belong to the separate reconciliation branch.
+This lane made no application changes, production writes, migrations, promotions, or project-setting changes. The application fixes and their local browser evidence appear in the [combined reconciliation record](grok-live-reconcile-2026-10-07.md).
