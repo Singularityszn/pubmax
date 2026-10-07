@@ -268,7 +268,15 @@ test("mobile consent never covers a control keyboard focus lands on in /social",
 
   const prompt = page.getByLabel("Anonymous analytics choice");
   await expect(prompt).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator(".socialPage")).toBeVisible({ timeout: 30_000 });
+  // A document load streams the page into a hidden segment before React swaps
+  // it in, so for that window the document holds two `.socialPage` mains. The
+  // painted one is the page a reader can Tab through.
+  const socialPage = page.locator(".socialPage:visible");
+  await expect(socialPage).toBeVisible({ timeout: 30_000 });
+  // The viewer check answers after first paint, and its answer re-lays the
+  // rail above the Handle field by about 150px. A field focused before that
+  // is pushed under the card with no scroll, so Tab walks the settled page.
+  await expect(socialPage.locator('[aria-busy="true"]')).toHaveCount(0, { timeout: 30_000 });
 
   const covered: string[] = [];
   for (let press = 0; press < 60; press += 1) {
