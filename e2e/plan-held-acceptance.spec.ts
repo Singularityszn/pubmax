@@ -88,6 +88,10 @@ test("held pub shows one describe box, names the area, and release un-anchors wh
   await expect(page.getByRole("region", { name: "Accepted plan context" }).getByText("Clapham")).toBeVisible();
   await expect(page.getByRole("region", { name: "Accepted plan context" }).getByText("clapham", { exact: true })).toHaveCount(0);
 
+  // A recovered route puts the page in its result shape: the route first, and
+  // the describe box behind "Tune details". It is still ONE box, in one place.
+  await expect(page.getByRole("textbox", { name: "Describe the outing" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Tune details" }).click();
   await expect(page.getByRole("textbox", { name: "Describe the outing" })).toHaveCount(1);
   // The composer's own concierge control, addressed by its place rather than
   // its label: it reads "Make a plan" before the generator has answered and
@@ -95,13 +99,18 @@ test("held pub shows one describe box, names the area, and release un-anchors wh
   // primary and that is `Lock it in`. What this line owns is that exactly one
   // such control is mounted beside the one describe box above it.
   await expect(page.locator(".planComposer__conciergeInput button")).toHaveCount(1);
+  await page.keyboard.press("Escape");
 
   await page.getByRole("button", { name: "Release this pub" }).click();
   await expect(page.locator("#plan-route-status")).toHaveText(
     "Released The Coach & Horses. Stop 1 is yours to change.",
   );
   await expect(page.locator("#plan-route-status")).toBeFocused();
+  // Describe-first is back; the concierge box is still behind Tune details.
+  await expect(page.getByRole("textbox", { name: "Describe the outing" })).toHaveCount(1);
+  await page.getByRole("button", { name: "Tune details" }).click();
   await expect(page.getByRole("textbox", { name: "Describe the outing" })).toHaveCount(2);
+  await page.keyboard.press("Escape");
 
   await expect.poll(async () => {
     const raw = await page.evaluate((routeKey) => localStorage.getItem(routeKey), ROUTE_DRAFT_KEY);

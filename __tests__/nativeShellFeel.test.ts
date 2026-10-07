@@ -41,6 +41,7 @@ describe("the haptic vocabulary", () => {
       "selection-kept",
       "selection-released",
       "action-refused",
+      "plan-locked",
     ]);
   });
 
@@ -52,9 +53,10 @@ describe("the haptic vocabulary", () => {
     }
   });
 
-  it("reserves the two-beat notification for a kept contribution and a refusal", () => {
-    // A Pint Drop is the action the product is built around; a refusal is the
-    // only other thing worth interrupting a thumb for.
+  it("reserves the two-beat notification for a kept contribution, a locked plan and a refusal", () => {
+    // A Pint Drop is the action the product is built around, a locked plan is
+    // the moment a route becomes real; a refusal is the only other thing worth
+    // interrupting a thumb for.
     expect(hapticEngineFor("contribution-kept")).toEqual({
       kind: "notification",
       style: "Success",
@@ -62,6 +64,10 @@ describe("the haptic vocabulary", () => {
     expect(hapticEngineFor("action-refused")).toEqual({
       kind: "notification",
       style: "Warning",
+    });
+    expect(hapticEngineFor("plan-locked")).toEqual({
+      kind: "notification",
+      style: "Success",
     });
     expect(hapticEngineFor("selection-kept").kind).toBe("impact");
     expect(hapticEngineFor("selection-released").kind).toBe("impact");

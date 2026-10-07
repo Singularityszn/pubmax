@@ -5,6 +5,8 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
+import type { WalkLegDistance } from "@/lib/walkRoute";
+
 import {
   lineCoordsFromFeatureCollection,
   stopsParam,
@@ -75,11 +77,24 @@ type DrawnRoute = { line: LngLat[]; source: RouteSource };
 export default function PlanRouteMiniMap({
   stops,
   mapHref,
+  variant = "card",
+  drawKey,
+  onLegs,
 }: {
   stops: PlanCrawlRouteStop[];
   mapHref?: Route | null;
+  /** `strip` is the Plan result's frameless route under its header. */
+  variant?: "card" | "strip";
+  /** A route that has just arrived, so its line draws itself once. */
+  drawKey?: string;
+  /** The measured walk between stops, once the walking route answers. */
+  onLegs?: (venueIds: readonly string[], legs: readonly WalkLegDistance[]) => void;
 }) {
   const attributionSlotRef = useRef<HTMLDivElement | null>(null);
+  const onLegsRef = useRef(onLegs);
+  useEffect(() => {
+    onLegsRef.current = onLegs;
+  }, [onLegs]);
   const [resolved, setResolved] = useState<ResolvedPlanCrawlRoute | null>(null);
   const [resolvedKey, setResolvedKey] = useState<string | null>(null);
   const [drawn, setDrawn] = useState<DrawnRoute | null>(null);
@@ -91,8 +106,13 @@ export default function PlanRouteMiniMap({
   const titleId = useId();
   const descId = useId();
 
+  const [noWebGl, setNoWebGl] = useState(false);
   useEffect(() => {
-    if (!probeWebGl2().hasContext) return;
+    if (!probeWebGl2().hasContext) {
+      // Deferred out of the effect body (react-hooks/set-state-in-effect).
+      void Promise.resolve().then(() => setNoWebGl(true));
+      return;
+    }
     const controller = new AbortController();
     void fetchStopCoords(stops, controller.signal).then((next) => {
       if (controller.signal.aborted) return;
@@ -125,7 +145,10 @@ export default function PlanRouteMiniMap({
           discardBody(res);
           return;
         }
-        const body = (await res.json()) as { line?: unknown; source?: unknown };
+        const body = (await res.json()) as { line?: unknown; source?: unknown; legs?: unknown };
+        if (Array.isArray(body.legs) && !controller.signal.aborted) {
+          onLegsRef.current?.(resolved.venueIds, body.legs as WalkLegDistance[]);
+        }
         const routed = lineCoordsFromFeatureCollection(body.line);
         if (controller.signal.aborted || routed.length < 2) return;
         setDrawn({
@@ -148,7 +171,18 @@ export default function PlanRouteMiniMap({
     return planCrawlRouteGeoJSON(activeResolved, activeDrawn.line, activeDrawn.source);
   }, [activeResolved, activeDrawn]);
 
-  if (!activeResolved || !activeDrawn || !geo) return null;
+  if (!activeResolved || !activeDrawn || !geo) {
+    // The strip holds its height while the stops are located, so the cards
+    // under it do not jump when the map arrives. It gives the space back only
+    // once there is nothing to draw (no WebGL, or fewer than two located stops).
+    const settled = noWebGl || resolvedKey === stopsKey;
+    if (variant !== "strip" || settled) return null;
+    return (
+      <div className="planRouteMiniMap planRouteMiniMap--strip" aria-hidden="true" data-testid="plan-route-strip-pending">
+        <div className="planRouteMiniMap__canvas planRouteMiniMap__canvas--loading" />
+      </div>
+    );
+  }
 
   const count = activeResolved.coords.length;
   const title = activeResolved.area
@@ -166,6 +200,7 @@ export default function PlanRouteMiniMap({
         {description}
       </p>
       <PlanCrawlRouteMapCanvas
+        drawKey={drawKey}
         stopCoords={activeResolved.coords}
         routeLine={geo.routeLine}
         routeStops={geo.routeStops}
@@ -176,7 +211,11 @@ export default function PlanRouteMiniMap({
   );
 
   return (
-    <div className="planRouteMiniMap planRouteMiniMap--in" data-source={activeDrawn.source}>
+    <div
+      className={`planRouteMiniMap planRouteMiniMap--in${variant === "strip" ? " planRouteMiniMap--strip" : ""}`}
+      data-source={activeDrawn.source}
+      data-testid={variant === "strip" ? "plan-route-strip" : undefined}
+    >
       {mapHref ? (
         <Link className="planRouteMiniMap--clickable" href={mapHref} prefetch={false} aria-labelledby={labelledBy}>
           {preview}

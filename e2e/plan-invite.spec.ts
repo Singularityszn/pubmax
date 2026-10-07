@@ -134,7 +134,8 @@ test("Copy invite link shows for the host's own session and never for an anonymo
   await openHydratedPlanComposer(page);
   await describeFirstQuery(page).fill("Quiet in Clapham for 4, not pricey");
   await describeFirstSubmit(page).click();
-  await expect(page.getByRole("combobox", { name: /Area/i })).toHaveValue("clapham");
+  // The route names the area it understood (the area picker itself is behind Tune details).
+  await expect(page.getByRole("heading", { name: /^(Tonight|Today) in Clapham$/ })).toBeVisible();
   await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");
   // Evening defaults can land in the past after ~19:00 London; a past First
@@ -206,7 +207,8 @@ test("invite loop: guest RSVP, host Remove via cookie path, guest map handoff", 
   await openHydratedPlanComposer(page);
   await describeFirstQuery(page).fill("Quiet in Clapham for 4, not pricey");
   await describeFirstSubmit(page).click();
-  await expect(page.getByRole("combobox", { name: /Area/i })).toHaveValue("clapham");
+  // The route names the area it understood (the area picker itself is behind Tune details).
+  await expect(page.getByRole("heading", { name: /^(Tonight|Today) in Clapham$/ })).toBeVisible();
   await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");
   await setFirstPintIn(page, 3 * 60);

@@ -1,0 +1,212 @@
+/* ── Tune details sheet ─────────────────────────────────────────────────────
+   The settings sheet over the Plan result. Its translucency is the sheet
+   material (docs/DESIGN_SYSTEM.md "Sheet material"), the one functional home
+   for a blur. */
+
+
+.planTune {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-tabbar) + 10);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.planTune__scrim {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  background: color-mix(in srgb, var(--ink-deep) 48%, transparent);
+  cursor: default;
+}
+.planTune__sheet {
+  position: relative;
+  width: min(100%, 560px);
+  /* The half detent. The grab handle opens it to full. */
+  max-height: 62dvh;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--sheet-material-border);
+  border-bottom: 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--sheet-material);
+  -webkit-backdrop-filter: blur(20px) saturate(1.08);
+  backdrop-filter: blur(20px) saturate(1.08);
+  box-shadow: var(--sheet-material-shadow);
+  outline: none;
+  overscroll-behavior: contain;
+}
+.planTune[data-detent="full"] .planTune__sheet {
+  max-height: 92dvh;
+}
+.planTune__sheet[data-dragging="true"] {
+  user-select: none;
+  -webkit-user-select: none;
+}
+.planTune__header {
+  flex: none;
+  display: grid;
+  grid-template-columns: var(--control-height) 1fr var(--control-height);
+  align-items: center;
+  padding: var(--space-1) var(--space-2) var(--space-2);
+  touch-action: none;
+  cursor: grab;
+}
+.planTune__header h2 {
+  grid-column: 2;
+  grid-row: 2;
+  margin: 0;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  line-height: 1.2;
+  color: var(--ink);
+}
+.planTune__grab {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  justify-self: center;
+  width: 96px;
+  height: var(--control-height);
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.planTune__grab span {
+  width: 40px;
+  height: 5px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--ink) 28%, transparent);
+}
+.planTune__close {
+  grid-column: 3;
+  grid-row: 2;
+  justify-self: end;
+  width: var(--control-height);
+  height: var(--control-height);
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.planTune__body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 var(--page-gutter) calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
+  display: grid;
+  gap: var(--space-5);
+}
+/* The sheet carries its own heading, and the form's grid does not reach into a portal. */
+.planTune .planComposer__concierge {
+  padding: 0;
+  border-bottom: 0;
+}
+.planTune .planComposer__conciergeInput {
+  margin-top: 0;
+}
+.planTune .planComposer__templates {
+  padding: 0;
+}
+
+@media (min-width: 641px) {
+  .planTune {
+    align-items: center;
+  }
+  .planTune__sheet {
+    max-height: min(78dvh, 720px);
+    border-bottom: 1px solid var(--sheet-material-border);
+    border-radius: var(--radius-lg);
+  }
+  .planTune[data-detent="full"] .planTune__sheet {
+    max-height: min(78dvh, 720px);
+  }
+  .planTune__header {
+    cursor: auto;
+    touch-action: auto;
+  }
+  .planTune__grab {
+    display: none;
+  }
+  .planTune__header h2 {
+    grid-row: 1;
+    grid-column: 1 / -1;
+    padding-inline: var(--control-height);
+  }
+  .planTune__close {
+    grid-row: 1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .planTune__scrim {
+    animation: planTuneFade 200ms var(--ease-out-strong) both;
+  }
+  .planTune__sheet {
+    animation: planTuneRise 280ms var(--ease-out-strong) both;
+  }
+  .planTune[data-closing="true"] .planTune__scrim {
+    animation: none;
+  }
+}
+@keyframes planTuneFade {
+  from { opacity: 0; }
+}
+@keyframes planTuneRise {
+  from { transform: translate3d(0, 100%, 0); }
+}
+@media (min-width: 641px) and (prefers-reduced-motion: no-preference) {
+  .planTune__sheet {
+    animation-name: planTuneFade;
+  }
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .planTune__sheet {
+    background: var(--sheet-material-solid);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/* The sheet is portalled to <body>, outside `.planPage` and `.planComposer`, so
+   the page's accent variables and its bare input and label rules do not reach
+   it. They are restated here once, from the same tokens. */
+.planTune {
+  --plan-accent: var(--accent-action);
+  --plan-accent-strong: var(--color-accent-ink);
+}
+html[data-theme="dark"] .planTune {
+  --plan-accent: var(--night-amber);
+  --plan-accent-strong: color-mix(in srgb, var(--night-amber) 78%, var(--ink));
+}
+.planTune label,
+.planTune legend {
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  font-weight: 760;
+  letter-spacing: 0.02em;
+}
+.planTune input {
+  min-width: 0;
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 10px 13px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  /* 16px: iOS zooms the page into anything smaller. */
+  font-size: 1rem;
+}
+.planTune :is(input, select, button, summary):focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--plan-accent) 55%, transparent);
+  outline-offset: 2px;
+}

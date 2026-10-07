@@ -2,6 +2,7 @@
 
 import {
   FormEvent,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -17,6 +18,13 @@ import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import PlanIntake from "@/components/plan/PlanIntake";
 import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
 import PlanCultureOpener from "@/components/plan/PlanCultureOpener";
+import dynamic from "next/dynamic";
+import { SlidersHorizontal } from "lucide-react";
+import { buildCrawlMapHref } from "@/lib/crawlUrl";
+import { haptic } from "@/lib/nativeHaptics";
+import { moveItem } from "@/lib/planStopReorder";
+import { measuredLegMinutes, routeHeading, routeSummaryLine, type MeasuredLegMinutes } from "@/lib/planRouteView";
+import type { WalkLegDistance } from "@/lib/walkRoute";
 import { discardBody } from "@/lib/responseBody";
 import { laneSourceFromSearch, trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
 import { errorShownKindFromStatus, trackErrorShown } from "@/lib/analyticsErrorShown";
@@ -45,7 +53,7 @@ import {
 import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
 import { planUsesPintPrices } from "@/lib/planGenerationDto";
 import { categoryLabel, DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
-import { cleanSelectedDrinkPriceEvidence, selectedDrinkPriceDescription, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 export { selectedDrinkPriceDescription } from "@/lib/planSelectedDrinkPriceEvidence";
 import { CITIES, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import {
@@ -113,6 +121,24 @@ import {
   type PlanIntakeDraft,
 } from "@/lib/planIntake";
 
+// The result's own parts load when a route first arrives, never with the
+// describe-first page every visitor opens: /plan carries a JS ceiling
+// (perf/route-budgets.json) and a stranger on it has no route to show yet.
+// Their styles are route CSS (the Plan result block at the end of
+// app/plan/plan.css), so the header never paints bare while a chunk is on its
+// way and the page makes no extra stylesheet request for them.
+const PlanStopList = dynamic(() => import("@/components/plan/PlanStopList"), {
+  ssr: false,
+  loading: () => <div className="planStops__placeholder" aria-hidden="true" />,
+});
+const PlanResultProvenance = dynamic(() => import("@/components/plan/PlanResultProvenance"), {
+  ssr: false,
+  // One quiet line, held in place so the strip under it does not move.
+  loading: () => <p className="planResult__provenance" aria-hidden="true">&nbsp;</p>,
+});
+const PlanTuneSheet = dynamic(() => import("@/components/plan/PlanTuneSheet"), { ssr: false });
+const PlanRouteMiniMap = dynamic(() => import("@/components/plan/PlanRouteMiniMap"), { ssr: false });
+
 type RouteRevision = string | number;
 type RouteAlternative = { venueId: string; venueName: string; selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence };
 export type DraftStop = {
@@ -121,6 +147,11 @@ export type DraftStop = {
   venueName: string;
   reason?: string;
   selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence;
+  /** What the generator timed and priced, kept so the route can be read as a route. */
+  walkingMinutesFromPrevious?: number | null;
+  walkFromVenueId?: string;
+  estimatedPintPricePence?: number | null;
+  priceKind?: "listed" | "estimated";
   alternatives: RouteAlternative[];
 };
 
@@ -141,12 +172,31 @@ export function composerRouteMutation(input: {
   createOperationKey: string | null;
   planAnchor: GeneratedPlanAnchor | null;
   routeStale: boolean;
+  /** The same venues in a new order. See the proof rule below. */
+  reorder?: boolean;
 }): ComposerRouteMutation {
   const heldVenueId = input.heldVenueId ?? null;
   if (heldVenueId && input.nextStops[0]?.venueId !== heldVenueId) {
     return {
       accepted: false,
       stops: input.currentStops,
+      groundingProof: input.groundingProof,
+      createOperationKey: input.createOperationKey,
+      planAnchor: input.planAnchor,
+      routeStale: input.routeStale,
+    };
+  }
+  // A legacy (V1) grounding proof commits to the SET of venues the route may
+  // use, so the same venues in a new order are still covered by it. An anchored
+  // route carries a V2 proof that binds the exact order (lib/planGrounding.server.ts),
+  // so for that route a reorder is an identity change like any other.
+  const sameVenueSet = input.currentStops.length === input.nextStops.length
+    && new Set(input.currentStops.map((stop) => stop.venueId)).size === input.currentStops.length
+    && input.currentStops.every((stop) => input.nextStops.some((next) => next.venueId === stop.venueId));
+  if (input.reorder && sameVenueSet && !input.planAnchor) {
+    return {
+      accepted: true,
+      stops: input.nextStops,
       groundingProof: input.groundingProof,
       createOperationKey: input.createOperationKey,
       planAnchor: input.planAnchor,
@@ -162,6 +212,25 @@ export function composerRouteMutation(input: {
     createOperationKey: identityChanged ? null : input.createOperationKey,
     planAnchor: input.planAnchor,
     routeStale: identityChanged || input.routeStale,
+  };
+}
+
+/** A venue that changed no longer owns the walk and the price the old one was given. */
+const NO_TIMING_OR_PRICE = {
+  walkingMinutesFromPrevious: undefined,
+  walkFromVenueId: undefined,
+  estimatedPintPricePence: undefined,
+  priceKind: undefined,
+} satisfies Partial<DraftStop>;
+
+/** The stop a chosen pub makes: a venue record, with nothing of the last one left on it. */
+export function pickedPlanStop(stop: DraftStop, venue: PlanVenueOption): DraftStop {
+  return {
+    key: stop.key,
+    venueId: venue.id,
+    venueName: venue.name,
+    ...NO_TIMING_OR_PRICE,
+    alternatives: [],
   };
 }
 
@@ -184,6 +253,7 @@ export function editedPlanStop(input: {
       reason: preservesAcceptedAuthority || match?.id === input.stop.venueId ? input.stop.reason : undefined,
       selectedDrinkPriceEvidence: preservesAcceptedAuthority || match?.id === input.stop.venueId
         ? input.stop.selectedDrinkPriceEvidence : undefined,
+      ...(preservesAcceptedAuthority || match?.id === input.stop.venueId ? {} : NO_TIMING_OR_PRICE),
       alternatives: [],
     },
     preservesAcceptedAuthority,
@@ -400,6 +470,39 @@ function routeAlternatives(value: unknown): RouteAlternative[] {
   });
 }
 
+/** What the generator timed and priced for one stop, read defensively off the wire or a stored draft. */
+function generatedStopTiming(
+  row: {
+    walkingMinutesFromPrevious?: unknown;
+    walkFromVenueId?: unknown;
+    estimatedPintPricePence?: unknown;
+    priceEvidence?: unknown;
+    priceKind?: unknown;
+  },
+  previousCandidate: unknown,
+  index: number,
+): Pick<DraftStop, "walkingMinutesFromPrevious" | "walkFromVenueId" | "estimatedPintPricePence" | "priceKind"> {
+  const previous = previousCandidate as { venueId?: unknown } | undefined;
+  const walkFromVenueId = typeof row.walkFromVenueId === "string" && row.walkFromVenueId.trim()
+    ? row.walkFromVenueId.trim()
+    : typeof previous?.venueId === "string" && previous.venueId.trim() ? previous.venueId.trim() : undefined;
+  const minutes = row.walkingMinutesFromPrevious;
+  const walkMinutes = typeof minutes === "number" && Number.isFinite(minutes) && minutes >= 0 && minutes <= 600
+    ? Math.round(minutes) : null;
+  const pence = row.estimatedPintPricePence;
+  const pricePence = typeof pence === "number" && Number.isSafeInteger(pence) && pence > 0 && pence <= 100_000
+    ? pence : null;
+  const recorded = Boolean(row.priceEvidence && typeof row.priceEvidence === "object"
+    && (row.priceEvidence as { source?: unknown }).source);
+  const priceKind = row.priceKind === "listed" || row.priceKind === "estimated" ? row.priceKind
+    : recorded ? "listed" : "estimated";
+  return {
+    ...(index > 0 && walkMinutes !== null && walkFromVenueId
+      ? { walkingMinutesFromPrevious: walkMinutes, walkFromVenueId } : {}),
+    ...(pricePence !== null ? { estimatedPintPricePence: pricePence, priceKind } : {}),
+  };
+}
+
 /** Keep the generator's alternatives attached to their stop for preview swaps. */
 export function routeStopsFromGenerated(value: unknown, alternativePool?: unknown): DraftStop[] {
   if (!Array.isArray(value)) return [];
@@ -421,6 +524,11 @@ export function routeStopsFromGenerated(value: unknown, alternativePool?: unknow
       name?: unknown;
       reason?: unknown;
       selectedDrinkPriceEvidence?: unknown;
+      walkingMinutesFromPrevious?: unknown;
+      walkFromVenueId?: unknown;
+      estimatedPintPricePence?: unknown;
+      priceEvidence?: unknown;
+      priceKind?: unknown;
       alternatives?: unknown;
       options?: unknown;
     };
@@ -435,12 +543,14 @@ export function routeStopsFromGenerated(value: unknown, alternativePool?: unknow
       && all.findIndex((candidate) => candidate.venueId === alternative.venueId) === alternativeIndex
     ));
     const selectedDrinkPriceEvidence = cleanSelectedDrinkPriceEvidence(row.selectedDrinkPriceEvidence);
+    const timing = generatedStopTiming(row, candidates[index - 1], index);
     return [{
       key: index + 1,
       venueId,
       venueName,
       ...(typeof row.reason === "string" && row.reason.trim() ? { reason: row.reason.trim() } : {}),
       ...(selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence } : {}),
+      ...timing,
       alternatives,
     }];
   });
@@ -459,6 +569,7 @@ export function swapDraftStop(stop: DraftStop, excludedVenueIds: ReadonlySet<str
     venueName: next.venueName,
     reason: undefined,
     selectedDrinkPriceEvidence: next.selectedDrinkPriceEvidence,
+    ...NO_TIMING_OR_PRICE,
     alternatives: [
       ...remaining,
       { venueId: stop.venueId, venueName: stop.venueName, ...(stop.selectedDrinkPriceEvidence
@@ -1303,6 +1414,8 @@ function PlanComposerForm({
   useEffect(() => {
     if (routeRevealTick === 0) return;
     revealPlanRouteStatus();
+    // The sheet was how this route was asked for; the route is the answer.
+    void Promise.resolve().then(() => setTuneOpen(false));
   }, [routeRevealTick]);
 
   // The host name is public (the plan, the share card, the unfurler), so it
@@ -1361,6 +1474,16 @@ function PlanComposerForm({
   const [planAnchor, setPlanAnchor] = useState(routeDraftFields.planAnchor);
   const [sorting, setSorting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Set once the plan exists, and never cleared: the page is about to be left
+  // for the plan's own, and `finally` below must not give the button back.
+  const [locked, setLocked] = useState(false);
+  const [tuneOpen, setTuneOpen] = useState(false);
+  // Walk minutes the browser measured between stops, merged over the route's
+  // life so a reorder re-times a leg the generator never walked.
+  const [measured, setMeasured] = useState<MeasuredLegMinutes>(() => new Map());
+  const onMeasuredLegs = useCallback((venueIds: readonly string[], legs: readonly WalkLegDistance[]) => {
+    setMeasured((current) => new Map([...current, ...measuredLegMinutes(venueIds, legs)]));
+  }, []);
   const [error, setError] = useState("");
   const [routeStatus, setRouteStatus] = useState(routeDraftFields.routeStatus);
   // Culture Crawl opener for the CURRENT generated route only. It is never
@@ -1400,6 +1523,10 @@ function PlanComposerForm({
     planIntake.completed
     || stops.length > 0
     || Boolean(recoveredDraft || recoveredRouteDraft || heldVenueId);
+  // A route is on the page. Then the page IS the route: the header, the map
+  // strip and the stop cards come first, and every setting sits behind
+  // "Tune details" instead of in front of the answer.
+  const resultMode = composerVisible && routeSorted && stops.length > 0;
   // An unresolved Stop 1 carries an empty name on purpose, and an empty string
   // is not nullish, so it must be dropped here or the summary prints a blank
   // row instead of falling through to the neutral label.
@@ -1678,7 +1805,11 @@ function PlanComposerForm({
     }
   }
 
-  function applyStopIdentityMutation(nextStops: DraftStop[], status: string): boolean {
+  function applyStopIdentityMutation(
+    nextStops: DraftStop[],
+    status: string,
+    options: { reorder?: boolean; settledStatus?: string } = {},
+  ): boolean {
     const mutation = composerRouteMutation({
       currentStops: stops,
       nextStops,
@@ -1687,6 +1818,7 @@ function PlanComposerForm({
       createOperationKey,
       planAnchor,
       routeStale,
+      reorder: options.reorder,
     });
     if (!mutation.accepted) {
       setRouteStatus("The accepted pub stays as Stop 1. Refresh the route to change the other stops.");
@@ -1707,6 +1839,7 @@ function PlanComposerForm({
       setNightContext(reconciled.context);
     }
     if (mutation.routeStale) setRouteStatus(status);
+    else if (options.settledStatus) setRouteStatus(options.settledStatus);
     return true;
   }
 
@@ -1726,13 +1859,40 @@ function PlanComposerForm({
     }));
   }
 
-  function chooseVenue(key: number, venueName: string) {
+  /** A pub chosen for a stop that had none: the stop becomes a card. */
+  function pickVenue(key: number, venue: PlanVenueOption) {
     const selected = stops.find((stop) => stop.key === key);
     if (!selected) return;
-    const edited = editedPlanStop({ stop: selected, venueName, venues, heldVenueId });
     applyStopIdentityMutation(
-      stops.map((stop) => stop.key === key ? edited.stop : stop),
-      "Stop edited in the route preview. Refresh the route before locking.",
+      stops.map((stop) => stop.key === key ? pickedPlanStop(stop, venue) : stop),
+      "Stop chosen. Refresh the route before locking.",
+    );
+  }
+
+  function removeStop(key: number) {
+    const index = stops.findIndex((stop) => stop.key === key);
+    if (index < 0) return;
+    const removed = applyStopIdentityMutation(
+      stops.filter((stop) => stop.key !== key),
+      `Stop ${index + 1} removed. Refresh the route before locking.`,
+    );
+    if (removed) haptic("selection-released");
+  }
+
+  function addStop() {
+    if (stops.length >= MAX_PLAN_STOP_COUNT) return;
+    applyStopIdentityMutation(
+      [...stops, { key: Math.max(0, ...stops.map((stop) => stop.key)) + 1, venueId: "", venueName: "", alternatives: [] }],
+      "Stop added. Refresh the route before locking.",
+    );
+  }
+
+  /** One card moved to a new place. The haptic is the gesture's: a kept drop. */
+  function reorderStops(from: number, to: number) {
+    applyStopIdentityMutation(
+      moveItem(stops, from, to),
+      `Stop ${from + 1} moved to ${to + 1}. Refresh the route before locking.`,
+      { reorder: true, settledStatus: `Stop ${from + 1} moved to place ${to + 1}.` },
     );
   }
 
@@ -2022,6 +2182,8 @@ function PlanComposerForm({
       clearPersistedPlanDrafts({ planDraft: safeSessionStorage(), routeDraft: safeLocalStorage() });
       clearPlanIntakeDraft();
       clearPersistentPlanMutationKey("create", operationKey);
+      haptic("plan-locked");
+      setLocked(true);
       router.push(`/plan/${planId}#share`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The plan could not be created.");
@@ -2030,8 +2192,299 @@ function PlanComposerForm({
     }
   }
 
+  const routeStaleNotice = routeStale ? (
+    <div className="planComposer__routeStale" role="group" aria-labelledby="plan-route-stale-title">
+      <div>
+        <strong id="plan-route-stale-title">This route needs a refresh</strong>
+        <span>You&rsquo;ve changed the night since we sorted it, so this preview may not fit any more.</span>
+      </div>
+      <button
+        type="button"
+        className="planComposer__regenerate"
+        onClick={() => sortWithConcierge()}
+        disabled={sorting || !canSortWithCurrentGenerator}
+        aria-busy={sorting}
+      >
+        {sorting ? "Refreshing…" : "Regenerate route"}
+      </button>
+    </div>
+  ) : null;
+  const routeStatusLine = (
+    <p id="plan-route-status" className={resultMode ? "planResult__status" : "planComposer__routeStatus"} role="status" aria-live="polite" tabIndex={-1}>
+      {routeStatus || (routeStale ? "The route needs refreshing before it can be locked." : "Review the route preview. It stays private until you lock it in.")}
+    </p>
+  );
+  const renderConcierge = (inSheet: boolean) => (
+    <section className="planComposer__concierge" {...(inSheet ? { "aria-label": "Describe your outing" } : { "aria-labelledby": "plan-concierge-title" })} aria-busy={sorting}>
+      {inSheet ? null : (
+        <div>
+          <span className="planPage__eyebrow">Describe your outing</span>
+          <h2 id="plan-concierge-title">Say what you need. Get a route you can stand behind.</h2>
+        </div>
+      )}
+      <div className="planComposer__conciergeInput">
+        <label className="planComposer__srOnly" htmlFor="plan-concierge-query">Describe the outing</label>
+        <input id="plan-concierge-query" type="text" aria-describedby="plan-concierge-status" value={conciergeQuery} onChange={(event) => setConciergeQuery(event.target.value)} onKeyDown={inSheet ? (event) => { if (event.key === "Enter") { event.preventDefault(); if (!sorting && canSortWithCurrentGenerator) sortWithConcierge(); } } : undefined} placeholder="Add a mood, occasion or anything we missed" maxLength={500} />
+        {/* ONE PAINTED PRIMARY PER SCREEN. Once a route is on the page,
+            `Lock it in` is the thing to do next, and two coral fills on one
+            screen is the reader choosing between them. This control keeps
+            its place and its words change to what it now does; it is
+            demoted rather than removed, because editing the description
+            above it has to stay answerable. */}
+        <button
+          type="button"
+          className={routeSorted ? "planComposer__resort" : undefined}
+          onClick={() => sortWithConcierge()}
+          disabled={sorting || !canSortWithCurrentGenerator}
+          aria-busy={sorting}
+        >
+          {sorting ? "Planning…" : routeSorted ? "Sort it again" : "Make a plan"}
+        </button>
+      </div>
+      <p id="plan-concierge-status" className="planComposer__conciergeStatus" role="status" aria-live="polite">
+        {conciergeStatus}
+      </p>
+      {inSheet ? null : routeStaleNotice}
+      {nightContext ? (
+        <fieldset className="planComposer__context">
+          <legend>What PUBMAXX understood. Edit anything.</legend>
+          <p id="plan-context-note" className="planComposer__contextNote">We only call an area crawl-ready when its prices are fresh and checked. An area that is not ready yet may not give a route.</p>
+          <label htmlFor="plan-context-area">Area<select id="plan-context-area" aria-describedby="plan-context-note plan-route-status" value={nightContext.nightArea ?? ""} onChange={(event) => updateNightContext({ nightArea: event.target.value as NightContext["nightArea"] })}>
+            {areaGroups.map((group) => (
+              <optgroup key={group.label} label={group.label}>
+                {group.areas.map((area) => (
+                  <option key={area.slug} value={area.slug}>
+                    {nightAreaOptionLabel(area, group.disabled)}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select></label>
+          <label htmlFor="plan-context-time">Time<select id="plan-context-time" aria-describedby="plan-route-status" value={nightContext.daypart} onChange={(event) => updateNightContext({ daypart: event.target.value as NightContext["daypart"] })}>
+            <option value="daytime">Daytime</option><option value="after_work">After work</option><option value="evening">Evening</option><option value="late_night">Late night</option><option value="get_home">Get home</option>
+          </select></label>
+          <label htmlFor="plan-context-group">Group<select id="plan-context-group" aria-describedby="plan-route-status" value={nightContext.partyType} onChange={(event) => updateNightContext({ partyType: event.target.value as NightContext["partyType"] })}>
+            <option value="solo">Solo</option><option value="friends">Friends</option><option value="work">Work</option>
+          </select></label>
+          <label htmlFor="plan-context-people">People<input id="plan-context-people" aria-describedby="plan-route-status" type="number" min="1" max="30" value={nightContext.groupSize ?? ""} onChange={(event) => updateNightContext({ groupSize: event.target.value ? Number(event.target.value) : null })} /></label>
+          <label htmlFor="plan-context-stops">Stops<select id="plan-context-stops" aria-describedby="plan-route-status" value={normalizePlanStopCount(nightContext.stopCount)} onChange={(event) => updateNightContext({ stopCount: normalizePlanStopCount(Number(event.target.value)) })}>{PLAN_STOP_COUNTS.map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
+          <label htmlFor="plan-context-budget">Budget<select id="plan-context-budget" aria-describedby="plan-route-status" value={nightContext.budget} onChange={(event) => updateNightContext({ budget: event.target.value as NightContext["budget"] })}>
+            <option value="value">Value</option><option value="standard">Standard</option><option value="treat">Treat</option>
+          </select></label>
+          <label htmlFor="plan-context-budget-limit">Max per person<input id="plan-context-budget-limit" aria-describedby="plan-route-status" type="number" inputMode="decimal" min="5" max="500" step="1" value={nightContext.budgetLimitPence === null ? "" : nightContext.budgetLimitPence / 100} onChange={(event) => updateNightContext({ budgetLimitPence: event.target.value ? Math.round(Number(event.target.value) * 100) : null })} /></label>
+          <label htmlFor="plan-context-zero-proof">Drinks<select id="plan-context-zero-proof" aria-describedby="plan-route-status" value={nightContext.zeroProof ? "zero-proof" : nightContext.drinkCategory ?? "any"} onChange={(event) => {
+            const choice = event.target.value;
+            updateNightContext({
+              zeroProof: choice === "zero-proof",
+              drinkCategory: choice === "any" || choice === "zero-proof" ? null : choice as DrinkCategory,
+            });
+          }}>
+            {/* "0.0 options" read as broken number formatting, not as a drink.
+                The option names the drink the way the rest of the app does. */}
+            <option value="any">Any drinks</option><option value="zero-proof">Alcohol-free</option>
+            {DRINK_CATEGORIES.filter((category) =>
+              category !== "alcohol-free" && category !== "soft-drink" && category !== "coffee" && category !== "other"
+            ).map((category) => <option key={category} value={category}>{categoryLabel(category)}</option>)}
+          </select></label>
+        </fieldset>
+      ) : null}
+    </section>
+  );
+  const templatesBlock = (
+    <section className="planComposer__templates" aria-labelledby="plan-templates-title">
+      <h2 id="plan-templates-title">Need a starting point?</h2>
+      <p className="planComposer__templatesLead">
+        Pick a prompt to fill in the description. You can still edit it.
+      </p>
+      {usualLot ? (
+        <div className="planComposer__usualLot" data-testid="plan-usual-lot">
+          <p>
+            Usual lot: <strong>{usualLot.names.join(", ")}</strong>
+          </p>
+          <button
+            type="button"
+            className="planComposer__template"
+            onClick={() => {
+              setTitle("Usual lot · tonight");
+              setConciergeNote(`Re-invite ${usualLot.names.join(", ")} after you lock it in.`);
+            }}
+          >
+            Plan with the usual lot
+          </button>
+        </div>
+      ) : null}
+      <div className="planComposer__templateRow">
+        {PLAN_TEMPLATES.map((template: PlanTemplate) => (
+          <button
+            key={template.id}
+            type="button"
+            className="planComposer__template"
+            title={template.blurb}
+            onClick={() => {
+              const merged = mergePlanTemplateFields({
+                title,
+                conciergeQuery,
+                conciergeNote,
+                template,
+                hasAcceptedGeography: Boolean(
+                  handoff?.answeredArea
+                  || planIntake.answers.area
+                  || nightContext?.nightArea
+                  || explicitNightContext.nightArea,
+                ),
+              });
+              setTitle(merged.title);
+              setConciergeQuery(merged.conciergeQuery);
+              setConciergeNote(merged.conciergeNote);
+            }}
+          >
+            {template.label}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+  const coverageBlock = (
+    <section className="planComposer__coverage" aria-labelledby="plan-coverage-title">
+      <details>
+        <summary>
+          <span id="plan-coverage-title">Area coverage</span>
+          <span className="planComposer__coverageMeta">
+            {readyAreas.length} of {readyAreas.length + areasInProgress.length} crawl-ready
+          </span>
+        </summary>
+        <p className="planComposer__coverageIntro">
+          We only call an area crawl-ready when its prices are fresh and checked. The rest are yours to browse.
+        </p>
+        <div className="planComposer__coverageGroups">
+          <section aria-labelledby="plan-coverage-ready">
+            <h3 id="plan-coverage-ready">Crawl-ready</h3>
+            <ul>
+              {readyAreas.map((area) => {
+                const summary = nightAreaCoverageSummary(area);
+                return (
+                  <li key={area.slug} data-tone={summary.tone} data-coverage-status={area.coverageStatus}>
+                    <div>
+                      <strong>{area.name}</strong>
+                      <small>{summary.detail}</small>
+                      <small className="planComposer__coverageMetaLine">{nightAreaCoverageMeta(area)}</small>
+                    </div>
+                    <div className="planComposer__coverageActions">
+                      <span>{summary.label}</span>
+                      <Link className="planComposer__coverageMapLink" href={nightAreaMapHref(area)} aria-label={`Explore ${area.name} pubs on the map`}>Explore map</Link>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+          <section aria-labelledby="plan-coverage-progress">
+            <h3 id="plan-coverage-progress">Not crawl-ready yet</h3>
+            <ul>
+              {areasInProgress.map((area) => {
+                const summary = nightAreaCoverageSummary(area);
+                return (
+                  <li key={area.slug} data-tone={summary.tone} data-coverage-status={area.coverageStatus}>
+                    <div>
+                      <strong>{area.name}</strong>
+                      <small>{summary.detail}</small>
+                      <small className="planComposer__coverageMetaLine">{nightAreaCoverageMeta(area)}</small>
+                    </div>
+                    <div className="planComposer__coverageActions">
+                      <span>{summary.label}</span>
+                      <Link className="planComposer__coverageMapLink" href={nightAreaMapHref(area)} aria-label={`Explore ${area.name} pubs on the map`}>Explore map</Link>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        </div>
+      </details>
+    </section>
+  );
+  const fieldsBlock = (
+    <>
+      <div className="planComposer__field planComposer__field--wide">
+        <label htmlFor="plan-title">Name the night</label>
+        <input id="plan-title" type="text" maxLength={80} value={title} onChange={(event) => setTitle(event.target.value)} />
+      </div>
+      <div className="planComposer__field">
+        <label htmlFor="plan-name">Your name</label>
+        <input id="plan-name" type="text" ref={nameInputRef} autoComplete="name" maxLength={CREW_NAME_MAX} required value={creatorName} onChange={(event) => setCreatorName(event.target.value)} placeholder="Karan" />
+      </div>
+      <div className="planComposer__field">
+        <label htmlFor="plan-time">{nightContext && !planUsesPintPrices(nightContext) ? "First stop" : "First pint"}</label>
+        <input id="plan-time" type="datetime-local" required aria-invalid={lockHint === PLAN_START_TIME_HINT ? true : undefined} aria-describedby={lockHint === PLAN_START_TIME_HINT ? "plan-lock-hint" : undefined} value={startTime} onChange={(event) => updatePlanStartTime(event.target.value)} />
+      </div>
+
+    </>
+  );
+
+  const areaName = nightContext?.nightArea ? getNightArea(nightContext.nightArea)?.name ?? null : null;
+  const viewStops = completeStops;
+  const summaryLine = routeSummaryLine(viewStops, measured);
+  const stripStops = viewStops.map((stop, position) => ({ venueId: stop.venueId, venueName: stop.venueName, position }));
+  const stopsBlock = (
+    <fieldset className="planComposer__stops">
+      <legend className={resultMode ? "planComposer__srOnly" : undefined}>The {planOutingNoun(stops.length)} <span className="planComposer__previewLabel">{routeRevision === null ? "Preview" : `Preview · revision ${routeRevision}`}</span></legend>
+      {resultMode ? null : routeStatusLine}
+      <PlanCultureOpener opener={cultureOpener} />
+      <PlanStopList
+        stops={stops}
+        areaName={areaName}
+        heldVenueId={heldVenueId}
+        measured={measured}
+        venues={venues}
+        canAdd={stops.length < MAX_PLAN_STOP_COUNT}
+        refreshKey={routeRevealTick}
+        removable={stops.length > 1}
+        swapLabel={(stop, index) => index === 0 && heldVenueId === stop.venueId
+          ? acceptedStop1SwapLabel(stop.venueName)
+          : stop.alternatives.length > 0
+            ? `Swap stop ${index + 1}, currently ${stop.venueName}`
+            : `No alternatives for stop ${index + 1}`}
+        swapDisabled={(stop, index) => Boolean(
+          (index === 0 && heldVenueId === stop.venueId) || stop.alternatives.length === 0,
+        )}
+        removeLabel={(stop, index) => index === 0 && heldVenueId === stop.venueId
+          ? acceptedStop1RemoveLabel(stop.venueName)
+          : `Remove stop ${index + 1}`}
+        removeDisabled={(stop, index) => index === 0 && heldVenueId === stop.venueId}
+        onSwap={swapStop}
+        onRemove={removeStop}
+        onPick={pickVenue}
+        onReorder={reorderStops}
+        onAdd={addStop}
+      />
+    </fieldset>
+  );
+  const resultStrip = stripStops.length >= 2 ? (
+      <PlanRouteMiniMap
+        stops={stripStops}
+        mapHref={buildCrawlMapHref(stripStops.map((stop) => stop.venueId))}
+        variant="strip"
+        drawKey={routeRevealTick > 0 ? `route-${routeRevealTick}` : undefined}
+        onLegs={onMeasuredLegs}
+      />
+  ) : null;
+  const resultHeader = (
+    <section className="planResult" aria-labelledby="plan-result-title">
+      <div className="planResult__top">
+        <h2 id="plan-result-title" className="planResult__title">{routeHeading(nightContext?.daypart, areaName)}</h2>
+        <button type="button" className="planResult__tune" aria-haspopup="dialog" onClick={() => setTuneOpen(true)}>
+          <SlidersHorizontal size={16} aria-hidden="true" /> <span className="planResult__tuneLabel">Tune details</span>
+        </button>
+      </div>
+      <p className="planResult__summary" data-testid="plan-route-summary">{summaryLine}</p>
+      {routeStatusLine}
+      <PlanResultProvenance />
+      {routeStaleNotice}
+    </section>
+  );
+
   return (
-    <form id="plan-composer" className="planComposer" onSubmit={submit} noValidate>
+    <form id="plan-composer" className="planComposer" data-result={resultMode ? "true" : undefined} onSubmit={submit} noValidate>
       {handoff && (
         <AcceptedContextPanel
           handoff={handoff}
@@ -2052,7 +2505,7 @@ function PlanComposerForm({
           onPrefillQueryChange={adoptDescribePrefillQuery}
           onGuideMeInstead={() => setEntryMode("wizard")}
         />
-      ) : planComposerShowsIntake({
+      ) : !(resultMode && planIntake.completed) && planComposerShowsIntake({
         heldVenueId,
         completed: planIntake.completed,
         entryMode,
@@ -2064,284 +2517,30 @@ function PlanComposerForm({
       ) : null}
       {composerVisible ? (
         <>
-      <section className="planComposer__concierge" aria-labelledby="plan-concierge-title" aria-busy={sorting}>
-        <div>
-          <span className="planPage__eyebrow">Describe your outing</span>
-          <h2 id="plan-concierge-title">Say what you need. Get a route you can stand behind.</h2>
-        </div>
-        <div className="planComposer__conciergeInput">
-          <label className="planComposer__srOnly" htmlFor="plan-concierge-query">Describe the outing</label>
-          <input id="plan-concierge-query" type="text" aria-describedby="plan-concierge-status" value={conciergeQuery} onChange={(event) => setConciergeQuery(event.target.value)} placeholder="Add a mood, occasion or anything we missed" maxLength={500} />
-          {/* ONE PAINTED PRIMARY PER SCREEN. Once a route is on the page,
-              `Lock it in` is the thing to do next, and two coral fills on one
-              screen is the reader choosing between them. This control keeps
-              its place and its words change to what it now does; it is
-              demoted rather than removed, because editing the description
-              above it has to stay answerable. */}
-          <button
-            type="button"
-            className={routeSorted ? "planComposer__resort" : undefined}
-            onClick={() => sortWithConcierge()}
-            disabled={sorting || !canSortWithCurrentGenerator}
-            aria-busy={sorting}
-          >
-            {sorting ? "Planning…" : routeSorted ? "Sort it again" : "Make a plan"}
-          </button>
-        </div>
-        <p id="plan-concierge-status" className="planComposer__conciergeStatus" role="status" aria-live="polite">
-          {conciergeStatus}
-        </p>
-        {routeStale ? (
-          <div className="planComposer__routeStale" role="group" aria-labelledby="plan-route-stale-title">
-            <div>
-              <strong id="plan-route-stale-title">This route needs a refresh</strong>
-              <span>You&rsquo;ve changed the night since we sorted it, so this preview may not fit any more.</span>
-            </div>
-            <button
-              type="button"
-              className="planComposer__regenerate"
-              onClick={() => sortWithConcierge()}
-              disabled={sorting || !canSortWithCurrentGenerator}
-              aria-busy={sorting}
-            >
-              {sorting ? "Refreshing…" : "Regenerate route"}
-            </button>
-          </div>
-        ) : null}
-        {nightContext ? (
-          <fieldset className="planComposer__context">
-            <legend>What PUBMAXX understood. Edit anything.</legend>
-            <p id="plan-context-note" className="planComposer__contextNote">We only call an area crawl-ready when its prices are fresh and checked. An area that is not ready yet may not give a route.</p>
-            <label htmlFor="plan-context-area">Area<select id="plan-context-area" aria-describedby="plan-context-note plan-route-status" value={nightContext.nightArea ?? ""} onChange={(event) => updateNightContext({ nightArea: event.target.value as NightContext["nightArea"] })}>
-              {areaGroups.map((group) => (
-                <optgroup key={group.label} label={group.label}>
-                  {group.areas.map((area) => (
-                    <option key={area.slug} value={area.slug}>
-                      {nightAreaOptionLabel(area, group.disabled)}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select></label>
-            <label htmlFor="plan-context-time">Time<select id="plan-context-time" aria-describedby="plan-route-status" value={nightContext.daypart} onChange={(event) => updateNightContext({ daypart: event.target.value as NightContext["daypart"] })}>
-              <option value="daytime">Daytime</option><option value="after_work">After work</option><option value="evening">Evening</option><option value="late_night">Late night</option><option value="get_home">Get home</option>
-            </select></label>
-            <label htmlFor="plan-context-group">Group<select id="plan-context-group" aria-describedby="plan-route-status" value={nightContext.partyType} onChange={(event) => updateNightContext({ partyType: event.target.value as NightContext["partyType"] })}>
-              <option value="solo">Solo</option><option value="friends">Friends</option><option value="work">Work</option>
-            </select></label>
-            <label htmlFor="plan-context-people">People<input id="plan-context-people" aria-describedby="plan-route-status" type="number" min="1" max="30" value={nightContext.groupSize ?? ""} onChange={(event) => updateNightContext({ groupSize: event.target.value ? Number(event.target.value) : null })} /></label>
-            <label htmlFor="plan-context-stops">Stops<select id="plan-context-stops" aria-describedby="plan-route-status" value={normalizePlanStopCount(nightContext.stopCount)} onChange={(event) => updateNightContext({ stopCount: normalizePlanStopCount(Number(event.target.value)) })}>{PLAN_STOP_COUNTS.map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
-            <label htmlFor="plan-context-budget">Budget<select id="plan-context-budget" aria-describedby="plan-route-status" value={nightContext.budget} onChange={(event) => updateNightContext({ budget: event.target.value as NightContext["budget"] })}>
-              <option value="value">Value</option><option value="standard">Standard</option><option value="treat">Treat</option>
-            </select></label>
-            <label htmlFor="plan-context-budget-limit">Max per person<input id="plan-context-budget-limit" aria-describedby="plan-route-status" type="number" inputMode="decimal" min="5" max="500" step="1" value={nightContext.budgetLimitPence === null ? "" : nightContext.budgetLimitPence / 100} onChange={(event) => updateNightContext({ budgetLimitPence: event.target.value ? Math.round(Number(event.target.value) * 100) : null })} /></label>
-            <label htmlFor="plan-context-zero-proof">Drinks<select id="plan-context-zero-proof" aria-describedby="plan-route-status" value={nightContext.zeroProof ? "zero-proof" : nightContext.drinkCategory ?? "any"} onChange={(event) => {
-              const choice = event.target.value;
-              updateNightContext({
-                zeroProof: choice === "zero-proof",
-                drinkCategory: choice === "any" || choice === "zero-proof" ? null : choice as DrinkCategory,
-              });
-            }}>
-              {/* "0.0 options" read as broken number formatting, not as a drink.
-                  The option names the drink the way the rest of the app does. */}
-              <option value="any">Any drinks</option><option value="zero-proof">Alcohol-free</option>
-              {DRINK_CATEGORIES.filter((category) =>
-                category !== "alcohol-free" && category !== "soft-drink" && category !== "coffee" && category !== "other"
-              ).map((category) => <option key={category} value={category}>{categoryLabel(category)}</option>)}
-            </select></label>
-          </fieldset>
-        ) : null}
-      </section>
-      <section className="planComposer__templates" aria-labelledby="plan-templates-title">
-        <h2 id="plan-templates-title">Need a starting point?</h2>
-        <p className="planComposer__templatesLead">
-          Pick a prompt to fill in the description. You can still edit it.
-        </p>
-        {usualLot ? (
-          <div className="planComposer__usualLot" data-testid="plan-usual-lot">
-            <p>
-              Usual lot: <strong>{usualLot.names.join(", ")}</strong>
-            </p>
-            <button
-              type="button"
-              className="planComposer__template"
-              onClick={() => {
-                setTitle("Usual lot · tonight");
-                setConciergeNote(`Re-invite ${usualLot.names.join(", ")} after you lock it in.`);
-              }}
-            >
-              Plan with the usual lot
-            </button>
-          </div>
-        ) : null}
-        <div className="planComposer__templateRow">
-          {PLAN_TEMPLATES.map((template: PlanTemplate) => (
-            <button
-              key={template.id}
-              type="button"
-              className="planComposer__template"
-              title={template.blurb}
-              onClick={() => {
-                const merged = mergePlanTemplateFields({
-                  title,
-                  conciergeQuery,
-                  conciergeNote,
-                  template,
-                  hasAcceptedGeography: Boolean(
-                    handoff?.answeredArea
-                    || planIntake.answers.area
-                    || nightContext?.nightArea
-                    || explicitNightContext.nightArea,
-                  ),
-                });
-                setTitle(merged.title);
-                setConciergeQuery(merged.conciergeQuery);
-                setConciergeNote(merged.conciergeNote);
-              }}
-            >
-              {template.label}
-            </button>
-          ))}
-        </div>
-      </section>
-      <section className="planComposer__coverage" aria-labelledby="plan-coverage-title">
-        <details>
-          <summary>
-            <span id="plan-coverage-title">Area coverage</span>
-            <span className="planComposer__coverageMeta">
-              {readyAreas.length} of {readyAreas.length + areasInProgress.length} crawl-ready
-            </span>
-          </summary>
-          <p className="planComposer__coverageIntro">
-            We only call an area crawl-ready when its prices are fresh and checked. The rest are yours to browse.
-          </p>
-          <div className="planComposer__coverageGroups">
-            <section aria-labelledby="plan-coverage-ready">
-              <h3 id="plan-coverage-ready">Crawl-ready</h3>
-              <ul>
-                {readyAreas.map((area) => {
-                  const summary = nightAreaCoverageSummary(area);
-                  return (
-                    <li key={area.slug} data-tone={summary.tone} data-coverage-status={area.coverageStatus}>
-                      <div>
-                        <strong>{area.name}</strong>
-                        <small>{summary.detail}</small>
-                        <small className="planComposer__coverageMetaLine">{nightAreaCoverageMeta(area)}</small>
-                      </div>
-                      <div className="planComposer__coverageActions">
-                        <span>{summary.label}</span>
-                        <Link className="planComposer__coverageMapLink" href={nightAreaMapHref(area)} aria-label={`Explore ${area.name} pubs on the map`}>Explore map</Link>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-            <section aria-labelledby="plan-coverage-progress">
-              <h3 id="plan-coverage-progress">Not crawl-ready yet</h3>
-              <ul>
-                {areasInProgress.map((area) => {
-                  const summary = nightAreaCoverageSummary(area);
-                  return (
-                    <li key={area.slug} data-tone={summary.tone} data-coverage-status={area.coverageStatus}>
-                      <div>
-                        <strong>{area.name}</strong>
-                        <small>{summary.detail}</small>
-                        <small className="planComposer__coverageMetaLine">{nightAreaCoverageMeta(area)}</small>
-                      </div>
-                      <div className="planComposer__coverageActions">
-                        <span>{summary.label}</span>
-                        <Link className="planComposer__coverageMapLink" href={nightAreaMapHref(area)} aria-label={`Explore ${area.name} pubs on the map`}>Explore map</Link>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          </div>
-        </details>
-      </section>
-      <div className="planComposer__field planComposer__field--wide">
-        <label htmlFor="plan-title">Name the night</label>
-        <input id="plan-title" type="text" maxLength={80} value={title} onChange={(event) => setTitle(event.target.value)} />
-      </div>
-      <div className="planComposer__field">
-        <label htmlFor="plan-name">Your name</label>
-        <input id="plan-name" type="text" ref={nameInputRef} autoComplete="name" maxLength={CREW_NAME_MAX} required value={creatorName} onChange={(event) => setCreatorName(event.target.value)} placeholder="Karan" />
-      </div>
-      <div className="planComposer__field">
-        <label htmlFor="plan-time">{nightContext && !planUsesPintPrices(nightContext) ? "First stop" : "First pint"}</label>
-        <input id="plan-time" type="datetime-local" required aria-invalid={lockHint === PLAN_START_TIME_HINT ? true : undefined} aria-describedby={lockHint === PLAN_START_TIME_HINT ? "plan-lock-hint" : undefined} value={startTime} onChange={(event) => updatePlanStartTime(event.target.value)} />
-      </div>
-
-      <fieldset className="planComposer__stops">
-        <legend>The {planOutingNoun(stops.length)} <span className="planComposer__previewLabel">{routeRevision === null ? "Preview" : `Preview · revision ${routeRevision}`}</span></legend>
-        <p id="plan-route-status" className="planComposer__routeStatus" role="status" aria-live="polite" tabIndex={-1}>
-          {routeStatus || (routeStale ? "The route needs refreshing before it can be locked." : "Review the route preview. It stays private until you lock it in.")}
-        </p>
-        <PlanCultureOpener opener={cultureOpener} />
-        {stops.map((stop, index) => (
-          <div className="planComposer__stop" key={stop.key}>
-            <span className="planComposer__number" aria-hidden="true">{index + 1}</span>
-            <div>
-              <label htmlFor={`venue-name-${stop.key}`}>Venue name</label>
-              <input id={`venue-name-${stop.key}`} type="text" list="plan-venue-options" value={stop.venueName} onChange={(event) => chooseVenue(stop.key, event.target.value)} placeholder="Start typing a pub" />
-              {stop.reason ? <small className="planComposer__stopReason">{stop.reason}</small> : null}
-              {selectedDrinkPriceDescription(stop.selectedDrinkPriceEvidence) ? (
-                <small className="planComposer__stopReason">{selectedDrinkPriceDescription(stop.selectedDrinkPriceEvidence)}</small>
-              ) : null}
-            </div>
-            <div className="planComposer__stopActions">
-              <button
-                className="planComposer__swap"
-                type="button"
-                onClick={() => swapStop(stop.key)}
-                disabled={Boolean(
-                  (index === 0 && heldVenueId === stop.venueId)
-                  || stop.alternatives.length === 0
-                )}
-                aria-label={index === 0 && heldVenueId === stop.venueId
-                  ? acceptedStop1SwapLabel(stop.venueName)
-                  : stop.alternatives.length > 0
-                    ? `Swap stop ${index + 1}, currently ${stop.venueName}`
-                    : `No alternatives for stop ${index + 1}`}
-              >
-                Swap{stop.alternatives.length > 0 ? ` · ${stop.alternatives.length}` : ""}
-              </button>
-              {stops.length > 1 ? (
-                <button
-                  className="planComposer__remove"
-                  type="button"
-                  onClick={() => applyStopIdentityMutation(
-                    stops.filter((item) => item.key !== stop.key),
-                    `Stop ${index + 1} removed. Refresh the route before locking.`,
-                  )}
-                  disabled={index === 0 && heldVenueId === stop.venueId}
-                  aria-label={index === 0 && heldVenueId === stop.venueId
-                    ? acceptedStop1RemoveLabel(stop.venueName)
-                    : `Remove stop ${index + 1}`}
-                >Remove</button>
-              ) : null}
-            </div>
-          </div>
-        ))}
-        <datalist id="plan-venue-options">
-          {venues.map((venue) => <option key={venue.id} value={venue.name}>{venue.address}</option>)}
-        </datalist>
-        <button
-          className="planComposer__add"
-          type="button"
-          disabled={stops.length >= MAX_PLAN_STOP_COUNT}
-          onClick={() => {
-            if (stops.length >= MAX_PLAN_STOP_COUNT) return;
-            applyStopIdentityMutation(
-              [...stops, { key: Math.max(0, ...stops.map((stop) => stop.key)) + 1, venueId: "", venueName: "", alternatives: [] }],
-              "Stop added. Refresh the route before locking.",
-            );
-          }}
-        >Add another stop</button>
-      </fieldset>
-
+          {resultMode ? (
+            <>
+              {resultHeader}
+              {resultStrip}
+              {stopsBlock}
+              {fieldsBlock}
+              {coverageBlock}
+              {tuneOpen ? null : (
+                <p id="plan-concierge-status" className="planComposer__srOnly" role="status" aria-live="polite">{conciergeStatus}</p>
+              )}
+              <PlanTuneSheet open={tuneOpen} title="Tune details" onClose={() => setTuneOpen(false)}>
+                {renderConcierge(true)}
+                {templatesBlock}
+              </PlanTuneSheet>
+            </>
+          ) : (
+            <>
+              {renderConcierge(false)}
+              {templatesBlock}
+              {coverageBlock}
+              {fieldsBlock}
+              {stopsBlock}
+            </>
+          )}
       {error ? <PlanComposerErrorNotice message={error} /> : null}
       {/* THE ANSWER IS PINNED. On a phone this action sat at the natural end of
           a page several screens long, which is under the tab bar and under the
@@ -2354,10 +2553,13 @@ function PlanComposerForm({
         <button
           className="planComposer__submit"
           type="submit"
-          disabled={lockBusy}
+          disabled={lockBusy || locked}
           aria-disabled={!lockBusy && !canLockPlan ? true : undefined}
           aria-describedby={lockHint ? "plan-lock-hint" : undefined}
-        >{submitting ? "Locking it in…" : "Lock it in"}</button>
+        >
+          <span className="planLock__text" data-on={locked ? undefined : "true"} aria-hidden={locked ? true : undefined}>{submitting ? "Locking it in…" : "Lock it in"}</span>
+          <span className="planLock__text planLock__text--done" data-on={locked ? "true" : undefined} aria-hidden={locked ? undefined : true}>Locked. Share the link</span>
+        </button>
         {lockHint ? <p id="plan-lock-hint" className="planComposer__lockHint">{lockHint}</p> : null}
         <p className="planComposer__trust">Anyone with the link can see the plan. Joining only asks for a name.</p>
       </div>

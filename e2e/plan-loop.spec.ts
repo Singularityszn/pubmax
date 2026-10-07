@@ -35,8 +35,11 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
 
   await sortDescribeFirst(page, "Quiet in Clapham for 4, not pricey");
   await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set below.")).toBeVisible();
-  await expect(page.getByRole("combobox", { name: /Area/i })).toHaveValue("clapham");
+  // The route names the area it understood (the area picker itself is behind Tune details).
+  await expect(page.getByRole("heading", { name: /^(Tonight|Today) in Clapham$/ })).toBeVisible();
+  await page.getByRole("button", { name: "Tune details" }).click();
   await expect(page.getByRole("spinbutton", { name: /People/i })).toHaveValue("4");
+  await page.keyboard.press("Escape");
   await page.getByText("Area coverage", { exact: true }).click();
   await expect(page.getByRole("heading", { name: "Crawl-ready", exact: true })).toBeVisible();
   await expect
