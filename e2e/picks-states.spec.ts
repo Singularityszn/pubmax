@@ -6,16 +6,14 @@ import { test, expect, type Page } from "@playwright/test";
 //
 //   ready                    cards, no talk about the read
 //   refreshing               the rows already on screen STAY, dated
-//   genuinely_empty          the quiet-night sentence plus two non-event doors
+//   genuinely_empty          an event-scoped empty answer plus two non-event doors
 //   temporarily_unavailable  what happened to us, a retry, the same two doors,
 //                            and never the empty-city sentence
 //
 // Fixtures, never a live provider: both /api/whats-on and /api/out are fulfilled
 // from literals below.
 
-// Scoped to the listing spine's own status paragraph. A bare text match also
-// catches `tonightQuietLede` ("Quiet one tonight. Still worth a look:"), which
-// is a different module saying a different thing.
+// Scope the quiet-city assertion to the listing spine's status paragraph.
 const QUIET_NIGHT_SENTENCE = ".tonightStatus";
 const QUIET_NIGHT_FRAGMENT = /The city.s having a quiet one tonight/i;
 const ALTERNATIVE_LABEL = /No event needed/i;
@@ -130,8 +128,12 @@ test.describe("Tonight picks states", () => {
       timeout: 20_000,
     });
     await expect(
-      page.locator(QUIET_NIGHT_SENTENCE).filter({ hasText: QUIET_NIGHT_FRAGMENT }),
+      page.locator(QUIET_NIGHT_SENTENCE).filter({ hasText: "No confirmed events listed tonight." }),
     ).toBeVisible();
+    await expect(page.getByTestId("tonight-hyped-row").first()).toBeVisible();
+    await expect(
+      page.locator(QUIET_NIGHT_SENTENCE).filter({ hasText: QUIET_NIGHT_FRAGMENT }),
+    ).toHaveCount(0);
 
     const alternatives = page.getByTestId("picks-alternatives");
     await expect(alternatives).toBeVisible();
@@ -237,8 +239,7 @@ test.describe("Today picks states", () => {
   test("the picks card names its state and never dead-ends", async ({ page }) => {
     await page.goto("/today");
 
-    // /today paints its card in both column layouts and hides one by CSS, so
-    // the testid legitimately resolves twice.
+    // Read the visible card when a layout retains a hidden representation.
     const card = page.getByTestId("today-picks").first();
     await expect(card).toBeVisible();
     const state = await card.getAttribute("data-picks-state");
@@ -248,6 +249,17 @@ test.describe("Today picks states", () => {
       "genuinely_empty",
       "temporarily_unavailable",
     ]).toContain(state);
+
+    const pubSuggestions = card.getByRole("region", { name: "Pubs people are talking about" });
+    if (await pubSuggestions.count()) {
+      await expect(pubSuggestions).toBeVisible();
+      await expect(pubSuggestions.getByRole("link", { name: "Open on map" }).first())
+        .toHaveAttribute("href", /^\/map\?sel=.+/);
+      await expect(card.locator(".todayCardEmpty")).not.toHaveText(QUIET_NIGHT_FRAGMENT);
+      await expect(card.getByRole("link", { name: "See everything on tonight" }))
+        .toHaveAttribute("href", "/tonight");
+      return;
+    }
 
     if (state === "ready") {
       await expect(card.getByTestId("picks-alternatives")).toHaveCount(0);
