@@ -83,6 +83,7 @@ async function expectSheetInsideViewport(
   footer?: Locator,
 ): Promise<void> {
   await expect(sheet).toBeVisible();
+  await expect(sheet).not.toHaveClass(/sheet-settling/);
   const viewport = page.viewportSize();
   expect(viewport).not.toBeNull();
   await expect(async () => {
@@ -133,19 +134,18 @@ async function expectSheetInsideViewport(
     }
   }).toPass({ timeout: 5_000 });
 
-  const sheetBox = (await sheet.boundingBox())!;
-  const headerBox = (await sheet.locator(".mobileSharedSheetHeader").boundingBox())!;
-  expect(headerBox.y).toBeGreaterThanOrEqual(sheetBox.y - 1);
-  expect(headerBox.y + headerBox.height).toBeLessThanOrEqual(sheetBox.y + sheetBox.height + 1);
-
-  if (!footer) return;
-  await expect(footer).toBeVisible();
-  const footerBox = await footer.boundingBox();
-  expect(footerBox).not.toBeNull();
-  expect(footerBox!.y).toBeGreaterThanOrEqual(headerBox.y + headerBox.height - 1);
-  expect(footerBox!.y + footerBox!.height).toBeLessThanOrEqual(viewport!.height + 1);
-  const sheetBottom = sheetBox.y + sheetBox.height;
-  expect(Math.abs(footerBox!.y + footerBox!.height - sheetBottom)).toBeLessThanOrEqual(1);
+  if (footer) await expect(footer).toBeVisible();
+  await expect(async () => {
+    const sheetBox = (await sheet.boundingBox())!;
+    const headerBox = (await sheet.locator(".mobileSharedSheetHeader").boundingBox())!;
+    expect(headerBox.y).toBeGreaterThanOrEqual(sheetBox.y - 1);
+    expect(headerBox.y + headerBox.height).toBeLessThanOrEqual(sheetBox.y + sheetBox.height + 1);
+    if (!footer) return;
+    const footerBox = (await footer.boundingBox())!;
+    expect(footerBox.y).toBeGreaterThanOrEqual(headerBox.y + headerBox.height - 1);
+    expect(footerBox.y + footerBox.height).toBeLessThanOrEqual(viewport!.height + 1);
+    expect(Math.abs(footerBox.y + footerBox.height - (sheetBox.y + sheetBox.height))).toBeLessThanOrEqual(1);
+  }).toPass({ timeout: 5_000 });
 }
 
 async function attachViewportShot(page: Page, testInfo: TestInfo, name: string): Promise<void> {
@@ -214,6 +214,8 @@ for (const viewport of [MOBILE_VIEWPORT, { width: 320, height: 568 }]) {
     await expect(sheet).toHaveClass(/sheet-peek/);
     await expectSheetInsideViewport(page, sheet, footer);
     await expect(share).toBeInViewport();
+    await expect(body).toBeHidden();
+    await expect.poll(() => body.evaluate((element) => element.getBoundingClientRect().height)).toBeLessThanOrEqual(1);
     await attachViewportShot(page, testInfo, `venue-peek-${size}`);
     await share.click();
     await expect(footer.locator(".venueSheetShareFeedback")).toBeVisible();
