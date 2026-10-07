@@ -27,7 +27,7 @@ async function expectTapTarget(locator: Locator, label: string): Promise<void> {
   expect(Math.round(box.height), `${label} height`).toBeGreaterThanOrEqual(44);
 }
 
-test("mobile Rounds index explains link-based joining and routes to the map", async ({
+test("mobile Rounds index starts a round and explains link-based joining", async ({
   page,
 }) => {
   test.setTimeout(90_000);
@@ -39,20 +39,23 @@ test("mobile Rounds index explains link-based joining and routes to the map", as
   await expect(page.locator(".emptyStateTitle", { hasText: "Join with a link" })).toBeVisible();
   await expect(page.getByText(/A round opens from the link/i)).toBeVisible();
 
-  const startOnMap = page.getByRole("link", { name: "Start a round", exact: true });
-  await expect(startOnMap).toHaveAttribute("href", "/map");
-  await expectTapTarget(startOnMap, "start round map link");
+  // F18: "Start a round" is a real flow on this page, not a link to a bare map.
+  // The starter's submit is the screen's one primary and it needs no account.
+  const start = page.getByRole("button", { name: "Start a Round", exact: true });
+  await expect(start).toHaveAttribute("data-primary-action", "");
+  await expectTapTarget(start, "start round button");
+  const handle = page.getByRole("textbox", { name: "Your handle" });
+  await expectTapTarget(handle, "handle field");
   await expectNoHorizontalOverflow(page);
 
-  await startOnMap.click();
-  await expect(page).toHaveURL(/\/map$/);
-  await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });
-  await expect(page.locator(".mobileMapLocateFab")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Describe the outing" })).toBeVisible();
+  // An empty handle answers in place instead of doing nothing.
+  await handle.fill("");
+  await start.click();
+  await expect(page.locator(".roundStarterError")).toHaveText("Pick a handle to start a Round.");
+  await expect(page).toHaveURL(/\/rounds$/);
 
-  await page.getByRole("button", { name: "Search the map" }).click();
-  // The map search field suggests pubs, so it is a combobox, not a bare
-  // searchbox (components/map/MapSearchSuggest.tsx).
-  await expect(page.getByRole("combobox", { name: "Search pubs" })).toBeVisible();
+  await handle.fill("round-starter-e2e");
+  await start.click();
+  await expect(page).toHaveURL(/\/rounds\/[A-Za-z0-9-]+$/, { timeout: 30_000 });
   await expectNoHorizontalOverflow(page);
 });

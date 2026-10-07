@@ -287,6 +287,8 @@ export function AuthProvider({
   // exactly what belonged to the account before this one.
   const [canonicalIdentityState, setCanonicalIdentityState] =
     useState<CanonicalIdentityState>(UNKNOWN_IDENTITY);
+  const [identityReadAttempt, setIdentityReadAttempt] = useState(0);
+  const retryIdentity = useCallback(() => setIdentityReadAttempt((attempt) => attempt + 1), []);
   // Session restore only applies when Supabase public env is present. When it
   // is not, there is nothing to wait for — derive `loading` false during render
   // instead of setState-in-effect (which cascaded a second render on every
@@ -452,7 +454,7 @@ export function AuthProvider({
       active = false;
       window.removeEventListener(IDENTITY_HANDLE_CHANGED_EVENT, onChanged);
     };
-  }, [session]);
+  }, [session, identityReadAttempt]);
 
   useEffect(() => {
     // Capture callback inputs once across React Strict Mode's effect replay and
@@ -1143,6 +1145,7 @@ export function AuthProvider({
       ),
       identityResolved:
         canonicalIdentityState.status === "resolved" && !loading,
+      retryIdentity,
       accountRevision,
       providerAuthState,
       supabaseAuthState: supabaseProviderState,
@@ -1167,6 +1170,7 @@ export function AuthProvider({
     welcomeBack,
     resumeSignIn,
     canonicalIdentityState,
+    retryIdentity,
     accountRevision,
     providerAuthState,
     supabaseProviderState,

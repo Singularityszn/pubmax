@@ -46,6 +46,9 @@ export default function PlanDescribeFirst({
   const appliedPrefill = useRef(initialQuery);
   const reportedPrefill = useRef<string | null>(null);
   const queryInput = useRef<HTMLInputElement>(null);
+  // Set when Sort it is tapped on an empty field, so the field says what it
+  // needs instead of only taking the caret.
+  const [emptyAsk, setEmptyAsk] = useState(false);
   const onQueryChangeRef = useRef(onQueryChange);
   const onPrefillQueryChangeRef = useRef(onPrefillQueryChange);
   useEffect(() => {
@@ -124,12 +127,20 @@ export default function PlanDescribeFirst({
       title={<>Describe the outing. We&rsquo;ll put it in order.</>}
       titleId="plan-describe-first-title"
       primary={
-        // Never disabled: with nothing typed, the tap puts the caret in the
-        // field, which is the one thing left to do.
+        // Never disabled: with nothing typed, the tap says what to type and
+        // puts the caret in the field, which is the one thing left to do.
         <button
           type="button"
           aria-disabled={ready ? undefined : true}
-          onClick={() => query.trim() ? submit() : queryInput.current?.focus()}
+          onClick={() => {
+            if (query.trim()) {
+              submit();
+              return;
+            }
+            if (!ready) return;
+            setEmptyAsk(true);
+            queryInput.current?.focus();
+          }}
         >
           Sort it
         </button>
@@ -155,8 +166,11 @@ export default function PlanDescribeFirst({
           type="text"
           value={query}
           readOnly={!ready}
+          aria-invalid={emptyAsk && !query.trim() ? true : undefined}
+          aria-describedby={emptyAsk && !query.trim() ? "plan-describe-first-empty" : undefined}
           onChange={(event) => {
             setTouched(true);
+            setEmptyAsk(false);
             const value = event.target.value;
             setQuery(value);
             onQueryChange?.(value);
@@ -168,6 +182,11 @@ export default function PlanDescribeFirst({
           placeholder="Quiet in Clapham for 4"
           maxLength={500}
         />
+        {emptyAsk && !query.trim() ? (
+          <p id="plan-describe-first-empty" className="planDescribeFirst__empty" role="alert">
+            Say where and who with, for example quiet in Clapham for 4.
+          </p>
+        ) : null}
       </div>
       <PlanStopCountPicker
         value={stopCount}

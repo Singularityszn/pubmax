@@ -1,4 +1,5 @@
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
+import { areaCircleForAsk } from "@/lib/concierge/areaCircle";
 import { parseConciergeIntent } from "@/lib/concierge/intent";
 import { rankConciergeVenues, type ConciergeVenue } from "@/lib/concierge/rank";
 import { buildWhatsOnAnswer, detectWhatsOnIntent } from "@/lib/concierge/whatsOn";
@@ -85,7 +86,10 @@ async function firstSearchVenue(
 ): Promise<{ venueId: string; price: number | null } | null> {
   const venues = await loadConciergeVenues(cityId as "london");
   const parsed = await parseConciergeIntent(query, { skipModel: true });
-  const ranked = rankConciergeVenues(venues, parsed.intent, { limit: 1 });
+  const ranked = rankConciergeVenues(venues, parsed.intent, {
+    limit: 1,
+    areaCircle: areaCircleForAsk(cityId as "london", parsed.intent.area),
+  });
   const venue = ranked[0]?.venue;
   if (!venue) return null;
   return { venueId: venue.id, price: venue.cheapestPrice };

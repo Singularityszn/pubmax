@@ -70,7 +70,7 @@ Rules the table obeys:
 | `/historic/[slug]` | Historic pub | (the pub's own name) | Open on the map | Plan a night here |
 | `/pint-index` | Pint Index | London pint prices, month by month. | Open the map | Download the CSV |
 | `/pint-index/[month]` | Pint Index | London pint prices, (month). | Open the map | Download the CSV |
-| `/rounds` | Rounds | Who bought the last round. | Start a round | Open a round code |
+| `/rounds` | Rounds | Who bought the last round. | the start form's own submit (Start a Round), no head primary | Open a round code |
 | `/messages` | (none) | Messages | New message (signed in); Sign in (signed out) | (none) |
 | `/activity` | Activity | Activity. | Open the map | Find your lot |
 | `/moment` | Moment | Save a Moment. | Save this Moment | Back |

@@ -69,6 +69,8 @@ export type AuthContextValue = {
    * device cache, which is where the previous account's handle lives.
    */
   identityResolved: boolean;
+  /** Read the live session's canonical identity again, after a read that failed. */
+  retryIdentity: () => void;
   /** Opaque account boundary shared by Supabase and Clerk-backed Social auth. */
   accountRevision: number;
   /** Provider-neutral auth readiness. No provider identity leaves this seam. */
@@ -105,6 +107,7 @@ const SIGNED_OUT_AUTH: AuthContextValue = {
   }),
   handle: null,
   identityResolved: false,
+  retryIdentity: () => {},
   accountRevision: 0,
   providerAuthState: "signed-out",
   supabaseAuthState: "signed-out",

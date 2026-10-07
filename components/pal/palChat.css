@@ -547,10 +547,14 @@
   opacity: 0.85;
 }
 
+/* The card clips its children and pads its body 0.9rem, so the action sits on
+   the same inset instead of flush against the card's left and bottom edge. */
 .palChatCardAccept {
-  display: inline-block;
-  margin-top: 0.5rem;
-  padding: 0.4rem 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin: 0 0.9rem 0.9rem;
+  padding: 0 0.9rem;
   border-radius: 0.5rem;
   background: var(--brass);
   color: var(--color-on-accent);

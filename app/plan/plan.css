@@ -436,11 +436,12 @@
 /* Join stays secondary (plan-accent → amber in dark). Lock it in = mobile primary. */
 .planCrew__join button { background: var(--plan-accent); color: var(--color-on-accent); }
 .planComposer__submit { background: var(--accent-action); color: var(--color-on-accent); }
-.planComposer__submit:hover:not(:disabled) { background: var(--accent-action-strong); }
+.planComposer__submit:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--accent-action-strong); }
 .planCrew__join button:disabled { opacity: 0.58; cursor: wait; }
 /* M3: disabled primary CTAs stay coral (accent-action) at ~0.58 opacity —
    never a muddy brick hue that reads "broken" next to vivid enabled coral. */
 .planComposer__submit:disabled,
+.planComposer__submit[aria-disabled="true"],
 .planComposer__conciergeInput button:disabled {
   background: var(--accent-action);
   color: var(--color-on-accent);
@@ -448,6 +449,7 @@
   cursor: wait;
   filter: none;
 }
+.planComposer__submit[aria-disabled="true"] { cursor: pointer; }
 .planCrew__presence { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 8px; }
 .planCrew__presence button,
 .planComposer__add,
@@ -642,6 +644,8 @@
 .planDescribeFirst > .planStopCount { order: -1; }
 .planDescribeFirst > .screenHead > .screenActions { margin-top: var(--space-1); }
 .planDescribeFirst__form { display: grid; max-width: 34rem; }
+.planDescribeFirst__empty { margin: 8px 0 0; color: var(--color-negative, #a52c24); font-size: 0.875rem; font-weight: 700; }
+.planDescribeFirst__form input[aria-invalid="true"] { border-color: var(--color-negative, #a52c24); }
 .planDescribeFirst__form input { min-height: 48px; border: 1px solid var(--line); border-radius: 11px; padding: 0 16px; font: inherit; background: var(--panel-raised); color: var(--ink); }
 /* Six 44px targets plus the label do not fit one 390px line, so the row wraps
    rather than shrinking a tap target or scrolling sideways. */
@@ -1055,8 +1059,9 @@
 .planComposer__add { margin-top: 6px; }
 .planComposer__lock { grid-column: 1 / -1; display: grid; gap: 8px; }
 .planComposer__submit { min-height: 56px; font-size: 1rem; }
+.planComposer__lockHint { margin: 0; text-align: center; color: var(--ink); font-size: 0.875rem; font-weight: 700; }
 .planComposer__trust { margin: 0; text-align: center; color: var(--muted); font-size: 0.78rem; }
-.planComposer__error { grid-column: 1 / -1; margin: 0; color: #a52c24; font-weight: 700; }
+.planComposer__error { grid-column: 1 / -1; margin: 0; color: var(--color-negative, #a52c24); font-weight: 700; }
 
 html[data-theme="dark"] .planPage {
   --plan-accent: var(--night-amber);
