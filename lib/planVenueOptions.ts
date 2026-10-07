@@ -6,6 +6,7 @@ export type PlanVenueOption = {
   id: string;
   name: string;
   address?: string;
+  borough?: string;
 };
 
 export function planVenueOptions(value: unknown): PlanVenueOption[] {
@@ -21,6 +22,8 @@ export function planVenueOptions(value: unknown): PlanVenueOption[] {
     if (!id || !name || kind === null || !isPubVenueKind(kind)) return [];
     const address =
       typeof row.address === "string" ? row.address.trim() : "";
-    return [{ id, name, ...(address ? { address } : {}) }];
+    const borough =
+      typeof row.borough === "string" ? row.borough.trim() : "";
+    return [{ id, name, ...(address ? { address } : {}), ...(borough ? { borough } : {}) }];
   });
 }

@@ -8,9 +8,15 @@ describe("planVenueOptions", () => {
     expect(
       planVenueOptions({
         revision: "deploy-1",
-        rows: [{ id: "pub", name: "Wrapped Arms", kind: "pub" }],
+        rows: [
+          { id: "pub", name: "Wrapped Arms", kind: "pub" },
+          { id: "lion", name: "Red Lion", lat: 51.5, lng: -0.1, cheapestPrice: 5.5, borough: "Westminster", zone: 1, kind: "pub" },
+        ],
       }),
-    ).toEqual([{ id: "pub", name: "Wrapped Arms" }]);
+    ).toEqual([
+      { id: "pub", name: "Wrapped Arms" },
+      { id: "lion", name: "Red Lion", borough: "Westminster" },
+    ]);
   });
 
   it("keeps legacy and explicit pubs while excluding other venue kinds", () => {

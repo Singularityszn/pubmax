@@ -74,11 +74,11 @@ function cards(): HTMLLIElement[] {
   return [...host!.querySelectorAll<HTMLLIElement>("li.planStop")];
 }
 
-function pointer(type: string, target: EventTarget, init: { clientX?: number; clientY?: number }) {
+function pointer(type: string, target: EventTarget, init: { clientX?: number; clientY?: number }, pointerType = "mouse") {
   const event = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, ...init });
   Object.defineProperties(event, {
     pointerId: { value: 1 },
-    pointerType: { value: "mouse" },
+    pointerType: { value: pointerType },
   });
   target.dispatchEvent(event);
 }
@@ -145,8 +145,9 @@ describe("PlanStopList", () => {
     const venues = [
       { id: "anchor", name: "Anchor" },
       { id: "bankside", name: "Anchor - Bankside" },
-      { id: "lion-north", name: "Red Lion", address: "1 North Street" },
-      { id: "lion-south", name: "Red Lion", address: "2 South Street" },
+      { id: "lion-hillingdon", name: "Red Lion", borough: "Hillingdon" },
+      { id: "lion-soho", name: "Red Lion", borough: "Westminster" },
+      { id: "lion-mayfair", name: "Red Lion", borough: "Westminster" },
     ];
     const empty: DraftStop = { key: 4, venueId: "", venueName: "", alternatives: [] };
     const props = await mount({ stops: [generated, empty], venues });
@@ -161,14 +162,46 @@ describe("PlanStopList", () => {
     await enter("Anchor", "insertText");
     expect(props.onPick).not.toHaveBeenCalled();
 
-    await enter("Red Lion, 2 South Street", "insertReplacementText");
-    expect(props.onPick).toHaveBeenCalledWith(4, venues[3]);
+    const options = [...host!.querySelectorAll("#plan-venue-options option")].map((option) => option.getAttribute("value"));
+    expect(options).toEqual([
+      "Anchor",
+      "Anchor - Bankside",
+      "Red Lion, Hillingdon",
+      "Red Lion, Westminster (1)",
+      "Red Lion, Westminster (2)",
+    ]);
+
+    await enter("Red Lion", "insertText");
+    await act(async () => {
+      finder.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    });
+    expect(props.onPick).not.toHaveBeenCalled();
+
+    await enter("Red Lion, Westminster (2)", "insertReplacementText");
+    expect(props.onPick).toHaveBeenCalledWith(4, venues[4]);
 
     await enter("Anchor", "insertText");
     await act(async () => {
       finder.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
     });
     expect(props.onPick).toHaveBeenLastCalledWith(4, venues[0]);
+  });
+
+  it("closes a swiped-open Remove when a new route arrives", async () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({ matches: query.includes("reduce"), media: query }));
+    const props = await mount();
+    const surface = cards()[1]!.querySelector<HTMLElement>(".planStop__surface")!;
+    await act(async () => {
+      pointer("pointerdown", surface, { clientX: 200, clientY: 10 }, "touch");
+      pointer("pointermove", surface, { clientX: 80, clientY: 12 }, "touch");
+      pointer("pointerup", surface, { clientX: 80, clientY: 12 }, "touch");
+    });
+    expect(cards()[1]!.dataset.revealed).toBe("true");
+
+    await act(async () => {
+      root!.render(createElement(PlanStopList, { ...props, refreshKey: 1 }));
+    });
+    expect(cards().some((card) => card.dataset.revealed)).toBe(false);
   });
 
   it("lets a half-filled finder row be removed without choosing the typed pub", async () => {

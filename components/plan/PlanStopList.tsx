@@ -43,22 +43,40 @@ function metaFor(stop: DraftStop, areaName: string | null): string {
 
 type FinderOption = { value: string; venue: PlanVenueOption };
 
+function placeOf(venue: PlanVenueOption): string | undefined {
+  return venue.address ?? venue.borough;
+}
+
+function counted(values: readonly string[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const value of values) {
+    const key = value.toLocaleLowerCase();
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return counts;
+}
+
 /**
- * One datalist option per pub. A name that more than one pub carries is told
- * apart by its address, so choosing an option picks that pub and no other.
+ * One datalist option per pub, and no two alike. A name that more than one pub
+ * carries is told apart by where it is, and pubs that share both are numbered,
+ * so choosing an option picks that pub and no other.
  */
 function finderOptions(venues: readonly PlanVenueOption[]): FinderOption[] {
-  const named = new Map<string, number>();
-  for (const venue of venues) {
-    const name = venue.name.toLocaleLowerCase();
-    named.set(name, (named.get(name) ?? 0) + 1);
-  }
-  return venues.map((venue) => ({
-    venue,
-    value: (named.get(venue.name.toLocaleLowerCase()) ?? 0) > 1 && venue.address
-      ? `${venue.name}, ${venue.address}`
-      : venue.name,
-  }));
+  const names = counted(venues.map((venue) => venue.name));
+  const placed = venues.map((venue) => {
+    const place = placeOf(venue);
+    return (names.get(venue.name.toLocaleLowerCase()) ?? 0) > 1 && place ? `${venue.name}, ${place}` : venue.name;
+  });
+  const labels = counted(placed);
+  const seen = new Map<string, number>();
+  return venues.map((venue, index) => {
+    const label = placed[index]!;
+    const key = label.toLocaleLowerCase();
+    if ((labels.get(key) ?? 0) < 2) return { venue, value: label };
+    const ordinal = (seen.get(key) ?? 0) + 1;
+    seen.set(key, ordinal);
+    return { venue, value: `${label} (${ordinal})` };
+  });
 }
 
 /**
@@ -150,18 +168,19 @@ export default function PlanStopList({
   onAdd,
 }: PlanStopListProps) {
   const [revealedKey, setRevealedKey] = useState<number | null>(null);
+  const [revealedOn, setRevealedOn] = useState(refreshKey);
+  if (revealedOn !== refreshKey) {
+    setRevealedOn(refreshKey);
+    setRevealedKey(null);
+  }
   const keys = useMemo(() => stops.map((stop) => stop.key), [stops]);
   const firstLocked = Boolean(heldVenueId) && stops[0]?.venueId === heldVenueId;
   const gestures = useStopGestures({ onReorder, revealedKey, keys, onReveal: setRevealedKey, firstLocked, refreshKey });
   const options = useMemo(() => finderOptions(venues), [venues]);
-  const byValue = useMemo(() => {
-    const map = new Map<string, PlanVenueOption>();
-    for (const option of options) {
-      const value = option.value.toLocaleLowerCase();
-      if (!map.has(value)) map.set(value, option.venue);
-    }
-    return map;
-  }, [options]);
+  const byValue = useMemo(
+    () => new Map(options.map((option) => [option.value.toLocaleLowerCase(), option.venue])),
+    [options],
+  );
   // A card the keyboard moved or removed leaves the page or moves in it, which
   // drops focus to the document. Focus goes back to that card, or to the
   // neighbour that takes a removed card's place.
@@ -180,6 +199,7 @@ export default function PlanStopList({
     const key = stops[index]?.key;
     if (key === undefined) return;
     focusAfter.current = (stops[index + 1] ?? stops[index - 1])?.key ?? null;
+    if (revealedKey === key) setRevealedKey(null);
     onRemove(key);
   };
 
@@ -272,10 +292,7 @@ export default function PlanStopList({
                     className="planStop__remove planComposer__remove"
                     type="button"
                     data-stop-action
-                    onClick={() => {
-                      setRevealedKey(null);
-                      remove(index);
-                    }}
+                    onClick={() => remove(index)}
                     disabled={removeDisabled(stop, index)}
                     aria-label={removeLabel(stop, index)}
                   >
@@ -313,7 +330,7 @@ export default function PlanStopList({
       </ol>
       <datalist id="plan-venue-options">
         {options.map(({ value, venue }) => (
-          <option key={venue.id} value={value}>{value === venue.name ? venue.address : null}</option>
+          <option key={venue.id} value={value}>{value === venue.name ? placeOf(venue) : null}</option>
         ))}
       </datalist>
       <button className="planComposer__add planStops__add" type="button" disabled={!canAdd} onClick={onAdd}>
