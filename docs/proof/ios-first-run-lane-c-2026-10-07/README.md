@@ -59,16 +59,24 @@ Every primary is 50 px high, except the SE consent captures. There the short-scr
 The Pro consent captures used Chrome's safe-area override with 62 px at the top and 34 px at the bottom.
 In the `companion` captures, the stage is scrolled after the Pal tap. The `relaunch-companion` captures show it at rest.
 
-Two existing native push journeys still fail at the expected `Know when tonight changes` dialog on Tonight:
+## Native push journeys
+
+Two existing native push journeys failed in the earlier runs at the expected `Know when tonight changes` dialog on Tonight:
 
 - `native first run hands one useful Plan to the contextual push ask`.
 - `Skip releases onboarding budget for the next Plan but never prompts on reboot`.
 
-Both fail identically on a production build of `origin/main` at `3bc62e232be88dcbfa564ecb01970aba68afa9de`.
+Both failed identically on a production build of `origin/main` at `3bc62e232be88dcbfa564ecb01970aba68afa9de`.
 The comparison used the same installed Chrome, port, native shell stub and keyless server settings.
-Both journeys reach Tonight before the shared assertion at `e2e/mobile-first-run-onboarding.spec.ts:57` times out.
+Both journeys reached Tonight before the shared assertion at `e2e/mobile-first-run-onboarding.spec.ts:57` timed out.
 See the [baseline output](push-main.txt), [Lane C Plan output](push-plan-lane-c.txt) and [Lane C Skip output](push-skip-lane-c.txt).
-This evidence establishes a baseline failure. It does not establish that the native push journeys pass.
+These logs stay as the historical record of that baseline failure.
+
+The later no-mistakes Test phase ran on head `b7d093dcc` in run `01M4BPHRDAJQRGGC2EYQ7QNM7D`.
+Baseline verification and all live production checks passed. All 15 onboarding journeys passed, including both push journeys.
+A repeat of the two push journeys passed 8 of 8 runs.
+These passes do not identify a root cause, and this change does not claim a push fix.
+Push fixes stay outside this change. A separate follow-up tracks the earlier failures.
 
 Earlier verification attempts failed after concurrent Playwright output cleanup removed unit fixtures,
 then at a shared Git `info/exclude` permission error. Browser output now has a separate artifacts directory.
