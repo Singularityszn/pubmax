@@ -48,7 +48,7 @@ The test deleted both disposable agents after their runs.
 Before the repair, typed `hi`, voice-shaped `hi`, and voice-shaped `thanks` called `recall_memories`.
 Some replies discussed confirmed memories instead of the person's night.
 
-| Input | Typed result after repair | Voice-shaped result after repair |
+| Input | Typed result at `3b393586d` | Voice-shaped result at `3b393586d` |
 | --- | --- | --- |
 | `hi` | `Hi. What kind of night are you planning?` No tool. | Same reply. No tool. |
 | `hello` | `Hi. What kind of night are you planning?` No tool. | Same reply. No tool. |
