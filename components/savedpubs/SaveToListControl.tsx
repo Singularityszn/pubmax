@@ -25,10 +25,14 @@ import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
 // self-contained island: it shows the eligible built-in lists PLUS the viewer's
 // own custom lists, lets them file a venue under any of them, and lets them
 // create a new named list inline.
-// The handle is the viewer's own (useViewerHandle); with no handle, or while an
-// account's handle is still unknown, the built-in save still lives in
-// localStorage via toggleSaveDurable's fallback, but custom lists need a handle
-// to persist server-side.
+// The handle is the viewer's own (useViewerHandle). Until the viewer's identity
+// has resolved, nothing is written anywhere: the picker holds its chips and says
+// it is checking. A settled viewer with no handle saves in localStorage via
+// toggleSaveDurable's fallback, but custom lists need a handle to persist
+// server-side.
+
+/** How long the identity check may run before the picker offers a retry. */
+const IDENTITY_PENDING_GRACE_MS = 4_000;
 
 /** With no handle the save lives in this browser only, so the line says so. */
 function savedToast(listType: string, handle: string): string {
@@ -81,7 +85,7 @@ export default function SaveToListControl({
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }): React.JSX.Element {
-  const { user } = useAuth();
+  const { user, identityResolved, retryIdentity } = useAuth();
   const handle = useViewerHandle() ?? "";
   const [openState, setOpenState] = useState(false);
   const open = openProp ?? openState;
@@ -105,7 +109,7 @@ export default function SaveToListControl({
   // device's copy may be missing a save made elsewhere, and a press judged
   // against it would report a removal that worked as a failure.
   const [serverVenueId, setServerVenueId] = useState<string | null>(null);
-  const ready = !handle || serverVenueId === venueId;
+  const ready = identityResolved && (!handle || serverVenueId === venueId);
   // The inspector reuses this control as it moves from pub to pub, so the
   // membership it holds belongs to ONE venue. A new venue starts from this
   // device's own answer for it (adjust-state-during-render, the repo idiom),
@@ -201,6 +205,7 @@ export default function SaveToListControl({
 
   const save = useCallback(
     async (listType: string) => {
+      if (busy || !ready) return;
       membershipRead.current += 1;
       setBusy(true);
       try {
@@ -216,7 +221,7 @@ export default function SaveToListControl({
         setBusy(false);
       }
     },
-    [handle, venueId, venueKind, savedIn, announce],
+    [handle, venueId, venueKind, busy, ready, savedIn, announce],
   );
 
   const createAndSave = useCallback(async () => {
@@ -312,7 +317,9 @@ export default function SaveToListControl({
         </button>
       </div>
 
-      {toast ? (
+      {!identityResolved ? (
+        <IdentityPendingLine onRetry={user ? retryIdentity : null} />
+      ) : toast ? (
         <p className="saveToListToast" role="status">
           {toast}
         </p>
@@ -322,5 +329,39 @@ export default function SaveToListControl({
         Close
       </button>
     </section>
+  );
+}
+
+// A failed identity read leaves the account unknown until something reads it
+// again, so after a few seconds the wait offers that read. Mounted only while
+// waiting, so every wait starts quiet.
+function IdentityPendingLine({ onRetry }: { onRetry: (() => void) | null }) {
+  const [slow, setSlow] = useState(false);
+
+  useEffect(() => {
+    if (slow) return;
+    const timer = window.setTimeout(() => setSlow(true), IDENTITY_PENDING_GRACE_MS);
+    return () => window.clearTimeout(timer);
+  }, [slow]);
+
+  return (
+    <p className="saveToListToast" role="status">
+      Checking your account.
+      {slow && onRetry ? (
+        <>
+          {" "}
+          <button
+            type="button"
+            className="saveToListRetry"
+            onClick={() => {
+              setSlow(false);
+              onRetry();
+            }}
+          >
+            Try again
+          </button>
+        </>
+      ) : null}
+    </p>
   );
 }

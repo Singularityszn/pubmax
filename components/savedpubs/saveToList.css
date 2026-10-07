@@ -115,3 +115,13 @@
   text-decoration: underline;
   cursor: pointer;
 }
+
+.saveToListRetry {
+  padding: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}

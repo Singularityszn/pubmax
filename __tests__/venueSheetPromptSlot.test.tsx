@@ -16,6 +16,7 @@ const signedIn = {
 };
 const auth = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => auth.current }));
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => auth.current }));
 vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
 
 import SaveToListControl from "@/components/savedpubs/SaveToListControl";
@@ -142,6 +143,7 @@ describe("SaveToListControl prompt slot", () => {
   });
 
   it("says a save with no handle lives on this device", async () => {
+    auth.current = { user: null, loading: false, identityResolved: true, handle: null };
     await act(async () => {
       root.render(createElement(SaveToListControl, { venueId: "venue-1", venueName: "The Lamb" }));
     });

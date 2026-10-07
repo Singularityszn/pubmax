@@ -8,7 +8,8 @@ import SaveToListControl from "@/components/savedpubs/SaveToListControl";
 // An in-place account switch leaves the save-to-list control mounted with its
 // picker open. It must not keep showing the previous account's pressed chips,
 // and it must read the new account's membership once that account's handle has
-// been read. Until then, or if that read never lands, it saves on this device.
+// been read. Until then, or if that read never lands, it writes nothing and
+// holds its chips, offering to read the account again after a short wait.
 // The inspector also reuses the control from pub to pub, so a pub it returns to
 // is read from the server again before a chip can be pressed.
 
@@ -19,6 +20,7 @@ type Session = {
   loading: boolean;
   identityResolved: boolean;
   handle: string | null;
+  retryIdentity: () => void;
 };
 const session = vi.hoisted(() => ({}) as Session);
 vi.mock("@/lib/authedFetch", () => ({ authedFetch, authedActionFetch }));
@@ -47,6 +49,7 @@ beforeEach(() => {
     loading: false,
     identityResolved: true,
     handle: "mia",
+    retryIdentity: vi.fn(),
   } satisfies Session);
   container = document.createElement("div");
   document.body.append(container);
@@ -115,30 +118,40 @@ describe("SaveToListControl across an account change", () => {
 });
 
 describe("SaveToListControl while the account's handle is unknown", () => {
-  it("saves on this device when the identity read has not landed", async () => {
-    window.localStorage.setItem("pubmax_handle", "mia");
-    Object.assign(session, { identityResolved: false, handle: null });
+  it("holds every write and offers to read the account again", async () => {
+    vi.useFakeTimers();
+    try {
+      window.localStorage.setItem("pubmax_handle", "mia");
+      Object.assign(session, { identityResolved: false, handle: null });
 
-    await act(async () => {
-      root.render(createElement(SaveToListControl, { venueId: "venue-1", venueName: "The Lamb" }));
-    });
-    await act(async () => {
-      container.querySelector<HTMLButtonElement>("button.saveToListToggle")!.click();
-    });
-    await settle();
-    expect(chip("Date Night").disabled).toBe(false);
+      await act(async () => {
+        root.render(createElement(SaveToListControl, { venueId: "venue-1", venueName: "The Lamb" }));
+      });
+      await act(async () => {
+        container.querySelector<HTMLButtonElement>("button.saveToListToggle")!.click();
+      });
+      expect(chip("Date Night").disabled).toBe(true);
+      expect(container.querySelector(".saveToListToast")?.textContent).toBe("Checking your account.");
 
-    await act(async () => {
-      chip("Date Night").click();
-    });
-    await settle();
+      await act(async () => {
+        chip("Date Night").click();
+      });
+      expect(window.localStorage.getItem("pubmax:savedPubs:v1")).toBeNull();
+      expect(authedFetch).not.toHaveBeenCalled();
+      expect(authedActionFetch).not.toHaveBeenCalled();
 
-    expect(chip("Date Night").getAttribute("aria-pressed")).toBe("true");
-    expect(container.querySelector(".saveToListToast")?.textContent).toBe(
-      "Saved to “Date Night” on this device",
-    );
-    expect(authedFetch).not.toHaveBeenCalled();
-    expect(authedActionFetch).not.toHaveBeenCalled();
+      await act(async () => {
+        vi.advanceTimersByTime(4_000);
+      });
+      const retry = container.querySelector<HTMLButtonElement>("button.saveToListRetry")!;
+      await act(async () => {
+        retry.click();
+      });
+      expect(session.retryIdentity).toHaveBeenCalledTimes(1);
+      expect(chip("Date Night").disabled).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
