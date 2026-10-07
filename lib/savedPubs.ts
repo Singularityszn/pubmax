@@ -427,7 +427,26 @@ export async function toggleSaveDurable(
       discardBody(res);
       return null;
     }
-    return parseDTOs(await res.json());
+    const durable = parseDTOs(await res.json());
+    // The server's answer wins for THIS pub and list. This device's store was
+    // toggled before the request, so when the two disagreed (the server held the
+    // save and this device did not) the toggle left them opposite: bring the pair
+    // into line, and leave every other local entry alone.
+    const held = durable.find(
+      (row) => row.venueId === venueId && row.listType === cleanedListType,
+    );
+    const local = getSaved();
+    write(
+      held
+        ? upsertSaved(local, {
+            venueId,
+            listType: cleanedListType,
+            ...(held.note ? { note: held.note } : {}),
+            savedAt: held.savedAt,
+          })
+        : removeSaved(local, venueId, cleanedListType),
+    );
+    return durable;
   } catch {
     return null;
   }

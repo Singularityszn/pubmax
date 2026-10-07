@@ -352,4 +352,69 @@ describe("VenuePhotoWall owner control", () => {
       await Promise.resolve();
     });
   });
+
+  it("drops a read that was asked for the previous viewer", async () => {
+    viewer.auth = { user: { id: "user-1" }, handle: "mia", configured: true };
+    let answerFirst: (value: Response) => void = () => undefined;
+    let calls = 0;
+    authedFetch.mockImplementation(() => {
+      calls += 1;
+      if (calls === 1) return new Promise<Response>((resolve) => { answerFirst = resolve; });
+      return Promise.resolve(
+        new Response(JSON.stringify({ photos: [photo("p", false)], nextCursor: null, status: "ready" }), { status: 200 }),
+      );
+    });
+    await act(async () => {
+      root.render(createElement(VenuePhotoWall, { venueId: "venue-1", venueName: "The Lamb" }));
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    viewer.auth = { user: { id: "user-2" }, handle: "zed", configured: true };
+    await act(async () => {
+      root.render(createElement(VenuePhotoWall, { venueId: "venue-1", venueName: "The Lamb" }));
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // user-1's slow read now answers, claiming the photo is theirs.
+    await act(async () => {
+      answerFirst(
+        new Response(JSON.stringify({ photos: [photo("p", true)], nextCursor: null, status: "ready" }), { status: 200 }),
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(container.querySelectorAll(".venuePhotoRemove")).toHaveLength(0);
+    viewer.auth = { user: { id: "user-1" }, handle: "mia", configured: true };
+  });
+
+  it("gives every Remove its own accessible name", async () => {
+    viewer.auth = { user: { id: "user-1" }, handle: "mia", configured: true };
+    authedFetch.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          photos: [{ ...photo("a", true), caption: "Cold one" }, photo("b", true)],
+          nextCursor: null,
+          status: "ready",
+        }),
+        { status: 200 },
+      ),
+    );
+    await act(async () => {
+      root.render(createElement(VenuePhotoWall, { venueId: "venue-1", venueName: "The Lamb" }));
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const names = [...container.querySelectorAll(".venuePhotoRemove")].map((b) => b.getAttribute("aria-label"));
+    expect(new Set(names).size).toBe(2);
+    expect(names[0]).toContain("Cold one");
+  });
 });
+

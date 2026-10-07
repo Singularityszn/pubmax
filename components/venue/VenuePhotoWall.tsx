@@ -19,7 +19,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { categoryLabel } from "@/lib/drinks";
 
@@ -97,13 +97,25 @@ export default function VenuePhotoWall({
     setRemoveError(null);
   }
 
+  // The wall a read or a removal was started for. An answer that arrives after
+  // the pub or the viewer changed belongs to the previous wall and is dropped,
+  // so the old viewer's `ownedByViewer` can never paint the new viewer's Remove.
+  const currentKey = `${venueId}:${viewerId}`;
+  const keyRef = useRef(currentKey);
+  useEffect(() => {
+    keyRef.current = currentKey;
+  }, [currentKey]);
+
   const load = useCallback(
     async (cursor: string | null) => {
+      const askedFor = `${venueId}:${viewerId}`;
+      const stale = () => keyRef.current !== askedFor;
       try {
         const params = new URLSearchParams({ venueId });
         if (cursor) params.set("cursor", cursor);
         const response = await authedFetch(`/api/venue-photos?${params.toString()}`, {}, { requiresIdentity: true });
         const body: unknown = await response.json().catch(() => null);
+        if (stale()) return;
         if (!response.ok || !isPage(body)) {
           setWall((current) => ({ ...current, status: "degraded" }));
           return;
@@ -114,13 +126,15 @@ export default function VenuePhotoWall({
           status: body.status,
         }));
       } catch {
-        setWall((current) => ({ ...current, status: "degraded" }));
+        if (!stale()) setWall((current) => ({ ...current, status: "degraded" }));
       } finally {
-        setLoading(false);
-        setLoaded(true);
+        if (!stale()) {
+          setLoading(false);
+          setLoaded(true);
+        }
       }
     },
-    [venueId],
+    [venueId, viewerId],
   );
 
   // The first read starts off a microtask rather than in the effect body: a
@@ -150,6 +164,8 @@ export default function VenuePhotoWall({
   async function remove(photo: VenuePhotoDTO): Promise<void> {
     if (removingId !== null) return;
     if (!window.confirm(drinkWallRemoveConfirmLine(photo))) return;
+    const askedFor = currentKey;
+    const stale = () => keyRef.current !== askedFor;
     setRemovingId(photo.id);
     setRemoveError(null);
     try {
@@ -162,8 +178,10 @@ export default function VenuePhotoWall({
         },
         { requiresIdentity: true },
       );
+      if (stale()) return;
       if (!response.ok) {
         const body: unknown = await response.json().catch(() => null);
+        if (stale()) return;
         setRemoveError(
           offlineOrMessage(errorMessageFrom(body, "Could not remove that photo. Try again.")),
         );
@@ -175,9 +193,9 @@ export default function VenuePhotoWall({
         photos: current.photos.filter((item) => item.id !== photo.id),
       }));
     } catch {
-      setRemoveError(offlineOrMessage("Could not remove that photo. Try again."));
+      if (!stale()) setRemoveError(offlineOrMessage("Could not remove that photo. Try again."));
     } finally {
-      setRemovingId(null);
+      if (!stale()) setRemovingId(null);
     }
   }
 
@@ -201,7 +219,7 @@ export default function VenuePhotoWall({
 
       {wall.photos.length > 0 ? (
         <div className="venuePhotoGrid">
-          {wall.photos.map((photo) => (
+          {wall.photos.map((photo, index) => (
             <figure key={photo.id} className="venuePhotoTile">
               <Image
                 src={photo.url}
@@ -239,7 +257,7 @@ export default function VenuePhotoWall({
                   type="button"
                   className="venuePhotoRemove"
                   disabled={removingId !== null}
-                  aria-label={`Remove your photo of ${venueName}`}
+                  aria-label={`Remove your photo ${index + 1} of ${wall.photos.length} of ${venueName}${photo.caption ? `: ${photo.caption}` : ""}`}
                   onClick={() => void remove(photo)}
                 >
                   {removingId === photo.id ? "Removing…" : "Remove"}

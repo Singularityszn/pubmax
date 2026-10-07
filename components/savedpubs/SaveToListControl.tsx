@@ -94,9 +94,13 @@ export default function SaveToListControl({
   // Which membership read may still land. A press (or a venue change) bumps it,
   // so an answer that was asked before the press cannot overwrite the newer one.
   const membershipRead = useRef(0);
+  // The pub on screen now, for the writes: a save that was still in flight when
+  // the inspector moved on must not paint its answer on the next pub.
+  const currentVenue = useRef(venueId);
   useEffect(() => {
     // Another pub: whatever was asked for the last one must not land on this one.
     membershipRead.current += 1;
+    currentVenue.current = venueId;
   }, [venueId]);
 
   // Load the handle's custom lists lazily when the picker opens (cheap GET,
@@ -135,7 +139,8 @@ export default function SaveToListControl({
     if (open) void Promise.resolve().then(() => loadLists());
   }, [open, loadLists]);
 
-  const announce = useCallback((listType: string, held: string[]) => {
+  const announce = useCallback((forVenue: string, listType: string, held: string[]) => {
+    if (currentVenue.current !== forVenue) return;
     setSavedIn(held);
     setToast(
       held.includes(listType) ? savedToast(listType, handle) : `Removed from “${listType}”`,
@@ -150,7 +155,7 @@ export default function SaveToListControl({
       try {
         const durable = await toggleSaveDurable(handle, venueId, listType, undefined, venueKind);
         // The second press removes the save, so the toast says which happened.
-        announce(listType, listsHolding(venueId, durable));
+        announce(venueId, listType, listsHolding(venueId, durable));
       } finally {
         setBusy(false);
       }
@@ -195,7 +200,7 @@ export default function SaveToListControl({
             await toggleSaveDurable(handle, venueId, name, undefined, venueKind),
           );
       setNewName("");
-      announce(name, held);
+      announce(venueId, name, held);
     } finally {
       setBusy(false);
     }

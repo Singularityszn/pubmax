@@ -276,4 +276,67 @@ describe("SaveToListControl as the inspector moves between pubs", () => {
 
     expect(chip("Date Night").getAttribute("aria-pressed")).toBe("true");
   });
+
+  it("brings this device's store into line with the server after a toggle that disagreed", async () => {
+    // The server already holds Date Night for this pub and this device does not.
+    // The device store toggles first (adds it), the server toggle removes it, and
+    // the device must end up without it, or a signed-out read shows a removed save.
+    window.localStorage.setItem("pubmax_handle", "mia");
+    authedFetch.mockImplementation(async (input: string, init?: { method?: string }) => {
+      if (input.includes("lists=1")) return new Response(JSON.stringify({ lists: [] }), { status: 200 });
+      if (init?.method === "POST") return new Response(JSON.stringify({ saved: [] }), { status: 200 });
+      return new Response(JSON.stringify({ saved: [] }), { status: 200 });
+    });
+    await open();
+    await act(async () => {
+      chip("Date Night").click();
+    });
+
+    const stored = JSON.parse(window.localStorage.getItem("pubmax:savedPubs:v1") ?? "[]") as {
+      venueId: string;
+      listType: string;
+    }[];
+    expect(stored.some((row) => row.venueId === "venue-1" && row.listType === "Date Night")).toBe(false);
+  });
+
+  it("ignores the answer of a save that was started for the previous pub", async () => {
+    window.localStorage.setItem("pubmax_handle", "mia");
+    let finish: (value: Response) => void = () => undefined;
+    authedFetch.mockImplementation(async (input: string, init?: { method?: string }) => {
+      if (init?.method === "POST") return new Promise<Response>((resolve) => { finish = resolve; });
+      return new Response(JSON.stringify(input.includes("lists=1") ? { lists: [] } : { saved: [] }), { status: 200 });
+    });
+    await open();
+    await act(async () => {
+      chip("Date Night").click();
+    });
+    await rerenderWith("venue-2");
+    await act(async () => {
+      finish(
+        new Response(
+          JSON.stringify({
+            saved: [
+              {
+                venueId: "venue-1",
+                venueName: "The Lamb",
+                venueMapUrl: "/map?sel=venue-1",
+                listType: "Date Night",
+                savedAt: "2026-10-06T10:00:00.000Z",
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      );
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(
+      [...container.querySelectorAll("button.saveToListChip")].every(
+        (c) => c.getAttribute("aria-pressed") === "false",
+      ),
+    ).toBe(true);
+    expect(container.querySelector(".saveToListToast")).toBeNull();
+  });
 });
+

@@ -117,8 +117,22 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
     registrationAbortRef.current?.abort();
   }, []);
 
+  // Which account an in-flight switch belongs to. A registration or a save that
+  // was started for one account must not turn Step Out on for the next one, so
+  // an account change aborts the registration and every continuation compares.
+  const activeUserId = useRef(user?.id ?? null);
+  useEffect(() => {
+    activeUserId.current = user?.id ?? null;
+    return () => {
+      registrationAbortRef.current?.abort();
+      registrationAbortRef.current = null;
+    };
+  }, [user?.id]);
+
   async function enable() {
     if (!user || busy) return;
+    const startedFor = user.id;
+    const stillThem = () => activeUserId.current === startedFor;
     setBusy(true);
     setNotice("");
     try {
@@ -147,7 +161,7 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
       if (registrationAbortRef.current === controller) {
         registrationAbortRef.current = null;
       }
-      if (controller.signal.aborted) return;
+      if (controller.signal.aborted || !stillThem()) return;
       if (!token) {
         setNotice("Could not turn on web push. Check notification permission and try again.");
         return;
@@ -157,6 +171,7 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
         body: JSON.stringify({ enabled: true, token }),
       }, { requiresIdentity: true });
       const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!stillThem()) return;
       if (!response.ok) {
         // A refused write that names a gate is a door, not a failure.
         const door = readContributionDoor(body);

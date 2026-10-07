@@ -322,7 +322,14 @@ export default function PalExperience() {
 
   // Browser Back walks the five setup steps instead of leaving /pal. The draft
   // above keeps the choices either way.
-  useStepHistory(step, setStep, { steps: PAL_SETUP_STEPS, first: 0, enabled: mode === "onboarding" });
+  // An account that already answered 18+ never sees step 0, so the history
+  // walks only the steps it can see: Back never restores the hidden one.
+  const visibleSteps = adultOnFile ? PAL_SETUP_STEPS.filter((candidate) => candidate >= 1) : PAL_SETUP_STEPS;
+  useStepHistory(Math.max(step, adultOnFile ? 1 : 0) as (typeof PAL_SETUP_STEPS)[number], setStep, {
+    steps: visibleSteps,
+    first: adultOnFile ? 1 : 0,
+    enabled: mode === "onboarding",
+  });
 
   useEffect(() => {
     if (mode !== "onboarding" || !draftOwner) return;

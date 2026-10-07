@@ -237,4 +237,35 @@ describe("StepOutNudgePref across an account change", () => {
     expect(turnOn()).toBeDefined();
     signedInAuth.user = { id: "user-1" };
   });
+
+  it("does not turn Step Out on for the next account when a registration finishes after the switch", async () => {
+    setUserAgent(CHROME_DESKTOP);
+    signedInAuth.user = { id: "user-1" };
+    let finishRegistration: (token: string) => void = () => undefined;
+    registerWebPush.mockReset().mockImplementation(
+      () => new Promise<string>((resolve) => { finishRegistration = resolve; }),
+    );
+    authedActionFetch.mockReset().mockImplementation(async () =>
+      new Response(JSON.stringify({ enabled: false, lastSentAt: null, canSend: false, maxPerWeek: 1 }), { status: 200 }),
+    );
+    await render();
+    await act(async () => {
+      turnOn().click();
+    });
+
+    signedInAuth.user = { id: "user-2" };
+    await act(async () => {
+      root.render(createElement(StepOutNudgePref));
+    });
+    await act(async () => {
+      finishRegistration("encoded-token");
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
+
+    const posts = authedActionFetch.mock.calls.filter(([, init]) => init?.method === "POST");
+    expect(posts).toHaveLength(0);
+    expect(container.textContent).not.toContain("Step Out is on.");
+    signedInAuth.user = { id: "user-1" };
+  });
 });
+

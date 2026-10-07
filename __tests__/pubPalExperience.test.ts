@@ -271,6 +271,24 @@ describe("Pub Pal setup for a signed-in account", () => {
     expect(container.textContent).toContain("Meet your Pub Pal");
   });
 
+  it("does not let browser Back restore the hidden 18+ step", async () => {
+    await renderSignedIn(true);
+    expect(container.textContent).toContain("Who finds you?");
+    const entries = window.history.length;
+
+    // A history entry recorded on step 0 (from before the account's answer was
+    // known) is landed on. The wizard stays on the first VISIBLE step.
+    window.history.replaceState({ pubmaxStep: 0, pubmaxStepDepth: 1 }, "");
+    await act(async () => {
+      window.dispatchEvent(new PopStateEvent("popstate", { state: { pubmaxStep: 0, pubmaxStepDepth: 1 } }));
+    });
+    await settle();
+
+    expect(container.textContent).toContain("Who finds you?");
+    expect(container.textContent).not.toContain("The grown-up bit first.");
+    expect(window.history.length).toBeLessThanOrEqual(entries + 1);
+  });
+
   it("sends the confirmation with the Pal when the question was skipped", async () => {
     await renderSignedIn(true);
     await act(async () => {
