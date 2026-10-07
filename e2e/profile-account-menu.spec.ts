@@ -87,11 +87,6 @@ test("the sign-in greeting never covers the open account menu at 390px", async (
   await expect(greeting).toBeVisible();
 
   const menu = await openAccountMenu(page);
-  // At this width the greeting and the menu share the band under the bar, so
-  // only the paint order keeps the menu readable.
-  const [greetingBox, menuBox] = [await greeting.boundingBox(), await menu.boundingBox()];
-  expect(greetingBox && menuBox && greetingBox.y < menuBox.y + menuBox.height
-    && menuBox.y < greetingBox.y + greetingBox.height).toBe(true);
   // The greeting takes no pointer events, so elementFromPoint would look straight
   // through it. Make it hit-testable (paint order is unchanged) to see what is on
   // top. One read, not a poll: the greeting retires itself after a few seconds,
@@ -101,17 +96,34 @@ test("the sign-in greeting never covers the open account menu at 390px", async (
   });
   await menu.evaluate((element) =>
     Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)));
-  const covered = await menu.evaluate((element) =>
-    [...element.querySelectorAll<HTMLElement>(".authAccountCard, a, button")]
+  const coverage = await menu.evaluate((element) => {
+    const greeting = document.querySelector(".arrivalWelcome");
+    if (!greeting) throw new Error("The sign-in greeting disappeared before the menu check.");
+    const greetingBox = greeting.getBoundingClientRect();
+    const menuBox = element.getBoundingClientRect();
+    const left = Math.max(greetingBox.left, menuBox.left);
+    const right = Math.min(greetingBox.right, menuBox.right);
+    const top = Math.max(greetingBox.top, menuBox.top);
+    const bottom = Math.min(greetingBox.bottom, menuBox.bottom);
+    const overlaps = left < right && top < bottom;
+    // The overlap can cover menu padding without covering any control centre.
+    const hit = overlaps
+      ? document.elementFromPoint((left + right) / 2, (top + bottom) / 2)
+      : null;
+    const covered = [...element.querySelectorAll<HTMLElement>(".authAccountCard, a, button")]
       .filter((control) => control.getClientRects().length > 0)
       .filter((control) => {
         const rect = control.getBoundingClientRect();
         const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
         return hit === null || !control.contains(hit);
       })
-      .map((control) => control.textContent?.trim() ?? control.className));
+      .map((control) => control.textContent?.trim() ?? control.className);
+    return { covered, overlaps, menuOwnsOverlap: hit !== null && element.contains(hit) };
+  });
   // The greeting was still on screen, not leaving, when the menu was read.
   await expect(greeting).toBeVisible();
   await expect(greeting).not.toHaveAttribute("data-leaving");
-  expect(covered).toEqual([]);
+  expect(coverage.covered).toEqual([]);
+  expect(coverage.overlaps).toBe(true);
+  expect(coverage.menuOwnsOverlap).toBe(true);
 });
