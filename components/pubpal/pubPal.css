@@ -175,9 +175,17 @@
   .palSummon {
     bottom: 22px;
   }
-  /* Keep an 8px gap above the map's 24px attribution control and 10px bottom margin. */
+  /* Sit 8px above the 44px Layers FAB, which mapLayersControl.css parks above
+     the attribution control, in both its normal and consent berths. */
   body:has(.mapStage) .palSummon {
-    bottom: 42px;
+    bottom: calc(34px + 44px + 8px);
+  }
+  body:has(.mapStage):has(.analyticsConsentPrompt) .palSummon {
+    bottom: calc(var(--analytics-consent-clearance, 72px) + 54px + 44px + 8px);
+  }
+  /* The open Layers panel rises from the FAB through this berth. */
+  body:has(.mapLayersControl.isOpen) .palSummon {
+    display: none;
   }
   /* The venue drawer owns its action bar while it is open. */
   body:has(.mapDrawer.right.open) .palSummon {

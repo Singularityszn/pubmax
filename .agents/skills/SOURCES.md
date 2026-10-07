@@ -73,7 +73,9 @@ Directory name, then frontmatter `name` when it differs:
 
 - Repo: https://github.com/jakubkrehel/skills
 - Commit: `d574cc8a576dc24256ad38268b8d03d86724a1b3` (`main`)
-- Refreshed 7 Oct 2026. The installed trees match this tip. `state-machine` was added because `variant` now refers to it.
+- Refreshed 7 Oct 2026. The installed trees match this tip, except one local guard below. `state-machine` was added because `variant` now refers to it.
+
+`state-machine` keeps one local guard the upstream file does not. Upstream makes every Next.js scratch page `"use client"`, but a client page cannot import a Server Component. The local step 3 keeps the page a Server Component for a server target, with only the switcher on the client.
 
 `better-accessibility`, `better-colors`, `better-interface`, `better-layout`, `better-typography`, `better-ui`, `better-writing`, `break`, `explain-interface`, `interface-review`, `variant`, `state-machine`.
 
@@ -198,4 +200,4 @@ Anthropic `frontend-design` is installed in the canonical machine-wide skill roo
 
 ## Maintenance check, 7 Oct 2026
 
-All eleven documented upstream repositories were checked at their default branch tips. The installed Jakub skills, MapLibre cartography and glyph guidance, and ElevenLabs `elevenlabs-agents` configuration and client-tool references, `speech-engine` SDK references, and `text-to-speech` skill, installation, streaming and voice-settings references were refreshed. Other installed trees have no upstream content changes. Existing namespace changes, install guards, removed sibling links, and the Vercel scope fix remain. Upstream CHANGELOG.md files were not modified. The three PUBMAXX-specific skills have no upstream.
+All eleven documented upstream repositories were checked at their default branch tips. The installed Jakub skills, MapLibre cartography and glyph guidance, and ElevenLabs `elevenlabs-agents` configuration and client-tool references, `speech-engine` SDK references, and `text-to-speech` skill, installation, streaming and voice-settings references were refreshed. Other installed trees have no upstream content changes. Existing namespace changes, install guards, removed sibling links, and the Vercel scope fix remain. The added `state-machine` skill keeps a local Next.js server-boundary guard. Upstream CHANGELOG.md files were not modified. The three PUBMAXX-specific skills have no upstream.
