@@ -244,8 +244,8 @@ describe("Capacitor wrapped-build contract", () => {
     // iOS 27 refuses an app with no scene manifest: a free personal-team build
     // on an iPhone 17 Pro Max (iOS 27.2) died at launch with EXC_BREAKPOINT in
     // UIKitCore ___UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption.
-    // The iOS 27.0 simulator does not enforce it, so a simulator launch cannot
-    // catch this; the source has to. The shape is Capacitor 8.5's own
+    // The iOS 27.0 simulator crashes the same way, but CI launches no
+    // simulator, so this fence holds the manifest. The shape is Capacitor 8.5's own
     // (`npx cap migrate`): one scene, built from Main.storyboard, whose delegate
     // is the module's SceneDelegate.
     const info = plistRoot("ios/App/App/Info.plist");
