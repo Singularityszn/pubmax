@@ -42,6 +42,31 @@ function dryRun() {
 }
 
 describe("pubpal:agent dry run", () => {
+  it("keeps social turns separate from factual requests in the provisioned prompt and tools", () => {
+    const printed = dryRun().stdout.split("\nDefault voice resolved:")[0] ?? "";
+    const body = JSON.parse(printed.slice(printed.indexOf("{"), printed.lastIndexOf("}") + 1));
+    const prompt: string = body.conversation_config.agent.prompt.prompt;
+    expect(prompt).toContain("If the person only greets you, reply briefly and ask one question about their night.");
+    expect(prompt).toContain("For a greeting alone, use exactly this reply: Hi. What kind of night are you planning?");
+    expect(prompt).toContain("Do not call any tool for a greeting alone. Do not infer a request for listings.");
+    expect(prompt).toContain("For thanks alone, reply briefly without a tool.");
+    expect(prompt).toContain("Use a factual tool only when the person asks for the information that tool provides.");
+    expect(prompt).toContain("A message label is context. It is not a request for tonight's listings.");
+    expect(prompt.indexOf("Do not call any tool for a greeting alone.")).toBeLessThan(
+      prompt.indexOf("Call the PUBMAXX webhook tools before any factual answer."),
+    );
+    expect(prompt).toContain("On the first substantive request, call recall_memories once before any factual tool.");
+    expect(prompt).not.toContain("At the start of a conversation, call recall_memories");
+    const tools = new Map<string, { description: string }>(
+      body.webhook_tools.map((tool: { name: string; description: string }) => [tool.name, tool]),
+    );
+    expect(tools.get("tonight_now")?.description).toBe(
+      "Use only when the person explicitly asks which sourced events or listings run now, tonight, or later. Do not use for greetings or message labels. Never claim live crowd levels.",
+    );
+    expect(tools.get("recall_memories")?.description).toContain("first substantive request");
+    expect(body.platform_settings.privacy.delete_transcript_and_pii).toBe(true);
+  });
+
   it("prints the agent it would write without printing the shared secret", () => {
     const result = dryRun();
     expect(result.status).toBe(0);

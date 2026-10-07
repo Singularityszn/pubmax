@@ -1,0 +1,4 @@
+pubmaxxing@0.1.0 /Users/karanmanoharan/.treehouse/pubmaxx-bde241/4/pubmaxx
+└─┬ @elevenlabs/react@1.17.0
+  └── @elevenlabs/client@1.27.0
+

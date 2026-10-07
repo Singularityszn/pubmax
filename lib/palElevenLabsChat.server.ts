@@ -86,7 +86,7 @@ function userMessageText(query: string, prior: PriorSession, memories: PalRecall
     ...(priorAsks.length > 0
       ? ["My earlier asks in this chat, oldest first:", ...priorAsks.map((turn) => `- ${turn.content}`)]
       : []),
-    `Now: ${query}`,
+    `Current user message: ${query}`,
   ].join("\n");
 }
 

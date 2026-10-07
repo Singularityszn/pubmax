@@ -204,6 +204,26 @@ describe("runPalElevenLabsChatTurn", () => {
     vi.unstubAllGlobals();
   });
 
+  it.each([
+    ["hi", "Hi. What kind of night are you planning?"],
+    ["hello", "Hello. What are you planning tonight?"],
+    ["thanks", "You're welcome."],
+  ])("returns a short provider reply for %s without factual cards or tools", async (query, reply) => {
+    wsState.storeFilled = false;
+    wsState.replyScript = [
+      { afterMs: 0, event: agentResponse(reply) },
+      { afterMs: 0, event: responseComplete() },
+    ];
+
+    const outcome = await runPalElevenLabsChatTurn({
+      query,
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+
+    expect(outcome).toMatchObject({ ok: true, message: reply, cards: [], toolsUsed: [] });
+    expect(wsState.userMessageText).toBe([NOTHING_CONFIRMED, `Current user message: ${query}`].join("\n"));
+  });
+
   it("returns the post-query agent reply, not the configured first_message greeting", async () => {
     const query = "Which pubs near Soho have a pint under £5?";
     const outcome = await runPalElevenLabsChatTurn({
@@ -217,7 +237,7 @@ describe("runPalElevenLabsChatTurn", () => {
       conversationId: "conv_regression01",
     });
     expect(outcome.ok === true && outcome.message).not.toBe(PAL_GREETING);
-    expect(wsState.userMessageText).toBe([NOTHING_CONFIRMED, `Now: ${query}`].join("\n"));
+    expect(wsState.userMessageText).toBe([NOTHING_CONFIRMED, `Current user message: ${query}`].join("\n"));
     expect(outcome.ok === true && outcome.cards.length).toBeGreaterThan(0);
 
     const init = wsState.lastInitPayload as {
@@ -251,7 +271,7 @@ describe("runPalElevenLabsChatTurn", () => {
         "My earlier asks in this chat, oldest first:",
         "- a pub for six",
         "- quiet pubs in Soho",
-        "Now: what about somewhere cheaper there?",
+        "Current user message: what about somewhere cheaper there?",
       ].join("\n"),
     );
     expect(storeMocks.registerPubPalToolTurn).toHaveBeenCalledWith(
@@ -295,7 +315,7 @@ describe("runPalElevenLabsChatTurn", () => {
         "- ask 5",
         "- ask 6",
         "- ask 7",
-        "Now: and somewhere cheaper?",
+        "Current user message: and somewhere cheaper?",
       ].join("\n"),
     );
     expect(storeMocks.registerPubPalToolTurn).toHaveBeenCalledWith(
@@ -323,7 +343,7 @@ describe("runPalElevenLabsChatTurn", () => {
       [
         "Things I confirmed you should remember about me. Use them as preferences, never as facts about a pub:",
         "- Drinks: Cask ale, no lager",
-        "Now: a pub in Soho tonight",
+        "Current user message: a pub in Soho tonight",
       ].join("\n"),
     );
     expect(JSON.stringify(wsState.lastInitPayload)).not.toContain("Cask ale");
@@ -373,7 +393,7 @@ describe("runPalElevenLabsChatTurn", () => {
     });
 
     expect(outcome.ok).toBe(true);
-    expect(wsState.userMessageText).toBe([NOTHING_CONFIRMED, "Now: quiet pubs"].join("\n"));
+    expect(wsState.userMessageText).toBe([NOTHING_CONFIRMED, "Current user message: quiet pubs"].join("\n"));
     expect(storeMocks.registerPubPalToolTurn).toHaveBeenCalledWith(
       "conv_regression01",
       expect.objectContaining({ turns: [] }),
@@ -389,7 +409,7 @@ describe("runPalElevenLabsChatTurn", () => {
 
     expect(outcome.ok).toBe(true);
     expect(wsState.userMessageText).toBe(
-      [NOTHING_CONFIRMED, "Now: what about somewhere cheaper there?"].join("\n"),
+      [NOTHING_CONFIRMED, "Current user message: what about somewhere cheaper there?"].join("\n"),
     );
   });
 
@@ -401,7 +421,7 @@ describe("runPalElevenLabsChatTurn", () => {
     });
 
     expect(storeMocks.readOwnedPubPalToolTurn).not.toHaveBeenCalled();
-    expect(wsState.userMessageText).toBe([NOTHING_CONFIRMED, "Now: quiet pubs"].join("\n"));
+    expect(wsState.userMessageText).toBe([NOTHING_CONFIRMED, "Current user message: quiet pubs"].join("\n"));
   });
 
   it("asks for the turn-complete event so it can tell the checking line from the answer", async () => {
