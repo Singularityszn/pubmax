@@ -35,8 +35,8 @@ failure or an HTTP status a retry can fix (5xx, 408 or 429), never a page that
 is gone. Other HTTP errors, including 401, 403, 404 and 410, keep the site's
 own response instead of showing "No connection". Subresource HTTP errors never
 open the offline page. It never replays `/auth/callback`, the marked callback
-landing, or a URL that carries a credential parameter. When nothing safe is held, the button
-goes to the root as before. iOS does not do this yet: the shell has no seam
+landing, or a URL that carries a credential parameter. When nothing safe is
+held, the button goes to the root as before. iOS does not do this yet: the shell has no seam
 that records the failed URL, so the same button there goes to the root.
 
 ## Cold start
