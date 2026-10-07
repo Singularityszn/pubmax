@@ -486,14 +486,17 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
           onNearMe={onNearMe}
         />
       ) : null}
-      {planDoorVisible ? (
-        peek && onPeekOpenVenue && onPeekOpenList ? (
-          <MapPeekSheet model={peek} onOpenVenue={onPeekOpenVenue} onOpenList={onPeekOpenList}>
-            {planDoor}
-          </MapPeekSheet>
-        ) : (
-          planDoor
-        )
+      {peek && onPeekOpenVenue && onPeekOpenList ? (
+        <MapPeekSheet
+          model={peek}
+          onOpenVenue={onPeekOpenVenue}
+          onOpenList={onPeekOpenList}
+          covered={!planDoorVisible}
+        >
+          {planDoorVisible ? planDoor : null}
+        </MapPeekSheet>
+      ) : planDoorVisible ? (
+        planDoor
       ) : null}
       <Sheet kind={sheetKind} title={openingHeading?.title ?? (sheetKind ? MAP_SHEET_TITLES[sheetKind] ?? "Map controls" : "Map controls")} kicker={openingHeading?.kicker} initialSnap={sheetKind && FULL_HEIGHT_SHEETS.includes(sheetKind) ? "full" : "half"} onClose={onHome} backLabel={backLabel} onBack={onBack}>{sheetContent}</Sheet>
     </>
