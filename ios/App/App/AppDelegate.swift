@@ -31,19 +31,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
     }
 
-    // Scene configuration. The window, URL opens and universal links belong to
-    // SceneDelegate: once a scene manifest exists UIKit stops calling
-    // application(_:open:options:) and application(_:continue:restorationHandler:),
-    // so those two forwards to ApplicationDelegateProxy are gone on purpose.
-    func application(_ application: UIApplication,
-                     configurationForConnecting connectingSceneSession: UISceneSession,
-                     options: UIScene.ConnectionOptions) -> UISceneConfiguration {
-        let config = UISceneConfiguration(name: "Default Configuration",
-                                          sessionRole: connectingSceneSession.role)
-        config.delegateClass = SceneDelegate.self
-        return config
-    }
-
     // APNs registration forwarding required by @capacitor/push-notifications:
     // the plugin listens for these NotificationCenter posts to resolve the
     // `registration` / `registrationError` events consumed by lib/nativePush.ts.

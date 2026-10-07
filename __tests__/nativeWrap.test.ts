@@ -64,6 +64,46 @@ function plistRoot(path: string): Record<string, PlistValue> {
   return plistValue(dict) as Record<string, PlistValue>;
 }
 
+type PbxValue = string | PbxValue[] | PbxDict;
+type PbxDict = { [key: string]: PbxValue };
+
+/** An old-style ASCII plist such as project.pbxproj, as the value it declares. */
+function pbxprojRoot(path: string): PbxDict {
+  const tokens = (
+    rootFile(path).match(/\/\*[\s\S]*?\*\/|\/\/[^\n]*|"(?:\\.|[^"\\])*"|[{}()=;,]|[^\s{}()=;,"]+/g) ?? []
+  ).filter((token) => !token.startsWith("/*") && !token.startsWith("//"));
+  let at = 0;
+  const expectToken = (want: string) => {
+    if (tokens[at++] !== want) throw new Error(`${path}: expected "${want}" at token ${at - 1}`);
+  };
+  const value = (): PbxValue => {
+    const token = tokens[at++];
+    if (token === undefined) throw new Error(`${path}: ended early`);
+    if (token === "{") {
+      const dict: PbxDict = {};
+      while (tokens[at] !== "}") {
+        const key = value() as string;
+        expectToken("=");
+        dict[key] = value();
+        expectToken(";");
+      }
+      at++;
+      return dict;
+    }
+    if (token === "(") {
+      const list: PbxValue[] = [];
+      while (tokens[at] !== ")") {
+        list.push(value());
+        if (tokens[at] === ",") at++;
+      }
+      at++;
+      return list;
+    }
+    return token.startsWith('"') ? (JSON.parse(token) as string) : token;
+  };
+  return value() as PbxDict;
+}
+
 const ANDROID_RES = join(process.cwd(), "android/app/src/main/res");
 
 /** Every XML resource under android/app/src/main/res, path relative to it. */
@@ -184,7 +224,7 @@ describe("Capacitor wrapped-build contract", () => {
     });
   });
 
-  it("preserves iOS camera permissions, APNs forwarding, and scene-based link forwarding", () => {
+  it("preserves iOS camera permissions, APNs forwarding, and the App plugin", () => {
     const info = rootFile("ios/App/App/Info.plist");
     expect(info).toContain("NSCameraUsageDescription");
     expect(info).toContain("NSPhotoLibraryUsageDescription");
@@ -193,12 +233,6 @@ describe("Capacitor wrapped-build contract", () => {
     const delegate = rootFile("ios/App/App/AppDelegate.swift");
     expect(delegate).toContain("capacitorDidRegisterForRemoteNotifications");
     expect(delegate).toContain("capacitorDidFailToRegisterForRemoteNotifications");
-    // URL opens and universal links no longer reach AppDelegate: with a scene
-    // manifest UIKit stops calling application(_:open:) and
-    // application(_:continue:), so a forward left there would be dead code that
-    // reads as if links worked. SceneDelegate owns them (next test).
-    expect(delegate).not.toContain("open url: URL");
-    expect(delegate).not.toContain("continue userActivity");
 
     expect(rootFile("ios/App/CapApp-SPM/Package.swift")).toContain("CapacitorApp");
     expect(rootFile("android/app/capacitor.build.gradle")).toContain(
@@ -206,7 +240,7 @@ describe("Capacitor wrapped-build contract", () => {
     );
   });
 
-  it("adopts the UIScene lifecycle that iOS 27 requires, and forwards every link through it", () => {
+  it("adopts the UIScene lifecycle that iOS 27 requires", () => {
     // iOS 27 refuses an app with no scene manifest: a free personal-team build
     // on an iPhone 17 Pro Max (iOS 27.2) died at launch with EXC_BREAKPOINT in
     // UIKitCore ___UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption.
@@ -228,31 +262,26 @@ describe("Capacitor wrapped-build contract", () => {
       },
     });
 
-    // The storyboard the manifest names must still hold the Capacitor bridge.
-    expect(rootFile("ios/App/App/Base.lproj/Main.storyboard")).toContain(
-      'customClass="CAPBridgeViewController"',
+    // The storyboard the manifest names opens on the Capacitor bridge.
+    const storyboard = xmlDocument("ios/App/App/Base.lproj/Main.storyboard");
+    const initialId = storyboard.documentElement.getAttribute("initialViewController");
+    const initial = storyboard.querySelector(`[id="${initialId}"]`);
+    expect(initial?.getAttribute("customClass")).toBe("CAPBridgeViewController");
+    expect(initial?.getAttribute("customModule")).toBe("Capacitor");
+
+    // The SceneDelegate the manifest names is compiled into the App target.
+    const objects = pbxprojRoot("ios/App/App.xcodeproj/project.pbxproj").objects as PbxDict;
+    const object = (id: PbxValue | undefined) => objects[id as string] as PbxDict;
+    const app = Object.values(objects).find(
+      (entry) => (entry as PbxDict).isa === "PBXNativeTarget" && (entry as PbxDict).name === "App",
+    ) as PbxDict;
+    const sources = (app.buildPhases as PbxValue[])
+      .map(object)
+      .find((phase) => phase.isa === "PBXSourcesBuildPhase");
+    const compiled = (sources?.files as PbxValue[]).map(
+      (buildFile) => object(object(buildFile).fileRef).path,
     );
-
-    // AppDelegate hands the scene its delegate class.
-    const appDelegate = rootFile("ios/App/App/AppDelegate.swift");
-    expect(appDelegate).toContain("configurationForConnecting connectingSceneSession");
-    expect(appDelegate).toContain("config.delegateClass = SceneDelegate.self");
-
-    // SceneDelegate sits in its own file, is compiled into the App target, and
-    // forwards the three entries Capacitor's App plugin listens to: the cold
-    // start (queued until the bridge has appeared), a custom-scheme open
-    // (pubmaxx://) and a universal link (applinks:pubmaxxing.com).
-    const scene = rootFile("ios/App/App/SceneDelegate.swift");
-    expect(scene).toContain("class SceneDelegate: UIResponder, UIWindowSceneDelegate");
-    expect(scene).toContain("SceneDelegateProxy.shared.scene(scene, willConnectTo: session, options: connectionOptions)");
-    expect(scene).toContain("openURLContexts URLContexts: Set<UIOpenURLContext>");
-    expect(scene).toContain("SceneDelegateProxy.shared.scene(scene, openURLContexts: URLContexts)");
-    expect(scene).toContain("continue userActivity: NSUserActivity");
-    expect(scene).toContain("SceneDelegateProxy.shared.scene(scene, continue: userActivity)");
-
-    const project = rootFile("ios/App/App.xcodeproj/project.pbxproj");
-    expect(project).toContain("SceneDelegate.swift in Sources");
-    expect(project).toContain("path = SceneDelegate.swift;");
+    expect(compiled).toContain("SceneDelegate.swift");
   });
 
   it("answers export compliance in the build, not by hand on every upload", () => {

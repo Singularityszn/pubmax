@@ -227,10 +227,12 @@ The iOS 27.0 simulator does not enforce this: the same build without the
 manifest launches there, so a simulator launch cannot prove the fix. The
 source fence in `__tests__/nativeWrap.test.ts` holds it instead.
 
-The Info.plist manifest and the AppDelegate `configurationForConnecting` method
-follow Capacitor 8.5's `npx cap migrate` output (template in `@capacitor/cli`).
-The SceneDelegate does not: the CLI template builds the window by hand, and
-this app lets the `Main` storyboard build it instead.
+The Info.plist manifest follows Capacitor 8.5's `npx cap migrate` output
+(template in `@capacitor/cli`). The delegates do not. The CLI template's
+SceneDelegate builds the window by hand, and this app lets the `Main` storyboard
+build it instead. The CLI template's AppDelegate also returns the scene
+configuration from `configurationForConnecting`, and this app leaves that out
+because the manifest already names the delegate class.
 
 - `ios/App/App/Info.plist` carries `UIApplicationSceneManifest`: one scene
   (multiple scenes off), storyboard `Main`, delegate
@@ -241,8 +243,8 @@ this app lets the `Main` storyboard build it instead.
   link is queued by the proxy until the bridge view has appeared. The
   storyboard `Main` builds the window and its bridge, so the delegate never
   builds one by hand.
-- `AppDelegate.swift` hands each scene its delegate class
-  (`configurationForConnecting`) and keeps the APNs token forwarding. Its
+- `AppDelegate.swift` keeps the APNs token forwarding. UIKit reads the scene
+  delegate class from the manifest's `UISceneDelegateClassName`. The
   `application(_:open:options:)` and `application(_:continue:restorationHandler:)`
   forwards are deleted: with a scene manifest UIKit never calls them.
 
