@@ -490,8 +490,8 @@ type PubMapCanvasProps = {
   /**
    * Fired once the reader moves the camera themselves — a drag, a pinch, a
    * wheel zoom. Programmatic flights carry no originalEvent, so they never
-   * fire it. Ambient banners use this to step off the map (design judgement
-   * 2026-08-01, finding 2.15).
+   * fire it. Banner display rules are in docs/CITYMCP_LONDON.md,
+   * Runtime API surfaces.
    */
   onUserCameraMove?: () => void;
   /**
