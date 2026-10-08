@@ -2,9 +2,10 @@ import "server-only";
 
 // Friend-graph byproduct of planning a night together (WP7).
 //
-// When a signed-in, handle-claimed account joins a classic plan crew, form the
-// mutual follow pair with every other claimed committed member already on that
-// crew - unless either side blocks the other. Blocks are never downgraded.
+// When a signed-in, handle-claimed account joins a classic or collaboration
+// plan, form the mutual follow pair with every other claimed committed member
+// already on that crew - unless either side blocks the other.
+// Blocks are never downgraded.
 // Idempotent: an existing mutual pair is a no-op success.
 
 import {
