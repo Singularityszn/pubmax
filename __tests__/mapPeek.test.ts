@@ -30,6 +30,38 @@ describe("buildMapPeek", () => {
     expect(buildMapPeek({ ready: true, venues: [] })).toEqual({ status: "none" });
   });
 
+  it("makes no claim while the active lens has not read its prices", () => {
+    for (const lensStatus of ["idle", "loading"] as const) {
+      expect(
+        buildMapPeek({ ready: true, venues: [pub({ id: "a" })], lensPrices: new Map(), lensStatus }),
+        lensStatus,
+      ).toEqual({ status: "loading" });
+    }
+  });
+
+  it("never turns a failed or incomplete lens read into a final none", () => {
+    const venues = [pub({ id: "a" }), pub({ id: "b" })];
+    expect(buildMapPeek({ ready: true, venues, lensPrices: new Map(), lensStatus: "degraded" }))
+      .toEqual({ status: "unread" });
+    expect(buildMapPeek({ ready: true, venues, lensPrices: new Map(), lensStatus: "partial" }))
+      .toEqual({ status: "partial" });
+    expect(buildMapPeek({ ready: true, venues, lensPrices: new Map(), lensStatus: "ready" }))
+      .toEqual({ status: "none" });
+  });
+
+  it("still answers from the figures a partial lens read did paint", () => {
+    const lensPrices = new Map<string, MapLensPrice>([
+      ["b", { venueId: "b", category: null, categoryLabel: "Cocktail", priceGbp: 9.5, source: "community" }],
+    ]);
+    const model = buildMapPeek({
+      ready: true,
+      venues: [pub({ id: "a" }), pub({ id: "b" })],
+      lensPrices,
+      lensStatus: "partial",
+    });
+    expect(model).toMatchObject({ status: "answer", answer: { venueId: "b", priceGbp: 9.5 } });
+  });
+
   it("names the cheapest listed pub and its figure", () => {
     const model = buildMapPeek({
       ready: true,
@@ -264,6 +296,10 @@ describe("mapPeekSummary", () => {
   it("says one honest line per state", () => {
     expect(mapPeekSummary({ status: "loading" })).toBe("Looking for the cheapest price in view");
     expect(mapPeekSummary({ status: "none" })).toBe("No listed price in this view");
+    expect(mapPeekSummary({ status: "unread" })).toBe("Could not read the prices in this view just now");
+    expect(mapPeekSummary({ status: "partial" })).toBe(
+      "No listed price in this view yet, some prices are still missing",
+    );
     expect(
       mapPeekSummary({
         status: "answer",

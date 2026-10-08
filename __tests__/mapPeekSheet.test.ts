@@ -35,7 +35,7 @@ const ANSWER: MapPeekModel = {
   },
 };
 
-describe("the bottom card's three honest states", () => {
+describe("the bottom card's honest states", () => {
   it("names the cheapest pub with its price and a walk when the reader has a fix", () => {
     const html = render(ANSWER);
     expect(html).toContain("Cheapest in this view");
@@ -64,6 +64,15 @@ describe("the bottom card's three honest states", () => {
     const html = render({ status: "loading" });
     expect(html).toContain("Counting them up…");
     expect(html).not.toContain("£");
+  });
+
+  it("says a failed or incomplete lens read for what it is, never as none listed", () => {
+    const unread = render({ status: "unread" });
+    expect(unread).toContain("Could not read prices just now");
+    expect(unread).not.toContain("No listed price");
+    const partial = render({ status: "partial" });
+    expect(partial).toContain("Some prices still missing");
+    expect(partial).not.toContain("No listed price");
   });
 
   it("keeps the plan door inside the card as its own button", () => {
