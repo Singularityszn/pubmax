@@ -1,10 +1,7 @@
 // Reading a venue's OWN what's-on page into What's-On rows. PURE: markdown in,
 // rows and drop reasons out.
 //
-// events_london.json has been empty since it shipped, because every discovery
-// API that covers pub-scale London is partner-gated or non-commercial (see
-// docs/EVENT_SOURCES_RESEARCH_2026-07-18.md). The one source that is neither is
-// the venue itself, so this reads operators' own listings.
+// Source permissions and restrictions live in docs/data/SOURCE_LEDGER.md.
 //
 // THREE THINGS AN EVENT MUST STATE, or it is not a row:
 //
