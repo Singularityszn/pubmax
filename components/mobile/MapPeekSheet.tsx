@@ -117,7 +117,8 @@ export default function MapPeekSheet({
     (event: React.PointerEvent<HTMLElement>) => {
       if (!event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
       const originOffset = peekDragOrigin(stop().value);
-      const captureTarget = event.target as Element;
+      const target = event.target as Element;
+      const captureTarget = target.closest("button") ?? target;
       try {
         captureTarget.setPointerCapture(event.pointerId);
       } catch {}
@@ -167,6 +168,10 @@ export default function MapPeekSheet({
       const drag = dragRef.current;
       if (!drag || event.pointerId !== drag.pointerId) return;
       dragRef.current = null;
+      const button = drag.captureTarget.closest("button");
+      draggedRef.current = drag.active || cancelled || (
+        button !== null && !button.contains(document.elementFromPoint(event.clientX, event.clientY))
+      );
       try {
         if (drag.captureTarget.hasPointerCapture(event.pointerId)) {
           drag.captureTarget.releasePointerCapture(event.pointerId);
@@ -178,11 +183,6 @@ export default function MapPeekSheet({
         animateTo(0);
         return;
       }
-      // The click that follows a drag's pointerup is the drag's, and is
-      // swallowed; the flag clears after it so a later keyboard click is not.
-      window.setTimeout(() => {
-        draggedRef.current = false;
-      }, 100);
       const upward = drag.startY - event.clientY - drag.originOffset;
       const paused = performance.now() - drag.lastTime > RELEASE_PAUSE_MS;
       const velocity = paused ? 0 : drag.velocity;
@@ -201,7 +201,7 @@ export default function MapPeekSheet({
 
   // A drag that began on a button must not end as that button's click.
   const swallowClickAfterDrag = useCallback((event: React.MouseEvent<HTMLElement>) => {
-    if (!draggedRef.current) return;
+    if (event.detail === 0 || !draggedRef.current) return;
     draggedRef.current = false;
     event.preventDefault();
     event.stopPropagation();
