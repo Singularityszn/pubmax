@@ -43,6 +43,7 @@ function fixtureRows(count: number) {
 }
 
 const READY_WHATS_ON = () => ({
+  servedAt: new Date().toISOString(),
   rows: fixtureRows(3),
   asOf: new Date(Date.now() - 60 * 60_000).toISOString(),
   sourceObservedAt: new Date(Date.now() - 60 * 60_000).toISOString(),

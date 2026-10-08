@@ -47,7 +47,7 @@ async function mockWhatsOn(page: Page, body: WhatsOnBody = {}) {
       contentType: "application/json",
       body: JSON.stringify({
         rows: ROWS,
-        servedAt: "2026-07-24T22:00:00.000Z",
+        servedAt: new Date().toISOString(),
         sourceObservedAt: body.sourceObservedAt ?? "2026-07-20T12:00:00.000Z",
         sourceFreshnessKind: body.sourceFreshnessKind ?? "provider-observed",
         localityBasis: "london-default",
