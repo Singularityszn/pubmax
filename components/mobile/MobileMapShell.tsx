@@ -183,9 +183,9 @@ function MapChipRow({
 }
 
 /**
- * The foot of the map: the bottom card with the plan door inside it when the
- * map has an answer for the view, the door alone when it has none. The card
- * stays mounted while something else covers the foot (the door child leaves,
+ * The bottom card keeps its footprint through loading, empty and failed reads.
+ * Without a peek model, the plan door stands alone. The card stays mounted
+ * while something else covers the foot (the door child leaves,
  * the card is not painted), because the map-edge column is derived from it.
  */
 function MapFoot({
@@ -221,7 +221,6 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
   cityLabel: string;
   /** Base-pub-only arrival: omit city-guide controls that cannot answer here. */
   limitedCoverage: boolean;
-  /** First-visit choice owns focus and taps until it is dismissed or answered. */
   overlay: MapOverlay;
   onOverlayChange: (overlay: MapOverlay) => void;
   /**
@@ -412,11 +411,9 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
             chrome stacked three containers: this bar, a Near me / Tonight /
             Filters rail, and a full-width category row. The category toggles
             now live in the Filters sheet beside "Show me", Near me is a round
-            map-edge FAB, and Tonight does not reclaim a sixth bar slot. When
-            What's On has listings, a cold-start chip docks under the bar and
-            opens overlay "tonight" in one tap; More → Events and the tab bar
-            stay as homes. Six slots is what 320px holds at the 44px tap floor,
-            so the bar cannot grow again in silence. */}
+            map-edge FAB. Tonight's placement follows buildTonightChip in
+            lib/mapChromeTiers.ts. Six slots is what 320px holds at the 44px tap
+            floor, so the bar cannot grow again in silence. */}
         <header className="mobileMapTopbar">
           <Link href="/" className="mobileMapBrand" aria-label="Open PUBMAXX landing page"><PubmaxxWordmark /></Link>
           <CitySwitcher

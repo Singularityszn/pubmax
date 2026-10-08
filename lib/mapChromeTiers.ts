@@ -13,12 +13,7 @@
 //   TIER 3  TfL               — compact corner icon-button with badges, out of
 //                                the answer's way. List lives in Layers.
 //
-// Design judgement 2026-08-01, finding 2.3 collapsed the phone chrome to ONE
-// bar. A permanent Tonight slot in that bar still fails the 320px arithmetic,
-// so Tonight does not reclaim a sixth control. When What's On has listings,
-// a measured cold-start chip docks under the bar (same pattern as the active
-// search chip) and opens overlay "tonight" in one tap. More → Events and the
-// tab bar stay as homes; they are no longer the only phone path.
+// Tonight's placement and empty-state policy belong to buildTonightChip below.
 //
 // Pure and render-free so the hierarchy is unit-testable; the shell just maps
 // descriptors to components. Adoption notes for the in-flight chip PRs live in

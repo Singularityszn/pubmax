@@ -1093,7 +1093,7 @@ function useRememberedAreaInView(
 }
 
 /**
- * The phone map's resting answer: the cheapest listed price among the pubs in
+ * The phone map's resting answer: the cheapest listed price among the venues in
  * the settled view, ranked by the same stack as List view's cheapest sort.
  * `ready` follows the projection landing for THIS city, so a map that has not
  * said what it is showing claims nothing. The first-visit arrival card holds

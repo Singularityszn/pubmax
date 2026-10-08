@@ -53,8 +53,8 @@
   /* Member: the phone map's planning pill. */
   --plan-activation-h: 48px;
   --plan-activation-bottom: calc(var(--float-stack-base) + 10px);
-  /* The bottom card the pill rides inside when the map has an answer for the
-     view (components/mobile/MapPeekSheet.tsx): an 8px frame, the answer row, a
+  /* The bottom card keeps the pill's berth through every read state
+     (components/mobile/MapPeekSheet.tsx): an 8px frame, the answer row, a
      4px gap, the pill, an 8px frame. The pill keeps its berth; the card only
      adds what is above it. The answer row is in rem, 44px at the 16px root, so
      a text size that grows the root grows the row once, and every berth that
