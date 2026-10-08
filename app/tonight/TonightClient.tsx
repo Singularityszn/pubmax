@@ -568,11 +568,9 @@ export default function TonightClient({
         actionsAfterContent
       >
       <div className="tonightPrimary" data-status={listingsStatus}>
-      {/* THE LEDE REGION. What a reader meets first is the pubs people are
-          talking about, then the independent listings, then the honest quiet
-          sentence, and nothing else may stand inside it. The chain blocks and
-          the cheap pints follow it in the DOM, so the reading order, the tab
-          order and the paint order stay one order (#1575). */}
+      {/* The lede membership follows the Tonight rule in
+          docs/rules/app-proxy-csp-caching-and-file-tracing.md. Chain blocks
+          and cheap pints stay outside it so they cannot lead the answer. */}
       <div className="tonightLedeRegion" data-testid="tonight-lede">
       <TonightHypedPubs rows={hypedPubs} selectableVenueIds={selectableVenueIds} />
       {listingLede ? <p className="screenLede">{listingLede}</p> : null}
