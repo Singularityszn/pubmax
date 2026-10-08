@@ -97,7 +97,8 @@ private final class ShellNavigationDelegate: NSObject, WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                  decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-        if navigationAction.targetFrame?.isMainFrame == true,
+        if navigationAction.navigationType != .backForward,
+           navigationAction.targetFrame?.isMainFrame == true,
            let url = navigationAction.request.url,
            let target = retry.retryTarget(currentURL: webView.url, requestedURL: url) {
             decisionHandler(.cancel)

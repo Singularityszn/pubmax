@@ -39,6 +39,32 @@ struct OfflineNavigationTests {
         shipped.recordFailure(URL(string: "https://pubmaxxing.com/plan/test?view=route")!)
         precondition(shipped.retryTarget(currentURL: offline, requestedURL: production) == plan)
 
+        for root in ["https://pubmaxxing.com/", "https://pubmaxxing.com",
+                     "https://PUBMAXXING.com/", "https://pubmaxxing.com:443/"] {
+            for request in ["https://pubmaxxing.com/", "https://pubmaxxing.com",
+                            "https://PUBMAXXING.com/", "https://pubmaxxing.com:443/"] {
+                var homepage = OfflineRetryDestination(serverURL: production, launchURL: production.appendingPathComponent("app-entry"), errorURL: offline)
+                homepage.pageStarted(URL(string: root)!)
+                homepage.recordFailure(URL(string: root)!)
+                precondition(homepage.retryTarget(currentURL: offline, requestedURL: URL(string: request)!) == nil)
+                precondition(homepage.retryTarget(currentURL: offline, requestedURL: URL(string: request)!) == nil)
+            }
+        }
+        for page in ["https://pubmaxxing.com/?view=home#pubs", "https://pubmaxxing.com/#pubs",
+                     "https://pubmaxxing.com/?", "https://pubmaxxing.com/#"] {
+            let target = URL(string: page)!
+            shipped.pageStarted(target)
+            shipped.recordFailure(target)
+            precondition(shipped.retryTarget(currentURL: offline, requestedURL: production) == target)
+            precondition(shipped.retryTarget(currentURL: offline, requestedURL: target) == nil)
+        }
+        retry.pageStarted(local)
+        retry.recordFailure(local)
+        precondition(retry.retryTarget(currentURL: offline, requestedURL: production) == local)
+        precondition(retry.retryTarget(currentURL: offline, requestedURL: local) == nil)
+        var coldRoot = OfflineRetryDestination(serverURL: production, launchURL: production, errorURL: offline)
+        precondition(coldRoot.retryTarget(currentURL: offline, requestedURL: production) == nil)
+
         precondition(OfflineNavigation.isCancellation(NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled)))
         precondition(!OfflineNavigation.isConnectivityFailure(NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled)))
         for code in [NSURLErrorTimedOut, NSURLErrorCannotFindHost, NSURLErrorCannotConnectToHost,

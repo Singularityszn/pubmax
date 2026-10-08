@@ -1,5 +1,8 @@
 # iOS shell lane A
 
+The earlier product matrices below predate the production-root retry repair. They do not establish current-head Test GO.
+The current review evidence and its limits appear in the final section.
+
 The final simulator build fixes cancelled navigation, native edge Back and safe failed-page retry. It keeps the existing bundled outage page.
 The service-worker opt-in is withheld. The final iOS runtime reports `typeof navigator.serviceWorker === "undefined"`.
 
@@ -147,3 +150,32 @@ That existing ignored build path keeps generated output out of the source diff. 
 Production configuration was regenerated after the local fixture test. The repaired runtime binary used the local fixture origin.
 This review did not repeat the full product, healthy, cold or warm simulator matrices above.
 Those matrices and the complete repository gates remain the outer executor's responsibility.
+
+## Review repair for production-root retry
+
+The native delegate now excludes Back and Forward actions from retry matching.
+The shared homepage predicate also leaves an already selected production homepage request to the original navigation policy.
+It covers empty paths, `/`, host case and default ports. Local roots, queries and fragments retain their safe retry destinations.
+
+The [test-only interception fixture](review-root-retry-fixture.m) used WebKit's public simulated HTTP response API at `https://pubmaxxing.com/`.
+A refused localhost CONNECT proxy produced actual main-frame `NSURLErrorDomain -1004` failures when the homepage reloaded.
+Recovery responses were supplied locally after the app's original navigation policy. No request reached production.
+The [native tests](review-root-retry-ui.swift) used the owned simulator and the established 0.1-second edge gesture.
+Direct HTML-loading experiments changed history and support no root Back claim. Their raw output remains preserved.
+
+The [baseline](review-root-retry-baseline.txt) passed Back and failed Try again.
+Its [retry trace](review-root-retry-baseline-runtime.txt) shows two root interceptions followed by `/app-entry`.
+Back already worked on this iOS 27 fixture because WebKit updated its visible URL before policy evaluation.
+The [repaired native tests](review-root-retry-repaired.txt) passed both journeys.
+Their [trace](review-root-retry-repaired-runtime.txt) shows one root retry request and the homepage destination.
+The retry screenshots show [the baseline app-entry destination](review-root-retry-baseline.png) and [the repaired fixture homepage](review-root-retry-repaired.png).
+
+[Focused checks](review-root-retry-focused-tests.txt) passed the extended Foundation policy tests and all 95 tests across six native suites.
+[The manifest](review-root-retry-manifest.json) pins the baseline commit, modified source, production configuration, fixture and compiled native bytes.
+The unsigned Debug simulator build and complete current root-test result bundles are preserved under `ios/build/root-retry-review/`.
+The earlier incomplete outage Back baseline bundle remains an explicit limitation. No archived proof was modified.
+The fixture app was stopped. Generated production web output was archived under that ignored build path.
+
+This proves the root matcher repair with fixture HTTP content. It does not repeat the full product matrix.
+The outer Test step must run fresh full current-head verification and the requested native product matrix before reporting Test GO.
+That matrix includes cold and warm local and production-origin recovery, cancellation, early live edge, panel-first history and external/callback handoff.

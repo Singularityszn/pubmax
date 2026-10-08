@@ -44,13 +44,17 @@ struct OfflineRetryDestination {
     }
 
     mutating func retryTarget(currentURL: URL?, requestedURL: URL) -> URL? {
-        guard currentURL == errorURL,
-              sameOrigin(requestedURL, URL(string: "https://pubmaxxing.com/")!),
-              requestedURL.path.isEmpty || requestedURL.path == "/",
-              requestedURL.query == nil, requestedURL.fragment == nil else { return nil }
+        guard currentURL == errorURL, isRetryRequest(requestedURL) else { return nil }
         let target = failedURL ?? launchURL
+        guard !isRetryRequest(target) else { return nil }
         failedURL = nil
         return target
+    }
+
+    private func isRetryRequest(_ url: URL) -> Bool {
+        sameOrigin(url, URL(string: "https://pubmaxxing.com/")!)
+            && (url.path.isEmpty || url.path == "/")
+            && url.query == nil && url.fragment == nil
     }
 
     private func isSafe(_ url: URL) -> Bool {
