@@ -43,6 +43,8 @@ import {
   timeVenueSheet,
 } from "./helpers/webVitals";
 
+test.describe.configure({ mode: "default" });
+
 /**
  * The product's Core Web Vitals sweep: the recorded baseline, and the fence.
  *
