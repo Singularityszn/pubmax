@@ -88,10 +88,28 @@ leak into the client.
   silently so the lane always renders when possible. `limit` is capped at
   20 (default 6). Upstream failures fail-soft to 200 with
   `{ opportunities: [], error }`.
-- **`components/map/CityStatusBanner.tsx`** — the London-only strip that
+- **`components/map/CityStatusBanner.tsx`** is the desktop London status strip. It
   reads `/api/citymcp/status` through `loadSurfaceJson` in read phase 1, shortly
-  after mount (`lib/useStaggeredRead.ts`), and shows one compact headline
-  (top signal → tube summary → weather). Only renders when `cityId === "london"`.
+  after mount (`lib/useStaggeredRead.ts`). The `PubMap` caller waits for the
+  arrival card to close and suppresses the strip when the map canvas is unavailable.
+
+  - Local signals must match the normalised settled map area or a named part
+    of a combined area label. Existing borough aliases match in either direction.
+    For **Near me**, the caller uses `claimedArea.name` while the toolbar keeps
+    its **Near me** label. Bounds must belong to the current city.
+  - Signals without areas are omitted. A London tag on a locally named signal
+    does not make that signal city-wide. Signals naming only London or Greater
+    London require `allowCitywideStatus`.
+  - Filtering precedes both headline ranking and expanded-feed grouping. Changing
+    the viewed area closes the expanded feed. Relevant local news remains eligible
+    after camera movement, while city-wide signals, TfL, and weather fallback yield.
+  - The headline order is signal, TfL summary, then weather. The severity gate
+    requires a major/notable signal or a disrupted TfL line, so weather alone stays hidden.
+  - The existing banner cascade still applies. Route stop panels and modal scrims
+    stack above the strip, which uses `--z-map-hover`.
+
+  Area matching has rendered coverage in `__tests__/cityStatusViewedArea.test.tsx`.
+  `e2e/area-news-toast.spec.ts` covers the area picker, Near me, route stops, and modal controls.
 - **`useMobileTflStatus(cityId)`** in `components/mobile/MobileTflPanel.tsx`
   reads `/api/citymcp/status` through `loadSurfaceJson` only for London. A failed
   London read retries on reconnect. Other cities make no request from this hook,
@@ -157,9 +175,11 @@ curl -s "http://localhost:3000/api/citymcp/things-to-do?window=tonight&limit=6" 
 curl -s "http://localhost:3000/api/citymcp/things-to-do?window=this_weekend&area=Shoreditch&kinds=gig,comedy&price=cheap" | jq .
 ```
 
-Then open the London map (`/map` with London selected) and confirm the status
-strip renders below the toolbar. On upstream failure the strip should stay
-hidden — never a red error state.
+On the desktop London map, choose an area named by a current major/notable signal.
+Close any higher-priority banner or toolbar panel to check the strip below the toolbar.
+An unrelated local signal must not appear. The display rules are in
+[Runtime API surfaces](#runtime-api-surfaces-app-facing).
+On upstream failure the strip stays hidden without a red error state.
 
 ## Related tests
 

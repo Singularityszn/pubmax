@@ -11,8 +11,7 @@
     12px
   );
   left: 50%;
-  /* Below map toolbar / CitySwitcher dropdown (560) so city picks stay tappable,
-     and below cityStatusBanner (--z-map-banner) so outage state wins the nudge. */
+  /* Yield to the toolbar and CitySwitcher dropdown so city picks stay tappable. */
   z-index: var(--z-map-suggest);
   display: flex;
   align-items: center;
