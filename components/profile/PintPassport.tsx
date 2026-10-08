@@ -63,11 +63,14 @@ export default function PintPassport({
   } = data;
 
   const shareUrl = `/u/${encodeURIComponent(handle)}`;
+  const cityVisited = boroughs.includes("City of London");
+  const areaLabel = cityVisited ? "Boroughs + City" : "Boroughs";
   const shareTitle = `${displayName}'s Pint Passport. PUBMAXXING`;
   const shareText = buildPassportShareText({
     displayName,
     pubs,
     boroughs: boroughs.length,
+    cityVisited,
     pints,
     isEmpty,
   });
@@ -123,7 +126,7 @@ export default function PintPassport({
           passport read as a real (empty) page to fill, not a broken one. */}
       <div className="passportGrid" role="group" aria-label="Passport statistics">
         <Stat label="Pubs" value={pubs} />
-        <Stat label="Boroughs" value={boroughs.length} />
+        <Stat label={areaLabel} value={boroughs.length} />
         <Stat label="Beers" value={beers} />
         <Stat label="Crawls" value={formatStatCount(crawls)} />
         <Stat label="Pints" value={pints} />
@@ -134,7 +137,7 @@ export default function PintPassport({
 
       {boroughs.length ? (
         <p className="passportBoroughs">
-          <span className="passportBoroughsLabel">Boroughs crossed:</span>{" "}
+          <span className="passportBoroughsLabel">{areaLabel} crossed:</span>{" "}
           {boroughs.join(" · ")}
         </p>
       ) : null}

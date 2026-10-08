@@ -176,6 +176,32 @@ describe("canonicalizeDataset — Rochester Castle merge", () => {
 });
 
 describe("canonicalizeDataset — safety guards", () => {
+  it("keeps the priced Blackfriar identity and aliases its unpriced Wikipedia spelling", () => {
+    const canonical = makeRow({
+      pub_name: "The Blackfriar",
+      address: "174 Queen Victoria St, Greater, London EC4V 4EG, UK",
+      latitude: 51.5121, longitude: -0.103677, price_gbp: 6.5,
+      source_datasets: "canonical_borough_leaderboard_enriched|borough_embedded_map_data_raw|individual_pub_page",
+    });
+    const duplicate = makeRow({
+      pub_name: "The Black Friar, Blackfriars",
+      address: "City of London, Greater London",
+      latitude: 51.5121, longitude: -0.103751, price_gbp: null,
+      source_datasets: "wikipedia_london_list",
+    });
+    expect(stableVenueIdFromKey(venueGroupingKey(canonical))).toBe("venue-eltcmh");
+    expect(stableVenueIdFromKey(venueGroupingKey(duplicate))).toBe("venue-1sw9ofl");
+    const result = canonicalizeDataset([canonical, duplicate]);
+    expect(result.aliases).toEqual({ "venue-1sw9ofl": "venue-eltcmh" });
+    expect(result.stats.venueIdentitiesAfter).toBe(1);
+    expect(result.rows[0]).toEqual(canonical);
+    expect(result.rows[1]).toEqual({
+      ...duplicate,
+      pub_name: canonical.pub_name, address: canonical.address,
+      latitude: canonical.latitude, longitude: canonical.longitude,
+    });
+    expect(canonicalizeDataset(result.rows).aliases).toEqual({});
+  });
   it("does NOT merge same-named pubs with conflicting postcodes (bad coords)", () => {
     // Two "Coach & Horses" mis-geocoded within 100 m but in different postcode
     // areas (Soho W1D vs Rickmansworth WD3) — genuinely distinct pubs.

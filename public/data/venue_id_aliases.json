@@ -2,8 +2,9 @@
   "version": 1,
   "generatedBy": "scripts/canonicalize_venue_dataset.mjs",
   "note": "duplicateVenueId -> canonicalVenueId. The same physical pub appeared twice across dataset lineages (e.g. Wetherspoons directory vs seed); those identities were collapsed into one venue. A stored reference to a merged id resolves to its canonical id via lib/venueAliases.ts — no id is ever deleted silently.",
-  "aliasCount": 91,
+  "aliasCount": 92,
   "aliases": {
+    "venue-1sw9ofl": "venue-eltcmh",
     "venue-11h1ycl": "venue-1g0tt6c",
     "venue-130gm9m": "venue-13nqwf3",
     "venue-ob350x": "venue-d7vcn6",
@@ -98,23 +99,12 @@
   },
   "clusters": [
     {
-      "canonicalId": "venue-1g0tt6c",
-      "canonicalName": "The Red Lion",
+      "canonicalId": "venue-eltcmh",
+      "canonicalName": "The Blackfriar",
       "mergedFrom": [
         {
-          "id": "venue-11h1ycl",
-          "name": "Red Lion",
-          "rows": 1
-        }
-      ]
-    },
-    {
-      "canonicalId": "venue-13nqwf3",
-      "canonicalName": "The Overdraft Tavern",
-      "mergedFrom": [
-        {
-          "id": "venue-130gm9m",
-          "name": "The Overdraft Tavern",
+          "id": "venue-1sw9ofl",
+          "name": "The Black Friar, Blackfriars",
           "rows": 1
         }
       ]

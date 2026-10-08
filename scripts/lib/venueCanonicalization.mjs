@@ -199,12 +199,17 @@ export function cheapSamePubNameCandidate(aNorm, bNorm) {
 
 // Do a record pair look like the same pub under the FUZZY predicate: very close,
 // non-conflicting postcodes, and a matching-ish name.
+// Verified at 174 Queen Victoria Street. The Wikipedia spelling has no price.
+// Keep its old id resolvable without loosening name matching for other pubs.
+const VERIFIED_VENUE_ALIASES = { "venue-1sw9ofl": "venue-eltcmh" };
+
 function looksSameFuzzy(a, b, fuzzyMergeMeters, samePubMatch) {
   if (![a.lat, a.lng, b.lat, b.lng].every(Number.isFinite)) return false;
   if (haversineMeters(a.lat, a.lng, b.lat, b.lng) > fuzzyMergeMeters) return false;
   const pa = postcodeOutward(a.address);
   const pb = postcodeOutward(b.address);
   if (pa && pb && pa !== pb) return false;
+  if (VERIFIED_VENUE_ALIASES[a.id] === b.id || VERIFIED_VENUE_ALIASES[b.id] === a.id) return true;
   if (samePubMatch) return samePubMatch(a, b);
   return namesLikelySamePub(a.normName, b.normName);
 }
@@ -219,6 +224,8 @@ function looksSameFuzzy(a, b, fuzzyMergeMeters, samePubMatch) {
 //      more useful address as canonical)
 //   6. lexicographically smallest id (stable, deterministic tiebreak)
 function compareCanonical(a, b) {
+  if (VERIFIED_VENUE_ALIASES[a.id] === b.id) return 1;
+  if (VERIFIED_VENUE_ALIASES[b.id] === a.id) return -1;
   if (a.hasSuffix !== b.hasSuffix) return a.hasSuffix ? 1 : -1;
   if (a.rowCount !== b.rowCount) return b.rowCount - a.rowCount;
   if (a.sourceCount !== b.sourceCount) return b.sourceCount - a.sourceCount;
