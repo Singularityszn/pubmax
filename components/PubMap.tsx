@@ -6824,32 +6824,7 @@ export default function PubMap({
           the bottom map-home lane. Rendered before the Tonight lane so its
           sibling CSS lifts the lane above the collapsed pill (no collision). */}
       {!mobileViewport && !ukPlaceArrival && !showMapArrivalCard ? <MapConciergeAsk cityId={cityId} onSelectVenue={(id) => selectVenue(id)} /> : null}
-      {!mobileViewport && isLondon ? (
-        <TonightLane
-          rows={whatsOnTonight.rows}
-          asOf={whatsOnTonight.asOf}
-          status={whatsOnTonight.status}
-          open={tonightLaneOpen || tonightLaneForcedOpen}
-          onOpenChange={(next) => {
-            setTonightLaneOpen(next);
-            if (!next && tonightDeepLinkKind) setDismissedTonightSrc(srcParam);
-          }}
-          near={userLocation}
-          gardenCue={tonightLaneCue.gardenCue}
-          initialKind={tonightLaneKind}
-          onSelectVenue={(id) => selectVenue(id)}
-          overlayCount={
-            tonightStatus === "ready" && !tonightDismissed
-              ? tonightOpportunities.length
-              : 0
-          }
-          overlayActive={tonightOverlayVisible}
-          onToggleOverlay={() =>
-            setTonightOverlayVisible((visible) => !visible)
-          }
-          onDismissOverlay={dismissTonightOverlay}
-        />
-      ) : null}
+      {renderDesktopTonightLane()}
       {!mobileViewport && logIntentFallbackVisible ? (
         <LogIntentFallback
           candidates={logNearbyCandidates}
@@ -6898,6 +6873,37 @@ export default function PubMap({
         />
       ) : null}
       </>
+    );
+  }
+
+  function renderDesktopTonightLane() {
+    return (
+      !mobileViewport && isLondon ? (
+        <TonightLane
+          rows={whatsOnTonight.rows}
+          asOf={whatsOnTonight.asOf}
+          status={whatsOnTonight.status}
+          open={tonightLaneOpen || tonightLaneForcedOpen}
+          onOpenChange={(next) => {
+            setTonightLaneOpen(next);
+            if (!next && tonightDeepLinkKind) setDismissedTonightSrc(srcParam);
+          }}
+          near={userLocation}
+          gardenCue={tonightLaneCue.gardenCue}
+          initialKind={tonightLaneKind}
+          onSelectVenue={(id) => selectVenue(id)}
+          overlayCount={
+            tonightStatus === "ready" && !tonightDismissed
+              ? tonightOpportunities.length
+              : 0
+          }
+          overlayActive={tonightOverlayVisible}
+          onToggleOverlay={() =>
+            setTonightOverlayVisible((visible) => !visible)
+          }
+          onDismissOverlay={dismissTonightOverlay}
+        />
+      ) : null
     );
   }
 
