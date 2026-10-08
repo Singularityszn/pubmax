@@ -384,7 +384,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await expect.poll(() => baseRows.count(), { timeout: 5_000 }).toBe(0);
   });
 
-  test("keeps desktop drawer focus inside and restores chosen venue on Escape", async ({
+  test("keeps the desktop toolbar reachable and restores chosen venue on Escape", async ({
     page,
   }) => {
     test.setTimeout(180_000);
@@ -394,7 +394,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
 
     // List view opens from Layers; keyboard Tab into the list is covered by the
     // sibling spec. This case pins Escape on the venue drawer with the list
-    // still open underneath — the regression path from List view.
+    // still open underneath. The non-modal drawer also keeps the toolbar live.
     await openVenueListFromLayers(page);
     const chosenVenueId = await page.locator(".mapVenueListItem").first().getAttribute("data-venue-id");
     expect(chosenVenueId).toBeTruthy();
@@ -409,7 +409,8 @@ test.describe("map keyboard and screen-reader venue path", () => {
     const closeButton = drawer.getByRole("button", { name: /Close/ });
     await expect(drawer).toBeVisible();
     await expect(drawer).toHaveAttribute("role", "dialog");
-    await expect(drawer).toHaveAttribute("aria-modal", "true");
+    await expect(drawer).toHaveAccessibleName("Pub detail");
+    await expect(drawer).not.toHaveAttribute("aria-modal");
     await expect
       .poll(
         async () => closeButton.evaluate((node) => node === document.activeElement),
@@ -417,16 +418,40 @@ test.describe("map keyboard and screen-reader venue path", () => {
       )
       .toBe(true);
 
-    const focusables = drawer.locator(
-      'a[href]:visible, button:not([disabled]):visible, input:not([disabled]):visible, select:not([disabled]):visible, textarea:not([disabled]):visible, [tabindex]:not([tabindex="-1"]):visible',
-    );
+    const focusableSelector =
+      'a[href]:visible, button:not([disabled]):visible, input:not([disabled]):visible, select:not([disabled]):visible, textarea:not([disabled]):visible, [tabindex]:not([tabindex="-1"]):visible';
+    const focusables = drawer.locator(focusableSelector);
     const firstFocusable = focusables.first();
     const lastFocusable = focusables.last();
+    const toolbar = page.locator(".mapToolbar");
+    const toolbarFocusables = toolbar.locator(focusableSelector);
+    const firstToolbarFocusable = toolbarFocusables.first();
+    const lastToolbarFocusable = toolbarFocusables.last();
+    await expect(toolbar).toBeVisible();
+
     await lastFocusable.focus();
     await page.keyboard.press("Tab");
-    await expect(firstFocusable).toBeFocused();
+    await expect(firstToolbarFocusable).toBeFocused();
     await page.keyboard.press("Shift+Tab");
     await expect(lastFocusable).toBeFocused();
+
+    await firstFocusable.focus();
+    await page.keyboard.press("Shift+Tab");
+    await expect(lastToolbarFocusable).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(firstFocusable).toBeFocused();
+
+    // Enter through the exempt toolbar and use its Filters control with keys.
+    await lastFocusable.focus();
+    await page.keyboard.press("Tab");
+    await expect(firstToolbarFocusable).toBeFocused();
+    const filters = toolbar.locator(".mapVenueKindFilterBtn");
+    await tabTo(page, filters);
+    await page.keyboard.press("Enter");
+    await expect(filters).toHaveAttribute("aria-expanded", "true");
+    await expect(drawer).toBeVisible();
+    await page.keyboard.press("Enter");
+    await expect(filters).toHaveAttribute("aria-expanded", "false");
 
     await page.keyboard.press("Escape");
     await expect(drawer).toBeHidden();
