@@ -1199,11 +1199,9 @@ export default function PubMap({
   /**
    * Has the reader moved the camera themselves yet?
    *
-   * The ambient banners (city suggest, city status) are an opening offer. Once
-   * the reader drives the map, the map is the answer and the banners step off
-   * it (design judgement 2026-08-01, finding 2.15). This is session state, not
-   * a dismissal: it never writes to the per-banner "do not show me this again"
-   * stores, because ignoring an offer is not rejecting it.
+   * Display rules: docs/CITYMCP_LONDON.md, Runtime API surfaces.
+   * This is session state, not a dismissal. It never writes to per-banner
+   * dismissal stores, because moving the camera does not dismiss an offer.
    */
   const [mapCameraTouched, setMapCameraTouched] = useState(false);
   const mapCameraTouchedRef = useRef(false);

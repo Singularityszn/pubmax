@@ -92,11 +92,14 @@ leak into the client.
   reads `/api/citymcp/status` through `loadSurfaceJson` in read phase 1, shortly
   after mount (`lib/useStaggeredRead.ts`). The `PubMap` caller waits for the
   arrival card to close and suppresses the strip when the map canvas is unavailable.
+  UK place arrivals and national browsing do not mount it, as defined by
+  `mapArrivalFrame` in `lib/pubMap.ts`.
 
   - Local signals must match the normalised settled map area or a named part
     of a combined area label. Existing borough aliases match in either direction.
     For **Near me**, the caller uses `claimedArea.name` while the toolbar keeps
-    its **Near me** label. Bounds must belong to the current city.
+    its **Near me** label. Local context requires settled bounds reported by the
+    current city map.
   - Signals without areas are omitted. A London tag on a locally named signal
     does not make that signal city-wide. Signals naming only London or Greater
     London require `allowCitywideStatus`.
@@ -105,8 +108,8 @@ leak into the client.
     after camera movement, while city-wide signals, TfL, and weather fallback yield.
   - The headline order is signal, TfL summary, then weather. The severity gate
     requires a major/notable signal or a disrupted TfL line, so weather alone stays hidden.
-  - The existing banner cascade still applies. Route stop panels and modal scrims
-    stack above the strip, which uses `--z-map-hover`.
+  - The existing banner cascade still applies. The
+    [design system](DESIGN_SYSTEM.md#stacking-z-index) owns the stacking rules.
 
   Area matching has rendered coverage in `__tests__/cityStatusViewedArea.test.tsx`.
   `e2e/area-news-toast.spec.ts` covers the area picker, Near me, route stops, and modal controls.
