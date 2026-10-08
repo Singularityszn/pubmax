@@ -309,8 +309,7 @@ body:has(.mobileMapUtilityCorner) {
      viewport too, so a fixed bar otherwise floats on top of
      the field being typed into - the captain's screenshot was the six tabs
      sitting over the password form. MobileTabBar writes this class from
-     lib/softKeyboard.ts, which needs a focused text field AND a shrunken visual
-     viewport before it says yes.
+     lib/softKeyboard.ts, which owns the browser and native viewport evidence.
      Deliberately the same three declarations as the night-mode rule above:
      transform only, so the body's reserved bottom clearance never moves and the
      page cannot reflow under the caret while somebody is typing. */

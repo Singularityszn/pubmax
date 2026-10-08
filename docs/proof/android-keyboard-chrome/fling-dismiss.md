@@ -4,7 +4,7 @@ Source fix: `a2033c35f5c9d86c94f4e192c15f4459fdafb2d7`. The unchanged `e2e/map-s
 
 The branch had replaced the viewport-relative peek with the measured header and command bar. At 390×844, a 135px peek moved the physical dismissal line from 92.84px to 67.5px. The established gesture releases at about 68.84px, so the old build snapped back to peek.
 
-The hook now captures the viewport height at grab. The resolver uses half of the viewport-relative peek for physical dismissal. Measured chrome still controls the presented snap heights. The body remains hidden at resting venue peek, and smaller half-to-peek flicks keep their recovery point.
+The hook now captures the viewport height at grab. The resolver uses half of the viewport-relative peek for physical dismissal. Measured chrome still controls the presented snap heights. The captured venue has a command-bar footer, so its body remains hidden at resting peek. Smaller half-to-peek flicks keep their recovery point.
 
 ## Browser proof
 
@@ -33,4 +33,4 @@ These are browser results at a phone viewport. They do not prove a native Androi
 
 ## Validation ownership
 
-This replacement branch excludes the test-only CI edits from the superseded branches. The fling spec is unchanged from main. `auto_fix.ci: 0` requires a gate before CI repairs, so a CI failure receives an explicit source-fix instruction. No assertion or review-scope policy was weakened.
+The fling spec is unchanged from main. The accepted review decisions permit the accessibility assertions to follow non-modal navigation and dock-aware sizing. These deliberate contract updates are exceptions to the original spec-edit restriction. `auto_fix.ci: 0` still requires an explicit decision before CI repairs.

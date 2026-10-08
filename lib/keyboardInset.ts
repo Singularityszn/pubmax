@@ -3,8 +3,8 @@
 /**
  * How far the on-screen keyboard reaches up the LAYOUT viewport.
  *
- * A phone browser does not shrink the layout viewport for the keyboard, so a
- * composer pinned to `bottom: 0` is pinned behind the keys. The visual
+ * When the keyboard leaves the layout viewport unchanged, a composer pinned
+ * to `bottom: 0` sits behind the keys. The visual
  * viewport is the part a person can still see, and its height plus its offset
  * from the top of the layout viewport say exactly how much of the bottom is
  * covered. That number is the inset a pinned composer rides up by.
@@ -14,9 +14,9 @@
  * deliberately a separate leaf so a page that never pins a composer pays for
  * neither.
  *
- * A browser that shrinks the layout viewport itself (a desktop, Chrome's own
- * device emulation) answers zero here, which is the right answer: nothing is
- * covered.
+ * When both viewports shrink together, including in the Android native shell,
+ * this inset is zero. The resized layout already places the composer above
+ * the keyboard.
  */
 
 import { useSyncExternalStore } from "react";
