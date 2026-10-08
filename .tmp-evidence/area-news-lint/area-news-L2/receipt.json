@@ -1,0 +1,23 @@
+{
+  "beforeHead": "e6534837335b27fdcaffa4384a0f107dfac7b7f7",
+  "sourceFiles": {
+    "components/PubMap.tsx": "ca4f1445d9ac706f3a1084b57bfa75c8a7f87cddfa193533f70c9a59ddd7c59e",
+    "lib/pubMap.ts": "2a65a0de381e8027b3b3d0ca7de9f6d9f9eb8d9f6462b05ff5fa43bfddf4fbd7"
+  },
+  "complexity": {
+    "beforePubMap": 40,
+    "afterPubMap": 35,
+    "helper": 6,
+    "configuredLimit": 35
+  },
+  "checks": {
+    "changedFileEslint": "exit 0, zero warnings",
+    "typescriptNoEmit": "exit 0",
+    "knip": "exit 0",
+    "diffWhitespace": "exit 0"
+  },
+  "formatter": "none configured",
+  "scope": "Lint and static analysis only. No tests or production build executed.",
+  "handoff": "The source changed. The outer executor owns Review, Test, full configured gates and final-source production proof. Earlier 7b96 proof does not validate this refactor.",
+  "measurement": "complexity.txt uses a zero threshold solely to obtain measurements. Repository ESLint configuration remains unchanged."
+}

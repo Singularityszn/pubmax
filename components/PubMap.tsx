@@ -613,6 +613,7 @@ import {
   filtersForCuratedCrawl,
   generatedMapDrinkLane,
   buildMapSeed,
+  cityStatusAreaFor,
   builtStopsAskedAfter,
   builtStopsNeedingHydration,
   detailStatusFor,
@@ -5060,11 +5061,14 @@ export default function PubMap({
     claimedArea,
     mapContextName,
   });
-  const cityStatusArea = mapChipLabel === "Near me" || (mapChosenArea &&
-    !rememberedAreaNamesView(mapChosenArea, mapBounds, mapViewport.center, userLocation))
-    ? claimedArea?.name ?? null
-    : mapChipLabel;
-
+  const cityStatusArea = cityStatusAreaFor({
+    mapChipLabel,
+    mapChosenArea,
+    bounds: mapBounds,
+    viewCenter: mapViewport.center,
+    viewer: userLocation,
+    claimedArea,
+  });
 
   // ── Where the reader is, and how they get out ────────────────────────────
   // Every Map panel used to carry its own close and nothing else, so a reader
