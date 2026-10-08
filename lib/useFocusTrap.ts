@@ -296,7 +296,9 @@ export function nextTrapFocus(input: {
 
 function visibleFocusables(root: HTMLElement): HTMLElement[] {
   return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
-    (node) => node.offsetParent !== null,
+    // An exempt surface can become inert while staying mounted and laid out.
+    // Read its current state on each Tab, including inherited hidden state.
+    (node) => node.offsetParent !== null && !node.closest('[inert], [aria-hidden="true"]'),
   );
 }
 
