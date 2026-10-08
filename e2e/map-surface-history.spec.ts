@@ -310,7 +310,9 @@ test.describe("one Map surface history owner", () => {
     if (!headerBox || !sheetBox) throw new Error("phone sheet has no rendered box");
     const x = headerBox.x + 18;
     const y = headerBox.y + headerBox.height - 10;
-    const dismissDistance = sheetBox.height - PHONE.height * 0.11 + 24;
+    // Peek is measured from the sheet's own header and command bar, so release
+    // at 24px: below half of any peek, which always shows the whole header.
+    const dismissDistance = sheetBox.height - 24;
     await page.mouse.move(x, y);
     await page.mouse.down();
     await page.mouse.move(
