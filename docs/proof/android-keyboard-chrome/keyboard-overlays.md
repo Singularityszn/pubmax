@@ -9,7 +9,7 @@ The baseline was the production build of `origin/main` at `3bc62e232`. Native sc
 | [Filter controls lack clear edges and the dock exposes content](before/filters-webview133.png) | [412px browser: complete caption, bounded control, 24px checkbox, button fills and opaque dock](after/filters-browser412.png) |
 | [The FAB appears on the moment composer](before/moment-fab-webview133.png) | [The moment composer withdraws the FAB](after/moment-browser412.png). [The create menu has an outside-tap scrim and a close mark](after/create-menu-browser412.png). |
 
-On WebView 133, native typing entered `Quiet in Soho`. The layout and visual viewport both shrank from approximately 839px to 527px. The field kept focus, the sheet kept its full snap, and the tabs and FAB acquired `isKeyboardHidden`. A native Enter key sent one `POST /api/plans/generate` with that exact query. [The resulting planner state is captured here](after/planner-go-webview133.png).
+On WebView 133, native typing entered `Quiet in Soho`. The layout and visual viewport both shrank from approximately 839px to 527px. The field kept focus, the sheet kept its full snap, and the tabs and FAB acquired `isKeyboardHidden`. A native Enter key sent one `POST /api/plans/generate` with that exact query. No screenshot of the resulting planner state was captured.
 
 The new focus regression failed before the callback fix because a keyboard state change reran the sheet-opening effect. The stable callback now preserves the open sheet and input focus during viewport changes.
 
