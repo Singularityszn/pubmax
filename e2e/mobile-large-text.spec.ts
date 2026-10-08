@@ -109,6 +109,73 @@ for (const scale of [1.3, 1.5, 2]) {
 }
 
 for (const scale of [1.3, 1.5, 2]) {
+  test(`Android ${scale}x text grows the map's bottom card with its text, and the controls above it follow`, async ({ page }) => {
+    await page.setViewportSize({ width: 412, height: 840 });
+    await installNativeShell(page, "android");
+    await page.addInitScript((fontScale) => {
+      document.documentElement.style.fontSize = `${fontScale * 100}%`;
+      document.documentElement.setAttribute("data-text-scale", "large");
+    }, scale);
+    await page.goto("/map");
+    const card = page.locator(".mapPeek");
+    await expect(card).toBeVisible({ timeout: 60_000 });
+    await page.evaluate((fontScale) => {
+      document.documentElement.style.fontSize = `${fontScale * 100}%`;
+      document.documentElement.setAttribute("data-text-scale", "large");
+    }, scale);
+    await page.evaluate(() => document.fonts.ready);
+    // The tallest answer the card holds: a lens label wrapped under
+    // "Cheapest in this view", over the figure line with a walk.
+    const geometry = await card.evaluate((element) => {
+      const answer = element.querySelector<HTMLElement>(".mapPeekAnswer")!;
+      answer.innerHTML =
+        '<span class="mapPeekEyebrow"><span>Cheapest in this view</span><span class="mapPeekLabel">· Alcohol-free</span></span>' +
+        '<span class="mapPeekLine"><span class="mapPeekPrice">£12.00</span>' +
+        '<span class="mapPeekName">The Marquis of Granby</span><span class="mapPeekWalk">12 min walk</span></span>';
+      const rect = (selector: string) => {
+        const found = document.querySelector<HTMLElement>(selector);
+        if (!found || getComputedStyle(found).visibility === "hidden") return null;
+        const box = found.getBoundingClientRect();
+        return box.width > 0 && box.height > 0
+          ? { top: box.top, bottom: box.bottom, left: box.left, right: box.right, height: box.height }
+          : null;
+      };
+      const eyebrow = answer.querySelector<HTMLElement>(".mapPeekEyebrow")!.getBoundingClientRect();
+      const line = answer.querySelector<HTMLElement>(".mapPeekLine")!.getBoundingClientRect();
+      return {
+        root: parseFloat(getComputedStyle(document.documentElement).fontSize),
+        card: rect(".mapPeek")!,
+        answer: rect(".mapPeekAnswer")!,
+        door: rect(".mapPeek .mobilePlanActivation"),
+        contentTop: eyebrow.top,
+        contentBottom: line.bottom,
+        nearMe: rect(".mobileMapLocateFab"),
+        create: rect(".createFab"),
+      };
+    });
+    expect(geometry.root).toBeCloseTo(16 * scale);
+    // 68px of frame, gap and door, and a 2.75rem answer row.
+    expect(geometry.card.height).toBeCloseTo(68 + 2.75 * 16 * scale, 0);
+    expect(geometry.answer.height).toBeCloseTo(2.75 * 16 * scale, 0);
+    expect(geometry.contentTop, "the eyebrow stays inside the answer row").toBeGreaterThanOrEqual(geometry.answer.top - 1);
+    expect(geometry.contentBottom, "the figure line stays inside the answer row").toBeLessThanOrEqual(geometry.answer.bottom + 1);
+    if (geometry.door) {
+      expect(geometry.answer.bottom, "the answer never runs under the door").toBeLessThanOrEqual(geometry.door.top + 0.5);
+    }
+    expect(geometry.nearMe, "Near me is painted").not.toBeNull();
+    expect(geometry.create, "the Create action is painted").not.toBeNull();
+    for (const [name, other] of [["Near me", geometry.nearMe!], ["Create", geometry.create!]] as const) {
+      const overlap =
+        geometry.card.left < other.right &&
+        other.left < geometry.card.right &&
+        geometry.card.top < other.bottom &&
+        other.top < geometry.card.bottom;
+      expect(overlap, `the grown card clears ${name}: ${JSON.stringify([geometry.card, other])}`).toBe(false);
+    }
+  });
+}
+
+for (const scale of [1.3, 1.5, 2]) {
   test(`Android ${scale}x text keeps day words and the photo size whole`, async ({ page }) => {
     await page.setViewportSize({ width: 412, height: 840 });
     await installNativeShell(page, "android");

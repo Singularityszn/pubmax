@@ -114,13 +114,23 @@ describe("buildTflCorner", () => {
 
 describe("isUrgentTubeStatus", () => {
   it("is the words TfL uses when a line is not simply slow", () => {
-    for (const status of ["Severe Delays", "Part Suspended", "Suspended", "Part Closure", "Closed"]) {
+    for (const status of ["Severe Delays", "Part Suspended", "Suspended", "Closed", "Minor Delays, Part Suspended"]) {
       expect(isUrgentTubeStatus(status), status).toBe(true);
     }
   });
 
   it("leaves routine statuses to the sheet", () => {
-    for (const status of ["Good Service", "Minor Delays", "Planned Closure", "Service Closed", "Special Service", undefined]) {
+    for (const status of [
+      "Good Service",
+      "Minor Delays",
+      "Planned Closure",
+      "Part Closure",
+      "Part Closed",
+      "Service Closed",
+      "Special Service",
+      "Not Running",
+      undefined,
+    ]) {
       expect(isUrgentTubeStatus(status), String(status)).toBe(false);
     }
   });

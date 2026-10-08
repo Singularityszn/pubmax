@@ -54,10 +54,13 @@
   --plan-activation-h: 48px;
   --plan-activation-bottom: calc(var(--float-stack-base) + 10px);
   /* The bottom card the pill rides inside when the map has an answer for the
-     view (components/mobile/MapPeekSheet.tsx): an 8px frame, the 44px answer
-     row, a 4px gap, the pill, an 8px frame. The pill keeps its berth; the card
-     only adds what is above it. */
-  --map-peek-h: 112px;
+     view (components/mobile/MapPeekSheet.tsx): an 8px frame, the answer row, a
+     4px gap, the pill, an 8px frame. The pill keeps its berth; the card only
+     adds what is above it. The answer row is set in rem, 44px at the 16px
+     root, so it grows with a large text size and every berth that reads
+     --map-peek-h moves with it; at the ordinary size the card is 112px. */
+  --map-peek-row-h: 2.75rem;
+  --map-peek-h: calc(var(--map-peek-row-h) + 68px);
 
   /* Member: the map-edge corner column. Its box spans most of the viewport, but
      what sits in this band is the Near me FAB parked at the column's own bottom
