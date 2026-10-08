@@ -186,3 +186,57 @@ it.each([
   await renderArea(viewedArea, false);
   expect(container.querySelector(".cityStatusStack")).toBeNull();
 });
+
+it.each([
+  {viewedArea:"Richmond",signalArea:"Richmond Park"},
+  {viewedArea:"Kingston",signalArea:"Kingston Vale"},
+  {viewedArea:"Camden",signalArea:"Camden Town"},
+])("excludes narrower signal $signalArea from viewed borough $viewedArea",async({viewedArea,signalArea})=>{
+ vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({signals:[{headline:"Narrow place closure",severity:"major",areas:[signalArea]}]}),{status:200}));
+ await renderArea(viewedArea,false);
+ expect(container.querySelector(".cityStatusStack")).toBeNull();
+});
+it.each([
+ {viewedArea:"Richmond",signalArea:"Richmond upon Thames"},
+ {viewedArea:"Richmond upon Thames",signalArea:"Richmond"},
+ {viewedArea:"Kingston",signalArea:"Kingston upon Thames"},
+ {viewedArea:"Kingston upon Thames",signalArea:"Kingston"},
+ {viewedArea:"Camden",signalArea:"Camden"},
+ {viewedArea:"Richmond Park",signalArea:"Richmond Park"},
+ {viewedArea:"Kingston Vale",signalArea:"Kingston Vale"},
+ {viewedArea:"Camden Town",signalArea:"Camden Town"},
+])("retains exact or canonical context $signalArea in $viewedArea",async({viewedArea,signalArea})=>{
+ vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({signals:[{headline:"Matching closure",severity:"major",areas:[signalArea]}]}),{status:200}));
+ await renderArea(viewedArea,false);
+ expect(container.querySelector(".cityStatusBannerCopy")?.textContent).toBe("Matching closure");
+});
+async function moveWithLocalAndTube(){
+ vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({signals:[{headline:KINGSTON,severity:"major",areas:["Kingston"]}],tubeLines:[{line:"Northern",status:"Severe Delays"}]}),{status:200}));
+ await renderArea("Kingston",true);
+ expect(container.querySelector(".cityStatusBannerCopy")?.textContent).toBe(KINGSTON);
+ await renderArea("Kingston",false);
+ expect(container.querySelector(".cityStatusBannerCopy")?.textContent).toBe(KINGSTON);
+}
+it("removes citywide TfL count after movement while retaining the local headline",async()=>{
+ await moveWithLocalAndTube();
+ expect(container.querySelector(".cityStatusBannerMobileCopy")?.textContent).not.toContain(" · 1");
+});
+it("removes citywide TfL feed rows after movement while retaining the local source row",async()=>{
+ await moveWithLocalAndTube();
+ act(()=>container.querySelector<HTMLButtonElement>(".cityStatusBannerLink")?.click());
+ expect(container.querySelector(".cityStatusSignalSheet")).not.toBeNull();
+ expect(container.textContent).toContain(KINGSTON);
+ expect(container.textContent).not.toContain("Northern");
+ expect(container.textContent).not.toContain("Severe Delays");
+});
+
+it("does not promote an info-only local note using citywide TfL severity after movement", async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({
+    signals: [{ headline: "Local information", severity: "info", areas: ["Kingston"] }],
+    tubeLines: [{ line: "Northern", status: "Severe Delays" }],
+  }), { status: 200 }));
+  await renderArea("Kingston", true);
+  expect(container.querySelector(".cityStatusBannerCopy")?.textContent).toBe("Local information");
+  await renderArea("Kingston", false);
+  expect(container.querySelector(".cityStatusStack")).toBeNull();
+});

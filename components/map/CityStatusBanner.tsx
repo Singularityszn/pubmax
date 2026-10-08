@@ -62,7 +62,8 @@ function signalsInViewedArea(signals: Signal[] | undefined, viewedArea: string |
     if (areas.length === 0) return false;
     if (areas.every((area) => area === "london" || area === "greater london")) return allowCitywideStatus;
     return areas.filter((area) => area !== "london" && area !== "greater london").some((area) =>
-      viewedNames.includes(area) || viewedBoroughs.some((borough) => locationNamesBorough(area, borough)),
+      viewedNames.includes(area) || viewedBoroughs.some((borough) =>
+        locationNamesBorough(area, borough) && locationNamesBorough(borough, area)),
     );
   });
 }
@@ -323,7 +324,7 @@ export default function CityStatusBanner({ cityId, viewedArea = null, allowCityw
   if (!headline) return null;
   if (!allowCitywideStatus && headline.kind !== "signal") return null;
 
-  const affectedLines = (data.tubeLines ?? []).filter(
+  const affectedLines = (allowCitywideStatus ? data.tubeLines ?? [] : []).filter(
     (line) => line.line && line.status && line.status.toLowerCase() !== "good service",
   );
 
