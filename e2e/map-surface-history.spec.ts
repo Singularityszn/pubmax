@@ -96,13 +96,11 @@ test.describe("one Map surface history owner", () => {
     // aria-modal and its focus trap), so the map stage and its toolbar are
     // inert while it is open. A drinker closes the venue, then plans; the
     // deep-linked `sel=` must not reopen it over the planner.
-    // Under 40x CPU throttling, one actionable click plus its visible result
-    // can exceed 30 seconds. Keep the complete interaction in one retry window.
+    // The restored drawer is already hydrated. Close it once, then wait for
+    // its result. An outer retry deadline can reject a successful slow click.
     const closeVenue = venue(page).getByRole("button", { name: /Close/ });
-    await expect(async () => {
-      await closeVenue.click();
-      await expect(page.locator("#main")).not.toHaveClass(/detail-open/, { timeout: 2_000 });
-    }).toPass({ timeout: 60_000 });
+    await closeVenue.click();
+    await expect(page.locator("#main")).not.toHaveClass(/detail-open/, { timeout: 60_000 });
 
     // Plan an outing is a toggle that relabels itself "Close plan" once the
     // planner opens, so a retry may tap it only while the planner is still
