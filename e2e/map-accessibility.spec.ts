@@ -274,11 +274,18 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await page.goto("/map");
     await openVenueListWithKeyboard(page);
 
+    const wrap = page.locator(".mapCanvasWrap");
+    // The first focused row precedes completion of the viewport's pub stream.
+    await expect(wrap).toHaveAttribute("data-uk-base-status", "ready", {
+      timeout: 20_000,
+    });
+    const beforeBaseCount = Number(await wrap.getAttribute("data-uk-base-count"));
+    expect(beforeBaseCount).toBeGreaterThan(0);
     const rows = page.locator(".mapVenueListItem");
-    const beforeMove = await rows.count();
     const beforeMoveIds = await rows.evaluateAll((items) =>
       items.map((item) => item.getAttribute("data-venue-id")),
     );
+    const beforeMove = beforeMoveIds.length;
     expect(beforeMove).toBeGreaterThan(0);
     expect(beforeMoveIds.every(Boolean)).toBe(true);
 
@@ -287,6 +294,15 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await zoomIn.click();
     await zoomIn.click();
 
+    await expect
+      .poll(
+        () => wrap.evaluate((node, initialCount) => ({
+          ready: node.getAttribute("data-uk-base-status") === "ready",
+          narrowed: Number(node.getAttribute("data-uk-base-count")) < initialCount,
+        }), beforeBaseCount),
+        { timeout: 20_000 },
+      )
+      .toEqual({ ready: true, narrowed: true });
     await expect
       .poll(() => rows.count(), { timeout: 20_000 })
       .toBeLessThan(beforeMove);
@@ -300,6 +316,10 @@ test.describe("map keyboard and screen-reader venue path", () => {
       )
       .not.toEqual(beforeMoveIds);
 
+    const barRows = rows.filter({
+      has: page.locator(".mapVenueListItemMeta > span", { hasText: /^Bar$/ }),
+    });
+    await expect.poll(() => barRows.count()).toBeGreaterThan(0);
     const beforeFilter = await rows.count();
     // The venue-type chips live in the toolbar's Filters panel (#1631).
     await page.getByRole("button", { name: /^Filters:/ }).click();
@@ -310,6 +330,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await bars.click();
     await expect(bars).toHaveAttribute("aria-pressed", "false");
     await expect.poll(() => rows.count()).toBeLessThan(beforeFilter);
+    await expect(barRows).toHaveCount(0);
   });
 
   test("drops old base-pub rows during a disjoint pan before the next shard fetch", async ({
