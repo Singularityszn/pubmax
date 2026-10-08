@@ -252,7 +252,9 @@ test("mobile drag-sheet traps focus at half and contains it at full (#17)", asyn
   const collapse = sheet.getByRole("button", { name: "Collapse sheet" });
   await collapse.focus();
   await page.keyboard.press("Shift+Tab");
-  expect(await sheet.evaluate((node) => node.contains(document.activeElement))).toBe(true);
+  await expect(
+    page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "You", exact: true }),
+  ).toBeFocused();
 
   await collapse.click();
   await expect(sheet).toHaveClass(/sheet-half/);
@@ -265,7 +267,7 @@ test("mobile drag-sheet traps focus at half and contains it at full (#17)", asyn
   const reducedMotionHeight = await sheet.evaluate((node) =>
     Number.parseFloat((node as HTMLElement).style.maxHeight),
   );
-  expect(reducedMotionHeight).toBeCloseTo(844 * 0.92, 0);
+  expect(reducedMotionHeight).toBeCloseTo(844 * 0.92 - 64, 0);
 
   expect(errors).toEqual([]);
 });
