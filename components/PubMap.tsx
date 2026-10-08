@@ -3342,7 +3342,7 @@ export default function PubMap({
   const mapPeek = useMapPeek({
     cityId,
     projection: visibleVenueState,
-    hidden: showMapArrivalCard,
+    hidden: showMapArrivalCard || coffeePilotLensOn,
     phone: mobileViewport,
     venues: mapVenueListVenues,
     lensPrices: activeLensPrices,

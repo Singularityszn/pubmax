@@ -50,6 +50,14 @@ export function peekPresentedOffset(dy: number): number {
     : FREE_UPWARD_TRAVEL_PX + rubberband(up - FREE_UPWARD_TRAVEL_PX));
 }
 
+function peekDragOrigin(offset: number): number {
+  const resisted = offset > 0 ? offset : -offset - FREE_UPWARD_TRAVEL_PX;
+  if (resisted <= 0) return offset;
+  const distance = (resisted * RUBBERBAND_DIMENSION_PX) /
+    (RUBBERBAND_CONSTANT * (RUBBERBAND_DIMENSION_PX - resisted));
+  return offset > 0 ? distance : -FREE_UPWARD_TRAVEL_PX - distance;
+}
+
 export function peekShouldOpenList(upwardPx: number, upwardVelocityPxPerMs: number): boolean {
   if (upwardPx >= PEEK_COMMIT_DISTANCE_PX) return true;
   return (
@@ -69,6 +77,7 @@ const QUIET_LINES: Record<Exclude<MapPeekModel["status"], "answer">, string> = {
 type DragState = {
   pointerId: number;
   startY: number;
+  originOffset: number;
   lastY: number;
   lastTime: number;
   /** Upward speed in px/ms, smoothed. */
@@ -106,11 +115,12 @@ export default function MapPeekSheet({
   const onPointerDown = useCallback(
     (event: React.PointerEvent<HTMLElement>) => {
       if (!event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
-      stop();
+      const originOffset = peekDragOrigin(stop().value);
       draggedRef.current = false;
       dragRef.current = {
         pointerId: event.pointerId,
         startY: event.clientY,
+        originOffset,
         lastY: event.clientY,
         lastTime: performance.now(),
         velocity: 0,
@@ -147,7 +157,7 @@ export default function MapPeekSheet({
       }
       drag.lastY = event.clientY;
       drag.lastTime = now;
-      jumpTo(peekPresentedOffset(dy));
+      jumpTo(peekPresentedOffset(drag.originOffset + dy));
     },
     [jumpTo],
   );
@@ -157,7 +167,10 @@ export default function MapPeekSheet({
       const drag = dragRef.current;
       if (!drag || event.pointerId !== drag.pointerId) return;
       dragRef.current = null;
-      if (!drag.active) return;
+      if (!drag.active) {
+        animateTo(0);
+        return;
+      }
       try {
         if (event.currentTarget.hasPointerCapture(event.pointerId)) {
           event.currentTarget.releasePointerCapture(event.pointerId);
@@ -170,7 +183,7 @@ export default function MapPeekSheet({
       window.setTimeout(() => {
         draggedRef.current = false;
       }, 100);
-      const upward = drag.startY - event.clientY;
+      const upward = drag.startY - event.clientY - drag.originOffset;
       const paused = performance.now() - drag.lastTime > RELEASE_PAUSE_MS;
       const velocity = paused ? 0 : drag.velocity;
       if (!cancelled && peekShouldOpenList(upward, velocity)) {
