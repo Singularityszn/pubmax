@@ -38,8 +38,8 @@ export default function TonightHypedPubs({
         {HYPED_PUBS_TITLE}
       </h2>
       <ul className="tonightHypedList" data-testid="tonight-hyped-list">
-        {lead.map((row) => (
-          <HypedRow key={rowKey(row)} row={row} selectableVenueIds={selectableVenueIds} />
+        {lead.map((row, index) => (
+          <HypedRow key={rowKey(row)} row={row} compact={index === 0} selectableVenueIds={selectableVenueIds} />
         ))}
       </ul>
       {rest.length > 0 ? (
@@ -65,13 +65,34 @@ function rowKey(row: HypedPub): string {
 
 function HypedRow({
   row,
+  compact = false,
   selectableVenueIds,
 }: {
   row: HypedPub;
+  compact?: boolean;
   selectableVenueIds?: ReadonlySet<string> | null;
 }) {
   const mapHref = hypedPubMapHref(row, selectableVenueIds);
   const credit = hypedPubCredit(row);
+  const explanation = (
+    <>
+      <p className="tonightHypedWhy">{row.whyLine}</p>
+      {credit ? (
+        <p className="tonightHypedCredit">
+          <a
+            className="tonightHypedSource"
+            href={credit.url}
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            {credit.label}
+            <ExternalLink size={12} aria-hidden="true" />
+          </a>
+          <span className="tonightHypedChecked">{checkedLabel(credit.observedAt)}</span>
+        </p>
+      ) : null}
+    </>
+  );
   return (
     <li className="tonightHypedRow" data-testid="tonight-hyped-row">
       <h3 className="tonightHypedName">{row.name}</h3>
@@ -79,28 +100,16 @@ function HypedRow({
         <MapPin size={13} aria-hidden="true" />
         <span>{row.area}</span>
       </p>
-      <div className="tonightHypedActions">
-        <details className="tonightHypedDetails">
-          <summary className="tonightHypedMoreToggle">
-            <ChevronDown size={14} aria-hidden="true" className="tonightHypedMoreChevron" />
-            Why this pub
-          </summary>
-          <p className="tonightHypedWhy">{row.whyLine}</p>
-          {credit ? (
-            <p className="tonightHypedCredit">
-              <a
-                className="tonightHypedSource"
-                href={credit.url}
-                target="_blank"
-                rel="noreferrer noopener"
-              >
-                {credit.label}
-                <ExternalLink size={12} aria-hidden="true" />
-              </a>
-              <span className="tonightHypedChecked">{checkedLabel(credit.observedAt)}</span>
-            </p>
-          ) : null}
-        </details>
+      <div className={compact ? "tonightHypedActions" : undefined}>
+        {compact ? (
+          <details className="tonightHypedDetails">
+            <summary className="tonightHypedMoreToggle">
+              <ChevronDown size={14} aria-hidden="true" className="tonightHypedMoreChevron" />
+              Why this pub
+            </summary>
+            {explanation}
+          </details>
+        ) : explanation}
         {mapHref ? (
           <Link prefetch={false} className="tonightHypedMap pressable" href={mapHref}>
             Open on map

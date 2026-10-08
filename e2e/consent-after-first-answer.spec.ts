@@ -238,24 +238,27 @@ for (const viewport of WIDTHS) {
         const morePubs = page.locator(".tonightHypedMore");
         await morePubs.locator(":scope > summary").click();
         await expect(morePubs).toHaveAttribute("open", "");
-        const nestedDetails = morePubs.locator(".tonightHypedDetails").first();
-        const nestedSummary = nestedDetails.locator("summary");
         const chevronDirection = (summary: import("@playwright/test").Locator) =>
           summary.locator(".tonightHypedMoreChevron").evaluate((arrow) => {
             const transform = getComputedStyle(arrow).transform;
             return transform === "none" ? 1 : Math.round(new DOMMatrixReadOnly(transform).a);
           });
-        await expect(nestedDetails).not.toHaveAttribute("open", "");
         await expect.poll(() => chevronDirection(morePubs.locator(":scope > summary"))).toBe(-1);
-        await expect.poll(() => chevronDirection(nestedSummary)).toBe(1);
-        await nestedSummary.click();
-        await expect(nestedDetails.locator(".tonightHypedWhy")).toBeVisible();
-        await expect(nestedDetails.locator(".tonightHypedSource")).toBeVisible();
-        await expect.poll(() => chevronDirection(nestedSummary)).toBe(-1);
-        await nestedSummary.click();
-        await expect(nestedDetails).not.toHaveAttribute("open", "");
+        await expect(page.locator(".tonightHypedDetails")).toHaveCount(1);
+        const laterPubs = (await page.locator(".tonightHypedRow").all()).slice(1);
+        expect(laterPubs.length).toBeGreaterThan(0);
+        for (const pub of laterPubs) {
+          await expect(pub.locator(".tonightHypedWhy")).toBeVisible();
+          await expect(pub.locator(".tonightHypedSource")).toBeVisible();
+          await expect(pub.locator(".tonightHypedChecked")).toBeVisible();
+          const sourceBox = await pub.locator(".tonightHypedSource").boundingBox();
+          expect(sourceBox?.height).toBeGreaterThanOrEqual(44);
+        }
+        const firstSummary = firstPub.locator("summary");
+        await expect.poll(() => chevronDirection(firstSummary)).toBe(-1);
+        await firstSummary.click();
+        await expect.poll(() => chevronDirection(firstSummary)).toBe(1);
         await expect(morePubs).toHaveAttribute("open", "");
-        await expect.poll(() => chevronDirection(nestedSummary)).toBe(1);
       }
       await page.goto("/privacy", { waitUntil: "domcontentloaded" });
       await firstRouteRecorded(page);
@@ -299,3 +302,46 @@ for (const viewport of WIDTHS) {
       .toBe("granted");
   });
 }
+
+test("consent refreshes after a Places city selection and pointer return from Map", async ({ page }) => {
+  test.setTimeout(90_000);
+  const beacons = await prepareUnanswered(page, { width: 768, height: 1024 });
+  await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
+  await page.goto("/places", { waitUntil: "domcontentloaded" });
+  await firstRouteRecorded(page);
+  const prompt = page.getByLabel("Anonymous analytics choice");
+  await expect(prompt).toHaveCount(0);
+
+  await page.getByRole("list", { name: "Cities", exact: true })
+    .getByRole("link", { name: /London/ }).click();
+  await expect(page.getByRole("heading", { name: "London", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Set as my city", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("This is your city.");
+  await page.getByRole("link", { name: "Open the map", exact: true }).click();
+  await expect(page).toHaveURL(/\/map(?:\?|$)/);
+  await expect(page.locator(".mapArrivalCard:visible, .citySuggestBanner:visible").first())
+    .toBeVisible({ timeout: 30_000 });
+  await expect(prompt).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() =>
+    window.sessionStorage.getItem("pubmax:prompt-budget:v1"))).toBeNull();
+
+  await page.getByRole("navigation", { name: "Site navigation", exact: true })
+    .getByRole("link", { name: "Places", exact: true }).click();
+  await expect(page).toHaveURL(/\/places$/);
+  await expect(prompt).toBeVisible({ timeout: 30_000 });
+  await expect.poll(() => page.evaluate(() =>
+    window.sessionStorage.getItem("pubmax:prompt-budget:v1"))).toBe("analytics-consent");
+  expect(beacons, "analytics fired before Allow on the pointer journey").toEqual([]);
+  await prompt.getByRole("button", { name: "No thanks", exact: true }).click();
+  await expect(prompt).toHaveCount(0);
+  await page.getByRole("navigation", { name: "Site navigation", exact: true })
+    .getByRole("link", { name: "Map", exact: true }).click();
+  await expect(page).toHaveURL(/\/map(?:\?|$)/);
+  await page.getByRole("navigation", { name: "Site navigation", exact: true })
+    .getByRole("link", { name: "Places", exact: true }).click();
+  await expect(page).toHaveURL(/\/places$/);
+  await expect(prompt).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() =>
+    window.localStorage.getItem("pubmaxx:analytics-consent:v1"))).toBe("denied");
+  expect(beacons, "analytics fired after No thanks on the pointer journey").toEqual([]);
+});
