@@ -57,6 +57,15 @@ export function peekShouldOpenList(upwardPx: number, upwardVelocityPxPerMs: numb
   );
 }
 
+/** What the card's line says when it has no answer. Only "none" is a finding;
+ *  the others are a read still running, failed or incomplete. */
+const QUIET_LINES: Record<Exclude<MapPeekModel["status"], "answer">, string> = {
+  loading: "Counting them up…",
+  none: "No listed price here yet",
+  unread: "Could not read prices just now",
+  partial: "Some prices still missing",
+};
+
 type DragState = {
   pointerId: number;
   startY: number;
@@ -231,8 +240,8 @@ export default function MapPeekSheet({
               {model.status === "loading" ? (
                 <span className="mapPeekSkeleton" aria-hidden="true" />
               ) : null}
-              <span className={model.status === "loading" ? "mapPeekHush" : "mapPeekName"}>
-                {model.status === "loading" ? "Counting them up…" : "No listed price here yet"}
+              <span className={model.status === "none" ? "mapPeekName" : "mapPeekHush"}>
+                {QUIET_LINES[model.status]}
               </span>
             </span>
           </div>

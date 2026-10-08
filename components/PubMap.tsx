@@ -1097,22 +1097,24 @@ function useRememberedAreaInView(
  * the settled view, ranked by the same stack as List view's cheapest sort.
  * `ready` follows the projection landing for THIS city, so a map that has not
  * said what it is showing claims nothing. The first-visit arrival card holds
- * the same berth, so the peek steps aside while it shows.
+ * the same berth, so the peek steps aside while it shows, and the card is a
+ * phone surface, so a desktop map has none.
  */
 function useMapPeek(
   input: Omit<Parameters<typeof buildMapPeek>[0], "ready"> & {
     cityId: CityId;
     projection: { cityId: CityId } | null;
     hidden: boolean;
+    phone: boolean;
   },
 ): MapPeekModel | null {
-  const { cityId, projection, hidden, venues, lensPrices, venueSignals, reader } = input;
+  const { cityId, projection, hidden, phone, venues, lensPrices, lensStatus, venueSignals, reader } = input;
   const ready = projection?.cityId === cityId;
   const peek = useMemo(
-    () => buildMapPeek({ ready, venues, lensPrices, venueSignals, reader }),
-    [lensPrices, reader, ready, venueSignals, venues],
+    () => buildMapPeek({ ready, venues, lensPrices, lensStatus, venueSignals, reader }),
+    [lensPrices, lensStatus, reader, ready, venueSignals, venues],
   );
-  return hidden ? null : peek;
+  return hidden || !phone ? null : peek;
 }
 
 /**
@@ -3264,8 +3266,10 @@ export default function PubMap({
     cityId,
     projection: visibleVenueState,
     hidden: showMapArrivalCard,
+    phone: mobileViewport,
     venues: mapVenueListVenues,
     lensPrices: activeLensPrices,
+    lensStatus: drinkIndexStatus,
     venueSignals,
     reader: userLocation,
   });

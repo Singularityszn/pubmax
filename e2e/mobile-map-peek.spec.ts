@@ -14,7 +14,7 @@ test.use({
 });
 test.setTimeout(120_000);
 
-async function openMap(
+async function loadMap(
   page: Page,
   options: { reducedMotion?: "reduce" | "no-preference"; arrival?: string | null } = {},
 ): Promise<void> {
@@ -33,8 +33,15 @@ async function openMap(
   }, arrival);
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
-  await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });
   await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
+}
+
+async function openMap(
+  page: Page,
+  options: { reducedMotion?: "reduce" | "no-preference"; arrival?: string | null } = {},
+): Promise<void> {
+  await loadMap(page, options);
+  await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });
 }
 
 /** A real touch drag through CDP, so the card sees pointer events with `pointerType: touch`. */
@@ -441,4 +448,23 @@ test("safe-area insets keep the card above the tab bar and under no notch", asyn
   const top = await page.locator(".mobileMapTopbar").boundingBox();
   expect(top!.y, "the bar clears the top inset").toBeGreaterThanOrEqual(47);
   expect(card.y, "the card sits below the chip row").toBeGreaterThan(top!.y + top!.height);
+});
+
+test.describe("on a desktop map", () => {
+  const DESKTOP = { width: 1440, height: 900 };
+  test.use({ viewport: DESKTOP, hasTouch: false, isMobile: false });
+
+  test("the card is a phone surface, so no answer or List control hides behind a desktop map", async ({
+    page,
+  }) => {
+    await loadMap(page);
+    await expect(page.locator(".maplibregl-canvas")).toBeVisible({ timeout: 45_000 });
+    // The same map answers at phone width, so the view has landed and only
+    // the width decides whether the card is there.
+    await page.setViewportSize(PHONE);
+    await answeredCard(page);
+    await page.setViewportSize(DESKTOP);
+    await expect(page.locator(".mapPeek")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Show the pubs in this view as a list" })).toHaveCount(0);
+  });
 });
