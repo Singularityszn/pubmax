@@ -113,7 +113,9 @@ for (const scale of [1.3, 1.5, 2]) {
 // (-webkit-text-size-adjust) with the root left at 16px, and publishes the
 // scale as --text-zoom (lib/nativeTextScale.ts). Chromium has neither, so the
 // Android case scales the root, as the route checks above do, and the iOS case
-// publishes --text-zoom and enlarges the card's text alone.
+// publishes --text-zoom and enlarges the card's font sizes and fixed line
+// heights alone, as WebKit's text-size-adjust does. This models WebKit; it is
+// not proof of it, which only an iOS WebView at the size can give.
 for (const shell of ["android", "ios"] as const) {
   for (const scale of [1.3, 1.5, 2]) {
     test(`${shell} ${scale}x text grows the map's bottom card with its text, and the controls above it follow`, async ({ page }) => {
@@ -141,10 +143,17 @@ for (const shell of ["android", "ios"] as const) {
           '<span class="mapPeekLine"><span class="mapPeekPrice">£12.00</span>' +
           '<span class="mapPeekName">The Marquis of Granby</span><span class="mapPeekWalk">12 min walk</span></span>';
         if (onlyText) {
+          // WebKit's percentage text-size-adjust scales the font size and a
+          // fixed line-height alike, and leaves every other length alone.
           const texts = [...answer.querySelectorAll<HTMLElement>("*")];
-          const sizes = texts.map((text) => parseFloat(getComputedStyle(text).fontSize));
+          const styles = texts.map((text) => {
+            const style = getComputedStyle(text);
+            return { fontSize: parseFloat(style.fontSize), lineHeight: style.lineHeight };
+          });
           texts.forEach((text, index) => {
-            text.style.fontSize = `${sizes[index]! * fontScale}px`;
+            const { fontSize, lineHeight } = styles[index]!;
+            text.style.fontSize = `${fontSize * fontScale}px`;
+            if (lineHeight !== "normal") text.style.lineHeight = `${parseFloat(lineHeight) * fontScale}px`;
           });
         }
         const rect = (selector: string) => {
