@@ -21,6 +21,8 @@ export type FollowCounts = { followers: number; following: number };
 export type FollowStore = {
   /** Follow followee as follower (idempotent). Returns true when now following. */
   follow(followerHandle: string, followeeHandle: string): Promise<boolean>;
+  /** Atomically distinguish a new edge from an idempotent replay. */
+  followIfNew(followerHandle: string, followeeHandle: string): Promise<"created" | "already" | "self">;
   /** Remove the edge (idempotent). Returns true when no longer following. */
   unfollow(followerHandle: string, followeeHandle: string): Promise<boolean>;
   /** Does follower currently follow followee? */
@@ -93,7 +95,11 @@ export function isSelfFollow(a: string, b: string): boolean {
 // ── Supabase implementation ──────────────────────────────────────────────────
 const supabaseFollowStore: FollowStore = {
   async follow(followerHandle, followeeHandle) {
-    if (isSelfFollow(followerHandle, followeeHandle)) return false;
+    return (await this.followIfNew(followerHandle, followeeHandle)) !== "self";
+  },
+
+  async followIfNew(followerHandle, followeeHandle) {
+    if (isSelfFollow(followerHandle, followeeHandle)) return "self";
     const follower = await supabaseProfileStore.ensure(followerHandle);
     const followee = await supabaseProfileStore.ensure(followeeHandle);
     const { error } = await admin()
@@ -102,7 +108,7 @@ const supabaseFollowStore: FollowStore = {
     // A duplicate edge means "already following" — an idempotent success, not an
     // error. Every other insert error is real.
     if (error && !isUniqueViolation(error)) throw new Error(error.message);
-    return true;
+    return error ? "already" : "created";
   },
 
   async unfollow(followerHandle, followeeHandle) {
@@ -245,14 +251,19 @@ function edgeKey(followerId: string, followeeId: string): string {
 function makeMemoryFollowStore(profiles: ProfileStore): FollowStore {
   return {
     async follow(followerHandle, followeeHandle) {
-      if (isSelfFollow(followerHandle, followeeHandle)) return false;
+      return (await this.followIfNew(followerHandle, followeeHandle)) !== "self";
+    },
+    async followIfNew(followerHandle, followeeHandle) {
+      if (isSelfFollow(followerHandle, followeeHandle)) return "self";
       const follower = await profiles.ensure(followerHandle);
       const followee = await profiles.ensure(followeeHandle);
-      memoryEdges.add(edgeKey(follower.id, followee.id));
+      const key = edgeKey(follower.id, followee.id);
+      if (memoryEdges.has(key)) return "already";
+      memoryEdges.add(key);
       // Record both ids' handles so listFollowing can map a followee id → handle.
       memoryHandleById.set(follower.id, normalizeHandle(follower.handle));
       memoryHandleById.set(followee.id, normalizeHandle(followee.handle));
-      return true;
+      return "created";
     },
     async unfollow(followerHandle, followeeHandle) {
       const follower = await profiles.getByHandle(followerHandle);

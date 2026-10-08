@@ -44,6 +44,16 @@ describe("isSelfFollow — normalized self-follow guard", () => {
 });
 
 describe("follow / unfollow — toggle state + counts", () => {
+  it("identifies only one new edge across concurrent writes", async () => {
+    const outcomes = await Promise.all([
+      memoryFollowStore.followIfNew("ken", "sam"),
+      memoryFollowStore.followIfNew("ken", "sam"),
+    ]);
+    expect(outcomes.sort()).toEqual(["already", "created"]);
+    expect(await memoryFollowStore.followIfNew("ken", "sam")).toBe("already");
+    expect(await memoryFollowStore.followIfNew("@Ken", "ken")).toBe("self");
+  });
+
   it("follow then unfollow toggles isFollowing and both sides' counts", async () => {
     expect(await memoryFollowStore.isFollowing("ken", "sam")).toBe(false);
 
