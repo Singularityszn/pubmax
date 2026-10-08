@@ -2117,11 +2117,12 @@ function PlanComposerForm({
       const message = caught instanceof Error ? caught.message : "PUBMAXX could not sort this one.";
       // planGenerationFailureStatus is the ONE owner of this sentence, so the
       // error notice cannot tell a reader with no route on screen that "the
-      // earlier route is still here".
-      const failureStatus = planGenerationFailureStatus(message, stops.length > 0);
+      // earlier route is still here". A held Stop 1 alone is not a route: only
+      // a sorted one can be "still here" or need a refresh.
+      const failureStatus = planGenerationFailureStatus(message, routeSorted);
       trackErrorShown("plan", errorShownKindFromStatus(responseStatus));
       setError(failureStatus);
-      setRouteStale(true);
+      if (routeSorted) setRouteStale(true);
       setRouteStatus(failureStatus);
       setTuneOpen(false);
     } finally {

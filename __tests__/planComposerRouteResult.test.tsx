@@ -515,5 +515,40 @@ describe("an accepted place the venue index has no name for", () => {
     });
     expect(panel()?.textContent).toContain("The Held Arms");
   });
-});
 
+  it("does not call a held pub on its own a route that needs a refresh when the sort fails", async () => {
+    // A pub accepted from the map carries no area, and the description names none.
+    writePlanningIntent({
+      source: "near",
+      cityId: "london",
+      acceptedVenueId: HELD,
+      acceptedArea: null,
+      startsAt: null,
+      displayEvidence: { kind: "directory", observedAt: null },
+    });
+    const path = planComposerVenueIndexPath("london");
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>(async (input) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url === path) {
+        return new Response(JSON.stringify([{ id: HELD, name: "The Held Arms" }]), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      return new Response(JSON.stringify({ error: { code: "NIGHT_AREA_REQUIRED", message: "Choose an area." } }), { status: 422, headers: { "content-type": "application/json" } });
+    }));
+    await mountHeld();
+
+    const field = document.querySelector<HTMLInputElement>("#plan-concierge-query")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(field, "Three quiet pints for 4");
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await click([...document.querySelectorAll("button")].find((node) => node.textContent?.trim() === "Make a plan")!);
+    await vi.waitFor(() => {
+      if (!document.querySelector("#plan-composer [role='alert']")) throw new Error("the failure has not been shown");
+    }, { timeout: 4000 });
+
+    expect(document.querySelector("#plan-composer [role='alert']")?.textContent).toBe("Choose an area.");
+    expect(document.querySelector("#plan-route-status")?.textContent).toBe("Choose an area.");
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(stopNames()).toEqual(["The Held Arms"]);
+  });
+});
