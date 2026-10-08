@@ -26,7 +26,7 @@ type MapPeekAnswer = {
   /** The anchor the figure belongs to, as List view's row wears it, or null.
    *  Its provenance is spoken in the card's accessible name. */
   anchor: CompactVenueAnchor | null;
-  /** What the one-line card prints before the figure, so a set-lunch or a
+  /** What the card prints above the figure, so a set-lunch or a
    *  cocktail figure never reads as the pint answer: the anchor's label, the
    *  lens category, or null for a pint. */
   lineLabel: string | null;

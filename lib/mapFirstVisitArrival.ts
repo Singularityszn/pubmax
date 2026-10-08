@@ -1,4 +1,5 @@
-// First-visit map arrival card — show once per device after pins reveal.
+// First-visit map arrival policy. See the quiet window and storage
+// compatibility rules below.
 // Pure policy: eligibility, planner-param suppression, dismiss storage, and
 // the consent gate the analytics prompt must wait behind.
 

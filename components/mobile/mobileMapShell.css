@@ -652,8 +652,8 @@
   .mobilePlanActivation:disabled { cursor: wait; opacity: .72; }
 
   /* THE BOTTOM CARD. One surface at the foot of the map holds the answer to
-     "where is the cheap pint in this view" and the plan door, so the resting
-     map is three layers: the bar, the chip row and this card. The plan door is
+     "where is the cheapest listed price in this view" and the plan door. The
+     resting map is three layers: the bar, the chip row and this card. The plan door is
      a CHILD of it and keeps its own 48px, so the card is exactly the door plus
      the answer row above it: 8px frame, 44px answer row, 4px gap, 48px door,
      8px frame = 112px. Its bottom edge is the door's berth less that 8px frame,

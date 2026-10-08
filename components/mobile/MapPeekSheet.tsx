@@ -7,8 +7,8 @@ import { mapPeekSummary, type MapPeekModel } from "@/lib/mapPeek";
 import { useSpringValue } from "@/lib/useSpringValue";
 
 // The phone map's resting sheet: one card at the foot of the map that answers
-// "where is the cheap pint in this view" and holds the way into a Plan. It is
-// the ONE bottom layer, so the plan door rides inside it as a child rather than
+// "where is the cheapest listed price in this view" and holds the way into a
+// Plan. It is the ONE bottom layer, so the plan door rides inside it rather than
 // floating beside it. Drag it up to open the venue list.
 //
 // It moves by TRANSFORM only (the box never resizes), tracks the finger 1:1,
