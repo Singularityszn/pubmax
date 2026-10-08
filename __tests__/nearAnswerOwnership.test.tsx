@@ -36,7 +36,7 @@ const desks: DeskVenueLoad = {
   status: "ready", source: "osm", observedAt: "2026-10-08",
   venues: [{
     id: "test-desk", name: "Test Desk", lat: 51.5136, lng: -0.1365,
-    kind: "cafe", wifi: "yes", laptop: "yes", openingHours: null,
+    kind: "cafe", wifi: "yes", laptop: "allowed", openingHours: null,
   }],
 };
 
@@ -44,8 +44,8 @@ let host: HTMLDivElement;
 let root: Root | null;
 let slimRead: ReturnType<typeof deferred<PricedPoint[]>>;
 let deskRead: ReturnType<typeof deferred<DeskVenueLoad>>;
-let locations: Array<{ success: PositionCallback; failure: PositionErrorCallback }>;
-let geolocate: ReturnType<typeof vi.fn>;
+let locations: Array<Parameters<Geolocation["getCurrentPosition"]>>;
+let geolocate: ReturnType<typeof vi.fn<Geolocation["getCurrentPosition"]>>;
 const originalGeolocation = Object.getOwnPropertyDescriptor(navigator, "geolocation");
 
 beforeEach(() => {
@@ -59,8 +59,8 @@ beforeEach(() => {
   boundary.slim.mockReturnValue(slimRead.promise);
   boundary.desks.mockReturnValue(deskRead.promise);
   locations = [];
-  geolocate = vi.fn((success: PositionCallback, failure: PositionErrorCallback) => {
-    locations.push({ success, failure });
+  geolocate = vi.fn<Geolocation["getCurrentPosition"]>((...request) => {
+    locations.push(request);
   });
   Object.defineProperty(navigator, "geolocation", { configurable: true, value: { getCurrentPosition: geolocate } });
   host = document.createElement("div");
@@ -145,7 +145,9 @@ describe.each(["pint", "desk"] as const)("%s answer ownership", (mode) => {
   it.each(["success", "denied", "unavailable"] as const)("keeps active geolocation %s through Strict Mode replay", async (outcome) => {
     render(mode, "", true, true);
     expect(geolocate).toHaveBeenCalledOnce();
-    expect(geolocate.mock.calls[0][2]).toEqual({ enableHighAccuracy: false, timeout: 7000, maximumAge: 60_000 });
+    const request = geolocate.mock.calls[0];
+    if (!request) throw new Error("Expected an active geolocation request");
+    expect(request[2]).toEqual({ enableHighAccuracy: false, timeout: 7000, maximumAge: 60_000 });
     act(() => completeLocation(outcome));
     await completeRead();
     expect(host.textContent).toContain(mode === "pint" ? "Test Pub" : "Test Desk");
@@ -208,10 +210,14 @@ describe.each(["pint", "desk"] as const)("%s answer ownership", (mode) => {
 });
 
 function completeLocation(outcome: "success" | "denied" | "unavailable") {
+  const request = locations[0];
+  if (!request) throw new Error("Expected a pending geolocation request");
+  const [success, failure] = request;
   if (outcome === "success") {
-    locations[0].success({ coords: { latitude: 51.5136, longitude: -0.1365 } } as GeolocationPosition);
+    success({ coords: { latitude: 51.5136, longitude: -0.1365 } } as GeolocationPosition);
   } else {
-    locations[0].failure({ code: outcome === "denied" ? 1 : 2, PERMISSION_DENIED: 1 } as GeolocationPositionError);
+    if (!failure) throw new Error("Expected a geolocation error callback");
+    failure({ code: outcome === "denied" ? 1 : 2, PERMISSION_DENIED: 1 } as GeolocationPositionError);
   }
 }
 
