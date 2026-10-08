@@ -6,7 +6,7 @@ The before build used `d69cd6083e8d81d57d56075e35a431efb804a026` on port 3412. T
 
 The live status feed no longer contains the reported Kingston headline. Fresh browser reproduction showed "Gas cylinder fire under Bermondsey railway arches" on a central London route. The API assigned that signal to Bermondsey and Silwood Street. The same context defect therefore remained reproducible with current data.
 
-The correction filters area signals before choosing a headline or grouping the expanded feed. It uses the existing settled map label and established place-name normalisation. Local news can appear after choosing its area. City-wide fallback retains its existing camera-movement gate. Route panels and strict modal scrims stack above the news.
+The [CityMCP display contract](../../CITYMCP_LONDON.md#runtime-api-surfaces-app-facing) owns the current area-matching, visibility, and stacking rules.
 
 ## Real feed, before and after
 

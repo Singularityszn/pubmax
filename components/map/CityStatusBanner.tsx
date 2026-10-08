@@ -1,18 +1,6 @@
 "use client";
 
-// London-only city status strip on the map.
-//
-// Fetches `/api/citymcp/status` client-side after mount and renders a compact
-// one-liner headline. Order of preference:
-//   1) top signal by severity (major > notable > info) — most actionable.
-//   2) a summary of disrupted tube lines.
-//   3) a weather one-liner ("Clear · 27°C · feels 28°C").
-//
-// If none of the above are available, or the API returned an error/empty
-// response, the banner renders nothing — the map load is never blocked and
-// nothing is claimed that we haven't received from the upstream. Follows the
-// React 19 no-setState-in-effect pattern by deferring setState with
-// Promise.resolve().then when reacting to fetch results.
+// Display contract: docs/CITYMCP_LONDON.md, Runtime API surfaces.
 
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, CloudRain, Info, Sun, TrainFront, X } from "lucide-react";
@@ -59,7 +47,7 @@ type CityStatusBannerProps = {
   cityId?: string;
   /** The name earned by the settled map view. Null means no local context. */
   viewedArea?: string | null;
-  /** City-wide fallback yields after the reader moves the camera. */
+  /** False denies city-wide context while preserving matched local signals. */
   allowCitywideStatus?: boolean;
 };
 
@@ -205,11 +193,7 @@ export function isSevereCityStatus(
   return false;
 }
 
-// --- A4: the full "Tonight in London" signals feed --------------------------
-// The API hands us every signal (gigs, strikes, alerts) but the pill shows
-// one. These pure helpers bucket them for the expandable sheet; exported for
-// tests. Alerts first (safety-relevant), then transport, events, other —
-// upstream order preserved within each bucket.
+// Alerts precede transport and events to keep safety-relevant context first.
 
 export type SignalKindGroup = "alert" | "transport" | "event" | "other";
 
