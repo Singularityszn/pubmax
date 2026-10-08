@@ -310,7 +310,9 @@ test.describe("one Map surface history owner", () => {
     if (!headerBox || !sheetBox) throw new Error("phone sheet has no rendered box");
     const x = headerBox.x + 18;
     const y = headerBox.y + headerBox.height - 10;
-    const dismissDistance = sheetBox.height - PHONE.height * 0.11 + 24;
+    // Release with 24px of sheet left: below half of any peek, whether peek is
+    // the viewport fraction or the venue sheet's header and command bar.
+    const dismissDistance = sheetBox.height - 24;
     await page.mouse.move(x, y);
     await page.mouse.down();
     await page.mouse.move(

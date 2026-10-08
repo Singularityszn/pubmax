@@ -44,7 +44,7 @@ test.describe("mobile bottom-tab navigation", () => {
       .toBe(visiblePadding);
   });
 
-  test("hides while the planner bottom sheet owns the bottom edge", async ({ page }) => {
+  test("stays usable while the planner bottom sheet is open", async ({ page }) => {
     await page.goto("/map");
 
     const nav = primaryNav(page);
@@ -63,8 +63,10 @@ test.describe("mobile bottom-tab navigation", () => {
       await expect(shell).toHaveClass(/planning-open/, { timeout: 1_000 });
     }).toPass({ timeout: 20_000 });
     await expect(page.locator(".mapDrawer.left")).toHaveClass(/open/);
-    await expect(nav).toHaveCSS("opacity", "0");
-    await expect(nav).toHaveCSS("pointer-events", "none");
+    // The sheet portal stops above the dock, so the primary destinations stay
+    // visible and tappable under an open map sheet.
+    await expect(nav).toHaveCSS("opacity", "1");
+    await expect(nav.locator(".mobileTabList")).toHaveCSS("pointer-events", "auto");
 
     await page.getByRole("button", { name: "Close planner" }).click();
     await expect(page.locator(".appShell")).not.toHaveClass(/planning-open/);
