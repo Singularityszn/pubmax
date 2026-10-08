@@ -90,6 +90,18 @@ function subscribe(): [{ count: number }, () => void] {
 }
 
 describe("what the keyboard store listens to", () => {
+  it("still hides chrome for a keyboard opened while the page is pinch-zoomed", () => {
+    const [, off] = subscribe();
+    Object.assign(window.visualViewport as object, { scale: 1.5 });
+    activeElement = textInput();
+    fire(documentHandlers, "focusin");
+    vi.runAllTimers();
+    setViewportHeight(WITH_KEYBOARD / 1.5);
+    fire(viewportHandlers, "resize");
+    expect(readSoftKeyboardOpen()).toBe(true);
+    off();
+  });
+
   it("hides chrome when Android resizes both viewports for the software keyboard", () => {
     platform.android = true;
     const [, off] = subscribe();

@@ -92,7 +92,7 @@ function readOpen(): boolean {
   const visual = window.visualViewport;
   const focused = isTextEntryElement(document.activeElement);
   const evidence: SoftKeyboardEvidence = {
-    textEntryFocused: focused && (visual?.scale ?? 1) === 1,
+    textEntryFocused: focused,
     visualViewportHeight: visual ? visual.height : Number.NaN,
     layoutViewportHeight: window.innerHeight,
   };
