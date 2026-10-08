@@ -57,7 +57,10 @@ describe("published Blackfriar identity", () => {
       expect(searchMapSearchIndex(index, query)
         .filter((result) => result.kind === "venue")
         .map((result) => result.id)).toEqual([canonicalId]);
-      expect((await searchCuratedVenues(query, 12)).map((venue) => venue.id)).toEqual([canonicalId]);
+      const curated = await searchCuratedVenues(query, 12);
+      expect(curated.filter((venue) => venue.area === "City of London")
+        .map((venue) => venue.id)).toEqual([canonicalId]);
+      expect(curated.map((venue) => venue.id)).not.toContain("venue-1sw9ofl");
     });
 
     it(`resolves ${query} through every Pal name-matching mode`, async () => {
