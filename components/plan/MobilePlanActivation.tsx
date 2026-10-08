@@ -249,7 +249,7 @@ export function MobilePlanActivation({
   }
 
   return (
-    <form className="mobilePlannerIntent" aria-labelledby="mobile-plan-intent-title" onSubmit={(event) => { event.preventDefault(); requestPlan(); }}>
+    <form className="mobilePlannerIntent" aria-labelledby="mobile-plan-intent-title" noValidate onSubmit={(event) => { event.preventDefault(); requestPlan(); }}>
       <div className="mobilePlannerIntentHeading">
         <Sparkles size={20} aria-hidden="true" />
         <div>

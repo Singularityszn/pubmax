@@ -92,9 +92,12 @@ test("venue and planner sheets preserve primary navigation and Enter submits", a
   const query = page.locator("#mobile-plan-query");
   await expect(query).toHaveAttribute("enterkeyhint", "go");
   await query.fill("Quiet in Soho");
+  await planner.getByPlaceholder("£").fill("22.50");
   const request = page.waitForRequest((req) => req.url().includes("/api/plans/generate") && req.method() === "POST");
   await query.press("Enter");
-  expect((await request).postDataJSON().query).toBe("Quiet in Soho");
+  const body = (await request).postDataJSON();
+  expect(body.query).toBe("Quiet in Soho");
+  expect(body.context.budgetLimitPence).toBe(2250);
 });
 
 test("create menu owns outside taps and leaves compose routes clear", async ({ page }) => {
