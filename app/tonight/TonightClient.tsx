@@ -555,7 +555,6 @@ export default function TonightClient({
         kicker="Tonight in London"
         title={tonightHeading(localityBasis)}
         titleId="tonight-title"
-        lede={listingLede}
         primary={
           <Link prefetch={false} href="/map" className="tonightFootLink">
             See them on the map
@@ -568,13 +567,6 @@ export default function TonightClient({
         }
         actionsAfterContent
       >
-      {/* The weather line is one sentence about the night, so it reads before
-          the lede at every width: it is the only thing between the head and
-          the pubs. */}
-      <div className="tonightWeather">
-        <TonightConditionsStrip origin={origin} tonightMode />
-      </div>
-
       <div className="tonightPrimary" data-status={listingsStatus}>
       {/* THE LEDE REGION. What a reader meets first is the pubs people are
           talking about, then the independent listings, then the honest quiet
@@ -583,6 +575,7 @@ export default function TonightClient({
           order and the paint order stay one order (#1575). */}
       <div className="tonightLedeRegion" data-testid="tonight-lede">
       <TonightHypedPubs rows={hypedPubs} selectableVenueIds={selectableVenueIds} />
+      {listingLede ? <p className="screenLede">{listingLede}</p> : null}
       <TonightListingsNotice
         state={listingsState}
         note={listingsNote}
@@ -857,6 +850,12 @@ export default function TonightClient({
       ) : null}
 
       </div>
+      </div>
+
+      {/* The first pub and its map action precede the listing explanation and
+          weather at every width. Both details remain available below it. */}
+      <div className="tonightWeather">
+        <TonightConditionsStrip origin={origin} tonightMode />
       </div>
 
       {/* The freshness stamp and the share control sit UNDER the listings they
