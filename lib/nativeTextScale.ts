@@ -31,15 +31,6 @@ import { isNativeApp, nativePlatform } from "@/lib/nativePlatform";
 /** The attribute a stylesheet reads to change shape under a large text size. */
 export const TEXT_SCALE_ATTRIBUTE = "data-text-scale";
 
-/**
- * How much larger text is than the rem it is laid out in, published on <html>
- * for a box whose height must hold its text. On iOS the shell enlarges text
- * alone (-webkit-text-size-adjust) and the 16px root stays put, so it is the
- * scale; on Android the WebView's zoom already grows the root, and every rem
- * with it, so it is 1 and nothing is scaled twice.
- */
-export const TEXT_ZOOM_PROPERTY = "--text-zoom";
-
 /** From this scale up the six-tab bar shows icons alone, as a native bar does. */
 export const LARGE_TEXT_SCALE_FLOOR = 1.3;
 
@@ -104,25 +95,23 @@ export async function applyNativeTextScale(
   }
   const root =
     deps.root ?? (typeof document === "undefined" ? null : document.documentElement);
-  const publish = (scale: number, textOnly: boolean) => {
+  const publish = (scale: number) => {
     if (!root) return;
     const bucket = textScaleBucket(scale);
     if (bucket) root.setAttribute(TEXT_SCALE_ATTRIBUTE, bucket);
     else root.removeAttribute(TEXT_SCALE_ATTRIBUTE);
-    if (textOnly && scale !== 1) root.style.setProperty(TEXT_ZOOM_PROPERTY, String(scale));
-    else root.style.removeProperty(TEXT_ZOOM_PROPERTY);
   };
   try {
     if (platform === "ios") {
       const { value } = await plugin.getPreferred();
       const scale = clampTextScale(value);
       await plugin.set({ value: scale });
-      publish(scale, true);
+      publish(scale);
       return { status: "applied", scale };
     }
     const { value } = await plugin.get();
     const scale = Number.isFinite(value) && value > 0 ? value : 1;
-    publish(scale, false);
+    publish(scale);
     return { status: "read", scale };
   } catch {
     return { status: "unavailable" };

@@ -8,7 +8,6 @@ import {
   LARGE_TEXT_SCALE_FLOOR,
   MAX_TEXT_SCALE,
   TEXT_SCALE_ATTRIBUTE,
-  TEXT_ZOOM_PROPERTY,
   applyNativeTextScale,
   clampTextScale,
   followNativeTextScale,
@@ -32,7 +31,6 @@ function plugin(preferred: number, current = 1) {
 
 afterEach(() => {
   document.documentElement.removeAttribute(TEXT_SCALE_ATTRIBUTE);
-  document.documentElement.style.removeProperty(TEXT_ZOOM_PROPERTY);
 });
 
 describe("the pure rules", () => {
@@ -67,9 +65,6 @@ describe("applyNativeTextScale", () => {
     ).resolves.toEqual({ status: "applied", scale: 2 });
     expect(p.set).toHaveBeenCalledWith({ value: 2 });
     expect(document.documentElement.getAttribute(TEXT_SCALE_ATTRIBUTE)).toBe("large");
-    // WebKit enlarges text alone, so the scale a text box must make room for
-    // is published as a number.
-    expect(document.documentElement.style.getPropertyValue(TEXT_ZOOM_PROPERTY)).toBe("2");
   });
 
   it("reads the zoom the Android WebView already applies and only publishes", async () => {
@@ -79,16 +74,9 @@ describe("applyNativeTextScale", () => {
     ).resolves.toEqual({ status: "read", scale: 2 });
     expect(p.set).not.toHaveBeenCalled();
     expect(document.documentElement.getAttribute(TEXT_SCALE_ATTRIBUTE)).toBe("large");
-    // The WebView already grew the root and every rem with it.
-    expect(document.documentElement.style.getPropertyValue(TEXT_ZOOM_PROPERTY)).toBe("");
   });
 
   it("takes the attribute off again at an ordinary size", async () => {
-    document.documentElement.setAttribute(TEXT_SCALE_ATTRIBUTE, "large");
-    document.documentElement.style.setProperty(TEXT_ZOOM_PROPERTY, "2");
-    const ios = plugin(1);
-    await applyNativeTextScale({ isNative: () => true, platform: () => "ios", loadPlugin: async () => ios });
-    expect(document.documentElement.style.getPropertyValue(TEXT_ZOOM_PROPERTY)).toBe("");
     document.documentElement.setAttribute(TEXT_SCALE_ATTRIBUTE, "large");
     const p = plugin(1, 1);
     await applyNativeTextScale({ isNative: () => true, platform: () => "android", loadPlugin: async () => p });

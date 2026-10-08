@@ -108,113 +108,93 @@ for (const scale of [1.3, 1.5, 2]) {
   }
 }
 
-// The bottom card grows with its text on both shells. Android's text zoom
-// grows the root, and every rem with it. The iOS shell enlarges text alone
-// (-webkit-text-size-adjust) with the root left at 16px, and publishes the
-// scale as --text-zoom (lib/nativeTextScale.ts). Chromium has neither, so the
-// Android case scales the root, as the route checks above do, and the iOS case
-// publishes --text-zoom and enlarges the card's font sizes and fixed line
-// heights alone, as WebKit's text-size-adjust does. This models WebKit; it is
-// not proof of it, which only an iOS WebView at the size can give.
-for (const shell of ["android", "ios"] as const) {
-  for (const scale of [1.3, 1.5, 2]) {
-    test(`${shell} ${scale}x text grows the map's bottom card with its text, and the controls above it follow`, async ({ page }) => {
-      await page.setViewportSize({ width: 412, height: 840 });
-      await installNativeShell(page, shell);
-      const textOnly = shell === "ios";
-      const applyScale = ({ fontScale, onlyText }: { fontScale: number; onlyText: boolean }) => {
-        const root = document.documentElement;
-        root.setAttribute("data-text-scale", "large");
-        if (onlyText) root.style.setProperty("--text-zoom", String(fontScale));
-        else root.style.fontSize = `${fontScale * 100}%`;
+// The bottom card grows with its text. Every size in it is rem, so Android's
+// text zoom, which grows the root, grows the card once, and the controls above
+// it follow --map-peek-h. The route checks above model that zoom the same way.
+// The iOS shell enlarges text through -webkit-text-size-adjust with the root
+// left at 16px, so the card does not grow there yet: that gap needs a native
+// iOS check and is not modelled here.
+for (const scale of [1.3, 1.5, 2]) {
+  test(`Android ${scale}x text grows the map's bottom card with its text, and the controls above it follow`, async ({ page }) => {
+    await page.setViewportSize({ width: 412, height: 840 });
+    await installNativeShell(page, "android");
+    const applyScale = (fontScale: number) => {
+      const root = document.documentElement;
+      root.setAttribute("data-text-scale", "large");
+      root.style.fontSize = `${fontScale * 100}%`;
+    };
+    await page.addInitScript(applyScale, scale);
+    await page.goto("/map");
+    const card = page.locator(".mapPeek");
+    await expect(card).toBeVisible({ timeout: 60_000 });
+    await page.evaluate(applyScale, scale);
+    await page.evaluate(() => document.fonts.ready);
+    // The tallest answer the card holds: a lens label wrapped under
+    // "Cheapest in this view", over the figure line with a walk.
+    const geometry = await card.evaluate((element) => {
+      const answer = element.querySelector<HTMLElement>(".mapPeekAnswer")!;
+      answer.innerHTML =
+        '<span class="mapPeekEyebrow"><span>Cheapest in this view</span><span class="mapPeekLabel">· Alcohol-free</span></span>' +
+        '<span class="mapPeekLine"><span class="mapPeekPrice">£12.00</span>' +
+        '<span class="mapPeekName">The Marquis of Granby</span><span class="mapPeekWalk">12 min walk</span></span>';
+      const rect = (selector: string) => {
+        const found = document.querySelector<HTMLElement>(selector);
+        if (!found || getComputedStyle(found).visibility === "hidden") return null;
+        const box = found.getBoundingClientRect();
+        return box.width > 0 && box.height > 0
+          ? { top: box.top, bottom: box.bottom, left: box.left, right: box.right, height: box.height }
+          : null;
       };
-      await page.addInitScript(applyScale, { fontScale: scale, onlyText: textOnly });
-      await page.goto("/map");
-      const card = page.locator(".mapPeek");
-      await expect(card).toBeVisible({ timeout: 60_000 });
-      await page.evaluate(applyScale, { fontScale: scale, onlyText: textOnly });
-      await page.evaluate(() => document.fonts.ready);
-      // The tallest answer the card holds: a lens label wrapped under
-      // "Cheapest in this view", over the figure line with a walk.
-      const geometry = await card.evaluate((element, [fontScale, onlyText]) => {
-        const answer = element.querySelector<HTMLElement>(".mapPeekAnswer")!;
-        answer.innerHTML =
-          '<span class="mapPeekEyebrow"><span>Cheapest in this view</span><span class="mapPeekLabel">· Alcohol-free</span></span>' +
-          '<span class="mapPeekLine"><span class="mapPeekPrice">£12.00</span>' +
-          '<span class="mapPeekName">The Marquis of Granby</span><span class="mapPeekWalk">12 min walk</span></span>';
-        if (onlyText) {
-          // WebKit's percentage text-size-adjust scales the font size and a
-          // fixed line-height alike, and leaves every other length alone.
-          const texts = [...answer.querySelectorAll<HTMLElement>("*")];
-          const styles = texts.map((text) => {
-            const style = getComputedStyle(text);
-            return { fontSize: parseFloat(style.fontSize), lineHeight: style.lineHeight };
-          });
-          texts.forEach((text, index) => {
-            const { fontSize, lineHeight } = styles[index]!;
-            text.style.fontSize = `${fontSize * fontScale}px`;
-            if (lineHeight !== "normal") text.style.lineHeight = `${parseFloat(lineHeight) * fontScale}px`;
-          });
-        }
-        const rect = (selector: string) => {
-          const found = document.querySelector<HTMLElement>(selector);
-          if (!found || getComputedStyle(found).visibility === "hidden") return null;
-          const box = found.getBoundingClientRect();
-          return box.width > 0 && box.height > 0
-            ? { top: box.top, bottom: box.bottom, left: box.left, right: box.right, height: box.height }
-            : null;
-        };
-        const textBox = (found: HTMLElement) => {
-          const range = document.createRange();
-          range.selectNodeContents(found);
-          const box = range.getBoundingClientRect();
-          return { top: box.top, bottom: box.bottom };
-        };
-        const eyebrow = answer.querySelector<HTMLElement>(".mapPeekEyebrow")!;
-        const line = answer.querySelector<HTMLElement>(".mapPeekLine")!;
-        const price = answer.querySelector<HTMLElement>(".mapPeekPrice")!;
-        return {
-          root: parseFloat(getComputedStyle(document.documentElement).fontSize),
-          figureFont: parseFloat(getComputedStyle(price).fontSize),
-          card: rect(".mapPeek")!,
-          answer: rect(".mapPeekAnswer")!,
-          door: rect(".mapPeek .mobilePlanActivation"),
-          contentTop: eyebrow.getBoundingClientRect().top,
-          contentBottom: line.getBoundingClientRect().bottom,
-          eyebrowLines: Math.round(
-            eyebrow.getBoundingClientRect().height / parseFloat(getComputedStyle(eyebrow).lineHeight),
-          ),
-          labelText: textBox(answer.querySelector<HTMLElement>(".mapPeekLabel")!),
-          figureText: textBox(price),
-          lineTop: line.getBoundingClientRect().top,
-          nearMe: rect(".mobileMapLocateFab"),
-          create: rect(".createFab"),
-        };
-      }, [scale, textOnly] as const);
-      expect(geometry.root, "the root stays put on iOS and grows on Android").toBeCloseTo(textOnly ? 16 : 16 * scale);
-      expect(geometry.figureFont, "the figure's text is enlarged").toBeCloseTo(16 * scale);
-      // 68px of frame, gap and door, and an answer row of 44px at the scale.
-      expect(geometry.card.height).toBeCloseTo(68 + 44 * scale, 0);
-      expect(geometry.answer.height).toBeCloseTo(44 * scale, 0);
-      expect(geometry.eyebrowLines, "the eyebrow is at most two lines").toBeLessThanOrEqual(2);
-      expect(geometry.labelText.bottom, "the label's text never runs into the figure line").toBeLessThanOrEqual(geometry.lineTop + 1);
-      expect(geometry.contentTop, "the eyebrow stays inside the answer row").toBeGreaterThanOrEqual(geometry.answer.top - 1);
-      expect(geometry.contentBottom, "the figure line stays inside the answer row").toBeLessThanOrEqual(geometry.answer.bottom + 1);
-      expect(geometry.door, "the plan door rides in the card").not.toBeNull();
-      expect(geometry.answer.bottom, "the answer never runs under the door").toBeLessThanOrEqual(geometry.door!.top + 0.5);
-      expect(geometry.figureText.bottom, "the figure's text never runs under the door").toBeLessThanOrEqual(geometry.door!.top + 0.5);
-      expect(geometry.nearMe, "Near me is painted").not.toBeNull();
-      expect(geometry.create, "the Create action is painted").not.toBeNull();
-      for (const [name, other] of [["Near me", geometry.nearMe!], ["Create", geometry.create!]] as const) {
-        const overlap =
-          geometry.card.left < other.right &&
-          other.left < geometry.card.right &&
-          geometry.card.top < other.bottom &&
-          other.top < geometry.card.bottom;
-        expect(overlap, `the grown card clears ${name}: ${JSON.stringify([geometry.card, other])}`).toBe(false);
-      }
+      const textBox = (found: HTMLElement) => {
+        const range = document.createRange();
+        range.selectNodeContents(found);
+        const box = range.getBoundingClientRect();
+        return { top: box.top, bottom: box.bottom };
+      };
+      const eyebrow = answer.querySelector<HTMLElement>(".mapPeekEyebrow")!;
+      const line = answer.querySelector<HTMLElement>(".mapPeekLine")!;
+      const price = answer.querySelector<HTMLElement>(".mapPeekPrice")!;
+      return {
+        root: parseFloat(getComputedStyle(document.documentElement).fontSize),
+        figureFont: parseFloat(getComputedStyle(price).fontSize),
+        card: rect(".mapPeek")!,
+        answer: rect(".mapPeekAnswer")!,
+        door: rect(".mapPeek .mobilePlanActivation"),
+        contentTop: eyebrow.getBoundingClientRect().top,
+        contentBottom: line.getBoundingClientRect().bottom,
+        eyebrowLines: Math.round(
+          eyebrow.getBoundingClientRect().height / parseFloat(getComputedStyle(eyebrow).lineHeight),
+        ),
+        labelText: textBox(answer.querySelector<HTMLElement>(".mapPeekLabel")!),
+        figureText: textBox(price),
+        lineTop: line.getBoundingClientRect().top,
+        nearMe: rect(".mobileMapLocateFab"),
+        create: rect(".createFab"),
+      };
     });
-  }
+    expect(geometry.root, "the root grows with the text").toBeCloseTo(16 * scale);
+    expect(geometry.figureFont, "the figure's text is enlarged").toBeCloseTo(16 * scale);
+    // 68px of frame, gap and door, and an answer row of 44px at the scale.
+    expect(geometry.card.height).toBeCloseTo(68 + 44 * scale, 0);
+    expect(geometry.answer.height).toBeCloseTo(44 * scale, 0);
+    expect(geometry.eyebrowLines, "the eyebrow is at most two lines").toBeLessThanOrEqual(2);
+    expect(geometry.labelText.bottom, "the label's text never runs into the figure line").toBeLessThanOrEqual(geometry.lineTop + 1);
+    expect(geometry.contentTop, "the eyebrow stays inside the answer row").toBeGreaterThanOrEqual(geometry.answer.top - 1);
+    expect(geometry.contentBottom, "the figure line stays inside the answer row").toBeLessThanOrEqual(geometry.answer.bottom + 1);
+    expect(geometry.door, "the plan door rides in the card").not.toBeNull();
+    expect(geometry.answer.bottom, "the answer never runs under the door").toBeLessThanOrEqual(geometry.door!.top + 0.5);
+    expect(geometry.figureText.bottom, "the figure's text never runs under the door").toBeLessThanOrEqual(geometry.door!.top + 0.5);
+    expect(geometry.nearMe, "Near me is painted").not.toBeNull();
+    expect(geometry.create, "the Create action is painted").not.toBeNull();
+    for (const [name, other] of [["Near me", geometry.nearMe!], ["Create", geometry.create!]] as const) {
+      const overlap =
+        geometry.card.left < other.right &&
+        other.left < geometry.card.right &&
+        geometry.card.top < other.bottom &&
+        other.top < geometry.card.bottom;
+      expect(overlap, `the grown card clears ${name}: ${JSON.stringify([geometry.card, other])}`).toBe(false);
+    }
+  });
 }
 
 for (const scale of [1.3, 1.5, 2]) {

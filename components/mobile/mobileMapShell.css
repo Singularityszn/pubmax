@@ -879,13 +879,9 @@
      not fit beside it, the label on its own line under it. A lens category
      always fits that line whole; only an anchor or dish name longer than the
      line ends in an ellipsis there (its full name is in the accessible name
-     and the venue sheet). Two eyebrow lines and the figure line fill the
-     answer row exactly at any text size on either shell, and the card keeps
-     its fixed height. The line heights are plain rem: Android's zoom grows
-     them with the root, and iOS WebKit scales a fixed line-height by the
-     shell's -webkit-text-size-adjust itself. Only the boxes, the figure line's
-     height and --map-peek-row-h, take --text-zoom, because WebKit leaves a
-     height alone. */
+     and the venue sheet). Every size here is rem, as --map-peek-row-h is, so
+     two eyebrow lines and the figure line fill the answer row exactly at any
+     root font size and the text scale applies once. */
   .mapPeekEyebrow {
     display: flex;
     flex-wrap: wrap;
@@ -911,7 +907,7 @@
     align-items: baseline;
     gap: 8px;
     min-width: 0;
-    height: calc(1rem * var(--text-zoom, 1));
+    height: 1rem;
     line-height: 1rem;
   }
   /* The line is the figure, the name and the walk, each a direct flex item.
