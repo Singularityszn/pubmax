@@ -1,0 +1,2 @@
+Function 'PubMap' has a complexity of 35. Maximum allowed is 0.
+Function 'cityStatusAreaFor' has a complexity of 6. Maximum allowed is 0.

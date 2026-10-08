@@ -1,0 +1,6 @@
+
+/Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M4E8HGY7H05Z5ZMZ2ZRNX7PQ/components/PubMap.tsx
+  1092:16  warning  Function 'PubMap' has a complexity of 40. Maximum allowed is 35  complexity
+
+✖ 1 problem (0 errors, 1 warning)
+
