@@ -15,13 +15,18 @@
 // CityMCP things-to-do layer (useTonightOpportunities) stays a secondary
 // city-events overlay.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { coarsenViewerPoint } from "@/lib/geo";
-import { loadSurfaceJson, SURFACE_JUST_READ_MS } from "@/lib/surfaceDataCache";
+import {
+  DEFAULT_SURFACE_SNAPSHOT_MAX_AGE_MS,
+  loadSurfaceJson,
+  SURFACE_JUST_READ_MS,
+} from "@/lib/surfaceDataCache";
 import {
   EMPTY_KIND_OBSERVED_AT,
   isValidWhatsOnRow,
+  londonServiceDayBounds,
   parseKindObservedAt,
   type WhatsOnKindObservedAt,
   type WhatsOnRow,
@@ -78,6 +83,8 @@ const FETCH_TIMEOUT_MS = 8_000;
  * tab switch.
  */
 const TONIGHT_SNAPSHOT_MAX_AGE_MS = 10 * 60_000;
+/** Public lists may reuse an answer for one minute. Location reads revalidate sooner. */
+const PUBLIC_TONIGHT_FRESH_MS = 60_000;
 
 /** The request this hook makes. Shared so the snapshot is keyed by the answer's own URL. */
 function whatsOnTonightRequestUrl(
@@ -90,6 +97,18 @@ function whatsOnTonightRequestUrl(
       : null;
   const suffix = validNear ? `&near=${validNear.lat},${validNear.lng}` : "";
   return `/api/whats-on?window=tonight&limit=60${suffix}${pubOnly ? "&pubOnly=1" : ""}`;
+}
+
+/** A previous night's rows must not seed a paint after London's 04:00 rollover. */
+function tonightSnapshotMaxAge(maxAgeMs: number | undefined): number {
+  const now = Date.now();
+  const { start } = londonServiceDayBounds(now);
+  // The current window starts at 16:00. An instant one day before that start
+  // is inside the previous service date, even on a clock-change day. Resolve
+  // that date's 04:00 end independently rather than assuming a 24-hour day.
+  const previousWindow = londonServiceDayBounds(Date.parse(start) - 24 * 60 * 60_000);
+  const elapsedSinceRollover = now - Date.parse(previousWindow.end);
+  return Math.min(maxAgeMs ?? DEFAULT_SURFACE_SNAPSHOT_MAX_AGE_MS, elapsedSinceRollover);
 }
 
 export type LoadTonightResult = {
@@ -111,6 +130,8 @@ export type LoadTonightOpts = {
   near?: { lat: number; lng: number } | null;
   maxAgeMs?: number;
   pubOnly?: boolean;
+  /** Explicit retry bypasses both the snapshot and an older pending request. */
+  fresh?: boolean;
   onResult?: (result: LoadTonightResult, source: "snapshot" | "network") => void;
 };
 
@@ -158,8 +179,9 @@ export async function loadWhatsOnTonight(
     whatsOnTonightRequestUrl(opts.near, opts.pubOnly === true),
     {
       signal: opts.signal,
-      maxAgeMs: opts.maxAgeMs,
-      freshForMs: SURFACE_JUST_READ_MS,
+      maxAgeMs: opts.fresh ? -1 : tonightSnapshotMaxAge(opts.maxAgeMs),
+      fresh: opts.fresh,
+      freshForMs: opts.near ? SURFACE_JUST_READ_MS : PUBLIC_TONIGHT_FRESH_MS,
       init: { headers: { accept: "application/json" } },
       fetchImpl,
       validate: (body) => Boolean(
@@ -214,6 +236,7 @@ export function useWhatsOnTonight(
   const [kindObservedAt, setKindObservedAt] = useState<WhatsOnKindObservedAt>(EMPTY_KIND_OBSERVED_AT);
   const [status, setStatus] = useState<WhatsOnTonightStatus>("idle");
   const [retryAttempt, setRetryAttempt] = useState(0);
+  const lastRetryAttempt = useRef(0);
   const retry = useCallback(() => {
     setStatus("idle");
     setRetryAttempt((attempt) => attempt + 1);
@@ -242,7 +265,9 @@ export function useWhatsOnTonight(
       signal: controller.signal,
       maxAgeMs: TONIGHT_SNAPSHOT_MAX_AGE_MS,
       pubOnly,
+      fresh: retryAttempt !== lastRetryAttempt.current,
     };
+    lastRetryAttempt.current = retryAttempt;
     if (near) load.near = near;
     let painted = false;
     load.onResult = (result, source) => {
