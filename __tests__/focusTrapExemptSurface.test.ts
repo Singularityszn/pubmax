@@ -150,6 +150,51 @@ describe("useFocusTrap with an exempt surface", () => {
   const nextFrame = () =>
     new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
 
+  it.each(["inert", "aria-hidden"])(
+    "wraps inside the sheet while an exempt tab bar has %s, then restores its focus cycle",
+    async (attribute) => {
+      (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
+        .IS_REACT_ACT_ENVIRONMENT = true;
+      Object.defineProperty(HTMLElement.prototype, "offsetParent", {
+        configurable: true,
+        get() {
+          return (this as HTMLElement).parentElement;
+        },
+      });
+      const { byId } = buildShell();
+      const tabs = byId("chip");
+      tabs.classList.add("mobileTabBar");
+      document.body.append(tabs);
+      const host = document.createElement("div");
+      document.body.append(host);
+      root = createRoot(host);
+      await act(async () => {
+        root!.render(createElement(Trap, { containerRef: { current: byId("drawer") } }));
+      });
+
+      const tabFrom = (id: string, shiftKey = false) => {
+        byId(id).focus();
+        const event = new KeyboardEvent("keydown", {
+          key: "Tab", shiftKey, bubbles: true, cancelable: true,
+        });
+        byId(id).dispatchEvent(event);
+        expect(event.defaultPrevented).toBe(true);
+        return document.activeElement;
+      };
+
+      expect(tabFrom("plan")).toBe(byId("edit"));
+      // The keyboard hides the mounted bar without removing its exemption.
+      // Its links retain an offsetParent, but cannot receive native focus.
+      tabs.setAttribute(attribute, attribute === "aria-hidden" ? "true" : "");
+      expect(tabFrom("plan")).toBe(byId("close"));
+      expect(tabFrom("close", true)).toBe(byId("plan"));
+
+      tabs.removeAttribute(attribute);
+      expect(tabFrom("plan")).toBe(byId("edit"));
+      expect(tabFrom("close", true)).toBe(byId("hide"));
+    },
+  );
+
   it("returns focus to the container when the focused surface leaves", async () => {
     (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
       .IS_REACT_ACT_ENVIRONMENT = true;

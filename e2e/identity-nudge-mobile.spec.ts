@@ -142,7 +142,7 @@ test("strict identity modal isolates an open map sheet and releases it on dismis
   expect(response?.status()).toBe(200);
   const sheet = page.locator(".mobileSharedSheet.open");
   await expect(sheet).toBeVisible({ timeout: 30_000 });
-  await expect(sheet).toHaveAttribute("aria-modal", "true");
+  await expect(sheet).not.toHaveAttribute("aria-modal");
 
   await page.evaluate(() => {
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "Shift", bubbles: true }));

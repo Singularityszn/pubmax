@@ -165,7 +165,7 @@ to a plain fetch of the same URL.
 | Foreground location declarations | `ios/App/App/Info.plist`, `android/app/src/main/AndroidManifest.xml` |
 | Microphone and speech declarations | `ios/App/App/Info.plist` (`NSMicrophoneUsageDescription` for Pub Pal voice and for note and plan dictation, `NSSpeechRecognitionUsageDescription` for dictation), `android/app/src/main/AndroidManifest.xml` (`RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`, and microphone hardware not required) |
 | Launch splash release | `lib/nativeSplash.ts`, mounted by `components/native/NativeShellChrome.tsx`; `MainActivity` for the Android offline page (see "Cold start") |
-| Native system-bar seam | `lib/nativeSystemBars.ts`, mounted by `components/native/NativeSystemBars.tsx` |
+| Native system-bar seam | `lib/nativeSystemBars.ts`, mounted by `components/native/NativeSystemBars.tsx`. Android registers `android/app/src/main/java/com/pubmaxx/app/PageSystemBars.java` in `MainActivity`. |
 | Universal/app-link route seam | `lib/nativeDeepLinks.ts`, mounted by `components/native/NativeDeepLinks.tsx` |
 | Push registration seam | `lib/nativePush.ts` → `POST /api/push-tokens` |
 | Token storage (memory + Supabase) | `lib/pushTokenStore.ts`, `app/api/push-tokens/route.ts`, `supabase/migrations/20260717120000_0039_push_tokens.sql` |
