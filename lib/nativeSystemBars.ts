@@ -8,6 +8,7 @@ export type NativeTheme = "light" | "dark";
 
 /**
  * Keep status/navigation-bar content legible against the active app theme.
+ * Android's PageSystemBars also paints the inset bands with that same theme.
  * Resolves false off-native or when a platform plugin call is unavailable.
  */
 export async function syncNativeSystemBars(theme: NativeTheme): Promise<boolean> {

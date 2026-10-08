@@ -18,8 +18,14 @@ import { sheetSnapCaps } from "@/lib/sheetSnap";
 
 type Probe = { snapshot: ReturnType<typeof useSheetHeightDrag> | null };
 
-function Harness({ onRender }: { onRender: (drag: ReturnType<typeof useSheetHeightDrag>) => void }) {
-  const drag = useSheetHeightDrag(() => {});
+function Harness({
+  onRender,
+  onDismiss = () => {},
+}: {
+  onRender: (drag: ReturnType<typeof useSheetHeightDrag>) => void;
+  onDismiss?: () => void;
+}) {
+  const drag = useSheetHeightDrag(onDismiss);
   onRender(drag);
   return null;
 }
@@ -43,17 +49,55 @@ afterEach(async () => {
   document.body.innerHTML = "";
 });
 
-async function mount(): Promise<Probe> {
+async function mount(onDismiss?: () => void): Promise<Probe> {
   const probe: Probe = { snapshot: null };
   const onRender = (drag: ReturnType<typeof useSheetHeightDrag>) => {
     probe.snapshot = drag;
   };
   root = createRoot(document.body.appendChild(document.createElement("div")));
-  await act(async () => root!.render(createElement(Harness, { onRender })));
+  await act(async () => root!.render(createElement(Harness, { onRender, onDismiss })));
   return probe;
 }
 
 describe("useSheetHeightDrag under a shrinking layout viewport", () => {
+  it("keeps a full sheet below the top edge while reserving the primary dock", async () => {
+    setViewport(568);
+    const portal = document.body.appendChild(document.createElement("div"));
+    portal.className = "mobileSheetPortal";
+    portal.style.bottom = "64px";
+    const probe = await mount();
+    await act(async () => probe.snapshot!.openAtSnap("full"));
+    expect(probe.snapshot!.sheetHeight).toBe(sheetSnapCaps(568, 64).full);
+    expect(probe.snapshot!.sheetHeight! + 64).toBeLessThan(568);
+  });
+
+  it("peeks at exactly the header and command bar once the footer holds one", async () => {
+    setViewport(568, 320);
+    const portal = document.body.appendChild(document.createElement("div"));
+    portal.className = "mobileSheetPortal";
+    portal.style.bottom = "64px";
+    const sheet = portal.appendChild(document.createElement("section"));
+    sheet.className = "mobileSharedSheet";
+    const height = (element: HTMLElement, px: number) =>
+      Object.defineProperty(element, "offsetHeight", { configurable: true, value: px });
+    height(sheet.appendChild(document.createElement("header")), 64);
+    const body = sheet.appendChild(document.createElement("div"));
+    body.className = "mobileSharedSheetBody";
+    body.style.padding = "8px 16px";
+    const footer = sheet.appendChild(document.createElement("div"));
+    footer.className = "mobileSharedSheetFooter";
+    height(footer, 0);
+    const probe = await mount();
+
+    await act(async () => probe.snapshot!.openAtSnap("peek"));
+    expect(probe.snapshot!.sheetHeight).toBe(sheetSnapCaps(568, 64).peek);
+
+    height(footer, 121);
+    await act(async () => probe.snapshot!.recapToViewport());
+    expect(probe.snapshot!.sheetHeight).toBe(64 + 121);
+    expect(probe.snapshot!.settling).toBe(false);
+  });
+
   it("re-caps an open sheet to the new viewport, jumping rather than springing", async () => {
     setViewport(773);
     const probe = await mount();
@@ -90,6 +134,50 @@ describe("useSheetHeightDrag under a shrinking layout viewport", () => {
     });
     expect(reveal).toHaveBeenCalledWith({ block: "nearest" });
     raf.mockRestore();
+  });
+
+  it("lets a dismiss in flight finish through viewport and header or footer re-caps", async () => {
+    setViewport(844);
+    const onDismiss = vi.fn();
+    const probe = await mount(onDismiss);
+    await act(async () => probe.snapshot!.openAtSnap("full"));
+    const frames: FrameRequestCallback[] = [];
+    const raf = vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => frames.push(cb));
+    let now = 0;
+    const runFrame = async () => {
+      const next = frames.shift();
+      if (!next) return;
+      now += 16;
+      await act(async () => next(now));
+    };
+    try {
+      await act(async () => probe.snapshot!.requestDismiss());
+      await runFrame();
+      await runFrame();
+      const midDismiss = probe.snapshot!.sheetHeight;
+      expect(midDismiss).toBeLessThan(sheetSnapCaps(844, 0).full);
+
+      setViewport(544);
+      await act(async () => {
+        window.dispatchEvent(new Event("resize"));
+        probe.snapshot!.recapToViewport();
+      });
+      expect(probe.snapshot!.settling).toBe(true);
+      expect(probe.snapshot!.sheetHeight).toBe(midDismiss);
+
+      for (let frame = 0; frame < 500 && frames.length; frame += 1) await runFrame();
+      expect(probe.snapshot!.sheetHeight).toBe(0);
+      expect(onDismiss).toHaveBeenCalledTimes(1);
+
+      setViewport(844);
+      await act(async () => {
+        window.dispatchEvent(new Event("resize"));
+      });
+      expect(probe.snapshot!.sheetHeight).toBe(0);
+      expect(onDismiss).toHaveBeenCalledTimes(1);
+    } finally {
+      raf.mockRestore();
+    }
   });
 
   it("leaves a closed sheet and a live drag alone", async () => {

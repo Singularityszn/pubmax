@@ -40,4 +40,7 @@
          values-night, so the band is the page whichever way the phone reads.
          paper: the page paper token, the body remap in app/globals.css. -->
     <color name="pubmaxx_window_background">#F8F2EC</color>
+    <!-- Explicit page choices must work independently of Android night mode. -->
+    <color name="pubmaxx_page_light">#F8F2EC</color>
+    <color name="pubmaxx_page_dark">#0A0A0B</color>
 </resources>

@@ -221,7 +221,9 @@ describe("PeopleListClient recovery", () => {
       root?.render(createElement(PeopleListClient, { handle: "karan", relation: "followers" })),
     );
     await settle();
-    await vi.advanceTimersByTimeAsync(50);
+    await commit(async () => {
+      await vi.advanceTimersByTimeAsync(50);
+    });
     await settle();
 
     expect(container.textContent).toContain("Could not load this list. That's on us, not you.");
@@ -230,7 +232,9 @@ describe("PeopleListClient recovery", () => {
     await commit(() => {
       browserWindow.dispatchEvent(new Event("online"));
     });
-    await vi.advanceTimersByTimeAsync(200);
+    await commit(async () => {
+      await vi.advanceTimersByTimeAsync(200);
+    });
     await settle();
 
     expect(container.textContent).toContain("@alice");
@@ -289,7 +293,9 @@ describe("PeopleListClient recovery", () => {
       root?.render(createElement(PeopleListClient, { handle: "karan", relation: "followers" })),
     );
     await settle();
-    await vi.advanceTimersByTimeAsync(50);
+    await commit(async () => {
+      await vi.advanceTimersByTimeAsync(50);
+    });
     await settle();
     expect(container.textContent).toContain("You look offline. We will retry when you are back.");
 
@@ -300,7 +306,9 @@ describe("PeopleListClient recovery", () => {
       root?.render(createElement(PeopleListClient, { handle: "karan", relation: "followers" })),
     );
     await settle();
-    await vi.advanceTimersByTimeAsync(50);
+    await commit(async () => {
+      await vi.advanceTimersByTimeAsync(50);
+    });
     await settle();
     expect(container.textContent).toContain("Could not load this list. That's on us, not you.");
   });
