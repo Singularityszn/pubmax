@@ -19,6 +19,7 @@ import {
   publishEventsReview,
   providerLaneStatus,
   readExistingRowsForLabels,
+  readExistingOwnSiteRows,
   runEventsRefresh,
   skiddleLaneFenced,
   WITH_COMMON_FLAG,
@@ -484,6 +485,99 @@ describe("runEventsRefresh end to end", () => {
     expect(rows.map((row) => row.id)).toContain("own-site-next");
     expect(rows.map((row) => row.id)).not.toContain("own-site-past");
     expect(rows.filter((row) => row.source.label === "Ticketmaster")).toHaveLength(1);
+  });
+
+  it.each([
+    ["quiz", "2026-08-16T22:00:00Z"],
+    ["music", "2026-08-16T22:00:00Z"],
+    ["sport", "2026-08-16T21:30:00Z"],
+    ["event", "2026-08-16T22:00:00Z"],
+  ])("keeps an in-progress %s through refresh until its effective end", async (kind, end) => {
+    const outPath = temporaryOutPath();
+    const ownSite = {
+      id: "own-site-in-progress",
+      placeName: "The Crown",
+      kind,
+      startsAt: "2026-08-16T19:00:00Z",
+      title: "Pub listing",
+      source: { label: "The Crown website", url: "https://crown.example/" },
+      observedAt: "2026-08-15T09:00:00Z",
+      confidence: "listed",
+    };
+    writeFileSync(outPath, JSON.stringify({ rows: [ownSite] }));
+    const refresh = (nowMs: number) => runEventsRefresh({
+      argv: ["node", "eventsRefresh.mjs"],
+      env: { TICKETMASTER_API_KEY: "test-key" },
+      nowMs,
+      fetchImpl: (async () => ticketmasterResponse()) as unknown as typeof fetch,
+      outPath,
+      loadVenueIndex: () => null,
+      log: () => {},
+      logError: () => {},
+    });
+
+    expect((await refresh(Date.parse("2026-08-16T19:30:00Z"))).provider.wrote).toBe(true);
+    expect(JSON.parse(readFileSync(outPath, "utf8")).rows).toContainEqual(ownSite);
+    expect((await refresh(Date.parse(end))).provider.wrote).toBe(true);
+    expect(JSON.parse(readFileSync(outPath, "utf8")).rows).not.toContainEqual(ownSite);
+  });
+
+  it("rejects malformed held own-site rows before either writer can sort them", async () => {
+    const outPath = temporaryOutPath();
+    const valid = {
+      id: "own-site-valid",
+      placeName: "The Crown",
+      kind: "quiz",
+      startsAt: "2026-08-16T19:00:00Z",
+      title: "Pub quiz",
+      source: { label: "The Crown website", url: "https://crown.example/" },
+      observedAt: "2026-08-15T09:00:00Z",
+      confidence: "listed",
+    };
+    writeFileSync(outPath, JSON.stringify({ rows: [
+      valid,
+      { ...valid, id: "own-site-no-start", startsAt: undefined, endsAt: "2026-08-16T22:00:00Z" },
+      { ...valid, id: "own-site-number-start", startsAt: 12, endsAt: "2026-08-16T22:00:00Z" },
+      { ...valid, id: "own-site-no-source", source: undefined },
+      { ...valid, id: "own-site-future-observation", observedAt: "2026-08-17T09:00:00Z" },
+      { ...valid, id: "own-site-date-only", startsAt: undefined, startsDate: "2026-08-16" },
+      null,
+    ] }));
+
+    expect(readExistingOwnSiteRows(outPath, NOW_MS)).toEqual([valid]);
+    const result = await runEventsRefresh({
+      argv: ["node", "eventsRefresh.mjs"],
+      env: { TICKETMASTER_API_KEY: "test-key" },
+      nowMs: NOW_MS,
+      fetchImpl: (async () => ticketmasterResponse()) as unknown as typeof fetch,
+      outPath,
+      loadVenueIndex: () => null,
+      log: () => {},
+      logError: () => {},
+    });
+    expect(result.provider.wrote).toBe(true);
+    const ownRows = JSON.parse(readFileSync(outPath, "utf8")).rows.filter(
+      (row: { id: string }) => row.id.startsWith("own-site-"),
+    );
+    expect(ownRows).toEqual([valid]);
+  });
+
+  it.each(["quiz", "deal"])("uses the exact stated %s end with no extra grace", (kind) => {
+    const outPath = temporaryOutPath();
+    const row = {
+      id: "own-site-explicit-end",
+      placeName: "The Crown",
+      kind,
+      startsAt: "2026-08-16T19:00:00Z",
+      endsAt: "2026-08-16T20:00:00Z",
+      title: "Pub listing",
+      source: { label: "The Crown website", url: "https://crown.example/" },
+      observedAt: "2026-08-15T09:00:00Z",
+      confidence: "listed",
+    };
+    writeFileSync(outPath, JSON.stringify({ rows: [row] }));
+    expect(readExistingOwnSiteRows(outPath, Date.parse("2026-08-16T19:59:59Z"))).toEqual([row]);
+    expect(readExistingOwnSiteRows(outPath, Date.parse("2026-08-16T20:00:00Z"))).toEqual([]);
   });
 
   it("still refuses to clobber when held Common rows are the only rows left", async () => {
