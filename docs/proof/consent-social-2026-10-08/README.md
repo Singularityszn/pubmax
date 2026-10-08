@@ -45,3 +45,20 @@ The read-only tab bar inventory records cold streaming, a real Tonight tab click
 Installed Chrome supplied browser proof because the shared bundled Playwright headless shell was unavailable. No shared browser cache or download changed.
 
 The full `npm run verify:no-mistakes` gate passed. Coverage reported 21,421 passed tests and one existing skipped test. The disposable PostgreSQL passes reported 554 tests plus 10 harness tests. Lint, database type drift, type checks, dead-code checks, the e2e skip fence, freshness checks and the dependency audit completed successfully. Three credential-dependent stores remained unmeasurable and were not claimed fresh.
+
+## Nested disclosure correction
+
+Opening "7 more pubs" previously rotated the arrows for every closed "Why this pub" disclosure inside it. The outer rotation rule now selects only its own summary. Each nested arrow follows its own open state.
+
+The published head `034a1bbe8d67793faf0864bbcc5e563321f965f6` failed four browser cases at 320x568 and 360x640 in both themes. Its closed nested arrows had a computed rotation of 180 degrees. The corrected production bundle passed all four cases with zero retries. Closed arrows now have no rotation. Open arrows retain their 180-degree rotation, explanation and source.
+
+| Phone and theme | Before, closed nested details | After, closed nested details | After, open nested details |
+| --- | --- | --- | --- |
+| 320x568 dark | ![Closed nested arrow incorrectly points up](disclosure-320-dark-before.png) | ![Closed nested arrow points down](disclosure-320-dark-closed-after.png) | ![Open nested arrow points up](disclosure-320-dark-open-after.png) |
+| 320x568 light | ![Closed nested arrow incorrectly points up](disclosure-320-light-before.png) | ![Closed nested arrow points down](disclosure-320-light-closed-after.png) | ![Open nested arrow points up](disclosure-320-light-open-after.png) |
+| 360x640 dark | ![Closed nested arrow incorrectly points up](disclosure-360-dark-before.png) | ![Closed nested arrow points down](disclosure-360-dark-closed-after.png) | ![Open nested arrow points up](disclosure-360-dark-open-after.png) |
+| 360x640 light | ![Closed nested arrow incorrectly points up](disclosure-360-light-before.png) | ![Closed nested arrow points down](disclosure-360-light-closed-after.png) | ![Open nested arrow points up](disclosure-360-light-open-after.png) |
+
+[Computed before and after styles](disclosure-styles.json) retain both nested states. The first corrected proof runner sampled the opening animation immediately and failed its open-state assertion. The runner now polls the rendered rotation before recording it. That initial output remains in the ignored proof archive.
+
+The extended repository consent spec also verifies closing the nested details while the outer details stay open. It passed all 18 tests with zero retries. The repeated 16-journey phone matrix and two desktop journeys also passed. All primary-content boxes, consent boxes and CLS measurements matched the previous published proof exactly. No analytics request preceded Allow.

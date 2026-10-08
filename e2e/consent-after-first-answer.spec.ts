@@ -234,6 +234,28 @@ for (const viewport of WIDTHS) {
         await expect(firstPub.locator(".tonightHypedSource")).toBeVisible();
         await expect(firstPub.getByRole("link", { name: "Open on map" })).toBeVisible();
         await expect(page.locator(".tonightWeather")).toContainText(/sky|weather|wind/i);
+
+        const morePubs = page.locator(".tonightHypedMore");
+        await morePubs.locator(":scope > summary").click();
+        await expect(morePubs).toHaveAttribute("open", "");
+        const nestedDetails = morePubs.locator(".tonightHypedDetails").first();
+        const nestedSummary = nestedDetails.locator("summary");
+        const chevronDirection = (summary: import("@playwright/test").Locator) =>
+          summary.locator(".tonightHypedMoreChevron").evaluate((arrow) => {
+            const transform = getComputedStyle(arrow).transform;
+            return transform === "none" ? 1 : Math.round(new DOMMatrixReadOnly(transform).a);
+          });
+        await expect(nestedDetails).not.toHaveAttribute("open", "");
+        await expect.poll(() => chevronDirection(morePubs.locator(":scope > summary"))).toBe(-1);
+        await expect.poll(() => chevronDirection(nestedSummary)).toBe(1);
+        await nestedSummary.click();
+        await expect(nestedDetails.locator(".tonightHypedWhy")).toBeVisible();
+        await expect(nestedDetails.locator(".tonightHypedSource")).toBeVisible();
+        await expect.poll(() => chevronDirection(nestedSummary)).toBe(-1);
+        await nestedSummary.click();
+        await expect(nestedDetails).not.toHaveAttribute("open", "");
+        await expect(morePubs).toHaveAttribute("open", "");
+        await expect.poll(() => chevronDirection(nestedSummary)).toBe(1);
       }
       await page.goto("/privacy", { waitUntil: "domcontentloaded" });
       await firstRouteRecorded(page);
