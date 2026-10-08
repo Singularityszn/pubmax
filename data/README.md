@@ -60,9 +60,10 @@ harvest skips those pages, no stamp uses them and a page or quote seen by pubs
 on different runs is still proven.
 
 `data/amenities/london_pub_website_hours_dogs.json` holds the dog policy and
-opening hours that a pub's own page states, read from the page texts the
-amenity harvest kept, with no fetch and no model call
-(`npm run harvest:pub-website-hours-dogs`). Each row keeps the page, the day it
+opening hours that a pub's own page states. `npm run harvest:pub-website-hours-dogs`
+reads the page texts the amenity harvest kept, with no fetch and no model call.
+The [Context.dev London harvest](harvest/contextdev-whats-on/README.md) also publishes
+opening hours from fresh permitted pages into this same file. Each row keeps the page, the day it
 was read and the passage that states each fact. The
 [product features](../README.md#features) describe their display.
 The [CLI header](../scripts/harvest/pub-website-amenities/hours-and-dogs.mjs)

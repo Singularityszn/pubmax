@@ -472,6 +472,20 @@ export async function scrapeMarkdown(
   );
 }
 
+/** Read the account before an authorized harvest. This endpoint costs no credits. */
+export async function contextDevUsage(options: ContextDevCallOptions = {}) {
+  const apiKey = contextDevApiKey(options.env ?? process.env);
+  if (!apiKey) return { status: "not-configured" as const };
+  const client = contextDevClient(apiKey, options);
+  return withRetries(() => attempt(
+    () => client.get<{ credits_remaining: number; next_refill: unknown }>("/org/usage", {}),
+    (body) => Number.isInteger(body.credits_remaining) && body.credits_remaining >= 0
+      ? { status: "ok" as const, creditsRemaining: body.credits_remaining, nextRefill: body.next_refill }
+      : null,
+    "Usage returned no credit balance.",
+  ), options);
+}
+
 /** Scrape one page to HTML. 1 credit. */
 export async function scrapeHtml(
   url: string,

@@ -47,6 +47,7 @@ import {
   filterGreaterLondonWetherspoons,
   londonWallClockToIso,
 } from "../whatson/dealsRefresh.mjs";
+import { readExistingOwnSiteRows } from "../whatson/eventsRefresh.mjs";
 import { nextWeeklyOccurrence } from "../whatson/quizParsers.mjs";
 import { loadCanonicalVenueIndex, resolveVenueId } from "../whatson/resolveVenueId.mjs";
 
@@ -491,7 +492,7 @@ async function harvestEvents({ client, reporter, robots, observedAt, nowMs, venu
     return { rows: 0 };
   }
 
-  rows.sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id));
+  const ownSiteRows = readExistingOwnSiteRows(EVENTS_OUT, nowMs);
   const existing = readJson(EVENTS_OUT, { sources: [] });
   write(
     EVENTS_OUT,
@@ -511,7 +512,7 @@ async function harvestEvents({ client, reporter, robots, observedAt, nowMs, venu
             "A listing becomes a row only when it states a kind we already have, a resolvable date and a start time; anything else is dropped and counted in data/harvest/last_run.json.",
         },
       ],
-      rows,
+      rows: [...rows, ...ownSiteRows].sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id)),
     }),
     dryRun,
   );

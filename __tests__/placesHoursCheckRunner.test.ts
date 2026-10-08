@@ -93,7 +93,9 @@ it("runs Details only in central order, saves no Google hours, restores quotas, 
   expect(output.rows.map((row: { verdict: string }) => row.verdict)).toEqual(["match", "mismatch", "unknown"]);
   const review = read("data/places_verification/pub_hours_review_london.json");
   expect(review.rows.map((row: { venueId: string }) => row.venueId)).toEqual(["venue-osm-n2"]);
-  expect(JSON.stringify({ output, review })).not.toMatch(/GOOGLE NAME|periods|10:00|fake-key|Our address/);
+  // A run at 00:10:00 or 10:00 puts "10:00" in verifiedAt, so the leak check skips the run clock.
+  const stored = JSON.stringify({ output, review }, (key, value) => (key === "verifiedAt" ? undefined : value));
+  expect(stored).not.toMatch(/GOOGLE NAME|periods|10:00|fake-key|Our address/);
   expect(run().status).toBe(0);
   expect(read("calls.json")).toHaveLength(2);
 });
