@@ -1,0 +1,27 @@
+{
+  "/api/tonight-conditions": {
+    "status": 503,
+    "path": "/api/tonight-conditions",
+    "durationMs": 3
+  },
+  "/api/whats-on": {
+    "status": 200,
+    "path": "/api/whats-on?window=tonight&limit=60",
+    "durationMs": 14
+  },
+  "/api/pint-drops": {
+    "status": 503,
+    "path": "/api/pint-drops?venueId=venue-xiesdn",
+    "durationMs": 2
+  },
+  "/api/citymcp/things-to-do": {
+    "status": 200,
+    "path": "/api/citymcp/things-to-do?window=tonight&limit=8",
+    "durationMs": 2
+  },
+  "/api/citymcp/status": {
+    "status": 200,
+    "path": "/api/citymcp/status",
+    "durationMs": 6
+  }
+}

@@ -1,0 +1,39 @@
+npm notice run pubmaxxing@0.1.0 npx
+npm notice run 'vitest' run __tests__/nativeBackStartup.test.tsx
+
+ RUN  v5.0.3 /Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx
+
+stderr | __tests__/nativeBackStartup.test.tsx > iOS back during shell startup > pops history before dynamic native features load and removes the listener on unmount
+The current testing environment is not configured to support act(...)
+
+stdout | __tests__/nativeBackStartup.test.tsx > iOS back during shell startup > pops history before dynamic native features load and removes the listener on unmount
+PUBMAXXING 
+You found the cellar. Mind your head.
+
+stderr | __tests__/nativeBackStartup.test.tsx > iOS back during shell startup > pops history before dynamic native features load and removes the listener on unmount
+The current testing environment is not configured to support act(...)
+
+ ❯ __tests__/nativeBackStartup.test.tsx (1 test | 1 failed) 11ms
+   ❯ iOS back during shell startup (1)
+     × pops history before dynamic native features load and removes the listener on unmount 10ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/nativeBackStartup.test.tsx > iOS back during shell startup > pops history before dynamic native features load and removes the listener on unmount
+AssertionError: expected "back" to be called 1 times, but got 0 times
+ ❯ __tests__/nativeBackStartup.test.tsx:37:18
+     35|
+     36|     swipe();
+     37|     expect(back).toHaveBeenCalledTimes(1);
+       |                  ^
+     38|     await act(async () => root?.unmount());
+     39|     root = undefined;
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  11:56:35
+   Duration  406ms (environment 78%, transform 10%, import 6%, tests 3%, setup 1%, worker 1%)
+

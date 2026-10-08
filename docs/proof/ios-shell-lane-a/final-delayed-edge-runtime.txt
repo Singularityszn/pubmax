@@ -1,0 +1,210 @@
+Test Case '-[LaneUITests.LaneUITests testDelayedNativeListener]' started.
+    t =     0.00s Start Test at 2026-10-08 12:10:39.892
+    t =     0.02s Set Up
+    t =     0.02s Open com.pubmaxx.app
+    t =     0.02s     Activate com.pubmaxx.app
+    t =     0.03s         Wait for com.pubmaxx.app to idle
+    t =     0.03s Tap "Places" Link
+    t =     0.03s     Wait for com.pubmaxx.app to idle
+    t =     0.03s     Find the "Places" Link
+    t =     0.07s     Check for interrupting elements affecting "Places" Link
+    t =     0.09s     Synthesize event
+    t =     0.38s     Wait for com.pubmaxx.app to idle
+objc[78598]: Class UIAccessibilityLoaderWebShared is implemented in both /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.tF0MWb/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebKit.axbundle/WebKit (0x107df4398) and /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.tF0MWb/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebCore.axbundle/WebCore (0x108478310). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+LANE_DELAY_START {
+    history = 3;
+    time = 1791457842383;
+    url = "http://localhost:3491/places";
+}
+    t =     4.53s Waiting 10.0s for "Map" Link to exist
+    t =     5.59s     Checking `Expect predicate `existsNoRetry == 1` for object "Map" Link`
+    t =     5.60s         Checking existence of `"Map" Link`
+    t =     5.65s Tap "Map" Link
+    t =     5.65s     Wait for com.pubmaxx.app to idle
+    t =     5.66s     Find the "Map" Link
+    t =     5.69s     Check for interrupting elements affecting "Map" Link
+    t =     5.72s     Synthesize event
+    t =     6.01s     Wait for com.pubmaxx.app to idle
+LANE_DELAY_BEFORE_EDGE {
+    history = 3;
+    nativeChunk =     (
+    );
+    time = 1791457849922;
+    trace =     (
+    );
+    url = "http://localhost:3491/map";
+}
+    t =    10.03s Find the Application 'com.pubmaxx.app'
+    t =    10.13s Added attachment named 'delayed-native-chunk-before-edge'
+    t =    10.13s Press WebView (First Match)[0.00, 0.45] for 0.0 seconds, then drag to WebView (First Match)[0.85, 0.45] with velocity of 500.00 pixels per second, and then hold for 0.0 seconds 
+    t =    10.13s     Wait for com.pubmaxx.app to idle
+    t =    10.14s     Find the WebView (First Match)
+    t =    10.14s     Check for interrupting elements affecting WebView
+    t =    10.15s     Synthesize event
+    t =    10.16s         Find the WebView at {{0.0, 0.0}, {402.0, 874.0}}
+    t =    10.16s         Find the WebView at {{0.0, 0.0}, {402.0, 874.0}}
+    t =    10.17s         Find the WebView at {{0.0, 0.0}, {402.0, 874.0}}
+    t =    10.17s         Find the WebView at {{0.0, 0.0}, {402.0, 874.0}}
+    t =    10.18s         Find the WebView at {{0.0, 0.0}, {402.0, 874.0}}
+    t =    11.09s     Wait for com.pubmaxx.app to idle
+LANE_DELAY_EARLY_EDGE {
+    history = 3;
+    nativeChunk =     (
+    );
+    time = 1791457852993;
+    trace =     (
+                {
+            kind = "history.back";
+            url = "http://localhost:3491/map";
+        },
+                {
+            detail =             {
+                canGoBack = 1;
+            };
+            kind = "ios-edge";
+            url = "http://localhost:3491/map";
+        },
+                {
+            kind = popstate;
+            url = "http://localhost:3491/places";
+        }
+    );
+    url = "http://localhost:3491/places";
+}
+    t =    13.11s Find the Application 'com.pubmaxx.app'
+    t =    13.20s Added attachment named 'delayed-native-chunk-early-edge'
+LANE_DELAY_READY {
+    nativeChunk =     (
+                {
+            connectEnd = 151;
+            connectStart = 151;
+            decodedBodySize = 7712;
+            deliveryType = "";
+            domainLookupEnd = 151;
+            domainLookupStart = 151;
+            duration = 30004;
+            encodedBodySize = 7725;
+            entryType = resource;
+            fetchStart = 151;
+            finalResponseHeadersStart = 30155;
+            firstInterimResponseStart = 0;
+            initiatorType = script;
+            name = "http://localhost:3491/_next/static/chunks/2xot0dyfagxz0.js?dpl=local-ios-lane-a&lane-final-delay=1791457574";
+            nextHopProtocol = "http/1.1";
+            redirectEnd = 0;
+            redirectStart = 0;
+            requestStart = 152;
+            responseEnd = 30155;
+            responseStart = 30155;
+            secureConnectionStart = 0;
+            serverTiming =             (
+            );
+            startTime = 151;
+            transferSize = 8025;
+            workerCacheLookupStart = 0;
+            workerFinalRouterSource = "";
+            workerMatchedRouterSource = "";
+            workerRouterEvaluationStart = 0;
+            workerStart = 0;
+        }
+    );
+    time = 1791457888101;
+    trace =     (
+                {
+            kind = "history.back";
+            url = "http://localhost:3491/map";
+        },
+                {
+            detail =             {
+                canGoBack = 1;
+            };
+            kind = "ios-edge";
+            url = "http://localhost:3491/map";
+        },
+                {
+            kind = popstate;
+            url = "http://localhost:3491/places";
+        }
+    );
+    url = "http://localhost:3491/places";
+}
+    t =    48.21s Tap "Places" Link
+    t =    48.22s     Wait for com.pubmaxx.app to idle
+    t =    48.22s     Find the "Places" Link
+    t =    48.27s     Check for interrupting elements affecting "Places" Link
+    t =    48.29s     Synthesize event
+    t =    48.59s     Wait for com.pubmaxx.app to idle
+    t =    50.60s Tap "Map" Link
+    t =    50.60s     Wait for com.pubmaxx.app to idle
+    t =    50.60s     Find the "Map" Link
+    t =    50.65s     Check for interrupting elements affecting "Map" Link
+    t =    50.68s     Synthesize event
+    t =    50.97s     Wait for com.pubmaxx.app to idle
+    t =    53.98s Press WebView (First Match)[0.00, 0.45] for 0.0 seconds, then drag to WebView (First Match)[0.85, 0.45] with velocity of 500.00 pixels per second, and then hold for 0.0 seconds 
+    t =    53.98s     Wait for com.pubmaxx.app to idle
+    t =    53.98s     Find the WebView (First Match)
+    t =    53.99s     Check for interrupting elements affecting WebView
+    t =    54.01s     Synthesize event
+    t =    54.02s         Find the WebView at {{0.0, 0.0}, {402.0, 874.0}}
+    t =    54.02s         Find the WebView at {{0.0, 0.0}, {402.0, 874.0}}
+    t =    54.03s         Find the WebView at {{0.0, 0.0}, {402.0, 874.0}}
+    t =    54.04s         Find the WebView at {{0.0, 0.0}, {402.0, 874.0}}
+    t =    54.05s         Find the WebView at {{0.0, 0.0}, {402.0, 874.0}}
+    t =    54.95s     Wait for com.pubmaxx.app to idle
+LANE_DELAY_LATE_EDGE {
+    history = 3;
+    time = 1791457896853;
+    trace =     (
+                {
+            kind = "history.back";
+            url = "http://localhost:3491/map";
+        },
+                {
+            detail =             {
+                canGoBack = 1;
+            };
+            kind = "ios-edge";
+            url = "http://localhost:3491/map";
+        },
+                {
+            kind = popstate;
+            url = "http://localhost:3491/places";
+        },
+                {
+            kind = "history.back";
+            url = "http://localhost:3491/map";
+        },
+                {
+            detail =             {
+                canGoBack = 1;
+            };
+            kind = "ios-edge";
+            url = "http://localhost:3491/map";
+        },
+                {
+            kind = popstate;
+            url = "http://localhost:3491/places";
+        }
+    );
+    url = "http://localhost:3491/places";
+}
+    t =    56.97s Find the Application 'com.pubmaxx.app'
+    t =    57.06s Added attachment named 'delayed-native-chunk-late-edge'
+    t =    57.07s Tear Down
+Test Case '-[LaneUITests.LaneUITests testDelayedNativeListener]' passed (57.563 seconds).
+Test Suite 'LaneUITests' passed at 2026-10-08 12:11:37.455.
+	 Executed 1 test, with 0 failures (0 unexpected) in 57.563 (57.564) seconds
+Test Suite 'LaneUITests.xctest' passed at 2026-10-08 12:11:37.455.
+	 Executed 1 test, with 0 failures (0 unexpected) in 57.563 (57.565) seconds
+Test Suite 'Selected tests' passed at 2026-10-08 12:11:37.455.
+	 Executed 1 test, with 0 failures (0 unexpected) in 57.563 (57.565) seconds
+2026-10-08 12:11:37.734 xcodebuild[78559:50367092] [MT] IDETestOperationsObserverDebug: 60.496 elapsed -- Testing started completed.
+2026-10-08 12:11:37.734 xcodebuild[78559:50367092] [MT] IDETestOperationsObserverDebug: 0.000 sec, +0.000 sec -- start
+2026-10-08 12:11:37.734 xcodebuild[78559:50367092] [MT] IDETestOperationsObserverDebug: 60.496 sec, +60.496 sec -- end
+
+Test session results, code coverage, and logs:
+	/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/final-withheld-fresh-delayed-edge.xcresult
+
+** TEST SUCCEEDED **
+
+Testing started

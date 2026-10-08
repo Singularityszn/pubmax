@@ -1,0 +1,18 @@
+{
+  "url": "http://localhost:3491/map",
+  "resources": [
+    {
+      "url": "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+      "duration": 60
+    },
+    {
+      "url": "https://tiles.basemaps.cartocdn.com/gl/positron-gl-style/sprite@2x.json",
+      "duration": 20
+    },
+    {
+      "url": "https://tiles.basemaps.cartocdn.com/gl/positron-gl-style/sprite@2x.png",
+      "duration": 17
+    }
+  ],
+  "vendorCached": false
+}

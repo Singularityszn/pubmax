@@ -1,0 +1,54 @@
+{
+  "id": "1791449932863",
+  "value": {
+    "controller": "http://localhost:3491/sw.js?v=local-ios-lane-a&cache-policy=plan-preview-safe-v2",
+    "entries": [
+      {
+        "name": "pubmax-sw-shell-local-ios-lane-a",
+        "urls": [
+          "http://localhost:3491/",
+          "http://localhost:3491/map",
+          "http://localhost:3491/tonight",
+          "http://localhost:3491/offline.html"
+        ]
+      },
+      {
+        "name": "pubmax-sw-preview-plan-v2-local-ios-lane-a",
+        "urls": []
+      },
+      {
+        "name": "pubmax-sw-swr-local-ios-lane-a",
+        "urls": [
+          "https://tiles.openfreemap.org/styles/positron",
+          "https://tiles.openfreemap.org/planet",
+          "https://tiles.openfreemap.org/sprites/ofm_f384/ofm@2x.json",
+          "https://tiles.openfreemap.org/sprites/ofm_f384/ofm@2x.png",
+          "https://tiles.openfreemap.org/planet/20261004_113936_pt/12/2045/1361.pbf",
+          "https://tiles.openfreemap.org/fonts/Noto%20Sans%20Italic/0-255.pbf",
+          "https://tiles.openfreemap.org/fonts/Noto%20Sans%20Regular/0-255.pbf",
+          "https://tiles.openfreemap.org/fonts/Noto%20Sans%20Bold/0-255.pbf",
+          "https://tiles.openfreemap.org/planet/20261004_113936_pt/12/2043/1360.pbf",
+          "https://tiles.openfreemap.org/planet/20261004_113936_pt/12/2043/1362.pbf",
+          "https://tiles.openfreemap.org/planet/20261004_113936_pt/12/2044/1360.pbf",
+          "https://tiles.openfreemap.org/planet/20261004_113936_pt/12/2042/1362.pbf",
+          "https://tiles.openfreemap.org/planet/20261004_113936_pt/12/2042/1360.pbf",
+          "https://tiles.openfreemap.org/planet/20261004_113936_pt/12/2042/1359.pbf",
+          "https://tiles.openfreemap.org/planet/20261004_113936_pt/12/2041/1360.pbf",
+          "https://tiles.openfreemap.org/planet/20261004_113936_pt/12/2040/1359.pbf",
+          "https://tiles.openfreemap.org/planet/20261004_113936_pt/12/2040/1362.pbf",
+          "https://tiles.openfreemap.org/planet/20261004_113936_pt/12/2039/1359.pbf",
+          "https://tiles.openfreemap.org/planet/20261004_113936_pt/12/2041/1359.pbf",
+          "https://tiles.openfreemap.org/planet/20261004_113936_pt/12/2039/1361.pbf",
+          "https://tiles.openfreemap.org/planet/20261004_113936_pt/12/2039/1360.pbf",
+          "https://tiles.openfreemap.org/planet/20261004_113936_pt/12/2038/1359.pbf",
+          "https://tiles.openfreemap.org/planet/20261004_113936_pt/12/2038/1362.pbf",
+          "https://tiles.openfreemap.org/planet/20261004_113936_pt/12/2037/1359.pbf"
+        ]
+      },
+      {
+        "name": "pubmax-sw-data-local-ios-lane-a",
+        "urls": []
+      }
+    ]
+  }
+}

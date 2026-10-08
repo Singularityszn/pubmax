@@ -1,0 +1,25 @@
+{
+  "server": {
+    "url": "http://localhost:3491/",
+    "appStartPath": "app-entry",
+    "cleartext": true,
+    "errorPath": "offline.html"
+  },
+  "ios": {
+    "backgroundColor": "#060607"
+  },
+  "WKAppBoundDomains": null,
+  "sceneManifest": {
+    "UIApplicationSupportsMultipleScenes": false,
+    "UISceneConfigurations": {
+      "UIWindowSceneSessionRoleApplication": [
+        {
+          "UISceneConfigurationName": "Default Configuration",
+          "UISceneDelegateClassName": "App.SceneDelegate",
+          "UISceneStoryboardFile": "Main"
+        }
+      ]
+    }
+  },
+  "bundleIdentifier": "com.pubmaxx.app"
+}

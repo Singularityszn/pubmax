@@ -1,0 +1,342 @@
+⎯⎯⎯⎯⎯⎯ Failed Suites 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/a11yFoundation.test.ts [ __tests__/a11yFoundation.test.ts ]
+Error: ENOENT: no such file or directory, open '/var/folders/j_/wjtv52sn0vx4tgwpwzmq50vw0000gp/T/9NEn_mjyGlfY00ff2tnJn/ssr/782a8c8f77e20f3ce1f41ed3075f961be3c7048b'
+ ❯ components/map/PersonaLensPicker.tsx:17:1
+     15|
+     16| import type { DrinkCategory } from "@/lib/drinks";
+     17| import {
+       | ^
+     18|   buildPersonaPickerListEntries,
+     19|   stepPersonaPickerActiveIndex,
+ ❯ __tests__/a11yFoundation.test.ts:6:1
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/17]⎯
+
+ FAIL  __tests__/curatedCrawls.test.ts [ __tests__/curatedCrawls.test.ts ]
+Error: ENOENT: no such file or directory, open '/var/folders/j_/wjtv52sn0vx4tgwpwzmq50vw0000gp/T/9NEn_mjyGlfY00ff2tnJn/ssr/037a11c2676b3e7e861cac75d7bb758b20b2ceff'
+ ❯ __tests__/curatedCrawls.test.ts:7:1
+      5| import { ALT_CRAWL_STYLES, seedCrawlState } from "@/lib/crawlUrl";
+      6| import { groupVenuePrices, type CrawlStyle, type VenuePrice } from "@/…
+      7| import dataset from "../public/data/pint_prices_app_dataset.json";
+       | ^
+      8|
+      9| // Recompute venue ids from the dataset exactly as the app does, so a …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/17]⎯
+
+ FAIL  __tests__/drinkSeeds.test.ts [ __tests__/drinkSeeds.test.ts ]
+Error: ENOENT: no such file or directory, open '/var/folders/j_/wjtv52sn0vx4tgwpwzmq50vw0000gp/T/9NEn_mjyGlfY00ff2tnJn/ssr/037a11c2676b3e7e861cac75d7bb758b20b2ceff'
+ ❯ __tests__/drinkSeeds.test.ts:10:1
+      8| import { isDrinkCategory } from "@/lib/drinks";
+      9| import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
+     10| import dataset from "../public/data/pint_prices_app_dataset.json";
+       | ^
+     11|
+     12| beforeEach(() => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/17]⎯
+
+ FAIL  __tests__/nativeWrap.test.ts [ __tests__/nativeWrap.test.ts ]
+Error: ENOENT: no such file or directory, open '/var/folders/j_/wjtv52sn0vx4tgwpwzmq50vw0000gp/T/9NEn_mjyGlfY00ff2tnJn/client/757ac6c2897966fbf26bc687807e7fbe735dd1b1'
+ ❯ __tests__/nativeWrap.test.ts:7:1
+      5| import { describe, expect, it } from "vitest";
+      6|
+      7| import capacitorConfig, { nativeServerUrl } from "../capacitor.config";
+       | ^
+      8| import { APP_NAME } from "@/lib/brandNaming";
+      9| import { BRAND_COLORS } from "@/lib/brandMark.mjs";
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/17]⎯
+
+ FAIL  __tests__/pintDropSeeds.test.ts [ __tests__/pintDropSeeds.test.ts ]
+Error: ENOENT: no such file or directory, open '/var/folders/j_/wjtv52sn0vx4tgwpwzmq50vw0000gp/T/9NEn_mjyGlfY00ff2tnJn/ssr/037a11c2676b3e7e861cac75d7bb758b20b2ceff'
+ ❯ __tests__/pintDropSeeds.test.ts:12:1
+     10| import { listAllVisiblePintDrops, listVisiblePintDrops } from "@/lib/p…
+     11| import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
+     12| import dataset from "../public/data/pint_prices_app_dataset.json";
+       | ^
+     13| import { defined } from "@/__tests__/helpers/defined";
+     14|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/17]⎯
+
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 12 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/pubWebsiteAmenitiesRunner.test.ts > pub website amenities CLI checkpoint publication > publishes uninterrupted counters for a mixed-page positive pub after write data-harvest/pub-website-amenities/chec…
+Error: ENOSPC, No space left on device '/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/test-results/runner-recovery/cli-DXWOKZ/lib'
+ ❯ createCli __tests__/pubWebsiteAmenitiesRunner.test.ts:145:3
+    143|   cpSync(path.join(ROOT, RUNNER), path.join(root, RUNNER));
+    144|   chmodSync(path.join(root, RUNNER), 0o444);
+    145|   cpSync(path.join(ROOT, "lib"), path.join(root, "lib"), { recursive: …
+       |   ^
+    146|   cpSync(path.join(ROOT, "scripts/lib"), path.join(root, "scripts/lib"…
+    147|   // The committed chain list is read before any page is fetched; scra…
+ ❯ __tests__/pubWebsiteAmenitiesRunner.test.ts:812:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/17]⎯
+
+ FAIL  __tests__/pubWebsiteAmenitiesRunner.test.ts > pub website amenities CLI checkpoint publication > refuses malformed checkpoint entry "ok" without retrying external work
+Error: ENOSPC, No space left on device '/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/test-results/runner-recovery/cli-QR4wJY/lib'
+ ❯ createCli __tests__/pubWebsiteAmenitiesRunner.test.ts:145:3
+    143|   cpSync(path.join(ROOT, RUNNER), path.join(root, RUNNER));
+    144|   chmodSync(path.join(root, RUNNER), 0o444);
+    145|   cpSync(path.join(ROOT, "lib"), path.join(root, "lib"), { recursive: …
+       |   ^
+    146|   cpSync(path.join(ROOT, "scripts/lib"), path.join(root, "scripts/lib"…
+    147|   // The committed chain list is read before any page is fetched; scra…
+ ❯ __tests__/pubWebsiteAmenitiesRunner.test.ts:919:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/17]⎯
+
+ FAIL  __tests__/pubWebsiteAmenitiesRunner.test.ts > pub website amenities CLI checkpoint publication > refuses malformed checkpoint entry 42 without retrying external work
+Error: ENOSPC, No space left on device '/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/test-results/runner-recovery/cli-ylnVJk/scripts/lib'
+ ❯ createCli __tests__/pubWebsiteAmenitiesRunner.test.ts:146:3
+    144|   chmodSync(path.join(root, RUNNER), 0o444);
+    145|   cpSync(path.join(ROOT, "lib"), path.join(root, "lib"), { recursive: …
+    146|   cpSync(path.join(ROOT, "scripts/lib"), path.join(root, "scripts/lib"…
+       |   ^
+    147|   // The committed chain list is read before any page is fetched; scra…
+    148|   write(CHAIN_PAGES, { version: 1, pages: [], quotes: [], readers: {},…
+ ❯ __tests__/pubWebsiteAmenitiesRunner.test.ts:919:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/17]⎯
+
+ FAIL  __tests__/pubWebsiteAmenitiesRunner.test.ts > pub website amenities CLI checkpoint publication > refuses pending checkpoint with invalid calendar day without external calls
+Error: ENOSPC, No space left on device '/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/test-results/runner-recovery/cli-8L5cYJ/lib'
+ ❯ createCli __tests__/pubWebsiteAmenitiesRunner.test.ts:145:3
+    143|   cpSync(path.join(ROOT, RUNNER), path.join(root, RUNNER));
+    144|   chmodSync(path.join(root, RUNNER), 0o444);
+    145|   cpSync(path.join(ROOT, "lib"), path.join(root, "lib"), { recursive: …
+       |   ^
+    146|   cpSync(path.join(ROOT, "scripts/lib"), path.join(root, "scripts/lib"…
+    147|   // The committed chain list is read before any page is fetched; scra…
+ ❯ __tests__/pubWebsiteAmenitiesRunner.test.ts:940:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/17]⎯
+
+ FAIL  __tests__/pubWebsiteAmenitiesRunner.test.ts > pub website amenities CLI checkpoint publication > refuses pending checkpoint with future observation without external calls
+Error: ENOSPC, No space left on device '/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/test-results/runner-recovery/cli-epZ5tG/lib/concierge'
+ ❯ createCli __tests__/pubWebsiteAmenitiesRunner.test.ts:145:3
+    143|   cpSync(path.join(ROOT, RUNNER), path.join(root, RUNNER));
+    144|   chmodSync(path.join(root, RUNNER), 0o444);
+    145|   cpSync(path.join(ROOT, "lib"), path.join(root, "lib"), { recursive: …
+       |   ^
+    146|   cpSync(path.join(ROOT, "scripts/lib"), path.join(root, "scripts/lib"…
+    147|   // The committed chain list is read before any page is fetched; scra…
+ ❯ __tests__/pubWebsiteAmenitiesRunner.test.ts:940:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/17]⎯
+
+ FAIL  __tests__/pubWebsiteAmenitiesRunner.test.ts > pub website amenities CLI checkpoint publication > refuses pending checkpoint with missing observation date without external calls
+Error: ENOSPC, No space left on device '/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/test-results/runner-recovery/cli-gKtjzN/lib'
+ ❯ createCli __tests__/pubWebsiteAmenitiesRunner.test.ts:145:3
+    143|   cpSync(path.join(ROOT, RUNNER), path.join(root, RUNNER));
+    144|   chmodSync(path.join(root, RUNNER), 0o444);
+    145|   cpSync(path.join(ROOT, "lib"), path.join(root, "lib"), { recursive: …
+       |   ^
+    146|   cpSync(path.join(ROOT, "scripts/lib"), path.join(root, "scripts/lib"…
+    147|   // The committed chain list is read before any page is fetched; scra…
+ ❯ __tests__/pubWebsiteAmenitiesRunner.test.ts:940:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/17]⎯
+
+ FAIL  __tests__/pubWebsiteAmenitiesRunner.test.ts > pub website amenities CLI checkpoint publication > refuses pending checkpoint with malformed pages without external calls
+AssertionError: ENOSPC: no space left on device, open '/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/test-results/runner-recovery/cli-DxmzRL/data-harvest/pub-website-amenities/checkpoint.json.tmp'
+node:fs:3020
+    return binding.writeFileUtf8(
+                   ^
+
+Error: ENOSPC: no space left on device, open 'calls.json'
+    at writeFileSync (node:fs:3020:20)
+    at fs.writeFileSync (file:///Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/test-results/runner-recovery/cli-DxmzRL/preload.mjs:37:10)
+    at process.<anonymous> (file:///Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/test-results/runner-recovery/cli-DxmzRL/preload.mjs:72:29)
+    at process.emit (node:events:514:20)
+    at process.exit (node:internal/process/per_thread:236:15)
+    at file:///Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/test-results/runner-recovery/cli-DxmzRL/scripts/harvest/pub-website-amenities/run.mjs:1065:11 {
+  errno: -28,
+  code: 'ENOSPC',
+  syscall: 'open',
+  path: 'calls.json'
+}
+
+Node.js v26.10.0
+: expected 1 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ fs.writeFileSync test-results/runner-recovery/cli-DxmzRL/preload.mjs:37:10
+ ❯ process.<anonymous> test-results/runner-recovery/cli-DxmzRL/preload.mjs:72:29
+ ❯ __tests__/pubWebsiteAmenitiesRunner.test.ts:950:44
+    948|     cli.write("fixture.json", { ...cli.read("fixture.json"), pages: {}…
+    949|     const resumed = cli.run();
+    950|     expect(resumed.status, resumed.stderr).toBe(0);
+       |                                            ^
+    951|     const { calls, dataset, evidence } = cli.output();
+    952|     expect(calls).toEqual([]);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/17]⎯
+
+ FAIL  __tests__/pubWebsiteAmenitiesRunner.test.ts > pub website amenities CLI checkpoint publication > refuses pending checkpoint with null page without external calls
+Error: ENOSPC, No space left on device '/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/test-results/runner-recovery/cli-6sB5kC/lib'
+ ❯ createCli __tests__/pubWebsiteAmenitiesRunner.test.ts:145:3
+    143|   cpSync(path.join(ROOT, RUNNER), path.join(root, RUNNER));
+    144|   chmodSync(path.join(root, RUNNER), 0o444);
+    145|   cpSync(path.join(ROOT, "lib"), path.join(root, "lib"), { recursive: …
+       |   ^
+    146|   cpSync(path.join(ROOT, "scripts/lib"), path.join(root, "scripts/lib"…
+    147|   // The committed chain list is read before any page is fetched; scra…
+ ❯ __tests__/pubWebsiteAmenitiesRunner.test.ts:940:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/17]⎯
+
+ FAIL  __tests__/pubWebsiteAmenitiesRunner.test.ts > pub website amenities CLI checkpoint publication > refuses pending checkpoint with refused citation without external calls
+Error: ENOSPC, No space left on device '/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/test-results/runner-recovery/cli-bPTvBY/lib'
+ ❯ createCli __tests__/pubWebsiteAmenitiesRunner.test.ts:145:3
+    143|   cpSync(path.join(ROOT, RUNNER), path.join(root, RUNNER));
+    144|   chmodSync(path.join(root, RUNNER), 0o444);
+    145|   cpSync(path.join(ROOT, "lib"), path.join(root, "lib"), { recursive: …
+       |   ^
+    146|   cpSync(path.join(ROOT, "scripts/lib"), path.join(root, "scripts/lib"…
+    147|   // The committed chain list is read before any page is fetched; scra…
+ ❯ __tests__/pubWebsiteAmenitiesRunner.test.ts:940:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/17]⎯
+
+ FAIL  __tests__/pubWebsiteAmenitiesRunner.test.ts > pub website amenities CLI checkpoint publication > refuses pending checkpoint with malformed quote without external calls
+Error: ENOSPC, No space left on device '/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/test-results/runner-recovery/cli-wlrIBR/lib'
+ ❯ createCli __tests__/pubWebsiteAmenitiesRunner.test.ts:145:3
+    143|   cpSync(path.join(ROOT, RUNNER), path.join(root, RUNNER));
+    144|   chmodSync(path.join(root, RUNNER), 0o444);
+    145|   cpSync(path.join(ROOT, "lib"), path.join(root, "lib"), { recursive: …
+       |   ^
+    146|   cpSync(path.join(ROOT, "scripts/lib"), path.join(root, "scripts/lib"…
+    147|   // The committed chain list is read before any page is fetched; scra…
+ ❯ __tests__/pubWebsiteAmenitiesRunner.test.ts:940:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/17]⎯
+
+ FAIL  __tests__/pubWebsiteAmenitiesRunner.test.ts > pub website amenities CLI checkpoint publication > recovers an interrupted --copy-skipped observation in the default scope, where the pub carries its OSM name
+AssertionError: ENOSPC: no space left on device, open '/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/test-results/runner-recovery/cli-nJufVD/data-harvest/pub-website-amenities/checkpoint.json.tmp'
+: expected 1 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ __tests__/pubWebsiteAmenitiesRunner.test.ts:973:44
+    971|     cli.write("fixture.json", { ...cli.read("fixture.json"), failure: …
+    972|     const resumed = cli.run();
+    973|     expect(resumed.status, resumed.stderr).toBe(0);
+       |                                            ^
+    974|     expect(resumed.stderr).not.toContain("unrecoverable-pending-observ…
+    975|     const { calls, dataset, evidence } = cli.output();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/17]⎯
+
+ FAIL  __tests__/pubWebsiteAmenitiesRunner.test.ts > pub website amenities CLI checkpoint publication > recovers a dated legacy checkpoint only when published evidence file is absent
+Error: ENOSPC, No space left on device '/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/test-results/runner-recovery/cli-e4tq1E/lib'
+ ❯ createCli __tests__/pubWebsiteAmenitiesRunner.test.ts:145:3
+    143|   cpSync(path.join(ROOT, RUNNER), path.join(root, RUNNER));
+    144|   chmodSync(path.join(root, RUNNER), 0o444);
+    145|   cpSync(path.join(ROOT, "lib"), path.join(root, "lib"), { recursive: …
+       |   ^
+    146|   cpSync(path.join(ROOT, "scripts/lib"), path.join(root, "scripts/lib"…
+    147|   // The committed chain list is read before any page is fetched; scra…
+ ❯ __tests__/pubWebsiteAmenitiesRunner.test.ts:985:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/17]⎯
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 14 unhandled errors during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯⎯⎯⎯ Test Run Error ⎯⎯⎯⎯⎯⎯⎯
+Error: ENOSPC: no space left on device, open '/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/coverage/.tmp/coverage-84c72cdb-520a-486f-bbe8-336a86e0cf58.json'
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { errno: -28, code: 'ENOSPC', syscall: 'open', path: '/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/coverage/.tmp/coverage-84c72cdb-520a-486f-bbe8-336a86e0cf58.json' }
+
+⎯⎯⎯⎯⎯⎯⎯ Test Run Error ⎯⎯⎯⎯⎯⎯⎯
+Error: ENOSPC: no space left on device, open '/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/coverage/.tmp/coverage-783194c4-e888-4fcb-9402-c155dee44711.json'
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { errno: -28, code: 'ENOSPC', syscall: 'open', path: '/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/coverage/.tmp/coverage-783194c4-e888-4fcb-9402-c155dee44711.json' }
+
+⎯⎯⎯⎯⎯⎯⎯ Test Run Error ⎯⎯⎯⎯⎯⎯⎯
+Error: ENOSPC: no space left on device, write
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { errno: -28, code: 'ENOSPC', syscall: 'write' }
+
+⎯⎯⎯⎯⎯⎯⎯ Test Run Error ⎯⎯⎯⎯⎯⎯⎯
+Error: ENOSPC: no space left on device, write
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { errno: -28, code: 'ENOSPC', syscall: 'write' }
+
+⎯⎯⎯⎯⎯⎯⎯ Test Run Error ⎯⎯⎯⎯⎯⎯⎯
+Error: ENOSPC: no space left on device, open '/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/coverage/.tmp/coverage-e8caa482-a55e-46b0-882e-07845928c07f.json'
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { errno: -28, code: 'ENOSPC', syscall: 'open', path: '/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/coverage/.tmp/coverage-e8caa482-a55e-46b0-882e-07845928c07f.json' }
+
+⎯⎯⎯⎯⎯⎯⎯ Test Run Error ⎯⎯⎯⎯⎯⎯⎯
+Error: ENOSPC: no space left on device, open '/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/coverage/.tmp/coverage-70dee1da-6e7e-41fd-b203-595eeb932db3.json'
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { errno: -28, code: 'ENOSPC', syscall: 'open', path: '/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/coverage/.tmp/coverage-70dee1da-6e7e-41fd-b203-595eeb932db3.json' }
+
+⎯⎯⎯⎯⎯⎯⎯ Test Run Error ⎯⎯⎯⎯⎯⎯⎯
+Error: ENOSPC: no space left on device, write
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { errno: -28, code: 'ENOSPC', syscall: 'write' }
+
+⎯⎯⎯⎯⎯⎯⎯ Test Run Error ⎯⎯⎯⎯⎯⎯⎯
+Error: ENOSPC: no space left on device, write
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { errno: -28, code: 'ENOSPC', syscall: 'write' }
+
+⎯⎯⎯⎯⎯⎯⎯ Test Run Error ⎯⎯⎯⎯⎯⎯⎯
+Error: ENOSPC: no space left on device, write
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { errno: -28, code: 'ENOSPC', syscall: 'write' }
+
+⎯⎯⎯⎯⎯⎯⎯ Test Run Error ⎯⎯⎯⎯⎯⎯⎯
+Error: ENOSPC: no space left on device, write
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { errno: -28, code: 'ENOSPC', syscall: 'write' }
+
+⎯⎯⎯⎯⎯⎯⎯ Test Run Error ⎯⎯⎯⎯⎯⎯⎯
+Error: ENOSPC: no space left on device, open '/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/coverage/.tmp/coverage-2faf04a4-5a80-4651-96f2-c9ff2a621d96.json'
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { errno: -28, code: 'ENOSPC', syscall: 'open', path: '/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/coverage/.tmp/coverage-2faf04a4-5a80-4651-96f2-c9ff2a621d96.json' }
+
+⎯⎯⎯⎯⎯⎯⎯ Test Run Error ⎯⎯⎯⎯⎯⎯⎯
+Error: ENOSPC: no space left on device, write
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { errno: -28, code: 'ENOSPC', syscall: 'write' }
+
+⎯⎯⎯⎯⎯⎯⎯ Test Run Error ⎯⎯⎯⎯⎯⎯⎯
+Error: ENOSPC: no space left on device, write
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { errno: -28, code: 'ENOSPC', syscall: 'write' }
+
+⎯⎯⎯⎯⎯⎯⎯ Test Run Error ⎯⎯⎯⎯⎯⎯⎯
+Error: ENOSPC: no space left on device, write
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { errno: -28, code: 'ENOSPC', syscall: 'write' }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+
+ Test Files  6 failed | 1782 passed | 1 skipped (1803)
+      Tests  12 failed | 21176 passed | 1 skipped (21356)
+     Errors  14 errors
+   Start at  12:49:30
+   Duration  201.24s (tests 68%, import 15%, environment 9%, transform 3%, worker 3%, setup 2%)
+
+    Isolate  1803 workers spawned · ~94ms startup each (spawn + environment, per file)
+             at least ~42.07s faster with isolate: false — reuses workers across files instead of one per file
+

@@ -1,0 +1,25 @@
+(lldb) process attach --pid 80200
+Process 80200 stopped
+* thread #1, queue = 'com.apple.main-thread', stop reason = signal SIGSTOP
+       frame #0: 0x000000010275cb5c libsystem_kernel.dylib`mach_msg2_trap + 8
+libsystem_kernel.dylib`mach_msg2_trap:
+->  0x10275cb5c <+8>: ret    
+
+libsystem_kernel.dylib`macx_swapon:
+    0x10275cb60 <+0>: mov    x16, #-0x30               ; =-48 
+    0x10275cb64 <+4>: svc    #0x80
+    0x10275cb68 <+8>: ret    
+Target 0: (App) stopped.
+Executable binary set to "/Users/karanmanoharan/Library/Developer/CoreSimulator/Devices/80131979-EDC5-4B44-B5A3-903D83429E9E/data/Containers/Bundle/Application/72C1EA19-90DB-4B82-8EEC-811C434F2B30/App.app/App".
+Architecture set to: arm64-apple-ios-simulator.
+(lldb) command source -s 0 '.ios-lane-a/callback.lldb'
+Executing commands in '/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/callback.lldb'.
+(lldb) expr -l objc++ -- id $laneScene = [[[UIApplication sharedApplication] connectedScenes] anyObject]
+(lldb) expr -l objc++ -O -- (id)[[[(UIWindow *)[[$laneScene windows] firstObject] rootViewController] presentedViewController] class]
+SFSafariViewController
+
+(lldb) expr -l objc++ -- id $laneActivity = (id)[(id)[NSClassFromString(@"NSUserActivity") alloc] initWithActivityType:@"NSUserActivityTypeBrowsingWeb"]
+(lldb) expr -l objc++ -- (void)[$laneActivity setWebpageURL:[NSURL URLWithString:@"https://pubmaxxing.com/auth/callback?error=access_denied&next=%2Ftonight%3Flane-callback%3D1"]]
+(lldb) expr -l objc++ -- (void)[(id)[$laneScene delegate] scene:$laneScene continueUserActivity:$laneActivity]
+(lldb) detach
+Process 80200 detached
