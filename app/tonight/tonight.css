@@ -783,11 +783,6 @@
   font-weight: 650;
 }
 
-/* Tonight Conditions strip: one calm line under the header — date, weather,
-   the drink it calls for, and (with location) a nearby venue count. A single
-   raised panel, brass weather icon, no card chrome beyond the panel. Lives
-   above the listings so it reads first without shouting. Role tokens only, so
-   light and dark themes both inherit correctly. */
 /* .tonightConditions* rules live in tonightConditions.css (component-owned,
    multi-host: Tonight page + desktop rails). */
 
