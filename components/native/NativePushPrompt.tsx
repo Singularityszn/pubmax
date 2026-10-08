@@ -25,6 +25,7 @@ import {
   claimPromptBudget,
   hasPromptBudgetFor,
   routeOwnsScreenFoot,
+  subscribePromptBudget,
 } from "@/lib/promptBudget";
 
 const PUSH_SURFACE = "native-push";
@@ -39,9 +40,14 @@ export default function NativePushPrompt(): React.JSX.Element | null {
     getPushPromptServerSnapshot,
   );
 
-  const canShow = visible
-    && !routeOwnsScreenFoot(pathname, window.innerWidth)
-    && hasPromptBudgetFor(PUSH_SURFACE);
+  // A route can render before the previous map card releases its prompt gate.
+  const hasBudget = useSyncExternalStore(
+    subscribePromptBudget,
+    () => !routeOwnsScreenFoot(pathname, window.innerWidth)
+      && hasPromptBudgetFor(PUSH_SURFACE),
+    getPushPromptServerSnapshot,
+  );
+  const canShow = visible && hasBudget;
 
   // Claim the shared one-prompt-per-session budget at the moment it shows
   // (docs/PROMPT_ORCHESTRATION.md).
