@@ -29,9 +29,8 @@
   }
 }
 
-/* The head is the Screen primitive (components/ui/screen.css): kicker,
-   heading, the listing lede, one primary. The page shell already keeps the
-   gutter, so the screen does not pad it a second time, and the Now segment
+/* The page shell already keeps the gutter, so the screen does not pad it a
+   second time, and the Now segment
    above it already sets the head off from the nav, so the head's own top
    inset is trimmed to keep the rhythm the tabs share. */
 .tonightPage > .tonightDesktopGrid {
