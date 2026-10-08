@@ -140,6 +140,10 @@ describe("loadCoffeePilotCafes", () => {
     for (const feature of points.features) {
       expect(feature.properties?.label).toMatch(/^£\d+\.\d{2} (flat white|latte|matcha latte)$/);
     }
+    const vintage = points.features.find((feature) => feature.properties?.id === "venue-osm-n12110401801");
+    expect(vintage?.properties?.label).toBe("£3.45 flat white");
+    expect(vintage?.properties).not.toHaveProperty("bucket");
+    expect(vintage?.properties).not.toHaveProperty("clusterPrice");
   });
 
   it("rejects when the layer cannot be read, rather than drawing no cafes", async () => {
