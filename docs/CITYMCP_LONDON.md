@@ -100,6 +100,10 @@ leak into the client.
     For **Near me**, the caller uses `claimedArea.name` while the toolbar keeps
     its **Near me** label. Local context requires settled bounds reported by the
     current city map.
+  - The caller checks a remembered choice with `rememberedAreaNamesView` against
+    the settled bounds and centre. A mismatch uses `claimedArea.name` or null,
+    so the picker destination does not name the previous view. The toolbar keeps
+    the chosen label during the camera flight.
   - Signals without areas are omitted. A London tag on a locally named signal
     does not make that signal city-wide. Signals naming only London or Greater
     London require `allowCitywideStatus`.
@@ -113,6 +117,8 @@ leak into the client.
 
   Area matching has rendered coverage in `__tests__/cityStatusViewedArea.test.tsx`.
   `e2e/area-news-toast.spec.ts` covers the area picker, Near me, route stops, and modal controls.
+  `e2e/area-news-context.spec.ts` covers normal-motion picker flights, Richmond aliases,
+  and camera movement outside London.
 - **`useMobileTflStatus(cityId)`** in `components/mobile/MobileTflPanel.tsx`
   reads `/api/citymcp/status` through `loadSurfaceJson` only for London. A failed
   London read retries on reconnect. Other cities make no request from this hook,
