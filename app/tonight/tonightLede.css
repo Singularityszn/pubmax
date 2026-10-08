@@ -204,7 +204,7 @@
   display: none;
 }
 
-.tonightHypedMore[open] .tonightHypedMoreChevron,
+.tonightHypedMore[open] > .tonightHypedMoreToggle .tonightHypedMoreChevron,
 .tonightChainMore[open] .tonightChainMoreChevron {
   transform: rotate(180deg);
 }
