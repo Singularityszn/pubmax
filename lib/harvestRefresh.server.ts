@@ -1,14 +1,6 @@
 import "server-only";
 
-// The bounded harvest batch a scheduled run performs, shared with the CLI.
-//
-// WHAT A CRON CAN HONESTLY DO HERE. A Vercel function has a read-only file
-// system, so it cannot write the committed What's-On files the way
-// `npm run harvest:run` does. It runs the SAME fetchers and the SAME parsers
-// over the same sources and reports what they yielded, exactly as
-// /api/cron/enrich-city-pubs does for city enrichment: the durable, reviewable
-// output stays with the local CLI, and the scheduled run is the thing that
-// notices a chain changed its offers page before a human does.
+// Scheduled lane coverage and durable publication live in docs/LONDON_HARVEST.md.
 //
 // It reads NO data file on purpose. Every URL it touches comes from the source
 // table, which is source code, so this module never hands `fs` an assembled path
