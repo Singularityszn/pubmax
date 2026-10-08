@@ -2037,6 +2037,13 @@ function PlanComposerForm({
       intakeContextForSort,
       queryArea,
     );
+    const heldVenue = venues.find((venue) => venue.id === heldVenueId);
+    if (!submittedContext.nightArea && queryArea.kind === "none"
+      && heldVenue?.lat !== undefined && heldVenue.lng !== undefined) {
+      const patch = nearestNightPatch(heldVenue.lat, heldVenue.lng);
+      const area = patch ? nightAreaForPlanIntakePatch(patch.id) : null;
+      if (area) submittedContext.nightArea = area;
+    }
     setSorting(true);
     setError("");
     setRouteStatus("Refreshing the route and rechecking every stop for your updated night.");
@@ -2273,7 +2280,7 @@ function PlanComposerForm({
       </button>
     </div>
   ) : null;
-  const routeStatusLine = (
+  const routeStatusLine = error && !routeSorted ? null : (
     <p id="plan-route-status" className={resultMode ? "planResult__status" : "planComposer__routeStatus"} role="status" aria-live="polite" tabIndex={-1}>
       {routeStatus || (routeStale ? "The route needs refreshing before it can be locked." : "Review the route preview. It stays private until you lock it in.")}
     </p>

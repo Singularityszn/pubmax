@@ -519,7 +519,49 @@ describe("an accepted place the venue index has no name for", () => {
     expect(panel()?.textContent).toContain("The Held Arms");
   });
 
-  it("does not call a held pub on its own a route that needs a refresh when the sort fails", async () => {
+  it.each([
+    ["Three quiet pints for 4", "piccadilly-soho"],
+    ["Three quiet pints in Clapham for 4", "clapham"],
+  ])("uses the held location unless the description supplies an area: %s", async (query, nightArea) => {
+    writePlanningIntent({
+      source: "near", cityId: "london", acceptedVenueId: HELD,
+      acceptedArea: null, startsAt: null,
+      displayEvidence: { kind: "directory", observedAt: null },
+    });
+    const sent: unknown[] = [];
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>(async (input, init) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url === planComposerVenueIndexPath("london")) {
+        return Response.json([{ id: HELD, name: "The Held Arms", lat: 51.513, lng: -0.132 }]);
+      }
+      sent.push(JSON.parse(String(init?.body)));
+      const parsed = await parsePlanGenerationRequest(new Request("http://localhost/api/plans/generate", { method: "POST", body: init?.body }));
+      if (!parsed.ok) return Response.json({ error: { message: parsed.message } }, { status: parsed.status });
+      return Response.json({ ...GENERATED, stops: [{ venueId: HELD, venueName: "The Held Arms", reason: "Your pick." }, GENERATED.stops[1]] });
+    }));
+    await mountHeld();
+    const field = document.querySelector<HTMLInputElement>("#plan-concierge-query")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(field, query);
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await click([...document.querySelectorAll("button")].find((node) => node.textContent?.trim() === "Make a plan")!);
+    await vi.waitFor(() => expect(stopNames()).toHaveLength(2));
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({
+      context: { nightArea },
+      anchor: { venueId: HELD, acceptedArea: null },
+    });
+    if (nightArea === "piccadilly-soho") {
+      expect(sent[0]).toMatchObject({ intake: { area: null, skipped: ["area", "time-window", "group-size", "budget", "accessibility"] } });
+    }
+    expect(document.querySelector("#plan-composer [role='alert']")).toBeNull();
+  });
+
+  it.each([
+    {},
+    { lat: 53.4808, lng: -2.2426 },
+  ])("shows one area prompt without stale-route copy when the held location cannot resolve: %j", async (coordinates) => {
     // A pub accepted from the map carries no area, and the description names none.
     writePlanningIntent({
       source: "near",
@@ -533,7 +575,7 @@ describe("an accepted place the venue index has no name for", () => {
     vi.stubGlobal("fetch", vi.fn<typeof fetch>(async (input) => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       if (url === path) {
-        return new Response(JSON.stringify([{ id: HELD, name: "The Held Arms" }]), { status: 200, headers: { "content-type": "application/json" } });
+        return new Response(JSON.stringify([{ id: HELD, name: "The Held Arms", ...coordinates }]), { status: 200, headers: { "content-type": "application/json" } });
       }
       return new Response(JSON.stringify({ error: { code: "NIGHT_AREA_REQUIRED", message: "Choose an area." } }), { status: 422, headers: { "content-type": "application/json" } });
     }));
@@ -550,7 +592,8 @@ describe("an accepted place the venue index has no name for", () => {
     }, { timeout: 4000 });
 
     expect(document.querySelector("#plan-composer [role='alert']")?.textContent).toBe("Choose an area.");
-    expect(document.querySelector("#plan-route-status")?.textContent).toBe("Choose an area.");
+    expect(document.querySelector("#plan-route-status")).toBeNull();
+    expect(document.querySelector("#plan-composer")?.textContent?.match(/Choose an area\./g)).toHaveLength(1);
     expect(document.querySelector(".planComposer__routeStale")).toBeNull();
     expect(stopNames()).toEqual(["The Held Arms"]);
   });

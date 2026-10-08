@@ -15,8 +15,19 @@ describe("planVenueOptions", () => {
       }),
     ).toEqual([
       { id: "pub", name: "Wrapped Arms" },
-      { id: "lion", name: "Red Lion", borough: "Westminster" },
+      { id: "lion", name: "Red Lion", borough: "Westminster", lat: 51.5, lng: -0.1 },
     ]);
+  });
+
+  it.each([
+    { lat: 51.5 },
+    { lat: "51.5", lng: -0.1 },
+    { lat: NaN, lng: -0.1 },
+    { lat: 91, lng: -0.1 },
+    { lat: 51.5, lng: -181 },
+  ])("omits an unusable coordinate pair: %j", (coordinates) => {
+    expect(planVenueOptions([{ id: "pub", name: "Recorded Arms", ...coordinates }]))
+      .toEqual([{ id: "pub", name: "Recorded Arms" }]);
   });
 
   it("keeps legacy and explicit pubs while excluding other venue kinds", () => {

@@ -7,6 +7,8 @@ export type PlanVenueOption = {
   name: string;
   address?: string;
   borough?: string;
+  lat?: number;
+  lng?: number;
 };
 
 export function planVenueOptions(value: unknown): PlanVenueOption[] {
@@ -24,6 +26,11 @@ export function planVenueOptions(value: unknown): PlanVenueOption[] {
       typeof row.address === "string" ? row.address.trim() : "";
     const borough =
       typeof row.borough === "string" ? row.borough.trim() : "";
-    return [{ id, name, ...(address ? { address } : {}), ...(borough ? { borough } : {}) }];
+    const coordinates = typeof row.lat === "number" && typeof row.lng === "number"
+      && Number.isFinite(row.lat) && Number.isFinite(row.lng)
+      && Math.abs(row.lat) <= 90 && Math.abs(row.lng) <= 180
+        ? { lat: row.lat, lng: row.lng }
+        : {};
+    return [{ id, name, ...(address ? { address } : {}), ...(borough ? { borough } : {}), ...coordinates }];
   });
 }
