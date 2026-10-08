@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 // The route talks to the PintDropStore interface only. Keep the real module
@@ -198,6 +195,7 @@ import {
 } from "@/lib/pintDropsStore";
 import { RECEIPT_REQUIRED_LINE, priceNeedsReceipt } from "@/lib/pintDropReceipt";
 import { memoryProfileStore } from "@/lib/profileStore";
+import { memoryPrivateIdentityStore } from "@/lib/privateIdentityStore";
 import { defined } from "@/__tests__/helpers/defined";
 
 const URL_BASE = "http://localhost/api/pint-drops";
@@ -391,14 +389,16 @@ describe("POST /api/pint-drops (create)", () => {
     );
   });
 
-  it("posts a priced drop for an account whose age answer is the one tap", async () => {
+  it("posts and lists a priced drop with an adult assertion and no birth date", async () => {
     // ONE RULE (captain, 5 Sep 2026). This route asks for a linked handle and
     // a verified actor and NEVER for a date of birth, so an account that
     // answered the age question with the recorded tap posts its price here the
     // same way it now does through /api/price-submit.
     reportAuth.userId = "account-tapped";
     await memoryProfileStore.createOwned("tapped_drinker", reportAuth.userId);
-    await memoryAdultSelfAssertionStore.record(reportAuth.userId);
+    const assertedAt = await memoryAdultSelfAssertionStore.record(reportAuth.userId);
+    expect(await memoryAdultSelfAssertionStore.read(reportAuth.userId)).toBe(assertedAt);
+    expect(await memoryPrivateIdentityStore.read(reportAuth.userId)).toBeNull();
 
     const created = await post({
       venueId: VENUE,
@@ -408,20 +408,28 @@ describe("POST /api/pint-drops (create)", () => {
     });
 
     expect(created.status).toBe(201);
-    expect((await created.json()).drop).toMatchObject({
+    const { drop } = await created.json();
+    expect(drop).toMatchObject({
+      venueId: VENUE,
       handle: "tapped_drinker",
       priceGbp: 4.6,
       provenance: "contributor",
+      status: "visible",
     });
-  });
-
-  it("asks the Pint Drop write path for no birth date", () => {
-    // A source fence, because no request can prove the ABSENCE of a question.
-    const route = readFileSync(
-      resolve(process.cwd(), "app/api/pint-drops/route.ts"),
-      "utf8",
+    const listed = await get(VENUE);
+    expect(listed.status).toBe(200);
+    expect((await listed.json()).drops).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: drop.id,
+          venueId: VENUE,
+          handle: "tapped_drinker",
+          priceGbp: 4.6,
+          status: "visible",
+        }),
+      ]),
     );
-    expect(route).not.toMatch(/dateOfBirth|date_of_birth/);
+    expect(await memoryPrivateIdentityStore.read(reportAuth.userId)).toBeNull();
   });
 
   it("requires account onboarding instead of claiming a body handle", async () => {

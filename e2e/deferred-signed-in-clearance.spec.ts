@@ -15,6 +15,11 @@ async function returningAccount(page: Page) {
     }));
   });
   await seedSignedIn(page, "A");
+  await expect.poll(
+    () => page.evaluate(() =>
+      sessionStorage.getItem("pubmax:consent-first-route:v1")),
+    { timeout: 30_000 },
+  ).toBe("/today");
 }
 
 for (const width of [390, 768, 1440]) {
