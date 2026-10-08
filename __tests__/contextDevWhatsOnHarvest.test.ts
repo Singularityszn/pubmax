@@ -246,6 +246,30 @@ describe("London pub own-site harvest", () => {
     expect(mergeOwnSiteListings(held, [], Date.parse("2026-10-09T09:00:00.000Z"))).toEqual([]);
   });
 
+  it("republishes a saved page during its running slots and never extends a happy hour", () => {
+    const page = "## Pub quiz\nThursday 8 October 2026\nStarts at 8pm\n## Live Music\nEvery Thursday at 7pm\n# happy hour every thursday 5-9pm\nTwo for one cocktails\n";
+    const publishAt = (asOf: string) => {
+      const held = readPubWhatsOn(pub, page, pub.website, observedAt).rows;
+      const fresh = readPubWhatsOn(pub, page, pub.website, observedAt, asOf).rows;
+      return mergeOwnSiteListings(held, [{ sourceUrl: pub.website, osmId: pub.osmId, rows: fresh }], Date.parse(asOf))
+        .map((row) => [row.kind, row.startsAt, row.endsAt]);
+    };
+    expect(publishAt("2026-10-08T19:30:00.000Z")).toEqual([
+      ["quiz", "2026-10-08T20:00:00+01:00", undefined],
+      ["music", "2026-10-08T19:00:00+01:00", undefined],
+      ["deal", "2026-10-08T17:00:00+01:00", "2026-10-08T21:00:00+01:00"],
+    ]);
+    expect(publishAt("2026-10-08T20:30:00.000Z")).toEqual([
+      ["quiz", "2026-10-08T20:00:00+01:00", undefined],
+      ["music", "2026-10-08T19:00:00+01:00", undefined],
+      ["deal", "2026-10-15T17:00:00+01:00", "2026-10-15T21:00:00+01:00"],
+    ]);
+    expect(publishAt("2026-10-08T22:30:00.000Z")).toEqual([
+      ["music", "2026-10-15T19:00:00+01:00", undefined],
+      ["deal", "2026-10-15T17:00:00+01:00", "2026-10-15T21:00:00+01:00"],
+    ]);
+  });
+
   it("advances a cached weekly slot without claiming another source observation", () => {
     const result = readPubWhatsOn(pub, "## Pub Quiz\nEvery Thursday at 8pm\n", pub.website, observedAt, "2026-10-16T09:00:00.000Z");
     expect(result.rows).toMatchObject([{ startsAt: "2026-10-22T20:00:00+01:00", observedAt }]);

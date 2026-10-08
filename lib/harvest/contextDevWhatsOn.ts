@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 import { londonWallClockToIso } from "../../scripts/whatson/dealsRefresh.mjs";
 import { nextWeeklyOccurrence } from "../../scripts/whatson/quizParsers.mjs";
 import { currentOwnSiteRows } from "../whatson/eventNormalise.mjs";
-import { isValidWhatsOnRow } from "../whatsOnRowShape.mjs";
+import { isValidWhatsOnRow, POINT_ROW_GRACE_MS, timedRowEffectiveEnd } from "../whatsOnRowShape.mjs";
 import type { WhatsOnRow } from "../whatsOn.ts";
 import { parseChainDealDays, WEEKDAY_NAMES } from "./chainDeals.ts";
 import { statedSiteOpeningHours } from "./pubSiteHoursAndDogs.ts";
@@ -207,6 +207,12 @@ function clockStatesKind(clauses: string[], clock: string, kind: WhatsOnRow["kin
   return stated.size === 0 ? eventKindFrom(heading) === kind : stated.size === 1 && stated.has(kind);
 }
 
+/** A window that ends at or before its start closes the next day. */
+function windowMs(start: string, end: string): number {
+  const minutes = (clock: string) => Number(clock.slice(0, -3)) * 60 + Number(clock.slice(-2));
+  return ((minutes(end) - minutes(start) + 1440) % 1440 || 1440) * 60_000;
+}
+
 /**
  * This harvest counts its own requests, so an account refill cannot reopen its
  * allowance. A saved state from before that count proves its spend only by a
@@ -233,7 +239,7 @@ export function readPubWhatsOn(pub: WhatsOnPub, markdown: string, sourceUrl: str
   const rows: WhatsOnRow[] = [];
   const base = { placeName: pub.name, lat: pub.lat, lng: pub.lng, ...(pub.venueId ? { venueId: pub.venueId } : {}), source: { label: `${pub.name} website`, url: sourceUrl }, observedAt, confidence: "listed" as const };
   const keep = (row: WhatsOnRow) => {
-    if (isValidWhatsOnRow(row, serviceNow) && row.startsAt && Date.parse(row.startsAt) >= serviceNow) rows.push(row);
+    if (isValidWhatsOnRow(row, serviceNow) && row.startsAt && timedRowEffectiveEnd(row) > serviceNow) rows.push(row);
   };
   for (const card of cards) {
     const lines = card.text.split("\n").map((line) => line.trim()).filter(Boolean);
@@ -287,7 +293,7 @@ export function readPubWhatsOn(pub: WhatsOnPub, markdown: string, sourceUrl: str
     const days = weeklyDays.filter((day) => weeklyDays.length === 1 || clauses.some((line) => new RegExp(`\\b${day}s?\\b`, "i").test(line) && resolveEventClock(line) === clock));
     if (days.length && !/\b\d{1,2}(?:st|nd|rd|th)?\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(card.text)) {
       for (const day of days) {
-        const startsAt = nextWeeklyOccurrence(day, clock, asOf);
+        const startsAt = nextWeeklyOccurrence(day, clock, new Date(serviceNow - POINT_ROW_GRACE_MS[kind]).toISOString());
         if (startsAt) keep({ ...base, id: `own-site-${pageKey(`${pub.osmId}|${named}|${startsAt}`)}`, kind, title: eventKindFrom(card.title) ? card.title : named!, startsAt, timeEvidence: card.text });
       }
       continue;
@@ -312,7 +318,7 @@ export function readPubWhatsOn(pub: WhatsOnPub, markdown: string, sourceUrl: str
   const dealParse = parseChainDealDays(happyHourCards(cards));
   for (const deal of dealParse.deals.filter((item) => /\bhappy\s+hours?\b/i.test(item.title))) {
     for (const day of deal.days) {
-      const startsAt = nextWeeklyOccurrence(day, deal.startTime, asOf);
+      const startsAt = nextWeeklyOccurrence(day, deal.startTime, new Date(serviceNow - windowMs(deal.startTime, deal.endTime)).toISOString());
       if (!startsAt) continue;
       let date = startsAt.slice(0, 10);
       if (deal.endTime <= deal.startTime) date = new Date(Date.parse(`${date}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
