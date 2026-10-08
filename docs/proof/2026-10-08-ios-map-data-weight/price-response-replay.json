@@ -1,0 +1,14 @@
+[
+  {
+    "port": 3481,
+    "status": 200,
+    "body": "{\"venueIds\":[]}",
+    "sha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+  },
+  {
+    "port": 3482,
+    "status": 200,
+    "body": "{\"venueIds\":[]}",
+    "sha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+  }
+]
