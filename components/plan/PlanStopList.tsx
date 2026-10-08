@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeftRight } from "lucide-react";
+import { ArrowLeftRight, Ellipsis } from "lucide-react";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type { DraftStop } from "@/components/plan/PlanComposer";
@@ -322,6 +322,21 @@ export default function PlanStopList({
                     >
                       <ArrowLeftRight size={18} aria-hidden="true" />
                     </button>
+                    {canDelete ? (
+                      // A mouse cannot swipe, so in a list too narrow for Remove
+                      // beside the card this slides the card over to show it.
+                      // The CSS shows it only there.
+                      <button
+                        className="planStop__more"
+                        type="button"
+                        data-stop-action
+                        onClick={() => setRevealedKey(stop.key)}
+                        aria-expanded={revealedKey === stop.key}
+                        aria-label={`Show Remove for stop ${index + 1}`}
+                      >
+                        <Ellipsis size={18} aria-hidden="true" />
+                      </button>
+                    ) : null}
                   </div>
                   {removable ? (
                   <button

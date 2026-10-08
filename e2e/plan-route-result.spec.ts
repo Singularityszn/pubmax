@@ -105,6 +105,21 @@ test.describe("the Plan result is a route", () => {
     await expect(page.locator(".planComposer__routeStale")).toBeVisible();
   });
 
+  test("a mouse in a narrow list finds Remove behind More, never stacked under the card", async ({ page }) => {
+    await sortARoute(page);
+    const card = page.locator(".planComposer__stop").nth(1);
+    const remove = page.getByRole("button", { name: "Remove stop 2" });
+    await expect(remove).toHaveCSS("opacity", "0");
+    const cardBox = (await card.locator(".planStop__surface").boundingBox())!;
+    const removeBox = (await remove.boundingBox())!;
+    expect(removeBox.y).toBeLessThan(cardBox.y + cardBox.height);
+    await page.getByRole("button", { name: "Show Remove for stop 2" }).click();
+    await expect(card).toHaveAttribute("data-revealed", "true");
+    await expect(remove).toHaveCSS("opacity", "1");
+    await remove.click();
+    await expect(page.locator(".planComposer__stop")).toHaveCount(2);
+  });
+
   test("a stop added by hand is a pub finder until a pub is chosen", async ({ page }) => {
     await sortARoute(page);
     await page.getByRole("button", { name: "Add another stop" }).click();

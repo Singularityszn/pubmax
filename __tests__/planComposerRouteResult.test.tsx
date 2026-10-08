@@ -310,13 +310,22 @@ describe("an accepted place the venue index has no name for", () => {
     await settle();
   }
 
+  // The cards are their own chunk. Wait for them, so a test never passes only
+  // because an earlier test in the file had already loaded it.
+  async function mountHeld(): Promise<void> {
+    await mountComposer();
+    await vi.waitFor(() => {
+      if (!document.querySelector("li.planStop")) throw new Error("the stop cards have not mounted");
+    }, { timeout: 4000 });
+  }
+
   it("shows a held place that is not a pub as a card, and Swap releases it for a pub of the reader's choosing", async () => {
     holdAcceptedPlace();
     serveIndex([
       { id: HELD, name: "The Cocktail Den", kind: "bar" },
       { id: "venue-anchor", name: "The Anchor", kind: "pub" },
     ]);
-    await mountComposer();
+    await mountHeld();
 
     expect(stopNames()).toEqual(["Your chosen place"]);
     expect(panel()).not.toBeNull();
@@ -347,7 +356,7 @@ describe("an accepted place the venue index has no name for", () => {
       { id: HELD, name: "The Cocktail Den", kind: "bar" },
       { id: "venue-anchor", name: "The Anchor", kind: "pub" },
     ]);
-    await mountComposer();
+    await mountHeld();
     expect(stopNames()).toEqual(["Your chosen place"]);
 
     await click([...document.querySelectorAll<HTMLButtonElement>("button")].find((node) => node.textContent === "Release this pub")!);
@@ -370,7 +379,7 @@ describe("an accepted place the venue index has no name for", () => {
   it("removes a held place that is not a pub, and the acceptance goes with it", async () => {
     holdAcceptedPlace();
     serveIndex([{ id: HELD, name: "The Cocktail Den", kind: "bar" }]);
-    await mountComposer();
+    await mountHeld();
 
     await click([...document.querySelectorAll<HTMLButtonElement>("button")].find((node) => node.textContent === "Add another stop")!);
     const remove = button("Remove stop 1");
@@ -393,7 +402,7 @@ describe("an accepted place the venue index has no name for", () => {
       if (url !== path) return new Response("{}", { status: 404 });
       return new Promise<Response>((resolve) => { deliver = resolve; });
     }));
-    await mountComposer();
+    await mountHeld();
     await click([...document.querySelectorAll<HTMLButtonElement>("button")].find((node) => node.textContent === "Add another stop")!);
 
     expect(stopNames()).toEqual(["Your chosen place", "Find a pub for stop 2"]);
@@ -429,7 +438,7 @@ describe("an accepted place the venue index has no name for", () => {
       if (url !== path) return new Response("{}", { status: 404 });
       return new Promise<Response>((resolve) => { deliver = resolve; });
     }));
-    await mountComposer();
+    await mountHeld();
 
     await click([...document.querySelectorAll<HTMLButtonElement>("button")].find((node) => node.textContent === "Release this pub")!);
     expect(stopNames()).toEqual(["Find a pub for stop 1"]);
@@ -446,7 +455,7 @@ describe("an accepted place the venue index has no name for", () => {
   it("says when the venue index did not load, and a retry names the held pub and keeps it held", async () => {
     holdAcceptedPlace();
     serveIndex(503, [{ id: HELD, name: "The Held Arms" }]);
-    await mountComposer();
+    await mountHeld();
 
     const alert = document.querySelector("#plan-composer [role='alert']");
     expect(alert?.textContent).toContain("The pub list did not load.");
@@ -479,7 +488,7 @@ describe("an accepted place the venue index has no name for", () => {
         ? new Response(JSON.stringify(generated), { status: 200, headers: { "content-type": "application/json" } })
         : new Response(JSON.stringify({ error: { code: parsed.code, message: parsed.message } }), { status: parsed.status, headers: { "content-type": "application/json" } });
     }));
-    await mountComposer();
+    await mountHeld();
 
     const field = document.querySelector<HTMLInputElement>("#plan-concierge-query")!;
     await act(async () => {

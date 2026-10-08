@@ -275,6 +275,23 @@ describe("PlanStopList", () => {
     expect(cards()[0]!.dataset.revealed).toBeUndefined();
   });
 
+  it("gives a mouse with no swipe a button that slides the card over to show Remove, and a click on the card shuts it", async () => {
+    const held: DraftStop = { ...generated, venueId: "venue-held" };
+    await mount({ stops: [held, picked], heldVenueId: held.venueId, removeDisabled: (_stop, index) => index === 0 });
+    // The held pub cannot be removed, so it has nothing to show.
+    expect(cards()[0]!.querySelector(".planStop__more")).toBeNull();
+    const more = cards()[1]!.querySelector<HTMLButtonElement>(".planStop__more")!;
+    expect(more.getAttribute("aria-label")).toBe("Show Remove for stop 2");
+    expect(more.getAttribute("aria-expanded")).toBe("false");
+
+    await act(async () => more.click());
+    expect(cards()[1]!.dataset.revealed).toBe("true");
+    expect(more.getAttribute("aria-expanded")).toBe("true");
+
+    await act(async () => cards()[1]!.querySelector<HTMLElement>(".planStop__open")!.click());
+    expect(cards()[1]!.dataset.revealed).toBeUndefined();
+  });
+
   it("moves focus to the neighbour only when the keyboard removed the stop", async () => {
     const empty: DraftStop = { key: 4, venueId: "", venueName: "", alternatives: [] };
     const press = async (detail: number) => {
