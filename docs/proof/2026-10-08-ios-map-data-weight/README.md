@@ -89,7 +89,7 @@ The five pairs above were refreshed after the URL correction. The original run r
 
 The pipeline test phase restored the three scripts from the typed decision's inline source. The original failure was a missing measurement procedure inside this worktree. The earlier reconstructed rig yielded 884 IDs and did not satisfy the original 901-ID comparison.
 
-The preserved script copies are in [procedure/](procedure/). `sample.js` retains the supplied measurement operations. `measure.mjs` and `summarize.mjs` change only output paths, so earlier samples remain untouched. The files are also materialized at `artifacts/lane-e/` for execution.
+The preserved script copies are in [procedure/](procedure/). `sample.js` retains the supplied measurement operations. The replay used output-path changes to preserve earlier samples. [Clean replay procedure](retry-ordering.md#clean-replay-procedure) records the later driver prerequisite correction and its validation.
 
 The replay compares baseline `835b91ab6ffeaca1533c612ad88db470aaae8b96` with pipeline head `d7049dd2016446cef64c9ab64479675632432dc9`. Both source archives, dependencies, compiled outputs and servers remained inside this worktree. No additional git worktree or shared build cache was created. Both normal Webpack production builds exited 0 and used identical committed data. Each archive generated its MapLibre workers and ElevenLabs worklets before sampling.
 
