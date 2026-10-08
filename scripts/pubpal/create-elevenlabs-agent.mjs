@@ -7,7 +7,7 @@
 // Captain, after this file changes, re-run once. Do not do this from an agent:
 //   npm run pubpal:agent -- --base-url https://pubmaxxing.com
 //
-// So this script sets four things and nothing else:
+// This script sets five things:
 //
 //   1. the webhook tools, the shared secret they present, and the speech
 //      around each call (a short checking line before the tool runs),

@@ -88,6 +88,7 @@ the system prompt, the override grants, a tool schema, or the timeout on an
 agent that already exists. The captain re-runs
 `npm run pubpal:agent -- --base-url https://pubmaxxing.com` after those
 changes. Do not run that command from an agent session.
+
 Update and `--check` resolve each tool by the same identity rule. The script
 first reads the existing agent and its attached tool IDs. It keeps the unique
 attached webhook for each name when `--base-url` changes, including moves to
@@ -104,11 +105,8 @@ workspace tool list also causes a refusal. Update resolves all identities before
 writing a secret, a tool, or the agent. Other tool settings remain part of the
 normal update and drift check.
 
-The script regression suite runs the actual CLI against a disposable API fixture.
-It checks tool PATCH targets, planned attachment IDs, read-only behavior, refusal
-before writes, and creation. Captured production collision IDs link that fixture
-to the observed defect. This proof does not establish fresh conversation events,
-speech timing, or typed-turn latency.
+The [tool identity CLI proof](proof/2026-10-08-pubpal-tool-identity/README.md)
+records the regression fixture, captured results, and proof limits.
 
 Typed chat uses the same agent in text-only mode via `/api/pub-pal/chat`. Live
 proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url https://pubmaxxing.com`.
