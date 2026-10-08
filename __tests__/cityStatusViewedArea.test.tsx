@@ -108,6 +108,45 @@ it("keeps explicitly London-wide alerts without borrowing local areas", async ()
   expect(container.querySelector(".cityStatusBannerCopy")?.textContent).toBe("London-wide transport strike");
 });
 
+it.each([
+  { areas: ["London"] },
+  { areas: ["Greater London"] },
+  { areas: ["London", "Greater London"] },
+])(
+  "removes city-wide alerts after movement for areas $areas",
+  async ({ areas }) => {
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({
+      signals: [{ headline: "London-wide transport strike", severity: "major", areas }],
+    }), { status: 200 }));
+    await renderArea("Soho");
+    expect(container.querySelector(".cityStatusBannerCopy")?.textContent).toBe("London-wide transport strike");
+    act(() => container.querySelector<HTMLButtonElement>(".cityStatusBannerLink")?.click());
+    expect(container.querySelector(".cityStatusSignalSheet")).not.toBeNull();
+    await act(async () => root.render(createElement(CityStatusBanner, {
+      cityId: "london", viewedArea: null, allowCitywideStatus: false,
+    })));
+    expect(container.querySelector(".cityStatusStack")).toBeNull();
+    expect(container.textContent).not.toContain("London-wide transport strike");
+  },
+);
+
+it("keeps relevant local news while denying city-wide headlines and feed rows", async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ signals: [
+    { headline: "London-wide transport strike", severity: "major", areas: ["London"] },
+    { headline: "Greater London alert", severity: "major", areas: ["Greater London"] },
+    { headline: KINGSTON, severity: "notable", areas: ["Kingston", "London"], sourceUrl: "https://example.com/kingston-fire" },
+    { headline: "Bermondsey fire", severity: "major", areas: ["Bermondsey", "London"] },
+  ] }), { status: 200 }));
+  await act(async () => root.render(createElement(CityStatusBanner, {
+    cityId: "london", viewedArea: "Kingston", allowCitywideStatus: false,
+  })));
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 450)); });
+  expect(container.querySelector(".cityStatusBannerCopy")?.textContent).toBe(KINGSTON);
+  act(() => container.querySelector<HTMLButtonElement>(".cityStatusBannerLink")?.click());
+  expect(Array.from(container.querySelectorAll(".cityStatusSignalRowHeadline"), (row) => row.textContent)).toEqual([KINGSTON]);
+  expect(container.querySelector(".cityStatusSignalRowSource a")?.getAttribute("href")).toBe("https://example.com/kingston-fire");
+});
+
 it("matches a named part of a combined map area without matching nearby names", async () => {
   vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({
     signals: [{ headline: "Bermondsey fire", severity: "major", areas: ["Bermondsey"] }],
