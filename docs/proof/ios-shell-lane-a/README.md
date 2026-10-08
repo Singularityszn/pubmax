@@ -122,3 +122,28 @@ No shared deployment policy changed. Native logs retain their original execution
 [The focused deployment-ignore test passed](deployment-artifact-regression.txt) after [the recorded failure](deployment-artifact-first-failure.txt).
 The durable files here contain the relevant screenshots, traces and result extracts.
 `BLOCKED.md` and `CURRENT_CHECKPOINT.md` are historical checkpoint records. This README states the final configuration and outcomes.
+
+## Review repair for outage Back
+
+The native edge handler now uses WebKit history when the exact configured outage document is visible.
+Live documents retain the existing panel-first event. An outage document without history stays in place.
+Navigation policy, cancellation handling, safe retry and worker configuration remain unchanged.
+
+The review used simulator `80131979-EDC5-4B44-B5A3-903D83429E9E` and an isolated fixture on port 3490.
+Port 3491 belonged to another worktree and was left untouched.
+The [fixture](review-offline-back-fixture.py) serves a healthy document with the real bundled `lib/nativeBackGesture.ts` module.
+It stops its origin before navigating to `/places?lane-retry=local#pubs`.
+The [native test](review-offline-back-ui.swift) then drives a left-edge gesture with a 0.1-second touch hold.
+A zero-duration diagnostic drag did not activate the recognizer and supports no Back claim.
+
+The [baseline log](review-offline-back-baseline.txt) records the failing history assertion against the original controller.
+Its result exporter stalled. Moving its directory before export completed left that result bundle incomplete.
+The [repaired test](review-offline-back-repaired.txt) passed the same assertion while the origin remained unavailable.
+Its complete result bundle contains the [outage screenshot](review-offline-back-before.png) and [healthy document after Back](review-offline-back-after.png).
+[Focused checks](review-offline-back-focused-tests.txt) passed the Foundation policy checks and 95 tests across six native suites.
+
+The new raw builds, native binaries, diagnostics and available result bundles are preserved under `ios/build/ios-lane-a-review/review-rig/`.
+That existing ignored build path keeps generated output out of the source diff. The fixture server and app were stopped.
+Production configuration was regenerated after the local fixture test. The repaired runtime binary used the local fixture origin.
+This review did not repeat the full product, healthy, cold or warm simulator matrices above.
+Those matrices and the complete repository gates remain the outer executor's responsibility.

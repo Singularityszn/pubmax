@@ -49,6 +49,10 @@ final class ShellBridgeViewController: CAPBridgeViewController, UIGestureRecogni
         let distance = gesture.translation(in: webView).x
         let velocity = gesture.velocity(in: webView).x
         guard distance >= 80 || (distance >= 20 && velocity >= 500) else { return }
+        if let errorURL = bridge?.config.errorPathURL, webView.url == errorURL {
+            if webView.canGoBack { webView.goBack() }
+            return
+        }
         let canGoBack = webView.canGoBack ? "true" : "false"
         bridge?.eval(js: "window.dispatchEvent(new CustomEvent('pubmax:ios-back', { detail: { canGoBack: \(canGoBack) } }))")
     }
