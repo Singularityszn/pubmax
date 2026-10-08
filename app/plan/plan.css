@@ -1635,6 +1635,8 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
 .planStops {
   min-width: 0;
   display: grid;
+  /* One track the list's width, so a Find a pub field cannot widen it. */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-3);
   /* Remove sits beside a card only when the list itself has room for it. */
   container-type: inline-size;
