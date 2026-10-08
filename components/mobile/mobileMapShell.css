@@ -758,16 +758,17 @@
      not fit beside it, the label on its own line under it. A lens category
      always fits that line whole; only an anchor or dish name longer than the
      line ends in an ellipsis there (its full name is in the accessible name
-     and the venue sheet). The line heights are set in rem so that two eyebrow
-     lines and the figure line fill the answer row (--map-peek-row-h, also in
-     rem) exactly at any text size, and the card keeps its fixed height. */
+     and the venue sheet). The line heights are set in rem, times --text-zoom,
+     exactly as --map-peek-row-h is, so that two eyebrow lines and the figure
+     line fill the answer row exactly at any text size on either shell, and the
+     card keeps its fixed height. */
   .mapPeekEyebrow {
     display: flex;
     flex-wrap: wrap;
     column-gap: 4px;
     min-width: 0;
     font-size: .75rem;
-    line-height: .875rem;
+    line-height: calc(.875rem * var(--text-zoom, 1));
     font-weight: 500;
     letter-spacing: .01em;
     color: var(--color-text-muted);
@@ -786,8 +787,8 @@
     align-items: baseline;
     gap: 8px;
     min-width: 0;
-    height: 1rem;
-    line-height: 1rem;
+    height: calc(1rem * var(--text-zoom, 1));
+    line-height: calc(1rem * var(--text-zoom, 1));
   }
   /* The line is the figure, the name and the walk, each a direct flex item.
      The figure and the walk never shrink; the name gives way with an
