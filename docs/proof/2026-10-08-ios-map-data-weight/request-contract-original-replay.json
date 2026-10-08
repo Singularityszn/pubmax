@@ -1,0 +1,289 @@
+{
+  "method": "Supplemental cold reads after the ten timed samples. Exact /places -> clear localStorage/sessionStorage -> default Map document -> nine seconds. ResourceTiming validates actual request grouping and decoded sizes. Unmodified recorded GET URLs are replayed locally for body bytes and hashes. These replays are outside timing samples.",
+  "records": [
+    {
+      "variant": "before",
+      "requests": [
+        {
+          "venueIds": 64,
+          "measuredStatus": 200,
+          "measuredDecodedBytes": 15,
+          "replayStatus": 200,
+          "replayBody": "{\"venueIds\":[]}",
+          "replayBodyBytes": 15,
+          "replayBodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+        },
+        {
+          "venueIds": 64,
+          "measuredStatus": 200,
+          "measuredDecodedBytes": 15,
+          "replayStatus": 200,
+          "replayBody": "{\"venueIds\":[]}",
+          "replayBodyBytes": 15,
+          "replayBodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+        },
+        {
+          "venueIds": 64,
+          "measuredStatus": 200,
+          "measuredDecodedBytes": 15,
+          "replayStatus": 200,
+          "replayBody": "{\"venueIds\":[]}",
+          "replayBodyBytes": 15,
+          "replayBodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+        },
+        {
+          "venueIds": 64,
+          "measuredStatus": 200,
+          "measuredDecodedBytes": 15,
+          "replayStatus": 200,
+          "replayBody": "{\"venueIds\":[]}",
+          "replayBodyBytes": 15,
+          "replayBodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+        },
+        {
+          "venueIds": 64,
+          "measuredStatus": 200,
+          "measuredDecodedBytes": 15,
+          "replayStatus": 200,
+          "replayBody": "{\"venueIds\":[]}",
+          "replayBodyBytes": 15,
+          "replayBodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+        },
+        {
+          "venueIds": 64,
+          "measuredStatus": 200,
+          "measuredDecodedBytes": 15,
+          "replayStatus": 200,
+          "replayBody": "{\"venueIds\":[]}",
+          "replayBodyBytes": 15,
+          "replayBodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+        },
+        {
+          "venueIds": 64,
+          "measuredStatus": 200,
+          "measuredDecodedBytes": 15,
+          "replayStatus": 200,
+          "replayBody": "{\"venueIds\":[]}",
+          "replayBodyBytes": 15,
+          "replayBodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+        },
+        {
+          "venueIds": 64,
+          "measuredStatus": 200,
+          "measuredDecodedBytes": 15,
+          "replayStatus": 200,
+          "replayBody": "{\"venueIds\":[]}",
+          "replayBodyBytes": 15,
+          "replayBodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+        },
+        {
+          "venueIds": 64,
+          "measuredStatus": 200,
+          "measuredDecodedBytes": 15,
+          "replayStatus": 200,
+          "replayBody": "{\"venueIds\":[]}",
+          "replayBodyBytes": 15,
+          "replayBodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+        },
+        {
+          "venueIds": 64,
+          "measuredStatus": 200,
+          "measuredDecodedBytes": 15,
+          "replayStatus": 200,
+          "replayBody": "{\"venueIds\":[]}",
+          "replayBodyBytes": 15,
+          "replayBodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+        },
+        {
+          "venueIds": 64,
+          "measuredStatus": 200,
+          "measuredDecodedBytes": 15,
+          "replayStatus": 200,
+          "replayBody": "{\"venueIds\":[]}",
+          "replayBodyBytes": 15,
+          "replayBodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+        },
+        {
+          "venueIds": 64,
+          "measuredStatus": 200,
+          "measuredDecodedBytes": 15,
+          "replayStatus": 200,
+          "replayBody": "{\"venueIds\":[]}",
+          "replayBodyBytes": 15,
+          "replayBodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+        },
+        {
+          "venueIds": 64,
+          "measuredStatus": 200,
+          "measuredDecodedBytes": 15,
+          "replayStatus": 200,
+          "replayBody": "{\"venueIds\":[]}",
+          "replayBodyBytes": 15,
+          "replayBodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+        },
+        {
+          "venueIds": 64,
+          "measuredStatus": 200,
+          "measuredDecodedBytes": 15,
+          "replayStatus": 200,
+          "replayBody": "{\"venueIds\":[]}",
+          "replayBodyBytes": 15,
+          "replayBodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+        },
+        {
+          "venueIds": 5,
+          "measuredStatus": 200,
+          "measuredDecodedBytes": 15,
+          "replayStatus": 200,
+          "replayBody": "{\"venueIds\":[]}",
+          "replayBodyBytes": 15,
+          "replayBodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+        }
+      ],
+      "requestedIdCount": 901,
+      "requestedIdsSha256": "85f34e81d36c4962ea971d1671eb3ca1ac3c3c9dbdd167adf77ae0af24e52203"
+    },
+    {
+      "variant": "after",
+      "requests": [
+        {
+          "venueIds": 64,
+          "measuredStatus": 200,
+          "measuredDecodedBytes": 15,
+          "replayStatus": 200,
+          "replayBody": "{\"venueIds\":[]}",
+          "replayBodyBytes": 15,
+          "replayBodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+        },
+        {
+          "venueIds": 64,
+          "measuredStatus": 200,
+          "measuredDecodedBytes": 15,
+          "replayStatus": 200,
+          "replayBody": "{\"venueIds\":[]}",
+          "replayBodyBytes": 15,
+          "replayBodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+        },
+        {
+          "venueIds": 64,
+          "measuredStatus": 200,
+          "measuredDecodedBytes": 15,
+          "replayStatus": 200,
+          "replayBody": "{\"venueIds\":[]}",
+          "replayBodyBytes": 15,
+          "replayBodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+        },
+        {
+          "venueIds": 64,
+          "measuredStatus": 200,
+          "measuredDecodedBytes": 15,
+          "replayStatus": 200,
+          "replayBody": "{\"venueIds\":[]}",
+          "replayBodyBytes": 15,
+          "replayBodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+        },
+        {
+          "venueIds": 64,
+          "measuredStatus": 200,
+          "measuredDecodedBytes": 15,
+          "replayStatus": 200,
+          "replayBody": "{\"venueIds\":[]}",
+          "replayBodyBytes": 15,
+          "replayBodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+        },
+        {
+          "venueIds": 64,
+          "measuredStatus": 200,
+          "measuredDecodedBytes": 15,
+          "replayStatus": 200,
+          "replayBody": "{\"venueIds\":[]}",
+          "replayBodyBytes": 15,
+          "replayBodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+        },
+        {
+          "venueIds": 64,
+          "measuredStatus": 200,
+          "measuredDecodedBytes": 15,
+          "replayStatus": 200,
+          "replayBody": "{\"venueIds\":[]}",
+          "replayBodyBytes": 15,
+          "replayBodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+        },
+        {
+          "venueIds": 64,
+          "measuredStatus": 200,
+          "measuredDecodedBytes": 15,
+          "replayStatus": 200,
+          "replayBody": "{\"venueIds\":[]}",
+          "replayBodyBytes": 15,
+          "replayBodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+        },
+        {
+          "venueIds": 64,
+          "measuredStatus": 200,
+          "measuredDecodedBytes": 15,
+          "replayStatus": 200,
+          "replayBody": "{\"venueIds\":[]}",
+          "replayBodyBytes": 15,
+          "replayBodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+        },
+        {
+          "venueIds": 64,
+          "measuredStatus": 200,
+          "measuredDecodedBytes": 15,
+          "replayStatus": 200,
+          "replayBody": "{\"venueIds\":[]}",
+          "replayBodyBytes": 15,
+          "replayBodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+        },
+        {
+          "venueIds": 64,
+          "measuredStatus": 200,
+          "measuredDecodedBytes": 15,
+          "replayStatus": 200,
+          "replayBody": "{\"venueIds\":[]}",
+          "replayBodyBytes": 15,
+          "replayBodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+        },
+        {
+          "venueIds": 64,
+          "measuredStatus": 200,
+          "measuredDecodedBytes": 15,
+          "replayStatus": 200,
+          "replayBody": "{\"venueIds\":[]}",
+          "replayBodyBytes": 15,
+          "replayBodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+        },
+        {
+          "venueIds": 64,
+          "measuredStatus": 200,
+          "measuredDecodedBytes": 15,
+          "replayStatus": 200,
+          "replayBody": "{\"venueIds\":[]}",
+          "replayBodyBytes": 15,
+          "replayBodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+        },
+        {
+          "venueIds": 64,
+          "measuredStatus": 200,
+          "measuredDecodedBytes": 15,
+          "replayStatus": 200,
+          "replayBody": "{\"venueIds\":[]}",
+          "replayBodyBytes": 15,
+          "replayBodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+        },
+        {
+          "venueIds": 5,
+          "measuredStatus": 200,
+          "measuredDecodedBytes": 15,
+          "replayStatus": 200,
+          "replayBody": "{\"venueIds\":[]}",
+          "replayBodyBytes": 15,
+          "replayBodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd"
+        }
+      ],
+      "requestedIdCount": 901,
+      "requestedIdsSha256": "85f34e81d36c4962ea971d1671eb3ca1ac3c3c9dbdd167adf77ae0af24e52203"
+    }
+  ]
+}

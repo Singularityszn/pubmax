@@ -84,3 +84,57 @@ Six repeated Map/Tonight visits were observed in the same Chrome document after 
 Raw samples remain in `artifacts/lane-e/before-1.json` through `before-5.json` and `after-1.json` through `after-5.json`. The measurement scripts are `artifacts/lane-e/sample.js` and `measure.mjs`. Build logs, sync logs, TDD logs, and the Instruments device inventory also remain in that folder. The committed sample file removes camera coordinates and replaces ID lists with counts and hashes.
 
 The five pairs above were refreshed after the URL correction. Raw samples, `samples-refreshed.log`, and `after-build-refreshed.log` preserve that run. Firstmate owns merges and deployment decisions. The no-mistakes pipeline owns validation edits, publication, and CI. No deployment, migration, live POST, or paid service call was made.
+
+## Pipeline replay of the supplied original procedure
+
+The pipeline test phase restored the three scripts from the typed decision's inline source. The original failure was a missing measurement procedure inside this worktree. The earlier reconstructed rig yielded 884 IDs and did not satisfy the original 901-ID comparison.
+
+The preserved script copies are in [procedure/](procedure/). `sample.js` retains the supplied measurement operations. `measure.mjs` and `summarize.mjs` change only output paths, so earlier samples remain untouched. The files are also materialized at `artifacts/lane-e/` for execution.
+
+The replay compares baseline `835b91ab6ffeaca1533c612ad88db470aaae8b96` with pipeline head `d7049dd2016446cef64c9ab64479675632432dc9`. Both source archives, dependencies, compiled outputs and servers remained inside this worktree. No additional git worktree or shared build cache was created. Both normal Webpack production builds exited 0 and used identical committed data. Each archive generated its MapLibre workers and ElevenLabs worklets before sampling.
+
+Both builds used `NEXT_PUBLIC_SW_VERSION=local`, `DEPLOYMENT_VERSION=local` and `PUBMAX_E2E_KEYLESS=1`. An explicit `PUBMAX_BUILD_COMMIT_SHA` named each archive's source commit. The disposable config copies disabled Next's build type checking because this assigned phase forbids static analysis. The application config and all repository gates remained unchanged. An earlier split compile/generate attempt failed during Next's environment substitution. Compile-only output then lacked the browser revision value. Those outputs were discarded, and no timing sample uses them.
+
+Chrome used the required `pubmax-ios-lane-e` session, 390x844 mobile viewport, device scale factor 3, touch, light theme and DevTools Fast 4G. The current browser is Headless Chrome 154. The original browser version was not supplied. The earlier reconstructed comparison used Playwright Chromium 153 and a separate setup. Absolute timing values from those runs are not interchangeable.
+
+Each timed sample used the supplied `/places` visit, cleared localStorage and sessionStorage, and opened `/map?lane-e-proof=<round>`. The default Map camera remained unchanged. The cold collection followed nine seconds of observation. Client navigation then visited Tonight, Map and Tonight, with three seconds per visit. Setup pilots primed HTTP assets for both origins before the timed pairs. HTTP caches were not cleared. Cold continues to mean cold application surface caches.
+
+All ten cold samples contain 901 IDs, 15 completed provisional requests and HTTP 200 statuses. Every ID multiset matches `85f34e81d36c4962ea971d1671eb3ca1ac3c3c9dbdd167adf77ae0af24e52203`. Every cold set decoded 225 provisional-body bytes, or 15 bytes per request. Measured maximum concurrency remained one before and two after.
+
+The supplemental [request contract replay](request-contract-original-replay.json) captures actual request URLs after the timed pairs. It checks the 64-ID maximum and replays those same GET URLs against each local server. Each response is `{"venueIds":[]}`, with SHA256 `f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd`. These supplemental GETs do not enter the timing samples.
+
+The cold public listings key retains `/api/whats-on?window=tonight&limit=60`. The first Tonight visit retains its separate `pubOnly=1` answer. Each baseline warm return downloads one listings response. Each final warm return downloads none. This replay changes no listing fixture, source timestamp, freshness guard, retry behavior, account boundary or cancellation behavior.
+
+Five pairs alternated before 1, after 1, through before 5, after 5. [samples-original-replay.json](samples-original-replay.json) contains the sanitized readings. [summary-original-replay.json](summary-original-replay.json) records the rig and ranges. The original `samples.json` remains unchanged.
+
+| Metric | Before median, range | After median, range |
+| --- | --- | --- |
+| Cold provisional waterfall | 4749.3 ms, 4547-4831.4 | 2508.7 ms, 2371.9-2571.7 |
+| Cold provisional requests | 15, 15-15 | 15, 15-15 |
+| Cold provisional transfer | 4725 bytes, 4725-4725 | 4725 bytes, 4725-4725 |
+| Cold provisional decoded bodies | 225 bytes, 225-225 | 225 bytes, 225-225 |
+| Cold first provisional answer | 3219.5 ms, 3008.6-3560.9 | 3306.5 ms, 3218.4-4345.7 |
+| Cold final provisional answer | 7630.4 ms, 7439-8061.6 | 5551.9 ms, 5404.4-6597.6 |
+| Cold first visible pins | 658 ms, 629-833 | 694 ms, 380-1401.7 |
+| First Tonight ready or empty surface | 430 ms, 381.6-758.2 | 428.6 ms, 354.6-431.3 |
+| Warm Map listings control available | 1083.6 ms, 739.1-1151.9 | 814.1 ms, 679.5-1274.5 |
+| Warm Tonight ready or empty surface | 38.4 ms, 34.1-81.3 | 35.3 ms, 32.4-43.1 |
+| Cold Map listings transfer | 64319 bytes, 64319-64319 | 64319 bytes, 64319-64319 |
+| First Tonight listings transfer | 44048 bytes, 44048-44048 | 44048 bytes, 44048-44048 |
+| Warm Map listings requests | 1, 1-1 | 0, 0-0 |
+| Warm Tonight listings requests | 1, 1-1 | 0, 0-0 |
+| Combined warm listings transfer | 108367 bytes, 108367-108367 | 0 bytes, 0-0 |
+
+The provisional waterfall median fell by 47.2%. Cold request counts and bytes did not improve. Final price-read completion improved. First-answer and first-pin medians were slower after the change, with overlapping ranges. Warm surface-readiness ranges also overlap. These observations establish faster completion of provisional reads and fewer repeated listings downloads. They do not establish faster initial page loads or native-device performance.
+
+The three-second warm Map collection captured 3-5 completed provisional reads before and 6-10 after. These partial waterfalls cannot establish fewer price requests.
+
+### Retained reconstructed evidence and provenance limit
+
+The five prior 884-ID pairs remain in the external evidence directory without modification. [samples-reconstructed-884.json](samples-reconstructed-884.json) preserves sanitized copies, and [summary-reconstructed-884.json](summary-reconstructed-884.json) preserves their earlier rig and results. Their price URLs and ID arrays are reduced to counts and hashes. Cancelled reads retain their recorded state. This separate setup does not replace the 901-ID replay.
+
+The transmitted inline script text does not match the supplied original script fingerprint metadata. This also holds after reversal of the permitted output-path substitutions. [procedure/fingerprints.json](procedure/fingerprints.json) records the supplied and materialized hashes. The scripts and matching runtime observations prove the supplied procedure's measurement semantics, IDs and response-body contracts. They do not prove byte identity to the original uncommitted files. The outer executor must reconcile that provenance discrepancy before claiming byte-identical original scripts.
+
+The original TDD logs, including the rollover race red and green logs, remain unchanged. The prior outer test result supplied a full-gate pass. This focused phase did not rerun the full gate, static checks, native generation, PR publication or CI. The outer executor owns those phases and must report their actual status in the PR body. The PR evidence must include the retained TDD and full-gate proof, the original samples, the separate reconstructed samples, and this replay with its provenance limit.
+
+No physical-device performance, memory-leak, deployment or production claim follows from these browser samples. No paid calls, live POST, migration, deploy, threshold waiver or ceiling change occurred. The test phase stopped its own servers and removed its disposable source archives and compiled outputs before returning.
