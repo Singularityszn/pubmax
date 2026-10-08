@@ -79,6 +79,7 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
   const [entering, setEntering] = useState(false);
   const enteringTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onDismissRef = useRef(onDismiss);
+  const dismissingRef = useRef(false);
   const {
     value: sheetHeight,
     running: settling,
@@ -121,6 +122,7 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
   // first: a sheet sliding up while its box grows is two travels at once.
   const setSheetSnap = useCallback(
     (snap: SheetSnap) => {
+      dismissingRef.current = false;
       setRestingSnap(snap);
       setEntering(false);
       animateTo(capsForViewport()[snap], { dampingRatio: 1 });
@@ -129,6 +131,7 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
   );
 
   const settleToRest = useCallback((targetSnap: SheetSnap = sheetSnap) => {
+    dismissingRef.current = false;
     setRestingSnap(targetSnap);
     setEntering(false);
     stop();
@@ -153,6 +156,7 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
   // input and are excluded from CLS by construction.
   const openAtSnap = useCallback(
     (snap: SheetSnap) => {
+      dismissingRef.current = false;
       setRestingSnap(snap);
       stop();
       jumpTo(capsForViewport()[snap]);
@@ -193,7 +197,7 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
   // The sheet's own header and footer can grow too (the venue command bar lands
   // after the sheet opens), so MobileSharedSheet calls this when they resize.
   const recapToViewport = useCallback(() => {
-    if (dragRef.current?.active) return;
+    if (dragRef.current?.active || dismissingRef.current) return;
     if (sheetHeightRef.current <= 0) return;
     const cap = capsForViewport()[sheetSnapRef.current];
     if (Math.abs(cap - sheetHeightRef.current) < 1) return;
@@ -219,6 +223,7 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
 
   const dismissWithVelocity = useCallback(
     (velocityPxPerMillisecond: number, presentedHeight?: number) => {
+      dismissingRef.current = true;
       if (presentedHeight !== undefined) {
         jumpTo(Math.max(0, presentedHeight));
       }
@@ -255,6 +260,7 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
       if (!drawer) return;
 
       stop();
+      dismissingRef.current = false;
       // A finger on the sheet ends the entrance: the slide is a transform and
       // the drag is a height, so leaving the class on would move the box the
       // reader is holding.
