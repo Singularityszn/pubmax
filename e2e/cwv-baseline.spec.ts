@@ -420,6 +420,52 @@ test.describe("Native CWV driver regression", () => {
       (key) => key.startsWith("pubmaxx.pub-pal-onboarding.v1:"),
     ))).toBe(false);
   });
+  test("clears the measured Layers sheet before the next warm navigation", async ({ page }) => {
+    test.setTimeout(90_000);
+    await installVitalsProbe(page);
+    await serveMapInitScript(page, SHIPPED_MAP_INIT_SCRIPT);
+    await applyVitalsDevice(page, "mobile");
+    await page.goto("/map", { waitUntil: "load" });
+    expect(await exercisePrimaryAction(page, "/map")).toBe(true);
+    const more = page.getByRole("button", { name: "More map controls", exact: true });
+    await expect(more).toHaveAttribute("aria-expanded", "true");
+    await expect.poll(() => page.evaluate(() => {
+      const session = JSON.parse(localStorage.getItem("pubmaxx.mobile-map-session.v1") ?? "null");
+      return session?.openSheet;
+    })).toBe("layers");
+    await readVitals(page);
+    await clearSampleResidue(page, "/map");
+    // The cleanup must precede both warm navigations, not the next interaction.
+    await expect(more).toHaveAttribute("aria-expanded", "false");
+    await expect.poll(() => page.evaluate(() => {
+      const session = JSON.parse(localStorage.getItem("pubmaxx.mobile-map-session.v1") ?? "null");
+      return session?.openSheet;
+    })).toBeNull();
+    await page.goto("/map", { waitUntil: "load" });
+    await expect(more).toHaveAttribute("aria-expanded", "false");
+    await clearSampleResidue(page, "/map");
+    await page.goto("/map", { waitUntil: "load" });
+    await expect(more).toHaveAttribute("aria-expanded", "false");
+    expect(await exercisePrimaryAction(page, "/map")).toBe(true);
+    await expect(page.getByRole("button", { name: "Reset view", exact: true })).toBeDisabled();
+  });
+  test("reports a missing map canvas without an unbounded action wait", async ({ page }) => {
+    test.setTimeout(60_000);
+    await installVitalsProbe(page);
+    await serveMapInitScript(page, SHIPPED_MAP_INIT_SCRIPT);
+    await applyVitalsDevice(page, "mobile");
+    await page.goto("/map", { waitUntil: "load" });
+    await expect(page.getByRole("button", { name: "More map controls", exact: true })).toBeVisible({
+      timeout: 20_000,
+    });
+    const canvas = page.locator(".maplibregl-canvas").first();
+    await expect(canvas).toBeVisible({ timeout: 20_000 });
+    await canvas.evaluate((element) => element.remove());
+    await expect(canvas).toHaveCount(0);
+    const started = Date.now();
+    expect(await exercisePrimaryAction(page, "/map")).toBe(false);
+    expect(Date.now() - started).toBeLessThan(25_000);
+  });
   test("exercises the real camera action from the closed Layers surface", async ({ page }) => {
     test.setTimeout(90_000);
     await installVitalsProbe(page);
