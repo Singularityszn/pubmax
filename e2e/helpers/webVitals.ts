@@ -338,7 +338,7 @@ export const PRIMARY_INTERACTIONS: Record<string, PrimaryInteraction> = {
     label: "typing the outing into describe-first",
   },
   "/map": {
-    selector: ".mapCompassBtn, .mapFitLondonBtn",
+    selector: ".mapCompassBtn, .mapFitLondonBtn, .mobileSheetPortal button:has-text('Reset view')",
     kind: "click",
     label: "a map chrome control",
   },
@@ -391,10 +391,25 @@ const SAMPLE_RESIDUE_KEY_PREFIXES: Record<string, readonly string[]> = {
   "/pal": ["pubmaxx.pub-pal-onboarding"],
 };
 
+const residueGuards = new WeakMap<Page, Set<string>>();
+
 /** Clears what the previous sample's own interaction left in this browser. */
 export async function clearSampleResidue(page: Page, routePath: string): Promise<void> {
   const prefixes = SAMPLE_RESIDUE_KEY_PREFIXES[routePath];
   if (!prefixes) return;
+  const guardedRoutes = residueGuards.get(page) ?? new Set<string>();
+  if (!guardedRoutes.has(routePath)) {
+    // The leaving Pal document saves again on pagehide. Clear that late draft
+    // in the next document before the app restores it, without cooling cache.
+    await page.addInitScript(({ pathname, keyPrefixes }) => {
+      if (window.location.pathname !== pathname) return;
+      for (const key of Object.keys(window.localStorage)) {
+        if (keyPrefixes.some((prefix) => key.startsWith(prefix))) window.localStorage.removeItem(key);
+      }
+    }, { pathname: routePath, keyPrefixes: prefixes });
+    guardedRoutes.add(routePath);
+    residueGuards.set(page, guardedRoutes);
+  }
   try {
     await page.evaluate((keyPrefixes: readonly string[]) => {
       for (const key of Object.keys(window.localStorage)) {
@@ -412,6 +427,40 @@ export async function exercisePrimaryAction(page: Page, routePath: string): Prom
   if (!interaction) return false;
   const control = page.locator(interaction.selector).first();
   try {
+    if (routePath === "/map") {
+      // The camera actions live inside Layers on both layouts. Open their
+      // real surface before measuring the action, including the opening tap.
+      const more = page.getByRole("button", { name: "More map controls", exact: true });
+      const layers = page.getByRole("button", { name: /^Map layers:/ });
+      await more.or(layers).filter({ visible: true }).first().waitFor({
+        state: "visible",
+        timeout: PRIMARY_ACTION_TIMEOUT_MS,
+      });
+      if (await more.isVisible()) {
+        // A warm navigation can restore the modal sheet over the canvas.
+        // Close it before sending a real camera key to the map.
+        if ((await more.getAttribute("aria-expanded")) === "true") {
+          await page.getByRole("button", { name: "Close Map controls", exact: true }).click();
+          await expect(more).toHaveAttribute("aria-expanded", "false");
+        }
+        // Reset view is disabled at the designed attitude. A real keyboard
+        // rotation makes the phone's camera action meaningful and actionable.
+        const canvas = page.locator(".maplibregl-canvas").first();
+        await canvas.focus();
+        await expect(canvas).toBeFocused();
+        await canvas.press("Shift+ArrowLeft");
+        await expect(async () => {
+          if ((await more.getAttribute("aria-expanded")) !== "true") await more.click();
+          await page.getByRole("tab", { name: "Layers", exact: true }).click();
+          await expect(control).toBeEnabled({ timeout: 1_000 });
+        }).toPass({ timeout: PRIMARY_ACTION_TIMEOUT_MS });
+      } else {
+        await expect(async () => {
+          if (!(await control.isVisible())) await layers.click({ timeout: PRIMARY_ACTION_TIMEOUT_MS });
+          await expect(control).toBeVisible({ timeout: 1_000 });
+        }).toPass({ timeout: PRIMARY_ACTION_TIMEOUT_MS });
+      }
+    }
     await control.waitFor({ state: "visible", timeout: 20_000 });
   } catch {
     return false;

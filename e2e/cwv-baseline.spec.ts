@@ -240,6 +240,7 @@ test.describe("Core Web Vitals baseline", () => {
     await page.goto("/plan", { waitUntil: "load" });
 
     const routeRecords: VitalsRecord[] = [];
+    const routeSamples: Array<{ key: string; samples: Sample[] }> = [];
     const measuredVitals = new Map<string, MeasuredVitals>();
     /** Rows whose primary action never appeared, so their INP means nothing. */
     const uninteracted: string[] = [];
@@ -254,6 +255,7 @@ test.describe("Core Web Vitals baseline", () => {
           }
           const figures = aggregate(samples);
           const key = vitalsRecordKey(routePath, device, temperature);
+          routeSamples.push({ key, samples });
           if (!samples.some((sample) => sample.interacted)) uninteracted.push(key);
           measuredVitals.set(key, figures);
           routeRecords.push({ path: routePath, device, temperature, ...figures });
@@ -268,6 +270,7 @@ test.describe("Core Web Vitals baseline", () => {
     }
 
     const productRecords: ProductTimingRecord[] = [];
+    const productSamples: Array<{ key: string; runs: number[] }> = [];
     const measuredTimings = new Map<string, number>();
 
     for (const device of DEVICES) {
@@ -285,6 +288,7 @@ test.describe("Core Web Vitals baseline", () => {
           runs.push(await take());
         }
         const ms = median(runs);
+        productSamples.push({ key: productTimingKey(key, device), runs });
         measuredTimings.set(productTimingKey(key, device), ms);
         productRecords.push({ key, label, device, startedAt, ms });
         console.log(
@@ -318,15 +322,6 @@ test.describe("Core Web Vitals baseline", () => {
       );
     }
 
-    // A row whose control never appeared records the floor and reads as the
-    // fastest thing on the table, so it fails before any number is written or
-    // defended.
-    expect(
-      uninteracted,
-      "The primary action never appeared on these rows, so their INP is the " +
-        `Event Timing floor rather than a measurement: ${uninteracted.join(", ")}`,
-    ).toEqual([]);
-
     console.log(`\n[cwv] routes\n${formatBaselineTable(routeRecords)}`);
     console.log(`\n[cwv] product timings\n${formatProductTimingTable(productRecords)}`);
 
@@ -336,9 +331,17 @@ test.describe("Core Web Vitals baseline", () => {
     const artifact = path.join(testInfo.outputDir, "cwv-run.json");
     await writeFile(
       artifact,
-      `${JSON.stringify({ routes: routeRecords, productTimings: productRecords }, null, 2)}\n`,
+      `${JSON.stringify({ routes: routeRecords, productTimings: productRecords, routeSamples, productSamples }, null, 2)}\n`,
       "utf8",
     );
+
+    // Retain raw evidence for invalid runs, but fail before recording or
+    // defending any baseline number from an unexercised primary action.
+    expect(
+      uninteracted,
+      "The primary action never appeared on these rows, so their INP is the " +
+        `Event Timing floor rather than a measurement: ${uninteracted.join(", ")}`,
+    ).toEqual([]);
 
     if (RECORD) {
       const target = path.join(process.cwd(), "perf", "cwv-baseline.json");
@@ -410,5 +413,45 @@ test.describe("Core Web Vitals baseline", () => {
       (routePath) => !PRIMARY_INTERACTIONS[routePath],
     );
     expect(missing, `No primary interaction for: ${missing.join(", ")}`).toEqual([]);
+  });
+});
+
+test.describe("Native CWV driver regression", () => {
+  test.skip(!RECORD && !SWEEP, "Spent with the native CWV rig.");
+  test("clears Pal interaction residue after the leaving page saves its draft", async ({ page }) => {
+    await installVitalsProbe(page);
+    await applyVitalsDevice(page, "mobile");
+    await page.goto("/pal", { waitUntil: "load" });
+    const meet = page.getByRole("button", { name: "Meet your Pub Pal", exact: true });
+    await expect(async () => {
+      await meet.click();
+      await expect(meet).toHaveCount(0, { timeout: 1_000 });
+    }).toPass({ timeout: 20_000 });
+    await expect.poll(() => page.evaluate(() => Object.keys(localStorage).some(
+      (key) => key.startsWith("pubmaxx.pub-pal-onboarding.v1:"),
+    ))).toBe(true);
+    await clearSampleResidue(page, "/pal");
+    await page.goto("/pal", { waitUntil: "load" });
+    await expect(meet).toBeVisible();
+    await expect.poll(() => page.evaluate(() => Object.keys(localStorage).some(
+      (key) => key.startsWith("pubmaxx.pub-pal-onboarding.v1:"),
+    ))).toBe(false);
+  });
+  test("exercises the real camera action from the closed Layers surface", async ({ page }) => {
+    test.setTimeout(90_000);
+    await installVitalsProbe(page);
+    await serveMapInitScript(page, SHIPPED_MAP_INIT_SCRIPT);
+    await applyVitalsDevice(page, "mobile");
+    await page.goto("/map", { waitUntil: "load" });
+    await expect(page.locator(".mapCompassBtn, .mapFitLondonBtn")).toHaveCount(0);
+    expect(await exercisePrimaryAction(page, "/map")).toBe(true);
+    // A completed reset returns the camera to its designed attitude.
+    await expect(page.getByRole("button", { name: "Reset view", exact: true })).toBeDisabled();
+    // Match the warm cell's priming and measured reloads. The phone restores
+    // its sheet, so the camera key must reach the canvas again.
+    await page.goto("/map", { waitUntil: "load" });
+    await page.goto("/map", { waitUntil: "load" });
+    expect(await exercisePrimaryAction(page, "/map")).toBe(true);
+    await expect(page.getByRole("button", { name: "Reset view", exact: true })).toBeDisabled();
   });
 });
