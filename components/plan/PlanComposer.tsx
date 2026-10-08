@@ -223,6 +223,12 @@ const NO_TIMING_OR_PRICE = {
   priceKind: undefined,
 } satisfies Partial<DraftStop>;
 
+function venueNightArea(venue: PlanVenueOption | undefined): NightContext["nightArea"] {
+  if (venue?.lat === undefined || venue.lng === undefined) return null;
+  const patch = nearestNightPatch(venue.lat, venue.lng);
+  return patch ? nightAreaForPlanIntakePatch(patch.id) : null;
+}
+
 /** The stop a chosen pub makes: a venue record, with nothing of the last one left on it. */
 export function pickedPlanStop(stop: DraftStop, venue: PlanVenueOption): DraftStop {
   return {
@@ -2037,11 +2043,8 @@ function PlanComposerForm({
       intakeContextForSort,
       queryArea,
     );
-    const heldVenue = venues.find((venue) => venue.id === heldVenueId);
-    if (!submittedContext.nightArea && queryArea.kind === "none"
-      && heldVenue?.lat !== undefined && heldVenue.lng !== undefined) {
-      const patch = nearestNightPatch(heldVenue.lat, heldVenue.lng);
-      const area = patch ? nightAreaForPlanIntakePatch(patch.id) : null;
+    if (!submittedContext.nightArea && queryArea.kind === "none") {
+      const area = venueNightArea(venues.find((venue) => venue.id === heldVenueId));
       if (area) submittedContext.nightArea = area;
     }
     setSorting(true);
@@ -2280,9 +2283,11 @@ function PlanComposerForm({
       </button>
     </div>
   ) : null;
-  const routeStatusLine = error && !routeSorted ? null : (
+  const routeStatusLine = (
     <p id="plan-route-status" className={resultMode ? "planResult__status" : "planComposer__routeStatus"} role="status" aria-live="polite" tabIndex={-1}>
-      {routeStatus || (routeStale ? "The route needs refreshing before it can be locked." : "Review the route preview. It stays private until you lock it in.")}
+      {error && !routeSorted && routeStatus === error
+        ? null
+        : routeStatus || (routeStale ? "The route needs refreshing before it can be locked." : "Review the route preview. It stays private until you lock it in.")}
     </p>
   );
   const renderConcierge = (inSheet: boolean) => (

@@ -592,9 +592,15 @@ describe("an accepted place the venue index has no name for", () => {
     }, { timeout: 4000 });
 
     expect(document.querySelector("#plan-composer [role='alert']")?.textContent).toBe("Choose an area.");
-    expect(document.querySelector("#plan-route-status")).toBeNull();
+    expect(document.querySelector("#plan-route-status")?.textContent).toBe("");
     expect(document.querySelector("#plan-composer")?.textContent?.match(/Choose an area\./g)).toHaveLength(1);
     expect(document.querySelector(".planComposer__routeStale")).toBeNull();
     expect(stopNames()).toEqual(["The Held Arms"]);
+
+    await click([...document.querySelectorAll<HTMLButtonElement>("button")].find((node) => node.textContent === "Release this pub")!);
+
+    const status = document.querySelector("#plan-route-status");
+    expect(status?.textContent).toBe("Released The Held Arms. Stop 1 is yours to change.");
+    expect(document.activeElement).toBe(status);
   });
 });
