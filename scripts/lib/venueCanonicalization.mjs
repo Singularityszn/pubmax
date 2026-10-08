@@ -16,16 +16,15 @@
  *   - __tests__/venueCanonicalization.test.ts (unit + regression)
  *
  * Merge policy (constraints from the D1 task):
- *   1. Keep the richer/cleaner record's id as CANONICAL; never delete an id
- *      silently — every losing id is recorded in an alias map so stored
- *      references (pint drops, plans, saved lists) still resolve.
+ *   1. Keep the canonical id selected by compareCanonical. Every losing id
+ *      enters the alias map so stored pint drops, plans, and saves still resolve.
  *   2. Union the duplicate's price rows into the canonical identity, keeping
  *      each row's own `source_datasets` / provenance untouched — no averaging,
  *      no invented prices.
- *   3. Only merge when confident it's the SAME pub: identical normalized name
- *      AND geo proximity <= 100 m AND no conflicting postcode. Coordinates can
- *      lie (a Rickmansworth "Coach & Horses" mis-geocoded into Soho), so a
- *      differing postcode outward code BLOCKS the merge.
+ *   3. Exact-name and fuzzy passes each require proximity and compatible
+ *      postcodes. looksSamePub and looksSameFuzzy own those checks.
+ *      Coordinates can be wrong, so conflicting outward postcodes block a
+ *      merge even for a verified alias.
  */
 
 import { haversineMeters } from "./geo.mjs";
@@ -197,12 +196,12 @@ export function cheapSamePubNameCandidate(aNorm, bNorm) {
   return false;
 }
 
-// Do a record pair look like the same pub under the FUZZY predicate: very close,
-// non-conflicting postcodes, and a matching-ish name.
 // Verified at 174 Queen Victoria Street. The Wikipedia spelling has no price.
 // Keep its old id resolvable without loosening name matching for other pubs.
 const VERIFIED_VENUE_ALIASES = { "venue-1sw9ofl": "venue-eltcmh" };
 
+// A verified alias can bypass name matching, but never distance or postcode
+// checks. Other pairs use the caller's matcher or namesLikelySamePub.
 function looksSameFuzzy(a, b, fuzzyMergeMeters, samePubMatch) {
   if (![a.lat, a.lng, b.lat, b.lng].every(Number.isFinite)) return false;
   if (haversineMeters(a.lat, a.lng, b.lat, b.lng) > fuzzyMergeMeters) return false;
@@ -215,14 +214,15 @@ function looksSameFuzzy(a, b, fuzzyMergeMeters, samePubMatch) {
 }
 
 // Canonical preference (lower sorts first = more canonical):
-//   1. no operator suffix   (never surface "- JD Wetherspoon" as the pub name)
-//   2. more price rows       (richer coverage)
-//   3. more distinct sources
-//   4. no parenthetical qualifier (cleaner name)
-//   5. has a postcode in its address (a seed row's bare "England" address loses
-//      to a directory row's full "N16 0NY" address — prefer the more complete,
+//   1. the target of a verified alias
+//   2. no operator suffix   (never surface "- JD Wetherspoon" as the pub name)
+//   3. more price rows       (richer coverage)
+//   4. more distinct sources
+//   5. no parenthetical qualifier (cleaner name)
+//   6. has a postcode in its address (a seed row's bare "England" address loses
+//      to a directory row's full "N16 0NY" address, so prefer the more complete,
 //      more useful address as canonical)
-//   6. lexicographically smallest id (stable, deterministic tiebreak)
+//   7. lexicographically smallest id (stable, deterministic tiebreak)
 function compareCanonical(a, b) {
   if (VERIFIED_VENUE_ALIASES[a.id] === b.id) return 1;
   if (VERIFIED_VENUE_ALIASES[b.id] === a.id) return -1;
