@@ -601,8 +601,9 @@
    pinned — the snap-fraction offsets below (which keep the bar visible in the
    translated legacy sheet) never fired either. Aligning the band fixes both. */
 @media (max-width: 768px) {
-  /* Tab bar is hidden on detail-open; --mobile-tab-clearance shrinks to a
-     safe-area breathing buffer (see globals.css). Don't hardcode tab height. */
+  /* On detail-open the sheet covers the foot while the tab bar stays up, so
+     --mobile-tab-clearance shrinks to a safe-area breathing buffer (see
+     globals.css). Don't hardcode tab height. */
   .venueInspector {
     /* A plain gutter under the command bar. The bar is this inspector's last
        child, so at the end of the scroll it rests in flow below the last
