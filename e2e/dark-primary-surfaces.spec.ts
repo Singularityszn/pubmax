@@ -439,6 +439,7 @@ test("expanded city-status sheet follows wrapped headline geometry", async ({
             detail: "Use another route where possible.",
             kind: "transport",
             severity: "major",
+            areas: ["London"],
           },
         ],
       }),
