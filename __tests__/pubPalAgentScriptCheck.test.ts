@@ -19,13 +19,23 @@ import { appendFileSync, readFileSync } from "node:fs";
 const live = JSON.parse(readFileSync(process.env.PUBPAL_LIVE_FIXTURE, "utf8"));
 globalThis.fetch = async (url, init = {}) => {
   const method = init.method ?? "GET";
-  if (method !== "GET") {
-    appendFileSync(process.env.PUBPAL_WRITES_LOG, method + " " + url + "\\n");
-    return new Response("write refused", { status: 500 });
-  }
   const text = String(url);
+  const body = init.body ? JSON.parse(init.body) : {};
+  if (method !== "GET") {
+    // Record identities and settings only. Secret payloads never enter proof.
+    const entry = { method, url: text, tool_ids: body.conversation_config?.agent?.prompt?.tool_ids,
+      tool_config: body.tool_config ? { ...body.tool_config, api_schema: {
+        ...body.tool_config.api_schema, request_headers: "redacted" } } : undefined };
+    appendFileSync(process.env.PUBPAL_WRITES_LOG, JSON.stringify(entry) + "\\n");
+    if (!live.allowWrites) return new Response("write refused", { status: 500 });
+    if (text.includes("/convai/secrets")) return Response.json({ secret_id: "live-secret-id" });
+    if (text.endsWith("/convai/tools")) return Response.json({ id: "created:" + body.tool_config.name });
+    if (text.endsWith("/agents/create")) return Response.json({ agent_id: "agent_created" });
+    return Response.json({});
+  }
+  if (text.includes("/agents?")) return Response.json({ agents: live.agent ? [live.agent] : [] });
   if (text.includes("/convai/agents/")) return Response.json(live.agent);
-  if (text.includes("/convai/tools")) return Response.json({ tools: live.tools });
+  if (text.includes("/convai/tools")) return Response.json({ tools: live.tools, has_more: live.hasMore ?? false });
   if (text.includes("/convai/secrets")) return Response.json({ secrets: live.secrets });
   return new Response("unexpected " + text, { status: 404 });
 };
@@ -90,7 +100,7 @@ function matchingLive(): { agent: Json; tools: Json[]; secrets: Json[] } {
   return { agent, tools, secrets };
 }
 
-function check(live: { agent: Json; tools: Json[]; secrets: Json[] }) {
+function check(live: { agent: Json; tools: Json[]; secrets: Json[]; allowWrites?: boolean; hasMore?: boolean }, update = false) {
   const directory = scratch();
   writeFileSync(path.join(directory, "live.json"), JSON.stringify(live));
   writeFileSync(path.join(directory, "mock-fetch.mjs"), MOCK_FETCH);
@@ -98,15 +108,15 @@ function check(live: { agent: Json; tools: Json[]; secrets: Json[] }) {
   writeFileSync(writes, "");
   const result = spawnSync(
     process.execPath,
-    ["--import", path.join(directory, "mock-fetch.mjs"), SCRIPT, "--check", "--base-url", BASE_URL],
+    ["--import", path.join(directory, "mock-fetch.mjs"), SCRIPT, ...(update ? [] : ["--check"]), "--base-url", BASE_URL],
     {
       cwd: directory,
       encoding: "utf8",
       env: {
         ...process.env,
         ELEVENLABS_API_KEY: "test-key",
-        ELEVENLABS_PUB_PAL_AGENT_ID: AGENT_ID,
-        ELEVENLABS_LLM_SHARED_SECRET: "",
+        ELEVENLABS_PUB_PAL_AGENT_ID: live.agent ? AGENT_ID : "",
+        ELEVENLABS_LLM_SHARED_SECRET: update ? SECRET : "",
         PUBPAL_LIVE_FIXTURE: path.join(directory, "live.json"),
         PUBPAL_WRITES_LOG: writes,
       },
@@ -116,6 +126,156 @@ function check(live: { agent: Json; tools: Json[]; secrets: Json[] }) {
 }
 
 describe("pubpal:agent --check", () => {
+  it("keeps the 16 captured attached webhook identities when client duplicates come first", () => {
+    const live = matchingLive();
+    const captured = JSON.parse(readFileSync(path.join(ROOT, "__tests__/fixtures/pubPalToolIdentity.json"), "utf8"));
+    const byName = new Map(live.tools.map((tool) => [tool.tool_config.name, tool]));
+    live.tools = captured.tools.flatMap((collision: Json) => {
+      const tool = byName.get(collision.name) as Json;
+      tool.id = collision.attached_matches[0].id;
+      return [
+        { id: collision.first_name_match.id, tool_config: { name: collision.name, type: "client" } },
+        tool,
+      ];
+    });
+    const attachedIds = captured.tools.map((collision: Json) => collision.attached_matches[0].id);
+    live.agent.conversation_config.agent.prompt.tool_ids = attachedIds;
+    const checked = check(live);
+    const updated = check({ ...live, allowWrites: true }, true);
+    const writes = updated.writes.trim().split("\n").map((line) => JSON.parse(line));
+    const patchedIds = writes.filter((row) => row.method === "PATCH" && row.url.includes("/tools/"))
+      .map((row) => row.url.split("/").pop());
+    const plannedIds = writes.find((row) => row.tool_ids)?.tool_ids;
+    const proof = { checked: { status: checked.status, output: checked.output, writes: checked.writes },
+      updated: { status: updated.status, output: updated.output, patchedIds, plannedIds }, attachedIds };
+    console.log("Captured identity CLI result:", JSON.stringify(proof));
+    expect(checked.status).toBe(0);
+    expect(updated.status).toBe(0);
+    expect(patchedIds).toEqual(attachedIds);
+    expect(plannedIds).toEqual(attachedIds);
+  });
+
+  it("refuses an unknown attached identity before any update", () => {
+    const live = matchingLive();
+    live.agent.conversation_config.agent.prompt.tool_ids.push("tool_not_listed");
+    const result = check({ ...live, allowWrites: true }, true);
+    expect(result.output).toContain("Attached tool tool_not_listed is absent from the workspace tool list");
+    expect(result.status).toBe(1);
+    expect(result.writes).toBe("");
+  });
+
+  it.each([false, true])("keeps attached webhooks when duplicate order is reversed: %s", (reverse) => {
+    const live = matchingLive();
+    const first = live.tools[0];
+    const duplicate = { ...first, id: "unattached_webhook" };
+    const client = { id: "unattached_client", tool_config: { name: first.tool_config.name, type: "client" } };
+    live.tools = reverse ? [...live.tools, client, duplicate] : [client, duplicate, ...live.tools];
+    const checked = check(live);
+    const updated = check({ ...live, allowWrites: true }, true);
+    expect(checked.status).toBe(0);
+    expect(checked.writes).toBe("");
+    expect(updated.status).toBe(0);
+    expect(updated.writes).not.toContain("unattached_webhook");
+    expect(updated.writes).not.toContain("unattached_client");
+  });
+
+  it.each([false, true])("refuses multiple compatible identities before a partial update, attached: %s", (attached) => {
+    const live = matchingLive();
+    const last = live.tools[live.tools.length - 1];
+    const duplicate = { ...last, id: "ambiguous_last" };
+    live.tools.push(duplicate);
+    const ids = live.agent.conversation_config.agent.prompt.tool_ids;
+    if (attached) ids.push(duplicate.id);
+    else live.agent.conversation_config.agent.prompt.tool_ids = ids.filter((id: string) => id !== last.id);
+    for (const update of [false, true]) {
+      const result = check({ ...live, allowWrites: true }, update);
+      expect(result.status).toBe(1);
+      expect(result.output).toContain(`Ambiguous tool ${last.tool_config.name}: 2`);
+      expect(result.output).toContain(last.id);
+      expect(result.output).toContain(duplicate.id);
+      expect(result.writes).toBe("");
+    }
+  });
+
+  it.each(["type", "url"])("refuses an attached tool with an incompatible %s", (field) => {
+    const live = matchingLive();
+    const first = live.tools[0];
+    live.tools.unshift({ ...first, id: "compatible_unattached", tool_config: structuredClone(first.tool_config) });
+    if (field === "type") first.tool_config.type = "client";
+    else first.tool_config.api_schema.url = "https://elsewhere.example/api/pub-pal/tools/search_venues";
+    for (const update of [false, true]) {
+      const result = check({ ...live, allowWrites: true }, update);
+      expect(result.status).toBe(1);
+      expect(result.output).toContain(`Attached tool search_venues (${first.id}) does not match`);
+      expect(result.output).toContain("https://pubmaxxing.com/api/pub-pal/tools/search_venues");
+      expect(result.writes).toBe("");
+    }
+  });
+
+  it("reuses a unique compatible workspace webhook and still updates its speech settings", () => {
+    const live = matchingLive();
+    const first = live.tools[0];
+    first.tool_config.pre_tool_speech = "auto";
+    live.agent.conversation_config.agent.prompt.tool_ids.shift();
+    live.tools.unshift({ id: "unrelated_client", tool_config: { name: first.tool_config.name, type: "client" } });
+    const checked = check(live);
+    expect(checked.status).toBe(1);
+    expect(checked.output).toContain("pre_tool_speech: live auto, wanted force");
+    expect(checked.output).toContain("live not attached");
+    const result = check({ ...live, allowWrites: true }, true);
+    expect(result.status).toBe(0);
+    const writes = result.writes.trim().split("\n").map((line) => JSON.parse(line));
+    const patched = writes.find((row) => row.url.endsWith(`/tools/${first.id}`));
+    expect(patched.tool_config).toMatchObject({ type: "webhook", pre_tool_speech: "force", response_timeout_secs: 28 });
+    expect(writes.find((row) => row.tool_ids).tool_ids).toContain(first.id);
+    expect(result.writes).not.toContain("unrelated_client");
+  });
+
+  it("creates a missing webhook without changing an unrelated same-name client or endpoint", () => {
+    const live = matchingLive();
+    const missing = live.tools.pop();
+    live.agent.conversation_config.agent.prompt.tool_ids.pop();
+    live.tools.push({ id: "unrelated_client", tool_config: { name: missing.tool_config.name, type: "client" } });
+    live.tools.push({ ...missing, id: "unrelated_endpoint", tool_config: {
+      ...missing.tool_config, api_schema: { ...missing.tool_config.api_schema, url: "https://elsewhere.example/tool" } } });
+    const checked = check(live);
+    expect(checked.status).toBe(1);
+    expect(checked.output).toContain(`tools.${missing.tool_config.name}: live missing`);
+    expect(checked.writes).toBe("");
+    const updated = check({ ...live, allowWrites: true }, true);
+    const writes = updated.writes.trim().split("\n").map((line) => JSON.parse(line));
+    expect(updated.status).toBe(0);
+    expect(writes.filter((row) => row.method === "POST" && row.url.endsWith("/tools"))).toHaveLength(1);
+    expect(writes.find((row) => row.tool_ids).tool_ids).toContain(`created:${missing.tool_config.name}`);
+    expect(updated.writes).not.toContain("unrelated_client");
+    expect(updated.writes).not.toContain("unrelated_endpoint");
+  });
+
+  it("creates tools and the agent when neither exists", () => {
+    const live = matchingLive();
+    live.agent = null;
+    live.tools = [];
+    live.secrets = [];
+    const result = check({ ...live, allowWrites: true }, true);
+    expect(result.status).toBe(0);
+    expect(result.output).toContain("Created agent agent_created");
+    const writes = result.writes.trim().split("\n").map((line) => JSON.parse(line));
+    expect(writes.filter((row) => row.method === "POST" && row.url.endsWith("/tools"))).toHaveLength(16);
+    expect(writes.find((row) => row.url.endsWith("/agents/create")).tool_ids).toHaveLength(16);
+    expect(result.output).not.toContain(SECRET);
+    expect(result.writes).not.toContain(SECRET);
+  });
+
+  it("refuses an incomplete workspace list before any update", () => {
+    const live = matchingLive();
+    for (const update of [false, true]) {
+      const result = check({ ...live, hasMore: true, allowWrites: true }, update);
+      expect(result.status).toBe(1);
+      expect(result.output).toContain("Workspace tool list is incomplete");
+      expect(result.writes).toBe("");
+    }
+  });
+
   it("exits 0 when the live agent matches what a run would write", () => {
     const result = check(matchingLive());
     expect(result.output).toContain("The live agent matches");
