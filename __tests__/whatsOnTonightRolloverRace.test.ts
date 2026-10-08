@@ -8,13 +8,13 @@ const variants = [
   { label: "near", url: "/api/whats-on?window=tonight&limit=60&near=51.512,-0.123", options: { near: { lat: 51.51234567, lng: -0.12345678 } } },
   { label: "pubOnly", url: "/api/whats-on?window=tonight&limit=60&pubOnly=1", options: { pubOnly: true } },
   { label: "near pubOnly", url: "/api/whats-on?window=tonight&limit=60&near=51.512,-0.123&pubOnly=1", options: { near: { lat: 51.51234567, lng: -0.12345678 }, pubOnly: true } },
-];
+] as const;
 
 const nights = [
   { label: "BST", before: "2026-10-08T02:59:59.000Z", after: "2026-10-08T03:00:01.000Z" },
   { label: "spring DST", before: "2026-03-29T02:59:59.000Z", after: "2026-03-29T03:00:01.000Z" },
   { label: "autumn DST", before: "2026-10-25T03:59:59.000Z", after: "2026-10-25T04:00:01.000Z" },
-];
+] as const;
 
 function answer(id: string, servedAt: unknown) {
   return {

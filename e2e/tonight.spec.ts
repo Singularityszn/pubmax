@@ -77,7 +77,7 @@ test("unknown source freshness never displays request time as checked", async ({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
-        servedAt: "2026-07-15T21:59:59.000Z",
+        servedAt: new Date().toISOString(),
         sourceObservedAt: null,
         sourceFreshnessKind: "unknown",
         localityBasis: "london-default",
@@ -185,6 +185,7 @@ test("location is opt-in, removable, and only used for local walk times", async 
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
+        servedAt: new Date().toISOString(),
         asOf: "2026-07-15T18:00:00.000Z",
         rows: [
           {
@@ -266,7 +267,7 @@ test("a failed listings request can be retried", async ({ page }) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ rows: [], asOf: "2026-07-15T18:00:00.000Z" }),
+      body: JSON.stringify({ rows: [], servedAt: new Date().toISOString(), asOf: "2026-07-15T18:00:00.000Z" }),
     });
   });
 
@@ -401,6 +402,7 @@ test("leads with the quiet-night sentence when the whole feed is Ticketmaster", 
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
+        servedAt: new Date().toISOString(),
         rows,
         asOf: "2026-09-05T12:00:00.000Z",
         sourceObservedAt: "2026-09-05T12:00:00.000Z",
@@ -456,6 +458,7 @@ test("does not promote Out theatre rows when What's-On answered empty", async ({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
+        servedAt: new Date().toISOString(),
         rows: [],
         asOf: "2026-08-16T12:00:00.000Z",
         sourceObservedAt: "2026-08-16T12:00:00.000Z",
@@ -496,6 +499,7 @@ test("a degraded Out lane still names itself beside the cards it did return", as
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
+        servedAt: new Date().toISOString(),
         rows: [
           {
             id: "quiz-primary",
@@ -554,6 +558,7 @@ test("a hung Out read settles instead of pinning the loading skeleton", async ({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
+        servedAt: new Date().toISOString(),
         rows: [],
         asOf: "2026-08-16T12:00:00.000Z",
         sourceObservedAt: "2026-08-16T12:00:00.000Z",
@@ -618,6 +623,7 @@ async function mockTonightSpine(page: Page, rows: unknown[]) {
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
+        servedAt: new Date().toISOString(),
         rows,
         asOf: "2026-08-16T12:00:00.000Z",
         sourceObservedAt: "2026-08-16T12:00:00.000Z",
