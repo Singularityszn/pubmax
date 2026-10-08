@@ -128,8 +128,10 @@ describe("pint answer telemetry", () => {
       .find((button) => button.textContent === "Soho");
     if (!patchButton) throw new Error("Expected the Soho patch button");
     act(() => patchButton.click());
+    const pint = pints[0];
+    if (!pint) throw new Error("Expected a pint fixture");
     const rows = Array.from({ length: 5 }, (_, index) => ({
-      ...pints[0], id: `private-pub-${index}`, name: `Pub ${index + 1}`,
+      ...pint, id: `private-pub-${index}`, name: `Pub ${index + 1}`,
       cheapestPrice: 4 + index / 10,
     }));
     await act(async () => slimRead.resolve(rows));
@@ -152,8 +154,11 @@ describe("pint answer telemetry", () => {
       ["near_venue_opened", { source: "picked-area", positionBand: "2-3" }],
     ]);
     expect(boundary.push).toHaveBeenCalledWith("/map?sel=private-pub-1");
-    expect(boundary.track.mock.invocationCallOrder[1])
-      .toBeLessThan(boundary.push.mock.invocationCallOrder[0]);
+    const openedOrder = boundary.track.mock.invocationCallOrder[1];
+    const navigationOrder = boundary.push.mock.invocationCallOrder[0];
+    if (openedOrder === undefined) throw new Error("Expected the venue-open event call order");
+    if (navigationOrder === undefined) throw new Error("Expected the navigation call order");
+    expect(openedOrder).toBeLessThan(navigationOrder);
   });
 });
 
