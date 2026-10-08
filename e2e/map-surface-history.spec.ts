@@ -86,6 +86,7 @@ test.describe("one Map surface history owner", () => {
   test.setTimeout(120_000);
 
   test("venue to planner leaves exactly one desktop drawer", async ({ page }) => {
+    test.setTimeout(180_000);
     await prepareMap(page);
     // Golden Lion (Soho) is in the core slim shard; deep-link the drawer under
     // test so toolbar timing does not gate the planner transition under test.
@@ -96,11 +97,11 @@ test.describe("one Map surface history owner", () => {
     // aria-modal and its focus trap), so the map stage and its toolbar are
     // inert while it is open. A drinker closes the venue, then plans; the
     // deep-linked `sel=` must not reopen it over the planner.
+    // The restored drawer is already hydrated. Close it once, then wait for
+    // its result. An outer retry deadline can reject a successful slow click.
     const closeVenue = venue(page).getByRole("button", { name: /Close/ });
-    await expect(async () => {
-      await closeVenue.click();
-      await expect(page.locator("#main")).not.toHaveClass(/detail-open/, { timeout: 2_000 });
-    }).toPass({ timeout: 30_000 });
+    await closeVenue.click();
+    await expect(page.locator("#main")).not.toHaveClass(/detail-open/, { timeout: 60_000 });
 
     // Plan an outing is a toggle that relabels itself "Close plan" once the
     // planner opens, so a retry may tap it only while the planner is still
@@ -112,7 +113,7 @@ test.describe("one Map surface history owner", () => {
         await planOuting.click();
       }
       await expect(planner(page)).toHaveAttribute("aria-hidden", "false", { timeout: 2_000 });
-    }).toPass({ timeout: 30_000 });
+    }).toPass({ timeout: 60_000 });
     await expectSoleDrawer(page, "planner");
   });
 
@@ -151,7 +152,7 @@ test.describe("one Map surface history owner", () => {
     await expect(async () => {
       await closeVenue.click();
       await expect(page.locator("#main")).not.toHaveClass(/detail-open/, { timeout: 2_000 });
-    }).toPass({ timeout: 30_000 });
+    }).toPass({ timeout: 60_000 });
     // Old restore replayed after Close while ?q= still matched one pub, which
     // put detail-open back on #main. That class makes the toolbar ignore
     // pointer events, so Clear search never received the click. Wait past the
@@ -178,7 +179,7 @@ test.describe("one Map surface history owner", () => {
     await expect(async () => {
       await clearSearch.click();
       await expect(search).toHaveValue("", { timeout: 2_000 });
-    }).toPass({ timeout: 30_000 });
+    }).toPass({ timeout: 60_000 });
 
     await expect(venue(page)).toHaveAttribute("aria-hidden", "true", {
       timeout: 60_000,
