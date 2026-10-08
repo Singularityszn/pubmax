@@ -447,6 +447,88 @@ test("a native pointer click on the peek plan door opens the planner", async ({ 
   await expect(card).not.toHaveAttribute("data-dragging", "true");
 });
 
+for (const control of [
+  { name: "Answer", selector: ".mapPeekAnswer", child: ".mapPeekPrice" },
+  { name: "List", selector: ".mapPeekList", child: "svg" },
+  { name: "Plan", selector: ".mobilePlanActivation", child: "strong" },
+]) {
+  for (const direction of ["sideways", "downward"]) {
+    test(`${control.name} cancels a ${direction} release outside its button`, async ({ page }) => {
+      await openMap(page);
+      const card = await answeredCard(page);
+      const button = card.locator(control.selector);
+      const box = (await button.boundingBox())!;
+      const child = (await button.locator(control.child).boundingBox())!;
+      await page.mouse.move(child.x + child.width / 2, child.y + child.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(
+        direction === "sideways" ? box.x + box.width + 6 : child.x + child.width / 2,
+        direction === "downward" ? box.y + box.height + 6 : child.y + child.height / 2,
+      );
+      await page.mouse.up();
+      await expect(page.locator(".mapVenueList--open")).toHaveCount(0);
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+      await expect(card).toBeVisible();
+      await expect(card).not.toHaveAttribute("data-dragging", "true");
+      await expect(page.locator(".createFabRoot")).toHaveCSS("opacity", "1");
+
+      await page.mouse.move(child.x + child.width / 2, child.y + child.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(box.x + 2, child.y + child.height / 2);
+      await page.mouse.up();
+      if (control.name === "List") {
+        await expect(page.locator(".mapVenueList--open")).toBeVisible();
+      } else {
+        await expect(page.getByRole("dialog")).toBeVisible();
+      }
+    });
+  }
+
+  test(`${control.name} suppresses a successive pull after the earlier reset deadline`, async ({ page }) => {
+    await openMap(page, { reducedMotion: "no-preference" });
+    const card = await answeredCard(page);
+    const button = card.locator(control.selector);
+    const elapsed = await button.evaluate(async (element) => {
+      const box = element.getBoundingClientRect();
+      const x = box.x + box.width / 2;
+      const y = box.y + box.height / 2;
+      const fire = (type: string, dy: number) => element.dispatchEvent(new PointerEvent(type, {
+        bubbles: true, cancelable: true, pointerId: 7, pointerType: "mouse", isPrimary: true,
+        button: 0, clientX: x, clientY: y - dy,
+      }));
+      const click = (dy: number) => element.dispatchEvent(new MouseEvent("click", {
+        bubbles: true, cancelable: true, detail: 1, clientX: x, clientY: y - dy,
+      }));
+      fire("pointerdown", 0);
+      fire("pointermove", 20);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      fire("pointerup", 20);
+      click(20);
+      const releasedAt = performance.now();
+      fire("pointerdown", 20);
+      fire("pointermove", 30);
+      const activationGap = performance.now() - releasedAt;
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      fire("pointerup", 30);
+      click(30);
+      return activationGap;
+    });
+    expect(elapsed).toBeLessThan(100);
+    await expect(page.locator(".mapVenueList--open")).toHaveCount(0);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(card).not.toHaveAttribute("data-dragging", "true", { timeout: 5000 });
+    await expect(page.locator(".createFabRoot")).toHaveCSS("opacity", "1");
+
+    await button.focus();
+    await page.keyboard.press("Enter");
+    if (control.name === "List") {
+      await expect(page.locator(".mapVenueList--open")).toBeVisible();
+    } else {
+      await expect(page.getByRole("dialog")).toBeVisible();
+    }
+  });
+}
+
 test("a tap on the door still plans, and a drag that starts on it does not", async ({ page }) => {
   await openMap(page);
   const card = await answeredCard(page);
