@@ -90,6 +90,73 @@ async function completeRead() {
   });
 }
 
+describe("pint answer telemetry", () => {
+  it("tracks only the newest patch when a superseded read completes", async () => {
+    render("pint", "soho");
+    render("pint", "camden");
+    expect(boundary.track).not.toHaveBeenCalled();
+    await completeRead();
+    expect(readRememberedArea()).toEqual({ kind: "patch", id: "camden" });
+    expect(boundary.replace.mock.calls).toEqual([
+      ["/near?src=poster&patch=camden", { scroll: false }],
+    ]);
+    expect(boundary.track.mock.calls).toEqual([
+      ["near_answer_ready", { source: "picked-area", resultBand: "1-3" }],
+    ]);
+  });
+
+  it("ignores an older location result after the selected patch answers", async () => {
+    render("pint", "", false, true);
+    expect(geolocate).toHaveBeenCalledOnce();
+    render("pint", "soho", false, true);
+    await completeRead();
+    expect(boundary.track.mock.calls).toEqual([
+      ["near_answer_ready", { source: "picked-area", resultBand: "1-3" }],
+    ]);
+    await act(async () => completeLocation("success"));
+    expect(readRememberedArea()).toEqual({ kind: "patch", id: "soho" });
+    expect(boundary.track.mock.calls).toEqual([
+      ["near_answer_ready", { source: "picked-area", resultBand: "1-3" }],
+    ]);
+    expect(boundary.replace).toHaveBeenCalledOnce();
+    expect(host.textContent).toContain("Soho");
+  });
+
+  it("keeps a self-authored patch answer and tracks a coarse open before navigation", async () => {
+    render("pint", "");
+    const patchButton = Array.from(host.querySelectorAll("button"))
+      .find((button) => button.textContent === "Soho");
+    if (!patchButton) throw new Error("Expected the Soho patch button");
+    act(() => patchButton.click());
+    const rows = Array.from({ length: 5 }, (_, index) => ({
+      ...pints[0], id: `private-pub-${index}`, name: `Pub ${index + 1}`,
+      cheapestPrice: 4 + index / 10,
+    }));
+    await act(async () => slimRead.resolve(rows));
+    expect(boundary.track.mock.calls).toEqual([
+      ["near_answer_ready", { source: "picked-area", resultBand: "4+" }],
+    ]);
+    expect(boundary.replace).toHaveBeenCalledWith(
+      "/near?src=poster&patch=soho", { scroll: false },
+    );
+    window.history.replaceState(null, "", "/near?src=poster&patch=soho");
+    render("pint", "soho");
+    expect(boundary.replace).toHaveBeenCalledOnce();
+    expect(boundary.track).toHaveBeenCalledOnce();
+    const venueButton = Array.from(host.querySelectorAll("button"))
+      .find((button) => button.textContent?.includes("Pub 2"));
+    if (!venueButton) throw new Error("Expected the second pub button");
+    act(() => venueButton.click());
+    expect(boundary.track.mock.calls).toEqual([
+      ["near_answer_ready", { source: "picked-area", resultBand: "4+" }],
+      ["near_venue_opened", { source: "picked-area", positionBand: "2-3" }],
+    ]);
+    expect(boundary.push).toHaveBeenCalledWith("/map?sel=private-pub-1");
+    expect(boundary.track.mock.invocationCallOrder[1])
+      .toBeLessThan(boundary.push.mock.invocationCallOrder[0]);
+  });
+});
+
 describe.each(["pint", "desk"] as const)("%s answer ownership", (mode) => {
   it.each(["pathname exit before cleanup", "unmount"])("rejects a pending patch read after %s", async (exit) => {
     render(mode);
