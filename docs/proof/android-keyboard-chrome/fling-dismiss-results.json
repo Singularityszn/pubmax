@@ -37,5 +37,14 @@
     "before_uses_preserved_baseline_production_build": true
   },
   "native_proof": false,
-  "source_fix": "Capture window.innerHeight at grab and use half of the viewport-relative peek for physical dismissal. Keep measured caps for presentation."
+  "source_fix": "Capture window.innerHeight at grab and use half of the viewport-relative peek for physical dismissal. Keep measured caps for presentation.",
+  "after_source_snapshot_committed_as": "a2033c35f5c9d86c94f4e192c15f4459fdafb2d7",
+  "full_local_gate": {
+    "command": "npm run verify:no-mistakes",
+    "source_commit": "a2033c35f5c9d86c94f4e192c15f4459fdafb2d7",
+    "exit_code": 0,
+    "unit_passed": 21441,
+    "unit_skipped": 1,
+    "postgres_passed": 564
+  }
 }
