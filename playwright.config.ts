@@ -172,6 +172,7 @@ export default defineConfig({
         // plain Chromium project avoids running the same spec without SwiftShader
         // (and without its blocked service worker) before the GL project runs it.
         "**/map-console-health.spec.ts",
+        "**/map-credits.spec.ts",
         "**/map-arrival-turn.spec.ts",
         "**/map-you-are-here.spec.ts",
         "**/map-arrival-card-pins.spec.ts",
@@ -309,6 +310,7 @@ export default defineConfig({
         // rendered edge: both need a real MapLibre camera to project from.
         "**/map-deep-link-pin.spec.ts",
         "**/map-console-health.spec.ts",
+        "**/map-credits.spec.ts",
         // Silent basemap-source retry: needs a real error path off a real scene.
         "**/map-tile-retry.spec.ts",
         // Synthetic webglcontextlost recovery — needs a real GL canvas.

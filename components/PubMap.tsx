@@ -93,7 +93,7 @@ import {
   buildUkBasePubListModel,
   type MapVenueListSortMode,
 } from "@/lib/mapVenueList";
-import { UK_BOUNDS } from "@/components/map/canvas/tokens";
+import { UK_BOUNDS, type BasemapProvider } from "@/components/map/canvas/tokens";
 import MapFallbackCard from "@/components/map/MapFallbackCard";
 import { selectMapFallbackPubs } from "@/lib/mapFallbackVenues";
 import { readStrictModalFocusTrap, useFocusTrap } from "@/lib/useFocusTrap";
@@ -1933,6 +1933,7 @@ export default function PubMap({
   } | null>(null);
   const [renderedMapState, setRenderedMapState] =
     useState<MapRenderedState>(EMPTY_MAP_RENDERED_STATE);
+  const [basemapProvider, setBasemapProvider] = useState<BasemapProvider | null>(null);
   const handleRenderedMapStateChange = useCallback(
     (next: MapRenderedState) => {
       setRenderedMapState((current) =>
@@ -6063,7 +6064,7 @@ export default function PubMap({
         </TabsList>
         <TabsContent value="key" className="mobileLayersPanel">
           <MapKey legend={activePriceLegend} />
-          <MapCredits />
+          <MapCredits provider={basemapProvider} />
         </TabsContent>
         <TabsContent value="layers" className="mobileLayersPanel">
           <div className="mobileLayerShortcuts">
@@ -6765,6 +6766,7 @@ export default function PubMap({
         initialLandmarkId={seed.landmarkId}
         onLandmarkSelect={handleLandmarkSelect}
         onMapReady={handleMapCanvasReady}
+        onBasemapProviderChange={setBasemapProvider}
         onMapConstructed={handleMapCanvasConstructed}
         onMapErrored={setMapCanvasErrored}
         mapView={openingViewport
