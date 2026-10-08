@@ -130,8 +130,38 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 
       await page.mouse.click(8, 8);
       await expect(sheet).toBeHidden();
     });
+
+    test("Sort it again closes the sheet and leaves focus on the new route's status", async ({ page }) => {
+      await sortARoute(page);
+      await page.getByRole("button", { name: "Tune details" }).click();
+      const sheet = page.getByRole("dialog", { name: "Tune details" });
+      await sheet.getByRole("button", { name: "Sort it again" }).click();
+      await expect(sheet).toBeHidden();
+      await expect(page.locator("#plan-route-status")).toBeFocused();
+    });
   });
 }
+
+test.describe("the lock fields at 1440px", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test("the route map never covers Name the night or First pint", async ({ page }) => {
+    await sortARoute(page);
+    await expect(page.locator(".planRouteMiniMap")).toBeVisible();
+    for (const id of ["plan-title", "plan-time"]) {
+      const field = page.locator(`#${id}`);
+      await field.evaluate((node) => node.scrollIntoView({ block: "center", behavior: "instant" }));
+      const box = (await field.boundingBox())!;
+      for (const x of [box.x + 8, box.x + box.width / 2, box.x + box.width - 8]) {
+        const hit = await page.evaluate(
+          ([px, py, target]) => document.elementFromPoint(px, py)?.closest(`#${target}`) !== null,
+          [x, box.y + box.height / 2, id] as const,
+        );
+        expect(hit, `${id} at x=${Math.round(x)}`).toBe(true);
+      }
+    }
+  });
+});
 
 // Real touch input over CDP (Playwright has no swipe): a pointer that reports
 // itself as touch, so the card's own long-press lift and swipe-to-remove run

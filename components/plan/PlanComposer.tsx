@@ -1437,7 +1437,10 @@ function PlanComposerForm({
       return;
     }
     revealedTick.current = routeRevealTick;
-    revealPlanRouteStatus();
+    // The closing sheet's focus trap lifts inert and hands focus back to Tune
+    // details in a microtask queued by its cleanup, which ran before this
+    // effect. Queued after it, the reveal is the focus that stays.
+    queueMicrotask(() => revealPlanRouteStatus());
   }, [routeRevealTick, tuneOpen]);
 
   // The host name is public (the plan, the share card, the unfurler), so it

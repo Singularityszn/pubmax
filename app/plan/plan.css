@@ -1955,8 +1955,9 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
 }
 
 /* Wide screens: the route reads left to right. Heading and cards on the left,
-   the map beside them and kept in view while the cards are worked. The map
-   takes the row the heading lands on, whatever full-width notes come first. */
+   the map beside them. The map takes the row the heading lands on, whatever
+   full-width notes come first. It is not sticky: a sticky grid item is held
+   by the whole composer, so it slid down over the lock fields below. */
 @media (min-width: 1024px) {
   .planComposer[data-result="true"] > .planResult,
   .planComposer[data-result="true"] > .planComposer__stops {
@@ -1967,8 +1968,6 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
     grid-column: 2;
     grid-row: span 2;
     align-self: start;
-    position: sticky;
-    top: calc(var(--space-12) * 2);
     margin-top: var(--space-3);
   }
   .planRouteMiniMap.planRouteMiniMap--strip .planRouteMiniMap__canvas {

@@ -163,7 +163,8 @@ describe("the Plan result", () => {
 
 async function openTune(): Promise<void> {
   const tune = [...document.querySelectorAll("button")].find((button) => button.textContent?.includes("Tune details"))!;
-  await act(async () => { tune.click(); });
+  // A real click focuses the button, so it is the focus the sheet returns to.
+  await act(async () => { tune.focus(); tune.click(); });
   await vi.waitFor(() => {
     if (!document.querySelector("[role='dialog'] #plan-concierge-query")) throw new Error("Tune details has not mounted");
   }, { timeout: 4000 });
