@@ -48,29 +48,10 @@ test.describe.configure({ mode: "default" });
 /**
  * The product's Core Web Vitals sweep: the recorded baseline, and the fence.
  *
- * The audit's R2 found that no numeric speed rating existed for the product.
- * perf/route-budgets.json holds page COSTS on one phone; nothing held LCP, INP
- * or CLS across devices, nothing held a cold visit apart from a warm one, and
- * nothing at all held the four moments the product becomes usable. This spec is
- * the measuring half of that answer; lib/webVitalsBaseline.ts is the rules half
- * and is unit-tested with no browser.
+ * lib/webVitalsBaseline.ts owns the comparison rules. The current method and
+ * record/sweep contracts live in docs/rules/perf-budgets-and-measured-findings.md.
  *
- * TWO MODES, one method:
- *
- *   PUBMAX_CWV_RECORD=1 writes perf/cwv-baseline.json from this run. It is how
- *     a baseline is taken and re-taken, and it asserts nothing, because a run
- *     that both sets the number and checks it checks nothing.
- *   PUBMAX_CWV_SWEEP=1 measures the same way and FAILS on any figure worse than
- *     the recorded one by more than lib/webVitalsBaseline.ts's tolerance.
- *
- * Neither runs in the ordinary browser suite: a full sweep is five runs across
- * six routes, two devices and two cache temperatures under a CPU throttle,
- * which is an hour of wall clock. GitHub Actions is off by the captain's
- * decision, so no job runs this: `npm run perf:cwv-sweep` is the fence and it
- * is spent by hand, before a merge that could move a figure. AGENTS.md's speed
- * entry says the same thing in the same words.
- *
- * WHY A REAL WEBGL CONTEXT. Two of the six routes are the map, and the product
+ * WHY A REAL WEBGL CONTEXT. The map routes need a real canvas, and the product
  * timing that matters most on this whole list is the first pin a thumb can land
  * on. Without SwiftShader the canvas never gets a context, the map takes its
  * honest fallback, and the sweep would report the fallback's speed as the
@@ -327,8 +308,8 @@ test.describe("Core Web Vitals baseline", () => {
     console.log(`\n[cwv] routes\n${formatBaselineTable(routeRecords)}`);
     console.log(`\n[cwv] product timings\n${formatProductTimingTable(productRecords)}`);
 
-    // The run's own tables, kept as an artifact whichever mode it ran in, so a
-    // re-measurement can be pasted into a PR without re-reading a log.
+    // Keep aggregates and raw samples before validity or regression checks
+    // fail, so rejected measurements remain available for diagnosis.
     await mkdir(testInfo.outputDir, { recursive: true });
     const artifact = path.join(testInfo.outputDir, "cwv-run.json");
     await writeFile(
