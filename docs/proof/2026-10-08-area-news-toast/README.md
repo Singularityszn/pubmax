@@ -2,7 +2,9 @@
 
 This is a dated local production-build record. It does not establish deployment or production-site behaviour.
 
-The before build used `d69cd6083e8d81d57d56075e35a431efb804a026` on port 3412. The after build used that base plus this change on port 3413. Both used isolated Next.js output directories and keyless local configuration.
+The before build used `d69cd6083e8d81d57d56075e35a431efb804a026` on port 3412. The after build used that base plus the initial area-news correction on port 3413. Both used isolated Next.js output directories and keyless local configuration.
+
+This record predates later area-matching fixes and the `renderDesktopTonightLane` extraction. These results do not validate the current source.
 
 The live status feed no longer contains the reported Kingston headline. Fresh browser reproduction showed "Gas cylinder fire under Bermondsey railway arches" on a central London route. The API assigned that signal to Bermondsey and Silwood Street. The same context defect therefore remained reproducible with current data.
 
@@ -29,7 +31,7 @@ Each theme and viewport checks unrelated initial context, Kingston selected thro
 
 The earlier storage-only restore setup conflicted with saved viewport priority. The final test selects the real locality through "This area", searches Kingston, and clicks "Kingston upon Thames". The earlier failed setup remains in the raw task evidence.
 
-The final production browser matrix passed all four journeys in 57.4 seconds. It verifies the rendered theme and captures the route stop after scrolling it into view. The fresh visit follows an explicit Soho selection, so its expected context is unrelated to Kingston.
+The recorded production browser matrix passed all four journeys in 57.4 seconds. It verifies the rendered theme and captures the route stop after scrolling it into view. The fresh visit follows an explicit Soho selection, so its expected context is unrelated to Kingston.
 
 | Fixture proof | Light | Dark |
 | --- | --- | --- |

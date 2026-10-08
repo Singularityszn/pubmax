@@ -367,7 +367,7 @@ export function shouldResolveOpeningLocation(input: {
   );
 }
 
-/** The ambient banners are an opening offer, so they step off once the reader drives. */
+/** City-wide display permission. Contract: docs/CITYMCP_LONDON.md, Runtime API surfaces. */
 export function ambientBannerLaneOpen(
   mobileViewport: boolean,
   mapCameraTouched: boolean,
