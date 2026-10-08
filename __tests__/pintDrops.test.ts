@@ -92,7 +92,11 @@ vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 const signalPintDropLanded = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/pintDropsBroadcast.server", () => ({ signalPintDropLanded }));
 vi.mock("@/lib/venueAliases", () => {
-  const aliases: Record<string, string> = { "legacy-pub": "canonical-pub", "legacy-bar": "bar-test" };
+  const aliases: Record<string, string> = {
+    "legacy-pub": "canonical-pub",
+    "legacy-bar": "bar-test",
+    "venue-1sw9ofl": "venue-eltcmh",
+  };
   const canonical = (id: string) => aliases[id] ?? id;
   const storedIds = (id: string) => [
     canonical(id),
@@ -123,7 +127,8 @@ vi.mock("@/lib/venueIndex", async (importOriginal) => {
       : {
           id,
           name: id === "venue-oxf-16404bl" ? "Turf Tavern" : "The Crown",
-          borough: id === "venue-oxf-16404bl" ? "Oxford" : "London",
+          borough: id === "venue-oxf-16404bl" ? "Oxford"
+            : id === "venue-eltcmh" ? "City of London" : "London",
           lat: 51.5,
           lng: -0.12,
         };
@@ -1078,6 +1083,24 @@ describe("GET + moderation", () => {
       venueName: "Turf Tavern",
       venueMapUrl: "/map/oxford?sel=venue-oxf-16404bl",
     });
+  });
+
+  it("enriches a kept City pint through its canonical venue and legacy alias", async () => {
+    const created = await post({ venueId: "venue-1sw9ofl", handle: "city_local", priceGbp: 6.5 });
+    expect(created.status).toBe(201);
+    const response = await get("venue-eltcmh");
+    const { drops } = await response.json();
+    expect(drops.filter((drop: { handle: string }) => drop.handle === "city_local"))
+      .toMatchObject([{ venueId: "venue-eltcmh", borough: "City of London", priceGbp: 6.5 }]);
+  });
+
+  it("does not count a broad fallback or a non-London locality as a borough", async () => {
+    await post({ venueId: VENUE, handle: "local", priceGbp: 4.2 });
+    const response = await get(VENUE);
+    expect((await response.json()).drops[0]).not.toHaveProperty("borough");
+    await post({ venueId: "venue-oxf-16404bl", handle: "oxale", priceGbp: 4.2 });
+    const oxford = await GET(new Request(`${URL_BASE}?city=oxford`));
+    expect((await oxford.json()).drops[0]).not.toHaveProperty("borough");
   });
 
   it("refuses the in-memory store in production when Supabase is absent", async () => {

@@ -165,6 +165,14 @@ describe("buildBarTabShareText", () => {
 });
 
 describe("buildPassportShareText", () => {
+  it("shares the City without calling it a borough", () => {
+    expect(buildPassportShareText({
+      displayName: "Local", pubs: 1, boroughs: 1, cityVisited: true, pints: 1, isEmpty: false,
+    })).toBe("Local · 1 pub · the City of London · 1 pint on PUBMAXXING");
+    expect(buildPassportShareText({
+      displayName: "Local", pubs: 2, boroughs: 2, cityVisited: true, pints: 2, isEmpty: false,
+    })).toBe("Local · 2 pubs · 1 borough + the City of London · 2 pints on PUBMAXXING");
+  });
   it("summarises a stamped passport", () => {
     expect(
       buildPassportShareText({ displayName: "Old Ken", pubs: 12, boroughs: 3, pints: 40, isEmpty: false }),

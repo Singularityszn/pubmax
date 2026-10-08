@@ -27,8 +27,8 @@ export type ProfileDrop = {
   // Where the drop came from. An "anecdote" is a passed-down memory (heritage
   // signal); "sourced"/"contributor"/"demo" are not. See lib/curation.ts.
   provenance?: string | null;
-  // Forward-compatible: drops don't carry a borough today, but if a future DTO
-  // does, profileStats surfaces it. Absent → boroughs is omitted, never [].
+  // Public drops carry their canonical London borough or City of London when
+  // the venue index names it. Absent → boroughs is omitted, never [].
   borough?: string | null;
   [key: string]: unknown;
 };
