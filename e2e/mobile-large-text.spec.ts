@@ -151,6 +151,15 @@ for (const scale of [1.3, 1.5, 2]) {
         const box = range.getBoundingClientRect();
         return { top: box.top, bottom: box.bottom };
       };
+      // A text range ends at the font's whole descent below the baseline,
+      // which a 1rem line box never holds; what paints is the glyphs' own ink.
+      const context = document.createElement("canvas").getContext("2d")!;
+      const inkBottom = (found: HTMLElement) => {
+        const style = getComputedStyle(found);
+        context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+        const metrics = context.measureText(found.textContent ?? "");
+        return textBox(found).bottom - metrics.fontBoundingBoxDescent + metrics.actualBoundingBoxDescent;
+      };
       const eyebrow = answer.querySelector<HTMLElement>(".mapPeekEyebrow")!;
       const line = answer.querySelector<HTMLElement>(".mapPeekLine")!;
       const price = answer.querySelector<HTMLElement>(".mapPeekPrice")!;
@@ -166,7 +175,9 @@ for (const scale of [1.3, 1.5, 2]) {
           eyebrow.getBoundingClientRect().height / parseFloat(getComputedStyle(eyebrow).lineHeight),
         ),
         labelText: textBox(answer.querySelector<HTMLElement>(".mapPeekLabel")!),
-        figureText: textBox(price),
+        figureInk: Math.max(
+          ...[price, ...answer.querySelectorAll<HTMLElement>(".mapPeekName, .mapPeekWalk")].map(inkBottom),
+        ),
         lineTop: line.getBoundingClientRect().top,
         nearMe: rect(".mobileMapLocateFab"),
         create: rect(".createFab"),
@@ -183,7 +194,7 @@ for (const scale of [1.3, 1.5, 2]) {
     expect(geometry.contentBottom, "the figure line stays inside the answer row").toBeLessThanOrEqual(geometry.answer.bottom + 1);
     expect(geometry.door, "the plan door rides in the card").not.toBeNull();
     expect(geometry.answer.bottom, "the answer never runs under the door").toBeLessThanOrEqual(geometry.door!.top + 0.5);
-    expect(geometry.figureText.bottom, "the figure's text never runs under the door").toBeLessThanOrEqual(geometry.door!.top + 0.5);
+    expect(geometry.figureInk, "the figure line's text never runs under the door").toBeLessThanOrEqual(geometry.door!.top + 0.5);
     expect(geometry.nearMe, "Near me is painted").not.toBeNull();
     expect(geometry.create, "the Create action is painted").not.toBeNull();
     for (const [name, other] of [["Near me", geometry.nearMe!], ["Create", geometry.create!]] as const) {
