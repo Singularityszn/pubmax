@@ -663,8 +663,8 @@
     right: 0;
     bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
     z-index: var(--z-overlay-top);
-    /* The portal frames the sheet; only the sheet and (when modal) the scrim
-       capture taps. Otherwise the full-screen box inerts the map above a half
+    /* The portal frames the sheet; only the sheet and active dismiss scrim
+       capture taps. Otherwise the full-screen box blocks the map above a half
        venue sheet and a second pin tap never reaches the canvas. */
     pointer-events: none;
   }
