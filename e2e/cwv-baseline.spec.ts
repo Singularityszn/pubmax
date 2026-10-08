@@ -399,6 +399,45 @@ test.describe("Core Web Vitals baseline", () => {
 
 test.describe("Native CWV driver regression", () => {
   test.skip(!RECORD && !SWEEP, "Spent with the native CWV rig.");
+  for (const layersOpen of [false, true]) {
+    test(`keeps repeated desktop cold arrivals clean after ${layersOpen ? "open" : "closed"} Layers`, async ({ page }) => {
+      test.setTimeout(180_000);
+      await installVitalsProbe(page);
+      await serveMapInitScript(page, SHIPPED_MAP_INIT_SCRIPT);
+      await applyVitalsDevice(page, "desktop");
+      await page.addInitScript(() => {
+        (window as Window & { __cwvArrivalSession: string | null }).__cwvArrivalSession =
+          localStorage.getItem("pubmaxx.mobile-map-session.v1");
+      });
+      await page.goto("/plan", { waitUntil: "load" });
+      await loadAndSettle(page, "/map");
+      await expect.poll(() => page.evaluate(() => {
+        const probe = (window as Window & {
+          __pubmaxMapCamera?: { read: () => { moving: boolean; settling: boolean } };
+        }).__pubmaxMapCamera;
+        return probe?.read();
+      }), { timeout: PRODUCT_TIMING_CEILING_MS }).toMatchObject({ moving: false, settling: false });
+      if (layersOpen) {
+        await page.getByRole("button", { name: /^Map layers:/ }).click();
+        await expect(page.locator(".mapFitLondonBtn")).toBeVisible();
+      }
+      expect(await exercisePrimaryAction(page, "/map")).toBe(true);
+      await page.route("**/map", async (route) => {
+        await new Promise((resolve) => setTimeout(resolve, 1_000));
+        await route.continue();
+      });
+      for (let run = 0; run < 2; run += 1) {
+        expect((await sampleRoute(page, "/map", "cold")).interacted).toBe(true);
+        expect(await page.evaluate(() =>
+          (window as Window & { __cwvArrivalSession: string | null }).__cwvArrivalSession,
+        )).toBeNull();
+      }
+      expect((await sampleRoute(page, "/map", "warm")).interacted).toBe(true);
+      expect(await page.evaluate(() =>
+        (window as Window & { __cwvArrivalSession: string | null }).__cwvArrivalSession,
+      )).not.toBeNull();
+    });
+  }
   test("keeps the next cold navigation free of the measured Layers session", async ({ page }) => {
     test.setTimeout(180_000);
     await installVitalsProbe(page);

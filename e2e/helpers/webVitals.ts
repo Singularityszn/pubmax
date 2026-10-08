@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { expect, type CDPSession, type Page } from "@playwright/test";
 
+import type { MapViewportSnapshot, MobileMapSessionV1 } from "../../lib/mobileShell";
 import type { VitalsDevice } from "../../lib/webVitalsBaseline";
 
 import { COMMUNITY_SHEET_FIXTURE_MAP_PATH } from "./communitySheetFixture";
@@ -49,7 +50,12 @@ type VitalsProbe = {
   interactions: number;
 };
 
-type ProbeWindow = Window & { __pubmaxVitals?: VitalsProbe };
+type ProbeWindow = Window & {
+  __pubmaxVitals?: VitalsProbe;
+  __pubmaxMapCamera?: {
+    read: () => MapViewportSnapshot & { moving: boolean; settling: boolean };
+  };
+};
 
 /**
  * The emulated devices, written out rather than taken from Playwright's own
@@ -214,16 +220,16 @@ export async function applyVitalsDevice(page: Page, device: VitalsDevice): Promi
  */
 export async function coolBrowser(page: Page): Promise<void> {
   const session = await vitalsSession(page);
+  if (await page.locator(".maplibregl-canvas").first().isVisible()) {
+    await waitForMapCameraSettlement(page);
+  }
+  await page.goto(new URL("/robots.txt", page.url()).href, { waitUntil: "load" });
   await session.send("Network.clearBrowserCache");
   await page.context().clearCookies();
-  try {
-    await page.evaluate(() => {
-      window.localStorage.clear();
-      window.sessionStorage.clear();
-    });
-  } catch {
-    // about:blank has no storage to clear.
-  }
+  await page.evaluate(() => {
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+  });
 }
 
 /** The shipped cold-open script, and the arm every ordinary run measures. */
@@ -374,6 +380,21 @@ async function suppressNavigation(page: Page): Promise<void> {
 /** How long a primary action gets to become actionable before it is a no-show. */
 const PRIMARY_ACTION_TIMEOUT_MS = 20_000;
 
+async function waitForMapCameraSettlement(page: Page): Promise<void> {
+  await expect.poll(() => page.evaluate(() => {
+    const camera = (window as ProbeWindow).__pubmaxMapCamera?.read();
+    if (!camera || camera.moving || camera.settling) return false;
+    const session = JSON.parse(localStorage.getItem("pubmaxx.mobile-map-session.v1") ?? "null") as
+      MobileMapSessionV1 | null;
+    const viewport = session?.viewport;
+    return !!viewport && viewport.center[0] === camera.center[0] &&
+      viewport.center[1] === camera.center[1] &&
+      viewport.zoom === camera.zoom &&
+      viewport.pitch === camera.pitch &&
+      viewport.bearing === camera.bearing;
+  }), { timeout: PRIMARY_ACTION_TIMEOUT_MS }).toBe(true);
+}
+
 /**
  * Browser state one sample's own interaction leaves behind for the next one.
  *
@@ -410,6 +431,9 @@ export async function clearSampleResidue(page: Page, routePath: string): Promise
         const session = JSON.parse(localStorage.getItem("pubmaxx.mobile-map-session.v1") ?? "null");
         return session?.openSheet ?? null;
       }), { timeout: PRIMARY_ACTION_TIMEOUT_MS }).not.toBe("layers");
+    }
+    if (await page.locator(".maplibregl-canvas").first().isVisible()) {
+      await waitForMapCameraSettlement(page);
     }
     return;
   }
@@ -450,7 +474,7 @@ export async function exercisePrimaryAction(page: Page, routePath: string): Prom
       // real surface before measuring the action, including the opening tap.
       const more = page.getByRole("button", { name: "More map controls", exact: true });
       const layers = page.getByRole("button", { name: /^Map layers:/ });
-      await more.or(layers).filter({ visible: true }).first().waitFor({
+      await more.or(layers).or(control).filter({ visible: true }).first().waitFor({
         state: "visible",
         timeout: PRIMARY_ACTION_TIMEOUT_MS,
       });
@@ -478,6 +502,7 @@ export async function exercisePrimaryAction(page: Page, routePath: string): Prom
           await expect(control).toBeVisible({ timeout: 1_000 });
         }).toPass({ timeout: PRIMARY_ACTION_TIMEOUT_MS });
       }
+      await waitForMapCameraSettlement(page);
     }
     await control.waitFor({ state: "visible", timeout: 20_000 });
   } catch {
@@ -502,6 +527,7 @@ export async function exercisePrimaryAction(page: Page, routePath: string): Prom
     // reported as un-interacted, which the sweep already fails on by name.
     try {
       await control.click({ timeout: PRIMARY_ACTION_TIMEOUT_MS });
+      if (routePath === "/map") await waitForMapCameraSettlement(page);
     } catch {
       return false;
     }
