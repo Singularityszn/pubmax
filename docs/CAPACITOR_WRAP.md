@@ -12,19 +12,28 @@ value, no first-run mark and no unfinished step opens Tonight. Tonight reads
 that value through `readPreferredCity()`, so a disabled or unparseable city
 falls back to London.
 If the entry script never runs, the document's refresh hands the launch to the
-root after two seconds. Offline, the service worker redirects `/app-entry` to
-the root, so the root's cached document and entry decision own it. Older
-binaries still enter through the root's pre-paint script.
+root after two seconds. Where a registered service worker controls the page,
+its offline handler redirects `/app-entry` to the root's cached document and
+entry decision. Older binaries still enter through the root's pre-paint script.
 Do not attempt `next export`; `webDir: "native/web-stub"` is a small
 stub directory that satisfies the CLI's copy step and the local start-file check. It is never
 served during a healthy launch — pointing webDir at `public/` would bake its ~6 MB of
 datasets/screenshots into the iOS binary as dead weight, so don't.
 
-`server.errorPath: "offline.html"` is the one exception: if the first main-frame
-load cannot reach production, Capacitor serves the bundled
+`server.errorPath: "offline.html"` is the one exception: if a main-frame
+load cannot reach the configured origin, the shell serves the bundled
 `native/web-stub/offline.html`. It says that live data is unavailable, shows no
-stale prices or times, and offers a retry. The site's service worker remains the
-later-session fallback after at least one healthy remote load.
+stale prices or times, and offers a retry. iOS ignores cancelled navigations and
+uses this page only for connection failures. Other navigation failures do not
+turn into "No connection". HTTP responses keep the site's own page.
+
+The site's service worker can provide a later-session fallback after registration.
+The current iOS shell does not expose `navigator.serviceWorker`, so it cannot
+register that fallback. The app-bound opt-in remains withheld until usable
+offline behavior is proven. The bundled outage page remains the iOS fallback.
+WebKit's HTTP cache does not prove worker registration.
+The [lane A simulator record](proof/ios-shell-lane-a/README.md#the-withdrawn-service-worker-experiment)
+contains the withdrawn worker experiment and its offline dependency failures.
 
 On Android, "Try again" returns to the page that failed, so a shared plan link
 opened with no signal is not lost. `OfflineRetryWebViewClient` records the one
@@ -36,8 +45,27 @@ is gone. Other HTTP errors, including 401, 403, 404 and 410, keep the site's
 own response instead of showing "No connection". Subresource HTTP errors never
 open the offline page. It never replays `/auth/callback`, the marked callback
 landing, or a URL that carries a credential parameter. When nothing safe is
-held, the button goes to the root as before. iOS does not do this yet: the shell has no seam
-that records the failed URL, so the same button there goes to the root.
+held, the button goes to the root as before.
+
+On iOS, `ShellBridgeViewController` keeps Capacitor's navigation delegate and
+forwards its other callbacks. `OfflineRetryDestination` retains one safe failed
+URL in memory, including its query and fragment. The bundled retry button returns
+to that URL at the configured origin, including a local simulator origin. An
+authentication callback, credential-bearing URL, or URL outside that origin
+falls back to the configured `app-entry` route, as does a missing failed URL.
+Retry replaces the offline page in history. A safe production-homepage retry
+keeps `/` as its destination. Back and Forward do not trigger retry matching.
+The UIScene launch and link handlers remain in `SceneDelegate`.
+
+In a live document, the iOS edge swipe dispatches `pubmax:ios-back` through the
+site's existing panel-first policy. Its listener mounts with the immediate shell
+lifecycle, before optional native feature chunks arrive. With neither an open
+panel nor history, iOS stays on the current page. In the bundled outage document, the native handler
+uses WebKit's existing history directly, or stays in place when no history exists.
+Android keeps its hardware Back lifecycle. The iOS wrapper delays Capacitor's
+plugin reset until a replacement document commits. A cancelled provisional load
+retains the visible document's listeners.
+OAuth callbacks close the system browser before the app changes routes.
 
 ## Cold start
 

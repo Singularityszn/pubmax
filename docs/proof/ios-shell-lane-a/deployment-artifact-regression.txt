@@ -1,0 +1,11 @@
+npm notice run pubmaxxing@0.1.0 npx
+npm notice run 'vitest' run __tests__/vercelIgnoreCoverage.test.ts
+
+ RUN  v5.0.3 /Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx
+
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  12:47:38
+   Duration  429ms (transform 30%, setup 26%, import 23%, tests 19%, worker 2%)
+

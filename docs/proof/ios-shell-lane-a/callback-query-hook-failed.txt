@@ -1,0 +1,58 @@
+Test Case '-[LaneUITests.LaneUITests testCallbackReturnedToApp]' started.
+    t =     0.00s Start Test at 2026-10-08 12:14:05.971
+    t =     0.02s Set Up
+    t =     0.02s Waiting 10.0s for "Places" Link to exist
+objc[35296]: Class UIAccessibilityLoaderWebShared is implemented in both /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.tF0MWb/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebKit.axbundle/WebKit (0x106194398) and /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.tF0MWb/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebCore.axbundle/WebCore (0x1063bc310). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+    t =     1.02s     Checking `Expect predicate `existsNoRetry == 1` for object "Places" Link`
+    t =     1.02s         Checking existence of `"Places" Link`
+    t =     1.05s         Capturing element debug description
+    t =     2.07s     Checking `Expect predicate `existsNoRetry == 1` for object "Places" Link`
+    t =     2.07s         Checking existence of `"Places" Link`
+    t =     2.09s         Capturing element debug description
+    t =     3.05s     Checking `Expect predicate `existsNoRetry == 1` for object "Places" Link`
+    t =     3.05s         Checking existence of `"Places" Link`
+    t =     3.07s         Capturing element debug description
+    t =     4.03s     Checking `Expect predicate `existsNoRetry == 1` for object "Places" Link`
+    t =     4.03s         Checking existence of `"Places" Link`
+    t =     4.06s         Capturing element debug description
+    t =     5.03s     Checking `Expect predicate `existsNoRetry == 1` for object "Places" Link`
+    t =     5.03s         Checking existence of `"Places" Link`
+    t =     5.05s         Capturing element debug description
+    t =     6.03s     Checking `Expect predicate `existsNoRetry == 1` for object "Places" Link`
+    t =     6.03s         Checking existence of `"Places" Link`
+    t =     6.05s         Capturing element debug description
+    t =     7.03s     Checking `Expect predicate `existsNoRetry == 1` for object "Places" Link`
+    t =     7.03s         Checking existence of `"Places" Link`
+    t =     7.05s         Capturing element debug description
+    t =     8.03s     Checking `Expect predicate `existsNoRetry == 1` for object "Places" Link`
+    t =     8.03s         Checking existence of `"Places" Link`
+    t =     8.05s         Capturing element debug description
+    t =     9.03s     Checking `Expect predicate `existsNoRetry == 1` for object "Places" Link`
+    t =     9.03s         Checking existence of `"Places" Link`
+    t =     9.05s         Capturing element debug description
+    t =    10.02s     Checking `Expect predicate `existsNoRetry == 1` for object "Places" Link`
+    t =    10.03s         Checking existence of `"Places" Link`
+    t =    10.05s         Capturing element debug description
+    t =    10.05s     Checking existence of `"Places" Link`
+    t =    10.07s Collecting debug information to assist test failure triage
+    t =    10.07s     Requesting snapshot of accessibility hierarchy for app with pid 71987
+/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/LaneUITests.swift:188: error: -[LaneUITests.LaneUITests testCallbackReturnedToApp] : XCTAssertTrue failed
+    t =    10.31s Checking existence of `"TopBrowserBar" Other`
+/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/LaneUITests.swift:189: error: -[LaneUITests.LaneUITests testCallbackReturnedToApp] : XCTAssertFalse failed
+LANE_CALLBACK_RETURN {
+    native = ios;
+    url = "http://localhost:3491/places";
+}
+/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/LaneUITests.swift:192: error: -[LaneUITests.LaneUITests testCallbackReturnedToApp] : XCTAssertEqual failed: ("Optional("/places")") is not equal to ("Optional("/tonight")")
+/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/LaneUITests.swift:193: error: -[LaneUITests.LaneUITests testCallbackReturnedToApp] : XCTAssertEqual failed: ("nil") is not equal to ("Optional("1")")
+    t =    10.42s Find the Application 'com.pubmaxx.app'
+    t =    10.52s Added attachment named 'callback-return-app-active'
+    t =    10.52s Tear Down
+Test Case '-[LaneUITests.LaneUITests testCallbackReturnedToApp]' failed (10.524 seconds).
+Test Suite 'LaneUITests' failed at 2026-10-08 12:14:16.495.
+	 Executed 1 test, with 4 failures (0 unexpected) in 10.524 (10.527) seconds
+Test Suite 'LaneUITests.xctest' failed at 2026-10-08 12:14:16.496.
+	 Executed 1 test, with 4 failures (0 unexpected) in 10.524 (10.527) seconds
+Test Suite 'Selected tests' failed at 2026-10-08 12:14:16.496.
+	 Executed 1 test, with 4 failures (0 unexpected) in 10.524 (10.528) seconds
+** BUILD INTERRUPTED **

@@ -21,6 +21,9 @@ vi.mock("@capacitor/app", () => ({
   },
 }));
 
+const browserMocks = vi.hoisted(() => ({ close: vi.fn() }));
+vi.mock("@capacitor/browser", () => ({ Browser: { close: browserMocks.close } }));
+
 const native = vi.mocked(isNativeApp);
 let activateNativeDeepLinks: typeof import("@/lib/nativeDeepLinks").activateNativeDeepLinks;
 
@@ -32,6 +35,7 @@ beforeEach(async () => {
   native.mockReturnValue(true);
   appMocks.getLaunchUrl.mockResolvedValue(undefined);
   appMocks.remove.mockResolvedValue(undefined);
+  browserMocks.close.mockResolvedValue(undefined);
 });
 
 describe("nativeDeepLinkPath", () => {
@@ -152,6 +156,27 @@ describe("activateNativeDeepLinks", () => {
 
     cleanup();
     expect(appMocks.remove).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the callback document alive until the native browser has closed", async () => {
+    let onOpen: ((event: { url: string }) => void) | undefined;
+    appMocks.addListener.mockImplementation(async (_event, callback) => {
+      onOpen = callback;
+      return { remove: appMocks.remove };
+    });
+    let finishClose: (() => void) | undefined;
+    browserMocks.close.mockImplementation(() => new Promise<void>((resolve) => { finishClose = resolve; }));
+    const navigate = vi.fn();
+    const cleanup = await activateNativeDeepLinks(navigate);
+
+    onOpen?.({ url: "https://pubmaxxing.com/auth/callback?error=access_denied&next=%2Ftonight" });
+    await vi.waitFor(() => expect(browserMocks.close).toHaveBeenCalledOnce());
+    expect(navigate).not.toHaveBeenCalled();
+    finishClose?.();
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledExactlyOnceWith(
+      "/auth/callback?error=access_denied&next=%2Ftonight",
+    ));
+    cleanup();
   });
 
   it("does not replay the cold link after a full document navigation", async () => {

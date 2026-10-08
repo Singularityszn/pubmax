@@ -1,0 +1,65 @@
+                          Other, 0x1058ba580, {{56.0, 340.0}, {290.0, 96.0}}, label: 'Nothing to show yet.', value: 1, Focused
+                            StaticText, 0x1058ba940, {{56.0, 340.0}, {189.0, 96.0}}, label: 'Nothing to show yet.', value: Nothing to show yet., Focused
+                          Other, 0x1058babc0, {{56.0, 448.0}, {290.0, 75.0}}, Focused
+                            StaticText, 0x1058b92c0, {{56.0, 450.0}, {275.0, 70.0}}, label: 'PUBMAXXING needs a connection for live prices, opening times and travel. Nothing stale is being shown.', value: PUBMAXXING needs a..., Focused
+                          Button, 0x1058baa80, {{56.0, 546.0}, {290.0, 49.0}}, label: 'Try again', Focused
+              Other, 0x1058bae40, {{0.0, 0.0}, {402.0, 874.0}}
+                Other, 0x1058bb0c0, {{0.0, 0.0}, {402.0, 102.0}}
+              Other, 0x1058bb200, {{369.0, 62.0}, {30.0, 750.0}}, label: 'Vertical scroll bar, 1 page', value: 0%
+                Other, 0x1058baf80, {{396.0, 65.0}, {3.0, 744.0}}
+              Other, 0x1058bb340, {{62.0, 841.0}, {278.0, 30.0}}, label: 'Horizontal scroll bar, 1 page', value: 0%
+                Other, 0x1058bb5c0, {{65.0, 868.0}, {272.0, 3.0}}
+              Other, 0x1058bb700, {{369.0, 62.0}, {30.0, 750.0}}, label: 'Vertical scroll bar, 1 page', value: 0%
+                Other, 0x1058bb480, {{396.0, 65.0}, {3.0, 744.0}}
+              Other, 0x1058bb840, {{62.0, 841.0}, {278.0, 30.0}}, label: 'Horizontal scroll bar, 1 page', value: 0%
+                Other, 0x1058bbac0, {{65.0, 868.0}, {272.0, 3.0}}
+    Window, 0x1058bbc00, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x1058bb980, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x1058bbd40, {{0.0, 0.0}, {402.0, 874.0}}
+Path to element:
+ →Application, 0x1058b8dc0, pid: 27309, label: 'PUBMAXXING'
+Query chain:
+ →Find: Application 'com.pubmaxx.app'
+  Output: {
+    Application, 0x1058bbe80, pid: 27309, label: 'PUBMAXXING'
+  }
+
+    t =     1.22s Find the Application 'com.pubmaxx.app'
+    t =     1.28s Added attachment named 'final-native-bundled-outage'
+    t =     1.28s Tap "Try again" Button
+    t =     1.28s     Wait for com.pubmaxx.app to idle
+    t =     1.29s     Find the "Try again" Button
+    t =     1.29s     Check for interrupting elements affecting "Try again" Button
+    t =     1.31s     Synthesize event
+    t =     1.61s     Wait for com.pubmaxx.app to idle
+    t =     1.61s Waiting 10.0s for "Places" Link to exist
+    t =     2.68s     Checking `Expect predicate `existsNoRetry == 1` for object "Places" Link`
+    t =     2.68s         Checking existence of `"Places" Link`
+    t =     2.69s         Capturing element debug description
+    t =     3.65s     Checking `Expect predicate `existsNoRetry == 1` for object "Places" Link`
+    t =     3.65s         Checking existence of `"Places" Link`
+LANE_COLD_OUTAGE_RETRY {
+    native = ios;
+    url = "http://localhost:3491/tonight";
+    workerApi = undefined;
+}
+    t =     3.80s Find the Application 'com.pubmaxx.app'
+    t =     3.89s Added attachment named 'final-cold-outage-retry-tonight'
+    t =     3.89s Tear Down
+Test Case '-[LaneUITests.LaneUITests testColdOutageRetryLaunch]' passed (3.904 seconds).
+Test Suite 'LaneUITests' passed at 2026-10-08 12:25:34.781.
+	 Executed 1 test, with 0 failures (0 unexpected) in 3.904 (3.906) seconds
+Test Suite 'LaneUITests.xctest' passed at 2026-10-08 12:25:34.781.
+	 Executed 1 test, with 0 failures (0 unexpected) in 3.904 (3.906) seconds
+Test Suite 'Selected tests' passed at 2026-10-08 12:25:34.781.
+	 Executed 1 test, with 0 failures (0 unexpected) in 3.904 (3.907) seconds
+2026-10-08 12:25:35.066 xcodebuild[39411:50862020] [MT] IDETestOperationsObserverDebug: 7.585 elapsed -- Testing started completed.
+2026-10-08 12:25:35.066 xcodebuild[39411:50862020] [MT] IDETestOperationsObserverDebug: 0.000 sec, +0.000 sec -- start
+2026-10-08 12:25:35.066 xcodebuild[39411:50862020] [MT] IDETestOperationsObserverDebug: 7.585 sec, +7.585 sec -- end
+
+Test session results, code coverage, and logs:
+	/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/final-native-cold-outage-recovery.xcresult
+
+** TEST SUCCEEDED **
+
+Testing started

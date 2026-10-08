@@ -1,0 +1,97 @@
+{
+  "id": "1791453998496",
+  "value": {
+    "cachedStatus": 200,
+    "title": "London pub map | PUBMAXX",
+    "headings": [
+      "UK venue map"
+    ],
+    "spilled": false,
+    "headers": [
+      [
+        "cache-control",
+        "no-store"
+      ],
+      [
+        "connection",
+        "keep-alive"
+      ],
+      [
+        "content-security-policy",
+        "default-src 'self'; script-src 'self' 'unsafe-inline' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://commons.wikimedia.org https://upload.wikimedia.org https://thumb.wikimedia.org https://*.googleusercontent.com https://gkbr-p-001.sitecorecontenthub.cloud; font-src 'self' data: https://tiles.openfreemap.org; connect-src 'self' https://tiles.openfreemap.org https://basemaps.cartocdn.com https://tiles.basemaps.cartocdn.com wss://api.elevenlabs.io https://api.elevenlabs.io; worker-src 'self' blob:; child-src blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+      ],
+      [
+        "content-type",
+        "text/html; charset=utf-8"
+      ],
+      [
+        "cross-origin-opener-policy",
+        "same-origin"
+      ],
+      [
+        "date",
+        "Thu, 08 Oct 2026 09:59:31 GMT"
+      ],
+      [
+        "etag",
+        "\"u64tg3gtmc1ijo\""
+      ],
+      [
+        "keep-alive",
+        "timeout=5"
+      ],
+      [
+        "permissions-policy",
+        "camera=(self), geolocation=(self), microphone=(self), payment=(), usb=()"
+      ],
+      [
+        "referrer-policy",
+        "strict-origin-when-cross-origin"
+      ],
+      [
+        "strict-transport-security",
+        "max-age=63072000; includeSubDomains; preload"
+      ],
+      [
+        "transfer-encoding",
+        "chunked"
+      ],
+      [
+        "vary",
+        "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept-Encoding"
+      ],
+      [
+        "x-content-type-options",
+        "nosniff"
+      ],
+      [
+        "x-dns-prefetch-control",
+        "on"
+      ],
+      [
+        "x-frame-options",
+        "DENY"
+      ],
+      [
+        "x-last-orders",
+        "23:00"
+      ],
+      [
+        "x-nextjs-cache",
+        "HIT"
+      ],
+      [
+        "x-nextjs-prerender",
+        "1, 1"
+      ],
+      [
+        "x-nextjs-stale-time",
+        "300"
+      ],
+      [
+        "x-robots-tag",
+        "noindex, nofollow"
+      ]
+    ]
+  }
+}

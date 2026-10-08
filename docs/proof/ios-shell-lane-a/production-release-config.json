@@ -1,0 +1,27 @@
+{
+  "configuration": "Release",
+  "sdk": "iphonesimulator",
+  "signing": false,
+  "server": {
+    "url": "https://pubmaxxing.com/",
+    "appStartPath": "app-entry",
+    "errorPath": "offline.html"
+  },
+  "ios": {
+    "backgroundColor": "#060607"
+  },
+  "WKAppBoundDomains": null,
+  "UIApplicationSceneManifest": {
+    "UIApplicationSupportsMultipleScenes": false,
+    "UISceneConfigurations": {
+      "UIWindowSceneSessionRoleApplication": [
+        {
+          "UISceneConfigurationName": "Default Configuration",
+          "UISceneDelegateClassName": "App.SceneDelegate",
+          "UISceneStoryboardFile": "Main"
+        }
+      ]
+    }
+  },
+  "bundleIdentifier": "com.pubmaxx.app"
+}

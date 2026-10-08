@@ -1,0 +1,2 @@
+⚡️2026-10-08 11:52:52.742 App[65962:47305894] [lane-typed-cache] SELECT localhost records=1 types=HTTP-memory,HTTP-disk otherRecords=1
+2026-10-08 11:52:52.820 App[65962:47305894] [lane-typed-cache] COMPLETE localRemaining=0 othersPreserved=1 cookiesPreserved=1 preferencesPreserved=1 documentStorageHistoryWorkerPreserved=1 error=(null)

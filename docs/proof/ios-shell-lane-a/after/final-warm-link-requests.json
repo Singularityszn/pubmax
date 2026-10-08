@@ -1,0 +1,14 @@
+[
+  {
+    "t": 1791459166980,
+    "path": "/map?lane-link=warm",
+    "status": 200,
+    "ms": 5
+  },
+  {
+    "t": 1791459239908,
+    "path": "/map?lane-link=warm",
+    "status": 200,
+    "ms": 3
+  }
+]
