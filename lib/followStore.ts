@@ -1,12 +1,12 @@
 // Directed follow graph over profiles. ONE interface, TWO implementations
 // (process-memory + Supabase public.follows), same seam pattern as the other
-// stores. A follow edge is keyed by the two self-asserted handles; each is
-// resolved to a profile row (created lazily via ProfileStore.ensure) so the edge
-// always references real profile ids, matching the follows FKs in migration 0006.
+// stores. Each handle supplied by the caller resolves to a profile row, created
+// lazily via ProfileStore.ensure. Edges reference profile ids, matching the
+// follows FKs in migration 0006.
 //
-// No auth: the "follower" is whoever the client says they are (the localStorage
-// handle). That is the same demo trust boundary as pint drops — extended here,
-// not weakened.
+// The store does not authorise callers. Each write caller must verify the
+// follower's account identity before using the store. See followWrite.server.ts
+// for the caller boundaries.
 
 import { normalizeHandle } from "@/lib/profiles";
 import {
@@ -21,7 +21,10 @@ export type FollowCounts = { followers: number; following: number };
 export type FollowStore = {
   /** Follow followee as follower (idempotent). Returns true when now following. */
   follow(followerHandle: string, followeeHandle: string): Promise<boolean>;
-  /** Atomically distinguish a new edge from an idempotent replay. */
+  /**
+   * Atomically return "created" for a new edge, "already" for an existing edge,
+   * or "self" for a refused self-follow. Other storage failures throw.
+   */
   followIfNew(followerHandle: string, followeeHandle: string): Promise<"created" | "already" | "self">;
   /** Remove the edge (idempotent). Returns true when no longer following. */
   unfollow(followerHandle: string, followeeHandle: string): Promise<boolean>;
@@ -37,8 +40,8 @@ export type FollowStore = {
   listFollowing(handle: string): Promise<string[]>;
   /**
    * The HANDLES that follow this handle (its followers). The mirror of
-   * listFollowing. Returns [] for an unknown handle. Server-only — no follower
-   * list is ever surfaced publicly; this feeds the mutual-follow computation.
+   * listFollowing. Returns [] for an unknown handle. Used by the public
+   * /api/profiles/[handle]/followers route and the mutual-follow computation.
    */
   listFollowers(handle: string): Promise<string[]>;
   /**

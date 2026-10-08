@@ -12,9 +12,9 @@ import "server-only";
 // and "already following them" is not a failure. The store's insert result
 // identifies the new edge, so concurrent retries cannot notify twice.
 //
-// Authorisation is NOT here. Who may act as the follower is decided by the
-// route through `resolveMessageHandle` + `gateHandleAction`, and this module is
-// reached only after that answered.
+// Authorisation belongs to each caller. Direct and starter-pack follow routes
+// use `resolveMessageHandle` + `gateHandleAction`. The plan-join route verifies
+// the account, then `crewFriendEdges.ts` checks claimed profiles and blocks.
 
 import { followStore, isSelfFollow, type FollowStore } from "@/lib/followStore";
 import { emitNotification } from "@/lib/notificationsStore";
