@@ -23,8 +23,18 @@ datasets/screenshots into the iOS binary as dead weight, so don't.
 `server.errorPath: "offline.html"` is the one exception: if the first main-frame
 load cannot reach production, Capacitor serves the bundled
 `native/web-stub/offline.html`. It says that live data is unavailable, shows no
-stale prices or times, and offers a retry. The site's service worker remains the
-later-session fallback after at least one healthy remote load.
+stale prices or times, and offers a retry. iOS ignores cancelled navigations and
+uses this page only for connection failures. Other navigation failures do not
+turn into "No connection". HTTP responses keep the site's own page.
+
+The site's service worker can provide a later-session fallback after registration.
+The current iOS shell does not expose its API. The app-bound opt-in remains
+withheld after native QA found incomplete offline behavior. The real MapLibre
+worker module and its shared dependency were absent from Cache Storage and
+failed when the local origin stopped. A cached HTML response did not provide a
+usable offline map. See `docs/proof/ios-shell-lane-a/` for the simulator evidence.
+The native bundled outage page remains the iOS fallback. It displays no cached
+prices or travel times. WebKit's HTTP cache does not prove worker registration.
 
 On Android, "Try again" returns to the page that failed, so a shared plan link
 opened with no signal is not lost. `OfflineRetryWebViewClient` records the one
@@ -36,8 +46,22 @@ is gone. Other HTTP errors, including 401, 403, 404 and 410, keep the site's
 own response instead of showing "No connection". Subresource HTTP errors never
 open the offline page. It never replays `/auth/callback`, the marked callback
 landing, or a URL that carries a credential parameter. When nothing safe is
-held, the button goes to the root as before. iOS does not do this yet: the shell has no seam
-that records the failed URL, so the same button there goes to the root.
+held, the button goes to the root as before.
+
+On iOS, `ShellBridgeViewController` keeps Capacitor's navigation delegate and
+forwards its other callbacks. `OfflineRetryDestination` retains one safe failed
+URL in memory, including its query and fragment. The bundled retry button returns
+to that URL at the configured origin, including a local simulator origin. An
+authentication callback or credential-bearing URL falls back to the configured
+`app-entry` route. Retry replaces the offline page in history. The UIScene launch
+and link handlers remain in `SceneDelegate`.
+
+The iOS edge swipe dispatches `pubmax:ios-back` through the site's existing
+panel-first policy. Its listener mounts with the immediate shell lifecycle,
+before optional native feature chunks arrive. Android keeps its hardware Back
+lifecycle. Capacitor's plugin reset waits for a replacement document to commit,
+so a cancelled provisional load retains the visible document's listeners.
+OAuth callbacks close the system browser before the app changes routes.
 
 ## Cold start
 

@@ -1,0 +1,12 @@
+{
+  "id": "1791458441663",
+  "value": {
+    "url": "http://localhost:3491/tonight?lane-callback=1",
+    "native": "ios",
+    "workerApi": "undefined",
+    "server": {
+      "ok": true,
+      "deploymentId": "local-ios-lane-a"
+    }
+  }
+}
