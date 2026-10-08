@@ -1,4 +1,7 @@
 import { type Page } from "@playwright/test";
+import type { DeviceAccountRecord } from "../../lib/deviceAccountSessions";
+
+type RememberedAccount = Pick<DeviceAccountRecord, "userId" | "refreshToken" | "handle">;
 
 export const ACCOUNTS = {
   A: {
@@ -313,17 +316,15 @@ export async function seedSignedIn(page: Page, key: AccountKey): Promise<void> {
 /** The accounts this device remembers, as the switcher's own lane holds them. */
 export async function readDeviceAccounts(
   page: Page,
-): Promise<Array<{ userId: string; refreshToken: string | null; handle: string | null }>> {
+): Promise<RememberedAccount[]> {
   return page.evaluate((key) => {
     try {
       const raw = window.localStorage.getItem(key);
-      return raw ? (JSON.parse(raw) as Array<Record<string, never>>) : [];
+      return raw ? (JSON.parse(raw) as RememberedAccount[]) : [];
     } catch {
       return [];
     }
-  }, DEVICE_ACCOUNTS_KEY) as Promise<
-    Array<{ userId: string; refreshToken: string | null; handle: string | null }>
-  >;
+  }, DEVICE_ACCOUNTS_KEY);
 }
 
 export async function readDeviceIdentity(page: Page): Promise<Record<string, string | null>> {
