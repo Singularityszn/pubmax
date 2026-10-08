@@ -1,0 +1,69 @@
+{"event":"grant","conversationId":"conv_3001m4bm60jffp39md51ckhe9nve","at":1791391629989}
+{"at":1791391630417,"data":{"event":"socket-open"}}
+{"at":1791391630423,"data":{"event":"conversation_initiation_metadata","audioChars":0}}
+{"at":1791391630430,"data":{"event":"worklet-load","url":"/vendor/elevenlabs/raw-audio-processor.js"}}
+{"at":1791391630447,"data":{"event":"worklet-load","url":"/vendor/elevenlabs/libsamplerate.worklet.js"}}
+{"at":1791391630476,"data":{"event":"worklet-loaded","url":"/vendor/elevenlabs/raw-audio-processor.js"}}
+{"at":1791391630510,"data":{"event":"worklet-loaded","url":"/vendor/elevenlabs/libsamplerate.worklet.js"}}
+{"at":1791391630510,"data":{"event":"worklet-load","url":"/vendor/elevenlabs/audio-concat-processor.js"}}
+{"at":1791391630516,"data":{"event":"worklet-loaded","url":"/vendor/elevenlabs/audio-concat-processor.js"}}
+{"at":1791391630764,"data":{"event":"audio","audioChars":41952}}
+{"at":1791391630939,"data":{"event":"agent_response","audioChars":0}}
+{"at":1791391630939,"data":{"event":"audio","audioChars":83920}}
+{"at":1791391631269,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391632250,"data":{"event":"ping","audioChars":0}}
+{"at":1791391632269,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391633273,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391633881,"data":{"event":"agent_response_complete","audioChars":0}}
+{"at":1791391633951,"data":{"event":"ping","audioChars":0}}
+{"at":1791391634278,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391635281,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391635654,"data":{"event":"ping","audioChars":0}}
+{"at":1791391636285,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391637291,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391637353,"data":{"event":"ping","audioChars":0}}
+{"at":1791391638293,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391639053,"data":{"event":"ping","audioChars":0}}
+{"at":1791391639299,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391640303,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391640753,"data":{"event":"ping","audioChars":0}}
+{"at":1791391641306,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391642310,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391642454,"data":{"event":"ping","audioChars":0}}
+{"at":1791391643314,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391644160,"data":{"event":"ping","audioChars":0}}
+{"at":1791391644318,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391645321,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391645857,"data":{"event":"ping","audioChars":0}}
+{"at":1791391646327,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391647330,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391647557,"data":{"event":"ping","audioChars":0}}
+{"at":1791391648335,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391649256,"data":{"event":"ping","audioChars":0}}
+{"at":1791391649338,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391650343,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391650958,"data":{"event":"ping","audioChars":0}}
+{"at":1791391651347,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391652350,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391652657,"data":{"event":"ping","audioChars":0}}
+{"at":1791391653355,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391654358,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391654361,"data":{"event":"ping","audioChars":0}}
+{"at":1791391655362,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391656063,"data":{"event":"ping","audioChars":0}}
+{"at":1791391656365,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391657369,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391657765,"data":{"event":"ping","audioChars":0}}
+{"at":1791391658375,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391659379,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391659466,"data":{"event":"ping","audioChars":0}}
+{"at":1791391660382,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391661165,"data":{"event":"ping","audioChars":0}}
+{"at":1791391661387,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391662391,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391662865,"data":{"event":"ping","audioChars":0}}
+{"at":1791391663395,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391664399,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391664566,"data":{"event":"ping","audioChars":0}}
+{"at":1791391665401,"data":{"event":"ui","text":"Pal is listening EndMessage your Pub PalNo audio or transcript becomes memory. The Pal proposes facts for you to approve separately."}}
+{"at":1791391667062,"data":{"event":"socket-close","code":1000,"reason":"User ended conversation"}}

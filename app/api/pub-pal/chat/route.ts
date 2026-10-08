@@ -1,8 +1,11 @@
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
+import { refineRoutedAskQuery, socialTurnKind } from "@/lib/ask/router";
 import { runAsk } from "@/lib/ask/runAsk";
 import type { AskTurn } from "@/lib/ask/types";
+import { parseConciergeIntent } from "@/lib/concierge/intent";
+import { DEFAULT_GROUP_SIZE } from "@/lib/concierge/intentPolicy";
 import { PAL_ERROR_FALLBACK } from "@/lib/palChat";
 import {
   acceptsPalChatStream,
@@ -139,13 +142,54 @@ export async function POST(request: Request): Promise<Response> {
   // tools as /api/ask, and they never call OpenRouter.
   if (!palVoiceConfigured()) {
     try {
+      const turns = normaliseTurns(record.turns);
+      const social = socialTurnKind(query);
+      if (social) {
+        return jsonNoStore({
+          answer: social === "thanks"
+            ? "You're welcome."
+            : turns.some((turn) => turn.role === "assistant")
+              ? "Hey."
+              : "Hi. What kind of night are you planning?",
+          cards: [],
+          proposals: [],
+          sources: [],
+          status: "ready",
+          toolsUsed: [],
+        });
+      }
       const answer = await runAsk({
         query,
         cityId: record.cityId,
-        turns: normaliseTurns(record.turns),
+        turns,
         skipModel: true,
         traceRoute: "api/pub-pal/chat",
       });
+      // search_venues ranks on area, mood, budget and group size only. With
+      // none of them it lists the same arbitrary pubs for any words ("hi how
+      // are you", "sup"), so ask for one instead.
+      if (answer.toolsUsed.length === 1 && answer.toolsUsed[0] === "search_venues") {
+        const priorUser = [...turns].reverse().find((turn) => turn.role === "user");
+        const { intent } = await parseConciergeIntent(
+          refineRoutedAskQuery(query, priorUser?.content),
+          { skipModel: true },
+        );
+        if (
+          intent.mood.length === 0 &&
+          !intent.area &&
+          intent.maxPintPrice === undefined &&
+          intent.groupSize === DEFAULT_GROUP_SIZE
+        ) {
+          return jsonNoStore({
+            answer: "Tell me an area, a mood or a budget and I'll find you a pub.",
+            cards: [],
+            proposals: [],
+            sources: [],
+            status: "ready",
+            toolsUsed: [],
+          });
+        }
+      }
       return jsonNoStore(answer);
     } catch (error) {
       console.error("pub-pal-chat.unexpected_error", error);

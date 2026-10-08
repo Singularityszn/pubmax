@@ -75,7 +75,7 @@ const TOOL_DESCRIPTIONS = {
   cheapest_pint_near:
     "Cheapest listed pints around a named pub or London area. Never uses the reader's GPS.",
   tonight_now:
-    "Sourced listings running now versus later tonight. Never claims live crowd levels.",
+    "Use only for explicit questions about sourced events or listings running now, tonight, or later, or how busy a pub or area is. Do not use for greetings or message labels. For crowd questions, explain that no live crowd reading exists. Never claim live crowd levels.",
   venue_drinks:
     "Every drink logged at one listed pub with provenance. Never invents figures.",
   find_desk:
@@ -83,7 +83,7 @@ const TOOL_DESCRIPTIONS = {
   report_occupancy:
     "Propose a crowd report for a pub. Writes nothing until the reader confirms.",
   recall_memories:
-    "Read the preferences this person confirmed for their Pal to remember. Read-only. Never facts about a pub.",
+    "On the first substantive request, read confirmed preferences before a factual tool unless the message already supplies them. Do not use for greetings or thanks alone. Read-only. Never facts about a pub.",
   propose_memory:
     "Typed chat only. Propose one preference for the Pal to remember. Saves nothing until the person confirms the card.",
 };
