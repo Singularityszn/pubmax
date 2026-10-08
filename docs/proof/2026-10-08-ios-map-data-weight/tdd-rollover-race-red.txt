@@ -1,0 +1,170 @@
+
+ RUN  v5.0.3 /Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M4DAJ253JF7EFG1KFFNCZXT5
+
+ ❯ __tests__/whatsOnTonightRolloverRace.test.ts (40 tests | 40 failed) 44ms
+   ❯ public service-night races (9)
+     × rejects a late previous-night answer and reuses only the new snapshot during BST 23ms
+     × rejects a late previous-night answer and reuses only the new snapshot during spring DST 1ms
+     × rejects a late previous-night answer and reuses only the new snapshot during autumn DST 1ms
+     × starts a separate read for a post-rollover caller while the previous read is pending during BST 1ms
+     × starts a separate read for a post-rollover caller while the previous read is pending during spring DST 1ms
+     × starts a separate read for a post-rollover caller while the previous read is pending during autumn DST 1ms
+     × rejects a snapshot dated by late completion rather than its answer during BST 1ms
+     × rejects a snapshot dated by late completion rather than its answer during spring DST 0ms
+     × rejects a snapshot dated by late completion rather than its answer during autumn DST 0ms
+   ❯ near service-night races (9)
+     × rejects a late previous-night answer and reuses only the new snapshot during BST 1ms
+     × rejects a late previous-night answer and reuses only the new snapshot during spring DST 0ms
+     × rejects a late previous-night answer and reuses only the new snapshot during autumn DST 1ms
+     × starts a separate read for a post-rollover caller while the previous read is pending during BST 1ms
+     × starts a separate read for a post-rollover caller while the previous read is pending during spring DST 1ms
+     × starts a separate read for a post-rollover caller while the previous read is pending during autumn DST 1ms
+     × rejects a snapshot dated by late completion rather than its answer during BST 0ms
+     × rejects a snapshot dated by late completion rather than its answer during spring DST 0ms
+     × rejects a snapshot dated by late completion rather than its answer during autumn DST 0ms
+   ❯ pubOnly service-night races (9)
+     × rejects a late previous-night answer and reuses only the new snapshot during BST 0ms
+     × rejects a late previous-night answer and reuses only the new snapshot during spring DST 0ms
+     × rejects a late previous-night answer and reuses only the new snapshot during autumn DST 0ms
+     × starts a separate read for a post-rollover caller while the previous read is pending during BST 0ms
+     × starts a separate read for a post-rollover caller while the previous read is pending during spring DST 0ms
+     × starts a separate read for a post-rollover caller while the previous read is pending during autumn DST 0ms
+     × rejects a snapshot dated by late completion rather than its answer during BST 0ms
+     × rejects a snapshot dated by late completion rather than its answer during spring DST 0ms
+     × rejects a snapshot dated by late completion rather than its answer during autumn DST 0ms
+   ❯ near pubOnly service-night races (9)
+     × rejects a late previous-night answer and reuses only the new snapshot during BST 0ms
+     × rejects a late previous-night answer and reuses only the new snapshot during spring DST 0ms
+     × rejects a late previous-night answer and reuses only the new snapshot during autumn DST 0ms
+     × starts a separate read for a post-rollover caller while the previous read is pending during BST 1ms
+     × starts a separate read for a post-rollover caller while the previous read is pending during spring DST 1ms
+     × starts a separate read for a post-rollover caller while the previous read is pending during autumn DST 1ms
+     × rejects a snapshot dated by late completion rather than its answer during BST 0ms
+     × rejects a snapshot dated by late completion rather than its answer during spring DST 1ms
+     × rejects a snapshot dated by late completion rather than its answer during autumn DST 1ms
+   × does not publish or cache an answer with unusable servedAt undefined 1ms
+   × does not publish or cache an answer with unusable servedAt null 0ms
+   × does not publish or cache an answer with unusable servedAt invalid 0ms
+   × does not publish or cache an answer with unusable servedAt 0 0ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 40 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > public service-night races > rejects a late previous-night answer and reuses only the new snapshot during BST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > public service-night races > rejects a late previous-night answer and reuses only the new snapshot during spring DST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > public service-night races > rejects a late previous-night answer and reuses only the new snapshot during autumn DST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > near service-night races > rejects a late previous-night answer and reuses only the new snapshot during BST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > near service-night races > rejects a late previous-night answer and reuses only the new snapshot during spring DST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > near service-night races > rejects a late previous-night answer and reuses only the new snapshot during autumn DST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > pubOnly service-night races > rejects a late previous-night answer and reuses only the new snapshot during BST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > pubOnly service-night races > rejects a late previous-night answer and reuses only the new snapshot during spring DST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > pubOnly service-night races > rejects a late previous-night answer and reuses only the new snapshot during autumn DST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > near pubOnly service-night races > rejects a late previous-night answer and reuses only the new snapshot during BST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > near pubOnly service-night races > rejects a late previous-night answer and reuses only the new snapshot during spring DST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > near pubOnly service-night races > rejects a late previous-night answer and reuses only the new snapshot during autumn DST
+AssertionError: expected [ 'previous' ] to deeply equal [ 'current' ]
+
+- Expected
++ Received
+
+  [
+-   "current",
++   "previous",
+  ]
+
+ ❯ __tests__/whatsOnTonightRolloverRace.test.ts:66:46
+     64|     const result = await pending;
+     65|     expect(result.status).toBe("ready");
+     66|     expect(result.rows.map((row) => row.id)).toEqual(["current"]);
+       |                                              ^
+     67|     expect(onResult.mock.calls.map(([value]) => value.rows.map((row: {…
+     68|     expect(readSurfaceSnapshot(url)).toEqual(current);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/40]⎯
+
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > public service-night races > starts a separate read for a post-rollover caller while the previous read is pending during BST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > public service-night races > starts a separate read for a post-rollover caller while the previous read is pending during spring DST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > public service-night races > starts a separate read for a post-rollover caller while the previous read is pending during autumn DST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > near service-night races > starts a separate read for a post-rollover caller while the previous read is pending during BST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > near service-night races > starts a separate read for a post-rollover caller while the previous read is pending during spring DST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > near service-night races > starts a separate read for a post-rollover caller while the previous read is pending during autumn DST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > pubOnly service-night races > starts a separate read for a post-rollover caller while the previous read is pending during BST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > pubOnly service-night races > starts a separate read for a post-rollover caller while the previous read is pending during spring DST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > pubOnly service-night races > starts a separate read for a post-rollover caller while the previous read is pending during autumn DST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > near pubOnly service-night races > starts a separate read for a post-rollover caller while the previous read is pending during BST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > near pubOnly service-night races > starts a separate read for a post-rollover caller while the previous read is pending during spring DST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > near pubOnly service-night races > starts a separate read for a post-rollover caller while the previous read is pending during autumn DST
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ __tests__/whatsOnTonightRolloverRace.test.ts:97:29
+     95|     await vi.advanceTimersByTimeAsync(50);
+     96|     const [oldResult, newResult] = await Promise.all([earlier, later]);
+     97|     expect(independentRead).toBe(true);
+       |                             ^
+     98|     expect(oldResult.rows.map((row) => row.id)).toEqual(["current"]);
+     99|     expect(newResult.rows.map((row) => row.id)).toEqual(["current"]);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/40]⎯
+
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > public service-night races > rejects a snapshot dated by late completion rather than its answer during BST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > public service-night races > rejects a snapshot dated by late completion rather than its answer during spring DST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > public service-night races > rejects a snapshot dated by late completion rather than its answer during autumn DST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > near service-night races > rejects a snapshot dated by late completion rather than its answer during BST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > near service-night races > rejects a snapshot dated by late completion rather than its answer during spring DST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > near service-night races > rejects a snapshot dated by late completion rather than its answer during autumn DST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > pubOnly service-night races > rejects a snapshot dated by late completion rather than its answer during BST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > pubOnly service-night races > rejects a snapshot dated by late completion rather than its answer during spring DST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > pubOnly service-night races > rejects a snapshot dated by late completion rather than its answer during autumn DST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > near pubOnly service-night races > rejects a snapshot dated by late completion rather than its answer during BST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > near pubOnly service-night races > rejects a snapshot dated by late completion rather than its answer during spring DST
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > near pubOnly service-night races > rejects a snapshot dated by late completion rather than its answer during autumn DST
+AssertionError: expected [ 'previous' ] to deeply equal [ 'current' ]
+
+- Expected
++ Received
+
+  [
+-   "current",
++   "previous",
+  ]
+
+ ❯ __tests__/whatsOnTonightRolloverRace.test.ts:115:46
+    113|     const onResult = vi.fn();
+    114|     const result = await loadWhatsOnTonight({ ...options, fetchImpl, o…
+    115|     expect(result.rows.map((row) => row.id)).toEqual(["current"]);
+       |                                              ^
+    116|     expect(onResult.mock.calls.map((call) => call[1])).toEqual(["netwo…
+    117|     expect(fetchImpl).toHaveBeenCalledTimes(1);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/40]⎯
+
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > does not publish or cache an answer with unusable servedAt undefined
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > does not publish or cache an answer with unusable servedAt null
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > does not publish or cache an answer with unusable servedAt invalid
+ FAIL  __tests__/whatsOnTonightRolloverRace.test.ts > does not publish or cache an answer with unusable servedAt 0
+AssertionError: expected 'ready' to be 'error' // Object.is equality
+
+Expected: "error"
+Received: "ready"
+
+ ❯ __tests__/whatsOnTonightRolloverRace.test.ts:127:34
+    125|   const pending = loadWhatsOnTonight({ fetchImpl, onResult });
+    126|   await vi.advanceTimersByTimeAsync(50);
+    127|   expect((await pending).status).toBe("error");
+       |                                  ^
+    128|   expect(onResult).not.toHaveBeenCalled();
+    129|   expect(readSurfaceSnapshot(variants[0].url)).toBeUndefined();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/40]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  40 failed (40)
+   Start at  09:49:30
+   Duration  209ms (transform 52%, tests 33%, import 9%, setup 4%, worker 2%)
+

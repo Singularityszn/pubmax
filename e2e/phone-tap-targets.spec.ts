@@ -67,7 +67,7 @@ async function prepare(page: Page): Promise<void> {
     route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ status: "ready", rows: [], observedAt: {} }),
+      body: JSON.stringify({ status: "ready", rows: [], servedAt: new Date().toISOString(), observedAt: {} }),
     }),
   );
   await page.route(isOutListingsRequest, (route) =>

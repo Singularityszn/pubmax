@@ -210,6 +210,7 @@ async function installPositiveTonightResponse(page: Page): Promise<void> {
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
+        servedAt: new Date().toISOString(),
         rows: [
           {
             id: "mobile-map-chrome-tonight",

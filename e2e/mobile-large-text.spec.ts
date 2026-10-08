@@ -35,6 +35,7 @@ for (const scale of [1.3, 1.5, 2]) {
     const observedAt = new Date().toISOString();
     await page.route("**/api/whats-on**", (route) => route.fulfill({
       json: {
+        servedAt: new Date().toISOString(),
         rows: [{
           id: "large-text-quiz", venueId: "venue-xjf3n0", placeName: "The Arnos Arms",
           kind: "quiz", title: "Pub quiz", startsAt: new Date(Date.now() + 3_600_000).toISOString(),

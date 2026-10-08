@@ -26,8 +26,8 @@
 // window is replaced. It rides the existing device-identity announcement,
 // which fires on both an account switch and a sign-out.
 //
-// And one honesty rule on top: an entry has a maximum age. A snapshot may seed a
-// first paint, never stand in for an answer nobody asked for again.
+// An entry has a maximum age. A caller may reuse a recent answer without a
+// network read through freshForMs. Older valid snapshots seed a paint and revalidate.
 
 import { subscribeDeviceIdentity } from "@/lib/deviceAccountIdentity";
 import { waitUnlessAborted } from "@/lib/abortableDelay";
@@ -318,6 +318,7 @@ export function surfaceCacheSize(): number {
 // nobody is waiting for should not stay on the wire.
 type InFlightRequest = {
   promise: Promise<unknown | undefined>;
+  startedAt: number;
   controller: AbortController;
   joiners: number;
   /** Nobody is waiting, but the read is held for the grace window. */
@@ -326,6 +327,8 @@ type InFlightRequest = {
   settled: boolean;
   /** Some caller took the answer, so there is nothing left to hand on. */
   consumed: boolean;
+  /** A newer read owns snapshot publication for this key. */
+  superseded: boolean;
   graceTimer: ReturnType<typeof setTimeout> | null;
 };
 
@@ -344,6 +347,9 @@ const inFlight = new Map<string, InFlightRequest>();
 
 export type LoadSurfaceJsonOptions<T = unknown> = {
   signal?: AbortSignal;
+  /** Earliest request start time, in Unix milliseconds, that this caller may join.
+   *  Snapshot and response validity still depend on this caller's validate function. */
+  requestNotBefore?: number;
   init?: RequestInit;
   maxAgeMs?: number;
   fetchImpl?: typeof fetch;
@@ -362,8 +368,8 @@ export type LoadSurfaceJsonOptions<T = unknown> = {
    * Start a new request even when one for this key is already in flight, instead
    * of joining it. For a read that exists BECAUSE the answer just changed: the
    * request already on the wire was sent before the change and may carry the
-   * old answer. The caller aborts its own earlier read so the old answer is
-   * never applied or held.
+   * old answer. Active callers may finish their earlier read, but a superseded
+   * request cannot replace the newer request's snapshot.
    */
   fresh?: boolean;
 };
@@ -376,8 +382,9 @@ export const SURFACE_JUST_READ_MS = 5_000;
  *
  * `apply` is called with the held answer FIRST when there is one, so the tab
  * paints its last state in the same frame it mounts, and then again with the
- * network answer. It is never called after the caller's signal aborts, and a
- * failed revalidate leaves the held answer standing rather than blanking a
+ * network answer unless freshForMs permits snapshot reuse. It is never called
+ * after the caller's signal aborts. A failed revalidate leaves the held answer
+ * standing rather than blanking a
  * surface that already had real data on it.
  *
  * Returns the source of the last answer applied, so a caller that must report
@@ -431,7 +438,7 @@ export async function loadSurfaceJson<T>(
   if (requestSignal?.aborted || justRead) return applied;
   const request = joinSurfaceRequest(key, options);
   // Release on the caller's own abort as well as on settle, so an unmount
-  // still takes a read off the wire the moment nobody is left waiting for it.
+  // starts the grace window when nobody is left waiting for the read.
   let released = false;
   const release = () => {
     if (released) return;
@@ -462,33 +469,37 @@ export async function loadSurfaceJson<T>(
     if (!valid) return applied;
   }
   const shouldCache = apply(body, "network") !== false;
-  if (shouldCache) writeSurfaceSnapshot(key, body);
+  if (shouldCache && !request.superseded) writeSurfaceSnapshot(key, body);
   return "network";
 }
 
 /**
- * The one request per key. A caller arriving while another is waiting joins it
- * rather than opening a second; `undefined` means the read did not answer.
+ * Share a request per key unless fresh or requestNotBefore requires a new read.
+ * `undefined` means the read did not answer.
  */
 function joinSurfaceRequest<T>(
   key: string,
   options: LoadSurfaceJsonOptions<T>,
 ): InFlightRequest {
-  const existing = options.fresh ? undefined : inFlight.get(key);
-  if (existing) {
+  const previous = inFlight.get(key);
+  const existing = options.fresh ? undefined : previous;
+  if (existing && existing.startedAt >= (options.requestNotBefore ?? -Infinity)) {
     existing.joiners += 1;
     existing.abandoned = false;
     if (existing.graceTimer) clearTimeout(existing.graceTimer);
     existing.graceTimer = null;
     return existing;
   }
+  if (previous) previous.superseded = true;
   const controller = new AbortController();
   const entry: InFlightRequest = {
     controller,
+    startedAt: Date.now(),
     joiners: 1,
     abandoned: false,
     settled: false,
     consumed: false,
+    superseded: false,
     graceTimer: null,
     promise: Promise.resolve(undefined),
   };

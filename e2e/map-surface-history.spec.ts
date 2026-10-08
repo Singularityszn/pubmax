@@ -44,6 +44,7 @@ async function prepareMap(page: Page, viewport = DESKTOP): Promise<void> {
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
+        servedAt: new Date().toISOString(),
         rows: [],
         asOf: null,
         sourceObservedAt: null,
@@ -213,6 +214,7 @@ test.describe("one Map surface history owner", () => {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
+          servedAt: new Date().toISOString(),
           rows: [],
           asOf: null,
           sourceObservedAt: null,

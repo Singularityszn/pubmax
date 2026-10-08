@@ -1,0 +1,2048 @@
+[
+  {
+    "round": 1,
+    "variant": "before",
+    "cold": {
+      "phase": "cold-surface-map",
+      "price": {
+        "requests": 15,
+        "transferBytes": 4725,
+        "decodedBytes": 225,
+        "firstAnswerMs": 4336.79999999702,
+        "lastAnswerMs": 6792.0999999940395,
+        "durationsMs": [
+          173.89999999850988,
+          177.30000000447035,
+          175.5,
+          172.69999999552965,
+          174.40000000596046,
+          175.89999999850988,
+          175.70000000298023,
+          174.60000000149012,
+          175.89999999850988,
+          174.10000000149012,
+          174.80000000447035,
+          172.60000000149012,
+          175.79999999701977,
+          175.70000000298023,
+          174.29999999701977
+        ],
+        "statuses": [
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200
+        ],
+        "maxConcurrent": 1,
+        "waterfallMs": 2629.1999999955297,
+        "requestedIdCount": 901,
+        "requestedIdsSha256": "85f34e81d36c4962ea971d1671eb3ca1ac3c3c9dbdd167adf77ae0af24e52203"
+      },
+      "whats": {
+        "requests": 1,
+        "transferBytes": 64319,
+        "decodedBytes": 64019,
+        "firstAnswerMs": 1873.5999999940395,
+        "lastAnswerMs": 1873.5999999940395,
+        "durationsMs": [
+          435.8999999985099
+        ],
+        "statuses": [
+          200
+        ],
+        "pubOnly": [
+          null
+        ]
+      },
+      "firstPinsMs": 2459.6999999955297,
+      "firstSurfaceAnswerMs": null,
+      "paintedPins": 75,
+      "heapBytes": 57719812
+    },
+    "firstTonight": {
+      "phase": "first-tonight",
+      "price": {
+        "requests": 0,
+        "transferBytes": 0,
+        "decodedBytes": 0,
+        "firstAnswerMs": null,
+        "lastAnswerMs": null,
+        "durationsMs": [],
+        "statuses": [],
+        "maxConcurrent": 0,
+        "waterfallMs": null,
+        "requestedIdCount": 0,
+        "requestedIdsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "whats": {
+        "requests": 1,
+        "transferBytes": 44048,
+        "decodedBytes": 43748,
+        "firstAnswerMs": 451.69999999552965,
+        "lastAnswerMs": 451.69999999552965,
+        "durationsMs": [
+          216.79999999701977
+        ],
+        "statuses": [
+          200
+        ],
+        "pubOnly": [
+          "1"
+        ]
+      },
+      "firstPinsMs": null,
+      "firstSurfaceAnswerMs": 458.3999999985099,
+      "paintedPins": null,
+      "heapBytes": 65795709
+    },
+    "warmMap": {
+      "phase": "warm-map",
+      "price": {
+        "requests": 10,
+        "transferBytes": 3150,
+        "decodedBytes": 150,
+        "firstAnswerMs": 1955.1999999955297,
+        "lastAnswerMs": 3532,
+        "durationsMs": [
+          177.19999999552965,
+          173.89999999850988,
+          175.70000000298023,
+          175,
+          175.29999999701977,
+          172.70000000298023,
+          175,
+          175.20000000298023,
+          174.79999999701977,
+          175.30000000447035
+        ],
+        "statuses": [
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200
+        ],
+        "maxConcurrent": 1,
+        "waterfallMs": 1754,
+        "requestedIdCount": 640,
+        "requestedIdsSha256": "e53b1f454b49b62de941374e3152d2d24772a0ae1d122eb7fe7ce2e1027151af"
+      },
+      "whats": {
+        "requests": 1,
+        "transferBytes": 64319,
+        "decodedBytes": 64019,
+        "firstAnswerMs": 463.69999999552965,
+        "lastAnswerMs": 463.69999999552965,
+        "durationsMs": [
+          249
+        ],
+        "statuses": [
+          200
+        ],
+        "pubOnly": [
+          null
+        ]
+      },
+      "firstPinsMs": 521.6000000014901,
+      "firstSurfaceAnswerMs": 573.3999999985099,
+      "paintedPins": 75,
+      "heapBytes": 83605216
+    },
+    "warmTonight": {
+      "phase": "warm-tonight",
+      "price": {
+        "requests": 1,
+        "transferBytes": 315,
+        "decodedBytes": 15,
+        "firstAnswerMs": 327.20000000298023,
+        "lastAnswerMs": 327.20000000298023,
+        "durationsMs": [
+          175.39999999850988
+        ],
+        "statuses": [
+          200
+        ],
+        "maxConcurrent": 1,
+        "waterfallMs": 175.39999999850988,
+        "requestedIdCount": 5,
+        "requestedIdsSha256": "13510bc8ba27af37b600354198f0f7b904ccd45301a1434c85aca26d224997f3"
+      },
+      "whats": {
+        "requests": 1,
+        "transferBytes": 44048,
+        "decodedBytes": 43748,
+        "firstAnswerMs": 241.40000000596046,
+        "lastAnswerMs": 241.40000000596046,
+        "durationsMs": [
+          216.80000000447035
+        ],
+        "statuses": [
+          200
+        ],
+        "pubOnly": [
+          "1"
+        ]
+      },
+      "firstPinsMs": null,
+      "firstSurfaceAnswerMs": 31.100000001490116,
+      "paintedPins": null,
+      "heapBytes": 66662149
+    }
+  },
+  {
+    "round": 1,
+    "variant": "after",
+    "cold": {
+      "phase": "cold-surface-map",
+      "price": {
+        "requests": 15,
+        "transferBytes": 4725,
+        "decodedBytes": 225,
+        "firstAnswerMs": 4169.5,
+        "lastAnswerMs": 5395.69999999553,
+        "durationsMs": [
+          176.10000000149012,
+          177.10000000149012,
+          175.29999999701977,
+          176.30000000447035,
+          174.60000000149012,
+          174.5,
+          175.60000000149012,
+          176,
+          172.5,
+          173,
+          174.60000000149012,
+          173.89999999850988,
+          175.5,
+          176.19999999552965,
+          174.59999999403954
+        ],
+        "statuses": [
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200
+        ],
+        "maxConcurrent": 2,
+        "waterfallMs": 1402.2999999970198,
+        "requestedIdCount": 901,
+        "requestedIdsSha256": "85f34e81d36c4962ea971d1671eb3ca1ac3c3c9dbdd167adf77ae0af24e52203"
+      },
+      "whats": {
+        "requests": 1,
+        "transferBytes": 64319,
+        "decodedBytes": 64019,
+        "firstAnswerMs": 1878.3999999985099,
+        "lastAnswerMs": 1878.3999999985099,
+        "durationsMs": [
+          439.6000000014901
+        ],
+        "statuses": [
+          200
+        ],
+        "pubOnly": [
+          null
+        ]
+      },
+      "firstPinsMs": 2416.1999999955297,
+      "firstSurfaceAnswerMs": null,
+      "paintedPins": 75,
+      "heapBytes": 57359264
+    },
+    "firstTonight": {
+      "phase": "first-tonight",
+      "price": {
+        "requests": 0,
+        "transferBytes": 0,
+        "decodedBytes": 0,
+        "firstAnswerMs": null,
+        "lastAnswerMs": null,
+        "durationsMs": [],
+        "statuses": [],
+        "maxConcurrent": 0,
+        "waterfallMs": null,
+        "requestedIdCount": 0,
+        "requestedIdsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "whats": {
+        "requests": 1,
+        "transferBytes": 44048,
+        "decodedBytes": 43748,
+        "firstAnswerMs": 450.30000000447035,
+        "lastAnswerMs": 450.30000000447035,
+        "durationsMs": [
+          216
+        ],
+        "statuses": [
+          200
+        ],
+        "pubOnly": [
+          "1"
+        ]
+      },
+      "firstPinsMs": null,
+      "firstSurfaceAnswerMs": 456.80000000447035,
+      "paintedPins": null,
+      "heapBytes": 42968986
+    },
+    "warmMap": {
+      "phase": "warm-map",
+      "price": {
+        "requests": 15,
+        "transferBytes": 4725,
+        "decodedBytes": 225,
+        "firstAnswerMs": 1972.5999999940395,
+        "lastAnswerMs": 3207.5,
+        "durationsMs": [
+          177.29999999701977,
+          178.29999999701977,
+          175.39999999850988,
+          176.19999999552965,
+          177.60000000149012,
+          177.10000000149012,
+          175.29999999701977,
+          176.39999999850988,
+          175.60000000149012,
+          175.89999999850988,
+          175,
+          174.29999999701977,
+          177.10000000149012,
+          177.19999999552965,
+          175.30000000447035
+        ],
+        "statuses": [
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200
+        ],
+        "maxConcurrent": 2,
+        "waterfallMs": 1412.2000000029802,
+        "requestedIdCount": 901,
+        "requestedIdsSha256": "85f34e81d36c4962ea971d1671eb3ca1ac3c3c9dbdd167adf77ae0af24e52203"
+      },
+      "whats": {
+        "requests": 0,
+        "transferBytes": 0,
+        "decodedBytes": 0,
+        "firstAnswerMs": null,
+        "lastAnswerMs": null,
+        "durationsMs": [],
+        "statuses": [],
+        "pubOnly": []
+      },
+      "firstPinsMs": 358,
+      "firstSurfaceAnswerMs": 414.79999999701977,
+      "paintedPins": 75,
+      "heapBytes": 85324977
+    },
+    "warmTonight": {
+      "phase": "warm-tonight",
+      "price": {
+        "requests": 0,
+        "transferBytes": 0,
+        "decodedBytes": 0,
+        "firstAnswerMs": null,
+        "lastAnswerMs": null,
+        "durationsMs": [],
+        "statuses": [],
+        "maxConcurrent": 0,
+        "waterfallMs": null,
+        "requestedIdCount": 0,
+        "requestedIdsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "whats": {
+        "requests": 0,
+        "transferBytes": 0,
+        "decodedBytes": 0,
+        "firstAnswerMs": null,
+        "lastAnswerMs": null,
+        "durationsMs": [],
+        "statuses": [],
+        "pubOnly": []
+      },
+      "firstPinsMs": null,
+      "firstSurfaceAnswerMs": 34.5,
+      "paintedPins": null,
+      "heapBytes": 91683614
+    }
+  },
+  {
+    "round": 2,
+    "variant": "before",
+    "cold": {
+      "phase": "cold-surface-map",
+      "price": {
+        "requests": 15,
+        "transferBytes": 4725,
+        "decodedBytes": 225,
+        "firstAnswerMs": 2997,
+        "lastAnswerMs": 5452.60000000149,
+        "durationsMs": [
+          175.59999999403954,
+          175.80000000447035,
+          174,
+          174.70000000298023,
+          175.5,
+          175.29999999701977,
+          174.40000000596046,
+          175.69999999552965,
+          176.20000000298023,
+          173.89999999850988,
+          172.5,
+          174.79999999701977,
+          175.29999999701977,
+          174.80000000447035,
+          175.5
+        ],
+        "statuses": [
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200
+        ],
+        "maxConcurrent": 1,
+        "waterfallMs": 2631.1999999955297,
+        "requestedIdCount": 901,
+        "requestedIdsSha256": "85f34e81d36c4962ea971d1671eb3ca1ac3c3c9dbdd167adf77ae0af24e52203"
+      },
+      "whats": {
+        "requests": 1,
+        "transferBytes": 64319,
+        "decodedBytes": 64019,
+        "firstAnswerMs": 575.5,
+        "lastAnswerMs": 575.5,
+        "durationsMs": [
+          250
+        ],
+        "statuses": [
+          200
+        ],
+        "pubOnly": [
+          null
+        ]
+      },
+      "firstPinsMs": 648.6000000014901,
+      "firstSurfaceAnswerMs": null,
+      "paintedPins": 75,
+      "heapBytes": 77275862
+    },
+    "firstTonight": {
+      "phase": "first-tonight",
+      "price": {
+        "requests": 0,
+        "transferBytes": 0,
+        "decodedBytes": 0,
+        "firstAnswerMs": null,
+        "lastAnswerMs": null,
+        "durationsMs": [],
+        "statuses": [],
+        "maxConcurrent": 0,
+        "waterfallMs": null,
+        "requestedIdCount": 0,
+        "requestedIdsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "whats": {
+        "requests": 1,
+        "transferBytes": 44048,
+        "decodedBytes": 43748,
+        "firstAnswerMs": 259,
+        "lastAnswerMs": 259,
+        "durationsMs": [
+          217.89999999850988
+        ],
+        "statuses": [
+          200
+        ],
+        "pubOnly": [
+          "1"
+        ]
+      },
+      "firstPinsMs": null,
+      "firstSurfaceAnswerMs": 266,
+      "paintedPins": null,
+      "heapBytes": 80825601
+    },
+    "warmMap": {
+      "phase": "warm-map",
+      "price": {
+        "requests": 11,
+        "transferBytes": 3465,
+        "decodedBytes": 165,
+        "firstAnswerMs": 1751.1000000014901,
+        "lastAnswerMs": 3502.89999999851,
+        "durationsMs": [
+          175.90000000596046,
+          177.5,
+          175.20000000298023,
+          174.60000000149012,
+          175.5,
+          177.5,
+          175.29999999701977,
+          176,
+          173.80000000447035,
+          174.39999999850988,
+          166.79999999701977
+        ],
+        "statuses": [
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200
+        ],
+        "maxConcurrent": 1,
+        "waterfallMs": 1927.7000000029802,
+        "requestedIdCount": 704,
+        "requestedIdsSha256": "07d7da266f1ac1a0ee3a7ced996c338831da35cc59da31076e8aeeccc171e034"
+      },
+      "whats": {
+        "requests": 1,
+        "transferBytes": 64319,
+        "decodedBytes": 64019,
+        "firstAnswerMs": 283.1000000014901,
+        "lastAnswerMs": 283.1000000014901,
+        "durationsMs": [
+          245.40000000596046
+        ],
+        "statuses": [
+          200
+        ],
+        "pubOnly": [
+          null
+        ]
+      },
+      "firstPinsMs": 152.79999999701977,
+      "firstSurfaceAnswerMs": 204.10000000149012,
+      "paintedPins": 75,
+      "heapBytes": 101465242
+    },
+    "warmTonight": {
+      "phase": "warm-tonight",
+      "price": {
+        "requests": 2,
+        "transferBytes": 630,
+        "decodedBytes": 30,
+        "firstAnswerMs": 268.5,
+        "lastAnswerMs": 443.59999999403954,
+        "durationsMs": [
+          175.40000000596046,
+          174.59999999403954
+        ],
+        "statuses": [
+          200,
+          200
+        ],
+        "maxConcurrent": 1,
+        "waterfallMs": 350.5,
+        "requestedIdCount": 69,
+        "requestedIdsSha256": "164ad6134a9685a1d0f47a74d692ad84f7732e50613a793468addbc3792dbdf5"
+      },
+      "whats": {
+        "requests": 1,
+        "transferBytes": 44048,
+        "decodedBytes": 43748,
+        "firstAnswerMs": 239.19999999552965,
+        "lastAnswerMs": 239.19999999552965,
+        "durationsMs": [
+          217.5
+        ],
+        "statuses": [
+          200
+        ],
+        "pubOnly": [
+          "1"
+        ]
+      },
+      "firstPinsMs": null,
+      "firstSurfaceAnswerMs": 28,
+      "paintedPins": null,
+      "heapBytes": 109258386
+    }
+  },
+  {
+    "round": 2,
+    "variant": "after",
+    "cold": {
+      "phase": "cold-surface-map",
+      "price": {
+        "requests": 15,
+        "transferBytes": 4725,
+        "decodedBytes": 225,
+        "firstAnswerMs": 2973.2999999970198,
+        "lastAnswerMs": 4205.19999999553,
+        "durationsMs": [
+          176.10000000149012,
+          177.70000000298023,
+          177.39999999850988,
+          177,
+          175.09999999403954,
+          176.20000000298023,
+          174.80000000447035,
+          174.10000000149012,
+          175,
+          176.29999999701977,
+          174.29999999701977,
+          173.89999999850988,
+          176.20000000298023,
+          175.70000000298023,
+          175.29999999701977
+        ],
+        "statuses": [
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200
+        ],
+        "maxConcurrent": 2,
+        "waterfallMs": 1408,
+        "requestedIdCount": 901,
+        "requestedIdsSha256": "85f34e81d36c4962ea971d1671eb3ca1ac3c3c9dbdd167adf77ae0af24e52203"
+      },
+      "whats": {
+        "requests": 1,
+        "transferBytes": 64319,
+        "decodedBytes": 64019,
+        "firstAnswerMs": 574.2999999970198,
+        "lastAnswerMs": 574.2999999970198,
+        "durationsMs": [
+          249.79999999701977
+        ],
+        "statuses": [
+          200
+        ],
+        "pubOnly": [
+          null
+        ]
+      },
+      "firstPinsMs": 518.0999999940395,
+      "firstSurfaceAnswerMs": null,
+      "paintedPins": 75,
+      "heapBytes": 95008772
+    },
+    "firstTonight": {
+      "phase": "first-tonight",
+      "price": {
+        "requests": 0,
+        "transferBytes": 0,
+        "decodedBytes": 0,
+        "firstAnswerMs": null,
+        "lastAnswerMs": null,
+        "durationsMs": [],
+        "statuses": [],
+        "maxConcurrent": 0,
+        "waterfallMs": null,
+        "requestedIdCount": 0,
+        "requestedIdsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "whats": {
+        "requests": 1,
+        "transferBytes": 44048,
+        "decodedBytes": 43748,
+        "firstAnswerMs": 260.1000000014901,
+        "lastAnswerMs": 260.1000000014901,
+        "durationsMs": [
+          218.5
+        ],
+        "statuses": [
+          200
+        ],
+        "pubOnly": [
+          "1"
+        ]
+      },
+      "firstPinsMs": null,
+      "firstSurfaceAnswerMs": 266.69999999552965,
+      "paintedPins": null,
+      "heapBytes": 98494851
+    },
+    "warmMap": {
+      "phase": "warm-map",
+      "price": {
+        "requests": 15,
+        "transferBytes": 4725,
+        "decodedBytes": 225,
+        "firstAnswerMs": 1789,
+        "lastAnswerMs": 3025.60000000149,
+        "durationsMs": [
+          177,
+          178.09999999403954,
+          176.89999999850988,
+          177.79999999701977,
+          176,
+          175.60000000149012,
+          174,
+          174.29999999701977,
+          176.10000000149012,
+          175.5,
+          177.5,
+          177.60000000149012,
+          177.29999999701977,
+          177.09999999403954,
+          175.30000000447035
+        ],
+        "statuses": [
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200
+        ],
+        "maxConcurrent": 2,
+        "waterfallMs": 1413.6000000014901,
+        "requestedIdCount": 901,
+        "requestedIdsSha256": "85f34e81d36c4962ea971d1671eb3ca1ac3c3c9dbdd167adf77ae0af24e52203"
+      },
+      "whats": {
+        "requests": 0,
+        "transferBytes": 0,
+        "decodedBytes": 0,
+        "firstAnswerMs": null,
+        "lastAnswerMs": null,
+        "durationsMs": [],
+        "statuses": [],
+        "pubOnly": []
+      },
+      "firstPinsMs": 356.19999999552965,
+      "firstSurfaceAnswerMs": 407.8999999985099,
+      "paintedPins": 75,
+      "heapBytes": 121153565
+    },
+    "warmTonight": {
+      "phase": "warm-tonight",
+      "price": {
+        "requests": 0,
+        "transferBytes": 0,
+        "decodedBytes": 0,
+        "firstAnswerMs": null,
+        "lastAnswerMs": null,
+        "durationsMs": [],
+        "statuses": [],
+        "maxConcurrent": 0,
+        "waterfallMs": null,
+        "requestedIdCount": 0,
+        "requestedIdsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "whats": {
+        "requests": 0,
+        "transferBytes": 0,
+        "decodedBytes": 0,
+        "firstAnswerMs": null,
+        "lastAnswerMs": null,
+        "durationsMs": [],
+        "statuses": [],
+        "pubOnly": []
+      },
+      "firstPinsMs": null,
+      "firstSurfaceAnswerMs": 36,
+      "paintedPins": null,
+      "heapBytes": 127512726
+    }
+  },
+  {
+    "round": 3,
+    "variant": "before",
+    "cold": {
+      "phase": "cold-surface-map",
+      "price": {
+        "requests": 15,
+        "transferBytes": 4725,
+        "decodedBytes": 225,
+        "firstAnswerMs": 3023.10000000149,
+        "lastAnswerMs": 5481.60000000149,
+        "durationsMs": [
+          176.10000000149012,
+          172.80000000447035,
+          174.69999999552965,
+          175.40000000596046,
+          174.70000000298023,
+          175,
+          174.79999999701977,
+          175.60000000149012,
+          177.5,
+          175.20000000298023,
+          174.40000000596046,
+          175.39999999850988,
+          174.29999999701977,
+          176.10000000149012,
+          175.40000000596046
+        ],
+        "statuses": [
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200
+        ],
+        "maxConcurrent": 1,
+        "waterfallMs": 2634.60000000149,
+        "requestedIdCount": 901,
+        "requestedIdsSha256": "85f34e81d36c4962ea971d1671eb3ca1ac3c3c9dbdd167adf77ae0af24e52203"
+      },
+      "whats": {
+        "requests": 1,
+        "transferBytes": 64319,
+        "decodedBytes": 64019,
+        "firstAnswerMs": 572.7999999970198,
+        "lastAnswerMs": 572.7999999970198,
+        "durationsMs": [
+          248.69999999552965
+        ],
+        "statuses": [
+          200
+        ],
+        "pubOnly": [
+          null
+        ]
+      },
+      "firstPinsMs": 670.7999999970198,
+      "firstSurfaceAnswerMs": null,
+      "paintedPins": 75,
+      "heapBytes": 109002236
+    },
+    "firstTonight": {
+      "phase": "first-tonight",
+      "price": {
+        "requests": 0,
+        "transferBytes": 0,
+        "decodedBytes": 0,
+        "firstAnswerMs": null,
+        "lastAnswerMs": null,
+        "durationsMs": [],
+        "statuses": [],
+        "maxConcurrent": 0,
+        "waterfallMs": null,
+        "requestedIdCount": 0,
+        "requestedIdsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "whats": {
+        "requests": 1,
+        "transferBytes": 44048,
+        "decodedBytes": 43748,
+        "firstAnswerMs": 252.69999999552965,
+        "lastAnswerMs": 252.69999999552965,
+        "durationsMs": [
+          213.5
+        ],
+        "statuses": [
+          200
+        ],
+        "pubOnly": [
+          "1"
+        ]
+      },
+      "firstPinsMs": null,
+      "firstSurfaceAnswerMs": 259.3999999985099,
+      "paintedPins": null,
+      "heapBytes": 112594083
+    },
+    "warmMap": {
+      "phase": "warm-map",
+      "price": {
+        "requests": 11,
+        "transferBytes": 3465,
+        "decodedBytes": 165,
+        "firstAnswerMs": 1946.7999999970198,
+        "lastAnswerMs": 3704.7999999970198,
+        "durationsMs": [
+          175.69999999552965,
+          176.20000000298023,
+          175.79999999701977,
+          175.39999999850988,
+          172.70000000298023,
+          175.79999999701977,
+          174,
+          177.89999999850988,
+          175.10000000149012,
+          175.89999999850988,
+          174.19999999552965
+        ],
+        "statuses": [
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200
+        ],
+        "maxConcurrent": 1,
+        "waterfallMs": 1933.6999999955297,
+        "requestedIdCount": 704,
+        "requestedIdsSha256": "07d7da266f1ac1a0ee3a7ced996c338831da35cc59da31076e8aeeccc171e034"
+      },
+      "whats": {
+        "requests": 1,
+        "transferBytes": 64319,
+        "decodedBytes": 64019,
+        "firstAnswerMs": 461.5,
+        "lastAnswerMs": 461.5,
+        "durationsMs": [
+          244.60000000149012
+        ],
+        "statuses": [
+          200
+        ],
+        "pubOnly": [
+          null
+        ]
+      },
+      "firstPinsMs": 332.29999999701977,
+      "firstSurfaceAnswerMs": 382.3999999985099,
+      "paintedPins": 75,
+      "heapBytes": 136331250
+    },
+    "warmTonight": {
+      "phase": "warm-tonight",
+      "price": {
+        "requests": 2,
+        "transferBytes": 630,
+        "decodedBytes": 30,
+        "firstAnswerMs": 292.5,
+        "lastAnswerMs": 467.79999999701977,
+        "durationsMs": [
+          175.29999999701977,
+          174.89999999850988
+        ],
+        "statuses": [
+          200,
+          200
+        ],
+        "maxConcurrent": 1,
+        "waterfallMs": 350.59999999403954,
+        "requestedIdCount": 69,
+        "requestedIdsSha256": "164ad6134a9685a1d0f47a74d692ad84f7732e50613a793468addbc3792dbdf5"
+      },
+      "whats": {
+        "requests": 1,
+        "transferBytes": 44048,
+        "decodedBytes": 43748,
+        "firstAnswerMs": 239.5,
+        "lastAnswerMs": 239.5,
+        "durationsMs": [
+          216.39999999850988
+        ],
+        "statuses": [
+          200
+        ],
+        "pubOnly": [
+          "1"
+        ]
+      },
+      "firstPinsMs": null,
+      "firstSurfaceAnswerMs": 29.5,
+      "paintedPins": null,
+      "heapBytes": 144074638
+    }
+  },
+  {
+    "round": 3,
+    "variant": "after",
+    "cold": {
+      "phase": "cold-surface-map",
+      "price": {
+        "requests": 15,
+        "transferBytes": 4725,
+        "decodedBytes": 225,
+        "firstAnswerMs": 3026.3000000044703,
+        "lastAnswerMs": 4256.70000000298,
+        "durationsMs": [
+          176.5,
+          177.29999999701977,
+          175.29999999701977,
+          176.30000000447035,
+          175.70000000298023,
+          176.10000000149012,
+          175.89999999850988,
+          175.29999999701977,
+          175.60000000149012,
+          175.60000000149012,
+          175.30000000447035,
+          176.40000000596046,
+          172.79999999701977,
+          172.29999999701977,
+          176.10000000149012
+        ],
+        "statuses": [
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200
+        ],
+        "maxConcurrent": 2,
+        "waterfallMs": 1406.8999999985099,
+        "requestedIdCount": 901,
+        "requestedIdsSha256": "85f34e81d36c4962ea971d1671eb3ca1ac3c3c9dbdd167adf77ae0af24e52203"
+      },
+      "whats": {
+        "requests": 1,
+        "transferBytes": 64319,
+        "decodedBytes": 64019,
+        "firstAnswerMs": 571.7000000029802,
+        "lastAnswerMs": 571.7000000029802,
+        "durationsMs": [
+          247.29999999701977
+        ],
+        "statuses": [
+          200
+        ],
+        "pubOnly": [
+          null
+        ]
+      },
+      "firstPinsMs": 675.2000000029802,
+      "firstSurfaceAnswerMs": null,
+      "paintedPins": 75,
+      "heapBytes": 126016262
+    },
+    "firstTonight": {
+      "phase": "first-tonight",
+      "price": {
+        "requests": 0,
+        "transferBytes": 0,
+        "decodedBytes": 0,
+        "firstAnswerMs": null,
+        "lastAnswerMs": null,
+        "durationsMs": [],
+        "statuses": [],
+        "maxConcurrent": 0,
+        "waterfallMs": null,
+        "requestedIdCount": 0,
+        "requestedIdsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "whats": {
+        "requests": 1,
+        "transferBytes": 44048,
+        "decodedBytes": 43748,
+        "firstAnswerMs": 257.6000000014901,
+        "lastAnswerMs": 257.6000000014901,
+        "durationsMs": [
+          217.90000000596046
+        ],
+        "statuses": [
+          200
+        ],
+        "pubOnly": [
+          "1"
+        ]
+      },
+      "firstPinsMs": null,
+      "firstSurfaceAnswerMs": 264.3999999985099,
+      "paintedPins": null,
+      "heapBytes": 129611509
+    },
+    "warmMap": {
+      "phase": "warm-map",
+      "price": {
+        "requests": 15,
+        "transferBytes": 4725,
+        "decodedBytes": 225,
+        "firstAnswerMs": 1969.7999999970198,
+        "lastAnswerMs": 3203.60000000149,
+        "durationsMs": [
+          176.39999999850988,
+          177.79999999701977,
+          174.70000000298023,
+          174.20000000298023,
+          175.39999999850988,
+          176.20000000298023,
+          177.39999999850988,
+          177,
+          175.19999999552965,
+          176.20000000298023,
+          175.70000000298023,
+          175.79999999701977,
+          174.29999999701977,
+          174.09999999403954,
+          177.10000000149012
+        ],
+        "statuses": [
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200
+        ],
+        "maxConcurrent": 2,
+        "waterfallMs": 1410.2000000029802,
+        "requestedIdCount": 901,
+        "requestedIdsSha256": "85f34e81d36c4962ea971d1671eb3ca1ac3c3c9dbdd167adf77ae0af24e52203"
+      },
+      "whats": {
+        "requests": 0,
+        "transferBytes": 0,
+        "decodedBytes": 0,
+        "firstAnswerMs": null,
+        "lastAnswerMs": null,
+        "durationsMs": [],
+        "statuses": [],
+        "pubOnly": []
+      },
+      "firstPinsMs": 488,
+      "firstSurfaceAnswerMs": 540.8999999985099,
+      "paintedPins": 75,
+      "heapBytes": 144144606
+    },
+    "warmTonight": {
+      "phase": "warm-tonight",
+      "price": {
+        "requests": 0,
+        "transferBytes": 0,
+        "decodedBytes": 0,
+        "firstAnswerMs": null,
+        "lastAnswerMs": null,
+        "durationsMs": [],
+        "statuses": [],
+        "maxConcurrent": 0,
+        "waterfallMs": null,
+        "requestedIdCount": 0,
+        "requestedIdsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "whats": {
+        "requests": 0,
+        "transferBytes": 0,
+        "decodedBytes": 0,
+        "firstAnswerMs": null,
+        "lastAnswerMs": null,
+        "durationsMs": [],
+        "statuses": [],
+        "pubOnly": []
+      },
+      "firstPinsMs": null,
+      "firstSurfaceAnswerMs": 32,
+      "paintedPins": null,
+      "heapBytes": 150569839
+    }
+  },
+  {
+    "round": 4,
+    "variant": "before",
+    "cold": {
+      "phase": "cold-surface-map",
+      "price": {
+        "requests": 15,
+        "transferBytes": 4725,
+        "decodedBytes": 225,
+        "firstAnswerMs": 2220.10000000149,
+        "lastAnswerMs": 4683.30000000447,
+        "durationsMs": [
+          176.39999999850988,
+          174.39999999850988,
+          175.5,
+          177.39999999850988,
+          175.19999999552965,
+          177.70000000298023,
+          175.10000000149012,
+          174.09999999403954,
+          176,
+          174.5,
+          175.20000000298023,
+          172.89999999850988,
+          174.60000000149012,
+          177.29999999701977,
+          175.70000000298023
+        ],
+        "statuses": [
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200
+        ],
+        "maxConcurrent": 1,
+        "waterfallMs": 2639.60000000149,
+        "requestedIdCount": 901,
+        "requestedIdsSha256": "85f34e81d36c4962ea971d1671eb3ca1ac3c3c9dbdd167adf77ae0af24e52203"
+      },
+      "whats": {
+        "requests": 1,
+        "transferBytes": 64319,
+        "decodedBytes": 64019,
+        "firstAnswerMs": 564.3000000044703,
+        "lastAnswerMs": 564.3000000044703,
+        "durationsMs": [
+          240.60000000149012
+        ],
+        "statuses": [
+          200
+        ],
+        "pubOnly": [
+          null
+        ]
+      },
+      "firstPinsMs": 436.30000000447035,
+      "firstSurfaceAnswerMs": null,
+      "paintedPins": 75,
+      "heapBytes": 142296565
+    },
+    "firstTonight": {
+      "phase": "first-tonight",
+      "price": {
+        "requests": 0,
+        "transferBytes": 0,
+        "decodedBytes": 0,
+        "firstAnswerMs": null,
+        "lastAnswerMs": null,
+        "durationsMs": [],
+        "statuses": [],
+        "maxConcurrent": 0,
+        "waterfallMs": null,
+        "requestedIdCount": 0,
+        "requestedIdsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "whats": {
+        "requests": 1,
+        "transferBytes": 44048,
+        "decodedBytes": 43748,
+        "firstAnswerMs": 253,
+        "lastAnswerMs": 253,
+        "durationsMs": [
+          213
+        ],
+        "statuses": [
+          200
+        ],
+        "pubOnly": [
+          "1"
+        ]
+      },
+      "firstPinsMs": null,
+      "firstSurfaceAnswerMs": 259.69999999552965,
+      "paintedPins": null,
+      "heapBytes": 145678188
+    },
+    "warmMap": {
+      "phase": "warm-map",
+      "price": {
+        "requests": 11,
+        "transferBytes": 3465,
+        "decodedBytes": 165,
+        "firstAnswerMs": 1808.3000000044703,
+        "lastAnswerMs": 3566.10000000149,
+        "durationsMs": [
+          177.10000000149012,
+          175.39999999850988,
+          175.5,
+          174.19999999552965,
+          174.10000000149012,
+          176.10000000149012,
+          177.39999999850988,
+          175.29999999701977,
+          175.60000000149012,
+          174.19999999552965,
+          174.69999999552965
+        ],
+        "statuses": [
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200
+        ],
+        "maxConcurrent": 1,
+        "waterfallMs": 1934.8999999985099,
+        "requestedIdCount": 704,
+        "requestedIdsSha256": "07d7da266f1ac1a0ee3a7ced996c338831da35cc59da31076e8aeeccc171e034"
+      },
+      "whats": {
+        "requests": 1,
+        "transferBytes": 64319,
+        "decodedBytes": 64019,
+        "firstAnswerMs": 307.40000000596046,
+        "lastAnswerMs": 307.40000000596046,
+        "durationsMs": [
+          243
+        ],
+        "statuses": [
+          200
+        ],
+        "pubOnly": [
+          null
+        ]
+      },
+      "firstPinsMs": 178.90000000596046,
+      "firstSurfaceAnswerMs": 228.20000000298023,
+      "paintedPins": 75,
+      "heapBytes": 209682415
+    },
+    "warmTonight": {
+      "phase": "warm-tonight",
+      "price": {
+        "requests": 2,
+        "transferBytes": 630,
+        "decodedBytes": 30,
+        "firstAnswerMs": 311.20000000298023,
+        "lastAnswerMs": 487,
+        "durationsMs": [
+          174.70000000298023,
+          175.29999999701977
+        ],
+        "statuses": [
+          200,
+          200
+        ],
+        "maxConcurrent": 1,
+        "waterfallMs": 350.5,
+        "requestedIdCount": 69,
+        "requestedIdsSha256": "164ad6134a9685a1d0f47a74d692ad84f7732e50613a793468addbc3792dbdf5"
+      },
+      "whats": {
+        "requests": 1,
+        "transferBytes": 44048,
+        "decodedBytes": 43748,
+        "firstAnswerMs": 238.39999999850988,
+        "lastAnswerMs": 238.39999999850988,
+        "durationsMs": [
+          215.29999999701977
+        ],
+        "statuses": [
+          200
+        ],
+        "pubOnly": [
+          "1"
+        ]
+      },
+      "firstPinsMs": null,
+      "firstSurfaceAnswerMs": 29.200000002980232,
+      "paintedPins": null,
+      "heapBytes": 217400884
+    }
+  },
+  {
+    "round": 4,
+    "variant": "after",
+    "cold": {
+      "phase": "cold-surface-map",
+      "price": {
+        "requests": 15,
+        "transferBytes": 4725,
+        "decodedBytes": 225,
+        "firstAnswerMs": 2995.60000000149,
+        "lastAnswerMs": 4238.10000000149,
+        "durationsMs": [
+          178.40000000596046,
+          178.29999999701977,
+          177.5,
+          178.29999999701977,
+          177.10000000149012,
+          177.30000000447035,
+          176.5,
+          177.39999999850988,
+          175.89999999850988,
+          175.70000000298023,
+          175.39999999850988,
+          175.70000000298023,
+          176.10000000149012,
+          176.20000000298023,
+          177.10000000149012
+        ],
+        "statuses": [
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200
+        ],
+        "maxConcurrent": 2,
+        "waterfallMs": 1420.9000000059605,
+        "requestedIdCount": 901,
+        "requestedIdsSha256": "85f34e81d36c4962ea971d1671eb3ca1ac3c3c9dbdd167adf77ae0af24e52203"
+      },
+      "whats": {
+        "requests": 1,
+        "transferBytes": 64319,
+        "decodedBytes": 64019,
+        "firstAnswerMs": 575.6999999955297,
+        "lastAnswerMs": 575.6999999955297,
+        "durationsMs": [
+          248.89999999850988
+        ],
+        "statuses": [
+          200
+        ],
+        "pubOnly": [
+          null
+        ]
+      },
+      "firstPinsMs": 508.79999999701977,
+      "firstSurfaceAnswerMs": null,
+      "paintedPins": 75,
+      "heapBytes": 141913381
+    },
+    "firstTonight": {
+      "phase": "first-tonight",
+      "price": {
+        "requests": 0,
+        "transferBytes": 0,
+        "decodedBytes": 0,
+        "firstAnswerMs": null,
+        "lastAnswerMs": null,
+        "durationsMs": [],
+        "statuses": [],
+        "maxConcurrent": 0,
+        "waterfallMs": null,
+        "requestedIdCount": 0,
+        "requestedIdsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "whats": {
+        "requests": 1,
+        "transferBytes": 44048,
+        "decodedBytes": 43748,
+        "firstAnswerMs": 251.29999999701977,
+        "lastAnswerMs": 251.29999999701977,
+        "durationsMs": [
+          212.39999999850988
+        ],
+        "statuses": [
+          200
+        ],
+        "pubOnly": [
+          "1"
+        ]
+      },
+      "firstPinsMs": null,
+      "firstSurfaceAnswerMs": 258,
+      "paintedPins": null,
+      "heapBytes": 145438384
+    },
+    "warmMap": {
+      "phase": "warm-map",
+      "price": {
+        "requests": 15,
+        "transferBytes": 4725,
+        "decodedBytes": 225,
+        "firstAnswerMs": 1815.8999999985099,
+        "lastAnswerMs": 3044.3000000044703,
+        "durationsMs": [
+          174.19999999552965,
+          176.19999999552965,
+          174.80000000447035,
+          173.80000000447035,
+          175.19999999552965,
+          176.5,
+          174.5,
+          173.80000000447035,
+          175.39999999850988,
+          176.60000000149012,
+          174.30000000447035,
+          173.89999999850988,
+          175.69999999552965,
+          176.10000000149012,
+          174.90000000596046
+        ],
+        "statuses": [
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200
+        ],
+        "maxConcurrent": 2,
+        "waterfallMs": 1402.6000000014901,
+        "requestedIdCount": 901,
+        "requestedIdsSha256": "85f34e81d36c4962ea971d1671eb3ca1ac3c3c9dbdd167adf77ae0af24e52203"
+      },
+      "whats": {
+        "requests": 0,
+        "transferBytes": 0,
+        "decodedBytes": 0,
+        "firstAnswerMs": null,
+        "lastAnswerMs": null,
+        "durationsMs": [],
+        "statuses": [],
+        "pubOnly": []
+      },
+      "firstPinsMs": 368.30000000447035,
+      "firstSurfaceAnswerMs": 426.20000000298023,
+      "paintedPins": 75,
+      "heapBytes": 207686174
+    },
+    "warmTonight": {
+      "phase": "warm-tonight",
+      "price": {
+        "requests": 0,
+        "transferBytes": 0,
+        "decodedBytes": 0,
+        "firstAnswerMs": null,
+        "lastAnswerMs": null,
+        "durationsMs": [],
+        "statuses": [],
+        "maxConcurrent": 0,
+        "waterfallMs": null,
+        "requestedIdCount": 0,
+        "requestedIdsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "whats": {
+        "requests": 0,
+        "transferBytes": 0,
+        "decodedBytes": 0,
+        "firstAnswerMs": null,
+        "lastAnswerMs": null,
+        "durationsMs": [],
+        "statuses": [],
+        "pubOnly": []
+      },
+      "firstPinsMs": null,
+      "firstSurfaceAnswerMs": 31.299999997019768,
+      "paintedPins": null,
+      "heapBytes": 214006909
+    }
+  },
+  {
+    "round": 5,
+    "variant": "before",
+    "cold": {
+      "phase": "cold-surface-map",
+      "price": {
+        "requests": 15,
+        "transferBytes": 4725,
+        "decodedBytes": 225,
+        "firstAnswerMs": 2956,
+        "lastAnswerMs": 5416.20000000298,
+        "durationsMs": [
+          174.79999999701977,
+          174.80000000447035,
+          175.29999999701977,
+          175.79999999701977,
+          174.10000000149012,
+          172.60000000149012,
+          174.60000000149012,
+          175.39999999850988,
+          176.10000000149012,
+          173.89999999850988,
+          174.79999999701977,
+          177.20000000298023,
+          175.70000000298023,
+          176.70000000298023,
+          176.10000000149012
+        ],
+        "statuses": [
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200
+        ],
+        "maxConcurrent": 1,
+        "waterfallMs": 2635,
+        "requestedIdCount": 901,
+        "requestedIdsSha256": "85f34e81d36c4962ea971d1671eb3ca1ac3c3c9dbdd167adf77ae0af24e52203"
+      },
+      "whats": {
+        "requests": 1,
+        "transferBytes": 64319,
+        "decodedBytes": 64019,
+        "firstAnswerMs": 575,
+        "lastAnswerMs": 575,
+        "durationsMs": [
+          248.79999999701977
+        ],
+        "statuses": [
+          200
+        ],
+        "pubOnly": [
+          null
+        ]
+      },
+      "firstPinsMs": 517.8000000044703,
+      "firstSurfaceAnswerMs": null,
+      "paintedPins": 75,
+      "heapBytes": 141312036
+    },
+    "firstTonight": {
+      "phase": "first-tonight",
+      "price": {
+        "requests": 0,
+        "transferBytes": 0,
+        "decodedBytes": 0,
+        "firstAnswerMs": null,
+        "lastAnswerMs": null,
+        "durationsMs": [],
+        "statuses": [],
+        "maxConcurrent": 0,
+        "waterfallMs": null,
+        "requestedIdCount": 0,
+        "requestedIdsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "whats": {
+        "requests": 1,
+        "transferBytes": 44048,
+        "decodedBytes": 43748,
+        "firstAnswerMs": 251.60000000149012,
+        "lastAnswerMs": 251.60000000149012,
+        "durationsMs": [
+          212.80000000447035
+        ],
+        "statuses": [
+          200
+        ],
+        "pubOnly": [
+          "1"
+        ]
+      },
+      "firstPinsMs": null,
+      "firstSurfaceAnswerMs": 258.29999999701977,
+      "paintedPins": null,
+      "heapBytes": 144875983
+    },
+    "warmMap": {
+      "phase": "warm-map",
+      "price": {
+        "requests": 11,
+        "transferBytes": 3465,
+        "decodedBytes": 165,
+        "firstAnswerMs": 1963.1999999955297,
+        "lastAnswerMs": 3721.6999999955297,
+        "durationsMs": [
+          174.10000000149012,
+          174.20000000298023,
+          175.79999999701977,
+          175.70000000298023,
+          175.69999999552965,
+          176.20000000298023,
+          175.39999999850988,
+          175.39999999850988,
+          174.70000000298023,
+          175.5,
+          174.79999999701977
+        ],
+        "statuses": [
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200
+        ],
+        "maxConcurrent": 1,
+        "waterfallMs": 1932.6000000014901,
+        "requestedIdCount": 704,
+        "requestedIdsSha256": "07d7da266f1ac1a0ee3a7ced996c338831da35cc59da31076e8aeeccc171e034"
+      },
+      "whats": {
+        "requests": 1,
+        "transferBytes": 64319,
+        "decodedBytes": 64019,
+        "firstAnswerMs": 472.09999999403954,
+        "lastAnswerMs": 472.09999999403954,
+        "durationsMs": [
+          249.29999999701977
+        ],
+        "statuses": [
+          200
+        ],
+        "pubOnly": [
+          null
+        ]
+      },
+      "firstPinsMs": 350.8999999985099,
+      "firstSurfaceAnswerMs": 413.59999999403954,
+      "paintedPins": 75,
+      "heapBytes": 207940512
+    },
+    "warmTonight": {
+      "phase": "warm-tonight",
+      "price": {
+        "requests": 2,
+        "transferBytes": 630,
+        "decodedBytes": 30,
+        "firstAnswerMs": 238.20000000298023,
+        "lastAnswerMs": 414,
+        "durationsMs": [
+          167.10000000149012,
+          175.39999999850988
+        ],
+        "statuses": [
+          200,
+          200
+        ],
+        "maxConcurrent": 1,
+        "waterfallMs": 342.8999999985099,
+        "requestedIdCount": 69,
+        "requestedIdsSha256": "164ad6134a9685a1d0f47a74d692ad84f7732e50613a793468addbc3792dbdf5"
+      },
+      "whats": {
+        "requests": 1,
+        "transferBytes": 44048,
+        "decodedBytes": 43748,
+        "firstAnswerMs": 242.20000000298023,
+        "lastAnswerMs": 242.20000000298023,
+        "durationsMs": [
+          217.70000000298023
+        ],
+        "statuses": [
+          200
+        ],
+        "pubOnly": [
+          "1"
+        ]
+      },
+      "firstPinsMs": null,
+      "firstSurfaceAnswerMs": 30.600000001490116,
+      "paintedPins": null,
+      "heapBytes": 215643617
+    }
+  },
+  {
+    "round": 5,
+    "variant": "after",
+    "cold": {
+      "phase": "cold-surface-map",
+      "price": {
+        "requests": 15,
+        "transferBytes": 4725,
+        "decodedBytes": 225,
+        "firstAnswerMs": 2960.89999999851,
+        "lastAnswerMs": 4192.89999999851,
+        "durationsMs": [
+          175.10000000149012,
+          176.5,
+          174.09999999403954,
+          174.5,
+          175.89999999850988,
+          176,
+          174.10000000149012,
+          174,
+          175.70000000298023,
+          175.89999999850988,
+          177.29999999701977,
+          177.60000000149012,
+          175.60000000149012,
+          176,
+          175.39999999850988
+        ],
+        "statuses": [
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200
+        ],
+        "maxConcurrent": 2,
+        "waterfallMs": 1407.1000000014901,
+        "requestedIdCount": 901,
+        "requestedIdsSha256": "85f34e81d36c4962ea971d1671eb3ca1ac3c3c9dbdd167adf77ae0af24e52203"
+      },
+      "whats": {
+        "requests": 1,
+        "transferBytes": 64319,
+        "decodedBytes": 64019,
+        "firstAnswerMs": 570.6999999955297,
+        "lastAnswerMs": 570.6999999955297,
+        "durationsMs": [
+          247.10000000149012
+        ],
+        "statuses": [
+          200
+        ],
+        "pubOnly": [
+          null
+        ]
+      },
+      "firstPinsMs": 523,
+      "firstSurfaceAnswerMs": null,
+      "paintedPins": 75,
+      "heapBytes": 199870924
+    },
+    "firstTonight": {
+      "phase": "first-tonight",
+      "price": {
+        "requests": 0,
+        "transferBytes": 0,
+        "decodedBytes": 0,
+        "firstAnswerMs": null,
+        "lastAnswerMs": null,
+        "durationsMs": [],
+        "statuses": [],
+        "maxConcurrent": 0,
+        "waterfallMs": null,
+        "requestedIdCount": 0,
+        "requestedIdsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "whats": {
+        "requests": 1,
+        "transferBytes": 44048,
+        "decodedBytes": 43748,
+        "firstAnswerMs": 253.69999999552965,
+        "lastAnswerMs": 253.69999999552965,
+        "durationsMs": [
+          214.69999999552965
+        ],
+        "statuses": [
+          200
+        ],
+        "pubOnly": [
+          "1"
+        ]
+      },
+      "firstPinsMs": null,
+      "firstSurfaceAnswerMs": 260.3999999985099,
+      "paintedPins": null,
+      "heapBytes": 126814994
+    },
+    "warmMap": {
+      "phase": "warm-map",
+      "price": {
+        "requests": 15,
+        "transferBytes": 4725,
+        "decodedBytes": 225,
+        "firstAnswerMs": 1979.8000000044703,
+        "lastAnswerMs": 3208.89999999851,
+        "durationsMs": [
+          174.70000000298023,
+          176,
+          175.40000000596046,
+          176,
+          175.70000000298023,
+          176.20000000298023,
+          174.29999999701977,
+          174.19999999552965,
+          176,
+          175.39999999850988,
+          173.69999999552965,
+          174.89999999850988,
+          174.39999999850988,
+          174.10000000149012,
+          175.59999999403954
+        ],
+        "statuses": [
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200
+        ],
+        "maxConcurrent": 2,
+        "waterfallMs": 1403.7999999970198,
+        "requestedIdCount": 901,
+        "requestedIdsSha256": "85f34e81d36c4962ea971d1671eb3ca1ac3c3c9dbdd167adf77ae0af24e52203"
+      },
+      "whats": {
+        "requests": 0,
+        "transferBytes": 0,
+        "decodedBytes": 0,
+        "firstAnswerMs": null,
+        "lastAnswerMs": null,
+        "durationsMs": [],
+        "statuses": [],
+        "pubOnly": []
+      },
+      "firstPinsMs": 365.80000000447035,
+      "firstSurfaceAnswerMs": 429.30000000447035,
+      "paintedPins": 75,
+      "heapBytes": 168573285
+    },
+    "warmTonight": {
+      "phase": "warm-tonight",
+      "price": {
+        "requests": 0,
+        "transferBytes": 0,
+        "decodedBytes": 0,
+        "firstAnswerMs": null,
+        "lastAnswerMs": null,
+        "durationsMs": [],
+        "statuses": [],
+        "maxConcurrent": 0,
+        "waterfallMs": null,
+        "requestedIdCount": 0,
+        "requestedIdsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "whats": {
+        "requests": 0,
+        "transferBytes": 0,
+        "decodedBytes": 0,
+        "firstAnswerMs": null,
+        "lastAnswerMs": null,
+        "durationsMs": [],
+        "statuses": [],
+        "pubOnly": []
+      },
+      "firstPinsMs": null,
+      "firstSurfaceAnswerMs": 36.80000000447035,
+      "paintedPins": null,
+      "heapBytes": 175006583
+    }
+  }
+]

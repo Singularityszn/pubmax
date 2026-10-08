@@ -1,0 +1,13 @@
+{
+  "kind": "clean procedure file-I/O test with fake browser transport; not performance evidence",
+  "baselineExit": 1,
+  "afterExit": 0,
+  "outputFiles": 10,
+  "templateAdjacent": true,
+  "sampleTemplateUnchanged": true,
+  "rawFingerprintsUnchanged": true,
+  "baselineMeasureSha256": "916cbffa3c2fcbc0f1b48b9e0c0bb8bbf59588bcdf36f6984ea9c328aaff7ea0",
+  "correctedMeasureSha256": "ac3ed3dc2603c53461b2f82a50a637069d128615da4ff5776ff405fc87a6cc0f",
+  "originalFingerprintDiscrepancy": "retained",
+  "thread": "https://github.com/Singularityszn/pubmax/pull/2074#discussion_r4218659281"
+}

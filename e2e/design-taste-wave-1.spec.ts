@@ -45,7 +45,7 @@ async function mockTonightMusic(page: Page): Promise<void> {
             confidence: "listed",
           },
         ],
-        servedAt: observedAt,
+        servedAt: new Date().toISOString(),
         sourceObservedAt: observedAt,
         sourceFreshnessKind: "provider-observed",
         localityBasis: "london-default",
