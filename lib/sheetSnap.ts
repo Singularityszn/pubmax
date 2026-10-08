@@ -302,6 +302,8 @@ export function sheetSnapCaps(viewportHeight: number, dockPx: number, chromePx =
 }
 
 export type ResolveHeightSnapInput = {
+  /** Viewport height at grab, independent of the sheet's measured chrome. */
+  viewportHeight: number;
   /** Snap the drag started from. */
   startSnap: SheetSnap;
   /**
@@ -328,10 +330,11 @@ export type ResolveHeightSnapInput = {
  *    strong intent may cross more than one detent.
  *  • Otherwise nearest-neighbour on the released height, where the START snap's
  *    reference is its rendered start height and every other snap uses its cap.
- *  • A slow collapse below half of peek's cap dismisses.
+ *  • A physical collapse below half of the viewport-relative peek dismisses.
  * Pure; exported for tests.
  */
 export function resolveSheetHeightSnap({
+  viewportHeight,
   startSnap,
   startHeightPx,
   releaseHeightPx,
@@ -343,9 +346,10 @@ export function resolveSheetHeightSnap({
     ? projectMomentum(releaseHeightPx, velocity)
     : releaseHeightPx;
 
-  // A physical collapse well below peek dismisses. Projected momentum may
-  // dismiss only from peek so a flick from half still has a recoverable stop.
-  const dismissThreshold = caps.peek * 0.5;
+  // Keep physical dismissal independent of header and command-bar sizing.
+  // Projected momentum may dismiss only from peek so a flick from half still
+  // has a recoverable stop.
+  const dismissThreshold = viewportHeight * SHEET_SNAP_FRACTIONS.peek * 0.5;
   if (
     releaseHeightPx < dismissThreshold ||
     (startSnap === "peek" && projectedHeight < dismissThreshold)

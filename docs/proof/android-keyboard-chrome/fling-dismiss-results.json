@@ -1,0 +1,41 @@
+{
+  "baseline_head": "f41d62ea2cabfb0c97d6a68a46e7d16be8409564",
+  "replacement_branch": "fm/pubmax-android-keyboard-chrome-3",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "browser": "Chromium 153.0.8010.12 (Playwright revision 1243)",
+  "unchanged_spec": "e2e/map-surface-history.spec.ts",
+  "assertion_line": 328,
+  "before": {
+    "repeat_each": 3,
+    "passed": 0,
+    "failed": 3,
+    "portal_count": 1,
+    "expected_portal_count": 0
+  },
+  "after": {
+    "repeat_each": 3,
+    "passed": 3,
+    "failed": 0,
+    "portal_count": 0
+  },
+  "regressions": {
+    "passed": 28,
+    "failed": 0,
+    "files": [
+      "e2e/map-surface-history.spec.ts",
+      "e2e/mobile-keyboard-overlays.spec.ts",
+      "e2e/mobile-shared-sheet-layout.spec.ts",
+      "e2e/mobile-bottom-nav.spec.ts"
+    ]
+  },
+  "screenshots": {
+    "before": "before/fling-dismiss-browser390.png",
+    "after": "after/fling-dismiss-browser390.png",
+    "before_uses_preserved_baseline_production_build": true
+  },
+  "native_proof": false,
+  "source_fix": "Capture window.innerHeight at grab and use half of the viewport-relative peek for physical dismissal. Keep measured caps for presentation."
+}
