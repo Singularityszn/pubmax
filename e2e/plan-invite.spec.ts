@@ -2,7 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
 import { describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeFirst";
-import { setFirstPintIn } from "./helpers/planFirstPint";
+import { pinLondonEvening, setFirstPintIn } from "./helpers/planFirstPint";
 
 // Task: plan-invite-page. Proves the whole public invite feature end to end on
 // the production build: a real Plan's member-only invite token (exposed via
@@ -131,10 +131,12 @@ test("Copy invite link shows for the host's own session and never for an anonymo
     // the cooldown gate shut, the same way it would for a returning visitor.
     window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
   });
+  await pinLondonEvening(page);
   await openHydratedPlanComposer(page);
   await describeFirstQuery(page).fill("Quiet in Clapham for 4, not pricey");
   await describeFirstSubmit(page).click();
-  await expect(page.getByRole("combobox", { name: /Area/i })).toHaveValue("clapham");
+  // The route names the area it understood (the area picker itself is behind Tune details).
+  await expect(page.getByRole("heading", { name: /^(Tonight|Today|Tomorrow night) in Clapham$/ })).toBeVisible();
   await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");
   // Evening defaults can land in the past after ~19:00 London; a past First
@@ -203,10 +205,12 @@ test("invite loop: guest RSVP, host Remove via cookie path, guest map handoff", 
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
   });
+  await pinLondonEvening(page);
   await openHydratedPlanComposer(page);
   await describeFirstQuery(page).fill("Quiet in Clapham for 4, not pricey");
   await describeFirstSubmit(page).click();
-  await expect(page.getByRole("combobox", { name: /Area/i })).toHaveValue("clapham");
+  // The route names the area it understood (the area picker itself is behind Tune details).
+  await expect(page.getByRole("heading", { name: /^(Tonight|Today|Tomorrow night) in Clapham$/ })).toBeVisible();
   await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");
   await setFirstPintIn(page, 3 * 60);

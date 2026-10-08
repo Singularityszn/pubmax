@@ -1,0 +1,158 @@
+// What the Plan result reads out of its stops: the one summary line, the walk
+// between two stops and the price stamp on a card. Pure, so the card list, the
+// header and the tests all say the same figure.
+//
+// HONEST OR ABSENT. A figure that is not in the stop's own record is never
+// invented: a total that needs every stop prints only when every stop has the
+// figure, and a walk that was timed for a different neighbour prints nothing
+// until the map has measured the new one.
+
+import { londonNightsAhead } from "@/lib/planIntake";
+import { legMinutes } from "@/lib/routeLegs";
+import type { WalkLegDistance } from "@/lib/walkRoute";
+
+export type RouteViewStop = {
+  venueId: string;
+  venueName: string;
+  /** Minutes from the stop before it, as the generator timed them. */
+  walkingMinutesFromPrevious?: number | null;
+  /** The stop the generator timed that walk FROM. A reorder breaks the match. */
+  walkFromVenueId?: string;
+  estimatedPintPricePence?: number | null;
+  priceKind?: "listed" | "estimated";
+};
+
+/** Walk minutes the browser measured per leg, keyed by `fromId>toId`. */
+export type MeasuredLegMinutes = ReadonlyMap<string, number>;
+
+export function legKey(fromVenueId: string, toVenueId: string): string {
+  return `${fromVenueId}>${toVenueId}`;
+}
+
+/**
+ * `/api/walk-route` legs, indexed by position, mapped onto the stops they join.
+ * Only a routed leg is a measured walk: a straight-line one is not printed as one.
+ */
+export function measuredLegMinutes(
+  venueIds: readonly string[],
+  legs: readonly WalkLegDistance[],
+): MeasuredLegMinutes {
+  const out = new Map<string, number>();
+  for (const leg of legs) {
+    if (leg.source !== "ors") continue;
+    const from = venueIds[leg.fromIndex];
+    const to = venueIds[leg.toIndex];
+    if (!from || !to || !Number.isFinite(leg.distanceKm) || leg.distanceKm <= 0) continue;
+    // Timed from the routed distance at walking pace. The generator times its own
+    // routed leg from the router's duration, so the two can differ by a minute.
+    out.set(legKey(from, to), legMinutes(leg.distanceKm));
+  }
+  return out;
+}
+
+/**
+ * The walk into `stop` from `previous`. The generator's figure counts only when
+ * it was timed from this very neighbour, otherwise the map's own measurement of
+ * this pair, otherwise nothing.
+ */
+export function walkMinutesBetween(
+  previous: RouteViewStop,
+  stop: RouteViewStop,
+  measured?: MeasuredLegMinutes,
+): number | null {
+  const timed = stop.walkingMinutesFromPrevious;
+  if (
+    typeof timed === "number"
+    && Number.isFinite(timed)
+    && timed >= 0
+    && stop.walkFromVenueId === previous.venueId
+  ) {
+    return Math.max(1, Math.round(timed));
+  }
+  return measured?.get(legKey(previous.venueId, stop.venueId)) ?? null;
+}
+
+export function formatPence(pence: number): string {
+  const pounds = pence / 100;
+  return Number.isInteger(pounds) ? `£${pounds}` : `£${pounds.toFixed(2)}`;
+}
+
+/** A stamp on a card: always pounds and pence, so a column of prices lines up. */
+export function formatPenceFixed(pence: number): string {
+  return `£${(pence / 100).toFixed(2)}`;
+}
+
+export function walkLabel(minutes: number): string {
+  return `${minutes} min walk`;
+}
+
+/** `3 stops`, `1 stop`. The unit is the product's own word for a Stop. */
+function stopCountLabel(count: number): string {
+  return count === 1 ? "1 stop" : `${count} stops`;
+}
+
+export function routeTotals(
+  stops: readonly RouteViewStop[],
+  measured?: MeasuredLegMinutes,
+): { pricePence: number | null; walkMinutes: number | null } {
+  const priced = stops.length > 0
+    && stops.every((stop) => typeof stop.estimatedPintPricePence === "number" && stop.estimatedPintPricePence > 0);
+  const pricePence = priced
+    ? stops.reduce((total, stop) => total + (stop.estimatedPintPricePence as number), 0)
+    : null;
+  let walkMinutes = 0;
+  for (let index = 1; index < stops.length; index += 1) {
+    const leg = walkMinutesBetween(stops[index - 1]!, stops[index]!, measured);
+    if (leg === null) return { pricePence, walkMinutes: null };
+    walkMinutes += leg;
+  }
+  return { pricePence, walkMinutes: stops.length > 1 ? walkMinutes : null };
+}
+
+/** `3 stops · £18 each · 18 min walk`, each part only when it is real. */
+export function routeSummaryLine(
+  stops: readonly RouteViewStop[],
+  measured?: MeasuredLegMinutes,
+): string {
+  const totals = routeTotals(stops, measured);
+  return [
+    stopCountLabel(stops.length),
+    totals.pricePence === null ? null : `${formatPence(totals.pricePence)} each`,
+    totals.walkMinutes === null ? null : walkLabel(totals.walkMinutes),
+  ].filter((part): part is string => part !== null).join(" · ");
+}
+
+export function priceKindLabel(kind: RouteViewStop["priceKind"]): string | null {
+  if (kind === "listed") return "Listed price";
+  if (kind === "estimated") return "Estimated price";
+  return null;
+}
+
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/** Past this many nights ahead a weekday alone reads as this week's, so the date rides with it. */
+const WEEKDAY_ALONE_NIGHTS = 6;
+
+/**
+ * The page's heading: where and when, in the product's own words. When is the
+ * start time's night against tonight's, a night running until 05:00 London: the
+ * same night by its daypart, then tomorrow, then the weekday, with the date
+ * once it is more than a week away. A start that has already passed is just the night.
+ */
+export function routeHeading(input: {
+  daypart: string | null | undefined;
+  areaName: string | null;
+  startInput: string;
+  now?: Date;
+}): string {
+  if (!input.areaName) return "Your route";
+  const daytime = input.daypart === "daytime";
+  const ahead = londonNightsAhead(input.startInput, input.now);
+  if (ahead?.past) return `Your night in ${input.areaName}`;
+  if (!ahead || ahead.nights <= 0) return `${daytime ? "Today" : "Tonight"} in ${input.areaName}`;
+  const when = `${ahead.nights === 1 ? "Tomorrow" : WEEKDAYS[ahead.night.getUTCDay()]}${daytime ? "" : " night"}`;
+  const date = ahead.nights > WEEKDAY_ALONE_NIGHTS
+    ? `, ${ahead.night.getUTCDate()} ${MONTHS[ahead.night.getUTCMonth()]}`
+    : "";
+  return `${when} in ${input.areaName}${date}`;
+}

@@ -322,6 +322,12 @@ export const UNRESOLVED_ACCEPTED_VENUE_NAME = "";
 export const UNRESOLVED_ACCEPTED_VENUE_LABEL = "The pub you kept";
 
 /**
+ * What the held Stop 1 card prints while its name is unresolved. The venue may
+ * not be a pub at all (the index only lists pubs), so the card does not say so.
+ */
+export const UNRESOLVED_ACCEPTED_STOP_LABEL = "Your chosen place";
+
+/**
  * Seed the accepted Venue as one editable Stop 1 only when no saved Route or
  * Plan stops exist. The Venue id remains the accepted id; the display name is
  * resolved from the loaded Venue index when available, and stays empty rather
