@@ -1,0 +1,52 @@
+{
+  "baseURL": "http://localhost:34732",
+  "controlledDelay": "MapLibre worker assets held until the behavior assertion completes",
+  "before": {
+    "paintedPoints": 0,
+    "firstPinsMarked": false,
+    "pinRevealMarked": false
+  },
+  "atPoiStart": {
+    "paintedPoints": 0,
+    "firstPinsMarked": true,
+    "pinRevealMarked": false
+  },
+  "workerRows": [
+    {
+      "path": "/vendor/maplibre/maplibre-gl-worker.mjs",
+      "time": 1791405180111
+    }
+  ],
+  "rows": [
+    {
+      "phase": "arrival",
+      "path": "/data/venues_slim.core.json",
+      "time": 1791405180127
+    },
+    {
+      "phase": "focus",
+      "path": "/data/venues_slim.manifest.json",
+      "time": 1791405180279
+    },
+    {
+      "phase": "focus",
+      "path": "/data/venues_slim.cell.51.500_-0.125.json",
+      "time": 1791405180298
+    },
+    {
+      "phase": "focus",
+      "path": "/data/venues_slim.core.json",
+      "time": 1791405180298
+    },
+    {
+      "phase": "focus",
+      "path": "/data/venues_slim.cell.51.525_-0.125.json",
+      "time": 1791405180298
+    },
+    {
+      "phase": "focus",
+      "path": "/data/venues_slim.cell.51.525_-0.150.json",
+      "time": 1791405180298
+    }
+  ]
+}
