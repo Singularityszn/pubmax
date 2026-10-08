@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   MAP_FIRST_VISIT_ARRIVAL_KEY,
@@ -31,6 +31,7 @@ function makeMemoryStorage(): Storage {
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   setMapFirstVisitArrivalCardVisible(false);
 });
 
@@ -68,6 +69,8 @@ describe("mapFirstVisitArrival", () => {
     const answeredAt = Date.UTC(2026, 9, 1, 12);
 
     it("holds for 30 days after any answer, then lets the ask be made once more", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(answeredAt + 29 * DAY);
       const storage = makeMemoryStorage();
       dismissMapFirstVisitArrival(storage, answeredAt);
       expect(storage.getItem(MAP_FIRST_VISIT_ARRIVAL_KEY)).toBe(`dismissed:${answeredAt}`);
@@ -80,6 +83,10 @@ describe("mapFirstVisitArrival", () => {
           storage,
         }),
       ).toBe(false);
+      vi.setSystemTime(answeredAt + 30 * DAY);
+      expect(
+        shouldShowMapFirstVisitArrival({ pinsRevealed: true, search: "", storage }),
+      ).toBe(true);
     });
 
     it("never expires the bare value every earlier build wrote", () => {
