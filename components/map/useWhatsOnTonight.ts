@@ -143,11 +143,29 @@ function fetchWithTimeout(
     const onOuterAbort = () => controller.abort();
     outerSignal?.addEventListener("abort", onOuterAbort, { once: true });
     const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      return await fetchImpl(input, { ...init, signal: controller.signal });
-    } finally {
+    const cleanup = () => {
       clearTimeout(timer);
       outerSignal?.removeEventListener("abort", onOuterAbort);
+    };
+    try {
+      const response = await fetchImpl(input, { ...init, signal: controller.signal });
+      if (!response.ok) {
+        cleanup();
+        return response;
+      }
+      // Fetch resolves at headers. Keep abort and timeout active until JSON finishes.
+      const readJson = response.json.bind(response);
+      response.json = async () => {
+        try {
+          return await readJson();
+        } finally {
+          cleanup();
+        }
+      };
+      return response;
+    } catch (error) {
+      cleanup();
+      throw error;
     }
   };
 }
