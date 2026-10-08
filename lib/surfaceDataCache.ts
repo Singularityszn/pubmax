@@ -318,6 +318,7 @@ export function surfaceCacheSize(): number {
 // nobody is waiting for should not stay on the wire.
 type InFlightRequest = {
   promise: Promise<unknown | undefined>;
+  startedAt: number;
   controller: AbortController;
   joiners: number;
   /** Nobody is waiting, but the read is held for the grace window. */
@@ -344,6 +345,7 @@ const inFlight = new Map<string, InFlightRequest>();
 
 export type LoadSurfaceJsonOptions<T = unknown> = {
   signal?: AbortSignal;
+  requestNotBefore?: number;
   init?: RequestInit;
   maxAgeMs?: number;
   fetchImpl?: typeof fetch;
@@ -475,7 +477,7 @@ function joinSurfaceRequest<T>(
   options: LoadSurfaceJsonOptions<T>,
 ): InFlightRequest {
   const existing = options.fresh ? undefined : inFlight.get(key);
-  if (existing) {
+  if (existing && existing.startedAt >= (options.requestNotBefore ?? -Infinity)) {
     existing.joiners += 1;
     existing.abandoned = false;
     if (existing.graceTimer) clearTimeout(existing.graceTimer);
@@ -485,6 +487,7 @@ function joinSurfaceRequest<T>(
   const controller = new AbortController();
   const entry: InFlightRequest = {
     controller,
+    startedAt: Date.now(),
     joiners: 1,
     abandoned: false,
     settled: false,

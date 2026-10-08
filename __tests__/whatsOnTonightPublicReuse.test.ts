@@ -5,6 +5,7 @@ import { clearSurfaceCache } from "@/lib/surfaceDataCache";
 import { DEVICE_IDENTITY_CHANGED_EVENT } from "@/lib/deviceAccountIdentity";
 
 const body = {
+  get servedAt() { return new Date(Date.now()).toISOString(); },
   rows: [],
   sourceObservedAt: "2026-10-07T09:00:00.000Z",
   sourceFreshnessKind: "dataset-generated",
