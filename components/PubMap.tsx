@@ -6797,8 +6797,9 @@ export default function PubMap({
       {railViewport && !detailOpen && !showMapArrivalCard ? (
         <MapDesktopRail area={searchAreaNewsArea ?? suggestedPlanArea?.slug ?? null} />
       ) : null}
-      {/* Ambient banners dock under the control bar and step off the map the
-          moment the reader moves the camera (design judgement 2026-08-01,
+      {/* City-wide ambient banners dock under the control bar and step off the
+          map when the reader moves the camera. Local news follows the settled
+          view (design judgement 2026-08-01,
           finding 2.15). They used to park in the exact centre of the
           viewport, over the pins the map exists to show. */}
       {ambientBannerLaneOpen && !baseLedChrome ? (
@@ -6810,8 +6811,12 @@ export default function PubMap({
           }}
         />
       ) : null}
-      {ambientBannerLaneOpen && isLondon ? (
-        <CityStatusBanner cityId={cityId} />
+      {!mobileViewport && !showMapArrivalCard && isLondon && mapAmbientBannersVisible({ canvasUnavailable: mapCanvasUnavailable }) ? (
+        <CityStatusBanner
+          cityId={cityId}
+          viewedArea={mapBounds && settledMapBoundsCityId === cityId ? mapChipLabel : null}
+          allowCitywideStatus={ambientBannerLaneOpen}
+        />
       ) : null}
       {/* F3: concierge as map home — a first-class grounded ask affordance in
           the bottom map-home lane. Rendered before the Tonight lane so its

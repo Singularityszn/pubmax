@@ -21,6 +21,9 @@ import { CITY_STATUS_UNSOURCED_LABEL, cityStatusSignalSource } from "@/lib/cityS
 import { loadSurfaceJson, SURFACE_JUST_READ_MS } from "@/lib/surfaceDataCache";
 import { firstHttp } from "@/lib/httpUrl";
 import { useStaggeredRead } from "@/lib/useStaggeredRead";
+import { LONDON_BOROUGH_NAMES } from "@/lib/londonBoroughNames.mjs";
+import { locationNamesBorough } from "@/lib/starterPacks";
+import { normaliseUkPlaceQuery } from "@/lib/ukPlaceSearch";
 
 
 type Weather = {
@@ -54,7 +57,25 @@ type StatusResponse = {
 type CityStatusBannerProps = {
   /** Explicit for parity with sibling banners; parent gates by cityId already. */
   cityId?: string;
+  /** The name earned by the settled map view. Null means no local context. */
+  viewedArea?: string | null;
+  /** City-wide fallback yields after the reader moves the camera. */
+  allowCitywideStatus?: boolean;
 };
+
+function signalsInViewedArea(signals: Signal[] | undefined, viewedArea: string | null): Signal[] {
+  const viewedNames = viewedArea ? viewedArea.split(/\s*(?:&|,)\s*/).map(normaliseUkPlaceQuery) : [];
+  return (signals ?? []).filter((signal) => {
+    const areas = (signal.areas ?? []).map(normaliseUkPlaceQuery).filter(Boolean);
+    // An unlocated signal cannot establish a local fact about this view.
+    if (areas.length === 0) return false;
+    if (areas.every((area) => area === "london" || area === "greater london")) return true;
+    return areas.filter((area) => area !== "london" && area !== "greater london").some((area) => viewedNames.includes(area) || (
+      viewedArea !== null && LONDON_BOROUGH_NAMES.includes(viewedArea) &&
+      locationNamesBorough(area, viewedArea)
+    ));
+  });
+}
 
 const DISMISS_KEY = "pubmax:cityStatusDismiss:v1";
 
@@ -235,7 +256,7 @@ function formatAsOfLabel(asOf: string | null | undefined): string {
   return `Updated ${time} · CityMCP`;
 }
 
-export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
+export default function CityStatusBanner({ cityId, viewedArea = null, allowCitywideStatus = true }: CityStatusBannerProps) {
   // Only render on London — the API/tools are London-only.
   const isLondon = cityId === "london" || cityId === undefined;
   const [data, setData] = useState<StatusResponse | null>(null);
@@ -243,6 +264,11 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
   // A4 — whether the full signals sheet is open. Collapses on Escape and on
   // each fresh fetch (setData below always starts collapsed).
   const [expanded, setExpanded] = useState(false);
+  const [expandedArea, setExpandedArea] = useState(viewedArea);
+  if (expandedArea !== viewedArea) {
+    setExpandedArea(viewedArea);
+    setExpanded(false);
+  }
   const aborted = useRef(false);
   // An opening banner, not the first screen: it asks after the map has asked.
   const ready = useStaggeredRead(1, "map");
@@ -306,8 +332,10 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
     return null;
   }
 
-  const headline = pickCityStatusHeadline(data);
+  const signals = signalsInViewedArea(data.signals, viewedArea);
+  const headline = pickCityStatusHeadline({ ...data, signals });
   if (!headline) return null;
+  if (!allowCitywideStatus && headline.kind !== "signal") return null;
 
   const affectedLines = (data.tubeLines ?? []).filter(
     (line) => line.line && line.status && line.status.toLowerCase() !== "good service",
@@ -322,10 +350,10 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
     setDismissed(true);
   };
 
-  const signalCount = data.signals?.length ?? 0;
+  const signalCount = signals.length;
   const hasSignals = signalCount > 0;
   const hasDetails = hasSignals || affectedLines.length > 0;
-  const groups = groupSignalsByKind(data.signals);
+  const groups = groupSignalsByKind(signals);
 
   const content = (
     <>
