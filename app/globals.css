@@ -5582,7 +5582,9 @@ button:disabled {
     );
   }
 
-  /* Tab bar is hidden while planning/detail sheets own the bottom edge. */
+  /* The tab bar stays up beside an open planning/detail sheet, but the sheet
+     covers the foot above it, so the controls under the sheet need only a
+     safe-area buffer. */
   .appShell.detail-open,
   .appShell.planning-open {
     --mobile-tab-clearance: calc(12px + env(safe-area-inset-bottom, 0px));
