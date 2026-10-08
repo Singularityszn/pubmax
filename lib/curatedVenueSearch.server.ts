@@ -13,6 +13,7 @@ import "server-only";
 
 import { normaliseUkPlaceQuery } from "@/lib/ukPlaceSearch";
 import { getVenueIndex } from "@/lib/venueIndex";
+import { venueSearchNames } from "@/lib/venueSearchNames.mjs";
 
 /** The shortest query worth matching. One letter matches half of London. */
 export const CURATED_VENUE_SEARCH_MIN_QUERY = 2;
@@ -49,8 +50,11 @@ export async function searchCuratedVenues(
   const scored: { tier: number; hit: CuratedVenueHit }[] = [];
   for (const [id, venue] of index) {
     const name = typeof venue.name === "string" ? venue.name : "";
-    const tier = matchTier(normaliseUkPlaceQuery(name), query);
-    if (tier === null) continue;
+    const tiers = venueSearchNames({ id, name })
+      .map((label) => matchTier(normaliseUkPlaceQuery(label), query))
+      .filter((tier): tier is number => tier !== null);
+    if (tiers.length === 0) continue;
+    const tier = Math.min(...tiers);
     scored.push({
       tier,
       hit: { id, name, area: typeof venue.borough === "string" ? venue.borough : "" },

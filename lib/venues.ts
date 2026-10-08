@@ -3,6 +3,7 @@ import {
   isWithinMaxAge,
 } from "@/lib/communityPrice";
 import { getVenueCuration, type Provenance, type VenueCuration } from "@/lib/curation";
+import { venueSearchNames } from "@/lib/venueSearchNames.mjs";
 import {
   drinksMayBeOne,
   pintDropsAgree,
@@ -1082,7 +1083,7 @@ function hasSlimFlag(venue: Venue, pick: (hints: VenueFilterHints) => boolean): 
 function matchesVenueQuery(venue: Venue, query: string): boolean {
   if (!query) return true;
   const searchableFields = [
-    venue.name,
+    ...venueSearchNames(venue),
     venue.address,
     venue.cheapestPint,
     venue.primaryBorough,

@@ -40,6 +40,7 @@ import {
 } from "@/lib/ukBasePubSearch";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import { kebabSlug, normalizeSearchText } from "@/lib/textSlug";
+import { venueSearchNames } from "@/lib/venueSearchNames.mjs";
 
 export type { UkBasePubSuggestion };
 export { UK_BASE_SEARCH_GROUP_LABEL } from "@/lib/ukBasePubSearch";
@@ -550,7 +551,7 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
     const seen = new Set<string>();
     for (const venue of venues) {
       if (!venue.name || seen.has(venue.id)) continue;
-      const tier = matchTier([venue.name], query);
+      const tier = matchTier(venueSearchNames(venue), query);
       if (tier === null) continue;
       seen.add(venue.id);
       pubMatches.push({
