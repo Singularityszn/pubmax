@@ -63,13 +63,13 @@ type CityStatusBannerProps = {
   allowCitywideStatus?: boolean;
 };
 
-function signalsInViewedArea(signals: Signal[] | undefined, viewedArea: string | null): Signal[] {
+function signalsInViewedArea(signals: Signal[] | undefined, viewedArea: string | null, allowCitywideStatus: boolean): Signal[] {
   const viewedNames = viewedArea ? viewedArea.split(/\s*(?:&|,)\s*/).map(normaliseUkPlaceQuery) : [];
   return (signals ?? []).filter((signal) => {
     const areas = (signal.areas ?? []).map(normaliseUkPlaceQuery).filter(Boolean);
     // An unlocated signal cannot establish a local fact about this view.
     if (areas.length === 0) return false;
-    if (areas.every((area) => area === "london" || area === "greater london")) return true;
+    if (areas.every((area) => area === "london" || area === "greater london")) return allowCitywideStatus;
     return areas.filter((area) => area !== "london" && area !== "greater london").some((area) => viewedNames.includes(area) || (
       viewedArea !== null && LONDON_BOROUGH_NAMES.includes(viewedArea) &&
       locationNamesBorough(area, viewedArea)
@@ -332,7 +332,7 @@ export default function CityStatusBanner({ cityId, viewedArea = null, allowCityw
     return null;
   }
 
-  const signals = signalsInViewedArea(data.signals, viewedArea);
+  const signals = signalsInViewedArea(data.signals, viewedArea, allowCitywideStatus);
   const headline = pickCityStatusHeadline({ ...data, signals });
   if (!headline) return null;
   if (!allowCitywideStatus && headline.kind !== "signal") return null;
