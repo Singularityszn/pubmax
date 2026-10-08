@@ -1,0 +1,248 @@
+{
+  "observed_at": "2026-10-08T11:10:12.876Z",
+  "method": "GET",
+  "status": 200,
+  "has_more": false,
+  "tools": [
+    {
+      "name": "search_venues",
+      "first_name_match": {
+        "id": "tool_1801m4bnvat2ex1rx6nxhka6zgq5",
+        "type": "client",
+        "attached": false
+      },
+      "attached_matches": [
+        {
+          "id": "tool_6301m3j5x1w2e4vsx1cy3xbj25q4",
+          "type": "webhook"
+        }
+      ],
+      "match_count": 5
+    },
+    {
+      "name": "whats_on",
+      "first_name_match": {
+        "id": "tool_8901m4bnvat3fen8f3escbybnva3",
+        "type": "client",
+        "attached": false
+      },
+      "attached_matches": [
+        {
+          "id": "tool_7501m3j5x31pe1xv2h0snck3qx2c",
+          "type": "webhook"
+        }
+      ],
+      "match_count": 5
+    },
+    {
+      "name": "venue_heritage",
+      "first_name_match": {
+        "id": "tool_8101m4bnvat4f1tbh0y6k5b98s8m",
+        "type": "client",
+        "attached": false
+      },
+      "attached_matches": [
+        {
+          "id": "tool_3201m3j5x49pe3wvgbvr9qs4yrg8",
+          "type": "webhook"
+        }
+      ],
+      "match_count": 5
+    },
+    {
+      "name": "venue_prices",
+      "first_name_match": {
+        "id": "tool_3401m4bnvat5f7e9mt44gd83m8qb",
+        "type": "client",
+        "attached": false
+      },
+      "attached_matches": [
+        {
+          "id": "tool_0401m3j5x5f4e5bv2smx6a1n6tr5",
+          "type": "webhook"
+        }
+      ],
+      "match_count": 5
+    },
+    {
+      "name": "city_status",
+      "first_name_match": {
+        "id": "tool_7001m4bnvat6eqba06nk62xb54q3",
+        "type": "client",
+        "attached": false
+      },
+      "attached_matches": [
+        {
+          "id": "tool_7601m3j5x5vpe2c9fvcw1hs2bzjb",
+          "type": "webhook"
+        }
+      ],
+      "match_count": 5
+    },
+    {
+      "name": "journey",
+      "first_name_match": {
+        "id": "tool_0501m4bnvat7eps8jgrsp0hytbb4",
+        "type": "client",
+        "attached": false
+      },
+      "attached_matches": [
+        {
+          "id": "tool_5601m3j5x71ees7rd7z9sn2k4y8v",
+          "type": "webhook"
+        }
+      ],
+      "match_count": 5
+    },
+    {
+      "name": "area_buzz",
+      "first_name_match": {
+        "id": "tool_7601m4bnvat8fy78x71r5cz5pkt5",
+        "type": "client",
+        "attached": false
+      },
+      "attached_matches": [
+        {
+          "id": "tool_4801m3j5x86nevcsrd6rkm26cevr",
+          "type": "webhook"
+        }
+      ],
+      "match_count": 5
+    },
+    {
+      "name": "propose_plan",
+      "first_name_match": {
+        "id": "tool_8201m4bnvat9fbzrf1q9be6bqy08",
+        "type": "client",
+        "attached": false
+      },
+      "attached_matches": [
+        {
+          "id": "tool_6201m3j5x9d0frfvr8dc6z88dmna",
+          "type": "webhook"
+        }
+      ],
+      "match_count": 5
+    },
+    {
+      "name": "propose_map_action",
+      "first_name_match": {
+        "id": "tool_1201m4bnvataf1y815jf7p0bjcrr",
+        "type": "client",
+        "attached": false
+      },
+      "attached_matches": [
+        {
+          "id": "tool_2701m3j5x9r0ewnskx16cc8hkr6t",
+          "type": "webhook"
+        }
+      ],
+      "match_count": 5
+    },
+    {
+      "name": "cheapest_pint_near",
+      "first_name_match": {
+        "id": "tool_6501m4bnvatbfr1r1ce34qxw19m2",
+        "type": "client",
+        "attached": false
+      },
+      "attached_matches": [
+        {
+          "id": "tool_2201m3j5xa34f73853eb63d42x64",
+          "type": "webhook"
+        }
+      ],
+      "match_count": 5
+    },
+    {
+      "name": "tonight_now",
+      "first_name_match": {
+        "id": "tool_3101m4bnvatceby899a620g4cg6y",
+        "type": "client",
+        "attached": false
+      },
+      "attached_matches": [
+        {
+          "id": "tool_3301m3j5xb8zfenr4dxqhcejp0k4",
+          "type": "webhook"
+        }
+      ],
+      "match_count": 5
+    },
+    {
+      "name": "venue_drinks",
+      "first_name_match": {
+        "id": "tool_4401m4bnvatde5vs1mg9cdhn9wt6",
+        "type": "client",
+        "attached": false
+      },
+      "attached_matches": [
+        {
+          "id": "tool_2501m3j5xbkqekgtnt6fww31pxhb",
+          "type": "webhook"
+        }
+      ],
+      "match_count": 5
+    },
+    {
+      "name": "find_desk",
+      "first_name_match": {
+        "id": "tool_3001m4bnvatee90a3e0gf419s752",
+        "type": "client",
+        "attached": false
+      },
+      "attached_matches": [
+        {
+          "id": "tool_0301m3j5xbzmfm1rtbb4ww2rhpvr",
+          "type": "webhook"
+        }
+      ],
+      "match_count": 5
+    },
+    {
+      "name": "report_occupancy",
+      "first_name_match": {
+        "id": "tool_0601m4bnvatff3hs1wb16zmkpwx1",
+        "type": "client",
+        "attached": false
+      },
+      "attached_matches": [
+        {
+          "id": "tool_0001m3j5xcabf0xb3g7q0z8j3g8x",
+          "type": "webhook"
+        }
+      ],
+      "match_count": 5
+    },
+    {
+      "name": "recall_memories",
+      "first_name_match": {
+        "id": "tool_6001m4bnvatgf5ztkn7ntx1kc323",
+        "type": "client",
+        "attached": false
+      },
+      "attached_matches": [
+        {
+          "id": "tool_8601m4akqveqf0xvmdnhxvfzhsrc",
+          "type": "webhook"
+        }
+      ],
+      "match_count": 5
+    },
+    {
+      "name": "propose_memory",
+      "first_name_match": {
+        "id": "tool_2101m4bnvathe8x98ew8eb3xp9g4",
+        "type": "client",
+        "attached": false
+      },
+      "attached_matches": [
+        {
+          "id": "tool_4001m4akqwmsfynvnxsnc50jx5n1",
+          "type": "webhook"
+        }
+      ],
+      "match_count": 5
+    }
+  ]
+}
