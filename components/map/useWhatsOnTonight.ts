@@ -19,7 +19,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { coarsenViewerPoint } from "@/lib/geo";
 import {
-  DEFAULT_SURFACE_SNAPSHOT_MAX_AGE_MS,
   loadSurfaceJson,
   SURFACE_JUST_READ_MS,
 } from "@/lib/surfaceDataCache";
@@ -44,6 +43,7 @@ export type TonightFreshnessKind = "provider-observed" | "dataset-generated" | "
 
 type ApiResponse = {
   rows?: unknown;
+  servedAt?: unknown;
   asOf?: string | null;
   sourceObservedAt?: string | null;
   sourceFreshnessKind?: unknown;
@@ -99,16 +99,14 @@ function whatsOnTonightRequestUrl(
   return `/api/whats-on?window=tonight&limit=60${suffix}${pubOnly ? "&pubOnly=1" : ""}`;
 }
 
-/** A previous night's rows must not seed a paint after London's 04:00 rollover. */
-function tonightSnapshotMaxAge(maxAgeMs: number | undefined): number {
+function tonightRollover(): number {
   const now = Date.now();
   const { start } = londonServiceDayBounds(now);
   // The current window starts at 16:00. An instant one day before that start
   // is inside the previous service date, even on a clock-change day. Resolve
   // that date's 04:00 end independently rather than assuming a 24-hour day.
   const previousWindow = londonServiceDayBounds(Date.parse(start) - 24 * 60 * 60_000);
-  const elapsedSinceRollover = now - Date.parse(previousWindow.end);
-  return Math.min(maxAgeMs ?? DEFAULT_SURFACE_SNAPSHOT_MAX_AGE_MS, elapsedSinceRollover);
+  return Date.parse(previousWindow.end);
 }
 
 export type LoadTonightResult = {
@@ -179,16 +177,19 @@ export async function loadWhatsOnTonight(
     whatsOnTonightRequestUrl(opts.near, opts.pubOnly === true),
     {
       signal: opts.signal,
-      maxAgeMs: opts.fresh ? -1 : tonightSnapshotMaxAge(opts.maxAgeMs),
+      maxAgeMs: opts.fresh ? -1 : opts.maxAgeMs,
+      requestNotBefore: tonightRollover(),
       fresh: opts.fresh,
       freshForMs: opts.near ? SURFACE_JUST_READ_MS : PUBLIC_TONIGHT_FRESH_MS,
       init: { headers: { accept: "application/json" } },
       fetchImpl,
-      validate: (body) => Boolean(
-        body &&
-          typeof body === "object" &&
-          Array.isArray((body as ApiResponse).rows),
-      ),
+      validate: (body) => {
+        if (!body || typeof body !== "object" || !Array.isArray(body.rows)) return false;
+        if (typeof body.error === "string" && body.error.trim().length > 0) return true;
+        const servedAt = typeof body.servedAt === "string" ? Date.parse(body.servedAt) : NaN;
+        return Number.isFinite(servedAt) &&
+          londonServiceDayBounds(servedAt).start === londonServiceDayBounds().start;
+      },
     },
     (body, source) => {
       if (typeof body.error === "string" && body.error.trim().length > 0) {
