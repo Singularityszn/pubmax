@@ -343,7 +343,7 @@ export function readExistingCommonRows(filePath) {
 /**
  * The own-site rows the held file carries. Their writer is
  * scripts/whatson/contextDevHarvest.mjs and each row names its pub's own site,
- * so no label list can select them. A row whose time has passed does not carry.
+ * so no label list can select them. A row past its effective end does not carry.
  */
 export function readExistingOwnSiteRows(filePath, nowMs) {
   if (!existsSync(filePath)) return [];

@@ -38,9 +38,9 @@ export function ambiguousPubWebsites(pubs: WhatsOnPub[]): Set<string> {
 
 /**
  * A successful read replaces every row this lane held from its page. A held row
- * whose time has passed leaves. One pub's slot that several of its pages list
- * publishes once, from the first page that lists it. A pub screens several
- * fixtures at once, so a sport slot is also its fixture.
+ * leaves at its effective end (`timedRowEffectiveEnd`). One pub's slot that
+ * several of its pages list publishes once, from the first page that lists it.
+ * A pub screens several fixtures at once, so a sport slot is also its fixture.
  */
 export function mergeOwnSiteListings(previous: WhatsOnRow[], observations: { sourceUrl: string; osmId: string; rows: WhatsOnRow[] }[], nowMs: number): WhatsOnRow[] {
   const replaced = new Set(observations.map((entry) => entry.sourceUrl));

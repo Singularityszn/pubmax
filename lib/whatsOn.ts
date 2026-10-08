@@ -8,7 +8,6 @@
 // no licence field (per the B1 row contract).
 
 import {
-  POINT_ROW_GRACE_MS,
   eventIdentityKey,
   isCalendarDate as isCalendarDateShape,
   isHttpUrl,
@@ -496,7 +495,7 @@ export function filterTonight(rows: WhatsOnRow[], now: number = Date.now()): Wha
 
 // The instant a row stops being relevant: its explicit endsAt, or (for a point
 // row that carries no endsAt) startsAt plus a kind-aware effective duration
-// (POINT_ROW_GRACE_MS above). Same interval reading isOnTonight uses (#409/#417):
+// (POINT_ROW_GRACE_MS in lib/whatsOnRowShape.mjs). Same interval reading isOnTonight uses (#409/#417):
 // a row is [startsAt, effectiveEnd]. Interval rows keep their exact endsAt; only
 // point rows gain grace. Returns NaN only when startsAt itself is unparseable (a
 // row that would already fail isValidWhatsOnRow).
