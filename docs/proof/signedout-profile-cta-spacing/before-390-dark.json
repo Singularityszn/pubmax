@@ -1,0 +1,66 @@
+{
+  "viewport": [
+    390,
+    844
+  ],
+  "theme": "dark",
+  "hint": {
+    "tag": "SPAN",
+    "text": "Sign in to message",
+    "x": 41,
+    "y": 381.5625,
+    "width": 143.265625,
+    "height": 20,
+    "bottom": 401.5625,
+    "right": 184.265625,
+    "display": "inline"
+  },
+  "label": {
+    "tag": "LABEL",
+    "text": "Continue with email",
+    "x": 41,
+    "y": 401.5625,
+    "width": 308,
+    "height": 15,
+    "bottom": 416.5625,
+    "right": 349,
+    "display": "block"
+  },
+  "gap": 0,
+  "targets": [
+    {
+      "tag": "A",
+      "name": "Sign in to follow",
+      "x": 41,
+      "y": 327.5625,
+      "width": 145.40625,
+      "height": 44,
+      "disabled": false,
+      "href": "/login?mode=signin&from=%2Fu%2Ftestdrinker",
+      "centerHits": true
+    },
+    {
+      "tag": "INPUT",
+      "name": "Continue with email",
+      "x": 41,
+      "y": 422.953125,
+      "width": 308,
+      "height": 44,
+      "disabled": false,
+      "href": null,
+      "centerHits": true
+    },
+    {
+      "tag": "BUTTON",
+      "name": "Email me a link",
+      "x": 41,
+      "y": 474.140625,
+      "width": 308,
+      "height": 44,
+      "disabled": true,
+      "href": null,
+      "centerHits": true
+    }
+  ],
+  "sideways": false
+}
