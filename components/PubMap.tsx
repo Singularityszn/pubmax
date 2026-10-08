@@ -5060,6 +5060,10 @@ export default function PubMap({
     claimedArea,
     mapContextName,
   });
+  const cityStatusArea = mapChipLabel === "Near me" || (mapChosenArea &&
+    !rememberedAreaNamesView(mapChosenArea, mapBounds, mapViewport.center, userLocation))
+    ? claimedArea?.name ?? null
+    : mapChipLabel;
 
 
   // ── Where the reader is, and how they get out ────────────────────────────
@@ -6813,7 +6817,7 @@ export default function PubMap({
         <CityStatusBanner
           cityId={cityId}
           viewedArea={mapBounds && settledMapBoundsCityId === cityId
-            ? mapChipLabel === "Near me" ? claimedArea?.name ?? null : mapChipLabel
+            ? cityStatusArea
             : null}
           allowCitywideStatus={ambientBannerLaneOpen}
         />

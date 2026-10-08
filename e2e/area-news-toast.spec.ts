@@ -21,7 +21,7 @@ for (const theme of ["light", "dark"] as const) {
         localStorage.setItem("pubmax-tour-v1-done", "1");
         localStorage.setItem("pubmax_onboarding_dismissed", "1");
         sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
-        localStorage.setItem("pubmax:analytics-consent:v1", "denied");
+        localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
       }, theme);
       await page.route("**/api/citymcp/status**", (route) => route.fulfill({
         status: 200,
@@ -158,7 +158,7 @@ for (const theme of ["light", "dark"] as const) {
       localStorage.setItem("pubmax-tour-v1-done", "1");
       localStorage.setItem("pubmax_onboarding_dismissed", "1");
       sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
-      localStorage.setItem("pubmax:analytics-consent:v1", "denied");
+      localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
     }, theme);
     await page.route("**/api/citymcp/status**", (route) => route.fulfill({
       status: 200,
