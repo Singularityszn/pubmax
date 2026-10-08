@@ -143,3 +143,70 @@ for (const theme of ["light", "dark"] as const) {
     });
   }
 }
+
+for (const theme of ["light", "dark"] as const) {
+  test(`1440px ${theme} Near me keeps its label and shows news for the settled locality`, async ({ page, context }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await context.grantPermissions(["geolocation"]);
+    await context.setGeolocation({ latitude: 51.504, longitude: -0.082 });
+    await installDeterministicMapBasemap(page);
+    await page.addInitScript((choice) => {
+      localStorage.setItem("pubmax-theme", choice);
+      localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+      localStorage.setItem("pubmax-tour-v1-done", "1");
+      localStorage.setItem("pubmax_onboarding_dismissed", "1");
+      sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+      localStorage.setItem("pubmax:analytics-consent:v1", "denied");
+    }, theme);
+    await page.route("**/api/citymcp/status**", (route) => route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ signals: [{
+        headline: "Bermondsey fire", severity: "major", areas: ["Bermondsey"],
+        sourceUrl: "https://example.com/bermondsey-fire",
+      }], tubeLines: [], weather: null }),
+    }));
+    const initialStatus = page.waitForResponse("**/api/citymcp/status**");
+    await page.goto("/map");
+    await initialStatus;
+    await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+    await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
+    const cityDismiss = page.getByRole("button", { name: "Dismiss city suggestion" });
+    if (await cityDismiss.isVisible()) {
+      await expect(async () => {
+        await cityDismiss.click();
+        await expect(cityDismiss).toBeHidden({ timeout: 1_000 });
+      }).toPass({ timeout: 30_000 });
+    }
+    const choose = page.locator(".citySwitcherTrigger").filter({ visible: true });
+    await expect(async () => {
+      await choose.click();
+      await expect(page.getByRole("button", { name: "This area", exact: true })).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 30_000 });
+    await page.getByRole("button", { name: "This area", exact: true }).click();
+    const areaSheet = page.locator(".chooseAreaSheet").filter({ visible: true });
+    await expect(areaSheet).toBeVisible();
+    await areaSheet.getByRole("button", { name: "Near me", exact: true }).click();
+    await expect(areaSheet).toBeHidden();
+    await expect(choose).toHaveAttribute("aria-label", /Map area: Near me/i);
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Zoom in", exact: true }).click();
+    await page.getByRole("button", { name: "Zoom in", exact: true }).click();
+    await expect(page.locator(".cityStatusBannerCopy")).toHaveText("Bermondsey fire", { timeout: 30_000 });
+    await expect(page.locator(".cityStatusBannerCopy")).toBeVisible();
+    await expect(choose).toHaveAttribute("aria-label", /Map area: Near me/i);
+    await page.locator(".cityStatusBannerLink").click();
+    await expect(page.locator(".cityStatusSignalRowHeadline")).toHaveText("Bermondsey fire");
+    await expect(page.locator(".cityStatusSignalRowSource a")).toHaveAttribute("href", "https://example.com/bermondsey-fire");
+    await page.keyboard.press("Escape");
+    await choose.click();
+    await page.getByRole("button", { name: "This area", exact: true }).click();
+    await page.getByRole("searchbox", { name: "Search areas and postcodes" }).fill("Soho");
+    await page.locator(".chooseAreaSheet").filter({ visible: true }).getByRole("button", { name: /^Piccadilly & Soho/ }).click();
+    await expect(choose).toHaveAttribute("aria-label", /Map area: Piccadilly & Soho/i);
+    await expect(page.locator(".cityStatusBannerCopy")).toHaveCount(0);
+    await expect(page.locator(".cityStatusSignalSheet")).toHaveCount(0);
+  });
+}

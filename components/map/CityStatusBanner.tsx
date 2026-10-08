@@ -65,15 +65,17 @@ type CityStatusBannerProps = {
 
 function signalsInViewedArea(signals: Signal[] | undefined, viewedArea: string | null, allowCitywideStatus: boolean): Signal[] {
   const viewedNames = viewedArea ? viewedArea.split(/\s*(?:&|,)\s*/).map(normaliseUkPlaceQuery) : [];
+  const viewedBoroughs = LONDON_BOROUGH_NAMES.filter((borough) => viewedNames.some((name) =>
+    locationNamesBorough(name, borough) && locationNamesBorough(borough, name),
+  ));
   return (signals ?? []).filter((signal) => {
     const areas = (signal.areas ?? []).map(normaliseUkPlaceQuery).filter(Boolean);
     // An unlocated signal cannot establish a local fact about this view.
     if (areas.length === 0) return false;
     if (areas.every((area) => area === "london" || area === "greater london")) return allowCitywideStatus;
-    return areas.filter((area) => area !== "london" && area !== "greater london").some((area) => viewedNames.includes(area) || (
-      viewedArea !== null && LONDON_BOROUGH_NAMES.includes(viewedArea) &&
-      locationNamesBorough(area, viewedArea)
-    ));
+    return areas.filter((area) => area !== "london" && area !== "greater london").some((area) =>
+      viewedNames.includes(area) || viewedBoroughs.some((borough) => locationNamesBorough(area, borough)),
+    );
   });
 }
 
