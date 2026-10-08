@@ -76,6 +76,7 @@ const QUIET_LINES: Record<Exclude<MapPeekModel["status"], "answer">, string> = {
 
 type DragState = {
   pointerId: number;
+  captureTarget: Element;
   startY: number;
   originOffset: number;
   lastY: number;
@@ -116,9 +117,14 @@ export default function MapPeekSheet({
     (event: React.PointerEvent<HTMLElement>) => {
       if (!event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
       const originOffset = peekDragOrigin(stop().value);
+      const captureTarget = event.target as Element;
+      try {
+        captureTarget.setPointerCapture(event.pointerId);
+      } catch {}
       draggedRef.current = false;
       dragRef.current = {
         pointerId: event.pointerId,
+        captureTarget,
         startY: event.clientY,
         originOffset,
         lastY: event.clientY,
@@ -141,12 +147,6 @@ export default function MapPeekSheet({
         if (-dy < DRAG_SLOP_PX) return;
         drag.active = true;
         draggedRef.current = true;
-        try {
-          event.currentTarget.setPointerCapture(event.pointerId);
-        } catch {
-          // The pointer is already gone (cancelled, or a synthetic event): the
-          // drag still tracks off the card's own move events.
-        }
       }
       event.preventDefault();
       const now = performance.now();
@@ -167,16 +167,16 @@ export default function MapPeekSheet({
       const drag = dragRef.current;
       if (!drag || event.pointerId !== drag.pointerId) return;
       dragRef.current = null;
-      if (!drag.active) {
-        animateTo(0);
-        return;
-      }
       try {
-        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-          event.currentTarget.releasePointerCapture(event.pointerId);
+        if (drag.captureTarget.hasPointerCapture(event.pointerId)) {
+          drag.captureTarget.releasePointerCapture(event.pointerId);
         }
       } catch {
         // Nothing to release.
+      }
+      if (!drag.active) {
+        animateTo(0);
+        return;
       }
       // The click that follows a drag's pointerup is the drag's, and is
       // swallowed; the flag clears after it so a later keyboard click is not.
@@ -221,6 +221,7 @@ export default function MapPeekSheet({
       onPointerMove={onPointerMove}
       onPointerUp={(event) => finishDrag(event, false)}
       onPointerCancel={(event) => finishDrag(event, true)}
+      onLostPointerCapture={(event) => finishDrag(event, true)}
       onClickCapture={swallowClickAfterDrag}
     >
       <span className="mapPeekGrab" aria-hidden="true" />

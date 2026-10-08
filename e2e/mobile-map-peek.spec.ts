@@ -401,6 +401,52 @@ test("an interrupted return still settles and restores Create after a tap or can
   }
 });
 
+test("a mouse release outside an interrupted card returns it to rest and restores Create", async ({ page }) => {
+  await openMap(page, { reducedMotion: "no-preference" });
+  const card = await answeredCard(page);
+  const rest = await cardBox(page);
+  const x = rest.x + rest.width / 2;
+  const y = rest.y + 22;
+  for (const direction of ["sideways", "downward"]) {
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x, y - 30, { steps: 6 });
+    await page.waitForTimeout(100);
+    await page.mouse.up();
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    expect(await card.evaluate((element) => (element as HTMLElement).style.transform)).not.toBe("");
+    await page.mouse.move(
+      direction === "sideways" ? rest.x - 10 : x,
+      direction === "downward" ? rest.y + rest.height + 30 : y,
+    );
+    await page.mouse.up();
+    await expect(card).not.toHaveAttribute("data-dragging", "true", { timeout: 5000 });
+    expect(Math.abs((await cardBox(page)).y - rest.y)).toBeLessThan(1);
+    await expect(page.locator(".mapVenueList--open")).toHaveCount(0);
+    const create = page.getByRole("button", { name: "Create", exact: true });
+    await expect(page.locator(".createFabRoot")).toHaveCSS("opacity", "1");
+    expect(await create.evaluate((button) => {
+      const rect = button.getBoundingClientRect();
+      return button.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+    })).toBe(true);
+  }
+  await page.getByRole("button", { name: "Create", exact: true }).click();
+  await expect(page.locator(".createFabMenu")).toBeVisible();
+});
+
+test("a native pointer click on the peek plan door opens the planner", async ({ page }) => {
+  await openMap(page);
+  const card = await answeredCard(page);
+  await card.getByRole("button", { name: "Describe the outing", exact: true }).click();
+  const planner = page.getByRole("dialog", { name: "Plan an outing", exact: true });
+  await expect(planner).toBeVisible();
+  await expect(planner.getByRole("textbox", { name: "Describe the outing", exact: true })).toBeVisible();
+  await planner.getByRole("button", { name: "Close planner", exact: true }).click();
+  await expect(card).toBeVisible();
+  await expect(card).not.toHaveAttribute("data-dragging", "true");
+});
+
 test("a tap on the door still plans, and a drag that starts on it does not", async ({ page }) => {
   await openMap(page);
   const card = await answeredCard(page);
