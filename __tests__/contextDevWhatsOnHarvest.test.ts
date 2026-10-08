@@ -157,6 +157,19 @@ describe("London pub own-site harvest", () => {
     expect(jazz.rows.map((row) => [row.kind, row.title, row.startsAt])).toEqual([["music", "Live Music: The Jazz Trio", "2026-10-17T21:00:00+01:00"]]);
   });
 
+  it("keeps each dated non-sport listing's own date and time in a section list", () => {
+    const mixed = "## What's On\nThursday 15 October\n8pm\n### Pub Quiz\nOur general knowledge quiz\nFriday 16 October\n9pm\n### Live Music: The Jazz Trio\nFree entry\n";
+    expect(readPubWhatsOn(pub, mixed, pub.website, observedAt).rows.map((row) => [row.kind, row.title, row.startsAt])).toEqual([
+      ["quiz", "Pub Quiz", "2026-10-15T20:00:00+01:00"],
+      ["music", "Live Music: The Jazz Trio", "2026-10-16T21:00:00+01:00"],
+    ]);
+    const music = "## Upcoming\nSaturday 17 October 9pm\n### Live Music: The Jazz Trio\nSaturday 24 October 9pm\n### Live Music: Blues Night\n";
+    expect(readPubWhatsOn(pub, music, pub.website, observedAt).rows.map((row) => [row.title, row.startsAt])).toEqual([
+      ["Live Music: The Jazz Trio", "2026-10-17T21:00:00+01:00"],
+      ["Live Music: Blues Night", "2026-10-24T21:00:00+01:00"],
+    ]);
+  });
+
   it("does not carry a fixture list's day into a weekly listing", () => {
     const text = "## Fixtures\nSaturday 10 October\n12:30PM\n### Premier League: Arsenal vs Leeds\nArsenal\nEvery Friday\n9pm\n### Pub Quiz\nOur weekly quiz\n";
     expect(readPubWhatsOn(pub, text, pub.website, observedAt).rows.map((row) => [row.title, row.startsAt])).toEqual([

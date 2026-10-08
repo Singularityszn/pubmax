@@ -1,5 +1,5 @@
 {
-  "assembledAt": "2026-10-07T23:50:22.487Z",
+  "assembledAt": "2026-10-08T00:05:10.613Z",
   "creditsAtStart": 1000,
   "creditsUsed": 950,
   "creditsLeft": 50,
@@ -9432,7 +9432,7 @@
       "drops": [
         {
           "title": "Pub Quiz",
-          "reason": "ambiguous-time"
+          "reason": "no-time"
         },
         {
           "title": "Live Sport\\ \\ Live Sport",

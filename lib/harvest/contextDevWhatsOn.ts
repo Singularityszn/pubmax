@@ -109,7 +109,8 @@ const statesDate = (line: string) => new RegExp(`\\b\\d{1,2}(?:st|nd|rd|th)?\\s+
  * Cards are headings and list items with the lines under them. A run of
  * date and clock lines directly above a heading belongs to that heading when
  * it opens a section's first dated fixture or continues a list of such items.
- * A deeper heading that names no fixture leaves the run with its parent.
+ * A deeper heading that names no listing, neither a fixture nor an event
+ * kind, leaves the run with its parent.
  * A later item that states only its clock keeps the list's last stated day.
  */
 function listingCards(markdown: string): { title: string; text: string; markdown: string; happyHourParent: string | null }[] {
@@ -124,7 +125,7 @@ function listingCards(markdown: string): { title: string; text: string; markdown
     run = [];
   };
   const settleOpened = () => {
-    if (opened && ![opened.child.title, ...opened.child.lines.slice(opened.run.length)].some((item) => PAIRING.test(plainText(item)))) {
+    if (opened && !eventKindFrom(opened.child.title) && ![opened.child.title, ...opened.child.lines.slice(opened.run.length)].some((item) => PAIRING.test(plainText(item)))) {
       opened.child.lines.splice(0, opened.run.length);
       opened.parent.lines.push(...opened.run);
       datedList = null;
