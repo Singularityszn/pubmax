@@ -146,34 +146,25 @@ satisfy rules-of-hooks):
 +  if (!canShow) return null;
 ```
 
-### #299 `feat/native-first-run` — NativePushPrompt adopts the budget
+### Native push budget subscription
 
-`components/native/NativePushPrompt.tsx`. Same shape:
+[NativePushPrompt](../components/native/NativePushPrompt.tsx) subscribes to both
+action eligibility and the shared budget through `useSyncExternalStore`.
+Its budget snapshot combines `routeOwnsScreenFoot` with `hasPromptBudgetFor`.
+`subscribePromptBudget` notifies it when location controls, map arrival visibility,
+consent storage, or the session claim change.
+The next route can render before the previous map arrival card releases its gate.
+The subscription lets an eligible ask appear after that release without another
+Plan action or a document reload.
 
-```diff
--import { useSyncExternalStore } from "react";
-+import { useEffect, useSyncExternalStore } from "react";
- ...
-+import { claimPromptBudget, hasPromptBudgetFor } from "@/lib/promptBudget";
-+
-+const PUSH_SURFACE = "native-push";
- ...
-   const visible = useSyncExternalStore(
-     subscribePushPrompt,
-     getPushPromptVisibleSnapshot,
-     getPushPromptServerSnapshot,
-   );
-
--  if (!visible) return null;
-+  const canShow = visible && hasPromptBudgetFor(PUSH_SURFACE);
-+
-+  // Claim the shared one-prompt-per-session budget at the moment it shows.
-+  useEffect(() => {
-+    if (canShow) claimPromptBudget(PUSH_SURFACE);
-+  }, [canShow]);
-+
-+  if (!canShow) return null;
-```
+The component claims `"native-push"` only when the ask can show.
+Undecided consent and another surface's session claim still block it.
+Dismissal waits for another qualifying action, and a fresh document never revives
+a stored action sequence.
+[The render regression](../__tests__/nativePushPromptRender.test.tsx) covers gate
+release, consent priority, and dismissal.
+[The browser regression](../e2e/native-push-ask-lifecycle.spec.ts) covers the
+Map-to-Tonight transition after both onboarding finish choices and a fresh boot.
 
 ### #299 × #312 — the `PlanCrew.tsx` merge conflict IS the ordering fix
 

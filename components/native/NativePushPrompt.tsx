@@ -4,9 +4,9 @@
 // root (like FirstRunTour) so any plan success path can trigger it via
 // recordPlanHighIntentAction() (lib/nativePushPrompt.ts) without needing its
 // own copy of this UI. Renders nothing on the server, on the web, or once the
-// user has already enabled push / dismissed this occurrence — the gate lives
-// in lib/nativePushPrompt.ts (shouldOfferPushPrompt), this component is pure
-// presentation + the two button actions.
+// user has already enabled push or dismissed this occurrence. Action eligibility
+// lives in lib/nativePushPrompt.ts (shouldOfferPushPrompt). This component also
+// applies the route and shared-budget gates before it presents the two actions.
 
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
