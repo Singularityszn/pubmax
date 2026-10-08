@@ -130,6 +130,27 @@
   margin-top: 0;
 }
 
+.tonightHypedActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 0 var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.tonightHypedActions .tonightHypedMap,
+.tonightHypedDetails > .tonightHypedMoreToggle {
+  margin: 0;
+}
+
+.tonightHypedDetails[open] {
+  grid-column: 1 / -1;
+}
+
+.tonightHypedDetails[open] .tonightHypedMoreChevron {
+  transform: rotate(180deg);
+}
+
 /* Chain blocks
    ------------------------------------------------------------------ */
 

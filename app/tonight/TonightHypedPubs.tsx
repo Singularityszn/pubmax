@@ -79,29 +79,37 @@ function HypedRow({
         <MapPin size={13} aria-hidden="true" />
         <span>{row.area}</span>
       </p>
-      <p className="tonightHypedWhy">{row.whyLine}</p>
-      {credit ? (
-        <p className="tonightHypedCredit">
-          <a
-            className="tonightHypedSource"
-            href={credit.url}
-            target="_blank"
-            rel="noreferrer noopener"
-          >
-            {credit.label}
-            <ExternalLink size={12} aria-hidden="true" />
-          </a>
-          <span className="tonightHypedChecked">{checkedLabel(credit.observedAt)}</span>
-        </p>
-      ) : null}
-      {mapHref ? (
-        <Link prefetch={false} className="tonightHypedMap pressable" href={mapHref}>
-          Open on map
-          <ArrowRight size={13} aria-hidden="true" />
-        </Link>
-      ) : (
-        <p className="tonightHypedUnmatched">{HYPED_PUB_UNMATCHED_LINE}</p>
-      )}
+      <div className="tonightHypedActions">
+        <details className="tonightHypedDetails">
+          <summary className="tonightHypedMoreToggle">
+            <ChevronDown size={14} aria-hidden="true" className="tonightHypedMoreChevron" />
+            Why this pub
+          </summary>
+          <p className="tonightHypedWhy">{row.whyLine}</p>
+          {credit ? (
+            <p className="tonightHypedCredit">
+              <a
+                className="tonightHypedSource"
+                href={credit.url}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                {credit.label}
+                <ExternalLink size={12} aria-hidden="true" />
+              </a>
+              <span className="tonightHypedChecked">{checkedLabel(credit.observedAt)}</span>
+            </p>
+          ) : null}
+        </details>
+        {mapHref ? (
+          <Link prefetch={false} className="tonightHypedMap pressable" href={mapHref}>
+            Open on map
+            <ArrowRight size={13} aria-hidden="true" />
+          </Link>
+        ) : (
+          <p className="tonightHypedUnmatched">{HYPED_PUB_UNMATCHED_LINE}</p>
+        )}
+      </div>
     </li>
   );
 }
