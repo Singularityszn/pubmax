@@ -249,7 +249,7 @@ export function MobilePlanActivation({
   }
 
   return (
-    <section className="mobilePlannerIntent" aria-labelledby="mobile-plan-intent-title">
+    <form className="mobilePlannerIntent" aria-labelledby="mobile-plan-intent-title" onSubmit={(event) => { event.preventDefault(); requestPlan(); }}>
       <div className="mobilePlannerIntentHeading">
         <Sparkles size={20} aria-hidden="true" />
         <div>
@@ -260,7 +260,7 @@ export function MobilePlanActivation({
       <div className="mobilePlannerIntentInput">
         <label htmlFor="mobile-plan-query">Describe the outing</label>
         <div>
-          <input id="mobile-plan-query" type="text" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Quiet in Soho, four of us, under £25" maxLength={500} />
+          <input id="mobile-plan-query" type="text" enterKeyHint="go" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Quiet in Soho, four of us, under £25" maxLength={500} />
           {speech.supported ? <Button type="button" variant="ghost" size="icon" aria-label={speech.listening ? "Stop describing the outing" : "Describe the outing by voice"} aria-pressed={speech.listening} onClick={speech.toggle}>{speech.listening ? <MicOff size={18} /> : <Mic size={18} />}</Button> : null}
         </div>
         {speech.listening ? <small role="status">Listening. The transcript stays in this field only.</small> : null}
@@ -289,7 +289,7 @@ export function MobilePlanActivation({
             The chip names the drink the way the rest of the app does. */}
         <Chip aria-pressed={zeroProof} onClick={() => setZeroProof((current) => !current)}>Alcohol-free</Chip>
       </div>
-      <Button type="button" size="large" className="w-full" disabled={loading} aria-busy={loading} onClick={requestPlan}>{loading ? <span className="mobilePlannerIntentPending"><PubmaxxLoadingEmber size={15} />Planning…</span> : "Make a plan"}</Button>
+      <Button type="submit" size="large" className="w-full" disabled={loading} aria-busy={loading}>{loading ? <span className="mobilePlannerIntentPending"><PubmaxxLoadingEmber size={15} />Planning…</span> : "Make a plan"}</Button>
       {error ? <p className="mobilePlannerIntentError" role="alert">{error}</p> : null}
       {result ? (
         <div className="mobilePlannerResult" role="status">
@@ -310,6 +310,6 @@ export function MobilePlanActivation({
           </div>
         </div>
       ) : null}
-    </section>
+    </form>
   );
 }

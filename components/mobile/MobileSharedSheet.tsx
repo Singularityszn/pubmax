@@ -109,6 +109,7 @@ export default function MobileSharedSheet({
     settleToRest,
     openAtSnap,
     requestDismiss,
+    recapToViewport,
     sheetHeight,
     entering,
     dragging,
@@ -190,6 +191,16 @@ export default function MobileSharedSheet({
     };
   }, [initialSnap, kind, openAtSnap, requestEscape]);
 
+  useEffect(() => {
+    const sheet = sheetRef.current;
+    if (!kind || !sheet || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(recapToViewport);
+    for (const part of sheet.querySelectorAll(":scope > .mobileSharedSheetHeader, :scope > .mobileSharedSheetFooter")) {
+      observer.observe(part);
+    }
+    return () => observer.disconnect();
+  }, [footerEl, kind, recapToViewport]);
+
   // PubMap/MobileMapShell can request a snap change (e.g. a content-tab tap
   // expands the venue sheet to full). Only re-applies on change.
   useEffect(() => {
@@ -262,7 +273,8 @@ export default function MobileSharedSheet({
         }
         className={`mapDrawer mobileSharedSheet ${kind === "venue" ? "right" : kind === "planner" ? "left" : "contextual"} open sheet-${sheetSnap}${dragging ? " sheet-dragging" : ""}${settling ? " sheet-settling" : ""}${entering ? " sheet-entering" : ""}`}
         role={sheetModal ? "dialog" : undefined}
-        aria-modal={sheetModal ? "true" : undefined}
+        // Primary navigation stays reachable outside this map surface. A
+        // strict modal elsewhere owns aria-modal and withdraws those tabs.
         aria-labelledby={titleId}
         tabIndex={-1}
         style={sectionStyle}

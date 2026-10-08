@@ -1,11 +1,9 @@
 // The one answer to "is the on-screen keyboard covering the bottom of the
 // screen right now", and the one place that says what counts as evidence.
 //
-// A fixed bottom bar is positioned against the LAYOUT viewport, which neither
-// iOS Safari nor Android Chrome shrink when the keyboard opens. So the tab bar
-// keeps its place while the keyboard rises over it, and it lands on top of
-// whatever the person is typing into - which is how it came to float over the
-// password form in the captain's screenshot.
+// Browser keyboards usually shrink the visual viewport. Android's native
+// inset handling shrinks the layout viewport too, placing a fixed bar above
+// the keyboard. Both modes need the same answer before withdrawing chrome.
 //
 // TWO facts have to agree before we hide it, because either one alone lies.
 // A focused field alone is not a keyboard: a physical keyboard, a desktop
@@ -16,10 +14,12 @@
 // pair rather than either half.
 //
 // The bar is hidden by TRANSFORM alone (components/nav/mobileNav.css, the same
-// idiom the open-sheet rule already uses). Nothing here touches the body's
+// idiom the night-mode rule already uses). Nothing here touches the body's
 // bottom padding: that clearance is reserved for the bar's own height, and
 // dropping it while the keyboard is open would reflow the page underneath the
 // caret - the layout jump this fix exists to avoid.
+
+import { nativePlatform } from "@/lib/nativePlatform";
 
 /**
  * How much of the layout viewport the visual viewport must lose before we call
@@ -87,24 +87,48 @@ export function softKeyboardOpen(evidence: SoftKeyboardEvidence): boolean {
   return layout - visual >= layout * SOFT_KEYBOARD_MIN_SHRINK_RATIO;
 }
 
-/** Read the live evidence out of the document. Browser only. */
-function readEvidence(): SoftKeyboardEvidence {
+/** Read the live answer out of the document. Browser only. */
+function readOpen(): boolean {
   const visual = window.visualViewport;
-  return {
-    textEntryFocused: isTextEntryElement(document.activeElement),
+  const focused = isTextEntryElement(document.activeElement);
+  const evidence: SoftKeyboardEvidence = {
+    textEntryFocused: focused && (visual?.scale ?? 1) === 1,
     visualViewportHeight: visual ? visual.height : Number.NaN,
     layoutViewportHeight: window.innerHeight,
   };
+  if (nativePlatform() !== "android") return softKeyboardOpen(evidence);
+  // Android's inset handling resizes both viewports. With no field focused the
+  // view is unobscured, so that reading is the baseline, and a focused field
+  // keeps it. A width change (a rotation or a resized window) with the keyboard
+  // up leaves no baseline for the new shape, so the answer holds until the
+  // field blurs or the height rises by a keyboard at the new width.
+  const { innerWidth: width, innerHeight: height } = window;
+  nativeLowestHeight = width === nativeLowestWidth ? Math.min(nativeLowestHeight, height) : height;
+  nativeLowestWidth = width;
+  const keyboardClosed =
+    height - nativeLowestHeight >= Math.max(height, nativeLayoutHeight) * SOFT_KEYBOARD_MIN_SHRINK_RATIO;
+  if (!focused || (width !== nativeLayoutWidth && (!open || keyboardClosed))) {
+    nativeLayoutHeight = height;
+    nativeLayoutWidth = width;
+    nativeLowestHeight = height;
+  }
+  if (width !== nativeLayoutWidth) return open;
+  nativeLayoutHeight = Math.max(nativeLayoutHeight, height);
+  return softKeyboardOpen({ ...evidence, layoutViewportHeight: nativeLayoutHeight });
 }
 
 // useSyncExternalStore requires a cached snapshot: recomputing from the DOM on
 // every render would hand React a fresh answer mid-commit. The listeners below
 // are the only writers.
 let open = false;
+let nativeLayoutHeight = 0;
+let nativeLayoutWidth = 0;
+let nativeLowestHeight = 0;
+let nativeLowestWidth = 0;
 const listeners = new Set<() => void>();
 
 function refresh(): void {
-  const next = softKeyboardOpen(readEvidence());
+  const next = readOpen();
   if (next === open) return;
   open = next;
   for (const listener of listeners) listener();
@@ -152,6 +176,7 @@ export function subscribeSoftKeyboard(onStoreChange: () => void): () => void {
     document.addEventListener("focusout", refreshAfterFocusSettles, true);
     window.visualViewport?.addEventListener("resize", refresh);
     window.visualViewport?.addEventListener("scroll", refresh);
+    window.addEventListener?.("resize", refresh);
     refresh();
   }
   return () => {
@@ -161,6 +186,7 @@ export function subscribeSoftKeyboard(onStoreChange: () => void): () => void {
     document.removeEventListener("focusout", refreshAfterFocusSettles, true);
     window.visualViewport?.removeEventListener("resize", refresh);
     window.visualViewport?.removeEventListener("scroll", refresh);
+    window.removeEventListener?.("resize", refresh);
     if (pendingFocusCheck !== null) {
       clearTimeout(pendingFocusCheck);
       pendingFocusCheck = null;
@@ -168,5 +194,9 @@ export function subscribeSoftKeyboard(onStoreChange: () => void): () => void {
     // The bar comes back with the last subscriber gone; leaving `open` true
     // would hide it for the next mount with no keyboard on screen.
     open = false;
+    nativeLayoutHeight = 0;
+    nativeLayoutWidth = 0;
+    nativeLowestHeight = 0;
+    nativeLowestWidth = 0;
   };
 }

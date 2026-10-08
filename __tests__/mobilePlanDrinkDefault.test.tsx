@@ -78,6 +78,17 @@ async function generate() {
 }
 
 describe("map drink default in the phone planner", () => {
+  it("submits the outing through its form with a Go keyboard action", async () => {
+    await render(wine, "Quiet in Soho");
+    const query = container.querySelector<HTMLInputElement>("#mobile-plan-query")!;
+    expect(query.getAttribute("enterkeyhint")).toBe("go");
+    const form = query.closest("form");
+    expect(form).not.toBeNull();
+    await act(async () => form!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+    expect(requests).toHaveLength(1);
+    expect(requests[0]!.query).toBe("Quiet in Soho");
+  });
+
   it("sends the selected Wine category for a request without its own drink", async () => {
     await render(wine, "Quiet in Soho");
     await generate();
