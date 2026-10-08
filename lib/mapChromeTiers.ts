@@ -106,21 +106,22 @@ export function buildFiltersChip(input: {
 }
 
 /**
- * A tube line the reader should hear about before they set out: the words
- * TfL uses when a line is not simply running slowly. Minor delays and PLANNED
- * closures (the overnight and weekend works every line has) and "Service
- * Closed" (every line that has finished for the night) are in the sheet, not on
- * the map.
+ * TfL's LIVE disruptions, the ones in effect now (lib/tflDisruption.ts:
+ * 1 Closed, 2 Suspended, 3 Part Suspended, 6 Severe Delays).
+ */
+const URGENT_TUBE_STATUSES = new Set(["closed", "suspended", "part suspended", "severe delays"]);
+
+/**
+ * A tube line the reader should hear about before they set out: a live
+ * disruption, not a line simply running slowly. Minor delays, the PLANNED
+ * closures (Planned Closure, Part Closure and Part Closed, the overnight and
+ * weekend works every line has) and "Service Closed" (every line that has
+ * finished for the night) are in the sheet, not on the map.
  */
 export function isUrgentTubeStatus(status: string | undefined): boolean {
-  const text = status?.toLowerCase() ?? "";
-  if (text.includes("planned") || text.includes("service closed")) return false;
-  return (
-    text.includes("severe") ||
-    text.includes("suspended") ||
-    text.includes("closed") ||
-    text.includes("closure")
-  );
+  return (status ?? "")
+    .split(",")
+    .some((part) => URGENT_TUBE_STATUSES.has(part.trim().toLowerCase()));
 }
 
 /**

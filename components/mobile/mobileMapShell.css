@@ -664,7 +664,6 @@
      frame of a pan. It moves by transform only and owns no scroll. */
   .mapPeek {
     --map-peek-frame: 8px;
-    --map-peek-row-h: 44px;
     position: fixed;
     left: var(--mobile-map-stack-left);
     right: var(--mobile-map-stack-right);
@@ -759,9 +758,9 @@
      not fit beside it, the label on its own line under it. A lens category
      always fits that line whole; only an anchor or dish name longer than the
      line ends in an ellipsis there (its full name is in the accessible name
-     and the venue sheet). The line heights are set so that two eyebrow lines
-     and the figure line fill the 44px answer row exactly, and the card keeps
-     its fixed height. */
+     and the venue sheet). The line heights are set in rem so that two eyebrow
+     lines and the figure line fill the answer row (--map-peek-row-h, also in
+     rem) exactly at any text size, and the card keeps its fixed height. */
   .mapPeekEyebrow {
     display: flex;
     flex-wrap: wrap;
