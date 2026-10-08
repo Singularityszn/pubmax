@@ -327,6 +327,8 @@ type InFlightRequest = {
   settled: boolean;
   /** Some caller took the answer, so there is nothing left to hand on. */
   consumed: boolean;
+  /** A newer read owns snapshot publication for this key. */
+  superseded: boolean;
   graceTimer: ReturnType<typeof setTimeout> | null;
 };
 
@@ -366,8 +368,8 @@ export type LoadSurfaceJsonOptions<T = unknown> = {
    * Start a new request even when one for this key is already in flight, instead
    * of joining it. For a read that exists BECAUSE the answer just changed: the
    * request already on the wire was sent before the change and may carry the
-   * old answer. The caller aborts its own earlier read so the old answer is
-   * never applied or held.
+   * old answer. Active callers may finish their earlier read, but a superseded
+   * request cannot replace the newer request's snapshot.
    */
   fresh?: boolean;
 };
@@ -467,7 +469,7 @@ export async function loadSurfaceJson<T>(
     if (!valid) return applied;
   }
   const shouldCache = apply(body, "network") !== false;
-  if (shouldCache) writeSurfaceSnapshot(key, body);
+  if (shouldCache && !request.superseded) writeSurfaceSnapshot(key, body);
   return "network";
 }
 
@@ -479,7 +481,8 @@ function joinSurfaceRequest<T>(
   key: string,
   options: LoadSurfaceJsonOptions<T>,
 ): InFlightRequest {
-  const existing = options.fresh ? undefined : inFlight.get(key);
+  const previous = inFlight.get(key);
+  const existing = options.fresh ? undefined : previous;
   if (existing && existing.startedAt >= (options.requestNotBefore ?? -Infinity)) {
     existing.joiners += 1;
     existing.abandoned = false;
@@ -487,6 +490,7 @@ function joinSurfaceRequest<T>(
     existing.graceTimer = null;
     return existing;
   }
+  if (previous) previous.superseded = true;
   const controller = new AbortController();
   const entry: InFlightRequest = {
     controller,
@@ -495,6 +499,7 @@ function joinSurfaceRequest<T>(
     abandoned: false,
     settled: false,
     consumed: false,
+    superseded: false,
     graceTimer: null,
     promise: Promise.resolve(undefined),
   };

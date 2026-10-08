@@ -1,0 +1,30 @@
+
+ RUN  v5.0.3 /Users/karanmanoharan/.treehouse/pubmaxx-bde241/1/pubmaxx
+
+ ❯ __tests__/whatsOnTonightPublicReuse.test.ts (12 tests | 1 failed) 95ms
+   × starts a new pending read for explicit retry and does not publish the earlier answer to that caller 57ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/whatsOnTonightPublicReuse.test.ts > starts a new pending read for explicit retry and does not publish the earlier answer to that caller
+AssertionError: expected '2026-10-07T09:00:00.000Z' to be '2026-10-07T10:00:00.000Z' // Object.is equality
+
+Expected: "2026-10-07T10:00:00.000Z"
+Received: "2026-10-07T09:00:00.000Z"
+
+ ❯ __tests__/whatsOnTonightPublicReuse.test.ts:111:38
+    109|   expect(onResult).toHaveBeenCalledTimes(1);
+    110|   const returning = await loadWhatsOnTonight({ fetchImpl });
+    111|   expect(returning.sourceObservedAt).toBe(retried.sourceObservedAt);
+       |                                      ^
+    112|   expect(fetchImpl).toHaveBeenCalledTimes(2);
+    113| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 11 passed (12)
+   Start at  13:16:59
+   Duration  302ms (transform 44%, tests 43%, import 8%, setup 3%, worker 2%)
+

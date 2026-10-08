@@ -1,0 +1,18 @@
+Clean procedure archive of HEAD 68f887a2. Exit 1.
+node:fs:620
+    return binding.readFileUtf8(path, stringToFlags(options.flag));
+                   ^
+
+Error: ENOENT: no such file or directory, open 'artifacts/lane-e/sample.js'
+    at readFileSync (node:fs:620:20)
+    at file:///Users/karanmanoharan/.treehouse/pubmaxx-bde241/1/pubmaxx/artifacts/lane-e/procedure-clean-wofxgta1/docs/proof/2026-10-08-ios-map-data-weight/procedure/measure.mjs:3:16
+    at ModuleJob.run (node:internal/modules/esm/module_job:569:25)
+    at async node:internal/modules/esm/loader:650:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:105:5) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'artifacts/lane-e/sample.js'
+}
+
+Node.js v26.10.0

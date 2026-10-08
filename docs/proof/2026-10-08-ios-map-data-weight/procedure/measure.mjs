@@ -1,6 +1,7 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-const template=readFileSync('artifacts/lane-e/sample.js','utf8');
+const template=readFileSync(new URL('./sample.js', import.meta.url),'utf8');
+mkdirSync('artifacts/lane-e/original-replay', { recursive: true });
 for(let round=1;round<=5;round++) {
 for (const [variant,port] of [['before',3481],['after',3482]]) {
 const input=template.replace('ORIGIN',JSON.stringify(`http://127.0.0.1:${port}`)).replace('ROUND',String(round));
