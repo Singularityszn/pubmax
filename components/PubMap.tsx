@@ -6814,7 +6814,9 @@ export default function PubMap({
       {!mobileViewport && !showMapArrivalCard && isLondon && mapAmbientBannersVisible({ canvasUnavailable: mapCanvasUnavailable }) ? (
         <CityStatusBanner
           cityId={cityId}
-          viewedArea={mapBounds && settledMapBoundsCityId === cityId ? mapChipLabel : null}
+          viewedArea={mapBounds && settledMapBoundsCityId === cityId
+            ? mapChipLabel === "Near me" ? claimedArea?.name ?? null : mapChipLabel
+            : null}
           allowCitywideStatus={ambientBannerLaneOpen}
         />
       ) : null}

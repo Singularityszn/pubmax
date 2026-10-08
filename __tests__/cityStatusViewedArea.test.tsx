@@ -30,8 +30,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-async function renderArea(viewedArea: string | null) {
-  await act(async () => root.render(createElement(CityStatusBanner, { cityId: "london", viewedArea })));
+async function renderArea(viewedArea: string | null, allowCitywideStatus = true) {
+  await act(async () => root.render(createElement(CityStatusBanner, { cityId: "london", viewedArea, allowCitywideStatus })));
   await act(async () => { await new Promise((resolve) => setTimeout(resolve, 450)); });
 }
 
@@ -154,5 +154,35 @@ it("matches a named part of a combined map area without matching nearby names", 
   await renderArea("Bermondsey & London Bridge");
   expect(container.querySelector(".cityStatusBannerCopy")?.textContent).toBe("Bermondsey fire");
   await renderArea("South Bermondsey");
+  expect(container.querySelector(".cityStatusStack")).toBeNull();
+});
+
+it.each([
+  { viewedArea: "Richmond", signalArea: "Richmond upon Thames" },
+  { viewedArea: "Richmond upon Thames", signalArea: "Richmond" },
+  { viewedArea: "Kingston", signalArea: "Kingston upon Thames" },
+  { viewedArea: "Kingston upon Thames", signalArea: "Kingston" },
+  { viewedArea: "RICHMOND", signalArea: "richmond upon thames" },
+  { viewedArea: "Richmond & Twickenham", signalArea: "Richmond upon Thames" },
+])("matches borough representations from $signalArea to $viewedArea", async ({ viewedArea, signalArea }) => {
+  vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ signals: [
+    { headline: "Local closure", severity: "major", areas: [signalArea, "London"] },
+    { headline: "Unrelated closure", severity: "major", areas: ["Bermondsey"] },
+  ] }), { status: 200 }));
+  await renderArea(viewedArea, false);
+  expect(container.querySelector(".cityStatusBannerCopy")?.textContent).toBe("Local closure");
+  act(() => container.querySelector<HTMLButtonElement>(".cityStatusBannerLink")?.click());
+  expect(Array.from(container.querySelectorAll(".cityStatusSignalRowHeadline"), (row) => row.textContent)).toEqual(["Local closure"]);
+});
+
+it.each([
+  { viewedArea: "Richmond Park", signalArea: "Richmond upon Thames" },
+  { viewedArea: "Fulham", signalArea: "Hammersmith and Fulham" },
+  { viewedArea: "Camden Town", signalArea: "Camden" },
+])("does not treat $viewedArea as an alias for $signalArea", async ({ viewedArea, signalArea }) => {
+  vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({
+    signals: [{ headline: "Borough-wide closure", severity: "major", areas: [signalArea] }],
+  }), { status: 200 }));
+  await renderArea(viewedArea, false);
   expect(container.querySelector(".cityStatusStack")).toBeNull();
 });
