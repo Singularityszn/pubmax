@@ -2,7 +2,7 @@
 
 ## Scope and reproduction
 
-The baseline was current `origin/main`, commit `835b91ab6ffeaca1533c612ad88db470aaae8b96`. Both variants used production builds, identical committed data, and `NEXT_PUBLIC_SW_VERSION=local`. The build directories were `.next-lane-e-before` and `.next-lane-e-after`. The local servers used ports 3481 and 3482.
+The original run used `origin/main` at commit `835b91ab6ffeaca1533c612ad88db470aaae8b96`. Both variants used production builds, identical committed data, and `NEXT_PUBLIC_SW_VERSION=local`. The build directories were `.next-lane-e-before` and `.next-lane-e-after`. The local servers used ports 3481 and 3482.
 
 The historical report lives at `/Users/karanmanoharan/karan-agent-workspace/data/pubmax-ios-app-qa/report.md`. Its F06 and F08 findings still reproduced. This viewport made 15 provisional reads over 901 IDs, rather than the historical 14 reads. Map and Tonight downloaded separate What's-On responses on re-entry after five seconds.
 
@@ -26,7 +26,7 @@ The initial full gate caught three exact-URL compatibility failures caused by an
 
 The refreshed focused verification passed 90 tests across five suites. Another 66 tests passed for price client state and service-day rules. Both production builds passed, and the after build was rebuilt after the URL correction. Both Capacitor sync commands completed sequentially without tracked native changes.
 
-The refreshed `npm run verify:no-mistakes` exited 0. Coverage passed 1803 files and 21437 tests, with one existing skipped file and test. RLS, the e2e skip fence, freshness, install-script policy, and dependency audit passed. Lint reported zero errors and 85 existing warnings. Freshness identified three credential-dependent stores as unmeasurable, and did not claim them fresh. The full log remains at `artifacts/lane-e/verify-refreshed.log`.
+Before the R1 correction, the refreshed `npm run verify:no-mistakes` exited 0. Coverage passed 1803 files and 21437 tests, with one existing skipped file and test. RLS, the e2e skip fence, freshness, install-script policy, and dependency audit passed. Lint reported zero errors and 85 existing warnings. Freshness identified three credential-dependent stores as unmeasurable, and did not claim them fresh. The original run referenced `artifacts/lane-e/verify-refreshed.log`. That full log is absent from this pipeline worktree, so this report does not provide an inspectable copy.
 
 ## R1 rollover race correction
 
@@ -81,9 +81,9 @@ Six repeated Map/Tonight visits were observed in the same Chrome document after 
 
 ## Raw evidence and handoff
 
-Raw samples remain in `artifacts/lane-e/before-1.json` through `before-5.json` and `after-1.json` through `after-5.json`. The measurement scripts are `artifacts/lane-e/sample.js` and `measure.mjs`. Build logs, sync logs, TDD logs, and the Instruments device inventory also remain in that folder. The committed sample file removes camera coordinates and replaces ID lists with counts and hashes.
+The original run referenced raw samples, build logs, sync logs, and the Instruments device inventory under its `artifacts/lane-e/` directory. Those original files are absent from this pipeline worktree. The committed `samples.json`, `price-response-replay.json`, `repeat-browser-memory.json`, and TDD logs preserve the available original evidence. The sample file removes camera coordinates and replaces ID lists with counts and hashes. The supplied measurement scripts now live in [procedure/](procedure/), as described below.
 
-The five pairs above were refreshed after the URL correction. Raw samples, `samples-refreshed.log`, and `after-build-refreshed.log` preserve that run. Firstmate owns merges and deployment decisions. The no-mistakes pipeline owns validation edits, publication, and CI. No deployment, migration, live POST, or paid service call was made.
+The five pairs above were refreshed after the URL correction. The original run referenced raw samples, `samples-refreshed.log`, and `after-build-refreshed.log`. Those files are absent from this pipeline worktree. Firstmate owns merges and deployment decisions. The no-mistakes pipeline owns validation edits, publication, and CI. No deployment, migration, live POST, or paid service call was made.
 
 ## Pipeline replay of the supplied original procedure
 
@@ -131,7 +131,7 @@ The three-second warm Map collection captured 3-5 completed provisional reads be
 
 ### Retained reconstructed evidence and provenance limit
 
-The five prior 884-ID pairs remain in the external evidence directory without modification. [samples-reconstructed-884.json](samples-reconstructed-884.json) preserves sanitized copies, and [summary-reconstructed-884.json](summary-reconstructed-884.json) preserves their earlier rig and results. Their price URLs and ID arrays are reduced to counts and hashes. Cancelled reads retain their recorded state. This separate setup does not replace the 901-ID replay.
+The prior test phase reported that it preserved the five 884-ID pairs in its external evidence directory. [samples-reconstructed-884.json](samples-reconstructed-884.json) preserves sanitized copies, and [summary-reconstructed-884.json](summary-reconstructed-884.json) preserves their earlier rig and results. Their price URLs and ID arrays are reduced to counts and hashes. Cancelled reads retain their recorded state. This separate setup does not replace the 901-ID replay.
 
 The transmitted inline script text does not match the supplied original script fingerprint metadata. This also holds after reversal of the permitted output-path substitutions. [procedure/fingerprints.json](procedure/fingerprints.json) records the supplied and materialized hashes. The scripts and matching runtime observations prove the supplied procedure's measurement semantics, IDs and response-body contracts. They do not prove byte identity to the original uncommitted files. The outer executor must reconcile that provenance discrepancy before claiming byte-identical original scripts.
 

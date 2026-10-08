@@ -26,8 +26,8 @@
 // window is replaced. It rides the existing device-identity announcement,
 // which fires on both an account switch and a sign-out.
 //
-// And one honesty rule on top: an entry has a maximum age. A snapshot may seed a
-// first paint, never stand in for an answer nobody asked for again.
+// An entry has a maximum age. A caller may reuse a recent answer without a
+// network read through freshForMs. Older valid snapshots seed a paint and revalidate.
 
 import { subscribeDeviceIdentity } from "@/lib/deviceAccountIdentity";
 import { waitUnlessAborted } from "@/lib/abortableDelay";
@@ -345,6 +345,8 @@ const inFlight = new Map<string, InFlightRequest>();
 
 export type LoadSurfaceJsonOptions<T = unknown> = {
   signal?: AbortSignal;
+  /** Earliest request start time, in Unix milliseconds, that this caller may join.
+   *  Snapshot and response validity still depend on this caller's validate function. */
   requestNotBefore?: number;
   init?: RequestInit;
   maxAgeMs?: number;
@@ -378,8 +380,9 @@ export const SURFACE_JUST_READ_MS = 5_000;
  *
  * `apply` is called with the held answer FIRST when there is one, so the tab
  * paints its last state in the same frame it mounts, and then again with the
- * network answer. It is never called after the caller's signal aborts, and a
- * failed revalidate leaves the held answer standing rather than blanking a
+ * network answer unless freshForMs permits snapshot reuse. It is never called
+ * after the caller's signal aborts. A failed revalidate leaves the held answer
+ * standing rather than blanking a
  * surface that already had real data on it.
  *
  * Returns the source of the last answer applied, so a caller that must report
@@ -433,7 +436,7 @@ export async function loadSurfaceJson<T>(
   if (requestSignal?.aborted || justRead) return applied;
   const request = joinSurfaceRequest(key, options);
   // Release on the caller's own abort as well as on settle, so an unmount
-  // still takes a read off the wire the moment nobody is left waiting for it.
+  // starts the grace window when nobody is left waiting for the read.
   let released = false;
   const release = () => {
     if (released) return;
@@ -469,8 +472,8 @@ export async function loadSurfaceJson<T>(
 }
 
 /**
- * The one request per key. A caller arriving while another is waiting joins it
- * rather than opening a second; `undefined` means the read did not answer.
+ * Share a request per key unless fresh or requestNotBefore requires a new read.
+ * `undefined` means the read did not answer.
  */
 function joinSurfaceRequest<T>(
   key: string,

@@ -78,12 +78,11 @@ const FETCH_TIMEOUT_MS = 8_000;
  *
  * The rows carry their own source-observed time and every reader prints it, so
  * a snapshot cannot misdate itself; the ceiling is about the LIST, not the
- * label — a listing that has since closed should not paint one more time an
- * hour later. Ten minutes is well inside tonight's window and well outside a
- * tab switch.
+ * label. A listing that has since closed should not paint an hour later.
+ * Service-night validation also rejects snapshots across London's 04:00 rollover.
  */
 const TONIGHT_SNAPSHOT_MAX_AGE_MS = 10 * 60_000;
-/** Public lists may reuse an answer for one minute. Location reads revalidate sooner. */
+/** Bound public re-entry downloads without redating source observations. */
 const PUBLIC_TONIGHT_FRESH_MS = 60_000;
 
 /** The request this hook makes. Shared so the snapshot is keyed by the answer's own URL. */
@@ -172,9 +171,10 @@ function fetchWithTimeout(
 
 /**
  * Fetch + validate tonight's whats-on rows. Injectable so the error and
- * timeout paths are unit-testable without React. Never throws: failures
- * (non-OK, network throw, timeout) return status "error"; an OK response with
- * zero valid rows returns "empty".
+ * timeout paths are unit-testable without React. Request and validation failures
+ * return status "error" without throwing.
+ * Successful responses need a valid servedAt in the current London service night.
+ * Only an accepted response with zero valid rows returns "empty".
  */
 export async function loadWhatsOnTonight(
   opts: LoadTonightOpts = {},
