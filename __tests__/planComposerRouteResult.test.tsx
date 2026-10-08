@@ -168,6 +168,9 @@ async function openTune(): Promise<void> {
   await act(async () => { tune.focus(); tune.click(); });
   await vi.waitFor(() => {
     if (!document.querySelector("[role='dialog'] #plan-concierge-query")) throw new Error("Tune details has not mounted");
+    // The sheet takes focus a frame after it opens. A press before that frame
+    // would have its focus taken back, which no reader's tap can hit.
+    if (document.activeElement?.getAttribute("role") !== "dialog") throw new Error("Tune details has not taken focus");
   }, { timeout: 4000 });
 }
 
