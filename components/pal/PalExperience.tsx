@@ -262,6 +262,9 @@ export default function PalExperience() {
   const [privacy, setPrivacy] = useState<PrivacyState>(DEFAULT_PRIVACY);
   const [pal, setPal] = useState<PubPal | null>(null);
   const [ready, setReady] = useState(false);
+  // The account already answered the age question as an adult (a stored date of
+  // birth or the recorded tap), so setup does not ask it a second time.
+  const [adultOnFile, setAdultOnFile] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [memories, setMemories] = useState<PubPalMemory[]>([]);
@@ -319,7 +322,14 @@ export default function PalExperience() {
 
   // Browser Back walks the five setup steps instead of leaving /pal. The draft
   // above keeps the choices either way.
-  useStepHistory(step, setStep, { steps: PAL_SETUP_STEPS, first: 0, enabled: mode === "onboarding" });
+  // An account that already answered 18+ never sees step 0, so the history
+  // walks only the steps it can see: Back never restores the hidden one.
+  const visibleSteps = adultOnFile ? PAL_SETUP_STEPS.filter((candidate) => candidate >= 1) : PAL_SETUP_STEPS;
+  useStepHistory(Math.max(step, adultOnFile ? 1 : 0) as (typeof PAL_SETUP_STEPS)[number], setStep, {
+    steps: visibleSteps,
+    first: adultOnFile ? 1 : 0,
+    enabled: mode === "onboarding",
+  });
 
   useEffect(() => {
     if (mode !== "onboarding" || !draftOwner) return;
@@ -357,6 +367,7 @@ export default function PalExperience() {
     queueMicrotask(() => {
       if (activeOwnerRef.current !== ownerId) return;
       setActiveOwnerId(ownerId);
+      setAdultOnFile(false);
       setPal(null);
       setMemories([]);
       setEditingMemoryId("");
@@ -373,8 +384,9 @@ export default function PalExperience() {
 
     void authedActionFetch("/api/pub-pal", { signal: controller.signal }, { requiresIdentity: true })
       .then(async (response) => {
-        const body = await response.json().catch(() => ({})) as { pal?: PubPal | null };
+        const body = await response.json().catch(() => ({})) as { pal?: PubPal | null; adultOnFile?: boolean };
         if (controller.signal.aborted || activeOwnerRef.current !== ownerId) return;
+        setAdultOnFile(response.ok && body.adultOnFile === true);
         const next = response.ok ? body.pal ?? null : readStoredPal(user.id);
         if (next?.ownerId === ownerId) {
           setActivePlanPalContext({ id: next.id, name: next.name });
@@ -425,8 +437,31 @@ export default function PalExperience() {
     return () => controller.abort();
   }, [user]);
 
+  // Creating the Pal swaps the whole screen. The page kept the scroll position
+  // the person had reached at the foot of setup, so it landed on "You stay in
+  // control" in the middle of the new screen. Start at the top, on the Pal's
+  // name, which is also where keyboard focus belongs once the button that was
+  // pressed has gone.
+  const previousMode = useRef(mode);
+  useEffect(() => {
+    const created = previousMode.current === "onboarding" && mode === "home";
+    previousMode.current = mode;
+    if (!created) return;
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    document.getElementById("pal-home-title")?.focus({ preventScroll: true });
+  }, [mode]);
+
   const previewName = draft.name.trim() || `Your ${speciesCopy[draft.appearance.species].title}`;
   const canContinue = step !== 0 || draft.adultConfirmed;
+  // "We ask once": an account that already answered as an adult starts at the
+  // Pal itself. The confirmation the server stores with the Pal is carried by
+  // that answer, so the first step is skipped rather than shown a second time.
+  const firstStep = adultOnFile ? 1 : 0;
+  const stepCount = 5 - firstStep;
+  if (adultOnFile && mode === "onboarding" && !pal && (step < firstStep || !draft.adultConfirmed)) {
+    setStep((current) => Math.max(current, firstStep));
+    setDraft((current) => (current.adultConfirmed ? current : { ...current, adultConfirmed: true }));
+  }
 
   const updateAppearance = (patch: Partial<PubPalAppearance>) => {
     setDraft((current) => ({
@@ -726,7 +761,7 @@ export default function PalExperience() {
           </div>
           <div className="palHomeCopy">
             <p className="palEyebrow">Your Pub Pal</p>
-            <h1 id="pal-home-title">{pal.name}</h1>
+            <h1 id="pal-home-title" tabIndex={-1}>{pal.name}</h1>
             <p>Your {signalCopy[pal.appearance.signalAffinity].toLowerCase()} {pal.appearance.species}, set up for your nights out. You decide what it can do.</p>
             <Link className="palPrimary" href="/plan">Plan with {pal.name}<ArrowRight size={18} /></Link>
             <PubPalVoice muted={pal.muted} onStateChange={setPalAnimationState} />
@@ -741,7 +776,7 @@ export default function PalExperience() {
           <div className="palControlGrid">
             <button type="button" disabled={controlSaving || saving} onClick={() => void updateControl({ muted: !pal.muted })} aria-pressed={pal.muted}>
               {pal.muted ? <VolumeX /> : <Volume2 />}
-              <span><strong>{pal.muted ? "Muted" : "Voice available"}</strong><small>{pal.muted ? "Tap to allow voice" : "Tap to mute everywhere"}</small></span>
+              <span><strong>{pal.muted ? "Muted" : "Voice allowed"}</strong><small>{pal.muted ? "Tap to allow voice" : "Tap to mute everywhere"}</small></span>
             </button>
             <button type="button" disabled={controlSaving || saving} onClick={() => void updateControl({ hidden: !pal.hidden })} aria-pressed={pal.hidden}>
               {pal.hidden ? <EyeOff /> : <Eye />}
@@ -809,11 +844,11 @@ export default function PalExperience() {
   return (
     <main id="main" className="palExperience palOnboarding">
       <div className="palTopbar">
-        <button type="button" onClick={() => step === 0 ? setMode("meeting") : setStep((current) => current - 1)}><ArrowLeft size={17} /> Back</button>
-        <span>{step + 1} of 5</span>
+        <button type="button" onClick={() => step <= firstStep ? setMode("meeting") : setStep((current) => current - 1)}><ArrowLeft size={17} /> Back</button>
+        <span>{step + 1 - firstStep} of {stepCount}</span>
         <Link href="/map">Skip Pal</Link>
       </div>
-      <div className="palProgress" aria-hidden="true"><span style={{ width: `${((step + 1) / 5) * 100}%` }} /></div>
+      <div className="palProgress" aria-hidden="true"><span style={{ width: `${((step + 1 - firstStep) / stepCount) * 100}%` }} /></div>
       <div className="palOnboardingLayout">
         <div className="palOnboardingPreview">
           <PalPortrait
@@ -897,7 +932,7 @@ export default function PalExperience() {
             </div>
           )}
           <div className="palOnboardingActions">
-            <button type="button" onClick={() => step === 0 ? setMode("meeting") : setStep((current) => current - 1)}>Back</button>
+            <button type="button" onClick={() => step <= firstStep ? setMode("meeting") : setStep((current) => current - 1)}>Back</button>
             {step < 4 ? (
               <Button className="palPrimary" size="large" type="button" disabled={!canContinue || (step === 1 && !draft.name.trim())} onClick={() => setStep((current) => current + 1)}>Continue<ArrowRight size={18} /></Button>
             ) : user ? (

@@ -12,7 +12,13 @@ import {
   onMissingDurableWrite,
   whereVenueIdIn,
 } from "@/lib/storeBackend";
-import type { Wanted, WantedDTO, WantedFields, WantedStatus } from "@/lib/wanted";
+import {
+  cleanWantedNote,
+  type Wanted,
+  type WantedDTO,
+  type WantedFields,
+  type WantedStatus,
+} from "@/lib/wanted";
 import { cleanText } from "@/lib/textClean";
 import { storedVenueIds } from "@/lib/venueAliases";
 
@@ -30,6 +36,8 @@ export type WantedStore = {
     now?: number,
   ): Promise<WantedDTO[]>;
   delete(ownerActor: string, id: string): Promise<boolean>;
+  /** The owner's own note on a row, changed in place. Null when it is not theirs. */
+  updateNote(ownerActor: string, id: string, note: string): Promise<WantedDTO | null>;
   getById(ownerActor: string, id: string): Promise<WantedDTO | null>;
   recordPromotion(
     ownerActor: string,
@@ -101,6 +109,13 @@ export const memoryWantedStore: WantedStore = {
     if (!hit || hit.ownerActor !== ownerActor) return false;
     byId.delete(id);
     return true;
+  },
+
+  async updateNote(ownerActor, id, note) {
+    const hit = byId.get(id);
+    if (!hit || hit.ownerActor !== ownerActor) return null;
+    hit.note = cleanWantedNote(note);
+    return toDTO(hit);
   },
 
   async getById(ownerActor, id) {
@@ -292,6 +307,32 @@ const supabaseWantedStore: WantedStore = {
           .select("id");
         if (error) throw new Error(error.message);
         return (data ?? []).length > 0;
+      },
+    });
+  },
+
+  async updateNote(ownerActor, id, note) {
+    const cleaned = cleanWantedNote(note);
+    return guard({
+      context: "update_note",
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: "wanteds",
+          migrationHint: MIGRATION_HINT,
+          fallback: () => memoryWantedStore.updateNote(ownerActor, id, note),
+        }),
+      run: async () => {
+        const { data, error } = await admin()
+          .from(TABLE)
+          .update({ note: cleaned })
+          .eq("id", id)
+          .eq("owner_actor", ownerActor)
+          .select("*")
+          .maybeSingle();
+        if (error) throw new Error(error.message);
+        if (!data) return null;
+        const row = fromRow(data as Record<string, unknown>);
+        return row ? toDTO(row) : null;
       },
     });
   },

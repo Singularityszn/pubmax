@@ -1027,8 +1027,8 @@ for (const viewport of VIEWPORTS) {
 
     // And every one of them stays clear of the tab bar it parks above.
     // boundingBox() does not wait for paint, so wait for the bar first.
-    await expect(page.locator(".mobileTabBar")).toBeVisible();
-    const bar = await page.locator(".mobileTabBar").boundingBox();
+    await expect(page.locator(".mobileTabBar").filter({ visible: true })).toBeVisible();
+    const bar = await page.locator(".mobileTabBar").filter({ visible: true }).boundingBox();
     expect(bar).not.toBeNull();
     for (const box of boxes) {
       expect(
@@ -1105,7 +1105,7 @@ for (const viewport of VIEWPORTS) {
     const prompt = page.locator(".analyticsConsentPrompt");
     // Present, or this case would pass by measuring nothing.
     await expect(prompt).toBeVisible({ timeout: 30_000 });
-    await expect(page.locator(".mobileTabBar")).toBeVisible();
+    await expect(page.locator(".mobileTabBar").filter({ visible: true })).toBeVisible();
     // And the map members really are absent, so this IS the default berth.
     await expect(page.locator(".palSummon")).toHaveCount(0);
     await expect(page.locator(".mobilePlanActivation")).toHaveCount(0);
@@ -1211,8 +1211,8 @@ for (const viewport of VIEWPORTS) {
     expect(box!.x + box!.width, "inside the viewport").toBeLessThanOrEqual(viewport.width);
 
     // boundingBox() does not wait for paint, so wait for the bar first.
-    await expect(page.locator(".mobileTabBar")).toBeVisible();
-    const bar = await page.locator(".mobileTabBar").boundingBox();
+    await expect(page.locator(".mobileTabBar").filter({ visible: true })).toBeVisible();
+    const bar = await page.locator(".mobileTabBar").filter({ visible: true }).boundingBox();
     expect(bar, "the tab bar has a box").not.toBeNull();
     expect(
       box!.y + box!.height,

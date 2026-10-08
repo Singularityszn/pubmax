@@ -277,7 +277,7 @@ test("the create-password ask rests above the tab bar, so its buttons can be tap
 
   const [cardBox, barBox] = await Promise.all([
     card.boundingBox(),
-    page.locator(".mobileTabBar").boundingBox(),
+    page.locator(".mobileTabBar").filter({ visible: true }).boundingBox(),
   ]);
   expect(cardBox).not.toBeNull();
   expect(barBox).not.toBeNull();

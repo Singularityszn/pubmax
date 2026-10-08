@@ -310,7 +310,7 @@ test("mobile venue sheet (GH #17): opens at the peek snap with the grab handle v
   const tabs = page.getByRole("tab");
   await expect(tabs.first()).toBeVisible();
 
-  const mobileNav = page.locator(".mobileTabBar");
+  const mobileNav = page.locator(".mobileTabBar").filter({ visible: true });
   const tablist = page.getByRole("tablist", { name: "Venue detail sections" });
   const goldenThreadPrice = page.locator(".vpsPriceValue").first();
   await expect(mobileNav).toBeVisible();

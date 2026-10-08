@@ -1,6 +1,6 @@
 "use client";
 
-// Adding a photo to a wall, in two beats and one action.
+// Adding a photo to a wall, in three beats and one action.
 //
 // BEAT ONE IS A PICKER, NEVER A CAMERA. `capture` on a file input is not a hint
 // to iOS, it is an instruction to open the camera and leave Photo Library out
@@ -13,11 +13,18 @@
 // the cropper re-encodes whatever the browser could decode to JPEG. So widening
 // this picker never widens the server's three stored types.
 //
-// The tag and the caption ride alongside, and the crosspost box says where the
-// photo goes rather than how good that is. Its answer comes back from the
-// server, because whether a feed took it is the server's to know.
+// "Use photo" ACCEPTS THE CROP AND NOTHING ELSE. It used to publish at once, so
+// a person working top to bottom posted with no drink and no caption before they
+// had seen either field, and a feed post went out with the default box ticked.
+//
+// BEAT THREE IS THE ONE ACTION. The cropped photo is shown, the drink, the
+// caption and the crosspost box sit under it, and "Post photo" is the single
+// control that publishes. The crosspost box says where the photo goes rather
+// than how good that is. Its answer comes back from the server, because whether
+// a feed took it is the server's to know.
 
-import { useRef, useState } from "react";
+import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
 
 import ProfileImageCropper from "@/components/profile/ProfileImageCropper";
 import { pickNativePhoto } from "@/lib/nativeCamera";
@@ -31,6 +38,8 @@ import {
   VENUE_PHOTO_CAPTION_MAX,
   VENUE_PHOTO_CROSSPOST_LABEL,
   VENUE_PHOTO_CROP_TARGET,
+  VENUE_PHOTO_OUTPUT_HEIGHT,
+  VENUE_PHOTO_OUTPUT_WIDTH,
   venuePhotoCrosspostNote,
   type VenuePhotoCrosspost,
   type VenuePhotoDTO,
@@ -49,6 +58,9 @@ function fileKey(file: File): string {
   return `${file.name}:${file.size}:${file.lastModified}`;
 }
 
+/** The accepted crop and the object URL its preview is painted from. */
+type CroppedPhoto = { file: File; previewUrl: string };
+
 export default function VenuePhotoComposer({
   venueId,
   venueName,
@@ -57,12 +69,32 @@ export default function VenuePhotoComposer({
 }: VenuePhotoComposerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [chosen, setChosen] = useState<File | null>(null);
+  const [cropped, setCropped] = useState<CroppedPhoto | null>(null);
   const [drinkCategory, setDrinkCategory] = useState<DrinkCategory | null>(null);
   const [caption, setCaption] = useState("");
   const [shareToFeed, setShareToFeed] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // The preview URL lives exactly as long as the crop it shows: a replaced or
+  // discarded crop, and an unmount, each release it.
+  useEffect(() => {
+    const url = cropped?.previewUrl;
+    return () => {
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [cropped]);
+
+  function acceptCrop(file: File) {
+    setChosen(null);
+    setError(null);
+    setCropped({ file, previewUrl: URL.createObjectURL(file) });
+  }
+
+  async function post() {
+    if (!cropped || busy) return;
+    await upload(cropped.file);
+  }
 
   async function upload(file: File) {
     setBusy(true);
@@ -145,10 +177,27 @@ export default function VenuePhotoComposer({
           key={fileKey(chosen)}
           target={VENUE_PHOTO_CROP_TARGET}
           file={chosen}
-          busy={busy}
           onCancel={() => setChosen(null)}
-          onCropped={(file) => void upload(file)}
+          onCropped={acceptCrop}
         />
+      ) : cropped ? (
+        <figure className="venuePhotoComposerPreview">
+          <Image
+            src={cropped.previewUrl}
+            alt={`Your photo of ${venueName}, ready to post`}
+            width={VENUE_PHOTO_OUTPUT_WIDTH}
+            height={VENUE_PHOTO_OUTPUT_HEIGHT}
+            unoptimized
+          />
+          <button
+            type="button"
+            className="venuePhotoWallButton"
+            onClick={() => void choosePhoto()}
+            disabled={busy}
+          >
+            Choose a different photo
+          </button>
+        </figure>
       ) : (
         <button
           type="button"
@@ -159,49 +208,53 @@ export default function VenuePhotoComposer({
         </button>
       )}
 
-      <fieldset className="venuePhotoComposerField">
-        <legend className="venuePhotoComposerLegend">Drink</legend>
-        <div className="venuePhotoComposerTags">
-          {SUBMITTABLE_DRINK_CATEGORIES.map((category) => (
-            <button
-              key={category}
-              type="button"
-              className="venuePhotoComposerTag"
-              aria-pressed={drinkCategory === category}
-              onClick={() =>
-                setDrinkCategory((current) => (current === category ? null : category))
-              }
-            >
-              {categoryLabel(category)}
-            </button>
-          ))}
-        </div>
-      </fieldset>
+      {cropped && !chosen ? (
+        <>
+          <fieldset className="venuePhotoComposerField">
+            <legend className="venuePhotoComposerLegend">Drink</legend>
+            <div className="venuePhotoComposerTags">
+              {SUBMITTABLE_DRINK_CATEGORIES.map((category) => (
+                <button
+                  key={category}
+                  type="button"
+                  className="venuePhotoComposerTag"
+                  aria-pressed={drinkCategory === category}
+                  onClick={() =>
+                    setDrinkCategory((current) => (current === category ? null : category))
+                  }
+                >
+                  {categoryLabel(category)}
+                </button>
+              ))}
+            </div>
+          </fieldset>
 
-      <div className="venuePhotoComposerField">
-        <label htmlFor="venue-photo-caption">Caption</label>
-        <textarea
-          id="venue-photo-caption"
-          className="venuePhotoComposerCaption"
-          maxLength={VENUE_PHOTO_CAPTION_MAX}
-          rows={2}
-          value={caption}
-          onChange={(event) => setCaption(event.target.value)}
-        />
-      </div>
+          <div className="venuePhotoComposerField">
+            <label htmlFor="venue-photo-caption">Caption</label>
+            <textarea
+              id="venue-photo-caption"
+              className="venuePhotoComposerCaption"
+              maxLength={VENUE_PHOTO_CAPTION_MAX}
+              rows={2}
+              value={caption}
+              onChange={(event) => setCaption(event.target.value)}
+            />
+          </div>
 
-      <label className="venuePhotoComposerShare">
-        <input
-          type="checkbox"
-          checked={shareToFeed}
-          onChange={(event) => setShareToFeed(event.target.checked)}
-        />
-        {VENUE_PHOTO_CROSSPOST_LABEL}
-      </label>
+          <label className="venuePhotoComposerShare">
+            <input
+              type="checkbox"
+              checked={shareToFeed}
+              onChange={(event) => setShareToFeed(event.target.checked)}
+            />
+            {VENUE_PHOTO_CROSSPOST_LABEL}
+          </label>
 
-      <p className="venuePhotoComposerHint">
-        Photos you post here also appear on the Drink Wall.
-      </p>
+          <p className="venuePhotoComposerHint">
+            Photos you post here also appear on the Drink Wall.
+          </p>
+        </>
+      ) : null}
 
       {error ? (
         <p className="venuePhotoWallStatus venuePhotoWallStatusErr" role="status">
@@ -210,6 +263,16 @@ export default function VenuePhotoComposer({
       ) : null}
 
       <div className="venuePhotoComposerActions">
+        {cropped && !chosen ? (
+          <button
+            type="button"
+            className="venuePhotoWallButton venuePhotoWallPrimary"
+            onClick={() => void post()}
+            disabled={busy}
+          >
+            {busy ? "Posting…" : "Post photo"}
+          </button>
+        ) : null}
         <button
           type="button"
           className="venuePhotoWallButton"

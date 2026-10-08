@@ -131,7 +131,7 @@ test.describe("mobile landing entry", () => {
     // The answer itself: priced pubs within a walk, ranked cheapest first.
     await expect(page.locator(".nmnCard").first()).toBeVisible({ timeout: 20_000 });
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
-    await expect(page.locator(".mobileTabBar")).toBeVisible();
+    await expect(page.locator(".mobileTabBar").filter({ visible: true })).toBeVisible();
   });
 
   test("keeps direct Near idle and gives a shared patch priority", async ({ page }) => {
@@ -204,7 +204,7 @@ test.describe("mobile landing entry", () => {
       }),
     ).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
-    await expect(page.locator(".mobileTabBar")).toBeVisible();
+    await expect(page.locator(".mobileTabBar").filter({ visible: true })).toBeVisible();
     await expectAppTabClearance(page, "root landing");
     await expectWordmarkLettersOnOneLine(page, "root landing wordmark");
 
@@ -237,7 +237,7 @@ test.describe("mobile landing entry", () => {
       await page.setViewportSize({ width, height: 844 });
       await page.goto("/?source=mobile-entry");
 
-      await expect(page.locator(".mobileTabBar")).toBeVisible();
+      await expect(page.locator(".mobileTabBar").filter({ visible: true })).toBeVisible();
       await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
       await expectAppTabClearance(page, `root landing at ${width}px`);
       await expectWordmarkLettersOnOneLine(page, `root landing wordmark at ${width}px`);
@@ -256,7 +256,12 @@ test.describe("mobile landing entry", () => {
     await page.addInitScript(() => window.localStorage.setItem("pubmax-theme", "dark"));
     await page.goto("/");
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-    await expect(page.locator(".mobileTabBar")).toBeVisible();
+    // Count the PAINTED bar. The layout streams the tab bar as a pending
+    // Suspense boundary, its server copy parked in a hidden `S:` chunk until
+    // the throttled reveal runs. An auth update that reaches the boundary
+    // first makes React render it on the client, and the server copy then
+    // stays behind as a hidden orphan: a second `.mobileTabBar` nobody sees.
+    await expect(page.locator(".mobileTabBar").filter({ visible: true })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
     await expectAppTabClearance(page, "dark root landing");
     await expectWordmarkLettersOnOneLine(page, "dark root landing wordmark");
@@ -316,7 +321,7 @@ test("keeps desktop root free of mobile navigation", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
 
-  await expect(page.locator(".mobileTabBar")).toBeHidden();
+  await expect(page.locator(".mobileTabBar").filter({ visible: true })).toBeHidden();
   await expectTappable(
     page.locator(".lpHero").getByRole("link", { name: LANDING_PRIMARY_NAME }),
     "desktop hero Log what you paid CTA",

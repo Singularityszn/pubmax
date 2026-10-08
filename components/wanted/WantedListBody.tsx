@@ -4,11 +4,16 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
+import ContributionGateDoor from "@/components/identity/ContributionGateDoor";
 import { authedFetch } from "@/lib/authedFetch";
 import {
   readProviderAccountRevision,
   readProviderAccountSignal,
 } from "@/lib/authProviderRevision";
+import {
+  readContributionDoor,
+  type ContributionDoorStatus,
+} from "@/lib/contributionGateStatus";
 import {
   isWantedPromotable,
   wantedPendingLabel,
@@ -18,6 +23,7 @@ import { venueMapUrl } from "@/lib/venueMapUrl";
 
 import WantedCapture from "./WantedCapture";
 import WantedPromotionControl from "./WantedPromotionControl";
+import WantedRowManage from "./WantedRowManage";
 
 function mapUrlFor(wanted: WantedDTO): string | null {
   if (!wanted.venueId) return null;
@@ -33,13 +39,16 @@ type WantedFulfilEventDetail = {
   userId?: string | null;
 };
 
-type WantedFetchStatus = "loading" | "ready" | "sign_in" | "error";
+// "gated" is not a failure: a new account has not tapped "I'm 18 or over" yet,
+// so the read answers the gate as data and the panel shows its door.
+type WantedFetchStatus = "loading" | "ready" | "sign_in" | "error" | "gated";
 
 type WantedAccountState = {
   userId: string | null;
   accountRevision: number;
   wanteds: WantedDTO[];
   fetchStatus: WantedFetchStatus;
+  door?: ContributionDoorStatus;
   fulfilNote: string | null;
 };
 
@@ -97,6 +106,18 @@ export default function WantedListBody(): React.JSX.Element {
           accountRevision: requestProviderAccountRevision,
           wanteds: [],
           fetchStatus: "sign_in",
+          fulfilNote: current?.userId === requestUserId ? current.fulfilNote : null,
+        }));
+        return;
+      }
+      const door = res.ok ? readContributionDoor(body) : undefined;
+      if (door) {
+        setAccountState((current) => ({
+          userId: requestUserId,
+          accountRevision: requestProviderAccountRevision,
+          wanteds: [],
+          fetchStatus: "gated",
+          door,
           fulfilNote: current?.userId === requestUserId ? current.fulfilNote : null,
         }));
         return;
@@ -184,6 +205,35 @@ export default function WantedListBody(): React.JSX.Element {
     },
     [providerAccountRevision, supabaseAuthState, userId],
   );
+  // The owner changed or removed a row they saved. Same guards as a save: the
+  // answer lands only if it is still the account that asked.
+  const handleChanged = useCallback(
+    (wanted: WantedDTO) => {
+      if (!userId || readProviderAccountRevision() !== providerAccountRevision) return;
+      if (activeUserId.current !== userId) return;
+      setAccountState((current) =>
+        current?.userId === userId && current.accountRevision === providerAccountRevision
+          ? {
+              ...current,
+              wanteds: current.wanteds.map((row) => (row.id === wanted.id ? wanted : row)),
+            }
+          : current,
+      );
+    },
+    [providerAccountRevision, userId],
+  );
+  const handleRemoved = useCallback(
+    (id: string) => {
+      if (!userId || readProviderAccountRevision() !== providerAccountRevision) return;
+      if (activeUserId.current !== userId) return;
+      setAccountState((current) =>
+        current?.userId === userId && current.accountRevision === providerAccountRevision
+          ? { ...current, wanteds: current.wanteds.filter((row) => row.id !== id) }
+          : current,
+      );
+    },
+    [providerAccountRevision, userId],
+  );
   const handleFulfilNote = useCallback(
     (note: string | null, eventUserId?: string | null) => {
       if (
@@ -224,6 +274,7 @@ export default function WantedListBody(): React.JSX.Element {
         ? "loading"
         : currentAccountState?.fetchStatus ?? "loading";
   const owned = currentAccountState?.wanteds ?? [];
+  const door = loadStatus === "gated" ? currentAccountState?.door : undefined;
 
   const open = owned.filter((row) => row.status === "open");
   const fulfilled = owned.filter((row) => row.status === "fulfilled");
@@ -233,6 +284,12 @@ export default function WantedListBody(): React.JSX.Element {
     <>
       {loadStatus === "sign_in" ? (
         <p className="wantedPanel__empty">Sign in to keep a Wanted list.</p>
+      ) : door ? (
+        <ContributionGateDoor
+          status={door}
+          subject="keep a Wanted list"
+          onAsserted={() => void refresh()}
+        />
       ) : (
         <WantedCapture
           key={userId ?? "no-account"}
@@ -258,7 +315,9 @@ export default function WantedListBody(): React.JSX.Element {
         <p className="wantedPanel__empty">No open Wanted places yet.</p>
       ) : null}
 
-      {open.length > 0 ? <WantedOpenList wanteds={open} /> : null}
+      {open.length > 0 ? (
+        <WantedOpenList wanteds={open} onChanged={handleChanged} onRemoved={handleRemoved} />
+      ) : null}
       {anonymousOpen.length > 0 ? <WantedOpenList anonymous wanteds={anonymousOpen} /> : null}
 
       {fulfilled.length > 0 ? (
@@ -269,6 +328,7 @@ export default function WantedListBody(): React.JSX.Element {
                 <p className="wantedRow__name">{wanted.venueName || wantedPendingLabel(wanted.rawPaste)}</p>
                 <p className="wantedRow__meta">Done</p>
               </div>
+              <WantedRowManage wanted={wanted} onRemoved={handleRemoved} />
             </li>
           ))}
         </ul>
@@ -282,9 +342,13 @@ export default function WantedListBody(): React.JSX.Element {
 function WantedOpenList({
   anonymous = false,
   wanteds,
+  onChanged,
+  onRemoved,
 }: {
   anonymous?: boolean;
   wanteds: WantedDTO[];
+  onChanged?: (wanted: WantedDTO) => void;
+  onRemoved?: (id: string) => void;
 }): React.JSX.Element {
   return (
     <ul className="wantedList" aria-label={anonymous ? "Anonymous open Wanted places" : "Open Wanted places"}>
@@ -309,6 +373,9 @@ function WantedOpenList({
                 {wanted.note ? ` · ${wanted.note}` : ""}
               </p>
             </div>
+            {!anonymous && onChanged && onRemoved ? (
+              <WantedRowManage wanted={wanted} onChanged={onChanged} onRemoved={onRemoved} />
+            ) : null}
             {href || promotable ? (
               <div className="wantedRow__actions">
                 {href ? (

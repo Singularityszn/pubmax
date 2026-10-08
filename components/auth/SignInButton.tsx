@@ -312,6 +312,10 @@ export default function SignInButton({
 
   const onSignOut = useCallback(
     async (scope: SignOutScope = "account") => {
+      // The menu was opened as the ACCOUNT menu. Once the person chose Sign
+      // out it has done its job, and leaving it open would re-render the same
+      // popover as the SIGNED-OUT one: a sign-in form that opened by itself.
+      setMenuOpen(false);
       setBusy("out");
       await signOut(scope);
       setBusy(null);

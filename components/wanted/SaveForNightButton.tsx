@@ -2,13 +2,21 @@
 
 import { useState } from "react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
+import SignInButton from "@/components/auth/SignInButton";
+import { useViewerHandle } from "@/components/auth/useViewerHandle";
+import { useViewerSession } from "@/components/auth/useViewerSession";
+import ContributionGateDoor from "@/components/identity/ContributionGateDoor";
 import { trackEvent } from "@/lib/analytics";
 import { haptic } from "@/lib/nativeHaptics";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { readContributionDoor, type ContributionDoorStatus } from "@/lib/contributionGateStatus";
 import { isUkBaseVenueId, type WantedDTO } from "@/lib/wanted";
 
 import "./wanted.css";
+
+const SAVE_RETRY_MESSAGE = "Could not save. Check your connection and try again.";
 
 export default function SaveForNightButton({
   venueId,
@@ -24,13 +32,34 @@ export default function SaveForNightButton({
   /** Called when a tap makes this control the one that speaks. */
   onActivate?: () => void;
 }): React.JSX.Element {
+  const { identityResolved } = useAuth();
+  const viewerSession = useViewerSession();
+  const handle = useViewerHandle();
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [door, setDoor] = useState<ContributionDoorStatus | null>(null);
+  const [canRetry, setCanRetry] = useState(false);
+
+  function tap() {
+    onActivate?.();
+    setCanRetry(false);
+    if (viewerSession.signedOut) {
+      setDoor(null);
+      setToast("Sign in to save for a night.");
+      return;
+    }
+    if (viewerSession.signedIn && identityResolved && !handle) {
+      setToast(null);
+      setDoor("onboarding_required");
+      return;
+    }
+    void save();
+  }
 
   async function save() {
-    onActivate?.();
     setBusy(true);
     setToast(null);
+    setDoor(null);
     try {
       const res = await authedActionFetch("/api/wanted", {
         method: "POST",
@@ -48,12 +77,14 @@ export default function SaveForNightButton({
         status?: string;
       };
       if (!res.ok || !body.wanted) {
-        if (body.status === "sign_in_required") {
+        const gate = readContributionDoor(body);
+        if (gate) {
+          setDoor(gate);
+        } else if (body.status === "sign_in_required") {
           setToast("Sign in to save for a night.");
-        } else if (body.status === "onboarding_required") {
-          setToast("Choose a public handle first.");
         } else {
-          setToast(errorMessageFrom(body, "Could not save for a night."));
+          setToast(errorMessageFrom(body, SAVE_RETRY_MESSAGE));
+          setCanRetry(true);
         }
         haptic("action-refused");
         return;
@@ -66,7 +97,8 @@ export default function SaveForNightButton({
       setToast("Saved for a night.");
       window.setTimeout(() => setToast(null), 2500);
     } catch {
-      setToast("Could not save for a night.");
+      setToast(SAVE_RETRY_MESSAGE);
+      setCanRetry(true);
     } finally {
       setBusy(false);
     }
@@ -77,7 +109,7 @@ export default function SaveForNightButton({
       <button
         type="button"
         className="wantedSaveBtn"
-        onClick={() => void save()}
+        onClick={tap}
         disabled={busy}
         aria-label={`Save ${venueName} for a night`}
       >
@@ -87,6 +119,19 @@ export default function SaveForNightButton({
         <p className="wantedCapture__status" role="status">
           {toast}
         </p>
+      ) : null}
+      {toast && active && viewerSession.signedOut ? <SignInButton /> : null}
+      {canRetry && active ? (
+        <button type="button" className="wantedCapture__secondary" onClick={tap} disabled={busy}>
+          Try again
+        </button>
+      ) : null}
+      {door && active ? (
+        <ContributionGateDoor
+          status={door}
+          subject="keep a Wanted list"
+          onAsserted={tap}
+        />
       ) : null}
     </div>
   );

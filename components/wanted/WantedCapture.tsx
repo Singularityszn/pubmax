@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 
+import ContributionGateDoor from "@/components/identity/ContributionGateDoor";
 import { trackEvent } from "@/lib/analytics";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { readContributionDoor, type ContributionDoorStatus } from "@/lib/contributionGateStatus";
 import { cleanText } from "@/lib/textClean";
 import {
   cleanWantedNote,
@@ -68,10 +70,12 @@ export default function WantedCapture({ onSaved, anonymous = false, prefill }: P
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [resolve, setResolve] = useState<WantedResolveResult | null>(null);
+  const [door, setDoor] = useState<{ status: ContributionDoorStatus; retry: () => void } | null>(null);
 
   async function saveConfirmed(candidate: WantedResolveCandidate, sourceUrl: string, rawPaste: string) {
     setBusy(true);
     setStatus(null);
+    setDoor(null);
     try {
       if (anonymous) {
         const wanted = createAnonymousWanted({
@@ -110,10 +114,11 @@ export default function WantedCapture({ onSaved, anonymous = false, prefill }: P
         return;
       }
       if (!res.ok || !body.wanted) {
-        if (body.status === "sign_in_required") {
+        const gate = readContributionDoor(body);
+        if (gate) {
+          setDoor({ status: gate, retry: () => void saveConfirmed(candidate, sourceUrl, rawPaste) });
+        } else if (body.status === "sign_in_required") {
           setStatus("Sign in to save a Wanted place.");
-        } else if (body.status === "onboarding_required") {
-          setStatus("Choose a public handle before saving Wanted places.");
         } else {
           setStatus(errorMessageFrom(body, "Could not save that Wanted place."));
         }
@@ -138,6 +143,7 @@ export default function WantedCapture({ onSaved, anonymous = false, prefill }: P
   async function savePending(rawPaste: string, sourceUrl: string) {
     setBusy(true);
     setStatus(null);
+    setDoor(null);
     try {
       if (anonymous) {
         const wanted = createAnonymousWanted({
@@ -173,7 +179,10 @@ export default function WantedCapture({ onSaved, anonymous = false, prefill }: P
         return;
       }
       if (!res.ok || !body.wanted) {
-        if (body.status === "sign_in_required") {
+        const gate = readContributionDoor(body);
+        if (gate) {
+          setDoor({ status: gate, retry: () => void savePending(rawPaste, sourceUrl) });
+        } else if (body.status === "sign_in_required") {
           setStatus("Sign in to save a Wanted place.");
         } else {
           setStatus(errorMessageFrom(body, "Could not save that paste."));
@@ -349,6 +358,13 @@ export default function WantedCapture({ onSaved, anonymous = false, prefill }: P
         >
           Save as still matching
         </button>
+      ) : null}
+      {door ? (
+        <ContributionGateDoor
+          status={door.status}
+          subject="keep a Wanted list"
+          onAsserted={door.retry}
+        />
       ) : null}
     </div>
   );

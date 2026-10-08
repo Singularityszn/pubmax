@@ -90,7 +90,7 @@ for (const viewport of DEVICES) {
         };
       });
 
-      await expect(page.locator(".mobileTabBar")).toBeHidden();
+      await expect(page.locator(".mobileTabBar").filter({ visible: true })).toBeHidden();
       expect(palGeometry.actionsRight).toBeLessThanOrEqual(viewport.width);
       expect(palGeometry.overflow).toBeLessThanOrEqual(1);
       expect(palGeometry.accent).toBe(palGeometry.brandAccent);

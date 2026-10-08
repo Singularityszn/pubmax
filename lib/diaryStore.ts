@@ -11,6 +11,7 @@ import {
   type DiaryEntry,
   type DiaryEntryDTO,
   type DiaryEntryFields,
+  type DiaryEntryPatch,
 } from "@/lib/diary";
 import { parseRating } from "@/lib/ratings";
 import {
@@ -29,6 +30,12 @@ type DiaryCreateResult =
   | { status: "created"; entry: DiaryEntryDTO }
   | { status: "duplicate" };
 
+/** A correction can collide with another entry for the same pub and day. */
+type DiaryUpdateResult =
+  | { status: "updated"; entry: DiaryEntryDTO }
+  | { status: "duplicate" }
+  | { status: "not_found" };
+
 type DiaryListResult = {
   status: "ready" | "degraded";
   entries: DiaryEntryDTO[];
@@ -37,6 +44,10 @@ type DiaryListResult = {
 export type DiaryStore = {
   create(fields: DiaryEntryFields, now?: number): Promise<DiaryCreateResult>;
   listForOwner(ownerUserId: string): Promise<DiaryListResult>;
+  /** The owner's own entry, corrected in place. Never another account's. */
+  update(ownerUserId: string, id: string, patch: DiaryEntryPatch): Promise<DiaryUpdateResult>;
+  /** The owner's own entry, removed. False when it is not theirs or is gone. */
+  delete(ownerUserId: string, id: string): Promise<boolean>;
 };
 
 function toDTO(row: DiaryEntry): DiaryEntryDTO {
@@ -64,6 +75,33 @@ export const memoryDiaryStore: DiaryStore = {
     };
     byId.set(entry.id, entry);
     return { status: "created", entry: toDTO(entry) };
+  },
+
+  async update(ownerUserId, id, patch) {
+    const hit = byId.get(id);
+    if (!hit || hit.ownerUserId !== ownerUserId) return { status: "not_found" };
+    const visitedOn = patch.visitedOn ?? hit.visitedOn;
+    for (const row of byId.values()) {
+      if (
+        row.id !== id
+        && row.ownerUserId === ownerUserId
+        && row.venueId === hit.venueId
+        && row.visitedOn === visitedOn
+      ) {
+        return { status: "duplicate" };
+      }
+    }
+    hit.visitedOn = visitedOn;
+    if (patch.rating !== undefined) hit.rating = patch.rating;
+    if (patch.review !== undefined) hit.review = patch.review;
+    return { status: "updated", entry: toDTO(hit) };
+  },
+
+  async delete(ownerUserId, id) {
+    const hit = byId.get(id);
+    if (!hit || hit.ownerUserId !== ownerUserId) return false;
+    byId.delete(id);
+    return true;
   },
 
   async listForOwner(ownerUserId) {
@@ -135,6 +173,59 @@ const supabaseDiaryStore: DiaryStore = {
         const entry = fromRow(data as Record<string, unknown>);
         if (!entry) throw new Error("diary insert returned an unreadable row");
         return { status: "created" as const, entry: toDTO(entry) };
+      },
+    });
+  },
+
+  async update(ownerUserId, id, patch) {
+    return guard({
+      context: "update",
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: "diary",
+          migrationHint: MIGRATION_HINT,
+          fallback: () => memoryDiaryStore.update(ownerUserId, id, patch),
+        }),
+      run: async () => {
+        const columns: Record<string, unknown> = {};
+        if (patch.visitedOn !== undefined) columns.visited_on = patch.visitedOn;
+        if (patch.rating !== undefined) columns.rating = patch.rating;
+        if (patch.review !== undefined) columns.review = patch.review;
+        const { data, error } = await admin()
+          .from(TABLE)
+          .update(columns)
+          .eq("id", id)
+          .eq("owner_user_id", ownerUserId)
+          .select("*")
+          .maybeSingle();
+        if (isUniqueViolation(error)) return { status: "duplicate" as const };
+        if (error) throw new Error(error.message);
+        if (!data) return { status: "not_found" as const };
+        const entry = fromRow(data as Record<string, unknown>);
+        if (!entry) throw new Error("diary update returned an unreadable row");
+        return { status: "updated" as const, entry: toDTO(entry) };
+      },
+    });
+  },
+
+  async delete(ownerUserId, id) {
+    return guard({
+      context: "delete",
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: "diary",
+          migrationHint: MIGRATION_HINT,
+          fallback: () => memoryDiaryStore.delete(ownerUserId, id),
+        }),
+      run: async () => {
+        const { data, error } = await admin()
+          .from(TABLE)
+          .delete()
+          .eq("id", id)
+          .eq("owner_user_id", ownerUserId)
+          .select("id");
+        if (error) throw new Error(error.message);
+        return (data ?? []).length > 0;
       },
     });
   },

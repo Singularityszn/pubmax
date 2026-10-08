@@ -54,6 +54,18 @@
   border-color: var(--brass);
   color: var(--ink);
 }
+/* A saved chip says so: filled in the brass wash with a tick, and the pressed
+   state is announced (aria-pressed), so it is not colour alone. */
+.saveToListChip[aria-pressed="true"] {
+  border-color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 18%, var(--panel-raised));
+  color: var(--ink);
+  font-weight: 650;
+}
+.saveToListChip[aria-pressed="true"]::before {
+  content: "\2713";
+  margin-inline-end: 5px;
+}
 .saveToListChip:disabled {
   opacity: 0.6;
   cursor: default;
@@ -100,6 +112,16 @@
   border: none;
   color: var(--ink-soft);
   font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.saveToListRetry {
+  padding: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
   text-decoration: underline;
   cursor: pointer;
 }

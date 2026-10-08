@@ -62,7 +62,9 @@ export function accessJwt(account: Account): string {
         exp: JWT_EXPIRY_SECONDS,
         role: "authenticated",
         // An emailed-link session: the only kind an unowned callback accepts.
-        amr: [{ method: "otp", timestamp: JWT_EXPIRY_SECONDS - 3_600 }],
+        // `magiclink`, not `otp`: an `otp` session also needs a confirmed
+        // email, and one spec answers for an account whose email is not.
+        amr: [{ method: "magiclink", timestamp: JWT_EXPIRY_SECONDS - 3_600 }],
       }),
     ),
     base64url("e2e-signature"),

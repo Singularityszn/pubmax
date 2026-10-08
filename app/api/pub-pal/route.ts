@@ -1,3 +1,4 @@
+import { accountAdultOnFile } from "@/lib/adultOnFile.server";
 import { callerUserId } from "@/lib/authServer";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { isLimited } from "@/lib/pintDrops";
@@ -14,8 +15,11 @@ export async function GET(request: Request): Promise<Response> {
   const id = await owner(request);
   if (typeof id !== "string") return id;
   const result = await getPubPalResult(id);
+  // `adultOnFile` lets the setup skip the 18+ question the account already
+  // answered ("we ask once"). It is a read of evidence, never a grant: setup
+  // still sends its own confirmation with the Pal.
   return result.ok
-    ? jsonNoStore({ pal: result.value })
+    ? jsonNoStore({ pal: result.value, adultOnFile: await accountAdultOnFile(id) })
     : publicApiError("Pub Pal is temporarily unavailable.", "PUB_PAL_STORE_UNAVAILABLE", 503, { retryable: true });
 }
 

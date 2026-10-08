@@ -12,7 +12,7 @@ Moved from [`lib/AGENTS.md`](../../lib/AGENTS.md). Authoritative policy detail l
 
 <a id="a-wanted-is-a-private-place-you-mean-to-try-never-a-scrape-of-instagram-saves"></a>
 
-- **A Wanted is a private place you mean to try, never a scrape of Instagram Saves.** Paste-only capture (`lib/wanted.ts`, store `lib/wantedStore.ts`, resolve `lib/wantedResolve.server.ts` against curated plus national UK base search). The source URL is provenance and is never fetched server-side from Instagram or TikTok. Solo Wanted only in Wave A: no swipe feed, no streaks. Owner-only reads via `/api/wanted`; fulfilment is quiet when presence, check-in or plan arrival lands at the venue. UI: You (`WantedList`), venue sheet (`SaveForNightButton`), plan describe-first (`WantedPlanChips`). Migration `0093` + rollback; firstmate applies. Pins: `__tests__/wanted*.test.ts`, `e2e/wanted-wave-a.spec.ts`.
+- **A Wanted is a private place you mean to try, never a scrape of Instagram Saves.** Paste-only capture (`lib/wanted.ts`, store `lib/wantedStore.ts`, resolve `lib/wantedResolve.server.ts` against curated plus national UK base search). The source URL is provenance and is never fetched server-side from Instagram or TikTok. Solo Wanted only in Wave A: no swipe feed, no streaks. Owner-only reads via `/api/wanted`; fulfilment is quiet when presence, check-in or plan arrival lands at the venue. UI: You (`WantedList`), venue sheet (`SaveForNightButton`), plan describe-first (`WantedPlanChips`). [The README](../../README.md) owns capture and row-management instructions. Migration `0093` + rollback; firstmate applies. Pins: `__tests__/wanted*.test.ts`, `e2e/wanted-wave-a.spec.ts`.
 
 <a id="step-out-is-one-owed-weekly-push-never-a-streak-or-drink-more-nudge"></a>
 

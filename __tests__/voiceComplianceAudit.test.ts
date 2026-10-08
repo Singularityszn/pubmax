@@ -83,7 +83,7 @@ describe("VOICE.md compliance audit", () => {
     // ONE RULE (5 Sep 2026): the handle door asks for a handle, the age door
     // asks for the one tap, and neither asks for a birth date.
     expect(contributionGate).toMatch(
-      /Contributions carry your public handle, so pick one before you\s+log a price\./,
+      /Pick a handle before you log a price\./,
     );
     expect(contributionGate).toMatch(
       /This is for over-18s\. One tap records it, and we ask\s+once\./,

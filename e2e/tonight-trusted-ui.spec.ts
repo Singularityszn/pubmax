@@ -211,8 +211,8 @@ test.describe("Tonight trusted UI", () => {
       .locator('[data-testid="tonight-hyped-row"], [data-testid="tonight-row"]')
       .first()
       .boundingBox();
-    await expect(page.locator(".mobileTabBar")).toBeVisible();
-    const mobileTabBar = await page.locator(".mobileTabBar").boundingBox();
+    await expect(page.locator(".mobileTabBar").filter({ visible: true })).toBeVisible();
+    const mobileTabBar = await page.locator(".mobileTabBar").filter({ visible: true }).boundingBox();
     expect(firstAnswer).not.toBeNull();
     expect(mobileTabBar).not.toBeNull();
     expect(firstAnswer!.y).toBeLessThan(mobileTabBar!.y);
