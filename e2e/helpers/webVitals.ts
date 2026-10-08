@@ -395,6 +395,24 @@ const residueGuards = new WeakMap<Page, Set<string>>();
 
 /** Clears what the previous sample's own interaction left in this browser. */
 export async function clearSampleResidue(page: Page, routePath: string): Promise<void> {
+  if (routePath === "/map") {
+    // The measured phone action leaves Layers persisted. Close it after the
+    // previous reading, before either warm load can restore the modal surface.
+    const more = page.getByRole("button", { name: "More map controls", exact: true });
+    if (await more.isVisible() && (await more.getAttribute("aria-expanded")) === "true") {
+      await page.getByRole("button", { name: "Close Map controls", exact: true }).click({
+        timeout: PRIMARY_ACTION_TIMEOUT_MS,
+      });
+      await expect(more).toHaveAttribute("aria-expanded", "false", {
+        timeout: PRIMARY_ACTION_TIMEOUT_MS,
+      });
+      await expect.poll(() => page.evaluate(() => {
+        const session = JSON.parse(localStorage.getItem("pubmaxx.mobile-map-session.v1") ?? "null");
+        return session?.openSheet ?? null;
+      }), { timeout: PRIMARY_ACTION_TIMEOUT_MS }).not.toBe("layers");
+    }
+    return;
+  }
   const prefixes = SAMPLE_RESIDUE_KEY_PREFIXES[routePath];
   if (!prefixes) return;
   const guardedRoutes = residueGuards.get(page) ?? new Set<string>();
@@ -446,9 +464,9 @@ export async function exercisePrimaryAction(page: Page, routePath: string): Prom
         // Reset view is disabled at the designed attitude. A real keyboard
         // rotation makes the phone's camera action meaningful and actionable.
         const canvas = page.locator(".maplibregl-canvas").first();
-        await canvas.focus();
+        await canvas.focus({ timeout: PRIMARY_ACTION_TIMEOUT_MS });
         await expect(canvas).toBeFocused();
-        await canvas.press("Shift+ArrowLeft");
+        await canvas.press("Shift+ArrowLeft", { timeout: PRIMARY_ACTION_TIMEOUT_MS });
         await expect(async () => {
           if ((await more.getAttribute("aria-expanded")) !== "true") await more.click();
           await page.getByRole("tab", { name: "Layers", exact: true }).click();
