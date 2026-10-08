@@ -558,6 +558,45 @@ describe("an accepted place the venue index has no name for", () => {
     expect(document.querySelector("#plan-composer [role='alert']")).toBeNull();
   });
 
+  it("asks for an area once when held Arnos Arms is outside every supported London route area", async () => {
+    const venue = { id: "venue-xjf3n0", name: "Arnos Arms", borough: "Enfield", lat: 51.6162, lng: -0.132117 };
+    writePlanningIntent({
+      source: "near", cityId: "london", acceptedVenueId: venue.id,
+      acceptedArea: null, startsAt: null,
+      displayEvidence: { kind: "directory", observedAt: null },
+    });
+    const sent: Array<{ context?: { nightArea?: string | null } }> = [];
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>(async (input, init) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url === planComposerVenueIndexPath("london")) return Response.json([venue]);
+      const body = JSON.parse(String(init?.body));
+      sent.push(body);
+      // The observed API responses distinguish missing area from a wrongly inferred area.
+      return body.context?.nightArea
+        ? Response.json({
+          grounded: false, outcome: "anchor-conflict", anchored: true, routeReady: false, stops: [],
+          reason: "ANCHOR_ROUTE_CONFLICT",
+          message: "We could not build a route from that pub right now. Try a different pub.",
+        })
+        : Response.json({ error: { code: "NIGHT_AREA_REQUIRED", message: "Choose an area." } }, { status: 422 });
+    }));
+    await mountHeld();
+    const field = document.querySelector<HTMLInputElement>("#plan-concierge-query")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(field, "Three quiet pints for 4");
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await click([...document.querySelectorAll("button")].find((node) => node.textContent?.trim() === "Make a plan")!);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.context?.nightArea ?? null).toBeNull();
+    expect(document.querySelector("#plan-composer [role='alert']")?.textContent).toBe("Choose an area.");
+    expect(document.querySelector("#plan-composer")?.textContent?.match(/Choose an area\./g)).toHaveLength(1);
+    expect(document.querySelector("#plan-composer")?.textContent).not.toMatch(/Try a different pub|Refresh the route|earlier route/);
+    expect(document.querySelector("#plan-route-status")?.textContent).toBe("");
+    expect(document.querySelector(".planComposer__routeStale")).toBeNull();
+    expect(stopNames()).toEqual([venue.name]);
+  });
+
   it.each([
     {},
     { lat: 53.4808, lng: -2.2426 },

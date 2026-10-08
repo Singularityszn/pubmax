@@ -41,6 +41,7 @@ import { cleanCultureOpener, type CultureOpenerDTO } from "@/lib/cultureCrawl";
 import { readLastCrew, subscribeLastCrew } from "@/lib/lastCrew";
 import { getNightArea, isNightAreaRouteReady, NIGHT_AREAS, type NightArea } from "@/lib/nightAreas";
 import { nearestNightPatch } from "@/lib/nearestNightPatch";
+import { venueAreaClaim } from "@/lib/venueTruth";
 import {
   readRememberedArea,
   resolveNightPatch,
@@ -223,10 +224,11 @@ const NO_TIMING_OR_PRICE = {
   priceKind: undefined,
 } satisfies Partial<DraftStop>;
 
-function venueNightArea(venue: PlanVenueOption | undefined): NightContext["nightArea"] {
+function venueNightArea(venue: PlanVenueOption | undefined, cityId: CityId): NightContext["nightArea"] {
   if (venue?.lat === undefined || venue.lng === undefined) return null;
-  const patch = nearestNightPatch(venue.lat, venue.lng);
-  return patch ? nightAreaForPlanIntakePatch(patch.id) : null;
+  const areas = NIGHT_AREAS.filter((area) => area.cityId === cityId);
+  const claim = venueAreaClaim({ latitude: venue.lat, longitude: venue.lng }, areas);
+  return areas.find((area) => area.slug === claim.area?.slug)?.slug ?? null;
 }
 
 /** The stop a chosen pub makes: a venue record, with nothing of the last one left on it. */
@@ -2044,7 +2046,7 @@ function PlanComposerForm({
       queryArea,
     );
     if (!submittedContext.nightArea && queryArea.kind === "none") {
-      const area = venueNightArea(venues.find((venue) => venue.id === heldVenueId));
+      const area = venueNightArea(venues.find((venue) => venue.id === heldVenueId), acceptedCityId);
       if (area) submittedContext.nightArea = area;
     }
     setSorting(true);
