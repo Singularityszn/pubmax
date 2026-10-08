@@ -43,6 +43,7 @@ vi.mock("@/lib/analytics", () => ({
 
 import PlanComposer, { planComposerVenueIndexPath } from "@/components/plan/PlanComposer";
 import { readPlanningIntent, writePlanningIntent } from "@/lib/planningIntent";
+import { parsePlanGenerationRequest } from "@/lib/planGenerationRequest";
 
 const GENERATED = {
   routeRevision: 1,
@@ -457,6 +458,52 @@ describe("an accepted place the venue index has no name for", () => {
     expect(stopNames()).toEqual(["The Held Arms"]);
     expect(button("The Held Arms is the accepted Stop 1. Swap is not available.").disabled).toBe(true);
     expect(firstStop().querySelector(".planStop__remove")).toBeNull();
+    expect(panel()?.textContent).toContain("The Held Arms");
+  });
+
+  it("makes a plan from a typed description while a pub is held", async () => {
+    holdAcceptedPlace();
+    const path = planComposerVenueIndexPath("london");
+    const generated = { ...GENERATED, stops: [{ venueId: HELD, venueName: "The Held Arms", reason: "Your pick." }, GENERATED.stops[1]] };
+    const sent: unknown[] = [];
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>(async (input, init) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url === path) {
+        return new Response(JSON.stringify([{ id: HELD, name: "The Held Arms" }]), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      if (!url.includes("/api/plans/generate")) return new Response("{}", { status: 404 });
+      sent.push(JSON.parse(String(init?.body)));
+      // The route's own request parser, so the composer is held to what the API accepts.
+      const parsed = await parsePlanGenerationRequest(new Request("http://localhost/api/plans/generate", { method: "POST", body: init?.body }));
+      return parsed.ok
+        ? new Response(JSON.stringify(generated), { status: 200, headers: { "content-type": "application/json" } })
+        : new Response(JSON.stringify({ error: { code: parsed.code, message: parsed.message } }), { status: parsed.status, headers: { "content-type": "application/json" } });
+    }));
+    await mountComposer();
+
+    const field = document.querySelector<HTMLInputElement>("#plan-concierge-query")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(field, "quiet pints after work");
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await click([...document.querySelectorAll("button")].find((node) => node.textContent?.trim() === "Make a plan")!);
+    await vi.waitFor(() => {
+      if (stopNames().length < 2) throw new Error(`the generated route has not mounted: ${document.querySelector("#plan-composer [role='alert']")?.textContent ?? ""}`);
+    }, { timeout: 4000 });
+
+    expect(stopNames()).toEqual(["The Held Arms", "Pub B"]);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({
+      query: "quiet pints after work",
+      anchor: { venueId: HELD, acceptedArea: { kind: "night-patch", id: "soho" } },
+      intake: {
+        area: { kind: "night-patch", id: "soho" },
+        timeWindow: null,
+        groupSize: null,
+        budget: null,
+        skipped: ["time-window", "group-size", "budget", "accessibility"],
+      },
+    });
     expect(panel()?.textContent).toContain("The Held Arms");
   });
 });

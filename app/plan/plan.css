@@ -1636,6 +1636,9 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   min-width: 0;
   display: grid;
   gap: var(--space-3);
+  /* Remove sits beside a card only when the list itself has room for it. */
+  container-type: inline-size;
+  container-name: plan-stops;
 }
 /* Holds the cards' room while their chunk loads, so nothing under them jumps. */
 .planStops__placeholder {
@@ -1755,10 +1758,7 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   border-radius: var(--radius-sm);
 }
 .planStop__name {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
+  display: block;
   font-family: var(--font-display);
   font-size: 1.0625rem;
   font-weight: 600;
@@ -1827,11 +1827,12 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   transform: translate3d(calc(var(--stop-tray) * -1), 0, 0);
 }
 
-/* A mouse has no swipe: Remove is a plain button beside the card. */
+/* A mouse has no swipe: Remove is a plain button under the card, and beside
+   it once the list is wide enough that the card keeps its full name. */
 @media (hover: hover) and (pointer: fine) {
   .planStops .planStop > .planStop__card {
-    display: flex;
-    align-items: stretch;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-2);
   }
   .planStop__surface {
@@ -1846,9 +1847,21 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
     background: transparent;
     color: var(--ink-soft);
     opacity: 1;
+    justify-self: end;
     align-self: center;
     min-height: var(--control-height);
     border-radius: var(--control-radius);
+  }
+  /* Remove is already in view here, so the card never slides off to show it. */
+  .planStops .planStop[data-revealed="true"] .planStop__surface,
+  .planStops .planStop:has(.planStop__remove:focus-visible) .planStop__surface {
+    transform: none;
+  }
+  @container plan-stops (min-width: 520px) {
+    .planStops .planStop > .planStop__card {
+      display: flex;
+      align-items: stretch;
+    }
   }
   .planStops .planStop__remove:hover:not(:disabled) {
     color: var(--color-negative);

@@ -749,16 +749,20 @@ export function buildPlanGenerationIntakeBody(
   anchor?: PlanGenerationAnchorInput | null,
 ): PlanGenerationIntakeBody {
   const cleanQuery = query.trim();
+  // A sort before the wizard is finished (a held pub seeds only the area)
+  // sends what the describe-first entry sends: every step nobody answered is
+  // skipped, never left both empty and unskipped, which the API refuses.
+  const sent = skipRemainingPlanIntake(draft);
   const context = {
     ...stripPlanIntakeOwnedContext(currentContext),
     ...explicitContext,
-    ...planIntakeNightContextPatch(draft),
+    ...planIntakeNightContextPatch(sent),
   };
   return {
     ...(cleanQuery ? { query: cleanQuery } : {}),
     ...(Object.keys(context).length > 0 ? { context } : {}),
     ...(anchor?.cityId ? { cityId: anchor.cityId } : {}),
-    intake: planIntakeHandoff(draft),
+    intake: planIntakeHandoff(sent),
     ...(anchor ? {
       anchor: {
         venueId: anchor.venueId,
