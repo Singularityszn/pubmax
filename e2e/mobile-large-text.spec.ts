@@ -30,24 +30,17 @@ for (const scale of [1.3, 1.5, 2]) {
     await page.setViewportSize({ width: 412, height: 840 });
     await installNativeShell(page, "android");
     await page.route("**/api/citymcp/status", (route) => route.fulfill({
-      json: { signals: [{ headline: "Transport update", kind: "transport" }] },
-    }));
-    const observedAt = new Date().toISOString();
-    await page.route("**/api/whats-on**", (route) => route.fulfill({
       json: {
-        rows: [{
-          id: "large-text-quiz", venueId: "venue-xjf3n0", placeName: "The Arnos Arms",
-          kind: "quiz", title: "Pub quiz", startsAt: new Date(Date.now() + 3_600_000).toISOString(),
-          source: { label: "Question One", url: "https://questionone.com/" },
-          observedAt, confidence: "listed",
-        }],
-        asOf: observedAt, sourceObservedAt: observedAt, sourceFreshnessKind: "dataset-generated",
+        signals: [{ headline: "Transport update", kind: "transport" }],
+        // The map-edge badge counts only urgent tube lines (lib/mapChromeTiers.ts
+        // isUrgentTubeStatus); routine updates stay in the sheet.
+        tubeLines: [{ line: "Weaver", status: "Part Suspended" }],
       },
     }));
     await page.goto("/map");
     await expect(page.locator("html")).toHaveAttribute("data-native-shell", "android");
-    const badges = page.locator(".mobileMapTonightChipCount, .mobileMapTflButton .mobileMapCornerBadge");
-    await expect(badges).toHaveCount(2);
+    const badges = page.locator(".mobileMapTflButton .mobileMapCornerBadge");
+    await expect(badges).toHaveCount(1);
     for (const badge of await badges.all()) await expect(badge).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
     const geometry = await badges.evaluateAll((elements, fontScale) => elements.map((element) => {
