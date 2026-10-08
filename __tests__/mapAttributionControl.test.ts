@@ -81,11 +81,28 @@ describe("the credit itself is unchanged", () => {
   });
 
   it("reads the same constant in the phone's copy, with the basemap's own line", () => {
-    const html = renderToStaticMarkup(createElement(MapCredits));
+    const html = renderToStaticMarkup(createElement(MapCredits, { provider: "openfreemap" }));
     expect(html).toContain("Map credits");
     expect(html).toContain(OSM_ATTRIBUTION);
     expect(html).toContain("OpenFreeMap");
     expect(html).toContain("OpenMapTiles");
     expect(html).toContain("https://www.openstreetmap.org/copyright");
+  });
+
+  it("names CARTO when its fallback style is active", () => {
+    const html = renderToStaticMarkup(createElement(MapCredits, { provider: "carto" }));
+    expect(html).toContain(OSM_ATTRIBUTION);
+    expect(html).toContain("CARTO");
+    expect(html).not.toContain("OpenFreeMap");
+    expect(html).not.toContain("OpenMapTiles");
+    expect(html).toContain("https://carto.com/about-carto/");
+    expect(html).toContain("https://www.openstreetmap.org/about/");
+  });
+
+  it("makes no basemap provider claim before a style has loaded", () => {
+    const html = renderToStaticMarkup(createElement(MapCredits, { provider: null }));
+    expect(html).toContain(OSM_ATTRIBUTION);
+    expect(html).not.toContain("OpenFreeMap");
+    expect(html).not.toContain("CARTO");
   });
 });

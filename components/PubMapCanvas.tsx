@@ -356,6 +356,8 @@ type PubMapCanvasProps = {
   initialLandmarkId?: string;
   /** Reports when the canvas can replace the parent's loading chrome. */
   onMapReady?: (ready: boolean) => void;
+  /** Reports the provider only after its style loads, and clears it on reconstruction. */
+  onBasemapProviderChange?: (provider: BasemapProvider | null) => void;
   /**
    * Called with `true` the moment the canvas commits to its user-facing error
    * fallback (WebGL failure, tiles down, context-lost, zero-size, …), and
@@ -705,6 +707,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     onBandChange,
     initialLandmarkId,
     onMapReady,
+    onBasemapProviderChange,
     onMapErrored,
     onMapConstructed,
     onBasemapChange,
@@ -810,17 +813,19 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // Keep the latest parent callback without reading/writing refs during render
   // (react-hooks/refs). Build/event handlers + error paths read this when ready flips.
   const onMapReadyRef = useRef(onMapReady);
+  const onBasemapProviderChangeRef = useRef(onBasemapProviderChange);
   const onMapErroredRef = useRef(onMapErrored);
   const onMapConstructedRef = useRef(onMapConstructed);
   const onBasemapChangeRef = useRef(onBasemapChange);
   const onRenderedStateChangeRef = useRef(onRenderedStateChange);
   useEffect(() => {
     onMapReadyRef.current = onMapReady;
+    onBasemapProviderChangeRef.current = onBasemapProviderChange;
     onMapErroredRef.current = onMapErrored;
     onMapConstructedRef.current = onMapConstructed;
     onBasemapChangeRef.current = onBasemapChange;
     onRenderedStateChangeRef.current = onRenderedStateChange;
-  }, [onMapReady, onMapErrored, onMapConstructed, onRenderedStateChange, onBasemapChange]);
+  }, [onMapReady, onBasemapProviderChange, onMapErrored, onMapConstructed, onRenderedStateChange, onBasemapChange]);
   const publishMapReady = useCallback((ready: boolean) => {
     setMapReady(ready);
     onMapReadyRef.current?.(ready);
@@ -1576,6 +1581,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         ...(lowPower ? { canvasContextAttributes: { powerPreference: "low-power" } } : {}),
       });
       markPubmaxTiming("pubmax:map-constructed");
+      onBasemapProviderChangeRef.current?.(null);
       onMapConstructedRef.current?.();
       onBasemapChangeRef.current?.("openfreemap");
       // MapLibre creates a forced-compact attribution control in its expanded
@@ -2838,6 +2844,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     // throws "Style is not done loading". With the flag set first, the error
     // handler knows the style did load and never swaps mid-build.
     map.on("style.load", () => {
+      onBasemapProviderChangeRef.current?.(usingFallback ? "carto" : "openfreemap");
       styleGeneration += 1;
       cancelDeferredWork();
       styleDroppedByContextLoss = false;

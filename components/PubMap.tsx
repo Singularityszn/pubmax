@@ -1512,7 +1512,6 @@ export default function PubMap({
   // for the active city's slim data, a paintable pubs source, and its guarded
   // visible frame. Canvas errors lift this state so fallback UI is not hidden.
   const [mapCanvasReady, setMapCanvasReady] = useState(false);
-  const [basemapProvider, setBasemapProvider] = useState<BasemapProvider>("openfreemap");
   // Pin-reveal is the loading shell's exit: it fires when painted pubs are
   // tappable, not merely when the basemap or slim rows exist.
   const { pinsRevealed, resetPinReveal } = useMapPinsRevealed();
@@ -1980,6 +1979,7 @@ export default function PubMap({
   } | null>(null);
   const [renderedMapState, setRenderedMapState] =
     useState<MapRenderedState>(EMPTY_MAP_RENDERED_STATE);
+  const [basemapProvider, setBasemapProvider] = useState<BasemapProvider | null>(null);
   const handleRenderedMapStateChange = useCallback(
     (next: MapRenderedState) => {
       setRenderedMapState((current) =>
@@ -6133,7 +6133,7 @@ export default function PubMap({
         </TabsList>
         <TabsContent value="key" className="mobileLayersPanel">
           <MapKey legend={activePriceLegend} />
-          <MapCredits basemap={basemapProvider} />
+          <MapCredits provider={basemapProvider} />
         </TabsContent>
         <TabsContent value="layers" className="mobileLayersPanel">
           <div className="mobileLayerShortcuts">
@@ -6835,8 +6835,8 @@ export default function PubMap({
         initialLandmarkId={seed.landmarkId}
         onLandmarkSelect={handleLandmarkSelect}
         onMapReady={handleMapCanvasReady}
+        onBasemapProviderChange={setBasemapProvider}
         onMapConstructed={handleMapCanvasConstructed}
-        onBasemapChange={setBasemapProvider}
         onMapErrored={setMapCanvasErrored}
         mapView={openingViewport
           ? withCityCameraAttitude(openingViewport, city.mapView)

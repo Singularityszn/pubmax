@@ -9,29 +9,42 @@ import { OSM_ATTRIBUTION, type BasemapProvider } from "@/components/map/canvas/t
  * map is built with, so the two can never say different things, and the basemap
  * line is the one its provider asks for, word for word.
  */
-export default function MapCredits({ basemap = "openfreemap" }: { basemap?: BasemapProvider }) {
+export default function MapCredits({ provider, basemap = "openfreemap" }: {
+  provider?: BasemapProvider | null;
+  basemap?: BasemapProvider;
+}) {
+  const activeProvider = provider === undefined ? basemap : provider;
   return (
     <section className="mobileMapCredits" aria-labelledby="mobileMapCreditsHeading">
       <h3 id="mobileMapCreditsHeading">Map credits</h3>
       <p>{OSM_ATTRIBUTION}.</p>
-      {basemap === "carto" ? (
+      {activeProvider === "carto" && (
         <p>
-          &copy; <a href="https://carto.com/about-carto/" target="_blank" rel="noreferrer noopener">CARTO</a>, &copy;{" "}
-          <a href="https://www.openstreetmap.org/about/" target="_blank" rel="noreferrer noopener">OpenStreetMap</a> contributors
+          &copy;{" "}
+          <a href="https://carto.com/about-carto/" target="_blank" rel="noreferrer noopener">
+            CARTO
+          </a>, &copy;{" "}
+          <a href="https://www.openstreetmap.org/about/" target="_blank" rel="noreferrer noopener">
+            OpenStreetMap
+          </a>{" "}
+          contributors
         </p>
-      ) : <p>
-        <a href="https://openfreemap.org" target="_blank" rel="noreferrer noopener">
-          OpenFreeMap
-        </a>{" "}
-        &copy;{" "}
-        <a href="https://www.openmaptiles.org/" target="_blank" rel="noreferrer noopener">
-          OpenMapTiles
-        </a>{" "}
-        Data from{" "}
-        <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer noopener">
-          OpenStreetMap
-        </a>
-      </p>}
+      )}
+      {activeProvider === "openfreemap" && (
+        <p>
+          <a href="https://openfreemap.org" target="_blank" rel="noreferrer noopener">
+            OpenFreeMap
+          </a>{" "}
+          &copy;{" "}
+          <a href="https://www.openmaptiles.org/" target="_blank" rel="noreferrer noopener">
+            OpenMapTiles
+          </a>{" "}
+          Data from{" "}
+          <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer noopener">
+            OpenStreetMap
+          </a>
+        </p>
+      )}
     </section>
   );
 }

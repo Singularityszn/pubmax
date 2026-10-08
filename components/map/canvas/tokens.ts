@@ -1,4 +1,5 @@
 import type * as maplibregl from "maplibre-gl";
+
 import {
   CATEGORY_COLORS,
   categoryVar,
@@ -10,6 +11,8 @@ import {
   rasterize,
   type IconTokens,
 } from "@/lib/mapIcons";
+
+export type BasemapProvider = "openfreemap" | "carto";
 
 // OpenFreeMap vector styles — truly keyless, MIT-licensed styles on ODbL/OSM
 // data (free for commercial use, unlike CARTO's basemaps), and OpenMapTiles
