@@ -129,7 +129,7 @@ function CreateFabContent({ routerReturnTo }: { routerReturnTo: string }) {
         <button
           className="createFabScrim"
           type="button"
-          aria-label="Close create menu"
+          aria-hidden="true"
           tabIndex={-1}
           onClick={close}
         />
