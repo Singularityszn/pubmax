@@ -9,6 +9,98 @@ type CameraProbe = {
   project: (coordinate: [number, number]) => { x: number; y: number };
 };
 
+type NewsFrame = CameraReading & { label: string | null; headline: string | null };
+
+for (const theme of ["light", "dark"] as const) {
+  test(`1440px ${theme} normal-motion area news waits for the settled picker destination`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.emulateMedia({ reducedMotion: "no-preference", colorScheme: theme });
+    await installDeterministicMapBasemap(page);
+    await page.addInitScript((choice) => {
+      localStorage.setItem("pubmax-theme", choice);
+      localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+      localStorage.setItem("pubmax-tour-v1-done", "1");
+      localStorage.setItem("pubmax_onboarding_dismissed", "1");
+      sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+      localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    }, theme);
+    let statusReads = 0;
+    await page.route("**/api/citymcp/status**", route => {
+      statusReads++;
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+        signals: [
+          { headline: "Kingston Market Place closed following fire", severity: "major", areas: ["Kingston"] },
+          { headline: "Soho local closure", severity: "notable", areas: ["Soho"] },
+        ], tubeLines: [], weather: null,
+      }) });
+    });
+    const initialStatus = page.waitForResponse("**/api/citymcp/status**");
+    await page.goto("/map");
+    await initialStatus;
+    await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
+    const cityDismiss = page.getByRole("button", { name: "Dismiss city suggestion" });
+    if (await cityDismiss.isVisible()) await cityDismiss.click();
+    const choose = page.locator(".citySwitcherTrigger").filter({ visible: true });
+    await choose.click();
+    await page.getByRole("button", { name: "This area", exact: true }).click();
+    await page.getByRole("searchbox", { name: "Search areas and postcodes" }).fill("Soho");
+    await page.locator(".chooseAreaSheet").filter({ visible: true }).getByRole("button", { name: /^Piccadilly & Soho/ }).click();
+    const read = () => page.evaluate(() => {
+      const probe = (window as Window & { __pubmaxMapCamera?: CameraProbe }).__pubmaxMapCamera;
+      if (!probe) throw new Error("camera probe absent");
+      return probe.read();
+    });
+    await expect.poll(async () => { const camera = await read(); return !camera.moving && !camera.settling; }).toBe(true);
+    await expect(page.locator(".cityStatusBannerCopy")).toHaveText("Soho local closure");
+    const before = await read();
+    const readsBeforeFlight = statusReads;
+    await choose.click();
+    await page.getByRole("button", { name: "This area", exact: true }).click();
+    await page.getByRole("searchbox", { name: "Search areas and postcodes" }).fill("Kingston");
+    await page.evaluate(() => {
+      const state = window as Window & {
+        __pubmaxMapCamera?: CameraProbe;
+        __areaNewsFrames?: NewsFrame[];
+        __areaNewsRecording?: boolean;
+      };
+      state.__areaNewsFrames = [];
+      state.__areaNewsRecording = true;
+      const sample = () => {
+        if (!state.__areaNewsRecording) return;
+        const camera = state.__pubmaxMapCamera?.read();
+        if (camera) state.__areaNewsFrames?.push({
+          ...camera,
+          label: [...document.querySelectorAll(".citySwitcherTrigger")].find(trigger => trigger.getClientRects().length > 0)?.getAttribute("aria-label") ?? null,
+          headline: document.querySelector(".cityStatusBannerCopy")?.textContent ?? null,
+        });
+        requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+    });
+    await page.locator(".chooseAreaSheet").filter({ visible: true }).getByRole("button", { name: "Kingston upon Thames", exact: true }).click();
+    await expect.poll(() => page.evaluate(() =>
+      (window as Window & { __areaNewsFrames?: NewsFrame[] }).__areaNewsFrames?.some(frame => frame.moving),
+    )).toBe(true);
+    await expect.poll(async () => { const camera = await read(); return !camera.moving && !camera.settling; }).toBe(true);
+    await expect(page.locator(".cityStatusBannerCopy")).toHaveText("Kingston Market Place closed following fire");
+    const frames = await page.evaluate(() => {
+      const state = window as Window & { __areaNewsFrames?: NewsFrame[]; __areaNewsRecording?: boolean };
+      state.__areaNewsRecording = false;
+      return state.__areaNewsFrames ?? [];
+    });
+    const { writeFileSync } = await import("node:fs");
+    const framePath = testInfo.outputPath("normal-motion-news.json");
+    writeFileSync(framePath, JSON.stringify({ before, after: await read(), frames, statusReads }, null, 2));
+    await testInfo.attach("normal-motion-news", { contentType: "application/json", path: framePath });
+    const leavingSoho = frames.filter(frame => frame.moving && frame.label?.includes("Kingston") &&
+      Math.abs(frame.center[0] - before.center[0]) < 0.005 && Math.abs(frame.center[1] - before.center[1]) < 0.005);
+    expect(leavingSoho.length).toBeGreaterThan(0);
+    expect(leavingSoho.map(frame => frame.headline)).not.toContain("Kingston Market Place closed following fire");
+    expect(statusReads).toBe(readsBeforeFlight);
+    expect(await page.evaluate(() => localStorage.getItem("pubmaxx:analytics-consent:v1"))).toBe("denied");
+  });
+}
+
 for (const theme of ["light", "dark"] as const) {
   test(`1440px ${theme} Richmond alias and real camera movement remove city-wide news outside London`, async ({ page }) => {
     test.setTimeout(150_000);
@@ -22,6 +114,7 @@ for (const theme of ["light", "dark"] as const) {
       localStorage.setItem("pubmax-tour-v1-done", "1");
       localStorage.setItem("pubmax_onboarding_dismissed", "1");
       sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+      localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
     }, theme);
     await page.route("**/api/citymcp/status**", route => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
       signals: [
