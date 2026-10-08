@@ -222,7 +222,7 @@ test("mobile drag-sheet traps focus at half and contains it at full (#17)", asyn
   await expect(detent).toBeVisible();
 
   // At half the scrim blocks the map, so the sheet is modal and traps focus.
-  await expect(sheet).toHaveAttribute("aria-modal", "true");
+  await expect(sheet).not.toHaveAttribute("aria-modal");
   await expect(sheet).toHaveAttribute("role", "dialog");
   await expect(page.locator("body > [inert]")).not.toHaveCount(0);
 
@@ -246,7 +246,7 @@ test("mobile drag-sheet traps focus at half and contains it at full (#17)", asyn
   await detent.click();
   await expect(sheet).toHaveClass(/sheet-full/);
   await expect(sheet).toHaveAttribute("role", "dialog");
-  await expect(sheet).toHaveAttribute("aria-modal", "true");
+  await expect(sheet).not.toHaveAttribute("aria-modal");
   await expect(page.locator("body > [inert]")).not.toHaveCount(0);
 
   const collapse = sheet.getByRole("button", { name: "Collapse sheet" });
@@ -256,7 +256,7 @@ test("mobile drag-sheet traps focus at half and contains it at full (#17)", asyn
 
   await collapse.click();
   await expect(sheet).toHaveClass(/sheet-half/);
-  await expect(sheet).toHaveAttribute("aria-modal", "true");
+  await expect(sheet).not.toHaveAttribute("aria-modal");
   await expect(page.locator("body > [inert]")).not.toHaveCount(0);
 
   await page.emulateMedia({ reducedMotion: "reduce" });
