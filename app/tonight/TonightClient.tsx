@@ -175,6 +175,10 @@ function mobileSecondaryLanes(lanes: ReactNode): ReactNode {
 // and what else is worth planning around.
 const THIN_NIGHT_MAX_ROWS = 2;
 
+function isThinNight(empty: boolean, ready: boolean, listingCount: number): boolean {
+  return empty || (ready && listingCount <= THIN_NIGHT_MAX_ROWS);
+}
+
 type QuietAlternative = {
   href: Route;
   icon: typeof TrainFront;
@@ -490,7 +494,7 @@ export default function TonightClient({
   // Unfiltered primary listing count, not the kind-filtered `visible.length` - a thin
   // night stays thin regardless of which chip is active, and this must not
   // flicker in/out as the user taps filters.
-  const thinNight = empty || (ready && primaryListingRows.length <= THIN_NIGHT_MAX_ROWS);
+  const thinNight = isThinNight(empty, ready, primaryListingRows.length);
   const hasGeoRows =
     ready &&
     primaryListingRows.some(
