@@ -5,9 +5,9 @@ The baseline was the production build of `origin/main` at `3bc62e232`. Native sc
 | Before | After |
 | --- | --- |
 | [Keyboard leaves chrome above the field](before/search-keyboard-webview133.png) | [WebView 157 search hides the tabs and FAB](after/search-keyboard-webview157.png) |
-| [Planner Enter does not submit](before/planner-keyboard-enter-webview133.png) | [WebView 133 keeps the expanded sheet and focused field while typing](after/planner-keyboard-webview133.png) |
+| [The planner keyboard offers a next-field key, not Go. A system dialog covers the sheet](before/planner-keyboard-enter-webview133.png) | [WebView 133 keeps the expanded sheet and focused field while typing](after/planner-keyboard-webview133.png) |
 | [Filter controls lack clear edges and the dock exposes content](before/filters-webview133.png) | [412px browser: complete caption, bounded control, 24px checkbox, button fills and opaque dock](after/filters-browser412.png) |
-| [The FAB appears on the moment composer](before/moment-fab-webview133.png) | [The moment composer withdraws the FAB](after/moment-browser412.png). [The create menu has an outside-tap scrim and a close mark](after/create-menu-browser412.png). |
+| [The moment composer before the change. A system dialog and the consent card cover the page, so this capture does not show the FAB](before/moment-fab-webview133.png) | [The moment composer withdraws the FAB](after/moment-browser412.png). [The create menu has an outside-tap scrim and a close mark](after/create-menu-browser412.png). |
 
 On WebView 133, native typing entered `Quiet in Soho`. The layout and visual viewport both shrank from approximately 839px to 527px. The field kept focus, the sheet kept its full snap, and the tabs and FAB acquired `isKeyboardHidden`. A native Enter key sent one `POST /api/plans/generate` with that exact query. No screenshot of the resulting planner state was captured.
 
