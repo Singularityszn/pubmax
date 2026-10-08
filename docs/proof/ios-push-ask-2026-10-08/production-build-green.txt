@@ -1,0 +1,1044 @@
+npm notice run pubmaxxing@0.1.0 npx
+npm notice run 'playwright' test -c artifacts/ios-push-ask-2026-10-08/green.config.ts
+[WebServer] npm notice run pubmaxxing@0.1.0 build
+[WebServer] npm notice run npm run prepare:maplibre-worker && npm run build:places-enrichment && npm run build:slim && npm run build:city-slim && npm run build:pubmaxxing-seed && npm run build:uk-base && npm run build:discover-board && next build
+[WebServer] npm notice run pubmaxxing@0.1.0 prepare:maplibre-worker
+[WebServer] npm notice run node scripts/copy_maplibre_worker.mjs && node scripts/copy_elevenlabs_worklets.mjs
+[WebServer] Copied MapLibre worker modules to /Users/karanmanoharan/.treehouse/pubmaxx-bde241/13/pubmaxx/public/vendor/maplibre
+[WebServer] Copied ElevenLabs worklets to /Users/karanmanoharan/.treehouse/pubmaxx-bde241/13/pubmaxx/public/vendor/elevenlabs
+[WebServer] npm notice run pubmaxxing@0.1.0 build:places-enrichment
+[WebServer] npm notice run node --import tsx scripts/build_places_enrichment.mjs
+[WebServer] (node:36018) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] Places enrichment runtime files: 4453 identities, 4453 records
+[WebServer] npm notice run pubmaxxing@0.1.0 build:slim
+[WebServer] npm notice run npm run canonicalize:venues && node scripts/build_slim_index.mjs
+[WebServer] npm notice run pubmaxxing@0.1.0 canonicalize:venues
+[WebServer] npm notice run node scripts/canonicalize_venue_dataset.mjs
+[WebServer] canonicalize: 2215 -> 2215 venue identities (0 duplicate clusters, 0 merged records this run; 91 total aliases)
+[WebServer] canonicalize: dataset already canonical — dataset left unchanged
+[WebServer] withholding 6 famous venue(s) with lapsed or missing verification or no anchor: bar-beaufort-bar-savoy, food-mangal-1, food-lahore-kebab-house, food-maroush-edgware-road, food-wong-kei, food-golden-dragon
+[WebServer] raw:   4068 price rows   7.24 MB (7593642 bytes)
+[WebServer] slim:  2296 venues       1031.4 KB (1056201 bytes)
+[WebServer] saved: 6.23 MB   (slim is 86.1% smaller)
+[WebServer] wrote: public/data/venues_slim.json
+[WebServer] detail rows: 2296 venues 7.45 MB (7810410 bytes)
+[WebServer] wrote: data/generated/venue_details.jsonl
+[WebServer] wrote: data/generated/venue_detail_index.json
+[WebServer] zones: z1:564 z2:519 z3:483 z4:294 z5:191 z6:157 z7:1 z8:1 z9:4 (nearest-station)
+[WebServer]
+[WebServer] shards: 274 spatial cell(s), one central compatibility core
+[WebServer]   core compatibility cell: 148 venues   74.1 KB   (+ manifest 47.3 KB)
+[WebServer]   51.275_-0.100               1 venues   0.7 KB
+[WebServer]   51.300_-0.125               1 venues   0.4 KB
+[WebServer]   51.300_-0.150               1 venues   0.4 KB
+[WebServer]   51.300_-0.275               1 venues   0.5 KB
+[WebServer]   51.300_0.050                1 venues   0.4 KB
+[WebServer]   51.325_-0.075               2 venues   1.2 KB
+[WebServer]   51.325_-0.125               2 venues   0.8 KB
+[WebServer]   51.325_-0.175               1 venues   0.4 KB
+[WebServer]   51.325_-0.200               1 venues   0.4 KB
+[WebServer]   51.325_-0.250               1 venues   0.5 KB
+[WebServer]   51.325_-0.275               2 venues   0.9 KB
+[WebServer]   51.325_-0.300               1 venues   0.5 KB
+[WebServer]   51.325_-0.325               1 venues   0.4 KB
+[WebServer]   51.325_-0.350               1 venues   0.4 KB
+[WebServer]   51.325_0.025                1 venues   0.4 KB
+[WebServer]   51.350_-0.100               5 venues   2.6 KB
+[WebServer]   51.350_-0.125              10 venues   4.7 KB
+[WebServer]   51.350_-0.150               4 venues   1.9 KB
+[WebServer]   51.350_-0.175              12 venues   4.5 KB
+[WebServer]   51.350_-0.200              15 venues   6.0 KB
+[WebServer]   51.350_-0.225               7 venues   2.4 KB
+[WebServer]   51.350_-0.250               2 venues   1.1 KB
+[WebServer]   51.350_-0.275               1 venues   0.5 KB
+[WebServer]   51.350_-0.300               2 venues   0.8 KB
+[WebServer]   51.350_-0.325               3 venues   1.2 KB
+[WebServer]   51.350_0.025                1 venues   0.4 KB
+[WebServer]   51.350_0.050                1 venues   0.4 KB
+[WebServer]   51.350_0.075                1 venues   0.5 KB
+[WebServer]   51.375_-0.075               2 venues   0.8 KB
+[WebServer]   51.375_-0.100               3 venues   1.3 KB
+[WebServer]   51.375_-0.125               1 venues   0.5 KB
+[WebServer]   51.375_-0.175               2 venues   0.8 KB
+[WebServer]   51.375_-0.225               1 venues   0.4 KB
+[WebServer]   51.375_-0.250               4 venues   1.8 KB
+[WebServer]   51.375_-0.275               3 venues   1.6 KB
+[WebServer]   51.375_-0.300               4 venues   1.7 KB
+[WebServer]   51.375_-0.325              13 venues   5.7 KB
+[WebServer]   51.375_0.000                2 venues   1.1 KB
+[WebServer]   51.375_0.025                1 venues   0.4 KB
+[WebServer]   51.375_0.075                1 venues   0.4 KB
+[WebServer]   51.400_-0.050               5 venues   2.0 KB
+[WebServer]   51.400_-0.075               2 venues   1.1 KB
+[WebServer]   51.400_-0.100               2 venues   1.0 KB
+[WebServer]   51.400_-0.125               1 venues   0.7 KB
+[WebServer]   51.400_-0.175               5 venues   2.0 KB
+[WebServer]   51.400_-0.200               8 venues   3.8 KB
+[WebServer]   51.400_-0.225              12 venues   6.2 KB
+[WebServer]   51.400_-0.250               3 venues   1.5 KB
+[WebServer]   51.400_-0.275               3 venues   1.2 KB
+[WebServer]   51.400_-0.300              14 venues   6.0 KB
+[WebServer]   51.400_-0.325              20 venues   8.5 KB
+[WebServer]   51.400_-0.375               2 venues   0.9 KB
+[WebServer]   51.400_0.000               13 venues   5.8 KB
+[WebServer]   51.400_0.050                1 venues   0.4 KB
+[WebServer]   51.400_0.075                1 venues   0.5 KB
+[WebServer]   51.400_0.100                1 venues   0.4 KB
+[WebServer]   51.425_-0.025               5 venues   2.4 KB
+[WebServer]   51.425_-0.050               5 venues   2.1 KB
+[WebServer]   51.425_-0.075               8 venues   3.5 KB
+[WebServer]   51.425_-0.100               1 venues   0.4 KB
+[WebServer]   51.425_-0.150               5 venues   2.4 KB
+[WebServer]   51.425_-0.175              12 venues   5.8 KB
+[WebServer]   51.425_-0.200               6 venues   2.6 KB
+[WebServer]   51.425_-0.225               5 venues   2.7 KB
+[WebServer]   51.425_-0.250               2 venues   0.8 KB
+[WebServer]   51.425_-0.275               1 venues   0.4 KB
+[WebServer]   51.425_-0.300               1 venues   0.4 KB
+[WebServer]   51.425_-0.325               3 venues   1.2 KB
+[WebServer]   51.425_-0.350               7 venues   3.2 KB
+[WebServer]   51.425_-0.375               1 venues   0.4 KB
+[WebServer]   51.425_-0.400               1 venues   0.4 KB
+[WebServer]   51.425_-0.425               6 venues   2.7 KB
+[WebServer]   51.425_0.000                1 venues   0.4 KB
+[WebServer]   51.425_0.025                1 venues   0.4 KB
+[WebServer]   51.425_0.050                3 venues   1.2 KB
+[WebServer]   51.425_0.075                3 venues   1.2 KB
+[WebServer]   51.425_0.100                2 venues   0.8 KB
+[WebServer]   51.425_0.125                1 venues   0.4 KB
+[WebServer]   51.425_0.150                2 venues   0.8 KB
+[WebServer]   51.450_-0.025              10 venues   4.6 KB
+[WebServer]   51.450_-0.050               3 venues   1.6 KB
+[WebServer]   51.450_-0.075               5 venues   2.6 KB
+[WebServer]   51.450_-0.100               5 venues   2.7 KB
+[WebServer]   51.450_-0.125              23 venues   10.8 KB
+[WebServer]   51.450_-0.150              25 venues   11.1 KB
+[WebServer]   51.450_-0.175              16 venues   8.4 KB
+[WebServer]   51.450_-0.200              22 venues   10.2 KB
+[WebServer]   51.450_-0.225              22 venues   10.4 KB
+[WebServer]   51.450_-0.250               2 venues   0.9 KB
+[WebServer]   51.450_-0.275               3 venues   1.5 KB
+[WebServer]   51.450_-0.300               4 venues   2.0 KB
+[WebServer]   51.450_-0.325              20 venues   9.1 KB
+[WebServer]   51.450_-0.350               5 venues   1.8 KB
+[WebServer]   51.450_-0.375              11 venues   4.5 KB
+[WebServer]   51.450_-0.400               3 venues   1.2 KB
+[WebServer]   51.450_-0.425               1 venues   0.4 KB
+[WebServer]   51.450_-0.450               3 venues   1.2 KB
+[WebServer]   51.450_0.000                4 venues   1.5 KB
+[WebServer]   51.450_0.025                3 venues   1.3 KB
+[WebServer]   51.450_0.050               10 venues   3.8 KB
+[WebServer]   51.450_0.075                2 venues   0.9 KB
+[WebServer]   51.450_0.100                2 venues   0.8 KB
+[WebServer]   51.450_0.125               11 venues   5.5 KB
+[WebServer]   51.450_0.150                5 venues   2.4 KB
+[WebServer]   51.450_0.175                1 venues   0.4 KB
+[WebServer]   51.475_-0.025              36 venues   15.4 KB
+[WebServer]   51.475_-0.050              15 venues   6.5 KB
+[WebServer]   51.475_-0.075               6 venues   2.7 KB
+[WebServer]   51.475_-0.100              11 venues   5.5 KB
+[WebServer]   51.475_-0.125              19 venues   8.3 KB
+[WebServer]   51.475_-0.150              39 venues   20.1 KB
+[WebServer]   51.475_-0.175              30 venues   13.8 KB
+[WebServer]   51.475_-0.200              33 venues   16.2 KB
+[WebServer]   51.475_-0.225              19 venues   9.9 KB
+[WebServer]   51.475_-0.250              25 venues   12.1 KB
+[WebServer]   51.475_-0.275              20 venues   8.6 KB
+[WebServer]   51.475_-0.300              13 venues   5.0 KB
+[WebServer]   51.475_-0.325              20 venues   7.5 KB
+[WebServer]   51.475_-0.350               4 venues   1.5 KB
+[WebServer]   51.475_-0.375               2 venues   0.7 KB
+[WebServer]   51.475_-0.400               1 venues   0.4 KB
+[WebServer]   51.475_-0.425               5 venues   2.0 KB
+[WebServer]   51.475_-0.450               1 venues   0.4 KB
+[WebServer]   51.475_-0.475               1 venues   0.4 KB
+[WebServer]   51.475_0.000               13 venues   5.2 KB
+[WebServer]   51.475_0.025                7 venues   2.7 KB
+[WebServer]   51.475_0.050               18 venues   6.8 KB
+[WebServer]   51.475_0.075                7 venues   2.6 KB
+[WebServer]   51.475_0.100                2 venues   0.8 KB
+[WebServer]   51.500_-0.025               8 venues   3.7 KB
+[WebServer]   51.500_-0.050              12 venues   5.9 KB
+[WebServer]   51.500_-0.075              46 venues   23.1 KB
+[WebServer]   51.500_-0.100             134 venues   74.6 KB
+[WebServer]   51.500_-0.125              97 venues   45.5 KB
+[WebServer]   51.500_-0.175              27 venues   13.8 KB
+[WebServer]   51.500_-0.200              26 venues   13.4 KB
+[WebServer]   51.500_-0.225              12 venues   5.5 KB
+[WebServer]   51.500_-0.250               7 venues   3.3 KB
+[WebServer]   51.500_-0.275               3 venues   1.2 KB
+[WebServer]   51.500_-0.300               5 venues   2.7 KB
+[WebServer]   51.500_-0.325              19 venues   8.5 KB
+[WebServer]   51.500_-0.350               8 venues   3.1 KB
+[WebServer]   51.500_-0.400               1 venues   0.4 KB
+[WebServer]   51.500_-0.425               2 venues   1.1 KB
+[WebServer]   51.500_-0.450               2 venues   0.8 KB
+[WebServer]   51.500_-0.475               2 venues   0.9 KB
+[WebServer]   51.500_-0.500               1 venues   0.4 KB
+[WebServer]   51.500_0.000               21 venues   8.4 KB
+[WebServer]   51.500_0.025                8 venues   3.0 KB
+[WebServer]   51.500_0.050                7 venues   2.8 KB
+[WebServer]   51.500_0.100                2 venues   0.8 KB
+[WebServer]   51.500_0.175                2 venues   0.8 KB
+[WebServer]   51.500_0.225                1 venues   0.4 KB
+[WebServer]   51.525_-0.025              20 venues   7.6 KB
+[WebServer]   51.525_-0.050              11 venues   5.3 KB
+[WebServer]   51.525_-0.075              23 venues   10.5 KB
+[WebServer]   51.525_-0.100              40 venues   19.7 KB
+[WebServer]   51.525_-0.125              54 venues   25.3 KB
+[WebServer]   51.525_-0.150              35 venues   16.1 KB
+[WebServer]   51.525_-0.175               7 venues   3.2 KB
+[WebServer]   51.525_-0.200              16 venues   6.6 KB
+[WebServer]   51.525_-0.225              17 venues   6.6 KB
+[WebServer]   51.525_-0.250              11 venues   4.1 KB
+[WebServer]   51.525_-0.275               2 venues   0.7 KB
+[WebServer]   51.525_-0.300               3 venues   1.0 KB
+[WebServer]   51.525_-0.325               1 venues   0.4 KB
+[WebServer]   51.525_-0.375               1 venues   0.4 KB
+[WebServer]   51.525_-0.425               1 venues   0.4 KB
+[WebServer]   51.525_-0.475               4 venues   1.6 KB
+[WebServer]   51.525_-0.500              12 venues   4.7 KB
+[WebServer]   51.525_0.000               20 venues   7.7 KB
+[WebServer]   51.525_0.025                5 venues   1.9 KB
+[WebServer]   51.525_0.050                5 venues   2.1 KB
+[WebServer]   51.525_0.075                7 venues   2.8 KB
+[WebServer]   51.525_0.100                4 venues   1.7 KB
+[WebServer]   51.525_0.125                3 venues   1.2 KB
+[WebServer]   51.525_0.150                3 venues   1.2 KB
+[WebServer]   51.550_-0.025              21 venues   8.5 KB
+[WebServer]   51.550_-0.050               5 venues   2.0 KB
+[WebServer]   51.550_-0.075              12 venues   6.1 KB
+[WebServer]   51.550_-0.100              15 venues   7.0 KB
+[WebServer]   51.550_-0.125              20 venues   8.7 KB
+[WebServer]   51.550_-0.150              14 venues   5.6 KB
+[WebServer]   51.550_-0.175               9 venues   3.7 KB
+[WebServer]   51.550_-0.200               7 venues   2.7 KB
+[WebServer]   51.550_-0.225               4 venues   1.6 KB
+[WebServer]   51.550_-0.250               1 venues   0.4 KB
+[WebServer]   51.550_-0.275               3 venues   1.1 KB
+[WebServer]   51.550_-0.300              16 venues   6.3 KB
+[WebServer]   51.550_-0.325               5 venues   1.8 KB
+[WebServer]   51.550_-0.350               5 venues   2.0 KB
+[WebServer]   51.550_-0.375               1 venues   0.8 KB
+[WebServer]   51.550_-0.425               1 venues   0.7 KB
+[WebServer]   51.550_-0.450               2 venues   1.2 KB
+[WebServer]   51.550_-0.500               1 venues   0.4 KB
+[WebServer]   51.550_0.000               21 venues   8.6 KB
+[WebServer]   51.550_0.025                6 venues   2.3 KB
+[WebServer]   51.550_0.050                4 venues   1.7 KB
+[WebServer]   51.550_0.125                6 venues   2.4 KB
+[WebServer]   51.550_0.150                2 venues   0.8 KB
+[WebServer]   51.550_0.175                2 venues   0.8 KB
+[WebServer]   51.550_0.200                4 venues   1.6 KB
+[WebServer]   51.550_0.225                2 venues   0.8 KB
+[WebServer]   51.550_0.250                2 venues   0.8 KB
+[WebServer]   51.575_-0.025              24 venues   10.2 KB
+[WebServer]   51.575_-0.050              16 venues   6.6 KB
+[WebServer]   51.575_-0.075              14 venues   5.4 KB
+[WebServer]   51.575_-0.100              22 venues   9.1 KB
+[WebServer]   51.575_-0.125              26 venues   10.6 KB
+[WebServer]   51.575_-0.150              16 venues   6.3 KB
+[WebServer]   51.575_-0.175               4 venues   1.6 KB
+[WebServer]   51.575_-0.200               1 venues   0.5 KB
+[WebServer]   51.575_-0.250               3 venues   1.1 KB
+[WebServer]   51.575_-0.275               2 venues   1.1 KB
+[WebServer]   51.575_-0.300               3 venues   1.4 KB
+[WebServer]   51.575_-0.325               1 venues   0.4 KB
+[WebServer]   51.575_-0.350               9 venues   4.1 KB
+[WebServer]   51.575_-0.375               4 venues   2.0 KB
+[WebServer]   51.575_-0.400               2 venues   0.8 KB
+[WebServer]   51.575_-0.425               3 venues   1.2 KB
+[WebServer]   51.575_-0.450               3 venues   1.2 KB
+[WebServer]   51.575_0.000                3 venues   1.2 KB
+[WebServer]   51.575_0.025                6 venues   2.4 KB
+[WebServer]   51.575_0.050                5 venues   2.1 KB
+[WebServer]   51.575_0.075                3 venues   1.6 KB
+[WebServer]   51.575_0.125                1 venues   0.4 KB
+[WebServer]   51.575_0.150                1 venues   0.4 KB
+[WebServer]   51.575_0.175               10 venues   4.1 KB
+[WebServer]   51.575_0.200                2 venues   0.8 KB
+[WebServer]   51.575_0.225                1 venues   0.4 KB
+[WebServer]   51.600_-0.025               8 venues   3.1 KB
+[WebServer]   51.600_-0.050               1 venues   0.5 KB
+[WebServer]   51.600_-0.075              11 venues   4.2 KB
+[WebServer]   51.600_-0.100               1 venues   0.4 KB
+[WebServer]   51.600_-0.125              14 venues   5.4 KB
+[WebServer]   51.600_-0.150               2 venues   1.0 KB
+[WebServer]   51.600_-0.175               2 venues   0.9 KB
+[WebServer]   51.600_-0.200              11 venues   4.8 KB
+[WebServer]   51.600_-0.275               1 venues   0.4 KB
+[WebServer]   51.600_-0.300               2 venues   0.8 KB
+[WebServer]   51.600_-0.350               1 venues   0.4 KB
+[WebServer]   51.600_-0.375               1 venues   0.8 KB
+[WebServer]   51.600_0.000                3 venues   1.2 KB
+[WebServer]   51.600_0.025                2 venues   0.9 KB
+[WebServer]   51.600_0.200                1 venues   0.4 KB
+[WebServer]   51.625_-0.025               3 venues   1.2 KB
+[WebServer]   51.625_-0.050               3 venues   1.2 KB
+[WebServer]   51.625_-0.075               5 venues   1.9 KB
+[WebServer]   51.625_-0.100               8 venues   2.9 KB
+[WebServer]   51.625_-0.125               7 venues   3.0 KB
+[WebServer]   51.625_-0.150               5 venues   1.9 KB
+[WebServer]   51.625_-0.175               3 venues   1.2 KB
+[WebServer]   51.625_-0.200               3 venues   1.3 KB
+[WebServer]   51.625_-0.225               1 venues   0.4 KB
+[WebServer]   51.625_-0.250               1 venues   0.4 KB
+[WebServer]   51.625_-0.475               1 venues   0.6 KB
+[WebServer]   51.625_0.000                7 venues   2.8 KB
+[WebServer]   51.650_-0.025               1 venues   0.4 KB
+[WebServer]   51.650_-0.050               8 venues   3.0 KB
+[WebServer]   51.650_-0.100              18 venues   8.4 KB
+[WebServer]   51.650_-0.125               2 venues   0.9 KB
+[WebServer]   51.650_-0.175               2 venues   0.8 KB
+[WebServer]   51.650_-0.200               1 venues   0.4 KB
+[WebServer]   51.650_-0.225               3 venues   1.2 KB
+[WebServer]   51.650_-0.300               1 venues   0.5 KB
+[WebServer]   51.675_-0.075               1 venues   0.4 KB
+[WebServer]   51.675_-0.100               1 venues   0.4 KB
+[WebServer]   51.675_-0.125               1 venues   0.4 KB
+[WebServer]   51.675_-0.150               1 venues   0.4 KB
+[WebServer]   51.700_-0.050               1 venues   0.6 KB
+[WebServer]   51.700_-0.100               1 venues   0.7 KB
+[WebServer]   51.700_-0.200               1 venues   0.5 KB
+[WebServer]   51.700_-0.250               1 venues   0.5 KB
+[WebServer]   core compatibility cell: 51.500_-0.150
+[WebServer]   TOTAL all shards:  1086.5 KB / 1200.0 KB budget
+[WebServer] npm notice run pubmaxxing@0.1.0 build:city-slim
+[WebServer] npm notice run node scripts/build_city_slim_index.mjs
+[WebServer] (node:37043) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/karanmanoharan/.treehouse/pubmaxx-bde241/13/pubmaxx/lib/harvest/sourcePolicy.ts is not specified and it doesn't parse as CommonJS.
+[WebServer] Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+[WebServer] To eliminate this warning, add "type": "module" to /Users/karanmanoharan/.treehouse/pubmaxx-bde241/13/pubmaxx/package.json.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] manchester: 577 venues → public/data/cities/manchester/venues_slim.json (215.8 KB)
+[WebServer] birmingham: 411 venues → public/data/cities/birmingham/venues_slim.json (158.6 KB)
+[WebServer] leeds: 313 venues → public/data/cities/leeds/venues_slim.json (116.9 KB)
+[WebServer] liverpool: 426 venues → public/data/cities/liverpool/venues_slim.json (155.9 KB)
+[WebServer] oxford: 102 venues → public/data/cities/oxford/venues_slim.json (38.5 KB)
+[WebServer] durham: 38 venues → public/data/cities/durham/venues_slim.json (14.3 KB)  [dropped oob=1 dup=0]
+[WebServer] glasgow: 313 venues → public/data/cities/glasgow/venues_slim.json (115.6 KB)
+[WebServer] bristol: 274 venues → public/data/cities/bristol/venues_slim.json (103.1 KB)
+[WebServer] cambridge: 85 venues → public/data/cities/cambridge/venues_slim.json (32.3 KB)
+[WebServer] bath: 70 venues → public/data/cities/bath/venues_slim.json (25.7 KB)
+[WebServer] llandudno: 56 venues → public/data/cities/llandudno/venues_slim.json (21.6 KB)
+[WebServer] npm notice run pubmaxxing@0.1.0 build:pubmaxxing-seed
+[WebServer] npm notice run node scripts/build_pubmaxxing_seed.mjs
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 102 is not a valid http(s) URL; omitting value: query:Soho London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 103 is not a valid http(s) URL; omitting value: query:Soho London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 104 is not a valid http(s) URL; omitting value: query:Soho London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 105 is not a valid http(s) URL; omitting value: query:Soho London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 106 is not a valid http(s) URL; omitting value: query:Shoreditch London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 107 is not a valid http(s) URL; omitting value: query:Shoreditch London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 108 is not a valid http(s) URL; omitting value: query:Shoreditch London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 109 is not a valid http(s) URL; omitting value: query:Shoreditch London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 110 is not a valid http(s) URL; omitting value: query:Camden London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 111 is not a valid http(s) URL; omitting value: query:Camden London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 112 is not a valid http(s) URL; omitting value: query:Camden London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 113 is not a valid http(s) URL; omitting value: query:Islington London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 114 is not a valid http(s) URL; omitting value: query:Islington London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 115 is not a valid http(s) URL; omitting value: query:Islington London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 116 is not a valid http(s) URL; omitting value: query:Islington London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 117 is not a valid http(s) URL; omitting value: query:Brixton London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 118 is not a valid http(s) URL; omitting value: query:Brixton London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 119 is not a valid http(s) URL; omitting value: query:Brixton London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 120 is not a valid http(s) URL; omitting value: query:Clapham London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 121 is not a valid http(s) URL; omitting value: query:Clapham London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 122 is not a valid http(s) URL; omitting value: query:Clapham London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 123 is not a valid http(s) URL; omitting value: query:Clapham London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 124 is not a valid http(s) URL; omitting value: query:Greenwich London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 125 is not a valid http(s) URL; omitting value: query:Greenwich London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 126 is not a valid http(s) URL; omitting value: query:Greenwich London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 127 is not a valid http(s) URL; omitting value: query:Greenwich London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 128 is not a valid http(s) URL; omitting value: query:Hackney London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 129 is not a valid http(s) URL; omitting value: query:Hackney London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 130 is not a valid http(s) URL; omitting value: query:Hackney London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 131 is not a valid http(s) URL; omitting value: query:Hackney London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 132 is not a valid http(s) URL; omitting value: query:Kensington London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 133 is not a valid http(s) URL; omitting value: query:Kensington London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 134 is not a valid http(s) URL; omitting value: query:Kensington London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 135 is not a valid http(s) URL; omitting value: query:Marylebone London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 136 is not a valid http(s) URL; omitting value: query:Marylebone London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 137 is not a valid http(s) URL; omitting value: query:Marylebone London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 138 is not a valid http(s) URL; omitting value: query:Bermondsey London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 139 is not a valid http(s) URL; omitting value: query:Bermondsey London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 140 is not a valid http(s) URL; omitting value: query:Bermondsey London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 141 is not a valid http(s) URL; omitting value: query:Peckham London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 142 is not a valid http(s) URL; omitting value: query:Peckham London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 143 is not a valid http(s) URL; omitting value: query:Peckham London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 144 is not a valid http(s) URL; omitting value: query:Dalston London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 145 is not a valid http(s) URL; omitting value: query:Dalston London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 146 is not a valid http(s) URL; omitting value: query:Hammersmith London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 147 is not a valid http(s) URL; omitting value: query:Hammersmith London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 148 is not a valid http(s) URL; omitting value: query:Hammersmith London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 149 is not a valid http(s) URL; omitting value: query:Hammersmith London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 150 is not a valid http(s) URL; omitting value: query:Paddington London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 151 is not a valid http(s) URL; omitting value: query:Paddington London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 152 is not a valid http(s) URL; omitting value: query:Paddington London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 153 is not a valid http(s) URL; omitting value: query:Paddington London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 154 is not a valid http(s) URL; omitting value: query:Canary Wharf London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 155 is not a valid http(s) URL; omitting value: query:Canary Wharf London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] [pubmaxxing-seed] pub discovery_source_url row 156 is not a valid http(s) URL; omitting value: query:Canary Wharf London pub drinks menu prices official menu (protocol query: is not http(s))
+[WebServer] Wrote /Users/karanmanoharan/.treehouse/pubmaxx-bde241/13/pubmaxx/public/data/pubmaxxing_seed_snapshot.json (155 pubs, 1487 beverage rows, 70 history seeds)
+[WebServer] npm notice run pubmaxxing@0.1.0 build:uk-base
+[WebServer] npm notice run node scripts/build_uk_base_shards.mjs && node scripts/build_uk_place_index.mjs && node scripts/build_uk_pub_search_index.mjs
+[WebServer] (node:37372) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/karanmanoharan/.treehouse/pubmaxx-bde241/13/pubmaxx/lib/harvest/sourcePolicy.ts is not specified and it doesn't parse as CommonJS.
+[WebServer] Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+[WebServer] To eliminate this warning, add "type": "module" to /Users/karanmanoharan/.treehouse/pubmaxx-bde241/13/pubmaxx/package.json.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] UK base venues → 619 shards in public/data/uk_base/
+[WebServer]   packs ............... 38122 pubs, 304 unnamed pubs, 7267 bars
+[WebServer]   curated owners ...... 4156
+[WebServer]   unusable (dropped) .. 0
+[WebServer]   shipped ............. 38122 pubs, 304 unnamed pubs, 7267 bars
+[WebServer]   cells split ......... 1
+[WebServer]   manifest ............ 44.8 KB (deferred until the zoom gate)
+[WebServer]   shards total ........ 3793.0 KB
+[WebServer]   fattest shard ....... 51.500_-0.125 - 123.4 KB (1347 venues)
+[WebServer]   median shard ........ 2.4 KB
+[WebServer]   dropped ids ......... 0 re-mapped, 0 retired
+[WebServer] UK place search → 7632 places, 370.1 KB
+[WebServer] UK pub search → 38122 pubs, 2.88 MB
+[WebServer] npm notice run pubmaxxing@0.1.0 build:discover-board
+[WebServer] npm notice run tsx scripts/build_discover_board.mjs
+[WebServer] (node:38211) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:38225) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] discover board: 10 ranked rows, 950 baselines -> public/data/discover/board.json
+[WebServer] ▲ Next.js 16.3.8 (Turbopack)
+[WebServer] (node:38229) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] ✓ Running next.config.mjs took 338ms
+[WebServer] Warning: Custom Cache-Control headers detected for the following routes:
+[WebServer]   - /_next/static/:path*
+[WebServer]
+[WebServer] Setting a custom Cache-Control header can break Next.js development behavior.
+[WebServer] - Experiments (use with caution):
+[WebServer]   ✓ authInterrupts
+[WebServer]   · staleTimes
+[WebServer]   ⨯ useTypeScriptCli
+[WebServer]
+[WebServer]   Creating an optimized production build ...
+[WebServer] (node:38229) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:39756) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] ✓ Compiled successfully in 5.5s
+[WebServer]   Running TypeScript ...
+[WebServer]   Finished TypeScript in 45s ...
+[WebServer]   Collecting page data using 17 workers ...
+[WebServer] (node:60804) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:60809) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:60810) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:60798) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:60801) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:60796) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:60812) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:60814) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:60799) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:60794) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:60800) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:60791) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:60807) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:60802) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:60793) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:60811) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:60805) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer]   Generating static pages using 17 workers (0/541) ...
+[WebServer]   Generating static pages using 17 workers (135/541)
+[WebServer]   Generating static pages using 17 workers (270/541)
+[WebServer]   Generating static pages using 17 workers (405/541)
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461791465}
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461791795}
+[WebServer] ✓ Generating static pages using 17 workers (541/541) in 1263ms
+[WebServer] Turbopack build encountered 4 warnings:
+[WebServer] ./lib/venueRecordCopy.server.ts:16:46
+[WebServer] Warning: The file pattern ('/ROOT/' <dynamic> | '/ROOT' <dynamic>) matches 32206 files in [project]/
+[WebServer]   14 | ...
+[WebServer]   15 | ...
+[WebServer] > 16 | ...wait readFile(path.join(process.cwd(), VENUE_RECORD_COPY_TRACING_INCLUDE), "utf8"));
+[WebServer]      |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[WebServer]   17 | ... pack.model !== "gemini-2.5-flash-lite" ||
+[WebServer]   18 | ...f pack.venues !== "object" || Array.isArray(pack.venues)) return venue;
+[WebServer]   19 | ...es;
+[WebServer]
+[WebServer] Overly broad patterns can lead to build performance issues and over bundling.
+[WebServer]
+[WebServer] Import traces:
+[WebServer]   App Route:
+[WebServer]     ./lib/venueRecordCopy.server.ts
+[WebServer]     ./lib/venueDetailIndex.ts
+[WebServer]     ./app/api/near-price-trust/route.ts
+[WebServer]
+[WebServer]   Server Component:
+[WebServer]     ./lib/venueRecordCopy.server.ts
+[WebServer]     ./lib/venueDetailIndex.ts
+[WebServer]     ./app/bar-tab/[id]/page.tsx
+[WebServer]
+[WebServer]
+[WebServer] ./lib/venueSiteFacts.server.ts:15:44
+[WebServer] Warning: The file pattern ('/ROOT/' <dynamic> | '/ROOT' <dynamic>) matches 32206 files in [project]/
+[WebServer]   13 | ...string>();
+[WebServer]   14 | ...
+[WebServer] > 15 | ...wait readFile(path.join(process.cwd(), VENUE_SITE_FACTS_TRACING_INCLUDE), "utf8"));
+[WebServer]      |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[WebServer]   16 | ... !Array.isArray(file.rows)) return byVenueId;
+[WebServer]   17 | ...ws) {
+[WebServer]   18 | ... { venueId?: unknown } | null)?.venueId;
+[WebServer]
+[WebServer] Overly broad patterns can lead to build performance issues and over bundling.
+[WebServer]
+[WebServer] Import traces:
+[WebServer]   #1 [App Route]:
+[WebServer]     ./lib/venueSiteFacts.server.ts
+[WebServer]     ./lib/venueDetailIndex.ts
+[WebServer]     ./app/api/near-price-trust/route.ts
+[WebServer]
+[WebServer]   #2 [Server Component]:
+[WebServer]     ./lib/venueSiteFacts.server.ts
+[WebServer]     ./lib/venueDetailIndex.ts
+[WebServer]     ./app/bar-tab/[id]/page.tsx
+[WebServer]
+[WebServer]   #3 [App Route]:
+[WebServer]     ./lib/venueSiteFacts.server.ts
+[WebServer]     ./lib/venueRecordCopy.server.ts
+[WebServer]     ./lib/venueDetailIndex.ts
+[WebServer]     ./app/api/near-price-trust/route.ts
+[WebServer]
+[WebServer]
+[WebServer] ./lib/venueRecordCopy.server.ts:16:46
+[WebServer] Warning: Dynamic filesystem access causes tracing of the whole project
+[WebServer]   14 | ...
+[WebServer]   15 | ...
+[WebServer] > 16 | ...wait readFile(path.join(process.cwd(), VENUE_RECORD_COPY_TRACING_INCLUDE), "utf8"));
+[WebServer]      |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[WebServer]   17 | ... pack.model !== "gemini-2.5-flash-lite" ||
+[WebServer]   18 | ...f pack.venues !== "object" || Array.isArray(pack.venues)) return venue;
+[WebServer]   19 | ...es;
+[WebServer]
+[WebServer] Static analysis determined that this filesystem access causes the whole project to be traced and included in the output.
+[WebServer] This is usually unintentional and leads to all source files (including the public folder) to be deployed as part of the server code.
+[WebServer] This can slow down deployments or lead to failures when size limits are exceeded.
+[WebServer] To resolve this, you can
+[WebServer] - make sure the path is statically scoped to some subfolder, for example path.join(process.cwd(), 'data', bar), or
+[WebServer] - only use them in development, or
+[WebServer] - opt out by adding an ignore comment to the highlighted call: path.join(/*turbopackIgnore: true*/ ...), or
+[WebServer] - remove them.
+[WebServer]
+[WebServer] Import traces:
+[WebServer]   App Route:
+[WebServer]     ./lib/venueRecordCopy.server.ts
+[WebServer]     ./lib/venueDetailIndex.ts
+[WebServer]     ./app/api/near-price-trust/route.ts
+[WebServer]
+[WebServer]   Server Component:
+[WebServer]     ./lib/venueRecordCopy.server.ts
+[WebServer]     ./lib/venueDetailIndex.ts
+[WebServer]     ./app/bar-tab/[id]/page.tsx
+[WebServer]
+[WebServer]
+[WebServer] ./lib/venueSiteFacts.server.ts:15:44
+[WebServer] Warning: Dynamic filesystem access causes tracing of the whole project
+[WebServer]   13 | ...string>();
+[WebServer]   14 | ...
+[WebServer] > 15 | ...wait readFile(path.join(process.cwd(), VENUE_SITE_FACTS_TRACING_INCLUDE), "utf8"));
+[WebServer]      |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[WebServer]   16 | ... !Array.isArray(file.rows)) return byVenueId;
+[WebServer]   17 | ...ws) {
+[WebServer]   18 | ... { venueId?: unknown } | null)?.venueId;
+[WebServer]
+[WebServer] Static analysis determined that this filesystem access causes the whole project to be traced and included in the output.
+[WebServer] This is usually unintentional and leads to all source files (including the public folder) to be deployed as part of the server code.
+[WebServer] This can slow down deployments or lead to failures when size limits are exceeded.
+[WebServer] To resolve this, you can
+[WebServer] - make sure the path is statically scoped to some subfolder, for example path.join(process.cwd(), 'data', bar), or
+[WebServer] - only use them in development, or
+[WebServer] - opt out by adding an ignore comment to the highlighted call: path.join(/*turbopackIgnore: true*/ ...), or
+[WebServer] - remove them.
+[WebServer]
+[WebServer] Import traces:
+[WebServer]   #1 [App Route]:
+[WebServer]     ./lib/venueSiteFacts.server.ts
+[WebServer]     ./lib/venueDetailIndex.ts
+[WebServer]     ./app/api/near-price-trust/route.ts
+[WebServer]
+[WebServer]   #2 [Server Component]:
+[WebServer]     ./lib/venueSiteFacts.server.ts
+[WebServer]     ./lib/venueDetailIndex.ts
+[WebServer]     ./app/bar-tab/[id]/page.tsx
+[WebServer]
+[WebServer]   #3 [App Route]:
+[WebServer]     ./lib/venueSiteFacts.server.ts
+[WebServer]     ./lib/venueRecordCopy.server.ts
+[WebServer]     ./lib/venueDetailIndex.ts
+[WebServer]     ./app/api/near-price-trust/route.ts
+[WebServer]
+[WebServer]
+[WebServer]   Finalizing page optimization ...
+[WebServer]
+[WebServer] Route (app)                                                Revalidate  Expire
+[WebServer] ┌ ○ /                                                              1h      1y
+[WebServer] ├ ƒ /_not-found
+[WebServer] ├ ƒ /about
+[WebServer] ├ ƒ /account/delete
+[WebServer] ├ ƒ /activity
+[WebServer] ├ ƒ /add/[handle]
+[WebServer] ├ ƒ /add/[handle]/opengraph-image
+[WebServer] ├ ƒ /admin
+[WebServer] ├ ƒ /api/[[...unmatched]]
+[WebServer] ├ ƒ /api/account
+[WebServer] ├ ƒ /api/account/export
+[WebServer] ├ ƒ /api/admin/city-enrichment
+[WebServer] ├ ƒ /api/admin/comments
+[WebServer] ├ ƒ /api/admin/community-prices
+[WebServer] ├ ƒ /api/admin/import-notes
+[WebServer] ├ ƒ /api/admin/night-signals
+[WebServer] ├ ƒ /api/admin/profile-avatars
+[WebServer] ├ ƒ /api/admin/session
+[WebServer] ├ ƒ /api/admin/social-posts
+[WebServer] ├ ƒ /api/admin/social-posts/media/[mediaId]
+[WebServer] ├ ƒ /api/area-demand
+[WebServer] ├ ƒ /api/area-news
+[WebServer] ├ ƒ /api/ask
+[WebServer] ├ ƒ /api/auth/change-password/verify
+[WebServer] ├ ƒ /api/auth/handle-password
+[WebServer] ├ ƒ /api/auth/providers
+[WebServer] ├ ƒ /api/auth/referral-signup-proof
+[WebServer] ├ ƒ /api/auth/session
+[WebServer] ├ ƒ /api/avatar/[profileId]/[generation]
+[WebServer] ├ ƒ /api/chaos-card
+[WebServer] ├ ƒ /api/cheap-pint-ping
+[WebServer] ├ ƒ /api/check-ins
+[WebServer] ├ ƒ /api/city-map-card
+[WebServer] ├ ƒ /api/citymcp/area
+[WebServer] ├ ƒ /api/citymcp/buzz
+[WebServer] ├ ƒ /api/citymcp/journey
+[WebServer] ├ ƒ /api/citymcp/place
+[WebServer] ├ ƒ /api/citymcp/places
+[WebServer] ├ ƒ /api/citymcp/status
+[WebServer] ├ ƒ /api/citymcp/things-to-do
+[WebServer] ├ ƒ /api/client-error
+[WebServer] ├ ƒ /api/contributors
+[WebServer] ├ ƒ /api/cover/[profileId]/[generation]
+[WebServer] ├ ƒ /api/crawl-card
+[WebServer] ├ ƒ /api/crawls
+[WebServer] ├ ƒ /api/crawls/[slug]
+[WebServer] ├ ƒ /api/creator-lists
+[WebServer] ├ ƒ /api/cron/cheap-pint-ping
+[WebServer] ├ ƒ /api/cron/enrich-city-pubs
+[WebServer] ├ ƒ /api/cron/freshness-audit
+[WebServer] ├ ƒ /api/cron/harvest-refresh
+[WebServer] ├ ƒ /api/cron/moderate-social-interactions
+[WebServer] ├ ƒ /api/cron/moderate-social-posts
+[WebServer] ├ ƒ /api/cron/purge-pub-pal-turns
+[WebServer] ├ ƒ /api/cron/purge-social-media
+[WebServer] ├ ƒ /api/cron/reconcile-price-trust
+[WebServer] ├ ƒ /api/cron/refresh-night-signals
+[WebServer] ├ ƒ /api/cron/refresh-weather
+[WebServer] ├ ƒ /api/cron/refresh-whats-on
+[WebServer] ├ ƒ /api/cron/step-out-nudge
+[WebServer] ├ ƒ /api/diary
+[WebServer] ├ ƒ /api/drink-wall
+[WebServer] ├ ƒ /api/drink-wall-photo/[photoId]
+[WebServer] ├ ƒ /api/events
+[WebServer] ├ ƒ /api/events/tonight
+[WebServer] ├ ƒ /api/founding-members
+[WebServer] ├ ƒ /api/freshness
+[WebServer] ├ ƒ /api/harvest-overlay
+[WebServer] ├ ƒ /api/health
+[WebServer] ├ ƒ /api/heritage
+[WebServer] ├ ƒ /api/home-card
+[WebServer] ├ ƒ /api/hygiene
+[WebServer] ├ ƒ /api/identity/adult-assertion
+[WebServer] ├ ƒ /api/identity/handle/availability
+[WebServer] ├ ƒ /api/identity/handle/claim
+[WebServer] ├ ƒ /api/identity/handle/current
+[WebServer] ├ ƒ /api/identity/handle/rename
+[WebServer] ├ ƒ /api/identity/handle/resolve
+[WebServer] ├ ƒ /api/identity/onboarding
+[WebServer] ├ ƒ /api/image-proxy
+[WebServer] ├ ƒ /api/invite/[token]/reactions
+[WebServer] ├ ƒ /api/invite/[token]/rsvp
+[WebServer] ├ ƒ /api/last-merseyrail
+[WebServer] ├ ƒ /api/last-subway
+[WebServer] ├ ƒ /api/last-train
+[WebServer] ├ ƒ /api/last-tram
+[WebServer] ├ ƒ /api/late-food
+[WebServer] ├ ƒ /api/list-card
+[WebServer] ├ ƒ /api/map-search
+[WebServer] ├ ƒ /api/me/night-profile
+[WebServer] ├ ƒ /api/me/pending-plan-recaps
+[WebServer] ├ ƒ /api/messages
+[WebServer] ├ ƒ /api/messages/[id]
+[WebServer] ├ ƒ /api/messages/[id]/photo/[messageId]
+[WebServer] ├ ƒ /api/near-price-trust
+[WebServer] ├ ƒ /api/nearby-bus-departures
+[WebServer] ├ ƒ /api/night-areas
+[WebServer] ├ ƒ /api/night-areas/[slug]
+[WebServer] ├ ƒ /api/night-calm
+[WebServer] ├ ƒ /api/night-memories
+[WebServer] ├ ƒ /api/night-memories/[id]
+[WebServer] ├ ƒ /api/night-memories/[id]/moments
+[WebServer] ├ ƒ /api/night-moments/[id]
+[WebServer] ├ ƒ /api/night-moments/[id]/alt-text
+[WebServer] ├ ƒ /api/night-signals
+[WebServer] ├ ƒ /api/night-stories
+[WebServer] ├ ƒ /api/night-stories/[id]
+[WebServer] ├ ƒ /api/night-stories/[id]/consents
+[WebServer] ├ ƒ /api/night-stories/[id]/contributors
+[WebServer] ├ ƒ /api/night-stories/[id]/moments
+[WebServer] ├ ƒ /api/night-stories/[id]/publish-confirmations
+[WebServer] ├ ƒ /api/night-stories/[id]/publish-proposals
+[WebServer] ├ ƒ /api/night-stories/[id]/workspace
+[WebServer] ├ ƒ /api/notifications
+[WebServer] ├ ƒ /api/operator-proposals
+[WebServer] ├ ƒ /api/out
+[WebServer] ├ ƒ /api/pint-drops
+[WebServer] ├ ƒ /api/pint-drops/[id]
+[WebServer] ├ ƒ /api/pint-drops/comments
+[WebServer] ├ ƒ /api/pint-drops/reactions
+[WebServer] ├ ƒ /api/pint-drops/stats
+[WebServer] ├ ƒ /api/plan-card
+[WebServer] ├ ƒ /api/plans
+[WebServer] ├ ƒ /api/plans/[id]
+[WebServer] ├ ƒ /api/plans/[id]/actions
+[WebServer] ├ ƒ /api/plans/[id]/collaboration
+[WebServer] ├ ƒ /api/plans/[id]/complete
+[WebServer] ├ ƒ /api/plans/[id]/constraints
+[WebServer] ├ ƒ /api/plans/[id]/constraints/[constraintId]/resolve
+[WebServer] ├ ƒ /api/plans/[id]/getin
+[WebServer] ├ ƒ /api/plans/[id]/group-prefs
+[WebServer] ├ ƒ /api/plans/[id]/invite-rotate
+[WebServer] ├ ƒ /api/plans/[id]/invite-rsvp
+[WebServer] ├ ƒ /api/plans/[id]/invites
+[WebServer] ├ ƒ /api/plans/[id]/invites/[inviteId]
+[WebServer] ├ ƒ /api/plans/[id]/invites/redeem
+[WebServer] ├ ƒ /api/plans/[id]/join
+[WebServer] ├ ƒ /api/plans/[id]/presence
+[WebServer] ├ ƒ /api/plans/[id]/proposals
+[WebServer] ├ ƒ /api/plans/[id]/proposals/[proposalId]/decision
+[WebServer] ├ ƒ /api/plans/[id]/proposals/[proposalId]/votes
+[WebServer] ├ ƒ /api/plans/[id]/recap
+[WebServer] ├ ƒ /api/plans/[id]/session
+[WebServer] ├ ƒ /api/plans/[id]/vibe-votes
+[WebServer] ├ ƒ /api/plans/anchor
+[WebServer] ├ ƒ /api/plans/generate
+[WebServer] ├ ƒ /api/presence
+[WebServer] ├ ƒ /api/price-impact
+[WebServer] ├ ƒ /api/price-missions
+[WebServer] ├ ƒ /api/price-submit
+[WebServer] ├ ƒ /api/profiles/[handle]
+[WebServer] ├ ƒ /api/profiles/[handle]/avatar
+[WebServer] ├ ƒ /api/profiles/[handle]/avatar/report
+[WebServer] ├ ƒ /api/profiles/[handle]/cover
+[WebServer] ├ ƒ /api/profiles/[handle]/cover/report
+[WebServer] ├ ƒ /api/profiles/[handle]/covers
+[WebServer] ├ ƒ /api/profiles/[handle]/covers/[coverId]
+[WebServer] ├ ƒ /api/profiles/[handle]/covers/[coverId]/report
+[WebServer] ├ ƒ /api/profiles/[handle]/follow
+[WebServer] ├ ƒ /api/profiles/[handle]/followers
+[WebServer] ├ ƒ /api/profiles/[handle]/following
+[WebServer] ├ ƒ /api/profiles/[handle]/lane-stats
+[WebServer] ├ ƒ /api/profiles/[handle]/lot
+[WebServer] ├ ƒ /api/profiles/directory
+[WebServer] ├ ƒ /api/profiles/search
+[WebServer] ├ ƒ /api/pub-pal
+[WebServer] ├ ƒ /api/pub-pal/chat
+[WebServer] ├ ƒ /api/pub-pal/memories
+[WebServer] ├ ƒ /api/pub-pal/memories/[memoryId]
+[WebServer] ├ ƒ /api/pub-pal/memories/export
+[WebServer] ├ ƒ /api/pub-pal/tool-turn
+[WebServer] ├ ƒ /api/pub-pal/tools/[toolName]
+[WebServer] ├ ƒ /api/pub-pal/voice-token
+[WebServer] ├ ƒ /api/push-tokens
+[WebServer] ├ ƒ /api/ratings
+[WebServer] ├ ƒ /api/referrals/claim-attribution
+[WebServer] ├ ƒ /api/referrals/invite-link
+[WebServer] ├ ƒ /api/referrals/status
+[WebServer] ├ ƒ /api/rounds
+[WebServer] ├ ƒ /api/rounds/[code]
+[WebServer] ├ ƒ /api/saved-pubs
+[WebServer] ├ ƒ /api/saved-pubs/list-follows
+[WebServer] ├ ƒ /api/social-connections
+[WebServer] ├ ƒ /api/social-connections/[provider]
+[WebServer] ├ ƒ /api/social-connections/[provider]/callback
+[WebServer] ├ ƒ /api/social/access
+[WebServer] ├ ƒ /api/social/crews
+[WebServer] ├ ƒ /api/social/crews/[crewId]
+[WebServer] ├ ƒ /api/social/crews/[crewId]/invitations
+[WebServer] ├ ƒ /api/social/crews/[crewId]/invitations/[invitationId]
+[WebServer] ├ ƒ /api/social/crews/[crewId]/join-requests
+[WebServer] ├ ƒ /api/social/crews/[crewId]/join-requests/[requestId]
+[WebServer] ├ ƒ /api/social/crews/[crewId]/leave
+[WebServer] ├ ƒ /api/social/crews/[crewId]/members/[memberId]
+[WebServer] ├ ƒ /api/social/crews/[crewId]/public
+[WebServer] ├ ƒ /api/social/interactions
+[WebServer] ├ ƒ /api/social/media/[mediaId]
+[WebServer] ├ ƒ /api/social/outbox
+[WebServer] ├ ƒ /api/social/posts
+[WebServer] ├ ƒ /api/social/posts/[postId]
+[WebServer] ├ ƒ /api/social/tags
+[WebServer] ├ ƒ /api/social/venues
+[WebServer] ├ ƒ /api/spoons-value
+[WebServer] ├ ƒ /api/starter-packs
+[WebServer] ├ ƒ /api/starter-packs/[slug]/follow
+[WebServer] ├ ƒ /api/step-out-nudge
+[WebServer] ├ ƒ /api/tfl-disruption
+[WebServer] ├ ƒ /api/tonight-conditions
+[WebServer] ├ ƒ /api/uk-base/[id]
+[WebServer] ├ ƒ /api/venue-operators/claim
+[WebServer] ├ ƒ /api/venue-photo/[venueId]/[photoId]
+[WebServer] ├ ƒ /api/venue-photos
+[WebServer] ├ ƒ /api/venue-search
+[WebServer] ├ ƒ /api/venue/[id]
+[WebServer] ├ ƒ /api/venues/[id]/occupancy
+[WebServer] ├ ƒ /api/version
+[WebServer] ├ ƒ /api/visit-reports
+[WebServer] ├ ƒ /api/walk-route
+[WebServer] ├ ƒ /api/wanted
+[WebServer] ├ ƒ /api/wanted/resolve
+[WebServer] ├ ƒ /api/weather-recommendations
+[WebServer] ├ ƒ /api/whats-on
+[WebServer] ├ ○ /app-entry
+[WebServer] ├ ƒ /area/[slug]/drink/[brand]
+[WebServer] ├ ƒ /area/[slug]/drink/[brand]/opengraph-image
+[WebServer] ├ ƒ /auth/callback
+[WebServer] ├ ƒ /bar-tab/[id]
+[WebServer] ├ ƒ /bar-tab/[id]/opengraph-image
+[WebServer] ├ ƒ /borough
+[WebServer] ├ ƒ /borough/[slug]
+[WebServer] ├ ƒ /borough/[slug]/opengraph-image
+[WebServer] ├ ƒ /contributors
+[WebServer] ├ ƒ /crawls
+[WebServer] ├ ƒ /crawls/[slug]
+[WebServer] ├ ƒ /discover
+[WebServer] ├ ƒ /drink/[slug]
+[WebServer] ├ ƒ /drink/[slug]/opengraph-image
+[WebServer] ├ ƒ /drinks
+[WebServer] ├ ƒ /feed
+[WebServer] ├ ƒ /founders
+[WebServer] ├ ƒ /historic
+[WebServer] ├ ƒ /historic/[slug]
+[WebServer] ├ ƒ /historic/[slug]/opengraph-image
+[WebServer] ├ ƒ /how-we-estimate
+[WebServer] ├ ƒ /ingest/[...path]
+[WebServer] ├ ƒ /invite/[token]
+[WebServer] ├ ƒ /invite/[token]/opengraph-image
+[WebServer] ├ ƒ /landmark/[id]
+[WebServer] ├ ƒ /ledger/[id]
+[WebServer] ├ ƒ /login
+[WebServer] ├ ○ /map                                                           1h      1y
+[WebServer] ├ ƒ /map/[city]
+[WebServer] ├ ƒ /map/[city]/opengraph-image
+[WebServer] ├ ƒ /map/arrival
+[WebServer] ├ ƒ /messages
+[WebServer] ├ ƒ /messages/[id]
+[WebServer] ├ ƒ /moment
+[WebServer] ├ ○ /near                                                          1h      1y
+[WebServer] ├ ƒ /og.png
+[WebServer] ├ ƒ /onboarding
+[WebServer] ├ ƒ /out
+[WebServer] ├ ƒ /p/[id]
+[WebServer] ├ ƒ /p/[id]/opengraph-image
+[WebServer] ├ ƒ /pal
+[WebServer] ├ ƒ /pal/chat
+[WebServer] ├ ƒ /pint-index
+[WebServer] ├ ƒ /pint-index/[month]
+[WebServer] ├ ƒ /pint-index/[month]/data.csv
+[WebServer] ├ ƒ /pint-index/[month]/opengraph-image
+[WebServer] ├ ƒ /pint-index/data.csv
+[WebServer] ├ ○ /pint-index/opengraph-image
+[WebServer] ├ ƒ /places
+[WebServer] ├ ƒ /plan
+[WebServer] ├ ƒ /plan/[id]
+[WebServer] ├ ƒ /plan/[id]/recap
+[WebServer] ├ ƒ /privacy
+[WebServer] ├ ƒ /profile
+[WebServer] ├ ƒ /pub/[slug]
+[WebServer] ├ ƒ /pubs
+[WebServer] ├ ƒ /r/[code]
+[WebServer] ├ ƒ /recap/[storyId]
+[WebServer] ├ ƒ /recap/[storyId]/opengraph-image
+[WebServer] ├ ○ /robots.txt
+[WebServer] ├ ƒ /rounds
+[WebServer] ├ ƒ /rounds/[code]
+[WebServer] ├ ƒ /signin
+[WebServer] ├ ○ /sitemap.xml
+[WebServer] ├ ƒ /social
+[WebServer] ├ ƒ /social/crews/[crewId]
+[WebServer] ├ ƒ /soft-drinks-and-water
+[WebServer] ├ ƒ /spoons-value
+[WebServer] ├ ƒ /terms
+[WebServer] ├ ○ /today                                                         5m      1y
+[WebServer] ├ ○ /tonight                                                       5m      1y
+[WebServer] ├ ○ /tonight/opengraph-image
+[WebServer] ├ ƒ /u/[handle]
+[WebServer] ├ ƒ /u/[handle]/lists/[listType]
+[WebServer] ├ ƒ /u/[handle]/opengraph-image
+[WebServer] ├ ƒ /u/[handle]/people/[relation]
+[WebServer] ├ ƒ /venue/[slug]
+[WebServer] ├ ƒ /wall
+[WebServer] ├ ƒ /we-are-out
+[WebServer] └ ƒ /webmcp
+[WebServer]
+[WebServer]
+[WebServer] ƒ Proxy (Middleware)
+[WebServer]
+[WebServer] ○  (Static)   prerendered as static content
+[WebServer] ƒ  (Dynamic)  server-rendered on demand
+[WebServer]
+[WebServer] npm notice run pubmaxxing@0.1.0 start
+[WebServer] npm notice run node -e "const d=process.env.NEXT_DIST_DIR||'.next'; require('fs').existsSync(d+'/BUILD_ID') || (console.error('\n\u2717 '+d+'/BUILD_ID is missing \u2014 there is no completed production build to serve.\n  Run npm run build to completion first. In this shared worktree a concurrent next dev/next build can clobber .next mid-build and leave it partial; for isolated production QA use NEXT_DIST_DIR=.next-prod.\n'), process.exit(1))" && next start --port 3417
+[WebServer] (node:62357) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] ▲ Next.js 16.3.8
+[WebServer] - Local:         http://localhost:3417
+[WebServer] - Network:       http://192.168.0.41:3417
+[WebServer] ✓ Ready in 72ms
+[WebServer] ✓ Running next.config.mjs took 353ms
+
+Running 10 tests using 1 worker
+
+(node:62756) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [push-journeys] › e2e/mobile-first-run-onboarding.spec.ts:74:7 › first-run onboarding is composed at 390x844 in light (1.0s)
+  ✓   2 [push-journeys] › e2e/mobile-first-run-onboarding.spec.ts:74:7 › first-run onboarding is composed at 390x844 in dark (830ms)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":112,"ts":1791461798472}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":544,"ts":1791461798600}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":130,"ts":1791461798604}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":575,"ts":1791461798677}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":136,"ts":1791461798731}
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461798996}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":6,"ts":1791461798997}
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461799193}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":1,"ts":1791461799194}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":1298,"ts":1791461799404}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":782,"ts":1791461799469}
+  ✓   3 [push-journeys] › e2e/mobile-first-run-onboarding.spec.ts:111:5 › native first run hands one useful Plan to the contextual push ask (2.8s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":1366,"ts":1791461799959}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":1506,"ts":1791461799976}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":1432,"ts":1791461800129}
+  ✓   4 [push-journeys] › e2e/mobile-first-run-onboarding.spec.ts:158:5 › direct web onboarding redirects home without mutating onboarding state (468ms)
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461800669}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":2,"ts":1791461800670}
+  ✓   5 [push-journeys] › e2e/mobile-first-run-onboarding.spec.ts:176:5 › returning native direct onboarding redirects to Tonight without mutation (584ms)
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461801345}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":1,"ts":1791461801345}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791461801830}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461801880}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461801882}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461802140}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461802143}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461802227}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461802229}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":0,"ts":1791461802251}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":124,"ts":1791461802281}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":456,"ts":1791461802355}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461802357}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":107,"ts":1791461802364}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":1,"ts":1791461802367}
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461802796}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":2,"ts":1791461802796}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":714,"ts":1791461802874}
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461802971}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":2,"ts":1791461802972}
+  ✓   6 [push-journeys] › e2e/mobile-first-run-onboarding.spec.ts:198:5 › Skip releases onboarding budget for the next Plan but never prompts on reboot (2.5s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":1753,"ts":1791461804007}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":2834,"ts":1791461804735}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791461804900}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461804954}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461804956}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461804964}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461804965}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461805251}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461805253}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":1,"ts":1791461805287}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461805288}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":0,"ts":1791461805304}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":1,"ts":1791461805306}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461805307}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461805326}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461805476}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461805477}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":528,"ts":1791461805507}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":0,"ts":1791461806140}
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461806286}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":1,"ts":1791461806286}
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461806552}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":1,"ts":1791461806553}
+  ✓   7 [push-journeys] › e2e/native-push-ask-lifecycle.spec.ts:12:9 › native push ask survives map arrival teardown after Plan my night in light (3.3s)
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461807838}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":1,"ts":1791461807838}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791461808326}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461808385}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461808386}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461808398}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461808399}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461808413}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461808568}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461808569}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":0,"ts":1791461808724}
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461809315}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":1,"ts":1791461809316}
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461809547}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":2,"ts":1791461809548}
+  ✓   8 [push-journeys] › e2e/native-push-ask-lifecycle.spec.ts:12:9 › native push ask survives map arrival teardown after Skip in light (2.7s)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791461811529}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461811586}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461811588}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461811609}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461811610}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461811624}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461811852}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461811853}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461811864}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461811866}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461811927}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461811928}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":0,"ts":1791461811934}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461811935}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461811936}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461811953}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461812096}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461812098}
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461812653}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":1,"ts":1791461812653}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":827,"ts":1791461812709}
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461812881}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":1,"ts":1791461812881}
+  ✓   9 [push-journeys] › e2e/native-push-ask-lifecycle.spec.ts:12:9 › native push ask survives map arrival teardown after Plan my night in dark (3.0s)
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461814135}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":1,"ts":1791461814135}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791461814628}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":1,"ts":1791461814686}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461814687}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461814714}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":1,"ts":1791461814716}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461814786}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461814918}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461814920}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":0,"ts":1791461815021}
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461815582}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":1,"ts":1791461815582}
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461815802}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":1,"ts":1791461815803}
+  ✓  10 [push-journeys] › e2e/native-push-ask-lifecycle.spec.ts:12:9 › native push ask survives map arrival teardown after Skip in dark (2.7s)
+
+  10 passed (1.4m)
