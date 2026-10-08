@@ -29,6 +29,7 @@ import {
 } from "@/lib/socialRelationships.server";
 import { socialMemoryBlocked } from "@/lib/socialBlockMemory";
 import { isSupabaseConfigured } from "@/lib/supabase";
+import { followOnce } from "@/lib/followWrite.server";
 
 export type CrewFriendEdgeOutcome =
   | "created"
@@ -139,11 +140,12 @@ export async function ensureMutualFollowPair(
       deps.follows.isFollowing(b, a),
     ]);
     if (aFollowsB && bFollowsA) return "already";
-    await Promise.all([
-      aFollowsB ? Promise.resolve(true) : deps.follows.follow(a, b),
-      bFollowsA ? Promise.resolve(true) : deps.follows.follow(b, a),
+    const outcomes = await Promise.all([
+      aFollowsB ? Promise.resolve("already") : followOnce(a, b, deps),
+      bFollowsA ? Promise.resolve("already") : followOnce(b, a, deps),
     ]);
-    return aFollowsB && bFollowsA ? "already" : "created";
+    if (outcomes.includes("unavailable")) return "unavailable";
+    return outcomes.includes("followed") ? "created" : "already";
   } catch {
     return "unavailable";
   }
