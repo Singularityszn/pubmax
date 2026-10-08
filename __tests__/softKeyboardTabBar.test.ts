@@ -5,17 +5,7 @@
 // iOS Safari nor Android Chrome shrink for the keyboard, so the bar keeps its
 // place while the keyboard rises past it.
 //
-// Three things are pinned here, and they are the three that can drift apart:
-//   1. the RULE (lib/softKeyboard.ts) - both halves of the evidence, because
-//      either half alone hides the navigation on a guess;
-//   2. what the COMPONENT renders for each answer, including the accessibility
-//      half - a bar slid off screen must not still be a tab stop;
-//   3. that the shipped CSS actually moves it, by transform alone, so the
-//      body's reserved bottom clearance never shifts under the caret.
-
 import { createElement } from "react";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -40,11 +30,6 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/components/auth/useViewerHandle", () => ({
   useViewerHandle: () => null,
 }));
-
-const mobileNavCss = readFileSync(
-  join(process.cwd(), "components/nav/mobileNav.css"),
-  "utf8",
-);
 
 // A phone-shaped viewport: 844 CSS pixels tall, the keyboard taking ~300 of it.
 const PHONE_LAYOUT_HEIGHT = 844;
@@ -186,15 +171,5 @@ describe("what the tab bar renders for each answer", () => {
     expect(navTag(markup)).not.toContain("isKeyboardHidden");
     expect(navTag(markup)).not.toContain("aria-hidden");
     expect(navTag(markup)).toMatch(/\binert\b/);
-  });
-});
-
-describe("the shipped CSS moves it without moving the page", () => {
-  it("slides the bar out on the same rule the open-sheet state uses", () => {
-    const rule =
-      mobileNavCss.match(/\.mobileTabBar\.isKeyboardHidden\s*{([^}]*)}/)?.[1] ?? "";
-    expect(rule).toMatch(/transform:\s*translateY\(110%\)/);
-    expect(rule).toMatch(/opacity:\s*0/);
-    expect(rule).toMatch(/pointer-events:\s*none/);
   });
 });

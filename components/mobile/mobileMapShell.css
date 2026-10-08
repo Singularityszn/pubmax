@@ -817,10 +817,10 @@
   /* The venue sheet peeks at its header and command bar alone
      (useSheetHeightDrag sizes it so). The body gives up its padding so it
      closes to nothing, and hides at rest so no cut row shows. */
-  .mobileSharedSheet.right.sheet-peek > .mobileSharedSheetBody {
+  .mobileSharedSheet.right.sheet-peek:has(> .mobileSharedSheetFooter:not(:empty)) > .mobileSharedSheetBody {
     padding-block: 0;
   }
-  .mobileSharedSheet.right.sheet-peek:not(.sheet-dragging):not(.sheet-settling) > .mobileSharedSheetBody {
+  .mobileSharedSheet.right.sheet-peek:has(> .mobileSharedSheetFooter:not(:empty)):not(.sheet-dragging):not(.sheet-settling) > .mobileSharedSheetBody {
     visibility: hidden;
   }
   /* THE LOADING PANEL FILLS THE SHEET. This box is content-driven under
