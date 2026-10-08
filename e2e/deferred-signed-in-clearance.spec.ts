@@ -25,13 +25,19 @@ async function returningAccount(page: Page) {
 for (const width of [390, 768, 1440]) {
 for (const theme of ["light", "dark"] as const) {
   const height = width === 390 ? 844 : width === 768 ? 1024 : 900;
-  test(`signed-in Pal voice controls clear consent on arrival, ${width} ${theme}`, async ({ page }) => {
+  for (const [nameCase, name] of [
+    ["short", "Moss"],
+    ["long", "The Wednesday Wetherspoons Pal"],
+    ["unbroken", "W".repeat(32)],
+  ] as const) {
+  const suffix = nameCase === "short" ? "" : `, ${nameCase} name`;
+  test(`signed-in Pal voice controls clear consent on arrival, ${width} ${theme}${suffix}`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
     const timestamp = "2026-10-04T12:00:00.000Z";
     const pal = {
       id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: ACCOUNTS.A.id,
-      name: "Moss", adultAttestedAt: timestamp,
+      name, adultAttestedAt: timestamp,
       appearance: DEFAULT_PAL_DRAFT.appearance, personality: DEFAULT_PAL_DRAFT.personality,
       voice: DEFAULT_PAL_DRAFT.voice, muted: false, hidden: false,
       proposalPreferences: { memories: false, routes: true }, masteryPoints: 0,
@@ -48,19 +54,51 @@ for (const theme of ["light", "dark"] as const) {
     const start = page.getByRole("button", { name: "Start voice chat", exact: true });
     await expect(start).toBeVisible();
     await expect(page.locator(".analyticsConsentPrompt")).toBeVisible();
+    const heading = page.getByRole("heading", { name, exact: true });
+    await expect(heading).toBeVisible();
+    await expect(heading).toHaveText(name);
+    const nameFits = await heading.evaluate((element) => {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      return [...range.getClientRects()].every((rect) =>
+        rect.left >= 0 && rect.right <= window.innerWidth);
+    });
+    expect(nameFits).toBe(true);
+    const plan = page.getByRole("link", { name: `Plan with ${name}`, exact: true });
+    await expect(plan).toBeVisible();
+    await expect(plan).toContainText(name);
+    const planTextFits = await plan.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      return [...range.getClientRects()].every((rect) =>
+        rect.left >= box.left && rect.right <= box.right);
+    });
+    expect(planTextFits).toBe(true);
+    if (width === 390) {
+      const portrait = await page.locator(".palHomePortrait .palPortrait").boundingBox();
+      expect(portrait?.width).toBe(160);
+      expect(portrait?.height).toBe(160);
+    }
     const geometry = await page.locator(".palVoice").evaluate((element) => {
       const card = element.getBoundingClientRect();
       const consent = document.querySelector(".analyticsConsentPrompt")!.getBoundingClientRect();
       const input = element.querySelector("input")!;
       const field = input.getBoundingClientRect();
+      const button = element.querySelector(".palVoiceActions > button")!;
+      const target = button.getBoundingClientRect();
       return {
         clearance: consent.top - card.bottom,
+        targetHeight: target.height,
+        targetHit: button.contains(document.elementFromPoint(target.x + target.width / 2, target.y + target.height / 2)),
         fieldHeight: field.height,
         fieldFontSize: parseFloat(getComputedStyle(input).fontSize),
         hit: element.contains(document.elementFromPoint(field.x + field.width / 2, field.y + field.height / 2)),
       };
     });
     expect(geometry.clearance).toBeGreaterThanOrEqual(12);
+    expect(geometry.targetHeight).toBeGreaterThanOrEqual(44);
+    expect(geometry.targetHit).toBe(true);
     expect(geometry.fieldHeight).toBeGreaterThanOrEqual(44);
     expect(geometry.fieldFontSize).toBeGreaterThanOrEqual(16);
     expect(geometry.hit).toBe(true);
@@ -70,6 +108,7 @@ for (const theme of ["light", "dark"] as const) {
     await page.keyboard.type("A quiet night");
     await expect(page.locator(".palVoiceActions input")).toHaveValue("A quiet night");
   });
+  }
 
   test(`signed-in Plan map clears consent, ${width} ${theme}`, async ({ page }) => {
     await page.setViewportSize({ width, height });
