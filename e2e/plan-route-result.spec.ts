@@ -139,6 +139,26 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 
       await expect(sheet).toBeHidden();
       await expect(page.locator("#plan-route-status")).toBeFocused();
     });
+
+    test("while Sort it again is in flight, focus stays on the busy button inside the sheet", async ({ page }) => {
+      await sortARoute(page);
+      let answer: () => void = () => undefined;
+      const answered = new Promise<void>((resolve) => { answer = resolve; });
+      await page.route("**/api/plans/generate", async (route) => {
+        await answered;
+        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(GENERATED) });
+      });
+      await page.getByRole("button", { name: "Tune details" }).click();
+      const sheet = page.getByRole("dialog", { name: "Tune details" });
+      await sheet.getByRole("button", { name: "Sort it again" }).click();
+      // The browser drops focus from a disabled control at its next rendering
+      // update, so the check waits two frames for that to have happened.
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      await expect(sheet.getByRole("button", { name: "Planning…" })).toBeFocused();
+      answer();
+      await expect(sheet).toBeHidden();
+      await expect(page.locator("#plan-route-status")).toBeFocused();
+    });
   });
 }
 

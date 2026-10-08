@@ -2293,12 +2293,15 @@ function PlanComposerForm({
             screen is the reader choosing between them. This control keeps
             its place and its words change to what it now does; it is
             demoted rather than removed, because editing the description
-            above it has to stay answerable. */}
+            above it has to stay answerable. While it is busy it is only
+            aria-disabled: a disabled button loses focus, and inside Tune
+            details that drops the reader to the page body behind the sheet. */}
         <button
           type="button"
           className={routeSorted ? "planComposer__resort" : undefined}
-          onClick={() => sortWithConcierge()}
-          disabled={sorting || !canSortWithCurrentGenerator}
+          onClick={() => { if (!sorting) sortWithConcierge(); }}
+          disabled={!canSortWithCurrentGenerator}
+          aria-disabled={sorting || undefined}
           aria-busy={sorting}
         >
           {sorting ? "Planning…" : routeSorted ? "Sort it again" : "Make a plan"}

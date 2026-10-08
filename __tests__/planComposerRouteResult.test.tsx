@@ -189,6 +189,43 @@ describe("sorting again from Tune details", () => {
     expect(document.activeElement?.id).toBe("plan-route-status");
   });
 
+  it("keeps the busy button focusable while the sort is in flight, and a second press asks nothing", async () => {
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4");
+    await openTune();
+    let answer: (response: Response) => void = () => undefined;
+    fetchMock.mockImplementation((input) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      return url.includes("/api/plans/generate")
+        ? new Promise<Response>((resolve) => { answer = resolve; })
+        : Promise.resolve(new Response("[]", { status: 200, headers: { "content-type": "application/json" } }));
+    });
+    const generateCalls = () => fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate")).length;
+    const before = generateCalls();
+
+    const again = [...document.querySelectorAll<HTMLButtonElement>("[role='dialog'] button")].find((button) => button.textContent === "Sort it again")!;
+    await act(async () => { again.focus(); again.click(); });
+    await settle();
+
+    // A disabled button cannot hold focus, so the browser would drop it to the
+    // page body while the sheet is still open.
+    expect(again.textContent).toBe("Planning…");
+    expect(again.disabled).toBe(false);
+    expect(again.getAttribute("aria-disabled")).toBe("true");
+    expect(document.activeElement).toBe(again);
+    await act(async () => { again.click(); });
+    await settle();
+    expect(generateCalls()).toBe(before + 1);
+
+    await act(async () => {
+      answer(new Response(JSON.stringify(GENERATED), { status: 200, headers: { "content-type": "application/json" } }));
+    });
+    await settle();
+    await settle();
+    expect(document.querySelector("[role='dialog']")).toBeNull();
+    expect(document.activeElement?.id).toBe("plan-route-status");
+  });
+
   it("closes the sheet on a failed sort, so the failure is not hidden behind it", async () => {
     await mountComposer();
     await sortIt("Quiet in Clapham for 4");

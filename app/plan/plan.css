@@ -448,7 +448,8 @@
    never a muddy brick hue that reads "broken" next to vivid enabled coral. */
 .planComposer__submit:disabled,
 .planComposer__submit[aria-disabled="true"],
-.planComposer__conciergeInput button:disabled {
+.planComposer__conciergeInput button:disabled,
+.planComposer__conciergeInput button[aria-disabled="true"] {
   background: var(--accent-action);
   color: var(--color-on-accent);
   opacity: 0.58;
@@ -921,18 +922,18 @@
 .planComposer__conciergeInput { margin-top: 20px; display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 /* Plan my night — same --accent-action fill as mobile Find my pint / Claim handle. */
 .planComposer__conciergeInput button { min-height: 48px; border: 0; border-radius: 11px; padding: 0 20px; background: var(--accent-action); color: var(--color-on-accent); font: inherit; font-weight: 800; cursor: pointer; }
-.planComposer__conciergeInput button:hover:not(:disabled) { background: var(--accent-action-strong); }
+.planComposer__conciergeInput button:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--accent-action-strong); }
 /* ONE PAINTED PRIMARY PER SCREEN. With a route on the page `Lock it in` is the
    thing to do next, so this control drops its fill and keeps everything else:
    same box, same height, same place, so a reader who wants another route still
    finds it exactly where it was. */
 .planComposer__conciergeInput button.planComposer__resort,
-.planComposer__conciergeInput button.planComposer__resort:hover:not(:disabled) {
+.planComposer__conciergeInput button.planComposer__resort:hover:not(:disabled):not([aria-disabled="true"]) {
   border: 1px solid var(--line);
   background: transparent;
   color: var(--ink);
 }
-.planComposer__conciergeInput button.planComposer__resort:hover:not(:disabled) {
+.planComposer__conciergeInput button.planComposer__resort:hover:not(:disabled):not([aria-disabled="true"]) {
   border-color: var(--accent-action);
   color: var(--accent-action-strong);
 }
