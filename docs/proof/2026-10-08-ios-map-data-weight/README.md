@@ -138,3 +138,8 @@ The transmitted inline script text does not match the supplied original script f
 The original TDD logs, including the rollover race red and green logs, remain unchanged. The prior outer test result supplied a full-gate pass. This focused phase did not rerun the full gate, static checks, native generation, PR publication or CI. The outer executor owns those phases and must report their actual status in the PR body. The PR evidence must include the retained TDD and full-gate proof, the original samples, the separate reconstructed samples, and this replay with its provenance limit.
 
 No physical-device performance, memory-leak, deployment or production claim follows from these browser samples. No paid calls, live POST, migration, deploy, threshold waiver or ceiling change occurred. The test phase stopped its own servers and removed its disposable source archives and compiled outputs before returning.
+
+
+## Retry ordering follow-up
+
+[Retry ordering proof](retry-ordering.md) records the published-head reproduction and the source correction. Its current validation level is stated separately from the earlier measurements.

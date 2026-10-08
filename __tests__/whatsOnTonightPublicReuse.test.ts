@@ -93,20 +93,28 @@ it("bypasses a fresh answer for explicit retry", async () => {
   expect(fetchImpl).toHaveBeenCalledTimes(2);
 });
 
-it("starts a new pending read for explicit retry and does not publish the earlier answer to that caller", async () => {
+it.each([
+  { label: "public", options: {} },
+  { label: "pub-only", options: { pubOnly: true } },
+  { label: "near", options: { near: { lat: 51.51234567, lng: -0.12345678 } } },
+  { label: "near pub-only", options: { near: { lat: 51.51234567, lng: -0.12345678 }, pubOnly: true } },
+])("retains the fresh $label retry answer after an earlier pending read finishes", async ({ options }) => {
   let answerEarlier: ((response: Response) => void) | undefined;
   const fetchImpl = vi.fn<typeof fetch>()
     .mockImplementationOnce(() => new Promise<Response>((resolve) => { answerEarlier = resolve; }))
     .mockResolvedValueOnce(Response.json({ ...body, sourceObservedAt: "2026-10-07T10:00:00.000Z" }));
-  const earlier = loadWhatsOnTonight({ fetchImpl });
+  const earlier = loadWhatsOnTonight({ fetchImpl, ...options });
   await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
   const onResult = vi.fn();
-  const retried = await loadWhatsOnTonight({ fetchImpl, fresh: true, onResult });
+  const retried = await loadWhatsOnTonight({ fetchImpl, ...options, fresh: true, onResult });
   expect(fetchImpl).toHaveBeenCalledTimes(2);
   expect(retried.sourceObservedAt).toBe("2026-10-07T10:00:00.000Z");
   answerEarlier?.(Response.json(body));
-  await earlier;
+  expect((await earlier).sourceObservedAt).toBe(body.sourceObservedAt);
   expect(onResult).toHaveBeenCalledTimes(1);
+  const returning = await loadWhatsOnTonight({ fetchImpl, ...options });
+  expect(returning.sourceObservedAt).toBe(retried.sourceObservedAt);
+  expect(fetchImpl).toHaveBeenCalledTimes(2);
 });
 
 it("clears public answers when the account rotates", async () => {
