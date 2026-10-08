@@ -350,6 +350,53 @@ describe("review scope guard", () => {
     expect(report.regeneratedLanes).toEqual(["uk_pub_search"]);
   });
 
+  it.each([
+    "scripts/build_historic_index.mjs",
+    "public/data/heritage_cache.json",
+    "public/data/pint_prices_app_dataset.json",
+    "public/data/venue_id_aliases.json",
+    "lib/heritageLanguageGate.mjs",
+    "lib/heritagePlaceConflict.mjs",
+    "lib/heritageDate.mjs",
+  ])("permits the historic directory when its producer changes: %s", (input) => {
+    const report = summarizeReviewScope([input, "public/data/historic_pubs.json"]);
+
+    expect(report.ok).toBe(true);
+    expect(report.forbidden).toEqual([]);
+    expect(report.categories.regenerated).toEqual(["public/data/historic_pubs.json"]);
+    expect(report.regeneratedLanes).toEqual(["historic_pubs"]);
+    expect(report.reviewFileCount).toBe(1);
+  });
+
+  it("keeps other generated output forbidden beside the historic builder", () => {
+    const report = summarizeReviewScope([
+      "scripts/build_historic_index.mjs",
+      "public/data/historic_pubs.json",
+      "public/data/heritage_listings.json",
+      "public/data/venues_slim.json",
+    ]);
+
+    expect(report.ok).toBe(false);
+    expect(report.forbidden).toEqual([
+      { category: "generated", path: "public/data/heritage_listings.json" },
+      { category: "generated", path: "public/data/venues_slim.json" },
+    ]);
+    expect(report.regeneratedLanes).toEqual(["historic_pubs"]);
+  });
+
+  it("keeps historic output forbidden beside an unrelated builder", () => {
+    const report = summarizeReviewScope([
+      "scripts/build_heritage_listings.mjs",
+      "public/data/historic_pubs.json",
+    ]);
+
+    expect(report.ok).toBe(false);
+    expect(report.forbidden).toEqual([
+      { category: "generated", path: "public/data/historic_pubs.json" },
+    ]);
+    expect(report.regeneratedLanes).toEqual([]);
+  });
+
   it("permits generated database types when the diff carries a migration", () => {
     const report = summarizeReviewScope([
       "supabase/migrations/20260101000000_example.sql",

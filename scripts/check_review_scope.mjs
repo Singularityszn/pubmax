@@ -167,6 +167,19 @@ export const REGENERATED_LANES = [
     ],
   },
   {
+    id: "historic_pubs",
+    output: /^public\/data\/historic_pubs\.json$/,
+    inputs: [
+      /^scripts\/build_historic_index\.mjs$/,
+      /^public\/data\/heritage_cache\.json$/,
+      /^public\/data\/pint_prices_app_dataset\.json$/,
+      /^public\/data\/venue_id_aliases\.json$/,
+      /^lib\/heritageLanguageGate\.mjs$/,
+      /^lib\/heritagePlaceConflict\.mjs$/,
+      /^lib\/heritageDate\.mjs$/,
+    ],
+  },
+  {
     id: "database_types",
     output: /^types\/database\.ts$/,
     inputs: [
