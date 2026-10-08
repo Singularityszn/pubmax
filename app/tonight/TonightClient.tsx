@@ -535,24 +535,9 @@ export default function TonightClient({
       <SiteNav active="tonight" />
       <NowSegment current="tonight" />
 
-      {/* The head is the Screen primitive (docs/design/LAUNCH_SCREENS.md), and
-          the Screen is the desktop grid: its head takes the first cell, the
-          listing spine follows it down the primary column, and the context rail
-          sits beside them. The map is the one primary, because that is where
-          tonight's listings become a pint; Find my pint is the quieter way
-          onward.
-
-          THE LISTINGS ARE THE ANSWER, SO NOTHING THAT ACTS ON THEM STANDS IN
-          FRONT OF THEM. This page put the head, its two doors, the freshness
-          credits, the share control and nine vibe chips above the first row: at
-          390x844 the row began at y=868 against a tab bar at y=788, and at
-          320x568 at y=972 against y=514, so a phone met no listing at all. The
-          way-onward row now ends the screen (`actionsAfterContent`), and the
-          credits and the vibe chips follow the list. Only the head's words and
-          the list's own kind filter come first, which puts the first row at
-          y=413 at all three phone widths. Every move is a DOM move, so the
-          reading order, the tab order and the paint order stay one order.
-          Measured in docs/proof/tonight-first-row-fold/. */}
+      {/* Screen composition follows docs/design/LAUNCH_SCREENS.md. The
+          answer-before-actions contract belongs to
+          docs/rules/app-landing-city-and-listing-pages.md. */}
       <Screen
         as="div"
         className="tonightDesktopGrid"
@@ -873,14 +858,8 @@ export default function TonightClient({
         <TonightShareButton />
       </div>
 
-      {/* THE RAIL (site audit D8) is ONE element AFTER the lede in the DOM. A
-          phone reads its blocks under the lede in the order it always had: vibe
-          chips, the full Deals and Music lanes, the editorial rail, the soft
-          plans and the area news. From 1100px the same element is the column
-          beside the lede, in the same order and with no gap. `.tonightPrimary`
-          above holds the lede and nothing else, so no chain row can stand
-          inside it. From 1100px the full lanes hide and the rail summary stands
-          in for them. */}
+      {/* The rail's membership and order belong to the Tonight rule in
+          docs/rules/app-proxy-csp-caching-and-file-tracing.md. */}
       <aside className="tonightContext" aria-label="Tonight at a glance">
         {ready ? (
           <TonightOnTonightSummary
