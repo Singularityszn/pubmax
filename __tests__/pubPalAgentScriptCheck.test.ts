@@ -71,8 +71,8 @@ function run(args: string[], env: Record<string, string> = {}, cwd = scratch()) 
 }
 
 /** The agent exactly as the provisioner would write it, shaped as ElevenLabs reads it back. */
-function matchingLive(): { agent: Json; tools: Json[]; secrets: Json[] } {
-  const printed = run(["--dry-run", "--base-url", BASE_URL]).stdout.split("\nDefault voice resolved:")[0] ?? "";
+function matchingLive(baseUrl = BASE_URL): { agent: Json; tools: Json[]; secrets: Json[] } {
+  const printed = run(["--dry-run", "--base-url", baseUrl]).stdout.split("\nDefault voice resolved:")[0] ?? "";
   const preview = JSON.parse(printed.slice(printed.indexOf("{"), printed.lastIndexOf("}") + 1)) as Json;
   const tools = (preview.webhook_tools as Json[]).map((config, index) => ({
     id: `tool_${index}`,
@@ -100,7 +100,7 @@ function matchingLive(): { agent: Json; tools: Json[]; secrets: Json[] } {
   return { agent, tools, secrets };
 }
 
-function check(live: { agent: Json; tools: Json[]; secrets: Json[]; allowWrites?: boolean; hasMore?: boolean }, update = false) {
+function check(live: { agent: Json; tools: Json[]; secrets: Json[]; allowWrites?: boolean; hasMore?: boolean }, update = false, baseUrl = BASE_URL) {
   const directory = scratch();
   writeFileSync(path.join(directory, "live.json"), JSON.stringify(live));
   writeFileSync(path.join(directory, "mock-fetch.mjs"), MOCK_FETCH);
@@ -108,7 +108,7 @@ function check(live: { agent: Json; tools: Json[]; secrets: Json[]; allowWrites?
   writeFileSync(writes, "");
   const result = spawnSync(
     process.execPath,
-    ["--import", path.join(directory, "mock-fetch.mjs"), SCRIPT, ...(update ? [] : ["--check"]), "--base-url", BASE_URL],
+    ["--import", path.join(directory, "mock-fetch.mjs"), SCRIPT, ...(update ? [] : ["--check"]), "--base-url", baseUrl],
     {
       cwd: directory,
       encoding: "utf8",
@@ -126,6 +126,65 @@ function check(live: { agent: Json; tools: Json[]; secrets: Json[]; allowWrites?
 }
 
 describe("pubpal:agent --check", () => {
+  it.each([
+    [BASE_URL, "https://pubpal-test.ngrok.app"],
+    ["https://pubpal-test.ngrok.app", BASE_URL],
+  ])("keeps attached webhook identities when changing base URL from %s to %s", (from, to) => {
+    const live = matchingLive(from);
+    const attachedTools = [...live.tools];
+    const attachedIds = attachedTools.map((tool) => tool.id);
+    live.tools.unshift(...matchingLive(to).tools.map((tool) => ({ ...tool, id: `unattached:${tool.id}` })));
+
+    const checked = check(live, false, to);
+    expect(checked.status).toBe(1);
+    expect(checked.output).toContain(`Checked agent ${AGENT_ID}`);
+    expect(checked.writes).toBe("");
+    for (const tool of attachedTools) {
+      expect(checked.output).toContain(`tools.${tool.tool_config.name}.api_schema.url: live ${from}/api/pub-pal/tools/${tool.tool_config.name}, wanted ${to}/api/pub-pal/tools/${tool.tool_config.name}`);
+    }
+
+    const updated = check({ ...live, allowWrites: true }, true, to);
+    expect(updated.status).toBe(0);
+    const writes = updated.writes.trim().split("\n").map((line) => JSON.parse(line));
+    const patches = writes.filter((row) => row.method === "PATCH" && row.url.includes("/tools/"));
+    expect(patches.map((row) => row.url.split("/").pop())).toEqual(attachedIds);
+    expect(writes.find((row) => row.tool_ids)?.tool_ids).toEqual(attachedIds);
+    expect(writes.filter((row) => row.method === "POST" && row.url.endsWith("/tools"))).toHaveLength(0);
+    for (const [index, tool] of attachedTools.entries()) {
+      expect(patches[index].tool_config.api_schema.url).toBe(`${to}/api/pub-pal/tools/${tool.tool_config.name}`);
+      tool.tool_config.api_schema.url = patches[index].tool_config.api_schema.url;
+    }
+    const rechecked = check(live, false, to);
+    expect(rechecked.status).toBe(0);
+    expect(rechecked.output).toContain("The live agent matches");
+    expect(rechecked.writes).toBe("");
+  });
+
+  it.each([
+    [BASE_URL, "https://pubpal-test.ngrok.app"],
+    ["https://pubpal-test.ngrok.app", BASE_URL],
+  ])("does not reuse unattached webhooks when changing base URL from %s to %s", (from, to) => {
+    const live = matchingLive(from);
+    live.agent.conversation_config.agent.prompt.tool_ids = [];
+    const checked = check(live, false, to);
+    expect(checked.status).toBe(1);
+    expect(checked.writes).toBe("");
+    for (const tool of live.tools) {
+      expect(checked.output).toContain(`tools.${tool.tool_config.name}: live missing`);
+    }
+    const updated = check({ ...live, allowWrites: true }, true, to);
+    expect(updated.status).toBe(0);
+    const writes = updated.writes.trim().split("\n").map((line) => JSON.parse(line));
+    expect(writes.filter((row) => row.method === "PATCH" && row.url.includes("/tools/"))).toHaveLength(0);
+    const created = writes.filter((row) => row.method === "POST" && row.url.endsWith("/tools"));
+    expect(created.map((row) => row.tool_config.api_schema.url)).toEqual(
+      live.tools.map((tool) => `${to}/api/pub-pal/tools/${tool.tool_config.name}`),
+    );
+    expect(writes.find((row) => row.tool_ids)?.tool_ids).toEqual(
+      live.tools.map((tool) => `created:${tool.tool_config.name}`),
+    );
+  });
+
   it("keeps the 16 captured attached webhook identities when client duplicates come first", () => {
     const live = matchingLive();
     const captured = JSON.parse(readFileSync(path.join(ROOT, "__tests__/fixtures/pubPalToolIdentity.json"), "utf8"));
@@ -179,14 +238,16 @@ describe("pubpal:agent --check", () => {
     expect(updated.writes).not.toContain("unattached_client");
   });
 
-  it.each([false, true])("refuses multiple compatible identities before a partial update, attached: %s", (attached) => {
+  it.each([false, true])("refuses ambiguous identities before a partial update, attached: %s", (attached) => {
     const live = matchingLive();
     const last = live.tools[live.tools.length - 1];
-    const duplicate = { ...last, id: "ambiguous_last" };
+    const duplicate = { ...last, id: "ambiguous_last", tool_config: structuredClone(last.tool_config) };
     live.tools.push(duplicate);
     const ids = live.agent.conversation_config.agent.prompt.tool_ids;
-    if (attached) ids.push(duplicate.id);
-    else live.agent.conversation_config.agent.prompt.tool_ids = ids.filter((id: string) => id !== last.id);
+    if (attached) {
+      duplicate.tool_config.api_schema.url = `https://pubpal-test.ngrok.app/api/pub-pal/tools/${last.tool_config.name}`;
+      ids.push(duplicate.id);
+    } else live.agent.conversation_config.agent.prompt.tool_ids = ids.filter((id: string) => id !== last.id);
     for (const update of [false, true]) {
       const result = check({ ...live, allowWrites: true }, update);
       expect(result.status).toBe(1);
@@ -197,17 +258,16 @@ describe("pubpal:agent --check", () => {
     }
   });
 
-  it.each(["type", "url"])("refuses an attached tool with an incompatible %s", (field) => {
+  it("refuses an attached tool with an incompatible type", () => {
     const live = matchingLive();
     const first = live.tools[0];
     live.tools.unshift({ ...first, id: "compatible_unattached", tool_config: structuredClone(first.tool_config) });
-    if (field === "type") first.tool_config.type = "client";
-    else first.tool_config.api_schema.url = "https://elsewhere.example/api/pub-pal/tools/search_venues";
+    first.tool_config.type = "client";
     for (const update of [false, true]) {
       const result = check({ ...live, allowWrites: true }, update);
       expect(result.status).toBe(1);
       expect(result.output).toContain(`Attached tool search_venues (${first.id}) does not match`);
-      expect(result.output).toContain("https://pubmaxxing.com/api/pub-pal/tools/search_venues");
+      expect(result.output).toContain("requested webhook type");
       expect(result.writes).toBe("");
     }
   });

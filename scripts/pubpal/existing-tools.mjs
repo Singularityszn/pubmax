@@ -17,8 +17,8 @@ export function resolveExistingTools(liveTools, attachedIds, wantedTools) {
       throw new Error(`Ambiguous tool ${name}: ${candidates.length} ${attachedMatches.length ? "attached" : "compatible workspace"} identities (${candidates.map((row) => row.id).join(", ")}). No update was made.`);
     }
     const hit = candidates[0] ?? null;
-    if (hit && !compatible(hit)) {
-      throw new Error(`Attached tool ${name} (${hit.id}) does not match the requested ${wanted.type} endpoint ${wanted.api_schema.url}. No update was made.`);
+    if (hit && hit.tool_config.type !== wanted.type) {
+      throw new Error(`Attached tool ${name} (${hit.id}) does not match the requested ${wanted.type} type. No update was made.`);
     }
     if (hit && !hit.id) {
       throw new Error(`Tool ${name} has no workspace id. No update was made.`);

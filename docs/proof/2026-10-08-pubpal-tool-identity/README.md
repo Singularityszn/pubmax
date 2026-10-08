@@ -34,7 +34,8 @@ npx vitest run __tests__/pubPalAgentScriptCheck.test.ts __tests__/pubPalAgentScr
 ```
 
 The suite also exercises reversed list order, multiple attached identities,
-multiple compatible workspace identities, incompatible types and endpoints,
+multiple compatible workspace identities, incompatible attached types, unrelated
+unattached endpoints, production-to-tunnel and tunnel-to-production URL changes,
 missing tools, unknown attachment IDs, incomplete lists, compatible tool reuse,
 and creation. Refusal cases assert that no secret, tool, or agent write occurs.
 Existing speech, timeout, prompt, event, and authentication settings retain

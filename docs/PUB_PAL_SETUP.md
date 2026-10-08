@@ -89,15 +89,17 @@ agent that already exists. The captain re-runs
 `npm run pubpal:agent -- --base-url https://pubmaxxing.com` after those
 changes. Do not run that command from an agent session.
 Update and `--check` resolve each tool by the same identity rule. The script
-first reads the existing agent and its attached tool IDs. It keeps an attached
-tool only when its type is `webhook` and its URL exactly matches
-`<base-url>/api/pub-pal/tools/{name}`. Same-name client tools and unrelated
-endpoints cannot replace that attachment.
+first reads the existing agent and its attached tool IDs. It keeps the unique
+attached webhook for each name when `--base-url` changes, including moves to
+a tunnel and back to production. Update writes the requested endpoint to that
+same tool ID. Check reports a different URL as drift without writing.
+Same-name workspace duplicates cannot replace that attachment.
 
 Without an attached match, the script reuses one compatible workspace webhook.
+Its URL must exactly match `<base-url>/api/pub-pal/tools/{name}`.
 If none exists, update creates a webhook and check reports it as missing.
 Multiple attached matches or multiple compatible workspace matches cause a
-refusal. An incompatible attachment, an unknown attached ID, or an incomplete
+refusal. An incompatible attached type, an unknown attached ID, or an incomplete
 workspace tool list also causes a refusal. Update resolves all identities before
 writing a secret, a tool, or the agent. Other tool settings remain part of the
 normal update and drift check.
