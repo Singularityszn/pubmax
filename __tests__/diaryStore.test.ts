@@ -69,6 +69,53 @@ describe("diary store (memory backend)", () => {
     expect((await memoryDiaryStore.listForOwner(ALICE)).entries[0]!.review).toBe("Back room was calm.");
   });
 
+  it("corrects the owner's own entry in place and keeps what is not named", async () => {
+    const created = await memoryDiaryStore.create(fields());
+    if (created.status !== "created") throw new Error("expected a created entry");
+    const result = await memoryDiaryStore.update(ALICE, created.entry.id, {
+      rating: null,
+      review: "Better.",
+    });
+    expect(result.status).toBe("updated");
+    if (result.status !== "updated") return;
+    expect(result.entry).toMatchObject({
+      id: created.entry.id,
+      rating: null,
+      review: "Better.",
+      visitedOn: "2026-10-04",
+      venueId: "venue-dove",
+    });
+    expect((await memoryDiaryStore.listForOwner(ALICE)).entries[0]).toMatchObject({ review: "Better." });
+  });
+
+  it("refuses a correction onto a pub and day already logged, and another account's entry", async () => {
+    await memoryDiaryStore.create(fields({ visitedOn: "2026-10-05" }));
+    const created = await memoryDiaryStore.create(fields());
+    if (created.status !== "created") throw new Error("expected a created entry");
+
+    expect(await memoryDiaryStore.update(ALICE, created.entry.id, { visitedOn: "2026-10-05" })).toEqual({
+      status: "duplicate",
+    });
+    expect(await memoryDiaryStore.update(BOB, created.entry.id, { review: "Mine" })).toEqual({
+      status: "not_found",
+    });
+    // The same day, unchanged, is not a collision with itself.
+    expect((await memoryDiaryStore.update(ALICE, created.entry.id, { visitedOn: "2026-10-04" })).status).toBe(
+      "updated",
+    );
+  });
+
+  it("removes only the owner's own entry", async () => {
+    const created = await memoryDiaryStore.create(fields());
+    if (created.status !== "created") throw new Error("expected a created entry");
+
+    expect(await memoryDiaryStore.delete(BOB, created.entry.id)).toBe(false);
+    expect((await memoryDiaryStore.listForOwner(ALICE)).entries).toHaveLength(1);
+    expect(await memoryDiaryStore.delete(ALICE, created.entry.id)).toBe(true);
+    expect(await memoryDiaryStore.delete(ALICE, created.entry.id)).toBe(false);
+    expect((await memoryDiaryStore.listForOwner(ALICE)).entries).toEqual([]);
+  });
+
   it("selects the memory backend when Supabase is not configured", async () => {
     expect((await diaryStore().create(fields())).status).toBe("created");
     expect((await diaryStore().listForOwner(ALICE)).entries).toHaveLength(1);

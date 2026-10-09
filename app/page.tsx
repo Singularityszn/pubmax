@@ -102,7 +102,7 @@ export default async function Home() {
       <LandingSkylinePreload phoneAnswerOwnsLcp={card !== null} />
       {/* The only route the entry decision may rewrite (issue #439): shell
           opens (Capacitor wrap, installed PWA) land on /tonight, a genuine
-          native first-run opens the one-time onboarding, browser visits
+          native first-run opens onboarding until Skip or Plan my night, browser visits
           stay here. Deep links never mount this. No-op on web/SSR. */}
       <AppEntryRoute />
       <LandingPage

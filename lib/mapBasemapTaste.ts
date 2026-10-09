@@ -136,7 +136,7 @@ function isNeighbourhoodPlaceLabel(id: string): boolean {
 
 /** Drink-category tokens that make a basemap POI layer a PUB layer. Plural and
  *  compound spellings are listed because basemaps disagree (`poi_pub_label`,
- *  `pois-pubs-label`, `poi_breweries_name`), and token matching is whole-word so
+ *  `pois_pubs_label`, `poi_breweries_name`), and token matching is whole-word so
  *  `poi_barber_label` never reads as `bar`. */
 const PUB_POI_LABEL_TOKENS = new Set([
   "pub",
@@ -154,7 +154,7 @@ const PUB_POI_LABEL_TOKENS = new Set([
 
 /** A drink-category token is REQUIRED, never inferred from the layer's shape.
  *  CARTO and OpenFreeMap both ship ONE generic POI layer (`poi_label`,
- *  `poi_name`, `pois-label`) carrying every category at once, so the old
+ *  `poi_name`, `pois_label`) carrying every category at once, so the old
  *  `pois?[-_](label|name)` fallback handed barbers, bus stops and cash machines
  *  the pub opacity and pub text sizing reserved for drinking venues. Once this
  *  drink-token gate exists, that fallback is unreachable and is deleted. Same
@@ -528,6 +528,9 @@ function paintDiscoveredLayers(
   for (const layer of map.getStyle().layers ?? []) {
     if (KNOWN_LAYER_IDS.has(layer.id)) continue;
     const id = layer.id.toLowerCase();
+    // The scene's own layers carry their own paint. The deferred taste pass
+    // runs after they are added, and `pubs-point` alone reads as `poi`.
+    if (isAppLayer(id)) continue;
     if (layer.type === "fill") {
       paintDiscoveredFill(map, layer.id, id, palette, dark);
     } else if (layer.type === "line") {
@@ -587,8 +590,9 @@ export function muteOpacityExpr(original: unknown, opacity: number): unknown {
   return ["min", original ?? 1, opacity];
 }
 
-// Our own scene layers carry these prefixes; the basemap classifier skips them
-// so it only ever matches genuinely baked (stock-style) symbol layers.
+// Our own scene layers carry these prefixes; the basemap taste and the
+// selection-mute classifier skip them so they only ever touch genuinely baked
+// (stock-style) layers.
 const APP_LAYER_PREFIXES = [
   "pubs-",
   "pois-",
@@ -600,6 +604,10 @@ const APP_LAYER_PREFIXES = [
   "buildings-",
   "band-",
 ];
+
+function isAppLayer(lowerId: string): boolean {
+  return APP_LAYER_PREFIXES.some((p) => lowerId.startsWith(p));
+}
 
 // Baked symbol layers whose text/icons are transit roundels, POI labels, or
 // street-name labels/shields — the exact furniture the owner rule wants gone on
@@ -614,7 +622,7 @@ const BASEMAP_MUTE_ID_RE =
 export function isBasemapSelectionMuteLayer(id: string, type?: string): boolean {
   if (type !== "symbol") return false;
   const s = id.toLowerCase();
-  if (APP_LAYER_PREFIXES.some((p) => s.startsWith(p))) return false;
+  if (isAppLayer(s)) return false;
   return BASEMAP_MUTE_ID_RE.test(s);
 }
 
@@ -696,19 +704,25 @@ type ClusterPriceTokens = Pick<
 };
 
 /**
- * Fallback cluster fill by the most common KNOWN price band inside it.
+ * A cluster disc's RING colour: the most common KNOWN price band inside it.
  *
- * Desktop normally replaces this circle with a segmented donut. Phones and
- * large cluster sets keep the GL circle, so its fill must answer the same
- * price question rather than changing meaning to venue density. Unknown pubs
- * do not outvote known prices; grey means the cluster has no known price.
+ * The disc itself is paper (`--panel-raised`) and its figure is the cheapest
+ * price in it, so the band is a hint drawn as a ring and never a fill. A fill
+ * is what made a cluster of dear pubs read as the Plan CTA: `--brick` shares
+ * the coral family (DESIGN.md, One Accent Rule). Opaque, because a ring that
+ * bleeds into the paper loses the 3:1 the casing beside it needs.
+ *
+ * Desktop normally replaces this circle with a segmented donut that rings the
+ * whole mix. Phones and large cluster sets keep the GL circle, whose ring
+ * answers the same price question rather than changing meaning to venue
+ * density. Unknown pubs do not outvote known prices; grey means the cluster
+ * has no known price.
  */
-export function clusterCircleColorExpr(
+export function clusterRingColorExpr(
   tokens: ClusterPriceTokens,
-  dark: boolean,
 ): unknown {
   const count = (key: string) => ["coalesce", ["get", key], 0];
-  // THE DISC COUNTS WHAT ITS OWN PINS ARE PAINTED BY. s0..s3 accumulate the
+  // THE RING COUNTS WHAT ITS OWN PINS ARE PAINTED BY. s0..s3 accumulate the
   // Spoons value lens's band (buildScene's clusterProperties) and are all zero
   // while the lens is off, because the feature property they read is absent
   // then. Under the lens every curated pin carries one, so a non-zero s-total
@@ -734,11 +748,11 @@ export function clusterCircleColorExpr(
   return [
     "case",
     ["all", [">", cheap, 0], [">=", cheap, middle], [">=", cheap, dear]],
-    withAlpha(tokens.pint, dark ? 0.96 : 0.9),
+    tokens.pint,
     ["all", [">", middle, 0], [">", middle, cheap], [">=", middle, dear]],
-    withAlpha(tokens.amber, dark ? 0.96 : 0.92),
+    tokens.amber,
     ["all", [">", dear, 0], [">", dear, cheap], [">", dear, middle]],
-    withAlpha(tokens.brick, dark ? 0.94 : 0.88),
-    withAlpha(tokens.muted, dark ? 0.78 : 0.84),
+    tokens.brick,
+    tokens.muted,
   ];
 }

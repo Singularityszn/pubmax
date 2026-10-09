@@ -18,7 +18,7 @@ const PUB_PAL_GET_HOME_REGISTER_CLOSER =
   "Open Getting Home on the venue sheet for last-train times, ride links, and the TfL planner.";
 
 const PUB_PAL_SOBRIETY_REGISTER =
-  "I cannot tell you whether to have another drink.";
+  "I can't tell you whether to have another drink.";
 
 export type PubPalFenceTurn = {
   role: "user" | "assistant";
@@ -120,7 +120,7 @@ export function pubPalGetHomeRegisterAnswer(
 ): string {
   if (sobrietyOnly) {
     const fact = groundedAnswer.trim();
-    if (fact && !/cannot tell you whether to have another drink/i.test(fact)) {
+    if (fact && !/(?:cannot|can't) tell you whether to have another drink/i.test(fact)) {
       return `${PUB_PAL_SOBRIETY_REGISTER} ${fact} ${PUB_PAL_GET_HOME_REGISTER_CLOSER}`;
     }
     return `${PUB_PAL_SOBRIETY_REGISTER} ${PUB_PAL_GET_HOME_REGISTER_CLOSER}`;

@@ -277,8 +277,9 @@
   /* — Type scale: a deliberate step system (~1.22 ratio) rather than ad-hoc
        rem values. Existing components keep their own literal sizes (unchanged
        per-component); new work should reach for these.
-       --text-2xs is defined ONCE here (0.68rem). The only redefinition is the
-       scoped html[data-legacy="1"] a11y bump below — never a second root value. */
+       --text-2xs is defined ONCE here (0.68rem). The only redefinitions are the
+       scoped html[data-native-shell] and html[data-legacy="1"] a11y bumps
+       below — never a second root value. */
   --text-2xs: 0.68rem;
   --text-xs: 0.76rem;
   --text-sm: 0.85rem;
@@ -5581,7 +5582,9 @@ button:disabled {
     );
   }
 
-  /* Tab bar is hidden while planning/detail sheets own the bottom edge. */
+  /* The tab bar stays up beside an open planning/detail sheet, but the sheet
+     covers the foot above it, so the controls under the sheet need only a
+     safe-area buffer. */
   .appShell.detail-open,
   .appShell.planning-open {
     --mobile-tab-clearance: calc(12px + env(safe-area-inset-bottom, 0px));
@@ -5868,6 +5871,13 @@ button:disabled {
   }
 }
 
+/* The native shells read micro-labels at 12px, so a WebView eyebrow never
+   drops below the OS's own smallest label. The web keeps the stepped scale.
+   It sits before Legacy Mode, whose larger bump wins at the same specificity. */
+html[data-native-shell] {
+  --text-2xs: 0.75rem;
+}
+
 /* ────────────────────────────────────────────────────────────────────────
    Legacy Mode (issue #28) — a global, persisted accessibility toggle for
    older + low-vision users, mirroring ThemeToggle's persistence pattern
@@ -5883,8 +5893,9 @@ html[data-legacy="1"] {
   /* — Larger base type (~112-120% across the scale). Components that read
        var(--text-base) etc. (not literal rem values) grow automatically.
        Scoped ONLY under data-legacy — not a second global --text-2xs. Default
-       remains 0.68rem on :root so eyebrows (messagesThreadEyebrow etc.) stay
-       predictable unless the reader opted into Legacy Mode. */
+       remains 0.68rem on :root (0.75rem in the native shells) so eyebrows
+       (messagesThreadEyebrow etc.) stay predictable unless the reader opted
+       into Legacy Mode. */
   --text-2xs: 0.78rem;
   --text-xs: 0.88rem;
   --text-sm: 0.98rem;

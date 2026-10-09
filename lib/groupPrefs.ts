@@ -143,7 +143,7 @@ function scoreLabel(mateCount: number, score: number): GroupPrefsOverlap["scoreL
 function mustHaveLabelsFor(hard: GroupPrefsHardConstraints): string[] {
   return [
     hard.budgetLabel ? `Budget: ${hard.budgetLabel}` : null,
-    hard.zeroProofRequired ? "Zero-proof options needed" : null,
+    hard.zeroProofRequired ? "Alcohol-free options needed" : null,
     hard.accessibilityRequired ? "Step-free access needed" : null,
     hard.weatherShelterRequired ? "Covered shelter needed" : null,
   ].filter((label): label is string => Boolean(label));

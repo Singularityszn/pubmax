@@ -142,7 +142,7 @@ test("log a visit from the pub sheet, see it on the profile, and a repeat is ref
   await page.screenshot({ path: `${SHOTS}/diary-composer-390.png` });
   await card.getByTestId("diary-log-submit").click();
 
-  await expect(sheet.getByText(new RegExp(`Logged ${VENUE_NAME} for .* It is in your diary\\.`))).toBeVisible();
+  await expect(sheet.getByText(new RegExp(`Logged ${VENUE_NAME} for .* It's in your diary\\.`))).toBeVisible();
   expect(served.posts).toHaveLength(1);
   expect(served.posts[0]).toMatchObject({
     venueId: VENUE_ID,

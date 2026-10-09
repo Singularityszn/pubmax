@@ -254,7 +254,7 @@ for (const scenario of phoneRequests) {
     await expect(result).toBeVisible();
     await expect(result.locator(".mobilePlannerConfidence")).not.toContainText("one recorded pint");
     if (!scenario.zeroProof) {
-      await expect(result.locator(".mobilePlannerConfidence")).toContainText("Selected-drink servings are not recorded.");
+      await expect(result.locator(".mobilePlannerConfidence")).toContainText("We don't have recorded prices for the drink you picked.");
     }
     await result.scrollIntoViewIfNeeded();
     await testInfo.attach("phone-drink-plan", { body: await page.screenshot(), contentType: "image/png" });

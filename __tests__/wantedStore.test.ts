@@ -91,3 +91,26 @@ describe("wanted store privacy + fulfil", () => {
     expect(still.wanteds[0]?.status).toBe("open");
   });
 });
+
+describe("wanted store note correction", () => {
+  it("changes the owner's note in place and never another owner's", async () => {
+    const created = await memoryWantedStore.create({
+      ownerActor: "profile:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      venueKind: "curated",
+      venueId: "venue-dove",
+      venueName: "The Dove",
+      sourceUrl: "",
+      sourcePlatform: "none",
+      note: "Back room",
+      rawPaste: "The Dove",
+    });
+
+    const edited = await memoryWantedStore.updateNote(created.ownerActor, created.id, "  Ask for the snug  ");
+    expect(edited).toMatchObject({ id: created.id, note: "Ask for the snug", venueName: "The Dove" });
+    expect(
+      await memoryWantedStore.updateNote("profile:bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", created.id, "Mine"),
+    ).toBeNull();
+    expect((await memoryWantedStore.getById(created.ownerActor, created.id))?.note).toBe("Ask for the snug");
+    expect(await memoryWantedStore.updateNote(created.ownerActor, "missing", "x")).toBeNull();
+  });
+});

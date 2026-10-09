@@ -298,7 +298,7 @@ function createActions({
       }
       const body = await readApiJson(response);
       if (context.signal.aborted || !isActive()) return actionError("cancelled", "Draft cancelled.");
-      if (!response.ok) return actionError("draft_failed", errorMessageFrom(body, "Could not draft this Crawl Route."), response.status === 429 || response.status >= 500);
+      if (!response.ok) return actionError("draft_failed", errorMessageFrom(body, "Could not draft this crawl just now."), response.status === 429 || response.status >= 500);
       const next = publishWebMcpRoute(getBoard(), body);
       if (next === getBoard() || !next.route) return actionError("invalid_route", "PUBMAXX returned a route the board could not verify.", true);
       if (context.signal.aborted || !isActive()) return actionError("cancelled", "Draft cancelled.");
@@ -325,7 +325,7 @@ function createActions({
     (lease) => {
       if (context.signal.aborted || !isActive()) return actionError("cancelled", "Open cancelled.");
       const board = getBoard();
-      if (!board.route) return actionError("route_required", "Draft a Crawl Route before opening Plan.");
+      if (!board.route) return actionError("route_required", "Draft a crawl before opening Plan.");
       let written = false;
       const applied = lease.runSideEffect(() => {
         written = writeWebMcpRouteToPlanDraft(board.route!, window.localStorage);
@@ -471,7 +471,7 @@ export default function WebMcpNightBoard() {
         <div>
           <p className="webmcpEyebrow">WebMCP Challenge</p>
           <h1>Agent Night Board</h1>
-          <p>Build one grounded London Crawl Route together. Every agent change stays visible here.</p>
+          <p>Plan one London pub crawl together, from checked prices. Every change the agent makes shows here.</p>
         </div>
         <div className={`webmcpStatus webmcpStatus--${registration}`} role="status" aria-live="polite">
           <span aria-hidden="true" />
@@ -489,7 +489,7 @@ export default function WebMcpNightBoard() {
       <div className="webmcpGrid">
         <section className="webmcpRoute" aria-labelledby="routeHeading">
           <div className="webmcpSectionHead">
-            <h2 id="routeHeading">Crawl Route</h2>
+            <h2 id="routeHeading">Your crawl</h2>
             <span>Revision {board.revision}</span>
           </div>
 
@@ -544,7 +544,7 @@ export default function WebMcpNightBoard() {
               </ol>
 
               <div className="webmcpRouteMeta">
-                <span>{board.route.routeStale ? "Needs refresh" : "Grounded route"}</span>
+                <span>{board.route.routeStale ? "Needs refresh" : "Up to date"}</span>
                 {isRecord(board.route.routeTotals) && typeof board.route.routeTotals.estimatedWalkingMinutes === "number"
                   ? <span>{board.route.routeTotals.estimatedWalkingMinutes} min walk</span>
                   : null}
@@ -589,7 +589,7 @@ export default function WebMcpNightBoard() {
           ) : (
             <div className="webmcpEmpty">
               <strong>No route yet</strong>
-              <span>Describe a London night, then draft the Crawl Route.</span>
+              <span>Describe a London night, then draft the crawl.</span>
             </div>
           )}
           {notice ? <p className="webmcpNotice" role="status">{notice}</p> : null}

@@ -25,7 +25,7 @@ import "../legal.css";
 
 const PAGE_TITLE = "How we estimate";
 const PAGE_DESCRIPTION =
-  "What a price on PubMaxxing is worth: confirmed, listed, estimated or missing, and exactly how an estimate is modelled.";
+  "What a price on PubMaxxing is worth: confirmed, listed, estimated or missing, and how we model an estimate.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,

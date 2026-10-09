@@ -169,7 +169,7 @@ export default async function Image({
                 letterSpacing: 2,
               }}
             >
-              Historic Pub
+              Historic pub
             </div>
           </div>
 

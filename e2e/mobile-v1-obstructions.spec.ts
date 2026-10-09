@@ -111,7 +111,7 @@ test.describe("Today mobile block geometry", () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/today");
     await expect(page.getByTestId("today-screen")).toBeVisible({ timeout: 45_000 });
-    await expect(page.locator(".mobileTabBar")).toBeHidden();
+    await expect(page.locator(".mobileTabBar").filter({ visible: true })).toBeHidden();
     const actions = page.locator(".todayFoot a");
     await actions.last().scrollIntoViewIfNeeded();
     await expect(actions).toHaveCount(3);

@@ -83,7 +83,7 @@ describe("CreatorListsContent", () => {
 
     expect(empty).toContain("No creators have shared a list yet.");
     expect(empty).toContain('href="/map"');
-    expect(empty).toContain("Find venues on Map");
+    expect(empty).toContain("Find venues on the map");
     expect(unavailable).toContain("We could not reach creator lists.");
     expect(unavailable).toContain("Try again");
     expect(unavailable).not.toContain("No creator lists yet.");

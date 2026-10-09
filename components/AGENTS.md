@@ -16,6 +16,7 @@ Full rules: [`docs/rules/components-map-canvas-and-pins.md`](../docs/rules/compo
 - [A god component is decomposed IN PLACE, because the map's own tests read its SOURCE.](../docs/rules/components-map-canvas-and-pins.md#a-god-component-is-decomposed-in-place-because-the-map-s-own-tests-read-its-sour)
 - [A pin's COLOUR may be a hint; a pin's FIGURE may not.](../docs/rules/components-map-canvas-and-pins.md#a-pin-s-colour-may-be-a-hint-a-pin-s-figure-may-not)
 - [A pin's fill says the price; its EDGE is what makes it findable, and dark mode needs two tones for that.](../docs/rules/components-map-canvas-and-pins.md#a-pin-s-fill-says-the-price-its-edge-is-what-makes-it-findable-and-dark-mode-nee)
+- [A CLUSTER IS A PAPER DISC WITH A BAND RING AND THE CHEAPEST PRICE, AND A PRICED PIN IS A PILL FROM STREET ZOOM.](../docs/rules/components-map-canvas-and-pins.md#a-cluster-is-a-paper-disc-with-a-band-ring-and-the-cheapest-price-and-a-priced-p)
 - [The live Pint Index arrival must full-load the map.](../docs/rules/components-map-canvas-and-pins.md#the-live-pint-index-arrival-must-full-load-the-map)
 - [A MAP THAT NEVER MOUNTS IS THE SHELL'S PROBLEM, AND NOTHING ON /map MAY WAIT FOR IT FOR EVER.](../docs/rules/components-map-canvas-and-pins.md#a-map-that-never-mounts-is-the-shell-s-problem-and-nothing-on-map-may-wait-for-i)
 
@@ -41,6 +42,7 @@ Full rules: [`docs/rules/components-venue-plan-and-message-surfaces.md`](../docs
 - [THE BILL IS ASKED FOR IN FRONT OF THE PRICE, NEVER INSIDE THE DISCLOSURE.](../docs/rules/components-venue-plan-and-message-surfaces.md#the-bill-is-asked-for-in-front-of-the-price-never-inside-the-disclosure)
 - [`/plan` opens on one describe-first question, not the wizard.](../docs/rules/components-venue-plan-and-message-surfaces.md#plan-opens-on-one-describe-first-question-not-the-wizard)
 - [A describe chip is a promise of a route, and the promise is made through the DESCRIBE-FIRST body.](../docs/rules/components-venue-plan-and-message-surfaces.md#a-describe-chip-is-a-promise-of-a-route-and-the-promise-is-made-through-the-desc)
+- [THE PLAN RESULT IS A ROUTE, AND THE SETTINGS SIT BEHIND IT.](../docs/rules/components-venue-plan-and-message-surfaces.md#the-plan-result-is-a-route-and-the-settings-sit-behind-it)
 - [A PLAN READ FOLLOWS THE CAPABILITY, AND THE INVITE TOKEN IS ONE LIVE VALUE.](../docs/rules/components-venue-plan-and-message-surfaces.md#a-plan-read-follows-the-capability-and-the-invite-token-is-one-live-value)
 - [A message bubble's WIDTH is the row's business, and a message photo is the one owned image that is not public.](../docs/rules/components-venue-plan-and-message-surfaces.md#a-message-bubble-s-width-is-the-row-s-business-and-a-message-photo-is-the-one-ow)
 - [A THREAD READS LIKE A CONVERSATION, AND ITS COMPOSER IS PINNED OVER THE FOOT OF THE PAGE.](../docs/rules/components-venue-plan-and-message-surfaces.md#a-thread-reads-like-a-conversation-and-its-composer-is-pinned-over-the-foot-of-t)

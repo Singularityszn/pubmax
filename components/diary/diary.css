@@ -122,3 +122,57 @@
   font-size: 0.92rem;
   line-height: 1.45;
 }
+
+/* The owner's controls on a logged entry, and the inline editor. Plain text
+   buttons on the control tokens, so they read as the row's own and not as a
+   second call to action. */
+.diaryRow__actions {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.15rem;
+}
+
+.diaryRow__action {
+  min-height: var(--control-height, 44px);
+  min-width: 44px;
+  padding: 0 var(--control-pad-x, 16px);
+  border: 1px solid var(--color-border, var(--line, rgba(0, 0, 0, 0.14)));
+  border-radius: var(--control-radius, 14px);
+  background: transparent;
+  color: var(--color-text, var(--ink, #1a1a1a));
+  font: inherit;
+  font-size: var(--control-font-size, 0.86rem);
+  font-weight: var(--control-font-weight, 700);
+  line-height: 1.15;
+  cursor: pointer;
+}
+
+.diaryRow__action--primary {
+  border-color: var(--brass, #b08d57);
+  background: var(--brass, #b08d57);
+  color: var(--color-on-accent, #fff);
+}
+
+.diaryRow__action:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.diaryRow__action:focus-visible {
+  outline: 3px solid var(--color-focus, var(--river, #2f6e8e));
+  outline-offset: 2px;
+}
+
+.diaryRow__edit {
+  display: grid;
+  min-width: 0;
+  gap: 0.75rem;
+}
+
+.diaryRow__error {
+  margin: 0;
+  color: var(--brick, #a3352c);
+  font-size: 0.84rem;
+}

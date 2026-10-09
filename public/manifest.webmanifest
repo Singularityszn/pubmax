@@ -2,7 +2,7 @@
   "id": "/",
   "name": "PUBMAXXING",
   "short_name": "PUBMAXXING",
-  "description": "Price-aware nightlife map, planner, and stories worth remembering.",
+  "description": "Listed pint prices on a London pub map. Plan a crawl with your mates.",
   "lang": "en-GB",
   "dir": "ltr",
   "start_url": "/",

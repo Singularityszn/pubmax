@@ -35,18 +35,35 @@ function Wizard() {
 
 const shown = () => container.querySelector("#step")?.textContent;
 
-/** jsdom fires popstate on a later task, so wait for it inside act. */
-async function back() {
-  await act(async () => {
-    window.history.back();
-    await new Promise((resolve) => setTimeout(resolve, 20));
-  });
+/**
+ * jsdom fires popstate on a later task, so wait for it inside act. A landing
+ * can send a further Back, which lands on a later task again. On a loaded
+ * machine one fixed wait can end before that chain does, so wait until a
+ * whole window passes with no popstate.
+ */
+async function settleHistory() {
+  for (;;) {
+    let moved = false;
+    const onPopState = () => {
+      moved = true;
+    };
+    window.addEventListener("popstate", onPopState);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    window.removeEventListener("popstate", onPopState);
+    if (!moved) return;
+  }
 }
 
-async function settleHistory() {
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 60));
-  });
+async function back() {
+  await act(async () => window.history.back());
+  await settleHistory();
+}
+
+async function forward() {
+  await act(async () => window.history.forward());
+  await settleHistory();
 }
 
 async function go(step: Step) {
@@ -88,10 +105,7 @@ describe("useStepHistory", () => {
     expect(shown()).toBe("two");
     await back();
     expect(shown()).toBe("one");
-    await act(async () => {
-      window.history.forward();
-      await new Promise((resolve) => setTimeout(resolve, 20));
-    });
+    await forward();
     expect(shown()).toBe("two");
   });
 
@@ -106,10 +120,7 @@ describe("useStepHistory", () => {
     await go("two");
     await go("three");
     await act(async () => handles.setEnabled(false));
-    await act(async () => {
-      window.history.back();
-      await new Promise((resolve) => setTimeout(resolve, 60));
-    });
+    await back();
     // The two stale entries and the opening entry are all skipped, so the
     // reader is on the page before the wizard.
     expect(window.location.pathname).toBe("/before");

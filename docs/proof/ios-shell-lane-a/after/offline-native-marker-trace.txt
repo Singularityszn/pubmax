@@ -1,0 +1,23 @@
+(lldb) process attach --pid 27643
+Process 27643 stopped
+* thread #1, queue = 'com.apple.main-thread', stop reason = signal SIGSTOP
+       frame #0: 0x0000000100facb5c libsystem_kernel.dylib`mach_msg2_trap + 8
+libsystem_kernel.dylib`mach_msg2_trap:
+->  0x100facb5c <+8>: ret    
+
+libsystem_kernel.dylib`macx_swapon:
+    0x100facb60 <+0>: mov    x16, #-0x30               ; =-48 
+    0x100facb64 <+4>: svc    #0x80
+    0x100facb68 <+8>: ret    
+Target 0: (App) stopped.
+Executable binary set to "/Users/karanmanoharan/Library/Developer/CoreSimulator/Devices/80131979-EDC5-4B44-B5A3-903D83429E9E/data/Containers/Bundle/Application/72C1EA19-90DB-4B82-8EEC-811C434F2B30/App.app/App".
+Architecture set to: arm64-apple-ios-simulator.
+(lldb) command source -s 0 '.ios-lane-a/offline-probe-visible.lldb'
+Executing commands in '/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/offline-probe-visible.lldb'.
+(lldb) expr -l objc++ -- @import UIKit
+(lldb) expr -l objc++ -- @import WebKit
+(lldb) expr -l objc++ -- UIWindowScene *$laneScene = (UIWindowScene *)[[UIApplication sharedApplication].connectedScenes anyObject]
+(lldb) expr -l objc++ -- WKWebView *$laneWeb = (WKWebView *)$laneScene.windows.firstObject.rootViewController.view
+(lldb) expr -l objc++ -- (void)[$laneWeb evaluateJavaScript:@"document.body.insertAdjacentHTML('afterbegin','<p style=\"position:fixed;top:0;z-index:999999;background:white;color:black\">'+JSON.stringify({url:location.href,worker:navigator.serviceWorker?.controller?.scriptURL,marker:document.querySelector('meta[name=lane-sw-proof]')?.content})+'</p>')" completionHandler:nil]
+(lldb) detach
+Process 27643 detached

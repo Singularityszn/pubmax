@@ -1218,7 +1218,7 @@ export default function VenueOverviewTab({
               color: "var(--brass)",
             }}
           >
-            <MapPin size={15} aria-hidden="true" /> You&rsquo;re here 🍺
+            <MapPin size={15} aria-hidden="true" /> You&rsquo;re here
           </p>
         ) : (
           <button

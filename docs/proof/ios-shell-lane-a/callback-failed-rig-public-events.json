@@ -1,0 +1,24 @@
+{
+  "id": "1791458175717",
+  "value": {
+    "url": "http://localhost:3491/places",
+    "events": [
+      {
+        "iosSourceApplication": "",
+        "url": "https://pubmaxxing.com/auth/callback?error=access_denied&next=%2Ftonight%3Flane-callback%3D1",
+        "iosOpenInPlace": ""
+      },
+      {
+        "url": "https://pubmaxxing.com/auth/callback?error=access_denied&next=%2Ftonight%3Flane-callback%3D1",
+        "iosSourceApplication": "",
+        "iosOpenInPlace": ""
+      }
+    ],
+    "life": [
+      {
+        "type": "navigate",
+        "start": 0
+      }
+    ]
+  }
+}

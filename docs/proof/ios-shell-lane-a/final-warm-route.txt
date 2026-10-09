@@ -1,0 +1,65 @@
+                                  Other, 0x109081cc0, {{0.0, 0.0}, {402.0, 874.0}}
+                                  Other, 0x109081e00, {{0.0, 0.0}, {402.0, 874.0}}
+                Other, 0x109081f40, {{0.0, 0.0}, {402.0, 874.0}}
+                  Other, 0x109082080, {{0.0, 0.0}, {402.0, 874.0}}
+                    Other, 0x1090821c0, {{0.0, 0.0}, {402.0, 874.0}}
+                      Other, 0x109082300, {{0.0, 0.0}, {402.0, 874.0}}
+    Window, 0x109082440, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x109082580, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x1090826c0, {{0.0, 0.0}, {402.0, 874.0}}
+    Window, 0x109082800, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x109082940, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x109082a80, {{0.0, 0.0}, {402.0, 874.0}}
+    Window, 0x109082bc0, {{0.0, 0.0}, {134.0, 291.3}}
+      Other, 0x109082d00, {{0.0, 0.0}, {134.0, 291.3}}
+        Other, 0x109082e40, {{0.0, 0.0}, {134.0, 291.3}}
+    Window, 0x109082f80, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x1090830c0, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x109083200, {{0.0, 0.0}, {402.0, 874.0}}
+    Window (Main), 0x109083340, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x109083480, {{138.3, 14.0}, {125.3, 36.7}}
+    Window, 0x1090835c0, {{0.0, 0.0}, {402.0, 874.0}}
+      StatusBar, 0x109083700, {{0.0, 0.0}, {402.0, 54.0}}
+    Window, 0x109083840, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x109083980, {{0.0, 0.0}, {402.0, 874.0}}
+    Window, 0x109083ac0, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x109083c00, {{0.0, 0.0}, {402.0, 874.0}}
+Path to element:
+ →Application, 0x1052a2e40, pid: 15869, label: ' '
+Query chain:
+ →Find: Application 'com.apple.springboard'
+  Output: {
+    Application, 0x109083d40, pid: 15869, label: ' '
+  }
+
+    t =     0.24s Checking existence of `"Open" Button`
+    t =     0.26s Checking existence of `"Open" Button`
+    t =     0.31s Ignoring failure to get hierarchy for remote element in process 11456 (Error getting main window kAXErrorServerNotFound)
+    t =     0.32s Checking existence of `"Open" Button`
+    t =     0.35s Open com.pubmaxx.app
+    t =     0.35s     Activate com.pubmaxx.app
+    t =     0.36s         Wait for com.pubmaxx.app to idle
+LANE_WARM_LINK {
+    native = ios;
+    url = "http://localhost:3491/map";
+}
+    t =     0.61s Find the Application 'com.pubmaxx.app'
+    t =     0.71s Added attachment named 'native-warm-map-link'
+    t =     0.71s Tear Down
+Test Case '-[LaneUITests.LaneUITests testWarmDeepLink]' passed (0.730 seconds).
+Test Suite 'LaneUITests' passed at 2026-10-08 12:34:10.361.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.730 (0.733) seconds
+Test Suite 'LaneUITests.xctest' passed at 2026-10-08 12:34:10.361.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.730 (0.733) seconds
+Test Suite 'Selected tests' passed at 2026-10-08 12:34:10.361.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.730 (0.734) seconds
+2026-10-08 12:34:10.665 xcodebuild[71241:51251687] [MT] IDETestOperationsObserverDebug: 5.580 elapsed -- Testing started completed.
+2026-10-08 12:34:10.665 xcodebuild[71241:51251687] [MT] IDETestOperationsObserverDebug: 0.000 sec, +0.000 sec -- start
+2026-10-08 12:34:10.665 xcodebuild[71241:51251687] [MT] IDETestOperationsObserverDebug: 5.580 sec, +5.580 sec -- end
+
+Test session results, code coverage, and logs:
+	/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/final-warm-route.xcresult
+
+** TEST SUCCEEDED **
+
+Testing started

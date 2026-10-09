@@ -20,7 +20,8 @@
 //
 // "App shell" here means either signal, probed through existing seams only:
 //   - the Capacitor native wrap (lib/nativePlatform.ts isNativeApp(); the
-//     remote-URL wrap in capacitor.config.ts always loads the site root), or
+//     older remote-URL binaries load the site root; newer ones start at the
+//     static "/app-entry" document, decided by public/theme-init.js alone), or
 //   - an installed PWA running standalone (display-mode media query or the
 //     iOS navigator.standalone flag, same signals lib/a2hsPrompt.ts reads).
 //
@@ -28,8 +29,8 @@
 //   1. Deep link — any path other than "/" is an explicit destination (share
 //      link, push click-through, universal link) and bypasses the decision
 //      untouched, shell or not. The decision NEVER rewrites a deep link.
-//   2. Native first-run at the root — a genuine native first-run opens the
-//      dedicated onboarding (lib/nativeFirstRun.ts gate, native shell only).
+//   2. Native first-run at the root — a new or unfinished native first run
+//      opens the dedicated onboarding (lib/nativeFirstRun.ts gate, native shell only).
 //      Precedence UNCHANGED by the 2026-07-21 amendment.
 //   3. Session revisit — the cold-start decision already ran this session, so a
 //      later arrival at "/" (in-app home tap) stays on the landing page, shell
@@ -53,7 +54,7 @@ import { isNativeApp } from "@/lib/nativePlatform";
 
 /** Where every post-first-run shell open lands (owner-locked, issue #439). */
 export const SHELL_START_PATH = "/tonight";
-/** The native shell's one-time first-run surface (owner-locked, issue #441).
+/** The native shell's first-run surface, resumed until Skip or Plan my night (owner-locked, issue #441).
  *  Held in a leaf so proxy.ts can read the path without this module's imports. */
 export { ONBOARDING_PATH };
 
@@ -65,8 +66,9 @@ export type EntryContext = {
   /** Installed-PWA standalone launch (display-mode / navigator.standalone). */
   isStandaloneDisplay: boolean;
   /**
-   * Genuine native first-run per the lib/nativeFirstRun.ts gate (native
-   * shell, never routed before, no persisted city preference). Always false
+   * Native first-run per the lib/nativeFirstRun.ts gate (native shell, not
+   * finished or skipped, and either an unfinished journey or no persisted
+   * city preference). Always false
    * outside the native shell — the gate enforces it, and decideEntry guards
    * it again so a spurious flag can never send a PWA to onboarding.
    */

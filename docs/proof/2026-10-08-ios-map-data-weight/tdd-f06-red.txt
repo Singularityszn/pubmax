@@ -1,0 +1,35 @@
+npm notice run pubmaxxing@0.1.0 npx
+npm notice run 'vitest' run __tests__/provisionalBaseReadConcurrency.test.tsx
+
+ RUN  v5.0.3 /Users/karanmanoharan/.treehouse/pubmaxx-bde241/1/pubmaxx
+
+ ❯ __tests__/provisionalBaseReadConcurrency.test.tsx (1 test | 1 failed) 11ms
+   × reads a dense viewport with two requests in flight and keeps the 64-ID limit 11ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/provisionalBaseReadConcurrency.test.tsx > reads a dense viewport with two requests in flight and keeps the 64-ID limit
+AssertionError: expected [ { …(3) } ] to have a length of 2 but got 1
+
+- Expected
++ Received
+
+- 2
++ 1
+
+ ❯ __tests__/provisionalBaseReadConcurrency.test.tsx:41:20
+     39|   const ids = Array.from({ length: 129 }, (_, index) => `venue-uk-n${i…
+     40|   await act(async () => read(ids));
+     41|   expect(requests).toHaveLength(2);
+       |                    ^
+     42|   expect(requests.map((request) => request.ids.length)).toEqual([64, 6…
+     43|   await answer(0);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  08:45:05
+   Duration  879ms (environment 60%, transform 30%, import 7%, tests 1%, setup 1%)
+

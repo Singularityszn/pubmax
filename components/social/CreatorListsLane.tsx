@@ -165,7 +165,7 @@ export function CreatorListsContent({
       ) : lists.length === 0 ? (
         <div className="creatorListsState">
           <p>No creators have shared a list yet.</p>
-          <Link href="/map">Find venues on Map</Link>
+          <Link href="/map">Find venues on the map</Link>
         </div>
       ) : (
         <ul className="creatorListsGrid">

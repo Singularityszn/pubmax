@@ -72,6 +72,19 @@ describe("routeAskDeterministically: Pub Pal V0.1 concierge tools", () => {
     ).toBe("Cheapest pint in Camden");
   });
 
+  it.each(["hi", "Hello there!", "thanks", "cheers mate"])(
+    "does not fold a social prior turn (%s) into a bare area reply",
+    (prior) => {
+      expect(refineRoutedAskQuery("Soho", prior)).toBe("Soho");
+    },
+  );
+
+  it("still borrows a substantive prior turn's place for a short follow-up", () => {
+    expect(refineRoutedAskQuery("somewhere quiet", "pubs in Camden")).toBe(
+      "somewhere quiet in Camden",
+    );
+  });
+
   it("keeps a cheap CRAWL on propose_plan", () => {
     const calls = routeAskDeterministically("Plan a cheapest crawl in Soho");
     expect(calls.some((c) => c.name === "cheapest_pint_near")).toBe(false);

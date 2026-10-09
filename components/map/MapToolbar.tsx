@@ -542,12 +542,12 @@ export default function MapToolbar({
           aria-atomic="true"
         >
           <span className="mapToolbarSearchStatusCopy">
-            <span>No venues match ‘</span>
+            <span>No venues match &apos;</span>
             <span className="mapToolbarSearchQuery" title={trimmedQuery}>
               {trimmedQuery}
             </span>
             <span className="mapToolbarSearchQualifier">
-              ’ with your current filters.
+              &apos; with your current filters.
             </span>
           </span>
           <button

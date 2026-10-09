@@ -19,12 +19,12 @@ type CityRivalryTableProps = {
  */
 export default function CityRivalryTable({
   entries,
-  caption = "UK city energy. Demo Pint Drops, listed crawls, and venue coverage.",
+  caption = "UK cities ranked on demo Pint Drops, listed crawls and venue coverage.",
 }: CityRivalryTableProps) {
   if (entries.length === 0) {
     return (
       <p className="discoverEmpty" role="status">
-        City energy ranks land once the packs ship.
+        No city rankings yet. They arrive with the crawl packs.
       </p>
     );
   }

@@ -53,7 +53,7 @@ describe("palLocalityLine", () => {
     expect(palLocalityLine(resolvePalLocality("in Brixton", null))).toContain("Brixton");
     const wide = palLocalityLine(resolvePalLocality("cheap", null));
     expect(wide).toContain("Across London");
-    expect(wide).toMatch(/not ranked by distance/i);
+    expect(wide).toMatch(/(?:not|n't) ranked by distance/i);
     expect(wide).not.toMatch(/near you|nearby|local/i);
   });
 });
@@ -76,8 +76,8 @@ describe("a place the taxonomy cannot place", () => {
     expect(locality.unplaced).toBe("Blackfriars");
     const line = palLocalityLine(locality);
     expect(line).toContain("Blackfriars");
-    expect(line).toMatch(/could not place/i);
-    expect(line).toMatch(/not ranked by distance/i);
+    expect(line).toMatch(/couldn't place/i);
+    expect(line).toMatch(/(?:not|n't) ranked by distance/i);
     expect(line).not.toMatch(/no area set/i);
   });
 
@@ -96,7 +96,7 @@ describe("a place the taxonomy cannot place", () => {
     const locality = resolvePalLocality("cheap pints in London tonight", null);
     expect(locality.scope).toBe("london-wide");
     expect(locality.unplaced).toBeUndefined();
-    expect(palLocalityLine(locality)).not.toMatch(/could not place/i);
+    expect(palLocalityLine(locality)).not.toMatch(/couldn't place/i);
     for (const query of ["cheap pints in Central London", "quiet pubs in East London"]) {
       const wide = resolvePalLocality(query, null);
       expect(wide.unplaced, query).toBeUndefined();
@@ -108,7 +108,7 @@ describe("a place the taxonomy cannot place", () => {
     for (const query of ["cheap pubs run by Young's", "pubs owned by Sam Smith's"]) {
       const wide = resolvePalLocality(query, null);
       expect(wide.unplaced, query).toBeUndefined();
-      expect(palLocalityLine(wide), query).not.toMatch(/could not place/i);
+      expect(palLocalityLine(wide), query).not.toMatch(/couldn't place/i);
     }
   });
 
@@ -144,7 +144,7 @@ describe("a named place the taxonomy cannot place, with a remembered area", () =
       expect(locality.scope, query).toBe("remembered");
       expect(locality.area, query).toEqual({ kind: "night-patch", id: "soho" });
       expect(locality.unplaced, query).toBeUndefined();
-      expect(palLocalityLine(locality), query).toBe("Grounded around Soho, your remembered area.");
+      expect(palLocalityLine(locality), query).toBe("Around Soho, the area you last picked.");
     }
   });
 

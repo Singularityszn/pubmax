@@ -781,7 +781,7 @@ function NightModeSheet({
         }
         if (expectedRouteRevision === null) {
           setEndingError(
-            "This route has no active revision. Nothing was completed; refresh the plan and try again.",
+            "We could not read the current version of this route, so nothing was saved. Refresh the plan and try again.",
           );
           return;
         }
@@ -804,7 +804,7 @@ function NightModeSheet({
         if (!response.ok) {
           throw new Error(
             response.status === 409 || response.status === 412
-              ? "This route changed before the ending was saved. Nothing was completed; refresh the plan and try again."
+              ? "This route changed before we saved the ending. Refresh the plan and try again."
               : errorMessageFrom(body, "Could not save that ending."),
           );
         }
@@ -822,7 +822,7 @@ function NightModeSheet({
           (!canonical.ending && canonical.plan.status !== "completed")
         ) {
           throw new Error(
-            "The ending response was not canonical. Nothing was marked complete in this view.",
+            "We could not confirm the saved ending.",
           );
         }
         setPlan(canonical);
@@ -1663,7 +1663,7 @@ function NightEndingResult({
         <p>
           {keepGoingExtension
             ? `${keepGoingExtension.name} is your next stop from ${currentStop.venueName}.`
-            : `Open the map around ${currentStop.venueName} and pick somewhere genuinely close.`}{" "}
+            : `Open the map around ${currentStop.venueName} and pick somewhere close.`}{" "}
           We won&apos;t push you to drink more. This is just what&apos;s nearby.
         </p>
         <Link

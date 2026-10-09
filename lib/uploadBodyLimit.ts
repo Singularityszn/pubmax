@@ -35,11 +35,12 @@ export const UPLOAD_PHOTO_MAX_BYTES = 4 * 1024 * 1024;
 /**
  * A byte figure as a reader sees it, and the ONE spelling of it. A caller may
  * pass its own ceiling (the upload path takes an override), so the words come
- * from the number rather than from a second constant beside each one.
+ * from the number rather than from a second constant beside each one. A
+ * no-break space joins the figure to its unit, so no wrap can part them.
  */
 export function uploadPhotoSizeLabel(bytes: number): string {
   const mib = bytes / (1024 * 1024);
-  return `${Number.isInteger(mib) ? mib : mib.toFixed(1)} MB`;
+  return `${Number.isInteger(mib) ? mib : mib.toFixed(1)}\u00a0MB`;
 }
 
 /** The number as a reader sees it, on the picker hint and in every refusal. */

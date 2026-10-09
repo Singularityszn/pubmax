@@ -77,8 +77,8 @@ function datasetJsonLd(edition: ArchivedPintIndexSnapshot, boroughCount: number,
     dateModified: publishedAt,
     temporalCoverage: pintIndexMonthTemporalCoverage(month),
     spatialCoverage: { "@type": "Place", name: "London, United Kingdom" },
-    measurementTechnique: "Confirmed Pint Drops, official pub or brewery sources, and explicitly licensed open datasets with observed-at dates; classified by London borough point-in-polygon boundaries.",
-    variableMeasured: "Observed pint price in GBP, aggregated per London borough",
+    measurementTechnique: "Confirmed Pint Drops, official pub or brewery sources, and explicitly licensed open datasets with price dates, assigned to London boroughs from map boundaries.",
+    variableMeasured: "Pint price in GBP, grouped by London borough",
     isBasedOn: `${SITE_URL}/pint-index`,
     ...(pubCount > 0
       ? {
@@ -129,7 +129,7 @@ export default async function PintIndexEditionPage({ params }: EditionPageProps)
             <h2 id="correctionsHeading" className="pintIndexSectionTitle">Corrections</h2>
             <p className="pintIndexSectionDek">
               This edition has been corrected {corrections.length === 1 ? "once" : `${corrections.length} times`}.
-              You are reading revision {revision}. Nothing was quietly swapped: each
+              You are reading revision {revision}. Nothing was quietly swapped. Each
               change is dated and named here.
             </p>
             <ol className="pintIndexProse">

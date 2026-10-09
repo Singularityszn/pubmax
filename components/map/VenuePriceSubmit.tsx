@@ -593,7 +593,7 @@ export default function VenuePriceSubmit({
         {!logged.missionReceipt && !logged.nonPint && markedProvisionally ? (
           <p className="vpsubStampHint">
             <i className="vpsubStampDot" aria-hidden="true" />
-            Its pin now carries this dot.{" "}
+            Its pin now shows this dot.{" "}
             {mapReach === "paint"
               ? "A second independent drinker reporting a similar price can set the pin’s colour."
               : "A second independent drinker reporting a similar price can confirm the figure here."}

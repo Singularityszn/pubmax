@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-22T04:38:53.493Z",
+  "generatedAt": "2026-10-07T19:31:55.426Z",
   "kind": "events",
   "region": "greater-london",
   "city": "london",
@@ -38,32 +38,2778 @@
     }
   ],
   "rows": [
-    {"id":"events-tm-w8j8bu","placeName":"The Arts at Marble Arch","kind":"event","startsAt":"2026-08-22T09:00:00.000Z","title":"Be Like Blippi Tour!","source":{"label":"Ticketmaster","url":"https://theatre.ticketmaster.co.uk/book/1J2B0-blippi/#perf=1J2B0-X&date=2026-08-22&time=10.00AM"},"observedAt":"2026-08-22T04:38:53.493Z","confidence":"listed","sourceId":"1AdjZ_aGkwPHSKT","imageUrl":"https://s1.ticketm.net/dam/a/254/4755dc7f-68d0-4c0c-800c-f06b86b16254_RETINA_LANDSCAPE_16_9.jpg","lat":51.51329,"lng":-0.159855,"detail":"Children's Theatre"},
-    {"id":"events-tm-1limno9","placeName":"Lyric Theatre","kind":"event","startsAt":"2026-08-22T09:15:00.000Z","title":"The Gruffalo","source":{"label":"Ticketmaster","url":"https://www.ticketmaster.co.uk/the-gruffalo-london-22-08-2026/event/Z3r9uZKbZL4Ze3baLZeK"},"observedAt":"2026-08-22T04:38:53.493Z","confidence":"listed","sourceId":"Z3r9uZKbZL4Ze3baLZeK","imageUrl":"https://s1.ticketm.net/dam/a/81b/f58b443a-ccf1-421c-aeac-ee873d0f281b_54151_TABLET_LANDSCAPE_LARGE_16_9.jpg","lat":51.511248,"lng":-0.133935,"detail":"Children's Theatre"},
-    {"id":"events-tm-mt6qzz","placeName":"Theatre Royal Haymarket","kind":"event","startsAt":"2026-08-22T09:30:00.000Z","title":"The Tiger Who Came To Tea","source":{"label":"Ticketmaster","url":"https://www.ticketmaster.co.uk/the-tiger-who-came-to-tea-london-22-08-2026/event/Z3r9uZKbZL4Ze3x1aZeO"},"observedAt":"2026-08-22T04:38:53.493Z","confidence":"listed","sourceId":"Z3r9uZKbZL4Ze3x1aZeO","imageUrl":"https://s1.ticketm.net/dam/a/639/b755f727-a724-48b5-8487-981cb50c1639_TABLET_LANDSCAPE_LARGE_16_9.jpg","lat":51.50884,"lng":-0.13128,"detail":"Children's Theatre"},
-    {"id":"events-tm-1novink","placeName":"Apollo Theatre","kind":"event","startsAt":"2026-08-22T10:00:00.000Z","title":"Horrible Histories: Barmy Britain","source":{"label":"Ticketmaster","url":"https://theatre.ticketmaster.co.uk/book/1HVYJ-horrible-histories-barmy-britain-2026/#perf=1HVYJ-12&date=2026-08-22&time=11.00AM"},"observedAt":"2026-08-22T04:38:53.493Z","confidence":"listed","sourceId":"1AdfZ_6Gknsj45g","imageUrl":"https://s1.ticketm.net/dam/c/07d/fda8c807-42eb-4b81-9f16-f3a8367e107d_106371_TABLET_LANDSCAPE_LARGE_16_9.jpg","lat":51.511248,"lng":-0.133935,"detail":"Theatre"},
-    {"id":"events-tm-dj0vbj","placeName":"Globe Theatre, Shakespeare's Globe","kind":"event","startsAt":"2026-08-22T10:00:00.000Z","title":"Shakespeare's Globe - A World Elsewhere","source":{"label":"Ticketmaster","url":"https://theatre.ticketmaster.co.uk/book/1HMRC-a-world-elsewhere/#perf=1HMRC-U&date=2026-08-22&time=11.00AM"},"observedAt":"2026-08-22T04:38:53.493Z","confidence":"listed","sourceId":"1AgZk3eGkdLX9c0","imageUrl":"https://s1.ticketm.net/dam/c/07d/fda8c807-42eb-4b81-9f16-f3a8367e107d_106371_TABLET_LANDSCAPE_LARGE_16_9.jpg","lat":51.508111,"lng":-0.096597,"detail":"Theatre"},
-    {"id":"events-tm-12ry8k3","placeName":"The O2","kind":"event","startsAt":"2026-08-22T11:00:00.000Z","title":"Mamma Mia! The Party","source":{"label":"Ticketmaster","url":"https://theatre.ticketmaster.co.uk/book/1GY5A-mamma-mia-the-party/#perf=1GY5A-163&date=2026-08-22&time=12.00PM"},"observedAt":"2026-08-22T04:38:53.493Z","confidence":"listed","sourceId":"1AdfZ_eGkDwpz25","imageUrl":"https://s1.ticketm.net/dam/a/dd1/8cfa7d0c-241e-41b8-a131-75f4813bfdd1_RETINA_PORTRAIT_16_9.jpg","lat":51.501581,"lng":0.005519,"detail":"Theatre"},
-    {"id":"events-tm-dysf5c","placeName":"Lyric Theatre Hammersmith","kind":"event","startsAt":"2026-08-22T11:00:00.000Z","title":"The Enormous Crocodile","source":{"label":"Ticketmaster","url":"https://www.ticketmaster.co.uk/the-enormous-crocodile-london-22-08-2026/event/Z3r9uZKbZL4Ze3LA-Ze5"},"observedAt":"2026-08-22T04:38:53.493Z","confidence":"listed","sourceId":"Z3r9uZKbZL4Ze3LA-Ze5","imageUrl":"https://s1.ticketm.net/dam/c/2b5/5a0a3487-492b-4072-9d8d-1fcda02bd2b5_781101_RECOMENDATION_16_9.jpg","lat":51.492895,"lng":-0.226795,"detail":"Children's Theatre"},
-    {"id":"events-tm-ow85h5","placeName":"Soul Mama Islington","kind":"music","startsAt":"2026-08-22T11:00:00.000Z","title":"Afrobeats Brunch by The Fortune Collectives, Pioneered by KoyeSax","source":{"label":"Ticketmaster","url":"https://www.universe.com/events/afrobeats-brunch-by-the-fortune-collectives-pioneered-by-koyesax-tickets-HPXQKR?ref=ticketmaster"},"observedAt":"2026-08-22T04:38:53.493Z","confidence":"listed","sourceId":"LvZ18QLliv0yg48ZltqX2","imageUrl":"https://s1.ticketm.net/dam/c/548/5fefbd1c-973b-4b0e-9b2e-d78e4ce37548_106111_TABLET_LANDSCAPE_LARGE_16_9.jpg","lat":51.534184,"lng":-0.106126,"detail":"World"},
-    {"id":"events-tm-1xnf9is","placeName":"The Lost Estate","kind":"event","startsAt":"2026-08-22T11:45:00.000Z","title":"CHAT NOIR!","source":{"label":"Ticketmaster","url":"https://theatre.ticketmaster.co.uk/book/1HHV2-chat-noir/#perf=1HHV2-10E&date=2026-08-22&time=12.45PM"},"observedAt":"2026-08-22T04:38:53.493Z","confidence":"listed","sourceId":"17u8v0G6uJ-PB1n","imageUrl":"https://s1.ticketm.net/dam/a/64f/0e2e3d60-ab92-41ad-84c6-f2509e8ff64f_TABLET_LANDSCAPE_LARGE_16_9.jpg","lat":51.4905226,"lng":-0.20485809,"detail":"Variety"},
-    {"id":"events-tm-1yhl38q","placeName":"Boisdale, Canary Wharf","kind":"music","startsAt":"2026-08-22T12:00:00.000Z","title":"Saturday Soul Lunch | Kings of Soul","source":{"label":"Ticketmaster","url":"https://www.universe.com/events/saturday-soul-lunch-kings-of-soul-tickets-N8CWXK?ref=ticketmaster"},"observedAt":"2026-08-22T04:38:53.493Z","confidence":"listed","sourceId":"LvZ18Q_qCl5thd8Z00e1g","imageUrl":"https://s1.ticketm.net/dam/c/48b/2352e3b5-8496-496b-97a3-e605177e848b_105851_TABLET_LANDSCAPE_LARGE_16_9.jpg","lat":51.505252,"lng":-0.022271,"detail":"R&B"},
-    {"id":"events-tm-huetrt","placeName":"Belle Livingstone's 58th Street Country Club","kind":"music","startsAt":"2026-08-22T12:00:00.000Z","title":"Belle Livingstone's 58th Street Country Club","source":{"label":"Ticketmaster","url":"https://theatre.ticketmaster.co.uk/book/1HBYR-58th-street/#perf=1HBYR-13W&date=2026-08-22&time=1.00PM"},"observedAt":"2026-08-22T04:38:53.493Z","confidence":"listed","sourceId":"17u8v0G6uMSfzhT","imageUrl":"https://s1.ticketm.net/dam/a/ec9/79f46379-e450-4b33-99d9-9e3a9f25eec9_TABLET_LANDSCAPE_LARGE_16_9.jpg","lat":51.47289512,"lng":-0.06736413,"detail":"Jazz"},
-    {"id":"events-tm-mdj4ke","placeName":"The Arts at Marble Arch","kind":"event","startsAt":"2026-08-22T12:00:00.000Z","title":"Be Like Blippi Tour!","source":{"label":"Ticketmaster","url":"https://theatre.ticketmaster.co.uk/book/1J2B0-blippi/#perf=1J2B0-Y&date=2026-08-22&time=1.00PM"},"observedAt":"2026-08-22T04:38:53.493Z","confidence":"listed","sourceId":"1AdjZ_aGkwJ1NfS","imageUrl":"https://s1.ticketm.net/dam/a/254/4755dc7f-68d0-4c0c-800c-f06b86b16254_RETINA_LANDSCAPE_16_9.jpg","lat":51.51329,"lng":-0.159855,"detail":"Children's Theatre"},
-    {"id":"events-tm-mfcckk","placeName":"Phoenix Theatre","kind":"event","startsAt":"2026-08-22T12:00:00.000Z","title":"Stranger Things: The First Shadow","source":{"label":"Ticketmaster","url":"https://theatre.ticketmaster.co.uk/book/1FHDY-stranger-things-the-first-shadow/#perf=1FHDY-220&date=2026-08-22&time=1.00PM"},"observedAt":"2026-08-22T04:38:53.493Z","confidence":"listed","sourceId":"17uYv0G65I9CghH","imageUrl":"https://s1.ticketm.net/dam/a/ec0/5f90acba-9d7c-48c0-9010-7b97062e6ec0_ARTIST_PAGE_3_2.jpg","lat":51.514387,"lng":-0.129497,"detail":"Theatre"},
-    {"id":"events-tm-19lrhwz","placeName":"Duke of Yorks Theatre","kind":"event","startsAt":"2026-08-22T12:30:00.000Z","title":"Arcadia","source":{"label":"Ticketmaster","url":"https://www.ticketmaster.co.uk/arcadia-london-22-08-2026/event/Z3r9uZKbZL4ZefdeAZdv"},"observedAt":"2026-08-22T04:38:53.493Z","confidence":"listed","sourceId":"Z3r9uZKbZL4ZefdeAZdv","imageUrl":"https://s1.ticketm.net/dam/a/cd1/9ae80637-5be7-4e50-8d54-13633a8c8cd1_CUSTOM.jpg","lat":51.510174,"lng":-0.127522,"detail":"Theatre"},
-    {"id":"events-tm-9ue8f5","placeName":"Bridge Theatre","kind":"event","startsAt":"2026-08-22T12:30:00.000Z","title":"The Oresteia","source":{"label":"Ticketmaster","url":"https://www.ticketmaster.co.uk/the-oresteia-london-22-08-2026/event/Z3r9uZKbZL4Ze3x2vZkC"},"observedAt":"2026-08-22T04:38:53.493Z","confidence":"listed","sourceId":"Z3r9uZKbZL4Ze3x2vZkC","imageUrl":"https://s1.ticketm.net/dam/a/8ba/97d577cb-e306-4070-b08d-28d44950a8ba_EVENT_DETAIL_PAGE_16_9.jpg","lat":51.4992073,"lng":-0.0880061,"detail":"Theatre"},
-    {"id":"events-tm-sv9v5i","placeName":"President Hotel","kind":"event","startsAt":"2026-08-22T12:30:00.000Z","title":"Faulty Towers the Dining Experience","source":{"label":"Ticketmaster","url":"https://theatre.ticketmaster.co.uk/book/1GLTR-faulty-towers-the-dining-experience-in-londons-west-end-2024/#perf=1GLTR-19U&date=2026-08-22&time=1.30PM"},"observedAt":"2026-08-22T04:38:53.493Z","confidence":"listed","sourceId":"17u8v0G65CriexY","imageUrl":"https://s1.ticketm.net/dam/a/15e/dda96bd9-563a-48b8-95e1-7226ffd7715e_TABLET_LANDSCAPE_LARGE_16_9.jpg","lat":51.52226825,"lng":-0.12395745,"detail":"Theatre"},
-    {"id":"events-tm-10288yc","placeName":"Playhouse Theatre","kind":"event","startsAt":"2026-08-22T13:00:00.000Z","title":"Cabaret","source":{"label":"Ticketmaster","url":"https://www.ticketmaster.co.uk/cabaret-london-22-08-2026/event/ZKr9uZKbZL4Ze310LZe7A"},"observedAt":"2026-08-22T04:38:53.493Z","confidence":"listed","sourceId":"ZKr9uZKbZL4Ze310LZe7A","imageUrl":"https://s1.ticketm.net/dam/a/6ce/18980152-24f7-4447-b454-dfa98314f6ce_SOURCE","lat":51.506975,"lng":-0.123719,"detail":"Theatre"},
-    {"id":"events-tm-1hkxyqt","placeName":"Wyndham's Theatre","kind":"event","startsAt":"2026-08-22T13:00:00.000Z","title":"To Kill A Mockingbird","source":{"label":"Ticketmaster","url":"https://theatre.ticketmaster.co.uk/book/1HV64-to-kill-a-mockingbird/#perf=1HV64-1W&date=2026-08-22&time=2.00PM"},"observedAt":"2026-08-22T04:38:53.493Z","confidence":"listed","sourceId":"17u8v0G65bk-Ewz","imageUrl":"https://s1.ticketm.net/dam/a/9cf/b8c7187e-de09-46d2-820d-e70924d719cf_ARTIST_PAGE_3_2.jpg","lat":51.511067,"lng":-0.128249,"detail":"Theatre"},
-    {"id":"events-tm-1si2vwn","placeName":"Noel Coward Theatre","kind":"event","startsAt":"2026-08-22T13:00:00.000Z","title":"Cyrano de Bergerac","source":{"label":"Ticketmaster","url":"https://theatre.ticketmaster.co.uk/book/1HUCK-cyrano-de-bergerac/#perf=1HUCK-27&date=2026-08-22&time=2.00PM"},"observedAt":"2026-08-22T04:38:53.493Z","confidence":"listed","sourceId":"17u8v0G65rsg75b","imageUrl":"https://s1.ticketm.net/dam/a/1ff/42e83dc7-6675-4bca-b992-d5d959b5f1ff_RETINA_PORTRAIT_3_2.jpg","lat":51.5142805,"lng":-0.1284654,"detail":"Theatre"},
-    {"id":"events-tm-1w8d5tl","placeName":"Victoria Park London","kind":"music","startsAt":"2026-08-22T13:00:00.000Z","title":"All Points East - Lorde","source":{"label":"Ticketmaster","url":"https://www.ticketmaster.co.uk/all-points-east-lorde-london-22-08-2026/event/37006364B4B15CA1"},"observedAt":"2026-08-22T04:38:53.493Z","confidence":"listed","sourceId":"1AMZku0GkeVi4w-","imageUrl":"https://s1.ticketm.net/dam/a/73f/7e0553af-4370-4298-aba6-6483bc2d973f_RECOMENDATION_16_9.jpg","lat":51.53929,"lng":-0.04047,"detail":"Rock"},
-    {"id":"events-tm-bh8sbm","placeName":"Cambridge Theatre","kind":"event","startsAt":"2026-08-22T13:00:00.000Z","title":"Matilda The Musical","source":{"label":"Ticketmaster","url":"https://theatre.ticketmaster.co.uk/book/1FY3Y-matilda-the-musical/#perf=1FY3Y-37W&date=2026-08-22&time=2.00PM"},"observedAt":"2026-08-22T04:38:53.493Z","confidence":"listed","sourceId":"1AdjZbSGkDco5kw","imageUrl":"https://s1.ticketm.net/dam/a/3a7/1dd61e1a-f7d0-4109-8334-d4c1ffbd03a7_SOURCE","lat":51.51351,"lng":-0.126407,"detail":"Theatre"},
-    {"id":"events-tm-hqx888","placeName":"Globe Theatre, Shakespeare's Globe","kind":"event","startsAt":"2026-08-22T13:00:00.000Z","title":"Shakespeare's Globe - a Midsummer Night's Dream","source":{"label":"Ticketmaster","url":"https://theatre.ticketmaster.co.uk/book/1HM7N-a-midsummer-nights-dream-26s/#perf=1HM7N-2B&date=2026-08-22&time=2.00PM"},"observedAt":"2026-08-22T04:38:53.493Z","confidence":"listed","sourceId":"1AgZk3eGkeHLP1D","imageUrl":"https://s1.ticketm.net/dam/c/07d/fda8c807-42eb-4b81-9f16-f3a8367e107d_106371_TABLET_LANDSCAPE_LARGE_16_9.jpg","lat":51.508111,"lng":-0.096597,"detail":"Theatre"},
-    {"id":"events-tm-rq46g7","placeName":"Gillian Lynne Theatre","kind":"event","startsAt":"2026-08-22T13:00:00.000Z","title":"My Neighbour Totoro","source":{"label":"Ticketmaster","url":"https://theatre.ticketmaster.co.uk/book/1G7HA-my-neighbour-totoro/#perf=1G7HA-16S&date=2026-08-22&time=2.00PM"},"observedAt":"2026-08-22T04:38:53.493Z","confidence":"listed","sourceId":"1kuYvN4yGA2g6Hm","imageUrl":"https://s1.ticketm.net/dam/a/33a/d54a4304-6f62-46bf-ac84-f993da95833a_SOURCE","lat":51.51429,"lng":-0.119645,"detail":"Theatre"},
-    {"id":"events-tm-rumjyo","placeName":"Palace Theatre","kind":"event","startsAt":"2026-08-22T13:00:00.000Z","title":"Harry Potter and the Cursed Child - Parts 1 & 2 Sat 14:00 & 19:00","source":{"label":"Ticketmaster","url":"https://theatre.ticketmaster.co.uk/book/17YYA-harry-potter-and-the-cursed-child/#perf=17YYA-80I&date=2026-08-22&time=2.00PM"},"observedAt":"2026-08-22T04:38:53.493Z","confidence":"listed","sourceId":"1AdjZ_dGkzTiI90","imageUrl":"https://s1.ticketm.net/dam/a/be4/d80a13cc-d8e4-4960-8f07-ad051359abe4_RETINA_PORTRAIT_16_9.jpg","lat":51.5131668,"lng":-0.1297073,"detail":"Theatre"},
-    {"id":"events-tm-1x36f5i","placeName":"The Old Vic","kind":"event","startsAt":"2026-08-22T13:30:00.000Z","title":"How the Other Half Loves","source":{"label":"Ticketmaster","url":"https://theatre.ticketmaster.co.uk/book/1J54A-how-the-other-half-loves/#perf=1J54A-Q&date=2026-08-22&time=2.30PM"},"observedAt":"2026-08-22T04:38:53.493Z","confidence":"listed","sourceId":"17uYv0G6u5J5QSF","imageUrl":"https://s1.ticketm.net/dam/a/e90/7bc2b329-8d51-4b64-a7da-2beedd896e90_RETINA_PORTRAIT_3_2.jpg","lat":51.5019366,"lng":-0.1090443,"detail":"Theatre"},
-    {"id":"events-tm-84fk9l","placeName":"County Hall","kind":"event","startsAt":"2026-08-22T13:30:00.000Z","title":"Witness for the Prosecution","source":{"label":"Ticketmaster","url":"https://theatre.ticketmaster.co.uk/book/1EL6R-witness-for-the-prosecution/#perf=1EL6R-45J&date=2026-08-22&time=2.30PM"},"observedAt":"2026-08-22T04:38:53.493Z","confidence":"listed","sourceId":"G5vHZbw9J5g6R","imageUrl":"https://s1.ticketm.net/dam/a/366/f7c22ef7-8776-47fa-b0ad-d95761707366_RETINA_LANDSCAPE_16_9.jpg","lat":51.50282,"lng":-0.119252,"detail":"Theatre"},
-    {"id":"events-tm-pffxz","placeName":"Lyceum Theatre","kind":"event","startsAt":"2026-08-22T13:30:00.000Z","title":"Disney's The Lion King","source":{"label":"Ticketmaster","url":"https://www.ticketmaster.co.uk/disneys-the-lion-king-london-22-08-2026/event/ZKr9uZKbZL4ZeCj6jZkaC"},"observedAt":"2026-08-22T04:38:53.493Z","confidence":"listed","sourceId":"ZKr9uZKbZL4ZeCj6jZkaC","imageUrl":"https://s1.ticketm.net/dam/a/7df/81c5def3-5f8a-4230-9bdb-a5d2b03797df_RETINA_LANDSCAPE_16_9.jpg","lat":51.511718,"lng":-0.120008,"detail":"Theatre"}
+    {
+      "id": "events-tm-w8j8bu",
+      "placeName": "The Arts at Marble Arch",
+      "kind": "event",
+      "startsAt": "2026-08-22T09:00:00.000Z",
+      "title": "Be Like Blippi Tour!",
+      "source": {
+        "label": "Ticketmaster",
+        "url": "https://theatre.ticketmaster.co.uk/book/1J2B0-blippi/#perf=1J2B0-X&date=2026-08-22&time=10.00AM"
+      },
+      "observedAt": "2026-08-22T04:38:53.493Z",
+      "confidence": "listed",
+      "sourceId": "1AdjZ_aGkwPHSKT",
+      "imageUrl": "https://s1.ticketm.net/dam/a/254/4755dc7f-68d0-4c0c-800c-f06b86b16254_RETINA_LANDSCAPE_16_9.jpg",
+      "lat": 51.51329,
+      "lng": -0.159855,
+      "detail": "Children's Theatre"
+    },
+    {
+      "id": "events-tm-1limno9",
+      "placeName": "Lyric Theatre",
+      "kind": "event",
+      "startsAt": "2026-08-22T09:15:00.000Z",
+      "title": "The Gruffalo",
+      "source": {
+        "label": "Ticketmaster",
+        "url": "https://www.ticketmaster.co.uk/the-gruffalo-london-22-08-2026/event/Z3r9uZKbZL4Ze3baLZeK"
+      },
+      "observedAt": "2026-08-22T04:38:53.493Z",
+      "confidence": "listed",
+      "sourceId": "Z3r9uZKbZL4Ze3baLZeK",
+      "imageUrl": "https://s1.ticketm.net/dam/a/81b/f58b443a-ccf1-421c-aeac-ee873d0f281b_54151_TABLET_LANDSCAPE_LARGE_16_9.jpg",
+      "lat": 51.511248,
+      "lng": -0.133935,
+      "detail": "Children's Theatre"
+    },
+    {
+      "id": "events-tm-mt6qzz",
+      "placeName": "Theatre Royal Haymarket",
+      "kind": "event",
+      "startsAt": "2026-08-22T09:30:00.000Z",
+      "title": "The Tiger Who Came To Tea",
+      "source": {
+        "label": "Ticketmaster",
+        "url": "https://www.ticketmaster.co.uk/the-tiger-who-came-to-tea-london-22-08-2026/event/Z3r9uZKbZL4Ze3x1aZeO"
+      },
+      "observedAt": "2026-08-22T04:38:53.493Z",
+      "confidence": "listed",
+      "sourceId": "Z3r9uZKbZL4Ze3x1aZeO",
+      "imageUrl": "https://s1.ticketm.net/dam/a/639/b755f727-a724-48b5-8487-981cb50c1639_TABLET_LANDSCAPE_LARGE_16_9.jpg",
+      "lat": 51.50884,
+      "lng": -0.13128,
+      "detail": "Children's Theatre"
+    },
+    {
+      "id": "events-tm-1novink",
+      "placeName": "Apollo Theatre",
+      "kind": "event",
+      "startsAt": "2026-08-22T10:00:00.000Z",
+      "title": "Horrible Histories: Barmy Britain",
+      "source": {
+        "label": "Ticketmaster",
+        "url": "https://theatre.ticketmaster.co.uk/book/1HVYJ-horrible-histories-barmy-britain-2026/#perf=1HVYJ-12&date=2026-08-22&time=11.00AM"
+      },
+      "observedAt": "2026-08-22T04:38:53.493Z",
+      "confidence": "listed",
+      "sourceId": "1AdfZ_6Gknsj45g",
+      "imageUrl": "https://s1.ticketm.net/dam/c/07d/fda8c807-42eb-4b81-9f16-f3a8367e107d_106371_TABLET_LANDSCAPE_LARGE_16_9.jpg",
+      "lat": 51.511248,
+      "lng": -0.133935,
+      "detail": "Theatre"
+    },
+    {
+      "id": "events-tm-dj0vbj",
+      "placeName": "Globe Theatre, Shakespeare's Globe",
+      "kind": "event",
+      "startsAt": "2026-08-22T10:00:00.000Z",
+      "title": "Shakespeare's Globe - A World Elsewhere",
+      "source": {
+        "label": "Ticketmaster",
+        "url": "https://theatre.ticketmaster.co.uk/book/1HMRC-a-world-elsewhere/#perf=1HMRC-U&date=2026-08-22&time=11.00AM"
+      },
+      "observedAt": "2026-08-22T04:38:53.493Z",
+      "confidence": "listed",
+      "sourceId": "1AgZk3eGkdLX9c0",
+      "imageUrl": "https://s1.ticketm.net/dam/c/07d/fda8c807-42eb-4b81-9f16-f3a8367e107d_106371_TABLET_LANDSCAPE_LARGE_16_9.jpg",
+      "lat": 51.508111,
+      "lng": -0.096597,
+      "detail": "Theatre"
+    },
+    {
+      "id": "events-tm-12ry8k3",
+      "placeName": "The O2",
+      "kind": "event",
+      "startsAt": "2026-08-22T11:00:00.000Z",
+      "title": "Mamma Mia! The Party",
+      "source": {
+        "label": "Ticketmaster",
+        "url": "https://theatre.ticketmaster.co.uk/book/1GY5A-mamma-mia-the-party/#perf=1GY5A-163&date=2026-08-22&time=12.00PM"
+      },
+      "observedAt": "2026-08-22T04:38:53.493Z",
+      "confidence": "listed",
+      "sourceId": "1AdfZ_eGkDwpz25",
+      "imageUrl": "https://s1.ticketm.net/dam/a/dd1/8cfa7d0c-241e-41b8-a131-75f4813bfdd1_RETINA_PORTRAIT_16_9.jpg",
+      "lat": 51.501581,
+      "lng": 0.005519,
+      "detail": "Theatre"
+    },
+    {
+      "id": "events-tm-dysf5c",
+      "placeName": "Lyric Theatre Hammersmith",
+      "kind": "event",
+      "startsAt": "2026-08-22T11:00:00.000Z",
+      "title": "The Enormous Crocodile",
+      "source": {
+        "label": "Ticketmaster",
+        "url": "https://www.ticketmaster.co.uk/the-enormous-crocodile-london-22-08-2026/event/Z3r9uZKbZL4Ze3LA-Ze5"
+      },
+      "observedAt": "2026-08-22T04:38:53.493Z",
+      "confidence": "listed",
+      "sourceId": "Z3r9uZKbZL4Ze3LA-Ze5",
+      "imageUrl": "https://s1.ticketm.net/dam/c/2b5/5a0a3487-492b-4072-9d8d-1fcda02bd2b5_781101_RECOMENDATION_16_9.jpg",
+      "lat": 51.492895,
+      "lng": -0.226795,
+      "detail": "Children's Theatre"
+    },
+    {
+      "id": "events-tm-ow85h5",
+      "placeName": "Soul Mama Islington",
+      "kind": "music",
+      "startsAt": "2026-08-22T11:00:00.000Z",
+      "title": "Afrobeats Brunch by The Fortune Collectives, Pioneered by KoyeSax",
+      "source": {
+        "label": "Ticketmaster",
+        "url": "https://www.universe.com/events/afrobeats-brunch-by-the-fortune-collectives-pioneered-by-koyesax-tickets-HPXQKR?ref=ticketmaster"
+      },
+      "observedAt": "2026-08-22T04:38:53.493Z",
+      "confidence": "listed",
+      "sourceId": "LvZ18QLliv0yg48ZltqX2",
+      "imageUrl": "https://s1.ticketm.net/dam/c/548/5fefbd1c-973b-4b0e-9b2e-d78e4ce37548_106111_TABLET_LANDSCAPE_LARGE_16_9.jpg",
+      "lat": 51.534184,
+      "lng": -0.106126,
+      "detail": "World"
+    },
+    {
+      "id": "events-tm-1xnf9is",
+      "placeName": "The Lost Estate",
+      "kind": "event",
+      "startsAt": "2026-08-22T11:45:00.000Z",
+      "title": "CHAT NOIR!",
+      "source": {
+        "label": "Ticketmaster",
+        "url": "https://theatre.ticketmaster.co.uk/book/1HHV2-chat-noir/#perf=1HHV2-10E&date=2026-08-22&time=12.45PM"
+      },
+      "observedAt": "2026-08-22T04:38:53.493Z",
+      "confidence": "listed",
+      "sourceId": "17u8v0G6uJ-PB1n",
+      "imageUrl": "https://s1.ticketm.net/dam/a/64f/0e2e3d60-ab92-41ad-84c6-f2509e8ff64f_TABLET_LANDSCAPE_LARGE_16_9.jpg",
+      "lat": 51.4905226,
+      "lng": -0.20485809,
+      "detail": "Variety"
+    },
+    {
+      "id": "events-tm-1yhl38q",
+      "placeName": "Boisdale, Canary Wharf",
+      "kind": "music",
+      "startsAt": "2026-08-22T12:00:00.000Z",
+      "title": "Saturday Soul Lunch | Kings of Soul",
+      "source": {
+        "label": "Ticketmaster",
+        "url": "https://www.universe.com/events/saturday-soul-lunch-kings-of-soul-tickets-N8CWXK?ref=ticketmaster"
+      },
+      "observedAt": "2026-08-22T04:38:53.493Z",
+      "confidence": "listed",
+      "sourceId": "LvZ18Q_qCl5thd8Z00e1g",
+      "imageUrl": "https://s1.ticketm.net/dam/c/48b/2352e3b5-8496-496b-97a3-e605177e848b_105851_TABLET_LANDSCAPE_LARGE_16_9.jpg",
+      "lat": 51.505252,
+      "lng": -0.022271,
+      "detail": "R&B"
+    },
+    {
+      "id": "events-tm-huetrt",
+      "placeName": "Belle Livingstone's 58th Street Country Club",
+      "kind": "music",
+      "startsAt": "2026-08-22T12:00:00.000Z",
+      "title": "Belle Livingstone's 58th Street Country Club",
+      "source": {
+        "label": "Ticketmaster",
+        "url": "https://theatre.ticketmaster.co.uk/book/1HBYR-58th-street/#perf=1HBYR-13W&date=2026-08-22&time=1.00PM"
+      },
+      "observedAt": "2026-08-22T04:38:53.493Z",
+      "confidence": "listed",
+      "sourceId": "17u8v0G6uMSfzhT",
+      "imageUrl": "https://s1.ticketm.net/dam/a/ec9/79f46379-e450-4b33-99d9-9e3a9f25eec9_TABLET_LANDSCAPE_LARGE_16_9.jpg",
+      "lat": 51.47289512,
+      "lng": -0.06736413,
+      "detail": "Jazz"
+    },
+    {
+      "id": "events-tm-mdj4ke",
+      "placeName": "The Arts at Marble Arch",
+      "kind": "event",
+      "startsAt": "2026-08-22T12:00:00.000Z",
+      "title": "Be Like Blippi Tour!",
+      "source": {
+        "label": "Ticketmaster",
+        "url": "https://theatre.ticketmaster.co.uk/book/1J2B0-blippi/#perf=1J2B0-Y&date=2026-08-22&time=1.00PM"
+      },
+      "observedAt": "2026-08-22T04:38:53.493Z",
+      "confidence": "listed",
+      "sourceId": "1AdjZ_aGkwJ1NfS",
+      "imageUrl": "https://s1.ticketm.net/dam/a/254/4755dc7f-68d0-4c0c-800c-f06b86b16254_RETINA_LANDSCAPE_16_9.jpg",
+      "lat": 51.51329,
+      "lng": -0.159855,
+      "detail": "Children's Theatre"
+    },
+    {
+      "id": "events-tm-mfcckk",
+      "placeName": "Phoenix Theatre",
+      "kind": "event",
+      "startsAt": "2026-08-22T12:00:00.000Z",
+      "title": "Stranger Things: The First Shadow",
+      "source": {
+        "label": "Ticketmaster",
+        "url": "https://theatre.ticketmaster.co.uk/book/1FHDY-stranger-things-the-first-shadow/#perf=1FHDY-220&date=2026-08-22&time=1.00PM"
+      },
+      "observedAt": "2026-08-22T04:38:53.493Z",
+      "confidence": "listed",
+      "sourceId": "17uYv0G65I9CghH",
+      "imageUrl": "https://s1.ticketm.net/dam/a/ec0/5f90acba-9d7c-48c0-9010-7b97062e6ec0_ARTIST_PAGE_3_2.jpg",
+      "lat": 51.514387,
+      "lng": -0.129497,
+      "detail": "Theatre"
+    },
+    {
+      "id": "events-tm-19lrhwz",
+      "placeName": "Duke of Yorks Theatre",
+      "kind": "event",
+      "startsAt": "2026-08-22T12:30:00.000Z",
+      "title": "Arcadia",
+      "source": {
+        "label": "Ticketmaster",
+        "url": "https://www.ticketmaster.co.uk/arcadia-london-22-08-2026/event/Z3r9uZKbZL4ZefdeAZdv"
+      },
+      "observedAt": "2026-08-22T04:38:53.493Z",
+      "confidence": "listed",
+      "sourceId": "Z3r9uZKbZL4ZefdeAZdv",
+      "imageUrl": "https://s1.ticketm.net/dam/a/cd1/9ae80637-5be7-4e50-8d54-13633a8c8cd1_CUSTOM.jpg",
+      "lat": 51.510174,
+      "lng": -0.127522,
+      "detail": "Theatre"
+    },
+    {
+      "id": "events-tm-9ue8f5",
+      "placeName": "Bridge Theatre",
+      "kind": "event",
+      "startsAt": "2026-08-22T12:30:00.000Z",
+      "title": "The Oresteia",
+      "source": {
+        "label": "Ticketmaster",
+        "url": "https://www.ticketmaster.co.uk/the-oresteia-london-22-08-2026/event/Z3r9uZKbZL4Ze3x2vZkC"
+      },
+      "observedAt": "2026-08-22T04:38:53.493Z",
+      "confidence": "listed",
+      "sourceId": "Z3r9uZKbZL4Ze3x2vZkC",
+      "imageUrl": "https://s1.ticketm.net/dam/a/8ba/97d577cb-e306-4070-b08d-28d44950a8ba_EVENT_DETAIL_PAGE_16_9.jpg",
+      "lat": 51.4992073,
+      "lng": -0.0880061,
+      "detail": "Theatre"
+    },
+    {
+      "id": "events-tm-sv9v5i",
+      "placeName": "President Hotel",
+      "kind": "event",
+      "startsAt": "2026-08-22T12:30:00.000Z",
+      "title": "Faulty Towers the Dining Experience",
+      "source": {
+        "label": "Ticketmaster",
+        "url": "https://theatre.ticketmaster.co.uk/book/1GLTR-faulty-towers-the-dining-experience-in-londons-west-end-2024/#perf=1GLTR-19U&date=2026-08-22&time=1.30PM"
+      },
+      "observedAt": "2026-08-22T04:38:53.493Z",
+      "confidence": "listed",
+      "sourceId": "17u8v0G65CriexY",
+      "imageUrl": "https://s1.ticketm.net/dam/a/15e/dda96bd9-563a-48b8-95e1-7226ffd7715e_TABLET_LANDSCAPE_LARGE_16_9.jpg",
+      "lat": 51.52226825,
+      "lng": -0.12395745,
+      "detail": "Theatre"
+    },
+    {
+      "id": "events-tm-10288yc",
+      "placeName": "Playhouse Theatre",
+      "kind": "event",
+      "startsAt": "2026-08-22T13:00:00.000Z",
+      "title": "Cabaret",
+      "source": {
+        "label": "Ticketmaster",
+        "url": "https://www.ticketmaster.co.uk/cabaret-london-22-08-2026/event/ZKr9uZKbZL4Ze310LZe7A"
+      },
+      "observedAt": "2026-08-22T04:38:53.493Z",
+      "confidence": "listed",
+      "sourceId": "ZKr9uZKbZL4Ze310LZe7A",
+      "imageUrl": "https://s1.ticketm.net/dam/a/6ce/18980152-24f7-4447-b454-dfa98314f6ce_SOURCE",
+      "lat": 51.506975,
+      "lng": -0.123719,
+      "detail": "Theatre"
+    },
+    {
+      "id": "events-tm-1hkxyqt",
+      "placeName": "Wyndham's Theatre",
+      "kind": "event",
+      "startsAt": "2026-08-22T13:00:00.000Z",
+      "title": "To Kill A Mockingbird",
+      "source": {
+        "label": "Ticketmaster",
+        "url": "https://theatre.ticketmaster.co.uk/book/1HV64-to-kill-a-mockingbird/#perf=1HV64-1W&date=2026-08-22&time=2.00PM"
+      },
+      "observedAt": "2026-08-22T04:38:53.493Z",
+      "confidence": "listed",
+      "sourceId": "17u8v0G65bk-Ewz",
+      "imageUrl": "https://s1.ticketm.net/dam/a/9cf/b8c7187e-de09-46d2-820d-e70924d719cf_ARTIST_PAGE_3_2.jpg",
+      "lat": 51.511067,
+      "lng": -0.128249,
+      "detail": "Theatre"
+    },
+    {
+      "id": "events-tm-1si2vwn",
+      "placeName": "Noel Coward Theatre",
+      "kind": "event",
+      "startsAt": "2026-08-22T13:00:00.000Z",
+      "title": "Cyrano de Bergerac",
+      "source": {
+        "label": "Ticketmaster",
+        "url": "https://theatre.ticketmaster.co.uk/book/1HUCK-cyrano-de-bergerac/#perf=1HUCK-27&date=2026-08-22&time=2.00PM"
+      },
+      "observedAt": "2026-08-22T04:38:53.493Z",
+      "confidence": "listed",
+      "sourceId": "17u8v0G65rsg75b",
+      "imageUrl": "https://s1.ticketm.net/dam/a/1ff/42e83dc7-6675-4bca-b992-d5d959b5f1ff_RETINA_PORTRAIT_3_2.jpg",
+      "lat": 51.5142805,
+      "lng": -0.1284654,
+      "detail": "Theatre"
+    },
+    {
+      "id": "events-tm-1w8d5tl",
+      "placeName": "Victoria Park London",
+      "kind": "music",
+      "startsAt": "2026-08-22T13:00:00.000Z",
+      "title": "All Points East - Lorde",
+      "source": {
+        "label": "Ticketmaster",
+        "url": "https://www.ticketmaster.co.uk/all-points-east-lorde-london-22-08-2026/event/37006364B4B15CA1"
+      },
+      "observedAt": "2026-08-22T04:38:53.493Z",
+      "confidence": "listed",
+      "sourceId": "1AMZku0GkeVi4w-",
+      "imageUrl": "https://s1.ticketm.net/dam/a/73f/7e0553af-4370-4298-aba6-6483bc2d973f_RECOMENDATION_16_9.jpg",
+      "lat": 51.53929,
+      "lng": -0.04047,
+      "detail": "Rock"
+    },
+    {
+      "id": "events-tm-bh8sbm",
+      "placeName": "Cambridge Theatre",
+      "kind": "event",
+      "startsAt": "2026-08-22T13:00:00.000Z",
+      "title": "Matilda The Musical",
+      "source": {
+        "label": "Ticketmaster",
+        "url": "https://theatre.ticketmaster.co.uk/book/1FY3Y-matilda-the-musical/#perf=1FY3Y-37W&date=2026-08-22&time=2.00PM"
+      },
+      "observedAt": "2026-08-22T04:38:53.493Z",
+      "confidence": "listed",
+      "sourceId": "1AdjZbSGkDco5kw",
+      "imageUrl": "https://s1.ticketm.net/dam/a/3a7/1dd61e1a-f7d0-4109-8334-d4c1ffbd03a7_SOURCE",
+      "lat": 51.51351,
+      "lng": -0.126407,
+      "detail": "Theatre"
+    },
+    {
+      "id": "events-tm-hqx888",
+      "placeName": "Globe Theatre, Shakespeare's Globe",
+      "kind": "event",
+      "startsAt": "2026-08-22T13:00:00.000Z",
+      "title": "Shakespeare's Globe - a Midsummer Night's Dream",
+      "source": {
+        "label": "Ticketmaster",
+        "url": "https://theatre.ticketmaster.co.uk/book/1HM7N-a-midsummer-nights-dream-26s/#perf=1HM7N-2B&date=2026-08-22&time=2.00PM"
+      },
+      "observedAt": "2026-08-22T04:38:53.493Z",
+      "confidence": "listed",
+      "sourceId": "1AgZk3eGkeHLP1D",
+      "imageUrl": "https://s1.ticketm.net/dam/c/07d/fda8c807-42eb-4b81-9f16-f3a8367e107d_106371_TABLET_LANDSCAPE_LARGE_16_9.jpg",
+      "lat": 51.508111,
+      "lng": -0.096597,
+      "detail": "Theatre"
+    },
+    {
+      "id": "events-tm-rq46g7",
+      "placeName": "Gillian Lynne Theatre",
+      "kind": "event",
+      "startsAt": "2026-08-22T13:00:00.000Z",
+      "title": "My Neighbour Totoro",
+      "source": {
+        "label": "Ticketmaster",
+        "url": "https://theatre.ticketmaster.co.uk/book/1G7HA-my-neighbour-totoro/#perf=1G7HA-16S&date=2026-08-22&time=2.00PM"
+      },
+      "observedAt": "2026-08-22T04:38:53.493Z",
+      "confidence": "listed",
+      "sourceId": "1kuYvN4yGA2g6Hm",
+      "imageUrl": "https://s1.ticketm.net/dam/a/33a/d54a4304-6f62-46bf-ac84-f993da95833a_SOURCE",
+      "lat": 51.51429,
+      "lng": -0.119645,
+      "detail": "Theatre"
+    },
+    {
+      "id": "events-tm-rumjyo",
+      "placeName": "Palace Theatre",
+      "kind": "event",
+      "startsAt": "2026-08-22T13:00:00.000Z",
+      "title": "Harry Potter and the Cursed Child - Parts 1 & 2 Sat 14:00 & 19:00",
+      "source": {
+        "label": "Ticketmaster",
+        "url": "https://theatre.ticketmaster.co.uk/book/17YYA-harry-potter-and-the-cursed-child/#perf=17YYA-80I&date=2026-08-22&time=2.00PM"
+      },
+      "observedAt": "2026-08-22T04:38:53.493Z",
+      "confidence": "listed",
+      "sourceId": "1AdjZ_dGkzTiI90",
+      "imageUrl": "https://s1.ticketm.net/dam/a/be4/d80a13cc-d8e4-4960-8f07-ad051359abe4_RETINA_PORTRAIT_16_9.jpg",
+      "lat": 51.5131668,
+      "lng": -0.1297073,
+      "detail": "Theatre"
+    },
+    {
+      "id": "events-tm-1x36f5i",
+      "placeName": "The Old Vic",
+      "kind": "event",
+      "startsAt": "2026-08-22T13:30:00.000Z",
+      "title": "How the Other Half Loves",
+      "source": {
+        "label": "Ticketmaster",
+        "url": "https://theatre.ticketmaster.co.uk/book/1J54A-how-the-other-half-loves/#perf=1J54A-Q&date=2026-08-22&time=2.30PM"
+      },
+      "observedAt": "2026-08-22T04:38:53.493Z",
+      "confidence": "listed",
+      "sourceId": "17uYv0G6u5J5QSF",
+      "imageUrl": "https://s1.ticketm.net/dam/a/e90/7bc2b329-8d51-4b64-a7da-2beedd896e90_RETINA_PORTRAIT_3_2.jpg",
+      "lat": 51.5019366,
+      "lng": -0.1090443,
+      "detail": "Theatre"
+    },
+    {
+      "id": "events-tm-84fk9l",
+      "placeName": "County Hall",
+      "kind": "event",
+      "startsAt": "2026-08-22T13:30:00.000Z",
+      "title": "Witness for the Prosecution",
+      "source": {
+        "label": "Ticketmaster",
+        "url": "https://theatre.ticketmaster.co.uk/book/1EL6R-witness-for-the-prosecution/#perf=1EL6R-45J&date=2026-08-22&time=2.30PM"
+      },
+      "observedAt": "2026-08-22T04:38:53.493Z",
+      "confidence": "listed",
+      "sourceId": "G5vHZbw9J5g6R",
+      "imageUrl": "https://s1.ticketm.net/dam/a/366/f7c22ef7-8776-47fa-b0ad-d95761707366_RETINA_LANDSCAPE_16_9.jpg",
+      "lat": 51.50282,
+      "lng": -0.119252,
+      "detail": "Theatre"
+    },
+    {
+      "id": "events-tm-pffxz",
+      "placeName": "Lyceum Theatre",
+      "kind": "event",
+      "startsAt": "2026-08-22T13:30:00.000Z",
+      "title": "Disney's The Lion King",
+      "source": {
+        "label": "Ticketmaster",
+        "url": "https://www.ticketmaster.co.uk/disneys-the-lion-king-london-22-08-2026/event/ZKr9uZKbZL4ZeCj6jZkaC"
+      },
+      "observedAt": "2026-08-22T04:38:53.493Z",
+      "confidence": "listed",
+      "sourceId": "ZKr9uZKbZL4ZeCj6jZkaC",
+      "imageUrl": "https://s1.ticketm.net/dam/a/7df/81c5def3-5f8a-4230-9bdb-a5d2b03797df_RETINA_LANDSCAPE_16_9.jpg",
+      "lat": 51.511718,
+      "lng": -0.120008,
+      "detail": "Theatre"
+    },
+    {
+      "placeName": "The George & Vulture",
+      "lat": 51.5291667,
+      "lng": -0.0837902,
+      "venueId": "venue-14d7fyb",
+      "source": {
+        "label": "The George & Vulture website",
+        "url": "https://georgeandvulture.com/"
+      },
+      "observedAt": "2026-10-07T18:16:36.533Z",
+      "confidence": "listed",
+      "id": "own-site-1b8878d47e330cea484c0718",
+      "kind": "quiz",
+      "title": "QUIZ NIGHT",
+      "startsAt": "2026-10-13T19:30:00+01:00",
+      "timeEvidence": "TUESDAYS\nQUIZ NIGHT \n7.30PM START"
+    },
+    {
+      "placeName": "The Walrus",
+      "lat": 51.4999904,
+      "lng": -0.1143845,
+      "venueId": "venue-2hozzj",
+      "source": {
+        "label": "The Walrus website",
+        "url": "https://www.thewalrusbarandhostel.co.uk/barpage1"
+      },
+      "observedAt": "2026-10-07T18:27:30.784Z",
+      "confidence": "listed",
+      "id": "own-site-b8276867c88fbc3e612bdbdf",
+      "kind": "deal",
+      "title": "happy hour every thurs-sat 5-9pm",
+      "startsAt": "2026-10-08T17:00:00+01:00",
+      "endsAt": "2026-10-08T21:00:00+01:00",
+      "detail": "SELECTED"
+    },
+    {
+      "placeName": "The Walrus",
+      "lat": 51.4999904,
+      "lng": -0.1143845,
+      "venueId": "venue-2hozzj",
+      "source": {
+        "label": "The Walrus website",
+        "url": "https://www.thewalrusbarandhostel.co.uk/barpage1"
+      },
+      "observedAt": "2026-10-07T18:27:30.784Z",
+      "confidence": "listed",
+      "id": "own-site-8d9cd7c1ccafb0bd2aedd7e2",
+      "kind": "deal",
+      "title": "happy hour every thurs-sat 5-9pm",
+      "startsAt": "2026-10-09T17:00:00+01:00",
+      "endsAt": "2026-10-09T21:00:00+01:00",
+      "detail": "SELECTED"
+    },
+    {
+      "placeName": "The Walrus",
+      "lat": 51.4999904,
+      "lng": -0.1143845,
+      "venueId": "venue-2hozzj",
+      "source": {
+        "label": "The Walrus website",
+        "url": "https://www.thewalrusbarandhostel.co.uk/barpage1"
+      },
+      "observedAt": "2026-10-07T18:27:30.784Z",
+      "confidence": "listed",
+      "id": "own-site-8fde1449f77b46b27fecf852",
+      "kind": "deal",
+      "title": "happy hour every thurs-sat 5-9pm",
+      "startsAt": "2026-10-10T17:00:00+01:00",
+      "endsAt": "2026-10-10T21:00:00+01:00",
+      "detail": "SELECTED"
+    },
+    {
+      "placeName": "The Queen's Head",
+      "lat": 51.5108129,
+      "lng": -0.1353585,
+      "venueId": "venue-122cuu1",
+      "source": {
+        "label": "The Queen's Head website",
+        "url": "https://www.queensheadpiccadilly.com/"
+      },
+      "observedAt": "2026-10-07T18:27:55.525Z",
+      "confidence": "listed",
+      "id": "own-site-238bf6f0fc7d3c4f826fa76c",
+      "kind": "music",
+      "title": "Live Music from 7pm",
+      "startsAt": "2026-10-11T19:00:00+01:00",
+      "timeEvidence": "Live Music from 7pm\nEvery Sunday evening, the Queens Head comes alive. From 7pm, live music fills the room, no booking needed, no cover charge. Just a proper Soho pub doing what it does best."
+    },
+    {
+      "placeName": "Shuffleboard Bar London",
+      "lat": 51.5264877,
+      "lng": -0.1243374,
+      "venueId": "venue-n99s5t",
+      "source": {
+        "label": "Shuffleboard Bar London website",
+        "url": "https://shuffleboardbars.com/london/"
+      },
+      "observedAt": "2026-10-07T18:28:23.198Z",
+      "confidence": "listed",
+      "id": "own-site-71ec2c659b89ee5bac4367a7",
+      "kind": "deal",
+      "title": "HAPPY HOURS - Everyday 12:00-21:00",
+      "startsAt": "2026-10-12T12:00:00+01:00",
+      "endsAt": "2026-10-12T21:00:00+01:00",
+      "detail": "- 3 Pints for £14 (Select Pints)"
+    },
+    {
+      "placeName": "Shuffleboard Bar London",
+      "lat": 51.5264877,
+      "lng": -0.1243374,
+      "venueId": "venue-n99s5t",
+      "source": {
+        "label": "Shuffleboard Bar London website",
+        "url": "https://shuffleboardbars.com/london/"
+      },
+      "observedAt": "2026-10-07T18:28:23.198Z",
+      "confidence": "listed",
+      "id": "own-site-505568c6ecd7060362c11e63",
+      "kind": "deal",
+      "title": "HAPPY HOURS - Everyday 12:00-21:00",
+      "startsAt": "2026-10-13T12:00:00+01:00",
+      "endsAt": "2026-10-13T21:00:00+01:00",
+      "detail": "- 3 Pints for £14 (Select Pints)"
+    },
+    {
+      "placeName": "Shuffleboard Bar London",
+      "lat": 51.5264877,
+      "lng": -0.1243374,
+      "venueId": "venue-n99s5t",
+      "source": {
+        "label": "Shuffleboard Bar London website",
+        "url": "https://shuffleboardbars.com/london/"
+      },
+      "observedAt": "2026-10-07T18:28:23.198Z",
+      "confidence": "listed",
+      "id": "own-site-8c923878928f25c8a1f4141d",
+      "kind": "deal",
+      "title": "HAPPY HOURS - Everyday 12:00-21:00",
+      "startsAt": "2026-10-14T12:00:00+01:00",
+      "endsAt": "2026-10-14T21:00:00+01:00",
+      "detail": "- 3 Pints for £14 (Select Pints)"
+    },
+    {
+      "placeName": "Shuffleboard Bar London",
+      "lat": 51.5264877,
+      "lng": -0.1243374,
+      "venueId": "venue-n99s5t",
+      "source": {
+        "label": "Shuffleboard Bar London website",
+        "url": "https://shuffleboardbars.com/london/"
+      },
+      "observedAt": "2026-10-07T18:28:23.198Z",
+      "confidence": "listed",
+      "id": "own-site-881751f553a9e8c79997c276",
+      "kind": "deal",
+      "title": "HAPPY HOURS - Everyday 12:00-21:00",
+      "startsAt": "2026-10-08T12:00:00+01:00",
+      "endsAt": "2026-10-08T21:00:00+01:00",
+      "detail": "- 3 Pints for £14 (Select Pints)"
+    },
+    {
+      "placeName": "Shuffleboard Bar London",
+      "lat": 51.5264877,
+      "lng": -0.1243374,
+      "venueId": "venue-n99s5t",
+      "source": {
+        "label": "Shuffleboard Bar London website",
+        "url": "https://shuffleboardbars.com/london/"
+      },
+      "observedAt": "2026-10-07T18:28:23.198Z",
+      "confidence": "listed",
+      "id": "own-site-76c0686b71dabdfec5d61053",
+      "kind": "deal",
+      "title": "HAPPY HOURS - Everyday 12:00-21:00",
+      "startsAt": "2026-10-09T12:00:00+01:00",
+      "endsAt": "2026-10-09T21:00:00+01:00",
+      "detail": "- 3 Pints for £14 (Select Pints)"
+    },
+    {
+      "placeName": "Shuffleboard Bar London",
+      "lat": 51.5264877,
+      "lng": -0.1243374,
+      "venueId": "venue-n99s5t",
+      "source": {
+        "label": "Shuffleboard Bar London website",
+        "url": "https://shuffleboardbars.com/london/"
+      },
+      "observedAt": "2026-10-07T18:28:23.198Z",
+      "confidence": "listed",
+      "id": "own-site-0602c09b21a659a9efa410a8",
+      "kind": "deal",
+      "title": "HAPPY HOURS - Everyday 12:00-21:00",
+      "startsAt": "2026-10-10T12:00:00+01:00",
+      "endsAt": "2026-10-10T21:00:00+01:00",
+      "detail": "- 3 Pints for £14 (Select Pints)"
+    },
+    {
+      "placeName": "Shuffleboard Bar London",
+      "lat": 51.5264877,
+      "lng": -0.1243374,
+      "venueId": "venue-n99s5t",
+      "source": {
+        "label": "Shuffleboard Bar London website",
+        "url": "https://shuffleboardbars.com/london/"
+      },
+      "observedAt": "2026-10-07T18:28:23.198Z",
+      "confidence": "listed",
+      "id": "own-site-47be0044987a2f594ec64aff",
+      "kind": "deal",
+      "title": "HAPPY HOURS - Everyday 12:00-21:00",
+      "startsAt": "2026-10-11T12:00:00+01:00",
+      "endsAt": "2026-10-11T21:00:00+01:00",
+      "detail": "- 3 Pints for £14 (Select Pints)"
+    },
+    {
+      "placeName": "Crown & Anchor",
+      "lat": 51.4713507,
+      "lng": -0.1128611,
+      "venueId": "venue-1je46ir",
+      "source": {
+        "label": "Crown & Anchor website",
+        "url": "https://crownandanchorbrixton.co.uk/whats-on/"
+      },
+      "observedAt": "2026-10-07T18:33:15.604Z",
+      "confidence": "listed",
+      "id": "own-site-9e9f14a0acdb493726eca3e1",
+      "kind": "quiz",
+      "title": "Quiz Night",
+      "startsAt": "2026-10-13T19:30:00+01:00",
+      "timeEvidence": "Quiz Night\nTuesdays 7.30pm Start\nOur famous Tuesday night quiz kicks off every week at 7.30pm.\nHosted by Dave.\n£3 per player. No cheating.\nPrizes – Cash prizes for the top 2 teams and 3rd place gets a bottle of wine."
+    },
+    {
+      "placeName": "The Ivy House",
+      "lat": 51.4582061,
+      "lng": -0.0520969,
+      "venueId": "venue-p62pv7",
+      "source": {
+        "label": "The Ivy House website",
+        "url": "https://www.ivyhousenunhead.com/whats-on"
+      },
+      "observedAt": "2026-10-07T18:34:37.722Z",
+      "confidence": "listed",
+      "id": "own-site-e4578c43038b3c490d7cac3a",
+      "kind": "quiz",
+      "title": "Pub Quiz",
+      "startsAt": "2026-10-21T20:00:00+01:00",
+      "timeEvidence": "Pub Quiz\nWed 21 Oct / 20:00 / £2.50\nHosted by Quizmaster Maze. Winning team gets a £50 bar tab!"
+    },
+    {
+      "placeName": "The Ivy House",
+      "lat": 51.4582061,
+      "lng": -0.0520969,
+      "venueId": "venue-p62pv7",
+      "source": {
+        "label": "The Ivy House website",
+        "url": "https://www.ivyhousenunhead.com/whats-on"
+      },
+      "observedAt": "2026-10-07T18:34:37.722Z",
+      "confidence": "listed",
+      "id": "own-site-7ac086d56957c0bd99ed46a9",
+      "kind": "quiz",
+      "title": "Pub Quiz",
+      "startsAt": "2026-10-28T20:00:00+00:00",
+      "timeEvidence": "Pub Quiz\nWed 28 Oct / 20:00 / £2.50\nHosted by Quizman Sam. Winning team gets a £50 bar tab!"
+    },
+    {
+      "placeName": "The Ivy House",
+      "lat": 51.4582061,
+      "lng": -0.0520969,
+      "venueId": "venue-p62pv7",
+      "source": {
+        "label": "The Ivy House website",
+        "url": "https://www.ivyhousenunhead.com/whats-on"
+      },
+      "observedAt": "2026-10-07T18:34:37.722Z",
+      "confidence": "listed",
+      "id": "own-site-bcbbbba8033485201473f4eb",
+      "kind": "quiz",
+      "title": "Pub Quiz",
+      "startsAt": "2026-10-14T20:00:00+01:00",
+      "timeEvidence": "Pub Quiz\nEvery Wednesday from 8pm, from an eclectic variety of quizmasters. 2.50 per person to play, with proceeds going to our community outreach projects.\nItem 1 of 8"
+    },
+    {
+      "placeName": "Skehans",
+      "lat": 51.4675797,
+      "lng": -0.0494654,
+      "source": {
+        "label": "Skehans website",
+        "url": "https://skehans.com/"
+      },
+      "observedAt": "2026-10-07T18:39:09.121Z",
+      "confidence": "listed",
+      "id": "own-site-226dc3f9fe5c83b2914a58bd",
+      "kind": "quiz",
+      "title": "QUIZ NIGHT",
+      "startsAt": "2026-10-08T20:30:00+01:00",
+      "timeEvidence": "QUIZ NIGHT\nTHURSDAY 8:30 PM\nTest your knowledge and earn prizes every Thursday evening."
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-3988b4e70baa77e77c898d0c",
+      "kind": "sport",
+      "title": "Football: Premier League: Arsenal vs Leeds",
+      "startsAt": "2026-10-10T12:30:00+01:00",
+      "timeEvidence": "Football: Premier League\nSaturday 10 October\n12:30PM\nArsenal vs Leeds\nArsenal\nLeeds"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-66f73f309463fb2521ef3aaf",
+      "kind": "sport",
+      "title": "Football: Premier League: Man United vs Tottenham",
+      "startsAt": "2026-10-10T17:30:00+01:00",
+      "timeEvidence": "Football: Premier League\nSaturday 10 October\n5:30PM\nMan United vs Tottenham\nMan United\nTottenham"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-7cadcf79be7010e6d8943611",
+      "kind": "sport",
+      "title": "Football: Premier League: Crystal Palace vs Nottingham Forest",
+      "startsAt": "2026-10-11T14:00:00+01:00",
+      "timeEvidence": "Football: Premier League\nSunday 11 October\n2:00PM\nCrystal Palace vs Nottingham Forest\nCrystal Palace\nNottingham Forest"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-a5d5cc413b574f73e6144ca1",
+      "kind": "sport",
+      "title": "Football: Premier League: Hull City vs Everton",
+      "startsAt": "2026-10-11T14:00:00+01:00",
+      "timeEvidence": "Football: Premier League\nSunday 11 October\n2:00PM\nHull City vs Everton\nHull City\nEverton"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-78d12736b99bf7747bdaf0cb",
+      "kind": "sport",
+      "title": "Football: Premier League: Liverpool vs Man City",
+      "startsAt": "2026-10-11T16:30:00+01:00",
+      "timeEvidence": "Football: Premier League\nSunday 11 October\n4:30PM\nLiverpool vs Man City\nLiverpool\nMan City"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-bcb8e8928bb5aa52cb1609d4",
+      "kind": "sport",
+      "title": "Football: Premier League: Coventry vs Newcastle",
+      "startsAt": "2026-10-12T20:00:00+01:00",
+      "timeEvidence": "Football: Premier League\nMonday 12 October\n8:00PM\nCoventry vs Newcastle\nCoventry\nNewcastle"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-67984d436545d2295891c2f6",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Lens vs Sporting Lisbon",
+      "startsAt": "2026-10-13T17:45:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nTuesday 13 October\n5:45PM\nLens vs Sporting Lisbon\nLens\nSporting Lisbon"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-cc051b85315b9cec4602a6e3",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Sabah FC (Aze) vs Slavia Prague",
+      "startsAt": "2026-10-13T17:45:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nTuesday 13 October\n5:45PM\nSabah FC (Aze) vs Slavia Prague\nSabah FC (Aze)\nSlavia Prague"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-30bd7ccc05043555cf8a831e",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Atl Madrid vs Man United",
+      "startsAt": "2026-10-13T20:00:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nTuesday 13 October\n8:00PM\nAtl Madrid vs Man United\nAtl Madrid\nMan United"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-ab669e4020cf14b6b4dab5c0",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Arsenal vs Lille",
+      "startsAt": "2026-10-13T20:00:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nTuesday 13 October\n8:00PM\nArsenal vs Lille\nArsenal\nLille"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-f28eb21857bdeb4e93ff11e0",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Inter vs Club Brugge",
+      "startsAt": "2026-10-13T20:00:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nTuesday 13 October\n8:00PM\nInter vs Club Brugge\nInter\nClub Brugge"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-51ad1527ee1a77897c40092d",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: LASK Linz vs Liverpool",
+      "startsAt": "2026-10-14T17:45:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nWednesday 14 October\n5:45PM\nLASK Linz vs Liverpool\nLASK Linz\nLiverpool"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-df43b6b5d0d7bad5661c8772",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Feyenoord vs Como",
+      "startsAt": "2026-10-14T17:45:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nWednesday 14 October\n5:45PM\nFeyenoord vs Como\nFeyenoord\nComo"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-f01430c8ebd45db73c027b24",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Aston Villa vs Fenerbahce",
+      "startsAt": "2026-10-14T20:00:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nWednesday 14 October\n8:00PM\nAston Villa vs Fenerbahce\nAston Villa\nFenerbahce"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-42463e32d2b36e659d531384",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Man City vs Paris",
+      "startsAt": "2026-10-14T20:00:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nWednesday 14 October\n8:00PM\nMan City vs Paris\nMan City\nParis"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-132b018bf2a2378f686a3e9b",
+      "kind": "sport",
+      "title": "Football: Premier League: Everton vs Chelsea",
+      "startsAt": "2026-10-17T12:30:00+01:00",
+      "timeEvidence": "Football: Premier League\nSaturday 17 October\n12:30PM\nEverton vs Chelsea\nEverton\nChelsea"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-9dae11040019950d3a2bf34b",
+      "kind": "sport",
+      "title": "Football: Premier League: Newcastle vs Aston Villa",
+      "startsAt": "2026-10-17T17:30:00+01:00",
+      "timeEvidence": "Football: Premier League\nSaturday 17 October\n5:30PM\nNewcastle vs Aston Villa\nNewcastle\nAston Villa"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-a8cc5c7c8482f488ae23ef69",
+      "kind": "sport",
+      "title": "Football: Premier League: Bournemouth vs Sunderland",
+      "startsAt": "2026-10-18T14:00:00+01:00",
+      "timeEvidence": "Football: Premier League\nSunday 18 October\n2:00PM\nBournemouth vs Sunderland\nBournemouth\nSunderland"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-3db00aa2056da5eb9e0b9516",
+      "kind": "sport",
+      "title": "Football: Premier League: Leeds vs Man United",
+      "startsAt": "2026-10-18T14:00:00+01:00",
+      "timeEvidence": "Football: Premier League\nSunday 18 October\n2:00PM\nLeeds vs Man United\nLeeds\nMan United"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-cdfff310a5c88c6ee163f1d8",
+      "kind": "sport",
+      "title": "Football: Premier League: Brighton vs Crystal Palace",
+      "startsAt": "2026-10-18T14:00:00+01:00",
+      "timeEvidence": "Football: Premier League\nSunday 18 October\n2:00PM\nBrighton vs Crystal Palace\nBrighton\nCrystal Palace"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-069f2ec214e0cbf7a01eb6b2",
+      "kind": "sport",
+      "title": "Football: Premier League: Nottingham Forest vs Arsenal",
+      "startsAt": "2026-10-18T16:30:00+01:00",
+      "timeEvidence": "Football: Premier League\nSunday 18 October\n4:30PM\nNottingham Forest vs Arsenal\nNottingham Forest\nArsenal"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-f99c8e6089c2cd95c0dc1fae",
+      "kind": "sport",
+      "title": "Football: Premier League: Tottenham vs Coventry",
+      "startsAt": "2026-10-19T20:00:00+01:00",
+      "timeEvidence": "Football: Premier League\nMonday 19 October\n8:00PM\nTottenham vs Coventry\nTottenham\nCoventry"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-56f9da3cd1875ebd102775d8",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Sabah FC (Aze) vs Borussia Dortmund",
+      "startsAt": "2026-10-20T17:45:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nTuesday 20 October\n5:45PM\nSabah FC (Aze) vs Borussia Dortmund\nSabah FC (Aze)\nBorussia Dortmund"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-7d7ca923e1f13aa3c3b5598c",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Fenerbahce vs Slavia Prague",
+      "startsAt": "2026-10-20T17:45:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nTuesday 20 October\n5:45PM\nFenerbahce vs Slavia Prague\nFenerbahce\nSlavia Prague"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-0b6f56cf0d505d15d1474dd6",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Man City vs AEK",
+      "startsAt": "2026-10-20T20:00:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nTuesday 20 October\n8:00PM\nMan City vs AEK\nMan City\nAEK"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-bcf9af7f767855ce24900a67",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Paris vs Barcelona",
+      "startsAt": "2026-10-20T20:00:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nTuesday 20 October\n8:00PM\nParis vs Barcelona\nParis\nBarcelona"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-a096a917c81d2cd324a9e479",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Liverpool vs Villarreal",
+      "startsAt": "2026-10-20T20:00:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nTuesday 20 October\n8:00PM\nLiverpool vs Villarreal\nLiverpool\nVillarreal"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-2a472282b329a516d0f3b05b",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Lille vs Galatasaray",
+      "startsAt": "2026-10-21T17:45:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nWednesday 21 October\n5:45PM\nLille vs Galatasaray\nLille\nGalatasaray"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-10b2894150ef4158faf34c23",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Como vs Man United",
+      "startsAt": "2026-10-21T17:45:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nWednesday 21 October\n5:45PM\nComo vs Man United\nComo\nMan United"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-f59d09469c1cc0ffa3ff077a",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Bayern Munich vs Arsenal",
+      "startsAt": "2026-10-21T20:00:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nWednesday 21 October\n8:00PM\nBayern Munich vs Arsenal\nBayern Munich\nArsenal"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-7f1f725a181738f4f7b9aebd",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Real Madrid vs RB Leipzig",
+      "startsAt": "2026-10-21T20:00:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nWednesday 21 October\n8:00PM\nReal Madrid vs RB Leipzig\nReal Madrid\nRB Leipzig"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-761c80a0958b3e4d335f0d5d",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Inter vs Shakhtar",
+      "startsAt": "2026-10-21T20:00:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nWednesday 21 October\n8:00PM\nInter vs Shakhtar\nInter\nShakhtar"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-9d37f0e070362eed592950f2",
+      "kind": "sport",
+      "title": "Football: Premier League: Ipswich vs Nottingham Forest",
+      "startsAt": "2026-10-23T20:00:00+01:00",
+      "timeEvidence": "Football: Premier League\nFriday 23 October\n8:00PM\nIpswich vs Nottingham Forest\nIpswich\nNottingham Forest"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-50827f4afca8757be5453535",
+      "kind": "sport",
+      "title": "Football: Premier League: Aston Villa vs Man City",
+      "startsAt": "2026-10-24T12:30:00+01:00",
+      "timeEvidence": "Football: Premier League\nSaturday 24 October\n12:30PM\nAston Villa vs Man City\nAston Villa\nMan City"
+    },
+    {
+      "placeName": "The Wellington",
+      "lat": 51.5036385,
+      "lng": -0.111312,
+      "venueId": "venue-13b8v6f",
+      "source": {
+        "label": "The Wellington website",
+        "url": "https://www.wellingtonhotelwaterloo.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:42:14.812Z",
+      "confidence": "listed",
+      "id": "own-site-1d1fce7dea5ec843d925a3f9",
+      "kind": "sport",
+      "title": "Football: Premier League: Chelsea vs Tottenham",
+      "startsAt": "2026-10-24T17:30:00+01:00",
+      "timeEvidence": "Football: Premier League\nSaturday 24 October\n5:30PM\nChelsea vs Tottenham\nChelsea\nTottenham"
+    },
+    {
+      "placeName": "The Mad Hatter Hotel",
+      "lat": 51.5070445,
+      "lng": -0.104933,
+      "venueId": "venue-kiq0j5",
+      "source": {
+        "label": "The Mad Hatter Hotel website",
+        "url": "https://www.madhatterhotel.co.uk/whats-on"
+      },
+      "observedAt": "2026-10-07T18:43:42.123Z",
+      "confidence": "listed",
+      "id": "own-site-5737ae0a76c3787da633dd52",
+      "kind": "quiz",
+      "title": "Quiz Night - Hosted by Inquizition",
+      "startsAt": "2026-10-13T18:30:00+01:00",
+      "timeEvidence": "Quiz Night - Hosted by Inquizition\nEvery Tuesday @ 18:30\nEvent on: Tuesday"
+    },
+    {
+      "placeName": "Cask",
+      "lat": 51.491093,
+      "lng": -0.1373223,
+      "venueId": "venue-67akji",
+      "source": {
+        "label": "Cask website",
+        "url": "https://www.caskpubandkitchen.com/events"
+      },
+      "observedAt": "2026-10-07T18:48:54.205Z",
+      "confidence": "listed",
+      "id": "own-site-3b24a9ff92b70f4731a72651",
+      "kind": "music",
+      "title": "Weekly Live Bluegrass Band",
+      "startsAt": "2026-10-11T16:30:00+01:00",
+      "timeEvidence": "Weekly Live Bluegrass Band\n11th October 2026\n4:30pm\nJoin us for live music every Sunday from 4:30pm onwards. Free Entry.\nBook Now"
+    },
+    {
+      "placeName": "Cask",
+      "lat": 51.491093,
+      "lng": -0.1373223,
+      "venueId": "venue-67akji",
+      "source": {
+        "label": "Cask website",
+        "url": "https://www.caskpubandkitchen.com/events"
+      },
+      "observedAt": "2026-10-07T18:48:54.205Z",
+      "confidence": "listed",
+      "id": "own-site-646359a58fdd5994398423c5",
+      "kind": "music",
+      "title": "Weekly Live Bluegrass Band",
+      "startsAt": "2026-10-18T16:30:00+01:00",
+      "timeEvidence": "Weekly Live Bluegrass Band\n18th October 2026\n4:30pm\nJoin us for live music every Sunday from 4:30pm onwards. Free Entry.\nBook Now"
+    },
+    {
+      "placeName": "Cask",
+      "lat": 51.491093,
+      "lng": -0.1373223,
+      "venueId": "venue-67akji",
+      "source": {
+        "label": "Cask website",
+        "url": "https://www.caskpubandkitchen.com/events"
+      },
+      "observedAt": "2026-10-07T18:48:54.205Z",
+      "confidence": "listed",
+      "id": "own-site-3f34f511fa3ebd69529e5803",
+      "kind": "music",
+      "title": "Weekly Live Bluegrass Band",
+      "startsAt": "2026-10-25T16:30:00+00:00",
+      "timeEvidence": "Weekly Live Bluegrass Band\n25th October 2026\n4:30pm\nJoin us for live music every Sunday from 4:30pm onwards. Free Entry.\nBook Now\nNovember 2026"
+    },
+    {
+      "placeName": "Cask",
+      "lat": 51.491093,
+      "lng": -0.1373223,
+      "venueId": "venue-67akji",
+      "source": {
+        "label": "Cask website",
+        "url": "https://www.caskpubandkitchen.com/events"
+      },
+      "observedAt": "2026-10-07T18:48:54.205Z",
+      "confidence": "listed",
+      "id": "own-site-fe21b70cd22ab85f54e53174",
+      "kind": "music",
+      "title": "Weekly Live Bluegrass Band",
+      "startsAt": "2026-11-01T16:30:00+00:00",
+      "timeEvidence": "Weekly Live Bluegrass Band\n1st November 2026\n4:30pm\nJoin us for live music every Sunday from 4:30pm onwards. Free Entry.\nBook Now"
+    },
+    {
+      "placeName": "Cask",
+      "lat": 51.491093,
+      "lng": -0.1373223,
+      "venueId": "venue-67akji",
+      "source": {
+        "label": "Cask website",
+        "url": "https://www.caskpubandkitchen.com/events"
+      },
+      "observedAt": "2026-10-07T18:48:54.205Z",
+      "confidence": "listed",
+      "id": "own-site-2c2f4e264188bf0c4c899223",
+      "kind": "music",
+      "title": "Weekly Live Bluegrass Band",
+      "startsAt": "2026-11-08T16:30:00+00:00",
+      "timeEvidence": "Weekly Live Bluegrass Band\n8th November 2026\n4:30pm\nJoin us for live music every Sunday from 4:30pm onwards. Free Entry.\nBook Now"
+    },
+    {
+      "placeName": "Cask",
+      "lat": 51.491093,
+      "lng": -0.1373223,
+      "venueId": "venue-67akji",
+      "source": {
+        "label": "Cask website",
+        "url": "https://www.caskpubandkitchen.com/events"
+      },
+      "observedAt": "2026-10-07T18:48:54.205Z",
+      "confidence": "listed",
+      "id": "own-site-d24d79ec7faaf0d923c891fb",
+      "kind": "music",
+      "title": "Weekly Live Bluegrass Band",
+      "startsAt": "2026-11-15T16:30:00+00:00",
+      "timeEvidence": "Weekly Live Bluegrass Band\n15th November 2026\n4:30pm\nJoin us for live music every Sunday from 4:30pm onwards. Free Entry.\nBook Now"
+    },
+    {
+      "placeName": "Cask",
+      "lat": 51.491093,
+      "lng": -0.1373223,
+      "venueId": "venue-67akji",
+      "source": {
+        "label": "Cask website",
+        "url": "https://www.caskpubandkitchen.com/events"
+      },
+      "observedAt": "2026-10-07T18:48:54.205Z",
+      "confidence": "listed",
+      "id": "own-site-0df15fba930e156b9dd849b3",
+      "kind": "music",
+      "title": "Weekly Live Bluegrass Band",
+      "startsAt": "2026-11-22T16:30:00+00:00",
+      "timeEvidence": "Weekly Live Bluegrass Band\n22nd November 2026\n4:30pm\nJoin us for live music every Sunday from 4:30pm onwards. Free Entry.\nBook Now"
+    },
+    {
+      "placeName": "Cask",
+      "lat": 51.491093,
+      "lng": -0.1373223,
+      "venueId": "venue-67akji",
+      "source": {
+        "label": "Cask website",
+        "url": "https://www.caskpubandkitchen.com/events"
+      },
+      "observedAt": "2026-10-07T18:48:54.205Z",
+      "confidence": "listed",
+      "id": "own-site-3628869f5f46b2f8a9bc369e",
+      "kind": "music",
+      "title": "Weekly Live Bluegrass Band",
+      "startsAt": "2026-11-29T16:30:00+00:00",
+      "timeEvidence": "Weekly Live Bluegrass Band\n29th November 2026\n4:30pm\nJoin us for live music every Sunday from 4:30pm onwards. Free Entry.\nBook Now"
+    },
+    {
+      "placeName": "The Trinity",
+      "lat": 51.5010925,
+      "lng": -0.0937912,
+      "venueId": "venue-183bstc",
+      "source": {
+        "label": "The Trinity website",
+        "url": "https://www.thetrinity.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:49:57.960Z",
+      "confidence": "listed",
+      "id": "own-site-047e9bdac3a618cfe9cdd13a",
+      "kind": "sport",
+      "title": "Football: Premier League: Arsenal vs Leeds",
+      "startsAt": "2026-10-10T12:30:00+01:00",
+      "timeEvidence": "Football: Premier League\nSaturday 10 October\n12:30PM\nArsenal vs Leeds\nArsenal\nLeeds"
+    },
+    {
+      "placeName": "The Trinity",
+      "lat": 51.5010925,
+      "lng": -0.0937912,
+      "venueId": "venue-183bstc",
+      "source": {
+        "label": "The Trinity website",
+        "url": "https://www.thetrinity.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:49:57.960Z",
+      "confidence": "listed",
+      "id": "own-site-57aa43d326a5703443567bd6",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Lens vs Sporting Lisbon",
+      "startsAt": "2026-10-13T17:45:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nTuesday 13 October\n5:45PM\nLens vs Sporting Lisbon\nLens\nSporting Lisbon"
+    },
+    {
+      "placeName": "The Trinity",
+      "lat": 51.5010925,
+      "lng": -0.0937912,
+      "venueId": "venue-183bstc",
+      "source": {
+        "label": "The Trinity website",
+        "url": "https://www.thetrinity.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:49:57.960Z",
+      "confidence": "listed",
+      "id": "own-site-c89262d0284e64123cc52fe8",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Sabah FC (Aze) vs Slavia Prague",
+      "startsAt": "2026-10-13T17:45:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nTuesday 13 October\n5:45PM\nSabah FC (Aze) vs Slavia Prague\nSabah FC (Aze)\nSlavia Prague"
+    },
+    {
+      "placeName": "The Trinity",
+      "lat": 51.5010925,
+      "lng": -0.0937912,
+      "venueId": "venue-183bstc",
+      "source": {
+        "label": "The Trinity website",
+        "url": "https://www.thetrinity.co.uk/live-sport"
+      },
+      "observedAt": "2026-10-07T18:49:57.960Z",
+      "confidence": "listed",
+      "id": "own-site-b412dd029e3636d56ba1ef80",
+      "kind": "sport",
+      "title": "Football: UEFA Champions League: Arsenal vs Lille",
+      "startsAt": "2026-10-13T20:00:00+01:00",
+      "timeEvidence": "Football: UEFA Champions League\nTuesday 13 October\n8:00PM\nArsenal vs Lille\nArsenal\nLille"
+    },
+    {
+      "placeName": "The Roebuck",
+      "lat": 51.498102,
+      "lng": -0.0906406,
+      "venueId": "venue-1t2rx3d",
+      "source": {
+        "label": "The Roebuck website",
+        "url": "https://theroebuck.net/whats-on/"
+      },
+      "observedAt": "2026-10-07T18:53:18.150Z",
+      "confidence": "listed",
+      "id": "own-site-dadf604b69bb890ea4b83708",
+      "kind": "quiz",
+      "title": "ROEBUCK PUB QUIZ – Every Tuesday at 7.30pm",
+      "startsAt": "2026-10-13T19:30:00+01:00",
+      "timeEvidence": "ROEBUCK PUB QUIZ – Every Tuesday at 7.30pm\nThank you"
+    },
+    {
+      "placeName": "The Hanbury",
+      "lat": 51.5361093,
+      "lng": -0.0934055,
+      "venueId": "venue-kyvgg5",
+      "source": {
+        "label": "The Hanbury website",
+        "url": "https://www.thehanbury.co.uk/"
+      },
+      "observedAt": "2026-10-07T18:56:58.074Z",
+      "confidence": "listed",
+      "id": "own-site-c15033cc5fecb49b0777bb53",
+      "kind": "music",
+      "title": "Live Music",
+      "startsAt": "2026-10-09T20:00:00+01:00",
+      "timeEvidence": "Live Music\nEvery Friday and Saturday | 8pm\nJoin us every Friday and Saturday Night at the Hanbury in Islington for a great way to kick start your..."
+    },
+    {
+      "placeName": "The Hanbury",
+      "lat": 51.5361093,
+      "lng": -0.0934055,
+      "venueId": "venue-kyvgg5",
+      "source": {
+        "label": "The Hanbury website",
+        "url": "https://www.thehanbury.co.uk/"
+      },
+      "observedAt": "2026-10-07T18:56:58.074Z",
+      "confidence": "listed",
+      "id": "own-site-cc096248d5316952a1414afb",
+      "kind": "music",
+      "title": "Live Music",
+      "startsAt": "2026-10-10T20:00:00+01:00",
+      "timeEvidence": "Live Music\nEvery Friday and Saturday | 8pm\nJoin us every Friday and Saturday Night at the Hanbury in Islington for a great way to kick start your..."
+    },
+    {
+      "placeName": "The Hanbury",
+      "lat": 51.5361093,
+      "lng": -0.0934055,
+      "venueId": "venue-kyvgg5",
+      "source": {
+        "label": "The Hanbury website",
+        "url": "https://www.thehanbury.co.uk/"
+      },
+      "observedAt": "2026-10-07T18:56:58.074Z",
+      "confidence": "listed",
+      "id": "own-site-428c547753a368762b3f00e2",
+      "kind": "quiz",
+      "title": "Pub Quiz",
+      "startsAt": "2026-10-08T19:00:00+01:00",
+      "timeEvidence": "Pub Quiz\nEvery Thursday | 7pm\nThink you’re the brains of the bunch? Join us every Thursday for our regular and ever-popular quiz night from 7pm. Great questions, good laughs,..."
+    },
+    {
+      "placeName": "The Joiner on Worship",
+      "lat": 51.5222333,
+      "lng": -0.0843165,
+      "venueId": "venue-9f72pr",
+      "source": {
+        "label": "The Joiner on Worship website",
+        "url": "https://www.thejoineronworship.com/whatson"
+      },
+      "observedAt": "2026-10-07T18:57:23.735Z",
+      "confidence": "listed",
+      "id": "own-site-fb8352671dd7570b1bb3db2d",
+      "kind": "quiz",
+      "title": "WEEKLY QUIZ EVERY WEDNESDAY AT 8PM",
+      "startsAt": "2026-10-14T20:00:00+01:00",
+      "timeEvidence": "WEEKLY QUIZ EVERY WEDNESDAY AT 8PM"
+    },
+    {
+      "placeName": "Masons Arms",
+      "lat": 51.4768147,
+      "lng": -0.1468975,
+      "venueId": "venue-jjzydh",
+      "source": {
+        "label": "Masons Arms website",
+        "url": "https://www.masons-arms-battersea.co.uk/whats-on"
+      },
+      "observedAt": "2026-10-07T19:00:36.024Z",
+      "confidence": "listed",
+      "id": "own-site-c4aea63904687bc54066aa54",
+      "kind": "music",
+      "title": "Live Music Every Saturday",
+      "startsAt": "2026-10-10T20:30:00+01:00",
+      "timeEvidence": "Live Music Every Saturday\nLive music from 8.30pm on Saturdays\nEvent on: Live Music Every Saturday"
+    },
+    {
+      "placeName": "The Star by Liverpool Street",
+      "lat": 51.5172673,
+      "lng": -0.0770201,
+      "venueId": "venue-1ntd4m",
+      "source": {
+        "label": "The Star by Liverpool Street website",
+        "url": "https://starbyliverpoolstreet.co.uk/whats-on/open-karaoke/"
+      },
+      "observedAt": "2026-10-07T19:01:13.315Z",
+      "confidence": "listed",
+      "id": "own-site-945cccbcc407d1ad7b5d71f8",
+      "kind": "music",
+      "title": "Open Karaoke",
+      "startsAt": "2026-10-08T20:00:00+01:00",
+      "timeEvidence": "Open Karaoke\nBig Vocals. Cheeky Vibes. Zero Regrets.\nThursday 8th October (every Thursday, Friday and Saturday) 8pm Until late\nFree Entry\n18+\nWe’re here to offer you an Open Karaoke experience that’s not just unforgettable but also outrageously fun. Whether you’re a seasoned vocal daredevil, ready to captivate the audience with your melodious notes, or someone who’s just looking to let loose, have a cheeky blast, turning heads as you belt out your faves."
+    },
+    {
+      "placeName": "The Pineapple",
+      "lat": 51.5529728,
+      "lng": -0.1396355,
+      "venueId": "venue-95n21p",
+      "source": {
+        "label": "The Pineapple website",
+        "url": "https://www.thepineapplepubnw5.com/"
+      },
+      "observedAt": "2026-10-07T19:02:56.812Z",
+      "confidence": "listed",
+      "id": "own-site-6461cb1b285451d90b418e87",
+      "kind": "quiz",
+      "title": "Pub Quiz every Monday at 9pm",
+      "startsAt": "2026-10-12T21:00:00+01:00",
+      "timeEvidence": "We only take reservations for groups of 10+ people,\nFor groups of 20+ people, we offer private hire spaces for a fee, please email us for details.\nWe can also offer buffet menus and drinks pre-orders for private hire events.\nVery Dog Friendly\nPub Quiz every Monday at 9pm"
+    },
+    {
+      "placeName": "The Phoenix",
+      "lat": 51.4885827,
+      "lng": -0.16266,
+      "venueId": "venue-13ql0b4",
+      "source": {
+        "label": "The Phoenix website",
+        "url": "https://www.thephoenixchelsea.co.uk/contact-us/"
+      },
+      "observedAt": "2026-10-07T19:03:20.852Z",
+      "confidence": "listed",
+      "id": "own-site-7ab347108820fdf4a8110f41",
+      "kind": "quiz",
+      "title": "Pub Quiz",
+      "startsAt": "2026-10-11T19:00:00+01:00",
+      "timeEvidence": "Pub Quiz\nEvery Sunday, starting at 7pm.\nSelect"
+    },
+    {
+      "placeName": "The Snooty Fox",
+      "lat": 51.5491344,
+      "lng": -0.0913167,
+      "venueId": "venue-1ae0qgz",
+      "source": {
+        "label": "The Snooty Fox website",
+        "url": "http://www.snootyfoxlondon.co.uk/"
+      },
+      "observedAt": "2026-10-07T19:03:49.128Z",
+      "confidence": "listed",
+      "id": "own-site-dbfe7e240524207b8c2ddfba",
+      "kind": "quiz",
+      "title": "Every Tuesday- Pub Quiz 8pm - £2 CASH to play",
+      "startsAt": "2026-10-13T20:00:00+01:00",
+      "timeEvidence": "Every Tuesday- Pub Quiz 8pm - £2 CASH to play"
+    },
+    {
+      "placeName": "The Alma",
+      "lat": 51.5484046,
+      "lng": -0.0878039,
+      "venueId": "venue-cgh71l",
+      "source": {
+        "label": "The Alma website",
+        "url": "https://thealmaislington.com/"
+      },
+      "observedAt": "2026-10-07T19:05:15.771Z",
+      "confidence": "listed",
+      "id": "own-site-f83d24a32b8d8a75a38a78e8",
+      "kind": "music",
+      "title": "Live Music & DJ's",
+      "startsAt": "2026-10-08T20:00:00+01:00",
+      "timeEvidence": "Live Music & DJ's\nAt The Alma, located in London, Thursdays feature a night called FolkAround where everyone is welcome to bring an instrument and join in from 8pm. On Fridays, we host a live Irish folk band starting at 8pm. Then on Saturdays, the guys from DiscoDJHire.com will be spinning all your party classics! Enjoy FREE ENTRY at The Alma London and make it a night to remember!"
+    },
+    {
+      "placeName": "The Alma",
+      "lat": 51.5484046,
+      "lng": -0.0878039,
+      "venueId": "venue-cgh71l",
+      "source": {
+        "label": "The Alma website",
+        "url": "https://thealmaislington.com/"
+      },
+      "observedAt": "2026-10-07T19:05:15.771Z",
+      "confidence": "listed",
+      "id": "own-site-356433194cce3f1ffa44a4cd",
+      "kind": "music",
+      "title": "Live Music & DJ's",
+      "startsAt": "2026-10-09T20:00:00+01:00",
+      "timeEvidence": "Live Music & DJ's\nAt The Alma, located in London, Thursdays feature a night called FolkAround where everyone is welcome to bring an instrument and join in from 8pm. On Fridays, we host a live Irish folk band starting at 8pm. Then on Saturdays, the guys from DiscoDJHire.com will be spinning all your party classics! Enjoy FREE ENTRY at The Alma London and make it a night to remember!"
+    },
+    {
+      "placeName": "Never For Ever",
+      "lat": 51.5542384,
+      "lng": -0.1445626,
+      "venueId": "venue-40kkuj",
+      "source": {
+        "label": "Never For Ever website",
+        "url": "https://neverforeverkt.com/whats-on"
+      },
+      "observedAt": "2026-10-07T19:06:26.613Z",
+      "confidence": "listed",
+      "id": "own-site-d4df5ff208fd477bf3d36ed3",
+      "kind": "music",
+      "title": "DJ NIGHT",
+      "startsAt": "2026-10-10T20:30:00+01:00",
+      "timeEvidence": "DJ NIGHT\nEvery Saturday from 8.30pm\nGuest User 02/01/2023 Guest User 02/01/2023"
+    },
+    {
+      "placeName": "The Scolt Head",
+      "lat": 51.5433315,
+      "lng": -0.081638,
+      "venueId": "venue-1nt5lt9",
+      "source": {
+        "label": "The Scolt Head website",
+        "url": "https://www.thescolthead.co.uk/events/"
+      },
+      "observedAt": "2026-10-07T19:06:43.027Z",
+      "confidence": "listed",
+      "id": "own-site-07e11d0fdc03c2a7926a63a7",
+      "kind": "quiz",
+      "title": "Weekly Pub Quiz with Ed the Barman",
+      "startsAt": "2026-10-12T19:30:00+01:00",
+      "timeEvidence": "Weekly Pub Quiz with Ed the Barman\nEvery Monday, 7.30pm sharp start. 6 ppl max per team, many prizes to be won. It's a banger, come on down x\nEvery Monday 7:30pm \n£3"
+    },
+    {
+      "placeName": "The Prince Albert",
+      "lat": 51.4796011,
+      "lng": -0.1658176,
+      "venueId": "venue-hgasw5",
+      "source": {
+        "label": "The Prince Albert website",
+        "url": "https://www.theprincealbertbattersea.co.uk/whats-on"
+      },
+      "observedAt": "2026-10-07T19:09:27.936Z",
+      "confidence": "listed",
+      "id": "own-site-6da6978d5ae1df046016a747",
+      "kind": "quiz",
+      "title": "Quiz Night",
+      "startsAt": "2026-10-13T19:00:00+01:00",
+      "timeEvidence": "Quiz Night\nOur ever-popular quiz night returns from September 15th.  Join us every Tuesday at 7pm for brain-teasers, music rounds and pints a-plenty. There are prizes at stake, so if you think you’ve got what it takes to win then book your team a table below!\nBOOK NOW\nJanuaryFebruaryMarchAprilMayJuneJulyAugustSeptemberOctoberNovemberDecember"
+    },
+    {
+      "placeName": "The Windmill",
+      "lat": 51.4575038,
+      "lng": -0.1441572,
+      "venueId": "venue-13ouo08",
+      "source": {
+        "label": "The Windmill website",
+        "url": "https://www.windmillclapham.co.uk/live-sports/"
+      },
+      "observedAt": "2026-10-07T19:11:32.762Z",
+      "confidence": "listed",
+      "id": "own-site-aed02e464ffd059695443f37",
+      "kind": "sport",
+      "title": "Saturday 10th October: Arsenal vs Leeds",
+      "startsAt": "2026-10-10T12:30:00+01:00",
+      "timeEvidence": "Saturday 10th October\nFootball\nPremier League\nArsenal vs Leeds\n12.30PM Kick Off\nRugby Union"
+    },
+    {
+      "placeName": "The Windmill",
+      "lat": 51.4575038,
+      "lng": -0.1441572,
+      "venueId": "venue-13ouo08",
+      "source": {
+        "label": "The Windmill website",
+        "url": "https://www.windmillclapham.co.uk/live-sports/"
+      },
+      "observedAt": "2026-10-07T19:11:32.762Z",
+      "confidence": "listed",
+      "id": "own-site-ae8d3894a30ffc3ed55068af",
+      "kind": "sport",
+      "title": "Sunday 11th October: Crystal Palace vs Nottingham Forest",
+      "startsAt": "2026-10-11T14:00:00+01:00",
+      "timeEvidence": "Sunday 11th October\nFootball\nPremier League\nCrystal Palace vs Nottingham Forest\n2.00PM Kick Off\nFootball"
+    },
+    {
+      "placeName": "The Windmill",
+      "lat": 51.4575038,
+      "lng": -0.1441572,
+      "venueId": "venue-13ouo08",
+      "source": {
+        "label": "The Windmill website",
+        "url": "https://www.windmillclapham.co.uk/live-sports/"
+      },
+      "observedAt": "2026-10-07T19:11:32.762Z",
+      "confidence": "listed",
+      "id": "own-site-00e7219090ce1db3ca1db0a6",
+      "kind": "sport",
+      "title": "Monday 12th October: Coventry vs Newcastle",
+      "startsAt": "2026-10-12T20:00:00+01:00",
+      "timeEvidence": "Monday 12th October\nFootball\nPremier League\nCoventry vs Newcastle\n8.00PM Kick Off"
+    },
+    {
+      "placeName": "The Windmill",
+      "lat": 51.4575038,
+      "lng": -0.1441572,
+      "venueId": "venue-13ouo08",
+      "source": {
+        "label": "The Windmill website",
+        "url": "https://www.windmillclapham.co.uk/live-sports/"
+      },
+      "observedAt": "2026-10-07T19:11:32.762Z",
+      "confidence": "listed",
+      "id": "own-site-831d600673018fa2b6c7ff80",
+      "kind": "sport",
+      "title": "Tuesday 13th October: Arsenal vs Lille",
+      "startsAt": "2026-10-13T20:00:00+01:00",
+      "timeEvidence": "Tuesday 13th October\nFootball\nUEFA Champions League\nArsenal vs Lille\n8.00PM Kick Off"
+    },
+    {
+      "placeName": "The Windmill",
+      "lat": 51.4575038,
+      "lng": -0.1441572,
+      "venueId": "venue-13ouo08",
+      "source": {
+        "label": "The Windmill website",
+        "url": "https://www.windmillclapham.co.uk/live-sports/"
+      },
+      "observedAt": "2026-10-07T19:11:32.762Z",
+      "confidence": "listed",
+      "id": "own-site-ae4bbc18ece59f85632fd7b5",
+      "kind": "sport",
+      "title": "Wednesday 14th October: LASK Linz vs Liverpool",
+      "startsAt": "2026-10-14T17:45:00+01:00",
+      "timeEvidence": "Wednesday 14th October\nFootball\nUEFA Champions League\nLASK Linz vs Liverpool\n5.45PM Kick Off\nFootball"
+    },
+    {
+      "placeName": "The Windmill",
+      "lat": 51.4575038,
+      "lng": -0.1441572,
+      "venueId": "venue-13ouo08",
+      "source": {
+        "label": "The Windmill website",
+        "url": "https://www.windmillclapham.co.uk/live-sports/"
+      },
+      "observedAt": "2026-10-07T19:11:32.762Z",
+      "confidence": "listed",
+      "id": "own-site-0d0e61148be6d98458ffaf16",
+      "kind": "sport",
+      "title": "Saturday 17th October: Everton vs Chelsea",
+      "startsAt": "2026-10-17T12:30:00+01:00",
+      "timeEvidence": "Saturday 17th October\nFootball\nPremier League\nEverton vs Chelsea\n12.30PM Kick Off\nFootball"
+    },
+    {
+      "placeName": "The Windmill",
+      "lat": 51.4575038,
+      "lng": -0.1441572,
+      "venueId": "venue-13ouo08",
+      "source": {
+        "label": "The Windmill website",
+        "url": "https://www.windmillclapham.co.uk/live-sports/"
+      },
+      "observedAt": "2026-10-07T19:11:32.762Z",
+      "confidence": "listed",
+      "id": "own-site-b6bc0099ebc163407962202e",
+      "kind": "sport",
+      "title": "Sunday 18th October: Leeds vs Man United",
+      "startsAt": "2026-10-18T14:00:00+01:00",
+      "timeEvidence": "Sunday 18th October\nFootball\nPremier League\nLeeds vs Man United\n2.00PM Kick Off\nFootball"
+    },
+    {
+      "placeName": "The Windmill",
+      "lat": 51.4575038,
+      "lng": -0.1441572,
+      "venueId": "venue-13ouo08",
+      "source": {
+        "label": "The Windmill website",
+        "url": "https://www.windmillclapham.co.uk/live-sports/"
+      },
+      "observedAt": "2026-10-07T19:11:32.762Z",
+      "confidence": "listed",
+      "id": "own-site-41b1dc39792d590bf2603d31",
+      "kind": "sport",
+      "title": "Monday 19th October: Tottenham vs Coventry",
+      "startsAt": "2026-10-19T20:00:00+01:00",
+      "timeEvidence": "Monday 19th October\nFootball\nPremier League\nTottenham vs Coventry\n8.00PM Kick Off"
+    },
+    {
+      "placeName": "The Windmill",
+      "lat": 51.4575038,
+      "lng": -0.1441572,
+      "venueId": "venue-13ouo08",
+      "source": {
+        "label": "The Windmill website",
+        "url": "https://www.windmillclapham.co.uk/live-sports/"
+      },
+      "observedAt": "2026-10-07T19:11:32.762Z",
+      "confidence": "listed",
+      "id": "own-site-c77b4e31bab6721238b01afa",
+      "kind": "sport",
+      "title": "Tuesday 20th October: Sabah FC (Aze) vs Borussia Dortmund",
+      "startsAt": "2026-10-20T17:45:00+01:00",
+      "timeEvidence": "Tuesday 20th October\nFootball\nUEFA Champions League\nSabah FC (Aze) vs Borussia Dortmund\n5.45PM Kick Off\nFootball"
+    },
+    {
+      "placeName": "The Windmill",
+      "lat": 51.4575038,
+      "lng": -0.1441572,
+      "venueId": "venue-13ouo08",
+      "source": {
+        "label": "The Windmill website",
+        "url": "https://www.windmillclapham.co.uk/live-sports/"
+      },
+      "observedAt": "2026-10-07T19:11:32.762Z",
+      "confidence": "listed",
+      "id": "own-site-601dc7fe4369830a82889b2c",
+      "kind": "sport",
+      "title": "Wednesday 21st October: Como vs Man United",
+      "startsAt": "2026-10-21T17:45:00+01:00",
+      "timeEvidence": "Wednesday 21st October\nFootball\nUEFA Champions League\nComo vs Man United\n5.45PM Kick Off\nFootball"
+    },
+    {
+      "placeName": "The Windmill",
+      "lat": 51.4575038,
+      "lng": -0.1441572,
+      "venueId": "venue-13ouo08",
+      "source": {
+        "label": "The Windmill website",
+        "url": "https://www.windmillclapham.co.uk/live-sports/"
+      },
+      "observedAt": "2026-10-07T19:11:32.762Z",
+      "confidence": "listed",
+      "id": "own-site-9e2de24057fe983004473842",
+      "kind": "sport",
+      "title": "Friday 23rd October: Ipswich vs Nottingham Forest",
+      "startsAt": "2026-10-23T20:00:00+01:00",
+      "timeEvidence": "Friday 23rd October\nFootball\nPremier League\nIpswich vs Nottingham Forest\n8.00PM Kick Off"
+    },
+    {
+      "placeName": "The Windmill",
+      "lat": 51.4575038,
+      "lng": -0.1441572,
+      "venueId": "venue-13ouo08",
+      "source": {
+        "label": "The Windmill website",
+        "url": "https://www.windmillclapham.co.uk/live-sports/"
+      },
+      "observedAt": "2026-10-07T19:11:32.762Z",
+      "confidence": "listed",
+      "id": "own-site-7fee4eeda6ac1c6fad9ce7e8",
+      "kind": "sport",
+      "title": "Saturday 24th October: Aston Villa vs Man City",
+      "startsAt": "2026-10-24T12:30:00+01:00",
+      "timeEvidence": "Saturday 24th October\nFootball\nPremier League\nAston Villa vs Man City\n12.30PM Kick Off\nRugby Union"
+    },
+    {
+      "placeName": "The Windmill",
+      "lat": 51.4575038,
+      "lng": -0.1441572,
+      "venueId": "venue-13ouo08",
+      "source": {
+        "label": "The Windmill website",
+        "url": "https://www.windmillclapham.co.uk/live-sports/"
+      },
+      "observedAt": "2026-10-07T19:11:32.762Z",
+      "confidence": "listed",
+      "id": "own-site-b5b9ad39810a0219f6fac322",
+      "kind": "sport",
+      "title": "Sunday 25th October: Man United vs Bournemouth",
+      "startsAt": "2026-10-25T14:00:00+00:00",
+      "timeEvidence": "Sunday 25th October\nFootball\nPremier League\nMan United vs Bournemouth\n2.00PM Kick Off\nFootball"
+    },
+    {
+      "placeName": "The Windmill",
+      "lat": 51.4575038,
+      "lng": -0.1441572,
+      "venueId": "venue-13ouo08",
+      "source": {
+        "label": "The Windmill website",
+        "url": "https://www.windmillclapham.co.uk/live-sports/"
+      },
+      "observedAt": "2026-10-07T19:11:32.762Z",
+      "confidence": "listed",
+      "id": "own-site-7cfbece0e64883a4cc4a7805",
+      "kind": "sport",
+      "title": "Saturday 31st October: Chelsea vs Man United",
+      "startsAt": "2026-10-31T12:30:00+00:00",
+      "timeEvidence": "Saturday 31st October\nFootball\nPremier League\nChelsea vs Man United\n12.30PM Kick Off\nRugby Union"
+    },
+    {
+      "placeName": "The Windmill",
+      "lat": 51.4575038,
+      "lng": -0.1441572,
+      "venueId": "venue-13ouo08",
+      "source": {
+        "label": "The Windmill website",
+        "url": "https://www.windmillclapham.co.uk/live-sports/"
+      },
+      "observedAt": "2026-10-07T19:11:32.762Z",
+      "confidence": "listed",
+      "id": "own-site-da7a24bfb93da34aa928a3c8",
+      "kind": "sport",
+      "title": "Sunday 1st November: Liverpool vs Arsenal",
+      "startsAt": "2026-11-01T16:30:00+00:00",
+      "timeEvidence": "Sunday 1st November\nFootball\nPremier League\nLiverpool vs Arsenal\n4.30PM Kick Off"
+    },
+    {
+      "placeName": "The Windmill",
+      "lat": 51.4575038,
+      "lng": -0.1441572,
+      "venueId": "venue-13ouo08",
+      "source": {
+        "label": "The Windmill website",
+        "url": "https://www.windmillclapham.co.uk/live-sports/"
+      },
+      "observedAt": "2026-10-07T19:11:32.762Z",
+      "confidence": "listed",
+      "id": "own-site-9fb8af073379e63368c92fc1",
+      "kind": "sport",
+      "title": "Monday 2nd November: Newcastle vs Everton",
+      "startsAt": "2026-11-02T20:00:00+00:00",
+      "timeEvidence": "Monday 2nd November\nFootball\nPremier League\nNewcastle vs Everton\n8.00PM Kick Off"
+    },
+    {
+      "placeName": "The Windmill",
+      "lat": 51.4575038,
+      "lng": -0.1441572,
+      "venueId": "venue-13ouo08",
+      "source": {
+        "label": "The Windmill website",
+        "url": "https://www.windmillclapham.co.uk/live-sports/"
+      },
+      "observedAt": "2026-10-07T19:11:32.762Z",
+      "confidence": "listed",
+      "id": "own-site-b0aa4dce4999a055062dbce6",
+      "kind": "sport",
+      "title": "Tuesday 3rd November: Shakhtar vs Sporting Lisbon",
+      "startsAt": "2026-11-03T17:45:00+00:00",
+      "timeEvidence": "Tuesday 3rd November\nFootball\nUEFA Champions League\nShakhtar vs Sporting Lisbon\n5.45PM Kick Off\nFootball"
+    },
+    {
+      "placeName": "The Windmill",
+      "lat": 51.4575038,
+      "lng": -0.1441572,
+      "venueId": "venue-13ouo08",
+      "source": {
+        "label": "The Windmill website",
+        "url": "https://www.windmillclapham.co.uk/live-sports/"
+      },
+      "observedAt": "2026-10-07T19:11:32.762Z",
+      "confidence": "listed",
+      "id": "own-site-cdce05b445d833a0fbd95cdb",
+      "kind": "sport",
+      "title": "Wednesday 4th November: Fenerbahce vs Liverpool",
+      "startsAt": "2026-11-04T17:45:00+00:00",
+      "timeEvidence": "Wednesday 4th November\nFootball\nUEFA Champions League\nFenerbahce vs Liverpool\n5.45PM Kick Off\nFootball"
+    },
+    {
+      "placeName": "The Windmill",
+      "lat": 51.4575038,
+      "lng": -0.1441572,
+      "venueId": "venue-13ouo08",
+      "source": {
+        "label": "The Windmill website",
+        "url": "https://www.windmillclapham.co.uk/live-sports/"
+      },
+      "observedAt": "2026-10-07T19:11:32.762Z",
+      "confidence": "listed",
+      "id": "own-site-d4d8b8a5fc479d021d18d3e1",
+      "kind": "sport",
+      "title": "Sunday 22nd November: Hull City vs Brighton",
+      "startsAt": "2026-11-22T14:00:00+00:00",
+      "timeEvidence": "Sunday 22nd November\nFootball\nPremier League\nHull City vs Brighton\n2.00PM Kick Off\nFootball"
+    },
+    {
+      "placeName": "The Windmill",
+      "lat": 51.4575038,
+      "lng": -0.1441572,
+      "venueId": "venue-13ouo08",
+      "source": {
+        "label": "The Windmill website",
+        "url": "https://www.windmillclapham.co.uk/live-sports/"
+      },
+      "observedAt": "2026-10-07T19:11:32.762Z",
+      "confidence": "listed",
+      "id": "own-site-85c3c597bbea91a14983bde6",
+      "kind": "sport",
+      "title": "Monday 23rd November: Brentford vs Everton",
+      "startsAt": "2026-11-23T20:00:00+00:00",
+      "timeEvidence": "Monday 23rd November\nFootball\nPremier League\nBrentford vs Everton\n8.00PM Kick Off"
+    },
+    {
+      "placeName": "The Windmill",
+      "lat": 51.4575038,
+      "lng": -0.1441572,
+      "venueId": "venue-13ouo08",
+      "source": {
+        "label": "The Windmill website",
+        "url": "https://www.windmillclapham.co.uk/live-sports/"
+      },
+      "observedAt": "2026-10-07T19:11:32.762Z",
+      "confidence": "listed",
+      "id": "own-site-d14fe3c342e11b09835d8efc",
+      "kind": "sport",
+      "title": "Tuesday 24th November: Galatasaray vs Aston Villa",
+      "startsAt": "2026-11-24T17:45:00+00:00",
+      "timeEvidence": "Tuesday 24th November\nFootball\nUEFA Champions League\nGalatasaray vs Aston Villa\n5.45PM Kick Off\nFootball"
+    },
+    {
+      "placeName": "The Windmill",
+      "lat": 51.4575038,
+      "lng": -0.1441572,
+      "venueId": "venue-13ouo08",
+      "source": {
+        "label": "The Windmill website",
+        "url": "https://www.windmillclapham.co.uk/live-sports/"
+      },
+      "observedAt": "2026-10-07T19:11:32.762Z",
+      "confidence": "listed",
+      "id": "own-site-07e1fa78e043a72a8d8777d0",
+      "kind": "sport",
+      "title": "Wednesday 25th November: Sabah FC (Aze) vs Barcelona",
+      "startsAt": "2026-11-25T17:45:00+00:00",
+      "timeEvidence": "Wednesday 25th November\nFootball\nUEFA Champions League\nSabah FC (Aze) vs Barcelona\n5.45PM Kick Off\nFootball"
+    },
+    {
+      "placeName": "The Windmill",
+      "lat": 51.4575038,
+      "lng": -0.1441572,
+      "venueId": "venue-13ouo08",
+      "source": {
+        "label": "The Windmill website",
+        "url": "https://www.windmillclapham.co.uk/live-sports/"
+      },
+      "observedAt": "2026-10-07T19:11:32.762Z",
+      "confidence": "listed",
+      "id": "own-site-fb0cf51c475d7db5fb2216d3",
+      "kind": "sport",
+      "title": "Sunday 29th November: Everton vs Liverpool",
+      "startsAt": "2026-11-29T12:00:00+00:00",
+      "timeEvidence": "Sunday 29th November\nFootball\nPremier League\nEverton vs Liverpool\n12.00PM Kick Off\nRugby Union"
+    },
+    {
+      "placeName": "The Windmill",
+      "lat": 51.4575038,
+      "lng": -0.1441572,
+      "venueId": "venue-13ouo08",
+      "source": {
+        "label": "The Windmill website",
+        "url": "https://www.windmillclapham.co.uk/live-sports/"
+      },
+      "observedAt": "2026-10-07T19:11:32.762Z",
+      "confidence": "listed",
+      "id": "own-site-754dad2b1d33a464cba6ea64",
+      "kind": "sport",
+      "title": "Tuesday 8th December: Barcelona vs Man City",
+      "startsAt": "2026-12-08T20:00:00+00:00",
+      "timeEvidence": "Tuesday 8th December\nFootball\nUEFA Champions League\nBarcelona vs Man City\n8.00PM Kick Off"
+    },
+    {
+      "placeName": "The Windmill",
+      "lat": 51.4575038,
+      "lng": -0.1441572,
+      "venueId": "venue-13ouo08",
+      "source": {
+        "label": "The Windmill website",
+        "url": "https://www.windmillclapham.co.uk/live-sports/"
+      },
+      "observedAt": "2026-10-07T19:11:32.762Z",
+      "confidence": "listed",
+      "id": "own-site-ca9996d82899bfbb81c4b577",
+      "kind": "sport",
+      "title": "Wednesday 9th December: Slovan Bratislava vs Shakhtar",
+      "startsAt": "2026-12-09T17:45:00+00:00",
+      "timeEvidence": "Wednesday 9th December\nFootball\nUEFA Champions League\nSlovan Bratislava vs Shakhtar\n5.45PM Kick Off\nFootball"
+    },
+    {
+      "placeName": "The Duke of Clarence",
+      "lat": 51.4908911,
+      "lng": -0.1825444,
+      "venueId": "venue-m21ekp",
+      "source": {
+        "label": "The Duke of Clarence website",
+        "url": "https://www.thedukeofclarencesw5.co.uk/whats-on"
+      },
+      "observedAt": "2026-10-07T19:16:18.757Z",
+      "confidence": "listed",
+      "id": "own-site-6a8dce319feaf16b29a66095",
+      "kind": "quiz",
+      "title": "Pub Quiz",
+      "startsAt": "2026-10-11T19:00:00+01:00",
+      "timeEvidence": "Pub Quiz\nFancy yourself as the pub quiz champion of South Ken? Join us every Sunday from 7pm for your chance to take home the (metaphorical) trophy. £2.50 per person entry, max team size of 6.\nBOOK NOW"
+    },
+    {
+      "placeName": "McCafferty's Bar",
+      "lat": 51.5838486,
+      "lng": -0.1165681,
+      "venueId": "venue-15cq2ed",
+      "source": {
+        "label": "McCafferty's Bar website",
+        "url": "https://crouchend.mccaffertysbars.com/events/"
+      },
+      "observedAt": "2026-10-07T19:20:13.350Z",
+      "confidence": "listed",
+      "id": "own-site-a009682ba74542588614c0eb",
+      "kind": "music",
+      "title": "Karaoke & Cocktails",
+      "startsAt": "2026-10-08T21:00:00+01:00",
+      "timeEvidence": "Karaoke & Cocktails\nThursday is the new Friday!!! \nJoin us from 9pm every Thursday for Karaoke & Cocktails. \nBooking is not required."
+    },
+    {
+      "placeName": "The Rebel Inn",
+      "lat": 51.4354235,
+      "lng": -0.1284003,
+      "venueId": "venue-1gyylm3",
+      "source": {
+        "label": "The Rebel Inn website",
+        "url": "https://www.therebelinn.com/"
+      },
+      "observedAt": "2026-10-07T19:21:17.566Z",
+      "confidence": "listed",
+      "id": "own-site-62caf8d99e25a85de9fab0b4",
+      "kind": "music",
+      "title": "Open Mic Night",
+      "startsAt": "2026-10-08T20:30:00+01:00",
+      "timeEvidence": "Musicians get your Rebel on!\nOpen Mic Night\nEvery Thursday\nFrom 8:30PM\n​\nCome on down to South London's best Open Mic night, showcasing some of the best talent the area has to offer!"
+    },
+    {
+      "placeName": "Three Compasses",
+      "lat": 51.5874988,
+      "lng": -0.1186871,
+      "venueId": "venue-wp5tqm",
+      "source": {
+        "label": "Three Compasses website",
+        "url": "https://www.threecompasseshornsey.com/whatson"
+      },
+      "observedAt": "2026-10-07T19:22:04.597Z",
+      "confidence": "listed",
+      "id": "own-site-9974ea06f2564b013f371c5e",
+      "kind": "quiz",
+      "title": "PUB QUIZ",
+      "startsAt": "2026-10-13T19:30:00+01:00",
+      "timeEvidence": "PUB QUIZ\nJoin us every Tuesday at 7.30pm for our stellar pub quiz from professional quizzers InQUIZition - transforming the boring, stale pub quiz into an interactive, energetic show you won't want to miss!"
+    },
+    {
+      "placeName": "The Famous Royal Oak",
+      "lat": 51.5883692,
+      "lng": -0.1412195,
+      "venueId": "venue-vd6d1n",
+      "source": {
+        "label": "The Famous Royal Oak website",
+        "url": "https://thefamousroyaloak.co.uk/whats-on/"
+      },
+      "observedAt": "2026-10-07T19:23:09.531Z",
+      "confidence": "listed",
+      "id": "own-site-58332c6ff198eb036cfe1fd0",
+      "kind": "quiz",
+      "title": "QUIZ NIGHT",
+      "startsAt": "2026-10-08T21:15:00+01:00",
+      "timeEvidence": "QUIZ NIGHT\nTHURSDAY NIGHTS\nEvery Thursday night Marcus and David, the Quiz-Masters, run a general knowledge quiz to test the very best. Start time is 9:15pm but arrive early, with a jackpot question worth anything up to £500, every quiz night is a busy night.   "
+    },
+    {
+      "placeName": "Wolfpack",
+      "lat": 51.4813027,
+      "lng": -0.1981142,
+      "venueId": "venue-3svb24",
+      "source": {
+        "label": "Wolfpack website",
+        "url": "https://wolfpackbars.com/"
+      },
+      "observedAt": "2026-10-07T19:23:38.579Z",
+      "confidence": "listed",
+      "id": "own-site-f5b56f7239258fd71c54a893",
+      "kind": "sport",
+      "title": "Premier League: Arsenal vs Leeds United",
+      "startsAt": "2026-10-10T12:30:00+01:00",
+      "timeEvidence": "Premier League: Arsenal vs Leeds United\nSat 10 October 2026 · 12:30pm KO\nArsenal vs Leeds United live at Wolfpack on TNT Sports. Reserve your table for the match.\n📍 All Venues\nBook Fast"
+    },
+    {
+      "placeName": "Wolfpack",
+      "lat": 51.4813027,
+      "lng": -0.1981142,
+      "venueId": "venue-3svb24",
+      "source": {
+        "label": "Wolfpack website",
+        "url": "https://wolfpackbars.com/"
+      },
+      "observedAt": "2026-10-07T19:23:38.579Z",
+      "confidence": "listed",
+      "id": "own-site-ed1e08481fb5711d4f9a6cee",
+      "kind": "sport",
+      "title": "Premier League: Manchester United vs Tottenham Hotspur",
+      "startsAt": "2026-10-10T17:30:00+01:00",
+      "timeEvidence": "Premier League: Manchester United vs Tottenham Hotspur\nSat 10 October 2026 · 5:30pm KO\nManchester United vs Tottenham Hotspur live at Wolfpack on Sky Sports. Reserve your table for the match.\n📍 All Venues\nBook for the Match See All Events\nEvents & Private Hire"
+    },
+    {
+      "placeName": "Wolfpack",
+      "lat": 51.4813027,
+      "lng": -0.1981142,
+      "venueId": "venue-3svb24",
+      "source": {
+        "label": "Wolfpack website",
+        "url": "https://wolfpackbars.com/events"
+      },
+      "observedAt": "2026-10-07T19:23:41.287Z",
+      "confidence": "listed",
+      "id": "own-site-1dd450f2edce94c37f92bc53",
+      "kind": "sport",
+      "title": "Rugby: New Zealand vs Australia",
+      "startsAt": "2026-10-10T07:10:00+01:00",
+      "timeEvidence": "Rugby: New Zealand vs Australia\nSat 10 October 2026 7:10am KO All Venues\nThe All Blacks and Wallabies meet in the Bledisloe Cup — live on Sky Sports. Book early for the big games.\n⚽\nPremier League"
+    },
+    {
+      "placeName": "Wolfpack",
+      "lat": 51.4813027,
+      "lng": -0.1981142,
+      "venueId": "venue-3svb24",
+      "source": {
+        "label": "Wolfpack website",
+        "url": "https://wolfpackbars.com/events"
+      },
+      "observedAt": "2026-10-07T19:23:41.287Z",
+      "confidence": "listed",
+      "id": "own-site-39a10a1fb44d4f6f8b4f635b",
+      "kind": "sport",
+      "title": "Premier League: Crystal Palace vs Nottingham Forest",
+      "startsAt": "2026-10-11T14:00:00+01:00",
+      "timeEvidence": "Premier League: Crystal Palace vs Nottingham Forest\nSun 11 October 2026 2:00pm KO All Venues\nCrystal Palace vs Nottingham Forest live at Wolfpack on Sky Sports. Reserve your table for the match.\n⚽\nPremier League"
+    },
+    {
+      "placeName": "Wolfpack",
+      "lat": 51.4813027,
+      "lng": -0.1981142,
+      "venueId": "venue-3svb24",
+      "source": {
+        "label": "Wolfpack website",
+        "url": "https://wolfpackbars.com/events"
+      },
+      "observedAt": "2026-10-07T19:23:41.287Z",
+      "confidence": "listed",
+      "id": "own-site-c621d88a3c4c3c8e19fb03b7",
+      "kind": "sport",
+      "title": "Premier League: Hull City vs Everton",
+      "startsAt": "2026-10-11T14:00:00+01:00",
+      "timeEvidence": "Premier League: Hull City vs Everton\nSun 11 October 2026 2:00pm KO All Venues\nHull City vs Everton live at Wolfpack on Sky Sports. Reserve your table for the match.\n⚽\nPremier League"
+    },
+    {
+      "placeName": "Wolfpack",
+      "lat": 51.4813027,
+      "lng": -0.1981142,
+      "venueId": "venue-3svb24",
+      "source": {
+        "label": "Wolfpack website",
+        "url": "https://wolfpackbars.com/events"
+      },
+      "observedAt": "2026-10-07T19:23:41.287Z",
+      "confidence": "listed",
+      "id": "own-site-9d1c05e22c1f713488f448b6",
+      "kind": "sport",
+      "title": "Premier League: Liverpool vs Manchester City",
+      "startsAt": "2026-10-11T16:30:00+01:00",
+      "timeEvidence": "Premier League: Liverpool vs Manchester City\nBook Fast\nSun 11 October 2026 4:30pm KO All Venues\nLiverpool vs Manchester City live at Wolfpack on Sky Sports. Reserve your table for the match.\n⚽\nPremier League"
+    },
+    {
+      "placeName": "Wolfpack",
+      "lat": 51.4813027,
+      "lng": -0.1981142,
+      "venueId": "venue-3svb24",
+      "source": {
+        "label": "Wolfpack website",
+        "url": "https://wolfpackbars.com/events"
+      },
+      "observedAt": "2026-10-07T19:23:41.287Z",
+      "confidence": "listed",
+      "id": "own-site-96033cbb3a0d2e7cf760f605",
+      "kind": "sport",
+      "title": "Premier League: Coventry City vs Newcastle United",
+      "startsAt": "2026-10-12T20:00:00+01:00",
+      "timeEvidence": "Premier League: Coventry City vs Newcastle United\nMon 12 October 2026 8:00pm KO All Venues\nCoventry City vs Newcastle United live at Wolfpack on Sky Sports. Reserve your table for the match.\n🏉\nThe Rugby Championship"
+    },
+    {
+      "placeName": "Wolfpack",
+      "lat": 51.4813027,
+      "lng": -0.1981142,
+      "venueId": "venue-3svb24",
+      "source": {
+        "label": "Wolfpack website",
+        "url": "https://wolfpackbars.com/events"
+      },
+      "observedAt": "2026-10-07T19:23:41.287Z",
+      "confidence": "listed",
+      "id": "own-site-da403a6bd9a3ec34b4cb427a",
+      "kind": "sport",
+      "title": "Rugby: Australia vs New Zealand",
+      "startsAt": "2026-10-17T09:45:00+01:00",
+      "timeEvidence": "Rugby: Australia vs New Zealand\nSat 17 October 2026 9:45am KO All Venues\nThe Bledisloe Cup heads to Sydney, live on Sky Sports. Book early for the big games.\n⚽\nPremier League"
+    },
+    {
+      "placeName": "Wolfpack",
+      "lat": 51.4813027,
+      "lng": -0.1981142,
+      "venueId": "venue-3svb24",
+      "source": {
+        "label": "Wolfpack website",
+        "url": "https://wolfpackbars.com/events"
+      },
+      "observedAt": "2026-10-07T19:23:41.287Z",
+      "confidence": "listed",
+      "id": "own-site-80e1603afb26921cb48bb624",
+      "kind": "sport",
+      "title": "Premier League: Everton vs Chelsea",
+      "startsAt": "2026-10-17T12:30:00+01:00",
+      "timeEvidence": "Premier League: Everton vs Chelsea\nSat 17 October 2026 12:30pm KO All Venues\nEverton vs Chelsea live at Wolfpack on TNT Sports. Reserve your table for the match.\n⚽\nPremier League"
+    },
+    {
+      "placeName": "Wolfpack",
+      "lat": 51.4813027,
+      "lng": -0.1981142,
+      "venueId": "venue-3svb24",
+      "source": {
+        "label": "Wolfpack website",
+        "url": "https://wolfpackbars.com/events"
+      },
+      "observedAt": "2026-10-07T19:23:41.287Z",
+      "confidence": "listed",
+      "id": "own-site-1ba480051d3c5f0325dc1145",
+      "kind": "sport",
+      "title": "Premier League: Newcastle United vs Aston Villa",
+      "startsAt": "2026-10-17T17:30:00+01:00",
+      "timeEvidence": "Premier League: Newcastle United vs Aston Villa\nSat 17 October 2026 5:30pm KO All Venues\nNewcastle United vs Aston Villa live at Wolfpack on Sky Sports. Reserve your table for the match.\n⚽\nPremier League"
+    },
+    {
+      "placeName": "Wolfpack",
+      "lat": 51.4813027,
+      "lng": -0.1981142,
+      "venueId": "venue-3svb24",
+      "source": {
+        "label": "Wolfpack website",
+        "url": "https://wolfpackbars.com/events"
+      },
+      "observedAt": "2026-10-07T19:23:41.287Z",
+      "confidence": "listed",
+      "id": "own-site-5a5269d2eb52f5d054040d58",
+      "kind": "sport",
+      "title": "Premier League: AFC Bournemouth vs Sunderland",
+      "startsAt": "2026-10-18T14:00:00+01:00",
+      "timeEvidence": "Premier League: AFC Bournemouth vs Sunderland\nSun 18 October 2026 2:00pm KO All Venues\nAFC Bournemouth vs Sunderland live at Wolfpack on Sky Sports. Reserve your table for the match.\n⚽\nPremier League"
+    },
+    {
+      "placeName": "Wolfpack",
+      "lat": 51.4813027,
+      "lng": -0.1981142,
+      "venueId": "venue-3svb24",
+      "source": {
+        "label": "Wolfpack website",
+        "url": "https://wolfpackbars.com/events"
+      },
+      "observedAt": "2026-10-07T19:23:41.287Z",
+      "confidence": "listed",
+      "id": "own-site-a6e693180f7e329f7124e91a",
+      "kind": "sport",
+      "title": "Premier League: Brighton & Hove Albion vs Crystal Palace",
+      "startsAt": "2026-10-18T14:00:00+01:00",
+      "timeEvidence": "Premier League: Brighton & Hove Albion vs Crystal Palace\nSun 18 October 2026 2:00pm KO All Venues\nBrighton & Hove Albion vs Crystal Palace live at Wolfpack on Sky Sports. Reserve your table for the match.\n⚽\nPremier League"
+    },
+    {
+      "placeName": "Wolfpack",
+      "lat": 51.4813027,
+      "lng": -0.1981142,
+      "venueId": "venue-3svb24",
+      "source": {
+        "label": "Wolfpack website",
+        "url": "https://wolfpackbars.com/events"
+      },
+      "observedAt": "2026-10-07T19:23:41.287Z",
+      "confidence": "listed",
+      "id": "own-site-8505d685d8d448d61af7feed",
+      "kind": "sport",
+      "title": "Premier League: Leeds United vs Manchester United",
+      "startsAt": "2026-10-18T14:00:00+01:00",
+      "timeEvidence": "Premier League: Leeds United vs Manchester United\nBook Fast\nSun 18 October 2026 2:00pm KO All Venues\nLeeds United vs Manchester United live at Wolfpack on Sky Sports. Reserve your table for the match.\n⚽\nPremier League"
+    },
+    {
+      "placeName": "Wolfpack",
+      "lat": 51.4813027,
+      "lng": -0.1981142,
+      "venueId": "venue-3svb24",
+      "source": {
+        "label": "Wolfpack website",
+        "url": "https://wolfpackbars.com/events"
+      },
+      "observedAt": "2026-10-07T19:23:41.287Z",
+      "confidence": "listed",
+      "id": "own-site-a1b8b71c5d8ecf714f9540e4",
+      "kind": "sport",
+      "title": "Premier League: Nottingham Forest vs Arsenal",
+      "startsAt": "2026-10-18T16:30:00+01:00",
+      "timeEvidence": "Premier League: Nottingham Forest vs Arsenal\nSun 18 October 2026 4:30pm KO All Venues\nNottingham Forest vs Arsenal live at Wolfpack on Sky Sports. Reserve your table for the match.\n⚽\nPremier League"
+    },
+    {
+      "placeName": "Wolfpack",
+      "lat": 51.4813027,
+      "lng": -0.1981142,
+      "venueId": "venue-3svb24",
+      "source": {
+        "label": "Wolfpack website",
+        "url": "https://wolfpackbars.com/events"
+      },
+      "observedAt": "2026-10-07T19:23:41.287Z",
+      "confidence": "listed",
+      "id": "own-site-051923fc7805707ffb835a8a",
+      "kind": "sport",
+      "title": "Premier League: Tottenham Hotspur vs Coventry City",
+      "startsAt": "2026-10-19T20:00:00+01:00",
+      "timeEvidence": "Premier League: Tottenham Hotspur vs Coventry City\nMon 19 October 2026 8:00pm KO All Venues\nTottenham Hotspur vs Coventry City live at Wolfpack on Sky Sports. Reserve your table for the match.\n⚽\nPremier League"
+    },
+    {
+      "placeName": "Wolfpack",
+      "lat": 51.4813027,
+      "lng": -0.1981142,
+      "venueId": "venue-3svb24",
+      "source": {
+        "label": "Wolfpack website",
+        "url": "https://wolfpackbars.com/events"
+      },
+      "observedAt": "2026-10-07T19:23:41.287Z",
+      "confidence": "listed",
+      "id": "own-site-5fcc115d8b961cc498d5f5b2",
+      "kind": "sport",
+      "title": "Premier League: Ipswich Town vs Nottingham Forest",
+      "startsAt": "2026-10-23T20:00:00+01:00",
+      "timeEvidence": "Premier League: Ipswich Town vs Nottingham Forest\nFri 23 October 2026 8:00pm KO All Venues\nIpswich Town vs Nottingham Forest live at Wolfpack on Sky Sports. Reserve your table for the match.\n⚽\nPremier League"
+    },
+    {
+      "placeName": "Wolfpack",
+      "lat": 51.4813027,
+      "lng": -0.1981142,
+      "venueId": "venue-3svb24",
+      "source": {
+        "label": "Wolfpack website",
+        "url": "https://wolfpackbars.com/events"
+      },
+      "observedAt": "2026-10-07T19:23:41.287Z",
+      "confidence": "listed",
+      "id": "own-site-7a7dc9a2527d5f9edbff8177",
+      "kind": "sport",
+      "title": "Premier League: Aston Villa vs Manchester City",
+      "startsAt": "2026-10-24T12:30:00+01:00",
+      "timeEvidence": "Premier League: Aston Villa vs Manchester City\nSat 24 October 2026 12:30pm KO All Venues\nAston Villa vs Manchester City live at Wolfpack on TNT Sports. Reserve your table for the match.\n⚽\nPremier League"
+    },
+    {
+      "placeName": "Wolfpack",
+      "lat": 51.4813027,
+      "lng": -0.1981142,
+      "venueId": "venue-3svb24",
+      "source": {
+        "label": "Wolfpack website",
+        "url": "https://wolfpackbars.com/events"
+      },
+      "observedAt": "2026-10-07T19:23:41.287Z",
+      "confidence": "listed",
+      "id": "own-site-2b1174ec158c2d7827120e6f",
+      "kind": "sport",
+      "title": "Premier League: Chelsea vs Tottenham Hotspur",
+      "startsAt": "2026-10-24T17:30:00+01:00",
+      "timeEvidence": "Premier League: Chelsea vs Tottenham Hotspur\nBook Fast\nSat 24 October 2026 5:30pm KO All Venues\nChelsea vs Tottenham Hotspur live at Wolfpack on Sky Sports. Reserve your table for the match.\nShow All 68 FixturesShowing the next 18 confirmed fixtures.\nPrivate Events"
+    },
+    {
+      "placeName": "The Alma",
+      "lat": 51.4606306,
+      "lng": -0.1876687,
+      "venueId": "venue-g13t28",
+      "source": {
+        "label": "The Alma website",
+        "url": "https://www.almawandsworth.com/live-sports/"
+      },
+      "observedAt": "2026-10-07T19:24:12.672Z",
+      "confidence": "listed",
+      "id": "own-site-fd30578f2d3ab33ae416dc54",
+      "kind": "sport",
+      "title": "Monday 12th October: Coventry vs Newcastle",
+      "startsAt": "2026-10-12T20:00:00+01:00",
+      "timeEvidence": "Monday 12th October\nFootball\nPremier League\nCoventry vs Newcastle\n8.00PM Kick Off"
+    },
+    {
+      "placeName": "The Alliance",
+      "lat": 51.5510363,
+      "lng": -0.2010547,
+      "venueId": "venue-816uzg",
+      "source": {
+        "label": "The Alliance website",
+        "url": "https://locipubs.com/alliance/category/whats-on/"
+      },
+      "observedAt": "2026-10-07T19:29:11.557Z",
+      "confidence": "listed",
+      "id": "own-site-2aeb941a62c94bc30948ed75",
+      "kind": "quiz",
+      "title": "Quiz Nights",
+      "startsAt": "2026-10-13T19:30:00+01:00",
+      "timeEvidence": "Quiz Nights\nEvery Tuesday at 7:30 PM, The Alliance becomes a battleground of wits with our popular quiz night. Gather your friends and test your knowledge for a chance to win some fantastic prizes in a fun and friendly atmosphere. Additionally, make the most of our Pie and Pint Night – enjoy a delicious pie paired with […]"
+    },
+    {
+      "placeName": "The King’s Arms",
+      "lat": 51.4573591,
+      "lng": -0.1946573,
+      "venueId": "venue-wdjlp",
+      "source": {
+        "label": "The King’s Arms website",
+        "url": "https://www.kingsarmswandsworth.co.uk/whats-on"
+      },
+      "observedAt": "2026-10-07T19:29:26.731Z",
+      "confidence": "listed",
+      "id": "own-site-4b0931bdbc7aba7420356be4",
+      "kind": "music",
+      "title": "Live Music in Wandsworth",
+      "startsAt": "2026-10-10T19:00:00+01:00",
+      "timeEvidence": "Live Music in Wandsworth\nLive music every Saturday from 7pm in our garden – don’t miss out, come down for a singalong!\nBook your hut"
+    },
+    {
+      "placeName": "The King’s Arms",
+      "lat": 51.4573591,
+      "lng": -0.1946573,
+      "venueId": "venue-wdjlp",
+      "source": {
+        "label": "The King’s Arms website",
+        "url": "https://www.kingsarmswandsworth.co.uk/whats-on"
+      },
+      "observedAt": "2026-10-07T19:29:26.731Z",
+      "confidence": "listed",
+      "id": "own-site-23ec9a544cf4f922f544f3f3",
+      "kind": "quiz",
+      "title": "Weekly Quiz",
+      "startsAt": "2026-10-14T19:30:00+01:00",
+      "timeEvidence": "Weekly Quiz\nNo plans this Wednesday? We’ve got you covered! Time to do your homework, pick a team name and get yourself booked in. Fabulous prizes to be won, every Wednesday at 7.30pm - book your team in below\nBook Now\nSeptember 7th - December 28th 2026"
+    },
+    {
+      "placeName": "The Wandle",
+      "lat": 51.4428801,
+      "lng": -0.1891411,
+      "venueId": "venue-rfo6aw",
+      "source": {
+        "label": "The Wandle website",
+        "url": "https://www.wandleearlsfield.com/"
+      },
+      "observedAt": "2026-10-07T19:30:37.331Z",
+      "confidence": "listed",
+      "id": "own-site-cd45747f8cc75ba195f5aa02",
+      "kind": "quiz",
+      "title": "Sunday Pub Quiz",
+      "startsAt": "2026-10-11T19:30:00+01:00",
+      "timeEvidence": "Sunday Pub Quiz\nJoin us from 7.30pm every Sunday for the best pub quiz in Earlsfield. Gather your team for a chance to win a £50 bar tab!"
+    },
+    {
+      "placeName": "Sylvan Post",
+      "lat": 51.4380542,
+      "lng": -0.0546961,
+      "venueId": "venue-1dqfi1i",
+      "source": {
+        "label": "Sylvan Post website",
+        "url": "https://sylvanpost.co.uk/"
+      },
+      "observedAt": "2026-10-07T19:31:55.426Z",
+      "confidence": "listed",
+      "id": "own-site-ee4f907c8b14793a98723d49",
+      "kind": "quiz",
+      "title": "Pub Quiz in Forest Hill",
+      "startsAt": "2026-10-14T20:00:00+01:00",
+      "timeEvidence": "Pub Quiz in Forest Hill\nEvery Wednesday\nLooking for the perfect way to break up your week? Join us every Wednesday from 8pm for Quiz Night\nBook a table Read more →"
+    }
   ]
 }

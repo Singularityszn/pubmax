@@ -33,6 +33,12 @@ vi.mock("@/lib/authedFetch", () => ({
   authedActionFetch: state.action,
   authedFetch: state.fetch,
 }));
+// The Wanted list's age door shares the contribution gate dialog's module,
+// which pulls in SignInButton, and that file imports next/dynamic. This file replaces
+// next/dynamic with a factory that awaits WantedListBody, so the real
+// SignInButton would wait on a factory that is waiting on it. The door is not
+// under test here.
+vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
 vi.mock("@/lib/venueMapUrl", () => ({
   venueMapUrl: (venueId: string) => `/map/${venueId}`,
 }));

@@ -9,14 +9,30 @@
  *  MapKey.tsx: green / amber / red / muted). */
 export type DonutCounts = readonly [number, number, number, number];
 
-/** Mirrors the existing `["step", point_count, 11, 25, 15, 100, 20]` circle
- *  radius expression used for the plain cluster-circle layer, so a donut
- *  marker is the same visual size as the bubble it replaces at any given
- *  cluster density. */
-export function donutOuterRadius(totalCount: number): number {
-  if (totalCount >= 100) return 20;
-  if (totalCount >= 25) return 15;
-  return 11;
+/** The two disc sizes, as OUTER radii (casing included): a 44px disc up to the
+ *  last whole zoom the source clusters below the street band and a 36px one from
+ *  DONUT_SMALL_FROM_ZOOM on, where the discs thin out. The GL `clusters` layer
+ *  (components/map/canvas/buildScene.ts) draws the same two, so a donut is the
+ *  size of the disc it replaces at every zoom. A disc no longer grows with its
+ *  count: the count is the small number on its rim and the figure is the price. */
+export const DONUT_OUTER_RADIUS_LARGE = 22;
+export const DONUT_OUTER_RADIUS_SMALL = 18;
+export const DONUT_SMALL_FROM_ZOOM = 13;
+
+export function donutOuterRadius(zoom: number): number {
+  return zoom >= DONUT_SMALL_FROM_ZOOM ? DONUT_OUTER_RADIUS_SMALL : DONUT_OUTER_RADIUS_LARGE;
+}
+
+/** The cheapest price a cluster's pubs say, or null when none of them does.
+ *  `minPrice` is supercluster's own `min` over the pubs' `clusterPrice`, which
+ *  a pub that says nothing leaves at 9999 (filters.ts, CLUSTER_PRICE_NONE). */
+export function readMinPrice(
+  props: GeoJSON.GeoJsonProperties,
+  none = 9999,
+): number | null {
+  const raw = props?.minPrice;
+  const n = typeof raw === "number" ? raw : Number(raw ?? none);
+  return Number.isFinite(n) && n > 0 && n < none ? n : null;
 }
 
 export type DonutStrokeSegment = {
@@ -65,10 +81,19 @@ export type DonutMarkerSvgParams = {
   counts: DonutCounts;
   /** Colors indexed the same way as `counts` (bucket 0..3). */
   colors: readonly string[];
+  /** The paper the disc is filled with. */
+  discColor: string;
+  /** The ink hairline round the outside, which edges the disc on any basemap. */
+  casingColor: string;
   /** Track ring color (drawn under the segments at low opacity). */
-  ringColor: string;
-  /** Count-in-the-hole text color. */
+  trackColor: string;
+  /** The figure's color. */
   textColor: string;
+  /** The outer radius from {@link donutOuterRadius}. */
+  outerRadius: number;
+  /** The price the disc prints, already written the pin's way ("£5.40"), or
+   *  null to print the count instead. */
+  figure: string | null;
 };
 
 /** Total across all buckets — the number rendered in the donut's hole. */
@@ -91,37 +116,82 @@ export function formatDonutCount(total: number): string {
   return String(total);
 }
 
-/** Builds the full marker SVG markup (string in, string out — pure) for a
- *  cluster's price-band mix. Segment stroke-width and overall size scale with
- *  the same step function as the legacy circle-radius expression so donut
- *  markers read at a consistent size against the layers they replace. */
+/** The hairline of ink round the outside of a disc, in px (buildScene's
+ *  CLUSTER_CASING_PX) and the width of the band ring inside it (CLUSTER_RING_PX). */
+export const DONUT_CASING_PX = 1.25;
+export const DONUT_RING_PX = 3;
+/** Fewer pubs than this and the disc wears no count on its rim. */
+export const DONUT_BADGE_MIN = 10;
+/** The figure is set in --font-data (JetBrains Mono) on the donut, where every
+ *  glyph advances 600/1000 of an em, and in Noto Sans Bold or Montserrat Medium
+ *  on the GL disc, whose glyphs advance no further on average. It keeps this
+ *  much paper clear each side. */
+const DONUT_FIGURE_ADVANCE_EM = 0.6;
+const DONUT_FIGURE_INSET_PX = 1;
+/** The longest figure a disc prints: a price ("£12.50") or a count ("1.5k"). */
+export const DONUT_FIGURE_MAX_LENGTH = 7;
+
+/** The figure's size for a label this many characters long: 12px on the 44px
+ *  disc and 11px on the 36px one, stepped down when a long label ("£12.50")
+ *  would otherwise run across the ring. The donut and the GL disc both use it,
+ *  so the two draw one figure the same size. */
+export function donutFigureFontSize(labelLength: number, outerRadius: number): number {
+  const base = outerRadius >= DONUT_OUTER_RADIUS_LARGE ? 12 : 11;
+  const paper = 2 * (outerRadius - DONUT_CASING_PX - DONUT_RING_PX - DONUT_FIGURE_INSET_PX);
+  const fit = paper / (Math.max(1, labelLength) * DONUT_FIGURE_ADVANCE_EM);
+  return Math.min(base, Math.floor(fit * 10) / 10);
+}
+
+/** Builds the full marker SVG markup (string in, string out - pure) for a
+ *  cluster: a paper disc with an ink casing, the price-band mix as a 3px ring,
+ *  the cheapest price in the middle (the count where there is none) and, from
+ *  ten pubs up, the count on the rim at the upper right. The ring is a hint and
+ *  the figure is the claim, so a band is never a fill. */
 export function buildDonutMarkerSvg(params: DonutMarkerSvgParams): string {
   const total = donutTotal(params.counts);
-  const outerRadius = donutOuterRadius(total);
-  const strokeWidth = Math.max(3, outerRadius * 0.42);
-  const ringRadius = outerRadius - strokeWidth / 2;
+  const outerRadius = params.outerRadius;
+  const ringRadius = outerRadius - DONUT_CASING_PX - DONUT_RING_PX / 2;
+  const discRadius = outerRadius - DONUT_CASING_PX;
   const size = outerRadius * 2;
   const segments = buildDonutStrokeSegments(params.counts, params.colors, ringRadius);
-  const fontSize = Math.max(8, outerRadius * 0.62);
-  const label = formatDonutCount(total);
+  const label = params.figure ?? formatDonutCount(total);
+  const fontSize = donutFigureFontSize(label.length, outerRadius);
+  const badge =
+    params.figure !== null && total >= DONUT_BADGE_MIN ? formatDonutCount(total) : null;
   const segmentMarkup = segments
     .map(
       (seg) =>
         `<circle cx="${outerRadius}" cy="${outerRadius}" r="${ringRadius}" fill="none" ` +
-        `stroke="${seg.color}" stroke-width="${strokeWidth}" ` +
+        `stroke="${seg.color}" stroke-width="${DONUT_RING_PX}" ` +
         `stroke-dasharray="${seg.dasharray}" stroke-dashoffset="${seg.dashoffset}" ` +
         `stroke-linecap="butt" data-bucket="${seg.index}" />`,
     )
     .join("");
+  // The count on the rim sits on the ring at 45 degrees, in a paper halo so it
+  // reads over the ring and the map alike. It overhangs the disc a little, so
+  // the SVG's box is the disc's and its overflow is visible.
+  const badgeOffset = ringRadius * Math.SQRT1_2;
+  const badgeMarkup =
+    badge === null
+      ? ""
+      : `<text x="${(outerRadius + badgeOffset).toFixed(2)}" y="${(outerRadius - badgeOffset).toFixed(2)}" ` +
+        `text-anchor="middle" dominant-baseline="central" fill="${params.textColor}" ` +
+        `font-size="10" font-weight="700" stroke="${params.discColor}" stroke-width="2" ` +
+        `paint-order="stroke" stroke-linejoin="round" font-family="sans-serif" ` +
+        `data-role="count">${badge}</text>`;
   return (
-    `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" ` +
+    `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="overflow:visible" ` +
     `xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${total} pubs">` +
+    `<circle cx="${outerRadius}" cy="${outerRadius}" r="${outerRadius}" fill="${params.casingColor}" />` +
+    `<circle cx="${outerRadius}" cy="${outerRadius}" r="${discRadius}" fill="${params.discColor}" />` +
     `<circle cx="${outerRadius}" cy="${outerRadius}" r="${ringRadius}" fill="none" ` +
-    `stroke="${params.ringColor}" stroke-width="${strokeWidth}" opacity="0.28" />` +
+    `stroke="${params.trackColor}" stroke-width="${DONUT_RING_PX}" opacity="0.28" />` +
     `<g transform="rotate(-90 ${outerRadius} ${outerRadius})">${segmentMarkup}</g>` +
     `<text x="${outerRadius}" y="${outerRadius}" text-anchor="middle" dominant-baseline="central" ` +
     `fill="${params.textColor}" font-size="${fontSize}" font-weight="700" ` +
-    `font-family="sans-serif">${label}</text>` +
+    `style="font-family: var(--font-data, ui-monospace, monospace); font-variant-numeric: tabular-nums" ` +
+    `data-role="figure">${label}</text>` +
+    badgeMarkup +
     `</svg>`
   );
 }

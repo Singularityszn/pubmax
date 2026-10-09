@@ -277,7 +277,7 @@ describe("nightCrawlActionNote (value-first, no apology-first, plain British)", 
 
   it("queued offline holds use local-hold copy without promising a sync", () => {
     const note = nightCrawlActionNote("arrived", "X", "offline", { queued: true });
-    expect(note).toBe("Held on this phone. We will try again when you have signal.");
+    expect(note).toBe("Held on this phone. We'll try again when you've got signal.");
     expect(note).not.toMatch(/will sync/i);
   });
 

@@ -111,6 +111,12 @@ describe("a document navigation this origin started still reaches /onboarding", 
     expect(response.headers.get("location")).toBeNull();
   });
 
+  it("accepts the new static entry document as the same-origin referrer", () => {
+    const response = ask(ONBOARDING_PATH, { referer: "https://pubmaxxing.com/app-entry" });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+  });
+
   it("reads the browser's word before the Referer when both are sent", () => {
     for (const site of ["cross-site", "same-site"]) {
       const response = ask(ONBOARDING_PATH, {

@@ -390,7 +390,7 @@ export default function CityStatusBanner({ cityId }: CityStatusBannerProps) {
           id="cityStatusSignalSheet"
           className="cityStatusSignalSheet"
           role="region"
-          aria-label="Tonight in London: all signals"
+          aria-label="Live London updates for tonight"
         >
           <div className="cityStatusSignalSheetHead">
             <strong>London live</strong>

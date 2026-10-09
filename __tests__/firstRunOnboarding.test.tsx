@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 const slim = vi.hoisted(() => ({ load: vi.fn() }));
+const native = vi.hoisted(() => ({ enabled: false }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => router,
@@ -20,11 +21,17 @@ vi.mock("next/image", () => ({
   },
 }));
 vi.mock("@/lib/venuesSlim", () => ({ loadSlimVenuesForCityResult: slim.load }));
+vi.mock("@/lib/nativePlatform", () => ({
+  isNativeApp: () => native.enabled,
+  nativePlatform: () => native.enabled ? "ios" : null,
+}));
 
 import FirstRunOnboarding from "@/components/onboarding/FirstRunOnboarding";
 import { hasSeenTour } from "@/lib/firstRunTour";
+import { NATIVE_FIRST_RUN_PATCH_KEY, NATIVE_FIRST_RUN_STEP_KEY } from "@/lib/nativeFirstRun";
 import { ONBOARDING_STEPS, readBudgetChoice, readPlannerHandoff } from "@/lib/onboardingFlow";
 import { readHistoryStep } from "@/lib/useStepHistory";
+import { decideEntry, readEntryContext } from "@/lib/entryDecision";
 
 let container: HTMLDivElement;
 let root: Root | null = null;
@@ -61,11 +68,27 @@ async function settle() {
   });
 }
 
-/** jsdom walks history on later tasks, so let each popstate land inside act. */
+/**
+ * jsdom walks history on later tasks, so let each popstate land inside act.
+ * A landing on a step the screen cannot show sends a corrective Back from an
+ * effect, and that effect runs as act exits. On a loaded machine the first
+ * popstate and the end of the wait fire in one timer pass, so one fixed wait
+ * can end before the corrective Back is even queued. Wait until a whole
+ * window passes with no popstate.
+ */
 async function historySettles() {
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 50));
-  });
+  for (;;) {
+    let moved = false;
+    const onPopState = () => {
+      moved = true;
+    };
+    window.addEventListener("popstate", onPopState);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    window.removeEventListener("popstate", onPopState);
+    if (!moved) return;
+  }
 }
 
 async function browserBack() {
@@ -98,6 +121,7 @@ async function reachLocation() {
 beforeEach(async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   window.localStorage.clear();
+  native.enabled = false;
   window.sessionStorage.clear();
   window.history.replaceState(null, "", "/");
   // jsdom has no layout to scroll; the spy records where each step asked to open.
@@ -114,6 +138,69 @@ beforeEach(async () => {
         openPlanner,
       }),
     );
+  });
+});
+
+describe("interrupted native onboarding", () => {
+  async function relaunch() {
+    await act(async () => root?.unmount());
+    window.sessionStorage.clear();
+    window.history.replaceState(null, "", "/onboarding");
+    root = createRoot(container);
+    await act(async () => root?.render(createElement(FirstRunOnboarding, {
+      reviewedAreas: [], skipHref: "/tonight", openPlanner,
+    })));
+  }
+
+  it("resumes the location question and budget after a fresh session, until Skip", async () => {
+    native.enabled = true;
+    await reachLocation();
+    await relaunch();
+
+    expect(container.querySelector("h1")?.textContent).toBe("Find the cheapest pint near you.");
+    expect(readBudgetChoice()).toBe("six");
+    expect(decideEntry(readEntryContext("/"))).toEqual({
+      kind: "route", href: "/onboarding", reason: "native-first-run",
+    });
+
+    await tap("Skip");
+    expect(decideEntry(readEntryContext("/"))).toEqual({
+      kind: "route", href: "/tonight", reason: "shell-cold-start",
+    });
+  });
+
+  it("asks for location again when an interrupted result cannot be rebuilt", async () => {
+    native.enabled = true;
+    await reachLocation();
+    await tap("Pick a London patch instead");
+    await tap("Soho");
+    await settle();
+    expect(container.querySelector("h1")?.textContent).toContain("The Crown");
+
+    await relaunch();
+    expect(container.querySelector("h1")?.textContent).toBe("Find the cheapest pint near you.");
+    expect(window.localStorage.getItem(NATIVE_FIRST_RUN_STEP_KEY)).toBe("location");
+  });
+
+  it("keeps the companion choice on relaunch, and Plan my night completes the journey", async () => {
+    native.enabled = true;
+    await reachLocation();
+    await tap("Pick a London patch instead");
+    await tap("Soho");
+    await settle();
+    await tap("That looks right");
+    await tap("Black Cat");
+    await relaunch();
+
+    expect(container.querySelector("h1")?.textContent).toBe("Pick your Pub Pal.");
+    expect(buttonContaining("Black Cat").getAttribute("aria-pressed")).toBe("true");
+    await tap("Plan my night");
+    expect(openPlanner).toHaveBeenCalledOnce();
+    expect(readPlannerHandoff()?.patch).toEqual({ lat: 51.5136, lng: -0.1365 });
+    expect(window.localStorage.getItem(NATIVE_FIRST_RUN_PATCH_KEY)).toBeNull();
+    expect(decideEntry(readEntryContext("/"))).toEqual({
+      kind: "route", href: "/tonight", reason: "shell-cold-start",
+    });
   });
 });
 

@@ -8,6 +8,11 @@
   min-height: 100dvh;
 }
 
+.profilePage .siteNavBar {
+  position: relative;
+  z-index: var(--z-nav);
+}
+
 /* ── Main scaffolding ────────────────────────────────────────────────── */
 .profilePage .profileMain {
   width: 100%;
@@ -21,6 +26,7 @@
   margin-inline: auto;
   padding-inline: var(--page-gutter);
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: clamp(32px, 5vw, 52px);
 }
 
@@ -177,6 +183,7 @@
   border-block: 1px solid var(--line);
 }
 .profilePage .youProfileTabs a {
+  min-width: 0;
   min-height: 48px;
   display: grid;
   place-items: center;
@@ -184,12 +191,16 @@
   font-size: .78rem;
   font-weight: 750;
   text-decoration: none;
+  text-align: center;
+  overflow-wrap: anywhere;
 }
 .profilePage .youProfileTabs a:first-child { color: var(--ink); box-shadow: inset 0 -2px var(--ink); }
 
 /* Follow/edit action slot rides at the far end of the identity row. */
 .profilePage .profileActions {
   display: flex;
+  min-width: 0;
+  max-width: 100%;
   align-items: flex-start;
   justify-content: flex-end;
   gap: 10px;
@@ -197,6 +208,11 @@
   margin-left: auto;
   align-self: flex-start;
   flex: 0 0 auto;
+}
+
+.profilePage .profileMessageSignIn {
+  display: grid;
+  gap: var(--space-3);
 }
 
 .profilePage .profileEmpty {
@@ -1561,7 +1577,7 @@
      mid-phrase and the pair stopped matching in height. The columns are asked
      for a width a label can live in instead, so a phone stacks them and a wider
      screen still seats both on one line. */
-  .profilePage .youIdentityActions { grid-column: 1 / -1; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); width: 100%; }
+  .profilePage .youIdentityActions { grid-column: 1 / -1; grid-template-columns: repeat(auto-fit, minmax(min(13rem, 100%), 1fr)); width: 100%; }
 
   /* In a stacked column, margin-left:auto would shove the actions to the far
      edge on their own line — reset it so they sit naturally under the name. */
@@ -1574,8 +1590,8 @@
      the bio and the card fields: an owner who opened the editor found "Meet
      your Pub Pal" sitting over their own DRINKS row. Content-sized, packed to
      the top; the width is already 100% from the rule above. */
-  .profilePage .youProfileIdentity .profileActions { flex-basis: auto; align-content: flex-start; }
-  .profilePage .youProfileIdentity .profileActions > * { flex: 1 1 140px; }
+  .profilePage .youProfileIdentity .profileActions { flex-basis: auto; align-content: flex-start; align-items: stretch; }
+  .profilePage .youProfileIdentity .profileActions > * { flex: 1 1 140px; min-width: 0; overflow-wrap: anywhere; text-align: center; }
 
   /* Two-up stat tiles read better than one long column on a phone. */
   .profilePage .youProfileIdentity .profileHeader { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
@@ -1585,6 +1601,19 @@
   .profilePage .youProfileIdentity .profileStatLink { padding: 9px 6px; }
   .profilePage .youProfileIdentity .profileStatLabel { font-size: 0.75rem; }
   .profilePage .youProfileIdentity .profileStatValue { font-size: 1.12rem; }
+}
+
+@media (max-width: 640px) {
+  html[data-text-scale="large"] .profilePage .youProfileIdentity .profileStats,
+  html[data-text-scale="large"] .profilePage .passportGrid,
+  html[data-text-scale="large"] .profilePage .youProfileTabs {
+    grid-template-columns: repeat(auto-fit, minmax(min(8rem, 100%), 1fr));
+  }
+
+  html[data-text-scale="large"] .profilePage :is(.profileNames, .profileStat, .passportStat) {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
 }
 
 @media (max-width: 380px) {
@@ -2014,9 +2043,9 @@
    (components/profile/PubmaxxAccountHub.tsx); a lone card takes the whole row
    rather than half of it beside an empty column. */
 .accountHubGrid:has(> :only-child) { grid-template-columns: minmax(0, 1fr); }
-.accountHubGrid > * { display: grid; align-content: start; gap: .65rem; padding: 1rem; border-radius: 18px; background: var(--panel-raised); }
+.accountHubGrid > * { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr); align-content: start; gap: .65rem; padding: 1rem; border-radius: 18px; background: var(--panel-raised); }
 .accountHubGrid input, .accountHubGrid select { min-height: 44px; border-radius: 12px; }
-.accountHubGrid input, .accountHubGrid select { width: 100%; padding: .7rem .8rem; border: 1px solid var(--line); background: var(--paper); color: var(--ink); }
+.accountHubGrid input, .accountHubGrid select { min-width: 0; width: 100%; padding: .7rem .8rem; border: 1px solid var(--line); background: var(--paper); color: var(--ink); }
 /* NO BUTTON RULE HERE. Every control in this editor is the Button primitive
    (components/ui/button.tsx), which reads the one --control-* row, so the
    account surface cannot grow a 12px box at weight 750 of its own again (the
@@ -2084,8 +2113,9 @@
 .accountHubNightProfileSaved { color: var(--ink-muted); font-size: .85rem; }
 .accountHubSignIn { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-top: .75rem; }
 .accountHubSignIn p { margin: 0; max-width: 42rem; }
-@media (max-width: 760px) { .accountHubGrid { grid-template-columns: 1fr; } }
-.accountHubSettings { display: grid; gap: .75rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+@media (max-width: 760px) { .accountHubGrid { grid-template-columns: minmax(0, 1fr); } }
+.accountHubSettings { display: grid; grid-template-columns: minmax(0, 1fr); gap: .75rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.accountHubSettings > * { min-width: 0; }
 .accountHubSettings > h3 { margin: 0; font-size: 1.05rem; }
 .accountHubSettingsGrid { margin: 0; }
 
@@ -2096,7 +2126,7 @@
    control with a status line under it. Every tap target keeps the 44px floor
    the phone chrome fence holds the rest of this surface to. */
 .accountHubDataDoors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; align-items: start; }
-@media (max-width: 760px) { .accountHubDataDoors { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .accountHubDataDoors { grid-template-columns: minmax(0, 1fr); } }
 .accountHubExport { display: grid; gap: .5rem; padding: 1rem; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-raised); }
 .accountHubExport h3 { margin: 0; font-size: 1.05rem; }
 .accountHubExport > p { margin: 0; color: var(--ink-muted); }
@@ -2116,9 +2146,10 @@
    to open `/`, so this row is the only place inside the app these are reachable
    from. It stays a plain list on purpose: a reviewer scans it, they do not
    navigate it. */
-.accountLegalRow { display: grid; gap: .5rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.accountLegalRow { display: grid; grid-template-columns: minmax(0, 1fr); gap: .5rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
 .accountLegalRow h3 { margin: 0; font-size: 1.05rem; }
 .accountLegalLinks { display: flex; flex-wrap: wrap; gap: .35rem 1rem; margin: 0; padding: 0; list-style: none; }
+.accountLegalLinks > li { min-width: 0; overflow-wrap: anywhere; }
 .accountLegalLinks a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 .accountLegalLinks a:hover { color: var(--brass); }
 .accountLegalNote { margin: 0; color: var(--ink-muted); font-size: .85rem; }

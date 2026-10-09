@@ -205,6 +205,7 @@ async function prepareDarkRoutes(
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
+        servedAt: new Date().toISOString(),
         rows: [],
         asOf: "2026-07-30T18:00:00.000Z",
       }),
@@ -371,7 +372,7 @@ test("bounds user-entered search identity while keeping fixed qualifiers visible
   const query = status.locator(".mapToolbarSearchQuery");
   const qualifier = status.locator(".mapToolbarSearchQualifier");
   await expect(query).toHaveText(LONG_QUERY.trim());
-  await expect(qualifier).toHaveText("’ with your current filters.");
+  await expect(qualifier).toHaveText("' with your current filters.");
 
   const queryGeometry = await query.evaluate((node) => {
     const style = getComputedStyle(node);
@@ -421,7 +422,7 @@ test("expanded city-status sheet follows wrapped headline geometry", async ({
     route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ rows: [] }),
+      body: JSON.stringify({ servedAt: new Date().toISOString(), rows: [] }),
     }),
   );
   await page.route("**/api/citymcp/status**", (route) =>

@@ -517,8 +517,8 @@ describe("this is not a price lane, and the tree is held to it", () => {
     for (const row of on.rows) {
       expect(row.label).not.toMatch(/£|pint/i);
     }
-    expect(on.clusterNote).toContain("value bands");
-    expect(on.clusterNote).not.toContain("price band");
+    expect(on.cluster?.note).toContain("value bands");
+    expect(on.cluster?.note).not.toContain("price band");
     // The cap chips filter on pint price, so the key stops offering them.
     expect(on.priceCapFilter).toBe(false);
   });

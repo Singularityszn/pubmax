@@ -197,6 +197,22 @@ export type PlanGroundingRejectionV2 =
   | "route-mismatch"
   | "expired";
 
+/** Every V2 proof rejection is an explicit 422; the reason drives the code/message. */
+export function planGroundingRejectionError(reason: PlanGroundingRejectionV2): { message: string; code: string } {
+  switch (reason) {
+    case "missing":
+      return { message: "We couldn't check this route. Draft it again and save.", code: "PLAN_ANCHOR_PROOF_MISSING" };
+    case "expired":
+      return { message: "This route has gone stale. Draft it again and save.", code: "PLAN_ANCHOR_PROOF_EXPIRED" };
+    case "route-mismatch":
+      return { message: "These stops no longer match the planned route. Draft the route again.", code: "PLAN_ANCHOR_PROOF_ROUTE_MISMATCH" };
+    case "operation-mismatch":
+      return { message: "This route was drafted for a different save. Draft it again and save.", code: "PLAN_ANCHOR_PROOF_OPERATION_MISMATCH" };
+    default:
+      return { message: "That saved route could not be checked.", code: "PLAN_ANCHOR_PROOF_INVALID" };
+  }
+}
+
 export type PlanGroundingVerdictV2 =
   | {
       ok: true;

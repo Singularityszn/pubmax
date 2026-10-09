@@ -406,6 +406,10 @@ export function AuthProvider({
   >(null);
 
   const sessionBootstrapInFlight = useRef<ReturnType<typeof bootstrapAuthSession> | null>(null);
+  // True while the boot is bringing back a session the person already had
+  // (the durable cookie resumes one through `auth.setSession`, which announces
+  // `SIGNED_IN`). That is a restore, never an arrival.
+  const sessionRestoreInFlight = useRef(false);
 
   useEffect(() => {
     if (!configured) return;
@@ -664,7 +668,7 @@ export function AuthProvider({
           }
         }
         if (event === "SIGNED_IN" && nextSession?.user) {
-          if (signedIn) {
+          if (signedIn && !sessionRestoreInFlight.current) {
             if (isUserSignUp(nextSession.user, Date.now())) trackEvent("user_signed_up");
             trackEvent("user_signed_in");
             // A GENUINE sign-in transition, which is the only thing that earns
@@ -837,9 +841,15 @@ export function AuthProvider({
         }
         if (exchange?.session) return;
 
-        const bootstrapped = await (sessionBootstrapInFlight.current ??= bootstrapAuthSession(supabase.auth).catch(
-          () => ({ status: "unavailable" } as const),
-        ));
+        sessionRestoreInFlight.current = true;
+        let bootstrapped: Awaited<ReturnType<typeof bootstrapAuthSession>>;
+        try {
+          bootstrapped = await (sessionBootstrapInFlight.current ??= bootstrapAuthSession(supabase.auth).catch(
+            () => ({ status: "unavailable" } as const),
+          ));
+        } finally {
+          sessionRestoreInFlight.current = false;
+        }
         if (!active) return;
         publishBootstrappedSession(bootstrapped);
         if (confirmation && captured) {

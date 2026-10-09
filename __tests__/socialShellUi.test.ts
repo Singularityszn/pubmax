@@ -190,7 +190,6 @@ describe("verified Social post card", () => {
     expect(source).toContain("Post changed. Your draft is still here.");
     expect(source).toContain("BroadcastChannel");
     expect(source).toContain("useDismissOnEscape");
-    expect(source).toContain("Selected Venue");
     expect(source).toContain("Remove venue");
   });
 

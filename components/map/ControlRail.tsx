@@ -84,10 +84,10 @@ export const styleLabels: Record<CrawlStyle, string> = {
   noAlcoholFirst: "Alcohol-free first",
   cheapest: "Cheapest",
   heritage: "Historic",
-  writerTrail: "Writer Trail",
-  beerGarden: "Beer Garden",
-  sports: "Live Sports",
-  dateNight: "Date Night",
+  writerTrail: "Writer trail",
+  beerGarden: "Beer garden",
+  sports: "Live sports",
+  dateNight: "Date night",
 };
 
 type ControlRailProps = {
@@ -272,7 +272,7 @@ export default function ControlRail({
         <section className="panelSection">
           <div className="sectionTitle">
             <SlidersHorizontal size={16} />
-            <span>Crawl Style</span>
+            <span>Crawl style</span>
           </div>
           <div className="segmented" role="group" aria-label="Crawl style">
             {(Object.keys(styleLabels) as CrawlStyle[]).map((style) => (
@@ -291,7 +291,7 @@ export default function ControlRail({
 
       <section className="panelSection">
         <div className="rangeLine">
-          <span>Max Pint</span>
+          <span>Max pint</span>
           {/* The slider's top end is the OFF value, so it reads as no cap
               rather than as a figure it never applies. */}
           <strong>
@@ -346,7 +346,7 @@ export default function ControlRail({
       <section className="panelSection toggles">
         <div className="sectionTitle">
           <Landmark size={16} />
-          <span>Story Filters</span>
+          <span>Story filters</span>
           {filtersDirty ? (
             <button className="resetBtn" style={{ marginLeft: "auto" }} onClick={resetFilters}>
               <Trash2 size={12} /> Reset
@@ -355,7 +355,7 @@ export default function ControlRail({
         </div>
         <label
           aria-label={SAVED_ONLY_ARIA_LABEL}
-          style={{ minHeight: 44 }}
+          style={{ minHeight: "var(--control-height, 44px)" }}
         >
           <input
             type="checkbox"
@@ -451,7 +451,7 @@ export default function ControlRail({
           Verified listings only
         </label>
         <p className="accessibilityHint" style={{ marginTop: 4 }}>
-          Off by default so scraped Young&apos;s / Nicholson&apos;s / guide pins stay on the map.
+          Off by default, so pins from Young&apos;s, Nicholson&apos;s and pub guides stay on the map.
         </p>
         <label>
           <input
@@ -476,8 +476,8 @@ export default function ControlRail({
           <span>Accessible venues</span>
         </div>
         <p className="accessibilityHint">
-          Only pubs with access we can <strong>confirm</strong> from a public source. Unknown
-          pubs are hidden here rather than guessed. Help by spilling what you know.
+          Only pubs with access we can <strong>confirm</strong> from a public source. We hide
+          the rest here rather than guess. Help by spilling what you know.
         </p>
         <label>
           <input

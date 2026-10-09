@@ -42,7 +42,7 @@ silently stale.
 
 | Store | Classification | Notes |
 |---|---|---|
-| adultSelfAssertionStore | factory-ready | Account assertion read and record; adult policy lives in `socialLaunch`. |
+| adultSelfAssertionStore | factory-ready | Account assertion read and record; see [the adult policy](rules/lib-identity-accounts-and-sessions.md#everybody-who-joins-is-taken-to-be-an-adult-on-one-recorded-tap). |
 | analyticsReceiptStore | legacy-exception | Inline Supabase configuration checks; needs one selector seam. |
 | areaDemandStore | factory-ready | Demand signal with shared backend selection. |
 | checkInStore | factory-ready | Check-in rows with shared backend selection. |

@@ -106,8 +106,8 @@ export default function PrivacyPage() {
           ordinary technical detail every web server sees when it serves a page:
           the request, the time, the browser type and the IP address it came
           from. That is how the site gets served and how abuse gets stopped.
-          Map tiles are fetched by your browser directly from the tile hosts
-          named below, so those hosts see your IP address the same way any
+          Your browser fetches map tiles directly from the tile hosts named
+          below, so those hosts see your IP address the same way any
           website you visit does.
         </p>
 
@@ -121,11 +121,11 @@ export default function PrivacyPage() {
 
         <h3 className="legalH3">If you make an account</h3>
         <p className="legalBody">
-          Sign-in is handled by Supabase, using either an emailed magic link or
+          Supabase handles sign-in, using either an emailed magic link or
           Microsoft, Google or Apple sign-in. That means we hold your email
           address. You must choose one public handle, which is linked to your
           authenticated account and is the only identity shown with contributions.
-          Handle is needed to finish signup. Date of birth is optional.
+          You need a handle to finish signup. Date of birth is optional.
           Full name, gender and sex are optional. We collect and store date
           of birth, full name, gender and sex as private details for existing
           account tools.
@@ -170,7 +170,7 @@ export default function PrivacyPage() {
           report a profile picture; a report joins a private review queue and
           does not hide the picture on its own. A named staff member must hide or restore it, and that
           decision keeps a private audit record. Hiding stops public delivery
-          and never deletes the stored file or the report provenance. Removing
+          and never deletes the stored file or the report record. Removing
           the picture yourself, or deleting your account, removes the stored
           file from our storage. If you connect an external social profile (X,
           Instagram, TikTok) we store the account details you connected and any
@@ -224,8 +224,8 @@ export default function PrivacyPage() {
           tap; the app never tracks your location in the background.
         </p>
         <p className="legalBody">
-          Social post text is stored in a private moderation queue, then sent
-          to OpenAI for omni moderation. A post stays held from every Social
+          We store Social post text in a private moderation queue, then send
+          it to OpenAI for omni moderation. A post stays held from every Social
           feed and direct read until OpenAI returns a decision. If OpenAI is
           unavailable or returns no usable decision, the post stays held. No
           account ID, public handle, area or exact venue is included in that
@@ -273,8 +273,8 @@ export default function PrivacyPage() {
           skies, raining, cold and windy, the reason you wrote, the time our
           server took it, and your account&rsquo;s stable private profile key.
           The server derives the handle and private key from your authenticated
-          account and ignores any handle sent by the browser. The private key
-          is used for rate limits and audit provenance and is never shown.
+          account and ignores any handle sent by the browser. We use the private
+          key for rate limits and audit records and never show it.
           A visible Recommendation counts on the public contributor record
           under its public handle. Historic Recommendations written under an
           unlinked, self-asserted handle can remain visible. They are excluded
@@ -362,9 +362,9 @@ export default function PrivacyPage() {
         </p>
         <p className="legalBody">
           We also keep whether a price was corroborated, whether a contribution
-          survived moderation and whether a price was later contradicted. Those
-          signals are kept so the record can be made more useful later without
-          losing its history. They don&rsquo;t change today&rsquo;s ranking, which is
+          survived moderation and whether a price was later contradicted. We
+          keep those signals so we can make the record more useful later
+          without losing its history. They don&rsquo;t change today&rsquo;s ranking, which is
           based only on how many identity-backed, visible contributions a
           profile has made.
         </p>
@@ -499,8 +499,8 @@ export default function PrivacyPage() {
         <p className="legalBody">
           Pub locations, opening hours, heritage facts, scraped and sourced
           prices, and the weather all come from public data. None of it&rsquo;s
-          personal data, and requests for it are made by our server, not by
-          your browser.
+          personal data, and our server makes the requests for it, not your
+          browser.
         </p>
       </section>
 
@@ -595,7 +595,7 @@ export default function PrivacyPage() {
           <li>
             Your analytics choice, either allowed or denied, so we don&rsquo;t ask on
             every visit. Until you tap Allow, no analytics identifier exists.
-            After you allow it, the persistent device identifier is kept in
+            After you allow it, we keep the persistent device identifier in
             browser storage and a first-party cookie so later visits remain one
             device. Withdrawing consent removes that local analytics identity
             and stops new collection.
@@ -859,7 +859,7 @@ export default function PrivacyPage() {
             handle and private profile key for as long as it is up, or until you
             delete your account. The handle
             attributes the opinion publicly; the private key stays hidden and
-            supports rate limits and audit provenance. Writing another under
+            supports rate limits and audit records. Writing another under
             the same handle for the same pub and condition replaces the one you
             already had. There is no one-tap delete for a single Recommendation
             yet, so ask us and we&rsquo;ll take it down, the same as anything

@@ -40,7 +40,7 @@ const SEQ_KEY = "pubmax:nativePush:actionSeq:v1";
 const NATIVE_PUSH_PROMPT_EVENT = "pubmax:native-push-prompt";
 export const NATIVE_PUSH_PROMPT_COPY = {
   title: "Know when tonight changes",
-  body: "Get a ping when a fresh London night signal goes live.",
+  body: "Get a ping when something new goes up for tonight in London.",
   later: "Not now",
   enable: "Turn on",
 } as const;

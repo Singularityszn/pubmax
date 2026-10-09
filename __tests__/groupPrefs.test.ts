@@ -82,13 +82,13 @@ describe("group preferences", () => {
     expect(overlap.scoreLabel).toBe("Strong overlap");
     expect(overlap.mustHaveLabels).toEqual([
       "Budget: under £6 pints",
-      "Zero-proof options needed",
+      "Alcohol-free options needed",
       "Step-free access needed",
       "Covered shelter needed",
     ]);
     expect(overlap.summaryLabels).toEqual([
       "Budget: under £6 pints",
-      "Zero-proof options needed",
+      "Alcohol-free options needed",
       "Step-free access needed",
       "Covered shelter needed",
       "Shared vibe: Cosy corners",
@@ -161,7 +161,7 @@ describe("group preferences", () => {
     expect(overlap.hardConstraints.accessibilityRequired).toBe(true);
     expect(overlap.summaryLabels).toEqual([
       "Budget: flexible budget",
-      "Zero-proof options needed",
+      "Alcohol-free options needed",
       "Step-free access needed",
       "Shared vibe: Music-led",
     ]);

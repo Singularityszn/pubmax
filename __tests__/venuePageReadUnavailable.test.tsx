@@ -164,7 +164,7 @@ describe.each([
     expect(markup).toMatch(
       new RegExp(`<h1 class="${titleClass}">We could not load this pub</h1>`),
     );
-    expect(markup).toContain("could not answer just now");
+    expect(markup).toContain("did not answer just now");
     expect(markup).toContain(`href="${href}"`);
     expect(markup).toContain("Try again");
     expect(markup).not.toContain(notFoundLine);

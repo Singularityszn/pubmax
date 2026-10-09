@@ -15,6 +15,7 @@ describe("MobilePriceChoices", () => {
         { meaning: "pint", bucket: 3 },
       ],
       storyColour: null,
+      clusterPrices: false,
     } as const;
     const legend = mapPriceLegend({ kind: "default", renderedState });
     const expectedKey = renderToStaticMarkup(createElement(MapKey, { legend }));

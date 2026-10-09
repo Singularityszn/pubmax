@@ -1,4 +1,5 @@
 import type * as maplibregl from "maplibre-gl";
+import { DONUT_BADGE_MIN } from "@/lib/donutClusterGeometry";
 import { iconId } from "@/lib/mapIcons";
 import { offsetIndexForLine } from "@/lib/tubeOffsets";
 import { TRANSPORT_CATEGORIES, type PoiCategory } from "@/lib/pois";
@@ -240,6 +241,95 @@ export const SELECTED_PIN_PRICE_LABEL_EXPR: maplibregl.ExpressionSpecification =
   PIN_PRICE_LABEL_MIN_ZOOM,
   PRICE_LABEL_TEXT,
 ];
+
+/**
+ * What a cluster's `minPrice` reads when none of its pubs says a price. The
+ * reduce in buildScene's clusterProperties is a `min`, which has no "nothing"
+ * to start from, so a silent pub contributes this instead and a cluster still
+ * at this figure prints its count.
+ */
+export const CLUSTER_PRICE_NONE = 9999;
+
+/**
+ * A cluster disc's figure: the CHEAPEST price any pub inside it says, written
+ * the way a pin writes one (`formatPinPriceLabel` in ./geojson - whole pounds
+ * drop the pence, anything else keeps both decimals), or the count where no pub
+ * in it says a price. The twin of that function, because a cluster label is a
+ * claim exactly as a pin tag is and the two must never disagree on a figure.
+ */
+export const CLUSTER_FIGURE_EXPR: maplibregl.ExpressionSpecification = (() => {
+  const minPrice: maplibregl.ExpressionSpecification = [
+    "coalesce",
+    ["get", "minPrice"],
+    CLUSTER_PRICE_NONE,
+  ];
+  const pence: maplibregl.ExpressionSpecification = ["round", ["*", minPrice, 100]];
+  const pounds: maplibregl.ExpressionSpecification = ["/", pence, 100];
+  return [
+    "case",
+    ["<", minPrice, CLUSTER_PRICE_NONE],
+    [
+      "case",
+      ["==", ["%", pence, 100], 0],
+      ["concat", "£", ["to-string", pounds]],
+      [
+        "concat",
+        "£",
+        ["number-format", pounds, { locale: "en-GB", "min-fraction-digits": 2, "max-fraction-digits": 2 }],
+      ],
+    ],
+    ["to-string", ["get", "point_count_abbreviated"]],
+  ];
+})();
+
+/** Fewer pubs than this and a disc wears no count on its rim. */
+export const CLUSTER_COUNT_BADGE_MIN = DONUT_BADGE_MIN;
+
+/**
+ * The count that rides a disc's rim once the disc is wearing a price: only
+ * where there is a figure to be secondary to, and only from ten pubs up,
+ * because "3" beside "£5.40" says less than the disc's size already does.
+ */
+export const CLUSTER_COUNT_BADGE_FILTER: maplibregl.FilterSpecification = [
+  "all",
+  ["has", "point_count"],
+  ["<", ["coalesce", ["get", "minPrice"], CLUSTER_PRICE_NONE], CLUSTER_PRICE_NONE],
+  [">=", ["get", "point_count"], CLUSTER_COUNT_BADGE_MIN],
+];
+
+/**
+ * Filter for the price pill layer (`pubs-price-pill`): every unclustered pub
+ * with a sayable price that has nothing riding on its glass, and not the
+ * selected one.
+ *
+ * - Absent `priceLabel` is the same "this pub says nothing" the tag reads, so an
+ *   unpriced pub never gets a pill.
+ * - The selected pub keeps its enlarged glass, its glow and its own tag on
+ *   `pubs-point-selected`.
+ * - A pub wearing a mark is NOT a pill. The Pint Drops ring, the what's-on
+ *   ring, the story-band halo and the provisional and confirmed dots are all
+ *   drawn round or on a 28px glass, and a 48px pill would bury every one of
+ *   them (or, for the two dots, sit them over the figure). Those pubs keep the
+ *   glass and the tag exactly as they were, so no signal is lost to a shape.
+ */
+export function pricePillFilter(
+  selectedId: string,
+  bandMemberIds: readonly string[] = [],
+): maplibregl.FilterSpecification {
+  const conditions: maplibregl.ExpressionSpecification[] = [
+    ["!", ["has", "point_count"]],
+    ["has", "priceLabel"],
+    ["!", ["coalesce", ["get", "drops"], false]],
+    ["!", ["coalesce", ["get", "provisional"], false]],
+    ["!=", ["coalesce", ["get", "standing"], ""], "confirmed"],
+    ["!", ["has", "whatsOn"]],
+  ];
+  if (bandMemberIds.length > 0) {
+    conditions.push(["!", ["in", ["get", "id"], ["literal", [...bandMemberIds]]]]);
+  }
+  if (selectedId) conditions.push(["!=", ["get", "id"], selectedId]);
+  return ["all", ...conditions];
+}
 
 /**
  * Filter for the dedicated selected-pin layer (`pubs-point-selected`): exactly

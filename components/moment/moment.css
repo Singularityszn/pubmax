@@ -125,6 +125,8 @@
   min-height: 220px;
   padding: 24px;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
   place-items: center;
   align-content: center;
   gap: 7px;
@@ -138,10 +140,9 @@
   text-align: center;
 }
 .momentMediaPicker:hover { border-color: color-mix(in srgb, var(--brass) 55%, var(--line)); background: color-mix(in srgb, var(--brass) 8%, var(--paper)); }
-.momentMediaPicker strong { color: var(--ink); font-size: 15px; }
-.momentMediaPicker span { color: var(--muted); font-size: 12px; max-width: 30ch; text-align: center; }
-/* One sentence per line: a figure never parts from its unit at a wrap. */
-.momentMediaPickerLine { white-space: nowrap; }
+.momentMediaPicker strong { color: var(--ink); font-size: 0.9375rem; }
+.momentMediaPicker span { color: var(--muted); font-size: 0.75rem; max-width: 30ch; text-align: center; }
+.momentMediaPickerLine { display: block; text-wrap: balance; }
 .momentMediaPicker input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); }
 
 /* Desktop drag-drop affordance (D1.4). Phone keeps the quieter picker. */

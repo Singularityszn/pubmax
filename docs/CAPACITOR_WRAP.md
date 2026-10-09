@@ -3,17 +3,37 @@
 PUBMAXXING ships to the App Store as a Capacitor shell around the production PWA.
 The Next.js app is **server-rendered** — there is no static export — so the
 shells run in **remote-URL mode**: `capacitor.config.ts` points
-`server.url` at `https://pubmaxxing.com` and the WKWebView loads the live site.
-Do not attempt `next export`; `webDir: "native/web-stub"` (a two-file
-placeholder page) exists only to satisfy the CLI's copy step and is never
+`server.url` at `https://pubmaxxing.com/` and `server.appStartPath` at
+`app-entry`. The origin must stay at the root because Capacitor iOS checks
+sibling navigation against `server.url` as a URL prefix. This static document runs
+the entry decision and replaces itself with onboarding or Tonight before the
+WKWebView loads any React or landing assets. A launch with any stored city
+value, no first-run mark and no unfinished step opens Tonight. Tonight reads
+that value through `readPreferredCity()`, so a disabled or unparseable city
+falls back to London.
+If the entry script never runs, the document's refresh hands the launch to the
+root after two seconds. Where a registered service worker controls the page,
+its offline handler redirects `/app-entry` to the root's cached document and
+entry decision. Older binaries still enter through the root's pre-paint script.
+Do not attempt `next export`; `webDir: "native/web-stub"` is a small
+stub directory that satisfies the CLI's copy step and the local start-file check. It is never
 served during a healthy launch — pointing webDir at `public/` would bake its ~6 MB of
 datasets/screenshots into the iOS binary as dead weight, so don't.
 
-`server.errorPath: "offline.html"` is the one exception: if the first main-frame
-load cannot reach production, Capacitor serves the bundled
+`server.errorPath: "offline.html"` is the one exception: if a main-frame
+load cannot reach the configured origin, the shell serves the bundled
 `native/web-stub/offline.html`. It says that live data is unavailable, shows no
-stale prices or times, and offers a retry. The site's service worker remains the
-later-session fallback after at least one healthy remote load.
+stale prices or times, and offers a retry. iOS ignores cancelled navigations and
+uses this page only for connection failures. Other navigation failures do not
+turn into "No connection". HTTP responses keep the site's own page.
+
+The site's service worker can provide a later-session fallback after registration.
+The current iOS shell does not expose `navigator.serviceWorker`, so it cannot
+register that fallback. The app-bound opt-in remains withheld until usable
+offline behavior is proven. The bundled outage page remains the iOS fallback.
+WebKit's HTTP cache does not prove worker registration.
+The [lane A simulator record](proof/ios-shell-lane-a/README.md#the-withdrawn-service-worker-experiment)
+contains the withdrawn worker experiment and its offline dependency failures.
 
 On Android, "Try again" returns to the page that failed, so a shared plan link
 opened with no signal is not lost. `OfflineRetryWebViewClient` records the one
@@ -21,10 +41,31 @@ failed main-frame URL in memory and `OfflineRetryDestination` hands it back when
 the offline page asks for the site root. The shell replaces the offline page
 with it, so Back never returns to a stale offline page. It holds only a network
 failure or an HTTP status a retry can fix (5xx, 408 or 429), never a page that
-is gone. It never replays `/auth/callback`, the marked callback landing, or a
-URL that carries a credential parameter. When nothing safe is held, the button
-goes to the root as before. iOS does not do this yet: the shell has no seam
-that records the failed URL, so the same button there goes to the root.
+is gone. Other HTTP errors, including 401, 403, 404 and 410, keep the site's
+own response instead of showing "No connection". Subresource HTTP errors never
+open the offline page. It never replays `/auth/callback`, the marked callback
+landing, or a URL that carries a credential parameter. When nothing safe is
+held, the button goes to the root as before.
+
+On iOS, `ShellBridgeViewController` keeps Capacitor's navigation delegate and
+forwards its other callbacks. `OfflineRetryDestination` retains one safe failed
+URL in memory, including its query and fragment. The bundled retry button returns
+to that URL at the configured origin, including a local simulator origin. An
+authentication callback, credential-bearing URL, or URL outside that origin
+falls back to the configured `app-entry` route, as does a missing failed URL.
+Retry replaces the offline page in history. A safe production-homepage retry
+keeps `/` as its destination. Back and Forward do not trigger retry matching.
+The UIScene launch and link handlers remain in `SceneDelegate`.
+
+In a live document, the iOS edge swipe dispatches `pubmax:ios-back` through the
+site's existing panel-first policy. Its listener mounts with the immediate shell
+lifecycle, before optional native feature chunks arrive. With neither an open
+panel nor history, iOS stays on the current page. In the bundled outage document, the native handler
+uses WebKit's existing history directly, or stays in place when no history exists.
+Android keeps its hardware Back lifecycle. The iOS wrapper delays Capacitor's
+plugin reset until a replacement document commits. A cancelled provisional load
+retains the visible document's listeners.
+OAuth callbacks close the system browser before the app changes routes.
 
 ## Cold start
 
@@ -122,8 +163,9 @@ to a plain fetch of the same URL.
 | iOS capabilities (push, associated domains) | `ios/App/App/App.entitlements`, referenced by both build configurations |
 | iOS privacy manifest | `ios/App/App/PrivacyInfo.xcprivacy` (mirrors STORE_READINESS section 5) |
 | Foreground location declarations | `ios/App/App/Info.plist`, `android/app/src/main/AndroidManifest.xml` |
+| Microphone and speech declarations | `ios/App/App/Info.plist` (`NSMicrophoneUsageDescription` for Pub Pal voice and for note and plan dictation, `NSSpeechRecognitionUsageDescription` for dictation), `android/app/src/main/AndroidManifest.xml` (`RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`, and microphone hardware not required) |
 | Launch splash release | `lib/nativeSplash.ts`, mounted by `components/native/NativeShellChrome.tsx`; `MainActivity` for the Android offline page (see "Cold start") |
-| Native system-bar seam | `lib/nativeSystemBars.ts`, mounted by `components/native/NativeSystemBars.tsx` |
+| Native system-bar seam | `lib/nativeSystemBars.ts`, mounted by `components/native/NativeSystemBars.tsx`. Android registers `android/app/src/main/java/com/pubmaxx/app/PageSystemBars.java` in `MainActivity`. |
 | Universal/app-link route seam | `lib/nativeDeepLinks.ts`, mounted by `components/native/NativeDeepLinks.tsx` |
 | Push registration seam | `lib/nativePush.ts` → `POST /api/push-tokens` |
 | Token storage (memory + Supabase) | `lib/pushTokenStore.ts`, `app/api/push-tokens/route.ts`, `supabase/migrations/20260717120000_0039_push_tokens.sql` |
@@ -191,8 +233,9 @@ carries no iOS simulator runtime (`xcrun simctl list runtimes` is empty), so
 this project: Xcode 26.6, iOS 26.5 runtime, iPhone 17 Pro simulator, 2026-09-04.
 
 Before sync, hash or copy intentional native files (`AppDelegate.swift`,
-`Info.plist`, `AndroidManifest.xml`, and `MainActivity.java`), then compare them
-afterward. The 2026-07-20 Gate Z refresh did this and sync preserved all four;
+`SceneDelegate.swift`, `Info.plist`, `AndroidManifest.xml`, and
+`MainActivity.java`), then compare them afterward. The 2026-07-20 Gate Z
+refresh did this for four of them and sync preserved all four;
 see `docs/screenshots/WRAPPED_BUILD_GATE_Z_2026-07-20.md`.
 
 ### Reviewing a local build in the shells
@@ -215,6 +258,58 @@ shipped binary changes and `__tests__/nativeWrap.test.ts` holds the unset case
 to `https://pubmaxxing.com`. Run a plain `npx cap sync` before building anything
 you intend to distribute. Proof captured this way says so in its README, because
 a shot of a local build is not a shot of production.
+
+### The UIScene lifecycle (iOS 27)
+
+iOS 27 refuses to launch an app that has not adopted the UIScene lifecycle. A
+free personal-team build of main on an iPhone 17 Pro Max (iOS 27.2) crashed at
+launch with `EXC_BREAKPOINT` in UIKitCore
+`___UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption_block_invoke`.
+The iOS 27.0 simulator enforces it too: a build of the commit before this fix
+(no scene manifest) dies at launch there with the same `EXC_BREAKPOINT`
+(SIGTRAP), and the fixed build launches and renders the site. Reproduce it by
+building the base commit and launching it. Stripping the manifest from an
+already built `App.app` and reinstalling it launched normally in one manual
+check, so that shortcut proves nothing. The source fence in
+`__tests__/nativeWrap.test.ts` also holds the manifest and the delegate files.
+
+The Info.plist manifest follows Capacitor 8.5's `npx cap migrate` output
+(template in `@capacitor/cli`). The delegates do not. The CLI template's
+SceneDelegate builds the window by hand, and this app lets the `Main` storyboard
+build it instead. The CLI template's AppDelegate also returns the scene
+configuration from `configurationForConnecting`, and this app leaves that out
+because the manifest already names the delegate class.
+
+- `ios/App/App/Info.plist` carries `UIApplicationSceneManifest`: one scene
+  (multiple scenes off), storyboard `Main`, delegate
+  `$(PRODUCT_MODULE_NAME).SceneDelegate`.
+- `ios/App/App/SceneDelegate.swift` is its own file in the App target. It
+  forwards `willConnectTo`, `openURLContexts` and `continue userActivity` to
+  Capacitor's `SceneDelegateProxy`. A cold-start `pubmaxx://` link or universal
+  link is queued by the proxy until the bridge view has appeared. The
+  storyboard `Main` builds the window and its bridge, so the delegate never
+  builds one by hand.
+- `AppDelegate.swift` keeps the APNs token forwarding. UIKit reads the scene
+  delegate class from the manifest's `UISceneDelegateClassName`. The
+  `application(_:open:options:)` and `application(_:continue:restorationHandler:)`
+  forwards are deleted: with a scene manifest UIKit never calls them.
+
+Proof, iPhone 17 simulator on iOS 27.0 (Xcode 27.0), `npm run ios:build`:
+
+- Base commit: crashes at launch with the UIKitCore NoSceneLifecycleAdoption
+  `EXC_BREAKPOINT`. The fixed build launches, stays running and renders the
+  site, with the status bar and safe area intact.
+- Background and foreground: launching Settings and then the app resumes the
+  same process, and the scene moves `Background` then `ForegroundInactive`
+  then active.
+- `pubmaxx://` links: a warm link and a cold-start link both navigated the
+  WebView to `/map` through `SceneDelegate`, and a refused link
+  (`pubmaxx://evil/path`) opened while running was ignored. `xcrun simctl
+  openurl` stops at the system "Open in PUBMAXXING?" prompt, which needs a tap.
+- Not run: the free personal-team build on a physical iPhone (iOS 27.2), and
+  iOS 26, because no iOS 26 simulator runtime is installed on this Mac.
+- Push token forwarding and the entitlements are unchanged, and still need a
+  signed device (step 10).
 
 ## Remaining manual steps (need Apple developer access)
 

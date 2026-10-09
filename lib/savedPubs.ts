@@ -108,7 +108,7 @@ function hasStorage(): boolean {
 // bounded string is valid for the localStorage store. This keeps custom lists
 // (story 33) round-tripping through the signed-out fallback too.
 const MAX_LIST_TYPE = 60;
-function cleanListType(value: unknown): ListType {
+export function cleanListType(value: unknown): ListType {
   return cleanText(value, MAX_LIST_TYPE);
 }
 
@@ -397,7 +397,8 @@ export async function fetchFollowedListsForHandle(
  * Durable toggle: POST to the API when a handle exists, mirroring the change into
  * localStorage so a later signed-out read still reflects it, and returning the
  * fresh DTO list. With no handle (or on any failure) it toggles the local store
- * only and returns null — the caller then reads the local view. Never throws.
+ * only and returns null. With no handle the caller reads the local view; with a
+ * handle, null means the press is unconfirmed. Never throws.
  */
 export async function toggleSaveDurable(
   handle: string,

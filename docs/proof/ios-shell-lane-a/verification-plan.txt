@@ -1,0 +1,20 @@
+Validate the iOS shell repairs without changing Android, map hooks, UIScene routing or installed Capacitor vendor code.
+The shipping configuration must withhold app-bound opt-in. F04 is bounded by the final self-contained native outage page and truthful worker-unavailable documentation.
+Run native generation and npm run verify:no-mistakes sequentially in this worktree. Do not run generation while ESLint or the repository gate is active.
+Run Foundation behavior tests by compiling ios/App/App/OfflineNavigation.swift with ios/Tests/OfflineNavigationTests.swift, then executing the binary.
+Run nativeBackStartup, nativeBackGesture, nativeDeepLinks, nativeOAuth, nativeWrap and nativeFirstRun Vitest suites. The new startup test executes the public event with optional dynamic features unloaded.
+Use the semantic storyboard and Xcode project tests to validate the supported subclass wiring. Do not substitute Swift-source string checks for runtime proof.
+Review docs/proof/ios-shell-lane-a/README.md and its linked final simulator screenshots, native test extracts and runtime JSON.
+Cancellation was driven with the server reachable. Real failure stopped the owned local origin. Native Try again restored the exact failed URL and fragment after recovery.
+Actual edge gestures closed Filters before traversing history and worked before the delayed optional native chunk response.
+The final normal callback matrix ran after the diagnostic query hook was removed. Its error-only SceneDelegate fixture proves handler ordering, not authenticated OAuth or OS association.
+The final production Release simulator build passed unsigned. The generated config retains the production origin, app-entry, UIScene and no app-bound opt-in.
+Do not claim the withdrawn worker experiment or WebKit HTTP cache proves final worker registration. Do not claim physical-device proof, authenticated sign-in, deployment or production-origin runtime retry.
+Keep all active-run fixes within typed pipeline gates. Escalate every ask-user finding verbatim to Firstmate. Do not deploy, migrate, merge or administer shared infrastructure.
+
+After generation and native compilation, archive complete disposable generated native output directories under the existing ignored .tmp-evidence/ios-lane-a path before the JS deadcode gate. Preserve all bytes and proof. Do not hand-edit generated files or change shared lint/knip configuration.
+Use PUBMAX_KNIP_BASE_REF=HEAD for the full verification command. This selects the stricter full-tree Knip mode and avoids the branch comparison helper creating another worktree. The task prohibits worktree administration. Do not use fake report or ahead-count overrides.
+
+All raw simulator rig output is now archived under .tmp-evidence/ios-lane-a/raw-rig. Keep future large generated or diagnostic output within .tmp-evidence. The deployment-ignore regression passes without a shared policy edit.
+
+Host ENOSPC was preserved in docs/proof/ios-shell-lane-a/full-gate-disk-failure.txt. Firstmate authorized five exact unused Next-output removals after open-file checks. The reclamation JSON accounts for every path and byte count. The six affected suites then passed all 142 tests. Keep the tested native binary and raw xcresult evidence. Escalate any repeated capacity failure before another heavy retry.

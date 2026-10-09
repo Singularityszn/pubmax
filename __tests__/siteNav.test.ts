@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 // href shape under test is the same one the mobile FAB produces.
 vi.mock("next/navigation", () => ({
   usePathname: () => "/tonight",
+  useRouter: () => ({ prefetch: () => {} }),
 }));
 vi.mock("@/components/command/CommandPaletteProvider", () => ({
   useCommandPalette: () => ({ open: () => {} }),

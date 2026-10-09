@@ -70,6 +70,7 @@ const FUNCTIONAL_TRANSLUCENCY = [
   "components/identity/accountOnboarding.css", // dialog backdrop
   "components/identity/contributionGate.css", // dialog backdrop
   "components/pal/palChat.css", // floating composer bar
+  "components/plan/planTuneSheet.css", // the Plan result's settings sheet: the sheet material
   "components/pubpal/pubPal.css", // the Pal summon control floating over the map
   "components/pubs/pubsGallery.css", // lightbox chrome over a photo
 ];

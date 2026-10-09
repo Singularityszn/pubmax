@@ -2,6 +2,8 @@ package com.pubmaxx.app;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
@@ -67,6 +69,22 @@ public class OfflineRetryDestinationTest {
         assertEquals(VENUE, policy.retryTarget(ERROR_PAGE, ORIGIN, true));
         policy.recordFailure(VENUE, true);
         assertEquals(VENUE, policy.retryTarget(ERROR_PAGE, ORIGIN, true));
+    }
+
+    @Test
+    public void onlyRetryableMainFrameHttpErrorsOpenTheOfflinePage() {
+        for (int status : new int[] { 400, 401, 403, 404, 410, 422 }) {
+            OfflineRetryDestination policy = policy();
+            policy.recordFailure(VENUE, true);
+            assertFalse(policy.recordHttpFailure(ORIGIN + "/no-such-page", true, status));
+            assertNull(policy.retryTarget(ERROR_PAGE, ORIGIN, true));
+        }
+        for (int status : new int[] { 408, 429, 500, 502, 503, 504 }) {
+            OfflineRetryDestination policy = policy();
+            assertTrue(policy.recordHttpFailure(VENUE, true, status));
+            assertEquals(VENUE, policy.retryTarget(ERROR_PAGE, ORIGIN, true));
+            assertFalse(policy.recordHttpFailure(ORIGIN + "/tile.png", false, status));
+        }
     }
 
     @Test

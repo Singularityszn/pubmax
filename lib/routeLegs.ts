@@ -29,6 +29,9 @@ import type { Venue } from "@/lib/venues";
 // label it "straight-line" rather than pretend otherwise).
 export const WALK_KMH = 4.8;
 
+/** The transport basis a generated stop carries when its walk in was routed on foot. */
+export const ROUTED_WALK_TRANSPORT_BASIS = "openrouteservice foot-walking route duration";
+
 // Cheap "runner" toggle (story 25 nicety): a steady easy-run pace. One extra
 // constant, no new distance math — the same leg distances, a different pace.
 export const RUN_KMH = 9;

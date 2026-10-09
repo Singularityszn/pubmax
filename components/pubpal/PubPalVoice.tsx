@@ -34,7 +34,7 @@ const PubPalVoiceSession = dynamic(
 export type PalVoiceAvailability = "asking" | "available" | "unavailable";
 
 export const PAL_VOICE_UNAVAILABLE_LINE =
-  "Voice is not switched on here yet. Ask me in writing and you get the same grounded answers.";
+  "Voice isn't switched on here yet. Ask me in writing and you'll get the same answers.";
 const PAL_VOICE_MUTED_LINE =
   "Voice is muted. Ask me in writing or turn voice back on when you want it.";
 

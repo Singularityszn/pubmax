@@ -176,7 +176,7 @@ describe("the composer's own words carry the real number", () => {
   });
 
   it("in every refusal about size", () => {
-    expect(momentPhotoTooLargeLine()).toContain(`${MOMENT_PICK_MAX_BYTES / MB} MB`);
+    expect(momentPhotoTooLargeLine()).toContain(`${MOMENT_PICK_MAX_BYTES / MB}\u00a0MB`);
     expect(MOMENT_PHOTO_FIT_FAILED_LINE).toContain(UPLOAD_PHOTO_MAX_LABEL);
     expect(momentPhotoStillTooLargeLine("night.jpg")).toContain("night.jpg");
     expect(momentPhotoStillTooLargeLine("night.jpg")).toContain(UPLOAD_PHOTO_MAX_LABEL);

@@ -190,7 +190,7 @@ export function nightCrawlActionNote(
   void type;
   void venueName;
   if (outcome === "offline" && options?.queued) {
-    return "Held on this phone. We will try again when you have signal.";
+    return "Held on this phone. We'll try again when you've got signal.";
   }
   return "That did not save. Try again when you have signal.";
 }

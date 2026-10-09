@@ -511,7 +511,7 @@ function RoundBoard({
             return (
               <li key={m.handle} className={`roundMemberChip${here ? " roundMemberChipHere" : ""}`}>
                 {here ? (
-                  <span className="roundHereDot" title="Here now, self-shared, ephemeral" aria-label="here now" />
+                  <span className="roundHereDot" title="Here now. They tapped I'm here themselves in the last two hours." aria-label="here now" />
                 ) : null}
                 <Link href={`/u/${m.handle}`}>@{m.handle}</Link>
                 {m.handle === round.createdByHandle ? <span className="roundHostTag">host</span> : null}
@@ -1114,7 +1114,7 @@ function RoundSpendComposer({
             ) : null}
 
             <p className="roundPriceTrust">
-              Drink lines you type are first-party price logs. One person&apos;s
+              Drink lines you type count as your own price logs. One person&apos;s
               log stays off the price map until another drinker backs it. A line
               marked diary only is never logged as a price.
             </p>
@@ -1158,8 +1158,8 @@ function diaryOnlyCaption(diaryOnly: number): string {
 
 function supersededCaption(superseded: number): string {
   return superseded === 1
-    ? "One earlier line was superseded by a later price from this account."
-    : `${superseded} earlier lines were superseded by later prices from this account.`;
+    ? "A later price from this account replaced one earlier line."
+    : `Later prices from this account replaced ${superseded} earlier lines.`;
 }
 
 export function RoundSpendHistory({

@@ -137,6 +137,7 @@ function CityList({ preferredCity }: { preferredCity: CityId | null }) {
       kicker={PLACES_KICKER}
       title={PLACES_TITLE}
       lede={PLACES_LEDE}
+      actionsAfterContent
       primary={
         <Link prefetch={false} href={placesCityHref("london")}>
           {PLACES_LIST_PRIMARY_LABEL}

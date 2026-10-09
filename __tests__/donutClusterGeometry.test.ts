@@ -3,23 +3,46 @@ import { describe, expect, it } from "vitest";
 import {
   buildDonutMarkerSvg,
   buildDonutStrokeSegments,
+  DONUT_BADGE_MIN,
+  DONUT_CASING_PX,
+  DONUT_RING_PX,
   donutOuterRadius,
   donutTotal,
   formatDonutCount,
+  readMinPrice,
   type DonutCounts,
+  type DonutMarkerSvgParams,
 } from "@/lib/donutClusterGeometry";
 import { defined } from "@/__tests__/helpers/defined";
 
 const COLORS = ["#2f8f5b", "#d99f45", "#d16353", "#6b726a"];
 
 describe("donutOuterRadius", () => {
-  it("mirrors the product-weight cluster-circle step expression", () => {
-    expect(donutOuterRadius(1)).toBe(11);
-    expect(donutOuterRadius(24)).toBe(11);
-    expect(donutOuterRadius(25)).toBe(15);
-    expect(donutOuterRadius(99)).toBe(15);
-    expect(donutOuterRadius(100)).toBe(20);
-    expect(donutOuterRadius(1000)).toBe(20);
+  it("is one of two sizes by zoom, and never grows with the count", () => {
+    // 44px below the street-band hand-off, 36px from it. The count is the small
+    // number on the rim, so a bigger cluster is not a bigger disc.
+    expect(donutOuterRadius(10.7)).toBe(22);
+    expect(donutOuterRadius(12.99)).toBe(22);
+    expect(donutOuterRadius(13)).toBe(18);
+    expect(donutOuterRadius(13.9)).toBe(18);
+  });
+});
+
+describe("readMinPrice", () => {
+  it("reads the cheapest price a cluster's pubs say", () => {
+    expect(readMinPrice({ minPrice: 5.4 })).toBe(5.4);
+    expect(readMinPrice({ minPrice: "4.95" })).toBe(4.95);
+  });
+
+  it("answers null where no pub in the cluster says a price", () => {
+    // 9999 is what a silent pub contributes to the `min`, so a cluster still at
+    // it has nothing to claim and prints its count.
+    expect(readMinPrice({ minPrice: 9999 })).toBeNull();
+    expect(readMinPrice({})).toBeNull();
+    expect(readMinPrice(null)).toBeNull();
+    expect(readMinPrice({ minPrice: 0 })).toBeNull();
+    expect(readMinPrice({ minPrice: -3 })).toBeNull();
+    expect(readMinPrice({ minPrice: Number.NaN })).toBeNull();
   });
 });
 
@@ -73,15 +96,23 @@ describe("formatDonutCount", () => {
 });
 
 describe("buildDonutMarkerSvg", () => {
-  it("renders an svg with one circle per non-zero bucket plus the count label", () => {
-    const svg = buildDonutMarkerSvg({
-      counts: [2, 1, 0, 0],
-      colors: COLORS,
-      ringColor: "#ffffff",
-      textColor: "#111111",
-    });
+  const params = (over: Partial<DonutMarkerSvgParams> = {}): DonutMarkerSvgParams => ({
+    counts: [2, 1, 0, 0],
+    colors: COLORS,
+    discColor: "#fffdf9",
+    casingColor: "#0b0b0d",
+    trackColor: "#666670",
+    textColor: "#111111",
+    outerRadius: 22,
+    figure: null,
+    ...over,
+  });
+  const widthOf = (svg: string) => Number(/width="([\d.]+)"/.exec(svg)?.[1]);
+
+  it("renders one ring segment per non-zero bucket and the count when there is no price", () => {
+    const svg = buildDonutMarkerSvg(params());
     expect(svg).toContain("<svg");
-    expect(svg).toContain(">3<"); // total count in the hole
+    expect(svg).toContain(">3<"); // the count, where no pub says a price
     expect((svg.match(/data-bucket="0"/g) ?? []).length).toBe(1);
     expect((svg.match(/data-bucket="1"/g) ?? []).length).toBe(1);
     expect(svg).not.toContain('data-bucket="2"');
@@ -90,20 +121,57 @@ describe("buildDonutMarkerSvg", () => {
     expect(svg).toContain(COLORS[1]);
   });
 
-  it("scales size with the legacy radius steps", () => {
-    const small = buildDonutMarkerSvg({
-      counts: [10, 0, 0, 0],
-      colors: COLORS,
-      ringColor: "#fff",
-      textColor: "#000",
-    });
-    const large = buildDonutMarkerSvg({
-      counts: [150, 0, 0, 0],
-      colors: COLORS,
-      ringColor: "#fff",
-      textColor: "#000",
-    });
-    const widthOf = (svg: string) => Number(/width="([\d.]+)"/.exec(svg)?.[1]);
-    expect(widthOf(large)).toBeGreaterThan(widthOf(small));
+  it("is a paper disc on an ink casing, with the band as a ring and never a fill", () => {
+    const svg = buildDonutMarkerSvg(params());
+    const circles = svg.match(/<circle [^>]*>/g) ?? [];
+    // casing, paper, track, then one per segment
+    expect(circles[0]).toContain('fill="#0b0b0d"');
+    expect(circles[1]).toContain('fill="#fffdf9"');
+    for (const segment of circles.filter((c) => c.includes("data-bucket"))) {
+      expect(segment).toContain('fill="none"');
+      expect(segment).toContain('stroke-width="3"');
+    }
+    // No band colour is ever a fill.
+    for (const colour of COLORS) expect(svg).not.toContain(`fill="${colour}"`);
+  });
+
+  it("prints the cheapest price in the middle and the count on the rim from ten pubs up", () => {
+    const priced = buildDonutMarkerSvg(params({ counts: [60, 20, 14, 0], figure: "£3.20" }));
+    expect(priced).toMatch(/data-role="figure">£3\.20</);
+    expect(priced).toMatch(/data-role="count">94</);
+    // A small cluster's count says less than its size does, so it stays off.
+    const small = buildDonutMarkerSvg(params({ counts: [2, 1, 0, 0], figure: "£3.20" }));
+    expect(DONUT_BADGE_MIN).toBe(10);
+    expect(small).not.toContain('data-role="count"');
+    // And with no price the count IS the figure, never printed twice.
+    const unpriced = buildDonutMarkerSvg(params({ counts: [60, 20, 14, 0], figure: null }));
+    expect(unpriced).toMatch(/data-role="figure">94</);
+    expect(unpriced).not.toContain('data-role="count"');
+  });
+
+  it("fits the widest price inside the paper within the ring, at both disc sizes", () => {
+    // The figure is set in JetBrains Mono, whose every glyph advances 600/1000
+    // of an em, so a label's width is its length times 0.6 times its size.
+    // Measured live, a fixed 11px "£5.50" was 33px across 27.5px of paper.
+    const ADVANCE_EM = 0.6;
+    const figureWidth = (svg: string, label: string) => {
+      const size = Number(/font-size="([\d.]+)"[^>]*data-role="figure"/.exec(svg)?.[1]);
+      return label.length * ADVANCE_EM * size;
+    };
+    for (const outerRadius of [22, 18]) {
+      const paper = 2 * (outerRadius - DONUT_CASING_PX - DONUT_RING_PX);
+      for (const label of ["£12.50", "£5.50", "1.5k", "94"]) {
+        const svg = buildDonutMarkerSvg(params({ outerRadius, figure: label }));
+        expect(figureWidth(svg, label)).toBeLessThan(paper);
+      }
+    }
+    // A short figure keeps the full size: only a long one steps down.
+    const count = buildDonutMarkerSvg(params({ outerRadius: 22, counts: [60, 20, 14, 0] }));
+    expect(count).toMatch(/font-size="12"[^>]*data-role="figure">94</);
+  });
+
+  it("is the size the radius says, 44px and 36px", () => {
+    expect(widthOf(buildDonutMarkerSvg(params({ outerRadius: 22 })))).toBe(44);
+    expect(widthOf(buildDonutMarkerSvg(params({ outerRadius: 18 })))).toBe(36);
   });
 });

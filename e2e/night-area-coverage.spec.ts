@@ -95,7 +95,7 @@ test("mobile planner announces concierge progress while it finds a route", async
   await expect(concierge).toHaveAttribute("aria-busy", "true");
   await expect(page.getByRole("button", { name: "Planning…" })).toBeDisabled();
   await expect(page.locator("#plan-concierge-status")).toContainText(
-    "checking confidence and picking stops we can back up",
+    "picking stops we can back up",
   );
   releaseGenerate();
   await expect(page.locator(".planComposer__error")).toContainText("The planner is unavailable right now.");
@@ -140,6 +140,8 @@ test("mobile planner keeps the inferred Night Area context editable", async ({ p
   await page.getByLabel("Describe the outing").fill("A calm night in Clapham for four");
   await page.getByRole("button", { name: "Make a plan" }).click();
 
+  // The route comes first; the inferred context is one tap away, in the sheet.
+  await page.getByRole("button", { name: "Tune details" }).click();
   await expect(page.getByRole("combobox", { name: "Area" })).toHaveValue("clapham");
   await page.getByRole("combobox", { name: "Area" }).selectOption("victoria");
   await page.getByRole("combobox", { name: "Time" }).selectOption("late_night");

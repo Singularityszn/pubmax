@@ -46,7 +46,8 @@ vi.mock("@/lib/softKeyboard", () => ({
   serverSoftKeyboardOpen: () => false,
   subscribeSoftKeyboard: () => () => {},
 }));
-vi.mock("@/lib/useFocusTrap", () => ({
+vi.mock("@/lib/useFocusTrap", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/useFocusTrap")>(),
   readStrictModalFocusTrap: () => false,
   serverStrictModalFocusTrap: () => false,
   subscribeStrictModalFocusTrap: () => () => {},

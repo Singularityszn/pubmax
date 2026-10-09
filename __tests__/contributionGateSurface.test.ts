@@ -29,7 +29,7 @@ describe("contribution identity gate", () => {
     expect(html).toContain("Choose a handle");
     expect(html).toContain('href="/u/you"');
     expect(html).toContain(
-      "Contributions carry your public handle, so pick one before you log a price.",
+      "Pick a handle before you log a price.",
     );
   });
 

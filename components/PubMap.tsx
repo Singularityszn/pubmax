@@ -6102,7 +6102,7 @@ export default function PubMap({
           </div>
           {routeMappedActive ? <Button variant="secondary" onClick={hideMappedRoute}>Hide active route</Button> : null}
           <div className="mobileLayersTheme">
-            <div><strong>Map appearance</strong><small>Theme changes preserve this view and its active sheet.</small></div>
+            <div><strong>Map appearance</strong><small>Switching theme keeps this view and the open sheet.</small></div>
             <ThemeToggle />
           </div>
           <Button
@@ -6176,7 +6176,7 @@ export default function PubMap({
             map to this device's saved pubs. Empty state when nothing is
             saved yet points at Save on a pub sheet. */}
         <section className="toggles mobileMapSavedOnly">
-          <label aria-label={SAVED_ONLY_ARIA_LABEL} style={{ minHeight: 44 }}>
+          <label aria-label={SAVED_ONLY_ARIA_LABEL} style={{ minHeight: "var(--control-height, 44px)" }}>
             <input
               type="checkbox"
               checked={savedOnly}
@@ -6407,7 +6407,7 @@ export default function PubMap({
           <div className="mobilePalSummon">
             <PubPalMascot size={64} circular />
             <h3>Your Pub Pal is ready</h3>
-            <p>Ask for a grounded pub pick, a bit of lore, or help shaping tonight.</p>
+            <p>Ask for a pub pick from what we have on record, a bit of lore, or help planning tonight.</p>
             <Link prefetch={false} href="/pal">Open Pub Pal</Link>
             <small><ShieldCheck size={14} aria-hidden="true" /> It never changes a plan or posts a memory without confirmation.</small>
           </div>

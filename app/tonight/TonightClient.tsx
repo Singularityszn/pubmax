@@ -181,6 +181,10 @@ function mobileSecondaryLanes(lanes: ReactNode): ReactNode {
 // and what else is worth planning around.
 const THIN_NIGHT_MAX_ROWS = 2;
 
+function isThinNight(empty: boolean, ready: boolean, listingCount: number): boolean {
+  return empty || (ready && listingCount <= THIN_NIGHT_MAX_ROWS);
+}
+
 type QuietAlternative = {
   href: Route;
   icon: typeof TrainFront;
@@ -498,7 +502,7 @@ export default function TonightClient({
   // Unfiltered primary listing count, not the kind-filtered `visible.length` - a thin
   // night stays thin regardless of which chip is active, and this must not
   // flicker in/out as the user taps filters.
-  const thinNight = empty || (ready && primaryListingRows.length <= THIN_NIGHT_MAX_ROWS);
+  const thinNight = isThinNight(empty, ready, primaryListingRows.length);
   const hasGeoRows =
     ready &&
     primaryListingRows.some(
@@ -539,31 +543,15 @@ export default function TonightClient({
       <SiteNav active="tonight" />
       <NowSegment current="tonight" />
 
-      {/* The head is the Screen primitive (docs/design/LAUNCH_SCREENS.md), and
-          the Screen is the desktop grid: its head takes the first cell, the
-          listing spine follows it down the primary column, and the context rail
-          sits beside them. The map is the one primary, because that is where
-          tonight's listings become a pint; Find my pint is the quieter way
-          onward.
-
-          THE LISTINGS ARE THE ANSWER, SO NOTHING THAT ACTS ON THEM STANDS IN
-          FRONT OF THEM. This page put the head, its two doors, the freshness
-          credits, the share control and nine vibe chips above the first row: at
-          390x844 the row began at y=868 against a tab bar at y=788, and at
-          320x568 at y=972 against y=514, so a phone met no listing at all. The
-          way-onward row now ends the screen (`actionsAfterContent`), and the
-          credits and the vibe chips follow the list. Only the head's words and
-          the list's own kind filter come first, which puts the first row at
-          y=413 at all three phone widths. Every move is a DOM move, so the
-          reading order, the tab order and the paint order stay one order.
-          Measured in docs/proof/tonight-first-row-fold/. */}
+      {/* Screen composition follows docs/design/LAUNCH_SCREENS.md. The
+          answer-before-actions contract belongs to
+          docs/rules/app-landing-city-and-listing-pages.md. */}
       <Screen
         as="div"
         className="tonightDesktopGrid"
         kicker="Tonight in London"
         title={tonightHeading(localityBasis)}
         titleId="tonight-title"
-        lede={listingLede}
         primary={
           <Link prefetch={false} href="/map" className="tonightFootLink">
             See them on the map
@@ -576,21 +564,13 @@ export default function TonightClient({
         }
         actionsAfterContent
       >
-      {/* The weather line is one sentence about the night, so it reads before
-          the lede at every width: it is the only thing between the head and
-          the pubs. */}
-      <div className="tonightWeather">
-        <TonightConditionsStrip origin={origin} tonightMode />
-      </div>
-
       <div className="tonightPrimary" data-status={listingsStatus}>
-      {/* THE LEDE REGION. What a reader meets first is the pubs people are
-          talking about, then the independent listings, then the honest quiet
-          sentence, and nothing else may stand inside it. The chain blocks and
-          the cheap pints follow it in the DOM, so the reading order, the tab
-          order and the paint order stay one order (#1575). */}
+      {/* The lede membership follows the Tonight rule in
+          docs/rules/app-proxy-csp-caching-and-file-tracing.md. Chain blocks
+          and cheap pints stay outside it so they cannot lead the answer. */}
       <div className="tonightLedeRegion" data-testid="tonight-lede">
       <TonightHypedPubs rows={hypedPubs} selectableVenueIds={selectableVenueIds} />
+      {listingLede ? <p className="screenLede">{listingLede}</p> : null}
       <TonightListingsNotice
         state={listingsState}
         note={listingsNote}
@@ -867,6 +847,12 @@ export default function TonightClient({
       </div>
       </div>
 
+      {/* The first pub and its map action precede the listing explanation and
+          weather at every width. Both details remain available below it. */}
+      <div className="tonightWeather">
+        <TonightConditionsStrip origin={origin} tonightMode />
+      </div>
+
       {/* The freshness stamp and the share control sit UNDER the listings they
           are about. A stamp is a footnote on the data, and nobody shares a list
           they have not read yet. */}
@@ -880,14 +866,8 @@ export default function TonightClient({
         <TonightShareButton />
       </div>
 
-      {/* THE RAIL (site audit D8) is ONE element AFTER the lede in the DOM. A
-          phone reads its blocks under the lede in the order it always had: vibe
-          chips, the full Deals and Music lanes, the editorial rail, the soft
-          plans and the area news. From 1100px the same element is the column
-          beside the lede, in the same order and with no gap. `.tonightPrimary`
-          above holds the lede and nothing else, so no chain row can stand
-          inside it. From 1100px the full lanes hide and the rail summary stands
-          in for them. */}
+      {/* The rail's membership and order belong to the Tonight rule in
+          docs/rules/app-proxy-csp-caching-and-file-tracing.md. */}
       <aside className="tonightContext" aria-label="Tonight at a glance">
         {ready ? (
           <TonightOnTonightSummary

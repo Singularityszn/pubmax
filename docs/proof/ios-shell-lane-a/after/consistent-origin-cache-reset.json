@@ -1,0 +1,16 @@
+{
+  "id": "1791453567305",
+  "value": {
+    "origin": "http://localhost:3491",
+    "removed": [
+      "http://localhost:3491/"
+    ],
+    "cacheNames": [
+      "pubmax-sw-shell-local-ios-lane-a",
+      "pubmax-sw-preview-plan-v2-local-ios-lane-a",
+      "pubmax-sw-swr-local-ios-lane-a",
+      "pubmax-sw-data-local-ios-lane-a"
+    ],
+    "storagePreserved": "1"
+  }
+}

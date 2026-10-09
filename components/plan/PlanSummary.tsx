@@ -718,7 +718,7 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
               Discard draft
             </button>
           </div>
-        ) : <p className="planSummary__editorNote">Explain the change in Crew decisions. Only the host can make it canonical.</p>}
+        ) : <p className="planSummary__editorNote">Explain the change in Crew decisions. Only the host can make it the plan&apos;s route.</p>}
       </div>
 
     );
@@ -781,7 +781,7 @@ function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState
             setLocalStops(canonicalStops);
             setLocalAuthority(null);
             setEditing(false);
-            announce("Proposal sent. Your private draft was cleared; the canonical route is unchanged until the host accepts.");
+            announce("Proposal sent. We cleared your private draft. The plan's route stays as it is until the host accepts.");
           }}
         />
       ) : null}

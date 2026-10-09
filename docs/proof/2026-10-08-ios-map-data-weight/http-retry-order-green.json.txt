@@ -1,0 +1,10 @@
+{
+  "baseHead": "68f887a2bc2d7f06026b131fa40ac4a649576b61",
+  "sourceState": "working tree correction",
+  "thread": "https://github.com/Singularityszn/pubmax/pull/2074#discussion_r4218626152",
+  "retry": "2026-10-08T10:00:00.000Z",
+  "earlier": "2026-10-08T09:00:00.000Z",
+  "reused": "2026-10-08T10:00:00.000Z",
+  "httpRequests": 2,
+  "expectedReused": "2026-10-08T10:00:00.000Z"
+}

@@ -52,6 +52,9 @@ test("mobile Plan flow stays tappable and usable at 390px", async ({ page }) => 
   await page.getByRole("button", { name: "Make a plan" }).click();
 
   await expect(page.locator("#plan-concierge-status")).toContainText("stops we can stand behind");
+  // The route is the page. Every setting is one tap away, in the Tune details sheet.
+  await expect(page.locator(".planComposer__context")).toHaveCount(0);
+  await page.getByRole("button", { name: "Tune details" }).click();
   await expect(page.getByRole("combobox", { name: "Area" })).toHaveValue("clapham");
   await expect(page.getByRole("spinbutton", { name: "People" })).toHaveValue("4");
 
@@ -93,6 +96,7 @@ test("mobile Plan flow stays tappable and usable at 390px", async ({ page }) => 
   await page.getByRole("spinbutton", { name: "People" }).fill("5");
   await expect(page.getByRole("combobox", { name: "Time" })).toHaveValue("late_night");
   await expect(page.getByRole("spinbutton", { name: "People" })).toHaveValue("5");
+  await page.keyboard.press("Escape");
   const regenerateRoute = page.getByRole("button", { name: "Regenerate route" });
   await expectTouchHeight(regenerateRoute);
   await regenerateRoute.click();
@@ -103,7 +107,8 @@ test("mobile Plan flow stays tappable and usable at 390px", async ({ page }) => 
   await expectTouchHeight(page.getByRole("link", { name: "Explore Clapham pubs on the map" }));
   await expectNoHorizontalOverflow(page);
 
-  await expectTouchHeight(page.getByLabel("Venue name").first());
+  await expectTouchHeight(page.locator(".planStop__surface").first());
+  await expectTouchHeight(page.getByRole("button", { name: /^Swap stop 1/ }));
   await expectTouchHeight(page.getByRole("button", { name: "Remove stop 1" }));
   await expectTouchHeight(page.getByRole("button", { name: "Add another stop" }));
   await expectTouchHeight(page.getByRole("button", { name: "Lock it in" }), 48);
@@ -129,6 +134,7 @@ test("mobile Plan flow stays tappable and usable at 390px", async ({ page }) => 
   // ONE PAINTED PRIMARY. With a route on the page the concierge control keeps
   // its place and its size and says what it now does, without a second coral
   // fill competing with the action above.
+  await page.getByRole("button", { name: "Tune details" }).click();
   const resort = page.getByRole("button", { name: "Sort it again" });
   await expect(resort).toBeVisible();
   await expect(page.getByRole("button", { name: "Make a plan" })).toHaveCount(0);
@@ -144,6 +150,7 @@ test("mobile Plan flow stays tappable and usable at 390px", async ({ page }) => 
   });
   expect(fills.resort).toBe("rgba(0, 0, 0, 0)");
   expect(fills.lock).not.toBe("rgba(0, 0, 0, 0)");
+  await page.keyboard.press("Escape");
 
   // The first tab stop is a tab stop, not a box in the middle of the form.
   // A transformed ancestor turned the old translate-away into a few pixels.

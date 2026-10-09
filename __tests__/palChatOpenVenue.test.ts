@@ -93,6 +93,42 @@ afterEach(async () => {
   container.remove();
 });
 
+async function askPal(text: string): Promise<void> {
+  const input = container.querySelector<HTMLInputElement>(".palChatInput");
+  const form = container.querySelector<HTMLFormElement>("form");
+  if (!input || !form) throw new Error("Pal chat form not found");
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, text);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+  });
+}
+
+describe("Pal locality line", () => {
+  it("names the London-wide scope above venue cards", async () => {
+    await askPal("cheap pint");
+
+    expect(container.querySelector(".palChatLocality")?.textContent).toBe(
+      "Across London. No area set, so these aren't ranked by distance.",
+    );
+  });
+
+  it("shows no locality line under a reply with no cards", async () => {
+    sessionAnswer.value = { ...answer, message: "Hi. What kind of night are you planning?", cards: [] };
+    await askPal("hi there");
+
+    expect(container.textContent).toContain("Hi. What kind of night are you planning?");
+    expect(container.querySelector(".palChatLocality")).toBeNull();
+  });
+
+  it("still names a place it could not place when no cards came back", async () => {
+    sessionAnswer.value = { ...answer, message: "Name a listed pub to check a price.", cards: [] };
+    await askPal("Two cheap pubs in Blackfriars for a quiet pint");
+
+    expect(container.querySelector(".palChatLocality")?.textContent).toContain("Blackfriars");
+  });
+});
+
 describe("Pal venue card navigation", () => {
   it("routes a confirmed fly-to proposal with its place through the client router", async () => {
     sessionAnswer.value = {

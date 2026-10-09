@@ -85,7 +85,7 @@ test.describe("mobile first-run tour", () => {
         actionsRight: actions?.right ?? Number.POSITIVE_INFINITY,
       };
     });
-    await expect(page.locator(".mobileTabBar")).toBeHidden();
+    await expect(page.locator(".mobileTabBar").filter({ visible: true })).toBeHidden();
     expect(geometry.overflow).toBeLessThanOrEqual(1);
     expect(geometry.actionsRight).toBeLessThanOrEqual(390);
   });

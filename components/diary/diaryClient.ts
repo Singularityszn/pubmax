@@ -6,7 +6,8 @@ import {
   accountBoundFetch,
   type AccountAuthSnapshot,
 } from "@/lib/accountBoundFetch";
-import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
+import { authedActionFetch } from "@/lib/authedFetch";
 import {
   readContributionGateStatus,
   type ContributionGateStatus,
@@ -49,4 +50,72 @@ export async function postDiaryEntry(
     };
   }
   return { ok: true, entry: body.entry };
+}
+
+export type DiaryEntryChange = {
+  visitedOn?: string;
+  rating?: number | null;
+  review?: string;
+};
+
+export type DiaryChangeResult =
+  | { ok: true; entry: DiaryEntryDTO }
+  | { ok: false; error: string };
+
+/** Correct an entry the account already logged: its day, stars or words. The
+ * server finds it by id AND the session's account, so it is never another
+ * person's. A day that collides with another log of the same pub answers 409
+ * and the line says so. */
+export async function updateDiaryEntry(
+  id: string,
+  change: DiaryEntryChange,
+): Promise<DiaryChangeResult> {
+  try {
+    const res = await authedActionFetch(
+      "/api/diary",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "update", id, ...change }),
+      },
+      { requiresIdentity: true },
+    );
+    const body = (await res.json().catch(() => ({}))) as { entry?: DiaryEntryDTO; error?: unknown };
+    if (!res.ok || !body.entry) {
+      return {
+        ok: false,
+        error: offlineOrMessage(errorMessageFrom(body, "Couldn't save that change just now.")),
+      };
+    }
+    return { ok: true, entry: body.entry };
+  } catch {
+    return { ok: false, error: offlineOrMessage("Couldn't save that change just now.") };
+  }
+}
+
+/** Remove an entry the account logged. */
+export async function deleteDiaryEntry(
+  id: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const res = await authedActionFetch(
+      "/api/diary",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete", id }),
+      },
+      { requiresIdentity: true },
+    );
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: unknown };
+      return {
+        ok: false,
+        error: offlineOrMessage(errorMessageFrom(body, "Couldn't remove that entry just now.")),
+      };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, error: offlineOrMessage("Couldn't remove that entry just now.") };
+  }
 }

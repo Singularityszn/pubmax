@@ -185,6 +185,68 @@ export function validateDiaryEntryCreate(
   };
 }
 
+/** The fields a person may correct on an entry they already logged. */
+export type DiaryEntryPatch = {
+  visitedOn?: string;
+  rating?: RatingValue | null;
+  review?: string;
+};
+
+export type DiaryEditValidation =
+  | { ok: true; value: DiaryEntryPatch }
+  | { ok: false; error: string };
+
+/**
+ * Validate a correction to an existing entry. Only the three things a person
+ * wrote can change: the day, the stars and the words. The pub is the entry's
+ * identity, so it never moves, and a body that names nothing to change is
+ * refused rather than answered with a no-op. A key that is present is checked
+ * with the same rules as logging it (`validateDiaryEntryCreate`), and a rating
+ * of null clears the stars. Pure.
+ */
+export function validateDiaryEntryEdit(
+  input: { visitedOn?: unknown; rating?: unknown; review?: unknown },
+  now: Date = new Date(),
+): DiaryEditValidation {
+  const patch: DiaryEntryPatch = {};
+
+  if (input.visitedOn !== undefined) {
+    const visitedOn =
+      input.visitedOn === null || input.visitedOn === ""
+        ? null
+        : resolveDiaryVisitedOn(input.visitedOn, now);
+    if (!visitedOn) {
+      return { ok: false, error: "Pick the day you were there. It cannot be in the future." };
+    }
+    patch.visitedOn = visitedOn;
+  }
+
+  if (input.rating !== undefined) {
+    if (input.rating === null || input.rating === "") {
+      patch.rating = null;
+    } else {
+      const rating = parseRating(input.rating);
+      if (rating === null) {
+        return { ok: false, error: "Pick a rating from 1 to 5 stars, in half stars." };
+      }
+      patch.rating = rating;
+    }
+  }
+
+  if (input.review !== undefined) {
+    const review = cleanDiaryReview(input.review);
+    if (diaryReviewLength(review) > MAX_DIARY_REVIEW) {
+      return { ok: false, error: `Keep the review to ${MAX_DIARY_REVIEW} characters.` };
+    }
+    patch.review = review;
+  }
+
+  if (Object.keys(patch).length === 0) {
+    return { ok: false, error: "Change the day, the rating or the review." };
+  }
+  return { ok: true, value: patch };
+}
+
 /** Reverse chronological by visit day, newest log first within one day. */
 export function compareDiaryEntries(a: DiaryEntry, b: DiaryEntry): number {
   if (a.visitedOn !== b.visitedOn) return a.visitedOn < b.visitedOn ? 1 : -1;

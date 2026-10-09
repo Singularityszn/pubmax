@@ -77,7 +77,7 @@ function accessSummary(
   signals: readonly CommunityVenueSignal[],
   now: number,
 ): string {
-  if (readStatus === "degraded") return "Access unread";
+  if (readStatus === "degraded") return "Could not load access";
   if (readStatus !== "ready") return "Checking access";
   const entrance = communityVenueSignalText(
     "step-free-venue",
@@ -112,7 +112,7 @@ function readerSignalText(
 ) {
   if (readStatus === "degraded") {
     return {
-      primary: "Unread just now.",
+      primary: "Could not load just now.",
       detail: "We could not read what drinkers have logged.",
       trust: "unknown" as const,
     };
@@ -315,7 +315,7 @@ export default function VenueCommunitySignals({
 
             {question === "character" ? (
               <p className="vpsigCharacterNote">
-                Neither character answer is a score. It is your judgement.
+                Neither answer is a score. It is your call.
               </p>
             ) : null}
 

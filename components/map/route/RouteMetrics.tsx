@@ -57,7 +57,7 @@ export default function RouteMetrics({
         </small>
       </div>
       <div
-        title="Haversine (straight-line) distance between stops. Walking distance will be longer."
+        title="Straight-line distance between stops. The walk will be longer."
       >
         <MapPin size={17} />
         <span>{summaryDistance.toFixed(1)} km</span>
@@ -73,7 +73,7 @@ export default function RouteMetrics({
         </div>
       ) : null}
       {typeof journeyTotalMinutes === "number" ? (
-        <div title="Live TfL itinerary between stops via CityMCP London (leave-now).">
+        <div title="Live TfL travel time between stops if you leave now, via CityMCP London.">
           <TrainFront size={17} />
           <span>{Math.round(journeyTotalMinutes)} min</span>
           <small>TfL between stops</small>

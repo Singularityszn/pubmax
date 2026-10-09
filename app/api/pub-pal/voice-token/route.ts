@@ -254,7 +254,7 @@ async function handleIssueToken(userId: string): Promise<Response> {
   const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
   const agentId = process.env.ELEVENLABS_PUB_PAL_AGENT_ID?.trim();
   if (!apiKey || !agentId) {
-    return publicApiError("Voice is not configured yet.", "UNAVAILABLE", 503, {
+    return publicApiError("Voice isn't set up yet.", "UNAVAILABLE", 503, {
       retryable: true,
       compatibilityFields: { fallback: "text" },
     });
@@ -265,7 +265,7 @@ async function handleIssueToken(userId: string): Promise<Response> {
   const supabaseConfigured = isSupabaseConfigured();
   const meter = meterFor(userId, month);
   if (!supabaseConfigured && !canPrepayVoiceGrant(meter)) {
-    return publicApiError("Your trial voice allowance is used for this month.", "VOICE_ALLOWANCE_USED", 429, {
+    return publicApiError("You've used this month's trial voice allowance.", "VOICE_ALLOWANCE_USED", 429, {
       compatibilityFields: { fallback: "text", remaining: 0, remainingMinutes: 0 },
     });
   }
@@ -289,19 +289,19 @@ async function handleIssueToken(userId: string): Promise<Response> {
         // grant is refunded on every ambiguous outcome and never on a plain
         // false, which confirms nothing was charged.
         await refundVoiceGrant(admin, userId, usageMonth, meter, grantId);
-        return publicApiError("Voice allowance could not be checked.", "UNAVAILABLE", 503, {
+        return publicApiError("We couldn't check your voice allowance.", "UNAVAILABLE", 503, {
           retryable: true,
           compatibilityFields: { fallback: "text" },
         });
       }
       if (data === false) {
-        return publicApiError("Your trial voice allowance is used for this month.", "VOICE_ALLOWANCE_USED", 429, {
+        return publicApiError("You've used this month's trial voice allowance.", "VOICE_ALLOWANCE_USED", 429, {
           compatibilityFields: { fallback: "text", remaining: 0, remainingMinutes: 0 },
         });
       }
     } catch {
       await refundVoiceGrant(admin, userId, usageMonth, meter, grantId);
-      return publicApiError("Voice allowance could not be checked.", "UNAVAILABLE", 503, {
+      return publicApiError("We couldn't check your voice allowance.", "UNAVAILABLE", 503, {
         retryable: true,
         compatibilityFields: { fallback: "text" },
       });
@@ -328,7 +328,7 @@ async function handleIssueToken(userId: string): Promise<Response> {
     const session = await fetchPalSignedConversation({ apiKey, agentId });
     if (!session.ok) {
       if (session.reason === "unreachable") {
-        return publicApiError("Voice service did not respond in time.", "PROVIDER_TIMEOUT", 504, {
+        return publicApiError("The voice service didn't answer in time.", "PROVIDER_TIMEOUT", 504, {
           retryable: true,
           compatibilityFields: { fallback: "text" },
         });
@@ -386,7 +386,7 @@ async function handleIssueToken(userId: string): Promise<Response> {
       mutationPolicy: "propose_then_confirm",
     });
   } catch {
-    return publicApiError("Voice service did not respond in time.", "PROVIDER_TIMEOUT", 504, {
+    return publicApiError("The voice service didn't answer in time.", "PROVIDER_TIMEOUT", 504, {
       retryable: true,
       compatibilityFields: { fallback: "text" },
     });
