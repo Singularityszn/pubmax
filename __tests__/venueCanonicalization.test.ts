@@ -176,6 +176,34 @@ describe("canonicalizeDataset — Rochester Castle merge", () => {
 });
 
 describe("canonicalizeDataset — safety guards", () => {
+  it("keeps the verified Blackfriar identity when a third duplicate has more price rows", () => {
+    const canonical = makeRow({
+      pub_name: "The Blackfriar",
+      address: "174 Queen Victoria St, Greater, London EC4V 4EG, UK",
+      latitude: 51.5121, longitude: -0.103677, price_gbp: 6.5,
+    });
+    const duplicate = makeRow({
+      pub_name: "The Black Friar, Blackfriars",
+      address: "City of London, Greater London",
+      latitude: 51.5121, longitude: -0.103751, price_gbp: null,
+    });
+    const richerDuplicate = makeRow({
+      ...canonical,
+      address: "174 Queen Victoria Street, London EC4V 4EG",
+      longitude: -0.10369,
+    });
+    const extraPrice = { ...richerDuplicate, price_gbp: 7 };
+    const result = canonicalizeDataset([canonical, duplicate, richerDuplicate, extraPrice]);
+
+    expect(result.aliases).toEqual({
+      "venue-1sw9ofl": "venue-eltcmh",
+      "venue-119kvwe": "venue-eltcmh",
+    });
+    const venues = groupVenuePrices(result.rows);
+    expect(venues).toHaveLength(1);
+    expect(defined(venues[0]).id).toBe("venue-eltcmh");
+    expect(result.rows.map((price) => price.price_gbp)).toEqual([6.5, null, 6.5, 7]);
+  });
   it("keeps the priced Blackfriar identity and aliases its unpriced Wikipedia spelling", () => {
     const canonical = makeRow({
       pub_name: "The Blackfriar",

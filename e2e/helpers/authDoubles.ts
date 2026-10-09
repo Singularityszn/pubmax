@@ -132,7 +132,7 @@ export async function stubSocialAuthProviders(page: Page): Promise<void> {
 
 export async function installAuthDoubles(
   page: Page,
-  options: { realResumeCookie?: boolean } = {},
+  options: { realResumeCookie?: boolean; analyticsConsent?: "denied" | "pending" } = {},
 ): Promise<Stub> {
   let current: Account | null = ACCOUNTS.A;
   /** undefined: derive the handle from the caller. Otherwise force this answer. */
@@ -165,8 +165,12 @@ export async function installAuthDoubles(
   }
 
   await page.addInitScript(
-    ({ accounts, authStorageKey, whichKey }) => {
-      window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    ({ accounts, authStorageKey, whichKey, analyticsConsent }) => {
+      if (analyticsConsent === "pending") {
+        window.localStorage.removeItem("pubmaxx:analytics-consent:v1");
+      } else {
+        window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+      }
       const which = window.localStorage.getItem(whichKey);
       const account = which ? accounts[which as "A" | "B"] : null;
       if (!account) {
@@ -197,6 +201,7 @@ export async function installAuthDoubles(
       accounts: ACCOUNTS,
       authStorageKey: AUTH_STORAGE_KEY,
       whichKey: WHICH_ACCOUNT_KEY,
+      analyticsConsent: options.analyticsConsent ?? "denied",
     },
   );
 

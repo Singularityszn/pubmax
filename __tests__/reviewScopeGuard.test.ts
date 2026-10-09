@@ -357,6 +357,7 @@ describe("review scope guard", () => {
     "public/data/venue_id_aliases.json",
     "lib/heritageLanguageGate.mjs",
     "lib/heritagePlaceConflict.mjs",
+    "lib/londonBoroughNames.mjs",
     "lib/heritageDate.mjs",
   ])("permits the historic directory when its producer changes: %s", (input) => {
     const report = summarizeReviewScope([input, "public/data/historic_pubs.json"]);

@@ -4,9 +4,8 @@ import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
 async function returningAccount(page: Page) {
-  await installAuthDoubles(page);
+  await installAuthDoubles(page, { analyticsConsent: "pending" });
   await page.addInitScript(() => {
-    localStorage.removeItem("pubmaxx:analytics-consent:v1");
     localStorage.setItem("pubmax-tour-v1-done", "1");
     localStorage.setItem("pubmax:first-run-welcome:v1", "1");
     localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));

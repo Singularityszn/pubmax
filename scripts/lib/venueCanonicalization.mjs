@@ -199,6 +199,7 @@ export function cheapSamePubNameCandidate(aNorm, bNorm) {
 // Verified at 174 Queen Victoria Street. The Wikipedia spelling has no price.
 // Keep its old id resolvable without loosening name matching for other pubs.
 const VERIFIED_VENUE_ALIASES = { "venue-1sw9ofl": "venue-eltcmh" };
+const VERIFIED_CANONICAL_IDS = new Set(Object.values(VERIFIED_VENUE_ALIASES));
 
 // A verified alias can bypass name matching, but never distance or postcode
 // checks. Other pairs use the caller's matcher or namesLikelySamePub.
@@ -224,8 +225,9 @@ function looksSameFuzzy(a, b, fuzzyMergeMeters, samePubMatch) {
 //      more useful address as canonical)
 //   7. lexicographically smallest id (stable, deterministic tiebreak)
 function compareCanonical(a, b) {
-  if (VERIFIED_VENUE_ALIASES[a.id] === b.id) return 1;
-  if (VERIFIED_VENUE_ALIASES[b.id] === a.id) return -1;
+  const aVerified = VERIFIED_CANONICAL_IDS.has(a.id);
+  const bVerified = VERIFIED_CANONICAL_IDS.has(b.id);
+  if (aVerified !== bVerified) return aVerified ? -1 : 1;
   if (a.hasSuffix !== b.hasSuffix) return a.hasSuffix ? 1 : -1;
   if (a.rowCount !== b.rowCount) return b.rowCount - a.rowCount;
   if (a.sourceCount !== b.sourceCount) return b.sourceCount - a.sourceCount;

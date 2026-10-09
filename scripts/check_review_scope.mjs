@@ -176,6 +176,7 @@ export const REGENERATED_LANES = [
       /^public\/data\/venue_id_aliases\.json$/,
       /^lib\/heritageLanguageGate\.mjs$/,
       /^lib\/heritagePlaceConflict\.mjs$/,
+      /^lib\/londonBoroughNames\.mjs$/,
       /^lib\/heritageDate\.mjs$/,
     ],
   },
