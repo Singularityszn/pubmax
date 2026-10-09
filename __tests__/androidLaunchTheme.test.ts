@@ -91,11 +91,6 @@ describe("the window behind the WebView is the page's paper", () => {
     expect(colorValue(xml(COLORS), "pubmaxx_page_dark")).toBe(colorValue(xml(NIGHT_COLORS), "pubmaxx_window_background"));
   });
 
-  it("has explicit page colours for a choice that differs from Android night mode", () => {
-    expect(colorValue(read(COLORS), "pubmaxx_page_light")).toBe(colorValue(read(COLORS), "pubmaxx_window_background"));
-    expect(colorValue(read(COLORS), "pubmaxx_page_dark")).toBe(colorValue(read(NIGHT_COLORS), "pubmaxx_window_background"));
-  });
-
   it("is the page's light paper by day and its dark paper by night", () => {
     expect(colorValue(xml(COLORS), "pubmaxx_window_background")).toBe("#F8F2EC");
     expect(colorValue(xml(NIGHT_COLORS), "pubmaxx_window_background")).toBe("#0A0A0B");
