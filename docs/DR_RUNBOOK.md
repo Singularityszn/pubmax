@@ -30,9 +30,30 @@ server's major version or newer, and these variables in
 `~/.config/pubmax/backup.env`, mode 0600 (never in the repository):
 
 - `PUBMAX_BACKUP_DB_URL`: a `postgres://` connection string for the project (Supabase dashboard, Connect, session pooler).
+- `PUBMAX_BACKUP_DB_AUTH`: optional, defaults to `password`. Set `cli-read-only` only for the approved temporary-login mode below.
 - `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`: for the bucket sync.
 - `PUBMAX_BACKUP_DIR`: optional, default `~/pubmax-backups`. The script refuses a directory inside any git checkout.
 - `PUBMAX_ALERT_WEBHOOK_URL`: optional. A failed run posts one fixed line with no reason in it. The reason stays in the local log.
+
+The optional `cli-read-only` mode needs the existing private `SUPABASE_ACCESS_TOKEN`.
+Its database URL must omit the password and use this project's direct endpoint
+or session pooler on port 5432. The direct username is `postgres`. The pooler
+username is `postgres.<project ref>`. The database is `postgres`, with no URL
+options. `SUPABASE_URL` must be the canonical `https://<project ref>.supabase.co`.
+The script refuses another project's endpoint or the transaction-pooler port.
+
+Each normal run sends one `POST /v1/projects/<project ref>/cli/login-role` with
+`{"read_only":true}` to the [Supabase Management API](https://supabase.com/docs/reference/api/v1-create-login-role).
+This creates or refreshes a managed temporary login. The endpoint is Beta.
+The script rejects invalid or expired credentials and keeps the returned
+password in the `pg_dump` environment. It does not save that password or pass
+the management token to PostgreSQL clients.
+
+The dump uses `--role=supabase_read_only_user` and a read-only session.
+Missing role membership, authentication, or table access fails the dump.
+This mode retains all four schemas and their table data. Storage still needs
+the existing service role key. A dry run makes no login request.
+The script never resets the database password or deletes the managed login role.
 
 ```sh
 node --env-file="$HOME/.config/pubmax/backup.env" scripts/backup-offplatform.mjs --dry-run   # prints the plan and touches nothing
@@ -58,6 +79,11 @@ loads it. The agent runs the backup every Sunday at 03:30 with the variables
 from `backup.env`, and logs to `~/Library/Logs/pubmax-backup.log`. The installer
 refuses while `backup.env` is missing or open to other users. Running it again
 rewrites the same agent and reloads it, so run it again after the checkout moves.
+
+Installation loads the calendar job without an immediate backup. The job does
+not wake a sleeping or powered-off Mac. A missed calendar event can run after
+wake, but an offline or unavailable Mac can delay backup and pruning beyond
+eight weeks. Installation alone proves neither a successful backup nor durability.
 
 ### Retention
 
