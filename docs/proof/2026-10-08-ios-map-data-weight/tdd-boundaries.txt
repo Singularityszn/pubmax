@@ -1,0 +1,11 @@
+npm notice run pubmaxxing@0.1.0 npx
+npm notice run 'vitest' run __tests__/provisionalBaseReadConcurrency.test.tsx __tests__/whatsOnTonightPublicReuse.test.ts
+
+ RUN  v5.0.3 /Users/karanmanoharan/.treehouse/pubmaxx-bde241/1/pubmaxx
+
+
+ Test Files  2 passed (2)
+      Tests  13 passed (13)
+   Start at  08:48:53
+   Duration  447ms (environment 42%, transform 37%, import 11%, tests 8%, setup 2%, worker 1%)
+

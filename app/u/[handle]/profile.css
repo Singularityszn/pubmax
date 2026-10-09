@@ -210,6 +210,11 @@
   flex: 0 0 auto;
 }
 
+.profilePage .profileMessageSignIn {
+  display: grid;
+  gap: var(--space-3);
+}
+
 .profilePage .profileEmpty {
   margin: 0;
   padding: 20px 22px;

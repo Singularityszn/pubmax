@@ -1,0 +1,62 @@
+[
+  {
+    "attachments": [
+      {
+        "configurationName": "Test Scheme Action",
+        "deviceId": "80131979-EDC5-4B44-B5A3-903D83429E9E",
+        "deviceName": "fm-ios-lane-a",
+        "exportedFileName": "8C75A60E-7A26-4897-AB9E-5352AB7C0F53.png",
+        "isAssociatedWithFailure": false,
+        "suggestedHumanReadableName": "local-callback-fixture-presented_0_FF9FA12F-F6F9-4C17-B6DA-6D0528FFC1FB.png",
+        "timestamp": 1791458345.558
+      },
+      {
+        "configurationName": "Test Scheme Action",
+        "deviceId": "80131979-EDC5-4B44-B5A3-903D83429E9E",
+        "deviceName": "fm-ios-lane-a",
+        "exportedFileName": "F2A37A1F-3295-4957-80CE-51DBEF4B7FC5.png",
+        "isAssociatedWithFailure": false,
+        "suggestedHumanReadableName": "external-return-app-active_0_8913A981-95AB-4472-B0E6-15C0744B834B.png",
+        "timestamp": 1791458343.208
+      },
+      {
+        "configurationName": "Test Scheme Action",
+        "deviceId": "80131979-EDC5-4B44-B5A3-903D83429E9E",
+        "deviceName": "fm-ios-lane-a",
+        "exportedFileName": "413019CD-EDDC-4092-AEC6-05E8E59CC4EA.png",
+        "isAssociatedWithFailure": false,
+        "suggestedHumanReadableName": "external-url-standalone-safari_0_89CE4572-E614-4C8F-B9EE-9F726CDF563D.png",
+        "timestamp": 1791458341.969
+      },
+      {
+        "configurationName": "Test Scheme Action",
+        "deviceId": "80131979-EDC5-4B44-B5A3-903D83429E9E",
+        "deviceName": "fm-ios-lane-a",
+        "exportedFileName": "829E2097-1F86-45C6-AF01-82C311180FB5.png",
+        "isAssociatedWithFailure": false,
+        "suggestedHumanReadableName": "filters-after-swipe_0_0E41FC04-6DB2-4E35-BBAF-B9CB69643685.png",
+        "timestamp": 1791458337.522
+      },
+      {
+        "configurationName": "Test Scheme Action",
+        "deviceId": "80131979-EDC5-4B44-B5A3-903D83429E9E",
+        "deviceName": "fm-ios-lane-a",
+        "exportedFileName": "6DAF628E-60A1-4BA8-956D-2CA7C2771BCC.png",
+        "isAssociatedWithFailure": false,
+        "suggestedHumanReadableName": "filters-before-swipe_0_D883C083-4F71-4A24-A980-A464845ACEE4.png",
+        "timestamp": 1791458334.443
+      },
+      {
+        "configurationName": "Test Scheme Action",
+        "deviceId": "80131979-EDC5-4B44-B5A3-903D83429E9E",
+        "deviceName": "fm-ios-lane-a",
+        "exportedFileName": "5838C363-6CEA-4A9A-BBD9-BB04BEF6820D.png",
+        "isAssociatedWithFailure": false,
+        "suggestedHumanReadableName": "cancelled-load-server-reachable_0_12FDE9E6-8C47-469B-B722-75AFC8185FED.png",
+        "timestamp": 1791458324.152
+      }
+    ],
+    "testIdentifier": "LaneUITests/testFinalHealthyMatrix()",
+    "testIdentifierURL": "test://com.apple.xcode/UITests/LaneUITests/LaneUITests/testFinalHealthyMatrix"
+  }
+]

@@ -78,6 +78,25 @@ async function generate() {
 }
 
 describe("map drink default in the phone planner", () => {
+  it("submits a decimal budget through the button and the Go keyboard action", async () => {
+    await render(wine, "Quiet in Soho");
+    const query = container.querySelector<HTMLInputElement>("#mobile-plan-query")!;
+    expect(query.getAttribute("enterkeyhint")).toBe("go");
+    const budget = container.querySelector<HTMLInputElement>('input[placeholder="£"]')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(budget, "22.50");
+      budget.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await generate();
+    await act(async () => query.form!.requestSubmit());
+    expect(requests).toHaveLength(2);
+    for (const request of requests) {
+      expect(request.query).toBe("Quiet in Soho");
+      expect(request.context.budgetLimitPence).toBe(2250);
+      expect(request.context.budget).toBe("standard");
+    }
+  });
+
   it("sends the selected Wine category for a request without its own drink", async () => {
     await render(wine, "Quiet in Soho");
     await generate();

@@ -595,8 +595,12 @@ export const TONIGHT_QUIET_NIGHT_SENTENCE =
 export function tonightEmptyLead(
   whatsOn: TonightWhatsOnStatus,
   out: TonightOutAnswer,
+  pubSuggestionCount = 0,
 ): string {
   const reports = tonightLaneReports(whatsOn, out);
+  if (pubSuggestionCount > 0 && reports.length === 0) {
+    return "No confirmed events listed tonight.";
+  }
   if (reports.length === 0) return TONIGHT_QUIET_NIGHT_SENTENCE;
   return `Nothing listed ${TONIGHT_WHATS_ON_CREDIT}.`;
 }
@@ -632,6 +636,7 @@ export function tonightProvenanceCredits(input: {
   outEvents: WhatsOnRow[];
   whatsOnChecked: string | null;
   outObservedAt?: Record<string, string> | undefined;
+  pubSuggestionCount?: number;
 }): TonightProvenanceCredits {
   const lanes = tonightListingLanes(
     input.renderedGroups.map((group) => group.row),
@@ -640,8 +645,11 @@ export function tonightProvenanceCredits(input: {
   // With nothing from Out, the coverage count is What's-On's claim, empty night
   // included: the quiet answer came from that read and is credited to it.
   const creditsWhatsOn = lanes.whatsOnCount > 0 || lanes.outRows.length === 0;
+  const whatsOnLabel = lanes.whatsOnCount === 0 && (input.pubSuggestionCount ?? 0) > 0
+    ? "No events listed"
+    : whatsOnLaneLabel(lanes.whatsOnCount);
   const whatsOn = creditsWhatsOn
-    ? `${whatsOnLaneLabel(lanes.whatsOnCount)}${input.whatsOnChecked ? ` · ${input.whatsOnChecked}` : " · undated"} · ${TONIGHT_WHATS_ON_CREDIT}`
+    ? `${whatsOnLabel}${input.whatsOnChecked ? ` · ${input.whatsOnChecked}` : " · undated"} · ${TONIGHT_WHATS_ON_CREDIT}`
     : null;
   const out = outLaneCredit(lanes.outRows, input.outObservedAt ?? {});
   const whatsOnDated = creditsWhatsOn ? input.whatsOnChecked !== null : true;

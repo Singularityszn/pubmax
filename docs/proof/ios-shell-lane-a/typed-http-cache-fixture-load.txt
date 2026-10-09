@@ -1,0 +1,25 @@
+(lldb) process attach --pid 65962
+Process 65962 stopped
+* thread #1, queue = 'com.apple.main-thread', stop reason = signal SIGSTOP
+       frame #0: 0x0000000100da8b5c libsystem_kernel.dylib`mach_msg2_trap + 8
+libsystem_kernel.dylib`mach_msg2_trap:
+->  0x100da8b5c <+8>: ret    
+
+libsystem_kernel.dylib`macx_swapon:
+    0x100da8b60 <+0>: mov    x16, #-0x30               ; =-48 
+    0x100da8b64 <+4>: svc    #0x80
+    0x100da8b68 <+8>: ret    
+Target 0: (App) stopped.
+Executable binary set to "/Users/karanmanoharan/Library/Developer/CoreSimulator/Devices/80131979-EDC5-4B44-B5A3-903D83429E9E/data/Containers/Bundle/Application/72C1EA19-90DB-4B82-8EEC-811C434F2B30/App.app/App".
+Architecture set to: arm64-apple-ios-simulator.
+(lldb) command source -s 0 '.ios-lane-a/load-typed-cache-fixture.lldb'
+Executing commands in '/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/load-typed-cache-fixture.lldb'.
+(lldb) expr -l objc++ -- void *$laneCacheFixture = (void *)dlopen("/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/LocalHTTPCacheFixture.dylib", 2)
+(lldb) expr -l objc++ -- $laneCacheFixture
+(void *) $laneCacheFixture = 0x0000000005e774f0
+(lldb) expr -l objc++ -- void (*$laneClearTypedCache)(void) = (void (*)(void))dlsym($laneCacheFixture, "LaneClearLocalHTTPCache")
+(lldb) expr -l objc++ -- $laneClearTypedCache
+(void (*)()) $laneClearTypedCache = 0x0000000105bc87e8 (LocalHTTPCacheFixture.dylib`LaneClearLocalHTTPCache)
+(lldb) expr -l objc++ -- if ($laneCacheFixture && $laneClearTypedCache) { $laneClearTypedCache(); }
+(lldb) detach
+Process 65962 detached

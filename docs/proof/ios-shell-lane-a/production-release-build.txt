@@ -1,0 +1,25 @@
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsnltrainingprocessor --infoplist-path /Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/production-release-build/Build/Products/Release-iphonesimulator/App.app/Info.plist --temp-dir-path /Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/production-release-build/Build/Intermediates.noindex/App.build/Release-iphonesimulator/App.build/ssu --bundle-id com.pubmaxx.app --product-path /Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/production-release-build/Build/Products/Release-iphonesimulator/App.app --extracted-metadata-path /Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/production-release-build/Build/Products/Release-iphonesimulator/App.app/Metadata.appintents --metadata-file-list /Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/production-release-build/Build/Intermediates.noindex/App.build/Release-iphonesimulator/App.build/App.DependencyMetadataFileList --source-file /Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/production-release-build/Build/Products/Release-iphonesimulator/App.app/Info.plist --archive-ssu-assets
+2026-10-08 12:35:53.132 appintentsnltrainingprocessor[92039:51464829] Parsing options for appintentsnltrainingprocessor
+2026-10-08 12:35:53.132 appintentsnltrainingprocessor[92039:51464829] Starting AppIntents SSU YAML Generation
+2026-10-08 12:35:53.135 appintentsnltrainingprocessor[92039:51464829] No AppShortcuts found - Skipping.
+
+RegisterExecutionPolicyException /Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/production-release-build/Build/Products/Release-iphonesimulator/App.app (in target 'App' from project 'App')
+    cd /Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/ios/App
+    builtin-RegisterExecutionPolicyException /Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/production-release-build/Build/Products/Release-iphonesimulator/App.app
+
+Validate /Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/production-release-build/Build/Products/Release-iphonesimulator/App.app (in target 'App' from project 'App')
+    cd /Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/ios/App
+    builtin-validationUtility /Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/production-release-build/Build/Products/Release-iphonesimulator/App.app -validate-for-store -shallow-bundle -infoplist-subpath Info.plist
+
+Touch /Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/production-release-build/Build/Products/Release-iphonesimulator/App.app (in target 'App' from project 'App')
+    cd /Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/ios/App
+    /usr/bin/touch -c /Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/production-release-build/Build/Products/Release-iphonesimulator/App.app
+
+PruneExplicitPrecompiledModules /Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/production-release-build/Build/Intermediates.noindex/ExplicitPrecompiledModules
+
+PruneExplicitPrecompiledModules /Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/production-release-build/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules
+
+PruneExplicitPrecompiledModules /Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/production-release-build/SDKExplicitPrecompiledModules
+
+** BUILD SUCCEEDED **
+

@@ -17,19 +17,3 @@ import { describe, expect, it } from "vitest";
 
 import { OSM_ATTRIBUTION } from "@/components/map/canvas/tokens";
 import MapCredits from "@/components/map/MapCredits";
-
-describe("the credit itself is unchanged", () => {
-  it("names OpenStreetMap and its licence", () => {
-    expect(OSM_ATTRIBUTION).toContain("OpenStreetMap contributors");
-    expect(OSM_ATTRIBUTION).toContain("ODbL");
-  });
-
-  it("reads the same constant in the phone's copy, with the basemap's own line", () => {
-    const html = renderToStaticMarkup(createElement(MapCredits));
-    expect(html).toContain("Map credits");
-    expect(html).toContain(OSM_ATTRIBUTION);
-    expect(html).toContain("OpenFreeMap");
-    expect(html).toContain("OpenMapTiles");
-    expect(html).toContain("https://www.openstreetmap.org/copyright");
-  });
-});

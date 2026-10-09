@@ -1,0 +1,12 @@
+{
+  "id": "1791458277464",
+  "value": {
+    "url": "http://localhost:3491/map",
+    "native": "ios",
+    "workerApi": "undefined",
+    "scripts": [
+      "http://localhost:3491/_next/static/chunks/2xot0dyfagxz0.js?dpl=local-ios-lane-a"
+    ],
+    "hook": "function appendChild() {\n    [native code]\n}"
+  }
+}

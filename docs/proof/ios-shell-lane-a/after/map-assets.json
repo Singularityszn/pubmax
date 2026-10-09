@@ -1,0 +1,64 @@
+{
+  "id": "1791449947119",
+  "value": {
+    "url": "http://localhost:3491/places",
+    "assets": [
+      {
+        "url": "http://localhost:3491/api/pint-drops?city=london",
+        "duration": 20
+      },
+      {
+        "url": "https://tiles.openfreemap.org/styles/positron",
+        "duration": 8
+      },
+      {
+        "url": "http://localhost:3491/api/pint-drops?venueId=venue-xiesdn",
+        "duration": 17
+      },
+      {
+        "url": "http://localhost:3491/api/citymcp/status",
+        "duration": 587
+      },
+      {
+        "url": "http://localhost:3491/api/tonight-conditions",
+        "duration": 32
+      },
+      {
+        "url": "http://localhost:3491/api/whats-on?window=tonight&limit=60",
+        "duration": 182
+      },
+      {
+        "url": "https://tiles.openfreemap.org/planet",
+        "duration": 34
+      },
+      {
+        "url": "https://tiles.openfreemap.org/sprites/ofm_f384/ofm@2x.json",
+        "duration": 34
+      },
+      {
+        "url": "https://tiles.openfreemap.org/sprites/ofm_f384/ofm@2x.png",
+        "duration": 31
+      },
+      {
+        "url": "http://localhost:3491/api/tonight-conditions",
+        "duration": 4
+      },
+      {
+        "url": "https://tiles.openfreemap.org/fonts/Noto%20Sans%20Italic/0-255.pbf",
+        "duration": 4
+      },
+      {
+        "url": "https://tiles.openfreemap.org/fonts/Noto%20Sans%20Regular/0-255.pbf",
+        "duration": 6
+      },
+      {
+        "url": "http://localhost:3491/api/citymcp/things-to-do?window=tonight&limit=8",
+        "duration": 96
+      },
+      {
+        "url": "http://localhost:3491/api/price-submit?scope=provisional-base&venueId=venue-uk-n21449848&venueId=venue-uk-n597370872&venueId=venue-uk-w1127848352&venueId=venue-uk-w1271608097&venueId=venue-uk-w1282317769&venueId=venue-uk-w1282327448&venueId=venue-uk-w1305502866&venueId=venue-uk-w214810835&venueId=venue-uk-w33101039&venueId=venue-uk-w370557250&venueId=venue-uk-w468838129&venueId=venue-uk-w49152705&venueId=venue-uk-w49933134&venueId=venue-uk-w548638622&venueId=venue-uk-w548638623&venueId=venue-uk-w548638674&venueId=venue-uk-w548638696&venueId=venue-uk-w548638705&venueId=venue-uk-w548638716&venueId=venue-uk-w548638732&venueId=venue-uk-w548640743&venueId=venue-uk-w548640755&venueId=venue-uk-w548640776&venueId=venue-uk-w548640787&venueId=venue-uk-w588482711&venueId=venue-uk-w588729686&venueId=venue-uk-w795652528&venueId=venue-uk-w807822003&venueId=venue-uk-w825778094&venueId=venue-uk-w986804408&venueId=venue-uk-w986804419",
+        "duration": 3
+      }
+    ]
+  }
+}

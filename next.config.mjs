@@ -294,6 +294,8 @@ const nextConfig = {
     // Social owns posts and public pub discovery. Retired route families go
     // straight to their canonical Social surface with no redirect chain.
     return [
+      { source: "/map/uk", destination: "/map?uk=1", permanent: true },
+      { source: "/map/uk/1", destination: "/map?uk=1", permanent: true },
       // The www -> apex host redirect lives in vercel.json, not here. `next
       // typegen` turns every source in this list into a typedRoutes route and
       // ignores `has`, so a host-conditioned "/:path*" became a root catch-all

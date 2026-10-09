@@ -167,13 +167,31 @@
   /* On the phone map the plan pill is full width and the Near me FAB owns the
      right edge, so the summon pill stops short of that lane. */
   body:has(.mobilePlanActivation) .palSummon {
-    left: max(12px, env(safe-area-inset-left, 0px));
+    left: calc(
+      var(--mobile-map-stack-left) + var(--mobile-map-credit-size) + var(--float-stack-gap)
+    );
     right: calc(max(12px, env(safe-area-inset-right, 0px)) + 52px + 12px);
+  }
+  /* The OpenStreetMap credit opens across that band, so the pill yields to it. */
+  body:has(.mapStage .maplibregl-compact-show) .palSummon {
+    display: none;
   }
 }
 @media (min-width: 641px) {
   .palSummon {
     bottom: 22px;
+  }
+  /* Sit 8px above the Layers FAB, on the berth app/globals.css publishes. */
+  body:has(.mapStage) .palSummon {
+    bottom: calc(var(--map-layers-bottom) + var(--map-layers-fab-h) + 8px);
+  }
+  /* The open Layers panel rises from the FAB through this berth. */
+  body:has(.mapLayersControl.isOpen) .palSummon {
+    display: none;
+  }
+  /* The venue drawer owns its action bar while it is open. */
+  body:has(.mapDrawer.right.open) .palSummon {
+    display: none;
   }
 }
 @media (prefers-reduced-transparency: reduce) {

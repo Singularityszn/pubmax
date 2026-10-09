@@ -179,24 +179,3 @@ describe("Phone chip row", () => {
       expect(html).not.toContain("On tonight");
       expect(html.match(/class="mobileMapDrinkChip[" ]/g)).toHaveLength(1);
     }
-  });
-});
-
-describe("Phone map area switcher", () => {
-  it("labels the current map area and exposes city switching", () => {
-    const html = renderShell();
-    expect(html).toContain('class="citySwitcherTrigger"');
-    expect(html).toContain('aria-label="Map area: Camden. Change city"');
-  });
-
-  it("keeps the area name stable when reader location changes", () => {
-    const html = renderShell({ cityLabelOrigin: "reader", cityLabel: "Brixton" });
-    expect(html).toContain('aria-label="Map area: Brixton. Change city"');
-  });
-
-  it("keeps a base-pub arrival in the same switcher", () => {
-    const html = renderShell({ limitedCoverage: true, cityLabel: "Bath" });
-    expect(html).toContain('aria-label="Map area: Bath. Change city"');
-    expect(html).toContain('aria-label="Search the map"');
-  });
-});

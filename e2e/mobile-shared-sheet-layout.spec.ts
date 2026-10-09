@@ -45,8 +45,12 @@ async function stubKeylessSupabase(page: Page): Promise<void> {
   await stubSocialAuthProviders(page);
 }
 
-async function prepareMobilePage(page: Page, theme: "light" | "dark" = "light"): Promise<void> {
-  await page.setViewportSize(MOBILE_VIEWPORT);
+async function prepareMobilePage(
+  page: Page,
+  theme: "light" | "dark" = "light",
+  viewport = MOBILE_VIEWPORT,
+): Promise<void> {
+  await page.setViewportSize(viewport);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await stubKeylessSupabase(page);
   await page.addInitScript((initialTheme) => {
@@ -70,14 +74,16 @@ function watchBrowserErrors(page: Page): string[] {
 
 // The phone sheet is absolute inside the fixed .mobileSheetPortal (#952,
 // QA H02). The portal stops above a shown tab bar, so the sheet never takes a
-// tab tap. A venue or the planner hides the bar, and then the portal and the
-// sheet reach the bottom edge, with no strip of map under the sheet.
+// tab tap. Only the keyboard hides the bar, and then the portal and the sheet
+// reach the bottom edge, with no strip of map under the sheet. The header and
+// the footer are never clipped by the sheet's own cap.
 async function expectSheetInsideViewport(
   page: Page,
   sheet: Locator,
   footer?: Locator,
 ): Promise<void> {
   await expect(sheet).toBeVisible();
+  await expect(sheet).not.toHaveClass(/sheet-settling/);
   const viewport = page.viewportSize();
   expect(viewport).not.toBeNull();
   await expect(async () => {
@@ -128,14 +134,18 @@ async function expectSheetInsideViewport(
     }
   }).toPass({ timeout: 5_000 });
 
-  if (!footer) return;
-  await expect(footer).toBeVisible();
-  const footerBox = await footer.boundingBox();
-  expect(footerBox).not.toBeNull();
-  expect(footerBox!.y).toBeGreaterThanOrEqual(0);
-  expect(footerBox!.y + footerBox!.height).toBeLessThanOrEqual(viewport!.height + 1);
-  const sheetBottom = await sheet.evaluate((element) => element.getBoundingClientRect().bottom);
-  expect(footerBox!.y + footerBox!.height).toBeGreaterThanOrEqual(sheetBottom - 1);
+  if (footer) await expect(footer).toBeVisible();
+  await expect(async () => {
+    const sheetBox = (await sheet.boundingBox())!;
+    const headerBox = (await sheet.locator(".mobileSharedSheetHeader").boundingBox())!;
+    expect(headerBox.y).toBeGreaterThanOrEqual(sheetBox.y - 1);
+    expect(headerBox.y + headerBox.height).toBeLessThanOrEqual(sheetBox.y + sheetBox.height + 1);
+    if (!footer) return;
+    const footerBox = (await footer.boundingBox())!;
+    expect(footerBox.y).toBeGreaterThanOrEqual(headerBox.y + headerBox.height - 1);
+    expect(footerBox.y + footerBox.height).toBeLessThanOrEqual(viewport!.height + 1);
+    expect(Math.abs(footerBox.y + footerBox.height - (sheetBox.y + sheetBox.height))).toBeLessThanOrEqual(1);
+  }).toPass({ timeout: 5_000 });
 }
 
 async function attachViewportShot(page: Page, testInfo: TestInfo, name: string): Promise<void> {
@@ -146,60 +156,73 @@ async function attachViewportShot(page: Page, testInfo: TestInfo, name: string):
 
 test.setTimeout(90_000);
 
-test("mobile venue footer stays pinned and actionable at every sheet detent", async ({ page }) => {
-  await prepareMobilePage(page);
-  const browserErrors = watchBrowserErrors(page);
+for (const viewport of [MOBILE_VIEWPORT, { width: 320, height: 568 }]) {
+  test(`mobile venue footer stays pinned and actionable at every sheet detent at ${viewport.width}x${viewport.height}`, async ({ page }, testInfo) => {
+    const size = `${viewport.width}x${viewport.height}`;
+    await prepareMobilePage(page, "light", viewport);
+    // The Share tap answers in the footer only when no native share sheet
+    // takes it, as in the headless shell. Desktop Chrome has one.
+    await page.addInitScript(() => {
+      Object.defineProperty(Navigator.prototype, "share", { configurable: true, value: undefined });
+    });
+    const browserErrors = watchBrowserErrors(page);
 
-  const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build`);
-  expect(response?.status()).toBe(200);
+    const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build`);
+    expect(response?.status()).toBe(200);
 
-  const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
-  const sheet = portal.locator(".mobileSharedSheet");
-  const footer = portal.locator(".mobileSharedSheetFooter");
-  const body = portal.locator(".mobileSharedSheetBody");
-  // The footer carries no price action (the Overview's one price door owns
-  // that, #1517); Share is the command every pub sheet keeps, so it is the one
-  // held in view at every detent, and its tap answers in the footer itself.
-  const share = portal.getByRole("button", { name: "Share Arnos Arms" });
+    const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+    const sheet = portal.locator(".mobileSharedSheet");
+    const footer = portal.locator(".mobileSharedSheetFooter");
+    const body = portal.locator(".mobileSharedSheetBody");
+    // The footer carries no price action (the Overview's one price door owns
+    // that, #1517); Share is the command every pub sheet keeps, so it is the one
+    // held in view at every detent, and its tap answers in the footer itself.
+    const share = portal.getByRole("button", { name: "Share Arnos Arms" });
 
-  await expect(sheet).toHaveClass(/sheet-half/);
-  await expectSheetInsideViewport(page, sheet, footer);
-  await expect(share).toBeInViewport();
+    await expect(sheet).toHaveClass(/sheet-half/);
+    await expectSheetInsideViewport(page, sheet, footer);
+    await expect(share).toBeInViewport();
+    await attachViewportShot(page, testInfo, `venue-half-${size}`);
 
-  const footerBeforeScroll = await footer.boundingBox();
-  await body.evaluate((element) => {
-    element.scrollTop = element.scrollHeight;
+    const footerBeforeScroll = await footer.boundingBox();
+    await body.evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+    });
+    await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+    const footerAfterScroll = await footer.boundingBox();
+    expect(footerAfterScroll?.y).toBeCloseTo(footerBeforeScroll!.y, 0);
+
+    await sheet.getByRole("button", { name: "Expand sheet" }).click();
+    await expect(sheet).toHaveClass(/sheet-full/);
+    await expectSheetInsideViewport(page, sheet, footer);
+    await expect(share).toBeInViewport();
+    await attachViewportShot(page, testInfo, `venue-full-${size}`);
+
+    await sheet.getByRole("button", { name: "Collapse sheet" }).click();
+    await expect(sheet).toHaveClass(/sheet-half/);
+
+    const header = sheet.locator(".mobileSharedSheetHeader");
+    const headerBox = await header.boundingBox();
+    expect(headerBox).not.toBeNull();
+    const dragX = headerBox!.x + 18;
+    const dragY = headerBox!.y + headerBox!.height - 10;
+    await page.mouse.move(dragX, dragY);
+    await page.mouse.down();
+    await page.mouse.move(dragX, dragY + Math.round(viewport.height * 0.3), { steps: 12 });
+    await page.mouse.up();
+
+    await expect(sheet).toHaveClass(/sheet-peek/);
+    await expectSheetInsideViewport(page, sheet, footer);
+    await expect(share).toBeInViewport();
+    await expect(body).toBeHidden();
+    await expect.poll(() => body.evaluate((element) => element.getBoundingClientRect().height)).toBeLessThanOrEqual(1);
+    await attachViewportShot(page, testInfo, `venue-peek-${size}`);
+    await share.click();
+    await expect(footer.locator(".venueSheetShareFeedback")).toBeVisible();
+
+    expect(browserErrors).toEqual([]);
   });
-  await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
-  const footerAfterScroll = await footer.boundingBox();
-  expect(footerAfterScroll?.y).toBeCloseTo(footerBeforeScroll!.y, 0);
-
-  await sheet.getByRole("button", { name: "Expand sheet" }).click();
-  await expect(sheet).toHaveClass(/sheet-full/);
-  await expectSheetInsideViewport(page, sheet, footer);
-  await expect(share).toBeInViewport();
-
-  await sheet.getByRole("button", { name: "Collapse sheet" }).click();
-  await expect(sheet).toHaveClass(/sheet-half/);
-
-  const header = sheet.locator(".mobileSharedSheetHeader");
-  const headerBox = await header.boundingBox();
-  expect(headerBox).not.toBeNull();
-  const dragX = headerBox!.x + 18;
-  const dragY = headerBox!.y + headerBox!.height - 10;
-  await page.mouse.move(dragX, dragY);
-  await page.mouse.down();
-  await page.mouse.move(dragX, dragY + 260, { steps: 12 });
-  await page.mouse.up();
-
-  await expect(sheet).toHaveClass(/sheet-peek/);
-  await expectSheetInsideViewport(page, sheet, footer);
-  await expect(share).toBeInViewport();
-  await share.click();
-  await expect(footer.locator(".venueSheetShareFeedback")).toBeVisible();
-
-  expect(browserErrors).toEqual([]);
-});
+}
 
 test("mobile planner and contextual portal sheets retain the canonical bottom anchor", async ({ page }) => {
   await prepareMobilePage(page);

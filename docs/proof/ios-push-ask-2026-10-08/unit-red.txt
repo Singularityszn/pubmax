@@ -1,0 +1,28 @@
+npm notice run pubmaxxing@0.1.0 npx
+npm notice run 'vitest' run __tests__/nativePushPromptRender.test.tsx
+
+ RUN  v5.0.3 /Users/karanmanoharan/.treehouse/pubmaxx-bde241/13/pubmaxx
+
+ ❯ __tests__/nativePushPromptRender.test.tsx (1 test | 1 failed) 18ms
+   ❯ native push prompt lifecycle (1)
+     × shows the useful-action ask when the previous map arrival card releases the next route 17ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/nativePushPromptRender.test.tsx > native push prompt lifecycle > shows the useful-action ask when the previous map arrival card releases the next route
+AssertionError: the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+ ❯ __tests__/nativePushPromptRender.test.tsx:66:69
+     64|     // Route render can precede the map card's effect cleanup.
+     65|     await act(async () => setMapFirstVisitArrivalCardVisible(false));
+     66|     expect(container.querySelector('[role="dialog"]')?.textContent).to…
+       |                                                                     ^
+     67|     expect(promptBudgetHolder()).toBe("native-push");
+     68|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  13:11:29
+   Duration  2.85s (transform 48%, environment 46%, import 4%, tests 1%)

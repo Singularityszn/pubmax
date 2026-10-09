@@ -52,6 +52,8 @@ import {
 import {
   venueBundlePrices,
   venuePriceLane,
+  venuePriceFallbackPending,
+  PRICE_PENDING_LINE,
   venueSourcedPrice,
 } from "@/lib/venuePriceLane";
 import { dropLaneInput, splitLaneInput } from "@/lib/pintTrust";
@@ -68,6 +70,7 @@ import {
 import {
   OPEN_NOW_FILTER_CAPTION,
   openNowStatesForVenues,
+  type OpenNowState,
 } from "@/lib/openNow";
 import {
   loadWetherspoonsDirectory,
@@ -648,6 +651,7 @@ import {
   openingViewportFrom,
   priceLegendInput,
   reactiveLogIntentActive,
+  mapPinFilters,
   restoredSessionFrame,
   nightAreaSlugOf,
   searchParamsQuery,
@@ -1072,6 +1076,49 @@ function mapChipLabelFor(input: {
 }
 
 /**
+ * The venues the map pins. While a search field holds the caret or the search
+ * overlay is open, the pins keep every filter but the query, so a half-typed
+ * name never empties the map. Otherwise they are the filtered venues.
+ */
+function useSearchStablePinVenues({
+  searchFieldFocused,
+  mapOverlay,
+  venues,
+  mapFilters,
+  venueSignals,
+  openNowStateById,
+  savedOnly,
+  savedIds,
+  filteredVenues,
+}: {
+  searchFieldFocused: boolean;
+  mapOverlay: MapOverlay;
+  venues: readonly Venue[];
+  mapFilters: Filters;
+  venueSignals: ReadonlyMap<string, { hasPintDrops: boolean }>;
+  openNowStateById: ReadonlyMap<string, OpenNowState> | null;
+  savedOnly: boolean;
+  savedIds: ReadonlySet<string>;
+  filteredVenues: Venue[];
+}): Venue[] {
+  const pinFilterKey = JSON.stringify(mapPinFilters(mapFilters));
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the key includes every non-query filter
+  const pinFilters = useMemo(() => mapPinFilters(mapFilters), [pinFilterKey]);
+  const searchActive = searchFieldFocused || mapOverlay === "search";
+  const searchPinVenues = useMemo(() => {
+    if (!searchActive) return null;
+    const candidates = filterMapVenues(
+      venues,
+      pinFilters,
+      (id) => Boolean(venueSignals.get(id)?.hasPintDrops),
+      (id) => openNowStateById?.get(id) ?? "unknown",
+    );
+    return savedOnly ? candidates.filter((venue) => savedIds.has(venue.id)) : candidates;
+  }, [searchActive, openNowStateById, pinFilters, savedIds, savedOnly, venues, venueSignals]);
+  return searchPinVenues ?? filteredVenues;
+}
+
+/**
  * Whether a remembered area still names what the view shows. Until the map has
  * settled somewhere new since the area was chosen, the choice has met no view
  * yet (the camera is still flying to it), so it keeps the chip.
@@ -1410,8 +1457,7 @@ export default function PubMap({
   );
   // A restored /map?sel=venue-uk-* arrival: the base pub's id, plus the `at=`
   // location hint the selecting tap wrote alongside sel when the link has one.
-  // The selection comes from the URL, the saved mobile session or the resume
-  // seed, and the session keeps the id alone, so the hint is optional:
+  // The selection comes from the URL or a resume seed. The hint is optional:
   // without it the cold restore asks /api/uk-base/[id] and an id nothing knows
   // ends in the unknown-pub notice rather than a skeleton.
   const [ukBaseRestore] = useState(() =>
@@ -3018,6 +3064,24 @@ export default function PubMap({
     () => publishedOrLoadedZoneIndex(zonePintIndex, pubVenues),
     [zonePintIndex, pubVenues],
   );
+  // A search field under the reader's finger owns the screen. This tracks
+  // whether it still holds the caret; lib/mapSearchCamera owns the rule.
+  const [mapSearchFieldFocused, setMapSearchFieldFocused] = useState(false);
+  useEffect(() => {
+    const readFocus = () =>
+      setMapSearchFieldFocused(isMapSearchField(document.activeElement));
+    readFocus();
+    // focusout lands with activeElement on <body>; the focusin that follows in
+    // the same tick corrects it, and the effect's cleanup drops the timer the
+    // intermediate state armed. So a tab between two fields never moves the map.
+    document.addEventListener("focusin", readFocus);
+    document.addEventListener("focusout", readFocus);
+    return () => {
+      document.removeEventListener("focusin", readFocus);
+      document.removeEventListener("focusout", readFocus);
+    };
+  }, []);
+
   // Base narrowing: the existing filter pipeline (story filters, price, query,
   // pint-drops). Favorite-pint re-prices inside PubMapCanvas and never changes
   // membership, so it isn't part of this set.
@@ -3060,25 +3124,37 @@ export default function PubMap({
     [filteredVenues],
   );
 
+  const pinVenues = useSearchStablePinVenues({
+    searchFieldFocused: mapSearchFieldFocused,
+    mapOverlay,
+    venues,
+    mapFilters: effectiveMapFilters,
+    venueSignals,
+    openNowStateById,
+    savedOnly,
+    savedIds,
+    filteredVenues,
+  });
+
   const nearbyMapResultForView = useMemo(() => {
     if (!nearbyMapResult) return null;
     const { location } = nearbyMapResult;
-    const nextVenues = nearMeMapVenues(location.lat, location.lng, filteredVenues);
+    const nextVenues = nearMeMapVenues(location.lat, location.lng, pinVenues);
     const nextIds = nextVenues.map((venue) => venue.id);
-    const nextStrategy = withinNearMeRing(location, filteredVenues) >= NEAR_ME_MAP_MIN_VENUES
+    const nextStrategy = withinNearMeRing(location, pinVenues) >= NEAR_ME_MAP_MIN_VENUES
       ? "within-radius"
       : "nearest-20";
     const sameIds = nearbyMapResult.venueIds.length === nextIds.length &&
       nearbyMapResult.venueIds.every((id, index) => id === nextIds[index]);
     if (sameIds && nearbyMapResult.strategy === nextStrategy) return nearbyMapResult;
     return { ...nearbyMapResult, venueIds: nextIds, strategy: nextStrategy };
-  }, [filteredVenues, nearbyMapResult]);
+  }, [pinVenues, nearbyMapResult]);
 
   // Deep-links from /pubs (?sel=) must still paint the pin even if a filter
   // would otherwise hide a scraped gazetteer pub.
   const mapMembershipVenues = useMemo(
-    () => venuesInNearbyMembership(filteredVenues, nearbyMapResultForView),
-    [filteredVenues, nearbyMapResultForView],
+    () => venuesInNearbyMembership(pinVenues, nearbyMapResultForView),
+    [pinVenues, nearbyMapResultForView],
   );
   const experienceVisibleMapVenues = useMemo(
     () =>
@@ -4189,23 +4265,6 @@ export default function PubMap({
   }, [selectVenue]);
 
   const trimmedMapQuery = filters.query.trim();
-  // A search field under the reader's finger owns the screen. This tracks
-  // whether it still holds the caret; lib/mapSearchCamera owns the rule.
-  const [mapSearchFieldFocused, setMapSearchFieldFocused] = useState(false);
-  useEffect(() => {
-    const readFocus = () =>
-      setMapSearchFieldFocused(isMapSearchField(document.activeElement));
-    readFocus();
-    // focusout lands with activeElement on <body>; the focusin that follows in
-    // the same tick corrects it, and the effect's cleanup drops the timer the
-    // intermediate state armed. So a tab between two fields never moves the map.
-    document.addEventListener("focusin", readFocus);
-    document.addEventListener("focusout", readFocus);
-    return () => {
-      document.removeEventListener("focusin", readFocus);
-      document.removeEventListener("focusout", readFocus);
-    };
-  }, []);
   const didMountSearchFlyRef = useRef(false);
   // The phone search overlay covers the map with its own suggestion panel, so a
   // camera move made while it is open is work nobody can see. It is also
@@ -5801,9 +5860,19 @@ export default function PubMap({
       splitLaneInput(peekDropSignal?.disputedPrices, peekDropSignal?.disputedAt),
     );
     const peekPrice = peekPriceChip(peekLane, peekBundle, peekDropSignal?.pintTrust ?? null);
+    const pricePending = selectedVenueIsPub && (
+      selectedDetailStatus === "loading" ||
+      venuePriceFallbackPending(
+        peekLane,
+        communityPrices.venuePriceStatus.get(selectedVenue.id) ?? "idle",
+        pintDrops.venueDropStatus.get(selectedVenue.id) ?? "idle",
+      )
+    );
     return (
       <div className="mobileVenuePeekSummary" aria-label={selectedVenueLabels.summaryLabel}>
-        {activeLensPrices !== null ? (
+        {pricePending ? (
+          <span role="status">{PRICE_PENDING_LINE}</span>
+        ) : activeLensPrices !== null ? (
           <span>
             {selectedLensPrice ? (
               <PriceBadge

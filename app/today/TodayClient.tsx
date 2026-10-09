@@ -79,6 +79,9 @@ import TodayTubeCard from "./TodayTubeCard";
 import { TODAY_TEXT_BUTTON_CLASS } from "./todayTextButton";
 import type { TodayPintsIndex } from "./todayPints";
 import type { QuietPintModule } from "@/lib/quietPint";
+import TonightHypedPubs from "../tonight/TonightHypedPubs";
+import type { HypedPub } from "@/lib/hypedPubs";
+import "../tonight/tonightLede.css";
 import "./today.css";
 
 type Props = {
@@ -90,6 +93,8 @@ type Props = {
   weather: WeatherBrief | null;
   weatherByArea: Partial<Record<NightAreaSlug, WeatherBrief | null>>;
   picks: TonightPickDto[];
+  hypedPubs?: readonly HypedPub[];
+  mapSelectableVenueIds?: readonly string[] | null;
   picksStatus: PicksListReadStatus;
   /** When the rows behind the picks were OBSERVED, not when this page was served. */
   picksCheckedAt?: string | null;
@@ -122,7 +127,7 @@ const LENS_ICON = {
 function WeatherCard({ weather }: { weather: WeatherBrief | null }) {
   const LensIcon = weather ? LENS_ICON[weather.venueLens] : CloudSun;
   return (
-    <section className="todayCard" aria-labelledby="today-weather-title" data-testid="today-weather">
+    <section className="todayCard createFabLane" aria-labelledby="today-weather-title" data-testid="today-weather">
       <div className="todayCardHead">
         <span className="todayCardIcon" aria-hidden="true">
           <LensIcon size={18} />
@@ -194,6 +199,8 @@ function PicksCard({
   picksReason,
   picksRetryable,
   context,
+  hypedPubs,
+  selectableVenueIds,
 }: {
   picks: TonightPickDto[];
   filteredPickCount: number;
@@ -203,6 +210,8 @@ function PicksCard({
   picksReason: string | null;
   picksRetryable: boolean;
   context: PicksContext;
+  hypedPubs: readonly HypedPub[];
+  selectableVenueIds: ReadonlySet<string> | null;
 }) {
   // ONE state, the same four words /tonight reads (lib/picksState.ts). Today's
   // picks are composed on the SERVER and never re-read from the browser, so
@@ -223,6 +232,22 @@ function PicksCard({
     checkedAt: picksCheckedAt,
   });
   const checked = picksCheckedLabel(state.checkedAt);
+  if (picks.length === 0 && filteredPickCount === 0 && hypedPubs.length > 0) {
+    return (
+      <div className="todayPicksFallback" data-testid="today-picks" data-picks-state={state.kind}>
+        <TonightHypedPubs rows={hypedPubs} selectableVenueIds={selectableVenueIds} />
+        <p className="todayCardEmpty">
+          {state.reason ?? (picksStatus === "degraded" ? picksListLine(picksStatus, slot) : "No confirmed events listed tonight.")}
+        </p>
+        <p className="todayCardFootRow">
+          <Link prefetch={false} href="/tonight" className="todayCardFootLink">
+            See everything on tonight
+            <ArrowRight size={14} aria-hidden="true" />
+          </Link>
+        </p>
+      </div>
+    );
+  }
   return (
     <section
       className="todayCard"
@@ -412,6 +437,8 @@ export default function TodayClient({
   weatherByArea,
   picks,
   picksStatus,
+  hypedPubs = [],
+  mapSelectableVenueIds = null,
   picksCheckedAt = null,
   picksReason = null,
   picksRetryable = true,
@@ -557,6 +584,8 @@ export default function TodayClient({
             filteredPickCount={brief.filteredPickCount}
             slot={shownGreeting.slot}
             picksStatus={picksStatus}
+            hypedPubs={hypedPubs}
+            selectableVenueIds={mapSelectableVenueIds ? new Set(mapSelectableVenueIds) : null}
           />
           <TodayGetThereStrip />
         </div>

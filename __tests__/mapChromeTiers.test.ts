@@ -146,23 +146,23 @@ describe("buildTonightChip", () => {
 
   it("names the listing count for a one-tap cold start", () => {
     expect(buildTonightChip(1, false)).toMatchObject({
-      label: "On tonight",
+      label: "Tonight listings",
       count: 1,
-      ariaLabel: "On tonight: 1 listing",
+      ariaLabel: "Tonight listings: 1",
     });
     expect(buildTonightChip(3, false)).toMatchObject({
-      label: "On tonight",
+      label: "Tonight listings",
       count: 3,
-      ariaLabel: "On tonight: 3 listings",
+      ariaLabel: "Tonight listings: 3",
     });
   });
 
   it("claims near you only when the fetch was location-scoped", () => {
     expect(buildTonightChip(1, true)).toMatchObject({
-      ariaLabel: "On tonight: 1 listing near you",
+      ariaLabel: "Tonight listings: 1 near you",
     });
     expect(buildTonightChip(3, true)).toMatchObject({
-      ariaLabel: "On tonight: 3 listings near you",
+      ariaLabel: "Tonight listings: 3 near you",
     });
   });
 });

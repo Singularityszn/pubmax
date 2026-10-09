@@ -1,0 +1,10 @@
+{
+  "id": "1791454130308",
+  "value": {
+    "url": "http://localhost:3491/places?lane-retry=local#pubs",
+    "state": {
+      "isActive": true
+    },
+    "controller": null
+  }
+}
