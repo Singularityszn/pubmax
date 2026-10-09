@@ -74,8 +74,8 @@ const DAILY_PRICE_CAP_REFUSAL =
 // PRD §9: enrich each public drop with a human `venueName` + a "/map?sel=…"
 // `venueMapUrl`, resolved server-side from the bundled venue index, so no public
 // feed/profile/permalink card ever surfaces the raw content-hashed `venue-…` id.
-// Batched over the whole page against the one memoized index (a single Map read
-// per drop). A drop stored under a merged or superseded venue id is answered
+// The page shares one memoized index. A drop stored under a merged or
+// superseded venue id is answered
 // under the id that venue carries now, so its name, its map link and every
 // client join on `venueId` find the pub. Never throws: an unreadable index
 // yields the friendly fallback for every id, and the drops still render.
