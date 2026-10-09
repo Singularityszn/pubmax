@@ -938,6 +938,32 @@ const REQUIRED_MEMBERS = [
   "locate FAB",
 ] as const;
 
+async function seedAnsweredConsentAndPal(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    window.localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
+    const now = "2026-01-01T00:00:00.000Z";
+    window.localStorage.setItem(
+      "pubmax_pub_pal_v1",
+      JSON.stringify({
+        id: "pal-e2e",
+        ownerId: "owner-e2e",
+        name: "Ada",
+        adultAttestedAt: now,
+        appearance: {},
+        personality: {},
+        voice: {},
+        muted: false,
+        hidden: false,
+        proposalPreferences: {},
+        masteryPoints: 0,
+        createdAt: now,
+        updatedAt: now,
+      }),
+    );
+  });
+}
+
 function overlaps(a: Rect, b: Rect): boolean {
   return (
     a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
@@ -948,34 +974,12 @@ for (const viewport of VIEWPORTS) {
   test(`${viewport.width}px right-edge floating controls never overlap`, async ({
     page,
   }) => {
-    await page.addInitScript(() => {
-      // Consent is ANSWERED on purpose. Leaving it undecided renders
-      // AnalyticsConsentPrompt, which lifts the map-edge column to its own
-      // higher berth - the one berth where the collision this test exists for
-      // cannot happen - and whether it renders at all depends on a prompt
-      // budget, so an undecided seed is nondeterministic as well as blind.
-      window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
-      window.localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
-      const now = "2026-01-01T00:00:00.000Z";
-      window.localStorage.setItem(
-        "pubmax_pub_pal_v1",
-        JSON.stringify({
-          id: "pal-e2e",
-          ownerId: "owner-e2e",
-          name: "Ada",
-          adultAttestedAt: now,
-          appearance: {},
-          personality: {},
-          voice: {},
-          muted: false,
-          hidden: false,
-          proposalPreferences: {},
-          masteryPoints: 0,
-          createdAt: now,
-          updatedAt: now,
-        }),
-      );
-    });
+    // Consent is ANSWERED on purpose. Leaving it undecided renders
+    // AnalyticsConsentPrompt, which lifts the map-edge column to its own
+    // higher berth - the one berth where the collision this test exists for
+    // cannot happen - and whether it renders at all depends on a prompt
+    // budget, so an undecided seed is nondeterministic as well as blind.
+    await seedAnsweredConsentAndPal(page);
     await openPhoneMap(page, viewport);
     // The pill is stored-pal gated and mounts after a microtask.
     await expect(page.locator(".palSummon")).toBeVisible({ timeout: 30_000 });
@@ -1046,6 +1050,112 @@ for (const viewport of VIEWPORTS) {
       Math.round(bar!.y) - Math.round(plan.rect.bottom),
       "the plan pill keeps a real gap above the tab bar",
     ).toBeGreaterThanOrEqual(10);
+  });
+}
+
+// The OpenStreetMap credit shares the band above the plan pill with the Pub
+// Pal pill. Closed, it is a 44px control beside the pill that owns its own
+// tap. Open, its text runs across that band, so the pill stands down, no word
+// may sit under the 44px collapse button at its right edge, and it stays out of
+// the Near me lane.
+for (const viewport of VIEWPORTS) {
+  test(`${viewport.width}px the map credit owns its taps beside the Pub Pal pill`, async ({
+    page,
+  }) => {
+    await seedAnsweredConsentAndPal(page);
+    await openPhoneMap(page, viewport);
+    const pal = page.locator(".palSummon");
+    await expect(pal).toBeVisible({ timeout: 30_000 });
+    const credit = page.locator(".appShell .mapStage .maplibregl-ctrl-attrib");
+    const toggle = credit.locator(".maplibregl-ctrl-attrib-button");
+    await expect(toggle).toBeVisible();
+
+    const closed = await toggle.evaluate((button) => {
+      const box = button.getBoundingClientRect();
+      const pill = document.querySelector(".palSummon")!.getBoundingClientRect();
+      const hit = document.elementFromPoint(
+        box.left + box.width / 2,
+        box.top + box.height / 2,
+      );
+      return {
+        box: box.toJSON() as Rect,
+        pill: pill.toJSON() as Rect,
+        ownsCentre: button.contains(hit),
+      };
+    });
+    expect(closed.box.width, "the closed credit keeps the tap floor").toBeGreaterThanOrEqual(44);
+    expect(closed.box.height, "the closed credit keeps the tap floor").toBeGreaterThanOrEqual(44);
+    expect(closed.ownsCentre, "the closed credit owns its centre").toBe(true);
+    expect(
+      overlaps(closed.box, closed.pill),
+      `credit ${JSON.stringify(closed.box)} overlaps the Pub Pal pill ${JSON.stringify(closed.pill)}`,
+    ).toBe(false);
+
+    await toggle.click();
+    await expect(credit).toHaveClass(/maplibregl-compact-show/);
+    await expect(pal).toBeHidden();
+    // Even reduced motion keeps a near-zero transition, so read the open
+    // credit's geometry only once it has landed.
+    await expect
+      .poll(() => credit.evaluate((control) => control.getAnimations().length))
+      .toBe(0);
+
+    const open = await credit.evaluate((control) => {
+      const button = control.querySelector(".maplibregl-ctrl-attrib-button")!;
+      const buttonBox = button.getBoundingClientRect();
+      const range = document.createRange();
+      range.selectNodeContents(control.querySelector(".maplibregl-ctrl-attrib-inner")!);
+      const underButton = Array.from(range.getClientRects())
+        .filter((line) => line.width > 0 && line.height > 0)
+        .filter(
+          (line) =>
+            line.left < buttonBox.right &&
+            buttonBox.left < line.right &&
+            line.top < buttonBox.bottom &&
+            buttonBox.top < line.bottom,
+        )
+        .map((line) => line.toJSON());
+      const links = Array.from(control.querySelectorAll<HTMLAnchorElement>("a")).map(
+        (link) => {
+          const line = link.getClientRects()[0]!;
+          const hit = document.elementFromPoint(
+            line.left + line.width / 2,
+            line.top + line.height / 2,
+          );
+          return { text: link.textContent, ownsCentre: link.contains(hit) };
+        },
+      );
+      const hit = document.elementFromPoint(
+        buttonBox.left + buttonBox.width / 2,
+        buttonBox.top + buttonBox.height / 2,
+      );
+      return {
+        box: control.getBoundingClientRect().toJSON() as Rect,
+        locate: document.querySelector(".mobileMapLocateFab")!.getBoundingClientRect().toJSON() as Rect,
+        button: buttonBox.toJSON() as Rect,
+        buttonOwnsCentre: button.contains(hit),
+        underButton,
+        links,
+      };
+    });
+    expect(open.underButton, "no credit text sits under the collapse button").toEqual([]);
+    expect(open.links.length, "the open credit shows its links").toBeGreaterThan(0);
+    expect(
+      open.links.filter((link) => !link.ownsCentre),
+      "every credit link owns its centre",
+    ).toEqual([]);
+    expect(open.button.width, "the collapse button keeps the tap floor").toBeGreaterThanOrEqual(44);
+    expect(open.buttonOwnsCentre, "the collapse button owns its centre").toBe(true);
+    expect(open.box.left).toBeGreaterThanOrEqual(0);
+    expect(open.box.right).toBeLessThanOrEqual(viewport.width);
+    expect(
+      overlaps(open.box, open.locate),
+      `open credit ${JSON.stringify(open.box)} overlaps Near me ${JSON.stringify(open.locate)}`,
+    ).toBe(false);
+
+    await toggle.click();
+    await expect(credit).not.toHaveClass(/maplibregl-compact-show/);
+    await expect(pal).toBeVisible();
   });
 }
 
