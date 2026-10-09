@@ -1,10 +1,7 @@
-// Demo profile model + pure helpers for public profiles (/u/[handle]).
+// Public profile types and pure helpers for /u/[handle].
 //
-// Handle-based identity is a DEMO stance: there is no auth or stored profile
-// table yet (real Supabase Auth is a later epic). A profile is therefore
-// SYNTHESIZED from a handle's public Pint Drops — display name from the handle,
-// simple stats from the drops. Everything here is pure and backend-free so it
-// unit-tests without a DOM, a network, or a database.
+// lib/profileStore.ts owns stored profiles. This module keeps public projection,
+// drop statistics, badges, and handle-derived fallbacks independent of storage.
 
 import {
   type AccountVisibility,
@@ -528,10 +525,6 @@ export function nextBadgeProgress(
   return progress.map(({ badge, current, target, label }) => ({ badge, current, target, label }));
 }
 
-// Synthesize a demo Profile for a handle from its drops. There is no stored
-// profile, so the display name comes from the handle and the bio is a light
-// summary derived from the stats. Callers pass the handle they already
-// normalized; we normalize again defensively so this is safe standalone.
 /**
  * Overlay the durable, owner-authored row on top of the identity synthesized
  * from a handle's drops. Name, bio and city fall back to the synthesized
@@ -560,6 +553,8 @@ export function withStoredProfile(
   };
 }
 
+// Derive the fallback identity that withStoredProfile can overlay. Normalize
+// the handle here so callers need no prior normalization.
 export function deriveProfileFromDrops(
   rawHandle: string,
   drops: readonly ProfileDrop[] | null | undefined,
