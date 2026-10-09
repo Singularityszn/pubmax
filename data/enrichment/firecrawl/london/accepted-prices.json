@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "sourceUrl": "https://www.thethirstybear.com/drinks",
+  "observedAt": "2026-10-09T17:02:22.329Z",
+  "evidence": "Half / Pint\nInches Cider\n£3.4 / £5.95\nWhisky Cider\n£3 / £4.95",
+  "reader": "scripts/harvest/uk-prices/readPrices.mjs, keyless shared ukPriceCrawl rules",
+  "rows": [
+    {
+      "host": "thethirstybear.com",
+      "venueId": "venue-uk-n1707216586",
+      "osmId": "node/1707216586",
+      "name": "The Thirsty Bear",
+      "postcode": "SE1 9LX",
+      "lat": 51.50707,
+      "lng": -0.10812,
+      "category": "beer",
+      "priceGbp": 5.95,
+      "drinkLabel": "Inches Cider",
+      "servingSize": "pint",
+      "sourceUrl": "https://www.thethirstybear.com/drinks",
+      "observedAt": "2026-10-09T17:02:22.329Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 24,
+      "reader": "firecrawl"
+    },
+    {
+      "host": "thethirstybear.com",
+      "venueId": "venue-uk-n1707216586",
+      "osmId": "node/1707216586",
+      "name": "The Thirsty Bear",
+      "postcode": "SE1 9LX",
+      "lat": 51.50707,
+      "lng": -0.10812,
+      "category": "beer",
+      "priceGbp": 4.95,
+      "drinkLabel": "Whisky Cider",
+      "servingSize": "pint",
+      "sourceUrl": "https://www.thethirstybear.com/drinks",
+      "observedAt": "2026-10-09T17:02:22.329Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 24,
+      "reader": "firecrawl"
+    }
+  ],
+  "rejected": [
+    {
+      "drinkName": "Inches Cider",
+      "priceGbp": 3,
+      "reason": "No such pint price is printed. The £3 amount belongs to the Whisky Cider half-pint column."
+    }
+  ],
+  "otherBeerLines": "Held. The existing reader did not retain safely named, correctly sized prices from description-separated menu blocks."
+}

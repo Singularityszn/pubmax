@@ -99,6 +99,15 @@ type Reconciliation = {
     currentLedger: { sha256: string; rowCount: number; rowIdentitySetSha256: string };
     currentBundle: { rowCount: number; siteHarvestRows: number };
   };
+  laterPublications: Array<{
+    sourceEvidencePath: string;
+    sourceEvidenceSha256: string;
+    sourceUrl: string;
+    sourceObservedAt: string;
+    addedRows: number;
+    currentLedger: { sha256: string; rowCount: number; rowIdentitySetSha256: string };
+    currentBundle: { rowCount: number; siteHarvestRows: number };
+  }>;
   accounting: {
     refusedNicholsonRows: number;
     knownMisclassifiedWithdrawals: number;
@@ -428,6 +437,38 @@ describe("site-harvest withdrawal reconciliation", () => {
     ).toHaveLength(1);
   });
 
+  it("accounts for each later publication without replacing the historical ledger", () => {
+    const lines = ledgerText.trimEnd().split("\n");
+    let previousCount = reconciliation.postReconciliationPublication.currentLedger.rowCount;
+    for (const publication of reconciliation.laterPublications) {
+      const evidenceText = readFileSync(join(ROOT, publication.sourceEvidencePath), "utf8");
+      const evidence = JSON.parse(evidenceText) as { rows: SiteHarvestLedgerRow[] };
+      expect(sha256(evidenceText)).toBe(publication.sourceEvidenceSha256);
+      expect(publication.currentLedger.rowCount).toBe(previousCount + publication.addedRows);
+      const additions = rows.slice(previousCount, publication.currentLedger.rowCount);
+      expect(additions).toEqual(evidence.rows);
+      expect(additions).toHaveLength(publication.addedRows);
+      expect(additions.every((row) =>
+        row.sourceUrl === publication.sourceUrl && row.observedAt === publication.sourceObservedAt,
+      )).toBe(true);
+      const publicationText = `${lines.slice(0, publication.currentLedger.rowCount).join("\n")}\n`;
+      expect(publication.currentLedger).toEqual({
+        sha256: sha256(publicationText),
+        rowCount: parseSiteHarvestLedgerText(publicationText).length,
+        rowIdentitySetSha256: identitySetSha256(parseSiteHarvestLedgerText(publicationText)),
+      });
+      previousCount = publication.currentLedger.rowCount;
+    }
+    expect(rows.length).toBe(previousCount);
+    const latest = reconciliation.laterPublications.at(-1);
+    expect(latest).toBeDefined();
+    const bundleRows = JSON.parse(readFileSync(join(ROOT, "public/data/uk_prices/rows.json"), "utf8")) as Array<{ lane: string }>;
+    expect(latest?.currentBundle).toEqual({
+      rowCount: bundleRows.length,
+      siteHarvestRows: bundleRows.filter((row) => row.lane === "site-harvest").length,
+    });
+  });
+
   it("records the later Sydney source refresh without rewriting the withdrawal audit", () => {
     const publication = reconciliation.postReconciliationPublication;
     expect(publication.sourceCaptureSha256).toBe(
@@ -437,12 +478,14 @@ describe("site-harvest withdrawal reconciliation", () => {
     expect(publication.supersededRowSha256).toBe(
       "fbcc91ed985cdc6506dea865b397e3b621bf731b1009043b1ea5871885a4e4b1",
     );
+    const historicalLines = ledgerText.trimEnd().split("\n").slice(0, publication.currentLedger.rowCount);
+    const historicalRows = parseSiteHarvestLedgerText(`${historicalLines.join("\n")}\n`);
     expect(publication.currentLedger).toEqual({
-      sha256: sha256(ledgerText),
-      rowCount: rows.length,
-      rowIdentitySetSha256: identitySetSha256(rows),
+      sha256: sha256(`${historicalLines.join("\n")}\n`),
+      rowCount: historicalRows.length,
+      rowIdentitySetSha256: identitySetSha256(historicalRows),
     });
-    expect(rows.length).toBe(reconciliation.publishedLedger.rowCount - 1 + 24);
+    expect(historicalRows.length).toBe(reconciliation.publishedLedger.rowCount - 1 + 24);
 
     const sourceRows = rows.filter(
       (row) => row.sourceUrl === publication.sourceUrl,
@@ -471,9 +514,11 @@ describe("site-harvest withdrawal reconciliation", () => {
     const identity = (row: { drinkLabel?: string; servingSize?: string; priceGbp?: number; observedAt?: string }) =>
       `${row.drinkLabel}|${row.servingSize}|${row.priceGbp}|${row.observedAt}`;
     expect(bundledSourceRows.map(identity).sort()).toEqual(sourceRows.map(identity).sort());
+    const laterSources = new Set(reconciliation.laterPublications.map((later) => later.sourceUrl));
+    const historicalBundle = bundleRows.filter((row) => !laterSources.has(row.sourceUrl ?? ""));
     expect(publication.currentBundle).toEqual({
-      rowCount: bundleRows.length,
-      siteHarvestRows: bundleRows.filter((row) => row.lane === "site-harvest").length,
+      rowCount: historicalBundle.length,
+      siteHarvestRows: historicalBundle.filter((row) => row.lane === "site-harvest").length,
     });
   });
 });

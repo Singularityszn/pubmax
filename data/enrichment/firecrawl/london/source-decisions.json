@@ -1,0 +1,1704 @@
+{
+  "version": 1,
+  "originalWebsiteCandidates": 400,
+  "originalAllowedCandidates": 322,
+  "originalRefusedCandidates": 78,
+  "refusedOriginalPages": [
+    {
+      "osmId": "node/10557816972",
+      "name": "Daylight Inn",
+      "sourceUrl": "https://www.thedaylightinn.co.uk/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreadable",
+        "robots": "challenge-page",
+        "evidence": "https://www.thedaylightinn.co.uk/robots.txt answered 403 with a challenge page, so no permission can be read."
+      }
+    },
+    {
+      "osmId": "node/11735382754",
+      "name": "The Phoenix",
+      "sourceUrl": "https://bythehorns.co.uk/plough-lane/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://bythehorns.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "node/14178744680",
+      "name": "The Shaston Arms",
+      "sourceUrl": "https://www.shastonarms.co.uk/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.shastonarms.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "node/14181043760",
+      "name": "The Bridge Tap",
+      "sourceUrl": "https://www.crafted-social.co.uk/bridge-tap-borough-high-street",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.crafted-social.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "node/14181043765",
+      "name": "Southwark Tavern",
+      "sourceUrl": "https://www.thesouthwarktavern.co.uk/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreadable",
+        "robots": "challenge-page",
+        "evidence": "https://www.thesouthwarktavern.co.uk/robots.txt answered 403 with a challenge page, so no permission can be read."
+      }
+    },
+    {
+      "osmId": "node/14206898648",
+      "name": "Bucks Head",
+      "sourceUrl": "https://www.crafted-social.co.uk/bucks-head-camden",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.crafted-social.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "node/1858255566",
+      "name": "Gorringe Park",
+      "sourceUrl": "http://www.gorringeparkpub.com/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "http://www.gorringeparkpub.com/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "node/2652399072",
+      "name": "The Fox & Firkin",
+      "sourceUrl": "https://foxfirkin.com/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreadable",
+        "robots": "http-refused",
+        "evidence": "https://foxfirkin.com/robots.txt answered 403, so no permission can be read."
+      }
+    },
+    {
+      "osmId": "node/266890511",
+      "name": "The North End Tavern",
+      "sourceUrl": "https://www.greatukpubs.co.uk/north-end-tavern-worcester-park",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.greatukpubs.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "node/3688619646",
+      "name": "Sports Bar and Grill",
+      "sourceUrl": "https://www.sportsbarandgrill.co.uk/victoria",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.sportsbarandgrill.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "node/3892264316",
+      "name": "The Flying Dutchman",
+      "sourceUrl": "https://www.flyingdutchmanlondon.com/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.flyingdutchmanlondon.com/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "node/420741880",
+      "name": "Barrel & Horn",
+      "sourceUrl": "https://www.barrelandhorn.com/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreadable",
+        "robots": "challenge-page",
+        "evidence": "https://www.barrelandhorn.com/robots.txt answered 403 with a challenge page, so no permission can be read."
+      }
+    },
+    {
+      "osmId": "way/1068933456",
+      "name": "The Three Compasses",
+      "sourceUrl": "https://thethreecompassesaldenham.co.uk/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreadable",
+        "robots": "http-refused",
+        "evidence": "https://thethreecompassesaldenham.co.uk/robots.txt answered 403, so no permission can be read."
+      }
+    },
+    {
+      "osmId": "way/182913386",
+      "name": "The Cherry",
+      "sourceUrl": "https://thecherry-e3.co.uk/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://thecherry-e3.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "way/211040152",
+      "name": "The Kings Lodge",
+      "sourceUrl": "http://www.kingslodge.uk.com/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "http://www.kingslodge.uk.com/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "way/277929217",
+      "name": "The George",
+      "sourceUrl": "http://www.thegeorgeholborn.com/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "http://www.thegeorgeholborn.com/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "way/490745333",
+      "name": "Duke of Wellington",
+      "sourceUrl": "https://dowepping.co.uk/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://dowepping.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "way/502991820",
+      "name": "The Three Compasses",
+      "sourceUrl": "https://www.threecompassesfarringdon.com/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.threecompassesfarringdon.com/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "way/663131220",
+      "name": "The Rifleman",
+      "sourceUrl": "http://therifleman.co.uk/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "http://therifleman.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "way/832071957",
+      "name": "The Occasional Half",
+      "sourceUrl": "http://www.occasionalhalf.co.uk/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "http://www.occasionalhalf.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "way/863539561",
+      "name": "FBI Studio",
+      "sourceUrl": "http://www.fbitattoolondon.com/staff/louise",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "http://www.fbitattoolondon.com/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "way/925751632",
+      "name": "The Miller Tap",
+      "sourceUrl": "https://www.crafted-social.co.uk/millers-tap-uxbridge",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.crafted-social.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "way/986920651",
+      "name": "Nell of Old Drury",
+      "sourceUrl": "https://www.greatukpubs.co.uk/nell-of-old-drury-covent-garden",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.greatukpubs.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "node/26310696",
+      "name": "Fox on the Green",
+      "sourceUrl": "https://www.crafted-social.co.uk/fox-on-the-green-islington",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.crafted-social.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "node/291969215",
+      "name": "The Market Tavern",
+      "sourceUrl": "https://www.greatukpubs.co.uk/market-tavern-croydon",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.greatukpubs.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "way/31293177",
+      "name": "The Library",
+      "sourceUrl": "https://www.crafted-social.co.uk/library-islington",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.crafted-social.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "node/7138296487",
+      "name": "The Telephone Exchange",
+      "sourceUrl": "https://www.telephoneexchange.co.uk",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreadable",
+        "robots": "challenge-page",
+        "evidence": "https://www.telephoneexchange.co.uk/robots.txt answered 403 with a challenge page, so no permission can be read."
+      }
+    },
+    {
+      "osmId": "way/1062475042",
+      "name": "Angerstein Hotel",
+      "sourceUrl": "https://angerstein-hotel.com/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://angerstein-hotel.com/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "way/112344676",
+      "name": "Finborough Arms",
+      "sourceUrl": "https://www.finborougharms.co.uk/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreadable",
+        "robots": "challenge-page",
+        "evidence": "https://www.finborougharms.co.uk/robots.txt answered 403 with a challenge page, so no permission can be read."
+      }
+    },
+    {
+      "osmId": "way/112528246",
+      "name": "Carlton Tavern",
+      "sourceUrl": "https://carltontavern.co.uk/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://carltontavern.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "way/171299014",
+      "name": "The Queens Head",
+      "sourceUrl": "https://www.queensheadbrixton.co.uk",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.queensheadbrixton.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "way/182697408",
+      "name": "The Drayton Arms",
+      "sourceUrl": "https://www.thedraytonarmssw5.co.uk/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreadable",
+        "robots": "challenge-page",
+        "evidence": "https://www.thedraytonarmssw5.co.uk/robots.txt answered 403 with a challenge page, so no permission can be read."
+      }
+    },
+    {
+      "osmId": "way/187581780",
+      "name": "The Angel",
+      "sourceUrl": "https://www.theangelcityroad.co.uk/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreadable",
+        "robots": "challenge-page",
+        "evidence": "https://www.theangelcityroad.co.uk/robots.txt answered 403 with a challenge page, so no permission can be read."
+      }
+    },
+    {
+      "osmId": "way/220273570",
+      "name": "Rising Sun Hotel & Restaurant",
+      "sourceUrl": "http://www.risingsunhotels.com/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "http://www.risingsunhotels.com/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "way/243983813",
+      "name": "Fizz Sports Bar",
+      "sourceUrl": "http://www.fizzsportsbar.com/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "http://www.fizzsportsbar.com/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "way/251397732",
+      "name": "The Badger",
+      "sourceUrl": "http://www.thebadgernag.co.uk/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "http://www.thebadgernag.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "way/356687576",
+      "name": "Sun in Splendour",
+      "sourceUrl": "https://www.suninsplendourpub.co.uk/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreadable",
+        "robots": "challenge-page",
+        "evidence": "https://www.suninsplendourpub.co.uk/robots.txt answered 403 with a challenge page, so no permission can be read."
+      }
+    },
+    {
+      "osmId": "way/364768722",
+      "name": "Uxbridge Arms",
+      "sourceUrl": "https://www.theuxbridgearmskensington.co.uk/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.theuxbridgearmskensington.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "way/447950556",
+      "name": "Whittington Stone",
+      "sourceUrl": "https://www.greatukpubs.co.uk/thewhittingtonstonehighgate",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.greatukpubs.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "way/829086948",
+      "name": "The Hansom Cab",
+      "sourceUrl": "https://www.thehansomcab.com/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.thehansomcab.com/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "node/1144626359",
+      "name": "The Sea Horse",
+      "sourceUrl": "https://www.greatukpubs.co.uk/sea-horse-fleet-street",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.greatukpubs.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "node/587850226",
+      "name": "Spit and Sawdust",
+      "sourceUrl": "https://www.spitandsawdust.pub/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.spitandsawdust.pub/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "node/6019687353",
+      "name": "Sports Bar & Grill",
+      "sourceUrl": "https://www.sportsbarandgrill.co.uk/canarywharf",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.sportsbarandgrill.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "node/867528389",
+      "name": "Wheelwrights Arms",
+      "sourceUrl": "https://www.wheelieslive.co.uk/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.wheelieslive.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "way/142371465",
+      "name": "Cock Tavern",
+      "sourceUrl": "https://thecocktavern.co.uk/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://thecocktavern.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "way/152728633",
+      "name": "The Hampton",
+      "sourceUrl": "https://www.hamptonalehousehampton.co.uk/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.hamptonalehousehampton.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "way/157956284",
+      "name": "Prince of Wales",
+      "sourceUrl": "https://www.greatukpubs.co.uk/prince-of-wales-east-barnet",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.greatukpubs.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "way/219045183",
+      "name": "The Raglan",
+      "sourceUrl": "https://lordraglanpub.com/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://lordraglanpub.com/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "way/230788987",
+      "name": "Carpenters Arms",
+      "sourceUrl": "https://www.carpentersarmsfreehouse.com/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.carpentersarmsfreehouse.com/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "way/247245128",
+      "name": "The Queens Head",
+      "sourceUrl": "https://www.greatukpubs.co.uk/the-queens-head-winchmore-hill",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.greatukpubs.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "way/376872583",
+      "name": "The Lord Palmerston",
+      "sourceUrl": "https://www.greatukpubs.co.uk/lord-palmerston-walthamstow",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.greatukpubs.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "way/444200909",
+      "name": "Prince of Wales",
+      "sourceUrl": "https://pow-leyton.com/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://pow-leyton.com/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "way/832897099",
+      "name": "The Phoenix",
+      "sourceUrl": "https://www.facebook.com/profile.php?id=61587452316309",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-disallowed",
+        "robots": "rules-file",
+        "evidence": "https://www.facebook.com/robots.txt disallows /profile.php?id=61587452316309 for `*` (rule: /)."
+      }
+    },
+    {
+      "osmId": "way/942555974",
+      "name": "The Haverstock Tavern",
+      "sourceUrl": "https://thehaverstocktavern.co.uk",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://thehaverstocktavern.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "node/261348576",
+      "name": "The Cavendish Arms",
+      "sourceUrl": "https://thecavendisharmsstockwell.co.uk/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://thecavendisharmsstockwell.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "way/164245940",
+      "name": "Nancy Spains",
+      "sourceUrl": "https://nancyspains.co.uk/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreadable",
+        "robots": "http-refused",
+        "evidence": "https://nancyspains.co.uk/robots.txt answered 403, so no permission can be read."
+      }
+    },
+    {
+      "osmId": "node/10266440633",
+      "name": "The Gipsy Moth",
+      "sourceUrl": "https://www.thegipsymothgreenwich.co.uk/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreadable",
+        "robots": "challenge-page",
+        "evidence": "https://www.thegipsymothgreenwich.co.uk/robots.txt answered 403 with a challenge page, so no permission can be read."
+      }
+    },
+    {
+      "osmId": "node/1044881306",
+      "name": "The Lucky Rover",
+      "sourceUrl": "https://www.luckyroverchessington.co.uk/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.luckyroverchessington.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "node/1141570209",
+      "name": "The Waterfront",
+      "sourceUrl": "https://www.waterfrontlondon.co.uk/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreadable",
+        "robots": "not-a-rules-file",
+        "evidence": "https://www.waterfrontlondon.co.uk/robots.txt returned something that is neither a rules file nor an HTML page, so no permission can be read."
+      }
+    },
+    {
+      "osmId": "node/116097320",
+      "name": "The Alice",
+      "sourceUrl": "https://www.crafted-social.co.uk/alice-houndsditch-london",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.crafted-social.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "node/12185302738",
+      "name": "The Royal Standard",
+      "sourceUrl": "https://www.royalstandardblackheath.co.uk",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreadable",
+        "robots": "challenge-page",
+        "evidence": "https://www.royalstandardblackheath.co.uk/robots.txt answered 403 with a challenge page, so no permission can be read."
+      }
+    },
+    {
+      "osmId": "node/12189261755",
+      "name": "The Princess of Wales",
+      "sourceUrl": "https://www.princessofwalespub.co.uk/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreadable",
+        "robots": "challenge-page",
+        "evidence": "https://www.princessofwalespub.co.uk/robots.txt answered 403 with a challenge page, so no permission can be read."
+      }
+    },
+    {
+      "osmId": "node/12633147087",
+      "name": "The Queens",
+      "sourceUrl": "https://www.thequeenscrouchend.co.uk/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-disallowed",
+        "robots": "rules-file",
+        "evidence": "https://www.thequeenscrouchend.co.uk/robots.txt disallows / for `*` (rule: /)."
+      }
+    },
+    {
+      "osmId": "node/12952885350",
+      "name": "The Lost Hour",
+      "sourceUrl": "https://www.crafted-social.co.uk/lost-hour-greenwich",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.crafted-social.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "node/1322154184",
+      "name": "The Abbey Tap",
+      "sourceUrl": "https://www.crafted-social.co.uk/abbey-tap-stratford",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.crafted-social.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "node/1324709953",
+      "name": "The Beaufort",
+      "sourceUrl": "http://www.beaufortpubdining.com",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "http://www.beaufortpubdining.com/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "node/1547392947",
+      "name": "The Windsor",
+      "sourceUrl": "https://www.greatukpubs.co.uk/windsor-fenchurch-place",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.greatukpubs.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "node/1588266926",
+      "name": "The Shamrock",
+      "sourceUrl": "https://m.facebook.com/The-Spirit-Store-669020139853074/?locale2=en_GB",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-disallowed",
+        "robots": "rules-file",
+        "evidence": "https://m.facebook.com/robots.txt disallows /The-Spirit-Store-669020139853074/?locale2=en_GB for `*` (rule: /)."
+      }
+    },
+    {
+      "osmId": "node/1666149588",
+      "name": "The Kerfield Arms",
+      "sourceUrl": "https://thecrookedwell.com/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://thecrookedwell.com/robots.txt could not be fetched (This operation was aborted)."
+      }
+    },
+    {
+      "osmId": "node/1687799181",
+      "name": "The Osidge Arms",
+      "sourceUrl": "http://www.theosidgearms.co.uk/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "http://www.theosidgearms.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "node/1998691305",
+      "name": "Ebb & Flow",
+      "sourceUrl": "http://www.treasurypub.co.uk/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "http://www.treasurypub.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "node/2207164222",
+      "name": "The Ship",
+      "sourceUrl": "https://theshipripley.co.uk/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreadable",
+        "robots": "http-refused",
+        "evidence": "https://theshipripley.co.uk/robots.txt answered 403, so no permission can be read."
+      }
+    },
+    {
+      "osmId": "node/2261568916",
+      "name": "The Tooting Tavern",
+      "sourceUrl": "https://www.thetootingtavern.co.uk",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreadable",
+        "robots": "challenge-page",
+        "evidence": "https://www.thetootingtavern.co.uk/robots.txt answered 403 with a challenge page, so no permission can be read."
+      }
+    },
+    {
+      "osmId": "node/2287275689",
+      "name": "Paya and Horse",
+      "sourceUrl": "http://www.payaandhorse.com/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "http://www.payaandhorse.com/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "node/2316547695",
+      "name": "Bosleys",
+      "sourceUrl": "https://www.weareyates.co.uk/watford",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.weareyates.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "node/249310455",
+      "name": "Dockers Inn",
+      "sourceUrl": "https://dockersinn.co.uk/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://dockersinn.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "node/249672846",
+      "name": "The Goose",
+      "sourceUrl": "https://www.greatukpubs.co.uk/goose-walthamstow/contact",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreachable",
+        "robots": "unreachable",
+        "evidence": "https://www.greatukpubs.co.uk/robots.txt could not be fetched (fetch failed)."
+      }
+    },
+    {
+      "osmId": "node/255012045",
+      "name": "King's Head",
+      "sourceUrl": "https://www.thekingsheadcrouchend.co.uk/#/",
+      "permission": {
+        "allowed": false,
+        "reason": "robots-unreadable",
+        "robots": "challenge-page",
+        "evidence": "https://www.thekingsheadcrouchend.co.uk/robots.txt answered 403 with a challenge page, so no permission can be read."
+      }
+    }
+  ],
+  "excludedImportReads": [
+    {
+      "osmId": "node/13315502601",
+      "sourceUrl": "https://www.thepostbar.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/2632781272",
+      "sourceUrl": "https://thebarleymowshepperton.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/309516454",
+      "sourceUrl": "https://www.youngs.co.uk/our-pubs?PubID=293",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/34190682",
+      "sourceUrl": "https://www.swaninnisleworth.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/3701524147",
+      "sourceUrl": "https://www.imperialcollegeunion.org/eat-drink-shop/our-venues#h-bar",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/489826802",
+      "sourceUrl": "https://www.greeneking.co.uk/pubs-near-me",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/1341512996",
+      "sourceUrl": "https://theravensbury.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/140087010",
+      "sourceUrl": "http://www.shipwrightsarms.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/145406190",
+      "sourceUrl": "https://forsale.godaddy.com/forsale/thepaxtongipsyhill.com?traffic_type=TDFS_BINNS2&traffic_id=binns2",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/311913782",
+      "sourceUrl": "https://www.theriflemantwickenham.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/436529105",
+      "sourceUrl": "https://www.youngs.co.uk/our-pubs?PubID=361",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/532061943",
+      "sourceUrl": "https://clissoldarms.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/568747636",
+      "sourceUrl": "https://www.tam.tv/locations/smithfield",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/596687021",
+      "sourceUrl": "https://kanpai.london/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/886755453",
+      "sourceUrl": "https://www.craftunionpubs.com/pubs/the-bell-hounslow",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/428941713",
+      "sourceUrl": "https://www.thebullsheadhotel.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/1059879142",
+      "sourceUrl": "https://www.craftunionpubs.com/marquis-of-cornwallis-bethnal-green",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/198354767",
+      "sourceUrl": "https://www.youngs.co.uk/our-pubs?PubID=385",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/199171524",
+      "sourceUrl": "https://dogandduck-e17.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/14178896008",
+      "sourceUrl": "https://nelliedeansoho.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/14178896099",
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/greater-london/masons-arms",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/291658737",
+      "sourceUrl": "https://www.stonegategroup.co.uk/find-your-local/?long=-0.09822&lat=51.37239&address=Croydon,%20England,%20United%20Kingdom",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/304744886",
+      "sourceUrl": "http://www.thegreenmanhotelatwembley.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/8872309810",
+      "sourceUrl": "https://www.walkaboutbars.co.uk/watford",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/1001831569",
+      "sourceUrl": "https://machonaria.com/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/182164834",
+      "sourceUrl": "https://www.premierinn.com/gb/en/home.html",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/257338682",
+      "sourceUrl": "https://www.closeupchris.co.uk/london-magician/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/841803230",
+      "sourceUrl": "https://www.redlionhotelhillingdon.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/161525099",
+      "sourceUrl": "https://www.greeneking.co.uk/pubs-near-me",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/621622012",
+      "sourceUrl": "https://www.theprince-edward.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/5382875197",
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/essex/golden-lion/our-beers",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/43914785",
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/kent/lullingstone-castle/our-beers",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/1969846667",
+      "sourceUrl": "https://www.magpiesunbury.com/menus",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/26979398",
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/middlesex/queens-head/menu",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/426808467",
+      "sourceUrl": "https://www.chefandbrewer.com/pubs/middlesex/swan-and-bottle/drinks",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/43914785",
+      "sourceUrl": "https://www.greeneking.co.uk/pubs/kent/lullingstone-castle/menu",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/11045432726",
+      "sourceUrl": "https://www.3locksbeer.com/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/11163028502",
+      "sourceUrl": "https://www.feedtheyak.com/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/1134441899",
+      "sourceUrl": "http://www.broadwaybandg.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/12197064449",
+      "sourceUrl": "https://www.postmarket.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/12199018632",
+      "sourceUrl": "https://www.postmarket.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/12531850553",
+      "sourceUrl": "https://lvls.london/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/12534156761",
+      "sourceUrl": "https://thebolter.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/12599228001",
+      "sourceUrl": "https://feeneyspubs.com/feeneys-5-lloyds-avenue",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/12599552601",
+      "sourceUrl": "https://threefalcons.com/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/1316301006",
+      "sourceUrl": "https://www.thewoodman.co/",
+      "reason": "page-already-owned",
+      "existingOsmId": "venue/venue-1wtqjvr",
+      "existingVenueId": "venue-1wtqjvr"
+    },
+    {
+      "osmId": "node/1497452168",
+      "sourceUrl": "https://www.shepherdneame.co.uk/pubs/london/jamaica-wine-house",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/1975218592",
+      "sourceUrl": "https://www.slugandlettuce.co.uk/south-woodford",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/266819667",
+      "sourceUrl": "https://therichmondhammersmith.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/277909036",
+      "sourceUrl": "http://www.thecastlelondon.com/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/283218340",
+      "sourceUrl": "https://www.craftunionpubs.com/pubs/george-southwark",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/350437645",
+      "sourceUrl": "https://wildswanlondon.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/385018022",
+      "sourceUrl": "https://www.the-wooden-cross.com/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/59169435",
+      "sourceUrl": "https://theboltonearlscourt.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/659512226",
+      "sourceUrl": "https://info6435372.wixsite.com/pavilionpub-1",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/6795775062",
+      "sourceUrl": "https://batterseabrew.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/7099537759",
+      "sourceUrl": "https://www.haydennottinghill.com/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/8263743019",
+      "sourceUrl": "https://thegoodnessbrew.co/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/9008497216",
+      "sourceUrl": "https://cloudwaterbrew.co/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/9891375140",
+      "sourceUrl": "https://www.thegreengoddess.pub/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/1095462380",
+      "sourceUrl": "https://www.thebeershoplondon.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/1106823471",
+      "sourceUrl": "https://breadandrosespub.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/1245783602",
+      "sourceUrl": "https://gipsyhillbrew.com/bar/the-taproom",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/151171737",
+      "sourceUrl": "https://onefulhambroadway.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/225442612",
+      "sourceUrl": "https://www.simmonsbar.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/288355243",
+      "sourceUrl": "http://thetaprooms.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/447182149",
+      "sourceUrl": "https://www.freaksandgeeks.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/529246698",
+      "sourceUrl": "http://www.pelttrader.com/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/65658313",
+      "sourceUrl": "https://wolfpackbars.com/queens-park-bar/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/818883558",
+      "sourceUrl": "https://www.hungryhorse.co.uk/pubs-near-me",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/922196016",
+      "sourceUrl": "https://static1.squarespace.com/static/5717ad50a3360cf4481e38d4/t/69c5044b75b79c1f42797291/1774519371170/Spring+Bar+Menu+2026.pdf",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/371174113",
+      "sourceUrl": "https://static1.squarespace.com/static/68bed954e4c8e600f618a27d/t/69e39f62f84ba430b099a17e/1776525154179/FULL+DRINKS+LIST+%283%29.pdf",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/9006872322",
+      "sourceUrl": "https://www.threehillsbrewing.com/beers",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/14196786774",
+      "sourceUrl": "https://www.truecraftlondon.co.uk/s/230717_TC_Walthamstow_Wine-List_A4.pdf",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/1333311979",
+      "sourceUrl": "https://www.georgeiv.co.uk/-/media/sites/pubs-and-hotels/g/the-george-iv-_-p034/files/global-menu-files/george-iv-wine-list.pdf",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/922196016",
+      "sourceUrl": "https://static1.squarespace.com/static/5717ad50a3360cf4481e38d4/t/6a620ee6c28dc62f26c60e9f/1784811238644/Coach+%26+Horses+-+Wine+list.pdf",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/1316301006",
+      "sourceUrl": "https://www.thewoodman.co/menus",
+      "reason": "page-already-owned",
+      "existingOsmId": "venue/venue-1wtqjvr",
+      "existingVenueId": "venue-1wtqjvr"
+    },
+    {
+      "osmId": "way/1298834057",
+      "sourceUrl": "https://www.hopinnhornchurch.com/menus",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/146543172",
+      "sourceUrl": "https://www.damealiceowen.com/drinks",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/426808467",
+      "sourceUrl": "https://www.chefandbrewer.com/pubs/middlesex/swan-and-bottle/drinks/estrella-galicia-00",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/847530472",
+      "sourceUrl": "https://studentsunionucl.org/index.php/eat-drink-shop",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/847530472",
+      "sourceUrl": "https://studentsunionucl.org/eat-drink-shop",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/847530472",
+      "sourceUrl": "https://studentsunionucl.org/eat-drink-shop/shop-at-hanger",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/847530472",
+      "sourceUrl": "https://studentsunionucl.org/eat-drink-shop/bars/institute-bar",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/847530472",
+      "sourceUrl": "https://studentsunionucl.org/eat-drink-shop/bars/phineas",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/90830735",
+      "sourceUrl": "https://www.st-christophers.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/2476984665",
+      "sourceUrl": "https://www.thescottishstores.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "way/156725307",
+      "sourceUrl": "https://feeneyspubs.com/marklane",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/10046071333",
+      "sourceUrl": "https://lasthop.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/10245706076",
+      "sourceUrl": "https://www.bricklanetaproom.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/10317011442",
+      "sourceUrl": "https://thamessidebrewery.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/10895507318",
+      "sourceUrl": "https://www.madbishopandbear.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/11020498904",
+      "sourceUrl": "https://www.huskbrewing.com/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/11061470043",
+      "sourceUrl": "https://www.pillarsbrewery.com/pages/untraditional-pub",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/1107444399",
+      "sourceUrl": "https://theploughelstree.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/11128539820",
+      "sourceUrl": "https://greatbeyond.beer/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/11304573103",
+      "sourceUrl": "https://hopking.org/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/11926973569",
+      "sourceUrl": "https://waxyoconnorslondon.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/1206741009",
+      "sourceUrl": "http://www.landoflibertypub.com/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/12437701305",
+      "sourceUrl": "https://www.thebluestoops.com/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/12572448581",
+      "sourceUrl": "https://stormbirdcamberwell.com/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/12572476260",
+      "sourceUrl": "https://thecamberwellarms.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/12595899238",
+      "sourceUrl": "https://mondobeer.com/location/tap-house/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/12605423089",
+      "sourceUrl": "https://www.br3wery.com/new-index",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/12679983901",
+      "sourceUrl": "https://www.theoxclapham.com/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/12732751720",
+      "sourceUrl": "https://www.elmtreesurbiton.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/130220511",
+      "sourceUrl": "http://www.thewattendenarmskenley.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/130577747",
+      "sourceUrl": "https://www.chefandbrewer.com/pubs/greater-london/bulls-head",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/13518978862",
+      "sourceUrl": "https://thebushtavern.com/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/1375162583",
+      "sourceUrl": "https://thechelseapensioner.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/1375172419",
+      "sourceUrl": "https://butcombe.com/the-brown-cow-pub-fulham/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/1387549550",
+      "sourceUrl": "https://centralstation.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/14196786755",
+      "sourceUrl": "https://goergios-bar-grill.edan.io/",
+      "reason": "third-party-directory-not-operator"
+    },
+    {
+      "osmId": "node/206348091",
+      "sourceUrl": "https://www.youngs.co.uk/our-pubs?PubID=437",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/2296112253",
+      "sourceUrl": "https://www.cratebrewery.com/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/2355855722",
+      "sourceUrl": "https://21casinobonus.com/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/2407449923",
+      "sourceUrl": "https://www.caseisalteredpinner.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/2447618917",
+      "sourceUrl": "https://thealfredpub.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/246519847",
+      "sourceUrl": "https://www.halfway2heaven.net/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/250080603",
+      "sourceUrl": "https://www.claddagh-ring.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/251802173",
+      "sourceUrl": "https://www.pilot-chiswick.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/2561724243",
+      "sourceUrl": "https://neverforeverkt.com/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/25717653",
+      "sourceUrl": "https://the-old-ale-emporium.edan.io/",
+      "reason": "third-party-directory-not-operator"
+    },
+    {
+      "osmId": "node/257807923",
+      "sourceUrl": "https://www.griffinbrentford.co.uk/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/1112279162",
+      "sourceUrl": "https://northcotesaviour.com/wp-content/uploads/2026/05/Northcote-Saviour-Drinks-Menu-March26_08.pdf",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/12198799907",
+      "sourceUrl": "https://theleytonengineer.co.uk/wp-content/uploads/sites/8/2024/12/DRINKS-MENUS-A5.pdf",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/14178896047",
+      "sourceUrl": "https://www.shipsoho.co.uk/-/media/sites/pubs-and-hotels/s/the-ship-soho-_-p081/files/global-menu-files/drinks-menu-2026.pdf",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/12633199535",
+      "sourceUrl": "https://www.the-railwaytavern.co.uk/beer-menu",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/1103275887",
+      "sourceUrl": "https://thederbyse11.co.uk/menu",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/12093799635",
+      "sourceUrl": "https://www.vennstreetrecords.com/drinks/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/12633199535",
+      "sourceUrl": "https://www.the-railwaytavern.co.uk/menu",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/12890502854",
+      "sourceUrl": "https://www.richardthefirst.co.uk/menus",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/13782246514",
+      "sourceUrl": "https://www.thevanbrugh.com/menu",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/14178896045",
+      "sourceUrl": "https://www.mr-foggs.com/mr-foggs-hat-tavern/menus/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/14178896045",
+      "sourceUrl": "https://www.mr-foggs.com/menus/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/1431338523",
+      "sourceUrl": "https://the-watersedge.co.uk/menus",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/242938605",
+      "sourceUrl": "https://www.thegreenw7.com/menu",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/255135764",
+      "sourceUrl": "https://epsom.mccaffertysbars.com/menu/",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/1275835684",
+      "sourceUrl": "https://www.masons-arms-battersea.co.uk/-/media/sites/pubs-and-hotels/m/the-masons-arms-_-p127/files/global-menu-files/drink-list.pdf",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/14178896045",
+      "sourceUrl": "https://www.mr-foggs.com/propeller/uploads/sites/2/2026/04/26_09-MFHT-website-menu-drinks.pdf",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/20973312",
+      "sourceUrl": "https://www.kingsarms-fulham.co.uk/fileadmin/content/MH_Pubs/Drinks_Menus_2026/Kings_Arms_Drinks_Menu.pdf",
+      "reason": "identity-or-http-unconfirmed"
+    },
+    {
+      "osmId": "node/2395017747",
+      "sourceUrl": "https://thegreyhoundsydenham.co.uk/wp-content/uploads/Greyhound-Drinks-Booklet-Core-2026.pdf",
+      "reason": "identity-or-http-unconfirmed"
+    }
+  ],
+  "finalMenuSelection": {
+    "selected": [
+      {
+        "osmId": "node/1275835684",
+        "url": "https://www.masons-arms-battersea.co.uk/-/media/sites/pubs-and-hotels/m/the-masons-arms-_-p127/files/global-menu-files/drink-list.pdf"
+      },
+      {
+        "osmId": "node/14178896045",
+        "url": "https://www.mr-foggs.com/propeller/uploads/sites/2/2026/04/26_09-MFHT-website-menu-drinks.pdf"
+      },
+      {
+        "osmId": "node/20973312",
+        "url": "https://www.kingsarms-fulham.co.uk/fileadmin/content/MH_Pubs/Drinks_Menus_2026/Kings_Arms_Drinks_Menu.pdf"
+      },
+      {
+        "osmId": "node/2395017747",
+        "url": "https://thegreyhoundsydenham.co.uk/wp-content/uploads/Greyhound-Drinks-Booklet-Core-2026.pdf"
+      }
+    ],
+    "skipped": [
+      {
+        "osmId": "node/2395017747",
+        "url": "https://thegreyhoundsydenham.co.uk/wp-content/uploads/Greyhound-Beer-Drinks-Menu-25.pdf",
+        "reason": "Historical menu or already collected source"
+      },
+      {
+        "osmId": "node/14178896045",
+        "url": "https://www.mr-foggs.com/propeller/uploads/sites/2/2025/02/26_03-mr-foggs-apothecary-drinks-menu-A5-v10-compressed.pdf",
+        "reason": "Other estate venue or historical menu"
+      },
+      {
+        "osmId": "node/14178896045",
+        "url": "https://www.mr-foggs.com/propeller/uploads/sites/2/2026/04/26_04-MFT-ref-drinks-v1.pdf",
+        "reason": "Other estate venue or historical menu"
+      },
+      {
+        "osmId": "node/14178896045",
+        "url": "https://www.mr-foggs.com/propeller/uploads/sites/2/2026/04/26_04-MFCT-ref-drinks-v1.pdf",
+        "reason": "Other estate venue or historical menu"
+      },
+      {
+        "osmId": "node/14178896045",
+        "url": "https://www.mr-foggs.com/propeller/uploads/sites/2/2026/04/26_04-MFBT-ref-drinks-v1.pdf",
+        "reason": "Other estate venue or historical menu"
+      },
+      {
+        "osmId": "node/14178896045",
+        "url": "https://www.mr-foggs.com/propeller/uploads/sites/2/2023/03/26_09-mr-foggs-residence-drinks-menu-A5-v5.pdf",
+        "reason": "Other estate venue or historical menu"
+      },
+      {
+        "osmId": "node/14178896045",
+        "url": "https://www.mr-foggs.com/propeller/uploads/sites/2/2023/03/26_04-mr-foggs-gin-parlour-drinks-menu-and-gin-list-A5-v1.pdf",
+        "reason": "Other estate venue or historical menu"
+      },
+      {
+        "osmId": "node/14178896045",
+        "url": "https://www.mr-foggs.com/propeller/uploads/sites/2/2023/03/25_03-mr-foggs-gin-parlour-drinks-menu-and-gin-list-A5-v4.pdf",
+        "reason": "Other estate venue or historical menu"
+      },
+      {
+        "osmId": "node/14178896045",
+        "url": "https://www.mr-foggs.com/propeller/uploads/sites/2/2026/07/26_06-MFMT-ref-drinks-v1.pdf",
+        "reason": "Other estate venue or historical menu"
+      },
+      {
+        "osmId": "node/14178896045",
+        "url": "https://www.mr-foggs.com/propeller/uploads/sites/2/2026/09/26_09-mfmt-A5-soft-drinks-V1.pdf",
+        "reason": "Other estate venue or historical menu"
+      },
+      {
+        "osmId": "node/14178896045",
+        "url": "https://www.mr-foggs.com/mr-foggs-residence/menus/",
+        "reason": "Other estate venue or historical menu"
+      },
+      {
+        "osmId": "node/14178896045",
+        "url": "https://www.mr-foggs.com/mr-foggs-apothecary/menus/",
+        "reason": "Other estate venue or historical menu"
+      },
+      {
+        "osmId": "node/14178896045",
+        "url": "https://www.mr-foggs.com/mr-foggs-gin-parlour/menus/",
+        "reason": "Other estate venue or historical menu"
+      },
+      {
+        "osmId": "node/14178896045",
+        "url": "https://www.mr-foggs.com/mr-foggs-tavern/menus/",
+        "reason": "Other estate venue or historical menu"
+      },
+      {
+        "osmId": "node/14178896045",
+        "url": "https://www.mr-foggs.com/society-of-exploration/menus/",
+        "reason": "Other estate venue or historical menu"
+      },
+      {
+        "osmId": "node/14178896045",
+        "url": "https://www.mr-foggs.com/mr-foggs-botanical-tavern/menus/",
+        "reason": "Other estate venue or historical menu"
+      },
+      {
+        "osmId": "node/14178896045",
+        "url": "https://www.mr-foggs.com/mr-foggs-pawnbrokers/menus/",
+        "reason": "Other estate venue or historical menu"
+      },
+      {
+        "osmId": "node/14178896045",
+        "url": "https://www.mr-foggs.com/mr-foggs-city-tavern/menus/",
+        "reason": "Other estate venue or historical menu"
+      },
+      {
+        "osmId": "node/14178896045",
+        "url": "https://www.mr-foggs.com/house-of-botanicals/menus/",
+        "reason": "Other estate venue or historical menu"
+      },
+      {
+        "osmId": "node/20973312",
+        "url": "https://www.kingsarms-fulham.co.uk/drink/drinks-menu",
+        "reason": "Historical menu or already collected source"
+      }
+    ]
+  }
+}
