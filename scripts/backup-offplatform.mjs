@@ -6,6 +6,8 @@
 //
 // Environment (never printed):
 //   PUBMAX_BACKUP_DB_URL        postgres:// connection string (session pooler or direct)
+//   PUBMAX_BACKUP_DB_AUTH       optional cli-read-only, otherwise password
+//   SUPABASE_ACCESS_TOKEN      existing private management token for cli-read-only
 //   SUPABASE_URL                project URL, for the bucket sync
 //   SUPABASE_SERVICE_ROLE_KEY   secret key, for the bucket sync
 //   PUBMAX_BACKUP_DIR           default ~/pubmax-backups
@@ -28,6 +30,8 @@ import os from "node:os";
 import path from "node:path";
 
 import {
+  cliLoginConfig,
+  cliReadOnlyPgEnv,
   DEFAULT_BUCKET,
   dumpFileName,
   listBucketObjects,
@@ -76,9 +80,13 @@ async function runBackup() {
   }
 
   const dbUrl = requireEnv("PUBMAX_BACKUP_DB_URL");
-  const pgEnv = pgEnvFromUrl(dbUrl);
+  let pgEnv = pgEnvFromUrl(dbUrl);
   const baseUrl = requireEnv("SUPABASE_URL").replace(/\/+$/, "");
   const key = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
+  const auth = env.PUBMAX_BACKUP_DB_AUTH?.trim() || "password";
+  if (auth !== "password" && auth !== "cli-read-only") throw new Error("PUBMAX_BACKUP_DB_AUTH must be password or cli-read-only.");
+  const loginConfig = auth === "cli-read-only" ? cliLoginConfig({ dbUrl, baseUrl }) : null;
+  const token = loginConfig ? requireEnv("SUPABASE_ACCESS_TOKEN") : null;
   const startedAt = new Date();
   const dumpFile = path.join(dir, dumpFileName(startedAt));
   const bucketRoot = path.join(dir, "bucket", bucket);
@@ -97,19 +105,34 @@ async function runBackup() {
   // database outage cannot keep expired personal data on this machine.
   pruneBackupCopy({ dir, bucketRoot, now: Date.now() });
 
+  if (loginConfig) pgEnv = await cliReadOnlyPgEnv({ config: loginConfig, token });
+
   // 1. The database. Written to a temporary name and renamed once verified, so a
   // killed run never leaves a truncated file that looks like a backup.
   const partial = `${dumpFile}.partial`;
-  const dump = spawnSync("pg_dump", pgDumpArgs(partial), {
-    env: { ...env, ...pgEnv },
-    stdio: ["ignore", "inherit", "inherit"],
+  const childEnv = { ...env };
+  delete childEnv.SUPABASE_ACCESS_TOKEN;
+  delete childEnv.SUPABASE_SERVICE_ROLE_KEY;
+  delete childEnv.PUBMAX_BACKUP_DB_URL;
+  delete childEnv.PUBMAX_ALERT_WEBHOOK_URL;
+  const dumpArgs = pgDumpArgs(partial);
+  // Supabase's managed read-only role grants full reads and bypasses RLS.
+  // The temporary login need not inherit it. Never step down to postgres here.
+  if (loginConfig) dumpArgs.push("--role=supabase_read_only_user", "--no-password");
+  const dump = spawnSync("pg_dump", dumpArgs, {
+    env: { ...childEnv, ...pgEnv },
+    // A client error can contain connection credentials or database identifiers.
+    stdio: loginConfig ? ["ignore", "pipe", "pipe"] : ["ignore", "inherit", "inherit"],
   });
-  if (dump.error) throw new Error(`Could not run pg_dump: ${dump.error.message}`);
+  if (dump.error) {
+    rmSync(partial, { force: true });
+    throw new Error("Could not run pg_dump.");
+  }
   if (dump.status !== 0) {
     rmSync(partial, { force: true });
     throw new Error(`pg_dump exited ${dump.status}. Its client must be at least the server's major version.`);
   }
-  const listing = spawnSync("pg_restore", ["--list", partial], { encoding: "utf8" });
+  const listing = spawnSync("pg_restore", ["--list", partial], { encoding: "utf8", env: childEnv });
   if (listing.status !== 0 || !listing.stdout.includes("TABLE DATA")) {
     rmSync(partial, { force: true });
     throw new Error("The dump did not verify: pg_restore --list found no table data.");
@@ -153,7 +176,7 @@ async function runBackup() {
       headers: { authorization: `Bearer ${key}`, apikey: key },
       signal: AbortSignal.timeout(60_000),
     });
-    if (!response.ok) throw new Error(`Downloading ${object.path} answered ${response.status}.`);
+    if (!response.ok) throw new Error(`Downloading a bucket object answered ${response.status}.`);
     mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
     // Written beside the file and renamed, so a killed run never leaves half an image.
     const incoming = `${target}.incoming`;
