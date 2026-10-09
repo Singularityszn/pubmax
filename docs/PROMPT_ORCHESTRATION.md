@@ -10,7 +10,7 @@ Interruptive prompt surfaces mount globally or on `/map`:
 
 | Surface | PR | Branch | Where it can fire |
 | --- | --- | --- | --- |
-| Analytics consent | analytics-actually-works | `fm/analytics-actually-works` | first visit on every route |
+| Analytics consent | analytics-actually-works | `fm/analytics-actually-works` | [Answer timing and route ownership](rules/components-design-system-and-launch-primitives.md#the-product-answers-first-and-the-consent-card-arrives-after-the-answer-docked) |
 | First-run tour | #296 | `main` (merged) | `/map` load, first visit |
 | Identity nudge | #312 | `feat/identity-nudges` | first plan create/join, first moment draft |
 | Native push prompt | #299 | `feat/native-first-run` | plan join / activation / collab confirm (native only) |
