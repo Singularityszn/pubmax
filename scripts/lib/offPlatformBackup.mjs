@@ -23,7 +23,13 @@ export const DUMP_SCHEMAS = ["public", "auth", "storage", "supabase_migrations"]
 
 /** Connection settings as PG* variables, so the password never rides in an argument list. */
 export function pgEnvFromUrl(connectionString) {
-  const url = new URL(connectionString);
+  let url;
+  try {
+    url = new URL(connectionString);
+  } catch {
+    // URL errors include their input, which can contain the database password.
+    throw new Error("PUBMAX_BACKUP_DB_URL must be a postgres:// connection string.");
+  }
   if (url.protocol !== "postgres:" && url.protocol !== "postgresql:") {
     throw new Error("PUBMAX_BACKUP_DB_URL must be a postgres:// connection string.");
   }
@@ -37,6 +43,62 @@ export function pgEnvFromUrl(connectionString) {
     PGPASSWORD: decodeURIComponent(url.password),
     PGDATABASE: decodeURIComponent(url.pathname.replace(/^\//, "")) || "postgres",
     PGSSLMODE: "require",
+  };
+}
+
+/** Bind temporary credentials to this project's direct or session-pooler endpoint. */
+export function cliLoginConfig({ dbUrl, baseUrl }) {
+  const pgEnv = pgEnvFromUrl(dbUrl);
+  const project = /^https:\/\/([a-z]{20})\.supabase\.co$/.exec(baseUrl);
+  if (!project) throw new Error("CLI read-only login needs a canonical SUPABASE_URL.");
+  const projectRef = project[1];
+  const direct = pgEnv.PGHOST === `db.${projectRef}.supabase.co` && pgEnv.PGUSER === "postgres";
+  const pooler = /^[a-z0-9-]+\.pooler\.supabase\.com$/.test(pgEnv.PGHOST) && pgEnv.PGUSER === `postgres.${projectRef}`;
+  if ((!direct && !pooler) || pgEnv.PGPORT !== "5432" || pgEnv.PGDATABASE !== "postgres" || pgEnv.PGPASSWORD) {
+    throw new Error("CLI read-only login needs this project's password-free direct or session-pooler URL on port 5432.");
+  }
+  if (new URL(dbUrl).search || new URL(dbUrl).hash) {
+    throw new Error("CLI read-only login does not accept connection URL options.");
+  }
+  return { pgEnv, projectRef, pooler };
+}
+
+/** Acquire once per run. Never expose API bodies, credentials or network errors in logs. */
+export async function cliReadOnlyPgEnv({ config, token, fetchImpl = fetch }) {
+  let response;
+  const requestedAt = Date.now();
+  try {
+    response = await fetchImpl(`https://api.supabase.com/v1/projects/${config.projectRef}/cli/login-role`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ read_only: true }),
+      redirect: "error",
+      signal: AbortSignal.timeout(30_000),
+    });
+  } catch {
+    throw new Error("Could not acquire the temporary read-only database login.");
+  }
+  if (response.status !== 201) throw new Error(`Temporary read-only login answered ${response.status}.`);
+  let login;
+  try {
+    login = await response.json();
+  } catch {
+    throw new Error("Temporary read-only login returned an invalid response.");
+  }
+  if (
+    !login || typeof login.role !== "string" || !/^cli_login_[a-z0-9_]+$/.test(login.role) ||
+    typeof login.password !== "string" || !login.password ||
+    !Number.isSafeInteger(login.ttl_seconds) || login.ttl_seconds <= 0 ||
+    Date.now() - requestedAt >= login.ttl_seconds * 1000
+  ) {
+    throw new Error("Temporary read-only login returned invalid or expired credentials.");
+  }
+  return {
+    ...config.pgEnv,
+    PGUSER: login.role + (config.pooler ? `.${config.projectRef}` : ""),
+    PGPASSWORD: login.password,
+    PGOPTIONS: "-c default_transaction_read_only=on",
+    PGCONNECT_TIMEOUT: "10",
   };
 }
 
