@@ -3,10 +3,10 @@
 This amendment corrects the native-date disposition in the submitted author plan.
 The submitted plan has SHA-256 `4e3d01ca62e2a03d89f5d9c542c01e34ef35d22831a6ceb7e2d33010caca161a`.
 Its captured bytes remain unchanged outside this worktree.
-This amendment and the recorded human fix decision supersede its claim that Firstmate004 accepted a native-date limitation.
+This amendment and Firstmate's recorded technical triage supersede the claim that Firstmate004 accepted a native-date limitation.
 
 Firstmate makes a technical triage decision. Firstmate's decision is not a human scope waiver.
-The recorded human decision requires retaining explicitly named native date controls and reporting the unresolved upstream limitation.
+Firstmate's recorded technical triage requires retaining explicitly named native date controls and reporting the unresolved upstream limitation.
 Replacing native date controls is outside this technical disposition.
 This change does not fix native date accessibility or complete native accessibility acceptance.
 Actual screen-reader speech and native-runtime behavior remain unproved.
@@ -39,7 +39,7 @@ The relevant application controls remain explicitly named at these consumers:
 - `components/identity/PrivateIdentityEditor.tsx`.
 - `components/visits/VisitReportPanel.tsx`.
 
-The recorded human decision identifies `native-date-minimal.json` as a plain-page reproduction without application code.
+Firstmate's recorded technical triage identifies `native-date-minimal.json` as a plain-page reproduction without application code.
 It reports duplicated AX subcontrol names on named native date inputs.
 The same decision reports that the explicit-label probe produces one normal application label.
 These are recorded evidence descriptions, not fresh checks in this review.
