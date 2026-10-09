@@ -66,6 +66,15 @@ describe("the emitted map attribution", () => {
 });
 
 describe("the credit itself is unchanged", () => {
+  it("names CARTO when the fallback basemap is active", () => {
+    const html = renderToStaticMarkup(createElement(MapCredits, { basemap: "carto" }));
+    expect(html).toContain("CARTO");
+    expect(html).toContain("https://carto.com/about-carto/");
+    expect(html).toContain(OSM_ATTRIBUTION);
+    expect(html).not.toContain("OpenFreeMap");
+    expect(html).not.toContain("OpenMapTiles");
+  });
+
   it("names OpenStreetMap and its licence", () => {
     expect(OSM_ATTRIBUTION).toContain("OpenStreetMap contributors");
     expect(OSM_ATTRIBUTION).toContain("ODbL");
