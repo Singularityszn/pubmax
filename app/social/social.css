@@ -15,6 +15,11 @@
   padding-inline: 0;
 }
 
+.socialPage .screenPrimary {
+  width: 14rem;
+  max-width: 100%;
+}
+
 /* The Screen paints the one primary; while the session or the access answer
    is still open that control waits rather than routing anybody anywhere. */
 .socialPage .screenPrimary > button:disabled {
@@ -960,6 +965,10 @@ span.socialPostAvatar {
 }
 
 @media (max-width: 640px) {
+  .socialPage .screenPrimary {
+    width: 100%;
+  }
+
   /* While the analytics card is mounted, globals.css owns the scroll padding
      (tab bar plus the card's measured lane), so focus never parks under it. */
   html:has(.socialPage):not(:has(.analyticsConsentPrompt)) {

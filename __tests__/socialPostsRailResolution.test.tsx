@@ -95,6 +95,35 @@ async function renderSocial(initialState: SocialShellState = posts, friendsLaunc
 }
 
 describe("Social Posts account resolution", () => {
+  it.each([
+    { fontSize: 16, width: "224px" },
+    { fontSize: 24, width: "336px" },
+  ])("keeps the primary action's reserved width when Post becomes Sign in at $fontSize px", async ({ fontSize, width }) => {
+    style.sheet!.insertRule(`:root { font-size: ${fontSize}px; }`);
+    await renderSocial();
+    const primary = host.querySelector(".screenPrimary")!;
+    const secondary = host.querySelector('a[href="#find-lot-title"]')!;
+    const pendingStyle = getComputedStyle(primary);
+    const pendingWidth = pendingStyle.width;
+    const pendingMaxWidth = pendingStyle.maxWidth;
+    expect(primary.querySelector("button")?.textContent).toBe("Post");
+    expect(primary.querySelector("button")?.disabled).toBe(true);
+
+    setSession("signed-out");
+    await renderSocial();
+
+    expect(host.querySelector(".screenPrimary")).toBe(primary);
+    expect(host.querySelector('a[href="#find-lot-title"]')).toBe(secondary);
+    expect(primary.querySelector("button")).toBeNull();
+    expect(primary.querySelector("a")?.textContent).toBe("Sign in");
+    expect(primary.querySelector("a")?.getAttribute("href")).toContain("/login");
+    // jsdom exposes the sizing contract, but does not measure layout or CLS.
+    expect(pendingWidth, "reserve the intended desktop action slot before authentication resolves").toBe(width);
+    expect(pendingMaxWidth).toBe("100%");
+    expect(getComputedStyle(primary).width).toBe(pendingWidth);
+    expect(getComputedStyle(primary).maxWidth).toBe(pendingMaxWidth);
+  });
+
   it("reserves the signed-out content in the same rail slot before the account answers", async () => {
     await renderSocial();
 
