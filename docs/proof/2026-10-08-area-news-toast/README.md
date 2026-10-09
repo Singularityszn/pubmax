@@ -2,9 +2,17 @@
 
 This is a dated local production-build record. It does not establish deployment or production-site behaviour.
 
-The before build used `d69cd6083e8d81d57d56075e35a431efb804a026` on port 3412. The after build used that base plus the initial area-news correction on port 3413. Both used isolated Next.js output directories and keyless local configuration.
+The evidence comes from three separate local production builds.
 
-This record predates later area-matching fixes and the `renderDesktopTonightLane` extraction. These results do not validate the current source.
+| Build | Source | Port | Evidence boundary |
+| --- | --- | --- | --- |
+| Pre-change | `d69cd6083e8d81d57d56075e35a431efb804a026` | 3412 | The `before-real` screenshots below. |
+| Post-change initial correction | That base plus the initial area-news correction | 3413 | The `after-real` and fixture screenshots below, and the four-journey browser matrix. |
+| Later native validation | `7b96f087196a81e876168853b859594c985a1844` | 3496 | Fourteen production journeys recorded separately in the raw task evidence. |
+
+The early comparison used isolated Next.js output directories and keyless local configuration. The native validation does not change the source labels of those screenshots.
+
+The early comparison predates later area-matching fixes and the `renderDesktopTonightLane` extraction. None of these historical results validate the current source.
 
 The live status feed no longer contains the reported Kingston headline. Fresh browser reproduction showed "Gas cylinder fire under Bermondsey railway arches" on a central London route. The API assigned that signal to Bermondsey and Silwood Street. The same context defect therefore remained reproducible with current data.
 
@@ -31,7 +39,7 @@ Each theme and viewport checks unrelated initial context, Kingston selected thro
 
 The earlier storage-only restore setup conflicted with saved viewport priority. The final test selects the real locality through "This area", searches Kingston, and clicks "Kingston upon Thames". The earlier failed setup remains in the raw task evidence.
 
-The recorded production browser matrix passed all four journeys in 57.4 seconds. It verifies the rendered theme and captures the route stop after scrolling it into view. The fresh visit follows an explicit Soho selection, so its expected context is unrelated to Kingston.
+The initial-correction production browser matrix passed all four journeys in 57.4 seconds. It verifies the rendered theme and captures the route stop after scrolling it into view. The fresh visit follows an explicit Soho selection, so its expected context is unrelated to Kingston.
 
 | Fixture proof | Light | Dark |
 | --- | --- | --- |
@@ -42,7 +50,7 @@ The rendered component tests cover area changes, expansion reset, borough aliase
 
 Raw API responses, viewport/theme measurements, source hashes, build logs, test logs, and screenshots are retained in the task's evidence directory. Early screenshots taken before viewport emulation was verified are superseded by the `before-real` and `after-real` files above.
 
-## Repository gates
+## Initial-correction repository gates
 
 `npm run verify:no-mistakes` passed. It runs the full repository verification with committed-data protection. Coverage passed 21,431 tests. The disposable database suite passed 554 tests. ESLint reported no errors and 85 existing warnings. The freshness gate passed with three store feeds explicitly unmeasured in this keyless runtime.
 
