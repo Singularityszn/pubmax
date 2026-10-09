@@ -1,0 +1,32 @@
+Test Case '-[LaneUITests.LaneUITests testCallbackReturnedToApp]' started.
+    t =     0.00s Start Test at 2026-10-08 12:20:07.560
+    t =     0.02s Set Up
+    t =     0.02s Waiting 10.0s for "Places" Link to exist
+objc[61173]: Class UIAccessibilityLoaderWebShared is implemented in both /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.tF0MWb/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebKit.axbundle/WebKit (0x10ad64398) and /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.tF0MWb/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebCore.axbundle/WebCore (0x10ae94310). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+    t =     1.07s     Checking `Expect predicate `existsNoRetry == 1` for object "Places" Link`
+    t =     1.07s         Checking existence of `"Places" Link`
+    t =     1.12s Checking existence of `"TopBrowserBar" Other`
+LANE_CALLBACK_RETURN {
+    native = ios;
+    url = "http://localhost:3491/tonight?lane-callback=1";
+}
+    t =     1.29s Find the Application 'com.pubmaxx.app'
+    t =     1.39s Added attachment named 'callback-return-app-active'
+    t =     1.39s Tear Down
+Test Case '-[LaneUITests.LaneUITests testCallbackReturnedToApp]' passed (1.394 seconds).
+Test Suite 'LaneUITests' passed at 2026-10-08 12:20:08.954.
+	 Executed 1 test, with 0 failures (0 unexpected) in 1.394 (1.397) seconds
+Test Suite 'LaneUITests.xctest' passed at 2026-10-08 12:20:08.954.
+	 Executed 1 test, with 0 failures (0 unexpected) in 1.394 (1.397) seconds
+Test Suite 'Selected tests' passed at 2026-10-08 12:20:08.955.
+	 Executed 1 test, with 0 failures (0 unexpected) in 1.394 (1.398) seconds
+2026-10-08 12:20:09.243 xcodebuild[61082:50713230] [MT] IDETestOperationsObserverDebug: 5.543 elapsed -- Testing started completed.
+2026-10-08 12:20:09.244 xcodebuild[61082:50713230] [MT] IDETestOperationsObserverDebug: 0.000 sec, +0.000 sec -- start
+2026-10-08 12:20:09.244 xcodebuild[61082:50713230] [MT] IDETestOperationsObserverDebug: 5.543 sec, +5.543 sec -- end
+
+Test session results, code coverage, and logs:
+	/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/final-unmodified-callback-return.xcresult
+
+** TEST SUCCEEDED **
+
+Testing started

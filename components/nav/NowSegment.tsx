@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import IntentLink from "@/components/nav/IntentLink";
 
 import { handleSegmentLinkKeyDown } from "@/lib/segmentLinkKeys";
 
@@ -21,22 +21,22 @@ type NowBeat = "day" | "tonight";
 export default function NowSegment({ current }: { current: NowBeat }) {
   return (
     <nav className="nowSegment" aria-label="Now">
-      <Link prefetch={false}
+      <IntentLink
         href="/today"
         className="nowSegmentOpt"
         aria-current={current === "day" ? "page" : undefined}
         onKeyDown={handleSegmentLinkKeyDown}
       >
         Day
-      </Link>
-      <Link prefetch={false}
+      </IntentLink>
+      <IntentLink
         href="/tonight"
         className="nowSegmentOpt"
         aria-current={current === "tonight" ? "page" : undefined}
         onKeyDown={handleSegmentLinkKeyDown}
       >
         Tonight
-      </Link>
+      </IntentLink>
     </nav>
   );
 }

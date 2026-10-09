@@ -8,6 +8,7 @@ import {
   PROVISIONAL_PRICE_LINE,
   venueBundlePrices,
   venuePriceLane,
+  venuePriceFallbackPending,
   venuePriceLaneIsDrinkerLog,
   venuePriceLaneObservedGbp,
   venueSourcedPrice,
@@ -18,6 +19,30 @@ import type { PricedVenue } from "@/lib/priceUpdates";
 import type { Venue } from "@/lib/venues";
 
 const ROOT = process.cwd();
+
+describe("a pub's price while its reads settle", () => {
+  const estimate: VenuePriceLane = {
+    lane: "estimate",
+    estimate: { priceGbp: 6.5, computedAt: "2026-10-06T12:00:00.000Z", basis: "regional_baseline:camden", sampleSize: 8 },
+  };
+
+  it("holds an estimate until both price reads answer", () => {
+    expect(venuePriceFallbackPending(estimate, "loading", "ready")).toBe(true);
+    expect(venuePriceFallbackPending(estimate, "ready", "idle")).toBe(true);
+    expect(venuePriceFallbackPending(estimate, "ready", "ready")).toBe(false);
+  });
+
+  it("does not claim an empty pub before its reads answer", () => {
+    expect(venuePriceFallbackPending(null, "idle", "idle")).toBe(true);
+    expect(venuePriceFallbackPending(null, "ready", "ready")).toBe(false);
+  });
+
+  it("keeps an observed price during a refresh and lets failed reads settle", () => {
+    expect(venuePriceFallbackPending({ lane: "contributor", contributorPrice: 4.7 }, "loading", "idle"))
+      .toBe(false);
+    expect(venuePriceFallbackPending(estimate, "degraded", "unavailable")).toBe(false);
+  });
+});
 
 // Minimal Venue factory (same shape the other map tests use). Defaults are the
 // fully-unpriced pub so each fixture overrides only the field it exercises.

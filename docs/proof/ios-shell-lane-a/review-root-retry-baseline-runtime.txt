@@ -1,0 +1,25 @@
+Timestamp               Ty Process[PID:TID]
+2026-10-08 14:18:33.154 Df App[83103:395bf29] (RootFixture.dylib) ROOT_FIXTURE_REQUEST https://pubmaxxing.com/app-entry type=-1 visible=https://pubmaxxing.com/app-entry
+2026-10-08 14:18:34.462 Df App[83103:395bf29] (RootFixture.dylib) ROOT_FIXTURE_REAL_FAILURE NSURLErrorDomain -1004 https://pubmaxxing.com/app-entry
+2026-10-08 14:18:34.500 Df App[83103:395bf29] (RootFixture.dylib) ROOT_FIXTURE_REQUEST capacitor://localhost/offline.html type=-1 visible=capacitor://localhost/offline.html
+2026-10-08 14:18:34.532 Df App[83103:395bf29] (RootFixture.dylib) ROOT_FIXTURE_FINISHED capacitor://localhost/offline.html
+2026-10-08 14:18:36.832 Df App[83103:395bf29] (RootFixture.dylib) ROOT_FIXTURE_FINISHED https://pubmaxxing.com/
+2026-10-08 14:18:37.408 Df App[83103:395bf29] (RootFixture.dylib) ROOT_FIXTURE_REQUEST https://pubmaxxing.com/ type=3 visible=https://pubmaxxing.com/
+2026-10-08 14:18:37.416 Df App[83103:395bf29] (RootFixture.dylib) ROOT_FIXTURE_REAL_FAILURE NSURLErrorDomain -1004 https://pubmaxxing.com/
+2026-10-08 14:18:37.417 Df App[83103:395bf29] (RootFixture.dylib) ROOT_FIXTURE_REQUEST capacitor://localhost/offline.html type=-1 visible=capacitor://localhost/offline.html
+2026-10-08 14:18:37.476 Df App[83103:395bf29] (RootFixture.dylib) ROOT_FIXTURE_FINISHED capacitor://localhost/offline.html
+2026-10-08 14:18:39.583 Df App[83103:395bf29] (RootFixture.dylib) ROOT_FIXTURE_REQUEST https://pubmaxxing.com/ type=2 visible=https://pubmaxxing.com/
+2026-10-08 14:18:39.622 Df App[83103:395bf29] (RootFixture.dylib) ROOT_FIXTURE_FINISHED https://pubmaxxing.com/
+2026-10-08 14:18:44.505 Df App[83573:395c4b6] (RootFixture.dylib) ROOT_FIXTURE_REQUEST https://pubmaxxing.com/app-entry type=-1 visible=https://pubmaxxing.com/app-entry
+2026-10-08 14:18:45.747 Df App[83573:395c4b6] (RootFixture.dylib) ROOT_FIXTURE_REAL_FAILURE NSURLErrorDomain -1004 https://pubmaxxing.com/app-entry
+2026-10-08 14:18:45.787 Df App[83573:395c4b6] (RootFixture.dylib) ROOT_FIXTURE_REQUEST capacitor://localhost/offline.html type=-1 visible=capacitor://localhost/offline.html
+2026-10-08 14:18:45.821 Df App[83573:395c4b6] (RootFixture.dylib) ROOT_FIXTURE_FINISHED capacitor://localhost/offline.html
+2026-10-08 14:18:48.171 Df App[83573:395c4b6] (RootFixture.dylib) ROOT_FIXTURE_FINISHED https://pubmaxxing.com/
+2026-10-08 14:18:48.709 Df App[83573:395c4b6] (RootFixture.dylib) ROOT_FIXTURE_REQUEST https://pubmaxxing.com/ type=3 visible=https://pubmaxxing.com/
+2026-10-08 14:18:48.716 Df App[83573:395c4b6] (RootFixture.dylib) ROOT_FIXTURE_REAL_FAILURE NSURLErrorDomain -1004 https://pubmaxxing.com/
+2026-10-08 14:18:48.717 Df App[83573:395c4b6] (RootFixture.dylib) ROOT_FIXTURE_REQUEST capacitor://localhost/offline.html type=-1 visible=capacitor://localhost/offline.html
+2026-10-08 14:18:48.763 Df App[83573:395c4b6] (RootFixture.dylib) ROOT_FIXTURE_FINISHED capacitor://localhost/offline.html
+2026-10-08 14:18:50.108 Df App[83573:395c4b6] (RootFixture.dylib) ROOT_FIXTURE_REQUEST https://pubmaxxing.com/ type=-1 visible=capacitor://localhost/offline.html
+2026-10-08 14:18:50.109 Df App[83573:395c4b6] (RootFixture.dylib) ROOT_FIXTURE_REQUEST https://pubmaxxing.com/ type=-1 visible=capacitor://localhost/offline.html
+2026-10-08 14:18:50.110 Df App[83573:395c4b6] (RootFixture.dylib) ROOT_FIXTURE_REQUEST https://pubmaxxing.com/app-entry type=-1 visible=capacitor://localhost/offline.html
+2026-10-08 14:18:50.140 Df App[83573:395c4b6] (RootFixture.dylib) ROOT_FIXTURE_FINISHED https://pubmaxxing.com/app-entry

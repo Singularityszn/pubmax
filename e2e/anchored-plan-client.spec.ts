@@ -42,13 +42,13 @@ test("accepted Venue becomes visible Stop 1 on the permanent Plan path", async (
 
   await page.goto("/plan");
   await expect(page.getByText(CARRIED)).toBeVisible();
-  await expect(page.getByLabel("Venue name").first()).toHaveValue(venue!.name);
+  await expect(page.locator(".planStop__name").first()).toHaveText(venue!.name);
   await expect(page.getByText(venue!.name).first()).toBeVisible();
   // The summary is pre-answered with the venue's NAME, never its id.
   await expect(page.locator("body")).not.toContainText(venue!.id);
 
   await page.reload();
-  await expect(page.getByLabel("Venue name").first()).toHaveValue(venue!.name);
+  await expect(page.locator(".planStop__name").first()).toHaveText(venue!.name);
 });
 
 test("existing Plan work wins without consuming a newer accepted Venue", async ({ page }) => {
@@ -103,11 +103,11 @@ test("existing Plan work wins without consuming a newer accepted Venue", async (
   });
 
   await page.goto("/plan");
-  await expect(page.getByLabel("Venue name").first()).toHaveValue(existing.name);
+  await expect(page.locator(".planStop__name").first()).toHaveText(existing.name);
   await expect(page.getByText(
     "Kept existing Plan work instead of replacing it with a newer Venue acceptance.",
   )).toBeVisible();
-  await expect(page.getByLabel("Venue name").first()).not.toHaveValue(accepted.name);
+  await expect(page.locator(".planStop__name").first()).not.toHaveText(accepted.name);
   await page.getByLabel("Your name").fill("Karan");
   await page.getByRole("button", { name: "Lock it in" }).click();
 
@@ -133,7 +133,7 @@ test("successful Plan creation consumes accepted Venue intent", async ({ page, r
   });
 
   await page.goto("/plan");
-  await expect(page.getByLabel("Venue name").first()).toHaveValue(venue.name);
+  await expect(page.locator(".planStop__name").first()).toHaveText(venue.name);
   await page.getByLabel("Your name").fill("Karan");
   await expect(page.getByRole("button", { name: "Lock it in" })).toBeEnabled();
   await page.getByRole("button", { name: "Lock it in" }).click();
@@ -155,7 +155,7 @@ test("failed Plan creation retains accepted Venue intent", async ({ page, reques
   });
 
   await page.goto("/plan");
-  await expect(page.getByLabel("Venue name").first()).toHaveValue(venue.name);
+  await expect(page.locator(".planStop__name").first()).toHaveText(venue.name);
   await page.getByLabel("Your name").fill("Karan");
   await page.getByRole("button", { name: "Lock it in" }).click();
 

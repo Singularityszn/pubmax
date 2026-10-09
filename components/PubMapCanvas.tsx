@@ -122,7 +122,7 @@ import {
   buildTransitLines,
   CLUSTER_FILL_OPACITY,
   CLUSTER_STROKE_OPACITY,
-  UK_BASE_MIN_ZOOM,
+  PIN_MIN_ZOOM as UK_BASE_MIN_ZOOM,
   ukBaseUnnamedBadgeFilter,
   ukBaseUnnamedFilter,
   type SceneCtx,

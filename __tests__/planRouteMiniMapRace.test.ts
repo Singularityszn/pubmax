@@ -221,6 +221,32 @@ describe("PlanRouteMiniMap request identity", () => {
     );
   });
 
+  it("keeps the map up through a reorder and locates nothing again", async () => {
+    await act(async () => {
+      root.render(createElement(PlanRouteMiniMap, { stops: PLAN_A }));
+    });
+    await settleVenueLookups([
+      { id: "venue-a", latitude: 51.51, longitude: -0.14 },
+      { id: "venue-b", latitude: 51.52, longitude: -0.13 },
+    ]);
+    const map = host.querySelector('[data-testid="plan-crawl-route-map"]');
+    expect(map).not.toBeNull();
+
+    const swapped = [
+      { ...PLAN_A[1]!, position: 0 },
+      { ...PLAN_A[0]!, position: 1 },
+    ];
+    await act(async () => {
+      root.render(createElement(PlanRouteMiniMap, { stops: swapped }));
+    });
+    expect(host.querySelector('[data-testid="plan-crawl-route-map"]')).toBe(map);
+    expect(host.querySelector(".planRouteMiniMap__srOnly")?.textContent).toContain("Second pub, First pub");
+    await act(async () => { await Promise.resolve(); });
+    expect(host.querySelector('[data-testid="plan-crawl-route-map"]')).toBe(map);
+    expect(pending.filter((entry) => entry.url.includes("/api/venue/"))).toHaveLength(0);
+    expect(pending.filter((entry) => entry.url.includes("/api/walk-route?"))).toHaveLength(2);
+  });
+
   it("re-resolves when venue names change but ids and positions stay the same", async () => {
     await act(async () => {
       root.render(createElement(PlanRouteMiniMap, { stops: PLAN_A }));

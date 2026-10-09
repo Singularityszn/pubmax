@@ -1,10 +1,7 @@
 #!/usr/bin/env node
 // `npm run harvest:run` - the London harvest's durable pass.
 //
-// This is the half of the harvest that WRITES. The scheduled route runs the same
-// fetchers and parsers and can only report, because a Vercel function's file
-// system is read-only; here the output is committed files a human reviews in a
-// diff, which is the pattern /api/cron/enrich-city-pubs already set.
+// Scheduled lane coverage and durable publication live in docs/LONDON_HARVEST.md.
 //
 // Three lanes, each independently switchable:
 //   --deals   chain offers pages -> public/data/whats_on/deals_london.json

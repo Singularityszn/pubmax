@@ -1,0 +1,24 @@
+{
+  "id": "1791454348249",
+  "value": {
+    "documents": [
+      {
+        "path": "/",
+        "refs": 40,
+        "missing": []
+      },
+      {
+        "path": "/map",
+        "refs": 32,
+        "missing": []
+      },
+      {
+        "path": "/tonight",
+        "refs": 56,
+        "missing": []
+      }
+    ],
+    "worker": "http://localhost:3491/sw.js?v=local-ios-lane-a&cache-policy=plan-preview-safe-v2",
+    "errors": []
+  }
+}

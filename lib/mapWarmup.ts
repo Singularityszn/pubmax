@@ -1,6 +1,7 @@
 import type { Route } from "next";
 import { getCity, parseCityId } from "@/lib/cities";
 import { takeEarlyWarmJson } from "@/lib/mapEarlyWarm";
+import { MAP_DATA_REVISION } from "@/lib/mapDataRevision";
 
 type MapWarmConnection = {
   saveData?: boolean;
@@ -41,6 +42,14 @@ export const MAP_INTENT_WARM_PATHS = [
 const BLOCKED_EFFECTIVE_TYPES = new Set(["slow-2g", "2g"]);
 const sessionSeen = new Set<string>();
 
+// The foreground venue loaders read the London manifest/core and city monoliths
+// under a `?v=<revision>` key, so a warm must use the same URL to be reused.
+// Local builds and overlay paths keep their bare keys.
+function venueWarmRequestPath(path: string): string {
+  if (MAP_DATA_REVISION === "local" || !/\/venues_slim(?:\.core|\.manifest)?\.json$/.test(path)) return path;
+  return `${path}?v=${encodeURIComponent(MAP_DATA_REVISION)}`;
+}
+
 /**
  * Split by what the paths are FOR: the venue index is what makes pins exist on
  * the first frame; POIs and transit lines are overlays the canvas deliberately
@@ -69,7 +78,7 @@ function mapWarmPathsFor(href: string): { venueIndex: string[]; overlays: string
 /** Slim (+ optional POI/transit) paths to warm for a map href. */
 export function warmPathsForMapHref(href: string): readonly string[] {
   const { venueIndex, overlays } = mapWarmPathsFor(href);
-  return [...venueIndex, ...overlays];
+  return [...venueIndex.map(venueWarmRequestPath), ...overlays];
 }
 
 export function shouldWarmMapIntent(nav: unknown): boolean {
@@ -94,9 +103,10 @@ export function warmMapIntentData({
 }: MapWarmDeps): void {
   if (!shouldWarmMapIntent(nav)) return;
 
-  for (const path of paths) {
+  for (const assetPath of paths) {
+    const path = venueWarmRequestPath(assetPath);
     if (seen?.has(path)) continue;
-    if (takeEarlyWarmJson(path) !== undefined) {
+    if (takeEarlyWarmJson(assetPath.split("?")[0] ?? assetPath) !== undefined) {
       seen?.add(path);
       continue;
     }
@@ -181,6 +191,8 @@ export type MapRoutePrefetcher = {
 /**
  * Prefetch each retained App Router href once. Map destinations also warm
  * the slim venue (+ POI/transit) payloads the canvas will request next.
+ * The exact current path and query are skipped, so intent on the active link
+ * schedules no canvas warm, data warm or warmed-route entry.
  * Best-effort only — navigation never depends on success.
  */
 export function warmNavRoute<T extends string>(
@@ -197,6 +209,11 @@ export function warmNavRoute<T extends string>(
   // Route is itself a Route.
   const prefetchHref = href.split("#")[0] as Route | undefined;
   if (!prefetchHref) return;
+  if (
+    typeof window !== "undefined" &&
+    window.location &&
+    prefetchHref === `${window.location.pathname}${window.location.search}`
+  ) return;
   const pathname = prefetchHref.split("?")[0] ?? prefetchHref;
   const isMapRoute = pathname === "/map" || pathname.startsWith("/map/");
   if (isMapRoute) warmMapCanvasModule();

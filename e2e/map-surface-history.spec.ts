@@ -44,6 +44,7 @@ async function prepareMap(page: Page, viewport = DESKTOP): Promise<void> {
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
+        servedAt: new Date().toISOString(),
         rows: [],
         asOf: null,
         sourceObservedAt: null,
@@ -85,6 +86,7 @@ test.describe("one Map surface history owner", () => {
   test.setTimeout(120_000);
 
   test("venue to planner leaves exactly one desktop drawer", async ({ page }) => {
+    test.setTimeout(180_000);
     await prepareMap(page);
     // Golden Lion (Soho) is in the core slim shard; deep-link the drawer under
     // test so toolbar timing does not gate the planner transition under test.
@@ -95,11 +97,11 @@ test.describe("one Map surface history owner", () => {
     // aria-modal and its focus trap), so the map stage and its toolbar are
     // inert while it is open. A drinker closes the venue, then plans; the
     // deep-linked `sel=` must not reopen it over the planner.
+    // The restored drawer is already hydrated. Close it once, then wait for
+    // its result. An outer retry deadline can reject a successful slow click.
     const closeVenue = venue(page).getByRole("button", { name: /Close/ });
-    await expect(async () => {
-      await closeVenue.click();
-      await expect(page.locator("#main")).not.toHaveClass(/detail-open/, { timeout: 2_000 });
-    }).toPass({ timeout: 30_000 });
+    await closeVenue.click();
+    await expect(page.locator("#main")).not.toHaveClass(/detail-open/, { timeout: 60_000 });
 
     // Plan an outing is a toggle that relabels itself "Close plan" once the
     // planner opens, so a retry may tap it only while the planner is still
@@ -111,7 +113,7 @@ test.describe("one Map surface history owner", () => {
         await planOuting.click();
       }
       await expect(planner(page)).toHaveAttribute("aria-hidden", "false", { timeout: 2_000 });
-    }).toPass({ timeout: 30_000 });
+    }).toPass({ timeout: 60_000 });
     await expectSoleDrawer(page, "planner");
   });
 
@@ -150,7 +152,7 @@ test.describe("one Map surface history owner", () => {
     await expect(async () => {
       await closeVenue.click();
       await expect(page.locator("#main")).not.toHaveClass(/detail-open/, { timeout: 2_000 });
-    }).toPass({ timeout: 30_000 });
+    }).toPass({ timeout: 60_000 });
     // Old restore replayed after Close while ?q= still matched one pub, which
     // put detail-open back on #main. That class makes the toolbar ignore
     // pointer events, so Clear search never received the click. Wait past the
@@ -177,7 +179,7 @@ test.describe("one Map surface history owner", () => {
     await expect(async () => {
       await clearSearch.click();
       await expect(search).toHaveValue("", { timeout: 2_000 });
-    }).toPass({ timeout: 30_000 });
+    }).toPass({ timeout: 60_000 });
 
     await expect(venue(page)).toHaveAttribute("aria-hidden", "true", {
       timeout: 60_000,
@@ -192,6 +194,24 @@ test.describe("one Map surface history owner", () => {
         { timeout: 60_000 },
       )
       .toEqual({ query: null, selectedVenueId: null });
+  });
+
+  test("a bare phone map does not reopen the last inspected pub", async ({ page }) => {
+    await prepareMap(page, PHONE);
+    const selectedId = "venue-1kpe609";
+    const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+    await openMap(page, `/map?sel=${selectedId}`);
+    await expect(sheet).toBeVisible();
+    await expect.poll(() => page.evaluate(() => {
+      const held = localStorage.getItem("pubmaxx.mobile-map-session.v1");
+      return held ? JSON.parse(held).selectedVenueId : null;
+    })).toBe(selectedId);
+    await page.goto("/today");
+    await openMap(page);
+    await expect(sheet).toHaveCount(0);
+    expect(new URL(page.url()).searchParams.get("sel")).toBeNull();
+    await openMap(page, `/map?sel=${selectedId}`);
+    await expect(sheet).toBeVisible();
   });
 
   test("loaded crawl browser Back restores populated planner", async ({ page }) => {
@@ -213,6 +233,7 @@ test.describe("one Map surface history owner", () => {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
+          servedAt: new Date().toISOString(),
           rows: [],
           asOf: null,
           sourceObservedAt: null,

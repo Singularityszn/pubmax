@@ -28,7 +28,6 @@ import {
   PROVISIONAL_BADGE_RADIUS_MAX_PX,
   UK_BASE_ICON_OPACITY,
   UK_BASE_ICON_SIZE_EXPR,
-  UK_BASE_MIN_ZOOM,
   UK_BASE_UNNAMED_MIN_ZOOM,
   ukBaseUnnamedBadgeFilter,
   ukBaseUnnamedFilter,
@@ -188,8 +187,7 @@ describe("UK base layer (unpriced, visually subordinate, never clustered)", () =
   });
 
   it("only appears from the pin floor, so the overview never carries it", () => {
-    expect((layers.get("uk-base-point") as { minzoom?: number }).minzoom).toBe(UK_BASE_MIN_ZOOM);
-    expect(UK_BASE_MIN_ZOOM).toBe(PIN_MIN_ZOOM);
+    expect((layers.get("uk-base-point") as { minzoom?: number }).minzoom).toBe(PIN_MIN_ZOOM);
   });
 
   it("draws under the curated pins, which is also how it loses collisions", () => {
@@ -218,7 +216,7 @@ describe("UK base layer (unpriced, visually subordinate, never clustered)", () =
       }
       return value;
     };
-    for (const zoom of [UK_BASE_MIN_ZOOM, 15, 17]) {
+    for (const zoom of [PIN_MIN_ZOOM, 15, 17]) {
       expect(sizeAt(UK_BASE_ICON_SIZE_EXPR, zoom)).toBeLessThan(sizeAt(PIN_ICON_SIZE_EXPR, zoom));
     }
     // …and never fully opaque, so it reads as background even when isolated.
@@ -250,11 +248,11 @@ describe("unnamed base pubs (street zoom only)", () => {
   const layout = (id: string) => (layers.get(id)?.layout ?? {}) as Record<string, unknown>;
 
   it("draws on a layer of its own, from street zoom and not before", () => {
-    expect(UK_BASE_UNNAMED_MIN_ZOOM).toBeGreaterThan(UK_BASE_MIN_ZOOM);
+    expect(UK_BASE_UNNAMED_MIN_ZOOM).toBeGreaterThan(PIN_MIN_ZOOM);
     expect(UK_BASE_UNNAMED_MIN_ZOOM).toBeGreaterThanOrEqual(16);
     expect((layers.get("uk-base-unnamed-point") as { source?: string }).source).toBe("uk-base");
     const bare = baseFeature("venue-uk-w2", { unnamed: true });
-    expect(drawsAt(layers, "uk-base-unnamed-point", bare, UK_BASE_MIN_ZOOM)).toBe(false);
+    expect(drawsAt(layers, "uk-base-unnamed-point", bare, PIN_MIN_ZOOM)).toBe(false);
     expect(drawsAt(layers, "uk-base-unnamed-point", bare, 15.9)).toBe(false);
     expect(drawsAt(layers, "uk-base-unnamed-point", bare, UK_BASE_UNNAMED_MIN_ZOOM)).toBe(true);
     expect(drawsAt(layers, "uk-base-unnamed-point", bare, 18)).toBe(true);
@@ -265,7 +263,7 @@ describe("unnamed base pubs (street zoom only)", () => {
 
   it("keeps the named layer's filter off every unnamed pub, so no pin draws at city zoom", () => {
     const bare = baseFeature("venue-uk-w2", { unnamed: true });
-    for (const zoom of [UK_BASE_MIN_ZOOM, UK_BASE_UNNAMED_MIN_ZOOM]) {
+    for (const zoom of [PIN_MIN_ZOOM, UK_BASE_UNNAMED_MIN_ZOOM]) {
       expect(drawsAt(layers, "uk-base-point", bare, zoom)).toBe(false);
       expect(drawsAt(layers, "uk-base-point", baseFeature("venue-uk-n1"), zoom)).toBe(true);
     }
@@ -291,7 +289,7 @@ describe("unnamed base pubs (street zoom only)", () => {
 
   it("holds its provisional badge to the same street zoom as its pin", () => {
     const bare = baseFeature("venue-uk-w2", { unnamed: true, provisional: true });
-    for (const zoom of [UK_BASE_MIN_ZOOM, 15, UK_BASE_UNNAMED_MIN_ZOOM, 18]) {
+    for (const zoom of [PIN_MIN_ZOOM, 15, UK_BASE_UNNAMED_MIN_ZOOM, 18]) {
       expect(drawsAt(layers, "uk-base-unnamed-provisional-badge", bare, zoom)).toBe(
         drawsAt(layers, "uk-base-unnamed-point", bare, zoom),
       );
@@ -307,7 +305,7 @@ describe("unnamed base pubs (street zoom only)", () => {
     const deepLinked = buildScenePieces("venue-uk-w2").layers;
     const selected = baseFeature("venue-uk-w2", { unnamed: true, provisional: true });
     const neighbour = baseFeature("venue-uk-w3", { unnamed: true, provisional: true });
-    for (const zoom of [UK_BASE_MIN_ZOOM, 14]) {
+    for (const zoom of [PIN_MIN_ZOOM, 14]) {
       expect(drawsAt(deepLinked, "uk-base-unnamed-point", selected, zoom)).toBe(true);
       expect(drawsAt(deepLinked, "uk-base-unnamed-provisional-badge", selected, zoom)).toBe(true);
       expect(drawsAt(deepLinked, "uk-base-selected", selected, zoom)).toBe(true);
@@ -643,7 +641,7 @@ describe("provisional-report badge (ungated visibility, zero authority)", () => 
       ["!=", ["get", "unnamed"], true],
     ]);
     expect((baseBadge as { minzoom?: number }).minzoom).toBe(
-      UK_BASE_MIN_ZOOM,
+      PIN_MIN_ZOOM,
     );
     for (const property of [
       "circle-color",

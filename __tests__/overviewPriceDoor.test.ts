@@ -25,6 +25,7 @@ import VenueOverviewTab, {
   overviewComposerOpen,
 } from "@/components/map/inspector/VenueOverviewTab";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
+import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
 import { drinkLaneLogActionLabel } from "@/lib/drinkLanes";
 import { firstDropNudgeCopy } from "@/lib/firstDropNudge";
 import {
@@ -156,7 +157,7 @@ const FIXTURES: Record<PintTrustState, () => SummaryDrop[]> = {
   none: () => [],
 };
 
-function communityPrices(venueId: string): CommunityPricesState {
+function communityPrices(venueId: string, readStatus: VenuePriceReadStatus = "ready"): CommunityPricesState {
   return {
     byVenueId: new Map([[venueId, []]]),
     signalsByVenueId: new Map(),
@@ -168,7 +169,7 @@ function communityPrices(venueId: string): CommunityPricesState {
     provisionalBaseVenueIds: new Set(),
     loadProvisionalBaseVenues: noop,
     loadVenue: noop,
-    venuePriceStatus: new Map([[venueId, "ready"]]),
+    venuePriceStatus: new Map([[venueId, readStatus]]),
     submit: async () => ({ ok: true, attribution: { status: "anonymous" }, price: null }),
     submitVenueSignal: async () => ({ ok: true }),
     submitting: false,
@@ -180,7 +181,7 @@ function communityPrices(venueId: string): CommunityPricesState {
 function renderOverview(
   drops: SummaryDrop[],
   base: Venue = venue(),
-  options: { priceFocusRequest?: number; priceSignInRequested?: boolean; withConfirm?: boolean } = {},
+  options: { priceFocusRequest?: number; priceSignInRequested?: boolean; withConfirm?: boolean; priceReadStatus?: VenuePriceReadStatus } = {},
 ): string {
   const [merged] = mergeVenueDrops([base], new Map([[VENUE_ID, drops]]), NOW);
   const signal = pintTrustSignalFields(pintTrustFor(drops, NOW));
@@ -197,7 +198,7 @@ function renderOverview(
       provisionalPrice: dropLaneInput(signal.provisionalContributorPrice, signal.provisionalContributorAt),
       agedPrice: dropLaneInput(signal.agedContributorPrice, signal.agedContributorAt),
       disputedPrice: splitLaneInput(signal.disputedPrices, signal.disputedAt),
-      communityPrices: communityPrices(VENUE_ID),
+      communityPrices: communityPrices(VENUE_ID, options.priceReadStatus),
       experienceLens: "all",
       drinkLensCategory: null,
       onToggleStop: noop,
@@ -374,6 +375,12 @@ describe("the rendered Overview carries exactly one price door", () => {
     expect(doorCount(html)).toBe(1);
     expect(html).toContain('data-price-door="log"');
     expect(html).not.toContain('data-testid="confirm-pint-cta"');
+  });
+
+  it("does not wait for a pub price read on a recordless café", () => {
+    const html = renderOverview([], venue({ kind: "cafe" } as Partial<Venue>), { priceReadStatus: "idle" });
+    expect(html).not.toContain("Checking prices");
+    expect(doorCount(html)).toBe(0);
   });
 
   it("a venue that is not a pub carries no door and no composer", () => {

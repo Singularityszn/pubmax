@@ -126,6 +126,28 @@ const capacitorApp = {
 vi.mock("@capacitor/app", () => ({ App: capacitorApp }));
 
 describe("activateNativeBackGesture", () => {
+  it("uses the iOS edge gesture to dismiss a panel or pop history, and stays at the root", async () => {
+    const target = Object.assign(new EventTarget(), {
+      Capacitor: { isNativePlatform: () => true },
+      history: { back: vi.fn() },
+    });
+    g.window = target;
+    const dismiss = vi.fn(() => false);
+    const cleanup = await activateNativeBackGesture({ dismiss });
+    const swipe = (canGoBack: boolean) => target.dispatchEvent(new CustomEvent("pubmax:ios-back", { detail: { canGoBack } }));
+    swipe(true);
+    expect(target.history.back).toHaveBeenCalledTimes(1);
+    dismiss.mockReturnValueOnce(true);
+    swipe(true);
+    expect(target.history.back).toHaveBeenCalledTimes(1);
+    swipe(false);
+    expect(capacitorApp.minimizeApp).not.toHaveBeenCalled();
+    cleanup();
+    cleanup();
+    swipe(true);
+    expect(target.history.back).toHaveBeenCalledTimes(1);
+  });
+
   it("registers nothing on the web and returns a safe cleanup", async () => {
     // No window at all: the server render path.
     const cleanup = await activateNativeBackGesture();

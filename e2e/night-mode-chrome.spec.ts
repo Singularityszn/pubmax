@@ -41,11 +41,11 @@ async function prepare(page: Page, viewport: { width: number; height: number }):
 async function lockAPlanOnTonight(page: Page): Promise<void> {
   await page.goto("/plan");
   await sortDescribeFirst(page, "Quiet in Clapham for 4, not pricey");
-  await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set below.")).toBeVisible();
+  await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set.")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");
   await setFirstPintIn(page, 30);
   await page.getByRole("button", { name: "Regenerate route" }).click();
-  await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set below.")).toBeVisible();
+  await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Lock it in" })).toBeEnabled();
   await page.getByRole("button", { name: "Lock it in" }).click();
   await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}(?:#share)?$/);

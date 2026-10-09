@@ -11,13 +11,9 @@ truth; the shell renders its descriptors.
 | 2 | **Filters** | Quiet icon-button in the one top bar. Absorbs drinks + price + zone + venue-type toggles; refinement count is the badge |
 | 3 | **TfL** | Compact 44px icon-button in `.mobileMapUtilityCorner` (fixed, right edge, badge-capable). **List view** lives in the Layers sheet shortcut grid. |
 
-**Tonight cold-start (P5):** when `whatsOnTonight.rows.length > 0`, a measured
-`.mobileMapTonightChip` docks under the bar (not a sixth bar slot) and opens
-`overlay: "tonight"` in one tap. `buildTonightChip` in `lib/mapChromeTiers.ts`
-owns the model. More → Events, Layers → On tonight, and the tab bar remain
-homes. Quiet nights omit the chip. The plan pill and tab bar stay outside this
-hierarchy. Mobile map action geometry belongs to
-`components/mobile/mobileMapShell.css`.
+The [phone map resting-layer contract](rules/components-sheets-chrome-and-navigation.md#the-phone-map-rests-on-three-layers-and-the-bottom-card-is-the-answer)
+owns Tonight's placement, the bottom card and the TfL badge policy.
+Mobile map action geometry belongs to `components/mobile/mobileMapShell.css`.
 
 ## Narrow desktop state
 

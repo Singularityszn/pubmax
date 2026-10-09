@@ -183,6 +183,7 @@ export default defineConfig({
         "**/map-uk-base-layer.spec.ts",
         "**/map-london-restaurants.spec.ts",
         "**/map-live-qa-0924.spec.ts",
+        "**/plan-route-strip.spec.ts",
         "**/ui-ux-battle-test.spec.ts",
         "**/signed-in-review.spec.ts",
         // The Core Web Vitals sweep owns its own project: it needs a real GL
@@ -319,6 +320,8 @@ export default defineConfig({
         // /map/list opening List view, and a cold /map opening on London: both
         // need rendered venue rows and a real camera probe.
         "**/map-live-qa-0924.spec.ts",
+        // The Plan result's route strip: a real MapLibre canvas above the cards.
+        "**/plan-route-strip.spec.ts",
         "**/ui-ux-battle-test.spec.ts",
       ],
       use: {

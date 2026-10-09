@@ -1,0 +1,183 @@
+{
+  "method": {
+    "baseline": "835b91ab6ffeaca1533c612ad88db470aaae8b96",
+    "final": "d7049dd2016446cef64c9ab64479675632432dc9",
+    "pairs": 5,
+    "viewport": "390x844",
+    "deviceScaleFactor": 3,
+    "touch": true,
+    "theme": "light",
+    "network": "DevTools Fast 4G",
+    "browser": "HeadlessChrome/154.0.0.0",
+    "session": "pubmax-ios-lane-e",
+    "node": "v26.10.0",
+    "next": "16.3.8",
+    "compiler": "Webpack, normal production build",
+    "productionBuilds": "Exit 0 for both. Disposable config copies disable build type checking because this phase forbids static analysis. Project gates are unchanged.",
+    "data": "Identical committed data. No fixtures or camera overrides.",
+    "cold": "Cleared localStorage and sessionStorage before each new Map document. HTTP assets were primed by setup pilots for both origins. HTTP caches were not cleared.",
+    "sequence": "/places -> clear application storage -> /map?lane-e-proof=<round> -> 9 seconds -> Tonight/Map/Tonight, 3 seconds each",
+    "idMultisetSha256": "85f34e81d36c4962ea971d1671eb3ca1ac3c3c9dbdd167adf77ae0af24e52203",
+    "sourceFingerprint": "Supplied inline text restored. Materialized fingerprints differ from supplied hash metadata. See procedure/fingerprints.json.",
+    "limitations": [
+      "Keyless empty price bodies do not measure durable database performance.",
+      "Chrome 154 is the current rig. Original Chrome version was not supplied.",
+      "No physical iPhone, Android runtime, memory leak, deployment or production performance claim.",
+      "Earlier TDD and full-gate proof are retained. This targeted phase does not rerun the full gate or static checks."
+    ]
+  },
+  "before": {
+    "waterfall": {
+      "median": 4749.29999999702,
+      "min": 4547,
+      "max": 4831.39999999851
+    },
+    "requests": {
+      "median": 15,
+      "min": 15,
+      "max": 15
+    },
+    "priceBytes": {
+      "median": 4725,
+      "min": 4725,
+      "max": 4725
+    },
+    "priceDecodedBytes": {
+      "median": 225,
+      "min": 225,
+      "max": 225
+    },
+    "firstPrice": {
+      "median": 3219.5,
+      "min": 3008.60000000149,
+      "max": 3560.89999999851
+    },
+    "lastPrice": {
+      "median": 7630.39999999851,
+      "min": 7439,
+      "max": 8061.60000000149
+    },
+    "firstPins": {
+      "median": 658,
+      "min": 629,
+      "max": 833
+    },
+    "firstTonight": {
+      "median": 430,
+      "min": 381.6000000014901,
+      "max": 758.2000000029802
+    },
+    "warmMap": {
+      "median": 1083.6000000014901,
+      "min": 739.0999999940395,
+      "max": 1151.8999999985099
+    },
+    "warmTonight": {
+      "median": 38.399999998509884,
+      "min": 34.100000001490116,
+      "max": 81.30000000447035
+    },
+    "warmMapListings": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "warmTonightListings": {
+      "median": 1,
+      "min": 1,
+      "max": 1
+    },
+    "warmListingBytes": {
+      "median": 108367,
+      "min": 108367,
+      "max": 108367
+    },
+    "coldMapListingBytes": {
+      "median": 64319,
+      "min": 64319,
+      "max": 64319
+    },
+    "firstTonightListingBytes": {
+      "median": 44048,
+      "min": 44048,
+      "max": 44048
+    }
+  },
+  "after": {
+    "waterfall": {
+      "median": 2508.7000000029802,
+      "min": 2371.89999999851,
+      "max": 2571.7000000029802
+    },
+    "requests": {
+      "median": 15,
+      "min": 15,
+      "max": 15
+    },
+    "priceBytes": {
+      "median": 4725,
+      "min": 4725,
+      "max": 4725
+    },
+    "priceDecodedBytes": {
+      "median": 225,
+      "min": 225,
+      "max": 225
+    },
+    "firstPrice": {
+      "median": 3306.5,
+      "min": 3218.39999999851,
+      "max": 4345.69999999553
+    },
+    "lastPrice": {
+      "median": 5551.89999999851,
+      "min": 5404.39999999851,
+      "max": 6597.60000000149
+    },
+    "firstPins": {
+      "median": 694,
+      "min": 380,
+      "max": 1401.6999999955297
+    },
+    "firstTonight": {
+      "median": 428.6000000014901,
+      "min": 354.6000000014901,
+      "max": 431.30000000447035
+    },
+    "warmMap": {
+      "median": 814.1000000014901,
+      "min": 679.5,
+      "max": 1274.5
+    },
+    "warmTonight": {
+      "median": 35.29999999701977,
+      "min": 32.399999998509884,
+      "max": 43.100000001490116
+    },
+    "warmMapListings": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "warmTonightListings": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "warmListingBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "coldMapListingBytes": {
+      "median": 64319,
+      "min": 64319,
+      "max": 64319
+    },
+    "firstTonightListingBytes": {
+      "median": 44048,
+      "min": 44048,
+      "max": 44048
+    }
+  }
+}

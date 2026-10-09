@@ -1,0 +1,24 @@
+(lldb) process attach --pid 69992
+Process 69992 stopped
+* thread #1, queue = 'com.apple.main-thread', stop reason = signal SIGSTOP
+       frame #0: 0x0000000104ff4b5c libsystem_kernel.dylib`mach_msg2_trap + 8
+libsystem_kernel.dylib`mach_msg2_trap:
+->  0x104ff4b5c <+8>: ret    
+
+libsystem_kernel.dylib`macx_swapon:
+    0x104ff4b60 <+0>: mov    x16, #-0x30               ; =-48 
+    0x104ff4b64 <+4>: svc    #0x80
+    0x104ff4b68 <+8>: ret    
+Target 0: (App) stopped.
+Executable binary set to "/Users/karanmanoharan/Library/Developer/CoreSimulator/Devices/80131979-EDC5-4B44-B5A3-903D83429E9E/data/Containers/Bundle/Application/AFE11EE7-E517-489B-AA05-2FE697E55C2F/App.app/App".
+Architecture set to: arm64-apple-ios-simulator.
+(lldb) expr -l objc++ -O -- (id)[[[[[UIApplication sharedApplication] connectedScenes] anyObject] windows] firstObject]
+<UIWindow: 0x1069fc000; frame = (0 0; 402 874); gestureRecognizers = <NSArray: 0x13b7b8000>; layer = <UIWindowLayer: 0x1068c7900>>
+
+(lldb) expr -l objc++ -O -- (id)[[(UIWindow *)[[[[UIApplication sharedApplication] connectedScenes] anyObject] windows] firstObject] rootViewController] presentedViewController]
+<SFSafariViewController: 0x1069b0600>
+
+  Evaluated this expression after applying Fix-It(s):
+    (id)[[[(UIWindow *)[[[[UIApplication sharedApplication] connectedScenes] anyObject] windows] firstObject] rootViewController] presentedViewController]
+(lldb) detach
+Process 69992 detached

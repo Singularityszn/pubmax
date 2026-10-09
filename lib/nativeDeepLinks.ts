@@ -147,8 +147,12 @@ export async function activateNativeDeepLinks(
       // The provider's redirect is the moment the system browser is done
       // (lib/nativeOAuth.ts): close it before the WebView takes the callback,
       // or iOS leaves the sign-in page presented over the signed-in app.
-      if (isOAuthCallbackPath(path)) void closeSystemBrowser();
-      navigate(path);
+      if (isOAuthCallbackPath(path)) {
+        // Replacing the document first can discard the asynchronous plugin close.
+        void closeSystemBrowser().then(() => navigate(path));
+      } else {
+        navigate(path);
+      }
     };
 
     const listener = await App.addListener("appUrlOpen", ({ url }) => route(url));

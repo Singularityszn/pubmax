@@ -452,6 +452,43 @@
   flex: 0 0 auto;
 }
 
+/* Reserve the same compact shell before the identity provider answers. */
+.authCompactPending {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.authCompactIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 28px;
+}
+
+/* Both settled labels size the same slot using the control's own font. */
+.authCompactLabel {
+  display: grid;
+}
+
+.authCompactLabel::before {
+  content: "Sign in";
+}
+
+.authCompactLabel::after {
+  content: "Account";
+}
+
+.authCompactLabel::before,
+.authCompactLabel::after {
+  visibility: hidden;
+}
+
+.authCompactLabel > span,
+.authCompactLabel::before,
+.authCompactLabel::after {
+  grid-area: 1 / 1;
+}
+
 .authCompactTrigger {
   display: inline-flex;
   align-items: center;

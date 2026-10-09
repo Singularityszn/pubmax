@@ -300,6 +300,7 @@ describe("resolveSheetHeightSnap — no-velocity (nearest neighbour on height)",
   it("stays at the same snap when there is no drag (start height = its cap)", () => {
     for (const snap of SHEET_SNAP_ORDER) {
       const result = resolveSheetHeightSnap({
+        viewportHeight: VH,
         startSnap: snap,
         startHeightPx: caps[snap],
         releaseHeightPx: caps[snap],
@@ -316,6 +317,7 @@ describe("resolveSheetHeightSnap — no-velocity (nearest neighbour on height)",
     // reference keeps a still finger on half.
     const hugged = 120; // < caps.peek (176)
     const result = resolveSheetHeightSnap({
+      viewportHeight: VH,
       startSnap: "half",
       startHeightPx: hugged,
       releaseHeightPx: hugged,
@@ -327,6 +329,7 @@ describe("resolveSheetHeightSnap — no-velocity (nearest neighbour on height)",
 
   it("resolves to full when dragged up from half toward the full cap", () => {
     const result = resolveSheetHeightSnap({
+      viewportHeight: VH,
       startSnap: "half",
       startHeightPx: caps.half,
       releaseHeightPx: caps.full,
@@ -338,6 +341,7 @@ describe("resolveSheetHeightSnap — no-velocity (nearest neighbour on height)",
 
   it("resolves to half when dragged down from full toward the half cap", () => {
     const result = resolveSheetHeightSnap({
+      viewportHeight: VH,
       startSnap: "full",
       startHeightPx: caps.full,
       releaseHeightPx: caps.half,
@@ -349,6 +353,7 @@ describe("resolveSheetHeightSnap — no-velocity (nearest neighbour on height)",
 
   it("dismisses when collapsed well below peek without a flick", () => {
     const result = resolveSheetHeightSnap({
+      viewportHeight: VH,
       startSnap: "peek",
       startHeightPx: caps.peek,
       releaseHeightPx: caps.peek * 0.4, // below the half-a-peek dismiss line
@@ -360,6 +365,7 @@ describe("resolveSheetHeightSnap — no-velocity (nearest neighbour on height)",
 
   it("does not dismiss on a small downward nudge from peek", () => {
     const result = resolveSheetHeightSnap({
+      viewportHeight: VH,
       startSnap: "peek",
       startHeightPx: caps.peek,
       releaseHeightPx: caps.peek - 5,
@@ -370,11 +376,38 @@ describe("resolveSheetHeightSnap — no-velocity (nearest neighbour on height)",
   });
 });
 
+describe("resolveSheetHeightSnap physical-dismiss threshold", () => {
+  it("dismisses the established phone drag despite a shorter command-bar peek", () => {
+    const caps = { ...sheetSnapCaps(844, 98), peek: 135 };
+    expect(resolveSheetHeightSnap({
+      viewportHeight: 844,
+      startSnap: "half",
+      startHeightPx: caps.half,
+      releaseHeightPx: 844 * 0.11 - 24,
+      velocity: 0,
+      caps,
+    })).toEqual({ snap: "peek", dismissed: true });
+  });
+
+  it("keeps a short viewport open when a taller command bar would move the dismissal line", () => {
+    const caps = { ...sheetSnapCaps(568, 64), peek: 185 };
+    expect(resolveSheetHeightSnap({
+      viewportHeight: 568,
+      startSnap: "peek",
+      startHeightPx: caps.peek,
+      releaseHeightPx: 80,
+      velocity: 0,
+      caps,
+    })).toEqual({ snap: "peek", dismissed: false });
+  });
+});
+
 describe("resolveSheetHeightSnap — projected momentum", () => {
   const caps = sheetSnapCaps(800, 0);
 
   it("a fast upward flick from peek can project through half to full", () => {
     const result = resolveSheetHeightSnap({
+      viewportHeight: VH,
       startSnap: "peek",
       startHeightPx: caps.peek,
       releaseHeightPx: caps.peek + 10, // barely grew
@@ -386,6 +419,7 @@ describe("resolveSheetHeightSnap — projected momentum", () => {
 
   it("a fast upward flick from half jumps to full", () => {
     const result = resolveSheetHeightSnap({
+      viewportHeight: VH,
       startSnap: "half",
       startHeightPx: caps.half,
       releaseHeightPx: caps.half + 10,
@@ -397,6 +431,7 @@ describe("resolveSheetHeightSnap — projected momentum", () => {
 
   it("a fast upward flick from full stays at full (already the max)", () => {
     const result = resolveSheetHeightSnap({
+      viewportHeight: VH,
       startSnap: "full",
       startHeightPx: caps.full,
       releaseHeightPx: caps.full + 10,
@@ -408,6 +443,7 @@ describe("resolveSheetHeightSnap — projected momentum", () => {
 
   it("a fast downward flick from full drops to half, not all the way to peek", () => {
     const result = resolveSheetHeightSnap({
+      viewportHeight: VH,
       startSnap: "full",
       startHeightPx: caps.full,
       releaseHeightPx: caps.full - 10,
@@ -419,6 +455,7 @@ describe("resolveSheetHeightSnap — projected momentum", () => {
 
   it("a fast downward drag from half lands at peek instead of dismissing", () => {
     const result = resolveSheetHeightSnap({
+      viewportHeight: VH,
       startSnap: "half",
       startHeightPx: caps.half,
       releaseHeightPx: caps.half - 260,
@@ -430,6 +467,7 @@ describe("resolveSheetHeightSnap — projected momentum", () => {
 
   it("a fast downward flick from peek dismisses the sheet", () => {
     const result = resolveSheetHeightSnap({
+      viewportHeight: VH,
       startSnap: "peek",
       startHeightPx: caps.peek,
       releaseHeightPx: caps.peek - 10,
@@ -441,6 +479,7 @@ describe("resolveSheetHeightSnap — projected momentum", () => {
 
   it("a slow release just under the flick threshold uses nearest-neighbour, not the flick rule", () => {
     const result = resolveSheetHeightSnap({
+      viewportHeight: VH,
       startSnap: "full",
       startHeightPx: caps.full,
       releaseHeightPx: caps.half,

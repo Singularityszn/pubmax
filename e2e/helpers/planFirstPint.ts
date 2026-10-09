@@ -1,8 +1,29 @@
 import { expect, type Page } from "@playwright/test";
 
-/** A `datetime-local` value in London, `minutes` from now. */
-function londonDateTimeIn(minutes: number): string {
-  const when = new Date(Date.now() + minutes * 60 * 1000);
+const HOUR_MS = 60 * 60 * 1000;
+
+function londonHour(when: Date): number {
+  return Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "2-digit", hourCycle: "h23" }).format(when));
+}
+
+/**
+ * Hold the page's clock at the next 18:00 in London. The Plan heading reads the
+ * night out from the page's clock, and a night runs until 05:00, so a run between
+ * 04:00 and 05:00 would otherwise read the coming evening as "Tomorrow". The
+ * time is still ahead of the server's, so a First pint built from it is in the
+ * future there too.
+ */
+export async function pinLondonEvening(page: Page): Promise<Date> {
+  let at = Math.ceil((Date.now() + 1) / HOUR_MS) * HOUR_MS;
+  while (londonHour(new Date(at)) !== 18) at += HOUR_MS;
+  const evening = new Date(at);
+  await page.clock.setFixedTime(evening);
+  return evening;
+}
+
+/** A `datetime-local` value in London, `minutes` after `base`. */
+function londonDateTimeIn(minutes: number, base: number): string {
+  const when = new Date(base + minutes * 60 * 1000);
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/London",
     year: "numeric",
@@ -17,7 +38,7 @@ function londonDateTimeIn(minutes: number): string {
 }
 
 /**
- * Set First pint to a London time `minutes` from now, and prove the composer
+ * Set First pint to a London time `minutes` from the page's now, and prove the composer
  * treated it as a change.
  *
  * A bare `fill` of a computed time is not a change: the generator answers an
@@ -31,8 +52,9 @@ function londonDateTimeIn(minutes: number): string {
 export async function setFirstPintIn(page: Page, minutes: number): Promise<string> {
   const field = page.getByLabel("First pint");
   const current = await field.inputValue();
-  const candidate = londonDateTimeIn(minutes);
-  const value = candidate === current ? londonDateTimeIn(minutes + 1) : candidate;
+  const base = await page.evaluate(() => Date.now());
+  const candidate = londonDateTimeIn(minutes, base);
+  const value = candidate === current ? londonDateTimeIn(minutes + 1, base) : candidate;
   await field.fill(value);
   await expect(page.getByRole("button", { name: "Regenerate route" })).toBeVisible();
   return value;

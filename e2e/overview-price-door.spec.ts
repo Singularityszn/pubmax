@@ -152,6 +152,34 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+test("keeps the price neutral until the selected pub's drops answer", async ({ page }) => {
+  let releaseRead: () => void = () => {};
+  const heldRead = new Promise<void>((resolve) => { releaseRead = resolve; });
+  await page.route("**/api/pint-drops**", async (route) => {
+    const selected = new URL(route.request().url()).searchParams.get("venueId") === HATTON;
+    if (selected) await heldRead;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ drops: selected ? [row({ priceGbp: 4.7 })] : [] }),
+    });
+  });
+  try {
+    await page.goto(`/map?sel=${HATTON}`);
+    const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+    await expect(sheet).toBeVisible({ timeout: 30_000 });
+    const peek = sheet.locator(".mobileVenuePeekSummary");
+    await expect(peek).toContainText("Checking prices", { timeout: 10_000 });
+    await expect(peek).not.toContainText(/est\.|No price yet/);
+    await expect(sheet.locator(".venueInspector")).not.toContainText(/est\. £/);
+    releaseRead();
+    await expect(peek).toContainText("£4.70", { timeout: 20_000 });
+    await expect(peek).not.toContainText("Checking prices");
+  } finally {
+    releaseRead();
+  }
+});
+
 for (const state of Object.keys(STATES) as StateName[]) {
   test(`${state}: exactly one price door, the composer folded, nothing retired on screen`, async ({
     page,

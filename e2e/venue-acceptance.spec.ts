@@ -52,7 +52,7 @@ test("390px Map acceptance persists before Plan receives Stop 1", async ({ page 
     acceptedVenueId: VENUE_ID,
   });
   await expect(page.getByText("Carried over from what you accepted")).toBeVisible();
-  await expect(page.getByLabel("Venue name").first()).toHaveValue(VENUE_NAME);
+  await expect(page.locator(".planStop__name").first()).toHaveText(VENUE_NAME);
   await page.evaluate(() => {
     localStorage.setItem("pubmax-theme", "light");
     document.documentElement.dataset.theme = "light";

@@ -1,0 +1,155 @@
+{
+  "before": {
+    "coldRequests": {
+      "median": 14,
+      "range": [
+        14,
+        14
+      ]
+    },
+    "coldTransferBytes": {
+      "median": 4410,
+      "range": [
+        4410,
+        4410
+      ]
+    },
+    "coldDecodedBytes": {
+      "median": 210,
+      "range": [
+        210,
+        210
+      ]
+    },
+    "waterfallMs": {
+      "median": 4613.5,
+      "range": [
+        4471.30000000447,
+        4640.29999999702
+      ]
+    },
+    "firstAnswerMs": {
+      "median": 3486.6999999955297,
+      "range": [
+        3364.60000000149,
+        4715.5
+      ]
+    },
+    "lastAnswerMs": {
+      "median": 7781.89999999851,
+      "range": [
+        7503.5,
+        8994.39999999851
+      ]
+    },
+    "firstPinsMs": {
+      "median": 1219.3999999985099,
+      "range": [
+        1156.8999999985099,
+        1266.6999999955297
+      ]
+    },
+    "warmListingsRequests": {
+      "median": 2,
+      "range": [
+        2,
+        2
+      ]
+    },
+    "warmListingsBytes": {
+      "median": 108367,
+      "range": [
+        108367,
+        108367
+      ]
+    }
+  },
+  "after": {
+    "coldRequests": {
+      "median": 14,
+      "range": [
+        14,
+        14
+      ]
+    },
+    "coldTransferBytes": {
+      "median": 4410,
+      "range": [
+        4410,
+        4410
+      ]
+    },
+    "coldDecodedBytes": {
+      "median": 210,
+      "range": [
+        210,
+        210
+      ]
+    },
+    "waterfallMs": {
+      "median": 2277.2000000029802,
+      "range": [
+        2242.7999999970198,
+        2329.6999999955297
+      ]
+    },
+    "firstAnswerMs": {
+      "median": 3617.60000000149,
+      "range": [
+        3296.2000000029802,
+        5480.5
+      ]
+    },
+    "lastAnswerMs": {
+      "median": 5538.39999999851,
+      "range": [
+        5287.39999999851,
+        7428.60000000149
+      ]
+    },
+    "firstPinsMs": {
+      "median": 1251.6000000014901,
+      "range": [
+        958,
+        1556.3000000044703
+      ]
+    },
+    "warmListingsRequests": {
+      "median": 0,
+      "range": [
+        0,
+        0
+      ]
+    },
+    "warmListingsBytes": {
+      "median": 0,
+      "range": [
+        0,
+        0
+      ]
+    }
+  },
+  "method": {
+    "baseline": "835b91ab6ffeaca1533c612ad88db470aaae8b96",
+    "final": "d7049dd2016446cef64c9ab64479675632432dc9",
+    "pairs": 5,
+    "viewport": "390x844",
+    "theme": "light",
+    "browser": "isolated Playwright Chromium 153",
+    "compiler": "Webpack for both builds",
+    "network": {
+      "latencyMs": 170,
+      "downloadMbps": 4.194304,
+      "uploadMbps": 3.145728
+    },
+    "cold": "new documents with cleared application storage, primed browser HTTP assets",
+    "observation": "9 seconds cold Map, 3 seconds each Tonight/Map/Tonight",
+    "limitations": [
+      "Original measure.mjs and sample.js are absent from this isolated worktree. This is a reconstructed procedure.",
+      "Current viewport yielded 884 matching IDs, versus 901 in original proof.",
+      "Software WebGL and keyless empty price bodies do not establish native device or durable database performance."
+    ],
+    "bodySha256": "f6355383d51edf15576c8a43085707cee0dc891de9ed3525952250d9ce694bdd",
+    "data": "No data difference in the reviewed commit range."
+  }
+}

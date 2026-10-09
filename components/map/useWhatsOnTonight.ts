@@ -15,13 +15,17 @@
 // CityMCP things-to-do layer (useTonightOpportunities) stays a secondary
 // city-events overlay.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { coarsenViewerPoint } from "@/lib/geo";
-import { loadSurfaceJson, SURFACE_JUST_READ_MS } from "@/lib/surfaceDataCache";
+import {
+  loadSurfaceJson,
+  SURFACE_JUST_READ_MS,
+} from "@/lib/surfaceDataCache";
 import {
   EMPTY_KIND_OBSERVED_AT,
   isValidWhatsOnRow,
+  londonServiceDayBounds,
   parseKindObservedAt,
   type WhatsOnKindObservedAt,
   type WhatsOnRow,
@@ -39,6 +43,7 @@ export type TonightFreshnessKind = "provider-observed" | "dataset-generated" | "
 
 type ApiResponse = {
   rows?: unknown;
+  servedAt?: unknown;
   asOf?: string | null;
   sourceObservedAt?: string | null;
   sourceFreshnessKind?: unknown;
@@ -73,11 +78,12 @@ const FETCH_TIMEOUT_MS = 8_000;
  *
  * The rows carry their own source-observed time and every reader prints it, so
  * a snapshot cannot misdate itself; the ceiling is about the LIST, not the
- * label — a listing that has since closed should not paint one more time an
- * hour later. Ten minutes is well inside tonight's window and well outside a
- * tab switch.
+ * label. A listing that has since closed should not paint an hour later.
+ * Service-night validation also rejects snapshots across London's 04:00 rollover.
  */
 const TONIGHT_SNAPSHOT_MAX_AGE_MS = 10 * 60_000;
+/** Bound public re-entry downloads without redating source observations. */
+const PUBLIC_TONIGHT_FRESH_MS = 60_000;
 
 /** The request this hook makes. Shared so the snapshot is keyed by the answer's own URL. */
 function whatsOnTonightRequestUrl(
@@ -90,6 +96,16 @@ function whatsOnTonightRequestUrl(
       : null;
   const suffix = validNear ? `&near=${validNear.lat},${validNear.lng}` : "";
   return `/api/whats-on?window=tonight&limit=60${suffix}${pubOnly ? "&pubOnly=1" : ""}`;
+}
+
+function tonightRollover(): number {
+  const now = Date.now();
+  const { start } = londonServiceDayBounds(now);
+  // The current window starts at 16:00. An instant one day before that start
+  // is inside the previous service date, even on a clock-change day. Resolve
+  // that date's 04:00 end independently rather than assuming a 24-hour day.
+  const previousWindow = londonServiceDayBounds(Date.parse(start) - 24 * 60 * 60_000);
+  return Date.parse(previousWindow.end);
 }
 
 export type LoadTonightResult = {
@@ -111,6 +127,8 @@ export type LoadTonightOpts = {
   near?: { lat: number; lng: number } | null;
   maxAgeMs?: number;
   pubOnly?: boolean;
+  /** Explicit retry bypasses both the snapshot and an older pending request. */
+  fresh?: boolean;
   onResult?: (result: LoadTonightResult, source: "snapshot" | "network") => void;
 };
 
@@ -124,20 +142,39 @@ function fetchWithTimeout(
     const onOuterAbort = () => controller.abort();
     outerSignal?.addEventListener("abort", onOuterAbort, { once: true });
     const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      return await fetchImpl(input, { ...init, signal: controller.signal });
-    } finally {
+    const cleanup = () => {
       clearTimeout(timer);
       outerSignal?.removeEventListener("abort", onOuterAbort);
+    };
+    try {
+      const response = await fetchImpl(input, { ...init, signal: controller.signal });
+      if (!response.ok) {
+        cleanup();
+        return response;
+      }
+      // Fetch resolves at headers. Keep abort and timeout active until JSON finishes.
+      const readJson = response.json.bind(response);
+      response.json = async () => {
+        try {
+          return await readJson();
+        } finally {
+          cleanup();
+        }
+      };
+      return response;
+    } catch (error) {
+      cleanup();
+      throw error;
     }
   };
 }
 
 /**
  * Fetch + validate tonight's whats-on rows. Injectable so the error and
- * timeout paths are unit-testable without React. Never throws: failures
- * (non-OK, network throw, timeout) return status "error"; an OK response with
- * zero valid rows returns "empty".
+ * timeout paths are unit-testable without React. Request and validation failures
+ * return status "error" without throwing.
+ * Successful responses need a valid servedAt in the current London service night.
+ * Only an accepted response with zero valid rows returns "empty".
  */
 export async function loadWhatsOnTonight(
   opts: LoadTonightOpts = {},
@@ -158,15 +195,19 @@ export async function loadWhatsOnTonight(
     whatsOnTonightRequestUrl(opts.near, opts.pubOnly === true),
     {
       signal: opts.signal,
-      maxAgeMs: opts.maxAgeMs,
-      freshForMs: SURFACE_JUST_READ_MS,
+      maxAgeMs: opts.fresh ? -1 : opts.maxAgeMs,
+      requestNotBefore: tonightRollover(),
+      fresh: opts.fresh,
+      freshForMs: opts.near ? SURFACE_JUST_READ_MS : PUBLIC_TONIGHT_FRESH_MS,
       init: { headers: { accept: "application/json" } },
       fetchImpl,
-      validate: (body) => Boolean(
-        body &&
-          typeof body === "object" &&
-          Array.isArray((body as ApiResponse).rows),
-      ),
+      validate: (body) => {
+        if (!body || typeof body !== "object" || !Array.isArray(body.rows)) return false;
+        if (typeof body.error === "string" && body.error.trim().length > 0) return true;
+        const servedAt = typeof body.servedAt === "string" ? Date.parse(body.servedAt) : NaN;
+        return Number.isFinite(servedAt) &&
+          londonServiceDayBounds(servedAt).start === londonServiceDayBounds().start;
+      },
     },
     (body, source) => {
       if (typeof body.error === "string" && body.error.trim().length > 0) {
@@ -214,6 +255,7 @@ export function useWhatsOnTonight(
   const [kindObservedAt, setKindObservedAt] = useState<WhatsOnKindObservedAt>(EMPTY_KIND_OBSERVED_AT);
   const [status, setStatus] = useState<WhatsOnTonightStatus>("idle");
   const [retryAttempt, setRetryAttempt] = useState(0);
+  const lastRetryAttempt = useRef(0);
   const retry = useCallback(() => {
     setStatus("idle");
     setRetryAttempt((attempt) => attempt + 1);
@@ -242,7 +284,9 @@ export function useWhatsOnTonight(
       signal: controller.signal,
       maxAgeMs: TONIGHT_SNAPSHOT_MAX_AGE_MS,
       pubOnly,
+      fresh: retryAttempt !== lastRetryAttempt.current,
     };
+    lastRetryAttempt.current = retryAttempt;
     if (near) load.near = near;
     let painted = false;
     load.onResult = (result, source) => {

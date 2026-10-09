@@ -31,8 +31,9 @@ import "@/components/mobile/mobileMapShell.css";
  * The CONTAINER height is content-driven with `max-height: <snap cap>` (CSS,
  * mobileMapShell.css), so the sheet's rendered height is min(natural content,
  * cap): short content HUGS (no void) and tall content caps and scrolls inside
- * the body while header + footer stay pinned. There is no content measuring, no
- * translateY snap panel. Bottom clearance follows `.mobileSheetPortal` in
+ * the body while header + footer stay pinned. `useSheetHeightDrag` measures
+ * header and footer chrome for the snap caps, without measuring body content.
+ * There is no translateY snap panel. Bottom clearance follows `.mobileSheetPortal` in
  * mobileMapShell.css, keeping a visible tab bar outside the scrollport.
  * A drag grows/shrinks the box height directly
  * (useSheetHeightDrag writes an inline max-height in px); a release settles to a

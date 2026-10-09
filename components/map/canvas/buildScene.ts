@@ -101,7 +101,7 @@ export const CLUSTER_FILTER: maplibregl.FilterSpecification = ["has", "point_cou
 //
 // The zoom floor is what bounds the payload too: shards are only fetched once
 // the camera is at/above it (components/map/pubmap/useUkBaseStreaming.ts).
-export const UK_BASE_MIN_ZOOM = PIN_MIN_ZOOM;
+const UK_BASE_MIN_ZOOM = PIN_MIN_ZOOM;
 
 // A pub OSM maps with no name (UkBasePub.unnamed) is a bare "Pub" pin, and a
 // city full of them says nothing. They wait for street level, on a layer of

@@ -1,0 +1,146 @@
+{
+  "id": "1791455552625",
+  "value": {
+    "url": "http://localhost:3491/places",
+    "history": 6,
+    "trace": [
+      {
+        "kind": "ios-edge",
+        "detail": {
+          "canGoBack": true
+        },
+        "url": "http://localhost:3491/map",
+        "history": 6,
+        "state": {
+          "__NA": true,
+          "__PRIVATE_NEXTJS_INTERNALS_TREE": {
+            "tree": [
+              "",
+              {
+                "children": [
+                  "map",
+                  {
+                    "children": [
+                      "__PAGE__",
+                      {},
+                      null,
+                      null,
+                      4256
+                    ]
+                  },
+                  null,
+                  null,
+                  4164
+                ]
+              },
+              null,
+              null,
+              4120
+            ],
+            "renderedSearch": ""
+          },
+          "pubmaxMapSurface": {
+            "version": 1,
+            "stack": []
+          }
+        }
+      },
+      {
+        "kind": "history.back",
+        "url": "http://localhost:3491/map",
+        "state": {
+          "__NA": true,
+          "__PRIVATE_NEXTJS_INTERNALS_TREE": {
+            "tree": [
+              "",
+              {
+                "children": [
+                  "map",
+                  {
+                    "children": [
+                      "__PAGE__",
+                      {},
+                      null,
+                      null,
+                      4256
+                    ]
+                  },
+                  null,
+                  null,
+                  4164
+                ]
+              },
+              null,
+              null,
+              4120
+            ],
+            "renderedSearch": ""
+          },
+          "pubmaxMapSurface": {
+            "version": 1,
+            "stack": []
+          }
+        }
+      },
+      {
+        "kind": "escape",
+        "prevented": false,
+        "url": "http://localhost:3491/map"
+      },
+      {
+        "kind": "popstate",
+        "url": "http://localhost:3491/places",
+        "state": {
+          "__NA": true,
+          "__PRIVATE_NEXTJS_INTERNALS_TREE": {
+            "tree": [
+              "",
+              {
+                "children": [
+                  "places",
+                  {
+                    "children": [
+                      "__PAGE__",
+                      {},
+                      null,
+                      null,
+                      4096
+                    ]
+                  },
+                  null,
+                  null,
+                  4096
+                ]
+              },
+              null,
+              null,
+              4112
+            ],
+            "renderedSearch": ""
+          }
+        }
+      }
+    ],
+    "workers": [
+      {
+        "url": "/vendor/maplibre/maplibre-gl-worker.mjs",
+        "options": {
+          "type": "module"
+        }
+      },
+      {
+        "url": "/vendor/maplibre/maplibre-gl-worker.mjs",
+        "options": {
+          "type": "module"
+        }
+      },
+      {
+        "url": "/vendor/maplibre/maplibre-gl-worker.mjs",
+        "options": {
+          "type": "module"
+        }
+      }
+    ],
+    "native": "ios"
+  }
+}

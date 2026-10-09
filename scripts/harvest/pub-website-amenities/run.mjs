@@ -2,7 +2,7 @@
 // Read each London pub's own website once, ask Gemini Flash-Lite for amenity
 // JSON, and keep a true value only when its evidence is a quote from that page
 // that states the amenity.
-// Blank amenity columns on the pint dataset are then stamped "yes". The quote,
+// Blank amenity columns on the pint dataset are then stamped with SITE_STAMP. The quote,
 // source URL and verified day live in data/amenities/london_pub_website_evidence.json.
 //
 //   npm run harvest:pub-website-amenities

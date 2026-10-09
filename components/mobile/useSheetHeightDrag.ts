@@ -88,6 +88,7 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
     stop,
   } = useSpringValue(0, { response: 0.34, dampingRatio: 1 });
   const dragRef = useRef<{
+    viewportHeight: number;
     startClientY: number;
     startHeight: number;
     caps: ReturnType<typeof sheetSnapCaps>;
@@ -268,6 +269,7 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
       const startHeight = drawer.getBoundingClientRect().height;
       jumpTo(startHeight);
       dragRef.current = {
+        viewportHeight: window.innerHeight,
         startClientY: event.clientY,
         startHeight,
         caps: capsForViewport(),
@@ -325,6 +327,7 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
       const paused = performance.now() - drag.lastTime > RELEASE_PAUSE_MS;
       const velocity = paused ? 0 : drag.velocity;
       const { snap, dismissed } = resolveSheetHeightSnap({
+        viewportHeight: drag.viewportHeight,
         startSnap: drag.startSnap,
         startHeightPx: drag.startHeight,
         releaseHeightPx: releaseHeight,

@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { sortDescribeFirst } from "./helpers/planDescribeFirst";
-import { setFirstPintIn } from "./helpers/planFirstPint";
+import { pinLondonEvening, setFirstPintIn } from "./helpers/planFirstPint";
 
 
 test("concierge picks become a public Plan that a mate joins with only a name", async ({
@@ -25,6 +25,7 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
     // dismissing it here is what a returning visitor already carries.
     window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
   });
+  await pinLondonEvening(page);
   await page.goto("/plan");
   await expect(page.getByRole("heading", { name: "Describe the outing. We’ll put it in order." })).toBeVisible();
   await expect
@@ -34,9 +35,12 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
     .toBeLessThanOrEqual(1);
 
   await sortDescribeFirst(page, "Quiet in Clapham for 4, not pricey");
-  await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set below.")).toBeVisible();
-  await expect(page.getByRole("combobox", { name: /Area/i })).toHaveValue("clapham");
+  await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set.")).toBeVisible();
+  // The route names the area it understood (the area picker itself is behind Tune details).
+  await expect(page.getByRole("heading", { name: /^(Tonight|Today|Tomorrow night) in Clapham$/ })).toBeVisible();
+  await page.getByRole("button", { name: "Tune details" }).click();
   await expect(page.getByRole("spinbutton", { name: /People/i })).toHaveValue("4");
+  await page.keyboard.press("Escape");
   await page.getByText("Area coverage", { exact: true }).click();
   await expect(page.getByRole("heading", { name: "Crawl-ready", exact: true })).toBeVisible();
   await expect
@@ -140,7 +144,7 @@ test("host still gets night mode ambushed at their own plan's start time", async
   });
   await page.goto("/plan");
   await sortDescribeFirst(page, "Quiet in Clapham for 4, not pricey");
-  await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set below.")).toBeVisible();
+  await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set.")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");
   // The night has to actually BE on, and an inferred start is not: the
   // generator answers an evening daypart with an 18:00 London start whatever
@@ -151,7 +155,7 @@ test("host still gets night mode ambushed at their own plan's start time", async
   // start marks the route stale, so refresh it before locking in.
   await setFirstPintIn(page, 30);
   await page.getByRole("button", { name: "Regenerate route" }).click();
-  await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set below.")).toBeVisible();
+  await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Lock it in" })).toBeEnabled();
   await page.getByRole("button", { name: "Lock it in" }).click();
   await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}(?:#share)?$/);

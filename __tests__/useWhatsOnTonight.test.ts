@@ -3,11 +3,11 @@ import { describe, expect, it } from "vitest";
 import { loadWhatsOnTonight } from "@/components/map/useWhatsOnTonight";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
-function jsonResponse(body: unknown, ok = true): Response {
+function jsonResponse(body: Record<string, unknown>, ok = true): Response {
   return {
     ok,
     status: ok ? 200 : 500,
-    json: async () => body,
+    json: async () => ({ servedAt: new Date(Date.now()).toISOString(), ...body }),
   } as unknown as Response;
 }
 
@@ -39,7 +39,7 @@ describe("loadWhatsOnTonight (W1 primary-spine loader)", () => {
       fetchImpl: async () =>
         jsonResponse({
           rows: [validRow],
-          servedAt: "2026-07-12T20:00:00.000Z",
+          servedAt: new Date(Date.now()).toISOString(),
           sourceObservedAt: "2026-07-12T18:30:00.000Z",
           sourceFreshnessKind: "provider-observed",
           asOf: "2026-07-12T18:30:00.000Z",
@@ -55,7 +55,7 @@ describe("loadWhatsOnTonight (W1 primary-spine loader)", () => {
       fetchImpl: async () =>
         jsonResponse({
           rows: [validRow],
-          servedAt: "2026-07-12T20:00:00.000Z",
+          servedAt: new Date(Date.now()).toISOString(),
           sourceObservedAt: null,
           sourceFreshnessKind: "unknown",
           asOf: null,

@@ -1,0 +1,19 @@
+{
+  "baseline_source_commit": "4b12c76c6db5ef8949dcb001474bab0b038f2982",
+  "repaired_source_state": "Uncommitted review fixes against baseline_source_commit",
+  "simulator": "80131979-EDC5-4B44-B5A3-903D83429E9E",
+  "scope": "Production-origin root fixture, real main-frame proxy refusal, original navigation policy, native edge gesture and retry button",
+  "limitations": "Simulated HTTP content, not the full product matrix or live production recovery",
+  "sha256": {
+    "ios/App/App/ShellBridgeViewController.swift": "2f5076c0f8bd0b5b9834f9c11f0c2d2f8bd813262be62f692746db5ce715d01e",
+    "ios/App/App/OfflineNavigation.swift": "6cdd7468a1cbcf1b117b73f56a78ae087986ef41237e7bb890122dec1f383c6f",
+    "ios/Tests/OfflineNavigationTests.swift": "584b5a1c3531d0531882eed7ee8d93250bfa93a8d84d18d9e56ec86e98f7a8c1",
+    "ios/App/App/capacitor.config.json": "c608f5d8c008baecb7e3bd1fc68daab18c96f65c6e5230c2f3c3ab11b0893292",
+    "ios/build/root-retry-review/RootFixture.m": "670b55e49ad8552af5441b93ebe7c4e4c1f684e0e903c074882e5066b833e032",
+    "ios/build/root-retry-review/RootFixture.dylib": "fb38321776c92a06caf84bc0c17223c25fb6445cbc1941d0d23d93fd2990e921",
+    "ios/build/root-retry-review/OfflineBackUITests.swift": "76a363e67a4a4a3e23b83785d2a2cfcfb5a68783412eec7a6128efda3648f13f",
+    "ios/build/root-retry-review/native/Build/Products/Debug-iphonesimulator/App.app/App": "569f722bb0d16163dcb7fa6caab63a7901e3b2a195bca02abf4423516d504715",
+    "ios/build/root-retry-review/native/Build/Products/Debug-iphonesimulator/App.app/App.debug.dylib": "b4886108f031f41d45143ed2ffb41de6d95e8fa2b36134d15c0cc37ab519918c",
+    "ios/build/root-retry-review/native/Build/Products/Debug-iphonesimulator/App.app/capacitor.config.json": "c608f5d8c008baecb7e3bd1fc68daab18c96f65c6e5230c2f3c3ab11b0893292"
+  }
+}

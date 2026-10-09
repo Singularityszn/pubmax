@@ -17,6 +17,8 @@ import type { EstimatedPriceInput, ListedPriceInput, PriceStanding } from "@/lib
 import { formatTrustDay, trustPillLabel } from "@/lib/trustPill";
 import { isPubVenue } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
+import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
+import type { VenueDropReadStatus } from "@/lib/venueDropRead";
 
 /**
  * The ONE line a provisional price prints. Captain decision 2026-09-04 (issue
@@ -25,6 +27,8 @@ import type { Venue } from "@/lib/venues";
  * of it would be a second policy.
  */
 export const PROVISIONAL_PRICE_LINE = "Logged once, needs a second drinker";
+
+export const PRICE_PENDING_LINE = "Checking prices…";
 
 /**
  * The ONE line an AGED report prints. Captain's cut 5 Sept 2026: a drop past
@@ -130,6 +134,16 @@ export type VenuePriceLane =
       observedAt: string | number | null;
     }
   | { lane: "estimate"; estimate: EstimatedPriceInput };
+
+/** Hold an estimate or an absence until the pub's price reads settle. */
+export function venuePriceFallbackPending(
+  lane: VenuePriceLane | null,
+  priceReadStatus: VenuePriceReadStatus,
+  dropReadStatus: VenueDropReadStatus = "ready",
+): boolean {
+  if (lane && lane.lane !== "estimate") return false;
+  return priceReadStatus === "idle" || priceReadStatus === "loading" || dropReadStatus === "idle";
+}
 
 /**
  * Which price lane a venue's price area renders, or null when it has no price

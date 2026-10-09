@@ -178,7 +178,7 @@ export function buildPlanGenerationStops(params: {
         openingSource: grounded?.opening.source ?? null,
         visitWindow: grounded?.visitWindow ?? null,
         transportBasis: legRouted
-          ? "openrouteservice foot-walking route duration"
+          ? ROUTED_WALK_TRANSPORT_BASIS
           : grounded
             ? `direct-distance at ${WALK_KMH} km/h plus 5 minutes uncertainty per leg`
             : "compact-straight-line",
@@ -254,4 +254,4 @@ import type {
   PlanAccessEvidence,
   PlanPriceEvidence,
 } from "@/lib/planRouteEvidence";
-import { WALK_KMH } from "@/lib/routeLegs";
+import { ROUTED_WALK_TRANSPORT_BASIS, WALK_KMH } from "@/lib/routeLegs";
