@@ -122,6 +122,16 @@ export default function NearDeskNow({
   const packRef = useRef<DeskVenueLoad | null>(null);
   const loadingRef = useRef<Promise<DeskVenueLoad> | null>(null);
   const answerGenerationRef = useRef(0);
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+  const ownsAnswer = useCallback((generation: number) => (
+    mountedRef.current &&
+    generation === answerGenerationRef.current &&
+    window.location.pathname === pathname
+  ), [pathname]);
   const autoLocateStartedRef = useRef(false);
   const lastTrackedAnswerRef = useRef(0);
 
@@ -145,7 +155,7 @@ export default function NearDeskNow({
     nextPatch: NightPatch | null,
     reason: PatchReason,
   ) => {
-    if (generation !== answerGenerationRef.current) return;
+    if (!ownsAnswer(generation)) return;
     setPackStatus(loaded.status);
     setAnswer(next);
     setPatch(nextPatch);
@@ -157,7 +167,7 @@ export default function NearDeskNow({
         outcome: next.cards.length > 0 ? "answer" : "thin",
       });
     }
-  }, []);
+  }, [ownsAnswer]);
 
   const pickPatch = useCallback((
     next: NightPatch,
@@ -167,7 +177,7 @@ export default function NearDeskNow({
     setState("requesting");
     setPatch(next);
     void loadPack().then((loaded) => {
-      if (generation !== answerGenerationRef.current) return;
+      if (!ownsAnswer(generation)) return;
       if (loaded.status === "failed") {
         applyAnswer(generation, loaded, {
           hero: null,
@@ -184,7 +194,7 @@ export default function NearDeskNow({
       });
       applyAnswer(generation, loaded, ranked, next, reason);
       writeRememberedArea({ kind: "patch", id: next.id });
-      if (syncPatchToUrl && pathname) {
+      if (syncPatchToUrl && pathname && ownsAnswer(generation)) {
         try {
           const query = deskPatchQuery(
             typeof window !== "undefined" ? window.location.search : "",
@@ -196,7 +206,7 @@ export default function NearDeskNow({
         }
       }
     });
-  }, [applyAnswer, beginAnswer, loadPack, pathname, router, syncPatchToUrl]);
+  }, [applyAnswer, beginAnswer, loadPack, ownsAnswer, pathname, router, syncPatchToUrl]);
 
   const answerWithoutFix = useCallback((reason: Exclude<PatchReason, null>) => {
     const remembered = readRememberedArea();
@@ -214,8 +224,9 @@ export default function NearDeskNow({
     setState("requesting");
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        if (!ownsAnswer(generation)) return;
         void loadPack().then((loaded) => {
-          if (generation !== answerGenerationRef.current) return;
+          if (!ownsAnswer(generation)) return;
           if (loaded.status === "failed") {
             applyAnswer(generation, loaded, {
               hero: null,
@@ -236,13 +247,13 @@ export default function NearDeskNow({
         });
       },
       (error) => {
-        if (generation !== answerGenerationRef.current) return;
+        if (!ownsAnswer(generation)) return;
         const reason = error.code === error.PERMISSION_DENIED ? "denied" : "unavailable";
         answerWithoutFix(reason);
       },
       GEO_OPTS,
     );
-  }, [answerWithoutFix, applyAnswer, beginAnswer, loadPack]);
+  }, [answerWithoutFix, applyAnswer, beginAnswer, loadPack, ownsAnswer]);
 
   useEffect(() => {
     const startAutoLocate = shouldStartNearAutoLocate({

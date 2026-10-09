@@ -62,6 +62,7 @@ for (const theme of ["light", "dark"] as const) {
         __pubmaxMapCamera?: CameraProbe;
         __areaNewsFrames?: NewsFrame[];
         __areaNewsRecording?: boolean;
+        __areaNewsObserver?: MutationObserver;
       };
       state.__areaNewsFrames = [];
       state.__areaNewsRecording = true;
@@ -73,9 +74,20 @@ for (const theme of ["light", "dark"] as const) {
           label: [...document.querySelectorAll(".citySwitcherTrigger")].find(trigger => trigger.getClientRects().length > 0)?.getAttribute("aria-label") ?? null,
           headline: document.querySelector(".cityStatusBannerCopy")?.textContent ?? null,
         });
-        requestAnimationFrame(sample);
       };
-      requestAnimationFrame(sample);
+      // Observe the optimistic label before paint, even if the next animation
+      // frame advances the camera beyond the small departure window.
+      state.__areaNewsObserver = new MutationObserver(sample);
+      state.__areaNewsObserver.observe(document.body, {
+        subtree: true, childList: true, characterData: true,
+        attributes: true, attributeFilter: ["aria-label"],
+      });
+      const sampleFrame = () => {
+        if (!state.__areaNewsRecording) return;
+        sample();
+        requestAnimationFrame(sampleFrame);
+      };
+      requestAnimationFrame(sampleFrame);
     });
     await page.locator(".chooseAreaSheet").filter({ visible: true }).getByRole("button", { name: "Kingston upon Thames", exact: true }).click();
     await expect.poll(() => page.evaluate(() =>
@@ -84,15 +96,22 @@ for (const theme of ["light", "dark"] as const) {
     await expect.poll(async () => { const camera = await read(); return !camera.moving && !camera.settling; }).toBe(true);
     await expect(page.locator(".cityStatusBannerCopy")).toHaveText("Kingston Market Place closed following fire");
     const frames = await page.evaluate(() => {
-      const state = window as Window & { __areaNewsFrames?: NewsFrame[]; __areaNewsRecording?: boolean };
+      const state = window as Window & {
+        __areaNewsFrames?: NewsFrame[];
+        __areaNewsRecording?: boolean;
+        __areaNewsObserver?: MutationObserver;
+      };
       state.__areaNewsRecording = false;
+      state.__areaNewsObserver?.disconnect();
       return state.__areaNewsFrames ?? [];
     });
     const { writeFileSync } = await import("node:fs");
     const framePath = testInfo.outputPath("normal-motion-news.json");
     writeFileSync(framePath, JSON.stringify({ before, after: await read(), frames, statusReads }, null, 2));
     await testInfo.attach("normal-motion-news", { contentType: "application/json", path: framePath });
-    const leavingSoho = frames.filter(frame => frame.moving && frame.label?.includes("Kingston") &&
+    // The destination label must not show its news over Soho, including the
+    // pending camera move. Actual animation is asserted separately above.
+    const leavingSoho = frames.filter(frame => frame.label?.includes("Kingston") &&
       Math.abs(frame.center[0] - before.center[0]) < 0.005 && Math.abs(frame.center[1] - before.center[1]) < 0.005);
     expect(leavingSoho.length).toBeGreaterThan(0);
     expect(leavingSoho.map(frame => frame.headline)).not.toContain("Kingston Market Place closed following fire");

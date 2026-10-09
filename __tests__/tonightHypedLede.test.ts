@@ -167,6 +167,36 @@ describe("the tonight lede, hydrated", () => {
     expect(lede).not.toContain("Ticketmaster");
   });
 
+  it("keeps only the first pub explanation behind a disclosure", async () => {
+    const rows = Array.from({ length: 6 }, (_, index) => ({
+      ...HYPED[index % HYPED.length]!,
+      name: `Pub ${index + 1}`,
+      venueId: null,
+    }));
+    await mount({ hypedPubs: rows });
+    const pubs = Array.from(container.querySelectorAll('[data-testid="tonight-hyped-row"]'));
+    expect(pubs).toHaveLength(6);
+    const firstDetails = pubs[0]!.querySelector("details");
+    expect(firstDetails).not.toBeNull();
+    expect(firstDetails?.open).toBe(false);
+    firstDetails!.querySelector("summary")!.click();
+    expect(firstDetails?.open).toBe(true);
+    expect(pubs[0]!.querySelector(".tonightHypedWhy")?.textContent).toBe(rows[0]!.whyLine);
+    for (const [index, pub] of pubs.entries()) {
+      expect(pub.querySelector(".tonightHypedSource")?.getAttribute("href"))
+        .toBe(rows[index]!.sources[0]!.url);
+      expect(pub.querySelector(".tonightHypedChecked")?.textContent).toContain("Checked");
+      if (index > 0) {
+        expect(pub.querySelector("details")).toBeNull();
+        expect(pub.querySelector(".tonightHypedWhy")?.textContent).toBe(rows[index]!.whyLine);
+      }
+    }
+    const more = container.querySelector<HTMLDetailsElement>(".tonightHypedMore");
+    more!.querySelector("summary")!.click();
+    expect(more?.open).toBe(true);
+    expect(more?.querySelector("details")).toBeNull();
+  });
+
   it("shows the chain supply under the lede, under the chain's own name", async () => {
     await mount({ hypedPubs: HYPED });
     const chains = container.querySelector('[data-testid="tonight-chain-lanes"]');

@@ -296,6 +296,16 @@ export default function NearMeNow({
   // than as a closure over the answer path, so neither path has to name itself.
   const retryTargetRef = useRef<RetryTarget | null>(null);
   const answerGenerationRef = useRef(0);
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+  const ownsAnswer = useCallback((generation: number) => (
+    mountedRef.current &&
+    generation === answerGenerationRef.current &&
+    window.location.pathname === pathname
+  ), [pathname]);
   const autoLocateStartedRef = useRef(false);
   const [activeAnswerGeneration, setActiveAnswerGeneration] = useState(0);
   const lastTrackedAnswerRef = useRef(0);
@@ -364,7 +374,7 @@ export default function NearMeNow({
       if (reason !== null) setPatchReason(reason);
       void loadSlim()
         .then((slim) => {
-          if (generation !== answerGenerationRef.current) return;
+          if (!ownsAnswer(generation)) return;
           try {
             const answer = rankNearMe(next.lat, next.lng, slim);
             // A centre the reader fell back to (location off or unavailable)
@@ -383,7 +393,7 @@ export default function NearMeNow({
           setAnswerContext({ source: answerSource, generation });
           setState("ready");
           writeRememberedArea({ kind: "patch", id: next.id });
-          if (syncPatchToUrl && pathname) {
+          if (syncPatchToUrl && pathname && ownsAnswer(generation)) {
             try {
               const params = new URLSearchParams(
                 typeof window !== "undefined" ? window.location.search : "",
@@ -397,7 +407,7 @@ export default function NearMeNow({
           }
         })
         .catch(() => {
-          if (generation !== answerGenerationRef.current) return;
+          if (!ownsAnswer(generation)) return;
           // Slim index miss must still surface the chosen patch, never hang on
           // the locate spinner — empty cards + AreaPicker remain available.
           setCards([]);
@@ -407,7 +417,7 @@ export default function NearMeNow({
           setState("ready");
         });
     },
-    [beginAnswer, loadSlim, pathname, router, syncPatchToUrl],
+    [beginAnswer, loadSlim, ownsAnswer, pathname, router, syncPatchToUrl],
   );
 
   const pickBorough = useCallback(
@@ -415,7 +425,7 @@ export default function NearMeNow({
       const generation = beginAnswer();
       retryTargetRef.current = { kind: "borough", name, source: answerSource };
       void loadSlim().then((slim) => {
-        if (generation !== answerGenerationRef.current) return;
+        if (!ownsAnswer(generation)) return;
         setCards(rankBoroughCheapest(slim, name));
         setBorough(name);
         setPatch(null);
@@ -427,7 +437,7 @@ export default function NearMeNow({
         writeRememberedArea({ kind: "borough", name });
       });
     },
-    [beginAnswer, loadSlim],
+    [beginAnswer, loadSlim, ownsAnswer],
   );
 
   /** Ask the index again, then re-answer the ask the reader last made. */
@@ -473,8 +483,9 @@ export default function NearMeNow({
     setState("requesting");
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        if (!ownsAnswer(generation)) return;
         void loadSlim().then((slim) => {
-          if (generation !== answerGenerationRef.current) return;
+          if (!ownsAnswer(generation)) return;
           const answer = rankNearMe(position.coords.latitude, position.coords.longitude, slim);
           if (answer.scope === "none") {
             // Located fine, but nothing priced in range — be honest that we do
@@ -511,7 +522,7 @@ export default function NearMeNow({
         });
       },
       (error) => {
-        if (generation !== answerGenerationRef.current) return;
+        if (!ownsAnswer(generation)) return;
         // PERMISSION_DENIED === 1; anything else (timeout, position
         // unavailable) is treated as unavailable — both answer from an area.
         const reason = error.code === error.PERMISSION_DENIED ? "denied" : "unavailable";
@@ -520,7 +531,7 @@ export default function NearMeNow({
       },
       GEO_OPTS,
     );
-  }, [answerWithoutFix, beginAnswer, loadSlim]);
+  }, [answerWithoutFix, beginAnswer, loadSlim, ownsAnswer]);
 
   useEffect(() => {
     const startAutoLocate = shouldStartNearAutoLocate({
@@ -533,7 +544,7 @@ export default function NearMeNow({
     if (initialLocation) {
       const generation = beginAnswer();
       void loadSlim().then((slim) => {
-        if (generation !== answerGenerationRef.current) return;
+        if (!ownsAnswer(generation)) return;
         const answer = rankNearMe(initialLocation.lat, initialLocation.lng, slim);
         setCards(answer.cards);
         setScope(answer.scope);
@@ -564,6 +575,7 @@ export default function NearMeNow({
   useEffect(() => {
     if (
       !showPriceTrust ||
+      (answerContext !== null && !ownsAnswer(answerContext.generation)) ||
       state !== "ready" ||
       !answerContext ||
       lastTrackedAnswerRef.current === answerContext.generation
@@ -575,7 +587,7 @@ export default function NearMeNow({
       "near_answer_ready",
       nearAnswerReadyProps(answerContext.source, cards.length),
     );
-  }, [answerContext, cards.length, showPriceTrust, state]);
+  }, [answerContext, cards.length, ownsAnswer, showPriceTrust, state]);
 
   const openVenue = useCallback(
     (id: string) => {
