@@ -184,7 +184,7 @@ export default function AnalyticsConsentPrompt() {
       unsubscribeBudget();
       unsubscribeAnswer();
     };
-  }, [pageOwnsConsent]);
+  }, [pageOwnsConsent, pathname]);
 
   if (pageOwnsConsent) return null;
   if (decision !== null) return null;

@@ -792,11 +792,27 @@ function SocialPageAccountState({
               </IntentLink>
             </nav>
             {showPostsControls ? <PostsControls state={initialState} /> : null}
-            {packsBesideTheDoor ? (
-              <section className="socialRailEmpty" aria-label={`${surfaceName} posts`}>
-                <EmptyState title="No posts to read yet.">
-                  Sign in from the button above and nights from your lot land here.
-                </EmptyState>
+            {friendsLaunchEnabled && isPosts && viewerPhase !== "resolved" ? (
+              <section
+                className="socialRailEmpty"
+                aria-label={`${surfaceName} posts`}
+                aria-busy={viewerSession.unresolved || undefined}
+              >
+                {/* Hidden content reserves its responsive size until the account answers. */}
+                <div aria-hidden={viewerSession.unresolved || undefined} className="socialRailContent">
+                  <EmptyState title="No posts to read yet.">
+                    Sign in from the button above and nights from your lot land here.
+                  </EmptyState>
+                </div>
+                {viewerSession.unresolved ? (
+                  <div className="socialRailPending">
+                    <SocialViewerState
+                      phase="unresolved"
+                      loadingLabel={socialLoadingLabel(friendsLaunchEnabled)}
+                      inviteMessage={socialInviteMessage(friendsLaunchEnabled)}
+                    />
+                  </div>
+                ) : null}
               </section>
             ) : null}
             {/* Crews render their own neutral identity state before the

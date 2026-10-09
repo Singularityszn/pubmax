@@ -1,0 +1,606 @@
+[
+  {
+    "route": "/",
+    "viewport": {
+      "width": 320,
+      "height": 568
+    },
+    "theme": "dark",
+    "freshCLS": 0,
+    "answeredCLS": 0,
+    "anchor": {
+      "x": 22,
+      "y": 391.328125,
+      "width": 224,
+      "height": 52
+    },
+    "box": {
+      "x": 0,
+      "y": 448,
+      "width": 320,
+      "height": 56
+    },
+    "beaconsBeforeAllow": 0,
+    "mobileTabBars": [
+      {
+        "visible": true,
+        "hidden": false,
+        "inert": false,
+        "hiddenAncestor": null,
+        "inertAncestor": null,
+        "display": "block",
+        "visibility": "visible",
+        "box": {
+          "x": 0,
+          "y": 514,
+          "width": 320,
+          "height": 54,
+          "top": 514,
+          "right": 320,
+          "bottom": 568,
+          "left": 0
+        },
+        "targets": [
+          {
+            "text": "Tonight",
+            "href": "/tonight",
+            "visible": true,
+            "clickableAtCenter": true
+          },
+          {
+            "text": "Map",
+            "href": "/map",
+            "visible": true,
+            "clickableAtCenter": true
+          },
+          {
+            "text": "Places",
+            "href": "/places",
+            "visible": true,
+            "clickableAtCenter": true
+          },
+          {
+            "text": "Out",
+            "href": "/out",
+            "visible": true,
+            "clickableAtCenter": true
+          },
+          {
+            "text": "Plan",
+            "href": "/plan",
+            "visible": true,
+            "clickableAtCenter": true
+          },
+          {
+            "text": "You",
+            "href": "/u/you",
+            "visible": true,
+            "clickableAtCenter": true
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "route": "/tonight",
+    "viewport": {
+      "width": 320,
+      "height": 568
+    },
+    "theme": "dark",
+    "freshCLS": 0.003568085449315612,
+    "answeredCLS": 0.003568085449315612,
+    "anchor": {
+      "x": 22,
+      "y": 293.75,
+      "width": 276,
+      "height": 123
+    },
+    "box": {
+      "x": 0,
+      "y": 448,
+      "width": 320,
+      "height": 56
+    },
+    "beaconsBeforeAllow": 0
+  },
+  {
+    "route": "/places",
+    "viewport": {
+      "width": 320,
+      "height": 568
+    },
+    "theme": "dark",
+    "freshCLS": 0.003568085449315612,
+    "answeredCLS": 0.003568085449315612,
+    "anchor": {
+      "x": 22,
+      "y": 311.578125,
+      "width": 276,
+      "height": 73.4375
+    },
+    "box": {
+      "x": 0,
+      "y": 448,
+      "width": 320,
+      "height": 56
+    },
+    "beaconsBeforeAllow": 0
+  },
+  {
+    "route": "/social",
+    "viewport": {
+      "width": 320,
+      "height": 568
+    },
+    "theme": "dark",
+    "freshCLS": 0.06363556628614114,
+    "answeredCLS": 0.06363556628614114,
+    "anchor": {
+      "x": 22,
+      "y": 225.921875,
+      "width": 276,
+      "height": 52
+    },
+    "box": {
+      "x": 0,
+      "y": 448,
+      "width": 320,
+      "height": 56
+    },
+    "beaconsBeforeAllow": 0
+  },
+  {
+    "route": "/",
+    "viewport": {
+      "width": 360,
+      "height": 640
+    },
+    "theme": "dark",
+    "freshCLS": 0.0029979654947916664,
+    "answeredCLS": 0.0029979654947916664,
+    "anchor": {
+      "x": 22,
+      "y": 410.921875,
+      "width": 258,
+      "height": 52
+    },
+    "box": {
+      "x": 0,
+      "y": 520,
+      "width": 360,
+      "height": 56
+    },
+    "beaconsBeforeAllow": 0,
+    "mobileTabBars": [
+      {
+        "visible": true,
+        "hidden": false,
+        "inert": false,
+        "hiddenAncestor": null,
+        "inertAncestor": null,
+        "display": "block",
+        "visibility": "visible",
+        "box": {
+          "x": 0,
+          "y": 586,
+          "width": 360,
+          "height": 54,
+          "top": 586,
+          "right": 360,
+          "bottom": 640,
+          "left": 0
+        },
+        "targets": [
+          {
+            "text": "Tonight",
+            "href": "/tonight",
+            "visible": true,
+            "clickableAtCenter": true
+          },
+          {
+            "text": "Map",
+            "href": "/map",
+            "visible": true,
+            "clickableAtCenter": true
+          },
+          {
+            "text": "Places",
+            "href": "/places",
+            "visible": true,
+            "clickableAtCenter": true
+          },
+          {
+            "text": "Out",
+            "href": "/out",
+            "visible": true,
+            "clickableAtCenter": true
+          },
+          {
+            "text": "Plan",
+            "href": "/plan",
+            "visible": true,
+            "clickableAtCenter": true
+          },
+          {
+            "text": "You",
+            "href": "/u/you",
+            "visible": true,
+            "clickableAtCenter": true
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "route": "/tonight",
+    "viewport": {
+      "width": 360,
+      "height": 640
+    },
+    "theme": "dark",
+    "freshCLS": 0.002498155381944444,
+    "answeredCLS": 0.002498155381944444,
+    "anchor": {
+      "x": 22,
+      "y": 293.75,
+      "width": 316,
+      "height": 123
+    },
+    "box": {
+      "x": 0,
+      "y": 520,
+      "width": 360,
+      "height": 56
+    },
+    "beaconsBeforeAllow": 0
+  },
+  {
+    "route": "/places",
+    "viewport": {
+      "width": 360,
+      "height": 640
+    },
+    "theme": "dark",
+    "freshCLS": 0.002498155381944444,
+    "answeredCLS": 0.002498155381944444,
+    "anchor": {
+      "x": 22,
+      "y": 311.578125,
+      "width": 316,
+      "height": 73.4375
+    },
+    "box": {
+      "x": 0,
+      "y": 520,
+      "width": 360,
+      "height": 56
+    },
+    "beaconsBeforeAllow": 0
+  },
+  {
+    "route": "/social",
+    "viewport": {
+      "width": 360,
+      "height": 640
+    },
+    "theme": "dark",
+    "freshCLS": 0.08412376403808594,
+    "answeredCLS": 0.08412376403808594,
+    "anchor": {
+      "x": 22,
+      "y": 194.75,
+      "width": 316,
+      "height": 52
+    },
+    "box": {
+      "x": 0,
+      "y": 520,
+      "width": 360,
+      "height": 56
+    },
+    "beaconsBeforeAllow": 0
+  },
+  {
+    "route": "/",
+    "viewport": {
+      "width": 320,
+      "height": 568
+    },
+    "theme": "light",
+    "freshCLS": 0,
+    "answeredCLS": 0,
+    "anchor": {
+      "x": 22,
+      "y": 391.328125,
+      "width": 224,
+      "height": 52
+    },
+    "box": {
+      "x": 0,
+      "y": 448,
+      "width": 320,
+      "height": 56
+    },
+    "beaconsBeforeAllow": 0,
+    "mobileTabBars": [
+      {
+        "visible": true,
+        "hidden": false,
+        "inert": false,
+        "hiddenAncestor": null,
+        "inertAncestor": null,
+        "display": "block",
+        "visibility": "visible",
+        "box": {
+          "x": 0,
+          "y": 514,
+          "width": 320,
+          "height": 54,
+          "top": 514,
+          "right": 320,
+          "bottom": 568,
+          "left": 0
+        },
+        "targets": [
+          {
+            "text": "Tonight",
+            "href": "/tonight",
+            "visible": true,
+            "clickableAtCenter": true
+          },
+          {
+            "text": "Map",
+            "href": "/map",
+            "visible": true,
+            "clickableAtCenter": true
+          },
+          {
+            "text": "Places",
+            "href": "/places",
+            "visible": true,
+            "clickableAtCenter": true
+          },
+          {
+            "text": "Out",
+            "href": "/out",
+            "visible": true,
+            "clickableAtCenter": true
+          },
+          {
+            "text": "Plan",
+            "href": "/plan",
+            "visible": true,
+            "clickableAtCenter": true
+          },
+          {
+            "text": "You",
+            "href": "/u/you",
+            "visible": true,
+            "clickableAtCenter": true
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "route": "/tonight",
+    "viewport": {
+      "width": 320,
+      "height": 568
+    },
+    "theme": "light",
+    "freshCLS": 0.003568085449315612,
+    "answeredCLS": 0.003568085449315612,
+    "anchor": {
+      "x": 22,
+      "y": 293.75,
+      "width": 276,
+      "height": 123
+    },
+    "box": {
+      "x": 0,
+      "y": 448,
+      "width": 320,
+      "height": 56
+    },
+    "beaconsBeforeAllow": 0
+  },
+  {
+    "route": "/places",
+    "viewport": {
+      "width": 320,
+      "height": 568
+    },
+    "theme": "light",
+    "freshCLS": 0.003568085449315612,
+    "answeredCLS": 0.003568085449315612,
+    "anchor": {
+      "x": 22,
+      "y": 311.578125,
+      "width": 276,
+      "height": 73.4375
+    },
+    "box": {
+      "x": 0,
+      "y": 448,
+      "width": 320,
+      "height": 56
+    },
+    "beaconsBeforeAllow": 0
+  },
+  {
+    "route": "/social",
+    "viewport": {
+      "width": 320,
+      "height": 568
+    },
+    "theme": "light",
+    "freshCLS": 0.06363556628614114,
+    "answeredCLS": 0.06363556628614114,
+    "anchor": {
+      "x": 22,
+      "y": 225.921875,
+      "width": 276,
+      "height": 52
+    },
+    "box": {
+      "x": 0,
+      "y": 448,
+      "width": 320,
+      "height": 56
+    },
+    "beaconsBeforeAllow": 0
+  },
+  {
+    "route": "/",
+    "viewport": {
+      "width": 360,
+      "height": 640
+    },
+    "theme": "light",
+    "freshCLS": 0.0029979654947916664,
+    "answeredCLS": 0.0029979654947916664,
+    "anchor": {
+      "x": 22,
+      "y": 410.921875,
+      "width": 258,
+      "height": 52
+    },
+    "box": {
+      "x": 0,
+      "y": 520,
+      "width": 360,
+      "height": 56
+    },
+    "beaconsBeforeAllow": 0,
+    "mobileTabBars": [
+      {
+        "visible": true,
+        "hidden": false,
+        "inert": false,
+        "hiddenAncestor": null,
+        "inertAncestor": null,
+        "display": "block",
+        "visibility": "visible",
+        "box": {
+          "x": 0,
+          "y": 586,
+          "width": 360,
+          "height": 54,
+          "top": 586,
+          "right": 360,
+          "bottom": 640,
+          "left": 0
+        },
+        "targets": [
+          {
+            "text": "Tonight",
+            "href": "/tonight",
+            "visible": true,
+            "clickableAtCenter": true
+          },
+          {
+            "text": "Map",
+            "href": "/map",
+            "visible": true,
+            "clickableAtCenter": true
+          },
+          {
+            "text": "Places",
+            "href": "/places",
+            "visible": true,
+            "clickableAtCenter": true
+          },
+          {
+            "text": "Out",
+            "href": "/out",
+            "visible": true,
+            "clickableAtCenter": true
+          },
+          {
+            "text": "Plan",
+            "href": "/plan",
+            "visible": true,
+            "clickableAtCenter": true
+          },
+          {
+            "text": "You",
+            "href": "/u/you",
+            "visible": true,
+            "clickableAtCenter": true
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "route": "/tonight",
+    "viewport": {
+      "width": 360,
+      "height": 640
+    },
+    "theme": "light",
+    "freshCLS": 0.002498155381944444,
+    "answeredCLS": 0.002498155381944444,
+    "anchor": {
+      "x": 22,
+      "y": 293.75,
+      "width": 316,
+      "height": 123
+    },
+    "box": {
+      "x": 0,
+      "y": 520,
+      "width": 360,
+      "height": 56
+    },
+    "beaconsBeforeAllow": 0
+  },
+  {
+    "route": "/places",
+    "viewport": {
+      "width": 360,
+      "height": 640
+    },
+    "theme": "light",
+    "freshCLS": 0.002498155381944444,
+    "answeredCLS": 0.002498155381944444,
+    "anchor": {
+      "x": 22,
+      "y": 311.578125,
+      "width": 316,
+      "height": 73.4375
+    },
+    "box": {
+      "x": 0,
+      "y": 520,
+      "width": 360,
+      "height": 56
+    },
+    "beaconsBeforeAllow": 0
+  },
+  {
+    "route": "/social",
+    "viewport": {
+      "width": 360,
+      "height": 640
+    },
+    "theme": "light",
+    "freshCLS": 0.08412376403808594,
+    "answeredCLS": 0.08412376403808594,
+    "anchor": {
+      "x": 22,
+      "y": 194.75,
+      "width": 316,
+      "height": 52
+    },
+    "box": {
+      "x": 0,
+      "y": 520,
+      "width": 360,
+      "height": 56
+    },
+    "beaconsBeforeAllow": 0
+  }
+]

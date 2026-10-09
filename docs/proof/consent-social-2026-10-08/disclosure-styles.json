@@ -1,0 +1,380 @@
+{
+  "disclosure-before.log": [
+    {
+      "theme": "dark",
+      "viewport": {
+        "width": 320,
+        "height": 568
+      },
+      "closed": {
+        "outerOpen": true,
+        "innerOpen": false,
+        "outer": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        },
+        "inner": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        }
+      },
+      "open": {
+        "outerOpen": true,
+        "innerOpen": true,
+        "outer": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        },
+        "inner": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        }
+      }
+    },
+    {
+      "theme": "dark",
+      "viewport": {
+        "width": 360,
+        "height": 640
+      },
+      "closed": {
+        "outerOpen": true,
+        "innerOpen": false,
+        "outer": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        },
+        "inner": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        }
+      },
+      "open": {
+        "outerOpen": true,
+        "innerOpen": true,
+        "outer": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        },
+        "inner": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        }
+      }
+    },
+    {
+      "theme": "light",
+      "viewport": {
+        "width": 320,
+        "height": 568
+      },
+      "closed": {
+        "outerOpen": true,
+        "innerOpen": false,
+        "outer": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        },
+        "inner": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        }
+      },
+      "open": {
+        "outerOpen": true,
+        "innerOpen": true,
+        "outer": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        },
+        "inner": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        }
+      }
+    },
+    {
+      "theme": "light",
+      "viewport": {
+        "width": 360,
+        "height": 640
+      },
+      "closed": {
+        "outerOpen": true,
+        "innerOpen": false,
+        "outer": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        },
+        "inner": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        }
+      },
+      "open": {
+        "outerOpen": true,
+        "innerOpen": true,
+        "outer": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        },
+        "inner": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        }
+      }
+    }
+  ],
+  "disclosure-after.log": [
+    {
+      "theme": "dark",
+      "viewport": {
+        "width": 320,
+        "height": 568
+      },
+      "closed": {
+        "outerOpen": true,
+        "innerOpen": false,
+        "outer": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        },
+        "inner": {
+          "transform": "none",
+          "a": 1
+        }
+      },
+      "open": {
+        "outerOpen": true,
+        "innerOpen": true,
+        "outer": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        },
+        "inner": {
+          "transform": "matrix(1, 0, 0, 1, 0, 0)",
+          "a": 1
+        }
+      }
+    },
+    {
+      "theme": "dark",
+      "viewport": {
+        "width": 360,
+        "height": 640
+      },
+      "closed": {
+        "outerOpen": true,
+        "innerOpen": false,
+        "outer": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        },
+        "inner": {
+          "transform": "none",
+          "a": 1
+        }
+      },
+      "open": {
+        "outerOpen": true,
+        "innerOpen": true,
+        "outer": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        },
+        "inner": {
+          "transform": "matrix(1, 0, 0, 1, 0, 0)",
+          "a": 1
+        }
+      }
+    },
+    {
+      "theme": "light",
+      "viewport": {
+        "width": 320,
+        "height": 568
+      },
+      "closed": {
+        "outerOpen": true,
+        "innerOpen": false,
+        "outer": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        },
+        "inner": {
+          "transform": "none",
+          "a": 1
+        }
+      },
+      "open": {
+        "outerOpen": true,
+        "innerOpen": true,
+        "outer": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        },
+        "inner": {
+          "transform": "matrix(1, 0, 0, 1, 0, 0)",
+          "a": 1
+        }
+      }
+    },
+    {
+      "theme": "light",
+      "viewport": {
+        "width": 360,
+        "height": 640
+      },
+      "closed": {
+        "outerOpen": true,
+        "innerOpen": false,
+        "outer": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        },
+        "inner": {
+          "transform": "none",
+          "a": 1
+        }
+      },
+      "open": {
+        "outerOpen": true,
+        "innerOpen": true,
+        "outer": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        },
+        "inner": {
+          "transform": "matrix(1, 0, 0, 1, 0, 0)",
+          "a": 1
+        }
+      }
+    }
+  ],
+  "disclosure-after-settled.log": [
+    {
+      "theme": "dark",
+      "viewport": {
+        "width": 320,
+        "height": 568
+      },
+      "closed": {
+        "outerOpen": true,
+        "innerOpen": false,
+        "outer": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        },
+        "inner": {
+          "transform": "none",
+          "a": 1
+        }
+      },
+      "open": {
+        "outerOpen": true,
+        "innerOpen": true,
+        "outer": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        },
+        "inner": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        }
+      }
+    },
+    {
+      "theme": "dark",
+      "viewport": {
+        "width": 360,
+        "height": 640
+      },
+      "closed": {
+        "outerOpen": true,
+        "innerOpen": false,
+        "outer": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        },
+        "inner": {
+          "transform": "none",
+          "a": 1
+        }
+      },
+      "open": {
+        "outerOpen": true,
+        "innerOpen": true,
+        "outer": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        },
+        "inner": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        }
+      }
+    },
+    {
+      "theme": "light",
+      "viewport": {
+        "width": 320,
+        "height": 568
+      },
+      "closed": {
+        "outerOpen": true,
+        "innerOpen": false,
+        "outer": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        },
+        "inner": {
+          "transform": "none",
+          "a": 1
+        }
+      },
+      "open": {
+        "outerOpen": true,
+        "innerOpen": true,
+        "outer": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        },
+        "inner": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        }
+      }
+    },
+    {
+      "theme": "light",
+      "viewport": {
+        "width": 360,
+        "height": 640
+      },
+      "closed": {
+        "outerOpen": true,
+        "innerOpen": false,
+        "outer": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        },
+        "inner": {
+          "transform": "none",
+          "a": 1
+        }
+      },
+      "open": {
+        "outerOpen": true,
+        "innerOpen": true,
+        "outer": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        },
+        "inner": {
+          "transform": "matrix(-1, 0, 0, -1, 0, 0)",
+          "a": -1
+        }
+      }
+    }
+  ]
+}
