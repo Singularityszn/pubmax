@@ -224,7 +224,7 @@ describe("PeopleListClient recovery", () => {
     await vi.advanceTimersByTimeAsync(50);
     await settle();
 
-    expect(container.textContent).toContain("Could not load this list. That is us, not you.");
+    expect(container.textContent).toContain("Could not load this list. That's on us, not you.");
     expect(container.textContent).toContain("Try again");
 
     await commit(() => {
@@ -302,6 +302,6 @@ describe("PeopleListClient recovery", () => {
     await settle();
     await vi.advanceTimersByTimeAsync(50);
     await settle();
-    expect(container.textContent).toContain("Could not load this list. That is us, not you.");
+    expect(container.textContent).toContain("Could not load this list. That's on us, not you.");
   });
 });

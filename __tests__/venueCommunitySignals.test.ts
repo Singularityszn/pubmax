@@ -53,7 +53,7 @@ describe("VenueCommunitySignals", () => {
       expect(html).toContain(`>${label}<`);
     }
     expect(html).not.toContain("signalCard");
-    expect(html).toContain("Neither character answer is a score.");
+    expect(html).toContain("Neither answer is a score.");
   });
 
   it("gives na-friendly the same reader row and typographic weight as the rest", () => {
@@ -135,9 +135,9 @@ describe("VenueCommunitySignals", () => {
 
   it("does not flatten a failed read into unknown access", () => {
     const failed = render([], "degraded");
-    expect(failed).toContain("Access unread");
+    expect(failed).toContain("Could not load access");
     expect(failed).not.toContain("Access unknown");
-    expect(failed).toContain("Unread just now.");
+    expect(failed).toContain("Could not load just now.");
     expect(failed).toContain("We could not read what drinkers have logged.");
     expect(failed).not.toContain("Nobody has confirmed step-free entrance access.");
     expect(failed).not.toContain("Not reported yet.");
@@ -349,8 +349,8 @@ describe("VenueOverviewTab community signals", () => {
 
   it("keeps a degraded Overview read from looking like no signals", () => {
     const html = renderOverview("degraded");
-    expect(html).toContain("Access unread");
-    expect(html).toContain("Unread just now.");
+    expect(html).toContain("Could not load access");
+    expect(html).toContain("Could not load just now.");
     expect(html).toContain("We could not read what drinkers have logged.");
     expect(html).not.toContain("Access unknown");
     expect(html).not.toContain("Not reported yet.");

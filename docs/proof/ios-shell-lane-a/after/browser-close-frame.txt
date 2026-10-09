@@ -1,0 +1,519 @@
+LANE_CLOSE_FRAME (16.0, 65.0, 44.0, 44.0) APP_FRAME (0.0, 0.0, 402.0, 874.0)
+    t =     0.23s Requesting snapshot of accessibility hierarchy for app with pid 69992
+objc[99316]: Class UIAccessibilityLoaderWebShared is implemented in both /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.tF0MWb/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebKit.axbundle/WebKit (0x106564398) and /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.tF0MWb/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebCore.axbundle/WebCore (0x10669c310). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+    t =     0.80s Requesting snapshot of accessibility hierarchy for app with pid 69992
+LANE_CLOSE_HIERARCHY Attributes: Application, 0x1070f1680, pid: 69992, label: 'PUBMAXXING'
+Element subtree:
+ →Application, 0x1070f1680, pid: 69992, label: 'PUBMAXXING'
+    Window (Main), 0x1070f17c0, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x1070f1900, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x1070f1a40, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x1070f1b80, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x1070f1cc0, {{0.0, 0.0}, {402.0, 874.0}}
+          Other, 0x1070f1e00, {{0.0, 0.0}, {402.0, 874.0}}
+            Other, 0x1070f1f40, {{0.0, 0.0}, {402.0, 874.0}}
+              Other, 0x1070f2080, {{0.0, 0.0}, {804.0, 1748.0}}
+                Other, 0x1070f21c0, {{0.0, 0.0}, {402.0, 874.0}}
+                  Other, 0x1070f2300, {{0.0, 0.0}, {402.0, 874.0}}
+                    Other, 0x1070f2440, {{0.0, 0.0}, {402.0, 874.0}}
+                      Other, 0x1070f2580, {{0.0, 0.0}, {402.0, 874.0}}
+                        Other, 0x1070f26c0, {{0.0, 0.0}, {402.0, 874.0}}
+                          Other, 0x1070f2800, {{0.0, 0.0}, {402.0, 874.0}}
+                            Other, 0x1070f2940, {{0.0, 0.0}, {402.0, 874.0}}, identifier: 'BrowserView?IsPageLoaded=true&WebViewProcessID=77814'
+                              Other, 0x1070f2a80, {{0.0, 62.0}, {402.0, 54.0}}, identifier: 'TopBrowserBar'
+                                Button, 0x1070f2bc0, {{16.0, 65.0}, {44.0, 44.0}}, identifier: 'Close', label: 'Close'
+                                Button, 0x1070f2d00, {{26.0, 65.0}, {350.0, 44.0}}, identifier: 'URL', label: 'Address', value: ‎accounts.google.com
+                                  Other, 0x1070f2e40, {{115.0, 74.7}, {171.7, 20.3}}, identifier: 'URL', label: 'Address', value: ‎accounts.google.com
+                                  Button, 0x1070f2f80, {{342.0, 65.0}, {44.0, 44.0}}, identifier: 'MoreMenuButton', label: 'Page Menu'
+                              Other, 0x1070f30c0, {{0.0, 0.0}, {402.0, 874.0}}
+                                Other, 0x1070f3200, {{0.0, 0.0}, {402.0, 874.0}}
+                                  WebView, 0x1070f3340, {{0.0, 0.0}, {402.0, 874.0}}
+                                    WebView, 0x1070f3480, {{0.0, 0.0}, {402.0, 874.0}}
+                                      Other, 0x1070f35c0, {{0.0, 0.0}, {402.0, 874.0}}
+                                        Other, 0x1070f3700, {{0.0, 0.0}, {402.0, 156.0}}
+                                        Other, 0x1070f3840, {{0.0, 518.0}, {402.0, 240.0}}
+                                      WebView, 0x1070f3980, {{0.0, 0.0}, {402.0, 874.0}}
+                                        Other, 0x1070f3ac0, {{0.0, 0.0}, {402.0, 874.0}}
+                                          Other, 0x1070f3c00, {{0.0, 0.0}, {402.0, 874.0}}
+                                            Other, 0x1070f3d40, {{0.0, 116.0}, {402.0, 874.0}}
+                                              Other, 0x1070f3e80, {{0.0, 116.0}, {402.0, 787.0}}, label: 'Sign in - Google Accounts'
+                                                Other, 0x10709f480, {{8.0, 140.0}, {370.0, 380.0}}, label: 'main'
+                                                  Other, 0x10709f5c0, {{24.0, 211.0}, {354.0, 42.0}}, label: 'Sign in', value: 1
+                                                    StaticText, 0x1070f8000, {{24.0, 211.0}, {94.0, 42.0}}, label: 'Sign in', value: Sign in
+                                                  Other, 0x1070f8140, {{24.0, 268.0}, {354.0, 24.0}}
+                                                    StaticText, 0x1070f8280, {{24.0, 269.0}, {185.0, 22.0}}, label: 'Use your Google Account', value: Use your Google Ac...
+                                                  TextField, 0x1070f83c0, {{26.0, 334.0}, {350.0, 52.0}}, label: 'Email or phone', Keyboard Focused, Focused
+                                                  Other, 0x1070f8500, {{24.0, 324.0}, {354.0, 10.0}}
+                                                  Other, 0x1070f8640, {{24.0, 388.0}, {354.0, 32.0}}
+                                                    Button, 0x1070f8780, {{24.0, 397.0}, {93.0, 20.0}}, label: 'Forgot email?'
+                                                  Other, 0x1070f88c0, {{299.0, 468.0}, {79.0, 52.0}}
+                                                    Button, 0x1070f8a00, {{299.0, 474.0}, {79.0, 40.0}}, label: 'Next'
+                                                  Other, 0x1070f8b40, {{8.0, 468.0}, {133.0, 52.0}}
+                                                    Other, 0x1070f8c80, {{8.0, 468.0}, {133.0, 52.0}}
+                                                      Other, 0x1070f8dc0, {{8.0, 474.0}, {133.0, 40.0}}, label: 'Create account'
+                                                Other, 0x1070f8f00, {{8.0, 839.0}, {382.0, 64.0}}, label: 'content information'
+                                                  Other, 0x1070f9040, {{8.0, 855.0}, {186.0, 32.0}}
+                                                    Other, 0x1070f9180, {{8.0, 855.0}, {186.0, 32.0}}, label: 'Change language ​English (United States)', value: English (United St...
+                                                  Other, 0x1070f92c0, {{203.0, 847.0}, {188.0, 48.0}}
+                                                    Other, 0x1070f9400, {{203.0, 847.0}, {50.0, 48.0}}
+                                                      Link, 0x1070f9540, {{215.0, 862.0}, {26.0, 17.0}}, label: 'Open Google Account Help Center (external, opens in a new window)'
+                                                        StaticText, 0x1070f9680, {{215.0, 862.0}, {26.0, 17.0}}, label: 'Open Google Account Help Center (external, opens in a new window)', value: Help
+                                                    Other, 0x1070f97c0, {{260.0, 847.0}, {65.0, 48.0}}
+                                                      Link, 0x1070f9900, {{272.0, 862.0}, {41.0, 17.0}}, label: 'Privacy Policy (external, opens in a new window)'
+                                                        StaticText, 0x1070f9a40, {{272.0, 862.0}, {41.0, 17.0}}, label: 'Privacy Policy (external, opens in a new window)', value: Privacy
+                                                    Other, 0x1070f9b80, {{332.0, 847.0}, {58.0, 48.0}}
+                                                      Link, 0x1070f9cc0, {{344.0, 862.0}, {34.0, 17.0}}, label: 'Google Terms of Service (external, opens in a new window)'
+                                                        StaticText, 0x1070f9e00, {{344.0, 862.0}, {34.0, 17.0}}, label: 'Google Terms of Service (external, opens in a new window)', value: Terms
+                                                Other, 0x1070f9f40, {{0.0, 116.0}, {4.0, 4.0}}
+                                                  Other, 0x1070fa080, {{0.0, 0.0}, {0.0, 0.0}}
+                                                    Other, 0x1070fa1c0, {{2.0, 118.0}, {1.0, 1.0}}
+                                      Other, 0x1070fa300, {{0.0, 0.0}, {402.0, 874.0}}
+                                        Other, 0x1070fa440, {{0.0, 0.0}, {402.0, 156.0}}
+                                        Other, 0x1070fa580, {{0.0, 518.0}, {402.0, 240.0}}
+                                      Other, 0x1070fa6c0, {{369.0, 116.0}, {30.0, 682.0}}, label: 'Vertical scroll bar, 3 pages', value: 0%
+                                        Other, 0x1070fa800, {{396.0, 119.0}, {3.0, 429.7}}
+                                      Other, 0x1070fa940, {{62.0, 765.0}, {278.0, 30.0}}, label: 'Horizontal scroll bar, 1 page', value: 0%
+                                        Other, 0x1070faa80, {{65.0, 792.0}, {272.0, 3.0}}
+                                      Other, 0x1070fabc0, {{369.0, 116.0}, {30.0, 682.0}}, label: 'Vertical scroll bar, 3 pages', value: 0%
+                                        Other, 0x1070fad00, {{396.0, 119.0}, {3.0, 429.7}}
+                                      Other, 0x1070fae40, {{62.0, 765.0}, {278.0, 30.0}}, label: 'Horizontal scroll bar, 1 page', value: 0%
+                                        Other, 0x1070faf80, {{65.0, 792.0}, {272.0, 3.0}}
+                              Toolbar, 0x1070fb0c0, {{7.0, 798.0}, {388.0, 48.0}}, identifier: 'BottomBrowserToolbar', label: 'Toolbar'
+                                Other, 0x1070fb200, {{7.0, 798.0}, {388.0, 48.0}}
+                                  Other, 0x1070fb340, {{23.0, 798.0}, {356.0, 48.0}}
+                                    Other, 0x1070fb480, {{23.0, 798.0}, {356.0, 48.0}}
+                                      Other, 0x1070fb5c0, {{23.0, 798.0}, {0.0, 0.0}}
+                                        Other, 0x1070fb700, {{23.0, 798.0}, {48.0, 48.0}}
+                                          Other, 0x1070fb840, {{23.0, 798.0}, {48.0, 48.0}}
+                                            Other, 0x1070fb980, {{28.0, 803.0}, {38.0, 38.0}}
+                                              Other, 0x1070fbac0, {{28.0, 803.0}, {38.0, 38.0}}
+                                                Button, 0x1070fbc00, {{28.0, 803.0}, {38.0, 38.0}}, identifier: 'BackButton', label: 'Back', Disabled
+                                        Other, 0x1070fbd40, {{219.3, 798.0}, {159.7, 48.0}}
+                                          Other, 0x1070fbe80, {{219.3, 798.0}, {50.7, 48.0}}
+                                            Other, 0x107104000, {{224.3, 803.0}, {40.7, 38.0}}
+                                              Other, 0x107104140, {{224.3, 803.0}, {40.7, 38.0}}
+                                                Button, 0x107104280, {{224.3, 803.0}, {40.7, 38.0}}, identifier: 'ShareButton', label: 'Share'
+                                          Other, 0x1071043c0, {{274.0, 798.0}, {49.0, 48.0}}
+                                            Other, 0x107104500, {{279.0, 803.0}, {39.0, 38.0}}
+                                              Other, 0x107104640, {{279.0, 803.0}, {39.0, 38.0}}
+                                                Button, 0x107104780, {{279.0, 803.0}, {39.0, 38.0}}, identifier: 'ReloadButton', label: 'Reload'
+                                          Other, 0x1071048c0, {{327.0, 798.0}, {52.0, 48.0}}
+                                            Other, 0x107104a00, {{332.0, 803.0}, {42.0, 38.0}}
+                                              Other, 0x107104b40, {{332.0, 803.0}, {42.0, 38.0}}
+                                                Button, 0x107104c80, {{332.0, 803.0}, {42.0, 38.0}}, identifier: 'OpenInSafariButton', label: 'Open in Safari'
+                Other, 0x107104dc0, {{0.0, 0.0}, {402.0, 874.0}}
+                  Other, 0x107104f00, {{0.0, 0.0}, {402.0, 874.0}}
+                    Other, 0x107105040, {{0.0, 0.0}, {402.0, 874.0}}
+                    Other, 0x107105180, {{0.0, 478.0}, {402.0, 396.0}}
+                      Other, 0x1071052c0, {{0.0, 478.0}, {402.0, 68.0}}
+                        Other, 0x107105400, {{0.0, 478.0}, {402.0, 68.0}}
+                          Toolbar, 0x107105540, {{0.0, 488.0}, {402.0, 48.0}}, identifier: 'Toolbar', label: 'Toolbar'
+                            Other, 0x107105680, {{0.0, 488.0}, {402.0, 48.0}}
+                              Other, 0x1071057c0, {{16.0, 488.0}, {370.0, 48.0}}
+                                Other, 0x107105900, {{16.0, 488.0}, {370.0, 48.0}}
+                                  Other, 0x107105a40, {{16.0, 488.0}, {0.0, 0.0}}
+                                    Other, 0x107105b80, {{16.0, 488.0}, {370.0, 48.0}}
+                                      Other, 0x107105cc0, {{16.0, 488.0}, {50.0, 48.0}}
+                                        Other, 0x107105e00, {{21.0, 493.0}, {40.0, 38.0}}
+                                          Other, 0x107105f40, {{21.0, 493.0}, {40.0, 38.0}}
+                                            Button, 0x107106080, {{21.0, 493.0}, {40.0, 38.0}}, label: 'Previous', Disabled
+                                      Other, 0x1071061c0, {{70.0, 488.0}, {50.0, 48.0}}
+                                        Other, 0x107106300, {{75.0, 493.0}, {40.0, 38.0}}
+                                          Other, 0x107106440, {{75.0, 493.0}, {40.0, 38.0}}
+                                            Button, 0x107106580, {{75.0, 493.0}, {40.0, 38.0}}, label: 'Next', Disabled
+                                      Other, 0x1071066c0, {{336.0, 488.0}, {50.0, 48.0}}
+                                        Other, 0x107106800, {{341.0, 493.0}, {40.0, 38.0}}
+                                          Other, 0x107106940, {{341.0, 493.0}, {40.0, 38.0}}
+                                            Button, 0x107106a80, {{341.0, 493.0}, {40.0, 38.0}}, label: 'Done'
+                      Other, 0x107106bc0, {{0.0, 546.0}, {402.0, 328.0}}, identifier: 'inputView'
+                  Window, 0x107106d00, {{0.0, 0.0}, {402.0, 874.0}}
+                    Other, 0x107106e40, {{0.0, 0.0}, {402.0, 874.0}}
+                      Other, 0x107106f80, {{0.0, 478.0}, {402.0, 396.0}}
+                        Other, 0x1071070c0, {{0.0, 478.0}, {402.0, 68.0}}
+                        Other, 0x107107200, {{0.0, 546.0}, {402.0, 44.0}}, identifier: 'SystemInputAssistantView'
+                          Other, 0x107107340, {{0.0, 546.0}, {402.0, 44.0}}
+                            Other, 0x107107480, {{0.0, 546.0}, {402.0, 44.0}}, identifier: 'CenterPageView'
+                              Other, 0x1071075c0, {{0.0, -54.0}, {402.0, 1244.0}}
+                                ScrollView, 0x107107700, {{0.0, 546.0}, {402.0, 44.0}}
+                              Other, 0x107107840, {{0.0, 546.0}, {402.0, 44.0}}
+                                Other, 0x107107980, {{0.0, 546.0}, {402.0, 44.0}}
+                                  Other, 0x107107ac0, {{0.0, 546.0}, {402.0, 44.0}}, label: 'Typing Predictions'
+                                    Other, 0x107107c00, {{0.0, 546.0}, {402.0, 44.0}}
+                                      Other, 0x107107d40, {{30.0, 546.0}, {342.0, 44.0}}
+                                        Button, 0x107107e80, {{30.0, 546.0}, {342.0, 44.0}}, label: 'Passwords'
+                                          Image, 0x10710c000, {{150.5, 560.0}, {13.0, 23.0}}, identifier: 'kb-autofill-key'
+                        Other, 0x10710c140, {{0.0, 546.0}, {402.0, 329.0}}
+                          Other, 0x10710c280, {{0.0, 546.0}, {402.0, 329.0}}
+                            Other, 0x10710c3c0, {{0.0, 546.0}, {402.0, 329.0}}
+                        Other, 0x10710c500, {{0.0, 590.0}, {402.0, 226.0}}
+                          Keyboard, 0x10710c640, {{0.0, 590.0}, {402.0, 226.0}}
+                            Other, 0x10710c780, {{0.0, 590.0}, {402.0, 226.0}}
+                              Other, 0x10710c8c0, {{0.0, 590.0}, {402.0, 226.0}}, identifier: 'UIKeyboardLayoutStar Preview'
+                                Key, 0x10710ca00, {{0.0, 590.0}, {0.0, 0.0}}, label: 'Padding-Left'
+                                Key, 0x10710cb40, {{0.0, 590.0}, {0.0, 0.0}}, label: 'Padding-Right'
+                                Key, 0x10710cc80, {{0.0, 590.0}, {0.0, 0.0}}, label: 'Padding-Left'
+                                Key, 0x10710cdc0, {{0.0, 590.0}, {0.0, 0.0}}, label: 'Padding-Right'
+                                Key, 0x10710cf00, {{0.0, 590.0}, {0.0, 0.0}}, label: 'Padding-Left'
+                                Key, 0x10710d040, {{0.0, 590.0}, {0.0, 0.0}}, label: 'Padding-Right'
+                                Key, 0x10710d180, {{4.7, 597.0}, {39.3, 54.0}}, label: 'q'
+                                Key, 0x10710d2c0, {{44.0, 597.0}, {39.7, 54.0}}, label: 'w'
+                                Key, 0x10710d400, {{83.7, 597.0}, {39.3, 54.0}}, label: 'e'
+                                Key, 0x10710d540, {{123.0, 597.0}, {39.7, 54.0}}, label: 'r'
+                                Key, 0x10710d680, {{162.7, 597.0}, {39.3, 54.0}}, label: 't'
+                                Key, 0x10710d7c0, {{202.0, 597.0}, {39.7, 54.0}}, label: 'y'
+                                Key, 0x10710d900, {{241.7, 597.0}, {39.3, 54.0}}, label: 'u'
+                                Key, 0x10710da40, {{281.0, 597.0}, {39.7, 54.0}}, label: 'i'
+                                Key, 0x10710db80, {{320.7, 597.0}, {39.3, 54.0}}, label: 'o'
+                                Key, 0x10710dcc0, {{360.0, 597.0}, {39.7, 54.0}}, label: 'p'
+                                Key, 0x10710de00, {{24.3, 651.0}, {39.3, 54.0}}, label: 'a'
+                                Key, 0x10710df40, {{63.7, 651.0}, {39.7, 54.0}}, label: 's'
+                                Key, 0x10710e080, {{103.3, 651.0}, {39.3, 54.0}}, label: 'd'
+                                Key, 0x10710e1c0, {{142.7, 651.0}, {39.7, 54.0}}, label: 'f'
+                                Key, 0x10710e300, {{182.3, 651.0}, {39.3, 54.0}}, label: 'g'
+                                Key, 0x10710e440, {{221.7, 651.0}, {39.7, 54.0}}, label: 'h'
+                                Key, 0x10710e580, {{261.3, 651.0}, {39.3, 54.0}}, label: 'j'
+                                Key, 0x10710e6c0, {{300.7, 651.0}, {39.7, 54.0}}, label: 'k'
+                                Key, 0x10710e800, {{340.3, 651.0}, {39.3, 54.0}}, label: 'l'
+                                Button, 0x10710e940, {{4.7, 705.0}, {51.3, 54.0}}, identifier: 'shift', label: 'shift'
+                                Key, 0x10710ea80, {{63.7, 705.0}, {39.7, 54.0}}, label: 'z'
+                                Key, 0x10710ebc0, {{103.3, 705.0}, {39.3, 54.0}}, label: 'x'
+                                Key, 0x10710ed00, {{142.7, 705.0}, {39.7, 54.0}}, label: 'c'
+                                Key, 0x10710ee40, {{182.3, 705.0}, {39.3, 54.0}}, label: 'v'
+                                Key, 0x10710ef80, {{221.7, 705.0}, {39.7, 54.0}}, label: 'b'
+                                Key, 0x10710f0c0, {{261.3, 705.0}, {39.3, 54.0}}, label: 'n'
+                                Key, 0x10710f200, {{300.7, 705.0}, {39.7, 54.0}}, label: 'm'
+                                Key, 0x10710f340, {{348.0, 705.0}, {51.7, 54.0}}, identifier: 'delete', label: 'delete'
+                                Key, 0x10710f480, {{4.7, 759.0}, {98.7, 54.0}}, identifier: 'more', label: 'numbers'
+                                Key, 0x10710f5c0, {{103.3, 759.0}, {197.3, 54.0}}, identifier: 'space', label: 'space'
+                                Button, 0x10710f700, {{300.7, 759.0}, {99.0, 54.0}}, identifier: 'Go', label: 'go'
+                        Other, 0x10710f840, {{0.0, 590.0}, {402.0, 284.0}}
+                          Button, 0x10710f980, {{8.5, 805.7}, {68.1, 68.7}}, label: 'Emoji'
+                            StaticText, 0x10710fac0, {{8.5, 805.7}, {0.0, 0.0}}
+                          Button, 0x10710fc00, {{325.4, 805.4}, {68.1, 68.7}}, identifier: 'dictation', label: 'Dictate'
+                            StaticText, 0x10710fd40, {{325.4, 805.4}, {0.0, 0.0}}
+                          Button, 0x10710fe80, {{325.4, 805.4}, {68.1, 68.7}}, identifier: 'dictation', label: 'Dictate'
+                            StaticText, 0x107114000, {{325.4, 805.4}, {0.0, 0.0}}
+          Other, 0x107114140, {{0.0, 64.0}, {24.0, 810.0}}
+    Window, 0x107114280, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x1071143c0, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x107114500, {{0.0, 0.0}, {402.0, 874.0}}
+Path to element:
+ →Application, 0x1070f1680, pid: 69992, label: 'PUBMAXXING'
+Query chain:
+ →Find: Application 'com.pubmaxx.app'
+  Output: {
+    Application, 0x107114640, pid: 69992, label: 'PUBMAXXING'
+  }
+
+    t =     0.86s Find the "Close" Button
+    t =     0.91s Find the Application 'com.pubmaxx.app'
+    t =     1.08s Find the Application 'com.pubmaxx.app'
+    t =     1.11s Find the "Close" Button
+    t =     1.17s Find the Application 'com.pubmaxx.app'
+    t =     1.20s Find the Application 'com.pubmaxx.app'
+    t =     1.24s Tap Application 'com.pubmaxx.app'[0.09, 0.10]
+    t =     1.24s     Wait for com.pubmaxx.app to idle
+    t =     1.24s     Find the Application 'com.pubmaxx.app'
+    t =     1.27s     Check for interrupting elements affecting "PUBMAXXING" Application
+    t =     1.32s     Synthesize event
+    t =     1.33s         Find the Application 'com.pubmaxx.app'
+    t =     1.37s         Find the Application 'com.pubmaxx.app'
+    t =     1.41s         Find the Application 'com.pubmaxx.app'
+    t =     1.77s     Wait for com.pubmaxx.app to idle
+    t =     4.21s Find the Application 'com.pubmaxx.app'
+    t =     4.33s Added attachment named 'close-at-native-control-frame'
+    t =     4.33s Requesting snapshot of accessibility hierarchy for app with pid 69992
+    t =     6.89s Requesting snapshot of accessibility hierarchy for app with pid 69992
+LANE_AFTER_CLOSE_HIERARCHY Attributes: Application, 0x107fa1900, pid: 69992, label: 'PUBMAXXING'
+Element subtree:
+ →Application, 0x107fa1900, pid: 69992, label: 'PUBMAXXING'
+    Window (Main), 0x107fa1a40, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x107fa1b80, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x107fa1cc0, {{0.0, 0.0}, {402.0, 874.0}}
+          WebView, 0x107fa1e00, {{0.0, 0.0}, {402.0, 874.0}}
+            WebView, 0x107fa1f40, {{0.0, 0.0}, {402.0, 874.0}}
+              Other, 0x107fa2080, {{0.0, 0.0}, {402.0, 874.0}}
+                Other, 0x107fa21c0, {{0.0, 0.0}, {402.0, 102.0}}
+              WebView, 0x107fa2300, {{0.0, 0.0}, {402.0, 874.0}}
+                Other, 0x107fa2440, {{0.0, 0.0}, {402.0, 874.0}}
+                  Other, 0x107fa2580, {{0.0, 0.0}, {402.0, 874.0}}
+                    Other, 0x107fa26c0, {{0.0, 0.0}, {402.0, 874.0}}
+                      Other, 0x107fa2800, {{0.0, 0.0}, {402.0, 4439.0}}, label: 'Tonight in London · PUBMAXXING | PUBMAXX', Focused
+                        Link, 0x107fa2940, {{0.0, -1.0}, {158.0, 20.0}}, label: 'Skip to main content', Focused
+                          StaticText, 0x107fa2a80, {{0.0, -1.0}, {158.0, 20.0}}, label: 'Skip to main content', value: Skip to main content, Focused
+                        Other, 0x107fa2bc0, {{0.0, 0.0}, {402.0, 4273.0}}, label: 'main', Focused
+                          Other, 0x107fa2d00, {{10.0, 72.0}, {383.0, 56.0}}, label: 'Site navigation, navigation', Focused
+                            Link, 0x107fa2e40, {{23.0, 91.0}, {52.0, 17.0}}, label: 'Open PUBMAXX landing page', Focused
+                              Image, 0x107fa2f80, {{23.0, 91.0}, {52.0, 17.0}}, label: 'Open PUBMAXX landing page', Focused
+                            Link, 0x107fa30c0, {{228.0, 76.0}, {49.0, 48.0}}, label: 'Activity', Focused
+                            Link, 0x107fa3200, {{280.0, 76.0}, {49.0, 48.0}}, label: 'Messages', Focused
+                            Button, 0x107fa3340, {{332.0, 76.0}, {49.0, 48.0}}, label: 'Switch to dark theme', Focused
+                          Other, 0x107fa3480, {{22.0, 144.0}, {256.0, 50.0}}, label: 'Now, navigation', Focused
+                            Link, 0x107fa35c0, {{72.0, 159.0}, {30.0, 20.0}}, label: 'Day', Focused
+                              StaticText, 0x107fa3700, {{72.0, 159.0}, {30.0, 20.0}}, label: 'Day', value: Day, Focused
+                            Link, 0x107fa3840, {{185.0, 159.0}, {56.0, 20.0}}, label: 'Tonight', Focused
+                              StaticText, 0x107fa3980, {{185.0, 159.0}, {56.0, 20.0}}, label: 'Tonight', value: Tonight, Focused
+                          Other, 0x107fa3ac0, {{22.0, 208.0}, {358.0, 3943.0}}, label: 'What’s on across London tonight.', Focused
+                            Other, 0x107fa3c00, {{22.0, 208.0}, {358.0, 127.0}}, label: 'section header', Focused
+                              Other, 0x107fa3d40, {{22.0, 220.0}, {358.0, 17.0}}, Focused
+                                StaticText, 0x107fa3e80, {{22.0, 220.0}, {109.0, 16.0}}, label: 'Tonight in London', value: Tonight in London, Focused
+                              Other, 0x1070e9cc0, {{22.0, 253.0}, {358.0, 69.0}}, label: 'What’s on across London tonight.', value: 1, Focused
+                                StaticText, 0x1070e88c0, {{22.0, 253.0}, {226.0, 69.0}}, label: 'What’s on across London tonight.', value: What’s on across L..., Focused
+                            Other, 0x1070e9680, {{61.0, 346.0}, {268.0, 63.0}}, Focused
+                              Other, 0x1070e9540, {{61.0, 346.0}, {268.0, 63.0}}, Focused
+                                StaticText, 0x1070e92c0, {{61.0, 347.0}, {268.0, 19.0}}, label: 'No weather reading for this area just now.', value: No weather reading..., Focused
+                            Other, 0x1070e9400, {{22.0, 437.0}, {358.0, 1384.0}}, label: 'Pubs people are talking about, region', Focused
+                              Other, 0x1070e9180, {{22.0, 437.0}, {358.0, 18.0}}, label: 'Pubs people are talking about', value: 2, Focused
+                                StaticText, 0x1070e8640, {{22.0, 437.0}, {187.0, 18.0}}, label: 'Pubs people are talking about', value: Pubs people are ta..., Focused
+                              Other, 0x1070e8780, {{22.0, 462.0}, {358.0, 1305.0}}, Focused
+                                Other, 0x1070ea080, {{22.0, 462.0}, {358.0, 275.0}}, label: 'The Devonshire Soho Named again and again as the Soho pub people queue for, with @beli_eats calling it "considered by many to be the top gastropub in London, if not the entire UK" and Mark Wiens filming its roast for 482k views.
+
+Checked 14 Aug', Focused
+                                  Other, 0x1070ea1c0, {{37.0, 477.0}, {328.0, 23.0}}, label: 'The Devonshire', value: 3, Focused
+                                    StaticText, 0x1070ea300, {{37.0, 477.0}, {120.0, 23.0}}, label: 'The Devonshire', value: The Devonshire, Focused
+                                  StaticText, 0x1070ea440, {{55.0, 503.0}, {32.0, 18.0}}, label: 'Soho', value: Soho, Focused
+                                  Other, 0x1070ea940, {{37.0, 528.0}, {328.0, 106.0}}, Focused
+                                    StaticText, 0x1070eaa80, {{37.0, 530.0}, {327.0, 102.0}}, label: 'Named again and again as the Soho pub people queue for, with @beli_eats calling it "considered by many to be the top gastropub in London, if not the entire UK" and Mark Wiens filming its roast for 482k views.', value: Named again and ag..., Focused
+                                  Link, 0x1070eaf80, {{37.0, 647.0}, {50.0, 16.0}}, label: 'r/london', Focused
+                                    StaticText, 0x1070ebd40, {{37.0, 647.0}, {50.0, 16.0}}, label: 'r/london', value: r/london, Focused
+                                  StaticText, 0x1070ebe80, {{112.0, 647.0}, {95.0, 16.0}}, label: 'Checked 14 Aug', value: Checked 14 Aug, Focused
+                                  Link, 0x1070ebac0, {{37.0, 690.0}, {85.0, 18.0}}, label: 'Open on map', Focused
+                                    StaticText, 0x1070eb340, {{37.0, 690.0}, {85.0, 18.0}}, label: 'Open on map', value: Open on map, Focused
+                                Other, 0x1070eb480, {{22.0, 746.0}, {358.0, 253.0}}, label: 'Duke of Edinburgh Brixton Brixton beer garden that r/LondonSocialClub keeps booking for open meet-ups, and that @missjonesgroup lists among its ten London beer gardens.
+
+Checked 14 Aug', Focused
+                                  Other, 0x1070eb0c0, {{37.0, 761.0}, {328.0, 23.0}}, label: 'Duke of Edinburgh', value: 3, Focused
+                                    StaticText, 0x1070eb200, {{37.0, 761.0}, {144.0, 23.0}}, label: 'Duke of Edinburgh', value: Duke of Edinburgh, Focused
+                                  StaticText, 0x1070ea580, {{55.0, 787.0}, {45.0, 18.0}}, label: 'Brixton', value: Brixton, Focused
+                                  Other, 0x1070ea800, {{37.0, 812.0}, {328.0, 84.0}}, Focused
+                                    StaticText, 0x1070ea6c0, {{37.0, 813.0}, {304.0, 82.0}}, label: 'Brixton beer garden that r/LondonSocialClub keeps booking for open meet-ups, and that @missjonesgroup lists among its ten London beer gardens.', value: Brixton beer garde..., Focused
+                                  Link, 0x1070e9f40, {{37.0, 910.0}, {117.0, 16.0}}, label: 'r/LondonSocialClub', Focused
+                                    StaticText, 0x1070e9e00, {{37.0, 910.0}, {117.0, 16.0}}, label: 'r/LondonSocialClub', value: r/LondonSocialClub, Focused
+                                  StaticText, 0x1070e9b80, {{179.0, 910.0}, {94.0, 16.0}}, label: 'Checked 14 Aug', value: Checked 14 Aug, Focused
+                                  Link, 0x1070e8dc0, {{37.0, 953.0}, {85.0, 18.0}}, label: 'Open on map', Focused
+                                    StaticText, 0x1070e8c80, {{37.0, 953.0}, {85.0, 18.0}}, label: 'Open on map', value: Open on map, Focused
+                                Other, 0x1070e8b40, {{22.0, 1008.0}, {358.0, 253.0}}, label: 'Ye Olde Cheshire Cheese Fleet Street The Fleet Street pub every London history creator films, with @thosepubguys reaching 321k views on its cellars and Dickens connection.
+
+Checked 17 Jun', Focused
+                                  Other, 0x1070e8a00, {{37.0, 1023.0}, {328.0, 23.0}}, label: 'Ye Olde Cheshire Cheese', value: 3, Focused
+                                    StaticText, 0x10710c140, {{37.0, 1023.0}, {190.0, 23.0}}, label: 'Ye Olde Cheshire Cheese', value: Ye Olde Cheshire C..., Focused
+                                  StaticText, 0x10710c000, {{55.0, 1049.0}, {72.0, 18.0}}, label: 'Fleet Street', value: Fleet Street, Focused
+                                  Other, 0x10710c500, {{37.0, 1074.0}, {328.0, 84.0}}, Focused
+                                    StaticText, 0x10710c3c0, {{37.0, 1076.0}, {301.0, 81.0}}, label: 'The Fleet Street pub every London history creator films, with @thosepubguys reaching 321k views on its cellars and Dickens connection.', value: The Fleet Street p..., Focused
+                                  Link, 0x10710c280, {{37.0, 1172.0}, {83.0, 16.0}}, label: 'r/LondonFood', Focused
+                                    StaticText, 0x10709cf00, {{37.0, 1172.0}, {83.0, 16.0}}, label: 'r/LondonFood', value: r/LondonFood, Focused
+                                  StaticText, 0x10709d040, {{145.0, 1172.0}, {92.0, 16.0}}, label: 'Checked 17 Jun', value: Checked 17 Jun, Focused
+                                  Link, 0x10709f5c0, {{37.0, 1215.0}, {85.0, 18.0}}, label: 'Open on map', Focused
+                                    StaticText, 0x10709f480, {{37.0, 1215.0}, {85.0, 18.0}}, label: 'Open on map', value: Open on map, Focused
+                                Other, 0x1070f3e80, {{22.0, 1271.0}, {358.0, 234.0}}, label: 'Simmons Soho (Greek St) and City Cited across TikTok and r/cheaplondon for a £4 Guinness, with u/TheBaneofNewHaven noting "Simmons on Greek Street does £4 Guinness all day plus £3 Camden Hells til 7".
+
+Checked 24 Jul Not on our map yet', Focused
+                                  Other, 0x1070f21c0, {{37.0, 1286.0}, {328.0, 23.0}}, label: 'Simmons', value: 3, Focused
+                                    StaticText, 0x1070f3340, {{37.0, 1286.0}, {71.0, 23.0}}, label: 'Simmons', value: Simmons, Focused
+                                  StaticText, 0x1070f2e40, {{55.0, 1312.0}, {154.0, 18.0}}, label: 'Soho (Greek St) and City', value: Soho (Greek St) an..., Focused
+                                  Other, 0x1070f3700, {{37.0, 1337.0}, {328.0, 84.0}}, Focused
+                                    StaticText, 0x1070f2a80, {{37.0, 1338.0}, {327.0, 82.0}}, label: 'Cited across TikTok and r/cheaplondon for a £4 Guinness, with u/TheBaneofNewHaven noting "Simmons on Greek Street does £4 Guinness all day plus £3 Camden Hells til 7".', value: Cited across TikTo..., Focused
+                                  Link, 0x1070f1900, {{37.0, 1435.0}, {134.0, 15.0}}, label: 'TikTok @guinnessgirlz', Focused
+                                    StaticText, 0x1070f2800, {{37.0, 1435.0}, {134.0, 15.0}}, label: 'TikTok @guinnessgirlz', value: TikTok @guinnessgi..., Focused
+                                  StaticText, 0x1070f2d00, {{196.0, 1435.0}, {91.0, 15.0}}, label: 'Checked 24 Jul', value: Checked 24 Jul, Focused
+                                  Other, 0x1070f1a40, {{37.0, 1474.0}, {328.0, 16.0}}, Focused
+                                    StaticText, 0x1070f2f80, {{37.0, 1474.0}, {111.0, 16.0}}, label: 'Not on our map yet', value: Not on our map yet, Focused
+                                Other, 0x1070f2940, {{22.0, 1514.0}, {358.0, 253.0}}, label: 'Ye Olde Mitre Holborn Repeatedly framed as the hidden pub down an alley, with @tans.pantry posting "everyone walks past this alley and has no idea london's oldest pub was hiding in it".
+
+Checked 12 Aug', Focused
+                                  Other, 0x1070f2300, {{37.0, 1529.0}, {328.0, 23.0}}, label: 'Ye Olde Mitre', value: 3, Focused
+                                    StaticText, 0x1070f3980, {{37.0, 1529.0}, {103.0, 23.0}}, label: 'Ye Olde Mitre', value: Ye Olde Mitre, Focused
+                                  StaticText, 0x1070f3ac0, {{55.0, 1555.0}, {50.0, 18.0}}, label: 'Holborn', value: Holborn, Focused
+                                  Other, 0x1070f35c0, {{37.0, 1580.0}, {328.0, 84.0}}, Focused
+                                    StaticText, 0x1070f2440, {{37.0, 1581.0}, {318.0, 82.0}}, label: 'Repeatedly framed as the hidden pub down an alley, with @tans.pantry posting "everyone walks past this alley and has no idea london's oldest pub was hiding in it".', value: Repeatedly framed ..., Focused
+                                  Link, 0x1070f2580, {{37.0, 1678.0}, {83.0, 16.0}}, label: 'r/LondonFood', Focused
+                                    StaticText, 0x1070f1e00, {{37.0, 1678.0}, {83.0, 16.0}}, label: 'r/LondonFood', value: r/LondonFood, Focused
+                                  StaticText, 0x1070f1680, {{145.0, 1678.0}, {94.0, 16.0}}, label: 'Checked 12 Aug', value: Checked 12 Aug, Focused
+                                  Link, 0x1070f2bc0, {{37.0, 1721.0}, {85.0, 18.0}}, label: 'Open on map', Focused
+                                    StaticText, 0x1070f1cc0, {{37.0, 1721.0}, {85.0, 18.0}}, label: 'Open on map', value: Open on map, Focused
+                              Other, 0x1070f1b80, {{22.0, 1776.0}, {358.0, 45.0}}, Focused
+                                Button, 0x1070f1f40, {{22.0, 1776.0}, {358.0, 45.0}}, label: '7 more pubs', Focused
+                                  Button, 0x1070f2080, {{42.0, 1790.0}, {77.0, 18.0}}, label: '7 more pubs', value: 7 more pubs, Focused
+                            Other, 0x1070f3200, {{22.0, 1840.0}, {358.0, 42.0}}, label: 'application status', Focused
+                              StaticText, 0x1070f26c0, {{22.0, 1842.0}, {351.0, 39.0}}, label: 'Some listings could not be checked. · Couldn't reach tonight's listings just now.', value: Some listings coul..., Focused
+                            Button, 0x1070f30c0, {{22.0, 1891.0}, {144.0, 49.0}}, label: 'Retry listings', Focused
+                            Other, 0x1070f3c00, {{22.0, 1972.0}, {358.0, 16.0}}, Focused
+                              StaticText, 0x1070f3480, {{22.0, 1972.0}, {103.0, 16.0}}, label: 'No event needed', value: No event needed, Focused
+                            Other, 0x1070f17c0, {{22.0, 1985.0}, {358.0, 69.0}}, Focused
+                              Other, 0x1070f3d40, {{22.0, 1985.0}, {300.0, 45.0}}, Focused
+                                Link, 0x1070f3840, {{22.0, 1998.0}, {95.0, 19.0}}, label: 'Pubs near you', Focused
+                                  StaticText, 0x107117c00, {{22.0, 1998.0}, {95.0, 19.0}}, label: 'Pubs near you', value: Pubs near you, Focused
+                              Other, 0x1071143c0, {{22.0, 2009.0}, {300.0, 45.0}}, Focused
+                                Link, 0x107114500, {{22.0, 2022.0}, {144.0, 19.0}}, label: 'Plan the night instead', Focused
+                                  StaticText, 0x107117840, {{22.0, 2022.0}, {144.0, 19.0}}, label: 'Plan the night instead', value: Plan the night ins..., Focused
+                            Button, 0x107114140, {{22.0, 2063.0}, {93.0, 49.0}}, label: 'Share tonight's listings', Focused
+                            Other, 0x107114000, {{22.0, 2139.0}, {358.0, 621.0}}, label: 'Tonight at a glance, complementary', Focused
+                              Other, 0x107114280, {{22.0, 2139.0}, {358.0, 621.0}}, label: 'Soft plans tonight, region', Focused
+                                Other, 0x107fab340, {{22.0, 2139.0}, {358.0, 18.0}}, Focused
+                                  StaticText, 0x107fab480, {{22.0, 2139.0}, {114.0, 18.0}}, label: 'Soft plans tonight', value: Soft plans tonight, Focused
+                                Other, 0x107fab5c0, {{22.0, 2168.0}, {358.0, 271.0}}, Focused
+                                  Other, 0x107fab700, {{22.0, 2168.0}, {358.0, 61.0}}, Focused
+                                    Link, 0x107fab840, {{83.0, 2189.0}, {118.0, 20.0}}, label: 'Coffee catch-up', Focused
+                                      StaticText, 0x107fab980, {{83.0, 2189.0}, {118.0, 20.0}}, label: 'Coffee catch-up', value: Coffee catch-up, Focused
+                                  Other, 0x107fabac0, {{22.0, 2238.0}, {358.0, 61.0}}, Focused
+                                    Link, 0x107fabe80, {{83.0, 2259.0}, {141.0, 20.0}}, label: 'Alcohol-free outing', Focused
+                                      StaticText, 0x1070ed900, {{83.0, 2259.0}, {141.0, 20.0}}, label: 'Alcohol-free outing', value: Alcohol-free outing, Focused
+                                  Other, 0x1070ed180, {{22.0, 2308.0}, {358.0, 61.0}}, Focused
+                                    Link, 0x1070edcc0, {{83.0, 2329.0}, {106.0, 20.0}}, label: 'Chill afternoon', Focused
+                                      StaticText, 0x1070ede00, {{83.0, 2329.0}, {106.0, 20.0}}, label: 'Chill afternoon', value: Chill afternoon, Focused
+                                  Other, 0x1070eda40, {{22.0, 2378.0}, {358.0, 61.0}}, Focused
+                                    Link, 0x1070eebc0, {{83.0, 2399.0}, {83.0, 20.0}}, label: 'A quiet pint', Focused
+                                      StaticText, 0x1070ef5c0, {{83.0, 2399.0}, {83.0, 20.0}}, label: 'A quiet pint', value: A quiet pint, Focused
+                                Other, 0x1070ef700, {{22.0, 2456.0}, {358.0, 18.0}}, Focused
+                                  StaticText, 0x1070efe80, {{22.0, 2456.0}, {347.0, 18.0}}, label: 'Out of the house. Something to see first, the pint after.', value: Out of the house. ..., Focused
+                                Other, 0x1070efd40, {{22.0, 2485.0}, {358.0, 275.0}}, Focused
+                                  Other, 0x1070ee080, {{22.0, 2485.0}, {358.0, 61.0}}, Focused
+                                    Link, 0x1070eef80, {{83.0, 2506.0}, {131.0, 20.0}}, label: 'Gallery then a pint', Focused
+                                      StaticText, 0x1070eee40, {{83.0, 2506.0}, {131.0, 20.0}}, label: 'Gallery then a pint', value: Gallery then a pint, Focused
+                                  Other, 0x1070ed040, {{22.0, 2555.0}, {358.0, 61.0}}, Focused
+                                    Link, 0x1070efc00, {{83.0, 2576.0}, {205.0, 20.0}}, label: 'Market wander then a kebab', Focused
+                                      StaticText, 0x1070ef840, {{83.0, 2576.0}, {205.0, 20.0}}, label: 'Market wander then a kebab', value: Market wander then..., Focused
+                                  Other, 0x1070ecf00, {{22.0, 2625.0}, {358.0, 65.0}}, Focused
+                                    Link, 0x1070ee440, {{83.0, 2638.0}, {180.0, 39.0}}, label: 'River walk then a historic pub', Focused
+                                      StaticText, 0x1070ee6c0, {{83.0, 2638.0}, {180.0, 39.0}}, label: 'River walk then a historic pub', value: River walk then a ..., Focused
+                                  Other, 0x1070edb80, {{22.0, 2699.0}, {358.0, 61.0}}, Focused
+                                    Link, 0x1070ed540, {{83.0, 2720.0}, {165.0, 20.0}}, label: 'Sights then a quiet one', Focused
+                                      StaticText, 0x1070ee940, {{83.0, 2720.0}, {165.0, 20.0}}, label: 'Sights then a quiet one', value: Sights then a quie..., Focused
+                            Other, 0x1070edf40, {{22.0, 2787.0}, {358.0, 1228.0}}, Focused
+                              Other, 0x1070efac0, {{22.0, 2787.0}, {358.0, 1228.0}}, label: 'A quiet pint, and a bit of history., region', Focused
+                                Other, 0x1070ed400, {{85.0, 2804.0}, {261.0, 16.0}}, Focused
+                                  StaticText, 0x1070ef200, {{85.0, 2804.0}, {97.0, 16.0}}, label: 'For a quieter pint', value: For a quieter pint, Focused
+                                Other, 0x1070ef340, {{85.0, 2822.0}, {261.0, 24.0}}, label: 'A quiet pint, and a bit of history.', value: 2, Focused
+                                  StaticText, 0x1070ef480, {{85.0, 2823.0}, {261.0, 23.0}}, label: 'A quiet pint, and a bit of history.', value: A quiet pint, and ..., Focused
+                                Other, 0x1070ee800, {{39.0, 2857.0}, {324.0, 1058.0}}, Focused
+                                  Other, 0x1070ef980, {{39.0, 2857.0}, {324.0, 223.0}}, Focused
+                                    Link, 0x1070eea80, {{39.0, 2857.0}, {324.0, 45.0}}, label: 'Prospect of Whitby £5.00', Focused
+                                      StaticText, 0x1070ed2c0, {{39.0, 2872.0}, {145.0, 20.0}}, label: 'Prospect of Whitby', value: Prospect of Whitby, Focused
+                                      StaticText, 0x1070eed00, {{322.0, 2873.0}, {41.0, 19.0}}, label: '£5.00', value: £5.00, Focused
+                                    Other, 0x1070ecdc0, {{39.0, 2901.0}, {324.0, 59.0}}, Focused
+                                      Button, 0x1070ee580, {{39.0, 2901.0}, {324.0, 59.0}}, label: 'The Prospect of Whitby is a Grade II* listed pub on Wapping Wall in the East End, reputed to be one of the oldest riverside taverns in London, dating from around 1520. Show more', Focused
+                                        Button, 0x1070ee300, {{39.0, 2902.0}, {308.0, 80.0}}, label: 'The Prospect of Whitby is a Grade II* listed pub on Wapping Wall in the East End, reputed to be one of the oldest riverside taverns in London, dating from around 1520.', value: The Prospect of Wh..., Focused
+                                        Button, 0x1070ef0c0, {{39.0, 2944.0}, {66.0, 16.0}}, label: 'Show more', value: Show more, Focused
+                                    StaticText, 0x1070ee1c0, {{48.0, 2970.0}, {51.0, 16.0}}, label: 'Grade II*', value: Grade II*, Focused
+                                    StaticText, 0x1071052c0, {{126.0, 2970.0}, {81.0, 16.0}}, label: 'Founded 1520', value: Founded 1520, Focused
+                                    StaticText, 0x1071043c0, {{39.0, 2998.0}, {161.0, 16.0}}, label: 'Usually quiet on a Thursday', value: Usually quiet on a..., Focused
+                                    StaticText, 0x107104280, {{219.0, 2998.0}, {52.0, 16.0}}, label: 'Sourced', value: Sourced, Focused
+                                    Link, 0x107105180, {{39.0, 3023.0}, {92.0, 45.0}}, label: 'via Wikipedia', Focused
+                                      StaticText, 0x107104500, {{39.0, 3037.0}, {20.0, 16.0}}, label: 'via', value: via , Focused
+                                      StaticText, 0x107104140, {{58.0, 3037.0}, {57.0, 16.0}}, label: 'Wikipedia', value: Wikipedia, Focused
+                                  Other, 0x107104000, {{39.0, 3079.0}, {324.0, 224.0}}, Focused
+                                    Link, 0x107094f00, {{39.0, 3080.0}, {324.0, 45.0}}, label: 'The Hoop and Grapes £6.65', Focused
+                                      StaticText, 0x107095040, {{39.0, 3094.0}, {162.0, 20.0}}, label: 'The Hoop and Grapes', value: The Hoop and Grapes, Focused
+                                      StaticText, 0x1070952c0, {{322.0, 3095.0}, {41.0, 19.0}}, label: '£6.65', value: £6.65, Focused
+                                    Other, 0x107095180, {{39.0, 3124.0}, {324.0, 59.0}}, Focused
+                                      Button, 0x107095f40, {{39.0, 3124.0}, {324.0, 59.0}}, label: 'The Hoop and Grapes at 47 Aldgate High Street is a Grade II* listed pub, probably built in the late 17th century; it is one of the very few timber-framed buildings in the City of London to survive from that period, standing just beyond where the Great Fire of London was halted in 1666. Show more', Focused
+                                        Button, 0x107095cc0, {{39.0, 3125.0}, {321.0, 121.0}}, label: 'The Hoop and Grapes at 47 Aldgate High Street is a Grade II* listed pub, probably built in the late 17th century; it is one of the very few timber-framed buildings in the City of London to survive from that period, standing just beyond where the Great Fire of London was halted in 1666.', value: The Hoop and Grape..., Focused
+                                        Button, 0x107096940, {{39.0, 3167.0}, {66.0, 16.0}}, label: 'Show more', value: Show more, Focused
+                                    StaticText, 0x107096a80, {{48.0, 3193.0}, {51.0, 16.0}}, label: 'Grade II*', value: Grade II*, Focused
+                                    StaticText, 0x107096800, {{126.0, 3193.0}, {99.0, 16.0}}, label: 'Built 17th century', value: Built 17th century, Focused
+                                    StaticText, 0x1070948c0, {{39.0, 3221.0}, {161.0, 16.0}}, label: 'Usually quiet on a Thursday', value: Usually quiet on a..., Focused
+                                    StaticText, 0x107094a00, {{219.0, 3221.0}, {52.0, 16.0}}, label: 'Sourced', value: Sourced, Focused
+                                    Link, 0x107094b40, {{39.0, 3246.0}, {92.0, 45.0}}, label: 'via Wikipedia', Focused
+                                      StaticText, 0x107096d00, {{39.0, 3260.0}, {20.0, 16.0}}, label: 'via', value: via , Focused
+                                      StaticText, 0x107096580, {{58.0, 3260.0}, {57.0, 16.0}}, label: 'Wikipedia', value: Wikipedia, Focused
+                                  Other, 0x107095680, {{39.0, 3302.0}, {324.0, 194.0}}, Focused
+                                    Link, 0x107095540, {{39.0, 3303.0}, {324.0, 45.0}}, label: 'The Blackfriar £6.50', Focused
+                                      StaticText, 0x107095400, {{39.0, 3317.0}, {106.0, 20.0}}, label: 'The Blackfriar', value: The Blackfriar, Focused
+                                      StaticText, 0x107095a40, {{322.0, 3318.0}, {41.0, 19.0}}, label: '£6.50', value: £6.50, Focused
+                                    Other, 0x107095900, {{39.0, 3347.0}, {324.0, 58.0}}, Focused
+                                      Button, 0x1070957c0, {{39.0, 3347.0}, {324.0, 58.0}}, label: 'The Black Friar is a Grade II* listed pub at 174 Queen Victoria Street, Blackfriars, built about 1875 on the site of a medieval Dominican (Black Friars) friary and remodelled around 1905 by the architect Herbert Fuller-Clark; it is famous for its Arts and Crafts and Art Nouveau interior of marble, mosaic and bronze reliefs of jovial friars. Show more', Focused
+                                        Button, 0x107096440, {{39.0, 3348.0}, {318.0, 141.0}}, label: 'The Black Friar is a Grade II* listed pub at 174 Queen Victoria Street, Blackfriars, built about 1875 on the site of a medieval Dominican (Black Friars) friary and remodelled around 1905 by the architect Herbert Fuller-Clark; it is famous for its Arts and Crafts and Art Nouveau interior of marble, mosaic and bronze reliefs of jovial friars.', value: The Black Friar is..., Focused
+                                        Button, 0x107096300, {{39.0, 3389.0}, {66.0, 16.0}}, label: 'Show more', value: Show more, Focused
+                                    StaticText, 0x107095b80, {{48.0, 3415.0}, {51.0, 16.0}}, label: 'Grade II*', value: Grade II*, Focused
+                                    StaticText, 0x107096bc0, {{126.0, 3415.0}, {56.0, 16.0}}, label: 'Built 1875', value: Built 1875, Focused
+                                    StaticText, 0x1070966c0, {{200.0, 3415.0}, {161.0, 16.0}}, label: 'Usually quiet on a Thursday', value: Usually quiet on a..., Focused
+                                    StaticText, 0x107097480, {{49.0, 3454.0}, {52.0, 16.0}}, label: 'Sourced', value: Sourced, Focused
+                                    Link, 0x1070970c0, {{120.0, 3439.0}, {92.0, 45.0}}, label: 'via Wikipedia', Focused
+                                      StaticText, 0x107096f80, {{120.0, 3454.0}, {21.0, 16.0}}, label: 'via', value: via , Focused
+                                      StaticText, 0x107096e40, {{140.0, 3454.0}, {56.0, 16.0}}, label: 'Wikipedia', value: Wikipedia, Focused
+                                  Other, 0x107097d40, {{39.0, 3495.0}, {324.0, 197.0}}, Focused
+                                    Link, 0x107097200, {{39.0, 3496.0}, {324.0, 45.0}}, label: 'The Dove £7.25', Focused
+                                      StaticText, 0x107097ac0, {{39.0, 3511.0}, {71.0, 20.0}}, label: 'The Dove', value: The Dove, Focused
+                                      StaticText, 0x107097e80, {{322.0, 3512.0}, {41.0, 19.0}}, label: '£7.25', value: £7.25, Focused
+                                    Other, 0x107097c00, {{39.0, 3540.0}, {324.0, 59.0}}, Focused
+                                      Button, 0x107097980, {{39.0, 3540.0}, {324.0, 59.0}}, label: 'The Dove is a Grade II* listed pub on Upper Mall, Hammersmith, overlooking the Thames; it holds a Guinness World Record for the smallest bar room in a public house. Show more', Focused
+                                        Button, 0x1070975c0, {{39.0, 3542.0}, {321.0, 80.0}}, label: 'The Dove is a Grade II* listed pub on Upper Mall, Hammersmith, overlooking the Thames; it holds a Guinness World Record for the smallest bar room in a public house.', value: The Dove is a Grad..., Focused
+                                        Button, 0x107097840, {{39.0, 3583.0}, {66.0, 16.0}}, label: 'Show more', value: Show more, Focused
+                                    StaticText, 0x107097340, {{48.0, 3610.0}, {51.0, 16.0}}, label: 'Grade II*', value: Grade II*, Focused
+                                    StaticText, 0x107097700, {{117.0, 3610.0}, {162.0, 16.0}}, label: 'Usually quiet on a Thursday', value: Usually quiet on a..., Focused
+                                    StaticText, 0x107095e00, {{298.0, 3610.0}, {52.0, 16.0}}, label: 'Sourced', value: Sourced, Focused
+                                    Link, 0x1070961c0, {{39.0, 3635.0}, {92.0, 45.0}}, label: 'via Wikipedia', Focused
+                                      StaticText, 0x107096080, {{39.0, 3650.0}, {20.0, 16.0}}, label: 'via', value: via , Focused
+                                      StaticText, 0x107094dc0, {{58.0, 3650.0}, {57.0, 16.0}}, label: 'Wikipedia', value: Wikipedia, Focused
+                                  Other, 0x107094c80, {{39.0, 3691.0}, {324.0, 224.0}}, Focused
+                                    Link, 0x1070f9180, {{39.0, 3692.0}, {324.0, 45.0}}, label: 'The Captain Kidd £4.00', Focused
+                                      StaticText, 0x1070f92c0, {{39.0, 3707.0}, {130.0, 20.0}}, label: 'The Captain Kidd', value: The Captain Kidd, Focused
+                                      StaticText, 0x1070f8000, {{322.0, 3708.0}, {41.0, 19.0}}, label: '£4.00', value: £4.00, Focused
+                                    Other, 0x1070f8640, {{39.0, 3736.0}, {324.0, 59.0}}, Focused
+                                      Button, 0x1070f8780, {{39.0, 3736.0}, {324.0, 59.0}}, label: 'The Captain Kidd at 108 Wapping High Street is a Grade II listed riverside pub in a converted former warehouse, named after the pirate William Kidd, who was hanged at the nearby Execution Dock in 1701. Show more', Focused
+                                        Button, 0x1070f83c0, {{39.0, 3737.0}, {317.0, 101.0}}, label: 'The Captain Kidd at 108 Wapping High Street is a Grade II listed riverside pub in a converted former warehouse, named after the pirate William Kidd, who was hanged at the nearby Execution Dock in 1701.', value: The Captain Kidd a..., Focused
+                                        Button, 0x1070f8500, {{39.0, 3779.0}, {66.0, 16.0}}, label: 'Show more', value: Show more, Focused
+                                    StaticText, 0x1070f8280, {{48.0, 3805.0}, {44.0, 16.0}}, label: 'Grade II', value: Grade II, Focused
+                                    StaticText, 0x1070f8140, {{119.0, 3805.0}, {79.0, 16.0}}, label: 'Linked to 1701', value: Linked to 1701, Focused
+                                    StaticText, 0x107fa4000, {{39.0, 3833.0}, {161.0, 16.0}}, label: 'Usually quiet on a Thursday', value: Usually quiet on a..., Focused
+                                    StaticText, 0x107fa4140, {{219.0, 3833.0}, {52.0, 16.0}}, label: 'Sourced', value: Sourced, Focused
+                                    Link, 0x107fa4280, {{39.0, 3858.0}, {92.0, 45.0}}, label: 'via Wikipedia', Focused
+                                      StaticText, 0x107fa43c0, {{39.0, 3873.0}, {20.0, 16.0}}, label: 'via', value: via , Focused
+                                      StaticText, 0x107fa4500, {{58.0, 3873.0}, {57.0, 16.0}}, label: 'Wikipedia', value: Wikipedia, Focused
+                                StaticText, 0x107fa4640, {{39.0, 3926.0}, {315.0, 16.0}}, label: 'Quiet is the usual pattern for this hour, not a live count.', value: Quiet is the usual..., Focused
+                                Link, 0x107fa4780, {{56.0, 3964.0}, {124.0, 19.0}}, label: 'More historic pubs', Focused
+                                  StaticText, 0x107fa48c0, {{56.0, 3964.0}, {124.0, 19.0}}, label: 'More historic pubs', value: More historic pubs, Focused
+                            Other, 0x107fa4a00, {{22.0, 4038.0}, {358.0, 53.0}}, Focused
+                              Link, 0x107fa4b40, {{119.0, 4054.0}, {164.0, 21.0}}, label: 'See them on the map', Focused
+                                StaticText, 0x107fa4c80, {{119.0, 4054.0}, {164.0, 21.0}}, label: 'See them on the map', value: See them on the map, Focused
+                            Link, 0x107fa4dc0, {{22.0, 4117.0}, {82.0, 19.0}}, label: 'Find my pint', Focused
+                              StaticText, 0x107fa4f00, {{22.0, 4117.0}, {82.0, 19.0}}, label: 'Find my pint', value: Find my pint, Focused
+                        Other, 0x107fa5040, {{0.0, 780.0}, {402.0, 94.0}}, label: 'Primary, navigation', Focused
+                          Other, 0x107fa5180, {{12.0, 780.0}, {378.0, 54.0}}, Focused
+                            Other, 0x107fa52c0, {{15.0, 783.0}, {62.0, 48.0}}, Focused
+                              Link, 0x107fa5400, {{25.0, 810.0}, {42.0, 15.0}}, label: 'Tonight', Focused
+                                StaticText, 0x107fa5540, {{25.0, 810.0}, {42.0, 15.0}}, label: 'Tonight', value: Tonight, Focused
+                            Other, 0x107fa5680, {{77.0, 783.0}, {62.0, 48.0}}, Focused
+                              Link, 0x107fa57c0, {{96.0, 810.0}, {24.0, 15.0}}, label: 'Map', Focused
+                                StaticText, 0x107fa5900, {{96.0, 810.0}, {24.0, 15.0}}, label: 'Map', value: Map, Focused
+                            Other, 0x107fa5a40, {{139.0, 783.0}, {62.0, 48.0}}, Focused
+                              Link, 0x107fa5b80, {{152.0, 810.0}, {36.0, 15.0}}, label: 'Places', Focused
+                                StaticText, 0x107fa5cc0, {{152.0, 810.0}, {36.0, 15.0}}, label: 'Places', value: Places, Focused
+                            Other, 0x107fa5e00, {{201.0, 783.0}, {62.0, 48.0}}, Focused
+                              Link, 0x107fa5f40, {{222.0, 810.0}, {20.0, 15.0}}, label: 'Out', Focused
+                                StaticText, 0x107fa6080, {{222.0, 810.0}, {20.0, 15.0}}, label: 'Out', value: Out, Focused
+                            Other, 0x107fa61c0, {{263.0, 783.0}, {62.0, 48.0}}, Focused
+                              Link, 0x107fa6300, {{282.0, 810.0}, {24.0, 15.0}}, label: 'Plan', Focused
+                                StaticText, 0x107fa6440, {{282.0, 810.0}, {24.0, 15.0}}, label: 'Plan', value: Plan, Focused
+                            Other, 0x107fa6580, {{325.0, 783.0}, {62.0, 48.0}}, Focused
+                              Link, 0x107fa66c0, {{345.0, 810.0}, {22.0, 15.0}}, label: 'You', Focused
+                                StaticText, 0x107fa6800, {{345.0, 810.0}, {22.0, 15.0}}, label: 'You', value: You, Focused
+                        Button, 0x107fa6940, {{334.0, 708.0}, {56.0, 56.0}}, label: 'Create', Focused
+                        Other, 0x107fa6a80, {{0.0, 4271.0}, {1.0, 2.0}}, label: 'alert', Focused
+              Other, 0x107fa6bc0, {{0.0, 0.0}, {402.0, 874.0}}
+                Other, 0x107fa6d00, {{0.0, 0.0}, {402.0, 102.0}}
+              Other, 0x107fa6e40, {{369.0, 62.0}, {30.0, 750.0}}, label: 'Vertical scroll bar, 6 pages', value: 0%
+                Other, 0x107fa6f80, {{396.0, 65.0}, {3.0, 147.0}}
+              Other, 0x107fa70c0, {{62.0, 841.0}, {278.0, 30.0}}, label: 'Horizontal scroll bar, 1 page', value: 0%
+                Other, 0x107fa7200, {{65.0, 868.0}, {272.0, 3.0}}
+              Other, 0x107fa7340, {{369.0, 62.0}, {30.0, 750.0}}, label: 'Vertical scroll bar, 6 pages', value: 0%
+                Other, 0x107fa7480, {{396.0, 65.0}, {3.0, 147.0}}
+              Other, 0x107fa75c0, {{62.0, 841.0}, {278.0, 30.0}}, label: 'Horizontal scroll bar, 1 page', value: 0%
+                Other, 0x107fa7700, {{65.0, 868.0}, {272.0, 3.0}}
+    Window, 0x107fa7840, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x107fa7980, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x107fa7ac0, {{0.0, 0.0}, {402.0, 874.0}}
+Path to element:
+ →Application, 0x107fa1900, pid: 69992, label: 'PUBMAXXING'
+Query chain:
+ →Find: Application 'com.pubmaxx.app'
+  Output: {
+    Application, 0x107fa7c00, pid: 69992, label: 'PUBMAXXING'
+  }
+
+    t =     6.98s Checking existence of `"TopBrowserBar" Other`
+LANE_AFTER_CLOSE {
+    native = ios;
+    url = "http://localhost:3491/tonight";
+}
+    t =     7.11s Tear Down

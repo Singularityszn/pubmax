@@ -16,7 +16,7 @@ const CLAIM_KIND_LABEL: Record<ClaimKind, string> = {
   sourced: "Sourced",
   contributor: "Contributor",
   anecdote: "Anecdote",
-  "needs-source": "Needs Source",
+  "needs-source": "Needs a source",
 };
 
 export function ProvenanceChip({ provenance }: { provenance: Provenance }) {

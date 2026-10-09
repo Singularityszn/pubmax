@@ -384,6 +384,18 @@ export type SiteFactsRow = {
   hours?: StatedSiteHours;
 };
 
+/** A kept page read on an earlier day than the pub's committed row does not settle that pub. */
+function readBeforeCommittedRow(input: {
+  reads: Readonly<Record<string, KeptPageRead>>;
+  loadPage: (osmId: string) => { text: string; readAt: string } | null;
+  previousRows: readonly SiteFactsRow[];
+}): Set<string> {
+  return new Set(input.previousRows.filter((row) => {
+    const readAt = input.reads[row.osmId]?.status === "ok" ? input.loadPage(row.osmId)?.readAt : undefined;
+    return readAt !== undefined && readAt.slice(0, 10) < row.readOn;
+  }).map((row) => row.osmId));
+}
+
 /**
  * One row per pub whose kept page states a dog policy or opening hours. Only
  * a read the amenity run finished counts, because only that read passed every
@@ -393,7 +405,9 @@ export type SiteFactsRow = {
  * A committed row whose pub the checkpoint has not settled (no entry, an
  * unfinished or failed read, or a missing kept page) is carried forward, so
  * only a finished read with its kept page or a final refusal may change or
- * drop it, except for the chain checks below. A page on the chain list speaks
+ * drop it, except for the chain checks below. A committed row read on a later
+ * day than the pub's kept page stays, because another writer of this file read
+ * a fresher page. A page on the chain list speaks
  * for the brand, so its row goes, fresh or carried. A passage more than one
  * pub on one host states word for word is the chain's too, so it goes.
  * Such a passage is written down and
@@ -420,9 +434,10 @@ export function siteFactsRows(input: {
       refusal: "the checkpoint holds no finished read; run the amenity harvest without --read-only first",
     };
   }
-  const unsettled = new Set<string>();
+  const unsettled = readBeforeCommittedRow(input);
   const candidates: SiteFactsRow[] = [];
   for (const [osmId, read] of Object.entries(input.reads)) {
+    if (unsettled.has(osmId)) continue;
     // A page read under --read-only waits as "read" until a model run
     // finishes it, and its later fences have not run yet. A quota, model,
     // network or server failure may pass on a later run.

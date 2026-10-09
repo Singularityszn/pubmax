@@ -108,7 +108,7 @@ export default function VenuePriceStory({ venue, drops, onPriceChanged }: VenueP
         </div>
         <p className="description muted">
           No price story on record for {venue.name}{" "}yet. Log tonight&rsquo;s price, or pass down a
-          dated memory (&ldquo;a pint here in 1985&hellip;&rdquo;), and this pub&rsquo;s thread
+          dated memory (&quot;a pint here in 1985&hellip;&quot;), and this pub&rsquo;s thread
           starts here.
         </p>
       </section>
@@ -208,7 +208,7 @@ export default function VenuePriceStory({ venue, drops, onPriceChanged }: VenueP
       ) : null}
 
       <p className="vpsFootnote">
-        Baseline = dataset price on record · Now = community-reported · inflation revalued via UK CPI
+        The earlier price is the one on record. The newer one is a community report. We adjust old prices for inflation with UK CPI.
       </p>
     </section>
   );

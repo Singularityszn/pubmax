@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { checkHours, compareHours, planHoursCheck } from "../scripts/lib/placesHoursCheck";
 import { defined } from "@/__tests__/helpers/defined";
 
@@ -15,6 +15,10 @@ describe("opening-hours verification", () => {
     expect(compareHours(null, periods)).toBe("unknown");
   });
   it("stores only derived verdicts and place IDs, and never sends beyond the budget", async () => {
+    // A run at 20:00 stamps "T20:00:..." into verifiedAt, which must not read as leaked hours.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-07T20:00:47.094Z"));
+    onTestFinished(() => { vi.useRealTimers(); });
     const snapshots: unknown[] = [];
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
       displayName: { text: "GOOGLE NAME MUST NOT PERSIST" },
@@ -31,7 +35,8 @@ describe("opening-hours verification", () => {
     expect(defined(result.rows[0]).verdict).toBe("match");
     expect(Object.keys(defined(result.rows[0])).sort()).toEqual(["googlePlaceId", "venueId", "verdict", "verifiedAt"]);
     expect(snapshots[0]).toEqual({ rows: [], calls: 1 });
-    expect(JSON.stringify(snapshots)).not.toMatch(/GOOGLE NAME|periods|20:00|fake-test-key/);
+    expect(defined(result.rows[0]).verifiedAt).toBe("2026-10-07T20:00:47.094Z");
+    expect(JSON.stringify(snapshots)).not.toMatch(/GOOGLE NAME|periods|"20:00"|fake-test-key/);
   });
   it.each([400, 401, 403, 429, 503])("reserves HTTP %s requests and stops without automatic retries", async (status) => {
     const save = vi.fn();

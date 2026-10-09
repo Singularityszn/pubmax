@@ -78,7 +78,7 @@ describe("loadLandingAnswers weather tile", () => {
   it("says plainly when there is no reading at all", async () => {
     const { today } = await loadLandingAnswers(NOW);
     expect(today).toMatchObject({
-      line: "We could not read today's London weather just now.",
+      line: "We couldn't read today's London weather just now.",
       measured: false,
     });
   });

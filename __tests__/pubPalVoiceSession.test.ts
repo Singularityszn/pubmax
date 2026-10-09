@@ -82,7 +82,7 @@ describe("Pub Pal voice start controller", () => {
 
     await expect(controller.start(attempt)).resolves.toBe(false);
     expect(onFailure).toHaveBeenCalledWith(
-      "Microphone access is off. Use text instead.",
+      "Microphone access is off. Type instead.",
     );
     expect(issueGrant).not.toHaveBeenCalled();
     expect(controller.isStarting()).toBe(false);

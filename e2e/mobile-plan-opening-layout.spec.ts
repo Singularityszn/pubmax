@@ -22,7 +22,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
 
     const response = await page.goto("/plan");
     expect(response?.status()).toBe(200);
-    await expect(page.locator(".mobileTabBar")).toBeVisible();
+    await expect(page.locator(".mobileTabBar").filter({ visible: true })).toBeVisible();
 
     if (viewport.width === 390) {
       // The head is the Screen primitive's since #1402, so it wears the launch

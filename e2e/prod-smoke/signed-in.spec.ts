@@ -136,7 +136,7 @@ test.describe("signed-in journeys", () => {
       ]);
     }).toPass({ timeout: 60_000 });
     await expect(
-      page.getByText("3 stops we can stand behind, shaped by the outing you set below."),
+      page.getByText("3 stops we can stand behind, shaped by the outing you set."),
     ).toBeVisible({ timeout: 60_000 });
     await page.getByLabel("Your name").fill("Smoke test");
     const [response] = await Promise.all([

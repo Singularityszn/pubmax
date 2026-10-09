@@ -7,7 +7,7 @@ import CrawlsPageClient from "./CrawlsPageClient";
 // and /discover), so it is indexable with its own canonical + Open Graph.
 const CRAWLS_TITLE = "Crawls worth walking";
 const CRAWLS_DESCRIPTION =
-  "Shareable London pub crawls: the stops, the prices, the vibe. Pick a route worth the walk, or build your own on the map.";
+  "London pub crawls you can share, with their stops, prices and vibe. Pick a route worth the walk, or build your own on the map.";
 
 export const metadata: Metadata = {
   title: CRAWLS_TITLE,

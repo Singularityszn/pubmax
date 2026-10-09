@@ -63,7 +63,7 @@ async function seed(page: Page, theme: "light" | "dark"): Promise<void> {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ rows: tonightRows(), asOf: new Date().toISOString() }),
+      body: JSON.stringify({ rows: tonightRows(), servedAt: new Date().toISOString(), asOf: new Date().toISOString() }),
     });
   });
 }

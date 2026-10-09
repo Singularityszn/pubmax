@@ -19,13 +19,15 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { categoryLabel } from "@/lib/drinks";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import FoundingMemberMark from "@/components/founding/FoundingMemberMark";
-import { authedFetch } from "@/lib/authedFetch";
+import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
+import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
+import { drinkWallRemoveConfirmLine } from "@/lib/drinkWall";
 import {
   venuePhotoAltText,
   venuePhotoWallEmptyLine,
@@ -74,26 +76,46 @@ export default function VenuePhotoWall({
   const [loaded, setLoaded] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
 
   // The panel is not remounted between pubs, so a stale wall could linger.
   // Adjust-state-during-render (the repo idiom) resets it when the venue
   // changes - never an effect.
-  const [wallVenueId, setWallVenueId] = useState(venueId);
-  if (wallVenueId !== venueId) {
-    setWallVenueId(venueId);
+  // The wall is also the VIEWER's: `ownedByViewer` (and so Remove) was decided by
+  // the read that fetched it, so an in-place sign-out or account switch resets
+  // and refetches it exactly as a new pub does.
+  const viewerId = user?.id ?? "";
+  const [wallKey, setWallKey] = useState(`${venueId}:${viewerId}`);
+  if (wallKey !== `${venueId}:${viewerId}`) {
+    setWallKey(`${venueId}:${viewerId}`);
     setWall(EMPTY);
     setLoaded(false);
     setComposerOpen(false);
     setNote(null);
+    setRemovingId(null);
+    setRemoveError(null);
   }
+
+  // The wall a read or a removal was started for. An answer that arrives after
+  // the pub or the viewer changed belongs to the previous wall and is dropped,
+  // so the old viewer's `ownedByViewer` can never paint the new viewer's Remove.
+  const currentKey = `${venueId}:${viewerId}`;
+  const keyRef = useRef(currentKey);
+  useEffect(() => {
+    keyRef.current = currentKey;
+  }, [currentKey]);
 
   const load = useCallback(
     async (cursor: string | null) => {
+      const askedFor = `${venueId}:${viewerId}`;
+      const stale = () => keyRef.current !== askedFor;
       try {
         const params = new URLSearchParams({ venueId });
         if (cursor) params.set("cursor", cursor);
         const response = await authedFetch(`/api/venue-photos?${params.toString()}`, {}, { requiresIdentity: true });
         const body: unknown = await response.json().catch(() => null);
+        if (stale()) return;
         if (!response.ok || !isPage(body)) {
           setWall((current) => ({ ...current, status: "degraded" }));
           return;
@@ -104,13 +126,15 @@ export default function VenuePhotoWall({
           status: body.status,
         }));
       } catch {
-        setWall((current) => ({ ...current, status: "degraded" }));
+        if (!stale()) setWall((current) => ({ ...current, status: "degraded" }));
       } finally {
-        setLoading(false);
-        setLoaded(true);
+        if (!stale()) {
+          setLoading(false);
+          setLoaded(true);
+        }
       }
     },
-    [venueId],
+    [venueId, viewerId],
   );
 
   // The first read starts off a microtask rather than in the effect body: a
@@ -134,6 +158,47 @@ export default function VenuePhotoWall({
     void load(cursor);
   }
 
+  // THE OWNER'S WAY OUT. A photo a person put on a pub's wall is theirs to take
+  // off it, and the one route that deletes it is the Drink Wall's own, so this
+  // wall asks it the same question the same way (a confirm, then the action).
+  async function remove(photo: VenuePhotoDTO): Promise<void> {
+    if (removingId !== null) return;
+    if (!window.confirm(drinkWallRemoveConfirmLine(photo))) return;
+    const askedFor = currentKey;
+    const stale = () => keyRef.current !== askedFor;
+    setRemovingId(photo.id);
+    setRemoveError(null);
+    try {
+      const response = await authedActionFetch(
+        "/api/venue-photos",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "delete", id: photo.id }),
+        },
+        { requiresIdentity: true },
+      );
+      if (stale()) return;
+      if (!response.ok) {
+        const body: unknown = await response.json().catch(() => null);
+        if (stale()) return;
+        setRemoveError(
+          offlineOrMessage(errorMessageFrom(body, "Could not remove that photo. Try again.")),
+        );
+        return;
+      }
+      setNote("Photo removed.");
+      setWall((current) => ({
+        ...current,
+        photos: current.photos.filter((item) => item.id !== photo.id),
+      }));
+    } catch {
+      if (!stale()) setRemoveError(offlineOrMessage("Could not remove that photo. Try again."));
+    } finally {
+      if (!stale()) setRemovingId(null);
+    }
+  }
+
   const canPost = !configured || Boolean(user && handle);
   const empty = loaded && wall.photos.length === 0;
 
@@ -154,7 +219,7 @@ export default function VenuePhotoWall({
 
       {wall.photos.length > 0 ? (
         <div className="venuePhotoGrid">
-          {wall.photos.map((photo) => (
+          {wall.photos.map((photo, index) => (
             <figure key={photo.id} className="venuePhotoTile">
               <Image
                 src={photo.url}
@@ -187,6 +252,17 @@ export default function VenuePhotoWall({
                   />
                 ) : null}
               </figcaption>
+              {photo.ownedByViewer ? (
+                <button
+                  type="button"
+                  className="venuePhotoRemove"
+                  disabled={removingId !== null}
+                  aria-label={`Remove your photo ${index + 1} of ${wall.photos.length} of ${venueName}${photo.caption ? `: ${photo.caption}` : ""}`}
+                  onClick={() => void remove(photo)}
+                >
+                  {removingId === photo.id ? "Removing…" : "Remove"}
+                </button>
+              ) : null}
             </figure>
           ))}
         </div>
@@ -206,6 +282,12 @@ export default function VenuePhotoWall({
       {note ? (
         <p className="venuePhotoWallStatus" role="status">
           {note}
+        </p>
+      ) : null}
+
+      {removeError ? (
+        <p className="venuePhotoWallStatus venuePhotoWallStatusErr" role="status">
+          {removeError}
         </p>
       ) : null}
 

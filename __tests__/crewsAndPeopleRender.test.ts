@@ -133,7 +133,7 @@ describe("the follow control says where the friendship stands", () => {
     const html = markup({ initialFollowing: true, followsViewer: false });
     expect(html).toContain("Following");
     expect(html).not.toContain("Mates");
-    expect(html).toMatch(/not followed back/);
+    expect(html).toMatch(/haven(?:'|&#x27;)t followed back/);
   });
 
   it("shows a pending mate the follow-back move and names the hint", () => {

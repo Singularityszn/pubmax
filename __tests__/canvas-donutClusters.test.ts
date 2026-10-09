@@ -404,4 +404,59 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
+
+  it("re-announces a re-used disc when its figure changes, so its label never says a price it no longer shows", () => {
+    markerHarness.instances.length = 0;
+    const attributes = new Map<string, string>();
+    vi.stubGlobal("document", {
+      documentElement: { dataset: { theme: "dark" } },
+      createElement: () => ({
+        className: "",
+        style: {},
+        innerHTML: "",
+        setAttribute: (name: string, value: string) => attributes.set(name, value),
+        addEventListener: vi.fn(),
+      }),
+    });
+
+    const { map, handlers } = makeFakeMap();
+    const cluster = (minPrice?: number) => ({
+      properties: {
+        cluster_id: 21,
+        point_count: 94,
+        b0: 40,
+        b1: 30,
+        b2: 20,
+        b3: 4,
+        ...(minPrice === undefined ? {} : { minPrice }),
+      },
+      geometry: { type: "Point", coordinates: [-0.1276, 51.5072] },
+    });
+    map.getSource = () => ({}) as never;
+    map.getLayer = () => ({}) as never;
+    map.querySourceFeatures = vi
+      .fn()
+      .mockReturnValueOnce([cluster(4.2)])
+      .mockReturnValueOnce([cluster()])
+      .mockReturnValueOnce([cluster(4.2)]);
+
+    const sync = createDonutClusterSync(map as unknown as maplibregl.Map, () => {});
+    const [idle] = [...(handlers.get("idle") ?? [])];
+
+    defined(idle)();
+    expect(attributes.get("aria-label")).toBe("94 pubs, cheapest £4.20, tap to zoom in");
+
+    // A lens takes the price off every disc, and supercluster keeps the id.
+    defined(idle)();
+    expect(markerHarness.instances).toHaveLength(1);
+    expect(attributes.get("aria-label")).toBe("94 pubs, tap to zoom in");
+
+    defined(idle)();
+    expect(attributes.get("aria-label")).toBe("94 pubs, cheapest £4.20, tap to zoom in");
+
+    sync.destroy();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
 });
+

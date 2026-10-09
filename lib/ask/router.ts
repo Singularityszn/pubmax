@@ -95,7 +95,30 @@ function extractArea(query: string): string | null {
 }
 
 /**
- * A short follow-up borrows the prior turn's PLACE only. The current ask's
+ * A social turn is only a greeting or thanks, with at most a form of address
+ * after it. Anything that also asks for something is not one.
+ */
+export function socialTurnKind(query: string): "greeting" | "thanks" | null {
+  if (
+    /^(?:hi|hello|hey|hiya|heya|yo|howdy|evening|good (?:morning|afternoon|evening))(?:[\s,]+(?:there|pal|pub pal|mate|all|everyone))?[.!?\s]*$/i.test(
+      query,
+    )
+  ) {
+    return "greeting";
+  }
+  if (
+    /^(?:thanks|thank you|thx|ty|ta|cheers|many thanks)(?:\s+(?:so much|a lot|very much|loads))?(?:[\s,]+(?:pal|pub pal|mate))?[.!?\s]*$/i.test(
+      query,
+    )
+  ) {
+    return "thanks";
+  }
+  return null;
+}
+
+/**
+ * A short follow-up borrows the prior turn's PLACE only. A social prior turn
+ * ("hi", "thanks") is not context, so a bare "Soho" after it stays "Soho". The current ask's
  * own claim wins, so a pint ask after a wifi ask cannot be swallowed by
  * find_desk matching the earlier sentence.
  */
@@ -105,6 +128,7 @@ export function refineRoutedAskQuery(
 ): string {
   const words = query.trim().split(/\s+/).filter(Boolean);
   if (!priorUserContent || words.length === 0 || words.length > 4) return query;
+  if (socialTurnKind(priorUserContent)) return query;
   const current = routeAskDeterministically(query);
   if (current.some((call) => call.name !== "search_venues")) return query;
   const priorPlace = extractArea(priorUserContent);

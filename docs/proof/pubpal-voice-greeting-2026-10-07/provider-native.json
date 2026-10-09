@@ -1,0 +1,20 @@
+[
+  {
+    "id": "conv_0401m4bkx6h7fq4snzvfr2f7660g",
+    "status": "done",
+    "durationSeconds": 0,
+    "messages": 0,
+    "terminationReason": "Client disconnected: 1000",
+    "generatedAudioSeconds": 0,
+    "inputAudioSeconds": 0
+  },
+  {
+    "id": "conv_3001m4bm60jffp39md51ckhe9nve",
+    "status": "done",
+    "durationSeconds": 36,
+    "messages": 1,
+    "terminationReason": "Client disconnected: 1000",
+    "generatedAudioSeconds": 2.9500625,
+    "inputAudioSeconds": 31.768000000000026
+  }
+]

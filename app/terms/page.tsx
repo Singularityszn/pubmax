@@ -100,15 +100,16 @@ export default function TermsPage() {
       <section className="legalSection" aria-labelledby="account">
         <h2 id="account" className="legalH2">Your account</h2>
         <p className="legalBody">
-          Browsing doesn&rsquo;t need an account or analytics. First visit asks
-          you to tap Allow or No thanks for optional usage analytics. You
+          Browsing doesn&rsquo;t need an account or analytics. On your first
+          visit we ask you to tap Allow or No thanks for optional usage
+          analytics. You
           get the same app either way. If you allow them, we use a persistent
           device identifier and collect browser, operating system and device type,
           screen size, referrer and campaign details, plus app performance and
           the closed product events described in our privacy notice. PostHog
           deletes analytics events 12 months after collection and pseudonymous
-          person and device records 12 months after their last activity. Handle
-          is needed to finish signup. Date of birth is optional.
+          person and device records 12 months after their last activity. You need
+          a handle to finish signup. Date of birth is optional.
           Full name, gender and sex are optional. We collect and store date
           of birth, full name, gender and sex as private details for existing
           account tools.
@@ -174,9 +175,9 @@ export default function TermsPage() {
           Social post text goes to OpenAI for omni moderation after we store
           it. The post stays held from feeds and direct reads until OpenAI
           returns a decision. If that check is unavailable or gives no usable
-          decision, the post remains held. Social photos are resized, stripped
-          of embedded metadata, kept private, and sent with the post text to
-          OpenAI for moderation. Profile pictures use an advisory OpenAI omni
+          decision, the post remains held. We resize Social photos, strip their
+          embedded metadata, keep them private, and send them with the post
+          text to OpenAI for moderation. Profile pictures use an advisory OpenAI omni
           moderation check on stored image bytes. If the check refuses a
           picture, we refuse the upload and keep your previous picture. If the
           check cannot run or gives no usable decision, the upload can proceed

@@ -14,7 +14,7 @@ describe("native push prompt copy", () => {
   it("only promises the public night update that native tokens can receive", () => {
     expect(NATIVE_PUSH_PROMPT_COPY).toEqual({
       title: "Know when tonight changes",
-      body: "Get a ping when a fresh London night signal goes live.",
+      body: "Get a ping when something new goes up for tonight in London.",
       later: "Not now",
       enable: "Turn on",
     });

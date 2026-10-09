@@ -1,0 +1,11 @@
+{
+  "id": "1791452793745",
+  "value": {
+    "names": [
+      "pubmax-sw-shell-local-ios-lane-a"
+    ],
+    "marker": "f04-cache-only",
+    "url": "http://localhost:3491/tonight",
+    "controller": "http://localhost:3491/sw.js?v=local-ios-lane-a&cache-policy=plan-preview-safe-v2"
+  }
+}

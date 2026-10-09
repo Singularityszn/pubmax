@@ -1,0 +1,11 @@
+npm notice run pubmaxxing@0.1.0 npx
+npm notice run 'vitest' run __tests__/a11yFoundation.test.ts __tests__/curatedCrawls.test.ts __tests__/drinkSeeds.test.ts __tests__/nativeWrap.test.ts __tests__/pintDropSeeds.test.ts __tests__/pubWebsiteAmenitiesRunner.test.ts
+
+ RUN  v5.0.3 /Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx
+
+
+ Test Files  6 passed (6)
+      Tests  142 passed (142)
+   Start at  12:57:03
+   Duration  146.35s (tests 98%, import 1%, transform 1%)
+

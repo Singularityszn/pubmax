@@ -105,6 +105,29 @@
   font-weight: 650;
 }
 
+/* The owner's control, top right so it never fights the byline scrim or the
+   drink tag on the left. 44px is the touch floor. */
+.venuePhotoRemove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.62);
+  color: #fff;
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.venuePhotoRemove:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .venuePhotoTag {
   position: absolute;
   top: 6px;
@@ -147,6 +170,15 @@
   font: inherit;
   font-weight: 600;
   cursor: pointer;
+}
+
+/* The one control that publishes. Filled, so it never reads as a sibling of
+   Cancel, and sitting last so a person working top to bottom reaches it after
+   the drink and the caption rather than before them. */
+.venuePhotoWallPrimary {
+  background: var(--ink, #241f1a);
+  border-color: var(--ink, #241f1a);
+  color: var(--paper, #fff);
 }
 
 .venuePhotoWallButton:disabled {
@@ -200,12 +232,32 @@
   pointer-events: none;
 }
 
+/* The accepted crop, at the shape it will be stored. */
+.venuePhotoComposerPreview {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+}
+
+/* A thumbnail, not the photo at drawer width: a 4:5 crop at the full width of a
+   desktop drawer is taller than the viewport and pushes the drink, the caption
+   and the Post button off screen, which is the order this step exists to fix. */
+.venuePhotoComposerPreview img {
+  display: block;
+  width: min(100%, 11rem);
+  height: auto;
+  border-radius: 12px;
+  background: var(--paper-sunk, rgba(0, 0, 0, 0.06));
+}
+
+/* The Drink group is a <fieldset>, and this app ships no preflight, so without
+   resetting it the browser drew its own square outline around the chips. */
 .venuePhotoComposerField {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  /* The Drink group is a fieldset. Without these it wore the browser's own
-     groove border and inset padding. */
   min-width: 0;
   margin: 0;
   padding: 0;
@@ -271,6 +323,15 @@
   height: 20px;
   /* The native checkbox is browser blue otherwise. */
   accent-color: var(--brass);
+}
+
+/* The Drink Wall note was styled by nothing, so it read as body text at the
+   size of the buttons beside it. It is a caption under the share box. */
+.venuePhotoComposerHint {
+  margin: 0;
+  color: var(--ink-soft, #6b6257);
+  font-size: 0.8125rem;
+  line-height: 1.4;
 }
 
 .venuePhotoComposerActions {

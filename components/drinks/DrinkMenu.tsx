@@ -285,7 +285,7 @@ export default function DrinkMenu({
           own Demo chip, which is where that claim belongs. */}
       <p className="drinkMenuFootnote">
         {hasUnattributedPrice
-          ? "“Publisher not recorded” means the price is on record but its publisher was not captured."
+          ? '"Publisher not recorded" means the price is on record but its publisher is not.'
           : "Publisher links open where the price record names one."}
       </p>
     </div>

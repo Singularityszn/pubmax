@@ -10,6 +10,8 @@ import {
 } from "@/lib/whatsOnStore";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 import { defined } from "@/__tests__/helpers/defined";
+import bundledDeals from "../public/data/whats_on/deals_london.json";
+import bundledSport from "../public/data/whats_on/sport_fixtures.json";
 
 // The route now rate-limits per IP (S2) before anything else. Vercel's vitest
 // run sets NODE_ENV=production with real Supabase env vars, which would send
@@ -71,7 +73,9 @@ describe("loadBaselineWhatsOn", () => {
 
   it("loads + validates the bundled deals_london.json baseline", () => {
     const rows = loadBaselineWhatsOn();
-    const dealRows = rows.filter((r) => r.kind === "deal");
+    const dealIds = new Set(bundledDeals.rows.map((row) => row.id));
+    const dealRows = rows.filter((r) => dealIds.has(r.id));
+    expect(dealRows).toHaveLength(bundledDeals.rows.length);
     expect(dealRows.length).toBeGreaterThan(0);
     for (const r of dealRows) {
       expect(r.confidence).toBe("listed");
@@ -83,7 +87,9 @@ describe("loadBaselineWhatsOn", () => {
 
   it("loads + validates the bundled sport_fixtures.json derived rows", () => {
     const rows = loadBaselineWhatsOn();
-    const sportRows = rows.filter((r) => r.kind === "sport");
+    const sportIds = new Set(bundledSport.rows.map((row) => row.id));
+    const sportRows = rows.filter((r) => sportIds.has(r.id));
+    expect(sportRows).toHaveLength(bundledSport.rows.length);
     expect(sportRows.length).toBeGreaterThan(0);
     for (const r of sportRows) {
       expect(r.confidence).toBe("derived");

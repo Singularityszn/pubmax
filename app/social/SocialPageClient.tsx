@@ -792,11 +792,27 @@ function SocialPageAccountState({
               </IntentLink>
             </nav>
             {showPostsControls ? <PostsControls state={initialState} /> : null}
-            {packsBesideTheDoor ? (
-              <section className="socialRailEmpty" aria-label={`${surfaceName} posts`}>
-                <EmptyState title="No posts to read yet.">
-                  Sign in from the button above and nights from your lot land here.
-                </EmptyState>
+            {friendsLaunchEnabled && isPosts && viewerPhase !== "resolved" ? (
+              <section
+                className="socialRailEmpty"
+                aria-label={`${surfaceName} posts`}
+                aria-busy={viewerSession.unresolved || undefined}
+              >
+                {/* Hidden content reserves its responsive size until the account answers. */}
+                <div aria-hidden={viewerSession.unresolved || undefined} className="socialRailContent">
+                  <EmptyState title="No posts to read yet.">
+                    Sign in from the button above and nights from your lot land here.
+                  </EmptyState>
+                </div>
+                {viewerSession.unresolved ? (
+                  <div className="socialRailPending">
+                    <SocialViewerState
+                      phase="unresolved"
+                      loadingLabel={socialLoadingLabel(friendsLaunchEnabled)}
+                      inviteMessage={socialInviteMessage(friendsLaunchEnabled)}
+                    />
+                  </div>
+                ) : null}
               </section>
             ) : null}
             {/* Crews render their own neutral identity state before the
@@ -941,8 +957,8 @@ function SocialPageAccountState({
               ) : posts.length === 0 ? (
                 <div className="socialFeedEmpty" role="status">
                   <EmptyState title="No posts here yet.">
-                    Find your lot: search a handle or send an invite. Nights from
-                    mutuals land here.
+                    Search a handle or send an invite to find your lot. Nights
+                    from mutuals land here.
                   </EmptyState>
                   {/* The search-and-invite surface is the rail's, once. */}
                   <PeopleDirectory myHandle={viewerHandle} />

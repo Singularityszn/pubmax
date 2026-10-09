@@ -1,0 +1,76 @@
+[
+  {
+    "style": "typed",
+    "query": "hi",
+    "text": "Hi. What kind of night are you planning?",
+    "calls": [],
+    "conversationId": "conv_7301m4bnvbvvfnpaf0qh6adgs1fq"
+  },
+  {
+    "style": "typed",
+    "query": "hello",
+    "text": "Hi. What kind of night are you planning?",
+    "calls": [],
+    "conversationId": "conv_9401m4bnveckf4380hgpp3fb4qn5"
+  },
+  {
+    "style": "typed",
+    "query": "thanks",
+    "text": "You're welcome.",
+    "calls": [],
+    "conversationId": "conv_2601m4bnvgtpfvtbsezgnw8myzm0"
+  },
+  {
+    "style": "typed",
+    "query": "hi, what's on in Camden tonight?",
+    "text": "No sourced listings are on record for Camden tonight.",
+    "calls": [
+      {
+        "name": "recall_memories",
+        "args": {}
+      },
+      {
+        "name": "whats_on",
+        "args": {
+          "query": "what's on in Camden tonight"
+        }
+      }
+    ],
+    "conversationId": "conv_8001m4bnvk5derts6f2cjwgy67vm"
+  },
+  {
+    "style": "voice",
+    "query": "hi",
+    "text": "Hi. What kind of night are you planning?",
+    "calls": [],
+    "conversationId": "conv_7801m4bnvqszerbt96z0gsg95y51"
+  },
+  {
+    "style": "voice",
+    "query": "hello",
+    "text": "Hi. What kind of night are you planning?",
+    "calls": [],
+    "conversationId": "conv_2401m4bnvtd6f5rtf3mtj5b85p5n"
+  },
+  {
+    "style": "voice",
+    "query": "thanks",
+    "text": "You're welcome.",
+    "calls": [],
+    "conversationId": "conv_6601m4bnvx0rf10v2tabrfydr3bx"
+  },
+  {
+    "style": "voice",
+    "query": "hi, what's on in Camden tonight?",
+    "text": "No sourced listings are on record for Camden tonight.",
+    "calls": [
+      {
+        "name": "whats_on",
+        "args": {
+          "query": "what's on in Camden tonight"
+        }
+      }
+    ],
+    "conversationId": "conv_7701m4bnvzekfavs5v76jkq0kwg7"
+  }
+]

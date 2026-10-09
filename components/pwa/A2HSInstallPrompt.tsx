@@ -138,7 +138,7 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
     setInstallError("");
     const evt = consumeA2hsInstallPrompt();
     if (!evt) {
-      setInstallError("Could not start installation. Try again.");
+      setInstallError("Couldn't start the install. Try again.");
       return;
     }
     void evt
@@ -152,7 +152,7 @@ export default function A2HSInstallPrompt(): React.JSX.Element | null {
           close(true);
         }
       })
-      .catch(() => setInstallError("Could not start installation. Try again."));
+      .catch(() => setInstallError("Couldn't start the install. Try again."));
   }, [close, finalize]);
 
   // "Don't ask again" — a hard opt-out (never re-offer on this device).

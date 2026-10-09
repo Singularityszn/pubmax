@@ -81,6 +81,15 @@
 
 .siteNavBar:not(.siteNavBarFloating) {
   margin-top: env(safe-area-inset-top, 0px);
+  /* THE BAR OWNS ITS POPOVERS. The bar is its own stacking context (the
+     backdrop-filter and the named view transition both make one), and as an
+     unpositioned box at z-index:auto it painted at the bottom of the root
+     context in tree order, so a positioned section further down a page (the
+     profile header) covered the Sign in popover that hangs below the bar and
+     left its email field and button unreachable. A positioned bar with a real
+     level puts the popover above page content, and below the modal layer. */
+  position: relative;
+  z-index: var(--z-float, 50);
 }
 
 /* Content pages embed the bar inside a narrow reading column (~880px), which

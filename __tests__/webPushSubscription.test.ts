@@ -28,6 +28,8 @@ describe("web push subscription codec", () => {
       "https://fcm.googleapis.com/wp/google-token",
       "https://updates.push.services.mozilla.com/wpush/v2/firefox-token",
       "https://web.push.apple.com/apple-token",
+      "https://wns2-par02p.notify.windows.com/w/?token=edge-token",
+      "https://db5p.notify.windows.com/w/?token=edge-token",
     ]) {
       expect(isSupportedWebPushEndpoint(endpoint), endpoint).toBe(true);
       expect(validateWebPushSubscription({ ...SUBSCRIPTION, endpoint }), endpoint).not.toBeNull();
@@ -46,6 +48,11 @@ describe("web push subscription codec", () => {
       "https://fcm.googleapis.com.evil.example/fcm/send/token",
       "https://user:pass@fcm.googleapis.com/fcm/send/token",
       "http://fcm.googleapis.com/fcm/send/token",
+      "https://notify.windows.com/w/?token=edge-token",
+      "https://evil.example.notify.windows.com/w/?token=edge-token",
+      "https://wns2-par02p.notify.windows.com.evil.example/w/?token=edge-token",
+      "https://wns2-par02p.notify.windows.com/w/",
+      "https://wns2-par02p.notify.windows.com/other/?token=edge-token",
     ]) {
       expect(isSupportedWebPushEndpoint(endpoint), endpoint).toBe(false);
       expect(validateWebPushSubscription({ ...SUBSCRIPTION, endpoint }), endpoint).toBeNull();

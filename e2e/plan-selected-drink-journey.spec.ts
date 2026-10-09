@@ -30,7 +30,10 @@ for (const journey of [
     expect(generated.inferredContext).toMatchObject({ drinkCategory: journey.category, zeroProof: false });
     expect(generated.stops?.length).toBeGreaterThan(0);
     expect(generated.stops?.every((stop) => !stop.selectedDrinkPriceEvidence)).toBe(true);
+    // The settings sit behind Tune details now, and close again before the lock.
+    await page.getByRole("button", { name: "Tune details" }).click();
     await expect(page.getByLabel("Drinks")).toHaveValue(journey.category);
+    await page.keyboard.press("Escape");
     await expect(page.locator(".planComposer__stop")).toHaveCount(generated.stops!.length);
     await expect(page.locator(".planComposer__stopReason").filter({ hasText: "community report" })).toHaveCount(0);
     await page.locator(".planComposer__stop").first().scrollIntoViewIfNeeded();

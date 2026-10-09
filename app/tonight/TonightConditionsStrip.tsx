@@ -1,6 +1,6 @@
 "use client";
 
-// Tonight Conditions strip: one calm line under the header with today's date, the
+// Tonight Conditions strip: one calm line with today's date, the
 // cached weather's facts, the drink it calls for, and (once location is shared) a
 // nearby venue claim. "Saturday 19 Jul. 18°C feels like, light cloud, 10% chance
 // of rain, sunset 21:08, daylight. Beer garden weather. Lager or cider. 4 gardens
@@ -11,10 +11,9 @@
 // settles inside the async resolution, and an AbortController cancels on unmount
 // or origin change. No spinner, no empty card.
 //
-// ON TONIGHT THE STRIP HOLDS ITS OWN ROOM WHILE IT LOADS. It sits above the listings,
-// so a strip that rendered nothing and then arrived pushed the whole list down
-// by its own height: half of the 0.14 layout shift the browser suite measured on
-// a slow Tonight load (5 Oct 2026). While the read runs it paints an invisible
+// ON TONIGHT THE STRIP HOLDS ITS OWN ROOM WHILE IT LOADS. A strip that mounts
+// only after its read completes would shift the content below it.
+// While the read runs it paints an invisible
 // panel of the same box, sized in lines to the width it has (tonightConditions.css),
 // and the answer fills it. A read that fails says there is no reading, the same
 // line a reading-less answer gets, inside the same held room, so the room is
@@ -41,9 +40,8 @@ import "./tonightConditions.css";
 type Props = {
   origin?: { lat: number; lng: number } | null;
   /**
-   * Hosted on Tonight. The strip sits under the Day/Tonight switch there, so
-   * its drink line names tonight rather than the clock's part of the day, and
-   * it holds its room above the listings while the read runs or fails. The
+   * Hosted on Tonight. Its drink line names tonight rather than the clock's
+   * part of the day. It reserves space while the read runs or fails. The
    * summary stays the clock's for every other surface that reads it.
    */
   tonightMode?: boolean;

@@ -362,7 +362,7 @@ as a stamp, it may keep caps.
 ### Type scale
 
 ```
---text-2xs   0.68rem     eyebrows, micro-labels
+--text-2xs   0.68rem     eyebrows, micro-labels (0.75rem in the native shells)
 --text-xs    0.76rem     chip/tag text
 --text-sm    0.85rem     secondary body copy
 --text-base  1rem        default body
@@ -372,6 +372,11 @@ as a stamp, it may keep caps.
 --text-2xl   2.13rem     page-level display
 --text-3xl   2.6rem      landing hero only
 ```
+
+Inside the iOS and Android shells, `html[data-native-shell]` raises `--text-2xs`
+to 0.75rem, which is 12px at the default text size. There it sits close to
+`--text-xs` on purpose: on a phone a micro-label must stay legible, and that
+wins over the step between the two sizes. The web keeps the stepped scale.
 
 ```
 --leading-tight   1.12   display headlines

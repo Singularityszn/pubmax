@@ -160,6 +160,46 @@ test("locally owned callback installs A automatically", async ({ page }) => {
   await expectScrubbed(page);
 });
 
+// The per-load greeting fix must not silence a GENUINE sign-in: a signed-out
+// tab that opens its own emailed link is greeted and counted once, and the
+// reloads after it are neither. Product events go to /api/events, not ingest.
+test("owned callback in a signed-out tab is greeted and counted once; a reload is not", async ({ page }) => {
+  const stub = await installAuthDoubles(page);
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmaxx:analytics-consent:v1", "granted");
+  });
+  const events: string[] = [];
+  await page.route("**/api/events", async (route) => {
+    const body = JSON.parse(route.request().postData() ?? "{}") as { name?: unknown };
+    if (typeof body.name === "string") events.push(body.name);
+    await route.fulfill({ status: 204, headers: { "cache-control": "no-store" } });
+  });
+  const greeting = page.getByText(`Welcome back, @${ACCOUNTS.A.handle}.`);
+  await page.goto("/today");
+  const attemptId = "b".repeat(32);
+  await page.evaluate((id) => {
+    const expiresAt = Date.now() + 60_000;
+    window.localStorage.setItem("pubmax_auth_active_attempt", JSON.stringify({
+      id, expiresAt, callbackClaimed: false,
+    }));
+    window.sessionStorage.setItem("pubmax_auth_tab_attempt", JSON.stringify({ id, expiresAt }));
+  }, attemptId);
+  await page.goto(callbackUrl(accessJwt(ACCOUNTS.A), ACCOUNTS.A.refreshToken, attemptId));
+
+  await expect(greeting).toBeVisible();
+  await expect.poll(() => events.filter((name) => name === "user_signed_in")).toHaveLength(1);
+
+  // From here the device holds A's session on every load, as it would.
+  await stub.signedInAs("A");
+  for (let load = 0; load < 2; load += 1) {
+    await page.reload();
+    await expect(page.locator("nav").first()).toBeVisible();
+    await page.waitForTimeout(3_000);
+    await expect(greeting).toHaveCount(0);
+  }
+  expect(events.filter((name) => name === "user_signed_in")).toHaveLength(1);
+});
+
 const providerHeaders = {
   "access-control-expose-headers": "x-supabase-api-version",
   "access-control-allow-origin": "*",

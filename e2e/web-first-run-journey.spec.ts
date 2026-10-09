@@ -158,11 +158,15 @@ test("on a short phone each step opens at the top with the progress bar and Skip
   await page.setViewportSize({ width: 320, height: 568 });
   await openJourneyFromTheApp(page);
   const useLondon = page.getByRole("button", { name: "Use London" });
-  await useLondon.scrollIntoViewIfNeeded();
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+  const stage = page.locator(".firstRunStage");
+  await expect(useLondon).toBeInViewport({ ratio: 1 });
+  await page.locator(".firstRunAreaList article").last().scrollIntoViewIfNeeded();
+  await expect.poll(() => stage.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
+  await expect(useLondon).toBeInViewport({ ratio: 1 });
   await useLondon.click();
 
   await expect(page.getByRole("heading", { name: "What's a fair pint to you?" })).toBeVisible();
+  await expect.poll(() => stage.evaluate((node) => node.scrollTop)).toBe(0);
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
   await expect(page.getByRole("progressbar", { name: "Onboarding progress" })).toBeInViewport({ ratio: 1 });
   await expect(page.getByRole("button", { name: "Skip" })).toBeInViewport({ ratio: 1 });

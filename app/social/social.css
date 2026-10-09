@@ -15,6 +15,11 @@
   padding-inline: 0;
 }
 
+.socialPage .screenPrimary {
+  width: 14rem;
+  max-width: 100%;
+}
+
 /* The Screen paints the one primary; while the session or the access answer
    is still open that control waits rather than routing anybody anywhere. */
 .socialPage .screenPrimary > button:disabled {
@@ -38,11 +43,23 @@
 /* Signed-out Posts: the switcher and founders link used to bracket a blank
    stretch with no words (issue #1541). */
 .socialRailEmpty {
+  position: relative;
   min-width: 0;
   padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--panel-raised);
+}
+
+.socialRailEmpty[aria-busy="true"] .socialRailContent {
+  visibility: hidden;
+}
+
+.socialRailPending {
+  position: absolute;
+  inset: 12px 14px;
+  display: grid;
+  align-content: center;
 }
 
 .socialSwitcher,
@@ -948,6 +965,15 @@ span.socialPostAvatar {
 }
 
 @media (max-width: 640px) {
+  .socialPage .screenPrimary {
+    width: 100%;
+  }
+
+  /* Keep the Create lane reserved while consent temporarily hides Create. */
+  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .socialPage .screenPrimary {
+    padding-right: max(0px, calc(var(--create-fab-lane) - var(--page-gutter)));
+  }
+
   /* While the analytics card is mounted, globals.css owns the scroll padding
      (tab bar plus the card's measured lane), so focus never parks under it. */
   html:has(.socialPage):not(:has(.analyticsConsentPrompt)) {

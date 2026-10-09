@@ -14,6 +14,25 @@ describe("auth session transition telemetry", () => {
     expect(tracker.update("SIGNED_IN", "user-a")).toBe(false);
   });
 
+  it("does not report the SIGNED_IN supabase-js sends for a stored session before the boot settles", () => {
+    // supabase-js recovers a stored session during initialize and announces it
+    // as SIGNED_IN, ahead of the INITIAL_SESSION that settles the boot. A
+    // subscriber registered in time hears them in exactly this order, and the
+    // first one used to read as a sign-in on every page load.
+    const tracker = createAuthSessionTransitionTracker();
+
+    expect(tracker.update("SIGNED_IN", "user-a")).toBe(false);
+    expect(tracker.update("INITIAL_SESSION", "user-a")).toBe(false);
+    expect(tracker.update("TOKEN_REFRESHED", "user-a")).toBe(false);
+  });
+
+  it("reports a SIGNED_IN that arrives after a signed-out boot", () => {
+    const tracker = createAuthSessionTransitionTracker();
+
+    expect(tracker.update("INITIAL_SESSION", null)).toBe(false);
+    expect(tracker.update("SIGNED_IN", "user-a")).toBe(true);
+  });
+
   it("seeds restored sessions without reporting a sign-in", () => {
     const tracker = createAuthSessionTransitionTracker();
 

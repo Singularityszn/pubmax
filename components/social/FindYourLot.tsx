@@ -264,8 +264,8 @@ export default function FindYourLot({
         Find your lot
       </h2>
       <p className="findLot__body">
-        Search a mate&rsquo;s handle, or send an invite link. A lot is mutual:
-        they follow back, and you share nights.
+        Search a mate&rsquo;s handle, or send an invite link. A lot is mutual.
+        They follow you back, and you share nights.
       </p>
 
       <label className="findLot__field">

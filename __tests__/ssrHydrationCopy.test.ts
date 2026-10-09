@@ -97,7 +97,7 @@ describe("hydration-gated static copy is in the server HTML", () => {
     expect(html).toContain('id="pal-meeting-title"');
     expect(html).toContain(PAL_TITLE);
     expect(html).toContain("Your Pub Pal");
-    expect(html).toContain("Choose its form, voice and boundaries.");
+    expect(html).toContain("Pick its look and voice");
     expect(html).not.toContain("Waking your Pub Pal");
   });
 });

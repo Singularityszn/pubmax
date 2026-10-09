@@ -442,7 +442,7 @@ ${empty}${rows.join("\n")}
 </td></tr>
 <tr><td style="padding:16px 24px 24px;border-top:1px solid ${BRAND.line};">
   <p style="margin:0;font-size:12px;color:${BRAND.muted};line-height:1.5;">
-    You're getting this because you asked us to keep you posted. Source links appear beside prices and events when available.
+    You're getting this because you asked us to keep you posted. We link the source beside a price or event when we have one.
     <br><a href="{{unsubscribe_url}}" style="color:${BRAND.muted};text-decoration:underline;">Unsubscribe</a> any time.
   </p>
 </td></tr>
@@ -507,7 +507,7 @@ export function renderWeeklyDigestText(digest: WeeklyDigest): string {
   lines.push("");
   lines.push("---");
   lines.push(
-    "You're getting this because you asked us to keep you posted. Source links appear beside prices and events when available.",
+    "You're getting this because you asked us to keep you posted. We link the source beside a price or event when we have one.",
   );
   lines.push("Unsubscribe: {{unsubscribe_url}}");
   return lines.join("\n");

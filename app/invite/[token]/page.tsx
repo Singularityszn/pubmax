@@ -285,8 +285,8 @@ export default async function PlanInvitePage({ params }: PageProps) {
         </ol>
 
         <p className="invite__softNote">
-          Joining the crew with a signed-in claimed handle connects you with
-          the host in your lot.
+          Join while signed in with a claimed handle, and you and the host
+          connect in your lot.
         </p>
 
         <PlanInviteRsvp

@@ -312,6 +312,10 @@ export default function SignInButton({
 
   const onSignOut = useCallback(
     async (scope: SignOutScope = "account") => {
+      // The menu was opened as the ACCOUNT menu. Once the person chose Sign
+      // out it has done its job, and leaving it open would re-render the same
+      // popover as the SIGNED-OUT one: a sign-in form that opened by itself.
+      setMenuOpen(false);
       setBusy("out");
       await signOut(scope);
       setBusy(null);
@@ -379,9 +383,9 @@ export default function SignInButton({
               aria-haspopup="true"
               aria-label={`Account options for ${name}`}
             >
-              {avatarControl}
+              <span className="authCompactIcon">{avatarControl}</span>
               <span className="authCompactLabel" aria-hidden="true">
-                Account
+                <span>Account</span>
               </span>
             </button>
             {menuOpen ? (
@@ -444,6 +448,25 @@ export default function SignInButton({
   // signed-in branch above did not return, so the phase is unresolved or
   // signed-out, and only the latter may speak.
   if (!providerHasAnswered(supabaseAuthState) && !clerkSessionAvailable) {
+    if (compact) {
+      return (
+        <span
+          className="authUser authUserNav authCompactPending"
+          aria-hidden="true"
+          inert
+          data-auth-configured="true"
+          data-auth-resolved="false"
+          data-auth-empty="true"
+        >
+          <span className="authCompact">
+            <span className="authCompactTrigger">
+              <span className="authCompactIcon" />
+              <span className="authCompactLabel" />
+            </span>
+          </span>
+        </span>
+      );
+    }
     return (
       <span
         hidden
@@ -519,9 +542,11 @@ export default function SignInButton({
             className="authCompactTrigger"
             aria-label="Sign in"
           >
-            <LogIn size={16} strokeWidth={2} aria-hidden="true" />
+            <span className="authCompactIcon">
+              <LogIn size={16} strokeWidth={2} aria-hidden="true" />
+            </span>
             <span className="authCompactLabel" aria-hidden="true">
-              Sign in
+              <span>Sign in</span>
             </span>
           </Link>
         </div>
@@ -551,11 +576,13 @@ export default function SignInButton({
           aria-haspopup="true"
           aria-label="Sign in"
         >
-          <LogIn size={16} strokeWidth={2} aria-hidden="true" />
+          <span className="authCompactIcon">
+            <LogIn size={16} strokeWidth={2} aria-hidden="true" />
+          </span>
           {/* Visually hidden on the densest tablet band (auth.css ≤900px);
               the aria-label above keeps the accessible name either way. */}
           <span className="authCompactLabel" aria-hidden="true">
-            Sign in
+            <span>Sign in</span>
           </span>
         </button>
         {menuOpen ? (

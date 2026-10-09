@@ -20,10 +20,10 @@ export default async function Image() {
       <div style={{ display: "flex", flexDirection: "column", maxWidth: 980 }}>
         <div style={{ display: "flex", color: OG.muted, fontSize: 25, fontWeight: 600, letterSpacing: 5, textTransform: "uppercase", marginBottom: 18 }}>The London Pint Index</div>
         <div style={{ display: "flex", color: OG.ink, fontSize: 82, fontWeight: 700, lineHeight: 1.02, letterSpacing: -2 }}>
-          {count > 0 ? `${count} citable observations` : "Public release pending"}
+          {count > 0 ? `${count} citable prices` : "Public release pending"}
         </div>
         <div style={{ display: "flex", color: OG.inkSoft, fontSize: 30, lineHeight: 1.35, marginTop: 26 }}>
-          Only sourced, dated observations enter the public Index. Legacy baseline prices are excluded.
+          Only sourced, dated prices enter the public Index. Older baseline prices stay out.
         </div>
       </div>
       <div style={{ display: "flex", color: OG.muted, fontSize: 21 }}>pubmaxxing.com/pint-index</div>

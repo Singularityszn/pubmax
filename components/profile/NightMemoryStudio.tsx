@@ -253,7 +253,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
     setStories((current) => [ownedStory, ...current]);
     selectStory(body.story.id);
     update({ storyTitle: "", storySummary: "" });
-    setMessage("Story draft created. It remains private until you review and publish it.");
+    setMessage("Story draft created. It stays private until you review and publish it.");
   }
 
   /**
@@ -517,7 +517,7 @@ export default function NightMemoryStudio({ userId }: { userId: string }) {
       trackEvent("story_published", { visibility: publishVisibility, contributors: workspace.contributors.length, moments: selectedMomentIds.length });
       trackMeaningfulCoreAction("story_published");
       if (!await refreshWorkspace(workspace.story.id)) return;
-      setMessage("Story published here in Stories. Your private Memory remains private.");
+      setMessage("Story published to Stories. Your private Memory stays private.");
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : "That Story could not be published.");
     } finally {

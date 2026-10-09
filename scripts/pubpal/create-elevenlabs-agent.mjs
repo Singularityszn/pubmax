@@ -7,7 +7,7 @@
 // Captain, after this file changes, re-run once. Do not do this from an agent:
 //   npm run pubpal:agent -- --base-url https://pubmaxxing.com
 //
-// So this script sets four things and nothing else:
+// This script sets five things:
 //
 //   1. the webhook tools, the shared secret they present, and the speech
 //      around each call (a short checking line before the tool runs),
@@ -42,6 +42,7 @@ import { PUB_PAL_MEMORY_KINDS } from "../../lib/palMemoryKinds.mjs";
 import { PAL_VOICE_MAX_SESSION_SECONDS } from "../../lib/palVoiceCap.mjs";
 import { pubPalAgentSystemPrompt } from "../../lib/palVoicePrompt.mjs";
 import { agentDrift, formatDrift } from "./agent-drift.mjs";
+import { resolveExistingTools } from "./existing-tools.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const AGENT_CONFIG = JSON.parse(
@@ -75,7 +76,7 @@ const TOOL_DESCRIPTIONS = {
   cheapest_pint_near:
     "Cheapest listed pints around a named pub or London area. Never uses the reader's GPS.",
   tonight_now:
-    "Sourced listings running now versus later tonight. Never claims live crowd levels.",
+    "Use only for explicit questions about sourced events or listings running now, tonight, or later, or how busy a pub or area is. Do not use for greetings or message labels. For crowd questions, explain that no live crowd reading exists. Never claim live crowd levels.",
   venue_drinks:
     "Every drink logged at one listed pub with provenance. Never invents figures.",
   find_desk:
@@ -83,7 +84,7 @@ const TOOL_DESCRIPTIONS = {
   report_occupancy:
     "Propose a crowd report for a pub. Writes nothing until the reader confirms.",
   recall_memories:
-    "Read the preferences this person confirmed for their Pal to remember. Read-only. Never facts about a pub.",
+    "On the first substantive request, read confirmed preferences before a factual tool unless the message already supplies them. Do not use for greetings or thanks alone. Read-only. Never facts about a pub.",
   propose_memory:
     "Typed chat only. Propose one preference for the Pal to remember. Saves nothing until the person confirms the card.",
 };
@@ -239,19 +240,21 @@ function webhookToolConfig(name, baseUrl, secretId) {
 
 async function listWorkspaceTools(apiKey) {
   const listed = await call("GET", `${TOOLS_API}?page_size=100`, apiKey);
+  if (listed.has_more) fail("Workspace tool list is incomplete. Refusing tool resolution before any update.");
   return Array.isArray(listed.tools) ? listed.tools : [];
 }
 
-async function ensureWebhookTools(apiKey, baseUrl, secretId, dryRun) {
-  const names = AGENT_CONFIG.toolNames ?? [];
-  if (dryRun) {
-    return names.map((name) => `dry-run-tool:${name}`);
-  }
-  const existing = await listWorkspaceTools(apiKey);
+function wantedWebhookTools(baseUrl, secretId) {
+  return Object.fromEntries(
+    (AGENT_CONFIG.toolNames ?? []).map((name) => [name, webhookToolConfig(name, baseUrl, secretId)]),
+  );
+}
+
+async function ensureWebhookTools(apiKey, wantedTools, resolvedTools) {
   const ids = [];
-  for (const name of names) {
-    const hit = existing.find((row) => row?.tool_config?.name === name);
-    const payload = { tool_config: webhookToolConfig(name, baseUrl, secretId) };
+  for (const [name, tool_config] of Object.entries(wantedTools)) {
+    const hit = resolvedTools[name];
+    const payload = { tool_config };
     if (hit?.id) {
       await call("PATCH", `${TOOLS_API}/${hit.id}`, apiKey, payload);
       ids.push(hit.id);
@@ -465,11 +468,10 @@ async function checkAgent(apiKey, baseUrl) {
   const secretId =
     (Array.isArray(secrets.secrets) ? secrets.secrets : []).find((row) => row?.name === LLM_SECRET_NAME)
       ?.secret_id ?? null;
-  const wantedTools = Object.fromEntries(
-    (AGENT_CONFIG.toolNames ?? []).map((name) => [name, webhookToolConfig(name, baseUrl, "unused")]),
-  );
-  const liveToolIds = Object.keys(wantedTools)
-    .map((name) => liveTools.find((row) => row?.tool_config?.name === name)?.id)
+  const wantedTools = wantedWebhookTools(baseUrl, "unused");
+  const resolvedTools = resolveExistingTools(liveTools, liveAgent.conversation_config?.agent?.prompt?.tool_ids, wantedTools);
+  const liveToolIds = Object.values(resolvedTools)
+    .map((row) => row?.id)
     .filter(Boolean);
   const drifts = agentDrift({
     liveAgent,
@@ -511,13 +513,9 @@ async function main() {
     return;
   }
 
-  const secretId = dryRun
-    ? "dry-run-secret-locator"
-    : await ensureWorkspaceLlmSecret(apiKey, secret);
-  const toolIds = await ensureWebhookTools(apiKey, baseUrl, secretId, dryRun);
-  const { body, defaultVoice } = agentBody(toolIds);
-
   if (dryRun) {
+    const toolIds = (AGENT_CONFIG.toolNames ?? []).map((name) => `dry-run-tool:${name}`);
+    const { body, defaultVoice } = agentBody(toolIds);
     console.log(
       "Dry run. This is the agent that would be written (secrets and tool ids held back):\n",
     );
@@ -528,9 +526,15 @@ async function main() {
   }
 
   const existing = process.env.ELEVENLABS_PUB_PAL_AGENT_ID?.trim() || (await findAgentByName(apiKey));
+  const currentAgent = existing ? await call("GET", `${API}/agents/${existing}`, apiKey) : null;
+  const liveTools = await listWorkspaceTools(apiKey);
+  // Resolve every identity before the first secret, tool or agent write.
+  const resolvedTools = resolveExistingTools(liveTools, currentAgent?.conversation_config?.agent?.prompt?.tool_ids, wantedWebhookTools(baseUrl, "unused"));
+  const secretId = await ensureWorkspaceLlmSecret(apiKey, secret);
+  const toolIds = await ensureWebhookTools(apiKey, wantedWebhookTools(baseUrl, secretId), resolvedTools);
+  const { body, defaultVoice } = agentBody(toolIds);
 
   if (existing) {
-    const currentAgent = await call("GET", `${API}/agents/${existing}`, apiKey);
     await call("PATCH", `${API}/agents/${existing}`, apiKey, agentPatch(currentAgent, toolIds));
     console.log(`✓ Updated agent ${existing}`);
     console.log(`  LLM: ${AGENT_CONFIG.llm}`);

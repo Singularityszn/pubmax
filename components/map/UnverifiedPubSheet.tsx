@@ -266,7 +266,7 @@ export default function UnverifiedPubSheet({
       ) : pricesKnown ? (
         <p className="unverifiedPubLead">
           {knownHereLead(placeNoun, detailVenue)} Nobody has
-          logged what a drink costs - <strong>be the first</strong>.
+          logged what a drink costs. <strong>Be the first</strong>.
         </p>
       ) : readFailed ? (
         <p className="unverifiedPubLead">

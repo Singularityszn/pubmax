@@ -8,7 +8,7 @@ import "./onboarding.css";
 
 export const metadata: Metadata = {
   title: "Set up your first night | PUBMAXXING",
-  description: "Confirm London, choose a Pub Pal and make one useful Plan.",
+  description: "Pick London, set a pint budget, find your cheapest pint nearby and choose a Pub Pal.",
   robots: { index: false, follow: false },
 };
 

@@ -83,7 +83,7 @@ export async function POST(request: Request, context: Context): Promise<Response
   const memberToken = planMemberCapability(request, body.memberToken);
   const terminalVenueId = cleanText(body.terminalVenueId, 80);
   const endingSelection = ending ? cleanEndingSelection(body.endingSelection, ending) : null;
-  if (body.finalPintDropId !== undefined) return publicApiError("A final Pint Drop cannot be attached until Plan member ownership is verifiable.", "FINAL_PINT_DROP_FORBIDDEN", 400);
+  if (body.finalPintDropId !== undefined) return publicApiError("We can't attach a final Pint Drop until we can confirm you're on this Plan.", "FINAL_PINT_DROP_FORBIDDEN", 400);
   const expectedRouteRevision = typeof body.expectedRouteRevision === "number" && Number.isInteger(body.expectedRouteRevision) && body.expectedRouteRevision > 0 ? body.expectedRouteRevision : null;
   if (!ending || !memberToken || !expectedRouteRevision) return publicApiError("Choose an ending and use the latest Plan link.", "PLAN_COMPLETION_INVALID", 400);
   if (!endingSelection) return publicApiError("Choose an ending from this route.", "PLAN_ENDING_SELECTION_INVALID", 400);

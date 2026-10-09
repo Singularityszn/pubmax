@@ -394,7 +394,7 @@ export default function MessagesInboxClient({
         // The head's primary is the sign-in door, so the empty state carries
         // no second copy of it.
         <EmptyState title="Sign in to message">
-          Private messages need a signed-in account, so each message is tied to
+          Private messages need a signed-in account, so each message carries
           the right handle.
         </EmptyState>
       ) : handleNotOwned ? (
@@ -402,7 +402,7 @@ export default function MessagesInboxClient({
           title={`@${handle} isn\u2019t linked to your account.`}
           action={<Link href="/u/you#account-settings">Claim a handle</Link>}
         >
-          Messages open for the handle your account claims.
+          Messages open once your account claims this handle.
         </EmptyState>
       ) : failed && conversations.length === 0 ? (
         <div role="alert">

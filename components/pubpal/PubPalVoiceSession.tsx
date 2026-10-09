@@ -222,7 +222,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
     const started = await startController.start<VoiceGrant>({
       requestMicrophone: async () => {
         if (!navigator.mediaDevices?.getUserMedia) {
-          throw new PubPalVoiceStartError("Microphone is unavailable. Use text instead.");
+          throw new PubPalVoiceStartError("Can't reach your microphone. Type instead.");
         }
         return navigator.mediaDevices.getUserMedia({ audio: true });
       },
@@ -233,7 +233,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
         if (response.ok && body.conversationId) attempt.conversationId = body.conversationId;
         if (!response.ok || !body.signedUrl) {
           throw new PubPalVoiceStartError(
-            errorMessageFrom(body, "Voice is unavailable. Use text instead."),
+            errorMessageFrom(body, "Voice isn't available. Type instead."),
           );
         }
         return { ...body, signedUrl: body.signedUrl };
@@ -406,7 +406,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
       {voiceConnecting && <p className="palVoiceHint">Connecting voice…</p>}
       {error && <p className="palVoiceError" role="alert">{error}</p>}
       <p className="palVoicePrivacy">
-        No audio or transcript becomes memory. The Pal proposes facts for you to approve separately.
+        No audio or transcript becomes a memory. The Pal can suggest facts, and you approve each one.
       </p>
     </div>
   );

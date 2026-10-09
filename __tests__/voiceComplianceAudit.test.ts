@@ -83,7 +83,7 @@ describe("VOICE.md compliance audit", () => {
     // ONE RULE (5 Sep 2026): the handle door asks for a handle, the age door
     // asks for the one tap, and neither asks for a birth date.
     expect(contributionGate).toMatch(
-      /Contributions carry your public handle, so pick one before you\s+log a price\./,
+      /Pick a handle before you log a price\./,
     );
     expect(contributionGate).toMatch(
       /This is for over-18s\. One tap records it, and we ask\s+once\./,
@@ -489,7 +489,7 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
     ]);
     const notReady = groups[1]?.areas.find((area) => area.slug === "barnes");
     expect(notReady).toBeDefined();
-    expect(nightAreaOptionLabel(notReady!, false)).toBe("Barnes - not crawl-ready yet");
+    expect(nightAreaOptionLabel(notReady!, false)).toBe("Barnes, not crawl-ready yet");
   });
 
   it("keeps the Plan result and Pub Pal free of product-speak", () => {

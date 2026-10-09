@@ -21,8 +21,8 @@ export default function TonightMapPointer() {
         </h2>
       </div>
       <p className="dealsTonightLead">
-        Quiz, screens, deals, and live music live on the map Tonight lane, the
-        same `/api/whats-on` spine, with pin badges and kind filters.
+        Quizzes, screenings, deals and live music are in the map&rsquo;s Tonight
+        lane, with badges on the pins and filters by kind.
       </p>
       <Link prefetch={false}
         className="dealsTonightMap"

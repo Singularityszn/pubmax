@@ -39,12 +39,14 @@ import { isNativeApp } from "@/lib/nativePlatform";
 export type HapticOccasion =
   /** A figure, a photo or a report the person contributed landed. */
   | "contribution-kept"
-  /** A toggle the person owns flipped on: saved, checked in, joined. */
+  /** A selection or route-order change was kept: saved, checked in, joined, reordered. */
   | "selection-kept"
   /** A destructive or undoing tap landed: removed, left, cleared. */
   | "selection-released"
   /** The action could not be kept and the person has to do something. */
-  | "action-refused";
+  | "action-refused"
+  /** A route was locked in: the plan now exists and has a link to share. */
+  | "plan-locked";
 
 export type HapticEngine =
   | { kind: "impact"; style: "Light" | "Medium" | "Heavy" }
@@ -52,14 +54,17 @@ export type HapticEngine =
 
 /**
  * The one table. `contribution-kept` is the heaviest thing here on purpose:
- * a Pint Drop is the action the whole product is built around, and it is the
- * only one that earns the notification engine's two-beat pattern.
+ * a Pint Drop is the action the whole product is built around, and it earns
+ * the notification engine's two-beat pattern. `plan-locked` is the one other
+ * success that does: locking a route is the moment a plan becomes real. A sheet
+ * snapping to a detent is NOT an occasion (rule 1: never navigation or scroll).
  */
 const OCCASION_ENGINE: Record<HapticOccasion, HapticEngine> = {
   "contribution-kept": { kind: "notification", style: "Success" },
   "selection-kept": { kind: "impact", style: "Medium" },
   "selection-released": { kind: "impact", style: "Light" },
   "action-refused": { kind: "notification", style: "Warning" },
+  "plan-locked": { kind: "notification", style: "Success" },
 };
 
 /** Every occasion, in table order. The fence reads this rather than a copy. */

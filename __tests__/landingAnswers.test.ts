@@ -35,7 +35,7 @@ describe("the front door's two answers", () => {
 
   it("says plainly when there is no reading at all", () => {
     expect(todayAnswer(null, STAMP)).toEqual({
-      line: "We could not read today's London weather just now.",
+      line: "We couldn't read today's London weather just now.",
       stamp: STAMP,
       measured: false,
     });
@@ -73,7 +73,7 @@ describe("the front door's two answers", () => {
     });
     const unread = tonightAnswer({ unread: true, count: 0 }, STAMP);
     expect(unread).toEqual({
-      line: "We could not reach tonight's listings just now.",
+      line: "We couldn't reach tonight's listings just now.",
       stamp: STAMP,
       measured: false,
     });

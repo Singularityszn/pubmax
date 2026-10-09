@@ -35,6 +35,7 @@ describe("deriveMapRenderedState", () => {
         { meaning: "pint", bucket: 3 },
       ],
       storyColour: "#d99f45",
+      clusterPrices: false,
     });
   });
 
@@ -62,6 +63,29 @@ describe("deriveMapRenderedState", () => {
       { meaning: "pint", bucket: 0 },
       { meaning: "type-relative", bucket: 1 },
     ]);
+  });
+
+  it("reports whether any pin gives its cluster a figure to print", () => {
+    const seeded: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: [feature(0), feature(1, "bar")],
+    };
+    const priced: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: [
+        { ...feature(0), properties: { bucket: 0, kind: "pub", clusterPrice: 5.4 } },
+        feature(1, "bar"),
+      ],
+    };
+
+    expect(deriveMapRenderedState(seeded, { brass: "#b0813a" }, null).clusterPrices).toBe(false);
+    expect(deriveMapRenderedState(priced, { brass: "#b0813a" }, null).clusterPrices).toBe(true);
+    expect(
+      sameMapRenderedState(
+        deriveMapRenderedState(seeded, { brass: "#b0813a" }, null),
+        deriveMapRenderedState(priced, { brass: "#b0813a" }, null),
+      ),
+    ).toBe(false);
   });
 
   it("explains a club pin's band as the bars' type-relative band", () => {
@@ -100,6 +124,7 @@ describe("deriveMapRenderedState", () => {
             { meaning: "type-relative", bucket: 3 },
           ],
           storyColour: null,
+          clusterPrices: false,
         },
         {
           priceBands: [
@@ -107,6 +132,7 @@ describe("deriveMapRenderedState", () => {
             { meaning: "type-relative", bucket: 0 },
           ],
           storyColour: null,
+          clusterPrices: false,
         },
       ),
     ).toBe(false);

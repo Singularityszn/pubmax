@@ -39,7 +39,7 @@ describe("what the cheap pub is worth", () => {
     );
     expect(savings).toEqual({ pints: 2, savedGbp: 2.5 });
     expect(readerSavingLine(savings)).toBe(
-      "You have kept £2.50 over 2 pints you logged under the London average.",
+      "You've kept £2.50 over 2 pints you logged under the London average.",
     );
     // A reader who has logged nothing under the average is told nothing, never
     // a counter sitting at zero.

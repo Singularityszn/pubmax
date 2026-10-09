@@ -96,7 +96,7 @@ export function buildHeritageCrawls(pubs: HistoricPub[]): CuratedCrawl[] {
     .map((entry) => entry.pub);
   const oldestCrawl = makeCrawl(
     "heritage-oldest-pubs",
-    "London's Oldest Pubs",
+    "London's oldest pubs",
     `The city's oldest surviving pubs, earliest first. Every date is ${PROVENANCE}`,
     oldest,
   );
@@ -109,7 +109,7 @@ export function buildHeritageCrawls(pubs: HistoricPub[]): CuratedCrawl[] {
     .sort((a, b) => a.lng - b.lng || bySlug(a, b));
   const riversideCrawl = makeCrawl(
     "heritage-riverside-taverns",
-    "Historic Riverside Taverns",
+    "Historic riverside taverns",
     `Thames-side taverns walked west to east along the river, wharf to wharf. Every stop is ${PROVENANCE}`,
     riverside,
   );
@@ -134,7 +134,7 @@ export function buildHeritageCrawls(pubs: HistoricPub[]): CuratedCrawl[] {
     });
   const listedCrawl = makeCrawl(
     "heritage-grade-listed",
-    "Grade-Listed Classics",
+    "Grade-listed classics",
     `The map's most highly listed pubs. Grade II* and above, protected historic interiors. Every listing is ${PROVENANCE}`,
     listed,
   );

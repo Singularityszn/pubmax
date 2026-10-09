@@ -1,0 +1,86 @@
+npm notice run pubmaxxing@0.1.0 npx
+npm notice run 'playwright' test -c artifacts/ios-push-ask-2026-10-08/cold.config.ts --grep native first run hands one useful Plan|Skip releases onboarding budget
+[WebServer] npm notice run pubmaxxing@0.1.0 start
+[WebServer] npm notice run node -e "const d=process.env.NEXT_DIST_DIR||'.next'; require('fs').existsSync(d+'/BUILD_ID') || (console.error('\n\u2717 '+d+'/BUILD_ID is missing \u2014 there is no completed production build to serve.\n  Run npm run build to completion first. In this shared worktree a concurrent next dev/next build can clobber .next mid-build and leave it partial; for isolated production QA use NEXT_DIST_DIR=.next-prod.\n'), process.exit(1))" && next start --port 3417
+[WebServer] (node:73220) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] ▲ Next.js 16.3.8
+[WebServer] - Local:         http://localhost:3417
+[WebServer] - Network:       http://192.168.0.41:3417
+[WebServer] ✓ Ready in 153ms
+[WebServer] ✓ Running next.config.mjs took 363ms
+
+Running 4 tests using 1 worker
+
+(node:73608) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":151,"ts":1791461068946}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":592,"ts":1791461069239}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":321,"ts":1791461069240}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":463,"ts":1791461069260}
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461069490}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":7,"ts":1791461069491}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":667,"ts":1791461069997}
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461070084}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":1,"ts":1791461070084}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":817,"ts":1791461070146}
+  ✓  1 [light] › e2e/mobile-first-run-onboarding.spec.ts:173:5 › native first run hands one useful Plan to the contextual push ask (3.6s)
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461071254}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":2,"ts":1791461071255}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791461071750}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461071804}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461071806}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":0,"ts":1791461072150}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461072274}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":1,"ts":1791461072276}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":147,"ts":1791461072291}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":151,"ts":1791461072297}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":469,"ts":1791461072300}
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461072645}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":1,"ts":1791461072646}
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461072831}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":1,"ts":1791461072831}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":1354,"ts":1791461073188}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":1340,"ts":1791461073397}
+  ✓  2 [light] › e2e/mobile-first-run-onboarding.spec.ts:260:5 › Skip releases onboarding budget for the next Plan but never prompts on reboot (2.5s)
+(node:75155) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":2600,"ts":1791461074655}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":0,"ts":1791461075542}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461075597}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461075599}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461075622}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461075624}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":136,"ts":1791461075834}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461075839}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461075841}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":0,"ts":1791461075968}
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461076267}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":1,"ts":1791461076268}
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461076459}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":1,"ts":1791461076460}
+  ✓  3 [dark] › e2e/mobile-first-run-onboarding.spec.ts:173:5 › native first run hands one useful Plan to the contextual push ask (2.7s)
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461077634}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":1,"ts":1791461077635}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/status","method":"GET","status":200,"durationMs":1,"ts":1791461078124}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461078179}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461078181}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":1,"ts":1791461078202}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461078204}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461078234}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461078510}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461078513}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461078552}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461078554}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/things-to-do","method":"GET","status":200,"durationMs":1,"ts":1791461078560}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461078678}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":0,"ts":1791461078685}
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461079129}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":1,"ts":1791461079130}
+[WebServer] {"level":"info","event":"out.supply","city":"london","day":"today","baselineRows":0,"liveRows":0,"providers":["skiddle:not-configured:0","ticketmaster:not-configured:0"],"folded":0,"inWindow":0,"served":0,"matchedAtRequest":0,"matched":0,"unmatched":0,"venueMatch":"ready","ts":1791461079427}
+[WebServer] {"level":"info","event":"http.request","route":"out","method":"GET","status":200,"durationMs":1,"ts":1791461079428}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":1266,"ts":1791461079848}
+[WebServer] {"level":"info","event":"http.request","route":"citymcp/journey","method":"GET","status":200,"durationMs":1448,"ts":1791461080033}
+  ✓  4 [dark] › e2e/mobile-first-run-onboarding.spec.ts:260:5 › Skip releases onboarding budget for the next Plan but never prompts on reboot (2.8s)
+
+  4 passed (16.0s)

@@ -194,12 +194,12 @@ export default async function PlanPage({ params }: Props) {
             <>
               {preview.stopCount} {preview.stopCount === 1 ? "pub" : "pubs"}
               {endingLabel ? `, and you ${endingLabel}` : ""}. Your private recap
-              is in your Memories. Nothing is shared until you approve it.
+              is in your Memories. We share nothing until you approve it.
             </>
           ) : (
             <>
-              {preview.stopCount} {preview.stopCount === 1 ? "pub" : "pubs"}, one
-              link, zero account walls.
+              {preview.stopCount} {preview.stopCount === 1 ? "pub" : "pubs"} and one
+              link. Nobody needs an account to join.
             </>
           )
         }
@@ -223,8 +223,8 @@ export default async function PlanPage({ params }: Props) {
           {!completed ? (
             <section className="planShare" aria-labelledby="plan-share-title">
               <p className="planPage__eyebrow">Send the invite</p>
-              <h2 id="plan-share-title">Get everyone on the same page</h2>
-              <p>WhatsApp the night link, or copy the invite. Mates tap “I’m in” with a name.</p>
+              <h2 id="plan-share-title">Get the crew in</h2>
+              <p>WhatsApp the night link, or copy the invite. Mates tap &quot;I&apos;m in&quot; and add a name.</p>
               <PlanInviteNextStep
                 planId={id}
                 title={safeTitle}

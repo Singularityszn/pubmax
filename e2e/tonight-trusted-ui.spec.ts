@@ -47,7 +47,7 @@ async function mockWhatsOn(page: Page, body: WhatsOnBody = {}) {
       contentType: "application/json",
       body: JSON.stringify({
         rows: ROWS,
-        servedAt: "2026-07-24T22:00:00.000Z",
+        servedAt: new Date().toISOString(),
         sourceObservedAt: body.sourceObservedAt ?? "2026-07-20T12:00:00.000Z",
         sourceFreshnessKind: body.sourceFreshnessKind ?? "provider-observed",
         localityBasis: "london-default",
@@ -211,8 +211,8 @@ test.describe("Tonight trusted UI", () => {
       .locator('[data-testid="tonight-hyped-row"], [data-testid="tonight-row"]')
       .first()
       .boundingBox();
-    await expect(page.locator(".mobileTabBar")).toBeVisible();
-    const mobileTabBar = await page.locator(".mobileTabBar").boundingBox();
+    await expect(page.locator(".mobileTabBar").filter({ visible: true })).toBeVisible();
+    const mobileTabBar = await page.locator(".mobileTabBar").filter({ visible: true }).boundingBox();
     expect(firstAnswer).not.toBeNull();
     expect(mobileTabBar).not.toBeNull();
     expect(firstAnswer!.y).toBeLessThan(mobileTabBar!.y);

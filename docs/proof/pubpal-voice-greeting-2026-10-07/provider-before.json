@@ -1,0 +1,87 @@
+[
+  {
+    "style": "typed",
+    "query": "hi",
+    "text": "I have not confirmed anything for you to remember about me. How can I help?",
+    "calls": [
+      {
+        "name": "recall_memories",
+        "args": {}
+      }
+    ],
+    "conversationId": "conv_3501m4bkrb7mf3xvjb16np6r20fr"
+  },
+  {
+    "style": "typed",
+    "query": "hello",
+    "text": "Hello! What can I help you find today?\n",
+    "calls": [],
+    "conversationId": "conv_3001m4bkre8zeqyt9jcskssaarab"
+  },
+  {
+    "style": "typed",
+    "query": "thanks",
+    "text": "You're welcome.",
+    "calls": [],
+    "conversationId": "conv_2001m4bkrgvgfrh9fvw8k398y4yn"
+  },
+  {
+    "style": "typed",
+    "query": "hi, what's on in Camden tonight?",
+    "text": "No sourced listings are on record for Camden tonight.",
+    "calls": [
+      {
+        "name": "whats_on",
+        "args": {
+          "query": "What's on in Camden tonight?"
+        }
+      }
+    ],
+    "conversationId": "conv_2801m4bkrm3yeb5sw7t94dm3s5x3"
+  },
+  {
+    "style": "voice",
+    "query": "hi",
+    "text": "Hi there. What can I help you find?",
+    "calls": [
+      {
+        "name": "recall_memories",
+        "args": {}
+      }
+    ],
+    "conversationId": "conv_8201m4bkrq6cedprhn4xw6nmergj"
+  },
+  {
+    "style": "voice",
+    "query": "hello",
+    "text": "Hello there! What can I help you find today?",
+    "calls": [],
+    "conversationId": "conv_9601m4bkrtejeq1rkxq11ew1bben"
+  },
+  {
+    "style": "voice",
+    "query": "thanks",
+    "text": "You have not confirmed anything for me to remember about you. How can I help?",
+    "calls": [
+      {
+        "name": "recall_memories",
+        "args": {}
+      }
+    ],
+    "conversationId": "conv_4701m4bkrx43ejnbgjsscydzqdws"
+  },
+  {
+    "style": "voice",
+    "query": "hi, what's on in Camden tonight?",
+    "text": "No sourced listings are on record for Camden tonight.",
+    "calls": [
+      {
+        "name": "whats_on",
+        "args": {
+          "query": "what's on in Camden tonight"
+        }
+      }
+    ],
+    "conversationId": "conv_2801m4bks06jfkp945wvjwfyfn13"
+  }
+]

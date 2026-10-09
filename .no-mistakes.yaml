@@ -13,3 +13,7 @@ commands:
   # The Push step commits what a step leaves behind. In a git checkout the slim
   # shard builders stamp HEAD over the committed "local" marker, so pin it.
   test: "npm run verify:no-mistakes"
+
+# CI failures require a source-fix decision before any repair can change a spec.
+auto_fix:
+  ci: 0

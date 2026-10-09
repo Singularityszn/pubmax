@@ -55,7 +55,7 @@ describe("follow relation", () => {
   it("says the edge the button cannot, and stays quiet when there is none", () => {
     expect(followRelationHint("follows_you")).toBe("Follows you");
     expect(followRelationHint("mates")).toBe("You follow each other");
-    expect(followRelationHint("following")).toMatch(/not followed back/);
+    expect(followRelationHint("following")).toMatch(/haven(?:'|&#x27;)t followed back/);
     expect(followRelationHint("none")).toBeNull();
   });
 

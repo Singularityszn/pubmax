@@ -6,7 +6,6 @@ import {
   composerRouteMutation,
   createdPlanMetadataPatch,
   createdPlanNeedsReadyTransition,
-  editedPlanStop,
   errorMessageFromBody,
   applyPlanStopCount,
   generatedPlanAnchorFromResponse,
@@ -151,39 +150,6 @@ describe("PlanComposer selected drink price submission", () => {
       stops: [swapped], context: { ...context, drinkCategory: "cocktail" },
     });
     expect(payload.stops).toEqual([{ venueId: "b", venueName: "B", selectedDrinkPriceEvidence: cocktail }]);
-  });
-});
-
-describe("PlanComposer accepted Stop 1 naming", () => {
-  const accepted = {
-    key: 1,
-    venueId: "venue-accepted",
-    venueName: "",
-    alternatives: [],
-  };
-
-  it("keeps accepted authority while the fallback name is typed", () => {
-    expect(editedPlanStop({
-      stop: accepted,
-      venueName: "The pub beside the station",
-      venues: [],
-      heldVenueId: "venue-accepted",
-    })).toEqual({
-      stop: { ...accepted, venueName: "The pub beside the station" },
-      preservesAcceptedAuthority: true,
-    });
-  });
-
-  it("identifies a different indexed pub as an authority-changing edit", () => {
-    expect(editedPlanStop({
-      stop: accepted,
-      venueName: "Different Arms",
-      venues: [{ id: "venue-different", name: "Different Arms" }],
-      heldVenueId: "venue-accepted",
-    })).toMatchObject({
-      stop: { venueId: "venue-different" },
-      preservesAcceptedAuthority: false,
-    });
   });
 });
 
@@ -438,7 +404,7 @@ describe("PlanComposer Night Area coverage states", () => {
 
     expect(notReady).toMatchObject({ disabled: false });
     expect(barnes).toBeDefined();
-    expect(nightAreaOptionLabel(barnes!, false)).toBe("Barnes - not crawl-ready yet");
+    expect(nightAreaOptionLabel(barnes!, false)).toBe("Barnes, not crawl-ready yet");
   });
 
   it("turns the structured route gate response into useful error copy", () => {
@@ -882,15 +848,6 @@ describe("what the composer holds as Stop 1", () => {
       accepted: true,
       stops: stops.slice(1),
     });
-    expect(editedPlanStop({
-      stop: stops[0]!,
-      venueName: "Different Arms",
-      venues: [{ id: "venue-different", name: "Different Arms" }],
-      heldVenueId: hydration.heldVenueId,
-    })).toMatchObject({
-      stop: { venueId: "venue-different", venueName: "Different Arms" },
-      preservesAcceptedAuthority: false,
-    });
   });
 
   it("holds an accepted Stop 1 until the person releases it", () => {
@@ -995,14 +952,5 @@ describe("what the composer holds as Stop 1", () => {
       planAnchor: anchored.planAnchor,
     });
 
-    expect(editedPlanStop({
-      stop: stops[0]!,
-      venueName: "Other Arms",
-      venues: [{ id: "venue-other", name: "Other Arms" }],
-      heldVenueId: lapsed.heldVenueId,
-    })).toMatchObject({
-      stop: { venueId: "venue-other" },
-      preservesAcceptedAuthority: false,
-    });
   });
 });

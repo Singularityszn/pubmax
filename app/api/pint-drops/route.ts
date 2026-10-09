@@ -278,7 +278,7 @@ async function handleModeratorConfirmAction(
       return jsonNoStore({ ok: true, confirmation }, { status: 200 });
     }
     return publicApiError(
-      "Nothing to confirm: this Pint Drop is unknown or already confirmed.",
+      "Nothing to confirm. We don't know this Pint Drop, or it's already confirmed.",
       "CONFLICT",
       409,
     );
@@ -426,7 +426,7 @@ export async function POST(request: Request): Promise<Response> {
   if (!actorHandle) {
     return verifiedUserId
       ? publicApiError(
-          "Choose a PUBMAXX Handle before posting.",
+          "Choose a PUBMAXX handle before posting.",
           "ONBOARDING_REQUIRED",
           409,
           { compatibilityFields: { status: "onboarding_required" } },

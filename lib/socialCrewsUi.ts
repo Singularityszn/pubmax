@@ -84,7 +84,7 @@ export const CREW_PHASE_LABEL: Record<SocialCrewPhase, string> = {
 export const CREW_ROLE_LABEL: Record<SocialCrewRole, string> = {
   owner: "You host",
   cohost: "You co-host",
-  member: "You are in",
+  member: "You're in",
 };
 
 export const CREW_VISIBILITY_LABEL: Record<SocialCrewVisibility, string> = {
@@ -107,7 +107,7 @@ export function canLeaveCrew(role: SocialCrewRole): boolean {
 }
 
 export const CREW_OWNER_LEAVE_NOTE =
-  "A host cannot leave their own night. Hand the crew to somebody else first.";
+  "A host can't leave their own night. Hand the crew to somebody else first.";
 
 /** What a crew is, in one line, on the surface that offers to start one. */
 export const CREW_WHAT_IT_IS =
@@ -125,7 +125,7 @@ export const CREW_EMPTY_COPY =
   "No crews yet. Start one and your lot can join the night.";
 
 export const CREW_LIST_UNAVAILABLE_COPY =
-  "Could not load your crews. That is us, not you.";
+  "Couldn't load your crews. That's us, not you.";
 
 /**
  * The link a host sends. It carries the invitation id because there is no read

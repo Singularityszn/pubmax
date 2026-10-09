@@ -218,8 +218,8 @@ export default function RoundStarter({
       </h2>
       <p className="roundStarterBlurb">
         {hasSeeds
-          ? "Turn this plan into a Round. Friends join by a short code; stops are already queued."
-          : "A group crawl that builds itself. Friends join by a short code; as everyone drops pints, the route grows itself, stop by stop."}
+          ? "Turn this plan into a Round. Friends join with a short code, and the stops are already queued."
+          : "A group crawl that builds itself. Friends join with a short code, and the route grows as everyone drops pints."}
       </p>
       <div className="roundStarterRow">
         <input

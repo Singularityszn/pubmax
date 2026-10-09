@@ -46,7 +46,7 @@ test("blank Plan opens on describe-first, with the wizard reachable behind Guide
   await expect(
     page.getByRole("heading", { name: "Where should the night happen?" }),
   ).toHaveCount(0);
-  await expect(page.getByLabel("Venue name")).toHaveCount(0);
+  await expect(page.locator(".planStops input")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Lock it in" })).toHaveCount(0);
 
   await page.waitForLoadState("networkidle");
@@ -56,7 +56,7 @@ test("blank Plan opens on describe-first, with the wizard reachable behind Guide
     page.getByRole("heading", { name: "Where should the night happen?" }),
   ).toBeVisible();
   await expect(page.getByRole("heading", { name: DESCRIBE_FIRST_HEADING })).toHaveCount(0);
-  await expect(page.getByLabel("Venue name")).toHaveCount(0);
+  await expect(page.locator(".planStops input")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Lock it in" })).toHaveCount(0);
 });
 
@@ -68,7 +68,7 @@ test("a suggestion chip generates a real priced route end to end, keyless", asyn
     .click();
 
   await expect(
-    page.getByText("3 stops we can stand behind, shaped by the outing you set below."),
+    page.getByText("3 stops we can stand behind, shaped by the outing you set."),
   ).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("This route needs a refresh")).toHaveCount(0);
   await expect(page.locator(".planComposer__error")).toHaveCount(0);
@@ -309,7 +309,7 @@ test("editing the exact start marks a generated preview stale", async ({ page })
   await continueIntake(page);
   await page.getByRole("button", { name: "Describe instead" }).click();
   await page.getByRole("button", { name: "Make a plan" }).click();
-  await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set below.")).toBeVisible();
+  await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set.")).toBeVisible();
 
   const firstPint = page.getByLabel("First pint");
   await firstPint.fill("2026-07-22T20:00");
@@ -362,7 +362,7 @@ test("submission revalidates that the exact start is still in the future", async
   await continueIntake(page);
   await page.getByRole("button", { name: "Describe instead" }).click();
   await page.getByRole("button", { name: "Make a plan" }).click();
-  await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set below.")).toBeVisible();
+  await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set.")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");
 
   await page.clock.setFixedTime(new Date("2026-07-20T18:00:00.000Z"));

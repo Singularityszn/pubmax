@@ -1,6 +1,6 @@
-export const PAL_VOICE_START_ERROR = "Voice is unavailable. Use text instead.";
+export const PAL_VOICE_START_ERROR = "Voice isn't available. Type instead.";
 export const PAL_MICROPHONE_PERMISSION_ERROR =
-  "Microphone access is off. Use text instead.";
+  "Microphone access is off. Type instead.";
 
 type VoiceProbeStream = {
   getTracks: () => Array<{ stop: () => void }>;

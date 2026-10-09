@@ -1,0 +1,78 @@
+Test Case '-[LaneUITests.LaneUITests testBundledOutageInspection]' started.
+    t =     0.00s Start Test at 2026-10-08 12:21:26.878
+    t =     0.02s Set Up
+    t =     0.02s Open com.pubmaxx.app
+    t =     0.02s     Activate com.pubmaxx.app
+    t =     0.02s         Wait for com.pubmaxx.app to idle
+    t =     0.03s Waiting 10.0s for "Try again" Button to exist
+objc[94852]: Class UIAccessibilityLoaderWebShared is implemented in both /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.tF0MWb/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebKit.axbundle/WebKit (0x10a184398) and /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.tF0MWb/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebCore.axbundle/WebCore (0x10a2bc310). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+    t =     1.03s     Checking `Expect predicate `existsNoRetry == 1` for object "Try again" Button`
+    t =     1.03s         Checking existence of `"Try again" Button`
+    t =     1.04s Checking existence of `"Nothing to show yet." StaticText`
+    t =     1.05s Checking existence of `"No connection" StaticText`
+    t =     1.06s Requesting snapshot of accessibility hierarchy for app with pid 71987
+    t =     1.15s Requesting snapshot of accessibility hierarchy for app with pid 71987
+LANE_BUNDLED_OUTAGE_HIERARCHY Attributes: Application, 0x109808b40, pid: 71987, label: 'PUBMAXXING'
+Element subtree:
+ →Application, 0x109808b40, pid: 71987, label: 'PUBMAXXING'
+    Window (Main), 0x109809900, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x109808f00, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x109809180, {{0.0, 0.0}, {402.0, 874.0}}
+          WebView, 0x109809e00, {{0.0, 0.0}, {402.0, 874.0}}
+            WebView, 0x109809a40, {{0.0, 0.0}, {402.0, 874.0}}
+              Other, 0x109809b80, {{0.0, 0.0}, {402.0, 874.0}}
+                Other, 0x109808dc0, {{0.0, 0.0}, {402.0, 102.0}}
+              WebView, 0x109809040, {{0.0, 0.0}, {402.0, 874.0}}
+                Other, 0x109809f40, {{0.0, 0.0}, {402.0, 874.0}}
+                  Other, 0x109809cc0, {{0.0, 0.0}, {402.0, 874.0}}
+                    Other, 0x10980aa80, {{0.0, 0.0}, {402.0, 874.0}}
+                      Other, 0x1098097c0, {{0.0, 0.0}, {402.0, 874.0}}, label: 'PUBMAXXING is offline', Focused
+                        Other, 0x10980a1c0, {{24.0, 275.0}, {354.0, 352.0}}, label: 'main', Focused
+                          Other, 0x10980a440, {{56.0, 307.0}, {290.0, 22.0}}, Focused
+                            StaticText, 0x10980a080, {{56.0, 309.0}, {96.0, 18.0}}, label: 'No connection', value: No connection, Focused
+                          Other, 0x10980a300, {{56.0, 340.0}, {290.0, 96.0}}, label: 'Nothing to show yet.', value: 1, Focused
+                            StaticText, 0x10980a6c0, {{56.0, 340.0}, {189.0, 96.0}}, label: 'Nothing to show yet.', value: Nothing to show yet., Focused
+                          Other, 0x10980a940, {{56.0, 448.0}, {290.0, 75.0}}, Focused
+                            StaticText, 0x1098092c0, {{56.0, 450.0}, {275.0, 70.0}}, label: 'PUBMAXXING needs a connection for live prices, opening times and travel. Nothing stale is being shown.', value: PUBMAXXING needs a..., Focused
+                          Button, 0x10980a800, {{56.0, 546.0}, {290.0, 49.0}}, label: 'Try again', Focused
+              Other, 0x10980abc0, {{0.0, 0.0}, {402.0, 874.0}}
+                Other, 0x10980ae40, {{0.0, 0.0}, {402.0, 102.0}}
+              Other, 0x10980af80, {{369.0, 62.0}, {30.0, 750.0}}, label: 'Vertical scroll bar, 1 page', value: 0%
+                Other, 0x10980ad00, {{396.0, 65.0}, {3.0, 389.7}}
+              Other, 0x10980b0c0, {{62.0, 841.0}, {278.0, 30.0}}, label: 'Horizontal scroll bar, 1 page', value: 0%
+                Other, 0x10980b340, {{65.0, 868.0}, {272.0, 3.0}}
+              Other, 0x10980b480, {{369.0, 62.0}, {30.0, 750.0}}, label: 'Vertical scroll bar, 1 page', value: 0%
+                Other, 0x10980b200, {{396.0, 65.0}, {3.0, 389.7}}
+              Other, 0x10980b5c0, {{62.0, 841.0}, {278.0, 30.0}}, label: 'Horizontal scroll bar, 1 page', value: 0%
+                Other, 0x10980b840, {{65.0, 868.0}, {272.0, 3.0}}
+    Window, 0x10980b980, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x10980b700, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x10980bac0, {{0.0, 0.0}, {402.0, 874.0}}
+Path to element:
+ →Application, 0x109808b40, pid: 71987, label: 'PUBMAXXING'
+Query chain:
+ →Find: Application 'com.pubmaxx.app'
+  Output: {
+    Application, 0x10980bc00, pid: 71987, label: 'PUBMAXXING'
+  }
+
+    t =     1.16s Find the Application 'com.pubmaxx.app'
+    t =     1.23s Added attachment named 'final-native-bundled-outage'
+    t =     1.23s Tear Down
+Test Case '-[LaneUITests.LaneUITests testBundledOutageInspection]' passed (1.251 seconds).
+Test Suite 'LaneUITests' passed at 2026-10-08 12:21:28.129.
+	 Executed 1 test, with 0 failures (0 unexpected) in 1.251 (1.252) seconds
+Test Suite 'LaneUITests.xctest' passed at 2026-10-08 12:21:28.129.
+	 Executed 1 test, with 0 failures (0 unexpected) in 1.251 (1.252) seconds
+Test Suite 'Selected tests' passed at 2026-10-08 12:21:28.129.
+	 Executed 1 test, with 0 failures (0 unexpected) in 1.251 (1.253) seconds
+2026-10-08 12:21:28.415 xcodebuild[94834:50769460] [MT] IDETestOperationsObserverDebug: 4.403 elapsed -- Testing started completed.
+2026-10-08 12:21:28.415 xcodebuild[94834:50769460] [MT] IDETestOperationsObserverDebug: 0.000 sec, +0.000 sec -- start
+2026-10-08 12:21:28.415 xcodebuild[94834:50769460] [MT] IDETestOperationsObserverDebug: 4.403 sec, +4.403 sec -- end
+
+Test session results, code coverage, and logs:
+	/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/final-native-genuine-outage.xcresult
+
+** TEST SUCCEEDED **
+
+Testing started

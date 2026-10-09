@@ -123,3 +123,10 @@
     border-radius: 1.2rem 1.2rem 0 0;
   }
 }
+
+/* The inline door sits where a list would be, inside a panel that already has
+   its own margins. The empty-state's own padding doubled the gap above the next
+   section, so the door keeps a snug block of its own. */
+.contributionGateDoor .emptyState {
+  padding-block: var(--space-2);
+}

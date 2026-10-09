@@ -10,6 +10,7 @@ import {
   latestDiaryVisitedOn,
   resolveDiaryVisitedOn,
   validateDiaryEntryCreate,
+  validateDiaryEntryEdit,
   type DiaryEntry,
 } from "@/lib/diary";
 
@@ -195,5 +196,47 @@ describe("review length is counted in code points", () => {
     const clamped = clampDiaryReviewInput("🍺".repeat(500));
     expect(create({ review: clamped }).ok).toBe(true);
     expect(create({ review: `${clamped}🍺` }).ok).toBe(false);
+  });
+});
+
+describe("validateDiaryEntryEdit", () => {
+  it("accepts any one of the three things a person wrote", () => {
+    expect(validateDiaryEntryEdit({ review: "  Better the second time. " }, NOW)).toEqual({
+      ok: true,
+      value: { review: "Better the second time." },
+    });
+    expect(validateDiaryEntryEdit({ rating: 3.5 }, NOW)).toEqual({ ok: true, value: { rating: 3.5 } });
+    expect(validateDiaryEntryEdit({ visitedOn: "2026-10-04" }, NOW)).toEqual({
+      ok: true,
+      value: { visitedOn: "2026-10-04" },
+    });
+  });
+
+  it("clears the stars with null or an empty string and the words with an empty review", () => {
+    expect(validateDiaryEntryEdit({ rating: null }, NOW)).toEqual({ ok: true, value: { rating: null } });
+    expect(validateDiaryEntryEdit({ rating: "" }, NOW)).toEqual({ ok: true, value: { rating: null } });
+    expect(validateDiaryEntryEdit({ review: "" }, NOW)).toEqual({ ok: true, value: { review: "" } });
+  });
+
+  it("refuses an empty correction rather than answering a no-op", () => {
+    expect(validateDiaryEntryEdit({}, NOW)).toEqual({
+      ok: false,
+      error: "Change the day, the rating or the review.",
+    });
+  });
+
+  it.each([
+    ["a future day", { visitedOn: "2026-10-07" }],
+    ["a blank day", { visitedOn: "" }],
+    ["a day before the floor", { visitedOn: "1999-12-31" }],
+    ["an off-scale rating", { rating: 4.2 }],
+    ["a long review", { review: "x".repeat(MAX_DIARY_REVIEW + 1) }],
+  ])("refuses %s", (_label, change) => {
+    expect(validateDiaryEntryEdit(change, NOW).ok).toBe(false);
+  });
+
+  it("keeps the same review rules as logging one", () => {
+    const text = "Pint <3, Guinness >> the Crown 🍺";
+    expect(validateDiaryEntryEdit({ review: text }, NOW)).toEqual({ ok: true, value: { review: text } });
   });
 });

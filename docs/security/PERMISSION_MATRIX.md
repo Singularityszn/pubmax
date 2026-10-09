@@ -128,7 +128,7 @@ no side effect, as above.
 | A reported message's attachment | gone from the thread and from the serving door, for its own participants |||||||
 | Photo tag inbox (`GET /api/social/tags`) | 401 | own lane only | own lane only | n/a | n/a | n/a | own lane only |
 | Read a Wanted (`GET /api/wanted`) | 401 | own list only | own list only | n/a | n/a | n/a | own list only |
-| Read or write a Diary entry (`GET`, `POST /api/diary`) | 401 | own entries only; a body owner is ignored | own entries only | n/a | n/a | n/a | own entries only |
+| Read, log, correct or remove a Diary entry (`GET`, `POST /api/diary` with `action: "update"` or `"delete"`) | 401 | own entries only; a body owner is ignored | own entries only | n/a | n/a | n/a | own entries only |
 | `diary_entries` at the table | denied | no rows | no rows | n/a | n/a | n/a | own rows, SELECT only; a write is refused at the grant (0174) |
 | Read a saved-pub list (`GET /api/saved-pubs`) | public by design |||||||
 | Write a saved-pub list (`POST /api/saved-pubs`) | 403 on a claimed handle, 404 on a handle with no profile row (no row is minted) | writes to their OWN list, never the named one ||||| allowed |

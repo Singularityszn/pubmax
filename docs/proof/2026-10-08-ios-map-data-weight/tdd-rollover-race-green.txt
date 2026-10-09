@@ -1,0 +1,9 @@
+
+ RUN  v5.0.3 /Users/karanmanoharan/.no-mistakes/worktrees/0a94b5a8763e/01M4DAJ253JF7EFG1KFFNCZXT5
+
+
+ Test Files  6 passed (6)
+      Tests  143 passed (143)
+   Start at  09:52:15
+   Duration  557ms (tests 64%, transform 26%, import 5%, setup 3%, worker 1%)
+

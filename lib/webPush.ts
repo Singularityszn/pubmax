@@ -73,6 +73,21 @@ async function currentWebSubscriptionToken(): Promise<string | null> {
   }
 }
 
+export type WebPushSupport = "supported" | "unsupported" | "blocked";
+
+/**
+ * Whether THIS browser can be asked for web push at all, without asking. A
+ * surface reads it before a person presses the switch, so "this browser cannot"
+ * and "you blocked it" are two sentences rather than one vague failure.
+ * `blocked` is the permission the person (or the browser) already denied: the
+ * prompt will never open again, so only the site settings can undo it.
+ */
+export function webPushSupport(): WebPushSupport {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator)) return "unsupported";
+  if (!("PushManager" in window) || !("Notification" in window)) return "unsupported";
+  return Notification.permission === "denied" ? "blocked" : "supported";
+}
+
 /** Request permission, create/reuse a browser subscription and register it on
  * the identity-free push-token route. Returns the encoded token on success, or
  * null on any unsupported, denied, unconfigured or network-failed path. */

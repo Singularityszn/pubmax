@@ -146,13 +146,13 @@ function VenueEditor({
   return (
     <>
       {draft.venueId ? (
-        <div className="socialSelectedVenue" aria-label="Selected Venue">
+        <div className="socialSelectedVenue" aria-label="Selected venue">
           <span>{draft.venueName}</span>
           <button type="button" onClick={() => onDraft({ ...draft, venueId: null, venueName: "" })}>Remove venue</button>
         </div>
       ) : (
         <label>
-          Venue - Friends only
+          Venue, friends only
           <input
             role="combobox" aria-autocomplete="list" aria-expanded={results.length > 0}
             aria-controls={listId} aria-activedescendant={activeIndex >= 0 ? `${listId}-option-${activeIndex}` : undefined}
@@ -404,7 +404,7 @@ export default function SocialComposer({
           setVenueResults(venues);
           setActiveVenueIndex(-1);
           setVenueAnnouncement(
-            `${venues.length} Venue${venues.length === 1 ? "" : "s"} found.`,
+            `${venues.length} venue${venues.length === 1 ? "" : "s"} found.`,
           );
         })
         .catch(() => undefined);
@@ -509,9 +509,9 @@ export default function SocialComposer({
             ...current,
             requestKey: initialDraft().requestKey,
           }));
-          throw new Error("Post request key was already used. Your draft is still here. Try posting again.");
+          throw new Error("That post already went through once. Your draft is still here. Try posting again.");
         }
-        throw new Error(errorMessageFrom(result, "Post was not saved."));
+        throw new Error(errorMessageFrom(result, "Couldn't save that post."));
       }
       localStorage.removeItem(draftKey);
       void saveSocialDraftPhoto(draftKey, null);
@@ -529,7 +529,7 @@ export default function SocialComposer({
       setFeedback(
         offlineOrMessage(cause instanceof Error
             ? cause.message
-            : "Post was not saved.")
+            : "Couldn't save that post.")
       );
       setFeedbackIsStatus(false);
     } finally {

@@ -48,7 +48,7 @@ const STEP_COPY: Record<PlanIntakeStep, { short: string; eyebrow: string; title:
     short: "Group",
     eyebrow: "Make room",
     title: "How many people?",
-    note: "This helps shape space, pace and getting-in guidance.",
+    note: "We use it to judge room, pace and how easy it is to get in.",
   },
   budget: {
     short: "Budget",
@@ -197,7 +197,7 @@ export default function PlanIntake({
           <h2 id="plan-intake-summary-title">{summary.length ? summary.join(" · ") : "Start in your own words"}</h2>
           <p>{summary.length
             ? "Saved for later on this device. Lock it in below when you want a share link for the crew."
-            : "No choices needed. Describe what matters and we will work from that."}</p>
+            : "No choices needed. Describe what matters and we'll work from that."}</p>
           {summary.length ? (
             <div className="planIntake__summaryChips" aria-label="Saved planning details">
               {PLAN_INTAKE_STEPS.filter((step) => draft.settledSteps.includes(step) && !draft.skippedSteps.includes(step)).map((step) => (

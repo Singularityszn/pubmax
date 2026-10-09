@@ -54,7 +54,7 @@ function lastTrainResult(stationName: string): LastTrainResult {
 describe("LastTrainCard provenance copy", () => {
   it("does not describe the Last Pint decision as live when only timetable data is rendered", () => {
     expect(provenanceCopyForDepartures([departure({ live: false })])).toBe(
-      "Scheduled times from TfL - not a live feed.",
+      "Scheduled times from TfL, not a live feed.",
     );
   });
 

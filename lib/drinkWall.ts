@@ -121,7 +121,7 @@ export function drinkWallCapLine(): string {
 
 export function drinkWallCaptionHint(category: DrinkWallCategory): string {
   if (category === "london") {
-    return "Describe what we are looking at (skyline, street, landmark) for anyone who cannot see the photo.";
+    return "Describe what we're looking at (skyline, street, landmark) for anyone who can't see the photo.";
   }
   if (category === "pub") {
     return "Say whether this is inside or outside, or what caught your eye.";

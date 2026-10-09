@@ -106,7 +106,7 @@ function VenueDiaryLog({ venueId, venueName }: DiaryLogPanelProps) {
         setOpenAuth((current) => (sameAccountAuth(current, auth) ? null : current));
         setFeedback({
           kind: "ok",
-          text: `Logged ${venueName} for ${diaryVisitedOnLabel(result.entry.visitedOn)}. It is in your diary.`,
+          text: `Logged ${venueName} for ${diaryVisitedOnLabel(result.entry.visitedOn)}. It's in your diary.`,
         });
       } catch (error) {
         setFeedback({

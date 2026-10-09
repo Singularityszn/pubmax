@@ -33,7 +33,7 @@ type Props = {
 const CONSTRAINT_KINDS: Array<{ value: PlanConstraintKind; label: string }> = [
   { value: "accessibility", label: "Access" },
   { value: "budget", label: "Budget" },
-  { value: "zero_proof", label: "Zero-proof" },
+  { value: "zero_proof", label: "Alcohol-free" },
   { value: "timing", label: "Timing" },
   { value: "transport", label: "Transport" },
   { value: "other", label: "Other" },
@@ -128,7 +128,7 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
       try {
         if (!navigator.clipboard?.writeText) throw new Error("clipboard unavailable");
         await navigator.clipboard.writeText(url);
-        setStatus("Private one-use invite copied. It expires by plan end (or sooner).");
+        setStatus("Private one-use invite copied. It expires when the plan ends, or sooner.");
       } catch {
         setStatus(
           offlineOrMessage("Invite created, but could not copy it. Try again.")

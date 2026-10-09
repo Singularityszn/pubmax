@@ -1,0 +1,65 @@
+                    Other, 0x107c8a080, {{0.0, 0.0}, {402.0, 874.0}}
+                      Other, 0x107c8a1c0, {{0.0, 0.0}, {402.0, 874.0}}
+    Window, 0x107c8a300, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x107c8a440, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x107c8a580, {{0.0, 0.0}, {402.0, 874.0}}
+    Window, 0x107c8a6c0, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x107c8a800, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x107c8a940, {{0.0, 0.0}, {402.0, 874.0}}
+    Window, 0x107c8aa80, {{0.0, 0.0}, {134.0, 291.3}}
+      Other, 0x107c8abc0, {{0.0, 0.0}, {134.0, 291.3}}
+        Other, 0x107c8ad00, {{0.0, 0.0}, {134.0, 291.3}}
+    Window, 0x107c8ae40, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x107c8af80, {{0.0, 0.0}, {402.0, 874.0}}
+        Other, 0x107c8b0c0, {{0.0, 0.0}, {402.0, 874.0}}
+    Window (Main), 0x107c8b200, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x107c8b340, {{138.3, 14.0}, {125.3, 36.7}}
+    Window, 0x107c8b480, {{0.0, 0.0}, {402.0, 874.0}}
+      StatusBar, 0x107c8b5c0, {{0.0, 0.0}, {402.0, 54.0}}
+    Window, 0x107c8b700, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x107c8b840, {{0.0, 0.0}, {402.0, 874.0}}
+    Window, 0x107c8b980, {{0.0, 0.0}, {402.0, 874.0}}
+      Other, 0x107c8bac0, {{0.0, 0.0}, {402.0, 874.0}}
+Path to element:
+ →Application, 0x104a8a6c0, pid: 15869, label: ' '
+Query chain:
+ →Find: Application 'com.apple.springboard'
+  Output: {
+    Application, 0x107c8bc00, pid: 15869, label: ' '
+  }
+
+    t =     0.22s Checking existence of `"Open" Button`
+    t =     0.24s Checking existence of `"Open" Button`
+    t =     0.29s Ignoring failure to get hierarchy for remote element in process 11456 (Error getting main window kAXErrorServerNotFound)
+    t =     0.29s Checking existence of `"Open" Button`
+    t =     0.44s Open com.pubmaxx.app
+    t =     0.45s     Activate com.pubmaxx.app
+    t =     0.45s         Wait for com.pubmaxx.app to idle
+    t =     0.46s Waiting 10.0s for "Places" Link to exist
+objc[96365]: Class UIAccessibilityLoaderWebShared is implemented in both /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.tF0MWb/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebKit.axbundle/WebKit (0x108cb8398) and /private/var/run/com.apple.security.cryptexd/mnt/com.apple.iPhoneOS.SimulatorRuntime-v24.1.434.0.tF0MWb/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 27.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebCore.axbundle/WebCore (0x108e78310). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+    t =     1.46s     Checking `Expect predicate `existsNoRetry == 1` for object "Places" Link`
+    t =     1.46s         Checking existence of `"Places" Link`
+LANE_COLD_LINK {
+    native = ios;
+    url = "http://localhost:3491/tonight?lane-link=cold";
+}
+    t =     1.65s Find the Application 'com.pubmaxx.app'
+    t =     1.75s Added attachment named 'native-cold-tonight-link'
+    t =     1.75s Tear Down
+Test Case '-[LaneUITests.LaneUITests testColdDeepLink]' passed (6.392 seconds).
+Test Suite 'LaneUITests' passed at 2026-10-08 12:34:36.544.
+	 Executed 1 test, with 0 failures (0 unexpected) in 6.392 (6.395) seconds
+Test Suite 'LaneUITests.xctest' passed at 2026-10-08 12:34:36.544.
+	 Executed 1 test, with 0 failures (0 unexpected) in 6.392 (6.395) seconds
+Test Suite 'Selected tests' passed at 2026-10-08 12:34:36.544.
+	 Executed 1 test, with 0 failures (0 unexpected) in 6.392 (6.396) seconds
+2026-10-08 12:34:36.835 xcodebuild[94505:51288297] [MT] IDETestOperationsObserverDebug: 12.272 elapsed -- Testing started completed.
+2026-10-08 12:34:36.835 xcodebuild[94505:51288297] [MT] IDETestOperationsObserverDebug: 0.000 sec, +0.000 sec -- start
+2026-10-08 12:34:36.835 xcodebuild[94505:51288297] [MT] IDETestOperationsObserverDebug: 12.272 sec, +12.272 sec -- end
+
+Test session results, code coverage, and logs:
+	/Users/karanmanoharan/.treehouse/pubmaxx-bde241/5/pubmaxx/.ios-lane-a/final-cold-link.xcresult
+
+** TEST SUCCEEDED **
+
+Testing started

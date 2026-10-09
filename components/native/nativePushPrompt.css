@@ -42,10 +42,11 @@
     padding-bottom: var(--space-3);
   }
 
-  /* The bar slides away while a sheet or the keyboard owns the foot. The card
-     follows it down rather than hovering over an empty lane. */
+  /* The bar stays up beside an open sheet, so the card keeps resting on it.
+     It slides away only while the keyboard or night mode owns the foot, and
+     the card follows it down rather than hovering over an empty lane. */
   body:has(.mobileTabBar.isKeyboardHidden) .nativePushPrompt,
-  body:has(.appShell.detail-open, .appShell.planning-open, .nightCrawl) .nativePushPrompt {
+  body:has(.nightCrawl) .nativePushPrompt {
     bottom: 0;
     padding-bottom: max(var(--space-4), env(safe-area-inset-bottom));
   }

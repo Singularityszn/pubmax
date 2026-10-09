@@ -280,6 +280,35 @@ export function londonDateTimeInputFromIso(value: string): string | null {
   return londonInput(londonParts(new Date(timestamp)));
 }
 
+/** A night out in London runs until this hour, so an early-hours time belongs to the evening before. */
+const LONDON_NIGHT_ENDS_HOUR = 5;
+
+function londonNightOf(parts: LondonDateTimeParts): number {
+  return Date.UTC(parts.year, parts.month - 1, parts.day) - (parts.hour < LONDON_NIGHT_ENDS_HOUR ? DAY_MS : 0);
+}
+
+/**
+ * Where a London datetime-local value falls against the night out running now:
+ * how many nights ahead it is, the calendar day of its night (a UTC midnight),
+ * and whether the time has already passed. Past is the lock's own reading of
+ * the time (`londonDateTimeInputToIso` after now), so a repeated hour when the
+ * clocks go back is past only when the lock would refuse it. Null when it is
+ * not a real London time.
+ */
+export function londonNightsAhead(
+  value: string,
+  now = new Date(),
+): { nights: number; night: Date; past: boolean } | null {
+  const parts = parseLondonInput(value);
+  if (!parts || !londonDateTimeInputToIso(value)) return null;
+  const night = londonNightOf(parts);
+  return {
+    nights: Math.round((night - londonNightOf(londonParts(now))) / DAY_MS),
+    night: new Date(night),
+    past: londonDateTimeInputToIso(value, now) === null,
+  };
+}
+
 /** Resolve the displayed London wall time without letting a stale exact handoff bypass the future check. */
 export function resolveFutureLondonStartIso(
   value: string,
@@ -720,16 +749,20 @@ export function buildPlanGenerationIntakeBody(
   anchor?: PlanGenerationAnchorInput | null,
 ): PlanGenerationIntakeBody {
   const cleanQuery = query.trim();
+  // A sort before the wizard is finished (a held pub seeds only the area)
+  // sends what the describe-first entry sends: every step nobody answered is
+  // skipped, never left both empty and unskipped, which the API refuses.
+  const sent = skipRemainingPlanIntake(draft);
   const context = {
     ...stripPlanIntakeOwnedContext(currentContext),
     ...explicitContext,
-    ...planIntakeNightContextPatch(draft),
+    ...planIntakeNightContextPatch(sent),
   };
   return {
     ...(cleanQuery ? { query: cleanQuery } : {}),
     ...(Object.keys(context).length > 0 ? { context } : {}),
     ...(anchor?.cityId ? { cityId: anchor.cityId } : {}),
-    intake: planIntakeHandoff(draft),
+    intake: planIntakeHandoff(sent),
     ...(anchor ? {
       anchor: {
         venueId: anchor.venueId,
