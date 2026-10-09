@@ -38,11 +38,23 @@
 /* Signed-out Posts: the switcher and founders link used to bracket a blank
    stretch with no words (issue #1541). */
 .socialRailEmpty {
+  position: relative;
   min-width: 0;
   padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--panel-raised);
+}
+
+.socialRailEmpty[aria-busy="true"] .socialRailContent {
+  visibility: hidden;
+}
+
+.socialRailPending {
+  position: absolute;
+  inset: 12px 14px;
+  display: grid;
+  align-content: center;
 }
 
 .socialSwitcher,
