@@ -7,6 +7,7 @@ const VIEWPORT = { width: 390, height: 844 };
 const CHIP_LABELS = ["Beer", "Wine", "Cocktails", "Whisky", "Gin", "Rum", "Coffee", "Alcohol-free", "Soft drinks"];
 
 test.use({
+  serviceWorkers: "block",
   launchOptions: {
     args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
   },
@@ -487,6 +488,7 @@ for (const width of [390, 320]) {
   }) => {
     test.setTimeout(90_000);
     await page.setViewportSize({ width, height: 844 });
+    await installDeterministicMapBasemap(page);
     const response = await page.goto("/map");
     expect(response?.status()).toBe(200);
     await expect(page.getByRole("button", { name: "Describe the outing" })).toBeVisible({
