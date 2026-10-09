@@ -21,8 +21,7 @@ Unknown, malformed, and ambiguous names must still refuse resolution.
 The bare `the-black-friar` alias must refuse because London and Manchester both match.
 The postcode-qualified London and Manchester links must still resolve to their respective identities.
 
-The review reproduced both legacy Blackfriar routes through their GET handlers before the fix.
-Both threw `NEXT_NOT_FOUND` with the published venue index and real resolver.
+The [delivery report](report.md) owns the before-fix reproduction, focused results, and their proof limits.
 The focused verification must prove that both routes redirect to `/map?sel=venue-eltcmh` with status 308.
 It must also cover spelling aliases, postcode variants, existing Ship stems, canonical IDs, duplicate IDs, and ambiguous aliases.
 The permanent behavioral tests are `__tests__/blackfriarPermalink.test.ts` and `__tests__/venuePermalinkSlug.test.ts`.
@@ -44,19 +43,8 @@ The recorded human decision identifies `native-date-minimal.json` as a plain-pag
 It reports duplicated AX subcontrol names on named native date inputs.
 The same decision reports that the explicit-label probe produces one normal application label.
 These are recorded evidence descriptions, not fresh checks in this review.
-The named minimal JSON and original explicit-label probe are absent from this worktree and the supplied production archive.
-The next Test handoff must retain this evidence gap rather than claim independent verification of those files.
-
-The available raw application reproduction is preserved beside this plan.
-`native-date-ax.json` contains the parent name `Date of birth Optional`.
-Its internal names include `Day Day` and `Show date picker Show date picker`.
-It also contains `Month Month` and `Year Year`.
-`native-date-aria.txt` and `native-date.png` preserve the corresponding browser snapshot and image.
-Their provenance is recorded in [the delivery report](report.md).
-
-`native-date-comparison.html` is a reconstructed plain HTML fixture for the subsequent Test phase.
-It compares a wrapping label with an explicit `for` label without application code.
-It is not the missing original comparison and has no fresh browser result in this review.
+The [delivery report](report.md#preserved-raw-browser-evidence) owns artifact availability, provenance, and the reconstructed comparison's proof limits.
+The next Test handoff must retain the recorded evidence gap rather than claim independent verification of missing originals.
 
 For renewed Test, retain the raw application reproduction and any recovered original minimal-page comparison unchanged.
 Compare the reconstructed fixture's parent labels and internal AX names through the browser accessibility interface.
