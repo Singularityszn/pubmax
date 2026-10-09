@@ -1,11 +1,13 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 import { priceBandLegendLabel } from "../lib/priceBand";
 
 const VIEWPORT = { width: 390, height: 844 };
 const CHIP_LABELS = ["Beer", "Wine", "Cocktails", "Whisky", "Gin", "Rum", "Coffee", "Alcohol-free", "Soft drinks"];
 
 test.use({
+  serviceWorkers: "block",
   launchOptions: {
     args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
   },
@@ -486,6 +488,7 @@ for (const width of [390, 320]) {
   }) => {
     test.setTimeout(90_000);
     await page.setViewportSize({ width, height: 844 });
+    await installDeterministicMapBasemap(page);
     const response = await page.goto("/map");
     expect(response?.status()).toBe(200);
     await expect(page.getByRole("button", { name: "Describe the outing" })).toBeVisible({
@@ -639,4 +642,20 @@ test("390px drink glyphs keep the requested 22px box", async ({ page }) => {
       viewBox: "0 0 32 32",
     })),
   );
+});
+
+
+test("390px More map controls credits the active CARTO fallback", async ({ page }) => {
+  test.setTimeout(90_000);
+  await installDeterministicMapBasemap(page);
+  await page.route(/^https:\/\/tiles\.openfreemap\.org\/styles\//, (route) => route.abort("failed"));
+  await page.goto("/map");
+  await expect(page.getByRole("button", { name: "Describe the outing" })).toBeVisible({ timeout: 45_000 });
+  await page.getByRole("button", { name: "More map controls" }).click();
+  const credits = page.locator(".mobileMapCredits");
+  await expect(credits).toContainText("CARTO", { timeout: 20_000 });
+  await expect(credits).toContainText("Pub data © OpenStreetMap contributors (ODbL)");
+  await expect(credits.getByRole("link", { name: "CARTO", exact: true })).toHaveAttribute("href", "https://carto.com/about-carto/");
+  await expect(credits).not.toContainText("OpenFreeMap");
+  await expect(credits).not.toContainText("OpenMapTiles");
 });

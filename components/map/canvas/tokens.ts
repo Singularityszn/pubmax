@@ -16,6 +16,8 @@ import {
 // schema: a `building` source-layer with `render_height` for our 3-D extrusion.
 // "liberty" is a rich, colourful consumer-map look (land-use tints, POI labels,
 // road hierarchy); "dark" matches our candle-lit night mode.
+export type BasemapProvider = "openfreemap" | "carto";
+
 export const MAP_STYLES = {
   dark: "https://tiles.openfreemap.org/styles/dark",
   // Positron, not Liberty: Liberty is the full-colour OSM look (yellow POIs,

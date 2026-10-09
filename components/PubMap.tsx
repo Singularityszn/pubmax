@@ -96,7 +96,7 @@ import {
   buildUkBasePubListModel,
   type MapVenueListSortMode,
 } from "@/lib/mapVenueList";
-import { UK_BOUNDS } from "@/components/map/canvas/tokens";
+import { UK_BOUNDS, type BasemapProvider } from "@/components/map/canvas/tokens";
 import MapFallbackCard from "@/components/map/MapFallbackCard";
 import { selectMapFallbackPubs } from "@/lib/mapFallbackVenues";
 import { readStrictModalFocusTrap, useFocusTrap } from "@/lib/useFocusTrap";
@@ -1512,6 +1512,7 @@ export default function PubMap({
   // for the active city's slim data, a paintable pubs source, and its guarded
   // visible frame. Canvas errors lift this state so fallback UI is not hidden.
   const [mapCanvasReady, setMapCanvasReady] = useState(false);
+  const [basemapProvider, setBasemapProvider] = useState<BasemapProvider>("openfreemap");
   // Pin-reveal is the loading shell's exit: it fires when painted pubs are
   // tappable, not merely when the basemap or slim rows exist.
   const { pinsRevealed, resetPinReveal } = useMapPinsRevealed();
@@ -6132,7 +6133,7 @@ export default function PubMap({
         </TabsList>
         <TabsContent value="key" className="mobileLayersPanel">
           <MapKey legend={activePriceLegend} />
-          <MapCredits />
+          <MapCredits basemap={basemapProvider} />
         </TabsContent>
         <TabsContent value="layers" className="mobileLayersPanel">
           <div className="mobileLayerShortcuts">
@@ -6835,6 +6836,7 @@ export default function PubMap({
         onLandmarkSelect={handleLandmarkSelect}
         onMapReady={handleMapCanvasReady}
         onMapConstructed={handleMapCanvasConstructed}
+        onBasemapChange={setBasemapProvider}
         onMapErrored={setMapCanvasErrored}
         mapView={openingViewport
           ? withCityCameraAttitude(openingViewport, city.mapView)
