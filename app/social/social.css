@@ -969,6 +969,11 @@ span.socialPostAvatar {
     width: 100%;
   }
 
+  /* Keep the Create lane reserved while consent temporarily hides Create. */
+  body:has(.createFabRoot):not(:has(.pageHidesCreateFab)) .socialPage .screenPrimary {
+    padding-right: max(0px, calc(var(--create-fab-lane) - var(--page-gutter)));
+  }
+
   /* While the analytics card is mounted, globals.css owns the scroll padding
      (tab bar plus the card's measured lane), so focus never parks under it. */
   html:has(.socialPage):not(:has(.analyticsConsentPrompt)) {
