@@ -1,0 +1,37 @@
+PASS: nine spelling/postcode forms resolve uniquely and refuse ambiguous matches.
+PASS: aliases stay scoped to the canonical identity and work without a postcode.
+PASS: ordinary Ship names, shortened stems, district prefixes, IDs and ambiguity retain their behavior.
+(node:23881) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/karanmanoharan/.no-mistakes/worktrees/0c69043bdc5e/01M4H8DAEPCD1FAY53WKKNQK42/lib/venuePermalinkSlug.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/karanmanoharan/.no-mistakes/worktrees/0c69043bdc5e/01M4H8DAEPCD1FAY53WKKNQK42/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS: /pub/the-black-friar-blackfriars -> 308 /map?sel=venue-eltcmh
+PASS: /pub/the-black-friar-blackfriars-ec4v -> 308 /map?sel=venue-eltcmh
+PASS: /pub/the-black-friar-blackfriars-ec4 -> 308 /map?sel=venue-eltcmh
+PASS: /pub/the-black-friar-ec4v -> 308 /map?sel=venue-eltcmh
+PASS: /pub/the-black-friar-ec4 -> 308 /map?sel=venue-eltcmh
+PASS: /pub/the-blackfriar -> 308 /map?sel=venue-eltcmh
+PASS: /pub/the-blackfriar-ec4v -> 308 /map?sel=venue-eltcmh
+PASS: /pub/the-blackfriar-ec4 -> 308 /map?sel=venue-eltcmh
+PASS: /pub/venue-eltcmh -> 308 /map?sel=venue-eltcmh
+PASS: /pub/venue-1sw9ofl -> 308 /map?sel=venue-eltcmh
+node:internal/modules/run_main:111
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ 'http://localhost/map/manchester?sel=venue-mcr-shidtf'
+- 'http://localhost/map?sel=venue-mcr-shidtf'
+
+    at file:///Users/karanmanoharan/.no-mistakes/worktrees/0c69043bdc5e/01M4H8DAEPCD1FAY53WKKNQK42/.tmp-evidence/permalink-review-check.mjs:65:10 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 'http://localhost/map/manchester?sel=venue-mcr-shidtf',
+  expected: 'http://localhost/map?sel=venue-mcr-shidtf',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v26.10.0

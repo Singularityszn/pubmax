@@ -1,0 +1,209 @@
+- region "Identity, connections and memories.":
+  - paragraph: Your PUBMAXX
+  - heading "Identity, connections and memories." [level=2]
+  - region "Find your lot":
+    - paragraph: Your lot
+    - heading "Find your lot" [level=2]
+    - paragraph: Search a mate’s handle, or send an invite link. A lot is mutual. They follow you back, and you share nights.
+    - text: Search handles
+    - searchbox "Search handles"
+    - button "Get invite link"
+    - link "Share your add link":
+      - /url: /add/karan
+  - region "How you like to go out.":
+    - paragraph: Night Profile
+    - heading "How you like to go out." [level=3]
+    - paragraph: We use this to shape plans you can edit. We never save your precise location or voice transcripts here.
+    - text: City
+    - combobox "City" [disabled]:
+      - option "London" [selected]
+      - option "Manchester"
+      - option "Birmingham"
+      - option "Leeds"
+      - option "Liverpool"
+      - option "Oxford"
+      - option "Durham"
+      - option "Glasgow"
+      - option "Bristol"
+      - option "Cambridge"
+      - option "Bath"
+      - option "Llandudno"
+    - text: Your patch
+    - combobox "Your patch" [disabled]:
+      - option "No preference" [selected]
+      - option "Clapham"
+      - option "Victoria"
+      - option "Piccadilly & Soho"
+      - option "Canary Wharf"
+      - option "Barnes"
+      - option "Chiswick"
+      - option "Shoreditch"
+      - option "Camden"
+      - option "Brixton"
+      - option "Bermondsey & London Bridge"
+      - option "King's Cross"
+      - option "Islington"
+      - option "Dalston"
+      - option "Peckham"
+      - option "Greenwich"
+      - option "Hammersmith"
+      - option "Balham"
+      - option "Marylebone"
+      - option "Richmond"
+      - option "Putney"
+    - text: Time
+    - combobox "Time" [disabled]:
+      - option "Daytime"
+      - option "After work"
+      - option "Evening" [selected]
+      - option "Late night"
+      - option "Get home"
+    - text: Group
+    - combobox "Group" [disabled]:
+      - option "Solo"
+      - option "Friends" [selected]
+      - option "Work"
+    - text: People
+    - spinbutton "People" [disabled]
+    - text: Budget
+    - combobox "Budget" [disabled]:
+      - option "Value"
+      - option "Standard" [selected]
+      - option "Treat"
+    - text: Max per person
+    - combobox "Max per person" [disabled]:
+      - option "No cap" [selected]
+      - option "£20"
+      - option "£30"
+      - option "£50"
+      - option "£100"
+    - text: Drinks
+    - combobox "Drinks" [disabled]:
+      - option "Any drinks" [selected]
+      - option "Prefer alcohol-free"
+    - text: Voice
+    - combobox "Voice" [disabled]:
+      - option "Off" [selected]
+      - option "Read replies aloud"
+      - option "Push to talk"
+    - text: Briefings
+    - combobox "Briefings" [disabled]:
+      - option "On" [selected]
+      - option "Muted"
+    - button "Loading Night Profile…" [disabled]
+  - heading "Your @handle" [level=3]
+  - textbox "night_owl": karan
+  - button "Rename handle"
+  - text: You can rename once every 30 days. Old links keep working.
+  - heading "The first hundred" [level=3]
+  - link "Founding members":
+    - /url: /founders
+  - heading "Invite a mate" [level=3]
+  - paragraph: A referral counts after your mate signs up and logs their first accepted contribution.
+  - text: A milestone is a mark on your own profile. Nothing here is gated behind it.
+  - button "Invite a mate"
+  - region "Account settings":
+    - heading "Account settings" [level=3]
+    - heading "Private account details" [level=3]
+    - text: Name
+    - textbox "Name"
+    - text: Email
+    - textbox "Email Your sign-in address. Sign in with a new address to change it.": karan@example.test
+    - text: Your sign-in address. Sign in with a new address to change it. Date of birth Optional
+    - textbox "Date of birth Optional"
+    - text: Gender Optional
+    - combobox "Gender Optional":
+      - option "Not added" [selected]
+      - option "Woman"
+      - option "Man"
+      - option "Non-binary"
+      - option "Self-described"
+      - option "Prefer not to say"
+    - text: Only your handle is public. These details stay private and never show on your profile.
+    - button "Save private details"
+    - heading "Notifications" [level=3]
+    - paragraph: "Step Out sends at most one place-bound push a week when something is owed to you: a Wanted pub near your patch, an open Soft Plan for tonight, or a sourced deal ending soon. Off by default. No streaks, and no pressure to drink more."
+    - button "Turn Step Out on"
+    - status: Step Out off.
+    - heading "Optional usage analytics" [level=3]
+    - paragraph: Help us see which parts of the app work, using a persistent device ID, standard browser details and allow-listed product events. It's optional, and you can withdraw it here.
+    - button "Allow"
+    - button "No thanks"
+    - heading "Download your data" [level=3]
+    - paragraph: "A JSON file of everything this account holds: your profile and private details, your Memories and Moments, your prices, Pint Drops, visit reports, crowd reports, posts and photos, your saved pubs and the messages you sent."
+    - button "Download JSON"
+    - heading "Delete your account" [level=3]
+    - paragraph: This removes your sign-in from PUBMAXX. It cannot be undone.
+    - button "Delete account"
+    - region "Privacy, terms and support":
+      - heading "Privacy, terms and support" [level=3]
+      - list:
+        - listitem:
+          - link "Privacy notice":
+            - /url: /privacy
+        - listitem:
+          - link "Terms of use":
+            - /url: /terms
+        - listitem:
+          - link "Deleting your account":
+            - /url: /account/delete
+        - listitem:
+          - link "karan@pubmaxxing.com":
+            - /url: mailto:karan@pubmaxxing.com
+        - listitem:
+          - link "drinkaware.co.uk":
+            - /url: https://www.drinkaware.co.uk
+      - paragraph: PUBMAXX is for over-18s. Drink responsibly.
+  - region "Keep the parts you will tell people about.":
+    - paragraph: Night Memory studio
+    - heading "Keep the parts you will tell people about." [level=3]
+    - paragraph: Everything starts private. A Story is a separate draft, never an automatic post.
+    - link "Save a Moment":
+      - /url: /moment
+    - status:
+      - paragraph: Your Memory studio is empty.
+      - paragraph: A Memory is a private night out in your words. Add the Moments worth keeping, then shape a Story you decide whether to share. Start below, or save tonight from the map.
+      - link "Save a Moment now":
+        - /url: /moment
+      - link "Log a pint first":
+        - /url: /map?log=1
+    - text: "1"
+    - heading "Start a Memory" [level=4]
+    - text: Name this night
+    - textbox "Name this night":
+      - /placeholder: Friday detour
+    - button "Create private Memory"
+    - text: "2"
+    - heading "Add a Moment" [level=4]
+    - text: Memory
+    - combobox "Memory":
+      - option "Choose a Memory" [selected]
+    - text: Kind
+    - combobox "Kind":
+      - option "Event"
+      - option "Place"
+      - option "Quote"
+      - option "Person"
+      - option "Detour" [selected]
+    - text: What happened?
+    - textbox "What happened?":
+      - /placeholder: We followed the music and found a tiny basement set.
+    - text: Venue reference optional
+    - textbox "Venue reference optional":
+      - /placeholder: Venue ID or map reference
+    - button "Save private Moment" [disabled]
+    - text: "3"
+    - heading "Shape the Story" [level=4]
+    - text: Story title
+    - textbox "Story title":
+      - /placeholder: The night we missed the last train
+    - text: Opening line optional
+    - textbox "Opening line optional":
+      - /placeholder: A plan for two turned into a table of eight.
+    - button "Create private Story draft" [disabled]
+    - strong: "0"
+    - text: Memories
+    - strong: "0"
+    - text: Moments in this Memory
+    - strong: "0"
+    - text: Stories

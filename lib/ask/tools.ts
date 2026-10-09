@@ -46,6 +46,7 @@ import {
   toolVenueDrinks,
 } from "@/lib/ask/conciergeTools.server";
 import { matchVenueByName } from "@/lib/ask/venueResolution.server";
+import { resolveCanonicalVenueId } from "@/lib/venueAliases";
 import type {
   AskProvenance,
   AskToolArgs,
@@ -1007,7 +1008,11 @@ export async function runAskTool(
       answerHint: "That tool is not available.",
     };
   }
-  return HANDLERS[name](args, ctx);
+  const venueId = str(args.venueId);
+  const canonicalArgs = venueId
+    ? { ...args, venueId: await resolveCanonicalVenueId(venueId) }
+    : args;
+  return HANDLERS[name](canonicalArgs, ctx);
 }
 
 export function resolveAskCityId(raw: unknown): CityId {
