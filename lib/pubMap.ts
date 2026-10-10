@@ -52,6 +52,23 @@ import {
   eagerCuratedCrawlAltStyle,
   eagerCuratedCrawlAltStyleForBuiltIds,
 } from "@/lib/curatedCrawlHints";
+import { rememberedAreaNamesView } from "@/lib/areaButton";
+
+/** Use the settled locality when Near me or an optimistic choice cannot name the view. */
+export function cityStatusAreaFor(input: {
+  mapChipLabel: string;
+  mapChosenArea: Parameters<typeof rememberedAreaNamesView>[0] | null;
+  bounds: Parameters<typeof rememberedAreaNamesView>[1];
+  viewCenter: Parameters<typeof rememberedAreaNamesView>[2];
+  viewer: Parameters<typeof rememberedAreaNamesView>[3];
+  claimedArea: { name: string } | null | undefined;
+}): string | null {
+  const { mapChipLabel, mapChosenArea, bounds, viewCenter, viewer, claimedArea } = input;
+  return mapChipLabel === "Near me" || (mapChosenArea &&
+    !rememberedAreaNamesView(mapChosenArea, bounds, viewCenter, viewer))
+    ? claimedArea?.name ?? null
+    : mapChipLabel;
+}
 
 /** A specific soft drink satisfies zero-proof without widening to all alcohol-free drinks. */
 export function generatedMapDrinkLane(context: Pick<NightContext, "drinkCategory" | "zeroProof">): DrinkCategory {
@@ -367,7 +384,7 @@ export function shouldResolveOpeningLocation(input: {
   );
 }
 
-/** The ambient banners are an opening offer, so they step off once the reader drives. */
+/** City-wide display permission. Contract: docs/CITYMCP_LONDON.md, Runtime API surfaces. */
 export function ambientBannerLaneOpen(
   mobileViewport: boolean,
   mapCameraTouched: boolean,

@@ -613,6 +613,7 @@ import {
   filtersForCuratedCrawl,
   generatedMapDrinkLane,
   buildMapSeed,
+  cityStatusAreaFor,
   builtStopsAskedAfter,
   builtStopsNeedingHydration,
   detailStatusFor,
@@ -1199,11 +1200,9 @@ export default function PubMap({
   /**
    * Has the reader moved the camera themselves yet?
    *
-   * The ambient banners (city suggest, city status) are an opening offer. Once
-   * the reader drives the map, the map is the answer and the banners step off
-   * it (design judgement 2026-08-01, finding 2.15). This is session state, not
-   * a dismissal: it never writes to the per-banner "do not show me this again"
-   * stores, because ignoring an offer is not rejecting it.
+   * Display rules: docs/CITYMCP_LONDON.md, Runtime API surfaces.
+   * This is session state, not a dismissal. It never writes to per-banner
+   * dismissal stores, because moving the camera does not dismiss an offer.
    */
   const [mapCameraTouched, setMapCameraTouched] = useState(false);
   const mapCameraTouchedRef = useRef(false);
@@ -5062,7 +5061,14 @@ export default function PubMap({
     claimedArea,
     mapContextName,
   });
-
+  const cityStatusArea = cityStatusAreaFor({
+    mapChipLabel,
+    mapChosenArea,
+    bounds: mapBounds,
+    viewCenter: mapViewport.center,
+    viewer: userLocation,
+    claimedArea,
+  });
 
   // ── Where the reader is, and how they get out ────────────────────────────
   // Every Map panel used to carry its own close and nothing else, so a reader
@@ -6797,8 +6803,9 @@ export default function PubMap({
       {railViewport && !detailOpen && !showMapArrivalCard ? (
         <MapDesktopRail area={searchAreaNewsArea ?? suggestedPlanArea?.slug ?? null} />
       ) : null}
-      {/* Ambient banners dock under the control bar and step off the map the
-          moment the reader moves the camera (design judgement 2026-08-01,
+      {/* City-wide ambient banners dock under the control bar and step off the
+          map when the reader moves the camera. Local news follows the settled
+          view (design judgement 2026-08-01,
           finding 2.15). They used to park in the exact centre of the
           viewport, over the pins the map exists to show. */}
       {ambientBannerLaneOpen && !baseLedChrome ? (
@@ -6810,39 +6817,20 @@ export default function PubMap({
           }}
         />
       ) : null}
-      {ambientBannerLaneOpen && isLondon ? (
-        <CityStatusBanner cityId={cityId} />
+      {!mobileViewport && !showMapArrivalCard && isLondon && mapAmbientBannersVisible({ canvasUnavailable: mapCanvasUnavailable }) ? (
+        <CityStatusBanner
+          cityId={cityId}
+          viewedArea={mapBounds && settledMapBoundsCityId === cityId
+            ? cityStatusArea
+            : null}
+          allowCitywideStatus={ambientBannerLaneOpen}
+        />
       ) : null}
       {/* F3: concierge as map home — a first-class grounded ask affordance in
           the bottom map-home lane. Rendered before the Tonight lane so its
           sibling CSS lifts the lane above the collapsed pill (no collision). */}
       {!mobileViewport && !ukPlaceArrival && !showMapArrivalCard ? <MapConciergeAsk cityId={cityId} onSelectVenue={(id) => selectVenue(id)} /> : null}
-      {!mobileViewport && isLondon ? (
-        <TonightLane
-          rows={whatsOnTonight.rows}
-          asOf={whatsOnTonight.asOf}
-          status={whatsOnTonight.status}
-          open={tonightLaneOpen || tonightLaneForcedOpen}
-          onOpenChange={(next) => {
-            setTonightLaneOpen(next);
-            if (!next && tonightDeepLinkKind) setDismissedTonightSrc(srcParam);
-          }}
-          near={userLocation}
-          gardenCue={tonightLaneCue.gardenCue}
-          initialKind={tonightLaneKind}
-          onSelectVenue={(id) => selectVenue(id)}
-          overlayCount={
-            tonightStatus === "ready" && !tonightDismissed
-              ? tonightOpportunities.length
-              : 0
-          }
-          overlayActive={tonightOverlayVisible}
-          onToggleOverlay={() =>
-            setTonightOverlayVisible((visible) => !visible)
-          }
-          onDismissOverlay={dismissTonightOverlay}
-        />
-      ) : null}
+      {renderDesktopTonightLane()}
       {!mobileViewport && logIntentFallbackVisible ? (
         <LogIntentFallback
           candidates={logNearbyCandidates}
@@ -6891,6 +6879,37 @@ export default function PubMap({
         />
       ) : null}
       </>
+    );
+  }
+
+  function renderDesktopTonightLane() {
+    return (
+      !mobileViewport && isLondon ? (
+        <TonightLane
+          rows={whatsOnTonight.rows}
+          asOf={whatsOnTonight.asOf}
+          status={whatsOnTonight.status}
+          open={tonightLaneOpen || tonightLaneForcedOpen}
+          onOpenChange={(next) => {
+            setTonightLaneOpen(next);
+            if (!next && tonightDeepLinkKind) setDismissedTonightSrc(srcParam);
+          }}
+          near={userLocation}
+          gardenCue={tonightLaneCue.gardenCue}
+          initialKind={tonightLaneKind}
+          onSelectVenue={(id) => selectVenue(id)}
+          overlayCount={
+            tonightStatus === "ready" && !tonightDismissed
+              ? tonightOpportunities.length
+              : 0
+          }
+          overlayActive={tonightOverlayVisible}
+          onToggleOverlay={() =>
+            setTonightOverlayVisible((visible) => !visible)
+          }
+          onDismissOverlay={dismissTonightOverlay}
+        />
+      ) : null
     );
   }
 

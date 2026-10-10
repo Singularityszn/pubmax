@@ -433,9 +433,9 @@
   --z-map-cards: 460;        /* poiLabelCard */
   --z-map-hover: 470;        /* venueHoverCard + map price/layers FABs */
   --z-map-panel: 500;        /* routePanel, mapDrawer */
-  --z-map-suggest: 512;      /* citySuggestBanner — below cityStatusBanner, as on main */
-  --z-map-ask: 514;          /* mapConciergeAsk pill — above the Tonight lane (512), below cityStatusBanner */
-  --z-map-banner: 515;       /* cityStatusBanner */
+  --z-map-suggest: 512;      /* citySuggestBanner */
+  --z-map-ask: 514;          /* mapConciergeAsk pill */
+  --z-map-banner: 515;
   --z-map-camera: 530;       /* mapCameraControls */
   --z-map-route-chip: 540;   /* mappedRouteChip — below activeRoundChip, as on main */
   --z-map-chip: 541;         /* activeRoundChip */

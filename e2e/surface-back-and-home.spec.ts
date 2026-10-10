@@ -79,6 +79,10 @@ async function openPlannerFromSheet(page: Page): Promise<void> {
   await expect(sheet(page)).toHaveAttribute("data-sheet-kind", "planner", {
     timeout: 30_000,
   });
+  // The kind precedes the opening effect and the lazy route content. Wait for
+  // both before Back: a growing sheet can move its header during the press.
+  await expect(sheet(page).locator(".routePanel")).toBeVisible();
+  await expect(sheet(page).locator(".mobileSharedSheet")).toHaveAttribute("data-sheet-motion", "idle");
 }
 
 /** Select the Layers section inside the map-controls sheet (hydration-safe tap). */

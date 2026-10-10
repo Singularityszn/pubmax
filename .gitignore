@@ -39,6 +39,7 @@ playwright-report/
 evals/pal/scoreboard/
 evals/askRouterModel/scoreboard/
 artifacts/
+.tmp-evidence/
 /coverage/
 /blob-reports/
 e2e/screenshots/
