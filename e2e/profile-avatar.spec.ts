@@ -210,7 +210,7 @@ test("repaints a cached profile fallback when the network answer adds an avatar"
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ drops: [] }),
+      body: JSON.stringify({ drops: [], passportAreas: [] }),
     });
   });
   await page.route(`**/api/profiles/${REPAINT_HANDLE}**`, async (route) => {
@@ -257,7 +257,7 @@ test("retries a failed avatar after the browser reconnects", async ({ page }) =>
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ drops: [] }),
+      body: JSON.stringify({ drops: [], passportAreas: [] }),
     });
   });
   await page.route(`**/api/profiles/${REPAINT_HANDLE}**`, async (route) => {

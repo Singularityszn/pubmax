@@ -16,6 +16,7 @@ import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { enrichItemsWithAvatarUrls } from "@/lib/avatarResolve";
 import { parseCityId } from "@/lib/cities";
+import { cityIdFromVenueId } from "@/lib/cityVenueIds";
 import { RECEIPT_REQUIRED_LINE, priceNeedsReceipt } from "@/lib/pintDropReceipt";
 import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
 import { log } from "@/lib/log";
@@ -48,9 +49,9 @@ import { signalPintDropLanded } from "@/lib/pintDropsBroadcast.server";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp, requiresSupabaseStore, isSupabaseConfigured } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
-import { loadVenueAliasResolver } from "@/lib/venueAliases";
+import { loadVenueAliasResolver, lookupCanonicalVenueId } from "@/lib/venueAliases";
 import { storedVenueName, storedVenueRef } from "@/lib/storedVenueRef";
-import { getVenueIndex, lookupCanonicalVenue, venueMapUrl } from "@/lib/venueIndex";
+import { getVenueIndex, getVenueIndexSnapshot, lookupCanonicalVenue, venueMapUrl } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 
 // Fail fast at module load: a misconfigured production deploy (no Supabase)
@@ -596,6 +597,8 @@ export async function GET(request: Request): Promise<Response> {
   // Public read: visible drops only, newest-first, hard-capped (MAX_PUBLIC_DROPS),
   // with per-drop VISIBILITY applied server-side (issue #29). The viewer is
   // resolved from a verified JWT when present; ?viewer= is ignored in production.
+  // Author reads also return passportAreas from the complete permitted attributed history.
+  // Required venue or alias data failures and incomplete history reads return storageUnavailable (503).
   const unavailable = productionStorageUnavailable();
   if (unavailable) return unavailable;
   try {
@@ -608,14 +611,34 @@ export async function GET(request: Request): Promise<Response> {
     // to London when omitted or unrecognised.
     const author = params.get("author") ?? undefined;
     const cityId = parseCityId(params.get("city")) ?? undefined;
-    const drops = await pintDropsStore().listVisible(
-      params.get("venueId") ?? undefined,
+    const venueId = params.get("venueId") ?? undefined;
+    if (author) {
+      const [snapshot, canonical] = await Promise.all([
+        getVenueIndexSnapshot(), lookupCanonicalVenueId(venueId ?? ""),
+      ]);
+      if (canonical.status === "unavailable") return storageUnavailable();
+      const geographyCity = venueId ? cityIdFromVenueId(canonical.venueId) ?? "london" : cityId ?? "london";
+      if (!snapshot.loadedCities.has(geographyCity)) return storageUnavailable();
+    }
+    const store = pintDropsStore();
+    const drops = await store.listVisible(
+      venueId,
       viewer,
       author,
       cityId,
     );
     const enriched = await enrichItemsWithAvatarUrls(await withVenueNames(drops));
-    return jsonNoStore({ drops: enriched }, { status: 200 });
+    // Geography uses the complete attributed history, independently of the feed cap.
+    // A failed page fails this response rather than publishing a partial lifetime count.
+    let passportAreas: string[] | undefined;
+    if (author) {
+      const venueIds = await store.listVisibleAuthorVenueIds(
+        author, viewer, cityId, venueId,
+      );
+      const venues = await withVenueNames(venueIds.map((venueId) => ({ venueId })));
+      passportAreas = [...new Set(venues.flatMap((venue) => venue.borough ? [venue.borough] : []))].sort();
+    }
+    return jsonNoStore({ drops: enriched, ...(passportAreas ? { passportAreas } : {}) }, { status: 200 });
   } catch (err) {
     log("error", "pint_drops.list_visible_failed", {
       route: "GET /api/pint-drops",

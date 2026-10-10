@@ -1,8 +1,8 @@
 // Pint Passport aggregation — pure, backend-free (user story 29).
 //
 // The passport is the collectible "field-guide" view of a handle's activity:
-// the numbers that make a night into identity. This module turns the raw inputs
-// the profile page already has (a handle's drops + its follow/story counts) into
+// the numbers that make a night into identity. This module turns the profile's
+// bounded drops, optional complete geography, and crawl-story counts into
 // a single flat PassportData shape the card renders. Everything here is pure and
 // deterministic so it unit-tests with no DOM, no network, no database — the same
 // stance as lib/profiles.ts, which it composes (profileStats + computeBadges).
@@ -13,6 +13,7 @@ import {
   type Badge,
   type ProfileDrop,
 } from "@/lib/profiles";
+import { LONDON_BOROUGH_NAMES } from "@/lib/londonBoroughNames.mjs";
 import { slugifyBorough } from "@/lib/boroughs";
 import {
   computeBadgeEventProgress,
@@ -43,7 +44,7 @@ function distinctBeers(drops: readonly ProfileDrop[]): number {
 export type PassportData = {
   /** Distinct pubs visited — venueId is the pub identity (drops carry it). */
   pubs: number;
-  /** The distinct areas from profileStats, or [] when no drop names an area. */
+  /** Complete supplied geography, otherwise the distinct areas of the input drops. */
   boroughs: string[];
   /** Distinct named drinks ("beers"), case-insensitive. */
   beers: number;
@@ -75,7 +76,17 @@ export type PassportCounts = {
   crawls?: number | null;
   storyPosts?: number | null;
   badgeEvents?: BadgeEventProgressOptions;
+  /** Complete server-derived geography, independent of a capped timeline. */
+  areas?: readonly string[];
 };
+
+/** Reject old cached timelines that cannot answer lifetime geography. */
+export function hasPassportAreas(body: unknown): body is { drops: ProfileDrop[]; passportAreas: string[] } {
+  if (!body || typeof body !== "object") return false;
+  const { drops, passportAreas } = body as { drops?: unknown; passportAreas?: unknown };
+  return Array.isArray(drops) && Array.isArray(passportAreas) &&
+    passportAreas.every((area) => typeof area === "string" && LONDON_BOROUGH_NAMES.includes(area));
+}
 
 function nonNegInt(value: number | null | undefined): number {
   return typeof value === "number" && Number.isFinite(value) && value > 0
@@ -133,9 +144,10 @@ export function buildBoroughPassport(
 }
 
 /**
- * Aggregate a handle's drops (+ optional external counts) into the flat
- * PassportData the card renders. Null/empty-safe: no drops yields a fully-zeroed
- * passport with `isEmpty: true` and the full unearned-badge set filtered to none.
+ * Aggregate a handle's drops and optional external counts into PassportData.
+ * Supplied areas replace geography derived from drops without changing other drop statistics.
+ * The passport is empty only with no drops, no areas, and zero crawl and story counts.
+ * An explicitly unknown crawl or story count prevents the empty state.
  */
 export function buildPassport(
   drops: readonly ProfileDrop[] | null | undefined,
@@ -154,10 +166,11 @@ export function buildPassport(
     .filter((progress) => progress.earned)
     .map((progress) => progress.badge);
   const storyPosts = countOrUnknown(counts.storyPosts);
+  const boroughs = counts.areas ? [...new Set(counts.areas)].sort() : stats.boroughs ?? [];
 
   return {
     pubs: distinctPubs(list),
-    boroughs: stats.boroughs ?? [],
+    boroughs,
     beers: distinctBeers(list),
     crawls,
     pints: stats.pintsLogged,
@@ -165,11 +178,8 @@ export function buildPassport(
     storyPosts,
     badges: [...earnedBadges, ...earnedEventBadges],
     badgeEvents,
-    // "Empty" is the honest first-run signal: nothing logged, no crawls, no
-    // stories. Follower/following counts don't count as activity here — a
-    // passport is about what YOU did, so a fresh handle reads as empty. An
-    // UNMEASURED count is not a zero, so it holds the blank-passport copy back
-    // rather than telling an author with twelve crawls to start collecting.
-    isEmpty: list.length === 0 && crawls === 0 && storyPosts === 0,
+    // Complete geography can prove activity even when the capped timeline is empty.
+    // Follower and following counts do not count as activity.
+    isEmpty: list.length === 0 && boroughs.length === 0 && crawls === 0 && storyPosts === 0,
   };
 }
