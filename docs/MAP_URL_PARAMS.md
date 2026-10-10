@@ -25,6 +25,8 @@ The map builds its state from the URL in layers:
 
 The city that loads is selected by the Next.js route segment (`/map/[city]`).
 The `/map` route loads London. Crawl-state rewrites preserve the pathname.
+The legacy routes `/map/uk` and `/map/uk/1` permanently redirect to
+`/map?uk=1` through `next.config.mjs`.
 
 ## History and filter synchronisation
 
@@ -41,9 +43,12 @@ write. This also applies when reopening an earlier sheet produced a trail of
 the same length.
 
 Separate route visits and earlier root entries keep their own URLs. A clean
-arrival restored from a saved session stays clean until the reader changes
-the crawl state. Regression cases live in
-[`mapCrawlUrlSync.test.tsx`](../__tests__/mapCrawlUrlSync.test.tsx).
+arrival can restore the saved viewport and filters, but never the saved venue
+selection. On arrival, a venue sheet opens only when the URL selects a venue.
+The URL stays clean until the reader changes the crawl state. Regression cases
+live in [`mapCrawlUrlSync.test.tsx`](../__tests__/mapCrawlUrlSync.test.tsx),
+[`pubMap.test.ts`](../__tests__/pubMap.test.ts), and
+[`map-surface-history.spec.ts`](../e2e/map-surface-history.spec.ts).
 
 ## Fail-soft for an unknown `?sel=`
 

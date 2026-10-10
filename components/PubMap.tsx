@@ -1397,7 +1397,7 @@ export default function PubMap({
   );
   // A restored /map?sel=venue-uk-* arrival: the base pub's id, plus the `at=`
   // location hint the selecting tap wrote alongside sel when the link has one.
-  // The selection comes from the URL or a resume seed. The hint is optional:
+  // The selection comes from the incoming URL. The hint is optional:
   // without it the cold restore asks /api/uk-base/[id] and an id nothing knows
   // ends in the unknown-pub notice rather than a skeleton.
   const [ukBaseRestore] = useState(() =>

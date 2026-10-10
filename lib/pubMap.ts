@@ -240,8 +240,8 @@ export function mapSelectionNotice(input: {
 /**
  * A restored `?sel=venue-uk-*` arrival. The `at=` hint scopes the cold shard
  * fetch to one cell and seeds the camera, but the id alone is enough to ask
- * `/api/uk-base/[id]`: the map's own session restore and an old shared link
- * both carry the id with no hint, and neither may be left on a skeleton.
+ * `/api/uk-base/[id]`. An old shared link can carry the id with no hint and
+ * must not leave the reader on a skeleton.
  */
 export type UkBaseRestore = {
   id: string;

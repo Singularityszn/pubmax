@@ -1103,10 +1103,9 @@ export default function VenueOverviewTab({
           revealRecordLate={revealRecordLate}
         />
       )}
-      {/* Price honesty on overview: community override wins, then sourced
-          observation, then baseline-on-record. Never imply a live feed.
-          Non-pub venues carry a type-specific anchor (a cocktail, a doner) —
-          it renders under its own label with date and source, never as a
+      {/* The shared price lane owns precedence. Never imply a live feed.
+          Non-pub venues carry a type-specific anchor (a cocktail, a doner).
+          It renders under its own label with date and source, never as a
           pint figure. A selected-drink lens already answered above, so a beer
           baseline must not stand in for coffee (or wine, or soft drink). */}
       {showsPriceSummary ? (
