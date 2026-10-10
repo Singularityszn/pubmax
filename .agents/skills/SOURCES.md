@@ -78,6 +78,8 @@ Directory name, then frontmatter `name` when it differs:
 Local corrections:
 
 - [`state-machine` step 3](state-machine/SKILL.md#3-build-the-throwaway-page) preserves the target's Next.js server/client boundary.
+- [`break` step 3](break/SKILL.md#3-build-the-harness-page) points to that fixture boundary guidance.
+- [`better-typography` punctuation guidance](better-typography/SKILL.md#before-you-finish) defers to the project's voice policy.
 - [`explain-interface` token recipe](explain-interface/read-the-system.md#tokens) reads active computed values for the current viewport and theme.
 - [`better-layout` growth guidance](better-layout/spacing-and-adaptivity.md#plan-for-growth-and-clipping) preserves the project's keyboard-inset requirement alongside `dvh` sizing. Its [review checklist](better-layout/SKILL.md#before-you-finish) retains this requirement.
 - [`better-accessibility` hit-area recipe](better-accessibility/hit-areas.md#expanding-the-hit-area) requires a wrapping label for expanded checkbox targets.

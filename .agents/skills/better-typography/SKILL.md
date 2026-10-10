@@ -142,7 +142,7 @@ Keep text selectable by default. `::selection` can carry brand into the reading 
 | `text-align: justify` in application UI | `text-align: start` |
 | `-webkit-line-clamp` without `display: -webkit-box` | Add `display: -webkit-box` and `-webkit-box-orient: vertical` |
 | A timer, counter, price or numeric column without `tabular-nums` | `font-variant-numeric: tabular-nums` |
-| `...`, `--` or a hyphenated range in rendered strings | `…`, an em dash or an en dash |
+| `--` used for an aside in rendered strings | Follow the [project punctuation policy](../../../docs/VOICE.md#the-em-dash-law) |
 | `text-decoration-skip-ink: none` | Remove it; set `text-underline-offset` or `from-font` instead |
 | `<input>` with `text-sm` or `14px` and no mobile override | One of the **Inputs at 16px on mobile** fixes |
 | `-webkit-font-smoothing` or `antialiased` inside a component | Move it to the root |

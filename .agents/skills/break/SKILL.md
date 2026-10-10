@@ -34,7 +34,7 @@ One throwaway page renders the component once per scenario in a single column, w
 
 A scratch route inside the app holds the real component, imported from the project and untouched. The route inherits the app's layout, fonts, global styles and providers for free.
 
-Where the framework splits server from client components, the page is client code, `"use client"` in Next. Otherwise fixture data can silently vanish crossing that boundary, and the page renders empty.
+For fixtures that cross the server and client boundary, follow the [fixture boundary guidance](../state-machine/SKILL.md#3-build-the-throwaway-page). Check that every instance receives its fixture data.
 
 Labels, container widths and fixture props are everything the page adds. No fonts or styles of its own, no simulated themes or token swaps, no probes. A component observed under any of those is a different component.
 
@@ -73,7 +73,7 @@ The page is half the report, so it outlives the findings table. Leave it running
 | --- | --- |
 | Every axis run against every component | Keep only the axes whose cue matches, and say which you dropped |
 | A predicted failure reported as observed | Render it, or leave it out |
-| A scenario missing the content it was fed | The harness is broken, not the component; make the page client code and reload once |
+| A scenario missing the content it was fed | Check the [fixture boundary](../state-machine/SKILL.md#3-build-the-throwaway-page) and reload once |
 | A rebuilt lookalike component in the harness | Import the real component from the project |
 | The harness restyles or re-themes the component | The app's layout, fonts and tokens as they are; labels and widths are all the page adds |
 | A browser launched, debugged or screenshotted per scenario | One load and one look, or hand the URL over and skip the look |
