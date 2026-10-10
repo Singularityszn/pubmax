@@ -32,8 +32,9 @@ function SelectedPub({ venueId }: { venueId: string }) {
   useEffect(() => { drops = currentDrops; }, [currentDrops]);
   useEffect(() => currentDrops.refreshVenueDrops(venueId), [venueId, currentDrops.refreshVenueDrops]);
   const rows = currentDrops.dropsByVenueId.get(venueId) ?? [];
-  const lane = rows.length
-    ? { lane: "contributor" as const, contributorPrice: rows[0].priceGbp! }
+  const contributorPrice = rows[0]?.priceGbp;
+  const lane = contributorPrice != null
+    ? { lane: "contributor" as const, contributorPrice }
     : { lane: "estimate" as const, estimate: { priceGbp: 6.5, computedAt: "2026-10-06", basis: "regional_baseline:camden", sampleSize: 8 } };
   return createElement("p", null,
     venuePriceFallbackPending(lane, "ready", currentDrops.venueDropStatus.get(venueId) ?? "idle")
