@@ -2,7 +2,7 @@
 
 import { CalendarClock, ChevronRight, List, MapPinned, Navigation2, ShieldCheck, X } from "lucide-react";
 import { formatGbp } from "@/lib/formatGbp";
-import { priceBand, priceBandAreaForVenue, priceBandClass } from "@/lib/priceBand";
+import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -14,6 +14,7 @@ const PubPalMascot = dynamic(
 );
 const ThemeToggle = dynamic(() => import("@/components/ThemeToggle"), { ssr: false });
 import PriceBadge from "@/components/PriceBadge";
+import VenuePeekPintPrice from "@/components/map/VenuePeekPintPrice";
 import "@/components/map/venueSheet.css";
 import "@/components/map/spillComposer.css";
 import "@/components/map/logIntentFallback.css";
@@ -52,8 +53,6 @@ import {
 import {
   venueBundlePrices,
   venuePriceLane,
-  venuePriceFallbackPending,
-  PRICE_PENDING_LINE,
   venueSourcedPrice,
 } from "@/lib/venuePriceLane";
 import { dropLaneInput, splitLaneInput } from "@/lib/pintTrust";
@@ -656,7 +655,6 @@ import {
   nightAreaSlugOf,
   searchParamsQuery,
   searchParamValue,
-  peekPriceChip,
   settledBoundsFor,
   shouldResolveOpeningLocation as shouldResolveOpeningLocationFor,
   suggestedRouteWanted,
@@ -5860,20 +5858,9 @@ export default function PubMap({
       dropLaneInput(peekDropSignal?.agedContributorPrice, peekDropSignal?.agedContributorAt),
       splitLaneInput(peekDropSignal?.disputedPrices, peekDropSignal?.disputedAt),
     );
-    const peekPrice = peekPriceChip(peekLane, peekBundle, peekDropSignal?.pintTrust ?? null);
-    const pricePending = activeLensPrices === null && selectedVenueIsPub && (
-      selectedDetailStatus === "loading" ||
-      venuePriceFallbackPending(
-        peekLane,
-        communityPrices.venuePriceStatus.get(selectedVenue.id) ?? "idle",
-        pintDrops.venueDropStatus.get(selectedVenue.id) ?? "idle",
-      )
-    );
     return (
       <div className="mobileVenuePeekSummary" aria-label={selectedVenueLabels.summaryLabel}>
-        {pricePending ? (
-          <span role="status">{PRICE_PENDING_LINE}</span>
-        ) : activeLensPrices !== null ? (
+        {activeLensPrices !== null ? (
           <span>
             {selectedLensPrice ? (
               <PriceBadge
@@ -5896,37 +5883,19 @@ export default function PubMap({
                 )}
             </small>
           </span>
-        ) : peekPrice ? (
-          <span
-            data-pint-trust={peekPrice.trust ?? undefined}
-            data-venue-id={peekPrice.trust ? selectedVenue.id : undefined}
-          >
-            {/* The chip's colour is the figure's price BAND (lib/priceBand.ts),
-                whether observed or modelled; the trust state rides the data
-                attribute and the caption, never a hue. */}
-            {peekPrice.observed ? (
-              <PriceBadge band={priceBand(peekPrice.priceGbp, priceBandAreaForVenue(selectedVenue.id))}>
-                {peekPrice.figure}
-              </PriceBadge>
-            ) : (
-              /* NO PRICE BADGE. Nobody observed a modelled figure, so it may
-                 not wear the mark an observed price wears. */
-              <strong className={priceBandClass(priceBand(peekPrice.priceGbp, priceBandAreaForVenue(selectedVenue.id))) || undefined}>
-                {peekPrice.figure}
-              </strong>
-            )}
-            <small>{peekPrice.caption}</small>
-          </span>
-        ) : selectedVenueIsPub ? (
-          <button
-            type="button"
-            className="mobileVenuePeekDrop"
-            onClick={openComposerForLog}
-          >
-            <strong>No price yet.</strong>
-            <small>Be the first →</small>
-          </button>
-        ) : null}
+        ) : (
+          <VenuePeekPintPrice
+            venueId={selectedVenue.id}
+            isPub={selectedVenueIsPub}
+            lane={peekLane}
+            bundle={peekBundle}
+            pintTrust={peekDropSignal?.pintTrust ?? null}
+            detailLoading={selectedDetailStatus === "loading"}
+            priceReadStatus={communityPrices.venuePriceStatus.get(selectedVenue.id) ?? "idle"}
+            dropReadStatus={pintDrops.venueDropStatus.get(selectedVenue.id) ?? "idle"}
+            onLog={openComposerForLog}
+          />
+        )}
         <span>
           <strong
             className={

@@ -182,6 +182,69 @@ test("keeps the price neutral until the selected pub's drops answer", async ({ p
   }
 });
 
+test("city-wide confirmed pint stays visible while selected venue details load", async ({ page }) => {
+  await installDeterministicMapBasemap(page);
+  let detailRequested = false;
+  let detailSettled = false;
+  let releaseRead: () => void = () => {};
+  const heldRead = new Promise<void>((resolve) => { releaseRead = resolve; });
+  const confirmedDrops = STATES.confirmed.drops.map((drop) => ({ ...drop, priceGbp: 4.7 }));
+  await page.route("**/api/pint-drops**", async (route) => {
+    const venueId = new URL(route.request().url()).searchParams.get("venueId");
+    if (venueId === HATTON) await heldRead;
+    await route.fulfill({ json: { drops: !venueId || venueId === HATTON ? confirmedDrops : [] } });
+  });
+  await page.route(`**/api/venue/${HATTON}*`, async (route) => {
+    detailRequested = true;
+    await heldRead;
+    const response = await route.fetch();
+    expect(response.ok()).toBe(true);
+    const payload = await response.json();
+    await route.fulfill({ json: {
+      ...payload,
+      venue: {
+        ...payload.venue, prices: [], cheapestPrice: null, cheapestPint: "", averagePrice: null,
+        sourcedPrice: null, bundlePrices: {},
+      },
+    } });
+    detailSettled = true;
+  });
+  try {
+    const cityDrops = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return url.pathname === "/api/pint-drops" && !url.searchParams.has("venueId");
+    });
+    await page.goto("/map");
+    await cityDrops;
+    const searchButton = page.getByRole("button", { name: "Search the map", exact: true });
+    await expect(async () => {
+      await searchButton.click();
+      await expect(page.getByRole("combobox", { name: "Search pubs" })).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 20_000 });
+    await page.getByRole("combobox", { name: "Search pubs" }).fill(COMMUNITY_SHEET_FIXTURE_VENUE_NAME);
+    const option = page.getByRole("listbox", { name: "Search suggestions" })
+      .getByRole("option", { name: new RegExp(COMMUNITY_SHEET_FIXTURE_VENUE_NAME) }).first();
+    await expect(option).toBeVisible({ timeout: 30_000 });
+    await option.click();
+    await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe(HATTON);
+    await expect.poll(() => detailRequested).toBe(true);
+    const peek = page.locator('.mobileSheetPortal[data-sheet-kind="venue"] .mobileVenuePeekSummary');
+    await expect(peek).toBeVisible({ timeout: 30_000 });
+    await expect(peek).toContainText("£4.70");
+    await expect(peek).toContainText("current recorded price");
+    await expect(peek.locator('[data-pint-trust="confirmed"]')).toBeVisible();
+    await expect(peek).not.toContainText(/Checking prices|No price yet|est\./);
+    expect(detailSettled).toBe(false);
+    releaseRead();
+    await expect.poll(() => detailSettled).toBe(true);
+    await expect(peek).toContainText("£4.70");
+    await expect(peek.locator('[data-pint-trust="confirmed"]')).toBeVisible();
+    await expect(peek).not.toContainText("Checking prices");
+  } finally {
+    releaseRead();
+  }
+});
+
 const RESELECTED_PRICE_CASES: Array<{
   name: string;
   query: string;
