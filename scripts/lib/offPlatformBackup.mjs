@@ -1,6 +1,5 @@
-// The rules of the off-platform backup, free of network and database I/O so
-// they are tested without a database. scripts/backup-offplatform.mjs does the work and docs/DR_RUNBOOK.md
-// owns the restore.
+// Backup helpers, including temporary-login requests. scripts/backup-offplatform.mjs
+// runs the backup. docs/DR_RUNBOOK.md owns the operating and restore procedures.
 //
 // WHY IT EXISTS. Production is on the Supabase free plan: no daily backup, no
 // point-in-time recovery (audit of 6 October 2026, 0 backups). The repository is
@@ -12,9 +11,8 @@ import path from "node:path";
 
 export const DEFAULT_BUCKET = "pint-drops";
 // Each run deletes what is older than this, except the newest dump and the
-// bucket files it names, so a restore is always possible. It is a week inside
-// the 8 weeks the privacy page promises, so a weekly run that fires late, on a
-// Mac that woke late, still removes every copy before 8 weeks have passed.
+// bucket files it names, so a restore is always possible. The one-week margin
+// assumes fresh weekly backups. See docs/DR_RUNBOOK.md#retention for exceptions.
 export const PRUNE_AFTER_WEEKS = 7;
 const PRUNE_AFTER_MS = PRUNE_AFTER_WEEKS * 7 * 24 * 60 * 60 * 1000;
 // Public data, the account table and what the auth schema needs to restore

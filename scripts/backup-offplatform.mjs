@@ -4,14 +4,7 @@
 // The rules are scripts/lib/offPlatformBackup.mjs and the restore is
 // docs/DR_RUNBOOK.md. scripts/install-backup-launchd.mjs schedules it weekly.
 //
-// Environment (never printed):
-//   PUBMAX_BACKUP_DB_URL        postgres:// connection string (session pooler or direct)
-//   PUBMAX_BACKUP_DB_AUTH       optional cli-read-only, otherwise password
-//   SUPABASE_ACCESS_TOKEN      existing private management token for cli-read-only
-//   SUPABASE_URL                project URL, for the bucket sync
-//   SUPABASE_SERVICE_ROLE_KEY   secret key, for the bucket sync
-//   PUBMAX_BACKUP_DIR           default ~/pubmax-backups
-//   PUBMAX_ALERT_WEBHOOK_URL    optional; a failure posts one line here
+// Environment configuration is documented in docs/DR_RUNBOOK.md#take-it.
 // `--dry-run` prints the plan and touches nothing.
 
 import { execFileSync, spawnSync } from "node:child_process";
@@ -102,7 +95,7 @@ async function runBackup() {
   chmodSync(dir, 0o700);
 
   // 0. Retention first. Pruning must not wait on a dump that may fail, so a
-  // database outage cannot keep expired personal data on this machine.
+  // database outage cannot block pruning. The newest-copy exception still applies.
   pruneBackupCopy({ dir, bucketRoot, now: Date.now() });
 
   if (loginConfig) pgEnv = await cliReadOnlyPgEnv({ config: loginConfig, token });
@@ -141,7 +134,7 @@ async function runBackup() {
   renameSync(partial, dumpFile);
   console.log(`[backup] dump verified, ${statSync(dumpFile).size} bytes.`);
 
-  // 2. The bucket. Objects are only added or replaced when their size changed.
+  // 2. The bucket. Size and recorded version detect replacements under the same key.
   // Each one still in the bucket is stamped with this run's start, so an object
   // deleted in production is kept only as long as the dumps that knew it.
   const objects = await listBucketObjects({ baseUrl, key, bucket });
@@ -189,7 +182,7 @@ async function runBackup() {
   writeFileSync(versionsFile, JSON.stringify(versions), { mode: 0o600 });
   console.log(`[backup] bucket ${bucket}: ${objects.length} objects, ${fetched} downloaded.`);
 
-  // 3. Retention, by age. It runs only here, so the schedule keeps the window.
+  // 3. Prune again after the completed dump and bucket sync.
   const pruned = pruneBackupCopy({ dir, bucketRoot, now: Date.now() });
   console.log(
     `[backup] past retention: ${pruned.dumps} dumps, ${pruned.files} bucket files, ${pruned.directories} folders removed.`,

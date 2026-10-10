@@ -36,7 +36,9 @@ server's major version or newer, and these variables in
 - `PUBMAX_ALERT_WEBHOOK_URL`: optional. A failed run posts one fixed line with no reason in it. The reason stays in the local log.
 
 The optional `cli-read-only` mode needs the existing private `SUPABASE_ACCESS_TOKEN`.
-Its database URL must omit the password and use this project's direct endpoint
+A fine-grained token needs the Management API's `database_write` permission,
+even though the database session is read-only.
+The database URL must omit the password and use this project's direct endpoint
 or session pooler on port 5432. The direct username is `postgres`. The pooler
 username is `postgres.<project ref>`. The database is `postgres`, with no URL
 options. `SUPABASE_URL` must be the canonical `https://<project ref>.supabase.co`.
@@ -44,7 +46,8 @@ The script refuses another project's endpoint or the transaction-pooler port.
 
 Each normal run sends one `POST /v1/projects/<project ref>/cli/login-role` with
 `{"read_only":true}` to the [Supabase Management API](https://supabase.com/docs/reference/api/v1-create-login-role).
-This creates or refreshes a managed temporary login. The endpoint is Beta.
+This creates or refreshes a managed temporary login. The endpoint is Beta and
+can change or disappear.
 The script rejects invalid or expired credentials and keeps the returned
 password in the `pg_dump` environment. It does not save that password or pass
 the management token to PostgreSQL clients.
@@ -68,7 +71,9 @@ table data in it.
 ### Schedule it
 
 The captain or firstmate runs the installer once, from the checkout the job
-should use:
+should use. Agents do not run the installer.
+
+The installer command is:
 
 ```sh
 npm run backup:install-launchd
@@ -88,16 +93,16 @@ eight weeks. Installation alone proves neither a successful backup nor durabilit
 ### Retention
 
 The copy holds personal data: account emails, password hashes, profiles, Pint
-Drops and their photos. It is not encrypted. Each run prunes at 7 weeks, so every
-copy is gone before 8 weeks, with one exception: the newest dump and the bucket
-files it names always stay, so a restore is always possible.
+Drops and their photos. It is not encrypted. Each run prunes dumps older than
+7 weeks, except the newest dump and the bucket files it names. Those copies
+always stay, even when they are older than 8 weeks.
 
 - Each run deletes every dump older than 7 weeks, however many runs there were, except the newest. The week of slack covers a weekly run that fires late because the Mac was asleep.
 - Each run also deletes a `.partial` file older than the newest dump. That is a run that was killed during `pg_dump`, and it holds the same personal data.
 - The bucket copy follows the dumps. Each run stamps every file whose object is still in the bucket. A file whose object was deleted in production is removed when no kept dump is old enough to name it. A folder left empty is removed too, because the folder names are account and conversation ids.
-- Each run prunes first, before the dump, so a failing dump or an unreachable database does not keep expired copies. A bucket file is fetched again when its recorded version (ETag) changes, even at the same size.
-- Pruning happens only when the backup runs. The weekly schedule is what keeps every copy under 8 weeks. If the backup stops running, nothing is pruned until it runs again.
-- So data deleted in production, a deleted account included, leaves the copy within 8 weeks of the deletion. The privacy page says so.
+- Each run prunes first, before credential renewal and the dump. A failed renewal or dump still leaves the newest-copy exception in place. A bucket file is fetched again when its recorded version (ETag) changes, even at the same size.
+- Pruning happens only when the backup runs. If the backup stops running, nothing is pruned until it runs again.
+- Delayed runs and the newest-copy exception can exceed the eight-week limit stated on the [privacy page](../app/privacy/page.tsx).
 
 Keep a second copy off the Mac. A free option is an encrypted archive on a
 personal cloud drive. `gpg --symmetric --cipher-algo AES256 <dump>` or an
@@ -188,7 +193,7 @@ set it in Vercel Production, redeploy with `npm run release:prod`, confirm
 
 | Order | Secret | Why it is here | Side effect of rotating |
 | --- | --- | --- | --- |
-| 1 | `SUPABASE_SERVICE_ROLE_KEY`, and the database password | Full read and write on every table, bypassing row level security | None for users. Update `PUBMAX_BACKUP_DB_URL` too. |
+| 1 | `SUPABASE_SERVICE_ROLE_KEY`, and the database password | Full read and write on every table, bypassing row level security | None for users. Update the backup's service role key. Update `PUBMAX_BACKUP_DB_URL` only in `password` mode. |
 | 2 | `CLERK_SECRET_KEY` | Can mint and read sessions | Signed-in users are signed out. |
 | 3 | `ADMIN_TOKEN`, `CRON_SECRET` | Admin routes and every mutating scheduled route | Generate with `openssl rand -hex 32`. Vercel cron picks up `CRON_SECRET` on the next deploy. |
 | 4 | `PLAN_IDEMPOTENCY_SECRET`, `SOCIAL_CONNECTION_ENCRYPTION_KEY` | Signs proofs and encrypts stored tokens | Open proofs expire. Rotating the encryption key makes stored social tokens unreadable: users reconnect. |
@@ -196,7 +201,7 @@ set it in Vercel Production, redeploy with `npm run release:prod`, confirm
 | 6 | Paid vendor keys: `ELEVENLABS_API_KEY`, `OPENROUTER_API_KEY`, `TYPESAFE_API_KEY`, `OPENAI_API_KEY`, `AI_GATEWAY_API_KEY`, `ELEVENLABS_LLM_SHARED_SECRET` | Money. Set a monthly cap in each vendor dashboard as well | None for users. |
 | 7 | Push and mail: `APNS_PRIVATE_KEY`, `FCM_PRIVATE_KEY`, `VAPID_PRIVATE_KEY`, `RESEND_API_KEY` | Sends as the app | Rotating `VAPID_PRIVATE_KEY` drops every web push subscription. |
 | 8 | Data vendors: `TAVILY_API_KEY`, `EXA_API_KEY`, `FIRECRAWL_API_KEY`, `TICKETMASTER_API_KEY`, `GOOGLE_PLACES_API_KEY` and the rest in `.env.example` | Quota only | None. |
-| 9 | `SUPABASE_ACCESS_TOKEN` (ledger check), GitHub personal tokens, the Vercel token, `PUBMAX_ALERT_WEBHOOK_URL` | Operator access | Re-create in the vendor, update the environment that runs the backup and the repository secret. |
+| 9 | `SUPABASE_ACCESS_TOKEN` (ledger check and `cli-read-only` backup login), GitHub personal tokens, the Vercel token, `PUBMAX_ALERT_WEBHOOK_URL` | Operator access | Re-create in the vendor, update the environment that runs the backup and the repository secret. |
 
 ### If it was committed
 
