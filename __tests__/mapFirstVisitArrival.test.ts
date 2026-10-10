@@ -84,7 +84,9 @@ describe("mapFirstVisitArrival", () => {
         }),
       ).toBe(false);
       vi.setSystemTime(answeredAt + 30 * DAY);
-      expect(shouldShowMapFirstVisitArrival({ pinsRevealed: true, search: "", storage })).toBe(true);
+      expect(
+        shouldShowMapFirstVisitArrival({ pinsRevealed: true, search: "", storage }),
+      ).toBe(true);
     });
 
     it("never expires the bare value every earlier build wrote", () => {

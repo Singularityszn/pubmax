@@ -39,6 +39,8 @@ function pointerEvent(type: string, clientY: number): Event {
 }
 
 beforeEach(() => {
+  vi.useFakeTimers();
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.stubGlobal(
     "matchMedia",
     (query: string) => ({
@@ -57,6 +59,7 @@ afterEach(() => {
   root = null;
   container.remove();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe("a pull that opens the list", () => {
@@ -85,4 +88,66 @@ describe("a pull that opens the list", () => {
     expect(card.style.transform).toBe("");
     expect(card.dataset.dragging).toBeUndefined();
   });
+});
+
+describe("an interrupted return", () => {
+  function returningCard(distance = 30) {
+    const onOpenList = vi.fn();
+    root = createRoot(container);
+    act(() => root!.render(createElement(MapPeekSheet, {
+      model: ANSWER, onOpenVenue: vi.fn(), onOpenList,
+    })));
+    const card = container.querySelector<HTMLElement>(".mapPeek")!;
+    act(() => {
+      card.dispatchEvent(pointerEvent("pointerdown", 500));
+      card.dispatchEvent(pointerEvent("pointermove", 470));
+      card.dispatchEvent(pointerEvent("pointermove", 500 - distance));
+      vi.advanceTimersByTime(100);
+      card.dispatchEvent(pointerEvent("pointercancel", 500 - distance));
+      vi.advanceTimersByTime(32);
+    });
+    return { card, onOpenList };
+  }
+
+  for (const release of ["pointerup", "pointercancel"]) {
+    for (const distance of [30, -30]) {
+      it(`returns home after an inactive ${release} interrupts a ${distance}px gesture`, () => {
+        const { card, onOpenList } = returningCard(distance);
+        expect(card.style.transform).not.toBe("");
+        act(() => {
+          card.dispatchEvent(pointerEvent("pointerdown", 470));
+          card.dispatchEvent(pointerEvent(release, 470));
+          vi.advanceTimersByTime(2000);
+        });
+        expect(card.style.transform).toBe("");
+        expect(card.dataset.dragging).toBeUndefined();
+        expect(onOpenList).not.toHaveBeenCalled();
+      });
+    }
+  }
+
+  for (const distance of [30, 200, -30]) {
+    it(`resumes from a presented ${distance}px gesture without jumping`, () => {
+      const { card, onOpenList } = returningCard(distance);
+      const offset = () => Number(card.style.transform.match(/, ([-\d.]+)px/)?.[1] ?? 0);
+      const origin = offset();
+      act(() => {
+        card.dispatchEvent(pointerEvent("pointerdown", 470));
+        card.dispatchEvent(pointerEvent("pointermove", 460));
+      });
+      expect(offset()).toBeLessThan(origin);
+      expect(origin - offset()).toBeLessThanOrEqual(10.01);
+      act(() => {
+        card.dispatchEvent(pointerEvent("pointermove", 500));
+      });
+      expect(offset()).toBeGreaterThan(origin);
+      act(() => {
+        card.dispatchEvent(pointerEvent("pointercancel", 500));
+        vi.advanceTimersByTime(2000);
+      });
+      expect(card.style.transform).toBe("");
+      expect(card.dataset.dragging).toBeUndefined();
+      expect(onOpenList).not.toHaveBeenCalled();
+    });
+  }
 });

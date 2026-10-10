@@ -16,29 +16,32 @@ test.setTimeout(120_000);
 
 async function loadMap(
   page: Page,
-  options: { reducedMotion?: "reduce" | "no-preference"; arrival?: string | null } = {},
+  options: { reducedMotion?: "reduce" | "no-preference"; arrival?: string | null; url?: string } = {},
 ): Promise<void> {
   await page.emulateMedia({ reducedMotion: options.reducedMotion ?? "reduce" });
   const arrival = options.arrival === undefined ? "dismissed" : options.arrival;
-  await page.addInitScript((arrivalValue) => {
+  const storage = await page.context().storageState();
+  for (const origin of storage.origins) {
+    origin.localStorage = origin.localStorage.filter((entry) => entry.name !== "pubmax:map-first-visit-arrival:v1");
+    if (arrival !== null) {
+      origin.localStorage.push({ name: "pubmax:map-first-visit-arrival:v1", value: arrival });
+    }
+  }
+  await page.context().setStorageState(storage);
+  await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
-    if (arrivalValue === null) {
-      window.localStorage.removeItem("pubmax:map-first-visit-arrival:v1");
-    } else {
-      window.localStorage.setItem("pubmax:map-first-visit-arrival:v1", arrivalValue);
-    }
-  }, arrival);
-  const response = await page.goto("/map");
+  });
+  const response = await page.goto(options.url ?? "/map");
   expect(response?.status()).toBe(200);
   await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
 }
 
 async function openMap(
   page: Page,
-  options: { reducedMotion?: "reduce" | "no-preference"; arrival?: string | null } = {},
+  options: { reducedMotion?: "reduce" | "no-preference"; arrival?: string | null; url?: string } = {},
 ): Promise<void> {
   await loadMap(page, options);
   await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });
@@ -371,6 +374,161 @@ test("a flick opens the list even when the distance is short", async ({ page }) 
   await expect(page.locator(".mapVenueList--open")).toBeVisible({ timeout: 10_000 });
 });
 
+test("an interrupted return still settles and restores Create after a tap or cancellation", async ({ page }) => {
+  await openMap(page, { reducedMotion: "no-preference" });
+  const card = await answeredCard(page);
+  const fab = page.locator(".createFabRoot");
+  for (const release of ["pointerup", "pointercancel"]) {
+    await card.evaluate(async (element, releaseType) => {
+      const fire = (type: string, y: number) => element.dispatchEvent(new PointerEvent(type, {
+        bubbles: true, cancelable: true, pointerId: 7, pointerType: "touch", isPrimary: true, clientY: y,
+      }));
+      fire("pointerdown", 500);
+      fire("pointermove", 470);
+      fire("pointercancel", 470);
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      fire("pointerdown", 470);
+      fire(releaseType, 470);
+    }, release);
+    await expect(card).not.toHaveAttribute("data-dragging", "true", { timeout: 5000 });
+    expect(await card.evaluate((element) => (element as HTMLElement).style.transform)).toBe("");
+    await expect(fab).toHaveCSS("opacity", "1");
+    expect(await fab.locator(".createFab").evaluate((button) => {
+      const rect = button.getBoundingClientRect();
+      return button.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+    })).toBe(true);
+    await expect(page.locator(".mapVenueList--open")).toHaveCount(0);
+  }
+});
+
+test("a mouse release outside an interrupted card returns it to rest and restores Create", async ({ page }) => {
+  await openMap(page, { reducedMotion: "no-preference" });
+  const card = await answeredCard(page);
+  const rest = await cardBox(page);
+  const x = rest.x + rest.width / 2;
+  const y = rest.y + 22;
+  for (const direction of ["sideways", "downward"]) {
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x, y - 30, { steps: 6 });
+    await page.waitForTimeout(100);
+    await page.mouse.up();
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    expect(await card.evaluate((element) => (element as HTMLElement).style.transform)).not.toBe("");
+    await page.mouse.move(
+      direction === "sideways" ? rest.x - 10 : x,
+      direction === "downward" ? rest.y + rest.height + 30 : y,
+    );
+    await page.mouse.up();
+    await expect(card).not.toHaveAttribute("data-dragging", "true", { timeout: 5000 });
+    expect(Math.abs((await cardBox(page)).y - rest.y)).toBeLessThan(1);
+    await expect(page.locator(".mapVenueList--open")).toHaveCount(0);
+    const create = page.getByRole("button", { name: "Create", exact: true });
+    await expect(page.locator(".createFabRoot")).toHaveCSS("opacity", "1");
+    expect(await create.evaluate((button) => {
+      const rect = button.getBoundingClientRect();
+      return button.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+    })).toBe(true);
+  }
+  await page.getByRole("button", { name: "Create", exact: true }).click();
+  await expect(page.locator(".createFabMenu")).toBeVisible();
+});
+
+test("a native pointer click on the peek plan door opens the planner", async ({ page }) => {
+  await openMap(page);
+  const card = await answeredCard(page);
+  await card.getByRole("button", { name: "Describe the outing", exact: true }).click();
+  const planner = page.getByRole("dialog", { name: "Plan an outing", exact: true });
+  await expect(planner).toBeVisible();
+  await expect(planner.getByRole("textbox", { name: "Describe the outing", exact: true })).toBeVisible();
+  await planner.getByRole("button", { name: "Close planner", exact: true }).click();
+  await expect(card).toBeVisible();
+  await expect(card).not.toHaveAttribute("data-dragging", "true");
+});
+
+for (const control of [
+  { name: "Answer", selector: ".mapPeekAnswer", child: ".mapPeekPrice" },
+  { name: "List", selector: ".mapPeekList", child: "svg" },
+  { name: "Plan", selector: ".mobilePlanActivation", child: "strong" },
+]) {
+  for (const direction of ["sideways", "downward"]) {
+    test(`${control.name} cancels a ${direction} release outside its button`, async ({ page }) => {
+      await openMap(page);
+      const card = await answeredCard(page);
+      const button = card.locator(control.selector);
+      const box = (await button.boundingBox())!;
+      const child = (await button.locator(control.child).boundingBox())!;
+      await page.mouse.move(child.x + child.width / 2, child.y + child.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(
+        direction === "sideways" ? box.x + box.width + 6 : child.x + child.width / 2,
+        direction === "downward" ? box.y + box.height + 6 : child.y + child.height / 2,
+      );
+      await page.mouse.up();
+      await expect(page.locator(".mapVenueList--open")).toHaveCount(0);
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+      await expect(card).toBeVisible();
+      await expect(card).not.toHaveAttribute("data-dragging", "true");
+      await expect(page.locator(".createFabRoot")).toHaveCSS("opacity", "1");
+
+      await page.mouse.move(child.x + child.width / 2, child.y + child.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(box.x + 2, child.y + child.height / 2);
+      await page.mouse.up();
+      if (control.name === "List") {
+        await expect(page.locator(".mapVenueList--open")).toBeVisible();
+      } else {
+        await expect(page.getByRole("dialog")).toBeVisible();
+      }
+    });
+  }
+
+  test(`${control.name} suppresses a successive pull after the earlier reset deadline`, async ({ page }) => {
+    await openMap(page, { reducedMotion: "no-preference" });
+    const card = await answeredCard(page);
+    const button = card.locator(control.selector);
+    const elapsed = await button.evaluate(async (element) => {
+      const box = element.getBoundingClientRect();
+      const x = box.x + box.width / 2;
+      const y = box.y + box.height / 2;
+      const fire = (type: string, dy: number) => element.dispatchEvent(new PointerEvent(type, {
+        bubbles: true, cancelable: true, pointerId: 7, pointerType: "mouse", isPrimary: true,
+        button: 0, clientX: x, clientY: y - dy,
+      }));
+      const click = (dy: number) => element.dispatchEvent(new MouseEvent("click", {
+        bubbles: true, cancelable: true, detail: 1, clientX: x, clientY: y - dy,
+      }));
+      fire("pointerdown", 0);
+      fire("pointermove", 20);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      fire("pointerup", 20);
+      click(20);
+      const releasedAt = performance.now();
+      fire("pointerdown", 20);
+      fire("pointermove", 30);
+      const activationGap = performance.now() - releasedAt;
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      fire("pointerup", 30);
+      click(30);
+      return activationGap;
+    });
+    expect(elapsed).toBeLessThan(100);
+    await expect(page.locator(".mapVenueList--open")).toHaveCount(0);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(card).not.toHaveAttribute("data-dragging", "true", { timeout: 5000 });
+    await expect(page.locator(".createFabRoot")).toHaveCSS("opacity", "1");
+
+    await button.focus();
+    await page.keyboard.press("Enter");
+    if (control.name === "List") {
+      await expect(page.locator(".mapVenueList--open")).toBeVisible();
+    } else {
+      await expect(page.getByRole("dialog")).toBeVisible();
+    }
+  });
+}
+
 test("a tap on the door still plans, and a drag that starts on it does not", async ({ page }) => {
   await openMap(page);
   const card = await answeredCard(page);
@@ -421,16 +579,57 @@ test("the first-visit ask offers both answers side by side, and an answer holds 
   expect(stored).toMatch(/^dismissed:\d+$/);
   await expect(page.locator(".mapPeek")).toBeVisible({ timeout: 20_000 });
 
-  // 31 days on, the ask may be made once more.
-  await page.evaluate(() =>
-    window.localStorage.setItem(
-      "pubmax:map-first-visit-arrival:v1",
-      `dismissed:${Date.now() - 31 * 24 * 60 * 60 * 1000}`,
-    ),
-  );
   await page.reload();
+  await expect(page.locator(".mobileMapTopbar")).toBeVisible({ timeout: 45_000 });
+  expect(await page.evaluate(() => window.localStorage.getItem("pubmax:map-first-visit-arrival:v1")))
+    .toBe(stored);
+  await expect(ask).toHaveCount(0);
+  await expect(page.locator(".mapPeek")).toBeVisible({ timeout: 20_000 });
+
+  // 31 days on, the ask may be made once more.
+  const expired = await page.evaluate(() => {
+    const value = `dismissed:${Date.now() - 31 * 24 * 60 * 60 * 1000}`;
+    window.localStorage.setItem("pubmax:map-first-visit-arrival:v1", value);
+    return value;
+  });
+  await page.reload();
+  expect(await page.evaluate(() => window.localStorage.getItem("pubmax:map-first-visit-arrival:v1")))
+    .toBe(expired);
   await expect(page.locator(".mapArrivalCard")).toBeVisible({ timeout: 45_000 });
 });
+
+for (const theme of ["light", "dark"] as const) {
+  test(`${theme} Coffee keeps Vintage Cafe listed without a whole-view comparison claim`, async ({ page }, testInfo) => {
+    await page.emulateMedia({ colorScheme: theme });
+    await page.route("**/api/price-submit?drinkCategory=coffee", (route) => route.fulfill({
+      json: { prices: [], truncated: false, degraded: false },
+    }));
+    const coffeeRead = page.waitForResponse("**/api/price-submit?drinkCategory=coffee");
+    await openMap(page, { url: "/map?drink=coffee&sel=venue-osm-n12110401801" });
+    expect((await coffeeRead).ok()).toBe(true);
+    const cafe = page.locator('[data-coffee-pilot-cafe="venue-osm-n12110401801"]');
+    const sheet = page.getByRole("dialog", { name: "Vintage Cafe", exact: true });
+    await expect(sheet.getByRole("heading", { name: "Vintage Cafe" })).toBeVisible();
+    await expect(cafe.locator("li").filter({ hasText: "Flat white" })).toContainText("£3.45");
+    await page.screenshot({ path: testInfo.outputPath(`390-${theme}-coffee-listed.png`) });
+    await sheet.getByRole("button", { name: "Close venue detail", exact: true }).click();
+    await expect(cafe).toHaveCount(0);
+    await expect(page.locator(".mapPeek")).toHaveCount(0);
+    await expect(page.getByText("No listed price here yet", { exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Show the pubs in this view as a list" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Describe the outing", exact: true })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath(`390-${theme}-coffee-map.png`) });
+    await page.getByRole("button", { name: "Drink shown on the map: Coffee. Choose another drink" }).click();
+    const drinkSheet = page.locator('.mobileSheetPortal[data-sheet-kind="drink"]');
+    await drinkSheet.getByRole("button", { name: "Pints", exact: true }).click();
+    await drinkSheet.locator(".surfaceNavHome").click();
+    await expect(drinkSheet).toHaveCount(0);
+    const card = await answeredCard(page);
+    await expect(card.locator(".mapPeekName")).not.toHaveText("Vintage Cafe");
+    await expect(card).toHaveCSS("height", "112px");
+    await page.screenshot({ path: testInfo.outputPath(`390-${theme}-pub-map.png`) });
+  });
+}
 
 test("safe-area insets keep the card above the tab bar and under no notch", async ({ page }) => {
   // Set before the page loads. Set after it, the inset failed to reach the
