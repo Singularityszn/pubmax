@@ -19,6 +19,7 @@ import { parseCityId } from "@/lib/cities";
 import { RECEIPT_REQUIRED_LINE, priceNeedsReceipt } from "@/lib/pintDropReceipt";
 import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
 import { log } from "@/lib/log";
+import { LONDON_BOROUGH_NAMES } from "@/lib/londonBoroughNames.mjs";
 import type { PintDropConfirmation } from "@/lib/pintDropConfirmationRecord";
 import type { PintDropConfirmationOutcome } from "@/lib/pintDropSecondDrinker";
 import { resolveMessageHandle } from "@/lib/messageAuth";
@@ -80,16 +81,18 @@ const DAILY_PRICE_CAP_REFUSAL =
 // yields the friendly fallback for every id, and the drops still render.
 async function withVenueNames<T extends { venueId: string }>(
   drops: T[],
-): Promise<(T & { venueName: string; venueMapUrl: string })[]> {
+): Promise<(T & { venueName: string; venueMapUrl: string; borough?: string })[]> {
   const [index, aliases] = await Promise.all([getVenueIndex(), loadVenueAliasResolver()]);
   return drops.map((drop) => {
     const venueId = aliases.canonical(drop.venueId);
     const venue = storedVenueRef(index, aliases, venueId);
+    const borough = index.get(venueId)?.borough;
     return {
       ...drop,
       venueId,
       venueName: venue ? storedVenueName(venue) : VENUE_FALLBACK_LABEL,
       venueMapUrl: venueMapUrl(venueId),
+      ...(borough && LONDON_BOROUGH_NAMES.includes(borough) ? { borough } : {}),
     };
   });
 }
