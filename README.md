@@ -143,6 +143,8 @@ pub layers, the map corner itself credits OpenStreetMap contributors (ODbL) via
 [`public/data/uk_base/README.md`](public/data/uk_base/README.md) for the runtime
 data contract.
 
+On phones, tap the map credit control to expand its text and links. The Pub Pal shortcut hides during expansion and returns when the credit closes. On desktop maps, the shortcut hides while Layers or the venue drawer is open, keeping their actions reachable.
+
 ## Demo data
 
 The community layer ships alive: hand-written Pint Drops and Featured crawls are seeded so the map has content on day one. Seeded content is tagged `demo` and stays **visibly distinct** — it never masquerades as organic contributor signal and is filtered out before it can move any price or story metric. Provenance chips (`Sourced` / `Contributor` / `Anecdote` / `Demo`) are the product's trust signal.

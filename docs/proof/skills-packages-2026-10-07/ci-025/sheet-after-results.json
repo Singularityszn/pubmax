@@ -1,0 +1,261 @@
+{
+  "config": {
+    "argv": [
+      "/Users/karanmanoharan/.hermes/tools/node-26.10.0-darwin-arm64/bin/node",
+      "/Users/karanmanoharan/.no-mistakes/worktrees/90306a46c7e3/01M4KM9HDCV5JAG7086WNTHA8Z/node_modules/.bin/playwright",
+      "test",
+      "-c",
+      "artifacts/ci-025/playwright.config.ts",
+      "e2e/smoke.spec.ts",
+      "-g",
+      "opens at the peek snap",
+      "--repeat-each=5"
+    ],
+    "configFile": "/Users/karanmanoharan/.no-mistakes/worktrees/90306a46c7e3/01M4KM9HDCV5JAG7086WNTHA8Z/artifacts/ci-025/playwright.config.ts",
+    "rootDir": "/Users/karanmanoharan/.no-mistakes/worktrees/90306a46c7e3/01M4KM9HDCV5JAG7086WNTHA8Z/e2e",
+    "failOnFlakyTests": false,
+    "forbidOnly": true,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/Users/karanmanoharan/.no-mistakes/worktrees/90306a46c7e3/01M4KM9HDCV5JAG7086WNTHA8Z/artifacts/ci-025/test-results",
+        "repeatEach": 5,
+        "retries": 1,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/Users/karanmanoharan/.no-mistakes/worktrees/90306a46c7e3/01M4KM9HDCV5JAG7086WNTHA8Z/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "/Users/karanmanoharan/.no-mistakes/worktrees/90306a46c7e3/01M4KM9HDCV5JAG7086WNTHA8Z/artifacts/ci-025/sheet-after-results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.63.0",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "smoke.spec.ts",
+      "file": "smoke.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "mobile venue sheet (GH #17): opens at the peek snap with the grab handle visible at 390px",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2038,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T20:18:55.380Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4219922fea2e2bd3c691-357dbe285cb2c42acb98",
+          "file": "smoke.spec.ts",
+          "line": 281,
+          "column": 5
+        },
+        {
+          "title": "mobile venue sheet (GH #17): opens at the peek snap with the grab handle visible at 390px",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2143,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T20:18:57.769Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4219922fea2e2bd3c691-da130e25841c7037809e",
+          "file": "smoke.spec.ts",
+          "line": 281,
+          "column": 5
+        },
+        {
+          "title": "mobile venue sheet (GH #17): opens at the peek snap with the grab handle visible at 390px",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2212,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T20:19:00.249Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4219922fea2e2bd3c691-dbf9089049a83cd9165d",
+          "file": "smoke.spec.ts",
+          "line": 281,
+          "column": 5
+        },
+        {
+          "title": "mobile venue sheet (GH #17): opens at the peek snap with the grab handle visible at 390px",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2215,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T20:19:02.803Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4219922fea2e2bd3c691-9b03d727954028ec2e59",
+          "file": "smoke.spec.ts",
+          "line": 281,
+          "column": 5
+        },
+        {
+          "title": "mobile venue sheet (GH #17): opens at the peek snap with the grab handle visible at 390px",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2268,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T20:19:05.358Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4219922fea2e2bd3c691-141a92e20eb6921deb45",
+          "file": "smoke.spec.ts",
+          "line": 281,
+          "column": 5
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-10T20:18:54.604Z",
+    "duration": 13246.856,
+    "expected": 5,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

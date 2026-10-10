@@ -1,0 +1,8 @@
+file:///Users/karanmanoharan/.no-mistakes/worktrees/90306a46c7e3/01M4KM9HDCV5JAG7086WNTHA8Z/artifacts/ci-025/recipes.mjs:29
+ const pass = JSON.stringify(actual.breakpoints) === JSON.stringify([...expected].sort());
+                                    ^
+
+TypeError: Cannot read properties of undefined (reading 'breakpoints')
+    at file:///Users/karanmanoharan/.no-mistakes/worktrees/90306a46c7e3/01M4KM9HDCV5JAG7086WNTHA8Z/artifacts/ci-025/recipes.mjs:29:37
+
+Node.js v26.10.0

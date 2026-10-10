@@ -1,0 +1,32 @@
+import { test, expect } from '@playwright/test';
+test('capture streaming dock ownership', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.addInitScript(() => {
+    (window as any).dockStates = [];
+    const frame = window.requestAnimationFrame.bind(window);
+    const pending: FrameRequestCallback[] = [];
+    window.requestAnimationFrame = cb => { pending.push(cb); return pending.length; };
+    (window as any).releaseFrames = () => { window.requestAnimationFrame = frame; for (const cb of pending) frame(cb); }; 
+    let last = '';
+    const sample = () => {
+      const lists = [...document.querySelectorAll('.mobileTabList')].map(el => ({
+        html: el.outerHTML,
+        ancestors: [...function* () { for (let n = el.parentElement; n; n = n.parentElement) yield { tag: n.tagName, id: n.id, hidden: n.hidden, class: n.className }; }()],
+        box: el.getBoundingClientRect().toJSON(),
+      }));
+      const signature = JSON.stringify(lists.map(l => [l.ancestors, l.box]));
+      if (signature !== last) { (window as any).dockStates.push({ time: performance.now(), path: location.pathname, lists }); last = signature; }
+    };
+    new MutationObserver(sample).observe(document, { childList: true, subtree: true, attributes: true });
+  });
+  await page.goto('/you');
+  let failure = '';
+  try { await expect(page.locator('.mobileTabList')).toBeVisible(); } catch (e) { failure = String(e); }
+  await page.evaluate(() => (window as any).releaseFrames());
+  await expect(page.getByRole('navigation', { name: 'Primary', exact: true })).toHaveCount(1);
+  await expect(page.getByRole('navigation', { name: 'Primary', exact: true }).getByRole('link', { name: 'You', exact: true })).toHaveAttribute('aria-current', 'page');
+  const states = await page.evaluate(() => (window as any).dockStates);
+  console.log(JSON.stringify({ failure, states }));
+  expect(failure).toBe('');
+});
