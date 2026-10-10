@@ -1,0 +1,3 @@
+branch: codex/skills-packages-live-review
+head: 061d32ac51a2e48a238e479b9919836b0c40cac1
+url: "https://github.com/Singularityszn/pubmax/pull/2052"

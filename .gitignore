@@ -22,6 +22,12 @@ dist/
 !.env.example
 *.env
 *.log
+!/docs/proof/skills-packages-2026-10-07/review-r5-r6/before-recipes.log
+!/docs/proof/skills-packages-2026-10-07/review-r5-r6/after-recipes.log
+!/docs/proof/skills-packages-2026-10-07/review-r5-r6/after-recipes-first-attempt.log
+!/docs/proof/skills-packages-2026-10-07/review-r5-r6/browser.log
+!/docs/proof/skills-packages-2026-10-07/review-r5-r6/browser-config-failure.log
+!/docs/proof/skills-packages-2026-10-07/review-r5-r6/browser-cwd-failure.log
 *.tsbuildinfo
 scripts/__pycache__/
 .vercel

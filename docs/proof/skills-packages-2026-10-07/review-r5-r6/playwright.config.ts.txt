@@ -1,0 +1,11 @@
+import { defineConfig } from '@playwright/test';
+import config from '../../playwright.config';
+export default defineConfig({
+  ...config,
+  testDir: '../../e2e',
+  outputDir: './test-results',
+  reporter: [['list'], ['json', { outputFile: 'artifacts/review-r5-r6/browser-results.json' }]],
+  workers: 1,
+  webServer: [{ ...config.webServer[0], cwd: process.cwd() }],
+  projects: [{ name: 'review-chrome', use: { channel: 'chrome', baseURL: 'http://localhost:3482', serviceWorkers: 'block', launchOptions: { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] } } }],
+});

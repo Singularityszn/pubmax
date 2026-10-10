@@ -1,0 +1,141 @@
+{
+  "phase": "ci",
+  "pr": 2052,
+  "logicalBranch": "codex/skills-packages-live-review",
+  "currentHead": "061d32ac51a2e48a238e479b9919836b0c40cac1",
+  "publishedHead": "061d32ac51a2e48a238e479b9919836b0c40cac1",
+  "worktreeDetached": true,
+  "sourceEditsUncommittedForExecutor": true,
+  "sourcePatchSha256": "ec09ba9ab15fd2813569822f7c753c2f4ae84aa1d61692706d0ea9b98750c9dc",
+  "productionBuild": {
+    "sourceHead": "061d32ac51a2e48a238e479b9919836b0c40cac1",
+    "buildId": "build-TfctsWXpff2fKS",
+    "directory": ".next-ci025",
+    "buildLog": "dock-natural.log.txt",
+    "applicationSourceUnchanged": true
+  },
+  "findings": [
+    {
+      "id": "ci-1",
+      "status": "fixed",
+      "invariant": "Measure the unique accessible Primary dock and its owned list and highlight.",
+      "scope": [
+        "streamed hidden segment",
+        "hydration",
+        "client navigation",
+        "320px",
+        "390px",
+        "430px"
+      ],
+      "evidence": [
+        "dock-before.log.txt",
+        "dock-after.log.txt",
+        "law-pins-final-results.json"
+      ]
+    },
+    {
+      "id": "review-width-range-025",
+      "status": "fixed",
+      "invariant": "Report each numeric width bound while preserving existing stylesheet and active-token behavior.",
+      "scope": [
+        "ascending and descending ranges",
+        "strict and inclusive comparisons",
+        "px/em/rem",
+        "decimal values",
+        "min/max forms",
+        "one-sided forms",
+        "imports",
+        "unreadable sheets",
+        "active media and theme tokens"
+      ],
+      "recipeCasesPassed": 13,
+      "evidence": [
+        "recipes-before.log.txt",
+        "recipes-after.log.txt"
+      ]
+    },
+    {
+      "id": "ci-local-sheet-animation",
+      "status": "fixed",
+      "file": "e2e/smoke.spec.ts",
+      "invariant": "Measure usable, settled venue-sheet controls before checking every existing geometry constraint.",
+      "scope": [
+        "close button",
+        "tab strip",
+        "dock bounds",
+        "overflow",
+        "price styling",
+        "final close action"
+      ],
+      "focusedPasses": 5,
+      "evidence": [
+        "law-pins-first.log.txt",
+        "sheet-frames.log.txt",
+        "sheet-after-results.json",
+        "law-pins-final-results.json"
+      ]
+    }
+  ],
+  "lawPins": {
+    "passed": 111,
+    "existingArguedSkip": 1,
+    "unexpected": 0,
+    "retried": 0,
+    "flaky": 0,
+    "gateExitCode": 0,
+    "browser": "installed Chrome",
+    "workers": 1,
+    "retriesConfigured": 1
+  },
+  "capacity": {
+    "providedRemainingAllowanceBytes": 5971013632,
+    "newDirectoriesAllocatedBytes": 620298240,
+    "remainingAfterNewDirectoriesBytes": 5350715392,
+    "ramAllowanceBytes": 12884901888,
+    "nodeHeapLimitMiB": 6144,
+    "reservesPreserved": {
+      "uiBytes": 4831838208,
+      "androidBytes": 1825361101,
+      "runtimeBytes": 1073741824,
+      "hostFloorBytes": 3359637504
+    },
+    "sharedCleanup": false
+  },
+  "publicationOwnedByOuterExecutor": true,
+  "archiveSha256": {
+    "README.md": "64a3b041823d674899e2e37b2b1815141a1e17bac9d618d0c7e399b548fceb44",
+    "breakpoints-after.js.txt": "47a33f562ead70e3315d87c5e8c3ba856aa22949b30cfe78f8c173df187424f9",
+    "breakpoints-before.js.txt": "37d4da3143b30119f662e4bdd7d5bd438accddb2d68c41935c4eafe3e8951cde",
+    "browser-law-raw-full-025.log.txt": "fdda7929a251b24062df8805670b4737a916f78c617912d96e5ebc8c537d1401",
+    "dock-after-results.json": "fb76d1ab3000d3b872652dc856d99eed54cf3598374315440a830d17fbe2478b",
+    "dock-after.log.txt": "aee6b695fe42408ffcfb13169dc37121bfd1bec2c3c5a77efd3c2a4a55d7a114",
+    "dock-after.spec.ts.txt": "6fb94ab88fbde6f04b9284ffbeaccdc4d09e7ba7273bf04f788a7d9369424475",
+    "dock-before-results.json": "6c5b10317ff7a8643aeade6911b9349226bda7e2ad5a75d2018436d34b00f917",
+    "dock-before.log.txt": "8b2d88b6c66c2fbfc195de5a0c3d14d89dea4cd065660cae6b2dfccd7dbbf7bb",
+    "dock-before.spec.ts.txt": "be2d7aba67beea1661a79811726e1a29a754a27ad4d7c5dafef8c7f2ca3a9f9a",
+    "dock-cpu-stress.log.txt": "17bbc7a8c922c565ed70c3feeaef0831e04ab2e69dedc21cadc39ce4e4246469",
+    "dock-natural.log.txt": "463a00862da33d737a817fb298e29bc8f4867e2fc1f52f4183ff7864892e3f21",
+    "law-pins-final-gate.log.txt": "f3db4e65f4ffbc80c2818e26f8bc2addd4d19f985e89bbcc05ef01ce52fdc54c",
+    "law-pins-final-results.json": "fdc3e504a03c8937f5d10a04018bf622d207d9e653862133b582b630f3f3dd54",
+    "law-pins-final.log.txt": "c74648cc2239956f5b9199471fdb9ecd244886cbe14ae37a78ffd26882c6ffda",
+    "law-pins-first-gate.log.txt": "fe0d5bf224fc8cd55f3e74168460dadf75734d104c7ac6e972c4221e29a02917",
+    "law-pins-first-results.json": "ba6264f4506cf3146d18fe392ff5f6800c8b08e2501970e8e0797034f9d42094",
+    "law-pins-first.log.txt": "df0cc0518e7b88357b3a35ceced801ad39fb3e1553fc1a5df96d2bcd3ce08749",
+    "playwright.config.ts.txt": "73082cc2cfcb6fc66d94c2afc45d66757ed79f2fbe8f0168c6fe82296999c50c",
+    "published-head.txt": "7e8430cd7b29c4e0de4910887d463ec7f9613e9c90de4b613007546cb7ce1708",
+    "recipes-after.log.txt": "9a5e906e6a735f16edd27a8f299e2acfd1d0e27fe74a444f00caa5002927ce3e",
+    "recipes-before.log.txt": "f87251f204e6d7f38f54356d4b0c2ce21ffc1af5998a903685c67d6aa40e37bf",
+    "recipes-harness-failure.log.txt": "c7b4ec3c43a6046e5ad2d85faa8cfae8b4e92340751b7c1c5acdc49b56c219c2",
+    "recipes.mjs.txt": "a78748c79479763418583dd7b23a7274dde681cce6c7e2afe6116d0daf6a0412",
+    "review-comment.txt": "1242f53f79817e8b3f55b39368404e7d766985b7b4c0ff1aa237f6283fc3bb92",
+    "sheet-after-results.json": "20500c8245fb841f2d8830fe81cdb7d12d72312042ba5c25368b416b28270f8b",
+    "sheet-after.log.txt": "4768e6fc5381f9108fb7076c42b5e5cce949755f46a20722bb0c105a5f63d65e",
+    "sheet-first-diagnostic.log.txt": "040300e3a881fa81c0c240ca3139c2a535187c42d9f9004badd38f14426078aa",
+    "sheet-frames.log.txt": "3af85d19c47c46d87071e18c6c514d7acb2a8679db0d9cbb905de69457123827",
+    "sheet-frames.spec.ts.txt": "c6f93fa188f2c5b700a2b64e7e653cd3997dff48e680ea752fa17515055101b7",
+    "smoke-mobile-venue-sheet-G-cac64-rab-handle-visible-at-390px-chromium/error-context.md": "688b195c0a9693a0c55cbf6775d409e265180f3fe8b69b7555da651091ab13d6",
+    "smoke-mobile-venue-sheet-G-cac64-rab-handle-visible-at-390px-chromium-retry1/error-context.md": "688b195c0a9693a0c55cbf6775d409e265180f3fe8b69b7555da651091ab13d6",
+    "smoke-mobile-venue-sheet-G-cac64-rab-handle-visible-at-390px-chromium-retry1/trace.zip": "ea79e831111ca72e4ee4d2227dedd58fcb2c66ffeb7d67c27b9c8ca8a72b2bae",
+    "source.patch.txt": "ec09ba9ab15fd2813569822f7c753c2f4ae84aa1d61692706d0ea9b98750c9dc"
+  }
+}

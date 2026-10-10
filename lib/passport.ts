@@ -43,7 +43,7 @@ function distinctBeers(drops: readonly ProfileDrop[]): number {
 export type PassportData = {
   /** Distinct pubs visited — venueId is the pub identity (drops carry it). */
   pubs: number;
-  /** Distinct boroughs, when drops name one; [] when none do (never undefined). */
+  /** The distinct areas from profileStats, or [] when no drop names an area. */
   boroughs: string[];
   /** Distinct named drinks ("beers"), case-insensitive. */
   beers: number;

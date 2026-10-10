@@ -1,0 +1,12 @@
+import { resolve } from 'node:path';
+import { defineConfig } from '@playwright/test';
+import config from '../../playwright.config';
+export default defineConfig({
+  ...config,
+  testDir: process.env.CI025_REPRO === '1' ? '.' : '../../e2e',
+  outputDir: './test-results',
+  reporter: [['list'], ['json', { outputFile: resolve(process.cwd(), process.env.CI025_REPORT ?? 'artifacts/ci-025/results.json') }]],
+  workers: 1,
+  webServer: config.webServer ? [{ ...config.webServer[0], cwd: process.cwd(), reuseExistingServer: false }] : undefined,
+  projects: [{ name: 'chromium', use: { ...config.projects[0].use, channel: 'chrome' } }],
+});

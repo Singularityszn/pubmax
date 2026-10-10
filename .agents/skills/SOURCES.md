@@ -48,8 +48,8 @@ Upstream `SKILL.md` trees were copied flat, one directory per skill. Plugin test
 ### Leonxlnx/taste-skill
 
 - Repo: https://github.com/Leonxlnx/taste-skill
-- Commit: `ce26fc25c0e5e8cab638f883de62d9a86ee5e45b` (`main`)
-- Checked 4 Oct 2026. All thirteen installed skill trees match this tip.
+- Commit: `b482f7a970abb98c4108d4a9f761e458c64cefc8` (`main`)
+- Checked 7 Oct 2026. All thirteen installed skill trees match this tip. It changes only the upstream README and an image after `e3c92037548e3e49bea8e6b906c99a8549654e71`.
 
 Directory name, then frontmatter `name` when it differs:
 
@@ -72,10 +72,19 @@ Directory name, then frontmatter `name` when it differs:
 ### jakubkrehel/skills
 
 - Repo: https://github.com/jakubkrehel/skills
-- Commit: `267330e1adfc66a718fb65fa6918c1f06d0a689e` (`main`)
-- Checked 2 Oct 2026. This is still the upstream tip.
+- Commit: `d574cc8a576dc24256ad38268b8d03d86724a1b3` (`main`)
+- Refreshed 7 Oct 2026. The installed trees use this tip with the local corrections below. `state-machine` was added because `variant` now refers to it.
 
-`better-accessibility`, `better-colors`, `better-interface`, `better-layout`, `better-typography`, `better-ui`, `better-writing`, `break`, `explain-interface`, `interface-review`, `variant`.
+Local corrections:
+
+- [`state-machine` step 3](state-machine/SKILL.md#3-build-the-throwaway-page) preserves the target's Next.js server/client boundary.
+- [`break` step 3](break/SKILL.md#3-build-the-harness-page) points to that fixture boundary guidance.
+- [`better-typography` punctuation guidance](better-typography/SKILL.md#before-you-finish) defers to the project's voice policy.
+- [`explain-interface` token recipe](explain-interface/read-the-system.md#tokens) reads active computed values for the current viewport and theme.
+- [`better-layout` growth guidance](better-layout/spacing-and-adaptivity.md#plan-for-growth-and-clipping) preserves the project's keyboard-inset requirement alongside `dvh` sizing. Its [review checklist](better-layout/SKILL.md#before-you-finish) retains this requirement.
+- [`better-accessibility` hit-area recipe](better-accessibility/hit-areas.md#expanding-the-hit-area) requires a wrapping label for expanded checkbox targets.
+
+`better-accessibility`, `better-colors`, `better-interface`, `better-layout`, `better-typography`, `better-ui`, `better-writing`, `break`, `explain-interface`, `interface-review`, `variant`, `state-machine`.
 
 ### gnurio/refactoring-ui-plugin
 
@@ -100,12 +109,13 @@ Dropped, because they sit outside that UI scope or duplicate the machine-wide se
 
 ## MapLibre and Capacitor refreshes
 
-These were already in the tree. Refreshed 2 Oct 2026 to the upstream tips below. `debugging-capacitor` keeps three local guards the upstream file does not: debug-only WebView and cleartext flags, ATS exceptions never committed, and no `rm -rf node_modules` in a shared worktree unless someone asks.
+These were already in the tree. Each repo below records its refresh date and upstream tip. `debugging-capacitor` keeps three local guards the upstream file does not: debug-only WebView and cleartext flags, ATS exceptions never committed, and no `rm -rf node_modules` in a shared worktree unless someone asks.
 
 ### maplibre/maplibre-agent-skills
 
 - Repo: https://github.com/maplibre/maplibre-agent-skills
-- Commit: `bc6a884a6b6b08936cf917b26092463e5d22e180` (`main`)
+- Commit: `fa618af49728952f7aeca842ad93f51b9b530018` (`main`)
+- Refreshed 7 Oct 2026.
 
 Refreshed: `maplibre-source-wiring`, `maplibre-terrain-rendering`, `maplibre-tile-sources`, `maplibre-v6-migration`.
 
@@ -117,6 +127,7 @@ Left upstream: `maplibre-pmtiles-patterns` (this app does not host PMTiles), `ma
 
 - Repo: https://github.com/Cap-go/capgo-skills
 - Commit: `c0afb73c859a85c35c8d03d3dc9afdee5fe78d30` (`main`)
+- Refreshed 2 Oct 2026.
 
 Refreshed: `debugging-capacitor`.
 
@@ -129,7 +140,8 @@ A last30days run on 2 Oct 2026 (Reddit, YouTube, Hacker News, GitHub, Digg) rank
 ### supabase/agent-skills
 
 - Repo: https://github.com/supabase/agent-skills
-- Commit: `544bfc56c89afe2b87b20017a59b2c6e9502a1fb` (`main`)
+- Commit: `c9be0e931b7930f7d02126d04774d904c381e7d7` (`main`)
+- Checked 7 Oct 2026. This is the upstream tip.
 
 `supabase`, `supabase-postgres-best-practices`.
 
@@ -152,18 +164,22 @@ Left upstream: `deploy-to-vercel` (the machine already has `deploy-with-vercel`)
 ### elevenlabs/skills
 
 - Repo: https://github.com/elevenlabs/skills
-- Commit: `81f1eafc65c9219ab4aa305d81ffc552a6f43f9d` (`main`)
+- Commit: `1d08a4a250cff67cc8056ec31587c031ecb06d2f` (`main`)
+- Refreshed 7 Oct 2026.
 
 `elevenlabs-agents` is the upstream `agents` skill. The directory and the frontmatter `name` are `elevenlabs-agents` so this copy does not register as a generic agents skill. Also `text-to-speech`, `speech-to-text`, `speech-engine`.
 
 Upstream `references/installation.md` in three of these skills offered `curl … | sh` for the ElevenLabs CLI. Those blocks are removed. npm, Homebrew, and Scoop remain.
+
+The local [`text-to-speech` dialogue example](text-to-speech/references/streaming.md#eleven-v4-turbo-websocket) fails on API errors and closure before a final frame.
 
 Left upstream: `dubbing`, `music`, `sound-effects`, `voice-changer`, `voice-isolator`, `setup-api-key`, `update-skills-from-changelog`.
 
 ### PostHog/skills
 
 - Repo: https://github.com/PostHog/skills
-- Commit: `188417f71b1e67765ce814118bce9f79d8a1a393` (`main`)
+- Commit: `175a8488f84a3708d18c7b7e4e676b0de649047d` (`main`)
+- Checked 7 Oct 2026. The three installed skill trees match this tip. It changes only other PostHog skills after `8321fc1dab05b8f3dfdb6d6b5c76c097b99b8677`.
 
 `integration-nextjs-app-router`, `feature-flags-nextjs`, `error-tracking-nextjs`.
 
@@ -190,3 +206,7 @@ Same commit as the MapLibre refresh above. `maplibre-cartography`, `maplibre-fon
 Anthropic `frontend-design` is installed in the canonical machine-wide skill root at `~/.agents/skills/frontend-design`, exposed to Codex. Source: [anthropics/skills](https://github.com/anthropics/skills), commit `8a1541c4a3ffa5a20a5a91de0dcf3f0bab1d1ef4`. Claude already provides this skill through its enabled synced plugin, so no second Claude copy was added.
 
 `docs/DESIGN_SYSTEM.md` and `docs/VOICE.md` remain authoritative for this project. Upstream design skills do not replace project tokens, brand identity, price semantics or copy laws.
+
+## Maintenance check, 7 Oct 2026
+
+All eleven documented upstream repositories were checked at their default branch tips. The installed Jakub skills, MapLibre cartography and glyph guidance, and ElevenLabs `elevenlabs-agents` skill, configuration and client-tool references, `speech-engine` SDK references, and `text-to-speech` skill, installation, streaming and voice-settings references were refreshed. Other installed trees have no upstream content changes. Local corrections are recorded in each source section above. Upstream CHANGELOG.md files were not modified. The three PUBMAXX-specific skills have no upstream.

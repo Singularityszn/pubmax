@@ -938,6 +938,38 @@ const REQUIRED_MEMBERS = [
   "locate FAB",
 ] as const;
 
+async function seedAnsweredConsentAndPal(page: Page, consentVisible = false): Promise<void> {
+  await page.addInitScript((visibleConsent: boolean) => {
+    if (visibleConsent) {
+      window.localStorage.removeItem("pubmaxx:analytics-consent:v1");
+      window.sessionStorage.removeItem("pubmax:prompt-budget:v1");
+      window.sessionStorage.setItem("pubmax:consent-answer-moment:v1", "venue-sheet");
+    } else {
+      window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    }
+    window.localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
+    const now = "2026-01-01T00:00:00.000Z";
+    window.localStorage.setItem(
+      "pubmax_pub_pal_v1",
+      JSON.stringify({
+        id: "pal-e2e",
+        ownerId: "owner-e2e",
+        name: "Ada",
+        adultAttestedAt: now,
+        appearance: {},
+        personality: {},
+        voice: {},
+        muted: false,
+        hidden: false,
+        proposalPreferences: {},
+        masteryPoints: 0,
+        createdAt: now,
+        updatedAt: now,
+      }),
+    );
+  }, consentVisible);
+}
+
 function overlaps(a: Rect, b: Rect): boolean {
   return (
     a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
@@ -948,34 +980,12 @@ for (const viewport of VIEWPORTS) {
   test(`${viewport.width}px right-edge floating controls never overlap`, async ({
     page,
   }) => {
-    await page.addInitScript(() => {
-      // Consent is ANSWERED on purpose. Leaving it undecided renders
-      // AnalyticsConsentPrompt, which lifts the map-edge column to its own
-      // higher berth - the one berth where the collision this test exists for
-      // cannot happen - and whether it renders at all depends on a prompt
-      // budget, so an undecided seed is nondeterministic as well as blind.
-      window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
-      window.localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
-      const now = "2026-01-01T00:00:00.000Z";
-      window.localStorage.setItem(
-        "pubmax_pub_pal_v1",
-        JSON.stringify({
-          id: "pal-e2e",
-          ownerId: "owner-e2e",
-          name: "Ada",
-          adultAttestedAt: now,
-          appearance: {},
-          personality: {},
-          voice: {},
-          muted: false,
-          hidden: false,
-          proposalPreferences: {},
-          masteryPoints: 0,
-          createdAt: now,
-          updatedAt: now,
-        }),
-      );
-    });
+    // Consent is ANSWERED on purpose. Leaving it undecided renders
+    // AnalyticsConsentPrompt, which lifts the map-edge column to its own
+    // higher berth - the one berth where the collision this test exists for
+    // cannot happen - and whether it renders at all depends on a prompt
+    // budget, so an undecided seed is nondeterministic as well as blind.
+    await seedAnsweredConsentAndPal(page);
     await openPhoneMap(page, viewport);
     // The pill is stored-pal gated and mounts after a microtask.
     await expect(page.locator(".palSummon")).toBeVisible({ timeout: 30_000 });
@@ -1048,6 +1058,273 @@ for (const viewport of VIEWPORTS) {
     ).toBeGreaterThanOrEqual(10);
   });
 }
+
+// The OpenStreetMap credit shares the band above the plan pill with the Pub
+// Pal pill. Closed, it is a 44px control beside the pill that owns its own
+// tap. Open, its text runs across that band, so the pill stands down, no word
+// may sit under the 44px collapse button at its right edge, and it stays out of
+// the Near me lane.
+for (const viewport of VIEWPORTS) {
+  test(`${viewport.width}px the map credit owns its taps beside the Pub Pal pill`, async ({
+    page,
+  }) => {
+    await seedAnsweredConsentAndPal(page);
+    await openPhoneMap(page, viewport);
+    const pal = page.locator(".palSummon");
+    await expect(pal).toBeVisible({ timeout: 30_000 });
+    const credit = page.locator(".appShell .mapStage .maplibregl-ctrl-attrib");
+    const toggle = credit.locator(".maplibregl-ctrl-attrib-button");
+    await expect(toggle).toBeVisible();
+    await expect(credit).not.toHaveClass(/maplibregl-compact-show/);
+
+    const closed = await toggle.evaluate((button) => {
+      const box = button.getBoundingClientRect();
+      const pill = document.querySelector(".palSummon")!.getBoundingClientRect();
+      const hit = document.elementFromPoint(
+        box.left + box.width / 2,
+        box.top + box.height / 2,
+      );
+      const glyph = getComputedStyle(button);
+      const container = button.closest(".maplibregl-ctrl-attrib")!;
+      const control = getComputedStyle(container);
+      const surface = document.createElement("div");
+      surface.style.backgroundColor = "var(--color-surface-raised)";
+      container.append(surface);
+      const surfaceColor = getComputedStyle(surface).backgroundColor;
+      surface.remove();
+      return {
+        box: box.toJSON() as Rect,
+        pill: pill.toJSON() as Rect,
+        ownsCentre: button.contains(hit),
+        backgroundImage: glyph.backgroundImage,
+        backgroundRepeat: glyph.backgroundRepeat,
+        backgroundPosition: glyph.backgroundPosition,
+        backgroundSize: glyph.backgroundSize,
+        controlRadius: control.borderRadius,
+        controlColor: control.backgroundColor,
+        surfaceColor,
+        controlBox: container.getBoundingClientRect().toJSON() as Rect,
+      };
+    });
+    expect(closed.backgroundImage).not.toBe("none");
+    expect(closed.backgroundRepeat).toBe("no-repeat");
+    expect(closed.backgroundPosition).toBe("50% 50%");
+    expect(closed.backgroundSize).toBe("24px 24px");
+    expect(closed.controlRadius).toBe("50%");
+    expect(closed.controlColor).toBe(closed.surfaceColor);
+    expect(closed.controlColor).not.toBe("rgba(0, 0, 0, 0)");
+    expect(closed.controlBox.width).toBe(44);
+    expect(closed.controlBox.height).toBe(44);
+    expect(closed.box.width, "the closed credit keeps the tap floor").toBeGreaterThanOrEqual(44);
+    expect(closed.box.height, "the closed credit keeps the tap floor").toBeGreaterThanOrEqual(44);
+    expect(closed.ownsCentre, "the closed credit owns its centre").toBe(true);
+    expect(
+      overlaps(closed.box, closed.pill),
+      `credit ${JSON.stringify(closed.box)} overlaps the Pub Pal pill ${JSON.stringify(closed.pill)}`,
+    ).toBe(false);
+
+    await toggle.click();
+    await expect(credit).toHaveClass(/maplibregl-compact-show/);
+    await expect(credit.locator(".maplibregl-ctrl-attrib-inner")).toContainText("Pub data © OpenStreetMap contributors (ODbL)");
+    await expect(pal).toBeHidden();
+    // Even reduced motion keeps a near-zero transition, so read the open
+    // credit's geometry only once it has landed.
+    await expect
+      .poll(() => credit.evaluate((control) => control.getAnimations().length))
+      .toBe(0);
+
+    const open = await credit.evaluate((control) => {
+      const button = control.querySelector(".maplibregl-ctrl-attrib-button")!;
+      const buttonBox = button.getBoundingClientRect();
+      const range = document.createRange();
+      range.selectNodeContents(control.querySelector(".maplibregl-ctrl-attrib-inner")!);
+      const underButton = Array.from(range.getClientRects())
+        .filter((line) => line.width > 0 && line.height > 0)
+        .filter(
+          (line) =>
+            line.left < buttonBox.right &&
+            buttonBox.left < line.right &&
+            line.top < buttonBox.bottom &&
+            buttonBox.top < line.bottom,
+        )
+        .map((line) => line.toJSON());
+      const links = Array.from(control.querySelectorAll<HTMLAnchorElement>("a")).map(
+        (link) => {
+          const line = link.getClientRects()[0]!;
+          const hit = document.elementFromPoint(
+            line.left + line.width / 2,
+            line.top + line.height / 2,
+          );
+          return { text: link.textContent, ownsCentre: link.contains(hit) };
+        },
+      );
+      const hit = document.elementFromPoint(
+        buttonBox.left + buttonBox.width / 2,
+        buttonBox.top + buttonBox.height / 2,
+      );
+      return {
+        box: control.getBoundingClientRect().toJSON() as Rect,
+        locate: document.querySelector(".mobileMapLocateFab")!.getBoundingClientRect().toJSON() as Rect,
+        button: buttonBox.toJSON() as Rect,
+        buttonOwnsCentre: button.contains(hit),
+        underButton,
+        links,
+      };
+    });
+    expect(open.underButton, "no credit text sits under the collapse button").toEqual([]);
+    expect(open.links.length, "the open credit shows its links").toBeGreaterThan(0);
+    expect(
+      open.links.filter((link) => !link.ownsCentre),
+      "every credit link owns its centre",
+    ).toEqual([]);
+    expect(open.button.width, "the collapse button keeps the tap floor").toBeGreaterThanOrEqual(44);
+    expect(open.buttonOwnsCentre, "the collapse button owns its centre").toBe(true);
+    expect(open.box.left).toBeGreaterThanOrEqual(0);
+    expect(open.box.right).toBeLessThanOrEqual(viewport.width);
+    expect(
+      overlaps(open.box, open.locate),
+      `open credit ${JSON.stringify(open.box)} overlaps Near me ${JSON.stringify(open.locate)}`,
+    ).toBe(false);
+
+    await toggle.click();
+    await expect(credit).not.toHaveClass(/maplibregl-compact-show/);
+    await expect(pal).toBeVisible();
+  });
+}
+
+for (const width of [641, 1440]) {
+  test(`${width}px desktop credit and Share keep their hits`, async ({ page }) => {
+    await seedAnsweredConsentAndPal(page);
+    await page.setViewportSize({ width, height: 900 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addInitScript(() => {
+      localStorage.setItem("pubmax-tour-v1-done", "1");
+      localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+    });
+    await page.goto("/map/london");
+    await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
+    const credit = page.locator(".maplibregl-ctrl-attrib");
+    const toggle = credit.locator(".maplibregl-ctrl-attrib-button");
+    const layers = page.locator(".mapLayersControl > button").first();
+    const pal = page.locator(".palSummon");
+    await expect(pal).toBeVisible({ timeout: 30_000 });
+    const ownsHit = (control: Locator) => control.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return element.contains(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2));
+    });
+    for (const expanded of [false, true, false]) {
+      if (expanded !== (await credit.evaluate((element) => element.classList.contains("maplibregl-compact-show")))) await toggle.click();
+      await expect.poll(() => credit.evaluate((element) => element.getAnimations().length)).toBe(0);
+      for (const control of [toggle, layers, pal]) {
+        await expect(control).toBeVisible();
+        expect(await ownsHit(control)).toBe(true);
+      }
+      if (expanded) await expect(credit).toContainText("Pub data © OpenStreetMap contributors (ODbL)");
+    }
+    await page.goto("/map/london?sel=venue-xjf3n0");
+    const share = page.locator('.mapDrawer.right').getByRole("button", { name: /^Share / });
+    await expect(share).toBeVisible({ timeout: 45_000 });
+    await expect.poll(() => ownsHit(share)).toBe(true);
+  });
+}
+
+test.describe("story and credit placement", () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  for (const viewport of VIEWPORTS) {
+    for (const consentVisible of [false, true]) {
+      test(`${viewport.width}px story and credit stay clear with consent ${consentVisible ? "visible" : "answered"}`, async ({
+        page,
+      }, testInfo) => {
+        await seedAnsweredConsentAndPal(page, consentVisible);
+        await preparePhoneMap(page, viewport, "reduce", "/map/glasgow?band=subcrawl");
+        await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
+        const chip = page.locator(".bandOnboardingChip");
+        await expect(chip).toBeVisible();
+        await expect(chip.locator("strong")).toHaveText("Subcrawl: Clockwork Orange loop");
+        await expect(page.locator(".analyticsConsentPrompt")).toHaveCount(consentVisible ? 1 : 0);
+        const credit = page.locator(".appShell .mapStage .maplibregl-ctrl-attrib");
+        const toggle = credit.locator(".maplibregl-ctrl-attrib-button");
+        await expect(toggle).toBeVisible();
+
+        for (const expanded of [false, true, false]) {
+          if (expanded !== (await credit.evaluate((element) => element.classList.contains("maplibregl-compact-show")))) {
+            await toggle.click();
+          }
+          await expect.poll(() => credit.evaluate((element) => element.getAnimations().length)).toBe(0);
+          const measure = () => page.evaluate(() => {
+            const box = (selector: string) => document.querySelector(selector)!.getBoundingClientRect().toJSON() as Rect;
+            const chip = document.querySelector(".bandOnboardingChip")!;
+            const credit = document.querySelector(".maplibregl-ctrl-attrib")!;
+            const inner = credit.querySelector<HTMLElement>(".maplibregl-ctrl-attrib-inner")!;
+            const button = credit.querySelector(".maplibregl-ctrl-attrib-button")!;
+            const buttonBox = button.getBoundingClientRect();
+            const range = document.createRange();
+            range.selectNodeContents(inner);
+            const textBoxes = Array.from(range.getClientRects()).filter((line) => line.width > 0 && line.height > 0);
+            const ownsHit = (element: Element, rect = element.getBoundingClientRect()) => element.contains(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2));
+            return {
+              chip: box(".bandOnboardingChip"),
+              credit: box(".maplibregl-ctrl-attrib"),
+              tab: box(".mobileTabBar"),
+              utility: box(".mobileMapChipRow"),
+              nearMe: box(".mobileMapLocateFab"),
+              create: box(".createFabRoot"),
+              pal: document.querySelector(".palSummon")?.getBoundingClientRect().toJSON() as Rect | undefined,
+              consent: document.querySelector(".analyticsConsentPrompt")?.getBoundingClientRect().toJSON() as Rect | undefined,
+              button: buttonBox.toJSON() as Rect,
+              buttonHit: ownsHit(button),
+              storyHits: Array.from(chip.querySelectorAll("button")).map((action) => ownsHit(action)),
+              text: inner.textContent,
+              lines: new Set(textBoxes.map((line) => line.top)).size,
+              textUnderButton: textBoxes.some((line) => line.left < buttonBox.right && buttonBox.left < line.right && line.top < buttonBox.bottom && buttonBox.top < line.bottom),
+              links: Array.from(inner.querySelectorAll("a")).map((link) => ownsHit(link, link.getClientRects()[0])),
+              storyClipped: Array.from(chip.querySelectorAll<HTMLElement>("strong, span")).some((element) => element.scrollHeight > element.clientHeight || element.scrollWidth > element.clientWidth),
+            };
+          });
+          await expect.poll(async () => {
+            const layout = await measure();
+            return overlaps(layout.chip, layout.credit);
+          }, { message: "the story clears the actual wrapped credit height" }).toBe(false);
+          const layout = await measure();
+          expect(layout.chip.bottom).toBeLessThanOrEqual(layout.credit.top);
+          expect(layout.chip.top).toBeGreaterThanOrEqual(layout.utility.bottom);
+          expect(layout.credit.bottom).toBeLessThanOrEqual(layout.tab.top);
+          expect(layout.credit.left).toBeGreaterThanOrEqual(0);
+          expect(layout.credit.right).toBeLessThanOrEqual(viewport.width);
+          expect(layout.button.width).toBeGreaterThanOrEqual(44);
+          expect(layout.button.height).toBeGreaterThanOrEqual(44);
+          expect(layout.buttonHit).toBe(true);
+          expect(layout.storyHits).toEqual([true, true]);
+          expect(layout.storyClipped).toBe(false);
+          for (const other of [layout.nearMe, layout.create, layout.consent, ...(expanded ? [] : [layout.pal])].filter((box): box is Rect => !!box)) {
+            expect(overlaps(layout.credit, other)).toBe(false);
+            expect(overlaps(layout.chip, other)).toBe(false);
+          }
+          if (expanded) {
+            expect(layout.text).toContain("Pub data © OpenStreetMap contributors (ODbL)");
+            expect(layout.text).toContain("OpenFreeMap");
+            expect(layout.text).toContain("OpenMapTiles");
+            expect(layout.textUnderButton).toBe(false);
+            expect(layout.links.length).toBeGreaterThan(0);
+            expect(layout.links.every(Boolean)).toBe(true);
+            if (viewport.width === 320) expect(layout.lines).toBe(4);
+            await testInfo.attach("story-credit-geometry", { body: JSON.stringify(layout), contentType: "application/json" });
+            await testInfo.attach("story-credit", { body: await page.screenshot(), contentType: "image/png" });
+          }
+        }
+        await chip.getByRole("button", { name: "Dismiss Place story intro" }).click();
+        await expect(chip).toHaveCount(0);
+        await toggle.click();
+        await expect(credit).toHaveClass(/maplibregl-compact-show/);
+        await expect.poll(() => toggle.evaluate((button) => {
+          const rect = button.getBoundingClientRect();
+          return button.contains(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2));
+        })).toBe(true);
+      });
+    }
+  }
+});
 
 // The DEFAULT berth, which no map case can reach.
 //
@@ -1384,10 +1661,17 @@ for (const viewport of VIEWPORTS) {
       window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
     });
     await page.goto("/you");
-    await expect(page.locator(".mobileTabList")).toBeVisible();
-    const fit = await page.evaluate(() => {
-      const list = document.querySelector(".mobileTabList")!.getBoundingClientRect();
-      const highlight = document.querySelector(".mobileTabHighlight")!.getBoundingClientRect();
+    const primary = page.getByRole("navigation", { name: "Primary", exact: true });
+    await expect(primary).toHaveCount(1);
+    const list = primary.locator(".mobileTabList");
+    await expect(list).toHaveCount(1);
+    await expect(list).toBeVisible();
+    await expect(primary.getByRole("link", { name: "You", exact: true }))
+      .toHaveAttribute("aria-current", "page");
+    await expect(list.locator(".mobileTabHighlight")).toHaveCount(1);
+    const fit = await list.evaluate((element) => {
+      const list = element.getBoundingClientRect();
+      const highlight = element.querySelector(".mobileTabHighlight")!.getBoundingClientRect();
       return { list, highlight };
     });
     expect(fit.highlight.left).toBeGreaterThanOrEqual(fit.list.left - 0.5);
