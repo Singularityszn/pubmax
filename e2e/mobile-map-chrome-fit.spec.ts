@@ -938,9 +938,15 @@ const REQUIRED_MEMBERS = [
   "locate FAB",
 ] as const;
 
-async function seedAnsweredConsentAndPal(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+async function seedAnsweredConsentAndPal(page: Page, consentVisible = false): Promise<void> {
+  await page.addInitScript((visibleConsent: boolean) => {
+    if (visibleConsent) {
+      window.localStorage.removeItem("pubmaxx:analytics-consent:v1");
+      window.sessionStorage.removeItem("pubmax:prompt-budget:v1");
+      window.sessionStorage.setItem("pubmax:consent-answer-moment:v1", "venue-sheet");
+    } else {
+      window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    }
     window.localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
     const now = "2026-01-01T00:00:00.000Z";
     window.localStorage.setItem(
@@ -961,7 +967,7 @@ async function seedAnsweredConsentAndPal(page: Page): Promise<void> {
         updatedAt: now,
       }),
     );
-  });
+  }, consentVisible);
 }
 
 function overlaps(a: Rect, b: Rect): boolean {
@@ -1230,14 +1236,7 @@ test.describe("story and credit placement", () => {
       test(`${viewport.width}px story and credit stay clear with consent ${consentVisible ? "visible" : "answered"}`, async ({
         page,
       }, testInfo) => {
-        await seedAnsweredConsentAndPal(page);
-        if (consentVisible) {
-          await page.addInitScript(() => {
-            localStorage.removeItem("pubmaxx:analytics-consent:v1");
-            sessionStorage.removeItem("pubmax:prompt-budget:v1");
-            sessionStorage.setItem("pubmax:consent-answer-moment:v1", "venue-sheet");
-          });
-        }
+        await seedAnsweredConsentAndPal(page, consentVisible);
         await preparePhoneMap(page, viewport, "reduce", "/map/glasgow?band=subcrawl");
         await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
         const chip = page.locator(".bandOnboardingChip");

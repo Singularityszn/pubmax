@@ -64,21 +64,26 @@ Every recipe is a function that returns its data, so the result comes back whole
 
 ## Tokens
 
-The walk collects token names from declarations inside `@layer`, `@media` and `@supports`, including theme selectors. It then reads their computed values on the root in the current viewport and theme. Inactive declarations supply names, never values. Tokens defined only on descendants need a separate computed-style read on those elements.
+The walk collects token names from imported stylesheets and declarations inside `@layer`, `@media` and `@supports`, including theme selectors. It then reads their computed values on the root in the current viewport and theme. Inactive declarations supply names, never values. Tokens defined only on descendants need a separate computed-style read on those elements.
 
 ```js
 () => {
-  const names = new Set(); const tokens = {}; const unreadable = [];
+  const names = new Set(); const tokens = {}; const unreadable = []; const visited = new Set();
   const walk = list => { for (const r of list ?? []) {
     if (r.style) {
       for (const prop of r.style) if (prop.startsWith('--')) names.add(prop);
     }
-    if (r.cssRules) walk(r.cssRules);
+    if (r.type === CSSRule.IMPORT_RULE) {
+      if (r.styleSheet) walkSheet(r.styleSheet); else unreadable.push(r.href);
+    } else if (r.cssRules) walk(r.cssRules);
   }};
-  for (const sheet of document.styleSheets) {
-    let rules; try { rules = sheet.cssRules } catch { unreadable.push(sheet.href); continue }
+  const walkSheet = sheet => {
+    if (visited.has(sheet)) return;
+    visited.add(sheet);
+    let rules; try { rules = sheet.cssRules } catch { unreadable.push(sheet.href); return }
     walk(rules);
-  }
+  };
+  for (const sheet of document.styleSheets) walkSheet(sheet);
   const computed = getComputedStyle(document.documentElement);
   for (const prop of computed) if (prop.startsWith('--')) names.add(prop);
   for (const prop of names) {
@@ -167,16 +172,21 @@ Report the count of distinct values and how often each is used. A few values reu
 
 ```js
 () => {
-  const bp = new Set(); const unreadable = [];
+  const bp = new Set(); const unreadable = []; const visited = new Set();
   const re = /(min|max)-width:\s*[\d.]+(px|r?em)|width\s*[<>]=?\s*[\d.]+(px|r?em)/g;
   const walk = list => { for (const r of list ?? []) {
     for (const m of (r.media?.mediaText ?? '').matchAll(re)) bp.add(m[0]);
-    if (r.cssRules) walk(r.cssRules);
+    if (r.type === CSSRule.IMPORT_RULE) {
+      if (r.styleSheet) walkSheet(r.styleSheet); else unreadable.push(r.href);
+    } else if (r.cssRules) walk(r.cssRules);
   }};
-  for (const sheet of document.styleSheets) {
-    let rules; try { rules = sheet.cssRules } catch { unreadable.push(sheet.href); continue }
+  const walkSheet = sheet => {
+    if (visited.has(sheet)) return;
+    visited.add(sheet);
+    let rules; try { rules = sheet.cssRules } catch { unreadable.push(sheet.href); return }
     walk(rules);
-  }
+  };
+  for (const sheet of document.styleSheets) walkSheet(sheet);
   return { breakpoints: [...bp].sort(), unreadable };
 }
 ```
@@ -195,7 +205,7 @@ Compare against the framework defaults. Tailwind v3 ships `640px`, `768px`, `102
 })
 ```
 
-`variable: true` means one file covers a weight range. A class on `<html>` beside a `prefers-color-scheme` query means a toggle that can override the system setting.
+`variable: true` means one file covers a weight range. A class on `<html>` beside a `prefers-color-scheme` query suggests a possible theme override. Verify a user-facing theme control and its effect before claiming that a toggle overrides the system setting.
 
 ## Reading a second state
 
