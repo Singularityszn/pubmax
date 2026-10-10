@@ -129,6 +129,20 @@ type PublicDrop = ProfileDrop & {
 
 type LoadState = "loading" | "ready" | "error" | "gone";
 
+type ProfileGeographyRead = {
+  key: string;
+  drops: PublicDrop[];
+  areas: string[];
+};
+
+function profileGeographyForRead(
+  read: ProfileGeographyRead | null,
+  key: string,
+): Pick<ProfileGeographyRead, "drops" | "areas"> {
+  if (read?.key === key) return read;
+  return { drops: [], areas: [] };
+}
+
 const BADGE_EVENT_IDS = BADGE_EVENTS.map((event) => event.id);
 const BADGE_EVENT_OPT_IN_CHANGED = "pubmax-badge-event-opt-ins-changed";
 
@@ -428,13 +442,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const geographyIdentityReady = identityResolved && !viewerSession.unresolved;
   const geographyUserId = user?.id ?? "";
   const geographyReadKey = `${accountRevision}:${geographyUserId}:${routeHandle}:${geographyIdentityReady}`;
-  const [geographyRead, setGeographyRead] = useState<{
-    key: string;
-    drops: PublicDrop[];
-    areas: string[];
-  } | null>(null);
-  const drops = geographyRead?.key === geographyReadKey ? geographyRead.drops : [];
-  const passportAreas = geographyRead?.key === geographyReadKey ? geographyRead.areas : [];
+  const [geographyRead, setGeographyRead] = useState<ProfileGeographyRead | null>(null);
+  const { drops, areas: passportAreas } = profileGeographyForRead(geographyRead, geographyReadKey);
   const [state, setState] = useState<LoadState>("loading");
   // Saved venues render as DTOs (venue NAME + map url). Durable when this handle has
   // server-side saves (/api/saved-pubs); otherwise the localStorage fallback
