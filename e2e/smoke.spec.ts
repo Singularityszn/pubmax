@@ -317,6 +317,7 @@ test("mobile venue sheet (GH #17): opens at the peek snap with the grab handle v
   await expect(tablist).toBeVisible();
   await expect(goldenThreadPrice).toHaveText("£5.50");
 
+  await closeButton.click({ trial: true });
   const [navBox, closeBox, tabsBox, horizontalOverflow, goldenThreadPriceStyle] = await Promise.all([
     mobileNav.boundingBox(),
     closeButton.boundingBox(),

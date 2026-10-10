@@ -173,9 +173,14 @@ Report the count of distinct values and how often each is used. A few values reu
 ```js
 () => {
   const bp = new Set(); const unreadable = []; const visited = new Set();
-  const re = /(min|max)-width:\s*[\d.]+(px|r?em)|width\s*[<>]=?\s*[\d.]+(px|r?em)/g;
+  const patterns = [
+    /(min|max)-width:\s*[\d.]+(px|r?em)|width\s*[<>]=?\s*[\d.]+(px|r?em)/g,
+    /[\d.]+(px|r?em)\s*[<>]=?\s*width/g,
+  ];
   const walk = list => { for (const r of list ?? []) {
-    for (const m of (r.media?.mediaText ?? '').matchAll(re)) bp.add(m[0]);
+    for (const re of patterns) {
+      for (const m of (r.media?.mediaText ?? '').matchAll(re)) bp.add(m[0]);
+    }
     if (r.type === CSSRule.IMPORT_RULE) {
       if (r.styleSheet) walkSheet(r.styleSheet); else unreadable.push(r.href);
     } else if (r.cssRules) walk(r.cssRules);

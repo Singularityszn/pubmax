@@ -1661,10 +1661,17 @@ for (const viewport of VIEWPORTS) {
       window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
     });
     await page.goto("/you");
-    await expect(page.locator(".mobileTabList")).toBeVisible();
-    const fit = await page.evaluate(() => {
-      const list = document.querySelector(".mobileTabList")!.getBoundingClientRect();
-      const highlight = document.querySelector(".mobileTabHighlight")!.getBoundingClientRect();
+    const primary = page.getByRole("navigation", { name: "Primary", exact: true });
+    await expect(primary).toHaveCount(1);
+    const list = primary.locator(".mobileTabList");
+    await expect(list).toHaveCount(1);
+    await expect(list).toBeVisible();
+    await expect(primary.getByRole("link", { name: "You", exact: true }))
+      .toHaveAttribute("aria-current", "page");
+    await expect(list.locator(".mobileTabHighlight")).toHaveCount(1);
+    const fit = await list.evaluate((element) => {
+      const list = element.getBoundingClientRect();
+      const highlight = element.querySelector(".mobileTabHighlight")!.getBoundingClientRect();
       return { list, highlight };
     });
     expect(fit.highlight.left).toBeGreaterThanOrEqual(fit.list.left - 0.5);

@@ -1,0 +1,48 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import { chromium } from '@playwright/test';
+import { uiUxChromiumLaunchOptions } from '../../scripts/lib/uiUxBattleTestBrowser.mjs';
+// The documented functions are executable browser interfaces. Execute them against CSSOM fixtures.
+const doc = fs.readFileSync('.agents/skills/explain-interface/read-the-system.md', 'utf8');
+const recipe = heading => doc.split(`## ${heading}\n`)[1].split('```js\n')[1].split('```')[0].trim();
+const browser = await chromium.launch(uiUxChromiumLaunchOptions('chrome'));
+const page = await browser.newPage({ viewport: { width: 500, height: 800 } });
+const cases = [
+ ['(400px <= width <= 700px)', ['400px <= width', 'width <= 700px']],
+ ['(700px >= width >= 400px)', ['700px >= width', 'width >= 400px']],
+ ['(20em < width < 60em)', ['20em < width', 'width < 60em']],
+ ['(80rem > width > 30rem)', ['80rem > width', 'width > 30rem']],
+ ['(min-width: 320px) and (max-width: 900px)', ['min-width: 320px', 'max-width: 900px']],
+ ['(min-width: 20em) and (max-width: 60rem)', ['min-width: 20em', 'max-width: 60rem']],
+ ['(width >= 40rem)', ['width >= 40rem']],
+ ['(width < 700px)', ['width < 700px']],
+ ['(400px < width)', ['400px < width']],
+ ['(50.5em >= width)', ['50.5em >= width']],
+ ['(.5em < width < 2.5rem)', ['0.5em < width', 'width < 2.5rem']],
+];
+await page.route('http://recipes.test/**', route => route.fulfill({ contentType: 'text/html', body: '<html><head></head><body></body></html>' }));
+await page.goto('http://recipes.test/');
+const results = [];
+for (const [media, expected] of cases) {
+ await page.evaluate(media => { document.head.innerHTML = ''; const style = document.createElement('style'); style.textContent = `@media ${media} { :root { --fixture: active; } }`; document.head.append(style); }, media);
+ const actual = await page.evaluate(`(${recipe('Breakpoints')})()`);
+ const pass = JSON.stringify(actual.breakpoints) === JSON.stringify([...expected].sort());
+ results.push({ media, expected: [...expected].sort(), actual, pass });
+}
+// Same-origin import recursion, unreadable cross-origin sheets, and active media/theme values.
+await page.route('http://recipes.test/import.css', route => route.fulfill({ contentType: 'text/css', body: '@media (300px <= width <= 800px) { :root { --imported-token: yes; } }' }));
+await page.route('http://unreadable.test/sheet.css', route => route.fulfill({ contentType: 'text/css', body: ':root { --unreadable-token: still-computed; }' }));
+await page.evaluate(() => {
+ document.head.innerHTML = `<style>@import url('http://recipes.test/import.css'); :root { --theme: light; } :root[data-theme=dark] { --theme: dark; } @media (width < 641px) { :root { --mobile: 44px; } }</style><link rel="stylesheet" href="http://unreadable.test/sheet.css">`;
+});
+await page.waitForFunction(() => getComputedStyle(document.documentElement).getPropertyValue('--imported-token').trim() === 'yes' && getComputedStyle(document.documentElement).getPropertyValue('--unreadable-token').trim() === 'still-computed');
+const imported = await page.evaluate(`(${recipe('Breakpoints')})()`);
+results.push({ imported, pass: JSON.stringify(imported.breakpoints) === JSON.stringify(['300px <= width', 'width < 641px', 'width <= 800px']) && imported.unreadable.includes('http://unreadable.test/sheet.css') });
+const tokensMobile = await page.evaluate(`(${recipe('Tokens')})()`);
+await page.setViewportSize({ width: 1440, height: 900 });
+await page.evaluate(() => document.documentElement.dataset.theme = 'dark');
+const tokensDesktop = await page.evaluate(`(${recipe('Tokens')})()`);
+results.push({ tokensMobile, tokensDesktop, pass: tokensMobile.tokens['--mobile'] === '44px' && !('--mobile' in tokensDesktop.tokens) && tokensMobile.tokens['--theme'] === 'light' && tokensDesktop.tokens['--theme'] === 'dark' && tokensDesktop.unreadable.includes('http://unreadable.test/sheet.css') });
+console.log(JSON.stringify(results, null, 2));
+await browser.close();
+assert.ok(results.every(r => r.pass), 'Executable recipes must return both range bounds and preserve existing stylesheet and token behavior');
