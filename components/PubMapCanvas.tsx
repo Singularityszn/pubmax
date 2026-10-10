@@ -374,7 +374,6 @@ type PubMapCanvasProps = {
    * ceiling stops at this handoff (lib/mapCanvasAvailability.ts).
    */
   onMapConstructed?: () => void;
-  onBasemapChange?: (provider: BasemapProvider) => void;
   /**
    * Opening camera from CityConfig.mapView. Defaults to London for back-compat
    * when the multi-city router has not wired a city yet.
@@ -710,7 +709,6 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     onBasemapProviderChange,
     onMapErrored,
     onMapConstructed,
-    onBasemapChange,
     mapView,
     resumeViewport,
     maxBounds,
@@ -816,16 +814,14 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   const onBasemapProviderChangeRef = useRef(onBasemapProviderChange);
   const onMapErroredRef = useRef(onMapErrored);
   const onMapConstructedRef = useRef(onMapConstructed);
-  const onBasemapChangeRef = useRef(onBasemapChange);
   const onRenderedStateChangeRef = useRef(onRenderedStateChange);
   useEffect(() => {
     onMapReadyRef.current = onMapReady;
     onBasemapProviderChangeRef.current = onBasemapProviderChange;
     onMapErroredRef.current = onMapErrored;
     onMapConstructedRef.current = onMapConstructed;
-    onBasemapChangeRef.current = onBasemapChange;
     onRenderedStateChangeRef.current = onRenderedStateChange;
-  }, [onMapReady, onBasemapProviderChange, onMapErrored, onMapConstructed, onRenderedStateChange, onBasemapChange]);
+  }, [onMapReady, onBasemapProviderChange, onMapErrored, onMapConstructed, onRenderedStateChange]);
   const publishMapReady = useCallback((ready: boolean) => {
     setMapReady(ready);
     onMapReadyRef.current?.(ready);
@@ -1583,7 +1579,6 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       markPubmaxTiming("pubmax:map-constructed");
       onBasemapProviderChangeRef.current?.(null);
       onMapConstructedRef.current?.();
-      onBasemapChangeRef.current?.("openfreemap");
       // MapLibre creates a forced-compact attribution control in its expanded
       // state. Start with the native info affordance closed; later taps still
       // use MapLibre's own disclosure and keep every credit readable.
@@ -2851,7 +2846,6 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       styleStructureReadyRef.current = true;
       styleLoaded = true;
       styleEverLoaded = true;
-      onBasemapChangeRef.current?.(usingFallback ? "carto" : "openfreemap");
       clearStyleLoadProtection();
       if (!protectedStyleInFlight) return;
       protectedStyleInFlight = false;

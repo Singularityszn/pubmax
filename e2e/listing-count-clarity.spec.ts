@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 test.use({ launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] } });
 test.setTimeout(90_000);
@@ -17,6 +17,16 @@ function listing(index: number) {
   };
 }
 
+async function openTonightLens(page: Page, count: number) {
+  const filters = page.locator(".mobileMapTopbar").getByRole("button", { name: /^Filters/ });
+  await expect(filters).toBeVisible({ timeout: 30_000 });
+  await filters.click();
+  const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]:visible');
+  const lens = sheet.getByRole("button", { name: `Tonight listings: ${count}`, exact: true });
+  await expect(lens).toBeVisible({ timeout: 30_000 });
+  return lens;
+}
+
 test("the phone map names listing rows and keeps the label readable", async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -31,17 +41,6 @@ test("the phone map names listing rows and keeps the label readable", async ({ p
   for (const width of [320, 390, 430]) {
     await page.setViewportSize({ width, height: 844 });
     await page.goto("/map");
-    const chip = page.getByRole("button", { name: "Tonight listings: 3", exact: true });
-    await expect(chip).toBeVisible({ timeout: 30_000 });
-    await expect(chip).toContainText("Tonight listings");
-    const label = chip.locator(".mobileMapTonightChipLabel");
-    const bounds = await label.evaluate((element) => ({
-      width: element.clientWidth,
-      contentWidth: element.scrollWidth,
-    }));
-    expect(bounds.contentWidth).toBeLessThanOrEqual(bounds.width);
-    // The longer label must not squeeze its neighbour: the drink lane keeps
-    // every letter and the row stays one height.
     const drink = page.locator(".mobileMapDrinkChipLabel");
     await expect(drink).toHaveText("Pints");
     const drinkBounds = await drink.evaluate((element) => ({
@@ -52,6 +51,23 @@ test("the phone map names listing rows and keeps the label readable", async ({ p
     const heights = await page.locator(".mobileMapChipRow > button").evaluateAll((buttons) =>
       buttons.map((button) => Math.round(button.getBoundingClientRect().height)));
     expect(new Set(heights).size, `chip heights at ${width}px: ${heights.join(", ")}`).toBe(1);
+    expect(heights.every((height) => height >= 44)).toBe(true);
+    const lens = await openTonightLens(page, 3);
+    await expect(lens.locator("strong")).toHaveText("Tonight listings");
+    await expect(lens.locator("small")).toHaveText("3 listings in London");
+    for (const label of [lens.locator("strong"), lens.locator("small")]) {
+      const bounds = await label.evaluate((element) => ({
+        width: element.clientWidth,
+        contentWidth: element.scrollWidth,
+      }));
+      expect(bounds.contentWidth, `Tonight text at ${width}px`).toBeLessThanOrEqual(bounds.width);
+    }
+    const bounds = await lens.boundingBox();
+    expect(bounds).not.toBeNull();
+    expect(bounds!.height).toBeGreaterThanOrEqual(44);
+    expect(bounds!.width).toBeGreaterThanOrEqual(44);
+    await lens.click();
+    await expect(page.locator('.mobileSheetPortal[data-sheet-kind="tonight"]:visible')).toHaveCount(1);
   }
 });
 
@@ -76,11 +92,8 @@ test("the longest drink lanes keep a three-digit Tonight count whole on a 320px 
     for (const lane of lanes) {
       const where = `${lane.drink} at ${width}px`;
       await page.goto(`/map?drink=${lane.drink}`);
-      const chip = page.getByRole("button", { name: "Tonight listings: 132", exact: true });
-      await expect(chip, where).toBeVisible({ timeout: 30_000 });
       await expect(page.locator(".mobileMapDrinkChipLabel"), where).toHaveText(lane.label);
-      await expect(chip.locator(".mobileMapTonightChipCount"), where).toHaveText("132");
-      const parts = await page.evaluate(() => {
+      const drinkParts = await page.evaluate(() => {
         const read = (selector: string) => {
           const element = document.querySelector(selector);
           if (!element) return null;
@@ -90,6 +103,8 @@ test("the longest drink lanes keep a three-digit Tonight count whole on a 320px 
             right: rect.right,
             width: rect.width,
             height: rect.height,
+            top: rect.top,
+            bottom: rect.bottom,
             clientWidth: element.clientWidth,
             scrollWidth: element.scrollWidth,
           };
@@ -98,31 +113,56 @@ test("the longest drink lanes keep a three-digit Tonight count whole on a 320px 
           drink: read(".mobileMapDrinkChip"),
           drinkLabel: read(".mobileMapDrinkChipLabel"),
           drinkIcon: read(".mobileMapDrinkChip > svg"),
-          tonight: read(".mobileMapTonightChip"),
-          label: read(".mobileMapTonightChipLabel"),
-          moon: read(".mobileMapTonightChip > svg"),
-          count: read(".mobileMapTonightChipCount"),
           tfl: read(".mobileMapTflButton"),
         };
       });
-      const { drink, drinkLabel, drinkIcon, tonight, label, moon, count, tfl } = parts;
-      if (!drink || !drinkLabel || !drinkIcon || !tonight || !label || !moon || !count) {
-        throw new Error(`chip parts missing for ${where}: ${JSON.stringify(parts)}`);
+      const { drink, drinkLabel, drinkIcon, tfl } = drinkParts;
+      if (!drink || !drinkLabel || !drinkIcon) {
+        throw new Error(`drink parts missing for ${where}: ${JSON.stringify(drinkParts)}`);
       }
-      // Every word and the whole count are on screen: nothing clips or squeezes.
       expect(drinkLabel.scrollWidth, `drink label, ${where}`).toBeLessThanOrEqual(drinkLabel.clientWidth);
-      expect(label.scrollWidth, `Tonight label, ${where}`).toBeLessThanOrEqual(label.clientWidth);
-      expect(count.scrollWidth, `count badge, ${where}`).toBeLessThanOrEqual(count.clientWidth);
-      expect(label.right, `Tonight label runs under the count, ${where}`).toBeLessThanOrEqual(count.left);
       expect(Math.round(drinkIcon.width), `glass icon, ${where}`).toBe(15);
-      expect(Math.round(moon.width), `moon icon, ${where}`).toBe(15);
-      // Both controls keep the 44px tap floor and stop short of the TfL lane.
       expect(Math.round(drink.height), `drink chip height, ${where}`).toBe(44);
-      expect(Math.round(tonight.height), `Tonight chip height, ${where}`).toBe(44);
-      expect(tonight.right, `Tonight chip inside the viewport, ${where}`).toBeLessThanOrEqual(width);
+      expect(drink.width, `drink chip width, ${where}`).toBeGreaterThanOrEqual(44);
+      expect(drink.left, `drink chip inside the viewport, ${where}`).toBeGreaterThanOrEqual(0);
+      expect(drink.right, `drink chip inside the viewport, ${where}`).toBeLessThanOrEqual(width);
       if (tfl) {
-        expect(tonight.right, `Tonight chip clear of TfL, ${where}`).toBeLessThanOrEqual(tfl.left);
+        expect(drink.right, `drink chip clear of TfL, ${where}`).toBeLessThanOrEqual(tfl.left);
       }
+      const lens = await openTonightLens(page, 132);
+      await expect(lens.locator("strong"), where).toHaveText("Tonight listings");
+      await expect(lens.locator("small"), where).toHaveText("132 listings in London");
+      const parts = await lens.evaluate((element) => {
+        const read = (part: Element) => {
+          const rect = part.getBoundingClientRect();
+          return {
+            left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom,
+            width: rect.width, height: rect.height,
+            clientWidth: part.clientWidth, scrollWidth: part.scrollWidth,
+          };
+        };
+        return {
+          tonight: read(element),
+          label: read(element.querySelector("strong")!),
+          icon: read(element.querySelector(":scope > svg")!),
+          count: read(element.querySelector("small")!),
+        };
+      });
+      const { tonight, label, icon, count } = parts;
+      expect(label.scrollWidth, `Tonight label, ${where}`).toBeLessThanOrEqual(label.clientWidth);
+      expect(count.scrollWidth, `listing count, ${where}`).toBeLessThanOrEqual(count.clientWidth);
+      expect(label.bottom, `Tonight label clear of the count, ${where}`).toBeLessThanOrEqual(count.top);
+      expect(Math.round(icon.width), `calendar icon, ${where}`).toBe(18);
+      expect(tonight.height, `Tonight lens tap height, ${where}`).toBeGreaterThanOrEqual(44);
+      expect(tonight.width, `Tonight lens tap width, ${where}`).toBeGreaterThanOrEqual(44);
+      expect(tonight.left, `Tonight lens inside the viewport, ${where}`).toBeGreaterThanOrEqual(0);
+      expect(tonight.right, `Tonight lens inside the viewport, ${where}`).toBeLessThanOrEqual(width);
+      expect(label.left).toBeGreaterThanOrEqual(tonight.left);
+      expect(label.right).toBeLessThanOrEqual(tonight.right);
+      expect(count.left).toBeGreaterThanOrEqual(tonight.left);
+      expect(count.right).toBeLessThanOrEqual(tonight.right);
+      await lens.click();
+      await expect(page.locator('.mobileSheetPortal[data-sheet-kind="tonight"]:visible')).toHaveCount(1);
     }
   }
 });

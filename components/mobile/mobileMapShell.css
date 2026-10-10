@@ -131,7 +131,7 @@
        same copy is also the first thing under the Key in More map controls. */
     left: var(--mobile-map-stack-left);
     right: auto;
-    bottom: calc(var(--float-stack-top-plan) + 10px);
+    bottom: var(--mobile-map-credit-bottom);
     /* The berth moves when the card arrives after load. The reduced-motion
        duration in globals.css turns the default `all` into a live `bottom`
        transition, and until the next frame lands the credit sat on the bare
@@ -139,118 +139,8 @@
     transition-property: none;
   }
 
-  .appShell .mapStage .maplibregl-ctrl-bottom-right .maplibregl-ctrl {
-    float: left;
-    margin: 10px 0;
-  }
-
-  /* A Place story chip stands the plan action down and takes the band above
-     it, so the credit steps down into the plan action's own berth under the
-     chip rather than hide behind it. Ordered before the consent rule at equal
-     specificity, so the consent card's lifted berth still wins. */
-  body:has(.bandOnboardingChip) .appShell .mapStage .maplibregl-ctrl-bottom-right {
-    bottom: var(--mobile-map-dock-clearance);
-  }
-
-  /* Open, the credit keeps clear of the collapse button and the create action,
-     so it runs to three lines: taller than that berth under the chip. It
-     settles one gap lower, onto the tab-bar lane, so its first line clears
-     the chip. The consent card owns that lane while it shows. */
-  body:has(.bandOnboardingChip):not(:has(.analyticsConsentPrompt))
-    .appShell .mapStage .maplibregl-ctrl-bottom-right .maplibregl-ctrl-attrib.maplibregl-compact-show {
-    margin-bottom: calc(-1 * var(--float-stack-gap));
-  }
-
-  body:has(.analyticsConsentPrompt) .appShell .mapStage .maplibregl-ctrl-bottom-right {
-    /* The expandable OSM credit keeps its own berth over the disclosure docked
-       on the tab bar, and steps up only when larger text grows the card past it.
-       e2e/ui-consistency-layout.spec.ts owns the rendered collision proof. */
-    bottom: max(
-      calc(var(--mobile-map-dock-clearance) + 68px),
-      calc(var(--mobile-map-dock-clearance) + var(--analytics-consent-reserve, var(--analytics-consent-mobile-clearance, 56px)))
-    );
-  }
-
-  /* A stored Pub Pal parks its pill on this same left lane, one gap above the
-     plan member and above the map's controls, so the credit climbs over the
-     pill rather than sit under it where no tap reaches it. The pill's own
-     berth already follows the consent card, so this outranks that rule. */
-  body:has(.mobilePlanActivation):has(.palSummon) .appShell .mapStage .maplibregl-ctrl-bottom-right {
-    bottom: calc(var(--float-stack-top-pal) + 10px);
-  }
-
-  .appShell .mapStage .maplibregl-ctrl-attrib.maplibregl-compact {
-    box-sizing: border-box;
-    max-width: calc(100vw - 24px);
-  }
-
-  /* OPEN, the collapse button keeps its 44px at the right edge, and MapLibre
-     reserves only 28px for its own 24px button, so the last words ran under it.
-     The open credit also stops short of the map-edge lane, where it ran onto
-     Near me at 320px. */
-  .appShell .mapStage .maplibregl-ctrl-attrib.maplibregl-compact-show {
-    max-width: calc(100vw - var(--mobile-map-stack-left) - var(--mobile-map-corner-lane));
-    padding-right: calc(var(--mobile-map-credit-size) + 4px);
-  }
-
-  .appShell .mapStage .maplibregl-ctrl-attrib-inner {
-    max-width: 100%;
-    overflow-wrap: normal;
-    text-overflow: clip;
-    white-space: normal;
-  }
-
-  /* COLLAPSED, the credit is one control and it takes this lane's own shape:
-     a 44px circle on the raised surface, exactly like the compass below it.
-     MapLibre ships it as a 24x20 white sliver, so a button raised to the tap
-     floor overflowed its own container and read as a white blob. */
-  .appShell .mapStage
-    .maplibregl-ctrl-attrib.maplibregl-compact:not(.maplibregl-compact-show) {
-    display: grid;
-    place-items: center;
-    width: var(--mobile-map-credit-size);
-    height: var(--mobile-map-credit-size);
-    min-height: var(--mobile-map-credit-size);
-    padding: 0;
-    border: 1px solid var(--ink-soft);
-    border-radius: 50%;
-    background: var(--color-surface-raised);
-    box-shadow: var(--map-overlay-shadow-tight);
-  }
-
-  .appShell .mapStage .maplibregl-ctrl-attrib-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: var(--mobile-map-credit-size);
-    height: var(--mobile-map-credit-size);
-    min-width: var(--mobile-map-credit-size);
-    min-height: var(--mobile-map-credit-size);
-    box-sizing: border-box;
-    /* The glyph is a 24px background SVG and MapLibre never constrains its
-       repeat, because its own button is 24px too. Raising the button to the
-       44px tap floor therefore TILED it 2 x 2, and four stacked info glyphs on
-       a white blob read as a rendering defect rather than a control. */
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: 24px 24px;
-    background-color: transparent;
-    border-radius: 50%;
-  }
-
   .appShell .mapStage {
-    --mobile-map-credit-bottom: calc(var(--mobile-map-dock-clearance) + 68px);
-  }
-
-  .appShell .mapStage .maplibregl-ctrl-bottom-right {
-    /* MapLibre's compact info control sits above the 48px plan action, on the
-       LEFT edge of that band. The right edge is the Near me FAB's berth
-       (--map-corner-bottom), and the FAB painted over the credit and took every
-       tap meant for the OpenStreetMap licence. Opening the full credit uses this
-       same lane, so licence text never paints through the action beneath it. */
-    left: var(--mobile-map-stack-left);
-    right: auto;
-    bottom: var(--mobile-map-credit-bottom);
+    --mobile-map-credit-bottom: calc(var(--float-stack-top-plan) + 10px);
   }
 
   .appShell .mapStage .maplibregl-ctrl-bottom-right .maplibregl-ctrl {
@@ -286,6 +176,10 @@
       calc(var(--mobile-map-dock-clearance) + 68px),
       calc(var(--mobile-map-dock-clearance) + var(--analytics-consent-reserve, var(--analytics-consent-mobile-clearance, 56px)))
     );
+  }
+
+  body:has(.mobilePlanActivation):has(.palSummon) .appShell .mapStage {
+    --mobile-map-credit-bottom: calc(var(--float-stack-top-pal) + 10px);
   }
 
   /* The first-visit ask is a compact pill above the map-edge column now, not a
