@@ -90,6 +90,81 @@ describe("a pull that opens the list", () => {
   });
 });
 
+describe("a pull whose answer changes", () => {
+  let capture: Element | null;
+  const captureMethods = ["setPointerCapture", "hasPointerCapture", "releasePointerCapture"] as const;
+  let originalMethods: Array<PropertyDescriptor | undefined>;
+
+  beforeEach(() => {
+    capture = null;
+    originalMethods = captureMethods.map((name) => Object.getOwnPropertyDescriptor(Element.prototype, name));
+    Object.defineProperties(Element.prototype, {
+      setPointerCapture: {
+        configurable: true,
+        value: function (this: Element) {
+          const previous = capture;
+          capture = this;
+          if (previous && previous !== this) previous.dispatchEvent(pointerEvent("lostpointercapture", 480));
+        },
+      },
+      hasPointerCapture: { configurable: true, value: function (this: Element) { return capture === this; } },
+      releasePointerCapture: {
+        configurable: true,
+        value: function (this: Element) {
+          if (capture !== this) return;
+          capture = null;
+          this.dispatchEvent(pointerEvent("lostpointercapture", 420));
+        },
+      },
+    });
+  });
+
+  afterEach(() => {
+    captureMethods.forEach((name, index) => {
+      const original = originalMethods[index];
+      if (original) Object.defineProperty(Element.prototype, name, original);
+      else Reflect.deleteProperty(Element.prototype, name);
+    });
+  });
+
+  function routePointer(type: string, clientY: number) {
+    (capture?.isConnected ? capture : document).dispatchEvent(pointerEvent(type, clientY));
+  }
+
+  for (const quiet of ["loading", "none", "unread", "partial"] as const) {
+    for (const fromAnswer of [false, true]) {
+      for (const release of ["pointerup", "pointercancel", "lostpointercapture"]) {
+        it(`${release} completes outside the card after ${fromAnswer ? "answer to" : "from"} ${quiet}`, () => {
+          const onOpenList = vi.fn();
+          const onOpenVenue = vi.fn();
+          root = createRoot(container);
+          const render = (model: MapPeekModel) => act(() => root!.render(createElement(MapPeekSheet, {
+            model, onOpenVenue, onOpenList,
+          })));
+          render(fromAnswer ? ANSWER : { status: quiet });
+          const card = container.querySelector<HTMLElement>(".mapPeek")!;
+          const start = container.querySelector<HTMLElement>(fromAnswer ? ".mapPeekPrice" : ".mapPeekLine span:last-child")!;
+          act(() => {
+            start.dispatchEvent(pointerEvent("pointerdown", 500));
+            routePointer("pointermove", 480);
+          });
+          expect(card.style.transform).toBe("translate3d(0, -20px, 0)");
+          render(fromAnswer ? { status: quiet } : ANSWER);
+          act(() => {
+            routePointer("pointermove", 420);
+            routePointer(release, 420);
+            vi.advanceTimersByTime(2000);
+          });
+          expect(onOpenList).toHaveBeenCalledTimes(release === "pointerup" ? 1 : 0);
+          expect(onOpenVenue).not.toHaveBeenCalled();
+          expect(card.style.transform).toBe("");
+          expect(card.dataset.dragging).toBeUndefined();
+        });
+      }
+    }
+  }
+});
+
 describe("an interrupted return", () => {
   function returningCard(distance = 30) {
     const onOpenList = vi.fn();

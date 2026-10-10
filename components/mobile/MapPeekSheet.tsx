@@ -118,7 +118,7 @@ export default function MapPeekSheet({
       if (!event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
       const originOffset = peekDragOrigin(stop().value);
       const target = event.target as Element;
-      const captureTarget = target.closest("button") ?? target;
+      const captureTarget = target.closest("button") ?? event.currentTarget;
       try {
         captureTarget.setPointerCapture(event.pointerId);
       } catch {}
@@ -148,6 +148,10 @@ export default function MapPeekSheet({
         if (-dy < DRAG_SLOP_PX) return;
         drag.active = true;
         draggedRef.current = true;
+        drag.captureTarget = event.currentTarget;
+        try {
+          drag.captureTarget.setPointerCapture(event.pointerId);
+        } catch {}
       }
       event.preventDefault();
       const now = performance.now();
@@ -221,7 +225,9 @@ export default function MapPeekSheet({
       onPointerMove={onPointerMove}
       onPointerUp={(event) => finishDrag(event, false)}
       onPointerCancel={(event) => finishDrag(event, true)}
-      onLostPointerCapture={(event) => finishDrag(event, true)}
+      onLostPointerCapture={(event) => {
+        if (event.target === dragRef.current?.captureTarget) finishDrag(event, true);
+      }}
       onClickCapture={swallowClickAfterDrag}
     >
       <span className="mapPeekGrab" aria-hidden="true" />

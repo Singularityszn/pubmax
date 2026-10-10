@@ -1,7 +1,15 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+// @vitest-environment jsdom
 
-import { describe, expect, it } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it, vi } from "vitest";
+
+import BoroughPage from "@/app/borough/[slug]/page";
+import UnverifiedPubSheet from "@/components/map/UnverifiedPubSheet";
+import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
+import type { CommunityPrice } from "@/lib/communityPrice";
+import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
+import type { UkBasePub } from "@/lib/ukBasePubs";
 
 import { isVenueUnpriced } from "@/lib/firstDropNudge";
 import {
@@ -18,7 +26,23 @@ import {
 import type { PricedVenue } from "@/lib/priceUpdates";
 import type { Venue } from "@/lib/venues";
 
-const ROOT = process.cwd();
+const boroughData = vi.hoisted(() => ({ venues: [] as Venue[] }));
+
+vi.mock("server-only", () => ({}));
+vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
+vi.mock("@/lib/pintPriceLandingDataset.server", () => ({
+  loadPintPriceLandingVenues: async () => boroughData.venues,
+}));
+vi.mock("@/lib/historic", () => ({ loadHistoricPubs: async () => [] }));
+vi.mock("@/lib/areaNews.server", () => ({
+  loadAreaNews: async () => ({ status: "ready", version: 1, generatedAt: "", entries: [] }),
+}));
+vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
+vi.mock("@/components/auth/AuthProvider", () => ({
+  useAuth: () => ({
+    user: null, handle: null, identityResolved: true, loading: false, configured: false,
+  }),
+}));
 
 describe("a pub's price while its reads settle", () => {
   const estimate: VenuePriceLane = {
@@ -453,118 +477,86 @@ describe("the provisional lane", () => {
   });
 });
 
-// The other two surfaces that word a pub's missing price. Issue #1426: three
-// places said "No price" over the same pub from three different tests, so the
-// venue sheet could stop saying it while the others carried on.
-describe("every surface that words an absent price asks the same module", () => {
-  const borough = readFileSync(join(ROOT, "app/borough/[slug]/page.tsx"), "utf8");
+describe("the borough price cell", () => {
+  const listed = {
+    priceGbp: 5.4,
+    sourceUrl: "https://pub.example/menu",
+    observedAt: new Date().toISOString(),
+  };
+  const estimate = {
+    priceGbp: 6.1,
+    basis: "regional_baseline:camden",
+    sampleSize: 42,
+    computedAt: new Date().toISOString(),
+  };
 
-  it("the borough list asks the lane instead of testing cheapestPrice itself", () => {
-    expect(borough).toContain('from "@/lib/venuePriceLane"');
-    // The wording lives in ONE cell, and that cell asks the lane. It used to
-    // test `cheapestPrice` itself, so a pub priced by any other lane still
-    // printed "No price" here. The borough's own cheapest-pint summary figure
-    // reads `cheapestPrice` for its own reasons and is a different question.
-    const cellStart = borough.indexOf("function BoroughPubPrice(");
-    expect(cellStart).toBeGreaterThan(-1);
-    const cell = borough.slice(cellStart, borough.indexOf("\n}", cellStart));
-    expect(cell).toContain("venuePriceLane(");
-    expect(borough.split('className="boroughNoPrice"').length - 1).toBe(1);
-    expect(cell).toContain('className="boroughNoPrice"');
-  });
-
-  it("the unverified-pub sheet already shows an uncorroborated report, and keeps doing so", () => {
-    // That sheet takes a UK base pub and a community price rather than a Venue
-    // and a drop, so it cannot call this module. What it must never do is word
-    // an absence over a price it is showing, which is pinned where it renders:
-    // __tests__/unverifiedPubSheet.test.ts.
-    const sheet = readFileSync(join(ROOT, "components/map/UnverifiedPubSheet.tsx"), "utf8");
-    expect(sheet).toContain('? "Community price"');
-    expect(sheet).toContain('? "No price yet"');
-    expect(sheet.indexOf('? "Community price"')).toBeLessThan(
-      sheet.indexOf('? "No price yet"'),
-    );
+  it.each([
+    { name: "contributor over sourced and baseline", pub: withSourced(makeVenue({ cheapestPrice: 6.2, latestContributorPrice: 4.7 })), figure: "£4.70" },
+    { name: "zero contributor price", pub: makeVenue({ latestContributorPrice: 0 }), figure: "£0.00" },
+    { name: "sourced over baseline", pub: withSourced(makeVenue({ cheapestPrice: 6.2 })), figure: "£6.20" },
+    { name: "listed over baseline", pub: makeVenue({ cheapestPrice: 6.2, bundlePrices: { listed } } as Partial<Venue>), figure: "£5.40" },
+    { name: "baseline over estimate", pub: makeVenue({ cheapestPrice: 6.2, bundlePrices: { estimate } } as Partial<Venue>), figure: "£6.20" },
+    { name: "estimate without an observed price", pub: makeVenue({ bundlePrices: { estimate } } as Partial<Venue>), figure: "£6.10" },
+    { name: "no price in any lane", pub: makeVenue(), figure: "No price" },
+  ])("renders $name without claiming a priced pub is empty", async ({ pub, figure }) => {
+    boroughData.venues = [pub];
+    const view = document.createElement("div");
+    view.innerHTML = renderToStaticMarkup(await BoroughPage({
+      params: Promise.resolve({ slug: "barking-and-dagenham" }),
+    }));
+    const cell = view.querySelector(".boroughTable tbody .boroughPriceCell");
+    expect(cell).not.toBeNull();
+    expect(cell?.textContent).toBe(figure);
+    expect(cell?.querySelectorAll(".boroughNoPrice")).toHaveLength(figure === "No price" ? 1 : 0);
   });
 });
 
-describe("VenueOverviewTab renders from the shared lane", () => {
-  const overview = readFileSync(
-    join(ROOT, "components/map/inspector/VenueOverviewTab.tsx"),
-    "utf8",
-  );
+describe("the base-pub price summary", () => {
+  const pub: UkBasePub = {
+    id: "venue-uk-n123", name: "The Test Arms", address: "1 Test Street",
+    lat: 53.8008, lng: -1.5491, curatedVenueId: "", kind: "pub",
+  };
+  const price: CommunityPrice = {
+    venueId: pub.id, drinkCategory: "beer", priceGbp: 4.6,
+    submittedAt: Date.now(), source: "community", corroborations: 1,
+  };
 
-  it("branches on venuePriceLane rather than restating the precedence", () => {
-    expect(overview).toContain('from "@/lib/venuePriceLane"');
-    // Matched on the call's ARGUMENTS rather than one formatted line, because
-    // the argument list has outgrown a single line and a reflow is not a policy
-    // change. What is pinned is that the component decides nothing itself.
-    // The tab takes the lane ONCE and hands it down, because the block above the
-    // price area has to know whether its own absence line would stand beside a
-    // figure (#1426 follow-up), and two readings of one pub could disagree.
-    const call = overview.slice(overview.indexOf("const priceLane = venuePriceLane("));
-    const args = call.slice(0, call.indexOf(");") + 2);
-    for (const argument of [
-      "venue",
-      "latestContributorPrice",
-      "sourcedPrice",
-      "venueBundlePrices(venue)",
-      "provisionalPrice",
-    ]) {
-      expect(args, `the lane call must be given ${argument}`).toContain(argument);
-    }
-    // The two bundle lanes are here for the same reason the others are: the
-    // price area renders EVERY lane the precedence can answer with, so a lane
-    // added in the module and missed in the component would show a pub nothing.
-    for (const lane of ["anchor", "contributor", "sourced", "listed", "baseline", "estimate"]) {
-      expect(overview, `price area must branch on the ${lane} lane`).toContain(
-        `if (lane?.lane === "${lane}") {`,
-      );
-    }
-    // A DRINKER'S OWN LOG TAKES ONE BRANCH (captain 7 Sept 2026). `provisional`,
-    // `disputed` and `aged` are one claim said three ways, and three sibling
-    // branches is how a split arrived on the Overview worded as a lone report.
-    // The fence is the same promise in the new shape: every remaining lane
-    // answers `venuePriceLaneIsDrinkerLog`, and that predicate is what the
-    // component branches on.
-    expect(overview).toContain("venuePriceLaneIsDrinkerLog(lane)");
-    expect(overview).toContain("<DrinkerLogBlock");
-    for (const lane of ["provisional", "disputed", "aged"] as const) {
-      expect(
-        venuePriceLaneIsDrinkerLog({ lane } as unknown as VenuePriceLane),
-        `the ${lane} lane must render through the drinker-log block`,
-      ).toBe(true);
-    }
+  function renderPrice(rows: CommunityPrice[], status: VenuePriceReadStatus) {
+    const state: CommunityPricesState = {
+      byVenueId: new Map([[pub.id, rows]]),
+      signalsByVenueId: new Map(), freshestByVenueId: new Map(),
+      noAlcoholIndexStatus: "idle", loadNoAlcoholIndex: () => {},
+      loadDrinkCategoryIndex: () => {}, drinkCategoryIndexStatus: new Map(),
+      provisionalBaseVenueIds: new Set(), loadProvisionalBaseVenues: () => {},
+      loadVenue: () => {}, venuePriceStatus: new Map([[pub.id, status]]),
+      submit: async () => ({ ok: true, attribution: { status: "anonymous" }, price: null, pintTrust: null, confirmationOutcome: null }),
+      submitVenueSignal: async () => ({ ok: true }), submitting: false,
+      reportPrice: () => {}, reportedIds: new Set(),
+    };
+    const view = document.createElement("div");
+    view.innerHTML = renderToStaticMarkup(createElement(UnverifiedPubSheet, {
+      pub, communityPrices: state,
+    }));
+    return view;
+  }
+
+  it("shows a lone community report before no-price framing", () => {
+    const view = renderPrice([price], "ready");
+    expect(view.textContent).toContain("£4.60");
+    expect(view.textContent).toContain("Community price");
+    expect(view.textContent).not.toContain("No price yet");
+    expect(view.textContent).not.toContain("Nobody has logged");
   });
 
-  it("keeps the first-drop nudge in the branch the lane leaves empty", () => {
-    const summaryStart = overview.indexOf("function VenuePriceSummary(");
-    const summaryEnd = overview.indexOf("export default function VenueOverviewTab");
-    expect(summaryStart).toBeGreaterThan(-1);
-    expect(summaryEnd).toBeGreaterThan(summaryStart);
-    const summary = overview.slice(summaryStart, summaryEnd);
-
-    // The unpriced block is the fall-through, after the last lane branch has
-    // returned. It is a block rather than the nudge itself since review finding
-    // F-8: a drop read we could not RUN may not be worded as a pub with no
-    // price on it, so the two absences are told apart in one place.
-    const lastLaneBranch = summary.lastIndexOf('if (lane?.lane === "');
-    expect(summary.indexOf("<UnpricedPubBlock")).toBeGreaterThan(lastLaneBranch);
-    // And that block is the only thing that renders the nudge.
-    expect(overview).toContain("<FirstDropNudge");
-    const blockStart = overview.indexOf("function UnpricedPubBlock(");
-    expect(blockStart).toBeGreaterThan(-1);
-    const block = overview.slice(blockStart, overview.indexOf("function VenuePriceSummary("));
-    expect(block).toContain("<FirstDropNudge");
-    expect(block).toContain("firstDropNudgeMayClaimAbsence");
-
-    // And the summary must not hand-roll the precedence beside the lane call.
-    expect(summary).not.toMatch(
-      /if \(\s*latestContributorPrice !== null && latestContributorPrice !== undefined\s*\)/,
-    );
-    expect(summary).not.toMatch(/if \(sourcedPrice\) \{/);
-
-    // The branches print the figure the lane decided on, not the raw props.
-    expect(summary).toContain("{formatPrice(lane.contributorPrice)}");
-    expect(summary).toContain("href={lane.sourcedPrice.sourceUrl}");
+  it("claims no price only after a successful empty read", () => {
+    const ready = renderPrice([], "ready");
+    expect(ready.textContent).toContain("No price yet");
+    expect(ready.textContent).toContain("Nobody has logged");
+    for (const status of ["loading", "degraded"] as const) {
+      const view = renderPrice([], status);
+      expect(view.textContent).not.toContain("No price yet");
+      expect(view.textContent).not.toContain("Nobody has logged");
+      expect(view.textContent).toContain(status === "loading" ? "Checking community prices" : "Prices unread");
+    }
   });
 });

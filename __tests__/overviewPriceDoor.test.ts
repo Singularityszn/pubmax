@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 // THE OVERVIEW HAS ONE PRICE DOOR PER TRUST STATE (captain's rule from the
 // core-loop battle test L03, 5 Sept 2026: one button system, one clear
 // primary per screen).
@@ -13,9 +15,6 @@
 // doors. (3) The composer is FOLDED until the door opens it, and the door
 // folds away once it has, so the two never stand on one screen.
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -24,6 +23,10 @@ import VenueOverviewTab, {
   drinkInviteOwnedByPriceArea,
   overviewComposerOpen,
 } from "@/components/map/inspector/VenueOverviewTab";
+import FirstDropNudge from "@/components/map/inspector/FirstDropNudge";
+import VenueStickyBar from "@/components/map/inspector/VenueStickyBar";
+import type { PricedVenue } from "@/lib/priceUpdates";
+import type { VenueDropReadStatus } from "@/lib/venueDropRead";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
 import { drinkLaneLogActionLabel } from "@/lib/drinkLanes";
@@ -181,7 +184,7 @@ function communityPrices(venueId: string, readStatus: VenuePriceReadStatus = "re
 function renderOverview(
   drops: SummaryDrop[],
   base: Venue = venue(),
-  options: { priceFocusRequest?: number; priceSignInRequested?: boolean; withConfirm?: boolean; priceReadStatus?: VenuePriceReadStatus } = {},
+  options: { priceFocusRequest?: number; priceSignInRequested?: boolean; withConfirm?: boolean; priceReadStatus?: VenuePriceReadStatus; dropReadStatus?: VenueDropReadStatus } = {},
 ): string {
   const [merged] = mergeVenueDrops([base], new Map([[VENUE_ID, drops]]), NOW);
   const signal = pintTrustSignalFields(pintTrustFor(drops, NOW));
@@ -199,6 +202,7 @@ function renderOverview(
       agedPrice: dropLaneInput(signal.agedContributorPrice, signal.agedContributorAt),
       disputedPrice: splitLaneInput(signal.disputedPrices, signal.disputedAt),
       communityPrices: communityPrices(VENUE_ID, options.priceReadStatus),
+      dropReadStatus: options.dropReadStatus,
       experienceLens: "all",
       drinkLensCategory: null,
       onToggleStop: noop,
@@ -436,29 +440,87 @@ describe("the composer is folded until the door opens it", () => {
   });
 });
 
-describe("the retired doors are gone from the source, not switched off", () => {
-  // Comments may name what was retired; only code may not carry it.
-  const read = (path: string) =>
-    readFileSync(join(process.cwd(), path), "utf8")
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/^\s*\/\/.*$/gm, "");
-
-  it("the sticky bar carries no price action and no painted primary", () => {
-    const bar = read("components/map/inspector/VenueStickyBar.tsx");
-    expect(bar).not.toContain("Add price");
-    expect(bar).not.toContain("onAddPrice");
-    expect(bar).not.toContain("venueSheetStickyPrimary");
+describe("price precedence in the rendered Overview", () => {
+  const sourced = {
+    provenance: "sourced" as const, sourceLabel: "pub.example",
+    sourceUrl: "https://pub.example/prices", observedAt: daysAgo(1),
+  };
+  const listed = { priceGbp: 6, sourceUrl: "https://pub.example/menu", observedAt: daysAgo(1) };
+  const estimate = { priceGbp: 6.5, computedAt: daysAgo(1), basis: "regional_baseline:camden", sampleSize: 8 };
+  const sourcedVenue = (): PricedVenue => ({
+    ...venue({ cheapestPrice: 6.2, bundlePrices: { listed, estimate } } as Partial<Venue>),
+    sourcedPrice: sourced,
   });
 
-  it("the first-drop nudge carries no door of its own", () => {
-    const nudge = read("components/map/inspector/FirstDropNudge.tsx");
-    expect(nudge).not.toContain("Or leave a Pint Drop");
-    expect(nudge).not.toContain("<button");
+  it.each([
+    { name: "anchor", base: venue({ kind: "restaurant", anchorLabel: "Negroni", cheapestPrice: 11 }), drops: [], figure: "£11.00", caption: "Not a pint price.", door: null, source: null },
+    { name: "contributor over sourced, listed and baseline", base: sourcedVenue(), drops: confirmedPair(), figure: "£4.50", caption: "Latest Pint Drop price", door: "log", source: null },
+    { name: "sourced over listed, provisional and baseline", base: sourcedVenue(), drops: [drop()], figure: "£6.20", caption: "Sourced price", door: "log", source: sourced.sourceUrl },
+    { name: "listed over provisional and baseline", base: venue({ cheapestPrice: 6.2, bundlePrices: { listed, estimate } } as Partial<Venue>), drops: [drop()], figure: "£6.00", caption: "Published price", door: "log", source: listed.sourceUrl },
+    { name: "provisional over baseline", base: venue({ cheapestPrice: 6.2 }), drops: [drop()], figure: "£4.50", caption: "Logged once, needs a second drinker", door: "confirm", source: null },
+    { name: "disputed over baseline", base: venue({ cheapestPrice: 6.2 }), drops: FIXTURES.disputed(), figure: "£4.50 and £4.70", caption: "Two drinkers, two prices", door: "choose", source: null },
+    { name: "baseline over aged and estimate", base: venue({ cheapestPrice: 6.2, bundlePrices: { estimate } } as Partial<Venue>), drops: FIXTURES["aged-out"](), figure: "£6.20", caption: "Price on record", door: "log", source: null },
+    { name: "aged over estimate", base: venue({ bundlePrices: { estimate } } as Partial<Venue>), drops: FIXTURES["aged-out"](), figure: "£4.50", caption: "needs a fresh drinker", door: "confirm", source: null },
+    { name: "estimate", base: venue({ bundlePrices: { estimate } } as Partial<Venue>), drops: [], figure: "£6.50", caption: "est.", door: "log", source: null },
+  ])("prints $name with its figure, provenance and single door", ({ base, drops, figure, caption, door, source }) => {
+    const view = document.createElement("div");
+    view.innerHTML = renderOverview(drops, base);
+    const summary = view.querySelector(".contributorPrice");
+    expect(summary).not.toBeNull();
+    expect(summary?.textContent).toContain(figure);
+    expect(summary?.textContent).toContain(caption);
+    expect(view.querySelector(".firstDropNudge")).toBeNull();
+    expect(summary?.textContent).not.toContain("No price");
+    expect(view.querySelectorAll("[data-price-door]")).toHaveLength(door === null ? 0 : 1);
+    expect(view.querySelector("[data-price-door]")?.getAttribute("data-price-door") ?? null).toBe(door);
+    if (source !== null) expect(summary?.querySelector("a.priceSourceLink")?.getAttribute("href")).toBe(source);
   });
 
-  it("the Overview decides its door through the one policy, never a lane branch", () => {
-    const tab = read("components/map/inspector/VenueOverviewTab.tsx");
-    expect(tab).toContain("overviewPriceDoor(trustChipState, lane)");
-    expect(tab).not.toContain("secondDrinkerDoorOffered");
+  it.each(["ready", "unavailable", "idle"] as const)("words an absent price honestly after a %s drop read", (dropReadStatus) => {
+    const view = document.createElement("div");
+    view.innerHTML = renderOverview([], venue(), { dropReadStatus });
+    if (dropReadStatus === "ready") {
+      expect(view.querySelector(".firstDropNudgeLine")?.textContent).toBe(firstDropNudgeCopy(VENUE_ID).line);
+      expect(view.querySelectorAll("[data-price-door]")).toHaveLength(1);
+    } else if (dropReadStatus === "unavailable") {
+      expect(view.querySelector(".firstDropNudgeLine")?.textContent).toBe("We could not read this pub’s logged prices.");
+      expect(view.textContent).not.toContain(firstDropNudgeCopy(VENUE_ID).line);
+      expect(view.querySelectorAll("[data-price-door]")).toHaveLength(1);
+    } else {
+      expect(view.textContent).toContain("Checking prices");
+      expect(view.querySelector(".firstDropNudge")).toBeNull();
+      expect(view.querySelectorAll("[data-price-door]")).toHaveLength(0);
+    }
+  });
+});
+
+describe("price actions beside the Overview", () => {
+  it.each([
+    { mode: "suggest" as const, inCrawl: false, accept: false, names: ["Share"] },
+    { mode: "suggest" as const, inCrawl: false, accept: true, names: ["Make it Stop 1", "Share"] },
+    { mode: "build" as const, inCrawl: false, accept: true, names: ["Make it Stop 1", "Crawl", "Share"] },
+    { mode: "build" as const, inCrawl: true, accept: true, names: ["Make it Stop 1", "Remove", "Share"] },
+  ])("the sticky bar offers only venue actions in $mode, inCrawl=$inCrawl, accept=$accept", ({ mode, inCrawl, accept, names }) => {
+    const view = document.createElement("div");
+    view.innerHTML = renderToStaticMarkup(createElement(VenueStickyBar, {
+      venue: venue(), mode, inCrawl, onToggleStop: noop,
+      onAcceptStop1: accept ? noop : undefined,
+      shareVenue: async () => {}, currentShareFeedback: null,
+    }));
+    expect(Array.from(view.querySelectorAll("button"), (button) => button.textContent?.trim())).toEqual(names);
+    expect(view.querySelectorAll(".venueSheetStickyPrimary, [data-price-door]")).toHaveLength(0);
+  });
+
+  it("the first-drop nudge adds no price action beside the supplied door", () => {
+    const view = document.createElement("div");
+    view.innerHTML = renderToStaticMarkup(createElement(FirstDropNudge, { venueId: VENUE_ID }));
+    expect(view.querySelectorAll("button, a, [data-price-door]")).toHaveLength(0);
+    expect(view.textContent).toContain(firstDropNudgeCopy(VENUE_ID).line);
+    view.innerHTML = renderToStaticMarkup(createElement(FirstDropNudge, { venueId: VENUE_ID },
+      createElement("button", { "data-price-door": "log" }, "Log tonight's price"),
+    ));
+    expect(view.querySelectorAll("button, a")).toHaveLength(1);
+    expect(view.querySelector("[data-price-door]")?.textContent).toBe("Log tonight's price");
+    expect(view.textContent).not.toContain("Or leave a Pint Drop");
   });
 });
