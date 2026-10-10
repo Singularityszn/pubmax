@@ -183,6 +183,34 @@ test("keeps the price neutral until the selected pub's drops answer", async ({ p
   }
 });
 
+test("a pending pub read never claims an empty drinker price record in Overview", async ({ page }) => {
+  let releaseRead!: () => void;
+  const heldRead = new Promise<void>((resolve) => { releaseRead = resolve; });
+  await page.route("**/api/price-submit**", (route) => route.fulfill({ json: { prices: [], signals: [] } }));
+  await page.route("**/api/pint-drops**", async (route) => {
+    const selected = new URL(route.request().url()).searchParams.get("venueId") === HATTON;
+    if (selected) await heldRead;
+    await route.fulfill({ json: { drops: selected ? [row({ priceGbp: 4.7 })] : [] } });
+  });
+  try {
+    await page.goto(`/map?sel=${HATTON}`);
+    const sheet = await openVenueSheet(page);
+    const inspector = sheet.locator(".venueInspector");
+    const pending = inspector.getByRole("status").filter({ hasText: "Checking prices" });
+    await expect(pending).toBeVisible();
+    await pending.scrollIntoViewIfNeeded();
+    const prematureAbsence = await inspector.getByText("No beer price logged by a drinker here yet.", { exact: true }).isVisible();
+    await page.screenshot({ path: test.info().outputPath("overview-pending-empty-claim.png") });
+    releaseRead();
+    await expect(inspector).toContainText("£4.70");
+    await expect(inspector.getByText("No beer price logged by a drinker here yet.", { exact: true })).toHaveCount(0);
+    await page.screenshot({ path: test.info().outputPath("overview-observed-record.png") });
+    expect(prematureAbsence, "An unfinished Pint Drop read cannot establish that no drinker logged a price").toBe(false);
+  } finally {
+    releaseRead();
+  }
+});
+
 test("a failed pub price read ends checking and names the unavailable read", async ({ page }) => {
   await page.route("**/api/price-submit**", (route) => route.fulfill({ json: { prices: [], signals: [] } }));
   await page.route("**/api/pint-drops**", (route) => route.fulfill({ status: 503, json: { error: "Fixture unavailable" } }));
