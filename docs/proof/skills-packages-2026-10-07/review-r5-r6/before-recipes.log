@@ -1,0 +1,86 @@
+[
+  {
+    "name": "checkbox expanded corner -21,-21",
+    "passed": false,
+    "checked": false
+  },
+  {
+    "name": "checkbox expanded corner 21,-21",
+    "passed": false,
+    "checked": false
+  },
+  {
+    "name": "checkbox expanded corner -21,21",
+    "passed": false,
+    "checked": false
+  },
+  {
+    "name": "checkbox expanded corner 21,21",
+    "passed": false,
+    "checked": false
+  },
+  {
+    "name": "checkbox centre",
+    "passed": false,
+    "checked": false
+  },
+  {
+    "name": "checkbox keyboard",
+    "passed": true,
+    "checked": true
+  },
+  {
+    "name": "audio then final",
+    "passed": true,
+    "code": 0
+  },
+  {
+    "name": "audio on final frame",
+    "passed": true,
+    "code": 0
+  },
+  {
+    "name": "API error",
+    "passed": false,
+    "code": 0
+  },
+  {
+    "name": "API error after partial audio",
+    "passed": false,
+    "code": 0
+  },
+  {
+    "name": "close without final",
+    "passed": false,
+    "code": 0
+  },
+  {
+    "name": "partial audio without final",
+    "passed": false,
+    "code": 0
+  },
+  {
+    "name": "transport failure",
+    "passed": false,
+    "code": 0
+  }
+]
+node:internal/modules/run_main:111
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Every expanded checkbox target activates its input and dialogue failure exits nonzero
+
+false !== true
+
+    at file:///Users/karanmanoharan/.no-mistakes/worktrees/90306a46c7e3/01M4JVQDRWJ88Y4MGX5703XZY1/artifacts/review-r5-r6/recipes.mjs:88:8
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v26.10.0
