@@ -594,10 +594,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     const controller = new AbortController();
     const requestRevision = accountRevision;
 
-    // Stale-while-revalidate: a return to this profile paints the drops it last
-    // held in the mount frame, then quietly takes the fresh ones. The passport
-    // keeps complete geography beside these rows instead of deriving it from
-    // the bounded timeline.
+    // Public snapshots retain complete geography beside the bounded timeline.
+    // Authenticated reads bypass those snapshots because visibility depends on the viewer.
     async function load() {
       const url = `/api/pint-drops?author=${encodeURIComponent(routeHandle)}`;
       const apply = (body: unknown) => {
@@ -636,8 +634,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
           apply,
         );
       }
-      // An aborted fetch (unmount / handle change) is not an error state, and a
-      // failed revalidate over drops already on screen is not one either.
+      // Aborted requests and responses for an earlier account must not set an error state.
       if (outcome !== "failed" || controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
       setState((prev) => (prev === "gone" ? prev : "error"));
     }

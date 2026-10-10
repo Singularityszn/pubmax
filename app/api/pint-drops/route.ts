@@ -597,6 +597,8 @@ export async function GET(request: Request): Promise<Response> {
   // Public read: visible drops only, newest-first, hard-capped (MAX_PUBLIC_DROPS),
   // with per-drop VISIBILITY applied server-side (issue #29). The viewer is
   // resolved from a verified JWT when present; ?viewer= is ignored in production.
+  // Author reads also return passportAreas from the complete permitted attributed history.
+  // Required venue or alias data failures and incomplete history reads return storageUnavailable (503).
   const unavailable = productionStorageUnavailable();
   if (unavailable) return unavailable;
   try {
