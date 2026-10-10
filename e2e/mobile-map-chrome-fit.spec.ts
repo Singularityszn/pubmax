@@ -1159,6 +1159,147 @@ for (const viewport of VIEWPORTS) {
   });
 }
 
+for (const width of [641, 1440]) {
+  test(`${width}px desktop credit and Share keep their hits`, async ({ page }) => {
+    await seedAnsweredConsentAndPal(page);
+    await page.setViewportSize({ width, height: 900 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addInitScript(() => {
+      localStorage.setItem("pubmax-tour-v1-done", "1");
+      localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+    });
+    await page.goto("/map/london");
+    await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
+    const credit = page.locator(".maplibregl-ctrl-attrib");
+    const toggle = credit.locator(".maplibregl-ctrl-attrib-button");
+    const layers = page.locator(".mapLayersControl > button").first();
+    const pal = page.locator(".palSummon");
+    await expect(pal).toBeVisible({ timeout: 30_000 });
+    const ownsHit = (control: Locator) => control.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return element.contains(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2));
+    });
+    for (const expanded of [false, true, false]) {
+      if (expanded !== (await credit.evaluate((element) => element.classList.contains("maplibregl-compact-show")))) await toggle.click();
+      await expect.poll(() => credit.evaluate((element) => element.getAnimations().length)).toBe(0);
+      for (const control of [toggle, layers, pal]) {
+        await expect(control).toBeVisible();
+        expect(await ownsHit(control)).toBe(true);
+      }
+      if (expanded) await expect(credit).toContainText("Pub data © OpenStreetMap contributors (ODbL)");
+    }
+    await page.goto("/map/london?sel=venue-xjf3n0");
+    const share = page.locator('.mapDrawer.right').getByRole("button", { name: /^Share / });
+    await expect(share).toBeVisible({ timeout: 45_000 });
+    await expect.poll(() => ownsHit(share)).toBe(true);
+  });
+}
+
+test.describe("story and credit placement", () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  for (const viewport of VIEWPORTS) {
+    for (const consentVisible of [false, true]) {
+      test(`${viewport.width}px story and credit stay clear with consent ${consentVisible ? "visible" : "answered"}`, async ({
+        page,
+      }, testInfo) => {
+        await seedAnsweredConsentAndPal(page);
+        if (consentVisible) {
+          await page.addInitScript(() => {
+            localStorage.removeItem("pubmaxx:analytics-consent:v1");
+            sessionStorage.removeItem("pubmax:prompt-budget:v1");
+            sessionStorage.setItem("pubmax:consent-answer-moment:v1", "venue-sheet");
+          });
+        }
+        await preparePhoneMap(page, viewport, "reduce", "/map/glasgow?band=subcrawl");
+        await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
+        const chip = page.locator(".bandOnboardingChip");
+        await expect(chip).toBeVisible();
+        await expect(chip.locator("strong")).toHaveText("Subcrawl: Clockwork Orange loop");
+        await expect(page.locator(".analyticsConsentPrompt")).toHaveCount(consentVisible ? 1 : 0);
+        const credit = page.locator(".appShell .mapStage .maplibregl-ctrl-attrib");
+        const toggle = credit.locator(".maplibregl-ctrl-attrib-button");
+        await expect(toggle).toBeVisible();
+
+        for (const expanded of [false, true, false]) {
+          if (expanded !== (await credit.evaluate((element) => element.classList.contains("maplibregl-compact-show")))) {
+            await toggle.click();
+          }
+          await expect.poll(() => credit.evaluate((element) => element.getAnimations().length)).toBe(0);
+          const measure = () => page.evaluate(() => {
+            const box = (selector: string) => document.querySelector(selector)!.getBoundingClientRect().toJSON() as Rect;
+            const chip = document.querySelector(".bandOnboardingChip")!;
+            const credit = document.querySelector(".maplibregl-ctrl-attrib")!;
+            const inner = credit.querySelector<HTMLElement>(".maplibregl-ctrl-attrib-inner")!;
+            const button = credit.querySelector(".maplibregl-ctrl-attrib-button")!;
+            const buttonBox = button.getBoundingClientRect();
+            const range = document.createRange();
+            range.selectNodeContents(inner);
+            const textBoxes = Array.from(range.getClientRects()).filter((line) => line.width > 0 && line.height > 0);
+            const ownsHit = (element: Element, rect = element.getBoundingClientRect()) => element.contains(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2));
+            return {
+              chip: box(".bandOnboardingChip"),
+              credit: box(".maplibregl-ctrl-attrib"),
+              tab: box(".mobileTabBar"),
+              utility: box(".mobileMapChipRow"),
+              nearMe: box(".mobileMapLocateFab"),
+              create: box(".createFabRoot"),
+              pal: document.querySelector(".palSummon")?.getBoundingClientRect().toJSON() as Rect | undefined,
+              consent: document.querySelector(".analyticsConsentPrompt")?.getBoundingClientRect().toJSON() as Rect | undefined,
+              button: buttonBox.toJSON() as Rect,
+              buttonHit: ownsHit(button),
+              storyHits: Array.from(chip.querySelectorAll("button")).map((action) => ownsHit(action)),
+              text: inner.textContent,
+              lines: new Set(textBoxes.map((line) => line.top)).size,
+              textUnderButton: textBoxes.some((line) => line.left < buttonBox.right && buttonBox.left < line.right && line.top < buttonBox.bottom && buttonBox.top < line.bottom),
+              links: Array.from(inner.querySelectorAll("a")).map((link) => ownsHit(link, link.getClientRects()[0])),
+              storyClipped: Array.from(chip.querySelectorAll<HTMLElement>("strong, span")).some((element) => element.scrollHeight > element.clientHeight || element.scrollWidth > element.clientWidth),
+            };
+          });
+          await expect.poll(async () => {
+            const layout = await measure();
+            return overlaps(layout.chip, layout.credit);
+          }, { message: "the story clears the actual wrapped credit height" }).toBe(false);
+          const layout = await measure();
+          expect(layout.chip.bottom).toBeLessThanOrEqual(layout.credit.top);
+          expect(layout.chip.top).toBeGreaterThanOrEqual(layout.utility.bottom);
+          expect(layout.credit.bottom).toBeLessThanOrEqual(layout.tab.top);
+          expect(layout.credit.left).toBeGreaterThanOrEqual(0);
+          expect(layout.credit.right).toBeLessThanOrEqual(viewport.width);
+          expect(layout.button.width).toBeGreaterThanOrEqual(44);
+          expect(layout.button.height).toBeGreaterThanOrEqual(44);
+          expect(layout.buttonHit).toBe(true);
+          expect(layout.storyHits).toEqual([true, true]);
+          expect(layout.storyClipped).toBe(false);
+          for (const other of [layout.nearMe, layout.create, layout.consent, ...(expanded ? [] : [layout.pal])].filter((box): box is Rect => !!box)) {
+            expect(overlaps(layout.credit, other)).toBe(false);
+            expect(overlaps(layout.chip, other)).toBe(false);
+          }
+          if (expanded) {
+            expect(layout.text).toContain("Pub data © OpenStreetMap contributors (ODbL)");
+            expect(layout.text).toContain("OpenFreeMap");
+            expect(layout.text).toContain("OpenMapTiles");
+            expect(layout.textUnderButton).toBe(false);
+            expect(layout.links.length).toBeGreaterThan(0);
+            expect(layout.links.every(Boolean)).toBe(true);
+            if (viewport.width === 320) expect(layout.lines).toBe(4);
+            await testInfo.attach("story-credit-geometry", { body: JSON.stringify(layout), contentType: "application/json" });
+            await testInfo.attach("story-credit", { body: await page.screenshot(), contentType: "image/png" });
+          }
+        }
+        await chip.getByRole("button", { name: "Dismiss Place story intro" }).click();
+        await expect(chip).toHaveCount(0);
+        await toggle.click();
+        await expect(credit).toHaveClass(/maplibregl-compact-show/);
+        await expect.poll(() => toggle.evaluate((button) => {
+          const rect = button.getBoundingClientRect();
+          return button.contains(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2));
+        })).toBe(true);
+      });
+    }
+  }
+});
+
 // The DEFAULT berth, which no map case can reach.
 //
 // Every case above opens /map with a stored Pub Pal, so the create action is

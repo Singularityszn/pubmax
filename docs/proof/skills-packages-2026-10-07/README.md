@@ -60,3 +60,23 @@ At 390, with and without the consent strip, the credit spans x 12-56 and the sho
 ![Local desktop Share action after the fix, in the fresh session’s default light theme](desktop-share-after.png)
 
 This was a read-only live review. Voice calls, geolocation, account changes, social writes, plan publication, price submission, and real device behavior were not tested. Live production review does not prove the dependency changes are deployed.
+
+## Review correction, 10 Oct 2026
+
+The 7 Oct screenshots above remain historical evidence. They do not establish story-chip clearance at 320px. Commit `539e8039cbed7fb2d4b423c03ad08a985d043d5a` recorded a remaining 12px overlap and called 320px outside its repair. That statement was not a human containment decision. Review R1 requires a correction at 320px.
+
+A fresh production build at input head `88f0fe0e645ee7319a5406ae31c977b00f7c54b2` reproduced the overlap at 320 × 568. The route was `/map/glasgow?band=subcrawl`, with consent answered and the Place story chip visible. The expanded credit occupied x 12-252 and y 420-504. Its full text wrapped to four lines. The chip occupied y 233-432, so it covered the credit by 12px. The tab bar began at y 514.
+
+![Review R1 baseline at the input head, with the story chip covering the expanded credit](phone-320-story-credit-review-before.png)
+
+The correction measures the existing credit lane and publishes its height to the map stage. The story chip uses that height and the existing credit berth to reserve its gap. The collapsed control, expanded control, consent berth and width changes use the same placement boundary.
+
+The focused checks also exposed a collapsed-state collision with a saved Pub Pal. The shortcut took the story Dismiss tap at all three phone widths. With the story visible and consent answered, the shortcut now uses the collapsed credit row. Expanded credit retains the existing shortcut visibility rule.
+
+The corrected production build passed. The focused Playwright run passed all 11 cases, with one worker and zero retries. It used the installed Chrome through Playwright's `chrome` channel because the pinned Chromium executable was absent. The run checked 320, 390 and 430px with answered and visible consent, including collapsed, expanded and collapsed-again states. It checked full credit text, links, control hits, story actions, neighbouring controls and tab-bar clearance. The existing three phone credit cases also passed. At 641 and 1440px, attribution, Layers, Pub Pal and the venue Share action received their own hits.
+
+At 320px with answered consent, the corrected chip occupies y 209-408. The credit remains at y 420-504 with four lines, leaving a 12px story gap and 10px before the tab bar. Both story actions receive their own centre hits. The screenshot below includes a saved Pub Pal, which yields to expanded attribution. Its existing presence also raises the right-edge create action.
+
+![Corrected 320px story and four-line credit, with a saved Pub Pal](phone-320-story-credit-review-after.png)
+
+These checks ran against this review's working-tree corrections over input head `88f0fe0e645ee7319a5406ae31c977b00f7c54b2`. They do not establish CI, publication, deployment or physical-device behaviour. The outer executor owns the remaining native phases.
