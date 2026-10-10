@@ -29,8 +29,9 @@ function pricedDrop(id: string): DropWithPhotos {
 
 function SelectedPub({ venueId }: { venueId: string }) {
   const currentDrops = usePintDrops();
+  const refreshVenueDrops = currentDrops.refreshVenueDrops;
   useEffect(() => { drops = currentDrops; }, [currentDrops]);
-  useEffect(() => currentDrops.refreshVenueDrops(venueId), [venueId, currentDrops.refreshVenueDrops]);
+  useEffect(() => refreshVenueDrops(venueId), [venueId, refreshVenueDrops]);
   const rows = currentDrops.dropsByVenueId.get(venueId) ?? [];
   const contributorPrice = rows[0]?.priceGbp;
   const lane = contributorPrice != null

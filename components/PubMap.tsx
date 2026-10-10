@@ -5782,14 +5782,17 @@ export default function PubMap({
       splitLaneInput(peekDropSignal?.disputedPrices, peekDropSignal?.disputedAt),
     );
     const peekPrice = peekPriceChip(peekLane, peekBundle, peekDropSignal?.pintTrust ?? null);
-    const pricePending = selectedVenueIsPub && !selectedLensPrice && (
-      selectedDetailStatus === "loading" ||
-      venuePriceFallbackPending(
-        activeLensPrices === null ? peekLane : null,
-        communityPrices.venuePriceStatus.get(selectedVenue.id) ?? "idle",
-        pintDrops.venueDropStatus.get(selectedVenue.id) ?? "idle",
-      )
-    );
+    function isPeekPricePending() {
+      return selectedVenueIsPub && !selectedLensPrice && (
+        selectedDetailStatus === "loading" ||
+        venuePriceFallbackPending(
+          activeLensPrices === null ? peekLane : null,
+          communityPrices.venuePriceStatus.get(selectedVenue.id) ?? "idle",
+          pintDrops.venueDropStatus.get(selectedVenue.id) ?? "idle",
+        )
+      );
+    }
+    const pricePending = isPeekPricePending();
     return (
       <div className="mobileVenuePeekSummary" aria-label={selectedVenueLabels.summaryLabel}>
         {pricePending ? (
