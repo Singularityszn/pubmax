@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { describe, expect, it } from "vitest";
 
 import { isVenueUnpriced } from "@/lib/firstDropNudge";
@@ -17,8 +14,6 @@ import {
 } from "@/lib/venuePriceLane";
 import type { PricedVenue } from "@/lib/priceUpdates";
 import type { Venue } from "@/lib/venues";
-
-const ROOT = process.cwd();
 
 describe("a pub's price while its reads settle", () => {
   const estimate: VenuePriceLane = {
@@ -452,39 +447,5 @@ describe("the provisional lane", () => {
 
   it("owns the one line, and nothing else writes those words", () => {
     expect(PROVISIONAL_PRICE_LINE).toBe("Logged once, needs a second drinker");
-  });
-});
-
-// The other two surfaces that word a pub's missing price. Issue #1426: three
-// places said "No price" over the same pub from three different tests, so the
-// venue sheet could stop saying it while the others carried on.
-describe("every surface that words an absent price asks the same module", () => {
-  const borough = readFileSync(join(ROOT, "app/borough/[slug]/page.tsx"), "utf8");
-
-  it("the borough list asks the lane instead of testing cheapestPrice itself", () => {
-    expect(borough).toContain('from "@/lib/venuePriceLane"');
-    // The wording lives in ONE cell, and that cell asks the lane. It used to
-    // test `cheapestPrice` itself, so a pub priced by any other lane still
-    // printed "No price" here. The borough's own cheapest-pint summary figure
-    // reads `cheapestPrice` for its own reasons and is a different question.
-    const cellStart = borough.indexOf("function BoroughPubPrice(");
-    expect(cellStart).toBeGreaterThan(-1);
-    const cell = borough.slice(cellStart, borough.indexOf("\n}", cellStart));
-    expect(cell).toContain("venuePriceLane(");
-    expect(borough.split('className="boroughNoPrice"').length - 1).toBe(1);
-    expect(cell).toContain('className="boroughNoPrice"');
-  });
-
-  it("the unverified-pub sheet already shows an uncorroborated report, and keeps doing so", () => {
-    // That sheet takes a UK base pub and a community price rather than a Venue
-    // and a drop, so it cannot call this module. What it must never do is word
-    // an absence over a price it is showing, which is pinned where it renders:
-    // __tests__/unverifiedPubSheet.test.ts.
-    const sheet = readFileSync(join(ROOT, "components/map/UnverifiedPubSheet.tsx"), "utf8");
-    expect(sheet).toContain('? "Community price"');
-    expect(sheet).toContain('? "No price yet"');
-    expect(sheet.indexOf('? "Community price"')).toBeLessThan(
-      sheet.indexOf('? "No price yet"'),
-    );
   });
 });

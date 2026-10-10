@@ -5781,10 +5781,10 @@ export default function PubMap({
       splitLaneInput(peekDropSignal?.disputedPrices, peekDropSignal?.disputedAt),
     );
     const peekPrice = peekPriceChip(peekLane, peekBundle, peekDropSignal?.pintTrust ?? null);
-    const pricePending = selectedVenueIsPub && (
+    const pricePending = selectedVenueIsPub && !selectedLensPrice && (
       selectedDetailStatus === "loading" ||
       venuePriceFallbackPending(
-        peekLane,
+        activeLensPrices === null ? peekLane : null,
         communityPrices.venuePriceStatus.get(selectedVenue.id) ?? "idle",
         pintDrops.venueDropStatus.get(selectedVenue.id) ?? "idle",
       )

@@ -5,6 +5,7 @@ import {
   COMMUNITY_SHEET_FIXTURE_VENUE_NAME,
 } from "./helpers/communitySheetFixture";
 import { installAuthDoubles } from "./helpers/authDoubles";
+import { MAP_LENS_DRINK_CATEGORIES } from "@/lib/drinks";
 
 /**
  * ONE PRICE DOOR PER TRUST STATE, on the venue Overview at 390 (captain's rule
@@ -175,6 +176,101 @@ test("keeps the price neutral until the selected pub's drops answer", async ({ p
     releaseRead();
     await expect(peek).toContainText("£4.70", { timeout: 20_000 });
     await expect(peek).not.toContainText("Checking prices");
+  } finally {
+    releaseRead();
+  }
+});
+
+const refreshViews = [
+  ...MAP_LENS_DRINK_CATEGORIES.map((category) => ({ category, query: `drink=${category}` })),
+  ...(["soft-drink", "alcohol-free"] as const).map((category) => ({
+    category,
+    query: "experience=no-alcohol",
+  })),
+];
+
+for (const view of refreshViews) {
+  test(`${view.query} (${view.category}): keeps the observed price while reopening a pub`, async ({ page }) => {
+    const price = {
+      venueId: HATTON,
+      drinkCategory: view.category,
+      priceGbp: 2.5,
+      submittedAt: Date.now(),
+      corroborations: 2,
+      source: "community",
+    };
+    await page.route("**/api/price-submit**", (route) => {
+      const venueId = new URL(route.request().url()).searchParams.get("venueId");
+      return route.fulfill({ json: { prices: venueId && venueId !== HATTON ? [] : [price], signals: [] } });
+    });
+    let holdRefresh = false;
+    let releaseRead!: () => void;
+    let readStarted!: () => void;
+    const heldRead = new Promise<void>((resolve) => { releaseRead = resolve; });
+    const startedRead = new Promise<void>((resolve) => { readStarted = resolve; });
+    await page.route("**/api/pint-drops**", async (route) => {
+      const selected = new URL(route.request().url()).searchParams.get("venueId") === HATTON;
+      if (holdRefresh && selected) {
+        readStarted();
+        await heldRead;
+      }
+      await route.fulfill({ json: { drops: selected && view.category === "beer" ? [row({ priceGbp: 2.5 })] : [] } });
+    });
+    const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+    const peek = sheet.locator(".mobileVenuePeekSummary");
+    const selectPub = async (name: string, venueId: string) => {
+      await sheet.getByRole("button", { name: /^(Close pub detail|Close and return to the map)$/ }).click();
+      await expect(sheet).toBeHidden();
+      await page.getByRole("button", { name: "Search the map", exact: true }).click();
+      const search = page.getByRole("combobox", { name: "Search pubs", exact: true });
+      await search.fill(name);
+      const option = page.getByRole("listbox", { name: "Search suggestions" })
+        .getByRole("group", { name: "Venues", exact: true })
+        .getByRole("option", { name: new RegExp(name) }).first();
+      await expect(option).toBeVisible({ timeout: 20_000 });
+      await option.click();
+      await expect(page).toHaveURL((url) => url.searchParams.get("sel") === venueId);
+      await expect(sheet).toBeVisible();
+    };
+    try {
+      await page.goto(`/map?${view.query}&sel=${HATTON}`);
+      await expect(peek).toContainText("£2.50", { timeout: 30_000 });
+      await selectPub("The French House", "venue-1kpe609");
+      holdRefresh = true;
+      await selectPub(COMMUNITY_SHEET_FIXTURE_VENUE_NAME, HATTON);
+      await startedRead;
+      await expect(peek).toContainText("£2.50");
+      await expect(peek).not.toContainText("Checking prices");
+      await page.screenshot({ path: test.info().outputPath("observed-price-refresh.png") });
+      const settledRead = page.waitForResponse((response) =>
+        new URL(response.url()).searchParams.get("venueId") === HATTON &&
+        new URL(response.url()).pathname === "/api/pint-drops");
+      releaseRead();
+      await settledRead;
+      await expect(peek).toContainText("£2.50");
+      await expect(peek).not.toContainText("Checking prices");
+    } finally {
+      releaseRead();
+    }
+  });
+}
+
+test("an absent drink lane stays neutral during a read despite a known pint price", async ({ page }) => {
+  await page.route("**/api/price-submit**", (route) => route.fulfill({ json: { prices: [], signals: [] } }));
+  let releaseRead!: () => void;
+  const heldRead = new Promise<void>((resolve) => { releaseRead = resolve; });
+  await page.route("**/api/pint-drops**", async (route) => {
+    await heldRead;
+    await route.fulfill({ json: { drops: [row({ venueId: LISTED_ONLY, priceGbp: 4.7 })] } });
+  });
+  try {
+    await page.goto(`/map?drink=wine&sel=${LISTED_ONLY}`);
+    const peek = page.locator('.mobileSheetPortal[data-sheet-kind="venue"] .mobileVenuePeekSummary');
+    await expect(peek).toContainText("Checking prices", { timeout: 30_000 });
+    await expect(peek).not.toContainText(/Unknown|£/);
+    releaseRead();
+    await expect(peek).toContainText("Unknown");
+    await expect(peek).not.toContainText(/Checking prices|£/);
   } finally {
     releaseRead();
   }
