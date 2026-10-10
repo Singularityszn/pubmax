@@ -1069,6 +1069,7 @@ for (const viewport of VIEWPORTS) {
     const credit = page.locator(".appShell .mapStage .maplibregl-ctrl-attrib");
     const toggle = credit.locator(".maplibregl-ctrl-attrib-button");
     await expect(toggle).toBeVisible();
+    await expect(credit).not.toHaveClass(/maplibregl-compact-show/);
 
     const closed = await toggle.evaluate((button) => {
       const box = button.getBoundingClientRect();
@@ -1077,12 +1078,37 @@ for (const viewport of VIEWPORTS) {
         box.left + box.width / 2,
         box.top + box.height / 2,
       );
+      const glyph = getComputedStyle(button);
+      const container = button.closest(".maplibregl-ctrl-attrib")!;
+      const control = getComputedStyle(container);
+      const surface = document.createElement("div");
+      surface.style.backgroundColor = "var(--color-surface-raised)";
+      container.append(surface);
+      const surfaceColor = getComputedStyle(surface).backgroundColor;
+      surface.remove();
       return {
         box: box.toJSON() as Rect,
         pill: pill.toJSON() as Rect,
         ownsCentre: button.contains(hit),
+        backgroundImage: glyph.backgroundImage,
+        backgroundRepeat: glyph.backgroundRepeat,
+        backgroundPosition: glyph.backgroundPosition,
+        backgroundSize: glyph.backgroundSize,
+        controlRadius: control.borderRadius,
+        controlColor: control.backgroundColor,
+        surfaceColor,
+        controlBox: container.getBoundingClientRect().toJSON() as Rect,
       };
     });
+    expect(closed.backgroundImage).not.toBe("none");
+    expect(closed.backgroundRepeat).toBe("no-repeat");
+    expect(closed.backgroundPosition).toBe("50% 50%");
+    expect(closed.backgroundSize).toBe("24px 24px");
+    expect(closed.controlRadius).toBe("50%");
+    expect(closed.controlColor).toBe(closed.surfaceColor);
+    expect(closed.controlColor).not.toBe("rgba(0, 0, 0, 0)");
+    expect(closed.controlBox.width).toBe(44);
+    expect(closed.controlBox.height).toBe(44);
     expect(closed.box.width, "the closed credit keeps the tap floor").toBeGreaterThanOrEqual(44);
     expect(closed.box.height, "the closed credit keeps the tap floor").toBeGreaterThanOrEqual(44);
     expect(closed.ownsCentre, "the closed credit owns its centre").toBe(true);
@@ -1093,6 +1119,7 @@ for (const viewport of VIEWPORTS) {
 
     await toggle.click();
     await expect(credit).toHaveClass(/maplibregl-compact-show/);
+    await expect(credit.locator(".maplibregl-ctrl-attrib-inner")).toContainText("Pub data © OpenStreetMap contributors (ODbL)");
     await expect(pal).toBeHidden();
     // Even reduced motion keeps a near-zero transition, so read the open
     // credit's geometry only once it has landed.

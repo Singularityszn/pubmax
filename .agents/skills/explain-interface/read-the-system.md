@@ -64,21 +64,26 @@ Every recipe is a function that returns its data, so the result comes back whole
 
 ## Tokens
 
-The walk recurses into `@layer`, `@media` and `@supports`, since Tailwind v4 writes its tokens as `:root, :host` inside `@layer theme`.
+The walk collects token names from declarations inside `@layer`, `@media` and `@supports`, including theme selectors. It then reads their computed values on the root in the current viewport and theme. Inactive declarations supply names, never values. Tokens defined only on descendants need a separate computed-style read on those elements.
 
 ```js
 () => {
-  const tokens = {}; const unreadable = [];
-  const root = /(^|,)\s*(:root|html|:host)\s*(,|$)/;
+  const names = new Set(); const tokens = {}; const unreadable = [];
   const walk = list => { for (const r of list ?? []) {
-    if (r.selectorText && root.test(r.selectorText)) {
-      for (const prop of r.style) if (prop.startsWith('--')) tokens[prop] = r.style.getPropertyValue(prop).trim();
+    if (r.style) {
+      for (const prop of r.style) if (prop.startsWith('--')) names.add(prop);
     }
     if (r.cssRules) walk(r.cssRules);
   }};
   for (const sheet of document.styleSheets) {
     let rules; try { rules = sheet.cssRules } catch { unreadable.push(sheet.href); continue }
     walk(rules);
+  }
+  const computed = getComputedStyle(document.documentElement);
+  for (const prop of computed) if (prop.startsWith('--')) names.add(prop);
+  for (const prop of names) {
+    const value = computed.getPropertyValue(prop).trim();
+    if (value) tokens[prop] = value;
   }
   return { tokens, unreadable, count: Object.keys(tokens).length };
 }
@@ -196,6 +201,6 @@ Compare against the framework defaults. Tailwind v3 ships `640px`, `768px`, `102
 
 Everything above reads one state at one width. Before writing the explanation, at minimum:
 
-- Resize to 375px and re-run the spacing and breakpoint recipes. The values that change are what is fluid.
-- Toggle the theme and re-run the token recipe. The tokens that change are the themed layer, and the ones that do not are the primitives.
+- Resize to 375px and re-run the token, spacing and breakpoint recipes. Compare active computed values at each width.
+- Toggle the theme at the same width and re-run the token recipe. Changed computed values show theme dependence. Unchanged values alone do not prove primitive tokens.
 - Tab to the first interactive control and read its `:focus-visible` styles, which a page at rest never shows.

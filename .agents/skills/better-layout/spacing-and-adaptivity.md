@@ -151,6 +151,8 @@ Fixed-height containers clip text at 200% zoom and in long locales. Use `min-hei
 
 Typical clip-prone spots are the bottom edge of a resizable pane, the bottom of a modal taller than the viewport and anything the on-screen keyboard covers:
 
-- Size full-height panes with `100dvh`, not `100vh`, which ignores mobile browser toolbars.
+- Use `100dvh` for full-height panes that follow mobile browser toolbar changes.
 - Give a modal `max-height: 100dvh`, a scrolling body and an action row outside the scroll area.
 - Keep primary actions in stable chrome, such as a sticky footer with safe-area padding or the top of the view.
+
+`dvh` does not guarantee keyboard clearance. Some keyboards shrink only `visualViewport`, leaving the layout viewport and `100dvh` unchanged. Retain the project's `visualViewport` keyboard inset for panes, modals and bottom-pinned actions in that case. Safe-area padding handles system edges, not keyboard height. In this project, `lib/keyboardInset.ts` owns that inset.
