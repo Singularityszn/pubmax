@@ -1,6 +1,6 @@
 # Skills and packages, 7 Oct 2026
 
-This maintenance change updates 36 direct application dependency requirements and two MCP map dependencies. It refreshes 58 project skill files and adds the upstream `state-machine` skill required by the refreshed `variant` guidance.
+This maintenance change updates the [application](../../../package.json) and [MCP map](../../../scripts/chatgpt-map/package.json) dependency requirements. The [skill source registry](../../../.agents/skills/SOURCES.md) records the refreshed skills and the added `state-machine` skill required by `variant`.
 
 ## Compatibility and provenance
 

@@ -73,9 +73,14 @@ Directory name, then frontmatter `name` when it differs:
 
 - Repo: https://github.com/jakubkrehel/skills
 - Commit: `d574cc8a576dc24256ad38268b8d03d86724a1b3` (`main`)
-- Refreshed 7 Oct 2026. The installed trees match this tip, except one local guard below. `state-machine` was added because `variant` now refers to it.
+- Refreshed 7 Oct 2026. The installed trees use this tip with the local corrections below. `state-machine` was added because `variant` now refers to it.
 
-`state-machine` keeps one local guard the upstream file does not. Upstream makes every Next.js scratch page `"use client"`, but a client page cannot import a Server Component. The local step 3 keeps the page a Server Component for a server target, with only the switcher on the client.
+Local corrections:
+
+- [`state-machine` step 3](state-machine/SKILL.md#3-build-the-throwaway-page) preserves the target's Next.js server/client boundary.
+- [`explain-interface` token recipe](explain-interface/read-the-system.md#tokens) reads active computed values for the current viewport and theme.
+- [`better-layout` growth guidance](better-layout/spacing-and-adaptivity.md#plan-for-growth-and-clipping) preserves the project's keyboard-inset requirement alongside `dvh` sizing. Its [review checklist](better-layout/SKILL.md#before-you-finish) retains this requirement.
+- [`better-accessibility` hit-area recipe](better-accessibility/hit-areas.md#expanding-the-hit-area) requires a wrapping label for expanded checkbox targets.
 
 `better-accessibility`, `better-colors`, `better-interface`, `better-layout`, `better-typography`, `better-ui`, `better-writing`, `break`, `explain-interface`, `interface-review`, `variant`, `state-machine`.
 
@@ -164,6 +169,8 @@ Left upstream: `deploy-to-vercel` (the machine already has `deploy-with-vercel`)
 
 Upstream `references/installation.md` in three of these skills offered `curl … | sh` for the ElevenLabs CLI. Those blocks are removed. npm, Homebrew, and Scoop remain.
 
+The local [`text-to-speech` dialogue example](text-to-speech/references/streaming.md#eleven-v4-turbo-websocket) fails on API errors and closure before a final frame.
+
 Left upstream: `dubbing`, `music`, `sound-effects`, `voice-changer`, `voice-isolator`, `setup-api-key`, `update-skills-from-changelog`.
 
 ### PostHog/skills
@@ -200,4 +207,4 @@ Anthropic `frontend-design` is installed in the canonical machine-wide skill roo
 
 ## Maintenance check, 7 Oct 2026
 
-All eleven documented upstream repositories were checked at their default branch tips. The installed Jakub skills, MapLibre cartography and glyph guidance, and ElevenLabs `elevenlabs-agents` skill, configuration and client-tool references, `speech-engine` SDK references, and `text-to-speech` skill, installation, streaming and voice-settings references were refreshed. Other installed trees have no upstream content changes. Existing namespace changes, install guards, removed sibling links, and the Vercel scope fix remain. The added `state-machine` skill keeps a local Next.js server-boundary guard. Upstream CHANGELOG.md files were not modified. The three PUBMAXX-specific skills have no upstream.
+All eleven documented upstream repositories were checked at their default branch tips. The installed Jakub skills, MapLibre cartography and glyph guidance, and ElevenLabs `elevenlabs-agents` skill, configuration and client-tool references, `speech-engine` SDK references, and `text-to-speech` skill, installation, streaming and voice-settings references were refreshed. Other installed trees have no upstream content changes. Local corrections are recorded in each source section above. Upstream CHANGELOG.md files were not modified. The three PUBMAXX-specific skills have no upstream.
