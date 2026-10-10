@@ -425,8 +425,16 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     BADGE_EVENT_IDS,
   );
 
-  const [drops, setDrops] = useState<PublicDrop[]>([]);
-  const [passportAreas, setPassportAreas] = useState<string[]>([]);
+  const geographyIdentityReady = identityResolved && !viewerSession.unresolved;
+  const geographyUserId = user?.id ?? "";
+  const geographyReadKey = `${accountRevision}:${geographyUserId}:${routeHandle}:${geographyIdentityReady}`;
+  const [geographyRead, setGeographyRead] = useState<{
+    key: string;
+    drops: PublicDrop[];
+    areas: string[];
+  } | null>(null);
+  const drops = geographyRead?.key === geographyReadKey ? geographyRead.drops : [];
+  const passportAreas = geographyRead?.key === geographyReadKey ? geographyRead.areas : [];
   const [state, setState] = useState<LoadState>("loading");
   // Saved venues render as DTOs (venue NAME + map url). Durable when this handle has
   // server-side saves (/api/saved-pubs); otherwise the localStorage fallback
@@ -582,35 +590,61 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   }, [isYouRoute, routeHandle, router]);
 
   useEffect(() => {
+    if (!geographyIdentityReady) return;
     const controller = new AbortController();
+    const requestRevision = accountRevision;
 
     // Stale-while-revalidate: a return to this profile paints the drops it last
     // held in the mount frame, then quietly takes the fresh ones. The passport
     // keeps complete geography beside these rows instead of deriving it from
     // the bounded timeline.
     async function load() {
-      const outcome = await loadSurfaceJson<unknown>(
-        `/api/pint-drops?author=${encodeURIComponent(routeHandle)}`,
-        { signal: controller.signal, validate: hasPassportAreas },
-        (body) => {
-          if (!hasPassportAreas(body)) return;
-          const all = body.drops as PublicDrop[];
-          const mine = all.filter((d) => normalizeHandle(d.handle) === routeHandle);
-          setDrops(mine);
-          setPassportAreas(body.passportAreas);
-          // Tombstone wins over a later drops load: never paint a live profile.
-          setState((prev) => (prev === "gone" ? prev : "ready"));
-        },
-      );
+      const url = `/api/pint-drops?author=${encodeURIComponent(routeHandle)}`;
+      const apply = (body: unknown) => {
+        if (controller.signal.aborted || accountRevisionRef.current !== requestRevision || !hasPassportAreas(body)) return false;
+        const all = body.drops as PublicDrop[];
+        const mine = all.filter((d) => normalizeHandle(d.handle) === routeHandle);
+        setGeographyRead({ key: geographyReadKey, drops: mine, areas: body.passportAreas });
+        // Tombstone wins over a later drops load: never paint a live profile.
+        setState((prev) => (prev === "gone" ? prev : "ready"));
+        return true;
+      };
+      let outcome: "snapshot" | "network" | "failed" = "failed";
+      if (geographyUserId) {
+        // Viewer-permitted history must never enter the shared public cache.
+        try {
+          const bearer = await getAccessToken();
+          if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
+          if (!bearer) throw new Error("Profile viewer credentials are unavailable");
+          const response = await fetch(url, {
+            signal: controller.signal,
+            headers: { authorization: `Bearer ${bearer}` },
+          });
+          if (response.ok) {
+            const body: unknown = await response.json();
+            if (apply(body)) outcome = "network";
+          } else {
+            await discardBody(response);
+          }
+        } catch {
+          // The existing read-error surface handles failed authenticated reads.
+        }
+      } else {
+        outcome = await loadSurfaceJson<unknown>(
+          url,
+          { signal: controller.signal, validate: hasPassportAreas },
+          apply,
+        );
+      }
       // An aborted fetch (unmount / handle change) is not an error state, and a
       // failed revalidate over drops already on screen is not one either.
-      if (outcome !== "failed" || controller.signal.aborted) return;
+      if (outcome !== "failed" || controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
       setState((prev) => (prev === "gone" ? prev : "error"));
     }
 
     void load();
     return () => controller.abort();
-  }, [routeHandle]);
+  }, [accountRevision, geographyIdentityReady, geographyReadKey, geographyUserId, routeHandle]);
 
   // Load this handle's saved venues: durable first (the API resolves real venue
   // names for the profile's handle), falling back to the viewer's localStorage
