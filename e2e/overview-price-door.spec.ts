@@ -315,7 +315,7 @@ for (const fixture of RESELECTED_PRICE_CASES) {
       }
     };
     const selectThroughSearch = async (name: string, id: string) => {
-      await sheet.getByRole("button", { name: /^Close (?:venue detail|and return to the map)$/ }).click();
+      await sheet.getByRole("button", { name: /^Close (?:(?:pub|venue) detail|and return to the map)$/ }).click();
       await expect(sheet).toBeHidden();
       await page.getByRole("button", { name: "Search the map", exact: true }).click();
       const search = page.getByRole("combobox", { name: "Search pubs" });

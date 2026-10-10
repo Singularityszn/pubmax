@@ -162,6 +162,8 @@ async function preparePhoneMap(
             },
           } as GeolocationPosition);
         },
+        watchPosition() { return 1; },
+        clearWatch() {},
       },
     });
   });
@@ -311,6 +313,7 @@ async function tapRenderedCentre(
   if (scrollIntoView) {
     await control.scrollIntoViewIfNeeded();
   }
+  await control.click({ trial: true });
   // Geometry and hit-test come from ONE synchronous read, so they describe the
   // same frame. A separate boundingBox() round trip let the sheet settle in
   // between, and the hit-test then probed a point the control had left.
@@ -656,6 +659,8 @@ for (const viewport of VIEWPORTS) {
   test(`${viewport.width}px phone map controls receive their own taps`, async ({
     page,
   }) => {
+    const browserErrors: string[] = [];
+    page.on("pageerror", (error) => browserErrors.push(error.message));
     await openPhoneMap(page, viewport);
     const topbar = page.locator(".mobileMapTopbar");
     // No location is granted in this run, so the chip names what the map is
@@ -741,6 +746,7 @@ for (const viewport of VIEWPORTS) {
         .getByRole("group", { name: "Filter by drink shape" })
         .getByRole("button", { name: "Wine (selected)" }),
     ).toHaveAttribute("aria-pressed", "true");
+    expect(browserErrors).toEqual([]);
   });
 }
 

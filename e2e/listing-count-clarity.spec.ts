@@ -35,7 +35,7 @@ test("the phone map names listing rows and keeps the label readable", async ({ p
     localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
   });
   await page.route("**/api/whats-on?**", (route) => route.fulfill({
-    json: { rows: [listing(0), listing(1), listing(2)], asOf: null },
+    json: { rows: [listing(0), listing(1), listing(2)], asOf: null, servedAt: new Date().toISOString() },
   }));
 
   for (const width of [320, 390, 430]) {
@@ -67,7 +67,10 @@ test("the phone map names listing rows and keeps the label readable", async ({ p
     expect(bounds!.height).toBeGreaterThanOrEqual(44);
     expect(bounds!.width).toBeGreaterThanOrEqual(44);
     await lens.click();
-    await expect(page.locator('.mobileSheetPortal[data-sheet-kind="tonight"]:visible')).toHaveCount(1);
+    const tonightSheet = page.locator('.mobileSheetPortal[data-sheet-kind="tonight"]:visible');
+    await expect(tonightSheet).toHaveCount(1);
+    await tonightSheet.getByRole("button", { name: "Close and return to the map", exact: true }).click();
+    await expect(tonightSheet).toHaveCount(0);
   }
 });
 
@@ -79,7 +82,7 @@ test("the longest drink lanes keep a three-digit Tonight count whole on a 320px 
     localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
   });
   await page.route("**/api/whats-on?**", (route) => route.fulfill({
-    json: { rows: Array.from({ length: 132 }, (_, index) => listing(index)), asOf: null },
+    json: { rows: Array.from({ length: 132 }, (_, index) => listing(index)), asOf: null, servedAt: new Date().toISOString() },
   }));
 
   const lanes = [
