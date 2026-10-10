@@ -5861,7 +5861,7 @@ export default function PubMap({
       splitLaneInput(peekDropSignal?.disputedPrices, peekDropSignal?.disputedAt),
     );
     const peekPrice = peekPriceChip(peekLane, peekBundle, peekDropSignal?.pintTrust ?? null);
-    const pricePending = selectedVenueIsPub && (
+    const pricePending = activeLensPrices === null && selectedVenueIsPub && (
       selectedDetailStatus === "loading" ||
       venuePriceFallbackPending(
         peekLane,
