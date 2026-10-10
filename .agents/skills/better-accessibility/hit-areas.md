@@ -19,19 +19,20 @@ The visible element can stay small; the hit area is what must be big. Anything t
 
 ## Expanding the hit area
 
-Where the visible element is smaller, say a 20×20 checkbox, extend the hit area with a pseudo-element. Put it on a wrapping element or the `<button>`, never on the `<input>`, because form controls don't render `::before`/`::after` reliably.
+Where the visible element is smaller, say a 20×20 checkbox, extend the hit area with a pseudo-element. Use a wrapping `<label>` for checkboxes and the `<button>` for button actions. A generic wrapper does not activate its checkbox. Never put the pseudo-element on the `<input>`, because form controls don't render `::before`/`::after` reliably.
 
 ### CSS example
 
 ```css
-/* 20px checkbox with a 44px hit area, on the wrapper around the input */
-.checkbox-control {
+label.checkbox-control {
+  display: inline-grid;
+  place-items: center;
   position: relative;
   width: 20px;
   height: 20px;
 }
 
-.checkbox-control::after {
+label.checkbox-control::after {
   content: "";
   position: absolute;
   top: 50%;
@@ -40,6 +41,12 @@ Where the visible element is smaller, say a 20×20 checkbox, extend the hit area
   width: 44px;
   height: 44px;
 }
+```
+
+```html
+<label class="checkbox-control">
+  <input type="checkbox" name="done" aria-label="Mark done" />
+</label>
 ```
 
 ### Tailwind example

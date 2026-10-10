@@ -80,3 +80,11 @@ At 320px with answered consent, the corrected chip occupies y 209-408. The credi
 ![Corrected 320px story and four-line credit, with a saved Pub Pal](phone-320-story-credit-review-after.png)
 
 These checks ran against this review's working-tree corrections over input head `88f0fe0e645ee7319a5406ae31c977b00f7c54b2`. They do not establish CI, publication, deployment or physical-device behaviour. The outer executor owns the remaining native phases.
+
+## Review recipes and current browser proof, 10 Oct 2026
+
+Review R5 now requires a wrapping label for expanded checkbox targets. Review R6 now rejects API errors and dialogue closure before a final frame.
+
+A fresh production build tested the application and existing attribution checks at input head `78e165a059a839a826add8edb844410658d15bd3`. All 11 focused Chrome cases passed, with zero retries. All 13 local recipe checks also passed. Application code and browser assertions remained unchanged.
+
+The [review proof record](review-r5-r6/README.md) preserves raw failures, source hashes, the build receipt, passing reports and the six story/credit geometry screenshots. These results cover this local production build. The outer executor owns the remaining native phases.

@@ -137,6 +137,7 @@ const uri =
 
 const websocket = new WebSocket(uri);
 const out = fs.createWriteStream("output.mp3");
+let receivedFinal = false;
 
 websocket.on("open", () => {
   websocket.send(JSON.stringify({ voices: [voiceId], xi_api_key: process.env.ELEVENLABS_API_KEY }));
@@ -152,11 +153,15 @@ websocket.on("open", () => {
 
 websocket.on("message", (data) => {
   const msg = JSON.parse(data.toString());
-  if (msg.error) return console.error(msg);
+  if (msg.error) throw new Error(JSON.stringify(msg));
   if (msg.audio) out.write(Buffer.from(msg.audio, "base64"));
+  if (msg.is_final) receivedFinal = true;
 });
 
-websocket.on("close", () => out.end());
+websocket.on("close", () => {
+  if (!receivedFinal) throw new Error("Dialogue socket closed before the final frame");
+  out.end();
+});
 ```
 
 **Behavior notes:**
