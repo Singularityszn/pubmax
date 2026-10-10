@@ -274,19 +274,35 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await page.goto("/map");
     await openVenueListWithKeyboard(page);
 
+    const wrap = page.locator(".mapCanvasWrap");
+    // The first focused row precedes completion of the viewport's pub stream.
+    await expect(wrap).toHaveAttribute("data-uk-base-status", "ready", {
+      timeout: 20_000,
+    });
+    const beforeBaseCount = Number(await wrap.getAttribute("data-uk-base-count"));
+    expect(beforeBaseCount).toBeGreaterThan(0);
     const rows = page.locator(".mapVenueListItem");
-    const beforeMove = await rows.count();
     const beforeMoveIds = await rows.evaluateAll((items) =>
       items.map((item) => item.getAttribute("data-venue-id")),
     );
+    const beforeMove = beforeMoveIds.length;
     expect(beforeMove).toBeGreaterThan(0);
     expect(beforeMoveIds.every(Boolean)).toBe(true);
 
-    const zoomIn = page.getByRole("button", { name: "Zoom in" });
+    const zoomIn = page.getByRole("button", { name: "Zoom in", exact: true });
     await zoomIn.click();
     await zoomIn.click();
     await zoomIn.click();
 
+    await expect
+      .poll(
+        () => wrap.evaluate((node, initialCount) => ({
+          ready: node.getAttribute("data-uk-base-status") === "ready",
+          narrowed: Number(node.getAttribute("data-uk-base-count")) < initialCount,
+        }), beforeBaseCount),
+        { timeout: 20_000 },
+      )
+      .toEqual({ ready: true, narrowed: true });
     await expect
       .poll(() => rows.count(), { timeout: 20_000 })
       .toBeLessThan(beforeMove);
@@ -300,6 +316,10 @@ test.describe("map keyboard and screen-reader venue path", () => {
       )
       .not.toEqual(beforeMoveIds);
 
+    const barRows = rows.filter({
+      has: page.locator(".mapVenueListItemMeta > span", { hasText: /^Bar$/ }),
+    });
+    await expect.poll(() => barRows.count()).toBeGreaterThan(0);
     const beforeFilter = await rows.count();
     // The venue-type chips live in the toolbar's Filters panel (#1631).
     await page.getByRole("button", { name: /^Filters:/ }).click();
@@ -310,6 +330,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await bars.click();
     await expect(bars).toHaveAttribute("aria-pressed", "false");
     await expect.poll(() => rows.count()).toBeLessThan(beforeFilter);
+    await expect(barRows).toHaveCount(0);
   });
 
   test("drops old base-pub rows during a disjoint pan before the next shard fetch", async ({
@@ -384,7 +405,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await expect.poll(() => baseRows.count(), { timeout: 5_000 }).toBe(0);
   });
 
-  test("keeps desktop drawer focus inside and restores chosen venue on Escape", async ({
+  test("keeps the desktop toolbar reachable and restores chosen venue on Escape", async ({
     page,
   }) => {
     test.setTimeout(180_000);
@@ -394,7 +415,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
 
     // List view opens from Layers; keyboard Tab into the list is covered by the
     // sibling spec. This case pins Escape on the venue drawer with the list
-    // still open underneath — the regression path from List view.
+    // still open underneath. The non-modal drawer also keeps the toolbar live.
     await openVenueListFromLayers(page);
     const chosenVenueId = await page.locator(".mapVenueListItem").first().getAttribute("data-venue-id");
     expect(chosenVenueId).toBeTruthy();
@@ -409,7 +430,8 @@ test.describe("map keyboard and screen-reader venue path", () => {
     const closeButton = drawer.getByRole("button", { name: /Close/ });
     await expect(drawer).toBeVisible();
     await expect(drawer).toHaveAttribute("role", "dialog");
-    await expect(drawer).toHaveAttribute("aria-modal", "true");
+    await expect(drawer).toHaveAccessibleName("Pub detail");
+    await expect(drawer).not.toHaveAttribute("aria-modal");
     await expect
       .poll(
         async () => closeButton.evaluate((node) => node === document.activeElement),
@@ -417,16 +439,40 @@ test.describe("map keyboard and screen-reader venue path", () => {
       )
       .toBe(true);
 
-    const focusables = drawer.locator(
-      'a[href]:visible, button:not([disabled]):visible, input:not([disabled]):visible, select:not([disabled]):visible, textarea:not([disabled]):visible, [tabindex]:not([tabindex="-1"]):visible',
-    );
+    const focusableSelector =
+      'a[href]:visible, button:not([disabled]):visible, input:not([disabled]):visible, select:not([disabled]):visible, textarea:not([disabled]):visible, [tabindex]:not([tabindex="-1"]):visible';
+    const focusables = drawer.locator(focusableSelector);
     const firstFocusable = focusables.first();
     const lastFocusable = focusables.last();
+    const toolbar = page.locator(".mapToolbar");
+    const toolbarFocusables = toolbar.locator(focusableSelector);
+    const firstToolbarFocusable = toolbarFocusables.first();
+    const lastToolbarFocusable = toolbarFocusables.last();
+    await expect(toolbar).toBeVisible();
+
     await lastFocusable.focus();
     await page.keyboard.press("Tab");
-    await expect(firstFocusable).toBeFocused();
+    await expect(firstToolbarFocusable).toBeFocused();
     await page.keyboard.press("Shift+Tab");
     await expect(lastFocusable).toBeFocused();
+
+    await firstFocusable.focus();
+    await page.keyboard.press("Shift+Tab");
+    await expect(lastToolbarFocusable).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(firstFocusable).toBeFocused();
+
+    // Enter through the exempt toolbar and use its Filters control with keys.
+    await lastFocusable.focus();
+    await page.keyboard.press("Tab");
+    await expect(firstToolbarFocusable).toBeFocused();
+    const filters = toolbar.locator(".mapVenueKindFilterBtn");
+    await tabTo(page, filters);
+    await page.keyboard.press("Enter");
+    await expect(filters).toHaveAttribute("aria-expanded", "true");
+    await expect(drawer).toBeVisible();
+    await page.keyboard.press("Enter");
+    await expect(filters).toHaveAttribute("aria-expanded", "false");
 
     await page.keyboard.press("Escape");
     await expect(drawer).toBeHidden();
