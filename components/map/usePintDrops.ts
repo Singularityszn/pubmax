@@ -280,6 +280,7 @@ export function usePintDrops(
   const [venueDropStatus, setVenueDropStatus] = useState<
     Map<string, VenueDropReadStatus>
   >(() => new Map());
+  const venueDropRequests = useRef(new Map<string, symbol>());
   const [dropsByVenueId, setDropsByVenueId] = useState<Map<string, DropWithPhotos[]>>(
     () => new Map(),
   );
@@ -381,11 +382,18 @@ export function usePintDrops(
   // a failure; this now does the same, and records the read so a surface can
   // tell "we could not look" from "nobody has logged one".
   const refreshVenueDrops = useCallback((venueId: string) => {
-    let active = true;
+    const request = Symbol();
+    venueDropRequests.current.set(venueId, request);
+    setVenueDropStatus((current) => {
+      const next = new Map(current);
+      next.set(venueId, "idle");
+      return next;
+    });
     // ONE RULE for both outcomes (lib/venueDropRead.ts), so the failure path
     // cannot quietly grow a second answer.
     const settle = (read: VenueDropRead<DropWithPhotos>) => {
-      if (!active) return;
+      if (venueDropRequests.current.get(venueId) !== request) return;
+      venueDropRequests.current.delete(venueId);
       setDropsByVenueId((current) => {
         const held = current.get(venueId);
         const kept = venueDropsAfterRead(held, read);
@@ -407,7 +415,9 @@ export function usePintDrops(
       })
       .catch(() => settle({ status: "unavailable" }));
     return () => {
-      active = false;
+      if (venueDropRequests.current.get(venueId) === request) {
+        venueDropRequests.current.delete(venueId);
+      }
     };
   }, []);
 
