@@ -28,14 +28,15 @@ function pricedDrop(id: string): DropWithPhotos {
 }
 
 function SelectedPub({ venueId }: { venueId: string }) {
-  drops = usePintDrops();
-  useEffect(() => drops.refreshVenueDrops(venueId), [venueId, drops.refreshVenueDrops]);
-  const rows = drops.dropsByVenueId.get(venueId) ?? [];
+  const currentDrops = usePintDrops();
+  useEffect(() => { drops = currentDrops; }, [currentDrops]);
+  useEffect(() => currentDrops.refreshVenueDrops(venueId), [venueId, currentDrops.refreshVenueDrops]);
+  const rows = currentDrops.dropsByVenueId.get(venueId) ?? [];
   const lane = rows.length
     ? { lane: "contributor" as const, contributorPrice: rows[0].priceGbp! }
     : { lane: "estimate" as const, estimate: { priceGbp: 6.5, computedAt: "2026-10-06", basis: "regional_baseline:camden", sampleSize: 8 } };
   return createElement("p", null,
-    venuePriceFallbackPending(lane, "ready", drops.venueDropStatus.get(venueId) ?? "idle")
+    venuePriceFallbackPending(lane, "ready", currentDrops.venueDropStatus.get(venueId) ?? "idle")
       ? "Checking pub prices" : lane.lane === "contributor" ? `£${lane.contributorPrice.toFixed(2)}` : "est. £6.50",
   );
 }
