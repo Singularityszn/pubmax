@@ -112,13 +112,15 @@ export default function MapPeekSheet({
   });
   const dragRef = useRef<DragState | null>(null);
   const draggedRef = useRef(false);
+  const pressedButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const onPointerDown = useCallback(
     (event: React.PointerEvent<HTMLElement>) => {
       if (!event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
       const originOffset = peekDragOrigin(stop().value);
       const target = event.target as Element;
-      const captureTarget = target.closest("button") ?? event.currentTarget;
+      const captureTarget = event.currentTarget;
+      pressedButtonRef.current = target.closest("button");
       try {
         captureTarget.setPointerCapture(event.pointerId);
       } catch {}
@@ -148,10 +150,6 @@ export default function MapPeekSheet({
         if (-dy < DRAG_SLOP_PX) return;
         drag.active = true;
         draggedRef.current = true;
-        drag.captureTarget = event.currentTarget;
-        try {
-          drag.captureTarget.setPointerCapture(event.pointerId);
-        } catch {}
       }
       event.preventDefault();
       const now = performance.now();
@@ -172,9 +170,9 @@ export default function MapPeekSheet({
       const drag = dragRef.current;
       if (!drag || event.pointerId !== drag.pointerId) return;
       dragRef.current = null;
-      const button = drag.captureTarget.closest("button");
+      const button = pressedButtonRef.current;
       draggedRef.current = drag.active || cancelled || (
-        button !== null && !button.contains(document.elementFromPoint(event.clientX, event.clientY))
+        button !== null && (!button.isConnected || !button.contains(document.elementFromPoint(event.clientX, event.clientY)))
       );
       try {
         if (drag.captureTarget.hasPointerCapture(event.pointerId)) {
@@ -203,12 +201,22 @@ export default function MapPeekSheet({
     [animateTo, jumpTo, onOpenList],
   );
 
-  // A drag that began on a button must not end as that button's click.
-  const swallowClickAfterDrag = useCallback((event: React.MouseEvent<HTMLElement>) => {
-    if (event.detail === 0 || !draggedRef.current) return;
+  const onClickCapture = useCallback((event: React.MouseEvent<HTMLElement>) => {
+    if (event.detail === 0) return;
+    const button = pressedButtonRef.current;
+    pressedButtonRef.current = null;
+    const dragged = draggedRef.current;
     draggedRef.current = false;
-    event.preventDefault();
-    event.stopPropagation();
+    if (dragged) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    if (event.target === event.currentTarget && button?.isConnected) {
+      event.preventDefault();
+      event.stopPropagation();
+      button.click();
+    }
   }, []);
 
   const summary = mapPeekSummary(model);
@@ -228,7 +236,7 @@ export default function MapPeekSheet({
       onLostPointerCapture={(event) => {
         if (event.target === dragRef.current?.captureTarget) finishDrag(event, true);
       }}
-      onClickCapture={swallowClickAfterDrag}
+      onClickCapture={onClickCapture}
     >
       <span className="mapPeekGrab" aria-hidden="true" />
       <div className="mapPeekRow">
