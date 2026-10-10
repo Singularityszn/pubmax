@@ -13,6 +13,7 @@ import {
   type Badge,
   type ProfileDrop,
 } from "@/lib/profiles";
+import { LONDON_BOROUGH_NAMES } from "@/lib/londonBoroughNames.mjs";
 import { slugifyBorough } from "@/lib/boroughs";
 import {
   computeBadgeEventProgress,
@@ -43,7 +44,7 @@ function distinctBeers(drops: readonly ProfileDrop[]): number {
 export type PassportData = {
   /** Distinct pubs visited — venueId is the pub identity (drops carry it). */
   pubs: number;
-  /** The distinct areas from profileStats, or [] when no drop names an area. */
+  /** Complete supplied geography, otherwise the distinct areas of the input drops. */
   boroughs: string[];
   /** Distinct named drinks ("beers"), case-insensitive. */
   beers: number;
@@ -75,7 +76,17 @@ export type PassportCounts = {
   crawls?: number | null;
   storyPosts?: number | null;
   badgeEvents?: BadgeEventProgressOptions;
+  /** Complete server-derived geography, independent of a capped timeline. */
+  areas?: readonly string[];
 };
+
+/** Reject old cached timelines that cannot answer lifetime geography. */
+export function hasPassportAreas(body: unknown): body is { drops: ProfileDrop[]; passportAreas: string[] } {
+  if (!body || typeof body !== "object") return false;
+  const { drops, passportAreas } = body as { drops?: unknown; passportAreas?: unknown };
+  return Array.isArray(drops) && Array.isArray(passportAreas) &&
+    passportAreas.every((area) => typeof area === "string" && LONDON_BOROUGH_NAMES.includes(area));
+}
 
 function nonNegInt(value: number | null | undefined): number {
   return typeof value === "number" && Number.isFinite(value) && value > 0
@@ -157,7 +168,7 @@ export function buildPassport(
 
   return {
     pubs: distinctPubs(list),
-    boroughs: stats.boroughs ?? [],
+    boroughs: counts.areas ? [...new Set(counts.areas)].sort() : stats.boroughs ?? [],
     beers: distinctBeers(list),
     crawls,
     pints: stats.pintsLogged,

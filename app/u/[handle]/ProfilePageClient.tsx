@@ -50,7 +50,7 @@ import {
   parseBadgeEventOptIns,
 } from "@/lib/badgeEventOptIn";
 import type { FollowCounts } from "@/lib/followStore";
-import { buildPassport } from "@/lib/passport";
+import { buildPassport, hasPassportAreas } from "@/lib/passport";
 import { buildProfileBadgeEventOptions } from "@/lib/profileBadgeEventGate";
 import { discardBody } from "@/lib/responseBody";
 import { revealWhenMounted } from "@/lib/revealWhenMounted";
@@ -426,6 +426,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   );
 
   const [drops, setDrops] = useState<PublicDrop[]>([]);
+  const [passportAreas, setPassportAreas] = useState<string[]>([]);
   const [state, setState] = useState<LoadState>("loading");
   // Saved venues render as DTOs (venue NAME + map url). Durable when this handle has
   // server-side saves (/api/saved-pubs); otherwise the localStorage fallback
@@ -585,19 +586,18 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
 
     // Stale-while-revalidate: a return to this profile paints the drops it last
     // held in the mount frame, then quietly takes the fresh ones. The passport
-    // is derived from these rows, so without it every hop back to You flashed a
-    // zeroed passport for the length of a round trip.
+    // keeps complete geography beside these rows instead of deriving it from
+    // the bounded timeline.
     async function load() {
       const outcome = await loadSurfaceJson<unknown>(
         `/api/pint-drops?author=${encodeURIComponent(routeHandle)}`,
-        { signal: controller.signal },
+        { signal: controller.signal, validate: hasPassportAreas },
         (body) => {
-          const all: PublicDrop[] =
-            body && typeof body === "object" && Array.isArray((body as { drops?: unknown }).drops)
-              ? ((body as { drops: PublicDrop[] }).drops ?? [])
-              : [];
+          if (!hasPassportAreas(body)) return;
+          const all = body.drops as PublicDrop[];
           const mine = all.filter((d) => normalizeHandle(d.handle) === routeHandle);
           setDrops(mine);
+          setPassportAreas(body.passportAreas);
           // Tombstone wins over a later drops load: never paint a live profile.
           setState((prev) => (prev === "gone" ? prev : "ready"));
         },
@@ -936,13 +936,14 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         )
       : [];
 
-  // Pint Passport data (story 29): aggregated from the same drops the page
-  // already loaded, plus this handle's published crawl-story count from
+  // Pint Passport geography covers the complete visible author history. The
+  // other drop statistics use the bounded timeline and the crawl-story count from
   // /api/crawls?author= (storyCount above). A durable crawl story IS the posted
   // crawl AND the story post — both passport inputs draw from the one authored-
   // story number per buildPassport's semantics. On the anonymous /u/you
   // first-run route, the passport reads as own and shows the "start yours" CTA.
   const passport = buildPassport(drops as ProfileDrop[], {
+    areas: passportAreas,
     crawls: storyCount,
     // Story posts are what this author PUBLISHED, so the owner's own number
     // counts their unlisted crawls too. Everybody else sees the public one.
