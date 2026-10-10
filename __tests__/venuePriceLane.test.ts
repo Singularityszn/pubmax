@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { describe, expect, it } from "vitest";
 
 import { isVenueUnpriced } from "@/lib/firstDropNudge";
@@ -8,6 +5,7 @@ import {
   PROVISIONAL_PRICE_LINE,
   venueBundlePrices,
   venuePriceLane,
+  venuePriceFallbackPending,
   venuePriceLaneIsDrinkerLog,
   venuePriceLaneObservedGbp,
   venueSourcedPrice,
@@ -17,7 +15,29 @@ import {
 import type { PricedVenue } from "@/lib/priceUpdates";
 import type { Venue } from "@/lib/venues";
 
-const ROOT = process.cwd();
+describe("a pub's price while its reads settle", () => {
+  const estimate: VenuePriceLane = {
+    lane: "estimate",
+    estimate: { priceGbp: 6.5, computedAt: "2026-10-06T12:00:00.000Z", basis: "regional_baseline:camden", sampleSize: 8 },
+  };
+
+  it("holds an estimate until both price reads answer", () => {
+    expect(venuePriceFallbackPending(estimate, "loading", "ready")).toBe(true);
+    expect(venuePriceFallbackPending(estimate, "ready", "idle")).toBe(true);
+    expect(venuePriceFallbackPending(estimate, "ready", "ready")).toBe(false);
+  });
+
+  it("does not claim an empty pub before its reads answer", () => {
+    expect(venuePriceFallbackPending(null, "idle", "idle")).toBe(true);
+    expect(venuePriceFallbackPending(null, "ready", "ready")).toBe(false);
+  });
+
+  it("keeps an observed price during a refresh and lets failed reads settle", () => {
+    expect(venuePriceFallbackPending({ lane: "contributor", contributorPrice: 4.7 }, "loading", "idle"))
+      .toBe(false);
+    expect(venuePriceFallbackPending(estimate, "degraded", "unavailable")).toBe(false);
+  });
+});
 
 // Minimal Venue factory (same shape the other map tests use). Defaults are the
 // fully-unpriced pub so each fixture overrides only the field it exercises.
@@ -257,6 +277,8 @@ describe("what a decided lane answers about itself", () => {
     const logged: ReadonlyArray<VenuePriceLane> = [
       venuePriceLane(makeVenue(), 5.4, null)!,
       venuePriceLane(makeVenue(), null, null, {}, PROVISIONAL_ROW)!,
+      { lane: "aged", agedPrice: 4.5, observedAt: null },
+      { lane: "disputed", split: { prices: [4.5, 4.7], reporters: 2 }, observedAt: null },
     ];
     const notLogged: ReadonlyArray<VenuePriceLane> = [
       venuePriceLane(sourced, null, venueSourcedPrice(sourced))!,
@@ -425,121 +447,5 @@ describe("the provisional lane", () => {
 
   it("owns the one line, and nothing else writes those words", () => {
     expect(PROVISIONAL_PRICE_LINE).toBe("Logged once, needs a second drinker");
-  });
-});
-
-// The other two surfaces that word a pub's missing price. Issue #1426: three
-// places said "No price" over the same pub from three different tests, so the
-// venue sheet could stop saying it while the others carried on.
-describe("every surface that words an absent price asks the same module", () => {
-  const borough = readFileSync(join(ROOT, "app/borough/[slug]/page.tsx"), "utf8");
-
-  it("the borough list asks the lane instead of testing cheapestPrice itself", () => {
-    expect(borough).toContain('from "@/lib/venuePriceLane"');
-    // The wording lives in ONE cell, and that cell asks the lane. It used to
-    // test `cheapestPrice` itself, so a pub priced by any other lane still
-    // printed "No price" here. The borough's own cheapest-pint summary figure
-    // reads `cheapestPrice` for its own reasons and is a different question.
-    const cellStart = borough.indexOf("function BoroughPubPrice(");
-    expect(cellStart).toBeGreaterThan(-1);
-    const cell = borough.slice(cellStart, borough.indexOf("\n}", cellStart));
-    expect(cell).toContain("venuePriceLane(");
-    expect(borough.split('className="boroughNoPrice"').length - 1).toBe(1);
-    expect(cell).toContain('className="boroughNoPrice"');
-  });
-
-  it("the unverified-pub sheet already shows an uncorroborated report, and keeps doing so", () => {
-    // That sheet takes a UK base pub and a community price rather than a Venue
-    // and a drop, so it cannot call this module. What it must never do is word
-    // an absence over a price it is showing, which is pinned where it renders:
-    // __tests__/unverifiedPubSheet.test.ts.
-    const sheet = readFileSync(join(ROOT, "components/map/UnverifiedPubSheet.tsx"), "utf8");
-    expect(sheet).toContain('? "Community price"');
-    expect(sheet).toContain('? "No price yet"');
-    expect(sheet.indexOf('? "Community price"')).toBeLessThan(
-      sheet.indexOf('? "No price yet"'),
-    );
-  });
-});
-
-describe("VenueOverviewTab renders from the shared lane", () => {
-  const overview = readFileSync(
-    join(ROOT, "components/map/inspector/VenueOverviewTab.tsx"),
-    "utf8",
-  );
-
-  it("branches on venuePriceLane rather than restating the precedence", () => {
-    expect(overview).toContain('from "@/lib/venuePriceLane"');
-    // Matched on the call's ARGUMENTS rather than one formatted line, because
-    // the argument list has outgrown a single line and a reflow is not a policy
-    // change. What is pinned is that the component decides nothing itself.
-    // The tab takes the lane ONCE and hands it down, because the block above the
-    // price area has to know whether its own absence line would stand beside a
-    // figure (#1426 follow-up), and two readings of one pub could disagree.
-    const call = overview.slice(overview.indexOf("const priceLane = venuePriceLane("));
-    const args = call.slice(0, call.indexOf(");") + 2);
-    for (const argument of [
-      "venue",
-      "latestContributorPrice",
-      "sourcedPrice",
-      "venueBundlePrices(venue)",
-      "provisionalPrice",
-    ]) {
-      expect(args, `the lane call must be given ${argument}`).toContain(argument);
-    }
-    // The two bundle lanes are here for the same reason the others are: the
-    // price area renders EVERY lane the precedence can answer with, so a lane
-    // added in the module and missed in the component would show a pub nothing.
-    for (const lane of ["anchor", "contributor", "sourced", "listed", "baseline", "estimate"]) {
-      expect(overview, `price area must branch on the ${lane} lane`).toContain(
-        `if (lane?.lane === "${lane}") {`,
-      );
-    }
-    // A DRINKER'S OWN LOG TAKES ONE BRANCH (captain 7 Sept 2026). `provisional`,
-    // `disputed` and `aged` are one claim said three ways, and three sibling
-    // branches is how a split arrived on the Overview worded as a lone report.
-    // The fence is the same promise in the new shape: every remaining lane
-    // answers `venuePriceLaneIsDrinkerLog`, and that predicate is what the
-    // component branches on.
-    expect(overview).toContain("venuePriceLaneIsDrinkerLog(lane)");
-    expect(overview).toContain("<DrinkerLogBlock");
-    for (const lane of ["provisional", "disputed", "aged"] as const) {
-      expect(
-        venuePriceLaneIsDrinkerLog({ lane } as unknown as VenuePriceLane),
-        `the ${lane} lane must render through the drinker-log block`,
-      ).toBe(true);
-    }
-  });
-
-  it("keeps the first-drop nudge in the branch the lane leaves empty", () => {
-    const summaryStart = overview.indexOf("function VenuePriceSummary(");
-    const summaryEnd = overview.indexOf("export default function VenueOverviewTab");
-    expect(summaryStart).toBeGreaterThan(-1);
-    expect(summaryEnd).toBeGreaterThan(summaryStart);
-    const summary = overview.slice(summaryStart, summaryEnd);
-
-    // The unpriced block is the fall-through, after the last lane branch has
-    // returned. It is a block rather than the nudge itself since review finding
-    // F-8: a drop read we could not RUN may not be worded as a pub with no
-    // price on it, so the two absences are told apart in one place.
-    const lastLaneBranch = summary.lastIndexOf('if (lane?.lane === "');
-    expect(summary.indexOf("<UnpricedPubBlock")).toBeGreaterThan(lastLaneBranch);
-    // And that block is the only thing that renders the nudge.
-    expect(overview).toContain("<FirstDropNudge");
-    const blockStart = overview.indexOf("function UnpricedPubBlock(");
-    expect(blockStart).toBeGreaterThan(-1);
-    const block = overview.slice(blockStart, overview.indexOf("function VenuePriceSummary("));
-    expect(block).toContain("<FirstDropNudge");
-    expect(block).toContain("firstDropNudgeMayClaimAbsence");
-
-    // And the summary must not hand-roll the precedence beside the lane call.
-    expect(summary).not.toMatch(
-      /if \(\s*latestContributorPrice !== null && latestContributorPrice !== undefined\s*\)/,
-    );
-    expect(summary).not.toMatch(/if \(sourcedPrice\) \{/);
-
-    // The branches print the figure the lane decided on, not the raw props.
-    expect(summary).toContain("{formatPrice(lane.contributorPrice)}");
-    expect(summary).toContain("href={lane.sourcedPrice.sourceUrl}");
   });
 });

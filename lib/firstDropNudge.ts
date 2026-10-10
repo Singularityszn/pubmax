@@ -81,10 +81,9 @@ export const DROP_READ_UNAVAILABLE_LINE =
   "We could not read this pub’s logged prices.";
 
 /**
- * May the price area word this pub as having no price on it? Only when the
- * drop read is not known to have failed. `idle` still nudges: a pub nobody has
- * asked about is the ordinary first-drop case, and the read that would change
- * the answer is already in flight.
+ * Reject absence wording after a failed drop read. This guard does not test
+ * readiness. Pub surfaces hold pending reads through `venuePriceFallbackPending`
+ * before they reach the nudge.
  */
 export function firstDropNudgeMayClaimAbsence(
   dropReadStatus: "idle" | "ready" | "unavailable" = "idle",

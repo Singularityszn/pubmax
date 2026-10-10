@@ -14,9 +14,12 @@ truth; the shell renders its descriptors.
 **Tonight cold-start (P5):** when `whatsOnTonight.rows.length > 0`, a measured
 `.mobileMapTonightChip` docks under the bar (not a sixth bar slot) and opens
 `overlay: "tonight"` in one tap. `buildTonightChip` in `lib/mapChromeTiers.ts`
-owns the model. More → Events, Layers → On tonight, and the tab bar remain
-homes. Quiet nights omit the chip. The plan pill and tab bar stay outside this
-hierarchy. Mobile map action geometry belongs to
+owns the model. The chip and collapsed desktop lane say **Tonight listings**.
+The count describes listing rows, not distinct venues. The phone label wraps
+while the icons and count keep their width.
+More → Events, Layers → On tonight, and the tab bar remain homes.
+An empty listing read omits the chip. The plan pill and tab bar stay outside
+this hierarchy. Mobile map action geometry belongs to
 `components/mobile/mobileMapShell.css`.
 
 ## Narrow desktop state

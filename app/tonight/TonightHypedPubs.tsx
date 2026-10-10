@@ -94,7 +94,7 @@ function HypedRow({
     </>
   );
   return (
-    <li className="tonightHypedRow" data-testid="tonight-hyped-row">
+    <li className="tonightHypedRow createFabLane" data-testid="tonight-hyped-row">
       <h3 className="tonightHypedName">{row.name}</h3>
       <p className="tonightHypedArea">
         <MapPin size={13} aria-hidden="true" />

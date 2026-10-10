@@ -6,8 +6,6 @@ import { expect, test, type Locator, type Page, type Request } from "@playwright
 // Explicit Venue acceptance, the spine's single fetch and honest freshness.
 // The grouping half of this surface is e2e/tonight-trusted-ui-grouping.spec.ts.
 
-const SHOTS_DIR = path.join(process.cwd(), "e2e-shots", "tonight-trusted-ui");
-
 // Deterministic spine: a two-venue deal family (collapses to one card), plus a
 // music and a quiz row — enough to show grouping, the secondary lanes, and an
 // acceptable Venue, without depending on live upstream data.
@@ -99,6 +97,7 @@ async function captureAnalytics(page: Page): Promise<unknown[]> {
 }
 
 async function shoot(page: Page, name: string) {
+  const SHOTS_DIR = test.info().outputPath("tonight-trusted-ui");
   fs.mkdirSync(SHOTS_DIR, { recursive: true });
   for (const scheme of ["light", "dark"] as const) {
     // The app's dark theme is driven by html[data-theme="dark"], NOT the OS media
@@ -261,4 +260,41 @@ test.describe("Discover secondary lanes still self-fetch", () => {
     // On Discover the lanes have no host rows, so they self-fetch by kind.
     expect(urls.some((u) => u.includes("kind=deal"))).toBe(true);
   });
+});
+
+
+test("the phone create action leaves pub recommendation text readable", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await mockWhatsOn(page);
+  for (const width of [390, 320, 430]) {
+    await page.setViewportSize({ width, height: 626 });
+    await page.goto("/tonight");
+    await expect(page.getByTestId("tonight-hyped-row").first()).toBeVisible();
+    await expect(page.locator(".createFab")).toBeVisible();
+    const coveredText = await page.evaluate(() => {
+      const fab = document.querySelector(".createFab")!.getBoundingClientRect();
+      const covered: string[] = [];
+      for (const row of document.querySelectorAll(".tonightHypedRow")) {
+        const walker = document.createTreeWalker(row, NodeFilter.SHOW_TEXT);
+        while (walker.nextNode()) {
+          const node = walker.currentNode;
+          if (!node.textContent?.trim()) continue;
+          const range = document.createRange();
+          range.selectNodeContents(node);
+          if ([...range.getClientRects()].some((rect) =>
+            rect.left < fab.right && rect.right > fab.left &&
+            rect.top < fab.bottom && rect.bottom > fab.top,
+          )) covered.push(node.textContent.trim());
+        }
+      }
+      return covered;
+    });
+    expect(coveredText, `Pub text covered at ${width}px`).toEqual([]);
+    await page.screenshot({ path: test.info().outputPath(`tonight-create-clearance-${width}.png`), fullPage: true });
+  }
 });

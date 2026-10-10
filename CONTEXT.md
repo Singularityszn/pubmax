@@ -63,7 +63,7 @@ How far a pint figure may be trusted, said in words rather than colour: Confirme
 _Avoid_: Price Band, confidence score, an Estimate presented as a published price
 
 **Price Lane**:
-Which of a pub's competing price sources wins the line a surface prints, in one fixed precedence: anchor, contributor, sourced, listed, provisional, baseline, aged, then estimate. A null answer is the only thing any surface may word as "no price yet". `lib/venuePriceLane.ts` owns the order.
+The selected source for a venue's displayed price. `lib/venuePriceLane.ts` owns precedence. The [price-read contract](docs/rules/lib-prices-trust-and-drinks.md) governs when the display may claim an absence.
 _Avoid_: Cheapest price, Price Standing, an empty list read as an absent price
 
 **Drink Lane**:

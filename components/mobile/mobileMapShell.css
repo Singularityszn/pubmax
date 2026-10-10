@@ -389,13 +389,13 @@
   }
 
   /* The drink the map is under. It never scrolls away and it never truncates
-     to a fragment: a lane label is the name of the prices on the pins, so it
-     shrinks its own padding before it gives up a letter. */
+     to a fragment: a lane label is the name of the prices on the pins, so the
+     Tonight chip beside it wraps its label before this chip gives up a letter. */
   .mobileMapDrinkChip {
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    flex: 0 1 auto;
+    flex: 0 0 auto;
     min-width: 0;
     min-height: 44px;
     padding: 6px 14px;
@@ -428,7 +428,7 @@
     max-width: 100%;
     min-width: 0;
     min-height: 44px;
-    padding: 6px 14px;
+    padding: 4px 14px;
     border: 1px solid color-mix(in srgb, var(--color-border) 80%, var(--amber, #d3a44a) 20%);
     border-radius: var(--control-radius, 14px);
     background: color-mix(in srgb, var(--color-surface-raised) 94%, var(--amber, #d3a44a) 6%);
@@ -444,11 +444,27 @@
     border-color: color-mix(in srgb, var(--amber, #d3a44a) 45%, var(--color-border));
     background: color-mix(in srgb, var(--amber, #d3a44a) 16%, var(--color-surface-raised));
   }
+  /* On the narrowest phones the label takes two lines, so it sets tight to
+     keep the chip on the row's 44px height (--mobile-map-chip-row-h). It never
+     narrows past its longest word, so "Tonight" cannot run under the count. */
   .mobileMapTonightChipLabel {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    min-width: min-content;
+    white-space: normal;
+    line-height: var(--leading-tight);
+  }
+  /* The icons and the count keep their natural width: the label wraps, they
+     never squeeze. */
+  .mobileMapDrinkChip > svg,
+  .mobileMapTonightChip > svg,
+  .mobileMapTonightChipCount { flex-shrink: 0; }
+  /* At 320px a long lane name (Alcohol-free, Soft drinks) beside a three-digit
+     Tonight count needs the chips' inner spacing on the 4px step to fit whole. */
+  @media (max-width: 360px) {
+    .mobileMapDrinkChip,
+    .mobileMapTonightChip {
+      padding-inline: var(--space-1);
+      gap: var(--space-1);
+    }
   }
   .mobileMapTonightChipCount {
     min-width: 1.2rem;

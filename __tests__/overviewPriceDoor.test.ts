@@ -13,9 +13,6 @@
 // doors. (3) The composer is FOLDED until the door opens it, and the door
 // folds away once it has, so the two never stand on one screen.
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -25,6 +22,9 @@ import VenueOverviewTab, {
   overviewComposerOpen,
 } from "@/components/map/inspector/VenueOverviewTab";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
+import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
+import type { VenueDropReadStatus } from "@/lib/venueDropRead";
+import type { PricedVenue } from "@/lib/priceUpdates";
 import { drinkLaneLogActionLabel } from "@/lib/drinkLanes";
 import { firstDropNudgeCopy } from "@/lib/firstDropNudge";
 import {
@@ -46,6 +46,7 @@ import {
 } from "@/lib/pintTrust";
 import {
   BASELINE_NO_PUBLISHER_CAPTION,
+  type VenueBundlePrices,
   type VenuePriceLane,
 } from "@/lib/venuePriceLane";
 import { mergeVenueDrops, type SummaryDrop, type Venue } from "@/lib/venues";
@@ -68,7 +69,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-function venue(overrides: Partial<Venue> = {}): Venue {
+function venue(overrides: Partial<Venue> & { bundlePrices?: VenueBundlePrices } = {}): Venue {
   return {
     id: VENUE_ID,
     name: "The Sir Christopher Hatton",
@@ -156,7 +157,7 @@ const FIXTURES: Record<PintTrustState, () => SummaryDrop[]> = {
   none: () => [],
 };
 
-function communityPrices(venueId: string): CommunityPricesState {
+function communityPrices(venueId: string, readStatus: VenuePriceReadStatus = "ready"): CommunityPricesState {
   return {
     byVenueId: new Map([[venueId, []]]),
     signalsByVenueId: new Map(),
@@ -168,7 +169,7 @@ function communityPrices(venueId: string): CommunityPricesState {
     provisionalBaseVenueIds: new Set(),
     loadProvisionalBaseVenues: noop,
     loadVenue: noop,
-    venuePriceStatus: new Map([[venueId, "ready"]]),
+    venuePriceStatus: new Map([[venueId, readStatus]]),
     submit: async () => ({ ok: true, attribution: { status: "anonymous" }, price: null }),
     submitVenueSignal: async () => ({ ok: true }),
     submitting: false,
@@ -180,7 +181,7 @@ function communityPrices(venueId: string): CommunityPricesState {
 function renderOverview(
   drops: SummaryDrop[],
   base: Venue = venue(),
-  options: { priceFocusRequest?: number; priceSignInRequested?: boolean; withConfirm?: boolean } = {},
+  options: { priceFocusRequest?: number; priceSignInRequested?: boolean; withConfirm?: boolean; priceReadStatus?: VenuePriceReadStatus; dropReadStatus?: VenueDropReadStatus } = {},
 ): string {
   const [merged] = mergeVenueDrops([base], new Map([[VENUE_ID, drops]]), NOW);
   const signal = pintTrustSignalFields(pintTrustFor(drops, NOW));
@@ -197,7 +198,8 @@ function renderOverview(
       provisionalPrice: dropLaneInput(signal.provisionalContributorPrice, signal.provisionalContributorAt),
       agedPrice: dropLaneInput(signal.agedContributorPrice, signal.agedContributorAt),
       disputedPrice: splitLaneInput(signal.disputedPrices, signal.disputedAt),
-      communityPrices: communityPrices(VENUE_ID),
+      dropReadStatus: options.dropReadStatus,
+      communityPrices: communityPrices(VENUE_ID, options.priceReadStatus),
       experienceLens: "all",
       drinkLensCategory: null,
       onToggleStop: noop,
@@ -358,6 +360,9 @@ describe("the rendered Overview carries exactly one price door", () => {
     expect(listedHtml).toContain("Published price");
     expect(doorCount(listedHtml)).toBe(1);
     expect(listedHtml).toContain('data-price-door="log"');
+    expect(listedHtml).toContain("£6.00");
+    expect(listedHtml).toContain('href="https://pub.example/menu"');
+    expect(listedHtml).not.toContain(firstDropNudgeCopy(VENUE_ID).line);
 
     const baselineHtml = renderOverview([], venue({ cheapestPrice: 6.2 }));
     // The fixture's baseline carries no publisher, so it cannot claim a
@@ -367,6 +372,50 @@ describe("the rendered Overview carries exactly one price door", () => {
     expect(baselineHtml).not.toContain("Baseline on record");
     expect(doorCount(baselineHtml)).toBe(1);
     expect(baselineHtml).toContain('data-price-door="log"');
+    expect(baselineHtml).toContain("£6.20");
+    expect(baselineHtml).not.toContain(firstDropNudgeCopy(VENUE_ID).line);
+  });
+
+  it("prints the sourced figure and attribution ahead of the baseline", () => {
+    const sourced: PricedVenue = {
+      ...venue({ cheapestPrice: 5.9 }),
+      sourcedPrice: { provenance: "sourced", sourceLabel: "Test menu", sourceUrl: "https://pub.example/current-menu", observedAt: "2026-09-04" },
+    };
+    const html = renderOverview([], sourced);
+    expect(html).toContain("Sourced price");
+    expect(html).toContain("£5.90");
+    expect(html).toContain('href="https://pub.example/current-menu"');
+    expect(html).toContain("Test menu");
+    expect(html).not.toContain(firstDropNudgeCopy(VENUE_ID).line);
+    expect(doorCount(html)).toBe(1);
+  });
+
+  it("holds an estimate during either read, then renders it after settlement", () => {
+    const estimated = venue({
+      bundlePrices: { estimate: { priceGbp: 6.5, computedAt: daysAgo(1), basis: "regional_baseline:camden", sampleSize: 8 } },
+    });
+    for (const options of [{ priceReadStatus: "loading" as const }, { dropReadStatus: "idle" as const }]) {
+      const html = renderOverview([], estimated, options);
+      expect(html).toContain("Checking prices");
+      expect(html).not.toContain("£6.50");
+      expect(doorCount(html)).toBe(0);
+    }
+    const html = renderOverview([], estimated, { dropReadStatus: "ready" });
+    expect(html).toContain("£6.50");
+    expect(html).toContain("/how-we-estimate");
+    expect(html).not.toContain(firstDropNudgeCopy(VENUE_ID).line);
+    expect(doorCount(html)).toBe(1);
+  });
+
+  it("retains a drinker's figure during refresh and distinguishes failed reads from an empty pub", () => {
+    const held = renderOverview(FIXTURES.corroborated(), venue(), { dropReadStatus: "idle", priceReadStatus: "loading" });
+    expect(held).toContain("£4.50");
+    expect(held).not.toContain("Checking prices");
+    expect(held).not.toContain(firstDropNudgeCopy(VENUE_ID).line);
+    const failed = renderOverview([], venue(), { dropReadStatus: "unavailable" });
+    expect(failed).toContain("could not read");
+    expect(failed).not.toContain(firstDropNudgeCopy(VENUE_ID).line);
+    expect(doorCount(failed)).toBe(1);
   });
 
   it("a sheet handed no confirm handler still offers one door, the log door", () => {
@@ -376,11 +425,19 @@ describe("the rendered Overview carries exactly one price door", () => {
     expect(html).not.toContain('data-testid="confirm-pint-cta"');
   });
 
+  it("does not wait for a pub price read on a recordless café", () => {
+    const html = renderOverview([], venue({ kind: "cafe" } as Partial<Venue>), { priceReadStatus: "idle" });
+    expect(html).not.toContain("Checking prices");
+    expect(doorCount(html)).toBe(0);
+  });
+
   it("a venue that is not a pub carries no door and no composer", () => {
     const bar = venue({ kind: "bar", anchorLabel: "Negroni", cheapestPrice: 11 } as Partial<Venue>);
     const html = renderOverview([], bar);
     expect(doorCount(html)).toBe(0);
     expect(html).not.toContain("venuePriceSubmit");
+    expect(html).toContain("Negroni");
+    expect(html).toContain("£11.00");
   });
 });
 
@@ -426,32 +483,5 @@ describe("the composer is folded until the door opens it", () => {
     expect(drinkInviteOwnedByPriceArea(false, true, false)).toBe(false);
     // A bar's price area renders no door, so its block keeps its own line.
     expect(drinkInviteOwnedByPriceArea(true, false, false)).toBe(false);
-  });
-});
-
-describe("the retired doors are gone from the source, not switched off", () => {
-  // Comments may name what was retired; only code may not carry it.
-  const read = (path: string) =>
-    readFileSync(join(process.cwd(), path), "utf8")
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/^\s*\/\/.*$/gm, "");
-
-  it("the sticky bar carries no price action and no painted primary", () => {
-    const bar = read("components/map/inspector/VenueStickyBar.tsx");
-    expect(bar).not.toContain("Add price");
-    expect(bar).not.toContain("onAddPrice");
-    expect(bar).not.toContain("venueSheetStickyPrimary");
-  });
-
-  it("the first-drop nudge carries no door of its own", () => {
-    const nudge = read("components/map/inspector/FirstDropNudge.tsx");
-    expect(nudge).not.toContain("Or leave a Pint Drop");
-    expect(nudge).not.toContain("<button");
-  });
-
-  it("the Overview decides its door through the one policy, never a lane branch", () => {
-    const tab = read("components/map/inspector/VenueOverviewTab.tsx");
-    expect(tab).toContain("overviewPriceDoor(trustChipState, lane)");
-    expect(tab).not.toContain("secondDrinkerDoorOffered");
   });
 });

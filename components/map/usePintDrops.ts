@@ -382,6 +382,11 @@ export function usePintDrops(
   // tell "we could not look" from "nobody has logged one".
   const refreshVenueDrops = useCallback((venueId: string) => {
     let active = true;
+    setVenueDropStatus((current) => {
+      const next = new Map(current);
+      next.set(venueId, "idle");
+      return next;
+    });
     // ONE RULE for both outcomes (lib/venueDropRead.ts), so the failure path
     // cannot quietly grow a second answer.
     const settle = (read: VenueDropRead<DropWithPhotos>) => {

@@ -78,6 +78,11 @@ export function crawlStopsFromPubIds(ids: string[]): string[] {
   return ids.filter(Boolean).slice(0, 3);
 }
 
+/** Keep the map's pins while the reader edits a search, with other filters intact. */
+export function mapPinFilters(filters: Filters): Filters {
+  return filters.query ? { ...filters, query: "" } : filters;
+}
+
 // Issue #31: fold a curated crawl's style choices onto the current filters. A
 // mocktail crawl composes with the non-alcoholic filter — the honest, minimal
 // way an alt style touches the actual route. Module-level (pure) so the branch
@@ -235,8 +240,8 @@ export function mapSelectionNotice(input: {
 /**
  * A restored `?sel=venue-uk-*` arrival. The `at=` hint scopes the cold shard
  * fetch to one cell and seeds the camera, but the id alone is enough to ask
- * `/api/uk-base/[id]`: the map's own session restore and an old shared link
- * both carry the id with no hint, and neither may be left on a skeleton.
+ * `/api/uk-base/[id]`. An old shared link can carry the id with no hint and
+ * must not leave the reader on a skeleton.
  */
 export type UkBaseRestore = {
   id: string;
@@ -809,7 +814,7 @@ export function restoredSessionFrame<NightAreaSlug extends string = string>(inpu
   return {
     loadedCityId: resumeSeed ? cityId : null,
     resumeViewport: resumeSeed?.viewport ?? null,
-    selectedVenueId: seed.selectedVenueId || restoredSession?.selectedVenueId || "",
+    selectedVenueId: seed.selectedVenueId || "",
     filters: restoredSession?.filters ?? seed.filters,
     landmarkId: seed.landmarkId ?? "",
     nightArea: restoredSession?.nightArea ?? null,
