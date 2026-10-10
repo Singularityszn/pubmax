@@ -296,5 +296,6 @@ test("the phone create action leaves pub recommendation text readable", async ({
       return covered;
     });
     expect(coveredText, `Pub text covered at ${width}px`).toEqual([]);
+    await page.screenshot({ path: test.info().outputPath(`tonight-create-clearance-${width}.png`), fullPage: true });
   }
 });

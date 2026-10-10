@@ -57,6 +57,7 @@ import {
   venueSourcedPrice,
 } from "@/lib/venuePriceLane";
 import { dropLaneInput, splitLaneInput } from "@/lib/pintTrust";
+import { DROP_READ_UNAVAILABLE_LINE, firstDropNudgeMayClaimAbsence } from "@/lib/firstDropNudge";
 import {
   isMapSearchField,
   typedSearchCameraMove,
@@ -5836,6 +5837,10 @@ export default function PubMap({
               </strong>
             )}
             <small>{peekPrice.caption}</small>
+          </span>
+        ) : selectedVenueIsPub && !firstDropNudgeMayClaimAbsence(pintDrops.venueDropStatus.get(selectedVenue.id)) ? (
+          <span role="status">
+            <small>{DROP_READ_UNAVAILABLE_LINE}</small>
           </span>
         ) : selectedVenueIsPub ? (
           <button

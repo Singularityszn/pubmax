@@ -25,7 +25,7 @@ test("the phone map names listing rows and keeps the label readable", async ({ p
     localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
   });
   await page.route("**/api/whats-on?**", (route) => route.fulfill({
-    json: { rows: [listing(0), listing(1), listing(2)], asOf: null },
+    json: { servedAt: new Date().toISOString(), rows: [listing(0), listing(1), listing(2)], asOf: null },
   }));
 
   for (const width of [320, 390, 430]) {
@@ -63,7 +63,7 @@ test("the longest drink lanes keep a three-digit Tonight count whole on a 320px 
     localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
   });
   await page.route("**/api/whats-on?**", (route) => route.fulfill({
-    json: { rows: Array.from({ length: 132 }, (_, index) => listing(index)), asOf: null },
+    json: { servedAt: new Date().toISOString(), rows: Array.from({ length: 132 }, (_, index) => listing(index)), asOf: null },
   }));
 
   const lanes = [
@@ -123,6 +123,7 @@ test("the longest drink lanes keep a three-digit Tonight count whole on a 320px 
       if (tfl) {
         expect(tonight.right, `Tonight chip clear of TfL, ${where}`).toBeLessThanOrEqual(tfl.left);
       }
+      await page.screenshot({ path: test.info().outputPath(`map-${lane.drink}-${width}.png`) });
     }
   }
 });

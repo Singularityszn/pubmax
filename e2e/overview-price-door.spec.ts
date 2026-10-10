@@ -173,12 +173,28 @@ test("keeps the price neutral until the selected pub's drops answer", async ({ p
     await expect(peek).toContainText("Checking prices", { timeout: 10_000 });
     await expect(peek).not.toContainText(/est\.|No price yet/);
     await expect(sheet.locator(".venueInspector")).not.toContainText(/est\. £/);
+    await page.screenshot({ path: test.info().outputPath("price-pending.png") });
     releaseRead();
     await expect(peek).toContainText("£4.70", { timeout: 20_000 });
     await expect(peek).not.toContainText("Checking prices");
+    await page.screenshot({ path: test.info().outputPath("price-settled.png") });
   } finally {
     releaseRead();
   }
+});
+
+test("a failed pub price read ends checking and names the unavailable read", async ({ page }) => {
+  await page.route("**/api/price-submit**", (route) => route.fulfill({ json: { prices: [], signals: [] } }));
+  await page.route("**/api/pint-drops**", (route) => route.fulfill({ status: 503, json: { error: "Fixture unavailable" } }));
+  await page.goto(`/map?sel=${UNPRICED}`);
+  const sheet = await openVenueSheet(page);
+  await expect(sheet.locator(".venueInspector")).toContainText("could not read", { timeout: 20_000 });
+  await expect(sheet.locator(".venueInspector")).not.toContainText("Checking prices");
+  await expect(sheet.locator(".mobileVenuePeekSummary")).not.toContainText("Checking prices");
+  await expect(sheet.locator(".mobileVenuePeekSummary")).toContainText("could not read");
+  await expect(sheet.locator(".mobileVenuePeekDrop")).toHaveCount(0);
+  await page.screenshot({ path: test.info().outputPath("price-read-unavailable.png") });
+  await expect(sheet.locator(".mobileVenuePeekSummary")).not.toContainText(/No price yet|Be the first/);
 });
 
 const refreshViews = [
@@ -187,10 +203,11 @@ const refreshViews = [
     category,
     query: "experience=no-alcohol",
   })),
+  { category: "beer", query: "", failRefresh: true } as const,
 ];
 
 for (const view of refreshViews) {
-  test(`${view.query} (${view.category}): keeps the observed price while reopening a pub`, async ({ page }) => {
+  test(`${view.query || "default pint view, unavailable refresh"} (${view.category}): keeps the observed price while reopening a pub`, async ({ page }) => {
     const price = {
       venueId: HATTON,
       drinkCategory: view.category,
@@ -213,6 +230,10 @@ for (const view of refreshViews) {
       if (holdRefresh && selected) {
         readStarted();
         await heldRead;
+        if ("failRefresh" in view && view.failRefresh) {
+          await route.fulfill({ status: 503, json: { error: "Fixture unavailable" } });
+          return;
+        }
       }
       await route.fulfill({ json: { drops: selected && view.category === "beer" ? [row({ priceGbp: 2.5 })] : [] } });
     });
