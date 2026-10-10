@@ -608,14 +608,25 @@ export async function GET(request: Request): Promise<Response> {
     // to London when omitted or unrecognised.
     const author = params.get("author") ?? undefined;
     const cityId = parseCityId(params.get("city")) ?? undefined;
-    const drops = await pintDropsStore().listVisible(
+    const store = pintDropsStore();
+    const drops = await store.listVisible(
       params.get("venueId") ?? undefined,
       viewer,
       author,
       cityId,
     );
     const enriched = await enrichItemsWithAvatarUrls(await withVenueNames(drops));
-    return jsonNoStore({ drops: enriched }, { status: 200 });
+    // Geography uses the complete attributed history, independently of the feed cap.
+    // A failed page fails this response rather than publishing a partial lifetime count.
+    let passportAreas: string[] | undefined;
+    if (author) {
+      const venueIds = await store.listVisibleAuthorVenueIds(
+        author, viewer, cityId, params.get("venueId") ?? undefined,
+      );
+      const venues = await withVenueNames(venueIds.map((venueId) => ({ venueId })));
+      passportAreas = [...new Set(venues.flatMap((venue) => venue.borough ? [venue.borough] : []))].sort();
+    }
+    return jsonNoStore({ drops: enriched, ...(passportAreas ? { passportAreas } : {}) }, { status: 200 });
   } catch (err) {
     log("error", "pint_drops.list_visible_failed", {
       route: "GET /api/pint-drops",
