@@ -16,6 +16,7 @@ import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { enrichItemsWithAvatarUrls } from "@/lib/avatarResolve";
 import { parseCityId } from "@/lib/cities";
+import { cityIdFromVenueId } from "@/lib/cityVenueIds";
 import { RECEIPT_REQUIRED_LINE, priceNeedsReceipt } from "@/lib/pintDropReceipt";
 import { resolveViewerContextFromRequest } from "@/lib/pintDropViewer";
 import { log } from "@/lib/log";
@@ -48,9 +49,9 @@ import { signalPintDropLanded } from "@/lib/pintDropsBroadcast.server";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp, requiresSupabaseStore, isSupabaseConfigured } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
-import { loadVenueAliasResolver } from "@/lib/venueAliases";
+import { loadVenueAliasResolver, lookupCanonicalVenueId } from "@/lib/venueAliases";
 import { storedVenueName, storedVenueRef } from "@/lib/storedVenueRef";
-import { getVenueIndex, lookupCanonicalVenue, venueMapUrl } from "@/lib/venueIndex";
+import { getVenueIndex, getVenueIndexSnapshot, lookupCanonicalVenue, venueMapUrl } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 
 // Fail fast at module load: a misconfigured production deploy (no Supabase)
@@ -608,9 +609,18 @@ export async function GET(request: Request): Promise<Response> {
     // to London when omitted or unrecognised.
     const author = params.get("author") ?? undefined;
     const cityId = parseCityId(params.get("city")) ?? undefined;
+    const venueId = params.get("venueId") ?? undefined;
+    if (author) {
+      const [snapshot, canonical] = await Promise.all([
+        getVenueIndexSnapshot(), lookupCanonicalVenueId(venueId ?? ""),
+      ]);
+      if (canonical.status === "unavailable") return storageUnavailable();
+      const geographyCity = venueId ? cityIdFromVenueId(canonical.venueId) ?? "london" : cityId ?? "london";
+      if (!snapshot.loadedCities.has(geographyCity)) return storageUnavailable();
+    }
     const store = pintDropsStore();
     const drops = await store.listVisible(
-      params.get("venueId") ?? undefined,
+      venueId,
       viewer,
       author,
       cityId,
@@ -621,7 +631,7 @@ export async function GET(request: Request): Promise<Response> {
     let passportAreas: string[] | undefined;
     if (author) {
       const venueIds = await store.listVisibleAuthorVenueIds(
-        author, viewer, cityId, params.get("venueId") ?? undefined,
+        author, viewer, cityId, venueId,
       );
       const venues = await withVenueNames(venueIds.map((venueId) => ({ venueId })));
       passportAreas = [...new Set(venues.flatMap((venue) => venue.borough ? [venue.borough] : []))].sort();

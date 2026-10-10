@@ -71,6 +71,9 @@ import {
 import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
 import { __resetPintDrops, addPintDrop, type PintDrop, type ViewerContext } from "@/lib/pintDrops";
 import { memoryPintDropStore, supabasePintDropStore } from "@/lib/pintDropsStore";
+import { buildPassport } from "@/lib/passport";
+import { buildPassportShareText } from "@/lib/shareArtifacts";
+import { getVenueIndex } from "@/lib/venueIndex";
 
 const author = "geography_author";
 function seed(index: number, overrides: Partial<PintDrop> = {}): PintDrop {
@@ -119,9 +122,32 @@ for (const [name, store] of [["memory", memoryPintDropStore], ["Supabase", supab
     });
 
     it("continues past a full page that is invisible to this viewer", async () => {
-      for (let i = 0; i < 500; i++) seed(i, { visibility: "friends", venueId: "venue-wrpmzq" });
+      for (let i = 0; i < 500; i++) seed(i, {
+        visibility: "friends", venueId: "venue-wrpmzq", createdAt: "2026-02-01T00:00:00.000Z",
+      });
       seed(500);
-      expect(await store.listVisibleAuthorVenueIds(author)).toEqual(["venue-eltcmh"]);
+      const venueIds = await store.listVisibleAuthorVenueIds(author);
+      expect(venueIds).toEqual(["venue-eltcmh"]);
+      const index = await getVenueIndex();
+      const areas = venueIds.map((id) => index.get(id)!.borough);
+      expect(areas).toEqual(["City of London"]);
+      const timeline = await store.listVisible(undefined, undefined, author);
+      expect(timeline).toHaveLength(name === "Supabase" ? 0 : 1);
+      const bounded = buildPassport(timeline);
+      const passport = buildPassport(timeline, { areas, crawls: 0, storyPosts: 0 });
+      expect(passport.boroughs).toEqual(["City of London"]);
+      expect(passport.isEmpty).toBe(false);
+      expect(passport.pubs).toBe(bounded.pubs);
+      expect(passport.pints).toBe(bounded.pints);
+      expect(passport.beers).toBe(bounded.beers);
+      expect(passport.badges).toEqual(bounded.badges);
+      expect(passport.cheapestPintGbp).toBe(bounded.cheapestPintGbp);
+      expect(passport.crawls).toBe(0);
+      expect(passport.storyPosts).toBe(0);
+      expect(buildPassportShareText({
+        displayName: "Local", pubs: passport.pubs, boroughs: passport.boroughs.length,
+        cityVisited: true, pints: passport.pints, isEmpty: passport.isEmpty,
+      })).toContain("the City of London");
     });
 
     it("preserves friend gates, withheld attribution, ledger exclusion and city scope", async () => {

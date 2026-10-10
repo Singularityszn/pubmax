@@ -165,10 +165,11 @@ export function buildPassport(
     .filter((progress) => progress.earned)
     .map((progress) => progress.badge);
   const storyPosts = countOrUnknown(counts.storyPosts);
+  const boroughs = counts.areas ? [...new Set(counts.areas)].sort() : stats.boroughs ?? [];
 
   return {
     pubs: distinctPubs(list),
-    boroughs: counts.areas ? [...new Set(counts.areas)].sort() : stats.boroughs ?? [],
+    boroughs,
     beers: distinctBeers(list),
     crawls,
     pints: stats.pintsLogged,
@@ -181,6 +182,6 @@ export function buildPassport(
     // passport is about what YOU did, so a fresh handle reads as empty. An
     // UNMEASURED count is not a zero, so it holds the blank-passport copy back
     // rather than telling an author with twelve crawls to start collecting.
-    isEmpty: list.length === 0 && crawls === 0 && storyPosts === 0,
+    isEmpty: list.length === 0 && boroughs.length === 0 && crawls === 0 && storyPosts === 0,
   };
 }
