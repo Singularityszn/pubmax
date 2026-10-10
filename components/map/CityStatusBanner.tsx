@@ -248,8 +248,6 @@ export default function CityStatusBanner({ cityId, viewedArea = null, allowCityw
   const isLondon = cityId === "london" || cityId === undefined;
   const [data, setData] = useState<StatusResponse | null>(null);
   const [dismissed, setDismissed] = useState<boolean>(false);
-  // A4 — whether the full signals sheet is open. Collapses on Escape and on
-  // each fresh fetch (setData below always starts collapsed).
   const [expanded, setExpanded] = useState(false);
   const [expandedArea, setExpandedArea] = useState(viewedArea);
   if (expandedArea !== viewedArea) {
@@ -365,9 +363,8 @@ export default function CityStatusBanner({ cityId, viewedArea = null, allowCityw
         aria-live="polite"
       >
         {hasDetails ? (
-          /* A4: a signal headline now opens the FULL feed rather than jumping to
-             one source; identical class/children so the pill looks unchanged at
-             rest. Per-signal source links live inside the sheet. */
+          /* Keep the same class and children so the button preserves the
+             pill's appearance. Source links belong in the expanded feed. */
           <button
             type="button"
             className="cityStatusBannerLink"
