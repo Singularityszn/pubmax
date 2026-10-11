@@ -797,9 +797,8 @@
      not fit beside it, the label on its own line under it. A lens category
      always fits that line whole; only an anchor or dish name longer than the
      line ends in an ellipsis there (its full name is in the accessible name
-     and the venue sheet). Every size here is rem, as --map-peek-row-h is, so
-     two eyebrow lines and the figure line fill the answer row exactly at any
-     root font size and the text scale applies once. */
+     and the venue sheet). WebKit already enlarges font sizes and line heights.
+     Only fixed layout lengths need the separately published iOS scale. */
   .mapPeekEyebrow {
     display: flex;
     flex-wrap: wrap;
@@ -825,7 +824,7 @@
     align-items: baseline;
     gap: 8px;
     min-width: 0;
-    height: 1rem;
+    height: calc(1rem * var(--native-text-layout-scale, 1));
     line-height: 1rem;
   }
   /* The line is the figure, the name and the walk, each a direct flex item.
